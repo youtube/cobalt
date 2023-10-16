@@ -55,8 +55,6 @@ static_library("loader") {
     "image/image_data_decoder.h",
     "image/image_decoder.cc",
     "image/image_decoder.h",
-    "image/image_decoder_starboard.cc",
-    "image/image_decoder_starboard.h",
     "image/image_encoder.cc",
     "image/image_encoder.h",
     "image/jpeg_image_decoder.cc",

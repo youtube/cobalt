@@ -22,6 +22,10 @@ deprecated.
 The APIs defined in `starboard/byte_swap.h` are no longer used and have been
 deprecated.
 
+### Removed SbImageDecode and SbImageIsDecodeSupported
+The APIs defined in `starboard/image.h` are no longer used and have been
+deprecated.
+
 ## Version 15
 
 ### SbMemoryReporter is no longer used

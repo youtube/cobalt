@@ -30,7 +30,9 @@
 #include "starboard/event.h"
 #include "starboard/file.h"
 #include "starboard/gles.h"
+#if SB_API_VERSION < 16
 #include "starboard/image.h"
+#endif  // SB_API_VERSION < 16
 #include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/memory_reporter.h"
@@ -153,8 +155,10 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbFileWrite);
   REGISTER_SYMBOL(SbGetEglInterface);
   REGISTER_SYMBOL(SbGetGlesInterface);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbImageDecode);
   REGISTER_SYMBOL(SbImageIsDecodeSupported);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbLog);
   REGISTER_SYMBOL(SbLogFlush);
   REGISTER_SYMBOL(SbLogFormat);
