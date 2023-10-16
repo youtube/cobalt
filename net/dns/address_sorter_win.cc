@@ -62,9 +62,9 @@ class AddressSorterWin : public AddressSorter {
                        list.size() *
                            (sizeof(SOCKET_ADDRESS) + sizeof(SOCKADDR_STORAGE))),
           input_buffer_(reinterpret_cast<SOCKET_ADDRESS_LIST*>(
-              SbMemoryAllocate(buffer_size_))),
+              malloc(buffer_size_))),
           output_buffer_(reinterpret_cast<SOCKET_ADDRESS_LIST*>(
-              SbMemoryAllocate(buffer_size_))),
+              malloc(buffer_size_))),
           success_(false) {
       input_buffer_->iAddressCount = list.size();
       SOCKADDR_STORAGE* storage = reinterpret_cast<SOCKADDR_STORAGE*>(

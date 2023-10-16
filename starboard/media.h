@@ -719,7 +719,7 @@ SB_EXPORT int SbMediaGetBufferAlignment(SbMediaType type);
 // This can return 0, in which case the media stack will allocate extra memory
 // on demand.  When SbMediaGetInitialBufferCapacity and this function both
 // return 0, the media stack will allocate individual buffers directly using
-// SbMemory functions.
+// malloc functions.
 SB_EXPORT int SbMediaGetBufferAllocationUnit();
 
 // Specifies the maximum amount of memory used by audio buffers of media source
@@ -801,7 +801,7 @@ SB_EXPORT int SbMediaGetProgressiveBufferBudget(SbMediaVideoCodec codec,
 
 // Returns SbMediaBufferStorageType of type |SbMediaStorageTypeMemory| or
 // |SbMediaStorageTypeFile|. For memory storage, the media buffers will be
-// stored in main memory allocated by SbMemory functions.  For file storage, the
+// stored in main memory allocated by malloc functions.  For file storage, the
 // media buffers will be stored in a temporary file in the system cache folder
 // acquired by calling SbSystemGetPath() with "kSbSystemPathCacheDirectory".
 // Note that when its value is "file" the media stack will still allocate memory
@@ -809,7 +809,7 @@ SB_EXPORT int SbMediaGetProgressiveBufferBudget(SbMediaVideoCodec codec,
 SB_EXPORT SbMediaBufferStorageType SbMediaGetBufferStorageType();
 
 // If SbMediaGetBufferUsingMemoryPool returns true, it indicates that media
-// buffer pools should be allocated on demand, as opposed to using SbMemory*
+// buffer pools should be allocated on demand, as opposed to using malloc
 // functions.
 SB_EXPORT bool SbMediaIsBufferUsingMemoryPool();
 

@@ -44,7 +44,7 @@ AAssetManager* g_asset_manager;
 const char* DuplicateJavaString(JniEnvExt* env, jstring j_string) {
   SB_DCHECK(j_string);
   std::string utf_str = env->GetStringStandardUTFOrAbort(j_string);
-  const char* result = SbStringDuplicate(utf_str.c_str());
+  const char* result = strdup(utf_str.c_str());
   return result;
 }
 
@@ -94,12 +94,12 @@ void SbFileAndroidTeardown() {
   }
 
   if (g_app_files_dir) {
-    SbMemoryDeallocate(const_cast<char*>(g_app_files_dir));
+    free(const_cast<char*>(g_app_files_dir));
     g_app_files_dir = NULL;
   }
 
   if (g_app_cache_dir) {
-    SbMemoryDeallocate(const_cast<char*>(g_app_cache_dir));
+    free(const_cast<char*>(g_app_cache_dir));
     g_app_cache_dir = NULL;
   }
 }

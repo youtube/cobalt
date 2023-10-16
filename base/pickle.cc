@@ -268,7 +268,7 @@ Pickle::Pickle(const Pickle& other)
 
 Pickle::~Pickle() {
   if (capacity_after_header_ != kCapacityReadOnly)
-    SbMemoryDeallocate(header_);
+    free(header_);
 }
 
 Pickle& Pickle::operator=(const Pickle& other) {
@@ -280,7 +280,7 @@ Pickle& Pickle::operator=(const Pickle& other) {
     capacity_after_header_ = 0;
   }
   if (header_size_ != other.header_size_) {
-    SbMemoryDeallocate(header_);
+    free(header_);
     header_ = nullptr;
     header_size_ = other.header_size_;
   }
@@ -339,7 +339,7 @@ bool Pickle::HasAttachments() const {
 void Pickle::Resize(size_t new_capacity) {
   CHECK_NE(capacity_after_header_, kCapacityReadOnly);
   capacity_after_header_ = bits::Align(new_capacity, kPayloadUnit);
-  void* p = SbMemoryReallocate(header_, GetTotalAllocatedSize());
+  void* p = realloc(header_, GetTotalAllocatedSize());
   CHECK(p);
   header_ = reinterpret_cast<Header*>(p);
 }

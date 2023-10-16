@@ -141,11 +141,11 @@ void GrowableIOBuffer::SetCapacity(int capacity) {
   // on many platforms, since it may return nullptr while also not deallocating
   // the previously allocated memory.
   if (real_data_ && capacity == 0) {
-    SbMemoryDeallocate(real_data_.release());
+    free(real_data_.release());
     real_data_.reset();
   } else {
     real_data_.reset(
-        static_cast<char*>(SbMemoryReallocate(real_data_.release(), capacity)));
+        static_cast<char*>(realloc(real_data_.release(), capacity)));
   }
   capacity_ = capacity;
   if (offset_ > capacity)

@@ -368,11 +368,11 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         if (state() == kStateUnstarted) {
           SetStartLink(deep_link);
           SB_LOG(INFO) << "ApplicationAndroid SetStartLink";
-          SbMemoryDeallocate(static_cast<void*>(deep_link));
+          free(static_cast<void*>(deep_link));
         } else {
           SB_LOG(INFO) << "ApplicationAndroid Inject: kSbEventTypeLink";
           Inject(new Event(kSbEventTypeLink, SbTimeGetMonotonicNow(), deep_link,
-                           SbMemoryDeallocate));
+                           free));
         }
       }
       break;
@@ -586,7 +586,7 @@ void DeleteSbInputDataWithText(void* ptr) {
 
 void ApplicationAndroid::SbWindowSendInputEvent(const char* input_text,
                                                 bool is_composing) {
-  char* text = SbStringDuplicate(input_text);
+  char* text = strdup(input_text);
   SbInputData* data = new SbInputData();
   memset(data, 0, sizeof(*data));
   data->window = window_;
@@ -622,7 +622,7 @@ void ApplicationAndroid::HandleDeepLink(const char* link_url) {
   if (link_url == NULL || link_url[0] == '\0') {
     return;
   }
-  char* deep_link = SbStringDuplicate(link_url);
+  char* deep_link = strdup(link_url);
   SB_DCHECK(deep_link);
 
   SendAndroidCommand(AndroidCommand::kDeepLink, deep_link);

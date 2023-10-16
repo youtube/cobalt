@@ -15,6 +15,7 @@
 #include <iomanip>
 #include <string>
 
+#include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"

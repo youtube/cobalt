@@ -120,7 +120,7 @@ BASE_EXPORT void* AlignedAlloc(size_t size, size_t alignment);
 
 inline void AlignedFree(void* ptr) {
 #if defined(STARBOARD)
-  SbMemoryDeallocateAligned(ptr);
+  free(ptr);
 #else
 #if defined(COMPILER_MSVC)
   _aligned_free(ptr);

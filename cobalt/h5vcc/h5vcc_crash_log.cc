@@ -110,7 +110,8 @@ void H5vccCrashLog::TriggerCrash(H5vccCrashType intent) {
     SbSystemBreakIntoDebugger();
   }
   if (intent == kH5vccCrashTypeOutOfMemory) {
-    SbMemoryAllocateAligned(128, SIZE_MAX);
+    void* p = nullptr;
+    posix_memalign(&p, 128, SIZE_MAX);
   }
 }
 

@@ -9,6 +9,13 @@ since the version previous to it.
 
 ## Version 16
 
+### Deprecated SbMemory allocation APIs and migrated to POSIX memory APIs
+The memory management APIs `SbMemoryAllocate`, `SbMemoryReallocate`,
+`SbMemoryCalloc`, `SbMemoryAllocateAligned`, `SbMemoryDeallocate`,
+`SbMemoryDeallocateAligned` `SbStringDuplicate` are deprecated and the
+standard APIs `malloc`, `realloc`, `calloc`, `posix_memalign`, `free`
+from `<stdlib.h>` and `strdup` from `<string.h>` should be used instead.
+
 ### Removed SbUser from SbStorageOpenRecord and SbStorageDeleteRecord
 The `SbStorageOpenRecord` and `SbStorageDeleteRecord` APIs defined in
 `starboard/storage.h` no longer have a parameter for `SbUser` as the APIs are

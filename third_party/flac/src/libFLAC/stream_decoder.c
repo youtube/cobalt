@@ -43,13 +43,15 @@
 #include <fcntl.h> /* for _O_BINARY */
 #endif
 #include <stdio.h>
-#include <stdlib.h> /* for malloc() */
 #include <string.h> /* for memset/memcpy() */
 #include <sys/stat.h> /* for stat() */
 #include <sys/types.h> /* for off_t */
 #endif  // STARBOARD
 #include "starboard/client_porting/poem/stdio_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
+
+#include <stdlib.h> /* for malloc() */
+
 #if defined _MSC_VER || defined __BORLANDC__ || defined __MINGW32__
 #if _MSC_VER <= 1600 || defined __BORLANDC__ /* @@@ [2G limit] */
 #define fseeko fseek

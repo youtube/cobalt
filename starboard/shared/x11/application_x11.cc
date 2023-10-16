@@ -16,6 +16,7 @@
 
 #include <math.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #define XK_3270  // for XK_3270_BackTab
 #include <X11/XF86keysym.h>
@@ -33,7 +34,6 @@
 #include "starboard/event.h"
 #include "starboard/input.h"
 #include "starboard/key.h"
-#include "starboard/memory.h"
 #include "starboard/player.h"
 #include "starboard/shared/linux/system_network_status.h"
 #include "starboard/shared/posix/time_internal.h"
@@ -1296,7 +1296,7 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
     case MotionNotify: {
       XMotionEvent* x_motion_event = reinterpret_cast<XMotionEvent*>(x_event);
       scoped_ptr<SbInputData> data(new SbInputData());
-      memset(data.get(), 0, sizeof(*data));
+      memset(reinterpret_cast<void*>(data.get()), 0, sizeof(*data));
       data->window = FindWindow(x_motion_event->window);
       SB_DCHECK(SbWindowIsValid(data->window));
       data->pressure = NAN;

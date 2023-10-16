@@ -59,7 +59,7 @@ int min_heap_elem_greater(struct event *a, struct event *b)
 void min_heap_ctor(min_heap_t* s) { s->p = 0; s->n = 0; s->a = 0; }
 void min_heap_dtor(min_heap_t* s) {
   if (s->p)
-    SbMemoryDeallocate(s->p);
+    free(s->p);
 }
 void min_heap_elem_init(struct event* e) { e->min_heap_idx = -1; }
 int min_heap_empty(min_heap_t* s) { return 0u == s->n; }
@@ -115,7 +115,7 @@ int min_heap_reserve(min_heap_t* s, unsigned n)
         unsigned a = s->a ? s->a * 2 : 8;
         if(a < n)
             a = n;
-        if (!(p = (struct event**)SbMemoryReallocate(s->p, a * sizeof *p)))
+        if (!(p = (struct event**)realloc(s->p, a * sizeof *p)))
           return -1;
         s->p = p;
         s->a = a;

@@ -167,7 +167,7 @@ class BrotliSourceStream : public FilterSourceStream {
 
   void* AllocateMemoryInternal(size_t size) {
     size_t* array =
-        reinterpret_cast<size_t*>(SbMemoryAllocate(size + sizeof(size_t)));
+        reinterpret_cast<size_t*>(malloc(size + sizeof(size_t)));
     if (!array)
       return nullptr;
     used_memory_ += size;
@@ -182,7 +182,7 @@ class BrotliSourceStream : public FilterSourceStream {
       return;
     size_t* array = reinterpret_cast<size_t*>(address);
     used_memory_ -= array[-1];
-    SbMemoryDeallocate(&array[-1]);
+    free(&array[-1]);
   }
 
   BrotliDecoderState* brotli_state_;

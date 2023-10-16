@@ -13,9 +13,6 @@
 
 #if defined(STARBOARD)
 #include "starboard/memory.h"
-#define malloc SbMemoryAllocate
-#define realloc SbMemoryReallocate
-#define free SbMemoryDeallocate
 #endif
 
 static inline void* add_to_pointer(void* pointer, size_t amount) {

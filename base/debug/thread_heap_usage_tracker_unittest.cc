@@ -137,7 +137,7 @@ class ThreadHeapUsageTrackerTest : public testing::Test {
                          void* context) {
     EXPECT_EQ(&g_mock_dispatch, self);
 
-    void* ret = SbMemoryAllocate(size);
+    void* ret = malloc(size);
     g_self->RecordAlloc(ret, size);
     return ret;
   }
@@ -161,7 +161,7 @@ class ThreadHeapUsageTrackerTest : public testing::Test {
 
     // This is a cheat as it doesn't return aligned allocations. This has the
     // advantage of working for all platforms for this test.
-    void* ret = SbMemoryAllocate(size);
+    void* ret = malloc(size);
     g_self->RecordAlloc(ret, size);
     return ret;
   }
@@ -173,7 +173,7 @@ class ThreadHeapUsageTrackerTest : public testing::Test {
     EXPECT_EQ(&g_mock_dispatch, self);
 
     g_self->DeleteAlloc(address);
-    void* ret = SbMemoryReallocate(address, size);
+    void* ret = realloc(address, size);
     g_self->RecordAlloc(ret, size);
     return ret;
   }
@@ -184,7 +184,7 @@ class ThreadHeapUsageTrackerTest : public testing::Test {
     EXPECT_EQ(&g_mock_dispatch, self);
 
     g_self->DeleteAlloc(address);
-    SbMemoryDeallocate(address);
+    free(address);
   }
 
   static size_t OnGetSizeEstimateFn(const AllocatorDispatch* self,
@@ -576,12 +576,12 @@ TEST_F(ThreadHeapUsageShimTest, HooksIntoMallocWhenShimAvailable) {
   usage_tracker.Start();
 
   ThreadHeapUsage u1 = ThreadHeapUsageTracker::GetUsageSnapshot();
-  void* ptr = SbMemoryAllocate(kAllocSize);
+  void* ptr = malloc(kAllocSize);
   // Prevent the compiler from optimizing out the malloc/free pair.
   ASSERT_NE(nullptr, ptr);
 
   ThreadHeapUsage u2 = ThreadHeapUsageTracker::GetUsageSnapshot();
-  SbMemoryDeallocate(ptr);
+  free(ptr);
 
   usage_tracker.Stop(false);
   ThreadHeapUsage u3 = usage_tracker.usage();

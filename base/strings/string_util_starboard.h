@@ -25,10 +25,6 @@
 
 namespace base {
 
-inline char* strdup(const char* str) {
-  return SbStringDuplicate(str);
-}
-
 inline int strcasecmp(const char* string1, const char* string2) {
   return SbStringCompareNoCase(string1, string2);
 }

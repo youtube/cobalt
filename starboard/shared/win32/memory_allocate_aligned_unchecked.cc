@@ -16,6 +16,8 @@
 
 #include <malloc.h>
 
+#if SB_API_VERSION < 16
 void* SbMemoryAllocateAlignedUnchecked(size_t alignment, size_t size) {
   return _aligned_malloc(size, alignment);
 }
+#endif  // SB_API_VERSION < 16

@@ -235,14 +235,6 @@ namespace at the starboard repository root.
 
 ### Implementations
 
-  * Each API implementation should attempt to minimize other platform
-    assumptions, and should therefore use Starboard APIs to accomplish
-    platform-specific work unless directly related to the platform functionality
-    being implemented.
-        * For example, `SbFile` can use POSIX file I/O, because that what it is
-          abstracting, but it should use `SbMemoryAllocate` for any memory
-          allocations, because it might be used with a variety of `SbMemory`
-          implementations.
   * Whenever possible, each shared function implementation should be implemented
     in an individual file so as to maximize the chances of reuse between
     implementations.

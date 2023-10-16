@@ -23,11 +23,11 @@ using std::min;
 // implementation of the allocator. Otherwise, the compiler may specifically
 // recognize the calls to malloc and free in our tests and optimize them away.
 NOINLINE void* TCMallocDoMallocForTest(size_t size) {
-  return SbMemoryAllocate(size);
+  return malloc(size);
 }
 
 NOINLINE void TCMallocDoFreeForTest(void* ptr) {
-  SbMemoryDeallocate(ptr);
+  free(ptr);
 }
 #endif
 
@@ -83,7 +83,7 @@ static void TestCalloc(size_t n, size_t s, bool ok) {
     for (size_t i = 0; i < n * s; i++) {
       EXPECT_EQ('\0', p[i]);
     }
-    SbMemoryDeallocate(p);
+    free(p);
   }
 }
 
@@ -97,12 +97,12 @@ TEST(TCMallocTest, Malloc) {
   // Try allocating data with a bunch of alignments and sizes
   for (int size = 1; size < 1048576; size *= 2) {
     unsigned char* ptr =
-        reinterpret_cast<unsigned char*>(SbMemoryAllocate(size));
+        reinterpret_cast<unsigned char*>(malloc(size));
     // Should be 2 byte aligned
     EXPECT_EQ(0u, reinterpret_cast<uintptr_t>(ptr) & 1);
     Fill(ptr, size);
     EXPECT_TRUE(Valid(ptr, size));
-    SbMemoryDeallocate(ptr);
+    free(ptr);
   }
 }
 
@@ -128,19 +128,19 @@ TEST(TCMallocTest, ReallocSmallDelta) {
   int deltas[] = {1, -2, 4, -8, 16, -32, 64, -128};
 
   for (unsigned s = 0; s < sizeof(start_sizes) / sizeof(*start_sizes); ++s) {
-    void* p = SbMemoryAllocate(start_sizes[s]);
+    void* p = malloc(start_sizes[s]);
     ASSERT_TRUE(p);
     // The larger the start-size, the larger the non-reallocing delta.
     for (unsigned d = 0; d < s * 2; ++d) {
-      void* new_p = SbMemoryReallocate(p, start_sizes[s] + deltas[d]);
+      void* new_p = realloc(p, start_sizes[s] + deltas[d]);
       ASSERT_EQ(p, new_p);  // realloc should not allocate new memory
     }
     // Test again, but this time reallocing smaller first.
     for (unsigned d = 0; d < s * 2; ++d) {
-      void* new_p = SbMemoryReallocate(p, start_sizes[s] - deltas[d]);
+      void* new_p = realloc(p, start_sizes[s] - deltas[d]);
       ASSERT_EQ(p, new_p);  // realloc should not allocate new memory
     }
-    SbMemoryDeallocate(p);
+    free(p);
   }
 }
 #endif
@@ -149,15 +149,15 @@ TEST(TCMallocTest, Realloc) {
   for (int src_size = 0; src_size >= 0; src_size = NextSize(src_size)) {
     for (int dst_size = 0; dst_size >= 0; dst_size = NextSize(dst_size)) {
       unsigned char* src =
-          reinterpret_cast<unsigned char*>(SbMemoryAllocate(src_size));
+          reinterpret_cast<unsigned char*>(malloc(src_size));
       Fill(src, src_size);
       unsigned char* dst =
-          reinterpret_cast<unsigned char*>(SbMemoryReallocate(src, dst_size));
+          reinterpret_cast<unsigned char*>(realloc(src, dst_size));
       EXPECT_TRUE(Valid(dst, min(src_size, dst_size)));
       Fill(dst, dst_size);
       EXPECT_TRUE(Valid(dst, dst_size));
       if (dst != nullptr)
-        SbMemoryDeallocate(dst);
+        free(dst);
     }
   }
 
@@ -171,22 +171,22 @@ TEST(TCMallocTest, Realloc) {
   // packed cache, so some entries are evicted from the cache.
   // The cache has 2^12 entries, keyed by page number.
   const int kNumEntries = 1 << 14;
-  int** p = reinterpret_cast<int**>(SbMemoryAllocate(sizeof(*p) * kNumEntries));
+  int** p = reinterpret_cast<int**>(malloc(sizeof(*p) * kNumEntries));
   int sum = 0;
   for (int i = 0; i < kNumEntries; i++) {
     // no page size is likely to be bigger than 8192?
-    p[i] = reinterpret_cast<int*>(SbMemoryAllocate(8192));
+    p[i] = reinterpret_cast<int*>(malloc(8192));
     p[i][1000] = i;  // use memory deep in the heart of p
   }
   for (int i = 0; i < kNumEntries; i++) {
-    p[i] = reinterpret_cast<int*>(SbMemoryReallocate(p[i], 9000));
+    p[i] = reinterpret_cast<int*>(realloc(p[i], 9000));
   }
   for (int i = 0; i < kNumEntries; i++) {
     sum += p[i][1000];
-    SbMemoryDeallocate(p[i]);
+    free(p[i]);
   }
   EXPECT_EQ(kNumEntries / 2 * (kNumEntries - 1), sum);  // assume kNE is even
-  SbMemoryDeallocate(p);
+  free(p);
 }
 
 #ifdef NDEBUG

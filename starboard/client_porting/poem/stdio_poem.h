@@ -37,16 +37,6 @@
 #define vsscanf SbStringScan
 #undef sscanf
 #define sscanf SbStringScanF
-#undef malloc
-#define malloc(sz) SbMemoryAllocate(sz)
-#undef calloc
-#define calloc(c, s) SbMemoryCalloc(c, s)
-#undef free
-#define free(a) SbMemoryDeallocate(a)
-#undef realloc
-#define realloc(m, sz) SbMemoryReallocate(m, sz)
-#undef memalign
-#define memalign(a, l) SbMemoryAllocateAligned(a, l)
 
 #endif  // POEM_NO_EMULATION
 

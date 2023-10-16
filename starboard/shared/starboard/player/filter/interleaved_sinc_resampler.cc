@@ -47,9 +47,8 @@
 
 #include "starboard/shared/starboard/player/filter/interleaved_sinc_resampler.h"
 
+#include <string.h>
 #include <algorithm>
-
-#include "starboard/memory.h"
 
 namespace starboard {
 namespace shared {

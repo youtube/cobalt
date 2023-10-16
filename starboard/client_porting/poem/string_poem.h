@@ -23,13 +23,6 @@
 #include "starboard/memory.h"
 #include "starboard/string.h"
 
-#if !defined(POEM_NO_EMULATION)
-
-#undef strdup
-#define strdup(s) SbStringDuplicate(s)
-
-#endif  // POEM_NO_EMULATION
-
 #endif  // STARBOARD
 
 #endif  // STARBOARD_CLIENT_PORTING_POEM_STRING_POEM_H_

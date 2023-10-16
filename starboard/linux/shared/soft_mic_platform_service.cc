@@ -76,10 +76,10 @@ CobaltExtensionPlatformService Open(void* context,
   // The name parameter memory is allocated in h5vcc_platform_service::Open()
   // with new[] and must be deallocated here.
   // If we are in an Evergreen build, the name parameter must be deallocated
-  // with SbMemoryDeallocate(), since new[] will map to SbMemoryAllocate()
+  // with free (), since new[] will map to malloc()
   // in an Evergreen build.
   if (is_evergreen) {
-    SbMemoryDeallocate((void*)name);  // NOLINT
+    free((void*)name);  // NOLINT
   } else {
     delete[] name;
   }
@@ -187,10 +187,10 @@ void* Send(CobaltExtensionPlatformService service,
 
   // Synchronous bool response to the web app confirming the message
   // has been successfully parsed by the platform. Response needs
-  // to be allocated with SbMemoryAllocate() as the caller of Send()
+  // to be allocated with malloc() as the caller of Send()
   // in cobalt/h5vcc/h5vcc_platform_service.cc Send() uses
-  // SbMemoryDeallocate().
-  bool* ptr = reinterpret_cast<bool*>(SbMemoryAllocate(sizeof(bool)));
+  // free().
+  bool* ptr = reinterpret_cast<bool*>(malloc(sizeof(bool)));
   *ptr = valid_message_received;
   *output_length = sizeof(bool);
   return static_cast<void*>(ptr);

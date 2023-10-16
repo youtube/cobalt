@@ -1,7 +1,7 @@
 #include <errno.h>
+#include <stdlib.h>
 
 #include "starboard/common/log.h"
-#include "starboard/memory.h"
 #include "starboard/once.h"
 #include "starboard/thread.h"
 
@@ -9,7 +9,7 @@ static SbThreadLocalKey g_errno_key = kSbThreadLocalKeyInvalid;
 static SbOnceControl g_errno_once = SB_ONCE_INITIALIZER;
 
 void initialize_errno_key(void) {
-  g_errno_key = SbThreadCreateLocalKey(SbMemoryDeallocate);
+  g_errno_key = SbThreadCreateLocalKey(free);
   SB_DCHECK(g_errno_key != kSbThreadLocalKeyInvalid);
 }
 
@@ -28,7 +28,7 @@ int *__errno_location(void) {
     return value;
   }
 
-  value = (int*)SbMemoryAllocate(sizeof(int));
+  value = (int*)malloc(sizeof(int));
 
   SB_DCHECK(value);
   SB_DCHECK(SbThreadSetLocalValue(g_errno_key, value));

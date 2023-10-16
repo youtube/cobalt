@@ -24,8 +24,7 @@ OPENSSL_MSVC_PRAGMA(warning(pop))
 #define OPENSSL_MALLOC_PREFIX 8
 
 void *OPENSSL_malloc(size_t size) {
-
-  void *ptr = SbMemoryAllocate(size + OPENSSL_MALLOC_PREFIX);
+  void *ptr = malloc(size + OPENSSL_MALLOC_PREFIX);
   if (ptr == NULL) {
     return NULL;
   }
@@ -44,7 +43,7 @@ void OPENSSL_free(void *orig_ptr) {
 
   size_t size = *(size_t *)ptr;
   OPENSSL_cleanse(ptr, size + OPENSSL_MALLOC_PREFIX);
-  SbMemoryDeallocate(ptr);
+  free(ptr);
 }
 
 void *OPENSSL_realloc(void *orig_ptr, size_t new_size) {

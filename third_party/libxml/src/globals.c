@@ -122,7 +122,7 @@ xmlMallocFunc xmlMallocAtomic = XML_MALLOC;
  *
  * Returns a pointer to the newly reallocated block or NULL in case of error
  */
-xmlReallocFunc xmlRealloc = SbMemoryReallocate;
+xmlReallocFunc xmlRealloc = XML_REALLOC;
 /**
  * xmlPosixStrdup
  * @cur:  the input char *
@@ -545,9 +545,9 @@ xmlInitializeGlobalState(xmlGlobalStatePtr gs)
     gs->xmlMemStrdup = (xmlStrdupFunc) xmlMemoryStrdup;
 #else
     gs->xmlFree = (xmlFreeFunc) XML_FREE;
-    gs->xmlMalloc = (xmlMallocFunc) SbMemoryAllocate;
-    gs->xmlMallocAtomic = (xmlMallocFunc) SbMemoryAllocate;
-    gs->xmlRealloc = (xmlReallocFunc) SbMemoryReallocate;
+    gs->xmlMalloc = (xmlMallocFunc) XML_MALLOC;
+    gs->xmlMallocAtomic = (xmlMallocFunc) XML_MALLOC;
+    gs->xmlRealloc = (xmlReallocFunc) XML_REALLOC;
     gs->xmlMemStrdup = (xmlStrdupFunc) xmlStrdup;
 #endif
     gs->xmlGetWarningsDefaultValue = xmlGetWarningsDefaultValueThrDef;

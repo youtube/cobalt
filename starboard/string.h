@@ -29,12 +29,14 @@
 extern "C" {
 #endif
 
+#if SB_API_VERSION < 16
 // Copies |source| into a buffer that is allocated by this function and that
 // can be freed with SbMemoryDeallocate. This function is meant to be a drop-in
 // replacement for |strdup|.
 //
 // |source|: The string to be copied.
 SB_EXPORT char* SbStringDuplicate(const char* source);
+#endif  // SB_API_VERSION < 16
 
 // Compares two strings, ignoring differences in case. The return value is:
 // - |< 0| if |string1| is ASCII-betically lower than |string2|.

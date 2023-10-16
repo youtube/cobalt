@@ -235,7 +235,7 @@ std::string DhcpPacFileAdapterFetcher::GetPacURLFromDhcp(
   DWORD res = NO_ERROR;
   do {
     result_buffer.reset(
-        static_cast<BYTE*>(SbMemoryAllocate(result_buffer_size)));
+        static_cast<BYTE*>(malloc(result_buffer_size)));
 
     // Note that while the DHCPCAPI_REQUEST_SYNCHRONOUS flag seems to indicate
     // there might be an asynchronous mode, there seems to be (at least in

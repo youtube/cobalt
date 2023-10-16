@@ -75,7 +75,8 @@ static SbThreadLocalKey g_err_key = kSbThreadLocalKeyInvalid;
 static SbOnceControl g_err_once = SB_ONCE_INITIALIZER;
 
 void initialize_err_key(void) {
-  g_err_key = SbThreadCreateLocalKey(SbMemoryDeallocate);
+  g_err_key = SbThreadCreateLocalKey(free);
+
   SB_DCHECK(SbThreadIsValidLocalKey(g_err_key));
 }
 
@@ -88,7 +89,7 @@ char* errStr() {
     return value;
   }
 
-  value = SbMemoryAllocate(sizeof(char) * JMSG_LENGTH_MAX);
+  value = malloc(sizeof(char) * JMSG_LENGTH_MAX);
 
   SB_DCHECK(value);
   SB_DCHECK(SbThreadSetLocalValue(g_err_key, value));

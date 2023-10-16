@@ -28,10 +28,10 @@ namespace {
 
 void CrashDoubleFree(void) {
   // Cause memory corruption detectors to notice a double-free
-  void* p = SbMemoryAllocate(1);
+  void* p = malloc(1);
   LOG(INFO) << "Allocated p=" << p << ".  Double-freeing...";
-  SbMemoryDeallocate(p);
-  SbMemoryDeallocate(p);
+  free(p);
+  free(p);
 }
 
 void CrashNullPointerDereference(void) {

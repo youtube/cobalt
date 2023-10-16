@@ -247,8 +247,8 @@ class ThreadDelegateForNewHandlerTest : public PlatformThread::Delegate {
 
   void ThreadMain() override {
     event_->Wait();
-    void* temp = SbMemoryAllocate(1);
-    void* res = SbMemoryReallocate(temp, 0xFEED);
+    void* temp = malloc(1);
+    void* res = realloc(temp, 0xFEED);
     EXPECT_EQ(temp, res);
   }
 
@@ -274,7 +274,7 @@ AllocatorDispatch g_mock_dispatch = {
 TEST_F(AllocatorShimTest, InterceptLibcSymbols) {
   InsertAllocatorDispatch(&g_mock_dispatch);
 
-  void* alloc_ptr = SbMemoryAllocate(19);
+  void* alloc_ptr = malloc(19);
   ASSERT_NE(nullptr, alloc_ptr);
   ASSERT_GE(allocs_intercepted_by_size[19], 1u);
 
@@ -314,46 +314,46 @@ TEST_F(AllocatorShimTest, InterceptLibcSymbols) {
   ASSERT_GE(aligned_allocs_intercepted_by_size[kPageSize], 1u);
 #endif  // !OS_WIN && !OS_MACOSX
 
-  char* realloc_ptr = static_cast<char*>(SbMemoryAllocate(10));
+  char* realloc_ptr = static_cast<char*>(malloc(10));
   strcpy(realloc_ptr, "foobar");
   void* old_realloc_ptr = realloc_ptr;
-  SbMemoryReallocate_ptr =
-      static_cast<char*>(SbMemoryReallocate(SbMemoryReallocate_ptr, 73));
+  realloc_ptr =
+      static_cast<char*>(realloc(realloc_ptr, 73));
   ASSERT_GE(reallocs_intercepted_by_size[73], 1u);
   ASSERT_GE(reallocs_intercepted_by_addr[Hash(old_realloc_ptr)], 1u);
   ASSERT_EQ(0, strcmp(realloc_ptr, "foobar"));
 
-  SbMemoryDeallocate(alloc_ptr);
+  free(alloc_ptr);
   ASSERT_GE(frees_intercepted_by_addr[Hash(alloc_ptr)], 1u);
 
-  SbMemoryDeallocate(zero_alloc_ptr);
+  free(zero_alloc_ptr);
   ASSERT_GE(frees_intercepted_by_addr[Hash(zero_alloc_ptr)], 1u);
 
 #if !defined(OS_WIN) && !defined(OS_MACOSX)
-  SbMemoryDeallocate(memalign_ptr);
+  free(memalign_ptr);
   ASSERT_GE(frees_intercepted_by_addr[Hash(memalign_ptr)], 1u);
 
-  SbMemoryDeallocate(pvalloc_ptr);
+  free(pvalloc_ptr);
   ASSERT_GE(frees_intercepted_by_addr[Hash(pvalloc_ptr)], 1u);
 #endif  // !OS_WIN && !OS_MACOSX
 
 #if !defined(OS_WIN)
-  SbMemoryDeallocate(posix_memalign_ptr);
+  free(posix_memalign_ptr);
   ASSERT_GE(frees_intercepted_by_addr[Hash(posix_memalign_ptr)], 1u);
 
-  SbMemoryDeallocate(valloc_ptr);
+  free(valloc_ptr);
   ASSERT_GE(frees_intercepted_by_addr[Hash(valloc_ptr)], 1u);
 #endif  // !OS_WIN
 
-  SbMemoryDeallocate(realloc_ptr);
+  free(realloc_ptr);
   ASSERT_GE(frees_intercepted_by_addr[Hash(realloc_ptr)], 1u);
 
   RemoveAllocatorDispatchForTesting(&g_mock_dispatch);
 
-  void* non_hooked_ptr = SbMemoryAllocate(4095);
+  void* non_hooked_ptr = malloc(4095);
   ASSERT_NE(nullptr, non_hooked_ptr);
   ASSERT_EQ(0u, allocs_intercepted_by_size[4095]);
-  SbMemoryDeallocate(non_hooked_ptr);
+  free(non_hooked_ptr);
 }
 
 #if defined(OS_MACOSX)
@@ -385,7 +385,7 @@ TEST_F(AllocatorShimTest, InterceptLibcSymbolsBatchMallocFree) {
 TEST_F(AllocatorShimTest, InterceptLibcSymbolsFreeDefiniteSize) {
   InsertAllocatorDispatch(&g_mock_dispatch);
 
-  void* alloc_ptr = SbMemoryAllocate(19);
+  void* alloc_ptr = malloc(19);
   ASSERT_NE(nullptr, alloc_ptr);
   ASSERT_GE(allocs_intercepted_by_size[19], 1u);
 
