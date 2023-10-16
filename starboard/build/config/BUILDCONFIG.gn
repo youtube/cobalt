@@ -526,7 +526,7 @@ template("shared_library") {
 
         # Forwards the "shared_library_target_name" to allow this loader install
         # target to depend the corresponding shared_library install_target outputs.
-        shared_library_target_name = shared_library_target_name
+        shared_library_target_name = actual_target_name
 
         if (defined(extra_platform_loader_sources)) {
           sources += extra_platform_loader_sources
