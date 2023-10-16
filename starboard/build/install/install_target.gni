@@ -15,7 +15,7 @@
 import("//starboard/build/config/install.gni")
 
 template("install_target") {
-  not_needed([ "shared_library_target_name" ])
+  not_needed(invoker, [ "shared_library_target_name" ])
 
   installable_target_name = invoker.installable_target_name
   installable_target_dep = invoker.installable_target_dep

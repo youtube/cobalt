@@ -528,10 +528,6 @@ template("shared_library") {
         # target to depend the corresponding shared_library install_target outputs.
         shared_library_target_name = actual_target_name
 
-        # By default, shared_library_target_name is not needed in the install
-        # target contexts, except by certain platforms (e.g. NX).
-        not_needed([ "shared_library_target_name" ])
-
         if (defined(extra_platform_loader_sources)) {
           sources += extra_platform_loader_sources
         }
