@@ -17,7 +17,6 @@ import("//starboard/build/toolchain/win/variables.gni")
 
 template("install_target") {
   not_needed(invoker, [ "type" ])
-
   installable_target_name = invoker.installable_target_name
   should_run_mspdbcmf =
       installable_target_name == "cobalt" && (is_qa || is_gold)
