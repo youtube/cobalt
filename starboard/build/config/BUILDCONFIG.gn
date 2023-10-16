@@ -417,14 +417,14 @@ template("evergreen_loader") {
 
 template("executable") {
   not_needed(invoker,
-           [
-             "build_loader",
+             [
+               "build_loader",
 
-             # TODO(b/305091479): Investigate when this variable is unneeded
-             # so that we can refactor this to avoid the not_needed
-             # declaration.
-             "shared_library_target_name",
-           ])
+               # TODO(b/305091479): Investigate when this variable is unneeded
+               # so that we can refactor this to avoid the not_needed
+               # declaration.
+               "shared_library_target_name",
+             ])
 
   target_with_platform_configs(target_name) {
     target_type = "executable"
@@ -524,8 +524,8 @@ template("shared_library") {
         forward_variables_from(invoker, [ "testonly" ])
         sources = [ "//$starboard_path/starboard_loader.cc" ]
 
-        # Forwards the "shared_library_target_name" to allow this loader_install target
-        # to depend the corresponding shared_library install_target outputs.
+        # Forwards the "shared_library_target_name" to allow this loader install
+        # target to depend the corresponding shared_library install_target outputs.
         shared_library_target_name = shared_library_target_name
 
         if (defined(extra_platform_loader_sources)) {
