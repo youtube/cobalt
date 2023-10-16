@@ -17,8 +17,6 @@ import("//starboard/evergreen/shared/strip_install_target.gni")
 import("//starboard/evergreen/x86/toolchain/strip.gni")
 
 template("install_target") {
-  not_needed(invoker, ["shared_library_target_name"])
-
   strip_install_target(target_name) {
     forward_variables_from(invoker, "*")
     strip_executable = strip_executable
