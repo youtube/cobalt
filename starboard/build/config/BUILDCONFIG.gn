@@ -527,6 +527,7 @@ template("shared_library") {
         # Forwards the "shared_library_target_name" to allow this loader install
         # target to depend the corresponding shared_library install_target outputs.
         shared_library_target_name = actual_target_name
+
         # By default, shared_library_target_name is not needed in the install
         # target contexts, except by certain platforms (e.g. NX).
         not_needed([ "shared_library_target_name" ])
