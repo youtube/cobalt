@@ -17,6 +17,9 @@
 
 #include <string>
 
+#include "starboard/common/atomic.h"
+#include "starboard/types.h"
+
 namespace disk_cache {
 
 /* Note: If adding a new resource type, add corresponding metadata below. */
@@ -34,22 +37,21 @@ enum ResourceType {
   kTypeCount = 10,
 };
 
-struct ResourceTypeMetadata {
-  std::string directory;
-  uint32_t max_size_bytes;
-};
+namespace defaults {
 
-static uint32_t kInitialBytes = static_cast<uint32_t> (3 * 1024 * 1024);
-// These values are updated on start up in application.cc, using the
-// persisted values saved in settings.json.
-static ResourceTypeMetadata kTypeMetadata[] = {
-    {"other", kInitialBytes},         {"html", 2 * 1024 * 1024},
-    {"css", 1 * 1024 * 1024},         {"image", 0},
-    {"font", kInitialBytes},          {"splash", 2 * 1024 * 1024},
-    {"uncompiled_js", kInitialBytes}, {"compiled_js", kInitialBytes},
-    {"cache_api", kInitialBytes},     {"service_worker_js", kInitialBytes},
-};
+std::string GetSubdirectory(ResourceType resource_type);
+uint32_t GetQuota(ResourceType resource_type);
 
+}  // namespace defaults
+
+namespace settings {
+
+uint32_t GetQuota(ResourceType resource_type);
+void SetQuota(ResourceType resource_type, uint32_t value);
+bool GetCacheEnabled();
+void SetCacheEnabled(bool value);
+
+}  // namespace settings
 }  // namespace disk_cache
 
 #endif  // NET_DISK_CACHE_COBALT_RESOURCE_TYPE_H_

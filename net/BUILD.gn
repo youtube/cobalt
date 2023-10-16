@@ -425,6 +425,7 @@ component("net") {
     "disk_cache/cobalt/cobalt_disk_cache.cc",
     "disk_cache/cobalt/cobalt_backend_impl.cc",
     "disk_cache/cobalt/cobalt_backend_impl.h",
+    "disk_cache/cobalt/resource_type.cc",
     "disk_cache/cobalt/resource_type.h",
     "disk_cache/net_log_parameters.cc",
     "disk_cache/net_log_parameters.h",
