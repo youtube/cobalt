@@ -197,14 +197,6 @@ repos:
         stages: [push]
         always_run: true
         pass_filenames: false
-    -   id: check-bug-in-commit-message
-        name: Check Bug In Commit Message
-        description: Checks for a tracking bug in a commit message
-        entry: python precommit_hooks/check_bug_in_description_wrapper.py
-        language: python
-        stages: [push]
-        always_run: true
-        pass_filenames: false
     -   id: gn-format
         name: GN format
         entry: gn format
