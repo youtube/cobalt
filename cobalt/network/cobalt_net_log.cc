@@ -25,14 +25,20 @@ namespace network {
 
 CobaltNetLog::CobaltNetLog(const base::FilePath& log_path,
                            net::NetLogCaptureMode capture_mode)
+#if !defined(COBALT_BUILD_TYPE_GOLD)
     : net_log_logger_(
           net::FileNetLogObserver::CreateUnbounded(log_path, nullptr)) {
   net_log_logger_->StartObserving(this, capture_mode);
+#else   // !defined(COBALT_BUILD_TYPE_GOLD)
+    {
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 }
 
 CobaltNetLog::~CobaltNetLog() {
+#if !defined(COBALT_BUILD_TYPE_GOLD)
   // Remove the observers we own before we're destroyed.
   net_log_logger_->StopObserving(nullptr, base::OnceClosure());
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 }
 
 }  // namespace network
