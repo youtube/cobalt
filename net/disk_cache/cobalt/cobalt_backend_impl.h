@@ -48,8 +48,7 @@ class NET_EXPORT_PRIVATE CobaltBackendImpl final : public Backend {
   ~CobaltBackendImpl() override;
 
   net::Error Init(CompletionOnceCallback completion_callback);
-  bool UpdateSizes(ResourceType type, uint32_t bytes);
-  uint32_t GetQuota(ResourceType type);
+  void UpdateSizes(ResourceType type, uint32_t bytes);
 
   // Backend interface.
   net::CacheType GetCacheType() const override;
@@ -115,7 +114,6 @@ class NET_EXPORT_PRIVATE CobaltBackendImpl final : public Backend {
   base::WeakPtrFactory<CobaltBackendImpl> weak_factory_;
 
   std::map<ResourceType, SimpleBackendImpl*> simple_backend_map_;
-
 };
 
 }  // namespace disk_cache

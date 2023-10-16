@@ -269,7 +269,8 @@ net::Error CreateCacheBackend(net::CacheType type,
 #if defined(OS_ANDROID)
                                 nullptr,
 #endif
-                                net_log, backend, base::OnceClosure(),
+                                net_log, backend,
+                                base::OnceClosure(),
                                 std::move(callback));
 }
 
@@ -286,7 +287,8 @@ NET_EXPORT net::Error CreateCacheBackend(
     base::android::ApplicationStatusListener* app_status_listener) {
   return CreateCacheBackendImpl(type, backend_type, path, max_bytes, force,
                                 std::move(app_status_listener), net_log,
-                                backend, base::OnceClosure(),
+                                backend,
+                                base::OnceClosure(),
                                 std::move(callback));
 }
 #endif

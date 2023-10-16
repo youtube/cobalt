@@ -51,6 +51,25 @@ ResourceType GetType(const std::string& key) {
   return kOther;
 }
 
+bool NeedsBackend(ResourceType resource_type) {
+  switch (resource_type) {
+    case kHTML:
+    case kCSS:
+    case kImage:
+    case kFont:
+    case kUncompiledScript:
+    case kOther:
+    case kSplashScreen:
+      return true;
+    case kCompiledScript:
+    case kCacheApi:
+    case kServiceWorkerScript:
+    default:
+      return false;
+  }
+  return false;
+}
+
 }  // namespace
 
 CobaltBackendImpl::CobaltBackendImpl(
@@ -60,44 +79,41 @@ CobaltBackendImpl::CobaltBackendImpl(
     net::CacheType cache_type,
     net::NetLog* net_log)
     : weak_factory_(this) {
-
-  // Initialize disk backend for each resource type.
-  // Note: kTypeMetadata is refreshed from settings before this constructor runs
   int64_t total_size = 0;
   for (int i = 0; i < kTypeCount; i++) {
-    auto metadata = kTypeMetadata[i];
-    base::FilePath dir = path.Append(FILE_PATH_LITERAL(metadata.directory));
-    int64_t bucket_size = metadata.max_size_bytes;
+    ResourceType resource_type = (ResourceType)i;
+    if (!NeedsBackend(resource_type)) {
+      continue;
+    }
+    std::string sub_directory = defaults::GetSubdirectory(resource_type);
+    base::FilePath dir = path.Append(FILE_PATH_LITERAL(sub_directory));
+    uint32_t bucket_size = disk_cache::settings::GetQuota(resource_type);
     total_size += bucket_size;
     SimpleBackendImpl* simple_backend = new SimpleBackendImpl(
-        dir, cleanup_tracker, /* file_tracker = */ nullptr, bucket_size,
+        dir, cleanup_tracker, /*file_tracker=*/nullptr, bucket_size,
         cache_type, net_log);
-    simple_backend_map_[(ResourceType)i] = simple_backend;
+    simple_backend_map_[resource_type] = simple_backend;
   }
-
   // Must be at least enough space for each backend.
   DCHECK(total_size <= max_bytes);
 }
 
 CobaltBackendImpl::~CobaltBackendImpl() {
   for (int i = 0; i < kTypeCount; i++) {
-    delete simple_backend_map_[(ResourceType)i];
+    ResourceType resource_type = (ResourceType)i;
+    if (simple_backend_map_.count(resource_type) == 1) {
+      delete simple_backend_map_[resource_type];
+    }
   }
   simple_backend_map_.clear();
 }
 
-bool CobaltBackendImpl::UpdateSizes(ResourceType type, uint32_t bytes) {
-  if (bytes == disk_cache::kTypeMetadata[type].max_size_bytes)
-    return false;
-
-  disk_cache::kTypeMetadata[type].max_size_bytes = bytes;
+void CobaltBackendImpl::UpdateSizes(ResourceType type, uint32_t bytes) {
+  if (simple_backend_map_.count(type) == 0) {
+    return;
+  }
   SimpleBackendImpl* simple_backend = simple_backend_map_[type];
   simple_backend->SetMaxSize(bytes);
-  return true;
-}
-
-uint32_t CobaltBackendImpl::GetQuota(ResourceType type) {
-  return disk_cache::kTypeMetadata[type].max_size_bytes;
 }
 
 net::Error CobaltBackendImpl::Init(CompletionOnceCallback completion_callback) {
@@ -128,6 +144,9 @@ net::Error CobaltBackendImpl::OpenEntry(const std::string& key,
                                         net::RequestPriority request_priority,
                                         Entry** entry,
                                         CompletionOnceCallback callback) {
+  if (simple_backend_map_.count(GetType(key)) == 0) {
+    return net::Error::ERR_BLOCKED_BY_CLIENT;
+  }
   SimpleBackendImpl* simple_backend = simple_backend_map_[GetType(key)];
   return simple_backend->OpenEntry(key, request_priority, entry,
                                    std::move(callback));
@@ -138,11 +157,11 @@ net::Error CobaltBackendImpl::CreateEntry(const std::string& key,
                                           Entry** entry,
                                           CompletionOnceCallback callback) {
   ResourceType type = GetType(key);
-  auto quota = disk_cache::kTypeMetadata[type].max_size_bytes;
-  if (quota == 0) {
+  auto quota = disk_cache::settings::GetQuota(type);
+  if (quota == 0 || simple_backend_map_.count(type) == 0) {
     return net::Error::ERR_BLOCKED_BY_CLIENT;
   }
-  SimpleBackendImpl* simple_backend = simple_backend_map_[GetType(key)];
+  SimpleBackendImpl* simple_backend = simple_backend_map_[type];
   return simple_backend->CreateEntry(key, request_priority, entry,
                                      std::move(callback));
 }
@@ -150,6 +169,9 @@ net::Error CobaltBackendImpl::CreateEntry(const std::string& key,
 net::Error CobaltBackendImpl::DoomEntry(const std::string& key,
                                         net::RequestPriority priority,
                                         CompletionOnceCallback callback) {
+  if (simple_backend_map_.count(GetType(key)) == 0) {
+    return net::Error::ERR_BLOCKED_BY_CLIENT;
+  }
   SimpleBackendImpl* simple_backend = simple_backend_map_[GetType(key)];
   return simple_backend->DoomEntry(key, priority, std::move(callback));
 }
@@ -228,6 +250,9 @@ std::unique_ptr<Backend::Iterator> CobaltBackendImpl::CreateIterator() {
 }
 
 void CobaltBackendImpl::OnExternalCacheHit(const std::string& key) {
+  if (simple_backend_map_.count(GetType(key)) == 0) {
+    return;
+  }
   SimpleBackendImpl* simple_backend = simple_backend_map_[GetType(key)];
   simple_backend->OnExternalCacheHit(key);
 }
@@ -246,6 +271,10 @@ size_t CobaltBackendImpl::DumpMemoryStats(
 
 net::Error CobaltBackendImpl::DoomAllEntriesOfType(disk_cache::ResourceType type,
                         CompletionOnceCallback callback) {
+  if (simple_backend_map_.count(type) == 0) {
+    std::move(callback).Run(net::OK);
+    return net::OK;
+  }
   SimpleBackendImpl* simple_backend = simple_backend_map_[type];
   return simple_backend->DoomAllEntries(std::move(callback));
 }

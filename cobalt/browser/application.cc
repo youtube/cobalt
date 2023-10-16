@@ -703,9 +703,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
                        base::kApplicationStateStarted, kWatchdogTimeInterval,
                        kWatchdogTimeWait, watchdog::NONE);
 
-  cobalt::cache::Cache::GetInstance()->set_persistent_settings(
-      persistent_settings_.get());
-
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   base::Optional<cssom::ViewportSize> requested_viewport_size =
       GetRequestedViewportSize(command_line);

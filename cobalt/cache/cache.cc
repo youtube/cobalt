@@ -25,7 +25,6 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/values.h"
 #include "cobalt/configuration/configuration.h"
-#include "cobalt/persistent_storage/persistent_settings.h"
 #include "net/disk_cache/cobalt/cobalt_backend_impl.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/extension/javascript_cache.h"
@@ -201,35 +200,12 @@ std::unique_ptr<std::vector<uint8_t>> Cache::Retrieve(
   return nullptr;
 }
 
-void Cache::set_enabled(bool enabled) { enabled_ = enabled; }
-
-void Cache::set_persistent_settings(
-    persistent_storage::PersistentSettings* persistent_settings) {
-  persistent_settings_ = persistent_settings;
-
-  // Guaranteed to be called before any calls to Retrieve()
-  // since set_persistent_settings() is called from the Application()
-  // constructor before the NetworkModule is initialized.
-  set_enabled(persistent_settings_->GetPersistentSettingAsBool(
-      disk_cache::kCacheEnabledPersistentSettingsKey, true));
-}
-
 MemoryCappedDirectory* Cache::GetMemoryCappedDirectory(
     disk_cache::ResourceType resource_type) {
   base::AutoLock auto_lock(lock_);
   auto it = memory_capped_directories_.find(resource_type);
   if (it != memory_capped_directories_.end()) {
     return it->second.get();
-  }
-
-  // Read in size from persistent storage.
-  auto metadata = disk_cache::kTypeMetadata[resource_type];
-  if (persistent_settings_) {
-    uint32_t bucket_size = static_cast<uint32_t>(
-        persistent_settings_->GetPersistentSettingAsDouble(
-            metadata.directory, metadata.max_size_bytes));
-    disk_cache::kTypeMetadata[resource_type] = {metadata.directory,
-                                                bucket_size};
   }
 
   auto cache_directory = GetCacheDirectory(resource_type);
@@ -248,16 +224,9 @@ MemoryCappedDirectory* Cache::GetMemoryCappedDirectory(
 void Cache::Resize(disk_cache::ResourceType resource_type, uint32_t bytes) {
   if (resource_type != disk_cache::ResourceType::kCacheApi &&
       resource_type != disk_cache::ResourceType::kCompiledScript &&
-      resource_type != disk_cache::ResourceType::kServiceWorkerScript)
+      resource_type != disk_cache::ResourceType::kServiceWorkerScript) {
     return;
-  if (bytes == disk_cache::kTypeMetadata[resource_type].max_size_bytes) return;
-
-  if (persistent_settings_) {
-    persistent_settings_->SetPersistentSetting(
-        disk_cache::kTypeMetadata[resource_type].directory,
-        std::make_unique<base::Value>(static_cast<double>(bytes)));
   }
-  disk_cache::kTypeMetadata[resource_type].max_size_bytes = bytes;
   auto* memory_capped_directory = GetMemoryCappedDirectory(resource_type);
   if (memory_capped_directory) {
     memory_capped_directory->Resize(bytes);
@@ -273,7 +242,7 @@ base::Optional<uint32_t> Cache::GetMaxCacheStorageInBytes(
     case disk_cache::ResourceType::kCacheApi:
     case disk_cache::ResourceType::kCompiledScript:
     case disk_cache::ResourceType::kServiceWorkerScript:
-      return disk_cache::kTypeMetadata[resource_type].max_size_bytes;
+      return disk_cache::settings::GetQuota(resource_type);
     default:
       return base::nullopt;
   }
@@ -334,7 +303,7 @@ bool Cache::CanCache(disk_cache::ResourceType resource_type,
       resource_type == disk_cache::ResourceType::kCacheApi) {
     return true;
   }
-  if (!enabled_) {
+  if (!disk_cache::settings::GetCacheEnabled()) {
     return false;
   }
   if (resource_type == disk_cache::ResourceType::kCompiledScript) {
