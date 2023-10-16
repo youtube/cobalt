@@ -16,11 +16,7 @@ import("//build/config/win/visual_studio_version.gni")
 import("//starboard/build/toolchain/win/variables.gni")
 
 template("install_target") {
-  not_needed(invoker,
-             [
-               "type",
-               "shared_library_target_name",
-             ])
+  not_needed(invoker, [ "type" ])
 
   installable_target_name = invoker.installable_target_name
   should_run_mspdbcmf =
