@@ -27,11 +27,7 @@ if (num_gradle_workers == "") {
 }
 
 template("install_target") {
-  not_needed(invoker,
-             [
-               "type",
-               "shared_library_target_name",
-             ])
+  not_needed(invoker, [ "type" ])
 
   installable_target_name = invoker.installable_target_name
 
