@@ -160,11 +160,13 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
 
 #if defined(ENABLE_NETWORK_LOGGING)
   if (command_line->HasSwitch(switches::kNetLog)) {
+    LOG(INFO) << "YO YO THOR! HAS SWITCH NETLOG";
     // If this is not a valid path, net logs will be sent to VLOG(1).
     base::FilePath net_log_path =
         command_line->GetSwitchValuePath(switches::kNetLog);
     net::NetLogCaptureMode capture_mode;
     if (command_line->HasSwitch(switches::kNetLogCaptureMode)) {
+      LOG(INFO) << "YO THOR - OOH CHANGE CPATUREMODE";
       std::string capture_mode_string =
           command_line->GetSwitchValueASCII(switches::kNetLogCaptureMode);
       if (capture_mode_string == kCaptureModeIncludeCookiesAndCredentials) {
@@ -173,7 +175,8 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
         capture_mode = net::NetLogCaptureMode::IncludeSocketBytes();
       }
     }
-    net_log_.reset(new CobaltNetLog(net_log_path, capture_mode));
+    LOG(INFO) << "YO YO THOR! NET LOG PATH:" << net_log_path.value();
+    StartNetLog(net_log_path, capture_mode);
   }
 #endif
 
@@ -211,6 +214,7 @@ void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
 
   net::NetLog* net_log = NULL;
 #if defined(ENABLE_NETWORK_LOGGING)
+  LOG(INFO) << "YO THOR! ENABLE NETWORKI G LOGGING ENABLED!";
   net_log = net_log_.get();
 #endif
   url_request_context_.reset(
@@ -241,6 +245,22 @@ void NetworkModule::AddClientHintHeaders(
     for (const auto& header : client_hint_headers_) {
       url_fetcher.AddExtraRequestHeader(header);
     }
+  }
+}
+
+void NetworkModule::StartNetLog(base::FilePath net_log_path,
+                                net::NetLogCaptureMode capture_mode) {
+  LOG(INFO) << "YO THOR - START NET LOG FROM NETWORK MODULE";
+  if (net_log_) {
+    DLOG(WARNING) << "NetLog is already started.";
+    return;
+  }
+  net_log_.reset(new CobaltNetLog(net_log_path, capture_mode));
+}
+
+void NetworkModule::StopNetLog() {
+  if (net_log_) {
+    net_log_.reset();
   }
 }
 

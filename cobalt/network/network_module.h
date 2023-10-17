@@ -142,6 +142,12 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
   // From base::MessageLoop::DestructionObserver.
   void WillDestroyCurrentMessageLoop() override;
 
+  // Used to capture NetLog from Devtools
+  void StartNetLog(base::FilePath net_log_path,
+                   net::NetLogCaptureMode capture_mode);
+  void StopNetLog();
+
+
  private:
   void Initialize(const std::string& user_agent_string,
                   base::EventDispatcher* event_dispatcher);

@@ -10,7 +10,6 @@ export default class CobaltPanel extends UI.VBox {
             ['Timed Trace', 'timed_trace.json']
         ];
         const timed_trace_durations = ['5', '10', '20', '60'];
-        const netlog_file = 'netlog.json';
         super(true, false);
         SDK.targetManager.observeTargets(this);
 
@@ -63,7 +62,7 @@ export default class CobaltPanel extends UI.VBox {
         const netLogContainer = this.element.createChild('div', 'netlog-container');
         netLogContainer.appendChild(UI.createTextButton(Common.UIString('Start NetLog'), event => {
             console.log("Start NetLog");
-            this.run(`(function() { window.h5vcc.netLog.start('${netlog_file}');})()`);
+            this.run(`(function() { window.h5vcc.netLog.start();})()`);
             console.log("Started NetLog");
         }));
         netLogContainer.appendChild(UI.createTextButton(Common.UIString('Stop NetLog'), event => {
@@ -73,7 +72,8 @@ export default class CobaltPanel extends UI.VBox {
         }));
         netLogContainer.appendChild(UI.createTextButton(Common.UIString('Download NetLog'), event => {
             console.log("Download Trace");
-            this.run(`(function() { return window.h5vcc.netLog.read('${netlog_file}');})()`).then(function (result) {
+            this.run(`(function() { return window.h5vcc.netLog.read();})()`).then(function (result) {
+                const netlog_file = 'net_log.json';
                 download_element.setAttribute('href', 'data:text/plain;charset=utf-8,' +
                     encodeURIComponent(result.result.value));
                 download_element.setAttribute('download', netlog_file);

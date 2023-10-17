@@ -44,7 +44,7 @@ H5vcc::H5vcc(const Settings& settings) {
   storage_ =
       new H5vccStorage(settings.network_module, settings.persistent_settings);
   trace_event_ = new H5vccTraceEvent();
-  net_log_ = new H5vccNetLog();
+  net_log_ = new H5vccNetLog(settings.network_module);
 #if SB_IS(EVERGREEN)
   updater_ = new H5vccUpdater(settings.updater_module);
   system_ = new H5vccSystem(updater_);

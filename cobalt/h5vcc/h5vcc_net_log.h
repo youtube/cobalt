@@ -18,7 +18,7 @@
 #include <memory>
 #include <string>
 
-#include "cobalt/network/cobalt_net_log.h"
+#include "cobalt/network/network_module.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -26,18 +26,18 @@ namespace h5vcc {
 
 class H5vccNetLog : public script::Wrappable {
  public:
-  H5vccNetLog();
+  explicit H5vccNetLog(cobalt::network::NetworkModule* network_module);
 
-  void Start(const std::string& output_filename);
+  void Start();
   void Stop();
-  std::string Read(const std::string& output_filename);
+  std::string Read();
 
   DEFINE_WRAPPABLE_TYPE(H5vccNetLog);
 
  private:
-  std::unique_ptr<network::CobaltNetLog> net_log_;
+  cobalt::network::NetworkModule* network_module_ = nullptr;
 
-  base::FilePath last_absolute_path_;
+  base::FilePath absolute_log_path_;
 
   DISALLOW_COPY_AND_ASSIGN(H5vccNetLog);
 };

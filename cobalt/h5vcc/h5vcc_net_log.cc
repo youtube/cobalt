@@ -17,57 +17,41 @@
 #include "base/files/file_util.h"
 #include "base/path_service.h"
 #include "cobalt/base/cobalt_paths.h"
+#include "cobalt/network/cobalt_net_log.h"
 
 namespace cobalt {
 namespace h5vcc {
 
 namespace {
 const char* kOutputNetLogFilename = "h5vcc_netlog.json";
-
-base::FilePath filepath_to_absolute(
-    const base::FilePath& output_path_relative_to_logs) {
-  base::FilePath result;
-  base::PathService::Get(cobalt::paths::DIR_COBALT_DEBUG_OUT, &result);
-  return result.Append(output_path_relative_to_logs);
-}
-
 }  // namespace
 
-H5vccNetLog::H5vccNetLog() {}
+H5vccNetLog::H5vccNetLog(cobalt::network::NetworkModule* network_module)
+    : network_module_{network_module} {
+  base::FilePath result;
+  base::PathService::Get(cobalt::paths::DIR_COBALT_DEBUG_OUT, &result);
+  absolute_log_path_ = result.Append(kOutputNetLogFilename);
+}
 
-void H5vccNetLog::Start(const std::string& output_filename) {
-  if (net_log_) {
-    DLOG(WARNING) << "H5vccNetLog is already started.";
-  } else {
-    base::FilePath net_log_path(output_filename.empty() ? kOutputNetLogFilename
-                                                        : output_filename);
-    net::NetLogCaptureMode capture_mode;  // default
-    last_absolute_path_ = filepath_to_absolute(base::FilePath(output_filename));
-    net_log_.reset(
-        new network::CobaltNetLog(last_absolute_path_, capture_mode));
-  }
+void H5vccNetLog::Start() {
+  LOG(INFO) << "YO THOR! STRATING H5VCC NET LGO ";
+  net::NetLogCaptureMode capture_mode;  // default
+  network_module_->StartNetLog(absolute_log_path_, capture_mode);
 }
 
 void H5vccNetLog::Stop() {
-  if (net_log_) {
-    net_log_.reset();
-  } else {
-    DLOG(WARNING) << "H5vccNetLog is already stopped.";
-  }
+  LOG(INFO) << "YO THOR! STOP H5VCC NET LGO ";
+  network_module_->StopNetLog();
 }
 
-std::string H5vccNetLog::Read(const std::string& read_filename) {
-  if (net_log_) {
-    Stop();
-  }
-  std::string netlog_output;
-  if (!read_filename.empty()) {
-    auto file_path = filepath_to_absolute(base::FilePath(read_filename));
-    ReadFileToString(file_path, &netlog_output);
-  } else if (!last_absolute_path_.empty()) {
-    ReadFileToString(last_absolute_path_, &netlog_output);
-  }
+std::string H5vccNetLog::Read() {
+  LOG(INFO) << "YO THOR! READ H5VCC NET LGO ";
+  Stop();
 
+  std::string netlog_output{};
+  if (!absolute_log_path_.empty()) {
+    ReadFileToString(absolute_log_path_, &netlog_output);
+  }
   return netlog_output;
 }
 
