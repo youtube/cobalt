@@ -14,6 +14,8 @@
 
 import("//starboard/raspi/shared/toolchain/raspi_shared_toolchain.gni")
 template("install_target") {
+  not_needed(invoker, [ "shared_library_target_name" ])
+
   installable_target_name = invoker.installable_target_name
 
   # TODO(b/218889313): raspi relies on install_content being adjacent to the
