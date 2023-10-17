@@ -218,8 +218,6 @@ class GpuVideoDecoderBase
 
   Mutex frame_buffers_mutex_;
   ConditionVariable frame_buffers_condition_;
-  Mutex drained_mutex_;
-  ConditionVariable drained_condition_;
 
  private:
   class GPUDecodeTargetPrivate;
