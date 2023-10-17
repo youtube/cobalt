@@ -24,7 +24,6 @@
 #include "starboard/android/shared/max_output_buffers_lookup_table.h"
 #include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/android/shared/media_decoder.h"
-#include "starboard/android/shared/video_frame_tracker.h"
 #include "starboard/android/shared/video_window.h"
 #include "starboard/atomic.h"
 #include "starboard/common/condition_variable.h"
@@ -57,6 +56,7 @@ class VideoDecoder
       VideoRenderAlgorithm;
   typedef ::starboard::shared::starboard::player::filter::VideoRendererSink
       VideoRendererSink;
+  typedef ::starboard::shared::starboard::player::JobQueue::JobToken JobToken;
 
   class Sink;
 
@@ -85,7 +85,7 @@ class VideoDecoder
   // which is device dependent. The media decoder may stall if we hold all
   // output buffers. But it would continue working once we release output
   // buffer.
-  size_t GetMaxNumberOfCachedFrames() const override { return 12; }
+  size_t GetMaxNumberOfCachedFrames() const override;
 
   void WriteInputBuffers(const InputBuffers& input_buffers) override;
   void WriteEndOfStream() override;
@@ -94,6 +94,7 @@ class VideoDecoder
 
   void UpdateDecodeTargetSizeAndContentRegion_Locked();
   void SetPlaybackRate(double playback_rate);
+  bool IsTunnelMode() const { return tunnel_mode_audio_session_id_ != -1; }
 
   void OnNewTextureAvailable();
 
@@ -109,16 +110,13 @@ class VideoDecoder
   void WriteInputBuffersInternal(const InputBuffers& input_buffers);
   void ProcessOutputBuffer(MediaCodecBridge* media_codec_bridge,
                            const DequeueOutputResult& output) override;
-  void OnEndOfStreamWritten(MediaCodecBridge* media_codec_bridge);
   void RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) override;
   bool Tick(MediaCodecBridge* media_codec_bridge) override;
   void OnFlushing() override;
+  void OnMediaCodecFrameRendered(SbTime frame_timestamp) override;
+  void OnFirstTunnelFrameReady() override;
 
-  void TryToSignalPrerollForTunnelMode();
-  void OnTunnelModeFrameRendered(SbTime frame_timestamp);
-  void OnTunnelModePrerollTimeout();
-  void OnTunnelModeCheckForNeedMoreInput();
-
+  void TunnelModeTick();
   void OnVideoFrameRelease();
 
   void OnSurfaceDestroyed() override;
@@ -153,9 +151,6 @@ class VideoDecoder
   // we create a dummy drm system to force the video playing in secure pipeline
   // to enable tunnel mode.
   scoped_ptr<DrmSystem> drm_system_to_enforce_tunnel_mode_;
-  scoped_ptr<VideoFrameTracker> video_frame_tracker_;
-  // Preroll in tunnel mode is handled in this class instead of in the renderer.
-  atomic_bool tunnel_mode_prerolling_{true};
   atomic_bool tunnel_mode_frame_rendered_;
 
   // If decode-to-texture is enabled, then we store the decode target texture
@@ -182,7 +177,6 @@ class VideoDecoder
 
   scoped_ptr<MediaDecoder> media_decoder_;
 
-  atomic_int32_t number_of_frames_being_decoded_;
   scoped_refptr<Sink> sink_;
 
   int input_buffer_written_ = 0;
@@ -209,6 +203,7 @@ class VideoDecoder
   bool first_output_format_changed_ = false;
   optional<VideoOutputFormat> output_format_;
   size_t number_of_preroll_frames_;
+  JobToken tunnel_mode_tick_job_token_;
 };
 
 }  // namespace shared

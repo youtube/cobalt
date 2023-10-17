@@ -68,10 +68,11 @@ class AudioDecoder
   bool InitializeCodec();
   void ProcessOutputBuffer(MediaCodecBridge* media_codec_bridge,
                            const DequeueOutputResult& output) override;
-  void OnEndOfStreamWritten(MediaCodecBridge* media_codec_bridge) override {}
   void RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) override;
   bool Tick(MediaCodecBridge* media_codec_bridge) override { return false; }
   void OnFlushing() override {}
+  void OnMediaCodecFrameRendered(SbTime frame_timestamp) override {}
+  void OnFirstTunnelFrameReady() override {}
 
   void ReportError(SbPlayerError error, const std::string& error_message);
 

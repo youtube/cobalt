@@ -137,8 +137,11 @@ class MediaCodecBridge {
                                                    int64_t presentation_time_us,
                                                    int size) = 0;
     virtual void OnMediaCodecOutputFormatChanged() = 0;
-    // This is only called on video decoder when tunnel mode is enabled.
+
+    // Functions below are only called on video decoder when tunnel mode is
+    // enabled.
     virtual void OnMediaCodecFrameRendered(SbTime frame_timestamp) = 0;
+    virtual void OnFirstTunnelFrameReady() = 0;
 
    protected:
     ~Handler() {}
@@ -212,6 +215,7 @@ class MediaCodecBridge {
                                          int size);
   void OnMediaCodecOutputFormatChanged();
   void OnMediaCodecFrameRendered(SbTime frame_timestamp);
+  void OnFirstTunnelFrameReady();
 
  private:
   // |MediaCodecBridge|s must only be created through its factory methods.

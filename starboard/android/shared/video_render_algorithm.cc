@@ -107,8 +107,10 @@ void VideoRenderAlgorithm::Render(
       frames->pop_front();
       ++dropped_frames_;
     } else if (early_us < kBufferReadyThreshold) {
-      auto status = draw_frame_cb(frames->front(), adjusted_release_time_ns);
-      SB_DCHECK(status == VideoRendererSink::kReleased);
+      if (!video_decoder_->IsTunnelMode()) {
+        auto status = draw_frame_cb(frames->front(), adjusted_release_time_ns);
+        SB_DCHECK(status == VideoRendererSink::kReleased);
+      }
       frames->pop_front();
     } else {
       break;

@@ -61,7 +61,6 @@ class MediaDecoder
    public:
     virtual void ProcessOutputBuffer(MediaCodecBridge* media_codec_bridge,
                                      const DequeueOutputResult& output) = 0;
-    virtual void OnEndOfStreamWritten(MediaCodecBridge* media_codec_bridge) = 0;
     virtual void RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) = 0;
     // This function gets called frequently on the decoding thread to give the
     // Host a chance to process when the MediaDecoder is decoding.
@@ -72,6 +71,9 @@ class MediaDecoder
     // MediaCodecBridge so the host can have a chance to do necessary cleanups
     // before the MediaCodecBridge is flushed.
     virtual void OnFlushing() = 0;
+
+    virtual void OnMediaCodecFrameRendered(SbTime frame_timestamp) = 0;
+    virtual void OnFirstTunnelFrameReady() = 0;
 
    protected:
     ~Host() {}
@@ -94,7 +96,6 @@ class MediaDecoder
                SbDrmSystem drm_system,
                const SbMediaColorMetadata* color_metadata,
                bool require_software_codec,
-               const FrameRenderedCB& frame_rendered_cb,
                int tunnel_mode_audio_session_id,
                bool force_big_endian_hdr_metadata,
                std::string* error_message);
@@ -169,13 +170,13 @@ class MediaDecoder
                                          int size) override;
   void OnMediaCodecOutputFormatChanged() override;
   void OnMediaCodecFrameRendered(SbTime frame_timestamp) override;
+  void OnFirstTunnelFrameReady() override;
 
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
 
   const SbMediaType media_type_;
   Host* host_;
   DrmSystem* const drm_system_;
-  const FrameRenderedCB frame_rendered_cb_;
   const bool tunnel_mode_enabled_;
 
   ErrorCB error_cb_;

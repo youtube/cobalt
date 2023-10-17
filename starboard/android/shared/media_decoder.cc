@@ -115,18 +115,14 @@ MediaDecoder::MediaDecoder(Host* host,
                            SbDrmSystem drm_system,
                            const SbMediaColorMetadata* color_metadata,
                            bool require_software_codec,
-                           const FrameRenderedCB& frame_rendered_cb,
                            int tunnel_mode_audio_session_id,
                            bool force_big_endian_hdr_metadata,
                            std::string* error_message)
     : media_type_(kSbMediaTypeVideo),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
-      frame_rendered_cb_(frame_rendered_cb),
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       condition_variable_(mutex_) {
-  SB_DCHECK(frame_rendered_cb_);
-
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   const bool require_secured_decoder =
       drm_system_ && drm_system_->require_secured_decoder();
@@ -489,7 +485,6 @@ bool MediaDecoder::ProcessOneInputBuffer(
     status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
                                                    kNoOffset, size, kNoPts,
                                                    BUFFER_FLAG_END_OF_STREAM);
-    host_->OnEndOfStreamWritten(media_codec_bridge_.get());
   }
 
   if (status != MEDIA_CODEC_OK) {
@@ -641,7 +636,14 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
 
 void MediaDecoder::OnMediaCodecFrameRendered(SbTime frame_timestamp) {
   SB_DCHECK(tunnel_mode_enabled_);
-  frame_rendered_cb_(frame_timestamp);
+  SB_DCHECK(host_);
+  host_->OnMediaCodecFrameRendered(frame_timestamp);
+}
+
+void MediaDecoder::OnFirstTunnelFrameReady() {
+  SB_DCHECK(tunnel_mode_enabled_);
+  SB_DCHECK(host_);
+  host_->OnFirstTunnelFrameReady();
 }
 
 }  // namespace shared

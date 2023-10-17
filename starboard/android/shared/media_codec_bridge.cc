@@ -98,6 +98,17 @@ Java_dev_cobalt_media_MediaCodecBridge_nativeOnMediaCodecFrameRendered(
 }
 
 extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_media_MediaCodecBridge_nativeOnFirstTunnelFrameReady(
+    JNIEnv* env,
+    jobject unused_this,
+    jlong native_media_codec_bridge) {
+  MediaCodecBridge* media_codec_bridge =
+      reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
+  SB_DCHECK(media_codec_bridge);
+  media_codec_bridge->OnFirstTunnelFrameReady();
+}
+
+extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_media_MediaCodecBridge_nativeOnMediaCodecError(
     JniEnvExt* env,
     jobject unused_this,
@@ -518,6 +529,10 @@ void MediaCodecBridge::OnMediaCodecOutputFormatChanged() {
 
 void MediaCodecBridge::OnMediaCodecFrameRendered(SbTime frame_timestamp) {
   handler_->OnMediaCodecFrameRendered(frame_timestamp);
+}
+
+void MediaCodecBridge::OnFirstTunnelFrameReady() {
+  handler_->OnFirstTunnelFrameReady();
 }
 
 MediaCodecBridge::MediaCodecBridge(Handler* handler) : handler_(handler) {

@@ -33,6 +33,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.Surface;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.nio.ByteBuffer;
@@ -87,6 +88,7 @@ class MediaCodecBridge {
   private int mFps = 30;
 
   private MediaCodec.OnFrameRenderedListener mTunnelModeFrameRendererListener;
+  private MediaCodec.OnFirstTunnelFrameReadyListener mFirstTunnelFrameReadyListener;
 
   // Functions that require this will be called frequently in a tight loop.
   // Only create one of these and reuse it to avoid excessive allocations,
@@ -523,22 +525,15 @@ class MediaCodecBridge {
         };
     mMediaCodec.setCallback(mCallback);
 
+    // Listen to the frame ready events for tunnel mode.
     // TODO: support OnFrameRenderedListener for non tunnel mode
     if (tunnelModeAudioSessionId != -1) {
-      mTunnelModeFrameRendererListener =
-          new MediaCodec.OnFrameRenderedListener() {
-            @Override
-            public void onFrameRendered(MediaCodec codec, long presentationTimeUs, long nanoTime) {
-              synchronized (this) {
-                if (mNativeMediaCodecBridge == 0) {
-                  return;
-                }
-                nativeOnMediaCodecFrameRendered(
-                    mNativeMediaCodecBridge, presentationTimeUs, nanoTime);
-              }
-            }
-          };
-      mMediaCodec.setOnFrameRenderedListener(mTunnelModeFrameRendererListener, null);
+      // TODO (b/306236129): disable the listeners as frames to be discarded would invoke the
+      // callbacks.
+      // addOnFrameRenderedListener();
+      // if (Build.VERSION.SDK_INT >= 31) {
+      //   addOnFirstTunnelFrameReadyListener();
+      // }
     }
   }
 
@@ -858,6 +853,10 @@ class MediaCodecBridge {
   @UsedByNative
   private int flush() {
     try {
+      // TODO: find a better place to clear listeners when tear down the codec.
+      mMediaCodec.setOnFrameRenderedListener(null, null);
+      mMediaCodec.setOnFirstTunnelFrameReadyListener(null, null);
+
       mFlushed = true;
       mMediaCodec.flush();
     } catch (Exception e) {
@@ -1304,6 +1303,47 @@ class MediaCodecBridge {
     }
   }
 
+  private void addOnFrameRenderedListener() {
+    if (mMediaCodec == null) {
+      return;
+    }
+
+    mTunnelModeFrameRendererListener =
+        new MediaCodec.OnFrameRenderedListener() {
+          @Override
+          public void onFrameRendered(MediaCodec codec, long presentationTimeUs, long nanoTime) {
+            synchronized (this) {
+              if (mNativeMediaCodecBridge == 0) {
+                return;
+              }
+              nativeOnMediaCodecFrameRendered(
+                  mNativeMediaCodecBridge, presentationTimeUs, nanoTime);
+            }
+          }
+        };
+    mMediaCodec.setOnFrameRenderedListener(mTunnelModeFrameRendererListener, null);
+  }
+
+  @RequiresApi(31)
+  private void addOnFirstTunnelFrameReadyListener() {
+    if (mMediaCodec == null) {
+      return;
+    }
+    mFirstTunnelFrameReadyListener =
+        new MediaCodec.OnFirstTunnelFrameReadyListener() {
+          @Override
+          public void onFirstTunnelFrameReady(MediaCodec codec) {
+            synchronized (this) {
+              if (mNativeMediaCodecBridge == 0) {
+                return;
+              }
+              nativeOnFirstTunnelFrameReady(mNativeMediaCodecBridge);
+            }
+          }
+        };
+    mMediaCodec.setOnFirstTunnelFrameReadyListener(null, mFirstTunnelFrameReadyListener);
+  }
+
   private native void nativeOnMediaCodecError(
       long nativeMediaCodecBridge,
       boolean isRecoverable,
@@ -1325,4 +1365,6 @@ class MediaCodecBridge {
 
   private native void nativeOnMediaCodecFrameRendered(
       long nativeMediaCodecBridge, long presentationTimeUs, long renderAtSystemTimeNs);
+
+  private native void nativeOnFirstTunnelFrameReady(long nativeMediaCodecBridge);
 }
