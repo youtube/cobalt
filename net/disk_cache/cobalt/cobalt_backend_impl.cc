@@ -59,8 +59,8 @@ bool NeedsBackend(ResourceType resource_type) {
     case kFont:
     case kUncompiledScript:
     case kOther:
-      return true;
     case kSplashScreen:
+      return true;
     case kCompiledScript:
     case kCacheApi:
     case kServiceWorkerScript:
@@ -144,6 +144,9 @@ net::Error CobaltBackendImpl::OpenEntry(const std::string& key,
                                         net::RequestPriority request_priority,
                                         Entry** entry,
                                         CompletionOnceCallback callback) {
+  if (simple_backend_map_.count(GetType(key)) == 0) {
+    return net::Error::ERR_BLOCKED_BY_CLIENT;
+  }
   SimpleBackendImpl* simple_backend = simple_backend_map_[GetType(key)];
   return simple_backend->OpenEntry(key, request_priority, entry,
                                    std::move(callback));
@@ -155,10 +158,10 @@ net::Error CobaltBackendImpl::CreateEntry(const std::string& key,
                                           CompletionOnceCallback callback) {
   ResourceType type = GetType(key);
   auto quota = disk_cache::settings::GetQuota(type);
-  if (quota == 0) {
+  if (quota == 0 || simple_backend_map_.count(type) == 0) {
     return net::Error::ERR_BLOCKED_BY_CLIENT;
   }
-  SimpleBackendImpl* simple_backend = simple_backend_map_[GetType(key)];
+  SimpleBackendImpl* simple_backend = simple_backend_map_[type];
   return simple_backend->CreateEntry(key, request_priority, entry,
                                      std::move(callback));
 }
@@ -166,6 +169,9 @@ net::Error CobaltBackendImpl::CreateEntry(const std::string& key,
 net::Error CobaltBackendImpl::DoomEntry(const std::string& key,
                                         net::RequestPriority priority,
                                         CompletionOnceCallback callback) {
+  if (simple_backend_map_.count(GetType(key)) == 0) {
+    return net::Error::ERR_BLOCKED_BY_CLIENT;
+  }
   SimpleBackendImpl* simple_backend = simple_backend_map_[GetType(key)];
   return simple_backend->DoomEntry(key, priority, std::move(callback));
 }
@@ -244,6 +250,9 @@ std::unique_ptr<Backend::Iterator> CobaltBackendImpl::CreateIterator() {
 }
 
 void CobaltBackendImpl::OnExternalCacheHit(const std::string& key) {
+  if (simple_backend_map_.count(GetType(key)) == 0) {
+    return;
+  }
   SimpleBackendImpl* simple_backend = simple_backend_map_[GetType(key)];
   simple_backend->OnExternalCacheHit(key);
 }
