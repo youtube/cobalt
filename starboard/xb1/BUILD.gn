@@ -134,6 +134,7 @@ static_library("starboard_platform") {
     "//starboard/shared/uwp/system_platform_error_internal.cc",
     "//starboard/shared/uwp/system_platform_error_internal.h",
     "//starboard/shared/uwp/system_raise_platform_error.cc",
+    "//starboard/shared/uwp/time_zone_get_name.cc",
     "//starboard/shared/uwp/wasapi_audio.cc",
     "//starboard/shared/uwp/wasapi_audio.h",
     "//starboard/shared/uwp/wasapi_audio_sink.cc",
