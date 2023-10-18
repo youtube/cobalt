@@ -33,20 +33,14 @@ enum class AudioCodec {
   kALAC = 15,
   kAC3 = 16,
   kMpegHAudio = 17,
-#if defined (STARBOARD)
-  kIAMF = 18,
-#endif  // defined(STARBOARD)
+  kIAMF = 100,
   // DO NOT ADD RANDOM AUDIO CODECS!
   //
   // The only acceptable time to add a new codec is if there is production code
   // that uses said codec in the same CL.
 
   // Must always be equal to the largest entry ever logged.
-#if defined (STARBOARD)
   kMaxValue = kIAMF,
-#else
-  kMaxValue = kMpegHAudio,
-#endif  // defined(STARBOARD)
 };
 
 enum class AudioCodecProfile {
@@ -56,13 +50,9 @@ enum class AudioCodecProfile {
   // kMaxValue to equal the new codec.
   kUnknown = 0,
   kXHE_AAC = 1,
-#if defined(STARBOARD)
   kIAMF_SIMPLE = 2,
   kIAMF_BASE = 3,
   kMaxValue = kIAMF_BASE,
-#else
-  kMaxValue = kXHE_AAC,
-#endif  // defined(STARBOARD)
 };
 
 std::string MEDIA_EXPORT GetCodecName(AudioCodec codec);

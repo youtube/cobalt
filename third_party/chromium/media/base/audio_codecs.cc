@@ -37,10 +37,8 @@ std::string GetCodecName(AudioCodec codec) {
       return "gsm_ms";
     case AudioCodec::kOpus:
       return "opus";
-#if defined (STARBOARD)
     case AudioCodec::kIAMF:
       return "iamf";
-#endif  // defined(STARBOARD)
     case AudioCodec::kPCM_ALAW:
       return "pcm_alaw";
     case AudioCodec::kEAC3:
@@ -60,12 +58,10 @@ std::string GetProfileName(AudioCodecProfile profile) {
       return "unknown";
     case AudioCodecProfile::kXHE_AAC:
       return "xhe-aac";
-#if defined(STARBOARD)
     case AudioCodecProfile::kIAMF_SIMPLE:
       return "iamf-simple";
     case AudioCodecProfile::kIAMF_BASE:
       return "iamf-base";
-#endif  // defined(STARBOARD)
   }
 }
 
@@ -92,10 +88,8 @@ AudioCodec StringToAudioCodec(const std::string& codec_id) {
     return AudioCodec::kVorbis;
   if (base::StartsWith(codec_id, "mp4a.40.", base::CompareCase::SENSITIVE))
     return AudioCodec::kAAC;
-#if defined(STARBOARD)
   if (codec_id == "iamf")
     return AudioCodec::kIAMF;
-#endif  // defined(STARBOARD)
   return AudioCodec::kUnknown;
 }
 

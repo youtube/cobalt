@@ -1485,7 +1485,6 @@ bool IamfSpecificBox::ReadOBU(BufferReader* reader) {
       RCHECK(reader->Read1(&profile));
       RCHECK(profile <= 1);
 
-      RCHECK(reader->SkipBytes(sizeof(uint8_t)));
       break;
     default:
       MEDIA_LOG(INFO, reader->media_log())
@@ -1503,9 +1502,11 @@ bool IamfSpecificBox::ReadOBUHeader(BufferReader* reader, uint8_t* obu_type,
   uint8_t header_flags;
   RCHECK(reader->Read1(&header_flags));
   *obu_type = (header_flags >> 3) & 0x1f;
+
   bool obu_redundant_copy = (header_flags >> 2) & 1;
   bool obu_trimming_status_flag = (header_flags >> 1) & 1;
   bool obu_extension_flag = header_flags & 1;
+
   redundant_copy |= obu_redundant_copy;
 
   RCHECK(ReadLeb128Value(reader, obu_size));
@@ -1526,15 +1527,15 @@ bool IamfSpecificBox::ReadOBUHeader(BufferReader* reader, uint8_t* obu_type,
 // Algorithm from the AV1 specification.
 // https://aomediacodec.github.io/av1-spec/#leb128.
 bool IamfSpecificBox::ReadLeb128Value(BufferReader* reader,
-                                      uint32_t* encoded_value) const {
-  CHECK(reader);
-  CHECK(encoded_value);
-  *encoded_value = 0;
+                                      uint32_t* value) const {
+  DCHECK(reader);
+  DCHECK(value);
+  *value = 0;
   bool error = true;
   for (int i = 0; i < sizeof(uint32_t); ++i) {
     uint8_t byte;
     RCHECK(reader->Read1(&byte));
-    *encoded_value |= ((byte & 0x7f) << (i * 7));
+    *value |= ((byte & 0x7f) << (i * 7));
     if (!(byte & 0x80)) {
       error = false;
       break;
