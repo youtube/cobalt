@@ -22,32 +22,15 @@
 namespace cobalt {
 namespace h5vcc {
 
-namespace {
-const char* kOutputNetLogFilename = "h5vcc_netlog.json";
-}  // namespace
-
 H5vccNetLog::H5vccNetLog(cobalt::network::NetworkModule* network_module)
-    : network_module_{network_module} {
-  base::FilePath result;
-  base::PathService::Get(cobalt::paths::DIR_COBALT_DEBUG_OUT, &result);
-  absolute_log_path_ = result.Append(kOutputNetLogFilename);
-}
+    : network_module_{network_module} {}
 
-void H5vccNetLog::Start() {
-  LOG(INFO) << "YO THOR! STRATING H5VCC NET LGO ";
-  network_module_->StartNetLog();
-}
+void H5vccNetLog::Start() { network_module_->StartNetLog(); }
 
-void H5vccNetLog::Stop() {
-  LOG(INFO) << "YO THOR! STOP H5VCC NET LGO ";
-  network_module_->StopNetLog();
-}
+void H5vccNetLog::Stop() { network_module_->StopNetLog(); }
 
 std::string H5vccNetLog::Read() {
-  LOG(INFO) << "YO THOR! READ H5VCC NET LGO ";
-
   base::FilePath netlog_path = network_module_->StopNetLog();
-
   std::string netlog_output{};
   if (!netlog_path.empty()) {
     ReadFileToString(netlog_path, &netlog_output);

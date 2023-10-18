@@ -391,7 +391,6 @@ FileNetLogObserver::~FileNetLogObserver() {
 
 void FileNetLogObserver::StartObserving(NetLog* net_log,
                                         NetLogCaptureMode capture_mode) {
-  LOG(INFO) << "YO THOR - FILE NET LOG OBSERVER - START OBSERVGIN:";
   net_log->AddObserver(this, capture_mode);
 }
 
@@ -416,8 +415,6 @@ void FileNetLogObserver::StopObserving(std::unique_ptr<base::Value> polled_data,
 
 void FileNetLogObserver::OnAddEntry(const NetLogEntry& entry) {
   std::unique_ptr<std::string> json(new std::string);
-
-  LOG(INFO) << "YO THOR _ ON ADD ENTRY!";
 
   // If |entry| cannot be converted to proper JSON, ignore it.
   if (!base::JSONWriter::Write(*entry.ToValue(), json.get()))

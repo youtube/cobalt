@@ -15,7 +15,6 @@
 #ifndef COBALT_H5VCC_H5VCC_NET_LOG_H_
 #define COBALT_H5VCC_H5VCC_NET_LOG_H_
 
-#include <memory>
 #include <string>
 
 #include "cobalt/network/network_module.h"
@@ -36,8 +35,6 @@ class H5vccNetLog : public script::Wrappable {
 
  private:
   cobalt::network::NetworkModule* network_module_ = nullptr;
-
-  base::FilePath absolute_log_path_;
 
   DISALLOW_COPY_AND_ASSIGN(H5vccNetLog);
 };

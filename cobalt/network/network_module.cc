@@ -166,13 +166,9 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
   base::PathService::Get(cobalt::paths::DIR_COBALT_DEBUG_OUT, &result);
   net_log_path_ = result.Append(kDefaultNetLogName);
   net::NetLogCaptureMode capture_mode;
-
   if (command_line->HasSwitch(switches::kNetLog)) {
-    LOG(INFO) << "YO YO THOR! HAS SWITCH NETLOG";
-    // If this is not a valid path, net logs will be sent to VLOG(1).
     net_log_path_ = command_line->GetSwitchValuePath(switches::kNetLog);
     if (command_line->HasSwitch(switches::kNetLogCaptureMode)) {
-      LOG(INFO) << "YO THOR - OOH CHANGE CPATUREMODE";
       std::string capture_mode_string =
           command_line->GetSwitchValueASCII(switches::kNetLogCaptureMode);
       if (capture_mode_string == kCaptureModeIncludeCookiesAndCredentials) {
@@ -181,7 +177,6 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
         capture_mode = net::NetLogCaptureMode::IncludeSocketBytes();
       }
     }
-    LOG(INFO) << "YO YO THOR! NET LOG PATH:" << net_log_path_.value();
     net_log_.reset(new CobaltNetLog(net_log_path_, capture_mode));
     net_log_->StartObserving();
   } else {
@@ -223,7 +218,6 @@ void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
 
   net::NetLog* net_log = NULL;
 #if defined(ENABLE_NETWORK_LOGGING)
-  LOG(INFO) << "YO THOR! ENABLE NETWORKI G LOGGING ENABLED!";
   net_log = net_log_.get();
 #endif
   url_request_context_.reset(
@@ -257,9 +251,13 @@ void NetworkModule::AddClientHintHeaders(
   }
 }
 
-void NetworkModule::StartNetLog() { net_log_->StartObserving(); }
+void NetworkModule::StartNetLog() {
+  LOG(INFO) << "Starting NetLog capture";
+  net_log_->StartObserving();
+}
 
 base::FilePath NetworkModule::StopNetLog() {
+  LOG(INFO) << "Stopping NetLog capture";
   net_log_->StopObserving();
   return net_log_path_;
 }
