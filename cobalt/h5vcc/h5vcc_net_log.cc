@@ -29,7 +29,7 @@ void H5vccNetLog::Start() { network_module_->StartNetLog(); }
 
 void H5vccNetLog::Stop() { network_module_->StopNetLog(); }
 
-std::string H5vccNetLog::Read() {
+std::string H5vccNetLog::StopAndRead() {
   base::FilePath netlog_path = network_module_->StopNetLog();
   std::string netlog_output{};
   if (!netlog_path.empty()) {

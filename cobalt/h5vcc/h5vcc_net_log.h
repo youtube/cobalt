@@ -29,7 +29,7 @@ class H5vccNetLog : public script::Wrappable {
 
   void Start();
   void Stop();
-  std::string Read();
+  std::string StopAndRead();
 
   DEFINE_WRAPPABLE_TYPE(H5vccNetLog);
 

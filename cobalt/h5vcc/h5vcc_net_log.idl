@@ -15,5 +15,5 @@
 interface H5vccNetLog {
   void start();
   void stop();
-  DOMString read();
+  DOMString stopAndRead();
 };

@@ -72,7 +72,7 @@ export default class CobaltPanel extends UI.VBox {
         }));
         netLogContainer.appendChild(UI.createTextButton(Common.UIString('Download NetLog'), event => {
             console.log("Download Trace");
-            this.run(`(function() { return window.h5vcc.netLog.read();})()`).then(function (result) {
+            this.run(`(function() { return window.h5vcc.netLog.stopAndRead();})()`).then(function (result) {
                 const netlog_file = 'net_log.json';
                 download_element.setAttribute('href', 'data:text/plain;charset=utf-8,' +
                     encodeURIComponent(result.result.value));
