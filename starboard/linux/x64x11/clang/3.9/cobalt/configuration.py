@@ -32,12 +32,4 @@ class CobaltLinuxX64X11Clang39Configuration(
       'zip_unittests': [
           'ZipReaderTest.ExtractToFileAsync_RegularFile',
       ],
-      # Tracked by b/226999079.
-      'renderer_test': [
-          'LottieCoveragePixelTest*skottie_linear_wipe_effect_json',
-          'LottieCoveragePixelTest*skottie_matte_blendmode_json',
-          'LottieCoveragePixelTest*skottie_shift_channels_effect_json',
-          'LottieCoveragePixelTest*skottie_3d_2planes_json',
-          'LottieCoveragePixelTest*skottie_venetianblinds_effect_json',
-      ],
   }

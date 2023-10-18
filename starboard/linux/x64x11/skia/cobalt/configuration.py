@@ -32,10 +32,5 @@ class CobaltLinuxX64X11SkiaConfiguration(
       # Tracked by b/181270083, b/226999079.
       'renderer_test': [
           'PixelTest.RectWithRoundedCornersOnSolidColor',
-          'LottieCoveragePixelTest*skottie_linear_wipe_effect_json',
-          'LottieCoveragePixelTest*skottie_matte_blendmode_json',
-          'LottieCoveragePixelTest*skottie_shift_channels_effect_json',
-          'LottieCoveragePixelTest*skottie_3d_2planes_json',
-          'LottieCoveragePixelTest*skottie_venetianblinds_effect_json',
       ],
   }
