@@ -25,11 +25,12 @@ namespace network {
 
 CobaltNetLog::CobaltNetLog(const base::FilePath& log_path,
                            net::NetLogCaptureMode capture_mode)
+    : capture_mode_(capture_mode)
 #if !defined(COBALT_BUILD_TYPE_GOLD)
-    : net_log_logger_(
+      ,
+      net_log_logger_(
           net::FileNetLogObserver::CreateUnbounded(log_path, nullptr)) {
   LOG(INFO) << "YO THOR COBALT NETLOG OBSERVEING:" << log_path.value();
-  net_log_logger_->StartObserving(this, capture_mode);
 #else   // !defined(COBALT_BUILD_TYPE_GOLD)
 {
   LOG(INFO) << "YO THOR COBALT NETLOG ***NOT***    OBSERVEING";
@@ -39,8 +40,24 @@ CobaltNetLog::CobaltNetLog(const base::FilePath& log_path,
 CobaltNetLog::~CobaltNetLog() {
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   // Remove the observers we own before we're destroyed.
-  net_log_logger_->StopObserving(nullptr, base::OnceClosure());
+  StopObserving();
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+}
+
+void CobaltNetLog::StartObserving() {
+  if (!is_observing_) {
+    is_observing_ = true;
+    net_log_logger_->StartObserving(this, capture_mode_);
+  } else {
+    DLOG(WARNING) << "Already observing NetLog.";
+  }
+}
+
+void CobaltNetLog::StopObserving() {
+  if (is_observing_) {
+    is_observing_ = false;
+    net_log_logger_->StopObserving(nullptr, base::OnceClosure());
+  }
 }
 
 }  // namespace network

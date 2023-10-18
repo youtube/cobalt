@@ -35,8 +35,7 @@ H5vccNetLog::H5vccNetLog(cobalt::network::NetworkModule* network_module)
 
 void H5vccNetLog::Start() {
   LOG(INFO) << "YO THOR! STRATING H5VCC NET LGO ";
-  net::NetLogCaptureMode capture_mode;  // default
-  network_module_->StartNetLog(absolute_log_path_, capture_mode);
+  network_module_->StartNetLog();
 }
 
 void H5vccNetLog::Stop() {
@@ -46,11 +45,12 @@ void H5vccNetLog::Stop() {
 
 std::string H5vccNetLog::Read() {
   LOG(INFO) << "YO THOR! READ H5VCC NET LGO ";
-  Stop();
+
+  base::FilePath netlog_path = network_module_->StopNetLog();
 
   std::string netlog_output{};
-  if (!absolute_log_path_.empty()) {
-    ReadFileToString(absolute_log_path_, &netlog_output);
+  if (!netlog_path.empty()) {
+    ReadFileToString(netlog_path, &netlog_output);
   }
   return netlog_output;
 }

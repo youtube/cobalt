@@ -143,9 +143,8 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
   void WillDestroyCurrentMessageLoop() override;
 
   // Used to capture NetLog from Devtools
-  void StartNetLog(base::FilePath net_log_path,
-                   net::NetLogCaptureMode capture_mode);
-  void StopNetLog();
+  void StartNetLog();
+  base::FilePath StopNetLog();
 
 
  private:
@@ -169,6 +168,8 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
   scoped_refptr<network::DialServiceProxy> dial_service_proxy_;
 #endif
   std::unique_ptr<network_bridge::NetPoster> net_poster_;
+
+  base::FilePath net_log_path_;
   std::unique_ptr<CobaltNetLog> net_log_;
   Options options_;
 
