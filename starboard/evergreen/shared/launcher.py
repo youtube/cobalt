@@ -282,8 +282,6 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def _StageTargetsAndContentsRdk(self):
     """Stage targets and their contents for GN builds for RDK platforms."""
-    content_subdir = os.path.join('usr', 'share', 'cobalt')
-
     # The rdk loader always loads libcobalt.so. Hard code target_name to match.
     rdk_target_name = 'cobalt'
 
@@ -300,7 +298,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
     shutil.copytree(target_content_src, target_content_dst)
 
     shlib_name = f'lib{self.target_name}.so'
-    target_binary_src = os.path.join(self.out_directory, shlib_name)
+    target_binary_src = os.path.join(self.out_directory, 'install', 'lib',
+                                     shlib_name)
     target_binary_dst = os.path.join(target_staging_dir, 'lib',
                                      f'lib{rdk_target_name}.so')
 
