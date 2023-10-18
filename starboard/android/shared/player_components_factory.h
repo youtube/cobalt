@@ -275,8 +275,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
             : "";
     MimeType audio_mime_type(audio_mime);
     if (!audio_mime.empty()) {
-      if (!audio_mime_type.is_valid() ||
-          !audio_mime_type.ValidateBoolParameter("tunnelmode")) {
+      if (!audio_mime_type.is_valid()) {
         *error_message =
             "Invalid audio MIME: '" + std::string(audio_mime) + "'";
         return false;
@@ -302,15 +301,11 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone &&
         creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
       enable_tunnel_mode =
-          audio_mime_type.GetParamBoolValue("tunnelmode", false) &&
           video_mime_type.GetParamBoolValue("tunnelmode", false);
 
       SB_LOG(INFO) << "Tunnel mode is "
                    << (enable_tunnel_mode ? "enabled. " : "disabled. ")
-                   << "Audio mime parameter \"tunnelmode\" value: "
-                   << audio_mime_type.GetParamStringValue("tunnelmode",
-                                                          "<not provided>")
-                   << ", video mime parameter \"tunnelmode\" value: "
+                   << "Video mime parameter \"tunnelmode\" value: "
                    << video_mime_type.GetParamStringValue("tunnelmode",
                                                           "<not provided>")
                    << ".";

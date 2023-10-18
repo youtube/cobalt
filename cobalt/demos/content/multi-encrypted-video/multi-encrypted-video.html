@@ -23,7 +23,7 @@
           margin: 0;
         }
 
-        #player-layer {
+        #primary-player-layer {
           width: 100%;
           height: 100%;
         }
@@ -33,13 +33,14 @@
           height: 100%;
         }
 
-        #ui-layer {
+        #secondary-player-layer {
           position: absolute;
-          top: 15%;
-          height: 85%;
+          top: 60%;
+          height: 40%;
           width: 100%;
-          background-color: rgba(33, 33, 33, .75);
           padding: 24px;
+          display: flex;
+          justify-content: center;
         }
 
         .item {
@@ -48,22 +49,23 @@
           display: inline-block;
           margin: 24px;
           vertical-align: middle;
+          background-color: rgba(33, 33, 33, .75);
         }
     </style>
   </head>
   <body>
-    <div id="player-layer">
-      <video class="primary" id="primary-video" muted="1" autoplay="1"></video>
+    <div id="primary-player-layer">
+      <video id="primary-video" muted="1" autoplay="1"></video>
     </div>
-    <div id="ui-layer">
-      <div class="item" style="background-color: #D44">
-        <video class="secondary" id="secondary-video-1" muted="1" autoplay="1"></video>
+    <div id="secondary-player-layer">
+      <div class="item">
+        <video id="secondary-video-1" muted="1" autoplay="1"></video>
       </div>
-      <div class="item" style="background-color: #4D4">
-        <video class="secondary" id="secondary-video-2" muted="1" autoplay="1"></video>
+      <div class="item">
+        <video id="secondary-video-2" muted="1" autoplay="1"></video>
       </div>
-      <div class="item" style="background-color: #44D">
-        <video class="secondary" id="secondary-video-3" muted="1" autoplay="1"></video>
+      <div class="item">
+        <video id="secondary-video-3" muted="1" autoplay="1"></video>
       </div>
     </div>
     <script src="multi-encrypted-video.js"></script>
