@@ -170,7 +170,7 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
   std::unique_ptr<network_bridge::NetPoster> net_poster_;
 
   base::FilePath net_log_path_;
-  std::unique_ptr<CobaltNetLog> net_log_;
+  std::unique_ptr<CobaltNetLog> net_log_{nullptr};
   Options options_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkModule);

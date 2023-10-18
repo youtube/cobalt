@@ -252,13 +252,17 @@ void NetworkModule::AddClientHintHeaders(
 }
 
 void NetworkModule::StartNetLog() {
+#if defined(ENABLE_NETWORK_LOGGING)
   LOG(INFO) << "Starting NetLog capture";
   net_log_->StartObserving();
+#endif
 }
 
 base::FilePath NetworkModule::StopNetLog() {
+#if defined(ENABLE_NETWORK_LOGGING)
   LOG(INFO) << "Stopping NetLog capture";
   net_log_->StopObserving();
+#endif
   return net_log_path_;
 }
 

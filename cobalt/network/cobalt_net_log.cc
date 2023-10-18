@@ -25,23 +25,13 @@ namespace network {
 
 CobaltNetLog::CobaltNetLog(const base::FilePath& log_path,
                            net::NetLogCaptureMode capture_mode)
-    : capture_mode_(capture_mode)
-#if !defined(COBALT_BUILD_TYPE_GOLD)
-      ,
+    : capture_mode_(capture_mode),
       net_log_logger_(
-          net::FileNetLogObserver::CreateUnbounded(log_path, nullptr)) {
-  LOG(INFO) << "YO THOR COBALT NETLOG OBSERVEING:" << log_path.value();
-#else   // !defined(COBALT_BUILD_TYPE_GOLD)
-{
-  LOG(INFO) << "YO THOR COBALT NETLOG ***NOT***    OBSERVEING";
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
-}
+          net::FileNetLogObserver::CreateUnbounded(log_path, nullptr)) {}
 
 CobaltNetLog::~CobaltNetLog() {
-#if !defined(COBALT_BUILD_TYPE_GOLD)
   // Remove the observers we own before we're destroyed.
   StopObserving();
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 }
 
 void CobaltNetLog::StartObserving() {

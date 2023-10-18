@@ -40,7 +40,7 @@ class CobaltNetLog : public ::net::NetLog {
  private:
   bool is_observing_{false};
   net::NetLogCaptureMode capture_mode_;
-  std::unique_ptr<net::FileNetLogObserver> net_log_logger_;
+  std::unique_ptr<net::FileNetLogObserver> net_log_logger_{nullptr};
 
   DISALLOW_COPY_AND_ASSIGN(CobaltNetLog);
 };

@@ -16,15 +16,11 @@ static_library("network") {
   has_pedantic_warnings = true
 
   sources = [
-    "cobalt_net_log.cc",
-    "cobalt_net_log.h",
     "cookie_jar_impl.cc",
     "cookie_jar_impl.h",
     "job_factory_config.h",
     "local_network.cc",
     "local_network.h",
-    "net_log_constants.cc",
-    "net_log_constants.h",
     "net_poster.cc",
     "net_poster.h",
     "network_delegate.cc",
@@ -64,11 +60,21 @@ static_library("network") {
 
   if (!is_gold) {
     deps += [ "//cobalt/debug:console_command_manager" ]
-    defines = [ "ENABLE_NETWORK_LOGGING" ]
   }
 
   if (enable_in_app_dial) {
     deps += [ ":cobalt_dial_server" ]
+  }
+
+  # Enable network logging on all but gold builds.
+  if (!is_gold) {
+    sources += [
+      "cobalt_net_log.cc",
+      "cobalt_net_log.h",
+      "net_log_constants.cc",
+      "net_log_constants.h",
+    ]
+    defines = [ "ENABLE_NETWORK_LOGGING" ]
   }
 
   if (!sb_is_modular) {
