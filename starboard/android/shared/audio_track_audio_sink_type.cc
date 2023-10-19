@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/common/string.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
@@ -50,8 +51,10 @@ const SbTime kMaxDurationPerRequestInTunnelMode = 16 * kSbTimeMillisecond;
 
 const size_t kSilenceFramesPerAppend = 1024;
 
-const int kMaxRequiredFrames = 16 * 1024;
-const int kRequiredFramesIncrement = 2 * 1024;
+const int kMaxRequiredFramesLocal = 16 * 1024;
+const int kMaxRequiredFramesRemote = 32 * 1024;
+const int kMaxRequiredFrames = kMaxRequiredFramesRemote;
+const int kRequiredFramesIncrement = 4 * 1024;
 const int kMinStablePlayedFrames = 12 * 1024;
 
 const int kSampleFrequency22050 = 22050;
@@ -65,6 +68,38 @@ int GetMaxFramesPerRequestForTunnelMode(int sampling_frequency_hz) {
   auto max_frames = kMaxDurationPerRequestInTunnelMode * sampling_frequency_hz /
                     kSbTimeSecond;
   return (max_frames + 15) / 16 * 16;  // align to 16
+}
+
+bool HasRemoteAudioOutput() {
+#if SB_API_VERSION >= 15
+  // SbPlayerBridge::GetAudioConfigurations() reads up to 32 configurations. The
+  // limit here is to avoid infinite loop and also match
+  // SbPlayerBridge::GetAudioConfigurations().
+  const int kMaxAudioConfigurations = 32;
+  SbMediaAudioConfiguration configuration;
+  int index = 0;
+  while (index < kMaxAudioConfigurations &&
+         MediaCapabilitiesCache::GetInstance()->GetAudioConfiguration(
+             index, &configuration)) {
+    switch (configuration.connector) {
+      case kSbMediaAudioConnectorUnknown:
+      case kSbMediaAudioConnectorAnalog:
+      case kSbMediaAudioConnectorBuiltIn:
+      case kSbMediaAudioConnectorHdmi:
+      case kSbMediaAudioConnectorSpdif:
+      case kSbMediaAudioConnectorUsb:
+        break;
+      case kSbMediaAudioConnectorBluetooth:
+      case kSbMediaAudioConnectorRemoteWired:
+      case kSbMediaAudioConnectorRemoteWireless:
+      case kSbMediaAudioConnectorRemoteOther:
+        return true;
+    }
+    index++;
+  }
+  return false;
+#endif  // SB_API_VERSION >= 15
+  return false;
 }
 
 }  // namespace
@@ -487,11 +522,18 @@ void AudioTrackAudioSinkType::TestMinRequiredFrames() {
   auto onMinRequiredFramesForWebAudioReceived =
       [&](int number_of_channels, SbMediaAudioSampleType sample_type,
           int sample_rate, int min_required_frames) {
+        bool has_remote_audio_output = HasRemoteAudioOutput();
         SB_LOG(INFO) << "Received min required frames " << min_required_frames
                      << " for " << number_of_channels << " channels, "
-                     << sample_rate << "hz.";
+                     << sample_rate << "hz, with "
+                     << (has_remote_audio_output ? "remote" : "local")
+                     << " audio output device.";
         ScopedLock lock(min_required_frames_map_mutex_);
-        min_required_frames_map_[sample_rate] = min_required_frames;
+        has_remote_audio_output_ = has_remote_audio_output;
+        min_required_frames_map_[sample_rate] =
+            std::min(min_required_frames, has_remote_audio_output_
+                                              ? kMaxRequiredFramesRemote
+                                              : kMaxRequiredFramesLocal);
       };
 
   SbMediaAudioSampleType sample_type = kSbMediaAudioSampleTypeFloat32;
@@ -512,20 +554,27 @@ int AudioTrackAudioSinkType::GetMinBufferSizeInFramesInternal(
     int channels,
     SbMediaAudioSampleType sample_type,
     int sampling_frequency_hz) {
-  if (sampling_frequency_hz <= kSampleFrequency22050) {
-    ScopedLock lock(min_required_frames_map_mutex_);
-    if (min_required_frames_map_.find(kSampleFrequency22050) !=
-        min_required_frames_map_.end()) {
-      return min_required_frames_map_[kSampleFrequency22050];
-    }
-  } else if (sampling_frequency_hz <= kSampleFrequency48000) {
-    ScopedLock lock(min_required_frames_map_mutex_);
-    if (min_required_frames_map_.find(kSampleFrequency48000) !=
-        min_required_frames_map_.end()) {
-      return min_required_frames_map_[kSampleFrequency48000];
+  bool has_remote_audio_output = HasRemoteAudioOutput();
+  ScopedLock lock(min_required_frames_map_mutex_);
+  if (has_remote_audio_output == has_remote_audio_output_) {
+    // There's no audio output type change, we can use the numbers we got from
+    // the tests at app launch.
+    if (sampling_frequency_hz <= kSampleFrequency22050) {
+      if (min_required_frames_map_.find(kSampleFrequency22050) !=
+          min_required_frames_map_.end()) {
+        return min_required_frames_map_[kSampleFrequency22050];
+      }
+    } else if (sampling_frequency_hz <= kSampleFrequency48000) {
+      if (min_required_frames_map_.find(kSampleFrequency48000) !=
+          min_required_frames_map_.end()) {
+        return min_required_frames_map_[kSampleFrequency48000];
+      }
     }
   }
-  return kMaxRequiredFrames;
+  // We cannot find a matched result from our tests, or the audio output type
+  // has changed. We use the default max required frames to avoid underruns.
+  return has_remote_audio_output ? kMaxRequiredFramesRemote
+                                 : kMaxRequiredFramesLocal;
 }
 
 }  // namespace shared
