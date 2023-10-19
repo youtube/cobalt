@@ -1,0 +1,5 @@
+git-url: https://chromium.googlesource.com/external/github.com/videolan/dav1d.git
+git-revision: d426d1c91075b9c552b12dd052af1cd0368f05a2
+# from https://chromium.googlesource.com/chromium/src/+/113.0.5672.134/DEPS#1122
+chromium-version: 113.0.5672.134
+chromium-dir: third_party/dav1d/libdav1d

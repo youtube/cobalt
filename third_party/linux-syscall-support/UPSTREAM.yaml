@@ -1,0 +1,5 @@
+git-url: https://chromium.googlesource.com/linux-syscall-support.git
+git-revision: 29f7c7e018f4ce706a709f0b0afbf8bacf869480
+# from https://chromium.googlesource.com/chromium/src/+/86.0.4240.199/DEPS#242
+chromium-version: 86.0.4240.199
+chromium-dir: third_party/lss

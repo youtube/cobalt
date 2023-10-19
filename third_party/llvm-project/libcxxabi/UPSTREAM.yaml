@@ -1,0 +1,5 @@
+git-url: https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxxabi.git
+git-revision: d520d582aa710cc0a4635620c02c5dbc187deb4f
+# from https://chromium.googlesource.com/chromium/src/+/111.0.5563.150/DEPS#466
+chromium-version: 111.0.5563.150
+chromium-dir: buildtools/third_party/libc++abi/trunk

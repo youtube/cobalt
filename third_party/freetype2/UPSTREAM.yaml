@@ -1,0 +1,5 @@
+git-url: https://chromium.googlesource.com/chromium/src/third_party/freetype2.git
+git-revision: e78e2d29a95baf6053e30cc9422aa20319259803
+# from https://chromium.googlesource.com/chromium/src/+/112.0.5615.134/DEPS#353
+chromium-version: 112.0.5615.134
+chromium-dir: third_party/freetype/src

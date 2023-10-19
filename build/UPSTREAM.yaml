@@ -1,0 +1,4 @@
+git-url: https://chromium.googlesource.com/chromium/src.git
+git-revision: 92.0.4515.157
+chromium-version: 92.0.4515.157
+chromium-dir: build

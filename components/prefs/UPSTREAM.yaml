@@ -1,0 +1,4 @@
+git-url: https://chromium.googlesource.com/chromium/src.git
+git-revision: 78.0.3904.106
+chromium-version: 78.0.3904.106
+chromium-dir: components/prefs

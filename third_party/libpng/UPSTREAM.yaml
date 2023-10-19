@@ -1,0 +1,4 @@
+git-url: https://chromium.googlesource.com/chromium/src.git
+git-revision: 25.0.1364.173
+chromium-version: 25.0.1364.173
+chromium-dir: third_party/libpng

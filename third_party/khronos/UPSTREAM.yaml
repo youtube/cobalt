@@ -1,0 +1,4 @@
+git-url: https://chromium.googlesource.com/chromium/src.git
+git-revision: 66.0.3359.203
+chromium-version: 66.0.3359.203
+chromium-dir: third_party/khronos

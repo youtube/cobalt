@@ -1,0 +1,4 @@
+git-url: https://chromium.googlesource.com/chromium/src.git
+git-revision: 54.0.2840.101
+chromium-version: 54.0.2840.101
+chromium-dir: third_party/jinja2

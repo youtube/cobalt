@@ -1,0 +1,4 @@
+git-url: https://chromium.googlesource.com/chromium/src.git
+git-revision: 83.0.4103.119
+chromium-version: 83.0.4103.119
+chromium-dir: third_party/opus

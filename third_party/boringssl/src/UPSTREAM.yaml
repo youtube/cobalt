@@ -1,0 +1,5 @@
+git-url: https://boringssl.googlesource.com/boringssl.git
+git-revision: 2d98d49cf712ca7dc6f4b23b9c5f5542385d8dbe
+# from https://chromium.googlesource.com/chromium/src/+/71.0.3578.127/DEPS#141
+chromium-version: 71.0.3578.127
+chromium-dir: third_party/boringssl/src

@@ -1,0 +1,5 @@
+git-url: https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libunwind.git
+git-revision: e95b94b74d26f8387d4fb03a687a2fab0ed8e91c
+# from https://chromium.googlesource.com/chromium/src/+/111.0.5563.150/DEPS#470
+chromium-version: 111.0.5563.150
+chromium-dir: buildtools/third_party/libunwind/trunk

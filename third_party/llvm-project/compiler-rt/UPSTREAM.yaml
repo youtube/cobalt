@@ -1,0 +1,5 @@
+git-url: https://chromium.googlesource.com/external/github.com/llvm/llvm-project.git
+git-revision: c804775cd32c69bc85f738f760108cd0ac76d0f6
+# tree at https://chromium.googlesource.com/external/github.com/llvm/llvm-project.git/+/c804775c/compiler-rt
+chromium-version: not in chromium
+chromium-dir: not in chromium

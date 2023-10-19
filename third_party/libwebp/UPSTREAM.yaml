@@ -1,0 +1,5 @@
+git-url: https://chromium.googlesource.com/webm/libwebp.git
+git-revision: 2af26267cdfcb63a88e5c74a85927a12d6ca1d76
+# from https://chromium.googlesource.com/chromium/src/+/117.0.5938.115/DEPS#1616
+chromium-version: 117.0.5938.115
+chromium-dir: third_party/libwebp/src

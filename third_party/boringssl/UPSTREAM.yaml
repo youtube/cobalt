@@ -1,0 +1,4 @@
+git-url: https://chromium.googlesource.com/chromium/src.git
+git-revision: 71.0.3578.127
+chromium-version: 71.0.3578.127
+chromium-dir: third_party/boringssl

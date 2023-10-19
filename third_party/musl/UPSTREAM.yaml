@@ -1,0 +1,4 @@
+git-url: git://git.musl-libc.org/musl
+git-revision: f5f55d6589940fd2c2188d76686efe3a530e64e0
+chromium-version: not in chromium
+chromium-dir: not in chromium

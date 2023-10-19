@@ -1,0 +1,5 @@
+git-url: https://github.com/khaledhosny/ots.git
+git-revision: ee537ac096667eed6559124164c3e8482646fd77
+# from https://chromium.googlesource.com/chromium/src/+/90.0.4430.218/DEPS#275
+chromium-version: 90.0.4430.218
+chromium-dir: third_party/ots/src

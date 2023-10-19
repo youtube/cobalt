@@ -1,0 +1,5 @@
+git-url: https://chromium.googlesource.com/chromium/deps/flac.git
+git-revision: 0635a091379d9677f1ddde5f2eec85d0f096f219
+# from https://chromium.googlesource.com/chromium/src/+/39.0.2171.99/DEPS#278
+chromium-version: 39.0.2171.99
+chromium-dir: third_party/flac

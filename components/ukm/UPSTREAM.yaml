@@ -1,0 +1,4 @@
+git-url: https://chromium.googlesource.com/chromium/src.git
+git-revision: 70.0.3538.110
+chromium-version: 70.0.3538.110
+chromium-dir: components/ukm
