@@ -80,6 +80,7 @@ import time
 
 from starboard.shared.win32 import mini_dump_printer
 from starboard.tools import abstract_launcher
+from starboard.tools.abstract_launcher import TargetStatus
 from starboard.tools import net_args
 from starboard.tools import net_log
 from starboard.xb1.tools import packager
@@ -498,16 +499,19 @@ class Launcher(abstract_launcher.AbstractLauncher):
       if hasattr(self, 'net_args_thread'):
         self.net_args_thread.join()
 
+  def InitDevice(self):
+    if not self._network_api.IsInDevMode():
+      raise IOError('\n\n**** Please set the XBOX at ' + self._device_id +
+                    ' to dev mode!!!! ****\n')
+    self.SignIn()
+
   def Run(self):
     # Only upload and install Appx on the first run.
     if FirstRun():
       if self._do_restart:
         self.RestartDevkit()
 
-      if not self._network_api.IsInDevMode():
-        raise IOError('\n\n**** Please set the XBOX at ' + self._device_id +
-                      ' to dev mode!!!! ****\n')
-      self.SignIn()
+      self.InitDevice()
       if self._do_deploy:
         self.Deploy()
       else:
@@ -522,6 +526,13 @@ class Launcher(abstract_launcher.AbstractLauncher):
       self._LogLn('Skipping running step.')
       return 0
 
+    status, _ = self.Run2()
+    if status == TargetStatus.CRASH:
+      return 1
+    else:
+      return 0
+
+  def Run2(self):
     try:
       self.Kill()  # Kill existing running app.
       # While binary is running, extract the net log and stream it to
@@ -557,8 +568,10 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     self.Kill()
     self._LogLn('Finished running...')
-    crashed = self._DetectAndHandleAnyCrashes(self.target_name)
-    return crashed
+    if self._DetectAndHandleAnyCrashes(self.target_name):
+      return TargetStatus.CRASH, 0
+    else:
+      return TargetStatus.NA, 0
 
   def _DetectAndHandleAnyCrashes(self, target_name):
     crashes_detected = False

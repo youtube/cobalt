@@ -18,6 +18,7 @@
 import abc
 import os
 import sys
+from enum import IntEnum
 
 from starboard.tools import build
 from starboard.tools import paths
@@ -78,7 +79,7 @@ def LauncherFactory(platform_name,
     RuntimeError: The platform does not exist, or there is no project root.
   """
 
-  #  Creates launcher for provided platform if the platform has a valid port
+  #  Creates launcher for provided platform if the platform has a valid port.
   launcher_module = _GetLauncherForPlatform(platform_name)
 
   if not launcher_module:
@@ -97,8 +98,51 @@ def LauncherFactory(platform_name,
       **kwargs)
 
 
+class TargetStatus(IntEnum):
+  """Represents status of the target run and its return code availability."""
+
+  # Target exited normally. Return code is available.
+  OK = 0
+
+  # Target exited normally. Return code is not available.
+  NA = 1
+
+  # Target crashed.
+  CRASH = 2
+
+  # Target not started.
+  NOT_STARTED = 3
+
+  @classmethod
+  def ToString(cls, status):
+    return [
+        "SUCCEEDED", "SUCCEEDED", "FAILED (CRASHED)", "FAILED (NOT STARTED)"
+    ][status]
+
+
 class AbstractLauncher(object):
-  """Class that specifies all required behavior for Cobalt app launchers."""
+  """
+  Class that specifies all required behavior for Cobalt app launchers.
+  The following is definition of extended interface. Implementation is optional.
+  Functions:
+    - InitDevice: a function to be called before any other performance
+      on the target device.
+    - RebootDevice: a function, used to reboot the target device.
+    - Run2: a function to run a target on device. Must be implemented
+      to support extended interface. The target must have been deployed
+      on the device, if required.
+      Returns:
+        a tuple of ReturnCodeStatus and, target return code if available,
+        else 0.
+    - Deploy: creates a package (if required) and deploys it on the target
+      device.
+    - CheckPackageIsDeployed: a function, which returns True, if the target
+      is deployed on the device, False otherwise. Must be implemented,
+      if Deploy is implemented.
+    - Kill: request the target OS to kill the target process. Must be
+      implemented.
+    - SendStop: sends stop signal to the launcher's executable.
+  """
 
   __metaclass__ = abc.ABCMeta
 
@@ -143,20 +187,22 @@ class AbstractLauncher(object):
 
     self.test_result_xml_path = kwargs.get("test_result_xml_path", None)
 
+  def HasExtendedInterface(self) -> bool:
+    return hasattr(self, "Run2")
+
   @abc.abstractmethod
   def Run(self):
-    """Runs the launcher's executable.
+    """Runs an underlying application. Supports launching target
+      executable on target device, or target executable directly.
+      Implementation is platform specific.
 
     Must be implemented in subclasses.
 
     Returns:
-      The return code from the launcher's executable.
+      The return code from the underlying application, if available,
+      else, 0 in case of normal completion of the underlying application,
+      otherwise 1.
     """
-    pass
-
-  @abc.abstractmethod
-  def Kill(self):
-    """Kills the launcher. Must be implemented in subclasses."""
     pass
 
   @abc.abstractmethod
@@ -166,7 +212,7 @@ class AbstractLauncher(object):
 
   @abc.abstractmethod
   def GetDeviceOutputPath(self):
-    """Writable path where test targets can output files"""
+    """Writable path where test targets can output files."""
     pass
 
   def SupportsSuspendResume(self):
@@ -218,14 +264,6 @@ class AbstractLauncher(object):
       RuntimeError: Freeze signal not supported on platform.
     """
     raise RuntimeError("Freeze not supported for this platform.")
-
-  def SendStop(self):
-    """sends stop signal to the launcher's executable.
-
-    Raises:
-      RuntimeError: Stop signal not supported on platform.
-    """
-    raise RuntimeError("Stop not supported for this platform.")
 
   def SupportsDeepLink(self):
     return False
@@ -290,7 +328,7 @@ class AbstractLauncher(object):
 
     The default path returned by this method takes the form of:
 
-      "/path/to/out/<platform>_<config>/target_name"
+      "/path/to/out/<platform>_<config>/target_name".
 
     Returns:
       The path to an executable target.
@@ -302,7 +340,7 @@ class AbstractLauncher(object):
 
     The default path returned by this method takes the form of:
 
-      "/path/to/out/<platform>_<config>/install/target_name"
+      "/path/to/out/<platform>_<config>/install/target_name".
 
     Returns:
       The path to an executable target.
