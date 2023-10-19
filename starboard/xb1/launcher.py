@@ -62,12 +62,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   # All other functions are automatically delegated using this function.
   def __getattr__(self, fname):
-
-    def method(*args):
-      f = getattr(self.delegate, fname)
-      return f(*args)
-
-    return method
+    return getattr(self.delegate, fname)
 
   def GetDeviceIp(self):
     """Gets the device IP. TODO: Implement."""
