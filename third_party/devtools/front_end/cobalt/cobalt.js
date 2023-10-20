@@ -58,6 +58,32 @@ export default class CobaltPanel extends UI.VBox {
                 });
             }));
         });
+
+        const netLogContainer = this.element.createChild('div', 'netlog-container');
+        netLogContainer.appendChild(UI.createTextButton(Common.UIString('Start NetLog'), event => {
+            console.log("Start NetLog");
+            this.run(`(function() { window.h5vcc.netLog.start();})()`);
+            console.log("Started NetLog");
+        }));
+        netLogContainer.appendChild(UI.createTextButton(Common.UIString('Stop NetLog'), event => {
+            console.log("Stop NetLog");
+            this.run(`(function() { window.h5vcc.netLog.stop();})()`);
+            console.log("Stopped NetLog");
+        }));
+        netLogContainer.appendChild(UI.createTextButton(Common.UIString('Download NetLog'), event => {
+            console.log("Download Trace");
+            this.run(`(function() { return window.h5vcc.netLog.stopAndRead();})()`).then(function (result) {
+                const netlog_file = 'net_log.json';
+                download_element.setAttribute('href', 'data:text/plain;charset=utf-8,' +
+                    encodeURIComponent(result.result.value));
+                download_element.setAttribute('download', netlog_file);
+                console.log("Downloaded NetLog");
+                download_element.click();
+                download_element.setAttribute('href', undefined);
+            });
+        }));
+
+
         const debugLogContainer = this.element.createChild('div', 'debug-log-container');
         debugLogContainer.appendChild(UI.createTextButton(Common.UIString('DebugLog On'), event => {
             this._cobaltAgent.invoke_sendConsoleCommand({
@@ -69,6 +95,7 @@ export default class CobaltPanel extends UI.VBox {
                 command: 'debug_log', message: 'off'
             });
         }));
+
         const lifecycleContainer = this.element.createChild('div', 'lifecycle-container');
         lifecycleContainer.appendChild(UI.createTextButton(Common.UIString('Blur'), event => {
             this._cobaltAgent.invoke_sendConsoleCommand({ command: 'blur' });
@@ -88,6 +115,7 @@ export default class CobaltPanel extends UI.VBox {
         lifecycleContainer.appendChild(UI.createTextButton(Common.UIString('Quit'), event => {
             this._cobaltAgent.invoke_sendConsoleCommand({ command: 'quit' });
         }));
+
         const consoleContainer = this.element.createChild('div', 'console-container');
         consoleContainer.appendChild(UI.createTextButton(Common.UIString('DebugCommand'), event => {
             const outputElement = document.getElementsByClassName('console-output')[0];

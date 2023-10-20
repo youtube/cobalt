@@ -171,6 +171,7 @@ source_idl_files = [
   "//cobalt/h5vcc/h5vcc_screen.idl",
   "//cobalt/h5vcc/h5vcc_system.idl",
   "//cobalt/h5vcc/h5vcc_trace_event.idl",
+  "//cobalt/h5vcc/h5vcc_net_log.idl",
   "//cobalt/h5vcc/h5vcc_updater.idl",
 
   "//cobalt/media_capture/blob_event.idl",

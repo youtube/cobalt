@@ -42,6 +42,7 @@ interface H5vcc {
   readonly attribute H5vccStorage storage;
   readonly attribute H5vccSystem system;
   readonly attribute H5vccTraceEvent traceEvent;
+  readonly attribute H5vccNetLog netLog;
   [Conditional=SB_IS_EVERGREEN]
       readonly attribute H5vccUpdater updater;
 };

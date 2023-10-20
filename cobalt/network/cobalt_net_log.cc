@@ -25,14 +25,29 @@ namespace network {
 
 CobaltNetLog::CobaltNetLog(const base::FilePath& log_path,
                            net::NetLogCaptureMode capture_mode)
-    : net_log_logger_(
-          net::FileNetLogObserver::CreateUnbounded(log_path, nullptr)) {
-  net_log_logger_->StartObserving(this, capture_mode);
-}
+    : capture_mode_(capture_mode),
+      net_log_logger_(
+          net::FileNetLogObserver::CreateUnbounded(log_path, nullptr)) {}
 
 CobaltNetLog::~CobaltNetLog() {
   // Remove the observers we own before we're destroyed.
-  net_log_logger_->StopObserving(nullptr, base::OnceClosure());
+  StopObserving();
+}
+
+void CobaltNetLog::StartObserving() {
+  if (!is_observing_) {
+    is_observing_ = true;
+    net_log_logger_->StartObserving(this, capture_mode_);
+  } else {
+    DLOG(WARNING) << "Already observing NetLog.";
+  }
+}
+
+void CobaltNetLog::StopObserving() {
+  if (is_observing_) {
+    is_observing_ = false;
+    net_log_logger_->StopObserving(nullptr, base::OnceClosure());
+  }
 }
 
 }  // namespace network
