@@ -135,33 +135,42 @@ public class AudioTrackBridge {
             .setChannelMask(channelConfig)
             .build();
 
-    try {
-      audioTrack =
-          new AudioTrack(
-              attributes,
-              format,
-              preferredBufferSizeInBytes,
-              AudioTrack.MODE_STREAM,
-              tunnelModeEnabled
-                  ? tunnelModeAudioSessionId
-                  : AudioManager.AUDIO_SESSION_ID_GENERATE);
-    } catch (Exception e) {
-      audioTrack = null;
-      Log.i(TAG, "Failed to create AudioTrack: " + e.getMessage());
+    int audioTrackBufferSize = preferredBufferSizeInBytes;
+    // TODO: Investigate if this implementation could be refined.
+    // It is not necessary to loop until 0 since there is new implementation based on
+    // AudioTrack.getMinBufferSize(). Especially for tunnel mode, it would fail if audio HAL does
+    // not support tunnel mode and then it is not helpful to retry.
+    while (audioTrackBufferSize > 0) {
+      try {
+        audioTrack =
+            new AudioTrack(
+                attributes,
+                format,
+                audioTrackBufferSize,
+                AudioTrack.MODE_STREAM,
+                tunnelModeEnabled
+                    ? tunnelModeAudioSessionId
+                    : AudioManager.AUDIO_SESSION_ID_GENERATE);
+      } catch (Exception e) {
+        audioTrack = null;
+      }
+      // AudioTrack ctor can fail in multiple, platform specific ways, so do a thorough check
+      // before proceed.
+      if (audioTrack != null) {
+        if (audioTrack.getState() == AudioTrack.STATE_INITIALIZED) {
+          break;
+        }
+        audioTrack = null;
+      }
+      audioTrackBufferSize /= 2;
     }
-    // AudioTrack ctor can fail in multiple, platform specific ways, so do a thorough check
-    // before proceed.
-    if (audioTrack != null && audioTrack.getState() != AudioTrack.STATE_INITIALIZED) {
-      audioTrack = null;
-    }
-
     Log.i(
         TAG,
-        "AudioTrack created with preferred size %d (in bytes). The minimum buffer size is %d. The"
-            + " buffer size is %d (in frames).",
+        "AudioTrack created with buffer size %d (preferred: %d).  The minimum buffer size is"
+            + " %d.",
+        audioTrackBufferSize,
         preferredBufferSizeInBytes,
-        AudioTrack.getMinBufferSize(sampleRate, channelConfig, sampleType),
-        audioTrack.getBufferSizeInFrames());
+        AudioTrack.getMinBufferSize(sampleRate, channelConfig, sampleType));
   }
 
   public Boolean isAudioTrackValid() {
