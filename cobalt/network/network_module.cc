@@ -17,10 +17,12 @@
 #include "base/bind.h"
 #include "base/command_line.h"
 #include "base/logging.h"
+#include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
+#include "cobalt/base/cobalt_paths.h"
 #include "cobalt/network/network_system.h"
 #include "cobalt/network/switches.h"
 #include "net/url_request/static_http_user_agent_settings.h"
@@ -33,6 +35,7 @@ namespace {
 const char kCaptureModeIncludeCookiesAndCredentials[] =
     "IncludeCookiesAndCredentials";
 const char kCaptureModeIncludeSocketBytes[] = "IncludeSocketBytes";
+const char kDefaultNetLogName[] = "cobalt_netlog.json";
 #endif
 }  // namespace
 
@@ -159,11 +162,12 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
   }
 
 #if defined(ENABLE_NETWORK_LOGGING)
+  base::FilePath result;
+  base::PathService::Get(cobalt::paths::DIR_COBALT_DEBUG_OUT, &result);
+  net_log_path_ = result.Append(kDefaultNetLogName);
+  net::NetLogCaptureMode capture_mode;
   if (command_line->HasSwitch(switches::kNetLog)) {
-    // If this is not a valid path, net logs will be sent to VLOG(1).
-    base::FilePath net_log_path =
-        command_line->GetSwitchValuePath(switches::kNetLog);
-    net::NetLogCaptureMode capture_mode;
+    net_log_path_ = command_line->GetSwitchValuePath(switches::kNetLog);
     if (command_line->HasSwitch(switches::kNetLogCaptureMode)) {
       std::string capture_mode_string =
           command_line->GetSwitchValueASCII(switches::kNetLogCaptureMode);
@@ -173,7 +177,10 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
         capture_mode = net::NetLogCaptureMode::IncludeSocketBytes();
       }
     }
-    net_log_.reset(new CobaltNetLog(net_log_path, capture_mode));
+    net_log_.reset(new CobaltNetLog(net_log_path_, capture_mode));
+    net_log_->StartObserving();
+  } else {
+    net_log_.reset(new CobaltNetLog(net_log_path_, capture_mode));
   }
 #endif
 
@@ -242,6 +249,21 @@ void NetworkModule::AddClientHintHeaders(
       url_fetcher.AddExtraRequestHeader(header);
     }
   }
+}
+
+void NetworkModule::StartNetLog() {
+#if defined(ENABLE_NETWORK_LOGGING)
+  LOG(INFO) << "Starting NetLog capture";
+  net_log_->StartObserving();
+#endif
+}
+
+base::FilePath NetworkModule::StopNetLog() {
+#if defined(ENABLE_NETWORK_LOGGING)
+  LOG(INFO) << "Stopping NetLog capture";
+  net_log_->StopObserving();
+#endif
+  return net_log_path_;
 }
 
 }  // namespace network

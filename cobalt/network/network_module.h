@@ -142,6 +142,11 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
   // From base::MessageLoop::DestructionObserver.
   void WillDestroyCurrentMessageLoop() override;
 
+  // Used to capture NetLog from Devtools
+  void StartNetLog();
+  base::FilePath StopNetLog();
+
+
  private:
   void Initialize(const std::string& user_agent_string,
                   base::EventDispatcher* event_dispatcher);
@@ -163,7 +168,9 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
   scoped_refptr<network::DialServiceProxy> dial_service_proxy_;
 #endif
   std::unique_ptr<network_bridge::NetPoster> net_poster_;
-  std::unique_ptr<CobaltNetLog> net_log_;
+
+  base::FilePath net_log_path_;
+  std::unique_ptr<CobaltNetLog> net_log_{nullptr};
   Options options_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkModule);
