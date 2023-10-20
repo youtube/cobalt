@@ -361,8 +361,6 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
       # ssh into the RDK and run the test
       if not self.shutdown_initiated.is_set():
-        self._PexpectSpawnAndConnect(self.test_prep_command)
-        self._Sleep(self._INTER_COMMAND_DELAY_SECONDS)
         self._PexpectSpawnAndConnect(self.ssh_command)
         self._Sleep(self._INTER_COMMAND_DELAY_SECONDS)
 
@@ -394,7 +392,6 @@ class Launcher(abstract_launcher.AbstractLauncher):
       if not self.shutdown_initiated.is_set():
         self._PexpectSendLine(self.test_prep_command)
         self._Sleep(self._INTER_COMMAND_DELAY_SECONDS)
-        self._WaitForPrompt()
         self._PexpectSendLine(self.test_command)
         self._PexpectReadLines()
 
