@@ -413,7 +413,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
         package_full_name = package['PackageFullName']
         if package_full_name.find(
             _DEFAULT_PACKAGE_NAME) != -1 or package_full_name.find(
-                _STUB_PACKAGE_NAME):
+                _STUB_PACKAGE_NAME) != -1:
           if package_full_name not in uninstalled_packages:
             self._LogLn('Existing YouTube app found on device. Uninstalling: ' +
                         package_full_name)
@@ -426,7 +426,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
         self._LogLn(err.output)
 
   def DeleteLooseApps(self):
-    self._network_api.ClearLooseAppsFiles()
+    self._network_api.ClearLooseAppFiles()
 
   def Deploy(self):
     # starboard_arguments.txt is packaged with the appx. It instructs the app
@@ -467,7 +467,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   # Validate that app was installed correctly by checking to make sure
   # that the full package name can now be found.
-  def CheckPackageIsDeployed(self, package_name):
+  def CheckPackageIsDeployed(self, package_name=_DEFAULT_PACKAGE_NAME):
     package_list = self.WinAppDeployCmd('list')
     package_index = package_list.find(package_name)
     if package_index == -1:
