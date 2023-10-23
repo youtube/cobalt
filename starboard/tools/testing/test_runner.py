@@ -180,7 +180,7 @@ class TestLauncher(object):
           assert hasattr(self.launcher, "CheckPackageIsDeployed")
           if abstract_launcher.ARG_NOINSTALL not in self.launcher.launcher_args:
             self.launcher.Deploy()
-          if not self.launcher.CheckPackageIsDeployed():
+          if not self.launcher.CheckPackageIsDeployed("GoogleInc.YouTube"):
             raise IOError(
                 "The target application is not installed on the device.")
 
