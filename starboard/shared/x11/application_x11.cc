@@ -17,6 +17,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <unistd.h>
+extern "C" {
 #define XK_3270  // for XK_3270_BackTab
 #include <X11/XF86keysym.h>
 #include <X11/XKBlib.h>
@@ -24,6 +25,7 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
+}
 
 #include <algorithm>
 #include <iomanip>
