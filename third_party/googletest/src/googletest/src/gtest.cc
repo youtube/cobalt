@@ -1135,23 +1135,16 @@ std::string UnitTestImpl::CurrentOsStackTraceExceptTop(int skip_count) {
 #if GTEST_OS_STARBOARD
 class Timer {
  public:
-  Timer() {
-    EzTimeValueGetNow(&start_, NULL);
+  Timer() : start_(GetTimeInMillis()) {
   }
 
   // Return time elapsed in milliseconds since the timer was created.
   TimeInMillis Elapsed() {
-    EzTimeValue now;
-    EzTimeValueGetNow(&now, NULL);
-    return (EzTimeValueToTimeInMillis(now) - EzTimeValueToTimeInMillis(start_));
+    return (GetTimeInMillis() - start_);
   }
 
  private:
-  TimeInMillis EzTimeValueToTimeInMillis(EzTimeValue time_value) {
-    return time_value.tv_sec * 1000 + time_value.tv_usec / 1000;
-  }
-
-  EzTimeValue start_;
+  TimeInMillis start_;
 };
 #else  // GTEST_OS_STARBOARD
 class Timer {
