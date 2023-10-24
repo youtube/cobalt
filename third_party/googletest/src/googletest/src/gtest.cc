@@ -1132,6 +1132,28 @@ std::string UnitTestImpl::CurrentOsStackTraceExceptTop(int skip_count) {
 }
 
 // A helper class for measuring elapsed times.
+#if GTEST_OS_STARBOARD
+class Timer {
+ public:
+  Timer() {
+    EzTimeValueGetNow(&start_, NULL);
+  }
+
+  // Return time elapsed in milliseconds since the timer was created.
+  TimeInMillis Elapsed() {
+    EzTimeValue now;
+    EzTimeValueGetNow(&now, NULL);
+    return (EzTimeValueToTimeInMillis(now) - EzTimeValueToTimeInMillis(start_));
+  }
+
+ private:
+  TimeInMillis EzTimeValueToTimeInMillis(EzTimeValue time_value) {
+    return time_value.tv_sec * 1000 + time_value.tv_usec / 1000;
+  }
+
+  EzTimeValue start_;
+};
+#else  // GTEST_OS_STARBOARD
 class Timer {
  public:
   Timer() : start_(std::chrono::steady_clock::now()) {}
@@ -1146,6 +1168,7 @@ class Timer {
  private:
   std::chrono::steady_clock::time_point start_;
 };
+#endif  // GTEST_OS_STARBOARD
 
 // Returns a timestamp as milliseconds since the epoch. Note this time may jump
 // around subject to adjustments by the system, to measure elapsed time use
