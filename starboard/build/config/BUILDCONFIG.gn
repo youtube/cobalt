@@ -522,7 +522,11 @@ template("shared_library") {
     if (current_toolchain == starboard_toolchain) {
       executable("${actual_target_name}_loader") {
         output_name = "${actual_target_name}_loader"
-        forward_variables_from(invoker, [ "testonly" ])
+        forward_variables_from(invoker,
+                               [
+                                 "testonly",
+                                 "data_deps",
+                               ])
         sources = [ "//$starboard_path/starboard_loader.cc" ]
 
         # Forwards the "shared_library_target_name" to allow this loader install
