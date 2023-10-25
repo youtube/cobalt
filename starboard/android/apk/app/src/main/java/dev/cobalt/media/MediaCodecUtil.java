@@ -747,8 +747,7 @@ public class MediaCodecUtil {
    * "" otherwise.
    */
   @UsedByNative
-  public static String findAudioDecoder(
-      String mimeType, int bitrate, boolean mustSupportTunnelMode) {
+  public static String findAudioDecoder(String mimeType, int bitrate) {
     // Note: MediaCodecList is sorted by the framework such that the best decoders come first.
     for (MediaCodecInfo info : new MediaCodecList(MediaCodecList.ALL_CODECS).getCodecInfos()) {
       if (info.isEncoder()) {
@@ -766,14 +765,6 @@ public class MediaCodecUtil {
         if (!bitrateRange.contains(bitrate)) {
           continue;
         }
-        if (mustSupportTunnelMode
-            && !codecCapabilities.isFeatureSupported(CodecCapabilities.FEATURE_TunneledPlayback)) {
-          continue;
-        }
-        // TODO: Determine if we can safely check if an audio codec requires the tunneled playback
-        //  feature. i.e., reject when |mustSupportTunnelMode| == false
-        //  and codecCapabilities.isFeatureRequired(CodecCapabilities.FEATURE_TunneledPlayback) ==
-        //  true.
         return name;
       }
     }
