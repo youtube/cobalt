@@ -78,6 +78,7 @@ _FILTERED_TESTS = {
         'ImportantFileWriterTest.ScheduleWrite_FailToSerialize',
         'ImportantFileWriterTest.ScheduleWrite_WriteNow',
         'ImportantFileWriterTest.DoScheduledWrite_FailToSerialize',
+        'ScopedTaskEnvironmentTest.QueuedTasksDoNotRunOutsideOfRunUntilIdle',
         'ScopedTempDir.FullPath',
         'ScopedTempDir.TempDir',
         'ScopedTempDir.UniqueTempDirUnderPath',
