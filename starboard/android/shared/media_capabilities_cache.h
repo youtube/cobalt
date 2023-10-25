@@ -128,9 +128,7 @@ class MediaCapabilitiesCache {
   bool GetAudioConfiguration(int index,
                              SbMediaAudioConfiguration* configuration);
 
-  bool HasAudioDecoderFor(const std::string& mime_type,
-                          int bitrate,
-                          bool must_support_tunnel_mode);
+  bool HasAudioDecoderFor(const std::string& mime_type, int bitrate);
 
   bool HasVideoDecoderFor(const std::string& mime_type,
                           bool must_support_secure,
@@ -142,9 +140,7 @@ class MediaCapabilitiesCache {
                           int bitrate,
                           int fps);
 
-  std::string FindAudioDecoder(const std::string& mime_type,
-                               int bitrate,
-                               bool must_support_tunnel_mode);
+  std::string FindAudioDecoder(const std::string& mime_type, int bitrate);
 
   std::string FindVideoDecoder(const std::string& mime_type,
                                bool must_support_secure,

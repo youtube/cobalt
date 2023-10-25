@@ -472,10 +472,8 @@ bool MediaCapabilitiesCache::GetAudioConfiguration(
 }
 
 bool MediaCapabilitiesCache::HasAudioDecoderFor(const std::string& mime_type,
-                                                int bitrate,
-                                                bool must_support_tunnel_mode) {
-  return !FindAudioDecoder(mime_type, bitrate, must_support_tunnel_mode)
-              .empty();
+                                                int bitrate) {
+  return !FindAudioDecoder(mime_type, bitrate).empty();
 }
 
 bool MediaCapabilitiesCache::HasVideoDecoderFor(
@@ -497,16 +495,14 @@ bool MediaCapabilitiesCache::HasVideoDecoderFor(
 
 std::string MediaCapabilitiesCache::FindAudioDecoder(
     const std::string& mime_type,
-    int bitrate,
-    bool must_support_tunnel_mode) {
+    int bitrate) {
   if (!is_enabled_) {
     JniEnvExt* env = JniEnvExt::Get();
     ScopedLocalJavaRef<jstring> j_mime(
         env->NewStringStandardUTFOrAbort(mime_type.c_str()));
     jobject j_decoder_name = env->CallStaticObjectMethodOrAbort(
         "dev/cobalt/media/MediaCodecUtil", "findAudioDecoder",
-        "(Ljava/lang/String;IZ)Ljava/lang/String;", j_mime.Get(), bitrate,
-        must_support_tunnel_mode);
+        "(Ljava/lang/String;I)Ljava/lang/String;", j_mime.Get(), bitrate);
     return env->GetStringStandardUTFOrAbort(
         static_cast<jstring>(j_decoder_name));
   }
@@ -515,11 +511,6 @@ std::string MediaCapabilitiesCache::FindAudioDecoder(
   UpdateMediaCapabilities_Locked();
 
   for (auto& audio_capability : audio_codec_capabilities_map_[mime_type]) {
-    // Reject if tunnel mode is required but codec doesn't support it.
-    if (must_support_tunnel_mode &&
-        !audio_capability->is_tunnel_mode_supported()) {
-      continue;
-    }
     // Reject if bitrate is not supported.
     if (!audio_capability->IsBitrateSupported(bitrate)) {
       continue;
