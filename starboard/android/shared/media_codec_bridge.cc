@@ -169,8 +169,7 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
 
   std::string decoder_name =
       MediaCapabilitiesCache::GetInstance()->FindAudioDecoder(
-          mime, /* bitrate = */ 0,
-          /* must_support_tunnel_mode = */ false);
+          mime, /* bitrate = */ 0);
 
   if (decoder_name.empty()) {
     SB_LOG(ERROR) << "Failed to find decoder for " << audio_stream_info.codec
