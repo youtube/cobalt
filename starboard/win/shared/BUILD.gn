@@ -304,7 +304,6 @@ static_library("starboard_platform") {
     "//starboard/shared/win32/time_get_now.cc",
     "//starboard/shared/win32/time_utils.h",
     "//starboard/shared/win32/time_zone_get_current.cc",
-    "//starboard/shared/win32/time_zone_get_name.cc",
     "//starboard/shared/win32/video_decoder.cc",
     "//starboard/shared/win32/video_decoder.h",
     "//starboard/shared/win32/wasapi_include.h",
