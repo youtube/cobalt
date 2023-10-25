@@ -601,24 +601,6 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
   return "";
 }
 
-void MediaCapabilitiesCache::ClearCache() {
-  ScopedLock scoped_lock(mutex_);
-  is_initialized_ = false;
-  supported_hdr_types_is_dirty_ = true;
-  is_widevine_supported_ = false;
-  is_cbcs_supported_ = false;
-  supported_transfer_ids_.clear();
-  passthrough_supportabilities_.clear();
-  audio_codec_capabilities_map_.clear();
-  video_codec_capabilities_map_.clear();
-  audio_configurations_.clear();
-}
-
-void MediaCapabilitiesCache::Initialize() {
-  ScopedLock scoped_lock(mutex_);
-  UpdateMediaCapabilities_Locked();
-}
-
 MediaCapabilitiesCache::MediaCapabilitiesCache() {
   // Enable mime and key system caches.
   MimeSupportabilityCache::GetInstance()->SetCacheEnabled(true);
@@ -627,19 +609,20 @@ MediaCapabilitiesCache::MediaCapabilitiesCache() {
 
 void MediaCapabilitiesCache::UpdateMediaCapabilities_Locked() {
   mutex_.DCheckAcquired();
+  if (capabilities_is_dirty_.exchange(false)) {
+    // We use a different cache strategy (load and cache) for passthrough
+    // supportabilities, so we only clear |passthrough_supportabilities_| here.
+    passthrough_supportabilities_.clear();
 
-  if (supported_hdr_types_is_dirty_.exchange(false)) {
+    audio_codec_capabilities_map_.clear();
+    video_codec_capabilities_map_.clear();
+    audio_configurations_.clear();
+    is_widevine_supported_ = GetIsWidevineSupported();
+    is_cbcs_supported_ = GetIsCbcsSupported();
     supported_transfer_ids_ = GetSupportedHdrTypes();
+    LoadCodecInfos_Locked();
+    LoadAudioConfigurations_Locked();
   }
-
-  if (is_initialized_) {
-    return;
-  }
-  is_widevine_supported_ = GetIsWidevineSupported();
-  is_cbcs_supported_ = GetIsCbcsSupported();
-  LoadCodecInfos_Locked();
-  LoadAudioConfigurations_Locked();
-  is_initialized_ = true;
 }
 
 void MediaCapabilitiesCache::LoadCodecInfos_Locked() {
@@ -710,31 +693,17 @@ void MediaCapabilitiesCache::LoadAudioConfigurations_Locked() {
 
 extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_util_DisplayUtil_nativeOnDisplayChanged() {
-  SB_DLOG(INFO) << "Display device has changed.";
-  MediaCapabilitiesCache::GetInstance()->ClearSupportedHdrTypes();
+  // Display device change could change hdr capabilities.
+  MediaCapabilitiesCache::GetInstance()->ClearCache();
   MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
 }
 
 extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_media_AudioOutputManager_nativeOnAudioDeviceChanged() {
-  SB_DLOG(INFO) << "Audio device has changed.";
   // Audio output device change could change passthrough decoder capabilities,
   // so we have to reload codec capabilities.
   MediaCapabilitiesCache::GetInstance()->ClearCache();
   MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
-}
-
-void* MediaCapabilitiesCacheInitializationThreadEntry(void* context) {
-  SB_LOG(INFO) << "Initialize MediaCapabilitiesCache in background.";
-  MediaCapabilitiesCache::GetInstance()->Initialize();
-  return 0;
-}
-
-extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_coat_CobaltActivity_nativeInitializeMediaCapabilitiesInBackground() {
-  SbThreadCreate(0, kSbThreadPriorityNormal, kSbThreadNoAffinity, false,
-                 "media_capabilities_cache_thread",
-                 MediaCapabilitiesCacheInitializationThreadEntry, nullptr);
 }
 
 }  // namespace shared
