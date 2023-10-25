@@ -302,14 +302,9 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
             : "";
     MimeType audio_mime_type(audio_mime);
     if (!audio_mime.empty()) {
-<<<<<<< HEAD
       if (!audio_mime_type.is_valid() ||
-          !audio_mime_type.ValidateBoolParameter("tunnelmode") ||
           !audio_mime_type.ValidateBoolParameter("enableaudiodevicecallback") ||
           !audio_mime_type.ValidateBoolParameter("enablepcmcontenttypemovie")) {
-=======
-      if (!audio_mime_type.is_valid()) {
->>>>>>> 6b6abea82e1 ([android] Improve multi-encrypted-video demo (#1837))
         *error_message =
             "Invalid audio MIME: '" + std::string(audio_mime) + "'";
         return false;
