@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Set up your environment - Android"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Set up your environment - Android
 
 These instructions explain how to set up Cobalt for your workstation and Android
 device. The package being built here is referred to as CoAT (Cobalt on Android TV).
