@@ -32,6 +32,6 @@ class CobaltLinuxX64X11SkiaConfiguration(
 
   def GetTestFilters(self):
     filters = super().GetTestFilters()
-    for target, tests in self._FILTERED_TESTS.items():
+    for target, tests in _FILTERED_TESTS.items():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
