@@ -1,7 +1,7 @@
-Project: /youtube/cobalt/_project.yaml
-Book: /youtube/cobalt/_book.yaml
-
-# Getting started
+---
+layout: doc
+title: "Getting started"
+---
 
 Cobalt is a lightweight HTML5/CSS/JS application container that is designed
 to provide a rich application development environment with minimal resource
