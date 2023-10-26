@@ -30,16 +30,18 @@ config("starboard_platform_config") {
 
   cflags = [
     "/EHsc",  # C++ exceptions (required with /ZW)
-  ]
-
-  cflags += [
     "/FU${msvc_path}/lib/x86/store/references/platform.winmd",
     "/FU${windows_sdk_path}/References/$wdk_version/Windows.Foundation.FoundationContract/4.0.0.0/Windows.Foundation.FoundationContract.winmd",
     "/FU${windows_sdk_path}/References/$wdk_version/Windows.Foundation.UniversalApiContract/14.0.0.0/Windows.Foundation.UniversalApiContract.winmd",
     "/FU${windows_sdk_path}/References/$wdk_version/Windows.UI.ViewManagement.ViewManagementViewScalingContract/1.0.0.0/Windows.UI.ViewManagement.ViewManagementViewScalingContract.winmd",
-    "/FU${windows_sdk_path}/References/$wdk_version/Windows.Xbox.ApplicationResourcesContract/2.0.0.0/Windows.Xbox.ApplicationResourcesContract.winmd",
-    "/FU${windows_sdk_path}/References/$wdk_version/Windows.Xbox.Security.ApplicationSpecificDeviceAuthenticationContract/1.0.0.0/Windows.Xbox.Security.ApplicationSpecificDeviceAuthenticationContract.winmd",
   ]
+
+  if (is_internal_build) {
+    cflags += [
+      "/FU${windows_sdk_path}/References/$wdk_version/Windows.Xbox.ApplicationResourcesContract/2.0.0.0/Windows.Xbox.ApplicationResourcesContract.winmd",
+      "/FU${windows_sdk_path}/References/$wdk_version/Windows.Xbox.Security.ApplicationSpecificDeviceAuthenticationContract/1.0.0.0/Windows.Xbox.Security.ApplicationSpecificDeviceAuthenticationContract.winmd",
+    ]
+  }
 }
 
 static_library("starboard_platform") {
