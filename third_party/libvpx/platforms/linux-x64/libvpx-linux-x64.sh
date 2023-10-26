@@ -14,11 +14,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-git clone https://chromium.googlesource.com/webm/libvpx
-cd libvpx
+set -ex
 
-mkdir linux-x64
-cd linux-x64
-../configure --disable-vp8 --disable-examples --disable-webm-io --disable-vp9-encoder --disable-unit-tests --enable-shared --enable-multithread --enable-vp9-highbitdepth --disable-tools --disable-docs --enable-runtime-cpu-detect --enable-postproc --enable-vp9-temporal-denoising --target=x86_64-linux-gcc
-make V=1 -j
-make libvpx_srcs.txt
+readonly LIB_DIR="$(cd "$(dirname "$0")" && pwd)"
+readonly SRC_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+
+(cd "${SRC_DIR}" && ./configure \
+  --target=x86_64-linux-gcc \
+  --disable-examples \
+  --disable-tools \
+  --disable-docs \
+  --disable-unit-tests \
+  --enable-vp9-highbitdepth \
+  --disable-vp8 \
+  --disable-vp9-encoder \
+  --enable-postproc \
+  --enable-multithread \
+  --enable-runtime-cpu-detect \
+  --enable-shared \
+  --enable-vp9-temporal-denoising \
+  --disable-webm-io \
+)
+
+make -C "${SRC_DIR}" -j verbose=yes
+
+cp -v "${SRC_DIR}/libvpx.a" "${LIB_DIR}"
+cp -v "${SRC_DIR}/libvpx.so.6" "${LIB_DIR}"
