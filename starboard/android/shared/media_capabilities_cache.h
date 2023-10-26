@@ -155,10 +155,7 @@ class MediaCapabilitiesCache {
 
   bool IsEnabled() const { return is_enabled_; }
   void SetCacheEnabled(bool enabled) { is_enabled_ = enabled; }
-  void ClearCache();
-
-  void Initialize();
-  void ClearSupportedHdrTypes() { supported_hdr_types_is_dirty_ = true; }
+  void ClearCache() { capabilities_is_dirty_ = true; }
 
  private:
   MediaCapabilitiesCache();
@@ -184,12 +181,11 @@ class MediaCapabilitiesCache {
   std::map<std::string, AudioCodecCapabilities> audio_codec_capabilities_map_;
   std::map<std::string, VideoCodecCapabilities> video_codec_capabilities_map_;
   std::vector<SbMediaAudioConfiguration> audio_configurations_;
-
-  std::atomic_bool is_enabled_{true};
-  std::atomic_bool supported_hdr_types_is_dirty_{true};
-  bool is_initialized_ = false;
   bool is_widevine_supported_ = false;
   bool is_cbcs_supported_ = false;
+
+  std::atomic_bool is_enabled_{true};
+  std::atomic_bool capabilities_is_dirty_{true};
 };
 
 }  // namespace shared
