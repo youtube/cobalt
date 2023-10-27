@@ -222,6 +222,10 @@ def main(command_args):
       action='store_true',
       help='Return the application resources instead of printing them.')
   parser.add_argument(
+      '--include_integration_tests',
+      action='store_true',
+      help='Include integration test files and dependencies.')
+  parser.add_argument(
       '-v',
       '--verbose',
       action='store_true',
@@ -232,11 +236,13 @@ def main(command_args):
   log_level.InitializeLogging(args)
 
   if args.destination_root:
-    CopyAppLauncherTools(REPOSITORY_ROOT, args.destination_root)
+    CopyAppLauncherTools(
+        REPOSITORY_ROOT, args.destination_root, include_black_box_tests=False)
   elif args.zip_file:
     try:
       temp_dir = tempfile.mkdtemp(prefix='cobalt_app_launcher_')
-      CopyAppLauncherTools(REPOSITORY_ROOT, temp_dir)
+      CopyAppLauncherTools(
+          REPOSITORY_ROOT, temp_dir, include_black_box_tests=False)
       MakeZipArchive(temp_dir, args.zip_file)
     finally:
       shutil.rmtree(temp_dir)
