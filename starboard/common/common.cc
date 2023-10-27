@@ -17,8 +17,8 @@
 // These audits are here so they are only displayed once every build.
 
 #if SB_API_VERSION == SB_MAXIMUM_API_VERSION
-#pragma message(                                                            \
-        "Your platform's SB_API_VERSION == SB_MAXIMUM_API_VERSION. "        \
-        "You are implementing the Unreleased version of Starboard at your " \
-        "own risk!  We don't recommend this for third parties.")
+#pragma message(                                                        \
+    "Your platform's SB_API_VERSION == SB_MAXIMUM_API_VERSION. "        \
+    "You are implementing the Unreleased version of Starboard at your " \
+    "own risk!  We don't recommend this for third parties.")
 #endif
