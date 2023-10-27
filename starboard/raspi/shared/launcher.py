@@ -29,8 +29,6 @@ import pexpect
 from starboard.tools import abstract_launcher
 from starboard.raspi.shared import retry
 
-IS_MODULAR_BUILD = os.getenv('MODULAR_BUILD', '0') == '1'
-
 
 class TargetPathError(ValueError):
   pass
@@ -146,9 +144,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
   def _GetAndCheckTestFileWithFallback(self):
     try:
       return self._GetAndCheckTestFile(self.target_name + '_loader')
-    except TargetPathError as e:
-      if IS_MODULAR_BUILD:
-        raise e
+    except TargetPathError:
+      # For starboard level test targets like player_filter_tests built as an
+      # executable, return the target name.
       return self._GetAndCheckTestFile(self.target_name)
 
   def _InitPexpectCommands(self):
