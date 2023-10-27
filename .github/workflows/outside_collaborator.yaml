@@ -1,4 +1,4 @@
-name: PR Reviewer Auto Assignment
+name: Outside Collaborator
 
 on:
   pull_request_target:
@@ -16,7 +16,7 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-    - name: Check if PR author is outside collaborator and assign reviewer
+    - name: Check if PR author is outside collaborator
       env:
         PR_AUTHOR_LOGIN: ${{ github.event.pull_request.user.login }}
         REPO_NAME: ${{ github.event.repository.full_name }}
