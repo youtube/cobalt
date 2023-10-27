@@ -29,6 +29,8 @@
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_render_algorithm.h"
 #include "starboard/android/shared/window_internal.h"
+#include "starboard/common/media.h"
+#include "starboard/common/player.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
@@ -395,6 +397,13 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
       TeardownCodec();
     }
   }
+
+  SB_LOG(INFO) << "Created VideoDecoder for codec "
+               << GetMediaVideoCodecName(video_codec_) << ", with output mode "
+               << GetPlayerOutputModeName(output_mode_)
+               << ", max video capabilities \"" << max_video_capabilities_
+               << "\", and tunnel mode audio session id "
+               << tunnel_mode_audio_session_id_;
 }
 
 VideoDecoder::~VideoDecoder() {
