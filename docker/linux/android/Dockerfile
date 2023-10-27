@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 ARG FROM_IMAGE
 FROM ${FROM_IMAGE:-cobalt-build-base}
 
