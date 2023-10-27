@@ -58,7 +58,7 @@ void LoadLibraryAndInitialize(const std::string& library_path,
   GetEvergreenInfo(&evergreen_info);
   if (!third_party::crashpad::wrapper::AddEvergreenInfoToCrashpad(
           evergreen_info)) {
-    SB_LOG(ERROR) << "Could not send Cobalt library information into Crashapd.";
+    SB_LOG(ERROR) << "Could not send Cobalt library information into Crashpad.";
   } else {
     SB_LOG(INFO) << "Loaded Cobalt library information into Crashpad.";
   }
