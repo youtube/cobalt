@@ -783,6 +783,10 @@ public class StarboardBridge {
     return service;
   }
 
+  public CobaltService getOpenedCobaltService(String serviceName) {
+    return cobaltServices.get(serviceName);
+  }
+
   @SuppressWarnings("unused")
   @UsedByNative
   void closeCobaltService(String serviceName) {
