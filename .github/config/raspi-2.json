@@ -14,8 +14,6 @@
   },
   "platforms": [
     "raspi-2",
-    "raspi-2-sbversion-13",
-    "raspi-2-sbversion-14",
     "raspi-2-sbversion-15"
   ],
   "includes": [
@@ -24,25 +22,7 @@
       "platform":"raspi-2",
       "target_platform":"raspi-2",
       "target_cpu":"target_cpu=\\\"arm\\\"",
-      "extra_gn_arguments": "is_clang=false",
-      "dimension": "release_version=regex:10.*"
-    },
-    {
-      "name":"sbversion-13",
-      "platform":"raspi-2-sbversion-13",
-      "target_platform":"raspi-2",
-      "target_cpu":"target_cpu=\\\"arm\\\"",
-      "extra_gn_arguments":"is_clang=false",
-      "sb_api_version": "sb_api_version=13",
-      "dimension": "release_version=regex:10.*"
-    },
-    {
-      "name":"sbversion-14",
-      "platform":"raspi-2-sbversion-14",
-      "target_platform":"raspi-2",
-      "target_cpu":"target_cpu=\\\"arm\\\"",
-      "extra_gn_arguments":"is_clang=false",
-      "sb_api_version": "sb_api_version=14",
+      "extra_gn_arguments": "build_with_separate_cobalt_toolchain=true use_asan=false",
       "dimension": "release_version=regex:10.*"
     },
     {
@@ -50,7 +30,7 @@
       "platform":"raspi-2-sbversion-15",
       "target_platform":"raspi-2",
       "target_cpu":"target_cpu=\\\"arm\\\"",
-      "extra_gn_arguments":"is_clang=false",
+      "extra_gn_arguments": "build_with_separate_cobalt_toolchain=true use_asan=false",
       "sb_api_version": "sb_api_version=15",
       "dimension": "release_version=regex:10.*"
     }
