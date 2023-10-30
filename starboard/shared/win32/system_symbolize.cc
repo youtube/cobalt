@@ -19,8 +19,9 @@
 #include <functional>
 #include <string>
 
-#include <Windows.h>  // Must go before dbghelp.h
-#include <dbghelp.h>
+// Must go before dbghelp.h
+#include <Windows.h>  // NOLINT(build/include_order)
+#include <dbghelp.h>  // NOLINT(build/include_order)
 
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
