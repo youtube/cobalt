@@ -633,8 +633,13 @@ void DrmSystemWidevine::onMessage(const std::string& wvcdm_session_id,
   }
 }
 
+#if WIDEVINE_INTERFACE_VERSION > 13
+void DrmSystemWidevine::onKeyStatusesChange(const std::string& wvcdm_session_id,
+                                            bool has_new_usable_key) {
+#else
 void DrmSystemWidevine::onKeyStatusesChange(
     const std::string& wvcdm_session_id) {
+#endif
   wv3cdm::KeyStatusMap key_statuses;
   wv3cdm::Status status = cdm_->getKeyStatuses(wvcdm_session_id, &key_statuses);
 
