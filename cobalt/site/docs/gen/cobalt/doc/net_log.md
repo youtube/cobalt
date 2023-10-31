@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Cobalt NetLog"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Cobalt NetLog
 
 Chromium has a very useful network diagnostic tool called the NetLog and Cobalt
