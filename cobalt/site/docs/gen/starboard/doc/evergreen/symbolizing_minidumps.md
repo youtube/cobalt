@@ -1,7 +1,6 @@
----
-layout: doc
-title: "How to Symbolize Dumps"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # How to Symbolize Dumps
 
 Evergreen will store the minidumps (`.dmp` files) from the 2 most recent
