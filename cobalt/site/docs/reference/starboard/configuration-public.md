@@ -1,7 +1,5 @@
----
-layout: doc
-title: "Starboard Configuration Reference Guide"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
 
 ## Architecture Configuration
 
