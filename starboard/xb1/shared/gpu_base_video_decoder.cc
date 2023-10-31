@@ -476,7 +476,6 @@ void GpuVideoDecoderBase::Reset() {
     decoder_thread_->job_queue()->Schedule(
         std::bind(&GpuVideoDecoderBase::DrainDecoder, this));
     decoder_thread_.reset();
-    SB_DCHECK(decoder_behavior_.load() == kDecodingStopped);
   }
   pending_inputs_.clear();
   {
