@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: image.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: image.h
 
 API for hardware accelerated image decoding. This module allows for the client
 to feed in raw, encoded data to be decoded directly into an SbDecodeTarget. It
