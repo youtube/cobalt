@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: time.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: time.h
 
 Provides access to system time and timers.
 
