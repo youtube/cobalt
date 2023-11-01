@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: player.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: player.h
 
 Defines an interface for controlling playback of media elementary streams.
 
