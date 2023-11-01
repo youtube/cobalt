@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: time_zone.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: time_zone.h
 
 Provides access to the system time zone information.
 
