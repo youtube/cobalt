@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: egl.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: egl.h
 
 The EGL API provides an interface with accompanying type declarations and
 defines that together provide a single consistent method of EGL usage across
