@@ -88,7 +88,7 @@ if (sb_is_evergreen_compatible) {
   }
 }
 
-if (current_toolchain == starboard_toolchain && sb_is_evergreen_compatible) {
+if (current_toolchain == starboard_toolchain) {
   target(starboard_level_final_executable_type, "elf_loader_sandbox") {
     data_deps = [ "//third_party/icu:icudata" ]
     if (cobalt_font_package == "empty") {
@@ -155,33 +155,31 @@ if (sb_is_evergreen_compatible) {
   }
 }
 
-if (sb_is_evergreen_compatible) {
-  target(gtest_target_type, "elf_loader_test") {
-    testonly = true
-    sources = [ "//starboard/common/test_main.cc" ]
-    deps = [
-      "//starboard",
-      "//testing/gmock",
-      "//testing/gtest",
+target(gtest_target_type, "elf_loader_test") {
+  testonly = true
+  sources = [ "//starboard/common/test_main.cc" ]
+  deps = [
+    "//starboard",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+
+  if (target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" ||
+      target_cpu == "arm64") {
+    sources += [
+      "dynamic_section_test.cc",
+      "elf_header_test.cc",
+      "elf_loader_test.cc",
+      "lz4_file_impl_test.cc",
+      "program_table_test.cc",
+      "relocations_test.cc",
+    ]
+    deps += [
+      ":copy_elf_loader_testdata",
+      ":elf_loader",
     ]
 
-    if (target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" ||
-        target_cpu == "arm64") {
-      sources += [
-        "dynamic_section_test.cc",
-        "elf_header_test.cc",
-        "elf_loader_test.cc",
-        "lz4_file_impl_test.cc",
-        "program_table_test.cc",
-        "relocations_test.cc",
-      ]
-      deps += [
-        ":copy_elf_loader_testdata",
-        ":elf_loader",
-      ]
-
-      data_deps = [ ":copy_elf_loader_testdata" ]
-    }
+    data_deps = [ ":copy_elf_loader_testdata" ]
   }
 }
 
