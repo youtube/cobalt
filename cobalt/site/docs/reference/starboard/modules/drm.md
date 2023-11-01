@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: drm.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: drm.h
 
 Provides definitions that allow for DRM support, which are common between Player
 and Decoder interfaces.
