@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: system.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: system.h
 
 Defines a broad set of APIs that allow the client application to query build and
 runtime properties of the enclosing system.
