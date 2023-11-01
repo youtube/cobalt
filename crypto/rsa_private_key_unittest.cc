@@ -1,18 +1,14 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "crypto/rsa_private_key.h"
 
+#include <stdint.h>
+
 #include <memory>
 
 #include "testing/gtest/include/gtest/gtest.h"
-
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
-#endif
 
 namespace {
 

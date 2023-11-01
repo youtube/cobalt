@@ -1,14 +1,13 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "crypto/signature_verifier.h"
 
-#include "base/logging.h"
-#include "base/macros.h"
+#include <stddef.h>
+#include <stdint.h>
+
 #include "base/numerics/safe_conversions.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 TEST(SignatureVerifierTest, BasicTest) {
@@ -199,10 +198,11 @@ TEST(SignatureVerifierTest, BasicTest) {
   // calls).
   EXPECT_TRUE(verifier.VerifyInit(crypto::SignatureVerifier::RSA_PKCS1_SHA1,
                                   signature, public_key_info));
-  verifier.VerifyUpdate(base::make_span(tbs_certificate, 256));
-  verifier.VerifyUpdate(base::make_span(tbs_certificate + 256, 256));
-  verifier.VerifyUpdate(
-      base::make_span(tbs_certificate + 512, sizeof(tbs_certificate) - 512));
+  auto tbs_certificate_span = base::make_span(tbs_certificate);
+
+  verifier.VerifyUpdate(tbs_certificate_span.first(256));
+  verifier.VerifyUpdate(tbs_certificate_span.subspan(256, 256));
+  verifier.VerifyUpdate(tbs_certificate_span.subspan(512));
   EXPECT_TRUE(verifier.VerifyFinal());
 
   // Test 3: verify the signature with incorrect data.
@@ -381,7 +381,7 @@ TEST(SignatureVerifierTest, VerifyRSAPSS) {
   ASSERT_TRUE(verifier.VerifyInit(crypto::SignatureVerifier::RSA_PSS_SHA256,
                                   kPSSSignatureGood, kPSSPublicKey));
   for (uint8_t b : kPSSMessage) {
-    verifier.VerifyUpdate(base::make_span(&b, 1));
+    verifier.VerifyUpdate(base::make_span(&b, 1u));
   }
   EXPECT_TRUE(verifier.VerifyFinal());
 

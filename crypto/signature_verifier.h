@@ -1,9 +1,11 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef CRYPTO_SIGNATURE_VERIFIER_H_
 #define CRYPTO_SIGNATURE_VERIFIER_H_
+
+#include <stdint.h>
 
 #include <memory>
 #include <vector>
@@ -11,7 +13,6 @@
 #include "base/containers/span.h"
 #include "build/build_config.h"
 #include "crypto/crypto_export.h"
-#include "starboard/types.h"
 
 namespace crypto {
 

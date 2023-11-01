@@ -1,13 +1,14 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "crypto/random.h"
 
+#include <stddef.h>
+
 #include <string>
 
 #include "base/strings/string_util.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // Basic functionality tests. Does NOT test the security of the random data.

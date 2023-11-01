@@ -1,15 +1,17 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright 2011 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "crypto/rsa_private_key.h"
 
+#include <stdint.h>
+
 #include <memory>
 #include <utility>
 
-#include "base/logging.h"
+#include "base/check.h"
+#include "base/containers/span.h"
 #include "crypto/openssl_util.h"
-#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/bn.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
@@ -40,7 +42,7 @@ std::unique_ptr<RSAPrivateKey> RSAPrivateKey::Create(uint16_t num_bits) {
 
 // static
 std::unique_ptr<RSAPrivateKey> RSAPrivateKey::CreateFromPrivateKeyInfo(
-    const std::vector<uint8_t>& input) {
+    base::span<const uint8_t> input) {
   OpenSSLErrStackTracer err_tracer(FROM_HERE);
 
   CBS cbs;
@@ -57,7 +59,7 @@ std::unique_ptr<RSAPrivateKey> RSAPrivateKey::CreateFromPrivateKeyInfo(
 // static
 std::unique_ptr<RSAPrivateKey> RSAPrivateKey::CreateFromKey(EVP_PKEY* key) {
   DCHECK(key);
-  if (EVP_PKEY_type(key->type) != EVP_PKEY_RSA)
+  if (EVP_PKEY_id(key) != EVP_PKEY_RSA)
     return nullptr;
   std::unique_ptr<RSAPrivateKey> copy(new RSAPrivateKey);
   copy->key_ = bssl::UpRef(key);

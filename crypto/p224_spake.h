@@ -1,17 +1,17 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef CRYPTO_P224_SPAKE_H_
 #define CRYPTO_P224_SPAKE_H_
 
+#include <stdint.h>
+
 #include <string>
 
 #include "base/gtest_prod_util.h"
 #include "base/strings/string_piece.h"
-#include "crypto/p224.h"
 #include "crypto/sha2.h"
-#include "starboard/types.h"
 
 namespace crypto {
 
@@ -109,12 +109,14 @@ class CRYPTO_EXPORT P224EncryptedKeyExchange {
                      const std::string& k,
                      uint8_t* out_digest);
 
+  // kScalarBytes is the number of bytes in a P-224 scalar.
+  static constexpr size_t kScalarBytes = 28;
   // x_ is the secret Diffie-Hellman exponent (see paper referenced in .cc
   // file).
-  uint8_t x_[p224::kScalarBytes];
+  uint8_t x_[kScalarBytes];
   // pw_ is SHA256(P(password), P(session))[:28] where P() prepends a uint32_t,
   // big-endian length prefix (see paper referenced in .cc file).
-  uint8_t pw_[p224::kScalarBytes];
+  uint8_t pw_[kScalarBytes];
   // expected_authenticator_ is used to store the hash value expected from the
   // other party.
   uint8_t expected_authenticator_[kSHA256Length];

@@ -1,15 +1,16 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "crypto/ec_private_key.h"
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <utility>
 
-#include "base/logging.h"
+#include "base/check_op.h"
 #include "crypto/openssl_util.h"
-#include "starboard/types.h"
-#include "third_party/boringssl/src/include/openssl/bn.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/ec.h"
 #include "third_party/boringssl/src/include/openssl/ec_key.h"
@@ -41,7 +42,7 @@ std::unique_ptr<ECPrivateKey> ECPrivateKey::Create() {
 
 // static
 std::unique_ptr<ECPrivateKey> ECPrivateKey::CreateFromPrivateKeyInfo(
-    const std::vector<uint8_t>& input) {
+    base::span<const uint8_t> input) {
   OpenSSLErrStackTracer err_tracer(FROM_HERE);
 
   CBS cbs;
@@ -57,7 +58,7 @@ std::unique_ptr<ECPrivateKey> ECPrivateKey::CreateFromPrivateKeyInfo(
 
 // static
 std::unique_ptr<ECPrivateKey> ECPrivateKey::CreateFromEncryptedPrivateKeyInfo(
-    const std::vector<uint8_t>& encrypted_private_key_info) {
+    base::span<const uint8_t> encrypted_private_key_info) {
   OpenSSLErrStackTracer err_tracer(FROM_HERE);
 
   CBS cbs;
@@ -106,34 +107,9 @@ bool ECPrivateKey::ExportPrivateKey(std::vector<uint8_t>* output) const {
   return true;
 }
 
-bool ECPrivateKey::ExportEncryptedPrivateKey(
-    std::vector<uint8_t>* output) const {
-  OpenSSLErrStackTracer err_tracer(FROM_HERE);
-
-  // Encrypt the object.
-  // NOTE: NSS uses SEC_OID_PKCS12_V2_PBE_WITH_SHA1_AND_3KEY_TRIPLE_DES_CBC
-  // so use NID_pbe_WithSHA1And3_Key_TripleDES_CBC which should be the OpenSSL
-  // equivalent.
-  uint8_t* der;
-  size_t der_len;
-  bssl::ScopedCBB cbb;
-  if (!CBB_init(cbb.get(), 0) ||
-      !PKCS8_marshal_encrypted_private_key(
-          cbb.get(), NID_pbe_WithSHA1And3_Key_TripleDES_CBC,
-          nullptr /* cipher */, nullptr /* no password */, 0 /* pass_len */,
-          nullptr /* salt */, 0 /* salt_len */, 1 /* iterations */,
-          key_.get()) ||
-      !CBB_finish(cbb.get(), &der, &der_len)) {
-    return false;
-  }
-  output->assign(der, der + der_len);
-  OPENSSL_free(der);
-  return true;
-}
-
 bool ECPrivateKey::ExportPublicKey(std::vector<uint8_t>* output) const {
   OpenSSLErrStackTracer err_tracer(FROM_HERE);
-  uint8_t *der;
+  uint8_t* der;
   size_t der_len;
   bssl::ScopedCBB cbb;
   if (!CBB_init(cbb.get(), 0) ||
@@ -149,22 +125,16 @@ bool ECPrivateKey::ExportPublicKey(std::vector<uint8_t>* output) const {
 bool ECPrivateKey::ExportRawPublicKey(std::string* output) const {
   OpenSSLErrStackTracer err_tracer(FROM_HERE);
 
-  // Export the x and y field elements as 32-byte, big-endian numbers. (This is
-  // the same as X9.62 uncompressed form without the leading 0x04 byte.)
+  std::array<uint8_t, 65> buf;
   EC_KEY* ec_key = EVP_PKEY_get0_EC_KEY(key_.get());
-  bssl::UniquePtr<BIGNUM> x(BN_new());
-  bssl::UniquePtr<BIGNUM> y(BN_new());
-  uint8_t buf[64];
-  if (!x || !y ||
-      !EC_POINT_get_affine_coordinates_GFp(EC_KEY_get0_group(ec_key),
-                                           EC_KEY_get0_public_key(ec_key),
-                                           x.get(), y.get(), nullptr) ||
-      !BN_bn2bin_padded(buf, 32, x.get()) ||
-      !BN_bn2bin_padded(buf + 32, 32, y.get())) {
+  if (!EC_POINT_point2oct(EC_KEY_get0_group(ec_key),
+                          EC_KEY_get0_public_key(ec_key),
+                          POINT_CONVERSION_UNCOMPRESSED, buf.data(), buf.size(),
+                          /*ctx=*/nullptr)) {
     return false;
   }
 
-  output->assign(reinterpret_cast<const char*>(buf), sizeof(buf));
+  output->assign(buf.begin(), buf.end());
   return true;
 }
 

@@ -1,8 +1,10 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "crypto/ec_signature_creator.h"
+
+#include <stdint.h>
 
 #include <memory>
 #include <string>
@@ -10,7 +12,6 @@
 
 #include "crypto/ec_private_key.h"
 #include "crypto/signature_verifier.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // TODO(rch): Add some exported keys from each to
@@ -36,8 +37,7 @@ TEST(ECSignatureCreatorTest, BasicTest) {
 
   std::string data("Hello, World!");
   std::vector<uint8_t> signature;
-  ASSERT_TRUE(signer->Sign(reinterpret_cast<const uint8_t*>(data.c_str()),
-                           data.size(), &signature));
+  ASSERT_TRUE(signer->Sign(base::as_bytes(base::make_span(data)), &signature));
 
   std::vector<uint8_t> public_key_info;
   ASSERT_TRUE(key_original->ExportPublicKey(&public_key_info));

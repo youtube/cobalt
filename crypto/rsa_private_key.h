@@ -1,17 +1,19 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef CRYPTO_RSA_PRIVATE_KEY_H_
 #define CRYPTO_RSA_PRIVATE_KEY_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <memory>
 #include <vector>
 
-#include "base/macros.h"
+#include "base/containers/span.h"
 #include "build/build_config.h"
 #include "crypto/crypto_export.h"
-#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
 
 namespace crypto {
@@ -21,6 +23,9 @@ namespace crypto {
 // TODO(hclam): This class should be ref-counted so it can be reused easily.
 class CRYPTO_EXPORT RSAPrivateKey {
  public:
+  RSAPrivateKey(const RSAPrivateKey&) = delete;
+  RSAPrivateKey& operator=(const RSAPrivateKey&) = delete;
+
   ~RSAPrivateKey();
 
   // Create a new random instance. Can return NULL if initialization fails.
@@ -30,14 +35,14 @@ class CRYPTO_EXPORT RSAPrivateKey {
   // an ASN.1-encoded PrivateKeyInfo block from PKCS #8. This can return NULL if
   // initialization fails.
   static std::unique_ptr<RSAPrivateKey> CreateFromPrivateKeyInfo(
-      const std::vector<uint8_t>& input);
+      base::span<const uint8_t> input);
 
   // Create a new instance from an existing EVP_PKEY, taking a
   // reference to it. |key| must be an RSA key. Returns NULL on
   // failure.
   static std::unique_ptr<RSAPrivateKey> CreateFromKey(EVP_PKEY* key);
 
-  EVP_PKEY* key() { return key_.get(); }
+  EVP_PKEY* key() const { return key_.get(); }
 
   // Creates a copy of the object.
   std::unique_ptr<RSAPrivateKey> Copy() const;
@@ -53,8 +58,6 @@ class CRYPTO_EXPORT RSAPrivateKey {
   RSAPrivateKey();
 
   bssl::UniquePtr<EVP_PKEY> key_;
-
-  DISALLOW_COPY_AND_ASSIGN(RSAPrivateKey);
 };
 
 }  // namespace crypto

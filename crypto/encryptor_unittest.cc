@@ -1,17 +1,17 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "crypto/encryptor.h"
 
+#include <stddef.h>
+
 #include <memory>
 #include <string>
 
-#include "base/macros.h"
+#include "base/containers/span.h"
 #include "base/strings/string_number_conversions.h"
 #include "crypto/symmetric_key.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 TEST(EncryptorTest, EncryptDecrypt) {
@@ -29,13 +29,21 @@ TEST(EncryptorTest, EncryptDecrypt) {
   std::string plaintext("this is the plaintext");
   std::string ciphertext;
   EXPECT_TRUE(encryptor.Encrypt(plaintext, &ciphertext));
-
   EXPECT_LT(0U, ciphertext.size());
 
   std::string decrypted;
   EXPECT_TRUE(encryptor.Decrypt(ciphertext, &decrypted));
-
   EXPECT_EQ(plaintext, decrypted);
+
+  // Repeat the test with the bytes API.
+  std::vector<uint8_t> plaintext_vec(plaintext.begin(), plaintext.end());
+  std::vector<uint8_t> ciphertext_vec;
+  EXPECT_TRUE(encryptor.Encrypt(plaintext_vec, &ciphertext_vec));
+  EXPECT_LT(0U, ciphertext_vec.size());
+
+  std::vector<uint8_t> decrypted_vec;
+  EXPECT_TRUE(encryptor.Decrypt(ciphertext_vec, &decrypted_vec));
+  EXPECT_EQ(plaintext_vec, decrypted_vec);
 }
 
 TEST(EncryptorTest, DecryptWrongKey) {
@@ -81,7 +89,7 @@ TEST(EncryptorTest, DecryptWrongKey) {
     0x48, 0x1D, 0x42, 0xB0, 0xBA, 0x21, 0xB2, 0x0C
   };
 
-  ASSERT_EQ(arraysize(expected_ciphertext), ciphertext.size());
+  ASSERT_EQ(std::size(expected_ciphertext), ciphertext.size());
   for (size_t i = 0; i < ciphertext.size(); ++i) {
     ASSERT_EQ(expected_ciphertext[i],
               static_cast<unsigned char>(ciphertext[i]));
@@ -211,6 +219,24 @@ void TestAESCTREncrypt(
   EXPECT_TRUE(encryptor.Decrypt(encrypted, &decrypted));
 
   EXPECT_EQ(plaintext_str, decrypted);
+
+  // Repeat the test with the bytes API.
+  EXPECT_TRUE(
+      encryptor.SetCounter(base::make_span(init_counter, init_counter_size)));
+  std::vector<uint8_t> encrypted_vec;
+  EXPECT_TRUE(encryptor.Encrypt(base::make_span(plaintext, plaintext_size),
+                                &encrypted_vec));
+
+  EXPECT_EQ(ciphertext_size, encrypted_vec.size());
+  EXPECT_EQ(0, memcmp(encrypted_vec.data(), ciphertext, encrypted_vec.size()));
+
+  std::vector<uint8_t> decrypted_vec;
+  EXPECT_TRUE(
+      encryptor.SetCounter(base::make_span(init_counter, init_counter_size)));
+  EXPECT_TRUE(encryptor.Decrypt(encrypted_vec, &decrypted_vec));
+
+  EXPECT_EQ(std::vector<uint8_t>(plaintext, plaintext + plaintext_size),
+            decrypted_vec);
 }
 
 void TestAESCTRMultipleDecrypt(
@@ -236,7 +262,7 @@ void TestAESCTRMultipleDecrypt(
   int kTestDecryptSizes[] = { 32, 16, 8 };
 
   int offset = 0;
-  for (size_t i = 0; i < arraysize(kTestDecryptSizes); ++i) {
+  for (size_t i = 0; i < std::size(kTestDecryptSizes); ++i) {
     std::string decrypted;
     size_t len = kTestDecryptSizes[i];
     EXPECT_TRUE(
@@ -250,35 +276,33 @@ void TestAESCTRMultipleDecrypt(
 }  // namespace
 
 TEST(EncryptorTest, EncryptAES128CTR) {
-  TestAESCTREncrypt(
-      kAES128CTRKey, arraysize(kAES128CTRKey),
-      kAESCTRInitCounter, arraysize(kAESCTRInitCounter),
-      kAESCTRPlaintext, arraysize(kAESCTRPlaintext),
-      kAES128CTRCiphertext, arraysize(kAES128CTRCiphertext));
+  TestAESCTREncrypt(kAES128CTRKey, std::size(kAES128CTRKey), kAESCTRInitCounter,
+                    std::size(kAESCTRInitCounter), kAESCTRPlaintext,
+                    std::size(kAESCTRPlaintext), kAES128CTRCiphertext,
+                    std::size(kAES128CTRCiphertext));
 }
 
 TEST(EncryptorTest, EncryptAES256CTR) {
-  TestAESCTREncrypt(
-      kAES256CTRKey, arraysize(kAES256CTRKey),
-      kAESCTRInitCounter, arraysize(kAESCTRInitCounter),
-      kAESCTRPlaintext, arraysize(kAESCTRPlaintext),
-      kAES256CTRCiphertext, arraysize(kAES256CTRCiphertext));
+  TestAESCTREncrypt(kAES256CTRKey, std::size(kAES256CTRKey), kAESCTRInitCounter,
+                    std::size(kAESCTRInitCounter), kAESCTRPlaintext,
+                    std::size(kAESCTRPlaintext), kAES256CTRCiphertext,
+                    std::size(kAES256CTRCiphertext));
 }
 
 TEST(EncryptorTest, EncryptAES128CTR_MultipleDecrypt) {
-  TestAESCTRMultipleDecrypt(
-      kAES128CTRKey, arraysize(kAES128CTRKey),
-      kAESCTRInitCounter, arraysize(kAESCTRInitCounter),
-      kAESCTRPlaintext, arraysize(kAESCTRPlaintext),
-      kAES128CTRCiphertext, arraysize(kAES128CTRCiphertext));
+  TestAESCTRMultipleDecrypt(kAES128CTRKey, std::size(kAES128CTRKey),
+                            kAESCTRInitCounter, std::size(kAESCTRInitCounter),
+                            kAESCTRPlaintext, std::size(kAESCTRPlaintext),
+                            kAES128CTRCiphertext,
+                            std::size(kAES128CTRCiphertext));
 }
 
 TEST(EncryptorTest, EncryptAES256CTR_MultipleDecrypt) {
-  TestAESCTRMultipleDecrypt(
-      kAES256CTRKey, arraysize(kAES256CTRKey),
-      kAESCTRInitCounter, arraysize(kAESCTRInitCounter),
-      kAESCTRPlaintext, arraysize(kAESCTRPlaintext),
-      kAES256CTRCiphertext, arraysize(kAES256CTRCiphertext));
+  TestAESCTRMultipleDecrypt(kAES256CTRKey, std::size(kAES256CTRKey),
+                            kAESCTRInitCounter, std::size(kAESCTRInitCounter),
+                            kAESCTRPlaintext, std::size(kAESCTRPlaintext),
+                            kAES256CTRCiphertext,
+                            std::size(kAES256CTRCiphertext));
 }
 
 TEST(EncryptorTest, EncryptDecryptCTR) {
@@ -310,47 +334,6 @@ TEST(EncryptorTest, EncryptDecryptCTR) {
   EXPECT_TRUE(encryptor.SetCounter(kInitialCounter));
   EXPECT_TRUE(encryptor.Decrypt(ciphertext, &decrypted));
   EXPECT_EQ(plaintext, decrypted);
-}
-
-TEST(EncryptorTest, CTRCounter) {
-  const int kCounterSize = 16;
-  const unsigned char kTest1[] =
-      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-  unsigned char buf[16];
-
-  // Increment 10 times.
-  crypto::Encryptor::Counter counter1(
-      std::string(reinterpret_cast<const char*>(kTest1), kCounterSize));
-  for (int i = 0; i < 10; ++i)
-    counter1.Increment();
-  counter1.Write(buf);
-  EXPECT_EQ(0, memcmp(buf, kTest1, 15));
-  EXPECT_EQ(10, buf[15]);
-
-  // Check corner cases.
-  const unsigned char kTest2[] = {
-      0, 0, 0, 0, 0, 0, 0, 0,
-      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
-  };
-  const unsigned char kExpect2[] =
-      {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0};
-  crypto::Encryptor::Counter counter2(
-      std::string(reinterpret_cast<const char*>(kTest2), kCounterSize));
-  counter2.Increment();
-  counter2.Write(buf);
-  EXPECT_EQ(0, memcmp(buf, kExpect2, kCounterSize));
-
-  const unsigned char kTest3[] = {
-      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
-  };
-  const unsigned char kExpect3[] =
-      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-  crypto::Encryptor::Counter counter3(
-      std::string(reinterpret_cast<const char*>(kTest3), kCounterSize));
-  counter3.Increment();
-  counter3.Write(buf);
-  EXPECT_EQ(0, memcmp(buf, kExpect3, kCounterSize));
 }
 
 // TODO(wtc): add more known-answer tests.  Test vectors are available from
@@ -484,7 +467,7 @@ TEST(EncryptorTest, UnsupportedIV) {
   EXPECT_FALSE(encryptor.Init(sym_key.get(), crypto::Encryptor::CBC, iv));
 }
 
-TEST(EncryptorTest, EmptyEncrypt) {
+TEST(EncryptorTest, EmptyEncryptCBC) {
   std::string key = "128=SixteenBytes";
   std::string iv = "Sweet Sixteen IV";
   std::string plaintext;
@@ -495,7 +478,7 @@ TEST(EncryptorTest, EmptyEncrypt) {
   ASSERT_TRUE(sym_key.get());
 
   crypto::Encryptor encryptor;
-  // The IV must be exactly as long a the cipher block size.
+  // The IV must be exactly as long as the cipher block size.
   EXPECT_EQ(16U, iv.size());
   EXPECT_TRUE(encryptor.Init(sym_key.get(), crypto::Encryptor::CBC, iv));
 
@@ -503,6 +486,64 @@ TEST(EncryptorTest, EmptyEncrypt) {
   EXPECT_TRUE(encryptor.Encrypt(plaintext, &ciphertext));
   EXPECT_EQ(expected_ciphertext_hex, base::HexEncode(ciphertext.data(),
                                                      ciphertext.size()));
+
+  std::string decrypted;
+  EXPECT_TRUE(encryptor.Decrypt(ciphertext, &decrypted));
+  EXPECT_EQ(decrypted, plaintext);
+
+  // Decrypting the empty string should fail. Our formulation of CBC expects a
+  // full block of padding for CBC.
+  EXPECT_FALSE(encryptor.Decrypt(std::string(), &decrypted));
+
+  // Repeat the test with the byte-based API.
+  EXPECT_TRUE(encryptor.Init(sym_key.get(), crypto::Encryptor::CBC, iv));
+  std::vector<uint8_t> ciphertext_bytes;
+  EXPECT_TRUE(
+      encryptor.Encrypt(base::span<const uint8_t>(), &ciphertext_bytes));
+  EXPECT_EQ(expected_ciphertext_hex, base::HexEncode(ciphertext_bytes));
+
+  std::vector<uint8_t> decrypted_bytes;
+  EXPECT_TRUE(encryptor.Decrypt(ciphertext_bytes, &decrypted_bytes));
+  EXPECT_EQ(decrypted_bytes.size(), 0u);
+
+  // Decrypting the empty string should fail. Our formulation of CBC expects a
+  // full block of padding for CBC.
+  EXPECT_FALSE(
+      encryptor.Decrypt(base::span<const uint8_t>(), &decrypted_bytes));
+}
+
+TEST(EncryptorTest, EmptyEncryptCTR) {
+  std::string key = "128=SixteenBytes";
+  std::string iv = "Sweet Sixteen IV";
+  std::string plaintext;
+  std::string expected_ciphertext;
+
+  std::unique_ptr<crypto::SymmetricKey> sym_key(
+      crypto::SymmetricKey::Import(crypto::SymmetricKey::AES, key));
+  ASSERT_TRUE(sym_key.get());
+
+  crypto::Encryptor encryptor;
+  EXPECT_TRUE(encryptor.Init(sym_key.get(), crypto::Encryptor::CTR, ""));
+  ASSERT_TRUE(encryptor.SetCounter(iv));
+
+  std::string ciphertext;
+  EXPECT_TRUE(encryptor.Encrypt(plaintext, &ciphertext));
+  EXPECT_EQ(expected_ciphertext, ciphertext);
+
+  std::string decrypted;
+  EXPECT_TRUE(encryptor.Decrypt(ciphertext, &decrypted));
+  EXPECT_EQ(decrypted, plaintext);
+
+  // Repeat the test with the byte-based API.
+  ASSERT_TRUE(encryptor.SetCounter(iv));
+  std::vector<uint8_t> ciphertext_bytes;
+  EXPECT_TRUE(
+      encryptor.Encrypt(base::span<const uint8_t>(), &ciphertext_bytes));
+  EXPECT_EQ(ciphertext_bytes.size(), 0u);
+
+  std::vector<uint8_t> decrypted_bytes;
+  EXPECT_TRUE(encryptor.Decrypt(base::span<const uint8_t>(), &decrypted_bytes));
+  EXPECT_EQ(decrypted_bytes.size(), 0u);
 }
 
 TEST(EncryptorTest, CipherTextNotMultipleOfBlockSize) {

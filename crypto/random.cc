@@ -1,11 +1,12 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "crypto/random.h"
 
+#include <stddef.h>
+
 #include "base/rand_util.h"
-#include "starboard/types.h"
 
 namespace crypto {
 
@@ -14,6 +15,10 @@ void RandBytes(void *bytes, size_t length) {
   // But _other_ code should go through this function to ensure that code which
   // needs secure randomness is easily discoverable.
   base::RandBytes(bytes, length);
+}
+
+void RandBytes(base::span<uint8_t> bytes) {
+  RandBytes(bytes.data(), bytes.size());
 }
 
 }  // namespace crypto

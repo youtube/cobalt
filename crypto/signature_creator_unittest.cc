@@ -1,18 +1,19 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "crypto/signature_creator.h"
 
+#include <stdint.h>
+
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "base/sha1.h"
+#include "base/hash/sha1.h"
 #include "crypto/rsa_private_key.h"
 #include "crypto/sha2.h"
 #include "crypto/signature_verifier.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 TEST(SignatureCreatorTest, BasicTest) {
