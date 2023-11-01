@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: audio_sink.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: audio_sink.h
 
 Provides an interface to output raw audio data.
 
