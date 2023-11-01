@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: export.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: export.h
 
 Provides macros for properly exporting or importing symbols from shared
 libraries.
