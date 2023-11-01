@@ -58,6 +58,7 @@ LIBVPX_TEST_SRCS-$(CONFIG_VP9_ENCODER) += svc_test.cc
 LIBVPX_TEST_SRCS-$(CONFIG_VP9_ENCODER) += svc_test.h
 LIBVPX_TEST_SRCS-$(CONFIG_VP9_ENCODER) += svc_end_to_end_test.cc
 LIBVPX_TEST_SRCS-$(CONFIG_VP9_ENCODER) += timestamp_test.cc
+LIBVPX_TEST_SRCS-$(CONFIG_VP9_ENCODER) += vp9_ext_ratectrl_test.cc
 
 LIBVPX_TEST_SRCS-yes                   += decode_test_driver.cc
 LIBVPX_TEST_SRCS-yes                   += decode_test_driver.h
@@ -192,9 +193,7 @@ LIBVPX_TEST_SRCS-$(CONFIG_NON_GREEDY_MV) += non_greedy_mv_test.cc
 endif
 
 ifeq ($(CONFIG_VP9_ENCODER)$(CONFIG_VP9_TEMPORAL_DENOISING),yesyes)
-ifneq (, $(filter yes, $(HAVE_SSE2) $(HAVE_AVX2)))
 LIBVPX_TEST_SRCS-yes += vp9_denoiser_test.cc
-endif
 endif
 LIBVPX_TEST_SRCS-$(CONFIG_VP9_ENCODER) += vp9_arf_freq_test.cc
 
@@ -214,7 +213,14 @@ endif
 TEST_INTRA_PRED_SPEED_SRCS-yes := test_intra_pred_speed.cc
 TEST_INTRA_PRED_SPEED_SRCS-yes += ../md5_utils.h ../md5_utils.c
 
-RC_INTERFACE_TEST_SRCS-$(CONFIG_VP9_ENCODER) := ratectrl_rtc_test.cc
+RC_INTERFACE_TEST_SRCS-yes := test_rc_interface.cc
+RC_INTERFACE_TEST_SRCS-$(CONFIG_VP9_ENCODER) += vp9_ratectrl_rtc_test.cc
+RC_INTERFACE_TEST_SRCS-$(CONFIG_VP8_ENCODER) += vp8_ratectrl_rtc_test.cc
+RC_INTERFACE_TEST_SRCS-$(CONFIG_ENCODERS) += encode_test_driver.cc
+RC_INTERFACE_TEST_SRCS-$(CONFIG_ENCODERS) += encode_test_driver.h
+RC_INTERFACE_TEST_SRCS-yes += decode_test_driver.cc
+RC_INTERFACE_TEST_SRCS-yes += decode_test_driver.h
+RC_INTERFACE_TEST_SRCS-yes += codec_factory.h
 
 endif # CONFIG_SHARED
 

@@ -31,7 +31,7 @@ const double kPsnrThreshold[][5] = {
   { 36.0, 37.0, 37.0, 37.0, 37.0 }, { 35.0, 36.0, 36.0, 36.0, 36.0 },
   { 34.0, 35.0, 35.0, 35.0, 35.0 }, { 33.0, 34.0, 34.0, 34.0, 34.0 },
   { 32.0, 33.0, 33.0, 33.0, 33.0 }, { 28.0, 32.0, 32.0, 32.0, 32.0 },
-  { 28.5, 31.0, 31.0, 31.0, 31.0 }, { 27.5, 30.0, 30.0, 30.0, 30.0 },
+  { 28.4, 31.0, 31.0, 31.0, 31.0 }, { 27.5, 30.0, 30.0, 30.0, 30.0 },
 };
 
 typedef struct {
@@ -342,7 +342,7 @@ VP9_INSTANTIATE_TEST_SUITE(EndToEndTestLarge,
 VP9_INSTANTIATE_TEST_SUITE(EndToEndNV12,
                            ::testing::Values(::libvpx_test::kRealTime),
                            ::testing::ValuesIn(kTestVectorsNv12),
-                           ::testing::ValuesIn({ 6, 7, 8 }));
+                           ::testing::Values(6, 7, 8));
 
 VP9_INSTANTIATE_TEST_SUITE(EndToEndTestAdaptiveRDThresh,
                            ::testing::Values(5, 6, 7), ::testing::Values(8, 9));

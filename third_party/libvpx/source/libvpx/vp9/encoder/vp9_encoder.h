@@ -15,6 +15,7 @@
 
 #include "./vpx_config.h"
 #include "vpx/internal/vpx_codec_internal.h"
+#include "vpx/vpx_ext_ratectrl.h"
 #include "vpx/vp8cx.h"
 #if CONFIG_INTERNAL_STATS
 #include "vpx_dsp/ssim.h"
@@ -38,6 +39,7 @@
 #include "vp9/encoder/vp9_context_tree.h"
 #include "vp9/encoder/vp9_encodemb.h"
 #include "vp9/encoder/vp9_ethread.h"
+#include "vp9/encoder/vp9_ext_ratectrl.h"
 #include "vp9/encoder/vp9_firstpass.h"
 #include "vp9/encoder/vp9_job_queue.h"
 #include "vp9/encoder/vp9_lookahead.h"
@@ -146,6 +148,12 @@ typedef enum {
   kLowVarHighSumdiff = 5,
   kVeryHighSad = 6,
 } CONTENT_STATE_SB;
+
+typedef enum {
+  LOOPFILTER_ALL = 0,
+  LOOPFILTER_REFERENCE = 1,  // Disable loopfilter on non reference frames.
+  NO_LOOPFILTER = 2,         // Disable loopfilter on all frames.
+} LOOPFILTER_CONTROL;
 
 typedef struct VP9EncoderConfig {
   BITSTREAM_PROFILE profile;
@@ -265,10 +273,6 @@ typedef struct VP9EncoderConfig {
 
   vpx_fixed_buf_t two_pass_stats_in;
 
-#if CONFIG_FP_MB_STATS
-  vpx_fixed_buf_t firstpass_mb_stats_in;
-#endif
-
   vp8e_tuning tuning;
   vp9e_tune_content content;
 #if CONFIG_VP9_HIGHBITDEPTH
@@ -283,6 +287,7 @@ typedef struct VP9EncoderConfig {
   int row_mt;
   unsigned int motion_vector_unit_test;
   int delta_q_uv;
+  int use_simple_encode_api;  // Use SimpleEncode APIs or not
 } VP9EncoderConfig;
 
 static INLINE int is_lossless_requested(const VP9EncoderConfig *cfg) {
@@ -702,9 +707,6 @@ typedef struct VP9_COMP {
   TileDataEnc *tile_data;
   int allocated_tiles;  // Keep track of memory allocated for tiles.
 
-  // For a still frame, this flag is set to 1 to skip partition search.
-  int partition_search_skippable_frame;
-
   int scaled_ref_idx[REFS_PER_FRAME];
   int lst_fb_idx;
   int gld_fb_idx;
@@ -738,6 +740,7 @@ typedef struct VP9_COMP {
   // Ambient reconstruction err target for force key frames
   int64_t ambient_err;
 
+  RD_CONTROL rd_ctrl;
   RD_OPT rd;
 
   CODING_CONTEXT coding_context;
@@ -795,10 +798,6 @@ typedef struct VP9_COMP {
   uint64_t time_compress_data;
   uint64_t time_pick_lpf;
   uint64_t time_encode_sb_row;
-
-#if CONFIG_FP_MB_STATS
-  int use_fp_mb_stats;
-#endif
 
   TWO_PASS twopass;
 
@@ -951,6 +950,8 @@ typedef struct VP9_COMP {
 
   int compute_source_sad_onepass;
 
+  int compute_frame_low_motion_onepass;
+
   LevelConstraint level_constraint;
 
   uint8_t *count_arf_frame_usage;
@@ -958,14 +959,18 @@ typedef struct VP9_COMP {
 
   int multi_layer_arf;
   vpx_roi_map_t roi;
+
+  LOOPFILTER_CONTROL loopfilter_ctrl;
 #if CONFIG_RATE_CTRL
   ENCODE_COMMAND encode_command;
   PARTITION_INFO *partition_info;
   MOTION_VECTOR_INFO *motion_vector_info;
   MOTION_VECTOR_INFO *fp_motion_vector_info;
+  TplDepStats *tpl_stats_info;
 
   RATE_QSTEP_MODEL rq_model[ENCODE_FRAME_TYPES];
 #endif
+  EXT_RATECTRL ext_ratectrl;
 } VP9_COMP;
 
 #if CONFIG_RATE_CTRL
@@ -1016,6 +1021,23 @@ static INLINE void motion_vector_info_init(struct VP9_COMP *cpi) {
 static INLINE void free_motion_vector_info(struct VP9_COMP *cpi) {
   vpx_free(cpi->motion_vector_info);
   cpi->motion_vector_info = NULL;
+}
+
+// Allocates memory for the tpl stats information.
+// Only called once in vp9_create_compressor().
+static INLINE void tpl_stats_info_init(struct VP9_COMP *cpi) {
+  VP9_COMMON *const cm = &cpi->common;
+  CHECK_MEM_ERROR(
+      cm, cpi->tpl_stats_info,
+      (TplDepStats *)vpx_calloc(MAX_LAG_BUFFERS, sizeof(TplDepStats)));
+  memset(cpi->tpl_stats_info, 0, MAX_LAG_BUFFERS * sizeof(TplDepStats));
+}
+
+// Frees memory of the tpl stats information.
+// Only called once in dealloc_compressor_data().
+static INLINE void free_tpl_stats_info(struct VP9_COMP *cpi) {
+  vpx_free(cpi->tpl_stats_info);
+  cpi->tpl_stats_info = NULL;
 }
 
 // Allocates memory for the first pass motion vector information.
@@ -1080,6 +1102,7 @@ typedef struct ENCODE_FRAME_RESULT {
   FRAME_COUNTS frame_counts;
   const PARTITION_INFO *partition_info;
   const MOTION_VECTOR_INFO *motion_vector_info;
+  const TplDepStats *tpl_stats_info;
   IMAGE_BUFFER coded_frame;
   RATE_QINDEX_HISTORY rq_history;
 #endif  // CONFIG_RATE_CTRL
@@ -1256,6 +1279,11 @@ int64_t vp9_highbd_get_y_sse(const YV12_BUFFER_CONFIG *a,
 void vp9_scale_references(VP9_COMP *cpi);
 
 void vp9_update_reference_frames(VP9_COMP *cpi);
+
+void vp9_get_ref_frame_info(FRAME_UPDATE_TYPE update_type, int ref_frame_flags,
+                            RefCntBuffer *ref_frame_bufs[MAX_INTER_REF_FRAMES],
+                            int *ref_frame_coding_indexes,
+                            int *ref_frame_valid_list);
 
 void vp9_set_high_precision_mv(VP9_COMP *cpi, int allow_high_precision_mv);
 

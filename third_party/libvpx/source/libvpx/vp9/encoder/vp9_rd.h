@@ -101,6 +101,13 @@ typedef enum {
   THR_INTRA,
 } THR_MODES_SUB8X8;
 
+typedef struct {
+  // RD multiplier control factors added for Vizier project.
+  double rd_mult_inter_qp_fac;
+  double rd_mult_arf_qp_fac;
+  double rd_mult_key_qp_fac;
+} RD_CONTROL;
+
 typedef struct RD_OPT {
   // Thresh_mult is used to set a threshold for the rd score. A higher value
   // means that we will accept the best mode so far more often. This number
@@ -143,6 +150,8 @@ struct TileInfo;
 struct TileDataEnc;
 struct VP9_COMP;
 struct macroblock;
+
+void vp9_init_rd_parameters(struct VP9_COMP *cpi);
 
 int vp9_compute_rd_mult_based_on_qindex(const struct VP9_COMP *cpi, int qindex);
 

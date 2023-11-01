@@ -327,7 +327,8 @@ static void calc_iframe_target_size(VP8_COMP *cpi) {
     int initial_boost = 32; /* |3.0 * per_frame_bandwidth| */
     /* Boost depends somewhat on frame rate: only used for 1 layer case. */
     if (cpi->oxcf.number_of_layers == 1) {
-      kf_boost = VPXMAX(initial_boost, (int)(2 * cpi->output_framerate - 16));
+      kf_boost =
+          VPXMAX(initial_boost, (int)round(2 * cpi->output_framerate - 16));
     } else {
       /* Initial factor: set target size to: |3.0 * per_frame_bandwidth|. */
       kf_boost = initial_boost;
@@ -349,8 +350,12 @@ static void calc_iframe_target_size(VP8_COMP *cpi) {
   }
 
   if (cpi->oxcf.rc_max_intra_bitrate_pct) {
-    unsigned int max_rate =
-        cpi->per_frame_bandwidth * cpi->oxcf.rc_max_intra_bitrate_pct / 100;
+    unsigned int max_rate;
+    // This product may overflow unsigned int
+    uint64_t product = cpi->per_frame_bandwidth;
+    product *= cpi->oxcf.rc_max_intra_bitrate_pct;
+    product /= 100;
+    max_rate = (unsigned int)VPXMIN(INT_MAX, product);
 
     if (target > max_rate) target = max_rate;
   }

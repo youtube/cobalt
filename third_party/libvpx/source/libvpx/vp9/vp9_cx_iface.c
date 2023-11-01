@@ -13,6 +13,7 @@
 
 #include "./vpx_config.h"
 #include "vpx/vpx_encoder.h"
+#include "vpx/vpx_ext_ratectrl.h"
 #include "vpx_dsp/psnr.h"
 #include "vpx_ports/vpx_once.h"
 #include "vpx_ports/static_assert.h"
@@ -347,6 +348,24 @@ static vpx_codec_err_t validate_config(vpx_codec_alg_priv_t *ctx,
   }
   RANGE_CHECK(extra_cfg, color_space, VPX_CS_UNKNOWN, VPX_CS_SRGB);
   RANGE_CHECK(extra_cfg, color_range, VPX_CR_STUDIO_RANGE, VPX_CR_FULL_RANGE);
+
+  // The range below shall be further tuned.
+  RANGE_CHECK(cfg, use_vizier_rc_params, 0, 1);
+  RANGE_CHECK(cfg, active_wq_factor.den, 1, 1000);
+  RANGE_CHECK(cfg, err_per_mb_factor.den, 1, 1000);
+  RANGE_CHECK(cfg, sr_default_decay_limit.den, 1, 1000);
+  RANGE_CHECK(cfg, sr_diff_factor.den, 1, 1000);
+  RANGE_CHECK(cfg, kf_err_per_mb_factor.den, 1, 1000);
+  RANGE_CHECK(cfg, kf_frame_min_boost_factor.den, 1, 1000);
+  RANGE_CHECK(cfg, kf_frame_max_boost_subs_factor.den, 1, 1000);
+  RANGE_CHECK(cfg, kf_max_total_boost_factor.den, 1, 1000);
+  RANGE_CHECK(cfg, gf_max_total_boost_factor.den, 1, 1000);
+  RANGE_CHECK(cfg, gf_frame_max_boost_factor.den, 1, 1000);
+  RANGE_CHECK(cfg, zm_factor.den, 1, 1000);
+  RANGE_CHECK(cfg, rd_mult_inter_qp_fac.den, 1, 1000);
+  RANGE_CHECK(cfg, rd_mult_arf_qp_fac.den, 1, 1000);
+  RANGE_CHECK(cfg, rd_mult_key_qp_fac.den, 1, 1000);
+
   return VPX_CODEC_OK;
 }
 
@@ -564,10 +583,6 @@ static vpx_codec_err_t set_encoder_config(
 
   vp9_set_first_pass_stats(oxcf, &cfg->rc_twopass_stats_in);
 
-#if CONFIG_FP_MB_STATS
-  oxcf->firstpass_mb_stats_in = cfg->rc_firstpass_mb_stats_in;
-#endif
-
   oxcf->color_space = extra_cfg->color_space;
   oxcf->color_range = extra_cfg->color_range;
   oxcf->render_width = extra_cfg->render_width;
@@ -633,7 +648,132 @@ static vpx_codec_err_t set_encoder_config(
   }
 
   if (get_level_index(oxcf->target_level) >= 0) config_target_level(oxcf);
-  // vp9_dump_encoder_config(oxcf);
+  oxcf->use_simple_encode_api = 0;
+  // vp9_dump_encoder_config(oxcf, stderr);
+  return VPX_CODEC_OK;
+}
+
+static vpx_codec_err_t set_twopass_params_from_config(
+    const vpx_codec_enc_cfg_t *const cfg, struct VP9_COMP *cpi) {
+  if (!cfg->use_vizier_rc_params) return VPX_CODEC_OK;
+  if (cpi == NULL) return VPX_CODEC_ERROR;
+
+  cpi->twopass.use_vizier_rc_params = cfg->use_vizier_rc_params;
+
+  // The values set here are factors that will be applied to default values
+  // to get the final value used in the two pass code. Hence 1.0 will
+  // match the default behaviour when not using passed in values.
+  // We also apply limits here to prevent the user from applying settings
+  // that make no sense.
+  cpi->twopass.active_wq_factor =
+      (double)cfg->active_wq_factor.num / (double)cfg->active_wq_factor.den;
+  if (cpi->twopass.active_wq_factor < 0.25)
+    cpi->twopass.active_wq_factor = 0.25;
+  else if (cpi->twopass.active_wq_factor > 16.0)
+    cpi->twopass.active_wq_factor = 16.0;
+
+  cpi->twopass.err_per_mb =
+      (double)cfg->err_per_mb_factor.num / (double)cfg->err_per_mb_factor.den;
+  if (cpi->twopass.err_per_mb < 0.25)
+    cpi->twopass.err_per_mb = 0.25;
+  else if (cpi->twopass.err_per_mb > 4.0)
+    cpi->twopass.err_per_mb = 4.0;
+
+  cpi->twopass.sr_default_decay_limit =
+      (double)cfg->sr_default_decay_limit.num /
+      (double)cfg->sr_default_decay_limit.den;
+  if (cpi->twopass.sr_default_decay_limit < 0.25)
+    cpi->twopass.sr_default_decay_limit = 0.25;
+  // If the default changes this will need to change.
+  else if (cpi->twopass.sr_default_decay_limit > 1.33)
+    cpi->twopass.sr_default_decay_limit = 1.33;
+
+  cpi->twopass.sr_diff_factor =
+      (double)cfg->sr_diff_factor.num / (double)cfg->sr_diff_factor.den;
+  if (cpi->twopass.sr_diff_factor < 0.25)
+    cpi->twopass.sr_diff_factor = 0.25;
+  else if (cpi->twopass.sr_diff_factor > 4.0)
+    cpi->twopass.sr_diff_factor = 4.0;
+
+  cpi->twopass.kf_err_per_mb = (double)cfg->kf_err_per_mb_factor.num /
+                               (double)cfg->kf_err_per_mb_factor.den;
+  if (cpi->twopass.kf_err_per_mb < 0.25)
+    cpi->twopass.kf_err_per_mb = 0.25;
+  else if (cpi->twopass.kf_err_per_mb > 4.0)
+    cpi->twopass.kf_err_per_mb = 4.0;
+
+  cpi->twopass.kf_frame_min_boost = (double)cfg->kf_frame_min_boost_factor.num /
+                                    (double)cfg->kf_frame_min_boost_factor.den;
+  if (cpi->twopass.kf_frame_min_boost < 0.25)
+    cpi->twopass.kf_frame_min_boost = 0.25;
+  else if (cpi->twopass.kf_frame_min_boost > 4.0)
+    cpi->twopass.kf_frame_min_boost = 4.0;
+
+  cpi->twopass.kf_frame_max_boost_first =
+      (double)cfg->kf_frame_max_boost_first_factor.num /
+      (double)cfg->kf_frame_max_boost_first_factor.den;
+  if (cpi->twopass.kf_frame_max_boost_first < 0.25)
+    cpi->twopass.kf_frame_max_boost_first = 0.25;
+  else if (cpi->twopass.kf_frame_max_boost_first > 4.0)
+    cpi->twopass.kf_frame_max_boost_first = 4.0;
+
+  cpi->twopass.kf_frame_max_boost_subs =
+      (double)cfg->kf_frame_max_boost_subs_factor.num /
+      (double)cfg->kf_frame_max_boost_subs_factor.den;
+  if (cpi->twopass.kf_frame_max_boost_subs < 0.25)
+    cpi->twopass.kf_frame_max_boost_subs = 0.25;
+  else if (cpi->twopass.kf_frame_max_boost_subs > 4.0)
+    cpi->twopass.kf_frame_max_boost_subs = 4.0;
+
+  cpi->twopass.kf_max_total_boost = (double)cfg->kf_max_total_boost_factor.num /
+                                    (double)cfg->kf_max_total_boost_factor.den;
+  if (cpi->twopass.kf_max_total_boost < 0.25)
+    cpi->twopass.kf_max_total_boost = 0.25;
+  else if (cpi->twopass.kf_max_total_boost > 4.0)
+    cpi->twopass.kf_max_total_boost = 4.0;
+
+  cpi->twopass.gf_max_total_boost = (double)cfg->gf_max_total_boost_factor.num /
+                                    (double)cfg->gf_max_total_boost_factor.den;
+  if (cpi->twopass.gf_max_total_boost < 0.25)
+    cpi->twopass.gf_max_total_boost = 0.25;
+  else if (cpi->twopass.gf_max_total_boost > 4.0)
+    cpi->twopass.gf_max_total_boost = 4.0;
+
+  cpi->twopass.gf_frame_max_boost = (double)cfg->gf_frame_max_boost_factor.num /
+                                    (double)cfg->gf_frame_max_boost_factor.den;
+  if (cpi->twopass.gf_frame_max_boost < 0.25)
+    cpi->twopass.gf_frame_max_boost = 0.25;
+  else if (cpi->twopass.gf_frame_max_boost > 4.0)
+    cpi->twopass.gf_frame_max_boost = 4.0;
+
+  cpi->twopass.zm_factor =
+      (double)cfg->zm_factor.num / (double)cfg->zm_factor.den;
+  if (cpi->twopass.zm_factor < 0.25)
+    cpi->twopass.zm_factor = 0.25;
+  else if (cpi->twopass.zm_factor > 2.0)
+    cpi->twopass.zm_factor = 2.0;
+
+  cpi->rd_ctrl.rd_mult_inter_qp_fac = (double)cfg->rd_mult_inter_qp_fac.num /
+                                      (double)cfg->rd_mult_inter_qp_fac.den;
+  if (cpi->rd_ctrl.rd_mult_inter_qp_fac < 0.25)
+    cpi->rd_ctrl.rd_mult_inter_qp_fac = 0.25;
+  else if (cpi->rd_ctrl.rd_mult_inter_qp_fac > 4.0)
+    cpi->rd_ctrl.rd_mult_inter_qp_fac = 4.0;
+
+  cpi->rd_ctrl.rd_mult_arf_qp_fac =
+      (double)cfg->rd_mult_arf_qp_fac.num / (double)cfg->rd_mult_arf_qp_fac.den;
+  if (cpi->rd_ctrl.rd_mult_arf_qp_fac < 0.25)
+    cpi->rd_ctrl.rd_mult_arf_qp_fac = 0.25;
+  else if (cpi->rd_ctrl.rd_mult_arf_qp_fac > 4.0)
+    cpi->rd_ctrl.rd_mult_arf_qp_fac = 4.0;
+
+  cpi->rd_ctrl.rd_mult_key_qp_fac =
+      (double)cfg->rd_mult_key_qp_fac.num / (double)cfg->rd_mult_key_qp_fac.den;
+  if (cpi->rd_ctrl.rd_mult_key_qp_fac < 0.25)
+    cpi->rd_ctrl.rd_mult_key_qp_fac = 0.25;
+  else if (cpi->rd_ctrl.rd_mult_key_qp_fac > 4.0)
+    cpi->rd_ctrl.rd_mult_key_qp_fac = 4.0;
+
   return VPX_CODEC_OK;
 }
 
@@ -663,6 +803,7 @@ static vpx_codec_err_t encoder_set_config(vpx_codec_alg_priv_t *ctx,
   if (res == VPX_CODEC_OK) {
     ctx->cfg = *cfg;
     set_encoder_config(&ctx->oxcf, &ctx->cfg, &ctx->extra_cfg);
+    set_twopass_params_from_config(&ctx->cfg, ctx->cpi);
     // On profile change, request a key frame
     force_key |= ctx->cpi->common.profile != ctx->oxcf.profile;
     vp9_change_config(ctx->cpi, &ctx->oxcf);
@@ -689,12 +830,32 @@ static vpx_codec_err_t ctrl_get_quantizer64(vpx_codec_alg_priv_t *ctx,
   return VPX_CODEC_OK;
 }
 
+static vpx_codec_err_t ctrl_get_quantizer_svc_layers(vpx_codec_alg_priv_t *ctx,
+                                                     va_list args) {
+  int *const arg = va_arg(args, int *);
+  int i;
+  if (arg == NULL) return VPX_CODEC_INVALID_PARAM;
+  for (i = 0; i < VPX_SS_MAX_LAYERS; i++) {
+    arg[i] = ctx->cpi->svc.base_qindex[i];
+  }
+  return VPX_CODEC_OK;
+}
+
+static vpx_codec_err_t ctrl_get_loopfilter_level(vpx_codec_alg_priv_t *ctx,
+                                                 va_list args) {
+  int *const arg = va_arg(args, int *);
+  if (arg == NULL) return VPX_CODEC_INVALID_PARAM;
+  *arg = ctx->cpi->common.lf.filter_level;
+  return VPX_CODEC_OK;
+}
+
 static vpx_codec_err_t update_extra_cfg(vpx_codec_alg_priv_t *ctx,
                                         const struct vp9_extracfg *extra_cfg) {
   const vpx_codec_err_t res = validate_config(ctx, &ctx->cfg, extra_cfg);
   if (res == VPX_CODEC_OK) {
     ctx->extra_cfg = *extra_cfg;
     set_encoder_config(&ctx->oxcf, &ctx->cfg, &ctx->extra_cfg);
+    set_twopass_params_from_config(&ctx->cfg, ctx->cpi);
     vp9_change_config(ctx->cpi, &ctx->oxcf);
   }
   return res;
@@ -885,6 +1046,18 @@ static vpx_codec_err_t ctrl_set_row_mt(vpx_codec_alg_priv_t *ctx,
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
+static vpx_codec_err_t ctrl_set_rtc_external_ratectrl(vpx_codec_alg_priv_t *ctx,
+                                                      va_list args) {
+  VP9_COMP *const cpi = ctx->cpi;
+  const unsigned int data = va_arg(args, unsigned int);
+  if (data) {
+    cpi->compute_frame_low_motion_onepass = 0;
+    cpi->rc.constrain_gf_key_freq_onepass_vbr = 0;
+    cpi->cyclic_refresh->content_mode = 0;
+  }
+  return VPX_CODEC_OK;
+}
+
 static vpx_codec_err_t ctrl_enable_motion_vector_unit_test(
     vpx_codec_alg_priv_t *ctx, va_list args) {
   struct vp9_extracfg extra_cfg = ctx->extra_cfg;
@@ -939,6 +1112,7 @@ static vpx_codec_err_t encoder_init(vpx_codec_ctx_t *ctx,
 #endif
       priv->cpi = vp9_create_compressor(&priv->oxcf, priv->buffer_pool);
       if (priv->cpi == NULL) res = VPX_CODEC_MEM_ERROR;
+      set_twopass_params_from_config(&priv->cfg, priv->cpi);
     }
   }
 
@@ -1572,6 +1746,7 @@ static vpx_codec_err_t ctrl_set_svc_parameters(vpx_codec_alg_priv_t *ctx,
       lc->scaling_factor_num = params->scaling_factor_num[sl];
       lc->scaling_factor_den = params->scaling_factor_den[sl];
       lc->speed = params->speed_per_layer[sl];
+      lc->loopfilter_ctrl = params->loopfilter_ctrl[sl];
     }
   }
 
@@ -1716,6 +1891,52 @@ static vpx_codec_err_t ctrl_set_postencode_drop(vpx_codec_alg_priv_t *ctx,
   return VPX_CODEC_OK;
 }
 
+static vpx_codec_err_t ctrl_set_disable_overshoot_maxq_cbr(
+    vpx_codec_alg_priv_t *ctx, va_list args) {
+  VP9_COMP *const cpi = ctx->cpi;
+  const unsigned int data = va_arg(args, unsigned int);
+  cpi->rc.disable_overshoot_maxq_cbr = data;
+  return VPX_CODEC_OK;
+}
+
+static vpx_codec_err_t ctrl_set_disable_loopfilter(vpx_codec_alg_priv_t *ctx,
+                                                   va_list args) {
+  VP9_COMP *const cpi = ctx->cpi;
+  const unsigned int data = va_arg(args, unsigned int);
+  cpi->loopfilter_ctrl = data;
+  return VPX_CODEC_OK;
+}
+
+static vpx_codec_err_t ctrl_set_external_rate_control(vpx_codec_alg_priv_t *ctx,
+                                                      va_list args) {
+  vpx_rc_funcs_t funcs = *CAST(VP9E_SET_EXTERNAL_RATE_CONTROL, args);
+  VP9_COMP *cpi = ctx->cpi;
+  EXT_RATECTRL *ext_ratectrl = &cpi->ext_ratectrl;
+  const VP9EncoderConfig *oxcf = &cpi->oxcf;
+  // TODO(angiebird): Check the possibility of this flag being set at pass == 1
+  if (oxcf->pass == 2) {
+    const FRAME_INFO *frame_info = &cpi->frame_info;
+    vpx_rc_config_t ratectrl_config;
+    vpx_codec_err_t codec_status;
+
+    ratectrl_config.frame_width = frame_info->frame_width;
+    ratectrl_config.frame_height = frame_info->frame_height;
+    ratectrl_config.show_frame_count = cpi->twopass.first_pass_info.num_frames;
+
+    // TODO(angiebird): Double check whether this is the proper way to set up
+    // target_bitrate and frame_rate.
+    ratectrl_config.target_bitrate_kbps = (int)(oxcf->target_bandwidth / 1000);
+    ratectrl_config.frame_rate_num = oxcf->g_timebase.den;
+    ratectrl_config.frame_rate_den = oxcf->g_timebase.num;
+
+    codec_status = vp9_extrc_create(funcs, ratectrl_config, ext_ratectrl);
+    if (codec_status != VPX_CODEC_OK) {
+      return codec_status;
+    }
+  }
+  return VPX_CODEC_OK;
+}
+
 static vpx_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { VP8_COPY_REFERENCE, ctrl_copy_reference },
 
@@ -1760,16 +1981,22 @@ static vpx_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { VP9E_SET_TARGET_LEVEL, ctrl_set_target_level },
   { VP9E_SET_ROW_MT, ctrl_set_row_mt },
   { VP9E_SET_POSTENCODE_DROP, ctrl_set_postencode_drop },
+  { VP9E_SET_DISABLE_OVERSHOOT_MAXQ_CBR, ctrl_set_disable_overshoot_maxq_cbr },
   { VP9E_ENABLE_MOTION_VECTOR_UNIT_TEST, ctrl_enable_motion_vector_unit_test },
   { VP9E_SET_SVC_INTER_LAYER_PRED, ctrl_set_svc_inter_layer_pred },
   { VP9E_SET_SVC_FRAME_DROP_LAYER, ctrl_set_svc_frame_drop_layer },
   { VP9E_SET_SVC_GF_TEMPORAL_REF, ctrl_set_svc_gf_temporal_ref },
   { VP9E_SET_SVC_SPATIAL_LAYER_SYNC, ctrl_set_svc_spatial_layer_sync },
   { VP9E_SET_DELTA_Q_UV, ctrl_set_delta_q_uv },
+  { VP9E_SET_DISABLE_LOOPFILTER, ctrl_set_disable_loopfilter },
+  { VP9E_SET_RTC_EXTERNAL_RATECTRL, ctrl_set_rtc_external_ratectrl },
+  { VP9E_SET_EXTERNAL_RATE_CONTROL, ctrl_set_external_rate_control },
 
   // Getters
   { VP8E_GET_LAST_QUANTIZER, ctrl_get_quantizer },
   { VP8E_GET_LAST_QUANTIZER_64, ctrl_get_quantizer64 },
+  { VP9E_GET_LAST_QUANTIZER_SVC_LAYERS, ctrl_get_quantizer_svc_layers },
+  { VP9E_GET_LOOPFILTER_LEVEL, ctrl_get_loopfilter_level },
   { VP9_GET_REFERENCE, ctrl_get_reference },
   { VP9E_GET_SVC_LAYER_ID, ctrl_get_svc_layer_id },
   { VP9E_GET_ACTIVEMAP, ctrl_get_active_map },
@@ -1832,14 +2059,30 @@ static vpx_codec_enc_cfg_map_t encoder_usage_cfg_map[] = {
 
         VPX_SS_DEFAULT_LAYERS,  // ss_number_layers
         { 0 },
-        { 0 },  // ss_target_bitrate
-        1,      // ts_number_layers
-        { 0 },  // ts_target_bitrate
-        { 0 },  // ts_rate_decimator
-        0,      // ts_periodicity
-        { 0 },  // ts_layer_id
-        { 0 },  // layer_taget_bitrate
-        0       // temporal_layering_mode
+        { 0 },     // ss_target_bitrate
+        1,         // ts_number_layers
+        { 0 },     // ts_target_bitrate
+        { 0 },     // ts_rate_decimator
+        0,         // ts_periodicity
+        { 0 },     // ts_layer_id
+        { 0 },     // layer_taget_bitrate
+        0,         // temporal_layering_mode
+        0,         // use_vizier_rc_params
+        { 1, 1 },  // active_wq_factor
+        { 1, 1 },  // err_per_mb_factor
+        { 1, 1 },  // sr_default_decay_limit
+        { 1, 1 },  // sr_diff_factor
+        { 1, 1 },  // kf_err_per_mb_factor
+        { 1, 1 },  // kf_frame_min_boost_factor
+        { 1, 1 },  // kf_frame_max_boost_first_factor
+        { 1, 1 },  // kf_frame_max_boost_subs_factor
+        { 1, 1 },  // kf_max_total_boost_factor
+        { 1, 1 },  // gf_max_total_boost_factor
+        { 1, 1 },  // gf_frame_max_boost_factor
+        { 1, 1 },  // zm_factor
+        { 1, 1 },  // rd_mult_inter_qp_fac
+        { 1, 1 },  // rd_mult_arf_qp_fac
+        { 1, 1 },  // rd_mult_key_qp_fac
     } },
 };
 
@@ -1952,46 +2195,46 @@ VP9EncoderConfig vp9_get_encoder_config(int frame_width, int frame_height,
   return oxcf;
 }
 
-#define DUMP_STRUCT_VALUE(struct, value) \
-  printf(#value " %" PRId64 "\n", (int64_t)(struct)->value)
+#define DUMP_STRUCT_VALUE(fp, structure, value) \
+  fprintf(fp, #value " %" PRId64 "\n", (int64_t)(structure)->value)
 
-void vp9_dump_encoder_config(const VP9EncoderConfig *oxcf) {
-  DUMP_STRUCT_VALUE(oxcf, profile);
-  DUMP_STRUCT_VALUE(oxcf, bit_depth);
-  DUMP_STRUCT_VALUE(oxcf, width);
-  DUMP_STRUCT_VALUE(oxcf, height);
-  DUMP_STRUCT_VALUE(oxcf, input_bit_depth);
-  DUMP_STRUCT_VALUE(oxcf, init_framerate);
+void vp9_dump_encoder_config(const VP9EncoderConfig *oxcf, FILE *fp) {
+  DUMP_STRUCT_VALUE(fp, oxcf, profile);
+  DUMP_STRUCT_VALUE(fp, oxcf, bit_depth);
+  DUMP_STRUCT_VALUE(fp, oxcf, width);
+  DUMP_STRUCT_VALUE(fp, oxcf, height);
+  DUMP_STRUCT_VALUE(fp, oxcf, input_bit_depth);
+  DUMP_STRUCT_VALUE(fp, oxcf, init_framerate);
   // TODO(angiebird): dump g_timebase
   // TODO(angiebird): dump g_timebase_in_ts
 
-  DUMP_STRUCT_VALUE(oxcf, target_bandwidth);
+  DUMP_STRUCT_VALUE(fp, oxcf, target_bandwidth);
 
-  DUMP_STRUCT_VALUE(oxcf, noise_sensitivity);
-  DUMP_STRUCT_VALUE(oxcf, sharpness);
-  DUMP_STRUCT_VALUE(oxcf, speed);
-  DUMP_STRUCT_VALUE(oxcf, rc_max_intra_bitrate_pct);
-  DUMP_STRUCT_VALUE(oxcf, rc_max_inter_bitrate_pct);
-  DUMP_STRUCT_VALUE(oxcf, gf_cbr_boost_pct);
+  DUMP_STRUCT_VALUE(fp, oxcf, noise_sensitivity);
+  DUMP_STRUCT_VALUE(fp, oxcf, sharpness);
+  DUMP_STRUCT_VALUE(fp, oxcf, speed);
+  DUMP_STRUCT_VALUE(fp, oxcf, rc_max_intra_bitrate_pct);
+  DUMP_STRUCT_VALUE(fp, oxcf, rc_max_inter_bitrate_pct);
+  DUMP_STRUCT_VALUE(fp, oxcf, gf_cbr_boost_pct);
 
-  DUMP_STRUCT_VALUE(oxcf, mode);
-  DUMP_STRUCT_VALUE(oxcf, pass);
+  DUMP_STRUCT_VALUE(fp, oxcf, mode);
+  DUMP_STRUCT_VALUE(fp, oxcf, pass);
 
   // Key Framing Operations
-  DUMP_STRUCT_VALUE(oxcf, auto_key);
-  DUMP_STRUCT_VALUE(oxcf, key_freq);
+  DUMP_STRUCT_VALUE(fp, oxcf, auto_key);
+  DUMP_STRUCT_VALUE(fp, oxcf, key_freq);
 
-  DUMP_STRUCT_VALUE(oxcf, lag_in_frames);
+  DUMP_STRUCT_VALUE(fp, oxcf, lag_in_frames);
 
   // ----------------------------------------------------------------
   // DATARATE CONTROL OPTIONS
 
   // vbr, cbr, constrained quality or constant quality
-  DUMP_STRUCT_VALUE(oxcf, rc_mode);
+  DUMP_STRUCT_VALUE(fp, oxcf, rc_mode);
 
   // buffer targeting aggressiveness
-  DUMP_STRUCT_VALUE(oxcf, under_shoot_pct);
-  DUMP_STRUCT_VALUE(oxcf, over_shoot_pct);
+  DUMP_STRUCT_VALUE(fp, oxcf, under_shoot_pct);
+  DUMP_STRUCT_VALUE(fp, oxcf, over_shoot_pct);
 
   // buffering parameters
   // TODO(angiebird): dump tarting_buffer_level_ms
@@ -1999,37 +2242,37 @@ void vp9_dump_encoder_config(const VP9EncoderConfig *oxcf) {
   // TODO(angiebird): dump maximum_buffer_size_ms
 
   // Frame drop threshold.
-  DUMP_STRUCT_VALUE(oxcf, drop_frames_water_mark);
+  DUMP_STRUCT_VALUE(fp, oxcf, drop_frames_water_mark);
 
   // controlling quality
-  DUMP_STRUCT_VALUE(oxcf, fixed_q);
-  DUMP_STRUCT_VALUE(oxcf, worst_allowed_q);
-  DUMP_STRUCT_VALUE(oxcf, best_allowed_q);
-  DUMP_STRUCT_VALUE(oxcf, cq_level);
-  DUMP_STRUCT_VALUE(oxcf, aq_mode);
+  DUMP_STRUCT_VALUE(fp, oxcf, fixed_q);
+  DUMP_STRUCT_VALUE(fp, oxcf, worst_allowed_q);
+  DUMP_STRUCT_VALUE(fp, oxcf, best_allowed_q);
+  DUMP_STRUCT_VALUE(fp, oxcf, cq_level);
+  DUMP_STRUCT_VALUE(fp, oxcf, aq_mode);
 
   // Special handling of Adaptive Quantization for AltRef frames
-  DUMP_STRUCT_VALUE(oxcf, alt_ref_aq);
+  DUMP_STRUCT_VALUE(fp, oxcf, alt_ref_aq);
 
   // Internal frame size scaling.
-  DUMP_STRUCT_VALUE(oxcf, resize_mode);
-  DUMP_STRUCT_VALUE(oxcf, scaled_frame_width);
-  DUMP_STRUCT_VALUE(oxcf, scaled_frame_height);
+  DUMP_STRUCT_VALUE(fp, oxcf, resize_mode);
+  DUMP_STRUCT_VALUE(fp, oxcf, scaled_frame_width);
+  DUMP_STRUCT_VALUE(fp, oxcf, scaled_frame_height);
 
   // Enable feature to reduce the frame quantization every x frames.
-  DUMP_STRUCT_VALUE(oxcf, frame_periodic_boost);
+  DUMP_STRUCT_VALUE(fp, oxcf, frame_periodic_boost);
 
   // two pass datarate control
-  DUMP_STRUCT_VALUE(oxcf, two_pass_vbrbias);
-  DUMP_STRUCT_VALUE(oxcf, two_pass_vbrmin_section);
-  DUMP_STRUCT_VALUE(oxcf, two_pass_vbrmax_section);
-  DUMP_STRUCT_VALUE(oxcf, vbr_corpus_complexity);
+  DUMP_STRUCT_VALUE(fp, oxcf, two_pass_vbrbias);
+  DUMP_STRUCT_VALUE(fp, oxcf, two_pass_vbrmin_section);
+  DUMP_STRUCT_VALUE(fp, oxcf, two_pass_vbrmax_section);
+  DUMP_STRUCT_VALUE(fp, oxcf, vbr_corpus_complexity);
   // END DATARATE CONTROL OPTIONS
   // ----------------------------------------------------------------
 
   // Spatial and temporal scalability.
-  DUMP_STRUCT_VALUE(oxcf, ss_number_layers);
-  DUMP_STRUCT_VALUE(oxcf, ts_number_layers);
+  DUMP_STRUCT_VALUE(fp, oxcf, ss_number_layers);
+  DUMP_STRUCT_VALUE(fp, oxcf, ts_number_layers);
 
   // Bitrate allocation for spatial layers.
   // TODO(angiebird): dump layer_target_bitrate[VPX_MAX_LAYERS]
@@ -2037,45 +2280,42 @@ void vp9_dump_encoder_config(const VP9EncoderConfig *oxcf) {
   // TODO(angiebird): dump ss_enable_auto_arf[VPX_SS_MAX_LAYERS]
   // TODO(angiebird): dump ts_rate_decimator[VPX_TS_MAX_LAYERS]
 
-  DUMP_STRUCT_VALUE(oxcf, enable_auto_arf);
-  DUMP_STRUCT_VALUE(oxcf, encode_breakout);
-  DUMP_STRUCT_VALUE(oxcf, error_resilient_mode);
-  DUMP_STRUCT_VALUE(oxcf, frame_parallel_decoding_mode);
+  DUMP_STRUCT_VALUE(fp, oxcf, enable_auto_arf);
+  DUMP_STRUCT_VALUE(fp, oxcf, encode_breakout);
+  DUMP_STRUCT_VALUE(fp, oxcf, error_resilient_mode);
+  DUMP_STRUCT_VALUE(fp, oxcf, frame_parallel_decoding_mode);
 
-  DUMP_STRUCT_VALUE(oxcf, arnr_max_frames);
-  DUMP_STRUCT_VALUE(oxcf, arnr_strength);
+  DUMP_STRUCT_VALUE(fp, oxcf, arnr_max_frames);
+  DUMP_STRUCT_VALUE(fp, oxcf, arnr_strength);
 
-  DUMP_STRUCT_VALUE(oxcf, min_gf_interval);
-  DUMP_STRUCT_VALUE(oxcf, max_gf_interval);
+  DUMP_STRUCT_VALUE(fp, oxcf, min_gf_interval);
+  DUMP_STRUCT_VALUE(fp, oxcf, max_gf_interval);
 
-  DUMP_STRUCT_VALUE(oxcf, tile_columns);
-  DUMP_STRUCT_VALUE(oxcf, tile_rows);
+  DUMP_STRUCT_VALUE(fp, oxcf, tile_columns);
+  DUMP_STRUCT_VALUE(fp, oxcf, tile_rows);
 
-  DUMP_STRUCT_VALUE(oxcf, enable_tpl_model);
+  DUMP_STRUCT_VALUE(fp, oxcf, enable_tpl_model);
 
-  DUMP_STRUCT_VALUE(oxcf, max_threads);
+  DUMP_STRUCT_VALUE(fp, oxcf, max_threads);
 
-  DUMP_STRUCT_VALUE(oxcf, target_level);
+  DUMP_STRUCT_VALUE(fp, oxcf, target_level);
 
   // TODO(angiebird): dump two_pass_stats_in
-
-#if CONFIG_FP_MB_STATS
-  // TODO(angiebird): dump firstpass_mb_stats_in
-#endif
-
-  DUMP_STRUCT_VALUE(oxcf, tuning);
-  DUMP_STRUCT_VALUE(oxcf, content);
+  DUMP_STRUCT_VALUE(fp, oxcf, tuning);
+  DUMP_STRUCT_VALUE(fp, oxcf, content);
 #if CONFIG_VP9_HIGHBITDEPTH
-  DUMP_STRUCT_VALUE(oxcf, use_highbitdepth);
+  DUMP_STRUCT_VALUE(fp, oxcf, use_highbitdepth);
 #endif
-  DUMP_STRUCT_VALUE(oxcf, color_space);
-  DUMP_STRUCT_VALUE(oxcf, color_range);
-  DUMP_STRUCT_VALUE(oxcf, render_width);
-  DUMP_STRUCT_VALUE(oxcf, render_height);
-  DUMP_STRUCT_VALUE(oxcf, temporal_layering_mode);
+  DUMP_STRUCT_VALUE(fp, oxcf, color_space);
+  DUMP_STRUCT_VALUE(fp, oxcf, color_range);
+  DUMP_STRUCT_VALUE(fp, oxcf, render_width);
+  DUMP_STRUCT_VALUE(fp, oxcf, render_height);
+  DUMP_STRUCT_VALUE(fp, oxcf, temporal_layering_mode);
 
-  DUMP_STRUCT_VALUE(oxcf, row_mt);
-  DUMP_STRUCT_VALUE(oxcf, motion_vector_unit_test);
+  DUMP_STRUCT_VALUE(fp, oxcf, row_mt);
+  DUMP_STRUCT_VALUE(fp, oxcf, motion_vector_unit_test);
+  DUMP_STRUCT_VALUE(fp, oxcf, delta_q_uv);
+  DUMP_STRUCT_VALUE(fp, oxcf, use_simple_encode_api);
 }
 
 FRAME_INFO vp9_get_frame_info(const VP9EncoderConfig *oxcf) {

@@ -63,6 +63,7 @@ ifeq ($(CONFIG_VP8_ENCODER),yes)
   CODEC_SRCS-yes += $(addprefix $(VP8_PREFIX),$(call enabled,VP8_CX_SRCS))
   CODEC_EXPORTS-yes += $(addprefix $(VP8_PREFIX),$(VP8_CX_EXPORTS))
   INSTALL-LIBS-yes += include/vpx/vp8.h include/vpx/vp8cx.h
+  INSTALL-LIBS-yes += include/vpx/vpx_ext_ratectrl.h
   INSTALL_MAPS += include/vpx/% $(SRC_PATH_BARE)/$(VP8_PREFIX)/%
   CODEC_DOC_SECTIONS += vp8 vp8_encoder
 endif
@@ -87,17 +88,33 @@ ifeq ($(CONFIG_VP9_ENCODER),yes)
   CODEC_SRCS-yes += $(addprefix $(VP9_PREFIX),$(call enabled,VP9_CX_SRCS))
   CODEC_EXPORTS-yes += $(addprefix $(VP9_PREFIX),$(VP9_CX_EXPORTS))
   CODEC_SRCS-yes += $(VP9_PREFIX)vp9cx.mk vpx/vp8.h vpx/vp8cx.h
+  CODEC_SRCS-yes += vpx/vpx_ext_ratectrl.h
   INSTALL-LIBS-yes += include/vpx/vp8.h include/vpx/vp8cx.h
+  INSTALL-LIBS-yes += include/vpx/vpx_ext_ratectrl.h
   INSTALL_MAPS += include/vpx/% $(SRC_PATH_BARE)/$(VP9_PREFIX)/%
-  CODEC_DOC_SRCS += vpx/vp8.h vpx/vp8cx.h
+  CODEC_DOC_SRCS += vpx/vp8.h vpx/vp8cx.h vpx/vpx_ext_ratectrl.h
   CODEC_DOC_SECTIONS += vp9 vp9_encoder
+endif
 
-  RC_RTC_SRCS := $(addprefix $(VP9_PREFIX),$(call enabled,VP9_CX_SRCS))
-  RC_RTC_SRCS += $(VP9_PREFIX)vp9cx.mk vpx/vp8.h vpx/vp8cx.h
+RC_RTC_SRCS := vpx/vp8.h vpx/vp8cx.h
+RC_RTC_SRCS += vpx/vpx_ext_ratectrl.h
+RC_RTC_SRCS += vpx/internal/vpx_ratectrl_rtc.h
+ifeq ($(CONFIG_VP9_ENCODER),yes)
+  VP9_PREFIX=vp9/
+  RC_RTC_SRCS += $(addprefix $(VP9_PREFIX),$(call enabled,VP9_CX_SRCS))
+  RC_RTC_SRCS += $(VP9_PREFIX)vp9cx.mk
   RC_RTC_SRCS += $(VP9_PREFIX)ratectrl_rtc.cc
   RC_RTC_SRCS += $(VP9_PREFIX)ratectrl_rtc.h
   INSTALL-SRCS-$(CONFIG_CODEC_SRCS) += $(VP9_PREFIX)ratectrl_rtc.cc
   INSTALL-SRCS-$(CONFIG_CODEC_SRCS) += $(VP9_PREFIX)ratectrl_rtc.h
+endif
+ifeq ($(CONFIG_VP8_ENCODER),yes)
+  VP8_PREFIX=vp8/
+  RC_RTC_SRCS += $(addprefix $(VP8_PREFIX),$(call enabled,VP8_CX_SRCS))
+  RC_RTC_SRCS += $(VP8_PREFIX)vp8_ratectrl_rtc.cc
+  RC_RTC_SRCS += $(VP8_PREFIX)vp8_ratectrl_rtc.h
+  INSTALL-SRCS-$(CONFIG_CODEC_SRCS) += $(VP8_PREFIX)vp8_ratectrl_rtc.cc
+  INSTALL-SRCS-$(CONFIG_CODEC_SRCS) += $(VP8_PREFIX)vp8_ratectrl_rtc.h
 endif
 
 ifeq ($(CONFIG_VP9_DECODER),yes)
@@ -122,7 +139,7 @@ endif
 ifeq ($(CONFIG_MSVS),yes)
 CODEC_LIB=$(if $(CONFIG_STATIC_MSVCRT),vpxmt,vpxmd)
 GTEST_LIB=$(if $(CONFIG_STATIC_MSVCRT),gtestmt,gtestmd)
-RC_RTC_LIB=$(if $(CONFIG_STATIC_MSVCRT),vp9rcmt,vp9rcmd)
+RC_RTC_LIB=$(if $(CONFIG_STATIC_MSVCRT),vpxrcmt,vpxrcmd)
 # This variable uses deferred expansion intentionally, since the results of
 # $(wildcard) may change during the course of the Make.
 VS_PLATFORMS = $(foreach d,$(wildcard */Release/$(CODEC_LIB).lib),$(word 1,$(subst /, ,$(d))))
@@ -228,6 +245,7 @@ vpx.$(VCPROJ_SFX): $(CODEC_SRCS) vpx.def
             --ver=$(CONFIG_VS_VERSION) \
             --src-path-bare="$(SRC_PATH_BARE)" \
             --out=$@ $(CFLAGS) \
+            --as=$(AS) \
             $(filter $(SRC_PATH_BARE)/vp8/%.c, $(VCPROJ_SRCS)) \
             $(filter $(SRC_PATH_BARE)/vp8/%.h, $(VCPROJ_SRCS)) \
             $(filter $(SRC_PATH_BARE)/vp9/%.c, $(VCPROJ_SRCS)) \
@@ -244,20 +262,21 @@ PROJECTS-yes += vpx.$(VCPROJ_SFX)
 vpx.$(VCPROJ_SFX): vpx_config.asm
 vpx.$(VCPROJ_SFX): $(RTCD)
 
-vp9rc.$(VCPROJ_SFX): \
+vpxrc.$(VCPROJ_SFX): \
     VCPROJ_SRCS=$(filter-out $(addprefix %, $(ASM_INCLUDES)), $^)
 
-vp9rc.$(VCPROJ_SFX): $(RC_RTC_SRCS)
+vpxrc.$(VCPROJ_SFX): $(RC_RTC_SRCS)
 	@echo "    [CREATE] $@"
 	$(qexec)$(GEN_VCPROJ) \
             $(if $(CONFIG_SHARED),--dll,--lib) \
             --target=$(TOOLCHAIN) \
             $(if $(CONFIG_STATIC_MSVCRT),--static-crt) \
-            --name=vp9rc \
+            --name=vpxrc \
             --proj-guid=C26FF952-9494-4838-9A3F-7F3D4F613385 \
             --ver=$(CONFIG_VS_VERSION) \
             --src-path-bare="$(SRC_PATH_BARE)" \
             --out=$@ $(CFLAGS) \
+            --as=$(AS) \
             $(filter $(SRC_PATH_BARE)/vp9/%.c, $(VCPROJ_SRCS)) \
             $(filter $(SRC_PATH_BARE)/vp9/%.cc, $(VCPROJ_SRCS)) \
             $(filter $(SRC_PATH_BARE)/vp9/%.h, $(VCPROJ_SRCS)) \
@@ -269,10 +288,10 @@ vp9rc.$(VCPROJ_SFX): $(RC_RTC_SRCS)
               $(VCPROJ_SRCS)) \
             --src-path-bare="$(SRC_PATH_BARE)" \
 
-PROJECTS-yes += vp9rc.$(VCPROJ_SFX)
+PROJECTS-yes += vpxrc.$(VCPROJ_SFX)
 
-vp9rc.$(VCPROJ_SFX): vpx_config.asm
-vp9rc.$(VCPROJ_SFX): $(RTCD)
+vpxrc.$(VCPROJ_SFX): vpx_config.asm
+vpxrc.$(VCPROJ_SFX): $(RTCD)
 
 endif # ifeq ($(CONFIG_MSVS),yes)
 else # ifeq ($(CONFIG_EXTERNAL_BUILD),yes)
@@ -281,8 +300,20 @@ OBJS-yes += $(LIBVPX_OBJS)
 LIBS-$(if yes,$(CONFIG_STATIC)) += $(BUILD_PFX)libvpx.a $(BUILD_PFX)libvpx_g.a
 $(BUILD_PFX)libvpx_g.a: $(LIBVPX_OBJS)
 
+# Updating version info.
+# https://www.gnu.org/software/libtool/manual/libtool.html#Updating-version-info
+# For libtool: c=<current>, a=<age>, r=<revision>
+# libtool generates .so file as .so.[c-a].a.r, while -version-info c:r:a is
+# passed to libtool.
+#
+# libvpx library file is generated as libvpx.so.<MAJOR>.<MINOR>.<PATCH>
+# MAJOR = c-a, MINOR = a, PATCH = r
+#
+# To determine SO_VERSION_{MAJOR,MINOR,PATCH}, calculate c,a,r with current
+# SO_VERSION_* then follow the rules in the link to detemine the new version
+# (c1, a1, r1) and set MAJOR to [c1-a1], MINOR to a1 and PATCH to r1
 SO_VERSION_MAJOR := 6
-SO_VERSION_MINOR := 3
+SO_VERSION_MINOR := 4
 SO_VERSION_PATCH := 0
 ifeq ($(filter darwin%,$(TGT_OS)),$(TGT_OS))
 LIBVPX_SO               := libvpx.$(SO_VERSION_MAJOR).dylib
@@ -380,12 +411,11 @@ INSTALL-LIBS-yes += $(LIBSUBDIR)/pkgconfig/vpx.pc
 INSTALL_MAPS += $(LIBSUBDIR)/pkgconfig/%.pc %.pc
 CLEAN-OBJS += vpx.pc
 
-ifeq ($(CONFIG_VP9_ENCODER),yes)
-  RC_RTC_OBJS=$(call objs,$(RC_RTC_SRCS))
+ifeq ($(CONFIG_ENCODERS),yes)
   RC_RTC_OBJS=$(call objs,$(RC_RTC_SRCS))
   OBJS-yes += $(RC_RTC_OBJS)
-  LIBS-yes += $(BUILD_PFX)libvp9rc.a $(BUILD_PFX)libvp9rc_g.a
-  $(BUILD_PFX)libvp9rc_g.a: $(RC_RTC_OBJS)
+  LIBS-yes += $(BUILD_PFX)libvpxrc.a $(BUILD_PFX)libvpxrc_g.a
+  $(BUILD_PFX)libvpxrc_g.a: $(RC_RTC_OBJS)
 endif
 
 ifeq ($(CONFIG_VP9_ENCODER)$(CONFIG_RATE_CTRL),yesyes)
@@ -416,13 +446,13 @@ ifeq ($(VPX_ARCH_X86)$(VPX_ARCH_X86_64),yes)
 # YASM
 $(BUILD_PFX)vpx_config.asm: $(BUILD_PFX)vpx_config.h
 	@echo "    [CREATE] $@"
-	@egrep "#define [A-Z0-9_]+ [01]" $< \
+	@LC_ALL=C egrep "#define [A-Z0-9_]+ [01]" $< \
 	    | awk '{print $$2 " equ " $$3}' > $@
 else
 ADS2GAS=$(if $(filter yes,$(CONFIG_GCC)),| $(ASM_CONVERSION))
 $(BUILD_PFX)vpx_config.asm: $(BUILD_PFX)vpx_config.h
 	@echo "    [CREATE] $@"
-	@egrep "#define [A-Z0-9_]+ [01]" $< \
+	@LC_ALL=C egrep "#define [A-Z0-9_]+ [01]" $< \
 	    | awk '{print $$2 " EQU " $$3}' $(ADS2GAS) > $@
 	@echo "        END" $(ADS2GAS) >> $@
 CLEAN-OBJS += $(BUILD_PFX)vpx_config.asm
@@ -475,10 +505,12 @@ TEST_INTRA_PRED_SPEED_SRCS=$(call addprefix_clean,test/,\
                            $(call enabled,TEST_INTRA_PRED_SPEED_SRCS))
 TEST_INTRA_PRED_SPEED_OBJS := $(sort $(call objs,$(TEST_INTRA_PRED_SPEED_SRCS)))
 
+ifeq ($(CONFIG_ENCODERS),yes)
 RC_INTERFACE_TEST_BIN=./test_rc_interface$(EXE_SFX)
 RC_INTERFACE_TEST_SRCS=$(call addprefix_clean,test/,\
                        $(call enabled,RC_INTERFACE_TEST_SRCS))
 RC_INTERFACE_TEST_OBJS := $(sort $(call objs,$(RC_INTERFACE_TEST_SRCS)))
+endif
 
 SIMPLE_ENCODE_TEST_BIN=./test_simple_encode$(EXE_SFX)
 SIMPLE_ENCODE_TEST_SRCS=$(call addprefix_clean,test/,\
@@ -532,6 +564,7 @@ gtest.$(VCPROJ_SFX): $(SRC_PATH_BARE)/third_party/googletest/src/src/gtest-all.c
             --proj-guid=EC00E1EC-AF68-4D92-A255-181690D1C9B1 \
             --ver=$(CONFIG_VS_VERSION) \
             --src-path-bare="$(SRC_PATH_BARE)" \
+            --as=$(AS) \
             -D_VARIADIC_MAX=10 \
             --out=gtest.$(VCPROJ_SFX) $(SRC_PATH_BARE)/third_party/googletest/src/src/gtest-all.cc \
             -I. -I"$(SRC_PATH_BARE)/third_party/googletest/src/include" -I"$(SRC_PATH_BARE)/third_party/googletest/src"
@@ -548,6 +581,7 @@ test_libvpx.$(VCPROJ_SFX): $(LIBVPX_TEST_SRCS) vpx.$(VCPROJ_SFX) gtest.$(VCPROJ_
             --proj-guid=CD837F5F-52D8-4314-A370-895D614166A7 \
             --ver=$(CONFIG_VS_VERSION) \
             --src-path-bare="$(SRC_PATH_BARE)" \
+            --as=$(AS) \
             $(if $(CONFIG_STATIC_MSVCRT),--static-crt) \
             --out=$@ $(INTERNAL_CFLAGS) $(CFLAGS) \
             -I. -I"$(SRC_PATH_BARE)/third_party/googletest/src/include" \
@@ -570,16 +604,18 @@ test_intra_pred_speed.$(VCPROJ_SFX): $(TEST_INTRA_PRED_SPEED_SRCS) vpx.$(VCPROJ_
             --proj-guid=CD837F5F-52D8-4314-A370-895D614166A7 \
             --ver=$(CONFIG_VS_VERSION) \
             --src-path-bare="$(SRC_PATH_BARE)" \
+            --as=$(AS) \
             $(if $(CONFIG_STATIC_MSVCRT),--static-crt) \
             --out=$@ $(INTERNAL_CFLAGS) $(CFLAGS) \
             -I. -I"$(SRC_PATH_BARE)/third_party/googletest/src/include" \
             -L. -l$(CODEC_LIB) -l$(GTEST_LIB) $^
 endif  # TEST_INTRA_PRED_SPEED
 
+ifeq ($(CONFIG_ENCODERS),yes)
 ifneq ($(strip $(RC_INTERFACE_TEST_OBJS)),)
 PROJECTS-$(CONFIG_MSVS) += test_rc_interface.$(VCPROJ_SFX)
 test_rc_interface.$(VCPROJ_SFX): $(RC_INTERFACE_TEST_SRCS) vpx.$(VCPROJ_SFX) \
-	vp9rc.$(VCPROJ_SFX) gtest.$(VCPROJ_SFX)
+	vpxrc.$(VCPROJ_SFX) gtest.$(VCPROJ_SFX)
 	@echo "    [CREATE] $@"
 	$(qexec)$(GEN_VCPROJ) \
             --exe \
@@ -588,12 +624,14 @@ test_rc_interface.$(VCPROJ_SFX): $(RC_INTERFACE_TEST_SRCS) vpx.$(VCPROJ_SFX) \
             -D_VARIADIC_MAX=10 \
             --proj-guid=30458F88-1BC6-4689-B41C-50F3737AAB27 \
             --ver=$(CONFIG_VS_VERSION) \
+            --as=$(AS) \
             --src-path-bare="$(SRC_PATH_BARE)" \
             $(if $(CONFIG_STATIC_MSVCRT),--static-crt) \
             --out=$@ $(INTERNAL_CFLAGS) $(CFLAGS) \
             -I. -I"$(SRC_PATH_BARE)/third_party/googletest/src/include" \
             -L. -l$(CODEC_LIB) -l$(RC_RTC_LIB) -l$(GTEST_LIB) $^
 endif  # RC_INTERFACE_TEST
+endif  # CONFIG_VP9_ENCODER
 endif
 else
 
@@ -635,17 +673,19 @@ $(eval $(call linkerxx_template,$(TEST_INTRA_PRED_SPEED_BIN), \
               -L. -lvpx -lgtest $(extralibs) -lm))
 endif  # TEST_INTRA_PRED_SPEED
 
+ifeq ($(CONFIG_ENCODERS),yes)
 ifneq ($(strip $(RC_INTERFACE_TEST_OBJS)),)
 $(RC_INTERFACE_TEST_OBJS) $(RC_INTERFACE_TEST_OBJS:.o=.d): \
   CXXFLAGS += $(GTEST_INCLUDES)
 OBJS-yes += $(RC_INTERFACE_TEST_OBJS)
 BINS-yes += $(RC_INTERFACE_TEST_BIN)
 
-$(RC_INTERFACE_TEST_BIN): $(TEST_LIBS) libvp9rc.a
+$(RC_INTERFACE_TEST_BIN): $(TEST_LIBS) libvpxrc.a
 $(eval $(call linkerxx_template,$(RC_INTERFACE_TEST_BIN), \
               $(RC_INTERFACE_TEST_OBJS) \
-              -L. -lvpx -lgtest -lvp9rc $(extralibs) -lm))
+              -L. -lvpx -lgtest -lvpxrc $(extralibs) -lm))
 endif  # RC_INTERFACE_TEST
+endif  # CONFIG_ENCODERS
 
 ifneq ($(strip $(SIMPLE_ENCODE_TEST_OBJS)),)
 $(SIMPLE_ENCODE_TEST_OBJS) $(SIMPLE_ENCODE_TEST_OBJS:.o=.d): \
