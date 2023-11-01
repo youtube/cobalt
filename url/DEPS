@@ -1,6 +1,4 @@
 include_rules = [
-  "+jni",
-
   # Limit files that can depend on icu.
   "-base/i18n",
   "-third_party/icu",
@@ -11,6 +9,7 @@ specific_include_rules = {
     "+base/i18n",
   ],
   "url_(canon|idna)_icu(\.cc|_unittest\.cc)": [
+    "+base/i18n",
     "+third_party/icu",
   ],
   "run_all_unittests\.cc": [

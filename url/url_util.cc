@@ -1,18 +1,20 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "url/url_util.h"
 
+#include <stddef.h>
 #include <string.h>
 
-#include "base/debug/leak_annotations.h"
-#include "base/logging.h"
+#include <atomic>
+#include <ostream>
+
+#include "base/check_op.h"
+#include "base/compiler_specific.h"
+#include "base/containers/contains.h"
+#include "base/no_destructor.h"
 #include "base/strings/string_util.h"
-#include "starboard/common/string.h"
-#include "starboard/configuration.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
 #include "url/url_canon_internal.h"
 #include "url/url_constants.h"
 #include "url/url_file.h"
@@ -22,90 +24,128 @@ namespace url {
 
 namespace {
 
+// A pair for representing a standard scheme name and the SchemeType for it.
+struct SchemeWithType {
+  std::string scheme;
+  SchemeType type;
+};
+
+// A pair for representing a scheme and a custom protocol handler for it.
+//
+// This pair of strings must be normalized protocol handler parameters as
+// described in the Custom Handler specification.
+// https://html.spec.whatwg.org/multipage/system-state.html#normalize-protocol-handler-parameters
+struct SchemeWithHandler {
+  std::string scheme;
+  std::string handler;
+};
+
+// List of currently registered schemes and associated properties.
+struct SchemeRegistry {
+  // Standard format schemes (see header for details).
+  std::vector<SchemeWithType> standard_schemes = {
+      {kHttpsScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
+      {kHttpScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
+      // Yes, file URLs can have a hostname, so file URLs should be handled as
+      // "standard". File URLs never have a port as specified by the SchemeType
+      // field.  Unlike other SCHEME_WITH_HOST schemes, the 'host' in a file
+      // URL may be empty, a behavior which is special-cased during
+      // canonicalization.
+      {kFileScheme, SCHEME_WITH_HOST},
+      {kFtpScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
+      {kWssScheme,
+       SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},  // WebSocket secure.
+      {kWsScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},  // WebSocket.
+      {kFileSystemScheme, SCHEME_WITHOUT_AUTHORITY},
+  };
+
+  // Schemes that are allowed for referrers.
+  //
+  // WARNING: Adding (1) a non-"standard" scheme or (2) a scheme whose URLs have
+  // opaque origins could lead to surprising behavior in some of the referrer
+  // generation logic. In order to avoid surprises, be sure to have adequate
+  // test coverage in each of the multiple code locations that compute
+  // referrers.
+  std::vector<SchemeWithType> referrer_schemes = {
+      {kHttpsScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
+      {kHttpScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
+  };
+
+  // Schemes that do not trigger mixed content warning.
+  std::vector<std::string> secure_schemes = {
+      kHttpsScheme,
+      kWssScheme,
+      kDataScheme,
+      kAboutScheme,
+  };
+
+  // Schemes that normal pages cannot link to or access (i.e., with the same
+  // security rules as those applied to "file" URLs).
+  std::vector<std::string> local_schemes = {
+      kFileScheme,
+  };
+
+  // Schemes that cause pages loaded with them to not have access to pages
+  // loaded with any other URL scheme.
+  std::vector<std::string> no_access_schemes = {
+      kAboutScheme,
+      kJavaScriptScheme,
+      kDataScheme,
+  };
+
+  // Schemes that can be sent CORS requests.
+  std::vector<std::string> cors_enabled_schemes = {
+      kHttpsScheme,
+      kHttpScheme,
+      kDataScheme,
+  };
+
+  // Schemes that can be used by web to store data (local storage, etc).
+  std::vector<std::string> web_storage_schemes = {
+      kHttpsScheme, kHttpScheme, kFileScheme, kFtpScheme, kWssScheme, kWsScheme,
+  };
+
+  // Schemes that can bypass the Content-Security-Policy (CSP) checks.
+  std::vector<std::string> csp_bypassing_schemes = {};
+
+  // Schemes that are strictly empty documents, allowing them to commit
+  // synchronously.
+  std::vector<std::string> empty_document_schemes = {
+      kAboutScheme,
+  };
+
+  // Schemes with a predefined default custom handler.
+  std::vector<SchemeWithHandler> predefined_handler_schemes;
+
+  bool allow_non_standard_schemes = false;
+};
+
+// See the LockSchemeRegistries declaration in the header.
+bool scheme_registries_locked = false;
+
+// Ensure that the schemes aren't modified after first use.
+static std::atomic<bool> g_scheme_registries_used{false};
+
+// Gets the scheme registry without locking the schemes. This should *only* be
+// used for adding schemes to the registry.
+SchemeRegistry* GetSchemeRegistryWithoutLocking() {
+  static base::NoDestructor<SchemeRegistry> registry;
+  return registry.get();
+}
+
+const SchemeRegistry& GetSchemeRegistry() {
+#if DCHECK_IS_ON()
+  g_scheme_registries_used.store(true);
+#endif
+  return *GetSchemeRegistryWithoutLocking();
+}
+
 // Pass this enum through for methods which would like to know if whitespace
 // removal is necessary.
 enum WhitespaceRemovalPolicy {
   REMOVE_WHITESPACE,
   DO_NOT_REMOVE_WHITESPACE,
 };
-
-const SchemeWithType kStandardURLSchemes[] = {
-    {kHttpsScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
-    {kHttpScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
-    // Yes, file URLs can have a hostname, so file URLs should be handled as
-    // "standard". File URLs never have a port as specified by the SchemeType
-    // field.  Unlike other SCHEME_WITH_HOST schemes, the 'host' in a file
-    // URL may be empty, a behavior which is special-cased during
-    // canonicalization.
-    {kFileScheme, SCHEME_WITH_HOST},
-    {kFtpScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
-    {kGopherScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
-    {kWssScheme,
-     SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},  // WebSocket secure.
-    {kWsScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},  // WebSocket.
-    {kFileSystemScheme, SCHEME_WITHOUT_AUTHORITY},
-};
-
-const SchemeWithType kReferrerURLSchemes[] = {
-    {kHttpsScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
-    {kHttpScheme, SCHEME_WITH_HOST_PORT_AND_USER_INFORMATION},
-};
-
-const char* kSecureSchemes[] = {
-  kHttpsScheme,
-  kAboutScheme,
-  kDataScheme,
-  kWssScheme,
-};
-
-const char* kLocalSchemes[] = {
-  kFileScheme,
-};
-
-const char* kNoAccessSchemes[] = {
-  kAboutScheme,
-  kJavaScriptScheme,
-  kDataScheme,
-};
-
-const char* kCORSEnabledSchemes[] = {
-  kHttpsScheme,
-  kHttpScheme,
-  kDataScheme,
-};
-
-const char* kWebStorageSchemes[] = {
-  kHttpsScheme,
-  kHttpScheme,
-  kFileScheme,
-  kFtpScheme,
-  kWssScheme,
-  kWsScheme,
-};
-
-const char* kEmptyDocumentSchemes[] = {
-    kAboutScheme,
-};
-
-bool initialized = false;
-
-// Lists of the currently installed standard and referrer schemes. These lists
-// are lazily initialized by Initialize and are leaked on shutdown to prevent
-// any destructors from being called that will slow us down or cause problems.
-std::vector<SchemeWithType>* standard_schemes = nullptr;
-std::vector<SchemeWithType>* referrer_schemes = nullptr;
-
-// Similar to above, initialized by the Init*Schemes methods.
-std::vector<std::string>* secure_schemes = nullptr;
-std::vector<std::string>* local_schemes = nullptr;
-std::vector<std::string>* no_access_schemes = nullptr;
-std::vector<std::string>* cors_enabled_schemes = nullptr;
-std::vector<std::string>* web_storage_schemes = nullptr;
-std::vector<std::string>* csp_bypassing_schemes = nullptr;
-std::vector<std::string>* empty_document_schemes = nullptr;
-
-// See the LockSchemeRegistries declaration in the header.
-bool scheme_registries_locked = false;
 
 // This template converts a given character type to the corresponding
 // StringPiece type.
@@ -114,27 +154,10 @@ template<typename CHAR> struct CharToStringPiece {
 template<> struct CharToStringPiece<char> {
   typedef base::StringPiece Piece;
 };
-template<> struct CharToStringPiece<base::char16> {
+template <>
+struct CharToStringPiece<char16_t> {
   typedef base::StringPiece16 Piece;
 };
-
-void InitSchemes(std::vector<std::string>** schemes,
-                 const char** initial_schemes,
-                 size_t size) {
-  *schemes = new std::vector<std::string>(size);
-  for (size_t i = 0; i < size; i++) {
-    (*(*schemes))[i] = initial_schemes[i];
-  }
-}
-
-void InitSchemesWithType(std::vector<SchemeWithType>** schemes,
-                         const SchemeWithType* initial_schemes,
-                         size_t size) {
-  *schemes = new std::vector<SchemeWithType>(size);
-  for (size_t i = 0; i < size; i++) {
-    (*(*schemes))[i] = initial_schemes[i];
-  }
-}
 
 // Given a string and a range inside the string, compares it to the given
 // lower-case |compare_to| buffer.
@@ -142,11 +165,11 @@ template<typename CHAR>
 inline bool DoCompareSchemeComponent(const CHAR* spec,
                                      const Component& component,
                                      const char* compare_to) {
-  if (!component.is_nonempty())
+  if (component.is_empty())
     return compare_to[0] == 0;  // When component is empty, match empty scheme.
-  return base::LowerCaseEqualsASCII(
-      typename CharToStringPiece<CHAR>::Piece(
-          &spec[component.begin], component.len),
+  return base::EqualsCaseInsensitiveASCII(
+      typename CharToStringPiece<CHAR>::Piece(&spec[component.begin],
+                                              component.len),
       compare_to);
 }
 
@@ -157,13 +180,14 @@ bool DoIsInSchemes(const CHAR* spec,
                    const Component& scheme,
                    SchemeType* type,
                    const std::vector<SchemeWithType>& schemes) {
-  if (!scheme.is_nonempty())
+  if (scheme.is_empty())
     return false;  // Empty or invalid schemes are non-standard.
 
   for (const SchemeWithType& scheme_with_type : schemes) {
-    if (base::LowerCaseEqualsASCII(typename CharToStringPiece<CHAR>::Piece(
-                                       &spec[scheme.begin], scheme.len),
-                                   scheme_with_type.scheme)) {
+    if (base::EqualsCaseInsensitiveASCII(
+            typename CharToStringPiece<CHAR>::Piece(&spec[scheme.begin],
+                                                    scheme.len),
+            scheme_with_type.scheme)) {
       *type = scheme_with_type.type;
       return true;
     }
@@ -173,8 +197,8 @@ bool DoIsInSchemes(const CHAR* spec,
 
 template<typename CHAR>
 bool DoIsStandard(const CHAR* spec, const Component& scheme, SchemeType* type) {
-  Initialize();
-  return DoIsInSchemes(spec, scheme, type, *standard_schemes);
+  return DoIsInSchemes(spec, scheme, type,
+                       GetSchemeRegistry().standard_schemes);
 }
 
 
@@ -185,7 +209,7 @@ bool DoFindAndCompareScheme(const CHAR* str,
                             Component* found_scheme) {
   // Before extracting scheme, canonicalize the URL to remove any whitespace.
   // This matches the canonicalization done in DoCanonicalize function.
-  RawCanonOutputT<CHAR> whitespace_buffer;
+  STACK_UNINITIALIZED RawCanonOutputT<CHAR> whitespace_buffer;
   int spec_len;
   const CHAR* spec =
       RemoveURLWhitespace(str, str_len, &whitespace_buffer, &spec_len, nullptr);
@@ -210,18 +234,24 @@ bool DoCanonicalize(const CHAR* spec,
                     CharsetConverter* charset_converter,
                     CanonOutput* output,
                     Parsed* output_parsed) {
+  // Trim leading C0 control characters and spaces.
+  int begin = 0;
+  TrimURL(spec, &begin, &spec_len, trim_path_end);
+  DCHECK(0 <= begin && begin <= spec_len);
+  spec += begin;
+  spec_len -= begin;
+
   output->ReserveSizeIfNeeded(spec_len);
 
   // Remove any whitespace from the middle of the relative URL if necessary.
   // Possibly this will result in copying to the new buffer.
-  RawCanonOutputT<CHAR> whitespace_buffer;
+  STACK_UNINITIALIZED RawCanonOutputT<CHAR> whitespace_buffer;
   if (whitespace_policy == REMOVE_WHITESPACE) {
     spec = RemoveURLWhitespace(spec, spec_len, &whitespace_buffer, &spec_len,
                                &output_parsed->potentially_dangling_markup);
   }
 
   Parsed parsed_input;
-#ifndef STARBOARD
 #ifdef WIN32
   // For Windows, we allow things that look like absolute Windows paths to be
   // fixed up magically to file URLs. This is done for IE compatibility. For
@@ -239,7 +269,6 @@ bool DoCanonicalize(const CHAR* spec,
     return CanonicalizeFileURL(spec, spec_len, parsed_input, charset_converter,
                                output, output_parsed);
   }
-#endif
 #endif
 
   Component scheme;
@@ -295,7 +324,7 @@ bool DoResolveRelative(const char* base_spec,
                        Parsed* output_parsed) {
   // Remove any whitespace from the middle of the relative URL, possibly
   // copying to the new buffer.
-  RawCanonOutputT<CHAR> whitespace_buffer;
+  STACK_UNINITIALIZED RawCanonOutputT<CHAR> whitespace_buffer;
   int relative_length;
   const CHAR* relative = RemoveURLWhitespace(
       in_relative, in_relative_length, &whitespace_buffer, &relative_length,
@@ -336,7 +365,7 @@ bool DoResolveRelative(const char* base_spec,
     Parsed base_parsed_authority;
     ParseStandardURL(base_spec, base_spec_len, &base_parsed_authority);
     if (base_parsed_authority.host.is_nonempty()) {
-      RawCanonOutputT<char> temporary_output;
+      STACK_UNINITIALIZED RawCanonOutputT<char> temporary_output;
       bool did_resolve_succeed =
           ResolveRelativeURL(base_spec, base_parsed_authority, false, relative,
                              relative_component, charset_converter,
@@ -388,7 +417,7 @@ bool DoReplaceComponents(const char* spec,
   if (replacements.IsSchemeOverridden()) {
     // Canonicalize the new scheme so it is 8-bit and can be concatenated with
     // the existing spec.
-    RawCanonOutput<128> scheme_replaced;
+    STACK_UNINITIALIZED RawCanonOutput<128> scheme_replaced;
     Component scheme_replaced_parsed;
     CanonicalizeScheme(replacements.sources().scheme,
                        replacements.components().scheme,
@@ -405,7 +434,7 @@ bool DoReplaceComponents(const char* spec,
 
     // We now need to completely re-parse the resulting string since its meaning
     // may have changed with the different scheme.
-    RawCanonOutput<128> recanonicalized;
+    STACK_UNINITIALIZED RawCanonOutput<128> recanonicalized;
     Parsed recanonicalized_parsed;
     DoCanonicalize(scheme_replaced.data(), scheme_replaced.length(), true,
                    REMOVE_WHITESPACE, charset_converter, &recanonicalized,
@@ -426,6 +455,13 @@ bool DoReplaceComponents(const char* spec,
     // ref).
     Replacements<CHAR> replacements_no_scheme = replacements;
     replacements_no_scheme.SetScheme(NULL, Component());
+    // If the input URL has potentially dangling markup, set the flag on the
+    // output too. Note that in some cases the replacement gets rid of the
+    // potentially dangling markup, but this ok since the check will fail
+    // closed.
+    if (parsed.potentially_dangling_markup) {
+      out_parsed->potentially_dangling_markup = true;
+    }
     return DoReplaceComponents(recanonicalized.data(), recanonicalized.length(),
                                recanonicalized_parsed, replacements_no_scheme,
                                charset_converter, output, out_parsed);
@@ -460,8 +496,16 @@ bool DoReplaceComponents(const char* spec,
   return ReplacePathURL(spec, parsed, replacements, output, out_parsed);
 }
 
-void DoAddScheme(const char* new_scheme, std::vector<std::string>* schemes) {
-  DCHECK(schemes);
+void DoSchemeModificationPreamble() {
+  // If this assert triggers, it means you've called Add*Scheme after
+  // the SchemeRegistry has been used.
+  //
+  // This normally means you're trying to set up a new scheme too late or using
+  // the SchemeRegistry too early in your application's init process.
+  DCHECK(!g_scheme_registries_used.load())
+      << "Trying to add a scheme after the lists have been used. "
+         "Make sure that you haven't added any static GURL initializers in tests.";
+
   // If this assert triggers, it means you've called Add*Scheme after
   // LockSchemeRegistries has been called (see the header file for
   // LockSchemeRegistries for more).
@@ -471,169 +515,178 @@ void DoAddScheme(const char* new_scheme, std::vector<std::string>* schemes) {
   // and calls LockSchemeRegistries, and add your new scheme there.
   DCHECK(!scheme_registries_locked)
       << "Trying to add a scheme after the lists have been locked.";
+}
 
-  size_t scheme_len = strlen(new_scheme);
-  if (scheme_len == 0)
-    return;
-
+void DoAddSchemeWithHandler(const char* new_scheme,
+                            const char* handler,
+                            std::vector<SchemeWithHandler>* schemes) {
+  DoSchemeModificationPreamble();
+  DCHECK(schemes);
+  DCHECK(strlen(new_scheme) > 0);
+  DCHECK(strlen(handler) > 0);
   DCHECK_EQ(base::ToLowerASCII(new_scheme), new_scheme);
-  schemes->push_back(std::string(new_scheme));
+  DCHECK(!base::Contains(*schemes, new_scheme, &SchemeWithHandler::scheme));
+  schemes->push_back({new_scheme, handler});
+}
+
+void DoAddScheme(const char* new_scheme, std::vector<std::string>* schemes) {
+  DoSchemeModificationPreamble();
+  DCHECK(schemes);
+  DCHECK(strlen(new_scheme) > 0);
+  DCHECK_EQ(base::ToLowerASCII(new_scheme), new_scheme);
+  DCHECK(!base::Contains(*schemes, new_scheme));
+  schemes->push_back(new_scheme);
 }
 
 void DoAddSchemeWithType(const char* new_scheme,
                          SchemeType type,
                          std::vector<SchemeWithType>* schemes) {
+  DoSchemeModificationPreamble();
   DCHECK(schemes);
-  // If this assert triggers, it means you've called Add*Scheme after
-  // LockSchemeRegistries has been called (see the header file for
-  // LockSchemeRegistries for more).
-  //
-  // This normally means you're trying to set up a new scheme too late in your
-  // application's init process. Locate where your app does this initialization
-  // and calls LockSchemeRegistries, and add your new scheme there.
-  DCHECK(!scheme_registries_locked)
-      << "Trying to add a scheme after the lists have been locked.";
-
-  size_t scheme_len = strlen(new_scheme);
-  if (scheme_len == 0)
-    return;
-
+  DCHECK(strlen(new_scheme) > 0);
   DCHECK_EQ(base::ToLowerASCII(new_scheme), new_scheme);
-  // Duplicate the scheme into a new buffer and add it to the list of standard
-  // schemes. This pointer will be leaked on shutdown.
-  char* dup_scheme = new char[scheme_len + 1];
-  ANNOTATE_LEAKING_OBJECT_PTR(dup_scheme);
-  memcpy(dup_scheme, new_scheme, scheme_len + 1);
-
-  SchemeWithType scheme_with_type;
-  scheme_with_type.scheme = dup_scheme;
-  scheme_with_type.type = type;
-  schemes->push_back(scheme_with_type);
+  DCHECK(!base::Contains(*schemes, new_scheme, &SchemeWithType::scheme));
+  schemes->push_back({new_scheme, type});
 }
 
 }  // namespace
 
-void Initialize() {
-  if (initialized)
-    return;
-  InitSchemesWithType(&standard_schemes, kStandardURLSchemes,
-                      arraysize(kStandardURLSchemes));
-  InitSchemesWithType(&referrer_schemes, kReferrerURLSchemes,
-                      arraysize(kReferrerURLSchemes));
-  InitSchemes(&secure_schemes, kSecureSchemes, arraysize(kSecureSchemes));
-  InitSchemes(&local_schemes, kLocalSchemes, arraysize(kLocalSchemes));
-  InitSchemes(&no_access_schemes, kNoAccessSchemes,
-              arraysize(kNoAccessSchemes));
-  InitSchemes(&cors_enabled_schemes, kCORSEnabledSchemes,
-              arraysize(kCORSEnabledSchemes));
-  InitSchemes(&web_storage_schemes, kWebStorageSchemes,
-              arraysize(kWebStorageSchemes));
-  InitSchemes(&csp_bypassing_schemes, nullptr, 0);
-  InitSchemes(&empty_document_schemes, kEmptyDocumentSchemes,
-              arraysize(kEmptyDocumentSchemes));
-  initialized = true;
+void ClearSchemesForTests() {
+  DCHECK(!g_scheme_registries_used.load())
+      << "Schemes already used "
+      << "(use ScopedSchemeRegistryForTests to relax for tests).";
+  DCHECK(!scheme_registries_locked)
+      << "Schemes already locked "
+      << "(use ScopedSchemeRegistryForTests to relax for tests).";
+  *GetSchemeRegistryWithoutLocking() = SchemeRegistry();
 }
 
-void Shutdown() {
-  initialized = false;
-  delete standard_schemes;
-  standard_schemes = nullptr;
-  delete referrer_schemes;
-  referrer_schemes = nullptr;
-  delete secure_schemes;
-  secure_schemes = nullptr;
-  delete local_schemes;
-  local_schemes = nullptr;
-  delete no_access_schemes;
-  no_access_schemes = nullptr;
-  delete cors_enabled_schemes;
-  cors_enabled_schemes = nullptr;
-  delete web_storage_schemes;
-  web_storage_schemes = nullptr;
-  delete csp_bypassing_schemes;
-  csp_bypassing_schemes = nullptr;
-  delete empty_document_schemes;
-  empty_document_schemes = nullptr;
+class ScopedSchemeRegistryInternal {
+ public:
+  ScopedSchemeRegistryInternal()
+      : registry_(std::make_unique<SchemeRegistry>(
+            *GetSchemeRegistryWithoutLocking())) {
+    g_scheme_registries_used.store(false);
+    scheme_registries_locked = false;
+  }
+  ~ScopedSchemeRegistryInternal() {
+    *GetSchemeRegistryWithoutLocking() = *registry_;
+    g_scheme_registries_used.store(true);
+    scheme_registries_locked = true;
+  }
+
+ private:
+  std::unique_ptr<SchemeRegistry> registry_;
+};
+
+ScopedSchemeRegistryForTests::ScopedSchemeRegistryForTests()
+    : internal_(std::make_unique<ScopedSchemeRegistryInternal>()) {}
+
+ScopedSchemeRegistryForTests::~ScopedSchemeRegistryForTests() = default;
+
+void EnableNonStandardSchemesForAndroidWebView() {
+  DoSchemeModificationPreamble();
+  GetSchemeRegistryWithoutLocking()->allow_non_standard_schemes = true;
+}
+
+bool AllowNonStandardSchemesForAndroidWebView() {
+  return GetSchemeRegistry().allow_non_standard_schemes;
 }
 
 void AddStandardScheme(const char* new_scheme, SchemeType type) {
-  Initialize();
-  DoAddSchemeWithType(new_scheme, type, standard_schemes);
+  DoAddSchemeWithType(new_scheme, type,
+                      &GetSchemeRegistryWithoutLocking()->standard_schemes);
+}
+
+std::vector<std::string> GetStandardSchemes() {
+  std::vector<std::string> result;
+  result.reserve(GetSchemeRegistry().standard_schemes.size());
+  for (const auto& entry : GetSchemeRegistry().standard_schemes) {
+    result.push_back(entry.scheme);
+  }
+  return result;
 }
 
 void AddReferrerScheme(const char* new_scheme, SchemeType type) {
-  Initialize();
-  DoAddSchemeWithType(new_scheme, type, referrer_schemes);
+  DoAddSchemeWithType(new_scheme, type,
+                      &GetSchemeRegistryWithoutLocking()->referrer_schemes);
 }
 
 void AddSecureScheme(const char* new_scheme) {
-  Initialize();
-  DoAddScheme(new_scheme, secure_schemes);
+  DoAddScheme(new_scheme, &GetSchemeRegistryWithoutLocking()->secure_schemes);
 }
 
 const std::vector<std::string>& GetSecureSchemes() {
-  Initialize();
-  return *secure_schemes;
+  return GetSchemeRegistry().secure_schemes;
 }
 
 void AddLocalScheme(const char* new_scheme) {
-  Initialize();
-  DoAddScheme(new_scheme, local_schemes);
+  DoAddScheme(new_scheme, &GetSchemeRegistryWithoutLocking()->local_schemes);
 }
 
 const std::vector<std::string>& GetLocalSchemes() {
-  Initialize();
-  return *local_schemes;
+  return GetSchemeRegistry().local_schemes;
 }
 
 void AddNoAccessScheme(const char* new_scheme) {
-  Initialize();
-  DoAddScheme(new_scheme, no_access_schemes);
+  DoAddScheme(new_scheme,
+              &GetSchemeRegistryWithoutLocking()->no_access_schemes);
 }
 
 const std::vector<std::string>& GetNoAccessSchemes() {
-  Initialize();
-  return *no_access_schemes;
+  return GetSchemeRegistry().no_access_schemes;
 }
 
-void AddCORSEnabledScheme(const char* new_scheme) {
-  Initialize();
-  DoAddScheme(new_scheme, cors_enabled_schemes);
+void AddCorsEnabledScheme(const char* new_scheme) {
+  DoAddScheme(new_scheme,
+              &GetSchemeRegistryWithoutLocking()->cors_enabled_schemes);
 }
 
-const std::vector<std::string>& GetCORSEnabledSchemes() {
-  Initialize();
-  return *cors_enabled_schemes;
+const std::vector<std::string>& GetCorsEnabledSchemes() {
+  return GetSchemeRegistry().cors_enabled_schemes;
 }
 
 void AddWebStorageScheme(const char* new_scheme) {
-  Initialize();
-  DoAddScheme(new_scheme, web_storage_schemes);
+  DoAddScheme(new_scheme,
+              &GetSchemeRegistryWithoutLocking()->web_storage_schemes);
 }
 
 const std::vector<std::string>& GetWebStorageSchemes() {
-  Initialize();
-  return *web_storage_schemes;
+  return GetSchemeRegistry().web_storage_schemes;
 }
 
 void AddCSPBypassingScheme(const char* new_scheme) {
-  Initialize();
-  DoAddScheme(new_scheme, csp_bypassing_schemes);
+  DoAddScheme(new_scheme,
+              &GetSchemeRegistryWithoutLocking()->csp_bypassing_schemes);
 }
 
 const std::vector<std::string>& GetCSPBypassingSchemes() {
-  Initialize();
-  return *csp_bypassing_schemes;
+  return GetSchemeRegistry().csp_bypassing_schemes;
 }
 
 void AddEmptyDocumentScheme(const char* new_scheme) {
-  Initialize();
-  DoAddScheme(new_scheme, empty_document_schemes);
+  DoAddScheme(new_scheme,
+              &GetSchemeRegistryWithoutLocking()->empty_document_schemes);
 }
 
 const std::vector<std::string>& GetEmptyDocumentSchemes() {
-  Initialize();
-  return *empty_document_schemes;
+  return GetSchemeRegistry().empty_document_schemes;
+}
+
+void AddPredefinedHandlerScheme(const char* new_scheme, const char* handler) {
+  DoAddSchemeWithHandler(
+      new_scheme, handler,
+      &GetSchemeRegistryWithoutLocking()->predefined_handler_schemes);
+}
+
+std::vector<std::pair<std::string, std::string>> GetPredefinedHandlerSchemes() {
+  std::vector<std::pair<std::string, std::string>> result;
+  result.reserve(GetSchemeRegistry().predefined_handler_schemes.size());
+  for (const SchemeWithHandler& entry :
+       GetSchemeRegistry().predefined_handler_schemes) {
+    result.emplace_back(entry.scheme, entry.handler);
+  }
+  return result;
 }
 
 void LockSchemeRegistries() {
@@ -651,21 +704,21 @@ bool GetStandardSchemeType(const char* spec,
   return DoIsStandard(spec, scheme, type);
 }
 
-bool GetStandardSchemeType(const base::char16* spec,
+bool GetStandardSchemeType(const char16_t* spec,
                            const Component& scheme,
                            SchemeType* type) {
   return DoIsStandard(spec, scheme, type);
 }
 
-bool IsStandard(const base::char16* spec, const Component& scheme) {
+bool IsStandard(const char16_t* spec, const Component& scheme) {
   SchemeType unused_scheme_type;
   return DoIsStandard(spec, scheme, &unused_scheme_type);
 }
 
 bool IsReferrerScheme(const char* spec, const Component& scheme) {
-  Initialize();
   SchemeType unused_scheme_type;
-  return DoIsInSchemes(spec, scheme, &unused_scheme_type, *referrer_schemes);
+  return DoIsInSchemes(spec, scheme, &unused_scheme_type,
+                       GetSchemeRegistry().referrer_schemes);
 }
 
 bool FindAndCompareScheme(const char* str,
@@ -675,7 +728,7 @@ bool FindAndCompareScheme(const char* str,
   return DoFindAndCompareScheme(str, str_len, compare, found_scheme);
 }
 
-bool FindAndCompareScheme(const base::char16* str,
+bool FindAndCompareScheme(const char16_t* str,
                           int str_len,
                           const char* compare,
                           Component* found_scheme) {
@@ -719,7 +772,7 @@ bool DomainIs(base::StringPiece canonical_host,
 }
 
 bool HostIsIPAddress(base::StringPiece host) {
-  url::RawCanonOutputT<char, 128> ignored_output;
+  STACK_UNINITIALIZED url::RawCanonOutputT<char, 128> ignored_output;
   url::CanonHostInfo host_info;
   url::CanonicalizeIPAddress(host.data(), Component(0, host.length()),
                              &ignored_output, &host_info);
@@ -736,7 +789,7 @@ bool Canonicalize(const char* spec,
                         charset_converter, output, output_parsed);
 }
 
-bool Canonicalize(const base::char16* spec,
+bool Canonicalize(const char16_t* spec,
                   int spec_len,
                   bool trim_path_end,
                   CharsetConverter* charset_converter,
@@ -762,7 +815,7 @@ bool ResolveRelative(const char* base_spec,
 bool ResolveRelative(const char* base_spec,
                      int base_spec_len,
                      const Parsed& base_parsed,
-                     const base::char16* relative,
+                     const char16_t* relative,
                      int relative_length,
                      CharsetConverter* charset_converter,
                      CanonOutput* output,
@@ -786,7 +839,7 @@ bool ReplaceComponents(const char* spec,
 bool ReplaceComponents(const char* spec,
                        int spec_len,
                        const Parsed& parsed,
-                       const Replacements<base::char16>& replacements,
+                       const Replacements<char16_t>& replacements,
                        CharsetConverter* charset_converter,
                        CanonOutput* output,
                        Parsed* out_parsed) {
@@ -794,14 +847,19 @@ bool ReplaceComponents(const char* spec,
                              charset_converter, output, out_parsed);
 }
 
-DecodeURLResult DecodeURLEscapeSequences(const char* input,
-                                         int length,
-                                         CanonOutputW* output) {
-  RawCanonOutputT<char> unescaped_chars;
-  for (int i = 0; i < length; i++) {
+void DecodeURLEscapeSequences(const char* input,
+                              int length,
+                              DecodeURLMode mode,
+                              CanonOutputW* output) {
+  if (length <= 0)
+    return;
+
+  STACK_UNINITIALIZED RawCanonOutputT<char> unescaped_chars;
+  size_t length_size_t = static_cast<size_t>(length);
+  for (size_t i = 0; i < length_size_t; i++) {
     if (input[i] == '%') {
       unsigned char ch;
-      if (DecodeEscaped(input, &i, length, &ch)) {
+      if (DecodeEscaped(input, &i, length_size_t, &ch)) {
         unescaped_chars.push_back(ch);
       } else {
         // Invalid escape sequence, copy the percent literal.
@@ -814,11 +872,10 @@ DecodeURLResult DecodeURLEscapeSequences(const char* input,
   }
 
   int output_initial_length = output->length();
-  bool did_utf8_decode = false;
-  bool did_isomorphic_decode = false;
   // Convert that 8-bit to UTF-16. It's not clear IE does this at all to
   // JavaScript URLs, but Firefox and Safari do.
-  for (int i = 0; i < unescaped_chars.length(); i++) {
+  size_t unescaped_length = unescaped_chars.length();
+  for (size_t i = 0; i < unescaped_length; i++) {
     unsigned char uch = static_cast<unsigned char>(unescaped_chars.at(i));
     if (uch < 0x80) {
       // Non-UTF-8, just append directly
@@ -826,35 +883,29 @@ DecodeURLResult DecodeURLEscapeSequences(const char* input,
     } else {
       // next_ch will point to the last character of the decoded
       // character.
-      int next_character = i;
-      unsigned code_point;
-      if (ReadUTFChar(unescaped_chars.data(), &next_character,
-                      unescaped_chars.length(), &code_point)) {
+      size_t next_character = i;
+      base_icu::UChar32 code_point;
+      if (ReadUTFChar(unescaped_chars.data(), &next_character, unescaped_length,
+                      &code_point)) {
         // Valid UTF-8 character, convert to UTF-16.
         AppendUTF16Value(code_point, output);
         i = next_character;
-        did_utf8_decode = true;
+      } else if (mode == DecodeURLMode::kUTF8) {
+        DCHECK_EQ(code_point, 0xFFFD);
+        AppendUTF16Value(code_point, output);
+        i = next_character;
       } else {
         // If there are any sequences that are not valid UTF-8, we
         // revert |output| changes, and promote any bytes to UTF-16. We
         // copy all characters from the beginning to the end of the
         // identified sequence.
         output->set_length(output_initial_length);
-        did_utf8_decode = false;
-        for (int j = 0; j < unescaped_chars.length(); ++j)
+        for (size_t j = 0; j < unescaped_chars.length(); ++j)
           output->push_back(static_cast<unsigned char>(unescaped_chars.at(j)));
-        did_isomorphic_decode = true;
         break;
       }
     }
   }
-
-  DCHECK(!(did_utf8_decode && did_isomorphic_decode));
-  if (did_isomorphic_decode)
-    return DecodeURLResult::kIsomorphic;
-  if (did_utf8_decode)
-    return DecodeURLResult::kUTF8;
-  return DecodeURLResult::kAsciiOnly;
 }
 
 void EncodeURIComponent(const char* input, int length, CanonOutput* output) {
@@ -873,7 +924,7 @@ bool CompareSchemeComponent(const char* spec,
   return DoCompareSchemeComponent(spec, component, compare_to);
 }
 
-bool CompareSchemeComponent(const base::char16* spec,
+bool CompareSchemeComponent(const char16_t* spec,
                             const Component& component,
                             const char* compare_to) {
   return DoCompareSchemeComponent(spec, component, compare_to);

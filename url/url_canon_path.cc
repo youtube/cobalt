@@ -1,11 +1,12 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include <limits.h>
 
-#include "base/logging.h"
-#include "starboard/types.h"
+#include "base/check.h"
+#include "base/check_op.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/url_canon.h"
 #include "url/url_canon_internal.h"
 #include "url/url_parse_internal.h"
@@ -20,7 +21,8 @@ enum CharacterFlags {
   // table below more clear when neither ESCAPE or UNESCAPE is set.
   PASS = 0,
 
-  // This character requires special handling in DoPartialPath. Doing this test
+  // This character requires special handling in DoPartialPathInternal. Doing
+  // this test
   // first allows us to filter out the common cases of regular characters that
   // can be directly copied.
   SPECIAL = 1,
@@ -100,9 +102,11 @@ enum DotDisposition {
 // If the input is "../foo", |after_dot| = 1, |end| = 6, and
 // at the end, |*consumed_len| = 2 for the "./" this function consumed. The
 // original dot length should be handled by the caller.
-template<typename CHAR>
-DotDisposition ClassifyAfterDot(const CHAR* spec, int after_dot,
-                                int end, int* consumed_len) {
+template <typename CHAR>
+DotDisposition ClassifyAfterDot(const CHAR* spec,
+                                size_t after_dot,
+                                size_t end,
+                                size_t* consumed_len) {
   if (after_dot == end) {
     // Single dot at the end.
     *consumed_len = 0;
@@ -114,9 +118,9 @@ DotDisposition ClassifyAfterDot(const CHAR* spec, int after_dot,
     return DIRECTORY_CUR;
   }
 
-  int second_dot_len = IsDot(spec, after_dot, end);
+  size_t second_dot_len = IsDot(spec, after_dot, end);
   if (second_dot_len) {
-    int after_second_dot = after_dot + second_dot_len;
+    size_t after_second_dot = after_dot + second_dot_len;
     if (after_second_dot == end) {
       // Double dot at the end.
       *consumed_len = second_dot_len;
@@ -147,19 +151,19 @@ DotDisposition ClassifyAfterDot(const CHAR* spec, int after_dot,
 // because it is run only on the canonical output.
 //
 // The output is guaranteed to end in a slash when this function completes.
-void BackUpToPreviousSlash(int path_begin_in_output,
-                           CanonOutput* output) {
-  DCHECK(output->length() > 0);
+void BackUpToPreviousSlash(size_t path_begin_in_output, CanonOutput* output) {
+  CHECK(output->length() > 0);
+  CHECK(path_begin_in_output < output->length());
 
-  int i = output->length() - 1;
+  size_t i = output->length() - 1;
   DCHECK(output->at(i) == '/');
   if (i == path_begin_in_output)
     return;  // We're at the first slash, nothing to do.
 
   // Now back up (skipping the trailing slash) until we find another slash.
-  i--;
-  while (output->at(i) != '/' && i > path_begin_in_output)
-    i--;
+  do {
+    --i;
+  } while (output->at(i) != '/' && i > path_begin_in_output);
 
   // Now shrink the output to just include that last slash we found.
   output->set_length(i + 1);
@@ -192,13 +196,13 @@ void BackUpToPreviousSlash(int path_begin_in_output,
 // ends with a '%' followed by one or two characters, and the '%' is the one
 // pointed to by |last_invalid_percent_index|.  The last character in the string
 // was just unescaped.
-template<typename CHAR>
+template <typename CHAR>
 void CheckForNestedEscapes(const CHAR* spec,
-                           int next_input_index,
-                           int input_len,
-                           int last_invalid_percent_index,
+                           size_t next_input_index,
+                           size_t input_len,
+                           size_t last_invalid_percent_index,
                            CanonOutput* output) {
-  const int length = output->length();
+  const size_t length = output->length();
   const char last_unescaped_char = output->at(length - 1);
 
   // If |output| currently looks like "%c", we need to try appending the next
@@ -217,7 +221,7 @@ void CheckForNestedEscapes(const CHAR* spec,
   }
 
   // Now output ends like "%cc".  Try to unescape this.
-  int begin = last_invalid_percent_index;
+  size_t begin = last_invalid_percent_index;
   unsigned char temp;
   if (DecodeEscaped(output->data(), &begin, output->length(), &temp)) {
     // New escape sequence found.  Overwrite the characters following the '%'
@@ -235,10 +239,8 @@ void CheckForNestedEscapes(const CHAR* spec,
   }
 }
 
-// Appends the given path to the output. It assumes that if the input path
-// starts with a slash, it should be copied to the output. If no path has
-// already been appended to the output (the case when not resolving
-// relative URLs), the path should begin with a slash.
+// Canonicalizes and appends the given path to the output. It assumes that if
+// the input path starts with a slash, it should be copied to the output.
 //
 // If there are already path components (this mode is used when appending
 // relative paths for resolving), it assumes that the output already has
@@ -248,20 +250,23 @@ void CheckForNestedEscapes(const CHAR* spec,
 // We do not collapse multiple slashes in a row to a single slash. It seems
 // no web browsers do this, and we don't want incompatibilities, even though
 // it would be correct for most systems.
-template<typename CHAR, typename UCHAR>
-bool DoPartialPath(const CHAR* spec,
-                   const Component& path,
-                   int path_begin_in_output,
-                   CanonOutput* output) {
-  int end = path.end();
+template <typename CHAR, typename UCHAR>
+bool DoPartialPathInternal(const CHAR* spec,
+                           const Component& path,
+                           size_t path_begin_in_output,
+                           CanonOutput* output) {
+  if (path.is_empty())
+    return true;
+
+  size_t end = static_cast<size_t>(path.end());
 
   // We use this variable to minimize the amount of work done when unescaping --
   // we'll only call CheckForNestedEscapes() when this points at one of the last
   // couple of characters in |output|.
-  int last_invalid_percent_index = INT_MIN;
+  absl::optional<size_t> last_invalid_percent_index;
 
   bool success = true;
-  for (int i = path.begin; i < end; i++) {
+  for (size_t i = static_cast<size_t>(path.begin); i < end; i++) {
     UCHAR uch = static_cast<UCHAR>(spec[i]);
     if (sizeof(CHAR) > 1 && uch >= 0x80) {
       // We only need to test wide input for having non-ASCII characters. For
@@ -276,22 +281,18 @@ bool DoPartialPath(const CHAR* spec,
       unsigned char flags = kPathCharLookup[out_ch];
       if (flags & SPECIAL) {
         // Needs special handling of some sort.
-        int dotlen;
+        size_t dotlen;
         if ((dotlen = IsDot(spec, i, end)) > 0) {
-          // See if this dot was preceded by a slash in the output. We
-          // assume that when canonicalizing paths, they will always
-          // start with a slash and not a dot, so we don't have to
-          // bounds check the output.
+          // See if this dot was preceded by a slash in the output.
           //
           // Note that we check this in the case of dots so we don't have to
           // special case slashes. Since slashes are much more common than
           // dots, this actually increases performance measurably (though
           // slightly).
-          DCHECK(output->length() > path_begin_in_output);
           if (output->length() > path_begin_in_output &&
               output->at(output->length() - 1) == '/') {
             // Slash followed by a dot, check to see if this is means relative
-            int consumed_len;
+            size_t consumed_len;
             switch (ClassifyAfterDot<CHAR>(spec, i + dotlen, end,
                                            &consumed_len)) {
               case NOT_A_DIRECTORY:
@@ -304,6 +305,9 @@ bool DoPartialPath(const CHAR* spec,
                 break;
               case DIRECTORY_UP:
                 BackUpToPreviousSlash(path_begin_in_output, output);
+                if (last_invalid_percent_index >= output->length()) {
+                  last_invalid_percent_index = absl::nullopt;
+                }
                 i += dotlen + consumed_len - 1;
                 break;
             }
@@ -334,9 +338,12 @@ bool DoPartialPath(const CHAR* spec,
               // '%' from a previously-detected invalid escape sequence, we
               // might have an input string with problematic nested escape
               // sequences; detect and fix them.
-              if (last_invalid_percent_index >= (output->length() - 3)) {
+              if (last_invalid_percent_index.has_value() &&
+                  ((last_invalid_percent_index.value() + 3) >=
+                   output->length())) {
                 CheckForNestedEscapes(spec, i + 1, end,
-                                      last_invalid_percent_index, output);
+                                      last_invalid_percent_index.value(),
+                                      output);
               }
             } else {
               // Either this is an invalid escaped character, or it's a valid
@@ -378,6 +385,21 @@ bool DoPartialPath(const CHAR* spec,
   return success;
 }
 
+// Perform the same logic as in DoPartialPathInternal(), but updates the
+// publicly exposed CanonOutput structure similar to DoPath().  Returns
+// true if successful.
+template <typename CHAR, typename UCHAR>
+bool DoPartialPath(const CHAR* spec,
+                   const Component& path,
+                   CanonOutput* output,
+                   Component* out_path) {
+  out_path->begin = output->length();
+  bool success =
+      DoPartialPathInternal<CHAR, UCHAR>(spec, path, out_path->begin, output);
+  out_path->len = output->length() - out_path->begin;
+  return success;
+}
+
 template<typename CHAR, typename UCHAR>
 bool DoPath(const CHAR* spec,
             const Component& path,
@@ -385,7 +407,7 @@ bool DoPath(const CHAR* spec,
             Component* out_path) {
   bool success = true;
   out_path->begin = output->length();
-  if (path.len > 0) {
+  if (path.is_nonempty()) {
     // Write out an initial slash if the input has none. If we just parse a URL
     // and then canonicalize it, it will of course have a slash already. This
     // check is for the replacement and relative URL resolving cases of file
@@ -393,7 +415,8 @@ bool DoPath(const CHAR* spec,
     if (!IsURLSlash(spec[path.begin]))
       output->push_back('/');
 
-    success = DoPartialPath<CHAR, UCHAR>(spec, path, out_path->begin, output);
+    success =
+        DoPartialPathInternal<CHAR, UCHAR>(spec, path, out_path->begin, output);
   } else {
     // No input, canonical path is a slash.
     output->push_back('/');
@@ -411,28 +434,41 @@ bool CanonicalizePath(const char* spec,
   return DoPath<char, unsigned char>(spec, path, output, out_path);
 }
 
-bool CanonicalizePath(const base::char16* spec,
+bool CanonicalizePath(const char16_t* spec,
                       const Component& path,
                       CanonOutput* output,
                       Component* out_path) {
-  return DoPath<base::char16, base::char16>(spec, path, output, out_path);
+  return DoPath<char16_t, char16_t>(spec, path, output, out_path);
 }
 
 bool CanonicalizePartialPath(const char* spec,
                              const Component& path,
-                             int path_begin_in_output,
-                             CanonOutput* output) {
-  return DoPartialPath<char, unsigned char>(spec, path, path_begin_in_output,
-                                            output);
+                             CanonOutput* output,
+                             Component* out_path) {
+  return DoPartialPath<char, unsigned char>(spec, path, output, out_path);
 }
 
-bool CanonicalizePartialPath(const base::char16* spec,
+bool CanonicalizePartialPath(const char16_t* spec,
                              const Component& path,
-                             int path_begin_in_output,
-                             CanonOutput* output) {
-  return DoPartialPath<base::char16, base::char16>(spec, path,
-                                                   path_begin_in_output,
-                                                   output);
+                             CanonOutput* output,
+                             Component* out_path) {
+  return DoPartialPath<char16_t, char16_t>(spec, path, output, out_path);
+}
+
+bool CanonicalizePartialPathInternal(const char* spec,
+                                     const Component& path,
+                                     size_t path_begin_in_output,
+                                     CanonOutput* output) {
+  return DoPartialPathInternal<char, unsigned char>(
+      spec, path, path_begin_in_output, output);
+}
+
+bool CanonicalizePartialPathInternal(const char16_t* spec,
+                                     const Component& path,
+                                     size_t path_begin_in_output,
+                                     CanonOutput* output) {
+  return DoPartialPathInternal<char16_t, char16_t>(
+      spec, path, path_begin_in_output, output);
 }
 
 }  // namespace url

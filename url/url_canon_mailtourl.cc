@@ -1,4 +1,4 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -57,8 +57,8 @@ bool DoCanonicalizeMailtoURL(const URLComponentSource<CHAR>& source,
     // Copy the path using path URL's more lax escaping rules.
     // We convert to UTF-8 and escape non-ASCII, but leave most
     // ASCII characters alone.
-    int end = parsed.path.end();
-    for (int i = parsed.path.begin; i < end; ++i) {
+    size_t end = static_cast<size_t>(parsed.path.end());
+    for (size_t i = static_cast<size_t>(parsed.path.begin); i < end; ++i) {
       UCHAR uch = static_cast<UCHAR>(source.path[i]);
       if (ShouldEncodeMailboxCharacter<UCHAR>(uch))
         success &= AppendUTF8EscapedChar(source.path, &i, end, output);
@@ -90,13 +90,13 @@ bool CanonicalizeMailtoURL(const char* spec,
       URLComponentSource<char>(spec), parsed, output, new_parsed);
 }
 
-bool CanonicalizeMailtoURL(const base::char16* spec,
+bool CanonicalizeMailtoURL(const char16_t* spec,
                            int spec_len,
                            const Parsed& parsed,
                            CanonOutput* output,
                            Parsed* new_parsed) {
-  return DoCanonicalizeMailtoURL<base::char16, base::char16>(
-      URLComponentSource<base::char16>(spec), parsed, output, new_parsed);
+  return DoCanonicalizeMailtoURL<char16_t, char16_t>(
+      URLComponentSource<char16_t>(spec), parsed, output, new_parsed);
 }
 
 bool ReplaceMailtoURL(const char* base,
@@ -113,7 +113,7 @@ bool ReplaceMailtoURL(const char* base,
 
 bool ReplaceMailtoURL(const char* base,
                       const Parsed& base_parsed,
-                      const Replacements<base::char16>& replacements,
+                      const Replacements<char16_t>& replacements,
                       CanonOutput* output,
                       Parsed* new_parsed) {
   RawCanonOutput<1024> utf8;

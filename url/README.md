@@ -8,7 +8,7 @@ level up, they are:
 ### Parsing
 
 The `url_parse.*` files are the parser. This code does no string
-transformations. Its only job is to take an input string and splits out the
+transformations. Its only job is to take an input string and split out the
 components of the URL as best as it can deduce them, for a given type of URL.
 Parsing can never fail, it will take its best guess. This layer does not
 have logic for determining the type of URL parsing to apply, that needs to
@@ -53,7 +53,7 @@ handled consistently across the application.
 
 The main header to include is `url/url_util.h`.
 
-### GURL and Origin
+### Google URL (GURL) and Origin
 
 At the highest layer, a C++ object for representing URLs is provided. This
 object uses STL. Most uses need only this layer. Include `url/gurl.h`.

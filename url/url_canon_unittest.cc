@@ -1,19 +1,21 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <errno.h>
+#include "url/url_canon.h"
 
-#include "base/macros.h"
+#include <errno.h>
+#include <stddef.h>
+
+#include "base/strings/string_piece.h"
 #include "base/strings/utf_string_conversions.h"
-#include "starboard/common/string.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
+#include "base/test/gtest_util.h"
+#include "base/test/scoped_feature_list.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/third_party/mozilla/url_parse.h"
-#include "url/url_canon.h"
 #include "url/url_canon_internal.h"
 #include "url/url_canon_stdstring.h"
+#include "url/url_features.h"
 #include "url/url_test_utils.h"
 
 namespace url {
@@ -116,7 +118,7 @@ TEST(URLCanonTest, DoAppendUTF8) {
     {0x10FFFF, "\xF4\x8F\xBF\xBF"},
   };
   std::string out_str;
-  for (size_t i = 0; i < arraysize(utf_cases); i++) {
+  for (size_t i = 0; i < std::size(utf_cases); i++) {
     out_str.clear();
     StdStringCanonOutput output(&out_str);
     AppendUTF8Value(utf_cases[i].input, &output);
@@ -125,26 +127,15 @@ TEST(URLCanonTest, DoAppendUTF8) {
   }
 }
 
-#if defined(GTEST_HAS_DEATH_TEST)
-// TODO(mattm): Can't run this in debug mode for now, since the DCHECK will
-// cause the Chromium stack trace dialog to appear and hang the test.
-// See http://crbug.com/49580.
-#if defined(NDEBUG) && !defined(DCHECK_ALWAYS_ON)
-#define MAYBE_DoAppendUTF8Invalid DoAppendUTF8Invalid
-#else
-#define MAYBE_DoAppendUTF8Invalid DISABLED_DoAppendUTF8Invalid
-#endif
-TEST(URLCanonTest, MAYBE_DoAppendUTF8Invalid) {
+TEST(URLCanonTest, DoAppendUTF8Invalid) {
   std::string out_str;
   StdStringCanonOutput output(&out_str);
   // Invalid code point (too large).
-  ASSERT_DEBUG_DEATH({
+  EXPECT_DCHECK_DEATH({
     AppendUTF8Value(0x110000, &output);
     output.Complete();
-    EXPECT_EQ("", out_str);
-  }, "");
+  });
 }
-#endif  // defined(GTEST_HAS_DEATH_TEST)
 
 TEST(URLCanonTest, UTF) {
   // Low-level test that we handle reading, canonicalization, and writing
@@ -156,37 +147,37 @@ TEST(URLCanonTest, UTF) {
     const char* output;
   } utf_cases[] = {
       // Valid canonical input should get passed through & escaped.
-    {"\xe4\xbd\xa0\xe5\xa5\xbd", L"\x4f60\x597d", true, "%E4%BD%A0%E5%A5%BD"},
+      {"\xe4\xbd\xa0\xe5\xa5\xbd", L"\x4f60\x597d", true, "%E4%BD%A0%E5%A5%BD"},
       // Test a character that takes > 16 bits (U+10300 = old italic letter A)
-    {"\xF0\x90\x8C\x80", L"\xd800\xdf00", true, "%F0%90%8C%80"},
+      {"\xF0\x90\x8C\x80", L"\xd800\xdf00", true, "%F0%90%8C%80"},
       // Non-shortest-form UTF-8 characters are invalid. The bad bytes should
       // each be replaced with the invalid character (EF BF DB in UTF-8).
-    {"\xf0\x84\xbd\xa0\xe5\xa5\xbd", NULL, false,
-     "%EF%BF%BD%EF%BF%BD%EF%BF%BD%EF%BF%BD%E5%A5%BD"},
+      {"\xf0\x84\xbd\xa0\xe5\xa5\xbd", nullptr, false,
+       "%EF%BF%BD%EF%BF%BD%EF%BF%BD%EF%BF%BD%E5%A5%BD"},
       // Invalid UTF-8 sequences should be marked as invalid (the first
       // sequence is truncated).
-    {"\xe4\xa0\xe5\xa5\xbd", L"\xd800\x597d", false, "%EF%BF%BD%E5%A5%BD"},
+      {"\xe4\xa0\xe5\xa5\xbd", L"\xd800\x597d", false, "%EF%BF%BD%E5%A5%BD"},
       // Character going off the end.
-    {"\xe4\xbd\xa0\xe5\xa5", L"\x4f60\xd800", false, "%E4%BD%A0%EF%BF%BD"},
+      {"\xe4\xbd\xa0\xe5\xa5", L"\x4f60\xd800", false, "%E4%BD%A0%EF%BF%BD"},
       // ...same with low surrogates with no high surrogate.
-    {nullptr, L"\xdc00", false, "%EF%BF%BD"},
+      {nullptr, L"\xdc00", false, "%EF%BF%BD"},
       // Test a UTF-8 encoded surrogate value is marked as invalid.
       // ED A0 80 = U+D800
-    {"\xed\xa0\x80", NULL, false, "%EF%BF%BD%EF%BF%BD%EF%BF%BD"},
+      {"\xed\xa0\x80", nullptr, false, "%EF%BF%BD%EF%BF%BD%EF%BF%BD"},
       // ...even when paired.
-    {"\xed\xa0\x80\xed\xb0\x80", nullptr, false,
-     "%EF%BF%BD%EF%BF%BD%EF%BF%BD%EF%BF%BD%EF%BF%BD%EF%BF%BD"},
+      {"\xed\xa0\x80\xed\xb0\x80", nullptr, false,
+       "%EF%BF%BD%EF%BF%BD%EF%BF%BD%EF%BF%BD%EF%BF%BD%EF%BF%BD"},
   };
 
   std::string out_str;
-  for (size_t i = 0; i < arraysize(utf_cases); i++) {
+  for (size_t i = 0; i < std::size(utf_cases); i++) {
     if (utf_cases[i].input8) {
       out_str.clear();
       StdStringCanonOutput output(&out_str);
 
-      int input_len = static_cast<int>(strlen(utf_cases[i].input8));
+      size_t input_len = strlen(utf_cases[i].input8);
       bool success = true;
-      for (int ch = 0; ch < input_len; ch++) {
+      for (size_t ch = 0; ch < input_len; ch++) {
         success &= AppendUTF8EscapedChar(utf_cases[i].input8, &ch, input_len,
                                          &output);
       }
@@ -198,11 +189,11 @@ TEST(URLCanonTest, UTF) {
       out_str.clear();
       StdStringCanonOutput output(&out_str);
 
-      base::string16 input_str(
+      std::u16string input_str(
           test_utils::TruncateWStringToUTF16(utf_cases[i].input16));
-      int input_len = static_cast<int>(input_str.length());
+      size_t input_len = input_str.length();
       bool success = true;
-      for (int ch = 0; ch < input_len; ch++) {
+      for (size_t ch = 0; ch < input_len; ch++) {
         success &= AppendUTF8EscapedChar(input_str.c_str(), &ch, input_len,
                                          &output);
       }
@@ -217,7 +208,7 @@ TEST(URLCanonTest, UTF) {
 
       // UTF-16 -> UTF-8
       std::string input8_str(utf_cases[i].input8);
-      base::string16 input16_str(
+      std::u16string input16_str(
           test_utils::TruncateWStringToUTF16(utf_cases[i].input16));
       EXPECT_EQ(input8_str, base::UTF16ToUTF8(input16_str));
 
@@ -250,7 +241,7 @@ TEST(URLCanonTest, Scheme) {
 
   std::string out_str;
 
-  for (size_t i = 0; i < arraysize(scheme_cases); i++) {
+  for (size_t i = 0; i < std::size(scheme_cases); i++) {
     int url_len = static_cast<int>(strlen(scheme_cases[i].input));
     Component in_comp(0, url_len);
     Component out_comp;
@@ -270,7 +261,7 @@ TEST(URLCanonTest, Scheme) {
     out_str.clear();
     StdStringCanonOutput output2(&out_str);
 
-    base::string16 wide_input(base::UTF8ToUTF16(scheme_cases[i].input));
+    std::u16string wide_input(base::UTF8ToUTF16(scheme_cases[i].input));
     in_comp.len = static_cast<int>(wide_input.length());
     success = CanonicalizeScheme(wide_input.c_str(), in_comp, &output2,
                                  &out_comp);
@@ -296,38 +287,79 @@ TEST(URLCanonTest, Scheme) {
   EXPECT_EQ(0, out_comp.len);
 }
 
-TEST(URLCanonTest, Host) {
+// IDNA mode to use in CanonHost tests.
+enum class IDNAMode { kTransitional, kNonTransitional };
+
+class URLCanonHostTest
+    : public ::testing::Test,
+      public ::testing::WithParamInterface<IDNAMode> {
+ public:
+  URLCanonHostTest() {
+    if (GetParam() == IDNAMode::kNonTransitional) {
+      scoped_feature_list_.InitAndEnableFeature(kUseIDNA2008NonTransitional);
+    } else {
+      scoped_feature_list_.InitAndDisableFeature(kUseIDNA2008NonTransitional);
+    }
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         URLCanonHostTest,
+                         ::testing::Values(IDNAMode::kTransitional,
+                                           IDNAMode::kNonTransitional));
+
+TEST_P(URLCanonHostTest, Host) {
+  bool use_idna_non_transitional = IsUsingIDNA2008NonTransitional();
+
   IPAddressCase host_cases[] = {
-       // Basic canonicalization, uppercase should be converted to lowercase.
-    {"GoOgLe.CoM", L"GoOgLe.CoM", "google.com", Component(0, 10), CanonHostInfo::NEUTRAL, -1, ""},
+      // Basic canonicalization, uppercase should be converted to lowercase.
+      {"GoOgLe.CoM", L"GoOgLe.CoM", "google.com", Component(0, 10),
+       CanonHostInfo::NEUTRAL, -1, ""},
       // Spaces and some other characters should be escaped.
-    {"Goo%20 goo%7C|.com", L"Goo%20 goo%7C|.com", "goo%20%20goo%7C%7C.com", Component(0, 22), CanonHostInfo::NEUTRAL, -1, ""},
+      {"Goo%20 goo%7C|.com", L"Goo%20 goo%7C|.com", "goo%20%20goo%7C%7C.com",
+       Component(0, 22), CanonHostInfo::NEUTRAL, -1, ""},
       // Exciting different types of spaces!
-    {NULL, L"GOO\x00a0\x3000goo.com", "goo%20%20goo.com", Component(0, 16), CanonHostInfo::NEUTRAL, -1, ""},
+      {NULL, L"GOO\x00a0\x3000goo.com", "goo%20%20goo.com", Component(0, 16),
+       CanonHostInfo::NEUTRAL, -1, ""},
       // Other types of space (no-break, zero-width, zero-width-no-break) are
       // name-prepped away to nothing.
-    {NULL, L"GOO\x200b\x2060\xfeffgoo.com", "googoo.com", Component(0, 10), CanonHostInfo::NEUTRAL, -1, ""},
+      {NULL, L"GOO\x200b\x2060\xfeffgoo.com", "googoo.com", Component(0, 10),
+       CanonHostInfo::NEUTRAL, -1, ""},
       // Ideographic full stop (full-width period for Chinese, etc.) should be
       // treated as a dot.
-    {NULL, L"www.foo\x3002" L"bar.com", "www.foo.bar.com", Component(0, 15), CanonHostInfo::NEUTRAL, -1, ""},
+      {NULL,
+       L"www.foo\x3002"
+       L"bar.com",
+       "www.foo.bar.com", Component(0, 15), CanonHostInfo::NEUTRAL, -1, ""},
       // Invalid unicode characters should fail...
       // ...In wide input, ICU will barf and we'll end up with the input as
       //    escaped UTF-8 (the invalid character should be replaced with the
       //    replacement character).
-    {"\xef\xb7\x90zyx.com", L"\xfdd0zyx.com", "%EF%BF%BDzyx.com", Component(0, 16), CanonHostInfo::BROKEN, -1, ""},
+      {"\xef\xb7\x90zyx.com", L"\xfdd0zyx.com", "%EF%BF%BDzyx.com",
+       Component(0, 16), CanonHostInfo::BROKEN, -1, ""},
       // ...This is the same as previous but with with escaped.
-    {"%ef%b7%90zyx.com", L"%ef%b7%90zyx.com", "%EF%BF%BDzyx.com", Component(0, 16), CanonHostInfo::BROKEN, -1, ""},
-      // Test name prepping, fullwidth input should be converted to ASCII and NOT
+      {"%ef%b7%90zyx.com", L"%ef%b7%90zyx.com", "%EF%BF%BDzyx.com",
+       Component(0, 16), CanonHostInfo::BROKEN, -1, ""},
+      // Test name prepping, fullwidth input should be converted to ASCII and
+      // NOT
       // IDN-ized. This is "Go" in fullwidth UTF-8/UTF-16.
-    {"\xef\xbc\xa7\xef\xbd\x8f.com", L"\xff27\xff4f.com", "go.com", Component(0, 6), CanonHostInfo::NEUTRAL, -1, ""},
+      {"\xef\xbc\xa7\xef\xbd\x8f.com", L"\xff27\xff4f.com", "go.com",
+       Component(0, 6), CanonHostInfo::NEUTRAL, -1, ""},
       // Test that fullwidth escaped values are properly name-prepped,
       // then converted or rejected.
       // ...%41 in fullwidth = 'A' (also as escaped UTF-8 input)
-    {"\xef\xbc\x85\xef\xbc\x94\xef\xbc\x91.com", L"\xff05\xff14\xff11.com", "a.com", Component(0, 5), CanonHostInfo::NEUTRAL, -1, ""},
-    {"%ef%bc%85%ef%bc%94%ef%bc%91.com", L"%ef%bc%85%ef%bc%94%ef%bc%91.com", "a.com", Component(0, 5), CanonHostInfo::NEUTRAL, -1, ""},
+      {"\xef\xbc\x85\xef\xbc\x94\xef\xbc\x91.com", L"\xff05\xff14\xff11.com",
+       "a.com", Component(0, 5), CanonHostInfo::NEUTRAL, -1, ""},
+      {"%ef%bc%85%ef%bc%94%ef%bc%91.com", L"%ef%bc%85%ef%bc%94%ef%bc%91.com",
+       "a.com", Component(0, 5), CanonHostInfo::NEUTRAL, -1, ""},
       // ...%00 in fullwidth should fail (also as escaped UTF-8 input)
-    {"\xef\xbc\x85\xef\xbc\x90\xef\xbc\x90.com", L"\xff05\xff10\xff10.com", "%00.com", Component(0, 7), CanonHostInfo::BROKEN, -1, ""},
-    {"%ef%bc%85%ef%bc%90%ef%bc%90.com", L"%ef%bc%85%ef%bc%90%ef%bc%90.com", "%00.com", Component(0, 7), CanonHostInfo::BROKEN, -1, ""},
+      {"\xef\xbc\x85\xef\xbc\x90\xef\xbc\x90.com", L"\xff05\xff10\xff10.com",
+       "%00.com", Component(0, 7), CanonHostInfo::BROKEN, -1, ""},
+      {"%ef%bc%85%ef%bc%90%ef%bc%90.com", L"%ef%bc%85%ef%bc%90%ef%bc%90.com",
+       "%00.com", Component(0, 7), CanonHostInfo::BROKEN, -1, ""},
       // ICU will convert weird percents into ASCII percents, but not unescape
       // further. A weird percent is U+FE6A (EF B9 AA in UTF-8) which is a
       // "small percent". At this point we should be within our rights to mark
@@ -335,12 +367,30 @@ TEST(URLCanonTest, Host) {
       // happens to allow ASCII characters (%41 = "A" -> 'a') to be unescaped
       // and kept as valid, so we validate that behavior here, but this level
       // of fixing the input shouldn't be seen as required. "%81" is invalid.
-    {"\xef\xb9\xaa" "41.com", L"\xfe6a" L"41.com", "a.com", Component(0, 5), CanonHostInfo::NEUTRAL, -1, ""},
-    {"%ef%b9%aa" "41.com", L"\xfe6a" L"41.com", "a.com", Component(0, 5), CanonHostInfo::NEUTRAL, -1, ""},
-    {"\xef\xb9\xaa" "81.com", L"\xfe6a" L"81.com", "%81.com", Component(0, 7), CanonHostInfo::BROKEN, -1, ""},
-    {"%ef%b9%aa" "81.com", L"\xfe6a" L"81.com", "%81.com", Component(0, 7), CanonHostInfo::BROKEN, -1, ""},
+      {"\xef\xb9\xaa"
+       "41.com",
+       L"\xfe6a"
+       L"41.com",
+       "a.com", Component(0, 5), CanonHostInfo::NEUTRAL, -1, ""},
+      {"%ef%b9%aa"
+       "41.com",
+       L"\xfe6a"
+       L"41.com",
+       "a.com", Component(0, 5), CanonHostInfo::NEUTRAL, -1, ""},
+      {"\xef\xb9\xaa"
+       "81.com",
+       L"\xfe6a"
+       L"81.com",
+       "%81.com", Component(0, 7), CanonHostInfo::BROKEN, -1, ""},
+      {"%ef%b9%aa"
+       "81.com",
+       L"\xfe6a"
+       L"81.com",
+       "%81.com", Component(0, 7), CanonHostInfo::BROKEN, -1, ""},
       // Basic IDN support, UTF-8 and UTF-16 input should be converted to IDN
-    {"\xe4\xbd\xa0\xe5\xa5\xbd\xe4\xbd\xa0\xe5\xa5\xbd", L"\x4f60\x597d\x4f60\x597d", "xn--6qqa088eba", Component(0, 14), CanonHostInfo::NEUTRAL, -1, ""},
+      {"\xe4\xbd\xa0\xe5\xa5\xbd\xe4\xbd\xa0\xe5\xa5\xbd",
+       L"\x4f60\x597d\x4f60\x597d", "xn--6qqa088eba", Component(0, 14),
+       CanonHostInfo::NEUTRAL, -1, ""},
       // See http://unicode.org/cldr/utility/idna.jsp for other
       // examples/experiments and http://goo.gl/7yG11o
       // for the full list of characters handled differently by
@@ -348,174 +398,211 @@ TEST(URLCanonTest, Host) {
 
       // 4 Deviation characters are mapped/ignored in UTS 46 transitional
       // mechansm. UTS 46, table 4 row (g).
-      // Sharp-s is mapped to 'ss' in UTS 46 and IDNA 2003.
-      // Otherwise, it'd be "xn--fuball-cta.de".
-    {"fu\xc3\x9f" "ball.de", L"fu\x00df" L"ball.de", "fussball.de",
-      Component(0, 11), CanonHostInfo::NEUTRAL, -1, ""},
-      // Final-sigma (U+03C3) is mapped to regular sigma (U+03C2).
-      // Otherwise, it'd be "xn--wxaijb9b".
-    {"\xcf\x83\xcf\x8c\xce\xbb\xce\xbf\xcf\x82", L"\x3c3\x3cc\x3bb\x3bf\x3c2",
-      "xn--wxaikc6b", Component(0, 12),
-      CanonHostInfo::NEUTRAL, -1, ""},
+      // Sharp-s is mapped to 'ss' in IDNA 2003, not in IDNA 2008 or UTF 46
+      // after transitional period.
+      // Previously, it'd be "fussball.de".
+      {"fu\xc3\x9f"
+       "ball.de",
+       L"fu\x00df"
+       L"ball.de",
+       use_idna_non_transitional ? "xn--fuball-cta.de" : "fussball.de",
+       use_idna_non_transitional ? Component(0, 17) : Component(0, 11),
+       CanonHostInfo::NEUTRAL, -1, ""},
+
+      // Final-sigma (U+03C3) was mapped to regular sigma (U+03C2).
+      // Previously, it'd be "xn--wxaikc9b".
+      {"\xcf\x83\xcf\x8c\xce\xbb\xce\xbf\xcf\x82", L"\x3c3\x3cc\x3bb\x3bf\x3c2",
+       use_idna_non_transitional ? "xn--wxaijb9b" : "xn--wxaikc6b",
+       Component(0, 12), CanonHostInfo::NEUTRAL, -1, ""},
+
       // ZWNJ (U+200C) and ZWJ (U+200D) are mapped away in UTS 46 transitional
-      // handling as well as in IDNA 2003.
-    {"a\xe2\x80\x8c" "b\xe2\x80\x8d" "c", L"a\x200c" L"b\x200d" L"c", "abc",
-      Component(0, 3), CanonHostInfo::NEUTRAL, -1, ""},
-      // ZWJ between Devanagari characters is still mapped away in UTS 46
-      // transitional handling. IDNA 2008 would give xn--11bo0mv54g.
-    {"\xe0\xa4\x95\xe0\xa5\x8d\xe2\x80\x8d\xe0\xa4\x9c",
-     L"\x915\x94d\x200d\x91c", "xn--11bo0m",
-     Component(0, 10), CanonHostInfo::NEUTRAL, -1, ""},
+      // handling as well as in IDNA 2003, but not thereafter.
+      {"a\xe2\x80\x8c"
+       "b\xe2\x80\x8d"
+       "c",
+       L"a\x200c"
+       L"b\x200d"
+       L"c",
+       use_idna_non_transitional ? "xn--abc-9m0ag" : "abc",
+       use_idna_non_transitional ? Component(0, 13) : Component(0, 3),
+       CanonHostInfo::NEUTRAL, -1, ""},
+
+      // ZWJ between Devanagari characters was still mapped away in UTS 46
+      // transitional handling. IDNA 2008 gives xn--11bo0mv54g.
+      // Previously "xn--11bo0m".
+      {"\xe0\xa4\x95\xe0\xa5\x8d\xe2\x80\x8d\xe0\xa4\x9c",
+       L"\x915\x94d\x200d\x91c",
+       use_idna_non_transitional ? "xn--11bo0mv54g" : "xn--11bo0m",
+       use_idna_non_transitional ? Component(0, 14) : Component(0, 10),
+       CanonHostInfo::NEUTRAL, -1, ""},
+
       // Fullwidth exclamation mark is disallowed. UTS 46, table 4, row (b)
       // However, we do allow this at the moment because we don't use
       // STD3 rules and canonicalize full-width ASCII to ASCII.
-    {"wow\xef\xbc\x81", L"wow\xff01", "wow%21",
-      Component(0, 6), CanonHostInfo::NEUTRAL, -1, ""},
+      {"wow\xef\xbc\x81", L"wow\xff01", "wow%21", Component(0, 6),
+       CanonHostInfo::NEUTRAL, -1, ""},
       // U+2132 (turned capital F) is disallowed. UTS 46, table 4, row (c)
       // Allowed in IDNA 2003, but the mapping changed after Unicode 3.2
-    {"\xe2\x84\xb2oo", L"\x2132oo", "%E2%84%B2oo",
-      Component(0, 11), CanonHostInfo::BROKEN, -1, ""},
+      {"\xe2\x84\xb2oo", L"\x2132oo", "%E2%84%B2oo", Component(0, 11),
+       CanonHostInfo::BROKEN, -1, ""},
       // U+2F868 (CJK Comp) is disallowed. UTS 46, table 4, row (d)
       // Allowed in IDNA 2003, but the mapping changed after Unicode 3.2
-    {"\xf0\xaf\xa1\xa8\xe5\xa7\xbb.cn", L"\xd87e\xdc68\x59fb.cn",
-      "%F0%AF%A1%A8%E5%A7%BB.cn",
-      Component(0, 24), CanonHostInfo::BROKEN, -1, ""},
+      {"\xf0\xaf\xa1\xa8\xe5\xa7\xbb.cn", L"\xd87e\xdc68\x59fb.cn",
+       "%F0%AF%A1%A8%E5%A7%BB.cn", Component(0, 24), CanonHostInfo::BROKEN, -1,
+       ""},
       // Maps uppercase letters to lower case letters. UTS 46 table 4 row (e)
-    {"M\xc3\x9cNCHEN", L"M\xdcNCHEN", "xn--mnchen-3ya",
-      Component(0, 14), CanonHostInfo::NEUTRAL, -1, ""},
+      {"M\xc3\x9cNCHEN", L"M\xdcNCHEN", "xn--mnchen-3ya", Component(0, 14),
+       CanonHostInfo::NEUTRAL, -1, ""},
       // An already-IDNA host is not modified.
-    {"xn--mnchen-3ya", L"xn--mnchen-3ya", "xn--mnchen-3ya",
-      Component(0, 14), CanonHostInfo::NEUTRAL, -1, ""},
+      {"xn--mnchen-3ya", L"xn--mnchen-3ya", "xn--mnchen-3ya", Component(0, 14),
+       CanonHostInfo::NEUTRAL, -1, ""},
       // Symbol/punctuations are allowed in IDNA 2003/UTS46.
       // Not allowed in IDNA 2008. UTS 46 table 4 row (f).
-    {"\xe2\x99\xa5ny.us", L"\x2665ny.us", "xn--ny-s0x.us",
-      Component(0, 13), CanonHostInfo::NEUTRAL, -1, ""},
+      {"\xe2\x99\xa5ny.us", L"\x2665ny.us", "xn--ny-s0x.us", Component(0, 13),
+       CanonHostInfo::NEUTRAL, -1, ""},
       // U+11013 is new in Unicode 6.0 and is allowed. UTS 46 table 4, row (h)
       // We used to allow it because we passed through unassigned code points.
-    {"\xf0\x91\x80\x93.com", L"\xd804\xdc13.com", "xn--n00d.com",
-      Component(0, 12), CanonHostInfo::NEUTRAL, -1, ""},
+      {"\xf0\x91\x80\x93.com", L"\xd804\xdc13.com", "xn--n00d.com",
+       Component(0, 12), CanonHostInfo::NEUTRAL, -1, ""},
       // U+0602 is disallowed in UTS46/IDNA 2008. UTS 46 table 4, row(i)
       // Used to be allowed in INDA 2003.
-    {"\xd8\x82.eg", L"\x602.eg", "%D8%82.eg",
-      Component(0, 9), CanonHostInfo::BROKEN, -1, ""},
+      {"\xd8\x82.eg", L"\x602.eg", "%D8%82.eg", Component(0, 9),
+       CanonHostInfo::BROKEN, -1, ""},
       // U+20B7 is new in Unicode 5.2 (not a part of IDNA 2003 based
       // on Unicode 3.2). We did allow it in the past because we let unassigned
       // code point pass. We continue to allow it even though it's a
       // "punctuation and symbol" blocked in IDNA 2008.
       // UTS 46 table 4, row (j)
-    {"\xe2\x82\xb7.com", L"\x20b7.com", "xn--wzg.com",
-      Component(0, 11), CanonHostInfo::NEUTRAL, -1, ""},
+      {"\xe2\x82\xb7.com", L"\x20b7.com", "xn--wzg.com", Component(0, 11),
+       CanonHostInfo::NEUTRAL, -1, ""},
       // Maps uppercase letters to lower case letters.
       // In IDNA 2003, it's allowed without case-folding
       // ( xn--bc-7cb.com ) because it's not defined in Unicode 3.2
       // (added in Unicode 4.1). UTS 46 table 4 row (k)
-    {"bc\xc8\xba.com", L"bc\x23a.com", "xn--bc-is1a.com",
-      Component(0, 15), CanonHostInfo::NEUTRAL, -1, ""},
+      {"bc\xc8\xba.com", L"bc\x23a.com", "xn--bc-is1a.com", Component(0, 15),
+       CanonHostInfo::NEUTRAL, -1, ""},
       // Maps U+FF43 (Full Width Small Letter C) to 'c'.
-    {"ab\xef\xbd\x83.xyz", L"ab\xff43.xyz", "abc.xyz",
-      Component(0, 7), CanonHostInfo::NEUTRAL, -1, ""},
+      {"ab\xef\xbd\x83.xyz", L"ab\xff43.xyz", "abc.xyz", Component(0, 7),
+       CanonHostInfo::NEUTRAL, -1, ""},
       // Maps U+1D68C (Math Monospace Small C) to 'c'.
       // U+1D68C = \xD835\xDE8C in UTF-16
-    {"ab\xf0\x9d\x9a\x8c.xyz", L"ab\xd835\xde8c.xyz", "abc.xyz",
-      Component(0, 7), CanonHostInfo::NEUTRAL, -1, ""},
+      {"ab\xf0\x9d\x9a\x8c.xyz", L"ab\xd835\xde8c.xyz", "abc.xyz",
+       Component(0, 7), CanonHostInfo::NEUTRAL, -1, ""},
       // BiDi check test
       // "Divehi" in Divehi (Thaana script) ends with BidiClass=NSM.
       // Disallowed in IDNA 2003 but now allowed in UTS 46/IDNA 2008.
-    {"\xde\x8b\xde\xa8\xde\x88\xde\xac\xde\x80\xde\xa8",
-     L"\x78b\x7a8\x788\x7ac\x780\x7a8", "xn--hqbpi0jcw",
-     Component(0, 13), CanonHostInfo::NEUTRAL, -1, ""},
+      {"\xde\x8b\xde\xa8\xde\x88\xde\xac\xde\x80\xde\xa8",
+       L"\x78b\x7a8\x788\x7ac\x780\x7a8", "xn--hqbpi0jcw", Component(0, 13),
+       CanonHostInfo::NEUTRAL, -1, ""},
       // Disallowed in both IDNA 2003 and 2008 with BiDi check.
       // Labels starting with a RTL character cannot end with a LTR character.
-    {"\xd8\xac\xd8\xa7\xd8\xb1xyz", L"\x62c\x627\x631xyz",
-     "%D8%AC%D8%A7%D8%B1xyz", Component(0, 21),
-     CanonHostInfo::BROKEN, -1, ""},
+      {"\xd8\xac\xd8\xa7\xd8\xb1xyz", L"\x62c\x627\x631xyz",
+       "%D8%AC%D8%A7%D8%B1xyz", Component(0, 21), CanonHostInfo::BROKEN, -1,
+       ""},
       // Labels starting with a RTL character can end with BC=EN (European
       // number). Disallowed in IDNA 2003 but now allowed.
-    {"\xd8\xac\xd8\xa7\xd8\xb1" "2", L"\x62c\x627\x631" L"2",
-     "xn--2-ymcov", Component(0, 11),
-     CanonHostInfo::NEUTRAL, -1, ""},
+      {"\xd8\xac\xd8\xa7\xd8\xb1"
+       "2",
+       L"\x62c\x627\x631"
+       L"2",
+       "xn--2-ymcov", Component(0, 11), CanonHostInfo::NEUTRAL, -1, ""},
       // Labels starting with a RTL character cannot have "L" characters
       // even if it ends with an BC=EN. Disallowed in both IDNA 2003/2008.
-    {"\xd8\xac\xd8\xa7\xd8\xb1xy2", L"\x62c\x627\x631xy2",
-     "%D8%AC%D8%A7%D8%B1xy2", Component(0, 21),
-     CanonHostInfo::BROKEN, -1, ""},
+      {"\xd8\xac\xd8\xa7\xd8\xb1xy2", L"\x62c\x627\x631xy2",
+       "%D8%AC%D8%A7%D8%B1xy2", Component(0, 21), CanonHostInfo::BROKEN, -1,
+       ""},
       // Labels starting with a RTL character can end with BC=AN (Arabic number)
       // Disallowed in IDNA 2003, but now allowed.
-    {"\xd8\xac\xd8\xa7\xd8\xb1\xd9\xa2", L"\x62c\x627\x631\x662",
-     "xn--mgbjq0r", Component(0, 11),
-     CanonHostInfo::NEUTRAL, -1, ""},
+      {"\xd8\xac\xd8\xa7\xd8\xb1\xd9\xa2", L"\x62c\x627\x631\x662",
+       "xn--mgbjq0r", Component(0, 11), CanonHostInfo::NEUTRAL, -1, ""},
       // Labels starting with a RTL character cannot have "L" characters
       // even if it ends with an BC=AN (Arabic number).
       // Disallowed in both IDNA 2003/2008.
-    {"\xd8\xac\xd8\xa7\xd8\xb1xy\xd9\xa2", L"\x62c\x627\x631xy\x662",
-     "%D8%AC%D8%A7%D8%B1xy%D9%A2", Component(0, 26),
-     CanonHostInfo::BROKEN, -1, ""},
+      {"\xd8\xac\xd8\xa7\xd8\xb1xy\xd9\xa2", L"\x62c\x627\x631xy\x662",
+       "%D8%AC%D8%A7%D8%B1xy%D9%A2", Component(0, 26), CanonHostInfo::BROKEN,
+       -1, ""},
       // Labels starting with a RTL character cannot mix BC=EN and BC=AN
-    {"\xd8\xac\xd8\xa7\xd8\xb1xy2\xd9\xa2", L"\x62c\x627\x631xy2\x662",
-     "%D8%AC%D8%A7%D8%B1xy2%D9%A2", Component(0, 27),
-     CanonHostInfo::BROKEN, -1, ""},
+      {"\xd8\xac\xd8\xa7\xd8\xb1xy2\xd9\xa2", L"\x62c\x627\x631xy2\x662",
+       "%D8%AC%D8%A7%D8%B1xy2%D9%A2", Component(0, 27), CanonHostInfo::BROKEN,
+       -1, ""},
       // As of Unicode 6.2, U+20CF is not assigned. We do not allow it.
-    {"\xe2\x83\x8f.com", L"\x20cf.com", "%E2%83%8F.com",
-      Component(0, 13), CanonHostInfo::BROKEN, -1, ""},
+      {"\xe2\x83\x8f.com", L"\x20cf.com", "%E2%83%8F.com", Component(0, 13),
+       CanonHostInfo::BROKEN, -1, ""},
       // U+0080 is not allowed.
-    {"\xc2\x80.com", L"\x80.com", "%C2%80.com",
-      Component(0, 10), CanonHostInfo::BROKEN, -1, ""},
+      {"\xc2\x80.com", L"\x80.com", "%C2%80.com", Component(0, 10),
+       CanonHostInfo::BROKEN, -1, ""},
       // Mixed UTF-8 and escaped UTF-8 (narrow case) and UTF-16 and escaped
       // Mixed UTF-8 and escaped UTF-8 (narrow case) and UTF-16 and escaped
       // UTF-8 (wide case). The output should be equivalent to the true wide
       // character input above).
-    {"%E4%BD%A0%E5%A5%BD\xe4\xbd\xa0\xe5\xa5\xbd",
-      L"%E4%BD%A0%E5%A5%BD\x4f60\x597d", "xn--6qqa088eba",
-      Component(0, 14), CanonHostInfo::NEUTRAL, -1, ""},
+      {"%E4%BD%A0%E5%A5%BD\xe4\xbd\xa0\xe5\xa5\xbd",
+       L"%E4%BD%A0%E5%A5%BD\x4f60\x597d", "xn--6qqa088eba", Component(0, 14),
+       CanonHostInfo::NEUTRAL, -1, ""},
       // Invalid escaped characters should fail and the percents should be
       // escaped.
-    {"%zz%66%a", L"%zz%66%a", "%25zzf%25a", Component(0, 10),
-      CanonHostInfo::BROKEN, -1, ""},
+      {"%zz%66%a", L"%zz%66%a", "%25zzf%25a", Component(0, 10),
+       CanonHostInfo::BROKEN, -1, ""},
       // If we get an invalid character that has been escaped.
-    {"%25", L"%25", "%25", Component(0, 3),
-      CanonHostInfo::BROKEN, -1, ""},
-    {"hello%00", L"hello%00", "hello%00", Component(0, 8),
-      CanonHostInfo::BROKEN, -1, ""},
+      {"%25", L"%25", "%25", Component(0, 3), CanonHostInfo::BROKEN, -1, ""},
+      {"hello%00", L"hello%00", "hello%00", Component(0, 8),
+       CanonHostInfo::BROKEN, -1, ""},
       // Escaped numbers should be treated like IP addresses if they are.
-    {"%30%78%63%30%2e%30%32%35%30.01", L"%30%78%63%30%2e%30%32%35%30.01",
-      "192.168.0.1", Component(0, 11), CanonHostInfo::IPV4, 3,
-      "C0A80001"},
-    {"%30%78%63%30%2e%30%32%35%30.01%2e", L"%30%78%63%30%2e%30%32%35%30.01%2e",
-      "192.168.0.1", Component(0, 11), CanonHostInfo::IPV4, 3,
-      "C0A80001"},
+      {"%30%78%63%30%2e%30%32%35%30.01", L"%30%78%63%30%2e%30%32%35%30.01",
+       "192.168.0.1", Component(0, 11), CanonHostInfo::IPV4, 3, "C0A80001"},
+      {"%30%78%63%30%2e%30%32%35%30.01%2e",
+       L"%30%78%63%30%2e%30%32%35%30.01%2e", "192.168.0.1", Component(0, 11),
+       CanonHostInfo::IPV4, 3, "C0A80001"},
       // Invalid escaping should trigger the regular host error handling.
-    {"%3g%78%63%30%2e%30%32%35%30%2E.01", L"%3g%78%63%30%2e%30%32%35%30%2E.01", "%253gxc0.0250..01", Component(0, 17), CanonHostInfo::BROKEN, -1, ""},
+      {"%3g%78%63%30%2e%30%32%35%30%2E.01",
+       L"%3g%78%63%30%2e%30%32%35%30%2E.01", "%253gxc0.0250..01",
+       Component(0, 17), CanonHostInfo::BROKEN, -1, ""},
       // Something that isn't exactly an IP should get treated as a host and
       // spaces escaped.
-    {"192.168.0.1 hello", L"192.168.0.1 hello", "192.168.0.1%20hello", Component(0, 19), CanonHostInfo::NEUTRAL, -1, ""},
+      {"192.168.0.1 hello", L"192.168.0.1 hello", "192.168.0.1%20hello",
+       Component(0, 19), CanonHostInfo::NEUTRAL, -1, ""},
       // Fullwidth and escaped UTF-8 fullwidth should still be treated as IP.
       // These are "0Xc0.0250.01" in fullwidth.
-    {"\xef\xbc\x90%Ef%bc\xb8%ef%Bd%83\xef\xbc\x90%EF%BC%8E\xef\xbc\x90\xef\xbc\x92\xef\xbc\x95\xef\xbc\x90\xef\xbc%8E\xef\xbc\x90\xef\xbc\x91", L"\xff10\xff38\xff43\xff10\xff0e\xff10\xff12\xff15\xff10\xff0e\xff10\xff11", "192.168.0.1", Component(0, 11), CanonHostInfo::IPV4, 3, "C0A80001"},
+      {"\xef\xbc\x90%Ef%bc\xb8%ef%Bd%83\xef\xbc\x90%EF%BC%"
+       "8E\xef\xbc\x90\xef\xbc\x92\xef\xbc\x95\xef\xbc\x90\xef\xbc%"
+       "8E\xef\xbc\x90\xef\xbc\x91",
+       L"\xff10\xff38\xff43\xff10\xff0e\xff10\xff12\xff15\xff10\xff0e\xff10"
+       L"\xff11",
+       "192.168.0.1", Component(0, 11), CanonHostInfo::IPV4, 3, "C0A80001"},
       // Broken IP addresses get marked as such.
-    {"192.168.0.257", L"192.168.0.257", "192.168.0.257", Component(0, 13), CanonHostInfo::BROKEN, -1, ""},
-    {"[google.com]", L"[google.com]", "[google.com]", Component(0, 12), CanonHostInfo::BROKEN, -1, ""},
+      {"192.168.0.257", L"192.168.0.257", "192.168.0.257", Component(0, 13),
+       CanonHostInfo::BROKEN, -1, ""},
+      {"[google.com]", L"[google.com]", "[google.com]", Component(0, 12),
+       CanonHostInfo::BROKEN, -1, ""},
       // Cyrillic letter followed by '(' should return punycode for '(' escaped
       // before punycode string was created. I.e.
       // if '(' is escaped after punycode is created we would get xn--%28-8tb
       // (incorrect).
-    {"\xd1\x82(", L"\x0442(", "xn--%28-7ed", Component(0, 11),
-      CanonHostInfo::NEUTRAL, -1, ""},
-      // Address with all hexidecimal characters with leading number of 1<<32
+      {"\xd1\x82(", L"\x0442(", "xn--%28-7ed", Component(0, 11),
+       CanonHostInfo::NEUTRAL, -1, ""},
+      // Address with all hexadecimal characters with leading number of 1<<32
       // or greater and should return NEUTRAL rather than BROKEN if not all
       // components are numbers.
-    {"12345678912345.de", L"12345678912345.de", "12345678912345.de", Component(0, 17), CanonHostInfo::NEUTRAL, -1, ""},
-    {"1.12345678912345.de", L"1.12345678912345.de", "1.12345678912345.de", Component(0, 19), CanonHostInfo::NEUTRAL, -1, ""},
-    {"12345678912345.12345678912345.de", L"12345678912345.12345678912345.de", "12345678912345.12345678912345.de", Component(0, 32), CanonHostInfo::NEUTRAL, -1, ""},
-    {"1.2.0xB3A73CE5B59.de", L"1.2.0xB3A73CE5B59.de", "1.2.0xb3a73ce5b59.de", Component(0, 20), CanonHostInfo::NEUTRAL, -1, ""},
-    {"12345678912345.0xde", L"12345678912345.0xde", "12345678912345.0xde", Component(0, 19), CanonHostInfo::BROKEN, -1, ""},
-    // A label that starts with "xn--" but contains non-ASCII characters should
-    // be an error. Escape the invalid characters.
-    {"xn--m\xc3\xbcnchen", L"xn--m\xfcnchen", "xn--m%C3%BCnchen", Component(0, 16), CanonHostInfo::BROKEN, -1, ""},
+      {"12345678912345.de", L"12345678912345.de", "12345678912345.de",
+       Component(0, 17), CanonHostInfo::NEUTRAL, -1, ""},
+      {"1.12345678912345.de", L"1.12345678912345.de", "1.12345678912345.de",
+       Component(0, 19), CanonHostInfo::NEUTRAL, -1, ""},
+      {"12345678912345.12345678912345.de", L"12345678912345.12345678912345.de",
+       "12345678912345.12345678912345.de", Component(0, 32),
+       CanonHostInfo::NEUTRAL, -1, ""},
+      {"1.2.0xB3A73CE5B59.de", L"1.2.0xB3A73CE5B59.de", "1.2.0xb3a73ce5b59.de",
+       Component(0, 20), CanonHostInfo::NEUTRAL, -1, ""},
+      {"12345678912345.0xde", L"12345678912345.0xde", "12345678912345.0xde",
+       Component(0, 19), CanonHostInfo::BROKEN, -1, ""},
+      // A label that starts with "xn--" but contains non-ASCII characters
+      // should
+      // be an error. Escape the invalid characters.
+      {"xn--m\xc3\xbcnchen", L"xn--m\xfcnchen", "xn--m%C3%BCnchen",
+       Component(0, 16), CanonHostInfo::BROKEN, -1, ""},
   };
 
   // CanonicalizeHost() non-verbose.
   std::string out_str;
-  for (size_t i = 0; i < arraysize(host_cases); i++) {
+  for (size_t i = 0; i < std::size(host_cases); i++) {
     // Narrow version.
     if (host_cases[i].input8) {
       int host_len = static_cast<int>(strlen(host_cases[i].input8));
@@ -541,7 +628,7 @@ TEST(URLCanonTest, Host) {
 
     // Wide version.
     if (host_cases[i].input16) {
-      base::string16 input16(
+      std::u16string input16(
           test_utils::TruncateWStringToUTF16(host_cases[i].input16));
       int host_len = static_cast<int>(input16.length());
       Component in_comp(0, host_len);
@@ -563,7 +650,7 @@ TEST(URLCanonTest, Host) {
   }
 
   // CanonicalizeHostVerbose()
-  for (size_t i = 0; i < arraysize(host_cases); i++) {
+  for (size_t i = 0; i < std::size(host_cases); i++) {
     // Narrow version.
     if (host_cases[i].input8) {
       int host_len = static_cast<int>(strlen(host_cases[i].input8));
@@ -592,7 +679,7 @@ TEST(URLCanonTest, Host) {
 
     // Wide version.
     if (host_cases[i].input16) {
-      base::string16 input16(
+      std::u16string input16(
           test_utils::TruncateWStringToUTF16(host_cases[i].input16));
       int host_len = static_cast<int>(input16.length());
       Component in_comp(0, host_len);
@@ -620,21 +707,36 @@ TEST(URLCanonTest, Host) {
 }
 
 TEST(URLCanonTest, IPv4) {
+  // clang-format off
   IPAddressCase cases[] = {
-      // Empty is not an IP address.
+    // Empty is not an IP address.
     {"", L"", "", Component(), CanonHostInfo::NEUTRAL, -1, ""},
     {".", L".", "", Component(), CanonHostInfo::NEUTRAL, -1, ""},
-      // Regular IP addresses in different bases.
+    // Regular IP addresses in different bases.
     {"192.168.0.1", L"192.168.0.1", "192.168.0.1", Component(0, 11), CanonHostInfo::IPV4, 4, "C0A80001"},
     {"0300.0250.00.01", L"0300.0250.00.01", "192.168.0.1", Component(0, 11), CanonHostInfo::IPV4, 4, "C0A80001"},
     {"0xC0.0Xa8.0x0.0x1", L"0xC0.0Xa8.0x0.0x1", "192.168.0.1", Component(0, 11), CanonHostInfo::IPV4, 4, "C0A80001"},
-      // Non-IP addresses due to invalid characters.
+    // Non-IP addresses due to invalid characters.
     {"192.168.9.com", L"192.168.9.com", "", Component(), CanonHostInfo::NEUTRAL, -1, ""},
-      // Invalid characters for the base should be rejected.
-    {"19a.168.0.1", L"19a.168.0.1", "", Component(), CanonHostInfo::NEUTRAL, -1, ""},
-    {"0308.0250.00.01", L"0308.0250.00.01", "", Component(), CanonHostInfo::NEUTRAL, -1, ""},
-    {"0xCG.0xA8.0x0.0x1", L"0xCG.0xA8.0x0.0x1", "", Component(), CanonHostInfo::NEUTRAL, -1, ""},
-      // If there are not enough components, the last one should fill them out.
+    // Hostnames with a numeric final component but other components that don't
+    // parse as numbers should be considered broken.
+    {"19a.168.0.1", L"19a.168.0.1", "", Component(), CanonHostInfo::BROKEN, -1, ""},
+    {"19a.168.0.1.", L"19a.168.0.1.", "", Component(), CanonHostInfo::BROKEN, -1, ""},
+    {"0308.0250.00.01", L"0308.0250.00.01", "", Component(), CanonHostInfo::BROKEN, -1, ""},
+    {"0308.0250.00.01.", L"0308.0250.00.01.", "", Component(), CanonHostInfo::BROKEN, -1, ""},
+    {"0xCG.0xA8.0x0.0x1", L"0xCG.0xA8.0x0.0x1", "", Component(), CanonHostInfo::BROKEN, -1, ""},
+    {"0xCG.0xA8.0x0.0x1.", L"0xCG.0xA8.0x0.0x1.", "", Component(), CanonHostInfo::BROKEN, -1, ""},
+    // Non-numeric terminal compeonent should be considered not IPv4 hostnames, but valid.
+    {"19.168.0.1a", L"19.168.0.1a", "", Component(), CanonHostInfo::NEUTRAL, -1, ""},
+    {"0xC.0xA8.0x0.0x1G", L"0xC.0xA8.0x0.0x1G", "", Component(), CanonHostInfo::NEUTRAL, -1, ""},
+    // Hostnames that would be considered broken IPv4 hostnames should be considered valid non-IPv4 hostnames if they end with two dots instead of 0 or 1.
+    {"19a.168.0.1..", L"19a.168.0.1..", "", Component(), CanonHostInfo::NEUTRAL, -1, ""},
+    {"0308.0250.00.01..", L"0308.0250.00.01..", "", Component(), CanonHostInfo::NEUTRAL, -1, ""},
+    {"0xCG.0xA8.0x0.0x1..", L"0xCG.0xA8.0x0.0x1..", "", Component(), CanonHostInfo::NEUTRAL, -1, ""},
+    // Hosts with components that aren't considered valid IPv4 numbers but are entirely numeric should be considered invalid.
+    {"1.2.3.08", L"1.2.3.08", "", Component(), CanonHostInfo::BROKEN, -1, ""},
+    {"1.2.3.08.", L"1.2.3.08.", "", Component(), CanonHostInfo::BROKEN, -1, ""},
+    // If there are not enough components, the last one should fill them out.
     {"192", L"192", "0.0.0.192", Component(0, 9), CanonHostInfo::IPV4, 1, "000000C0"},
     {"0xC0a80001", L"0xC0a80001", "192.168.0.1", Component(0, 11), CanonHostInfo::IPV4, 1, "C0A80001"},
     {"030052000001", L"030052000001", "192.168.0.1", Component(0, 11), CanonHostInfo::IPV4, 1, "C0A80001"},
@@ -643,15 +745,16 @@ TEST(URLCanonTest, IPv4) {
     {"192.0x00A80001", L"192.0x000A80001", "192.168.0.1", Component(0, 11), CanonHostInfo::IPV4, 2, "C0A80001"},
     {"0xc0.052000001", L"0xc0.052000001", "192.168.0.1", Component(0, 11), CanonHostInfo::IPV4, 2, "C0A80001"},
     {"192.168.1", L"192.168.1", "192.168.0.1", Component(0, 11), CanonHostInfo::IPV4, 3, "C0A80001"},
-      // Too many components means not an IP address.
-    {"192.168.0.0.1", L"192.168.0.0.1", "", Component(), CanonHostInfo::NEUTRAL, -1, ""},
-      // We allow a single trailing dot.
+    // Hostnames with too many components, but a numeric final numeric component are invalid.
+    {"192.168.0.0.1", L"192.168.0.0.1", "", Component(), CanonHostInfo::BROKEN, -1, ""},
+    // We allow a single trailing dot.
     {"192.168.0.1.", L"192.168.0.1.", "192.168.0.1", Component(0, 11), CanonHostInfo::IPV4, 4, "C0A80001"},
     {"192.168.0.1. hello", L"192.168.0.1. hello", "", Component(), CanonHostInfo::NEUTRAL, -1, ""},
     {"192.168.0.1..", L"192.168.0.1..", "", Component(), CanonHostInfo::NEUTRAL, -1, ""},
-      // Two dots in a row means not an IP address.
-    {"192.168..1", L"192.168..1", "", Component(), CanonHostInfo::NEUTRAL, -1, ""},
-      // Any numerical overflow should be marked as BROKEN.
+    // Hosts with two dots in a row with a final numeric component are considered invalid.
+    {"192.168..1", L"192.168..1", "", Component(), CanonHostInfo::BROKEN, -1, ""},
+    {"192.168..1.", L"192.168..1.", "", Component(), CanonHostInfo::BROKEN, -1, ""},
+    // Any numerical overflow should be marked as BROKEN.
     {"0x100.0", L"0x100.0", "", Component(), CanonHostInfo::BROKEN, -1, ""},
     {"0x100.0.0", L"0x100.0.0", "", Component(), CanonHostInfo::BROKEN, -1, ""},
     {"0x100.0.0.0", L"0x100.0.0.0", "", Component(), CanonHostInfo::BROKEN, -1, ""},
@@ -661,7 +764,7 @@ TEST(URLCanonTest, IPv4) {
     {"0.0.0x10000", L"0.0.0x10000", "", Component(), CanonHostInfo::BROKEN, -1, ""},
     {"0.0x1000000", L"0.0x1000000", "", Component(), CanonHostInfo::BROKEN, -1, ""},
     {"0x100000000", L"0x100000000", "", Component(), CanonHostInfo::BROKEN, -1, ""},
-      // Repeat the previous tests, minus 1, to verify boundaries.
+    // Repeat the previous tests, minus 1, to verify boundaries.
     {"0xFF.0", L"0xFF.0", "255.0.0.0", Component(0, 9), CanonHostInfo::IPV4, 2, "FF000000"},
     {"0xFF.0.0", L"0xFF.0.0", "255.0.0.0", Component(0, 9), CanonHostInfo::IPV4, 3, "FF000000"},
     {"0xFF.0.0.0", L"0xFF.0.0.0", "255.0.0.0", Component(0, 9), CanonHostInfo::IPV4, 4, "FF000000"},
@@ -671,53 +774,69 @@ TEST(URLCanonTest, IPv4) {
     {"0.0.0xFFFF", L"0.0.0xFFFF", "0.0.255.255", Component(0, 11), CanonHostInfo::IPV4, 3, "0000FFFF"},
     {"0.0xFFFFFF", L"0.0xFFFFFF", "0.255.255.255", Component(0, 13), CanonHostInfo::IPV4, 2, "00FFFFFF"},
     {"0xFFFFFFFF", L"0xFFFFFFFF", "255.255.255.255", Component(0, 15), CanonHostInfo::IPV4, 1, "FFFFFFFF"},
-      // Old trunctations tests. They're all "BROKEN" now.
+    // Old trunctations tests. They're all "BROKEN" now.
     {"276.256.0xf1a2.077777", L"276.256.0xf1a2.077777", "", Component(), CanonHostInfo::BROKEN, -1, ""},
     {"192.168.0.257", L"192.168.0.257", "", Component(), CanonHostInfo::BROKEN, -1, ""},
     {"192.168.0xa20001", L"192.168.0xa20001", "", Component(), CanonHostInfo::BROKEN, -1, ""},
     {"192.015052000001", L"192.015052000001", "", Component(), CanonHostInfo::BROKEN, -1, ""},
     {"0X12C0a80001", L"0X12C0a80001", "", Component(), CanonHostInfo::BROKEN, -1, ""},
     {"276.1.2", L"276.1.2", "", Component(), CanonHostInfo::BROKEN, -1, ""},
-      // Spaces should be rejected.
+    // Too many components should be rejected, in valid ranges or not.
+    {"255.255.255.255.255", L"255.255.255.255.255", "", Component(), CanonHostInfo::BROKEN, -1, ""},
+    {"256.256.256.256.256", L"256.256.256.256.256", "", Component(), CanonHostInfo::BROKEN, -1, ""},
+    // Spaces should be rejected.
     {"192.168.0.1 hello", L"192.168.0.1 hello", "", Component(), CanonHostInfo::NEUTRAL, -1, ""},
-      // Very large numbers.
+    // Very large numbers.
     {"0000000000000300.0x00000000000000fF.00000000000000001", L"0000000000000300.0x00000000000000fF.00000000000000001", "192.255.0.1", Component(0, 11), CanonHostInfo::IPV4, 3, "C0FF0001"},
     {"0000000000000300.0xffffffffFFFFFFFF.3022415481470977", L"0000000000000300.0xffffffffFFFFFFFF.3022415481470977", "", Component(0, 11), CanonHostInfo::BROKEN, -1, ""},
-      // A number has no length limit, but long numbers can still overflow.
+    // A number has no length limit, but long numbers can still overflow.
     {"00000000000000000001", L"00000000000000000001", "0.0.0.1", Component(0, 7), CanonHostInfo::IPV4, 1, "00000001"},
     {"0000000000000000100000000000000001", L"0000000000000000100000000000000001", "", Component(), CanonHostInfo::BROKEN, -1, ""},
-      // If a long component is non-numeric, it's a hostname, *not* a broken IP.
+    // If a long component is non-numeric, it's a hostname, *not* a broken IP.
     {"0.0.0.000000000000000000z", L"0.0.0.000000000000000000z", "", Component(), CanonHostInfo::NEUTRAL, -1, ""},
     {"0.0.0.100000000000000000z", L"0.0.0.100000000000000000z", "", Component(), CanonHostInfo::NEUTRAL, -1, ""},
-      // Truncation of all zeros should still result in 0.
+    // Truncation of all zeros should still result in 0.
     {"0.00.0x.0x0", L"0.00.0x.0x0", "0.0.0.0", Component(0, 7), CanonHostInfo::IPV4, 4, "00000000"},
+    // Non-ASCII characters in final component should return NEUTRAL.
+    {"1.2.3.\xF0\x9F\x92\xA9", L"1.2.3.\xD83D\xDCA9", "", Component(), CanonHostInfo::NEUTRAL, -1, ""},
+    {"1.2.3.4\xF0\x9F\x92\xA9", L"1.2.3.4\xD83D\xDCA9", "", Component(), CanonHostInfo::NEUTRAL, -1, ""},
+    {"1.2.3.0x\xF0\x9F\x92\xA9", L"1.2.3.0x\xD83D\xDCA9", "", Component(), CanonHostInfo::NEUTRAL, -1, ""},
+    {"1.2.3.0\xF0\x9F\x92\xA9", L"1.2.3.0\xD83D\xDCA9", "", Component(), CanonHostInfo::NEUTRAL, -1, ""},
+    // Non-ASCII characters in other components should result in broken IPs when final component is numeric.
+    {"1.2.\xF0\x9F\x92\xA9.4", L"1.2.\xD83D\xDCA9.4", "", Component(), CanonHostInfo::BROKEN, -1, ""},
+    {"1.2.3\xF0\x9F\x92\xA9.4", L"1.2.3\xD83D\xDCA9.4", "", Component(), CanonHostInfo::BROKEN, -1, ""},
+    {"1.2.0x\xF0\x9F\x92\xA9.4", L"1.2.0x\xD83D\xDCA9.4", "", Component(), CanonHostInfo::BROKEN, -1, ""},
+    {"1.2.0\xF0\x9F\x92\xA9.4", L"1.2.0\xD83D\xDCA9.4", "", Component(), CanonHostInfo::BROKEN, -1, ""},
+    {"\xF0\x9F\x92\xA9.2.3.4", L"\xD83D\xDCA9.2.3.4", "", Component(), CanonHostInfo::BROKEN, -1, ""},
   };
+  // clang-format on
 
-  for (size_t i = 0; i < arraysize(cases); i++) {
+  for (const auto& test_case : cases) {
+    SCOPED_TRACE(test_case.input8);
+
     // 8-bit version.
-    Component component(0,
-                        static_cast<int>(strlen(cases[i].input8)));
+    Component component(0, static_cast<int>(strlen(test_case.input8)));
 
     std::string out_str1;
     StdStringCanonOutput output1(&out_str1);
     CanonHostInfo host_info;
-    CanonicalizeIPAddress(cases[i].input8, component, &output1, &host_info);
+    CanonicalizeIPAddress(test_case.input8, component, &output1, &host_info);
     output1.Complete();
 
-    EXPECT_EQ(cases[i].expected_family, host_info.family);
-    EXPECT_EQ(std::string(cases[i].expected_address_hex),
+    EXPECT_EQ(test_case.expected_family, host_info.family);
+    EXPECT_EQ(std::string(test_case.expected_address_hex),
               BytesToHexString(host_info.address, host_info.AddressLength()));
     if (host_info.family == CanonHostInfo::IPV4) {
-      EXPECT_STREQ(cases[i].expected, out_str1.c_str());
-      EXPECT_EQ(cases[i].expected_component.begin, host_info.out_host.begin);
-      EXPECT_EQ(cases[i].expected_component.len, host_info.out_host.len);
-      EXPECT_EQ(cases[i].expected_num_ipv4_components,
+      EXPECT_STREQ(test_case.expected, out_str1.c_str());
+      EXPECT_EQ(test_case.expected_component.begin, host_info.out_host.begin);
+      EXPECT_EQ(test_case.expected_component.len, host_info.out_host.len);
+      EXPECT_EQ(test_case.expected_num_ipv4_components,
                 host_info.num_ipv4_components);
     }
 
     // 16-bit version.
-    base::string16 input16(
-        test_utils::TruncateWStringToUTF16(cases[i].input16));
+    std::u16string input16(
+        test_utils::TruncateWStringToUTF16(test_case.input16));
     component = Component(0, static_cast<int>(input16.length()));
 
     std::string out_str2;
@@ -725,20 +844,43 @@ TEST(URLCanonTest, IPv4) {
     CanonicalizeIPAddress(input16.c_str(), component, &output2, &host_info);
     output2.Complete();
 
-    EXPECT_EQ(cases[i].expected_family, host_info.family);
-    EXPECT_EQ(std::string(cases[i].expected_address_hex),
+    EXPECT_EQ(test_case.expected_family, host_info.family);
+    EXPECT_EQ(std::string(test_case.expected_address_hex),
               BytesToHexString(host_info.address, host_info.AddressLength()));
     if (host_info.family == CanonHostInfo::IPV4) {
-      EXPECT_STREQ(cases[i].expected, out_str2.c_str());
-      EXPECT_EQ(cases[i].expected_component.begin, host_info.out_host.begin);
-      EXPECT_EQ(cases[i].expected_component.len, host_info.out_host.len);
-      EXPECT_EQ(cases[i].expected_num_ipv4_components,
+      EXPECT_STREQ(test_case.expected, out_str2.c_str());
+      EXPECT_EQ(test_case.expected_component.begin, host_info.out_host.begin);
+      EXPECT_EQ(test_case.expected_component.len, host_info.out_host.len);
+      EXPECT_EQ(test_case.expected_num_ipv4_components,
                 host_info.num_ipv4_components);
     }
   }
 }
 
-TEST(URLCanonTest, IPv6) {
+class URLCanonIPv6Test
+    : public ::testing::Test,
+      public ::testing::WithParamInterface<bool> {
+ public:
+  URLCanonIPv6Test() {
+    if (GetParam()) {
+      scoped_feature_list_.InitAndEnableFeature(kStrictIPv4EmbeddedIPv6AddressParsing);
+    } else {
+      scoped_feature_list_.InitAndDisableFeature(kStrictIPv4EmbeddedIPv6AddressParsing);
+    }
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         URLCanonIPv6Test,
+                         ::testing::Bool());
+
+TEST_P(URLCanonIPv6Test, IPv6) {
+  bool strict_ipv4_embedded_ipv6_parsing =
+      base::FeatureList::IsEnabled(url::kStrictIPv4EmbeddedIPv6AddressParsing);
+
   IPAddressCase cases[] = {
       // Empty is not an IP address.
     {"", L"", "", Component(), CanonHostInfo::NEUTRAL, -1, ""},
@@ -777,8 +919,24 @@ TEST(URLCanonTest, IPv6) {
     {"[2001::192.168.0.1]", L"[2001::192.168.0.1]", "[2001::c0a8:1]", Component(0, 14), CanonHostInfo::IPV6, -1, "200100000000000000000000C0A80001"},
     {"[1:2:192.168.0.1:5:6]", L"[1:2:192.168.0.1:5:6]", "", Component(), CanonHostInfo::BROKEN, -1, ""},
 
-    // IPv4 with last component missing.
-    {"[::ffff:192.1.2]", L"[::ffff:192.1.2]", "[::ffff:c001:2]", Component(0,15), CanonHostInfo::IPV6, -1, "00000000000000000000FFFFC0010002"},
+    // IPv4 embedded IPv6 addresses
+    {"[::ffff:192.1.2]",
+     L"[::ffff:192.1.2]",
+     "[::ffff:c001:2]",
+     strict_ipv4_embedded_ipv6_parsing ? Component() : Component(0,15),
+     strict_ipv4_embedded_ipv6_parsing ? CanonHostInfo::BROKEN : CanonHostInfo::IPV6,
+     -1,
+     (strict_ipv4_embedded_ipv6_parsing ? "" : "00000000000000000000FFFFC0010002")},
+    {"[::ffff:192.1]",
+     L"[::ffff:192.1]",
+     "[::ffff:c000:1]",
+     strict_ipv4_embedded_ipv6_parsing ? Component() : Component(0,15),
+     strict_ipv4_embedded_ipv6_parsing ? CanonHostInfo::BROKEN : CanonHostInfo::IPV6,
+     -1,
+     (strict_ipv4_embedded_ipv6_parsing ? "" : "00000000000000000000FFFFC0000001")},
+    {"[::ffff:192.1.2.3.4]",
+     L"[::ffff:192.1.2.3.4]",
+     "", Component(), CanonHostInfo::BROKEN, -1, ""},
 
     // IPv4 using hex.
     // TODO(eroman): Should this format be disallowed?
@@ -848,10 +1006,9 @@ TEST(URLCanonTest, IPv6) {
     {"[::1 hello]", L"[::1 hello]", "", Component(), CanonHostInfo::BROKEN, -1, ""},
   };
 
-  for (size_t i = 0; i < arraysize(cases); i++) {
+  for (size_t i = 0; i < std::size(cases); i++) {
     // 8-bit version.
-    Component component(0,
-                        static_cast<int>(strlen(cases[i].input8)));
+    Component component(0, static_cast<int>(strlen(cases[i].input8)));
 
     std::string out_str1;
     StdStringCanonOutput output1(&out_str1);
@@ -870,7 +1027,7 @@ TEST(URLCanonTest, IPv6) {
     }
 
     // 16-bit version.
-    base::string16 input16(
+    std::u16string input16(
         test_utils::TruncateWStringToUTF16(cases[i].input16));
     component = Component(0, static_cast<int>(input16.length()));
 
@@ -975,7 +1132,7 @@ TEST(URLCanonTest, UserInfo) {
     {"ftp://me\\mydomain:pass@foo.com/", "", Component(0, -1), Component(0, -1), true},
   };
 
-  for (size_t i = 0; i < arraysize(user_info_cases); i++) {
+  for (size_t i = 0; i < std::size(user_info_cases); i++) {
     int url_len = static_cast<int>(strlen(user_info_cases[i].input));
     Parsed parsed;
     ParseStandardURL(user_info_cases[i].input, url_len, &parsed);
@@ -1002,7 +1159,7 @@ TEST(URLCanonTest, UserInfo) {
     // Now try the wide version
     out_str.clear();
     StdStringCanonOutput output2(&out_str);
-    base::string16 wide_input(base::UTF8ToUTF16(user_info_cases[i].input));
+    std::u16string wide_input(base::UTF8ToUTF16(user_info_cases[i].input));
     success = CanonicalizeUserInfo(wide_input.c_str(),
                                    parsed.username,
                                    wide_input.c_str(),
@@ -1044,7 +1201,7 @@ TEST(URLCanonTest, Port) {
     {"80", PORT_UNSPECIFIED, ":80", Component(1, 2), true},
   };
 
-  for (size_t i = 0; i < arraysize(port_cases); i++) {
+  for (size_t i = 0; i < std::size(port_cases); i++) {
     int url_len = static_cast<int>(strlen(port_cases[i].input));
     Component in_comp(0, url_len);
     Component out_comp;
@@ -1065,7 +1222,7 @@ TEST(URLCanonTest, Port) {
     // Now try the wide version
     out_str.clear();
     StdStringCanonOutput output2(&out_str);
-    base::string16 wide_input(base::UTF8ToUTF16(port_cases[i].input));
+    std::u16string wide_input(base::UTF8ToUTF16(port_cases[i].input));
     success = CanonicalizePort(wide_input.c_str(),
                                in_comp,
                                port_cases[i].default_port,
@@ -1080,94 +1237,117 @@ TEST(URLCanonTest, Port) {
   }
 }
 
-TEST(URLCanonTest, Path) {
-  DualComponentCase path_cases[] = {
+DualComponentCase kCommonPathCases[] = {
     // ----- path collapsing tests -----
     {"/././foo", L"/././foo", "/foo", Component(0, 4), true},
     {"/./.foo", L"/./.foo", "/.foo", Component(0, 5), true},
     {"/foo/.", L"/foo/.", "/foo/", Component(0, 5), true},
     {"/foo/./", L"/foo/./", "/foo/", Component(0, 5), true},
-      // double dots followed by a slash or the end of the string count
+    // double dots followed by a slash or the end of the string count
     {"/foo/bar/..", L"/foo/bar/..", "/foo/", Component(0, 5), true},
     {"/foo/bar/../", L"/foo/bar/../", "/foo/", Component(0, 5), true},
-      // don't count double dots when they aren't followed by a slash
+    // don't count double dots when they aren't followed by a slash
     {"/foo/..bar", L"/foo/..bar", "/foo/..bar", Component(0, 10), true},
-      // some in the middle
+    // some in the middle
     {"/foo/bar/../ton", L"/foo/bar/../ton", "/foo/ton", Component(0, 8), true},
-    {"/foo/bar/../ton/../../a", L"/foo/bar/../ton/../../a", "/a", Component(0, 2), true},
-      // we should not be able to go above the root
+    {"/foo/bar/../ton/../../a", L"/foo/bar/../ton/../../a", "/a",
+     Component(0, 2), true},
+    // we should not be able to go above the root
     {"/foo/../../..", L"/foo/../../..", "/", Component(0, 1), true},
     {"/foo/../../../ton", L"/foo/../../../ton", "/ton", Component(0, 4), true},
-      // escaped dots should be unescaped and treated the same as dots
+    // escaped dots should be unescaped and treated the same as dots
     {"/foo/%2e", L"/foo/%2e", "/foo/", Component(0, 5), true},
     {"/foo/%2e%2", L"/foo/%2e%2", "/foo/.%2", Component(0, 8), true},
-    {"/foo/%2e./%2e%2e/.%2e/%2e.bar", L"/foo/%2e./%2e%2e/.%2e/%2e.bar", "/..bar", Component(0, 6), true},
-      // Multiple slashes in a row should be preserved and treated like empty
-      // directory names.
+    {"/foo/%2e./%2e%2e/.%2e/%2e.bar", L"/foo/%2e./%2e%2e/.%2e/%2e.bar",
+     "/..bar", Component(0, 6), true},
+    // Multiple slashes in a row should be preserved and treated like empty
+    // directory names.
     {"////../..", L"////../..", "//", Component(0, 2), true},
 
     // ----- escaping tests -----
     {"/foo", L"/foo", "/foo", Component(0, 4), true},
-      // Valid escape sequence
+    // Valid escape sequence
     {"/%20foo", L"/%20foo", "/%20foo", Component(0, 7), true},
-      // Invalid escape sequence we should pass through unchanged.
+    // Invalid escape sequence we should pass through unchanged.
     {"/foo%", L"/foo%", "/foo%", Component(0, 5), true},
     {"/foo%2", L"/foo%2", "/foo%2", Component(0, 6), true},
-      // Invalid escape sequence: bad characters should be treated the same as
-      // the sourrounding text, not as escaped (in this case, UTF-8).
+    // Invalid escape sequence: bad characters should be treated the same as
+    // the surrounding text, not as escaped (in this case, UTF-8).
     {"/foo%2zbar", L"/foo%2zbar", "/foo%2zbar", Component(0, 10), true},
-    {"/foo%2\xc2\xa9zbar", NULL, "/foo%2%C2%A9zbar", Component(0, 16), true},
-    {NULL, L"/foo%2\xc2\xa9zbar", "/foo%2%C3%82%C2%A9zbar", Component(0, 22), true},
-      // Regular characters that are escaped should be unescaped
+    {"/foo%2\xc2\xa9zbar", nullptr, "/foo%2%C2%A9zbar", Component(0, 16), true},
+    {nullptr, L"/foo%2\xc2\xa9zbar", "/foo%2%C3%82%C2%A9zbar", Component(0, 22),
+     true},
+    // Regular characters that are escaped should be unescaped
     {"/foo%41%7a", L"/foo%41%7a", "/fooAz", Component(0, 6), true},
-      // Funny characters that are unescaped should be escaped
-    {"/foo\x09\x91%91", NULL, "/foo%09%91%91", Component(0, 13), true},
-    {NULL, L"/foo\x09\x91%91", "/foo%09%C2%91%91", Component(0, 16), true},
-      // Invalid characters that are escaped should cause a failure.
+    // Funny characters that are unescaped should be escaped
+    {"/foo\x09\x91%91", nullptr, "/foo%09%91%91", Component(0, 13), true},
+    {nullptr, L"/foo\x09\x91%91", "/foo%09%C2%91%91", Component(0, 16), true},
+    // Invalid characters that are escaped should cause a failure.
     {"/foo%00%51", L"/foo%00%51", "/foo%00Q", Component(0, 8), false},
-      // Some characters should be passed through unchanged regardless of esc.
-    {"/(%28:%3A%29)", L"/(%28:%3A%29)", "/(%28:%3A%29)", Component(0, 13), true},
-      // Characters that are properly escaped should not have the case changed
-      // of hex letters.
-    {"/%3A%3a%3C%3c", L"/%3A%3a%3C%3c", "/%3A%3a%3C%3c", Component(0, 13), true},
-      // Funny characters that are unescaped should be escaped
+    // Some characters should be passed through unchanged regardless of esc.
+    {"/(%28:%3A%29)", L"/(%28:%3A%29)", "/(%28:%3A%29)", Component(0, 13),
+     true},
+    // Characters that are properly escaped should not have the case changed
+    // of hex letters.
+    {"/%3A%3a%3C%3c", L"/%3A%3a%3C%3c", "/%3A%3a%3C%3c", Component(0, 13),
+     true},
+    // Funny characters that are unescaped should be escaped
     {"/foo\tbar", L"/foo\tbar", "/foo%09bar", Component(0, 10), true},
-      // Backslashes should get converted to forward slashes
+    // Backslashes should get converted to forward slashes
     {"\\foo\\bar", L"\\foo\\bar", "/foo/bar", Component(0, 8), true},
-      // Hashes found in paths (possibly only when the caller explicitly sets
-      // the path on an already-parsed URL) should be escaped.
+    // Hashes found in paths (possibly only when the caller explicitly sets
+    // the path on an already-parsed URL) should be escaped.
     {"/foo#bar", L"/foo#bar", "/foo%23bar", Component(0, 10), true},
-      // %7f should be allowed and %3D should not be unescaped (these were wrong
-      // in a previous version).
-    {"/%7Ffp3%3Eju%3Dduvgw%3Dd", L"/%7Ffp3%3Eju%3Dduvgw%3Dd", "/%7Ffp3%3Eju%3Dduvgw%3Dd", Component(0, 24), true},
-      // @ should be passed through unchanged (escaped or unescaped).
+    // %7f should be allowed and %3D should not be unescaped (these were wrong
+    // in a previous version).
+    {"/%7Ffp3%3Eju%3Dduvgw%3Dd", L"/%7Ffp3%3Eju%3Dduvgw%3Dd",
+     "/%7Ffp3%3Eju%3Dduvgw%3Dd", Component(0, 24), true},
+    // @ should be passed through unchanged (escaped or unescaped).
     {"/@asdf%40", L"/@asdf%40", "/@asdf%40", Component(0, 9), true},
-      // Nested escape sequences should result in escaping the leading '%' if
-      // unescaping would result in a new escape sequence.
+    // Nested escape sequences should result in escaping the leading '%' if
+    // unescaping would result in a new escape sequence.
     {"/%A%42", L"/%A%42", "/%25AB", Component(0, 6), true},
     {"/%%41B", L"/%%41B", "/%25AB", Component(0, 6), true},
     {"/%%41%42", L"/%%41%42", "/%25AB", Component(0, 6), true},
-      // Make sure truncated "nested" escapes don't result in reading off the
-      // string end.
+    // Make sure truncated "nested" escapes don't result in reading off the
+    // string end.
     {"/%%41", L"/%%41", "/%A", Component(0, 3), true},
-      // Don't unescape the leading '%' if unescaping doesn't result in a valid
-      // new escape sequence.
+    // Don't unescape the leading '%' if unescaping doesn't result in a valid
+    // new escape sequence.
     {"/%%470", L"/%%470", "/%G0", Component(0, 4), true},
     {"/%%2D%41", L"/%%2D%41", "/%-A", Component(0, 4), true},
-      // Don't erroneously downcast a UTF-16 charater in a way that makes it
-      // look like part of an escape sequence.
-    {NULL, L"/%%41\x0130", "/%A%C4%B0", Component(0, 9), true},
+    // Don't erroneously downcast a UTF-16 character in a way that makes it
+    // look like part of an escape sequence.
+    {nullptr, L"/%%41\x0130", "/%A%C4%B0", Component(0, 9), true},
 
     // ----- encoding tests -----
-      // Basic conversions
-    {"/\xe4\xbd\xa0\xe5\xa5\xbd\xe4\xbd\xa0\xe5\xa5\xbd", L"/\x4f60\x597d\x4f60\x597d", "/%E4%BD%A0%E5%A5%BD%E4%BD%A0%E5%A5%BD", Component(0, 37), true},
-      // Invalid unicode characters should fail. We only do validation on
-      // UTF-16 input, so this doesn't happen on 8-bit.
-    {"/\xef\xb7\x90zyx", NULL, "/%EF%B7%90zyx", Component(0, 13), true},
-    {NULL, L"/\xfdd0zyx", "/%EF%BF%BDzyx", Component(0, 13), false},
-  };
+    // Basic conversions
+    {"/\xe4\xbd\xa0\xe5\xa5\xbd\xe4\xbd\xa0\xe5\xa5\xbd",
+     L"/\x4f60\x597d\x4f60\x597d", "/%E4%BD%A0%E5%A5%BD%E4%BD%A0%E5%A5%BD",
+     Component(0, 37), true},
+    // Invalid unicode characters should fail. We only do validation on
+    // UTF-16 input, so this doesn't happen on 8-bit.
+    {"/\xef\xb7\x90zyx", nullptr, "/%EF%B7%90zyx", Component(0, 13), true},
+    {nullptr, L"/\xfdd0zyx", "/%EF%BF%BDzyx", Component(0, 13), false},
+};
 
-  for (size_t i = 0; i < arraysize(path_cases); i++) {
+typedef bool (*CanonFunc8Bit)(const char*,
+                              const Component&,
+                              CanonOutput*,
+                              Component*);
+typedef bool (*CanonFunc16Bit)(const char16_t*,
+                               const Component&,
+                               CanonOutput*,
+                               Component*);
+
+void DoPathTest(const DualComponentCase* path_cases,
+                size_t num_cases,
+                CanonFunc8Bit canon_func_8,
+                CanonFunc16Bit canon_func_16) {
+  for (size_t i = 0; i < num_cases; i++) {
+    testing::Message scope_message;
+    scope_message << path_cases[i].input8 << "," << path_cases[i].input16;
+    SCOPED_TRACE(scope_message);
     if (path_cases[i].input8) {
       int len = static_cast<int>(strlen(path_cases[i].input8));
       Component in_comp(0, len);
@@ -1175,7 +1355,7 @@ TEST(URLCanonTest, Path) {
       std::string out_str;
       StdStringCanonOutput output(&out_str);
       bool success =
-          CanonicalizePath(path_cases[i].input8, in_comp, &output, &out_comp);
+          canon_func_8(path_cases[i].input8, in_comp, &output, &out_comp);
       output.Complete();
 
       EXPECT_EQ(path_cases[i].expected_success, success);
@@ -1185,7 +1365,7 @@ TEST(URLCanonTest, Path) {
     }
 
     if (path_cases[i].input16) {
-      base::string16 input16(
+      std::u16string input16(
           test_utils::TruncateWStringToUTF16(path_cases[i].input16));
       int len = static_cast<int>(input16.length());
       Component in_comp(0, len);
@@ -1194,7 +1374,7 @@ TEST(URLCanonTest, Path) {
       StdStringCanonOutput output(&out_str);
 
       bool success =
-          CanonicalizePath(input16.c_str(), in_comp, &output, &out_comp);
+          canon_func_16(input16.c_str(), in_comp, &output, &out_comp);
       output.Complete();
 
       EXPECT_EQ(path_cases[i].expected_success, success);
@@ -1203,6 +1383,11 @@ TEST(URLCanonTest, Path) {
       EXPECT_EQ(path_cases[i].expected, out_str);
     }
   }
+}
+
+TEST(URLCanonTest, Path) {
+  DoPathTest(kCommonPathCases, std::size(kCommonPathCases), CanonicalizePath,
+             CanonicalizePath);
 
   // Manual test: embedded NULLs should be escaped and the URL should be marked
   // as invalid.
@@ -1216,6 +1401,18 @@ TEST(URLCanonTest, Path) {
   output.Complete();
   EXPECT_FALSE(success);
   EXPECT_EQ("/ab%00c", out_str);
+}
+
+TEST(URLCanonTest, PartialPath) {
+  DualComponentCase partial_path_cases[] = {
+      {".html", L".html", ".html", Component(0, 5), true},
+      {"", L"", "", Component(0, 0), true},
+  };
+
+  DoPathTest(kCommonPathCases, std::size(kCommonPathCases),
+             CanonicalizePartialPath, CanonicalizePartialPath);
+  DoPathTest(partial_path_cases, std::size(partial_path_cases),
+             CanonicalizePartialPath, CanonicalizePartialPath);
 }
 
 TEST(URLCanonTest, Query) {
@@ -1244,7 +1441,7 @@ TEST(URLCanonTest, Query) {
     {"q=\"asdf\"", L"q=\"asdf\"", "?q=%22asdf%22"},
   };
 
-  for (size_t i = 0; i < arraysize(query_cases); i++) {
+  for (size_t i = 0; i < std::size(query_cases); i++) {
     Component out_comp;
 
     if (query_cases[i].input8) {
@@ -1261,7 +1458,7 @@ TEST(URLCanonTest, Query) {
     }
 
     if (query_cases[i].input16) {
-      base::string16 input16(
+      std::u16string input16(
           test_utils::TruncateWStringToUTF16(query_cases[i].input16));
       int len = static_cast<int>(input16.length());
       Component in_comp(0, len);
@@ -1307,8 +1504,8 @@ TEST(URLCanonTest, Ref) {
       // Escaping should be preserved unchanged, even invalid ones
       {"%41%a", L"%41%a", "#%41%a", Component(1, 5), true},
       // Invalid UTF-8/16 input should be flagged and the input made valid
-      {"\xc2", NULL, "#%EF%BF%BD", Component(1, 9), true},
-      {NULL, L"\xd800\x597d", "#%EF%BF%BD%E5%A5%BD", Component(1, 18), true},
+      {"\xc2", nullptr, "#%EF%BF%BD", Component(1, 9), true},
+      {nullptr, L"\xd800\x597d", "#%EF%BF%BD%E5%A5%BD", Component(1, 18), true},
       // Test a Unicode invalid character.
       {"a\xef\xb7\x90", L"a\xfdd0", "#a%EF%BF%BD", Component(1, 10), true},
       // Refs can have # signs and we should preserve them.
@@ -1316,7 +1513,7 @@ TEST(URLCanonTest, Ref) {
       {"#asdf", L"#asdf", "##asdf", Component(1, 5), true},
   };
 
-  for (size_t i = 0; i < arraysize(ref_cases); i++) {
+  for (size_t i = 0; i < std::size(ref_cases); i++) {
     // 8-bit input
     if (ref_cases[i].input8) {
       int len = static_cast<int>(strlen(ref_cases[i].input8));
@@ -1335,7 +1532,7 @@ TEST(URLCanonTest, Ref) {
 
     // 16-bit input
     if (ref_cases[i].input16) {
-      base::string16 input16(
+      std::u16string input16(
           test_utils::TruncateWStringToUTF16(ref_cases[i].input16));
       int len = static_cast<int>(input16.length());
       Component in_comp(0, len);
@@ -1363,8 +1560,8 @@ TEST(URLCanonTest, Ref) {
   output.Complete();
 
   EXPECT_EQ(1, out_comp.begin);
-  EXPECT_EQ(3, out_comp.len);
-  EXPECT_EQ("#abz", out_str);
+  EXPECT_EQ(6, out_comp.len);
+  EXPECT_EQ("#ab%00z", out_str);
 }
 
 TEST(URLCanonTest, CanonicalizeStandardURL) {
@@ -1407,7 +1604,7 @@ TEST(URLCanonTest, CanonicalizeStandardURL) {
       {"https://foo:80/", "https://foo:80/", true},
       {"ftp://foo:21/", "ftp://foo/", true},
       {"ftp://foo:80/", "ftp://foo:80/", true},
-      {"gopher://foo:70/", "gopher://foo/", true},
+      {"gopher://foo:70/", "gopher://foo:70/", true},
       {"gopher://foo:443/", "gopher://foo:443/", true},
       {"ws://foo:80/", "ws://foo/", true},
       {"ws://foo:81/", "ws://foo:81/", true},
@@ -1426,9 +1623,12 @@ TEST(URLCanonTest, CanonicalizeStandardURL) {
       {"ws:)W\x1eW\xef\xb9\xaa"
        "81:80/",
        "ws://%29w%1ew%81/", false},
+      // Regression test for the last_invalid_percent_index bug described in
+      // https://crbug.com/1080890#c10.
+      {R"(HTTP:S/5%\../>%41)", "http://s/%3EA", true},
   };
 
-  for (size_t i = 0; i < arraysize(cases); i++) {
+  for (size_t i = 0; i < std::size(cases); i++) {
     int url_len = static_cast<int>(strlen(cases[i].input));
     Parsed parsed;
     ParseStandardURL(cases[i].input, url_len, &parsed);
@@ -1451,17 +1651,25 @@ TEST(URLCanonTest, CanonicalizeStandardURL) {
 TEST(URLCanonTest, ReplaceStandardURL) {
   ReplaceCase replace_cases[] = {
       // Common case of truncating the path.
-    {"http://www.google.com/foo?bar=baz#ref", NULL, NULL, NULL, NULL, NULL, "/", kDeleteComp, kDeleteComp, "http://www.google.com/"},
+      {"http://www.google.com/foo?bar=baz#ref", nullptr, nullptr, nullptr,
+       nullptr, nullptr, "/", kDeleteComp, kDeleteComp,
+       "http://www.google.com/"},
       // Replace everything
-    {"http://a:b@google.com:22/foo;bar?baz@cat", "https", "me", "pw", "host.com", "99", "/path", "query", "ref", "https://me:pw@host.com:99/path?query#ref"},
+      {"http://a:b@google.com:22/foo;bar?baz@cat", "https", "me", "pw",
+       "host.com", "99", "/path", "query", "ref",
+       "https://me:pw@host.com:99/path?query#ref"},
       // Replace nothing
-    {"http://a:b@google.com:22/foo?baz@cat", NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, "http://a:b@google.com:22/foo?baz@cat"},
+      {"http://a:b@google.com:22/foo?baz@cat", nullptr, nullptr, nullptr,
+       nullptr, nullptr, nullptr, nullptr, nullptr,
+       "http://a:b@google.com:22/foo?baz@cat"},
       // Replace scheme with filesystem. The result is garbage, but you asked
       // for it.
-    {"http://a:b@google.com:22/foo?baz@cat", "filesystem", NULL, NULL, NULL, NULL, NULL, NULL, NULL, "filesystem://a:b@google.com:22/foo?baz@cat"},
+      {"http://a:b@google.com:22/foo?baz@cat", "filesystem", nullptr, nullptr,
+       nullptr, nullptr, nullptr, nullptr, nullptr,
+       "filesystem://a:b@google.com:22/foo?baz@cat"},
   };
 
-  for (size_t i = 0; i < arraysize(replace_cases); i++) {
+  for (size_t i = 0; i < std::size(replace_cases); i++) {
     const ReplaceCase& cur = replace_cases[i];
     int base_len = static_cast<int>(strlen(cur.base));
     Parsed parsed;
@@ -1528,24 +1736,42 @@ TEST(URLCanonTest, ReplaceStandardURL) {
 TEST(URLCanonTest, ReplaceFileURL) {
   ReplaceCase replace_cases[] = {
       // Replace everything
-    {"file:///C:/gaba?query#ref", NULL, NULL, NULL, "filer", NULL, "/foo", "b", "c", "file://filer/foo?b#c"},
+      {"file:///C:/gaba?query#ref", nullptr, nullptr, nullptr, "filer", nullptr,
+       "/foo", "b", "c", "file://filer/foo?b#c"},
       // Replace nothing
-    {"file:///C:/gaba?query#ref", NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, "file:///C:/gaba?query#ref"},
+      {"file:///C:/gaba?query#ref", nullptr, nullptr, nullptr, nullptr, nullptr,
+       nullptr, nullptr, nullptr, "file:///C:/gaba?query#ref"},
+      {"file:///Y:", nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+       nullptr, nullptr, "file:///Y:"},
+      {"file:///Y:/", nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+       nullptr, nullptr, "file:///Y:/"},
+      {"file:///./Y", nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+       nullptr, nullptr, "file:///Y"},
+      {"file:///./Y:", nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+       nullptr, nullptr, "file:///Y:"},
       // Clear non-path components (common)
-    {"file:///C:/gaba?query#ref", NULL, NULL, NULL, NULL, NULL, NULL, kDeleteComp, kDeleteComp, "file:///C:/gaba"},
+      {"file:///C:/gaba?query#ref", nullptr, nullptr, nullptr, nullptr, nullptr,
+       nullptr, kDeleteComp, kDeleteComp, "file:///C:/gaba"},
       // Replace path with something that doesn't begin with a slash and make
       // sure it gets added properly.
-    {"file:///C:/gaba", NULL, NULL, NULL, NULL, NULL, "interesting/", NULL, NULL, "file:///interesting/"},
-    {"file:///home/gaba?query#ref", NULL, NULL, NULL, "filer", NULL, "/foo", "b", "c", "file://filer/foo?b#c"},
-    {"file:///home/gaba?query#ref", NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, "file:///home/gaba?query#ref"},
-    {"file:///home/gaba?query#ref", NULL, NULL, NULL, NULL, NULL, NULL, kDeleteComp, kDeleteComp, "file:///home/gaba"},
-    {"file:///home/gaba", NULL, NULL, NULL, NULL, NULL, "interesting/", NULL, NULL, "file:///interesting/"},
+      {"file:///C:/gaba", nullptr, nullptr, nullptr, nullptr, nullptr,
+       "interesting/", nullptr, nullptr, "file:///interesting/"},
+      {"file:///home/gaba?query#ref", nullptr, nullptr, nullptr, "filer",
+       nullptr, "/foo", "b", "c", "file://filer/foo?b#c"},
+      {"file:///home/gaba?query#ref", nullptr, nullptr, nullptr, nullptr,
+       nullptr, nullptr, nullptr, nullptr, "file:///home/gaba?query#ref"},
+      {"file:///home/gaba?query#ref", nullptr, nullptr, nullptr, nullptr,
+       nullptr, nullptr, kDeleteComp, kDeleteComp, "file:///home/gaba"},
+      {"file:///home/gaba", nullptr, nullptr, nullptr, nullptr, nullptr,
+       "interesting/", nullptr, nullptr, "file:///interesting/"},
       // Replace scheme -- shouldn't do anything.
-    {"file:///C:/gaba?query#ref", "http", NULL, NULL, NULL, NULL, NULL, NULL, NULL, "file:///C:/gaba?query#ref"},
+      {"file:///C:/gaba?query#ref", "http", nullptr, nullptr, nullptr, nullptr,
+       nullptr, nullptr, nullptr, "file:///C:/gaba?query#ref"},
   };
 
-  for (size_t i = 0; i < arraysize(replace_cases); i++) {
+  for (size_t i = 0; i < std::size(replace_cases); i++) {
     const ReplaceCase& cur = replace_cases[i];
+    SCOPED_TRACE(cur.base);
     int base_len = static_cast<int>(strlen(cur.base));
     Parsed parsed;
     ParseFileURL(cur.base, base_len, &parsed);
@@ -1574,42 +1800,45 @@ TEST(URLCanonTest, ReplaceFileURL) {
 TEST(URLCanonTest, ReplaceFileSystemURL) {
   ReplaceCase replace_cases[] = {
       // Replace everything in the outer URL.
-      {"filesystem:file:///temporary/gaba?query#ref", NULL, NULL, NULL, NULL,
-       NULL, "/foo", "b", "c", "filesystem:file:///temporary/foo?b#c"},
+      {"filesystem:file:///temporary/gaba?query#ref", nullptr, nullptr, nullptr,
+       nullptr, nullptr, "/foo", "b", "c",
+       "filesystem:file:///temporary/foo?b#c"},
       // Replace nothing
-      {"filesystem:file:///temporary/gaba?query#ref", NULL, NULL, NULL, NULL,
-       NULL, NULL, NULL, NULL, "filesystem:file:///temporary/gaba?query#ref"},
+      {"filesystem:file:///temporary/gaba?query#ref", nullptr, nullptr, nullptr,
+       nullptr, nullptr, nullptr, nullptr, nullptr,
+       "filesystem:file:///temporary/gaba?query#ref"},
       // Clear non-path components (common)
-      {"filesystem:file:///temporary/gaba?query#ref", NULL, NULL, NULL, NULL,
-       NULL, NULL, kDeleteComp, kDeleteComp,
+      {"filesystem:file:///temporary/gaba?query#ref", nullptr, nullptr, nullptr,
+       nullptr, nullptr, nullptr, kDeleteComp, kDeleteComp,
        "filesystem:file:///temporary/gaba"},
       // Replace path with something that doesn't begin with a slash and make
       // sure it gets added properly.
-      {"filesystem:file:///temporary/gaba?query#ref", NULL, NULL, NULL, NULL,
-       NULL, "interesting/", NULL, NULL,
+      {"filesystem:file:///temporary/gaba?query#ref", nullptr, nullptr, nullptr,
+       nullptr, nullptr, "interesting/", nullptr, nullptr,
        "filesystem:file:///temporary/interesting/?query#ref"},
       // Replace scheme -- shouldn't do anything except canonicalize.
-      {"filesystem:http://u:p@bar.com/t/gaba?query#ref", "http", NULL, NULL,
-       NULL, NULL, NULL, NULL, NULL,
+      {"filesystem:http://u:p@bar.com/t/gaba?query#ref", "http", nullptr,
+       nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
        "filesystem:http://bar.com/t/gaba?query#ref"},
       // Replace username -- shouldn't do anything except canonicalize.
-      {"filesystem:http://u:p@bar.com/t/gaba?query#ref", NULL, "u2", NULL, NULL,
-       NULL, NULL, NULL, NULL, "filesystem:http://bar.com/t/gaba?query#ref"},
+      {"filesystem:http://u:p@bar.com/t/gaba?query#ref", nullptr, "u2", nullptr,
+       nullptr, nullptr, nullptr, nullptr, nullptr,
+       "filesystem:http://bar.com/t/gaba?query#ref"},
       // Replace password -- shouldn't do anything except canonicalize.
-      {"filesystem:http://u:p@bar.com/t/gaba?query#ref", NULL, NULL, "pw2",
-       NULL, NULL, NULL, NULL, NULL,
+      {"filesystem:http://u:p@bar.com/t/gaba?query#ref", nullptr, nullptr,
+       "pw2", nullptr, nullptr, nullptr, nullptr, nullptr,
        "filesystem:http://bar.com/t/gaba?query#ref"},
       // Replace host -- shouldn't do anything except canonicalize.
-      {"filesystem:http://u:p@bar.com:80/t/gaba?query#ref", NULL, NULL, NULL,
-       "foo.com", NULL, NULL, NULL, NULL,
+      {"filesystem:http://u:p@bar.com:80/t/gaba?query#ref", nullptr, nullptr,
+       nullptr, "foo.com", nullptr, nullptr, nullptr, nullptr,
        "filesystem:http://bar.com/t/gaba?query#ref"},
       // Replace port -- shouldn't do anything except canonicalize.
-      {"filesystem:http://u:p@bar.com:40/t/gaba?query#ref", NULL, NULL, NULL,
-       NULL, "41", NULL, NULL, NULL,
+      {"filesystem:http://u:p@bar.com:40/t/gaba?query#ref", nullptr, nullptr,
+       nullptr, nullptr, "41", nullptr, nullptr, nullptr,
        "filesystem:http://bar.com:40/t/gaba?query#ref"},
   };
 
-  for (size_t i = 0; i < arraysize(replace_cases); i++) {
+  for (size_t i = 0; i < std::size(replace_cases); i++) {
     const ReplaceCase& cur = replace_cases[i];
     int base_len = static_cast<int>(strlen(cur.base));
     Parsed parsed;
@@ -1639,16 +1868,21 @@ TEST(URLCanonTest, ReplaceFileSystemURL) {
 TEST(URLCanonTest, ReplacePathURL) {
   ReplaceCase replace_cases[] = {
       // Replace everything
-    {"data:foo", "javascript", NULL, NULL, NULL, NULL, "alert('foo?');", NULL, NULL, "javascript:alert('foo?');"},
+      {"data:foo", "javascript", nullptr, nullptr, nullptr, nullptr,
+       "alert('foo?');", nullptr, nullptr, "javascript:alert('foo?');"},
       // Replace nothing
-    {"data:foo", NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, "data:foo"},
+      {"data:foo", nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+       nullptr, nullptr, "data:foo"},
       // Replace one or the other
-    {"data:foo", "javascript", NULL, NULL, NULL, NULL, NULL, NULL, NULL, "javascript:foo"},
-    {"data:foo", NULL, NULL, NULL, NULL, NULL, "bar", NULL, NULL, "data:bar"},
-    {"data:foo", NULL, NULL, NULL, NULL, NULL, kDeleteComp, NULL, NULL, "data:"},
+      {"data:foo", "javascript", nullptr, nullptr, nullptr, nullptr, nullptr,
+       nullptr, nullptr, "javascript:foo"},
+      {"data:foo", nullptr, nullptr, nullptr, nullptr, nullptr, "bar", nullptr,
+       nullptr, "data:bar"},
+      {"data:foo", nullptr, nullptr, nullptr, nullptr, nullptr, kDeleteComp,
+       nullptr, nullptr, "data:"},
   };
 
-  for (size_t i = 0; i < arraysize(replace_cases); i++) {
+  for (size_t i = 0; i < std::size(replace_cases); i++) {
     const ReplaceCase& cur = replace_cases[i];
     int base_len = static_cast<int>(strlen(cur.base));
     Parsed parsed;
@@ -1699,7 +1933,7 @@ TEST(URLCanonTest, ReplaceMailtoURL) {
     {"mailto:addr1", NULL, NULL, NULL, NULL, NULL, NULL, NULL, "BLAH", "mailto:addr1"},
   };
 
-  for (size_t i = 0; i < arraysize(replace_cases); i++) {
+  for (size_t i = 0; i < std::size(replace_cases); i++) {
     const ReplaceCase& cur = replace_cases[i];
     int base_len = static_cast<int>(strlen(cur.base));
     Parsed parsed;
@@ -1787,24 +2021,32 @@ TEST(URLCanonTest, CanonicalizeFileURL) {
       // Busted refs shouldn't make the whole thing fail.
       {"file:///C:/asdf#\xc2", "file:///C:/asdf#%EF%BF%BD", true, Component(),
        Component(7, 8)},
+      {"file:///./s:", "file:///S:", true, Component(), Component(7, 3)},
 #else
       // Unix-style paths
-    {"file:///home/me", "file:///home/me", true, Component(), Component(7, 8)},
+      {"file:///home/me", "file:///home/me", true, Component(),
+       Component(7, 8)},
       // Windowsy ones should get still treated as Unix-style.
-    {"file:c:\\foo\\bar.html", "file:///c:/foo/bar.html", true, Component(), Component(7, 16)},
-    {"file:c|//foo\\bar.html", "file:///c%7C//foo/bar.html", true, Component(), Component(7, 19)},
+      {"file:c:\\foo\\bar.html", "file:///c:/foo/bar.html", true, Component(),
+       Component(7, 16)},
+      {"file:c|//foo\\bar.html", "file:///c%7C//foo/bar.html", true,
+       Component(), Component(7, 19)},
+      {"file:///./s:", "file:///s:", true, Component(), Component(7, 3)},
       // file: tests from WebKit (LayoutTests/fast/loader/url-parse-1.html)
-    {"//", "file:///", true, Component(), Component(7, 1)},
-    {"///", "file:///", true, Component(), Component(7, 1)},
-    {"///test", "file:///test", true, Component(), Component(7, 5)},
-    {"file://test", "file://test/", true, Component(7, 4), Component(11, 1)},
-    {"file://localhost",  "file://localhost/", true, Component(7, 9), Component(16, 1)},
-    {"file://localhost/", "file://localhost/", true, Component(7, 9), Component(16, 1)},
-    {"file://localhost/test", "file://localhost/test", true, Component(7, 9), Component(16, 5)},
+      {"//", "file:///", true, Component(), Component(7, 1)},
+      {"///", "file:///", true, Component(), Component(7, 1)},
+      {"///test", "file:///test", true, Component(), Component(7, 5)},
+      {"file://test", "file://test/", true, Component(7, 4), Component(11, 1)},
+      {"file://localhost", "file://localhost/", true, Component(7, 9),
+       Component(16, 1)},
+      {"file://localhost/", "file://localhost/", true, Component(7, 9),
+       Component(16, 1)},
+      {"file://localhost/test", "file://localhost/test", true, Component(7, 9),
+       Component(16, 5)},
 #endif  // _WIN32
   };
 
-  for (size_t i = 0; i < arraysize(cases); i++) {
+  for (size_t i = 0; i < std::size(cases); i++) {
     int url_len = static_cast<int>(strlen(cases[i].input));
     Parsed parsed;
     ParseFileURL(cases[i].input, url_len, &parsed);
@@ -1838,16 +2080,22 @@ TEST(URLCanonTest, CanonicalizeFileSystemURL) {
     const char* expected;
     bool expected_success;
   } cases[] = {
-    {"Filesystem:htTp://www.Foo.com:80/tempoRary", "filesystem:http://www.foo.com/tempoRary/", true},
-    {"filesystem:httpS://www.foo.com/temporary/", "filesystem:https://www.foo.com/temporary/", true},
-    {"filesystem:http://www.foo.com//", "filesystem:http://www.foo.com//", false},
-    {"filesystem:http://www.foo.com/persistent/bob?query#ref", "filesystem:http://www.foo.com/persistent/bob?query#ref", true},
-    {"filesystem:fIle://\\temporary/", "filesystem:file:///temporary/", true},
-    {"filesystem:fiLe:///temporary", "filesystem:file:///temporary/", true},
-    {"filesystem:File:///temporary/Bob?qUery#reF", "filesystem:file:///temporary/Bob?qUery#reF", true},
+      {"Filesystem:htTp://www.Foo.com:80/tempoRary",
+       "filesystem:http://www.foo.com/tempoRary/", true},
+      {"filesystem:httpS://www.foo.com/temporary/",
+       "filesystem:https://www.foo.com/temporary/", true},
+      {"filesystem:http://www.foo.com//", "filesystem:http://www.foo.com//",
+       false},
+      {"filesystem:http://www.foo.com/persistent/bob?query#ref",
+       "filesystem:http://www.foo.com/persistent/bob?query#ref", true},
+      {"filesystem:fIle://\\temporary/", "filesystem:file:///temporary/", true},
+      {"filesystem:fiLe:///temporary", "filesystem:file:///temporary/", true},
+      {"filesystem:File:///temporary/Bob?qUery#reF",
+       "filesystem:file:///temporary/Bob?qUery#reF", true},
+      {"FilEsysteM:htTp:E=/.", "filesystem:http://e%3D//", false},
   };
 
-  for (size_t i = 0; i < arraysize(cases); i++) {
+  for (size_t i = 0; i < std::size(cases); i++) {
     int url_len = static_cast<int>(strlen(cases[i].input));
     Parsed parsed;
     ParseFileSystemURL(cases[i].input, url_len, &parsed);
@@ -1877,12 +2125,16 @@ TEST(URLCanonTest, CanonicalizePathURL) {
     const char* input;
     const char* expected;
   } path_cases[] = {
-    {"javascript:", "javascript:"},
-    {"JavaScript:Foo", "javascript:Foo"},
-    {"Foo:\":This /is interesting;?#", "foo:\":This /is interesting;?#"},
+      {"javascript:", "javascript:"},
+      {"JavaScript:Foo", "javascript:Foo"},
+      {"Foo:\":This /is interesting;?#", "foo:\":This /is interesting;?#"},
+
+      // Validation errors should not cause failure. See
+      // https://crbug.com/925614.
+      {"javascript:\uFFFF", "javascript:%EF%BF%BD"},
   };
 
-  for (size_t i = 0; i < arraysize(path_cases); i++) {
+  for (size_t i = 0; i < std::size(path_cases); i++) {
     int url_len = static_cast<int>(strlen(path_cases[i].input));
     Parsed parsed;
     ParsePathURL(path_cases[i].input, url_len, true, &parsed);
@@ -1905,6 +2157,53 @@ TEST(URLCanonTest, CanonicalizePathURL) {
       EXPECT_EQ(0, out_parsed.GetContent().begin);
       EXPECT_EQ(-1, out_parsed.GetContent().len);
     }
+  }
+}
+
+TEST(URLCanonTest, CanonicalizePathURLPath) {
+  struct PathCase {
+    std::string input;
+    std::wstring input16;
+    std::string expected;
+  } path_cases[] = {
+      {"Foo", L"Foo", "Foo"},
+      {"\":This /is interesting;?#", L"\":This /is interesting;?#",
+       "\":This /is interesting;?#"},
+      {"\uFFFF", L"\uFFFF", "%EF%BF%BD"},
+  };
+
+  for (size_t i = 0; i < std::size(path_cases); i++) {
+    // 8-bit string input
+    std::string out_str;
+    StdStringCanonOutput output(&out_str);
+    url::Component out_component;
+    CanonicalizePathURLPath(path_cases[i].input.data(),
+                            Component(0, path_cases[i].input.size()), &output,
+                            &out_component);
+    output.Complete();
+
+    EXPECT_EQ(path_cases[i].expected, out_str);
+
+    EXPECT_EQ(0, out_component.begin);
+    EXPECT_EQ(path_cases[i].expected.size(),
+              static_cast<size_t>(out_component.len));
+
+    // 16-bit string input
+    std::string out_str16;
+    StdStringCanonOutput output16(&out_str16);
+    url::Component out_component16;
+    std::u16string input16(
+        test_utils::TruncateWStringToUTF16(path_cases[i].input16.data()));
+    CanonicalizePathURLPath(input16.c_str(),
+                            Component(0, path_cases[i].input16.size()),
+                            &output16, &out_component16);
+    output16.Complete();
+
+    EXPECT_EQ(path_cases[i].expected, out_str16);
+
+    EXPECT_EQ(0, out_component16.begin);
+    EXPECT_EQ(path_cases[i].expected.size(),
+              static_cast<size_t>(out_component16.len));
   }
 }
 
@@ -1967,7 +2266,7 @@ TEST(URLCanonTest, CanonicalizeMailtoURL) {
   Parsed parsed;
   Parsed out_parsed;
 
-  for (size_t i = 0; i < arraysize(cases); i++) {
+  for (size_t i = 0; i < std::size(cases); i++) {
     int url_len = static_cast<int>(strlen(cases[i].input));
     if (i == 0) {
       // The first test case purposely has a '\0' in it -- don't count it
@@ -2042,17 +2341,17 @@ TEST(URLCanonTest, _itow_s) {
   // We fill the buffer with 0xff to ensure that it's getting properly
   // null-terminated. We also allocate one byte more than what we tell
   // _itoa_s about, and ensure that the extra byte is untouched.
-  base::char16 buf[6];
+  char16_t buf[6];
   const char fill_mem = 0xff;
-  const base::char16 fill_char = 0xffff;
+  const char16_t fill_char = 0xffff;
   memset(buf, fill_mem, sizeof(buf));
   EXPECT_EQ(0, _itow_s(12, buf, sizeof(buf) / 2 - 1, 10));
-  EXPECT_EQ(base::UTF8ToUTF16("12"), base::string16(buf));
+  EXPECT_EQ(u"12", std::u16string(buf));
   EXPECT_EQ(fill_char, buf[3]);
 
   // Test the edge cases - exactly the buffer size and one over
   EXPECT_EQ(0, _itow_s(1234, buf, sizeof(buf) / 2 - 1, 10));
-  EXPECT_EQ(base::UTF8ToUTF16("1234"), base::string16(buf));
+  EXPECT_EQ(u"1234", std::u16string(buf));
   EXPECT_EQ(fill_char, buf[5]);
 
   memset(buf, fill_mem, sizeof(buf));
@@ -2062,13 +2361,12 @@ TEST(URLCanonTest, _itow_s) {
   // Test the template overload (note that this will see the full buffer)
   memset(buf, fill_mem, sizeof(buf));
   EXPECT_EQ(0, _itow_s(12, buf, 10));
-  EXPECT_EQ(base::UTF8ToUTF16("12"),
-            base::string16(buf));
+  EXPECT_EQ(u"12", std::u16string(buf));
   EXPECT_EQ(fill_char, buf[3]);
 
   memset(buf, fill_mem, sizeof(buf));
   EXPECT_EQ(0, _itow_s(12345, buf, 10));
-  EXPECT_EQ(base::UTF8ToUTF16("12345"), base::string16(buf));
+  EXPECT_EQ(u"12345", std::u16string(buf));
 
   EXPECT_EQ(EINVAL, _itow_s(123456, buf, 10));
 }
@@ -2213,6 +2511,11 @@ TEST(URLCanonTest, ResolveRelativeURL) {
       // is not file.
     {"http://host/a", true, false, "/c:\\foo", true, true, true, "http://host/c:/foo"},
     {"http://host/a", true, false, "//c:\\foo", true, true, true, "http://c/foo"},
+      // Cross-platform relative file: resolution behavior.
+    {"file://host/a", true, true, "/", true, true, true, "file://host/"},
+    {"file://host/a", true, true, "//", true, true, true, "file:///"},
+    {"file://host/a", true, true, "/b", true, true, true, "file://host/b"},
+    {"file://host/a", true, true, "//b", true, true, true, "file://b/"},
       // Ensure that ports aren't allowed for hosts relative to a file url.
       // Although the result string shows a host:port portion, the call to
       // resolve the relative URL returns false, indicating parse failure,
@@ -2233,7 +2536,7 @@ TEST(URLCanonTest, ResolveRelativeURL) {
     {"about:blank", false, false, "content://content.Provider/", true, false, true, ""},
   };
 
-  for (size_t i = 0; i < arraysize(rel_cases); i++) {
+  for (size_t i = 0; i < std::size(rel_cases); i++) {
     const RelativeCase& cur_case = rel_cases[i];
 
     Parsed parsed;
@@ -2299,12 +2602,12 @@ TEST(URLCanonTest, ReplacementOverflow) {
 
   // Override two components, the path with something short, and the query with
   // something long enough to trigger the bug.
-  Replacements<base::char16> repl;
-  base::string16 new_query;
+  Replacements<char16_t> repl;
+  std::u16string new_query;
   for (int i = 0; i < 4800; i++)
     new_query.push_back('a');
 
-  base::string16 new_path(test_utils::TruncateWStringToUTF16(L"/foo"));
+  std::u16string new_path(test_utils::TruncateWStringToUTF16(L"/foo"));
   repl.SetPath(new_path.c_str(), Component(0, 4));
   repl.SetQuery(new_query.c_str(),
                 Component(0, static_cast<int>(new_query.length())));
@@ -2335,21 +2638,59 @@ TEST(URLCanonTest, DefaultPortForScheme) {
       {"ftp", 21},
       {"ws", 80},
       {"wss", 443},
-      {"gopher", 70},
       {"fake-scheme", PORT_UNSPECIFIED},
       {"HTTP", PORT_UNSPECIFIED},
       {"HTTPS", PORT_UNSPECIFIED},
       {"FTP", PORT_UNSPECIFIED},
       {"WS", PORT_UNSPECIFIED},
       {"WSS", PORT_UNSPECIFIED},
-      {"GOPHER", PORT_UNSPECIFIED},
   };
 
   for (auto& test_case : cases) {
     SCOPED_TRACE(test_case.scheme);
     EXPECT_EQ(test_case.expected_port,
-              DefaultPortForScheme(test_case.scheme,
-                                   strlen(test_case.scheme)));
+              DefaultPortForScheme(test_case.scheme, strlen(test_case.scheme)));
+  }
+}
+
+TEST(URLCanonTest, FindWindowsDriveLetter) {
+  struct TestCase {
+    base::StringPiece spec;
+    int begin;
+    int end;  // -1 for end of spec
+    int expected_drive_letter_pos;
+  } cases[] = {
+      {"/", 0, -1, -1},
+
+      {"c:/foo", 0, -1, 0},
+      {"/c:/foo", 0, -1, 1},
+      {"//c:/foo", 0, -1, -1},  // "//" does not canonicalize to "/"
+      {"\\C|\\foo", 0, -1, 1},
+      {"/cd:/foo", 0, -1, -1},  // "/c" does not canonicalize to "/"
+      {"/./c:/foo", 0, -1, 3},
+      {"/.//c:/foo", 0, -1, -1},  // "/.//" does not canonicalize to "/"
+      {"/././c:/foo", 0, -1, 5},
+      {"/abc/c:/foo", 0, -1, -1},  // "/abc/" does not canonicalize to "/"
+      {"/abc/./../c:/foo", 0, -1, 10},
+
+      {"/c:/c:/foo", 3, -1, 4},  // actual input is "/c:/foo"
+      {"/c:/foo", 3, -1, -1},    // actual input is "/foo"
+      {"/c:/foo", 0, 1, -1},     // actual input is "/"
+  };
+
+  for (const auto& c : cases) {
+    int end = c.end;
+    if (end == -1)
+      end = c.spec.size();
+
+    EXPECT_EQ(c.expected_drive_letter_pos,
+              FindWindowsDriveLetter(c.spec.data(), c.begin, end))
+        << "for " << c.spec << "[" << c.begin << ":" << end << "] (UTF-8)";
+
+    std::u16string spec16 = base::ASCIIToUTF16(c.spec);
+    EXPECT_EQ(c.expected_drive_letter_pos,
+              FindWindowsDriveLetter(spec16.data(), c.begin, end))
+        << "for " << c.spec << "[" << c.begin << ":" << end << "] (UTF-16)";
   }
 }
 
@@ -2357,41 +2698,41 @@ TEST(URLCanonTest, IDNToASCII) {
   RawCanonOutputW<1024> output;
 
   // Basic ASCII test.
-  base::string16 str = base::UTF8ToUTF16("hello");
+  std::u16string str = u"hello";
   EXPECT_TRUE(IDNToASCII(str.data(), str.length(), &output));
-  EXPECT_EQ(base::UTF8ToUTF16("hello"), base::string16(output.data()));
+  EXPECT_EQ(u"hello", std::u16string(output.data()));
   output.set_length(0);
 
   // Mixed ASCII/non-ASCII.
-  str = base::UTF8ToUTF16("hellö");
+  str = u"hellö";
   EXPECT_TRUE(IDNToASCII(str.data(), str.length(), &output));
-  EXPECT_EQ(base::UTF8ToUTF16("xn--hell-8qa"), base::string16(output.data()));
+  EXPECT_EQ(u"xn--hell-8qa", std::u16string(output.data()));
   output.set_length(0);
 
   // All non-ASCII.
-  str = base::UTF8ToUTF16("你好");
+  str = u"你好";
   EXPECT_TRUE(IDNToASCII(str.data(), str.length(), &output));
-  EXPECT_EQ(base::UTF8ToUTF16("xn--6qq79v"), base::string16(output.data()));
+  EXPECT_EQ(u"xn--6qq79v", std::u16string(output.data()));
   output.set_length(0);
 
   // Characters that need mapping (the resulting Punycode is the encoding for
   // "1⁄4").
-  str = base::UTF8ToUTF16("¼");
+  str = u"¼";
   EXPECT_TRUE(IDNToASCII(str.data(), str.length(), &output));
-  EXPECT_EQ(base::UTF8ToUTF16("xn--14-c6t"), base::string16(output.data()));
+  EXPECT_EQ(u"xn--14-c6t", std::u16string(output.data()));
   output.set_length(0);
 
   // String to encode already starts with "xn--", and all ASCII. Should not
   // modify the string.
-  str = base::UTF8ToUTF16("xn--hell-8qa");
+  str = u"xn--hell-8qa";
   EXPECT_TRUE(IDNToASCII(str.data(), str.length(), &output));
-  EXPECT_EQ(base::UTF8ToUTF16("xn--hell-8qa"), base::string16(output.data()));
+  EXPECT_EQ(u"xn--hell-8qa", std::u16string(output.data()));
   output.set_length(0);
 
   // String to encode already starts with "xn--", and mixed ASCII/non-ASCII.
   // Should fail, due to a special case: if the label starts with "xn--", it
   // should be parsed as Punycode, which must be all ASCII.
-  str = base::UTF8ToUTF16("xn--hellö");
+  str = u"xn--hellö";
   EXPECT_FALSE(IDNToASCII(str.data(), str.length(), &output));
   output.set_length(0);
 
@@ -2399,7 +2740,7 @@ TEST(URLCanonTest, IDNToASCII) {
   // This tests that there is still an error for the character '⁄' (U+2044),
   // which would be a valid ASCII character, U+0044, if the high byte were
   // ignored.
-  str = base::UTF8ToUTF16("xn--1⁄4");
+  str = u"xn--1⁄4";
   EXPECT_FALSE(IDNToASCII(str.data(), str.length(), &output));
   output.set_length(0);
 }

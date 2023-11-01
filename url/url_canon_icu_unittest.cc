@@ -1,11 +1,13 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "url/url_canon_icu.h"
-#include "base/macros.h"
-#include "starboard/common/string.h"
-#include "starboard/types.h"
+
+#include <stddef.h>
+
+#include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/icu/source/common/unicode/ucnv.h"
 #include "url/url_canon.h"
@@ -22,18 +24,22 @@ class UConvScoper {
   explicit UConvScoper(const char* charset_name) {
     UErrorCode err = U_ZERO_ERROR;
     converter_ = ucnv_open(charset_name, &err);
+    if (!converter_) {
+      LOG(ERROR) << "Failed to open charset " << charset_name << ": "
+                 << u_errorName(err);
+    }
   }
 
   ~UConvScoper() {
     if (converter_)
-      ucnv_close(converter_);
+      ucnv_close(converter_.ExtractAsDangling());
   }
 
   // Returns the converter object, may be NULL.
   UConverter* converter() const { return converter_; }
 
  private:
-  UConverter* converter_;
+  raw_ptr<UConverter> converter_;
 };
 
 TEST(URLCanonIcuTest, ICUCharsetConverter) {
@@ -47,16 +53,14 @@ TEST(URLCanonIcuTest, ICUCharsetConverter) {
     {L"\x4f60\x597d", "utf-8", "\xe4\xbd\xa0\xe5\xa5\xbd"},
       // Non-BMP UTF-8.
     {L"!\xd800\xdf00!", "utf-8", "!\xf0\x90\x8c\x80!"},
-#if !defined(STARBOARD)
       // Big5
     {L"\x4f60\x597d", "big5", "\xa7\x41\xa6\x6e"},
       // Unrepresentable character in the destination set.
     {L"hello\x4f60\x06de\x597dworld", "big5",
       "hello\xa7\x41%26%231758%3B\xa6\x6eworld"},
-#endif
   };
 
-  for (size_t i = 0; i < arraysize(icu_cases); i++) {
+  for (size_t i = 0; i < std::size(icu_cases); i++) {
     UConvScoper conv(icu_cases[i].encoding);
     ASSERT_TRUE(conv.converter() != NULL);
     ICUCharsetConverter converter(conv.converter());
@@ -64,7 +68,7 @@ TEST(URLCanonIcuTest, ICUCharsetConverter) {
     std::string str;
     StdStringCanonOutput output(&str);
 
-    base::string16 input_str(
+    std::u16string input_str(
         test_utils::TruncateWStringToUTF16(icu_cases[i].input));
     int input_len = static_cast<int>(input_str.length());
     converter.ConvertFromUTF16(input_str.c_str(), input_len, &output);
@@ -81,14 +85,14 @@ TEST(URLCanonIcuTest, ICUCharsetConverter) {
   ICUCharsetConverter converter(conv.converter());
   for (int i = static_size - 2; i <= static_size + 2; i++) {
     // Make a string with the appropriate length.
-    base::string16 input;
+    std::u16string input;
     for (int ch = 0; ch < i; ch++)
       input.push_back('a');
 
     RawCanonOutput<static_size> output;
     converter.ConvertFromUTF16(input.c_str(), static_cast<int>(input.length()),
                                &output);
-    EXPECT_EQ(input.length(), static_cast<size_t>(output.length()));
+    EXPECT_EQ(input.length(), output.length());
   }
 }
 
@@ -101,7 +105,6 @@ TEST(URLCanonIcuTest, QueryWithConverter) {
   } query_cases[] = {
       // Regular ASCII case in some different encodings.
     {"foo=bar", L"foo=bar", "utf-8", "?foo=bar"},
-#if !defined(STARBOARD)
     {"foo=bar", L"foo=bar", "shift_jis", "?foo=bar"},
     {"foo=bar", L"foo=bar", "gb2312", "?foo=bar"},
       // Chinese input/output
@@ -113,10 +116,9 @@ TEST(URLCanonIcuTest, QueryWithConverter) {
       // "?q=&#20320;"
     {"q=Chinese\xef\xbc\xa7", L"q=Chinese\xff27", "iso-8859-1",
       "?q=Chinese%26%2365319%3B"},
-#endif
   };
 
-  for (size_t i = 0; i < arraysize(query_cases); i++) {
+  for (size_t i = 0; i < std::size(query_cases); i++) {
     Component out_comp;
 
     UConvScoper conv(query_cases[i].encoding);
@@ -137,7 +139,7 @@ TEST(URLCanonIcuTest, QueryWithConverter) {
     }
 
     if (query_cases[i].input16) {
-      base::string16 input16(
+      std::u16string input16(
           test_utils::TruncateWStringToUTF16(query_cases[i].input16));
       int len = static_cast<int>(input16.length());
       Component in_comp(0, len);
