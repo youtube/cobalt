@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: microphone.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: microphone.h
 
 Defines functions for microphone creation, control, audio data fetching, and
 destruction. This module supports multiple calls to `SbMicrophoneOpen` and
