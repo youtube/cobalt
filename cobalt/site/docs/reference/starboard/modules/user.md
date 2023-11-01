@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: user.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: user.h
 
 Defines a user management API. This module defines functions only for managing
 signed-in users. Platforms that do not have users must still implement this API,
