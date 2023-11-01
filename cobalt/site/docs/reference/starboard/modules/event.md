@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: event.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: event.h
 
 Defines the event system that wraps the Starboard main loop and entry point.
 
