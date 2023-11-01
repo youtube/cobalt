@@ -146,8 +146,8 @@ def parse_args() -> None:
   parser.add_argument(
       '--print_unchanged',
       action='store_true',
-      help=('Also print the checks that will be left unchanged.'
-            'Is a no-op with --apply.'))
+      help='Also print the checks that will be left unchanged.'
+      ' Is a no-op with --apply.')
   args = parser.parse_args()
 
   if not args.branch:
