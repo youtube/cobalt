@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: media.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: media.h
 
 Provides media definitions that are common between the Decoder and Player
 interfaces.
