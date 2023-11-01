@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: ui_navigation.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: ui_navigation.h
 
 API to allow applications to take advantage of the platform's native UI engine.
 This is mainly to drive the animation of visual elements and to signal which of
