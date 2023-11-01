@@ -75,8 +75,11 @@ class Camera3DInputPoller : public Camera3D {
 
   // The current accumulated camera orientation state.
   float roll_in_radians_;
+  float roll_offset_in_radians_;
   float pitch_in_radians_;
+  float pitch_offset_in_radians_;
   float yaw_in_radians_;
+  float yaw_offset_in_radians_;
 
   // The time that the last update to the camera's state has occurred.
   base::Optional<base::TimeTicks> last_update_;

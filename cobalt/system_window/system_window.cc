@@ -156,18 +156,21 @@ void SystemWindow::DispatchInputEvent(const SbEvent* event,
       case InputEvent::kTouchpadUp:
       case InputEvent::kTouchscreenUp:
       case InputEvent::kWheel:
+      case InputEvent::kGyroSensorMove:
         break;
     }
   }
 
-  std::unique_ptr<InputEvent> input_event(
-      new InputEvent(timestamp, type, data.device_id, key_code, modifiers,
-                     is_repeat, math::PointF(data.position.x, data.position.y),
-                     math::PointF(data.delta.x, data.delta.y), pressure,
-                     math::PointF(data.size.x, data.size.y),
-                     math::PointF(data.tilt.x, data.tilt.y),
-                     data.input_text ? data.input_text : "",
-                     data.is_composing ? data.is_composing : false));
+  std::unique_ptr<InputEvent> input_event(new InputEvent(
+      timestamp, type, data.device_id, key_code, modifiers, is_repeat,
+      math::PointF(data.position.x, data.position.y),
+      math::PointF(data.delta.x, data.delta.y), pressure,
+      math::PointF(data.size.x, data.size.y),
+      math::PointF(data.tilt.x, data.tilt.y),
+      data.input_text ? data.input_text : "",
+      data.is_composing ? data.is_composing : false,
+      math::Point3F(data.gyroscope_data.angle.x, data.gyroscope_data.angle.y,
+                    data.gyroscope_data.angle.z)));
   event_dispatcher()->DispatchEvent(
       std::unique_ptr<base::Event>(input_event.release()));
 }
@@ -254,6 +257,11 @@ void SystemWindow::HandleInputEvent(const SbEvent* event) {
     }
     case kSbInputEventTypeInput: {
       DispatchInputEvent(event, InputEvent::kInput, false /* is_repeat */);
+      break;
+    }
+    case kSbInputEventTypeGyroSensor: {
+      DispatchInputEvent(event, InputEvent::kGyroSensorMove,
+                         false /* is_repeat */);
       break;
     }
     default:

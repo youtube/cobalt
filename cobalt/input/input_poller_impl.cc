@@ -19,7 +19,8 @@
 namespace cobalt {
 namespace input {
 
-InputPollerImpl::InputPollerImpl() : InputPoller() {
+InputPollerImpl::InputPollerImpl()
+    : InputPoller(), gyro_sensor_data_{0.f, 0.f, 0.f} {
   // Initialize the joystick key mapping.
   key_offset_map_[kSbKeyGamepadLeftStickUp] = 0.0f;
   key_offset_map_[kSbKeyGamepadLeftStickDown] = 0.0f;
@@ -106,7 +107,16 @@ void InputPollerImpl::UpdateInputEvent(
     case system_window::InputEvent::kWheel:
       // Pointer and Wheel events are ignored here.
       break;
+    case system_window::InputEvent::kGyroSensorMove: {
+      gyro_sensor_data_ = {input_event->gyro_sensor_angle().x(),
+                           input_event->gyro_sensor_angle().y(),
+                           input_event->gyro_sensor_angle().z()};
+    } break;
   }
+}
+
+const std::tuple<float, float, float>& InputPollerImpl::GyroSensorAngles() {
+  return gyro_sensor_data_;
 }
 
 }  // namespace input

@@ -74,6 +74,11 @@ typedef enum SbInputDeviceType {
   //
   // Produces |Input| events.
   kSbInputDeviceTypeOnScreenKeyboard,
+
+  // Input from a gyroscope
+  //
+  // Produces |Input| event
+  kSbInputDeviceGyroSensor,
 } SbInputDeviceType;
 
 // The action that an input event represents.
@@ -99,6 +104,10 @@ typedef enum SbInputEventType {
 
   // https://w3c.github.io/uievents/#event-type-input
   kSbInputEventTypeInput,
+
+  // Gyroscope rotation. Provides rotation angles of |Controller|
+  // or |Device| which has built in gyroscope
+  kSbInputEventTypeGyroSensor,
 } SbInputEventType;
 
 // A 2-dimensional vector used to represent points and motion vectors.
@@ -106,6 +115,18 @@ typedef struct SbInputVector {
   float x;
   float y;
 } SbInputVector;
+
+// A 3-dimensional vector used to represent points and motion vectors.
+typedef struct SbInput3DVector {
+  float x;
+  float y;
+  float z;
+} SbInput3DVector;
+
+// Gyroscope input data
+typedef struct SbInputGyroSensor {
+  SbInput3DVector angle;
+} SbInputGyroSensor;
 
 // Event data for |kSbEventTypeInput| events.
 typedef struct SbInputData {
@@ -173,6 +194,9 @@ typedef struct SbInputData {
 
   // Set to true if the input event is part of a composition event.
   bool is_composing;
+
+  // Giroscope input data. The (x, y, z) angle in degrees.
+  SbInputGyroSensor gyroscope_data;
 } SbInputData;
 
 #ifdef __cplusplus

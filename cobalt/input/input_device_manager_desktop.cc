@@ -193,6 +193,7 @@ void UpdateMouseEventInitButtons(const system_window::InputEvent* input_event,
     case system_window::InputEvent::kTouchpadMove:
     case system_window::InputEvent::kTouchscreenMove:
     case system_window::InputEvent::kWheel:
+    case system_window::InputEvent::kGyroSensorMove:
       break;
   }
 
@@ -263,6 +264,9 @@ void InputDeviceManagerDesktop::HandlePointerEvent(
     case system_window::InputEvent::kPointerUp:
     case system_window::InputEvent::kWheel:
       pointer_event.set_pointer_type("mouse");
+      break;
+    case system_window::InputEvent::kGyroSensorMove:
+      pointer_event.set_pointer_type("gyroscope");
       break;
   }
   pointer_event.set_pointer_id(input_event->device_id());
@@ -366,6 +370,8 @@ void InputDeviceManagerDesktop::HandleSystemWindowInputEvent(
       HandleInputEvent(input_event);
       break;
     case system_window::InputEvent::kKeyMove:
+      break;
+    case system_window::InputEvent::kGyroSensorMove:
       break;
   }
 

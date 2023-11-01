@@ -17,6 +17,8 @@
 #ifndef COBALT_INPUT_INPUT_POLLER_H_
 #define COBALT_INPUT_INPUT_POLLER_H_
 
+#include <tuple>
+
 #include "base/memory/ref_counted.h"
 #include "starboard/key.h"
 
@@ -34,6 +36,8 @@ class InputPoller : public base::RefCountedThreadSafe<InputPoller> {
   // Returns analog position. The value is normalized to a range from
   // -1.0 to 1.0
   virtual float AnalogInput(SbKey analog_input_id) = 0;
+
+  virtual const std::tuple<float, float, float>& GyroSensorAngles() = 0;
 };
 
 }  // namespace input

@@ -31,8 +31,11 @@ namespace input {
 Camera3DInputPoller::Camera3DInputPoller(
     const scoped_refptr<input::InputPoller>& input_poller)
     : roll_in_radians_(0.0f),
+      roll_offset_in_radians_(0.0f),
       pitch_in_radians_(0.0f),
+      pitch_offset_in_radians_(0.0f),
       yaw_in_radians_(0.0f),
+      yaw_offset_in_radians_(0.0f),
       input_poller_(input_poller),
       width_to_height_aspect_ratio_(16.0f / 9.0f),
       vertical_fov_(60.0f) {}
@@ -54,9 +57,12 @@ void Camera3DInputPoller::ClearAllKeyMappings() {
 }
 
 glm::quat Camera3DInputPoller::orientation() const {
-  return glm::angleAxis(-roll_in_radians_, glm::vec3(0, 0, 1)) *
-         glm::angleAxis(-pitch_in_radians_, glm::vec3(1, 0, 0)) *
-         glm::angleAxis(-yaw_in_radians_, glm::vec3(0, 1, 0));
+  return glm::angleAxis(-roll_in_radians_ + roll_offset_in_radians_,
+                        glm::vec3(0, 0, 1)) *
+         glm::angleAxis(-pitch_in_radians_ + pitch_offset_in_radians_,
+                        glm::vec3(1, 0, 0)) *
+         glm::angleAxis(-yaw_in_radians_ + +yaw_offset_in_radians_,
+                        glm::vec3(0, 1, 0));
 }
 
 glm::quat Camera3DInputPoller::GetOrientation() const {
@@ -90,6 +96,9 @@ void Camera3DInputPoller::Reset() {
   roll_in_radians_ = 0.0f;
   pitch_in_radians_ = 0.0f;
   yaw_in_radians_ = 0.0f;
+  roll_offset_in_radians_ = 0.0f;
+  pitch_offset_in_radians_ = 0.0f;
+  yaw_offset_in_radians_ = 0.0f;
 }
 
 void Camera3DInputPoller::SetInput(const scoped_refptr<Camera3D>& other) {
@@ -115,6 +124,11 @@ void Camera3DInputPoller::AccumulateOrientation() {
     if (delta > kMaxTimeDelta) {
       delta = kMaxTimeDelta;
     }
+
+    // Get offsets from gyro sensor
+    pitch_offset_in_radians_ = std::get<0>(input_poller_->GyroSensorAngles());
+    yaw_offset_in_radians_ = std::get<1>(input_poller_->GyroSensorAngles());
+    roll_offset_in_radians_ = std::get<2>(input_poller_->GyroSensorAngles());
 
     // Accumulate new rotation from all mapped inputs.
     for (KeycodeMap::const_iterator iter = keycode_map_.begin();

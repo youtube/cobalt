@@ -18,6 +18,7 @@
 #include <string>
 
 #include "cobalt/base/event.h"
+#include "cobalt/math/point3_f.h"
 #include "cobalt/math/point_f.h"
 #include "starboard/event.h"
 #include "starboard/time.h"
@@ -42,6 +43,7 @@ class InputEvent : public base::Event {
     kTouchscreenUp,
     kTouchscreenMove,
     kWheel,
+    kGyroSensorMove,
   };
 
   // Bit-mask of key modifiers. These correspond to the |SbKeyModifiers| values
@@ -65,7 +67,8 @@ class InputEvent : public base::Event {
              const math::PointF& delta = math::PointF(), float pressure = 0,
              const math::PointF& size = math::PointF(),
              const math::PointF& tilt = math::PointF(),
-             const std::string& input_text = "", bool is_composing = false)
+             const std::string& input_text = "", bool is_composing = false,
+             const math::Point3F& angle = math::Point3F())
       : timestamp_(timestamp),
         type_(type),
         device_id_(device_id),
@@ -78,7 +81,8 @@ class InputEvent : public base::Event {
         size_(size),
         tilt_(tilt),
         input_text_(input_text),
-        is_composing_(is_composing) {}
+        is_composing_(is_composing),
+        gyro_sensor_angle_(angle) {}
 
   ~InputEvent() {}
 
@@ -95,6 +99,7 @@ class InputEvent : public base::Event {
   const math::PointF& tilt() const { return tilt_; }
   const std::string& input_text() const { return input_text_; }
   bool is_composing() const { return is_composing_; }
+  const math::Point3F& gyro_sensor_angle() const { return gyro_sensor_angle_; }
 
   BASE_EVENT_SUBCLASS(InputEvent);
 
@@ -112,6 +117,7 @@ class InputEvent : public base::Event {
   math::PointF tilt_;
   std::string input_text_;
   bool is_composing_;
+  math::Point3F gyro_sensor_angle_;
 };
 
 // The Starboard Event handler SbHandleEvent should call this function on
