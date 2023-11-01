@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: configuration_constants.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: configuration_constants.h
 
 Declares all configuration variables we will need to use at runtime. These
 variables describe the current platform in detail to allow cobalt to make
