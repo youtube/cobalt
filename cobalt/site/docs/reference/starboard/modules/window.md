@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: window.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: window.h
 
 Provides functionality to handle Window creation and management.
 
