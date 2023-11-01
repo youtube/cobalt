@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: types.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: types.h
 
 Provides a suite of standard types that should be universally available on all
 platforms, specifically focused on explicitly-sized integer types and booleans.
