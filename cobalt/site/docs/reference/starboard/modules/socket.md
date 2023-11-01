@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: socket.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: socket.h
 
 Defines Starboard socket I/O functions. Starboard supports IPv4 and IPv6, TCP
 and UDP, server and client sockets. Some platforms may not support IPv6, some
