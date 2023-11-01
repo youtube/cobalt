@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: accessibility.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: accessibility.h
 
 Provides access to the system options and settings related to accessibility.
 
