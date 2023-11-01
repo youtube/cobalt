@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: socket_waiter.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: socket_waiter.h
 
 Allows a thread to wait on many sockets at once. The standard usage pattern
 would be for a single I/O thread to:
