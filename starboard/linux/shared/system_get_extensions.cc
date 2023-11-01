@@ -22,7 +22,9 @@
 #include "starboard/extension/free_space.h"
 #include "starboard/extension/memory_mapped_file.h"
 #include "starboard/extension/platform_service.h"
+#include "starboard/extension/time_zone.h"
 #include "starboard/linux/shared/soft_mic_platform_service.h"
+#include "starboard/linux/shared/time_zone.h"
 #include "starboard/shared/enhanced_audio/enhanced_audio.h"
 #include "starboard/shared/ffmpeg/ffmpeg_demuxer.h"
 #include "starboard/shared/posix/free_space.h"
@@ -73,6 +75,9 @@ const void* SbSystemGetExtension(const char* name) {
         command_line->HasSwitch("enable_demuxer_extension");
     return use_ffmpeg_demuxer ? starboard::shared::ffmpeg::GetFFmpegDemuxerApi()
                               : NULL;
+  }
+  if (strcmp(name, kStarboardExtensionTimeZoneName) == 0) {
+    return starboard::shared::GetTimeZoneApi();
   }
   return NULL;
 }
