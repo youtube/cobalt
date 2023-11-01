@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: storage.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: storage.h
 
 Defines a Storage API. This is a simple, all-at-once BLOB storage and retrieval
 API that is intended for robust long-term storage. Some platforms have different
