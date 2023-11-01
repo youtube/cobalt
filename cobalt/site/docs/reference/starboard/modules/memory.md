@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: memory.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: memory.h
 
 Defines functions for memory allocation, alignment, copying, and comparing.
 
