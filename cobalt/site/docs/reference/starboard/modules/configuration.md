@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: configuration.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: configuration.h
 
 Provides a description of the current platform in lurid detail so that common
 code never needs to actually know what the current operating system and
