@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: condition_variable.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: condition_variable.h
 
 Defines an interface for condition variables.
 
