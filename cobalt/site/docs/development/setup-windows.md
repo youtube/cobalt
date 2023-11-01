@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Set up your environment - Windows"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Set up your environment - Windows
 
 These instructions explain how Windows users can set up their Cobalt development
 environment, clone a copy of the Cobalt code repository, and build a Cobalt

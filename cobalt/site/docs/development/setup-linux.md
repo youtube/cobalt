@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Set up your environment - Linux"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Set up your environment - Linux
 
 These instructions explain how Linux users set up their Cobalt development
 environment, clone a copy of the Cobalt code repository, and build a Cobalt

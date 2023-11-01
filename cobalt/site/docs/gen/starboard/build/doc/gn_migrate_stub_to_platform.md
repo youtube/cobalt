@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Stub to Platform GN Migration"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Stub to Platform GN Migration
 
 This document outlines a step by step process for converting the stub platform's
