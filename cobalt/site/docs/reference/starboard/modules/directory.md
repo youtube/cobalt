@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: directory.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: directory.h
 
 Provides directory listing functions.
 
