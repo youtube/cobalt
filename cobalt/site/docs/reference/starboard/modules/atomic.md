@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: atomic.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: atomic.h
 
 Defines a set of atomic integer operations that can be used as lightweight
 synchronization or as building blocks for heavier synchronization primitives.
