@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: file.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: file.h
 
 Defines file system input/output functions.
 
