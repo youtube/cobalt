@@ -101,7 +101,8 @@ def get_required_checks_for_branch(repo, branch: str) -> List[str]:
   return list(check_names)
 
 
-def print_checks(repo, branch_name: str, new_checks: List[str]) -> None:
+def print_checks(repo, branch_name: str, new_checks: List[str],
+                 print_unchanged: bool) -> None:
   branch = repo.get_branch(branch_name)
   current_checks = branch.get_required_status_checks().contexts
 
@@ -120,9 +121,10 @@ def print_checks(repo, branch_name: str, new_checks: List[str]) -> None:
     print(f'Required checks to be REMOVED for {branch_name}:')
     print_check_list(removed_checks)
 
-  unchanged_checks = set(current_checks).intersection(set(new_checks))
-  print(f'Required checks that will REMAIN for {branch_name}:')
-  print_check_list(unchanged_checks)
+  if print_unchanged:
+    unchanged_checks = set(current_checks).intersection(set(new_checks))
+    print(f'Required checks that will REMAIN for {branch_name}:')
+    print_check_list(unchanged_checks)
 
 
 def update_protection_for_branch(repo, branch: str,
@@ -140,10 +142,12 @@ def parse_args() -> None:
       help='Branch to update. Can be repeated to update multiple branches.'
       ' Defaults to all protected branches.')
   parser.add_argument(
-      '--apply',
+      '--apply', action='store_true', help='Apply required checks updates.')
+  parser.add_argument(
+      '--print_unchanged',
       action='store_true',
-      default=False,
-      help='Apply required checks updates.')
+      help='Also print the checks that will be left unchanged.'
+      ' Is a no-op with --apply.')
   args = parser.parse_args()
 
   if not args.branch:
@@ -155,12 +159,19 @@ def parse_args() -> None:
 def main() -> None:
   args = parse_args()
   repo = initialize_repo_connection()
+
+  if not args.apply:
+    print('This is a dry-run, printing pending changes only.')
+
   for branch in args.branch:
     required_checks = get_required_checks_for_branch(repo, branch)
     if args.apply:
       update_protection_for_branch(repo, branch, required_checks)
     else:
-      print_checks(repo, branch, required_checks)
+      print_checks(repo, branch, required_checks, args.print_unchanged)
+
+  if not args.apply:
+    print('Re-run with --apply to apply the changes.')
 
 
 if __name__ == '__main__':
