@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: once.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: once.h
 
 Onces represent initializations that should only ever happen once per process,
 in a thread-safe way.
