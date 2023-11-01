@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: byte_swap.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: byte_swap.h
 
 Specifies functions for swapping byte order. These functions are used to deal
 with endianness when performing I/O.
