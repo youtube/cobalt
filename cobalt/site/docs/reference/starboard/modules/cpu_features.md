@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: cpu_features.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: cpu_features.h
 
 ## Structs ##
 
