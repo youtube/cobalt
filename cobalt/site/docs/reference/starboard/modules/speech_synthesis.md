@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: speech_synthesis.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: speech_synthesis.h
 
 A basic text-to-speech API intended to be used for audio accessibility.
 
