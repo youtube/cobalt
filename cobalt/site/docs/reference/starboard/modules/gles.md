@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: gles.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: gles.h
 
 The GLES API provides an interface with accompanying type declarations and
 defines that together provide a single consistent method of GLES usage across
