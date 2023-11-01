@@ -27,6 +27,7 @@
 #include "starboard/extension/memory_mapped_file.h"
 #include "starboard/extension/platform_info.h"
 #include "starboard/extension/platform_service.h"
+#include "starboard/extension/time_zone.h"
 #include "starboard/extension/updater_notification.h"
 #include "starboard/extension/url_fetcher_observer.h"
 #include "starboard/system.h"
@@ -431,6 +432,26 @@ TEST(ExtensionTest, PlatformInfo) {
   EXPECT_EQ(extension_api->version, 1u);
   EXPECT_NE(extension_api->GetFirmwareVersionDetails, nullptr);
   EXPECT_NE(extension_api->GetOsExperience, nullptr);
+
+  const ExtensionApi* second_extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  EXPECT_EQ(second_extension_api, extension_api)
+      << "Extension struct should be a singleton";
+}
+
+TEST(ExtensionTest, TimeZone) {
+  typedef StarboardExtensionTimeZoneApi ExtensionApi;
+  const char* kExtensionName = kStarboardExtensionTimeZoneName;
+
+  const ExtensionApi* extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  if (!extension_api) {
+    return;
+  }
+
+  EXPECT_STREQ(extension_api->name, kExtensionName);
+  EXPECT_EQ(extension_api->version, 1u);
+  EXPECT_NE(extension_api->SetTimeZone, nullptr);
 
   const ExtensionApi* second_extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
