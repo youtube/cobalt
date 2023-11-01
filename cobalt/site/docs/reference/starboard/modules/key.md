@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: key.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: key.h
 
 Defines the canonical set of Starboard key codes.
 
