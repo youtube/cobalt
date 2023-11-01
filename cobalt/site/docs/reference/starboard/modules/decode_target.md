@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: decode_target.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: decode_target.h
 
 A target for decoding image and video data into. This corresponds roughly to an
 EGLImage, but that extension may not be fully supported on all GL platforms.
