@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: memory_reporter.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: memory_reporter.h
 
 DEPRECATED: Provides an interface for memory reporting.
 
