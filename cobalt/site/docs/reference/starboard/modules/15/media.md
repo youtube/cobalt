@@ -592,7 +592,7 @@ Returns SbMediaBufferStorageType of type `SbMediaStorageTypeMemory` or
 in main memory allocated by SbMemory functions. For file storage, the media
 buffers will be stored in a temporary file in the system cache folder acquired
 by calling SbSystemGetPath() with "kSbSystemPathCacheDirectory". Note that when
-its value is "file" the media stack will still allocate memory to cache the the
+its value is "file" the media stack will still allocate memory to cache the
 buffers in use.
 
 #### Declaration ####
