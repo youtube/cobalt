@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: string.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: string.h
 
 Defines functions for interacting with c-style strings.
 
