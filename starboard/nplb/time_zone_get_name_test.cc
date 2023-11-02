@@ -12,9 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string.h>
+
+#include "starboard/common/log.h"
+#include "starboard/extension/time_zone.h"
 #include "starboard/nplb/time_constants.h"
+#include "starboard/system.h"
 #include "starboard/time_zone.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+using testing::AnyOf;
+using testing::MatchesRegex;
 
 namespace starboard {
 namespace nplb {
@@ -39,6 +48,27 @@ TEST(SbTimeZoneGetNameTest, IsKindOfSane) {
 
   // On Linux, TZ=":Pacific/Chatham" is a good test of boundary conditions.
   // ":Pacific/Kiritimati" is the western-most timezone at UTC+14.
+}
+
+TEST(SbTimeZoneGetNameTest, IsIANAFormat) {
+  const char* name = SbTimeZoneGetName();
+  SB_LOG(INFO) << "time zone name: " << name;
+  char cpy[100];
+  snprintf(cpy, sizeof(cpy), "%s", name);
+  char* continent = strtok(cpy, "/");
+  // The time zone ID starts with a Continent or Ocean name.
+  EXPECT_THAT(
+      continent,
+      testing::AnyOf(std::string("Asia"), std::string("America"),
+                     std::string("Africa"), std::string("Europe"),
+                     std::string("Australia"), std::string("Pacific"),
+                     std::string("Atlantic"), std::string("Antarctica"),
+                     // time zone can be "Etc/UTC" if unset(such as on
+                     // CI builders), shouldn't happen in production.
+                     // TODO(b/304351956): Remove Etc after fixing builders.
+                     std::string("Indian"), std::string("Etc")));
+  char* city = strtok(NULL, "/");
+  EXPECT_TRUE(strlen(city) != 0);
 }
 
 }  // namespace
