@@ -18,6 +18,7 @@ FROM ${FROM_IMAGE:-cobalt-build-base}
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
         libxml2-dev \
+        ca-certificates-java \
         default-jdk \
         binutils-arm-linux-gnueabi \
         g++-multilib \
