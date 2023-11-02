@@ -18,8 +18,12 @@
 #include <string>
 #include <vector>
 
+#include "base/callback.h"
+#include "base/memory/ref_counted.h"
+#include "base/memory/ref_counted_memory.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
+#include "base/trace_event/trace_buffer.h"
 #include "cobalt/debug/backend/command_map.h"
 #include "cobalt/debug/backend/debug_dispatcher.h"
 #include "cobalt/debug/command.h"
@@ -49,7 +53,15 @@ class TracingAgent : public script::ScriptDebugger::TraceDelegate {
   void End(Command command);
   void Start(Command command);
 
+  void OutputTraceData(
+      base::OnceClosure finished_cb,
+      const scoped_refptr<base::RefCountedString>& event_string,
+      bool has_more_events);
+
   void SendDataCollectedEvent();
+
+  // void OnTraceDataCollected(base::WaitableEvent* flush_complete_event, const
+  // scoped_refptr<base::RefCountedString>& events_str, bool has_more_events);
 
   DebugDispatcher* dispatcher_;
   script::ScriptDebugger* script_debugger_;
@@ -63,6 +75,12 @@ class TracingAgent : public script::ScriptDebugger::TraceDelegate {
 
   // Map of member functions implementing commands.
   CommandMap commands_;
+
+  // base::ListValue trace_parsed_;
+  base::trace_event::TraceResultBuffer trace_buffer_;
+  base::trace_event::TraceResultBuffer::SimpleOutput json_output_;
+
+  // base::Lock lock_;
 };
 
 }  // namespace backend

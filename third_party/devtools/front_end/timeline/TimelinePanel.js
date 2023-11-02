@@ -789,6 +789,7 @@ Timeline.TimelinePanel = class extends UI.Panel {
    * @param {?SDK.TracingModel} tracingModel
    */
   loadingComplete(tracingModel) {
+    Common.console.log("YO THOR LOADING COMPLETE - GOT TRACING MODEL");
     delete this._loader;
     this._setState(Timeline.TimelinePanel.State.Idle);
 

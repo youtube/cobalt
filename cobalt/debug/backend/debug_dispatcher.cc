@@ -37,7 +37,9 @@ DebugDispatcher::DebugDispatcher(script::ScriptDebugger* script_debugger,
       // No manual reset, not initially signaled.
       command_added_while_paused_(
           base::WaitableEvent::ResetPolicy::AUTOMATIC,
-          base::WaitableEvent::InitialState::NOT_SIGNALED) {}
+          base::WaitableEvent::InitialState::NOT_SIGNALED) {
+  LOG(INFO) << "YO THOR - DEBUG DISPATCHER CTOR";
+}
 
 DebugDispatcher::~DebugDispatcher() {
   DCHECK(domain_registry_.empty())
@@ -73,6 +75,7 @@ void DebugDispatcher::RestoreClients(ClientsSet clients) {
 }
 
 void DebugDispatcher::AddClient(DebugClient* client) {
+  LOG(INFO) << "YO THOR - ADD CLIENT O DEBUG DISPATCHr";
   clients_.insert(client);
 }
 
@@ -197,6 +200,7 @@ void DebugDispatcher::AddDomain(const std::string& domain,
                                 const CommandHandler& handler) {
   DCHECK_EQ(domain_registry_.count(domain), size_t(0));
   domain_registry_[domain] = handler;
+  LOG(INFO) << "YO THOR - DISPATCH - ADD DOMAIN: " << domain;
 }
 
 void DebugDispatcher::RemoveDomain(const std::string& domain) {
@@ -206,6 +210,8 @@ void DebugDispatcher::RemoveDomain(const std::string& domain) {
 
 JSONObject DebugDispatcher::RunScriptCommand(const std::string& method,
                                              const std::string& json_params) {
+  LOG(INFO) << "YO THOR - DEBUGDISPATCh - RUN SCRIPT COMMAND" << method << " "
+            << json_params;
   script::ScriptDebugger::ScopedPauseOnExceptionsState no_pause(
       script_debugger_, script::ScriptDebugger::kNone);
 

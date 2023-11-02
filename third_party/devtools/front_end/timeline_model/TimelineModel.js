@@ -207,6 +207,7 @@ export class TimelineModelImpl {
    * @param {!SDK.TracingModel} tracingModel
    */
   _processGenericTrace(tracingModel) {
+    Common.console.log("YO THOR _ PROCESS GENERC TRACE");
     let browserMainThread = SDK.TracingModel.browserMainThread(tracingModel);
     if (!browserMainThread && tracingModel.sortedProcesses().length) {
       browserMainThread = tracingModel.sortedProcesses()[0].sortedThreads()[0];
@@ -217,6 +218,7 @@ export class TimelineModelImpl {
             tracingModel, [{from: 0, to: Infinity}], thread, thread === browserMainThread, false, true, null);
       }
     }
+    Common.console.log("YO THOR _ PROCESS GENERC TRACE DONE");
   }
 
   /**
@@ -588,6 +590,18 @@ export class TimelineModelImpl {
       let i = events.lowerBound(range.from, (time, event) => time - event.startTime);
       for (; i < events.length; i++) {
         const event = events[i];
+        let string = '';
+
+        for (let prop in event) {
+            if (typeof event[prop] == 'string') {
+                string += prop + ': ' + event[prop] + '; \n';
+            }
+            //else {
+            //    string += prop + ': { \n' + print(event[prop]) + '}';
+            //}
+        }
+        Common.console.log("EVENT IS: " + string);
+
         if (event.startTime >= range.to) {
           break;
         }

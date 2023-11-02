@@ -115,6 +115,7 @@ void JSONFileOutputter::OutputTraceData(
     Write(text, strlen(text));
   }
   const std::string& event_str = event_string->data();
+  LOG(INFO) << "YO THOR! GOT " << event_str;
   Write(event_str.c_str(), event_str.size());
   ++output_trace_event_call_count_;
   if (!has_more_events) {

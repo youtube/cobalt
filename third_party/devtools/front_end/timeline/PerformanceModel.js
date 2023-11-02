@@ -5,6 +5,7 @@
 Timeline.PerformanceModel = class extends Common.Object {
   constructor() {
     super();
+    Common.console.log("YO THOR - TIME PERF CTRO");
     /** @type {?SDK.Target} */
     this._mainTarget = null;
     /** @type {?SDK.TracingModel} */
@@ -83,8 +84,11 @@ Timeline.PerformanceModel = class extends Common.Object {
    * @param {!SDK.TracingModel} model
    */
   setTracingModel(model) {
+    Common.console.log("YO THOR - SET TRACING MODEL" + typeof(model));
     this._tracingModel = model;
+    Common.console.log("YO THOR - SET EVENTS ON TIMELINE MODEL");
     this._timelineModel.setEvents(model);
+    Common.console.log("YO THOR - AIIIIGHT - EVENTS HAVE BEEN set TIMELINE MODEL");
 
     let inputEvents = null;
     let animationEvents = null;
@@ -103,10 +107,12 @@ Timeline.PerformanceModel = class extends Common.Object {
     const mainTracks = this._timelineModel.tracks().filter(
         track => track.type === TimelineModel.TimelineModel.TrackType.MainThread && track.forMainFrame &&
             track.events.length);
+    Common.console.log("YO THOR - GOT MAINTRAX:", mainTracks);
     const threadData = mainTracks.map(track => {
       const event = track.events[0];
       return {thread: event.thread, time: event.startTime};
     });
+    Common.console.log("YO THOR - LETS ADD TRACE EVENTS TO FRAME MODEL");
     this._frameModel.addTraceEvents(this._mainTarget, this._timelineModel.inspectedTargetEvents(), threadData);
 
     for (const entry of this._extensionTracingModels) {
