@@ -16,7 +16,7 @@ ARG FROM_IMAGE
 FROM ${FROM_IMAGE:-cobalt-build-base}
 
 RUN apt update -qqy \
-    && apt install -qqy --no-install-recommends \
+    && apt install -qqy \
         libxml2-dev \
         ca-certificates-java \
         default-jdk \
