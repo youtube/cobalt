@@ -98,6 +98,7 @@ class TestFilters(object):
 
   def GetTestFilters(self):
     filters = []
+    filters.update(test_filter.EVERGREEN_ONLY_TESTS)
     for target, tests in _FILTERED_TESTS.items():
       filters.extend(test_filter.TestFilter(target, test) for test in tests)
     return filters
