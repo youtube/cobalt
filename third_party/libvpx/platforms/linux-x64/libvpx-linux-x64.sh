@@ -17,7 +17,7 @@
 set -ex
 
 readonly LIB_DIR="$(cd "$(dirname "$0")" && pwd)"
-readonly SRC_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+readonly SRC_DIR="$(cd "$(dirname "$0")/../../source/libvpx" && pwd)"
 
 (cd "${SRC_DIR}" && ./configure \
   --target=x86_64-linux-gcc \
