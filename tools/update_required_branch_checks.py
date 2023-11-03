@@ -44,8 +44,9 @@ EXCLUDED_CHECK_PATTERNS = [
     # Excludes blackbox, web platform, and unit tests run on-device.
     '_on_device_',
 
-    # Excludes evergreen as blackbox test.
+    # Excludes slow and flaky evergreen tests.
     'evergreen-as-blackbox_test',
+    'evergreen_test',
 
     # Excludes templated check names.
     '${{'
