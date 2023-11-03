@@ -176,6 +176,7 @@ static_library("starboard_platform") {
     "//starboard/shared/win32/media_get_max_buffer_capacity.cc",
     "//starboard/shared/win32/media_transform.cc",
     "//starboard/shared/win32/media_transform.h",
+    "//starboard/shared/win32/posix_emu/posix_memalign.cc",
     "//starboard/shared/win32/video_decoder.cc",
     "//starboard/shared/win32/video_decoder.h",
     "//starboard/shared/win32/win32_audio_decoder.cc",
