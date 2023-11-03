@@ -12,7 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-action("build_app_launcher_zip") {
+group("build_app_launcher_zip") {
+  deps = [
+    ":copy_app_launcher_dir",
+    ":package_app_launcher_zip",
+  ]
+}
+
+action("package_app_launcher_zip") {
   script = "//starboard/tools/app_launcher_packager.py"
 
   file_list = exec_script(script, [ "-l" ], "trim string")
@@ -20,7 +27,15 @@ action("build_app_launcher_zip") {
   outputs = [ "$root_out_dir/app_launcher.zip" ]
 
   args = [
+    "--include_integration_tests",
     "-z",
     rebase_path(outputs[0], root_build_dir),
   ]
+}
+
+copy("copy_app_launcher_dir") {
+  script = "//starboard/tools/app_launcher_packager.py"
+  file_list = exec_script(script, [ "-l" ], "trim string")
+  sources = string_split(file_list)
+  outputs = [ "$root_out_dir/app_launcher/{{source_root_relative_dir}}/{{source_file_part}}" ]
 }

@@ -45,7 +45,7 @@ _INCLUDE_FILE_PATTERNS = [
     ('starboard/tools/testing', 'sharding_configuration.json')
 ]
 
-_INCLUDE_BLACK_BOX_TESTS_PATTERNS = [
+_INCLUDE_INTEGRATION_TESTS_PATTERNS = [
     # Black box and web platform tests have non-py assets, so everything
     # is picked up.
     ('cobalt/black_box_tests', '*'),
@@ -105,7 +105,7 @@ def _FindFilesRecursive(  # pylint: disable=missing-docstring
 def CopyAppLauncherTools(repo_root,
                          dest_root,
                          additional_glob_patterns=None,
-                         include_black_box_tests=True):
+                         include_integration_tests=False):
   """Copies app launcher related files to the destination root.
 
   Args:
@@ -114,12 +114,12 @@ def CopyAppLauncherTools(repo_root,
     additional_glob_patterns: Some platforms may need to include certain
       dependencies beyond the default include file patterns. The results here
       will be merged in with _INCLUDE_FILE_PATTERNS.
-    include_black_box_tests: If True then the resources for the black box tests
-      are included.
+    include_integration_tests: If True then the resources for the black box
+      tests are included.
   """
   dest_root = _PrepareDestination(dest_root)
   copy_list = _GetSourceFilesList(repo_root, additional_glob_patterns,
-                                  include_black_box_tests)
+                                  include_integration_tests)
   _CopyFiles(repo_root, dest_root, copy_list)
 
 
@@ -140,13 +140,13 @@ def _PrepareDestination(dest_root):  # pylint: disable=missing-docstring
 def _GetSourceFilesList(  # pylint: disable=missing-docstring
     repo_root,
     additional_glob_patterns=None,
-    include_black_box_tests=True):
+    include_integration_tests=False):
   # Find all glob files from specified search directories.
   include_glob_patterns = _INCLUDE_FILE_PATTERNS
   if additional_glob_patterns:
     include_glob_patterns += additional_glob_patterns
-  if include_black_box_tests:
-    include_glob_patterns += _INCLUDE_BLACK_BOX_TESTS_PATTERNS
+  if include_integration_tests:
+    include_glob_patterns += _INCLUDE_INTEGRATION_TESTS_PATTERNS
   copy_list = []
   for d, glob_pattern in include_glob_patterns:
     flist = _FindFilesRecursive(os.path.join(repo_root, d), glob_pattern)
@@ -222,6 +222,10 @@ def main(command_args):
       action='store_true',
       help='Return the application resources instead of printing them.')
   parser.add_argument(
+      '--include_integration_tests',
+      action='store_true',
+      help='Includes integration test files.')
+  parser.add_argument(
       '-v',
       '--verbose',
       action='store_true',
@@ -232,17 +236,25 @@ def main(command_args):
   log_level.InitializeLogging(args)
 
   if args.destination_root:
-    CopyAppLauncherTools(REPOSITORY_ROOT, args.destination_root)
+    CopyAppLauncherTools(
+        REPOSITORY_ROOT,
+        args.destination_root,
+        include_integration_tests=args.include_integration_tests)
   elif args.zip_file:
     try:
       temp_dir = tempfile.mkdtemp(prefix='cobalt_app_launcher_')
-      CopyAppLauncherTools(REPOSITORY_ROOT, temp_dir)
+      CopyAppLauncherTools(
+          REPOSITORY_ROOT,
+          temp_dir,
+          include_integration_tests=args.include_integration_tests)
       MakeZipArchive(temp_dir, args.zip_file)
     finally:
       shutil.rmtree(temp_dir)
   elif args.list:
     src_files = []
-    for src_file in _GetSourceFilesList(REPOSITORY_ROOT):
+    for src_file in _GetSourceFilesList(
+        REPOSITORY_ROOT,
+        include_integration_tests=args.include_integration_tests):
       # Skip paths with '$' since they won't get through the Ninja generator.
       if '$' in src_file:
         continue
@@ -255,11 +267,6 @@ def main(command_args):
     else:
       print(out.strip())
   return 0
-
-
-def DoMain(argv):
-  """Script main function."""
-  return main(argv)
 
 
 if __name__ == '__main__':
