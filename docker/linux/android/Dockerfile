@@ -15,6 +15,7 @@
 ARG FROM_IMAGE
 FROM ${FROM_IMAGE:-cobalt-build-base}
 
+# TODO: b/309157124 - add --no-install-recommends.
 RUN apt update -qqy \
     && apt install -qqy \
         libxml2-dev \
