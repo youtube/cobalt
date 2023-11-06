@@ -393,7 +393,7 @@ template("evergreen_loader") {
   copy("copy_loader_app_lib${original_target_name}") {
     install_content = true
     if (target_cpu == "arm" && arm_float_abi == "softfp") {
-      sources = [ "$root_out_dir/../evergreen-$target_cpu-${arm_float_abi}_$build_type/lib${original_target_name}.so" ]
+      sources = [ "$root_out_dir/../evergreen-$target_cpu-${arm_float_abi}_$build_type/install/lib/lib${original_target_name}.so" ]
     } else if (target_cpu == "arm64") {
       sources = [ "$root_out_dir/../evergreen-$target_cpu_$build_type/install/lib/libcobalt.so" ]
     }
