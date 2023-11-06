@@ -592,9 +592,6 @@ void GpuVideoDecoderBase::OnDecoderDrained() {
             decoder_behavior_.load() == kResettingDecoder);
 
   is_waiting_frame_after_drain_ = true;
-  if (decoder_behavior_.load() == kResettingDecoder || error_occured_) {
-    return;
-  }
 
   if (!BelongsToDecoderThread()) {
     decoder_thread_->job_queue()->Schedule(
@@ -602,7 +599,6 @@ void GpuVideoDecoderBase::OnDecoderDrained() {
     return;
   }
 
-  SB_DCHECK(written_inputs_.empty());
   if (decoder_behavior_.load() == kEndingStream) {
     decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
   }
@@ -687,6 +683,9 @@ void GpuVideoDecoderBase::DrainDecoder() {
   if (!is_drain_decoder_called_) {
     is_drain_decoder_called_ = true;
     DrainDecoderInternal();
+    // DrainDecoderInternal is sync command, after it finished, we can be sure
+    // that drain really completed.
+    OnDecoderDrained();
   }
 }
 
