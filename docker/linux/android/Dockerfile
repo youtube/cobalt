@@ -14,8 +14,9 @@
 
 FROM cobalt-build-base
 
+# TODO: b/309157124 - add --no-install-recommends.
 RUN apt update -qqy \
-    && apt install -qqy --no-install-recommends \
+    && apt install -qqy \
         libxml2-dev \
         default-jdk \
         g++-multilib \
@@ -51,8 +52,12 @@ RUN cd /tmp \
     "cmdline-tools;1.0" \
     "extras;android;m2repository" \
     "extras;google;m2repository" \
+<<<<<<< HEAD
     "ndk;21.1.6352462" \
     "patcher;v4" \
+=======
+    "ndk;25.2.9519653" \
+>>>>>>> d69b5a8d339 (Remove --no-install-recommends and patcher from Android Dockerfile (#1892))
     "platforms;android-30" \
     "platforms;android-31" \
     "platform-tools" \
