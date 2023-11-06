@@ -122,7 +122,7 @@ target(gtest_target_type, "base_test") {
   deps = [
     ":base",
     "//cobalt/test:run_all_unittests",
-    "//starboard",
+    "//starboard:starboard_group",
     "//testing/gmock",
     "//testing/gtest",
   ]

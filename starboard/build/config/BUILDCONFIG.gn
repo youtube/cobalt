@@ -367,7 +367,7 @@ template("evergreen_loader") {
     deps = [
       ":copy_loader_app_lib${original_target_name}",
       "//cobalt/content/fonts:copy_font_data",
-      "//starboard",
+      "//starboard:starboard_group",
       "//starboard/elf_loader:constants",
       "//starboard/elf_loader:elf_loader",
       "//starboard/elf_loader:evergreen_info",

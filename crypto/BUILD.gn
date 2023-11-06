@@ -231,7 +231,7 @@ config("platform_config") {
 # on the current SSL library should just depend on this.
 group("platform") {
   if (is_starboard) {
-    deps = [ "//starboard" ]
+    deps = [ "//starboard:starboard_group", ]
     public_deps = [ "//third_party/boringssl:crypto" ]
   } else {
   public_deps = [

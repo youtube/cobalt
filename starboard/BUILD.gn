@@ -84,12 +84,12 @@ group("gn_all") {
 
 group("default") {
   deps = [
-    ":starboard",
+    ":starboard_group",
     "//starboard/tools:build_app_launcher_zip",
   ]
 }
 
-group("starboard") {
+group("starboard_group") {
   public_deps = [
     ":starboard_headers_only",
     "//starboard/client_porting/cwrappers",
@@ -211,7 +211,7 @@ if (current_toolchain == starboard_toolchain) {
   }
 
   group("starboard_with_main") {
-    public_deps = [ ":starboard" ]
+    public_deps = [ ":starboard_group" ]
     if (sb_is_modular && !sb_is_evergreen) {
       public_deps += [ "//$starboard_path:starboard_platform_with_main" ]
     }
