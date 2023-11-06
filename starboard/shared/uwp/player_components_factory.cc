@@ -43,7 +43,7 @@
 #include "starboard/xb1/shared/video_decoder_uwp.h"
 
 #if defined(INTERNAL_BUILD)
-#include "internal/starboard/xb1/av1_video_decoder.h"
+#include "internal/starboard/xb1/dav1d_video_decoder.h"
 #include "internal/starboard/xb1/vpx_video_decoder.h"
 #endif  // defined(INTERNAL_BUILD)
 
@@ -254,7 +254,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
 #if defined(INTERNAL_BUILD)
     using GpuVp9VideoDecoder = ::starboard::xb1::shared::VpxVideoDecoder;
-    using GpuAv1VideoDecoder = ::starboard::xb1::shared::Av1VideoDecoder;
+    using GpuAv1VideoDecoder = ::starboard::xb1::shared::Dav1dVideoDecoder;
 
     if (video_codec == kSbMediaVideoCodecVp9) {
       video_decoder->reset(new GpuVp9VideoDecoder(
