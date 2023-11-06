@@ -218,7 +218,7 @@ class GpuVideoDecoderBase
 
   Mutex frame_buffers_mutex_;
   ConditionVariable frame_buffers_condition_;
-  // static std::vector<scoped_refptr<GpuFrameBuffer>> s_frame_buffers_;
+
  private:
   class GPUDecodeTargetPrivate;
 

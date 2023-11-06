@@ -15,8 +15,9 @@
 ARG FROM_IMAGE
 FROM ${FROM_IMAGE:-cobalt-build-base}
 
+# TODO: b/309157124 - add --no-install-recommends.
 RUN apt update -qqy \
-    && apt install -qqy --no-install-recommends \
+    && apt install -qqy \
         libxml2-dev \
         default-jdk \
         binutils-arm-linux-gnueabi \
@@ -54,7 +55,6 @@ RUN cd /tmp \
     "extras;android;m2repository" \
     "extras;google;m2repository" \
     "ndk;25.2.9519653" \
-    "patcher;v4" \
     "platforms;android-30" \
     "platforms;android-31" \
     "platform-tools" \
