@@ -16,7 +16,8 @@
 ARG FROM_IMAGE
 FROM ${FROM_IMAGE}
 
-SHELL ["powershell", "-ExecutionPolicy", "unrestricted", "-Command"]
+SHELL ["powershell", "-ExecutionPolicy", "Unrestricted", "-Command", `
+       "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
 # Helper script for quick delete operations in windows
 COPY ./fast-win-rmdir.cmd /fast-win-rmdir.cmd
