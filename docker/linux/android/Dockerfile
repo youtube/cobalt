@@ -55,7 +55,6 @@ RUN cd /tmp \
     "extras;android;m2repository" \
     "extras;google;m2repository" \
     "ndk;25.2.9519653" \
-    "patcher;v4" \
     "platforms;android-30" \
     "platforms;android-31" \
     "platform-tools" \
