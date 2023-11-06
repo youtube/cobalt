@@ -27,7 +27,7 @@ template("install_target") {
     source_name = installable_target_name
   } else if (invoker.type == "shared_library") {
     install_subdir = "lib"
-    if (installable_target_name == "starboard_platform_group") {
+    if (installable_target_name == "starboard") {
       source_name =
           "lib${installable_target_name}.${starboard_shared_library_extension}"
     } else {
