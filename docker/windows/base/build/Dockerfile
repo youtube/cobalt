@@ -34,8 +34,7 @@ RUN iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.or
     choco install -y -c C:\choco-cache nodejs-lts;`
     choco install -y -c C:\choco-cache git;`
     choco install -y -c C:\choco-cache cmake --installargs 'ADD_CMAKE_TO_PATH=System';`
-    choco install -y -c C:\choco-cache nasm;`
-    setx /M PATH $($Env:PATH + ';C:\"Program Files"\NASM');`
+    choco install -y -c C:\choco-cache nasm -ia 'PrependPath=1';`
     Write-Host ('Deleting the chocolately download cache');`
     Remove-Item -Force -Recurse $env:TEMP\*;`
     C:\fast-win-rmdir.cmd C:\choco-cache;`
