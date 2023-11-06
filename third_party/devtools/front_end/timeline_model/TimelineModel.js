@@ -31,6 +31,19 @@
 /**
  * @unrestricted
  */
+let printObj = function (obj) {
+    let string = '';
+    for (let prop in obj) {
+        if (typeof obj[prop] == 'string') {
+            string += prop + ': ' + obj[prop] + '; \n';
+        }
+        // else {
+        //     string += prop + ': {NOTaSTRING}; \n';
+        // }
+    }
+    return string;
+}
+
 export class TimelineModelImpl {
   constructor() {
     this._reset();
@@ -590,17 +603,10 @@ export class TimelineModelImpl {
       let i = events.lowerBound(range.from, (time, event) => time - event.startTime);
       for (; i < events.length; i++) {
         const event = events[i];
-        let string = '';
 
-        for (let prop in event) {
-            if (typeof event[prop] == 'string') {
-                string += prop + ': ' + event[prop] + '; \n';
-            }
-            //else {
-            //    string += prop + ': { \n' + print(event[prop]) + '}';
-            //}
-        }
-        Common.console.log("EVENT IS: " + string);
+        //let pevent = printObj(event);^i//
+        Common.console.log("YO THOR - EVENT IS: " + printObj(event));
+        Common.console.log("YO THOR - EVENT START TIME IS: " + event.startTime);
 
         if (event.startTime >= range.to) {
           break;
@@ -608,9 +614,11 @@ export class TimelineModelImpl {
         while (eventStack.length && eventStack.peekLast().endTime <= event.startTime) {
           eventStack.pop();
         }
+        Common.console.log("YO THOR - PROCESS EVENT ");
         if (!this._processEvent(event)) {
           continue;
         }
+        Common.console.log("YO THOR - WE PROCESSEd?");
         if (!SDK.TracingModel.isAsyncPhase(event.phase) && event.duration) {
           if (eventStack.length) {
             const parent = eventStack.peekLast();
@@ -762,10 +770,12 @@ export class TimelineModelImpl {
     }
 
     const eventData = event.args['data'] || event.args['beginData'] || {};
+    Common.console.log("YO THOR! EVENT DATA:" + printObj(eventData));
     const timelineData = TimelineData.forEvent(event);
     if (eventData['stackTrace']) {
       timelineData.stackTrace = eventData['stackTrace'];
     }
+    Common.console.log("YO THOR! WE GOOD? STACK TRACE?");
     if (timelineData.stackTrace && event.name !== recordTypes.JSSample) {
       // TraceEvents come with 1-based line & column numbers. The frontend code
       // requires 0-based ones. Adjust the values.
@@ -780,24 +790,29 @@ export class TimelineModelImpl {
     }
     timelineData.frameId = pageFrameId || (this._mainFrame && this._mainFrame.frameId) || '';
     this._asyncEventTracker.processEvent(event);
+    Common.console.log("YO THOR! WE GOOD? ASYNC EVENT TTRACE?");
 
     if (this.isMarkerEvent(event)) {
       this._ensureNamedTrack(TrackType.Timings);
     }
 
+    Common.console.log("YO THOR! WE GOOD? B4 swithc");
     switch (event.name) {
       case recordTypes.ResourceSendRequest:
       case recordTypes.WebSocketCreate:
+        Common.console.log("YO THOR! WEbSCOKET CREAT");
         timelineData.setInitiator(eventStack.peekLast() || null);
         timelineData.url = eventData['url'];
         break;
 
       case recordTypes.ScheduleStyleRecalculation:
+        Common.console.log("YO THOR! schedule recalc");
         this._lastScheduleStyleRecalculation[eventData['frame']] = event;
         break;
 
       case recordTypes.UpdateLayoutTree:
       case recordTypes.RecalculateStyles:
+        Common.console.log("YO THOR! recalcSTY:E");
         this._invalidationTracker.didRecalcStyle(event);
         if (event.args['beginData']) {
           timelineData.setInitiator(this._lastScheduleStyleRecalculation[event.args['beginData']['frame']]);
@@ -812,10 +827,12 @@ export class TimelineModelImpl {
       case recordTypes.StyleRecalcInvalidationTracking:
       case recordTypes.StyleInvalidatorInvalidationTracking:
       case recordTypes.LayoutInvalidationTracking:
+        Common.console.log("YO THOR! layout invalid trax");
         this._invalidationTracker.addInvalidation(new InvalidationTrackingEvent(event));
         break;
 
       case recordTypes.InvalidateLayout: {
+        Common.console.log("YO THOR! layout invalid");
         // Consider style recalculation as a reason for layout invalidation,
         // but only if we had no earlier layout invalidation records.
         let layoutInitator = event;
@@ -829,27 +846,42 @@ export class TimelineModelImpl {
       }
 
       case recordTypes.Layout: {
+        Common.console.log("YO THOR! layout");
+        let frameId = -1;
+        if (event.args && event.args['beginData'] && event.args['beginData']['frame']) {
+          frameId = event.args['beginData']['frame'];
+        }
+        Common.console.log("YO THOR! layout" + frameId);
+        if (frameId === -1) {
+        Common.console.log("YO THOR - NAE FRAME ID");
+        break;
+
+        }
+        Common.console.log("YO THOR WE GOT ARGS?" + event.args);
         this._invalidationTracker.didLayout(event);
-        const frameId = event.args['beginData']['frame'];
-        timelineData.setInitiator(this._layoutInvalidate[frameId]);
-        // In case we have no closing Layout event, endData is not available.
-        if (event.args['endData']) {
-          timelineData.backendNodeId = event.args['endData']['rootNode'];
-        }
-        this._layoutInvalidate[frameId] = null;
-        if (this._currentScriptEvent) {
-          this._currentTaskLayoutAndRecalcEvents.push(event);
-        }
+        Common.console.log("YO THOR! layout WE GOOD?");
+        // const frameId = event.args['beginData']['frame'];
+        // timelineData.setInitiator(this._layoutInvalidate[frameId]);
+        // // In case we have no closing Layout event, endData is not available.
+        // if (event.args['endData']) {
+        //   timelineData.backendNodeId = event.args['endData']['rootNode'];
+        // }
+        // this._layoutInvalidate[frameId] = null;
+        // if (this._currentScriptEvent) {
+        //   this._currentTaskLayoutAndRecalcEvents.push(event);
+        // }
         break;
       }
 
       case recordTypes.Task:
+        Common.console.log("YO THOR! taks");
         if (event.duration > TimelineModelImpl.Thresholds.LongTask) {
           timelineData.warning = TimelineModelImpl.WarningType.LongTask;
         }
         break;
 
       case recordTypes.EventDispatch:
+        Common.console.log("YO THOR! eventdip");
         if (event.duration > TimelineModelImpl.Thresholds.RecurringHandler) {
           timelineData.warning = TimelineModelImpl.WarningType.LongHandler;
         }
@@ -857,12 +889,14 @@ export class TimelineModelImpl {
 
       case recordTypes.TimerFire:
       case recordTypes.FireAnimationFrame:
+        Common.console.log("YO THOR! fire animationfr");
         if (event.duration > TimelineModelImpl.Thresholds.RecurringHandler) {
           timelineData.warning = TimelineModelImpl.WarningType.LongRecurringHandler;
         }
         break;
 
       case recordTypes.FunctionCall:
+        Common.console.log("YO THOR! func call");
         // Compatibility with old format.
         if (typeof eventData['scriptName'] === 'string') {
           eventData['url'] = eventData['scriptName'];
@@ -875,6 +909,7 @@ export class TimelineModelImpl {
 
       case recordTypes.EvaluateScript:
       case recordTypes.CompileScript:
+        Common.console.log("YO THOR! compil call");
         if (typeof eventData['lineNumber'] === 'number') {
           --eventData['lineNumber'];
         }
@@ -885,6 +920,7 @@ export class TimelineModelImpl {
       // Fallthrough intended.
 
       case recordTypes.RunMicrotasks:
+        Common.console.log("YO THOR! riumnmi call");
         // Microtasks technically are not necessarily scripts, but for purpose of
         // forced sync style recalc or layout detection they are.
         if (!this._currentScriptEvent) {
@@ -893,6 +929,7 @@ export class TimelineModelImpl {
         break;
 
       case recordTypes.SetLayerTreeId:
+        Common.console.log("YO THOR! rsetLAYTRRREE ID");
         // This is to support old traces.
         if (this._sessionId && eventData['sessionId'] && this._sessionId === eventData['sessionId']) {
           this._mainFrameLayerTreeId = eventData['layerTreeId'];
@@ -909,6 +946,7 @@ export class TimelineModelImpl {
         break;
 
       case recordTypes.Paint: {
+        Common.console.log("YO THOR! piaint");
         this._invalidationTracker.didPaint(event);
         timelineData.backendNodeId = eventData['nodeId'];
         // Only keep layer paint events, skip paints for subframes that get painted to the same layer as parent.
@@ -922,6 +960,7 @@ export class TimelineModelImpl {
 
       case recordTypes.DisplayItemListSnapshot:
       case recordTypes.PictureSnapshot: {
+        Common.console.log("YO THOR! picSNAP");
         const layerUpdateEvent = this._findAncestorEvent(recordTypes.UpdateLayer);
         if (!layerUpdateEvent || layerUpdateEvent.args['layerTreeId'] !== this._mainFrameLayerTreeId) {
           break;
@@ -935,16 +974,19 @@ export class TimelineModelImpl {
       }
 
       case recordTypes.ScrollLayer:
+        Common.console.log("YO THOR! scrollLA");
         timelineData.backendNodeId = eventData['nodeId'];
         break;
 
       case recordTypes.PaintImage:
+        Common.console.log("YO THOR! PAINTIMG");
         timelineData.backendNodeId = eventData['nodeId'];
         timelineData.url = eventData['url'];
         break;
 
       case recordTypes.DecodeImage:
       case recordTypes.ResizeImage: {
+        Common.console.log("YO THOR! reasizzeIMG");
         let paintImageEvent = this._findAncestorEvent(recordTypes.PaintImage);
         if (!paintImageEvent) {
           const decodeLazyPixelRefEvent = this._findAncestorEvent(recordTypes.DecodeLazyPixelRef);
@@ -961,6 +1003,7 @@ export class TimelineModelImpl {
       }
 
       case recordTypes.DrawLazyPixelRef: {
+        Common.console.log("YO THOR! daralazypix");
         const paintImageEvent = this._findAncestorEvent(recordTypes.PaintImage);
         if (!paintImageEvent) {
           break;
@@ -973,17 +1016,20 @@ export class TimelineModelImpl {
       }
 
       case recordTypes.FrameStartedLoading:
+        Common.console.log("YO THOR! framest");
         if (timelineData.frameId !== event.args['frame']) {
           return false;
         }
         break;
 
       case recordTypes.MarkLCPCandidate:
+        Common.console.log("YO THOR! makrLCP");
         timelineData.backendNodeId = eventData['nodeId'];
         break;
 
       case recordTypes.MarkDOMContent:
       case recordTypes.MarkLoad: {
+        Common.console.log("YO THOR! makrLCOADP");
         const frameId = TimelineModelImpl.eventFrameId(event);
         if (!this._pageFrames.has(frameId)) {
           return false;
@@ -992,6 +1038,7 @@ export class TimelineModelImpl {
       }
 
       case recordTypes.CommitLoad: {
+        Common.console.log("YO THOR! COMITCOADP");
         if (this._browserFrameTracking) {
           break;
         }
@@ -1020,11 +1067,17 @@ export class TimelineModelImpl {
       }
 
       case recordTypes.FireIdleCallback:
+        Common.console.log("YO THOR! CIDL");
         if (event.duration > eventData['allottedMilliseconds'] + TimelineModelImpl.Thresholds.IdleCallbackAddon) {
           timelineData.warning = TimelineModelImpl.WarningType.IdleDeadlineExceeded;
         }
         break;
+
+      default:
+        Common.console.log("YO THOR! DEFAULT");
     }
+
+    Common.console.log("YO THOR! WE GOOD? AFT4rB swithc");
     return true;
   }
 
@@ -2021,6 +2074,17 @@ export class InvalidationTracker {
    * @param {!SDK.TracingModel.Event} layoutEvent
    */
   didLayout(layoutEvent) {
+    Common.console.log("YO THOR INALIDATION TRACKER DID LAYOUT!!");
+    if (layoutEvent['beginData']) {
+      Common.console.log("YO THOR INALIDATION TRACKER HAS BEGIN DATA !!");
+        if (layoutEvent['beginData']['frame']) {
+          Common.console.log("YO THOR INALIDATION TRACKER HAS BEGIN DATA and FRAME !!");
+        } else {
+          Common.console.log("YO THOR INALIDATION TRACKER HAS BEGIN DATA BUT nAEEEE FRAME !!");
+        }
+    } else {
+      Common.console.log("YO THOR INALIDATION TRACKER HASNNNNNNAEEEEEEE BEGIN DATA !!");
+    }
     const layoutFrameId = layoutEvent.args['beginData']['frame'];
     for (const invalidation of this._invalidationsOfTypes([RecordType.LayoutInvalidationTracking])) {
       if (invalidation.linkedLayoutEvent) {
