@@ -134,7 +134,6 @@ static_library("starboard_platform") {
     "//starboard/shared/uwp/system_platform_error_internal.cc",
     "//starboard/shared/uwp/system_platform_error_internal.h",
     "//starboard/shared/uwp/system_raise_platform_error.cc",
-    "//starboard/shared/uwp/time_zone_get_name.cc",
     "//starboard/shared/uwp/wasapi_audio.cc",
     "//starboard/shared/uwp/wasapi_audio.h",
     "//starboard/shared/uwp/wasapi_audio_sink.cc",
@@ -177,6 +176,10 @@ static_library("starboard_platform") {
     "//starboard/shared/win32/media_get_max_buffer_capacity.cc",
     "//starboard/shared/win32/media_transform.cc",
     "//starboard/shared/win32/media_transform.h",
+
+    # TODO (b/304335954): Use uwp implementation for correct IANA name once
+    # daylight savings offset is fixed.
+    "//starboard/shared/win32/time_zone_get_name.cc",
     "//starboard/shared/win32/video_decoder.cc",
     "//starboard/shared/win32/video_decoder.h",
     "//starboard/shared/win32/win32_audio_decoder.cc",
