@@ -51,7 +51,6 @@ TracingAgent::TracingAgent(DebugDispatcher* dispatcher,
       commands_(kInspectorDomain) {
   DCHECK(dispatcher_);
 
-  LOG(INFO) << "YO THOR _ TRACING AGENT CTOR";
   trace_buffer_.SetOutputCallback(json_output_.GetCallback());
 
   commands_["end"] = base::Bind(&TracingAgent::End, base::Unretained(this));
@@ -101,7 +100,6 @@ void TracingAgent::End(Command command) {
   tracing_started_ = false;
   categories_.clear();
   command.SendResponse();
-  LOG(INFO) << "YO THOR _ TRACING AGENT STop";
 
   base::trace_event::TraceLog* trace_log =
       base::trace_event::TraceLog::GetInstance();
@@ -146,55 +144,11 @@ void TracingAgent::End(Command command) {
   // script_debugger_->StopTracing();
 }
 
-// void TracingAgent::OnTraceDataCollected(base::WaitableEvent*
-// flush_complete_event, const scoped_refptr<base::RefCountedString>&
-// events_str, bool has_more_events) {
-//
-//   json_output_.json_output.clear();
-//   trace_buffer_.Start();
-//   trace_buffer_.AddFragment(events_str->data());
-//   trace_buffer_.Finish();
-//
-//   std::unique_ptr<base::Value> root =
-//       base::JSONReader::Read(json_output_.json_output, base::JSON_PARSE_RFC);
-//
-//   if (!root.get()) {
-//     LOG(ERROR) << json_output_.json_output;
-//   }
-//
-//   base::ListValue* root_list = nullptr;
-//   root->GetAsList(&root_list);
-//
-//   // Move items into our aggregate collection
-//   while (root_list->GetSize()) {
-//     std::unique_ptr<base::Value> item;
-//     root_list->Remove(0, &item);
-//     //trace_parsed_.Append(std::move(item));
-//   }
-//
-//   if (!has_more_events)
-//     flush_complete_event->Signal();
-// }
 
 void TracingAgent::OutputTraceData(
     base::OnceClosure finished_cb,
     const scoped_refptr<base::RefCountedString>& event_string,
     bool has_more_events) {
-  //// This function is usually called as a callback by
-  //// base::trace_event::TraceLog::Flush().  It may get called by Flush()
-  //// multiple times.
-  // if (output_trace_event_call_count_ != 0) {
-  //   const char text[] = ",\n";
-  //   Write(text, strlen(text));
-  // }
-  // const std::string& event_str = event_string->data();
-  // Write(event_str.c_str(), event_str.size());
-  // ++output_trace_event_call_count_;
-
-  // LOG(INFO) << "YO THOR! GOT EVENT STRING DAATA:" << event_string->data();
-  // AppendTraceEvent(event_string->data());
-  // AppendTraceEvent(event_string->data());
-
   json_output_.json_output.clear();
   trace_buffer_.Start();
   trace_buffer_.AddFragment(event_string->data());
@@ -225,9 +179,7 @@ void TracingAgent::OutputTraceData(
   }
 
   if (!has_more_events) {
-    LOG(INFO) << "YO THOR - TRACE BUFFER FINISH";
     trace_buffer_.Finish();
-    LOG(INFO) << "YO THOR _ NO MORE EVENTS, RUN FNSHED CB";
     std::move(finished_cb).Run();
   }
 }
@@ -240,9 +192,6 @@ void TracingAgent::Start(Command command) {
                               "Tracing already started");
     return;
   }
-
-  LOG(INFO) << "YO THOR _ TRACING AGENT STAaaart";
-
 
   JSONObject params = JSONParse(command.GetParams());
 

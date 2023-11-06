@@ -13,7 +13,6 @@ Timeline.TimelineController = class {
    * @param {!Timeline.TimelineController.Client} client
    */
   constructor(target, client) {
-    Common.console.log("YO THOR TIMLINE CONTERL CTRO");
     this._target = target;
     this._tracingManager = target.model(SDK.TracingManager);
     this._performanceModel = new Timeline.PerformanceModel();
@@ -94,7 +93,6 @@ Timeline.TimelineController = class {
     if (response[Protocol.Error]) {
       await this._waitForTracingToStop(false);
     }
-    Common.console.log("YO THOR - RESPONSE:", response);
     return response;
   }
 
@@ -102,7 +100,6 @@ Timeline.TimelineController = class {
    * @return {!Promise<!Timeline.PerformanceModel>}
    */
   async stopRecording() {
-    Common.console.log("YO THOR - STOP RECORDING ");
     if (this._tracingManager) {
       this._tracingManager.stop();
     }
@@ -110,7 +107,6 @@ Timeline.TimelineController = class {
     this._client.loadingStarted();
     await this._waitForTracingToStop(true);
     this._allSourcesFinished();
-    Common.console.log("YO THOR - PERF MODEL:", this._performanceModel);
     return this._performanceModel;
   }
 
@@ -120,7 +116,6 @@ Timeline.TimelineController = class {
    * @return {!Promise}
    */
   _waitForTracingToStop(awaitTracingCompleteCallback) {
-    Common.console.log("YO THOR - WAIT 4 TRACING");
     const tracingStoppedPromises = [];
     if (this._tracingManager && awaitTracingCompleteCallback) {
       tracingStoppedPromises.push(new Promise(resolve => this._tracingCompleteCallback = resolve));
@@ -227,7 +222,6 @@ Timeline.TimelineController = class {
    * @override
    */
   tracingComplete() {
-    Common.console.log("YO THOR! TRACING COMPLETE! ");
     this._tracingCompleteCallback();
     this._tracingCompleteCallback = null;
   }

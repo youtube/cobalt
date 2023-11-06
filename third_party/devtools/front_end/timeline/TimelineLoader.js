@@ -13,8 +13,6 @@ Timeline.TimelineLoader = class {
   constructor(client) {
     this._client = client;
 
-    Common.console.log("YO THOR - CTRO _CLIENT");
-
     this._backingStorage = new Bindings.TempFileBackingStorage();
     this._tracingModel = new SDK.TracingModel(this._backingStorage);
 
@@ -219,7 +217,6 @@ Timeline.TimelineLoader = class {
   }
 
   _finalizeTrace() {
-    Common.console.log("YO THOR! FINALIZE YTACE");
     if (this._state === Timeline.TimelineLoader.State.LoadingCPUProfileFormat) {
       this._parseCPUProfileFormat(this._buffer);
       this._buffer = '';
@@ -233,7 +230,6 @@ Timeline.TimelineLoader = class {
    */
   _parseCPUProfileFormat(text) {
     let traceEvents;
-    Common.console.log("YO THOR - PARSE CPU");
     try {
       const profile = JSON.parse(text);
       traceEvents = TimelineModel.TimelineJSProfileProcessor.buildTraceProfileFromCpuProfile(
