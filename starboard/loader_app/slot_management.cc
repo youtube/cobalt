@@ -289,7 +289,7 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
     if (!third_party::crashpad::wrapper::AddEvergreenInfoToCrashpad(
             evergreen_info)) {
       SB_LOG(ERROR)
-          << "Could not send Cobalt library information into Crashapd.";
+          << "Could not send Cobalt library information into Crashpad.";
     } else {
       SB_LOG(INFO) << "Loaded Cobalt library information into Crashpad.";
     }
