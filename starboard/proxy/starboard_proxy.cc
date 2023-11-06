@@ -14,8 +14,9 @@
 
 #include "starboard/proxy/starboard_proxy.h"
 
-#include <dlfcn.h>
-#include <stdarg.h>
+#include "starboard/common/log.h"
+#include "starboard/extension/runtime_linking.h"
+#include "starboard/system.h"
 
 namespace starboard {
 namespace proxy {
@@ -30,18 +31,23 @@ SbProxy* GetSbProxy() {
 }
 
 SbProxy::SbProxy() {
-  // If we keep this demand loading strategy, we may be able to add a new
-  // demand loading Starboard API or extension to make it portable. jfoks@
-  // pointed out that some of our platforms won't support dlopen/dlsym.
-  starboard_handle_ = dlopen("libstarboard_platform_group.so", RTLD_NOW);
+  runtime_linking_extension_ =
+      static_cast<const CobaltExtensionRuntimeLinkingApi*>(
+          SbSystemGetExtension(kCobaltExtensionRuntimeLinkingName));
+  if (!runtime_linking_extension_) {
+    SB_LOG(ERROR) << "No CobaltExtensionRuntimeLinkingApi impl found!";
+    return;
+  }
+  starboard_handle_ =
+      runtime_linking_extension_->OpenLibrary("libstarboard_platform_group.so");
 }
 
 SbProxy::~SbProxy() {
-  dlclose(starboard_handle_);
+  runtime_linking_extension_->CloseLibrary(starboard_handle_);
 }
 
 void* SbProxy::LookupSymbol(const char* symbol) {
-  return dlsym(starboard_handle_, symbol);
+  return runtime_linking_extension_->LookupSymbol(starboard_handle_, symbol);
 }
 
 void SbProxy::SetFileDelete(file_delete_fn_type file_delete_fn) {

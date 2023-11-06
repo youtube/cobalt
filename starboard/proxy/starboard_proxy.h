@@ -17,6 +17,7 @@
 
 #include <stdarg.h>
 
+#include "starboard/extension/runtime_linking.h"
 #include "starboard/file.h"
 #include "starboard/log.h"
 
@@ -48,6 +49,7 @@ class SbProxy {
   log_format_fn_type GetLogFormat();
 
  private:
+  const CobaltExtensionRuntimeLinkingApi* runtime_linking_extension_;
   void* starboard_handle_;
 
   file_delete_fn_type file_delete_fn_ = NULL;

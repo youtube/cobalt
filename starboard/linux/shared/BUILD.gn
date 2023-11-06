@@ -177,6 +177,8 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/posix/memory_protect.cc",
     "//starboard/shared/posix/memory_unmap.cc",
     "//starboard/shared/posix/page_internal.cc",
+    "//starboard/shared/posix/runtime_linking.cc",
+    "//starboard/shared/posix/runtime_linking.h",
     "//starboard/shared/posix/set_non_blocking_internal.cc",
     "//starboard/shared/posix/socket_accept.cc",
     "//starboard/shared/posix/socket_bind.cc",
