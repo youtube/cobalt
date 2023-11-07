@@ -88,7 +88,12 @@ if (sb_is_evergreen_compatible) {
   }
 }
 
+<<<<<<< HEAD
 if (current_toolchain == starboard_toolchain) {
+=======
+# TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
+if (current_toolchain == starboard_toolchain && !is_host_win) {
+>>>>>>> 5eb5f808fa2 (Add TODO statements from previous PR feedback (#1925))
   target(starboard_level_final_executable_type, "elf_loader_sandbox") {
     data_deps = [ "//third_party/icu:icudata" ]
     if (cobalt_font_package == "empty") {
@@ -152,6 +157,7 @@ if (sb_is_evergreen_compatible) {
   }
 }
 
+<<<<<<< HEAD
 target(gtest_target_type, "elf_loader_test") {
   testonly = true
   sources = [ "//starboard/common/test_main.cc" ]
@@ -174,6 +180,17 @@ target(gtest_target_type, "elf_loader_test") {
     deps += [
       ":copy_elf_loader_testdata",
       ":elf_loader",
+=======
+# TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
+if (!is_host_win) {
+  target(gtest_target_type, "elf_loader_test") {
+    testonly = true
+    sources = [ "//starboard/common/test_main.cc" ]
+    deps = [
+      "//starboard",
+      "//testing/gmock",
+      "//testing/gtest",
+>>>>>>> 5eb5f808fa2 (Add TODO statements from previous PR feedback (#1925))
     ]
 
     data_deps = [ ":copy_elf_loader_testdata" ]
