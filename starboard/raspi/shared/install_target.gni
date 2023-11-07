@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/build/config/starboard_target_type.gni")
 import("//starboard/raspi/shared/toolchain/raspi_shared_toolchain.gni")
+
 template("install_target") {
   not_needed(invoker, [ "shared_library_target_name" ])
 
