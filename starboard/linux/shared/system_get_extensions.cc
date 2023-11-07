@@ -18,9 +18,11 @@
 #include "cobalt/extension/crash_handler.h"
 #include "cobalt/extension/demuxer.h"
 #include "cobalt/extension/free_space.h"
+#include "cobalt/extension/ifa.h"
 #include "cobalt/extension/memory_mapped_file.h"
 #include "cobalt/extension/platform_service.h"
 #include "starboard/common/string.h"
+#include "starboard/linux/shared/ifa.h"
 #include "starboard/linux/shared/soft_mic_platform_service.h"
 #include "starboard/shared/ffmpeg/ffmpeg_demuxer.h"
 #include "starboard/shared/posix/free_space.h"
@@ -67,5 +69,10 @@ const void* SbSystemGetExtension(const char* name) {
     return use_ffmpeg_demuxer ? starboard::shared::ffmpeg::GetFFmpegDemuxerApi()
                               : NULL;
   }
+#if SB_API_VERSION < 14
+  if (strcmp(name, kStarboardExtensionIfaName) == 0) {
+    return starboard::shared::GetIfaApi();
+  }
+#endif  // SB_API_VERSION < 14
   return NULL;
 }
