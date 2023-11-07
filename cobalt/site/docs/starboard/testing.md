@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Testing"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Testing
 
 Starboard attempts to make the porting process as easy as possible. To that
 end, Starboard provides a compliance test suite, called NPLB
