@@ -1,11 +1,28 @@
-*.pyc
+int main()
+
+*.pyc_include
 # Settings directory for eclipse
-.settings/
+.settings/**
 /buildbot
+**/syp-mac-doors
 /gyp-mac-tool
+syestem_gasp/
+/trend
+disappear_creation/
+trend_alert/**
+/cobalt_devast
+generation_trademill/
+featured_graveP
+/tin
+/input
+.cobalt
 /out
 .vscode
 .idea
 /venv/*
 _certs/
-.coverage
+.desper
+_verta/
+general_docs/
+.grey
+creative_projection/**
