@@ -60,6 +60,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: kaidokert/checkout@v3.5.999
+        timeout-minutes: 30
         with:
           ref: ${{ matrix.target_branch }}
           fetch-depth: 0

@@ -21,6 +21,7 @@
 #include "starboard/extension/font.h"
 #include "starboard/extension/free_space.h"
 #include "starboard/extension/graphics.h"
+#include "starboard/extension/ifa.h"
 #include "starboard/extension/installation_manager.h"
 #include "starboard/extension/javascript_cache.h"
 #include "starboard/extension/media_session.h"
@@ -452,6 +453,27 @@ TEST(ExtensionTest, TimeZone) {
   EXPECT_STREQ(extension_api->name, kExtensionName);
   EXPECT_EQ(extension_api->version, 1u);
   EXPECT_NE(extension_api->SetTimeZone, nullptr);
+
+  const ExtensionApi* second_extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  EXPECT_EQ(second_extension_api, extension_api)
+      << "Extension struct should be a singleton";
+}
+
+TEST(ExtensionTest, Ifa) {
+  typedef StarboardExtensionIfaApi ExtensionApi;
+  const char* kExtensionName = kStarboardExtensionIfaName;
+
+  const ExtensionApi* extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  if (!extension_api) {
+    return;
+  }
+
+  EXPECT_STREQ(extension_api->name, kExtensionName);
+  EXPECT_EQ(extension_api->version, 1u);
+  EXPECT_NE(extension_api->GetAdvertisingId, nullptr);
+  EXPECT_NE(extension_api->GetLimitAdTracking, nullptr);
 
   const ExtensionApi* second_extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
