@@ -1067,13 +1067,13 @@ void TraceLog::OnFlushTimeout(int generation, bool discard_events) {
     }
 
     LOG(WARNING)
-        << "YO THOR - The following threads haven't finished flush in time. "
+        << "The following threads haven't finished flush in time. "
            "If this happens stably for some thread, please call "
            "TraceLog::GetInstance()->SetCurrentThreadBlocksMessageLoop() from "
            "the thread to avoid its trace events from being lost.";
     for (auto it = thread_message_loops_.begin();
          it != thread_message_loops_.end(); ++it) {
-      LOG(WARNING) << "YO THOR Thread: " << (*it)->GetThreadName();
+      LOG(WARNING) << "Thread: " << (*it)->GetThreadName();
     }
   }
   FinishFlush(generation, discard_events);
