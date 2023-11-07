@@ -35,12 +35,14 @@ RUN iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.or
     choco install -y -c C:\choco-cache git;`
     choco install -y -c C:\choco-cache cmake --installargs 'ADD_CMAKE_TO_PATH=System';`
     choco install -y -c C:\choco-cache nasm;`
-    setx /M PATH $($Env:PATH + ';C:\Program Files\NASM');`
     Write-Host ('Deleting the chocolately download cache');`
     Remove-Item -Force -Recurse $env:TEMP\*;`
     C:\fast-win-rmdir.cmd C:\choco-cache;`
     # Create version specific copy of each python executable.
     Copy-Item C:\Python3\python.exe C:\Python3\python3.exe
+
+# Configure PATH for nasm.
+RUN setx /M PATH $($Env:PATH + ';C:\Program Files\NASM')
 
 # Install python3 packages via PIP and set various configurations.
 COPY ./requirements.txt /requirements.txt
