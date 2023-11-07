@@ -38,6 +38,7 @@ jobs:
           rm /tmp/gn.zip
       - name: Checkout
         uses: kaidokert/checkout@v3.5.999
+        timeout-minutes: 30
         with:
           fetch-depth: 0
           persist-credentials: false
