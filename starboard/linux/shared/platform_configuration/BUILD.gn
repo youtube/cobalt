@@ -62,14 +62,10 @@ config("compiler_flags") {
 
       # Do not warn about unused function params.
       "-Wno-unused-parameter",
-    ]
-    if (sb_is_modular && !sb_is_evergreen) {
-      # If we're building with cobalt toolchain and native linker, we need visibility.
-      cflags += [ "-fvisibility=default" ]
-    } else {
+
       # Default visibility to hidden, to enable dead stripping.
-      cflags += [ "-fvisibility=hidden" ]
-    }
+      "-fvisibility=hidden",
+    ]
 
     if (is_gold) {
       cflags += [
