@@ -55,3 +55,5 @@ cobalt_font_package = "android_system"
 separate_install_targets_for_bundling = true
 
 v8_enable_webassembly = true
+
+is_clang_16 = false

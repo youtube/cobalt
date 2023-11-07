@@ -33,5 +33,6 @@ overridable_gcc_toolchain("starboard") {
 
   toolchain_args = {
     is_clang = true
+    is_clang_16 = false
   }
 }
