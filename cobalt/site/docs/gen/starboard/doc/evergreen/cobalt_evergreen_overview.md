@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Cobalt Evergreen Overview"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Cobalt Evergreen Overview
 
 ![Cobalt non-Evergreen vs
