@@ -71,6 +71,7 @@ jobs:
     steps:
       - id: checkout
         uses: kaidokert/checkout@v3.5.999
+        timeout-minutes: 30
         with:
           fetch-depth: 1
           persist-credentials: false
@@ -144,6 +145,7 @@ jobs:
     steps:
       - name: Checkout files
         uses: kaidokert/checkout@v3.5.999
+        timeout-minutes: 30
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -179,6 +181,7 @@ jobs:
     steps:
       - name: Checkout files
         uses: kaidokert/checkout@v3.5.999
+        timeout-minutes: 30
         with:
           fetch-depth: 2
           persist-credentials: false
@@ -225,6 +228,7 @@ jobs:
     steps:
       - name: Checkout
         uses: kaidokert/checkout@v3.5.999
+        timeout-minutes: 30
         with:
           # Use fetch depth of 0 to get full history for a valid build id.
           fetch-depth: 0
@@ -312,6 +316,7 @@ jobs:
     steps:
       - name: Checkout
         uses: kaidokert/checkout@v3.5.999
+        timeout-minutes: 30
         with:
           fetch-depth: 1
           persist-credentials: false
@@ -347,6 +352,7 @@ jobs:
           timezoneLinux: "America/Los_Angeles"
       - name: Checkout
         uses: kaidokert/checkout@v3.5.999
+        timeout-minutes: 30
         with:
           fetch-depth: 1
           persist-credentials: false
