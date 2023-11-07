@@ -19,7 +19,8 @@ FROM ${FROM_IMAGE}
 # Dockerfile for image used to install Visual Studio.
 # WARNING: Changes to this file will result in an extremely long image rebuild.
 
-SHELL ["powershell", "-ExecutionPolicy", "unrestricted", "-Command"]
+SHELL ["powershell", "-ExecutionPolicy", "Unrestricted", "-Command", `
+       "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
 RUN mkdir C:\TEMP;`
     Write-Host ('Downloading vs_buildtools.exe');`
