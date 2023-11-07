@@ -90,6 +90,7 @@ if (sb_is_evergreen_compatible) {
   }
 }
 
+# TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
 if (current_toolchain == starboard_toolchain && !is_host_win) {
   target(starboard_level_final_executable_type, "elf_loader_sandbox") {
     data_deps = [ "//third_party/icu:icudata" ]
@@ -157,6 +158,7 @@ if (sb_is_evergreen_compatible) {
   }
 }
 
+# TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
 if (!is_host_win) {
   target(gtest_target_type, "elf_loader_test") {
     testonly = true
