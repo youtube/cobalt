@@ -14,6 +14,7 @@
 #include <climits>
 #include <cstdarg>
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <set>
 #include <sstream>
