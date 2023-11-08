@@ -105,6 +105,7 @@ def _FindFilesRecursive(  # pylint: disable=missing-docstring
 def CopyAppLauncherTools(repo_root,
                          dest_root,
                          additional_glob_patterns=None,
+                         include_black_box_tests=False,
                          include_integration_tests=False):
   """Copies app launcher related files to the destination root.
 
@@ -114,9 +115,13 @@ def CopyAppLauncherTools(repo_root,
     additional_glob_patterns: Some platforms may need to include certain
       dependencies beyond the default include file patterns. The results here
       will be merged in with _INCLUDE_FILE_PATTERNS.
-    include_integration_tests: If True then the resources for the black box
+    include_integration_tests: If True then the resources for the integration
       tests are included.
+    include_black_box_tests: Same as above. Kept for compatibility reasons.
   """
+  # TODO(b/294129333): Remove include_black_box_tests when DS is gone.
+  include_integration_tests = (
+      include_integration_tests or include_black_box_tests)
   dest_root = _PrepareDestination(dest_root)
   copy_list = _GetSourceFilesList(repo_root, additional_glob_patterns,
                                   include_integration_tests)
