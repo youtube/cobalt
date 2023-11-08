@@ -31,7 +31,7 @@
       "target_platform":"raspi-2",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments": "build_with_separate_cobalt_toolchain=true use_asan=false",
-      "sb_api_version": "sb_api_version=15",
+      "sb_api_version": "15",
       "dimension": "release_version=regex:10.*"
     }
   ]

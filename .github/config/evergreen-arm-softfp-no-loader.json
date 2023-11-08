@@ -10,7 +10,7 @@
       "target_platform":"evergreen-arm-softfp",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
-      "sb_api_version":"sb_api_version=13"
+      "sb_api_version":"13"
     }
   ]
 }
