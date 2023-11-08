@@ -319,18 +319,18 @@ void MediaDecoder::DecoderThreadFunc() {
                                   &dequeue_output_results);
       }
 
-      if (!tunnel_mode_enabled_) {
-        // Output is only processed when tunnel mode is disabled.
-        if (!dequeue_output_results.empty()) {
-          auto& dequeue_output_result = dequeue_output_results.front();
-          if (dequeue_output_result.index < 0) {
-            host_->RefreshOutputFormat(media_codec_bridge_.get());
-          } else {
-            host_->ProcessOutputBuffer(media_codec_bridge_.get(),
-                                       dequeue_output_result);
-          }
-          dequeue_output_results.erase(dequeue_output_results.begin());
+      if (!dequeue_output_results.empty()) {
+        auto& dequeue_output_result = dequeue_output_results.front();
+        if (dequeue_output_result.index < 0) {
+          host_->RefreshOutputFormat(media_codec_bridge_.get());
+        } else {
+          SB_DCHECK(!tunnel_mode_enabled_);
+          host_->ProcessOutputBuffer(media_codec_bridge_.get(),
+                                     dequeue_output_result);
         }
+        dequeue_output_results.erase(dequeue_output_results.begin());
+      }
+      if (!tunnel_mode_enabled_) {
         host_->Tick(media_codec_bridge_.get());
       }
 
