@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Application Lifecycle"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Application Lifecycle
 
 In order to meet common needs of applications running on CE devices, Cobalt

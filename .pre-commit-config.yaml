@@ -23,6 +23,7 @@ exclude: |
             extensions/buildflags|
             glimp/include|
             net|
+            internal/kokoro/third-party|
             internal/starboard/shared/playstation/glimp/shaders|
             testing|
             third_party|

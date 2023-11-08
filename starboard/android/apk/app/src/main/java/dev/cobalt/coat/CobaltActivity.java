@@ -159,8 +159,6 @@ public abstract class CobaltActivity extends GameActivity {
 
     getStarboardBridge().onActivityStart(this, keyboardEditor);
     super.onStart();
-
-    nativeInitializeMediaCapabilitiesInBackground();
   }
 
   @Override
@@ -396,6 +394,4 @@ public abstract class CobaltActivity extends GameActivity {
   public long getAppStartTimestamp() {
     return timeInNanoseconds;
   }
-
-  private static native void nativeInitializeMediaCapabilitiesInBackground();
 }

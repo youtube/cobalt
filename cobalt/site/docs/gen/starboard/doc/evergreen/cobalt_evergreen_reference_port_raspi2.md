@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Cobalt Evergreen Raspi-2 Reference Port"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Cobalt Evergreen Raspi-2 Reference Port
 
 ## Requirements

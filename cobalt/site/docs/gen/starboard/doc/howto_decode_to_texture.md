@@ -1,7 +1,6 @@
----
-layout: doc
-title: "**HOWTO:** Decode to Texture"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # **HOWTO:** Decode to Texture
 
 Starboard declares the interfaces necessary to allow applications to query for
