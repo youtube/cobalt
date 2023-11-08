@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: speech_synthesis.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: `speech_synthesis.h`
 
 A basic text-to-speech API intended to be used for audio accessibility.
 
@@ -11,29 +11,29 @@ non-visual navigation of the application.
 Note that these functions do not have to be thread-safe. They must only be
 called from a single application thread.
 
-## Functions ##
+## Functions
 
-### SbSpeechSynthesisCancel ###
+### SbSpeechSynthesisCancel
 
 Cancels all speaking and queued speech synthesis audio. Must return immediately.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbSpeechSynthesisCancel()
 ```
 
-### SbSpeechSynthesisIsSupported ###
+### SbSpeechSynthesisIsSupported
 
 Returns whether the platform supports speech synthesis
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbSpeechSynthesisIsSupported()
 ```
 
-### SbSpeechSynthesisSpeak ###
+### SbSpeechSynthesisSpeak
 
 Enqueues `text`, a UTF-8 string, to be spoken. Returns immediately.
 
@@ -44,7 +44,7 @@ If audio from previous SbSpeechSynthesisSpeak() invocations is still processing,
 the current speaking should continue and this new text should be queued to play
 when the previous utterances are complete.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbSpeechSynthesisSpeak(const char *text)

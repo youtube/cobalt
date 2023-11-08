@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: image.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: `image.h`
 
 API for hardware accelerated image decoding. This module allows for the client
 to feed in raw, encoded data to be decoded directly into an SbDecodeTarget. It
@@ -11,7 +11,7 @@ image formats and SbDecodeTargetFormats are supported or not.
 All functions in this module are safe to call from any thread at any point in
 time.
 
-## SbImageIsDecodeSupported and SbImageDecode Example ##
+## SbImageIsDecodeSupported and SbImageDecode Example
 
 ```
 SbDecodeTargetProvider* provider = GetProviderFromSomewhere();
@@ -28,9 +28,9 @@ SbDecodeTarget result_target = SbImageDecode(provider, data, data_size,
                                              mime_type, format);
 ```
 
-## Functions ##
+## Functions
 
-### SbImageDecode ###
+### SbImageDecode
 
 Attempt to decode encoded `mime_type` image data `data` of size `data_size` into
 an SbDecodeTarget of SbDecodeFormatType `format`, possibly using
@@ -56,13 +56,13 @@ scenarios regarding the provider may happen:
     kSbDecodeTargetInvalid will be returned, with any intermediate allocations
     being cleaned up in the implementation.
 
-#### Declaration ####
+#### Declaration
 
 ```
 SbDecodeTarget SbImageDecode(SbDecodeTargetGraphicsContextProvider *context_provider, void *data, int data_size, const char *mime_type, SbDecodeTargetFormat format)
 ```
 
-### SbImageIsDecodeSupported ###
+### SbImageIsDecodeSupported
 
 Whether the current platform supports hardware accelerated decoding an image of
 mime type `mime_type` into SbDecodeTargetFormat `format`. The `mime_type` must
@@ -70,7 +70,7 @@ not be NULL. The result of this function must not change over the course of the
 program, which means that the results of this function may be cached
 indefinitely.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbImageIsDecodeSupported(const char *mime_type, SbDecodeTargetFormat format)
