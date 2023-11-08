@@ -133,7 +133,7 @@ Required libraries can differ depending on your Linux distribution and version.
     The previous command contains three variables:
 
     1.  `<platform>` is the [platform
-        configuration](/starboard/porting.html#1-enumerate-and-name-your-platform-configurations)
+        configuration](../starboard/porting.md#1-enumerate-and-name-your-platform-configurations)
         that identifies the platform. As described in the Starboard porting
         guide, it contains a `family name` (like `linux`) and a
         `binary variant` (like `x64x11`), separated by a hyphen.
