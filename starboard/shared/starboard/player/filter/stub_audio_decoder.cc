@@ -158,11 +158,12 @@ void StubAudioDecoder::DecodeBuffers(const InputBuffers& input_buffers,
   for (const auto& input_buffer : input_buffers) {
     DecodeOneBuffer(input_buffer);
   }
-  decoder_thread_->job_queue()->Schedule(consumed_cb);
+  Schedule(consumed_cb);
 }
 
 void StubAudioDecoder::DecodeOneBuffer(
     const scoped_refptr<InputBuffer>& input_buffer) {
+  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
   const int kMaxInputBeforeMultipleDecodedAudios = 4;
 
   if (last_input_buffer_) {
@@ -189,7 +190,7 @@ void StubAudioDecoder::DecodeOneBuffer(
     if (total_input_count_ % kMaxInputBeforeMultipleDecodedAudios != 0) {
       ScopedLock lock(decoded_audios_mutex_);
       decoded_audios_.push(decoded_audio);
-      decoder_thread_->job_queue()->Schedule(output_cb_);
+      Schedule(output_cb_);
     } else {
       // Divide the content of `decoded_audio` as multiple DecodedAudio objects
       // to ensure that the user of AudioDecoders works with output in
@@ -230,7 +231,7 @@ void StubAudioDecoder::DecodeOneBuffer(
 
         ScopedLock lock(decoded_audios_mutex_);
         decoded_audios_.push(current_decoded_audio);
-        decoder_thread_->job_queue()->Schedule(output_cb_);
+        Schedule(output_cb_);
       }
     }
   }
@@ -274,11 +275,11 @@ void StubAudioDecoder::DecodeEndOfStream() {
 
     ScopedLock lock(decoded_audios_mutex_);
     decoded_audios_.push(decoded_audio);
-    decoder_thread_->job_queue()->Schedule(output_cb_);
+    Schedule(output_cb_);
   }
   ScopedLock lock(decoded_audios_mutex_);
   decoded_audios_.push(new DecodedAudio());
-  decoder_thread_->job_queue()->Schedule(output_cb_);
+  Schedule(output_cb_);
 }
 
 }  // namespace filter
