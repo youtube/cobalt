@@ -367,7 +367,7 @@ template("evergreen_loader") {
     deps = [
       ":copy_loader_app_lib${original_target_name}",
       "//cobalt/content/fonts:copy_font_data",
-      "//starboard",
+      "//starboard:starboard_group",
       "//starboard/elf_loader:constants",
       "//starboard/elf_loader:elf_loader",
       "//starboard/elf_loader:evergreen_info",
@@ -557,10 +557,10 @@ template("shared_library") {
 
         deps = [
           ":$original_target_name($cobalt_toolchain)",
-          "//starboard:starboard_platform_group($starboard_toolchain)",
+          "//starboard($starboard_toolchain)",
         ]
         if (!separate_install_targets_for_bundling) {
-          deps += [ "//starboard:starboard_platform_group_install($starboard_toolchain)" ]
+          deps += [ "//starboard:starboard_install($starboard_toolchain)" ]
         }
       }
       if (!is_host_win) {

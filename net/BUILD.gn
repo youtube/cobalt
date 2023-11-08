@@ -1723,7 +1723,7 @@ component("net") {
     "//base:i18n",
     "//base/third_party/dynamic_annotations",
     "//crypto",
-    "//starboard",
+    "//starboard:starboard_group",
     "//third_party/boringssl:crypto",
     "//third_party/brotli:dec",
     "//third_party/icu:icui18n",
