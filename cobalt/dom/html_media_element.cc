@@ -1755,6 +1755,10 @@ void HTMLMediaElement::SetMaxVideoCapabilities(
                              exception_state);
     return;
   }
+
+  LOG(INFO) << "max video capabilities is changed from \""
+            << max_video_capabilities_ << "\" to \"" << max_video_capabilities
+            << "\"";
   max_video_capabilities_ = max_video_capabilities;
 }
 
