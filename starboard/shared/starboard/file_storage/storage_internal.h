@@ -28,7 +28,6 @@
 #include <sstream>
 #include <string>
 #include "starboard/common/murmurhash2.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/memory.h"
 #endif
 

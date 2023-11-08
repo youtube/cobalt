@@ -17,7 +17,8 @@
 
 #include <EGL/egl.h>
 
-#include "starboard/common/scoped_ptr.h"
+#include <memory>
+
 #include "starboard/raspi/shared/dispmanx_util.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/window.h"
@@ -27,7 +28,7 @@ struct SbWindowPrivate {
                   const SbWindowOptions* options);
   ~SbWindowPrivate();
 
-  starboard::scoped_ptr<starboard::raspi::shared::DispmanxElement> element;
+  std::unique_ptr<starboard::raspi::shared::DispmanxElement> element;
   EGL_DISPMANX_WINDOW_T window;
 };
 

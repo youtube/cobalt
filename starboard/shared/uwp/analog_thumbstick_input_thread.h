@@ -17,7 +17,8 @@
 #ifndef STARBOARD_SHARED_UWP_ANALOG_THUMBSTICK_INPUT_THREAD_H_
 #define STARBOARD_SHARED_UWP_ANALOG_THUMBSTICK_INPUT_THREAD_H_
 
-#include "starboard/common/scoped_ptr.h"
+#include <memory>
+
 #include "starboard/configuration.h"
 #include "starboard/input.h"
 
@@ -46,7 +47,7 @@ class AnalogThumbstickThread {
   void operator=(const AnalogThumbstickThread&) = delete;
 
   class Impl;
-  scoped_ptr<Impl> impl_;
+  std::unique_ptr<Impl> impl_;
 };
 
 }  // namespace uwp

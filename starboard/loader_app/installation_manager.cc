@@ -14,6 +14,7 @@
 
 #include "starboard/loader_app/installation_manager.h"
 
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -21,7 +22,6 @@
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
@@ -737,7 +737,7 @@ bool InstallationManager::CleanInstallationDirs() {
 extern "C" {
 #endif
 
-starboard::scoped_ptr<
+std::unique_ptr<
     starboard::loader_app::installation_manager::InstallationManager>
     g_installation_manager_;
 

@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "starboard/elf_loader/relocations.h"
 
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/elf_loader/elf.h"
 #include "starboard/elf_loader/file_impl.h"
 #include "starboard/string.h"
@@ -75,14 +76,14 @@ class RelocationsTest : public ::testing::Test {
 #endif
 
  protected:
-  scoped_ptr<Relocations> relocations_;
+  std::unique_ptr<Relocations> relocations_;
   Addr base_addr_;
 
  private:
   char buf_[128];
   Dyn dynamic_table_[10];
-  scoped_ptr<DynamicSection> dynamic_section_;
-  scoped_ptr<ExportedSymbols> exported_symbols_;
+  std::unique_ptr<DynamicSection> dynamic_section_;
+  std::unique_ptr<ExportedSymbols> exported_symbols_;
 };
 
 #if SB_IS(ARCH_ARM)

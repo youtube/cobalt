@@ -14,13 +14,14 @@
 
 #include "starboard/shared/starboard/link_receiver.h"
 
+#include <memory>
 #include <string>
 #include <unordered_map>
+#include <utility>
 
 #include "starboard/common/atomic.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/common/socket.h"
 #include "starboard/common/string.h"
@@ -36,64 +37,65 @@ namespace starboard {
 namespace {
 // Creates a socket that is appropriate for binding and listening, but is not
 // bound and hasn't started listening yet.
-scoped_ptr<Socket> CreateServerSocket(SbSocketAddressType address_type) {
-  scoped_ptr<Socket> socket(new Socket(address_type));
+std::unique_ptr<Socket> CreateServerSocket(SbSocketAddressType address_type) {
+  std::unique_ptr<Socket> socket(new Socket(address_type));
   if (!socket->IsValid()) {
     SB_LOG(ERROR) << __FUNCTION__ << ": "
                   << "SbSocketCreate failed";
-    return scoped_ptr<Socket>().Pass();
+    return std::unique_ptr<Socket>();
   }
 
   if (!socket->SetReuseAddress(true)) {
     SB_LOG(ERROR) << __FUNCTION__ << ": "
                   << "SbSocketSetReuseAddress failed";
-    return scoped_ptr<Socket>().Pass();
+    return std::unique_ptr<Socket>();
   }
 
-  return socket.Pass();
+  return socket;
 }
 
 // Creates a server socket that is bound to the loopback interface.
-scoped_ptr<Socket> CreateLocallyBoundSocket(SbSocketAddressType address_type,
-                                            int port) {
-  scoped_ptr<Socket> socket = CreateServerSocket(address_type);
+std::unique_ptr<Socket> CreateLocallyBoundSocket(
+    SbSocketAddressType address_type,
+    int port) {
+  std::unique_ptr<Socket> socket = CreateServerSocket(address_type);
   if (!socket) {
-    return scoped_ptr<Socket>().Pass();
+    return std::unique_ptr<Socket>();
   }
 
   SbSocketAddress address = {};
   bool success = GetLocalhostAddress(address_type, port, &address);
   if (!success) {
     SB_LOG(ERROR) << "GetLocalhostAddress failed";
-    return scoped_ptr<Socket>().Pass();
+    return std::unique_ptr<Socket>();
   }
   SbSocketError result = socket->Bind(&address);
   if (result != kSbSocketOk) {
     SB_LOG(ERROR) << __FUNCTION__ << ": "
                   << "SbSocketBind to " << port << " failed: " << result;
-    return scoped_ptr<Socket>().Pass();
+    return std::unique_ptr<Socket>();
   }
 
-  return socket.Pass();
+  return socket;
 }
 
 // Creates a server socket that is bound and listening to the loopback interface
 // on the given port.
-scoped_ptr<Socket> CreateListeningSocket(SbSocketAddressType address_type,
-                                         int port) {
-  scoped_ptr<Socket> socket = CreateLocallyBoundSocket(address_type, port);
+std::unique_ptr<Socket> CreateListeningSocket(SbSocketAddressType address_type,
+                                              int port) {
+  std::unique_ptr<Socket> socket = CreateLocallyBoundSocket(address_type, port);
   if (!socket) {
-    return scoped_ptr<Socket>().Pass();
+    return std::unique_ptr<Socket>();
   }
 
   SbSocketError result = socket->Listen();
   if (result != kSbSocketOk) {
     SB_LOG(ERROR) << __FUNCTION__ << ": "
                   << "SbSocketListen failed: " << result;
-    return scoped_ptr<Socket>().Pass();
+    return std::unique_ptr<Socket>();
   }
 
-  return socket.Pass();
+  return socket;
 }
 
 // Gets the port socket is bound to.
@@ -113,7 +115,7 @@ bool GetBoundPort(Socket* socket, int* out_port) {
 
 std::string GetTemporaryDirectory() {
   const int kMaxPathLength = kSbFileMaxPath;
-  scoped_array<char> temp_path(new char[kMaxPathLength]);
+  std::unique_ptr<char[]> temp_path(new char[kMaxPathLength]);
   bool has_temp = SbSystemGetPath(kSbSystemPathTempDirectory, temp_path.get(),
                                   kMaxPathLength);
   if (!has_temp) {
@@ -155,7 +157,8 @@ class LinkReceiver::Impl {
  private:
   // Encapsulates connection state.
   struct Connection {
-    explicit Connection(scoped_ptr<Socket> socket) : socket(socket.Pass()) {}
+    explicit Connection(std::unique_ptr<Socket> socket)
+        : socket(std::move(socket)) {}
     ~Connection() {}
     void FlushLink(Application* application) {
       if (!data.empty()) {
@@ -164,7 +167,7 @@ class LinkReceiver::Impl {
       }
     }
 
-    scoped_ptr<Socket> socket;
+    std::unique_ptr<Socket> socket;
     std::string data;
   };
 
@@ -230,7 +233,7 @@ class LinkReceiver::Impl {
   Semaphore destroy_waiter_;
 
   // The server socket listening for new connections.
-  scoped_ptr<Socket> listen_socket_;
+  std::unique_ptr<Socket> listen_socket_;
 
   // A map of raw SbSockets to Connection objects.
   std::unordered_map<SbSocket, Connection*> connections_;
@@ -341,10 +344,10 @@ bool LinkReceiver::Impl::AddForRead(Connection* connection) {
 }
 
 void LinkReceiver::Impl::OnAcceptReady() {
-  scoped_ptr<Socket> accepted_socket =
-      make_scoped_ptr(listen_socket_->Accept());
+  std::unique_ptr<Socket> accepted_socket =
+      std::unique_ptr<Socket>(listen_socket_->Accept());
   SB_DCHECK(accepted_socket);
-  Connection* connection = new Connection(accepted_socket.Pass());
+  Connection* connection = new Connection(std::move(accepted_socket));
   connections_.emplace(connection->socket->socket(), connection);
   AddForRead(connection);
 }
