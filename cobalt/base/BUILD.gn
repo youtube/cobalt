@@ -60,6 +60,7 @@ static_library("base") {
     "log_message_handler.cc",
     "log_message_handler.h",
     "message_queue.h",
+    "on_metric_upload_event.h",
     "on_screen_keyboard_hidden_event.h",
     "on_screen_keyboard_shown_event.h",
     "path_provider.cc",

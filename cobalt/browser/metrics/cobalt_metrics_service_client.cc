@@ -24,9 +24,9 @@
 #include "base/memory/singleton.h"
 #include "base/strings/string16.h"
 #include "base/time/time.h"
+#include "cobalt/base/event_dispatcher.h"
 #include "cobalt/browser/metrics/cobalt_enabled_state_provider.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
-#include "cobalt/browser/metrics/cobalt_metrics_uploader_callback.h"
 #include "components/metrics/enabled_state_provider.h"
 #include "components/metrics/metrics_log_uploader.h"
 #include "components/metrics/metrics_pref_names.h"
@@ -50,11 +50,11 @@ namespace metrics {
 // Upload Handler.
 const int kStandardUploadIntervalSeconds = 5 * 60;  // 5 minutes.
 
-void CobaltMetricsServiceClient::SetOnUploadHandler(
-    const CobaltMetricsUploaderCallback* uploader_callback) {
-  upload_handler_ = uploader_callback;
+void CobaltMetricsServiceClient::SetEventDispatcher(
+    const base::EventDispatcher* event_dispatcher) {
+  event_dispatcher_ = event_dispatcher;
   if (log_uploader_) {
-    log_uploader_->SetOnUploadHandler(upload_handler_);
+    log_uploader_->SetEventDispatcher(event_dispatcher);
   }
 }
 
@@ -77,7 +77,8 @@ ukm::UkmService* CobaltMetricsServiceClient::GetUkmService() {
 
 void CobaltMetricsServiceClient::SetMetricsClientId(
     const std::string& client_id) {
-  // TODO(b/286066035): What to do with client id here?
+  // ClientId is unnecessary within Cobalt. We expect the web client responsible
+  // for uploading these to have its own concept of device/client identifiers.
 }
 
 // TODO(b/286884542): Audit all stub implementations in this class and reaffirm
@@ -153,8 +154,8 @@ CobaltMetricsServiceClient::CreateUploader(
   auto uploader = std::make_unique<CobaltMetricsLogUploader>(
       service_type, on_upload_complete);
   log_uploader_ = uploader.get();
-  if (upload_handler_ != nullptr) {
-    log_uploader_->SetOnUploadHandler(upload_handler_);
+  if (event_dispatcher_ != nullptr) {
+    log_uploader_->SetEventDispatcher(event_dispatcher_);
   }
   return uploader;
 }

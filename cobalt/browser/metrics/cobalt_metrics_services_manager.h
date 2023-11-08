@@ -20,8 +20,8 @@
 
 #include "base//memory/scoped_refptr.h"
 #include "base/single_thread_task_runner.h"
+#include "cobalt/base/event_dispatcher.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
-#include "cobalt/browser/metrics/cobalt_metrics_uploader_callback.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "components/metrics_services_manager/metrics_services_manager_client.h"
 
@@ -54,10 +54,9 @@ class CobaltMetricsServicesManager
   // Destructs the static instance of CobaltMetricsServicesManager.
   static void DeleteInstance();
 
-  // Sets the upload handler onto the current static instance of
-  // CobaltMetricsServicesManager.
-  static void SetOnUploadHandler(
-      const CobaltMetricsUploaderCallback* uploader_callback);
+  // Sets an event dispatcher to call when metric events happen (e.g., on
+  // upload).
+  static void SetEventDispatcher(base::EventDispatcher* event_dispatcher);
 
   // Toggles whether metric reporting is enabled via
   // CobaltMetricsServicesManager.
@@ -68,8 +67,7 @@ class CobaltMetricsServicesManager
   static void SetUploadInterval(uint32_t interval_seconds);
 
  private:
-  void SetOnUploadHandlerInternal(
-      const CobaltMetricsUploaderCallback* uploader_callback);
+  void SetEventDispatcherInternal(base::EventDispatcher* event_dispatcher);
 
   void ToggleMetricsEnabledInternal(bool is_enabled);
 

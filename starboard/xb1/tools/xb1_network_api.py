@@ -48,6 +48,7 @@ _DEFAULT_URL_FORMAT = 'https://{}:{}}/'
 
 _APPX_RELATIVE_PATH = 'appx'
 _DEVELOPMENT_FILES = 'DevelopmentFiles'
+_LOOSE_APPS = 'LooseApps'
 _LOCAL_APP_DATA = 'LocalAppData'
 _LOCAL_CACHE_FOLDERNAME = r'\\LocalCache'
 _TEMP_FILE_FOLDERNAME = r'\\WdpTempWebFolder'
@@ -421,7 +422,8 @@ class Xb1NetworkApi:
         return None
     return None
 
-  def ExecuteBinary(self, partial_package_name, app_alias_name):
+  def ExecuteBinary(self, partial_package_name: str,
+                    app_alias_name: str) -> bool:
     default_relative_name = self._GetDefaultRelativeId(partial_package_name)
     if not default_relative_name or not '!' in default_relative_name:
       raise IOError('Could not resolve package name "' + partial_package_name +
@@ -432,33 +434,25 @@ class Xb1NetworkApi:
     appid_64 = base64.b64encode(package_relative_id.encode('UTF-8'))
     package_64 = base64.b64encode(default_relative_name.encode('UTF-8'))
 
-    retry_count = 4
-    # Time to wait between tries.
-    retry_wait_s = 8
     try:
-      while retry_count > 0:
-        self.LogLn('Executing: ' + package_relative_id)
-        response = self._DoJsonRequest(
-            'POST',
-            _TASKMANAGER_ENDPOINT,
-            params={
-                'appid': appid_64,
-                'package': package_64
-            },
-            raise_on_failure=False)
-        if not response or response == requests.codes.OK:
-          self.LogLn('Execution successful')
-          break
-        self.LogLn('Execution not successful: ' + str(response))
-        self.LogLn('Retrying with ' + str(retry_count) + ' attempts remaining.')
-        time.sleep(retry_wait_s)
-        retry_count -= 1
-        # Double the wait time until the next attempt.
-        retry_wait_s *= 2
+      self.LogLn('Executing: ' + package_relative_id)
+      response = self._DoJsonRequest(
+          'POST',
+          _TASKMANAGER_ENDPOINT,
+          params={
+              'appid': appid_64,
+              'package': package_64
+          },
+          raise_on_failure=False)
+      if not response or response == requests.codes.OK:
+        self.LogLn('Execution successful')
+        return True
+      self.LogLn('Execution not successful: ' + str(response))
     except Exception as err:
       err_msg = '\n  Failed to run:\n  ' + package_relative_id + \
                 '\n  because of:\n' + str(err)
       raise IOError(err_msg) from err
+    return False
 
   # Given a package name, return all files + directories.
   # Throws IOError if the app is locked.
@@ -568,16 +562,22 @@ class Xb1NetworkApi:
             'path': path
         })
 
-  def ClearTempFiles(self):
+  def ClearDevFiles(self, path):
     file_listing = self._DoJsonRequest(
         'GET',
         _GET_FILES_ENDPOINT,
         params={
             'knownfolderid': _DEVELOPMENT_FILES,
-            'path': _TEMP_FILE_FOLDERNAME
+            'path': path
         })
     for file in file_listing['Items']:
       self.DeleteFile(_DEVELOPMENT_FILES, _TEMP_FILE_FOLDERNAME, file['Name'])
+
+  def ClearTempFiles(self):
+    self.ClearDevFiles(_TEMP_FILE_FOLDERNAME)
+
+  def ClearLooseAppFiles(self):
+    self.ClearDevFiles(_LOOSE_APPS)
 
   def FindPackage(self, package_name):
     all_packages = self.GetInstalledPackages()

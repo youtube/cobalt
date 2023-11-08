@@ -20,7 +20,8 @@
 
 #include "base/single_thread_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
-#include "cobalt/browser/metrics/cobalt_metrics_uploader_callback.h"
+#include "cobalt/base/event.h"
+#include "cobalt/base/event_dispatcher.h"
 #include "cobalt/h5vcc/h5vcc_metric_type.h"
 #include "cobalt/h5vcc/metric_event_handler_wrapper.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
@@ -43,14 +44,15 @@ class H5vccMetrics : public script::Wrappable {
   typedef MetricEventHandler H5vccMetricEventHandler;
 
   explicit H5vccMetrics(
-      persistent_storage::PersistentSettings* persistent_settings)
-      : task_runner_(base::ThreadTaskRunnerHandle::Get()),
-        persistent_settings_(persistent_settings) {}
+      persistent_storage::PersistentSettings* persistent_settings,
+      base::EventDispatcher* event_dispatcher);
+
+  ~H5vccMetrics();
 
   H5vccMetrics(const H5vccMetrics&) = delete;
   H5vccMetrics& operator=(const H5vccMetrics&) = delete;
 
-  // Binds an event handler that will be invoked every time Cobalt wants to
+  // Binds a JS event handler that will be invoked every time Cobalt wants to
   // upload a metrics payload.
   void OnMetricEvent(
       const MetricEventHandlerWrapper::ScriptValue& event_handler);
@@ -81,14 +83,20 @@ class H5vccMetrics : public script::Wrappable {
       const cobalt::h5vcc::H5vccMetricType& metric_type,
       const std::string& serialized_proto);
 
-  scoped_refptr<h5vcc::MetricEventHandlerWrapper> uploader_callback_;
+  // Handler method triggered when EventDispatcher sends OnMetricUploadEvents.
+  void OnMetricUploadEvent(const base::Event* event);
 
-  std::unique_ptr<cobalt::browser::metrics::CobaltMetricsUploaderCallback>
-      run_event_handler_callback_;
+  scoped_refptr<h5vcc::MetricEventHandlerWrapper> uploader_callback_;
 
   scoped_refptr<base::SingleThreadTaskRunner> const task_runner_;
 
   persistent_storage::PersistentSettings* persistent_settings_;
+
+  // Non-owned reference used to receive application event callbacks, namely
+  // metric log upload events.
+  base::EventDispatcher* event_dispatcher_;
+
+  base::EventCallback on_metric_upload_event_callback_;
 };
 
 }  // namespace h5vcc

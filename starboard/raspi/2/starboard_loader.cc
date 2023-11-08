@@ -1,4 +1,4 @@
-// Copyright 2015 The Cobalt Authors. All Rights Reserved.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/time_zone.h"
+#include "starboard/event.h"
 
-#include <time.h>
-
-const char* SbTimeZoneGetName() {
-  // TODO: Using tzname assumes that tzset() has been called at some
-  // point. That should happen as part of Starboard's main loop initialization,
-  // but that doesn't exist yet.
-  return tzname[0];
+int main(int argc, char** argv) {
+  return SbRunStarboardMain(argc, argv, SbEventHandle);
 }

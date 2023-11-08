@@ -15,6 +15,8 @@
 #ifndef COBALT_DOM_LAYOUT_BOXES_H_
 #define COBALT_DOM_LAYOUT_BOXES_H_
 
+#include <utility>
+
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/directionality.h"
 #include "cobalt/dom/dom_rect_list.h"
@@ -88,6 +90,9 @@ class LayoutBoxes {
   virtual void InvalidateCrossReferences() = 0;
   // Invalidate the layout box's render tree nodes.
   virtual void InvalidateRenderTreeNodes() = 0;
+
+  virtual base::Optional<std::pair<dom::Directionality, math::RectF>>&
+  scroll_area_cache() = 0;
 
   // Update the navigation item associated with the layout boxes.
   virtual void SetUiNavItem(

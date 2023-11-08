@@ -25,6 +25,7 @@
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
+#include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "cobalt/base/accessibility_caption_settings_changed_event.h"
 #include "cobalt/base/application_state.h"
@@ -151,6 +152,10 @@ class BrowserModule {
   void AddURLHandler(const URLHandler::URLHandlerCallback& callback);
   void RemoveURLHandler(const URLHandler::URLHandlerCallback& callback);
 
+  // Start the ScreenShotWriter if it's not already running.
+  void EnsureScreenShotWriter();
+
+#if defined(ENABLE_WEBDRIVER) || defined(ENABLE_DEBUGGER)
   // Request a screenshot to be written to the specified path. Callback will
   // be fired after the screenshot has been written to disk.
   void RequestScreenshotToFile(
@@ -164,6 +169,13 @@ class BrowserModule {
       loader::image::EncodedStaticImage::ImageFormat image_format,
       const base::Optional<math::Rect>& clip_rect,
       const ScreenShotWriter::ImageEncodeCompleteCallback& screenshot_ready);
+#endif  // defined(ENABLE_WEBDRIVER) || defined(ENABLE_DEBUGGER)
+
+  // Request a screenshot to memory without compressing the image.
+  void RequestScreenshotToMemoryUnencoded(
+      const scoped_refptr<render_tree::Node>& render_tree_root,
+      const base::Optional<math::Rect>& clip_rect,
+      const renderer::Pipeline::RasterizationCompleteCallback& callback);
 
 #if defined(ENABLE_WEBDRIVER)
   std::unique_ptr<webdriver::SessionDriver> CreateSessionDriver(
@@ -361,6 +373,8 @@ class BrowserModule {
   // Destroys the splash screen, if currently displayed.
   void DestroySplashScreen(base::TimeDelta close_time = base::TimeDelta());
 
+  void DestroyScrollEngine();
+
   // Called when web module has received window.close().
   void OnWindowClose(base::TimeDelta close_time);
 
@@ -383,6 +397,8 @@ class BrowserModule {
       const browser::WebModule::LayoutResults& layout_results);
   void OnDebugConsoleRenderTreeProduced(
       const browser::WebModule::LayoutResults& layout_results);
+
+  void OnNavigateTimedTrace(const std::string& time);
 #endif  // defined(ENABLE_DEBUGGER)
 
 #if defined(ENABLE_WEBDRIVER)
@@ -658,6 +674,12 @@ class BrowserModule {
 
   // Saves the previous debugger state to be restored in the new WebModule.
   std::unique_ptr<debug::backend::DebuggerState> debugger_state_;
+
+  // Amount of time to run a Timed Trace after Navigate
+  base::TimeDelta navigate_timed_trace_duration_;
+
+  debug::console::ConsoleCommandManager::CommandHandler
+      navigate_timed_trace_command_handler_;
 #endif  // defined(ENABLE_DEBUGGER)
 
   // The splash screen. The pointer wrapped here should be non-NULL iff

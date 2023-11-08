@@ -23,13 +23,7 @@ namespace player {
 namespace filter {
 
 void AudioFrameDiscarder::OnInputBuffers(const InputBuffers& input_buffers) {
-  if (input_buffer_infos_.size() >= kMaxNumberOfPendingInputBufferInfos) {
-    // This shouldn't happen as it's DCHECKed at the end of this function. Add
-    // an extra check here to ensure that |input_buffer_infos_| won't grow
-    // without bound, which can lead to OOM in production.
-    return;
-  }
-
+  ScopedLock lock(mutex_);
   for (auto&& input_buffer : input_buffers) {
     SB_DCHECK(input_buffer);
     SB_DCHECK(input_buffer->sample_type() == kSbMediaTypeAudio);
@@ -41,40 +35,60 @@ void AudioFrameDiscarder::OnInputBuffers(const InputBuffers& input_buffers) {
     });
   }
 
+  // Add a DCheck here to ensure that |input_buffer_infos_| won't grow
+  // without bound, which can lead to OOM.
   SB_DCHECK(input_buffer_infos_.size() < kMaxNumberOfPendingInputBufferInfos);
 }
 
 void AudioFrameDiscarder::AdjustForDiscardedDurations(
     int sample_rate,
     scoped_refptr<DecodedAudio>* decoded_audio) {
-  SB_DCHECK(decoded_audio);
-  SB_DCHECK(*decoded_audio);
-  // TODO: Comment out the SB_DCHECK due to b/274021285. We can re-enable it
-  // after b/274021285 is resolved.
-  // SB_DCHECK(!input_buffer_infos_.empty());
-
-  if (input_buffer_infos_.empty()) {
-    SB_LOG(WARNING) << "Inconsistent number of audio decoder outputs. Received "
-                       "outputs when input buffer list is empty.";
+  if (!decoded_audio || !*decoded_audio) {
+    SB_LOG(ERROR) << "No input buffer to adjust.";
+    SB_DCHECK(decoded_audio);
+    SB_DCHECK(*decoded_audio);
     return;
   }
 
-  auto info = input_buffer_infos_.front();
-  SB_LOG_IF(WARNING, info.timestamp != (*decoded_audio)->timestamp())
-      << "Inconsistent timestamps between InputBuffer (@" << info.timestamp
-      << ") and DecodedAudio (@" << (*decoded_audio)->timestamp() << ").";
-  input_buffer_infos_.pop();
+  InputBufferInfo input_info;
+  {
+    ScopedLock lock(mutex_);
+    SB_DCHECK(!input_buffer_infos_.empty());
+
+    if (input_buffer_infos_.empty()) {
+      SB_LOG(WARNING)
+          << "Inconsistent number of audio decoder outputs. Received "
+             "outputs when input buffer list is empty.";
+      return;
+    }
+
+    input_info = input_buffer_infos_.front();
+    input_buffer_infos_.pop();
+  }
+
+  // We accept a small offset due to the precision of computation. If the
+  // outputs have different timestamps than inputs, discarded durations will be
+  // ignored.
+  const SbTimeMonotonic kTimestampOffset = 10;
+  if (std::abs(input_info.timestamp - (*decoded_audio)->timestamp()) >
+      kTimestampOffset) {
+    SB_LOG(WARNING) << "Inconsistent timestamps between InputBuffer (@"
+                    << input_info.timestamp << ") and DecodedAudio (@"
+                    << (*decoded_audio)->timestamp() << ").";
+    return;
+  }
 
   (*decoded_audio)
       ->AdjustForDiscardedDurations(sample_rate,
-                                    info.discarded_duration_from_front,
-                                    info.discarded_duration_from_back);
+                                    input_info.discarded_duration_from_front,
+                                    input_info.discarded_duration_from_back);
   // `(*decoded_audio)->frames()` might be 0 here.  We don't set it to nullptr
   // in this case so the DecodedAudio instance is always valid (but might be
   // empty).
 }
 
 void AudioFrameDiscarder::OnDecodedAudioEndOfStream() {
+  ScopedLock lock(mutex_);
   // |input_buffer_infos_| can have extra elements when the decoder skip outputs
   // due to errors (like invalid inputs).
   SB_LOG_IF(INFO, !input_buffer_infos_.empty())
@@ -83,6 +97,7 @@ void AudioFrameDiscarder::OnDecodedAudioEndOfStream() {
 }
 
 void AudioFrameDiscarder::Reset() {
+  ScopedLock lock(mutex_);
   input_buffer_infos_ = std::queue<InputBufferInfo>();
 }
 

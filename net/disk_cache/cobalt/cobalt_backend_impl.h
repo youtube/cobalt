@@ -23,7 +23,6 @@
 #include <utility>
 
 #include "base/callback_helpers.h"
-#include "cobalt/persistent_storage/persistent_settings.h"
 #include "net/base/completion_once_callback.h"
 #include "net/disk_cache/cobalt/resource_type.h"
 #include "net/disk_cache/disk_cache.h"
@@ -50,8 +49,6 @@ class NET_EXPORT_PRIVATE CobaltBackendImpl final : public Backend {
 
   net::Error Init(CompletionOnceCallback completion_callback);
   void UpdateSizes(ResourceType type, uint32_t bytes);
-  uint32_t GetQuota(ResourceType type);
-  void ValidatePersistentSettings();
 
   // Backend interface.
   net::CacheType GetCacheType() const override;
@@ -117,10 +114,6 @@ class NET_EXPORT_PRIVATE CobaltBackendImpl final : public Backend {
   base::WeakPtrFactory<CobaltBackendImpl> weak_factory_;
 
   std::map<ResourceType, SimpleBackendImpl*> simple_backend_map_;
-
-  // Json PrefStore used for persistent settings.
-  std::unique_ptr<cobalt::persistent_storage::PersistentSettings>
-      persistent_settings_;
 };
 
 }  // namespace disk_cache

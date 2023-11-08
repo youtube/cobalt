@@ -26,6 +26,7 @@
 #include "cobalt/h5vcc/h5vcc_audio_config_array.h"
 #include "cobalt/h5vcc/h5vcc_crash_log.h"
 #include "cobalt/h5vcc/h5vcc_metrics.h"
+#include "cobalt/h5vcc/h5vcc_net_log.h"
 #include "cobalt/h5vcc/h5vcc_runtime.h"
 #include "cobalt/h5vcc/h5vcc_settings.h"
 #include "cobalt/h5vcc/h5vcc_storage.h"
@@ -89,6 +90,7 @@ class H5vcc : public script::Wrappable {
   const scoped_refptr<H5vccTraceEvent>& trace_event() const {
     return trace_event_;
   }
+  const scoped_refptr<H5vccNetLog>& net_log() const { return net_log_; }
 #if SB_IS(EVERGREEN)
   const scoped_refptr<H5vccUpdater>& updater() const { return updater_; }
 #endif
@@ -108,6 +110,7 @@ class H5vcc : public script::Wrappable {
   scoped_refptr<H5vccStorage> storage_;
   scoped_refptr<H5vccSystem> system_;
   scoped_refptr<H5vccTraceEvent> trace_event_;
+  scoped_refptr<H5vccNetLog> net_log_;
 #if SB_IS(EVERGREEN)
   scoped_refptr<H5vccUpdater> updater_;
 #endif

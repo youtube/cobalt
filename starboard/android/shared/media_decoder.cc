@@ -146,9 +146,11 @@ MediaDecoder::MediaDecoder(Host* host,
 
 MediaDecoder::~MediaDecoder() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-
   destroying_.store(true);
-  condition_variable_.Signal();
+  {
+    ScopedLock scoped_lock(mutex_);
+    condition_variable_.Signal();
+  }
 
   if (SbThreadIsValid(decoder_thread_)) {
     SbThreadJoin(decoder_thread_, NULL);
@@ -184,9 +186,13 @@ void MediaDecoder::Initialize(const ErrorCB& error_cb) {
 
 void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-  SB_DCHECK(!input_buffers.empty());
   if (stream_ended_.load()) {
     SB_LOG(ERROR) << "Decode() is called after WriteEndOfStream() is called.";
+    return;
+  }
+  if (input_buffers.empty()) {
+    SB_LOG(ERROR) << "No input buffer to decode.";
+    SB_DCHECK(!input_buffers.empty());
     return;
   }
 
@@ -463,24 +469,20 @@ bool MediaDecoder::ProcessOneInputBuffer(
   }
 
   jint status;
-  if (event.type == Event::kWriteCodecConfig) {
-    if (!drm_system_ || (drm_system_ && drm_system_->IsReady())) {
-      status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
-                                                     kNoOffset, size, kNoPts,
-                                                     BUFFER_FLAG_CODEC_CONFIG);
-    } else {
-      status = MEDIA_CODEC_NO_KEY;
-    }
+  if (drm_system_ && !drm_system_->IsReady()) {
+    // Drm system initialization is asynchronous. If there's a drm system, we
+    // should wait until it's initialized to avoid errors.
+    status = MEDIA_CODEC_NO_KEY;
+  } else if (event.type == Event::kWriteCodecConfig) {
+    status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
+                                                   kNoOffset, size, kNoPts,
+                                                   BUFFER_FLAG_CODEC_CONFIG);
   } else if (event.type == Event::kWriteInputBuffer) {
     jlong pts_us = input_buffer->timestamp();
     if (drm_system_ && input_buffer->drm_info()) {
-      if (drm_system_->IsReady()) {
-        status = media_codec_bridge_->QueueSecureInputBuffer(
-            dequeue_input_result.index, kNoOffset, *input_buffer->drm_info(),
-            pts_us);
-      } else {
-        status = MEDIA_CODEC_NO_KEY;
-      }
+      status = media_codec_bridge_->QueueSecureInputBuffer(
+          dequeue_input_result.index, kNoOffset, *input_buffer->drm_info(),
+          pts_us);
     } else {
       status = media_codec_bridge_->QueueInputBuffer(
           dequeue_input_result.index, kNoOffset, size, pts_us, kNoBufferFlags);

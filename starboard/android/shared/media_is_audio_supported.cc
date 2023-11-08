@@ -40,7 +40,6 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
     return false;
   }
 
-  bool enable_tunnel_mode = false;
   bool enable_audio_passthrough = true;
   if (mime_type) {
     if (!mime_type->is_valid()) {
@@ -52,13 +51,6 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
     if (!mime_type->ValidateBoolParameter("enableaudiodevicecallback")) {
       return false;
     }
-
-    // Allows for enabling tunneled playback. Disabled by default.
-    // (https://source.android.com/devices/tv/multimedia-tunneling)
-    if (!mime_type->ValidateBoolParameter("tunnelmode")) {
-      return false;
-    }
-    enable_tunnel_mode = mime_type->GetParamBoolValue("tunnelmode", false);
 
     // Enables audio passthrough if the codec supports it.
     if (!mime_type->ValidateBoolParameter("audiopassthrough")) {
@@ -75,14 +67,6 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
     }
   }
 
-  if (enable_tunnel_mode && !SbAudioSinkIsAudioSampleTypeSupported(
-                                kSbMediaAudioSampleTypeInt16Deprecated)) {
-    SB_LOG(WARNING)
-        << "Tunnel mode is rejected because int16 sample is required "
-           "but not supported.";
-    return false;
-  }
-
   // Android uses a libopus based opus decoder for clear content, or a platform
   // opus decoder for encrypted content, if available.
   if (audio_codec == kSbMediaAudioCodecOpus) {
@@ -90,8 +74,7 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
   }
 
   bool media_codec_supported =
-      MediaCapabilitiesCache::GetInstance()->HasAudioDecoderFor(
-          mime, bitrate, enable_tunnel_mode);
+      MediaCapabilitiesCache::GetInstance()->HasAudioDecoderFor(mime, bitrate);
 
   if (!media_codec_supported) {
     return false;

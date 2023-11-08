@@ -279,15 +279,15 @@ class MediaCodecBridge {
     }
 
     private boolean formatHasCropValues() {
-      if (!mFormatHasCropValues.isPresent()) {
+      if (!mFormatHasCropValues.isPresent() && mFormat != null) {
         boolean hasCropValues =
             mFormat.containsKey(KEY_CROP_RIGHT)
                 && mFormat.containsKey(KEY_CROP_LEFT)
                 && mFormat.containsKey(KEY_CROP_BOTTOM)
                 && mFormat.containsKey(KEY_CROP_TOP);
-        mFormatHasCropValues = Optional.of(hasCropValues);
+        mFormatHasCropValues = Optional.ofNullable(hasCropValues);
       }
-      return mFormatHasCropValues.get();
+      return mFormatHasCropValues.orElse(false);
     }
 
     @SuppressWarnings("unused")
@@ -299,13 +299,17 @@ class MediaCodecBridge {
     @SuppressWarnings("unused")
     @UsedByNative
     private int textureWidth() {
-      return mFormat.getInteger(MediaFormat.KEY_WIDTH);
+      return (mFormat != null && mFormat.containsKey(MediaFormat.KEY_WIDTH))
+          ? mFormat.getInteger(MediaFormat.KEY_WIDTH)
+          : 0;
     }
 
     @SuppressWarnings("unused")
     @UsedByNative
     private int textureHeight() {
-      return mFormat.getInteger(MediaFormat.KEY_HEIGHT);
+      return (mFormat != null && mFormat.containsKey(MediaFormat.KEY_HEIGHT))
+          ? mFormat.getInteger(MediaFormat.KEY_HEIGHT)
+          : 0;
     }
 
     @SuppressWarnings("unused")

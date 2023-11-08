@@ -144,6 +144,9 @@ class SourceBuffer : public web::EventTarget {
   DEFINE_WRAPPABLE_TYPE(SourceBuffer);
   void TraceMembers(script::Tracer* tracer) override;
 
+  size_t memory_limit(script::ExceptionState* exception_state) const;
+  void set_memory_limit(size_t limit, script::ExceptionState* exception_state);
+
  private:
   typedef ::media::MediaTracks MediaTracks;
   typedef script::ArrayBuffer ArrayBuffer;

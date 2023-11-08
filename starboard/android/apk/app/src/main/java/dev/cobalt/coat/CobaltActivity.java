@@ -32,7 +32,7 @@ import android.widget.FrameLayout;
 import androidx.annotation.CallSuper;
 import com.google.androidgamesdk.GameActivity;
 import dev.cobalt.media.AudioOutputManager;
-import dev.cobalt.media.MediaCodecUtil;
+import dev.cobalt.media.MediaCodecCapabilitiesLogger;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Log;
@@ -146,7 +146,7 @@ public abstract class CobaltActivity extends GameActivity {
   protected void onStart() {
     if (!isReleaseBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
-      MediaCodecUtil.dumpAllDecoders();
+      MediaCodecCapabilitiesLogger.dumpAllDecoders();
     }
     if (forceCreateNewVideoSurfaceView) {
       Log.w(TAG, "Force to create a new video surface.");
@@ -159,8 +159,6 @@ public abstract class CobaltActivity extends GameActivity {
 
     getStarboardBridge().onActivityStart(this, keyboardEditor);
     super.onStart();
-
-    nativeInitializeMediaCapabilitiesInBackground();
   }
 
   @Override
@@ -396,6 +394,4 @@ public abstract class CobaltActivity extends GameActivity {
   public long getAppStartTimestamp() {
     return timeInNanoseconds;
   }
-
-  private static native void nativeInitializeMediaCapabilitiesInBackground();
 }

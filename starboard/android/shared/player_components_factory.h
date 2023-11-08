@@ -303,7 +303,6 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     MimeType audio_mime_type(audio_mime);
     if (!audio_mime.empty()) {
       if (!audio_mime_type.is_valid() ||
-          !audio_mime_type.ValidateBoolParameter("tunnelmode") ||
           !audio_mime_type.ValidateBoolParameter("enableaudiodevicecallback") ||
           !audio_mime_type.ValidateBoolParameter("enablepcmcontenttypemovie")) {
         *error_message =
@@ -331,20 +330,15 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     bool enable_tunnel_mode = false;
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone &&
         creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
-      bool enable_tunnel_mode =
-          audio_mime_type.GetParamBoolValue("tunnelmode", false) &&
+      enable_tunnel_mode =
           video_mime_type.GetParamBoolValue("tunnelmode", false);
 
-      if (!enable_tunnel_mode) {
-        SB_LOG(INFO) << "Tunnel mode is disabled. "
-                     << "Audio mime parameter \"tunnelmode\" value: "
-                     << audio_mime_type.GetParamStringValue("tunnelmode",
-                                                            "<not provided>")
-                     << ", video mime parameter \"tunnelmode\" value: "
-                     << video_mime_type.GetParamStringValue("tunnelmode",
-                                                            "<not provided>")
-                     << ".";
-      }
+      SB_LOG(INFO) << "Tunnel mode is "
+                   << (enable_tunnel_mode ? "enabled. " : "disabled. ")
+                   << "Video mime parameter \"tunnelmode\" value: "
+                   << video_mime_type.GetParamStringValue("tunnelmode",
+                                                          "<not provided>")
+                   << ".";
     } else {
       SB_LOG(INFO) << "Tunnel mode requires both an audio and video stream. "
                    << "Audio codec: "
@@ -365,12 +359,19 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     SB_LOG_IF(INFO, !force_improved_support_check)
         << "Improved support check is disabled for queries under 4K.";
     bool force_secure_pipeline_under_tunnel_mode = false;
-    if (enable_tunnel_mode &&
-        IsTunnelModeSupported(creation_parameters,
-                              &force_secure_pipeline_under_tunnel_mode,
-                              force_improved_support_check)) {
-      tunnel_mode_audio_session_id = GenerateAudioSessionId(
-          creation_parameters, force_improved_support_check);
+    if (enable_tunnel_mode) {
+      if (IsTunnelModeSupported(creation_parameters,
+                                &force_secure_pipeline_under_tunnel_mode,
+                                force_improved_support_check)) {
+        tunnel_mode_audio_session_id = GenerateAudioSessionId(
+            creation_parameters, force_improved_support_check);
+        SB_LOG(INFO) << "Generated tunnel mode audio session id "
+                     << tunnel_mode_audio_session_id;
+      } else {
+        SB_LOG(INFO) << "IsTunnelModeSupported() failed, disable tunnel mode.";
+      }
+    } else {
+      SB_LOG(INFO) << "Tunnel mode not enabled.";
     }
 
     if (tunnel_mode_audio_session_id == -1) {

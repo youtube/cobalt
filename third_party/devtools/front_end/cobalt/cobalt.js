@@ -9,6 +9,7 @@ export default class CobaltPanel extends UI.VBox {
             ['Trace', 'console_trace.json'],
             ['Timed Trace', 'timed_trace.json']
         ];
+        const timed_trace_durations = ['5', '10', '20', '60'];
         super(true, false);
         SDK.targetManager.observeTargets(this);
 
@@ -33,6 +34,16 @@ export default class CobaltPanel extends UI.VBox {
             this.run(`(function() { window.h5vcc.traceEvent.stop();})()`);
             console.log("Stopped Trace");
         }));
+        traceContainer.appendChild(UI.createLabel('Navigate Timed Trace:'));
+        timed_trace_durations.forEach((duration) => {
+            traceContainer.appendChild(UI.createTextButton(Common.UIString(duration + 's'), event => {
+                console.log("Request Navigate Timed Trace. " + duration);
+                this._cobaltAgent.invoke_sendConsoleCommand({
+                    command: 'navigate_timed_trace', message: duration
+                });
+                console.log("Requested Navigate Timed Trace.");
+            }));
+        });
         trace_files.forEach((file) => {
             traceContainer.appendChild(UI.createTextButton(Common.UIString('Download ' + file[0]), event => {
                 console.log("Download Trace");
@@ -47,6 +58,32 @@ export default class CobaltPanel extends UI.VBox {
                 });
             }));
         });
+
+        const netLogContainer = this.element.createChild('div', 'netlog-container');
+        netLogContainer.appendChild(UI.createTextButton(Common.UIString('Start NetLog'), event => {
+            console.log("Start NetLog");
+            this.run(`(function() { window.h5vcc.netLog.start();})()`);
+            console.log("Started NetLog");
+        }));
+        netLogContainer.appendChild(UI.createTextButton(Common.UIString('Stop NetLog'), event => {
+            console.log("Stop NetLog");
+            this.run(`(function() { window.h5vcc.netLog.stop();})()`);
+            console.log("Stopped NetLog");
+        }));
+        netLogContainer.appendChild(UI.createTextButton(Common.UIString('Download NetLog'), event => {
+            console.log("Download Trace");
+            this.run(`(function() { return window.h5vcc.netLog.stopAndRead();})()`).then(function (result) {
+                const netlog_file = 'net_log.json';
+                download_element.setAttribute('href', 'data:text/plain;charset=utf-8,' +
+                    encodeURIComponent(result.result.value));
+                download_element.setAttribute('download', netlog_file);
+                console.log("Downloaded NetLog");
+                download_element.click();
+                download_element.setAttribute('href', undefined);
+            });
+        }));
+
+
         const debugLogContainer = this.element.createChild('div', 'debug-log-container');
         debugLogContainer.appendChild(UI.createTextButton(Common.UIString('DebugLog On'), event => {
             this._cobaltAgent.invoke_sendConsoleCommand({
@@ -58,6 +95,7 @@ export default class CobaltPanel extends UI.VBox {
                 command: 'debug_log', message: 'off'
             });
         }));
+
         const lifecycleContainer = this.element.createChild('div', 'lifecycle-container');
         lifecycleContainer.appendChild(UI.createTextButton(Common.UIString('Blur'), event => {
             this._cobaltAgent.invoke_sendConsoleCommand({ command: 'blur' });
@@ -77,6 +115,7 @@ export default class CobaltPanel extends UI.VBox {
         lifecycleContainer.appendChild(UI.createTextButton(Common.UIString('Quit'), event => {
             this._cobaltAgent.invoke_sendConsoleCommand({ command: 'quit' });
         }));
+
         const consoleContainer = this.element.createChild('div', 'console-container');
         consoleContainer.appendChild(UI.createTextButton(Common.UIString('DebugCommand'), event => {
             const outputElement = document.getElementsByClassName('console-output')[0];

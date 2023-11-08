@@ -16,6 +16,7 @@
 from starboard.tools.testing import test_filter
 
 # pylint: disable=line-too-long
+
 _FILTERED_TESTS = {
     'nplb': [
         'SbAudioSinkTest.*',

@@ -140,9 +140,15 @@ ApplicationAndroid::ApplicationAndroid(ALooper* looper)
   jobject local_ref = env->CallStarboardObjectMethodOrAbort(
       "getResourceOverlay", "()Ldev/cobalt/coat/ResourceOverlay;");
   resource_overlay_ = env->ConvertLocalRefToGlobalRef(local_ref);
+
+  env->CallStarboardVoidMethodOrAbort("starboardApplicationStarted", "()V");
 }
 
 ApplicationAndroid::~ApplicationAndroid() {
+  // Inform StarboardBridge that
+  JniEnvExt* env = JniEnvExt::Get();
+  env->CallStarboardVoidMethodOrAbort("starboardApplicationStopping", "()V");
+
   // The application is exiting.
   // Release the global reference.
   if (resource_overlay_) {
@@ -161,6 +167,7 @@ ApplicationAndroid::~ApplicationAndroid() {
   {
     // Signal for any potentially waiting window creation or destroy commands.
     ScopedLock lock(android_command_mutex_);
+    application_destroying_.store(true);
     android_command_condition_.Signal();
   }
 }
@@ -412,7 +419,7 @@ void ApplicationAndroid::SendAndroidCommand(AndroidCommand::CommandType type,
   switch (type) {
     case AndroidCommand::kNativeWindowCreated:
     case AndroidCommand::kNativeWindowDestroyed:
-      while (native_window_ != data) {
+      while ((native_window_ != data) && !application_destroying_.load()) {
         android_command_condition_.Wait();
       }
       break;

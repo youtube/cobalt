@@ -17,6 +17,7 @@
 #include <memory>
 
 #include "base/logging.h"
+#include "cobalt/base/event_dispatcher.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -41,23 +42,27 @@ CobaltMetricsServicesManager* CobaltMetricsServicesManager::GetInstance() {
   return instance_;
 }
 
-void CobaltMetricsServicesManager::DeleteInstance() { delete instance_; }
-
-void CobaltMetricsServicesManager::SetOnUploadHandler(
-    const CobaltMetricsUploaderCallback* uploader_callback) {
-  instance_->task_runner_->PostTask(
-      FROM_HERE,
-      base::Bind(&CobaltMetricsServicesManager::SetOnUploadHandlerInternal,
-                 base::Unretained(instance_), uploader_callback));
+void CobaltMetricsServicesManager::DeleteInstance() {
+  delete instance_;
+  instance_ = nullptr;
 }
 
-void CobaltMetricsServicesManager::SetOnUploadHandlerInternal(
-    const CobaltMetricsUploaderCallback* uploader_callback) {
+void CobaltMetricsServicesManager::SetEventDispatcher(
+    base::EventDispatcher* event_dispatcher) {
+  if (instance_ != nullptr) {
+    instance_->task_runner_->PostTask(
+        FROM_HERE,
+        base::Bind(&CobaltMetricsServicesManager::SetEventDispatcherInternal,
+                   base::Unretained(instance_), event_dispatcher));
+  }
+}
+
+void CobaltMetricsServicesManager::SetEventDispatcherInternal(
+    base::EventDispatcher* event_dispatcher) {
   CobaltMetricsServiceClient* client =
       static_cast<CobaltMetricsServiceClient*>(GetMetricsServiceClient());
   DCHECK(client);
-  client->SetOnUploadHandler(uploader_callback);
-  LOG(INFO) << "New Cobalt Telemetry metric upload handler bound.";
+  client->SetEventDispatcher(event_dispatcher);
 }
 
 void CobaltMetricsServicesManager::ToggleMetricsEnabled(bool is_enabled) {

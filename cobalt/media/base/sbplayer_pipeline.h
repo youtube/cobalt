@@ -28,6 +28,7 @@
 #include "cobalt/base/c_val.h"
 #include "cobalt/math/size.h"
 #include "cobalt/media/base/media_export.h"
+#include "cobalt/media/base/metrics_provider.h"
 #include "cobalt/media/base/pipeline.h"
 #include "cobalt/media/base/playback_statistics.h"
 #include "cobalt/media/base/sbplayer_bridge.h"
@@ -65,7 +66,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 #if SB_API_VERSION >= 15
       SbTime audio_write_duration_local, SbTime audio_write_duration_remote,
 #endif  // SB_API_VERSION >= 15
-      MediaLog* media_log, DecodeTargetProvider* decode_target_provider);
+      MediaLog* media_log, MediaMetricsProvider* media_metrics_provider,
+      DecodeTargetProvider* decode_target_provider);
   ~SbPlayerPipeline() override;
 
   void Suspend() override;
@@ -304,6 +306,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   base::CVal<bool> stopped_;
   base::CVal<bool> ended_;
   base::CVal<SbPlayerState> player_state_;
+
+  MediaMetricsProvider* media_metrics_provider_;
 
   DecodeTargetProvider* decode_target_provider_;
 

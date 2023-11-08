@@ -22,7 +22,7 @@ import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Build;
+import android.content.pm.ServiceInfo;
 import android.os.Build.VERSION;
 import android.os.IBinder;
 import android.os.RemoteException;
@@ -37,17 +37,19 @@ public class MediaPlaybackService extends Service {
   private static final int NOTIFICATION_ID = 193266736; // CL number for uniqueness.
   private static final String NOTIFICATION_CHANNEL_ID = "dev.cobalt.coat media playback service";
   private static final String NOTIFICATION_CHANNEL_NAME = "Media playback service";
+  private boolean channelCreated = true;
+  private NotificationManager notificationManager = null;
 
   @Override
   public void onCreate() {
-    if (getStarboardBridge() == null) {
-      Log.e(TAG, "StarboardBridge already destroyed.");
-      return;
-    }
     Log.i(TAG, "Creating a Media playback foreground service.");
     super.onCreate();
-    getStarboardBridge().onServiceStart(this);
-    createNotificationChannel();
+    if (getStarboardBridge() != null) {
+      getStarboardBridge().onServiceStart(this);
+    }
+    this.notificationManager =
+        (NotificationManager) this.getSystemService(Context.NOTIFICATION_SERVICE);
+    this.channelCreated = createNotificationChannel();
   }
 
   @Override
@@ -66,64 +68,79 @@ public class MediaPlaybackService extends Service {
 
   @Override
   public void onDestroy() {
-    if (getStarboardBridge() == null) {
-      Log.e(TAG, "StarboardBridge already destroyed.");
-      return;
-    }
     Log.i(TAG, "Destroying the Media playback service.");
-    getStarboardBridge().onServiceDestroy(this);
+
+    if (VERSION.SDK_INT >= 26 && this.channelCreated) {
+      this.notificationManager.deleteNotificationChannel(NOTIFICATION_CHANNEL_ID);
+    }
+
+    if (getStarboardBridge() != null) {
+      getStarboardBridge().onServiceDestroy(this);
+    }
     super.onDestroy();
   }
 
   public void startService() {
-    try {
-      startForeground(NOTIFICATION_ID, buildNotification());
-    } catch (IllegalStateException e) {
-      Log.e(TAG, "Failed to start Foreground Service", e);
+    if (this.channelCreated) {
+      try {
+        if (VERSION.SDK_INT >= 29) {
+          startForeground(
+              NOTIFICATION_ID, buildNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_MANIFEST);
+        } else {
+          startForeground(NOTIFICATION_ID, buildNotification());
+        }
+      } catch (IllegalStateException e) {
+        Log.e(TAG, "Failed to start Foreground Service", e);
+      }
     }
   }
 
   public void stopService() {
     // Let service itself handle notification deletion.
-    stopForeground(true);
+    if (this.channelCreated) {
+      stopForeground(true);
+    }
     stopSelf();
   }
 
-  private void createNotificationChannel() {
-    if (Build.VERSION.SDK_INT >= 26) {
+  private boolean createNotificationChannel() {
+    if (VERSION.SDK_INT >= 26) {
       try {
         createNotificationChannelInternalV26();
       } catch (RemoteException e) {
         Log.e(TAG, "Failed to create Notification Channel.", e);
+        return false;
       }
     }
+    return true;
   }
 
   @RequiresApi(26)
   private void createNotificationChannelInternalV26() throws RemoteException {
-    NotificationManager notificationManager =
-        (NotificationManager) this.getSystemService(Context.NOTIFICATION_SERVICE);
     NotificationChannel channel =
         new NotificationChannel(
             NOTIFICATION_CHANNEL_ID,
             NOTIFICATION_CHANNEL_NAME,
             notificationManager.IMPORTANCE_DEFAULT);
     channel.setDescription("Channel for showing persistent notification");
-    notificationManager.createNotificationChannel(channel);
+    this.notificationManager.createNotificationChannel(channel);
   }
 
   Notification buildNotification() {
+    String channelId = "";
+    if (VERSION.SDK_INT >= 26) {
+      // Channel with ID=NOTIFICATION_CHANNEL_ID is created for version >= 26
+      channelId = NOTIFICATION_CHANNEL_ID;
+    }
+
     NotificationCompat.Builder builder =
-        new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
+        new NotificationCompat.Builder(this, channelId)
             .setShowWhen(false)
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .setSmallIcon(android.R.drawable.stat_sys_warning)
             .setContentTitle("Media playback service")
             .setContentText("Media playback service is running");
 
-    if (VERSION.SDK_INT >= 26) {
-      builder.setChannelId(NOTIFICATION_CHANNEL_ID);
-    }
     return builder.build();
   }
 

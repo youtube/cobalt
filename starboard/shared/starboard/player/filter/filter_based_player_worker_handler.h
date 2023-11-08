@@ -48,19 +48,19 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
       SbDecodeTargetGraphicsContextProvider* provider);
 
  private:
-  bool Init(SbPlayer player,
-            UpdateMediaInfoCB update_media_info_cb,
-            GetPlayerStateCB get_player_state_cb,
-            UpdatePlayerStateCB update_player_state_cb,
-            UpdatePlayerErrorCB update_player_error_cb) override;
-  bool Seek(SbTime seek_to_time, int ticket) override;
-  bool WriteSamples(const InputBuffers& input_buffers,
-                    int* samples_written) override;
-  bool WriteEndOfStream(SbMediaType sample_type) override;
-  bool SetPause(bool pause) override;
-  bool SetPlaybackRate(double playback_rate) override;
+  HandlerResult Init(SbPlayer player,
+                     UpdateMediaInfoCB update_media_info_cb,
+                     GetPlayerStateCB get_player_state_cb,
+                     UpdatePlayerStateCB update_player_state_cb,
+                     UpdatePlayerErrorCB update_player_error_cb) override;
+  HandlerResult Seek(SbTime seek_to_time, int ticket) override;
+  HandlerResult WriteSamples(const InputBuffers& input_buffers,
+                             int* samples_written) override;
+  HandlerResult WriteEndOfStream(SbMediaType sample_type) override;
+  HandlerResult SetPause(bool pause) override;
+  HandlerResult SetPlaybackRate(double playback_rate) override;
   void SetVolume(double volume) override;
-  bool SetBounds(const Bounds& bounds) override;
+  HandlerResult SetBounds(const Bounds& bounds) override;
   void Stop() override;
 
   void Update();

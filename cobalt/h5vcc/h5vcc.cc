@@ -31,7 +31,8 @@ H5vcc::H5vcc(const Settings& settings) {
   audio_config_array_ = new H5vccAudioConfigArray();
   c_val_ = new dom::CValView();
   crash_log_ = new H5vccCrashLog();
-  metrics_ = new H5vccMetrics(settings.persistent_settings);
+  metrics_ =
+      new H5vccMetrics(settings.persistent_settings, settings.event_dispatcher);
   runtime_ = new H5vccRuntime(settings.event_dispatcher);
   settings_ =
       new H5vccSettings(settings.set_web_setting_func, settings.media_module,
@@ -44,6 +45,7 @@ H5vcc::H5vcc(const Settings& settings) {
   storage_ =
       new H5vccStorage(settings.network_module, settings.persistent_settings);
   trace_event_ = new H5vccTraceEvent();
+  net_log_ = new H5vccNetLog(settings.network_module);
 #if SB_IS(EVERGREEN)
   updater_ = new H5vccUpdater(settings.updater_module);
   system_ = new H5vccSystem(updater_);
@@ -81,6 +83,7 @@ void H5vcc::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(storage_);
   tracer->Trace(system_);
   tracer->Trace(trace_event_);
+  tracer->Trace(net_log_);
 #if SB_IS(EVERGREEN)
   tracer->Trace(updater_);
 #endif

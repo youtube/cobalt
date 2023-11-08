@@ -229,7 +229,7 @@ const char kWebDriverPortHelp[] =
 
 const char kMinLogLevel[] = "min_log_level";
 const char kMinLogLevelHelp[] =
-    "Set the minimum logging level: info|warning|error|fatal.";
+    "Set the minimum logging level: verbose|info|warning|error|fatal.";
 const char kDisableJavaScriptJit[] = "disable_javascript_jit";
 const char kDisableJavaScriptJitHelp[] =
     "Specifies that javascript jit should be disabled.";

@@ -1900,11 +1900,14 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config,
   video_configs_[append_config_index_] = config;
 
 #if defined(STARBOARD)
-  // Dynamically increase |memory_limit_| when video resolution goes up.
-  memory_limit_ = std::max(
-      memory_limit_,
-      GetDemuxerStreamVideoMemoryLimit(Demuxer::DemuxerTypes::kChunkDemuxer,
-                                       &config, mime_type_));
+  // Dynamically increase |memory_limit_| when video resolution goes up as long
+  // as we haven't set a manual override.
+  if (!memory_override_) {
+    memory_limit_ = std::max(
+        memory_limit_,
+        GetDemuxerStreamVideoMemoryLimit(Demuxer::DemuxerTypes::kChunkDemuxer,
+                                         &config, mime_type_));
+  }
 #endif  // defined(STARBOARD)
   return true;
 }

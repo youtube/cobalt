@@ -28,6 +28,10 @@ class TimeZoneString {
   const char* value() const { return value_.c_str(); }
 
  private:
+  // Returns a string representing a time zone name, e.g. "EST" for Eastern
+  // Standard Time or "PDT" for Pacific Daylight Time. There isn't a native way
+  // to convert these to IANA name format on Windows without UWP, so we're
+  // making use of GetDynamicTimeZoneInformation for now.
   TimeZoneString() {
     DYNAMIC_TIME_ZONE_INFORMATION time_zone_info;
     DWORD zone_id = GetDynamicTimeZoneInformation(&time_zone_info);

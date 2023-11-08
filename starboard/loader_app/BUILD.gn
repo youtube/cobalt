@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/build/config/os_definitions.gni")
+
 _common_loader_app_sources = [
   "loader_app.cc",
   "loader_app_switches.cc",
@@ -247,20 +249,23 @@ static_library("installation_manager") {
   ]
 }
 
-target(gtest_target_type, "installation_manager_test") {
-  testonly = true
-  sources = [
-    "//starboard/common/test_main.cc",
-    "installation_manager_test.cc",
-    "pending_restart_test.cc",
-  ]
-  deps = [
-    ":installation_manager",
-    ":installation_store_proto",
-    ":pending_restart",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
+# TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
+if (!is_host_win) {
+  target(gtest_target_type, "installation_manager_test") {
+    testonly = true
+    sources = [
+      "//starboard/common/test_main.cc",
+      "installation_manager_test.cc",
+      "pending_restart_test.cc",
+    ]
+    deps = [
+      ":installation_manager",
+      ":installation_store_proto",
+      ":pending_restart",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+  }
 }
 
 static_library("slot_management") {
@@ -285,22 +290,25 @@ static_library("slot_management") {
   }
 }
 
-target(gtest_target_type, "slot_management_test") {
-  testonly = true
-  sources = [
-    "//starboard/common/test_main.cc",
-    "slot_management_test.cc",
-  ]
-  deps = [
-    ":app_key_files",
-    ":drain_file",
-    ":installation_manager",
-    ":installation_store_proto",
-    ":slot_management",
-    "//starboard/elf_loader:sabi_string",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
+# TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
+if (!is_host_win) {
+  target(gtest_target_type, "slot_management_test") {
+    testonly = true
+    sources = [
+      "//starboard/common/test_main.cc",
+      "slot_management_test.cc",
+    ]
+    deps = [
+      ":app_key_files",
+      ":drain_file",
+      ":installation_manager",
+      ":installation_store_proto",
+      ":slot_management",
+      "//starboard/elf_loader:sabi_string",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+  }
 }
 
 static_library("pending_restart") {
@@ -332,15 +340,18 @@ static_library("reset_evergreen_update") {
   deps = [ "//starboard" ]
 }
 
-target(gtest_target_type, "reset_evergreen_update_test") {
-  testonly = true
-  sources = [
-    "//starboard/common/test_main.cc",
-    "reset_evergreen_update_test.cc",
-  ]
-  deps = [
-    ":reset_evergreen_update",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
+# TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
+if (!is_host_win) {
+  target(gtest_target_type, "reset_evergreen_update_test") {
+    testonly = true
+    sources = [
+      "//starboard/common/test_main.cc",
+      "reset_evergreen_update_test.cc",
+    ]
+    deps = [
+      ":reset_evergreen_update",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+  }
 }

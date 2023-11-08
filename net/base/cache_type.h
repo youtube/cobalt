@@ -24,9 +24,6 @@ enum BackendType {
   CACHE_BACKEND_DEFAULT,
   CACHE_BACKEND_BLOCKFILE,  // The |BackendImpl|.
   CACHE_BACKEND_SIMPLE,     // The |SimpleBackendImpl|.
-#if defined(STARBOARD)
-  CACHE_BACKEND_COBALT      // The |CobaltBackendImpl|,
-#endif
 };
 
 }  // namespace net

@@ -64,8 +64,5 @@ if (is_host_win) {
     if (defined(native_snarl_linker)) {
       using_snarl_linker = true
     }
-    toolchain_args = {
-      is_clang = true
-    }
   }
 }

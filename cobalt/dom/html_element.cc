@@ -161,6 +161,22 @@ struct NonTrivialStaticFields {
 base::LazyInstance<NonTrivialStaticFields>::DestructorAtExit
     non_trivial_static_fields = LAZY_INSTANCE_INITIALIZER;
 
+void InvalidateScrollAreaCacheOfAncestors(Node* node) {
+  for (Node* ancestor_node = node; ancestor_node;
+       ancestor_node = ancestor_node->parent_node()) {
+    Element* ancestor_element = ancestor_node->AsElement();
+    if (!ancestor_element) {
+      continue;
+    }
+    HTMLElement* ancestor_html_element = ancestor_element->AsHTMLElement();
+    if (!ancestor_html_element) {
+      continue;
+    }
+    if (ancestor_html_element->layout_boxes())
+      ancestor_html_element->layout_boxes()->scroll_area_cache().reset();
+  }
+}
+
 }  // namespace
 
 void HTMLElement::RuleMatchingState::Clear() {
@@ -1167,6 +1183,7 @@ void HTMLElement::InvalidateLayoutBoxesOfNodeAndDescendants() {
 }
 
 void HTMLElement::InvalidateLayoutBoxSizes() {
+  InvalidateScrollAreaCacheOfAncestors(parent_node());
   if (layout_boxes_) {
     layout_boxes_->InvalidateSizes();
 
@@ -1232,6 +1249,9 @@ void HTMLElement::OnUiNavFocus(SbTimeMonotonic time) {
 
 void HTMLElement::OnUiNavScroll(SbTimeMonotonic /* time */) {
   Document* document = node_document();
+  if (document->hidden()) {
+    return;
+  }
   scoped_refptr<Window> window(document ? document->window() : nullptr);
   DispatchEvent(new UIEvent(base::Tokens::scroll(), web::Event::kNotBubbles,
                             web::Event::kNotCancelable, window));

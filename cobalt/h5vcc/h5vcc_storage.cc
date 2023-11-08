@@ -74,13 +74,12 @@ void ClearDirectory(const base::FilePath& file_path) {
 }
 
 void DeleteCacheResourceTypeDirectory(disk_cache::ResourceType type) {
-  auto metadata = disk_cache::kTypeMetadata[type];
+  std::string directory = disk_cache::defaults::GetSubdirectory(type);
   std::vector<char> cache_dir(kSbFileMaxPath + 1, 0);
   SbSystemGetPath(kSbSystemPathCacheDirectory, cache_dir.data(),
                   kSbFileMaxPath);
   base::FilePath cache_type_dir =
-      base::FilePath(cache_dir.data())
-          .Append(FILE_PATH_LITERAL(metadata.directory));
+      base::FilePath(cache_dir.data()).Append(FILE_PATH_LITERAL(directory));
   ClearDirectory(cache_type_dir);
 }
 
@@ -313,6 +312,11 @@ H5vccStorageSetQuotaResponse H5vccStorage::SetQuota(
 
 void H5vccStorage::SetAndSaveQuotaForBackend(disk_cache::ResourceType type,
                                              uint32_t bytes) {
+  if (disk_cache::settings::GetQuota(type) == bytes) {
+    return;
+  }
+  disk_cache::settings::SetQuota(type, bytes);
+  network_module_->url_request_context()->UpdateCacheSizeSetting(type, bytes);
   if (cache_backend_) {
     cache_backend_->UpdateSizes(type, bytes);
 
@@ -332,21 +336,19 @@ H5vccStorageResourceTypeQuotaBytesDictionary H5vccStorage::GetQuota() {
     return quota;
   }
 
-  quota.set_other(cache_backend_->GetQuota(disk_cache::kOther));
-  quota.set_html(cache_backend_->GetQuota(disk_cache::kHTML));
-  quota.set_css(cache_backend_->GetQuota(disk_cache::kCSS));
-  quota.set_image(cache_backend_->GetQuota(disk_cache::kImage));
-  quota.set_font(cache_backend_->GetQuota(disk_cache::kFont));
-  quota.set_splash(cache_backend_->GetQuota(disk_cache::kSplashScreen));
+  quota.set_other(disk_cache::settings::GetQuota(disk_cache::kOther));
+  quota.set_html(disk_cache::settings::GetQuota(disk_cache::kHTML));
+  quota.set_css(disk_cache::settings::GetQuota(disk_cache::kCSS));
+  quota.set_image(disk_cache::settings::GetQuota(disk_cache::kImage));
+  quota.set_font(disk_cache::settings::GetQuota(disk_cache::kFont));
+  quota.set_splash(disk_cache::settings::GetQuota(disk_cache::kSplashScreen));
   quota.set_uncompiled_js(
-      cache_backend_->GetQuota(disk_cache::kUncompiledScript));
+      disk_cache::settings::GetQuota(disk_cache::kUncompiledScript));
   quota.set_compiled_js(
-      cobalt::cache::Cache::GetInstance()
-          ->GetMaxCacheStorageInBytes(disk_cache::kCompiledScript)
-          .value());
-  quota.set_cache_api(cache_backend_->GetQuota(disk_cache::kCacheApi));
+      disk_cache::settings::GetQuota(disk_cache::kCompiledScript));
+  quota.set_cache_api(disk_cache::settings::GetQuota(disk_cache::kCacheApi));
   quota.set_service_worker_js(
-      cache_backend_->GetQuota(disk_cache::kServiceWorkerScript));
+      disk_cache::settings::GetQuota(disk_cache::kServiceWorkerScript));
 
   uint32_t max_quota_size = 24 * 1024 * 1024;
 #if SB_API_VERSION >= 14
@@ -366,7 +368,7 @@ void H5vccStorage::EnableCache() {
       disk_cache::kCacheEnabledPersistentSettingsKey,
       std::make_unique<base::Value>(true));
 
-  cobalt::cache::Cache::GetInstance()->set_enabled(true);
+  disk_cache::settings::SetCacheEnabled(true);
 
   if (http_cache_) {
     http_cache_->set_mode(net::HttpCache::Mode::NORMAL);
@@ -378,7 +380,7 @@ void H5vccStorage::DisableCache() {
       disk_cache::kCacheEnabledPersistentSettingsKey,
       std::make_unique<base::Value>(false));
 
-  cobalt::cache::Cache::GetInstance()->set_enabled(false);
+  disk_cache::settings::SetCacheEnabled(false);
 
   if (http_cache_) {
     http_cache_->set_mode(net::HttpCache::Mode::DISABLE);

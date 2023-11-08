@@ -45,6 +45,8 @@ static_library("h5vcc") {
     "h5vcc_event_listener_container.h",
     "h5vcc_metrics.cc",
     "h5vcc_metrics.h",
+    "h5vcc_net_log.cc",
+    "h5vcc_net_log.h",
     "h5vcc_platform_service.cc",
     "h5vcc_platform_service.h",
     "h5vcc_runtime.cc",

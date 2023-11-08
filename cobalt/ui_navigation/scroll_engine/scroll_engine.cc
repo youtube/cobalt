@@ -395,6 +395,14 @@ void ScrollEngine::ScrollNavItemsWithDecayingScroll() {
   }
 }
 
+void ScrollEngine::Conceal(render_tree::ResourceProvider*, SbTimeMonotonic) {
+  nav_items_with_decaying_scroll_.clear();
+}
+
+void ScrollEngine::Freeze(SbTimeMonotonic) {
+  nav_items_with_decaying_scroll_.clear();
+}
+
 }  // namespace scroll_engine
 }  // namespace ui_navigation
 }  // namespace cobalt

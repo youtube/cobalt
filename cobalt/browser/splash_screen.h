@@ -57,7 +57,6 @@ class SplashScreen : public LifecycleObserver {
   }
 
   // LifecycleObserver implementation.
-  // LifecycleObserver implementation.
   void Blur(SbTimeMonotonic timestamp) override { web_module_->Blur(0); }
   void Conceal(render_tree::ResourceProvider* resource_provider,
                SbTimeMonotonic timestamp) override {

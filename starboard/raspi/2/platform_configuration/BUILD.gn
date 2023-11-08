@@ -17,11 +17,16 @@ config("platform_configuration") {
     "//starboard/build/config/sabi",
     "//starboard/raspi/shared/platform_configuration",
   ]
-  cflags = [
-    "-march=armv7-a",
-    "-mfpu=neon-vfpv4",
-    "-mfloat-abi=hard",
-    "-mcpu=cortex-a8",
-    "-mtune=cortex-a8",
-  ]
+  if (current_toolchain != default_toolchain || !sb_is_modular) {
+    cflags = [
+      "-march=armv7-a",
+      "-mfpu=neon-vfpv4",
+      "-mfloat-abi=hard",
+      "-mcpu=cortex-a8",
+      "-mtune=cortex-a8",
+    ]
+  }
+  if (sb_is_modular && !sb_is_evergreen) {
+    defines = [ "USE_COMMON_CONTENT_DIR" ]
+  }
 }

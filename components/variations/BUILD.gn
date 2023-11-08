@@ -87,6 +87,17 @@ static_library("variations") {
     ]
   }
 
+  if (use_cobalt_customizations) {
+      # Files with unused symbols. ex: base::FeatureList::RegisterFieldTrialOverride
+      # These files give linker errors about undefined symbols during modualr builds.   
+    sources -= [
+      "variations_seed_processor.cc",
+      "variations_seed_processor.h",
+      "variations_seed_simulator.cc",
+      "variations_seed_simulator.h",
+    ]
+  }
+
   if (!use_cobalt_customizations && (is_android || is_ios)) {
     sources += [
       "variations_request_scheduler_mobile.cc",
@@ -128,7 +139,6 @@ if (is_android && !use_cobalt_customizations) {
   }
 }
 
-# TODO(b/283258321): Re-enable as many tests as posible.
 if (!use_cobalt_customizations) {
   static_library("test_support") {
     testonly = true
