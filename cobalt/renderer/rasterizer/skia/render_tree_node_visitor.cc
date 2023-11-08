@@ -220,12 +220,7 @@ SkPath RoundedRectToSkiaPath(
     const math::RectF& rect,
     const render_tree::RoundedCorners& rounded_corners) {
   SkPath path;
-#ifdef USE_SKIA_NEXT
   path.addRRect(RoundedRectToSkia(rect, rounded_corners), SkPathDirection::kCW);
-#else
-  path.addRRect(RoundedRectToSkia(rect, rounded_corners),
-                SkPath::kCW_Direction);
-#endif
   return path;
 }
 

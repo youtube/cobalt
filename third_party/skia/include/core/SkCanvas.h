@@ -145,6 +145,8 @@ public:
         a width and height of zero.
 
         @return  empty SkCanvas
+
+        example: https://fiddle.skia.org/c/@Canvas_empty_constructor
     */
     SkCanvas();
 
@@ -162,6 +164,8 @@ public:
         @param props   LCD striping orientation and setting for device independent fonts;
                        may be nullptr
         @return        SkCanvas placeholder with dimensions
+
+        example: https://fiddle.skia.org/c/@Canvas_int_int_const_SkSurfaceProps_star
     */
     SkCanvas(int width, int height, const SkSurfaceProps* props = nullptr);
 
@@ -180,6 +184,8 @@ public:
         @param bitmap  width, height, SkColorType, SkAlphaType, and pixel
                        storage of raster surface
         @return        SkCanvas that can be used to draw into bitmap
+
+        example: https://fiddle.skia.org/c/@Canvas_copy_const_SkBitmap
     */
     explicit SkCanvas(const SkBitmap& bitmap);
 
@@ -210,11 +216,15 @@ public:
         @param props   order and orientation of RGB striping; and whether to use
                        device independent fonts
         @return        SkCanvas that can be used to draw into bitmap
+
+        example: https://fiddle.skia.org/c/@Canvas_const_SkBitmap_const_SkSurfaceProps
     */
     SkCanvas(const SkBitmap& bitmap, const SkSurfaceProps& props);
 
     /** Draws saved layers, if any.
         Frees up resources used by SkCanvas.
+
+        example: https://fiddle.skia.org/c/@Canvas_destructor
     */
     virtual ~SkCanvas();
 
@@ -222,6 +232,8 @@ public:
         GPU surface, returned SkColorType is set to kUnknown_SkColorType.
 
         @return  dimensions and SkColorType of SkCanvas
+
+        example: https://fiddle.skia.org/c/@Canvas_imageInfo
     */
     SkImageInfo imageInfo() const;
 
@@ -230,6 +242,8 @@ public:
 
         @param props  storage for writable SkSurfaceProps
         @return       true if SkSurfaceProps was copied
+
+        example: https://fiddle.skia.org/c/@Canvas_getProps
     */
     bool getProps(SkSurfaceProps* props) const;
 
@@ -245,6 +259,8 @@ public:
         smaller (due to clipping or saveLayer).
 
         @return  integral width and height of base layer
+
+        example: https://fiddle.skia.org/c/@Canvas_getBaseLayerSize
     */
     virtual SkISize getBaseLayerSize() const;
 
@@ -257,14 +273,23 @@ public:
         @param info   width, height, SkColorType, SkAlphaType, and SkColorSpace
         @param props  SkSurfaceProps to match; may be nullptr to match SkCanvas
         @return       SkSurface matching info and props, or nullptr if no match is available
+
+        example: https://fiddle.skia.org/c/@Canvas_makeSurface
     */
     sk_sp<SkSurface> makeSurface(const SkImageInfo& info, const SkSurfaceProps* props = nullptr);
 
     /** Returns GPU context of the GPU surface associated with SkCanvas.
 
         @return  GPU context, if available; nullptr otherwise
+
+        example: https://fiddle.skia.org/c/@Canvas_getGrContext
     */
     virtual GrContext* getGrContext();
+
+    /** Sometimes a canvas is owned by a surface. If it is, getSurface() will return a bare
+     *  pointer to that surface, else this will return nullptr.
+     */
+    SkSurface* getSurface() const;
 
 #if defined(COBALT)
     /**
@@ -287,6 +312,9 @@ public:
         @param origin    storage for SkCanvas top layer origin, its top-left corner;
                          may be nullptr
         @return          address of pixels, or nullptr if inaccessible
+
+        example: https://fiddle.skia.org/c/@Canvas_accessTopLayerPixels_a
+        example: https://fiddle.skia.org/c/@Canvas_accessTopLayerPixels_b
     */
     void* accessTopLayerPixels(SkImageInfo* info, size_t* rowBytes, SkIPoint* origin = nullptr);
 
@@ -298,6 +326,8 @@ public:
         the drawing destination.
 
         @return  context of custom allocation
+
+        example: https://fiddle.skia.org/c/@Canvas_accessTopRasterHandle
     */
     SkRasterHandleAllocator::Handle accessTopRasterHandle() const;
 
@@ -313,6 +343,8 @@ public:
 
         @param pixmap  storage for pixel state if pixels are readable; otherwise, ignored
         @return        true if SkCanvas has direct access to pixels
+
+        example: https://fiddle.skia.org/c/@Canvas_peekPixels
     */
     bool peekPixels(SkPixmap* pixmap);
 
@@ -385,6 +417,8 @@ public:
         @param srcX    offset into readable pixels on x-axis; may be negative
         @param srcY    offset into readable pixels on y-axis; may be negative
         @return        true if pixels were copied
+
+        example: https://fiddle.skia.org/c/@Canvas_readPixels_2
     */
     bool readPixels(const SkPixmap& pixmap, int srcX, int srcY);
 
@@ -420,6 +454,8 @@ public:
         @param srcX    offset into readable pixels on x-axis; may be negative
         @param srcY    offset into readable pixels on y-axis; may be negative
         @return        true if pixels were copied
+
+        example: https://fiddle.skia.org/c/@Canvas_readPixels_3
     */
     bool readPixels(const SkBitmap& bitmap, int srcX, int srcY);
 
@@ -456,6 +492,8 @@ public:
         @param x         offset into SkCanvas writable pixels on x-axis; may be negative
         @param y         offset into SkCanvas writable pixels on y-axis; may be negative
         @return          true if pixels were written to SkCanvas
+
+        example: https://fiddle.skia.org/c/@Canvas_writePixels
     */
     bool writePixels(const SkImageInfo& info, const void* pixels, size_t rowBytes, int x, int y);
 
@@ -492,6 +530,10 @@ public:
         @param x       offset into SkCanvas writable pixels on x-axis; may be negative
         @param y       offset into SkCanvas writable pixels on y-axis; may be negative
         @return        true if pixels were written to SkCanvas
+
+        example: https://fiddle.skia.org/c/@Canvas_writePixels_2
+        example: https://fiddle.skia.org/c/@State_Stack_a
+        example: https://fiddle.skia.org/c/@State_Stack_b
     */
     bool writePixels(const SkBitmap& bitmap, int x, int y);
 
@@ -508,6 +550,8 @@ public:
         Call restoreToCount() with result to restore this and subsequent saves.
 
         @return  depth of saved stack
+
+        example: https://fiddle.skia.org/c/@Canvas_save
     */
     int save();
 
@@ -529,6 +573,8 @@ public:
         @param bounds  hint to limit the size of the layer; may be nullptr
         @param paint   graphics state for layer; may be nullptr
         @return        depth of saved stack
+
+        example: https://fiddle.skia.org/c/@Canvas_saveLayer
     */
     int saveLayer(const SkRect* bounds, const SkPaint* paint);
 
@@ -574,6 +620,8 @@ public:
         @param bounds  hint to limit the size of layer; may be nullptr
         @param alpha   opacity of layer
         @return        depth of saved stack
+
+        example: https://fiddle.skia.org/c/@Canvas_saveLayerAlpha
     */
     int saveLayerAlpha(const SkRect* bounds, U8CPU alpha);
 
@@ -709,6 +757,8 @@ public:
 
         @param layerRec  layer state
         @return          depth of save state stack before this call was made.
+
+        example: https://fiddle.skia.org/c/@Canvas_saveLayer_3
     */
     int saveLayer(const SaveLayerRec& layerRec);
 
@@ -716,6 +766,10 @@ public:
         last saved. The state is removed from the stack.
 
         Does nothing if the stack is empty.
+
+        example: https://fiddle.skia.org/c/@AutoCanvasRestore_restore
+
+        example: https://fiddle.skia.org/c/@Canvas_restore
     */
     void restore();
 
@@ -724,6 +778,8 @@ public:
         The save count of a new canvas is one.
 
         @return  depth of save state stack
+
+        example: https://fiddle.skia.org/c/@Canvas_getSaveCount
     */
     int getSaveCount() const;
 
@@ -734,6 +790,8 @@ public:
         Restores state to initial values if saveCount is less than or equal to one.
 
         @param saveCount  depth of state stack to restore
+
+        example: https://fiddle.skia.org/c/@Canvas_restoreToCount
     */
     void restoreToCount(int saveCount);
 
@@ -747,6 +805,8 @@ public:
 
         @param dx  distance to translate on x-axis
         @param dy  distance to translate on y-axis
+
+        example: https://fiddle.skia.org/c/@Canvas_translate
     */
     void translate(SkScalar dx, SkScalar dy);
 
@@ -760,6 +820,8 @@ public:
 
         @param sx  amount to scale on x-axis
         @param sy  amount to scale on y-axis
+
+        example: https://fiddle.skia.org/c/@Canvas_scale
     */
     void scale(SkScalar sx, SkScalar sy);
 
@@ -772,6 +834,8 @@ public:
         the result with SkMatrix.
 
         @param degrees  amount to rotate, in degrees
+
+        example: https://fiddle.skia.org/c/@Canvas_rotate
     */
     void rotate(SkScalar degrees);
 
@@ -788,6 +852,8 @@ public:
         @param degrees  amount to rotate, in degrees
         @param px       x-axis value of the point to rotate about
         @param py       y-axis value of the point to rotate about
+
+        example: https://fiddle.skia.org/c/@Canvas_rotate_2
     */
     void rotate(SkScalar degrees, SkScalar px, SkScalar py);
 
@@ -802,6 +868,8 @@ public:
 
         @param sx  amount to skew on x-axis
         @param sy  amount to skew on y-axis
+
+        example: https://fiddle.skia.org/c/@Canvas_skew
     */
     void skew(SkScalar sx, SkScalar sy);
 
@@ -811,6 +879,8 @@ public:
         transforming the result with existing SkMatrix.
 
         @param matrix  matrix to premultiply with existing SkMatrix
+
+        example: https://fiddle.skia.org/c/@Canvas_concat
     */
     void concat(const SkMatrix& matrix);
 
@@ -818,11 +888,15 @@ public:
         Unlike concat(), any prior matrix state is overwritten.
 
         @param matrix  matrix to copy, replacing existing SkMatrix
+
+        example: https://fiddle.skia.org/c/@Canvas_setMatrix
     */
     void setMatrix(const SkMatrix& matrix);
 
     /** Sets SkMatrix to the identity matrix.
         Any prior matrix state is overwritten.
+
+        example: https://fiddle.skia.org/c/@Canvas_resetMatrix
     */
     void resetMatrix();
 
@@ -833,6 +907,8 @@ public:
         @param rect         SkRect to combine with clip
         @param op           SkClipOp to apply to clip
         @param doAntiAlias  true if clip is to be anti-aliased
+
+        example: https://fiddle.skia.org/c/@Canvas_clipRect
     */
     void clipRect(const SkRect& rect, SkClipOp op, bool doAntiAlias);
 
@@ -879,6 +955,8 @@ public:
         @param rrect        SkRRect to combine with clip
         @param op           SkClipOp to apply to clip
         @param doAntiAlias  true if clip is to be anti-aliased
+
+        example: https://fiddle.skia.org/c/@Canvas_clipRRect
     */
     void clipRRect(const SkRRect& rrect, SkClipOp op, bool doAntiAlias);
 
@@ -913,6 +991,8 @@ public:
         @param path         SkPath to combine with clip
         @param op           SkClipOp to apply to clip
         @param doAntiAlias  true if clip is to be anti-aliased
+
+        example: https://fiddle.skia.org/c/@Canvas_clipPath
     */
     void clipPath(const SkPath& path, SkClipOp op, bool doAntiAlias);
 
@@ -958,6 +1038,8 @@ public:
 
         @param deviceRgn  SkRegion to combine with clip
         @param op         SkClipOp to apply to clip
+
+        example: https://fiddle.skia.org/c/@Canvas_clipRegion
     */
     void clipRegion(const SkRegion& deviceRgn, SkClipOp op = SkClipOp::kIntersect);
 
@@ -968,6 +1050,8 @@ public:
 
         @param rect  SkRect to compare with clip
         @return      true if rect, transformed by SkMatrix, does not intersect clip
+
+        example: https://fiddle.skia.org/c/@Canvas_quickReject
     */
     bool quickReject(const SkRect& rect) const;
 
@@ -978,6 +1062,8 @@ public:
 
         @param path  SkPath to compare with clip
         @return      true if path, transformed by SkMatrix, does not intersect clip
+
+        example: https://fiddle.skia.org/c/@Canvas_quickReject_2
     */
     bool quickReject(const SkPath& path) const;
 
@@ -988,6 +1074,8 @@ public:
         is anti-aliased.
 
         @return  bounds of clip in local coordinates
+
+        example: https://fiddle.skia.org/c/@Canvas_getLocalClipBounds
     */
     SkRect getLocalClipBounds() const;
 
@@ -1011,6 +1099,8 @@ public:
         Unlike getLocalClipBounds(), returned SkIRect is not outset.
 
         @return  bounds of clip in SkBaseDevice coordinates
+
+        example: https://fiddle.skia.org/c/@Canvas_getDeviceClipBounds
     */
     SkIRect getDeviceClipBounds() const;
 
@@ -1032,6 +1122,8 @@ public:
 
         @param color  unpremultiplied ARGB
         @param mode   SkBlendMode used to combine source color and destination
+
+        example: https://fiddle.skia.org/c/@Canvas_drawColor
     */
     void drawColor(SkColor color, SkBlendMode mode = SkBlendMode::kSrcOver);
 
@@ -1063,6 +1155,8 @@ public:
         SkPathEffect in paint is ignored.
 
         @param paint  graphics state used to fill SkCanvas
+
+        example: https://fiddle.skia.org/c/@Canvas_drawPaint
     */
     void drawPaint(const SkPaint& paint);
 
@@ -1104,6 +1198,8 @@ public:
         @param count  number of points in the array
         @param pts    array of points to draw
         @param paint  stroke, blend, color, and so on, used to draw
+
+        example: https://fiddle.skia.org/c/@Canvas_drawPoints
     */
     void drawPoints(PointMode mode, size_t count, const SkPoint pts[], const SkPaint& paint);
 
@@ -1118,6 +1214,8 @@ public:
         @param x      left edge of circle or square
         @param y      top edge of circle or square
         @param paint  stroke, blend, color, and so on, used to draw
+
+        example: https://fiddle.skia.org/c/@Canvas_drawPoint
     */
     void drawPoint(SkScalar x, SkScalar y, const SkPaint& paint);
 
@@ -1146,6 +1244,8 @@ public:
         @param x1     end of line segment on x-axis
         @param y1     end of line segment on y-axis
         @param paint  stroke, blend, color, and so on, used to draw
+
+        example: https://fiddle.skia.org/c/@Canvas_drawLine
     */
     void drawLine(SkScalar x0, SkScalar y0, SkScalar x1, SkScalar y1, const SkPaint& paint);
 
@@ -1169,6 +1269,8 @@ public:
 
         @param rect   rectangle to draw
         @param paint  stroke or fill, blend, color, and so on, used to draw
+
+        example: https://fiddle.skia.org/c/@Canvas_drawRect
     */
     void drawRect(const SkRect& rect, const SkPaint& paint);
 
@@ -1193,6 +1295,8 @@ public:
 
         @param region  region to draw
         @param paint   SkPaint stroke or fill, blend, color, and so on, used to draw
+
+        example: https://fiddle.skia.org/c/@Canvas_drawRegion
     */
     void drawRegion(const SkRegion& region, const SkPaint& paint);
 
@@ -1202,6 +1306,8 @@ public:
 
         @param oval   SkRect bounds of oval
         @param paint  SkPaint stroke or fill, blend, color, and so on, used to draw
+
+        example: https://fiddle.skia.org/c/@Canvas_drawOval
     */
     void drawOval(const SkRect& oval, const SkPaint& paint);
 
@@ -1214,6 +1320,8 @@ public:
 
         @param rrect  SkRRect with up to eight corner radii to draw
         @param paint  SkPaint stroke or fill, blend, color, and so on, used to draw
+
+        example: https://fiddle.skia.org/c/@Canvas_drawRRect
     */
     void drawRRect(const SkRRect& rrect, const SkPaint& paint);
 
@@ -1232,6 +1340,9 @@ public:
         @param outer  SkRRect outer bounds to draw
         @param inner  SkRRect inner bounds to draw
         @param paint  SkPaint stroke or fill, blend, color, and so on, used to draw
+
+        example: https://fiddle.skia.org/c/@Canvas_drawDRRect_a
+        example: https://fiddle.skia.org/c/@Canvas_drawDRRect_b
     */
     void drawDRRect(const SkRRect& outer, const SkRRect& inner, const SkPaint& paint);
 
@@ -1244,6 +1355,8 @@ public:
         @param cy      circle center on the y-axis
         @param radius  half the diameter of circle
         @param paint   SkPaint stroke or fill, blend, color, and so on, used to draw
+
+        example: https://fiddle.skia.org/c/@Canvas_drawCircle
     */
     void drawCircle(SkScalar cx, SkScalar cy, SkScalar radius, const SkPaint& paint);
 
@@ -1297,6 +1410,8 @@ public:
         @param rx     axis length on x-axis of oval describing rounded corners
         @param ry     axis length on y-axis of oval describing rounded corners
         @param paint  stroke, blend, color, and so on, used to draw
+
+        example: https://fiddle.skia.org/c/@Canvas_drawRoundRect
     */
     void drawRoundRect(const SkRect& rect, SkScalar rx, SkScalar ry, const SkPaint& paint);
 
@@ -1311,6 +1426,8 @@ public:
 
         @param path   SkPath to draw
         @param paint  stroke, blend, color, and so on, used to draw
+
+        example: https://fiddle.skia.org/c/@Canvas_drawPath
     */
     void drawPath(const SkPath& path, const SkPaint& paint);
 
@@ -1442,6 +1559,8 @@ public:
         @param dst         destination SkRect of image to draw to
         @param paint       SkPaint containing SkBlendMode, SkColorFilter, SkImageFilter,
                            and so on; or nullptr
+
+        example: https://fiddle.skia.org/c/@Canvas_drawImageRect_3
     */
     void drawImageRect(const SkImage* image, const SkRect& dst, const SkPaint* paint);
 
@@ -2015,6 +2134,8 @@ public:
         @param x      horizontal offset applied to blob
         @param y      vertical offset applied to blob
         @param paint  blend, color, stroking, and so on, used to draw
+
+        example: https://fiddle.skia.org/c/@Canvas_drawTextBlob
     */
     void drawTextBlob(const SkTextBlob* blob, SkScalar x, SkScalar y, const SkPaint& paint);
 
@@ -2074,6 +2195,8 @@ public:
         @param picture  recorded drawing commands to play
         @param matrix   SkMatrix to rotate, scale, translate, and so on; may be nullptr
         @param paint    SkPaint to apply transparency, filtering, and so on; may be nullptr
+
+        example: https://fiddle.skia.org/c/@Canvas_drawPicture_3
     */
     void drawPicture(const SkPicture* picture, const SkMatrix* matrix, const SkPaint* paint);
 
@@ -2100,6 +2223,8 @@ public:
         @param vertices  triangle mesh to draw
         @param mode      combines vertices colors with SkShader, if both are present
         @param paint     specifies the SkShader, used as SkVertices texture; may be nullptr
+
+        example: https://fiddle.skia.org/c/@Canvas_drawVertices
     */
     void drawVertices(const SkVertices* vertices, SkBlendMode mode, const SkPaint& paint);
 
@@ -2110,6 +2235,8 @@ public:
         @param vertices  triangle mesh to draw
         @param mode      combines vertices colors with SkShader, if both are present
         @param paint     specifies the SkShader, used as SkVertices texture, may be nullptr
+
+        example: https://fiddle.skia.org/c/@Canvas_drawVertices_2
     */
     void drawVertices(const sk_sp<SkVertices>& vertices, SkBlendMode mode, const SkPaint& paint);
 
@@ -2310,6 +2437,8 @@ public:
 
         @param drawable  custom struct encapsulating drawing commands
         @param matrix    transformation applied to drawing; may be nullptr
+
+        example: https://fiddle.skia.org/c/@Canvas_drawDrawable
     */
     void drawDrawable(SkDrawable* drawable, const SkMatrix* matrix = nullptr);
 
@@ -2323,6 +2452,8 @@ public:
         @param drawable  custom struct encapsulating drawing commands
         @param x         offset into SkCanvas writable pixels on x-axis
         @param y         offset into SkCanvas writable pixels on y-axis
+
+        example: https://fiddle.skia.org/c/@Canvas_drawDrawable_2
     */
     void drawDrawable(SkDrawable* drawable, SkScalar x, SkScalar y);
 
@@ -2335,6 +2466,8 @@ public:
         @param rect   SkRect extent of canvas to annotate
         @param key    string used for lookup
         @param value  data holding value stored in annotation
+
+        example: https://fiddle.skia.org/c/@Canvas_drawAnnotation_2
     */
     void drawAnnotation(const SkRect& rect, const char key[], SkData* value);
 
@@ -2359,6 +2492,8 @@ public:
         work until clip changes.
 
         @return  true if clip is empty
+
+        example: https://fiddle.skia.org/c/@Canvas_isClipEmpty
     */
     virtual bool isClipEmpty() const;
 
@@ -2366,6 +2501,8 @@ public:
         Returns false if the clip is empty, or if it is not SkRect.
 
         @return  true if clip is SkRect and not empty
+
+        example: https://fiddle.skia.org/c/@Canvas_isClipRect
     */
     virtual bool isClipRect() const;
 
@@ -2373,6 +2510,9 @@ public:
         This does not account for translation by SkBaseDevice or SkSurface.
 
         @return  SkMatrix in SkCanvas
+
+        example: https://fiddle.skia.org/c/@Canvas_getTotalMatrix
+        example: https://fiddle.skia.org/c/@Clip
     */
     const SkMatrix& getTotalMatrix() const;
 
