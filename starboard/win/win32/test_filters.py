@@ -53,10 +53,6 @@ _FILTERED_TESTS = {
 
         # Enable once verified on the platform.
         'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
-
-        # Windows uses a special time zone format that ICU accepts, so we don't enforce IANA.
-        # TODO(b/304335954): Re-enable the test after fixing Windows implementation.
-        'SbTimeZoneGetNameTest.IsIANAFormat',
     ],
     'player_filter_tests': [
         # These tests fail on our VMs for win-win32 builds due to missing
@@ -91,6 +87,7 @@ class WinWin32TestFilters(shared_test_filters.TestFilters):
       return [test_filter.DISABLE_TESTING]
     else:
       filters = super().GetTestFilters()
+      _FILTERED_TESTS.update(test_filter.EVERGREEN_ONLY_TESTS)
       for target, tests in _FILTERED_TESTS.items():
         filters.extend(test_filter.TestFilter(target, test) for test in tests)
       if os.environ.get('EXPERIMENTAL_CI', '0') == '1':

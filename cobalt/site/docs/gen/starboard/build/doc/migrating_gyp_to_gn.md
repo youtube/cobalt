@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Migrating GYP to GN"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Migrating GYP to GN
 
 Cobalt is currently in the process of migrating from our current build system
@@ -205,8 +204,7 @@ them.
 ### Validating a Target
 
 If you're migrating a single target, it's simple to check: just configure the
-build using the the necessary arguments then build that target with `ninja`,
-i.e.:
+build using the necessary arguments then build that target with `ninja`, i.e.:
 
 ```
 static_library("new_target") { ... }

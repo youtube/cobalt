@@ -1,8 +1,7 @@
----
-layout: doc
-title: ""
----
-# Memory Tuning #
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Memory Tuning
 
 Cobalt is designed to choose sensible parameters for memory-related options and
 parameters through a system called "AutoMem".

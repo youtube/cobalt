@@ -177,6 +177,10 @@ static_library("starboard_platform") {
     "//starboard/shared/win32/media_transform.cc",
     "//starboard/shared/win32/media_transform.h",
     "//starboard/shared/win32/posix_emu/posix_memalign.cc",
+
+    # TODO (b/304335954): Use uwp implementation for correct IANA name once
+    # daylight savings offset is fixed.
+    "//starboard/shared/win32/time_zone_get_name.cc",
     "//starboard/shared/win32/video_decoder.cc",
     "//starboard/shared/win32/video_decoder.h",
     "//starboard/shared/win32/win32_audio_decoder.cc",
@@ -214,8 +218,8 @@ static_library("starboard_platform") {
   if (is_internal_build) {
     sources += [
       "//internal/starboard/shared/uwp/keys.cc",
-      "//internal/starboard/xb1/av1_video_decoder.cc",
-      "//internal/starboard/xb1/av1_video_decoder.h",
+      "//internal/starboard/xb1/dav1d_video_decoder.cc",
+      "//internal/starboard/xb1/dav1d_video_decoder.h",
       "//internal/starboard/xb1/drm_create_system.cc",
       "//internal/starboard/xb1/internal_shims.cc",
       "//internal/starboard/xb1/media_is_supported.cc",
@@ -235,7 +239,7 @@ static_library("starboard_platform") {
       "//starboard/shared/widevine:oemcrypto",
       "//third_party/internal/ce_cdm/cdm:widevine_cdm_core",
       "//third_party/internal/ce_cdm/cdm:widevine_ce_cdm_static",
-      "//third_party/internal/libav1_xb1",
+      "//third_party/internal/dav1d_gpu/xb1:dav1d_xb1",
       "//third_party/internal/libvpx_xb1",
     ]
   } else {

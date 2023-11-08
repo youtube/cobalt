@@ -39,6 +39,7 @@ namespace media {
 
 namespace {
 
+using starboard::FormatString;
 using starboard::GetPlayerOutputModeName;
 
 class StatisticsWrapper {
@@ -707,9 +708,9 @@ void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
     // a method of querying that texture.
     decode_target_provider_->SetGetCurrentSbDecodeTargetFunction(base::Bind(
         &SbPlayerBridge::GetCurrentSbDecodeTarget, base::Unretained(this)));
-    SB_LOG(INFO) << "Playing in decode-to-texture mode.";
+    LOG(INFO) << "Playing in decode-to-texture mode.";
   } else {
-    SB_LOG(INFO) << "Playing in punch-out mode.";
+    LOG(INFO) << "Playing in punch-out mode.";
   }
 
   decode_target_provider_->SetOutputMode(
@@ -777,9 +778,9 @@ void SbPlayerBridge::CreatePlayer() {
     // a method of querying that texture.
     decode_target_provider_->SetGetCurrentSbDecodeTargetFunction(base::Bind(
         &SbPlayerBridge::GetCurrentSbDecodeTarget, base::Unretained(this)));
-    SB_LOG(INFO) << "Playing in decode-to-texture mode.";
+    LOG(INFO) << "Playing in decode-to-texture mode.";
   } else {
-    SB_LOG(INFO) << "Playing in punch-out mode.";
+    LOG(INFO) << "Playing in punch-out mode.";
   }
 
   decode_target_provider_->SetOutputMode(
@@ -1237,8 +1238,8 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
 
   if (default_output_mode != kSbPlayerOutputModeDecodeToTexture &&
       video_stream_info_.codec != kSbMediaVideoCodecNone) {
-    SB_DCHECK(video_stream_info_.mime);
-    SB_DCHECK(video_stream_info_.max_video_capabilities);
+    DCHECK(video_stream_info_.mime);
+    DCHECK(video_stream_info_.max_video_capabilities);
 
     // Set the `default_output_mode` to `kSbPlayerOutputModeDecodeToTexture` if
     // any of the mime associated with it has `decode-to-texture=true` set.
@@ -1250,13 +1251,12 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
                "decode-to-texture=true");
 
     if (is_decode_to_texture_preferred) {
-      SB_LOG(INFO) << "Setting `default_output_mode` from \""
-                   << GetPlayerOutputModeName(default_output_mode) << "\" to \""
-                   << GetPlayerOutputModeName(
-                          kSbPlayerOutputModeDecodeToTexture)
-                   << "\" because mime is set to \"" << video_stream_info_.mime
-                   << "\", and max_video_capabilities is set to \""
-                   << video_stream_info_.max_video_capabilities << "\"";
+      LOG(INFO) << "Setting `default_output_mode` from \""
+                << GetPlayerOutputModeName(default_output_mode) << "\" to \""
+                << GetPlayerOutputModeName(kSbPlayerOutputModeDecodeToTexture)
+                << "\" because mime is set to \"" << video_stream_info_.mime
+                << "\", and max_video_capabilities is set to \""
+                << video_stream_info_.max_video_capabilities << "\"";
       default_output_mode = kSbPlayerOutputModeDecodeToTexture;
     }
   }
@@ -1265,6 +1265,9 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
 
   auto output_mode =
       sbplayer_interface_->GetPreferredOutputMode(&creation_param);
+
+  LOG(INFO) << "Output mode is set to " << GetPlayerOutputModeName(output_mode);
+
   CHECK_NE(kSbPlayerOutputModeInvalid, output_mode);
   return output_mode;
 }
@@ -1272,15 +1275,14 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
 void SbPlayerBridge::LogStartupLatency() const {
   std::string first_events_str;
   if (set_drm_system_ready_cb_time_ == -1) {
-    first_events_str =
-        starboard::FormatString("%-40s0 us", "SbPlayerCreate() called");
+    first_events_str = FormatString("%-40s0 us", "SbPlayerCreate() called");
   } else if (set_drm_system_ready_cb_time_ < player_creation_time_) {
-    first_events_str = starboard::FormatString(
+    first_events_str = FormatString(
         "%-40s0 us\n%-40s%" PRId64 " us", "set_drm_system_ready_cb called",
         "SbPlayerCreate() called",
         player_creation_time_ - set_drm_system_ready_cb_time_);
   } else {
-    first_events_str = starboard::FormatString(
+    first_events_str = FormatString(
         "%-40s0 us\n%-40s%" PRId64 " us", "SbPlayerCreate() called",
         "set_drm_system_ready_cb called",
         set_drm_system_ready_cb_time_ - player_creation_time_);
@@ -1305,7 +1307,7 @@ void SbPlayerBridge::LogStartupLatency() const {
                                                               1);
 
   // clang-format off
-  LOG(INFO) << starboard::FormatString(
+  LOG(INFO) << FormatString(
       "\nSbPlayer startup latencies: %" PRId64 " us\n"
       "  Event name                              time since last event\n"
       "  %s\n"  // |first_events_str| populated above

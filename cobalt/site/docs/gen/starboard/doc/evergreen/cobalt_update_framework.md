@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Cobalt Update Framework"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Cobalt Update Framework
 
 ## Background

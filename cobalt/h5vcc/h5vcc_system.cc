@@ -21,6 +21,10 @@
 #include "starboard/common/system_property.h"
 #include "starboard/system.h"
 
+#if SB_API_VERSION < 14
+#include "starboard/extension/ifa.h"
+#endif  // SB_API_VERSION < 14
+
 using starboard::kSystemPropertyMaxLength;
 
 namespace cobalt {
@@ -57,26 +61,55 @@ std::string H5vccSystem::platform() const {
 
 std::string H5vccSystem::advertising_id() const {
   std::string result;
-#if SB_API_VERSION >= 14
   char property[kSystemPropertyMaxLength] = {0};
+#if SB_API_VERSION >= 14
   if (!SbSystemGetProperty(kSbSystemPropertyAdvertisingId, property,
                            SB_ARRAY_SIZE_INT(property))) {
     DLOG(FATAL) << "Failed to get kSbSystemPropertyAdvertisingId.";
   } else {
     result = property;
   }
+#else
+  static auto const* ifa_extension =
+      static_cast<const StarboardExtensionIfaApi*>(
+          SbSystemGetExtension(kStarboardExtensionIfaName));
+  if (ifa_extension &&
+      strcmp(ifa_extension->name, kStarboardExtensionIfaName) == 0 &&
+      ifa_extension->version >= 1) {
+    if (!ifa_extension->GetAdvertisingId(property,
+                                         SB_ARRAY_SIZE_INT(property))) {
+      DLOG(FATAL) << "Failed to get AdvertisingId from IFA extension.";
+    } else {
+      result = property;
+    }
+  }
 #endif
   return result;
 }
 bool H5vccSystem::limit_ad_tracking() const {
   bool result = false;
-#if SB_API_VERSION >= 14
   char property[kSystemPropertyMaxLength] = {0};
+#if SB_API_VERSION >= 14
   if (!SbSystemGetProperty(kSbSystemPropertyLimitAdTracking, property,
                            SB_ARRAY_SIZE_INT(property))) {
     DLOG(FATAL) << "Failed to get kSbSystemPropertyAdvertisingId.";
   } else {
     result = std::atoi(property);
+  }
+#else
+  static auto const* ifa_extension =
+      static_cast<const StarboardExtensionIfaApi*>(
+          SbSystemGetExtension(kStarboardExtensionIfaName));
+
+  if (ifa_extension &&
+      strcmp(ifa_extension->name, kStarboardExtensionIfaName) == 0 &&
+      ifa_extension->version >= 1) {
+    if (!ifa_extension->GetLimitAdTracking(property,
+                                           SB_ARRAY_SIZE_INT(property))) {
+      DLOG(FATAL) << "Failed to get LimitAdTracking from IFA extension.";
+    } else {
+      result = std::atoi(property);
+    }
   }
 #endif
   return result;

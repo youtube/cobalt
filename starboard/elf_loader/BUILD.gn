@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/build/config/os_definitions.gni")
+
 _elf_loader_sources = [
   "dynamic_section.cc",
   "dynamic_section.h",
@@ -88,7 +90,8 @@ if (sb_is_evergreen_compatible) {
   }
 }
 
-if (current_toolchain == starboard_toolchain) {
+# TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
+if (current_toolchain == starboard_toolchain && !is_host_win) {
   target(starboard_level_final_executable_type, "elf_loader_sandbox") {
     data_deps = [ "//third_party/icu:icudata" ]
     if (cobalt_font_package == "empty") {
@@ -155,31 +158,34 @@ if (sb_is_evergreen_compatible) {
   }
 }
 
-target(gtest_target_type, "elf_loader_test") {
-  testonly = true
-  sources = [ "//starboard/common/test_main.cc" ]
-  deps = [
-    "//starboard",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
-
-  if (target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" ||
-      target_cpu == "arm64") {
-    sources += [
-      "dynamic_section_test.cc",
-      "elf_header_test.cc",
-      "elf_loader_test.cc",
-      "lz4_file_impl_test.cc",
-      "program_table_test.cc",
-      "relocations_test.cc",
-    ]
-    deps += [
-      ":copy_elf_loader_testdata",
-      ":elf_loader",
+# TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
+if (!is_host_win) {
+  target(gtest_target_type, "elf_loader_test") {
+    testonly = true
+    sources = [ "//starboard/common/test_main.cc" ]
+    deps = [
+      "//starboard",
+      "//testing/gmock",
+      "//testing/gtest",
     ]
 
-    data_deps = [ ":copy_elf_loader_testdata" ]
+    if (target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" ||
+        target_cpu == "arm64") {
+      sources += [
+        "dynamic_section_test.cc",
+        "elf_header_test.cc",
+        "elf_loader_test.cc",
+        "lz4_file_impl_test.cc",
+        "program_table_test.cc",
+        "relocations_test.cc",
+      ]
+      deps += [
+        ":copy_elf_loader_testdata",
+        ":elf_loader",
+      ]
+
+      data_deps = [ ":copy_elf_loader_testdata" ]
+    }
   }
 }
 

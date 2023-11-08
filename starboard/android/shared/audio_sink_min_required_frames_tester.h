@@ -107,6 +107,7 @@ class MinRequiredFramesTester {
   std::vector<const TestTask> test_tasks_;
   AudioTrackAudioSink* audio_sink_ = nullptr;
   int min_required_frames_;
+  std::atomic_bool has_error_;
 
   // Used only by audio sink thread.
   int total_consumed_frames_;

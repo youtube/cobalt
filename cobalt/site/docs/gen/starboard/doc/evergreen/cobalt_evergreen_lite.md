@@ -1,9 +1,7 @@
----
-layout: doc
-title: "Evergreen Lite Partner Doc"
----
-Evergreen Lite Partner Doc
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
 
+# Evergreen Lite Partner Doc
 
 ## What is Cobalt Evergreen Lite?
 

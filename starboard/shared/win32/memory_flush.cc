@@ -15,7 +15,7 @@
 #include "starboard/common/log.h"
 #include "starboard/memory.h"
 
-#include <windows.h>
+#include <windows.h>  // NOLINT(build/include_order)
 
 #if !SB_CAN(MAP_EXECUTABLE_MEMORY)
 #error \
