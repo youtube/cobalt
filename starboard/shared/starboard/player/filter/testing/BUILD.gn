@@ -79,7 +79,7 @@ if (current_toolchain == starboard_toolchain) {
     public_configs = [ "//starboard/build/config:starboard_implementation" ]
 
     public_deps = [
-      "//starboard:starboard_group",
+      "//starboard",
       "//starboard/shared/starboard/media:media_util",
       "//starboard/shared/starboard/player:player_download_test_data",
       "//starboard/shared/starboard/player:video_dmp",

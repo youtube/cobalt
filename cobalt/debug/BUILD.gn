@@ -77,7 +77,7 @@ static_library("debug") {
     "//cobalt/web",
     "//net",
     "//net:http_server",
-    "//starboard:starboard_group",
+    "//starboard",
     "//third_party/devtools:devtools_frontend_resources",
   ]
 }

@@ -156,7 +156,7 @@ source_set("gtest") {
   # line, so it happens to work in this case.
   all_dependent_configs = [ "//build/config/compiler:rtti" ]
 
-  public_deps = [  "//starboard:starboard_group",  ]
+  public_deps = [  "//starboard"  ]
 }
 
 # Do NOT depend on this directly. Use //testing/gtest:gtest_main instead.

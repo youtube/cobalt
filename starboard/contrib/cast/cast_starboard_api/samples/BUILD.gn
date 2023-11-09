@@ -1,4 +1,5 @@
 # Copyright 2023 The Cobalt Authors. All rights reserved.
+import("//starboard/build/config/starboard_target_type.gni")
 import("//starboard/contrib/cast/cast.gni")
 
 assert(build_with_separate_cobalt_toolchain && use_contrib_cast)
@@ -24,14 +25,13 @@ config("default") {
 }
 
 if (current_toolchain == starboard_toolchain) {
-  import("//starboard/build/config/starboard_target_type.gni")
   starboard_platform_target("cast_starboard_api") {
     extra_configs = [ ":default" ]
   }
 
   copy("cast_starboard_api_test_data") {
     install_content = true
-    sources = [ "$root_out_dir/libcast_starboard_api.${starboard_shared_library_extension}" ]
+    sources = [ "$root_out_dir/libcast_starboard_api.so" ]
 
     # This artifact is consumed by a test built outside of the
     # starboard_toolchain; move from `starboard/content/` to `content/`.
@@ -50,7 +50,7 @@ target(gtest_target_type, "cast_starboard_api_test") {
   ]
   data_deps = [ ":cast_starboard_api_test_data($starboard_toolchain)" ]
   deps = [
-    "//starboard:starboard_group",
+    "//starboard",
     "//starboard/nplb/testdata/file_tests:nplb_file_tests_data",
     "//testing/gtest",
   ]

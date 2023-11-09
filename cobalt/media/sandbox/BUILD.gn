@@ -24,7 +24,7 @@ target(final_executable_type, "media_sandbox") {
     "//cobalt/base",
     "//cobalt/math",
     "//cobalt/media",
-    "//starboard:starboard_group",
+    "//starboard",
     "//third_party/chromium/media",
   ]
 }
@@ -57,7 +57,7 @@ target(final_executable_type, "web_media_player_sandbox") {
     "//cobalt/storage",
     "//cobalt/system_window",
     "//cobalt/trace_event",
-    "//starboard:starboard_group",
+    "//starboard",
     "//third_party/chromium/media",
     "//url",
   ]

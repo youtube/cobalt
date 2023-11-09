@@ -16,6 +16,6 @@ target(final_executable_type, "starboard_window_example") {
   testonly = true
 
   sources = [ "main.cc" ]
-  public_deps = [ "//starboard:starboard_group" ]
+  public_deps = [ "//starboard" ]
   data_deps = [ "//third_party/icu:icudata" ]
 }

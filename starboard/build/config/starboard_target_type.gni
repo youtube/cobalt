@@ -12,10 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/build/config/os_definitions.gni")
 declare_args() {
   starboard_target_type = ""
-  starboard_shared_library_extension = "so.${sb_api_version}"
 }
 
 if (starboard_target_type == "") {
@@ -39,9 +37,6 @@ template("starboard_platform_target") {
     }
     if (target_type == "shared_library") {
       build_loader = false
-      if (!is_host_win) {
-        output_extension = starboard_shared_library_extension
-      }
     }
     public_deps = [
       "//starboard/client_porting/cwrappers",

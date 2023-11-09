@@ -13,6 +13,6 @@
 # limitations under the License.
 
 target(final_executable_type, "starboard_hello_world_example") {
-  deps = [ "//starboard:starboard_group" ]
+  deps = [ "//starboard" ]
   sources = [ "main.cc" ]
 }
