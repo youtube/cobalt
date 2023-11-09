@@ -772,7 +772,7 @@ public class MediaDrmBridge {
         Log.i(TAG, "MediaDrm HDCP Level is HDCP_LEVEL_UNKNOWN.");
         break;
       default:
-        Log.i(TAG, String.format("Unknown MediaDrm HDCP level %d.", hdcpLevel));
+        Log.i(TAG, String.format(Locale.US, "Unknown MediaDrm HDCP level %d.", hdcpLevel));
         break;
     }
   }
