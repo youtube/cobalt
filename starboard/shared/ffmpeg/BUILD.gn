@@ -106,7 +106,7 @@ target(gtest_target_type, "ffmpeg_demuxer_test") {
   deps = [
     ":ffmpeg_dispatch_sources",
     "//cobalt/test:run_all_unittests",
-    "//starboard",
+    "//starboard:starboard_group",
     "//starboard/common",
     "//testing/gmock",
     "//testing/gtest",
