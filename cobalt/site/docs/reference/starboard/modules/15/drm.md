@@ -1,37 +1,37 @@
----
-layout: doc
-title: "Starboard Module Reference: drm.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: `drm.h`
 
 Provides definitions that allow for DRM support, which are common between Player
 and Decoder interfaces.
 
-## Macros ##
+## Macros
 
-### kSbDrmSystemInvalid ###
+### kSbDrmSystemInvalid
 
 An invalid SbDrmSystem.
 
-### kSbDrmTicketInvalid ###
+### kSbDrmTicketInvalid
 
 A ticket for callback invocations initiated by the DRM system.
 
-## Enums ##
+## Enums
 
-### SbDrmEncryptionScheme ###
+### SbDrmEncryptionScheme
 
 Encryption scheme of the input sample, as defined in ISO/IEC 23001 part 7.
 
-#### Values ####
+#### Values
 
 *   `kSbDrmEncryptionSchemeAesCtr`
 *   `kSbDrmEncryptionSchemeAesCbc`
 
-### SbDrmKeyStatus ###
+### SbDrmKeyStatus
 
 Status of a particular media key. [https://w3c.github.io/encrypted-media/#idl-def-MediaKeyStatus](https://w3c.github.io/encrypted-media/#idl-def-MediaKeyStatus)
 
-#### Values ####
+#### Values
 
 *   `kSbDrmKeyStatusUsable`
 *   `kSbDrmKeyStatusExpired`
@@ -41,24 +41,24 @@ Status of a particular media key. [https://w3c.github.io/encrypted-media/#idl-de
 *   `kSbDrmKeyStatusPending`
 *   `kSbDrmKeyStatusError`
 
-### SbDrmSessionRequestType ###
+### SbDrmSessionRequestType
 
 The type of the session request. [https://www.w3.org/TR/encrypted-media/#idl-def-mediakeymessagetype](https://www.w3.org/TR/encrypted-media/#idl-def-mediakeymessagetype)
 
-#### Values ####
+#### Values
 
 *   `kSbDrmSessionRequestTypeLicenseRequest`
 *   `kSbDrmSessionRequestTypeLicenseRenewal`
 *   `kSbDrmSessionRequestTypeLicenseRelease`
 *   `kSbDrmSessionRequestTypeIndividualizationRequest`
 
-### SbDrmStatus ###
+### SbDrmStatus
 
 The status of session related operations. Used by
 `SbDrmSessionUpdateRequestFunc`, `SbDrmSessionUpdatedFunc`, and
 `SbDrmServerCertificateUpdatedFunc` to indicate the status of the operation. [https://w3c.github.io/encrypted-media/#error-names](https://w3c.github.io/encrypted-media/#error-names)
 
-#### Values ####
+#### Values
 
 *   `kSbDrmStatusSuccess`
 *   `kSbDrmStatusTypeError`
@@ -70,42 +70,42 @@ The status of session related operations. Used by
     The following error can be used when the error status cannot be mapped to
     one of the above errors.
 
-## Typedefs ##
+## Typedefs
 
-### SbDrmServerCertificateUpdatedFunc ###
+### SbDrmServerCertificateUpdatedFunc
 
 A callback to notify the caller of SbDrmUpdateServerCertificate() whether the
 update has been successfully updated or not.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef void(* SbDrmServerCertificateUpdatedFunc) (SbDrmSystem drm_system, void *context, int ticket, SbDrmStatus status, const char *error_message)
 ```
 
-### SbDrmSessionClosedFunc ###
+### SbDrmSessionClosedFunc
 
 A callback for signalling that a session has been closed by the SbDrmSystem
 
-#### Definition ####
+#### Definition
 
 ```
 typedef void(* SbDrmSessionClosedFunc) (SbDrmSystem drm_system, void *context, const void *session_id, int session_id_size)
 ```
 
-### SbDrmSessionKeyStatusesChangedFunc ###
+### SbDrmSessionKeyStatusesChangedFunc
 
 A callback for notifications that the status of one or more keys in a session
 has been changed. All keys of the session and their new status will be passed
 along. Any keys not in the list is considered as deleted.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef void(* SbDrmSessionKeyStatusesChangedFunc) (SbDrmSystem drm_system, void *context, const void *session_id, int session_id_size, int number_of_keys, const SbDrmKeyId *key_ids, const SbDrmKeyStatus *key_statuses)
 ```
 
-### SbDrmSessionUpdateRequestFunc ###
+### SbDrmSessionUpdateRequestFunc
 
 A callback that will receive generated session update request when requested
 from a SbDrmSystem. `drm_system` will be the DRM system that
@@ -128,13 +128,13 @@ there was an error generating the request. This allows Cobalt to find and reject
 the correct Promise corresponding to the associated
 SbDrmGenerateSessionUpdateRequest().
 
-#### Definition ####
+#### Definition
 
 ```
 typedef void(* SbDrmSessionUpdateRequestFunc) (SbDrmSystem drm_system, void *context, int ticket, SbDrmStatus status, SbDrmSessionRequestType type, const char *error_message, const void *session_id, int session_id_size, const void *content, int content_size, const char *url)
 ```
 
-### SbDrmSessionUpdatedFunc ###
+### SbDrmSessionUpdatedFunc
 
 A callback for notifications that a session has been added, and subsequent
 encrypted samples are actively ready to be decoded. `drm_system` will be the DRM
@@ -150,37 +150,37 @@ context passed into that call to SbDrmCreateSystem().
 `status` is `kSbDrmStatusSuccess` or if no error message can be provided.
 `succeeded` is whether the session was successfully updated or not.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef void(* SbDrmSessionUpdatedFunc) (SbDrmSystem drm_system, void *context, int ticket, SbDrmStatus status, const char *error_message, const void *session_id, int session_id_size)
 ```
 
-### SbDrmSystem ###
+### SbDrmSystem
 
 A handle to a DRM system which can be used with either an SbDecoder or an
 SbPlayer.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef struct SbDrmSystemPrivate* SbDrmSystem
 ```
 
-## Structs ##
+## Structs
 
-### SbDrmEncryptionPattern ###
+### SbDrmEncryptionPattern
 
 Encryption pattern of the input sample, as defined in ISO/IEC 23001 part 7.
 
-#### Members ####
+#### Members
 
 *   `uint32_t crypt_byte_block`
 *   `uint32_t skip_byte_block`
 
-### SbDrmKeyId ###
+### SbDrmKeyId
 
-#### Members ####
+#### Members
 
 *   `uint8_t identifier`
 
@@ -188,11 +188,11 @@ Encryption pattern of the input sample, as defined in ISO/IEC 23001 part 7.
     PlayReady, this is the license GUID in packed little-endian binary form.
 *   `int identifier_size`
 
-### SbDrmSampleInfo ###
+### SbDrmSampleInfo
 
 All the optional information needed per sample for encrypted samples.
 
-#### Members ####
+#### Members
 
 *   `SbDrmEncryptionScheme encryption_scheme`
 
@@ -217,13 +217,13 @@ All the optional information needed per sample for encrypted samples.
     The clear/encrypted mapping of each subsample in this sample. This must be
     an array of `subsample_count` mappings.
 
-### SbDrmSubSampleMapping ###
+### SbDrmSubSampleMapping
 
 A mapping of clear and encrypted bytes for a single subsample. All subsamples
 within a sample must be encrypted with the same encryption parameters. The clear
 bytes always appear first in the sample.
 
-#### Members ####
+#### Members
 
 *   `int32_t clear_byte_count`
 
@@ -232,21 +232,21 @@ bytes always appear first in the sample.
 
     How many bytes of the corresponding subsample are encrypted.
 
-## Functions ##
+## Functions
 
-### SbDrmCloseSession ###
+### SbDrmCloseSession
 
 Clear any internal states/resources related to the specified `session_id`.
 
 `drm_system` must not be `kSbDrmSystemInvalid`. `session_id` must not be NULL.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbDrmCloseSession(SbDrmSystem drm_system, const void *session_id, int session_id_size)
 ```
 
-### SbDrmDestroySystem ###
+### SbDrmDestroySystem
 
 Destroys `drm_system`, which implicitly removes all keys installed in it and
 invalidates all outstanding session update requests. A DRM system cannot be
@@ -258,13 +258,13 @@ SbDrmCreateSystem(), a deadlock will occur.
 
 `drm_system`: The DRM system to be destroyed. Must not be `kSbDrmSystemInvalid`.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbDrmDestroySystem(SbDrmSystem drm_system)
 ```
 
-### SbDrmGenerateSessionUpdateRequest ###
+### SbDrmGenerateSessionUpdateRequest
 
 Asynchronously generates a session update request payload for
 `initialization_data`, of `initialization_data_size`, in case sensitive `type`,
@@ -296,13 +296,13 @@ be NULL. `initialization_data`: The data for which the session update request
 payload is created. Must not be NULL. `initialization_data_size`: The size of
 the session update request payload.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbDrmGenerateSessionUpdateRequest(SbDrmSystem drm_system, int ticket, const char *type, const void *initialization_data, int initialization_data_size)
 ```
 
-### SbDrmGetMetrics ###
+### SbDrmGetMetrics
 
 Get the metrics of the underlying drm system.
 
@@ -326,13 +326,13 @@ system, or when the drm system implementation fails to retrieve the metrics.
 
 `drm_system` must not be `kSbDrmSystemInvalid`. `size` must not be NULL.
 
-#### Declaration ####
+#### Declaration
 
 ```
 const void* SbDrmGetMetrics(SbDrmSystem drm_system, int *size)
 ```
 
-### SbDrmIsServerCertificateUpdatable ###
+### SbDrmIsServerCertificateUpdatable
 
 Returns true if server certificate of `drm_system` can be updated via
 SbDrmUpdateServerCertificate(). The return value should remain the same during
@@ -341,33 +341,33 @@ the life time of `drm_system`.
 `drm_system`: The DRM system to check if its server certificate is updatable.
 Must not be `kSbDrmSystemInvalid`.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbDrmIsServerCertificateUpdatable(SbDrmSystem drm_system)
 ```
 
-### SbDrmSystemIsValid ###
+### SbDrmSystemIsValid
 
 Indicates whether `drm_system` is a valid SbDrmSystem.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static bool SbDrmSystemIsValid(SbDrmSystem drm)
 ```
 
-### SbDrmTicketIsValid ###
+### SbDrmTicketIsValid
 
 Indicates whether `ticket` is a valid ticket.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static bool SbDrmTicketIsValid(int ticket)
 ```
 
-### SbDrmUpdateServerCertificate ###
+### SbDrmUpdateServerCertificate
 
 Update the server certificate of `drm_system`. The function can be called
 multiple times. It is possible that a call to it happens before the callback of
@@ -384,13 +384,13 @@ requests with the same ticket may result in undefined behavior. The value
 certificate data. Must not be NULL. `certificate_size`: Size of the server
 certificate data.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbDrmUpdateServerCertificate(SbDrmSystem drm_system, int ticket, const void *certificate, int certificate_size)
 ```
 
-### SbDrmUpdateSession ###
+### SbDrmUpdateSession
 
 Update session with `key`, in `drm_system`'s key system, from the license server
 response. Calls `session_updated_callback` with `context` and whether the update
@@ -410,7 +410,7 @@ with that DRM key system will be able to decrypt encrypted samples.
 thread before this function returns or from another thread. The `session_id`
 must not be NULL.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbDrmUpdateSession(SbDrmSystem drm_system, int ticket, const void *key, int key_size, const void *session_id, int session_id_size)
