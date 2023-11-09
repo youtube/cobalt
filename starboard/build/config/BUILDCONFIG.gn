@@ -559,8 +559,24 @@ template("shared_library") {
           ":$original_target_name($cobalt_toolchain)",
           "//starboard:starboard_platform_group($starboard_toolchain)",
         ]
+        if (defined(invoker.testonly) && invoker.testonly) {
+          # The Starboard proxy is positioned before Starboard on the link line
+          # so that the test loader prefers symbols from the proxy.
+          deps -=
+              [ "//starboard:starboard_platform_group($starboard_toolchain)" ]
+          deps += [ "//starboard/proxy:proxy($starboard_toolchain)" ]
+          deps +=
+              [ "//starboard:starboard_platform_group($starboard_toolchain)" ]
+        }
         if (!separate_install_targets_for_bundling) {
           deps += [ "//starboard:starboard_platform_group_install($starboard_toolchain)" ]
+          if (defined(invoker.testonly) && invoker.testonly) {
+            # The Starboard proxy is positioned before Starboard on the link
+            # line so that the test loader prefers symbols from the proxy.
+            deps -= [ "//starboard:starboard_platform_group_install($starboard_toolchain)" ]
+            deps += [ "//starboard/proxy:proxy_install($starboard_toolchain)" ]
+            deps += [ "//starboard:starboard_platform_group_install($starboard_toolchain)" ]
+          }
         }
       }
       if (!is_host_win) {
