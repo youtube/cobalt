@@ -310,7 +310,9 @@ ExportedSymbols::ExportedSymbols() {
 #endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbStringFormat);
   REGISTER_SYMBOL(SbStringFormatWide);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbStringScan);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbSystemBreakIntoDebugger);
   REGISTER_SYMBOL(SbSystemClearLastError);
 #if SB_API_VERSION < 14

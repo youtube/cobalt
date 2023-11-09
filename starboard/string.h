@@ -20,6 +20,7 @@
 #define STARBOARD_STRING_H_
 
 #include <stdarg.h>
+#include <stdio.h>
 
 #include "starboard/configuration.h"
 #include "starboard/export.h"
@@ -151,6 +152,7 @@ static SB_C_INLINE int SbStringFormatWideF(wchar_t* out_buffer,
   return result;
 }
 
+#if SB_API_VERSION < 16
 // Scans |buffer| for |pattern|, placing the extracted values in |arguments|.
 // The return value specifies the number of successfully matched items, which
 // may be |0|.
@@ -163,6 +165,7 @@ static SB_C_INLINE int SbStringFormatWideF(wchar_t* out_buffer,
 SB_EXPORT int SbStringScan(const char* buffer,
                            const char* pattern,
                            va_list arguments);
+#endif  // SB_API_VERSION < 16
 
 // An inline wrapper of SbStringScan that converts from ellipsis to |va_args|.
 // This function is meant to be a drop-in replacement for |sscanf|.
@@ -174,7 +177,7 @@ static SB_C_INLINE int SbStringScanF(const char* buffer,
                                      ...) {
   va_list arguments;
   va_start(arguments, pattern);
-  int result = SbStringScan(buffer, pattern, arguments);
+  int result = vsscanf(buffer, pattern, arguments);
   va_end(arguments);
   return result;
 }

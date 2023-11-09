@@ -33,8 +33,8 @@
 #define snprintf SbStringFormatF
 #undef sprintf
 #define sprintf SbStringFormatUnsafeF
-#undef vsscanf
-#define vsscanf SbStringScan
+// #undef vsscanf
+// #define vsscanf SbStringScan
 #undef sscanf
 #define sscanf SbStringScanF
 
