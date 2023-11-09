@@ -25,7 +25,7 @@ target(gtest_target_type, "cwrappers_test") {
   ]
   public_deps = [
     ":cwrappers",
-    "//starboard:starboard_group",
+    "//starboard",
     "//testing/gmock",
     "//testing/gtest",
   ]

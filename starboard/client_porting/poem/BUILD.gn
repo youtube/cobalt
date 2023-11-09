@@ -22,7 +22,7 @@ target(gtest_target_type, "poem_unittests") {
   ]
 
   deps = [
-    "//starboard:starboard_group",
+    "//starboard",
     "//testing/gtest",
   ]
 }

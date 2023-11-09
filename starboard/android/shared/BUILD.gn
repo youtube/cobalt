@@ -489,7 +489,7 @@ target(gtest_target_type, "starboard_platform_tests") {
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
   deps = [
-    "//starboard:starboard_group",
+    "//starboard",
     "//starboard/shared/starboard/player/filter/testing:test_util",
     "//testing/gmock",
     "//testing/gtest",

@@ -85,7 +85,7 @@ static_library("h5vcc") {
     "//cobalt/web:dom_exception",
     "//cobalt/worker",
     "//net",
-    "//starboard:starboard_group",
+    "//starboard",
     "//third_party/protobuf:protobuf_lite",
   ]
   if (enable_in_app_dial) {
