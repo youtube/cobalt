@@ -158,9 +158,9 @@ static SB_C_INLINE int SbStringFormatWideF(wchar_t* out_buffer,
 // |buffer|: The string to scan for the pattern.
 // |pattern|: The string to search for in |buffer|.
 // |arguments|: Values matching |pattern| that were extracted from |buffer|.
-SB_EXPORT int SbStringScan(const char* buffer,
-                           const char* pattern,
-                           va_list arguments);
+// SB_EXPORT int SbStringScan(const char* buffer,
+//                            const char* pattern,
+//                            va_list arguments);
 
 // An inline wrapper of SbStringScan that converts from ellipsis to |va_args|.
 // This function is meant to be a drop-in replacement for |sscanf|.

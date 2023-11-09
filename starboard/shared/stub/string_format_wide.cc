@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/string.h"
+// #include "starboard/common/string.h"
 
-int SbStringFormatWide(wchar_t* out_buffer,
-                       size_t buffer_size,
-                       const wchar_t* format,
-                       va_list arguments) {
-  return 0;
-}
+// int SbStringFormatWide(wchar_t* out_buffer,
+//                        size_t buffer_size,
+//                        const wchar_t* format,
+//                        va_list arguments) {
+//   return 0;
+// }
