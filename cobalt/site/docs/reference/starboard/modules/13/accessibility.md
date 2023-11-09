@@ -1,17 +1,17 @@
----
-layout: doc
-title: "Starboard Module Reference: accessibility.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: `accessibility.h`
 
 Provides access to the system options and settings related to accessibility.
 
-## Enums ##
+## Enums
 
-### SbAccessibilityCaptionCharacterEdgeStyle ###
+### SbAccessibilityCaptionCharacterEdgeStyle
 
 Enum for possible closed captioning character edge styles.
 
-#### Values ####
+#### Values
 
 *   `kSbAccessibilityCaptionCharacterEdgeStyleNone`
 *   `kSbAccessibilityCaptionCharacterEdgeStyleRaised`
@@ -19,11 +19,11 @@ Enum for possible closed captioning character edge styles.
 *   `kSbAccessibilityCaptionCharacterEdgeStyleUniform`
 *   `kSbAccessibilityCaptionCharacterEdgeStyleDropShadow`
 
-### SbAccessibilityCaptionColor ###
+### SbAccessibilityCaptionColor
 
 Enum for possible closed captioning colors.
 
-#### Values ####
+#### Values
 
 *   `kSbAccessibilityCaptionColorBlue`
 *   `kSbAccessibilityCaptionColorBlack`
@@ -34,11 +34,11 @@ Enum for possible closed captioning colors.
 *   `kSbAccessibilityCaptionColorWhite`
 *   `kSbAccessibilityCaptionColorYellow`
 
-### SbAccessibilityCaptionFontFamily ###
+### SbAccessibilityCaptionFontFamily
 
 Enum for possible closed captioning font families
 
-#### Values ####
+#### Values
 
 *   `kSbAccessibilityCaptionFontFamilyCasual`
 *   `kSbAccessibilityCaptionFontFamilyCursive`
@@ -48,11 +48,11 @@ Enum for possible closed captioning font families
 *   `kSbAccessibilityCaptionFontFamilyProportionalSerif`
 *   `kSbAccessibilityCaptionFontFamilySmallCapitals`
 
-### SbAccessibilityCaptionFontSizePercentage ###
+### SbAccessibilityCaptionFontSizePercentage
 
 Enum for possible closed captioning font size percentages.
 
-#### Values ####
+#### Values
 
 *   `kSbAccessibilityCaptionFontSizePercentage25`
 *   `kSbAccessibilityCaptionFontSizePercentage50`
@@ -67,11 +67,11 @@ Enum for possible closed captioning font size percentages.
 *   `kSbAccessibilityCaptionFontSizePercentage275`
 *   `kSbAccessibilityCaptionFontSizePercentage300`
 
-### SbAccessibilityCaptionOpacityPercentage ###
+### SbAccessibilityCaptionOpacityPercentage
 
 Enum for possible closed captioning opacity percentages.
 
-#### Values ####
+#### Values
 
 *   `kSbAccessibilityCaptionOpacityPercentage0`
 *   `kSbAccessibilityCaptionOpacityPercentage25`
@@ -79,11 +79,11 @@ Enum for possible closed captioning opacity percentages.
 *   `kSbAccessibilityCaptionOpacityPercentage75`
 *   `kSbAccessibilityCaptionOpacityPercentage100`
 
-### SbAccessibilityCaptionState ###
+### SbAccessibilityCaptionState
 
 Enum for possible states of closed captioning properties.
 
-#### Values ####
+#### Values
 
 *   `kSbAccessibilityCaptionStateUnsupported`
 
@@ -115,14 +115,14 @@ Enum for possible states of closed captioning properties.
     SbAccessibilityCaptionSettings.supportsOverride contains false, then no
     fields of SbAccessibilityCaptionSettings will ever contain this value.
 
-## Structs ##
+## Structs
 
-### SbAccessibilityCaptionSettings ###
+### SbAccessibilityCaptionSettings
 
 A group of settings related to system-level closed captioning settings, for
 platforms that expose closed captioning settings.
 
-#### Members ####
+#### Members
 
 *   `SbAccessibilityCaptionColor background_color`
 *   `SbAccessibilityCaptionState background_color_state`
@@ -166,9 +166,9 @@ platforms that expose closed captioning settings.
     false, the values of `SbAccessibilityCaptionState` should be interpreted
     differently.
 
-### SbAccessibilityDisplaySettings ###
+### SbAccessibilityDisplaySettings
 
-#### Members ####
+#### Members
 
 *   `bool has_high_contrast_text_setting`
 
@@ -177,12 +177,12 @@ platforms that expose closed captioning settings.
 
     Whether the high contrast text setting is enabled or not.
 
-### SbAccessibilityTextToSpeechSettings ###
+### SbAccessibilityTextToSpeechSettings
 
 A group of settings related to text-to-speech functionality, for platforms that
 expose system settings for text-to-speech.
 
-#### Members ####
+#### Members
 
 *   `bool has_text_to_speech_setting`
 
@@ -192,9 +192,9 @@ expose system settings for text-to-speech.
     Whether the text-to-speech setting is enabled or not. This setting is only
     valid if `has_text_to_speech_setting` is set to true.
 
-## Functions ##
+## Functions
 
-### SbAccessibilityGetCaptionSettings ###
+### SbAccessibilityGetCaptionSettings
 
 Get the platform's settings for system-level closed captions. This function
 returns false if `caption_settings` is NULL or if it is not zero-initialized.
@@ -202,13 +202,13 @@ returns false if `caption_settings` is NULL or if it is not zero-initialized.
 `caption_settings`: A pointer to a zero-initialized
 SbAccessibilityTextToSpeechSettings struct.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbAccessibilityGetCaptionSettings(SbAccessibilityCaptionSettings *caption_settings)
 ```
 
-### SbAccessibilityGetDisplaySettings ###
+### SbAccessibilityGetDisplaySettings
 
 Get the platform settings related to high contrast text. This function returns
 false if `out_settings` is NULL or if it is not zero-initialized.
@@ -216,13 +216,13 @@ false if `out_settings` is NULL or if it is not zero-initialized.
 `out_settings`: A pointer to a zero-initialized SbAccessibilityDisplaySettings*
 struct.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbAccessibilityGetDisplaySettings(SbAccessibilityDisplaySettings *out_settings)
 ```
 
-### SbAccessibilityGetTextToSpeechSettings ###
+### SbAccessibilityGetTextToSpeechSettings
 
 Get the platform settings related to the text-to-speech accessibility feature.
 This function returns false if `out_settings` is NULL or if it is not zero-
@@ -231,13 +231,13 @@ initialized.
 `out_settings`: A pointer to a zero-initialized
 SbAccessibilityTextToSpeechSettings struct.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbAccessibilityGetTextToSpeechSettings(SbAccessibilityTextToSpeechSettings *out_settings)
 ```
 
-### SbAccessibilitySetCaptionsEnabled ###
+### SbAccessibilitySetCaptionsEnabled
 
 Modifies whether closed captions are enabled at a system level. This function
 returns false if this feature is not supported by the platform, or if changing
@@ -246,7 +246,7 @@ the setting is unsuccessful. This function will modify the setting system-wide.
 `enabled`: A boolean indicating whether captions should be turned on (true) or
 off (false).
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbAccessibilitySetCaptionsEnabled(bool enabled)

@@ -1,13 +1,13 @@
----
-layout: doc
-title: "Starboard Module Reference: string.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: `string.h`
 
 Defines functions for interacting with c-style strings.
 
-## Functions ##
+## Functions
 
-### SbStringCompareNoCase ###
+### SbStringCompareNoCase
 
 Compares two strings, ignoring differences in case. The return value is:
 
@@ -21,13 +21,13 @@ This function is meant to be a drop-in replacement for `strcasecmp`.
 
 `string1`: The first string to compare. `string2`: The second string to compare.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int SbStringCompareNoCase(const char *string1, const char *string2)
 ```
 
-### SbStringCompareNoCaseN ###
+### SbStringCompareNoCaseN
 
 Compares the first `count` characters of two strings, ignoring differences in
 case. The return value is:
@@ -43,13 +43,13 @@ This function is meant to be a drop-in replacement for `strncasecmp`.
 `string1`: The first string to compare. `string2`: The second string to compare.
 `count`: The number of characters to compare.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int SbStringCompareNoCaseN(const char *string1, const char *string2, size_t count)
 ```
 
-### SbStringDuplicate ###
+### SbStringDuplicate
 
 Copies `source` into a buffer that is allocated by this function and that can be
 freed with SbMemoryDeallocate. This function is meant to be a drop-in
@@ -57,13 +57,13 @@ replacement for `strdup`.
 
 `source`: The string to be copied.
 
-#### Declaration ####
+#### Declaration
 
 ```
 char* SbStringDuplicate(const char *source)
 ```
 
-### SbStringFormat ###
+### SbStringFormat
 
 Produces a string formatted with `format` and `arguments`, placing as much of
 the result that will fit into `out_buffer`. The return value specifies the
@@ -76,13 +76,13 @@ This function is meant to be a drop-in replacement for `vsnprintf`.
 The size of `out_buffer`. `format`: A string that specifies how the data should
 be formatted. `arguments`: Variable arguments used in the string.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int SbStringFormat(char *out_buffer, size_t buffer_size, const char *format, va_list arguments) SB_PRINTF_FORMAT(3
 ```
 
-### SbStringFormatF ###
+### SbStringFormatF
 
 An inline wrapper of SbStringFormat that converts from ellipsis to va_args. This
 function is meant to be a drop-in replacement for `snprintf`.
@@ -91,13 +91,13 @@ function is meant to be a drop-in replacement for `snprintf`.
 The size of `out_buffer`. `format`: A string that specifies how the data should
 be formatted. `...`: Arguments used in the string.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int static int static int SbStringFormatF(char *out_buffer, size_t buffer_size, const char *format,...) SB_PRINTF_FORMAT(3
 ```
 
-### SbStringFormatUnsafeF ###
+### SbStringFormatUnsafeF
 
 An inline wrapper of SbStringFormat that is meant to be a drop-in replacement
 for the unsafe but commonly used `sprintf`.
@@ -106,13 +106,13 @@ for the unsafe but commonly used `sprintf`.
 string that specifies how the data should be formatted. `...`: Arguments used in
 the string.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static int static int SbStringFormatUnsafeF(char *out_buffer, const char *format,...) SB_PRINTF_FORMAT(2
 ```
 
-### SbStringFormatWide ###
+### SbStringFormatWide
 
 This function is identical to SbStringFormat, but is for wide characters. It is
 meant to be a drop-in replacement for `vswprintf`.
@@ -121,13 +121,13 @@ meant to be a drop-in replacement for `vswprintf`.
 The size of `out_buffer`. `format`: A string that specifies how the data should
 be formatted. `arguments`: Variable arguments used in the string.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int SbStringFormatWide(wchar_t *out_buffer, size_t buffer_size, const wchar_t *format, va_list arguments)
 ```
 
-### SbStringFormatWideF ###
+### SbStringFormatWideF
 
 An inline wrapper of SbStringFormatWide that converts from ellipsis to
 `va_args`.
@@ -136,13 +136,13 @@ An inline wrapper of SbStringFormatWide that converts from ellipsis to
 The size of `out_buffer`. `format`: A string that specifies how the data should
 be formatted. `...`: Arguments used in the string.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static int SbStringFormatWideF(wchar_t *out_buffer, size_t buffer_size, const wchar_t *format,...)
 ```
 
-### SbStringScan ###
+### SbStringScan
 
 Scans `buffer` for `pattern`, placing the extracted values in `arguments`. The
 return value specifies the number of successfully matched items, which may be
@@ -154,20 +154,20 @@ This function is meant to be a drop-in replacement for `vsscanf`.
 for in `buffer`. `arguments`: Values matching `pattern` that were extracted from
 `buffer`.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int SbStringScan(const char *buffer, const char *pattern, va_list arguments)
 ```
 
-### SbStringScanF ###
+### SbStringScanF
 
 An inline wrapper of SbStringScan that converts from ellipsis to `va_args`. This
 function is meant to be a drop-in replacement for `sscanf`. `buffer`: The string
 to scan for the pattern. `pattern`: The string to search for in `buffer`. `...`:
 Values matching `pattern` that were extracted from `buffer`.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static int SbStringScanF(const char *buffer, const char *pattern,...)

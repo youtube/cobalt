@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: socket_waiter.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: `socket_waiter.h`
 
 Allows a thread to wait on many sockets at once. The standard usage pattern
 would be for a single I/O thread to:
@@ -26,19 +26,19 @@ thread, it needs to call SbSocketWaiterWakeUp() on the SbSocketWaiter after
 queuing the work item, or the SbSocketWaiter is not otherwise guaranteed to wake
 up.
 
-## Macros ##
+## Macros
 
-### kSbSocketWaiterInvalid ###
+### kSbSocketWaiterInvalid
 
 Well-defined value for an invalid socket watcher handle.
 
-## Enums ##
+## Enums
 
-### SbSocketWaiterInterest ###
+### SbSocketWaiterInterest
 
 All the interests that a socket may register for on a waiter.
 
-#### Values ####
+#### Values
 
 *   `kSbSocketWaiterInterestNone`
 
@@ -50,11 +50,11 @@ All the interests that a socket may register for on a waiter.
 
     An interest in or readiness to write to a socket without blocking.
 
-### SbSocketWaiterResult ###
+### SbSocketWaiterResult
 
 Possible reasons why a call to SbSocketWaiterWaitTimed returned.
 
-#### Values ####
+#### Values
 
 *   `kSbSocketWaiterResultInvalid`
 
@@ -66,31 +66,31 @@ Possible reasons why a call to SbSocketWaiterWaitTimed returned.
 
     The wait stopped because a call to SbSocketWaiterWakeUp was consumed.
 
-## Typedefs ##
+## Typedefs
 
-### SbSocketWaiter ###
+### SbSocketWaiter
 
 A handle to a socket waiter.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef SbSocketWaiterPrivate* SbSocketWaiter
 ```
 
-### SbSocketWaiterCallback ###
+### SbSocketWaiterCallback
 
 Function pointer for socket waiter callbacks.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef void(* SbSocketWaiterCallback) (SbSocketWaiter waiter, SbSocket socket, void *context, int ready_interests)
 ```
 
-## Functions ##
+## Functions
 
-### SbSocketWaiterAdd ###
+### SbSocketWaiterAdd
 
 Adds a new socket to be waited on by the `waiter` with a bitfield of
 `interests`. This function should only be called on the thread that waits on
@@ -120,25 +120,25 @@ socket:
     `callback`, even if not all registered `interests` became ready, which
     allows for adding it again in the `callback`.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbSocketWaiterAdd(SbSocketWaiter waiter, SbSocket socket, void *context, SbSocketWaiterCallback callback, int interests, bool persistent)
 ```
 
-### SbSocketWaiterCreate ###
+### SbSocketWaiterCreate
 
 The results of two threads waiting on the same waiter is undefined and will not
 work. Except for the SbSocketWaiterWakeUp() function, SbSocketWaiters are not
 thread-safe and don't expect to be modified concurrently.
 
-#### Declaration ####
+#### Declaration
 
 ```
 SbSocketWaiter SbSocketWaiterCreate()
 ```
 
-### SbSocketWaiterDestroy ###
+### SbSocketWaiterDestroy
 
 Destroys `waiter` and removes all sockets still registered by way of
 SbSocketWaiterAdd. This function may be called on any thread as long as there is
@@ -146,23 +146,23 @@ no risk of concurrent access to the waiter.
 
 `waiter`: The SbSocketWaiter to be destroyed.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbSocketWaiterDestroy(SbSocketWaiter waiter)
 ```
 
-### SbSocketWaiterIsValid ###
+### SbSocketWaiterIsValid
 
 Returns whether the given socket handle is valid.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static bool SbSocketWaiterIsValid(SbSocketWaiter watcher)
 ```
 
-### SbSocketWaiterRemove ###
+### SbSocketWaiterRemove
 
 Removes a socket, previously added with SbSocketWaiterAdd(), from a waiter. This
 function should only be called on the thread that waits on this waiter.
@@ -174,26 +174,26 @@ returns `true`.
 `waiter`: The waiter from which the socket is removed. `socket`: The socket to
 remove from the waiter.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbSocketWaiterRemove(SbSocketWaiter waiter, SbSocket socket)
 ```
 
-### SbSocketWaiterWait ###
+### SbSocketWaiterWait
 
 Waits on all registered sockets, calling the registered callbacks if and when
 the corresponding sockets become ready for an interested operation. This version
 exits only after SbSocketWaiterWakeUp() is called. This function should only be
 called on the thread that waits on this waiter.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbSocketWaiterWait(SbSocketWaiter waiter)
 ```
 
-### SbSocketWaiterWaitTimed ###
+### SbSocketWaiterWaitTimed
 
 Behaves similarly to SbSocketWaiterWait(), but this function also causes
 `waiter` to exit on its own after at least `duration` has passed if
@@ -207,13 +207,13 @@ if it is not woken up before then. As with SbThreadSleep() (see thread.h), this
 function may wait longer than `duration`, such as if the timeout expires while a
 callback is being fired.
 
-#### Declaration ####
+#### Declaration
 
 ```
 SbSocketWaiterResult SbSocketWaiterWaitTimed(SbSocketWaiter waiter, SbTime duration)
 ```
 
-### SbSocketWaiterWakeUp ###
+### SbSocketWaiterWakeUp
 
 Wakes up `waiter` once. This is the only thread-safe waiter function. It can can
 be called from a SbSocketWaiterCallback to wake up its own waiter, and it can
@@ -230,7 +230,7 @@ next 7 times they are called.
 
 `waiter`: The socket waiter to be woken up.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbSocketWaiterWakeUp(SbSocketWaiter waiter)
