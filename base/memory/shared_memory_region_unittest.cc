@@ -133,7 +133,7 @@ TYPED_TEST(SharedMemoryRegionTest, SerializeAndDeserialize) {
 
   // Verify that the second mapping reflects changes in the first.
   memset(this->rw_mapping_.memory(), '#', kRegionSize);
-  EXPECT_EQ(SbMemoryCompare(this->rw_mapping_.memory(), mapping.memory(),
+  EXPECT_EQ(memcmp(this->rw_mapping_.memory(), mapping.memory(),
                             kRegionSize),
             0);
 }
