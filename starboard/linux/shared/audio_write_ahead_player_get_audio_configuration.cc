@@ -16,6 +16,7 @@
 
 #include <string>
 
+#include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/system.h"
 
@@ -40,21 +41,15 @@ bool ConfigurableAudioWriteAheadPlayerGetAudioConfiguration(
     return false;
   }
 
-  const CobaltExtensionConfigurableAudioWriteAheadApi* audio_write_ahead_api =
-      static_cast<const CobaltExtensionConfigurableAudioWriteAheadApi*>(
-          SbSystemGetExtension(
-              kCobaltExtensionConfigurableAudioWriteAheadName));
-  if (!audio_write_ahead_api) {
-    return false;
-  }
+  *out_audio_configuration = {};
 
-  SB_DCHECK(audio_write_ahead_api->name ==
-            std::string(kCobaltExtensionConfigurableAudioWriteAheadName));
-  SB_DCHECK(audio_write_ahead_api->version == 1u);
-  SB_DCHECK(audio_write_ahead_api->MediaGetAudioConfiguration);
+  out_audio_configuration->connector =
+      kCobaltExtensionMediaAudioConnectorUnknown;
+  out_audio_configuration->latency = 0;
+  out_audio_configuration->coding_type = kSbMediaAudioCodingTypePcm;
+  out_audio_configuration->number_of_channels = SbAudioSinkGetMaxChannels();
 
-  return audio_write_ahead_api->MediaGetAudioConfiguration(
-      index, out_audio_configuration);
+  return true;
 }
 
 }  // namespace shared

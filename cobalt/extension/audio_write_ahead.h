@@ -62,10 +62,6 @@ typedef struct CobaltExtensionConfigurableAudioWriteAheadApi {
 
   // The fields below this point were added in version 1 or later.
 
-  bool (*MediaGetAudioConfiguration)(
-      int output_index,
-      CobaltExtensionMediaAudioConfiguration* out_configuration);
-
   bool (*PlayerGetAudioConfiguration)(
       SbPlayer player, int index,
       CobaltExtensionMediaAudioConfiguration* out_audio_configuration);

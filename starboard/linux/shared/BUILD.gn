@@ -58,8 +58,6 @@ static_library("starboard_platform_sources") {
     "//starboard/linux/shared/audio_sink_type_dispatcher.cc",
     "//starboard/linux/shared/audio_write_ahead.cc",
     "//starboard/linux/shared/audio_write_ahead.h",
-    "//starboard/linux/shared/audio_write_ahead_media_get_audio_configuration.cc",
-    "//starboard/linux/shared/audio_write_ahead_media_get_audio_configuration.h",
     "//starboard/linux/shared/audio_write_ahead_player_get_audio_configuration.cc",
     "//starboard/linux/shared/audio_write_ahead_player_get_audio_configuration.h",
     "//starboard/linux/shared/configuration.cc",
