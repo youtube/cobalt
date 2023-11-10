@@ -60,27 +60,23 @@ class TracingAgent : public script::ScriptDebugger::TraceDelegate {
 
   void SendDataCollectedEvent();
 
-  // void OnTraceDataCollected(base::WaitableEvent* flush_complete_event, const
-  // scoped_refptr<base::RefCountedString>& events_str, bool has_more_events);
 
   DebugDispatcher* dispatcher_;
-  script::ScriptDebugger* script_debugger_;
+  // script::ScriptDebugger* script_debugger_;
 
   THREAD_CHECKER(thread_checker_);
 
   bool tracing_started_;
   std::vector<std::string> categories_;
+
   size_t collected_size_;
   JSONList collected_events_;
 
   // Map of member functions implementing commands.
   CommandMap commands_;
 
-  // base::ListValue trace_parsed_;
   base::trace_event::TraceResultBuffer trace_buffer_;
   base::trace_event::TraceResultBuffer::SimpleOutput json_output_;
-
-  // base::Lock lock_;
 };
 
 }  // namespace backend

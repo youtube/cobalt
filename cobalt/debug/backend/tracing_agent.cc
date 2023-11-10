@@ -39,13 +39,13 @@ constexpr char kStarted[] = "started";
 constexpr char kCategories[] = "categories";
 
 // Size in characters of JSON to batch dataCollected events.
-// constexpr size_t kDataCollectedSize = 24 * 1024;
+constexpr size_t kDataCollectedSize = 24 * 1024;
 }  // namespace
 
 TracingAgent::TracingAgent(DebugDispatcher* dispatcher,
                            script::ScriptDebugger* script_debugger)
     : dispatcher_(dispatcher),
-      script_debugger_(script_debugger),
+      // script_debugger_(script_debugger),
       tracing_started_(false),
       collected_size_(0),
       commands_(kInspectorDomain) {
@@ -68,13 +68,22 @@ void TracingAgent::Thaw(JSONObject agent_state) {
   }
   tracing_started_ = agent_state->FindKey(kStarted)->GetBool();
   if (tracing_started_) {
-    script_debugger_->StartTracing(categories_, this);
+    // script_debugger_->StartTracing(categories_, this);
+    base::trace_event::TraceLog* trace_log =
+        base::trace_event::TraceLog::GetInstance();
+    DCHECK(!trace_log->IsEnabled());
+    trace_log->SetEnabled(base::trace_event::TraceConfig(),
+                          base::trace_event::TraceLog::RECORDING_MODE);
   }
 }
 
 JSONObject TracingAgent::Freeze() {
   if (tracing_started_) {
-    script_debugger_->StopTracing();
+    // script_debugger_->StopTracing();
+    base::trace_event::TraceLog* trace_log =
+        base::trace_event::TraceLog::GetInstance();
+    DCHECK(trace_log->IsEnabled());
+    trace_log->SetDisabled(base::trace_event::TraceLog::RECORDING_MODE);
   }
 
   dispatcher_->RemoveDomain(kInspectorDomain);
@@ -107,27 +116,17 @@ void TracingAgent::End(Command command) {
   trace_log->SetDisabled(base::trace_event::TraceLog::RECORDING_MODE);
 
   base::WaitableEvent waitable_event;
-  // trace_log->Flush(
-  //     base::Bind(&TracingAgent::OnTraceDataCollected, base::Unretained(this),
-  //     base::Unretained(&waitable_event)));
-
-  base::Thread thread("json_outputter");
-  thread.Start();
-
-  base::trace_event::TraceLog::GetInstance()
-      ->SetCurrentThreadBlocksMessageLoop();
-
   auto output_callback =
       base::Bind(&TracingAgent::OutputTraceData, base::Unretained(this),
                  base::BindRepeating(&base::WaitableEvent::Signal,
                                      base::Unretained(&waitable_event)));
-  // auto output_callback =
-  //     base::Bind(&TracingAgent::OnTraceDataCollected, base::Unretained(this),
-  //                base::BindRepeating(&base::WaitableEvent::Signal,
-  //                                     base::Unretained(&waitable_event)));
+
+  base::Thread thread("json_outputter");
+  thread.Start();
+
   //  Write out the actual data by calling Flush().  Within Flush(), this
   //  will call OutputTraceData(), possibly multiple times.  We have to do this
-  //  on a thread as there will be task posted to the current thread for data
+  //  on a thread as there will be tasks posted to the current thread for data
   //  writing.
   thread.message_loop()->task_runner()->PostTask(
       FROM_HERE,
@@ -136,10 +135,7 @@ void TracingAgent::End(Command command) {
 
   waitable_event.Wait();
 
-
-  // AppendTraceEvent(json_output_.json_output);
   FlushTraceEvents();
-
 
   // script_debugger_->StopTracing();
 }
@@ -172,10 +168,11 @@ void TracingAgent::OutputTraceData(
     std::unique_ptr<base::Value> item;
     root_list->Remove(0, &item);
     collected_events_->Append(std::move(item));
-    collected_size_ += event_string->size();
-    // if (collected_size_ >= kDataCollectedSize) {
-    //   SendDataCollectedEvent();
-    // }
+  }
+
+  collected_size_ += event_string->size();
+  if (collected_size_ >= kDataCollectedSize) {
+    SendDataCollectedEvent();
   }
 
   if (!has_more_events) {
@@ -207,49 +204,40 @@ void TracingAgent::Start(Command command) {
     }
   }
 
-  // trace_parsed_.Clear();
   collected_events_.reset(new base::ListValue());
+
   base::trace_event::TraceLog* tracelog =
       base::trace_event::TraceLog::GetInstance();
-  // tracelog->SetOutputCallback(
-  //     base::Bind(&TracingAgent::OnTraceDataCollected,
-  //                base::Unretained(this)));
+
   json_output_.json_output.clear();
   trace_buffer_.SetOutputCallback(json_output_.GetCallback());
 
-  // script_debugger_->StartTracing(categories_, this);
   DCHECK(!tracelog->IsEnabled());
   tracelog->SetEnabled(base::trace_event::TraceConfig(),
                        base::trace_event::TraceLog::RECORDING_MODE);
 
-  // LOG(INFO) << "YO THOR - TRACE BUFFER START";
-  // trace_buffer_.Start();
+  // script_debugger_->StartTracing(categories_, this);
 
   tracing_started_ = true;
   command.SendResponse();
 }
 
 void TracingAgent::AppendTraceEvent(const std::string& trace_event_json) {
-  //  // We initialize a new list into which we collect events both when we
-  //  start,
-  //  // and after each time it's released in |SendDataCollectedEvent|.
-  //  LOG(INFO) << "YO THOR _ TRACING AGENT - APPEND EVENT: GOT" <<
-  //  trace_event_json;
-  //
-  //  int errcode;
-  //  JSONObject event = JSONParse(trace_event_json, &errcode);
-  //  LOG(INFO) << "YO THOR - NOW ITS JSON PARSED:" << JSONStringify(event);
-  //  if (errcode) {
-  //    LOG(INFO) << "YO THOR - GOT ERR CODE:" << errcode;
-  //  }
-  //  if (event) {
-  //    collected_events_->Append(std::move(event));
-  //    collected_size_ += trace_event_json.size();
-  //  }
-  //
-  //  if (collected_size_ >= kDataCollectedSize) {
-  //    SendDataCollectedEvent();
-  //  }
+  // We initialize a new list into which we collect events both when we start,
+  // and after each time it's released in |SendDataCollectedEvent|.
+  if (!collected_events_) {
+    collected_events_.reset(new base::ListValue());
+  }
+
+  JSONObject event = JSONParse(trace_event_json);
+  if (event) {
+    collected_events_->Append(std::move(event));
+    collected_size_ += trace_event_json.size();
+  }
+
+  if (collected_size_ >= kDataCollectedSize) {
+    SendDataCollectedEvent();
+  }
 }
 
 void TracingAgent::FlushTraceEvents() {
@@ -263,13 +251,9 @@ void TracingAgent::SendDataCollectedEvent() {
     collected_events_->GetString(0, &events);
     LOG(INFO) << "YO THOR ! SEND DATA COLLECTED! num:"
               << collected_events_->GetSize() << " Events:" << events;
-    // if (trace_parsed_) {
-    // collected_size_ = 0;
     JSONObject params(new base::DictionaryValue());
     // Releasing the list into the value param avoids copying it.
     params->Set("value", std::move(collected_events_));
-    // params->Set("value", std::move(trace_parsed_));
-    // params->Set("value", std::make_unique<base::ListValue>(trace_parsed_));
     dispatcher_->SendEvent(std::string(kInspectorDomain) + ".dataCollected",
                            params);
     collected_size_ = 0;
