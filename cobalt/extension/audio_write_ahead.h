@@ -44,6 +44,7 @@ typedef enum CobaltExtensionMediaAudioConnector {
 } CobaltExtensionMediaAudioConnector;
 
 typedef struct CobaltExtensionMediaAudioConfiguration {
+  int index;
   CobaltExtensionMediaAudioConnector connector;
   SbTime latency;
   SbMediaAudioCodingType coding_type;

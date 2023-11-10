@@ -23,7 +23,6 @@
 #include "cobalt/extension/platform_service.h"
 #include "starboard/common/string.h"
 #include "starboard/linux/shared/soft_mic_platform_service.h"
-#include "starboard/shared/audio_write_ahead/audio_write_ahead.h"
 #include "starboard/shared/ffmpeg/ffmpeg_demuxer.h"
 #include "starboard/shared/posix/free_space.h"
 #include "starboard/shared/posix/memory_mapped_file.h"
@@ -32,6 +31,7 @@
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "starboard/elf_loader/evergreen_config.h"
 #endif
+#include "starboard/linux/shared/audio_write_ahead.h"
 #include "starboard/linux/shared/configuration.h"
 
 const void* SbSystemGetExtension(const char* name) {
@@ -62,8 +62,7 @@ const void* SbSystemGetExtension(const char* name) {
     return starboard::shared::posix::GetFreeSpaceApi();
   }
   if (strcmp(name, kCobaltExtensionConfigurableAudioWriteAheadName) == 0) {
-    return starboard::shared::audio_write_ahead::
-        GetConfigurableAudioWriteAheadApi();
+    return starboard::shared::GetConfigurableAudioWriteAheadApi();
   }
   if (strcmp(name, kCobaltExtensionDemuxerApi) == 0) {
     auto command_line =

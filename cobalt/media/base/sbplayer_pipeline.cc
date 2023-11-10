@@ -365,13 +365,14 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // the two variables below should always contain the same value.
   //
   // Read audio from the stream if |timestamp_of_last_written_audio_| is less
-  // than |seek_time_| + |audio_write_duration_for_preroll_|, this effectively
+  // than |seek_time_| + |audio_write_duration_for_preroll_|. When the
+  // Configurable Audio Write Ahead extension is disabled, this effectively
   // allows 10 seconds of audio to be written to the SbPlayer after playback
   // startup or seek.
-  SbTime audio_write_duration_ = 0;
+  SbTime audio_write_duration_ = kSbTimeSecond;
   // Don't read audio from the stream more than |audio_write_duration_| ahead of
   // the current media time during playing.
-  SbTime audio_write_duration_for_preroll_ = audio_write_duration_;
+  SbTime audio_write_duration_for_preroll_ = 10 * kSbTimeSecond;
 
   // Only call GetMediaTime() from OnNeedData if it has been
   // |kMediaTimeCheckInterval| since the last call to GetMediaTime().
@@ -455,8 +456,6 @@ SbPlayerPipeline::SbPlayerPipeline(
       playback_statistics_(pipeline_identifier_) {
   DCHECK(sbplayer_interface_);
   if (!sbplayer_interface_->IsAudioWriteAheadExtensionEnabled()) {
-    audio_write_duration_ = kSbTimeSecond;
-    audio_write_duration_for_preroll_ = 10 * kSbTimeSecond;
     SbMediaSetAudioWriteDuration(audio_write_duration_);
     LOG(INFO) << "Setting audio write duration to " << audio_write_duration_
               << ", the duration during preroll is "

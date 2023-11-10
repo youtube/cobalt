@@ -22,7 +22,6 @@
 #include <utility>
 #include <vector>
 
-#include "cobalt/extension/audio_write_ahead.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/media.h"
 #include "starboard/common/mutex.h"
@@ -69,18 +68,6 @@ class AudioDecoderTest
   void SetUp() override {
     ASSERT_NE(dmp_reader_.audio_codec(), kSbMediaAudioCodecNone);
     ASSERT_GT(dmp_reader_.number_of_audio_buffers(), 0);
-
-    const CobaltExtensionConfigurableAudioWriteAheadApi* extension_api =
-        static_cast<const CobaltExtensionConfigurableAudioWriteAheadApi*>(
-            SbSystemGetExtension(
-                kCobaltExtensionConfigurableAudioWriteAheadName));
-
-    if (extension_api) {
-      SB_DCHECK(extension_api->name ==
-                std::string(kCobaltExtensionConfigurableAudioWriteAheadName));
-      SB_DCHECK(extension_api->version == 1u);
-      audio_write_ahead_extension_enabled_ = true;
-    }
 
     CreateComponents(dmp_reader_.audio_codec(), dmp_reader_.audio_sample_info(),
                      &audio_decoder_, &audio_renderer_sink_);
@@ -392,8 +379,6 @@ class AudioDecoderTest
   int decoded_audio_samples_per_second_ = 0;
 
   bool first_output_received_ = false;
-
-  bool audio_write_ahead_extension_enabled_ = false;
 };
 
 std::string GetAudioDecoderTestConfigName(
@@ -606,9 +591,7 @@ TEST_P(AudioDecoderTest, MultipleInputs) {
 TEST_P(AudioDecoderTest, LimitedInput) {
   SbTime duration = kSbTimeSecond / 2;
 
-  if (!audio_write_ahead_extension_enabled_) {
-    SbMediaSetAudioWriteDuration(duration);
-  }
+  SbMediaSetAudioWriteDuration(duration);
 
   ASSERT_FALSE(last_decoded_audio_);
   int start_index = 0;
@@ -625,9 +608,7 @@ TEST_P(AudioDecoderTest, LimitedInput) {
 TEST_P(AudioDecoderTest, ContinuedLimitedInput) {
   SbTime duration = kSbTimeSecond / 2;
 
-  if (!audio_write_ahead_extension_enabled_) {
-    SbMediaSetAudioWriteDuration(duration);
-  }
+  SbMediaSetAudioWriteDuration(duration);
 
   SbTime start = SbTimeGetMonotonicNow();
   int start_index = 0;

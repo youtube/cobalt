@@ -1,4 +1,4 @@
-// Copyright 2023 The Cobalt Authors.All Rights Reserved.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,21 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_AUDIO_WRITE_AHEAD_AUDIO_WRITE_AHEAD_MEDIA_GET_AUDIO_CONFIGURATION_H_
-#define STARBOARD_SHARED_AUDIO_WRITE_AHEAD_AUDIO_WRITE_AHEAD_MEDIA_GET_AUDIO_CONFIGURATION_H_
+#ifndef STARBOARD_SHARED_AUDIO_WRITE_AHEAD_PLAYER_GET_AUDIO_CONFIGURATION_H_
+#define STARBOARD_SHARED_AUDIO_WRITE_AHEAD_PLAYER_GET_AUDIO_CONFIGURATION_H_
 
 #include "cobalt/extension/audio_write_ahead.h"
 
+#include "starboard/player.h"
+
+// Omit namespace linux due to symbol name conflict.
+
 namespace starboard {
 namespace shared {
-namespace audio_write_ahead {
 
-bool ConfigurableAudioWriteAheadMediaGetAudioConfiguration(
-    int output_index,
-    CobaltExtensionMediaAudioConfiguration* out_configuration);
+bool ConfigurableAudioWriteAheadPlayerGetAudioConfiguration(
+    SbPlayer player,
+    int index,
+    CobaltExtensionMediaAudioConfiguration* out_audio_configuration);
 
-}  // namespace audio_write_ahead
 }  // namespace shared
 }  // namespace starboard
 
-#endif  // STARBOARD_SHARED_AUDIO_WRITE_AHEAD_AUDIO_WRITE_AHEAD_MEDIA_GET_AUDIO_CONFIGURATION_H_
+#endif  // STARBOARD_SHARED_AUDIO_WRITE_AHEAD_PLAYER_GET_AUDIO_CONFIGURATION_H_

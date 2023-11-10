@@ -12,16 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/audio_write_ahead/audio_write_ahead.h"
+#include "starboard/linux/shared/audio_write_ahead.h"
 
 #include "cobalt/extension/audio_write_ahead.h"
 #include "starboard/common/log.h"
-#include "starboard/shared/audio_write_ahead/audio_write_ahead_media_get_audio_configuration.h"
-#include "starboard/shared/audio_write_ahead/audio_write_ahead_player_get_audio_configuration.h"
+#include "starboard/linux/shared/audio_write_ahead_media_get_audio_configuration.h"
+#include "starboard/linux/shared/audio_write_ahead_player_get_audio_configuration.h"
+
+// Omit namespace linux due to symbol name conflict.
 
 namespace starboard {
 namespace shared {
-namespace audio_write_ahead {
 
 namespace {
 
@@ -40,6 +41,5 @@ const void* GetConfigurableAudioWriteAheadApi() {
   return &kConfigurableAudioWriteAheadApi;
 }
 
-}  // namespace audio_write_ahead
 }  // namespace shared
 }  // namespace starboard

@@ -12,24 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_AUDIO_WRITE_AHEAD_AUDIO_WRITE_AHEAD_PLAYER_GET_AUDIO_CONFIGURATION_H_
-#define STARBOARD_SHARED_AUDIO_WRITE_AHEAD_AUDIO_WRITE_AHEAD_PLAYER_GET_AUDIO_CONFIGURATION_H_
+#ifndef STARBOARD_SHARED_AUDIO_WRITE_AHEAD_H_
+#define STARBOARD_SHARED_AUDIO_WRITE_AHEAD_H_
 
-#include "cobalt/extension/audio_write_ahead.h"
-
-#include "starboard/player.h"
+// Omit namespace linux due to symbol name conflict.
 
 namespace starboard {
 namespace shared {
-namespace audio_write_ahead {
 
-bool ConfigurableAudioWriteAheadPlayerGetAudioConfiguration(
-    SbPlayer player,
-    int index,
-    CobaltExtensionMediaAudioConfiguration* out_audio_configuration);
+const void* GetConfigurableAudioWriteAheadApi();
 
-}  // namespace audio_write_ahead
 }  // namespace shared
 }  // namespace starboard
 
-#endif  // STARBOARD_SHARED_AUDIO_WRITE_AHEAD_AUDIO_WRITE_AHEAD_PLAYER_GET_AUDIO_CONFIGURATION_H_
+#endif  // STARBOARD_SHARED_AUDIO_WRITE_AHEAD_H_

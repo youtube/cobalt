@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/audio_write_ahead/audio_write_ahead_media_get_audio_configuration.h"
+#include "starboard/linux/shared/audio_write_ahead_media_get_audio_configuration.h"
 
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/media.h"
 
+// Omit namespace linux due to symbol name conflict.
+
 namespace starboard {
 namespace shared {
-namespace audio_write_ahead {
 
 bool ConfigurableAudioWriteAheadMediaGetAudioConfiguration(
     int output_index,
@@ -41,6 +42,5 @@ bool ConfigurableAudioWriteAheadMediaGetAudioConfiguration(
   return true;
 }
 
-}  // namespace audio_write_ahead
 }  // namespace shared
 }  // namespace starboard
