@@ -590,7 +590,6 @@ TEST_P(AudioDecoderTest, MultipleInputs) {
 
 TEST_P(AudioDecoderTest, LimitedInput) {
   SbTime duration = kSbTimeSecond / 2;
-
   SbMediaSetAudioWriteDuration(duration);
 
   ASSERT_FALSE(last_decoded_audio_);
@@ -607,7 +606,6 @@ TEST_P(AudioDecoderTest, LimitedInput) {
 
 TEST_P(AudioDecoderTest, ContinuedLimitedInput) {
   SbTime duration = kSbTimeSecond / 2;
-
   SbMediaSetAudioWriteDuration(duration);
 
   SbTime start = SbTimeGetMonotonicNow();
