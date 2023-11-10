@@ -23,35 +23,41 @@
 #include <synchapi.h>  // NOLINT
 // clang-format on
 
-#include <map>
+#include <set>
 
 static void* take_or_store_impl(bool take, void* p) {
-  // Make sure the map is allocated and stays allocated for all global calls.
-  static std::map<void*, int>* s_map = new std::map<void*, int>();
+  // Make sure the set is allocated and stays allocated for all global calls.
+  static std::set<void*>* s_addr = new std::set<void*>();
   if (take) {
-    int flag = (*s_map)[p];
+    bool found = (s_addr->find(p) != s_addr->end());
 
-    // clear the entry
-    (*s_map)[p] = 0;
+    // remove the address
+    s_addr->erase(p);
 
-    if (flag) {
-      // return the address if found
+    if (found) {
       return p;
     } else {
       return nullptr;
     }
   } else {
     // Store the address
-    (*s_map)[p] = 1;
+    s_addr->insert(p);
     return p;
   }
 }
 
+struct CriticalSection {
+  CriticalSection() { InitializeCriticalSection(&critical_section_); }
+
+  CRITICAL_SECTION critical_section_;
+};
+
 static void* take_or_store(bool take, void* p) {
-  static SRWLOCK s_lock = SRWLOCK_INIT;
-  AcquireSRWLockExclusive(&s_lock);
+  static CriticalSection s_critical_section;
+
+  EnterCriticalSection(&s_critical_section.critical_section_);
   void* res = take_or_store_impl(take, p);
-  ReleaseSRWLockExclusive(&s_lock);
+  LeaveCriticalSection(&s_critical_section.critical_section_);
   return res;
 }
 
@@ -62,10 +68,6 @@ static void store_aligned_pointer(void* p) {
 static void* take_aligned_pointer(void* p) {
   return take_or_store(true /* take */, p);
 }
-
-extern "C" void free(void* p);
-extern "C" void __imp_free(void* p);
-extern "C" void* _aligned_malloc(size_t size, size_t alignment);
 
 extern "C" int posix_memalign(void** res, size_t alignment, size_t size) {
   *res = _aligned_malloc(size, alignment);
