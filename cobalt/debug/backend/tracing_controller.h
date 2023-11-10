@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_DEBUG_BACKEND_TRACING_AGENT_H_
-#define COBALT_DEBUG_BACKEND_TRACING_AGENT_H_
+#ifndef COBALT_DEBUG_BACKEND_TRACING_CONTROLLER_H_
+#define COBALT_DEBUG_BACKEND_TRACING_CONTROLLER_H_
 
 #include <string>
 #include <vector>
@@ -34,13 +34,13 @@ namespace debug {
 namespace backend {
 
 // There aren't enable/disable commands in the Tracing domain, so the
-// TracingAgent doesn't use AgentBase.
+// TracingController doesn't use AgentBase.
 //
 // https://chromedevtools.github.io/devtools-protocol/tot/Tracing
-class TracingAgent : public script::ScriptDebugger::TraceDelegate {
+class TracingController : public script::ScriptDebugger::TraceDelegate {
  public:
-  explicit TracingAgent(DebugDispatcher* dispatcher,
-                        script::ScriptDebugger* script_debugger);
+  explicit TracingController(DebugDispatcher* dispatcher,
+                             script::ScriptDebugger* script_debugger);
 
   void Thaw(JSONObject agent_state);
   JSONObject Freeze();
@@ -83,4 +83,4 @@ class TracingAgent : public script::ScriptDebugger::TraceDelegate {
 }  // namespace debug
 }  // namespace cobalt
 
-#endif  // COBALT_DEBUG_BACKEND_TRACING_AGENT_H_
+#endif  // COBALT_DEBUG_BACKEND_TRACING_CONTROLLER_H_

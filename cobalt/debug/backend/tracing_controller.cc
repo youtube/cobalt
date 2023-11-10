@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/debug/backend/tracing_agent.h"
+#include "cobalt/debug/backend/tracing_controller.h"
 
 #include <iostream>
 #include <memory>
@@ -42,8 +42,8 @@ constexpr char kCategories[] = "categories";
 constexpr size_t kDataCollectedSize = 24 * 1024;
 }  // namespace
 
-TracingAgent::TracingAgent(DebugDispatcher* dispatcher,
-                           script::ScriptDebugger* script_debugger)
+TracingController::TracingController(DebugDispatcher* dispatcher,
+                                     script::ScriptDebugger* script_debugger)
     : dispatcher_(dispatcher),
       // script_debugger_(script_debugger),
       tracing_started_(false),
@@ -53,11 +53,13 @@ TracingAgent::TracingAgent(DebugDispatcher* dispatcher,
 
   trace_buffer_.SetOutputCallback(json_output_.GetCallback());
 
-  commands_["end"] = base::Bind(&TracingAgent::End, base::Unretained(this));
-  commands_["start"] = base::Bind(&TracingAgent::Start, base::Unretained(this));
+  commands_["end"] =
+      base::Bind(&TracingController::End, base::Unretained(this));
+  commands_["start"] =
+      base::Bind(&TracingController::Start, base::Unretained(this));
 }
 
-void TracingAgent::Thaw(JSONObject agent_state) {
+void TracingController::Thaw(JSONObject agent_state) {
   dispatcher_->AddDomain(kInspectorDomain, commands_.Bind());
   if (!agent_state) return;
 
@@ -77,7 +79,7 @@ void TracingAgent::Thaw(JSONObject agent_state) {
   }
 }
 
-JSONObject TracingAgent::Freeze() {
+JSONObject TracingController::Freeze() {
   if (tracing_started_) {
     // script_debugger_->StopTracing();
     base::trace_event::TraceLog* trace_log =
@@ -100,7 +102,7 @@ JSONObject TracingAgent::Freeze() {
   return agent_state;
 }
 
-void TracingAgent::End(Command command) {
+void TracingController::End(Command command) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (!tracing_started_) {
     command.SendErrorResponse(Command::kInvalidRequest, "Tracing not started");
@@ -117,7 +119,7 @@ void TracingAgent::End(Command command) {
 
   base::WaitableEvent waitable_event;
   auto output_callback =
-      base::Bind(&TracingAgent::OutputTraceData, base::Unretained(this),
+      base::Bind(&TracingController::OutputTraceData, base::Unretained(this),
                  base::BindRepeating(&base::WaitableEvent::Signal,
                                      base::Unretained(&waitable_event)));
 
@@ -141,7 +143,7 @@ void TracingAgent::End(Command command) {
 }
 
 
-void TracingAgent::OutputTraceData(
+void TracingController::OutputTraceData(
     base::OnceClosure finished_cb,
     const scoped_refptr<base::RefCountedString>& event_string,
     bool has_more_events) {
@@ -182,7 +184,7 @@ void TracingAgent::OutputTraceData(
 }
 
 
-void TracingAgent::Start(Command command) {
+void TracingController::Start(Command command) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (tracing_started_) {
     command.SendErrorResponse(Command::kInvalidRequest,
@@ -222,7 +224,7 @@ void TracingAgent::Start(Command command) {
   command.SendResponse();
 }
 
-void TracingAgent::AppendTraceEvent(const std::string& trace_event_json) {
+void TracingController::AppendTraceEvent(const std::string& trace_event_json) {
   // We initialize a new list into which we collect events both when we start,
   // and after each time it's released in |SendDataCollectedEvent|.
   if (!collected_events_) {
@@ -240,12 +242,12 @@ void TracingAgent::AppendTraceEvent(const std::string& trace_event_json) {
   }
 }
 
-void TracingAgent::FlushTraceEvents() {
+void TracingController::FlushTraceEvents() {
   SendDataCollectedEvent();
   dispatcher_->SendEvent(std::string(kInspectorDomain) + ".tracingComplete");
 }
 
-void TracingAgent::SendDataCollectedEvent() {
+void TracingController::SendDataCollectedEvent() {
   if (collected_events_) {
     std::string events;
     collected_events_->GetString(0, &events);
