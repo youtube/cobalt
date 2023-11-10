@@ -361,7 +361,7 @@ template("evergreen_loader") {
       configs += [ "//starboard/build/config:no_pedantic_warnings" ]
     }
 
-    sources = [ "//starboard/elf_loader/sandbox.cc" ]
+    sources = [ "//starboard/elf_loader/elf_loader_sandbox.cc" ]
     configs += [ "//starboard/elf_loader:elf_loader_config" ]
 
     deps = [
