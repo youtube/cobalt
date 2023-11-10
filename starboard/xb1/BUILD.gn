@@ -176,7 +176,6 @@ static_library("starboard_platform") {
     "//starboard/shared/win32/media_get_max_buffer_capacity.cc",
     "//starboard/shared/win32/media_transform.cc",
     "//starboard/shared/win32/media_transform.h",
-    "//starboard/shared/win32/posix_emu/posix_memalign.cc",
 
     # TODO (b/304335954): Use uwp implementation for correct IANA name once
     # daylight savings offset is fixed.

@@ -57,15 +57,9 @@ config("platform_configuration") {
 
     # Don't send error reports to MS.
     "/errorReport:none",
-
-    # Suppress import library warning caused by the win32/posix_emu
-    "/ignore:4286",
   ]
 
   cflags = [
-    # Add POSIX emulation headers
-    "/FI ../../starboard/shared/win32/posix_emu/include/stdlib.h",
-
     # Following V8 upstream to disable narrowing conversion.
     "/wd4838",
   ]

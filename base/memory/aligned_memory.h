@@ -119,15 +119,11 @@ BASE_DECL_ALIGNED_MEMORY(4096);
 BASE_EXPORT void* AlignedAlloc(size_t size, size_t alignment);
 
 inline void AlignedFree(void* ptr) {
-#if defined(STARBOARD)
-  free(ptr);
-#else
 #if defined(COMPILER_MSVC)
   _aligned_free(ptr);
 #else
   free(ptr);
 #endif
-#endif  // defined(STARBOARD)
 }
 
 // Deleter for use with unique_ptr. E.g., use as

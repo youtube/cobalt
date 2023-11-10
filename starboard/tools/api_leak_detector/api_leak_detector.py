@@ -85,6 +85,15 @@ _MANIFEST_HEADER = ('# Manifest of Leaking Files\n\n' +
 _UNKNOWN_LIBRARIES = 'unknown_library(ies)'
 _UNKNOWN_SOURCE_FILES = 'unknown_source_file(s)'
 
+# Allowed POSIX symbols in Starboard 16
+_ALLOWED_SB16_POSIX_SYMBOLS = [
+    'calloc',
+    'free',
+    'malloc',
+    'posix_memalign',
+    'realloc',
+]
+
 
 def DiffWithManifest(leaked_symbols, manifest_path):
   manifest_symbols = LoadManifest(manifest_path)
@@ -401,25 +410,19 @@ def main():
   def IsSbSymbol(symbol):
     return symbol.startswith('Sb') or symbol.startswith('kSb')
 
-  # Allowed POSIX symbols in Starboard 16
-  allowed_sb16_posix_symbols = [
-      'calloc',
-      'free',
-      'malloc',
-      'posix_memalign',
-      'realloc',
-  ]
-
-  def IsAllowedPosixSybol(symbol, sb_api_version):
-    if int(sb_api_version) == 16:
-      return symbol in allowed_sb16_posix_symbols
+  def IsAllowedPosixSymbol(symbol, sb_api_version: int):
+    if sb_api_version == 16:
+      return symbol in _ALLOWED_SB16_POSIX_SYMBOLS
     else:
       return False
 
+  def IsAllowedSymbol(symbol):
+    return symbol in allowed_c99_symbols or IsSbSymbol(
+        symbol) or IsAllowedPosixSymbol(symbol, int(args.sb_api_version))
+
   leaked_symbols = set(
       symbol for symbol in ProcessNmOutput(nm_output) \
-          if symbol not in allowed_c99_symbols and not IsSbSymbol(symbol)
-              and not IsAllowedPosixSybol(symbol, args.sb_api_version)
+          if not IsAllowedSymbol(symbol)
   )
 
   if args.manifest:

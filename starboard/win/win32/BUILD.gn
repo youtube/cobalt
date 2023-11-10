@@ -51,7 +51,6 @@ static_library("starboard_platform") {
     "//starboard/shared/win32/minidump.h",
     "//starboard/shared/win32/player_components_factory.cc",
     "//starboard/shared/win32/playready_license.cc",
-    "//starboard/shared/win32/posix_emu/posix_memalign.cc",
     "//starboard/shared/win32/starboard_main.cc",
     "//starboard/shared/win32/system_get_device_type.cc",
     "//starboard/shared/win32/system_get_extensions.cc",

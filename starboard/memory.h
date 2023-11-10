@@ -270,5 +270,5 @@ SB_DEPRECATED_EXTERNAL(
 
 #ifdef __cplusplus
 }  // extern "C"
-#endif  //
+#endif
 #endif  // STARBOARD_MEMORY_H_

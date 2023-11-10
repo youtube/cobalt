@@ -33,15 +33,9 @@ config("target") {
 
     # Don't send error reports to MS.
     "/errorReport:none",
-
-    # Suppress import library warning caused by the win32/posix_emu
-    "/ignore:4286",
   ]
   arflags = []
   cflags = [
-    # Add POSIX emulation headers
-    "/FI ../../starboard/shared/win32/posix_emu/include/stdlib.h",
-
     # The warning "Padding was added at the end of a structure" happens
     # in the library third_party/internal/libav1_xb1.
     "/wd4324",

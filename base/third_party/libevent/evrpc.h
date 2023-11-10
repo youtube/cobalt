@@ -186,7 +186,7 @@ int evrpc_send_request_##rpcname(struct evrpc_pool *, \
       void* cbarg) {                                                          \
     struct evrpc_status status;                                               \
     struct evrpc_request_wrapper* ctx;                                        \
-    ctx = (struct evrpc_request_wrapper*)malloc(                    \
+    ctx = (struct evrpc_request_wrapper*)malloc(                              \
         sizeof(struct evrpc_request_wrapper));                                \
     if (ctx == NULL)                                                          \
       goto error;                                                             \
@@ -194,7 +194,7 @@ int evrpc_send_request_##rpcname(struct evrpc_pool *, \
     ctx->evcon = NULL;                                                        \
     ctx->name = strdup(#rpcname);                                             \
     if (ctx->name == NULL) {                                                  \
-      free(ctx);                                                      \
+      free(ctx);                                                              \
       goto error;                                                             \
     }                                                                         \
     ctx->cb = (void (*)(struct evrpc_status*, void*, void*, void*))cb;        \
