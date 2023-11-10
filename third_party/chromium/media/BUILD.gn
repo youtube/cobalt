@@ -250,6 +250,10 @@ component("media") {
     "//starboard:starboard_group",
     "//url",
   ]
+
+  if (is_linux) {
+    deps += [ "//third_party/libvpx:libvpx_x86_64_headers" ]
+  }
 }
 
 target(gtest_target_type, "chromium_media_test") {
