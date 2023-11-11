@@ -40,6 +40,7 @@ namespace cobalt {
 namespace worker {
 
 Worker::Worker(const char* name, const Options& options) : options_(options) {
+  message_port_ = new web::MessagePort();
   // Algorithm for 'run a worker'
   //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#run-a-worker
   // 1. Let is shared be true if worker is a SharedWorker object, and false
@@ -71,7 +72,6 @@ void Worker::WillDestroyCurrentMessageLoop() {
   // Destroy members that were constructed in the worker thread.
   loader_.reset();
   worker_global_scope_ = nullptr;
-  message_port_ = nullptr;
   content_.reset();
 }
 
@@ -265,7 +265,7 @@ void Worker::Execute(const std::string& content,
   // Done at step 8.
   // 16. Let inside port be a new MessagePort object in inside settings's Realm.
   // 17. Associate inside port with worker global scope.
-  message_port_ = new web::MessagePort(worker_global_scope_);
+  message_port_->SetEventTarget(worker_global_scope_);
   // 18. Entangle outside port and inside port.
   // TODO(b/226640425): Implement this when Message Ports can be entangled.
   // 19. Create a new WorkerLocation object and associate it with worker global
@@ -280,7 +280,6 @@ void Worker::Execute(const std::string& content,
   //     worker until such time as either the closing flag switches to true or
   //     the worker stops being a suspendable worker.
   // 22. Set inside settings's execution ready flag.
-  execution_ready_.Signal();
   // 23. If script is a classic script, then run the classic script script.
   //     Otherwise, it is a module script; run the module script script.
 
@@ -362,14 +361,12 @@ void Worker::PostMessage(const script::ValueHandleHolder& message) {
   if (base::MessageLoop::current() != message_loop()) {
     // Block until the worker thread is ready to execute code to handle the
     // event.
-    execution_ready_.Wait();
     message_loop()->task_runner()->PostTask(
         FROM_HERE, base::BindOnce(&web::MessagePort::PostMessageSerialized,
-                                  message_port()->AsWeakPtr(),
+                                  message_port_->AsWeakPtr(),
                                   std::move(structured_clone)));
   } else {
-    DCHECK(execution_ready_.IsSignaled());
-    message_port()->PostMessageSerialized(std::move(structured_clone));
+    message_port_->PostMessageSerialized(std::move(structured_clone));
   }
 }
 

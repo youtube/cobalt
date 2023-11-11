@@ -17,6 +17,8 @@
 
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "base/callback_forward.h"
 #include "base/memory/weak_ptr.h"
@@ -37,10 +39,13 @@ class MessagePort : public script::Wrappable,
                     public base::SupportsWeakPtr<MessagePort>,
                     public Context::EnvironmentSettingsChangeObserver {
  public:
-  explicit MessagePort(web::EventTarget* event_target);
-  ~MessagePort();
+  MessagePort() {}
+  ~MessagePort() { Close(); }
+
   MessagePort(const MessagePort&) = delete;
   MessagePort& operator=(const MessagePort&) = delete;
+
+  void SetEventTarget(web::EventTarget* event_target);
 
   void OnEnvironmentSettingsChanged(bool context_valid) override {
     if (!context_valid) {
@@ -99,7 +104,8 @@ class MessagePort : public script::Wrappable,
   void DispatchMessage(
       std::unique_ptr<script::StructuredClone> structured_clone);
 
-  // The event target to dispatch events to.
+  std::vector<std::unique_ptr<script::StructuredClone>> unshipped_messages_;
+
   web::EventTarget* event_target_ = nullptr;
   base::OnceClosure remove_environment_settings_change_observer_;
 };

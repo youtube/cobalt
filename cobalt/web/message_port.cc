@@ -34,8 +34,9 @@
 namespace cobalt {
 namespace web {
 
-MessagePort::MessagePort(web::EventTarget* event_target)
-    : event_target_(event_target) {
+void MessagePort::SetEventTarget(web::EventTarget* event_target) {
+  DCHECK(!event_target_);
+  event_target_ = event_target;
   if (!event_target_) {
     return;
   }
@@ -51,9 +52,11 @@ MessagePort::MessagePort(web::EventTarget* event_target)
   remove_environment_settings_change_observer_ =
       base::BindOnce(&Context::RemoveEnvironmentSettingsChangeObserver,
                      base::Unretained(context), base::Unretained(this));
-}
 
-MessagePort::~MessagePort() { Close(); }
+  for (auto& message : unshipped_messages_) {
+    PostMessageSerialized(std::move(message));
+  }
+}
 
 void MessagePort::Close() {
   if (!event_target_) {
@@ -71,7 +74,11 @@ void MessagePort::PostMessage(const script::ValueHandleHolder& message) {
 
 void MessagePort::PostMessageSerialized(
     std::unique_ptr<script::StructuredClone> structured_clone) {
-  if (!event_target_ || !structured_clone) {
+  if (!structured_clone) {
+    return;
+  }
+  if (!event_target_) {
+    unshipped_messages_.push_back(std::move(structured_clone));
     return;
   }
   // TODO: Forward the location of the origating API call to the PostTask call.
