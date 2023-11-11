@@ -116,7 +116,11 @@ std::vector<void*> TryToAllocateMemory(int size,
                                    ? allocation_unit
                                    : (std::rand() % 500 + 100) * 1024;
     void* allocated_memory = NULL;
+#if SB_API_VERSION < 16
+    allocated_memory = SbMemoryAllocateAligned(alignment, allocation_increment);
+#else
     posix_memalign(&allocated_memory, alignment, allocation_increment);
+#endif
     EXPECT_NE(allocated_memory, nullptr);
     if (!allocated_memory) {
       return allocated_ptrs;
@@ -188,8 +192,8 @@ TEST(SbMediaBufferTest, AllocationUnit) {
   std::vector<void*> allocated_ptrs;
   int initial_buffer_capacity = SbMediaGetInitialBufferCapacity();
   if (initial_buffer_capacity > 0) {
-    allocated_ptrs =
-        TryToAllocateMemory(initial_buffer_capacity, allocation_unit, 1);
+    allocated_ptrs = TryToAllocateMemory(initial_buffer_capacity,
+                                         allocation_unit, sizeof(void*));
   }
 #if SB_API_VERSION < 16
   if (!HasNonfatalFailure()) {
