@@ -1,17 +1,17 @@
----
-layout: doc
-title: "Starboard Module Reference: memory.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: `memory.h`
 
 Defines functions for memory allocation, alignment, copying, and comparing.
 
-## Porters ##
+## Porters
 
 All of the "Unchecked" and "Free" functions must be implemented, but they should
 not be called directly. The Starboard platform wraps them with extra accounting
 under certain circumstances.
 
-## Porters and Application Developers ##
+## Porters and Application Developers
 
 Nobody should call the "Checked", "Unchecked" or "Free" functions directly
 because that evades Starboard's memory tracking. In both port implementations
@@ -26,14 +26,14 @@ and SbMemoryDeallocate rather than SbMemoryAllocateUnchecked and SbMemoryFree.
 
 *   The "free" functions are SbMemoryFree() and SbMemoryFreeAligned().
 
-## Enums ##
+## Enums
 
-### SbMemoryMapFlags ###
+### SbMemoryMapFlags
 
 The bitwise OR of these flags should be passed to SbMemoryMap to indicate how
 the mapped memory can be used.
 
-#### Values ####
+#### Values
 
 *   `kSbMemoryMapProtectReserved`
 
@@ -44,9 +44,9 @@ the mapped memory can be used.
 *   `kSbMemoryMapProtectExec`
 *   `kSbMemoryMapProtectReadWrite`
 
-## Functions ##
+## Functions
 
-### SbMemoryAllocate ###
+### SbMemoryAllocate
 
 Allocates and returns a chunk of memory of at least `size` bytes. This function
 should be called from the client codebase. It is intended to be a drop-in
@@ -58,13 +58,13 @@ Note that this function returns `NULL` if it is unable to allocate the memory.
 return `NULL` or it may return a unique pointer value that can be passed to
 SbMemoryDeallocate.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void* SbMemoryAllocate(size_t size)
 ```
 
-### SbMemoryAllocateAligned ###
+### SbMemoryAllocateAligned
 
 Allocates and returns a chunk of memory of at least `size` bytes, aligned to
 `alignment`. This function should be called from the client codebase. It is
@@ -78,86 +78,86 @@ must be a power of two. `size`: The size of the memory to be allocated. If
 `size` is `0`, the function may return `NULL` or it may return a unique aligned
 pointer value that can be passed to SbMemoryDeallocateAligned.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void* SbMemoryAllocateAligned(size_t alignment, size_t size)
 ```
 
-### SbMemoryAllocateAlignedChecked ###
+### SbMemoryAllocateAlignedChecked
 
 Same as SbMemoryAllocateAlignedUnchecked, but will abort() in the case of an
 allocation failure.
 
 DO NOT CALL. Call SbMemoryAllocateAligned(...) instead.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void* SbMemoryAllocateAlignedChecked(size_t alignment, size_t size)
 ```
 
-### SbMemoryAllocateAlignedUnchecked ###
+### SbMemoryAllocateAlignedUnchecked
 
 This is the implementation of SbMemoryAllocateAligned that must be provided by
 Starboard ports.
 
 DO NOT CALL. Call SbMemoryAllocateAligned(...) instead.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void* SbMemoryAllocateAlignedUnchecked(size_t alignment, size_t size)
 ```
 
-### SbMemoryAllocateChecked ###
+### SbMemoryAllocateChecked
 
 Same as SbMemoryAllocateUnchecked, but will abort() in the case of an allocation
 failure.
 
 DO NOT CALL. Call SbMemoryAllocate(...) instead.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void* SbMemoryAllocateChecked(size_t size)
 ```
 
-### SbMemoryAllocateNoReport ###
+### SbMemoryAllocateNoReport
 
 DEPRECATED: Same as SbMemoryAllocate().
 
-#### Declaration ####
+#### Declaration
 
 ```
 void* SbMemoryAllocateNoReport(size_t size)
 ```
 
-### SbMemoryAllocateUnchecked ###
+### SbMemoryAllocateUnchecked
 
 This is the implementation of SbMemoryAllocate that must be provided by
 Starboard ports.
 
 DO NOT CALL. Call SbMemoryAllocate(...) instead.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void* SbMemoryAllocateUnchecked(size_t size)
 ```
 
-### SbMemoryCalloc ###
+### SbMemoryCalloc
 
 A wrapper that implements a drop-in replacement for `calloc`, which is used in
 some packages.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static void* SbMemoryCalloc(size_t count, size_t size)
 ```
 
-### SbMemoryDeallocate ###
+### SbMemoryDeallocate
 
 Frees a previously allocated chunk of memory. If `memory` is NULL, then the
 operation is a no-op. This function should be called from the client codebase.
@@ -165,86 +165,86 @@ It is meant to be a drop-in replacement for `free`.
 
 `memory`: The chunk of memory to be freed.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbMemoryDeallocate(void *memory)
 ```
 
-### SbMemoryDeallocateAligned ###
+### SbMemoryDeallocateAligned
 
 `memory`: The chunk of memory to be freed. If `memory` is NULL, then the
 function is a no-op.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbMemoryDeallocateAligned(void *memory)
 ```
 
-### SbMemoryDeallocateNoReport ###
+### SbMemoryDeallocateNoReport
 
 DEPRECATED: Same as SbMemoryDeallocate()
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbMemoryDeallocateNoReport(void *memory)
 ```
 
-### SbMemoryFlush ###
+### SbMemoryFlush
 
 Flushes any data in the given virtual address range that is cached locally in
 the current processor core to physical memory, ensuring that data and
 instruction caches are cleared. This is required to be called on executable
 memory that has been written to and might be executed in the future.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbMemoryFlush(void *virtual_address, int64_t size_bytes)
 ```
 
-### SbMemoryFree ###
+### SbMemoryFree
 
 This is the implementation of SbMemoryDeallocate that must be provided by
 Starboard ports.
 
 DO NOT CALL. Call SbMemoryDeallocate(...) instead.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbMemoryFree(void *memory)
 ```
 
-### SbMemoryFreeAligned ###
+### SbMemoryFreeAligned
 
 This is the implementation of SbMemoryFreeAligned that must be provided by
 Starboard ports.
 
 DO NOT CALL. Call SbMemoryDeallocateAligned(...) instead.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbMemoryFreeAligned(void *memory)
 ```
 
-### SbMemoryGetStackBounds ###
+### SbMemoryGetStackBounds
 
 Gets the stack bounds for the current thread.
 
 `out_high`: The highest addressable byte + 1 for the current thread. `out_low`:
 The lowest addressable byte for the current thread.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbMemoryGetStackBounds(void **out_high, void **out_low)
 ```
 
-### SbMemoryMap ###
+### SbMemoryMap
 
 Allocates `size_bytes` worth of physical memory pages and maps them into an
 available virtual region. This function returns `SB_MEMORY_MAP_FAILED` on
@@ -259,24 +259,24 @@ used, the address space will not be accessible and, if possible, the platform
 should not count it against any memory budget. `name`: A value that appears in
 the debugger on some platforms. The value can be up to 32 bytes.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void* SbMemoryMap(int64_t size_bytes, int flags, const char *name)
 ```
 
-### SbMemoryProtect ###
+### SbMemoryProtect
 
 Change the protection of `size_bytes` of memory regions, starting from
 `virtual_address`, to `flags`, returning `true` on success.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbMemoryProtect(void *virtual_address, int64_t size_bytes, int flags)
 ```
 
-### SbMemoryReallocate ###
+### SbMemoryReallocate
 
 Attempts to resize `memory` to be at least `size` bytes, without touching the
 contents of memory.
@@ -296,39 +296,39 @@ it behaves exactly like SbMemoryAllocateUnchecked. `size`: The size to which
 `memory` will be resized. If `size` is `0`, the function may return `NULL` or it
 may return a unique pointer value that can be passed to SbMemoryDeallocate.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void* SbMemoryReallocate(void *memory, size_t size)
 ```
 
-### SbMemoryReallocateChecked ###
+### SbMemoryReallocateChecked
 
 Same as SbMemoryReallocateUnchecked, but will abort() in the case of an
 allocation failure.
 
 DO NOT CALL. Call SbMemoryReallocate(...) instead.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void* SbMemoryReallocateChecked(void *memory, size_t size)
 ```
 
-### SbMemoryReallocateUnchecked ###
+### SbMemoryReallocateUnchecked
 
 This is the implementation of SbMemoryReallocate that must be provided by
 Starboard ports.
 
 DO NOT CALL. Call SbMemoryReallocate(...) instead.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void* SbMemoryReallocateUnchecked(void *memory, size_t size)
 ```
 
-### SbMemoryUnmap ###
+### SbMemoryUnmap
 
 Unmap `size_bytes` of physical pages starting from `virtual_address`, returning
 `true` on success. After this function completes, [virtual_address,
@@ -338,7 +338,7 @@ SbMemoryMap(). For example, if one call to `SbMemoryMap(0x1000)` returns
 `(void*)0xA000`, and another call to `SbMemoryMap(0x1000)` returns
 `(void*)0xB000`, `SbMemoryUnmap(0xA000, 0x2000)` should free both regions.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbMemoryUnmap(void *virtual_address, int64_t size_bytes)
