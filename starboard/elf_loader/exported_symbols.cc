@@ -172,7 +172,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMediaGetAudioBufferBudget);
   REGISTER_SYMBOL(SbMediaGetAudioConfiguration);
   REGISTER_SYMBOL(SbMediaGetAudioOutputCount);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbMediaGetBufferAlignment);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbMediaGetBufferAllocationUnit);
   REGISTER_SYMBOL(SbMediaGetBufferGarbageCollectionDurationThreshold);
   REGISTER_SYMBOL(SbMediaGetBufferPadding);

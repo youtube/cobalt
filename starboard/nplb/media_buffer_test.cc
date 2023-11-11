@@ -160,6 +160,7 @@ TEST(SbMediaBufferTest, MediaTypes) {
   }
 }
 
+#if SB_API_VERSION < 16
 TEST(SbMediaBufferTest, Alignment) {
   for (auto type : kMediaTypes) {
 #if SB_API_VERSION >= 14
@@ -174,11 +175,7 @@ TEST(SbMediaBufferTest, Alignment) {
         << "Alignment must always be a power of 2";
   }
 }
-
-#if 0
-// Review the test as posix_memalign aligns only on power of 2 and
-// multiple of sizeof(void*). However we return 1 from
-// SbMediaGetBufferAlignment().
+#endif  // SB_API_VERSION < 16
 
 TEST(SbMediaBufferTest, AllocationUnit) {
   EXPECT_GE(SbMediaGetBufferAllocationUnit(), 0);
@@ -192,9 +189,9 @@ TEST(SbMediaBufferTest, AllocationUnit) {
   int initial_buffer_capacity = SbMediaGetInitialBufferCapacity();
   if (initial_buffer_capacity > 0) {
     allocated_ptrs =
-        TryToAllocateMemory(initial_buffer_capacity, allocation_unit, sizeof(void*));
+        TryToAllocateMemory(initial_buffer_capacity, allocation_unit, 1);
   }
-
+#if SB_API_VERSION < 16
   if (!HasNonfatalFailure()) {
     for (SbMediaType type : kMediaTypes) {
 #if SB_API_VERSION >= 14
@@ -223,12 +220,12 @@ TEST(SbMediaBufferTest, AllocationUnit) {
       }
     }
   }
+#endif  // SB_API_VERSION < 16
 
   for (void* ptr : allocated_ptrs) {
     free(ptr);
   }
 }
-#endif
 
 TEST(SbMediaBufferTest, AudioBudget) {
   EXPECT_GE(SbMediaGetAudioBufferBudget(), kMinAudioBudget);
@@ -338,6 +335,7 @@ TEST(SbMediaBufferTest, ValidatePerformance) {
   TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaGetBufferStorageType);
   TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaIsBufferUsingMemoryPool);
 
+#if SB_API_VERSION < 16
 #if SB_API_VERSION >= 14
   for (auto type : kMediaTypes) {
     TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaGetBufferAlignment);
@@ -349,6 +347,7 @@ TEST(SbMediaBufferTest, ValidatePerformance) {
     TEST_PERF_FUNCWITHARGS_DEFAULT(SbMediaGetBufferPadding, type);
   }
 #endif  // SB_API_VERSION >= 14
+#endif  // SB_API_VERSION < 16
 
   for (auto resolution : kVideoResolutions) {
     for (auto bits_per_pixel : kBitsPerPixelValues) {

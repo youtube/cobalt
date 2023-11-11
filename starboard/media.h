@@ -707,12 +707,14 @@ typedef enum SbMediaBufferStorageType {
 // The media buffer will be allocated using the returned alignment.  Set this to
 // a larger value may increase the memory consumption of media buffers.
 //
+#if SB_API_VERSION < 16
 #if SB_API_VERSION >= 14
 SB_EXPORT int SbMediaGetBufferAlignment();
 #else   // SB_API_VERSION >= 14
 // |type|: the media type of the stream (audio or video).
 SB_EXPORT int SbMediaGetBufferAlignment(SbMediaType type);
 #endif  // SB_API_VERSION >= 14
+#endif  // SB_API_VERSION < 16
 
 // When the media stack needs more memory to store media buffers, it will
 // allocate extra memory in units returned by SbMediaGetBufferAllocationUnit.
