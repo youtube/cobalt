@@ -267,6 +267,9 @@
 #include <sys/types.h>
 #endif  // !_WIN32_WCE
 #else  // !defined(STARBOARD)
+
+#include <stdlib.h>
+
 #include "starboard/common/log.h"
 #include "starboard/common/spin_lock.h"
 #include "starboard/common/string.h"
@@ -2084,7 +2087,8 @@ inline int Stat(const char* path, StatStruct* buf) {
 inline int StrCaseCmp(const char* s1, const char* s2) {
   return SbStringCompareNoCase(s1, s2);
 }
-inline char* StrDup(const char* src) { return SbStringDuplicate(src); }
+inline char* StrDup(const char* src) { return strdup(src); }
+
 inline int RmDir(const char* dir) { return SbFileDelete(dir); }
 inline bool IsDir(const StatStruct& st) { return st.is_directory; }
 
@@ -2144,8 +2148,9 @@ inline void PrintF(const char* format, ...) {
 
 inline void Flush() { SbLogFlush(); }
 
-inline void *Malloc(size_t n) { return SbMemoryAllocate(n); }
-inline void Free(void *p) { return SbMemoryDeallocate(p); }
+inline void *Malloc(size_t n) { return malloc(n); }
+inline void Free(void *p) { return free(p); }
+
 
 #else // GTEST_OS_STARBOARD
 

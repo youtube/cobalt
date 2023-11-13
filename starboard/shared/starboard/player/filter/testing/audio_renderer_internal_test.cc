@@ -198,7 +198,7 @@ class AudioRendererTest : public ::testing::Test {
   scoped_refptr<InputBuffer> CreateInputBuffer(SbTime timestamp) {
     const int kInputBufferSize = 4;
     SbPlayerSampleInfo sample_info = {};
-    sample_info.buffer = SbMemoryAllocate(kInputBufferSize);
+    sample_info.buffer = malloc(kInputBufferSize);
     sample_info.buffer_size = kInputBufferSize;
     sample_info.timestamp = timestamp;
     sample_info.drm_info = NULL;
@@ -242,7 +242,7 @@ class AudioRendererTest : public ::testing::Test {
     ASSERT_TRUE(buffers_in_decoder_.find(sample_buffer) !=
                 buffers_in_decoder_.end());
     buffers_in_decoder_.erase(buffers_in_decoder_.find(sample_buffer));
-    SbMemoryDeallocate(const_cast<void*>(sample_buffer));
+    free(const_cast<void*>(sample_buffer));
   }
 
   static const media::AudioStreamInfo& GetDefaultAudioStreamInfo() {

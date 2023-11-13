@@ -14,8 +14,9 @@
 
 #include "starboard/elf_loader/evergreen_info.h"
 
+#include <string.h>
+
 #include "starboard/atomic.h"
-#include "starboard/memory.h"
 
 static EvergreenInfo g_evergreen_info;
 static bool g_valid_info = false;

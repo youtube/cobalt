@@ -16,6 +16,8 @@
 
 #include <malloc.h>
 
+#if SB_API_VERSION < 16
 void SbMemoryFreeAligned(void* memory) {
   _aligned_free(memory);
 }
+#endif  // SB_API_VERSION < 16

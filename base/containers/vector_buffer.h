@@ -50,7 +50,7 @@ class VectorBuffer {
 #endif
   VectorBuffer(size_t count)
       : buffer_(reinterpret_cast<T*>(
-            SbMemoryAllocate(CheckMul(sizeof(T), count).ValueOrDie()))),
+            malloc(CheckMul(sizeof(T), count).ValueOrDie()))),
         capacity_(count) {
   }
   VectorBuffer(VectorBuffer&& other) noexcept
@@ -59,10 +59,10 @@ class VectorBuffer {
     other.capacity_ = 0;
   }
 
-  ~VectorBuffer() { SbMemoryDeallocate(buffer_); }
+  ~VectorBuffer() { free(buffer_); }
 
   VectorBuffer& operator=(VectorBuffer&& other) {
-    SbMemoryDeallocate(buffer_);
+    free(buffer_);
     buffer_ = other.buffer_;
     capacity_ = other.capacity_;
 

@@ -23,7 +23,6 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/event.h"
-#include "starboard/memory.h"
 
 #include "starboard/shared/starboard/command_line.h"
 
@@ -101,7 +100,7 @@ Application::~Application() {
           reinterpret_cast<SbAtomicPtr>(reinterpret_cast<void*>(NULL))));
   SB_DCHECK(old_instance);
   SB_DCHECK(old_instance == this);
-  SbMemoryDeallocate(start_link_);
+  free(start_link_);
 }
 
 int Application::Run(CommandLine command_line, const char* link_data) {
@@ -175,8 +174,7 @@ void Application::Stop(int error_level) {
 
 void Application::Link(const char* link_data) {
   SB_DCHECK(link_data) << "You must call Link with link_data.";
-  Inject(new Event(kSbEventTypeLink, SbStringDuplicate(link_data),
-                   SbMemoryDeallocate));
+  Inject(new Event(kSbEventTypeLink, strdup(link_data), free));
 }
 
 void Application::InjectLowMemoryEvent() {
@@ -220,9 +218,9 @@ void Application::HandleFrame(SbPlayer player,
 
 void Application::SetStartLink(const char* start_link) {
   SB_DCHECK(IsCurrentThread());
-  SbMemoryDeallocate(start_link_);
+  free(start_link_);
   if (start_link) {
-    start_link_ = SbStringDuplicate(start_link);
+    start_link_ = strdup(start_link);
   } else {
     start_link_ = NULL;
   }

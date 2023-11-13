@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -24,11 +26,13 @@ const size_t kSize = 1024 * 128;
 TEST(SbMemoryAllocateTest, AllocatesNormally) {
   void* memory = SbMemoryAllocate(kSize);
   EXPECT_NE(static_cast<void*>(NULL), memory);
+
   SbMemoryDeallocate(memory);
 }
 
 TEST(SbMemoryAllocateTest, AllocatesZero) {
   void* memory = SbMemoryAllocate(0);
+
   // We can't expect anything here because some implementations may return an
   // allocated zero-size memory block, and some implementations may return NULL.
   SbMemoryDeallocate(memory);
@@ -58,3 +62,5 @@ TEST(SbMemoryAllocateTest, CanReadWriteToResult) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+
+#endif  // SB_API_VERSION < 16

@@ -20,7 +20,8 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_INTERLEAVED_SINC_RESAMPLER_H_
 
 #include <math.h>
-
+#include <stdlib.h>
+#include <string.h>
 #include <queue>
 
 #include "starboard/common/ref_counted.h"

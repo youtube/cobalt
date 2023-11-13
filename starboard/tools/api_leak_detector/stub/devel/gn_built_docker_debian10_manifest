@@ -72,7 +72,6 @@ fprintf
 fputc
 fputs
 fread
-free
 fseeko64
 ftello64
 fwrite
@@ -85,7 +84,6 @@ isprint
 iswspace
 longjmp
 lseek64
-malloc
 mbrtowc
 mbsnrtowcs
 mbsrtowcs
@@ -106,7 +104,6 @@ pthread_setspecific
 putc
 putwc
 read
-realloc
 setlocale
 setvbuf
 snprintf

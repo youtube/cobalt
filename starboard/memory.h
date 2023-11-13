@@ -40,7 +40,6 @@
 #define STARBOARD_MEMORY_H_
 
 #include <string.h>
-
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/export.h"
@@ -68,6 +67,7 @@ typedef enum SbMemoryMapFlags {
       kSbMemoryMapProtectRead | kSbMemoryMapProtectWrite,
 } SbMemoryMapFlags;
 
+#if SB_API_VERSION < 16
 static SB_C_FORCE_INLINE void SbAbortIfAllocationFailed(size_t requested_bytes,
                                                         void* address) {
   if (SB_UNLIKELY(requested_bytes > 0 && address == NULL)) {
@@ -178,6 +178,8 @@ SB_DEPRECATED_EXTERNAL(SB_EXPORT void SbMemoryFree(void* memory));
 // DO NOT CALL. Call SbMemoryDeallocateAligned(...) instead.
 SB_DEPRECATED_EXTERNAL(SB_EXPORT void SbMemoryFreeAligned(void* memory));
 
+#endif  // SB_API_VERSION < 16
+
 // Allocates |size_bytes| worth of physical memory pages and maps them into
 // an available virtual region. This function returns |SB_MEMORY_MAP_FAILED|
 // on failure. |NULL| is a valid return value.
@@ -228,6 +230,7 @@ SB_EXPORT void SbMemoryGetStackBounds(void** out_high, void** out_low);
 
 #endif  // SB_API_VERSION < 15
 
+#if SB_API_VERSION < 16
 // A wrapper that implements a drop-in replacement for |calloc|, which is used
 // in some packages.
 static SB_C_INLINE void* SbMemoryCalloc(size_t count, size_t size) {
@@ -263,9 +266,9 @@ SB_DEPRECATED_EXTERNAL(SB_EXPORT void* SbMemoryReallocateChecked(void* memory,
 SB_DEPRECATED_EXTERNAL(
     SB_EXPORT void* SbMemoryAllocateAlignedChecked(size_t alignment,
                                                    size_t size));
+#endif  // SB_API_VERSION < 16
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
-
 #endif  // STARBOARD_MEMORY_H_

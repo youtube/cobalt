@@ -23,8 +23,8 @@ namespace benchmark {
 namespace {
 
 void BM_MemoryCopy(::benchmark::State& state) {
-  void* memory1 = SbMemoryAllocate(state.range(0));
-  void* memory2 = SbMemoryAllocate(state.range(0));
+  void* memory1 = malloc(state.range(0));
+  void* memory2 = malloc(state.range(0));
 
   for (auto _ : state) {
     memcpy(memory1, memory2, state.range(0));
@@ -33,13 +33,13 @@ void BM_MemoryCopy(::benchmark::State& state) {
   state.SetBytesProcessed(int64_t(state.iterations()) *
                           int64_t(state.range(0)));
 
-  SbMemoryDeallocate(memory1);
-  SbMemoryDeallocate(memory2);
+  free(memory1);
+  free(memory2);
 }
 
 void BM_MemoryMove(::benchmark::State& state) {
-  void* memory1 = SbMemoryAllocate(state.range(0));
-  void* memory2 = SbMemoryAllocate(state.range(0));
+  void* memory1 = malloc(state.range(0));
+  void* memory2 = malloc(state.range(0));
 
   for (auto _ : state) {
     memmove(memory1, memory2, state.range(0));
@@ -48,8 +48,8 @@ void BM_MemoryMove(::benchmark::State& state) {
   state.SetBytesProcessed(int64_t(state.iterations()) *
                           int64_t(state.range(0)));
 
-  SbMemoryDeallocate(memory1);
-  SbMemoryDeallocate(memory2);
+  free(memory1);
+  free(memory2);
 }
 
 BENCHMARK(BM_MemoryCopy)->RangeMultiplier(4)->Range(16, 1024 * 1024);

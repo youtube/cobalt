@@ -38,9 +38,7 @@
 // will not cross the end of the buffer, since we can avoid a lot
 // of branching in this case.
 
-#ifdef STARBOARD
 #include "starboard/client_porting/poem/string_poem.h"
-#endif
 
 #include <google/protobuf/io/coded_stream_inl.h>
 #include <algorithm>

@@ -92,7 +92,7 @@ void WriteHandleToPipe(HANDLE pipe, HANDLE handle) {
   uint32_t handle_as_int = base::win::HandleToUint32(handle);
 
   std::unique_ptr<char, base::FreeDeleter> buffer(
-      static_cast<char*>(SbMemoryAllocate(1000)));
+      static_cast<char*>(malloc(1000)));
   size_t index = 0;
   while (handle_as_int > 0) {
     buffer.get()[index] = handle_as_int % 10;

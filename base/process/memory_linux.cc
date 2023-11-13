@@ -130,7 +130,7 @@ bool UncheckedMalloc(size_t size, void** result) {
   *result = allocator::UncheckedAlloc(size);
 #elif defined(MEMORY_TOOL_REPLACES_ALLOCATOR) || \
     (!defined(LIBC_GLIBC) && !defined(USE_TCMALLOC))
-  *result = SbMemoryAllocate(size);
+  *result = malloc(size);
 #elif defined(LIBC_GLIBC) && !defined(USE_TCMALLOC)
   *result = __libc_malloc(size);
 #elif defined(USE_TCMALLOC)

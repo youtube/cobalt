@@ -46,7 +46,7 @@ FilePath GetXDGUserDirectory(const char* dir_name, const char* fallback_dir) {
   char* xdg_dir = xdg_user_dir_lookup(dir_name);
   if (xdg_dir) {
     path = FilePath(xdg_dir);
-    SbMemoryDeallocate(xdg_dir);
+    free(xdg_dir);
   } else {
     PathService::Get(DIR_HOME, &path);
     path = path.Append(fallback_dir);

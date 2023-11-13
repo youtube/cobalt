@@ -78,11 +78,7 @@ template<typename T> void arena_delete_object(void* object) {
   delete reinterpret_cast<T*>(object);
 }
 inline void arena_free(void* object, size_t /* size */) {
-#ifndef STARBOARD
   free(object);
-#else
-  SbMemoryDeallocate(object);
-#endif  // defined(STARBOARD)
 }
 
 }  // namespace internal
@@ -146,11 +142,7 @@ struct ArenaOptions {
         max_block_size(kDefaultMaxBlockSize),
         initial_block(NULL),
         initial_block_size(0),
-#ifndef STARBOARD
         block_alloc(&malloc),
-#else
-        block_alloc(&SbMemoryAllocate),
-#endif  // STARBOARD
         block_dealloc(&internal::arena_free),
         on_arena_init(NULL),
         on_arena_reset(NULL),

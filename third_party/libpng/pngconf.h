@@ -397,9 +397,7 @@
 /* Other defines for things like memory and the like can go here.  */
 #ifdef PNG_INTERNAL
 
-#if !defined(STARBOARD)
 #include <stdlib.h>
-#endif
 
 /* The functions exported by PNG_EXTERN are PNG_INTERNAL functions, which
  * aren't usually used outside the library (as far as I know), so it is

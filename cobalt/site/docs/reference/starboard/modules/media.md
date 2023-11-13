@@ -531,17 +531,6 @@ least stereo.
 int SbMediaGetAudioOutputCount()
 ```
 
-### SbMediaGetBufferAlignment
-
-The media buffer will be allocated using the returned alignment. Set this to a
-larger value may increase the memory consumption of media buffers.
-
-#### Declaration
-
-```
-int SbMediaGetBufferAlignment()
-```
-
 ### SbMediaGetBufferAllocationUnit
 
 When the media stack needs more memory to store media buffers, it will allocate
