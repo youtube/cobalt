@@ -312,6 +312,7 @@ def ParseArgs():
   parser.add_argument(
       '--sb_api_version',
       help='The Starboard version',
+      type=int,
       default=_DEFAULT_SB_VERSION)
   return parser.parse_args()
 
@@ -417,9 +418,16 @@ def main():
       return False
 
   def IsAllowedSymbol(symbol):
-    return symbol in allowed_c99_symbols or IsSbSymbol(
-        symbol) or IsAllowedPosixSymbol(
-            symbol, sb_api_version=args.sb_api_version)
+    if symbol in allowed_c99_symbols:
+      return True
+
+    if IsSbSymbol(symbol):
+      return True
+
+    if IsAllowedPosixSymbol(symbol, sb_api_version=args.sb_api_version):
+      return True
+
+    return False
 
   leaked_symbols = set(
       symbol for symbol in ProcessNmOutput(nm_output) \

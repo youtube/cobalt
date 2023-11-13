@@ -17,7 +17,7 @@ standard APIs `malloc`, `realloc`, `calloc`, `posix_memalign`, `free`
 from `<stdlib.h>` and `strdup` from `<string.h>` should be used instead.
 
 ### Deprecated SbMediaGetBufferAlignment
-The `SbMediaGetBufferAlignment` was deprecated.
+The `SbMediaGetBufferAlignment`API was deprecated.
 
 ### Removed SbUser from SbStorageOpenRecord and SbStorageDeleteRecord
 The `SbStorageOpenRecord` and `SbStorageDeleteRecord` APIs defined in

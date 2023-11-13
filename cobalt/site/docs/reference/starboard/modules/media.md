@@ -531,7 +531,7 @@ least stereo.
 int SbMediaGetAudioOutputCount()
 ```
 
-### SbMediaGetBufferAllocationUnit ###
+### SbMediaGetBufferAllocationUnit
 
 When the media stack needs more memory to store media buffers, it will allocate
 extra memory in units returned by SbMediaGetBufferAllocationUnit. This can
