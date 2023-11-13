@@ -21,6 +21,7 @@
 #include "starboard/common/string.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
+#include "starboard/shared/uwp/xb1_get_type.h"
 #include "starboard/shared/win32/video_decoder.h"
 #include "starboard/thread.h"
 #include "starboard/xb1/shared/internal_shims.h"
@@ -74,10 +75,9 @@ bool IsExtendedResourceModeRequired() {
   if (!::starboard::xb1::shared::CanAcquire()) {
     return false;
   }
-  bool is_erm_required =
-      !shared::win32::VideoDecoder::IsHardwareVp9DecoderSupported();
-  SB_LOG(INFO) << "Extended resources mode"
-               << (is_erm_required ? " is required." : " isn't required.");
+  // erm is required for all xbox types except kXboxOneX;
+  bool is_erm_required = ::starboard::shared::uwp::GetXboxType() !=
+                         ::starboard::shared::uwp::kXboxOneX;
   return is_erm_required;
 }
 
@@ -184,12 +184,8 @@ bool ExtendedResourcesManager::GetD3D12Objects(
   device->Reset();
   *command_queue = nullptr;
 
-  ScopedTryLock scoped_lock(mutex_);
-  if (!scoped_lock.is_locked()) {
-    SB_LOG(INFO) << "GetD3D12Objects() failed"
-                 << " because lock cannot be acquired.";
-    return false;
-  }
+  ScopedLock scoped_lock(mutex_);
+
   if (!is_extended_resources_acquired_.load()) {
     SB_LOG(INFO) << "GetD3D12Objects() failed"
                  << " because extended resources mode is not acquired.";
