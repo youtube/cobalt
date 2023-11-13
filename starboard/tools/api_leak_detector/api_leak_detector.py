@@ -62,7 +62,7 @@ _API_LEAK_DETECTOR_TITLE = """    ___    ____  ____   __               __      _
 _DEFAULT_PLATFORM = 'evergreen-x64'
 _DEFAULT_CONFIG = 'gold'
 _DEFAULT_TARGET = 'cobalt'
-_DEFAULT_SB_VERSION = '16'
+_DEFAULT_SB_VERSION = 16
 
 _RE_LIB = re.compile(r'lib.*\.a$')
 _RE_FILE = re.compile(r'\/\/.*\.[hcp]+$')
@@ -418,7 +418,8 @@ def main():
 
   def IsAllowedSymbol(symbol):
     return symbol in allowed_c99_symbols or IsSbSymbol(
-        symbol) or IsAllowedPosixSymbol(symbol, int(args.sb_api_version))
+        symbol) or IsAllowedPosixSymbol(
+            symbol, sb_api_version=args.sb_api_version)
 
   leaked_symbols = set(
       symbol for symbol in ProcessNmOutput(nm_output) \
