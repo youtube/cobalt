@@ -56,7 +56,7 @@ static_library("elf_loader") {
     ":constants",
     ":evergreen_config",
     ":evergreen_info",
-    "//starboard",
+    "//starboard:starboard_group",
     "//starboard/common",
     "//third_party/lz4_lib:lz4",
   ]
@@ -78,7 +78,7 @@ if (sb_is_evergreen_compatible) {
       ":constants",
       ":evergreen_config",
       ":evergreen_info",
-      "//starboard",
+      "//starboard:starboard_group",
       "//starboard/common",
     ]
 
@@ -112,7 +112,7 @@ if (current_toolchain == starboard_toolchain && !is_host_win) {
       ":evergreen_info",
       ":sabi_string",
       "//cobalt/content/fonts:copy_font_data",
-      "//starboard",
+      "//starboard:starboard_group",
     ]
 
     if (!sb_is_evergreen_compatible) {
@@ -149,7 +149,7 @@ if (sb_is_evergreen_compatible) {
       ":elf_loader_sys",
       ":evergreen_info",
       ":sabi_string",
-      "//starboard",
+      "//starboard:starboard_group",
     ]
 
     if (!sb_is_evergreen_compatible) {
@@ -164,7 +164,7 @@ if (!is_host_win) {
     testonly = true
     sources = [ "//starboard/common/test_main.cc" ]
     deps = [
-      "//starboard",
+      "//starboard:starboard_group",
       "//testing/gmock",
       "//testing/gtest",
     ]

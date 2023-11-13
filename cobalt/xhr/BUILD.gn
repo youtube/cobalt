@@ -45,7 +45,7 @@ static_library("xhr") {
     "//cobalt/script",
     "//cobalt/web",
     "//net",
-    "//starboard",
+    "//starboard:starboard_group",
     "//third_party/protobuf:protobuf_lite",
     "//url",
   ]
