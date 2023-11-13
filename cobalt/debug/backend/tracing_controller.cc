@@ -39,24 +39,161 @@ constexpr char kStarted[] = "started";
 constexpr char kCategories[] = "categories";
 
 // Size in characters of JSON to batch dataCollected events.
-constexpr size_t kDataCollectedSize = 24 * 1024;
+// constexpr size_t kDataCollectedSize = 24 * 1024;
 }  // namespace
 
+
+///////////////// TRACE EVENT AGENT ///////////////////////////////////
+TraceEventAgent::TraceEventAgent() {
+  // trace_buffer_.SetOutputCallback(json_output_.GetCallback());
+}
+
+std::string TraceEventAgent::GetTracingAgentName() { return agent_name_; }
+
+std::string TraceEventAgent::GetTraceEventLabel() { return agent_event_label_; }
+
+void TraceEventAgent::StartAgentTracing(
+    const TraceConfig& trace_config,
+    StartAgentTracingCallback on_start_callback) {
+  base::trace_event::TraceLog* tracelog =
+      base::trace_event::TraceLog::GetInstance();
+
+  json_output_.json_output.clear();
+  trace_buffer_.SetOutputCallback(json_output_.GetCallback());
+
+  DCHECK(!tracelog->IsEnabled());
+  tracelog->SetEnabled(trace_config,
+                       base::trace_event::TraceLog::RECORDING_MODE);
+
+  std::move(on_start_callback).Run(agent_name_, true);
+}
+
+void TraceEventAgent::StopAgentTracing(
+    StopAgentTracingCallback on_stop_callback) {
+  base::trace_event::TraceLog* trace_log =
+      base::trace_event::TraceLog::GetInstance();
+
+  DCHECK(trace_log->IsEnabled());
+  trace_log->SetDisabled(base::trace_event::TraceLog::RECORDING_MODE);
+
+
+  base::Thread thread("json_outputter");
+  thread.Start();
+
+  trace_buffer_.Start();
+
+  base::WaitableEvent waitable_event;
+  auto event_output_callback =
+      base::Bind(&TraceEventAgent::OutputTraceData, base::Unretained(this),
+                 base::BindRepeating(&base::WaitableEvent::Signal,
+                                     base::Unretained(&waitable_event)));
+  //  Write out the actual data by calling Flush().  Within Flush(), this
+  //  will call OutputTraceData(), possibly multiple times.  We have to do this
+  //  on a thread as there will be tasks posted to the current thread for data
+  //  writing.
+  thread.message_loop()->task_runner()->PostTask(
+      FROM_HERE, base::BindRepeating(&base::trace_event::TraceLog::Flush,
+                                     base::Unretained(trace_log),
+                                     event_output_callback, false));
+
+  waitable_event.Wait();
+
+  LOG(INFO) << "Collected all string events - will now send..";
+  trace_buffer_.Finish();
+
+  std::move(on_stop_callback)
+      .Run(agent_name_, agent_event_label_,
+           base::RefCountedString::TakeString(&json_output_.json_output));
+}
+
+
+void TraceEventAgent::OutputTraceData(
+    base::OnceClosure finished_cb,
+    const scoped_refptr<base::RefCountedString>& event_string,
+    bool has_more_events) {
+  trace_buffer_.AddFragment(event_string->data());
+
+
+  if (!has_more_events) {
+    //  trace_buffer_.Finish();
+    std::move(finished_cb).Run();
+  }
+}
+
+
+///////////////// TRACE V8 AGENT ///////////////////////////////////
+// TraceV8Agent::TraceV8Agent(script::ScriptDebugger* script_debugger)
+//   : script_debugger_(script_debugger) {
+// }
+//
+// std::string TraceV8Agent::GetTracingAgentName() {
+//   return "CobaltTraceV8Agent";
+// }
+// std::string TraceV8Agent::GetTraceEventLabel() {
+//   return "CobaltTracing";
+// }
+//
+// void TraceV8Agent::AppendTraceEvent(const std::string& trace_event_json) {
+//   // We initialize a new list into which we collect events both when we
+//   start,
+//   // and after each time it's released in |SendDataCollectedEvent|.
+//   if (!collected_events_) {
+//     collected_events_.reset(new base::ListValue());
+//   }
+//
+//   JSONObject event = JSONParse(trace_event_json);
+//   if (event) {
+//     collected_events_->Append(std::move(event));
+//     collected_size_ += trace_event_json.size();
+//   }
+//
+//   if (collected_size_ >= kDataCollectedSize) {
+//     SendDataCollectedEvent();
+//   }
+// }
+//
+// void TracingController::FlushTraceEvents() {
+//   SendDataCollectedEvent();
+//   dispatcher_->SendEvent(std::string(kInspectorDomain) + ".tracingComplete");
+// }
+//
+// void TraceV8Agent::StartAgentTracing(const TraceConfig& trace_config,
+//                                StartAgentTracingCallback callback) {
+// }
+//
+// void TraceV8Agent::StopAgentTracing(StopAgentTracingCallback callback) {
+// }
+//
+// void TraceV8Agent::OnTracingStarted(const std::string& agent_name, bool
+// success) {
+//   LOG(INFO) << "TraceV8Agent:" << agent_name << " - STARTING - successful? "
+//   << (success ? "true" : "false");
+// }
+//
+// void TraceV8Agent::OnTracingStopped(const std::string& agent_name, bool
+// success) {
+//   LOG(INFO) << "TraceV8Agent:" << agent_name << " - STOPPING - successful? "
+//   << (success ? "true" : "false");
+// }
+
+
+///////////////// TRACING CONTROLLER //////////////////////////////////
 TracingController::TracingController(DebugDispatcher* dispatcher,
                                      script::ScriptDebugger* script_debugger)
     : dispatcher_(dispatcher),
-      // script_debugger_(script_debugger),
       tracing_started_(false),
       collected_size_(0),
       commands_(kInspectorDomain) {
   DCHECK(dispatcher_);
 
-  trace_buffer_.SetOutputCallback(json_output_.GetCallback());
-
   commands_["end"] =
       base::Bind(&TracingController::End, base::Unretained(this));
   commands_["start"] =
       base::Bind(&TracingController::Start, base::Unretained(this));
+
+  agents_.push_back(std::make_unique<TraceEventAgent>());
+  // agents_.push_back(std::make_unique<TraceV8Agent>(script_debugger));
+  LOG(INFO) << "YO COLLECTE :" << collected_size_;
 }
 
 void TracingController::Thaw(JSONObject agent_state) {
@@ -103,7 +240,7 @@ JSONObject TracingController::Freeze() {
 }
 
 void TracingController::End(Command command) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  // DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (!tracing_started_) {
     command.SendErrorResponse(Command::kInvalidRequest, "Tracing not started");
     return;
@@ -112,51 +249,28 @@ void TracingController::End(Command command) {
   categories_.clear();
   command.SendResponse();
 
-  base::trace_event::TraceLog* trace_log =
-      base::trace_event::TraceLog::GetInstance();
-
-  trace_log->SetDisabled(base::trace_event::TraceLog::RECORDING_MODE);
-
-  base::WaitableEvent waitable_event;
-  auto output_callback =
-      base::Bind(&TracingController::OutputTraceData, base::Unretained(this),
-                 base::BindRepeating(&base::WaitableEvent::Signal,
-                                     base::Unretained(&waitable_event)));
-
-  base::Thread thread("json_outputter");
-  thread.Start();
-
-  //  Write out the actual data by calling Flush().  Within Flush(), this
-  //  will call OutputTraceData(), possibly multiple times.  We have to do this
-  //  on a thread as there will be tasks posted to the current thread for data
-  //  writing.
-  thread.message_loop()->task_runner()->PostTask(
-      FROM_HERE,
-      base::BindRepeating(&base::trace_event::TraceLog::Flush,
-                          base::Unretained(trace_log), output_callback, false));
-
-  waitable_event.Wait();
-
-  FlushTraceEvents();
-
-  // script_debugger_->StopTracing();
+  for (const auto& a : agents_) {
+    a->StopAgentTracing(base::BindOnce(&TracingController::OnStopTracing,
+                                       base::Unretained(this)));
+  }
 }
 
+void TracingController::OnStartTracing(const std::string& agent_name,
+                                       bool success) {
+  LOG(INFO) << "Tracing Agent:" << agent_name << " Start tracing successful? "
+            << (success ? "true" : "false");
+}
 
-void TracingController::OutputTraceData(
-    base::OnceClosure finished_cb,
-    const scoped_refptr<base::RefCountedString>& event_string,
-    bool has_more_events) {
-  json_output_.json_output.clear();
-  trace_buffer_.Start();
-  trace_buffer_.AddFragment(event_string->data());
-  trace_buffer_.Finish();
+void TracingController::OnStopTracing(
+    const std::string& agent_name, const std::string& events_label,
+    const scoped_refptr<base::RefCountedString>& events_str_ptr) {
+  LOG(INFO) << "Tracing Agent:" << agent_name << " Stop tracing.";
 
   std::unique_ptr<base::Value> root =
-      base::JSONReader::Read(json_output_.json_output, base::JSON_PARSE_RFC);
+      base::JSONReader::Read(events_str_ptr->data(), base::JSON_PARSE_RFC);
 
   if (!root.get()) {
-    LOG(ERROR) << json_output_.json_output;
+    LOG(ERROR) << "Couldn't parse the events string.";
   }
 
   base::ListValue* root_list = nullptr;
@@ -170,22 +284,17 @@ void TracingController::OutputTraceData(
     std::unique_ptr<base::Value> item;
     root_list->Remove(0, &item);
     collected_events_->Append(std::move(item));
-  }
 
-  collected_size_ += event_string->size();
-  if (collected_size_ >= kDataCollectedSize) {
-    SendDataCollectedEvent();
+    if (collected_events_->GetSize() > 100) {
+      SendDataCollectedEvent();
+    }
   }
-
-  if (!has_more_events) {
-    trace_buffer_.Finish();
-    std::move(finished_cb).Run();
-  }
+  FlushTraceEvents();
 }
 
 
 void TracingController::Start(Command command) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  // DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (tracing_started_) {
     command.SendErrorResponse(Command::kInvalidRequest,
                               "Tracing already started");
@@ -208,38 +317,16 @@ void TracingController::Start(Command command) {
 
   collected_events_.reset(new base::ListValue());
 
-  base::trace_event::TraceLog* tracelog =
-      base::trace_event::TraceLog::GetInstance();
-
-  json_output_.json_output.clear();
-  trace_buffer_.SetOutputCallback(json_output_.GetCallback());
-
-  DCHECK(!tracelog->IsEnabled());
-  tracelog->SetEnabled(base::trace_event::TraceConfig(),
-                       base::trace_event::TraceLog::RECORDING_MODE);
-
+  auto config = base::trace_event::TraceConfig();
+  for (const auto& a : agents_) {
+    a->StartAgentTracing(config,
+                         base::BindOnce(&TracingController::OnStartTracing,
+                                        base::Unretained(this)));
+  }
   // script_debugger_->StartTracing(categories_, this);
 
   tracing_started_ = true;
   command.SendResponse();
-}
-
-void TracingController::AppendTraceEvent(const std::string& trace_event_json) {
-  // We initialize a new list into which we collect events both when we start,
-  // and after each time it's released in |SendDataCollectedEvent|.
-  if (!collected_events_) {
-    collected_events_.reset(new base::ListValue());
-  }
-
-  JSONObject event = JSONParse(trace_event_json);
-  if (event) {
-    collected_events_->Append(std::move(event));
-    collected_size_ += trace_event_json.size();
-  }
-
-  if (collected_size_ >= kDataCollectedSize) {
-    SendDataCollectedEvent();
-  }
 }
 
 void TracingController::FlushTraceEvents() {

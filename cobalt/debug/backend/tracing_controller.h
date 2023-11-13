@@ -15,6 +15,7 @@
 #ifndef COBALT_DEBUG_BACKEND_TRACING_CONTROLLER_H_
 #define COBALT_DEBUG_BACKEND_TRACING_CONTROLLER_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -24,6 +25,7 @@
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_buffer.h"
+#include "base/trace_event/tracing_agent.h"
 #include "cobalt/debug/backend/command_map.h"
 #include "cobalt/debug/backend/debug_dispatcher.h"
 #include "cobalt/debug/command.h"
@@ -33,38 +35,95 @@ namespace cobalt {
 namespace debug {
 namespace backend {
 
-// There aren't enable/disable commands in the Tracing domain, so the
-// TracingController doesn't use AgentBase.
-//
-// https://chromedevtools.github.io/devtools-protocol/tot/Tracing
-class TracingController : public script::ScriptDebugger::TraceDelegate {
+
+using base::trace_event::TraceConfig;
+using base::trace_event::TracingAgent;
+
+//////////////////////////////////////////////////////////////////////////////
+
+class TraceEventAgent : public TracingAgent {
  public:
-  explicit TracingController(DebugDispatcher* dispatcher,
-                             script::ScriptDebugger* script_debugger);
-
-  void Thaw(JSONObject agent_state);
-  JSONObject Freeze();
-
-  // TraceDelegate
-  void AppendTraceEvent(const std::string& trace_event_json) override;
-  void FlushTraceEvents() override;
-
- private:
-  void End(Command command);
-  void Start(Command command);
+  TraceEventAgent();
+  ~TraceEventAgent() = default;
 
   void OutputTraceData(
       base::OnceClosure finished_cb,
       const scoped_refptr<base::RefCountedString>& event_string,
       bool has_more_events);
 
+  // TracingAgent
+  std::string GetTracingAgentName() override;
+  std::string GetTraceEventLabel() override;
+  void StartAgentTracing(const TraceConfig& trace_config,
+                         StartAgentTracingCallback callback) override;
+  void StopAgentTracing(StopAgentTracingCallback callback) override;
+
+ private:
+  std::string agent_name_{"TraceEventAgent"};
+  std::string agent_event_label_{"Performance Tracing"};
+
+  base::trace_event::TraceResultBuffer trace_buffer_;
+  base::trace_event::TraceResultBuffer::SimpleOutput json_output_;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+/////
+// class TraceV8Agent : public TracingAgent, public
+// script::ScriptDebugger::TraceDelegate {
+//  public:
+//   explicit TraceV8Agent(script::ScriptDebugger* script_debugger);
+//   ~TraceV8Agent() = default;
+//
+//   // TraceDelegate
+//   void AppendTraceEvent(const std::string& trace_event_json) override;
+//
+//   // TracingAgent
+//   std::string GetTracingAgentName() override;
+//   std::string GetTraceEventLabel() override;
+//   void StartAgentTracing(const TraceConfig& trace_config,
+//                                  StartAgentTracingCallback callback)
+//                                  override;
+//   void StopAgentTracing(StopAgentTracingCallback callback) override;
+//
+//   //void OnTracingStarted(const std::string& agent_name, bool success);
+//   //void OnTracingStopped(const std::string& agent_name, bool success);
+// private:
+//   std::string agent_name_{"TraceV8Agent"};
+//   std::string agent_event_label_{"Performance Tracing"};
+//
+//   THREAD_CHECKER(thread_checker_);
+//   script::ScriptDebugger* script_debugger_;
+//
+// };
+
+//////////////////////////////////////////////////////////////////////////////
+// https://chromedevtools.github.io/devtools-protocol/tot/Tracing
+class TracingController {
+ public:
+  explicit TracingController(DebugDispatcher* dispatcher,
+                             script::ScriptDebugger* script_debugger);
+  ~TracingController() = default;
+
+  void Thaw(JSONObject agent_state);
+  JSONObject Freeze();
+
+ private:
+  void End(Command command);
+  void Start(Command command);
+
+  void OnStartTracing(const std::string& agent_name, bool success);
+  void OnStopTracing(
+      const std::string& agent_name, const std::string& events_label,
+      const scoped_refptr<base::RefCountedString>& events_str_ptr);
+
+
+ private:
   void SendDataCollectedEvent();
+  void FlushTraceEvents();
 
-
+ private:
   DebugDispatcher* dispatcher_;
-  // script::ScriptDebugger* script_debugger_;
-
-  THREAD_CHECKER(thread_checker_);
+  std::vector<std::unique_ptr<TracingAgent>> agents_;
 
   bool tracing_started_;
   std::vector<std::string> categories_;
@@ -74,9 +133,6 @@ class TracingController : public script::ScriptDebugger::TraceDelegate {
 
   // Map of member functions implementing commands.
   CommandMap commands_;
-
-  base::trace_event::TraceResultBuffer trace_buffer_;
-  base::trace_event::TraceResultBuffer::SimpleOutput json_output_;
 };
 
 }  // namespace backend
