@@ -370,6 +370,36 @@ void SbPlayerBridge::GetInfo(uint32* video_frames_decoded,
   GetInfo_Locked(video_frames_decoded, video_frames_dropped, media_time);
 }
 
+std::vector<CobaltExtensionMediaAudioConfiguration>
+SbPlayerBridge::GetAudioConfigurations() {
+  DCHECK(sbplayer_interface_->IsAudioWriteAheadExtensionEnabled());
+  base::AutoLock auto_lock(lock_);
+
+  if (!SbPlayerIsValid(player_)) {
+    return std::vector<CobaltExtensionMediaAudioConfiguration>();
+  }
+
+  std::vector<CobaltExtensionMediaAudioConfiguration> configurations;
+
+  // Set a limit to avoid infinite loop.
+  constexpr int kMaxAudioConfigurations = 32;
+
+  for (int i = 0; i < kMaxAudioConfigurations; ++i) {
+    CobaltExtensionMediaAudioConfiguration configuration;
+    if (!sbplayer_interface_->GetAudioConfiguration(player_, i,
+                                                    &configuration)) {
+      break;
+    }
+
+    configurations.push_back(configuration);
+  }
+
+  LOG_IF(WARNING, configurations.empty())
+      << "Failed to find any audio configurations.";
+
+  return configurations;
+}
+
 #if SB_HAS(PLAYER_WITH_URL)
 void SbPlayerBridge::GetUrlPlayerBufferedTimeRanges(
     base::TimeDelta* buffer_start_time, base::TimeDelta* buffer_length_time) {

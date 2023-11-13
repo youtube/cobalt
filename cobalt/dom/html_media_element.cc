@@ -19,6 +19,7 @@
 #include <limits>
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "base/bind.h"
 #include "base/compiler_specific.h"
@@ -26,6 +27,7 @@
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/message_loop/message_loop.h"
+#include "base/strings/string_util.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/instance_counter.h"
 #include "cobalt/base/tokens.h"
@@ -36,6 +38,7 @@
 #include "cobalt/dom/media_settings.h"
 #include "cobalt/dom/media_source.h"
 #include "cobalt/dom/media_source_ready_state.h"
+#include "cobalt/extension/audio_write_ahead.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/media/url_fetcher_data_source.h"
 #include "cobalt/media/web_media_player_factory.h"
@@ -45,6 +48,7 @@
 #include "cobalt/web/dom_exception.h"
 #include "cobalt/web/event.h"
 #include "cobalt/web/web_settings.h"
+#include "starboard/system.h"
 
 #include "cobalt/dom/eme/media_encrypted_event.h"
 #include "cobalt/dom/eme/media_encrypted_event_init.h"
@@ -639,6 +643,32 @@ void HTMLMediaElement::ScheduleEvent(const scoped_refptr<web::Event>& event) {
                TRACE_STR_COPY(event->type().c_str()));
   MLOG() << "Schedule event " << event->type() << ".";
   event_queue_.Enqueue(event);
+}
+
+std::string HTMLMediaElement::h5vcc_audio_connectors(
+    script::ExceptionState* exception_state) const {
+  static const CobaltExtensionConfigurableAudioWriteAheadApi* extension_api =
+      static_cast<const CobaltExtensionConfigurableAudioWriteAheadApi*>(
+          SbSystemGetExtension(
+              kCobaltExtensionConfigurableAudioWriteAheadName));
+  if (extension_api) {
+    if (!player_) {
+      web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                               exception_state);
+      return std::string();
+    }
+
+    DCHECK_EQ(extension_api->name,
+              std::string(kCobaltExtensionConfigurableAudioWriteAheadName));
+    DCHECK_EQ(extension_api->version, 1u);
+
+    std::vector<std::string> configs = player_->GetAudioConnectors();
+    return base::JoinString(configs, ";");
+  }
+
+  web::DOMException::Raise(web::DOMException::kNotSupportedErr,
+                           exception_state);
+  return std::string();
 }
 
 void HTMLMediaElement::CreateMediaPlayer() {

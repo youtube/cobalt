@@ -25,6 +25,18 @@ export class Player extends Component<Props> {
   /** The <video> element. */
   private videoEl!: HTMLVideoElement;
 
+  /** The video SourceBuffer */
+  private videoSourceBuffer!: SourceBuffer;
+
+  /** The audio SourceBuffer */
+  private audioSourceBuffer!: SourceBuffer;
+
+  /** max(videoSourceBuffer.writeHead - videoEl.currentTime) */
+  private maxVideoWriteHeadDistance!: number;
+
+  /** max(audioSourceBuffer.writeHead - videoEl.currentTime) */
+  private maxAudioWriteHeadDistance!: number;
+
   /** The element displaying video download buffer info. */
   private videoDownloadBufferInfo!: Element;
 
@@ -53,6 +65,8 @@ export class Player extends Component<Props> {
     super(props);
     this.videos = convertToMediaArray(props.video);
     this.audios = convertToMediaArray(props.audio);
+    this.maxVideoWriteHeadDistance = 0;
+    this.maxAudioWriteHeadDistance = 0;
   }
 
   /** @override */
@@ -93,12 +107,37 @@ export class Player extends Component<Props> {
   }
 
   private renderVideoInfo() {
+    var h5vccAudioConnectors = '';
+    try {
+      h5vccAudioConnectors = this.videoEl.h5vccAudioConnectors;
+    } catch (error) {}
     renderComponent(
         VideoInfo, {
           duration: this.videoEl.duration,
           currentTime: this.videoEl.currentTime,
+          audioConnectors: h5vccAudioConnectors,
         },
         this.videoInfo);
+    if (this.videoSourceBuffer) {
+      this.maxVideoWriteHeadDistance =
+          Math.max(this.maxVideoWriteHeadDistance,
+                   this.videoSourceBuffer.writeHead - this.videoEl.currentTime);
+      renderComponent(
+        SourceBufferInfo,
+          {name: 'Video', sourceBuffer: this.videoSourceBuffer,
+           maxWriteHeadDistance: this.maxVideoWriteHeadDistance},
+         this.videoSourceBufferInfo);
+      }
+    if (this.audioSourceBuffer) {
+      this.maxAudioWriteHeadDistance =
+          Math.max(this.maxAudioWriteHeadDistance,
+                   this.audioSourceBuffer.writeHead - this.videoEl.currentTime);
+      renderComponent(
+        SourceBufferInfo,
+        {name: 'Audio', sourceBuffer: this.audioSourceBuffer,
+         maxWriteHeadDistance: this.maxAudioWriteHeadDistance},
+        this.audioSourceBufferInfo);
+    }
   }
 
   private async play() {
@@ -149,7 +188,7 @@ export class Player extends Component<Props> {
 
   /**
    * Plays all videos as adaptive videos.
-   * TODO: dynmaically calculate the source buffer MIME.
+   * TODO: dynamically calculate the source buffer MIME.
    */
   private playAdaptiveVideo() {
     const ms = new MediaSource();
@@ -158,12 +197,7 @@ export class Player extends Component<Props> {
       if (this.videos.length > 0) {
         const videoSourceBuffer =
             ms.addSourceBuffer('video/mp4; codecs="avc1.640028"');
-        videoSourceBuffer.addEventListener('updateend', () => {
-          renderComponent(
-              SourceBufferInfo,
-              {name: 'Video', sourceBuffer: videoSourceBuffer},
-              this.videoSourceBufferInfo);
-        });
+        this.videoSourceBuffer = videoSourceBuffer;
         const downloadBuffer = new DownloadBuffer(this.videos);
         downloadBuffer.register((reportMap) => {
           renderComponent(
@@ -176,12 +210,7 @@ export class Player extends Component<Props> {
       if (this.audios.length > 0) {
         const audioSourceBuffer =
             ms.addSourceBuffer('audio/mp4; codecs="mp4a.40.2"');
-        audioSourceBuffer.addEventListener('updateend', () => {
-          renderComponent(
-              SourceBufferInfo,
-              {name: 'Audio', sourceBuffer: audioSourceBuffer},
-              this.audioSourceBufferInfo);
-        });
+        this.audioSourceBuffer = audioSourceBuffer;
         const downloadBuffer = new DownloadBuffer(this.audios);
         downloadBuffer.register(
             (reportMap) => {renderComponent(

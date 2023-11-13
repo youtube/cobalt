@@ -118,6 +118,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
         get_decode_target_graphics_context_provider_func,
     WebMediaPlayerClient* client, WebMediaPlayerDelegate* delegate,
     bool allow_resume_after_suspend, bool allow_batched_sample_write,
+    SbTime audio_write_duration_local, SbTime audio_write_duration_remote,
     ::media::MediaLog* const media_log)
     : pipeline_thread_("media_pipeline"),
       network_state_(WebMediaPlayer::kNetworkStateEmpty),
@@ -146,6 +147,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       Pipeline::Create(interface, window, pipeline_thread_.task_runner(),
                        get_decode_target_graphics_context_provider_func,
                        allow_resume_after_suspend_, allow_batched_sample_write_,
+                       audio_write_duration_local, audio_write_duration_remote,
                        media_log_, decode_target_provider_.get());
 
   // Also we want to be notified of |main_loop_| destruction.
@@ -426,6 +428,11 @@ int WebMediaPlayerImpl::GetNaturalHeight() const {
   gfx::Size size;
   pipeline_->GetNaturalVideoSize(&size);
   return size.height();
+}
+
+std::vector<std::string> WebMediaPlayerImpl::GetAudioConnectors() const {
+  DCHECK_EQ(main_loop_, base::MessageLoop::current());
+  return pipeline_->GetAudioConnectors();
 }
 
 bool WebMediaPlayerImpl::IsPaused() const {

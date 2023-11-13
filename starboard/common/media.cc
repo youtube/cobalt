@@ -639,6 +639,55 @@ const char* GetMediaVideoCodecName(SbMediaVideoCodec codec) {
   return "invalid";
 }
 
+const char* GetMediaAudioConnectorName(SbMediaAudioConnector connector) {
+  switch (connector) {
+    case kSbMediaAudioConnectorNone:
+      return "none";
+    case kSbMediaAudioConnectorAnalog:
+      return "analog";
+    case kSbMediaAudioConnectorBluetooth:
+      return "bluetooth";
+    case kSbMediaAudioConnectorHdmi:
+      return "hdmi";
+    case kSbMediaAudioConnectorNetwork:
+      return "network";
+    case kSbMediaAudioConnectorSpdif:
+      return "spdif";
+    case kSbMediaAudioConnectorUsb:
+      return "usb";
+  }
+  SB_NOTREACHED();
+  return "invalid";
+}
+
+const char* GetCobaltExtensionMediaAudioConnectorName(
+    CobaltExtensionMediaAudioConnector connector) {
+  switch (connector) {
+    case kCobaltExtensionMediaAudioConnectorUnknown:
+      return "unknown";
+    case kCobaltExtensionMediaAudioConnectorAnalog:
+      return "analog";
+    case kCobaltExtensionMediaAudioConnectorBluetooth:
+      return "bluetooth";
+    case kCobaltExtensionMediaAudioConnectorBuiltIn:
+      return "builtin";
+    case kCobaltExtensionMediaAudioConnectorHdmi:
+      return "hdmi";
+    case kCobaltExtensionMediaAudioConnectorRemoteWired:
+      return "remote-wired";
+    case kCobaltExtensionMediaAudioConnectorRemoteWireless:
+      return "remote-wireless";
+    case kCobaltExtensionMediaAudioConnectorRemoteOther:
+      return "remote-other";
+    case kCobaltExtensionMediaAudioConnectorSpdif:
+      return "spdif";
+    case kCobaltExtensionMediaAudioConnectorUsb:
+      return "usb";
+  }
+  SB_NOTREACHED();
+  return "invalid";
+}
+
 const char* GetMediaPrimaryIdName(SbMediaPrimaryId primary_id) {
   switch (primary_id) {
     case kSbMediaPrimaryIdReserved0:

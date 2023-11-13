@@ -14,6 +14,7 @@
 
 #include "starboard/system.h"
 
+#include "cobalt/extension/audio_write_ahead.h"
 #include "cobalt/extension/configuration.h"
 #include "cobalt/extension/crash_handler.h"
 #include "cobalt/extension/demuxer.h"
@@ -32,6 +33,7 @@
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "starboard/elf_loader/evergreen_config.h"
 #endif
+#include "starboard/linux/shared/audio_write_ahead.h"
 #include "starboard/linux/shared/configuration.h"
 
 const void* SbSystemGetExtension(const char* name) {
@@ -60,6 +62,9 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kCobaltExtensionFreeSpaceName) == 0) {
     return starboard::shared::posix::GetFreeSpaceApi();
+  }
+  if (strcmp(name, kCobaltExtensionConfigurableAudioWriteAheadName) == 0) {
+    return starboard::shared::GetConfigurableAudioWriteAheadApi();
   }
   if (strcmp(name, kCobaltExtensionDemuxerApi) == 0) {
     auto command_line =

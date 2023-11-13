@@ -14,8 +14,28 @@
 
 #include "cobalt/media/base/sbplayer_interface.h"
 
+#include <string>
+
 namespace cobalt {
 namespace media {
+
+DefaultSbPlayerInterface::DefaultSbPlayerInterface() {
+  const CobaltExtensionConfigurableAudioWriteAheadApi* extension_api =
+      static_cast<const CobaltExtensionConfigurableAudioWriteAheadApi*>(
+          SbSystemGetExtension(
+              kCobaltExtensionConfigurableAudioWriteAheadName));
+  if (!extension_api) {
+    return;
+  }
+
+  DCHECK_EQ(extension_api->name,
+            std::string(kCobaltExtensionConfigurableAudioWriteAheadName));
+  DCHECK_EQ(extension_api->version, 1u);
+  DCHECK_NE(extension_api->PlayerGetAudioConfiguration, nullptr);
+
+  audio_write_duration_player_get_audio_configuration_ =
+      extension_api->PlayerGetAudioConfiguration;
+}
 
 SbPlayer DefaultSbPlayerInterface::Create(
     SbWindow window, const SbPlayerCreationParam* creation_param,
@@ -108,6 +128,18 @@ void DefaultSbPlayerInterface::GetUrlPlayerExtraInfo(
   SbUrlPlayerGetExtraInfo(player, out_url_player_info);
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
+
+bool DefaultSbPlayerInterface::IsAudioWriteAheadExtensionEnabled() const {
+  return audio_write_duration_player_get_audio_configuration_ != nullptr;
+}
+
+bool DefaultSbPlayerInterface::GetAudioConfiguration(
+    SbPlayer player, int index,
+    CobaltExtensionMediaAudioConfiguration* out_audio_configuration) {
+  DCHECK(IsAudioWriteAheadExtensionEnabled());
+  return audio_write_duration_player_get_audio_configuration_(
+      player, index, out_audio_configuration);
+}
 
 }  // namespace media
 }  // namespace cobalt

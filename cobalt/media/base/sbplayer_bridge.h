@@ -24,6 +24,7 @@
 #include "base/message_loop/message_loop.h"
 #include "base/synchronization/lock.h"
 #include "base/time/time.h"
+#include "cobalt/extension/audio_write_ahead.h"
 #include "cobalt/media/base/cval_stats.h"
 #include "cobalt/media/base/decode_target_provider.h"
 #include "cobalt/media/base/decoder_buffer_cache.h"
@@ -115,6 +116,7 @@ class SbPlayerBridge {
   void SetPlaybackRate(double playback_rate);
   void GetInfo(uint32* video_frames_decoded, uint32* video_frames_dropped,
                base::TimeDelta* media_time);
+  std::vector<CobaltExtensionMediaAudioConfiguration> GetAudioConfigurations();
 
 #if SB_HAS(PLAYER_WITH_URL)
   void GetUrlPlayerBufferedTimeRanges(base::TimeDelta* buffer_start_time,
