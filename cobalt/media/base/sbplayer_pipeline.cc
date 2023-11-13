@@ -358,8 +358,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   // The following two variables are used only when the Configurable Audio Write
   // Ahead extension is enabled.
-  const SbTime audio_write_duration_local_;
-  const SbTime audio_write_duration_remote_;
+  SbTime audio_write_duration_local_;
+  SbTime audio_write_duration_remote_;
 
   // When the Configurable Audio Write Ahead extension is enabled,
   // the two variables below should always contain the same value.
@@ -444,8 +444,6 @@ SbPlayerPipeline::SbPlayerPipeline(
                     kSbPlayerStateInitialized,
                     "The underlying SbPlayer state of the media pipeline."),
       decode_target_provider_(decode_target_provider),
-      audio_write_duration_local_(audio_write_duration_local),
-      audio_write_duration_remote_(audio_write_duration_remote),
       last_media_time_(base::StringPrintf("Media.Pipeline.%s.LastMediaTime",
                                           pipeline_identifier_.c_str()),
                        0, "Last media time reported by the underlying player."),
@@ -454,9 +452,12 @@ SbPlayerPipeline::SbPlayerPipeline(
                              pipeline_identifier_.c_str()),
           "", "The max video capabilities required for the media pipeline."),
       playback_statistics_(pipeline_identifier_) {
+  SbMediaSetAudioWriteDuration(audio_write_duration_);
   DCHECK(sbplayer_interface_);
-  if (!sbplayer_interface_->IsAudioWriteAheadExtensionEnabled()) {
-    SbMediaSetAudioWriteDuration(audio_write_duration_);
+  if (sbplayer_interface_->IsAudioWriteAheadExtensionEnabled()) {
+    audio_write_duration_local_ = audio_write_duration_local;
+    audio_write_duration_remote_ = audio_write_duration_remote;
+  } else {
     LOG(INFO) << "Setting audio write duration to " << audio_write_duration_
               << ", the duration during preroll is "
               << audio_write_duration_for_preroll_;
