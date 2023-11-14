@@ -815,8 +815,15 @@ export class TimelineModelImpl {
       }
 
       case recordTypes.Layout: {
+        let frameId = -1;
+        if (event.args && event.args['beginData'] && event.args['beginData']['frame']) {
+          frameId = event.args['beginData']['frame'];
+        }
+        if (frameId === -1) {
+          break;
+        }
+
         this._invalidationTracker.didLayout(event);
-        const frameId = event.args['beginData']['frame'];
         timelineData.setInitiator(this._layoutInvalidate[frameId]);
         // In case we have no closing Layout event, endData is not available.
         if (event.args['endData']) {
