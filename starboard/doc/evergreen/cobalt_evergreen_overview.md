@@ -90,38 +90,43 @@ Evergreen](resources/cobalt_evergreen_overview_vs_non_evergreen.png)
 
 ### Building Cobalt Evergreen Components
 
-Cobalt Evergreen requires that there are two separate build(`gyp`)
+Cobalt Evergreen requires that there are two separate build
 configurations used due to the separation of the Cobalt core(`libcobalt.so`) and
-the platform-specific Starboard layer(`loader_app`). As a result, you will have
-to initiate a separate gyp process for each. This is required since the Cobalt
-core binary is built with the Google toolchain settings and the
-platform-specific Starboard layer is built with partner toolchain
-configurations.
+the platform-specific layers. As a result, you will have to run `gen gn`
+separately for each. This is required since the Cobalt core binary is built
+with the Google toolchain settings and the components in the platform-specific
+Starboard layer are built with partner toolchain configurations.
 
-Cobalt Evergreen is built by a separate gyp platform using the Google toolchain:
+Cobalt Evergreen is built by a separate GN platform using the Google toolchain.
+For example:
 
 ```
-$ cobalt/build/gn.py -p evergreen-arm-softfp -c qa
-$ ninja -C out/evergreen-arm-softfp_qa cobalt
+$ gn gen out/evergreen-arm-softfp_qa --args="target_platform=\"evergreen-arm-softfp\" build_type=\"qa\" target_cpu=\"arm\" target_os=\"linux\" sb_api_version=14"
+$ ninja -C out/evergreen-arm-softfp_qa cobalt_install
 ```
 
 Which produces a shared library `libcobalt.so` targeted for specific
 architecture, ABI and Starboard version.
 
-The gyp variable `sb_evergreen` is set to 1 when building `libcobalt.so`.
+The GN variable `sb_is_evergreen` is set to `true` when building `libcobalt.so`.
+
+Finally, note that these instructions are for producing a local build of
+`libcobalt.so`. For submissions to YTS and deployments to users' devices, an
+official release build of `libcobalt.so` should be downloaded from GitHub.
 
 The partner port of Starboard is built with the partner’s toolchain and is
 linked into the `loader_app` which knows how to dynamically load
 `libcobalt.so`, and the `crashpad_handler` which handles crashes.
 
 ```
-$ cobalt/build/gn.py -p <partner_port_name> -c qa
+$ gn gen out/<partner_port_name>_qa --args='target_platform="<partner_port_name>" build_type="qa" sb_api_version=14'
 $ ninja -C out/<partner_port_name>_qa loader_app crashpad_handler
 ```
 
-Partners should set `sb_evergreen_compatible` to 1 in their gyp platform config.
-DO NOT set the `sb_evergreen` to 1 in your platform-specific configuration as it
-is used only by Cobalt when building with the Google toolchain.
+Partners should set `sb_is_evergreen_compatible` to `true` in their GN platform
+config. DO NOT set the `sb_is_evergreen` to `true` in your platform-specific
+configuration as it is used only by Cobalt when building with the Google
+toolchain.
 
 Additionally, partners should install crash handlers as instructed in the
 [Installing Crash Handlers for Cobalt guide](../crash_handlers.md).
