@@ -43,20 +43,23 @@ using base::trace_event::TracingAgent;
 
 class TraceEventAgent : public TracingAgent {
  public:
-  TraceEventAgent();
+  TraceEventAgent() = default;
   ~TraceEventAgent() = default;
 
-  void OutputTraceData(
-      base::OnceClosure finished_cb,
-      const scoped_refptr<base::RefCountedString>& event_string,
-      bool has_more_events);
-
   // TracingAgent
-  std::string GetTracingAgentName() override;
-  std::string GetTraceEventLabel() override;
+  std::string GetTracingAgentName() override { return agent_name_; }
+  std::string GetTraceEventLabel() override { return agent_event_label_; }
   void StartAgentTracing(const TraceConfig& trace_config,
                          StartAgentTracingCallback callback) override;
   void StopAgentTracing(StopAgentTracingCallback callback) override;
+
+  void CancelTracing();
+
+ private:
+  void CollectTraceData(
+      base::OnceClosure finished_cb,
+      const scoped_refptr<base::RefCountedString>& event_string,
+      bool has_more_events);
 
  private:
   std::string agent_name_{"TraceEventAgent"};
@@ -113,6 +116,9 @@ class TracingController {
 
   void OnStartTracing(const std::string& agent_name, bool success);
   void OnStopTracing(
+      const std::string& agent_name, const std::string& events_label,
+      const scoped_refptr<base::RefCountedString>& events_str_ptr);
+  void OnCancelTracing(
       const std::string& agent_name, const std::string& events_label,
       const scoped_refptr<base::RefCountedString>& events_str_ptr);
 
