@@ -46,7 +46,7 @@ class TraceEventAgent : public TracingAgent {
   TraceEventAgent() = default;
   ~TraceEventAgent() = default;
 
-  // TracingAgent
+  // TracingAgent Interface
   std::string GetTracingAgentName() override { return agent_name_; }
   std::string GetTraceEventLabel() override { return agent_event_label_; }
   void StartAgentTracing(const TraceConfig& trace_config,
@@ -70,34 +70,38 @@ class TraceEventAgent : public TracingAgent {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-/////
-// class TraceV8Agent : public TracingAgent, public
-// script::ScriptDebugger::TraceDelegate {
-//  public:
-//   explicit TraceV8Agent(script::ScriptDebugger* script_debugger);
-//   ~TraceV8Agent() = default;
-//
-//   // TraceDelegate
-//   void AppendTraceEvent(const std::string& trace_event_json) override;
-//
-//   // TracingAgent
-//   std::string GetTracingAgentName() override;
-//   std::string GetTraceEventLabel() override;
-//   void StartAgentTracing(const TraceConfig& trace_config,
-//                                  StartAgentTracingCallback callback)
-//                                  override;
-//   void StopAgentTracing(StopAgentTracingCallback callback) override;
-//
-//   //void OnTracingStarted(const std::string& agent_name, bool success);
-//   //void OnTracingStopped(const std::string& agent_name, bool success);
-// private:
-//   std::string agent_name_{"TraceV8Agent"};
-//   std::string agent_event_label_{"Performance Tracing"};
-//
-//   THREAD_CHECKER(thread_checker_);
-//   script::ScriptDebugger* script_debugger_;
-//
-// };
+
+class TraceV8Agent : public TracingAgent,
+                     public script::ScriptDebugger::TraceDelegate {
+ public:
+  explicit TraceV8Agent(script::ScriptDebugger* script_debugger);
+  ~TraceV8Agent() = default;
+
+  // TraceDelegate Interface
+  void AppendTraceEvent(const std::string& trace_event_json) override;
+  void FlushTraceEvents() override;
+
+  // TracingAgent Interface
+  std::string GetTracingAgentName() override { return agent_name_; }
+  std::string GetTraceEventLabel() override { return agent_event_label_; }
+  void StartAgentTracing(const TraceConfig& trace_config,
+                         StartAgentTracingCallback callback) override;
+  void StopAgentTracing(StopAgentTracingCallback callback) override;
+
+ private:
+  std::string agent_name_{"TraceV8Agent"};
+  std::string agent_event_label_{"Performance Tracing"};
+
+  StopAgentTracingCallback on_stop_callback_;
+
+  THREAD_CHECKER(thread_checker_);
+  script::ScriptDebugger* script_debugger_;
+
+  // size_t collected_size_;
+  // JSONList collected_events_;
+  base::trace_event::TraceResultBuffer trace_buffer_;
+  base::trace_event::TraceResultBuffer::SimpleOutput json_output_;
+};
 
 //////////////////////////////////////////////////////////////////////////////
 // https://chromedevtools.github.io/devtools-protocol/tot/Tracing
@@ -130,6 +134,7 @@ class TracingController {
  private:
   DebugDispatcher* dispatcher_;
   std::vector<std::unique_ptr<TracingAgent>> agents_;
+  std::atomic_int agents_responded_{0};
 
   bool tracing_started_;
   std::vector<std::string> categories_;

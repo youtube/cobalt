@@ -99,6 +99,7 @@ void TraceEventAgent::CollectTraceData(
     base::OnceClosure finished_cb,
     const scoped_refptr<base::RefCountedString>& event_string,
     bool has_more_events) {
+  LOG(INFO) << "YO THOR EVNT APPEND " << event_string->data();
   trace_buffer_.AddFragment(event_string->data());
   if (!has_more_events) {
     std::move(finished_cb).Run();
@@ -106,60 +107,35 @@ void TraceEventAgent::CollectTraceData(
 }
 
 ///////////////// TRACE V8 AGENT ///////////////////////////////////
-// TraceV8Agent::TraceV8Agent(script::ScriptDebugger* script_debugger)
-//   : script_debugger_(script_debugger) {
-// }
-//
-// std::string TraceV8Agent::GetTracingAgentName() {
-//   return "CobaltTraceV8Agent";
-// }
-// std::string TraceV8Agent::GetTraceEventLabel() {
-//   return "CobaltTracing";
-// }
-//
-// void TraceV8Agent::AppendTraceEvent(const std::string& trace_event_json) {
-//   // We initialize a new list into which we collect events both when we
-//   start,
-//   // and after each time it's released in |SendDataCollectedEvent|.
-//   if (!collected_events_) {
-//     collected_events_.reset(new base::ListValue());
-//   }
-//
-//   JSONObject event = JSONParse(trace_event_json);
-//   if (event) {
-//     collected_events_->Append(std::move(event));
-//     collected_size_ += trace_event_json.size();
-//   }
-//
-//   if (collected_size_ >= kDataCollectedSize) {
-//     SendDataCollectedEvent();
-//   }
-// }
-//
-// void TracingController::FlushTraceEvents() {
-//   SendDataCollectedEvent();
-//   dispatcher_->SendEvent(std::string(kInspectorDomain) + ".tracingComplete");
-// }
-//
-// void TraceV8Agent::StartAgentTracing(const TraceConfig& trace_config,
-//                                StartAgentTracingCallback callback) {
-// }
-//
-// void TraceV8Agent::StopAgentTracing(StopAgentTracingCallback callback) {
-// }
-//
-// void TraceV8Agent::OnTracingStarted(const std::string& agent_name, bool
-// success) {
-//   LOG(INFO) << "TraceV8Agent:" << agent_name << " - STARTING - successful? "
-//   << (success ? "true" : "false");
-// }
-//
-// void TraceV8Agent::OnTracingStopped(const std::string& agent_name, bool
-// success) {
-//   LOG(INFO) << "TraceV8Agent:" << agent_name << " - STOPPING - successful? "
-//   << (success ? "true" : "false");
-// }
+TraceV8Agent::TraceV8Agent(script::ScriptDebugger* script_debugger)
+    : script_debugger_(script_debugger) {}
 
+void TraceV8Agent::AppendTraceEvent(const std::string& trace_event_json) {
+  LOG(INFO) << "YO THOR V8 APPEND " << trace_event_json;
+  trace_buffer_.AddFragment(trace_event_json);
+}
+
+void TraceV8Agent::FlushTraceEvents() {
+  trace_buffer_.Finish();
+  std::move(on_stop_callback_)
+      .Run(agent_name_, agent_event_label_,
+           base::RefCountedString::TakeString(&json_output_.json_output));
+}
+
+void TraceV8Agent::StartAgentTracing(const TraceConfig& trace_config,
+                                     StartAgentTracingCallback callback) {
+  json_output_.json_output.clear();
+  trace_buffer_.SetOutputCallback(json_output_.GetCallback());
+  trace_buffer_.Start();
+
+  script_debugger_->StartTracing(std::vector<std::string>(), this);
+  std::move(callback).Run(agent_name_, true);
+}
+
+void TraceV8Agent::StopAgentTracing(StopAgentTracingCallback callback) {
+  on_stop_callback_ = std::move(callback);
+  script_debugger_->StopTracing();
+}
 
 ///////////////// TRACING CONTROLLER //////////////////////////////////
 TracingController::TracingController(DebugDispatcher* dispatcher,
@@ -176,7 +152,7 @@ TracingController::TracingController(DebugDispatcher* dispatcher,
       base::Bind(&TracingController::Start, base::Unretained(this));
 
   agents_.push_back(std::make_unique<TraceEventAgent>());
-  // agents_.push_back(std::make_unique<TraceV8Agent>(script_debugger));
+  agents_.push_back(std::make_unique<TraceV8Agent>(script_debugger));
 }
 
 void TracingController::Thaw(JSONObject agent_state) {
@@ -190,13 +166,13 @@ void TracingController::Thaw(JSONObject agent_state) {
   }
   tracing_started_ = agent_state->FindKey(kStarted)->GetBool();
   if (tracing_started_) {
+    agents_responded_ = 0;
     auto config = base::trace_event::TraceConfig();
     for (const auto& a : agents_) {
       a->StartAgentTracing(config,
                            base::BindOnce(&TracingController::OnStartTracing,
                                           base::Unretained(this)));
     }
-    // script_debugger_->StartTracing(categories_, this);
   }
 }
 
@@ -206,7 +182,6 @@ JSONObject TracingController::Freeze() {
       a->StopAgentTracing(base::BindOnce(&TracingController::OnCancelTracing,
                                          base::Unretained(this)));
     }
-    // script_debugger_->StopTracing();
   }
 
   dispatcher_->RemoveDomain(kInspectorDomain);
@@ -261,13 +236,13 @@ void TracingController::Start(Command command) {
 
   collected_events_.reset(new base::ListValue());
 
+  agents_responded_ = 0;
   auto config = base::trace_event::TraceConfig();
   for (const auto& a : agents_) {
     a->StartAgentTracing(config,
                          base::BindOnce(&TracingController::OnStartTracing,
                                         base::Unretained(this)));
   }
-  // script_debugger_->StartTracing(categories_, this);
   tracing_started_ = true;
   command.SendResponse();
 }
@@ -332,7 +307,10 @@ void TracingController::SendDataCollectedEvent() {
 
 void TracingController::FlushTraceEvents() {
   SendDataCollectedEvent();
-  dispatcher_->SendEvent(std::string(kInspectorDomain) + ".tracingComplete");
+  agents_responded_++;
+  if (agents_responded_ == static_cast<int>(agents_.size())) {
+    dispatcher_->SendEvent(std::string(kInspectorDomain) + ".tracingComplete");
+  }
 }
 
 }  // namespace backend
