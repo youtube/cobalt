@@ -232,6 +232,7 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
     ++extension;
 
     // Only add font formats that match the format setting.
+    #if SB_API_VERSION < 16
     if (font_format_setting == kTtf) {
       if (SbStringCompareNoCase("ttf", extension) != 0 &&
           SbStringCompareNoCase(extension, "ttc") != 0) {
@@ -241,6 +242,17 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
                SbStringCompareNoCase("woff2", extension) != 0) {
       continue;
     }
+    #else
+    if (font_format_setting == kTtf) {
+      if (strcasecmp("ttf", extension) != 0 &&
+          strcasecmp(extension, "ttc") != 0) {
+        continue;
+      }
+    } else if (font_format_setting == kWoff2 &&
+               strcasecmp("woff2", extension) != 0) {
+      continue;
+    }
+    #endif //SB_API_VERSION < 16
 
     SkFontStyle style(font_file.weight, SkFontStyle::kNormal_Width,
                       font_file.style == FontFileInfo::kItalic_FontStyle
@@ -272,6 +284,7 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
     int* index = styles_index_map.find(font_name);
     if (index != nullptr) {
       // If style with name already exists in family, replace it.
+      #if SB_API_VERSION < 16
       if (font_format_setting == kTtfPreferred &&
           SbStringCompareNoCase("ttf", extension) == 0) {
         styles_[*index].reset(font);
@@ -279,6 +292,15 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
                  SbStringCompareNoCase("woff2", extension) == 0) {
         styles_[*index].reset(font);
       }
+      #else
+      if (font_format_setting == kTtfPreferred &&
+          strcasecmp("ttf", extension) == 0) {
+        styles_[*index].reset(font);
+      } else if (font_format_setting == kWoff2Preferred &&
+                 strcasecmp("woff2", extension) == 0) {
+        styles_[*index].reset(font);
+      }
+      #endif //SB_API_VERSION < 16
     } else {
       int count = styles_.count();
       styles_index_map.set(font_name, count);

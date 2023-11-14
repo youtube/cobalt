@@ -117,9 +117,15 @@ bool IsInArray(const char* input_str, const char* array[], size_t size) {
     return false;
   }
   for (size_t i = 0; i < size; ++i) {
+    #if SB_API_VERSION < 16
     if (SbStringCompareNoCase(input_str, array[i]) == 0) {
       return true;
     }
+    #else
+    if (strcasecmp(input_str, array[i]) == 0) {
+      return true;
+    }
+    #endif // SB_API_VERSION < 16
   }
   return false;
 }
@@ -132,10 +138,18 @@ bool HasFieldValue(const std::vector<std::string>& field_values,
     if (field_values[i].empty()) {
       continue;
     }
+    #if SB_API_VERSION < 16
     if (SbStringCompareNoCase(field_values[i].c_str(),
                               find_value_name.c_str()) == 0) {
       return true;
     }
+    #else
+    if (strcasecmp(field_values[i].c_str(),
+                              find_value_name.c_str()) == 0) {
+      return true;
+    }
+    #endif // SB_API_VERSION < 16
+    
   }
   return false;
 }
@@ -220,10 +234,17 @@ bool CORSPreflight::IsSafeResponseHeader(
   }
 
   for (size_t i = 0; i < CORS_exposed_header_name_list.size(); i++) {
+    #if SB_API_VERSION < 16
     if (SbStringCompareNoCase(CORS_exposed_header_name_list.at(i).c_str(),
                               name.c_str()) == 0) {
       return true;
     }
+    #else
+    if (strcasecmp(CORS_exposed_header_name_list.at(i).c_str(),
+                              name.c_str()) == 0) {
+      return true;
+    }
+    #endif //SB_API_VERSION < 16
   }
   return false;
 }
@@ -381,12 +402,22 @@ void CORSPreflight::OnURLFetchComplete(const net::URLFetcher* source) {
       if (HasFieldValue(headernames_vec, it.name())) {
         continue;
       }
+      #if SB_API_VERSION < 16
       if (SbStringCompareNoCase(it.name().c_str(), kAuthorization) == 0 ||
           (!HasFieldValue(headernames_vec, "*") &&
            !IsSafeRequestHeader(it.name(), it.value()))) {
         error_callback_.Run();
         return;
       }
+      #else
+      if (strcasecmp(it.name().c_str(), kAuthorization) == 0 ||
+          (!HasFieldValue(headernames_vec, "*") &&
+           !IsSafeRequestHeader(it.name(), it.value()))) {
+        error_callback_.Run();
+        return;
+      }
+      #endif //SB_API_VERSION < 16
+
     }
     // step 10-18 for adding entry to preflight cache.
     std::string max_age_str;

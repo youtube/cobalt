@@ -196,9 +196,15 @@ const std::string& MimeType::GetParamName(int index) const {
 
 int MimeType::GetParamIndexByName(const char* name) const {
   for (size_t i = 0; i < params_.size(); ++i) {
+    #if SB_API_VERSION < 16
     if (SbStringCompareNoCase(params_[i].name.c_str(), name) == 0) {
       return static_cast<int>(i);
     }
+    #else
+    if (strcasecmp(params_[i].name.c_str(), name) == 0) {
+      return static_cast<int>(i);
+    }
+    #endif // SB_API_VERSION < 16
   }
   return kInvalidParamIndex;
 }
