@@ -22,17 +22,10 @@ RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
         binutils \
         bison \
+        nasm \
         ninja-build \
         pkgconf \
-        software-properties-common \
         unzip \
-    && /opt/clean-after-apt.sh
-
-# === Install nasm 2.16 using backport from PPA
-# https://launchpad.net/~savoury1/+archive/ubuntu/backports
-RUN add-apt-repository ppa:savoury1/backports \
-    && apt update -qqy \
-    && apt install -qqy --no-install-recommends nasm \
     && /opt/clean-after-apt.sh
 
 # === Get Nodejs pinned LTS version via NVM

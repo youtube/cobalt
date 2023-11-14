@@ -24,5 +24,12 @@ RUN apt update -qqy \
     && apt install -qqy --no-install-recommends git \
     && /opt/clean-after-apt.sh
 
+# === Install nasm 2.16 using backport from PPA
+# https://launchpad.net/~savoury1/+archive/ubuntu/backports
+RUN add-apt-repository ppa:savoury1/backports \
+    && apt update -qqy \
+    && apt install -qqy --no-install-recommends nasm \
+    && /opt/clean-after-apt.sh
+
 CMD gn gen ${OUTDIR}/${PLATFORM}_${CONFIG} --args="target_platform=\"${PLATFORM}\" build_type=\"${CONFIG}\" using_old_compiler=true" && \
     ninja -v -j ${NINJA_PARALLEL} -C ${OUTDIR}/${PLATFORM}_${CONFIG} ${TARGET:-cobalt_install}
