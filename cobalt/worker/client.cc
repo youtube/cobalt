@@ -24,10 +24,10 @@ namespace cobalt {
 namespace worker {
 Client::Client(web::EnvironmentSettings* client) {
   DCHECK(client);
-  SetEventTarget(client->context()
-                     ->GetWindowOrWorkerGlobalScope()
-                     ->navigator_base()
-                     ->service_worker());
+  EntangleWithEventTarget(client->context()
+                              ->GetWindowOrWorkerGlobalScope()
+                              ->navigator_base()
+                              ->service_worker());
   // Algorithm for Create Client:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#create-client
   // 1. Let clientObject be a new Client object.

@@ -19,7 +19,6 @@
 
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/message_loop/message_loop.h"
 #include "base/task_runner.h"
 #include "base/threading/thread.h"
 #include "cobalt/browser/user_agent_platform_info.h"
@@ -265,7 +264,7 @@ void Worker::Execute(const std::string& content,
   // Done at step 8.
   // 16. Let inside port be a new MessagePort object in inside settings's Realm.
   // 17. Associate inside port with worker global scope.
-  message_port_->SetEventTarget(worker_global_scope_);
+  message_port_->EntangleWithEventTarget(worker_global_scope_);
   // 18. Entangle outside port and inside port.
   // TODO(b/226640425): Implement this when Message Ports can be entangled.
   // 19. Create a new WorkerLocation object and associate it with worker global
@@ -313,11 +312,11 @@ void Worker::Abort() {
   // Algorithm for 'run a worker'
   //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#run-a-worker
   // 29. Clear the worker global scope's map of active timers.
-  if (worker_global_scope_ && message_loop()) {
-    message_loop()->task_runner()->PostBlockingTask(
+  if (worker_global_scope_ && task_runner()) {
+    task_runner()->PostTask(
         FROM_HERE, base::Bind(
-                       [](WorkerGlobalScope* worker_global_scope) {
-                         worker_global_scope->DestroyTimers();
+                       [](web::WindowOrWorkerGlobalScope* global_scope) {
+                         global_scope->DestroyTimers();
                        },
                        base::Unretained(worker_global_scope_.get())));
   }
@@ -356,18 +355,8 @@ void Worker::Terminate() {
 }
 
 void Worker::PostMessage(const script::ValueHandleHolder& message) {
-  DCHECK(message_loop());
-  auto structured_clone = std::make_unique<script::StructuredClone>(message);
-  if (base::MessageLoop::current() != message_loop()) {
-    // Block until the worker thread is ready to execute code to handle the
-    // event.
-    message_loop()->task_runner()->PostTask(
-        FROM_HERE, base::BindOnce(&web::MessagePort::PostMessageSerialized,
-                                  message_port_->AsWeakPtr(),
-                                  std::move(structured_clone)));
-  } else {
-    message_port_->PostMessageSerialized(std::move(structured_clone));
-  }
+  DCHECK(message_port_);
+  message_port_->PostMessage(message);
 }
 
 }  // namespace worker
