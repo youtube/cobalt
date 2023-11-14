@@ -145,6 +145,12 @@ typedef enum SbPlayerSampleSideDataType {
   // The first 8 bytes of the data contains the value of BlockAddID in big
   // endian format, followed by the content of BlockAdditional.
   kMatroskaBlockAdditional,
+#if SB_API_VERSION >= 16
+  // The config OBUs located in the IASampleEntry Box in the MP4 container, as
+  // specified in
+  // https://aomediacodec.github.io/iamf/#standalone-descriptor-obus.
+  kIamfConfigObus,
+#endif  // SB_API_VERSION >= 16
 } SbPlayerSampleSideDataType;
 
 // Side data accompanied with |SbPlayerSampleInfo|, it can be arbitrary binary

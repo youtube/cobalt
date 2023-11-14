@@ -36,6 +36,10 @@ deprecated.
 The APIs defined in `starboard/image.h` are no longer used and have been
 deprecated.
 
+### Add a new enum `kIamfConfigObus` to `SbPlayerSampleSideDataType` in `starboard/player.h`
+This value allows IAMF samples to be written to Starboard along with IAMF
+Config OBUs as side data.
+
 ## Version 15
 
 ### SbMemoryReporter is no longer used
