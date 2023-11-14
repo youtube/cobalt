@@ -54,7 +54,7 @@ using Windows::Graphics::Display::Core::HdmiDisplayInformation;
 // Limit the number of pending buffers.
 constexpr int kMaxNumberOfPendingBuffers = 8;
 // Limit the cached presenting images.
-constexpr int kNumberOfCachedPresentingImage = 2;
+constexpr int kNumberOfCachedPresentingImage = 3;
 // The number of frame buffers in decoder
 constexpr int kNumOutputFrameBuffers = 7;
 

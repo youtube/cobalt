@@ -101,7 +101,8 @@ bool ParsedMimeInfo::ParseAudioInfo(const std::string& codec) {
   SB_DCHECK(mime_type_.is_valid());
   SB_DCHECK(!has_audio_info());
 
-  SbMediaAudioCodec audio_codec = GetAudioCodecFromString(codec.c_str());
+  SbMediaAudioCodec audio_codec =
+      GetAudioCodecFromString(codec.c_str(), mime_type_.subtype().c_str());
   if (audio_codec == kSbMediaAudioCodecNone) {
     return false;
   }
