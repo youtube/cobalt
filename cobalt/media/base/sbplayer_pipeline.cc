@@ -1001,7 +1001,6 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
 #endif  // SB_HAS(PLAYER_WITH_URL)
   DCHECK(type == DemuxerStream::AUDIO || type == DemuxerStream::VIDEO)
       << "Unsupported DemuxerStream::Type " << type;
-  TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::OnDemuxerStreamRead");
 
   if (!task_runner_->BelongsToCurrentThread()) {
     task_runner_->PostTask(
@@ -1067,7 +1066,6 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type,
 #endif  // SB_HAS(PLAYER_WITH_URL)
   DCHECK(task_runner_->BelongsToCurrentThread());
 
-  TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::OnNeedData");
   // In case if Stop() has been called.
   if (!player_bridge_) {
     return;

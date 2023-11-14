@@ -38,8 +38,6 @@ constexpr char kInspectorDomain[] = "Tracing";
 constexpr char kStarted[] = "started";
 constexpr char kCategories[] = "categories";
 
-// Size in characters of JSON to batch dataCollected events.
-// constexpr size_t kDataCollectedSize = 24 * 1024;
 }  // namespace
 
 
@@ -99,7 +97,6 @@ void TraceEventAgent::CollectTraceData(
     base::OnceClosure finished_cb,
     const scoped_refptr<base::RefCountedString>& event_string,
     bool has_more_events) {
-  LOG(INFO) << "YO THOR EVNT APPEND " << event_string->data();
   trace_buffer_.AddFragment(event_string->data());
   if (!has_more_events) {
     std::move(finished_cb).Run();
@@ -111,7 +108,6 @@ TraceV8Agent::TraceV8Agent(script::ScriptDebugger* script_debugger)
     : script_debugger_(script_debugger) {}
 
 void TraceV8Agent::AppendTraceEvent(const std::string& trace_event_json) {
-  LOG(INFO) << "YO THOR V8 APPEND " << trace_event_json;
   trace_buffer_.AddFragment(trace_event_json);
 }
 
@@ -152,7 +148,7 @@ TracingController::TracingController(DebugDispatcher* dispatcher,
       base::Bind(&TracingController::Start, base::Unretained(this));
 
   agents_.push_back(std::make_unique<TraceEventAgent>());
-  agents_.push_back(std::make_unique<TraceV8Agent>(script_debugger));
+  // agents_.push_back(std::make_unique<TraceV8Agent>(script_debugger));
 }
 
 void TracingController::Thaw(JSONObject agent_state) {
@@ -199,7 +195,6 @@ JSONObject TracingController::Freeze() {
 }
 
 void TracingController::End(Command command) {
-  // DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (!tracing_started_) {
     command.SendErrorResponse(Command::kInvalidRequest, "Tracing not started");
     return;
@@ -215,7 +210,6 @@ void TracingController::End(Command command) {
 }
 
 void TracingController::Start(Command command) {
-  // DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (tracing_started_) {
     command.SendErrorResponse(Command::kInvalidRequest,
                               "Tracing already started");
@@ -294,8 +288,6 @@ void TracingController::SendDataCollectedEvent() {
   if (collected_events_) {
     std::string events;
     collected_events_->GetString(0, &events);
-    LOG(INFO) << "YO THOR ! SEND DATA COLLECTED! num:"
-              << collected_events_->GetSize() << " Events:" << events;
     JSONObject params(new base::DictionaryValue());
     // Releasing the list into the value param avoids copying it.
     params->Set("value", std::move(collected_events_));

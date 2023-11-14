@@ -31,19 +31,6 @@
 /**
  * @unrestricted
  */
-let printObj = function (obj) {
-    let string = '';
-    for (let prop in obj) {
-        if (typeof obj[prop] == 'string') {
-            string += prop + ': ' + obj[prop] + '; \n';
-        }
-        // else {
-        //     string += prop + ': {NOTaSTRING}; \n';
-        // }
-    }
-    return string;
-}
-
 export class TimelineModelImpl {
   constructor() {
     this._reset();
@@ -601,7 +588,6 @@ export class TimelineModelImpl {
       let i = events.lowerBound(range.from, (time, event) => time - event.startTime);
       for (; i < events.length; i++) {
         const event = events[i];
-
         if (event.startTime >= range.to) {
           break;
         }
@@ -1031,9 +1017,7 @@ export class TimelineModelImpl {
           timelineData.warning = TimelineModelImpl.WarningType.IdleDeadlineExceeded;
         }
         break;
-
     }
-
     return true;
   }
 
