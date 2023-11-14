@@ -303,13 +303,11 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbStorageOpenRecord);
   REGISTER_SYMBOL(SbStorageReadRecord);
   REGISTER_SYMBOL(SbStorageWriteRecord);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbStringCompareNoCase);
   REGISTER_SYMBOL(SbStringCompareNoCaseN);
-
-#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbStringDuplicate);
-#endif  // #if SB_API_VERSION < 16
-
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbStringFormat);
   REGISTER_SYMBOL(SbStringFormatWide);
   REGISTER_SYMBOL(SbStringScan);

@@ -23,10 +23,12 @@
 
 #include "starboard/string.h"
 
+#if SB_API_VERSION < 16
 #undef strcasecmp
 #define strcasecmp(s1, s2) SbStringCompareNoCase(s1, s2)
 #undef strncasecmp
 #define strncasecmp(s1, s2) SbStringCompareNoCaseN(s1, s2)
+#endif // SB_API_VERSION < 16
 
 #endif  // POEM_NO_EMULATION
 

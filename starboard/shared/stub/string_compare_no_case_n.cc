@@ -14,8 +14,10 @@
 
 #include "starboard/common/string.h"
 
+#if SB_API_VERSION < 16
 int SbStringCompareNoCaseN(const char* string1,
                            const char* string2,
                            size_t count) {
   return 0;
 }
+#endif
