@@ -16,19 +16,14 @@ FROM linux-x64x11-bionic
 
 ARG DEBIAN_FRONTEND=noninteractive
 
+# Note: NASM 2.16 is obtained via PPA for ubuntu distributions older than 20.04
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
         gcc-6 g++-6 software-properties-common \
     && add-apt-repository -y ppa:git-core/ppa \
+    && add-apt-repository -y ppa:savoury1/backports \
     && apt update -qqy \
-    && apt install -qqy --no-install-recommends git \
-    && /opt/clean-after-apt.sh
-
-# === Install nasm 2.16 using backport from PPA
-# https://launchpad.net/~savoury1/+archive/ubuntu/backports
-RUN add-apt-repository ppa:savoury1/backports \
-    && apt update -qqy \
-    && apt install -qqy --no-install-recommends nasm \
+    && apt install -qqy --no-install-recommends git nasm \
     && /opt/clean-after-apt.sh
 
 CMD gn gen ${OUTDIR}/${PLATFORM}${SB_API_VERSION:+-sbversion-$SB_API_VERSION}_${CONFIG:-debug} --args="target_platform=\"${PLATFORM}\" build_type=\"${CONFIG:-debug}\" is_clang=false using_old_compiler=true ${SB_API_VERSION:+sb_api_version=$SB_API_VERSION}" && \
