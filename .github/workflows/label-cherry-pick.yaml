@@ -129,6 +129,6 @@ jobs:
                 issue_number: '${{ steps.create-pr.outputs.pull-request-number }}',
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                body: '> [!IMPORTANT]\n> The cherry-pick failed! Check out the PR branch (${{ matrix.target_branch }}-${{ github.event.pull_request.number }}) and fix the conflicts before proceeding. Check the log at ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} for details.'
+                body: '> [!IMPORTANT]\n> There were merge conflicts while cherry picking! Check out the PR branch (${{ matrix.target_branch }}-${{ github.event.pull_request.number }}) and fix the conflicts before proceeding. Check the log at ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} for details.'
               });
             }
