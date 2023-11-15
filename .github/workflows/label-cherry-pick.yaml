@@ -80,9 +80,9 @@ jobs:
           git fetch origin ${{ matrix.target_branch }}
 
           set +e
-          # Select the first parent (-m 1) as the mainline tree. This is necessary if
+          # Select the first parent as the mainline tree. This is necessary if
           # the commit has multiple parents as the cherry-pick will fail otherwise.
-          git cherry-pick -x -m 1 ${MERGE_COMMIT_SHA}
+          git cherry-pick -x --mainline=1 ${MERGE_COMMIT_SHA}
           RES=$?
           set -e
           if [ ${RES} -ne 0 ]; then
