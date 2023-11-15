@@ -292,8 +292,10 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbStringCompareNoCase);
   REGISTER_SYMBOL(SbStringCompareNoCaseN);
   REGISTER_SYMBOL(SbStringDuplicate);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbStringFormat);
   REGISTER_SYMBOL(SbStringFormatWide);
+#endif
   REGISTER_SYMBOL(SbStringScan);
   REGISTER_SYMBOL(SbSystemBreakIntoDebugger);
   REGISTER_SYMBOL(SbSystemClearLastError);

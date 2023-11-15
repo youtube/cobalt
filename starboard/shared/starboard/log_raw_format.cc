@@ -15,11 +15,12 @@
 #include "starboard/common/log.h"
 
 #include <stdarg.h>
+#include <stdio.h>
 
 #include "starboard/common/string.h"
 
 void SbLogRawFormat(const char* format, va_list arguments) {
   char message[128];
-  SbStringFormat(message, sizeof(message), format, arguments);
+  vsnprintf(message, sizeof(message), format, arguments);
   SbLogRaw(message);
 }

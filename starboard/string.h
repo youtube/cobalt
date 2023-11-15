@@ -20,6 +20,8 @@
 #define STARBOARD_STRING_H_
 
 #include <stdarg.h>
+#include <stdio.h>
+#include <wchar.h>
 
 #include "starboard/configuration.h"
 #include "starboard/export.h"
@@ -62,6 +64,7 @@ SB_EXPORT int SbStringCompareNoCaseN(const char* string1,
                                      const char* string2,
                                      size_t count);
 
+#if SB_API_VERSION <= 15
 // Produces a string formatted with |format| and |arguments|, placing as much
 // of the result that will fit into |out_buffer|. The return value specifies
 // the number of characters that the format would produce if |buffer_size| were
@@ -77,7 +80,6 @@ SB_EXPORT int SbStringFormat(char* out_buffer,
                              size_t buffer_size,
                              const char* format,
                              va_list arguments) SB_PRINTF_FORMAT(3, 0);
-
 // An inline wrapper of SbStringFormat that converts from ellipsis to va_args.
 // This function is meant to be a drop-in replacement for |snprintf|.
 //
@@ -95,7 +97,7 @@ static SB_C_INLINE int SbStringFormatF(char* out_buffer,
                                        ...) {
   va_list arguments;
   va_start(arguments, format);
-  int result = SbStringFormat(out_buffer, buffer_size, format, arguments);
+  int result = vsnprintf(out_buffer, buffer_size, format, arguments);
   va_end(arguments);
   return result;
 }
@@ -114,7 +116,7 @@ static SB_C_INLINE int SbStringFormatUnsafeF(char* out_buffer,
                                              ...) {
   va_list arguments;
   va_start(arguments, format);
-  int result = SbStringFormat(out_buffer, SSIZE_MAX, format, arguments);
+  int result = vsnprintf(out_buffer, SSIZE_MAX, format, arguments);
   va_end(arguments);
   return result;
 }
@@ -138,16 +140,18 @@ SB_EXPORT int SbStringFormatWide(wchar_t* out_buffer,
 // |buffer_size|: The size of |out_buffer|.
 // |format|: A string that specifies how the data should be formatted.
 // |...|: Arguments used in the string.
+
 static SB_C_INLINE int SbStringFormatWideF(wchar_t* out_buffer,
                                            size_t buffer_size,
                                            const wchar_t* format,
                                            ...) {
   va_list arguments;
   va_start(arguments, format);
-  int result = SbStringFormatWide(out_buffer, buffer_size, format, arguments);
+  int result = vswprintf(out_buffer, buffer_size, format, arguments);
   va_end(arguments);
   return result;
 }
+#endif
 
 // Scans |buffer| for |pattern|, placing the extracted values in |arguments|.
 // The return value specifies the number of successfully matched items, which

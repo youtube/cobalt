@@ -299,6 +299,10 @@
 #include <type_traits>
 #include <vector>
 
+#if SB_API_VERSION >= 16
+#include <stdio.h>
+#endif
+
 
 #include "gtest/internal/custom/gtest-port.h"
 #include "gtest/internal/gtest-port-arch.h"
@@ -2102,7 +2106,11 @@ inline void Abort() { SbSystemBreakIntoDebugger(); }
 
 inline int VSNPrintF(char* out_buffer, size_t size, const char* format,
                       va_list args) {
+#if SB_API_VERSION < 16
   return SbStringFormat(out_buffer, size, format, args);
+#else
+  return vsnprintf(out_buffer, size, format, args);
+#endif
 }
 
 inline size_t StrLen(const char *str) {

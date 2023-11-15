@@ -31,7 +31,7 @@
 #undef assert
 #define assert SB_DCHECK
 #define getenv(x) NULL
-#define snprintf SbStringFormatF
+
 #define strdup SbStringDuplicate
 
 #endif  // HB_STARBOARD_HH

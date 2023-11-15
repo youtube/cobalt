@@ -95,7 +95,7 @@ scoped_refptr<ParsedCertificate> TrustStoreInMemoryStarboard::TryLoadCert(
     const base::StringPiece& cert_name) const {
   auto hash = CertNameHash(cert_name.data(), cert_name.length());
   char cert_file_name[256];
-  SbStringFormatF(cert_file_name, 256, "%08lx.%d", hash, 0);
+  snprintf(cert_file_name, 256, "%08lx.%d", hash, 0);
 
   if (trusted_cert_names_on_disk_.find(cert_file_name) ==
       trusted_cert_names_on_disk_.end()) {

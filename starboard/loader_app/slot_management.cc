@@ -223,14 +223,13 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
 
     // installation_n/lib/libcobalt.so
     std::vector<char> compressed_lib_path(kSbFileMaxPath);
-    SbStringFormatF(compressed_lib_path.data(), kSbFileMaxPath, "%s%s%s%s%s",
-                    installation_path.data(), kSbFileSepString,
-                    kCobaltLibraryPath, kSbFileSepString,
-                    kCompressedCobaltLibraryName);
+    snprintf(compressed_lib_path.data(), kSbFileMaxPath, "%s%s%s%s%s",
+             installation_path.data(), kSbFileSepString, kCobaltLibraryPath,
+             kSbFileSepString, kCompressedCobaltLibraryName);
     std::vector<char> uncompressed_lib_path(kSbFileMaxPath);
-    SbStringFormatF(uncompressed_lib_path.data(), kSbFileMaxPath, "%s%s%s%s%s",
-                    installation_path.data(), kSbFileSepString,
-                    kCobaltLibraryPath, kSbFileSepString, kCobaltLibraryName);
+    snprintf(uncompressed_lib_path.data(), kSbFileMaxPath, "%s%s%s%s%s",
+             installation_path.data(), kSbFileSepString, kCobaltLibraryPath,
+             kSbFileSepString, kCobaltLibraryName);
 
     std::string lib_path;
     bool use_compression;
@@ -258,9 +257,8 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
     if (alternative_content_path.empty()) {
       // installation_n/content
       std::vector<char> content_path(kSbFileMaxPath);
-      SbStringFormatF(content_path.data(), kSbFileMaxPath, "%s%s%s",
-                      installation_path.data(), kSbFileSepString,
-                      kCobaltContentPath);
+      snprintf(content_path.data(), kSbFileMaxPath, "%s%s%s",
+               installation_path.data(), kSbFileSepString, kCobaltContentPath);
       content = content_path.data();
     } else {
       content = alternative_content_path.c_str();
