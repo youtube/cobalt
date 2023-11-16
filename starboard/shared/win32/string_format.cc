@@ -16,9 +16,11 @@
 
 #include <stdio.h>
 
+#if SB_API_VERSION <= 15
 int SbStringFormat(char* out_buffer,
                    size_t buffer_size,
                    const char* format,
                    va_list arguments) {
   return vsnprintf(out_buffer, buffer_size, format, arguments);
 }
+#endif

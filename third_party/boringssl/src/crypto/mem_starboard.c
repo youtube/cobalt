@@ -221,5 +221,5 @@ int BIO_snprintf(char *buf, size_t n, const char *format, ...) {
 }
 
 int BIO_vsnprintf(char *buf, size_t n, const char *format, va_list args) {
-  return SbStringFormat(buf, n, format, args);
+  return vsnprintf(buf, n, format, args);
 }

@@ -9,6 +9,7 @@
 
 #include <ctype.h>
 #include <stdarg.h>   // va_list
+#include <stdio.h>
 
 #include <initializer_list>
 #include <string>
@@ -47,7 +48,7 @@ inline int snprintf(char* buffer,
                     ...) {
   va_list arguments;
   va_start(arguments, format);
-  int result = vsnprintf(buffer, size, format, arguments);
+  int result = ::vsnprintf(buffer, size, format, arguments);
   va_end(arguments);
   return result;
 }

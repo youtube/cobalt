@@ -22,6 +22,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+#if SB_API_VERSION <= 15
 int Format(wchar_t* out_buffer,
            size_t buffer_size,
            const wchar_t* format,
@@ -44,6 +45,7 @@ TEST(SbStringFormatWideTest, SunnyDay) {
     EXPECT_EQ(kExpected[i], destination[i]);
   }
 }
+#endif
 
 }  // namespace
 }  // namespace nplb

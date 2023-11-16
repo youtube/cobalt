@@ -31,6 +31,5 @@
 #undef assert
 #define assert SB_DCHECK
 #define getenv(x) NULL
-#define snprintf SbStringFormatF
 
 #endif  // HB_STARBOARD_HH
