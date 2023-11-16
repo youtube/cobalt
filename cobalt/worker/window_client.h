@@ -36,8 +36,9 @@ struct WindowData {
 class WindowClient : public Client {
  public:
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#create-window-client
-  static scoped_refptr<Client> Create(const WindowData& window_data) {
-    return new WindowClient(window_data);
+  static scoped_refptr<Client> Create(web::EnvironmentSettings* settings,
+                                      const WindowData& window_data) {
+    return new WindowClient(settings, window_data);
   }
   dom::VisibilityState visibility_state();
   bool focused();
@@ -46,7 +47,8 @@ class WindowClient : public Client {
   DEFINE_WRAPPABLE_TYPE(WindowClient);
 
  private:
-  explicit WindowClient(const WindowData& window_data);
+  WindowClient(web::EnvironmentSettings* settings,
+               const WindowData& window_data);
 
   dom::VisibilityState visibility_state_ = dom::kVisibilityStateVisible;
   bool focused_ = true;

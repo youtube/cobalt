@@ -23,8 +23,9 @@
 namespace cobalt {
 namespace worker {
 
-WindowClient::WindowClient(const WindowData& window_data)
-    : Client(window_data.client) {
+WindowClient::WindowClient(web::EnvironmentSettings* settings,
+                           const WindowData& window_data)
+    : Client(settings, window_data.client) {
   // Algorithm for Create Window Client:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#create-window-client
 

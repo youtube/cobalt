@@ -39,7 +39,7 @@ namespace cobalt {
 namespace worker {
 
 Worker::Worker(const char* name, const Options& options) : options_(options) {
-  message_port_ = new web::MessagePort();
+  message_port_ = new web::MessagePort(options.outside_event_target);
   // Algorithm for 'run a worker'
   //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#run-a-worker
   // 1. Let is shared be true if worker is a SharedWorker object, and false

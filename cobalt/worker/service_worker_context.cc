@@ -26,6 +26,7 @@
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/worker/extendable_event.h"
 #include "cobalt/worker/extendable_message_event.h"
+#include "cobalt/worker/extendable_message_event_init.h"
 #include "cobalt/worker/service_worker_container.h"
 #include "cobalt/worker/service_worker_jobs.h"
 #include "cobalt/worker/window_client.h"
@@ -75,8 +76,8 @@ void ResolveGetClientPromise(
   if (!client->GetWindowOrWorkerGlobalScope()->IsWindow()) {
     // 3.1. Let clientObject be the result of running Create Client algorithm
     //      with client as the argument.
-    scoped_refptr<Client> client_object =
-        Client::Create(client->environment_settings());
+    scoped_refptr<Client> client_object = Client::Create(
+        worker_context->environment_settings(), client->environment_settings());
 
     // 3.2. Queue a task to resolve promise with clientObject, on promise’s
     //      relevant settings object's responsible event loop using the DOM
@@ -140,6 +141,7 @@ void ResolveGetClientPromise(
                 base::BindOnce(
                     [](std::unique_ptr<script::ValuePromiseWrappable::Reference>
                            promise_reference,
+                       web::EnvironmentSettings* settings,
                        std::unique_ptr<WindowData> window_data) {
                       // 4.4.6.1. If client’s discarded flag is set, resolve
                       //          promise with undefined and abort these
@@ -149,11 +151,13 @@ void ResolveGetClientPromise(
                       //          frameType, visibilityState, focusState,
                       //          and ancestorOriginsList.
                       scoped_refptr<Client> window_client =
-                          WindowClient::Create(*window_data);
+                          WindowClient::Create(settings, *window_data);
                       // 4.4.6.3. Resolve promise with windowClient.
                       promise_reference->value().Resolve(window_client);
                     },
-                    std::move(promise_reference), std::move(window_data)));
+                    std::move(promise_reference),
+                    worker_context->environment_settings(),
+                    std::move(window_data)));
           },
           client, worker_context, std::move(promise_reference)));
   DCHECK_EQ(nullptr, promise_reference.get());
@@ -1414,6 +1418,7 @@ void ServiceWorkerContext::ClientsMatchAllSubSteps(
       base::BindOnce(
           [](std::unique_ptr<script::ValuePromiseSequenceWrappable::Reference>
                  promise_reference,
+             web::EnvironmentSettings* settings,
              std::unique_ptr<std::vector<WindowData>> matched_window_data,
              std::unique_ptr<std::vector<web::Context*>> matched_clients) {
             TRACE_EVENT0("cobalt::worker",
@@ -1434,7 +1439,7 @@ void ServiceWorkerContext::ClientsMatchAllSubSteps(
               //          arguments.
               // TODO(b/235838698): Implement WindowClient methods.
               scoped_refptr<Client> window_client =
-                  WindowClient::Create(window_data);
+                  WindowClient::Create(settings, window_data);
 
               // 2.6.2.2. Append WindowClient to clientObjects.
               client_objects.push_back(window_client);
@@ -1446,7 +1451,7 @@ void ServiceWorkerContext::ClientsMatchAllSubSteps(
               //          Create Client algorithm with client as the
               //          argument.
               scoped_refptr<Client> client_object =
-                  Client::Create(client->environment_settings());
+                  Client::Create(settings, client->environment_settings());
 
               // 2.6.3.2. Append clientObject to clientObjects.
               client_objects.push_back(client_object);
@@ -1467,8 +1472,8 @@ void ServiceWorkerContext::ClientsMatchAllSubSteps(
             //        in promise’s relevant Realm.
             promise_reference->value().Resolve(client_objects);
           },
-          std::move(promise_reference), std::move(matched_window_data),
-          std::move(matched_clients)));
+          std::move(promise_reference), worker_context->environment_settings(),
+          std::move(matched_window_data), std::move(matched_clients)));
 }
 
 void ServiceWorkerContext::ClaimSubSteps(
@@ -1624,14 +1629,17 @@ void ServiceWorkerContext::ServiceWorkerPostMessageSubSteps(
                         //          a new WindowClient object that represents
                         //          incumbentGlobal’s relevant settings object.
                         init_dict.set_source(ExtendableMessageEvent::SourceType(
-                            WindowClient::Create(WindowData(
-                                incumbent_client->environment_settings()))));
+                            WindowClient::Create(
+                                event_target->environment_settings(),
+                                WindowData(incumbent_client
+                                               ->environment_settings()))));
                       } else {
                         //        . Otherwise
                         //          a new Client object that represents
                         //          incumbentGlobal’s associated worker
                         init_dict.set_source(
                             ExtendableMessageEvent::SourceType(Client::Create(
+                                event_target->environment_settings(),
                                 incumbent_client->environment_settings())));
                       }
 

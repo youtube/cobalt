@@ -14,7 +14,9 @@
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#messageport
 // https://html.spec.whatwg.org/dev/web-messaging.html#message-ports
-[Exposed = (Window,Worker)] interface MessagePort /* : EventTarget */ {
+[
+  Exposed = (Window,Worker)
+] interface MessagePort : EventTarget {
   // [RaisesException]
   void postMessage(any message);
   // TODO: Support sequence<object>: b/218501774

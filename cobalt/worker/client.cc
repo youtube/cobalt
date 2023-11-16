@@ -22,7 +22,9 @@
 
 namespace cobalt {
 namespace worker {
-Client::Client(web::EnvironmentSettings* client) {
+Client::Client(web::EnvironmentSettings* settings,
+               web::EnvironmentSettings* client)
+    : web::MessagePort(settings) {
   DCHECK(client);
   EntangleWithEventTarget(client->context()
                               ->GetWindowOrWorkerGlobalScope()

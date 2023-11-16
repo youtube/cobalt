@@ -65,6 +65,8 @@ class EventTarget : public script::Wrappable,
   // |window| object) in order to indicate that the ErrorEvent should have
   // its members unpacked before calling its event handler.  This is to
   // accommodate for a special case in the window.onerror handling.
+  explicit EventTarget(EventTarget* event_target);
+
   explicit EventTarget(
       script::EnvironmentSettings* settings,
       UnpackOnErrorEventsBool onerror_event_parameter_handling =

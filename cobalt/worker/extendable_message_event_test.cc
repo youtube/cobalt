@@ -137,8 +137,8 @@ TEST_F(ExtendableMessageEventTestWithJavaScript,
   init.set_data(&(reference->referenced_value()));
   init.set_origin("OriginString");
   init.set_last_event_id("lastEventIdString");
-  base::Optional<ExtendableMessageEvent::SourceType> client(
-      Client::Create(web_context()->environment_settings()));
+  base::Optional<ExtendableMessageEvent::SourceType> client(Client::Create(
+      environment_settings(), web_context()->environment_settings()));
   init.set_source(client);
   scoped_refptr<ExtendableMessageEvent> event =
       new ExtendableMessageEvent(environment_settings(), "mytestevent", init);

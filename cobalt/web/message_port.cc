@@ -58,7 +58,8 @@ void MessagePort::EntangleWithEventTarget(web::EventTarget* event_target) {
              web::EventTarget*
                  event_target) {  // The first time a MessagePort object's
                                   // onmessage IDL attribute is set, the
-            // port's port message queue must be enabled, as if the start()
+            // port's port message queue must be enabled, as
+            // if the start()
             // method had been called.
             //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#messageport
             if (event_target->HasEventListener(base::Tokens::message())) {
