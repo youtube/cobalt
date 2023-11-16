@@ -37,7 +37,7 @@ TEST(SbStringCompareNoCaseTest, SunnyDayCase) {
   EXPECT_EQ(0, SbStringCompareNoCase(kString1, kString2));
   EXPECT_EQ(0, SbStringCompareNoCase(kString2, kString1));
 }
-#endif // SB_API_VERSION < 16
+#endif  // SB_API_VERSION < 16
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard

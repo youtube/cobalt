@@ -56,7 +56,7 @@ TEST(SbStringCompareNoCaseNTest, SunnyDayCase) {
   EXPECT_EQ(0,
             SbStringCompareNoCaseN(kString4, kString3, strlen(kString4) / 2));
 }
-#endif // SB_API_VERSION < 16
+#endif  // SB_API_VERSION < 16
 
 }  // namespace
 }  // namespace nplb
