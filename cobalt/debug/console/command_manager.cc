@@ -50,15 +50,9 @@ ConsoleCommandManager::CommandHandler::~CommandHandler() {
 // static
 bool ConsoleCommandManager::CommandHandler::IsOnEnableOrTrue(
     const std::string& message) {
-  #if SB_API_VERSION < 16
-  return (SbStringCompareNoCase("on", message.c_str()) == 0) ||
-         (SbStringCompareNoCase("enable", message.c_str()) == 0) ||
-         (SbStringCompareNoCase("true", message.c_str()) == 0);
-  #else
   return (strcasecmp("on", message.c_str()) == 0) ||
          (strcasecmp("enable", message.c_str()) == 0) ||
          (strcasecmp("true", message.c_str()) == 0);
-  #endif // SB_API_VERSION < 16
 }
 
 

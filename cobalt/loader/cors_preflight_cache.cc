@@ -127,17 +127,10 @@ bool CORSPreflightCache::HaveEntry(
   if (entry_ptr->allow_all_headers_except_non_wildcard) {
     bool has_auth_header = false;
     for (const auto& header : unsafe_headernames) {
-      #if SB_API_VERSION < 16
-      if (SbStringCompareNoCase(header.c_str(), kAuthorization)) {
-        has_auth_header = true;
-        break;
-      }
-      #else
       if (strcasecmp(header.c_str(), kAuthorization)) {
         has_auth_header = true;
         break;
       }
-      #endif //SB_API_VERSION < 16
     }
     // wildcard header is allowed if entry's allowed headers include it.
     return !has_auth_header ||

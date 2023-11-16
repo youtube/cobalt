@@ -25,14 +25,6 @@
 
 namespace base {
 
-inline int strcasecmp(const char* string1, const char* string2) {
-  return SbStringCompareNoCase(string1, string2);
-}
-
-inline int strncasecmp(const char* string1, const char* string2, size_t count) {
-  return SbStringCompareNoCaseN(string1, string2, count);
-}
-
 #if defined(vsnprintf)
 #undef vsnprintf
 #endif

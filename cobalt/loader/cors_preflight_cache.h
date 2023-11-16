@@ -54,11 +54,7 @@ class CORSPreflightCache : public base::RefCounted<CORSPreflightCache> {
   // Case-insensitive comparator.
   struct CaseInsensitiveCompare {
     bool operator()(const std::string& lhs, const std::string& rhs) const {
-      #if SB_API_VERSION < 16
-      return SbStringCompareNoCase(lhs.c_str(), rhs.c_str()) < 0;
-      #else
       return strcasecmp(lhs.c_str(), rhs.c_str()) < 0;
-      #endif //SB_API_VERSION < 16
     }
   };
 

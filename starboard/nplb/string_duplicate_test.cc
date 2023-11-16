@@ -25,7 +25,9 @@ void RunTest(const char* input) {
   char* dupe = SbStringDuplicate(input);
   const char* kNull = NULL;
   EXPECT_NE(kNull, dupe);
+  #if SB_API_VERSION < 16
   EXPECT_EQ(0, SbStringCompareNoCase(input, dupe));
+  #endif //SB_API_VERSION < 16
   EXPECT_EQ(strlen(input), strlen(dupe));
   SbMemoryDeallocate(dupe);
 }

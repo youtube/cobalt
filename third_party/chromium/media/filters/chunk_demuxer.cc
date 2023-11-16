@@ -84,7 +84,7 @@ bool ParseMimeType(const std::string& mime_type, std::string* type,
   *type = tokens[0];
   codecs->clear();
   for (size_t i = 1; i < tokens.size(); ++i) {
-    if (base::strncasecmp(tokens[i].c_str(), kCodecs, strlen(kCodecs))) {
+    if (strncasecmp(tokens[i].c_str(), kCodecs, strlen(kCodecs))) {
       continue;
     }
     *codecs = tokens[i].substr(strlen(kCodecs));

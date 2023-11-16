@@ -51,12 +51,8 @@ bool ParseColor(const char* color_str, int& r, int& g, int& b) {
   }
 
   // Handle rgb color notation rgb(R, G, B)
-  #if SB_API_VERSION < 16
-  bool strcmp = SbStringCompareNoCaseN("rgb(", color_str, 4) == 0;
-  #else
-  bool strcmp = strncasecmp("rgb(", color_str, 4) == 0;
-  #endif //SB_API_VERSION < 16
-  if (!is_hex && len >= 10 && strcmp) {
+  if (!is_hex && len >= 10 &&
+      strncasecmp("rgb(", color_str, 4) == 0) {
     int rgb_tmp[3] = {-1, -1, -1};
     const char* ptr = color_str + 4;
     int i = 0;
