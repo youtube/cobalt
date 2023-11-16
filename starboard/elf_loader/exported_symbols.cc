@@ -406,6 +406,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(posix_memalign);
   REGISTER_SYMBOL(free);
+  REGISTER_SYMBOL(vsscanf);
 #endif  // SB_API_VERSION >= 16
 
 }  // NOLINT

@@ -401,7 +401,6 @@ static_library("c_internal") {
     "src/stdio/vasprintf.c",
     "src/stdio/vprintf.c",
     "src/stdio/vsprintf.c",
-    "src/stdio/vsscanf.c",
     "src/stdlib/abs.c",
     "src/stdlib/atof.c",
     "src/stdlib/atoi.c",
