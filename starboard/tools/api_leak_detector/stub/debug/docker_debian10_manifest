@@ -35,6 +35,7 @@ __isinff
 __isinfl
 __isnan
 __isoc99_sscanf
+__isoc99_vsscanf
 __iswctype_l
 __libc_start_main
 __newlocale
