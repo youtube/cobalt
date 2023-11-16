@@ -311,10 +311,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbStringCompareNoCase);
   REGISTER_SYMBOL(SbStringCompareNoCaseN);
   REGISTER_SYMBOL(SbStringDuplicate);
-#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbStringFormat);
   REGISTER_SYMBOL(SbStringFormatWide);
-#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbStringScan);
 #endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbSystemBreakIntoDebugger);
@@ -420,6 +418,22 @@ ExportedSymbols::ExportedSymbols() {
   // TODO: b/316603042 - Detect via NPLB and only add the wrapper if needed.
   map_["clock_gettime"] = reinterpret_cast<const void*>(&__wrap_clock_gettime);
   map_["gettimeofday"] = reinterpret_cast<const void*>(&__wrap_gettimeofday);
+
+  REGISTER_SYMBOL(sprintf);
+  REGISTER_SYMBOL(snprintf);
+  REGISTER_SYMBOL(vfwprintf);
+  REGISTER_SYMBOL(vsnprintf);
+#if defined(_MSC_VER)
+  // MSVC provides a template with the same name.
+  // The cast helps the compiler to pick the correct C function pointer to be
+  // used.
+  REGISTER_SYMBOL(
+      static_cast<int (*)(wchar_t* buffer, size_t count, const wchar_t* format,
+                          va_list argptr)>(vswprintf));
+#else
+  REGISTER_SYMBOL(vswprintf);
+#endif  // defined(_MSC_VER)
+
 #endif  // SB_API_VERSION >= 16
 
 }  // NOLINT

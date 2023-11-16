@@ -173,6 +173,8 @@ target(gtest_target_type, "nplb") {
     "string_compare_no_case_n_test.cc",
     "string_compare_no_case_test.cc",
     "string_duplicate_test.cc",
+
+    # TODO: b/307941391: test "SbStringFormatWideTest" is deprecated in SB16
     "string_format_test.cc",
     "string_format_wide_test.cc",
     "string_scan_test.cc",

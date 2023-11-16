@@ -400,6 +400,7 @@ static_library("c_internal") {
     "src/stdio/snprintf.c",
     "src/stdio/sscanf.c",
     "src/stdio/swprintf.c",
+    "src/stdio/sprintf.c",
     "src/stdio/vasprintf.c",
     "src/stdio/vprintf.c",
     "src/stdio/vsprintf.c",
