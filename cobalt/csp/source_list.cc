@@ -433,8 +433,7 @@ bool SourceList::ParseHash(const char* begin, const char* end,
   for (size_t i = 0; i < arraysize(kSupportedPrefixes); ++i) {
     const HashPrefix& algorithm = kSupportedPrefixes[i];
     if (hash_length > strlen(algorithm.prefix) &&
-        strncasecmp(algorithm.prefix, begin, strlen(algorithm.prefix)) ==
-            0) {
+        strncasecmp(algorithm.prefix, begin, strlen(algorithm.prefix)) == 0) {
       prefix = algorithm.prefix;
       *hash_algorithm = algorithm.type;
       break;

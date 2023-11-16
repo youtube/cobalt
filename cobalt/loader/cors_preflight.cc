@@ -132,11 +132,9 @@ bool HasFieldValue(const std::vector<std::string>& field_values,
     if (field_values[i].empty()) {
       continue;
     }
-    if (strcasecmp(field_values[i].c_str(),
-                              find_value_name.c_str()) == 0) {
+    if (strcasecmp(field_values[i].c_str(), find_value_name.c_str()) == 0) {
       return true;
     }
-    
   }
   return false;
 }
@@ -221,8 +219,8 @@ bool CORSPreflight::IsSafeResponseHeader(
   }
 
   for (size_t i = 0; i < CORS_exposed_header_name_list.size(); i++) {
-    if (strcasecmp(CORS_exposed_header_name_list.at(i).c_str(),
-                              name.c_str()) == 0) {
+    if (strcasecmp(CORS_exposed_header_name_list.at(i).c_str(), name.c_str()) ==
+        0) {
       return true;
     }
   }
@@ -388,7 +386,6 @@ void CORSPreflight::OnURLFetchComplete(const net::URLFetcher* source) {
         error_callback_.Run();
         return;
       }
-
     }
     // step 10-18 for adding entry to preflight cache.
     std::string max_age_str;
