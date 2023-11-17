@@ -267,6 +267,10 @@ target(gtest_target_type, "nplb") {
     deps += [ "//starboard/nplb/compiler_compliance:cpp17_supported" ]
   }
 
+  if (sb_enable_cpp20_audit) {
+    deps += [ "//starboard/nplb/compiler_compliance:cpp20_supported" ]
+  }
+
   data_deps = [
     "//cobalt/network:copy_ssl_certificates",
     "//starboard/nplb/testdata/file_tests:nplb_file_tests_data",

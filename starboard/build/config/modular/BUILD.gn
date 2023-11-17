@@ -33,10 +33,13 @@ config("modular") {
     cflags += [ "-fPIC" ]
   }
 
-  cflags_cc = [
-    "-nostdinc++",
-    "-std=c++17",
-  ]
+  cflags_cc = [ "-nostdinc++" ]
+
+  if (sb_enable_cpp20_audit) {
+    cflags_cc += [ "-std=c++17" ]
+  } else {
+    cflags_cc += [ "-std=c++17" ]
+  }
 
   defines = [
     # Ensure that the Starboardized __external_threading file is included.
