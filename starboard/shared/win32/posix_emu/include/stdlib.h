@@ -17,8 +17,8 @@
 
 // MSVC deprecated strdup() in favor of _strdup()
 #define strdup _strdup
-#define strcasecmp _strcasecmp
-#define strncasecmp _strncasecmp
+#define strcasecmp _stricmp
+#define strncasecmp _strnicmp
 
 #if defined(STARBOARD)
 #define free sb_free
