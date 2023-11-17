@@ -116,7 +116,7 @@ const int64_t kWatchdogTimeInterval = 10000000;
 const int64_t kWatchdogTimeWait = 2000000;
 
 bool IsStringNone(const std::string& str) {
-  return !base::strcasecmp(str.c_str(), "none");
+  return !strcasecmp(str.c_str(), "none");
 }
 
 #if defined(ENABLE_WEBDRIVER) || defined(ENABLE_DEBUGGER)

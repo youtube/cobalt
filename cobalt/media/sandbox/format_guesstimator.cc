@@ -118,7 +118,7 @@ std::string ExtractCodecs(const std::string& content_type) {
   std::vector<std::string> tokens = ::base::SplitString(
       content_type, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   for (size_t i = 1; i < tokens.size(); ++i) {
-    if (base::strncasecmp(tokens[i].c_str(), kCodecs, strlen(kCodecs))) {
+    if (strncasecmp(tokens[i].c_str(), kCodecs, strlen(kCodecs))) {
       continue;
     }
     auto codec = tokens[i].substr(strlen("codecs="));

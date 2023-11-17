@@ -92,6 +92,8 @@ _ALLOWED_SB16_POSIX_SYMBOLS = [
     'malloc',
     'posix_memalign',
     'realloc',
+    'strcasecmp',
+    'strncasecmp',
 ]
 
 
