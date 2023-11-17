@@ -121,8 +121,8 @@ class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
     // progressive.
     SbMediaSupportType support_type;
     media::FormatSupportQueryMetrics metrics;
-    if (strstr(mime_type.c_str(), "video/mp4") == 0 &&
-        strstr(mime_type.c_str(), "application/x-mpegURL") == 0) {
+    if (strstr(mime_type.c_str(), "video/mp4") == NULL &&
+        strstr(mime_type.c_str(), "application/x-mpegURL") == NULL) {
       support_type = kSbMediaSupportTypeNotSupported;
     } else {
       support_type = CanPlayType(mime_type, "");
@@ -135,8 +135,16 @@ class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
   SbMediaSupportType CanPlayAdaptive(
       const std::string& mime_type,
       const std::string& key_system) const override {
+    SbMediaSupportType support_type;
     media::FormatSupportQueryMetrics metrics;
-    SbMediaSupportType support_type = CanPlayType(mime_type, key_system);
+    // Only mp4 and webm videos are supported for adaptive playback in Cobalt;
+    // any other containers can be immediately rejected.
+    if (strstr(mime_type.c_str(), "video/mp4") == NULL &&
+        strstr(mime_type.c_str(), "video/webm") == NULL) {
+      support_type = kSbMediaSupportTypeNotSupported;
+    } else {
+      support_type = CanPlayType(mime_type, key_system);
+    }
     metrics.RecordAndLogQuery("MediaSource::IsTypeSupported", mime_type,
                               key_system, support_type);
     return support_type;
