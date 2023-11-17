@@ -24,6 +24,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/message_loop/message_loop_current.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task_runner.h"
 #include "base/threading/thread.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/csp/content_security_policy.h"
@@ -81,11 +82,9 @@ class Worker : public base::MessageLoop::DestructionObserver {
 
   void Terminate();
 
-  web::MessagePort* message_port() const { return message_port_.get(); }
-
-  // The message loop this object is running on.
-  base::MessageLoop* message_loop() const {
-    return web_agent_ ? web_agent_->message_loop() : nullptr;
+  // The task runner for this object.
+  base::TaskRunner* task_runner() const {
+    return web_agent_ ? web_agent_->message_loop()->task_runner() : nullptr;
   }
 
   void PostMessage(const script::ValueHandleHolder& message);
@@ -138,12 +137,6 @@ class Worker : public base::MessageLoop::DestructionObserver {
 
   // Content of the script. Released after Execute is called.
   std::unique_ptr<std::string> content_;
-
-  // The execution ready flag.
-  //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#concept-environment-execution-ready-flag
-  base::WaitableEvent execution_ready_ = {
-      base::WaitableEvent::ResetPolicy::MANUAL,
-      base::WaitableEvent::InitialState::NOT_SIGNALED};
 };
 
 }  // namespace worker

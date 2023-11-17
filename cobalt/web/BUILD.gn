@@ -185,6 +185,7 @@ target(gtest_target_type, "web_test") {
     "event_target_test.cc",
     "event_test.cc",
     "message_event_test.cc",
+    "message_port_test.cc",
     "url_test.cc",
     "url_utils_test.cc",
     "window_timers_test.cc",
