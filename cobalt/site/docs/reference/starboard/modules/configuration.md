@@ -53,17 +53,13 @@ will trigger a compiler warning when referenced.
 SB_DEPRECATED_EXTERNAL(...) annotates the function as deprecated for external
 clients, but not deprecated for starboard.
 
-<<<<<<< HEAD
-### SB_EXPERIMENTAL_API_VERSION ###
+### SB_EXPERIMENTAL_API_VERSION
 
 The API version that is currently open for changes, and therefore is not stable
 or frozen. Production-oriented ports should avoid declaring that they implement
 the experimental Starboard API version.
 
-### SB_FUNCTION ###
-=======
 ### SB_FUNCTION
->>>>>>> 2ec4f7bc585 (Update generated docs with new markdown headers (#1943))
 
 Whether we use **PRETTY_FUNCTION** PRETTY_FUNCTION or **FUNCTION** FUNCTION for
 logging.
