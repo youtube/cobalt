@@ -38,7 +38,7 @@ namespace web {
 class MessagePort : public script::Wrappable,
                     public Context::EnvironmentSettingsChangeObserver {
  public:
-  MessagePort() {}
+  MessagePort() = default;
   ~MessagePort() { Close(); }
 
   MessagePort(const MessagePort&) = delete;
@@ -95,7 +95,8 @@ class MessagePort : public script::Wrappable,
 
   EventTarget* event_target() const { return event_target_; }
   Context* context() const {
-    return event_target_->environment_settings()->context();
+    return event_target_ ? event_target_->environment_settings()->context()
+                         : nullptr;
   }
   base::TaskRunner* target_task_runner() const {
     return event_target_ ? event_target_->environment_settings()
