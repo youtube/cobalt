@@ -183,13 +183,10 @@ int AudioTrackBridge::WriteSample(const float* samples,
   SB_DCHECK(num_of_samples <= max_samples_per_write_);
 
   num_of_samples = std::min(num_of_samples, max_samples_per_write_);
-
-  // TODO: Test this code path
   env->SetFloatArrayRegion(static_cast<jfloatArray>(j_audio_data_), kNoOffset,
                            num_of_samples, samples);
-  int samples_written = env->CallIntMethodOrAbort(
-      j_audio_track_bridge_, "write", "([FI)I", j_audio_data_, num_of_samples);
-  return samples_written;
+  return env->CallIntMethodOrAbort(j_audio_track_bridge_, "write", "([FI)I",
+                                   j_audio_data_, num_of_samples);
 }
 
 int AudioTrackBridge::WriteSample(const uint16_t* samples,
@@ -201,8 +198,6 @@ int AudioTrackBridge::WriteSample(const uint16_t* samples,
   SB_DCHECK(num_of_samples <= max_samples_per_write_);
 
   num_of_samples = std::min(num_of_samples, max_samples_per_write_);
-
-  // TODO: Test this code path
   env->SetByteArrayRegion(static_cast<jbyteArray>(j_audio_data_), kNoOffset,
                           num_of_samples * sizeof(uint16_t),
                           reinterpret_cast<const jbyte*>(samples));
