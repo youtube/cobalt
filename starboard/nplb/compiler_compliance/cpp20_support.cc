@@ -1,4 +1,4 @@
-// Copyright 2023 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ namespace {
 // Test string ends with support
 
 void test_string_ends_with() {
-  std::string("foobar").ends_with("bar");
+  bool result = std::string("foobar").ends_with("bar");
 }
 
 }  // namespace
