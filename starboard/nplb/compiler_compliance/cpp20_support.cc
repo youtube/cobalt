@@ -22,7 +22,7 @@ namespace {
 // Test string ends with support
 
 void test_string_ends_with() {
-  std::string("foobar").ends_with("bar");
+  bool result = std::string("foobar").ends_with("bar");
 }
 
 }  // namespace
