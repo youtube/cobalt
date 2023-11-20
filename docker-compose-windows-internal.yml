@@ -129,28 +129,3 @@ services:
     image: cobalt-kokoro-xb1
     depends_on:
       - xb1
-
-  nxswitch:
-    <<: *common-definitions
-    build:
-      context: ./internal/docker/windows/
-      dockerfile: nxswitch/Dockerfile
-      args:
-        - encoded_keyfile=${ENCODED_GS_SERVICE_KEY_FILE}
-        - FROM_IMAGE=cobalt-build-win-internal
-    environment:
-      <<: *shared-build-env
-      PLATFORM: nxswitch
-    image: cobalt-build-nxswitch
-    depends_on:
-      - cobalt-build-win-internal
-
-  nxswitch-kokoro:
-    build:
-      context: ./internal/docker/windows/kokoro/
-      dockerfile: Dockerfile
-      args:
-        - FROM_IMAGE=${FROM_IMAGE:-cobalt-build-nxswitch}
-    image: cobalt-kokoro-nxswitch
-    depends_on:
-      - nxswitch
