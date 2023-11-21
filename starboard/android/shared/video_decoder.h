@@ -109,7 +109,10 @@ class VideoDecoder
   void WriteInputBuffersInternal(const InputBuffers& input_buffers);
   void ProcessOutputBuffer(MediaCodecBridge* media_codec_bridge,
                            const DequeueOutputResult& output) override;
-  void OnEndOfStreamWritten(MediaCodecBridge* media_codec_bridge);
+  void OnInputBufferEnqueued(
+      MediaCodecBridge* media_codec_bridge,
+      const scoped_refptr<InputBuffer>& input_buffer) override;
+  void OnEndOfStreamWritten(MediaCodecBridge* media_codec_bridge) override;
   void RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) override;
   bool Tick(MediaCodecBridge* media_codec_bridge) override;
   void OnFlushing() override;

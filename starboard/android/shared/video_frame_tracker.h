@@ -15,11 +15,11 @@
 #ifndef STARBOARD_ANDROID_SHARED_VIDEO_FRAME_TRACKER_H_
 #define STARBOARD_ANDROID_SHARED_VIDEO_FRAME_TRACKER_H_
 
-#include <list>
-#include <vector>
+#include <atomic>
 
-#include "starboard/common/mutex.h"
-#include "starboard/shared/starboard/thread_checker.h"
+#include "starboard/common/ref_counted.h"
+#include "starboard/shared/starboard/player/filter/media_time_provider.h"
+#include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/time.h"
 
 namespace starboard {
@@ -28,33 +28,26 @@ namespace shared {
 
 class VideoFrameTracker {
  public:
-  explicit VideoFrameTracker(int max_pending_frames_size)
-      : max_pending_frames_size_(max_pending_frames_size) {}
+  typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
+  typedef ::starboard::shared::starboard::player::filter::MediaTimeProvider
+      MediaTimeProvider;
 
-  SbTime seek_to_time() const;
+  SbTime seek_to_time() const { return seek_to_time_; }
 
-  void OnInputBuffer(SbTime timestamp);
-
-  void OnFrameRendered(int64_t frame_timestamp);
+  void OnInputBufferEnqueued(const scoped_refptr<InputBuffer>& input_buffer);
 
   void Seek(SbTime seek_to_time);
 
-  int UpdateAndGetDroppedFrames();
+  int GetDroppedFrames() const { return dropped_frames_; }
+
+  void SetMediaTimeProvider(MediaTimeProvider* media_time_provider) {
+    media_time_provider_ = media_time_provider;
+  }
 
  private:
-  void UpdateDroppedFrames();
-
-  ::starboard::shared::starboard::ThreadChecker thread_checker_;
-
-  std::list<SbTime> frames_to_be_rendered_;
-
-  const int max_pending_frames_size_;
-  int dropped_frames_ = 0;
-  SbTime seek_to_time_ = 0;
-
-  Mutex rendered_frames_mutex_;
-  std::vector<SbTime> rendered_frames_on_tracker_thread_;
-  std::vector<SbTime> rendered_frames_on_decoder_thread_;
+  MediaTimeProvider* media_time_provider_ = nullptr;
+  std::atomic_int dropped_frames_ = {0};
+  std::atomic_int64_t seek_to_time_ = {0};
 };
 
 }  // namespace shared

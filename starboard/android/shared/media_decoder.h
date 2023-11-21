@@ -61,6 +61,9 @@ class MediaDecoder
    public:
     virtual void ProcessOutputBuffer(MediaCodecBridge* media_codec_bridge,
                                      const DequeueOutputResult& output) = 0;
+    virtual void OnInputBufferEnqueued(
+        MediaCodecBridge* media_codec_bridge,
+        const scoped_refptr<InputBuffer>& input_buffer) = 0;
     virtual void OnEndOfStreamWritten(MediaCodecBridge* media_codec_bridge) = 0;
     virtual void RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) = 0;
     // This function gets called frequently on the decoding thread to give the

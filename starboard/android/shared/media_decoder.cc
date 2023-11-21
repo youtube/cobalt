@@ -485,6 +485,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
       status = media_codec_bridge_->QueueInputBuffer(
           dequeue_input_result.index, kNoOffset, size, pts_us, kNoBufferFlags);
     }
+    host_->OnInputBufferEnqueued(media_codec_bridge_.get(), input_buffer);
   } else {
     status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
                                                    kNoOffset, size, kNoPts,

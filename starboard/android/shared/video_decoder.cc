@@ -300,13 +300,16 @@ class VideoRenderAlgorithmTunneled : public VideoRenderAlgorithmBase {
 
   void Render(MediaTimeProvider* media_time_provider,
               std::list<scoped_refptr<VideoFrame>>* frames,
-              VideoRendererSink::DrawFrameCB draw_frame_cb) override {}
+              VideoRendererSink::DrawFrameCB draw_frame_cb) override {
+    SB_DCHECK(media_time_provider);
+    frame_tracker_->SetMediaTimeProvider(media_time_provider);
+  }
+
   void Seek(SbTime seek_to_time) override {
     frame_tracker_->Seek(seek_to_time);
   }
-  int GetDroppedFrames() override {
-    return frame_tracker_->UpdateAndGetDroppedFrames();
-  }
+
+  int GetDroppedFrames() override { return frame_tracker_->GetDroppedFrames(); }
 
  private:
   VideoFrameTracker* frame_tracker_;
@@ -374,7 +377,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
   SB_DCHECK(error_message);
 
   if (tunnel_mode_audio_session_id != -1) {
-    video_frame_tracker_.reset(new VideoFrameTracker(kMaxPendingWorkSize * 2));
+    video_frame_tracker_.reset(new VideoFrameTracker());
   }
   if (force_secure_pipeline_under_tunnel_mode) {
     SB_DCHECK(tunnel_mode_audio_session_id != -1);
@@ -511,6 +514,10 @@ void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
     if (tunnel_mode_audio_session_id_ != -1) {
       Schedule(std::bind(&VideoDecoder::OnTunnelModePrerollTimeout, this),
                kInitialPrerollTimeout);
+
+      // Call Render() once to let VideoRenderAlgorithmTunneled get
+      // MediaTimeProvider.
+      sink_->Render();
     }
   }
 
@@ -774,6 +781,17 @@ void VideoDecoder::TeardownCodec() {
   }
 }
 
+void VideoDecoder::OnInputBufferEnqueued(
+    MediaCodecBridge* media_codec_bridge,
+    const scoped_refptr<InputBuffer>& input_buffer) {
+  if (tunnel_mode_audio_session_id_ == -1) {
+    return;
+  }
+
+  SB_DCHECK(input_buffer);
+  video_frame_tracker_->OnInputBufferEnqueued(input_buffer);
+}
+
 void VideoDecoder::OnEndOfStreamWritten(MediaCodecBridge* media_codec_bridge) {
   if (tunnel_mode_audio_session_id_ == -1) {
     return;
@@ -816,7 +834,6 @@ void VideoDecoder::WriteInputBuffersInternal(
   if (tunnel_mode_audio_session_id_ != -1) {
     SbTime max_timestamp = input_buffers[0]->timestamp();
     for (const auto& input_buffer : input_buffers) {
-      video_frame_tracker_->OnInputBuffer(input_buffer->timestamp());
       max_timestamp = std::max(max_timestamp, input_buffer->timestamp());
     }
 
@@ -1150,7 +1167,6 @@ void VideoDecoder::OnTunnelModeFrameRendered(SbTime frame_timestamp) {
   SB_DCHECK(tunnel_mode_audio_session_id_ != -1);
 
   tunnel_mode_frame_rendered_.store(true);
-  video_frame_tracker_->OnFrameRendered(frame_timestamp);
 }
 
 void VideoDecoder::OnTunnelModePrerollTimeout() {
