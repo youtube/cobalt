@@ -31,7 +31,6 @@ __freelocale
 __fxstat64
 __gmon_start__
 __isoc99_sscanf
-__isoc99_vsscanf
 __iswctype_l
 __libc_start_main
 __newlocale
@@ -107,6 +106,7 @@ setlocale
 setvbuf
 snprintf
 sprintf
+sscanf
 stderr
 stdin
 stdout

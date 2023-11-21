@@ -23,13 +23,13 @@ bool gCheckErrorGL = !!(GR_GL_CHECK_ERROR_START);
 
 ///////////////////////////////////////////////////////////////////////////////
 
-#if defined(STARBOARD)
-#include "starboard/common/string.h"
-#include "starboard/configuration.h"
-#define sscanf SbStringScanF
-#else
+// #if defined(STARBOARD)
+// #include "starboard/common/string.h"
+// #include "starboard/configuration.h"
+// #define sscanf SbStringScanF
+// #else
 #include <stdio.h>
-#endif
+// #endif
 
 #if defined(STARBOARD)
 #include "starboard/egl.h"

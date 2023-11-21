@@ -386,6 +386,7 @@ static_library("c_internal") {
     "src/starboard/stdio/stdout.c",
     "src/starboard/stdio/vfprintf.c",
     "src/starboard/stdio/vsnprintf.c",
+    "src/starboard/stdio/vsscanf.c",
     "src/starboard/stdio/vswprintf.c",
     "src/starboard/stdlib/strtod_l.c",
     "src/starboard/time/__tz.c",
