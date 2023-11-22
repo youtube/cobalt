@@ -15,6 +15,7 @@
 #ifndef COBALT_WEB_EVENT_TARGET_H_
 #define COBALT_WEB_EVENT_TARGET_H_
 
+#include <map>
 #include <memory>
 #include <set>
 #include <string>
@@ -536,7 +537,6 @@ class EventTarget : public script::Wrappable,
   web::EnvironmentSettings* environment_settings() const {
     return environment_settings_;
   }
-
   std::set<base::Token>& event_listener_event_types() const {
     static std::set<base::Token> event_listener_event_types;
     for (auto& event_listener_info : event_listener_infos_) {
@@ -544,6 +544,12 @@ class EventTarget : public script::Wrappable,
     }
     return event_listener_event_types;
   }
+
+  // Register a callback to be called when an event listener is added for the
+  // given type.
+  void AddEventListenerRegistrationCallback(void* object, base::Token type,
+                                            base::OnceClosure callback);
+  void RemoveEventListenerRegistrationCallbacks(void* object);
 
  protected:
   virtual ~EventTarget() { environment_settings_ = nullptr; }
@@ -569,8 +575,12 @@ class EventTarget : public script::Wrappable,
   // the special case of window.onerror handling.
   bool unpack_onerror_events_;
 
-  // Thread checker ensures all calls to the EventTarget are made from the same
-  // thread that it is created in.
+  base::Lock event_listener_registration_mutex_;
+  std::map<base::Token, std::map<void*, base::OnceClosure>>
+      event_listener_registration_callbacks_;
+
+  // Thread checker ensures all calls to the EventTarget are made from the
+  // same thread that it is created in.
   THREAD_CHECKER(thread_checker_);
 };
 

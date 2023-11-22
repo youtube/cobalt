@@ -221,5 +221,9 @@ int BIO_snprintf(char *buf, size_t n, const char *format, ...) {
 }
 
 int BIO_vsnprintf(char *buf, size_t n, const char *format, va_list args) {
+#if SB_API_VERSION < 16
+  return SbStringFormat(buf, n, format, args);
+#else
   return vsnprintf(buf, n, format, args);
+#endif
 }

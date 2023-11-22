@@ -2073,7 +2073,7 @@ AssertionResult CmpHelperSTRNE(const char* s1_expression,
 bool String::CaseInsensitiveCStringEquals(const char * lhs, const char * rhs) {
   if (lhs == nullptr) return rhs == nullptr;
   if (rhs == nullptr) return false;
-  return posix::StrCaseCmp(lhs, rhs) == 0;
+  return strcasecmp(lhs, rhs) == 0;
 }
 
 // Compares two wide C strings, ignoring case.  Returns true if and only if they

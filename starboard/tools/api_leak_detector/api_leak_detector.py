@@ -94,11 +94,6 @@ _ALLOWED_SB16_POSIX_SYMBOLS = [
     'realloc',
     'strcasecmp',
     'strncasecmp',
-    'vsnprintf',
-    'snprintf',
-    'sprintf',
-    'vswprintf',
-    'vfwprintf',
 ]
 
 

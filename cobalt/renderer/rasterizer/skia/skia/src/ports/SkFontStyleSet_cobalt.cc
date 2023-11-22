@@ -233,12 +233,12 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
 
     // Only add font formats that match the format setting.
     if (font_format_setting == kTtf) {
-      if (SbStringCompareNoCase("ttf", extension) != 0 &&
-          SbStringCompareNoCase(extension, "ttc") != 0) {
+      if (strcasecmp("ttf", extension) != 0 &&
+          strcasecmp(extension, "ttc") != 0) {
         continue;
       }
     } else if (font_format_setting == kWoff2 &&
-               SbStringCompareNoCase("woff2", extension) != 0) {
+               strcasecmp("woff2", extension) != 0) {
       continue;
     }
 
@@ -273,10 +273,10 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
     if (index != nullptr) {
       // If style with name already exists in family, replace it.
       if (font_format_setting == kTtfPreferred &&
-          SbStringCompareNoCase("ttf", extension) == 0) {
+          strcasecmp("ttf", extension) == 0) {
         styles_[*index].reset(font);
       } else if (font_format_setting == kWoff2Preferred &&
-                 SbStringCompareNoCase("woff2", extension) == 0) {
+                 strcasecmp("woff2", extension) == 0) {
         styles_[*index].reset(font);
       }
     } else {

@@ -404,6 +404,20 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(posix_memalign);
   REGISTER_SYMBOL(free);
+  REGISTER_SYMBOL(sprintf);
+  REGISTER_SYMBOL(snprintf);
+  REGISTER_SYMBOL(vfwprintf);
+  REGISTER_SYMBOL(vsnprintf);
+#if defined(_MSC_VER)
+  // MSVC provides a template with the same name.
+  // The cast helps the compiler to pick the correct C function pointer to be
+  // used.
+  REGISTER_SYMBOL(
+      static_cast<int (*)(wchar_t* buffer, size_t count, const wchar_t* format,
+                          va_list argptr)>(vswprintf));
+#else
+  REGISTER_SYMBOL(vswprintf);
+#endif  // defined(_MSC_VER)
 #endif  // SB_API_VERSION >= 16
 
 }  // NOLINT

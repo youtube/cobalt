@@ -21,7 +21,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
-#if SB_API_VERSION <= 15
+#if SB_API_VERSION < 16
 #include <wchar.h>
 #endif
 
@@ -40,7 +40,6 @@ extern "C" {
 //
 // |source|: The string to be copied.
 SB_EXPORT char* SbStringDuplicate(const char* source);
-#endif  // SB_API_VERSION < 16
 
 // Compares two strings, ignoring differences in case. The return value is:
 // - |< 0| if |string1| is ASCII-betically lower than |string2|.
@@ -68,7 +67,6 @@ SB_EXPORT int SbStringCompareNoCaseN(const char* string1,
                                      const char* string2,
                                      size_t count);
 
-#if SB_API_VERSION <= 15
 // Produces a string formatted with |format| and |arguments|, placing as much
 // of the result that will fit into |out_buffer|. The return value specifies
 // the number of characters that the format would produce if |buffer_size| were
@@ -101,7 +99,7 @@ static SB_C_INLINE int SbStringFormatF(char* out_buffer,
                                        ...) {
   va_list arguments;
   va_start(arguments, format);
-  int result = vsnprintf(out_buffer, buffer_size, format, arguments);
+  int result = SbStringFormat(out_buffer, buffer_size, format, arguments);
   va_end(arguments);
   return result;
 }
@@ -120,7 +118,7 @@ static SB_C_INLINE int SbStringFormatUnsafeF(char* out_buffer,
                                              ...) {
   va_list arguments;
   va_start(arguments, format);
-  int result = vsnprintf(out_buffer, SSIZE_MAX, format, arguments);
+  int result = SbStringFormat(out_buffer, SSIZE_MAX, format, arguments);
   va_end(arguments);
   return result;
 }
@@ -151,11 +149,11 @@ static SB_C_INLINE int SbStringFormatWideF(wchar_t* out_buffer,
                                            ...) {
   va_list arguments;
   va_start(arguments, format);
-  int result = vswprintf(out_buffer, buffer_size, format, arguments);
+  int result = SbStringFormatWide(out_buffer, buffer_size, format, arguments);
   va_end(arguments);
   return result;
 }
-#endif
+#endif  // SB_API_VERSION < 16
 
 // Scans |buffer| for |pattern|, placing the extracted values in |arguments|.
 // The return value specifies the number of successfully matched items, which

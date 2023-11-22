@@ -2085,9 +2085,11 @@ inline int IsATTY(FILE* /*file*/) { return SbLogIsTty() ? 1 : 0; }
 inline int Stat(const char* path, StatStruct* buf) {
   return SbFileGetPathInfo(path, buf) ? 0 : -1;
 }
+#if SB_API_VERSION < 16
 inline int StrCaseCmp(const char* s1, const char* s2) {
   return SbStringCompareNoCase(s1, s2);
 }
+#endif //SB_API_VERSION < 16
 inline char* StrDup(const char* src) { return strdup(src); }
 
 inline int RmDir(const char* dir) { return SbFileDelete(dir); }

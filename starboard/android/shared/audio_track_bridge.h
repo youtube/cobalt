@@ -59,15 +59,18 @@ class AudioTrackBridge {
   void Stop(JniEnvExt* env = JniEnvExt::Get());
   void PauseAndFlush(JniEnvExt* env = JniEnvExt::Get());
 
+  // Returns zero or the positive number of samples written, or a negative error
+  // code.
   int WriteSample(const float* samples,
                   int num_of_samples,
                   JniEnvExt* env = JniEnvExt::Get());
-  // Returns samples written.
   int WriteSample(const uint16_t* samples,
                   int num_of_samples,
                   SbTime sync_time,
                   JniEnvExt* env = JniEnvExt::Get());
   // This is used by passthrough, it treats samples as if they are in bytes.
+  // Returns zero or the positive number of samples written, or a negative error
+  // code.
   int WriteSample(const uint8_t* buffer,
                   int num_of_samples,
                   SbTime sync_time,

@@ -58,6 +58,7 @@ jobs:
       REPOSITORY: ${{ github.repository }}
       GITHUB_REF: ${{ github.ref }}
       MERGE_COMMIT_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+      CHERRY_PICK_BRANCH: cherry-pick-${{ matrix.target_branch }}-${{ github.event.pull_request.number }}
     steps:
       - name: Checkout repository
         uses: kaidokert/checkout@v3.5.999
@@ -101,7 +102,7 @@ jobs:
           token: ${{ secrets.CHERRY_PICK_TOKEN }}
           draft: ${{ steps.cherry-pick.outcome == 'failure' }}
           base: ${{ matrix.target_branch }}
-          branch: "cherry-pick-${{ matrix.target_branch }}-${{ github.event.pull_request.number }}"
+          branch: ${{ env.CHERRY_PICK_BRANCH }}
           committer: GitHub Release Automation <github@google.com>
           reviewers: ${{ github.event.pull_request.user.login }}
           title: "Cherry pick PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}"
@@ -129,6 +130,6 @@ jobs:
                 issue_number: '${{ steps.create-pr.outputs.pull-request-number }}',
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                body: '> [!IMPORTANT]\n> There were merge conflicts while cherry picking! Check out the PR branch (${{ matrix.target_branch }}-${{ github.event.pull_request.number }}) and fix the conflicts before proceeding. Check the log at ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} for details.'
+                body: '> [!IMPORTANT]\n> There were merge conflicts while cherry picking! Check out [${{ env.CHERRY_PICK_BRANCH }}](${{ github.repository }}/tree/${{ env.CHERRY_PICK_BRANCH }}) and fix the conflicts before proceeding. Check the log at ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} for details.'
               });
             }

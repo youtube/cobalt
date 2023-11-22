@@ -20,7 +20,9 @@
 #define STARBOARD_COMMON_STRING_H_
 
 #include <stdarg.h>
+#if SB_API_VERSION >= 16
 #include <stdio.h>
+#endif
 #include <cstring>
 #include <string>
 #include <vector>

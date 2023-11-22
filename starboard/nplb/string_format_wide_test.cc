@@ -14,6 +14,7 @@
 
 // Here we are not trying to do anything fancy, just to really sanity check that
 // this is hooked up to something.
+#if SB_API_VERSION < 16
 
 #include "starboard/common/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -22,7 +23,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_API_VERSION <= 15
 int Format(wchar_t* out_buffer,
            size_t buffer_size,
            const wchar_t* format,
@@ -45,8 +45,9 @@ TEST(SbStringFormatWideTest, SunnyDay) {
     EXPECT_EQ(kExpected[i], destination[i]);
   }
 }
-#endif
 
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+
+#endif  // SB_API_VERSION < 16

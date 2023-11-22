@@ -21,7 +21,7 @@ inline int vsnprintfT(char* buffer,
                       size_t buf_size,
                       const char* format,
                       va_list argptr) {
-  return vsnprintf(buffer, buf_size, format, argptr);
+  return base::vsnprintf(buffer, buf_size, format, argptr);
 }
 
 template <class StringType>

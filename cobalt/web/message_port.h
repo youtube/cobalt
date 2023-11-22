@@ -17,6 +17,8 @@
 
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "base/callback_forward.h"
 #include "base/memory/weak_ptr.h"
@@ -34,13 +36,15 @@ namespace cobalt {
 namespace web {
 
 class MessagePort : public script::Wrappable,
-                    public base::SupportsWeakPtr<MessagePort>,
                     public Context::EnvironmentSettingsChangeObserver {
  public:
-  explicit MessagePort(web::EventTarget* event_target);
-  ~MessagePort();
+  MessagePort() = default;
+  ~MessagePort() { Close(); }
+
   MessagePort(const MessagePort&) = delete;
   MessagePort& operator=(const MessagePort&) = delete;
+
+  void EntangleWithEventTarget(web::EventTarget* event_target);
 
   void OnEnvironmentSettingsChanged(bool context_valid) override {
     if (!context_valid) {
@@ -53,10 +57,8 @@ class MessagePort : public script::Wrappable,
   // -> void PostMessage(const script::ValueHandleHolder& message,
   //                     script::Sequence<script::ValueHandle*> transfer) {}
   void PostMessage(const script::ValueHandleHolder& message);
-  void PostMessageSerialized(
-      std::unique_ptr<script::StructuredClone> structured_clone);
 
-  void Start() {}
+  void Start();
   void Close();
 
   const web::EventTargetListenerInfo::EventListenerScriptValue* onmessage()
@@ -91,15 +93,32 @@ class MessagePort : public script::Wrappable,
                                              event_listener);
   }
 
-  web::EventTarget* event_target() { return event_target_; }
+  EventTarget* event_target() const { return event_target_; }
+  Context* context() const {
+    return event_target_ ? event_target_->environment_settings()->context()
+                         : nullptr;
+  }
+  base::TaskRunner* target_task_runner() const {
+    return event_target_ ? event_target_->environment_settings()
+                               ->context()
+                               ->message_loop()
+                               ->task_runner()
+                         : nullptr;
+  }
 
   DEFINE_WRAPPABLE_TYPE(MessagePort);
 
  private:
-  void DispatchMessage(
+  void PostMessageSerializedLocked(
       std::unique_ptr<script::StructuredClone> structured_clone);
 
-  // The event target to dispatch events to.
+  base::Lock mutex_;
+  std::vector<std::unique_ptr<script::StructuredClone>> unshipped_messages_;
+
+  // A port message queue can be enabled or disabled, and is initially disabled.
+  //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#message-ports
+  bool enabled_ = false;
+
   web::EventTarget* event_target_ = nullptr;
   base::OnceClosure remove_environment_settings_change_observer_;
 };

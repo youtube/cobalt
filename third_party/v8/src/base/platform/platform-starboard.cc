@@ -6,8 +6,6 @@
 // abstraction layer for Cobalt, an HTML5 container used mainly by YouTube
 // apps in the living room.
 
-#include <stdio.h>
-
 #include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
@@ -23,6 +21,7 @@
 #include "starboard/memory.h"
 #include "starboard/time.h"
 #include "starboard/time_zone.h"
+#include <stdio.h>
 
 namespace v8 {
 namespace base {

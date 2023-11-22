@@ -41,7 +41,7 @@ class WebMediaPlayer {
   // Return true if the punch through box should be rendered.  Return false if
   // no punch through box should be rendered.
   typedef base::Callback<bool(int x, int y, int width, int height)> SetBoundsCB;
-  typedef std::function<void(float start, float end)> AddRangeCB;
+  typedef std::function<void(double start, double end)> AddRangeCB;
 
   enum NetworkState {
     kNetworkStateEmpty,
@@ -109,12 +109,12 @@ class WebMediaPlayer {
   // Playback controls.
   virtual void Play() = 0;
   virtual void Pause() = 0;
-  virtual void Seek(float seconds) = 0;
+  virtual void Seek(double seconds) = 0;
   virtual void SetRate(float rate) = 0;
   virtual void SetVolume(float volume) = 0;
   virtual void SetVisible(bool visible) = 0;
   virtual void UpdateBufferedTimeRanges(const AddRangeCB& add_range_cb) = 0;
-  virtual float GetMaxTimeSeekable() const = 0;
+  virtual double GetMaxTimeSeekable() const = 0;
 
   // Suspend/Resume
   virtual void Suspend() = 0;
@@ -136,11 +136,11 @@ class WebMediaPlayer {
   // Getters of playback state.
   virtual bool IsPaused() const = 0;
   virtual bool IsSeeking() const = 0;
-  virtual float GetDuration() const = 0;
+  virtual double GetDuration() const = 0;
 #if SB_HAS(PLAYER_WITH_URL)
   virtual base::Time GetStartDate() const = 0;
 #endif  // SB_HAS(PLAYER_WITH_URL)
-  virtual float GetCurrentTime() const = 0;
+  virtual double GetCurrentTime() const = 0;
   virtual float GetPlaybackRate() const = 0;
 
   // Get rate of loading the resource.
@@ -152,7 +152,7 @@ class WebMediaPlayer {
 
   virtual bool DidLoadingProgress() const = 0;
 
-  virtual float MediaTimeForTimeValue(float timeValue) const = 0;
+  virtual double MediaTimeForTimeValue(double timeValue) const = 0;
 
   virtual PlayerStatistics GetStatistics() const = 0;
 
