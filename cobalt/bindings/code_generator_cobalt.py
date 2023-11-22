@@ -22,7 +22,12 @@ from datetime import date
 import os
 import sys
 
-import _env  # pylint: disable=unused-import
+bindings_dir = os.path.join(
+    os.path.dirname(__file__),
+    '../../third_party/blink/Source/bindings/scripts')
+sys.path.insert(0, bindings_dir)
+
+# pylint:disable=wrong-import-position
 from cobalt.bindings import path_generator
 from cobalt.bindings.contexts import ContextBuilder
 from cobalt.bindings.name_conversion import get_interface_name

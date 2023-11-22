@@ -19,8 +19,14 @@ CodeGenerator class.
 
 import logging
 import sys
+import os
 
-import _env  #pylint: disable=import-error,unused-import
+bindings_dir = os.path.join(
+    os.path.dirname(__file__),
+    '../../../third_party/blink/Source/bindings/scripts')
+sys.path.insert(0, bindings_dir)
+
+# pylint:disable=wrong-import-position
 from cobalt.bindings.idl_compiler_cobalt import generate_bindings
 from cobalt.bindings.v8c.code_generator_v8c import CodeGeneratorV8c
 
