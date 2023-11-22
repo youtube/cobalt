@@ -15,7 +15,8 @@
 #
 """Ask the parent directory to load the project environment."""
 
-from imp import load_source  # pylint: disable=deprecated-module
+import importlib.util
+import importlib.machinery
 from os import path
 import sys
 
@@ -23,4 +24,7 @@ _ENV = path.abspath(path.join(path.dirname(__file__), path.pardir, '_env.py'))
 if not path.exists(_ENV):
   print(f'{__file__}: Can\'t find repo root.\nMissing parent: {_ENV}')
   sys.exit(1)
-load_source('', _ENV)
+loader = importlib.machinery.SourceFileLoader('', _ENV)
+spec = importlib.util.spec_from_file_location('', _ENV, loader=loader)
+module = importlib.util.module_from_spec(spec)
+loader.exec_module(module)
