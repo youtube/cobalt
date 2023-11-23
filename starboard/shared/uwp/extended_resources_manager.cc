@@ -184,8 +184,12 @@ bool ExtendedResourcesManager::GetD3D12Objects(
   device->Reset();
   *command_queue = nullptr;
 
-  ScopedLock scoped_lock(mutex_);
-
+  ScopedTryLock scoped_lock(mutex_);
+  if (!scoped_lock.is_locked()) {
+    SB_LOG(INFO) << "GetD3D12Objects() failed"
+                 << " because lock cannot be acquired.";
+    return false;
+  }
   if (!is_extended_resources_acquired_.load()) {
     SB_LOG(INFO) << "GetD3D12Objects() failed"
                  << " because extended resources mode is not acquired.";

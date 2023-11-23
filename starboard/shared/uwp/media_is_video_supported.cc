@@ -144,7 +144,7 @@ class XboxVideoCapabilities {
                                             60);
         hw_decoder_capabilities_.AddHdrRule(kSbMediaVideoCodecAv1, 3840, 2160,
                                             30);
-        hw_decoder_capabilities_.AddHdrRule(kSbMediaVideoCodecAv1, 3840, 2160,
+        hw_decoder_capabilities_.AddHdrRule(kSbMediaVideoCodecAv1, 2560, 1440,
                                             60);
         // Vertical video resolutions
         hw_decoder_capabilities_.AddSdrRule(kSbMediaVideoCodecAv1, 2160, 3840,
