@@ -53,22 +53,28 @@ bool IsAudioOutputSupported(SbMediaAudioCodingType coding_type, int channels) {
   return false;
 }
 
-bool IsSupportedKeySystem(SbMediaAudioCodec codec, const char* key_system) {
+bool IsSupportedKeySystem(SbMediaAudioCodec codec,
+                          const MimeType* mime_type,
+                          const char* key_system) {
   SB_DCHECK(key_system);
   // KeySystemSupportabilityCache() should always return supported for empty
   // |key_system|, so here it should always be non empty.
   SB_DCHECK(strlen(key_system) > 0);
 
-  return SbMediaIsSupported(kSbMediaVideoCodecNone, codec, key_system);
+  return SbMediaIsKeySystemSupported(kSbMediaVideoCodecNone, codec, mime_type,
+                                     key_system);
 }
 
-bool IsSupportedKeySystem(SbMediaVideoCodec codec, const char* key_system) {
+bool IsSupportedKeySystem(SbMediaVideoCodec codec,
+                          const MimeType* mime_type,
+                          const char* key_system) {
   SB_DCHECK(key_system);
   // KeySystemSupportabilityCache() should always return supported for empty
   // |key_system|, so here it should always be non empty.
   SB_DCHECK(strlen(key_system) > 0);
 
-  return SbMediaIsSupported(codec, kSbMediaAudioCodecNone, key_system);
+  return SbMediaIsKeySystemSupported(codec, kSbMediaAudioCodecNone, mime_type,
+                                     key_system);
 }
 
 bool IsSupportedAudioCodec(const ParsedMimeInfo& mime_info) {
@@ -247,7 +253,8 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const char* mime,
             mime_info.audio_info().codec, key_system);
     if (key_system_supportability == kSupportabilityUnknown) {
       key_system_supportability =
-          IsSupportedKeySystem(mime_info.audio_info().codec, key_system)
+          IsSupportedKeySystem(mime_info.audio_info().codec, &mime_type,
+                               key_system)
               ? kSupportabilitySupported
               : kSupportabilityNotSupported;
       KeySystemSupportabilityCache::GetInstance()->CacheKeySystemSupportability(
@@ -264,7 +271,8 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const char* mime,
             mime_info.video_info().codec, key_system);
     if (key_system_supportability == kSupportabilityUnknown) {
       key_system_supportability =
-          IsSupportedKeySystem(mime_info.video_info().codec, key_system)
+          IsSupportedKeySystem(mime_info.video_info().codec, &mime_type,
+                               key_system)
               ? kSupportabilitySupported
               : kSupportabilityNotSupported;
       KeySystemSupportabilityCache::GetInstance()->CacheKeySystemSupportability(

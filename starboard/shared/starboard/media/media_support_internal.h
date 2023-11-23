@@ -34,10 +34,14 @@ extern "C" {
 //                compatibility.
 // |audio_codec|: The |SbMediaAudioCodec| being checked for platform
 //                compatibility.
+// |mime_type|: The parsed mime type passed to the corresponding interface.
+//              Note that |mime_type| can be NULL.
 // |key_system|: The key system being checked for platform compatibility.
-SB_EXPORT bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
-                                  SbMediaAudioCodec audio_codec,
-                                  const char* key_system);
+SB_EXPORT bool SbMediaIsKeySystemSupported(
+    SbMediaVideoCodec video_codec,
+    SbMediaAudioCodec audio_codec,
+    const starboard::shared::starboard::media::MimeType* mime_type,
+    const char* key_system);
 
 // Indicates whether a given combination of (|frame_width| x |frame_height|)
 // frames at |bitrate| and |fps| is supported on this platform with
