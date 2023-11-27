@@ -10,7 +10,7 @@ import("//third_party/libvpx/libvpx_srcs.gni")
 if (is_starboard) {
   import("//starboard/build/nasm_assemble.gni")
 } else {
-import("//third_party/nasm/nasm_assemble.gni")
+  import("//third_party/nasm/nasm_assemble.gni")
 }
 
 assert(use_cobalt_customizations)
@@ -127,10 +127,10 @@ if (current_cpu == "x86" || (current_cpu == "x64" && !is_msan)) {
   # symbols.
 
   source_set("libvpx_intrinsics_mmx") {
-if (!is_starboard) {
-    configs -= [ "//build/config/compiler:chromium_code" ]
-    configs += [ "//build/config/compiler:no_chromium_code" ]
-}
+    if (!is_starboard) {
+      configs -= [ "//build/config/compiler:chromium_code" ]
+      configs += [ "//build/config/compiler:no_chromium_code" ]
+    }
     configs += [ ":libvpx_config" ]
     if (!is_win) {
       cflags = [ "-mmmx" ]
@@ -145,10 +145,10 @@ if (!is_starboard) {
   }
 
   source_set("libvpx_intrinsics_sse2") {
-if (!is_starboard) {
-    configs -= [ "//build/config/compiler:chromium_code" ]
-    configs += [ "//build/config/compiler:no_chromium_code" ]
-}
+    if (!is_starboard) {
+      configs -= [ "//build/config/compiler:chromium_code" ]
+      configs += [ "//build/config/compiler:no_chromium_code" ]
+    }
     configs += [ ":libvpx_config" ]
     if (!is_win || is_clang) {
       cflags = [ "-msse2" ]
@@ -163,10 +163,10 @@ if (!is_starboard) {
   }
 
   source_set("libvpx_intrinsics_ssse3") {
-if (!is_starboard) {
-    configs -= [ "//build/config/compiler:chromium_code" ]
-    configs += [ "//build/config/compiler:no_chromium_code" ]
-}
+    if (!is_starboard) {
+      configs -= [ "//build/config/compiler:chromium_code" ]
+      configs += [ "//build/config/compiler:no_chromium_code" ]
+    }
     configs += [ ":libvpx_config" ]
     if (!is_win || is_clang) {
       cflags = [ "-mssse3" ]
@@ -181,10 +181,10 @@ if (!is_starboard) {
   }
 
   source_set("libvpx_intrinsics_sse4_1") {
-if (!is_starboard) {
-    configs -= [ "//build/config/compiler:chromium_code" ]
-    configs += [ "//build/config/compiler:no_chromium_code" ]
-}
+    if (!is_starboard) {
+      configs -= [ "//build/config/compiler:chromium_code" ]
+      configs += [ "//build/config/compiler:no_chromium_code" ]
+    }
     configs += [ ":libvpx_config" ]
     if (!is_win || is_clang) {
       cflags = [ "-msse4.1" ]
@@ -199,10 +199,10 @@ if (!is_starboard) {
   }
 
   source_set("libvpx_intrinsics_avx") {
-if (!is_starboard) {
-    configs -= [ "//build/config/compiler:chromium_code" ]
-    configs += [ "//build/config/compiler:no_chromium_code" ]
-}
+    if (!is_starboard) {
+      configs -= [ "//build/config/compiler:chromium_code" ]
+      configs += [ "//build/config/compiler:no_chromium_code" ]
+    }
     configs += [ ":libvpx_config" ]
     if (is_win) {
       cflags = [ "/arch:AVX" ]
@@ -219,10 +219,10 @@ if (!is_starboard) {
   }
 
   source_set("libvpx_intrinsics_avx2") {
-if (!is_starboard) {
-    configs -= [ "//build/config/compiler:chromium_code" ]
-    configs += [ "//build/config/compiler:no_chromium_code" ]
-}
+    if (!is_starboard) {
+      configs -= [ "//build/config/compiler:chromium_code" ]
+      configs += [ "//build/config/compiler:no_chromium_code" ]
+    }
     configs += [ ":libvpx_config" ]
     if (is_win) {
       cflags = [ "/arch:AVX2" ]
@@ -239,10 +239,10 @@ if (!is_starboard) {
   }
 
   source_set("libvpx_intrinsics_avx512") {
-if (!is_starboard) {
-    configs -= [ "//build/config/compiler:chromium_code" ]
-    configs += [ "//build/config/compiler:no_chromium_code" ]
-}
+    if (!is_starboard) {
+      configs -= [ "//build/config/compiler:chromium_code" ]
+      configs += [ "//build/config/compiler:no_chromium_code" ]
+    }
     configs += [ ":libvpx_config" ]
     if (is_win) {
       # clang-cl does not accept this flag.
@@ -423,10 +423,10 @@ static_library("libvpx") {
     }
   }
 
-if (!is_starboard) {
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-}
+  if (!is_starboard) {
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
+  }
   configs += [ ":libvpx_config" ]
   deps = []
   if (current_cpu == "x86" || (current_cpu == "x64" && !is_msan)) {
@@ -468,10 +468,10 @@ static_library("libvpxrc") {
     "//third_party/libvpx/source/libvpx/vpx/internal/vpx_ratectrl_rtc.h",
   ]
 
-if (!is_starboard) {
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
-}
+  if (!is_starboard) {
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
+  }
   configs += [ ":libvpx_config" ]
   public_deps = [ ":libvpx" ]
 
