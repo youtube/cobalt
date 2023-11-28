@@ -143,54 +143,59 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
       kSbMediaVideoCodecNone,  kSbMediaVideoCodecH264,   kSbMediaVideoCodecH265,
       kSbMediaVideoCodecMpeg2, kSbMediaVideoCodecTheora, kSbMediaVideoCodecVc1,
       kSbMediaVideoCodecAv1,   kSbMediaVideoCodecVp8,    kSbMediaVideoCodecVp9};
+  int kMaxVideoInputSizes[] = {0, 777000, 3110500};
 
   for (auto output_mode : kOutputModes) {
     for (auto video_codec : kVideoCodecs) {
-      if (PlayerComponents::Factory::OutputModeSupported(
-              output_mode, video_codec, kSbDrmSystemInvalid)) {
-        SbPlayerPrivate players[kDecodersToCreate];
-        scoped_ptr<VideoDecoder> video_decoders[kDecodersToCreate];
-        scoped_ptr<VideoRenderAlgorithm>
-            video_render_algorithms[kDecodersToCreate];
-        scoped_refptr<VideoRendererSink>
-            video_renderer_sinks[kDecodersToCreate];
+      for (auto max_video_input_size : kMaxVideoInputSizes) {
+        if (PlayerComponents::Factory::OutputModeSupported(
+                output_mode, video_codec, kSbDrmSystemInvalid)) {
+          SbPlayerPrivate players[kDecodersToCreate];
+          scoped_ptr<VideoDecoder> video_decoders[kDecodersToCreate];
+          scoped_ptr<VideoRenderAlgorithm>
+              video_render_algorithms[kDecodersToCreate];
+          scoped_refptr<VideoRendererSink>
+              video_renderer_sinks[kDecodersToCreate];
 
-        for (int i = 0; i < kDecodersToCreate; ++i) {
-          SbMediaAudioSampleInfo dummy_audio_sample_info = {
-              kSbMediaAudioCodecNone};
-          PlayerComponents::Factory::CreationParameters creation_parameters(
-              CreateVideoStreamInfo(fixture_.dmp_reader().video_codec()),
-              &players[i], output_mode,
-              fake_graphics_context_provider_.decoder_target_provider(),
-              nullptr);
+          for (int i = 0; i < kDecodersToCreate; ++i) {
+            SbMediaAudioSampleInfo dummy_audio_sample_info = {
+                kSbMediaAudioCodecNone};
+            PlayerComponents::Factory::CreationParameters creation_parameters(
+                CreateVideoStreamInfo(fixture_.dmp_reader().video_codec()),
+                &players[i], output_mode, max_video_input_size,
+                fake_graphics_context_provider_.decoder_target_provider(),
+                nullptr);
+            ASSERT_EQ(creation_parameters.max_video_input_size(),
+                      max_video_input_size);
 
-          std::string error_message;
-          ASSERT_TRUE(factory->CreateSubComponents(
-              creation_parameters, nullptr, nullptr, &video_decoders[i],
-              &video_render_algorithms[i], &video_renderer_sinks[i],
-              &error_message));
-          ASSERT_TRUE(video_decoders[i]);
+            std::string error_message;
+            ASSERT_TRUE(factory->CreateSubComponents(
+                creation_parameters, nullptr, nullptr, &video_decoders[i],
+                &video_render_algorithms[i], &video_renderer_sinks[i],
+                &error_message));
+            ASSERT_TRUE(video_decoders[i]);
 
-          if (video_renderer_sinks[i]) {
-            video_renderer_sinks[i]->SetRenderCB(
-                std::bind(&VideoDecoderTestFixture::Render, &fixture_, _1));
-          }
+            if (video_renderer_sinks[i]) {
+              video_renderer_sinks[i]->SetRenderCB(
+                  std::bind(&VideoDecoderTestFixture::Render, &fixture_, _1));
+            }
 
-          video_decoders[i]->Initialize(
-              std::bind(&VideoDecoderTestFixture::OnDecoderStatusUpdate,
-                        &fixture_, _1, _2),
-              std::bind(&VideoDecoderTestFixture::OnError, &fixture_));
+            video_decoders[i]->Initialize(
+                std::bind(&VideoDecoderTestFixture::OnDecoderStatusUpdate,
+                          &fixture_, _1, _2),
+                std::bind(&VideoDecoderTestFixture::OnError, &fixture_));
 
 #if SB_HAS(GLES2)
-          if (output_mode == kSbPlayerOutputModeDecodeToTexture) {
-            fixture_.AssertInvalidDecodeTarget();
-          }
+            if (output_mode == kSbPlayerOutputModeDecodeToTexture) {
+              fixture_.AssertInvalidDecodeTarget();
+            }
 #endif  // SB_HAS(GLES2)
-        }
-        if (fixture_.HasPendingEvents()) {
-          bool error_occurred = false;
-          ASSERT_NO_FATAL_FAILURE(fixture_.DrainOutputs(&error_occurred));
-          ASSERT_FALSE(error_occurred);
+          }
+          if (fixture_.HasPendingEvents()) {
+            bool error_occurred = false;
+            ASSERT_NO_FATAL_FAILURE(fixture_.DrainOutputs(&error_occurred));
+            ASSERT_FALSE(error_occurred);
+          }
         }
       }
     }

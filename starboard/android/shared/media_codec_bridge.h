@@ -175,6 +175,7 @@ class MediaCodecBridge {
       int tunnel_mode_audio_session_id,
       bool force_big_endian_hdr_metadata,
       bool use_callback_thread,
+      int max_video_input_size,
       std::string* error_message);
 
   ~MediaCodecBridge();

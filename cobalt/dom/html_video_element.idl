@@ -33,4 +33,12 @@ interface HTMLVideoElement : HTMLMediaElement {
   // is the same as the format for the string passed in to
   // HTMLMediaElement.canPlayType().
   [RaisesException] void setMaxVideoCapabilities(DOMString max_video_capabilities);
+
+  // Non standard interface (b/176923480). Set the maximum size in bytes of an
+  // input buffer for video. This communicates to the platform that the size of
+  // a single input buffer will not exceed the size passed in this function.
+  // This function must be called before the src attribute is set on the element,
+  // otherwise an INVALID_STATE_ERR exception is raised. Use default buffer size
+  // if set to 0.
+  [RaisesException] void setMaxVideoInputSize(unsigned long maxVideoInputSize);
 };
