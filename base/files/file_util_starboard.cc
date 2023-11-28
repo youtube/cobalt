@@ -32,6 +32,7 @@
 #include "starboard/directory.h"
 #include "starboard/file.h"
 #include "starboard/system.h"
+#include "sys/stat.h"
 
 namespace base {
 
@@ -317,7 +318,7 @@ bool CreateDirectoryAndGetError(const FilePath &full_path, File::Error* error) {
 
   // Fast-path: can the full path be resolved from the full path?
   if (DirectoryExists(full_path) ||
-      SbDirectoryCreate(full_path.value().c_str())) {
+      mkdir(full_path.value().c_str(), 0700)) {
     return true;
   }
 
@@ -342,7 +343,7 @@ bool CreateDirectoryAndGetError(const FilePath &full_path, File::Error* error) {
       continue;
     }
 
-    if (!SbDirectoryCreate(i->value().c_str())) {
+    if (!mkdir(i->value().c_str(), 0700)) {
       if (error)
         *error = File::OSErrorToFileError(SbSystemGetLastError());
       return false;

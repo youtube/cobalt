@@ -22,6 +22,7 @@
 #include "base/json/json_writer.h"
 #include "base/strings/string_number_conversions.h"
 #include "starboard/directory.h"
+#include "sys/stat.h"
 
 namespace cobalt {
 namespace cache {
@@ -54,7 +55,7 @@ bool MemoryCappedDirectory::FileInfo::OldestFirst::operator()(
 // static
 std::unique_ptr<MemoryCappedDirectory> MemoryCappedDirectory::Create(
     const base::FilePath& directory_path, uint32_t max_size) {
-  if (!SbDirectoryCreate(directory_path.value().c_str())) {
+  if (!mkdir(directory_path.value().c_str(), 0700)) {
     return nullptr;
   }
   auto memory_capped_directory = std::unique_ptr<MemoryCappedDirectory>(
@@ -118,7 +119,7 @@ void MemoryCappedDirectory::DeleteAll() {
   // Recursively delete the contents of the directory_path_.
   base::DeleteFile(directory_path_, true);
   // Re-create the directory_path_ which will now be empty.
-  SbDirectoryCreate(directory_path_.value().c_str());
+  mkdir(directory_path_.value().c_str(), 0700);
   file_info_heap_.clear();
   file_sizes_.clear();
   file_keys_with_metadata_.clear();

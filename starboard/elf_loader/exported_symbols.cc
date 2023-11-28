@@ -128,7 +128,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbDecodeTargetRelease);
   REGISTER_SYMBOL(SbDirectoryCanOpen);
   REGISTER_SYMBOL(SbDirectoryClose);
+  // #if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbDirectoryCreate);
+  // #endif //SB_API_VERSION < 16
   REGISTER_SYMBOL(SbDirectoryGetNext);
   REGISTER_SYMBOL(SbDirectoryOpen);
   REGISTER_SYMBOL(SbDrmCloseSession);
