@@ -200,7 +200,8 @@ bool FFMPEGDispatchImpl::OpenLibraries() {
 
     library_file =
         GetVersionedLibraryName(kAVFormatLibraryName, versions.avformat);
-    avformat_ = dlopen(library_file.c_str(), RTLD_NOW | RTLD_GLOBAL | RTLD_DEEPBIND);
+    avformat_ =
+        dlopen(library_file.c_str(), RTLD_NOW | RTLD_GLOBAL | RTLD_DEEPBIND);
     if (!avformat_) {
       SB_DLOG(WARNING) << "Unable to open shared library " << library_file;
       reset_av_libraries();
