@@ -16,7 +16,7 @@
 #include "SkTime.h"
 #include "SkTypes.h"
 #include "base/time/time.h"
-#include "starboard/time.h"
+#include "starboard/common/time.h"
 
 // Taken from SkTime.cpp.
 void SkTime::DateTime::toISO8601(SkString* dst) const {
@@ -52,5 +52,6 @@ void SkTime::GetDateTime(DateTime* dt) {
 }
 
 double SkTime::GetNSecs() {
-  return SbTimeGetMonotonicNow() * kSbTimeNanosecondsPerMicrosecond;
+  return starboard::CurrentMonotonicTime() *
+         base::Time::kNanosecondsPerMicrosecond;
 }

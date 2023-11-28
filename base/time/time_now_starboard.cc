@@ -21,6 +21,7 @@
 
 #include "starboard/client_porting/poem/eztime_poem.h"
 #include "starboard/common/log.h"
+#include "starboard/common/time.h"
 #include "starboard/time.h"
 #include "starboard/types.h"
 
@@ -30,7 +31,8 @@ namespace base {
 
 namespace subtle {
 Time TimeNowIgnoringOverride() {
-  return Time() + TimeDelta::FromMicroseconds(SbTimeGetNow());
+  return Time() + TimeDelta::FromMicroseconds(
+      starboard::PosixTimeToWindowsTime(starboard::CurrentPosixTime()));
 }
 
 Time TimeNowFromSystemTimeIgnoringOverride() {
@@ -43,7 +45,8 @@ Time TimeNowFromSystemTimeIgnoringOverride() {
 
 namespace subtle {
 TimeTicks TimeTicksNowIgnoringOverride() {
-  return TimeTicks() + TimeDelta::FromMicroseconds(SbTimeGetMonotonicNow());
+  return TimeTicks() + TimeDelta::FromMicroseconds(
+      starboard::CurrentMonotonicTime());
 }
 }  // namespace subtle
 

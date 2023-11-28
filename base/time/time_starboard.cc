@@ -26,12 +26,8 @@ EzTimeZone GetTz(bool is_local) {
 }
 }  // namespace
 
-SbTime TimeDelta::ToSbTime() const {
-  return InMicroseconds();
-}
-
 void Time::Explode(bool is_local, Exploded *exploded) const {
-  EzTimeValue value = EzTimeValueFromSbTime(ToSbTime());
+  EzTimeValue value = EzTimeValueFromSbTime(us_);
   EzTimeExploded ez_exploded;
   int millisecond;
   bool result = EzTimeValueExplode(&value, GetTz(is_local), &ez_exploded,
@@ -60,7 +56,12 @@ bool Time::FromExploded(bool is_local, const Exploded& exploded, Time* time) {
   ez_exploded.tm_isdst = -1;
   EzTimeValue value = EzTimeValueImplode(&ez_exploded, exploded.millisecond,
                                          GetTz(is_local));
-  base::Time converted_time(Time::FromSbTime(EzTimeValueToSbTime(&value)));
+  int64_t posix_microseconds = (value.tv_sec * Time::kMicrosecondsPerSecond) +
+                               value.tv_usec;
+  int64_t windows_microseconds = posix_microseconds +
+                                 Time::kTimeTToMicrosecondsOffset;
+  base::Time converted_time = base::Time::FromDeltaSinceWindowsEpoch(
+      base::TimeDelta::FromMicroseconds(windows_microseconds));
 
   // If |exploded.day_of_month| is set to 31 on a 28-30 day month, it will
   // return the first day of the next month. Thus round-trip the time and
@@ -79,15 +80,6 @@ bool Time::FromExploded(bool is_local, const Exploded& exploded, Time* time) {
 
   *time = Time(0);
   return false;
-}
-
-// static
-Time Time::FromSbTime(SbTime t) {
-  return Time(t);
-}
-
-SbTime Time::ToSbTime() const {
-  return us_;
 }
 
 // static

@@ -16,6 +16,8 @@
 
 #include <numeric>
 
+#include "starboard/common/time.h"
+
 namespace cobalt {
 namespace media {
 
@@ -32,21 +34,21 @@ CValContainer::CValContainer(std::string name,
       minimum_{"Media." + name + ".Minimum", 0,
                "Minimum sample in microseconds."} {}
 
-void CValContainer::UpdateCVal(SbTime event_timing) {
-  latest_ = event_timing;
+void CValContainer::UpdateCVal(int64_t event_time_usec) {
+  latest_ = event_time_usec;
   accumulated_sample_count_++;
 
   if (!first_sample_added_) {
-    minimum_ = event_timing;
-    maximum_ = event_timing;
+    minimum_ = event_time_usec;
+    maximum_ = event_time_usec;
     first_sample_added_ = true;
   }
 
-  samples_[sample_write_index_] = event_timing;
+  samples_[sample_write_index_] = event_time_usec;
   sample_write_index_ = (sample_write_index_ + 1) % kMaxSamples;
 
   if (accumulated_sample_count_ % max_samples_before_calculation_ == 0) {
-    std::vector<SbTime> copy;
+    std::vector<int64_t> copy;
     int copy_size = std::min(accumulated_sample_count_, kMaxSamples);
     copy.reserve(copy_size);
     copy.assign(samples_, samples_ + copy_size);
@@ -88,7 +90,7 @@ void CValStats::StartTimer(MediaTiming event_type,
   if (!enabled_) return;
 
   running_timers_[std::make_pair(event_type, pipeline_identifier)] =
-      SbTimeGetMonotonicNow();
+      starboard::CurrentMonotonicTime();
 }
 
 void CValStats::StopTimer(MediaTiming event_type,
@@ -98,7 +100,7 @@ void CValStats::StopTimer(MediaTiming event_type,
   auto key = std::make_pair(event_type, pipeline_identifier);
   DCHECK(running_timers_.find(key) != running_timers_.end());
 
-  SbTime time_taken = SbTimeGetMonotonicNow() - running_timers_[key];
+  int64_t time_taken = starboard::CurrentMonotonicTime() - running_timers_[key];
   auto cval_container = cval_containers_.find(event_type);
   if (cval_container != cval_containers_.end()) {
     cval_container->second.UpdateCVal(time_taken);

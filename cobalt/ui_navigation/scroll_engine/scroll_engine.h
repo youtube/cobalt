@@ -75,15 +75,15 @@ class ScrollEngine : public browser::LifecycleObserver {
   base::Thread* thread() { return &scroll_engine_; }
 
   // LifecycleObserver implementation.
-  void Blur(SbTimeMonotonic timestamp) override {}
+  void Blur(int64_t timestamp) override {}
   void Conceal(render_tree::ResourceProvider* resource_provider,
-               SbTimeMonotonic timestamp) override;
-  void Freeze(SbTimeMonotonic timestamp) override;
+               int64_t timestamp) override;
+  void Freeze(int64_t timestamp) override;
   void Unfreeze(render_tree::ResourceProvider* resource_provider,
-                SbTimeMonotonic timestamp) override {}
+                int64_t timestamp) override {}
   void Reveal(render_tree::ResourceProvider* resource_provider,
-              SbTimeMonotonic timestamp) override {}
-  void Focus(SbTimeMonotonic timestamp) override {}
+              int64_t timestamp) override {}
+  void Focus(int64_t timestamp) override {}
 
  private:
   base::Thread scroll_engine_{"ScrollEngineThread"};

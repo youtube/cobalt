@@ -18,6 +18,7 @@
 #include <utility>
 
 #include "base/callback_helpers.h"
+#include "base/time/time.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_activity_monitor.h"
 #include "net/socket/socket_net_log_params.h"
@@ -163,8 +164,8 @@ int TCPSocketStarboard::SetDefaultOptionsForServer() {
 void TCPSocketStarboard::SetDefaultOptionsForClient() {
   SbSocketSetTcpNoDelay(socket_, true);
 
-  const SbTime kTCPKeepAliveDuration = 45 * kSbTimeSecond;
-  SbSocketSetTcpKeepAlive(socket_, true, kTCPKeepAliveDuration);
+  const int64_t kTCPKeepAliveDurationUsec = 45 * base::Time::kMicrosecondsPerSecond;
+  SbSocketSetTcpKeepAlive(socket_, true, kTCPKeepAliveDurationUsec);
 
   SbSocketSetTcpWindowScaling(socket_, true);
 

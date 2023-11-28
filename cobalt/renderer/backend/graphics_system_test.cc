@@ -18,10 +18,11 @@
 #include <memory>
 
 #include "base/optional.h"
+#include "base/time/time.h"
 #include "cobalt/renderer/backend/default_graphics_system.h"
 #include "cobalt/renderer/backend/graphics_context.h"
+#include "starboard/common/time.h"
 #include "starboard/log.h"
-#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -43,30 +44,34 @@ TEST(GraphicsSystemTest, FLAKY_GraphicsSystemCanBeInitializedOften) {
   graphics_system = CreateDefaultGraphicsSystem();
   graphics_system.reset();
 
-  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+  int64_t start = starboard::CurrentMonotonicTime();
   for (int i = 0; i < kReferenceCount; ++i) {
     graphics_system = CreateDefaultGraphicsSystem();
     graphics_system.reset();
   }
-  SbTimeMonotonic time_per_initialization =
-      (SbTimeGetMonotonicNow() - start) / kReferenceCount;
+  int64_t time_per_initialization_usec =
+      (starboard::CurrentMonotonicTime() - start) / kReferenceCount;
   SB_LOG(INFO) << "Measured duration "
-               << time_per_initialization / kSbTimeMillisecond
+               << time_per_initialization_usec /
+                      base::Time::kMicrosecondsPerMillisecond
                << "ms per initialization.";
 
   // Graphics system initializations should not take more than the maximum of
   // 200ms or three times as long as the time we just measured.
-  SbTimeMonotonic maximum_time_per_initialization =
-      std::max(3 * time_per_initialization, 200 * kSbTimeMillisecond);
+  int64_t maximum_time_usec_per_initialization =
+      std::max<int64_t>(3 * time_per_initialization_usec,
+                        200 * base::Time::kMicrosecondsPerMillisecond);
 
-  SbTimeMonotonic last = SbTimeGetMonotonicNow();
+  int64_t last = starboard::CurrentMonotonicTime();
   for (int i = 0; i < 20; ++i) {
     graphics_system = CreateDefaultGraphicsSystem();
     graphics_system.reset();
-    SbTimeMonotonic now = SbTimeGetMonotonicNow();
-    SB_LOG(INFO) << "Test duration " << (now - last) / kSbTimeMillisecond
+    int64_t now = starboard::CurrentMonotonicTime();
+    int64_t elapsed_time_usec = now - last;
+    SB_LOG(INFO) << "Test duration "
+                 << elapsed_time_usec / base::Time::kMicrosecondsPerMillisecond
                  << "ms.";
-    ASSERT_LT(now - last, maximum_time_per_initialization);
+    ASSERT_LT(elapsed_time_usec, maximum_time_usec_per_initialization);
     last = now;
   }
 }
@@ -84,7 +89,7 @@ TEST(GraphicsSystemTest, FLAKY_GraphicsContextCanBeInitializedOften) {
   graphics_context.reset();
   graphics_system.reset();
 
-  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+  int64_t start = starboard::CurrentMonotonicTime();
   for (int i = 0; i < kReferenceCount; ++i) {
     graphics_system = CreateDefaultGraphicsSystem();
     graphics_context = graphics_system->CreateGraphicsContext();
@@ -92,18 +97,21 @@ TEST(GraphicsSystemTest, FLAKY_GraphicsContextCanBeInitializedOften) {
     graphics_context.reset();
     graphics_system.reset();
   }
-  SbTimeMonotonic time_per_initialization =
-      kSbTimeMillisecond + (SbTimeGetMonotonicNow() - start) / kReferenceCount;
+  int64_t time_per_initialization_usec =
+      base::Time::kMicrosecondsPerMillisecond +
+      (starboard::CurrentMonotonicTime() - start) / kReferenceCount;
   SB_LOG(INFO) << "Measured duration "
-               << time_per_initialization / kSbTimeMillisecond
+               << time_per_initialization_usec /
+                      base::Time::kMicrosecondsPerMillisecond
                << "ms per initialization.";
 
   // Graphics system and context initializations should not take more than the
   // maximum of 200ms or three times as long as the time we just measured.
-  SbTimeMonotonic maximum_time_per_initialization =
-      std::max(3 * time_per_initialization, 200 * kSbTimeMillisecond);
+  int64_t maximum_time_usec_per_initialization =
+      std::max<int64_t>(3 * time_per_initialization_usec,
+                        200 * base::Time::kMicrosecondsPerMillisecond);
 
-  SbTimeMonotonic last = SbTimeGetMonotonicNow();
+  int64_t last = starboard::CurrentMonotonicTime();
   for (int i = 0; i < 20; ++i) {
     graphics_system = CreateDefaultGraphicsSystem();
     graphics_context = graphics_system->CreateGraphicsContext();
@@ -111,10 +119,12 @@ TEST(GraphicsSystemTest, FLAKY_GraphicsContextCanBeInitializedOften) {
     graphics_context.reset();
     graphics_system.reset();
 
-    SbTimeMonotonic now = SbTimeGetMonotonicNow();
-    SB_LOG(INFO) << "Test duration " << (now - last) / kSbTimeMillisecond
+    int64_t now = starboard::CurrentMonotonicTime();
+    int64_t elapsed_time_usec = now - last;
+    SB_LOG(INFO) << "Test duration "
+                 << elapsed_time_usec / base::Time::kMicrosecondsPerMillisecond
                  << "ms.";
-    ASSERT_LT(now - last, maximum_time_per_initialization);
+    ASSERT_LT(elapsed_time_usec, maximum_time_usec_per_initialization);
     last = now;
   }
 }

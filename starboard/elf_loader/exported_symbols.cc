@@ -15,6 +15,7 @@
 #include "starboard/elf_loader/exported_symbols.h"
 
 #include <stdlib.h>
+#include <time.h>
 
 #include "starboard/accessibility.h"
 #include "starboard/audio_sink.h"
@@ -42,6 +43,9 @@
 #include "starboard/mutex.h"
 #include "starboard/once.h"
 #include "starboard/player.h"
+#if SB_API_VERSION >= 16
+#include "starboard/shared/modular/posix_time_wrappers.h"
+#endif  // SB_API_VERSION >= 16
 #include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
 #include "starboard/speech_synthesis.h"
@@ -407,6 +411,15 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(posix_memalign);
   REGISTER_SYMBOL(free);
   REGISTER_SYMBOL(vsscanf);
+  REGISTER_SYMBOL(time);
+
+  // Custom mapped POSIX APIs to compatibility wrappers.
+  // These will rely on Starboard-side implementations that properly translate
+  // Platform-specific types with musl-based types. These wrappers are defined
+  // in //starboard/shared/modular.
+  // TODO: b/316603042 - Detect via NPLB and only add the wrapper if needed.
+  map_["clock_gettime"] = reinterpret_cast<const void*>(&__wrap_clock_gettime);
+  map_["gettimeofday"] = reinterpret_cast<const void*>(&__wrap_gettimeofday);
 #endif  // SB_API_VERSION >= 16
 
 }  // NOLINT

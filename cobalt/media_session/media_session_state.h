@@ -18,11 +18,12 @@
 #include <bitset>
 
 #include "base/optional.h"
+#include "base/time/time.h"
 #include "cobalt/media_session/media_metadata_init.h"
 #include "cobalt/media_session/media_position_state.h"
 #include "cobalt/media_session/media_session_action.h"
 #include "cobalt/media_session/media_session_playback_state.h"
-#include "starboard/time.h"
+#include "starboard/common/time.h"
 
 namespace cobalt {
 namespace media_session {
@@ -36,7 +37,7 @@ class MediaSessionState {
 
   MediaSessionState(
       base::Optional<MediaMetadataInit> metadata,
-      SbTimeMonotonic last_position_updated_time,
+      int64_t last_position_updated_time,
       const base::Optional<MediaPositionState>& media_position_state,
       MediaSessionPlaybackState actual_playback_state,
       AvailableActionsSet available_actions);
@@ -59,14 +60,13 @@ class MediaSessionState {
   // Returns the position of the current playback.
   // https://wicg.github.io/mediasession/#current-playback-position
   // Returns the position
-  SbTimeMonotonic current_playback_position() const {
-    return GetCurrentPlaybackPosition(SbTimeGetMonotonicNow());
+  int64_t current_playback_position() const {
+    return GetCurrentPlaybackPosition(starboard::CurrentMonotonicTime());
   }
 
   // Returns the position of the current playback, given the current time.
-  // This may be used for testing without calling |SbTimeGetMonotonicNow|.
-  SbTimeMonotonic GetCurrentPlaybackPosition(
-      SbTimeMonotonic monotonic_now) const;
+  // This may be used for testing without calling |CurrentMonotonicTime|.
+  int64_t GetCurrentPlaybackPosition(int64_t monotonic_now) const;
 
   // Returns a coefficient of the current playback rate. e.g. 1.0 is normal
   // forward playback, negative for reverse playback, and 0.0 when paused.
@@ -74,10 +74,10 @@ class MediaSessionState {
   double actual_playback_rate() const { return actual_playback_rate_; }
 
   // Returns the duration of the currently playing media. 0 if no media is
-  // playing or the web app has not reported the position state. kSbTimeMax if
+  // playing or the web app has not reported the position state. kSbInt64Max if
   // there is no defined duration such as live playback.
   // https://wicg.github.io/mediasession/#dom-mediapositionstate-duration
-  SbTimeMonotonic duration() const { return duration_; }
+  int64_t duration() const { return duration_usec_; }
 
   // Returns the actual playback state.
   // https://wicg.github.io/mediasession/#actual-playback-state
@@ -95,10 +95,10 @@ class MediaSessionState {
 
  private:
   base::Optional<MediaMetadataInit> metadata_;
-  SbTimeMonotonic last_position_updated_time_ = 0;
-  SbTimeMonotonic last_position_ = 0;
+  int64_t last_position_updated_time_ = 0;
+  int64_t last_position_usec_ = 0;
   double actual_playback_rate_ = 0.0;
-  SbTimeMonotonic duration_ = 0;
+  int64_t duration_usec_ = 0;
   MediaSessionPlaybackState actual_playback_state_ =
       kMediaSessionPlaybackStateNone;
   AvailableActionsSet available_actions_;

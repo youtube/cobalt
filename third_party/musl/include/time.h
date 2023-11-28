@@ -147,7 +147,9 @@ __REDIR(localtime_r, __localtime64_r);
 __REDIR(ctime_r, __ctime64_r);
 __REDIR(nanosleep, __nanosleep_time64);
 __REDIR(clock_getres, __clock_getres_time64);
+#if !defined(STARBOARD)
 __REDIR(clock_gettime, __clock_gettime64);
+#endif  // !defined(STARBOARD)
 __REDIR(clock_settime, __clock_settime64);
 __REDIR(clock_nanosleep, __clock_nanosleep_time64);
 __REDIR(timer_settime, __timer_settime64);

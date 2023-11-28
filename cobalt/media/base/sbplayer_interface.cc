@@ -59,7 +59,7 @@ void DefaultSbPlayerInterface::Destroy(SbPlayer player) {
   SbPlayerDestroy(player);
 }
 
-void DefaultSbPlayerInterface::Seek(SbPlayer player, SbTime seek_to_timestamp,
+void DefaultSbPlayerInterface::Seek(SbPlayer player, int64_t seek_to_timestamp,
                                     int ticket) {
 #if SB_API_VERSION >= 15
   SbPlayerSeek(player, seek_to_timestamp, ticket);
