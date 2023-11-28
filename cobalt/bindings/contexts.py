@@ -18,7 +18,6 @@ Extract the relevant information from the IdlParser objects and store them in
 dicts that will be used by Jinja in JS bindings generation.
 """
 
-import _env  # pylint: disable=unused-import
 from cobalt.bindings.name_conversion import capitalize_function_name
 from cobalt.bindings.name_conversion import convert_to_cobalt_constant_name
 from cobalt.bindings.name_conversion import convert_to_cobalt_enumeration_value
