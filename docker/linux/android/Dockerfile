@@ -38,6 +38,7 @@ ARG TOOLS=commandlinetools-linux-6200805_latest.zip
 ARG CMDLINE_URL=https://dl.google.com/android/repository/${TOOLS}
 ENV ANDROID_SDK_ROOT=/root/starboard-toolchains/AndroidSdk/
 
+
 RUN cd /tmp \
   && mkdir -p ${ANDROID_SDK_ROOT} \
   && curl --silent -O -J  ${CMDLINE_URL} \
