@@ -1,56 +1,56 @@
----
-layout: doc
-title: "Starboard Module Reference: directory.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: `directory.h`
 
 Provides directory listing functions.
 
-## Macros ##
+## Macros
 
-### kSbDirectoryInvalid ###
+### kSbDirectoryInvalid
 
 Well-defined value for an invalid directory stream handle.
 
-## Typedefs ##
+## Typedefs
 
-### SbDirectory ###
+### SbDirectory
 
 A handle to an open directory stream.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef struct SbDirectoryPrivate* SbDirectory
 ```
 
-## Functions ##
+## Functions
 
-### SbDirectoryCanOpen ###
+### SbDirectoryCanOpen
 
 Indicates whether SbDirectoryOpen is allowed for the given `path`.
 
 `path`: The path to be checked.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbDirectoryCanOpen(const char *path)
 ```
 
-### SbDirectoryClose ###
+### SbDirectoryClose
 
 Closes an open directory stream handle. The return value indicates whether the
 directory was closed successfully.
 
 `directory`: The directory stream handle to close.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbDirectoryClose(SbDirectory directory)
 ```
 
-### SbDirectoryCreate ###
+### SbDirectoryCreate
 
 Creates the directory `path`, assuming the parent directory already exists. This
 function returns `true` if the directory now exists (even if it existed before)
@@ -58,13 +58,13 @@ and returns `false` if the directory does not exist.
 
 `path`: The path to be created.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbDirectoryCreate(const char *path)
 ```
 
-### SbDirectoryGetNext ###
+### SbDirectoryGetNext
 
 Populates `out_entry` with the next entry in the specified directory stream, and
 moves the stream forward by one entry.
@@ -83,23 +83,23 @@ entry. The space allocated for this string should be equal to `out_entry_size`.
 `out_entry_size`: The size of the space allocated for `out_entry`. This should
 be at least equal to kSbFileMaxName.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbDirectoryGetNext(SbDirectory directory, char *out_entry, size_t out_entry_size)
 ```
 
-### SbDirectoryIsValid ###
+### SbDirectoryIsValid
 
 Returns whether the given directory stream handle is valid.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static bool SbDirectoryIsValid(SbDirectory directory)
 ```
 
-### SbDirectoryOpen ###
+### SbDirectoryOpen
 
 Opens the given existing directory for listing. This function returns
 kSbDirectoryInvalidHandle if it is not successful.
@@ -110,7 +110,7 @@ SbFileError code on failure.
 `out_error`: An output parameter that, in case of an error, is set to the reason
 that the directory could not be opened.
 
-#### Declaration ####
+#### Declaration
 
 ```
 SbDirectory SbDirectoryOpen(const char *path, SbFileError *out_error)

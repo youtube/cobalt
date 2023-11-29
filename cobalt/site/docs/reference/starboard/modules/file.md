@@ -1,25 +1,25 @@
----
-layout: doc
-title: "Starboard Module Reference: file.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: `file.h`
 
 Defines file system input/output functions.
 
-## Macros ##
+## Macros
 
-### kSbFileInvalid ###
+### kSbFileInvalid
 
 Well-defined value for an invalid file handle.
 
-## Enums ##
+## Enums
 
-### SbFileError ###
+### SbFileError
 
 kSbFileErrorAccessDenied is returned when a call fails because of a filesystem
 restriction. kSbFileErrorSecurity is returned when a security policy doesn't
 allow the operation to be executed.
 
-#### Values ####
+#### Values
 
 *   `kSbFileOk`
 *   `kSbFileErrorFailed`
@@ -40,7 +40,7 @@ allow the operation to be executed.
 *   `kSbFileErrorIO`
 *   `kSbFileErrorMax`
 
-### SbFileFlags ###
+### SbFileFlags
 
 Flags that define how a file is used in the application. These flags should be
 or'd together when passed to SbFileOpen to open or create a file.
@@ -66,7 +66,7 @@ In addition, one or more of the following flags must be specified:
 
 The `kSbFileAsync` flag is optional.
 
-#### Values ####
+#### Values
 
 *   `kSbFileOpenOnly`
 *   `kSbFileCreateOnly`
@@ -85,35 +85,35 @@ The `kSbFileAsync` flag is optional.
 *   `kSbFileWrite`
 *   `kSbFileAsync`
 
-### SbFileWhence ###
+### SbFileWhence
 
 This explicit mapping matches both FILE_ on Windows and SEEK_ on Linux.
 
-#### Values ####
+#### Values
 
 *   `kSbFileFromBegin`
 *   `kSbFileFromCurrent`
 *   `kSbFileFromEnd`
 
-## Typedefs ##
+## Typedefs
 
-### SbFile ###
+### SbFile
 
 A handle to an open file.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef SbFilePrivate* SbFile
 ```
 
-## Structs ##
+## Structs
 
-### SbFileInfo ###
+### SbFileInfo
 
 Used to hold information about a file.
 
-#### Members ####
+#### Members
 
 *   `int64_t size`
 
@@ -134,9 +134,9 @@ Used to hold information about a file.
 
     The creation time of a file.
 
-## Functions ##
+## Functions
 
-### SbFileAtomicReplace ###
+### SbFileAtomicReplace
 
 Replaces the content of the file at `path` with `data`. Returns whether the
 contents of the file were replaced. The replacement of the content is an atomic
@@ -146,39 +146,39 @@ operation. The file will either have all of the data, or none.
 to replace the file contents with. `data_size`: The amount of `data`, in bytes,
 to be written to the file.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbFileAtomicReplace(const char *path, const char *data, int64_t data_size)
 ```
 
-### SbFileCanOpen ###
+### SbFileCanOpen
 
 Indicates whether SbFileOpen() with the given `flags` is allowed for `path`.
 
 `path`: The absolute path to be checked. `flags`: The flags that are being
 evaluated for the given `path`.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbFileCanOpen(const char *path, int flags)
 ```
 
-### SbFileClose ###
+### SbFileClose
 
 Closes `file`. The return value indicates whether the file was closed
 successfully.
 
 `file`: The absolute path of the file to be closed.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbFileClose(SbFile file)
 ```
 
-### SbFileDelete ###
+### SbFileDelete
 
 Deletes the regular file, symlink, or empty directory at `path`. This function
 is used primarily to clean up after unit tests. On some platforms, this function
@@ -186,38 +186,38 @@ fails if the file in question is being held open.
 
 `path`: The absolute path of the file, symlink, or directory to be deleted.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbFileDelete(const char *path)
 ```
 
-### SbFileExists ###
+### SbFileExists
 
 Indicates whether a file or directory exists at `path`.
 
 `path`: The absolute path of the file or directory being checked.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbFileExists(const char *path)
 ```
 
-### SbFileFlush ###
+### SbFileFlush
 
 Flushes the write buffer to `file`. Data written via SbFileWrite is not
 necessarily committed until the SbFile is flushed or closed.
 
 `file`: The SbFile to which the write buffer is flushed.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbFileFlush(SbFile file)
 ```
 
-### SbFileGetInfo ###
+### SbFileGetInfo
 
 Retrieves information about `file`. The return value indicates whether the file
 information was retrieved successfully.
@@ -226,13 +226,13 @@ information was retrieved successfully.
 into which the retrieved data is placed. This variable is not touched if the
 operation is not successful.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbFileGetInfo(SbFile file, SbFileInfo *out_info)
 ```
 
-### SbFileGetPathInfo ###
+### SbFileGetPathInfo
 
 Retrieves information about the file at `path`. The return value indicates
 whether the file information was retrieved successfully.
@@ -241,36 +241,36 @@ whether the file information was retrieved successfully.
 `out_info`: The variable into which the retrieved data is placed. This variable
 is not touched if the operation is not successful.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbFileGetPathInfo(const char *path, SbFileInfo *out_info)
 ```
 
-### SbFileIsValid ###
+### SbFileIsValid
 
 Returns whether the given file handle is valid.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static bool SbFileIsValid(SbFile file)
 ```
 
-### SbFileModeStringToFlags ###
+### SbFileModeStringToFlags
 
 Converts an ISO `fopen()` mode string into flags that can be equivalently passed
 into SbFileOpen().
 
 `mode`: The mode string to be converted into flags.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int SbFileModeStringToFlags(const char *mode)
 ```
 
-### SbFileOpen ###
+### SbFileOpen
 
 Opens the file at `path`, which must be absolute, creating it if specified by
 `flags`. The read/write position is at the beginning of the file.
@@ -287,13 +287,13 @@ which can happen if the `kSbFileCreateAlways` flag is set. Otherwise, Starboard
 sets this value to `false`. `out_error`: If `path` cannot be created, this is
 set to `kSbFileInvalid`. Otherwise, it is `NULL`.
 
-#### Declaration ####
+#### Declaration
 
 ```
 SbFile SbFileOpen(const char *path, int flags, bool *out_created, SbFileError *out_error)
 ```
 
-### SbFileRead ###
+### SbFileRead
 
 Reads `size` bytes (or until EOF is reached) from `file` into `data`, starting
 at the file's current position.
@@ -306,13 +306,13 @@ However, this function can be run in a loop to make it a best-effort read.
 `file`: The SbFile from which to read data. `data`: The variable to which data
 is read. `size`: The amount of data (in bytes) to read.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int SbFileRead(SbFile file, char *data, int size)
 ```
 
-### SbFileReadAll ###
+### SbFileReadAll
 
 Reads `size` bytes (or until EOF is reached) from `file` into `data`, starting
 at the file's current position.
@@ -326,13 +326,13 @@ be read unless there is an error.
 `file`: The SbFile from which to read data. `data`: The variable to which data
 is read. `size`: The amount of data (in bytes) to read.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static int SbFileReadAll(SbFile file, char *data, int size)
 ```
 
-### SbFileSeek ###
+### SbFileSeek
 
 Changes the current read/write position in `file`. The return value identifies
 the resultant current read/write position in the file (relative to the start) or
@@ -344,13 +344,13 @@ The starting read/write position. The position is modified relative to this
 value. `offset`: The amount that the read/write position is changed, relative to
 `whence`.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int64_t SbFileSeek(SbFile file, SbFileWhence whence, int64_t offset)
 ```
 
-### SbFileTruncate ###
+### SbFileTruncate
 
 Truncates the given `file` to the given `length`. The return value indicates
 whether the file was truncated successfully.
@@ -360,13 +360,13 @@ after it is truncated. If `length` is greater than the current size of the file,
 then the file is extended with zeros. If `length` is negative, then the function
 is a no-op and returns `false`.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbFileTruncate(SbFile file, int64_t length)
 ```
 
-### SbFileWrite ###
+### SbFileWrite
 
 Writes the given buffer into `file` at the file's current position, overwriting
 any data that was previously there.
@@ -380,13 +380,13 @@ in a loop to ensure that all data is written.
 `file`: The SbFile to which data will be written. `data`: The data to be
 written. `size`: The amount of data (in bytes) to write.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int SbFileWrite(SbFile file, const char *data, int size)
 ```
 
-### SbFileWriteAll ###
+### SbFileWriteAll
 
 Writes the given buffer into `file`, starting at the beginning of the file, and
 overwriting any data that was previously there. Unlike SbFileWrite, this
@@ -397,7 +397,7 @@ The return value identifies the number of bytes written, or `-1` on error.
 `file`: The file to which data will be written. `data`: The data to be written.
 `size`: The amount of data (in bytes) to write.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static int SbFileWriteAll(SbFile file, const char *data, int size)

@@ -1,18 +1,18 @@
----
-layout: doc
-title: "Starboard Module Reference: input.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: `input.h`
 
 Defines input events and associated data types.
 
-## Enums ##
+## Enums
 
-### SbInputDeviceType ###
+### SbInputDeviceType
 
 Identifies possible input subsystem types. The types of events that each device
 type produces correspond to `SbInputEventType` values.
 
-#### Values ####
+#### Values
 
 *   `kSbInputDeviceTypeGesture`
 
@@ -57,11 +57,11 @@ type produces correspond to `SbInputEventType` values.
 
     Produces `Input` events.
 
-### SbInputEventType ###
+### SbInputEventType
 
 The action that an input event represents.
 
-#### Values ####
+#### Values
 
 *   `kSbInputEventTypeMove`
 
@@ -86,13 +86,13 @@ The action that an input event represents.
 
     [https://w3c.github.io/uievents/#event-type-input](https://w3c.github.io/uievents/#event-type-input)
 
-## Structs ##
+## Structs
 
-### SbInputData ###
+### SbInputData
 
 Event data for `kSbEventTypeInput` events.
 
-#### Members ####
+#### Members
 
 *   `SbWindow window`
 
@@ -160,11 +160,11 @@ Event data for `kSbEventTypeInput` events.
 
     Set to true if the input event is part of a composition event.
 
-### SbInputVector ###
+### SbInputVector
 
 A 2-dimensional vector used to represent points and motion vectors.
 
-#### Members ####
+#### Members
 
 *   `float x`
 *   `float y`
