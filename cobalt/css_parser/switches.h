@@ -21,10 +21,12 @@ namespace cobalt {
 namespace css_parser {
 namespace switches {
 
+#if !defined(COBALT_BUILD_TYPE_GOLD)
 extern const char kOnCssError[];
 extern const char kOnCssErrorHelp[];
 extern const char kOnCssWarning[];
 extern const char kOnCssWarningHelp[];
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
 std::string HelpMessage();
 
