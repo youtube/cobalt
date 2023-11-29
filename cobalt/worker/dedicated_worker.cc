@@ -85,7 +85,8 @@ void DedicatedWorker::Initialize(script::ExceptionState* exception_state) {
   // 6. Let worker be a new Worker object.
   // 7. Let outside port be a new MessagePort in outside settings's Realm.
   // 8. Associate the outside port with worker.
-  outside_port_ = new web::MessagePort(this);
+  outside_port_ = new web::MessagePort();
+  outside_port_->EntangleWithEventTarget(this);
   // 9. Run this step in parallel:
   //    1. Run a worker given worker, worker URL, outside settings, outside
   //    port, and options.
