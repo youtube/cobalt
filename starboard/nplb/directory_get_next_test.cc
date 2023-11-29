@@ -26,7 +26,7 @@
 namespace starboard {
 namespace nplb {
 namespace {
-
+#if SB_API_VERSION < 16
 typedef std::set<std::string> StringSet;
 
 TEST(SbDirectoryGetNextTest, SunnyDay) {
@@ -197,7 +197,7 @@ TEST(SbDirectoryGetNextTest, FailureOnInsufficientSize) {
 
   EXPECT_TRUE(SbDirectoryClose(directory));
 }
-
+#endif  // SB_API_VERSION < 16
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard

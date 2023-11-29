@@ -17,6 +17,7 @@
 #include <cstring>
 #include <vector>
 
+#include "dirent.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
@@ -83,23 +84,25 @@ bool EndsWith(const std::string& s, const std::string& suffix) {
 }  // namespace
 
 bool AnyGoodAppKeyFile(const std::string& dir) {
-  SbDirectory directory = SbDirectoryOpen(dir.c_str(), NULL);
+  DIR* directory = opendir(dir.c_str());
 
-  if (!SbDirectoryIsValid(directory)) {
+  if (!directory) {
     SB_LOG(ERROR) << "Failed to open dir='" << dir << "'";
     return false;
   }
 
   bool found = false;
   std::vector<char> filename(kSbFileMaxName);
-  while (SbDirectoryGetNext(directory, filename.data(), filename.size())) {
-    if (!strncmp(kFilePrefix, filename.data(), sizeof(kFilePrefix) - 1) &&
-        EndsWith(filename.data(), kGoodFileSuffix)) {
+  struct dirent dirent_buffer;
+  struct dirent* dirent;
+  while (readdir_r(directory, &dirent_buffer, &dirent)) {
+    if (!strncmp(kFilePrefix, dirent->d_name, sizeof(kFilePrefix) - 1) &&
+        EndsWith(dirent->d_name, kGoodFileSuffix)) {
       found = true;
       break;
     }
   }
-  SbDirectoryClose(directory);
+  closedir(directory);
   return found;
 }
 

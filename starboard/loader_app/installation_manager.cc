@@ -32,6 +32,7 @@
 #endif  // !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 #include "starboard/once.h"
 #include "starboard/string.h"
+#include "sys/stat.h"
 
 namespace starboard {
 namespace loader_app {
@@ -708,7 +709,7 @@ bool InstallationManager::CreateInstallationDirs() {
       return false;
     }
 
-    if (!SbDirectoryCreate(path.data())) {
+    if (!mkdir(path.data(), 0700)) {
       return false;
     }
   }

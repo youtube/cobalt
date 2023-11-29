@@ -165,7 +165,7 @@ class InstallationManagerTest : public ::testing::TestWithParam<int> {
       }
     }
   }
-
+#if SB_API_VERSION < 16
   virtual void TearDown() {
     if (!storage_path_implemented_) {
       return;
@@ -186,6 +186,7 @@ class InstallationManagerTest : public ::testing::TestWithParam<int> {
     SbDirectoryClose(dir);
     SbFileDelete(storage_path_.c_str());
   }
+#endif
 
  protected:
   std::string storage_path_;

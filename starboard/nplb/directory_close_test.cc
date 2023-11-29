@@ -21,11 +21,11 @@
 namespace starboard {
 namespace nplb {
 namespace {
-
+#if SB_API_VERSION < 16
 TEST(SbDirectoryCloseTest, FailureInvalid) {
   EXPECT_FALSE(SbDirectoryClose(kSbDirectoryInvalid));
 }
-
+#endif  // SB_API_VERSION < 16
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard

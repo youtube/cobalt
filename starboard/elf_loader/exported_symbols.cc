@@ -14,6 +14,7 @@
 
 #include "starboard/elf_loader/exported_symbols.h"
 
+#include <dirent.h>
 #include <stdlib.h>
 
 #include "starboard/accessibility.h"
@@ -127,12 +128,12 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbDecodeTargetGetInfo);
   REGISTER_SYMBOL(SbDecodeTargetRelease);
   REGISTER_SYMBOL(SbDirectoryCanOpen);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbDirectoryClose);
-  // #if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbDirectoryCreate);
-  // #endif //SB_API_VERSION < 16
   REGISTER_SYMBOL(SbDirectoryGetNext);
   REGISTER_SYMBOL(SbDirectoryOpen);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbDrmCloseSession);
   REGISTER_SYMBOL(SbDrmCreateSystem);
   REGISTER_SYMBOL(SbDrmDestroySystem);
@@ -406,6 +407,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(posix_memalign);
   REGISTER_SYMBOL(free);
+  REGISTER_SYMBOL(opendir);
+  REGISTER_SYMBOL(readdir_r);
+  REGISTER_SYMBOL(closedir);
 #endif  // SB_API_VERSION >= 16
 
 }  // NOLINT

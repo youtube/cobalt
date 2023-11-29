@@ -263,7 +263,6 @@
 #include <string.h>
 
 #ifndef _WIN32_WCE
-#include <sys/stat.h>
 #include <sys/types.h>
 #endif  // !_WIN32_WCE
 #else  // !defined(STARBOARD)
@@ -297,6 +296,7 @@
 #include <limits>
 #include <locale>
 #include <string>
+#include <sys/stat.h>
 // #include <mutex>  // Guarded by GTEST_IS_THREADSAFE below
 #include <tuple>
 #include <type_traits>
@@ -2134,7 +2134,7 @@ inline void *MemSet(void *s, int c, size_t n) {
 inline void Assert(bool b) { SB_CHECK(b); }
 
 inline int MkDir(const char* path, int /*mode*/) {
-  return SbDirectoryCreate(path) ? 0 : -1;
+  return mkdir(path, 0700) ? 0 : -1;
 }
 
 inline void VPrintF(const char* format, va_list args) {

@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "dirent.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -71,9 +72,9 @@ bool IsExpired(const std::string& filename) {
 
 std::vector<std::string> FindAllWithPrefix(const std::string& dir,
                                            const std::string& prefix) {
-  SbDirectory slot = SbDirectoryOpen(dir.c_str(), NULL);
+  DIR* slot = opendir(dir.c_str());
 
-  if (!SbDirectoryIsValid(slot)) {
+  if (!slot) {
     SB_LOG(ERROR) << "Failed to open provided directory '" << dir << "'";
     return std::vector<std::string>();
   }
@@ -82,13 +83,15 @@ std::vector<std::string> FindAllWithPrefix(const std::string& dir,
 
   std::vector<char> filename(kSbFileMaxName);
 
-  while (SbDirectoryGetNext(slot, filename.data(), filename.size())) {
-    if (!strcmp(filename.data(), ".") || !strcmp(filename.data(), ".."))
+  struct dirent dirent_buffer;
+  struct dirent* dirent;
+  while (readdir_r(slot, &dirent_buffer, &dirent)) {
+    if (!strcmp(dirent->d_name, ".") || !strcmp(dirent->d_name, ".."))
       continue;
-    if (!strncmp(prefix.data(), filename.data(), prefix.size()))
-      filenames.push_back(std::string(filename.data()));
+    if (!strncmp(prefix.data(), dirent->d_name, prefix.size()))
+      filenames.push_back(std::string(dirent->d_name));
   }
-  SbDirectoryClose(slot);
+  closedir(slot);
   return filenames;
 }
 

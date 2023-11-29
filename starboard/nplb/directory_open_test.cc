@@ -24,7 +24,7 @@
 namespace starboard {
 namespace nplb {
 namespace {
-
+#if SB_API_VERSION < 16
 #define EXPECT_FILE_EXISTS(path) \
   EXPECT_TRUE(SbFileExists(path.c_str())) << "Filename is " << path.c_str()
 
@@ -143,7 +143,7 @@ TEST(SbDirectoryOpenTest, FailsRegularFile) {
     SbDirectoryClose(directory);
   }
 }
-
+#endif  // SB_API_VERSION < 16
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard

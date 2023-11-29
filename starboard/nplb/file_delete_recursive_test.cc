@@ -14,12 +14,14 @@
 
 #include <string>
 
+#include "dirent.h"
 #include "starboard/common/file.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
 #include "starboard/nplb/file_helpers.h"
 #include "starboard/types.h"
+#include "sys/stat.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -52,7 +54,7 @@ TEST(SbFileDeleteRecursiveTest, SunnyDayDeleteExistingPath) {
     path = tmp + kSbFileSepString + kRoot + kSbFileSepString + kDirectories[i];
 
     EXPECT_FALSE(SbFileExists(path.c_str()));
-    EXPECT_TRUE(SbDirectoryCreate(path.c_str()));
+    EXPECT_TRUE(mkdir(path.c_str(), 0700));
     EXPECT_TRUE(SbDirectoryCanOpen(path.c_str()));
   }
 
@@ -83,7 +85,7 @@ TEST(SbFileDeleteRecursiveTest, SunnyDayDeletePreserveRoot) {
   const std::string root = GetTempDir() + kSbFileSepString + kRoot;
 
   EXPECT_FALSE(SbFileExists(root.c_str()));
-  EXPECT_TRUE(SbDirectoryCreate(root.c_str()));
+  EXPECT_TRUE(opendir(root.c_str()));
   EXPECT_TRUE(SbDirectoryCanOpen(root.c_str()));
 
   EXPECT_TRUE(SbFileDeleteRecursive(root.c_str(), true));

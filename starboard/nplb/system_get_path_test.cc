@@ -112,7 +112,7 @@ TEST(SbSystemGetPathTest, DoesNotTouchOutputBufferOnFailureForDefinedIds) {
   UnmodifiedOnFailureTest(kSbSystemPathFontDirectory, __LINE__);
   UnmodifiedOnFailureTest(kSbSystemPathFontConfigurationDirectory, __LINE__);
 }
-
+#if SB_API_VERSION < 16
 TEST(SbSystemGetPathTest, CanCreateAndRemoveDirectoryInCache) {
   std::vector<char> path(kPathSize);
   memset(path.data(), 0xCD, kPathSize);
@@ -141,6 +141,7 @@ TEST(SbSystemGetPathTest, CanCreateAndRemoveDirectoryInCache) {
     EXPECT_FALSE(SbFileExists(path.data()));
   }
 }
+#endif  // SB_API_VERSION < 16
 
 TEST(SbSystemGetPathTest, CanWriteAndReadCache) {
   std::vector<char> path(kPathSize);
