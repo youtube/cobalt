@@ -182,7 +182,7 @@ class BaseIteratorRangeToNumberTraits {
   static value_type max() {
     return std::numeric_limits<value_type>::max();
   }
-  static const int kBase = BASE;
+  static constexpr int kBase = BASE;
 };
 
 typedef BaseIteratorRangeToNumberTraits<StringPiece::const_iterator, int, 10>

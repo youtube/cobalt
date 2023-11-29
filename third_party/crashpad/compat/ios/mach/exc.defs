@@ -12,12 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef CRASHPAD_TEST_IOS_HOST_CRASH_VIEW_CONTROLLER_H_
-#define CRASHPAD_TEST_IOS_HOST_CRASH_VIEW_CONTROLLER_H_
+#ifndef CRASHPAD_COMPAT_IOS_MACH_EXC_DEFS_
+#define CRASHPAD_COMPAT_IOS_MACH_EXC_DEFS_
 
-#import <UIKit/UIKit.h>
+#include "third_party/xnu/osfmk/mach/exc.defs"
 
-@interface CrashViewController : UIViewController
-@end
-
-#endif  // CRASHPAD_TEST_IOS_HOST_CRASH_VIEW_CONTROLLER_H_
+#endif  // CRASHPAD_COMPAT_IOS_MACH_EXC_DEFS_
