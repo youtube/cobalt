@@ -138,6 +138,8 @@ void AudioRendererPassthrough::WriteSamples(const InputBuffers& input_buffers) {
   decoder_->Decode(
       input_buffers,
       std::bind(&AudioRendererPassthrough::OnDecoderConsumed, this));
+
+  discard_duration_tracker_.CacheMultipleDiscardDurations(input_buffers);
 }
 
 void AudioRendererPassthrough::WriteEndOfStream() {
@@ -289,6 +291,7 @@ void AudioRendererPassthrough::Seek(SbTime seek_to_time) {
   decoded_audio_writing_in_progress_ = nullptr;
   decoded_audio_writing_offset_ = 0;
   total_frames_written_on_audio_track_thread_ = 0;
+  discard_duration_tracker_.Reset();
 }
 
 // This function can be called from *any* threads.
@@ -334,6 +337,8 @@ SbTime AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
     playback_time =
         audio_start_time + total_frames_played * kSbTimeSecond /
                                audio_stream_info_.samples_per_second;
+    playback_time = discard_duration_tracker_.AdjustTimeForTotalDiscardDuration(
+        playback_time);
     return std::max(playback_time, seek_to_time_);
   }
 
@@ -350,6 +355,8 @@ SbTime AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
   //       returned on pause, after an adjusted time has been returned.
   playback_time = audio_start_time + playback_head_position * kSbTimeSecond /
                                          audio_stream_info_.samples_per_second;
+  playback_time = discard_duration_tracker_.AdjustTimeForTotalDiscardDuration(
+      playback_time);
 
   // When underlying AudioTrack is paused, we use returned playback time
   // directly. Note that we should not use |paused_| or |playback_rate_| here.
@@ -558,6 +565,8 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
       if (decoded_audio_writing_offset_ ==
           decoded_audio_writing_in_progress_->size_in_bytes()) {
         total_frames_written_on_audio_track_thread_ += frames_per_input_buffer_;
+        discard_duration_tracker_.AddCachedDiscardDurationToTotal(
+            decoded_audio_writing_in_progress_->timestamp());
         decoded_audio_writing_in_progress_ = nullptr;
         decoded_audio_writing_offset_ = 0;
         fully_written = true;
