@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Cobalt Branching"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Cobalt Branching
 
 *(This document assumes you are already familiar
