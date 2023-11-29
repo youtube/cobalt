@@ -24,7 +24,7 @@ import sys
 FILE_DIR = os.path.dirname(__file__)
 COMMIT_COUNT_BUILD_ID_OFFSET = 1000000
 
-_BUILD_ID_PATTERN = '^BUILD_NUMBER=([1-9][0-9]{6,})$'
+_BUILD_ID_PATTERN = '^(Build-Id: |BUILD_NUMBER=)([1-9][0-9]{6,})$'
 _GIT_REV_PATTERN = '^GitOrigin-RevId: ([0-9a-f]{40})$'
 _COBALT_VERSION_PATTERN = '^#define COBALT_VERSION "(.*)"$'
 
@@ -40,7 +40,7 @@ def get_build_id_and_git_rev_from_commits(cwd):
   match_build_id = compiled_build_id_pattern.search(output)
   if not match_build_id:
     return None, None
-  build_id = match_build_id.group(1)
+  build_id = match_build_id.group(2)
 
   # Gets git rev.
   compiled_git_rev_pattern = re.compile(_GIT_REV_PATTERN, flags=re.MULTILINE)
