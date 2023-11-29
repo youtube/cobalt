@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Separation of Starboard from Cobalt"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Separation of Starboard from Cobalt
 
 ### Background

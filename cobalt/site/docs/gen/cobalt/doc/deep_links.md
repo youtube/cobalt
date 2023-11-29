@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Cobalt Deep Links"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Cobalt Deep Links
 
 - [Cobalt Deep Links](#cobalt-deep-links)
