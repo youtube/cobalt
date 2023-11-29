@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Starboard Versioning"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Starboard Versioning
 
 ## Motivation

@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Cobalt Web Debugging"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Cobalt Web Debugging
 
 ## Overview

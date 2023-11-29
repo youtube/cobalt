@@ -1,11 +1,11 @@
----
-layout: doc
-title: "Starboard Module Reference: event.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: `event.h`
 
 Defines the event system that wraps the Starboard main loop and entry point.
 
-## The Starboard Application Lifecycle ##
+## The Starboard Application Lifecycle
 
 ```
                * ----------
@@ -78,15 +78,15 @@ for a more graceful shutdown.
 Note that the application is always expected to transition through `BLURRED`,
 `CONCEALED` to `FROZEN` before receiving `Stop` or being killed.
 
-## Enums ##
+## Enums
 
-### SbEventType ###
+### SbEventType
 
 An enumeration of all possible event types dispatched directly by the system.
 Each event is accompanied by a void* data argument, and each event must define
 the type of the value pointed to by that data argument, if any.
 
-#### Values ####
+#### Values
 
 *   `kSbEventTypePreload`
 
@@ -273,55 +273,55 @@ the type of the value pointed to by that data argument, if any.
     change in the timezone setting). This should trigger the application to re-
     query the relevant APIs to update the date and time.
 
-## Typedefs ##
+## Typedefs
 
-### SbEventCallback ###
+### SbEventCallback
 
 A function that can be called back from the main Starboard event pump.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef void(* SbEventCallback) (void *context)
 ```
 
-### SbEventDataDestructor ###
+### SbEventDataDestructor
 
 A function that will cleanly destroy an event data instance of a specific type.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef void(* SbEventDataDestructor) (void *data)
 ```
 
-### SbEventId ###
+### SbEventId
 
 An ID that can be used to refer to a scheduled event.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef uint32_t SbEventId
 ```
 
-## Structs ##
+## Structs
 
-### SbEvent ###
+### SbEvent
 
 Structure representing a Starboard event and its data.
 
-#### Members ####
+#### Members
 
 *   `SbEventType type`
 *   `SbTimeMonotonic timestamp`
 *   `void * data`
 
-### SbEventStartData ###
+### SbEventStartData
 
 Event data for kSbEventTypeStart events.
 
-#### Members ####
+#### Members
 
 *   `char ** argument_values`
 
@@ -333,31 +333,31 @@ Event data for kSbEventTypeStart events.
 
     The startup link, if any.
 
-### SbEventWindowSizeChangedData ###
+### SbEventWindowSizeChangedData
 
 Event data for kSbEventTypeWindowSizeChanged events.
 
-#### Members ####
+#### Members
 
 *   `SbWindow window`
 *   `SbWindowSize size`
 
-## Functions ##
+## Functions
 
-### SbEventCancel ###
+### SbEventCancel
 
 Cancels the specified `event_id`. Note that this function is a no-op if the
 event already fired. This function can be safely called from any thread, but the
 only way to guarantee that the event does not run anyway is to call it from the
 main Starboard event loop thread.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbEventCancel(SbEventId event_id)
 ```
 
-### SbEventHandle ###
+### SbEventHandle
 
 The entry point that Starboard applications MUST implement. Any memory pointed
 at by `event` or the `data` field inside `event` is owned by the system, and
@@ -370,23 +370,23 @@ specification about what other work might happen on this thread, so the
 application should generally do as little work as possible on this thread, and
 just dispatch it over to another thread.
 
-#### Declaration ####
+#### Declaration
 
 ```
 SB_IMPORT void SbEventHandle(const SbEvent *event)
 ```
 
-### SbEventIsIdValid ###
+### SbEventIsIdValid
 
 Returns whether the given event handle is valid.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static bool SbEventIsIdValid(SbEventId handle)
 ```
 
-### SbEventSchedule ###
+### SbEventSchedule
 
 Schedules an event `callback` into the main Starboard event loop. This function
 may be called from any thread, but `callback` is always called from the main
@@ -397,7 +397,7 @@ context that is passed to the `callback` function. `delay`: The minimum number
 of microseconds to wait before calling the `callback` function. Set `delay` to
 `0` to call the callback as soon as possible.
 
-#### Declaration ####
+#### Declaration
 
 ```
 SbEventId SbEventSchedule(SbEventCallback callback, void *context, SbTime delay)

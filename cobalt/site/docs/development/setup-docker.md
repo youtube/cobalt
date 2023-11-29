@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Set up your environment - Docker"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Set up your environment - Docker
 
 We provide <a
 href="https://github.com/youtube/cobalt/tree/main/docker/linux/">Docker image definitions</a> to simplify managing build environments.

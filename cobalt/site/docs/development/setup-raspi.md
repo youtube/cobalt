@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Set up your environment - Raspberry Pi"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Set up your environment - Raspberry Pi
 
 These instructions explain how to set up Cobalt for your workstation and your
 Raspberry Pi device. They have been tested with Ubuntu:20.04 and a Raspberry Pi

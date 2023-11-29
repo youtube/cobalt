@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Evergreen Binary Compression"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Evergreen Binary Compression
 
 ## What is Evergreen Binary Compression?

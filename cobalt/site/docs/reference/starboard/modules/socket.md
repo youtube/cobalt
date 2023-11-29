@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: socket.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: `socket.h`
 
 Defines Starboard socket I/O functions. Starboard supports IPv4 and IPv6, TCP
 and UDP, server and client sockets. Some platforms may not support IPv6, some
@@ -18,19 +18,19 @@ the connection, thus requiring use of either an SbSocketWaiter or spin-polling.
 TODO: For platforms that do not support sockets at all, they must support at
 least a high-level HTTP client API (to be defined later).
 
-## Macros ##
+## Macros
 
-### kSbSocketInvalid ###
+### kSbSocketInvalid
 
 Well-defined value for an invalid socket handle.
 
-## Enums ##
+## Enums
 
-### SbSocketAddressType ###
+### SbSocketAddressType
 
 All possible address types.
 
-#### Values ####
+#### Values
 
 *   `kSbSocketAddressTypeIpv4`
 
@@ -39,13 +39,13 @@ All possible address types.
 
     An IPv6 address, which uses 16 entries of the address buffer.
 
-### SbSocketError ###
+### SbSocketError
 
 Enumeration of all Starboard socket operation results. Despite the enum name,
 note that the value actually describes the outcome of an operation, which is not
 always an error.
 
-#### Values ####
+#### Values
 
 *   `kSbSocketOk`
 
@@ -63,11 +63,11 @@ always an error.
 
     The operation failed for some other reason not specified above.
 
-### SbSocketProtocol ###
+### SbSocketProtocol
 
 All possible IP socket types.
 
-#### Values ####
+#### Values
 
 *   `kSbSocketProtocolTcp`
 
@@ -77,11 +77,11 @@ All possible IP socket types.
     The UDP/IP protocol, an unreliable, connectionless, discrete packet
     (datagram) protocol.
 
-### SbSocketResolveFilter ###
+### SbSocketResolveFilter
 
 Bits that can be set when calling SbSocketResolve to filter the results.
 
-#### Values ####
+#### Values
 
 *   `kSbSocketResolveFilterNone`
 
@@ -93,25 +93,25 @@ Bits that can be set when calling SbSocketResolve to filter the results.
 
     Include Ipv6 addresses.
 
-## Typedefs ##
+## Typedefs
 
-### SbSocket ###
+### SbSocket
 
 A handle to a socket.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef SbSocketPrivate* SbSocket
 ```
 
-## Structs ##
+## Structs
 
-### SbSocketAddress ###
+### SbSocketAddress
 
 A representation of any possible supported address type.
 
-#### Members ####
+#### Members
 
 *   `uint8_t address`
 
@@ -126,11 +126,11 @@ A representation of any possible supported address type.
     The port component of this socket address. If not specified, it will be
     zero, which is officially undefined.
 
-### SbSocketResolution ###
+### SbSocketResolution
 
 The result of a host name resolution.
 
-#### Members ####
+#### Members
 
 *   `SbSocketAddress* addresses`
 
@@ -139,9 +139,9 @@ The result of a host name resolution.
 
     The length of the `addresses` array.
 
-## Functions ##
+## Functions
 
-### SbSocketAccept ###
+### SbSocketAccept
 
 Accepts a pending connection on `socket` and returns a new SbSocket representing
 that connection. This function sets the error on `socket` and returns
@@ -149,13 +149,13 @@ that connection. This function sets the error on `socket` and returns
 
 `socket`: The SbSocket that is accepting a pending connection.
 
-#### Declaration ####
+#### Declaration
 
 ```
 SbSocket SbSocketAccept(SbSocket socket)
 ```
 
-### SbSocketBind ###
+### SbSocketBind
 
 Binds `socket` to a specific local interface and port specified by
 `local_address`. This function sets and returns the socket error if it is unable
@@ -170,24 +170,24 @@ local address to which the socket is to be bound. This value must not be `NULL`.
 *   Setting the IP address to `0.0.0.0` means that the socket should be bound to
     all interfaces.
 
-#### Declaration ####
+#### Declaration
 
 ```
 SbSocketError SbSocketBind(SbSocket socket, const SbSocketAddress *local_address)
 ```
 
-### SbSocketClearLastError ###
+### SbSocketClearLastError
 
 Clears the last error set on `socket`. The return value indicates whether the
 socket error was cleared.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbSocketClearLastError(SbSocket socket)
 ```
 
-### SbSocketConnect ###
+### SbSocketConnect
 
 Opens a connection of `socket`'s type to the host and port specified by
 `address`. This function sets and returns the socket error if it is unable to
@@ -197,13 +197,13 @@ successfully.)
 `socket`: The type of connection that should be opened. `address`: The host and
 port to which the socket should connect.
 
-#### Declaration ####
+#### Declaration
 
 ```
 SbSocketError SbSocketConnect(SbSocket socket, const SbSocketAddress *address)
 ```
 
-### SbSocketCreate ###
+### SbSocketCreate
 
 Creates a new non-blocking socket for protocol `protocol` using address family
 `address_type`.
@@ -216,13 +216,13 @@ Creates a new non-blocking socket for protocol `protocol` using address family
 `address_type`: The type of IP address to use for the socket. `protocol`: The
 protocol to use for the socket.
 
-#### Declaration ####
+#### Declaration
 
 ```
 SbSocket SbSocketCreate(SbSocketAddressType address_type, SbSocketProtocol protocol)
 ```
 
-### SbSocketDestroy ###
+### SbSocketDestroy
 
 Destroys the `socket` by flushing it, closing any connection that may be active
 on it, and reclaiming any resources associated with it, including any
@@ -234,25 +234,25 @@ more.
 
 `socket`: The SbSocket to be destroyed.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbSocketDestroy(SbSocket socket)
 ```
 
-### SbSocketFreeResolution ###
+### SbSocketFreeResolution
 
 Frees a resolution allocated by SbSocketResolve.
 
 `resolution`: The resolution to be freed.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbSocketFreeResolution(SbSocketResolution *resolution)
 ```
 
-### SbSocketGetInterfaceAddress ###
+### SbSocketGetInterfaceAddress
 
 Gets the source address and the netmask that would be used to connect to the
 destination. The netmask parameter is optional, and only populated if a non-NULL
@@ -288,26 +288,26 @@ this output variable. `out_netmask`: This parameter is optional. If a non-NULL
 value is passed in, this function places the netmask associated with the source
 address in this output variable.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbSocketGetInterfaceAddress(const SbSocketAddress *const destination, SbSocketAddress *out_source_address, SbSocketAddress *out_netmask)
 ```
 
-### SbSocketGetLastError ###
+### SbSocketGetLastError
 
 Returns the last error set on `socket`. If `socket` is not valid, this function
 returns `kSbSocketErrorFailed`.
 
 `socket`: The SbSocket that the last error is returned for.
 
-#### Declaration ####
+#### Declaration
 
 ```
 SbSocketError SbSocketGetLastError(SbSocket socket)
 ```
 
-### SbSocketGetLocalAddress ###
+### SbSocketGetLocalAddress
 
 Gets the address that this socket is bound to locally, if the socket is
 connected. The return value indicates whether the address was retrieved
@@ -316,59 +316,59 @@ successfully.
 `socket`: The SbSocket for which the local address is retrieved. `out_address`:
 The SbSocket's local address.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbSocketGetLocalAddress(SbSocket socket, SbSocketAddress *out_address)
 ```
 
-### SbSocketIsConnected ###
+### SbSocketIsConnected
 
 Indicates whether `socket` is connected to anything. Invalid sockets are not
 connected.
 
 `socket`: The SbSocket to be checked.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbSocketIsConnected(SbSocket socket)
 ```
 
-### SbSocketIsConnectedAndIdle ###
+### SbSocketIsConnectedAndIdle
 
 Returns whether `socket` is connected to anything, and, if so, whether it is
 receiving any data.
 
 `socket`: The SbSocket to be checked.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbSocketIsConnectedAndIdle(SbSocket socket)
 ```
 
-### SbSocketIsIpv6Supported ###
+### SbSocketIsIpv6Supported
 
 Returns whether IPV6 is supported on the current platform.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbSocketIsIpv6Supported()
 ```
 
-### SbSocketIsValid ###
+### SbSocketIsValid
 
 Returns whether the given socket handle is valid.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static bool SbSocketIsValid(SbSocket socket)
 ```
 
-### SbSocketJoinMulticastGroup ###
+### SbSocketJoinMulticastGroup
 
 Joins `socket` to an IP multicast group identified by `address`. The equivalent
 of IP_ADD_MEMBERSHIP. The return value indicates whether the socket was joined
@@ -377,13 +377,13 @@ to the group successfully.
 `socket`: The SbSocket to be joined to the IP multicast group. `address`: The
 location of the IP multicast group.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbSocketJoinMulticastGroup(SbSocket socket, const SbSocketAddress *address)
 ```
 
-### SbSocketListen ###
+### SbSocketListen
 
 Causes `socket` to listen on the local address that `socket` was previously
 bound to by SbSocketBind. This function sets and returns the socket error if it
@@ -392,13 +392,13 @@ connection successfully.)
 
 `socket`: The SbSocket on which the function operates.
 
-#### Declaration ####
+#### Declaration
 
 ```
 SbSocketError SbSocketListen(SbSocket socket)
 ```
 
-### SbSocketReceiveFrom ###
+### SbSocketReceiveFrom
 
 Reads up to `data_size` bytes from `socket` into `out_data` and places the
 source address of the packet in `out_source` if out_source is not NULL. Returns
@@ -420,13 +420,13 @@ the address is unnecessary, but allowed.
 the socket. Must not be NULL. `data_size`: The number of bytes to read.
 `out_source`: The source address of the packet.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int SbSocketReceiveFrom(SbSocket socket, char *out_data, int data_size, SbSocketAddress *out_source)
 ```
 
-### SbSocketResolve ###
+### SbSocketResolve
 
 Synchronously resolves `hostname` into the returned SbSocketResolution , which
 must be freed with SbSocketFreeResolution. The function returns `NULL` if it is
@@ -438,13 +438,13 @@ not specify an IP address family filter, all address families are included.
 However, if one IP address family filter is specified, only that address family
 is included. The function ignores unrecognized filter bits.
 
-#### Declaration ####
+#### Declaration
 
 ```
 SbSocketResolution* SbSocketResolve(const char *hostname, int filters)
 ```
 
-### SbSocketSendTo ###
+### SbSocketSendTo
 
 Writes up to `data_size` bytes of `data` to `destination` via `socket`. Returns
 the number of bytes written, or a negative number if there is an error, in which
@@ -466,13 +466,13 @@ to multiple sources from a single UDP server socket. TCP has two endpoints
 connected persistently, so setting `destination` when sending to a TCP socket
 will cause an error.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int SbSocketSendTo(SbSocket socket, const char *data, int data_size, const SbSocketAddress *destination)
 ```
 
-### SbSocketSetBroadcast ###
+### SbSocketSetBroadcast
 
 Sets the `SO_BROADCAST`, or equivalent, option to `value` on `socket`. The
 return value indicates whether the option was actually set.
@@ -483,13 +483,13 @@ the broadcast address.
 `socket`: The SbSocket for which the option is set. `value`: The new value for
 the option.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbSocketSetBroadcast(SbSocket socket, bool value)
 ```
 
-### SbSocketSetReceiveBufferSize ###
+### SbSocketSetReceiveBufferSize
 
 Sets the `SO_RCVBUF`, or equivalent, option to `size` on `socket`. The return
 value indicates whether the option was actually set.
@@ -497,13 +497,13 @@ value indicates whether the option was actually set.
 `socket`: The SbSocket for which the option is set. `size`: The value for the
 option.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbSocketSetReceiveBufferSize(SbSocket socket, int32_t size)
 ```
 
-### SbSocketSetReuseAddress ###
+### SbSocketSetReuseAddress
 
 Sets the `SO_REUSEADDR`, or equivalent, option to `value` on `socket`. The
 return value indicates whether the option was actually set.
@@ -514,13 +514,13 @@ to it.
 `socket`: The SbSocket for which the option is set. `value`: The new value for
 the option.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbSocketSetReuseAddress(SbSocket socket, bool value)
 ```
 
-### SbSocketSetSendBufferSize ###
+### SbSocketSetSendBufferSize
 
 Sets the `SO_SNDBUF`, or equivalent, option to `size` on `socket`. The return
 value indicates whether the option was actually set.
@@ -528,13 +528,13 @@ value indicates whether the option was actually set.
 `socket`: The SbSocket for which the option is set. `size`: The value for the
 option.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbSocketSetSendBufferSize(SbSocket socket, int32_t size)
 ```
 
-### SbSocketSetTcpKeepAlive ###
+### SbSocketSetTcpKeepAlive
 
 Sets the `SO_KEEPALIVE`, or equivalent, option to `value` on `socket`. The
 return value indicates whether the option was actually set.
@@ -545,13 +545,13 @@ between keep-alive packets. If set to `false`, `period` is ignored. `period`:
 The time between keep-alive packets. This value is only relevant if `value` is
 `true`.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbSocketSetTcpKeepAlive(SbSocket socket, bool value, SbTime period)
 ```
 
-### SbSocketSetTcpNoDelay ###
+### SbSocketSetTcpNoDelay
 
 Sets the `TCP_NODELAY`, or equivalent, option to `value` on `socket`. The return
 value indicates whether the option was actually set.
@@ -564,13 +564,13 @@ behavior.
 `socket`: The SbSocket for which the option is set. `value`: Indicates whether
 the Nagle algorithm should be disabled (`value`=`true`).
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbSocketSetTcpNoDelay(SbSocket socket, bool value)
 ```
 
-### SbSocketSetTcpWindowScaling ###
+### SbSocketSetTcpWindowScaling
 
 Sets the `SO_WINSCALE`, or equivalent, option to `value` on `socket`. The return
 value indicates whether the option was actually set.
@@ -578,7 +578,7 @@ value indicates whether the option was actually set.
 `socket`: The SbSocket for which the option is set. `value`: The value for the
 option.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbSocketSetTcpWindowScaling(SbSocket socket, bool value)
