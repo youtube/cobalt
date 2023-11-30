@@ -15,8 +15,9 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_DISCARD_DURATION_TRACKER_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_DISCARD_DURATION_TRACKER_H_
 
-#include <unordered_map>
+#include <queue>
 
+#include "starboard/common/ref_counted.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/time.h"
@@ -26,27 +27,30 @@ namespace shared {
 namespace starboard {
 namespace player {
 namespace filter {
+using ::starboard::scoped_refptr;
 
 // This class caches the discard durations of audio buffers to maintain a
 // running total discard duration. This total can be used to adjust the media
-// time of the playback when the audio buffers do not support partial audio,
-// and prevent an A/V desync.
+// time of the playback when the audio buffers do not support partial audio.
 class AudioDiscardDurationTracker {
  public:
-  void CacheDiscardDuration(const InputBuffer& input_buffer);
-  void CacheMultipleDiscardDurations(const InputBuffers& input_buffers);
-  void AddCachedDiscardDurationToTotal(SbTime timestamp,
-                                       bool remove_timestamp_from_cache = true);
+  void CacheDiscardDuration(const scoped_refptr<InputBuffer>& input_buffer,
+                            SbTime buffer_length);
+  void CacheMultipleDiscardDurations(const InputBuffers& input_buffers,
+                                     SbTime buffer_length);
   SbTime AdjustTimeForTotalDiscardDuration(SbTime timestamp);
   void Reset() {
-    discard_durations_by_timestamp_.clear();
+    discard_infos_ = std::queue<AudioDiscardInfo>();
     total_discard_duration_ = 0;
   }
 
-  SbTime total_discard_duration() const { return total_discard_duration_; }
-
  private:
-  std::unordered_map<SbTime, SbTime> discard_durations_by_timestamp_;
+  struct AudioDiscardInfo {
+    SbTime discard_duration;
+    SbTime discard_start_timestamp;
+  };
+
+  std::queue<AudioDiscardInfo> discard_infos_;
   SbTime total_discard_duration_ = 0;
 };
 

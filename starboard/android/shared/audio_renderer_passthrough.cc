@@ -138,8 +138,11 @@ void AudioRendererPassthrough::WriteSamples(const InputBuffers& input_buffers) {
   decoder_->Decode(
       input_buffers,
       std::bind(&AudioRendererPassthrough::OnDecoderConsumed, this));
-
-  discard_duration_tracker_.CacheMultipleDiscardDurations(input_buffers);
+  // AC-3/EAC-3 sync frames with 1536 samples at 48khz have a length of 32 ms.
+  // TODO: Determine this value at runtime.
+  const SbTime kBufferLength = 32 * kSbTimeMillisecond;
+  discard_duration_tracker_.CacheMultipleDiscardDurations(input_buffers,
+                                                          kBufferLength);
 }
 
 void AudioRendererPassthrough::WriteEndOfStream() {
@@ -565,8 +568,6 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
       if (decoded_audio_writing_offset_ ==
           decoded_audio_writing_in_progress_->size_in_bytes()) {
         total_frames_written_on_audio_track_thread_ += frames_per_input_buffer_;
-        discard_duration_tracker_.AddCachedDiscardDurationToTotal(
-            decoded_audio_writing_in_progress_->timestamp());
         decoded_audio_writing_in_progress_ = nullptr;
         decoded_audio_writing_offset_ = 0;
         fully_written = true;

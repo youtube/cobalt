@@ -15,10 +15,8 @@
 #include "starboard/shared/starboard/player/filter/audio_discard_duration_tracker.h"
 
 #include <algorithm>
-#include <unordered_map>
 
 #include "starboard/common/log.h"
-#include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard {
@@ -29,44 +27,46 @@ namespace filter {
 using shared::starboard::media::AudioSampleInfo;
 
 void AudioDiscardDurationTracker::CacheDiscardDuration(
-    const InputBuffer& input_buffer) {
-  SB_DCHECK(input_buffer.sample_type() == kSbMediaTypeAudio);
-  const AudioSampleInfo audio_sample_info = input_buffer.audio_sample_info();
-  discard_durations_by_timestamp_[input_buffer.timestamp()] =
-      audio_sample_info.discarded_duration_from_front +
-      audio_sample_info.discarded_duration_from_back;
+    const scoped_refptr<InputBuffer>& input_buffer,
+    SbTime buffer_length) {
+  SbTime discard_duration_from_front =
+      input_buffer->audio_sample_info().discarded_duration_from_front;
+  SbTime discard_duration_from_back =
+      input_buffer->audio_sample_info().discarded_duration_from_back;
+  if (discard_duration_from_front + discard_duration_from_back >=
+      buffer_length) {
+    discard_infos_.push(
+        AudioDiscardInfo{buffer_length, input_buffer->timestamp()});
+  } else {
+    if (discard_duration_from_front > 0) {
+      discard_infos_.push(AudioDiscardInfo{discard_duration_from_front,
+                                           input_buffer->timestamp()});
+    }
+    if (discard_duration_from_back > 0) {
+      discard_infos_.push(AudioDiscardInfo{discard_duration_from_back,
+                                           input_buffer->timestamp() +
+                                               buffer_length -
+                                               discard_duration_from_back});
+    }
+  }
 }
 
 void AudioDiscardDurationTracker::CacheMultipleDiscardDurations(
-    const InputBuffers& input_buffers) {
+    const InputBuffers& input_buffers,
+    SbTime buffer_length) {
   for (const auto& input_buffer : input_buffers) {
-    CacheDiscardDuration(*input_buffer.get());
-  }
-}
-
-void AudioDiscardDurationTracker::AddCachedDiscardDurationToTotal(
-    SbTime timestamp,
-    bool remove_timestamp_from_cache) {
-  if (discard_durations_by_timestamp_.find(timestamp) ==
-      discard_durations_by_timestamp_.end()) {
-    SB_LOG(INFO) << "Discarded duration for timestamp: " << timestamp
-                 << " is not cached.";
-    return;
-  }
-
-  if (discard_durations_by_timestamp_.find(timestamp) !=
-      discard_durations_by_timestamp_.end()) {
-    total_discard_duration_ += discard_durations_by_timestamp_[timestamp];
-    if (remove_timestamp_from_cache) {
-      discard_durations_by_timestamp_.erase(timestamp);
-    }
+    CacheDiscardDuration(input_buffer, buffer_length);
   }
 }
 
 SbTime AudioDiscardDurationTracker::AdjustTimeForTotalDiscardDuration(
     SbTime timestamp) {
-  SbTime adjusted_timestamp = timestamp - total_discard_duration_;
-  return std::max(SbTime(0), adjusted_timestamp);
+  if (discard_infos_.size() > 0 &&
+      timestamp >= discard_infos_.front().discard_start_timestamp) {
+    total_discard_duration_ += discard_infos_.front().discard_duration;
+    discard_infos_.pop();
+  }
+  return std::max(SbTime(0), timestamp - total_discard_duration_);
 }
 
 }  // namespace filter
