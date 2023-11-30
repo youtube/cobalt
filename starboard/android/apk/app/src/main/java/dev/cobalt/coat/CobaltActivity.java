@@ -41,6 +41,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.*;
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
 public abstract class CobaltActivity extends GameActivity {
@@ -64,6 +65,8 @@ public abstract class CobaltActivity extends GameActivity {
 
   private static final String EVERGREEN_LITE = "--evergreen_lite";
   private static final java.lang.String META_DATA_EVERGREEN_LITE = "cobalt.EVERGREEN_LITE";
+
+  private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
 
   @SuppressWarnings("unused")
   private CobaltA11yHelper a11yHelper;
@@ -261,9 +264,46 @@ public abstract class CobaltActivity extends GameActivity {
       }
     }
 
-    addCustomProxyArgs(args);
+    CharSequence[] urlParams = (extras == null) ? null : extras.getCharSequenceArray("url_params");
+    if (urlParams != null) {
+      appendUrlParamsToUrl(args, urlParams);
+    }
 
+    addCustomProxyArgs(args);
     return args.toArray(new String[0]);
+  }
+
+  private void appendUrlParamsToUrl(List<String> args, CharSequence[] urlParams) {
+    int idx = -1;
+    for (int i = 0; i < args.size(); i++) {
+      if (args.get(i).startsWith(URL_ARG)) {
+        idx = i;
+        break;
+      }
+    }
+
+    if (idx >= 0) {
+      StringBuilder urlBuilder = new StringBuilder();
+      urlBuilder.append(args.get(idx));
+      // append & if ? is already in the url, otherwise append ?
+      if (urlBuilder.indexOf("?") > 0) {
+        urlBuilder.append("&");
+      } else {
+        urlBuilder.append("?");
+      }
+
+      for (int j = 0; j < urlParams.length; j++) {
+        // sanitize the input before append to the url.
+        String paramKeyValuePair = urlParams[j].toString();
+        if (URL_PARAM_PATTERN.matcher(paramKeyValuePair).matches()) {
+          urlBuilder.append(paramKeyValuePair);
+          urlBuilder.append('&');
+        }
+      }
+
+      urlBuilder.deleteCharAt(urlBuilder.length() - 1);
+      args.set(idx, urlBuilder.toString());
+    }
   }
 
   private static void addCustomProxyArgs(List<String> args) {
