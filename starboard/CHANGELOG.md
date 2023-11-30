@@ -40,6 +40,9 @@ deprecated.
 This value allows IAMF samples to be written to Starboard along with IAMF
 Config OBUs as side data.
 
+### Deprecated SbStringScan and SbStringScanF
+The APIs defined in `starboard/string.h` are deprecated and the standard API `vsscanf` and `sscanf` are used instead.
+
 ## Version 15
 
 ### SbMemoryReporter is no longer used
