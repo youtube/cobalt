@@ -26,6 +26,7 @@ Event::Event(UninitializedFlag uninitialized_flag)
   InitEventInternal(base::Token(), false, false);
 }
 
+Event::Event(const char* type) : Event(base::Token(type)) {}
 Event::Event(const std::string& type) : Event(base::Token(type)) {}
 Event::Event(base::Token type)
     : event_phase_(kNone), time_stamp_(GetEventTime(SbTimeGetMonotonicNow())) {
