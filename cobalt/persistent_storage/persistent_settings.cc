@@ -48,8 +48,7 @@ PersistentSettings::PersistentSettings(const std::string& file_name)
                   kSbFileMaxPath);
   persistent_settings_file_ =
       std::string(storage_dir.data()) + kSbFileSepString + file_name;
-  // LOG(INFO) << "Persistent settings file path: " <<
-  // persistent_settings_file_;
+  LOG(INFO) << "Persistent settings file path: " << persistent_settings_file_;
 
   message_loop()->task_runner()->PostTask(
       FROM_HERE, base::Bind(&PersistentSettings::InitializePrefStore,

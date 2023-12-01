@@ -39,7 +39,7 @@ std::string GetStyleName(::testing::TestParamInfo<const char*> info) {
   return std::string(info.param);
 }
 
-std::string CamelCaseToSnakeCase(const char* camel_case) {
+std::string CamelCaseToPropertyName(const char* camel_case) {
   std::string snake;
   for (const char* input = camel_case; *input; ++input) {
     if (*input >= 'A' && *input <= 'Z') {
@@ -151,7 +151,7 @@ class HTMLElementStyleTestLongHandStyles
 
 TEST_P(HTMLElementStyleTestLongHandStyles, SetStyle) {
   const char* style_attribute_name = GetParam();
-  std::string property_name = CamelCaseToSnakeCase(style_attribute_name);
+  std::string property_name = CamelCaseToPropertyName(style_attribute_name);
   std::string script = base::StringPrintf(
       R"(
     var style_name = '%s';
@@ -190,7 +190,7 @@ class HTMLElementStyleTestShortHandStyles
 
 TEST_P(HTMLElementStyleTestShortHandStyles, SetStyle) {
   const char* style_attribute_name = GetParam();
-  std::string property_name = CamelCaseToSnakeCase(style_attribute_name);
+  std::string property_name = CamelCaseToPropertyName(style_attribute_name);
   std::string script = base::StringPrintf(
       R"(
     var style_name = '%s';

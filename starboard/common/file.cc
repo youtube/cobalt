@@ -50,7 +50,7 @@ void RecordFileWriteStat(int write_file_result) {
 
 bool SbFileDeleteRecursive(const char* path, bool preserve_root) {
   if (!SbFileExists(path)) {
-    // SB_LOG(ERROR) << "Path does not exist: '" << path << "'";
+    SB_LOG(ERROR) << "Path does not exist: '" << path << "'";
     return false;
   }
 
