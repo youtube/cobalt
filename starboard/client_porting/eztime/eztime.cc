@@ -37,7 +37,7 @@ const int kMaxTimeZoneSize = 32;
 UChar g_timezones[kEzTimeZoneCount][kMaxTimeZoneSize];
 
 // Once control for initializing eztime static data.
-SbOnceControl g_initialization_once = SB_ONCE_INITIALIZER;
+SbOnceControl g_eztime_initialization_once = SB_ONCE_INITIALIZER;
 
 // The timezone names in ASCII (UTF8-compatible) literals. This must match the
 // order of the EzTimeZone enum.
@@ -91,7 +91,7 @@ UDate SbTimeToUDate(SbTime sb_time) {
 // Gets the cached TimeZone ID from |g_timezones| for the given EzTimeZone
 // |timezone|.
 const UChar* GetTimeZoneId(EzTimeZone timezone) {
-  SbOnce(&g_initialization_once, &Initialize);
+  SbOnce(&g_eztime_initialization_once, &Initialize);
   const UChar* timezone_id = g_timezones[timezone];
   if (timezone_id[0] == 0) {
     return NULL;
