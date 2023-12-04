@@ -68,7 +68,7 @@ void InitializeTimeZone(EzTimeZone timezone) {
 // Initializes ICU and TimeZones so the rest of the functions will work. Should
 // only be called once.
 void Initialize() {
-  SbIcuInit();
+  IcuInit();
 
   // Initialize |g_timezones| table.
   for (int timezone = 0; timezone < kEzTimeZoneCount; ++timezone) {
