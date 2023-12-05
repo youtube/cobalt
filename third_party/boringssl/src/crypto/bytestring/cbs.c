@@ -92,8 +92,8 @@ int CBS_mem_equal(const CBS *cbs, const uint8_t *data, size_t len) {
   return CRYPTO_memcmp(cbs->data, data, len) == 0;
 }
 
-static int cbs_get_u(CBS *cbs, uint32_t *out, size_t len) {
-  uint32_t result = 0;
+static int cbs_get_u(CBS *cbs, uint64_t *out, size_t len) {
+  uint64_t result = 0;
   const uint8_t *data;
 
   if (!cbs_get(cbs, &data, len)) {
@@ -117,7 +117,7 @@ int CBS_get_u8(CBS *cbs, uint8_t *out) {
 }
 
 int CBS_get_u16(CBS *cbs, uint16_t *out) {
-  uint32_t v;
+  uint64_t v;
   if (!cbs_get_u(cbs, &v, 2)) {
     return 0;
   }
@@ -126,11 +126,25 @@ int CBS_get_u16(CBS *cbs, uint16_t *out) {
 }
 
 int CBS_get_u24(CBS *cbs, uint32_t *out) {
-  return cbs_get_u(cbs, out, 3);
+  uint64_t v;
+  if (!cbs_get_u(cbs, &v, 3)) {
+    return 0;
+  }
+  *out = (uint32_t)v;
+  return 1;
 }
 
 int CBS_get_u32(CBS *cbs, uint32_t *out) {
-  return cbs_get_u(cbs, out, 4);
+  uint64_t v;
+  if (!cbs_get_u(cbs, &v, 4)) {
+    return 0;
+  }
+  *out = (uint32_t)v;
+  return 1;
+}
+
+int CBS_get_u64(CBS *cbs, uint64_t *out) {
+  return cbs_get_u(cbs, out, 8);
 }
 
 int CBS_get_last_u8(CBS *cbs, uint8_t *out) {
@@ -161,7 +175,7 @@ int CBS_copy_bytes(CBS *cbs, uint8_t *out, size_t len) {
 }
 
 static int cbs_get_length_prefixed(CBS *cbs, CBS *out, size_t len_len) {
-  uint32_t len;
+  uint64_t len;
   if (!cbs_get_u(cbs, &len, len_len)) {
     return 0;
   }
@@ -278,7 +292,7 @@ static int cbs_get_any_asn1_element(CBS *cbs, CBS *out, unsigned *out_tag,
     // encode the number of subsequent octets used to encode the length (ITU-T
     // X.690 clause 8.1.3.5.b).
     const size_t num_bytes = length_byte & 0x7f;
-    uint32_t len32;
+    uint64_t len64;
 
     if (ber_ok && (tag & CBS_ASN1_CONSTRUCTED) != 0 && num_bytes == 0) {
       // indefinite length
@@ -294,20 +308,20 @@ static int cbs_get_any_asn1_element(CBS *cbs, CBS *out, unsigned *out_tag,
     if (num_bytes == 0 || num_bytes > 4) {
       return 0;
     }
-    if (!cbs_get_u(&header, &len32, num_bytes)) {
+    if (!cbs_get_u(&header, &len64, num_bytes)) {
       return 0;
     }
     // ITU-T X.690 section 10.1 (DER length forms) requires encoding the length
     // with the minimum number of octets.
-    if (len32 < 128) {
+    if (len64 < 128) {
       // Length should have used short-form encoding.
       return 0;
     }
-    if ((len32 >> ((num_bytes-1)*8)) == 0) {
+    if ((len64 >> ((num_bytes-1)*8)) == 0) {
       // Length should have been at least one byte shorter.
       return 0;
     }
-    len = len32;
+    len = len64;
     if (len + header_len + num_bytes < len) {
       // Overflow.
       return 0;
@@ -569,6 +583,26 @@ static int add_decimal(CBB *out, uint64_t v) {
   char buf[DECIMAL_SIZE(uint64_t) + 1];
   BIO_snprintf(buf, sizeof(buf), "%" PRIu64, v);
   return CBB_add_bytes(out, (const uint8_t *)buf, strlen(buf));
+}
+
+
+int CBS_is_valid_asn1_integer(const CBS *cbs, int *out_is_negative) {
+  CBS copy = *cbs;
+  uint8_t first_byte, second_byte;
+  if (!CBS_get_u8(&copy, &first_byte)) {
+    return 0;  // INTEGERs may not be empty.
+  }
+  if (out_is_negative != NULL) {
+    *out_is_negative = (first_byte & 0x80) != 0;
+  }
+  if (!CBS_get_u8(&copy, &second_byte)) {
+    return 1;  // One byte INTEGERs are always minimal.
+  }
+  if ((first_byte == 0x00 && (second_byte & 0x80) == 0) ||
+      (first_byte == 0xff && (second_byte & 0x80) != 0)) {
+    return 0;  // The value is minimal iff the first 9 bits are not all equal.
+  }
+  return 1;
 }
 
 char *CBS_asn1_oid_to_text(const CBS *cbs) {

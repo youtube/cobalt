@@ -360,3 +360,16 @@ bool SSL_apply_handback(SSL *ssl, Span<const uint8_t> handback) {
 }
 
 }  // namespace bssl
+
+using namespace bssl;
+
+int SSL_serialize_capabilities(const SSL *ssl, CBB *out) {
+  CBB seq;
+  if (!CBB_add_asn1(out, &seq, CBS_ASN1_SEQUENCE) ||
+      !serialize_features(&seq) ||  //
+      !CBB_flush(out)) {
+    return 0;
+  }
+
+  return 1;
+}

@@ -10,7 +10,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_macros.h"
 #include "net/base/io_buffer.h"
-#include "third_party/brotli/include/brotli/decode.h"
+#include "third_party/brotli/c/include/brotli/decode.h"
 
 namespace net {
 

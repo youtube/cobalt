@@ -154,7 +154,7 @@ OPENSSL_EXPORT DSA *EVP_PKEY_get1_DSA(EVP_PKEY *pkey);
 
 OPENSSL_EXPORT int EVP_PKEY_set1_EC_KEY(EVP_PKEY *pkey, EC_KEY *key);
 OPENSSL_EXPORT int EVP_PKEY_assign_EC_KEY(EVP_PKEY *pkey, EC_KEY *key);
-OPENSSL_EXPORT EC_KEY *EVP_PKEY_get0_EC_KEY(EVP_PKEY *pkey);
+OPENSSL_EXPORT EC_KEY *EVP_PKEY_get0_EC_KEY(const EVP_PKEY *pkey);
 OPENSSL_EXPORT EC_KEY *EVP_PKEY_get1_EC_KEY(EVP_PKEY *pkey);
 
 // EVP_PKEY_new_ed25519_public returns a newly allocated |EVP_PKEY| wrapping an
@@ -723,6 +723,14 @@ OPENSSL_EXPORT int EVP_PKEY_CTX_get0_rsa_oaep_label(EVP_PKEY_CTX *ctx,
                                                     const uint8_t **out_label);
 
 
+// EC specific control functions.
+
+// EVP_PKEY_CTX_set_ec_paramgen_curve_nid sets the curve used for
+// |EVP_PKEY_keygen| or |EVP_PKEY_paramgen| operations to |nid|. It returns one
+// on success and zero on error.
+OPENSSL_EXPORT int EVP_PKEY_CTX_set_ec_paramgen_curve_nid(EVP_PKEY_CTX *ctx,
+                                                          int nid);
+
 // Deprecated functions.
 
 // EVP_PKEY_DH is defined for compatibility, but it is impossible to create an
@@ -893,5 +901,9 @@ BORINGSSL_MAKE_DELETER(EVP_PKEY_CTX, EVP_PKEY_CTX_free)
 #define EVP_R_INVALID_SIGNATURE 131
 #define EVP_R_MEMORY_LIMIT_EXCEEDED 132
 #define EVP_R_INVALID_PARAMETERS 133
+#define EVP_R_INVALID_PEER_KEY 134
+#define EVP_R_NOT_XOF_OR_INVALID_LENGTH 135
+#define EVP_R_EMPTY_PSK 136
+#define EVP_R_INVALID_BUFFER_SIZE 137
 
 #endif  // OPENSSL_HEADER_EVP_H

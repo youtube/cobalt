@@ -9,7 +9,9 @@
 #include "net/base/net_export.h"
 #include "net/socket/socket_descriptor.h"
 
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+#include "net/socket/tcp_socket_starboard_tmp.h"
+#elif BUILDFLAG(IS_WIN)
 #include "net/socket/tcp_socket_win.h"
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include "net/socket/tcp_socket_posix.h"
@@ -23,7 +25,9 @@ namespace net {
 // class, unless a clear separation of client and server socket functionality is
 // not suitable for your use case (e.g., a socket needs to be created and bound
 // before you know whether it is a client or server socket).
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+typedef TCPSocketStarboard TCPSocket;
+#elif BUILDFLAG(IS_WIN)
 typedef TCPSocketWin TCPSocket;
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 typedef TCPSocketPosix TCPSocket;

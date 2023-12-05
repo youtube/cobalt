@@ -83,7 +83,7 @@ config("icu_config") {
   if (is_win) {
     defines += [ "UCHAR_TYPE=wchar_t" ]
   } else {
-    defines += [ "UCHAR_TYPE=uint16_t" ]
+    # defines += [ "UCHAR_TYPE=uint16_t" ]
   }
 
   if (is_starboard && is_win) {

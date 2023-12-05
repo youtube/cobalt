@@ -62,6 +62,12 @@ OPENSSL_EXPORT CRYPTO_BUFFER *CRYPTO_BUFFER_alloc(uint8_t **out_data,
 OPENSSL_EXPORT CRYPTO_BUFFER *CRYPTO_BUFFER_new_from_CBS(
     CBS *cbs, CRYPTO_BUFFER_POOL *pool);
 
+// CRYPTO_BUFFER_new_from_static_data_unsafe behaves like |CRYPTO_BUFFER_new|
+// but does not copy |data|. |data| must be immutable and last for the lifetime
+// of the address space.
+OPENSSL_EXPORT CRYPTO_BUFFER *CRYPTO_BUFFER_new_from_static_data_unsafe(
+    const uint8_t *data, size_t len, CRYPTO_BUFFER_POOL *pool);
+
 // CRYPTO_BUFFER_free decrements the reference count of |buf|. If there are no
 // other references, or if the only remaining reference is from a pool, then
 // |buf| will be freed.

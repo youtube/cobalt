@@ -30,10 +30,10 @@ class NetworkChangeNotifierLinux::BlockingThreadObjects {
   // Plumbing for NetworkChangeNotifier::GetCurrentConnectionType.
   // Safe to call from any thread.
   NetworkChangeNotifier::ConnectionType GetCurrentConnectionType() {
-    return address_tracker_.GetCurrentConnectionType();
+    return NetworkChangeNotifier::ConnectionType::CONNECTION_UNKNOWN;
   }
 
-  internal::AddressTrackerLinux* address_tracker() { return &address_tracker_; }
+  internal::AddressTrackerLinux* address_tracker() { return nullptr; }
 
   // Begin watching for netlink changes.
   void Init();
@@ -44,33 +44,20 @@ class NetworkChangeNotifierLinux::BlockingThreadObjects {
   void OnIPAddressChanged();
   void OnLinkChanged();
   // Used to detect online/offline state and IP address changes.
-  internal::AddressTrackerLinux address_tracker_;
   NetworkChangeNotifier::ConnectionType last_type_ =
       NetworkChangeNotifier::CONNECTION_NONE;
 };
 
 NetworkChangeNotifierLinux::BlockingThreadObjects::BlockingThreadObjects(
     const std::unordered_set<std::string>& ignored_interfaces,
-    scoped_refptr<base::SequencedTaskRunner> blocking_thread_runner)
-    : address_tracker_(
-          base::BindRepeating(&NetworkChangeNotifierLinux::
-                                  BlockingThreadObjects::OnIPAddressChanged,
-                              base::Unretained(this)),
-          base::BindRepeating(
-              &NetworkChangeNotifierLinux::BlockingThreadObjects::OnLinkChanged,
-              base::Unretained(this)),
-          base::DoNothing(),
-          ignored_interfaces,
-          std::move(blocking_thread_runner)) {}
+    scoped_refptr<base::SequencedTaskRunner> blocking_thread_runner) {}
 
 void NetworkChangeNotifierLinux::BlockingThreadObjects::Init() {
-  address_tracker_.Init();
   last_type_ = GetCurrentConnectionType();
 }
 
 void NetworkChangeNotifierLinux::BlockingThreadObjects::InitForTesting(
     base::ScopedFD netlink_fd) {
-  address_tracker_.InitWithFdForTesting(std::move(netlink_fd));  // IN-TEST
   last_type_ = GetCurrentConnectionType();
 }
 

@@ -16,6 +16,7 @@
 #if defined(STARBOARD)
 #include "starboard/file.h"
 #include "starboard/types.h"
+#include "starboard/common/file.h"
 #endif
 
 namespace base {
@@ -54,6 +55,7 @@ struct BASE_EXPORT ScopedFDCloseTraits {
 };
 #endif
 
+#if defined(STARBOARD)
 // Functor for |ScopedFILE| (below).
 struct ScopedFILECloser {
   inline void operator()(SbFile* x) const {
@@ -61,6 +63,15 @@ struct ScopedFILECloser {
       SbFileClose(*x);
   }
 };
+#else
+// Functor for |ScopedFILE| (below).
+struct ScopedFILECloser {
+  inline void operator()(FILE* x) const {
+    if (x)
+      fclose(x);
+  }
+};
+#endif
 
 }  // namespace internal
 
@@ -114,7 +125,12 @@ typedef ScopedGeneric<int, internal::ScopedFDCloseTraits> ScopedFD;
 #endif
 
 // Automatically closes |FILE*|s.
-typedef std::unique_ptr<SbFile, internal::ScopedFILECloser> ScopedFILE;
+#if defined(STARBOARD)
+typedef std::unique_ptr<starboard::ScopedFile> ScopedFILE;
+// typedef std::unique_ptr<starboard::ScopedFile, internal::ScopedFILECloser> ScopedFILE;
+#else
+typedef std::unique_ptr<FILE, internal::ScopedFILECloser> ScopedFILE;
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
 // Queries the ownership status of an FD, i.e. whether it is currently owned by

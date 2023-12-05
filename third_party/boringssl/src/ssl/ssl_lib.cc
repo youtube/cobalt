@@ -779,6 +779,74 @@ BIO *SSL_get_rbio(const SSL *ssl) { return ssl->rbio.get(); }
 
 BIO *SSL_get_wbio(const SSL *ssl) { return ssl->wbio.get(); }
 
+size_t SSL_quic_max_handshake_flight_len(const SSL *ssl,
+                                         enum ssl_encryption_level_t level) {
+  // Limits flights to 16K by default when there are no large
+  // (certificate-carrying) messages.
+  static const size_t kDefaultLimit = 16384;
+
+  switch (level) {
+    case ssl_encryption_initial:
+      return kDefaultLimit;
+    case ssl_encryption_early_data:
+      // QUIC does not send EndOfEarlyData.
+      return 0;
+    case ssl_encryption_handshake:
+      if (ssl->server) {
+        // Servers may receive Certificate message if configured to request
+        // client certificates.
+        if (!!(ssl->config->verify_mode & SSL_VERIFY_PEER) &&
+            ssl->max_cert_list > kDefaultLimit) {
+          return ssl->max_cert_list;
+        }
+      } else {
+        // Clients may receive both Certificate message and a CertificateRequest
+        // message.
+        if (2*ssl->max_cert_list > kDefaultLimit) {
+          return 2*ssl->max_cert_list;
+        }
+      }
+      return kDefaultLimit;
+    case ssl_encryption_application:
+      // Note there is not actually a bound on the number of NewSessionTickets
+      // one may send in a row. This level may need more involved flow
+      // control. See https://github.com/quicwg/base-drafts/issues/1834.
+      return kDefaultLimit;
+  }
+
+  return 0;
+}
+
+int SSL_provide_quic_data(SSL *ssl, enum ssl_encryption_level_t level,
+                          const uint8_t *data, size_t len) {
+  if (ssl->quic_method == nullptr) {
+    OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+    return 0;
+  }
+
+  if (level != ssl->s3->read_level) {
+    OPENSSL_PUT_ERROR(SSL, SSL_R_WRONG_ENCRYPTION_LEVEL_RECEIVED);
+    return 0;
+  }
+
+  size_t new_len = (ssl->s3->hs_buf ? ssl->s3->hs_buf->length : 0) + len;
+  if (new_len < len ||
+      new_len > SSL_quic_max_handshake_flight_len(ssl, level)) {
+    OPENSSL_PUT_ERROR(SSL, SSL_R_EXCESSIVE_MESSAGE_SIZE);
+    return 0;
+  }
+
+  return tls_append_handshake_data(ssl, MakeConstSpan(data, len));
+}
+
+int SSL_CTX_set_quic_method(SSL_CTX *ctx, const SSL_QUIC_METHOD *quic_method) {
+  if (ctx->method->is_dtls) {
+    return 0;
+  }
+  ctx->quic_method = quic_method;
+  return 1;
+}
+
 int SSL_do_handshake(SSL *ssl) {
   ssl_reset_error_state(ssl);
 
@@ -875,6 +943,33 @@ static int ssl_do_post_handshake(SSL *ssl, const SSLMessage &msg) {
   }
 
   ssl->s3->total_renegotiations++;
+  return 1;
+}
+
+int SSL_process_quic_post_handshake(SSL *ssl) {
+  ssl_reset_error_state(ssl);
+
+  if (SSL_in_init(ssl)) {
+    OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+    return 0;
+  }
+
+  // Replay post-handshake message errors.
+  if (!check_read_error(ssl)) {
+    return 0;
+  }
+
+  // Process any buffered post-handshake messages.
+  SSLMessage msg;
+  while (ssl->method->get_message(ssl, &msg)) {
+    // Handle the post-handshake message and try again.
+    if (!ssl_do_post_handshake(ssl, msg)) {
+      ssl_set_read_error(ssl);
+      return 0;
+    }
+    ssl->method->next_message(ssl);
+  }
+
   return 1;
 }
 
@@ -1097,6 +1192,15 @@ void SSL_get_peer_quic_transport_params(const SSL *ssl,
   *out_params_len = ssl->s3->peer_quic_transport_params.size();
 }
 
+int SSL_set_quic_early_data_context(SSL *ssl, const uint8_t *context,
+                                    size_t context_len) {
+  return ssl->config && ssl->config->quic_early_data_context.CopyFrom(
+                            MakeConstSpan(context, context_len));
+}
+int SSL_set_handshake_hints(SSL *ssl, const uint8_t *hints, size_t hints_len) {
+  return 0;
+}
+
 void SSL_CTX_set_early_data_enabled(SSL_CTX *ctx, int enabled) {
   ctx->enable_early_data = !!enabled;
 }
@@ -1139,6 +1243,45 @@ void SSL_reset_early_data_reject(SSL *ssl) {
   // retry. The handshake will transparently flush out the pending record
   // (discarded by the server) to keep the framing correct.
   ssl->s3->wpend_pending = false;
+}
+
+enum ssl_early_data_reason_t SSL_get_early_data_reason(const SSL *ssl) {
+  return ssl_early_data_unknown;
+}
+
+const char *SSL_early_data_reason_string(enum ssl_early_data_reason_t reason) {
+  switch (reason) {
+    case ssl_early_data_unknown:
+      return "unknown";
+    case ssl_early_data_disabled:
+      return "disabled";
+    case ssl_early_data_accepted:
+      return "accepted";
+    case ssl_early_data_protocol_version:
+      return "protocol_version";
+    case ssl_early_data_peer_declined:
+      return "peer_declined";
+    case ssl_early_data_no_session_offered:
+      return "no_session_offered";
+    case ssl_early_data_session_not_resumed:
+      return "session_not_resumed";
+    case ssl_early_data_unsupported_for_session:
+      return "unsupported_for_session";
+    case ssl_early_data_hello_retry_request:
+      return "hello_retry_request";
+    case ssl_early_data_alpn_mismatch:
+      return "alpn_mismatch";
+    case ssl_early_data_channel_id:
+      return "channel_id";
+    case ssl_early_data_ticket_age_skew:
+      return "ticket_age_skew";
+    case ssl_early_data_quic_parameter_mismatch:
+      return "quic_parameter_mismatch";
+    case ssl_early_data_alps_mismatch:
+      return "alps_mismatch";
+  }
+
+  return nullptr;
 }
 
 static int bio_retry_reason_to_error(int reason) {
@@ -1792,6 +1935,13 @@ const char *SSL_get_cipher_list(const SSL *ssl, int n) {
   return c->name;
 }
 
+uint16_t SSL_CIPHER_get_protocol_id(const SSL_CIPHER *cipher) {
+  // All OpenSSL cipher IDs are prefaced with 0x03. Historically this referred
+  // to SSLv2 vs SSLv3.
+  assert((cipher->id & 0xff000000) == 0x03000000);
+  return static_cast<uint16_t>(cipher->id);
+}
+
 int SSL_CTX_set_cipher_list(SSL_CTX *ctx, const char *str) {
   return ssl_create_cipher_list(&ctx->cipher_list, str, false /* not strict */);
 }
@@ -2028,6 +2178,36 @@ void SSL_get0_alpn_selected(const SSL *ssl, const uint8_t **out_data,
 
 void SSL_CTX_set_allow_unknown_alpn_protos(SSL_CTX *ctx, int enabled) {
   ctx->allow_unknown_alpn_protos = !!enabled;
+}
+
+int SSL_add_application_settings(SSL *ssl, const uint8_t *proto,
+                                 size_t proto_len, const uint8_t *settings,
+                                 size_t settings_len) {
+  if (!ssl->config) {
+    return 0;
+  }
+  ALPSConfig config;
+  if (!config.protocol.CopyFrom(MakeConstSpan(proto, proto_len)) ||
+      !config.settings.CopyFrom(MakeConstSpan(settings, settings_len)) ||
+      !ssl->config->alps_configs.Push(std::move(config))) {
+    return 0;
+  }
+  return 1;
+}
+
+void SSL_get0_peer_application_settings(const SSL *ssl,
+                                        const uint8_t **out_data,
+                                        size_t *out_len) {
+  const SSL_SESSION *session = SSL_get_session(ssl);
+  Span<const uint8_t> settings =
+      session ? session->peer_application_settings : Span<const uint8_t>();
+  *out_data = settings.data();
+  *out_len = settings.size();
+}
+
+int SSL_has_application_settings(const SSL *ssl) {
+  const SSL_SESSION *session = SSL_get_session(ssl);
+  return session && session->has_application_settings;
 }
 
 int SSL_CTX_add_cert_compression_alg(SSL_CTX *ctx, uint16_t alg_id,
@@ -2478,6 +2658,17 @@ void SSL_CTX_set_current_time_cb(SSL_CTX *ctx,
   ctx->current_time_cb = cb;
 }
 
+int SSL_can_release_private_key(const SSL *ssl) {
+  if (ssl_can_renegotiate(ssl)) {
+    // If the connection can renegotiate (client only), the private key may be
+    // used in a future handshake.
+    return 0;
+  }
+
+  // Otherwise, this is determined by the current handshake.
+  return !ssl->s3->hs || ssl->s3->hs->can_release_private_key;
+}
+
 int SSL_is_init_finished(const SSL *ssl) {
   return !SSL_in_init(ssl);
 }
@@ -2651,6 +2842,10 @@ void SSL_set_shed_handshake_config(SSL *ssl, int enable) {
   ssl->config->shed_handshake_config = !!enable;
 }
 
+void SSL_set_quic_use_legacy_codepoint(SSL *ssl, int use_legacy) {
+  return;
+}
+
 int SSL_clear(SSL *ssl) {
   if (!ssl->config) {
     return 0;  // SSL_clear may not be used after shedding config.
@@ -2767,4 +2962,51 @@ int SSL_CTX_set_tlsext_status_cb(SSL_CTX *ctx,
 int SSL_CTX_set_tlsext_status_arg(SSL_CTX *ctx, void *arg) {
   ctx->legacy_ocsp_callback_arg = arg;
   return 1;
+}
+
+int SSL_CTX_set1_ech_keys(SSL_CTX *ctx, SSL_ECH_KEYS *keys) {
+  return 0;
+}
+
+void SSL_set_enable_ech_grease(SSL *ssl, int enable) {
+  return;
+}
+
+int SSL_set1_ech_config_list(SSL *ssl, const uint8_t *ech_config_list,
+                             size_t ech_config_list_len) {
+  return 0;
+}
+
+void SSL_get0_ech_retry_configs(
+    const SSL *ssl, const uint8_t **out_retry_configs,
+    size_t *out_retry_configs_len) {
+  return;
+}
+
+SSL_ECH_KEYS *SSL_ECH_KEYS_new() { return New<SSL_ECH_KEYS>(); }
+
+void SSL_ECH_KEYS_up_ref(SSL_ECH_KEYS *keys) {
+  CRYPTO_refcount_inc(&keys->references);
+}
+
+void SSL_ECH_KEYS_free(SSL_ECH_KEYS *keys) {
+  if (keys == nullptr ||
+      !CRYPTO_refcount_dec_and_test_zero(&keys->references)) {
+    return;
+  }
+
+  keys->~ssl_ech_keys_st();
+  OPENSSL_free(keys);
+}
+
+int SSL_ech_accepted(const SSL *ssl) {
+  return 0;
+  // if (SSL_in_early_data(ssl) && !ssl->server) {
+  //   // In the client early data state, we report properties as if the server
+  //   // accepted early data. The server can only accept early data with
+  //   // ClientHelloInner.
+  //   return ssl->s3->hs->selected_ech_config != nullptr;
+  // }
+
+  // return ssl->s3->ech_status == ssl_ech_accepted;
 }

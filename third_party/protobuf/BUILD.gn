@@ -203,7 +203,7 @@ if (current_toolchain == host_toolchain) {
   # into that category. Do not use in Chrome code.
   static_library("protobuf_full") {
     # Prevent people from depending on this outside our file.
-    visibility = [ ":*" ]
+    visibility = [ ":*", "//net/cert:*" ]
 
     sources = protobuf_lite_sources
     sources += [

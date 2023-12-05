@@ -173,7 +173,7 @@ void UDPClientSocket::EnableRecvOptimization() {
 }
 
 void UDPClientSocket::SetIOSNetworkServiceType(int ios_network_service_type) {
-#if BUILDFLAG(IS_POSIX)
+#if BUILDFLAG(IS_POSIX) && 0
   socket_.SetIOSNetworkServiceType(ios_network_service_type);
 #endif
 }

@@ -30,6 +30,7 @@ struct crypto_buffer_st {
   uint8_t *data;
   size_t len;
   CRYPTO_refcount_t references;
+  int data_is_static;
 };
 
 struct crypto_buffer_pool_st {

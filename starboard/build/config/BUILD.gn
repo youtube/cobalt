@@ -65,7 +65,7 @@ config("host") {
       current_toolchain != default_toolchain) {
     if (is_linux) {
       ldflags = [ "-pthread" ]
-      cflags_cc = [ "-std=gnu++14" ]
+      cflags_cc = [ "-std=gnu++17" ]
 
       if (target_cpu == "arm" || target_cpu == "x86") {
         cflags = [ "-m32" ]

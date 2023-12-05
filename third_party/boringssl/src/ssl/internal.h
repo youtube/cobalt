@@ -153,6 +153,7 @@
 
 #include <openssl/aead.h>
 #include <openssl/err.h>
+#include <openssl/hpke.h>
 #include <openssl/lhash.h>
 #include <openssl/mem.h>
 #include <openssl/span.h>
@@ -351,6 +352,104 @@ class Array {
  private:
   T *data_ = nullptr;
   size_t size_ = 0;
+};
+
+// GrowableArray<T> is an array that owns elements of |T|, backed by an
+// Array<T>. When necessary, pushing will automatically trigger a resize.
+//
+// Note, for simplicity, this class currently differs from |std::vector| in that
+// |T| must be efficiently default-constructible. Allocated elements beyond the
+// end of the array are constructed and destructed.
+template <typename T>
+class GrowableArray {
+ public:
+  GrowableArray() = default;
+  GrowableArray(const GrowableArray &) = delete;
+  GrowableArray(GrowableArray &&other) { *this = std::move(other); }
+  ~GrowableArray() {}
+
+  GrowableArray &operator=(const GrowableArray &) = delete;
+  GrowableArray &operator=(GrowableArray &&other) {
+    size_ = other.size_;
+    other.size_ = 0;
+    array_ = std::move(other.array_);
+    return *this;
+  }
+
+  const T *data() const { return array_.data(); }
+  T *data() { return array_.data(); }
+  size_t size() const { return size_; }
+  bool empty() const { return size_ == 0; }
+
+  const T &operator[](size_t i) const { return array_[i]; }
+  T &operator[](size_t i) { return array_[i]; }
+
+  T *begin() { return array_.data(); }
+  const T *begin() const { return array_.data(); }
+  T *end() { return array_.data() + size_; }
+  const T *end() const { return array_.data() + size_; }
+
+  void clear() {
+    size_ = 0;
+    array_.Reset();
+  }
+
+  // Push adds |elem| at the end of the internal array, growing if necessary. It
+  // returns false when allocation fails.
+  bool Push(T elem) {
+    if (!MaybeGrow()) {
+      return false;
+    }
+    array_[size_] = std::move(elem);
+    size_++;
+    return true;
+  }
+
+  // CopyFrom replaces the contents of the array with a copy of |in|. It returns
+  // true on success and false on allocation error.
+  bool CopyFrom(Span<const T> in) {
+    if (!array_.CopyFrom(in)) {
+      return false;
+    }
+    size_ = in.size();
+    return true;
+  }
+
+ private:
+  // If there is no room for one more element, creates a new backing array with
+  // double the size of the old one and copies elements over.
+  bool MaybeGrow() {
+    if (array_.size() == 0) {
+      return array_.Init(kDefaultSize);
+    }
+    // No need to grow if we have room for one more T.
+    if (size_ < array_.size()) {
+      return true;
+    }
+    // Double the array's size if it's safe to do so.
+    if (array_.size() > std::numeric_limits<size_t>::max() / 2) {
+      OPENSSL_PUT_ERROR(SSL, ERR_R_OVERFLOW);
+      return false;
+    }
+    Array<T> new_array;
+    if (!new_array.Init(array_.size() * 2)) {
+      return false;
+    }
+    for (size_t i = 0; i < array_.size(); i++) {
+      new_array[i] = std::move(array_[i]);
+    }
+    array_ = std::move(new_array);
+
+    return true;
+  }
+
+  // |size_| is the number of elements stored in this GrowableArray.
+  size_t size_ = 0;
+  // |array_| is the backing array. Note that |array_.size()| is this
+  // GrowableArray's current capacity and that |size_ <= array_.size()|.
+  Array<T> array_;
+  // |kDefaultSize| is the default initial size of the backing array.
+  static constexpr size_t kDefaultSize = 16;
 };
 
 // CBBFinishArray behaves like |CBB_finish| but stores the result in an Array.
@@ -1032,6 +1131,7 @@ bool tls_can_accept_handshake_data(const SSL *ssl, uint8_t *out_alert);
 // tls_has_unprocessed_handshake_data returns whether there is buffered
 // handshake data that has not been consumed by |get_message|.
 bool tls_has_unprocessed_handshake_data(const SSL *ssl);
+bool tls_append_handshake_data(SSL *ssl, Span<const uint8_t> data);
 
 // dtls_has_unprocessed_handshake_data behaves like
 // |tls_has_unprocessed_handshake_data| for DTLS.
@@ -1286,6 +1386,46 @@ int tls13_write_psk_binder(SSL_HANDSHAKE *hs, uint8_t *msg, size_t len);
 int tls13_verify_psk_binder(SSL_HANDSHAKE *hs, SSL_SESSION *session,
                             const SSLMessage &msg, CBS *binders);
 
+
+struct ECHConfig {
+  static constexpr bool kAllowUniquePtr = true;
+  // raw contains the serialized ECHConfig.
+  Array<uint8_t> raw;
+  // The following fields alias into |raw|.
+  Span<const uint8_t> public_key;
+  Span<const uint8_t> public_name;
+  Span<const uint8_t> cipher_suites;
+  uint16_t kem_id = 0;
+  uint8_t maximum_name_length = 0;
+  uint8_t config_id = 0;
+};
+
+class ECHServerConfig {
+ public:
+  static constexpr bool kAllowUniquePtr = true;
+  ECHServerConfig() = default;
+  ECHServerConfig(const ECHServerConfig &other) = delete;
+  ECHServerConfig &operator=(ECHServerConfig &&) = delete;
+
+  // Init parses |ech_config| as an ECHConfig and saves a copy of |key|.
+  // It returns true on success and false on error.
+  bool Init(Span<const uint8_t> ech_config, const EVP_HPKE_KEY *key,
+            bool is_retry_config);
+
+  // SetupContext sets up |ctx| for a new connection, given the specified
+  // HPKE ciphersuite and encapsulated KEM key. It returns true on success and
+  // false on error. This function may only be called on an initialized object.
+  bool SetupContext(EVP_HPKE_CTX *ctx, uint16_t kdf_id, uint16_t aead_id,
+                    Span<const uint8_t> enc) const;
+
+  const ECHConfig &ech_config() const { return ech_config_; }
+  bool is_retry_config() const { return is_retry_config_; }
+
+ private:
+  ECHConfig ech_config_;
+  ScopedEVP_HPKE_KEY key_;
+  bool is_retry_config_ = false;
+};
 
 // Handshake functions.
 
@@ -1569,6 +1709,8 @@ struct SSL_HANDSHAKE {
 
   // cert_compression_negotiated is true iff |cert_compression_alg_id| is valid.
   bool cert_compression_negotiated : 1;
+
+  bool can_release_private_key : 1;
 
   // client_version is the value sent or received in the ClientHello version.
   uint16_t client_version = 0;
@@ -2078,6 +2220,9 @@ struct SSL3_STATE {
   // needs re-doing when in SSL_accept or SSL_connect
   int rwstate = SSL_NOTHING;
 
+  enum ssl_encryption_level_t read_level = ssl_encryption_initial;
+  enum ssl_encryption_level_t write_level = ssl_encryption_initial;
+
   // early_data_skipped is the amount of early data that has been skipped by the
   // record layer.
   uint16_t early_data_skipped = 0;
@@ -2351,6 +2496,12 @@ struct DTLS1_STATE {
   unsigned timeout_duration_ms = 0;
 };
 
+// An ALPSConfig is a pair of ALPN protocol and settings value to use with ALPS.
+struct ALPSConfig {
+  Array<uint8_t> protocol;
+  Array<uint8_t> settings;
+};
+
 // SSL_CONFIG contains configuration bits that can be shed after the handshake
 // completes.  Objects of this type are not shared; they are unique to a
 // particular |SSL|.
@@ -2420,8 +2571,14 @@ struct SSL_CONFIG {
   // Contains a list of supported Token Binding key parameters.
   Array<uint8_t> token_binding_params;
 
+  // alps_configs contains the list of supported protocols to use with ALPS,
+  // along with their corresponding ALPS values.
+  GrowableArray<ALPSConfig> alps_configs;
+
   // Contains the QUIC transport params that this endpoint will send.
   Array<uint8_t> quic_transport_params;
+
+  Array<uint8_t> quic_early_data_context;
 
   // verify_sigalgs, if not empty, is the set of signature algorithms
   // accepted from the peer in decreasing order of preference.
@@ -2796,6 +2953,9 @@ struct ssl_ctx_st {
   // configuration.
   tls13_variant_t tls13_variant = tls13_default;
 
+  // quic_method is the method table corresponding to the QUIC hooks.
+  const SSL_QUIC_METHOD *quic_method = nullptr;
+
   bssl::UniquePtr<bssl::SSLCipherPreferenceList> cipher_list;
 
   X509_STORE *cert_store = nullptr;
@@ -3145,6 +3305,9 @@ struct ssl_st {
   uint32_t max_cert_list = 0;
   bssl::UniquePtr<char> hostname;
 
+  // quic_method is the method table corresponding to the QUIC hooks.
+  const SSL_QUIC_METHOD *quic_method = nullptr;
+
   // renegotiate_mode controls how peer renegotiation attempts are handled.
   ssl_renegotiate_mode_t renegotiate_mode = ssl_renegotiate_never;
 
@@ -3270,6 +3433,10 @@ struct ssl_session_st {
   // resumptions.
   bssl::Array<uint8_t> early_alpn;
 
+  // peer_application_settings, if |has_application_settings| is true, is the
+  // peer ALPS value for this connection.
+  bssl::Array<uint8_t> peer_application_settings;
+
   // extended_master_secret is whether the master secret in this session was
   // generated using EMS and thus isn't vulnerable to the Triple Handshake
   // attack.
@@ -3287,10 +3454,26 @@ struct ssl_session_st {
   // is_server is whether this session was created by a server.
   bool is_server : 1;
 
+  // has_application_settings indicates whether ALPS was negotiated in this
+  // session.
+  bool has_application_settings : 1;
+
  private:
   ~ssl_session_st();
   friend void SSL_SESSION_free(SSL_SESSION *);
 };
 
+struct ssl_ech_keys_st {
+  ssl_ech_keys_st() = default;
+  ssl_ech_keys_st(const ssl_ech_keys_st &) = delete;
+  ssl_ech_keys_st &operator=(const ssl_ech_keys_st &) = delete;
+
+  bssl::GrowableArray<bssl::UniquePtr<bssl::ECHServerConfig>> configs;
+  CRYPTO_refcount_t references = 1;
+
+ private:
+  ~ssl_ech_keys_st() = default;
+  friend OPENSSL_EXPORT void SSL_ECH_KEYS_free(SSL_ECH_KEYS *);
+};
 
 #endif  // OPENSSL_HEADER_SSL_INTERNAL_H

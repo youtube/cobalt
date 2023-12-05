@@ -110,6 +110,10 @@ OPENSSL_EXPORT int CBS_get_u24(CBS *cbs, uint32_t *out);
 // and advances |cbs|. It returns one on success and zero on error.
 OPENSSL_EXPORT int CBS_get_u32(CBS *cbs, uint32_t *out);
 
+// CBS_get_u64 sets |*out| to the next, big-endian uint64_t value from |cbs|
+// and advances |cbs|. It returns one on success and zero on error.
+OPENSSL_EXPORT int CBS_get_u64(CBS *cbs, uint64_t *out);
+
 // CBS_get_last_u8 sets |*out| to the last uint8_t from |cbs| and shortens
 // |cbs|. It returns one on success and zero on error.
 OPENSSL_EXPORT int CBS_get_last_u8(CBS *cbs, uint8_t *out);
@@ -283,6 +287,14 @@ OPENSSL_EXPORT int CBS_is_valid_asn1_bitstring(const CBS *cbs);
 // is indexed starting from zero.
 OPENSSL_EXPORT int CBS_asn1_bitstring_has_bit(const CBS *cbs, unsigned bit);
 
+
+// CBS_is_valid_asn1_integer returns one if |cbs| is a valid ASN.1 INTEGER,
+// body and zero otherwise. On success, if |out_is_negative| is non-NULL,
+// |*out_is_negative| will be set to one if |cbs| is negative and zero
+// otherwise.
+OPENSSL_EXPORT int CBS_is_valid_asn1_integer(const CBS *cbs,
+                                             int *out_is_negative);
+
 // CBS_asn1_oid_to_text interprets |cbs| as DER-encoded ASN.1 OBJECT IDENTIFIER
 // contents (not including the element framing) and returns the ASCII
 // representation (e.g., "1.2.840.113554.4.1.72585") in a newly-allocated
@@ -445,6 +457,10 @@ OPENSSL_EXPORT int CBB_add_u24(CBB *cbb, uint32_t value);
 // returns one on success and zero otherwise.
 OPENSSL_EXPORT int CBB_add_u32(CBB *cbb, uint32_t value);
 
+// CBB_add_u64 appends a 64-bit, big-endian number from |value| to |cbb|. It
+// returns one on success and zero otherwise.
+OPENSSL_EXPORT int CBB_add_u64(CBB *cbb, uint64_t value);
+
 // CBB_discard_child discards the current unflushed child of |cbb|. Neither the
 // child's contents nor the length prefix will be included in the output.
 OPENSSL_EXPORT void CBB_discard_child(CBB *cbb);
@@ -453,6 +469,9 @@ OPENSSL_EXPORT void CBB_discard_child(CBB *cbb);
 // and writes |value| in its contents. It returns one on success and zero on
 // error.
 OPENSSL_EXPORT int CBB_add_asn1_uint64(CBB *cbb, uint64_t value);
+
+OPENSSL_EXPORT int CBB_add_asn1_uint64_with_tag(CBB *cbb, uint64_t value,
+                                                CBS_ASN1_TAG tag);
 
 // CBB_add_asn1_octet_string writes an ASN.1 OCTET STRING into |cbb| with the
 // given contents. It returns one on success and zero on error.

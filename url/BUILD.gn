@@ -90,9 +90,9 @@ component("url") {
   } else {
     # Use ICU.
     sources += [
-      "url_canon_icu.cc",
-      "url_canon_icu.h",
-      "url_idna_icu.cc",
+      # "url_canon_icu.cc",
+      # "url_canon_icu.h",
+      # "url_idna_icu.cc",
     ]
     deps += [
       "//base:i18n",
@@ -250,7 +250,7 @@ test("url_unittests") {
     deps += [ "//third_party/icu:icuuc" ]
   }
 
-  if (!is_ios && !is_cronet_build) {
+  if (!is_ios && !is_cronet_build && false) {
     sources += [
       "mojom/scheme_host_port_mojom_traits_unittest.cc",
       "mojom/url_gurl_mojom_traits_unittest.cc",

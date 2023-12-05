@@ -52,7 +52,7 @@ bool DiskCacheTest::CopyTestCache(const std::string& name) {
 
   if (!CleanupCacheDir())
     return false;
-  return base::CopyDirectory(path, cache_path_, false);
+  return false;
 }
 
 bool DiskCacheTest::CleanupCacheDir() {

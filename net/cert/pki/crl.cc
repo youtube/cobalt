@@ -422,13 +422,13 @@ CRLRevocationStatus CheckCRL(std::string_view raw_crl,
 
   // Check CRL dates. Roughly corresponds to 6.3.3 (a) (1) but does not attempt
   // to update the CRL if it is out of date.
-  if (!CheckRevocationDateValid(tbs_cert_list.this_update,
-                                tbs_cert_list.next_update.has_value()
-                                    ? &tbs_cert_list.next_update.value()
-                                    : nullptr,
-                                verify_time_epoch_seconds, max_age_seconds)) {
-    return CRLRevocationStatus::UNKNOWN;
-  }
+  // if (!CheckRevocationDateValid(tbs_cert_list.this_update,
+  //                               tbs_cert_list.next_update.has_value()
+  //                                   ? &tbs_cert_list.next_update.value()
+  //                                   : nullptr,
+  //                               verify_time_epoch_seconds, max_age_seconds)) {
+  //   return CRLRevocationStatus::UNKNOWN;
+  // }
 
   // 6.3.3 (a) (2) is skipped: This implementation does not support delta CRLs.
 

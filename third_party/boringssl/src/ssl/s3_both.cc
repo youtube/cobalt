@@ -525,6 +525,15 @@ bool tls_has_unprocessed_handshake_data(const SSL *ssl) {
   return ssl->s3->hs_buf && ssl->s3->hs_buf->length > msg_len;
 }
 
+bool tls_append_handshake_data(SSL *ssl, Span<const uint8_t> data) {
+  // Re-create the handshake buffer if needed.
+  if (!ssl->s3->hs_buf) {
+    ssl->s3->hs_buf.reset(BUF_MEM_new());
+  }
+  return ssl->s3->hs_buf &&
+         BUF_MEM_append(ssl->s3->hs_buf.get(), data.data(), data.size());
+}
+
 ssl_open_record_t ssl3_open_handshake(SSL *ssl, size_t *out_consumed,
                                       uint8_t *out_alert, Span<uint8_t> in) {
   *out_consumed = 0;

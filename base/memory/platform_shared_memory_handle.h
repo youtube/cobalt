@@ -50,7 +50,10 @@ struct BASE_EXPORT ScopedFDPair {
 #endif
 
 // Platform-specific shared memory type used by the shared memory system.
-#if BUILDFLAG(IS_APPLE)
+#if defined(STARBOARD)
+using PlatformSharedMemoryHandle = int;
+using ScopedPlatformSharedMemoryHandle = ScopedFD;
+#elif BUILDFLAG(IS_APPLE)
 using PlatformSharedMemoryHandle = mach_port_t;
 using ScopedPlatformSharedMemoryHandle = mac::ScopedMachSendRight;
 #elif BUILDFLAG(IS_FUCHSIA)
@@ -63,8 +66,8 @@ using ScopedPlatformSharedMemoryHandle = win::ScopedHandle;
 using PlatformSharedMemoryHandle = int;
 using ScopedPlatformSharedMemoryHandle = ScopedFD;
 #else
-using PlatformSharedMemoryHandle = int;
-using ScopedPlatformSharedMemoryHandle = ScopedFD;
+using PlatformSharedMemoryHandle = FDPair;
+using ScopedPlatformSharedMemoryHandle = ScopedFDPair;
 #endif
 
 }  // namespace base::subtle

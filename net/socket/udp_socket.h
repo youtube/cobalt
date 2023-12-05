@@ -7,7 +7,9 @@
 
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+#include "net/socket/udp_socket_starboard_tmp.h"
+#elif BUILDFLAG(IS_WIN)
 #include "net/socket/udp_socket_win.h"
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include "net/socket/udp_socket_posix.h"
@@ -35,7 +37,9 @@ namespace net {
 //       RecvFrom/SendTo       // Each read can come from a different client
 //                             // Writes need to be directed to a specific
 //                             // address.
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+typedef UDPSocketStarboard UDPSocket;
+#elif BUILDFLAG(IS_WIN)
 typedef UDPSocketWin UDPSocket;
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 typedef UDPSocketPosix UDPSocket;

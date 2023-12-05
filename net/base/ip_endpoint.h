@@ -10,6 +10,11 @@
 #include <ostream>
 #include <string>
 
+#if defined(STARBOARD)
+#include "starboard/common/socket.h"
+#include "starboard/types.h"
+#endif
+
 #include "base/values.h"
 #include "build/build_config.h"
 #include "net/base/address_family.h"
@@ -57,6 +62,14 @@ class NET_EXPORT IPEndPoint {
   // this is the IPEndPoint for a Bluetooth socket.
   AddressFamily GetFamily() const;
 
+#if defined(STARBOARD)
+  static IPEndPoint GetForAllInterfaces(int port);
+
+  bool ToSbSocketAddress(SbSocketAddress* out_address) const;
+
+  bool FromSbSocketAddress(const SbSocketAddress* address);
+#endif
+
   // Returns the sockaddr family of the address, AF_INET or AF_INET6. Returns
   // AF_BTH if this is the IPEndPoint for a Bluetooth socket.
   int GetSockAddrFamily() const;
@@ -78,6 +91,8 @@ class NET_EXPORT IPEndPoint {
   // Returns true on success, false on failure.
   [[nodiscard]] bool FromSockAddr(const struct sockaddr* address,
                                   socklen_t address_length);
+
+// #endif
 
   // Returns value as a string (e.g. "127.0.0.1:80"). Returns the empty string
   // when |address_| is invalid (the port will be ignored). This function will

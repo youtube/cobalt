@@ -604,13 +604,15 @@ void TrialComparisonCertVerifier::RemoveJob(Job* job_ptr) {
 std::tuple<CertVerifyProcFactory::ImplParams, CertVerifyProcFactory::ImplParams>
 TrialComparisonCertVerifier::ProcessImplParams(
     const CertVerifyProcFactory::ImplParams& impl_params) {
-  actual_use_chrome_root_store_ = impl_params.use_chrome_root_store;
+  NOTREACHED();
+  return std::tuple<CertVerifyProcFactory::ImplParams, CertVerifyProcFactory::ImplParams>();
+  // actual_use_chrome_root_store_ = impl_params.use_chrome_root_store;
 
-  CertVerifyProcFactory::ImplParams primary_impl_params(impl_params);
-  primary_impl_params.use_chrome_root_store = false;
-  CertVerifyProcFactory::ImplParams trial_impl_params(impl_params);
-  trial_impl_params.use_chrome_root_store = true;
-  return {std::move(primary_impl_params), std::move(trial_impl_params)};
+  // CertVerifyProcFactory::ImplParams primary_impl_params(impl_params);
+  // primary_impl_params.use_chrome_root_store = false;
+  // CertVerifyProcFactory::ImplParams trial_impl_params(impl_params);
+  // trial_impl_params.use_chrome_root_store = true;
+  // return {std::move(primary_impl_params), std::move(trial_impl_params)};
 }
 
 void TrialComparisonCertVerifier::NotifyJobsOfConfigChange() {

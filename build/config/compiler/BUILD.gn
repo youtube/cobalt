@@ -2732,11 +2732,15 @@ config("cet_shadow_stack") {
 
 config("compiler_defaults") {
   defines = [
-    "STARBOARD",
     "STARBOARD_CONFIGURATION_INCLUDE=\"$starboard_path/configuration_public.h\"",
     "STARBOARD_ATOMIC_INCLUDE=\"$starboard_path/atomic_public.h\"",
   ]
+  if (current_toolchain == default_toolchain) {
+    defines += ["STARBOARD",]
+  }
   cflags_c = ["-std=gnu11"]
   cflags_cc = ["-std=c++17"]
   # defines += ["USE_COBALT_CUSTOMIZATIONS"]
 }
+
+config("no_size_t_to_int_warning") {}

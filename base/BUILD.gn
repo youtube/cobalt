@@ -954,7 +954,7 @@ component("base") {
     "vlog.h",
   ]
 
-  if (use_cobalt_customizations) {
+  if (use_cobalt_customizations && current_toolchain == default_toolchain) {
     sources += [
       "memory/platform_shared_memory_mapper_starboard.cc",
       "memory/page_size_starboard.cc",
@@ -1084,7 +1084,7 @@ component("base") {
     "//third_party/modp_b64",
   ]
 
-  if (is_starboard) {
+  if (is_starboard && current_toolchain == default_toolchain) {
     deps += [ "//starboard" ]
   }
 
@@ -2269,7 +2269,7 @@ component("base") {
     frameworks += [ "UIKit.framework" ]
   }
 
-  if (use_blink) {
+  if (use_blink || true) {
     sources += [
       "files/file_path_watcher.cc",
       "files/file_path_watcher.h",
@@ -2656,7 +2656,7 @@ static_library("base_static") {
 
   deps = [ "//build:chromeos_buildflags" ]
 
-  if (is_starboard) {
+  if (is_starboard && current_toolchain == default_toolchain) {
     deps += ["//starboard"]
   }
 

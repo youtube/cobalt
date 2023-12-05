@@ -5,11 +5,11 @@ declare_args() {
   asm_target_arch = target_cpu
 }
 
-if (is_starboard) {
+if (is_starboard && is_starboardized_toolchain) {
   declare_args() {
     openssl_config_path = "$boringssl_root/config/starboard"
   }
-} else if (is_native_target_build) {
+} else {
   declare_args() {
     openssl_config_path = "$boringssl_root/config/native_target"
   }

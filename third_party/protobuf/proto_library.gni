@@ -197,12 +197,14 @@ template("proto_library") {
 
   protos = rebase_path(invoker.sources, proto_in_dir)
   protogens = []
+  proto_paths = []
 
   # List output files.
   foreach(proto, protos) {
     proto_dir = get_path_info(proto, "dir")
     proto_name = get_path_info(proto, "name")
     proto_path = proto_dir + "/" + proto_name
+    proto_paths += [ proto_path ]
 
     if (generate_cc) {
       protogens += [
@@ -373,7 +375,9 @@ template("proto_library") {
     sources = get_target_outputs(":$action_name")
 
     if (generate_python) {
-      sources -= [ get_path_info("$py_out_dir/${proto_path}_pb2.py", "abspath") ]
+      foreach(path, proto_paths) {
+        sources -= [ get_path_info("$py_out_dir/${path}_pb2.py", "abspath") ]
+      }
     }
 
     if (defined(invoker.extra_configs)) {

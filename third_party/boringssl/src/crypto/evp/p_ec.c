@@ -237,3 +237,8 @@ const EVP_PKEY_METHOD ec_pkey_meth = {
     pkey_ec_derive,
     pkey_ec_ctrl,
 };
+
+int EVP_PKEY_CTX_set_ec_paramgen_curve_nid(EVP_PKEY_CTX *ctx, int nid) {
+  return EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, EVP_PKEY_OP_TYPE_GEN,
+                           EVP_PKEY_CTRL_EC_PARAMGEN_CURVE_NID, nid, NULL);
+}

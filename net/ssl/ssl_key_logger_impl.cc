@@ -50,7 +50,7 @@ class SSLKeyLoggerImpl::Core
   Core& operator=(const Core&) = delete;
 
   void SetFile(base::File file) {
-    file_.reset(base::FileToFILE(std::move(file), "a"));
+    // file_.reset(base::FileToFILE(std::move(file), "a"));
     if (!file_)
       DVLOG(1) << "Could not adopt file";
   }
@@ -83,7 +83,7 @@ class SSLKeyLoggerImpl::Core
   void OpenFileImpl(const base::FilePath& path) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     DCHECK(!file_);
-    file_.reset(base::OpenFile(path, "a"));
+    // file_.reset(base::OpenFile(path, "a"));
     if (!file_)
       DVLOG(1) << "Could not open " << path.value();
   }
@@ -100,13 +100,15 @@ class SSLKeyLoggerImpl::Core
     }
 
     if (file_) {
+      
       for (const auto& line : buffer) {
-        fprintf(file_.get(), "%s\n", line.c_str());
+        file_->WriteAll(line.c_str(), line.length());
+      //   fprintf(file_.get(), "%s\n", line.c_str());
+      // }
+      // if (lines_dropped) {
+      //   fprintf(file_.get(), "# Some lines were dropped due to slow writes.\n");
       }
-      if (lines_dropped) {
-        fprintf(file_.get(), "# Some lines were dropped due to slow writes.\n");
-      }
-      fflush(file_.get());
+      // fflush(file_.get());
     }
   }
 

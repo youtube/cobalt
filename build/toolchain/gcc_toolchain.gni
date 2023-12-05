@@ -863,7 +863,7 @@ template("gcc_toolchain") {
 # use_gold too.
 template("clang_toolchain") {
   gcc_toolchain(target_name) {
-    _path = "$clang_base_path/bin"
+    _path = "${invoker.clang_base_path}/bin"
     _is_path_absolute = get_path_info(_path, "abspath") == _path
 
     # Preserve absolute paths for tools like distcc.

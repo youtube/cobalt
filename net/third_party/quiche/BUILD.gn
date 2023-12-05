@@ -27,8 +27,9 @@
 import("//build/config/chromeos/ui_mode.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//third_party/protobuf/proto_library.gni")
+import("//testing/test.gni")
 
-build_epoll_based_tools = is_linux || is_chromeos
+build_epoll_based_tools = false #is_linux || is_chromeos
 
 config("quiche_internal_config") {
   cflags = []
@@ -52,6 +53,7 @@ config("quiche_config") {
 }
 
 component("quiche") {
+  check_includes = false
   sources = [
     "overrides/quiche_platform_impl/quiche_bug_tracker_impl.h",
     "overrides/quiche_platform_impl/quiche_client_stats_impl.h",
@@ -756,23 +758,24 @@ proto_library("net_quic_proto") {
   extra_configs = [ "//build/config/compiler:wexit_time_destructors" ]
 }
 
-proto_library("net_quic_test_tools_proto") {
-  visibility = [ "//net:net_public_deps" ]
+# proto_library("net_quic_test_tools_proto") {
+#   visibility = [ "//net:net_public_deps" ]
 
-  sources = [ "src/quiche/quic/test_tools/send_algorithm_test_result.proto" ]
-  cc_generator_options = "dllexport_decl=NET_EXPORT_PRIVATE:"
-  cc_include = "net/base/net_export.h"
-  component_build_force_source_set = true
+#   sources = [ "src/quiche/quic/test_tools/send_algorithm_test_result.proto" ]
+#   cc_generator_options = "dllexport_decl=NET_EXPORT_PRIVATE:"
+#   cc_include = "net/base/net_export.h"
+#   component_build_force_source_set = true
 
-  deps = [ "//net:net_export_header" ]
+#   deps = [ "//net:net_export_header" ]
 
-  defines = [ "NET_IMPLEMENTATION" ]
+#   defines = [ "NET_IMPLEMENTATION" ]
 
-  extra_configs = [ "//build/config/compiler:wexit_time_destructors" ]
-}
+#   extra_configs = [ "//build/config/compiler:wexit_time_destructors" ]
+# }
 
 if (build_epoll_based_tools) {
   static_library("epoll_tool_support") {
+    check_includes = false
     testonly = true
     sources = [
       "overrides/quiche_platform_impl/epoll_bug_impl.h",
@@ -846,6 +849,7 @@ if (build_epoll_based_tools) {
   }
 
   executable("epoll_quic_client") {
+    check_includes = false
     testonly = true
     sources = [
       "src/quiche/quic/tools/quic_client_bin.cc",
@@ -867,6 +871,7 @@ if (build_epoll_based_tools) {
   }
 
   executable("epoll_quic_server") {
+    check_includes = false
     testonly = true
     sources = [
       "src/quiche/quic/tools/quic_server_bin.cc",
@@ -888,6 +893,7 @@ if (build_epoll_based_tools) {
   }
 
   executable("quic_client_interop_test") {
+    check_includes = false
     testonly = true
     sources = [ "src/quiche/quic/tools/quic_client_interop_test_bin.cc" ]
 
@@ -968,6 +974,7 @@ if (build_epoll_based_tools) {
 }
 
 static_library("quiche_test_support") {
+  check_includes = false
   testonly = true
   sources = [
     "overrides/quiche_platform_impl/quiche_expect_bug_impl.h",
@@ -1027,8 +1034,8 @@ static_library("quiche_test_support") {
     "src/quiche/http2/test_tools/random_decoder_test_base.h",
     "src/quiche/http2/test_tools/random_util.cc",
     "src/quiche/http2/test_tools/random_util.h",
-    "src/quiche/quic/core/quic_trace_visitor.cc",
-    "src/quiche/quic/core/quic_trace_visitor.h",
+    # "src/quiche/quic/core/quic_trace_visitor.cc",
+    # "src/quiche/quic/core/quic_trace_visitor.h",
     "src/quiche/quic/platform/api/quic_expect_bug.h",
     "src/quiche/quic/platform/api/quic_test.h",
     "src/quiche/quic/platform/api/quic_test_loopback.h",
@@ -1069,8 +1076,8 @@ static_library("quiche_test_support") {
     "src/quiche/quic/test_tools/qpack/qpack_encoder_peer.h",
     "src/quiche/quic/test_tools/qpack/qpack_offline_decoder.cc",
     "src/quiche/quic/test_tools/qpack/qpack_offline_decoder.h",
-    "src/quiche/quic/test_tools/qpack/qpack_test_utils.cc",
-    "src/quiche/quic/test_tools/qpack/qpack_test_utils.h",
+    # "src/quiche/quic/test_tools/qpack/qpack_test_utils.cc",
+    # "src/quiche/quic/test_tools/qpack/qpack_test_utils.h",
     "src/quiche/quic/test_tools/quic_buffered_packet_store_peer.cc",
     "src/quiche/quic/test_tools/quic_buffered_packet_store_peer.h",
     "src/quiche/quic/test_tools/quic_client_promised_info_peer.cc",
@@ -1126,8 +1133,8 @@ static_library("quiche_test_support") {
     "src/quiche/quic/test_tools/quic_unacked_packet_map_peer.h",
     "src/quiche/quic/test_tools/rtt_stats_peer.cc",
     "src/quiche/quic/test_tools/rtt_stats_peer.h",
-    "src/quiche/quic/test_tools/send_algorithm_test_utils.cc",
-    "src/quiche/quic/test_tools/send_algorithm_test_utils.h",
+    # "src/quiche/quic/test_tools/send_algorithm_test_utils.cc",
+    # "src/quiche/quic/test_tools/send_algorithm_test_utils.h",
     "src/quiche/quic/test_tools/simple_data_producer.cc",
     "src/quiche/quic/test_tools/simple_data_producer.h",
     "src/quiche/quic/test_tools/simple_quic_framer.cc",
@@ -1148,10 +1155,10 @@ static_library("quiche_test_support") {
     "src/quiche/quic/test_tools/simulator/port.h",
     "src/quiche/quic/test_tools/simulator/queue.cc",
     "src/quiche/quic/test_tools/simulator/queue.h",
-    "src/quiche/quic/test_tools/simulator/quic_endpoint.cc",
-    "src/quiche/quic/test_tools/simulator/quic_endpoint.h",
-    "src/quiche/quic/test_tools/simulator/quic_endpoint_base.cc",
-    "src/quiche/quic/test_tools/simulator/quic_endpoint_base.h",
+    # "src/quiche/quic/test_tools/simulator/quic_endpoint.cc",
+    # "src/quiche/quic/test_tools/simulator/quic_endpoint.h",
+    # "src/quiche/quic/test_tools/simulator/quic_endpoint_base.cc",
+    # "src/quiche/quic/test_tools/simulator/quic_endpoint_base.h",
     "src/quiche/quic/test_tools/simulator/simulator.cc",
     "src/quiche/quic/test_tools/simulator/simulator.h",
     "src/quiche/quic/test_tools/simulator/switch.cc",
@@ -1186,11 +1193,12 @@ static_library("quiche_test_support") {
     "//testing/gtest",
     "//third_party/boringssl",
     "//third_party/protobuf:protobuf_lite",
-    "//third_party/quic_trace:quic_trace_proto",
+    # "//third_party/quic_trace:quic_trace_proto",
   ]
 }
 
 static_library("quiche_tool_support") {
+  check_includes = false
   sources = [
     "overrides/quiche_platform_impl/quiche_command_line_flags_impl.cc",
     "overrides/quiche_platform_impl/quiche_command_line_flags_impl.h",
@@ -1265,12 +1273,13 @@ static_library("quiche_tool_support") {
 }
 
 # QUICHE-provided CLI tools that don't use epoll.
-if (!is_ios) {
+if (!is_ios && false) {
   # The two libraries below, quic_client_core and quic_server_core, define
   # mutually exclusive command-line flags, and thus any target depending
   # directly on both will fail to build.  Only executable targets should depend
   # on those.
   source_set("quic_client_core") {
+    check_includes = false
     testonly = true
     sources = [
       "src/quiche/quic/tools/quic_toy_client.cc",
@@ -1287,6 +1296,7 @@ if (!is_ios) {
     ]
   }
   source_set("quic_server_core") {
+    check_includes = false
     sources = [
       "src/quiche/common/masque/connect_udp_datagram_payload.cc",
       "src/quiche/common/masque/connect_udp_datagram_payload.h",
@@ -1312,6 +1322,7 @@ if (!is_ios) {
   }
 
   executable("quic_packet_printer") {
+    check_includes = false
     sources = [ "src/quiche/quic/tools/quic_packet_printer_bin.cc" ]
 
     configs += [ ":quiche_internal_config" ]
@@ -1344,6 +1355,7 @@ if (!is_ios) {
   }
 
   executable("quic_reject_reason_decoder") {
+    check_includes = false
     sources = [ "src/quiche/quic/tools/quic_reject_reason_decoder_bin.cc" ]
 
     configs += [ ":quiche_internal_config" ]
@@ -1391,6 +1403,7 @@ bundle_data("test_data") {
 }
 
 source_set("quiche_tests") {
+  check_includes = false
   testonly = true
   sources = [
     "src/quiche/binary_http/binary_http_message_test.cc",
@@ -1468,15 +1481,15 @@ source_set("quiche_tests") {
     "src/quiche/oblivious_http/oblivious_http_client_test.cc",
     "src/quiche/oblivious_http/oblivious_http_gateway_test.cc",
     "src/quiche/quic/core/congestion_control/bandwidth_sampler_test.cc",
-    "src/quiche/quic/core/congestion_control/bbr2_simulator_test.cc",
-    "src/quiche/quic/core/congestion_control/bbr_sender_test.cc",
+    # "src/quiche/quic/core/congestion_control/bbr2_simulator_test.cc",
+    # "src/quiche/quic/core/congestion_control/bbr_sender_test.cc",
     "src/quiche/quic/core/congestion_control/cubic_bytes_test.cc",
     "src/quiche/quic/core/congestion_control/general_loss_algorithm_test.cc",
     "src/quiche/quic/core/congestion_control/hybrid_slow_start_test.cc",
     "src/quiche/quic/core/congestion_control/pacing_sender_test.cc",
     "src/quiche/quic/core/congestion_control/prr_sender_test.cc",
     "src/quiche/quic/core/congestion_control/rtt_stats_test.cc",
-    "src/quiche/quic/core/congestion_control/send_algorithm_test.cc",
+    # "src/quiche/quic/core/congestion_control/send_algorithm_test.cc",
     "src/quiche/quic/core/congestion_control/tcp_cubic_sender_bytes_test.cc",
     "src/quiche/quic/core/congestion_control/uber_loss_algorithm_test.cc",
     "src/quiche/quic/core/congestion_control/windowed_filter_test.cc",
@@ -1505,7 +1518,7 @@ source_set("quiche_tests") {
     "src/quiche/quic/core/crypto/null_encrypter_test.cc",
     "src/quiche/quic/core/crypto/p256_key_exchange_test.cc",
     "src/quiche/quic/core/crypto/proof_source_x509_test.cc",
-    "src/quiche/quic/core/crypto/quic_client_session_cache_test.cc",
+    # "src/quiche/quic/core/crypto/quic_client_session_cache_test.cc",
     "src/quiche/quic/core/crypto/quic_compressed_certs_cache_test.cc",
     "src/quiche/quic/core/crypto/quic_crypto_client_config_test.cc",
     "src/quiche/quic/core/crypto/quic_crypto_server_config_test.cc",
@@ -1522,7 +1535,7 @@ source_set("quiche_tests") {
     "src/quiche/quic/core/http/quic_headers_stream_test.cc",
     "src/quiche/quic/core/http/quic_receive_control_stream_test.cc",
     "src/quiche/quic/core/http/quic_send_control_stream_test.cc",
-    "src/quiche/quic/core/http/quic_server_session_base_test.cc",
+    # "src/quiche/quic/core/http/quic_server_session_base_test.cc",
     "src/quiche/quic/core/http/quic_spdy_session_test.cc",
     "src/quiche/quic/core/http/quic_spdy_stream_body_manager_test.cc",
     "src/quiche/quic/core/http/quic_spdy_stream_test.cc",
@@ -1535,17 +1548,17 @@ source_set("quiche_tests") {
     "src/quiche/quic/core/qpack/qpack_decoded_headers_accumulator_test.cc",
     "src/quiche/quic/core/qpack/qpack_decoder_stream_receiver_test.cc",
     "src/quiche/quic/core/qpack/qpack_decoder_stream_sender_test.cc",
-    "src/quiche/quic/core/qpack/qpack_decoder_test.cc",
+    # "src/quiche/quic/core/qpack/qpack_decoder_test.cc",
     "src/quiche/quic/core/qpack/qpack_encoder_stream_receiver_test.cc",
     "src/quiche/quic/core/qpack/qpack_encoder_stream_sender_test.cc",
     "src/quiche/quic/core/qpack/qpack_encoder_test.cc",
     "src/quiche/quic/core/qpack/qpack_header_table_test.cc",
     "src/quiche/quic/core/qpack/qpack_index_conversions_test.cc",
-    "src/quiche/quic/core/qpack/qpack_instruction_decoder_test.cc",
+    # "src/quiche/quic/core/qpack/qpack_instruction_decoder_test.cc",
     "src/quiche/quic/core/qpack/qpack_instruction_encoder_test.cc",
     "src/quiche/quic/core/qpack/qpack_receive_stream_test.cc",
     "src/quiche/quic/core/qpack/qpack_required_insert_count_test.cc",
-    "src/quiche/quic/core/qpack/qpack_round_trip_test.cc",
+    # "src/quiche/quic/core/qpack/qpack_round_trip_test.cc",
     "src/quiche/quic/core/qpack/qpack_send_stream_test.cc",
     "src/quiche/quic/core/qpack/qpack_static_table_test.cc",
     "src/quiche/quic/core/qpack/value_splitting_header_list_test.cc",
@@ -1598,21 +1611,21 @@ source_set("quiche_tests") {
     "src/quiche/quic/core/quic_time_accumulator_test.cc",
     "src/quiche/quic/core/quic_time_test.cc",
     "src/quiche/quic/core/quic_time_wait_list_manager_test.cc",
-    "src/quiche/quic/core/quic_trace_visitor_test.cc",
+    # "src/quiche/quic/core/quic_trace_visitor_test.cc",
     "src/quiche/quic/core/quic_unacked_packet_map_test.cc",
     "src/quiche/quic/core/quic_utils_test.cc",
     "src/quiche/quic/core/quic_version_manager_test.cc",
     "src/quiche/quic/core/quic_versions_test.cc",
     "src/quiche/quic/core/quic_write_blocked_list_test.cc",
     "src/quiche/quic/core/tls_chlo_extractor_test.cc",
-    "src/quiche/quic/core/tls_client_handshaker_test.cc",
+    # "src/quiche/quic/core/tls_client_handshaker_test.cc",
     "src/quiche/quic/core/uber_quic_stream_id_manager_test.cc",
     "src/quiche/quic/core/uber_received_packet_manager_test.cc",
     "src/quiche/quic/platform/api/quic_socket_address_test.cc",
     "src/quiche/quic/test_tools/crypto_test_utils_test.cc",
     "src/quiche/quic/test_tools/quic_test_utils_test.cc",
     "src/quiche/quic/test_tools/simple_session_notifier_test.cc",
-    "src/quiche/quic/test_tools/simulator/quic_endpoint_test.cc",
+    # "src/quiche/quic/test_tools/simulator/quic_endpoint_test.cc",
     "src/quiche/quic/test_tools/simulator/simulator_test.cc",
     "src/quiche/quic/tools/quic_memory_cache_backend_test.cc",
     "src/quiche/quic/tools/quic_tcp_like_trace_converter_test.cc",

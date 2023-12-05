@@ -17,7 +17,7 @@ config("compiler_flags") {
   cflags_c = []
   cflags_cc = []
   defines = []
-  ldflags = []
+  ldflags = [ "-Wl,--error-limit=0" ]
 
   if (is_debug) {
     cflags += [ "-O0" ]
@@ -273,6 +273,7 @@ config("no_pedantic_warnings") {
     "-Wno-pessimizing-move",
     "-Wno-ignored-qualifiers",
     "-Wno-unreachable-code-loop-increment",
+    "-Wno-c++20-extensions",
   ]
   cflags += extra_should_be_removed
 }

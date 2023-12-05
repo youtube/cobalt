@@ -168,6 +168,30 @@ static int cbb_buffer_add_u(struct cbb_buffer_st *base, uint32_t v,
   return 1;
 }
 
+static int cbb_buffer_add_u2(struct cbb_buffer_st *base, uint64_t v,
+                            size_t len_len) {
+  if (len_len == 0) {
+    return 1;
+  }
+
+  uint8_t *buf;
+  if (!cbb_buffer_add(base, &buf, len_len)) {
+    return 0;
+  }
+
+  for (size_t i = len_len - 1; i < len_len; i--) {
+    buf[i] = v;
+    v >>= 8;
+  }
+
+  if (v != 0) {
+    base->error = 1;
+    return 0;
+  }
+
+  return 1;
+}
+
 int CBB_finish(CBB *cbb, uint8_t **out_data, size_t *out_len) {
   if (!cbb->is_top_level) {
     return 0;
@@ -459,6 +483,14 @@ int CBB_add_u32(CBB *cbb, uint32_t value) {
   return cbb_buffer_add_u(cbb->base, value, 4);
 }
 
+int CBB_add_u64(CBB *cbb, uint64_t value) {
+  if (!CBB_flush(cbb)) {
+    return 0;
+  }
+
+  return cbb_buffer_add_u2(cbb->base, value, 8);
+}
+
 void CBB_discard_child(CBB *cbb) {
   if (cbb->child == NULL) {
     return;
@@ -503,6 +535,10 @@ int CBB_add_asn1_uint64(CBB *cbb, uint64_t value) {
   }
 
   return CBB_flush(cbb);
+}
+
+int CBB_add_asn1_uint64_with_tag(CBB *cbb, uint64_t value, CBS_ASN1_TAG tag) {
+  return 0;
 }
 
 int CBB_add_asn1_octet_string(CBB *cbb, const uint8_t *data, size_t data_len) {

@@ -230,6 +230,26 @@ extern "C" {
 #endif
 #endif
 
+#if defined(__cplusplus)
+// enums can be predeclared, but only in C++ and only if given an explicit type.
+// C doesn't support setting an explicit type for enums thus a #define is used
+// to do this only for C++. However, the ABI type between C and C++ need to have
+// equal sizes, which is confirmed in a unittest.
+#define BORINGSSL_ENUM_INT : int
+enum ssl_early_data_reason_t BORINGSSL_ENUM_INT;
+enum ssl_encryption_level_t BORINGSSL_ENUM_INT;
+enum ssl_private_key_result_t BORINGSSL_ENUM_INT;
+enum ssl_renegotiate_mode_t BORINGSSL_ENUM_INT;
+enum ssl_select_cert_result_t BORINGSSL_ENUM_INT;
+enum ssl_select_cert_result_t BORINGSSL_ENUM_INT;
+enum ssl_ticket_aead_result_t BORINGSSL_ENUM_INT;
+enum ssl_verify_result_t BORINGSSL_ENUM_INT;
+#else
+#define BORINGSSL_ENUM_INT
+#endif
+
+typedef uint32_t CBS_ASN1_TAG;
+
 // CRYPTO_THREADID is a dummy value.
 typedef int CRYPTO_THREADID;
 
@@ -309,6 +329,11 @@ typedef struct evp_aead_st EVP_AEAD;
 typedef struct evp_cipher_ctx_st EVP_CIPHER_CTX;
 typedef struct evp_cipher_st EVP_CIPHER;
 typedef struct evp_encode_ctx_st EVP_ENCODE_CTX;
+typedef struct evp_hpke_aead_st EVP_HPKE_AEAD;
+typedef struct evp_hpke_ctx_st EVP_HPKE_CTX;
+typedef struct evp_hpke_kdf_st EVP_HPKE_KDF;
+typedef struct evp_hpke_kem_st EVP_HPKE_KEM;
+typedef struct evp_hpke_key_st EVP_HPKE_KEY;
 typedef struct evp_pkey_asn1_method_st EVP_PKEY_ASN1_METHOD;
 typedef struct evp_pkey_ctx_st EVP_PKEY_CTX;
 typedef struct evp_pkey_method_st EVP_PKEY_METHOD;
@@ -331,8 +356,11 @@ typedef struct spake2_ctx_st SPAKE2_CTX;
 typedef struct srtp_protection_profile_st SRTP_PROTECTION_PROFILE;
 typedef struct ssl_cipher_st SSL_CIPHER;
 typedef struct ssl_ctx_st SSL_CTX;
+typedef struct ssl_early_callback_ctx SSL_CLIENT_HELLO;
+typedef struct ssl_ech_keys_st SSL_ECH_KEYS;
 typedef struct ssl_method_st SSL_METHOD;
 typedef struct ssl_private_key_method_st SSL_PRIVATE_KEY_METHOD;
+typedef struct ssl_quic_method_st SSL_QUIC_METHOD;
 typedef struct ssl_session_st SSL_SESSION;
 typedef struct ssl_st SSL;
 typedef struct ssl_ticket_aead_method_st SSL_TICKET_AEAD_METHOD;
@@ -356,6 +384,18 @@ typedef void *OPENSSL_BLOCK;
 }  // extern C
 #elif !defined(BORINGSSL_NO_CXX)
 #define BORINGSSL_NO_CXX
+#endif
+
+#if defined(BORINGSSL_PREFIX)
+#define BSSL_NAMESPACE_BEGIN \
+  namespace bssl {           \
+  inline namespace BORINGSSL_PREFIX {
+#define BSSL_NAMESPACE_END \
+  }                        \
+  }
+#else
+#define BSSL_NAMESPACE_BEGIN namespace bssl {
+#define BSSL_NAMESPACE_END }
 #endif
 
 // MSVC doesn't set __cplusplus to 201103 to indicate C++11 support (see

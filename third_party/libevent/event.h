@@ -241,7 +241,11 @@ struct event {
 	short ev_ncalls;
 	short *ev_pncalls;	/* Allows deletes in callback */
 
+#if defined(STARBOARD)
 	struct evtimeval ev_timeout;
+#else
+  struct timeval ev_timeout;
+#endif
 
 	int ev_pri;		/* smaller numbers are higher priority */
 

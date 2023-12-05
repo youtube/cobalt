@@ -780,7 +780,7 @@ bool CryptoUtils::GetSSLCapabilities(const SSL* ssl,
   bssl::ScopedCBB cbb;
 
   if (!CBB_init(cbb.get(), 128) ||
-      !SSL_serialize_capabilities(ssl, cbb.get()) ||
+      // !SSL_serialize_capabilities(ssl, cbb.get()) ||
       !CBB_finish(cbb.get(), &buffer, capabilities_len)) {
     return false;
   }

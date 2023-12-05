@@ -14,7 +14,7 @@
 
 if (true) {
   group("default") {
-    deps = [ "//base" ]
+    deps = [ "//net" ]
   }
 } else {
   group("gn_all") {

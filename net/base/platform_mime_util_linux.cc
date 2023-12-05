@@ -35,24 +35,25 @@ bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
 bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
     const base::FilePath::StringType& ext,
     std::string* result) const {
-  base::FilePath dummy_path("foo." + ext);
-  std::string out = base::nix::GetFileMimeType(dummy_path);
+  return false;
+  // base::FilePath dummy_path("foo." + ext);
+  // std::string out = base::nix::GetFileMimeType(dummy_path);
 
-  // GetFileMimeType likes to return application/octet-stream
-  // for everything it doesn't know - ignore that.
-  if (out == "application/octet-stream" || out.empty())
-    return false;
+  // // GetFileMimeType likes to return application/octet-stream
+  // // for everything it doesn't know - ignore that.
+  // if (out == "application/octet-stream" || out.empty())
+  //   return false;
 
-  // GetFileMimeType returns image/x-ico because that's what's in the XDG
-  // mime database. That database is the merger of the Gnome and KDE mime
-  // databases. Apparently someone working on KDE in 2001 decided .ico
-  // resolves to image/x-ico, whereas the rest of the world uses image/x-icon.
-  // FWIW, image/vnd.microsoft.icon is the official IANA assignment.
-  if (out == "image/x-ico")
-    out = "image/x-icon";
+  // // GetFileMimeType returns image/x-ico because that's what's in the XDG
+  // // mime database. That database is the merger of the Gnome and KDE mime
+  // // databases. Apparently someone working on KDE in 2001 decided .ico
+  // // resolves to image/x-ico, whereas the rest of the world uses image/x-icon.
+  // // FWIW, image/vnd.microsoft.icon is the official IANA assignment.
+  // if (out == "image/x-ico")
+  //   out = "image/x-icon";
 
-  *result = out;
-  return true;
+  // *result = out;
+  // return true;
 }
 
 #endif  // BUILDFLAG(IS_ANDROID)
