@@ -1,0 +1,58 @@
+# Copyright 2019 The ANGLE Project Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+#
+# This file houses the build configuration for the ANGLE Metal back-end.
+
+import("../../../../gni/angle.gni")
+import("metal_backend.gni")
+
+assert(is_mac || is_ios)
+assert(angle_enable_metal)
+
+config("angle_metal_backend_config") {
+  defines = [ "ANGLE_ENABLE_METAL" ]
+  ldflags = [
+    "-weak_framework",
+    "Metal",
+  ]
+}
+
+angle_source_set("angle_metal_backend") {
+  public_configs = [ ":angle_metal_backend_config" ]
+
+  sources = metal_backend_sources
+
+  cflags = []
+  cflags_cc = []
+  cflags_objc = []
+  cflags_objcc = []
+  ldflags = []
+  libs = []
+
+  public_deps = [
+    "${angle_root}:angle_common",
+    "${angle_root}:angle_gpu_info_util",
+    "${angle_root}:angle_image_util",
+    "${angle_root}:libANGLE_headers",
+    "${angle_root}:translator",
+  ]
+
+  objc_flags = [
+    "-Wno-nullability-completeness",
+    "-Wno-unguarded-availability",
+    "-fno-objc-arc",
+  ]
+  cflags_objc += objc_flags
+  cflags_objcc += objc_flags
+
+  if (is_apple) {
+    frameworks = [
+      "IOSurface.framework",
+      "QuartzCore.framework",
+    ]
+    if (is_mac) {
+      frameworks += [ "Cocoa.framework" ]
+    }
+  }
+}
