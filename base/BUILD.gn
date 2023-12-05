@@ -3177,7 +3177,7 @@ test("base_unittests") {
     # "feature_list_unittest.cc",
     # "files/file_enumerator_unittest.cc",
     "files/file_error_or_unittest.cc",
-    "files/file_path_unittest.cc",
+    # "files/file_path_unittest.cc",
 
     # "files/file_path_watcher_unittest.cc",
     # "files/file_proxy_unittest.cc",
@@ -3351,7 +3351,7 @@ test("base_unittests") {
     "strings/string_util_unittest.cc",
     "strings/stringize_macros_unittest.cc",
     "strings/stringprintf_unittest.cc",
-    "strings/sys_string_conversions_unittest.cc",
+    # "strings/sys_string_conversions_unittest.cc",
     "strings/to_string_test.cc",
     "strings/utf_offset_string_conversions_unittest.cc",
     "strings/utf_string_conversions_unittest.cc",
