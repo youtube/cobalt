@@ -39,8 +39,6 @@ typedef unsigned __int64 uint64_t;
 #define woff2_htons(x) htons (x)
 #endif
 
-#define MEMCPY_BUFFER std::memcpy
-
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -87,7 +85,7 @@ class Buffer {
       return FONT_COMPRESSION_FAILURE();
     }
     if (data) {
-      MEMCPY_BUFFER(data, buffer_ + offset_, n_bytes);
+      std::memcpy(data, buffer_ + offset_, n_bytes);
     }
     offset_ += n_bytes;
     return true;
@@ -106,7 +104,7 @@ class Buffer {
     if (offset_ + 2 > length_) {
       return FONT_COMPRESSION_FAILURE();
     }
-    MEMCPY_BUFFER(value, buffer_ + offset_, sizeof(uint16_t));
+    std::memcpy(value, buffer_ + offset_, sizeof(uint16_t));
     *value = woff2_ntohs(*value);
     offset_ += 2;
     return true;
@@ -131,7 +129,7 @@ class Buffer {
     if (offset_ + 4 > length_) {
       return FONT_COMPRESSION_FAILURE();
     }
-    MEMCPY_BUFFER(value, buffer_ + offset_, sizeof(uint32_t));
+    std::memcpy(value, buffer_ + offset_, sizeof(uint32_t));
     *value = woff2_ntohl(*value);
     offset_ += 4;
     return true;
@@ -145,7 +143,7 @@ class Buffer {
     if (offset_ + 4 > length_) {
       return FONT_COMPRESSION_FAILURE();
     }
-    MEMCPY_BUFFER(value, buffer_ + offset_, sizeof(uint32_t));
+    std::memcpy(value, buffer_ + offset_, sizeof(uint32_t));
     offset_ += 4;
     return true;
   }
@@ -154,7 +152,7 @@ class Buffer {
     if (offset_ + 8 > length_) {
       return FONT_COMPRESSION_FAILURE();
     }
-    MEMCPY_BUFFER(value, buffer_ + offset_, sizeof(uint64_t));
+    std::memcpy(value, buffer_ + offset_, sizeof(uint64_t));
     offset_ += 8;
     return true;
   }
@@ -173,7 +171,6 @@ class Buffer {
 
 } // namespace woff2
 
-#undef MEMCPY_BUFFER
 #undef woff2_ntohl
 #undef woff2_ntohs
 #undef woff2_htonl

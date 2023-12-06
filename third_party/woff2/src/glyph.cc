@@ -312,14 +312,14 @@ bool StorePoints(const Glyph& glyph, size_t* offset,
       if (dx == 0) {
         // pass
       } else if (dx > -256 && dx < 256) {
-        dst[x_offset++] = abs(dx);
+        dst[x_offset++] = std::abs(dx);
       } else {
         Store16(dx, &x_offset, dst);
       }
       if (dy == 0) {
         // pass
       } else if (dy > -256 && dy < 256) {
-        dst[y_offset++] = abs(dy);
+        dst[y_offset++] = std::abs(dy);
       } else {
         Store16(dy, &y_offset, dst);
       }
