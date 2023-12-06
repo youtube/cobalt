@@ -25,10 +25,16 @@ static_library("woff2_dec") {
     "src/woff2_out.cc",
   ]
 
+if (is_starboard) {
+  configs -= [ "//starboard/build/config:size" ]
+  configs += [ "//starboard/build/config:speed" ]
+} else {
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
+}
 
   deps = [ "//third_party/brotli:dec" ]
+  deps += [ "//starboard/common" ]
 
   public_configs = [ ":woff2_includes" ]
 
