@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "net/disk_cache/cobalt/resource_type.h"
+#include "cobalt/network/disk_cache/resource_type.h"
 
 #include "base/logging.h"
 
+namespace cobalt {
+namespace network {
 namespace disk_cache {
 namespace defaults {
 
@@ -83,16 +85,26 @@ namespace settings {
 
 namespace {
 
-starboard::atomic_int32_t other_quota = starboard::atomic_int32_t(defaults::GetQuota(kOther));
-starboard::atomic_int32_t html_quota = starboard::atomic_int32_t(defaults::GetQuota(kHTML));
-starboard::atomic_int32_t css_quota = starboard::atomic_int32_t(defaults::GetQuota(kCSS));
-starboard::atomic_int32_t image_quota = starboard::atomic_int32_t(defaults::GetQuota(kImage));
-starboard::atomic_int32_t font_quota = starboard::atomic_int32_t(defaults::GetQuota(kFont));
-starboard::atomic_int32_t splash_screen_quota = starboard::atomic_int32_t(defaults::GetQuota(kSplashScreen));
-starboard::atomic_int32_t uncompiled_script_quota = starboard::atomic_int32_t(defaults::GetQuota(kUncompiledScript));
-starboard::atomic_int32_t compiled_script_quota = starboard::atomic_int32_t(defaults::GetQuota(kCompiledScript));
-starboard::atomic_int32_t cache_api_quota = starboard::atomic_int32_t(defaults::GetQuota(kCacheApi));
-starboard::atomic_int32_t service_worker_script_quota = starboard::atomic_int32_t(defaults::GetQuota(kServiceWorkerScript));
+starboard::atomic_int32_t other_quota =
+    starboard::atomic_int32_t(defaults::GetQuota(kOther));
+starboard::atomic_int32_t html_quota =
+    starboard::atomic_int32_t(defaults::GetQuota(kHTML));
+starboard::atomic_int32_t css_quota =
+    starboard::atomic_int32_t(defaults::GetQuota(kCSS));
+starboard::atomic_int32_t image_quota =
+    starboard::atomic_int32_t(defaults::GetQuota(kImage));
+starboard::atomic_int32_t font_quota =
+    starboard::atomic_int32_t(defaults::GetQuota(kFont));
+starboard::atomic_int32_t splash_screen_quota =
+    starboard::atomic_int32_t(defaults::GetQuota(kSplashScreen));
+starboard::atomic_int32_t uncompiled_script_quota =
+    starboard::atomic_int32_t(defaults::GetQuota(kUncompiledScript));
+starboard::atomic_int32_t compiled_script_quota =
+    starboard::atomic_int32_t(defaults::GetQuota(kCompiledScript));
+starboard::atomic_int32_t cache_api_quota =
+    starboard::atomic_int32_t(defaults::GetQuota(kCacheApi));
+starboard::atomic_int32_t service_worker_script_quota =
+    starboard::atomic_int32_t(defaults::GetQuota(kServiceWorkerScript));
 starboard::atomic_bool cache_enabled = starboard::atomic_bool(true);
 
 }  // namespace
@@ -163,13 +175,11 @@ void SetQuota(ResourceType resource_type, uint32_t value) {
   }
 }
 
-bool GetCacheEnabled() {
-  return cache_enabled.load();
-}
+bool GetCacheEnabled() { return cache_enabled.load(); }
 
-void SetCacheEnabled(bool value) {
-  cache_enabled.store(value);
-}
+void SetCacheEnabled(bool value) { cache_enabled.store(value); }
 
 }  // namespace settings
 }  // namespace disk_cache
+}  // namespace network
+}  // namespace cobalt

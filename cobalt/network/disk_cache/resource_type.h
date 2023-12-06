@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef NET_DISK_CACHE_COBALT_RESOURCE_TYPE_H_
-#define NET_DISK_CACHE_COBALT_RESOURCE_TYPE_H_
+#ifndef COBALT_NETWORK_DISK_CACHE_RESOURCE_TYPE_H_
+#define COBALT_NETWORK_DISK_CACHE_RESOURCE_TYPE_H_
 
 #include <string>
 
 #include "starboard/common/atomic.h"
 #include "starboard/types.h"
 
+namespace cobalt {
+namespace network {
 namespace disk_cache {
 
 /* Note: If adding a new resource type, add corresponding metadata below. */
@@ -53,5 +55,7 @@ void SetCacheEnabled(bool value);
 
 }  // namespace settings
 }  // namespace disk_cache
+}  // namespace network
+}  // namespace cobalt
 
-#endif  // NET_DISK_CACHE_COBALT_RESOURCE_TYPE_H_
+#endif  // COBALT_NETWORK_DISK_CACHE_RESOURCE_TYPE_H_

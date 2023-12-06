@@ -41,8 +41,8 @@ namespace web {
 
 namespace {
 
-const disk_cache::ResourceType kResourceType =
-    disk_cache::ResourceType::kCacheApi;
+const network::disk_cache::ResourceType kResourceType =
+    network::disk_cache::ResourceType::kCacheApi;
 
 }  // namespace
 
