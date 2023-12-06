@@ -26,7 +26,7 @@ namespace {
 
 const char kTestAppKey[] = "test_app_key";
 const char kTestAppKeyDir[] = "test_app_key_dir";
-
+#if SB_API_VERSION < 16
 class AppKeyFilesTest : public testing::Test {
  protected:
   virtual void SetUp() {
@@ -91,7 +91,7 @@ TEST_F(AppKeyFilesTest, TestAnyGoodKeyFile) {
   ASSERT_TRUE(AnyGoodAppKeyFile(dir_));
   SbFileDelete(file_path.c_str());
 }
-
+#endif  // SB_API_VERSION < 16
 }  // namespace
 }  // namespace loader_app
 }  // namespace starboard

@@ -88,7 +88,7 @@ std::string GetStartDeepLink() {
 #if SB_IS(EVERGREEN_COMPATIBLE)
 bool CopyDirContents(const std::string& src_dir_path,
                      const std::string& dst_dir_path) {
-  SbDirectory src_dir = SbDirectoryOpen(src_dir_path.c_str(), NULL);
+  SbDirectory src_dir = opendir(src_dir_path.c_str());
   if (!SbDirectoryIsValid(src_dir)) {
     SB_LOG(WARNING) << "Failed to open dir=" << src_dir_path;
     return false;
@@ -181,7 +181,7 @@ std::string ExtractCertificatesToFileSystem() {
 
   std::string file_system_path(file_system_path_buffer.data());
   file_system_path.append(std::string(kSbFileSepString) + "certs");
-  if (!SbDirectoryCreate(file_system_path.c_str())) {
+  if (!mkdir(file_system_path.c_str(), 0700)) {
     SB_LOG(WARNING) << "Failed to create new dir for CA certificates";
     return "";
   }

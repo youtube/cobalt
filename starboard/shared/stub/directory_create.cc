@@ -13,7 +13,8 @@
 // limitations under the License.
 
 #include "starboard/directory.h"
-
+#if SB_API_VERSION < 16
 bool SbDirectoryCreate(const char* path) {
   return false;
 }
+#endif  // SB_API_VERSION < 16

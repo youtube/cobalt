@@ -20,6 +20,7 @@
 #include "starboard/common/file.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/loader_app/installation_store.pb.h"
+#include "sys/stat.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if SB_IS(EVERGREEN_COMPATIBLE)
@@ -47,7 +48,7 @@ class InstallationManagerTest : public ::testing::TestWithParam<int> {
     }
     storage_path_ = buf.data();
     ASSERT_TRUE(!storage_path_.empty());
-    SbDirectoryCreate(storage_path_.c_str());
+    mkdir(storage_path_.c_str(), 0700);
 
     installation_store_path_ = storage_path_;
     installation_store_path_ += kSbFileSepString;
@@ -164,7 +165,7 @@ class InstallationManagerTest : public ::testing::TestWithParam<int> {
       }
     }
   }
-
+#if SB_API_VERSION < 16
   virtual void TearDown() {
     if (!storage_path_implemented_) {
       return;
@@ -185,6 +186,7 @@ class InstallationManagerTest : public ::testing::TestWithParam<int> {
     SbDirectoryClose(dir);
     SbFileDelete(storage_path_.c_str());
   }
+#endif
 
  protected:
   std::string storage_path_;
@@ -220,7 +222,7 @@ TEST_P(InstallationManagerTest, Reset) {
     std::string slot_path = buf.data();
     slot_path += kSbFileSepString;
     slot_path += "test_dir";
-    SbDirectoryCreate(slot_path.c_str());
+    mkdir(slot_path.c_str(), 0700);
     slot_path += kSbFileSepString;
     slot_path += "test_file";
     created_files.push_back(slot_path);

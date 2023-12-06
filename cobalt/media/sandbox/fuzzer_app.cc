@@ -18,6 +18,7 @@
 
 #include "base/files/file_util.h"
 #include "base/logging.h"
+#include "dirent.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
@@ -109,7 +110,7 @@ void FuzzerApp::CollectFiles(const std::string& path_name, double min_ratio,
                              double max_ratio, int initial_seed) {
   file_entries_.clear();
 
-  SbDirectory directory = SbDirectoryOpen(path_name.c_str(), NULL);
+  SbDirectory directory = opendir(path_name.c_str());
   if (!SbDirectoryIsValid(directory)) {
     // Assuming it is a file.
     AddFile(path_name, min_ratio, max_ratio, initial_seed);
@@ -118,12 +119,12 @@ void FuzzerApp::CollectFiles(const std::string& path_name, double min_ratio,
 
   std::vector<char> entry(kSbFileMaxName);
 
-  while (SbDirectoryGetNext(directory, entry.data(), entry.size())) {
+  while (readdir_r(directory, entry.data(), entry.size())) {
     std::string file_name = path_name + kSbFileSepString + entry.data();
     AddFile(file_name, min_ratio, max_ratio, initial_seed);
   }
 
-  SbDirectoryClose(directory);
+  closedir(directory);
 }
 
 void FuzzerApp::AddFile(const std::string& file_name, double min_ratio,

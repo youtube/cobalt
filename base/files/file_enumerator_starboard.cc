@@ -16,6 +16,7 @@
 
 #include "base/files/file_util.h"
 #include "base/threading/thread_restrictions.h"
+#include "dirent.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
@@ -89,8 +90,8 @@ FileEnumerator::~FileEnumerator() = default;
 std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
     const FilePath& source) {
   AssertBlockingAllowed();
-  SbDirectory dir = SbDirectoryOpen(source.value().c_str(), NULL);
-  if (!SbDirectoryIsValid(dir)) {
+  DIR* dir = ::opendir(source.value().c_str());
+  if (!dir) {
     return std::vector<FileEnumerator::FileInfo>();
   }
 
@@ -115,8 +116,9 @@ std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
   bool found_dot_dot = false;
 
   std::vector<char> entry(kSbFileMaxName);
-
-  while (SbDirectoryGetNext(dir, entry.data(), entry.size())) {
+  struct dirent dirent_buffer;
+  struct dirent* dirent;
+  while (::readdir_r(dir, &dirent_buffer, &dirent)) {
     const char dot_dot_str[] = "..";
     if (!strncmp(entry.data(), dot_dot_str, sizeof(dot_dot_str))) {
       found_dot_dot = true;
@@ -128,7 +130,7 @@ std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
     ret.push_back(GenerateEntry(".."));
   }
 
-  ignore_result(SbDirectoryClose(dir));
+  ignore_result(::closedir(dir));
   return ret;
 }
 

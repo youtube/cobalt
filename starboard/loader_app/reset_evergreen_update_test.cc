@@ -53,7 +53,7 @@ TEST(ResetEvergreenUpdateTest, TestSunnyDayFile) {
   ASSERT_FALSE(SbFileExists(file_path.data()));
   ASSERT_TRUE(SbFileExists(storage_path.data()));
 }
-
+#if SB_API_VERSION < 16
 TEST(ResetEvergreenUpdateTest, TestSunnyDaySubdir) {
   std::vector<char> storage_path(kSbFileMaxPath);
   ASSERT_TRUE(SbSystemGetPath(kSbSystemPathStorageDirectory,
@@ -85,6 +85,7 @@ TEST(ResetEvergreenUpdateTest, TestSunnyDaySubdir) {
   ASSERT_FALSE(SbFileExists(file_path.data()));
   ASSERT_TRUE(SbFileExists(storage_path.data()));
 }
+#endif  // SB_API_VERSION < 16
 }  // namespace
 }  // namespace loader_app
 }  // namespace starboard

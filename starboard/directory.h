@@ -41,6 +41,7 @@ typedef struct SbDirectoryPrivate* SbDirectory;
 static SB_C_INLINE bool SbDirectoryIsValid(SbDirectory directory) {
   return directory != kSbDirectoryInvalid;
 }
+#if SB_API_VERSION < 16
 
 // Opens the given existing directory for listing. This function returns
 // kSbDirectoryInvalidHandle if it is not successful.
@@ -79,17 +80,18 @@ SB_EXPORT bool SbDirectoryGetNext(SbDirectory directory,
                                   char* out_entry,
                                   size_t out_entry_size);
 
-// Indicates whether SbDirectoryOpen is allowed for the given |path|.
-//
-// |path|: The path to be checked.
-SB_EXPORT bool SbDirectoryCanOpen(const char* path);
-
 // Creates the directory |path|, assuming the parent directory already exists.
 // This function returns |true| if the directory now exists (even if it existed
 // before) and returns |false| if the directory does not exist.
 //
 // |path|: The path to be created.
 SB_EXPORT bool SbDirectoryCreate(const char* path);
+#endif  // SB_API_VERSION < 16
+
+// Indicates whether SbDirectoryOpen is allowed for the given |path|.
+//
+// |path|: The path to be checked.
+SB_EXPORT bool SbDirectoryCanOpen(const char* path);
 
 #ifdef __cplusplus
 }  // extern "C"

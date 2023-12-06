@@ -34,7 +34,7 @@ namespace {
 const char kAppKeyOne[] = "b25lDQo=";
 const char kAppKeyTwo[] = "dHdvDQo=";
 const char kAppKeyThree[] = "dGhyZWUNCg==";
-
+#if SB_API_VERSION < 16
 class DrainFileTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -215,7 +215,7 @@ TEST_F(DrainFileTest, RainyDayDrainFileAlreadyExists) {
   EXPECT_TRUE(DrainFileTryDrain(GetTempDir(), kAppKeyOne));
   EXPECT_FALSE(DrainFileTryDrain(GetTempDir(), kAppKeyTwo));
 }
-
+#endif  // SB_API_VERSION < 16
 }  // namespace
 }  // namespace loader_app
 }  // namespace starboard

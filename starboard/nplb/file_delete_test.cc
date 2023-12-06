@@ -35,7 +35,9 @@ TEST(SbFileDeleteTest, SunnyDayDeleteExistingDirectory) {
   const std::string& path = file.filename();
 
   EXPECT_FALSE(SbFileExists(path.c_str()));
+#if SB_API_VERSION < 16
   EXPECT_TRUE(SbDirectoryCreate(path.c_str()));
+#endif  // SB_API_VERSION < 16
   EXPECT_TRUE(SbDirectoryCanOpen(path.c_str()));
   EXPECT_TRUE(SbFileDelete(path.c_str()));
 }

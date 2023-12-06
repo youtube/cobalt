@@ -18,6 +18,7 @@
 
 #include "base/files/file_util.h"
 #include "base/logging.h"
+#include "dirent.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/types.h"
@@ -29,21 +30,21 @@ bool SimpleIndexFile::TraverseCacheDirectory(
     const base::FilePath& cache_path,
     const EntryFileCallback& entry_file_callback) {
   SbFileError error;
-  SbDirectory dir = SbDirectoryOpen(cache_path.value().c_str(), &error);
-  if (dir == kSbDirectoryInvalid) {
-    SbDirectoryClose(dir);
+  DIR* dir = opendir(cache_path.value().c_str());
+  if (!dir) {
+    closedir(dir);
     PLOG(ERROR) << "opendir " << cache_path.value() << ", erron: " << error;
     return false;
   }
 
-  std::vector<char> entry(kSbFileMaxName);
-
+  struct dirent dirent_buffer;
+  struct dirent* dirent;
   while (true) {
-    if (!SbDirectoryGetNext(dir, entry.data(), entry.size())) {
+    if (!readdir_r(dir, &dirent_buffer, &dirent)) {
       break;
     }
 
-    const std::string file_name(entry.data());
+    const std::string file_name(dirent->d_name);
     if (file_name == "." || file_name == "..")
       continue;
     const base::FilePath file_path =
@@ -58,7 +59,7 @@ bool SimpleIndexFile::TraverseCacheDirectory(
                             file_info.last_modified, file_info.size);
   }
 
-  SbDirectoryClose(dir);
+  closedir(dir);
   return true;
 }
 

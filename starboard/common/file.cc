@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "dirent.h"
 #include "starboard/common/log.h"
 #include "starboard/common/metrics/stats_tracker.h"
 #include "starboard/configuration_constants.h"
@@ -28,8 +29,8 @@
 namespace starboard {
 namespace {
 
-bool DirectoryCloseLogFailure(const char* path, SbDirectory dir) {
-  if (!SbDirectoryClose(dir)) {
+bool DirectoryCloseLogFailure(const char* path, DIR* dir) {
+  if (!closedir(dir)) {
     SB_LOG(ERROR) << "Failed to close directory: '" << path << "'";
     return false;
   }
@@ -55,9 +56,7 @@ bool SbFileDeleteRecursive(const char* path, bool preserve_root) {
   }
 
   SbFileError err = kSbFileOk;
-  SbDirectory dir = kSbDirectoryInvalid;
-
-  dir = SbDirectoryOpen(path, &err);
+  DIR* dir = opendir(path);
 
   // The |path| points to a file. Remove it and return.
   if (err != kSbFileOk) {
@@ -68,14 +67,16 @@ bool SbFileDeleteRecursive(const char* path, bool preserve_root) {
 
   std::vector<char> entry(kSbFileMaxName);
 
-  while (SbDirectoryGetNext(dir, entry.data(), kSbFileMaxName)) {
-    if (!strcmp(entry.data(), ".") || !strcmp(entry.data(), "..")) {
+  struct dirent dirent_buffer;
+  struct dirent* dirent;
+  while (readdir_r(dir, &dirent_buffer, &dirent)) {
+    if (!strcmp(dirent->d_name, ".") || !strcmp(dirent->d_name, "..")) {
       continue;
     }
 
     std::string abspath(path);
     abspath.append(kSbFileSepString);
-    abspath.append(entry.data());
+    abspath.append(dirent->d_name);
 
     if (!SbFileDeleteRecursive(abspath.data(), false)) {
       DirectoryCloseLogFailure(path, dir);
