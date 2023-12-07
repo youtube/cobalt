@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Getting started"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Getting started
 
 Cobalt is a lightweight HTML5/CSS/JS application container that is designed
 to provide a rich application development environment with minimal resource
@@ -69,20 +69,20 @@ These are some other benefits that Cobalt provides:
 
 ### Porters
 
-Porters should begin with the [porting guide](/starboard/porting.html),
+Porters should begin with the [porting guide](starboard/porting.md),
 which explains how to use Starboard, Cobalt's porting layer, to customize the
 platform-specific functionality that Cobalt uses. There are several reference
 documents to help porters customize configuration files and to implement
 module-specific functionality. The [Testing with
-NPLB](/starboard/testing.html) document provides an overview of
+NPLB](starboard/testing.md) document provides an overview of
 Starboard's compliance test suite.
 
 ### Developers
 
 Developers can follow the setup instructions for
-[Linux](/development/setup-linux.html) or
-[RasPi](/development/setup-raspi.html) to set up their Cobalt development
+[Linux](development/setup-linux.md) or
+[RasPi](development/setup-raspi.md) to set up their Cobalt development
 environment, clone a copy of the Cobalt code repository, and build a Cobalt
-binary. The [Cobalt support](/development/reference/supported-features.html)
+binary. The [Cobalt support](development/reference/supported-features.md)
 guide lists the HTML elements, CSS properties, CSS selectors, and JavaScript Web
 APIs that developers can use in their Cobalt applications.

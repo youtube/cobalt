@@ -22,6 +22,7 @@ import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ServiceInfo;
 import android.os.Build.VERSION;
 import android.os.IBinder;
 import android.os.RemoteException;
@@ -82,7 +83,12 @@ public class MediaPlaybackService extends Service {
   public void startService() {
     if (this.channelCreated) {
       try {
-        startForeground(NOTIFICATION_ID, buildNotification());
+        if (VERSION.SDK_INT >= 29) {
+          startForeground(
+              NOTIFICATION_ID, buildNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_MANIFEST);
+        } else {
+          startForeground(NOTIFICATION_ID, buildNotification());
+        }
       } catch (IllegalStateException e) {
         Log.e(TAG, "Failed to start Foreground Service", e);
       }

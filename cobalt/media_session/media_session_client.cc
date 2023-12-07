@@ -58,7 +58,7 @@ void GuessMediaPositionState(MediaSessionState* session_state,
     *guess_player = current_player;
 
     MediaPositionState position_state;
-    float duration = (*guess_player)->GetDuration();
+    const double duration = (*guess_player)->GetDuration();
     if (std::isfinite(duration)) {
       position_state.set_duration(duration);
     } else if (std::isinf(duration)) {

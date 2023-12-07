@@ -9,6 +9,16 @@ since the version previous to it.
 
 ## Version 16
 
+### Deprecated SbMemory allocation APIs and migrated to POSIX memory APIs
+The memory management APIs `SbMemoryAllocate`, `SbMemoryReallocate`,
+`SbMemoryCalloc`, `SbMemoryAllocateAligned`, `SbMemoryDeallocate`,
+`SbMemoryDeallocateAligned` `SbStringDuplicate` are deprecated and the
+standard APIs `malloc`, `realloc`, `calloc`, `posix_memalign`, `free`
+from `<stdlib.h>` and `strdup` from `<string.h>` should be used instead.
+
+### Deprecated SbMediaGetBufferAlignment
+The `SbMediaGetBufferAlignment`API was deprecated.
+
 ### Removed SbUser from SbStorageOpenRecord and SbStorageDeleteRecord
 The `SbStorageOpenRecord` and `SbStorageDeleteRecord` APIs defined in
 `starboard/storage.h` no longer have a parameter for `SbUser` as the APIs are
@@ -21,6 +31,14 @@ deprecated.
 ### Removed SbByteSwapS16, SbByteSwapS32, SbByteSwapS64, SbByteSwapU16, SbByteSwapU32, and SbByteSwapU64
 The APIs defined in `starboard/byte_swap.h` are no longer used and have been
 deprecated.
+
+### Removed SbImageDecode and SbImageIsDecodeSupported
+The APIs defined in `starboard/image.h` are no longer used and have been
+deprecated.
+
+### Add a new enum `kIamfConfigObus` to `SbPlayerSampleSideDataType` in `starboard/player.h`
+This value allows IAMF samples to be written to Starboard along with IAMF
+Config OBUs as side data.
 
 ## Version 15
 

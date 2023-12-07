@@ -46,8 +46,8 @@ static_library("debug") {
     "backend/render_overlay.h",
     "backend/script_debugger_agent.cc",
     "backend/script_debugger_agent.h",
-    "backend/tracing_agent.cc",
-    "backend/tracing_agent.h",
+    "backend/tracing_controller.cc",
+    "backend/tracing_controller.h",
     "command.h",
     "console/debug_hub.cc",
     "console/debug_hub.h",
@@ -77,7 +77,7 @@ static_library("debug") {
     "//cobalt/web",
     "//net",
     "//net:http_server",
-    "//starboard",
+    "//starboard:starboard_group",
     "//third_party/devtools:devtools_frontend_resources",
   ]
 }

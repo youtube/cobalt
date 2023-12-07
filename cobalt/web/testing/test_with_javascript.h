@@ -73,16 +73,21 @@ class TestWebWithJavaScript
   // Return a vector of values for all known worker types, to be used in the
   // INSTANTIATE_TEST_CASE_P() declaration.
   static std::vector<base::TypeId> GetWebTypes() {
-    std::vector<base::TypeId> worker_types =
+    std::vector<base::TypeId> web_types =
         worker::testing::TestWorkersWithJavaScript::GetWorkerTypes();
-    worker_types.push_back(base::GetTypeId<dom::Window>());
-    return worker_types;
+    web_types.push_back(base::GetTypeId<dom::Window>());
+    return web_types;
   }
-  static std::string GetTypeName(::testing::TestParamInfo<base::TypeId> info) {
-    if (info.param == base::GetTypeId<dom::Window>()) {
+  static std::string GetName(const base::TypeId type) {
+    if (type == base::GetTypeId<dom::Window>()) {
       return "Window";
     }
-    return worker::testing::TestWorkersWithJavaScript::GetTypeName(info);
+    return worker::testing::TestWorkersWithJavaScript::GetName(type);
+  }
+
+  static std::string GetTypeName(
+      const ::testing::TestParamInfo<base::TypeId> info) {
+    return GetName(info.param);
   }
 };
 

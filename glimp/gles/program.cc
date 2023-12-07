@@ -168,7 +168,7 @@ Program::Uniform* Program::FindOrMakeUniform(int location) {
 // Clear all stored uniform information and values.
 void Program::ClearUniforms() {
   for (size_t i = 0; i < uniforms_.size(); ++i) {
-    SbMemoryDeallocate(uniforms_[i].data);
+    free(uniforms_[i].data);
   }
   uniforms_.clear();
   active_uniform_locations_.clear();
@@ -211,8 +211,8 @@ GLenum Program::UpdateUniform(GLint location,
     // We need to reallocate data if the information has changed.
     uniform->info = new_info;
 
-    SbMemoryDeallocate(uniform->data);
-    uniform->data = SbMemoryAllocate(DataSizeForType(count, elem_size, type));
+    free(uniform->data);
+    uniform->data = malloc(DataSizeForType(count, elem_size, type));
   }
   memcpy(uniform->data, v, DataSizeForType(count, elem_size, type));
 

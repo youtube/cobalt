@@ -39,4 +39,10 @@ interface SourceBuffer : EventTarget {
   // `InvalidStateError` if the SourceBuffer object has been removed from the
   // MediaSource object.
   [RaisesException] readonly attribute double writeHead;
+
+  // Non standard stream memory limit modifier. This will override the default
+  // stream memory limit which is tied to the resolution of the video.
+  // This will be passed down to the SourceBufferStream associated with this
+  // instance.
+  [RaisesException] attribute unsigned long long memoryLimit;
 };

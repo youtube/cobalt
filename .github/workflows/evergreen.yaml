@@ -49,6 +49,15 @@ jobs:
       platform: evergreen-arm-softfp
       nightly: ${{ github.event.inputs.nightly }}
       run_api_leak_detector: true
+  evergreen-arm-softfp-no-loader:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+      pull-requests: write
+    with:
+      platform: evergreen-arm-softfp-no-loader
+      nightly: ${{ github.event.inputs.nightly }}
+      run_api_leak_detector: true
   evergreen-arm64:
     uses: ./.github/workflows/main.yaml
     permissions:

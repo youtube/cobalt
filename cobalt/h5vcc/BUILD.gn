@@ -43,6 +43,8 @@ static_library("h5vcc") {
     "h5vcc_event_listener_container.h",
     "h5vcc_metrics.cc",
     "h5vcc_metrics.h",
+    "h5vcc_net_log.cc",
+    "h5vcc_net_log.h",
     "h5vcc_platform_service.cc",
     "h5vcc_platform_service.h",
     "h5vcc_runtime.cc",
@@ -83,7 +85,7 @@ static_library("h5vcc") {
     "//cobalt/web:dom_exception",
     "//cobalt/worker",
     "//net",
-    "//starboard",
+    "//starboard:starboard_group",
     "//third_party/protobuf:protobuf_lite",
   ]
   if (enable_in_app_dial) {
@@ -96,7 +98,7 @@ static_library("h5vcc") {
       "dial/dial_server.h",
     ]
     deps += [
-      "//net:cobalt_dial_server",
+      "//cobalt/network:cobalt_dial_server",
       "//net:http_server",
     ]
   }

@@ -20,7 +20,7 @@
   position: absolute;
   left: -13px;
   top: 5px;
-  user-select: none;
+  -webkit-user-select: none;
 }
 
 .console-eager-preview {

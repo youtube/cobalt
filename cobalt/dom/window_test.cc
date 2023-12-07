@@ -18,12 +18,14 @@
 #include <string>
 
 #include "base/bind.h"
+#include "base/strings/stringprintf.h"
 #include "cobalt/bindings/testing/utils.h"
 #include "cobalt/dom/screen.h"
 #include "cobalt/dom/testing/test_with_javascript.h"
 #include "cobalt/network_bridge/net_poster.h"
 #include "cobalt/script/testing/fake_script_value.h"
 #include "cobalt/web/error_event.h"
+#include "cobalt/web/message_event.h"
 #include "cobalt/web/testing/mock_event_listener.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -32,16 +34,19 @@ namespace cobalt {
 namespace dom {
 
 using script::testing::FakeScriptValue;
-using web::testing::MockEventListener;
 
-class WindowTest : public testing::TestWithJavaScript {
+class WindowTestBase {
  protected:
-  WindowTest() { fake_event_listener_ = MockEventListener::Create(); }
+  WindowTestBase() {
+    fake_event_listener_ = web::testing::MockEventListener::Create();
+  }
 
-  ~WindowTest() override {}
+  virtual ~WindowTestBase() {}
 
-  std::unique_ptr<MockEventListener> fake_event_listener_;
+  std::unique_ptr<web::testing::MockEventListener> fake_event_listener_;
 };
+
+class WindowTest : public WindowTestBase, public testing::TestWithJavaScript {};
 
 TEST_F(WindowTest, WindowShouldNotHaveChildren) {
   EXPECT_EQ(window(), window()->window());
@@ -244,6 +249,56 @@ TEST_F(WindowTest, Screenshot) {
   // pass in the screenshot function callback.
 }
 
+TEST_F(WindowTest, MessageEvent) {
+  window()->AddEventListener(
+      "message",
+      FakeScriptValue<web::EventListener>(fake_event_listener_.get()), true);
+  fake_event_listener_->ExpectHandleEventCall("message", window());
+  window()->DispatchEvent(new web::MessageEvent("message"));
+}
+
+TEST_F(WindowTest, OnMessageEvent) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("typeof window.onmessage", &result));
+  EXPECT_EQ("object", result);
+
+  EXPECT_TRUE(EvaluateScript(R"(
+    logString = '(empty)';
+    window.onmessage= function() {
+      logString = 'handled';
+    };
+    window.dispatchEvent(new MessageEvent('message'));
+    logString;
+  )",
+                             &result));
+  EXPECT_EQ("handled", result);
+}
+
+TEST_F(WindowTest, MessageErrorEvent) {
+  window()->AddEventListener(
+      "messageerror",
+      FakeScriptValue<web::EventListener>(fake_event_listener_.get()), true);
+  fake_event_listener_->ExpectHandleEventCall("messageerror", window());
+  window()->DispatchEvent(new web::MessageEvent("messageerror"));
+}
+
+TEST_F(WindowTest, OnMessageErrorEvent) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("typeof window.onmessageerror", &result));
+  EXPECT_EQ("object", result);
+
+  EXPECT_TRUE(EvaluateScript(R"(
+    logString = '(empty)';
+    window.onmessageerror = function() {
+      logString = 'handled';
+    };
+    window.dispatchEvent(new Event('messageerror'));
+    logString;
+  )",
+                             &result));
+  EXPECT_EQ("handled", result);
+}
+
 TEST_F(WindowTest, ErrorEvent) {
   window()->AddEventListener(
       "error", FakeScriptValue<web::EventListener>(fake_event_listener_.get()),
@@ -260,7 +315,7 @@ TEST_F(WindowTest, OnErrorEvent) {
 
   EXPECT_TRUE(EvaluateScript(R"(
     logString = '(empty)';
-    self.onerror = function() {
+    window.onerror = function() {
       logString = 'handled';
     };
     window.dispatchEvent(new ErrorEvent('error'));
@@ -270,55 +325,97 @@ TEST_F(WindowTest, OnErrorEvent) {
   EXPECT_EQ("handled", result);
 }
 
-TEST_F(WindowTest, BeforeunloadEvent) {
-  window()->AddEventListener(
-      "beforeunload",
-      FakeScriptValue<web::EventListener>(fake_event_listener_.get()), true);
-  fake_event_listener_->ExpectHandleEventCall("beforeunload", window());
-  window()->DispatchEvent(new web::Event("beforeunload"));
+namespace {
+class WindowTestEventTest : public WindowTestBase,
+                            public testing::TestWithJavaScriptBase,
+                            public ::testing::TestWithParam<const char*> {};
+
+std::string GetEventName(::testing::TestParamInfo<const char*> info) {
+  return std::string(info.param);
 }
 
-TEST_F(WindowTest, OnBeforeunloadEvent) {
+const char* events[] = {"beforeunload",
+                        "blur",
+                        "click",
+                        "focus",
+                        "hashchange",
+                        "keydown",
+                        "keypress",
+                        "keyup",
+                        "languagechange",
+                        "load",
+                        "loadeddata",
+                        "loadedmetadata",
+                        "loadstart",
+                        "mousedown",
+                        "mouseenter",
+                        "mouseleave",
+                        "mousemove",
+                        "mouseout",
+                        "mouseover",
+                        "mouseup",
+                        "offline",
+                        "online",
+                        "pause",
+                        "play",
+                        "playing",
+                        "resize",
+                        "scroll",
+                        "transitionend",
+                        "gotpointercapture",
+                        "lostpointercapture",
+                        "pointercancel",
+                        "pointerdown",
+                        "pointerenter",
+                        "pointerleave",
+                        "pointermove",
+                        "pointerout",
+                        "pointerover",
+                        "pointerup",
+                        "progress",
+                        "ratechange",
+                        "rejectionhandled",
+                        "seeked",
+                        "seeking",
+                        "timeupdate",
+                        "unhandledrejection",
+                        "volumechange",
+                        "waiting",
+                        "wheel"};
+}  // namespace
+
+TEST_P(WindowTestEventTest, AddEventListener) {
+  const char* event_name = GetParam();
+  window()->AddEventListener(
+      event_name,
+      FakeScriptValue<web::EventListener>(fake_event_listener_.get()), true);
+  fake_event_listener_->ExpectHandleEventCall(event_name, window());
+  window()->DispatchEvent(new web::Event(event_name));
+}
+
+TEST_P(WindowTestEventTest, OnEvent) {
+  const char* event_name = GetParam();
   std::string result;
-  EXPECT_TRUE(EvaluateScript("typeof self.onbeforeunload", &result));
+  EXPECT_TRUE(EvaluateScript(
+      base::StringPrintf("typeof window.on%s", event_name), &result));
   EXPECT_EQ("object", result);
 
-  EXPECT_TRUE(EvaluateScript(R"(
+  EXPECT_TRUE(
+      EvaluateScript(base::StringPrintf(R"(
     logString = '(empty)';
-    self.onbeforeunload = function() {
-      logString = 'handled';
+    self.on%s = function() {
+      logString = '%s';
     };
-    self.dispatchEvent(new Event('beforeunload'));
+    self.dispatchEvent(new Event('%s'));
     logString;
   )",
-                             &result));
-  EXPECT_EQ("handled", result);
+                                        event_name, event_name, event_name),
+                     &result));
+  EXPECT_EQ(event_name, result);
 }
 
-TEST_F(WindowTest, LanguagechangeEvent) {
-  window()->AddEventListener(
-      "languagechange",
-      FakeScriptValue<web::EventListener>(fake_event_listener_.get()), true);
-  fake_event_listener_->ExpectHandleEventCall("languagechange", window());
-  window()->DispatchEvent(new web::Event("languagechange"));
-}
-
-TEST_F(WindowTest, OnLanguagechangeEvent) {
-  std::string result;
-  EXPECT_TRUE(EvaluateScript("typeof self.onlanguagechange", &result));
-  EXPECT_EQ("object", result);
-
-  EXPECT_TRUE(EvaluateScript(R"(
-    logString = '(empty)';
-    self.onlanguagechange = function() {
-      logString = 'handled';
-    };
-    self.dispatchEvent(new Event('languagechange'));
-    logString;
-  )",
-                             &result));
-  EXPECT_EQ("handled", result);
-}
+INSTANTIATE_TEST_CASE_P(WindowTest, WindowTestEventTest,
+                        ::testing::ValuesIn(events), GetEventName);
 
 // Test that when Window's network status change callbacks are triggered,
 // corresponding online and offline events are fired to listeners.
@@ -330,112 +427,12 @@ TEST_F(WindowTest, OfflineEvent) {
   window()->OnWindowOnOfflineEvent();
 }
 
-TEST_F(WindowTest, OfflineEventDispatch) {
-  window()->AddEventListener(
-      "offline",
-      FakeScriptValue<web::EventListener>(fake_event_listener_.get()), true);
-  fake_event_listener_->ExpectHandleEventCall("offline", window());
-  window()->DispatchEvent(new web::Event("offline"));
-}
-
-TEST_F(WindowTest, OnOfflineEvent) {
-  std::string result;
-  EXPECT_TRUE(EvaluateScript("typeof self.onoffline", &result));
-  EXPECT_EQ("object", result);
-
-  EXPECT_TRUE(EvaluateScript(R"(
-    logString = '(empty)';
-    self.onoffline = function() {
-      logString = 'handled';
-    };
-    self.dispatchEvent(new Event('offline'));
-    logString;
-  )",
-                             &result));
-  EXPECT_EQ("handled", result);
-}
-
 TEST_F(WindowTest, OnlineEvent) {
   window()->AddEventListener(
       "online", FakeScriptValue<web::EventListener>(fake_event_listener_.get()),
       true);
   fake_event_listener_->ExpectHandleEventCall("online", window());
   window()->OnWindowOnOnlineEvent();
-}
-
-TEST_F(WindowTest, OnlineEventDispatch) {
-  window()->AddEventListener(
-      "online", FakeScriptValue<web::EventListener>(fake_event_listener_.get()),
-      true);
-  fake_event_listener_->ExpectHandleEventCall("online", window());
-  window()->DispatchEvent(new web::Event("online"));
-}
-
-TEST_F(WindowTest, OnOnlineEvent) {
-  std::string result;
-  EXPECT_TRUE(EvaluateScript("typeof self.ononline", &result));
-  EXPECT_EQ("object", result);
-
-  EXPECT_TRUE(EvaluateScript(R"(
-    logString = '(empty)';
-    self.ononline = function() {
-      logString = 'handled';
-    };
-    self.dispatchEvent(new Event('online'));
-    logString;
-  )",
-                             &result));
-  EXPECT_EQ("handled", result);
-}
-
-TEST_F(WindowTest, RejectionhandledEvent) {
-  window()->AddEventListener(
-      "rejectionhandled",
-      FakeScriptValue<web::EventListener>(fake_event_listener_.get()), true);
-  fake_event_listener_->ExpectHandleEventCall("rejectionhandled", window());
-  window()->DispatchEvent(new web::Event("rejectionhandled"));
-}
-
-TEST_F(WindowTest, OnRejectionhandledEvent) {
-  std::string result;
-  EXPECT_TRUE(EvaluateScript("typeof self.onrejectionhandled", &result));
-  EXPECT_EQ("object", result);
-
-  EXPECT_TRUE(EvaluateScript(R"(
-    logString = '(empty)';
-    self.onrejectionhandled = function() {
-      logString = 'handled';
-    };
-    self.dispatchEvent(new Event('rejectionhandled'));
-    logString;
-  )",
-                             &result));
-  EXPECT_EQ("handled", result);
-}
-
-TEST_F(WindowTest, UnhandledrejectionEvent) {
-  window()->AddEventListener(
-      "unhandledrejection",
-      FakeScriptValue<web::EventListener>(fake_event_listener_.get()), true);
-  fake_event_listener_->ExpectHandleEventCall("unhandledrejection", window());
-  window()->DispatchEvent(new web::Event("unhandledrejection"));
-}
-
-TEST_F(WindowTest, OnUnhandledrejectionEvent) {
-  std::string result;
-  EXPECT_TRUE(EvaluateScript("typeof self.onunhandledrejection", &result));
-  EXPECT_EQ("object", result);
-
-  EXPECT_TRUE(EvaluateScript(R"(
-    logString = '(empty)';
-    self.onunhandledrejection = function() {
-      logString = 'handled';
-    };
-    self.dispatchEvent(new Event('unhandledrejection'));
-    logString;
-  )",
-                             &result));
-  EXPECT_EQ("handled", result);
 }
 
 TEST_F(WindowTest, UnloadEvent) {
@@ -468,7 +465,6 @@ TEST_F(WindowTest, OnUnloadEvent) {
                              &result));
   EXPECT_EQ("handled", result);
 }
-
 
 }  // namespace dom
 }  // namespace cobalt

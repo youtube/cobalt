@@ -339,6 +339,8 @@ void SbPlayerPipeline::Stop(const base::Closure& stop_cb) {
   if (demuxer_) {
     stop_cb_ = stop_cb;
     demuxer_->Stop();
+    video_stream_ = nullptr;
+    audio_stream_ = nullptr;
     OnDemuxerStopped();
   } else {
     stop_cb.Run();
@@ -564,6 +566,13 @@ std::vector<std::string> SbPlayerPipeline::GetAudioConnectors() const {
   }
 
   std::vector<std::string> connectors;
+
+#if SB_HAS(PLAYER_WITH_URL)
+  // Url based player does not support audio connectors.
+  if (is_url_based_) {
+    return connectors;
+  }
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
   auto configurations = player_bridge_->GetAudioConfigurations();
   for (auto&& configuration : configurations) {
@@ -1001,12 +1010,17 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
     return;
   }
 
+  if (stopped_) {
+    return;
+  }
+
+  DCHECK(player_bridge_);
+
   DemuxerStream* stream =
       type == DemuxerStream::AUDIO ? audio_stream_ : video_stream_;
   DCHECK(stream);
 
-  // In case if Stop() has been called.
-  if (!player_bridge_) {
+  if (!player_bridge_ || !stream) {
     return;
   }
 
@@ -1159,6 +1173,14 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
         playback_statistics_.OnPresenting(
             video_stream_->video_decoder_config());
       }
+
+#if SB_HAS(PLAYER_WITH_URL)
+      // Url based player does not support |audio_write_duration_for_preroll_|.
+      if (is_url_based_) {
+        break;
+      }
+#endif  // SB_HAS(PLAYER_WITH_URL)
+
 #if SB_API_VERSION >= 15
       audio_write_duration_for_preroll_ = audio_write_duration_ =
           HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
@@ -1356,6 +1378,8 @@ void SbPlayerPipeline::ResumeTask(PipelineWindow window,
 
 std::string SbPlayerPipeline::AppendStatisticsString(
     const std::string& message) const {
+  DCHECK(task_runner_->BelongsToCurrentThread());
+
   if (nullptr == video_stream_) {
     return message + ", playback statistics: n/a.";
   } else {

@@ -73,7 +73,7 @@ const char* GetAndLeakThreadName() {
   // Use tid if we don't have a thread name.
   SbStringFormatF(name, sizeof(name), "%lu",
                   static_cast<unsigned long>(PlatformThread::CurrentId()));
-  return SbStringDuplicate(name);
+  return strdup(name);
 }
 
 }  // namespace

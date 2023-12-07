@@ -231,19 +231,20 @@
 #define OPENSSL_port_timeval EzTimeValue
 
 // Definitions for system calls that may need to be overridden.
+#define OPENSSL_port_free free
+#define OPENSSL_port_malloc malloc
+#define OPENSSL_port_realloc realloc
+#define OPENSSL_port_strdup strdup
+
 #define OPENSSL_port_abort SbSystemBreakIntoDebugger
 #define OPENSSL_port_assert(x) SB_DCHECK(x)
-#define OPENSSL_port_free SbMemoryDeallocate
 #define OPENSSL_port_getenv(x) NULL
 #define OPENSSL_port_gettimeofday EzTimeValueGetNow
 #define OPENSSL_port_gmtime_r EzTimeTExplodeUTC
-#define OPENSSL_port_malloc SbMemoryAllocate
 #define OPENSSL_port_printf SbLogFormatF
 #define OPENSSL_port_printferr SbLogFormatF
-#define OPENSSL_port_realloc SbMemoryReallocate
 #define OPENSSL_port_sscanf SbStringScanF
 #define OPENSSL_port_strcasecmp SbStringCompareNoCase
-#define OPENSSL_port_strdup SbStringDuplicate
 #define OPENSSL_port_strerror(x) ""
 #define OPENSSL_port_strncasecmp SbStringCompareNoCaseN
 #define OPENSSL_port_time EzTimeTGetNow

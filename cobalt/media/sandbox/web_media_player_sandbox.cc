@@ -329,21 +329,21 @@ class Application {
   }
 
   void AppendData(const std::string& id, ScopedFile* file, int64* offset) {
-    const float kLowWaterMarkInSeconds = 5.f;
+    const double kLowWaterMarkInSeconds = 5.0;
     const int64 kMaxBytesToAppend = 1024 * 1024;
     std::vector<uint8_t> buffer(kMaxBytesToAppend);
 
     while (*offset < file->GetSize()) {
       ::media::Ranges<TimeDelta> ranges = chunk_demuxer_->GetBufferedRanges(id);
-      float end_of_buffer =
-          ranges.size() == 0 ? 0.f : ranges.end(ranges.size() - 1).InSecondsF();
+      const double end_of_buffer =
+          ranges.size() == 0 ? 0.0 : ranges.end(ranges.size() - 1).InSecondsF();
       if (end_of_buffer - player_->GetCurrentTime() > kLowWaterMarkInSeconds) {
         break;
       }
       int64 bytes_to_append =
           std::min(kMaxBytesToAppend, file->GetSize() - *offset);
 
-      auto current_time = player_ ? player_->GetCurrentTime() : 0;
+      const double current_time = player_ ? player_->GetCurrentTime() : 0.0;
       auto evicted = chunk_demuxer_->EvictCodedFrames(
           id, base::TimeDelta::FromSecondsD(current_time), bytes_to_append);
       SB_DCHECK(evicted);

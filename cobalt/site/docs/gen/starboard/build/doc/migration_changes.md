@@ -1,7 +1,6 @@
----
-layout: doc
-title: "GYP to GN Migration Changes"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # GYP to GN Migration Changes
 
 This file tracks changes to configuration meta build configuration variables in
@@ -46,7 +45,7 @@ variables.
 ## Notes:
 
 *   *Starboard Implementation:* If your platform defined
-    `STARBOARD_IMPLENTATION` in its implementation, you would now add the above
+    `STARBOARD_IMPLEMENTATION` in its implementation, you would now add the above
     config with `configs +=
     ["//starboard/build/config:starboard_implementation"]`.
 

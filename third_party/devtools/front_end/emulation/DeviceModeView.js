@@ -4,7 +4,7 @@
 /**
  * @unrestricted
  */
-export default class DeviceModeView extends UI.VBox {
+Emulation.DeviceModeView = class extends UI.VBox {
   constructor() {
     super(true);
     this.setMinimumSize(150, 150);
@@ -498,12 +498,12 @@ export default class DeviceModeView extends UI.VBox {
       link.click();
     });
   }
-}
+};
 
 /**
  * @unrestricted
  */
-export class Ruler extends UI.VBox {
+Emulation.DeviceModeView.Ruler = class extends UI.VBox {
   /**
    * @param {boolean} horizontal
    * @param {function(number)} applyCallback
@@ -608,20 +608,4 @@ export class Ruler extends UI.VBox {
   _onMarkerClick(size) {
     this._applyCallback.call(null, size);
   }
-}
-
-/* Legacy exported object */
-self.Emulation = self.Emulation || {};
-
-/* Legacy exported object */
-Emulation = Emulation || {};
-
-/**
- * @constructor
- */
-Emulation.DeviceModeView = DeviceModeView;
-
-/**
- * @constructor
- */
-Emulation.DeviceModeView.Ruler = Ruler;
+};

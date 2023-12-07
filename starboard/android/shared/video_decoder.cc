@@ -29,6 +29,8 @@
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_render_algorithm.h"
 #include "starboard/android/shared/window_internal.h"
+#include "starboard/common/media.h"
+#include "starboard/common/player.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
@@ -354,7 +356,6 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
                            bool force_secure_pipeline_under_tunnel_mode,
                            bool force_reset_surface_under_tunnel_mode,
                            bool force_big_endian_hdr_metadata,
-                           bool force_improved_support_check,
                            std::string* error_message)
     : video_codec_(video_stream_info.codec),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
@@ -369,7 +370,6 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
       surface_condition_variable_(surface_destroy_mutex_),
       require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
-      force_improved_support_check_(force_improved_support_check),
       number_of_preroll_frames_(kInitialPrerollFrameCount) {
   SB_DCHECK(error_message);
 
@@ -397,6 +397,13 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
       TeardownCodec();
     }
   }
+
+  SB_LOG(INFO) << "Created VideoDecoder for codec "
+               << GetMediaVideoCodecName(video_codec_) << ", with output mode "
+               << GetPlayerOutputModeName(output_mode_)
+               << ", max video capabilities \"" << max_video_capabilities_
+               << "\", and tunnel mode audio session id "
+               << tunnel_mode_audio_session_id_;
 }
 
 VideoDecoder::~VideoDecoder() {
@@ -704,7 +711,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
       std::bind(&VideoDecoder::OnTunnelModeFrameRendered, this, _1),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
-      force_improved_support_check_, error_message));
+      error_message));
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
       media_decoder_->Initialize(

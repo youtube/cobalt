@@ -63,7 +63,7 @@ class StructuredClone : public v8::ValueSerializer::Delegate,
 
  private:
   struct BufferDeleter {
-    void operator()(uint8_t* buffer) { SbMemoryDeallocate(buffer); }
+    void operator()(uint8_t* buffer) { free(buffer); }
   };
   using DataBufferPtr = std::unique_ptr<uint8_t[], BufferDeleter>;
 

@@ -90,19 +90,6 @@ Sources.SourceFormatter = class {
 
   /**
    * @param {!Workspace.UISourceCode} uiSourceCode
-   * @return {!Workspace.UISourceCode}
-   */
-  getOriginalUISourceCode(uiSourceCode) {
-    const formatData =
-        /** @type {?Sources.SourceFormatData} */ (uiSourceCode[Sources.SourceFormatData._formatDataSymbol]);
-    if (!formatData) {
-      return uiSourceCode;
-    }
-    return formatData.originalSourceCode;
-  }
-
-  /**
-   * @param {!Workspace.UISourceCode} uiSourceCode
    * @return {!Promise<!Sources.SourceFormatData>}
    */
   async format(uiSourceCode) {

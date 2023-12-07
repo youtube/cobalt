@@ -15,31 +15,33 @@
 #ifndef COBALT_MEDIA_STARBOARD_MEMORY_ALLOCATOR_H_
 #define COBALT_MEDIA_STARBOARD_MEMORY_ALLOCATOR_H_
 
+#include <stdlib.h>
+
 #include <algorithm>
 
 #include "starboard/common/allocator.h"
 #include "starboard/configuration.h"
-#include "starboard/memory.h"
 
 namespace cobalt {
 namespace media {
 
 // StarboardMemoryAllocator is an allocator that allocates and frees memory
-// using SbMemoryAllocateAligned() and SbMemoryDeallocate() in
-// starboard/memory.h.
+// using posix_memalign() and free().
 class StarboardMemoryAllocator : public starboard::common::Allocator {
  public:
   void* Allocate(std::size_t size) override { return Allocate(size, 1); }
 
   void* Allocate(std::size_t size, std::size_t alignment) override {
-    return SbMemoryAllocateAligned(std::max(alignment, sizeof(void*)), size);
+    void* p = nullptr;
+    posix_memalign(&p, std::max(alignment, sizeof(void*)), size);
+    return p;
   }
 
   void* AllocateForAlignment(std::size_t* size,
                              std::size_t alignment) override {
     return Allocate(*size, alignment);
   }
-  void Free(void* memory) override { SbMemoryDeallocateAligned(memory); }
+  void Free(void* memory) override { free(memory); }
   std::size_t GetCapacity() const override {
     // Returns 0 here to avoid tracking the allocated memory.
     return 0;

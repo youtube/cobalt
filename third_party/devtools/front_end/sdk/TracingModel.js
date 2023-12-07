@@ -105,7 +105,7 @@ export default class TracingModel {
     if (!processes.length) {
       return null;
     }
-    const browserMainThreadName = 'CrBrowserMain';
+    const browserMainThreadName = 'cobalt';
     const browserProcesses = [];
     const browserMainThreads = [];
     for (const process of processes) {

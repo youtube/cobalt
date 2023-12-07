@@ -2,11 +2,6 @@
 #  include <config.h>
 #endif
 
-#ifndef STARBOARD
-#include <stdlib.h>		/* for malloc() */
-#include <string.h>		/* for memcpy() */
-#endif  // STARBOARD
-
 #include "starboard/client_porting/poem/stdio_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 
@@ -16,6 +11,9 @@
 #ifndef FLaC__INLINE
 #define FLaC__INLINE
 #endif
+
+#include <string.h>		/* for memcpy() */
+#include <stdlib.h>		/* for malloc() */
 
 /*
  * This code implements the MD5 message-digest algorithm.
@@ -423,7 +421,7 @@ FLAC__bool FLAC__MD5Accumulate(FLAC__MD5Context *ctx, const FLAC__int32 * const 
 
 	format_input_(ctx->internal_buf, signal, channels, samples, bytes_per_sample);
 
-	FLAC__MD5Update(ctx, ctx->internal_buf, bytes_needed);
+	FLAC__MD5Update(ctx, ctx->internal_buf, (unsigned)bytes_needed);
 
 	return true;
 }

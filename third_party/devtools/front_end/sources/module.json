@@ -905,8 +905,7 @@
         "color_picker",
         "event_listeners",
         "object_ui",
-        "formatter",
-        // "coverage"
+        "formatter"
     ],
     "scripts": [
         "AddSourceMapURLDialog.js",
@@ -922,7 +921,6 @@
         "JavaScriptBreakpointsSidebarPane.js",
         "UISourceCodeFrame.js",
         "DebuggerPlugin.js",
-        "CoveragePlugin.js",
         "CSSPlugin.js",
         "GutterDiffPlugin.js",
         "SearchSourcesView.js",

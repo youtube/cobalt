@@ -21,6 +21,7 @@
 #include "cobalt/network/network_module.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/script/global_environment.h"
+#include "cobalt/script/union_type.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/navigator_ua_data.h"
 
@@ -39,6 +40,8 @@ class H5vccSettings : public script::Wrappable {
   typedef base::Callback<bool(const std::string& name, int value)>
       SetSettingFunc;
 
+  typedef script::UnionType2<int32, std::string> SetValueType;
+
   H5vccSettings(const SetSettingFunc& set_web_setting_func,
                 cobalt::media::MediaModule* media_module,
                 cobalt::media::CanPlayTypeHandler* can_play_type_handler,
@@ -53,7 +56,12 @@ class H5vccSettings : public script::Wrappable {
   // Returns true when the setting is set successfully or if the setting has
   // already been set to the expected value.  Returns false when the setting is
   // invalid or not set to the expected value.
-  bool Set(const std::string& name, int32 value) const;
+  bool Set(const std::string& name, SetValueType value) const;
+
+  void SetPersistentSettingAsInt(const std::string& key, int value) const;
+
+  int GetPersistentSettingAsInt(const std::string& key,
+                                int default_setting) const;
 
   DEFINE_WRAPPABLE_TYPE(H5vccSettings);
 

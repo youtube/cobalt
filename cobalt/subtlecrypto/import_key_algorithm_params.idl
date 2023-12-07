@@ -19,7 +19,7 @@
 
 dictionary ImportKeyAlgorithmParams : Algorithm {
   // The inner hash function to use.
-  DOMString hash;
+  AlgorithmIdentifier hash;
   // The length (in bits) of the key.
   unsigned long length;
 };

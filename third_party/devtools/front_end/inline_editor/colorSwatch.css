@@ -16,7 +16,7 @@
     height: 10px;
     top: 1px;
     display: inline-block;
-    user-select: none;
+    -webkit-user-select: none;
     background-image: url(Images/checker.png);
     line-height: 10px;
 }

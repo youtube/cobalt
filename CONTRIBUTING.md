@@ -44,7 +44,7 @@ team member will merge the pull request.
 ### Contribution guidelines and standards
 
 Before sending your pull request for
-[review](https://github.com/tensorflow/tensorflow/pulls),
+[review](https://github.com/youtube/cobalt/pulls),
 make sure your changes are consistent with the guidelines and follow the
 Cobalt coding style.
 

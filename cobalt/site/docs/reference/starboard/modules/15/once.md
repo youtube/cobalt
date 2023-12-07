@@ -1,43 +1,43 @@
----
-layout: doc
-title: "Starboard Module Reference: once.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: `once.h`
 
 Onces represent initializations that should only ever happen once per process,
 in a thread-safe way.
 
-## Macros ##
+## Macros
 
-### SB_ONCE_MAX_SIZE ###
+### SB_ONCE_MAX_SIZE
 
 Max size of the SbOnceControl type.
 
-## Typedefs ##
+## Typedefs
 
-### SbOnceControl ###
+### SbOnceControl
 
 An opaque handle to a once control type with reserved memory buffer of size
 SB_ONCE_MAX_SIZE and aligned at void pointer type.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef union SbOnceControl  SbOnceControl
 ```
 
-### SbOnceInitRoutine ###
+### SbOnceInitRoutine
 
 Function pointer type for methods that can be called via the SbOnce() system.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef void(* SbOnceInitRoutine) (void)
 ```
 
-## Functions ##
+## Functions
 
-### SbOnce ###
+### SbOnce
 
 Thread-safely runs `init_routine` only once.
 
@@ -50,7 +50,7 @@ Thread-safely runs `init_routine` only once.
 *   If `once_control` or `init_routine` is invalid, the function returns
     `false`.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbOnce(SbOnceControl *once_control, SbOnceInitRoutine init_routine)

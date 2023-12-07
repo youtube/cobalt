@@ -1,7 +1,7 @@
----
-layout: doc
-title: "How to Communicate with the Cobalt Team"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# How to Communicate with the Cobalt Team
 
 We have several communication channels that we actively support, each for
 different purposes.

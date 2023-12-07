@@ -47,6 +47,7 @@
         "sdk",
         "ui",
         "source_frame",
+        "sources",
         "data_grid"
     ],
     "scripts": [],

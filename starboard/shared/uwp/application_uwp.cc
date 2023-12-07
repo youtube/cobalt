@@ -660,7 +660,8 @@ ref class App sealed : public IFrameworkView {
         TryAddCommandArgsFromStarboardFile(&args_);
         CommandLine cmd_line(args_);
         if (cmd_line.HasSwitch(kNetArgsCommandSwitchWait)) {
-          SbTime timeout = kSbTimeSecond * 2;
+          // Wait for net args is flaky and needs extended wait time on Xbox.
+          SbTime timeout = kSbTimeSecond * 30;
           std::string val = cmd_line.GetSwitchValue(kNetArgsCommandSwitchWait);
           if (!val.empty()) {
             timeout = atoi(val.c_str());

@@ -348,6 +348,9 @@ void FetcherCache::OnFetchSuccess(
 
   total_size_ += entry->capacity();
   ++count_resources_cached_;
+  // TODO(b/270993319): For debugging cache integrity issues in production
+  //                    only, remove after identifying the root cause.
+  CHECK_EQ(count_resources_cached_, static_cast<int>(cache_entries_.size()));
 
   while (total_size_ > capacity_) {
     // TODO(b/270993319): For debugging cache integrity issues in production

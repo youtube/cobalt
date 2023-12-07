@@ -34,7 +34,6 @@
 #endif
 
 #ifndef STARBOARD
-#include <stdlib.h> /* for malloc() */
 #include <string.h> /* for memcpy(), memset() */
 #if defined(_MSC_VER) && defined(HAVE_WINSOCK_H)
 #include <winsock.h> /* for ntohl() */
@@ -46,9 +45,10 @@
 #include <netinet/in.h> /* for ntohl() */
 #endif
 #endif  // STARBOARD
-
 #include "starboard/client_porting/poem/stdio_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
+
+#include <stdlib.h> /* for malloc() */
 
 #include "private/bitmath.h"
 #include "private/bitreader.h"
@@ -132,7 +132,7 @@ static const unsigned char byte_to_unary_table[] = {
 
 /* adjust for compilers that can't understand using LLU suffix for uint64_t literals */
 #ifdef _MSC_VER
-#define FLAC__U64L(x) x
+#define FLAC__U64L(x) x##ULL
 #else
 #define FLAC__U64L(x) x##LLU
 #endif
@@ -162,24 +162,14 @@ struct FLAC__BitReader {
 /* OPT: an MSVC built-in would be better */
 static _inline FLAC__uint32 local_swap32_(FLAC__uint32 x)
 {
-	x = ((x<<8)&0xFF00FF00) | ((x>>8)&0x00FF00FF);
-	return (x>>16) | (x<<16);
+	return _byteswap_ulong(x);
 }
+
 static void local_swap32_block_(FLAC__uint32 *start, FLAC__uint32 len)
 {
-	__asm {
-		mov edx, start
-		mov ecx, len
-		test ecx, ecx
-loop1:
-		jz done1
-		mov eax, [edx]
-		bswap eax
-		mov [edx], eax
-		add edx, 4
-		dec ecx
-		jmp short loop1
-done1:
+	FLAC__uint32 *end;
+	for(end = start + len; start < end; ++start) {
+		*start = local_swap32_(*start);
 	}
 }
 #endif
@@ -271,7 +261,7 @@ FLAC__bool bitreader_read_from_client_(FLAC__BitReader *br)
 	 */
 #if WORDS_BIGENDIAN
 #else
-	end = (br->words*FLAC__BYTES_PER_WORD + br->bytes + bytes + (FLAC__BYTES_PER_WORD-1)) / FLAC__BYTES_PER_WORD;
+	end = (br->words*FLAC__BYTES_PER_WORD + br->bytes + (unsigned)bytes + (FLAC__BYTES_PER_WORD-1)) / FLAC__BYTES_PER_WORD;
 # if defined(_MSC_VER) && (FLAC__BYTES_PER_WORD == 4) && !defined(COBALT)
 	if(br->cpu_info.type == FLAC__CPUINFO_TYPE_IA32 && br->cpu_info.data.ia32.bswap) {
 		start = br->words;
@@ -289,7 +279,7 @@ FLAC__bool bitreader_read_from_client_(FLAC__BitReader *br)
 	 *   buffer[LE]:  44 33 22 11 88 77 66 55 CC BB AA 99 ?? FF EE DD
 	 * finally we'll update the reader values:
 	 */
-	end = br->words*FLAC__BYTES_PER_WORD + br->bytes + bytes;
+	end = br->words*FLAC__BYTES_PER_WORD + br->bytes + (unsigned)bytes;
 	br->words = end / FLAC__BYTES_PER_WORD;
 	br->bytes = end % FLAC__BYTES_PER_WORD;
 

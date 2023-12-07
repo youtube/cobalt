@@ -12,18 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-config("sabi_flags") {
-  cflags = [
-    "-march=x86-64",
-    "-target",
-    "x86_64-unknown-linux-elf",
-  ]
-}
-
 config("platform_configuration") {
   configs = [
-    "//starboard/build/config/sabi",
-    ":sabi_flags",
+    "//starboard/build/config/modular/x64",
     "//starboard/evergreen/shared/platform_configuration",
   ]
 
@@ -31,6 +22,4 @@ config("platform_configuration") {
     "-Wl,-m",
     "-Wl,elf_x86_64",
   ]
-  cflags = [ "-isystem" +
-             rebase_path("//third_party/musl/arch/x86_64", root_build_dir) ]
 }

@@ -52,7 +52,7 @@ static_library("freetype2") {
     "src/truetype/truetype.c",
   ]
 
-  include_dirs = [ "//third_party/brotli/c/include" ]
+  include_dirs = [ "//third_party/brotli/include" ]
 
   defines = [ "FT2_BUILD_LIBRARY" ]
 

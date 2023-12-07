@@ -35,7 +35,7 @@ bool IsSourceListNone(const char* begin, const char* end) {
   const char* position = begin;
   SkipWhile<IsSourceCharacter>(&position, end);
   size_t len = static_cast<size_t>(position - begin);
-  if (base::strncasecmp("'none'", begin, len) != 0) {
+  if (strncasecmp("'none'", begin, len) != 0) {
     return false;
   }
 
@@ -400,7 +400,7 @@ bool SourceList::ParseNonce(const char* begin, const char* end,
   const char* prefix = "'nonce-";
 
   if (nonce_length <= strlen(prefix) ||
-      base::strncasecmp(prefix, begin, strlen(prefix)) != 0) {
+      strncasecmp(prefix, begin, strlen(prefix)) != 0) {
     return true;
   }
 
@@ -433,8 +433,7 @@ bool SourceList::ParseHash(const char* begin, const char* end,
   for (size_t i = 0; i < arraysize(kSupportedPrefixes); ++i) {
     const HashPrefix& algorithm = kSupportedPrefixes[i];
     if (hash_length > strlen(algorithm.prefix) &&
-        base::strncasecmp(algorithm.prefix, begin, strlen(algorithm.prefix)) ==
-            0) {
+        strncasecmp(algorithm.prefix, begin, strlen(algorithm.prefix)) == 0) {
       prefix = algorithm.prefix;
       *hash_algorithm = algorithm.type;
       break;

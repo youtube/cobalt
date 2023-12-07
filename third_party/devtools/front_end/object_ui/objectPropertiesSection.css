@@ -16,7 +16,7 @@
 }
 
 .object-properties-section li {
-    user-select: text;
+    -webkit-user-select: text;
 }
 
 .object-properties-section li::before {

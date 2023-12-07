@@ -105,7 +105,7 @@
 
 .data-grid td {
     vertical-align: top;
-    user-select: text;
+    -webkit-user-select: text;
 }
 
 .data-grid th {
@@ -184,7 +184,7 @@
 }
 
 .data-grid td.disclosure::before {
-    user-select: none;
+    -webkit-user-select: none;
     -webkit-mask-image: url(Images/treeoutlineTriangles.svg);
     -webkit-mask-position: 0 0;
     -webkit-mask-size: 32px 24px;

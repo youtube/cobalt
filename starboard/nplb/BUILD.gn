@@ -231,14 +231,10 @@ target(gtest_target_type, "nplb") {
     "window_get_size_test.cc",
   ]
 
-  configs += [
-    "//build/config/compiler:exceptions",
-    "//starboard/build/config:starboard_implementation",
-  ]
-  configs -= [ "//build/config/compiler:no_exceptions" ]
+  configs += [ "//starboard/build/config:starboard_implementation" ]
 
   deps = [
-    "//starboard",
+    "//starboard:starboard_group",
     "//starboard/common",
     "//starboard/nplb/compiler_compliance:cpp14_supported",
     "//starboard/shared/starboard/media:media_util",
@@ -269,8 +265,8 @@ target(gtest_target_type, "nplb") {
     cflags = [ "-Wno-enum-constexpr-conversion" ]
   }
 
-  #  TODO: b/297808555 - Add these tests for windows based platform modular builds.
-  if (sb_is_modular && !sb_is_evergreen && is_host_win) {
+  #  TODO: b/297808555 - Add these tests for all  modular builds.
+  if (sb_has_unused_symbol_issue) {
     sources -= [
       "maximum_player_configuration_explorer.cc",
       "maximum_player_configuration_explorer.h",

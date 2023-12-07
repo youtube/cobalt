@@ -45,7 +45,7 @@ typedef net::LocalHostTestURLRequestInterceptor GetInterceptor;
 const char kTestFileName[] = "jebgalgnebhfojomionfpkfelancnnkf.crx";
 
 const char hash_jebg[] =
-    "6fc4b93fd11134de1300c2c0bb88c12b644a4ec0fd7c9b12cb7cc067667bde87";
+    "7ab32f071cd9b5ef8e0d7913be161f532d98b3e9fa284a7cd8059c3409ce0498";
 
 base::FilePath MakeTestFilePath(const char* file) {
   base::FilePath path;
@@ -146,8 +146,7 @@ CrxDownloaderTest::~CrxDownloaderTest() {
 #else
       test_shared_url_loader_factory_(
           base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
-              &test_url_loader_factory_)) {
-}
+              &test_url_loader_factory_)) {}
 
 CrxDownloaderTest::~CrxDownloaderTest() {}
 #endif
@@ -156,7 +155,7 @@ void CrxDownloaderTest::SetUp() {
   download_complete_result_ = CrxDownloader::Result();
   num_progress_calls_ = 0;
 
-// Do not use the background downloader in these tests.
+  // Do not use the background downloader in these tests.
 #if defined(STARBOARD)
   auto config = base::MakeRefCounted<TestConfigurator>();
   crx_downloader_ = CrxDownloader::Create(false, config);
@@ -410,8 +409,8 @@ TEST_F(CrxDownloaderTest, TwoUrls_FirstInvalid) {
   EXPECT_EQ(-1, download_metrics[0].total_bytes);
   EXPECT_EQ(expected_crx_url, download_metrics[1].url);
   EXPECT_EQ(0, download_metrics[1].error);
-  EXPECT_EQ(1843, download_metrics[1].downloaded_bytes);
-  EXPECT_EQ(1843, download_metrics[1].total_bytes);
+  EXPECT_EQ(1015, download_metrics[1].downloaded_bytes);
+  EXPECT_EQ(1015, download_metrics[1].total_bytes);
 }
 
 // Tests that the download succeeds if the first url is correct and the

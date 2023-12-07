@@ -54,7 +54,7 @@ using Windows::Graphics::Display::Core::HdmiDisplayInformation;
 // Limit the number of pending buffers.
 constexpr int kMaxNumberOfPendingBuffers = 8;
 // Limit the cached presenting images.
-constexpr int kNumberOfCachedPresentingImage = 2;
+constexpr int kNumberOfCachedPresentingImage = 3;
 // The number of frame buffers in decoder
 constexpr int kNumOutputFrameBuffers = 7;
 
@@ -117,6 +117,8 @@ class GpuFrameBufferPool {
     }
     return true;
   }
+
+  void Clear() { frame_buffers_.clear(); }
 
  private:
   std::vector<scoped_refptr<GpuVideoDecoderBase::GpuFrameBuffer>>
@@ -474,7 +476,6 @@ void GpuVideoDecoderBase::Reset() {
     decoder_thread_->job_queue()->Schedule(
         std::bind(&GpuVideoDecoderBase::DrainDecoder, this));
     decoder_thread_.reset();
-    SB_DCHECK(decoder_behavior_.load() == kDecodingStopped);
   }
   pending_inputs_.clear();
   {
@@ -591,9 +592,6 @@ void GpuVideoDecoderBase::OnDecoderDrained() {
             decoder_behavior_.load() == kResettingDecoder);
 
   is_waiting_frame_after_drain_ = true;
-  if (decoder_behavior_.load() == kResettingDecoder || error_occured_) {
-    return;
-  }
 
   if (!BelongsToDecoderThread()) {
     decoder_thread_->job_queue()->Schedule(
@@ -601,7 +599,6 @@ void GpuVideoDecoderBase::OnDecoderDrained() {
     return;
   }
 
-  SB_DCHECK(written_inputs_.empty());
   if (decoder_behavior_.load() == kEndingStream) {
     decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
   }
@@ -686,6 +683,9 @@ void GpuVideoDecoderBase::DrainDecoder() {
   if (!is_drain_decoder_called_) {
     is_drain_decoder_called_ = true;
     DrainDecoderInternal();
+    // DrainDecoderInternal is sync command, after it finished, we can be sure
+    // that drain really completed.
+    OnDecoderDrained();
   }
 }
 
@@ -752,6 +752,10 @@ void GpuVideoDecoderBase::ReleaseFrameBuffer(GpuFrameBuffer* frame_buffer) {
   frame_buffer->Release();
   SB_DCHECK(frame_buffer->HasOneRef());
   frame_buffers_condition_.Signal();
+}
+
+void GpuVideoDecoderBase::ClearFrameBuffersPool() {
+  GetGpuFrameBufferPool()->Clear();
 }
 
 GpuVideoDecoderBase::GpuFrameBuffer*

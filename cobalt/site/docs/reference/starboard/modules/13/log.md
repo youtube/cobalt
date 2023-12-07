@@ -1,18 +1,18 @@
----
-layout: doc
-title: "Starboard Module Reference: log.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: `log.h`
 
 Defines core debug logging functions.
 
-## Enums ##
+## Enums
 
-### SbLogPriority ###
+### SbLogPriority
 
 The priority at which a message should be logged. The platform may be configured
 to filter logs by priority, or render them differently.
 
-#### Values ####
+#### Values
 
 *   `kSbLogPriorityUnknown`
 *   `kSbLogPriorityInfo`
@@ -20,9 +20,9 @@ to filter logs by priority, or render them differently.
 *   `kSbLogPriorityError`
 *   `kSbLogPriorityFatal`
 
-## Functions ##
+## Functions
 
-### SbLog ###
+### SbLog
 
 Writes `message` to the platform's debug output log. This method is thread-safe,
 and responsible for ensuring that the output from multiple threads is not mixed.
@@ -35,55 +35,55 @@ NULL. No formatting is required to be done on the value, including newline
 termination. That said, platforms can adjust the message to be more suitable for
 their output method by wrapping the text, stripping unprintable characters, etc.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbLog(SbLogPriority priority, const char *message)
 ```
 
-### SbLogFlush ###
+### SbLogFlush
 
 Flushes the log buffer on some platforms. This method is safe to call from
 multiple threads.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbLogFlush()
 ```
 
-### SbLogFormat ###
+### SbLogFormat
 
 A log output method that additionally performs a string format on the data being
 logged.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbLogFormat(const char *format, va_list args) SB_PRINTF_FORMAT(1
 ```
 
-### SbLogFormatF ###
+### SbLogFormatF
 
 Inline wrapper of SbLogFormat that converts from ellipsis to va_args.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void static void static void SbLogFormatF(const char *format,...) SB_PRINTF_FORMAT(1
 ```
 
-### SbLogIsTty ###
+### SbLogIsTty
 
 Indicates whether the log output goes to a TTY or is being redirected.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbLogIsTty()
 ```
 
-### SbLogRaw ###
+### SbLogRaw
 
 A bare-bones log output method that is async-signal-safe, i.e. safe to call from
 an asynchronous signal handler (e.g. a `SIGSEGV` handler). It should not do any
@@ -91,13 +91,13 @@ additional formatting.
 
 `message`: The message to be logged. Must not be NULL.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbLogRaw(const char *message)
 ```
 
-### SbLogRawDumpStack ###
+### SbLogRawDumpStack
 
 Dumps the stack of the current thread to the log in an async-signal-safe manner,
 i.e. safe to call from an asynchronous signal handler (e.g. a `SIGSEGV`
@@ -108,28 +108,28 @@ dumping the current thread to the log. This parameter lets you remove noise from
 helper functions that might end up on top of every stack dump so that the stack
 dump is just the relevant function stack where the problem occurred.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbLogRawDumpStack(int frames_to_skip)
 ```
 
-### SbLogRawFormat ###
+### SbLogRawFormat
 
 A formatted log output method that is async-signal-safe, i.e. safe to call from
 an asynchronous signal handler (e.g. a `SIGSEGV` handler).
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbLogRawFormat(const char *format, va_list args) SB_PRINTF_FORMAT(1
 ```
 
-### SbLogRawFormatF ###
+### SbLogRawFormatF
 
 Inline wrapper of SbLogFormat to convert from ellipsis to va_args.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void static void static void SbLogRawFormatF(const char *format,...) SB_PRINTF_FORMAT(1

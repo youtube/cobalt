@@ -105,9 +105,9 @@ class HTMLMediaElement : public HTMLElement,
   bool seeking() const;
 
   // Playback state
-  float current_time(script::ExceptionState* exception_state) const;
-  void set_current_time(float time, script::ExceptionState* exception_state);
-  float duration() const;
+  double current_time(script::ExceptionState* exception_state) const;
+  void set_current_time(double time, script::ExceptionState* exception_state);
+  double duration() const;
   base::Time GetStartDate() const;
   bool paused() const;
   bool resume_frozen_flag() const;
@@ -210,10 +210,10 @@ class HTMLMediaElement : public HTMLElement,
   void ChangeNetworkStateFromLoadingToIdle();
 
   // Playback
-  void Seek(float time);
+  void Seek(double time);
   void FinishSeek();
 
-  void AddPlayedRange(float start, float end);
+  void AddPlayedRange(double start, double end);
 
   void UpdateVolume();
   void UpdatePlayState();
@@ -269,7 +269,7 @@ class HTMLMediaElement : public HTMLElement,
   WebMediaPlayer::ReadyState ready_state_maximum_;
 
   float volume_;
-  float last_seek_time_;
+  double last_seek_time_;
   double previous_progress_time_;
 
   double duration_;

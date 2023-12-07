@@ -58,7 +58,7 @@ std::unique_ptr<uint8[]> EncodeRGBAToBuffer(const uint8_t* pixel_data,
   // with delete, so the data has to be copied in.
   std::unique_ptr<uint8[]> out_buffer(new uint8[jpegSize]);
   memcpy(out_buffer.get(), &(jpeg_buffer[0]), jpegSize);
-  SbMemoryDeallocate(jpeg_buffer);
+  free(jpeg_buffer);
   return std::move(out_buffer);
 }
 

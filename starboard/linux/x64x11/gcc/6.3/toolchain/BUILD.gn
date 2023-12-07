@@ -12,17 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/toolchain/gcc_toolchain.gni")
+import("//starboard/build/toolchain/cobalt_toolchains.gni")
 import("//starboard/shared/toolchain/overridable_gcc_toolchain.gni")
 
 # Directory for GCC 6.3 if it is installed as a system dependency.
 _default_gcc_6_3_bin_dir = "/usr/bin"
 
-overridable_gcc_toolchain("target") {
+cobalt_clang_toolchain("cobalt") {
+  variables = {
+    native_linker_path = "${_default_gcc_6_3_bin_dir}/clang++"
+  }
+}
+
+overridable_gcc_toolchain("starboard") {
   cc = "${_default_gcc_6_3_bin_dir}/gcc-6"
   cxx = "${_default_gcc_6_3_bin_dir}/g++-6"
   ld = cxx
-
-  # We use whatever 'ar' resolves to.
   ar = "ar"
 
   toolchain_args = {

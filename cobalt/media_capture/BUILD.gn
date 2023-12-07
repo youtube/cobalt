@@ -49,7 +49,7 @@ static_library("media_capture") {
     "//cobalt/script:engine",
     "//cobalt/speech",
     "//cobalt/web:dom_exception",
-    "//starboard",
+    "//starboard:starboard_group",
   ]
 }
 

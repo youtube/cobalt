@@ -160,7 +160,7 @@ class TraceEventTestFixture : public testing::Test {
     if (TraceLog::GetInstance())
       EXPECT_FALSE(TraceLog::GetInstance()->IsEnabled());
     PlatformThread::SetName(old_thread_name_ ? old_thread_name_ : "");
-    SbMemoryDeallocate(old_thread_name_);
+    free(old_thread_name_);
     old_thread_name_ = nullptr;
     // We want our singleton torn down after each test.
     TraceLog::ResetForTesting();

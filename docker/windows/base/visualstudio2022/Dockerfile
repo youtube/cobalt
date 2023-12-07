@@ -19,7 +19,8 @@ FROM ${FROM_IMAGE}
 # Dockerfile for image used to install Visual Studio.
 # WARNING: Changes to this file will result in an extremely long image rebuild.
 
-SHELL ["powershell", "-ExecutionPolicy", "unrestricted", "-Command"]
+SHELL ["powershell", "-ExecutionPolicy", "Unrestricted", "-Command", `
+       "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
 RUN mkdir C:\TEMP;`
     Write-Host ('Downloading vs_buildtools.exe');`
@@ -30,7 +31,6 @@ RUN Write-Host ('Installing vs_buildtools.exe');`
     Start-Process C:\TEMP\vs_buildtools.exe -Wait -NoNewWindow`
         -ArgumentList '--quiet --wait --norestart --nocache`
         --installPath C:\BuildTools `
-        --add Microsoft.VisualStudio.Component.VC.CoreIde `
         --add Microsoft.VisualStudio.Component.VC.14.34.17.4.x86.x64  `
         --add Microsoft.VisualStudio.Component.VC.Llvm.Clang          `
         --add Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset   `

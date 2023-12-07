@@ -10,12 +10,6 @@
 
 #include <algorithm>
 
-#if !defined(STARBOARD)
-#include <string.h>
-#else
-#include "starboard/client_porting/poem/string_poem.h"
-#endif
-
 #include "./buffer.h"
 #include "./port.h"
 #include "./store_bytes.h"

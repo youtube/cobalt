@@ -28,7 +28,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-export default class RequestCookiesView extends UI.Widget {
+Network.RequestCookiesView = class extends UI.Widget {
   /**
    * @param {!SDK.NetworkRequest} request
    */
@@ -276,15 +276,4 @@ export default class RequestCookiesView extends UI.Widget {
       this._emptyWidget.showWidget();
     }
   }
-}
-
-/* Legacy exported object */
-self.Network = self.Network || {};
-
-/* Legacy exported object */
-Network = Network || {};
-
-/**
- * @constructor
- */
-Network.RequestCookiesView = RequestCookiesView;
+};

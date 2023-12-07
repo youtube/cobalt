@@ -64,7 +64,11 @@ class VideoConfig {
   optional<AvcParameterSets> avc_parameter_sets_;
 };
 
-SbMediaAudioCodec GetAudioCodecFromString(const char* codec);
+// Attempts to determine an SbMediaAudioCodec from |codec|, returning
+// kSbMediaAudioCodecNone if no match is found. |subtype| may be checked in
+// cases of ambiguous codec strings.
+SbMediaAudioCodec GetAudioCodecFromString(const char* codec,
+                                          const char* subtype);
 
 }  // namespace media
 }  // namespace starboard

@@ -9,6 +9,7 @@
 #include "base/stl_util.h"
 #include "components/sync/driver/sync_token_status.h"
 #include "components/sync/engine/connection_status.h"
+#include "components/unified_consent/feature.h"
 #include "components/unified_consent/url_keyed_data_collection_consent_helper.h"
 
 using unified_consent::UrlKeyedDataCollectionConsentHelper;
@@ -92,12 +93,11 @@ SyncDisableObserver::SyncState SyncDisableObserver::GetSyncState(
 
 void SyncDisableObserver::ObserveServiceForSyncDisables(
     syncer::SyncService* sync_service,
-    PrefService* prefs,
-    bool is_unified_consent_enabled) {
+    PrefService* prefs) {
   std::unique_ptr<UrlKeyedDataCollectionConsentHelper> consent_helper;
-  if (is_unified_consent_enabled) {
+  if (unified_consent::IsUnifiedConsentFeatureEnabled()) {
     consent_helper = UrlKeyedDataCollectionConsentHelper::
-        NewAnonymizedDataCollectionConsentHelper(true, prefs, sync_service);
+        NewAnonymizedDataCollectionConsentHelper(prefs, sync_service);
   }
 
   SyncState state = GetSyncState(sync_service, consent_helper.get());

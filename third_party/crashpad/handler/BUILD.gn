@@ -65,15 +65,6 @@ static_library("handler") {
     ]
   }
 
-  if (crashpad_is_fuchsia) {
-    sources += [
-      "fuchsia/crash_report_exception_handler.cc",
-      "fuchsia/crash_report_exception_handler.h",
-      "fuchsia/exception_handler_server.cc",
-      "fuchsia/exception_handler_server.h",
-    ]
-  }
-
   public_configs = [ "..:crashpad_config" ]
 
   public_deps = [
@@ -98,12 +89,8 @@ static_library("handler") {
     cflags = [ "/wd4201" ]  # nonstandard extension used : nameless struct/union
   }
 
-  if (crashpad_is_fuchsia) {
-    deps += [ "../third_party/fuchsia" ]
-  }
-
   if (crashpad_is_in_starboard) {
-    public_deps += [ "//starboard" ]
+    public_deps += [ "//starboard:starboard_group", ]
   }
 }
 
@@ -138,12 +125,14 @@ source_set("handler_test") {
     "../snapshot",
     "../snapshot:test_support",
     "../test",
-    "../third_party/gtest:gtest",
+    "../third_party/googletest:googletest",
     "../third_party/mini_chromium:base",
     "../util",
   ]
 
   if (crashpad_is_win) {
+    deps += [ "../minidump:test_support" ]
+
     data_deps = [
       ":crashpad_handler_test_extended_handler",
       ":fake_handler_that_crashes_at_startup",
@@ -167,15 +156,6 @@ if (!crashpad_is_ios) {
     }
   }
 
-  if (crashpad_is_in_native_target_build) {
-    config("crashpad_handler_native_target_config") {
-      # This is to undo the "main=StarboardMain" define added for all targets
-      # when final_executable_type == "shared_library", in
-      # starboard/build/config/BUILD.gn, which itself is admittedly a hack.
-      defines = [ "StarboardMain=main" ]
-    }
-  }
-
   crashpad_executable("crashpad_handler") {
     if (crashpad_is_in_starboard) {
       install_target = !crashpad_is_android
@@ -189,6 +169,7 @@ if (!crashpad_is_ios) {
       "../build:default_exe_manifest_win",
       "../compat",
       "../third_party/mini_chromium:base",
+      "../tools:tool_support",
     ]
 
     configs = []
@@ -210,7 +191,7 @@ if (!crashpad_is_ios) {
     }
 
     if (crashpad_is_in_native_target_build) {
-      configs += [ ":crashpad_handler_native_target_config" ]
+      configs += [ "../build:native_target_executable_config" ]
     }
   }
 }
@@ -240,6 +221,8 @@ if (crashpad_is_android &&
     if (crashpad_is_in_chromium) {
       no_default_deps = true
     }
+    remove_configs =
+        [ "//build/config/android:default_orderfile_instrumentation" ]
   }
 }
 
@@ -275,6 +258,7 @@ if (crashpad_is_win) {
       "../build:default_exe_manifest_win",
       "../compat",
       "../third_party/mini_chromium:base",
+      "../tools:tool_support",
     ]
   }
 
@@ -292,7 +276,7 @@ if (crashpad_is_win) {
     deps = [
       "../client",
       "../test",
-      "../third_party/gtest:gtest",
+      "../third_party/googletest:googletest",
       "../third_party/mini_chromium:base",
     ]
   }

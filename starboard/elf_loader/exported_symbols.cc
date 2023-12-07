@@ -14,6 +14,8 @@
 
 #include "starboard/elf_loader/exported_symbols.h"
 
+#include <stdlib.h>
+
 #include "starboard/accessibility.h"
 #include "starboard/audio_sink.h"
 #if SB_API_VERSION < 16
@@ -30,7 +32,9 @@
 #include "starboard/event.h"
 #include "starboard/file.h"
 #include "starboard/gles.h"
+#if SB_API_VERSION < 16
 #include "starboard/image.h"
+#endif  // SB_API_VERSION < 16
 #include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/memory_reporter.h"
@@ -153,8 +157,10 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbFileWrite);
   REGISTER_SYMBOL(SbGetEglInterface);
   REGISTER_SYMBOL(SbGetGlesInterface);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbImageDecode);
   REGISTER_SYMBOL(SbImageIsDecodeSupported);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbLog);
   REGISTER_SYMBOL(SbLogFlush);
   REGISTER_SYMBOL(SbLogFormat);
@@ -166,7 +172,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMediaGetAudioBufferBudget);
   REGISTER_SYMBOL(SbMediaGetAudioConfiguration);
   REGISTER_SYMBOL(SbMediaGetAudioOutputCount);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbMediaGetBufferAlignment);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbMediaGetBufferAllocationUnit);
   REGISTER_SYMBOL(SbMediaGetBufferGarbageCollectionDurationThreshold);
   REGISTER_SYMBOL(SbMediaGetBufferPadding);
@@ -180,6 +188,7 @@ ExportedSymbols::ExportedSymbols() {
 #if SB_API_VERSION < 15
   REGISTER_SYMBOL(SbMediaSetAudioWriteDuration);
 #endif  // SB_API_VERSION < 15
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbMemoryAllocate);
   REGISTER_SYMBOL(SbMemoryAllocateAligned);
   REGISTER_SYMBOL(SbMemoryAllocateAlignedUnchecked);
@@ -188,18 +197,27 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMemoryDeallocate);
   REGISTER_SYMBOL(SbMemoryDeallocateAligned);
   REGISTER_SYMBOL(SbMemoryDeallocateNoReport);
+#endif  // SB_API_VERSION < 16
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
   REGISTER_SYMBOL(SbMemoryFlush);
 #endif  // SB_CAN(MAP_EXECUTABLE_MEMORY)
+
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbMemoryFree);
   REGISTER_SYMBOL(SbMemoryFreeAligned);
+#endif  // SB_API_VERSION < 16
+
 #if SB_API_VERSION < 15
   REGISTER_SYMBOL(SbMemoryGetStackBounds);
 #endif
   REGISTER_SYMBOL(SbMemoryMap);
   REGISTER_SYMBOL(SbMemoryProtect);
+
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbMemoryReallocate);
   REGISTER_SYMBOL(SbMemoryReallocateUnchecked);
+#endif  // SB_API_VERSION < 16
+
 #if SB_API_VERSION < 15
   REGISTER_SYMBOL(SbMemorySetReporter);
 #endif
@@ -285,9 +303,11 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbStorageOpenRecord);
   REGISTER_SYMBOL(SbStorageReadRecord);
   REGISTER_SYMBOL(SbStorageWriteRecord);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbStringCompareNoCase);
   REGISTER_SYMBOL(SbStringCompareNoCaseN);
   REGISTER_SYMBOL(SbStringDuplicate);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbStringFormat);
   REGISTER_SYMBOL(SbStringFormatWide);
   REGISTER_SYMBOL(SbStringScan);
@@ -376,6 +396,16 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbWindowSetOnScreenKeyboardKeepFocus);
   REGISTER_SYMBOL(SbWindowShowOnScreenKeyboard);
   REGISTER_SYMBOL(SbWindowUpdateOnScreenKeyboardSuggestions);
+
+#if SB_API_VERSION >= 16
+  // POSIX APIs
+  REGISTER_SYMBOL(malloc);
+  REGISTER_SYMBOL(realloc);
+  REGISTER_SYMBOL(calloc);
+  REGISTER_SYMBOL(posix_memalign);
+  REGISTER_SYMBOL(free);
+#endif  // SB_API_VERSION >= 16
+
 }  // NOLINT
 
 const void* ExportedSymbols::Lookup(const char* name) {

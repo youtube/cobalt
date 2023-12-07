@@ -235,26 +235,26 @@ scoped_refptr<web::Event> Document::CreateEvent(
     script::ExceptionState* exception_state) {
   // https://www.w3.org/TR/dom/#dom-document-createevent
   // The match of interface name is case-insensitive.
-  if (base::strcasecmp(interface_name.c_str(), "event") == 0 ||
-      base::strcasecmp(interface_name.c_str(), "events") == 0 ||
-      base::strcasecmp(interface_name.c_str(), "htmlevents") == 0) {
+  if (strcasecmp(interface_name.c_str(), "event") == 0 ||
+      strcasecmp(interface_name.c_str(), "events") == 0 ||
+      strcasecmp(interface_name.c_str(), "htmlevents") == 0) {
     return new web::Event(web::Event::Uninitialized);
-  } else if (base::strcasecmp(interface_name.c_str(), "keyboardevent") == 0 ||
-             base::strcasecmp(interface_name.c_str(), "keyevents") == 0) {
+  } else if (strcasecmp(interface_name.c_str(), "keyboardevent") == 0 ||
+             strcasecmp(interface_name.c_str(), "keyevents") == 0) {
     return new KeyboardEvent(web::Event::Uninitialized);
-  } else if (base::strcasecmp(interface_name.c_str(), "messageevent") == 0) {
+  } else if (strcasecmp(interface_name.c_str(), "messageevent") == 0) {
     return new web::MessageEvent(web::Event::Uninitialized);
-  } else if (base::strcasecmp(interface_name.c_str(), "mouseevent") == 0 ||
-             base::strcasecmp(interface_name.c_str(), "mouseevents") == 0) {
+  } else if (strcasecmp(interface_name.c_str(), "mouseevent") == 0 ||
+             strcasecmp(interface_name.c_str(), "mouseevents") == 0) {
     return new MouseEvent(web::Event::Uninitialized);
-  } else if (base::strcasecmp(interface_name.c_str(), "uievent") == 0 ||
-             base::strcasecmp(interface_name.c_str(), "uievents") == 0) {
+  } else if (strcasecmp(interface_name.c_str(), "uievent") == 0 ||
+             strcasecmp(interface_name.c_str(), "uievents") == 0) {
     return new UIEvent(web::Event::Uninitialized);
-  } else if (base::strcasecmp(interface_name.c_str(), "wheelevent") == 0) {
+  } else if (strcasecmp(interface_name.c_str(), "wheelevent") == 0) {
     // This not in the spec, but commonly implemented to create a WheelEvent.
     //   https://www.w3.org/TR/2016/WD-uievents-20160804/#interface-wheelevent
     return new WheelEvent(web::Event::Uninitialized);
-  } else if (base::strcasecmp(interface_name.c_str(), "customevent") == 0) {
+  } else if (strcasecmp(interface_name.c_str(), "customevent") == 0) {
     return new web::CustomEvent(web::Event::Uninitialized);
   }
 

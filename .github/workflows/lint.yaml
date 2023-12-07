@@ -38,13 +38,14 @@ jobs:
           rm /tmp/gn.zip
       - name: Checkout
         uses: kaidokert/checkout@v3.5.999
+        timeout-minutes: 30
         with:
           fetch-depth: 0
           persist-credentials: false
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: '^3.7.x'
+          python-version: '3.7'
       - name: Install Pip Packages
         run: pip install -r ${GITHUB_WORKSPACE}/requirements.txt
       - name: Download Resources

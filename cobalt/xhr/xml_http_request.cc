@@ -518,11 +518,12 @@ void XMLHttpRequestImpl::Send(
     const base::Optional<XMLHttpRequest::RequestBodyType>& request_body,
     script::ExceptionState* exception_state) {
   error_ = false;
-  bool in_service_worker = environment_settings()
-                               ->context()
-                               ->GetWindowOrWorkerGlobalScope()
-                               ->IsServiceWorker();
-  if (!in_service_worker && method_ == net::URLFetcher::GET) {
+  auto* context = environment_settings()->context();
+  bool in_service_worker =
+      context->GetWindowOrWorkerGlobalScope()->IsServiceWorker();
+  bool has_active_service_worker =
+      !in_service_worker && context->active_service_worker();
+  if (has_active_service_worker && method_ == net::URLFetcher::GET) {
     loader::FetchInterceptorCoordinator::GetInstance()->TryIntercept(
         request_url_, /*main_resource=*/false, request_headers_, task_runner_,
         base::BindOnce(&XMLHttpRequestImpl::SendIntercepted, AsWeakPtr()),

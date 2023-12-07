@@ -102,6 +102,12 @@ def CopyAndFilterOutDir(source_out_dir, dest_out_dir):
     return 0
 
   _IterateAndFilter(source_out_dir, dest_out_dir, copies)
+
+  # Add build_info json to the out directory root.
+  source_build_info = os.path.join(source_out_dir, 'gen', 'build_info.json')
+  dest_build_info = os.path.join(dest_out_dir, 'build_info.json')
+  copies[source_build_info] = dest_build_info
+
   for source, dest in copies.items():
     dirname = os.path.dirname(dest)
     if not os.path.exists(dirname):

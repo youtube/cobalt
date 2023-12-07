@@ -84,7 +84,7 @@ bool ParseMimeType(const std::string& mime_type, std::string* type,
   *type = tokens[0];
   codecs->clear();
   for (size_t i = 1; i < tokens.size(); ++i) {
-    if (base::strncasecmp(tokens[i].c_str(), kCodecs, strlen(kCodecs))) {
+    if (strncasecmp(tokens[i].c_str(), kCodecs, strlen(kCodecs))) {
       continue;
     }
     *codecs = tokens[i].substr(strlen(kCodecs));
@@ -234,6 +234,19 @@ base::TimeDelta ChunkDemuxerStream::GetWriteHead() const {
   base::AutoLock auto_lock(lock_);
   return write_head_;
 }
+
+size_t ChunkDemuxerStream::GetStreamMemoryLimit() {
+  DCHECK(stream_);
+  base::AutoLock auto_lock(lock_);
+  return stream_->memory_limit();
+}
+
+void ChunkDemuxerStream::SetStreamMemoryLimitOverride(size_t memory_limit) {
+  DCHECK(stream_);
+  base::AutoLock auto_lock(lock_);
+  stream_->set_memory_limit_override(memory_limit);
+}
+
 
 #endif  // defined(STARBOARD)
 
@@ -1108,6 +1121,22 @@ base::TimeDelta ChunkDemuxer::GetWriteHead(const std::string& id) const {
   }
 
   return iter->second[0]->GetWriteHead();
+}
+
+void ChunkDemuxer::SetSourceBufferStreamMemoryLimit(const std::string& id,
+                                                    size_t limit) {
+  base::AutoLock auto_lock(lock_);
+  DCHECK(source_state_map_.find(id) != source_state_map_.end());
+  source_state_map_[id]->SetSourceBufferStreamMemoryLimit(limit);
+}
+
+size_t ChunkDemuxer::GetSourceBufferStreamMemoryLimit(const std::string& id) {
+
+  base::AutoLock auto_lock(lock_);
+  if (source_state_map_.find(id) == source_state_map_.end()) {
+    return 0;
+  }
+  return source_state_map_[id]->GetSourceBufferStreamMemoryLimit();
 }
 
 #endif  // defined(STARBOARD)

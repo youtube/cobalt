@@ -1132,6 +1132,21 @@ std::string UnitTestImpl::CurrentOsStackTraceExceptTop(int skip_count) {
 }
 
 // A helper class for measuring elapsed times.
+#if GTEST_OS_STARBOARD
+class Timer {
+ public:
+  Timer() : start_(GetTimeInMillis()) {
+  }
+
+  // Return time elapsed in milliseconds since the timer was created.
+  TimeInMillis Elapsed() {
+    return (GetTimeInMillis() - start_);
+  }
+
+ private:
+  TimeInMillis start_;
+};
+#else  // GTEST_OS_STARBOARD
 class Timer {
  public:
   Timer() : start_(std::chrono::steady_clock::now()) {}
@@ -1146,6 +1161,7 @@ class Timer {
  private:
   std::chrono::steady_clock::time_point start_;
 };
+#endif  // GTEST_OS_STARBOARD
 
 // Returns a timestamp as milliseconds since the epoch. Note this time may jump
 // around subject to adjustments by the system, to measure elapsed time use
@@ -2117,7 +2133,7 @@ AssertionResult CmpHelperSTRNE(const char* s1_expression,
 bool String::CaseInsensitiveCStringEquals(const char* lhs, const char* rhs) {
   if (lhs == nullptr) return rhs == nullptr;
   if (rhs == nullptr) return false;
-  return posix::StrCaseCmp(lhs, rhs) == 0;
+  return strcasecmp(lhs, rhs) == 0;
 }
 
 // Compares two wide C strings, ignoring case.  Returns true if and only if they

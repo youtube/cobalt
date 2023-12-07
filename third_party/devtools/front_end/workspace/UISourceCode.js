@@ -42,7 +42,7 @@ export default class UISourceCode extends Common.Object {
     this._project = project;
     this._url = url;
 
-    const parsedURL = Common.ParsedURL.fromString(url);
+    const parsedURL = url.asParsedURL();
     if (parsedURL) {
       this._origin = parsedURL.securityOrigin();
       this._parentURL = this._origin + parsedURL.folderPathComponents;
@@ -252,14 +252,6 @@ export default class UISourceCode extends Common.Object {
 
     this._requestContentPromise = this._requestContentImpl();
     return this._requestContentPromise;
-  }
-
-  /**
-   * @returns {!Promise<!UISourceCode>}
-   */
-  async getFormatted() {
-    const formatData = await Sources.sourceFormatter.format(this);
-    return formatData.formattedSourceCode;
   }
 
   /**

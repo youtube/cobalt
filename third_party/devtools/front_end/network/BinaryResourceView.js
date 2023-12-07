@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-export default class BinaryResourceView extends UI.VBox {
+Network.BinaryResourceView = class extends UI.VBox {
   /**
    * @param {string} base64content
    * @param {string} contentUrl
@@ -156,9 +156,9 @@ export default class BinaryResourceView extends UI.VBox {
       Host.InspectorFrontendHost.copyText(content.content);
     });
   }
-}
+};
 
-export class BinaryViewObject {
+Network.BinaryResourceView.BinaryViewObject = class {
   /**
    * @param {string} type
    * @param {string} label
@@ -186,20 +186,4 @@ export class BinaryViewObject {
     }
     return this._view;
   }
-}
-
-/* Legacy exported object */
-self.Network = self.Network || {};
-
-/* Legacy exported object */
-Network = Network || {};
-
-/**
- * @constructor
- */
-Network.BinaryResourceView = BinaryResourceView;
-
-/**
- * @constructor
- */
-Network.BinaryResourceView.BinaryViewObject = BinaryViewObject;
+};

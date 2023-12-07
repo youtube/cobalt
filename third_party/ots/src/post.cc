@@ -4,8 +4,6 @@
 
 #include "post.h"
 
-#include <string.h>
-
 #include "maxp.h"
 
 // post - PostScript

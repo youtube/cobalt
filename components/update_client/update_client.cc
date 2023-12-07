@@ -216,6 +216,16 @@ void UpdateClientImpl::Stop() {
 
   is_stopped_ = true;
 
+  // In the current implementation it is sufficient to cancel the pending
+  // tasks only. The tasks that are run by the update engine will stop
+  // making progress naturally, as the main task runner stops running task
+  // actions. Upon the browser shutdown, the resources employed by the active
+  // tasks will leak, as the operating system kills the thread associated with
+  // the update engine task runner. Further refactoring may be needed in this
+  // area, to cancel the running tasks by canceling the current action update.
+  // This behavior would be expected, correct, and result in no resource leaks
+  // in all cases, in shutdown or not.
+  //
   // Cancel the pending tasks. These tasks are safe to cancel and delete since
   // they have not picked up by the update engine, and not shared with any
   // task runner yet.
@@ -226,15 +236,6 @@ void UpdateClientImpl::Stop() {
   }
 
 #if !defined(STARBOARD)
-  // In the current implementation it is sufficient to cancel the pending
-  // tasks only. The tasks that are run by the update engine will stop
-  // making progress naturally, as the main task runner stops running task
-  // actions. Upon the browser shutdown, the resources employed by the active
-  // tasks will leak, as the operating system kills the thread associated with
-  // the update engine task runner. Further refactoring may be needed in this
-  // area, to cancel the running tasks by canceling the current action update.
-  // This behavior would be expected, correct, and result in no resource leaks
-  // in all cases, in shutdown or not.
 #else
   // For Cobalt it's not sufficient to just let the tasks already picked up by
   // the update engine stop naturally, as this can result in resource leaks and

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Includes all headers in a C context to make sure they compile as C files.
+#if SB_API_VERSION < 16
 
 #include "starboard/image.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -52,3 +52,5 @@ TEST(ImageTest, IsDecodeSupported) {
 }  // namespace.
 }  // namespace nplb.
 }  // namespace starboard.
+
+#endif  // SB_API_VERSION < 16

@@ -34,7 +34,6 @@
 #endif
 
 #include "private/cpu.h"
-
 #ifndef STARBOARD
 #include <stdlib.h>
 #include <stdio.h>

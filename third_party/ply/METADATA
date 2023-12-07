@@ -6,8 +6,9 @@ description:
 third_party {
   url {
     type: GIT
-    value: "https://chromium.googlesource.com/chromium/src/third_party/ply"
+    value: "https://chromium.googlesource.com/chromium/src"
   }
+  version: "74.0.3729.169"
   last_upgrade_date {
     year: 2011
     month: 2

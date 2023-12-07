@@ -69,6 +69,16 @@ services:
     depends_on:
       - cobalt-build-win-internal
 
+  ps4-kokoro:
+    build:
+      context: ./internal/docker/windows/kokoro/
+      dockerfile: Dockerfile
+      args:
+        - FROM_IMAGE=${FROM_IMAGE:-cobalt-build-ps4}
+    image: cobalt-kokoro-ps4
+    depends_on:
+      - ps4
+
   ps5:
     <<: *common-definitions
     build:
@@ -83,6 +93,16 @@ services:
     image: cobalt-build-ps5
     depends_on:
       - cobalt-build-win-internal
+
+  ps5-kokoro:
+    build:
+      context: ./internal/docker/windows/kokoro/
+      dockerfile: Dockerfile
+      args:
+        - FROM_IMAGE=${FROM_IMAGE:-cobalt-build-ps5}
+    image: cobalt-kokoro-ps5
+    depends_on:
+      - ps5
 
   xb1:
     <<: *common-definitions
@@ -100,17 +120,12 @@ services:
     depends_on:
       - cobalt-build-win-internal
 
-  nxswitch:
-    <<: *common-definitions
+  xb1-kokoro:
     build:
-      context: ./internal/docker/windows/
-      dockerfile: nxswitch/Dockerfile
+      context: ./internal/docker/windows/kokoro/
+      dockerfile: Dockerfile
       args:
-        - encoded_keyfile=${ENCODED_GS_SERVICE_KEY_FILE}
-        - FROM_IMAGE=cobalt-build-win-internal
-    environment:
-      <<: *shared-build-env
-      PLATFORM: nxswitch
-    image: cobalt-build-nxswitch
+        - FROM_IMAGE=${FROM_IMAGE:-cobalt-build-xb1}
+    image: cobalt-kokoro-xb1
     depends_on:
-      - cobalt-build-win-internal
+      - xb1

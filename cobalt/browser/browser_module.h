@@ -152,6 +152,10 @@ class BrowserModule {
   void AddURLHandler(const URLHandler::URLHandlerCallback& callback);
   void RemoveURLHandler(const URLHandler::URLHandlerCallback& callback);
 
+  // Start the ScreenShotWriter if it's not already running.
+  void EnsureScreenShotWriter();
+
+#if defined(ENABLE_WEBDRIVER) || defined(ENABLE_DEBUGGER)
   // Request a screenshot to be written to the specified path. Callback will
   // be fired after the screenshot has been written to disk.
   void RequestScreenshotToFile(
@@ -165,6 +169,13 @@ class BrowserModule {
       loader::image::EncodedStaticImage::ImageFormat image_format,
       const base::Optional<math::Rect>& clip_rect,
       const ScreenShotWriter::ImageEncodeCompleteCallback& screenshot_ready);
+#endif  // defined(ENABLE_WEBDRIVER) || defined(ENABLE_DEBUGGER)
+
+  // Request a screenshot to memory without compressing the image.
+  void RequestScreenshotToMemoryUnencoded(
+      const scoped_refptr<render_tree::Node>& render_tree_root,
+      const base::Optional<math::Rect>& clip_rect,
+      const renderer::Pipeline::RasterizationCompleteCallback& callback);
 
 #if defined(ENABLE_WEBDRIVER)
   std::unique_ptr<webdriver::SessionDriver> CreateSessionDriver(
@@ -361,6 +372,8 @@ class BrowserModule {
 
   // Destroys the splash screen, if currently displayed.
   void DestroySplashScreen(base::TimeDelta close_time = base::TimeDelta());
+
+  void DestroyScrollEngine();
 
   // Called when web module has received window.close().
   void OnWindowClose(base::TimeDelta close_time);

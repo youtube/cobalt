@@ -116,7 +116,7 @@ const int64_t kWatchdogTimeInterval = 10000000;
 const int64_t kWatchdogTimeWait = 2000000;
 
 bool IsStringNone(const std::string& str) {
-  return !base::strcasecmp(str.c_str(), "none");
+  return !strcasecmp(str.c_str(), "none");
 }
 
 #if defined(ENABLE_WEBDRIVER) || defined(ENABLE_DEBUGGER)
@@ -458,7 +458,12 @@ std::string GetMinLogLevelString() {
 }
 
 int StringToLogLevel(const std::string& log_level) {
-  if (log_level == "info") {
+  if (log_level == "verbose") {
+    // The lower the verbose level is, the more messages are logged.  Set it to
+    // a lower enough value to ensure that all known verbose messages are
+    // logged.
+    return logging::LOG_VERBOSE - 15;
+  } else if (log_level == "info") {
     return logging::LOG_INFO;
   } else if (log_level == "warning") {
     return logging::LOG_WARNING;
@@ -695,9 +700,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
     watchdog->Register(kWatchdogName, kWatchdogName,
                        base::kApplicationStateStarted, kWatchdogTimeInterval,
                        kWatchdogTimeWait, watchdog::NONE);
-
-  cobalt::cache::Cache::GetInstance()->set_persistent_settings(
-      persistent_settings_.get());
 
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   base::Optional<cssom::ViewportSize> requested_viewport_size =
@@ -1021,6 +1023,8 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
         base::TimeDelta::FromSeconds(duration_in_seconds));
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
+
+  AddCrashLogApplicationState(base::kApplicationStateStarted);
 }
 
 Application::~Application() {
@@ -1520,6 +1524,7 @@ void Application::InitMetrics() {
       metrics::kMetricEnabledSettingName, false);
   auto metric_event_interval = persistent_settings_->GetPersistentSettingAsInt(
       metrics::kMetricEventIntervalSettingName, 300);
+  metrics_services_manager_->SetEventDispatcher(&event_dispatcher_);
   metrics_services_manager_->SetUploadInterval(metric_event_interval);
   metrics_services_manager_->ToggleMetricsEnabled(is_metrics_enabled);
   // Metric recording state initialization _must_ happen before we bootstrap

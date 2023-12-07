@@ -18,10 +18,9 @@ const char kTestPref[] = "test.pref";
 
 class InMemoryPrefStoreTest : public testing::Test {
  public:
-  InMemoryPrefStoreTest() {}
+  InMemoryPrefStoreTest() { }
 
   void SetUp() override { store_ = new InMemoryPrefStore(); }
-
  protected:
   base::test::ScopedTaskEnvironment scoped_task_environment_;
   scoped_refptr<InMemoryPrefStore> store_;

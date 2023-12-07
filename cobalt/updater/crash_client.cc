@@ -21,7 +21,6 @@
 
 #if defined(OS_WIN)
 #include <windows.h>
-
 #include "base/win/wrapped_window_proc.h"
 #endif
 

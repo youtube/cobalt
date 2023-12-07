@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Starboard C and C++ Style Guide"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Starboard C and C++ Style Guide
 
 A description of the coding conventions for Starboard code and API headers.

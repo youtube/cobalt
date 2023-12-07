@@ -140,9 +140,15 @@ ApplicationAndroid::ApplicationAndroid(ALooper* looper)
   jobject local_ref = env->CallStarboardObjectMethodOrAbort(
       "getResourceOverlay", "()Ldev/cobalt/coat/ResourceOverlay;");
   resource_overlay_ = env->ConvertLocalRefToGlobalRef(local_ref);
+
+  env->CallStarboardVoidMethodOrAbort("starboardApplicationStarted", "()V");
 }
 
 ApplicationAndroid::~ApplicationAndroid() {
+  // Inform StarboardBridge that
+  JniEnvExt* env = JniEnvExt::Get();
+  env->CallStarboardVoidMethodOrAbort("starboardApplicationStopping", "()V");
+
   // The application is exiting.
   // Release the global reference.
   if (resource_overlay_) {
@@ -161,6 +167,7 @@ ApplicationAndroid::~ApplicationAndroid() {
   {
     // Signal for any potentially waiting window creation or destroy commands.
     ScopedLock lock(android_command_mutex_);
+    application_destroying_.store(true);
     android_command_condition_.Signal();
   }
 }
@@ -361,11 +368,11 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         if (state() == kStateUnstarted) {
           SetStartLink(deep_link);
           SB_LOG(INFO) << "ApplicationAndroid SetStartLink";
-          SbMemoryDeallocate(static_cast<void*>(deep_link));
+          free(static_cast<void*>(deep_link));
         } else {
           SB_LOG(INFO) << "ApplicationAndroid Inject: kSbEventTypeLink";
           Inject(new Event(kSbEventTypeLink, SbTimeGetMonotonicNow(), deep_link,
-                           SbMemoryDeallocate));
+                           free));
         }
       }
       break;
@@ -412,7 +419,7 @@ void ApplicationAndroid::SendAndroidCommand(AndroidCommand::CommandType type,
   switch (type) {
     case AndroidCommand::kNativeWindowCreated:
     case AndroidCommand::kNativeWindowDestroyed:
-      while (native_window_ != data) {
+      while ((native_window_ != data) && !application_destroying_.load()) {
         android_command_condition_.Wait();
       }
       break;
@@ -579,7 +586,7 @@ void DeleteSbInputDataWithText(void* ptr) {
 
 void ApplicationAndroid::SbWindowSendInputEvent(const char* input_text,
                                                 bool is_composing) {
-  char* text = SbStringDuplicate(input_text);
+  char* text = strdup(input_text);
   SbInputData* data = new SbInputData();
   memset(data, 0, sizeof(*data));
   data->window = window_;
@@ -615,7 +622,7 @@ void ApplicationAndroid::HandleDeepLink(const char* link_url) {
   if (link_url == NULL || link_url[0] == '\0') {
     return;
   }
-  char* deep_link = SbStringDuplicate(link_url);
+  char* deep_link = strdup(link_url);
   SB_DCHECK(deep_link);
 
   SendAndroidCommand(AndroidCommand::kDeepLink, deep_link);

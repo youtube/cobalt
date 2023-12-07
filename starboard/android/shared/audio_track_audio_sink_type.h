@@ -69,8 +69,6 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
       SbAudioSinkPrivate::ErrorFunc error_func,
       SbTime start_time,
       int tunnel_mode_audio_session_id,
-      bool enable_audio_device_callback,
-      bool enable_pcm_content_type_movie,
       bool is_web_audio,
       void* context);
 
@@ -97,6 +95,7 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
   // The minimum frames required to avoid underruns of different frequencies.
   std::map<int, int> min_required_frames_map_;
   MinRequiredFramesTester min_required_frames_tester_;
+  bool has_remote_audio_output_ = false;
 };
 
 class AudioTrackAudioSink : public SbAudioSinkPrivate {
@@ -114,8 +113,6 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
       SbAudioSinkPrivate::ErrorFunc error_func,
       SbTime start_media_time,
       int tunnel_mode_audio_session_id,
-      bool enable_audio_device_callback,
-      bool enable_pcm_content_type_movie,
       bool is_web_audio,
       void* context);
   ~AudioTrackAudioSink() override;

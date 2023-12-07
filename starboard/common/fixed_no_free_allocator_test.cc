@@ -24,7 +24,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 struct AlignedMemoryDeleter {
-  void operator()(uint8_t* p) { SbMemoryDeallocateAligned(p); }
+  void operator()(uint8_t* p) { free(p); }
 };
 
 class FixedNoFreeAllocatorTest : public ::testing::Test {
@@ -39,12 +39,19 @@ class FixedNoFreeAllocatorTest : public ::testing::Test {
 
   std::unique_ptr<uint8_t, AlignedMemoryDeleter> buffer_;
   starboard::common::FixedNoFreeAllocator allocator_;
+
+ private:
+  void* AllocatedAlligned();
 };
 
+void* FixedNoFreeAllocatorTest::AllocatedAlligned() {
+  void* tmp = nullptr;
+  posix_memalign(&tmp, starboard::common::Allocator::kMinAlignment,
+                 kBufferSize);
+  return tmp;
+}
 FixedNoFreeAllocatorTest::FixedNoFreeAllocatorTest()
-    : buffer_(static_cast<uint8_t*>(
-          SbMemoryAllocateAligned(starboard::common::Allocator::kMinAlignment,
-                                  kBufferSize))),
+    : buffer_(static_cast<uint8_t*>(AllocatedAlligned())),
       allocator_(buffer_.get(), kBufferSize) {}
 
 TEST_F(FixedNoFreeAllocatorTest, CanDoSimpleAllocations) {

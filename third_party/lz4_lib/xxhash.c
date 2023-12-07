@@ -104,15 +104,10 @@
 ***************************************/
 /*! Modify the local functions below should you wish to use some other memory routines
 *   for malloc(), free() */
-#if defined(STARBOARD)
-#include "starboard/memory.h"
-static void* XXH_malloc(size_t s) { return SbMemoryAllocate(s); }
-static void  XXH_free  (void* p)  { SbMemoryDeallocate(p); }
-#else
 #include <stdlib.h>
 static void* XXH_malloc(size_t s) { return malloc(s); }
 static void  XXH_free  (void* p)  { free(p); }
-#endif
+
 /*! and for memcpy() */
 #include <string.h>
 static void* XXH_memcpy(void* dest, const void* src, size_t size) { return memcpy(dest,src,size); }

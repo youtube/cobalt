@@ -25,13 +25,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-import {ElementsPanel} from './ElementsPanel.js';
 
 /**
  * @implements {SDK.SDKModelObserver<!SDK.OverlayModel>}
  * @unrestricted
  */
-export class InspectElementModeController {
+export default class InspectElementModeController {
   /**
    * @suppressGlobalPropertiesCheck
    */
@@ -129,7 +128,7 @@ export class InspectElementModeController {
    * @param {!SDK.DOMNode} node
    */
   async _inspectNode(node) {
-    ElementsPanel.instance().revealAndSelectNode(node, true, true);
+    Elements.ElementsPanel.instance().revealAndSelectNode(node, true, true);
   }
 
   _showDetailedInspectTooltipChanged() {
@@ -164,3 +163,17 @@ export class ToggleSearchActionDelegate {
 /** @type {?InspectElementModeController} */
 export const inspectElementModeController =
     Root.Runtime.queryParam('isSharedWorker') ? null : new InspectElementModeController();
+
+/* Legacy exported object */
+self.Elements = self.Elements || {};
+
+/* Legacy exported object */
+Elements = Elements || {};
+
+/** @constructor */
+Elements.InspectElementModeController = InspectElementModeController;
+
+/** @constructor */
+Elements.InspectElementModeController.ToggleSearchActionDelegate = ToggleSearchActionDelegate;
+
+Elements.inspectElementModeController = inspectElementModeController;

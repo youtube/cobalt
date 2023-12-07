@@ -117,7 +117,7 @@ bool IsInArray(const char* input_str, const char* array[], size_t size) {
     return false;
   }
   for (size_t i = 0; i < size; ++i) {
-    if (SbStringCompareNoCase(input_str, array[i]) == 0) {
+    if (strcasecmp(input_str, array[i]) == 0) {
       return true;
     }
   }
@@ -132,8 +132,7 @@ bool HasFieldValue(const std::vector<std::string>& field_values,
     if (field_values[i].empty()) {
       continue;
     }
-    if (SbStringCompareNoCase(field_values[i].c_str(),
-                              find_value_name.c_str()) == 0) {
+    if (strcasecmp(field_values[i].c_str(), find_value_name.c_str()) == 0) {
       return true;
     }
   }
@@ -171,7 +170,7 @@ bool CORSPreflight::IsSafeRequestHeader(const std::string& name,
 
   // Safe if header name is 'Content-Type' and value is a match of
   // kAllowedMIMEType.
-  if (SbStringCompareNoCase(name.c_str(), kContentType) == 0) {
+  if (strcasecmp(name.c_str(), kContentType) == 0) {
     std::vector<std::string> content_type_split = base::SplitString(
         value, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
     auto begin_iter = content_type_split[0].cbegin();
@@ -220,8 +219,8 @@ bool CORSPreflight::IsSafeResponseHeader(
   }
 
   for (size_t i = 0; i < CORS_exposed_header_name_list.size(); i++) {
-    if (SbStringCompareNoCase(CORS_exposed_header_name_list.at(i).c_str(),
-                              name.c_str()) == 0) {
+    if (strcasecmp(CORS_exposed_header_name_list.at(i).c_str(), name.c_str()) ==
+        0) {
       return true;
     }
   }
@@ -381,7 +380,7 @@ void CORSPreflight::OnURLFetchComplete(const net::URLFetcher* source) {
       if (HasFieldValue(headernames_vec, it.name())) {
         continue;
       }
-      if (SbStringCompareNoCase(it.name().c_str(), kAuthorization) == 0 ||
+      if (strcasecmp(it.name().c_str(), kAuthorization) == 0 ||
           (!HasFieldValue(headernames_vec, "*") &&
            !IsSafeRequestHeader(it.name(), it.value()))) {
         error_callback_.Run();

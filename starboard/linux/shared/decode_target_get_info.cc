@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string.h>
+
 #include "starboard/common/memory.h"
 #include "starboard/decode_target.h"
 #include "starboard/linux/shared/decode_target_internal.h"

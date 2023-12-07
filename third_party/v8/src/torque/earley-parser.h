@@ -248,7 +248,7 @@ class Rule final {
 // used in the parser.
 class Symbol {
  public:
-  Symbol() : Symbol({}) {}
+  Symbol() = default;
   Symbol(std::initializer_list<Rule> rules) { *this = rules; }
 
   V8_EXPORT_PRIVATE Symbol& operator=(std::initializer_list<Rule> rules);

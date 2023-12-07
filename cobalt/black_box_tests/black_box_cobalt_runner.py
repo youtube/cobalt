@@ -50,8 +50,7 @@ class BlackBoxCobaltRunner(cobalt_runner.CobaltRunner):
                target_params=None,
                success_message=None,
                poll_until_wait_seconds=POLL_UNTIL_WAIT_SECONDS,
-               web_server_port=None,
-               **kwargs):
+               web_server_port=None):
     # For black box tests, don't log inline script warnings, we intend to
     # explicitly control timings for suspends and resumes, so we are not
     # concerned about a "suspend at the wrong time".
@@ -66,8 +65,7 @@ class BlackBoxCobaltRunner(cobalt_runner.CobaltRunner):
         target_params,
         success_message,
         poll_until_wait_seconds=poll_until_wait_seconds,
-        web_server_port=web_server_port,
-        **kwargs)
+        web_server_port=web_server_port)
 
     self.poll_until_wait_seconds = poll_until_wait_seconds
 

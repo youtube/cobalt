@@ -169,8 +169,7 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
 
   std::string decoder_name =
       MediaCapabilitiesCache::GetInstance()->FindAudioDecoder(
-          mime, /* bitrate = */ 0,
-          /* must_support_tunnel_mode = */ false);
+          mime, /* bitrate = */ 0);
 
   if (decoder_name.empty()) {
     SB_LOG(ERROR) << "Failed to find decoder for " << audio_stream_info.codec
@@ -228,7 +227,6 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     bool require_software_codec,
     int tunnel_mode_audio_session_id,
     bool force_big_endian_hdr_metadata,
-    bool force_improved_support_check,
     std::string* error_message) {
   SB_DCHECK(error_message);
   SB_DCHECK(max_width.has_engaged() == max_height.has_engaged());
@@ -249,7 +247,7 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
   std::string decoder_name =
       MediaCapabilitiesCache::GetInstance()->FindVideoDecoder(
           mime, must_support_secure, must_support_hdr, require_software_codec,
-          must_support_tunnel_mode, force_improved_support_check,
+          must_support_tunnel_mode,
           /* frame_width = */ 0,
           /* frame_height = */ 0,
           /* bitrate = */ 0,
@@ -259,7 +257,7 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     decoder_name = MediaCapabilitiesCache::GetInstance()->FindVideoDecoder(
         mime, must_support_secure, /* must_support_hdr = */ false,
         require_software_codec, must_support_tunnel_mode,
-        force_improved_support_check, /* frame_width = */ 0,
+        /* frame_width = */ 0,
         /* frame_height = */ 0,
         /* bitrate = */ 0,
         /* fps = */ 0);

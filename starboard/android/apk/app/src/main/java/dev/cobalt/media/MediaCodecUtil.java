@@ -541,7 +541,6 @@ public class MediaCodecUtil {
       boolean mustSupportHdr,
       boolean mustSupportSoftwareCodec,
       boolean mustSupportTunnelMode,
-      boolean forceImprovedSupportCheck,
       int decoderCacheTtlMs,
       int frameWidth,
       int frameHeight,
@@ -552,8 +551,7 @@ public class MediaCodecUtil {
             Locale.US,
             "Searching for video decoder with parameters mimeType: %s, secure: %b, frameWidth:"
                 + " %d, frameHeight: %d, bitrate: %d, fps: %d, mustSupportHdr: %b,"
-                + " mustSupportSoftwareCodec: %b, mustSupportTunnelMode: %b,"
-                + " forceImprovedSupportCheck: %b",
+                + " mustSupportSoftwareCodec: %b, mustSupportTunnelMode: %b",
             mimeType,
             mustSupportSecure,
             frameWidth,
@@ -562,8 +560,7 @@ public class MediaCodecUtil {
             fps,
             mustSupportHdr,
             mustSupportSoftwareCodec,
-            mustSupportTunnelMode,
-            forceImprovedSupportCheck);
+            mustSupportTunnelMode);
     Log.v(TAG, decoderInfo);
     String deviceInfo =
         String.format(
@@ -656,38 +653,20 @@ public class MediaCodecUtil {
       Range<Integer> supportedWidths = decoder.supportedWidths;
       Range<Integer> supportedHeights = decoder.supportedHeights;
 
-      // Enable the improved support check based on more specific APIs, like isSizeSupported() or
-      // areSizeAndRateSupported(), for 8k content. These APIs are theoretically more accurate,
-      // but we are unsure about their level of support on various Android TV platforms.
-      final boolean enableImprovedSupportCheck =
-          forceImprovedSupportCheck || (frameWidth > 3840 || frameHeight > 2160);
-      if (enableImprovedSupportCheck) {
-        if (frameWidth != 0 && frameHeight != 0) {
-          if (!videoCapabilities.isSizeSupported(frameWidth, frameHeight)) {
-            String format = "Rejecting %s, reason: width %s is not compatible with height %d";
-            Log.v(TAG, format, name, frameWidth, frameHeight);
-            continue;
-          }
-        } else if (frameWidth != 0) {
-          if (!supportedWidths.contains(frameWidth)) {
-            String format = "Rejecting %s, reason: supported widths %s does not contain %d";
-            Log.v(TAG, format, name, supportedWidths.toString(), frameWidth);
-            continue;
-          }
-        } else if (frameHeight != 0) {
-          if (!supportedHeights.contains(frameHeight)) {
-            String format = "Rejecting %s, reason: supported heights %s does not contain %d";
-            Log.v(TAG, format, name, supportedHeights.toString(), frameHeight);
-            continue;
-          }
+      if (frameWidth != 0 && frameHeight != 0) {
+        if (!videoCapabilities.isSizeSupported(frameWidth, frameHeight)) {
+          String format = "Rejecting %s, reason: width %s is not compatible with height %d";
+          Log.v(TAG, format, name, frameWidth, frameHeight);
+          continue;
         }
-      } else {
-        if (frameWidth != 0 && !supportedWidths.contains(frameWidth)) {
+      } else if (frameWidth != 0) {
+        if (!supportedWidths.contains(frameWidth)) {
           String format = "Rejecting %s, reason: supported widths %s does not contain %d";
           Log.v(TAG, format, name, supportedWidths.toString(), frameWidth);
           continue;
         }
-        if (frameHeight != 0 && !supportedHeights.contains(frameHeight)) {
+      } else if (frameHeight != 0) {
+        if (!supportedHeights.contains(frameHeight)) {
           String format = "Rejecting %s, reason: supported heights %s does not contain %d";
           Log.v(TAG, format, name, supportedHeights.toString(), frameHeight);
           continue;
@@ -702,28 +681,20 @@ public class MediaCodecUtil {
       }
 
       Range<Integer> supportedFrameRates = videoCapabilities.getSupportedFrameRates();
-      if (enableImprovedSupportCheck) {
-        if (fps != 0) {
-          if (frameHeight != 0 && frameWidth != 0) {
-            if (!videoCapabilities.areSizeAndRateSupported(frameWidth, frameHeight, fps)) {
-              String format = "Rejecting %s, reason: supported frame rates %s does not contain %d";
-              Log.v(TAG, format, name, supportedFrameRates.toString(), fps);
-              continue;
-            }
-          } else {
-            // At least one of frameHeight or frameWidth is 0
-            if (!supportedFrameRates.contains(fps)) {
-              String format = "Rejecting %s, reason: supported frame rates %s does not contain %d";
-              Log.v(TAG, format, name, supportedFrameRates.toString(), fps);
-              continue;
-            }
+      if (fps != 0) {
+        if (frameHeight != 0 && frameWidth != 0) {
+          if (!videoCapabilities.areSizeAndRateSupported(frameWidth, frameHeight, fps)) {
+            String format = "Rejecting %s, reason: supported frame rates %s does not contain %d";
+            Log.v(TAG, format, name, supportedFrameRates.toString(), fps);
+            continue;
           }
-        }
-      } else {
-        if (fps != 0 && !supportedFrameRates.contains(fps)) {
-          String format = "Rejecting %s, reason: supported frame rates %s does not contain %d";
-          Log.v(TAG, format, name, supportedFrameRates.toString(), fps);
-          continue;
+        } else {
+          // At least one of frameHeight or frameWidth is 0
+          if (!supportedFrameRates.contains(fps)) {
+            String format = "Rejecting %s, reason: supported frame rates %s does not contain %d";
+            Log.v(TAG, format, name, supportedFrameRates.toString(), fps);
+            continue;
+          }
         }
       }
 
@@ -747,8 +718,7 @@ public class MediaCodecUtil {
    * "" otherwise.
    */
   @UsedByNative
-  public static String findAudioDecoder(
-      String mimeType, int bitrate, boolean mustSupportTunnelMode) {
+  public static String findAudioDecoder(String mimeType, int bitrate) {
     // Note: MediaCodecList is sorted by the framework such that the best decoders come first.
     for (MediaCodecInfo info : new MediaCodecList(MediaCodecList.ALL_CODECS).getCodecInfos()) {
       if (info.isEncoder()) {
@@ -766,14 +736,6 @@ public class MediaCodecUtil {
         if (!bitrateRange.contains(bitrate)) {
           continue;
         }
-        if (mustSupportTunnelMode
-            && !codecCapabilities.isFeatureSupported(CodecCapabilities.FEATURE_TunneledPlayback)) {
-          continue;
-        }
-        // TODO: Determine if we can safely check if an audio codec requires the tunneled playback
-        //  feature. i.e., reject when |mustSupportTunnelMode| == false
-        //  and codecCapabilities.isFeatureRequired(CodecCapabilities.FEATURE_TunneledPlayback) ==
-        //  true.
         return name;
       }
     }

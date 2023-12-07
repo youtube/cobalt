@@ -97,6 +97,7 @@ class GpuVideoDecoderBase
   int GetWidth() { return frame_width_; }
   int GetHeight() { return frame_height_; }
   bool IsHdrVideo() { return is_hdr_video_; }
+  static void ClearFrameBuffersPool();
 
  protected:
   typedef ::starboard::shared::starboard::media::VideoStreamInfo
@@ -217,7 +218,7 @@ class GpuVideoDecoderBase
 
   Mutex frame_buffers_mutex_;
   ConditionVariable frame_buffers_condition_;
-  // static std::vector<scoped_refptr<GpuFrameBuffer>> s_frame_buffers_;
+
  private:
   class GPUDecodeTargetPrivate;
 

@@ -5,27 +5,26 @@
 import("//build/config/android/rules.gni")
 
 if (!use_cobalt_customizations) {
-  android_library("variations_java") {
-    deps = [
-      "//base:base_java",
-      "//third_party/android_tools:android_support_core_utils_java",
-    ]
-    java_files = [
-      "java/src/org/chromium/components/variations/VariationsAssociatedData.java",
-      "java/src/org/chromium/components/variations/firstrun/VariationsSeedBridge.java",
-      "java/src/org/chromium/components/variations/firstrun/VariationsSeedFetcher.java",
-    ]
-  }
-
-  junit_binary("components_variations_junit_tests") {
-    java_files = [ "junit/src/org/chromium/components/variations/firstrun/VariationsSeedFetcherTest.java" ]
-    deps = [
-      ":variations_java",
-      "//base:base_java",
-      "//base:base_java_test_support",
-      "//base:base_junit_test_support",
-      "//third_party/hamcrest:hamcrest_java",
-    ]
-  }
+android_library("variations_java") {
+  deps = [
+    "//base:base_java",
+    "//third_party/android_tools:android_support_core_utils_java",
+  ]
+  java_files = [
+    "java/src/org/chromium/components/variations/VariationsAssociatedData.java",
+    "java/src/org/chromium/components/variations/firstrun/VariationsSeedBridge.java",
+    "java/src/org/chromium/components/variations/firstrun/VariationsSeedFetcher.java",
+  ]
 }
 
+junit_binary("components_variations_junit_tests") {
+  java_files = [ "junit/src/org/chromium/components/variations/firstrun/VariationsSeedFetcherTest.java" ]
+  deps = [
+    ":variations_java",
+    "//base:base_java",
+    "//base:base_java_test_support",
+    "//base:base_junit_test_support",
+    "//third_party/hamcrest:hamcrest_java",
+  ]
+}
+}

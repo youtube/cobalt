@@ -9,3 +9,12 @@
 /cobalt/browser/metrics/ @joeltine
 /components/metrics/ @joeltine
 /tools/metrics/ @joeltine
+
+# Temporary monitoring for merges to Chromium upstreams
+/base/ @andrewsavage1
+/build/ @andrewsavage1
+/crypto/ @andrewsavage1
+/net/ @andrewsavage1
+/third_party/abseil-cpp/ @andrewsavage1
+/third_party/modp_b64/ @andrewsavage1
+/url/ @andrewsavage1

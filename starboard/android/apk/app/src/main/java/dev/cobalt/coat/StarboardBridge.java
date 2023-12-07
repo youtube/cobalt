@@ -96,7 +96,7 @@ public class StarboardBridge {
   private final Holder<Activity> activityHolder;
   private final Holder<Service> serviceHolder;
   private final String[] args;
-  private final String startDeepLink;
+  private String startDeepLink;
   private final Runnable stopRequester =
       new Runnable() {
         @Override
@@ -105,7 +105,8 @@ public class StarboardBridge {
         }
       };
 
-  private volatile boolean starboardStopped = false;
+  private volatile boolean starboardApplicationStopped = false;
+  private volatile boolean starboardApplicationReady = false;
 
   private final HashMap<String, CobaltService.Factory> cobaltServiceFactories = new HashMap<>();
   private final HashMap<String, CobaltService> cobaltServices = new HashMap<>();
@@ -166,7 +167,7 @@ public class StarboardBridge {
   }
 
   protected void onActivityDestroy(Activity activity) {
-    if (starboardStopped) {
+    if (starboardApplicationStopped) {
       // We can't restart the starboard app, so kill the process for a clean start next time.
       Log.i(TAG, "Activity destroyed after shutdown; killing app.");
       System.exit(0);
@@ -265,7 +266,7 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   protected void afterStopped() {
-    starboardStopped = true;
+    starboardApplicationStopped = true;
     ttsHelper.shutdown();
     userAuthorizer.shutdown();
     for (CobaltService service : cobaltServices.values()) {
@@ -285,8 +286,21 @@ public class StarboardBridge {
 
   @SuppressWarnings("unused")
   @UsedByNative
+  protected void starboardApplicationStarted() {
+    starboardApplicationReady = true;
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  protected void starboardApplicationStopping() {
+    starboardApplicationReady = false;
+    starboardApplicationStopped = true;
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
   public void requestStop(int errorLevel) {
-    if (!starboardStopped) {
+    if (starboardApplicationReady) {
       Log.i(TAG, "Request to stop");
       nativeStopApp(errorLevel);
     }
@@ -305,7 +319,10 @@ public class StarboardBridge {
   }
 
   public boolean onSearchRequested() {
-    return nativeOnSearchRequested();
+    if (starboardApplicationReady) {
+      return nativeOnSearchRequested();
+    }
+    return false;
   }
 
   private native boolean nativeOnSearchRequested();
@@ -349,7 +366,13 @@ public class StarboardBridge {
 
   /** Sends an event to the web app to navigate to the given URL */
   public void handleDeepLink(String url) {
-    nativeHandleDeepLink(url);
+    if (starboardApplicationReady) {
+      nativeHandleDeepLink(url);
+    } else {
+      // If this deep link event is received before the starboard application
+      // is ready, it replaces the start deep link.
+      startDeepLink = url;
+    }
   }
 
   private native void nativeHandleDeepLink(String url);
@@ -691,15 +714,6 @@ public class StarboardBridge {
 
   @SuppressWarnings("unused")
   @UsedByNative
-  public void clearVideoSurface() {
-    Activity activity = activityHolder.get();
-    if (activity instanceof CobaltActivity) {
-      ((CobaltActivity) activity).clearVideoSurface();
-    }
-  }
-
-  @SuppressWarnings("unused")
-  @UsedByNative
   public void resetVideoSurface() {
     Activity activity = activityHolder.get();
     if (activity instanceof CobaltActivity) {
@@ -767,6 +781,10 @@ public class StarboardBridge {
       cobaltServices.put(serviceName, service);
     }
     return service;
+  }
+
+  public CobaltService getOpenedCobaltService(String serviceName) {
+    return cobaltServices.get(serviceName);
   }
 
   @SuppressWarnings("unused")
