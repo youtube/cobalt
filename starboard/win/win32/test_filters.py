@@ -63,6 +63,9 @@ _FILTERED_TESTS = {
         # PlayerComponentsTests fail on our VMs. Preroll callback is always not called in
         # 5 seconds, which causes timeout error.
         'PlayerComponentsTests/*',
+
+        # Passthrough audio is unsupported.
+        'AudioDiscardDurationTrackerTests.AudioDiscardDurationTrackerTest.*',
     ],
 }
 
