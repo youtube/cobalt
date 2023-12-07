@@ -35,6 +35,9 @@
 
   <!-- https://iabtechlab.com/OTT-IFA, AdvertisingIdClient.Info.getId() -->
   <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
+
+  <!-- NPLB test needs to change the system timezone -->
+  <uses-permission android:name="android.permission.SET_TIME_ZONE"/>
   <application
     android:name="dev.cobalt.app.CobaltApplication"
     android:icon="@mipmap/ic_app"

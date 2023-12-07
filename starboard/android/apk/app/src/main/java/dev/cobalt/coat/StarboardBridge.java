@@ -20,6 +20,7 @@ import static dev.cobalt.util.Log.TAG;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.AlarmManager;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
@@ -845,5 +846,12 @@ public class StarboardBridge {
   @UsedByNative
   protected String getBuildFingerprint() {
     return Build.FINGERPRINT;
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  public void setTimeZone(String timezone) {
+    AlarmManager am = (AlarmManager) appContext.getSystemService(Context.ALARM_SERVICE);
+    am.setTimeZone(timezone);
   }
 }

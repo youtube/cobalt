@@ -384,6 +384,8 @@ static_library("starboard_platform") {
     "thread_create.cc",
     "thread_create_priority.cc",
     "thread_get_name.cc",
+    "time_zone.cc",
+    "time_zone.h",
     "time_zone_get_name.cc",
     "trace_util.h",
     "video_decoder.cc",
