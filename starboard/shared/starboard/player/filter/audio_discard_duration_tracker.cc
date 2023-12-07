@@ -36,17 +36,20 @@ void AudioDiscardDurationTracker::CacheDiscardDuration(
   if (discard_duration_from_front + discard_duration_from_back >=
       buffer_length) {
     discard_infos_.push(
-        AudioDiscardInfo{buffer_length, input_buffer->timestamp()});
+        AudioDiscardInfo{buffer_length, input_buffer->timestamp(),
+                         input_buffer->timestamp() + buffer_length});
   } else {
     if (discard_duration_from_front > 0) {
-      discard_infos_.push(AudioDiscardInfo{discard_duration_from_front,
-                                           input_buffer->timestamp()});
+      discard_infos_.push(AudioDiscardInfo{
+          discard_duration_from_front, input_buffer->timestamp(),
+          input_buffer->timestamp() + discard_duration_from_front});
     }
     if (discard_duration_from_back > 0) {
-      discard_infos_.push(AudioDiscardInfo{discard_duration_from_back,
-                                           input_buffer->timestamp() +
-                                               buffer_length -
-                                               discard_duration_from_back});
+      discard_infos_.push(
+          AudioDiscardInfo{discard_duration_from_back,
+                           input_buffer->timestamp() + buffer_length -
+                               discard_duration_from_back,
+                           input_buffer->timestamp() + buffer_length});
     }
   }
 }
@@ -61,11 +64,33 @@ void AudioDiscardDurationTracker::CacheMultipleDiscardDurations(
 
 SbTime AudioDiscardDurationTracker::AdjustTimeForTotalDiscardDuration(
     SbTime timestamp) {
-  if (discard_infos_.size() > 0 &&
-      timestamp >= discard_infos_.front().discard_start_timestamp) {
-    total_discard_duration_ += discard_infos_.front().discard_duration;
-    discard_infos_.pop();
+  SB_LOG_IF(WARNING, last_received_timestamp_ > timestamp)
+      << "Last received timestamp " << last_received_timestamp_
+      << " is greater than timestamp " << timestamp
+      << ". AudioDiscardDurationTracker::AdjustTimeForTotalDiscardDuration() "
+         "requires monotonically increasing timestamps.";
+  last_received_timestamp_ = timestamp;
+  if (discard_infos_.size() > 0) {
+    SbTime discard_start_timestamp =
+        discard_infos_.front().discard_start_timestamp;
+    SbTime discard_end_timestamp = discard_infos_.front().discard_end_timestamp;
+    if (timestamp >= discard_start_timestamp &&
+        timestamp < discard_end_timestamp) {
+      // "Freeze" the timestamp at discard_start_timestamp if |timestamp| falls
+      // within the discard period.
+      return std::max(SbTime(0),
+                      discard_start_timestamp - total_discard_duration_);
+    }
+    // As a lot of time may have passed since the last call to
+    // AdjustTimeForTotalDiscardDuration(), remove all AudioDiscardInfos that
+    // have already been passed by the |timestamp|.
+    while (discard_infos_.size() > 0 &&
+           timestamp >= discard_infos_.front().discard_end_timestamp) {
+      total_discard_duration_ += discard_infos_.front().discard_duration;
+      discard_infos_.pop();
+    }
   }
+
   return std::max(SbTime(0), timestamp - total_discard_duration_);
 }
 

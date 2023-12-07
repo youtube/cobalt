@@ -74,7 +74,8 @@ std::string GetContentTypeFromAudioCodec(SbMediaAudioCodec audio_codec,
 std::vector<const char*> GetSupportedAudioTestFiles(
     HeaacOption heaac_option,
     int max_channels,
-    const char* extra_mime_attributes) {
+    const char* extra_mime_attributes,
+    bool passthrough_only) {
   // beneath_the_canopy_aac_stereo.dmp
   //   codec: kSbMediaAudioCodecAac
   //   sampling rate: 44.1k
@@ -132,6 +133,14 @@ std::vector<const char*> GetSupportedAudioTestFiles(
     // Filter heaac files when |heaac_option| == kExcludeHeaac.
     if (heaac_option == kExcludeHeaac && audio_file_info.is_heaac) {
       continue;
+    }
+
+    if (passthrough_only) {
+      // Filter out non passthrough codecs.
+      if (audio_file_info.audio_codec != kSbMediaAudioCodecAc3 &&
+          audio_file_info.audio_codec != kSbMediaAudioCodecEac3) {
+        continue;
+      }
     }
 
     // Filter files of unsupported codec.
