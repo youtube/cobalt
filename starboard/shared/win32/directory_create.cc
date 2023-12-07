@@ -27,6 +27,7 @@ using starboard::shared::win32::IsAbsolutePath;
 using starboard::shared::win32::NormalizeWin32Path;
 using starboard::shared::win32::TrimExtraFileSeparators;
 
+#if SB_API_VERSION < 16
 bool SbDirectoryCreate(const char* path) {
   if ((path == nullptr) || (path[0] == '\0')) {
     return false;
@@ -41,3 +42,4 @@ bool SbDirectoryCreate(const char* path) {
 
   return DirectoryExistsOrCreated(path_wstring);
 }
+#endif

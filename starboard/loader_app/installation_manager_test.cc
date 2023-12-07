@@ -33,7 +33,6 @@ namespace installation_manager {
 namespace {
 
 const char* kAppKey = "test_app_key";
-
 class InstallationManagerTest : public ::testing::TestWithParam<int> {
  protected:
   virtual void SetUp() {
@@ -47,7 +46,7 @@ class InstallationManagerTest : public ::testing::TestWithParam<int> {
     }
     storage_path_ = buf.data();
     ASSERT_TRUE(!storage_path_.empty());
-    SbDirectoryCreate(storage_path_.c_str());
+    mkdir(storage_path_.c_str(), 0700);
 
     installation_store_path_ = storage_path_;
     installation_store_path_ += kSbFileSepString;
@@ -203,6 +202,7 @@ TEST_P(InstallationManagerTest, InitializeMultiple) {
   ASSERT_EQ(IM_SUCCESS, ImInitialize(GetParam(), kAppKey));
 }
 
+#if SB_API_VERSION < 16
 TEST_P(InstallationManagerTest, Reset) {
   if (!storage_path_implemented_) {
     return;
@@ -242,6 +242,7 @@ TEST_P(InstallationManagerTest, Reset) {
     ASSERT_TRUE(SbFileExists(buf.data()));
   }
 }
+#endif  // SB_API_VERSION < 16
 
 TEST_P(InstallationManagerTest, GetAppKey) {
   if (!storage_path_implemented_) {

@@ -62,7 +62,7 @@ TEST(ResetEvergreenUpdateTest, TestSunnyDaySubdir) {
   std::string subdir_path = storage_path.data();
   subdir_path += kSbFileSepString;
   subdir_path += "test";
-  ASSERT_TRUE(SbDirectoryCreate(subdir_path.c_str()));
+  ASSERT_TRUE(mkdir(subdir_path.c_str(), 0700));
 
   std::string file_path = subdir_path.data();
   file_path += kSbFileSepString;

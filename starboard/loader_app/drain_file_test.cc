@@ -46,7 +46,7 @@ class DrainFileTest : public ::testing::Test {
     // Use dedicated dir for testing to avoid meddling with other files.
     starboard::strlcat(temp_dir_.data(), kSbFileSepString, kSbFileMaxPath);
     starboard::strlcat(temp_dir_.data(), "df", kSbFileMaxPath);
-    ASSERT_TRUE(SbDirectoryCreate(temp_dir_.data()));
+    ASSERT_TRUE(mkdir(temp_dir_.data(), 0700));
   }
 
   void TearDown() override { DrainFileClearForApp(GetTempDir(), ""); }
@@ -213,7 +213,7 @@ TEST_F(DrainFileTest, SunnyDayPrepareDirectory) {
   dir.append(kSbFileSepString);
   dir.append("to_delete");
 
-  EXPECT_TRUE(SbDirectoryCreate(dir.c_str()));
+  EXPECT_TRUE(mkdir(dir.c_str(), 0700));
   EXPECT_TRUE(SbFileExists(dir.c_str()));
 
   // Create a file with the app key in the name.
