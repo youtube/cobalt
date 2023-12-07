@@ -17,19 +17,11 @@
 
 #if defined(STARBOARD)
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Initializes ICU using a standard path based on the Starboard content path.
 // This function must be threadsafe and idempotent. Applications that wish to
-// initialize ICU differently may define their own SbIcuInit function rather
+// initialize ICU differently may define their own IcuInit function rather
 // than using the implementation here.
-void SbIcuInit();
-
-#ifdef __cplusplus
-}  // extern "C"
-#endif
+void IcuInit();
 
 #endif  // STARBOARD
 
