@@ -956,9 +956,6 @@ component("base") {
 
   if (use_cobalt_customizations && current_toolchain == default_toolchain) {
     sources += [
-      "memory/platform_shared_memory_mapper_starboard.cc",
-      "memory/page_size_starboard.cc",
-      "files/memory_mapped_file_starboard.cc",
       "base_paths_starboard.cc",
       "base_paths_starboard.h",
       "debug/debugger_starboard.cc",
@@ -966,6 +963,9 @@ component("base") {
       "files/file_enumerator_starboard.cc",
       "files/file_starboard.cc",
       "files/file_util_starboard.cc",
+      "files/memory_mapped_file_starboard.cc",
+      "memory/page_size_starboard.cc",
+      "memory/platform_shared_memory_mapper_starboard.cc",
       "memory/platform_shared_memory_region_starboard.cc",
       "message_loop/message_pump_io_starboard.cc",
       "message_loop/message_pump_io_starboard.h",
@@ -1084,7 +1084,7 @@ component("base") {
     "//third_party/modp_b64",
   ]
 
-  if (is_starboard && current_toolchain == default_toolchain) {
+  if (is_starboard){
     deps += [ "//starboard" ]
   }
 
@@ -2656,8 +2656,8 @@ static_library("base_static") {
 
   deps = [ "//build:chromeos_buildflags" ]
 
-  if (is_starboard && current_toolchain == default_toolchain) {
-    deps += ["//starboard"]
+  if (is_starboard) {
+    deps += [ "//starboard" ]
   }
 
   if (is_win) {
@@ -3119,6 +3119,7 @@ test("base_unittests") {
 
     # "allocator/dispatcher/tls_unittest.cc",
     "allocator/partition_allocator/pointers/raw_ptr_test_support.h",
+
     # "allocator/partition_allocator/pointers/raw_ptr_unittest.cc",
     "allocator/partition_allocator/pointers/raw_ref_unittest.cc",
     "at_exit_unittest.cc",
@@ -3177,6 +3178,7 @@ test("base_unittests") {
     # "feature_list_unittest.cc",
     # "files/file_enumerator_unittest.cc",
     "files/file_error_or_unittest.cc",
+
     # "files/file_path_unittest.cc",
 
     # "files/file_path_watcher_unittest.cc",
@@ -3320,6 +3322,7 @@ test("base_unittests") {
     # "profiler/stack_sampler_unittest.cc",
     # "profiler/stack_sampling_profiler_unittest.cc",
     "rand_util_unittest.cc",
+
     # "ranges/algorithm_unittest.cc",
     "ranges/functional_unittest.cc",
     "ranges/ranges_unittest.cc",
@@ -3340,6 +3343,7 @@ test("base_unittests") {
     "stl_util_unittest.cc",
     "strings/abseil_string_number_conversions_unittest.cc",
     "strings/escape_unittest.cc",
+
     # "strings/no_trigraphs_unittest.cc",
     "strings/pattern_unittest.cc",
     "strings/safe_sprintf_unittest.cc",
@@ -3351,6 +3355,7 @@ test("base_unittests") {
     "strings/string_util_unittest.cc",
     "strings/stringize_macros_unittest.cc",
     "strings/stringprintf_unittest.cc",
+
     # "strings/sys_string_conversions_unittest.cc",
     "strings/to_string_test.cc",
     "strings/utf_offset_string_conversions_unittest.cc",
@@ -3555,7 +3560,6 @@ test("base_unittests") {
   data_deps = [
     # "//base/test:immediate_crash_test_helper",
     # "//base/test:test_child_process",
-
     # "//base/test:test_shared_library",
     # "//testing/buildbot/filters:base_unittests_filters",
   ]

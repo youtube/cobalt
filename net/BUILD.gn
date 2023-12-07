@@ -1152,12 +1152,13 @@ component("net") {
 
   if (is_starboard && is_starboardized_toolchain) {
     sources += [
+      "cert/test_root_certs_builtin.cc",
       "socket/tcp_socket_starboard_tmp.cc",
       "socket/tcp_socket_starboard_tmp.h",
       "socket/udp_socket_starboard_tmp.cc",
       "socket/udp_socket_starboard_tmp.h",
-      "cert/test_root_certs_builtin.cc",
     ]
+    deps += [ "//starboard" ]
   }
 
   if (is_android) {
@@ -1342,10 +1343,10 @@ component("net") {
 
   sources += [
     "base/file_stream_context_posix.cc",
+    "base/network_interfaces_posix.cc",
     "disk_cache/cache_util_posix.cc",
     "disk_cache/simple/simple_util_posix.cc",
     "http/url_security_manager_posix.cc",
-    "base/network_interfaces_posix.cc",
   ]
 
   if (false) {
@@ -2854,7 +2855,6 @@ test("net_unittests") {
     "test/embedded_test_server/embedded_test_server_unittest.cc",
     "test/embedded_test_server/http_request_unittest.cc",
     "test/embedded_test_server/http_response_unittest.cc",
-
     "test/run_all_unittests.cc",
     "third_party/nist-pkits/pkits_testcases-inl.h",
     "third_party/uri_template/uri_template_test.cc",
