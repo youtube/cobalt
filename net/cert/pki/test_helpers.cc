@@ -355,8 +355,17 @@ bool ReadVerifyCertChainTestFromFile(const std::string& file_path_ascii,
     } else if (GetValue("expected_user_constrained_policy_set: ", line_piece,
                         &value, &has_user_constrained_policy_set)) {
       std::vector<std::string_view> split_value(SplitString(value));
+// TODO: b/315401452 - Use upstream code as is once docker uses gcc 9+ stl.
+#if defined(USE_COBALT_CUSTOMIZATIONS)
+      std::set<std::string> expected_user_constrained_policy_set;
+      for (const auto& sv : split_value) {
+          expected_user_constrained_policy_set.insert(std::string(sv));
+      }
+      test->expected_user_constrained_policy_set = std::move(expected_user_constrained_policy_set);
+#else
       test->expected_user_constrained_policy_set =
           std::set<std::string>(split_value.begin(), split_value.end());
+#endif
     } else if (net::string_util::StartsWith(line_piece, "#")) {
       // Skip comments.
       continue;
