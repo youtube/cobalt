@@ -224,15 +224,20 @@ public class MediaCodecCapabilitiesLogger {
       if (info.isEncoder()) {
         continue;
       }
+      String isHardwareAccelerated = "unknown";
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        isHardwareAccelerated = info.isHardwareAccelerated() ? "true" : "false";
+      }
       for (String supportedType : info.getSupportedTypes()) {
         String name = info.getName();
         decoderDumpString.append(
             String.format(
                 Locale.US,
-                "name: %s (%s, %s):",
+                "name: %s (%s, %s, Hardware accelerated: %s):",
                 name,
                 supportedType,
-                MediaCodecUtil.isCodecDenyListed(name) ? "denylisted" : "not denylisted"));
+                MediaCodecUtil.isCodecDenyListed(name) ? "denylisted" : "not denylisted",
+                isHardwareAccelerated));
         CodecCapabilities codecCapabilities = info.getCapabilitiesForType(supportedType);
         VideoCapabilities videoCapabilities = codecCapabilities.getVideoCapabilities();
         String resultName =
