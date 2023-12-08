@@ -48,8 +48,6 @@ _FILTERED_TESTS = {
         'VideoDecoderTests/VideoDecoderTest.MultipleResets/beneath_the_canopy_137_avc_dmp_Punchout',
         # Filter failed tests.
         'PlayerComponentsTests/PlayerComponentsTest.*',
-        # Passthrough audio is unsupported.
-        'AudioDiscardDurationTrackerTests.AudioDiscardDurationTrackerTest.*',
     ],
 }
 

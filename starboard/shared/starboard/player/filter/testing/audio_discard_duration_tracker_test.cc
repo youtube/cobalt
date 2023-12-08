@@ -29,6 +29,7 @@ namespace testing {
 namespace {
 using starboard::player::video_dmp::VideoDmpReader;
 
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(AudioDiscardDurationTrackerTest);
 class AudioDiscardDurationTrackerTest
     : public ::testing::TestWithParam<const char*> {
  public:
