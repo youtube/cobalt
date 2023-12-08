@@ -156,6 +156,10 @@ class MEDIA_EXPORT Demuxer : public MediaResource {
   virtual absl::optional<container_names::MediaContainerName>
   GetContainerForMetrics() const = 0;
 
+#if defined(STARBOARD)
+  virtual bool GetIsEndOfStreamReceived() const = 0;
+#endif  // defined(STARBOARD)
+
   // The |track_ids| vector has either 1 track, or is empty, indicating that
   // all tracks should be disabled. |change_completed_cb| is fired after the
   // demuxer streams are disabled, however this callback should then notify

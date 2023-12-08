@@ -58,6 +58,7 @@
 #include "base/message_loop/message_loop.h"
 #include "base/threading/thread.h"
 #include "base/time/time.h"
+#include "base/timer/timer.h"
 #include "cobalt/math/size.h"
 #include "cobalt/media/base/decode_target_provider.h"
 #include "cobalt/media/base/metrics_provider.h"
@@ -116,6 +117,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
                      SbTime audio_write_duration_local,
                      SbTime audio_write_duration_remote,
 #endif  // SB_API_VERSION >= 15
+                     base::TimeDelta demuxer_underflow_threshold,
                      ::media::MediaLog* const media_log);
   ~WebMediaPlayerImpl() override;
 
@@ -203,6 +205,9 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   void OnPipelineBufferingState(Pipeline::BufferingState buffering_state);
   void OnDemuxerOpened();
 
+  void SetDemuxerUnderflow(bool is_underflow);
+  void CheckDemuxerUnderflow();
+
  private:
   // Called when the data source is downloading or paused.
   void OnDownloadingStatusChanged(bool is_downloading);
@@ -218,6 +223,8 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   void SetNetworkState(NetworkState state);
   void SetNetworkError(NetworkState state, const std::string& message);
   void SetReadyState(ReadyState state);
+
+  void UpdatePlayState();
 
   // Destroy resources held.
   void Destroy();
@@ -280,20 +287,23 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
     // same time we pause and then return that value in currentTime().
     // Otherwise our clock can creep forward a little bit while the asynchronous
     // SetPlaybackRate(0) is being executed.
-    bool paused;
-    bool seeking;
-    float playback_rate;
+    bool paused = true;
+    bool seeking = false;
+    float playback_rate = 0.0f;
     base::TimeDelta paused_time;
 
     // Seek gets pending if another seek is in progress. Only last pending seek
     // will have effect.
-    bool pending_seek;
-    float pending_seek_seconds;
+    bool pending_seek = false;
+    double pending_seek_seconds = 0.0;
 
-    bool starting;
+    bool starting = false;
+    bool is_prerolled = false;
+    bool is_demuxer_underflow = true;
 
-    bool is_progressive;
-    bool is_media_source;
+    bool is_progressive = false;
+    bool is_media_source = false;
+    bool is_url_based = false;
   } state_;
 
   WebMediaPlayerClient* const client_;
@@ -301,6 +311,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   const bool allow_resume_after_suspend_;
   const bool allow_batched_sample_write_;
   const bool force_punch_out_by_default_;
+  const base::TimeDelta demuxer_underflow_threshold_;
   scoped_refptr<DecodeTargetProvider> decode_target_provider_;
 
   scoped_refptr<WebMediaPlayerProxy> proxy_;
@@ -313,6 +324,8 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   std::unique_ptr<::media::Demuxer> progressive_demuxer_;
   std::unique_ptr<::media::ChunkDemuxer> chunk_demuxer_;
+
+  base::OneShotTimer demuxer_underflow_timer_;
 
   // Suppresses calls to OnPipelineError() after destruction / shutdown has been
   // started; prevents us from spuriously logging errors that are transient or
