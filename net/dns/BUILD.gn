@@ -514,6 +514,7 @@ if (use_fuzzing_engine) {
   }
 }
 
+if (!use_cobalt_customizations) {
 proto_library("host_cache_fuzzer_proto") {
   proto_in_dir = "//"
   sources = [ "host_cache_fuzzer.proto" ]
@@ -532,6 +533,7 @@ fuzzer_test("net_dns_host_cache_fuzzer") {
     "//third_party/libprotobuf-mutator",
   ]
   dict = "//testing/libfuzzer/fuzzers/dicts/json.dict"
+}
 }
 
 fuzzer_test("net_dns_hosts_parse_fuzzer") {

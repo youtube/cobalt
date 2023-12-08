@@ -1813,6 +1813,7 @@ proto_library("isolation_info_proto") {
   sources = [ "base/isolation_info.proto" ]
 }
 
+if (!use_cobalt_customizations) {
 component("extras") {
   sources = [
     "extras/sqlite/cookie_crypto_delegate.h",
@@ -1836,6 +1837,7 @@ component("extras") {
       "extras/sqlite/sqlite_persistent_reporting_and_nel_store.h",
     ]
   }
+}
 }
 
 static_library("preload_decoder") {
@@ -2155,7 +2157,7 @@ static_library("test_support") {
   }
 }
 
-if (!is_ios && !is_android) {
+if (!is_ios && !is_android && !use_cobalt_customizations) {
   executable("cert_verify_tool") {
     testonly = true
     sources = [
@@ -3297,7 +3299,7 @@ test("net_unittests") {
 }
 
 # !is_android && !is_win && !is_mac
-if (!is_ios) {
+if (!is_ios && !use_cobalt_customizations) {
   # TODO(crbug.com/594965): this should be converted to "app" template and
   # enabled on iOS too.
   test("net_perftests") {
@@ -3399,6 +3401,7 @@ fuzzer_test("disk_cache_lpm_fuzzer") {
   ]
 }
 
+if (!use_cobalt_customizations) {
 proto_library("backoff_entry_serializer_fuzzer_input") {
   proto_in_dir = "//"
   sources = [ "base/backoff_entry_serializer_fuzzer_input.proto" ]
@@ -3418,6 +3421,7 @@ fuzzer_test("net_backoff_entry_serializer_fuzzer") {
     "//testing/libfuzzer/proto:json_proto_converter",
     "//third_party/libprotobuf-mutator",
   ]
+}
 }
 
 fuzzer_test("net_data_url_fuzzer") {
@@ -4004,11 +4008,13 @@ fuzzer_test("net_hpack_decoder_fuzzer") {
   ]
 }
 
+if (!use_cobalt_customizations) {
 proto_library("reporting_policy_proto") {
   proto_in_dir = "//"
   sources = [ "reporting/reporting_policy.proto" ]
 
   # link_deps = [ "//testing/libfuzzer/proto:json_proto" ]
+}
 }
 
 fuzzer_test("net_reporting_header_parser_fuzzer") {

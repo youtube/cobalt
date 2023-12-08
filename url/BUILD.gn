@@ -90,9 +90,9 @@ component("url") {
   } else {
     # Use ICU.
     sources += [
-      # "url_canon_icu.cc",
-      # "url_canon_icu.h",
-      # "url_idna_icu.cc",
+      "url_canon_icu.cc",
+      "url_canon_icu.h",
+      "url_idna_icu.cc",
     ]
     deps += [
       "//base:i18n",
@@ -265,6 +265,7 @@ test("url_unittests") {
   }
 }
 
+if (!use_cobalt_customizations) {
 test("url_perftests") {
   sources = [
     "run_all_perftests.cc",
@@ -277,6 +278,7 @@ test("url_perftests") {
     "//base/test:test_support",
     "//testing/gtest",
   ]
+}
 }
 
 fuzzer_test("gurl_fuzzer") {

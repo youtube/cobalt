@@ -1084,7 +1084,7 @@ component("base") {
     "//third_party/modp_b64",
   ]
 
-  if (is_starboard){
+  if (is_starboard && current_toolchain != host_toolchain){
     deps += [ "//starboard" ]
   }
 
@@ -2656,7 +2656,7 @@ static_library("base_static") {
 
   deps = [ "//build:chromeos_buildflags" ]
 
-  if (is_starboard) {
+  if (is_starboard && current_toolchain != host_toolchain) {
     deps += [ "//starboard" ]
   }
 
