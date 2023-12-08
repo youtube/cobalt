@@ -140,6 +140,11 @@ class MediaModule : public WebMediaPlayerFactory,
       base::TimeDelta::FromMicroseconds(kSbPlayerWriteDurationRemote);
 #endif  // SB_API_VERSION >= 15
 
+  // Set default demuxer underflow threshold to 50ms.
+  constexpr static int64_t kDefaultDemuxerUnderflowThreshold = 50 * 1000;
+  base::TimeDelta demuxer_underflow_threshold_ =
+      base::TimeDelta::FromMicroseconds(kDefaultDemuxerUnderflowThreshold);
+
   DecoderBufferAllocator decoder_buffer_allocator_;
 };
 
