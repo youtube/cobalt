@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Cobalt Support Quick Reference"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Cobalt Support Quick Reference
 
 ## HTML elements
 

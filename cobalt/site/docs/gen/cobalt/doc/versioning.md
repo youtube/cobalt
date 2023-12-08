@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Cobalt Versioning"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Cobalt Versioning
 
 Cobalt versions, as they appear in the user agent, have the following structure:

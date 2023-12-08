@@ -29,6 +29,7 @@
 extern "C" {
 #endif
 
+#if SB_API_VERSION < 16
 // Copies |source| into a buffer that is allocated by this function and that
 // can be freed with SbMemoryDeallocate. This function is meant to be a drop-in
 // replacement for |strdup|.
@@ -61,6 +62,7 @@ SB_EXPORT int SbStringCompareNoCase(const char* string1, const char* string2);
 SB_EXPORT int SbStringCompareNoCaseN(const char* string1,
                                      const char* string2,
                                      size_t count);
+#endif  // SB_API_VERSION < 16
 
 // Produces a string formatted with |format| and |arguments|, placing as much
 // of the result that will fit into |out_buffer|. The return value specifies

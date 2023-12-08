@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Extensions codelab"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Extensions codelab
 
 The Starboard Extension framework provides a way to add optional, platform-specific
 features to the Starboard application. A Starboard Extension is an optional interface

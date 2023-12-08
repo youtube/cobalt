@@ -15,7 +15,15 @@
 
 from starboard.tools.testing import test_filter
 
-_FILTERED_TESTS = {}
+_FILTERED_TESTS = {
+    'nplb': [
+        # Windows uses a special time zone format that ICU accepts, so we don't
+        # enforce IANA.
+        # TODO(b/304335954): Re-enable the test for UWP after fixing DST
+        # implementation.
+        'SbTimeZoneGetNameTest.IsIANAFormat',
+    ],
+}
 
 
 class TestFilters(object):

@@ -38,6 +38,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 /** A wrapper of the android MediaDrm class. */
@@ -372,6 +373,11 @@ public class MediaDrmBridge {
       throws android.media.UnsupportedSchemeException {
     mSchemeUUID = schemeUUID;
     mMediaDrm = new MediaDrm(schemeUUID);
+
+    // Get info of hdcp connection
+    if (Build.VERSION.SDK_INT >= 29) {
+      getConnectedHdcpLevelInfoV29(mMediaDrm);
+    }
 
     mNativeMediaDrmBridge = nativeMediaDrmBridge;
     if (!isNativeMediaDrmBridgeValid()) {
@@ -736,6 +742,40 @@ public class MediaDrmBridge {
   @RequiresApi(28)
   private void closeMediaDrmV28(MediaDrm mediaDrm) {
     mediaDrm.close();
+  }
+
+  @RequiresApi(29)
+  private void getConnectedHdcpLevelInfoV29(MediaDrm mediaDrm) {
+    int hdcpLevel = mediaDrm.getConnectedHdcpLevel();
+    switch (hdcpLevel) {
+      case MediaDrm.HDCP_V1:
+        Log.i(TAG, "MediaDrm HDCP Level is HDCP_V1.");
+        break;
+      case MediaDrm.HDCP_V2:
+        Log.i(TAG, "MediaDrm HDCP Level is HDCP_V2.");
+        break;
+      case MediaDrm.HDCP_V2_1:
+        Log.i(TAG, "MediaDrm HDCP Level is HDCP_V2_1.");
+        break;
+      case MediaDrm.HDCP_V2_2:
+        Log.i(TAG, "MediaDrm HDCP Level is HDCP_V2_2.");
+        break;
+      case MediaDrm.HDCP_V2_3:
+        Log.i(TAG, "MediaDrm HDCP Level is HDCP_V2_3.");
+        break;
+      case MediaDrm.HDCP_NONE:
+        Log.i(TAG, "MediaDrm HDCP Level is HDCP_NONE.");
+        break;
+      case MediaDrm.HDCP_NO_DIGITAL_OUTPUT:
+        Log.i(TAG, "MediaDrm HDCP Level is HDCP_NO_DIGITAL_OUTPUT.");
+        break;
+      case MediaDrm.HDCP_LEVEL_UNKNOWN:
+        Log.i(TAG, "MediaDrm HDCP Level is HDCP_LEVEL_UNKNOWN.");
+        break;
+      default:
+        Log.i(TAG, String.format(Locale.US, "Unknown MediaDrm HDCP level %d.", hdcpLevel));
+        break;
+    }
   }
 
   private boolean isNativeMediaDrmBridgeValid() {

@@ -4296,7 +4296,7 @@ typedef enum {
   VG_USERREQ__COUNT_ERRORS = 0x1201,
 
   /* These are useful and can be interpreted by any tool that
-     tracks SbMemoryAllocate() et al, by using vg_replace_SbMemoryAllocate.c. */
+     tracks malloc() et al, by using vg_replace_malloc.c. */
   VG_USERREQ__MALLOCLIKE_BLOCK = 0x1301,
   VG_USERREQ__FREELIKE_BLOCK = 0x1302,
   /* Memory pool support. */
@@ -4570,8 +4570,8 @@ VALGRIND_PRINTF_BACKTRACE(const char *format, ...)
 /* Several Valgrind tools (Memcheck, Massif, Helgrind, DRD) rely on knowing
    when heap blocks are allocated in order to give accurate results.  This
    happens automatically for the standard allocator functions such as
-   SbMemoryAllocate(), calloc(), SbMemoryReallocate(), memalign(), new, new[],
-   SbMemoryDeallocate(), delete, delete[], etc.
+   malloc(), calloc(), realloc(), memalign(), new, new[],
+   free(), delete, delete[], etc.
 
    But if your program uses a custom allocator, this doesn't automatically
    happen, and Valgrind will not do as well.  For example, if you allocate
@@ -4586,7 +4586,7 @@ VALGRIND_PRINTF_BACKTRACE(const char *format, ...)
    that it can be handled accurately by Valgrind.
 
    VALGRIND_MALLOCLIKE_BLOCK marks a region of memory as having been allocated
-   by a SbMemoryAllocate()-like function.  For Memcheck (an illustrative case),
+   by a malloc()-like function.  For Memcheck (an illustrative case),
    this does two things:
 
    - It records that the block has been allocated.  This means any addresses

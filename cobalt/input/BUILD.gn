@@ -51,6 +51,6 @@ static_library("input") {
     "//cobalt/overlay_info",
     "//cobalt/speech",
     "//cobalt/system_window",
-    "//starboard",
+    "//starboard:starboard_group",
   ]
 }

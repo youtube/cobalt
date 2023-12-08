@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/build/config/os_definitions.gni")
+
 _elf_loader_sources = [
   "dynamic_section.cc",
   "dynamic_section.h",
@@ -54,7 +56,7 @@ static_library("elf_loader") {
     ":constants",
     ":evergreen_config",
     ":evergreen_info",
-    "//starboard",
+    "//starboard:starboard_group",
     "//starboard/common",
     "//third_party/lz4_lib:lz4",
   ]
@@ -76,7 +78,7 @@ if (sb_is_evergreen_compatible) {
       ":constants",
       ":evergreen_config",
       ":evergreen_info",
-      "//starboard",
+      "//starboard:starboard_group",
       "//starboard/common",
     ]
 
@@ -88,7 +90,8 @@ if (sb_is_evergreen_compatible) {
   }
 }
 
-if (current_toolchain == starboard_toolchain) {
+# TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
+if (current_toolchain == starboard_toolchain && !is_host_win) {
   target(starboard_level_final_executable_type, "elf_loader_sandbox") {
     data_deps = [ "//third_party/icu:icudata" ]
     if (cobalt_font_package == "empty") {
@@ -100,7 +103,7 @@ if (current_toolchain == starboard_toolchain) {
       ]
     }
 
-    sources = [ "sandbox.cc" ]
+    sources = [ "elf_loader_sandbox.cc" ]
     configs += [ ":elf_loader_config" ]
 
     deps = [
@@ -109,7 +112,7 @@ if (current_toolchain == starboard_toolchain) {
       ":evergreen_info",
       ":sabi_string",
       "//cobalt/content/fonts:copy_font_data",
-      "//starboard",
+      "//starboard:starboard_group",
     ]
 
     if (!sb_is_evergreen_compatible) {
@@ -131,7 +134,7 @@ if (sb_is_evergreen_compatible) {
     # Example run:
     # export LD_LIBRARY_PATH=.
     # ./elf_loader_sys_sandbox --evergreen_library=app/cobalt/lib/libcobalt.so --evergreen_content=app/cobalt/content
-    sources = [ "sandbox.cc" ]
+    sources = [ "elf_loader_sandbox.cc" ]
     configs += [ ":elf_loader_config" ]
 
     starboard_syms_path =
@@ -146,7 +149,7 @@ if (sb_is_evergreen_compatible) {
       ":elf_loader_sys",
       ":evergreen_info",
       ":sabi_string",
-      "//starboard",
+      "//starboard:starboard_group",
     ]
 
     if (!sb_is_evergreen_compatible) {
@@ -155,31 +158,34 @@ if (sb_is_evergreen_compatible) {
   }
 }
 
-target(gtest_target_type, "elf_loader_test") {
-  testonly = true
-  sources = [ "//starboard/common/test_main.cc" ]
-  deps = [
-    "//starboard",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
-
-  if (target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" ||
-      target_cpu == "arm64") {
-    sources += [
-      "dynamic_section_test.cc",
-      "elf_header_test.cc",
-      "elf_loader_test.cc",
-      "lz4_file_impl_test.cc",
-      "program_table_test.cc",
-      "relocations_test.cc",
-    ]
-    deps += [
-      ":copy_elf_loader_testdata",
-      ":elf_loader",
+# TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
+if (!is_host_win) {
+  target(gtest_target_type, "elf_loader_test") {
+    testonly = true
+    sources = [ "//starboard/common/test_main.cc" ]
+    deps = [
+      "//starboard:starboard_group",
+      "//testing/gmock",
+      "//testing/gtest",
     ]
 
-    data_deps = [ ":copy_elf_loader_testdata" ]
+    if (target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" ||
+        target_cpu == "arm64") {
+      sources += [
+        "dynamic_section_test.cc",
+        "elf_header_test.cc",
+        "elf_loader_test.cc",
+        "lz4_file_impl_test.cc",
+        "program_table_test.cc",
+        "relocations_test.cc",
+      ]
+      deps += [
+        ":copy_elf_loader_testdata",
+        ":elf_loader",
+      ]
+
+      data_deps = [ ":copy_elf_loader_testdata" ]
+    }
   }
 }
 

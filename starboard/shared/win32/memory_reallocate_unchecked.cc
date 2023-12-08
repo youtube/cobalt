@@ -14,6 +14,7 @@
 
 #include "starboard/memory.h"
 
+#if SB_API_VERSION < 16
 #include <windows.h>
 
 void* SbMemoryReallocateUnchecked(void* memory, size_t size) {
@@ -22,3 +23,5 @@ void* SbMemoryReallocateUnchecked(void* memory, size_t size) {
   }
   return HeapReAlloc(GetProcessHeap(), 0, memory, size);
 }
+
+#endif  // SB_API_VERSION < 16

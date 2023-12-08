@@ -144,7 +144,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # not be able to fit the entire test target with content folder.
     # Therefore the test data will be uploaded to /data partition and create
     # symlink under /usr/share/content/data/app for loader to use.
-    rdk_storage_dir = '/data'  #/data has much more free space than /usr on RDK
+    rdk_storage_dir = '/data/cobalt_test_data'
 
     # rsync command setup
     options = '-avzLhc'
@@ -170,7 +170,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
                               f'{rdk_test_dir}/cobalt')
 
     # test output tags
-    self.test_complete_tag = 'test suites ran.'
+    self.test_complete_tag_1 = 'test suite ran.'
+    self.test_complete_tag_2 = 'test suites ran.'
     self.test_failure_tag = 'tests, listed below'
     self.test_success_tag = 'succeeded'
 
@@ -273,7 +274,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
           return
         # Check for the test complete tag. It will be followed by either a
         # success or failure tag.
-        if line.find(self.test_complete_tag) != -1:
+        if (line.find(self.test_complete_tag_1) != -1 or
+            line.find(self.test_complete_tag_2) != -1):
           self.return_value = 0
           return
 

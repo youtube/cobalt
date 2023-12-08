@@ -18,15 +18,15 @@
 
 extern "C" {
 
-SHIM_ALWAYS_EXPORT void* SbMemoryAllocate(size_t size) __THROW {
+SHIM_ALWAYS_EXPORT void* malloc(size_t size) __THROW {
   return ShimMalloc(size, nullptr);
 }
 
-SHIM_ALWAYS_EXPORT void SbMemoryDeallocate(void* ptr) __THROW {
+SHIM_ALWAYS_EXPORT void free(void* ptr) __THROW {
   ShimFree(ptr, nullptr);
 }
 
-SHIM_ALWAYS_EXPORT void* SbMemoryReallocate(void* ptr, size_t size) __THROW {
+SHIM_ALWAYS_EXPORT void* realloc(void* ptr, size_t size) __THROW {
   return ShimRealloc(ptr, size, nullptr);
 }
 

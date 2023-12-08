@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Performance Tuning"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Performance Tuning
 
 Cobalt is designed to choose sensible parameters for all performance-related

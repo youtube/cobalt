@@ -34,7 +34,7 @@ void TerminateBecauseOutOfMemory(size_t size) {
 // failure to allocate.
 
 bool UncheckedMalloc(size_t size, void** result) {
-  *result = SbMemoryAllocate(size);
+  *result = malloc(size);
   return *result != nullptr;
 }
 

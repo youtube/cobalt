@@ -30,5 +30,6 @@ no_pedantic_warnings_config_path =
     "//starboard/stub/platform_configuration:no_pedantic_warnings"
 
 is_clang_16 = true
+assert(!is_host_win, "Stub build is not (yet) supported on windows host")
 
 v8_enable_webassembly = true

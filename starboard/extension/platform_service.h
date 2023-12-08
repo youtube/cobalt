@@ -75,7 +75,7 @@ typedef struct CobaltExtensionPlatformServiceApi {
   // Send |data| of length |length| to |service|. If there is a synchronous
   // response, it will be returned via void* and |output_length| will be set
   // to its length. The returned void* will be owned by the caller, and must
-  // be deallocated via SbMemoryDeallocate() by the caller when appropriate.
+  // be deallocated via free() by the caller when appropriate.
   // If there is no synchronous response, NULL will be returned and
   // |output_length| will be 0. The |invalid_state| will be set to true if the
   // service is not currently able to accept data, and otherwise will be set to

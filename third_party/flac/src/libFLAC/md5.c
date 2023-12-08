@@ -2,10 +2,6 @@
 #  include <config.h>
 #endif
 
-#ifndef STARBOARD
-#include <stdlib.h>		/* for malloc() */
-#include <string.h>		/* for memcpy() */
-#endif  // STARBOARD
 #include "starboard/client_porting/poem/stdio_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
 
@@ -15,6 +11,9 @@
 #ifndef FLaC__INLINE
 #define FLaC__INLINE
 #endif
+
+#include <string.h>		/* for memcpy() */
+#include <stdlib.h>		/* for malloc() */
 
 /*
  * This code implements the MD5 message-digest algorithm.

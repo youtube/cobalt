@@ -104,5 +104,22 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
   return false;
 }
 
+void H5vccSettings::SetPersistentSettingAsInt(const std::string& key,
+                                              int value) const {
+  if (persistent_settings_) {
+    persistent_settings_->SetPersistentSetting(
+        key, std::make_unique<base::Value>(value));
+  }
+}
+
+int H5vccSettings::GetPersistentSettingAsInt(const std::string& key,
+                                             int default_setting) const {
+  if (persistent_settings_) {
+    return persistent_settings_->GetPersistentSettingAsInt(key,
+                                                           default_setting);
+  }
+  return default_setting;
+}
+
 }  // namespace h5vcc
 }  // namespace cobalt

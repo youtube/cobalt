@@ -34,10 +34,10 @@ namespace dom {
 namespace testing {
 
 // Helper class for running tests in a Window JavaScript context.
-class TestWithJavaScript : public ::testing::Test {
+class TestWithJavaScriptBase {
  public:
-  TestWithJavaScript() { stub_window_.reset(new StubWindow()); }
-  ~TestWithJavaScript() {
+  TestWithJavaScriptBase() { stub_window_.reset(new StubWindow()); }
+  virtual ~TestWithJavaScriptBase() {
     stub_window_.reset();
     EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
   }
@@ -94,13 +94,16 @@ class TestWithJavaScript : public ::testing::Test {
     global_environment()->EnableEval();
     global_environment()->SetReportEvalCallback(base::Closure());
     return script::SourceCode::CreateSourceCode(
-        js_code, base::SourceLocation(__FILE__, __LINE__, 1));
+        js_code, base::SourceLocation(js_code.c_str(), 1, 1));
   }
 
   std::unique_ptr<StubWindow> stub_window_;
   ::testing::StrictMock<script::testing::MockExceptionState> exception_state_;
   base::EventDispatcher event_dispatcher_;
 };
+
+class TestWithJavaScript : public TestWithJavaScriptBase,
+                           public ::testing::Test {};
 
 }  // namespace testing
 }  // namespace dom

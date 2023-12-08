@@ -10,5 +10,5 @@
 #include "starboard/types.h"
 
 void* MallocWrapper(size_t size) {
-  return SbMemoryAllocate(size);
+  return malloc(size);
 }

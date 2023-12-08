@@ -28,7 +28,7 @@
 namespace {
 
 struct AlignedMemoryDeleter {
-  void operator()(uint8_t* p) { SbMemoryDeallocateAligned(p); }
+  void operator()(uint8_t* p) { free(p); }
 };
 
 class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
@@ -41,8 +41,10 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
   void ResetAllocator(std::size_t initial_capacity = 0,
                       std::size_t small_allocation_threshold = 0,
                       std::size_t allocation_increment = 0) {
-    buffer_.reset(static_cast<uint8_t*>(SbMemoryAllocateAligned(
-        starboard::common::Allocator::kMinAlignment, kBufferSize)));
+    void* tmp = nullptr;
+    posix_memalign(&tmp, starboard::common::Allocator::kMinAlignment,
+                   kBufferSize);
+    buffer_.reset(static_cast<uint8_t*>(tmp));
 
     std::unique_ptr<starboard::common::FixedNoFreeAllocator> fallback_allocator(
         new starboard::common::FixedNoFreeAllocator(buffer_.get(),

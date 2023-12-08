@@ -31,17 +31,20 @@ using web::testing::MockEventListener;
 
 namespace {
 
-class ServiceWorkerGlobalScopeTest
-    : public testing::TestServiceWorkerWithJavaScript {
+class ServiceWorkerGlobalScopeTestBase {
  protected:
-  ServiceWorkerGlobalScopeTest() {
+  ServiceWorkerGlobalScopeTestBase() {
     fake_event_listener_ = MockEventListener::Create();
   }
 
-  ~ServiceWorkerGlobalScopeTest() override {}
+  virtual ~ServiceWorkerGlobalScopeTestBase() {}
 
   std::unique_ptr<MockEventListener> fake_event_listener_;
 };
+
+class ServiceWorkerGlobalScopeTest
+    : public ServiceWorkerGlobalScopeTestBase,
+      public testing::TestServiceWorkerWithJavaScript {};
 
 }  // namespace
 
@@ -141,6 +144,55 @@ TEST_F(ServiceWorkerGlobalScopeTest, OnInstallEvent) {
                              &result));
   EXPECT_EQ("handled", result);
 }
+
+
+namespace {
+class ServiceWorkerGlobalScopeTestEventTest
+    : public ServiceWorkerGlobalScopeTestBase,
+      public testing::TestServiceWorkerWithJavaScriptBase,
+      public ::testing::TestWithParam<const char*> {};
+
+std::string GetEventName(::testing::TestParamInfo<const char*> info) {
+  return std::string(info.param);
+}
+
+const char* events[] = {"activate", "fetch", "install"};
+}  // namespace
+
+TEST_P(ServiceWorkerGlobalScopeTestEventTest, AddEventListener) {
+  const char* event_name = GetParam();
+  worker_global_scope()->AddEventListener(
+      event_name,
+      FakeScriptValue<web::EventListener>(fake_event_listener_.get()), true);
+  fake_event_listener_->ExpectHandleEventCall(event_name,
+                                              worker_global_scope());
+  worker_global_scope()->DispatchEvent(new web::Event(event_name));
+}
+
+TEST_P(ServiceWorkerGlobalScopeTestEventTest, OnEvent) {
+  const char* event_name = GetParam();
+  std::string result;
+  EXPECT_TRUE(EvaluateScript(base::StringPrintf("typeof this.on%s", event_name),
+                             &result));
+  EXPECT_EQ("object", result);
+
+  EXPECT_TRUE(
+      EvaluateScript(base::StringPrintf(R"(
+    logString = '(empty)';
+    self.on%s = function() {
+      logString = '%s';
+    };
+    self.dispatchEvent(new Event('%s'));
+    logString;
+  )",
+                                        event_name, event_name, event_name),
+                     &result));
+  EXPECT_EQ(event_name, result);
+}
+
+INSTANTIATE_TEST_CASE_P(ServiceWorkerGlobalScopeTest,
+                        ServiceWorkerGlobalScopeTestEventTest,
+                        ::testing::ValuesIn(events), GetEventName);
 
 // Note: message and messageerror are tested in WorkerGlobalScopeTest because
 // they exist in both DedicatedWorkerGlobalScope and ServiceWorkerGlobalScope.

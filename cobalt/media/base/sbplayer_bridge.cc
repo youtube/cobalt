@@ -731,6 +731,14 @@ void SbPlayerBridge::CreatePlayer() {
 
   is_creating_player_ = true;
 
+  if (output_mode_ == kSbPlayerOutputModeInvalid) {
+    PlayerErrorCB(kSbPlayerInvalid, this, kSbPlayerErrorDecode,
+                  "Invalid output mode returned by "
+                  "SbPlayerBridge::ComputeSbPlayerOutputMode()");
+    is_creating_player_ = false;
+    return;
+  }
+
   if (max_video_capabilities_.empty()) {
     FormatSupportQueryMetrics::PrintAndResetMetrics();
   }
@@ -1268,7 +1276,6 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
 
   LOG(INFO) << "Output mode is set to " << GetPlayerOutputModeName(output_mode);
 
-  CHECK_NE(kSbPlayerOutputModeInvalid, output_mode);
   return output_mode;
 }
 

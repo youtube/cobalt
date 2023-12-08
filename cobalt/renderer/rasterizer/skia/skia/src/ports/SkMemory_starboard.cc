@@ -38,21 +38,21 @@ void sk_abort_no_print() { SbSystemBreakIntoDebugger(); }
 void sk_out_of_memory(void) { SbSystemBreakIntoDebugger(); }
 
 void* sk_realloc_throw(void* addr, size_t size) {
-  return throw_on_failure(size, SbMemoryReallocate(addr, size));
+  return throw_on_failure(size, realloc(addr, size));
 }
 
 void sk_free(void* p) {
   if (p) {
-    SbMemoryDeallocate(p);
+    free(p);
   }
 }
 
 void* sk_malloc_flags(size_t size, unsigned flags) {
   void* p;
   if (flags & SK_MALLOC_ZERO_INITIALIZE) {
-    p = SbMemoryCalloc(size, 1);
+    p = calloc(size, 1);
   } else {
-    p = SbMemoryAllocate(size);
+    p = malloc(size);
   }
   if (flags & SK_MALLOC_THROW) {
     return throw_on_failure(size, p);

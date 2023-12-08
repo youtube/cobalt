@@ -212,8 +212,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     if (bridge_.GetAndResetHasAudioDeviceChanged(env)) {
       SB_LOG(INFO) << "Audio device changed, raising a capability changed "
                       "error to restart playback.";
-      ReportError(kSbPlayerErrorCapabilityChanged,
-                  "Audio device capability changed");
+      ReportError(true, "Audio device capability changed");
       break;
     }
 
@@ -317,11 +316,8 @@ void AudioTrackAudioSink::AudioThreadFunc() {
         auto sync_time = start_time_ + accumulated_written_frames *
                                            kSbTimeSecond /
                                            sampling_frequency_hz_;
-        // Not necessary to handle error of WriteData(), even for
-        // kAudioTrackErrorDeadObject, as the audio has reached the end of
-        // stream.
-        // TODO: Ensure that the audio stream can still reach the end when an
-        //       error occurs.
+        // Not necessary to handle error of WriteData(), as the audio has
+        // reached the end of stream.
         WriteData(env, silence_buffer.data(), silence_frames_per_append,
                   sync_time);
       }
@@ -350,16 +346,14 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     SbTime now = SbTimeGetMonotonicNow();
 
     if (written_frames < 0) {
-      // Take all |frames_in_audio_track| as consumed since audio track could be
-      // dead.
-      consume_frames_func_(frames_in_audio_track, now, context_);
-
-      bool capabilities_changed =
-          written_frames == AudioTrackBridge::kAudioTrackErrorDeadObject;
-      ReportError(
-          capabilities_changed,
-          FormatString("Error while writing frames: %d", written_frames));
-      SB_LOG(INFO) << "Restarting playback.";
+      if (written_frames == AudioTrackBridge::kAudioTrackErrorDeadObject) {
+        // There might be an audio device change, try to recreate the player.
+        ReportError(true,
+                    "Failed to write data and received dead object error.");
+      } else {
+        ReportError(false, FormatString("Failed to write data and received %d.",
+                                        written_frames));
+      }
       break;
     } else if (written_frames > 0) {
       last_written_succeeded_at = now;

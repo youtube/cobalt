@@ -48,7 +48,7 @@ SbThreadLocalKey SbThreadCreateLocalKeyInternal(
   }
 
   SbThreadLocalKeyPrivate* result = static_cast<SbThreadLocalKeyPrivate*>(
-      SbMemoryAllocate(sizeof(SbThreadLocalKeyPrivate)));
+      malloc(sizeof(SbThreadLocalKeyPrivate)));
 
   if (result == nullptr) {
     return kSbThreadLocalKeyInvalid;

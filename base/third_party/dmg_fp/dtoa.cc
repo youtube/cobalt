@@ -111,7 +111,7 @@
  *	if memory is available and otherwise does something you deem
  *	appropriate.  If MALLOC is undefined, malloc will be invoked
  *	directly -- and assumed always to succeed.  Similarly, if you
- *	want something other than the system's SbMemoryDeallocate() to be called to
+ *	want something other than the system's free() to be called to
  *	recycle memory acquired from MALLOC, #define FREE to be the
  *	name of the alternate routine.  (FREE or free is only called in
  *	pathological cases, e.g., in a dtoa call after a dtoa return in
@@ -230,7 +230,7 @@ extern void *MALLOC(size_t);
 #endif
 #else
 #ifdef STARBOARD
-#define MALLOC SbMemoryAllocate
+#define MALLOC malloc
 #else
 #define MALLOC malloc
 #endif  // STARBOARD
@@ -610,7 +610,7 @@ Bfree
 #ifdef FREE
 			FREE((void*)v);
 #else
-                  SbMemoryDeallocate((void*)v);
+                  free((void*)v);
 #endif
 		else {
 			ACQUIRE_DTOA_LOCK(0);

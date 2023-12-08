@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Enabling Spherical Video in Cobalt"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Enabling Spherical Video in Cobalt
 
 Cobalt supports playback of 360 spherical videos.  Cobalt does not expose

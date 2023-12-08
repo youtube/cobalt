@@ -150,7 +150,7 @@ TEST(SecurityTest, MALLOC_OVERFLOW_TEST(RandomMemoryAllocations)) {
   // the sophisticated allocators.
   size_t kAllocSize = 1<<20;
   std::unique_ptr<char, base::FreeDeleter> ptr(
-      static_cast<char*>(SbMemoryAllocate(kAllocSize)));
+      static_cast<char*>(malloc(kAllocSize)));
   ASSERT_TRUE(ptr != nullptr);
   // If two pointers are separated by less than 512MB, they are considered
   // to be in the same area.

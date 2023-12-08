@@ -49,6 +49,7 @@
 #include "net/third_party/quic/platform/api/quic_flags.h"
 #include "net/url_request/data_protocol_handler.h"
 #include "net/url_request/url_request_job_factory_impl.h"
+#include "starboard/configuration_constants.h"
 
 namespace {
 

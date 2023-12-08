@@ -247,7 +247,7 @@ component("media") {
     "//build:chromecast_buildflags",
     "//build:chromeos_buildflags",
     "//net",
-    "//starboard",
+    "//starboard:starboard_group",
     "//url",
   ]
 }

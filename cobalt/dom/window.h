@@ -283,6 +283,21 @@ class Window : public web::WindowOrWorkerGlobalScope,
   scoped_refptr<Storage> local_storage() const;
   scoped_refptr<Storage> session_storage() const;
 
+  // Web API: WindowEventHandlers (implements)
+  const EventListenerScriptValue* onhashchange() {
+    return GetAttributeEventListener(base::Tokens::hashchange());
+  }
+  void set_onhashchange(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::hashchange(), event_listener);
+  }
+
+  const EventListenerScriptValue* onunload() {
+    return GetAttributeEventListener(base::Tokens::unload());
+  }
+  void set_onunload(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::unload(), event_listener);
+  }
+
   // Access to the Performance API (partial interface)
   //   https://dvcs.w3.org/hg/webperf/raw-file/tip/specs/NavigationTiming/Overview.html#sec-window.performance-attribute
   const scoped_refptr<Performance>& performance() const;

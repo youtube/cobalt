@@ -20,7 +20,14 @@ JavaScript values.
 from optparse import OptionParser  # pylint: disable=deprecated-module
 import os
 import pickle
+import sys
 
+bindings_dir = os.path.join(
+    os.path.dirname(__file__),
+    '../../third_party/blink/Source/bindings/scripts')
+sys.path.insert(0, bindings_dir)
+
+# pylint:disable=wrong-import-position
 from utilities import ComponentInfoProviderCobalt
 from utilities import write_file
 

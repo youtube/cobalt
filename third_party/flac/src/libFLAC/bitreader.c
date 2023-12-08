@@ -34,7 +34,6 @@
 #endif
 
 #ifndef STARBOARD
-#include <stdlib.h> /* for malloc() */
 #include <string.h> /* for memcpy(), memset() */
 #if defined(_MSC_VER) && defined(HAVE_WINSOCK_H)
 #include <winsock.h> /* for ntohl() */
@@ -48,6 +47,9 @@
 #endif  // STARBOARD
 #include "starboard/client_porting/poem/stdio_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
+
+#include <stdlib.h> /* for malloc() */
+
 #include "private/bitmath.h"
 #include "private/bitreader.h"
 #include "private/crc.h"

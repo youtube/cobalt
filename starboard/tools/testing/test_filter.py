@@ -19,6 +19,13 @@
 FILTER_ALL = 'FILTER_ALL'
 DISABLE_TESTING = 'DISABLE_TESTING'
 
+EVERGREEN_ONLY_TESTS = {
+    'elf_loader_test': {FILTER_ALL},
+    'installation_manager_test': {FILTER_ALL},
+    'reset_evergreen_update_test': {FILTER_ALL},
+    'slot_management_test': {FILTER_ALL},
+}
+
 
 class TestFilter(object):
   """Container for data used to filter out a unit test.

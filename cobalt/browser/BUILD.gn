@@ -199,7 +199,7 @@ static_library("browser") {
     "//components/metrics_services_manager",
     "//crypto",
     "//net",
-    "//starboard",
+    "//starboard:starboard_group",
     "//starboard/common",
     "//third_party/icu:icui18n",
     "//third_party/protobuf:protobuf_lite",

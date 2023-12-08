@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Porting Cobalt to your Platform with Starboard"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Porting Cobalt to your Platform with Starboard
 
 This document provides step-by-step instructions for porting Cobalt to run
 on your platform. To do so, you'll use Starboard, which is Cobalt's porting

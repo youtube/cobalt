@@ -382,7 +382,7 @@ PromiseWrappable SubtleCrypto::ImportKey(
         algorithm.AsType<ImportKeyAlgorithmParams>();
     // 29.6.2 Set hash to equal the hash member of normalizedAlgorithm.
     if (algo_params.has_hash()) {
-      cryptoKey->set_hash(algo_params.hash());
+      cryptoKey->set_hash(get_name_or_string(algo_params.hash()));
     }
   }
   // 12. Resolve promise with result.

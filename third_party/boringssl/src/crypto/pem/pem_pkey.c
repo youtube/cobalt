@@ -56,10 +56,10 @@
 
 #include <openssl/pem.h>
 
-#if !defined(OPENSSL_SYS_STARBOARD)
+#if !defined(OPENSSL_SYS_STARBOARD) || SB_API_VERSION >= 16
 #include <stdio.h>
 #include <string.h>
-#endif  // !defined(OPENSSL_SYS_STARBOARD)
+#endif  // !defined(OPENSSL_SYS_STARBOARD) || SB_API_VERSION >= 16
 
 #include <openssl/buf.h>
 #include <openssl/dh.h>

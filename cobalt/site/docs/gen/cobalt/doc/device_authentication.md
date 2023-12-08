@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Device Authentication"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Device Authentication
 
 Starting in Cobalt 20, initial URL requests will now have query parameters

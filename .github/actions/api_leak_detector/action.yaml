@@ -18,4 +18,9 @@ runs:
         if [ "${{ inputs.relative_manifest_path }}" != "" ]; then
           MANIFEST_FLAG="--relative-manifest-path ${{ matrix.target_platform }}/${{matrix.config}}/${{ inputs.relative_manifest_path }}"
         fi
-        python3 starboard/tools/api_leak_detector/api_leak_detector.py -p ${{ matrix.target_platform }} -c ${{matrix.config}} --submit-check $MANIFEST_FLAG
+        if [ -z "${{matrix.sb_api_version}}"]; then
+          SB_API_VERSION_FLAG=""
+        else
+          SB_API_VERSION_FLAG="--sb_api_version=${{matrix.sb_api_version}}"
+        fi
+        python3 starboard/tools/api_leak_detector/api_leak_detector.py -p ${{ matrix.target_platform }} -c ${{matrix.config}} --submit-check $MANIFEST_FLAG ${SB_API_VERSION_FLAG}

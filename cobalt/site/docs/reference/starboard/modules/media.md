@@ -1,28 +1,28 @@
----
-layout: doc
-title: "Starboard Module Reference: media.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: `media.h`
 
 Provides media definitions that are common between the Decoder and Player
 interfaces.
 
-## Macros ##
+## Macros
 
-### kSbMediaBitsPerPixelInvalid ###
+### kSbMediaBitsPerPixelInvalid
 
 Value used when a video's bits per pixel is not known.
 
-### kSbMediaVideoResolutionDimensionInvalid ###
+### kSbMediaVideoResolutionDimensionInvalid
 
 Value used when a video's resolution is not known.
 
-## Enums ##
+## Enums
 
-### SbMediaAudioCodec ###
+### SbMediaAudioCodec
 
 Types of audio elementary streams that can be supported.
 
-#### Values ####
+#### Values
 
 *   `kSbMediaAudioCodecNone`
 *   `kSbMediaAudioCodecAac`
@@ -35,11 +35,11 @@ Types of audio elementary streams that can be supported.
 *   `kSbMediaAudioCodecPcm`
 *   `kSbMediaAudioCodecIamf`
 
-### SbMediaAudioCodingType ###
+### SbMediaAudioCodingType
 
 Possible audio coding types.
 
-#### Values ####
+#### Values
 
 *   `kSbMediaAudioCodingTypeNone`
 *   `kSbMediaAudioCodingTypeAac`
@@ -53,11 +53,11 @@ Possible audio coding types.
 *   `kSbMediaAudioCodingTypeMpeg3`
 *   `kSbMediaAudioCodingTypePcm`
 
-### SbMediaAudioConnector ###
+### SbMediaAudioConnector
 
 Possible audio connector types.
 
-#### Values ####
+#### Values
 
 *   `kSbMediaAudioConnectorUnknown`
 *   `kSbMediaAudioConnectorAnalog`
@@ -76,11 +76,11 @@ Possible audio connector types.
 *   `kSbMediaAudioConnectorSpdif`
 *   `kSbMediaAudioConnectorUsb`
 
-### SbMediaAudioFrameStorageType ###
+### SbMediaAudioFrameStorageType
 
 Possible audio frame storage types.
 
-#### Values ####
+#### Values
 
 *   `kSbMediaAudioFrameStorageTypeInterleaved`
 
@@ -96,22 +96,22 @@ Possible audio frame storage types.
     with timestamps 0, 1, 2, etc., the samples are stored in two buffers "L0 L1
     L2 ..." and "R0 R1 R2 ...".
 
-### SbMediaAudioSampleType ###
+### SbMediaAudioSampleType
 
 Possible audio sample types.
 
-#### Values ####
+#### Values
 
 *   `kSbMediaAudioSampleTypeInt16Deprecated`
 *   `kSbMediaAudioSampleTypeFloat32`
 
-### SbMediaRangeId ###
+### SbMediaRangeId
 
 This corresponds to the WebM Range enum which is part of WebM color data (see [http://www.webmproject.org/docs/container/#Range](http://www.webmproject.org/docs/container/#Range)
 ). H.264 only uses a bool, which corresponds to the LIMITED/FULL values. Chrome-
 specific values start at 1000.
 
-#### Values ####
+#### Values
 
 *   `kSbMediaRangeIdUnspecified`
 
@@ -127,13 +127,13 @@ specific values start at 1000.
     Range is defined by TransferId/MatrixId.
 *   `kSbMediaRangeIdLast`
 
-### SbMediaSupportType ###
+### SbMediaSupportType
 
 Indicates how confident the device is that it can play media resources of the
 given type. The values are a direct map of the canPlayType() method specified at
 the following link: [https://www.w3.org/TR/2011/WD-html5-20110113/video.html#dom-navigator-canplaytype](https://www.w3.org/TR/2011/WD-html5-20110113/video.html#dom-navigator-canplaytype)
 
-#### Values ####
+#### Values
 
 *   `kSbMediaSupportTypeNotSupported`
 
@@ -145,11 +145,11 @@ the following link: [https://www.w3.org/TR/2011/WD-html5-20110113/video.html#dom
 
     The media type seems to be playable.
 
-### SbMediaType ###
+### SbMediaType
 
 Types of media component streams.
 
-#### Values ####
+#### Values
 
 *   `kSbMediaTypeAudio`
 
@@ -158,11 +158,11 @@ Types of media component streams.
 
     Value used for video streams.
 
-### SbMediaVideoCodec ###
+### SbMediaVideoCodec
 
 Types of video elementary streams that could be supported.
 
-#### Values ####
+#### Values
 
 *   `kSbMediaVideoCodecNone`
 *   `kSbMediaVideoCodecH264`
@@ -174,14 +174,14 @@ Types of video elementary streams that could be supported.
 *   `kSbMediaVideoCodecVp8`
 *   `kSbMediaVideoCodecVp9`
 
-## Structs ##
+## Structs
 
-### SbMediaAudioConfiguration ###
+### SbMediaAudioConfiguration
 
 A structure describing the audio configuration parameters of a single audio
 output.
 
-#### Members ####
+#### Members
 
 *   `SbMediaAudioConnector connector`
 
@@ -200,11 +200,11 @@ output.
     `0` if this device cannot provide this information, in which case the caller
     can probably assume stereo output.
 
-### SbMediaAudioSampleInfo ###
+### SbMediaAudioSampleInfo
 
 The set of information required by the decoder or player for each audio sample.
 
-#### Members ####
+#### Members
 
 *   `SbMediaAudioStreamInfo stream_info`
 
@@ -212,11 +212,11 @@ The set of information required by the decoder or player for each audio sample.
 *   `SbTime discarded_duration_from_front`
 *   `SbTime discarded_duration_from_back`
 
-### SbMediaAudioStreamInfo ###
+### SbMediaAudioStreamInfo
 
 The set of information required by the decoder or player for each audio stream.
 
-#### Members ####
+#### Members
 
 *   `SbMediaAudioCodec codec`
 
@@ -242,14 +242,14 @@ The set of information required by the decoder or player for each audio stream.
 
     The AudioSpecificConfig, as specified in ISO/IEC-14496-3, section 1.6.2.1: [http://read.pudn.com/downloads98/doc/comm/401153/14496/ISO_IEC_14496-3%20Part%203%20Audio/C036083E_SUB1.PDF](http://read.pudn.com/downloads98/doc/comm/401153/14496/ISO_IEC_14496-3%20Part%203%20Audio/C036083E_SUB1.PDF)
 
-### SbMediaColorMetadata ###
+### SbMediaColorMetadata
 
 HDR (High Dynamic Range) Metadata common for HDR10 and WebM/VP9-based HDR
 formats, together with the ColorSpace. HDR reproduces a greater dynamic range of
 luminosity than is possible with standard digital imaging. See the Consumer
 Electronics Association press release: [https://www.cta.tech/News/Press-Releases/2015/August/CEA-Defines-%E2%80%98HDR-Compatible%E2%80%99-Displays.aspx](https://www.cta.tech/News/Press-Releases/2015/August/CEA-Defines-%E2%80%98HDR-Compatible%E2%80%99-Displays.aspx)
 
-#### Members ####
+#### Members
 
 *   `unsigned int bits_per_channel`
 
@@ -330,7 +330,7 @@ Electronics Association press release: [https://www.cta.tech/News/Press-Releases
     a row-major ordered 3 x 4 submatrix of the 4 x 4 transform matrix. The 4th
     row is completed as (0, 0, 0, 1).
 
-### SbMediaMasteringMetadata ###
+### SbMediaMasteringMetadata
 
 SMPTE 2086 mastering data [http://ieeexplore.ieee.org/document/7291707/](http://ieeexplore.ieee.org/document/7291707/)
 This standard specifies the metadata items to specify the color volume (the
@@ -339,7 +339,7 @@ in mastering video content. The metadata is specified as a set of values
 independent of any specific digital representation. Also see the WebM container
 guidelines: [https://www.webmproject.org/docs/container/](https://www.webmproject.org/docs/container/)
 
-#### Members ####
+#### Members
 
 *   `float primary_r_chromaticity_x`
 
@@ -374,11 +374,11 @@ guidelines: [https://www.webmproject.org/docs/container/](https://www.webmprojec
     Minimum luminance. Shall be represented in candelas per square meter
     (cd/m^2). In range [0, 9999.99].
 
-### SbMediaVideoSampleInfo ###
+### SbMediaVideoSampleInfo
 
 The set of information required by the decoder or player for each video sample.
 
-#### Members ####
+#### Members
 
 *   `SbMediaVideoStreamInfo stream_info`
 
@@ -388,11 +388,11 @@ The set of information required by the decoder or player for each video sample.
     Indicates whether the associated sample is a key frame (I-frame). Avc video
     key frames must always start with SPS and PPS NAL units.
 
-### SbMediaVideoStreamInfo ###
+### SbMediaVideoStreamInfo
 
 The set of information required by the decoder or player for each video stream.
 
-#### Members ####
+#### Members
 
 *   `SbMediaVideoCodec codec`
 
@@ -434,9 +434,9 @@ The set of information required by the decoder or player for each video stream.
     . This will only be specified on frames where the HDR metadata and color /
     color space might have changed (e.g. keyframes).
 
-## Functions ##
+## Functions
 
-### SbMediaCanPlayMimeAndKeySystem ###
+### SbMediaCanPlayMimeAndKeySystem
 
 Returns information about whether the playback of the specific media described
 by `mime` and encrypted using `key_system` can be played.
@@ -480,13 +480,13 @@ return `kSbMediaSupportTypeProbably` kSbMediaSupportTypeProbably when
 implementation supports key system with attributes on one key system, it has to
 support key system with attributes on all key systems supported.
 
-#### Declaration ####
+#### Declaration
 
 ```
 SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char *mime, const char *key_system)
 ```
 
-### SbMediaGetAudioBufferBudget ###
+### SbMediaGetAudioBufferBudget
 
 Specifies the maximum amount of memory used by audio buffers of media source
 before triggering a garbage collection. A large value will cause more memory
@@ -494,13 +494,13 @@ being used by audio buffers but will also make the app less likely to re-
 download audio data. Note that the app may experience significant difficulty if
 this value is too low.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int SbMediaGetAudioBufferBudget()
 ```
 
-### SbMediaGetAudioConfiguration ###
+### SbMediaGetAudioConfiguration
 
 Retrieves the current physical audio configuration of audio output
 `output_index` on this device and places it in `out_configuration`, which must
@@ -512,37 +512,26 @@ if `output_index` does not exist on this device.
 `out_configuration`: The variable that holds the audio configuration
 information.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbMediaGetAudioConfiguration(int output_index, SbMediaAudioConfiguration *out_configuration)
 ```
 
-### SbMediaGetAudioOutputCount ###
+### SbMediaGetAudioOutputCount
 
 Returns the number of audio outputs currently available on this device. Even if
 the number of outputs or their audio configurations can't be determined, it is
 expected that the platform will at least return a single output that supports at
 least stereo.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int SbMediaGetAudioOutputCount()
 ```
 
-### SbMediaGetBufferAlignment ###
-
-The media buffer will be allocated using the returned alignment. Set this to a
-larger value may increase the memory consumption of media buffers.
-
-#### Declaration ####
-
-```
-int SbMediaGetBufferAlignment()
-```
-
-### SbMediaGetBufferAllocationUnit ###
+### SbMediaGetBufferAllocationUnit
 
 When the media stack needs more memory to store media buffers, it will allocate
 extra memory in units returned by SbMediaGetBufferAllocationUnit. This can
@@ -550,13 +539,13 @@ return 0, in which case the media stack will allocate extra memory on demand.
 When SbMediaGetInitialBufferCapacity and this function both return 0, the media
 stack will allocate individual buffers directly using SbMemory functions.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int SbMediaGetBufferAllocationUnit()
 ```
 
-### SbMediaGetBufferGarbageCollectionDurationThreshold ###
+### SbMediaGetBufferGarbageCollectionDurationThreshold
 
 Specifies the duration threshold of media source garbage collection. When the
 accumulated duration in a source buffer exceeds this value, the media source
@@ -567,25 +556,25 @@ book keeping data of the media buffers and avoid OOM of system heap. This should
 return 170 seconds for most of the platforms. But it can be further reduced on
 systems with extremely low memory.
 
-#### Declaration ####
+#### Declaration
 
 ```
 SbTime SbMediaGetBufferGarbageCollectionDurationThreshold()
 ```
 
-### SbMediaGetBufferPadding ###
+### SbMediaGetBufferPadding
 
 Extra bytes allocated at the end of a media buffer to ensure that the buffer can
 be use optimally by specific instructions like SIMD. Set to 0 to remove any
 padding.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int SbMediaGetBufferPadding()
 ```
 
-### SbMediaGetBufferStorageType ###
+### SbMediaGetBufferStorageType
 
 Returns SbMediaBufferStorageType of type `SbMediaStorageTypeMemory` or
 `SbMediaStorageTypeFile`. For memory storage, the media buffers will be stored
@@ -595,26 +584,26 @@ by calling SbSystemGetPath() with "kSbSystemPathCacheDirectory". Note that when
 its value is "file" the media stack will still allocate memory to cache the the
 buffers in use.
 
-#### Declaration ####
+#### Declaration
 
 ```
 SbMediaBufferStorageType SbMediaGetBufferStorageType()
 ```
 
-### SbMediaGetInitialBufferCapacity ###
+### SbMediaGetInitialBufferCapacity
 
 The amount of memory that will be used to store media buffers allocated during
 system startup. To allocate a large chunk at startup helps with reducing
 fragmentation and can avoid failures to allocate incrementally. This can return
 0.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int SbMediaGetInitialBufferCapacity()
 ```
 
-### SbMediaGetMaxBufferCapacity ###
+### SbMediaGetMaxBufferCapacity
 
 The maximum amount of memory that will be used to store media buffers. This must
 be larger than sum of the video budget and audio budget. This is a soft limit
@@ -629,13 +618,13 @@ width of the video resolution. `resolution_height`: the height of the video
 resolution. `bits_per_pixel`: the bits per pixel. This value is larger for HDR
 than non- HDR video.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int SbMediaGetMaxBufferCapacity(SbMediaVideoCodec codec, int resolution_width, int resolution_height, int bits_per_pixel)
 ```
 
-### SbMediaGetProgressiveBufferBudget ###
+### SbMediaGetProgressiveBufferBudget
 
 The memory used when playing mp4 videos that is not in DASH format. The
 resolution of such videos shouldn't go beyond 1080p. Its value should be less
@@ -647,13 +636,13 @@ width of the video resolution. `resolution_height`: the height of the video
 resolution. `bits_per_pixel`: the bits per pixel. This value is larger for HDR
 than non- HDR video.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int SbMediaGetProgressiveBufferBudget(SbMediaVideoCodec codec, int resolution_width, int resolution_height, int bits_per_pixel)
 ```
 
-### SbMediaGetVideoBufferBudget ###
+### SbMediaGetVideoBufferBudget
 
 Specifies the maximum amount of memory used by video buffers of media source
 before triggering a garbage collection. A large value will cause more memory
@@ -666,13 +655,13 @@ width of the video resolution. `resolution_height`: the height of the video
 resolution. `bits_per_pixel`: the bits per pixel. This value is larger for HDR
 than non- HDR video.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec, int resolution_width, int resolution_height, int bits_per_pixel)
 ```
 
-### SbMediaIsBufferPoolAllocateOnDemand ###
+### SbMediaIsBufferPoolAllocateOnDemand
 
 When either SbMediaGetInitialBufferCapacity or SbMediaGetBufferAllocationUnit
 isn't zero, media buffers will be allocated using a memory pool. Set the
@@ -683,18 +672,18 @@ SbMediaGetInitialBufferCapacity bytes for media buffer on startup and will not
 release any media buffer memory back to the system even if there is no media
 buffers allocated.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbMediaIsBufferPoolAllocateOnDemand()
 ```
 
-### SbMediaIsBufferUsingMemoryPool ###
+### SbMediaIsBufferUsingMemoryPool
 
 If SbMediaGetBufferUsingMemoryPool returns true, it indicates that media buffer
 pools should be allocated on demand, as opposed to using SbMemory* functions.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbMediaIsBufferUsingMemoryPool()

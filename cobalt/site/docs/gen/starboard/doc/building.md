@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Building Starboard"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Building Starboard
 
 Starboard currently uses GYP as the basis of its build system, though there is
