@@ -2063,8 +2063,23 @@ void vp9_change_config(struct VP9_COMP *cpi, const VP9EncoderConfig *oxcf) {
     update_frame_size(cpi);
 
   if (last_w != cpi->oxcf.width || last_h != cpi->oxcf.height) {
+<<<<<<< HEAD:third_party/libvpx/vp9/encoder/vp9_encoder.c
     memset(cpi->consec_zero_mv, 0,
            cm->mi_rows * cm->mi_cols * sizeof(*cpi->consec_zero_mv));
+=======
+    vpx_free(cpi->consec_zero_mv);
+    CHECK_MEM_ERROR(
+        cm, cpi->consec_zero_mv,
+        vpx_calloc(cm->mi_rows * cm->mi_cols, sizeof(*cpi->consec_zero_mv)));
+
+    vpx_free(cpi->skin_map);
+    CHECK_MEM_ERROR(
+        cm, cpi->skin_map,
+        vpx_calloc(cm->mi_rows * cm->mi_cols, sizeof(cpi->skin_map[0])));
+
+    free_copy_partition_data(cpi);
+    alloc_copy_partition_data(cpi);
+>>>>>>> 2a5c12f4755 (Build libvpx from source (#1963)):third_party/libvpx/source/libvpx/vp9/encoder/vp9_encoder.c
     if (cpi->oxcf.aq_mode == CYCLIC_REFRESH_AQ)
       vp9_cyclic_refresh_reset_resize(cpi);
     rc->rc_1_frame = 0;
