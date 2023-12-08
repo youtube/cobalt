@@ -26,6 +26,7 @@ using ::cobalt::media::DefaultSbPlayerInterface;
 using ::cobalt::media::SbPlayerInterface;
 using ::cobalt::media::WebMediaPlayerImpl;
 using ::media::ChunkDemuxer;
+using ::testing::AtLeast;
 using ::testing::NiceMock;
 
 
@@ -104,6 +105,14 @@ TEST_F(WebMediaPlayerImplTest, ConstructAndDestroy) {
   EXPECT_FALSE(HasAudio());
   EXPECT_FALSE(HasVideo());
   EXPECT_EQ(GetPlaybackRate(), 0);
+}
+
+TEST_F(WebMediaPlayerImplTest, LoadMediaSource) {
+  EXPECT_CALL(client_, Volume()).Times(1);
+  EXPECT_CALL(client_, NetworkStateChanged()).Times(1);
+  EXPECT_CALL(client_, ReadyStateChanged()).Times(1);
+  EXPECT_CALL(client_, MaxVideoCapabilities()).Times(1);
+  wmpi_->LoadMediaSource();
 }
 
 }  // namespace media
