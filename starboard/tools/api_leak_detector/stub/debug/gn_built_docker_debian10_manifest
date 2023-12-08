@@ -107,7 +107,6 @@ setlocale
 setvbuf
 snprintf
 sprintf
-# sscanf
 stderr
 stdin
 stdout
