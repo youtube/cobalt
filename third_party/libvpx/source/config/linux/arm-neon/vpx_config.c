@@ -6,5 +6,5 @@
 /* in the file PATENTS.  All contributing project authors may */
 /* be found in the AUTHORS file in the root of the source tree. */
 #include "vpx/vpx_codec.h"
-static const char* const cfg = "--target=armv7-linux-gcc --enable-external-build --disable-libyuv --enable-postproc --disable-examples --disable-tools --disable-docs --disable-unit-tests --enable-multithread --enable-runtime-cpu-detect --enable-vp9-temporal-denoising --disable-webm-io --disable-vp9-encoder --disable-vp8";
+static const char* const cfg = "--target=armv7-linux-gcc --enable-external-build --disable-libyuv --enable-postproc --enable-vp9-temporal-denoising --disable-examples --disable-tools --disable-docs --disable-unit-tests --enable-multithread --enable-runtime-cpu-detect --disable-webm-io --disable-vp9-encoder --disable-vp8";
 const char *vpx_codec_build_config(void) {return cfg;}

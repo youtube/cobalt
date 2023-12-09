@@ -361,7 +361,10 @@ cp -R $LIBVPX_SRC_DIR $TEMP_DIR
 cd $TEMP_DIR
 
 echo "Generate config files."
-all_platforms="--enable-external-build --disable-libyuv --enable-postproc"
+all_platforms="--enable-external-build"
+all_platforms+=" --disable-libyuv"
+all_platforms+=" --enable-postproc"
+all_platforms+=" --enable-vp9-temporal-denoising"
 
 if [ $COBALT_CONFIG == true ]; then
   echo "Generating cobalt-specific configs."
@@ -371,14 +374,12 @@ if [ $COBALT_CONFIG == true ]; then
   all_platforms+=" --disable-unit-tests"
   all_platforms+=" --enable-multithread"
   all_platforms+=" --enable-runtime-cpu-detect"
-  all_platforms+=" --enable-vp9-temporal-denoising"
   all_platforms+=" --disable-webm-io"
   all_platforms+=" --disable-vp9-encoder"
   all_platforms+=" --disable-vp8"
 else
   all_platforms+=" --enable-multi-res-encoding"
   all_platforms+=" --enable-temporal-denoising"
-  all_platforms+=" --enable-vp9-temporal-denoising"
   all_platforms+=" --enable-vp9-postproc"
   all_platforms+=" --size-limit=16384x16384"
   all_platforms+=" --enable-realtime-only"
