@@ -94,7 +94,7 @@ bool OpenTypePOST::Parse(const uint8_t *data, size_t length) {
     if (strings + 1 + string_length > strings_end) {
       return Error("Bad string length %d", string_length);
     }
-    if (memchr(strings + 1, '\0', string_length)) {
+    if (std::memchr(strings + 1, '\0', string_length)) {
       return Error("Bad string of length %d", string_length);
     }
     this->names.push_back(
@@ -122,8 +122,9 @@ bool OpenTypePOST::Parse(const uint8_t *data, size_t length) {
 bool OpenTypePOST::Serialize(OTSStream *out) {
   // OpenType with CFF glyphs must have v3 post table.
   if (GetFont()->GetTable(OTS_TAG_CFF) && this->version != 0x00030000) {
-    return Error("Only version supported for fonts with CFF table is 0x00030000"
-                 " not 0x%x", this->version);
+    Warning("Only version supported for fonts with CFF table is 0x00030000"
+            " not 0x%x", this->version);
+    this->version = 0x00030000;
   }
 
   if (!out->WriteU32(this->version) ||

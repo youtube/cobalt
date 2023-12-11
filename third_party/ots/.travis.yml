@@ -1,23 +1,30 @@
 language: cpp
 
-dist: trusty
-sudo: false
-
-matrix:
+jobs:
   include:
     - os: linux
-      compiler: gcc
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-6
-      env: MATRIX_EVAL="CC='gcc-6' && CXX='g++-6'"
+      env: DEPLOY=true
+      before_script:
+        - meson --unity=on --buildtype=release --strip -Ddebug=true --prefix=$PWD --bindir=$OTS-$TRAVIS_OS_NAME build
+      before_deploy:
+        - ninja -C build install
+        - ninja -C build dist
+        - zip -r $OTS-$TRAVIS_OS_NAME.zip $OTS-$TRAVIS_OS_NAME
+
+    - os: osx
+      env: DEPLOY=true
+      before_script:
+        - meson --unity=on --buildtype=release --strip -Ddebug=true --prefix=$PWD --bindir=$OTS-$TRAVIS_OS_NAME build
+      before_deploy:
+        - ninja -C build install
+        - zip -r $OTS-$TRAVIS_OS_NAME.zip $OTS-$TRAVIS_OS_NAME
+
     - os: linux
       compiler: clang
-    - os: osx
-      compiler: clang
+
+#   - os: linux
+#     before_script:
+#       - meson -Db_sanitize=address,undefined -Db_lundef=false build
 
 addons:
   apt:
@@ -26,32 +33,27 @@ addons:
       - fonts-takao-gothic
       - fonts-takao-mincho
       - fonts-takao-pgothic
+      - python3-pip
 
 install:
-  - ./autogen.sh
+  - export OTS=ots-$(grep -m1 version meson.build | cut -d"'" -f2)
+  - pip3 install setuptools
+  - pip3 install meson==0.55.2 ninja
+
+before_script:
+  - meson build
 
 script:
-  - ./configure --enable-debug --prefix=$PWD/dist
-  - export OTS_VERSION=$(grep PACKAGE_VERSION config.h | cut -d'"' -f2)
-  - make distcheck || (cat `find -name '*.log'` && false)
-  - make install-strip
-  - make dist
-
-before_deploy:
-  - export ARCHIVE=ots-$OTS_VERSION-$TRAVIS_OS_NAME
-  - export DEPLOY1=$ARCHIVE.zip
-  - export DEPLOY2=ots-$OTS_VERSION.tar.gz
-  - mkdir -p $ARCHIVE
-  - cp dist/bin/* $ARCHIVE
-  - zip -r $DEPLOY1 $ARCHIVE
+  - ninja -C build
+  - ninja -C build test || (cat build/meson-logs/testlog.txt && false)
 
 deploy:
   provider: releases
   api_key:
-    - secure: "TLW/tIpobbvcJvEyZNJcdUL1c1Xt91vaxMegUGKvXnyT56Rxn6joLYUVhfFmz6cOKtDG4F409aAXJr60BL8iQ/xra9a8uD4Y+WKgPinQo9O8CViv1bsQpGV2rfBpNQ5UUYU/t09ReicPQNHGb0ONFRnLxmcQLo8eJzlKE1MdOoA="
+    - secure: d0bAKmghWHEAdKjZbHrqeLJNg5jilfvl1r6pMUraA35ohgnHhvrcVyqjRyOtUDr08B6PUNyCQkhZNrmJ1YkDZaiMInoJSS5wY1PBRjLY97rJgUZgpsbiVEE2FAUmBjSaPJ1PQd0dLejs59r+CESYNpvV06xrD8AzxVYJ28JkvNA=
   file:
-    - "${DEPLOY1}"
-    - "${DEPLOY2}"
+    - "${OTS}-${TRAVIS_OS_NAME}.zip"
+    - "build/meson-dist/${OTS}.tar.xz"
   skip_cleanup: true
   draft: true
   overwrite: true
@@ -59,4 +61,4 @@ deploy:
   on:
     tags: true
     branch: master
-    condition: $CC = clang
+    condition: $DEPLOY = true
