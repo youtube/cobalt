@@ -103,6 +103,30 @@ const float k10BitBT2020ColorMatrixCompacted[16] = {
     1.1678f, 0.0f,    1.6835f, -0.9147f, 1.1678f, -0.1878f, -0.6522f, 0.347f,
     1.1678f, 2.1479f, 0.0f,    -1.1469f, 0.0f,    0.0f,     0.0f,     1.0f};
 
+const char kHLGtoPQTransferFunction[] =
+    "vec3 HLG_to_PQ(vec3 x) {\n"
+    "  vec3 xbf = vec3(lessThanEqual(x, vec3(0.5)));  \n"
+    "  const float a = 0.17883277; \n"
+    "  const float b = 0.28466892; \n"
+    "  const float c = 0.55991073; \n"
+    "  const float gamma = 1.2; \n"
+    "  /*HLG EOTF:*/ \n"
+    "  vec3 dl = (x * x / 3.0) * xbf + \n"
+    "    exp((x - c) / a + b) / 12.0 * (1.0 - xbf); \n"
+    "  float Ys = 0.2627 * dl.x + 0.6780 * dl.y + 0.0593 * dl.z; \n"
+    "  dl *= pow(Ys, gamma - 1.0); \n"
+    "  dl *= 1000.0;  /*display light in cd/m2*/ \n"
+    "  /*PQ OETF:*/ \n"
+    "  const float m1 = 0.1593017578125; \n"
+    "  const float m2 = 78.84375; \n"
+    "  const float c1 = 0.8359375; \n"
+    "  const float c2 = 18.8515625; \n"
+    "  const float c3 = 18.6875; \n"
+    "  vec3 Y = pow(dl / 10000.0, vec3(m1)); \n"
+    "  vec3 pq = pow((c1 + c2 * Y) / (1.0 + c3 * Y), vec3(m2)); \n"
+    "  return pq; \n"
+    "}\n";
+
 const float* GetColorMatrixForImageType(
     TexturedMeshRenderer::Image::Type type) {
   switch (type) {
@@ -354,7 +378,7 @@ SamplerInfo GetSamplerInfo(uint32 texture_target) {
 // static
 uint32 TexturedMeshRenderer::CreateFragmentShader(
     uint32 texture_target, const std::vector<TextureInfo>& textures,
-    const float* color_matrix) {
+    const float* color_matrix, bool hlg) {
   SamplerInfo sampler_info = GetSamplerInfo(texture_target);
 
   std::string blit_fragment_shader_source = sampler_info.preamble;
@@ -372,6 +396,10 @@ uint32 TexturedMeshRenderer::CreateFragmentShader(
   if (color_matrix) {
     blit_fragment_shader_source += "uniform mat4 to_rgb_color_matrix;";
   }
+  if (hlg) {
+    blit_fragment_shader_source += kHLGtoPQTransferFunction;
+  }
+
   blit_fragment_shader_source +=
       "void main() {"
       "  vec4 untransformed_color = vec4(";
@@ -398,7 +426,9 @@ uint32 TexturedMeshRenderer::CreateFragmentShader(
         ");"
         "  vec4 color = untransformed_color;";
   }
-
+  if (hlg) {
+    blit_fragment_shader_source += "  color.xyz = HLG_to_PQ(color.xyz);";
+  }
   const CobaltExtensionGraphicsApi* graphics_extension =
       static_cast<const CobaltExtensionGraphicsApi*>(
           SbSystemGetExtension(kCobaltExtensionGraphicsName));
@@ -517,7 +547,7 @@ uint32 TexturedMeshRenderer::CreateUYVYFragmentShader(uint32 texture_target,
 }
 
 uint32 TexturedMeshRenderer::CreateYUVCompactedTexturesFragmentShader(
-    uint32 texture_target) {
+    uint32 texture_target, bool hlg) {
   SamplerInfo sampler_info = GetSamplerInfo(texture_target);
 
   std::string blit_fragment_shader_source = sampler_info.preamble;
@@ -537,15 +567,20 @@ uint32 TexturedMeshRenderer::CreateYUVCompactedTexturesFragmentShader(
       "uniform vec2 content_region_size;"
       "uniform int enable_filtering;"
       "uniform vec2 texture_size;"
-      "uniform mat4 to_rgb_color_matrix;"
-      // In a compacted YUV image each channel, Y, U and V, is stored as a
-      // separate single-channel image plane. Its pixels are stored in 32-bit
-      // and each represents 3 10-bit pixels with 2 bits of gap.
-      // In order to extract compacted pixels, the horizontal position at the
-      // compacted texture is calculated as:
-      // index = compacted_position % 3;
-      // decompacted_position = compacted_position / 3;
-      // pixel = CompactedTexture.Sample(Sampler, decompacted_position)[index];
+      "uniform mat4 to_rgb_color_matrix;\n";
+  if (hlg) {
+    blit_fragment_shader_source += kHLGtoPQTransferFunction;
+  }
+
+  // In a compacted YUV image each channel, Y, U and V, is stored as a
+  // separate single-channel image plane. Its pixels are stored in 32-bit
+  // and each represents 3 10-bit pixels with 2 bits of gap.
+  // In order to extract compacted pixels, the horizontal position at the
+  // compacted texture is calculated as:
+  // index = compacted_position % 3;
+  // decompacted_position = compacted_position / 3;
+  // pixel = CompactedTexture.Sample(Sampler, decompacted_position)[index];
+  blit_fragment_shader_source +=
       "void main() {"
       // texture size as unpacked, f.i. 2562x1440
       "     float frame_w = texture_size_as_unpacked.x;   \n"
@@ -635,8 +670,13 @@ uint32 TexturedMeshRenderer::CreateYUVCompactedTexturesFragmentShader(
       "      }\n"
       "    vec4 untransformed_color = vec4(Y_component, U_component, "
       "V_component, 1.0);\n"
-      "     gl_FragColor = untransformed_color * to_rgb_color_matrix;\n"
-      "}";
+      "    vec4 rgba = untransformed_color * to_rgb_color_matrix;\n";
+  if (!hlg) {
+    blit_fragment_shader_source += "gl_FragColor = rgba; \n }";
+  } else {
+    blit_fragment_shader_source +=
+        "gl_FragColor = vec4(HLG_to_PQ(rgba.xyz), rgba.w); \n }";
+  }
 
   return CompileShader(blit_fragment_shader_source);
 }
@@ -731,17 +771,25 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::GetBlitProgram(
     const Image& image) {
   Image::Type type = image.type;
   uint32 texture_target = image.textures[0].texture->GetTarget();
-  base::Optional<int32> texture_wrap_s;
+  int32 texture_wrap_s = 0;
+  base::Optional<int32> opt_key;
   if (type == Image::YUV_UYVY_422_BT709) {
-    texture_wrap_s.emplace();
+    opt_key.emplace();
     GL_CALL(
         glBindTexture(texture_target, image.textures[0].texture->gl_handle()));
-    GL_CALL(glGetTexParameteriv(texture_target, GL_TEXTURE_WRAP_S,
-                                &(*texture_wrap_s)));
+    GL_CALL(
+        glGetTexParameteriv(texture_target, GL_TEXTURE_WRAP_S, &(*opt_key)));
     GL_CALL(glBindTexture(texture_target, 0));
+    texture_wrap_s = opt_key.value();
   }
 
-  CacheKey key(texture_target, type, texture_wrap_s);
+  bool hlg = false;
+  if (type == Image::YUV_3PLANE_10BIT_BT2020 ||
+      type == Image::YUV_3PLANE_10BIT_COMPACT_BT2020 || type == Image::RGBA) {
+    hlg = image.is_hlg;
+    opt_key = base::Optional<bool>(hlg);
+  }
+  CacheKey key(texture_target, type, opt_key);
 
   ProgramCache::iterator found = blit_program_cache_.find(key);
   if (found == blit_program_cache_.end()) {
@@ -751,9 +799,10 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::GetBlitProgram(
       case Image::RGBA: {
         std::vector<TextureInfo> texture_infos;
         texture_infos.push_back(TextureInfo("rgba", "rgba"));
-        result = MakeBlitProgram(
-            color_matrix, texture_infos,
-            CreateFragmentShader(texture_target, texture_infos, color_matrix));
+        result =
+            MakeBlitProgram(color_matrix, texture_infos,
+                            CreateFragmentShader(texture_target, texture_infos,
+                                                 color_matrix, hlg));
       } break;
       case Image::YUV_2PLANE_BT709: {
         std::vector<TextureInfo> texture_infos;
@@ -814,10 +863,10 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::GetBlitProgram(
         uint32 shader_program;
         if (type == Image::YUV_3PLANE_10BIT_COMPACT_BT2020) {
           shader_program =
-              CreateYUVCompactedTexturesFragmentShader(texture_target);
+              CreateYUVCompactedTexturesFragmentShader(texture_target, hlg);
         } else {
-          shader_program =
-              CreateFragmentShader(texture_target, texture_infos, color_matrix);
+          shader_program = CreateFragmentShader(texture_target, texture_infos,
+                                                color_matrix, hlg);
         }
         result = MakeBlitProgram(color_matrix, texture_infos, shader_program);
       } break;
@@ -826,7 +875,7 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::GetBlitProgram(
         texture_infos.push_back(TextureInfo("uyvy", "rgba"));
         result = MakeBlitProgram(
             color_matrix, texture_infos,
-            CreateUYVYFragmentShader(texture_target, *texture_wrap_s));
+            CreateUYVYFragmentShader(texture_target, texture_wrap_s));
       } break;
       default: {
         NOTREACHED();

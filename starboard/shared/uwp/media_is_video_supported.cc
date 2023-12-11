@@ -225,7 +225,8 @@ class XboxVideoCapabilities {
     is_supported &= ApplicationUwp::Get()->IsHdrSupported();
     is_supported &= bit_depth == 10;
     is_supported &= primary_id == kSbMediaPrimaryIdBt2020;
-    is_supported &= transfer_id == kSbMediaTransferIdSmpteSt2084;
+    is_supported &= transfer_id == kSbMediaTransferIdSmpteSt2084 ||
+                    transfer_id == kSbMediaTransferIdAribStdB67;
     // According to https://support.google.com/youtube/answer/7126552
     // upload requirements the color matrix should be Rec.2020
     // non-constant luminance.

@@ -322,7 +322,7 @@ HardwareResourceProvider::CreateImageFromSbDecodeTarget(
     planes.push_back(base::WrapRefCounted(new HardwareFrontendImage(
         std::move(texture), alpha_format, cobalt_context_, gr_context_,
         std::move(content_region), rasterizer_task_runner_,
-        alternate_rgba_format)));
+        alternate_rgba_format, info.is_hlg)));
   }
 
   if (planes_per_format == 1) {

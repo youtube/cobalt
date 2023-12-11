@@ -246,6 +246,8 @@ typedef struct SbDecodeTargetInfo {
   // optimizations such as occlusion culling.
   bool is_opaque;
 
+  bool is_hlg;
+
   // The width of the image represented by this decode target.
   int width;
   // The height of the image represented by this decode target.

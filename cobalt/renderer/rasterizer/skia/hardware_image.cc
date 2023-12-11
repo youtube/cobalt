@@ -338,7 +338,7 @@ HardwareFrontendImage::HardwareFrontendImage(
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
     std::unique_ptr<math::RectF> content_region,
     scoped_refptr<base::SingleThreadTaskRunner> rasterizer_task_runner,
-    base::Optional<AlternateRgbaFormat> alternate_rgba_format)
+    base::Optional<AlternateRgbaFormat> alternate_rgba_format, bool hlg)
     : is_opaque_(alpha_format == render_tree::kAlphaFormatOpaque),
       content_region_(std::move(content_region)),
       alternate_rgba_format_(alternate_rgba_format),
@@ -347,7 +347,8 @@ HardwareFrontendImage::HardwareFrontendImage(
                                        std::abs(content_region_->height()))
                           : texture->GetSize(),
           alternate_rgba_format_)),
-      rasterizer_task_runner_(rasterizer_task_runner) {
+      rasterizer_task_runner_(rasterizer_task_runner),
+      is_hlg_(hlg) {
   TRACE_EVENT0("cobalt::renderer",
                "HardwareFrontendImage::HardwareFrontendImage()");
   backend_image_.reset(new HardwareBackendImage(
