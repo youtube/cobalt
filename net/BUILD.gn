@@ -1212,7 +1212,7 @@ component("net") {
     ]
   }
 
-  if (is_linux) {
+  if (is_linux && !use_cobalt_customizations) {
     sources += [
       "base/network_change_notifier_linux.cc",
       "base/network_change_notifier_linux.h",
@@ -1848,7 +1848,7 @@ static_library("preload_decoder") {
   deps = [ "//base" ]
 }
 
-if (!is_ios) {
+if (!is_ios && !use_cobalt_customizations) {
   executable("dump_cache") {
     testonly = true
     sources = [
@@ -2037,7 +2037,7 @@ static_library("test_support") {
     "url_request/url_request_test_util.h",
   ]
 
-  if (is_linux || is_chromeos || is_android) {
+  if (false) {
     sources += [
       "base/address_tracker_linux_test_util.cc",
       "base/address_tracker_linux_test_util.h",
@@ -2306,7 +2306,7 @@ if (use_external_gssapi) {
   }
 }
 
-if (is_linux || is_chromeos || is_mac) {
+if ((is_linux || is_chromeos || is_mac) && !use_cobalt_customizations) {
   executable("cachetool") {
     testonly = true
     sources = [ "tools/cachetool/cachetool.cc" ]
@@ -2363,7 +2363,7 @@ if (is_android) {
   }
 }
 
-if (is_android || is_linux || is_chromeos) {
+if ((is_android || is_linux || is_chromeos) && !use_cobalt_customizations) {
   executable("disk_cache_memory_test") {
     testonly = true
     sources = [ "tools/disk_cache_memory_test/disk_cache_memory_test.cc" ]
