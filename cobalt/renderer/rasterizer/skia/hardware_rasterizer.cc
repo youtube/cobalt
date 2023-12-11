@@ -357,6 +357,7 @@ egl::TexturedMeshRenderer::Image SkiaImageToTexturedMeshRendererImage(
     HardwareFrontendImage* hardware_image =
         base::polymorphic_downcast<HardwareFrontendImage*>(image);
 
+    result.is_hlg = hardware_image->IsHLG();
     if (!hardware_image->alternate_rgba_format()) {
       result.type = egl::TexturedMeshRenderer::Image::RGBA;
     } else {
@@ -375,6 +376,7 @@ egl::TexturedMeshRenderer::Image SkiaImageToTexturedMeshRendererImage(
   } else if (image->GetTypeId() == base::GetTypeId<MultiPlaneImage>()) {
     HardwareMultiPlaneImage* hardware_image =
         base::polymorphic_downcast<HardwareMultiPlaneImage*>(image);
+    result.is_hlg = hardware_image->GetHardwareFrontendImage(0)->IsHLG();
     if (hardware_image->GetFormat() ==
         render_tree::kMultiPlaneImageFormatYUV3PlaneBT601FullRange) {
       result.type =

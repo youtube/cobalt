@@ -140,6 +140,7 @@ class GpuVideoDecoderBase::GPUDecodeTargetPrivate
 
     if (image->bit_depth() == 8) {
       info.format = kSbDecodeTargetFormat3PlaneYUVI420;
+      info.is_hlg = false;
     } else {
       SB_DCHECK(image->bit_depth() == 10);
 #if SB_API_VERSION >= 14
@@ -150,6 +151,8 @@ class GpuVideoDecoderBase::GPUDecodeTargetPrivate
       SB_DCHECK(!image->is_compacted());
       info.format = kSbDecodeTargetFormat3Plane10BitYUVI420;
 #endif  // SB_API_VERSION >= 14
+      info.is_hlg =
+          image->color_metadata().transfer == kSbMediaTransferIdAribStdB67;
     }
     info.is_opaque = true;
     info.width = image->width();

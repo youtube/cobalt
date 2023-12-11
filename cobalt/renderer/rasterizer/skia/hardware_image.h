@@ -120,7 +120,7 @@ class HardwareFrontendImage : public SinglePlaneImage {
       backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
       std::unique_ptr<math::RectF> content_region,
       scoped_refptr<base::SingleThreadTaskRunner> rasterizer_task_runner,
-      base::Optional<AlternateRgbaFormat> alternate_rgba_format);
+      base::Optional<AlternateRgbaFormat> alternate_rgba_format, bool hlg);
   HardwareFrontendImage(
       const scoped_refptr<render_tree::Node>& root,
       const SubmitOffscreenCallback& submit_offscreen_callback,
@@ -149,6 +149,8 @@ class HardwareFrontendImage : public SinglePlaneImage {
 
   bool IsOpaque() const override { return is_opaque_; }
 
+  bool IsHLG() const { return is_hlg_; }
+
   base::Optional<AlternateRgbaFormat> alternate_rgba_format() {
     return alternate_rgba_format_;
   }
@@ -162,6 +164,8 @@ class HardwareFrontendImage : public SinglePlaneImage {
   // Track if we have any alpha or not, which can enable optimizations in the
   // case that alpha is not present.
   bool is_opaque_;
+
+  bool is_hlg_ = false;
 
   // An optional rectangle, in pixel coordinates (with the top-left as the
   // origin) that indicates where in this image the valid content is contained.
