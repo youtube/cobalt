@@ -198,6 +198,9 @@ most optimized, and with the least debug information at the bottom (gold):
  gold  | Full          | None    | None    | None       | Disabled
 
 When building for release, you should always use a gold build for the final
+
+
+
 product.
 
 ## Origin of this Repository
