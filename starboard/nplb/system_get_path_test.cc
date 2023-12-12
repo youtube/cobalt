@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <string.h>
+#include <sys/stat.h>
 
 #include <algorithm>
 
@@ -131,7 +132,8 @@ TEST(SbSystemGetPathTest, CanCreateAndRemoveDirectoryInCache) {
     // Create the directory and confirm it exists and can be opened.
     EXPECT_TRUE(SbDirectoryCreate(path.data()));
     EXPECT_TRUE(SbFileExists(path.data()));
-    EXPECT_TRUE(SbDirectoryCanOpen(path.data()));
+    struct stat file_info;
+    EXPECT_TRUE(stat(path.data(), &file_info));
     SbDirectory directory = SbDirectoryOpen(path.data(), NULL);
     EXPECT_TRUE(SbDirectoryIsValid(directory));
 

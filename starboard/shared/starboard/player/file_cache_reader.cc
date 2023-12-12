@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/player/file_cache_reader.h"
 
 #include <string.h>
+#include <sys/stat.h>
 #include <algorithm>
 
 #include "starboard/common/log.h"
@@ -42,7 +43,8 @@ std::string ResolveTestFileName(const char* filename) {
                                kSbFileSepChar + "starboard" + kSbFileSepChar +
                                "player" + kSbFileSepChar + "testdata";
 
-  SB_CHECK(SbDirectoryCanOpen(directory_path.c_str()))
+  struct stat file_info;
+  SB_CHECK(stat(directory_path.c_str(), &file_info) == 0)
       << "Cannot open directory " << directory_path;
   return directory_path + kSbFileSepChar + filename;
 }

@@ -23,6 +23,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+#if SB_API_VERSION < 16
 TEST(SbDirectoryCanOpenTest, SunnyDay) {
   std::string path = starboard::nplb::GetTempDir();
   EXPECT_FALSE(path.empty());
@@ -58,7 +59,7 @@ TEST(SbDirectoryCanOpenTest, FailureRegularFile) {
   EXPECT_TRUE(SbFileExists(file.filename().c_str()));
   EXPECT_FALSE(SbDirectoryCanOpen(file.filename().c_str()));
 }
-
+#endif  // SB)API_VERSION < 16
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
