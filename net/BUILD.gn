@@ -1377,6 +1377,7 @@ component("net") {
   } else {
     sources += [
       "base/net_errors_starboard.cc",
+      "base/stub_starboard.cc",
       "disk_cache/blockfile/file_starboard.cc",
     ]
     sources += [ "disk_cache/blockfile/mapped_file_posix.cc" ]
