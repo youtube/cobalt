@@ -73,6 +73,7 @@ SbTime AudioDiscardDurationTracker::AdjustTimeForTotalDiscardDuration(
 void AudioDiscardDurationTracker::CacheDiscardDuration(
     const scoped_refptr<InputBuffer>& input_buffer,
     SbTime buffer_duration) {
+  mutex_.DCheckAcquired();
   SbTime discard_duration_from_front =
       input_buffer->audio_sample_info().discarded_duration_from_front;
   SbTime discard_duration_from_back =

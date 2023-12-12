@@ -49,9 +49,9 @@ class AudioDiscardDurationTracker {
   // Ex. Given a |timestamp| 28 ms with |total_discard_duration| == 0 and
   // current AudioDiscardInfo == { discard_duration: 10 ms,
   // discard_start_timestamp: 22 ms}, AdjustTimeForTotalDiscardDuration()
-  // returns discard_start_timestamp - |total_discard_duration| == 22 ms. If a
+  // returns discard_start_timestamp - |total_discard_duration_| == 22 ms. If a
   // |timestamp| 33 ms is passed later, discard_duration is added to
-  // |total_discard_duration|, and the AudioDiscardInfo is removed.
+  // |total_discard_duration_|, and the AudioDiscardInfo is removed.
   //
   // Timestamps passed to AdjustTimeForTotalDiscardDuration() must be
   // monotonically increasing for the algorithm to run correctly.
