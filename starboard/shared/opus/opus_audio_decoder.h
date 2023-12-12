@@ -26,7 +26,7 @@
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
-#include "third_party/opus/include/opus_multistream.h"
+#include "third_party/opus/src/include/opus_multistream.h"
 
 namespace starboard {
 namespace shared {
