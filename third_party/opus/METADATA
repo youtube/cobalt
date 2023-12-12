@@ -9,9 +9,9 @@ third_party {
   }
   url {
     type: GIT
-    value: "https://github.com/xiph/opus.git"
+    value: "https://chromium.googlesource.com/chromium/src.git"
   }
-  version: "c1c247d7e715100a50ca185948c7336bdd4dfdba"
+  version: "83.0.4103.119"
   last_upgrade_date {
     year: 2018
     month: 6

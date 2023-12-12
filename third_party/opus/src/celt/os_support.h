@@ -42,13 +42,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#ifdef STARBOARD
-#include "starboard/client_porting/poem/stdio_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
-#else // STARBOARD
-#include <malloc.h>
-#endif // STARBOARD
-
 /** Opus wrapper for malloc(). To do your own dynamic allocation, all you need to do is replace this function and opus_free */
 #ifndef OVERRIDE_OPUS_ALLOC
 static OPUS_INLINE void *opus_alloc (size_t size)

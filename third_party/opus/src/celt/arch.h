@@ -72,7 +72,9 @@ __attribute__((noreturn))
 #endif
 void celt_fatal(const char *str, const char *file, int line)
 {
+#if !defined(CHROMIUM_NO_LOGGING)
    fprintf (stderr, "Fatal (internal) error in %s, line %d: %s\n", file, line, str);
+#endif
    abort();
 }
 #endif
@@ -160,7 +162,7 @@ static OPUS_INLINE opus_int16 SAT16(opus_int32 x) {
 
 #ifdef OPUS_ARM_PRESUME_AARCH64_NEON_INTR
 #include "arm/fixed_arm64.h"
-#elif OPUS_ARM_INLINE_EDSP
+#elif defined (OPUS_ARM_INLINE_EDSP)
 #include "arm/fixed_armv5e.h"
 #elif defined (OPUS_ARM_INLINE_ASM)
 #include "arm/fixed_armv4.h"

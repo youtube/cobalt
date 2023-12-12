@@ -43,10 +43,6 @@
 static void validate_ms_decoder(OpusMSDecoder *st)
 {
    validate_layout(&st->layout);
-#ifdef OPUS_ARCHMASK
-   celt_assert(st->arch >= 0);
-   celt_assert(st->arch <= OPUS_ARCHMASK);
-#endif
 }
 #define VALIDATE_MS_DECODER(st) validate_ms_decoder(st)
 #else
@@ -201,6 +197,11 @@ int opus_multistream_decode_native(
    ALLOC_STACK;
 
    VALIDATE_MS_DECODER(st);
+   if (frame_size <= 0)
+   {
+      RESTORE_STACK;
+      return OPUS_BAD_ARG;
+   }
    /* Limit frame_size to avoid excessive stack allocations. */
    MUST_SUCCEED(opus_multistream_decoder_ctl(st, OPUS_GET_SAMPLE_RATE(&Fs)));
    frame_size = IMIN(frame_size, Fs/25*3);
@@ -250,8 +251,11 @@ int opus_multistream_decode_native(
       }
       packet_offset = 0;
       ret = opus_decode_native(dec, data, len, buf, frame_size, decode_fec, s!=st->layout.nb_streams-1, &packet_offset, soft_clip);
-      data += packet_offset;
-      len -= packet_offset;
+      if (!do_plc)
+      {
+        data += packet_offset;
+        len -= packet_offset;
+      }
       if (ret <= 0)
       {
          RESTORE_STACK;
@@ -486,7 +490,7 @@ int opus_multistream_decoder_ctl_va_list(OpusMSDecoder *st, int request,
           OpusDecoder **value;
           stream_id = va_arg(ap, opus_int32);
           if (stream_id<0 || stream_id >= st->layout.nb_streams)
-             ret = OPUS_BAD_ARG;
+             goto bad_arg;
           value = va_arg(ap, OpusDecoder**);
           if (!value)
           {
