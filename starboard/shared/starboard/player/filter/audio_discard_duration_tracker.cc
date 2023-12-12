@@ -17,48 +17,17 @@
 #include <algorithm>
 
 #include "starboard/common/log.h"
-#include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard {
 namespace shared {
 namespace starboard {
 namespace player {
 namespace filter {
-using shared::starboard::media::AudioSampleInfo;
-
-void AudioDiscardDurationTracker::CacheDiscardDuration(
-    const scoped_refptr<InputBuffer>& input_buffer,
-    SbTime buffer_duration) {
-  SbTime discard_duration_from_front =
-      input_buffer->audio_sample_info().discarded_duration_from_front;
-  SbTime discard_duration_from_back =
-      input_buffer->audio_sample_info().discarded_duration_from_back;
-
-  ScopedLock lock(mutex_);
-  if (discard_duration_from_front + discard_duration_from_back >=
-      buffer_duration) {
-    discard_infos_.push(
-        AudioDiscardInfo{buffer_duration, input_buffer->timestamp(),
-                         input_buffer->timestamp() + buffer_duration});
-  } else {
-    if (discard_duration_from_front > 0) {
-      discard_infos_.push(AudioDiscardInfo{
-          discard_duration_from_front, input_buffer->timestamp(),
-          input_buffer->timestamp() + discard_duration_from_front});
-    }
-    if (discard_duration_from_back > 0) {
-      discard_infos_.push(
-          AudioDiscardInfo{discard_duration_from_back,
-                           input_buffer->timestamp() + buffer_duration -
-                               discard_duration_from_back,
-                           input_buffer->timestamp() + buffer_duration});
-    }
-  }
-}
 
 void AudioDiscardDurationTracker::CacheMultipleDiscardDurations(
     const InputBuffers& input_buffers,
     SbTime buffer_duration) {
+  ScopedLock lock(mutex_);
   for (const auto& input_buffer : input_buffers) {
     CacheDiscardDuration(input_buffer, buffer_duration);
   }
@@ -66,6 +35,7 @@ void AudioDiscardDurationTracker::CacheMultipleDiscardDurations(
 
 SbTime AudioDiscardDurationTracker::AdjustTimeForTotalDiscardDuration(
     SbTime timestamp) {
+  ScopedLock lock(mutex_);
   SB_LOG_IF(WARNING, last_received_timestamp_ > timestamp)
       << "Last received timestamp " << last_received_timestamp_
       << " is greater than timestamp " << timestamp
@@ -73,12 +43,12 @@ SbTime AudioDiscardDurationTracker::AdjustTimeForTotalDiscardDuration(
          "requires monotonically increasing timestamps.";
   last_received_timestamp_ = timestamp;
 
-  ScopedLock lock(mutex_);
   // As a lot of time may have passed since the last call to
   // AdjustTimeForTotalDiscardDuration(), remove all AudioDiscardInfos that
   // have already been passed by the |timestamp|.
   while (discard_infos_.size() > 0 &&
-         timestamp >= discard_infos_.front().discard_end_timestamp) {
+         timestamp >= discard_infos_.front().discard_start_timestamp +
+                          discard_infos_.front().discard_duration) {
     total_discard_duration_ += discard_infos_.front().discard_duration;
     discard_infos_.pop();
   }
@@ -86,7 +56,8 @@ SbTime AudioDiscardDurationTracker::AdjustTimeForTotalDiscardDuration(
   if (discard_infos_.size() > 0) {
     SbTime discard_start_timestamp =
         discard_infos_.front().discard_start_timestamp;
-    SbTime discard_end_timestamp = discard_infos_.front().discard_end_timestamp;
+    SbTime discard_end_timestamp =
+        discard_start_timestamp + discard_infos_.front().discard_duration;
     if (timestamp >= discard_start_timestamp &&
         timestamp < discard_end_timestamp) {
       // "Freeze" the timestamp at |discard_start_timestamp| if |timestamp|
@@ -97,6 +68,35 @@ SbTime AudioDiscardDurationTracker::AdjustTimeForTotalDiscardDuration(
   }
 
   return std::max(SbTime(0), timestamp - total_discard_duration_);
+}
+
+void AudioDiscardDurationTracker::CacheDiscardDuration(
+    const scoped_refptr<InputBuffer>& input_buffer,
+    SbTime buffer_duration) {
+  SbTime discard_duration_from_front =
+      input_buffer->audio_sample_info().discarded_duration_from_front;
+  SbTime discard_duration_from_back =
+      input_buffer->audio_sample_info().discarded_duration_from_back;
+
+  if (discard_duration_from_front + discard_duration_from_back >=
+      buffer_duration) {
+    discard_infos_.push(
+        AudioDiscardInfo{buffer_duration, input_buffer->timestamp()});
+  } else {
+    if (discard_duration_from_front > 0) {
+      discard_infos_.push(AudioDiscardInfo{discard_duration_from_front,
+                                           input_buffer->timestamp()});
+    }
+    if (discard_duration_from_back > 0) {
+      discard_infos_.push(AudioDiscardInfo{discard_duration_from_back,
+                                           input_buffer->timestamp() +
+                                               buffer_duration -
+                                               discard_duration_from_back});
+    }
+  }
+
+  // DCHECK to prevent |discard_infos_| from growing arbitrarily large.
+  SB_DCHECK(discard_infos_.size() <= kMaxNumberOfPendingAudioDiscardInfos);
 }
 
 }  // namespace filter

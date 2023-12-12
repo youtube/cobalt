@@ -48,8 +48,10 @@ TEST_P(AudioDiscardDurationTrackerTest, SingleInputNonPartialAudio) {
   scoped_refptr<InputBuffer> input_buffer =
       GetAudioInputBuffer(&dmp_reader_, 0);
 
+  InputBuffers input_buffers = {input_buffer};
   AudioDiscardDurationTracker tracker;
-  tracker.CacheDiscardDuration(input_buffer, kPassthroughBufferDuration);
+  tracker.CacheMultipleDiscardDurations(input_buffers,
+                                        kPassthroughBufferDuration);
 
   SbTime timestamp = kPassthroughBufferDuration;
   SbTime adjusted_timestamp =
@@ -86,9 +88,11 @@ TEST_P(AudioDiscardDurationTrackerTest, SingleInputPartialAudio) {
   // Discard front only.
   scoped_refptr<InputBuffer> input_buffer =
       GetAudioInputBuffer(&dmp_reader_, 0, kDiscardDuration, 0);
+  InputBuffers input_buffers = {input_buffer};
 
   AudioDiscardDurationTracker tracker;
-  tracker.CacheDiscardDuration(input_buffer, kPassthroughBufferDuration);
+  tracker.CacheMultipleDiscardDurations(input_buffers,
+                                        kPassthroughBufferDuration);
 
   // The timestamp at which audio begins to be discarded. For a 32 ms buffer at
   // timestamp 50 ms with a front discard duration of 10 ms, the discard start
@@ -122,10 +126,13 @@ TEST_P(AudioDiscardDurationTrackerTest, SingleInputPartialAudio) {
   EXPECT_EQ(adjusted_timestamp, incremented_timestamp - kDiscardDuration);
 
   tracker.Reset();
+  input_buffers.clear();
 
   // Discard back only.
   input_buffer = GetAudioInputBuffer(&dmp_reader_, 0, 0, kDiscardDuration);
-  tracker.CacheDiscardDuration(input_buffer, kPassthroughBufferDuration);
+  input_buffers = {input_buffer};
+  tracker.CacheMultipleDiscardDurations(input_buffers,
+                                        kPassthroughBufferDuration);
 
   discard_start_timestamp =
       input_buffer->timestamp() + kPassthroughBufferDuration - kDiscardDuration;
@@ -150,13 +157,16 @@ TEST_P(AudioDiscardDurationTrackerTest, SingleInputPartialAudio) {
   EXPECT_EQ(adjusted_timestamp, incremented_timestamp - kDiscardDuration);
 
   tracker.Reset();
+  input_buffers.clear();
 
   // Discard both front and back.
   input_buffer =
       GetAudioInputBuffer(&dmp_reader_, 0, kDiscardDuration, kDiscardDuration);
   SbTime front_discard_duration = kDiscardDuration;
   SbTime back_discard_duration = kDiscardDuration;
-  tracker.CacheDiscardDuration(input_buffer, kPassthroughBufferDuration);
+  input_buffers = {input_buffer};
+  tracker.CacheMultipleDiscardDurations(input_buffers,
+                                        kPassthroughBufferDuration);
 
   SbTime discard_front_start_timestamp = input_buffer->timestamp();
   SbTime discard_front_end_timestamp =
@@ -213,7 +223,9 @@ TEST_P(AudioDiscardDurationTrackerTest, DiscardAll) {
       &dmp_reader_, 0, kPassthroughBufferDuration, kPassthroughBufferDuration);
 
   AudioDiscardDurationTracker tracker;
-  tracker.CacheDiscardDuration(input_buffer, kPassthroughBufferDuration);
+  InputBuffers input_buffers = {input_buffer};
+  tracker.CacheMultipleDiscardDurations(input_buffers,
+                                        kPassthroughBufferDuration);
 
   SbTime adjusted_timestamp =
       tracker.AdjustTimeForTotalDiscardDuration(input_buffer->timestamp());
@@ -226,8 +238,7 @@ TEST_P(AudioDiscardDurationTrackerTest, DiscardAll) {
   EXPECT_EQ(adjusted_timestamp, input_buffer->timestamp());
 
   tracker.Reset();
-
-  InputBuffers input_buffers;
+  input_buffers.clear();
 
   int buffers_written = 0;
   for (int i = 0; i < std::min<int>(32, dmp_reader_.number_of_audio_buffers());
@@ -248,6 +259,29 @@ TEST_P(AudioDiscardDurationTrackerTest, DiscardAll) {
         tracker.AdjustTimeForTotalDiscardDuration(timestamp);
     EXPECT_EQ(adjusted_timestamp, initial_timestamp);
   }
+}
+
+TEST_P(AudioDiscardDurationTrackerTest, TimestampRegression) {
+  if (dmp_reader_.number_of_audio_buffers() < 2) {
+    GTEST_SKIP() << "Too few audio buffers to run test.";
+  }
+
+  const SbTime kDiscardDuration = 10 * kSbTimeMillisecond;
+
+  scoped_refptr<InputBuffer> first_input_buffer =
+      GetAudioInputBuffer(&dmp_reader_, 0, kDiscardDuration, 0);
+  scoped_refptr<InputBuffer> second_input_buffer =
+      GetAudioInputBuffer(&dmp_reader_, 1, kDiscardDuration, 0);
+
+  InputBuffers input_buffers = {first_input_buffer, second_input_buffer};
+  AudioDiscardDurationTracker tracker;
+  tracker.CacheMultipleDiscardDurations(input_buffers,
+                                        kPassthroughBufferDuration);
+
+  tracker.AdjustTimeForTotalDiscardDuration(second_input_buffer->timestamp());
+  // Expect AudioDiscardDurationTracker not to crash when processing a timestamp
+  // regression.
+  tracker.AdjustTimeForTotalDiscardDuration(first_input_buffer->timestamp());
 }
 
 INSTANTIATE_TEST_CASE_P(AudioDiscardDurationTrackerTests,

@@ -135,14 +135,15 @@ void AudioRendererPassthrough::WriteSamples(const InputBuffers& input_buffers) {
 
   can_accept_more_data_.store(false);
 
+  // AC-3/EAC-3 sync frames with 1536 samples at 48khz have a duration of 32 ms.
+  // TODO: Determine this value at runtime.
+  const SbTime kBufferDuration = 32 * kSbTimeMillisecond;
+  discard_duration_tracker_.CacheMultipleDiscardDurations(input_buffers,
+                                                          kBufferDuration);
+
   decoder_->Decode(
       input_buffers,
       std::bind(&AudioRendererPassthrough::OnDecoderConsumed, this));
-  // AC-3/EAC-3 sync frames with 1536 samples at 48khz have a length of 32 ms.
-  // TODO: Determine this value at runtime.
-  const SbTime kBufferLength = 32 * kSbTimeMillisecond;
-  discard_duration_tracker_.CacheMultipleDiscardDurations(input_buffers,
-                                                          kBufferLength);
 }
 
 void AudioRendererPassthrough::WriteEndOfStream() {
