@@ -33,10 +33,6 @@
 #define snprintf SbStringFormatF
 #undef sprintf
 #define sprintf SbStringFormatUnsafeF
-#undef vsscanf
-#define vsscanf SbStringScan
-#undef sscanf
-#define sscanf SbStringScanF
 
 #endif  // POEM_NO_EMULATION
 

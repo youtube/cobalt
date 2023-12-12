@@ -310,7 +310,9 @@ ExportedSymbols::ExportedSymbols() {
 #endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbStringFormat);
   REGISTER_SYMBOL(SbStringFormatWide);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbStringScan);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbSystemBreakIntoDebugger);
   REGISTER_SYMBOL(SbSystemClearLastError);
 #if SB_API_VERSION < 14
@@ -404,6 +406,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(posix_memalign);
   REGISTER_SYMBOL(free);
+  REGISTER_SYMBOL(vsscanf);
 #endif  // SB_API_VERSION >= 16
 
 }  // NOLINT

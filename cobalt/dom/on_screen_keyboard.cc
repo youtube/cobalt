@@ -41,8 +41,7 @@ bool ParseColor(const char* color_str, int& r, int& g, int& b) {
 
   // Handle hexadecimal color notation #RRGGBB
   int r_tmp, g_tmp, b_tmp;
-  bool is_hex =
-      SbStringScanF(color_str, "#%02x%02x%02x", &r_tmp, &g_tmp, &b_tmp) == 3;
+  bool is_hex = sscanf(color_str, "#%02x%02x%02x", &r_tmp, &g_tmp, &b_tmp) == 3;
   if (is_hex && IsValidRGB(r_tmp, g_tmp, b_tmp)) {
     r = r_tmp;
     g = g_tmp;
