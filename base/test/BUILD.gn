@@ -378,7 +378,9 @@ if (!is_starboard) {
   }
 }
 
-static_library("run_all_unittests") {
+# TODO: b/315170518 - Revert to static library after fixing
+# symbol visibility issues for windows based modular platform builds.
+source_set("run_all_unittests") {
   testonly = true
   sources = [
     "run_all_unittests.cc",
