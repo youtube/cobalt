@@ -15,6 +15,7 @@
 #include "cobalt/media/base/sbplayer_pipeline.h"
 
 #include "base/test/scoped_task_environment.h"
+#include "cobalt/media/base/mock_filters.h"
 #include "cobalt/media/base/sbplayer_interface.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -24,8 +25,14 @@ namespace media {
 
 using ::cobalt::media::DefaultSbPlayerInterface;
 using ::cobalt::media::SbPlayerInterface;
+using ::media::Demuxer;
+using ::media::DemuxerHost;
+using ::media::DemuxerStream;
+using ::media::MediaTrack;
+using ::media::PipelineStatusCallback;
 using ::testing::AtLeast;
 using ::testing::NiceMock;
+using ::testing::StrictMock;
 
 
 namespace {
@@ -39,7 +46,8 @@ MockGetSbDecodeTargetGraphicsContextProvider() {
 class SbPlayerPipelineTest : public ::testing::Test {
  public:
   SbPlayerPipelineTest()
-      : sbplayer_interface_(new DefaultSbPlayerInterface),
+      : demuxer_(std::make_unique<StrictMock<MockDemuxer>>()),
+        sbplayer_interface_(new DefaultSbPlayerInterface),
         decode_target_provider_(new DecodeTargetProvider()) {
     pipeline_ = new SbPlayerPipeline(
         sbplayer_interface_.get(), nullptr,
@@ -57,6 +65,8 @@ class SbPlayerPipelineTest : public ::testing::Test {
 
   scoped_refptr<DecodeTargetProvider> decode_target_provider_;
   scoped_refptr<Pipeline> pipeline_;
+
+  std::unique_ptr<StrictMock<MockDemuxer>> demuxer_;
 
   std::unique_ptr<SbPlayerInterface> sbplayer_interface_;
 

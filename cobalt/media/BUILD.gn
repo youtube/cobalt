@@ -122,6 +122,7 @@ target(gtest_target_type, "media_test") {
   sources = [
     "base/cval_stats_test.cc",
     "base/decoder_buffer_cache_test.cc",
+    "base/mock_filters.cc",
     "base/sbplayer_pipeline_unittest.cc",
     "bidirectional_fit_reuse_allocator_test.cc",
     "file_data_source_test.cc",
