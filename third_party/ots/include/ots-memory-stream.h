@@ -6,8 +6,6 @@
 #define OTS_MEMORY_STREAM_H_
 
 #include <cstring>
-#define MEMCPY_OTS_MEMORY_STREAM std::memcpy
-
 #include <limits>
 
 #include "opentype-sanitiser.h"
@@ -25,7 +23,7 @@ class MemoryStream : public OTSStream {
         (length > std::numeric_limits<size_t>::max() - off_)) {
       return false;
     }
-    MEMCPY_OTS_MEMORY_STREAM(static_cast<char*>(ptr_) + off_, data, length);
+    std::memcpy(static_cast<char*>(ptr_) + off_, data, length);
 #if defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable : 4267)  // possible loss of data
@@ -80,13 +78,13 @@ class ExpandingMemoryStream : public OTSStream {
       if (new_length > limit_)
         new_length = limit_;
       uint8_t* new_buf = new uint8_t[new_length];
-      MEMCPY_OTS_MEMORY_STREAM(new_buf, ptr_, length_);
+      std::memcpy(new_buf, ptr_, length_);
       length_ = new_length;
       delete[] static_cast<uint8_t*>(ptr_);
       ptr_ = new_buf;
       return WriteRaw(data, length);
     }
-    MEMCPY_OTS_MEMORY_STREAM(static_cast<char*>(ptr_) + off_, data, length);
+    std::memcpy(static_cast<char*>(ptr_) + off_, data, length);
 #if defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable : 4267)  // possible loss of data
@@ -117,7 +115,5 @@ class ExpandingMemoryStream : public OTSStream {
 };
 
 }  // namespace ots
-
-#undef MEMCPY_OTS_MEMORY_STREAM
 
 #endif  // OTS_MEMORY_STREAM_H_

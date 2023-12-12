@@ -5,8 +5,6 @@
 #ifndef OPENTYPE_SANITISER_H_
 #define OPENTYPE_SANITISER_H_
 
-#define MEMCPY_OPENTYPE_SANITISER std::memcpy
-
 #if defined(STARBOARD)
 #include "starboard/common/byte_swap.h"
 #define NTOHL_OPENTYPE_SANITISER(x) SB_NET_TO_HOST_U32(x)
@@ -46,6 +44,14 @@ typedef unsigned __int64 uint64_t;
 #define OTS_TAG(c1,c2,c3,c4) ((uint32_t)((((uint8_t)(c1))<<24)|(((uint8_t)(c2))<<16)|(((uint8_t)(c3))<<8)|((uint8_t)(c4))))
 #define OTS_UNTAG(tag)       ((char)((tag)>>24)), ((char)((tag)>>16)), ((char)((tag)>>8)), ((char)(tag))
 
+#if defined(__GNUC__) && (__GNUC__ >= 4) || (__clang__)
+#define OTS_UNUSED __attribute__((unused))
+#elif defined(_MSC_VER)
+#define OTS_UNUSED __pragma(warning(suppress: 4100 4101))
+#else
+#define OTS_UNUSED
+#endif
+
 namespace ots {
 
 // -----------------------------------------------------------------------------
@@ -71,7 +77,7 @@ class OTSStream {
     if (chksum_offset) {
       const size_t l = std::min(length, static_cast<size_t>(4) - chksum_offset);
       uint32_t tmp = 0;
-      MEMCPY_OPENTYPE_SANITISER(reinterpret_cast<uint8_t *>(&tmp) + chksum_offset, data, l);
+      std::memcpy(reinterpret_cast<uint8_t *>(&tmp) + chksum_offset, data, l);
 #if defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable : 4267)  // possible loss of data
@@ -86,7 +92,7 @@ class OTSStream {
 
     while (length >= 4) {
       uint32_t tmp;
-      MEMCPY_OPENTYPE_SANITISER(&tmp, reinterpret_cast<const uint8_t *>(data) + offset,
+      std::memcpy(&tmp, reinterpret_cast<const uint8_t *>(data) + offset,
         sizeof(uint32_t));
       chksum_ += NTOHL_OPENTYPE_SANITISER(tmp);
       length -= 4;
@@ -96,7 +102,7 @@ class OTSStream {
     if (length) {
       if (length > 4) return false;  // not reached
       uint32_t tmp = 0;
-      MEMCPY_OPENTYPE_SANITISER(&tmp,
+      std::memcpy(&tmp,
                   reinterpret_cast<const uint8_t*>(data) + offset, length);
 #if defined(_MSC_VER)
 #pragma warning(push)
@@ -226,17 +232,16 @@ class OTSContext {
     //   level: the severity of the generated message:
     //     0: error messages in case OTS fails to sanitize the font.
     //     1: warning messages about issue OTS fixed in the sanitized font.
-    virtual void Message(int /* level */, const char* /* format */, ...) MSGFUNC_FMT_ATTR {}
+    virtual void Message(int level OTS_UNUSED, const char *format OTS_UNUSED, ...) MSGFUNC_FMT_ATTR {}
 
     // This function will be called when OTS needs to decide what to do for a
     // font table.
     //   tag: table tag formed with OTS_TAG() macro
-    virtual TableAction GetTableAction(uint32_t /* tag */) { return ots::TABLE_ACTION_DEFAULT; }
+    virtual TableAction GetTableAction(uint32_t tag OTS_UNUSED) { return ots::TABLE_ACTION_DEFAULT; }
 };
 
 }  // namespace ots
 
-#undef MEMCPY_OPENTYPE_SANITISER
 #undef NTOHL_OPENTYPE_SANITISER
 #undef NTOHS_OPENTYPE_SANITISER
 #undef HTONL_OPENTYPE_SANITISER
