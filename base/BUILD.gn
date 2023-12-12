@@ -1670,7 +1670,6 @@ component("base") {
     }
 
     if (!use_cobalt_customizations && is_posix) {
-      print("hello!!")
       sources += [
         "base_paths_posix.h",
         "memory/madv_free_discardable_memory_allocator_posix.cc",
@@ -3512,6 +3511,13 @@ test("base_unittests") {
     "version_unittest.cc",
     "vlog_unittest.cc",
   ]
+
+  if (use_cobalt_customizations) {
+    sources -= [
+      # Cobalt builds don't include build timestamps.
+      "build_time_unittest.cc",
+    ]
+  }
 
   if (!is_cronet_build) {
     # location_unittest.cc fails gn check for tracing-shimmed Cronet builds.
