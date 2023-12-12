@@ -311,6 +311,8 @@ void WebMediaPlayerImpl::CancelLoad() {
 void WebMediaPlayerImpl::Play() {
   TRACE_EVENT0("cobalt::media", "WebMediaPlayerImpl::Play");
 
+  LOG(INFO) << "YO THOR IMPL PLAY";
+
   DCHECK_EQ(main_loop_, base::MessageLoop::current());
 
   state_.paused = false;

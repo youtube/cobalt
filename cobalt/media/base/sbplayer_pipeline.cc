@@ -175,9 +175,14 @@ SbPlayerPipeline::SbPlayerPipeline(
             << ", the duration during preroll is "
             << audio_write_duration_for_preroll_;
 #endif  // SB_API_VERSION < 15
+        //
+  LOG(INFO) << "YO THOR - PIPELINE CTOR!";
 }
 
-SbPlayerPipeline::~SbPlayerPipeline() { DCHECK(!player_bridge_); }
+SbPlayerPipeline::~SbPlayerPipeline() {
+  LOG(INFO) << "YO THOR _ PLAYER PIPELINE DSTROR";
+  DCHECK(!player_bridge_);
+}
 
 void SbPlayerPipeline::Suspend() {
   DCHECK(!task_runner_->BelongsToCurrentThread());

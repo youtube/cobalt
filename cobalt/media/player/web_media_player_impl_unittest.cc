@@ -115,5 +115,6 @@ TEST_F(WebMediaPlayerImplTest, LoadMediaSource) {
   wmpi_->LoadMediaSource();
 }
 
+
 }  // namespace media
 }  // namespace cobalt
