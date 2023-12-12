@@ -52,7 +52,11 @@ TEST(SbFileDeleteRecursiveTest, SunnyDayDeleteExistingPath) {
     path = tmp + kSbFileSepString + kRoot + kSbFileSepString + kDirectories[i];
 
     EXPECT_FALSE(SbFileExists(path.c_str()));
+#if SB_API_VERSION < 16
+    EXPECT_TRUE(SbDirectoryCreate(path.c_str()));
+#else
     EXPECT_TRUE(mkdir(path.c_str(), 0700));
+#endif  // SB_API_VERSION < 16
     EXPECT_TRUE(SbDirectoryCanOpen(path.c_str()));
   }
 
@@ -83,7 +87,11 @@ TEST(SbFileDeleteRecursiveTest, SunnyDayDeletePreserveRoot) {
   const std::string root = GetTempDir() + kSbFileSepString + kRoot;
 
   EXPECT_FALSE(SbFileExists(root.c_str()));
+#if SB_API_VERSION < 16
+  EXPECT_TRUE(SbDirectoryCreate(root.c_str()));
+#else
   EXPECT_TRUE(mkdir(root.c_str(), 0700));
+#endif  // SB_API_VERSION < 16
   EXPECT_TRUE(SbDirectoryCanOpen(root.c_str()));
 
   EXPECT_TRUE(SbFileDeleteRecursive(root.c_str(), true));

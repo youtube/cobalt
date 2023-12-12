@@ -46,7 +46,11 @@ class InstallationManagerTest : public ::testing::TestWithParam<int> {
     }
     storage_path_ = buf.data();
     ASSERT_TRUE(!storage_path_.empty());
+#if SB_API_VERSION < 16
+    SbDirectoryCreate(storage_path_.c_str());
+#else
     mkdir(storage_path_.c_str(), 0700);
+#endif  // SB_API_VERSION < 16
 
     installation_store_path_ = storage_path_;
     installation_store_path_ += kSbFileSepString;

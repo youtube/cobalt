@@ -133,7 +133,11 @@ class UtilsTest : public testing::Test {
                           const std::string& installation_path) {
     std::string lib_path = base::StrCat(
         {installation_path, kSbFileSepString, kEvergreenLibDirname});
+    #if SB_API_VERSION < 16
+    ASSERT_TRUE(SbDirectoryCreate(lib_path.c_str()));
+    #else
     ASSERT_TRUE(mkdir(lib_path.c_str(), 0700));
+    #endif // SB_API_VERSION < 16
 
     lib_path = base::StrCat({lib_path, kSbFileSepString, name});
     SbFile sb_file = SbFileOpen(
@@ -155,7 +159,11 @@ class UtilsTest : public testing::Test {
 TEST_F(UtilsTest, ReadEvergreenVersionReturnsVersionForValidManifest) {
   std::string installation_path = base::StrCat(
       {temp_dir_path_.data(), kSbFileSepString, "some_installation_path"});
+  #if SB_API_VERSION < 16
+  ASSERT_TRUE(SbDirectoryCreate(installation_path.c_str()));
+  #else
   ASSERT_TRUE(mkdir(installation_path.c_str(), 0700));
+  #endif // SB_API_VERSION < 16
   char manifest_content[] = R"json(
   {
     "manifest_version": 2,
@@ -177,7 +185,11 @@ TEST_F(UtilsTest,
        ReadEvergreenVersionReturnsInvalidVersionForVersionlessManifest) {
   std::string installation_path = base::StrCat(
       {temp_dir_path_.data(), kSbFileSepString, "some_installation_path"});
+  #if SB_API_VERSION < 16
+  ASSERT_TRUE(SbDirectoryCreate(installation_path.c_str()));
+  #else
   ASSERT_TRUE(mkdir(installation_path.c_str(), 0700));
+  #endif // SB_API_VERSION < 16
   char versionless_manifest_content[] = R"json(
   {
     "manifest_version": 2,
@@ -222,7 +234,11 @@ TEST_F(UtilsTest, ReturnsEvergreenVersionFromCurrentManagedInstallation) {
   std::function<const void*(const char*)> stub_get_extension_fn =
       [](const char* name) { return &kStubInstallationManagerApi; };
 
+  #if SB_API_VERSION < 16
+  ASSERT_TRUE(SbDirectoryCreate(installation_path.c_str()));
+  #else
   ASSERT_TRUE(mkdir(installation_path.c_str(), 0700));
+  #endif // SB_API_VERSION < 16
   char manifest_content[] = R"json(
   {
     "manifest_version": 2,
@@ -261,7 +277,11 @@ TEST_F(UtilsTest,
   std::function<const void*(const char*)> stub_get_extension_fn =
       [](const char* name) { return &kStubInstallationManagerApi; };
 
+  #if SB_API_VERSION < 16
+  ASSERT_TRUE(SbDirectoryCreate(installation_path.c_str()));
+  #else
   ASSERT_TRUE(mkdir(installation_path.c_str(), 0700));
+  #endif // SB_API_VERSION < 16
   // No manifest is created in the installation directory.
 
   std::string version = GetCurrentEvergreenVersion(stub_get_extension_fn);
@@ -421,7 +441,11 @@ TEST_F(UtilsTest,
   std::function<const void*(const char*)> stub_get_extension_fn =
       [](const char* name) { return &kStubInstallationManagerApi; };
 
+  #if SB_API_VERSION < 16
+  ASSERT_TRUE(SbDirectoryCreate(installation_path.c_str()));
+  #else
   ASSERT_TRUE(mkdir(installation_path.c_str(), 0700));
+  #endif // SB_API_VERSION < 16
   char manifest_content[] = R"json(
   {
     "manifest_version": 2,
@@ -464,7 +488,11 @@ TEST_F(UtilsTest,
   std::function<const void*(const char*)> stub_get_extension_fn =
       [](const char* name) { return &kStubInstallationManagerApi; };
 
+  #if SB_API_VERSION < 16
+  ASSERT_TRUE(SbDirectoryCreate(installation_path.c_str()));
+  #else
   ASSERT_TRUE(mkdir(installation_path.c_str(), 0700));
+  #endif // SB_API_VERSION < 16
   CreateEmptyLibrary("libcobalt.unexpected", installation_path);
 
   EvergreenLibraryMetadata metadata =

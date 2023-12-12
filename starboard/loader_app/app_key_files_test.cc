@@ -36,7 +36,11 @@ class AppKeyFilesTest : public testing::Test {
     dir_ = temp_path.data();
     dir_ += kSbFileSepString;
     dir_ += kTestAppKeyDir;
+#if SB_API_VERSION < 16
+    SbDirectoryCreate(dir_.c_str());
+#else
     mkdir(dir_.c_str(), 0700);
+#endif  // SB_API_VERSION < 16
   }
 
   std::string dir_;

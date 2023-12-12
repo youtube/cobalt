@@ -177,7 +177,11 @@ class SlotManagementTest : public testing::TestWithParam<bool> {
       path += kSbFileSepString;
       path += dir;
       if (!SbFileExists(path.c_str())) {
+#if SB_API_VERSION < 16
+        EXPECT_TRUE(SbDirectoryCreate(path.c_str()));
+#else
         EXPECT_TRUE(mkdir(path.c_str(), 0700));
+#endif  // SB_API_VERSION < 16
 
         if (out_top_created_dir.empty()) {
           // This new dir should be recursively deleted during cleanup.
