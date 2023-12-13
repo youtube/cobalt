@@ -9,7 +9,6 @@ autom4te.cache
 compile
 config.guess
 config.h
-!/*/config.h
 config.h.in
 config.log
 config.status
@@ -68,7 +67,6 @@ doc/latex
 doc/man
 package_version
 version.h
-!/*/version.h
 celt/Debug
 celt/Release
 celt/x64
@@ -85,3 +83,7 @@ silk/tests/test_unit_LPC_inv_pred_gain
 src/Debug
 src/Release
 src/x64
+/*[Bb]uild*/
+.vs/
+.vscode/
+CMakeSettings.json
