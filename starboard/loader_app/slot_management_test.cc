@@ -180,7 +180,7 @@ class SlotManagementTest : public testing::TestWithParam<bool> {
 #if SB_API_VERSION < 16
         EXPECT_TRUE(SbDirectoryCreate(path.c_str()));
 #else
-        EXPECT_TRUE(mkdir(path.c_str(), 0700));
+        EXPECT_TRUE(mkdir(path.c_str(), 0700) == 0);
 #endif  // SB_API_VERSION < 16
 
         if (out_top_created_dir.empty()) {

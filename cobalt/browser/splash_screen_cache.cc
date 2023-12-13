@@ -47,7 +47,7 @@ bool CreateDirsForKey(const std::string& key) {
     starboard::strlcat(path.data(),
                        key.substr(prev_found, found - prev_found).c_str(),
                        kSbFileMaxPath);
-    if (!mkdir(path.data(), 0700)) {
+    if (mkdir(path.data(), 0700) != 0) {
       return false;
     }
     prev_found = found;

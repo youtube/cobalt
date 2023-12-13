@@ -214,7 +214,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       if (starboard::strlcat(path.data(), "/cobalt", kPathSize) >= kPathSize) {
         return false;
       }
-      if (!mkdir(path.data(), 0700)) {
+      if (mkdir(path.data(), 0700) != 0) {
         return false;
       }
       break;

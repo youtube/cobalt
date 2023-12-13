@@ -65,7 +65,7 @@ TEST(ResetEvergreenUpdateTest, TestSunnyDaySubdir) {
 #if SB_API_VERSION < 16
   ASSERT_TRUE(SbDirectoryCreate(subdir_path.c_str()));
 #else
-  ASSERT_TRUE(mkdir(subdir_path.c_str(), 0700));
+  ASSERT_TRUE(mkdir(subdir_path.c_str(), 0700) == 0);
 #endif  // SB_API_VERSION < 16
 
   std::string file_path = subdir_path.data();

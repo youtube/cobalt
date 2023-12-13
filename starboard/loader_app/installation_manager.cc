@@ -708,7 +708,7 @@ bool InstallationManager::CreateInstallationDirs() {
       return false;
     }
 
-    if (!mkdir(path.data(), 0700)) {
+    if (mkdir(path.data(), 0700) != 0) {
       return false;
     }
   }

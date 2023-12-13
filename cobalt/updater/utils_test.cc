@@ -15,6 +15,7 @@
 #include "cobalt/updater/utils.h"
 
 #include <vector>
+#include <sys/stat.h>
 
 #include "base/files/file_path.h"
 #include "base/strings/strcat.h"
@@ -136,7 +137,7 @@ class UtilsTest : public testing::Test {
     #if SB_API_VERSION < 16
     ASSERT_TRUE(SbDirectoryCreate(lib_path.c_str()));
     #else
-    ASSERT_TRUE(mkdir(lib_path.c_str(), 0700));
+    ASSERT_TRUE(mkdir(lib_path.c_str(), 0700) == 0);
     #endif // SB_API_VERSION < 16
 
     lib_path = base::StrCat({lib_path, kSbFileSepString, name});
@@ -162,7 +163,7 @@ TEST_F(UtilsTest, ReadEvergreenVersionReturnsVersionForValidManifest) {
   #if SB_API_VERSION < 16
   ASSERT_TRUE(SbDirectoryCreate(installation_path.c_str()));
   #else
-  ASSERT_TRUE(mkdir(installation_path.c_str(), 0700));
+  ASSERT_TRUE(mkdir(installation_path.c_str(), 0700) == 0);
   #endif // SB_API_VERSION < 16
   char manifest_content[] = R"json(
   {
@@ -188,7 +189,7 @@ TEST_F(UtilsTest,
   #if SB_API_VERSION < 16
   ASSERT_TRUE(SbDirectoryCreate(installation_path.c_str()));
   #else
-  ASSERT_TRUE(mkdir(installation_path.c_str(), 0700));
+  ASSERT_TRUE(mkdir(installation_path.c_str(), 0700) == 0);
   #endif // SB_API_VERSION < 16
   char versionless_manifest_content[] = R"json(
   {
@@ -237,7 +238,7 @@ TEST_F(UtilsTest, ReturnsEvergreenVersionFromCurrentManagedInstallation) {
   #if SB_API_VERSION < 16
   ASSERT_TRUE(SbDirectoryCreate(installation_path.c_str()));
   #else
-  ASSERT_TRUE(mkdir(installation_path.c_str(), 0700));
+  ASSERT_TRUE(mkdir(installation_path.c_str(), 0700) == 0);
   #endif // SB_API_VERSION < 16
   char manifest_content[] = R"json(
   {
@@ -280,7 +281,7 @@ TEST_F(UtilsTest,
   #if SB_API_VERSION < 16
   ASSERT_TRUE(SbDirectoryCreate(installation_path.c_str()));
   #else
-  ASSERT_TRUE(mkdir(installation_path.c_str(), 0700));
+  ASSERT_TRUE(mkdir(installation_path.c_str(), 0700) == 0);
   #endif // SB_API_VERSION < 16
   // No manifest is created in the installation directory.
 
@@ -444,7 +445,7 @@ TEST_F(UtilsTest,
   #if SB_API_VERSION < 16
   ASSERT_TRUE(SbDirectoryCreate(installation_path.c_str()));
   #else
-  ASSERT_TRUE(mkdir(installation_path.c_str(), 0700));
+  ASSERT_TRUE(mkdir(installation_path.c_str(), 0700) == 0);
   #endif // SB_API_VERSION < 16
   char manifest_content[] = R"json(
   {
@@ -491,7 +492,7 @@ TEST_F(UtilsTest,
   #if SB_API_VERSION < 16
   ASSERT_TRUE(SbDirectoryCreate(installation_path.c_str()));
   #else
-  ASSERT_TRUE(mkdir(installation_path.c_str(), 0700));
+  ASSERT_TRUE(mkdir(installation_path.c_str(), 0700) == 0);
   #endif // SB_API_VERSION < 16
   CreateEmptyLibrary("libcobalt.unexpected", installation_path);
 

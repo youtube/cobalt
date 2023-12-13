@@ -343,7 +343,7 @@ bool CreateDirectoryAndGetError(const FilePath &full_path, File::Error* error) {
       continue;
     }
 
-    if (!mkdir(i->value().c_str(), 0700)) {
+    if (mkdir(i->value().c_str(), 0700) != 0) {
       if (error)
         *error = File::OSErrorToFileError(SbSystemGetLastError());
       return false;
