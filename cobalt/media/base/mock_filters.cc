@@ -22,5 +22,43 @@ MockDemuxer::~MockDemuxer() = default;
 
 std::string MockDemuxer::GetDisplayName() const { return "MockDemuxer"; }
 
+
+MockDemuxerStream::MockDemuxerStream(DemuxerStream::Type type) : type_(type) {}
+
+MockDemuxerStream::~MockDemuxerStream() = default;
+
+DemuxerStream::Type MockDemuxerStream::type() const { return type_; }
+
+// StreamLiveness MockDemuxerStream::liveness() const {
+//   return liveness_;
+// }
+//
+AudioDecoderConfig MockDemuxerStream::audio_decoder_config() {
+  DCHECK_EQ(type_, DemuxerStream::AUDIO);
+  return audio_decoder_config_;
+}
+
+VideoDecoderConfig MockDemuxerStream::video_decoder_config() {
+  DCHECK_EQ(type_, DemuxerStream::VIDEO);
+  return video_decoder_config_;
+}
+//
+// void MockDemuxerStream::set_audio_decoder_config(
+//    const AudioDecoderConfig& config) {
+//  DCHECK_EQ(type_, DemuxerStream::AUDIO);
+//  audio_decoder_config_ = config;
+//}
+//
+// void MockDemuxerStream::set_video_decoder_config(
+//    const VideoDecoderConfig& config) {
+//  DCHECK_EQ(type_, DemuxerStream::VIDEO);
+//  video_decoder_config_ = config;
+//}
+//
+// void MockDemuxerStream::set_liveness(StreamLiveness liveness) {
+//  liveness_ = liveness;
+//}
+
+
 }  // namespace media
 }  // namespace cobalt
