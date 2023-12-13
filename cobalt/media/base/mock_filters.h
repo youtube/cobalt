@@ -38,32 +38,32 @@ using ::media::VideoPipelineInfo;
 
 class MockPipelineClient : public ::media::Pipeline::Client {
  public:
-  MockPipelineClient();
-  ~MockPipelineClient();
+  MockPipelineClient() = default;
+  ~MockPipelineClient() = default;
 
   MOCK_METHOD1(OnError, void(PipelineStatus));
-  MOCK_METHOD1(OnFallback, void(PipelineStatus));
   MOCK_METHOD0(OnEnded, void());
   MOCK_METHOD1(OnMetadata, void(const PipelineMetadata&));
   MOCK_METHOD2(OnBufferingStateChange,
                void(::media::BufferingState,
                     ::media::BufferingStateChangeReason));
   MOCK_METHOD0(OnDurationChange, void());
-  MOCK_METHOD1(OnWaiting, void(::media::WaitingReason));
-  MOCK_METHOD1(OnAudioConfigChange, void(const AudioDecoderConfig&));
-  MOCK_METHOD1(OnVideoConfigChange, void(const VideoDecoderConfig&));
-  MOCK_METHOD1(OnVideoNaturalSizeChange, void(const gfx::Size&));
-  MOCK_METHOD1(OnVideoOpacityChange, void(bool));
-  MOCK_METHOD1(OnVideoFrameRateChange, void(absl::optional<int>));
-  MOCK_METHOD0(OnVideoAverageKeyframeDistanceUpdate, void());
-  MOCK_METHOD1(OnAudioPipelineInfoChange, void(const AudioPipelineInfo&));
-  MOCK_METHOD1(OnVideoPipelineInfoChange, void(const VideoPipelineInfo&));
-  MOCK_METHOD1(OnRemotePlayStateChange,
-               void(::media::MediaStatus::State state));
   MOCK_METHOD(void, OnAddTextTrack,
               (const ::media::TextTrackConfig& config,
                ::media::AddTextTrackDoneCB done_cb),
               (override));
+  MOCK_METHOD1(OnWaiting, void(::media::WaitingReason));
+  MOCK_METHOD1(OnVideoNaturalSizeChange, void(const gfx::Size&));
+  MOCK_METHOD1(OnVideoOpacityChange, void(bool));
+  MOCK_METHOD0(OnVideoAverageKeyframeDistanceUpdate, void());
+  MOCK_METHOD1(OnAudioConfigChange, void(const AudioDecoderConfig&));
+  MOCK_METHOD1(OnVideoConfigChange, void(const VideoDecoderConfig&));
+
+  MOCK_METHOD1(OnAudioPipelineInfoChange, void(const AudioPipelineInfo&));
+  MOCK_METHOD1(OnVideoPipelineInfoChange, void(const VideoPipelineInfo&));
+  MOCK_METHOD1(OnVideoFrameRateChange, void(absl::optional<int>));
+  // MOCK_METHOD1(OnRemotePlayStateChange,
+  //              void(::media::MediaStatus::State state));
 };
 
 class MockDemuxer : public Demuxer {
