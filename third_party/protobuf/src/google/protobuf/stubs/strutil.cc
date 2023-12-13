@@ -42,6 +42,9 @@
 // "reverse poems" to move past this issue for host builds.  For why we don't
 // just use poems, see the comment in the #else clause.
 
+#define SbStringFormatF snprintf
+#define SbStringFormatUnsafeF sprintf
+
 #else  // STARBOARD
 
 #include <string.h>
@@ -528,7 +531,7 @@ int CEscapeInternal(const char* src, int src_len, char* dest,
              (last_hex_escape && isxdigit(*src)))) {
           if (dest_len - used < 4) // need space for 4 letter escape
             return -1;
-          sprintf(dest + used, (use_hex ? "\\x%02x" : "\\%03o"),
+          SbStringFormatUnsafeF(dest + used, (use_hex ? "\\x%02x" : "\\%03o"),
                   static_cast<uint8>(*src));
           is_hex_escape = use_hex;
           used += 4;
@@ -1288,7 +1291,7 @@ char* DoubleToBuffer(double value, char* buffer) {
   }
 
   int snprintf_result =
-    snprintf(buffer, kDoubleToBufferSize, "%.*g", DBL_DIG, value);
+    SbStringFormatF(buffer, kDoubleToBufferSize, "%.*g", DBL_DIG, value);
 
   // The snprintf should never overflow because the buffer is significantly
   // larger than the precision we asked for.
@@ -1303,7 +1306,7 @@ char* DoubleToBuffer(double value, char* buffer) {
   volatile double parsed_value = strtod(buffer, NULL);
   if (parsed_value != value) {
     int snprintf_result =
-      snprintf(buffer, kDoubleToBufferSize, "%.*g", DBL_DIG+2, value);
+      SbStringFormatF(buffer, kDoubleToBufferSize, "%.*g", DBL_DIG+2, value);
 
     // Should never overflow; see above.
     GOOGLE_DCHECK(snprintf_result > 0 && snprintf_result < kDoubleToBufferSize);
@@ -1406,7 +1409,7 @@ char* FloatToBuffer(float value, char* buffer) {
   }
 
   int snprintf_result =
-    snprintf(buffer, kFloatToBufferSize, "%.*g", FLT_DIG, value);
+    SbStringFormatF(buffer, kFloatToBufferSize, "%.*g", FLT_DIG, value);
 
   // The snprintf should never overflow because the buffer is significantly
   // larger than the precision we asked for.
@@ -1415,7 +1418,7 @@ char* FloatToBuffer(float value, char* buffer) {
   float parsed_value;
   if (!safe_strtof(buffer, &parsed_value) || parsed_value != value) {
     int snprintf_result =
-      snprintf(buffer, kFloatToBufferSize, "%.*g", FLT_DIG+2, value);
+      SbStringFormatF(buffer, kFloatToBufferSize, "%.*g", FLT_DIG+2, value);
 
     // Should never overflow; see above.
     GOOGLE_DCHECK(snprintf_result > 0 && snprintf_result < kFloatToBufferSize);

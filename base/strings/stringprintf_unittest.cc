@@ -120,7 +120,7 @@ TEST(StringPrintfTest, Grow) {
   const int kRefSize = 320000;
   char* ref = new char[kRefSize];
 #if defined(STARBOARD)
-  snprintf(ref, kRefSize, fmt, src, src, src, src, src, src, src);
+  SbStringFormatF(ref, kRefSize, fmt, src, src, src, src, src, src, src);
 #else
 #if defined(OS_WIN)
   sprintf_s(ref, kRefSize, fmt, src, src, src, src, src, src, src);

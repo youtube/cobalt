@@ -302,7 +302,6 @@
 #include <type_traits>
 #include <vector>
 
-#include <stdio.h>
 
 #include "gtest/internal/custom/gtest-port.h"
 #include "gtest/internal/gtest-port-arch.h"
@@ -2109,7 +2108,7 @@ inline void Abort() { SbSystemBreakIntoDebugger(); }
 
 inline int VSNPrintF(char* out_buffer, size_t size, const char* format,
                       va_list args) {
-  return vsnprintf(out_buffer, size, format, args);
+  return SbStringFormat(out_buffer, size, format, args);
 }
 
 inline size_t StrLen(const char *str) {
