@@ -17,4 +17,6 @@
     $ docker run -it --mount type=bind,source=$(pwd),target=/code docsite
     ```
 
-4. Commit the generated files and create a Pull Request.
+4.  (Optional) To preview the changes you must commit the generated files and
+    create a Pull Request. That pull request can be previewed in staging by
+    following the direction for deploying the developer site.
