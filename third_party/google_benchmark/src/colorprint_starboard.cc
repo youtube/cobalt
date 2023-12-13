@@ -14,7 +14,6 @@
 
 #include "colorprint.h"
 
-#include <stdio.h>
 #include <vector>
 
 #include "starboard/string.h"
@@ -25,7 +24,7 @@ std::string FormatString(const char* msg, va_list args) {
   va_list args_copy;
   va_copy(args_copy, args);
 
-  int expected_size = ::vsnprintf(NULL, 0, msg, args_copy);
+  int expected_size = ::SbStringFormat(NULL, 0, msg, args_copy);
 
   va_end(args_copy);
 
@@ -34,7 +33,7 @@ std::string FormatString(const char* msg, va_list args) {
   }
 
   std::vector<char> buffer(expected_size + 1);
-  ::vsnprintf(buffer.data(), buffer.size(), msg, args);
+  ::SbStringFormat(buffer.data(), buffer.size(), msg, args);
   return std::string(buffer.data(), expected_size);
 }
 

@@ -77,8 +77,8 @@ bool CopyAndroidPlatformName(char* out_value, int value_length) {
   }
 
   char result_string[kStringBufferSize];
-  snprintf(result_string, kStringBufferSize, kPlatformNameFormat,
-           version_string_buffer);
+  SbStringFormatF(result_string, kStringBufferSize, kPlatformNameFormat,
+                  version_string_buffer);
 
   return CopyStringAndTestIfSuccess(out_value, value_length, result_string);
 }

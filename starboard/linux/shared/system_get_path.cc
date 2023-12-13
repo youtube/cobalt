@@ -41,7 +41,8 @@ bool GetCacheDirectory(char* out_path, int path_size) {
                                                       kMaxPathSize)) {
     return false;
   }
-  int result = snprintf(out_path, path_size, "%s/.cache", home_path.data());
+  int result =
+      SbStringFormatF(out_path, path_size, "%s/.cache", home_path.data());
   if (result < 0 || result >= path_size) {
     out_path[0] = '\0';
     return false;
@@ -56,8 +57,8 @@ bool GetStorageDirectory(char* out_path, int path_size) {
                                                       kMaxPathSize)) {
     return false;
   }
-  int result =
-      snprintf(out_path, path_size, "%s/.cobalt_storage", home_path.data());
+  int result = SbStringFormatF(out_path, path_size, "%s/.cobalt_storage",
+                               home_path.data());
   if (result < 0 || result >= path_size) {
     out_path[0] = '\0';
     return false;
@@ -158,8 +159,8 @@ bool GetTemporaryDirectory(char* out_path, int path_size) {
     return false;
   }
 
-  int result = snprintf(out_path, path_size, "/tmp/%s-%d", binary_name.data(),
-                        static_cast<int>(getpid()));
+  int result = SbStringFormatF(out_path, path_size, "/tmp/%s-%d",
+                               binary_name.data(), static_cast<int>(getpid()));
   if (result < 0 || result >= path_size) {
     out_path[0] = '\0';
     return false;

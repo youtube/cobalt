@@ -106,6 +106,8 @@ putwc
 read
 setlocale
 setvbuf
+snprintf
+sprintf
 stderr
 stdin
 stdout
@@ -115,6 +117,7 @@ strtold_l
 syscall
 ungetc
 ungetwc
+vsnprintf
 vsprintf
 wcrtomb
 wcscmp

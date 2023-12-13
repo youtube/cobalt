@@ -15,14 +15,11 @@
 #include "starboard/common/log.h"
 
 #include <stdarg.h>
-#if SB_API_VERSION >= 16
-#include <stdio.h>
-#else
+
 #include "starboard/common/string.h"
-#endif
 
 void SbLogRawFormat(const char* format, va_list arguments) {
   char message[128];
-  vsnprintf(message, sizeof(message), format, arguments);
+  SbStringFormat(message, sizeof(message), format, arguments);
   SbLogRaw(message);
 }
