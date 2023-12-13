@@ -36,7 +36,6 @@ config("internal_config") {
       "-fvisibility=hidden",
     ]
     cflags_c = [
-      "-std=gnu99",
       "-Wno-bad-function-cast",
     ]
   }
