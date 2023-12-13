@@ -9,7 +9,6 @@
 #ifndef EINVAL
 #define EINVAL 22
 #endif
-#define snprintf SbStringFormatF
 #else
 #include <errno.h>
 #include <stdlib.h>

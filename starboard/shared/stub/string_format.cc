@@ -14,9 +14,11 @@
 
 #include "starboard/common/string.h"
 
+#if SB_API_VERSION < 16
 int SbStringFormat(char* out_buffer,
                    size_t buffer_size,
                    const char* format,
                    va_list arguments) {
   return 0;
 }
+#endif

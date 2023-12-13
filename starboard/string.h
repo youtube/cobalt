@@ -63,7 +63,6 @@ SB_EXPORT int SbStringCompareNoCase(const char* string1, const char* string2);
 SB_EXPORT int SbStringCompareNoCaseN(const char* string1,
                                      const char* string2,
                                      size_t count);
-#endif  // SB_API_VERSION < 16
 
 // Produces a string formatted with |format| and |arguments|, placing as much
 // of the result that will fit into |out_buffer|. The return value specifies
@@ -80,7 +79,6 @@ SB_EXPORT int SbStringFormat(char* out_buffer,
                              size_t buffer_size,
                              const char* format,
                              va_list arguments) SB_PRINTF_FORMAT(3, 0);
-
 // An inline wrapper of SbStringFormat that converts from ellipsis to va_args.
 // This function is meant to be a drop-in replacement for |snprintf|.
 //
@@ -141,6 +139,7 @@ SB_EXPORT int SbStringFormatWide(wchar_t* out_buffer,
 // |buffer_size|: The size of |out_buffer|.
 // |format|: A string that specifies how the data should be formatted.
 // |...|: Arguments used in the string.
+
 static SB_C_INLINE int SbStringFormatWideF(wchar_t* out_buffer,
                                            size_t buffer_size,
                                            const wchar_t* format,
@@ -151,6 +150,7 @@ static SB_C_INLINE int SbStringFormatWideF(wchar_t* out_buffer,
   va_end(arguments);
   return result;
 }
+#endif  // SB_API_VERSION < 16
 
 #if SB_API_VERSION < 16
 // Scans |buffer| for |pattern|, placing the extracted values in |arguments|.
