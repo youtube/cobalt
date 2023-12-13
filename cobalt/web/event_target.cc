@@ -102,9 +102,6 @@ bool EventTarget::DispatchEvent(const scoped_refptr<Event>& event,
 }
 
 bool EventTarget::DispatchEvent(const scoped_refptr<Event>& event) {
-  DCHECK(event);
-  DCHECK(!event->IsBeingDispatched());
-  DCHECK(event->initialized_flag());
   TRACE_EVENT2("cobalt::dom", "EventTarget::DispatchEvent", "name",
                GetDebugName(), "event", TRACE_STR_COPY(event->type().c_str()));
   if (!event || event->IsBeingDispatched() || !event->initialized_flag()) {

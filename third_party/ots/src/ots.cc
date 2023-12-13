@@ -27,33 +27,41 @@
 // The OpenType Font File
 // http://www.microsoft.com/typography/otspec/otff.htm
 
+#include "avar.h"
 #include "cff.h"
 #include "cmap.h"
+#include "cvar.h"
 #include "cvt.h"
 #include "fpgm.h"
+#include "fvar.h"
 #include "gasp.h"
 #include "gdef.h"
 #include "glyf.h"
 #include "gpos.h"
 #include "gsub.h"
+#include "gvar.h"
 #include "hdmx.h"
 #include "head.h"
 #include "hhea.h"
 #include "hmtx.h"
+#include "hvar.h"
 #include "kern.h"
 #include "loca.h"
 #include "ltsh.h"
 #include "math_.h"
 #include "maxp.h"
+#include "mvar.h"
 #include "name.h"
 #include "os2.h"
 #include "ots.h"
 #include "post.h"
 #include "prep.h"
+#include "stat.h"
 #include "vdmx.h"
 #include "vhea.h"
 #include "vmtx.h"
 #include "vorg.h"
+#include "vvar.h"
 
 // Graphite tables
 #ifdef OTS_GRAPHITE
@@ -70,9 +78,8 @@ namespace ots {
 struct Arena {
  public:
   ~Arena() {
-    for (std::vector<uint8_t*>::iterator
-         i = hunks_.begin(); i != hunks_.end(); ++i) {
-      delete[] *i;
+    for (auto& hunk : hunks_) {
+      delete[] hunk;
     }
   }
 
@@ -86,6 +93,17 @@ struct Arena {
   std::vector<uint8_t*> hunks_;
 };
 
+bool CheckTag(uint32_t tag_value) {
+  for (unsigned i = 0; i < 4; ++i) {
+    const uint32_t check = tag_value & 0xff;
+    if (check < 32 || check > 126) {
+      return false;  // non-ASCII character found.
+    }
+    tag_value >>= 8;
+  }
+  return true;
+}
+
 }; // namespace ots
 
 namespace {
@@ -98,17 +116,6 @@ namespace {
 #define OTS_FAILURE_MSG_HDR(...)       OTS_FAILURE_MSG_(header, __VA_ARGS__)
 #define OTS_WARNING_MSG_HDR(...)       OTS_WARNING_MSG_(header, __VA_ARGS__)
 
-
-bool CheckTag(uint32_t tag_value) {
-  for (unsigned i = 0; i < 4; ++i) {
-    const uint32_t check = tag_value & 0xff;
-    if (check < 32 || check > 126) {
-      return false;  // non-ASCII character found.
-    }
-    tag_value >>= 8;
-  }
-  return true;
-}
 
 const struct {
   uint32_t tag;
@@ -134,6 +141,17 @@ const struct {
   { OTS_TAG_LTSH, false },
   { OTS_TAG_VORG, false },
   { OTS_TAG_KERN, false },
+  // We need to parse fvar table before other tables that may need to know
+  // the number of variation axes (if any)
+  { OTS_TAG_FVAR, false },
+  { OTS_TAG_AVAR, false },
+  { OTS_TAG_CVAR, false },
+  { OTS_TAG_GVAR, false },
+  { OTS_TAG_HVAR, false },
+  { OTS_TAG_MVAR, false },
+  { OTS_TAG_STAT, false },
+  { OTS_TAG_VVAR, false },
+  { OTS_TAG_CFF2, false },
   // We need to parse GDEF table in advance of parsing GSUB/GPOS tables
   // because they could refer GDEF table.
   { OTS_TAG_GDEF, false },
@@ -153,6 +171,19 @@ const struct {
 #endif
   { 0, false },
 };
+
+bool ValidateVersionTag(ots::Font *font) {
+  switch (font->version) {
+    case 0x000010000:
+    case OTS_TAG('O','T','T','O'):
+      return true;
+    case OTS_TAG('t','r','u','e'):
+      font->version = 0x000010000;
+      return true;
+    default:
+      return false;
+  }
+}
 
 bool ProcessGeneric(ots::FontFile *header,
                     ots::Font *font,
@@ -178,10 +209,10 @@ bool ProcessTTF(ots::FontFile *header,
   }
 
   if (!file.ReadU32(&font->version)) {
-    return OTS_FAILURE_MSG_HDR("error reading version tag");
+    return OTS_FAILURE_MSG_HDR("error reading sfntVersion");
   }
-  if (!ots::IsValidVersionTag(font->version)) {
-      return OTS_FAILURE_MSG_HDR("invalid version tag");
+  if (!ValidateVersionTag(font)) {
+    return OTS_FAILURE_MSG_HDR("invalid sfntVersion: %d", font->version);
   }
 
   if (!file.ReadU16(&font->num_tables) ||
@@ -212,7 +243,8 @@ bool ProcessTTF(ots::FontFile *header,
 
   // entry_selector is Log2(maximum power of 2 <= numTables)
   if (font->entry_selector != max_pow2) {
-    return OTS_FAILURE_MSG_HDR("incorrect entrySelector for table directory");
+    OTS_WARNING_MSG_HDR("incorrect entrySelector for table directory");
+    font->entry_selector = max_pow2;  // Fix the value.
   }
 
   // range_shift is NumTables x 16-searchRange. We know that 16*num_tables
@@ -352,10 +384,10 @@ bool ProcessWOFF(ots::FontFile *header,
   }
 
   if (!file.ReadU32(&font->version)) {
-    return OTS_FAILURE_MSG_HDR("error reading version tag");
+    return OTS_FAILURE_MSG_HDR("error reading sfntVersion");
   }
-  if (!ots::IsValidVersionTag(font->version)) {
-    return OTS_FAILURE_MSG_HDR("invalid version tag");
+  if (!ValidateVersionTag(font)) {
+    return OTS_FAILURE_MSG_HDR("invalid sfntVersion: %d", font->version);
   }
 
   uint32_t reported_length;
@@ -501,9 +533,10 @@ bool ProcessWOFF2(ots::FontFile *header,
   if (decompressed_size == 0) {
     return OTS_FAILURE_MSG_HDR("Size of decompressed WOFF 2.0 is set to 0");
   }
-  // decompressed font must be <= 30MB
-  if (decompressed_size > 30 * 1024 * 1024) {
-    return OTS_FAILURE_MSG_HDR("Size of decompressed WOFF 2.0 font exceeds 30MB");
+  // decompressed font must be <= OTS_MAX_DECOMPRESSED_FILE_SIZE
+  if (decompressed_size > OTS_MAX_DECOMPRESSED_FILE_SIZE) {
+    return OTS_FAILURE_MSG_HDR("Size of decompressed WOFF 2.0 font exceeds %gMB",
+                               OTS_MAX_DECOMPRESSED_FILE_SIZE / (1024.0 * 1024.0));
   }
 
   std::string buf(decompressed_size, 0);
@@ -588,7 +621,7 @@ bool ProcessGeneric(ots::FontFile *header,
     }
 
     // all tag names must be built from printable ASCII characters
-    if (!CheckTag(tables[i].tag)) {
+    if (!ots::CheckTag(tables[i].tag)) {
       OTS_WARNING_MSG_HDR("Invalid table tag: 0x%X", tables[i].tag);
     }
 
@@ -617,12 +650,14 @@ bool ProcessGeneric(ots::FontFile *header,
     if (tables[i].uncompressed_length > tables[i].length) {
       // We'll probably be decompressing this table.
 
-      // disallow all tables which uncompress to > 30 MB
-      if (tables[i].uncompressed_length > 30 * 1024 * 1024) {
-        return OTS_FAILURE_MSG_TAG("uncompressed length exceeds 30MB", tables[i].tag);
+      // disallow all tables which decompress to > OTS_MAX_DECOMPRESSED_TABLE_SIZE
+      if (tables[i].uncompressed_length > OTS_MAX_DECOMPRESSED_TABLE_SIZE) {
+        return OTS_FAILURE_MSG_HDR("%c%c%c%c: decompressed table length exceeds %gMB",
+                                   OTS_UNTAG(tables[i].tag),
+                                   OTS_MAX_DECOMPRESSED_TABLE_SIZE / (1024.0 * 1024.0));        
       }
       if (uncompressed_sum + tables[i].uncompressed_length < uncompressed_sum) {
-        return OTS_FAILURE_MSG_TAG("overflow of uncompressed sum", tables[i].tag);
+        return OTS_FAILURE_MSG_TAG("overflow of decompressed sum", tables[i].tag);
       }
 
       uncompressed_sum += tables[i].uncompressed_length;
@@ -639,9 +674,10 @@ bool ProcessGeneric(ots::FontFile *header,
     }
   }
 
-  // All decompressed tables uncompressed must be <= 30MB.
-  if (uncompressed_sum > 30 * 1024 * 1024) {
-    return OTS_FAILURE_MSG_HDR("uncompressed sum exceeds 30MB");
+  // All decompressed tables decompressed must be <= OTS_MAX_DECOMPRESSED_FILE_SIZE.
+  if (uncompressed_sum > OTS_MAX_DECOMPRESSED_FILE_SIZE) {
+    return OTS_FAILURE_MSG_HDR("decompressed sum exceeds %gMB",
+                               OTS_MAX_DECOMPRESSED_FILE_SIZE / (1024.0 * 1024.0));        
   }
 
   // check that the tables are not overlapping.
@@ -694,33 +730,41 @@ bool ProcessGeneric(ots::FontFile *header,
     }
   }
 
-  if (font->GetTable(OTS_TAG_CFF) || font->GetTable(OTS_TAG('C', 'F', 'F', '2'))) {
-    // font with PostScript glyph
+  ots::Table *glyf = font->GetTable(OTS_TAG_GLYF);
+  ots::Table *loca = font->GetTable(OTS_TAG_LOCA);
+  ots::Table *cff  = font->GetTable(OTS_TAG_CFF);
+  ots::Table *cff2 = font->GetTable(OTS_TAG_CFF2);
+
+  if (glyf && loca) {
+    if (font->version != 0x000010000) {
+      OTS_WARNING_MSG_HDR("wrong sfntVersion for glyph data");
+      font->version = 0x000010000;
+    }
+    if (cff)
+       cff->Drop("font contains both CFF and glyf/loca tables");
+    if (cff2)
+       cff2->Drop("font contains both CFF and glyf/loca tables");
+  } else if (cff || cff2) {
     if (font->version != OTS_TAG('O','T','T','O')) {
-      return OTS_FAILURE_MSG_HDR("wrong font version for PostScript glyph data");
+      OTS_WARNING_MSG_HDR("wrong sfntVersion for glyph data");
+      font->version = OTS_TAG('O','T','T','O');
     }
-    if (font->GetTable(OTS_TAG_GLYF) || font->GetTable(OTS_TAG_LOCA)) {
-      // mixing outline formats is not recommended
-      return OTS_FAILURE_MSG_HDR("font contains both PS and TT glyphs");
-    }
-  } else {
-    if (!font->GetTable(OTS_TAG_GLYF) || !font->GetTable(OTS_TAG_LOCA)) {
-      // No TrueType glyph found.
-      //
+    if (glyf)
+       glyf->Drop("font contains both CFF and glyf tables");
+    if (loca)
+       loca->Drop("font contains both CFF and loca tables");
+  } else if (font->GetTable(OTS_TAG('C','B','D','T')) &&
+             font->GetTable(OTS_TAG('C','B','L','C'))) {
       // We don't sanitize bitmap tables, but don’t reject bitmap-only fonts if
       // we are asked to pass them thru.
-      // Also don’t reject if we are asked to pass glyf/loca thru.
-      if (!font->GetTable(OTS_TAG('C','B','D','T')) &&
-          !font->GetTable(OTS_TAG('C','B','L','C'))) {
-        return OTS_FAILURE_MSG_HDR("no supported glyph shapes table(s) present");
-      }
-    }
+  } else {
+      return OTS_FAILURE_MSG_HDR("no supported glyph data table(s) present");
   }
 
   uint16_t num_output_tables = 0;
   for (const auto &it : table_map) {
     ots::Table *table = font->GetTable(it.first);
-    if (table != NULL && table->ShouldSerialize())
+    if (table)
       num_output_tables++;
   }
 
@@ -769,7 +813,7 @@ bool ProcessGeneric(ots::FontFile *header,
       }
 
       ots::Table *table = font->GetTable(out.tag);
-      if (table != NULL && table->ShouldSerialize()) {
+      if (table) {
         output->ResetChecksum();
         if (!table->Serialize(output)) {
           return OTS_FAILURE_MSG_TAG("Failed to serialize table", out.tag);
@@ -870,32 +914,41 @@ bool Font::ParseTable(const TableEntry& table_entry, const uint8_t* data,
     table = new TablePassthru(this, tag);
   } else {
     switch (tag) {
+      case OTS_TAG_AVAR: table = new OpenTypeAVAR(this, tag); break;
       case OTS_TAG_CFF:  table = new OpenTypeCFF(this,  tag); break;
+      case OTS_TAG_CFF2: table = new OpenTypeCFF2(this, tag); break;
       case OTS_TAG_CMAP: table = new OpenTypeCMAP(this, tag); break;
+      case OTS_TAG_CVAR: table = new OpenTypeCVAR(this, tag); break;
       case OTS_TAG_CVT:  table = new OpenTypeCVT(this,  tag); break;
       case OTS_TAG_FPGM: table = new OpenTypeFPGM(this, tag); break;
+      case OTS_TAG_FVAR: table = new OpenTypeFVAR(this, tag); break;
       case OTS_TAG_GASP: table = new OpenTypeGASP(this, tag); break;
       case OTS_TAG_GDEF: table = new OpenTypeGDEF(this, tag); break;
       case OTS_TAG_GLYF: table = new OpenTypeGLYF(this, tag); break;
       case OTS_TAG_GPOS: table = new OpenTypeGPOS(this, tag); break;
       case OTS_TAG_GSUB: table = new OpenTypeGSUB(this, tag); break;
+      case OTS_TAG_GVAR: table = new OpenTypeGVAR(this, tag); break;
       case OTS_TAG_HDMX: table = new OpenTypeHDMX(this, tag); break;
       case OTS_TAG_HEAD: table = new OpenTypeHEAD(this, tag); break;
       case OTS_TAG_HHEA: table = new OpenTypeHHEA(this, tag); break;
       case OTS_TAG_HMTX: table = new OpenTypeHMTX(this, tag); break;
+      case OTS_TAG_HVAR: table = new OpenTypeHVAR(this, tag); break;
       case OTS_TAG_KERN: table = new OpenTypeKERN(this, tag); break;
       case OTS_TAG_LOCA: table = new OpenTypeLOCA(this, tag); break;
       case OTS_TAG_LTSH: table = new OpenTypeLTSH(this, tag); break;
       case OTS_TAG_MATH: table = new OpenTypeMATH(this, tag); break;
       case OTS_TAG_MAXP: table = new OpenTypeMAXP(this, tag); break;
+      case OTS_TAG_MVAR: table = new OpenTypeMVAR(this, tag); break;
       case OTS_TAG_NAME: table = new OpenTypeNAME(this, tag); break;
       case OTS_TAG_OS2:  table = new OpenTypeOS2(this,  tag); break;
       case OTS_TAG_POST: table = new OpenTypePOST(this, tag); break;
       case OTS_TAG_PREP: table = new OpenTypePREP(this, tag); break;
+      case OTS_TAG_STAT: table = new OpenTypeSTAT(this, tag); break;
       case OTS_TAG_VDMX: table = new OpenTypeVDMX(this, tag); break;
-      case OTS_TAG_VORG: table = new OpenTypeVORG(this, tag); break;
       case OTS_TAG_VHEA: table = new OpenTypeVHEA(this, tag); break;
       case OTS_TAG_VMTX: table = new OpenTypeVMTX(this, tag); break;
+      case OTS_TAG_VORG: table = new OpenTypeVORG(this, tag); break;
+      case OTS_TAG_VVAR: table = new OpenTypeVVAR(this, tag); break;
       // Graphite tables
 #ifdef OTS_GRAPHITE
       case OTS_TAG_FEAT: table = new OpenTypeFEAT(this, tag); break;
@@ -934,7 +987,7 @@ bool Font::ParseTable(const TableEntry& table_entry, const uint8_t* data,
 
 Table* Font::GetTable(uint32_t tag) const {
   const auto &it = m_tables.find(tag);
-  if (it != m_tables.end())
+  if (it != m_tables.end() && it->second && it->second->ShouldSerialize())
     return it->second;
   return NULL;
 }
@@ -958,7 +1011,22 @@ void Font::DropGraphite() {
       entry.second->Drop("Discarding Graphite table");
     }
   }
-  dropped_graphite = true;
+}
+
+void Font::DropVariations() {
+  file->context->Message(0, "Dropping all Variation tables");
+  for (const std::pair<uint32_t, Table*> entry : m_tables) {
+    if (entry.first == OTS_TAG_AVAR ||
+        entry.first == OTS_TAG_CVAR ||
+        entry.first == OTS_TAG_FVAR ||
+        entry.first == OTS_TAG_GVAR ||
+        entry.first == OTS_TAG_HVAR ||
+        entry.first == OTS_TAG_MVAR ||
+        entry.first == OTS_TAG_STAT ||
+        entry.first == OTS_TAG_VVAR) {
+      entry.second->Drop("Discarding Variations table");
+    }
+  }
 }
 
 bool Table::ShouldSerialize() {
@@ -1011,6 +1079,16 @@ bool Table::DropGraphite(const char *format, ...) {
   return true;
 }
 
+bool Table::DropVariations(const char *format, ...) {
+  va_list va;
+  va_start(va, format);
+  Message(0, format, va);
+  va_end(va);
+
+  m_font->DropVariations();
+  return true;
+}
+
 bool TablePassthru::Parse(const uint8_t *data, size_t length) {
   m_data = data;
   m_length = length;
@@ -1023,15 +1101,6 @@ bool TablePassthru::Serialize(OTSStream *out) {
   }
 
   return true;
-}
-
-bool IsValidVersionTag(uint32_t tag) {
-  return tag == 0x000010000 ||
-         // OpenType fonts with CFF data have 'OTTO' tag.
-         tag == OTS_TAG('O','T','T','O') ||
-         // Older Mac fonts might have 'true' or 'typ1' tag.
-         tag == OTS_TAG('t','r','u','e') ||
-         tag == OTS_TAG('t','y','p','1');
 }
 
 bool OTSContext::Process(OTSStream *output,

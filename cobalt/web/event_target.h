@@ -19,6 +19,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/callback.h"
@@ -130,6 +131,10 @@ class EventTarget : public script::Wrappable,
       const base::Closure& dispatched_callback);
 
   // Check if target has event listener (attribute or not attribute).
+
+  bool HasEventListener(const char* type) {
+    return HasEventListener(base::Token(type));
+  }
   bool HasEventListener(base::Token type);
 
   // Web API: GlobalEventHandlers (implements)
@@ -221,6 +226,20 @@ class EventTarget : public script::Wrappable,
     SetAttributeEventListener(base::Tokens::loadstart(), event_listener);
   }
 
+  const EventListenerScriptValue* onmessage() {
+    return GetAttributeEventListener(base::Tokens::message());
+  }
+  void set_onmessage(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::message(), event_listener);
+  }
+
+  const EventListenerScriptValue* onmessageerror() {
+    return GetAttributeEventListener(base::Tokens::messageerror());
+  }
+  void set_onmessageerror(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::messageerror(), event_listener);
+  }
+
   const EventListenerScriptValue* onmousedown() {
     return GetAttributeEventListener(base::Tokens::mousedown());
   }
@@ -268,6 +287,20 @@ class EventTarget : public script::Wrappable,
   }
   void set_onmouseup(const EventListenerScriptValue& event_listener) {
     SetAttributeEventListener(base::Tokens::mouseup(), event_listener);
+  }
+
+  const EventListenerScriptValue* onoffline() {
+    return GetAttributeEventListener(base::Tokens::offline());
+  }
+  void set_onoffline(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::offline(), event_listener);
+  }
+
+  const EventListenerScriptValue* ononline() {
+    return GetAttributeEventListener(base::Tokens::online());
+  }
+  void set_ononline(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::online(), event_listener);
   }
 
   const EventListenerScriptValue* onpause() {
@@ -420,39 +453,13 @@ class EventTarget : public script::Wrappable,
     SetAttributeEventListener(base::Tokens::beforeunload(), event_listener);
   }
 
-  const EventListenerScriptValue* onmessage() {
-    return GetAttributeEventListener(base::Tokens::message());
-  }
-  void set_onmessage(const EventListenerScriptValue& event_listener) {
-    SetAttributeEventListener(base::Tokens::message(), event_listener);
-  }
-  const EventListenerScriptValue* onmessageerror() {
-    return GetAttributeEventListener(base::Tokens::messageerror());
-  }
-  void set_onmessageerror(const EventListenerScriptValue& event_listener) {
-    SetAttributeEventListener(base::Tokens::messageerror(), event_listener);
-  }
-
-  const EventListenerScriptValue* onoffline() {
-    return GetAttributeEventListener(base::Tokens::offline());
-  }
-  void set_onoffline(const EventListenerScriptValue& event_listener) {
-    SetAttributeEventListener(base::Tokens::offline(), event_listener);
-  }
-
-  const EventListenerScriptValue* ononline() {
-    return GetAttributeEventListener(base::Tokens::online());
-  }
-  void set_ononline(const EventListenerScriptValue& event_listener) {
-    SetAttributeEventListener(base::Tokens::online(), event_listener);
-  }
-
   const EventListenerScriptValue* onrejectionhandled() {
     return GetAttributeEventListener(base::Tokens::rejectionhandled());
   }
   void set_onrejectionhandled(const EventListenerScriptValue& event_listener) {
     SetAttributeEventListener(base::Tokens::rejectionhandled(), event_listener);
   }
+
   const EventListenerScriptValue* onunhandledrejection() {
     return GetAttributeEventListener(base::Tokens::unhandledrejection());
   }
@@ -467,13 +474,6 @@ class EventTarget : public script::Wrappable,
   }
   void set_ontransitionend(const EventListenerScriptValue& event_listener) {
     SetAttributeEventListener(base::Tokens::transitionend(), event_listener);
-  }
-
-  const EventListenerScriptValue* onunload() {
-    return GetAttributeEventListener(base::Tokens::unload());
-  }
-  void set_onunload(const EventListenerScriptValue& event_listener) {
-    SetAttributeEventListener(base::Tokens::unload(), event_listener);
   }
 
   const EventListenerScriptValue* onvolumechange() {
@@ -547,6 +547,11 @@ class EventTarget : public script::Wrappable,
 
   // Register a callback to be called when an event listener is added for the
   // given type.
+  void AddEventListenerRegistrationCallback(void* object, const char* type,
+                                            base::OnceClosure callback) {
+    AddEventListenerRegistrationCallback(object, base::Token(type),
+                                         std::move(callback));
+  }
   void AddEventListenerRegistrationCallback(void* object, base::Token type,
                                             base::OnceClosure callback);
   void RemoveEventListenerRegistrationCallbacks(void* object);
@@ -558,8 +563,6 @@ class EventTarget : public script::Wrappable,
   typedef std::vector<std::unique_ptr<EventTargetListenerInfo>>
       EventListenerInfos;
 
-  void SetAttributeEventListenerInternal(
-      std::unique_ptr<EventTargetListenerInfo> event_handler);
   EventTargetListenerInfo* GetAttributeEventListenerInternal(
       base::Token type) const;
 

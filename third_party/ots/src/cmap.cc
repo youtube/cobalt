@@ -9,8 +9,6 @@
 #include <utility>
 #include <vector>
 
-#define MEMCPY_CMAP std::memcpy
-
 #if defined(STARBOARD)
 #include "starboard/common/byte_swap.h"
 #define NTOHS_CMAP(x) SB_NET_TO_HOST_U16(x)
@@ -259,7 +257,7 @@ bool OpenTypeCMAP::ParseFormat4(int platform, int encoding,
           return Error("bad glyph id offset (%d > %ld)", glyph_id_offset, length);
         }
         uint16_t glyph;
-        MEMCPY_CMAP(&glyph, data + glyph_id_offset, 2);
+        std::memcpy(&glyph, data + glyph_id_offset, 2);
         glyph = NTOHS_CMAP(glyph);
         if (glyph >= num_glyphs) {
           return Error("Range glyph reference too high (%d > %d)", glyph, num_glyphs - 1);
@@ -422,8 +420,7 @@ bool OpenTypeCMAP::Parse31013(const uint8_t *data, size_t length,
   return true;
 }
 
-bool OpenTypeCMAP::Parse0514(const uint8_t *data, size_t length,
-                             uint16_t num_glyphs) {
+bool OpenTypeCMAP::Parse0514(const uint8_t *data, size_t length) {
   // Unicode Variation Selector table
   ots::Buffer subtable(data, length);
 
@@ -804,7 +801,7 @@ bool OpenTypeCMAP::Parse(const uint8_t *data, size_t length) {
       } else if ((subtable_headers[i].encoding == 5) &&
                  (subtable_headers[i].format == 14)) {
         if (!Parse0514(data + subtable_headers[i].offset,
-                       subtable_headers[i].length, num_glyphs)) {
+                       subtable_headers[i].length)) {
           return Error("Failed to parse format 14 cmap subtable %d", i);
         }
       }
@@ -1095,5 +1092,4 @@ bool OpenTypeCMAP::Serialize(OTSStream *out) {
 
 }  // namespace ots
 
-#undef MEMCPY_CMAP
 #undef NTOHS_CMAP

@@ -1,5 +1,6 @@
 import("//starboard/sabi/sabi.gni")
 import("//third_party/boringssl/buildfiles.gni")
+import("//starboard/build/config/os_definitions.gni")
 
 declare_args() {
   asm_target_arch = target_cpu
@@ -35,7 +36,6 @@ config("internal_config") {
       "-fvisibility=hidden",
     ]
     cflags_c = [
-      "-std=gnu99",
       "-Wno-bad-function-cast",
     ]
   }
@@ -107,7 +107,7 @@ static_library("crypto") {
       if ((calling_convention != "aarch64" && calling_convention != "eabi" &&
            calling_convention != "sysv" && calling_convention != "windows") ||
           (asm_target_arch != "x86" && asm_target_arch != "x64" &&
-           asm_target_arch != "arm" && asm_target_arch != "arm64")) {
+           asm_target_arch != "arm" && asm_target_arch != "arm64") || is_host_win) {  # is_host_win : windows host modular builds need OPENSSL_NO_ASM ) 
         defines = [ "OPENSSL_NO_ASM" ]
       } else {
         if (calling_convention == "aarch64" || calling_convention == "eabi" ||

@@ -309,8 +309,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbStringDuplicate);
   REGISTER_SYMBOL(SbStringFormat);
   REGISTER_SYMBOL(SbStringFormatWide);
-#endif
   REGISTER_SYMBOL(SbStringScan);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbSystemBreakIntoDebugger);
   REGISTER_SYMBOL(SbSystemClearLastError);
 #if SB_API_VERSION < 14
@@ -418,6 +418,7 @@ ExportedSymbols::ExportedSymbols() {
 #else
   REGISTER_SYMBOL(vswprintf);
 #endif  // defined(_MSC_VER)
+  REGISTER_SYMBOL(vsscanf);
 #endif  // SB_API_VERSION >= 16
 
 }  // NOLINT

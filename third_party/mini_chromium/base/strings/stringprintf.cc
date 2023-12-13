@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "base/logging.h"
-#include "base/scoped_clear_errno.h"
+#include "base/scoped_clear_last_error.h"
 #include "base/stl_util.h"
 #include "base/strings/string_util.h"
 
@@ -33,9 +33,7 @@ static void StringAppendVT(StringType* dst,
   va_list ap_copy;
   va_copy(ap_copy, ap);
 
-#if !defined(OS_WIN)
-  ScopedClearErrno clear_errno;
-#endif
+  ScopedClearLastError clear_errno;
   int result = vsnprintfT(stack_buf, size(stack_buf), format, ap_copy);
   va_end(ap_copy);
 

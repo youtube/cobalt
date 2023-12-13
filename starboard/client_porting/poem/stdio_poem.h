@@ -24,14 +24,6 @@
 #include "starboard/memory.h"
 #include "starboard/string.h"
 
-// the following functions can have variable number of arguments
-// and, out of compatibility concerns, we chose to not use
-// __VA_ARGS__ functionality.
-#undef vsscanf
-#define vsscanf SbStringScan
-#undef sscanf
-#define sscanf SbStringScanF
-
 #endif  // POEM_NO_EMULATION
 
 #endif  // STARBOARD

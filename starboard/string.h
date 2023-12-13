@@ -21,9 +21,6 @@
 
 #include <stdarg.h>
 #include <stdio.h>
-#if SB_API_VERSION < 16
-#include <wchar.h>
-#endif
 
 #include "starboard/configuration.h"
 #include "starboard/export.h"
@@ -155,6 +152,7 @@ static SB_C_INLINE int SbStringFormatWideF(wchar_t* out_buffer,
 }
 #endif  // SB_API_VERSION < 16
 
+#if SB_API_VERSION < 16
 // Scans |buffer| for |pattern|, placing the extracted values in |arguments|.
 // The return value specifies the number of successfully matched items, which
 // may be |0|.
@@ -182,6 +180,7 @@ static SB_C_INLINE int SbStringScanF(const char* buffer,
   va_end(arguments);
   return result;
 }
+#endif  // SB_API_VERSION < 16
 
 #ifdef __cplusplus
 }  // extern "C"

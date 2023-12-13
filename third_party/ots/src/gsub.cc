@@ -17,8 +17,10 @@
 
 namespace {
 
-// The GSUB header size
-const size_t kGsubHeaderSize = 4 + 3 * 2;
+// The GSUB header size for table version 1.0
+const size_t kGsubHeaderSize_1_0 = 4 + 3 * 2;
+// GSUB header size v1.1
+const size_t kGsubHeaderSize_1_1 = 4 + 3 * 2 + 4;
 
 enum GSUB_TYPE {
   GSUB_TYPE_SINGLE = 1,
@@ -145,10 +147,10 @@ bool ParseSequenceTable(const ots::Font *font,
   for (unsigned i = 0; i < glyph_count; ++i) {
     uint16_t substitute = 0;
     if (!subtable.ReadU16(&substitute)) {
-      return OTS_FAILURE_MSG("Failedt o read substitution %d in sequence table", i);
+      return OTS_FAILURE_MSG("Failed to read substitution %d in sequence table", i);
     }
     if (substitute >= num_glyphs) {
-      return OTS_FAILURE_MSG("Bad subsitution (%d) %d > %d", i, substitute, num_glyphs);
+      return OTS_FAILURE_MSG("Bad substitution (%d) %d > %d", i, substitute, num_glyphs);
     }
   }
 
@@ -184,7 +186,7 @@ bool ParseMutipleSubstitution(const ots::Font *font,
   const unsigned sequence_end = static_cast<unsigned>(6) +
       sequence_count * 2;
   if (sequence_end > std::numeric_limits<uint16_t>::max()) {
-    return OTS_FAILURE_MSG("Bad segence end %d, in multiple subst", sequence_end);
+    return OTS_FAILURE_MSG("Bad sequence end %d, in multiple subst", sequence_end);
   }
   for (unsigned i = 0; i < sequence_count; ++i) {
     uint16_t offset_sequence = 0;
@@ -303,14 +305,14 @@ bool ParseLigatureTable(const ots::Font *font,
 
   if (!subtable.ReadU16(&lig_glyph) ||
       !subtable.ReadU16(&comp_count)) {
-    return OTS_FAILURE_MSG("Failed to read ligatuer table header");
+    return OTS_FAILURE_MSG("Failed to read ligature table header");
   }
 
   if (lig_glyph >= num_glyphs) {
     return OTS_FAILURE_MSG("too large lig_glyph: %u", lig_glyph);
   }
-  if (comp_count == 0 || comp_count > num_glyphs) {
-    return OTS_FAILURE_MSG("Bad component count of %d", comp_count);
+  if (comp_count == 0) {
+    return OTS_FAILURE_MSG("Component count cannot be 0");
   }
   for (unsigned i = 0; i < comp_count - static_cast<unsigned>(1); ++i) {
     uint16_t component = 0;
@@ -485,9 +487,6 @@ bool ParseReverseChainingContextSingleSubstitution(
   if (!subtable.ReadU16(&backtrack_glyph_count)) {
     return OTS_FAILURE_MSG("Failed to read backtrack glyph count in reverse chaining table");
   }
-  if (backtrack_glyph_count > num_glyphs) {
-    return OTS_FAILURE_MSG("Bad backtrack glyph count of %d", backtrack_glyph_count);
-  }
   std::vector<uint16_t> offsets_backtrack;
   offsets_backtrack.reserve(backtrack_glyph_count);
   for (unsigned i = 0; i < backtrack_glyph_count; ++i) {
@@ -502,9 +501,6 @@ bool ParseReverseChainingContextSingleSubstitution(
   if (!subtable.ReadU16(&lookahead_glyph_count)) {
     return OTS_FAILURE_MSG("Failed to read look ahead glyph count");
   }
-  if (lookahead_glyph_count > num_glyphs) {
-    return OTS_FAILURE_MSG("Bad look ahead glyph count %d", lookahead_glyph_count);
-  }
   std::vector<uint16_t> offsets_lookahead;
   offsets_lookahead.reserve(lookahead_glyph_count);
   for (unsigned i = 0; i < lookahead_glyph_count; ++i) {
@@ -518,9 +514,6 @@ bool ParseReverseChainingContextSingleSubstitution(
   uint16_t glyph_count = 0;
   if (!subtable.ReadU16(&glyph_count)) {
     return OTS_FAILURE_MSG("Can't read glyph count in reverse chaining table");
-  }
-  if (glyph_count > num_glyphs) {
-    return OTS_FAILURE_MSG("Bad glyph count of %d", glyph_count);
   }
   for (unsigned i = 0; i < glyph_count; ++i) {
     uint16_t substitute = 0;
@@ -580,23 +573,34 @@ bool OpenTypeGSUB::Parse(const uint8_t *data, size_t length) {
   Font *font = GetFont();
   Buffer table(data, length);
 
-  uint32_t version = 0;
+  uint16_t version_major = 0, version_minor = 0;
   uint16_t offset_script_list = 0;
   uint16_t offset_feature_list = 0;
   uint16_t offset_lookup_list = 0;
-  if (!table.ReadU32(&version) ||
+  uint32_t offset_feature_variations = 0;
+  if (!table.ReadU16(&version_major) ||
+      !table.ReadU16(&version_minor) ||
       !table.ReadU16(&offset_script_list) ||
       !table.ReadU16(&offset_feature_list) ||
       !table.ReadU16(&offset_lookup_list)) {
     return Error("Incomplete table");
   }
 
-  if (version != 0x00010000) {
+  if (version_major != 1 || version_minor > 1) {
     return Error("Bad version");
   }
 
+  if (version_minor > 0) {
+    if (!table.ReadU32(&offset_feature_variations)) {
+      return Error("Incomplete table");
+    }
+  }
+
+  const size_t header_size =
+    (version_minor == 0) ? kGsubHeaderSize_1_0 : kGsubHeaderSize_1_1;
+
   if (offset_lookup_list) {
-    if (offset_lookup_list < kGsubHeaderSize || offset_lookup_list >= length) {
+    if (offset_lookup_list < header_size || offset_lookup_list >= length) {
       return Error("Bad lookup list offset in table header");
     }
 
@@ -610,7 +614,7 @@ bool OpenTypeGSUB::Parse(const uint8_t *data, size_t length) {
 
   uint16_t num_features = 0;
   if (offset_feature_list) {
-    if (offset_feature_list < kGsubHeaderSize || offset_feature_list >= length) {
+    if (offset_feature_list < header_size || offset_feature_list >= length) {
       return Error("Bad feature list offset in table header");
     }
 
@@ -622,13 +626,25 @@ bool OpenTypeGSUB::Parse(const uint8_t *data, size_t length) {
   }
 
   if (offset_script_list) {
-    if (offset_script_list < kGsubHeaderSize || offset_script_list >= length) {
+    if (offset_script_list < header_size || offset_script_list >= length) {
       return Error("Bad script list offset in table header");
     }
 
     if (!ParseScriptListTable(font, data + offset_script_list,
                               length - offset_script_list, num_features)) {
       return Error("Failed to parse script list table");
+    }
+  }
+
+  if (offset_feature_variations) {
+    if (offset_feature_variations < header_size || offset_feature_variations >= length) {
+      return Error("Bad feature variations offset in table header");
+    }
+
+    if (!ParseFeatureVariationsTable(font, data + offset_feature_variations,
+                                     length - offset_feature_variations,
+                                     this->num_lookups)) {
+      return Error("Failed to parse feature variations table");
     }
   }
 
