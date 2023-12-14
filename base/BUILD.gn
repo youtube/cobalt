@@ -3108,8 +3108,8 @@ source_set("arm_bti_testfunctions") {
 
 test("base_unittests") {
   sources = [
-    # "allocator/dispatcher/dispatcher_unittest.cc",
-    # "allocator/dispatcher/initializer_unittest.cc",
+    "allocator/dispatcher/dispatcher_unittest.cc",
+    "allocator/dispatcher/initializer_unittest.cc",
     "allocator/dispatcher/internal/dispatcher_internal_unittest.cc",
     "allocator/dispatcher/testing/dispatcher_test.cc",
     "allocator/dispatcher/testing/dispatcher_test.h",
@@ -3119,7 +3119,7 @@ test("base_unittests") {
     # "allocator/dispatcher/tls_unittest.cc",
     "allocator/partition_allocator/pointers/raw_ptr_test_support.h",
 
-    # "allocator/partition_allocator/pointers/raw_ptr_unittest.cc",
+    "allocator/partition_allocator/pointers/raw_ptr_unittest.cc",
     "allocator/partition_allocator/pointers/raw_ref_unittest.cc",
     "at_exit_unittest.cc",
     "atomicops_unittest.cc",
@@ -3174,23 +3174,23 @@ test("base_unittests") {
     "debug/task_trace_unittest.cc",
     "environment_unittest.cc",
 
-    # "feature_list_unittest.cc",
+    "feature_list_unittest.cc",
     # "files/file_enumerator_unittest.cc",
     "files/file_error_or_unittest.cc",
 
     # "files/file_path_unittest.cc",
 
     # "files/file_path_watcher_unittest.cc",
-    # "files/file_proxy_unittest.cc",
+    "files/file_proxy_unittest.cc",
     # "files/file_unittest.cc",
     # "files/file_util_unittest.cc",
     "files/important_file_writer_cleaner_unittest.cc",
     "files/important_file_writer_unittest.cc",
 
-    # "files/memory_mapped_file_unittest.cc",
+    "files/memory_mapped_file_unittest.cc",
     "files/safe_base_name_unittest.cc",
 
-    # "files/scoped_temp_dir_unittest.cc",
+    "files/scoped_temp_dir_unittest.cc",
     "functional/bind_unittest.cc",
     "functional/callback_helpers_unittest.cc",
     "functional/callback_unittest.cc",
@@ -3210,17 +3210,17 @@ test("base_unittests") {
     "i18n/char_iterator_unittest.cc",
     "i18n/character_encoding_unittest.cc",
 
-    # "i18n/file_util_icu_unittest.cc",
+    "i18n/file_util_icu_unittest.cc",
     "i18n/icu_string_conversions_unittest.cc",
 
-    # "i18n/icu_util_unittest.cc",
+    "i18n/icu_util_unittest.cc",
     "i18n/message_formatter_unittest.cc",
     "i18n/number_formatting_unittest.cc",
 
-    # "i18n/rtl_unittest.cc",
+    "i18n/rtl_unittest.cc",
     "i18n/streaming_utf8_validator_unittest.cc",
 
-    # "i18n/string_search_unittest.cc",
+    "i18n/string_search_unittest.cc",
     "i18n/time_formatting_unittest.cc",
     "i18n/timezone_unittest.cc",
 
@@ -3230,7 +3230,7 @@ test("base_unittests") {
     "json/json_reader_unittest.cc",
     "json/json_value_converter_unittest.cc",
 
-    # "json/json_value_serializer_unittest.cc",
+    "json/json_value_serializer_unittest.cc",
     "json/json_writer_unittest.cc",
     "json/string_escape_unittest.cc",
     "json/values_util_unittest.cc",
@@ -3250,12 +3250,12 @@ test("base_unittests") {
     "memory/ref_counted_unittest.cc",
     "memory/safe_ref_unittest.cc",
 
-    # "memory/shared_memory_hooks_unittest.cc",
-    # "memory/shared_memory_mapping_unittest.cc",
-    # "memory/shared_memory_region_unittest.cc",
+    "memory/shared_memory_hooks_unittest.cc",
+    "memory/shared_memory_mapping_unittest.cc",
+    "memory/shared_memory_region_unittest.cc",
     "memory/singleton_unittest.cc",
 
-    # "memory/unsafe_shared_memory_pool_unittest.cc",
+    "memory/unsafe_shared_memory_pool_unittest.cc",
     "memory/values_equivalent_unittest.cc",
     "memory/weak_auto_reset_unittest.cc",
     "memory/weak_ptr_unittest.cc",
@@ -3274,21 +3274,21 @@ test("base_unittests") {
     "metrics/histogram_samples_unittest.cc",
     "metrics/histogram_snapshot_manager_unittest.cc",
 
-    # "metrics/histogram_threadsafe_unittest.cc",
-    # "metrics/histogram_unittest.cc",
+    "metrics/histogram_threadsafe_unittest.cc",
+    "metrics/histogram_unittest.cc",
     "metrics/metrics_hashes_unittest.cc",
 
-    # "metrics/persistent_histogram_allocator_unittest.cc",
-    # "metrics/persistent_histogram_storage_unittest.cc",
-    # "metrics/persistent_memory_allocator_unittest.cc",
-    # "metrics/persistent_sample_map_unittest.cc",
+    "metrics/persistent_histogram_allocator_unittest.cc",
+    "metrics/persistent_histogram_storage_unittest.cc",
+    "metrics/persistent_memory_allocator_unittest.cc",
+    "metrics/persistent_sample_map_unittest.cc",
     "metrics/ranges_manager_unittest.cc",
     "metrics/sample_map_unittest.cc",
     "metrics/sample_vector_unittest.cc",
     "metrics/single_sample_metrics_unittest.cc",
 
-    # "metrics/sparse_histogram_unittest.cc",
-    # "metrics/statistics_recorder_unittest.cc",
+    "metrics/sparse_histogram_unittest.cc",
+    "metrics/statistics_recorder_unittest.cc",
     # "native_library_unittest.cc",
     "no_destructor_unittest.cc",
     "observer_list_threadsafe_unittest.cc",
@@ -3306,7 +3306,7 @@ test("base_unittests") {
     "power_monitor/timer_sampling_event_source_unittest.cc",
     "process/environment_internal_unittest.cc",
 
-    # "process/memory_unittest.cc",
+    "process/memory_unittest.cc",
     # "process/process_metrics_unittest.cc",
     # "process/process_unittest.cc",
     # "process/process_util_unittest.cc",
@@ -3322,7 +3322,7 @@ test("base_unittests") {
     # "profiler/stack_sampling_profiler_unittest.cc",
     "rand_util_unittest.cc",
 
-    # "ranges/algorithm_unittest.cc",
+    "ranges/algorithm_unittest.cc",
     "ranges/functional_unittest.cc",
     "ranges/ranges_unittest.cc",
     "run_loop_unittest.cc",
