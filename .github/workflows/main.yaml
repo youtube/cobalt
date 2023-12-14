@@ -102,7 +102,7 @@ jobs:
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
     needs: [initialize]
-    runs-on: [self-hosted, linux, X64]
+    runs-on: [self-hosted, linux-runner]
     permissions:
       packages: write
     steps:
@@ -136,7 +136,7 @@ jobs:
     needs: [initialize]
     permissions:
       packages: write
-    runs-on: [self-hosted, linux, X64]
+    runs-on: [self-hosted, linux-runner]
     steps:
       - name: Checkout files
         uses: actions/checkout@v3
@@ -170,7 +170,7 @@ jobs:
         github.event_name != 'pull_request' ||
         contains(github.event.pull_request.labels.*.name, 'on_device')
       )
-    runs-on: [self-hosted, linux, X64]
+    runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_on_device_${{ matrix.type }}
     container: ${{ needs.docker-unittest-image.outputs.docker_unittest_tag }}
     permissions: {}
@@ -249,7 +249,7 @@ jobs:
   # Runs builds.
   build:
     needs: [initialize, docker-build-image]
-    runs-on: [self-hosted, linux, X64]
+    runs-on: [self-hosted, linux-runner]
     permissions: {}
     name: ${{matrix.name}}_${{matrix.config}}
     strategy:
@@ -302,7 +302,7 @@ jobs:
   on-host-test:
     needs: [initialize, docker-unittest-image, build]
     if: needs.initialize.outputs.on_host_test == 'true'
-    runs-on: [self-hosted, linux, X64]
+    runs-on: [self-hosted, linux-runner]
     permissions: {}
     name: ${{matrix.name}}_${{matrix.shard}}_test
     strategy:
