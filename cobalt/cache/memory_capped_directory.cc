@@ -56,7 +56,8 @@ bool MemoryCappedDirectory::FileInfo::OldestFirst::operator()(
 // static
 std::unique_ptr<MemoryCappedDirectory> MemoryCappedDirectory::Create(
     const base::FilePath& directory_path, uint32_t max_size) {
-  if (mkdir(directory_path.value().c_str(), 0700) != 0) {
+  if (mkdir(directory_path.value().c_str(), 0700) != 0 &&
+      !SbDirectoryCanOpen(directory_path.value().c_str())) {
     return nullptr;
   }
   auto memory_capped_directory = std::unique_ptr<MemoryCappedDirectory>(
