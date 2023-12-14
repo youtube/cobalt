@@ -49,7 +49,7 @@ runs:
         REPO: ${{ github.repository }}
       if: ${{ (steps.changed-files.outputs.any_changed == 'false') && (github.event_name == 'pull_request') }}
       run: |
-        ENCODED_REF=$(echo ${GITHUB_BASE_REF%.1+}|jq -sRr @uri)
+        ENCODED_REF=$(echo ${GITHUB_BASE_REF%.1+}|tr / . @uri)
         echo "DOCKER_TAG=ghcr.io/${REPO}/${{inputs.docker_image}}:${ENCODED_REF}" >> $GITHUB_ENV
       shell: bash
     - name: Set up Cloud SDK
