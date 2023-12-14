@@ -22,7 +22,8 @@ FROM ${FROM_IMAGE}
 SHELL ["powershell", "-ExecutionPolicy", "Unrestricted", "-Command", `
        "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-ARG MSVS_INSTALLER_URL="https://download.visualstudio.microsoft.com/download/pr/63b5064f-af60-4cbe-96cd-a9dd9d41ee3d/436695f5b9083e37a62f63326dd4c2757b5780316f2c7e6ba0fdcee0770bfe67/vs_BuildTools.exe"
+# Corresponds to VS version 17.4.6 which ships Clang 15.05
+ARG MSVS_INSTALLER_URL="https://download.visualstudio.microsoft.com/download/pr/d1ed8638-9e88-461e-92b7-4e29cc6172c3/38b09fc09ae9e590b73ae6752a0ebfd62579798969041bd341689273b842bc10/vs_BuildTools.exe"
 RUN mkdir C:\TEMP;`
     Write-Host ('Downloading vs_buildtools.exe');`
     Invoke-WebRequest -Uri ${MSVS_INSTALLER_URL} `
