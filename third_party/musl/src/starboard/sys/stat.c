@@ -10,7 +10,7 @@ int stat(const char *restrict path, struct stat *restrict buf)
 
 int mkdir(const char *path, mode_t mode)
 {
-    return SbDirectoryCreate(path)
+    return SbDirectoryCreate(path);
 }
 
 #endif  // SB_API_VERSION < 16
