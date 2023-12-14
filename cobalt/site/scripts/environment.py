@@ -24,7 +24,7 @@ import textwrap
 
 SCRIPTS_DIR = os.path.abspath(os.path.dirname(__file__))
 COBALT_SOURCE_DIR = os.path.abspath(
-    os.path.join(*([SCRIPTS_DIR] + 5 * [os.pardir])))
+    os.path.join(*([SCRIPTS_DIR] + 3 * [os.pardir])))
 
 
 @contextmanager
