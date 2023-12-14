@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Generate the cobalt.foo site markdown.
+"""Generate the Cobalt Developer site markdown.
 
 This script generates all documentation derived from source, placing
 the precipitate markdown files in the specified output directory.
@@ -44,9 +44,7 @@ def main(argv):
   if result:
     return result
 
-  result = cobalt_documentation.copy_doc_locations(arguments.source,
-                                                   arguments.out)
-  return result
+  cobalt_documentation.copy_doc_locations(arguments.source, arguments.out)
 
 
 if __name__ == '__main__':

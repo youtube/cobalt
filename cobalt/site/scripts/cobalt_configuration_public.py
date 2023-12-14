@@ -158,5 +158,5 @@ def main(source_dir, output_dir=None):
 
 
 if __name__ == '__main__':
-  options = environment.parse_arguments(sys.argv[1:])
+  options = environment.parse_arguments(__doc__, sys.argv[1:])
   sys.exit(main(options.source, options.out))
