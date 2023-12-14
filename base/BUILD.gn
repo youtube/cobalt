@@ -3516,6 +3516,9 @@ test("base_unittests") {
     sources -= [
       # Cobalt builds don't include build timestamps.
       "build_time_unittest.cc",
+      # MessagePumpUIStarboard lives on top of an external message pump
+      # and behaves differently than normal message pumps.
+      "message_loop/message_pump_unittest.cc",
     ]
   }
 
