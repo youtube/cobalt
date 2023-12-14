@@ -1,6 +1,7 @@
 #include <stdio.h>
 
 #if SB_API_VERSION < 16
+#include <fcntl.h>
 #include "starboard/directory.h"
 
 int stat(const char *restrict path, struct stat *restrict buf)
