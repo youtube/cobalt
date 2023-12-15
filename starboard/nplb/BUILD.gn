@@ -13,9 +13,15 @@
 # limitations under the License.
 
 import("//starboard/build/config/os_definitions.gni")
+import("//starboard/contrib/cast/cast.gni")
 
 target(gtest_target_type, "nplb") {
   testonly = true
+  defines = []
+
+  if (use_contrib_cast) {
+    defines += [ "USE_CONTRIB_CAST" ]
+  }
 
   sources = [
     "//starboard/common/test_main.cc",
@@ -294,6 +300,7 @@ target(gtest_target_type, "nplb") {
   data_deps = [
     "//cobalt/network:copy_ssl_certificates",
     "//starboard/nplb/testdata/file_tests:nplb_file_tests_data",
+    "//starboard/shared/starboard/player:local_player_test_files",
     "//starboard/shared/starboard/player:player_download_test_data",
     "//third_party/icu:icudata",
   ]

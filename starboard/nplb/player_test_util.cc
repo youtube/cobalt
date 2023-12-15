@@ -41,20 +41,38 @@ using std::placeholders::_3;
 using std::placeholders::_4;
 using testing::FakeGraphicsContextProvider;
 
-const char* kAudioTestFiles[] = {"beneath_the_canopy_aac_stereo.dmp",
-                                 "beneath_the_canopy_opus_stereo.dmp",
-                                 "sintel_329_ec3.dmp", "sintel_381_ac3.dmp"};
+const char* kAudioTestFiles[] = {
+    "beneath_the_canopy_aac_stereo.dmp",
+    "beneath_the_canopy_opus_stereo.dmp",
+    "sintel_329_ec3.dmp",
+    "sintel_381_ac3.dmp",
+};
 
 // For uncommon audio formats, we add audio only tests, without tests combined
 // with a video stream, to shorten the overall test time.
 const char* kAudioOnlyTestFiles[] = {
-    "beneath_the_canopy_aac_5_1.dmp", "beneath_the_canopy_aac_mono.dmp",
-    "beneath_the_canopy_opus_5_1.dmp", "beneath_the_canopy_opus_mono.dmp",
-    "heaac.dmp"};
+    "beneath_the_canopy_aac_5_1.dmp",
+    "beneath_the_canopy_aac_mono.dmp",
+    "beneath_the_canopy_opus_5_1.dmp",
+    "beneath_the_canopy_opus_mono.dmp",
+    "heaac.dmp",
+#if defined(USE_CONTRIB_CAST)
+    "flac.dmp",
+    "mp3.dmp",
+    "pcm.dmp",
+    "vorbis.dmp",
+#endif  // defined(USE_CONTRIB_CAST)
+};
 
-const char* kVideoTestFiles[] = {"beneath_the_canopy_137_avc.dmp",
-                                 "beneath_the_canopy_248_vp9.dmp",
-                                 "sintel_399_av1.dmp"};
+const char* kVideoTestFiles[] = {
+    "beneath_the_canopy_137_avc.dmp",
+    "beneath_the_canopy_248_vp9.dmp",
+    "sintel_399_av1.dmp",
+#if defined(USE_CONTRIB_CAST)
+    "vp8.dmp",
+    "hevc.dmp",
+#endif  // defined(USE_CONTRIB_CAST)
+};
 
 const SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
                                            kSbPlayerOutputModePunchOut};

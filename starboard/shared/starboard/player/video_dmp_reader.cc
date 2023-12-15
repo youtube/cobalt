@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <functional>
+#include "starboard/media.h"
 
 namespace starboard {
 namespace shared {
@@ -150,8 +151,20 @@ std::string VideoDmpReader::audio_mime_type() const {
     case kSbMediaAudioCodecEac3:
       ss << "audio/mp4; codecs=\"ec-3\";";
       break;
+    case kSbMediaAudioCodecVorbis:
+      ss << "audio/webm; codecs=\"vorbis\";";
+      break;
+    case kSbMediaAudioCodecMp3:
+      ss << "audio/mpeg";
+      break;
+    case kSbMediaAudioCodecFlac:
+      ss << "audio/ogg; codecs=\"flac\";";
+      break;
+    case kSbMediaAudioCodecPcm:
+      ss << "audio/wav; codecs=\"1\";";
+      break;
     default:
-      SB_NOTREACHED();
+      SB_NOTREACHED() << "Unsupported audio codec: " << dmp_info_.audio_codec;
   }
 
   ss << " channels="
@@ -175,8 +188,14 @@ std::string VideoDmpReader::video_mime_type() {
     case kSbMediaVideoCodecAv1:
       ss << "video/mp4; codecs=\"av01.0.08M.08\";";
       break;
+    case kSbMediaVideoCodecVp8:
+      ss << "video/webm; codecs=\"vp8\";";
+      break;
+    case kSbMediaVideoCodecH265:
+      ss << "video/mp4; codecs=\"hev1\";";
+      break;
     default:
-      SB_NOTREACHED();
+      SB_NOTREACHED() << "Unsupported video codec: " << dmp_info_.video_codec;
   }
   if (number_of_video_buffers() > 0) {
     const auto& video_stream_info = this->video_stream_info();

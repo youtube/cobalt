@@ -71,3 +71,17 @@ action("player_download_test_data") {
     rebase_path("$outdir/testdata", root_build_dir),
   ]
 }
+
+copy("local_player_test_files") {
+  install_content = true
+  subdir = "starboard/shared/starboard/player"
+  sources = [
+    "testdata/flac.dmp",
+    "testdata/hevc.dmp",
+    "testdata/mp3.dmp",
+    "testdata/pcm.dmp",
+    "testdata/vorbis.dmp",
+    "testdata/vp8.dmp",
+  ]
+  outputs = [ "$sb_static_contents_output_data_dir/test/$subdir/testdata/{{source_file_part}}" ]
+}
