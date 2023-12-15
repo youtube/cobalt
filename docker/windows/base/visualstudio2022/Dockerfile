@@ -41,7 +41,6 @@ RUN Write-Host ('Installing vs_buildtools.exe');`
     Remove-Item -Force -Recurse ${env:ProgramFiles(x86)}\'Microsoft Visual Studio'\Installer;`
     Remove-Item -Force -Recurse $env:TEMP\*;`
     Remove-Item -Force -Recurse $env:ProgramData\'Package Cache'\;`
-    Remove-Item -Force -Recurse C:\BuildTools\VC\Tools\Llvm\ARM64;`
     Remove-Item -Force -Recurse C:\BuildTools\Common7\IDE;`
     Remove-Item C:\TEMP\vs_buildtools.exe
 
