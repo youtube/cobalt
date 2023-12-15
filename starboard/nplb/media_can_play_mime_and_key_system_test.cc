@@ -962,6 +962,7 @@ TEST(SbMediaCanPlayMimeAndKeySystem, FLAKY_ValidatePerformance) {
 
 #if defined(USE_CONTRIB_CAST)
 TEST(SbMediaCanPlayMimeAndKeySystem, CastCodecsAreSupported) {
+#if SB_API_VERSION >= 14
   // FLAC
   EXPECT_EQ(SbMediaCanPlayMimeAndKeySystem("audio/ogg; codecs=\"flac\";", ""),
             kSbMediaSupportTypeProbably);
@@ -973,6 +974,7 @@ TEST(SbMediaCanPlayMimeAndKeySystem, CastCodecsAreSupported) {
   // PCM
   EXPECT_EQ(SbMediaCanPlayMimeAndKeySystem("audio/wav; codecs=\"1\";", ""),
             kSbMediaSupportTypeProbably);
+#endif  // SB_API_VERSION >= 14
 
   // Vorbis
   EXPECT_EQ(

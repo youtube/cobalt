@@ -154,6 +154,7 @@ std::string VideoDmpReader::audio_mime_type() const {
     case kSbMediaAudioCodecVorbis:
       ss << "audio/webm; codecs=\"vorbis\";";
       break;
+#if SB_API_VERSION >= 14
     case kSbMediaAudioCodecMp3:
       ss << "audio/mpeg";
       break;
@@ -163,6 +164,7 @@ std::string VideoDmpReader::audio_mime_type() const {
     case kSbMediaAudioCodecPcm:
       ss << "audio/wav; codecs=\"1\";";
       break;
+#endif  // SB_API_VERSION >= 14
     default:
       SB_NOTREACHED() << "Unsupported audio codec: " << dmp_info_.audio_codec;
   }
