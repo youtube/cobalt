@@ -212,6 +212,7 @@ source_idl_files = [
   "//cobalt/web/event.idl",
   "//cobalt/web/event_listener.idl",
   "//cobalt/web/event_target.idl",
+  "//cobalt/web/message_channel.idl",
   "//cobalt/web/message_event.idl",
   "//cobalt/web/message_port.idl",
   "//cobalt/web/navigator_ua_data.idl",

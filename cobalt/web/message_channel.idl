@@ -1,4 +1,4 @@
-// Copyright 2015 The Cobalt Authors. All Rights Reserved.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,18 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/dom/#eventtarget
-
+// https://html.spec.whatwg.org/multipage/web-messaging.html#messagechannel
 [
   Constructor(),
   ConstructorCallWith=EnvironmentSettings,
   Exposed = (Window,Worker)
-]
-interface EventTarget {
-  void addEventListener(DOMString type, EventListener? listener,
-                        optional boolean useCapture = false);
-  void removeEventListener(DOMString type, EventListener? listener,
-                           optional boolean useCapture = false);
-
-  [RaisesException] boolean dispatchEvent(Event event);
+] interface MessageChannel {
+    readonly attribute MessagePort port1;
+    readonly attribute MessagePort port2;
 };

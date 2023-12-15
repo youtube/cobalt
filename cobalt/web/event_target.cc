@@ -31,6 +31,13 @@
 namespace cobalt {
 namespace web {
 
+EventTarget::EventTarget(EventTarget* event_target)
+    : environment_settings_(event_target->environment_settings()),
+      unpack_onerror_events_(false) {
+  DCHECK(environment_settings_);
+  // TODO make this a proxy of the given event target.
+}
+
 // Since EventTarget is always in a web environment, we store the environment
 // settings as web environment settings, and make it easily available to all
 // derived classes with the environment_settings() accessor.

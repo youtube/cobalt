@@ -29,8 +29,9 @@ namespace worker {
 class Client : public web::MessagePort {
  public:
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#create-client-algorithm
-  static scoped_refptr<Client> Create(web::EnvironmentSettings* client) {
-    return new Client(client);
+  static scoped_refptr<Client> Create(web::EnvironmentSettings* settings,
+                                      web::EnvironmentSettings* client) {
+    return new Client(settings, client);
   }
   ~Client() { service_worker_client_ = nullptr; }
 
@@ -50,7 +51,8 @@ class Client : public web::MessagePort {
   DEFINE_WRAPPABLE_TYPE(Client);
 
  protected:
-  explicit Client(web::EnvironmentSettings* client);
+  explicit Client(web::EnvironmentSettings* settings,
+                  web::EnvironmentSettings* client);
 
  private:
   FrameType frame_type_ = kFrameTypeNone;
