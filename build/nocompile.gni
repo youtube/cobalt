@@ -75,8 +75,7 @@ if (enable_nocompile_tests) {
   template("nocompile_test") {
     nocompile_target = target_name + "_run_nocompile"
 
-    # TODO(crbug.com/1112471): Get this to run cleanly under Python 3.
-    python2_action_foreach(nocompile_target) {
+    action_foreach(nocompile_target) {
       testonly = true
       script = "//tools/nocompile_driver.py"
       sources = invoker.sources
@@ -103,6 +102,7 @@ if (enable_nocompile_tests) {
         "-Wfatal-errors",
         "-Wthread-safety",
         "-I" + rebase_path("//", root_build_dir),
+        "-I" + rebase_path("//third_party/abseil-cpp/", root_build_dir),
         "-I" + rebase_path(root_gen_dir, root_build_dir),
 
         # TODO(https://crbug.com/989932): Track build/config/compiler/BUILD.gn

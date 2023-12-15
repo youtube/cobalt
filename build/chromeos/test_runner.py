@@ -55,6 +55,7 @@ LACROS_LAUNCHER_SCRIPT_PATH = os.path.abspath(
 LAB_DUT_HOSTNAME = 'variable_chromeos_device_hostname'
 
 SYSTEM_LOG_LOCATIONS = [
+    '/home/chronos/crash/',
     '/var/log/chrome/',
     '/var/log/messages',
     '/var/log/ui/',
@@ -174,7 +175,7 @@ class RemoteTest(object):
     # Traps SIGTERM and kills all child processes of cros_run_test when it's
     # caught. This will allow us to capture logs from the device if a test hangs
     # and gets timeout-killed by swarming. See also:
-    # https://chromium.googlesource.com/infra/luci/luci-py/+/master/appengine/swarming/doc/Bot.md#graceful-termination_aka-the-sigterm-and-sigkill-dance
+    # https://chromium.googlesource.com/infra/luci/luci-py/+/main/appengine/swarming/doc/Bot.md#graceful-termination_aka-the-sigterm-and-sigkill-dance
     test_proc = None
 
     def _kill_child_procs(trapped_signal, _):
@@ -420,7 +421,10 @@ class TastTest(RemoteTest):
       # Use dateutil to parse the timestamps since datetime can't handle
       # nanosecond precision.
       duration = dateutil.parser.parse(end) - dateutil.parser.parse(start)
-      duration_ms = duration.total_seconds() * 1000
+      # If the duration is negative, Tast has likely reported an incorrect
+      # duration. See https://issuetracker.google.com/issues/187973541. Round
+      # up to 0 in that case to avoid confusing RDB.
+      duration_ms = max(duration.total_seconds() * 1000, 0)
       if bool(test['skipReason']):
         result = base_test_result.ResultType.SKIP
       elif errors:
@@ -919,7 +923,7 @@ def main():
   tast_test_parser = subparsers.add_parser(
       'tast',
       help='Runs a device-side set of Tast tests. For more details, see: '
-      'https://chromium.googlesource.com/chromiumos/platform/tast/+/master/docs/running_tests.md'
+      'https://chromium.googlesource.com/chromiumos/platform/tast/+/main/docs/running_tests.md'
   )
   tast_test_parser.set_defaults(func=device_test)
   tast_test_parser.add_argument(
@@ -1000,6 +1004,12 @@ def main():
       logging.error('The default lab DUT hostname of %s is unreachable.',
                     LAB_DUT_HOSTNAME)
       return 1
+
+  if args.flash and args.public_image:
+    # The flashing tools depend on being unauthenticated with GS when flashing
+    # public images, so make sure the env var GS uses to locate its creds is
+    # unset in that case.
+    os.environ.pop('BOTO_CONFIG', None)
 
   return args.func(args, unknown_args)
 
