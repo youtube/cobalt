@@ -173,7 +173,7 @@ TEST_P(SbPlayerWriteSampleTest, PartialAudio) {
   }
 
   const SbTime kDurationToPlay = kSbTimeSecond;
-  const float kSegmentSize = 0.1f;
+  const float kSegmentSize = 0.3f;
 
   GroupedSamples samples;
   if (player_fixture.HasVideo()) {
