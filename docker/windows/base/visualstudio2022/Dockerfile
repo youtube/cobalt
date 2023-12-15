@@ -26,7 +26,7 @@ SHELL ["powershell", "-ExecutionPolicy", "Unrestricted", "-Command", `
 ARG MSVS_INSTALLER_URL="https://download.visualstudio.microsoft.com/download/pr/d1ed8638-9e88-461e-92b7-4e29cc6172c3/38b09fc09ae9e590b73ae6752a0ebfd62579798969041bd341689273b842bc10/vs_BuildTools.exe"
 RUN mkdir C:\TEMP;`
     Write-Host ('Downloading vs_buildtools.exe');`
-    Invoke-WebRequest -Uri ${MSVS_INSTALLER_URL} `
+    Invoke-WebRequest -Uri ${env:MSVS_INSTALLER_URL} `
       -OutFile C:\TEMP\vs_buildtools.exe
 
 RUN Write-Host ('Installing vs_buildtools.exe');`
