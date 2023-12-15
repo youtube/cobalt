@@ -56,7 +56,7 @@ runs:
       if: ${{ (steps.changed-files.outputs.any_changed == 'false') && (github.event_name == 'pull_request') }}
       run: |
         set -x
-        docker_tag="${{ steps.meta.outputs.tags }}"
+        docker_tag="${{ steps.pr-meta.outputs.tags }}"
         docker_tag="${docker_tag%.1[+,-]}"
         echo "DOCKER_TAG=${docker_tag}" >> $GITHUB_ENV
       shell: bash
