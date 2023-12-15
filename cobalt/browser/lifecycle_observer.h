@@ -26,32 +26,32 @@ namespace browser {
 class LifecycleObserver : public base::CheckedObserver {
  public:
   // Blurs from Started, staying visible and retaining graphics resources.
-  virtual void Blur(SbTimeMonotonic timestamp) = 0;
+  virtual void Blur(int64_t timestamp) = 0;
 
   // Conceals from Blurred, transitioning to invisible but background tasks can
   // still be running.
   virtual void Conceal(render_tree::ResourceProvider* resource_provider,
-                       SbTimeMonotonic timestamp) = 0;
+                       int64_t timestamp) = 0;
 
   // Freezes from Concealed, and releases its reference to the ResourceProvider,
   // additionally releasing all references to any resources created from
   // it. This method must only be called if the object has previously been
   // Concealed.
-  virtual void Freeze(SbTimeMonotonic timestamp) = 0;
+  virtual void Freeze(int64_t timestamp) = 0;
 
   // Unfreezes from Frozen, with a new ResourceProvider. This method must only
   // be called if the object has previously been Frozen.
   virtual void Unfreeze(render_tree::ResourceProvider* resource_provider,
-                        SbTimeMonotonic timestamp) = 0;
+                        int64_t timestamp) = 0;
 
   // Reveals from Concealed, going back into partially-obscured state. This
   // method must only be called if the object has previously been Concealed.
   virtual void Reveal(render_tree::ResourceProvider* resource_provider,
-                      SbTimeMonotonic timestamp) = 0;
+                      int64_t timestamp) = 0;
 
   // Focuses, going back to the Started state, and continuing to use the same
   // ResourceProvider and graphics resources.
-  virtual void Focus(SbTimeMonotonic timestamp) = 0;
+  virtual void Focus(int64_t timestamp) = 0;
 
  protected:
   virtual ~LifecycleObserver() {}

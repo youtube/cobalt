@@ -25,6 +25,7 @@
 #include "base/message_loop/message_loop.h"
 #include "base/path_service.h"
 #include "base/threading/platform_thread.h"
+#include "base/time/time.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/media/sandbox/format_guesstimator.h"
 #include "cobalt/media/sandbox/media_sandbox.h"
@@ -196,8 +197,8 @@ class Application {
     media_sandbox_.RegisterFrameCB(
         base::Bind(&Application::FrameCB, base::Unretained(this)));
 
-    timer_event_id_ =
-        SbEventSchedule(Application::OnTimer, this, kSbTimeSecond / 10);
+    timer_event_id_ = SbEventSchedule(Application::OnTimer, this,
+                                      base::Time::kMicrosecondsPerSecond / 10);
   }
 
   void InitializeAdaptivePlayback(
@@ -266,8 +267,8 @@ class Application {
     media_sandbox_.RegisterFrameCB(
         base::Bind(&Application::FrameCB, base::Unretained(this)));
 
-    timer_event_id_ =
-        SbEventSchedule(Application::OnTimer, this, kSbTimeSecond / 10);
+    timer_event_id_ = SbEventSchedule(Application::OnTimer, this,
+                                      base::Time::kMicrosecondsPerSecond / 10);
   }
 
   void InitializeProgressivePlayback(const FormatGuesstimator& guesstimator) {
@@ -283,8 +284,8 @@ class Application {
     media_sandbox_.RegisterFrameCB(
         base::Bind(&Application::FrameCB, base::Unretained(this)));
 
-    timer_event_id_ =
-        SbEventSchedule(Application::OnTimer, this, kSbTimeSecond / 10);
+    timer_event_id_ = SbEventSchedule(Application::OnTimer, this,
+                                      base::Time::kMicrosecondsPerSecond / 10);
   }
 
   static void OnTimer(void* context) {
@@ -317,8 +318,8 @@ class Application {
     }
 
     base::RunLoop().RunUntilIdle();
-    timer_event_id_ =
-        SbEventSchedule(Application::OnTimer, this, kSbTimeSecond / 10);
+    timer_event_id_ = SbEventSchedule(Application::OnTimer, this,
+                                      base::Time::kMicrosecondsPerSecond / 10);
   }
 
   void OnChunkDemuxerOpened(ChunkDemuxer* chunk_demuxer) {

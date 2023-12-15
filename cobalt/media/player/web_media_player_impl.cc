@@ -111,7 +111,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
     bool allow_resume_after_suspend, bool allow_batched_sample_write,
     bool force_punch_out_by_default,
 #if SB_API_VERSION >= 15
-    SbTime audio_write_duration_local, SbTime audio_write_duration_remote,
+    int64_t audio_write_duration_local, int64_t audio_write_duration_remote,
 #endif  // SB_API_VERSION >= 15
     ::media::MediaLog* const media_log)
     : pipeline_thread_("media_pipeline"),
@@ -476,7 +476,8 @@ base::Time WebMediaPlayerImpl::GetStartDate() const {
 
   base::TimeDelta start_date = pipeline_->GetMediaStartDate();
 
-  return base::Time::FromSbTime(start_date.InMicroseconds());
+  return base::Time::FromDeltaSinceWindowsEpoch(
+      base::TimeDelta::FromMicroseconds(start_date.InMicroseconds()));
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 

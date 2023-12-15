@@ -29,7 +29,7 @@ const char kCValnameMinimum[] = "Media.SbPlayerCreateTime.Minimum";
 
 const char kPipelineIdentifier[] = "test_pipeline";
 
-constexpr SbTime kSleepTime = 50;  // 50 microseconds
+constexpr int64_t kSleepTime = 50;  // 50 microseconds
 
 namespace cobalt {
 namespace media {

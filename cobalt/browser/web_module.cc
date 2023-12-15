@@ -246,20 +246,19 @@ class WebModule::Impl {
 
   // Sets the application state, asserts preconditions to transition to that
   // state, and dispatches any precipitate web events.
-  void SetApplicationState(base::ApplicationState state,
-                           SbTimeMonotonic timestamp);
+  void SetApplicationState(base::ApplicationState state, int64_t timestamp);
 
   // See LifecycleObserver. These functions do not implement the interface, but
   // have the same basic function.
-  void Blur(SbTimeMonotonic timestamp);
+  void Blur(int64_t timestamp);
   void Conceal(render_tree::ResourceProvider* resource_provider,
-               SbTimeMonotonic timestamp);
-  void Freeze(SbTimeMonotonic timestamp);
+               int64_t timestamp);
+  void Freeze(int64_t timestamp);
   void Unfreeze(render_tree::ResourceProvider* resource_provider,
-                SbTimeMonotonic timestamp);
+                int64_t timestamp);
   void Reveal(render_tree::ResourceProvider* resource_provider,
-              SbTimeMonotonic timestamp);
-  void Focus(SbTimeMonotonic timestamp);
+              int64_t timestamp);
+  void Focus(int64_t timestamp);
 
   void ReduceMemory();
 
@@ -277,8 +276,8 @@ class WebModule::Impl {
       scoped_refptr<render_tree::Node>* render_tree);
 
   void SetApplicationStartOrPreloadTimestamp(bool is_preload,
-                                             SbTimeMonotonic timestamp);
-  void SetDeepLinkTimestamp(SbTimeMonotonic timestamp);
+                                             int64_t timestamp);
+  void SetDeepLinkTimestamp(int64_t timestamp);
 
   void SetUnloadEventTimingInfo(base::TimeTicks start_time,
                                 base::TimeTicks end_time);
@@ -1003,15 +1002,15 @@ void WebModule::Impl::DoSynchronousLayoutAndGetRenderTree(
   if (render_tree) *render_tree = tree;
 }
 
-void WebModule::Impl::SetApplicationStartOrPreloadTimestamp(
-    bool is_preload, SbTimeMonotonic timestamp) {
+void WebModule::Impl::SetApplicationStartOrPreloadTimestamp(bool is_preload,
+                                                            int64_t timestamp) {
   DCHECK(window_);
   DCHECK(window_->performance());
   window_->performance()->SetApplicationStartOrPreloadTimestamp(is_preload,
                                                                 timestamp);
 }
 
-void WebModule::Impl::SetDeepLinkTimestamp(SbTimeMonotonic timestamp) {
+void WebModule::Impl::SetDeepLinkTimestamp(int64_t timestamp) {
   DCHECK(window_);
   window_->performance()->SetDeepLinkTimestamp(timestamp);
 }
@@ -1088,7 +1087,7 @@ void WebModule::Impl::SetMediaModule(media::MediaModule* media_module) {
 }
 
 void WebModule::Impl::SetApplicationState(base::ApplicationState state,
-                                          SbTimeMonotonic timestamp) {
+                                          int64_t timestamp) {
   window_->SetApplicationState(state, timestamp);
 }
 
@@ -1118,13 +1117,13 @@ void WebModule::Impl::OnStopDispatchEvent(
       layout_manager_->IsRenderTreePending());
 }
 
-void WebModule::Impl::Blur(SbTimeMonotonic timestamp) {
+void WebModule::Impl::Blur(int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Blur()");
   SetApplicationState(base::kApplicationStateBlurred, timestamp);
 }
 
 void WebModule::Impl::Conceal(render_tree::ResourceProvider* resource_provider,
-                              SbTimeMonotonic timestamp) {
+                              int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Conceal()");
   SetResourceProvider(resource_provider);
 
@@ -1161,7 +1160,7 @@ void WebModule::Impl::Conceal(render_tree::ResourceProvider* resource_provider,
   }
 }
 
-void WebModule::Impl::Freeze(SbTimeMonotonic timestamp) {
+void WebModule::Impl::Freeze(int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Freeze()");
   SetApplicationState(base::kApplicationStateFrozen, timestamp);
 
@@ -1171,7 +1170,7 @@ void WebModule::Impl::Freeze(SbTimeMonotonic timestamp) {
 }
 
 void WebModule::Impl::Unfreeze(render_tree::ResourceProvider* resource_provider,
-                               SbTimeMonotonic timestamp) {
+                               int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Unfreeze()");
   synchronous_loader_interrupt_->Reset();
   DCHECK(resource_provider);
@@ -1181,7 +1180,7 @@ void WebModule::Impl::Unfreeze(render_tree::ResourceProvider* resource_provider,
 }
 
 void WebModule::Impl::Reveal(render_tree::ResourceProvider* resource_provider,
-                             SbTimeMonotonic timestamp) {
+                             int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Reveal()");
   synchronous_loader_interrupt_->Reset();
   DCHECK(resource_provider);
@@ -1196,7 +1195,7 @@ void WebModule::Impl::Reveal(render_tree::ResourceProvider* resource_provider,
   SetApplicationState(base::kApplicationStateBlurred, timestamp);
 }
 
-void WebModule::Impl::Focus(SbTimeMonotonic timestamp) {
+void WebModule::Impl::Focus(int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Focus()");
   synchronous_loader_interrupt_->Reset();
   SetApplicationState(base::kApplicationStateStarted, timestamp);
@@ -1577,7 +1576,7 @@ void WebModule::SetRemoteTypefaceCacheCapacity(int64_t bytes) {
   impl_->SetRemoteTypefaceCacheCapacity(bytes);
 }
 
-void WebModule::Blur(SbTimeMonotonic timestamp) {
+void WebModule::Blur(int64_t timestamp) {
   synchronous_loader_interrupt_.Signal();
 #if defined(ENABLE_DEBUGGER)
   // We normally need to block here so that the call doesn't return until the
@@ -1602,7 +1601,7 @@ void WebModule::Blur(SbTimeMonotonic timestamp) {
 }
 
 void WebModule::Conceal(render_tree::ResourceProvider* resource_provider,
-                        SbTimeMonotonic timestamp) {
+                        int64_t timestamp) {
   synchronous_loader_interrupt_.Signal();
   // We must block here so that the call doesn't return until the web
   // application has had a chance to process the whole event.
@@ -1611,7 +1610,7 @@ void WebModule::Conceal(render_tree::ResourceProvider* resource_provider,
   impl_->Conceal(resource_provider, timestamp);
 }
 
-void WebModule::Freeze(SbTimeMonotonic timestamp) {
+void WebModule::Freeze(int64_t timestamp) {
   // We must block here so that the call doesn't return until the web
   // application has had a chance to process the whole event.
   POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(Freeze, timestamp);
@@ -1619,7 +1618,7 @@ void WebModule::Freeze(SbTimeMonotonic timestamp) {
 }
 
 void WebModule::Unfreeze(render_tree::ResourceProvider* resource_provider,
-                         SbTimeMonotonic timestamp) {
+                         int64_t timestamp) {
   // We must block here so that the call doesn't return until the web
   // application has had a chance to process the whole event.
   POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(Unfreeze, resource_provider,
@@ -1628,14 +1627,14 @@ void WebModule::Unfreeze(render_tree::ResourceProvider* resource_provider,
 }
 
 void WebModule::Reveal(render_tree::ResourceProvider* resource_provider,
-                       SbTimeMonotonic timestamp) {
+                       int64_t timestamp) {
   // We must block here so that the call doesn't return until the web
   // application has had a chance to process the whole event.
   POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(Reveal, resource_provider, timestamp);
   impl_->Reveal(resource_provider, timestamp);
 }
 
-void WebModule::Focus(SbTimeMonotonic timestamp) {
+void WebModule::Focus(int64_t timestamp) {
   // We must block here so that the call doesn't return until the web
   // application has had a chance to process the whole event.
   POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(Focus, timestamp);
@@ -1678,8 +1677,8 @@ void WebModule::DoSynchronousLayoutAndGetRenderTree(
   impl_->DoSynchronousLayoutAndGetRenderTree(render_tree);
 }
 
-void WebModule::SetApplicationStartOrPreloadTimestamp(
-    bool is_preload, SbTimeMonotonic timestamp) {
+void WebModule::SetApplicationStartOrPreloadTimestamp(bool is_preload,
+                                                      int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser",
                "WebModule::SetApplicationStartOrPreloadTimestamp()");
   POST_TO_ENSURE_IMPL_ON_THREAD(SetApplicationStartOrPreloadTimestamp,
@@ -1687,7 +1686,7 @@ void WebModule::SetApplicationStartOrPreloadTimestamp(
   impl_->SetApplicationStartOrPreloadTimestamp(is_preload, timestamp);
 }
 
-void WebModule::SetDeepLinkTimestamp(SbTimeMonotonic timestamp) {
+void WebModule::SetDeepLinkTimestamp(int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "WebModule::SetDeepLinkTimestamp()");
   POST_AND_BLOCK_TO_ENSURE_IMPL_ON_THREAD(SetDeepLinkTimestamp, timestamp);
   impl_->SetDeepLinkTimestamp(timestamp);

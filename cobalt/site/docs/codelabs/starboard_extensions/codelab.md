@@ -559,9 +559,9 @@ typedef struct StarboardExtensionPleasantryApi {
 
 #include <stdlib.h>
 
+#include "starboard/common/time.h"
 #include "starboard/extension/pleasantry.h"
 #include "starboard/system.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace shared {
@@ -577,7 +577,7 @@ const char* kFarewells[] = {
 };
 
 const char* GetFarewell() {
-  srand (SbTimeGetNow());
+  srand (starboard::CurrentPosixTime());
   int pseudo_random_index = rand() % SB_ARRAY_SIZE_INT(kFarewells);
   return kFarewells[pseudo_random_index];
 }
@@ -629,7 +629,7 @@ const void* GetPleasantryApi() {
 +
  void PreloadApplication(int argc, char** argv, const char* link,
                          const base::Closure& quit_closure,
-                         SbTimeMonotonic timestamp) {
+                         int64_t timestamp) {
 @@ -77,6 +87,14 @@ void StartApplication(int argc, char** argv, const char* link,
      return;
    }

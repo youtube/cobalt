@@ -18,18 +18,18 @@
 #include <pthread.h>
 #include <time.h>
 
+#include "starboard/common/time.h"
 #include "starboard/shared/posix/time_internal.h"
 #include "starboard/shared/pthread/is_success.h"
 #include "starboard/shared/pthread/types_internal.h"
 #include "starboard/shared/starboard/lazy_initialization_internal.h"
-#include "starboard/time.h"
 
 using starboard::shared::starboard::EnsureInitialized;
 
 SbConditionVariableResult SbConditionVariableWaitTimed(
     SbConditionVariable* condition,
     SbMutex* mutex,
-    SbTime timeout) {
+    int64_t timeout) {
   if (!condition || !mutex) {
     return kSbConditionVariableFailed;
   }
@@ -39,12 +39,12 @@ SbConditionVariableResult SbConditionVariableWaitTimed(
   }
 
 #if !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
-  SbTime timeout_time = SbTimeGetMonotonicNow() + timeout;
+  int64_t timeout_time = starboard::CurrentMonotonicTime() + timeout;
 #else   // !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
-  int64_t timeout_time = SbTimeToPosix(SbTimeGetNow()) + timeout;
+  int64_t timeout_time = starboard::CurrentPosixTime() + timeout;
 #endif  // !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
 
-  // Detect overflow if timeout is near kSbTimeMax. Since timeout can't be
+  // Detect overflow if timeout is near kSbInt64Max. Since timeout can't be
   // negative at this point, if it goes negative after adding now, we know we've
   // gone over. Especially posix now, which has a 400 year advantage over
   // Chromium (Windows) now.

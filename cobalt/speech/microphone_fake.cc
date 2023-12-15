@@ -26,7 +26,6 @@
 #include "cobalt/audio/audio_file_reader.h"
 #include "starboard/common/file.h"
 #include "starboard/memory.h"
-#include "starboard/time.h"
 
 namespace cobalt {
 namespace speech {

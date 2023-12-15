@@ -46,7 +46,7 @@ class DecoderBufferAllocator : public ::media::DecoderBuffer::Allocator,
   int GetAudioBufferBudget() const override;
   int GetBufferAlignment() const override;
   int GetBufferPadding() const override;
-  SbTime GetBufferGarbageCollectionDurationThreshold() const override;
+  int64_t GetBufferGarbageCollectionDurationThreshold() const override;
   int GetProgressiveBufferBudget(SbMediaVideoCodec codec, int resolution_width,
                                  int resolution_height,
                                  int bits_per_pixel) const override;

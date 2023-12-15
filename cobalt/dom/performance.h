@@ -132,13 +132,12 @@ class Performance : public web::EventTarget {
       const scoped_refptr<PerformanceObserver>& observer,
       const PerformanceObserverInit& options);
 
-  void SetApplicationState(base::ApplicationState state,
-                           SbTimeMonotonic timestamp);
+  void SetApplicationState(base::ApplicationState state, int64_t timestamp);
 
   void SetApplicationStartOrPreloadTimestamp(bool is_preload,
-                                             SbTimeMonotonic timestamp);
+                                             int64_t timestamp);
 
-  void SetDeepLinkTimestamp(SbTimeMonotonic timestamp);
+  void SetDeepLinkTimestamp(int64_t timestamp);
 
   void TraceMembers(script::Tracer* tracer) override;
   DEFINE_WRAPPABLE_TYPE(Performance);

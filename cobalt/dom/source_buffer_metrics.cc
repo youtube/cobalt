@@ -17,8 +17,10 @@
 #include <algorithm>
 
 #include "base/logging.h"
+#include "base/time/time.h"
 #include "cobalt/base/statistics.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/once.h"
 #include "starboard/types.h"
 
@@ -29,8 +31,10 @@ namespace dom {
 
 namespace {
 
-int GetBandwidth(std::size_t size, SbTimeMonotonic duration) {
-  return duration == 0 ? 0 : size * kSbTimeSecond / duration;
+int GetBandwidth(std::size_t size, int64_t duration_us) {
+  return duration_us == 0
+             ? 0
+             : size * base::Time::kMicrosecondsPerSecond / duration_us;
 }
 
 int64_t GetBandwidthForStatistics(int64_t size, int64_t duration) {
@@ -38,7 +42,7 @@ int64_t GetBandwidthForStatistics(int64_t size, int64_t duration) {
 }
 
 using BandwidthStatistics =
-    base::Statistics<int64_t, SbTimeMonotonic, 1024, GetBandwidthForStatistics>;
+    base::Statistics<int64_t, int64_t, 1024, GetBandwidthForStatistics>;
 
 class StatisticsWrapper {
  public:
@@ -66,7 +70,7 @@ void SourceBufferMetrics::StartTracking() {
 
   DCHECK(!is_tracking_);
   is_tracking_ = true;
-  wall_start_time_ = SbTimeGetMonotonicNow();
+  wall_start_time_ = starboard::CurrentMonotonicTime();
   thread_start_time_ =
       SbTimeIsTimeThreadNowSupported() ? SbTimeGetMonotonicThreadNow() : -1;
 }
@@ -79,8 +83,8 @@ void SourceBufferMetrics::EndTracking(std::size_t size_appended) {
   DCHECK(is_tracking_);
   is_tracking_ = false;
 
-  SbTimeMonotonic wall_duration = SbTimeGetMonotonicNow() - wall_start_time_;
-  SbTimeMonotonic thread_duration =
+  int64_t wall_duration = starboard::CurrentMonotonicTime() - wall_start_time_;
+  int64_t thread_duration =
       SbTimeIsTimeThreadNowSupported()
           ? SbTimeGetMonotonicThreadNow() - thread_start_time_
           : 0;

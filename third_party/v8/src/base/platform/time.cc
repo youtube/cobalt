@@ -14,6 +14,9 @@
 #include <mach/mach_time.h>
 #include <pthread.h>
 #endif
+#if V8_OS_STARBOARD
+#include <sys/time.h>
+#endif  // V8_OS_STARBOARD
 
 #include <cstring>
 #include <ostream>
@@ -373,7 +376,7 @@ FILETIME Time::ToFiletime() const {
   return ft;
 }
 
-#elif V8_OS_POSIX
+#elif V8_OS_POSIX || V8_OS_STARBOARD
 
 Time Time::Now() {
   struct timeval tv;
@@ -453,13 +456,7 @@ struct timeval Time::ToTimeval() const {
   return tv;
 }
 
-#elif V8_OS_STARBOARD
-
-Time Time::Now() { return Time(SbTimeToPosix(SbTimeGetNow())); }
-
-Time Time::NowFromSystemTime() { return Now(); }
-
-#endif  // V8_OS_STARBOARD
+#endif  // V8_OS_POSIX || V8_OS_STARBOARD
 
 // static
 TimeTicks TimeTicks::HighResolutionNow() {

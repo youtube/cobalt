@@ -76,7 +76,7 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
           https_requirement(network::kHTTPSRequired),
           cors_policy(network::kCORSRequired),
           preferred_language("en-US"),
-          max_network_delay(0),
+          max_network_delay_usec(0),
           persistent_settings(nullptr) {}
     net::StaticCookiePolicy::Type cookie_policy;
     bool ignore_certificate_errors;
@@ -84,7 +84,7 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
     network::CORSPolicy cors_policy;
     std::string preferred_language;
     std::string custom_proxy;
-    SbTime max_network_delay;
+    int64_t max_network_delay_usec;
     persistent_storage::PersistentSettings* persistent_settings;
     storage::StorageManager::Options storage_manager_options;
   };
@@ -110,7 +110,9 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
   const std::string& preferred_language() const {
     return options_.preferred_language;
   }
-  SbTime max_network_delay() const { return options_.max_network_delay; }
+  int64_t max_network_delay_usec() const {
+    return options_.max_network_delay_usec;
+  }
   scoped_refptr<URLRequestContextGetter> url_request_context_getter() const {
     return url_request_context_getter_;
   }

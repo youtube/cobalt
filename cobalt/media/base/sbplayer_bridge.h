@@ -147,7 +147,7 @@ class SbPlayerBridge {
   SbDecodeTarget GetCurrentSbDecodeTarget();
   SbPlayerOutputMode GetSbPlayerOutputMode();
 
-  void RecordSetDrmSystemReadyTime(SbTimeMonotonic timestamp) {
+  void RecordSetDrmSystemReadyTime(int64_t timestamp) {
     set_drm_system_ready_cb_time_ = timestamp;
   }
 
@@ -306,13 +306,13 @@ class SbPlayerBridge {
   std::string player_creation_error_message_;
 
   // Variables related to tracking player startup latencies.
-  SbTimeMonotonic set_drm_system_ready_cb_time_ = -1;
-  SbTimeMonotonic player_creation_time_ = 0;
-  SbTimeMonotonic sb_player_state_initialized_time_ = 0;
-  SbTimeMonotonic sb_player_state_prerolling_time_ = 0;
-  SbTimeMonotonic first_audio_sample_time_ = 0;
-  SbTimeMonotonic first_video_sample_time_ = 0;
-  SbTimeMonotonic sb_player_state_presenting_time_ = 0;
+  int64_t set_drm_system_ready_cb_time_ = -1;
+  int64_t player_creation_time_ = 0;
+  int64_t sb_player_state_initialized_time_ = 0;
+  int64_t sb_player_state_prerolling_time_ = 0;
+  int64_t first_audio_sample_time_ = 0;
+  int64_t first_video_sample_time_ = 0;
+  int64_t sb_player_state_presenting_time_ = 0;
 
 #if SB_HAS(PLAYER_WITH_URL)
   const bool is_url_based_;

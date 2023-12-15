@@ -83,12 +83,16 @@ target(final_executable_type, "crash_sandbox") {
 
 target(final_executable_type, "noop_sandbox") {
   sources = [ "noop_sandbox.cc" ]
-  deps = [ "//starboard:starboard_group", ]
+  deps = [
+    "//base",
+    "//starboard:starboard_group",
+  ]
 }
 
 target(final_executable_type, "one_app_only_sandbox") {
   sources = [ "one_app_only_sandbox.cc" ]
   deps = [
+    "//base",
     "//cobalt/base",
     "//cobalt/browser",
     "//cobalt/browser:browser_switches",

@@ -626,7 +626,7 @@ base::TimeDelta DemuxerExtensionWrapper::GetStartTime() const {
 }
 
 base::Time DemuxerExtensionWrapper::GetTimelineOffset() const {
-  const SbTime reported_time = impl_->GetTimelineOffset(impl_->user_data);
+  const int64_t reported_time = impl_->GetTimelineOffset(impl_->user_data);
   return reported_time == 0
              ? base::Time()
              : base::Time::FromDeltaSinceWindowsEpoch(

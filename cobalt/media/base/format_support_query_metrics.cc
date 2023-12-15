@@ -19,6 +19,7 @@
 #include "base/logging.h"
 #include "base/strings/string_util.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 
 namespace cobalt {
 namespace media {
@@ -31,7 +32,7 @@ std::string CreateQueryDescription(const char* query_name,
                                    const std::string& mime_type,
                                    const std::string& key_system,
                                    SbMediaSupportType support_type,
-                                   SbTimeMonotonic query_duration) {
+                                   int64_t query_duration) {
   auto get_support_type_str = [](SbMediaSupportType support_type) {
     switch (support_type) {
       case kSbMediaSupportTypeNotSupported:
@@ -55,22 +56,22 @@ std::string CreateQueryDescription(const char* query_name,
 }  // namespace
 
 // static
-SbTimeMonotonic FormatSupportQueryMetrics::cached_query_durations_
+int64_t FormatSupportQueryMetrics::cached_query_durations_
     [kMaxCachedQueryDurations] = {};
 char FormatSupportQueryMetrics::max_query_description_
     [kMaxQueryDescriptionLength] = {};
-SbTimeMonotonic FormatSupportQueryMetrics::max_query_duration_ = 0;
-SbTimeMonotonic FormatSupportQueryMetrics::total_query_duration_ = 0;
+int64_t FormatSupportQueryMetrics::max_query_duration_ = 0;
+int64_t FormatSupportQueryMetrics::total_query_duration_ = 0;
 int FormatSupportQueryMetrics::total_num_queries_ = 0;
 
 FormatSupportQueryMetrics::FormatSupportQueryMetrics() {
-  start_time_ = SbTimeGetMonotonicNow();
+  start_time_ = starboard::CurrentMonotonicTime();
 }
 
 void FormatSupportQueryMetrics::RecordAndLogQuery(
     const char* query_name, const std::string& mime_type,
     const std::string& key_system, SbMediaSupportType support_type) {
-  SbTimeMonotonic query_duration = SbTimeGetMonotonicNow() - start_time_;
+  int64_t query_duration = starboard::CurrentMonotonicTime() - start_time_;
   total_query_duration_ += query_duration;
 
   std::string query_description = CreateQueryDescription(

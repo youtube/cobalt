@@ -56,7 +56,6 @@ bcmp
 bind_textdomain_codeset
 bindtextdomain
 btowc
-clock_gettime
 close
 dgettext
 exit
