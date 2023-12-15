@@ -48,7 +48,7 @@ runs:
       uses: docker/metadata-action@507c2f2dc502c992ad446e3d7a5dfbe311567a96 # v4.3.0
       with:
         images: ${{env.REGISTRY}}/${{github.repository}}/${{inputs.docker_image}}
-        tags: type=raw,value=${{ env.GITHUB_BASE_REF }}
+        tags: type=raw,value=${{ github.base_ref }}
     - name: Set Docker Tag
       id: set-docker-tag-presubmit-non-fork
       env:
