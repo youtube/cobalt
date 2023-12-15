@@ -47,8 +47,8 @@ runs:
       id: pr-meta
       uses: docker/metadata-action@507c2f2dc502c992ad446e3d7a5dfbe311567a96 # v4.3.0
       with:
-        images: gcr.io/${{github.repository}}/${{inputs.docker_image}}
-        tags: type=raw,value=${{ github.base_ref }}
+        images: ${{env.REGISTRY}}/${{github.repository}}/${{inputs.docker_image}}
+        tags: type=raw,value=${{ env.GITHUB_BASE_REF }}
     - name: Set Docker Tag
       id: set-docker-tag-presubmit-non-fork
       env:
