@@ -401,6 +401,7 @@ int BORINGSSL_self_test(void) {
   // AES-CBC Encryption KAT
   memcpy(aes_iv, kAESIV, sizeof(kAESIV));
   if (AES_set_encrypt_key(kAESKey, 8 * sizeof(kAESKey), &aes_key) != 0) {
+    fprintf(stderr, "AES_set_encrypt_key failed.\n");
     goto err;
   }
   AES_cbc_encrypt(kPlaintext, output, sizeof(kPlaintext), &aes_key, aes_iv,
@@ -413,6 +414,7 @@ int BORINGSSL_self_test(void) {
   // AES-CBC Decryption KAT
   memcpy(aes_iv, kAESIV, sizeof(kAESIV));
   if (AES_set_decrypt_key(kAESKey, 8 * sizeof(kAESKey), &aes_key) != 0) {
+    fprintf(stderr, "AES_set_decrypt_key failed.\n");
     goto err;
   }
   AES_cbc_encrypt(kAESCBCCiphertext, output, sizeof(kAESCBCCiphertext),
@@ -427,6 +429,7 @@ int BORINGSSL_self_test(void) {
   OPENSSL_memset(nonce, 0, sizeof(nonce));
   if (!EVP_AEAD_CTX_init(&aead_ctx, EVP_aead_aes_128_gcm(), kAESKey,
                          sizeof(kAESKey), 0, NULL)) {
+    fprintf(stderr, "EVP_AEAD_CTX_init for AES-128-GCM failed.\n");
     goto err;
   }
 
@@ -436,6 +439,7 @@ int BORINGSSL_self_test(void) {
                          kPlaintext, sizeof(kPlaintext), NULL, 0) ||
       !check_test(kAESGCMCiphertext, output, sizeof(kAESGCMCiphertext),
                   "AES-GCM Encryption KAT")) {
+    fprintf(stderr, "EVP_AEAD_CTX_seal for AES-128-GCM failed.\n");
     goto err;
   }
 
@@ -446,6 +450,7 @@ int BORINGSSL_self_test(void) {
                          0) ||
       !check_test(kPlaintext, output, sizeof(kPlaintext),
                   "AES-GCM Decryption KAT")) {
+    fprintf(stderr, "EVP_AEAD_CTX_open for AES-128-GCM failed.\n");
     goto err;
   }
 
@@ -511,6 +516,7 @@ int BORINGSSL_self_test(void) {
                 &sig_len, rsa_key) ||
       !check_test(kRSASignature, output, sizeof(kRSASignature),
                   "RSA Sign KAT")) {
+    fprintf(stderr, "RSA signing test failed.\n");
     goto err;
   }
 
@@ -565,12 +571,13 @@ int BORINGSSL_self_test(void) {
                          sizeof(kDRBGAD)) ||
       !check_test(kDRBGReseedOutput, output, sizeof(kDRBGReseedOutput),
                   "DRBG Reseed KAT")) {
+    fprintf(stderr, "CTR-DRBG failed.\n");
     goto err;
   }
   CTR_DRBG_clear(&drbg);
 
   CTR_DRBG_STATE kZeroDRBG;
-  OPENSSL_memset(&kZeroDRBG, 0, sizeof(kZeroDRBG));
+  memset(&kZeroDRBG, 0, sizeof(kZeroDRBG));
   if (!check_test(&kZeroDRBG, &drbg, sizeof(drbg), "DRBG Clear KAT")) {
     goto err;
   }

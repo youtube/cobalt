@@ -630,9 +630,12 @@ OPENSSL_EXPORT int BN_rand_range_ex(BIGNUM *r, BN_ULONG min_inclusive,
 // BN_pseudo_rand_range is an alias for BN_rand_range.
 OPENSSL_EXPORT int BN_pseudo_rand_range(BIGNUM *rnd, const BIGNUM *range);
 
-// BN_GENCB holds a callback function that is used by generation functions that
-// can take a very long time to complete. Use |BN_GENCB_set| to initialise a
-// |BN_GENCB| structure.
+#define BN_GENCB_GENERATED 0
+#define BN_GENCB_PRIME_TEST 1
+
+// bn_gencb_st, or |BN_GENCB|, holds a callback function that is used by
+// generation functions that can take a very long time to complete. Use
+// |BN_GENCB_set| to initialise a |BN_GENCB| structure.
 //
 // The callback receives the address of that |BN_GENCB| structure as its last
 // argument and the user is free to put an arbitrary pointer in |arg|. The other
@@ -648,9 +651,6 @@ OPENSSL_EXPORT int BN_pseudo_rand_range(BIGNUM *rnd, const BIGNUM *range);
 //
 // When other code needs to call a BN generation function it will often take a
 // BN_GENCB argument and may call the function with other argument values.
-#define BN_GENCB_GENERATED 0
-#define BN_GENCB_PRIME_TEST 1
-
 struct bn_gencb_st {
   void *arg;        // callback-specific data
   int (*callback)(int event, int n, struct bn_gencb_st *);
@@ -987,7 +987,7 @@ OPENSSL_EXPORT unsigned BN_num_bits_word(BN_ULONG l);
 #if !defined(BORINGSSL_NO_CXX)
 extern "C++" {
 
-namespace bssl {
+BSSL_NAMESPACE_BEGIN
 
 BORINGSSL_MAKE_DELETER(BIGNUM, BN_free)
 BORINGSSL_MAKE_DELETER(BN_CTX, BN_CTX_free)
@@ -1005,7 +1005,7 @@ class BN_CTXScope {
   BN_CTXScope &operator=(BN_CTXScope &) = delete;
 };
 
-}  // namespace bssl
+BSSL_NAMESPACE_END
 
 }  // extern C++
 #endif

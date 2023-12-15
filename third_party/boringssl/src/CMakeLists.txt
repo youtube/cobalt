@@ -20,6 +20,11 @@ include(sources.cmake)
 enable_language(C)
 enable_language(CXX)
 
+# This is a dummy target which all other targets depend on (manually - see other
+# CMakeLists.txt files). This gives us a hook to add any targets which need to
+# run before all other targets.
+add_custom_target(global_target)
+
 if(ANDROID)
   # Android-NDK CMake files reconfigure the path and so Go and Perl won't be
   # found. However, ninja will still find them in $PATH if we just name them.
@@ -41,8 +46,35 @@ endif()
 if(USE_CUSTOM_LIBCXX)
   set(BORINGSSL_ALLOW_CXX_RUNTIME 1)
 endif()
+
 if(BORINGSSL_ALLOW_CXX_RUNTIME)
   add_definitions(-DBORINGSSL_ALLOW_CXX_RUNTIME)
+endif()
+
+if(BORINGSSL_PREFIX AND BORINGSSL_PREFIX_SYMBOLS)
+  add_definitions(-DBORINGSSL_PREFIX=${BORINGSSL_PREFIX})
+
+  # Use "symbol_prefix_include" to store generated header files
+  include_directories(${CMAKE_CURRENT_BINARY_DIR}/symbol_prefix_include)
+  add_custom_command(
+    OUTPUT symbol_prefix_include/boringssl_prefix_symbols.h
+           symbol_prefix_include/boringssl_prefix_symbols_asm.h
+           symbol_prefix_include/boringssl_prefix_symbols_nasm.inc
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/symbol_prefix_include
+    COMMAND ${GO_EXECUTABLE} run ${CMAKE_CURRENT_SOURCE_DIR}/util/make_prefix_headers.go -out ${CMAKE_CURRENT_BINARY_DIR}/symbol_prefix_include ${BORINGSSL_PREFIX_SYMBOLS}
+    DEPENDS util/make_prefix_headers.go
+            ${CMAKE_BINARY_DIR}/${BORINGSSL_PREFIX_SYMBOLS})
+
+  # add_dependencies needs a target, not a file, so we add an intermediate
+  # target.
+  add_custom_target(
+    boringssl_prefix_symbols
+    DEPENDS symbol_prefix_include/boringssl_prefix_symbols.h
+            symbol_prefix_include/boringssl_prefix_symbols_asm.h
+            symbol_prefix_include/boringssl_prefix_symbols_nasm.inc)
+  add_dependencies(global_target boringssl_prefix_symbols)
+elseif(BORINGSSL_PREFIX OR BORINGSSL_PREFIX_SYMBOLS)
+  message(FATAL_ERROR "Must specify both or neither of BORINGSSL_PREFIX and BORINGSSL_PREFIX_SYMBOLS")
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -206,6 +238,10 @@ if(FUZZ)
     message(FATAL_ERROR "You need to build with Clang for fuzzing to work")
   endif()
 
+  if(CMAKE_C_COMPILER_VERSION VERSION_LESS "6.0.0")
+    message(FATAL_ERROR "You need Clang ≥ 6.0.0")
+  endif()
+
   add_definitions(-DBORINGSSL_UNSAFE_DETERMINISTIC_MODE)
   set(RUNNER_ARGS "-deterministic")
 
@@ -214,10 +250,8 @@ if(FUZZ)
     set(RUNNER_ARGS ${RUNNER_ARGS} "-fuzzer" "-shim-config" "fuzzer_mode.json")
   endif()
 
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -fsanitize-coverage=edge,indirect-calls,trace-pc-guard")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fsanitize-coverage=edge,indirect-calls,trace-pc-guard")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
-  link_directories(.)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address,fuzzer-no-link -fsanitize-coverage=edge,indirect-calls")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address,fuzzer-no-link -fsanitize-coverage=edge,indirect-calls")
 endif()
 
 add_definitions(-DBORINGSSL_IMPLEMENTATION)
@@ -240,7 +274,7 @@ if(MSAN)
 
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=memory -fsanitize-memory-track-origins -fno-omit-frame-pointer")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=memory -fsanitize-memory-track-origins -fno-omit-frame-pointer")
-  set(OPENSSL_NO_ASM "1")
+  set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -fsanitize=memory -fsanitize-memory-track-origins -fno-omit-frame-pointer")
 endif()
 
 if(ASAN)
@@ -250,7 +284,6 @@ if(ASAN)
 
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -fsanitize-address-use-after-scope -fno-omit-frame-pointer")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fsanitize-address-use-after-scope -fno-omit-frame-pointer")
-  set(OPENSSL_NO_ASM "1")
 endif()
 
 if(CFI)
@@ -300,6 +333,43 @@ endif()
 if(OPENSSL_SMALL)
   add_definitions(-DOPENSSL_SMALL)
 endif()
+
+function(go_executable dest package)
+  set(godeps "${CMAKE_SOURCE_DIR}/util/godeps.go")
+  if(${CMAKE_VERSION} VERSION_LESS "3.7" OR
+     NOT ${CMAKE_GENERATOR} STREQUAL "Ninja")
+    # The DEPFILE parameter to add_custom_command is new as of CMake 3.7 and
+    # only works with Ninja. Query the sources at configure time. Additionally,
+    # everything depends on go.mod. That affects what external packages to use.
+    execute_process(COMMAND ${GO_EXECUTABLE} run ${godeps} -format cmake
+                            -pkg ${package}
+                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                    OUTPUT_VARIABLE sources
+                    RESULT_VARIABLE godeps_result)
+    add_custom_command(OUTPUT ${dest}
+                       COMMAND ${GO_EXECUTABLE} build
+                               -o ${CMAKE_CURRENT_BINARY_DIR}/${dest} ${package}
+                       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                       DEPENDS ${sources} ${CMAKE_SOURCE_DIR}/go.mod)
+  else()
+    # Ninja expects the target in the depfile to match the output. This is a
+    # relative path from the build directory.
+    string(LENGTH "${CMAKE_BINARY_DIR}" root_dir_length)
+    math(EXPR root_dir_length "${root_dir_length} + 1")
+    string(SUBSTRING "${CMAKE_CURRENT_BINARY_DIR}" ${root_dir_length} -1 target)
+    set(target "${target}/${dest}")
+
+    set(depfile "${CMAKE_CURRENT_BINARY_DIR}/${dest}.d")
+    add_custom_command(OUTPUT ${dest}
+                       COMMAND ${GO_EXECUTABLE} build
+                               -o ${CMAKE_CURRENT_BINARY_DIR}/${dest} ${package}
+                       COMMAND ${GO_EXECUTABLE} run ${godeps} -format depfile
+                               -target ${target} -pkg ${package} -out ${depfile}
+                       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                       DEPENDS ${godeps} ${CMAKE_SOURCE_DIR}/go.mod
+                       DEPFILE ${depfile})
+  endif()
+endfunction()
 
 # CMake's iOS support uses Apple's multiple-architecture toolchain. It takes an
 # architecture list from CMAKE_OSX_ARCHITECTURES, leaves CMAKE_SYSTEM_PROCESSOR
@@ -440,7 +510,6 @@ add_custom_command(
 add_library(crypto_test_data OBJECT crypto_test_data.cc)
 
 add_subdirectory(crypto)
-add_subdirectory(third_party/fiat)
 add_subdirectory(ssl)
 add_subdirectory(ssl/test)
 add_subdirectory(fipstools)
@@ -448,14 +517,6 @@ add_subdirectory(tool)
 add_subdirectory(decrepit)
 
 if(FUZZ)
-  if(LIBFUZZER_FROM_DEPS)
-    file(GLOB LIBFUZZER_SOURCES "util/bot/libFuzzer/*.cpp")
-    add_library(Fuzzer STATIC ${LIBFUZZER_SOURCES})
-    # libFuzzer does not pass our aggressive warnings. It also must be built
-    # without -fsanitize-coverage options or clang crashes.
-    set_target_properties(Fuzzer PROPERTIES COMPILE_FLAGS "-Wno-shadow -Wno-format-nonliteral -Wno-missing-prototypes -fsanitize-coverage=0")
-  endif()
-
   add_subdirectory(fuzz)
 endif()
 

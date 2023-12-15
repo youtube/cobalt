@@ -31,7 +31,7 @@
 #define FUZZER_MODE false
 #endif
 
-namespace bssl {
+BSSL_NAMESPACE_BEGIN
 
 SSLAEADContext::SSLAEADContext(uint16_t version_arg, bool is_dtls_arg,
                                const SSL_CIPHER *cipher_arg)
@@ -55,7 +55,7 @@ UniquePtr<SSLAEADContext> SSLAEADContext::CreateNullCipher(bool is_dtls) {
 }
 
 UniquePtr<SSLAEADContext> SSLAEADContext::Create(
-    enum evp_aead_direction_t direction, uint16_t version, int is_dtls,
+    enum evp_aead_direction_t direction, uint16_t version, bool is_dtls,
     const SSL_CIPHER *cipher, Span<const uint8_t> enc_key,
     Span<const uint8_t> mac_key, Span<const uint8_t> fixed_iv) {
   const EVP_AEAD *aead;
@@ -433,4 +433,4 @@ bool SSLAEADContext::GetIV(const uint8_t **out_iv, size_t *out_iv_len) const {
          EVP_AEAD_CTX_get_iv(ctx_.get(), out_iv, out_iv_len);
 }
 
-}  // namespace bssl
+BSSL_NAMESPACE_END

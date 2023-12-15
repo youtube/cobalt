@@ -139,13 +139,13 @@
 #endif
 
 #if !defined(STARBOARD)
-#if !defined(OPENSSL_NO_THREADS) && \
+#if defined(OPENSSL_THREADS) && \
     (!defined(OPENSSL_WINDOWS) || defined(__MINGW32__))
 #include <pthread.h>
 #define OPENSSL_PTHREADS
 #endif
 
-#if !defined(OPENSSL_NO_THREADS) && !defined(OPENSSL_PTHREADS) && \
+#if defined(OPENSSL_THREADS) && !defined(OPENSSL_PTHREADS) && \
     defined(OPENSSL_WINDOWS)
 #define OPENSSL_WINDOWS_THREADS
 OPENSSL_MSVC_PRAGMA(warning(push, 3))
@@ -381,7 +381,7 @@ static inline int constant_time_select_int(crypto_word_t mask, int a, int b) {
 #if defined(STARBOARD)
 typedef SbOnceControl CRYPTO_once_t;
 #define CRYPTO_ONCE_INIT SB_ONCE_INITIALIZER
-#elif defined(OPENSSL_NO_THREADS)
+#elif !defined(OPENSSL_THREADS)
 typedef uint32_t CRYPTO_once_t;
 #define CRYPTO_ONCE_INIT 0
 #elif defined(OPENSSL_WINDOWS_THREADS)
@@ -451,7 +451,7 @@ struct CRYPTO_STATIC_MUTEX {
   CRYPTO_MUTEX mutex;
 };
 #define CRYPTO_STATIC_MUTEX_INIT { 0 }
-#elif defined(OPENSSL_NO_THREADS)
+#elif !defined(OPENSSL_THREADS)
 struct CRYPTO_STATIC_MUTEX {
   char padding;  // Empty structs have different sizes in C and C++.
 };
@@ -521,7 +521,7 @@ OPENSSL_EXPORT void CRYPTO_STATIC_MUTEX_unlock_write(
 #if defined(__cplusplus)
 extern "C++" {
 
-namespace bssl {
+BSSL_NAMESPACE_BEGIN
 
 namespace internal {
 
@@ -549,7 +549,7 @@ using MutexWriteLock =
 using MutexReadLock =
     internal::MutexLockBase<CRYPTO_MUTEX_lock_read, CRYPTO_MUTEX_unlock_read>;
 
-}  // namespace bssl
+BSSL_NAMESPACE_END
 
 }  // extern "C++"
 #endif  // defined(__cplusplus)
@@ -675,6 +675,83 @@ static inline uint64_t CRYPTO_bswap8(uint64_t x) {
 #endif
 
 
+// Language bug workarounds.
+//
+// Most C standard library functions are undefined if passed NULL, even when the
+// corresponding length is zero. This gives them (and, in turn, all functions
+// which call them) surprising behavior on empty arrays. Some compilers will
+// miscompile code due to this rule. See also
+// https://www.imperialviolet.org/2016/06/26/nonnull.html
+//
+// These wrapper functions behave the same as the corresponding C standard
+// functions, but behave as expected when passed NULL if the length is zero.
+//
+// Note |OPENSSL_memcmp| is a different function from |CRYPTO_memcmp|.
+
+// C++ defines |memchr| as a const-correct overload.
+#if defined(__cplusplus)
+extern "C++" {
+
+static inline const void *OPENSSL_memchr(const void *s, int c, size_t n) {
+  if (n == 0) {
+    return NULL;
+  }
+
+  return memchr(s, c, n);
+}
+
+static inline void *OPENSSL_memchr(void *s, int c, size_t n) {
+  if (n == 0) {
+    return NULL;
+  }
+
+  return memchr(s, c, n);
+}
+
+}  // extern "C++"
+#else  // __cplusplus
+
+static inline void *OPENSSL_memchr(const void *s, int c, size_t n) {
+  if (n == 0) {
+    return NULL;
+  }
+
+  return memchr(s, c, n);
+}
+
+#endif  // __cplusplus
+
+static inline int OPENSSL_memcmp(const void *s1, const void *s2, size_t n) {
+  if (n == 0) {
+    return 0;
+  }
+
+  return memcmp(s1, s2, n);
+}
+
+static inline void *OPENSSL_memcpy(void *dst, const void *src, size_t n) {
+  if (n == 0) {
+    return dst;
+  }
+
+  return memcpy(dst, src, n);
+}
+
+static inline void *OPENSSL_memmove(void *dst, const void *src, size_t n) {
+  if (n == 0) {
+    return dst;
+  }
+
+  return memmove(dst, src, n);
+}
+
+static inline void *OPENSSL_memset(void *dst, int c, size_t n) {
+  if (n == 0) {
+    return dst;
+  }
+
+  return memset(dst, c, n);
+}
 
 #if defined(BORINGSSL_FIPS)
 // BORINGSSL_FIPS_abort is called when a FIPS power-on or continuous test

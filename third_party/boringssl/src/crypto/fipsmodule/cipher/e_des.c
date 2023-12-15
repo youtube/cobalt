@@ -89,7 +89,7 @@ static int des_cbc_cipher(EVP_CIPHER_CTX *ctx, uint8_t *out, const uint8_t *in,
 }
 
 DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_des_cbc) {
-  OPENSSL_memset(out, 0, sizeof(EVP_CIPHER));
+  memset(out, 0, sizeof(EVP_CIPHER));
   out->nid = NID_des_cbc;
   out->block_size = 8;
   out->key_len = 8;
@@ -116,7 +116,7 @@ static int des_ecb_cipher(EVP_CIPHER_CTX *ctx, uint8_t *out, const uint8_t *in,
 }
 
 DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_des_ecb) {
-  OPENSSL_memset(out, 0, sizeof(EVP_CIPHER));
+  memset(out, 0, sizeof(EVP_CIPHER));
   out->nid = NID_des_ecb;
   out->block_size = 8;
   out->key_len = 8;
@@ -157,7 +157,7 @@ static int des_ede3_cbc_cipher(EVP_CIPHER_CTX *ctx, uint8_t *out,
 }
 
 DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_des_ede3_cbc) {
-  OPENSSL_memset(out, 0, sizeof(EVP_CIPHER));
+  memset(out, 0, sizeof(EVP_CIPHER));
   out->nid = NID_des_ede3_cbc;
   out->block_size = 8;
   out->key_len = 24;
@@ -181,7 +181,7 @@ static int des_ede_init_key(EVP_CIPHER_CTX *ctx, const uint8_t *key,
 }
 
 DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_des_ede_cbc) {
-  OPENSSL_memset(out, 0, sizeof(EVP_CIPHER));
+  memset(out, 0, sizeof(EVP_CIPHER));
   out->nid = NID_des_ede_cbc;
   out->block_size = 8;
   out->key_len = 16;
@@ -209,7 +209,7 @@ static int des_ede_ecb_cipher(EVP_CIPHER_CTX *ctx, uint8_t *out,
 }
 
 DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_des_ede) {
-  OPENSSL_memset(out, 0, sizeof(EVP_CIPHER));
+  memset(out, 0, sizeof(EVP_CIPHER));
   out->nid = NID_des_ede_ecb;
   out->block_size = 8;
   out->key_len = 16;
@@ -221,7 +221,7 @@ DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_des_ede) {
 }
 
 DEFINE_METHOD_FUNCTION(EVP_CIPHER, EVP_des_ede3) {
-  OPENSSL_memset(out, 0, sizeof(EVP_CIPHER));
+  memset(out, 0, sizeof(EVP_CIPHER));
   out->nid = NID_des_ede3_ecb;
   out->block_size = 8;
   out->key_len = 24;

@@ -140,10 +140,8 @@
 
 #include <openssl/ssl.h>
 
-#if !defined(OPENSSL_SYS_STARBOARD)
 #include <assert.h>
 #include <string.h>
-#endif  // !defined(OPENSSL_SYS_STARBOARD)
 
 #include <openssl/buf.h>
 #include <openssl/err.h>
@@ -156,7 +154,7 @@
 #include "../crypto/internal.h"
 
 
-namespace bssl {
+BSSL_NAMESPACE_BEGIN
 
 // kCiphers is an array of all supported ciphers, sorted by id.
 static constexpr SSL_CIPHER kCiphers[] = {
@@ -561,13 +559,13 @@ static const size_t kCipherAliasesLen = OPENSSL_ARRAY_SIZE(kCipherAliases);
 bool ssl_cipher_get_evp_aead(const EVP_AEAD **out_aead,
                              size_t *out_mac_secret_len,
                              size_t *out_fixed_iv_len, const SSL_CIPHER *cipher,
-                             uint16_t version, int is_dtls) {
+                             uint16_t version, bool is_dtls) {
   *out_aead = NULL;
   *out_mac_secret_len = 0;
   *out_fixed_iv_len = 0;
 
-  const int is_tls12 = version == TLS1_2_VERSION && !is_dtls;
-  const int is_tls13 = version == TLS1_3_VERSION && !is_dtls;
+  const bool is_tls12 = version == TLS1_2_VERSION && !is_dtls;
+  const bool is_tls13 = version == TLS1_3_VERSION && !is_dtls;
 
   if (cipher->algorithm_mac == SSL_AEAD) {
     if (cipher->algorithm_enc == SSL_AES128GCM) {
@@ -651,7 +649,7 @@ const EVP_MD *ssl_get_handshake_digest(uint16_t version,
   }
 }
 
-static bool is_cipher_list_separator(char c, int is_strict) {
+static bool is_cipher_list_separator(char c, bool is_strict) {
   if (c == ':') {
     return true;
   }
@@ -1308,7 +1306,7 @@ size_t ssl_cipher_get_record_split_len(const SSL_CIPHER *cipher) {
   return ret;
 }
 
-}  // namespace bssl
+BSSL_NAMESPACE_END
 
 using namespace bssl;
 

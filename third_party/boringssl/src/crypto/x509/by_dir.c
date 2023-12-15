@@ -56,9 +56,7 @@
  * [including the GNU Public Licence.] */
 
 #include <openssl/opensslconf.h>
-#if !defined(OPENSSL_SYS_STARBOARD)
 #include <string.h>
-#endif  // !defined(OPENSSL_SYS_STARBOARD)
 
 #ifndef OPENSSL_NO_POSIX_IO
 #include <sys/stat.h>
@@ -384,7 +382,7 @@ static int get_cert_by_subject(X509_LOOKUP *xl, int type, X509_NAME *name,
                                  postfix, k);
                 }
 #ifndef OPENSSL_NO_POSIX_IO
-#if defined(_WIN32) && !defined(__LB_XB1__) && !defined(__LB_XB360__)
+# if defined(_WIN32) && !defined(stat)
 #  define stat _stat
 # endif
                 {

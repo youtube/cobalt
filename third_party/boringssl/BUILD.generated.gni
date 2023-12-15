@@ -79,6 +79,7 @@ crypto_sources = [
   "src/crypto/cpu-aarch64-fuchsia.c",
   "src/crypto/cpu-aarch64-linux.c",
   "src/crypto/cpu-arm-linux.c",
+  "src/crypto/cpu-arm-linux.h",
   "src/crypto/cpu-arm.c",
   "src/crypto/cpu-intel.c",
   "src/crypto/cpu-ppc64le.c",
@@ -548,6 +549,7 @@ crypto_sources_win_x86_64 = [
 ]
 
 fuzzers = [
+  "arm_cpuinfo",
   "bn_div",
   "bn_mod_exp",
   "cert",

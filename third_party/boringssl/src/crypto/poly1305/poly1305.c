@@ -18,10 +18,7 @@
 
 #include <openssl/poly1305.h>
 
-#if !defined(OPENSSL_SYS_STARBOARD)
 #include <string.h>
-#endif  // !defined(OPENSSL_SYS_STARBOARD)
-#include <openssl/mem.h>
 
 #include <openssl/cpu.h>
 
