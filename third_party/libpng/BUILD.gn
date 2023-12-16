@@ -11,6 +11,7 @@ config("libpng_config") {
   ]
 
   if (is_starboard) {
+    defines += [ "CHROME_PNG_READ_PACK_SUPPORT" ]  # Required by freetype.
     defines += [ "PNG_SKIP_SETJMP_CHECK" ]
   }
 
@@ -62,8 +63,10 @@ source_set("libpng_sources") {
     "pngwutil.c",
   ]
 
+if (!is_starboard) {
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
+}
 
   if (is_win && is_component_build) {
     defines = [ "PNG_BUILD_DLL" ]
