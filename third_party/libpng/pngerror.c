@@ -1,8 +1,8 @@
 
 /* pngerror.c - stub functions for i/o and memory allocation
  *
- * Last changed in libpng 1.2.45 [July 7, 2011]
- * Copyright (c) 1998-2011 Glenn Randers-Pehrson
+ * Last changed in libpng 1.2.51 [February 6, 2014]
+ * Copyright (c) 1998-2014 Glenn Randers-Pehrson
  * (Version 0.96 Copyright (c) 1996, 1997 Andreas Dilger)
  * (Version 0.88 Copyright (c) 1995, 1996 Guy Eric Schalnat, Group 42, Inc.)
  *
@@ -19,10 +19,6 @@
 #define PNG_INTERNAL
 #define PNG_NO_PEDANTIC_WARNINGS
 #include "png.h"
-#if defined(STARBOARD)
-#  include "starboard/system.h"
-#  define abort SbSystemBreakIntoDebugger
-#endif
 #if defined(PNG_READ_SUPPORTED) || defined(PNG_WRITE_SUPPORTED)
 
 static void /* PRIVATE */
@@ -304,7 +300,7 @@ png_default_error(png_structp png_ptr, png_const_charp error_message)
    /* Here if not setjmp support or if png_ptr is null. */
    PNG_ABORT();
 #ifndef PNG_CONSOLE_IO_SUPPORTED
-   error_message = error_message; /* Make compiler happy */
+   PNG_UNUSED(error_message) /* Make compiler happy */
 #endif
 }
 
@@ -350,9 +346,9 @@ png_default_warning(png_structp png_ptr, png_const_charp warning_message)
      fprintf(stderr, PNG_STRING_NEWLINE);
    }
 #else
-   warning_message = warning_message; /* Make compiler happy */
+   PNG_UNUSED(warning_message) /* Make compiler happy */
 #endif
-   png_ptr = png_ptr; /* Make compiler happy */
+   PNG_UNUSED(png_ptr) /* Make compiler happy */
 }
 #endif /* PNG_WARNINGS_SUPPORTED */
 
