@@ -116,7 +116,7 @@ jobs:
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
     needs: [initialize]
-    runs-on: [self-hosted, linux, X64]
+    runs-on: [self-hosted, linux-runner]
     permissions:
       packages: write
     steps:
@@ -151,7 +151,7 @@ jobs:
     needs: [initialize]
     permissions:
       packages: write
-    runs-on: [self-hosted, linux, X64]
+    runs-on: [self-hosted, linux-runner]
     steps:
       - name: Checkout files
         uses: kaidokert/checkout@v3.5.999
@@ -182,7 +182,7 @@ jobs:
   build:
     needs: [initialize, docker-build-image]
     permissions: {}
-    runs-on: [self-hosted, linux, X64]
+    runs-on: [self-hosted, linux-runner]
     name: ${{matrix.name}}_${{matrix.config}}
     strategy:
       fail-fast: false
@@ -264,7 +264,7 @@ jobs:
             inputs.nightly == 'true' || github.event_name == 'schedule') &&
             vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
           ( github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False' ) )
-    runs-on: [self-hosted, linux, X64]
+    runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_on_device_${{ matrix.shard }}
     container: ${{ needs.docker-unittest-image.outputs.docker_unittest_tag }}
     permissions: {}
@@ -293,7 +293,7 @@ jobs:
     needs: [initialize, docker-unittest-image, build]
     permissions: {}
     if: needs.initialize.outputs.on_host_test == 'true'
-    runs-on: [self-hosted, linux, X64]
+    runs-on: [self-hosted, linux-runner]
     name: ${{matrix.name}}_${{matrix.shard}}_test
     strategy:
       fail-fast: false
