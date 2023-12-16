@@ -44,6 +44,9 @@ NON_PERL_FILES = {
         'src/crypto/curve25519/asm/x25519-asm-arm.S',
         'src/crypto/poly1305/poly1305_arm_asm.S',
     ],
+    ('linux', 'x86_64'): [
+        'src/crypto/hrss/asm/poly_rq_mul.S',
+    ],
 }
 
 PREFIX = None
@@ -416,7 +419,7 @@ def NotGTestSupport(path, dent, is_dir):
 
 
 def SSLHeaderFiles(path, dent, is_dir):
-  return dent in ['ssl.h', 'tls1.h', 'ssl23.h', 'ssl3.h', 'dtls1.h']
+  return dent in ['ssl.h', 'tls1.h', 'ssl23.h', 'ssl3.h', 'dtls1.h', 'srtp.h']
 
 
 def FindCFiles(directory, filter_func):

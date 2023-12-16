@@ -120,6 +120,8 @@ static int ensure_fixed_copy(BIGNUM **out, const BIGNUM *in, int width) {
     return 0;
   }
   *out = copy;
+  CONSTTIME_SECRET(copy->d, sizeof(BN_ULONG) * width);
+
   return 1;
 }
 
@@ -166,6 +168,11 @@ static int freeze_private_key(RSA *rsa, BN_CTX *ctx) {
   }
 
   if (rsa->p != NULL && rsa->q != NULL) {
+    // TODO: p and q are also CONSTTIME_SECRET but not yet marked as such
+    // because the Montgomery code does things like test whether or not values
+    // are zero. So the secret marking probably needs to happen inside that
+    // code.
+
     if (rsa->mont_p == NULL) {
       rsa->mont_p = BN_MONT_CTX_new_consttime(rsa->p, ctx);
       if (rsa->mont_p == NULL) {
@@ -224,6 +231,9 @@ static int freeze_private_key(RSA *rsa, BN_CTX *ctx) {
           goto err;
         }
         rsa->inv_small_mod_large_mont = inv_small_mod_large_mont;
+        CONSTTIME_SECRET(
+            rsa->inv_small_mod_large_mont->d,
+            sizeof(BN_ULONG) * rsa->inv_small_mod_large_mont->width);
       }
     }
   }
@@ -480,6 +490,7 @@ int rsa_default_sign_raw(RSA *rsa, size_t *out_len, uint8_t *out,
     goto err;
   }
 
+  CONSTTIME_DECLASSIFY(out, rsa_size);
   *out_len = rsa_size;
   ret = 1;
 
@@ -539,8 +550,11 @@ int rsa_default_decrypt(RSA *rsa, size_t *out_len, uint8_t *out, size_t max_out,
       goto err;
   }
 
+  CONSTTIME_DECLASSIFY(&ret, sizeof(ret));
   if (!ret) {
     OPENSSL_PUT_ERROR(RSA, RSA_R_PADDING_CHECK_FAILED);
+  } else {
+    CONSTTIME_DECLASSIFY(out, out_len);
   }
 
 err:
@@ -1066,7 +1080,7 @@ err:
 //
 // This function returns one on success and zero on failure. It has a failure
 // probability of about 2^-20.
-static int rsa_generate_key_impl(RSA *rsa, int bits, BIGNUM *e_value,
+static int rsa_generate_key_impl(RSA *rsa, int bits, const BIGNUM *e_value,
                                  BN_GENCB *cb) {
   // See FIPS 186-4 appendix B.3. This function implements a generalized version
   // of the FIPS algorithm. |RSA_generate_key_fips| performs additional checks
@@ -1247,7 +1261,8 @@ static void replace_bn_mont_ctx(BN_MONT_CTX **out, BN_MONT_CTX **in) {
   *in = NULL;
 }
 
-int RSA_generate_key_ex(RSA *rsa, int bits, BIGNUM *e_value, BN_GENCB *cb) {
+int RSA_generate_key_ex(RSA *rsa, int bits, const BIGNUM *e_value,
+                        BN_GENCB *cb) {
   // |rsa_generate_key_impl|'s 2^-20 failure probability is too high at scale,
   // so we run the FIPS algorithm four times, bringing it down to 2^-80. We
   // should just adjust the retry limit, but FIPS 186-4 prescribes that value

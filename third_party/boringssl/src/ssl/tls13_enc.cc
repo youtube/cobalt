@@ -71,17 +71,17 @@ static bool hkdf_expand_label(uint8_t *out, const EVP_MD *digest,
                               const char *label, size_t label_len,
                               const uint8_t *hash, size_t hash_len,
                               size_t len) {
-  static const char kTLS13LabelVersion[] = "tls13 ";
+  static const char kTLS13ProtocolLabel[] = "tls13 ";
 
   ScopedCBB cbb;
   CBB child;
   Array<uint8_t> hkdf_label;
-  if (!CBB_init(cbb.get(), 2 + 1 + strlen(kTLS13LabelVersion) + label_len + 1 +
+  if (!CBB_init(cbb.get(), 2 + 1 + strlen(kTLS13ProtocolLabel) + label_len + 1 +
                                hash_len) ||
       !CBB_add_u16(cbb.get(), len) ||
       !CBB_add_u8_length_prefixed(cbb.get(), &child) ||
-      !CBB_add_bytes(&child, (const uint8_t *)kTLS13LabelVersion,
-                     strlen(kTLS13LabelVersion)) ||
+      !CBB_add_bytes(&child, (const uint8_t *)kTLS13ProtocolLabel,
+                     strlen(kTLS13ProtocolLabel)) ||
       !CBB_add_bytes(&child, (const uint8_t *)label, label_len) ||
       !CBB_add_u8_length_prefixed(cbb.get(), &child) ||
       !CBB_add_bytes(&child, hash, hash_len) ||
@@ -131,7 +131,8 @@ static bool derive_secret(SSL_HANDSHAKE *hs, uint8_t *out, size_t len,
                            context_hash_len, len);
 }
 
-bool tls13_set_traffic_key(SSL *ssl, enum evp_aead_direction_t direction,
+bool tls13_set_traffic_key(SSL *ssl, enum ssl_encryption_level_t level,
+                           enum evp_aead_direction_t direction,
                            const uint8_t *traffic_secret,
                            size_t traffic_secret_len) {
   const SSL_SESSION *session = SSL_get_session(ssl);
@@ -142,36 +143,46 @@ bool tls13_set_traffic_key(SSL *ssl, enum evp_aead_direction_t direction,
     return false;
   }
 
-  // Look up cipher suite properties.
-  const EVP_AEAD *aead;
-  size_t discard;
-  if (!ssl_cipher_get_evp_aead(&aead, &discard, &discard, session->cipher,
-                               version, SSL_is_dtls(ssl))) {
-    return false;
+  UniquePtr<SSLAEADContext> traffic_aead;
+  if (ssl->quic_method == nullptr) {
+    // Look up cipher suite properties.
+    const EVP_AEAD *aead;
+    size_t discard;
+    if (!ssl_cipher_get_evp_aead(&aead, &discard, &discard, session->cipher,
+                                 version, SSL_is_dtls(ssl))) {
+      return false;
+    }
+
+    const EVP_MD *digest = ssl_session_get_digest(session);
+
+    // Derive the key.
+    size_t key_len = EVP_AEAD_key_length(aead);
+    uint8_t key[EVP_AEAD_MAX_KEY_LENGTH];
+    if (!hkdf_expand_label(key, digest, traffic_secret, traffic_secret_len,
+                           "key", 3, NULL, 0, key_len)) {
+      return false;
+    }
+
+    // Derive the IV.
+    size_t iv_len = EVP_AEAD_nonce_length(aead);
+    uint8_t iv[EVP_AEAD_MAX_NONCE_LENGTH];
+    if (!hkdf_expand_label(iv, digest, traffic_secret, traffic_secret_len, "iv",
+                           2, NULL, 0, iv_len)) {
+      return false;
+    }
+
+
+    traffic_aead = SSLAEADContext::Create(
+        direction, session->ssl_version, SSL_is_dtls(ssl), session->cipher,
+        MakeConstSpan(key, key_len), Span<const uint8_t>(),
+        MakeConstSpan(iv, iv_len));
+  } else {
+    // Install a placeholder SSLAEADContext so that SSL accessors work. The
+    // encryption itself will be handled by the SSL_QUIC_METHOD.
+    traffic_aead =
+        SSLAEADContext::CreatePlaceholderForQUIC(version, session->cipher);
   }
 
-  const EVP_MD *digest = ssl_session_get_digest(session);
-
-  // Derive the key.
-  size_t key_len = EVP_AEAD_key_length(aead);
-  uint8_t key[EVP_AEAD_MAX_KEY_LENGTH];
-  if (!hkdf_expand_label(key, digest, traffic_secret, traffic_secret_len, "key",
-                         3, NULL, 0, key_len)) {
-    return false;
-  }
-
-  // Derive the IV.
-  size_t iv_len = EVP_AEAD_nonce_length(aead);
-  uint8_t iv[EVP_AEAD_MAX_NONCE_LENGTH];
-  if (!hkdf_expand_label(iv, digest, traffic_secret, traffic_secret_len, "iv",
-                         2, NULL, 0, iv_len)) {
-    return false;
-  }
-
-  UniquePtr<SSLAEADContext> traffic_aead =
-      SSLAEADContext::Create(direction, session->ssl_version, SSL_is_dtls(ssl),
-                             session->cipher, MakeConstSpan(key, key_len),
-                             Span<const uint8_t>(), MakeConstSpan(iv, iv_len));
   if (!traffic_aead) {
     return false;
   }
@@ -191,10 +202,12 @@ bool tls13_set_traffic_key(SSL *ssl, enum evp_aead_direction_t direction,
     OPENSSL_memmove(ssl->s3->read_traffic_secret, traffic_secret,
                     traffic_secret_len);
     ssl->s3->read_traffic_secret_len = traffic_secret_len;
+    ssl->s3->read_level = level;
   } else {
     OPENSSL_memmove(ssl->s3->write_traffic_secret, traffic_secret,
                     traffic_secret_len);
     ssl->s3->write_traffic_secret_len = traffic_secret_len;
+    ssl->s3->write_level = level;
   }
 
   return true;
@@ -223,40 +236,103 @@ bool tls13_derive_early_secrets(SSL_HANDSHAKE *hs) {
     return false;
   }
   ssl->s3->early_exporter_secret_len = hs->hash_len;
+
+  if (ssl->quic_method != nullptr) {
+    if (ssl->server) {
+      if (!ssl->quic_method->set_encryption_secrets(
+              ssl, ssl_encryption_early_data, nullptr, hs->early_traffic_secret,
+              hs->hash_len)) {
+        OPENSSL_PUT_ERROR(SSL, SSL_R_QUIC_INTERNAL_ERROR);
+        return false;
+      }
+    } else {
+      if (!ssl->quic_method->set_encryption_secrets(
+              ssl, ssl_encryption_early_data, hs->early_traffic_secret, nullptr,
+              hs->hash_len)) {
+        OPENSSL_PUT_ERROR(SSL, SSL_R_QUIC_INTERNAL_ERROR);
+        return false;
+      }
+    }
+  }
+
   return true;
 }
 
 bool tls13_derive_handshake_secrets(SSL_HANDSHAKE *hs) {
   SSL *const ssl = hs->ssl;
-  return derive_secret(hs, hs->client_handshake_secret, hs->hash_len,
-                       kTLS13LabelClientHandshakeTraffic,
-                       strlen(kTLS13LabelClientHandshakeTraffic)) &&
-         ssl_log_secret(ssl, "CLIENT_HANDSHAKE_TRAFFIC_SECRET",
-                        hs->client_handshake_secret, hs->hash_len) &&
-         derive_secret(hs, hs->server_handshake_secret, hs->hash_len,
-                       kTLS13LabelServerHandshakeTraffic,
-                       strlen(kTLS13LabelServerHandshakeTraffic)) &&
-         ssl_log_secret(ssl, "SERVER_HANDSHAKE_TRAFFIC_SECRET",
-                        hs->server_handshake_secret, hs->hash_len);
+  if (!derive_secret(hs, hs->client_handshake_secret, hs->hash_len,
+                     kTLS13LabelClientHandshakeTraffic,
+                     strlen(kTLS13LabelClientHandshakeTraffic)) ||
+      !ssl_log_secret(ssl, "CLIENT_HANDSHAKE_TRAFFIC_SECRET",
+                      hs->client_handshake_secret, hs->hash_len) ||
+      !derive_secret(hs, hs->server_handshake_secret, hs->hash_len,
+                     kTLS13LabelServerHandshakeTraffic,
+                     strlen(kTLS13LabelServerHandshakeTraffic)) ||
+      !ssl_log_secret(ssl, "SERVER_HANDSHAKE_TRAFFIC_SECRET",
+                      hs->server_handshake_secret, hs->hash_len)) {
+    return false;
+  }
+
+  if (ssl->quic_method != nullptr) {
+    if (ssl->server) {
+      if (!ssl->quic_method->set_encryption_secrets(
+              ssl, ssl_encryption_handshake, hs->client_handshake_secret,
+              hs->server_handshake_secret, hs->hash_len)) {
+        OPENSSL_PUT_ERROR(SSL, SSL_R_QUIC_INTERNAL_ERROR);
+        return false;
+      }
+    } else {
+      if (!ssl->quic_method->set_encryption_secrets(
+              ssl, ssl_encryption_handshake, hs->server_handshake_secret,
+              hs->client_handshake_secret, hs->hash_len)) {
+        OPENSSL_PUT_ERROR(SSL, SSL_R_QUIC_INTERNAL_ERROR);
+        return false;
+      }
+    }
+  }
+
+  return true;
 }
 
 bool tls13_derive_application_secrets(SSL_HANDSHAKE *hs) {
   SSL *const ssl = hs->ssl;
   ssl->s3->exporter_secret_len = hs->hash_len;
-  return derive_secret(hs, hs->client_traffic_secret_0, hs->hash_len,
-                       kTLS13LabelClientApplicationTraffic,
-                       strlen(kTLS13LabelClientApplicationTraffic)) &&
-         ssl_log_secret(ssl, "CLIENT_TRAFFIC_SECRET_0",
-                        hs->client_traffic_secret_0, hs->hash_len) &&
-         derive_secret(hs, hs->server_traffic_secret_0, hs->hash_len,
-                       kTLS13LabelServerApplicationTraffic,
-                       strlen(kTLS13LabelServerApplicationTraffic)) &&
-         ssl_log_secret(ssl, "SERVER_TRAFFIC_SECRET_0",
-                        hs->server_traffic_secret_0, hs->hash_len) &&
-         derive_secret(hs, ssl->s3->exporter_secret, hs->hash_len,
-                       kTLS13LabelExporter, strlen(kTLS13LabelExporter)) &&
-         ssl_log_secret(ssl, "EXPORTER_SECRET", ssl->s3->exporter_secret,
-                        hs->hash_len);
+  if (!derive_secret(hs, hs->client_traffic_secret_0, hs->hash_len,
+                     kTLS13LabelClientApplicationTraffic,
+                     strlen(kTLS13LabelClientApplicationTraffic)) ||
+      !ssl_log_secret(ssl, "CLIENT_TRAFFIC_SECRET_0",
+                      hs->client_traffic_secret_0, hs->hash_len) ||
+      !derive_secret(hs, hs->server_traffic_secret_0, hs->hash_len,
+                     kTLS13LabelServerApplicationTraffic,
+                     strlen(kTLS13LabelServerApplicationTraffic)) ||
+      !ssl_log_secret(ssl, "SERVER_TRAFFIC_SECRET_0",
+                      hs->server_traffic_secret_0, hs->hash_len) ||
+      !derive_secret(hs, ssl->s3->exporter_secret, hs->hash_len,
+                     kTLS13LabelExporter, strlen(kTLS13LabelExporter)) ||
+      !ssl_log_secret(ssl, "EXPORTER_SECRET", ssl->s3->exporter_secret,
+                      hs->hash_len)) {
+    return false;
+  }
+
+  if (ssl->quic_method != nullptr) {
+    if (ssl->server) {
+      if (!ssl->quic_method->set_encryption_secrets(
+              ssl, ssl_encryption_application, hs->client_traffic_secret_0,
+              hs->server_traffic_secret_0, hs->hash_len)) {
+        OPENSSL_PUT_ERROR(SSL, SSL_R_QUIC_INTERNAL_ERROR);
+        return false;
+      }
+    } else {
+      if (!ssl->quic_method->set_encryption_secrets(
+              ssl, ssl_encryption_application, hs->server_traffic_secret_0,
+              hs->client_traffic_secret_0, hs->hash_len)) {
+        OPENSSL_PUT_ERROR(SSL, SSL_R_QUIC_INTERNAL_ERROR);
+        return false;
+      }
+    }
+  }
+
+  return true;
 }
 
 static const char kTLS13LabelApplicationTraffic[] = "traffic upd";
@@ -273,13 +349,15 @@ bool tls13_rotate_traffic_key(SSL *ssl, enum evp_aead_direction_t direction) {
   }
 
   const EVP_MD *digest = ssl_session_get_digest(SSL_get_session(ssl));
-  if (!hkdf_expand_label(
-          secret, digest, secret, secret_len, kTLS13LabelApplicationTraffic,
-          strlen(kTLS13LabelApplicationTraffic), NULL, 0, secret_len)) {
+  if (!hkdf_expand_label(secret, digest, secret, secret_len,
+                         kTLS13LabelApplicationTraffic,
+                         strlen(kTLS13LabelApplicationTraffic), NULL, 0,
+                         secret_len)) {
     return false;
   }
 
-  return tls13_set_traffic_key(ssl, direction, secret, secret_len);
+  return tls13_set_traffic_key(ssl, ssl_encryption_application, direction,
+                               secret, secret_len);
 }
 
 static const char kTLS13LabelResumption[] = "res master";
@@ -474,9 +552,8 @@ bool tls13_verify_psk_binder(SSL_HANDSHAKE *hs, SSL_SESSION *session,
     return false;
   }
 
-  bool binder_ok =
-      CBS_len(&binder) == hash_len &&
-      CRYPTO_memcmp(CBS_data(&binder), verify_data, hash_len) == 0;
+  bool binder_ok = CBS_len(&binder) == hash_len &&
+                   CRYPTO_memcmp(CBS_data(&binder), verify_data, hash_len) == 0;
 #if defined(BORINGSSL_UNSAFE_FUZZER_MODE)
   binder_ok = true;
 #endif

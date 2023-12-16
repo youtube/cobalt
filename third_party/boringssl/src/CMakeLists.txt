@@ -39,6 +39,20 @@ else()
   find_program(GO_EXECUTABLE go)
 endif()
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT CMAKE_CROSSCOMPILING)
+  find_package(PkgConfig QUIET)
+  if (PkgConfig_FOUND)
+    pkg_check_modules(LIBUNWIND libunwind-generic)
+    if(LIBUNWIND_FOUND)
+      add_definitions(-DBORINGSSL_HAVE_LIBUNWIND)
+    else()
+      message("libunwind not found. Disabling unwind tests.")
+    endif()
+  else()
+    message("pkgconfig not found. Disabling unwind tests.")
+  endif()
+endif()
+
 if(NOT GO_EXECUTABLE)
   message(FATAL_ERROR "Could not find Go")
 endif()
@@ -51,8 +65,23 @@ if(BORINGSSL_ALLOW_CXX_RUNTIME)
   add_definitions(-DBORINGSSL_ALLOW_CXX_RUNTIME)
 endif()
 
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+  # Windows release builds don't set NDEBUG in NASM flags automatically.
+  set(CMAKE_ASM_NASM_FLAGS "${CMAKE_ASM_NASM_FLAGS} -DNDEBUG")
+endif()
+
+# Add a RelWithAsserts build configuration. It is the same as Release, except it
+# does not define NDEBUG, so asserts run.
+foreach(VAR CMAKE_C_FLAGS CMAKE_CXX_FLAGS CMAKE_ASM_FLAGS)
+  string(REGEX REPLACE "(^| )[/-]DNDEBUG( |$)" " " "${VAR}_RELWITHASSERTS"
+         "${${VAR}_RELEASE}")
+endforeach()
+
 if(BORINGSSL_PREFIX AND BORINGSSL_PREFIX_SYMBOLS)
   add_definitions(-DBORINGSSL_PREFIX=${BORINGSSL_PREFIX})
+  # CMake automatically connects include_directories to the NASM command-line,
+  # but not add_definitions.
+  set(CMAKE_ASM_NASM_FLAGS "${CMAKE_ASM_NASM_FLAGS} -DBORINGSSL_PREFIX=${BORINGSSL_PREFIX}")
 
   # Use "symbol_prefix_include" to store generated header files
   include_directories(${CMAKE_CURRENT_BINARY_DIR}/symbol_prefix_include)
@@ -291,9 +320,8 @@ if(CFI)
     message(FATAL_ERROR "Cannot enable CFI unless using Clang")
   endif()
 
-  # TODO(crbug.com/785442): Remove -fsanitize-cfi-icall-generalize-pointers.
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=cfi -fno-sanitize-trap=cfi -fsanitize-cfi-icall-generalize-pointers -flto=thin")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=cfi -fno-sanitize-trap=cfi -fsanitize-cfi-icall-generalize-pointers -flto=thin")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=cfi -fno-sanitize-trap=cfi -flto=thin")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=cfi -fno-sanitize-trap=cfi -flto=thin")
   # We use Chromium's copy of clang, which requires -fuse-ld=lld if building
   # with -flto. That, in turn, can't handle -ggdb.
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fuse-ld=lld")
@@ -314,6 +342,22 @@ if(TSAN)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=thread")
 endif()
 
+if(UBSAN)
+  if(NOT CLANG)
+    message(FATAL_ERROR "Cannot enable UBSAN unless using Clang")
+  endif()
+
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=undefined")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=undefined")
+
+  if(NOT UBSAN_RECOVER)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-sanitize-recover=undefined")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-sanitize-recover=undefined")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fno-sanitize-recover=undefined")
+  endif()
+endif()
+
 if(GCOV)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-arcs -ftest-coverage")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-arcs -ftest-coverage")
@@ -332,6 +376,12 @@ endif()
 
 if(OPENSSL_SMALL)
   add_definitions(-DOPENSSL_SMALL)
+endif()
+
+if(CONSTANT_TIME_VALIDATION)
+  add_definitions(-DBORINGSSL_CONSTANT_TIME_VALIDATION)
+  # Asserts will often test secret data.
+  add_definitions(-DNDEBUG)
 endif()
 
 function(go_executable dest package)
@@ -408,6 +458,9 @@ elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "i686")
 elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
   set(ARCH "aarch64")
 elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "arm64")
+  set(ARCH "aarch64")
+# Apple A12 Bionic chipset which is added in iPhone XS/XS Max/XR uses arm64e architecture.
+elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "arm64e")
   set(ARCH "aarch64")
 elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^arm*")
   set(ARCH "arm")
@@ -517,6 +570,14 @@ add_subdirectory(tool)
 add_subdirectory(decrepit)
 
 if(FUZZ)
+  if(LIBFUZZER_FROM_DEPS)
+    file(GLOB LIBFUZZER_SOURCES "util/bot/libFuzzer/*.cpp")
+    add_library(Fuzzer STATIC ${LIBFUZZER_SOURCES})
+    # libFuzzer does not pass our aggressive warnings. It also must be built
+    # without -fsanitize-coverage options or clang crashes.
+    set_target_properties(Fuzzer PROPERTIES COMPILE_FLAGS "-Wno-shadow -Wno-format-nonliteral -Wno-missing-prototypes -fsanitize-coverage=0")
+  endif()
+
   add_subdirectory(fuzz)
 endif()
 

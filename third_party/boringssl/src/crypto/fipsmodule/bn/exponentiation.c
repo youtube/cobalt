@@ -117,25 +117,8 @@
 #include <openssl/mem.h>
 
 #include "internal.h"
-
-
-#if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_X86_64)
-#define OPENSSL_BN_ASM_MONT5
-#define RSAZ_ENABLED
-
 #include "rsaz_exp.h"
 
-void bn_mul_mont_gather5(BN_ULONG *rp, const BN_ULONG *ap, const void *table,
-                         const BN_ULONG *np, const BN_ULONG *n0, int num,
-                         int power);
-void bn_scatter5(const BN_ULONG *inp, size_t num, void *table, size_t power);
-void bn_gather5(BN_ULONG *out, size_t num, void *table, size_t power);
-void bn_power5(BN_ULONG *rp, const BN_ULONG *ap, const void *table,
-               const BN_ULONG *np, const BN_ULONG *n0, int num, int power);
-int bn_from_montgomery(BN_ULONG *rp, const BN_ULONG *ap,
-                       const BN_ULONG *not_used, const BN_ULONG *np,
-                       const BN_ULONG *n0, int num);
-#endif
 
 int BN_exp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx) {
   int i, bits, ret = 0;
@@ -849,69 +832,25 @@ void bn_mod_inverse_prime_mont_small(BN_ULONG *r, const BN_ULONG *a, size_t num,
   bn_mod_exp_mont_small(r, a, num, p_minus_two, num, mont);
 }
 
-
-// |BN_mod_exp_mont_consttime| stores the precomputed powers in a specific
-// layout so that accessing any of these table values shows the same access
-// pattern as far as cache lines are concerned. The following functions are
-// used to transfer a BIGNUM from/to that table.
-
-static void copy_to_prebuf(const BIGNUM *b, int top, unsigned char *buf,
-                           int idx, int window) {
-  int i, j;
-  const int width = 1 << window;
-  BN_ULONG *table = (BN_ULONG *) buf;
-
-  if (top > b->width) {
-    top = b->width;  // this works because 'buf' is explicitly zeroed
-  }
-
-  for (i = 0, j = idx; i < top; i++, j += width)  {
-    table[j] = b->d[i];
-  }
+static void copy_to_prebuf(const BIGNUM *b, int top, BN_ULONG *table, int idx,
+                           int window) {
+  int ret = bn_copy_words(table + idx * top, top, b);
+  assert(ret);  // |b| is guaranteed to fit.
+  (void)ret;
 }
 
-static int copy_from_prebuf(BIGNUM *b, int top, unsigned char *buf, int idx,
+static int copy_from_prebuf(BIGNUM *b, int top, const BN_ULONG *table, int idx,
                             int window) {
-  int i, j;
-  const int width = 1 << window;
-  volatile BN_ULONG *table = (volatile BN_ULONG *)buf;
-
   if (!bn_wexpand(b, top)) {
     return 0;
   }
 
-  if (window <= 3) {
-    for (i = 0; i < top; i++, table += width) {
-      BN_ULONG acc = 0;
-
-      for (j = 0; j < width; j++) {
-        acc |= table[j] & ((BN_ULONG)0 - (constant_time_eq_int(j, idx) & 1));
-      }
-
-      b->d[i] = acc;
-    }
-  } else {
-    int xstride = 1 << (window - 2);
-    BN_ULONG y0, y1, y2, y3;
-
-    i = idx >> (window - 2);  // equivalent of idx / xstride
-    idx &= xstride - 1;       // equivalent of idx % xstride
-
-    y0 = (BN_ULONG)0 - (constant_time_eq_int(i, 0) & 1);
-    y1 = (BN_ULONG)0 - (constant_time_eq_int(i, 1) & 1);
-    y2 = (BN_ULONG)0 - (constant_time_eq_int(i, 2) & 1);
-    y3 = (BN_ULONG)0 - (constant_time_eq_int(i, 3) & 1);
-
-    for (i = 0; i < top; i++, table += width) {
-      BN_ULONG acc = 0;
-
-      for (j = 0; j < xstride; j++) {
-        acc |= ((table[j + 0 * xstride] & y0) | (table[j + 1 * xstride] & y1) |
-                (table[j + 2 * xstride] & y2) | (table[j + 3 * xstride] & y3)) &
-               ((BN_ULONG)0 - (constant_time_eq_int(j, idx) & 1));
-      }
-
-      b->d[i] = acc;
+  OPENSSL_memset(b->d, 0, sizeof(BN_ULONG) * top);
+  const int width = 1 << window;
+  for (int i = 0; i < width; i++, table += top) {
+    BN_ULONG mask = constant_time_eq_int(i, idx);
+    for (int j = 0; j < top; j++) {
+      b->d[j] |= table[j] & mask;
     }
   }
 
@@ -954,9 +893,8 @@ static int copy_from_prebuf(BIGNUM *b, int top, unsigned char *buf, int idx,
    (MOD_EXP_CTIME_MIN_CACHE_LINE_WIDTH - \
     (((size_t)(x_)) & (MOD_EXP_CTIME_MIN_CACHE_LINE_MASK))))
 
-// This variant of BN_mod_exp_mont() uses fixed windows and the special
-// precomputation memory layout to limit data-dependency to a minimum
-// to protect secret exponents (cf. the hyper-threading timing attacks
+// This variant of |BN_mod_exp_mont| uses fixed windows and fixed memory access
+// patterns to protect secret exponents (cf. the hyper-threading timing attacks
 // pointed out by Colin Percival,
 // http://www.daemonology.net/hyperthreading-considered-harmful/)
 int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
@@ -968,7 +906,7 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
   int numPowers;
   unsigned char *powerbufFree = NULL;
   int powerbufLen = 0;
-  unsigned char *powerbuf = NULL;
+  BN_ULONG *powerbuf = NULL;
   BIGNUM tmp, am;
 
   if (!BN_is_odd(m)) {
@@ -1018,12 +956,12 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
   alignas(MOD_EXP_CTIME_MIN_CACHE_LINE_WIDTH) BN_ULONG
     storage[MOD_EXP_CTIME_STORAGE_LEN];
 #endif
-#ifdef RSAZ_ENABLED
-  // If the size of the operands allow it, perform the optimized
-  // RSAZ exponentiation. For further information see
-  // crypto/bn/rsaz_exp.c and accompanying assembly modules.
-  if ((16 == a->width) && (16 == p->width) && (BN_num_bits(m) == 1024) &&
-      rsaz_avx2_eligible()) {
+#if defined(RSAZ_ENABLED)
+  // If the size of the operands allow it, perform the optimized RSAZ
+  // exponentiation. For further information see crypto/fipsmodule/bn/rsaz_exp.c
+  // and accompanying assembly modules.
+  if (a->width == 16 && p->width == 16 && BN_num_bits(m) == 1024 &&
+      rsaz_avx2_preferred()) {
     if (!bn_wexpand(rr, 16)) {
       goto err;
     }
@@ -1055,7 +993,7 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
 
 #if defined(OPENSSL_BN_ASM_MONT5)
   if ((size_t)powerbufLen <= sizeof(storage)) {
-    powerbuf = (unsigned char *)storage;
+    powerbuf = storage;
   }
   // |storage| is more than large enough to handle 1024-bit inputs.
   assert(powerbuf != NULL || top * BN_BITS2 > 1024);
@@ -1066,12 +1004,12 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
     if (powerbufFree == NULL) {
       goto err;
     }
-    powerbuf = MOD_EXP_CTIME_ALIGN(powerbufFree);
+    powerbuf = (BN_ULONG *)MOD_EXP_CTIME_ALIGN(powerbufFree);
   }
   OPENSSL_memset(powerbuf, 0, powerbufLen);
 
   // lay down tmp and am right after powers table
-  tmp.d = (BN_ULONG *)(powerbuf + sizeof(m->d[0]) * top * numPowers);
+  tmp.d = powerbuf + top * numPowers;
   am.d = tmp.d + top;
   tmp.width = am.width = 0;
   tmp.dmax = am.dmax = top;

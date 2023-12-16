@@ -208,6 +208,26 @@ func (hs *serverHandshakeState) readClientHello() error {
 		}
 	}
 
+	if config.Bugs.FailIfCECPQ2Offered {
+		for _, offeredCurve := range hs.clientHello.supportedCurves {
+			if offeredCurve == CurveCECPQ2 {
+				return errors.New("tls: CECPQ2 was offered")
+			}
+		}
+	}
+
+	if expected := config.Bugs.ExpectedKeyShares; expected != nil {
+		if len(expected) != len(hs.clientHello.keyShares) {
+			return fmt.Errorf("tls: expected %d key shares, but found %d", len(expected), len(hs.clientHello.keyShares))
+		}
+
+		for i, group := range expected {
+			if found := hs.clientHello.keyShares[i].group; found != group {
+				return fmt.Errorf("tls: key share #%d is for group %d, not %d", i, found, group)
+			}
+		}
+	}
+
 	c.clientVersion = hs.clientHello.vers
 
 	// Use the versions extension if supplied, otherwise use the legacy ClientHello version.
@@ -861,10 +881,10 @@ ResendHelloRetryRequest:
 					data: certData,
 				}
 				if i == 0 {
-					if hs.clientHello.ocspStapling {
+					if hs.clientHello.ocspStapling && !c.config.Bugs.NoOCSPStapling {
 						cert.ocspResponse = hs.cert.OCSPStaple
 					}
-					if hs.clientHello.sctListSupported {
+					if hs.clientHello.sctListSupported && !c.config.Bugs.NoSignedCertificateTimestamps {
 						cert.sctList = hs.cert.SignedCertificateTimestampList
 					}
 					cert.duplicateExtensions = config.Bugs.SendDuplicateCertExtensions
@@ -1182,6 +1202,9 @@ func (hs *serverHandshakeState) processClientHello() (isResume bool, err error) 
 			copy(hs.hello.random[len(hs.hello.random)-8:], downgradeTLS12)
 		}
 	}
+	if config.Bugs.SendJDK11DowngradeRandom {
+		copy(hs.hello.random[len(hs.hello.random)-8:], downgradeJDK11)
+	}
 
 	if len(hs.clientHello.sessionId) == 0 && c.config.Bugs.ExpectClientHelloSessionID {
 		return false, errors.New("tls: expected non-empty session ID from client")
@@ -1209,6 +1232,11 @@ func (hs *serverHandshakeState) processClientHello() (isResume bool, err error) 
 	preferredCurves := config.curvePreferences()
 Curves:
 	for _, curve := range hs.clientHello.supportedCurves {
+		if curve == CurveCECPQ2 && c.vers < VersionTLS13 {
+			// CECPQ2 is TLS 1.3-only.
+			continue
+		}
+
 		for _, supported := range preferredCurves {
 			if supported == curve {
 				supportedCurve = true
@@ -1549,11 +1577,11 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 	c := hs.c
 
 	isPSK := hs.suite.flags&suitePSK != 0
-	if !isPSK && hs.clientHello.ocspStapling && len(hs.cert.OCSPStaple) > 0 {
+	if !isPSK && hs.clientHello.ocspStapling && len(hs.cert.OCSPStaple) > 0 && !c.config.Bugs.NoOCSPStapling {
 		hs.hello.extensions.ocspStapling = true
 	}
 
-	if hs.clientHello.sctListSupported && len(hs.cert.SignedCertificateTimestampList) > 0 {
+	if hs.clientHello.sctListSupported && len(hs.cert.SignedCertificateTimestampList) > 0 && !c.config.Bugs.NoSignedCertificateTimestamps {
 		hs.hello.extensions.sctList = hs.cert.SignedCertificateTimestampList
 	}
 
@@ -1618,7 +1646,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 	}
 
 	keyAgreement := hs.suite.ka(c.vers)
-	skx, err := keyAgreement.generateServerKeyExchange(config, hs.cert, hs.clientHello, hs.hello)
+	skx, err := keyAgreement.generateServerKeyExchange(config, hs.cert, hs.clientHello, hs.hello, c.vers)
 	if err != nil {
 		c.sendAlert(alertHandshakeFailure)
 		return err

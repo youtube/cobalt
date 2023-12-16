@@ -114,6 +114,7 @@ open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
 my ($inp,$out,$len,$key,$ivp)=("%rdi","%rsi","%rdx","%rcx");
 my @XMM=map("%xmm$_",(15,0..14));	# best on Atom, +10% over (0..15)
 my $ecb=0;	# suppress unreferenced ECB subroutines, spare some space...
+my $xts=0;	# Also patch out the XTS subroutines.
 
 {
 my ($key,$rounds,$const)=("%rax","%r10d","%r11");
@@ -816,6 +817,7 @@ $code.=<<___;
 .type	_bsaes_encrypt8,\@abi-omnipotent
 .align	64
 _bsaes_encrypt8:
+.cfi_startproc
 	lea	.LBS0(%rip), $const	# constants table
 
 	movdqa	($key), @XMM[9]		# round 0 key
@@ -875,11 +877,13 @@ $code.=<<___;
 	pxor	@XMM[8], @XMM[0]
 	pxor	@XMM[8], @XMM[1]
 	ret
+.cfi_endproc
 .size	_bsaes_encrypt8,.-_bsaes_encrypt8
 
 .type	_bsaes_decrypt8,\@abi-omnipotent
 .align	64
 _bsaes_decrypt8:
+.cfi_startproc
 	lea	.LBS0(%rip), $const	# constants table
 
 	movdqa	($key), @XMM[9]		# round 0 key
@@ -937,6 +941,7 @@ $code.=<<___;
 	pxor	@XMM[8], @XMM[0]
 	pxor	@XMM[8], @XMM[1]
 	ret
+.cfi_endproc
 .size	_bsaes_decrypt8,.-_bsaes_decrypt8
 ___
 }
@@ -971,6 +976,7 @@ $code.=<<___;
 .type	_bsaes_key_convert,\@abi-omnipotent
 .align	16
 _bsaes_key_convert:
+.cfi_startproc
 	lea	.Lmasks(%rip), $const
 	movdqu	($inp), %xmm7		# load round 0 key
 	lea	0x10($inp), $inp
@@ -1049,6 +1055,7 @@ _bsaes_key_convert:
 	movdqa	0x50($const), %xmm7	# .L63
 	#movdqa	%xmm6, ($out)		# don't save last round key
 	ret
+.cfi_endproc
 .size	_bsaes_key_convert,.-_bsaes_key_convert
 ___
 }
@@ -1913,6 +1920,12 @@ $code.=<<___;
 .align	16
 bsaes_ctr32_encrypt_blocks:
 .cfi_startproc
+#ifndef NDEBUG
+#ifndef BORINGSSL_FIPS
+.extern	BORINGSSL_function_hit
+	movb \$1, BORINGSSL_function_hit+6(%rip)
+#endif
+#endif
 	mov	%rsp, %rax
 .Lctr_enc_prologue:
 	push	%rbp
@@ -2163,6 +2176,8 @@ ___
 #	const AES_KEY *key1, const AES_KEY *key2,
 #	const unsigned char iv[16]);
 #
+# We patch out the XTS implementation in BoringSSL.
+if ($xts) {
 my ($twmask,$twres,$twtmp)=@XMM[13..15];
 $arg6=~s/d$//;
 
@@ -2991,6 +3006,7 @@ $code.=<<___;
 .size	bsaes_xts_decrypt,.-bsaes_xts_decrypt
 ___
 }
+}  # $xts
 $code.=<<___;
 .type	_bsaes_const,\@object
 .align	64
@@ -3172,7 +3188,8 @@ $code.=<<___;
 	.rva	.Lctr_enc_prologue
 	.rva	.Lctr_enc_epilogue
 	.rva	.Lctr_enc_info
-
+___
+$code.=<<___ if ($xts);
 	.rva	.Lxts_enc_prologue
 	.rva	.Lxts_enc_epilogue
 	.rva	.Lxts_enc_info
@@ -3180,6 +3197,8 @@ $code.=<<___;
 	.rva	.Lxts_dec_prologue
 	.rva	.Lxts_dec_epilogue
 	.rva	.Lxts_dec_info
+___
+$code.=<<___;
 
 .section	.xdata
 .align	8
@@ -3211,6 +3230,8 @@ $code.=<<___;
 	.rva	.Lctr_enc_body,.Lctr_enc_epilogue	# HandlerData[]
 	.rva	.Lctr_enc_tail
 	.long	0
+___
+$code.=<<___ if ($xts);
 .Lxts_enc_info:
 	.byte	9,0,0,0
 	.rva	se_handler

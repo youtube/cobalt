@@ -151,9 +151,9 @@ static void compute_precomp(const EC_GROUP *group, EC_RAW_POINT *out,
                             const EC_RAW_POINT *p, size_t len) {
   ec_GFp_simple_point_copy(&out[0], p);
   EC_RAW_POINT two_p;
-  ec_GFp_simple_dbl(group, &two_p, p);
+  ec_GFp_mont_dbl(group, &two_p, p);
   for (size_t i = 1; i < len; i++) {
-    ec_GFp_simple_add(group, &out[i], &out[i - 1], &two_p);
+    ec_GFp_mont_add(group, &out[i], &out[i - 1], &two_p);
   }
 }
 
@@ -168,26 +168,26 @@ static void lookup_precomp(const EC_GROUP *group, EC_RAW_POINT *out,
   }
 }
 
-// EC_WNAF_WINDOW_BITS is the window size to use for |ec_GFp_simple_mul_public|.
+// EC_WNAF_WINDOW_BITS is the window size to use for |ec_GFp_mont_mul_public|.
 #define EC_WNAF_WINDOW_BITS 4
 
-// EC_WNAF_TABLE_SIZE is the table size to use for |ec_GFp_simple_mul_public|.
+// EC_WNAF_TABLE_SIZE is the table size to use for |ec_GFp_mont_mul_public|.
 #define EC_WNAF_TABLE_SIZE (1 << (EC_WNAF_WINDOW_BITS - 1))
 
-void ec_GFp_simple_mul_public(const EC_GROUP *group, EC_RAW_POINT *r,
-                              const EC_SCALAR *g_scalar, const EC_RAW_POINT *p,
-                              const EC_SCALAR *p_scalar) {
+void ec_GFp_mont_mul_public(const EC_GROUP *group, EC_RAW_POINT *r,
+                            const EC_SCALAR *g_scalar, const EC_RAW_POINT *p,
+                            const EC_SCALAR *p_scalar) {
   size_t bits = BN_num_bits(&group->order);
   size_t wNAF_len = bits + 1;
 
-  int8_t g_wNAF[EC_MAX_SCALAR_BYTES * 8 + 1];
+  int8_t g_wNAF[EC_MAX_BYTES * 8 + 1];
   EC_RAW_POINT g_precomp[EC_WNAF_TABLE_SIZE];
   assert(wNAF_len <= OPENSSL_ARRAY_SIZE(g_wNAF));
   const EC_RAW_POINT *g = &group->generator->raw;
   ec_compute_wNAF(group, g_wNAF, g_scalar, bits, EC_WNAF_WINDOW_BITS);
   compute_precomp(group, g_precomp, g, EC_WNAF_TABLE_SIZE);
 
-  int8_t p_wNAF[EC_MAX_SCALAR_BYTES * 8 + 1];
+  int8_t p_wNAF[EC_MAX_BYTES * 8 + 1];
   EC_RAW_POINT p_precomp[EC_WNAF_TABLE_SIZE];
   assert(wNAF_len <= OPENSSL_ARRAY_SIZE(p_wNAF));
   ec_compute_wNAF(group, p_wNAF, p_scalar, bits, EC_WNAF_WINDOW_BITS);
@@ -197,7 +197,7 @@ void ec_GFp_simple_mul_public(const EC_GROUP *group, EC_RAW_POINT *r,
   int r_is_at_infinity = 1;
   for (size_t k = wNAF_len - 1; k < wNAF_len; k--) {
     if (!r_is_at_infinity) {
-      ec_GFp_simple_dbl(group, r, r);
+      ec_GFp_mont_dbl(group, r, r);
     }
 
     if (g_wNAF[k] != 0) {
@@ -206,7 +206,7 @@ void ec_GFp_simple_mul_public(const EC_GROUP *group, EC_RAW_POINT *r,
         ec_GFp_simple_point_copy(r, &tmp);
         r_is_at_infinity = 0;
       } else {
-        ec_GFp_simple_add(group, r, r, &tmp);
+        ec_GFp_mont_add(group, r, r, &tmp);
       }
     }
 
@@ -216,7 +216,7 @@ void ec_GFp_simple_mul_public(const EC_GROUP *group, EC_RAW_POINT *r,
         ec_GFp_simple_point_copy(r, &tmp);
         r_is_at_infinity = 0;
       } else {
-        ec_GFp_simple_add(group, r, r, &tmp);
+        ec_GFp_mont_add(group, r, r, &tmp);
       }
     }
   }

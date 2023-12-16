@@ -43,6 +43,9 @@ foo:
 	vpxor   %xmm4,%xmm3,%xmm3
 	vmovdqu8        %ymm1,%ymm6{%k1}{z}
 	vmovdqu8        %ymm2,%ymm4{%k3}
+	vpcmpneqq       .LCPI508_30(%rip){1to8}, %zmm1, %k0
+	vmovdqu64       -88(%rbx), %zmm0 {%k1}
+	vmovdqu64       352(%rsp,%rbx), %ymm1 {%k1}
 	.byte   0xf3,0xc3
 	movq %rax, %rbx # Comments can be on the same line as an instruction.
 .L3:
@@ -56,6 +59,8 @@ foo:
 .loc 2 2 0
 BORINGSSL_bcm_text_end:
 .type OPENSSL_ia32cap_get, @function
+.globl OPENSSL_ia32cap_get
+.LOPENSSL_ia32cap_get_local_target:
 OPENSSL_ia32cap_get:
 	leaq OPENSSL_ia32cap_P(%rip), %rax
 	ret

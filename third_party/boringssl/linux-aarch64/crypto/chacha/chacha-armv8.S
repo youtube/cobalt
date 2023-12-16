@@ -1,3 +1,6 @@
+// This file is generated from a similarly-named Perl script in the BoringSSL
+// source tree. Do not edit by hand.
+
 #if defined(__has_feature)
 #if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
 #define OPENSSL_NO_ASM
@@ -11,9 +14,9 @@
 #endif
 #include <openssl/arm_arch.h>
 
-.text
 
 
+.section	.rodata
 
 .align	5
 .Lsigma:
@@ -29,21 +32,19 @@
 .byte	67,104,97,67,104,97,50,48,32,102,111,114,32,65,82,77,118,56,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	2
 
+.text
+
 .globl	ChaCha20_ctr32
 .hidden	ChaCha20_ctr32
 .type	ChaCha20_ctr32,%function
 .align	5
 ChaCha20_ctr32:
 	cbz	x2,.Labort
-	adr	x5,.LOPENSSL_armcap_P
+	adrp	x5,OPENSSL_armcap_P
 	cmp	x2,#192
 	b.lo	.Lshort
-#ifdef	__ILP32__
-	ldrsw	x6,[x5]
-#else
-	ldr	x6,[x5]
-#endif
-	ldr	w17,[x6,x5]
+	add	x5,x5,:lo12:OPENSSL_armcap_P
+	ldr	w17,[x5]
 	tst	w17,#ARMV7_NEON
 	b.ne	ChaCha20_neon
 
@@ -51,7 +52,8 @@ ChaCha20_ctr32:
 	stp	x29,x30,[sp,#-96]!
 	add	x29,sp,#0
 
-	adr	x5,.Lsigma
+	adrp	x5,.Lsigma
+	add	x5,x5,:lo12:.Lsigma
 	stp	x19,x20,[sp,#16]
 	stp	x21,x22,[sp,#32]
 	stp	x23,x24,[sp,#48]
@@ -324,7 +326,8 @@ ChaCha20_neon:
 	stp	x29,x30,[sp,#-96]!
 	add	x29,sp,#0
 
-	adr	x5,.Lsigma
+	adrp	x5,.Lsigma
+	add	x5,x5,:lo12:.Lsigma
 	stp	x19,x20,[sp,#16]
 	stp	x21,x22,[sp,#32]
 	stp	x23,x24,[sp,#48]
@@ -817,7 +820,8 @@ ChaCha20_512_neon:
 	stp	x29,x30,[sp,#-96]!
 	add	x29,sp,#0
 
-	adr	x5,.Lsigma
+	adrp	x5,.Lsigma
+	add	x5,x5,:lo12:.Lsigma
 	stp	x19,x20,[sp,#16]
 	stp	x21,x22,[sp,#32]
 	stp	x23,x24,[sp,#48]

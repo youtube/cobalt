@@ -1,3 +1,6 @@
+# This file is generated from a similarly-named Perl script in the BoringSSL
+# source tree. Do not edit by hand.
+
 #if defined(__has_feature)
 #if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
 #define OPENSSL_NO_ASM
@@ -15,11 +18,17 @@
 .private_extern _md5_block_asm_data_order
 
 _md5_block_asm_data_order:
+
 	pushq	%rbp
+
 	pushq	%rbx
+
 	pushq	%r12
+
 	pushq	%r14
+
 	pushq	%r15
+
 L$prologue:
 
 
@@ -669,12 +678,19 @@ L$end:
 	movl	%edx,12(%rbp)
 
 	movq	(%rsp),%r15
+
 	movq	8(%rsp),%r14
+
 	movq	16(%rsp),%r12
+
 	movq	24(%rsp),%rbx
+
 	movq	32(%rsp),%rbp
+
 	addq	$40,%rsp
+
 L$epilogue:
 	.byte	0xf3,0xc3
+
 
 #endif

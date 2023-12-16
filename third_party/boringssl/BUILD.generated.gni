@@ -128,11 +128,15 @@ crypto_sources = [
   "src/crypto/fipsmodule/ec/p256-x86_64-table.h",
   "src/crypto/fipsmodule/ec/p256-x86_64.h",
   "src/crypto/fipsmodule/is_fips.c",
+  "src/crypto/fipsmodule/md5/internal.h",
   "src/crypto/fipsmodule/modes/internal.h",
   "src/crypto/fipsmodule/rand/internal.h",
   "src/crypto/fipsmodule/rsa/internal.h",
+  "src/crypto/fipsmodule/sha/internal.h",
   "src/crypto/fipsmodule/tls/internal.h",
   "src/crypto/hkdf/hkdf.c",
+  "src/crypto/hrss/hrss.c",
+  "src/crypto/hrss/internal.h",
   "src/crypto/internal.h",
   "src/crypto/lhash/lhash.c",
   "src/crypto/mem.c",
@@ -228,6 +232,7 @@ crypto_sources = [
   "src/crypto/x509/x_x509.c",
   "src/crypto/x509/x_x509a.c",
   "src/crypto/x509v3/ext_dat.h",
+  "src/crypto/x509v3/internal.h",
   "src/crypto/x509v3/pcy_cache.c",
   "src/crypto/x509v3/pcy_data.c",
   "src/crypto/x509v3/pcy_int.h",
@@ -263,8 +268,12 @@ crypto_sources = [
   "src/crypto/x509v3/v3_sxnet.c",
   "src/crypto/x509v3/v3_utl.c",
   "src/third_party/fiat/curve25519.c",
+  "src/third_party/fiat/curve25519_32.h",
+  "src/third_party/fiat/curve25519_64.h",
   "src/third_party/fiat/curve25519_tables.h",
   "src/third_party/fiat/internal.h",
+  "src/third_party/fiat/p256_32.h",
+  "src/third_party/fiat/p256_64.h",
 ]
 
 crypto_headers = [
@@ -305,9 +314,9 @@ crypto_headers = [
   "src/include/openssl/ex_data.h",
   "src/include/openssl/hkdf.h",
   "src/include/openssl/hmac.h",
+  "src/include/openssl/hrss.h",
   "src/include/openssl/is_boringssl.h",
   "src/include/openssl/lhash.h",
-  "src/include/openssl/lhash_macros.h",
   "src/include/openssl/md4.h",
   "src/include/openssl/md5.h",
   "src/include/openssl/mem.h",
@@ -331,7 +340,6 @@ crypto_headers = [
   "src/include/openssl/safestack.h",
   "src/include/openssl/sha.h",
   "src/include/openssl/span.h",
-  "src/include/openssl/srtp.h",
   "src/include/openssl/stack.h",
   "src/include/openssl/thread.h",
   "src/include/openssl/type_check.h",
@@ -382,6 +390,7 @@ ssl_sources = [
 
 ssl_headers = [
   "src/include/openssl/dtls1.h",
+  "src/include/openssl/srtp.h",
   "src/include/openssl/ssl.h",
   "src/include/openssl/ssl3.h",
   "src/include/openssl/tls1.h",
@@ -395,6 +404,7 @@ crypto_sources_ios_aarch64 = [
   "ios-aarch64/crypto/fipsmodule/sha1-armv8.S",
   "ios-aarch64/crypto/fipsmodule/sha256-armv8.S",
   "ios-aarch64/crypto/fipsmodule/sha512-armv8.S",
+  "ios-aarch64/crypto/test/trampoline-armv8.S",
 ]
 
 crypto_sources_ios_arm = [
@@ -408,6 +418,7 @@ crypto_sources_ios_arm = [
   "ios-arm/crypto/fipsmodule/sha1-armv4-large.S",
   "ios-arm/crypto/fipsmodule/sha256-armv4.S",
   "ios-arm/crypto/fipsmodule/sha512-armv4.S",
+  "ios-arm/crypto/test/trampoline-armv4.S",
 ]
 
 crypto_sources_linux_aarch64 = [
@@ -418,6 +429,7 @@ crypto_sources_linux_aarch64 = [
   "linux-aarch64/crypto/fipsmodule/sha1-armv8.S",
   "linux-aarch64/crypto/fipsmodule/sha256-armv8.S",
   "linux-aarch64/crypto/fipsmodule/sha512-armv8.S",
+  "linux-aarch64/crypto/test/trampoline-armv8.S",
 ]
 
 crypto_sources_linux_arm = [
@@ -431,6 +443,7 @@ crypto_sources_linux_arm = [
   "linux-arm/crypto/fipsmodule/sha1-armv4-large.S",
   "linux-arm/crypto/fipsmodule/sha256-armv4.S",
   "linux-arm/crypto/fipsmodule/sha512-armv4.S",
+  "linux-arm/crypto/test/trampoline-armv4.S",
   "src/crypto/curve25519/asm/x25519-asm-arm.S",
   "src/crypto/poly1305/poly1305_arm_asm.S",
 ]
@@ -453,6 +466,7 @@ crypto_sources_linux_x86 = [
   "linux-x86/crypto/fipsmodule/sha512-586.S",
   "linux-x86/crypto/fipsmodule/vpaes-x86.S",
   "linux-x86/crypto/fipsmodule/x86-mont.S",
+  "linux-x86/crypto/test/trampoline-x86.S",
 ]
 
 crypto_sources_linux_x86_64 = [
@@ -463,9 +477,11 @@ crypto_sources_linux_x86_64 = [
   "linux-x86_64/crypto/fipsmodule/aesni-gcm-x86_64.S",
   "linux-x86_64/crypto/fipsmodule/aesni-x86_64.S",
   "linux-x86_64/crypto/fipsmodule/bsaes-x86_64.S",
+  "linux-x86_64/crypto/fipsmodule/ghash-ssse3-x86_64.S",
   "linux-x86_64/crypto/fipsmodule/ghash-x86_64.S",
   "linux-x86_64/crypto/fipsmodule/md5-x86_64.S",
   "linux-x86_64/crypto/fipsmodule/p256-x86_64-asm.S",
+  "linux-x86_64/crypto/fipsmodule/p256_beeu-x86_64-asm.S",
   "linux-x86_64/crypto/fipsmodule/rdrand-x86_64.S",
   "linux-x86_64/crypto/fipsmodule/rsaz-avx2.S",
   "linux-x86_64/crypto/fipsmodule/sha1-x86_64.S",
@@ -474,6 +490,8 @@ crypto_sources_linux_x86_64 = [
   "linux-x86_64/crypto/fipsmodule/vpaes-x86_64.S",
   "linux-x86_64/crypto/fipsmodule/x86_64-mont.S",
   "linux-x86_64/crypto/fipsmodule/x86_64-mont5.S",
+  "linux-x86_64/crypto/test/trampoline-x86_64.S",
+  "src/crypto/hrss/asm/poly_rq_mul.S",
 ]
 
 crypto_sources_mac_x86 = [
@@ -489,6 +507,7 @@ crypto_sources_mac_x86 = [
   "mac-x86/crypto/fipsmodule/sha512-586.S",
   "mac-x86/crypto/fipsmodule/vpaes-x86.S",
   "mac-x86/crypto/fipsmodule/x86-mont.S",
+  "mac-x86/crypto/test/trampoline-x86.S",
 ]
 
 crypto_sources_mac_x86_64 = [
@@ -499,9 +518,11 @@ crypto_sources_mac_x86_64 = [
   "mac-x86_64/crypto/fipsmodule/aesni-gcm-x86_64.S",
   "mac-x86_64/crypto/fipsmodule/aesni-x86_64.S",
   "mac-x86_64/crypto/fipsmodule/bsaes-x86_64.S",
+  "mac-x86_64/crypto/fipsmodule/ghash-ssse3-x86_64.S",
   "mac-x86_64/crypto/fipsmodule/ghash-x86_64.S",
   "mac-x86_64/crypto/fipsmodule/md5-x86_64.S",
   "mac-x86_64/crypto/fipsmodule/p256-x86_64-asm.S",
+  "mac-x86_64/crypto/fipsmodule/p256_beeu-x86_64-asm.S",
   "mac-x86_64/crypto/fipsmodule/rdrand-x86_64.S",
   "mac-x86_64/crypto/fipsmodule/rsaz-avx2.S",
   "mac-x86_64/crypto/fipsmodule/sha1-x86_64.S",
@@ -510,6 +531,7 @@ crypto_sources_mac_x86_64 = [
   "mac-x86_64/crypto/fipsmodule/vpaes-x86_64.S",
   "mac-x86_64/crypto/fipsmodule/x86_64-mont.S",
   "mac-x86_64/crypto/fipsmodule/x86_64-mont5.S",
+  "mac-x86_64/crypto/test/trampoline-x86_64.S",
 ]
 
 crypto_sources_win_x86 = [
@@ -525,6 +547,7 @@ crypto_sources_win_x86 = [
   "win-x86/crypto/fipsmodule/sha512-586.asm",
   "win-x86/crypto/fipsmodule/vpaes-x86.asm",
   "win-x86/crypto/fipsmodule/x86-mont.asm",
+  "win-x86/crypto/test/trampoline-x86.asm",
 ]
 
 crypto_sources_win_x86_64 = [
@@ -535,9 +558,11 @@ crypto_sources_win_x86_64 = [
   "win-x86_64/crypto/fipsmodule/aesni-gcm-x86_64.asm",
   "win-x86_64/crypto/fipsmodule/aesni-x86_64.asm",
   "win-x86_64/crypto/fipsmodule/bsaes-x86_64.asm",
+  "win-x86_64/crypto/fipsmodule/ghash-ssse3-x86_64.asm",
   "win-x86_64/crypto/fipsmodule/ghash-x86_64.asm",
   "win-x86_64/crypto/fipsmodule/md5-x86_64.asm",
   "win-x86_64/crypto/fipsmodule/p256-x86_64-asm.asm",
+  "win-x86_64/crypto/fipsmodule/p256_beeu-x86_64-asm.asm",
   "win-x86_64/crypto/fipsmodule/rdrand-x86_64.asm",
   "win-x86_64/crypto/fipsmodule/rsaz-avx2.asm",
   "win-x86_64/crypto/fipsmodule/sha1-x86_64.asm",
@@ -546,6 +571,7 @@ crypto_sources_win_x86_64 = [
   "win-x86_64/crypto/fipsmodule/vpaes-x86_64.asm",
   "win-x86_64/crypto/fipsmodule/x86_64-mont.asm",
   "win-x86_64/crypto/fipsmodule/x86_64-mont5.asm",
+  "win-x86_64/crypto/test/trampoline-x86_64.asm",
 ]
 
 fuzzers = [

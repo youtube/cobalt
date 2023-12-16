@@ -1,4 +1,10 @@
+# This file is generated from a similarly-named Perl script in the BoringSSL
+# source tree. Do not edit by hand.
+
 #if defined(__i386__)
+#if defined(BORINGSSL_PREFIX)
+#include <boringssl_prefix_symbols_asm.h>
+#endif
 .text
 .private_extern	__x86_AES_encrypt_compact
 .align	4

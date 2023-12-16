@@ -53,7 +53,7 @@ if(NOT OPENSSL_NO_ASM)
       set(PERLASM_STYLE win32n)
       set(PERLASM_FLAGS "-DOPENSSL_IA32_SSE2")
     endif()
-    set(CMAKE_ASM_NASM_FLAGS "-gcv8")
+    set(CMAKE_ASM_NASM_FLAGS "${CMAKE_ASM_NASM_FLAGS} -gcv8")
 
     # On Windows, we use the NASM output, specifically built with Yasm.
     set(ASM_EXT asm)
@@ -105,6 +105,7 @@ if(${ARCH} STREQUAL "arm")
     chacha/chacha-armv4.${ASM_EXT}
     curve25519/asm/x25519-asm-arm.S
     poly1305/poly1305_arm_asm.S
+    test/trampoline-armv4.${ASM_EXT}
   )
 endif()
 
@@ -113,6 +114,7 @@ if(${ARCH} STREQUAL "aarch64")
     CRYPTO_ARCH_SOURCES
 
     chacha/chacha-armv8.${ASM_EXT}
+    test/trampoline-armv8.${ASM_EXT}
   )
 endif()
 
@@ -121,6 +123,7 @@ if(${ARCH} STREQUAL "x86")
     CRYPTO_ARCH_SOURCES
 
     chacha/chacha-x86.${ASM_EXT}
+    test/trampoline-x86.${ASM_EXT}
   )
 endif()
 
@@ -131,6 +134,8 @@ if(${ARCH} STREQUAL "x86_64")
     chacha/chacha-x86_64.${ASM_EXT}
     cipher_extra/aes128gcmsiv-x86_64.${ASM_EXT}
     cipher_extra/chacha20_poly1305_x86_64.${ASM_EXT}
+    hrss/asm/poly_rq_mul.S
+    test/trampoline-x86_64.${ASM_EXT}
   )
 endif()
 
@@ -140,6 +145,10 @@ perlasm(chacha/chacha-x86.${ASM_EXT} chacha/asm/chacha-x86.pl)
 perlasm(chacha/chacha-x86_64.${ASM_EXT} chacha/asm/chacha-x86_64.pl)
 perlasm(cipher_extra/aes128gcmsiv-x86_64.${ASM_EXT} cipher_extra/asm/aes128gcmsiv-x86_64.pl)
 perlasm(cipher_extra/chacha20_poly1305_x86_64.${ASM_EXT} cipher_extra/asm/chacha20_poly1305_x86_64.pl)
+perlasm(test/trampoline-armv4.${ASM_EXT} test/asm/trampoline-armv4.pl)
+perlasm(test/trampoline-armv8.${ASM_EXT} test/asm/trampoline-armv8.pl)
+perlasm(test/trampoline-x86.${ASM_EXT} test/asm/trampoline-x86.pl)
+perlasm(test/trampoline-x86_64.${ASM_EXT} test/asm/trampoline-x86_64.pl)
 
 add_custom_command(
   OUTPUT err_data.c
@@ -275,6 +284,7 @@ add_library(
   evp/sign.c
   ex_data.c
   hkdf/hkdf.c
+  hrss/hrss.c
   lhash/lhash.c
   mem.c
   obj/obj.c
@@ -422,6 +432,7 @@ endif()
 add_executable(
   crypto_test
 
+  abi_self_test.cc
   asn1/asn1_test.cc
   base64/base64_test.cc
   buf/buf_test.cc
@@ -451,10 +462,14 @@ add_executable(
   fipsmodule/ec/ec_test.cc
   fipsmodule/ec/p256-x86_64_test.cc
   fipsmodule/ecdsa/ecdsa_test.cc
+  fipsmodule/md5/md5_test.cc
   fipsmodule/modes/gcm_test.cc
   fipsmodule/rand/ctrdrbg_test.cc
+  fipsmodule/sha/sha_test.cc
   hkdf/hkdf_test.cc
   hmac_extra/hmac_test.cc
+  hrss/hrss_test.cc
+  impl_dispatch_test.cc
   lhash/lhash_test.cc
   obj/obj_test.cc
   pem/pem_test.cc
@@ -477,12 +492,11 @@ add_executable(
 
   $<TARGET_OBJECTS:crypto_test_data>
   $<TARGET_OBJECTS:boringssl_gtest_main>
-  $<TARGET_OBJECTS:test_support>
 )
 
 add_dependencies(crypto_test global_target)
 
-target_link_libraries(crypto_test crypto boringssl_gtest)
+target_link_libraries(crypto_test test_support_lib boringssl_gtest crypto)
 if(WIN32)
   target_link_libraries(crypto_test ws2_32)
 endif()

@@ -150,15 +150,6 @@ extern "C" {
 #define OPENSSL_ANDROID
 #endif
 
-// OPENSSL_NO_THREADS has been deprecated in favor of this much longer and
-// louder name, to better reflect exactly what that option did.
-//
-// TODO(davidben): Remove this block when callers have migrated.
-#if defined(OPENSSL_NO_THREADS) && \
-    !defined(OPENSSL_NO_THREADS_CORRUPT_MEMORY_AND_LEAK_SECRETS_IF_THREADED)
-#define OPENSSL_NO_THREADS_CORRUPT_MEMORY_AND_LEAK_SECRETS_IF_THREADED
-#endif
-
 // BoringSSL requires platform's locking APIs to make internal global state
 // thread-safe, including the PRNG. On some single-threaded embedded platforms,
 // locking APIs may not exist, so this dependency may be disabled with the
@@ -403,6 +394,7 @@ typedef struct ssl_cipher_st SSL_CIPHER;
 typedef struct ssl_ctx_st SSL_CTX;
 typedef struct ssl_method_st SSL_METHOD;
 typedef struct ssl_private_key_method_st SSL_PRIVATE_KEY_METHOD;
+typedef struct ssl_quic_method_st SSL_QUIC_METHOD;
 typedef struct ssl_session_st SSL_SESSION;
 typedef struct ssl_st SSL;
 typedef struct ssl_ticket_aead_method_st SSL_TICKET_AEAD_METHOD;

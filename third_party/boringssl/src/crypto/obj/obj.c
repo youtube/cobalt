@@ -54,10 +54,6 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#if !defined(__STDC_FORMAT_MACROS)
-#define __STDC_FORMAT_MACROS
-#endif
-
 #include <openssl/obj.h>
 
 #include <inttypes.h>
@@ -75,6 +71,8 @@
 #include "obj_dat.h"
 #include "../internal.h"
 
+
+DEFINE_LHASH_OF(ASN1_OBJECT)
 
 static struct CRYPTO_STATIC_MUTEX global_added_lock = CRYPTO_STATIC_MUTEX_INIT;
 // These globals are protected by |global_added_lock|.

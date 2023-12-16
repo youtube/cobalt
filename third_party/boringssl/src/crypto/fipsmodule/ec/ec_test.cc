@@ -727,7 +727,7 @@ TEST_P(ECCurveTest, DoubleSpecialCase) {
   EC_SCALAR one;
   ASSERT_TRUE(ec_bignum_to_scalar(group(), &one, BN_value_one()));
   ASSERT_TRUE(
-      ec_point_mul_scalar_public(group(), p.get(), &one, g, &one, nullptr));
+      ec_point_mul_scalar_public(group(), &p->raw, &one, &g->raw, &one));
   EXPECT_EQ(0, EC_POINT_cmp(group(), p.get(), two_g.get(), nullptr));
 }
 
@@ -752,6 +752,17 @@ TEST_P(ECCurveTest, P224Bug) {
                            nullptr));
 
   EXPECT_EQ(0, EC_POINT_cmp(group(), ret.get(), g, nullptr));
+}
+
+TEST_P(ECCurveTest, GPlusMinusG) {
+  const EC_POINT *g = EC_GROUP_get0_generator(group());
+  bssl::UniquePtr<EC_POINT> p(EC_POINT_dup(g, group()));
+  ASSERT_TRUE(p);
+  ASSERT_TRUE(EC_POINT_invert(group(), p.get(), nullptr));
+  bssl::UniquePtr<EC_POINT> sum(EC_POINT_new(group()));
+
+  ASSERT_TRUE(EC_POINT_add(group(), sum.get(), g, p.get(), nullptr));
+  EXPECT_TRUE(EC_POINT_is_at_infinity(group(), sum.get()));
 }
 
 static std::vector<EC_builtin_curve> AllCurves() {
@@ -872,8 +883,8 @@ TEST(ECTest, ScalarBaseMultVectors) {
       EC_SCALAR a_scalar, b_scalar;
       ASSERT_TRUE(ec_bignum_to_scalar(group.get(), &a_scalar, a.get()));
       ASSERT_TRUE(ec_bignum_to_scalar(group.get(), &b_scalar, b.get()));
-      ASSERT_TRUE(ec_point_mul_scalar_public(group.get(), p.get(), &a_scalar, g,
-                                             &b_scalar, ctx.get()));
+      ASSERT_TRUE(ec_point_mul_scalar_public(group.get(), &p->raw, &a_scalar, &g->raw,
+                                             &b_scalar));
       check_point(p.get());
     }
 #endif

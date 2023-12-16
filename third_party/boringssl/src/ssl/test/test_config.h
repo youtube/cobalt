@@ -33,6 +33,7 @@ struct TestConfig {
   std::vector<int> signing_prefs;
   std::vector<int> verify_prefs;
   std::vector<int> expected_peer_verify_prefs;
+  std::vector<int> curves;
   std::string key_file;
   std::string cert_file;
   std::string expected_server_name;
@@ -103,7 +104,6 @@ struct TestConfig {
   bool use_ticket_callback = false;
   bool renew_ticket = false;
   bool enable_early_data = false;
-  int tls13_variant = 0;
   bool enable_client_custom_extension = false;
   bool enable_server_custom_extension = false;
   bool custom_extension_skip = false;
@@ -122,7 +122,6 @@ struct TestConfig {
   bool renegotiate_ignore = false;
   bool forbid_renegotiation_after_handshake = false;
   int expect_peer_signature_algorithm = 0;
-  bool p384_only = false;
   bool enable_all_curves = false;
   int expect_curve_id = 0;
   bool use_old_client_cert_callback = false;
@@ -166,9 +165,15 @@ struct TestConfig {
   bool fail_ocsp_callback = false;
   bool install_cert_compression_algs = false;
   bool reverify_on_resume = false;
+  bool enforce_rsa_key_usage = false;
   bool is_handshaker_supported = false;
   bool handshaker_resume = false;
   std::string handshaker_path;
+  bool jdk11_workaround = false;
+  bool server_preference = false;
+  bool export_traffic_secrets = false;
+  bool key_update = false;
+  std::string delegated_credential;
 
   int argc;
   char **argv;
