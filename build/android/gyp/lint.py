@@ -23,7 +23,7 @@ from util import build_utils
 from util import manifest_utils
 from util import server_utils
 
-_LINT_MD_URL = 'https://chromium.googlesource.com/chromium/src/+/master/build/android/docs/lint.md'  # pylint: disable=line-too-long
+_LINT_MD_URL = 'https://chromium.googlesource.com/chromium/src/+/main/build/android/docs/lint.md'  # pylint: disable=line-too-long
 
 # These checks are not useful for chromium.
 _DISABLED_ALWAYS = [
@@ -218,6 +218,13 @@ def _RunLint(lint_binary_path,
       '--disable',
       ','.join(_DISABLED_ALWAYS),
   ]
+
+  # Crashes lint itself, see b/187524311
+  # Only disable if we depend on androidx.fragment (otherwise lint fails due to
+  # non-existent check).
+  if any('androidx_fragment_fragment' in aar for aar in aars):
+    cmd.extend(['--disable', 'DialogFragmentCallbacksDetector'])
+
   if baseline:
     cmd.extend(['--baseline', baseline])
   if testonly_target:

@@ -48,6 +48,17 @@ if (is_nacl) {
   import("//build/config/nacl/config.gni")
 }
 
+lld_path = ""
+if (!is_clang) {
+  declare_args() {
+    # This allows overriding the location of lld.
+    lld_path = rebase_path("$clang_base_path/bin", root_build_dir)
+  }
+} else {
+  # clang looks for lld next to it, no need for -B.
+  lld_path = ""
+}
+
 declare_args() {
   # Normally, Android builds are lightly optimized, even for debug builds, to
   # keep binary size down. Setting this flag to true disables such optimization
@@ -332,6 +343,9 @@ config("compiler") {
 
     if (use_lld) {
       ldflags += [ "-fuse-ld=lld" ]
+      if (lld_path != "") {
+        ldflags += [ "-B$lld_path" ]
+      }
     }
 
     # Linker warnings.
@@ -440,7 +454,7 @@ config("compiler") {
 
   # Linux-specific compiler flags setup.
   # ------------------------------------
-  if ((is_posix || is_fuchsia) && use_lld) {
+  if ((is_posix || is_fuchsia) && !is_apple && use_lld) {
     if (current_cpu == "arm64") {
       # Reduce the page size from 65536 in order to reduce binary size slightly
       # by shrinking the alignment gap between segments. This also causes all
@@ -686,9 +700,7 @@ config("compiler") {
       ldflags += [ "-Wl,-mllvm,-import-instr-limit=$import_instr_limit" ]
     }
 
-    # Whole-program devirtualization increases android libchrome.so size
-    # by ~100kb on arm32 and reduces it by ~108kb on arm64 instead.
-    # Tracked by llvm bug: https://bugs.llvm.org/show_bug.cgi?id=48245
+    # TODO(https://crbug.com/1211155): investigate why this isn't effective on arm32.
     if (!is_android || current_cpu == "arm64") {
       cflags += [ "-fwhole-program-vtables" ]
       if (!is_win) {
@@ -742,8 +754,7 @@ config("compiler") {
     assert(!is_win, "show_includes is not supported on Windows")
     cflags += [
       "-H",
-      "-Xclang",
-      "-show-skipped-includes",
+      "-fshow-skipped-includes",
     ]
   }
 
@@ -2453,7 +2464,13 @@ config("minimal_symbols") {
   if (is_win) {
     # Functions, files, and line tables only.
     cflags = []
-    ldflags = [ "/DEBUG" ]
+
+    if (is_clang && use_lld && use_ghash) {
+      cflags += [ "-gcodeview-ghash" ]
+      ldflags = [ "/DEBUG:GHASH" ]
+    } else {
+      ldflags = [ "/DEBUG" ]
+    }
 
     # All configs using /DEBUG should include this:
     configs = [ ":win_pdbaltpath" ]
@@ -2596,7 +2613,10 @@ config("default_init_stack_vars") {
 buildflag_header("compiler_buildflags") {
   header = "compiler_buildflags.h"
 
-  flags = [ "CLANG_PGO=$chrome_pgo_phase" ]
+  flags = [
+    "CLANG_PGO=$chrome_pgo_phase",
+    "SYMBOL_LEVEL=$symbol_level",
+  ]
 }
 
 config("cet_shadow_stack") {
