@@ -18,7 +18,12 @@
   <script>
     document.body.style.backgroundColor = "green";
     const persistent_cookie = "persistent_cookie_status=exists";
-    const persistent_cookie_expire_time = "; expires=Fri, 18 Dec 2023 12:00:00 UTC";
+
+    // Set the cookie expiration date 2 days in the future.
+    var cookie_date = new Date();
+    cookie_date.setDate(cookie_date.getDate() + 2 /*days*/);
+    const persistent_cookie_expire_time = "; expires=" + cookie_date;
+
     const very_old_date = "; expires=Fri, 18 Dec 2003 12:00:00 UTC";
 
     function firstRun() {
