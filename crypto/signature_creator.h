@@ -5,13 +5,14 @@
 #ifndef CRYPTO_SIGNATURE_CREATOR_H_
 #define CRYPTO_SIGNATURE_CREATOR_H_
 
+#include <stdint.h>
+
 #include <memory>
 #include <vector>
 
 #include "base/macros.h"
 #include "build/build_config.h"
 #include "crypto/crypto_export.h"
-#include "starboard/types.h"
 
 // Forward declaration for openssl/*.h
 typedef struct env_md_ctx_st EVP_MD_CTX;
