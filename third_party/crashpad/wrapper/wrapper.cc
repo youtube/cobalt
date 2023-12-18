@@ -87,7 +87,7 @@ base::FilePath GetDatabasePath() {
   std::string crashpad_directory_path(cache_directory_path.data());
   crashpad_directory_path.push_back(kSbFileSepChar);
   crashpad_directory_path.append("crashpad_database");
-  if (mkdir(crashpad_directory_path.c_str(), 0700) != 0 || !SbDirectoryCanOpen(crashpad_directory_path.c_str())) {
+  if (mkdir(crashpad_directory_path.c_str(), 0700) != 0 && !SbDirectoryCanOpen(crashpad_directory_path.c_str())) {
     LOG(ERROR) << "Couldn't create directory for crashpad database";
     return base::FilePath("");
   }
