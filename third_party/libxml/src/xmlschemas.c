@@ -28962,5 +28962,4 @@ xmlSchemaValidCtxtGetParserCtxt(xmlSchemaValidCtxtPtr ctxt)
 }
 
 #define bottom_xmlschemas
-#include "third_party/libxml/src/elfgcchack.h"
 #endif /* LIBXML_SCHEMAS_ENABLED */
