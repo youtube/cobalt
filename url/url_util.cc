@@ -4,15 +4,12 @@
 
 #include "url/url_util.h"
 
+#include <stddef.h>
 #include <string.h>
 
 #include "base/debug/leak_annotations.h"
 #include "base/logging.h"
 #include "base/strings/string_util.h"
-#include "starboard/common/string.h"
-#include "starboard/configuration.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
 #include "url/url_canon_internal.h"
 #include "url/url_constants.h"
 #include "url/url_file.h"

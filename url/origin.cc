@@ -4,11 +4,11 @@
 
 #include "url/origin.h"
 
+#include <stdint.h>
 #include <string.h>
 
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
-#include "starboard/types.h"
 #include "url/gurl.h"
 #include "url/url_canon.h"
 #include "url/url_canon_stdstring.h"

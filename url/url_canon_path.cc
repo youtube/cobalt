@@ -5,7 +5,6 @@
 #include <limits.h>
 
 #include "base/logging.h"
-#include "starboard/types.h"
 #include "url/url_canon.h"
 #include "url/url_canon_internal.h"
 #include "url/url_parse_internal.h"

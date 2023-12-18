@@ -3,12 +3,10 @@
 // found in the LICENSE file.
 
 #include <errno.h>
+#include <stddef.h>
 
 #include "base/macros.h"
 #include "base/strings/utf_string_conversions.h"
-#include "starboard/common/string.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/third_party/mozilla/url_parse.h"
 #include "url/url_canon.h"

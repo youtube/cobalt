@@ -4,13 +4,16 @@
 
 #include "url/url_canon_ip.h"
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <limits>
 
 #include "base/logging.h"
-#include "starboard/common/string.h"
-#include "starboard/types.h"
 #include "url/url_canon_internal.h"
+
+#if defined(STARBOARD)
+#include "starboard/string.h"
+#endif
 
 namespace url {
 

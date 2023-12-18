@@ -4,12 +4,12 @@
 
 // ICU-based IDNA converter.
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "base/lazy_instance.h"
 #include "base/logging.h"
-#include "starboard/types.h"
 #include "third_party/icu/source/common/unicode/uidna.h"
 #include "third_party/icu/source/common/unicode/utypes.h"
 #include "url/url_canon_icu.h"

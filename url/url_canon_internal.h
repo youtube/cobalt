@@ -10,14 +10,10 @@
 // template bloat because everything is inlined when anybody calls any of our
 // functions.
 
-#if defined(STARBOARD)
-#include "starboard/common/string.h"
-#else
+#include <stddef.h>
 #include <stdlib.h>
-#endif
 
 #include "base/logging.h"
-#include "starboard/types.h"
 #include "url/url_canon.h"
 
 namespace url {

@@ -10,8 +10,6 @@
 
 #include "base/export_template.h"
 #include "base/strings/string16.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
 #include "url/third_party/mozilla/url_parse.h"
 #include "url/url_export.h"
 
