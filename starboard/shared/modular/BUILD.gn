@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-static_library("posix_time_wrappers") {
+# TODO: b/315170518 - Revert to static library after fixing
+# symbol visibility issues for windows based modular platform builds.
+source_set("posix_time_wrappers") {
   sources = [
     "posix_time_wrappers.cc",
     "posix_time_wrappers.h",
