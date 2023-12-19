@@ -15,8 +15,18 @@
 # limitations under the License.
 """Compatibility layer for buildbot."""
 
+<<<<<<< HEAD:lbshell/build/copy_and_filter_out_dir.py
 import sys
 from tools.copy_and_filter_out_dir import main
+=======
+# TODO: b/315170518 - Revert to static library after fixing
+# symbol visibility issues for windows based modular platform builds.
+source_set("posix_time_wrappers") {
+  sources = [
+    "posix_time_wrappers.cc",
+    "posix_time_wrappers.h",
+  ]
+>>>>>>> 649c19a331f (Make posix_time_wrappers a source_set (#2121)):starboard/shared/modular/BUILD.gn
 
 if __name__ == '__main__':
   sys.exit(main())
