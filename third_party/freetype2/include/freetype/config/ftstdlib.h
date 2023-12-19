@@ -108,6 +108,7 @@
    *
    */
 
+
 #if defined( STARBOARD )
 #include "starboard/string.h"
 #include "starboard/file.h"
@@ -155,6 +156,7 @@
    *
    */
 
+
 #define ft_scalloc   calloc
 #define ft_sfree     free
 #define ft_smalloc   malloc
@@ -168,7 +170,6 @@
    */
 
 
-#include <stdlib.h>
 #define ft_strtol  strtol
 
 #if defined( STARBOARD )

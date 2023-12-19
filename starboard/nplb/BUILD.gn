@@ -134,6 +134,7 @@ target(gtest_target_type, "nplb") {
     "player_test_util.cc",
     "player_test_util.h",
     "player_write_sample_test.cc",
+    "posix_compliance/posix_memory_map_test.cc",
     "random_helpers.cc",
     "recursive_mutex_test.cc",
     "rwlock_test.cc",

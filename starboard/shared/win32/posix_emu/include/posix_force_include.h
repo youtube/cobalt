@@ -12,16 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_TIME_H_
-#define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_TIME_H_
+#ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_POSIX_FORCE_INCLUDE_H_
+#define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_POSIX_FORCE_INCLUDE_H_
+
+// MSVC deprecated strdup() in favor of _strdup()
+#define strdup _strdup
+#define strcasecmp _stricmp
+#define strncasecmp _strnicmp
 
 #if defined(STARBOARD)
 
-#include <time.h>  // For struct timespec
+#define free sb_free
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <time.h>  // For struct timespec
 
 // https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/time.h.html
 typedef int clockid_t;
@@ -29,13 +32,17 @@ typedef int clockid_t;
 #define CLOCK_MONOTONIC 1
 #define CLOCK_PROCESS_CPUTIME_ID 2
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // https://pubs.opengroup.org/onlinepubs/9699919799/functions/clock_gettime.html
 int clock_gettime(clockid_t clock_id, struct timespec* tp);
+
+int posix_memalign(void** res, size_t alignment, size_t size);
 
 #ifdef __cplusplus
 }
 #endif  // __cplusplus
-
 #endif  // defined(STARBOARD)
-
-#endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_TIME_H_
+#endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_POSIX_FORCE_INCLUDE_H_

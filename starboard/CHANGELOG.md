@@ -15,6 +15,11 @@ The StringFormat management APIs `SbStringFormat`, `SbStringFormatF`,
 standard APIs `vsnprintf`, `vfnprintf`, `vswprintf`, `snprintf`
 from `<stdlib.h>` should be used instead.
 
+### Deprecated SbMemoryMap APIs and migrated to POSIX mmap
+The memory mapping APIs `SbMemoryMap`, `SbMemoryUnmap`, `SbMemoryProtect` and
+`SbMemoryFlush` are deprecated and the standard APIs `mmap`, `munmap`,
+`mprotect`, `msync` from `<sys/mman.h>` should be used instead.
+
 ### Deprecated SbMemory allocation APIs and migrated to POSIX memory APIs
 The memory management APIs `SbMemoryAllocate`, `SbMemoryReallocate`,
 `SbMemoryCalloc`, `SbMemoryAllocateAligned`, `SbMemoryDeallocate`,
