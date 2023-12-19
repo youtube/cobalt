@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION < 16
+#if SB_API_VERSION >= 16
 
+#include <sys/mman.h>
 #include <algorithm>
 
 #include "starboard/common/memory.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -26,76 +26,36 @@ namespace nplb {
 namespace {
 
 const size_t kSize = kSbMemoryPageSize * 8;
-const void* kFailed = SB_MEMORY_MAP_FAILED;
+const void* kFailed = MAP_FAILED;
 
-TEST(SbMemoryMapTest, AllocatesNormally) {
-  void* memory = SbMemoryMap(kSize, kSbMemoryMapProtectRead, "test");
+TEST(PosixMemoryMapTest, AllocatesNormally) {
+  void* memory = mmap(nullptr, kSize, PROT_READ, MAP_PRIVATE | MAP_ANON, -1, 0);
   ASSERT_NE(kFailed, memory);
-  EXPECT_TRUE(SbMemoryUnmap(memory, kSize));
+  EXPECT_EQ(munmap(memory, kSize), 0);
 }
 
-TEST(SbMemoryMapTest, AllocatesZero) {
-  void* memory = SbMemoryMap(0, kSbMemoryMapProtectRead, "test");
+TEST(PosixMemoryMapTest, AllocatesZero) {
+  void* memory = mmap(nullptr, 0, PROT_READ, MAP_PRIVATE | MAP_ANON, -1, 0);
   ASSERT_EQ(kFailed, memory);
-  EXPECT_FALSE(SbMemoryUnmap(memory, 0));
+  EXPECT_NE(munmap(memory, 0), 0);
 }
 
-TEST(SbMemoryMapTest, AllocatesOne) {
-  void* memory = SbMemoryMap(1, kSbMemoryMapProtectRead, "test");
+TEST(PosixMemoryMapTest, AllocatesOne) {
+  void* memory = mmap(nullptr, 1, PROT_READ, MAP_PRIVATE | MAP_ANON, -1, 0);
   ASSERT_NE(kFailed, memory);
-  EXPECT_TRUE(SbMemoryUnmap(memory, 1));
+  EXPECT_EQ(munmap(memory, 1), 0);
 }
 
-TEST(SbMemoryMapTest, AllocatesOnePage) {
+TEST(PosixMemoryMapTest, AllocatesOnePage) {
+  void* memory = mmap(nullptr, kSbMemoryPageSize, PROT_READ,
+                      MAP_PRIVATE | MAP_ANON, -1, 0);
+  ASSERT_NE(kFailed, memory);
+  EXPECT_EQ(munmap(memory, kSbMemoryPageSize), 0);
+}
+
+TEST(PosixMemoryMapTest, CanReadWriteToResult) {
   void* memory =
-      SbMemoryMap(kSbMemoryPageSize, kSbMemoryMapProtectRead, "test");
-  ASSERT_NE(kFailed, memory);
-  EXPECT_TRUE(SbMemoryUnmap(memory, kSbMemoryPageSize));
-}
-
-// Disabled because it is too slow -- currently ~5 seconds on a Linux desktop
-// with lots of memory.
-TEST(SbMemoryMapTest, DISABLED_DoesNotLeak) {
-  const int64_t kIterations = 16;
-  const double kFactor = 1.25;
-  const size_t kSparseCommittedPages = 256;
-
-  const int64_t kBytesMappedPerIteration =
-      static_cast<int64_t>(SbSystemGetTotalCPUMemory() * kFactor) / kIterations;
-  const int64_t kMaxBytesMapped = kBytesMappedPerIteration * kIterations;
-
-  for (int64_t total_bytes_mapped = 0; total_bytes_mapped < kMaxBytesMapped;
-       total_bytes_mapped += kBytesMappedPerIteration) {
-    void* memory =
-        SbMemoryMap(kBytesMappedPerIteration, kSbMemoryMapProtectWrite, "test");
-    ASSERT_NE(kFailed, memory);
-
-    // If this is the last iteration of the loop, then force a page commit for
-    // every single page.  For any other iteration, force a page commit for
-    // |kSparseCommittedPages|.
-    bool last_iteration =
-        !(total_bytes_mapped + kBytesMappedPerIteration < kMaxBytesMapped);
-    uint8_t* first_page = static_cast<uint8_t*>(memory);
-    const size_t page_increment_factor =
-        (last_iteration)
-            ? size_t(1u)
-            : std::max(static_cast<size_t>(
-                           kBytesMappedPerIteration /
-                           (kSparseCommittedPages * kSbMemoryPageSize)),
-                       size_t(1u));
-
-    for (uint8_t* page = first_page;
-         page < first_page + kBytesMappedPerIteration;
-         page += kSbMemoryPageSize * page_increment_factor) {
-      *page = 0x55;
-    }
-
-    EXPECT_TRUE(SbMemoryUnmap(memory, kBytesMappedPerIteration));
-  }
-}
-
-TEST(SbMemoryMapTest, CanReadWriteToResult) {
-  void* memory = SbMemoryMap(kSize, kSbMemoryMapProtectReadWrite, "test");
+      mmap(nullptr, kSize, PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
   ASSERT_NE(kFailed, memory);
   char* data = static_cast<char*>(memory);
   for (int i = 0; i < kSize; ++i) {
@@ -106,7 +66,7 @@ TEST(SbMemoryMapTest, CanReadWriteToResult) {
     EXPECT_EQ(data[i], static_cast<char>(i));
   }
 
-  EXPECT_TRUE(SbMemoryUnmap(memory, kSize));
+  EXPECT_EQ(munmap(memory, kSize), 0);
 }
 
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
@@ -195,7 +155,6 @@ CopySumFunctionIntoMemory(void* memory) {
   }
 
   memcpy(memory, sum_function_start, bytes_to_copy);
-  SbMemoryFlush(memory, bytes_to_copy);
 
   SumFunction mapped_function = reinterpret_cast<SumFunction>(
       reinterpret_cast<uint8_t*>(memory) + sum_function_offset);
@@ -203,51 +162,34 @@ CopySumFunctionIntoMemory(void* memory) {
   return std::make_tuple(::testing::AssertionSuccess(), mapped_function,
                          original_function);
 }
-
-// Cobalt can not map executable memory. If executable memory is needed, map
-// non-executable memory first and use SbMemoryProtect to change memory access
-// to executable.
-TEST(SbMemoryMapTest, CanNotDirectlyMapMemoryWithExecFlag) {
-  SbMemoryMapFlags exec_flags[] = {
-      SbMemoryMapFlags(kSbMemoryMapProtectExec),
-      SbMemoryMapFlags(kSbMemoryMapProtectRead | kSbMemoryMapProtectExec),
-      SbMemoryMapFlags(kSbMemoryMapProtectWrite | kSbMemoryMapProtectExec),
-      SbMemoryMapFlags(kSbMemoryMapProtectRead | kSbMemoryMapProtectWrite |
-                       kSbMemoryMapProtectExec),
-  };
-  for (auto exec_flag : exec_flags) {
-    void* memory = SbMemoryMap(kSize, exec_flag, "test");
-    ASSERT_EQ(kFailed, memory);
-    EXPECT_FALSE(SbMemoryUnmap(memory, 0));
-  }
-}
 #endif  // SB_CAN(MAP_EXECUTABLE_MEMORY)
 
-TEST(SbMemoryMapTest, CanChangeMemoryProtection) {
-  SbMemoryMapFlags all_from_flags[] = {
-      SbMemoryMapFlags(kSbMemoryMapProtectReserved),
-      SbMemoryMapFlags(kSbMemoryMapProtectRead),
-      SbMemoryMapFlags(kSbMemoryMapProtectWrite),
-      SbMemoryMapFlags(kSbMemoryMapProtectRead | kSbMemoryMapProtectWrite),
+TEST(PosixMemoryMapTest, CanChangeMemoryProtection) {
+  int all_from_flags[] = {
+      PROT_NONE,
+      PROT_READ,
+      PROT_WRITE,
+      PROT_READ | PROT_WRITE,
   };
-  SbMemoryMapFlags all_to_flags[] = {
-    SbMemoryMapFlags(kSbMemoryMapProtectReserved),
-    SbMemoryMapFlags(kSbMemoryMapProtectRead),
-    SbMemoryMapFlags(kSbMemoryMapProtectWrite),
-    SbMemoryMapFlags(kSbMemoryMapProtectRead | kSbMemoryMapProtectWrite),
+  int all_to_flags[] = {
+    PROT_NONE,
+    PROT_READ,
+    PROT_WRITE,
+    PROT_READ | PROT_WRITE,
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
-    SbMemoryMapFlags(kSbMemoryMapProtectExec),
-    SbMemoryMapFlags(kSbMemoryMapProtectRead | kSbMemoryMapProtectExec),
+    PROT_EXEC,
+    PROT_READ | PROT_EXEC,
 #endif
   };
 
-  for (SbMemoryMapFlags from_flags : all_from_flags) {
-    for (SbMemoryMapFlags to_flags : all_to_flags) {
-      void* memory = SbMemoryMap(kSize, from_flags, "test");
+  for (int from_flags : all_from_flags) {
+    for (int to_flags : all_to_flags) {
+      void* memory =
+          mmap(nullptr, kSize, from_flags, MAP_PRIVATE | MAP_ANON, -1, 0);
       // If the platform does not support a particular protection flags
       // configuration in the first place, then just give them a pass, knowing
       // that that feature will be tested elsewhere.
-      if (memory == SB_MEMORY_MAP_FAILED) {
+      if (memory == MAP_FAILED) {
         continue;
       }
 
@@ -257,7 +199,7 @@ TEST(SbMemoryMapTest, CanChangeMemoryProtection) {
       // we have to actually put a valid function into the mapped memory.
       SumFunction mapped_function = nullptr;
       SumFunction original_function = nullptr;
-      if (from_flags & kSbMemoryMapProtectWrite) {
+      if (from_flags & PROT_WRITE) {
         auto copy_sum_function_result = CopySumFunctionIntoMemory(memory);
         ASSERT_TRUE(std::get<0>(copy_sum_function_result));
         mapped_function = std::get<1>(copy_sum_function_result);
@@ -265,30 +207,30 @@ TEST(SbMemoryMapTest, CanChangeMemoryProtection) {
       }
 #endif
 
-      if (!SbMemoryProtect(memory, kSize, to_flags)) {
-        EXPECT_TRUE(SbMemoryUnmap(memory, kSize));
+      if (mprotect(memory, kSize, to_flags) != 0) {
+        EXPECT_EQ(munmap(memory, kSize), 0);
         continue;
       }
 
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
-      if ((to_flags & kSbMemoryMapProtectExec) && mapped_function != nullptr) {
+      if ((to_flags & PROT_EXEC) && mapped_function != nullptr) {
         EXPECT_EQ(original_function(0xc0ba178, 0xbadf00d),
                   mapped_function(0xc0ba178, 0xbadf00d));
       }
 #endif
 
-      if (to_flags & kSbMemoryMapProtectRead) {
+      if (to_flags & PROT_READ) {
         for (int i = 0; i < kSize; i++) {
           volatile uint8_t force_read = static_cast<uint8_t*>(memory)[i];
         }
       }
-      if (to_flags & kSbMemoryMapProtectWrite) {
+      if (to_flags & PROT_WRITE) {
         for (int i = 0; i < kSize; i++) {
           static_cast<uint8_t*>(memory)[i] = 0xff;
         }
       }
 
-      EXPECT_TRUE(SbMemoryUnmap(memory, kSize));
+      EXPECT_EQ(munmap(memory, kSize), 0);
     }
   }
 }
@@ -296,5 +238,4 @@ TEST(SbMemoryMapTest, CanChangeMemoryProtection) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
-
-#endif  // SB_API_VERSION < 16
+#endif  // SB_API_VERSION >= 16
