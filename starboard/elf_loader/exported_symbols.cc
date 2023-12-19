@@ -305,6 +305,7 @@ ExportedSymbols::ExportedSymbols() {
 #endif
   REGISTER_SYMBOL(SbSystemGetErrorString);
   REGISTER_SYMBOL(SbSystemGetExtension);
+  REGISTER_SYMBOL(SbSystemGetRealExtension);
   REGISTER_SYMBOL(SbSystemGetLastError);
   REGISTER_SYMBOL(SbSystemGetLocaleId);
   REGISTER_SYMBOL(SbSystemGetNumberOfProcessors);

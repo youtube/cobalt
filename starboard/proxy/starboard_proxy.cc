@@ -33,7 +33,7 @@ SbProxy* GetSbProxy() {
 SbProxy::SbProxy() {
   runtime_linking_extension_ =
       static_cast<const CobaltExtensionRuntimeLinkingApi*>(
-          SbSystemGetExtension(kCobaltExtensionRuntimeLinkingName));
+          SbSystemGetRealExtension(kCobaltExtensionRuntimeLinkingName));
   if (!runtime_linking_extension_) {
     SB_LOG(ERROR) << "No CobaltExtensionRuntimeLinkingApi impl found!";
     return;
@@ -64,6 +64,15 @@ void SbProxy::SetLogFormat(log_format_fn_type log_format_fn) {
 
 log_format_fn_type SbProxy::GetLogFormat() {
   return log_format_fn_;
+}
+
+void SbProxy::SetSystemGetExtension(
+    system_get_extension_fn_type system_get_extension_fn) {
+  system_get_extension_fn_ = system_get_extension_fn;
+}
+
+system_get_extension_fn_type SbProxy::GetSystemGetExtension() {
+  return system_get_extension_fn_;
 }
 
 }  // namespace proxy

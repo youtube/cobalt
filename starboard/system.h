@@ -561,6 +561,11 @@ SB_EXPORT bool SbSystemSupportsResume();
 // of the struct, but never removed (only deprecated).
 SB_EXPORT const void* SbSystemGetExtension(const char* name);
 
+// Similar to SbSystemGetExtension, but never to be stubbed or mocked. In other
+// words, a caller can always expect to get back a real implementation of the
+// extension, or NULL if it does not exist.
+SB_EXPORT const void* SbSystemGetRealExtension(const char* name);
+
 // Computes a HMAC-SHA256 digest of |message| into |digest| using the
 // application's certification secret. The |message| and the |digest|
 // pointers must not be NULL.

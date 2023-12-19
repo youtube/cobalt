@@ -26,6 +26,7 @@ namespace proxy {
 
 typedef bool (*file_delete_fn_type)(const char*);
 typedef void (*log_format_fn_type)(const char*, va_list);
+typedef const void* (*system_get_extension_fn_type)(const char*);
 
 class SbProxy {
  public:
@@ -45,8 +46,12 @@ class SbProxy {
   // currently registered.
   file_delete_fn_type GetFileDelete();
 
-  void SetLogFormat(log_format_fn_type);
+  void SetLogFormat(log_format_fn_type log_format_fn_);
   log_format_fn_type GetLogFormat();
+
+  void SetSystemGetExtension(
+      system_get_extension_fn_type system_get_extension_fn);
+  system_get_extension_fn_type GetSystemGetExtension();
 
  private:
   const CobaltExtensionRuntimeLinkingApi* runtime_linking_extension_;
@@ -54,6 +59,7 @@ class SbProxy {
 
   file_delete_fn_type file_delete_fn_ = NULL;
   log_format_fn_type log_format_fn_ = NULL;
+  system_get_extension_fn_type system_get_extension_fn_ = NULL;
 };
 
 SbProxy* GetSbProxy();

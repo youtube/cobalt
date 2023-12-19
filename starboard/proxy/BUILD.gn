@@ -20,6 +20,7 @@ target("shared_library", "proxy") {
     "//starboard/proxy/log_format.cc",
     "//starboard/proxy/starboard_proxy.cc",
     "//starboard/proxy/starboard_proxy.h",
+    "//starboard/proxy/system_get_extension.cc",
   ]
 
   deps = [ "//starboard:starboard_headers_only" ]

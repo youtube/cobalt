@@ -12,11 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_EXAMPLES_UTILS_H_
-#define COBALT_EXAMPLES_UTILS_H_
+#include "starboard/system.h"
 
-bool StateChangingFunction(const char* path);
+#include "starboard/common/string.h"
+#include "starboard/extension/runtime_linking.h"
+#include "starboard/shared/posix/runtime_linking.h"
 
-bool StateChangingFunctionWithSbExtensionDep(const char* time_zone_name);
+const void* SbSystemGetRealExtension(const char* name) {
+  if (strcmp(name, kCobaltExtensionRuntimeLinkingName) == 0) {
+    return starboard::shared::posix::GetRuntimeLinkingApi();
+  }
 
-#endif  // COBALT_EXAMPLES_UTILS_H_
+  return NULL;
+}
