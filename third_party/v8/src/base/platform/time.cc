@@ -30,6 +30,7 @@
 #include "src/base/platform/platform.h"
 
 #if V8_OS_STARBOARD
+#include "starboard/common/time.h"
 #include "starboard/time.h"
 #endif
 
@@ -725,7 +726,7 @@ TimeTicks TimeTicks::Now() {
 #elif V8_OS_POSIX
   ticks = ClockNow(CLOCK_MONOTONIC);
 #elif V8_OS_STARBOARD
-  ticks = SbTimeGetMonotonicNow();
+  ticks = starboard::CurrentMonotonicTime();
 #else
 #error platform does not implement TimeTicks::HighResolutionNow.
 #endif  // V8_OS_MACOSX

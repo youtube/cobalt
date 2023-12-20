@@ -40,7 +40,6 @@
 // Include Starboard poems after all system headers.
 #include "starboard/client_porting/poem/assert_poem.h"
 #include "starboard/client_porting/poem/stdio_poem.h"
-#include "starboard/time.h"
 #else  // STARBOARD
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -143,14 +142,9 @@ static void
 detect_monotonic(void)
 {
 #if defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
-#if defined(STARBOARD)
-	if (SbTimeGetMonotonicNow() != 0)
-		use_monotonic = 1;
-#else
 	struct timespec	ts;
 	if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
 		use_monotonic = 1;
-#endif
 #endif
 }
 
@@ -164,21 +158,12 @@ gettime(struct event_base *base, struct timeval *tp)
 
 #if defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
 	if (use_monotonic) {
-#if defined(STARBOARD)
-		SbTimeMonotonic t = SbTimeGetMonotonicNow(); 
-		if (t == 0)
-			return (-1);
-
-		tp->tv_sec = t / kSbTimeSecond;
-		tp->tv_usec = t % kSbTimeSecond;
-#else
 		struct timespec ts;
 		if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1)
 			return (-1);
 
 		tp->tv_sec = ts.tv_sec;
 		tp->tv_usec = ts.tv_nsec / 1000;
-#endif
 
 		return (0);
 	}

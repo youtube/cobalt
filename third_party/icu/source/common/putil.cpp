@@ -104,7 +104,6 @@
 /* include system headers */
 #if (U_PLATFORM == U_STARBOARD)
 #   include "starboard/system.h"
-#   include "starboard/time.h"
 #   include "starboard/time_zone.h"
 #   define getenv(x) NULL
 #elif defined(__LB_XB1__)
