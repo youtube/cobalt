@@ -25,18 +25,13 @@
 
 #include <string.h>
 #include <limits.h>
-
-#ifdef HAVE_CTYPE_H
 #include <ctype.h>
-#endif
-#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
-#endif
+
 #ifdef LIBXML_ICONV_ENABLED
-#ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
-#endif
+
 #include <libxml/encoding.h>
 #include <libxml/xmlmemory.h>
 #ifdef LIBXML_HTML_ENABLED
@@ -47,6 +42,20 @@
 
 #include "buf.h"
 #include "enc.h"
+
+#ifdef LIBXML_ICU_ENABLED
+#include <unicode/ucnv.h>
+/* Size of pivot buffer, same as icu/source/common/ucnv.cpp CHUNK_SIZE */
+#define ICU_PIVOT_BUF_SIZE 1024
+typedef struct _uconv_t uconv_t;
+struct _uconv_t {
+  UConverter *uconv; /* for conversion between an encoding and UTF-16 */
+  UConverter *utf8; /* for conversion between UTF-8 and UTF-16 */
+  UChar      pivot_buf[ICU_PIVOT_BUF_SIZE];
+  UChar      *pivot_source;
+  UChar      *pivot_target;
+};
+#endif
 
 static xmlCharEncodingHandlerPtr xmlUTF16LEHandler = NULL;
 static xmlCharEncodingHandlerPtr xmlUTF16BEHandler = NULL;
@@ -527,7 +536,7 @@ UTF16LEToUTF8(unsigned char* out, int *outlen,
 	    in++;
 	}
         if ((c & 0xFC00) == 0xD800) {    /* surrogates */
-	    if (in >= inend) {           /* (in > inend) shouldn't happens */
+	    if (in >= inend) {           /* handle split mutli-byte characters */
 		break;
 	    }
 	    if (xmlLittleEndian) {
@@ -744,38 +753,39 @@ UTF16BEToUTF8(unsigned char* out, int *outlen,
 {
     unsigned char* outstart = out;
     const unsigned char* processed = inb;
-    unsigned char* outend = out + *outlen;
+    unsigned char* outend;
     unsigned short* in = (unsigned short*) inb;
     unsigned short* inend;
     unsigned int c, d, inlen;
     unsigned char *tmp;
     int bits;
 
+    if (*outlen == 0) {
+        *inlenb = 0;
+        return(0);
+    }
+    outend = out + *outlen;
     if ((*inlenb % 2) == 1)
         (*inlenb)--;
     inlen = *inlenb / 2;
     inend= in + inlen;
-    while (in < inend) {
+    while ((in < inend) && (out - outstart + 5 < *outlen)) {
 	if (xmlLittleEndian) {
 	    tmp = (unsigned char *) in;
 	    c = *tmp++;
-	    c = c << 8;
-	    c = c | (unsigned int) *tmp;
+	    c = (c << 8) | (unsigned int) *tmp;
 	    in++;
 	} else {
 	    c= *in++;
 	}
         if ((c & 0xFC00) == 0xD800) {    /* surrogates */
-	    if (in >= inend) {           /* (in > inend) shouldn't happens */
-		*outlen = out - outstart;
-		*inlenb = processed - inb;
-	        return(-2);
+	    if (in >= inend) {           /* handle split mutli-byte characters */
+                break;
 	    }
 	    if (xmlLittleEndian) {
 		tmp = (unsigned char *) in;
 		d = *tmp++;
-		d = d << 8;
-		d = d | (unsigned int) *tmp;
+		d = (d << 8) | (unsigned int) *tmp;
 		in++;
 	    } else {
 		d= *in++;
@@ -1822,7 +1832,7 @@ xmlIconvWrapper(iconv_t cd, unsigned char *out, int *outlen,
     size_t icv_inlen, icv_outlen;
     const char *icv_in = (const char *) in;
     char *icv_out = (char *) out;
-    int ret;
+    size_t ret;
 
     if ((out == NULL) || (outlen == NULL) || (inlen == NULL) || (in == NULL)) {
         if (outlen != NULL) *outlen = 0;
@@ -1833,7 +1843,7 @@ xmlIconvWrapper(iconv_t cd, unsigned char *out, int *outlen,
     ret = iconv(cd, (ICONV_CONST char **) &icv_in, &icv_inlen, &icv_out, &icv_outlen);
     *inlen -= icv_inlen;
     *outlen -= icv_outlen;
-    if ((icv_inlen != 0) || (ret == -1)) {
+    if ((icv_inlen != 0) || (ret == (size_t) -1)) {
 #ifdef EILSEQ
         if (errno == EILSEQ) {
             return -2;
@@ -2495,7 +2505,7 @@ retry:
      */
     toconv = xmlBufUse(in);
     if (toconv == 0)
-        return (0);
+        return (writtentot);
     if (toconv > 64 * 1024)
         toconv = 64 * 1024;
     if (toconv * 4 >= written) {
@@ -2778,6 +2788,9 @@ xmlCharEncCloseFunc(xmlCharEncodingHandler *handler) {
     int ret = 0;
     int tofree = 0;
     int i, handler_in_list = 0;
+
+    /* Avoid unused variable warning if features are disabled. */
+    (void) handler_in_list;
 
     if (handler == NULL) return(-1);
     if (handler->name == NULL) return(-1);
@@ -3971,5 +3984,3 @@ xmlRegisterCharEncodingHandlersISO8859x (void) {
 #endif
 #endif
 
-#define bottom_encoding
-#include "elfgcchack.h"
