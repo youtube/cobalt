@@ -77,13 +77,8 @@ std::unique_ptr<GrFragmentProcessor> make_inverse_rrect_fp(const SkMatrix& viewM
     if (viewMatrix.isIdentity() || rrect.transform(viewMatrix, devRRect.writable())) {
         auto edgeType = (aa == GrAA::kYes) ? GrClipEdgeType::kInverseFillAA
                                            : GrClipEdgeType::kInverseFillBW;
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [success, fp] = GrRRectEffect::Make(/*inputFP=*/nullptr, edgeType, *devRRect,
                                                  shaderCaps);
-#else
-        STRUCTURED_BINDING_2(success, fp, GrRRectEffect::Make(/*inputFP=*/nullptr, edgeType, *devRRect,
-                                                 shaderCaps));
-#endif
         return (success) ? std::move(fp) : nullptr;
     }
     return nullptr;
@@ -676,11 +671,7 @@ sk_sp<SkSpecialImage> Device::makeSpecial(const SkImage* image) {
 
     SkPixmap pm;
     if (image->isTextureBacked()) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [view, ct] = as_IB(image)->asView(this->recordingContext(), GrMipmapped::kNo);
-#else
-        STRUCTURED_BINDING_2(view, ct, as_IB(image)->asView(this->recordingContext(), GrMipmapped::kNo));
-#endif
         SkASSERT(view);
 
         return SkSpecialImage::MakeDeferredFromGpu(fContext.get(),
@@ -807,14 +798,8 @@ void Device::drawImageLattice(const SkImage* image,
                               const SkPaint& paint) {
     ASSERT_SINGLE_OWNER
     auto iter = std::make_unique<SkLatticeIter>(lattice, dst);
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     if (auto [view, ct] = as_IB(image)->asView(this->recordingContext(), GrMipmapped::kNo); view) {
         GrColorInfo colorInfo(ct, image->alphaType(), image->refColorSpace());
-#else
-    STRUCTURED_BINDING_2(view, ct, as_IB(image)->asView(this->recordingContext(), GrMipmapped::kNo));
-    if (view) {
-        GrColorInfo colorInfo(ct, image->alphaType(), image->refColorSpace());
-#endif
         this->drawViewLattice(std::move(view),
                               std::move(colorInfo),
                               std::move(iter),

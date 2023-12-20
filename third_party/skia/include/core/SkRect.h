@@ -1375,16 +1375,4 @@ inline bool SkIRect::contains(const SkRect& r) const {
             (SkScalar)fRight >= r.fRight && (SkScalar)fBottom >= r.fBottom;
 }
 
-#ifdef SKIA_STRUCTURED_BINDINGS_BACKPORT
-template <>
-struct CoercerToTuple<SkRect> {
-  static auto Coerce(SkRect&& t) {
-    return std::make_tuple(t.fLeft, t.fTop, t.fRight, t.fBottom);
-  }
-  static auto Coerce(const SkRect& t) {
-    return std::make_tuple(t.fLeft, t.fTop, t.fRight, t.fBottom);
-  }
-};
-#endif
-
 #endif

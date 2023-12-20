@@ -79,13 +79,7 @@ bool Transform::EliminateDeadLocalVariables(Program& program, ProgramUsage* usag
     DeadLocalVariableEliminator visitor{*program.fContext, usage};
 
     if (program.fConfig->fSettings.fRemoveDeadVariables) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         for (auto& [var, counts] : usage->fVariableCounts) {
-#else
-        for (auto& item : usage->fVariableCounts) {
-            auto& var = item.first;
-            auto& counts = item.second;
-#endif
             if (DeadLocalVariableEliminator::CanEliminate(var, counts)) {
                 // This program contains at least one dead local variable.
                 // Scan the program for any dead local variables and eliminate them all.

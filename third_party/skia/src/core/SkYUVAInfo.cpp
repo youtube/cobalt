@@ -261,16 +261,7 @@ SkYUVAInfo::YUVALocations SkYUVAInfo::GetYUVALocations(PlaneConfig config,
     SkASSERT(planesAndIndices);
     YUVALocations yuvaLocations;
     for (int i = 0; i < SkYUVAInfo::kYUVAChannelCount; ++i) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [plane, chanIdx] = planesAndIndices[i];
-#else
-        STRUCTURED_BINDING_2(plane, chanIdx, planesAndIndices[i]);
-#endif
-#else
-        int plane = planesAndIndices[i].plane;
-        int chanIdx = planesAndIndices[i].chanIdx;
-#endif
         SkColorChannel channel;
         if (plane >= 0) {
             if (!channel_index_to_channel(planeChannelFlags[plane], chanIdx, &channel)) {

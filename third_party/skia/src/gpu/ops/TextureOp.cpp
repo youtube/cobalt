@@ -567,11 +567,7 @@ private:
                          (netFilter == GrSamplerState::Filter::kNearest && filter > netFilter));
                 SkASSERT(mm == netMM ||
                          (netMM == GrSamplerState::MipmapMode::kNone && mm > netMM));
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
                 auto [mustFilter, mustMM] = filter_and_mm_have_effect(quad.fLocal, quad.fDevice);
-#else
-                STRUCTURED_BINDING_2(mustFilter, mustMM, filter_and_mm_have_effect(quad.fLocal, quad.fDevice));
-#endif
                 if (filter != GrSamplerState::Filter::kNearest) {
                     if (mustFilter) {
                         netFilter = filter; // upgrade batch to higher filter level
@@ -1149,11 +1145,7 @@ GrOp::Owner TextureOp::Make(GrRecordingContext* context,
     }
 
     if (filter != GrSamplerState::Filter::kNearest || mm != GrSamplerState::MipmapMode::kNone) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [mustFilter, mustMM] = filter_and_mm_have_effect(quad->fLocal, quad->fDevice);
-#else
-        STRUCTURED_BINDING_2(mustFilter, mustMM, filter_and_mm_have_effect(quad->fLocal, quad->fDevice));
-#endif
         if (!mustFilter) {
             filter = GrSamplerState::Filter::kNearest;
         }

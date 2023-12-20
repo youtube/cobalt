@@ -572,19 +572,11 @@ get_angle_gl_vendor_and_renderer(
 
     GrGLVendor angleVendor = get_vendor(angleVendorString);
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [angleDriver, angleDriverVersion] = get_driver_and_version(kGLES_GrGLStandard,
                                                                     angleVendor,
                                                                     angleVendorString,
                                                                     angleRendererString,
                                                                     angleVersionString);
-#else
-    STRUCTURED_BINDING_2(angleDriver, angleDriverVersion, get_driver_and_version(kGLES_GrGLStandard,
-                                                                    angleVendor,
-                                                                    angleVendorString,
-                                                                    angleRendererString,
-                                                                    angleVersionString));
-#endif
 
     auto angleRenderer = get_renderer(angleRendererString, extensions);
 

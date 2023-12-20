@@ -160,11 +160,7 @@ sk_sp<SkSpecialImage> SkSpecialImage::MakeFromImage(GrRecordingContext* rContext
 
 #if SK_SUPPORT_GPU
     if (rContext) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [view, ct] = as_IB(image)->asView(rContext, GrMipmapped::kNo);
-#else
-        STRUCTURED_BINDING_2(view, ct, as_IB(image)->asView(rContext, GrMipmapped::kNo));
-#endif
         return MakeDeferredFromGpu(rContext,
                                    subset,
                                    image->uniqueID(),

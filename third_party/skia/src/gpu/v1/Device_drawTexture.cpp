@@ -431,11 +431,7 @@ void draw_image(GrRecordingContext* rContext,
         can_use_draw_texture(paint, sampling.useCubic, sampling.mipmap)) {
         // We've done enough checks above to allow us to pass ClampNearest() and not check for
         // scaling adjustments.
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [view, ct] = image.asView(rContext, GrMipmapped::kNo);
-#else
-        STRUCTURED_BINDING_2(view, ct, image.asView(rContext, GrMipmapped::kNo));
-#endif
         if (!view) {
             return;
         }

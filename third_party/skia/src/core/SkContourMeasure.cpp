@@ -346,11 +346,7 @@ SkContourMeasure* SkContourMeasureIter::Impl::buildSegments() {
 
     auto end = SkPathPriv::Iterate(fPath).end();
     for (; fIter != end; ++fIter) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [verb, pts, w] = *fIter;
-#else
-        STRUCTURED_BINDING_3(verb, pts, w, *fIter);
-#endif
         if (haveSeenMoveTo && verb == SkPathVerb::kMove) {
             break;
         }

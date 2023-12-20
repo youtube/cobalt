@@ -55,13 +55,7 @@ bool Analysis::CheckProgramUnrolledSize(const Program& program) {
                 // Check the function-size cache map first. We don't need to visit this function if
                 // we already processed it before.
                 const FunctionDeclaration* decl = &pe.as<FunctionDefinition>().declaration();
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
                 auto [iter, wasInserted] = fFunctionCostMap.insert({decl, kUnknownCost});
-#else
-                auto pair = fFunctionCostMap.insert({decl, kUnknownCost});
-                auto iter = pair.first;
-                bool wasInserted = pair.second;
-#endif
                 if (!wasInserted) {
                     // We already have this function in our map. We don't need to check it again.
                     if (iter->second == kUnknownCost) {

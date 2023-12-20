@@ -21,11 +21,7 @@ static void border_colors(const GrYUVATextureProxies& yuvaProxies, float planeBo
     float m[20];
     SkColorMatrix_RGB2YUV(yuvaProxies.yuvaInfo().yuvColorSpace(), m);
     for (int i = 0; i < SkYUVAInfo::kYUVAChannelCount; ++i) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [plane, channel] = yuvaProxies.yuvaLocations()[i];
-#else
-        STRUCTURED_BINDING_2(plane, channel, yuvaProxies.yuvaLocations()[i]);
-#endif
         if (plane == -1) {
             return;
         }
@@ -65,11 +61,7 @@ std::unique_ptr<GrFragmentProcessor> GrYUVtoRGBEffect::Make(const GrYUVATextureP
         SkRect planeSubset;
         SkRect planeDomain;
         bool makeLinearWithSnap = false;
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [ssx, ssy] = yuvaProxies.yuvaInfo().planeSubsamplingFactors(i);
-#else
-        STRUCTURED_BINDING_2(ssx, ssy, yuvaProxies.yuvaInfo().planeSubsamplingFactors(i));
-#endif
         SkASSERT(ssx > 0 && ssx <= 4);
         SkASSERT(ssy > 0 && ssy <= 2);
         float scaleX = 1.f;
@@ -273,11 +265,7 @@ std::unique_ptr<GrFragmentProcessor::ProgramImpl> GrYUVtoRGBEffect::onMakeProgra
                 std::string colorChannel;
                 std::string planeChannel;
                 for (int locIdx = 0; locIdx < (hasAlpha ? 4 : 3); ++locIdx) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
                     auto [yuvPlane, yuvChannel] = yuvEffect.fLocations[locIdx];
-#else
-                    STRUCTURED_BINDING_2(yuvPlane, yuvChannel, yuvEffect.fLocations[locIdx]);
-#endif
                     if (yuvPlane == planeIdx) {
                         colorChannel.push_back("rgba"[locIdx]);
                         planeChannel.push_back("rgba"[static_cast<int>(yuvChannel)]);
@@ -351,12 +339,7 @@ std::unique_ptr<GrFragmentProcessor::ProgramImpl> GrYUVtoRGBEffect::onMakeProgra
 void GrYUVtoRGBEffect::onAddToKey(const GrShaderCaps& caps, GrProcessorKeyBuilder* b) const {
     uint32_t packed = 0;
     int i = 0;
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto [plane, channel] : fLocations) {
-#else
-    for (auto item : fLocations) {
-        STRUCTURED_BINDING_2(plane, channel, std::move(item));
-#endif
         if (plane < 0) {
             continue;
         }

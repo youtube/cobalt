@@ -652,11 +652,7 @@ std::unique_ptr<skgpu::v1::SurfaceDrawContext> GaussianBlur(GrRecordingContext* 
                                      SkMatrix::I(),
                                      nullptr);
         };
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [dw, dh] = rescaledSize;
-#else
-        STRUCTURED_BINDING_2(dw, dh, rescaledSize);
-#endif
         // The are the src rows and columns from the source that we will scale into the dst padding.
         float sLCol = srcBounds.left();
         float sTRow = srcBounds.top();

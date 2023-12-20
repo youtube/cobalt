@@ -469,11 +469,7 @@ private:
     void onSync() override {
         const auto& n = this->node();
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         const auto [noise_planes, noise_weight] = this->noise();
-#else
-        const STRUCTURED_BINDING_2(noise_planes, noise_weight, this->noise());
-#endif
 
         n->setOctaves(SkTPin(fComplexity, 1.0f, 20.0f));
         n->setPersistence(SkTPin(fSubInfluence * 0.01f, 0.0f, 100.0f));

@@ -37,11 +37,7 @@ SkScalerCache::SkScalerCache(
 }
 
 std::tuple<SkGlyph*, size_t> SkScalerCache::glyph(SkPackedGlyphID packedGlyphID) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [digest, size] = this->digest(packedGlyphID);
-#else
-    STRUCTURED_BINDING_2(digest, size, this->digest(packedGlyphID));
-#endif
     return {fGlyphForIndex[digest.index()], size};
 }
 
@@ -96,18 +92,10 @@ std::tuple<SkSpan<const SkGlyph*>, size_t> SkScalerCache::internalPrepare(
     const SkGlyph** cursor = results;
     size_t delta = 0;
     for (auto glyphID : glyphIDs) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [glyph, size] = this->glyph(SkPackedGlyphID{glyphID});
-#else
-        STRUCTURED_BINDING_2(glyph, size, this->glyph(SkPackedGlyphID{glyphID}));
-#endif
         delta += size;
         if (pathDetail == kMetricsAndPath) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             auto [_, pathSize] = this->preparePath(glyph);
-#else
-            STRUCTURED_BINDING_2(_, pathSize, this->preparePath(glyph));
-#endif
             delta += pathSize;
         }
         *cursor++ = glyph;
@@ -146,22 +134,14 @@ std::tuple<SkGlyph*, size_t> SkScalerCache::mergeGlyphAndImage(
 std::tuple<SkSpan<const SkGlyph*>, size_t> SkScalerCache::metrics(
         SkSpan<const SkGlyphID> glyphIDs, const SkGlyph* results[]) {
     SkAutoMutexExclusive lock{fMu};
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [glyphs, delta] = this->internalPrepare(glyphIDs, kMetricsOnly, results);
-#else
-    STRUCTURED_BINDING_2(glyphs, delta, this->internalPrepare(glyphIDs, kMetricsOnly, results));
-#endif
     return {glyphs, delta};
 }
 
 std::tuple<SkSpan<const SkGlyph*>, size_t> SkScalerCache::preparePaths(
         SkSpan<const SkGlyphID> glyphIDs, const SkGlyph* results[]) {
     SkAutoMutexExclusive lock{fMu};
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [glyphs, delta] = this->internalPrepare(glyphIDs, kMetricsAndPath, results);
-#else
-    STRUCTURED_BINDING_2(glyphs, delta, this->internalPrepare(glyphIDs, kMetricsAndPath, results));
-#endif
     return {glyphs, delta};
 }
 
@@ -171,16 +151,8 @@ std::tuple<SkSpan<const SkGlyph*>, size_t> SkScalerCache::prepareImages(
     SkAutoMutexExclusive lock{fMu};
     size_t delta = 0;
     for (auto glyphID : glyphIDs) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto[glyph, glyphSize] = this->glyph(glyphID);
-#else
-        STRUCTURED_BINDING_2(glyph, glyphSize, this->glyph(glyphID));
-#endif
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto[_, imageSize] = this->prepareImage(glyph);
-#else
-        STRUCTURED_BINDING_2(_, imageSize, this->prepareImage(glyph));
-#endif
         delta += glyphSize + imageSize;
         *cursor++ = glyph;
     }
@@ -191,18 +163,9 @@ std::tuple<SkSpan<const SkGlyph*>, size_t> SkScalerCache::prepareImages(
 template <typename Fn>
 size_t SkScalerCache::commonFilterLoop(SkDrawableGlyphBuffer* drawables, Fn&& fn) {
     size_t total = 0;
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto [i, packedID, pos] : SkMakeEnumerate(drawables->input())) {
-#else
-    for (auto item : SkMakeEnumerate(drawables->input())) {
-        STRUCTURED_BINDING_3(i, packedID, pos, std::move(item));
-#endif
         if (SkScalarsAreFinite(pos.x(), pos.y())) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             auto [digest, size] = this->digest(packedID);
-#else
-            STRUCTURED_BINDING_2(digest, size, this->digest(packedID));
-#endif
             total += size;
             if (!digest.isEmpty()) {
                 fn(i, digest, pos);
@@ -219,11 +182,7 @@ size_t SkScalerCache::prepareForDrawingMasksCPU(SkDrawableGlyphBuffer* drawables
         [&](size_t i, SkGlyphDigest digest, SkPoint pos) SK_REQUIRES(fMu) {
             // If the glyph is too large, then no image is created.
             SkGlyph* glyph = fGlyphForIndex[digest.index()];
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             auto [image, imageSize] = this->prepareImage(glyph);
-#else
-            STRUCTURED_BINDING_2(image, imageSize, this->prepareImage(glyph));
-#endif
             if (image != nullptr) {
                 drawables->push_back(glyph, i);
                 imageDelta += imageSize;
@@ -272,11 +231,7 @@ size_t SkScalerCache::prepareForPathDrawing(
         [&](size_t i, SkGlyphDigest digest, SkPoint pos) SK_REQUIRES(fMu) {
             SkGlyph* glyph = fGlyphForIndex[digest.index()];
             if (!digest.isColor()) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
                 auto [path, pathSize] = this->preparePath(glyph);
-#else
-                STRUCTURED_BINDING_2(path, pathSize, this->preparePath(glyph));
-#endif
                 pathDelta += pathSize;
                 if (path != nullptr) {
                     // Save off the path to draw later.

@@ -1727,11 +1727,7 @@ static SkImageFilterLight* create_random_light(SkRandom* random) {
 }
 
 std::unique_ptr<GrFragmentProcessor> DiffuseLightingEffect::TestCreate(GrProcessorTestData* d) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [view, ct, at] = d->randomView();
-#else
-    STRUCTURED_BINDING_3(view, ct, at, d->randomView());
-#endif
     SkScalar surfaceScale = d->fRandom->nextSScalar1();
     SkScalar kd = d->fRandom->nextUScalar1();
     sk_sp<SkImageFilterLight> light(create_random_light(d->fRandom));
@@ -1923,11 +1919,7 @@ GR_DEFINE_FRAGMENT_PROCESSOR_TEST(SpecularLightingEffect);
 
 #if GR_TEST_UTILS
 std::unique_ptr<GrFragmentProcessor> SpecularLightingEffect::TestCreate(GrProcessorTestData* d) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [view, ct, at] = d->randomView();
-#else
-    STRUCTURED_BINDING_3(view, ct, at, d->randomView());
-#endif
     SkScalar surfaceScale = d->fRandom->nextSScalar1();
     SkScalar ks = d->fRandom->nextUScalar1();
     SkScalar shininess = d->fRandom->nextUScalar1();

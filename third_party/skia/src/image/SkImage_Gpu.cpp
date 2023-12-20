@@ -304,11 +304,7 @@ sk_sp<SkImage> SkImage_Gpu::onMakeColorTypeAndColorSpace(SkColorType targetCT,
     info = info.makeColorType(ct);
 
     // Draw this image's texture into the SFC.
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [view, _] = this->asView(dContext, GrMipmapped(this->hasMipmaps()));
-#else
-    STRUCTURED_BINDING_2(view, _, this->asView(dContext, GrMipmapped(this->hasMipmaps())));
-#endif
     auto texFP = GrTextureEffect::Make(std::move(view), this->alphaType());
     auto colorFP = GrColorSpaceXformEffect::Make(std::move(texFP),
                                                  this->imageInfo().colorInfo(),
@@ -556,11 +552,7 @@ sk_sp<SkImage> SkImage::makeTextureImage(GrDirectContext* dContext,
                                          ? GrImageTexGenPolicy::kNew_Uncached_Budgeted
                                          : GrImageTexGenPolicy::kNew_Uncached_Unbudgeted;
     // TODO: Don't flatten YUVA images here. Add mips to the planes instead.
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [view, ct] = as_IB(this)->asView(dContext, mipmapped, policy);
-#else
-    STRUCTURED_BINDING_2(view, ct, as_IB(this)->asView(dContext, mipmapped, policy));
-#endif
     if (!view) {
         return nullptr;
     }
@@ -666,11 +658,7 @@ sk_sp<SkImage> SkImage::MakeCrossContextFromPixmap(GrDirectContext* dContext,
     SkBitmap bmp;
     bmp.installPixels(*pixmap);
     GrMipmapped mipmapped = buildMips ? GrMipmapped::kYes : GrMipmapped::kNo;
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [view, ct] = GrMakeUncachedBitmapProxyView(dContext, bmp, mipmapped);
-#else
-    STRUCTURED_BINDING_2(view, ct, GrMakeUncachedBitmapProxyView(dContext, bmp, mipmapped));
-#endif
     if (!view) {
         return SkImage::MakeRasterCopy(*pixmap);
     }
@@ -794,11 +782,7 @@ bool SkImage::MakeBackendTextureFromSkImage(GrDirectContext* direct,
         return false;
     }
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [view, ct] = as_IB(image)->asView(direct, GrMipmapped::kNo);
-#else
-    STRUCTURED_BINDING_2(view, ct, as_IB(image)->asView(direct, GrMipmapped::kNo));
-#endif
 
     if (!view) {
         return false;

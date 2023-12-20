@@ -34,11 +34,7 @@ public:
         if (!this->sourceIsRejectBuffers()) {
             // Need to expand the buffers for first use. All other reject sets will be fewer than
             // this one.
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             auto [glyphID, pos] = fSource[index];
-#else
-            STRUCTURED_BINDING_2(glyphID, pos, fSource[index]);
-#endif
             fRejectedGlyphIDs.push_back(glyphID);
             fRejectedPositions.push_back(pos);
             fRejectSize++;
@@ -221,12 +217,7 @@ public:
 
     template <typename Fn>
     void forEachGlyphID(Fn&& fn) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         for (auto [i, packedID, pos] : SkMakeEnumerate(this->input())) {
-#else
-        for (auto item : SkMakeEnumerate(this->input())) {
-            STRUCTURED_BINDING_3(i, packedID, pos, std::move(item));
-#endif
             fn(i, packedID.packedID(), pos);
         }
     }

@@ -199,11 +199,7 @@ GR_DEFINE_GEOMETRY_PROCESSOR_TEST(GrBitmapTextGeoProc);
 #if GR_TEST_UTILS
 
 GrGeometryProcessor* GrBitmapTextGeoProc::TestCreate(GrProcessorTestData* d) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [view, ct, at] = d->randomView();
-#else
-    STRUCTURED_BINDING_3(view, ct, at, d->randomView());
-#endif
 
     GrSamplerState::WrapMode wrapModes[2];
     GrTest::TestWrapModes(d->fRandom, wrapModes);

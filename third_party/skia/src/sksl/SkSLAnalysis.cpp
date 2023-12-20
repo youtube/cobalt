@@ -487,11 +487,7 @@ public:
             const ForStatement& f = s.as<ForStatement>();
             SkASSERT(f.initializer() && f.initializer()->is<VarDeclaration>());
             const Variable* var = &f.initializer()->as<VarDeclaration>().var();
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             auto [iter, inserted] = fLoopIndices.insert(var);
-#else
-            STRUCTURED_BINDING_2(iter, inserted, fLoopIndices.insert(var));
-#endif
             SkASSERT(inserted);
             bool result = this->visitStatement(*f.statement());
             fLoopIndices.erase(iter);

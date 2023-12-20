@@ -69,11 +69,7 @@ public:
         }
         for (; fIter != fEnd; ++fIter) {
             SkASSERT(fQueueCount == 0 || fQueueCount == 1);
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             auto [verb, pts, w] = *fIter;
-#else
-            STRUCTURED_BINDING_3(verb, pts, w, *fIter);
-#endif
             switch (verb) {
                 case SkPathVerb::kMove:
                     if (!this->finishOpenContour()) {

@@ -42,15 +42,11 @@ skia_common("skia_library_no_asan") {
   check_includes = false
   sources = skia_effects_imagefilter_sources_no_asan
   if (is_clang) {
-    if (using_old_compiler) {
-      cflags_cc = [ "-Wno-c++1z-extensions" ]
-    } else {
-      cflags_cc = [
-        "-Wno-c++17-extensions",
-        "-Wno-invalid-offsetof",
-        "-Wno-psabi",
-      ]
-    }
+    cflags_cc = [
+      "-Wno-c++17-extensions",
+      "-Wno-invalid-offsetof",
+      "-Wno-psabi",
+    ]
   }
 
   # TODO(b/207398024): If this is a target we need to build, then we'll
@@ -86,15 +82,11 @@ config("skia_library_config_public") {
   defines = [ "SK_BUILD_NO_OPTS" ]
 
   if (is_clang) {
-    if (using_old_compiler) {
-      cflags_cc = [ "-Wno-c++1z-extensions" ]
-    } else {
-      cflags_cc = [
-        "-Wno-c++17-extensions",
-        "-Wno-invalid-offsetof",
-        "-Wno-psabi",
-      ]
-    }
+    cflags_cc = [
+      "-Wno-c++17-extensions",
+      "-Wno-invalid-offsetof",
+      "-Wno-psabi",
+    ]
   }
 }
 

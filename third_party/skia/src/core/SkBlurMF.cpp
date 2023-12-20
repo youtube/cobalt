@@ -1280,19 +1280,11 @@ static std::unique_ptr<GrFragmentProcessor> find_or_create_rrect_blur_mask_fp(
     if (GrDirectContext* dContext = rContext->asDirectContext()) {
         // The gpu thread gets priority over the recording threads. If the gpu thread is first,
         // it crams a lazy proxy into the cache and then fills it in later.
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [lazyView, trampoline] = GrThreadSafeCache::CreateLazyView(dContext,
                                                                         GrColorType::kAlpha_8,
                                                                         dimensions,
                                                                         kBlurredRRectMaskOrigin,
                                                                         SkBackingFit::kExact);
-#else
-        STRUCTURED_BINDING_2(lazyView, trampoline, GrThreadSafeCache::CreateLazyView(dContext,
-                                                                        GrColorType::kAlpha_8,
-                                                                        dimensions,
-                                                                        kBlurredRRectMaskOrigin,
-                                                                        SkBackingFit::kExact));
-#endif
         if (!lazyView) {
             return nullptr;
         }

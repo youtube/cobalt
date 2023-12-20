@@ -65,18 +65,5 @@ struct SkRSXform {
     void toTriStrip(SkScalar width, SkScalar height, SkPoint strip[4]) const;
 };
 
-#ifdef SKIA_STRUCTURED_BINDINGS_BACKPORT
-template <>
-struct CoercerToTuple<SkRSXform> {
-  static auto Coerce(SkRSXform&& t) {
-    return std::forward<std::tuple<SkScalar, SkScalar, SkScalar, SkScalar>>(
-        std::make_tuple(t.fSCos, t.fSSin, t.fTx, t.fTy));
-  }
-  static auto Coerce(const SkRSXform& t) {
-    return std::make_tuple(t.fSCos, t.fSSin, t.fTx, t.fTy);
-  }
-};
-#endif
-
 #endif
 

@@ -62,12 +62,7 @@ void SkDrawableGlyphBuffer::startBitmapDevice(
     SkZip<const SkGlyphID, const SkPoint> withMappedPos =
             SkMakeZip(source.get<0>(), fPositions.get());
     SkGlyphVariant* packedIDCursor = fMultiBuffer.get();
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto [glyphID, pos] : withMappedPos) {
-#else
-    for (auto item : withMappedPos) {
-        STRUCTURED_BINDING_2(glyphID, pos, std::move(item));
-#endif
         *packedIDCursor++ = SkPackedGlyphID{glyphID, pos, mask};
     }
     SkDEBUGCODE(fPhase = kInput);
@@ -93,14 +88,8 @@ void SkDrawableGlyphBuffer::startGPUDevice(
         return {SkScalarFloorToScalar(pt.x()), SkScalarFloorToScalar(pt.y())};
     };
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto [packedGlyphID, glyphID, pos]
             : SkMakeZip(fMultiBuffer.get(), source.get<0>(), fPositions.get())) {
-#else
-    for (auto item
-            : SkMakeZip(fMultiBuffer.get(), source.get<0>(), fPositions.get())) {
-        STRUCTURED_BINDING_3(packedGlyphID, glyphID, pos, std::move(item));
-#endif
         packedGlyphID = SkPackedGlyphID{glyphID, pos, roundingSpec.ignorePositionFieldMask};
         // Store rounded device coords back in pos.
         pos = floor(pos);
@@ -113,14 +102,8 @@ SkString SkDrawableGlyphBuffer::dumpInput() const {
     SkASSERT(fPhase == kInput);
 
     SkString msg;
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto [packedGlyphID, pos]
             : SkZip<SkGlyphVariant, SkPoint>{fInputSize, fMultiBuffer.get(), fPositions.get()}) {
-#else
-    for (auto item
-            : SkZip<SkGlyphVariant, SkPoint>{fInputSize, fMultiBuffer.get(), fPositions.get()}) {
-        STRUCTURED_BINDING_2(packedGlyphID, pos, std::move(item));
-#endif
         msg.appendf("0x%x:(%a,%a), ", packedGlyphID.packedID().value(), pos.x(), pos.y());
     }
     return msg;

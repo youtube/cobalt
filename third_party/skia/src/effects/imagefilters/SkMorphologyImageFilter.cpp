@@ -344,11 +344,7 @@ GR_DEFINE_FRAGMENT_PROCESSOR_TEST(GrMorphologyEffect);
 
 #if GR_TEST_UTILS
 std::unique_ptr<GrFragmentProcessor> GrMorphologyEffect::TestCreate(GrProcessorTestData* d) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [view, ct, at] = d->randomView();
-#else
-    STRUCTURED_BINDING_3(view, ct, at, d->randomView());
-#endif
 
     MorphDirection dir = d->fRandom->nextBool() ? MorphDirection::kX : MorphDirection::kY;
     static const int kMaxRadius = 10;

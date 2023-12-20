@@ -745,12 +745,7 @@ void StrokeHardwareTessellator::prepare(GrMeshDrawTarget* target, int totalCombi
 
         const SkPath& path = pathStroke->fPath;
         bool contourIsEmpty = true;
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         for (auto [verb, p, w] : SkPathPriv::Iterate(path)) {
-#else
-        for (auto item : SkPathPriv::Iterate(path)) {
-            STRUCTURED_BINDING_3(verb, p, w, std::move(item));
-#endif
             bool prevJoinFitsInPatch;
             SkPoint scratchPts[4];
             const SkPoint* patchPts;

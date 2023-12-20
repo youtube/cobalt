@@ -405,11 +405,7 @@ static GrSurfaceProxyView hw_create_filtered_mask(GrDirectContext* dContext,
         }
 
         key->setCustomData(create_data(*maskRect, unclippedDevShapeBounds));
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [cachedView, data] = threadSafeCache->findOrAddWithData(*key, lazyView);
-#else
-        STRUCTURED_BINDING_2(cachedView, data, threadSafeCache->findOrAddWithData(*key, lazyView));
-#endif
         if (cachedView != lazyView) {
             // In this case, the gpu-thread lost out to a recording thread - use its result.
             SkASSERT(data);

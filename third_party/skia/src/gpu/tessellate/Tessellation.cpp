@@ -97,12 +97,7 @@ private:
 
 SkPath PreChopPathCurves(const SkPath& path, const SkMatrix& matrix, const SkRect& viewport) {
     PathChopper chopper(matrix, viewport);
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto [verb, p, w] : SkPathPriv::Iterate(path)) {
-#else
-    for (auto item : SkPathPriv::Iterate(path)) {
-        STRUCTURED_BINDING_3(verb, p, w, std::move(item));
-#endif
         switch (verb) {
             case SkPathVerb::kMove:
                 chopper.moveTo(p[0]);

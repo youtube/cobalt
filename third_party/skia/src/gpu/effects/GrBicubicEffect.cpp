@@ -255,11 +255,7 @@ std::unique_ptr<GrFragmentProcessor> GrBicubicEffect::TestCreate(GrProcessorTest
     auto m = GrTest::TestMatrix(d->fRandom);
     switch (d->fRandom->nextULessThan(3)) {
         case 0: {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             auto [view, ct, at] = d->randomView();
-#else
-            STRUCTURED_BINDING_3(view, ct, at, d->randomView());
-#endif
             GrSamplerState::WrapMode wm[2];
             GrTest::TestWrapModes(d->fRandom, wm);
 
@@ -283,11 +279,7 @@ std::unique_ptr<GrFragmentProcessor> GrBicubicEffect::TestCreate(GrProcessorTest
             return Make(std::move(view), at, m, wm[0], wm[1], kernel, direction, *d->caps());
         }
         case 1: {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             auto [view, ct, at] = d->randomView();
-#else
-            STRUCTURED_BINDING_3(view, ct, at, d->randomView());
-#endif
             return Make(std::move(view), at, m, kernel, direction);
         }
         default: {

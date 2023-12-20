@@ -251,11 +251,7 @@ std::unique_ptr<SurfaceDrawContext> SurfaceDrawContext::MakeWithFallback(
         GrSurfaceOrigin origin,
         SkBudgeted budgeted) {
     const GrCaps* caps = rContext->priv().caps();
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [ct, _] = caps->getFallbackColorTypeAndFormat(colorType, sampleCnt);
-#else
-    STRUCTURED_BINDING_2(ct, _, caps->getFallbackColorTypeAndFormat(colorType, sampleCnt));
-#endif
     if (ct == GrColorType::kUnknown) {
         return nullptr;
     }
@@ -361,21 +357,12 @@ void SurfaceDrawContext::drawGlyphRunListWithCache(const GrClip* clip,
             this->recordingContext()->priv().getSDFTControl(
                     this->surfaceProps().isUseDeviceIndependentFonts());
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [canCache, key] = GrTextBlob::Key::Make(glyphRunList,
                                                  paint,
                                                  fSurfaceProps,
                                                  this->colorInfo(),
                                                  drawMatrix,
                                                  control);
-#else
-    STRUCTURED_BINDING_2(canCache, key, GrTextBlob::Key::Make(glyphRunList,
-                                                 paint,
-                                                 fSurfaceProps,
-                                                 this->colorInfo(),
-                                                 drawMatrix,
-                                                 control));
-#endif
 
     sk_sp<GrTextBlob> blob;
     GrTextBlobCache* textBlobCache = fContext->priv().getTextBlobCache();

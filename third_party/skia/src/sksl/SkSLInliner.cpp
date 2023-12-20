@@ -1048,11 +1048,7 @@ static const FunctionDeclaration& candidate_func(const InlineCandidate& candidat
 
 bool Inliner::candidateCanBeInlined(const InlineCandidate& candidate, InlinabilityCache* cache) {
     const FunctionDeclaration& funcDecl = candidate_func(candidate);
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [iter, wasInserted] = cache->insert({&funcDecl, false});
-#else
-    STRUCTURED_BINDING_2(iter, wasInserted, cache->insert({&funcDecl, false}));
-#endif
     if (wasInserted) {
         // Recursion is forbidden here to avoid an infinite death spiral of inlining.
         iter->second = this->isSafeToInline(funcDecl.definition()) &&
@@ -1063,11 +1059,7 @@ bool Inliner::candidateCanBeInlined(const InlineCandidate& candidate, Inlinabili
 }
 
 int Inliner::getFunctionSize(const FunctionDeclaration& funcDecl, FunctionSizeCache* cache) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [iter, wasInserted] = cache->insert({&funcDecl, 0});
-#else
-    STRUCTURED_BINDING_2(iter, wasInserted, cache->insert({&funcDecl, 0}));
-#endif
     if (wasInserted) {
         iter->second = Analysis::NodeCountUpToLimit(*funcDecl.definition(),
                                                     this->settings().fInlineThreshold);

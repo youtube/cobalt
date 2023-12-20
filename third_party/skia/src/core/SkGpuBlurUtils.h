@@ -105,13 +105,4 @@ inline int LinearKernelWidth(int radius) { return radius + 1; }
 
 #endif // SK_SUPPORT_GPU
 
-#ifdef SKIA_STRUCTURED_BINDINGS_BACKPORT
-template <>
-struct CoercerToTuple<SkISize> {
-  static auto Coerce(const SkISize& t) {
-    return std::make_tuple(t.fWidth, t.fHeight);
-  }
-};
-#endif
-
 #endif

@@ -220,15 +220,9 @@ std::unique_ptr<GrFragmentProcessor> ColorTableEffect::TestCreate(GrProcessorTes
         (flags & (1 << 3)) ? luts[3] : nullptr
     ));
     sk_sp<SkColorSpace> colorSpace = GrTest::TestColorSpace(d->fRandom);
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [success, fp] = as_CFB(filter)->asFragmentProcessor(
             d->inputFP(), d->context(),
             GrColorInfo(GrColorType::kRGBA_8888, kUnknown_SkAlphaType, std::move(colorSpace)));
-#else
-    STRUCTURED_BINDING_2(success, fp, as_CFB(filter)->asFragmentProcessor(
-            d->inputFP(), d->context(),
-            GrColorInfo(GrColorType::kRGBA_8888, kUnknown_SkAlphaType, std::move(colorSpace))));
-#endif
     SkASSERT(success);
     return std::move(fp);
 }

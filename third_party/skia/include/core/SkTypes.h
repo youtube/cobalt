@@ -11,8 +11,6 @@
 /** \file SkTypes.h
 */
 
-#include "cpp17oncpp14.h"
-
 // Pre-SkUserConfig.h setup.
 
 // Allows embedders that want to disable macros that take arguments to just

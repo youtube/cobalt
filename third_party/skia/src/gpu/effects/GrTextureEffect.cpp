@@ -790,11 +790,7 @@ std::unique_ptr<GrFragmentProcessor> GrTextureEffect::clone() const {
 GR_DEFINE_FRAGMENT_PROCESSOR_TEST(GrTextureEffect);
 #if GR_TEST_UTILS
 std::unique_ptr<GrFragmentProcessor> GrTextureEffect::TestCreate(GrProcessorTestData* testData) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [view, ct, at] = testData->randomView();
-#else
-    STRUCTURED_BINDING_3(view, ct, at, testData->randomView());
-#endif
     Wrap wrapModes[2];
     GrTest::TestWrapModes(testData->fRandom, wrapModes);
 

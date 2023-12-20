@@ -98,35 +98,16 @@ void fill_transformed_vertices_2D(SkZip<Quad, const GrGlyph*, const VertexData> 
                                   GrColor color,
                                   const SkMatrix& matrix) {
     SkPoint inset = {dstPadding, dstPadding};
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto[quad, glyph, vertexData] : quadData) {
-#else
-    for (auto item : quadData) {
-        STRUCTURED_BINDING_3(quad, glyph, vertexData, std::move(item));
-#endif
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto[pos, rect] = vertexData;
-#else
-        auto pos = vertexData.pos;
-        auto rect = vertexData.rect;
-#endif
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto[l, t, r, b] = rect;
-#else
-        STRUCTURED_BINDING_4(l, t, r, b, rect);
-#endif
         SkPoint sLT = (SkPoint::Make(l, t) + inset) * strikeToSource + pos,
                 sRB = (SkPoint::Make(r, b) - inset) * strikeToSource + pos;
         SkPoint lt = matrix.mapXY(sLT.x(), sLT.y()),
                 lb = matrix.mapXY(sLT.x(), sRB.y()),
                 rt = matrix.mapXY(sRB.x(), sLT.y()),
                 rb = matrix.mapXY(sRB.x(), sRB.y());
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto[al, at, ar, ab] = glyph->fAtlasLocator.getUVs();
-#else
-        auto a = glyph->fAtlasLocator.getUVs();
-        auto al = a[0], at = a[1], ar = a[2], ab = a[3];
-#endif
         quad[0] = {lt, color, {al, at}};  // L,T
         quad[1] = {lb, color, {al, ab}};  // L,B
         quad[2] = {rt, color, {ar, at}};  // R,T
@@ -147,35 +128,16 @@ void fill_transformed_vertices_3D(SkZip<Quad, const GrGlyph*, const VertexData> 
         positionMatrix.mapHomogeneousPoints(&result, &pt, 1);
         return result;
     };
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto[quad, glyph, vertexData] : quadData) {
-#else
-    for (auto item : quadData) {
-        STRUCTURED_BINDING_3(quad, glyph, vertexData, std::move(item));
-#endif
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto[pos, rect] = vertexData;
-#else
-        auto pos = vertexData.pos;
-        auto rect = vertexData.rect;
-#endif
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [l, t, r, b] = rect;
-#else
-        STRUCTURED_BINDING_4(l, t, r, b, rect);
-#endif
         SkPoint sLT = (SkPoint::Make(l, t) + inset) * strikeToSource + pos,
                 sRB = (SkPoint::Make(r, b) - inset) * strikeToSource + pos;
         SkPoint3 lt = mapXYZ(sLT.x(), sLT.y()),
                  lb = mapXYZ(sLT.x(), sRB.y()),
                  rt = mapXYZ(sRB.x(), sLT.y()),
                  rb = mapXYZ(sRB.x(), sRB.y());
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto[al, at, ar, ab] = glyph->fAtlasLocator.getUVs();
-#else
-        auto a = glyph->fAtlasLocator.getUVs();
-        auto al = a[0], at = a[1], ar = a[2], ab = a[3];
-#endif
         quad[0] = {lt, color, {al, at}};  // L,T
         quad[1] = {lb, color, {al, ab}};  // L,B
         quad[2] = {rt, color, {ar, at}};  // R,T
@@ -325,11 +287,7 @@ GrSubRunOwner PathSubRun::Make(const SkZip<SkGlyphVariant, SkPoint>& drawables,
     auto pathData = alloc->makeUniqueArray<PathGlyph>(
             drawables.size(),
             [&](int i){
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
                 auto [variant, pos] = drawables[i];
-#else
-                STRUCTURED_BINDING_2(variant, pos, drawables[i]);
-#endif
                 return PathGlyph{*variant.path(), pos};
             });
     SkSpan<PathGlyph> paths{pathData.get(), drawables.size()};
@@ -396,12 +354,7 @@ GlyphVector GlyphVector::Make(
         const SkStrikeSpec &spec, SkSpan<SkGlyphVariant> glyphs, GrSubRunAllocator* alloc) {
 
     Variant* variants = alloc->makePODArray<Variant>(glyphs.size());
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto [i, gv] : SkMakeEnumerate(glyphs)) {
-#else
-    for (auto item : SkMakeEnumerate(glyphs)) {
-        STRUCTURED_BINDING_2(i, gv, std::move(item));
-#endif
         variants[i] = gv.glyph()->getPackedID();
     }
 
@@ -579,17 +532,8 @@ GrSubRunOwner DirectMaskSubRun::Make(const SkZip<SkGlyphVariant, SkPoint>& drawa
             std::numeric_limits<int16_t>::max() - SkStrikeCommon::kSkSideTooBigForAtlas;
     SkGlyphRect runBounds = skglyph::empty_rect();
     size_t goodPosCount = 0;
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto [variant, pos] : drawables) {
-#else
-    for (auto item : drawables) {
-        STRUCTURED_BINDING_2(variant, pos, std::move(item));
-#endif
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [x, y] = pos;
-#else
-        STRUCTURED_BINDING_2(x, y, pos);
-#endif
         // Ensure that the .offset() call below does not overflow. And, at this point none of the
         // rectangles are empty because they were culled before the run was created. Basically,
         // cull all the glyphs that can't appear on the screen.
@@ -619,11 +563,7 @@ GrSubRunOwner DirectMaskSubRun::Make(const SkZip<SkGlyphVariant, SkPoint>& drawa
 }
 
 bool DirectMaskSubRun::canReuse(const SkPaint& paint, const SkMatrix& drawMatrix) const {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [reuse, translation] = check_integer_translate(fBlob->initialMatrix(), drawMatrix);
-#else
-    STRUCTURED_BINDING_2(reuse, translation, check_integer_translate(fBlob->initialMatrix(), drawMatrix));
-#endif
 
     // If glyphs were excluded because of position bounds, then this subrun can only be reused if
     // there is no change in position.
@@ -651,13 +591,8 @@ void DirectMaskSubRun::draw(const GrClip* clip,
                             const SkGlyphRunList& glyphRunList,
                             const SkPaint& paint,
                             skgpu::v1::SurfaceDrawContext* sdc) const{
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto[drawingClip, op] = this->makeAtlasTextOp(
             clip, viewMatrix, glyphRunList, paint, sdc, nullptr);
-#else
-    STRUCTURED_BINDING_2(drawingClip, op, this->makeAtlasTextOp(
-            clip, viewMatrix, glyphRunList, paint, sdc, nullptr));
-#endif
     if (op != nullptr) {
         sdc->addDrawOp(drawingClip, std::move(op));
     }
@@ -721,11 +656,7 @@ DirectMaskSubRun::makeAtlasTextOp(const GrClip* clip, const SkMatrixProvider& vi
     // needed.
     const SkRect subRunBounds = this->deviceRect(drawMatrix, drawOrigin);
     const SkRect deviceBounds = SkRect::MakeWH(sdc->width(), sdc->height());
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [clipMethod, clipRect] = calculate_clip(clip, deviceBounds, subRunBounds);
-#else
-    STRUCTURED_BINDING_2(clipMethod, clipRect, calculate_clip(clip, deviceBounds, subRunBounds));
-#endif
 
     switch (clipMethod) {
         case kClippedOut:
@@ -782,18 +713,8 @@ void direct_2D(SkZip<Mask2DVertex[4],
                const DirectMaskSubRun::DevicePosition> quadData,
                GrColor color,
                SkIPoint integralOriginOffset) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto[quad, glyph, leftTop] : quadData) {
-#else
-    for (auto item : quadData) {
-        STRUCTURED_BINDING_3(quad, glyph, leftTop, std::move(item));
-#endif
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto[al, at, ar, ab] = glyph->fAtlasLocator.getUVs();
-#else
-        auto a = glyph->fAtlasLocator.getUVs();
-        auto al = a[0], at = a[1], ar = a[2], ab = a[3];
-#endif
         SkScalar dl = leftTop[0] + integralOriginOffset.x(),
                  dt = leftTop[1] + integralOriginOffset.y(),
                  dr = dl + (ar - al),
@@ -817,28 +738,14 @@ void generalized_direct_2D(SkZip<Quad, const GrGlyph*, const VertexData> quadDat
                            GrColor color,
                            SkIPoint integralOriginOffset,
                            SkIRect* clip = nullptr) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto[quad, glyph, leftTop] : quadData) {
-#else
-    for (auto item : quadData) {
-        STRUCTURED_BINDING_3(quad, glyph, leftTop, std::move(item));
-#endif
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto[al, at, ar, ab] = glyph->fAtlasLocator.getUVs();
-#else
-        auto a = glyph->fAtlasLocator.getUVs();
-        auto al = a[0], at = a[1], ar = a[2], ab = a[3];
-#endif
         uint16_t w = ar - al,
                  h = ab - at;
         SkScalar l = (SkScalar)leftTop[0] + integralOriginOffset.x(),
                  t = (SkScalar)leftTop[1] + integralOriginOffset.y();
         if (clip == nullptr) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             auto[dl, dt, dr, db] = SkRect::MakeLTRB(l, t, l + w, t + h);
-#else
-            STRUCTURED_BINDING_4(dl, dt, dr, db, SkRect::MakeLTRB(l, t, l + w, t + h));
-#endif
             quad[0] = {{dl, dt}, color, {al, at}};  // L,T
             quad[1] = {{dl, db}, color, {al, ab}};  // L,B
             quad[2] = {{dr, dt}, color, {ar, at}};  // R,T
@@ -1009,11 +916,7 @@ GrSubRunOwner TransformedMaskSubRun::Make(const SkZip<SkGlyphVariant, SkPoint>& 
     SkSpan<VertexData> vertexData = alloc->makePODArray<VertexData>(
             drawables,
             [&](auto e) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
                 auto [variant, pos] = e;
-#else
-                STRUCTURED_BINDING_2(variant, pos, e);
-#endif
                 SkGlyph* skGlyph = variant;
                 int16_t l = skGlyph->left(),
                         t = skGlyph->top(),
@@ -1036,13 +939,8 @@ void TransformedMaskSubRun::draw(const GrClip* clip,
                                  const SkGlyphRunList& glyphRunList,
                                  const SkPaint& paint,
                                  skgpu::v1::SurfaceDrawContext* sdc) const {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto[drawingClip, op] = this->makeAtlasTextOp(
             clip, viewMatrix, glyphRunList, paint, sdc, nullptr);
-#else
-    STRUCTURED_BINDING_2(drawingClip, op, this->makeAtlasTextOp(
-            clip, viewMatrix, glyphRunList, paint, sdc, nullptr));
-#endif
     if (op != nullptr) {
         sdc->addDrawOp(drawingClip, std::move(op));
     }
@@ -1280,12 +1178,7 @@ GrSubRunOwner SDFTSubRun::Make(const SkZip<SkGlyphVariant, SkPoint>& drawables,
                                GrSubRunAllocator* alloc) {
     SkRect bounds = SkRectPriv::MakeLargestInverted();
     auto mapper = [&, strikeToSource=strikeSpec.strikeToSourceRatio()](const auto& d) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto& [variant, pos] = d;
-#else
-        auto& variant = std::get<0>(d);
-        auto& pos = std::get<1>(d);
-#endif
         SkGlyph* skGlyph = variant;
         int16_t l = skGlyph->left(),
                 t = skGlyph->top(),
@@ -1315,13 +1208,8 @@ void SDFTSubRun::draw(const GrClip* clip,
                       const SkGlyphRunList& glyphRunList,
                       const SkPaint& paint,
                       skgpu::v1::SurfaceDrawContext* sdc) const {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto[drawingClip, op] = this->makeAtlasTextOp(
             clip, viewMatrix, glyphRunList, paint, sdc, nullptr);
-#else
-    STRUCTURED_BINDING_2(drawingClip, op, this->makeAtlasTextOp(
-            clip, viewMatrix, glyphRunList, paint, sdc, nullptr));
-#endif
     if (op != nullptr) {
         sdc->addDrawOp(drawingClip, std::move(op));
     }
@@ -1371,13 +1259,8 @@ SDFTSubRun::makeAtlasTextOp(const GrClip* clip,
     GrPaint grPaint;
     SkPMColor4f drawingColor = calculate_colors(sdc, paint, viewMatrix, fMaskFormat, &grPaint);
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [maskType, DFGPFlags, useGammaCorrectDistanceTable] =
         calculate_sdf_parameters(*sdc, drawMatrix, fUseLCDText, fAntiAliased);
-#else
-    STRUCTURED_BINDING_3(maskType, DFGPFlags, useGammaCorrectDistanceTable,
-        calculate_sdf_parameters(*sdc, drawMatrix, fUseLCDText, fAntiAliased));
-#endif
 
     auto geometry = AtlasTextOp::Geometry::MakeForBlob(*this,
                                                        drawMatrix,
@@ -1410,11 +1293,7 @@ bool SDFTSubRun::canReuse(const SkPaint& paint, const SkMatrix& drawMatrix) cons
     SkScalar newMaxScale = drawMatrix.getMaxScale();
     SkScalar oldMaxScale = initialMatrix.getMaxScale();
     SkScalar scaleAdjust = newMaxScale / oldMaxScale;
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [maxMinScale, minMaxScale] = fBlob->scaleBounds();
-#else
-    STRUCTURED_BINDING_2(maxMinScale, minMaxScale, fBlob->scaleBounds());
-#endif
     if (scaleAdjust < maxMinScale || scaleAdjust > minMaxScale) {
         return false;
     }
@@ -1593,11 +1472,7 @@ bool GrTextBlob::Key::operator==(const GrTextBlob::Key& that) const {
     }
 
     if (fSetOfDrawingTypes & GrSDFTControl::kDirect) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [compatible, _] = check_integer_translate(fDrawMatrix, that.fDrawMatrix);
-#else
-        STRUCTURED_BINDING_2(compatible, _, check_integer_translate(fDrawMatrix, that.fDrawMatrix));
-#endif
         return compatible;
     }
 
@@ -1838,17 +1713,8 @@ GrAtlasSubRunOwner DirectMaskSubRunNoCache::Make(const SkZip<SkGlyphVariant, SkP
             std::numeric_limits<int16_t>::max() - SkStrikeCommon::kSkSideTooBigForAtlas;
     SkGlyphRect runBounds = skglyph::empty_rect();
     size_t goodPosCount = 0;
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto [variant, pos] : drawables) {
-#else
-    for (auto item : drawables) {
-        STRUCTURED_BINDING_2(variant, pos, std::move(item));
-#endif
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [x, y] = pos;
-#else
-        STRUCTURED_BINDING_2(x, y, pos);
-#endif
         // Ensure that the .offset() call below does not overflow. And, at this point none of the
         // rectangles are empty because they were culled before the run was created. Basically,
         // cull all the glyphs that can't appear on the screen.
@@ -1902,11 +1768,7 @@ DirectMaskSubRunNoCache::makeAtlasTextOp(const GrClip* clip,
     // non-AA clip is used. If clipRect is empty, and clip is nullptr, then there is no clipping
     // needed.
     const SkRect deviceBounds = SkRect::MakeWH(sdc->width(), sdc->height());
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [clipMethod, clipRect] = calculate_clip(clip, deviceBounds, fGlyphDeviceBounds);
-#else
-    STRUCTURED_BINDING_2(clipMethod, clipRect, calculate_clip(clip, deviceBounds, fGlyphDeviceBounds));
-#endif
 
     switch (clipMethod) {
         case kClippedOut:
@@ -1965,18 +1827,8 @@ void direct_2D2(SkZip<Mask2DVertex[4],
         const GrGlyph*,
         const DirectMaskSubRunNoCache::DevicePosition> quadData,
         GrColor color) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto[quad, glyph, leftTop] : quadData) {
-#else
-    for (auto item : quadData) {
-        STRUCTURED_BINDING_3(quad, glyph, leftTop, std::move(item));
-#endif
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto[al, at, ar, ab] = glyph->fAtlasLocator.getUVs();
-#else
-        auto a = glyph->fAtlasLocator.getUVs();
-        auto al = a[0], at = a[1], ar = a[2], ab = a[3];
-#endif
         SkScalar dl = leftTop[0],
                  dt = leftTop[1],
                  dr = dl + (ar - al),
@@ -2094,11 +1946,7 @@ GrAtlasSubRunOwner TransformedMaskSubRunNoCache::Make(
         GrSubRunAllocator* alloc) {
     SkRect bounds = SkRectPriv::MakeLargestInverted();
     auto initializer = [&, strikeToSource=strikeSpec.strikeToSourceRatio()](auto drawable) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [variant, pos] = drawable;
-#else
-        STRUCTURED_BINDING_2(variant, pos, drawable);
-#endif
         SkGlyph* skGlyph = variant;
         int16_t l = skGlyph->left(),
                 t = skGlyph->top(),
@@ -2327,11 +2175,7 @@ GrAtlasSubRunOwner SDFTSubRunNoCache::Make(
 
     SkRect bounds = SkRectPriv::MakeLargestInverted();
     auto initializer = [&, strikeToSource=strikeSpec.strikeToSourceRatio()](auto drawable) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [variant, pos] = drawable;
-#else
-        STRUCTURED_BINDING_2(variant, pos, drawable);
-#endif
         SkGlyph* skGlyph = variant;
         int16_t l = skGlyph->left(),
                 t = skGlyph->top(),
@@ -2370,13 +2214,8 @@ SDFTSubRunNoCache::makeAtlasTextOp(const GrClip* clip,
     GrPaint grPaint;
     SkPMColor4f drawingColor = calculate_colors(sdc, paint, viewMatrix, fMaskFormat, &grPaint);
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [maskType, DFGPFlags, useGammaCorrectDistanceTable] =
     calculate_sdf_parameters(*sdc, drawMatrix, fUseLCDText, fAntiAliased);
-#else
-    STRUCTURED_BINDING_3(maskType, DFGPFlags, useGammaCorrectDistanceTable,
-    calculate_sdf_parameters(*sdc, drawMatrix, fUseLCDText, fAntiAliased));
-#endif
 
     auto geometry = new ((void*)fGeom) AtlasTextOp::Geometry {
             *this,
@@ -2528,12 +2367,7 @@ void GrSubRunNoCachePainter::processSourcePaths(const SkZip<SkGlyphVariant, SkPo
     SkMatrix strikeToSource = SkMatrix::Scale(strikeToSourceScale, strikeToSourceScale);
     strikeToSource.postTranslate(drawOrigin.x(), drawOrigin.y());
     if (!needsExactCTM) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         for (auto [variant, pos] : drawables) {
-#else
-        for (auto item : drawables) {
-            STRUCTURED_BINDING_2(variant, pos, std::move(item));
-#endif
             const SkPath& path = *variant.path();
             SkMatrix pathMatrix = strikeToSource;
             pathMatrix.postTranslate(pos.x(), pos.y());
@@ -2547,12 +2381,7 @@ void GrSubRunNoCachePainter::processSourcePaths(const SkZip<SkGlyphVariant, SkPo
     } else {
         // Transform the path to device space because the deviceMatrix must be unchanged to
         // draw effect, filter or shader paths.
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         for (auto [variant, pos] : drawables) {
-#else
-        for (auto item : drawables) {
-            STRUCTURED_BINDING_2(variant, pos, std::move(item));
-#endif
             const SkPath& path = *variant.path();
             // Transform the glyph to source space.
             SkMatrix pathMatrix = strikeToSource;
@@ -2583,13 +2412,8 @@ void GrSubRunNoCachePainter::draw(GrAtlasSubRunOwner subRun) {
         return;
     }
     GrAtlasSubRun* subRunPtr = subRun.get();
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [drawingClip, op] = subRunPtr->makeAtlasTextOp(
             fClip, fViewMatrix, fGlyphRunList, fPaint, fSDC, std::move(subRun));
-#else
-    STRUCTURED_BINDING_2(drawingClip, op, subRunPtr->makeAtlasTextOp(
-            fClip, fViewMatrix, fGlyphRunList, fPaint, fSDC, std::move(subRun)));
-#endif
     if (op != nullptr) {
         fSDC->addDrawOp(drawingClip, std::move(op));
     }

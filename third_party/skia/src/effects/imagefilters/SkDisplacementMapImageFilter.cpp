@@ -497,16 +497,8 @@ GR_DEFINE_FRAGMENT_PROCESSOR_TEST(GrDisplacementMapEffect);
 
 #if GR_TEST_UTILS
 std::unique_ptr<GrFragmentProcessor> GrDisplacementMapEffect::TestCreate(GrProcessorTestData* d) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [dispView,  ct1, at1] = d->randomView();
-#else
-    STRUCTURED_BINDING_3(dispView,  ct1, at1, d->randomView());
-#endif
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [colorView, ct2, at2] = d->randomView();
-#else
-    STRUCTURED_BINDING_3(colorView, ct2, at2, d->randomView());
-#endif
     static const int kMaxComponent = static_cast<int>(SkColorChannel::kLastEnum);
     SkColorChannel xChannelSelector =
         static_cast<SkColorChannel>(d->fRandom->nextRangeU(1, kMaxComponent));

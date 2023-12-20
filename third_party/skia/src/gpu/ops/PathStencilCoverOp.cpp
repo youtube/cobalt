@@ -246,20 +246,10 @@ void PathStencilCoverOp::onPrepare(GrOpFlushState* flushState) {
         int maxTrianglesInFans = std::max(maxCombinedFanEdges - 2, 0);
         VertexWriter triangleVertexWriter = vertexAlloc.lock<SkPoint>(maxTrianglesInFans * 3);
         int fanTriangleCount = 0;
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         for (auto [pathMatrix, path] : *fPathDrawList) {
-#else
-        for (auto item : *fPathDrawList) {
-            STRUCTURED_BINDING_2(pathMatrix, path, std::move(item));
-#endif
             PathXform m(pathMatrix);
             for (PathMiddleOutFanIter it(path); !it.done();) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
                 for (auto [p0, p1, p2] : it.nextStack()) {
-#else
-                for (auto item : it.nextStack()) {
-                    STRUCTURED_BINDING_3(p0, p1, p2, std::move(item));
-#endif
                     triangleVertexWriter << m.map2Points(p0, p1) << m.mapPoint(p2);
                     ++fanTriangleCount;
                 }
@@ -279,12 +269,7 @@ void PathStencilCoverOp::onPrepare(GrOpFlushState* flushState) {
                                                                 &fBBoxBuffer,
                                                                 &fBBoxBaseInstance);
         SkDEBUGCODE(int pathCount = 0;)
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         for (auto [pathMatrix, path] : *fPathDrawList) {
-#else
-        for (auto item : *fPathDrawList) {
-            STRUCTURED_BINDING_2(pathMatrix, path, std::move(item));
-#endif
             SkDEBUGCODE(auto end = vertexWriter.makeOffset(instanceStride));
             vertexWriter << pathMatrix.getScaleX()
                          << pathMatrix.getSkewY()

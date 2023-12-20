@@ -101,13 +101,8 @@ std::unique_ptr<GrFragmentProcessor> SkColorFilterShader::asFragmentProcessor(
     // TODO I guess, but it shouldn't come up as used today.
     SkASSERT(fAlpha == 1.0f);
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [success, fp] = fFilter->asFragmentProcessor(std::move(shaderFP), args.fContext,
                                                       *args.fDstColorInfo);
-#else
-    STRUCTURED_BINDING_2(success, fp, fFilter->asFragmentProcessor(std::move(shaderFP), args.fContext,
-                                                      *args.fDstColorInfo));
-#endif
     // If the filter FP could not be created, we still want to return the shader FP, so checking
     // success can be omitted here.
     return std::move(fp);

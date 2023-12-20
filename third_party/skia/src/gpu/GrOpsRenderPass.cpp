@@ -283,11 +283,7 @@ void GrOpsRenderPass::drawIndirect(const GrBuffer* drawIndirectBuffer, size_t bu
         auto* cmds = reinterpret_cast<const GrDrawIndirectCommand*>(
                 cpuIndirectBuffer->data() + bufferOffset);
         for (int i = 0; i < drawCount; ++i) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             auto [vertexCount, instanceCount, baseVertex, baseInstance] = cmds[i];
-#else
-            STRUCTURED_BINDING_4(vertexCount, instanceCount, baseVertex, baseInstance, cmds[i]);
-#endif
             this->onDrawInstanced(instanceCount, baseInstance, vertexCount, baseVertex);
         }
         return;
@@ -314,11 +310,7 @@ void GrOpsRenderPass::drawIndexedIndirect(const GrBuffer* drawIndirectBuffer, si
         auto* cmds = reinterpret_cast<const GrDrawIndexedIndirectCommand*>(
                 cpuIndirectBuffer->data() + bufferOffset);
         for (int i = 0; i < drawCount; ++i) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             auto [indexCount, instanceCount, baseIndex, baseVertex, baseInstance] = cmds[i];
-#else
-            STRUCTURED_BINDING_5(indexCount, instanceCount, baseIndex, baseVertex, baseInstance, cmds[i]);
-#endif
             this->onDrawIndexedInstanced(indexCount, baseIndex, instanceCount, baseInstance,
                                          baseVertex);
         }

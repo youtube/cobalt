@@ -419,13 +419,8 @@ std::unique_ptr<GrFragmentProcessor> GrSkSLFP::TestCreate(GrProcessorTestData* d
         c = d->fRandom->nextU();
     }
     auto filter = SkOverdrawColorFilter::MakeWithSkColors(colors);
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [success, fp] = as_CFB(filter)->asFragmentProcessor(/*inputFP=*/nullptr, d->context(),
                                                              GrColorInfo{});
-#else
-    STRUCTURED_BINDING_2(success, fp, as_CFB(filter)->asFragmentProcessor(/*inputFP=*/nullptr, d->context(),
-                                                             GrColorInfo{}));
-#endif
     SkASSERT(success);
     return std::move(fp);
 }

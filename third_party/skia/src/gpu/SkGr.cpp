@@ -382,11 +382,7 @@ static std::unique_ptr<GrFragmentProcessor> make_dither_effect(
     // Pixel 4           Adreno640       500    110ms        221ms (2.01x)     214ms (1.95x)
     // Galaxy S20 FE     Mali-G77 MP11   600    165ms        360ms (2.18x)     260ms (1.58x)
     static const SkBitmap gLUT = make_dither_lut();
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [tex, ct] = GrMakeCachedBitmapProxyView(rContext, gLUT, GrMipmapped::kNo);
-#else
-    STRUCTURED_BINDING_2(tex, ct, GrMakeCachedBitmapProxyView(rContext, gLUT, GrMipmapped::kNo));
-#endif
     if (!tex) {
         return inputFP;
     }
@@ -529,13 +525,8 @@ static inline bool skpaint_to_grpaint_impl(GrRecordingContext* context,
             SkColorSpace* dstCS = dstColorInfo.colorSpace();
             grPaint->setColor4f(colorFilter->filterColor4f(origColor, dstCS, dstCS).premul());
         } else {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             auto [success, fp] = as_CFB(colorFilter)->asFragmentProcessor(std::move(paintFP),
                                                                           context, dstColorInfo);
-#else
-            STRUCTURED_BINDING_2(success, fp, as_CFB(colorFilter)->asFragmentProcessor(std::move(paintFP),
-                                                                          context, dstColorInfo));
-#endif
             if (!success) {
                 return false;
             }

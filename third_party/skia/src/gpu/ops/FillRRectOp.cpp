@@ -521,11 +521,7 @@ void FillRRectOpImpl::onPrepareDraws(GrMeshDrawTarget* target) {
                                                              &fInstanceBuffer, &fBaseInstance)) {
         SkDEBUGCODE(auto end = instanceWrter.makeOffset(instanceStride * fInstanceCount));
         for (Instance* i = fHeadInstance; i; i = i->fNext) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             auto [l, t, r, b] = i->fRRect.rect();
-#else
-            STRUCTURED_BINDING_4(l, t, r, b, i->fRRect.rect());
-#endif
 
             // Produce a matrix that draws the round rect from normalized [-1, -1, +1, +1] space.
             SkMatrix m;

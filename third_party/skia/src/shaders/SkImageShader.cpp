@@ -194,12 +194,7 @@ SkShaderBase::Context* SkImageShader::onMakeContext(const ContextRec& rec,
             {SkFilterMode::kLinear,  SkMipmapMode::kNone},    // legacy Low
             {SkFilterMode::kLinear,  SkMipmapMode::kNearest}, // legacy Medium
         };
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         for (auto [f, m] : supported) {
-#else
-        for (auto item : supported) {
-            STRUCTURED_BINDING_2(f, m, std::move(item));
-#endif
             if (sampling.filter == f && sampling.mipmap == m) {
                 return true;
             }
@@ -698,11 +693,7 @@ skvm::Color SkImageShader::makeProgram(
     if (!access) {
         return {};
     }
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [upper, upperInv] = access->level();
-#else
-    STRUCTURED_BINDING_2(upper, upperInv, access->level());
-#endif
     // If we are using a coordShader, then we can't make guesses about the state of the matrix.
     if (!sampling.useCubic && !coordShader) {
         // TODO: can tweak_sampling sometimes for cubic too when B=0

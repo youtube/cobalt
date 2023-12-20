@@ -12,16 +12,6 @@
 #include "src/shaders/SkBitmapProcShader.h"
 #include "src/shaders/SkShaderBase.h"
 
-#ifdef SKIA_STRUCTURED_BINDINGS_BACKPORT
-template <>
-struct CoercerToTuple<std::pair<SkPixmap, SkMatrix>> {
-  static std::tuple<SkPixmap, SkMatrix> Coerce(
-      std::pair<SkPixmap, SkMatrix>&& t) {
-    return std::make_tuple(t.first, t.second);
-  }
-};
-#endif
-
 class SkImageShader : public SkShaderBase {
 public:
     static sk_sp<SkShader> Make(sk_sp<SkImage>,

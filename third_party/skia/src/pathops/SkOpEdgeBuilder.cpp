@@ -88,12 +88,7 @@ int SkOpEdgeBuilder::preFetch() {
     SkPoint curveStart;
     SkPoint curve[4];
     bool lastCurve = false;
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto [pathVerb, pts, w] : SkPathPriv::Iterate(*fPath)) {
-#else
-    for (auto item : SkPathPriv::Iterate(*fPath)) {
-        STRUCTURED_BINDING_3(pathVerb, pts, w, std::move(item));
-#endif
         auto verb = static_cast<SkPath::Verb>(pathVerb);
         switch (verb) {
             case SkPath::kMove_Verb:

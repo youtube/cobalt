@@ -394,11 +394,7 @@ private:
 sk_sp<sksg::RenderNode> EffectBuilder::attachDisplacementMapEffect(
         const skjson::ArrayValue& jprops, sk_sp<sksg::RenderNode> layer) const {
 #ifdef SK_ENABLE_SKSL
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [ displ, displ_size ] = DisplacementMapAdapter::GetDisplacementSource(jprops, this);
-#else
-    STRUCTURED_BINDING_2(displ, displ_size, DisplacementMapAdapter::GetDisplacementSource(jprops, this));
-#endif
 
     auto displ_node = DisplacementNode::Make(layer, fLayerSize, std::move(displ), displ_size);
 

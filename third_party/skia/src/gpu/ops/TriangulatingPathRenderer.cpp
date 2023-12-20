@@ -287,11 +287,7 @@ private:
                                                         fViewMatrix, fShape.bounds());
 
         if (!fVertexData) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             auto [cachedVerts, data] = threadSafeCache->findVertsWithData(key);
-#else
-            STRUCTURED_BINDING_2(cachedVerts, data, threadSafeCache->findVertsWithData(key));
-#endif
             if (cachedVerts && cache_match(data.get(), tol)) {
                 fVertexData = std::move(cachedVerts);
             }
@@ -330,11 +326,7 @@ private:
 
         key.setCustomData(create_data(vertexCount, isLinear, tol));
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [tmpV, tmpD] = threadSafeCache->addVertsWithData(key, fVertexData, is_newer_better);
-#else
-        STRUCTURED_BINDING_2(tmpV, tmpD, threadSafeCache->addVertsWithData(key, fVertexData, is_newer_better));
-#endif
         if (tmpV != fVertexData) {
             SkASSERT(!tmpV->gpuBuffer());
             // In this case, although the different triangulation found in the cache is better,
@@ -453,11 +445,7 @@ private:
         SkScalar tol = GrPathUtils::scaleToleranceToSrc(GrPathUtils::kDefaultTolerance,
                                                         fViewMatrix, fShape.bounds());
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [cachedVerts, data] = threadSafeViewCache->findVertsWithData(key);
-#else
-        STRUCTURED_BINDING_2(cachedVerts, data, threadSafeViewCache->findVertsWithData(key));
-#endif
         if (cachedVerts && cache_match(data.get(), tol)) {
             fVertexData = std::move(cachedVerts);
             return;
@@ -480,13 +468,8 @@ private:
         // predicate will replace the version in the cache if 'fVertexData' is a more accurate
         // triangulation. This will leave some other recording threads using a poorer triangulation
         // but will result in a version with greater applicability being in the cache.
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [tmpV, tmpD] = threadSafeViewCache->addVertsWithData(key, fVertexData,
                                                                   is_newer_better);
-#else
-        STRUCTURED_BINDING_2(tmpV, tmpD, threadSafeViewCache->addVertsWithData(key, fVertexData,
-                                                                  is_newer_better));
-#endif
         if (tmpV != fVertexData) {
             // Someone beat us to creating the triangulation (and it is better than ours) so
             // just go ahead and use it.

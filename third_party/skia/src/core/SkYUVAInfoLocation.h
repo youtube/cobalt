@@ -58,13 +58,4 @@ struct SkYUVAInfo::YUVALocation {
     }
 };
 
-#ifdef SKIA_STRUCTURED_BINDINGS_BACKPORT
-template <>
-struct CoercerToTuple<SkYUVAInfo::YUVALocation> {
-  static auto Coerce(const SkYUVAInfo::YUVALocation& t) {
-    return std::make_tuple(t.fPlane, t.fChannel);
-  }
-};
-#endif
-
 #endif

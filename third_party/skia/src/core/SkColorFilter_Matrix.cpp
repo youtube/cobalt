@@ -97,11 +97,7 @@ skvm::Color SkColorFilter_Matrix::onProgram(skvm::Builder* p, skvm::Color c,
             skvm::F32 bias = b == 0.0f ? p->splat(0.0f)
                                        : p->uniformF(uniforms->pushF(b));
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             auto [x,y,z,w] = xyzw;
-#else
-            STRUCTURED_BINDING_4(x,y,z,w, xyzw);
-#endif
             return custom_mad(fMatrix[0+j*5], x,
                    custom_mad(fMatrix[1+j*5], y,
                    custom_mad(fMatrix[2+j*5], z,
@@ -113,18 +109,10 @@ skvm::Color SkColorFilter_Matrix::onProgram(skvm::Builder* p, skvm::Color c,
     c = unpremul(c);
 
     if (fDomain == Domain::kHSLA) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [h,s,l,a] = apply_matrix(p->to_hsla(c));
-#else
-        STRUCTURED_BINDING_4(h,s,l,a, apply_matrix(p->to_hsla(c)));
-#endif
         c = p->to_rgba({h,s,l,a});
     } else {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [r,g,b,a] = apply_matrix(c);
-#else
-        STRUCTURED_BINDING_4(r,g,b,a, apply_matrix(c));
-#endif
         c = {r,g,b,a};
     }
 

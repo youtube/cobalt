@@ -144,11 +144,7 @@ bool AtlasPathRenderer::pathFitsInAtlas(const SkRect& pathDevBounds,
     float atlasMaxPathHeight_pow2 = (fallbackAAType == GrAAType::kMSAA)
             ? kAtlasMaxPathHeightWithMSAAFallback * kAtlasMaxPathHeightWithMSAAFallback
             : kAtlasMaxPathHeight * kAtlasMaxPathHeight;
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [topLeftFloor, botRightCeil] = round_out(pathDevBounds);
-#else
-    STRUCTURED_BINDING_2(topLeftFloor, botRightCeil, round_out(pathDevBounds));
-#endif
     float2 size = botRightCeil - topLeftFloor;
     return // Ensure the path's largest dimension fits in the atlas.
            skvx::all(size <= fAtlasMaxPathWidth) &&
@@ -184,11 +180,7 @@ bool AtlasPathRenderer::addPathToAtlas(GrRecordingContext* rContext,
 #ifdef SK_DEBUG
     // is_visible() should have guaranteed the path's bounds were representable as ints, since clip
     // bounds within the max render target size are nowhere near INT_MAX.
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [topLeftFloor, botRightCeil] = round_out(pathDevBounds);
-#else
-    STRUCTURED_BINDING_2(topLeftFloor, botRightCeil, round_out(pathDevBounds));
-#endif
     SkASSERT(skvx::all(skvx::cast<float>(int2::Load(&devIBounds->fLeft)) == topLeftFloor));
     SkASSERT(skvx::all(skvx::cast<float>(int2::Load(&devIBounds->fRight)) == botRightCeil));
 #endif
@@ -366,11 +358,7 @@ GrFPResult AtlasPathRenderer::makeAtlasClipEffect(const SurfaceDrawContext* sdc,
     }
 
     SkMatrix atlasMatrix;
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [atlasX, atlasY] = locationInAtlas;
-#else
-    STRUCTURED_BINDING_2(atlasX, atlasY, locationInAtlas);
-#endif
     if (!transposedInAtlas) {
         atlasMatrix = SkMatrix::Translate(atlasX - devIBounds.left(), atlasY - devIBounds.top());
     } else {

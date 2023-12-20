@@ -333,11 +333,7 @@ std::unique_ptr<GrFragmentProcessor> GrMatrixConvolutionEffect::Make(GrRecording
                                                                      GrSamplerState::WrapMode wm,
                                                                      bool convolveAlpha,
                                                                      const GrCaps& caps) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [kernelWrapper, kernelFP] = KernelWrapper::Make(context, kernelSize, caps, kernel);
-#else
-    STRUCTURED_BINDING_2(kernelWrapper, kernelFP, KernelWrapper::Make(context, kernelSize, caps, kernel));
-#endif
     if (!kernelWrapper.isValid()) {
         return nullptr;
     }
@@ -353,11 +349,7 @@ GR_DEFINE_FRAGMENT_PROCESSOR_TEST(GrMatrixConvolutionEffect);
 
 #if GR_TEST_UTILS
 std::unique_ptr<GrFragmentProcessor> GrMatrixConvolutionEffect::TestCreate(GrProcessorTestData* d) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [view, ct, at] = d->randomView();
-#else
-    STRUCTURED_BINDING_3(view, ct, at, d->randomView());
-#endif
 
     static constexpr size_t kMaxTestKernelSize = 2 * kMaxUniformSize;
     int width = d->fRandom->nextRangeU(1, kMaxTestKernelSize);

@@ -476,16 +476,6 @@ private:
     using INHERITED = SkRuntimeEffectBuilder;
 };
 
-#ifdef SKIA_STRUCTURED_BINDINGS_BACKPORT
-template <>
-struct CoercerToTuple<SkRuntimeEffect::Result> {
-  static std::tuple<sk_sp<SkRuntimeEffect>, SkString> Coerce(
-      const SkRuntimeEffect::Result&& t) {
-    return std::make_tuple(t.effect, t.errorText);
-  }
-};
-#endif
-
 #endif  // SK_ENABLE_SKSL
 
 #endif  // SkRuntimeEffect_DEFINED

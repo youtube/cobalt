@@ -296,12 +296,7 @@ bool SkPath::conservativelyContainsRect(const SkRect& rect) const {
     int segmentCount = 0;
     SkDEBUGCODE(int moveCnt = 0;)
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto [verb, pts, weight] : SkPathPriv::Iterate(*this)) {
-#else
-    for (auto item : SkPathPriv::Iterate(*this)) {
-        STRUCTURED_BINDING_3(verb, pts, weight, std::move(item));
-#endif
         if (verb == SkPathVerb::kClose || (segmentCount > 0 && verb == SkPathVerb::kMove)) {
             // Closing the current contour; but since convexity is a precondition, it's the only
             // contour that matters.
@@ -1392,11 +1387,7 @@ SkPath& SkPath::addPath(const SkPath& srcPath, const SkMatrix& matrix, AddPathMo
         fLastMoveToIndex = this->countPoints() + src->fLastMoveToIndex;
 
         SkPathRef::Editor ed(&fPathRef);
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [newPts, newWeights] = ed.growForVerbsInPath(*src->fPathRef);
-#else
-        STRUCTURED_BINDING_2(newPts, newWeights, ed.growForVerbsInPath(*src->fPathRef));
-#endif
         matrix.mapPoints(newPts, src->fPathRef->points(), src->countPoints());
         if (int numWeights = src->fPathRef->countWeights()) {
             memcpy(newWeights, src->fPathRef->conicWeights(), numWeights * sizeof(newWeights[0]));
@@ -1410,12 +1401,7 @@ SkPath& SkPath::addPath(const SkPath& srcPath, const SkMatrix& matrix, AddPathMo
 
     SkMatrixPriv::MapPtsProc mapPtsProc = SkMatrixPriv::GetMapPtsProc(matrix);
     bool firstVerb = true;
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto [verb, pts, w] : SkPathPriv::Iterate(*src)) {
-#else
-    for (auto item : SkPathPriv::Iterate(*src)) {
-        STRUCTURED_BINDING_3(verb, pts, w, std::move(item));
-#endif
         switch (verb) {
             SkPoint mappedPts[3];
             case SkPathVerb::kMove:
@@ -1852,11 +1838,7 @@ SkPath::Verb SkPath::RawIter::next(SkPoint pts[4]) {
     if (!(fIter != fEnd)) {
         return kDone_Verb;
     }
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [verb, iterPts, weights] = *fIter;
-#else
-    STRUCTURED_BINDING_3(verb, iterPts, weights, *fIter);
-#endif
     int numPts;
     switch (verb) {
         case SkPathVerb::kMove: numPts = 1; break;
@@ -2278,12 +2260,7 @@ SkPathConvexity SkPath::computeConvexity() const {
     bool needsClose = false;
     Convexicator state;
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto [verb, pts, wt] : SkPathPriv::Iterate(*this)) {
-#else
-    for (auto item : SkPathPriv::Iterate(*this)) {
-        STRUCTURED_BINDING_3(verb, pts, wt, std::move(item));
-#endif
         // Looking for the last moveTo before non-move verbs start
         if (contourCount == 0) {
             if (verb == SkPathVerb::kMove) {
@@ -3111,12 +3088,7 @@ bool SkPathPriv::IsSimpleRect(const SkPath& path, bool isSimpleFill, SkRect* rec
     SkPoint rectPts[5];
     int rectPtCnt = 0;
     bool needsClose = !isSimpleFill;
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto [v, verbPts, w] : SkPathPriv::Iterate(path)) {
-#else
-    for (auto item : SkPathPriv::Iterate(path)) {
-        STRUCTURED_BINDING_3(v, verbPts, w, std::move(item));
-#endif
         switch (v) {
             case SkPathVerb::kMove:
                 if (0 != rectPtCnt) {
@@ -3321,12 +3293,7 @@ SkRect SkPath::computeTightBounds() const {
     // initial with the first MoveTo, so we don't have to check inside the switch
     Sk2s min, max;
     min = max = from_point(this->getPoint(0));
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto [verb, pts, w] : SkPathPriv::Iterate(*this)) {
-#else
-    for (auto item : SkPathPriv::Iterate(*this)) {
-        STRUCTURED_BINDING_3(verb, pts, w, std::move(item));
-#endif
         int count = 0;
         switch (verb) {
             case SkPathVerb::kMove:

@@ -161,13 +161,7 @@ ProgramImpl::FPCoordsMap ProgramImpl::collectTransforms(GrGLSLVertexBuilder* vb,
                 break;
         }
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto& [varyingFSVar, hasCoordsParam] = result[&fp];
-#else
-        auto& item = result[&fp];
-        auto& varyingFSVar = item.coordsVarying;
-        auto& hasCoordsParam = item.hasCoordsParam;
-#endif
         hasCoordsParam = fp.usesSampleCoordsDirectly();
 
         // We add a varying if we're in a chain of matrices multiplied by local or device coords.
@@ -185,14 +179,7 @@ ProgramImpl::FPCoordsMap ProgramImpl::collectTransforms(GrGLSLVertexBuilder* vb,
             } else {
                 // If there is an already a varying that incorporates all matrices from the root to
                 // lastMatrixFP just use it. Otherwise, we add it.
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
                 auto& [varying, inputCoords, varyingIdx] = fTransformVaryingsMap[lastMatrixFP];
-#else
-                auto& item = fTransformVaryingsMap[lastMatrixFP];
-                auto& varying = item.varying;
-                auto& inputCoords = item.inputCoords;
-                auto& varyingIdx = item.traversalOrder;
-#endif
                 if (varying.type() == kVoid_GrSLType) {
                     varying = GrGLSLVarying(hasPerspective ? kFloat3_GrSLType : kFloat2_GrSLType);
                     SkString strVaryingName = SkStringPrintf("TransformedCoords_%d",
@@ -246,12 +233,7 @@ void ProgramImpl::emitTransformCode(GrGLSLVertexBuilder* vb, GrGLSLUniformHandle
         pq.push(entry);
     });
     for (; !pq.empty(); pq.pop()) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         const auto& [fp, info] = pq.top();
-#else
-        const GrFragmentProcessor* fp; TransformInfo info;
-        std::tie(fp, info) = pq.top();
-#endif
         // If we recorded a transform info, its sample matrix must be uniform
         SkASSERT(fp->sampleUsage().isUniformMatrix());
         GrShaderVar uniform = uniformHandler->liftUniformToVertexShader(

@@ -75,11 +75,7 @@ GR_DEFINE_GEOMETRY_PROCESSOR_TEST(GrRRectShadowGeoProc);
 
 #if GR_TEST_UTILS
 GrGeometryProcessor* GrRRectShadowGeoProc::TestCreate(GrProcessorTestData* d) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [view, ct, at] = d->randomAlphaOnlyView();
-#else
-    STRUCTURED_BINDING_3(view, ct, at, d->randomAlphaOnlyView());
-#endif
 
     return GrRRectShadowGeoProc::Make(d->allocator(), view);
 }

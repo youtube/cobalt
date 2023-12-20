@@ -228,20 +228,10 @@ void PathCurveTessellator::prepare(GrMeshDrawTarget* target,
         }
         int numRemainingTriangles = maxTriangles;
         if (fDrawInnerFan) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             for (auto [pathMatrix, path] : pathDrawList) {
-#else
-            for (auto item : pathDrawList) {
-                STRUCTURED_BINDING_2(pathMatrix, path, std::move(item));
-#endif
                 PathXform m(pathMatrix);
                 for (PathMiddleOutFanIter it(path); !it.done();) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
                     for (auto [p0, p1, p2] : it.nextStack()) {
-#else
-                    for (auto item : it.nextStack()) {
-                        STRUCTURED_BINDING_3(p0, p1, p2, std::move(item));
-#endif
                         vertexWriter << m.map2Points(p0, p1) << m.mapPoint(p2);
                         // Mark this instance as a triangle by setting it to a conic with w=Inf.
                         vertexWriter.fill(VertexWriter::kIEEE_32_infinity, 2);
@@ -257,12 +247,7 @@ void PathCurveTessellator::prepare(GrMeshDrawTarget* target,
             int numWritten = 0;
             SkDEBUGCODE(int count = 0;)
 #ifdef SK_DEBUG
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             for (auto [pathMatrix, path] : pathDrawList) {
-#else
-            for (auto item : pathDrawList) {
-                STRUCTURED_BINDING_2(pathMatrix, path, std::move(item));
-#endif
                 // This assert isn't actually necessary, but we currently only use breadcrumb
                 // triangles with an identity pathMatrix. If that ever changes, this assert will
                 // serve as a gentle reminder to make sure the breadcrumb triangles are also
@@ -307,19 +292,9 @@ void PathCurveTessellator::prepare(GrMeshDrawTarget* target,
     }
 
     CurveWriter curveWriter(maxSegments);
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto [pathMatrix, path] : pathDrawList) {
-#else
-    for (auto item : pathDrawList) {
-        STRUCTURED_BINDING_2(pathMatrix, path, std::move(item));
-#endif
         curveWriter.setMatrices(fShader->viewMatrix(), pathMatrix);
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         for (auto [verb, pts, w] : SkPathPriv::Iterate(path)) {
-#else
-        for (auto item : SkPathPriv::Iterate(path)) {
-            STRUCTURED_BINDING_3(verb, pts, w, std::move(item));
-#endif
             switch (verb) {
                 case SkPathVerb::kQuad:
                     curveWriter.writeQuadratic(shaderCaps, &chunker, pts);

@@ -2379,13 +2379,8 @@ void SkCanvas::drawGlyphs(int count, const SkGlyphID glyphs[], const SkRSXform x
                           SkPoint origin, const SkFont& font, const SkPaint& paint) {
     if (count <= 0) { return; }
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [positions, rotateScales] =
             fScratchGlyphRunBuilder->convertRSXForm(SkMakeSpan(xforms, count));
-#else
-    STRUCTURED_BINDING_2(positions, rotateScales,
-            fScratchGlyphRunBuilder->convertRSXForm(SkMakeSpan(xforms, count)));
-#endif
 
     SkGlyphRun glyphRun {
             font,

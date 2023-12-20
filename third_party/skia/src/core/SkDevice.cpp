@@ -466,18 +466,9 @@ void SkBaseDevice::simplifyGlyphRunRSXFormAndRedraw(const SkGlyphRunList& glyphR
             };
 
             const SkM44 originalLocalToDevice = this->localToDevice44();
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             for (auto [i, glyphID, pos] : SkMakeEnumerate(run.source())) {
-#else
-            for (auto item : SkMakeEnumerate(run.source())) {
-                STRUCTURED_BINDING_3(i, glyphID, pos, std::move(item));
-#endif
                 sharedGlyphID = glyphID;
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
                 auto [scos, ssin] = run.scaledRotations()[i];
-#else
-                STRUCTURED_BINDING_2(scos, ssin, run.scaledRotations()[i]);
-#endif
                 SkRSXform rsxForm = SkRSXform::Make(scos, ssin, pos.x(), pos.y());
                 SkMatrix glyphToLocal;
                 glyphToLocal.setRSXform(rsxForm).postTranslate(origin.x(), origin.y());

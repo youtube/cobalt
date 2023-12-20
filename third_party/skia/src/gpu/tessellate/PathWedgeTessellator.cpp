@@ -19,15 +19,6 @@
 #include "src/gpu/GrOpFlushState.h"
 #endif
 
-#ifdef SKIA_STRUCTURED_BINDINGS_BACKPORT
-template <>
-struct CoercerToTuple<skvx::Vec<4, float>> {
-  static auto Coerce(skvx::Vec<4, float>&& t) {
-    return std::make_tuple(t[0], t[1], t[2], t[3]);
-  }
-};
-#endif
-
 namespace skgpu {
 
 struct LineToCubic {

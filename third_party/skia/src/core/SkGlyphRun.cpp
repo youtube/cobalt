@@ -46,11 +46,7 @@ SkRect SkGlyphRun::sourceBounds(const SkPaint& paint) const {
     if (fontBounds.isEmpty()) {
         // Empty font bounds are likely a font bug.  TightBounds has a better chance of
         // producing useful results in this case.
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [strikeSpec, strikeToSourceScale] = SkStrikeSpec::MakeCanonicalized(fFont, &paint);
-#else
-        STRUCTURED_BINDING_2(strikeSpec, strikeToSourceScale, SkStrikeSpec::MakeCanonicalized(fFont, &paint));
-#endif
         SkBulkGlyphMetrics metrics{strikeSpec};
         SkSpan<const SkGlyph*> glyphs = metrics.glyphs(this->glyphsIDs());
         if (fScaledRotations.empty()) {
@@ -64,12 +60,7 @@ SkRect SkGlyphRun::sourceBounds(const SkPaint& paint) const {
                 };
 
             SkRect bounds = SkRect::MakeEmpty();
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             for (auto [pos, glyph] : SkMakeZip(this->positions(), glyphs)) {
-#else
-            for (auto item : SkMakeZip(this->positions(), glyphs)) {
-                STRUCTURED_BINDING_2(pos, glyph, std::move(item));
-#endif
                 if (SkRect r = glyph->rect(); !r.isEmpty()) {
                     bounds.join(scaleAndTranslateRect(r, pos));
                 }
@@ -78,14 +69,8 @@ SkRect SkGlyphRun::sourceBounds(const SkPaint& paint) const {
         } else {
             // RSXForm - glyphs can be any scale or rotation.
             SkRect bounds = SkRect::MakeEmpty();
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             for (auto [pos, scaleRotate, glyph] :
                     SkMakeZip(this->positions(), fScaledRotations, glyphs)) {
-#else
-            for (auto item :
-                    SkMakeZip(this->positions(), fScaledRotations, glyphs)) {
-                STRUCTURED_BINDING_3(pos, scaleRotate, glyph, std::move(item));
-#endif
                 if (!glyph->rect().isEmpty()) {
                     SkMatrix xform = SkMatrix().setRSXform(
                             SkRSXform{pos.x(), pos.y(), scaleRotate.x(), scaleRotate.y()});
@@ -110,12 +95,7 @@ SkRect SkGlyphRun::sourceBounds(const SkPaint& paint) const {
         // RSXForm case glyphs can be any scale or rotation.
         SkRect bounds;
         bounds.setEmpty();
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         for (auto [pos, scaleRotate] : SkMakeZip(this->positions(), fScaledRotations)) {
-#else
-        for (auto item : SkMakeZip(this->positions(), fScaledRotations)) {
-            STRUCTURED_BINDING_2(pos, scaleRotate, std::move(item));
-#endif
             const SkRSXform xform{pos.x(), pos.y(), scaleRotate.x(), scaleRotate.y()};
             bounds.join(SkMatrix().setRSXform(xform).mapRect(fontBounds));
         }
@@ -178,16 +158,9 @@ sk_sp<SkTextBlob> SkGlyphRunList::makeBlob() const {
             memcpy(buffer.points(), positions.data(), positions.size_bytes());
         } else {
             buffer = builder.allocRunRSXform(run.font(), run.runSize());
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             for (auto [xform, pos, sr] : SkMakeZip(buffer.xforms(),
                                                    run.positions(),
                                                    run.scaledRotations())) {
-#else
-            for (auto item : SkMakeZip(buffer.xforms(),
-                                                   run.positions(),
-                                                   run.scaledRotations())) {
-                STRUCTURED_BINDING_3(xform, pos, sr, std::move(item));
-#endif
                 xform = SkRSXform::Make(sr.x(), sr.y(), pos.x(), pos.y());
             }
         }
@@ -299,17 +272,8 @@ SkGlyphRunBuilder::convertRSXForm(SkSpan<const SkRSXform> xforms) {
     this->prepareBuffers(count, count);
     auto positions = SkMakeSpan(fPositions.get(), count);
     auto scaledRotations = SkMakeSpan(fScaledRotations.get(), count);
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto [pos, sr, xform] : SkMakeZip(positions, scaledRotations, xforms)) {
-#else
-    for (auto item : SkMakeZip(positions, scaledRotations, xforms)) {
-        STRUCTURED_BINDING_3(pos, sr, xform, std::move(item));
-#endif
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [scos, ssin, tx, ty] = xform;
-#else
-        STRUCTURED_BINDING_4(scos, ssin, tx, ty, xform);
-#endif
         pos = {tx, ty};
         sr = {scos, ssin};
     }

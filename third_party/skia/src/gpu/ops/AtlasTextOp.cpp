@@ -289,11 +289,7 @@ void AtlasTextOp::onPrepareDraws(GrMeshDrawTarget* target) {
             // Regenerate the atlas for the remainder of the glyphs in the run, or the remainder
             // of the glyphs to fill the vertex buffer.
             int regenEnd = subRunCursor + std::min(subRunEnd - subRunCursor, quadEnd - quadCursor);
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             auto[ok, glyphsRegenerated] = subRun.regenerateAtlas(subRunCursor, regenEnd, target);
-#else
-            STRUCTURED_BINDING_2(ok, glyphsRegenerated, subRun.regenerateAtlas(subRunCursor, regenEnd, target));
-#endif
             // There was a problem allocating the glyph in the atlas. Bail.
             if (!ok) {
                 return;

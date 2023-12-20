@@ -492,12 +492,7 @@ void RemoteStrike::commonMaskLoop(
 
 void RemoteStrike::prepareForMaskDrawing(
         SkDrawableGlyphBuffer* drawables, SkSourceGlyphBuffer* rejects) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto [i, variant, _] : SkMakeEnumerate(drawables->input())) {
-#else
-    for (auto item : SkMakeEnumerate(drawables->input())) {
-        STRUCTURED_BINDING_3(i, variant, _, std::move(item));
-#endif
         SkPackedGlyphID packedID = variant.packedID();
         if (fSentLowGlyphIDs.test(packedID)) {
             #ifdef SK_DEBUG

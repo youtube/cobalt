@@ -54,12 +54,7 @@ void SkDraw::paintMasks(SkDrawableGlyphBuffer* drawables, const SkPaint& paint) 
     bool useRegion = fRC->isBW() && !fRC->isRect();
 
     if (useRegion) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         for (auto [variant, pos] : drawables->drawable()) {
-#else
-        for (auto item : drawables->drawable()) {
-            STRUCTURED_BINDING_2(variant, pos, std::move(item));
-#endif
             SkGlyph* glyph = variant.glyph();
             if (check_glyph_position(pos)) {
                 SkMask mask = glyph->mask(pos);
@@ -86,12 +81,7 @@ void SkDraw::paintMasks(SkDrawableGlyphBuffer* drawables, const SkPaint& paint) 
     } else {
         SkIRect clipBounds = fRC->isBW() ? fRC->bwRgn().getBounds()
                                          : fRC->aaRgn().getBounds();
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         for (auto [variant, pos] : drawables->drawable()) {
-#else
-        for (auto item : drawables->drawable()) {
-            STRUCTURED_BINDING_2(variant, pos, std::move(item));
-#endif
             SkGlyph* glyph = variant.glyph();
             if (check_glyph_position(pos)) {
                 SkMask mask = glyph->mask(pos);
@@ -125,12 +115,7 @@ void SkDraw::paintPaths(SkDrawableGlyphBuffer* drawables,
                         SkScalar scale,
                         SkPoint origin,
                         const SkPaint& paint) const {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto [variant, pos] : drawables->drawable()) {
-#else
-    for (auto item : drawables->drawable()) {
-        STRUCTURED_BINDING_2(variant, pos, std::move(item));
-#endif
         const SkPath* path = variant.path();
         SkMatrix m;
         SkPoint translate = origin + pos;

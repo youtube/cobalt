@@ -120,11 +120,7 @@ GrSurfaceProxyView SkPictureImageGenerator::onGenerateTexture(GrRecordingContext
     if (!image) {
         return {};
     }
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [view, ct] = as_IB(image)->asView(ctx, mipmapped);
-#else
-    STRUCTURED_BINDING_2(view, ct, as_IB(image)->asView(ctx, mipmapped));
-#endif
     SkASSERT(view);
     SkASSERT(mipmapped == GrMipmapped::kNo ||
              view.asTextureProxy()->mipmapped() == GrMipmapped::kYes);

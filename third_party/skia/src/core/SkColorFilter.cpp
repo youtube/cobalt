@@ -171,24 +171,14 @@ public:
                                    const GrColorInfo& dstColorInfo) const override {
         GrFragmentProcessor* originalInputFP = inputFP.get();
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [innerSuccess, innerFP] =
                 fInner->asFragmentProcessor(std::move(inputFP), context, dstColorInfo);
-#else
-        STRUCTURED_BINDING_2(innerSuccess, innerFP,
-                fInner->asFragmentProcessor(std::move(inputFP), context, dstColorInfo));
-#endif
         if (!innerSuccess) {
             return GrFPFailure(std::move(innerFP));
         }
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [outerSuccess, outerFP] =
                 fOuter->asFragmentProcessor(std::move(innerFP), context, dstColorInfo);
-#else
-        STRUCTURED_BINDING_2(outerSuccess, outerFP,
-                fOuter->asFragmentProcessor(std::move(innerFP), context, dstColorInfo));
-#endif
         if (!outerSuccess) {
             // In the rare event that the outer FP cannot be built, we have no good way of
             // separating the inputFP from the innerFP, so we need to return a cloned inputFP.
@@ -373,13 +363,8 @@ struct SkWorkingFormatColorFilter : public SkColorFilterBase {
         GrColorInfo dst = {dstColorInfo.colorType(), dstColorInfo.alphaType(), dstCS},
                 working = {dstColorInfo.colorType(), workingAT, workingCS};
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [ok, fp] = as_CFB(fChild)->asFragmentProcessor(
                 GrColorSpaceXformEffect::Make(std::move(inputFP), dst,working), context, working);
-#else
-        STRUCTURED_BINDING_2(ok, fp, as_CFB(fChild)->asFragmentProcessor(
-                GrColorSpaceXformEffect::Make(std::move(inputFP), dst,working), context, working));
-#endif
 
         return ok ? GrFPSuccess(GrColorSpaceXformEffect::Make(std::move(fp), working,dst))
                   : GrFPFailure(std::move(fp));

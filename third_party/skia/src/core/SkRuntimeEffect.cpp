@@ -458,11 +458,7 @@ sk_sp<SkRuntimeEffect> SkMakeCachedRuntimeEffect(SkRuntimeEffect::Result (*make)
         }
     }
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [effect, err] = make(std::move(sksl));
-#else
-    STRUCTURED_BINDING_2(effect, err, make(std::move(sksl)));
-#endif
     if (!effect) {
         return nullptr;
     }
@@ -788,17 +784,10 @@ static GrFPResult make_effect_fp(sk_sp<SkRuntimeEffect> effect,
             childFPs.push_back(std::move(childFP));
         } else if (type == ChildType::kColorFilter) {
             // Convert a SkColorFilter into a child FP.
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             auto [success, childFP] = as_CFB(child.colorFilter())
                                               ->asFragmentProcessor(/*inputFP=*/nullptr,
                                                                     childArgs.fContext,
                                                                     *childArgs.fDstColorInfo);
-#else
-            STRUCTURED_BINDING_2(success, childFP, as_CFB(child.colorFilter())
-                                              ->asFragmentProcessor(/*inputFP=*/nullptr,
-                                                                    childArgs.fContext,
-                                                                    *childArgs.fDstColorInfo));
-#endif
             if (!success) {
                 return GrFPFailure(std::move(inputFP));
             }
@@ -997,7 +986,6 @@ public:
         GrFPArgs childArgs = args;
         childArgs.fInputColorIsOpaque = false;
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [success, fp] = make_effect_fp(fEffect,
                                             "runtime_shader",
                                             std::move(uniforms),
@@ -1005,15 +993,6 @@ public:
                                             /*destColorFP=*/nullptr,
                                             SkMakeSpan(fChildren),
                                             childArgs);
-#else
-        STRUCTURED_BINDING_2(success, fp, make_effect_fp(fEffect,
-                                            "runtime_shader",
-                                            std::move(uniforms),
-                                            /*inputFP=*/nullptr,
-                                            /*destColorFP=*/nullptr,
-                                            SkMakeSpan(fChildren),
-                                            childArgs));
-#endif
         if (!success) {
             return nullptr;
         }
@@ -1195,7 +1174,6 @@ public:
         sk_sp<SkData> uniforms = get_xformed_uniforms(fEffect.get(), fUniforms,
                                                       args.fDstColorInfo->colorSpace());
         SkASSERT(uniforms);
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [success, fp] = make_effect_fp(fEffect,
                                             "runtime_blender",
                                             std::move(uniforms),
@@ -1203,15 +1181,6 @@ public:
                                             std::move(dstFP),
                                             SkMakeSpan(fChildren),
                                             args);
-#else
-        STRUCTURED_BINDING_2(success, fp, make_effect_fp(fEffect,
-                                            "runtime_blender",
-                                            std::move(uniforms),
-                                            std::move(srcFP),
-                                            std::move(dstFP),
-                                            SkMakeSpan(fChildren),
-                                            args));
-#endif
 
         return success ? std::move(fp) : nullptr;
     }

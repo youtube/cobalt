@@ -100,13 +100,8 @@ void SkGlyphRunListPainter::drawForBitmapDevice(
 
         if (SkStrikeSpec::ShouldDrawAsPath(paint, runFont, deviceMatrix)) {
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             auto [strikeSpec, strikeToSourceScale] =
                     SkStrikeSpec::MakePath(runFont, paint, props, fScalerContextFlags);
-#else
-            STRUCTURED_BINDING_2(strikeSpec, strikeToSourceScale,
-                    SkStrikeSpec::MakePath(runFont, paint, props, fScalerContextFlags));
-#endif
 
             auto strike = strikeSpec.findOrCreateStrike();
 
@@ -150,12 +145,7 @@ void SkGlyphRunListPainter::drawForBitmapDevice(
             SkScalar maxScale = SK_ScalarMin;
 
             // Calculate the scale that makes the longest edge 1:1 with its side in the cache.
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             for (auto [glyph, pos] : SkMakeZip(glyphs, positions)) {
-#else
-            for (auto item : SkMakeZip(glyphs, positions)) {
-                STRUCTURED_BINDING_2(glyph, pos, std::move(item));
-#endif
                 SkPoint corners[4];
                 SkPoint srcPos = pos + drawOrigin;
                 // Store off the positions in device space to position the glyphs during drawing.
@@ -193,12 +183,7 @@ void SkGlyphRunListPainter::drawForBitmapDevice(
 
             strike->prepareForDrawingMasksCPU(&fDrawable);
             auto variants = fDrawable.drawable().get<0>();
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             for (auto [variant, srcPos] : SkMakeZip(variants, sourcePositions)) {
-#else
-            for (auto item : SkMakeZip(variants, sourcePositions)) {
-                STRUCTURED_BINDING_2(variant, srcPos, std::move(item));
-#endif
                 SkGlyph* glyph = variant.glyph();
                 SkMask mask = glyph->mask();
                 // TODO: is this needed will A8 and BW just work?
@@ -261,13 +246,8 @@ void SkGlyphRunListPainter::processGlyphRun(const SkGlyphRun& glyphRun,
 
     if (drawingType == GrSDFTControl::kSDFT) {
         // Process SDFT - This should be the .009% case.
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         const auto& [strikeSpec, minScale, maxScale] =
                 SkStrikeSpec::MakeSDFT(runFont, runPaint, fDeviceProps, drawMatrix, control);
-#else
-        STRUCTURED_BINDING_3(strikeSpec, minScale, maxScale,
-                SkStrikeSpec::MakeSDFT(runFont, runPaint, fDeviceProps, drawMatrix, control));
-#endif
 
         #if defined(SK_TRACE_GLYPH_RUN_PROCESS)
             msg.appendf("  SDFT case:\n%s", strikeSpec.dump().c_str());
@@ -325,13 +305,8 @@ void SkGlyphRunListPainter::processGlyphRun(const SkGlyphRun& glyphRun,
     SkScalar maxDimensionInSourceSpace = 0.0;
     if (!fRejects.source().empty()) {
         // Path case - handle big things without color and that have a path.
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [strikeSpec, strikeToSourceScale] =
                 SkStrikeSpec::MakePath(runFont, runPaint, fDeviceProps, fScalerContextFlags);
-#else
-        STRUCTURED_BINDING_2(strikeSpec, strikeToSourceScale,
-                SkStrikeSpec::MakePath(runFont, runPaint, fDeviceProps, fScalerContextFlags));
-#endif
 
         #if defined(SK_TRACE_GLYPH_RUN_PROCESS)
             msg.appendf("  Path case:\n%s", strikeSpec.dump().c_str());

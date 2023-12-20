@@ -222,12 +222,7 @@ void GrRecordingContext::DMSAAStats::dumpKeyValuePairs(SkTArray<SkString>* keys,
     keys->push_back(SkString("dmsaa_multisample_render_passes"));
     values->push_back(fNumMultisampleRenderPasses);
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (const auto& [name, count] : fTriggerCounts) {
-#else
-    for (const auto& item : fTriggerCounts) {
-        STRUCTURED_BINDING_2(name, count, std::move(item));
-#endif
         keys->push_back(SkStringPrintf("dmsaa_trigger_%s", name.c_str()));
         values->push_back(count);
     }
@@ -238,12 +233,7 @@ void GrRecordingContext::DMSAAStats::dump() const {
     SkDebugf("DMSAA Multisample Render Passes: %d\n", fNumMultisampleRenderPasses);
     if (!fTriggerCounts.empty()) {
         SkDebugf("DMSAA Triggers:\n");
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         for (const auto& [name, count] : fTriggerCounts) {
-#else
-        for (const auto& item : fTriggerCounts) {
-            STRUCTURED_BINDING_2(name, count, std::move(item));
-#endif
             SkDebugf("    %s: %d\n", name.c_str(), count);
         }
     }
@@ -252,12 +242,7 @@ void GrRecordingContext::DMSAAStats::dump() const {
 void GrRecordingContext::DMSAAStats::merge(const DMSAAStats& stats) {
     fNumRenderPasses += stats.fNumRenderPasses;
     fNumMultisampleRenderPasses += stats.fNumMultisampleRenderPasses;
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (const auto& [name, count] : stats.fTriggerCounts) {
-#else
-    for (const auto& item : stats.fTriggerCounts) {
-        STRUCTURED_BINDING_2(name, count, std::move(item));
-#endif
         fTriggerCounts[name] += count;
     }
 }

@@ -102,11 +102,7 @@ SkYUVAPixmapInfo::SkYUVAPixmapInfo(const SkYUVAInfo& yuvaInfo,
                                            kUnpremul_SkAlphaType);
         int numRequiredChannels = yuvaInfo.numChannelsInPlane(i);
         SkASSERT(numRequiredChannels > 0);
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [numColorTypeChannels, colorTypeDataType] = NumChannelsAndDataType(colorTypes[i]);
-#else
-        STRUCTURED_BINDING_2(numColorTypeChannels, colorTypeDataType, NumChannelsAndDataType(colorTypes[i]));
-#endif
         ok &= i == 0 || colorTypeDataType == fDataType;
         ok &= numColorTypeChannels >= numRequiredChannels;
         ok &= fPlaneInfos[i].validRowBytes(fRowBytes[i]);

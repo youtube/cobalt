@@ -53,17 +53,5 @@ struct SkIPoint16 {
     }
 };
 
-#ifdef SKIA_STRUCTURED_BINDINGS_BACKPORT
-template <>
-struct CoercerToTuple<SkIPoint16> {
-  static auto Coerce(SkIPoint16&& t) {
-    return std::make_tuple(t.fX, t.fY);
-  }
-  static auto Coerce(const SkIPoint16& t) {
-    return std::make_tuple(t.fX, t.fY);
-  }
-};
-#endif
-
 #endif
 

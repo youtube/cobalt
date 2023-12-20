@@ -577,11 +577,7 @@ void hair_path(const SkPath& path, const SkRasterClip& rclip, SkBlitter* blitter
         prevVerb = SkPath::kDone_Verb;
     }
     while (iter != end) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         auto [pathVerb, pathPts, w] = *iter++;
-#else
-        STRUCTURED_BINDING_3(pathVerb, pathPts, w, *iter++);
-#endif
         SkPath::Verb verb = (SkPath::Verb)pathVerb;
         SkPath::Verb nextVerb = (iter != end) ? (SkPath::Verb)iter.peekVerb() : SkPath::kDone_Verb;
         memcpy(pts, pathPts, SkPathPriv::PtsInIter(verb) * sizeof(SkPoint));

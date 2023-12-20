@@ -563,16 +563,4 @@ struct SK_API SkPoint {
 
 };
 
-#ifdef SKIA_STRUCTURED_BINDINGS_BACKPORT
-template <>
-struct CoercerToTuple<SkPoint> {
-  static auto Coerce(SkPoint&& t) {
-    return std::move( std::make_tuple(t.fX, t.fY));
-  }
-  static auto Coerce(const SkPoint& t) {
-    return std::make_tuple(t.fX, t.fY);
-  }
-};
-#endif
-
 #endif

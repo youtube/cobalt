@@ -1329,37 +1329,4 @@ namespace skvm {
 #undef SI
 }  // namespace skvm
 
-#ifdef SKIA_STRUCTURED_BINDINGS_BACKPORT
-template <>
-struct CoercerToTuple<SkRGBA4f<SkAlphaType::kUnpremul_SkAlphaType>> {
-  static auto Coerce(SkRGBA4f<SkAlphaType::kUnpremul_SkAlphaType>&& t) {
-    return std::forward<std::tuple<float, float, float, float>>(
-        std::make_tuple(t.fR, t.fG, t.fB, t.fA));
-  }
-  static auto Coerce(const SkRGBA4f<SkAlphaType::kUnpremul_SkAlphaType>& t) {
-    return std::make_tuple(t.fR, t.fG, t.fB, t.fA);
-  }
-};
-
-template <>
-struct CoercerToTuple<skvm::Color> {
-  static auto Coerce(skvm::Color&& t) {
-    return std::move(std::make_tuple(t.r, t.g, t.b, t.a));
-  }
-  static auto Coerce(skvm::Color& t) {
-    return std::make_tuple(t.r, t.g, t.b, t.a);
-  }
-};
-
-template <>
-struct CoercerToTuple<skvm::HSLA> {
-  static auto Coerce(skvm::HSLA&& t) {
-    return std::move(std::make_tuple(t.h, t.s, t.l, t.a));
-  }
-  static auto Coerce(skvm::HSLA& t) {
-    return std::make_tuple(t.h, t.s, t.l, t.a);
-  }
-};
-#endif
-
 #endif//SkVM_DEFINED

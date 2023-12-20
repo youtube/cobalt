@@ -1301,11 +1301,7 @@ SpvId SPIRVCodeGenerator::writeConstantVector(const AnyConstructor& c) {
     }
 
     // Check to see if we've already synthesized this vector constant.
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [iter, newlyCreated] = fVectorConstants.insert({key, (SpvId)-1});
-#else
-    STRUCTURED_BINDING_2(iter, newlyCreated, fVectorConstants.insert({key, (SpvId)-1}));
-#endif
     if (newlyCreated) {
         // Emit an OpConstantComposite instruction for this constant.
         SpvId result = this->nextId(&type);
@@ -2920,11 +2916,7 @@ SpvId SPIRVCodeGenerator::writeLiteral(const Literal& l) {
     }
 
     SPIRVNumberConstant key{valueBits, l.type().numberKind()};
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [iter, newlyCreated] = fNumberConstants.insert({key, (SpvId)-1});
-#else
-    STRUCTURED_BINDING_2(iter, newlyCreated, fNumberConstants.insert({key, (SpvId)-1}));
-#endif
     if (newlyCreated) {
         SpvId result = this->nextId(nullptr);
         iter->second = result;

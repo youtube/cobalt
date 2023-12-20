@@ -42,11 +42,7 @@ sk_sp<SkFlattenable> SkSweepGradient::CreateProc(SkReadBuffer& buffer) {
 
     const auto tBias  = buffer.readScalar(),
                tScale = buffer.readScalar();
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [startAngle, endAngle] = angles_from_t_coeff(tBias, tScale);
-#else
-    STRUCTURED_BINDING_2(startAngle, endAngle, angles_from_t_coeff(tBias, tScale));
-#endif
 
     return SkGradientShader::MakeSweep(center.x(), center.y(), desc.fColors,
                                        std::move(desc.fColorSpace), desc.fPos, desc.fCount,

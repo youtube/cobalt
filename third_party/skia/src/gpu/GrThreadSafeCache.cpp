@@ -240,11 +240,7 @@ std::tuple<GrSurfaceProxyView, sk_sp<SkData>> GrThreadSafeCache::findOrAddWithDa
                                                                       const GrSurfaceProxyView& v) {
     SkAutoSpinlock lock{fSpinLock};
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [view, data] = this->internalFind(key);
-#else
-    STRUCTURED_BINDING_2(view, data, this->internalFind(key));
-#endif
     if (view) {
         return { std::move(view), std::move(data) };
     }
@@ -330,11 +326,7 @@ GrThreadSafeCache::CreateLazyView(GrDirectContext* dContext,
     const GrCaps* caps = dContext->priv().caps();
 
     constexpr int kSampleCnt = 1;
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [newCT, format] = caps->getFallbackColorTypeAndFormat(origCT, kSampleCnt);
-#else
-    STRUCTURED_BINDING_2(newCT, format, caps->getFallbackColorTypeAndFormat(origCT, kSampleCnt));
-#endif
 
     if (newCT == GrColorType::kUnknown) {
         return {GrSurfaceProxyView(nullptr), nullptr};

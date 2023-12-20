@@ -57,24 +57,14 @@ GrProcessorTestData::ViewInfo GrProcessorTestData::randomView() {
 
 GrProcessorTestData::ViewInfo GrProcessorTestData::randomAlphaOnlyView() {
     int numAlphaOnly = 0;
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (const auto& [v, ct, at] : fViews) {
-#else
-    for (const auto& item : fViews) {
-        STRUCTURED_BINDING_3(v, ct, at, std::move(item));
-#endif
         if (GrColorTypeIsAlphaOnly(ct)) {
             ++numAlphaOnly;
         }
     }
     SkASSERT(numAlphaOnly);
     int idx = fRandom->nextULessThan(numAlphaOnly);
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (const auto& [v, ct, at] : fViews) {
-#else
-    for (const auto& item : fViews) {
-        STRUCTURED_BINDING_3(v, ct, at, std::move(item));
-#endif
         if (GrColorTypeIsAlphaOnly(ct) && !idx--) {
             return {v, ct, at};
         }

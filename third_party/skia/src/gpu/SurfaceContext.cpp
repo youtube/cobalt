@@ -476,17 +476,10 @@ bool SurfaceContext::internalWritePixels(GrDirectContext* dContext,
     }
 
     GrColorType srcColorType = src[0].colorType();
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [allowedColorType, _] =
             caps->supportedWritePixelsColorType(this->colorInfo().colorType(),
                                                 dstProxy->backendFormat(),
                                                 srcColorType);
-#else
-    auto allowedColorType =
-            caps->supportedWritePixelsColorType(this->colorInfo().colorType(),
-                                                dstProxy->backendFormat(),
-                                                srcColorType).fColorType;
-#endif
     bool flip = this->origin() == kBottomLeft_GrSurfaceOrigin;
 
     bool convertAll = premul              ||
@@ -883,19 +876,10 @@ void SurfaceContext::asyncRescaleAndReadPixelsYUV420(GrDirectContext* dContext,
 
     auto texMatrix = SkMatrix::Translate(x, y);
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [readCT, offsetAlignment] =
             this->caps()->supportedReadPixelsColorType(yFC->colorInfo().colorType(),
                                                        yFC->asSurfaceProxy()->backendFormat(),
                                                        GrColorType::kAlpha_8);
-#else
-    auto item =
-            this->caps()->supportedReadPixelsColorType(yFC->colorInfo().colorType(),
-                                                       yFC->asSurfaceProxy()->backendFormat(),
-                                                       GrColorType::kAlpha_8);
-    auto readCT = item.fColorType;
-    auto offsetAlignment = item.fOffsetAlignmentForTransferBuffer;
-#endif
     if (readCT == GrColorType::kUnknown) {
         callback(callbackContext, nullptr);
         return;

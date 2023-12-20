@@ -324,11 +324,7 @@ void GrGLOpsRenderPass::multiDrawArraysANGLEOrWebGL(const GrBuffer* drawIndirect
     while (drawCount) {
         int countInBatch = std::min(drawCount, kMaxDrawCountPerBatch);
         for (int i = 0; i < countInBatch; ++i) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             auto [vertexCount, instanceCount, baseVertex, baseInstance] = cmds[i];
-#else
-            STRUCTURED_BINDING_4(vertexCount, instanceCount, baseVertex, baseInstance, cmds[i]);
-#endif
             fFirsts[i] = baseVertex;
             fCounts[i] = vertexCount;
             fInstanceCounts[i] = instanceCount;
@@ -401,11 +397,7 @@ void GrGLOpsRenderPass::multiDrawElementsANGLEOrWebGL(const GrBuffer* drawIndire
     while (drawCount) {
         int countInBatch = std::min(drawCount, kMaxDrawCountPerBatch);
         for (int i = 0; i < countInBatch; ++i) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             auto [indexCount, instanceCount, baseIndex, baseVertex, baseInstance] = cmds[i];
-#else
-            STRUCTURED_BINDING_5(indexCount, instanceCount, baseIndex, baseVertex, baseInstance, cmds[i]);
-#endif
             fCounts[i] = indexCount;
             fIndices[i] = this->offsetForBaseIndex(baseIndex);
             fInstanceCounts[i] = instanceCount;

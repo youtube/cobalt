@@ -53,12 +53,7 @@ SkPathBuilder& SkPathBuilder::reset() {
 SkPathBuilder& SkPathBuilder::operator=(const SkPath& src) {
     this->reset().setFillType(src.getFillType());
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto [verb, pts, w] : SkPathPriv::Iterate(src)) {
-#else
-    for (auto item : SkPathPriv::Iterate(src)) {
-        STRUCTURED_BINDING_3(verb, pts, w, std::move(item));
-#endif
         switch (verb) {
             case SkPathVerb::kMove:  this->moveTo(pts[0]); break;
             case SkPathVerb::kLine:  this->lineTo(pts[1]); break;

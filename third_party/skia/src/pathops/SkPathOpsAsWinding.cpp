@@ -181,12 +181,7 @@ public:
         bounds.setEmpty();
         int lastStart = 0;
         int verbStart = 0;
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
         for (auto [verb, pts, w] : SkPathPriv::Iterate(fPath)) {
-#else
-        for (auto item : SkPathPriv::Iterate(fPath)) {
-            STRUCTURED_BINDING_3(verb, pts, w, std::move(item));
-#endif
             if (SkPathVerb::kMove == verb) {
                 if (!bounds.isEmpty()) {
                     containers->emplace_back(bounds, lastStart, verbStart);
@@ -337,11 +332,7 @@ public:
             SkPathBuilder reverse;
             SkPathBuilder* temp = contour.fReverse ? &reverse : &result;
             for (; iter != iterate.end() && verbCount < contour.fVerbEnd; ++iter, ++verbCount) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
                 auto [verb, pts, w] = *iter;
-#else
-                STRUCTURED_BINDING_3(verb, pts, w, *iter);
-#endif
                 switch (verb) {
                     case SkPathVerb::kMove:
                         temp->moveTo(pts[0]);

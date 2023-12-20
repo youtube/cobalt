@@ -50,21 +50,13 @@ public:
                 , fPinner{std::move(pinner)} {}
 
         SkGlyph* mergeGlyphAndImage(SkPackedGlyphID toID, const SkGlyph& from) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             auto [glyph, increase] = fScalerCache.mergeGlyphAndImage(toID, from);
-#else
-            STRUCTURED_BINDING_2(glyph, increase, fScalerCache.mergeGlyphAndImage(toID, from));
-#endif
             this->updateDelta(increase);
             return glyph;
         }
 
         const SkPath* mergePath(SkGlyph* glyph, const SkPath* path, bool hairline) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             auto [glyphPath, increase] = fScalerCache.mergePath(glyph, path, hairline);
-#else
-            STRUCTURED_BINDING_2(glyphPath, increase, fScalerCache.mergePath(glyph, path, hairline));
-#endif
             this->updateDelta(increase);
             return glyphPath;
         }
@@ -84,33 +76,21 @@ public:
 
         SkSpan<const SkGlyph*> metrics(SkSpan<const SkGlyphID> glyphIDs,
                                        const SkGlyph* results[]) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             auto [glyphs, increase] = fScalerCache.metrics(glyphIDs, results);
-#else
-            STRUCTURED_BINDING_2(glyphs, increase, fScalerCache.metrics(glyphIDs, results));
-#endif
             this->updateDelta(increase);
             return glyphs;
         }
 
         SkSpan<const SkGlyph*> preparePaths(SkSpan<const SkGlyphID> glyphIDs,
                                             const SkGlyph* results[]) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             auto [glyphs, increase] = fScalerCache.preparePaths(glyphIDs, results);
-#else
-            STRUCTURED_BINDING_2(glyphs, increase, fScalerCache.preparePaths(glyphIDs, results));
-#endif
             this->updateDelta(increase);
             return glyphs;
         }
 
         SkSpan<const SkGlyph*> prepareImages(SkSpan<const SkPackedGlyphID> glyphIDs,
                                              const SkGlyph* results[]) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             auto [glyphs, increase] = fScalerCache.prepareImages(glyphIDs, results);
-#else
-            STRUCTURED_BINDING_2(glyphs, increase, fScalerCache.prepareImages(glyphIDs, results));
-#endif
             this->updateDelta(increase);
             return glyphs;
         }

@@ -11,12 +11,7 @@
 bool TightBounds(const SkPath& path, SkRect* result) {
     SkRect moveBounds = { SK_ScalarMax, SK_ScalarMax, SK_ScalarMin, SK_ScalarMin };
     bool wellBehaved = true;
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (auto [verb, pts, w] : SkPathPriv::Iterate(path)) {
-#else
-    for (auto item : SkPathPriv::Iterate(path)) {
-        STRUCTURED_BINDING_3(verb, pts, w, std::move(item));
-#endif
         switch (verb) {
             case SkPathVerb::kMove:
                 moveBounds.fLeft = std::min(moveBounds.fLeft, pts[0].fX);

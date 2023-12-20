@@ -239,11 +239,7 @@ String MetalCodeGenerator::getOutParamHelper(const FunctionCall& call,
             this->write("&");
         }
         if (outVars[index]) {
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             auto [iter, didInsert] = writtenVars.insert(outVars[index]->variable());
-#else
-            STRUCTURED_BINDING_2(iter, didInsert, writtenVars.insert(outVars[index]->variable()));
-#endif
             if (didInsert) {
                 this->write(" ");
                 fIgnoreVariableReferenceModifiers = true;
@@ -456,11 +452,7 @@ String MetalCodeGenerator::getInversePolyfill(const ExpressionArray& arguments) 
         if (type.isMatrix() && type.rows() == type.columns()) {
             // Inject the correct polyfill based on the matrix size.
             auto name = String::printf("mat%d_inverse", type.columns());
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
             auto [iter, didInsert] = fWrittenIntrinsics.insert(name);
-#else
-            STRUCTURED_BINDING_2(iter, didInsert, fWrittenIntrinsics.insert(name));
-#endif
             if (didInsert) {
                 switch (type.rows()) {
                     case 2:
@@ -1051,11 +1043,7 @@ String MetalCodeGenerator::getMatrixConstructHelper(const AnyConstructor& c) {
     }
 
     // If a helper-method has already been synthesized, we don't need to synthesize it again.
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [iter, newlyCreated] = fHelpers.insert(name);
-#else
-    STRUCTURED_BINDING_2(iter, newlyCreated, fHelpers.insert(name));
-#endif
     if (!newlyCreated) {
         return name;
     }
@@ -1158,11 +1146,7 @@ void MetalCodeGenerator::writeConstructorArrayCast(const ConstructorArrayCast& c
     String outTypeName = this->typeName(outType);
 
     String name = "array_of_" + outTypeName + "_from_" + inTypeName;
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [iter, didInsert] = fHelpers.insert(name);
-#else
-    STRUCTURED_BINDING_2(iter, didInsert, fHelpers.insert(name));
-#endif
     if (didInsert) {
         fExtraFunctions.printf(R"(
 template <size_t N>
@@ -1404,11 +1388,7 @@ void MetalCodeGenerator::writeMatrixTimesEqualHelper(const Type& left, const Typ
 
     String key = "Matrix *= " + this->typeName(left) + ":" + this->typeName(right);
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [iter, wasInserted] = fHelpers.insert(key);
-#else
-    STRUCTURED_BINDING_2(iter, wasInserted, fHelpers.insert(key));
-#endif
     if (wasInserted) {
         fExtraFunctions.printf("thread %s& operator*=(thread %s& left, thread const %s& right) {\n"
                                "    left = left * right;\n"
@@ -1427,11 +1407,7 @@ void MetalCodeGenerator::writeMatrixEqualityHelpers(const Type& left, const Type
 
     String key = "Matrix == " + this->typeName(left) + ":" + this->typeName(right);
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [iter, wasInserted] = fHelpers.insert(key);
-#else
-    STRUCTURED_BINDING_2(iter, wasInserted, fHelpers.insert(key));
-#endif
     if (wasInserted) {
         fExtraFunctionPrototypes.printf(R"(
 thread bool operator==(const %s left, const %s right);
@@ -1468,11 +1444,7 @@ void MetalCodeGenerator::writeMatrixDivisionHelpers(const Type& type) {
 
     String key = "Matrix / " + this->typeName(type);
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [iter, wasInserted] = fHelpers.insert(key);
-#else
-    STRUCTURED_BINDING_2(iter, wasInserted, fHelpers.insert(key));
-#endif
     if (wasInserted) {
         String typeName = this->typeName(type);
 
@@ -1503,11 +1475,7 @@ void MetalCodeGenerator::writeArrayEqualityHelpers(const Type& type) {
     // If the array's component type needs a helper as well, we need to emit that one first.
     this->writeEqualityHelpers(type.componentType(), type.componentType());
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [iter, wasInserted] = fHelpers.insert("ArrayEquality []");
-#else
-    STRUCTURED_BINDING_2(iter, wasInserted, fHelpers.insert("ArrayEquality []"));
-#endif
     if (wasInserted) {
         fExtraFunctionPrototypes.writeText(R"(
 template <typename T1, typename T2, size_t N>
@@ -1538,11 +1506,7 @@ void MetalCodeGenerator::writeStructEqualityHelpers(const Type& type) {
     SkASSERT(type.isStruct());
     String key = "StructEquality " + this->typeName(type);
 
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     auto [iter, wasInserted] = fHelpers.insert(key);
-#else
-    STRUCTURED_BINDING_2(iter, wasInserted, fHelpers.insert(key));
-#endif
     if (wasInserted) {
         // If one of the struct's fields needs a helper as well, we need to emit that one first.
         for (const Type::Field& field : type.fields()) {
@@ -2427,13 +2391,7 @@ void MetalCodeGenerator::writeStructDefinitions() {
 
 void MetalCodeGenerator::visitGlobalStruct(GlobalStructVisitor* visitor) {
     // Visit the interface blocks.
-#ifndef SKIA_STRUCTURED_BINDINGS_BACKPORT
     for (const auto& [interfaceType, interfaceName] : fInterfaceBlockNameMap) {
-#else
-    for (const auto& item : fInterfaceBlockNameMap) {
-        auto& interfaceType = item.first;
-        auto& interfaceName = item.second;
-#endif
         visitor->visitInterfaceBlock(*interfaceType, interfaceName);
     }
     for (const ProgramElement* element : fProgram.elements()) {
