@@ -6,21 +6,19 @@
 //
 //===----------------------------------------------------------------------===//
 
-// Test that we can set a custom verbose termination function.
+// UNSUPPORTED: c++03
 
-// ADDITIONAL_COMPILE_FLAGS: -D_LIBCPP_ENABLE_ASSERTIONS=1
-
-// We flag uses of the verbose termination function in older dylibs at compile-time to avoid runtime
-// failures when back-deploying.
+// REQUIRES: has-unix-headers
 // XFAIL: use_system_cxx_lib && target={{.+}}-apple-macosx{{10.9|10.10|10.11|10.12|10.13|10.14|10.15|11.0|12.0}}
+// ADDITIONAL_COMPILE_FLAGS: -fno-exceptions -D_LIBCPP_ENABLE_ASSERTIONS
 
-#include <cstdlib>
+// ADDITIONAL_COMPILE_FLAGS: -Wno-private-header
 
-void std::__libcpp_verbose_abort(char const*, ...) {
-  std::exit(EXIT_SUCCESS);
-}
+#include <__utility/exception_guard.h>
+
+#include "check_assertion.h"
 
 int main(int, char**) {
-  _LIBCPP_ASSERT(false, "message");
-  return EXIT_FAILURE;
+  TEST_LIBCPP_ASSERT_FAILURE(
+      std::__make_exception_guard([] {}), "__exception_guard not completed with exceptions disabled");
 }
