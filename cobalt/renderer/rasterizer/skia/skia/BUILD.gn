@@ -12,27 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//cobalt/renderer/rasterizer/skia/skia/skia_next.gni")
 import("//cobalt/renderer/rasterizer/skia/skia/skia_sources.gni")
 import("//cobalt/renderer/rasterizer/skia/skia/skia_template.gni")
 
 # skia_opts_none and skia_opts targets contain the platform-specific optimizations for Skia
 config("skia_opts_none") {
   include_dirs = [
-    "//third_party/$skia_subdir/include/core",
-    "//third_party/$skia_subdir/include/effects",
-    "//third_party/$skia_subdir/src/core",
-    "//third_party/$skia_subdir/src/utils",
+    "//third_party/skia/include/core",
+    "//third_party/skia/include/effects",
+    "//third_party/skia/src/core",
+    "//third_party/skia/src/utils",
   ]
 }
 
 config("skia_opts") {
   include_dirs = [
-    "//third_party/$skia_subdir/include/core",
-    "//third_party/$skia_subdir/include/effects",
-    "//third_party/$skia_subdir/src/core",
-    "//third_party/$skia_subdir/src/opts",
-    "//third_party/$skia_subdir/src/utils",
+    "//third_party/skia/include/core",
+    "//third_party/skia/include/effects",
+    "//third_party/skia/src/core",
+    "//third_party/skia/src/opts",
+    "//third_party/skia/src/utils",
   ]
 }
 
@@ -70,18 +69,18 @@ config("skia_library_config") {
 config("skia_library_config_public") {
   include_dirs = [
     #temporary until we can hide SkFontHost
-    "//third_party/$skia_subdir",
-    "//third_party/$skia_subdir/src/core",
-    "//third_party/$skia_subdir/src/utils",
-    "//third_party/$skia_subdir/include/core",
-    "//third_party/$skia_subdir/include/effects",
-    "//third_party/$skia_subdir/include/gpu",
-    "//third_party/$skia_subdir/include/lazy",
-    "//third_party/$skia_subdir/include/pathops",
-    "//third_party/$skia_subdir/include/pipe",
-    "//third_party/$skia_subdir/include/ports",
-    "//third_party/$skia_subdir/include/private",
-    "//third_party/$skia_subdir/include/utils",
+    "//third_party/skia",
+    "//third_party/skia/src/core",
+    "//third_party/skia/src/utils",
+    "//third_party/skia/include/core",
+    "//third_party/skia/include/effects",
+    "//third_party/skia/include/gpu",
+    "//third_party/skia/include/lazy",
+    "//third_party/skia/include/pathops",
+    "//third_party/skia/include/pipe",
+    "//third_party/skia/include/ports",
+    "//third_party/skia/include/private",
+    "//third_party/skia/include/utils",
   ]
 
   defines = [ "SK_BUILD_NO_OPTS" ]
@@ -113,9 +112,9 @@ skia_common("skia_library") {
     ":skia_library_no_asan",
     "//base",
     "//starboard/common",
-    "//third_party/$skia_subdir/third_party/skcms",
     "//third_party/freetype2",
     "//third_party/libpng",
+    "//third_party/skia/third_party/skcms",
     "//third_party/zlib",
   ]
 }
@@ -152,15 +151,7 @@ skia_common("skia") {
     sources += [ "src/ports/SkMemory_starboard.cc" ]
   }
 
-  if (!use_skia_next) {
-    sources += [ "src/ports/SkTLS_cobalt.cc" ]
-  }
-
   include_dirs = [ target_gen_dir ]
-
-  if (use_skia_next) {
-    include_dirs += [ skia_include_dir ]
-  }
 
   deps = [
     "//base",

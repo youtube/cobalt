@@ -101,11 +101,9 @@ class SkFontMgr_Cobalt : public SkFontMgr {
   sk_sp<SkTypeface> onMakeFromData(sk_sp<SkData> data,
                                    int face_index) const override;
 
-#ifdef USE_SKIA_NEXT
   // NOTE: This returns NULL if the typeface cannot be created.
   sk_sp<SkTypeface> onMakeFromStreamArgs(std::unique_ptr<SkStreamAsset>,
                                          const SkFontArguments&) const override;
-#endif
 
   // NOTE: This returns NULL if the typeface cannot be created.
   sk_sp<SkTypeface> onMakeFromStreamIndex(std::unique_ptr<SkStreamAsset> stream,

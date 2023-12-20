@@ -8,11 +8,6 @@
 #ifndef SkTypes_DEFINED
 #define SkTypes_DEFINED
 
-#ifndef USE_SKIA_NEXT
-#error Including a skia_next header in a Skia build. \
-Check include paths order and use_skia_next argument usage in build configs.
-#endif
-
 /** \file SkTypes.h
 */
 
