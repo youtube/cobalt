@@ -389,6 +389,7 @@ void SbPlayerPipeline::Seek(TimeDelta time, const SeekCB& seek_cb) {
   StoreMediaTime(seek_time_);
   retrograde_media_time_counter_ = 0;
   timestamp_of_last_written_audio_ = 0;
+  is_video_eos_written_ = false;
 
 #if SB_HAS(PLAYER_WITH_URL)
   if (is_url_based_) {
@@ -1052,6 +1053,9 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
   } else {
     for (const auto& buffer : buffers) {
       playback_statistics_.OnVideoAU(buffer);
+      if (buffer->end_of_stream()) {
+        is_video_eos_written_ = true;
+      }
     }
   }
   SetReadInProgress(type, false);
@@ -1093,9 +1097,10 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type,
     // after the player has received enough audio for preroll, taking into
     // account that our estimate of playback time might be behind by
     // |kMediaTimeCheckInterval|.
-    if (timestamp_of_last_written_audio_ - seek_time_.ToSbTime() >
-        AdjustWriteDurationForPlaybackRate(audio_write_duration_for_preroll_,
-                                           playback_rate_)) {
+    if (!is_video_eos_written_ &&
+        timestamp_of_last_written_audio_ - seek_time_.ToSbTime() >
+            AdjustWriteDurationForPlaybackRate(
+                audio_write_duration_for_preroll_, playback_rate_)) {
       // The estimated time ahead of playback may be negative if no audio has
       // been written.
       SbTime time_ahead_of_playback =

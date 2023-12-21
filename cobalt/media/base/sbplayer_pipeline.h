@@ -335,6 +335,9 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   static const SbTime kMediaTimeCheckInterval = 0.1 * kSbTimeSecond;
   // Timestamp for the last written audio.
   SbTime timestamp_of_last_written_audio_ = 0;
+  // Indicates if video end of stream has been written into the underlying
+  // player.
+  bool is_video_eos_written_ = false;
 
   // Last media time reported by GetMediaTime().
   base::CVal<SbTime> last_media_time_;
