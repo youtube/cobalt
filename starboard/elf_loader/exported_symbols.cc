@@ -16,6 +16,7 @@
 
 #include <stdlib.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 
 #include "starboard/accessibility.h"
 #include "starboard/audio_sink.h"
