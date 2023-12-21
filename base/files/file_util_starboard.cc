@@ -232,7 +232,7 @@ bool CopyFile(const FilePath &from_path, const FilePath &to_path) {
 
 bool PathExists(const FilePath &path) {
   AssertBlockingAllowed();
-  return SbFileExists(path.value().c_str());
+    return SbFileExists(path.value().c_str());
 }
 
 bool PathIsWritable(const FilePath &path) {
@@ -318,8 +318,8 @@ bool CreateDirectoryAndGetError(const FilePath &full_path, File::Error* error) {
 
   // Fast-path: can the full path be resolved from the full path?
   if (DirectoryExists(full_path) ||
-      SbDirectoryCanOpen(full_path.value().c_str()) ||
-      mkdir(full_path.value().c_str(), 0700)) {
+      mkdir(full_path.value().c_str(), 0700) == 0 ||
+      SbDirectoryCanOpen(full_path.value().c_str())) {
     return true;
   }
 
