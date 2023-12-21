@@ -421,6 +421,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(mprotect);
   REGISTER_SYMBOL(munmap);
   REGISTER_SYMBOL(msync);
+  REGISTER_SYMBOL(mkdir);
 
   // Custom mapped POSIX APIs to compatibility wrappers.
   // These will rely on Starboard-side implementations that properly translate
