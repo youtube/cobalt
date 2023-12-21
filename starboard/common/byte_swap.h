@@ -26,27 +26,11 @@
 
 #else  // SB_API_VERSION < 16
 
-#include "starboard/configuration.h"
-#include "starboard/types.h"
-
-#ifdef __cplusplus
-extern "C" {
+#ifdef _WIN32
+#include <stdlib.h>
 #endif
 
-// TODO: b/295440998 - Consider using compiler builtins.
-
-static __inline uint16_t __sb_bswap_16(uint16_t __x) {
-  return ((uint16_t)(__x << 8)) | __x >> 8;
-}
-
-static __inline uint32_t __sb_bswap_32(uint32_t __x) {
-  return __x >> 24 | (__x >> 8 & 0xff00) | ((uint32_t)(__x << 8 & 0xff0000)) |
-         ((uint32_t)(__x << 24));
-}
-
-static __inline uint64_t __sb_bswap_64(uint64_t __x) {
-  return (__sb_bswap_32((uint32_t)__x) + 0ULL) << 32 | __sb_bswap_32(__x >> 32);
-}
+#include "starboard/configuration.h"
 
 #if SB_IS(BIG_ENDIAN)
 #define SB_HOST_TO_NET_S16(x) (x)
@@ -55,13 +39,20 @@ static __inline uint64_t __sb_bswap_64(uint64_t __x) {
 #define SB_HOST_TO_NET_U32(x) (x)
 #define SB_HOST_TO_NET_S64(x) (x)
 #define SB_HOST_TO_NET_U64(x) (x)
+#elif defined(_WIN32)
+#define SB_HOST_TO_NET_S16(x) _byteswap_ushort(x)
+#define SB_HOST_TO_NET_U16(x) _byteswap_ushort(x)
+#define SB_HOST_TO_NET_S32(x) _byteswap_ulong(x)
+#define SB_HOST_TO_NET_U32(x) _byteswap_ulong(x)
+#define SB_HOST_TO_NET_S64(x) _byteswap_uint64(x)
+#define SB_HOST_TO_NET_U64(x) _byteswap_uint64(x)
 #else
-#define SB_HOST_TO_NET_S16(x) __sb_bswap_16(x)
-#define SB_HOST_TO_NET_U16(x) __sb_bswap_16(x)
-#define SB_HOST_TO_NET_S32(x) __sb_bswap_32(x)
-#define SB_HOST_TO_NET_U32(x) __sb_bswap_32(x)
-#define SB_HOST_TO_NET_S64(x) __sb_bswap_64(x)
-#define SB_HOST_TO_NET_U64(x) __sb_bswap_64(x)
+#define SB_HOST_TO_NET_S16(x) __builtin_bswap16(x)
+#define SB_HOST_TO_NET_U16(x) __builtin_bswap16(x)
+#define SB_HOST_TO_NET_S32(x) __builtin_bswap32(x)
+#define SB_HOST_TO_NET_U32(x) __builtin_bswap32(x)
+#define SB_HOST_TO_NET_S64(x) __builtin_bswap64(x)
+#define SB_HOST_TO_NET_U64(x) __builtin_bswap64(x)
 #endif
 
 #define SB_NET_TO_HOST_S16(x) SB_HOST_TO_NET_S16(x)
@@ -70,10 +61,6 @@ static __inline uint64_t __sb_bswap_64(uint64_t __x) {
 #define SB_NET_TO_HOST_U32(x) SB_HOST_TO_NET_U32(x)
 #define SB_NET_TO_HOST_S64(x) SB_HOST_TO_NET_S64(x)
 #define SB_NET_TO_HOST_U64(x) SB_HOST_TO_NET_U64(x)
-
-#ifdef __cplusplus
-}  // extern "C"
-#endif
 
 #endif  // SB_API_VERSION < 16
 
