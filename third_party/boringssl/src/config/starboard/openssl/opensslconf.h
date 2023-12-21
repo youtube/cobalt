@@ -10,7 +10,6 @@
 #include "starboard/string.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 
 #ifndef OPENSSL_SYS_STARBOARD
 # define OPENSSL_SYS_STARBOARD

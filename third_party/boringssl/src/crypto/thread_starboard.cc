@@ -70,7 +70,7 @@ void EnsureInitialized(struct CRYPTO_STATIC_MUTEX* lock) {
     return;
   }
   while (SbAtomicNoBarrier_Load(&lock->initialized) != kInitialized) {
-    SbThreadSleep(kSbTimeMillisecond);
+    SbThreadSleep(1000);  // 1ms
   }
 }
 

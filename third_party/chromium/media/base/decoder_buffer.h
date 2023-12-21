@@ -59,7 +59,7 @@ class MEDIA_EXPORT DecoderBuffer
     virtual int GetAudioBufferBudget() const = 0;
     virtual int GetBufferAlignment() const = 0;
     virtual int GetBufferPadding() const = 0;
-    virtual SbTime GetBufferGarbageCollectionDurationThreshold() const = 0;
+    virtual int64_t GetBufferGarbageCollectionDurationThreshold() const = 0;
     virtual int GetProgressiveBufferBudget(SbMediaVideoCodec codec,
                                            int resolution_width,
                                            int resolution_height,
