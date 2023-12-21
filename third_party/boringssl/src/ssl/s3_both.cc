@@ -130,7 +130,7 @@
 #include "internal.h"
 
 
-namespace bssl {
+BSSL_NAMESPACE_BEGIN
 
 static bool add_record_to_flight(SSL *ssl, uint8_t type,
                                  Span<const uint8_t> in) {
@@ -263,18 +263,6 @@ bool ssl3_add_change_cipher_spec(SSL *ssl) {
 
   ssl_do_msg_callback(ssl, 1 /* write */, SSL3_RT_CHANGE_CIPHER_SPEC,
                       kChangeCipherSpec);
-  return true;
-}
-
-bool ssl3_add_alert(SSL *ssl, uint8_t level, uint8_t desc) {
-  uint8_t alert[2] = {level, desc};
-  if (!tls_flush_pending_hs_data(ssl) ||
-      !add_record_to_flight(ssl, SSL3_RT_ALERT, alert)) {
-    return false;
-  }
-
-  ssl_do_msg_callback(ssl, 1 /* write */, SSL3_RT_ALERT, alert);
-  ssl_do_info_callback(ssl, SSL_CB_WRITE_ALERT, ((int)level << 8) | desc);
   return true;
 }
 
@@ -636,4 +624,4 @@ void ssl3_next_message(SSL *ssl) {
   }
 }
 
-}  // namespace bssl
+BSSL_NAMESPACE_END

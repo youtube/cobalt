@@ -85,7 +85,7 @@ typedef struct crypto_mutex_st {
   size_t readers;
   bool writing;
 } CRYPTO_MUTEX;
-#elif defined(OPENSSL_NO_THREADS)
+#elif !defined(OPENSSL_THREADS)
 typedef struct crypto_mutex_st {
   char padding;  // Empty structs have different sizes in C and C++.
 } CRYPTO_MUTEX;

@@ -19,7 +19,6 @@
 // block size
 
 #include <openssl/poly1305.h>
-#include <openssl/mem.h>
 
 #include "../internal.h"
 

@@ -56,9 +56,7 @@
 
 #include <openssl/buf.h>
 
-#if !defined(OPENSSL_SYS_STARBOARD)
 #include <string.h>
-#endif  // !defined(OPENSSL_SYS_STARBOARD)
 
 #include <openssl/mem.h>
 #include <openssl/err.h>

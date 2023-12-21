@@ -63,7 +63,6 @@
 #include <openssl/mem.h>
 
 #include "asn1_locl.h"
-#include "asn1_internal.h"
 
 
 int asn1_utctime_to_tm(struct tm *tm, const ASN1_UTCTIME *d)

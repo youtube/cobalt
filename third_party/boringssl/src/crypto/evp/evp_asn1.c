@@ -56,10 +56,7 @@
 
 #include <openssl/evp.h>
 
-#if !defined(OPENSSL_SYS_STARBOARD)
 #include <string.h>
-#endif  // !defined(OPENSSL_SYS_STARBOARD)
-#include <openssl/mem.h>
 
 #include <openssl/bytestring.h>
 #include <openssl/dsa.h>
@@ -334,7 +331,7 @@ EVP_PKEY *d2i_AutoPrivateKey(EVP_PKEY **out, const uint8_t **inp, long len) {
   }
 }
 
-int i2d_PublicKey(EVP_PKEY *key, uint8_t **outp) {
+int i2d_PublicKey(const EVP_PKEY *key, uint8_t **outp) {
   switch (key->type) {
     case EVP_PKEY_RSA:
       return i2d_RSAPublicKey(key->pkey.rsa, outp);

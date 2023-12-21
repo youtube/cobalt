@@ -98,12 +98,6 @@ OPENSSL_EXPORT void OPENSSL_cleanse(void *ptr, size_t len);
 // non-zero.
 OPENSSL_EXPORT int CRYPTO_memcmp(const void *a, const void *b, size_t len);
 
-OPENSSL_EXPORT const void *OPENSSL_memchr(const void *s, int c, size_t n);
-OPENSSL_EXPORT int OPENSSL_memcmp(const void *s1, const void *s2, size_t n);
-OPENSSL_EXPORT void *OPENSSL_memcpy(void *dst, const void *src, size_t n);
-OPENSSL_EXPORT void *OPENSSL_memmove(void *dst, const void *src, size_t n);
-OPENSSL_EXPORT void *OPENSSL_memset(void *dst, int c, size_t n);
-
 // OPENSSL_hash32 implements the 32 bit, FNV-1a hash.
 OPENSSL_EXPORT uint32_t OPENSSL_hash32(const void *ptr, size_t len);
 
@@ -148,12 +142,12 @@ OPENSSL_EXPORT int BIO_vsnprintf(char *buf, size_t n, const char *format,
 
 extern "C++" {
 
-namespace bssl {
+BSSL_NAMESPACE_BEGIN
 
 BORINGSSL_MAKE_DELETER(char, OPENSSL_free)
 BORINGSSL_MAKE_DELETER(uint8_t, OPENSSL_free)
 
-}  // namespace bssl
+BSSL_NAMESPACE_END
 
 }  // extern C++
 

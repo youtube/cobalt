@@ -627,6 +627,38 @@ static const char kNoBasicConstraintsNetscapeCALeaf[] =
     "XyPwWPbymSTpzKhB4xB7qQ==\n"
     "-----END CERTIFICATE-----\n";
 
+static const char kSelfSignedMismatchAlgorithms[] =
+    "-----BEGIN CERTIFICATE-----\n"
+    "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\n"
+    "-----END CERTIFICATE-----\n";
+
 // CertFromPEM parses the given, NUL-terminated pem block and returns an
 // |X509*|.
 static bssl::UniquePtr<X509> CertFromPEM(const char *pem) {
@@ -1503,6 +1535,141 @@ TEST(X509Test, NoBasicConstraintsNetscapeCA) {
   // marked as a CA in the basicConstraints.
   EXPECT_EQ(X509_V_ERR_INVALID_CA,
             Verify(leaf.get(), {root.get()}, {intermediate.get()}, {}, 0));
+}
+
+TEST(X509Test, MismatchAlgorithms) {
+  bssl::UniquePtr<X509> cert(CertFromPEM(kSelfSignedMismatchAlgorithms));
+  ASSERT_TRUE(cert);
+
+  bssl::UniquePtr<EVP_PKEY> pkey(X509_get_pubkey(cert.get()));
+  ASSERT_TRUE(pkey);
+
+  EXPECT_FALSE(X509_verify(cert.get(), pkey.get()));
+  uint32_t err = ERR_get_error();
+  EXPECT_EQ(ERR_LIB_X509, ERR_GET_LIB(err));
+  EXPECT_EQ(X509_R_SIGNATURE_ALGORITHM_MISMATCH, ERR_GET_REASON(err));
+}
+
+TEST(X509Test, PEMX509Info) {
+  std::string cert = kRootCAPEM;
+  auto cert_obj = CertFromPEM(kRootCAPEM);
+  ASSERT_TRUE(cert_obj);
+
+  std::string rsa = kRSAKey;
+  auto rsa_obj = PrivateKeyFromPEM(kRSAKey);
+  ASSERT_TRUE(rsa_obj);
+
+  std::string crl = kBasicCRL;
+  auto crl_obj = CRLFromPEM(kBasicCRL);
+  ASSERT_TRUE(crl_obj);
+
+  std::string unknown =
+      "-----BEGIN UNKNOWN-----\n"
+      "AAAA\n"
+      "-----END UNKNOWN-----\n";
+
+  std::string invalid =
+      "-----BEGIN CERTIFICATE-----\n"
+      "AAAA\n"
+      "-----END CERTIFICATE-----\n";
+
+  // Each X509_INFO contains at most one certificate, CRL, etc. The format
+  // creates a new X509_INFO when a repeated type is seen.
+  std::string pem =
+      // The first few entries have one of everything in different orders.
+      cert + rsa + crl +
+      rsa + crl + cert +
+      // Unknown types are ignored.
+      crl + unknown + cert + rsa +
+      // Seeing a new certificate starts a new entry, so now we have a bunch of
+      // certificate-only entries.
+      cert + cert + cert +
+      // The key folds into the certificate's entry.
+      cert + rsa +
+      // Doubled keys also start new entries.
+      rsa + rsa + rsa + rsa + crl +
+      // As do CRLs.
+      crl + crl;
+
+  const struct ExpectedInfo {
+    const X509 *cert;
+    const EVP_PKEY *key;
+    const X509_CRL *crl;
+  } kExpected[] = {
+    {cert_obj.get(), rsa_obj.get(), crl_obj.get()},
+    {cert_obj.get(), rsa_obj.get(), crl_obj.get()},
+    {cert_obj.get(), rsa_obj.get(), crl_obj.get()},
+    {cert_obj.get(), nullptr, nullptr},
+    {cert_obj.get(), nullptr, nullptr},
+    {cert_obj.get(), nullptr, nullptr},
+    {cert_obj.get(), rsa_obj.get(), nullptr},
+    {nullptr, rsa_obj.get(), nullptr},
+    {nullptr, rsa_obj.get(), nullptr},
+    {nullptr, rsa_obj.get(), nullptr},
+    {nullptr, rsa_obj.get(), crl_obj.get()},
+    {nullptr, nullptr, crl_obj.get()},
+    {nullptr, nullptr, crl_obj.get()},
+  };
+
+  auto check_info = [](const ExpectedInfo *expected, const X509_INFO *info) {
+    if (expected->cert != nullptr) {
+      EXPECT_EQ(0, X509_cmp(expected->cert, info->x509));
+    } else {
+      EXPECT_EQ(nullptr, info->x509);
+    }
+    if (expected->crl != nullptr) {
+      EXPECT_EQ(0, X509_CRL_cmp(expected->crl, info->crl));
+    } else {
+      EXPECT_EQ(nullptr, info->crl);
+    }
+    if (expected->key != nullptr) {
+      ASSERT_NE(nullptr, info->x_pkey);
+      // EVP_PKEY_cmp returns one if the keys are equal.
+      EXPECT_EQ(1, EVP_PKEY_cmp(expected->key, info->x_pkey->dec_pkey));
+    } else {
+      EXPECT_EQ(nullptr, info->x_pkey);
+    }
+  };
+
+  bssl::UniquePtr<BIO> bio(BIO_new_mem_buf(pem.data(), pem.size()));
+  ASSERT_TRUE(bio);
+  bssl::UniquePtr<STACK_OF(X509_INFO)> infos(
+      PEM_X509_INFO_read_bio(bio.get(), nullptr, nullptr, nullptr));
+  ASSERT_TRUE(infos);
+  ASSERT_EQ(OPENSSL_ARRAY_SIZE(kExpected), sk_X509_INFO_num(infos.get()));
+  for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(kExpected); i++) {
+    SCOPED_TRACE(i);
+    check_info(&kExpected[i], sk_X509_INFO_value(infos.get(), i));
+  }
+
+  // Passing an existing stack appends to it.
+  bio.reset(BIO_new_mem_buf(pem.data(), pem.size()));
+  ASSERT_TRUE(bio);
+  ASSERT_EQ(infos.get(),
+            PEM_X509_INFO_read_bio(bio.get(), infos.get(), nullptr, nullptr));
+  ASSERT_EQ(2 * OPENSSL_ARRAY_SIZE(kExpected), sk_X509_INFO_num(infos.get()));
+  for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(kExpected); i++) {
+    SCOPED_TRACE(i);
+    check_info(&kExpected[i], sk_X509_INFO_value(infos.get(), i));
+    check_info(
+        &kExpected[i],
+        sk_X509_INFO_value(infos.get(), i + OPENSSL_ARRAY_SIZE(kExpected)));
+  }
+
+  // Gracefully handle errors in both the append and fresh cases.
+  std::string bad_pem = cert + cert + invalid;
+
+  bio.reset(BIO_new_mem_buf(bad_pem.data(), bad_pem.size()));
+  ASSERT_TRUE(bio);
+  bssl::UniquePtr<STACK_OF(X509_INFO)> infos2(
+      PEM_X509_INFO_read_bio(bio.get(), nullptr, nullptr, nullptr));
+  EXPECT_FALSE(infos2);
+
+  bio.reset(BIO_new_mem_buf(bad_pem.data(), bad_pem.size()));
+  ASSERT_TRUE(bio);
+  EXPECT_FALSE(
+      PEM_X509_INFO_read_bio(bio.get(), infos.get(), nullptr, nullptr));
+  EXPECT_EQ(2 * OPENSSL_ARRAY_SIZE(kExpected), sk_X509_INFO_num(infos.get()));
 }
 
 TEST(X509Test, GeneralName)  {
