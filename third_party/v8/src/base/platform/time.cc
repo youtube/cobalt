@@ -751,7 +751,7 @@ bool TimeTicks::IsHighResolution() {
 
 bool ThreadTicks::IsSupported() {
 #if V8_OS_STARBOARD
-  return SbTimeIsTimeThreadNowSupported();
+  return starboard::CurrentMonotonicThreadTime() != 0;
 #elif(defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
     defined(V8_OS_MACOSX) || defined(V8_OS_ANDROID) || defined(V8_OS_SOLARIS)
   return true;
@@ -765,8 +765,9 @@ bool ThreadTicks::IsSupported() {
 
 ThreadTicks ThreadTicks::Now() {
 #if V8_OS_STARBOARD
-  if (SbTimeIsTimeThreadNowSupported())
-    return ThreadTicks(SbTimeGetMonotonicThreadNow());
+  int64_t now = starboard::CurrentMonotonicThreadTime();
+  if (now != 0)
+    return ThreadTicks(now);
   UNREACHABLE();
 #elif V8_OS_MACOSX
   return ThreadTicks(ComputeThreadTicks());

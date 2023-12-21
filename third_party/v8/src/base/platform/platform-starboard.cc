@@ -85,9 +85,8 @@ void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
 }
 
 int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
-  if (!SbTimeIsTimeThreadNowSupported()) return -1;
-
-  int64_t thread_now = SbTimeGetMonotonicThreadNow();
+  int64_t thread_now = starboard::CurrentMonotonicThreadTime();
+  if (thread_now == 0) return -1;
   *secs = thread_now / 1'000'000;
   *usecs = thread_now % 1'000'000;
   return 0;

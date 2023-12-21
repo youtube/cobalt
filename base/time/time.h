@@ -64,7 +64,7 @@
 #include "build/build_config.h"
 
 #if defined(STARBOARD)
-#include "starboard/time.h"
+#include "starboard/common/time.h"
 #endif
 
 #if defined(OS_FUCHSIA)
@@ -1029,7 +1029,7 @@ class BASE_EXPORT ThreadTicks : public time_internal::TimeBase<ThreadTicks> {
   // Returns true if ThreadTicks::Now() is supported on this system.
   static bool IsSupported() WARN_UNUSED_RESULT {
 #if defined(STARBOARD)
-    return SbTimeIsTimeThreadNowSupported();
+    return starboard::CurrentMonotonicThreadTime() != 0;
 #else
 #if (defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
     (defined(OS_MACOSX) && !defined(OS_IOS)) || defined(OS_ANDROID) ||  \

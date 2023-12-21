@@ -46,12 +46,13 @@ extern "C" int gettimeofday(struct timeval* tp, void* tzp) {
 
 extern "C" int clock_gettime(clockid_t clock_id, struct timespec* tp) {
   // There are only Windows implementations for realtime and monotonic clocks.
-  // Starboard does optionally support CLOCK_PROCESS_CPUTIME_ID for actual
-  // POSIX systems, but for Windows #if SB_HAS(TIME_THREAD_NOW) should be false.
-  // CLOCK_PROCESS_CPUTIME_ID is potentially used by Cobalt though, so -1 will
-  // be returned to indicate a failure instead of crashing with this DCHECK.
+  // If CLOCK_PROCESS_CPUTIME_ID or CLOCK_THREAD_CPUTIME_ID are passed in,
+  // this will return -1. Code that tries to use one of those should either
+  // be able to detect and handle the -1 return value or be guarded with
+  // #if SB_HAS(TIME_THREAD_NOW).
   SB_DCHECK((clock_id == CLOCK_REALTIME) || (clock_id == CLOCK_MONOTONIC) ||
-            (clock_id == CLOCK_PROCESS_CPUTIME_ID));
+            (clock_id == CLOCK_PROCESS_CPUTIME_ID) ||
+            (clock_id == CLOCK_THREAD_CPUTIME_ID));
 
   if (tp == NULL) {
     return -1;
