@@ -124,7 +124,7 @@
 #define ft_fread(b, s, n, f) SbFileRead((f), (char *)(b), (s) * (n))
 #define ft_fseek(f, o, w) SbFileSeek((f), (w), (o))
 #define ft_ftell(f)    SbFileSeek((f), kSbFileFromCurrent, 0)
-#define ft_sprintf  SbStringFormatUnsafeF
+#define ft_sprintf  sprintf
 #else
 #include <stdio.h>
 

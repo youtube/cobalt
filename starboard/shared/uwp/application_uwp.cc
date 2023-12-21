@@ -745,11 +745,11 @@ ref class App sealed : public IFrameworkView {
                     StorageFolder ^ folder = results->GetAt(results->Size - 1);
                     Calendar ^ now = ref new Calendar();
                     char filename[128];
-                    SbStringFormatF(filename, sizeof(filename),
-                                    "cobalt_log_%04d%02d%02d_%02d%02d%02d.txt",
-                                    now->Year, now->Month, now->Day,
-                                    now->Hour + now->FirstHourInThisPeriod,
-                                    now->Minute, now->Second);
+                    snprintf(filename, sizeof(filename),
+                             "cobalt_log_%04d%02d%02d_%02d%02d%02d.txt",
+                             now->Year, now->Month, now->Day,
+                             now->Hour + now->FirstHourInThisPeriod,
+                             now->Minute, now->Second);
                     shared::uwp::OpenLogFileUWP(folder, filename);
                   });
         }

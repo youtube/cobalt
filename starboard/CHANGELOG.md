@@ -9,6 +9,12 @@ since the version previous to it.
 
 ## Version 16
 
+### Deprecated SbStringFormat APIs and migrated to POSIX memory APIs
+The StringFormat management APIs `SbStringFormat`, `SbStringFormatF`,
+`SbStringFormatWide`, `SbStringFormatUnsifeF` are deprecated and the
+standard APIs `vsnprintf`, `vfnprintf`, `vswprintf`, `snprintf`
+from `<stdlib.h>` should be used instead.
+
 ### Deprecated SbMemoryMap APIs and migrated to POSIX mmap
 The memory mapping APIs `SbMemoryMap`, `SbMemoryUnmap`, `SbMemoryProtect` and
 `SbMemoryFlush` are deprecated and the standard APIs `mmap`, `munmap`,
