@@ -11,7 +11,8 @@ third_party {
     type: GIT
     value: "https://chromium.googlesource.com/webm/libwebp"
   }
-  version: "v1.3.1"
+  version: "2af26267cdfcb63a88e5c74a85927a12d6ca1d76"
+  # from https://chromium.googlesource.com/chromium/src/+/117.0.5938.115/DEPS#1616
   last_upgrade_date {
     year: 2023
     month: 7
