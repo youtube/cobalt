@@ -65,10 +65,8 @@ bool TimeTicks::IsConsistentAcrossProcesses() {
 
 namespace subtle {
 ThreadTicks ThreadTicksNowIgnoringOverride() {
-  if (SbTimeIsTimeThreadNowSupported())
-    return ThreadTicks() +
-           TimeDelta::FromMicroseconds(SbTimeGetMonotonicThreadNow());
-  return ThreadTicks();
+  return ThreadTicks() + TimeDelta::FromMicroseconds(
+      starboard::CurrentMonotonicThreadTime());
 }
 }  // namespace subtle
 

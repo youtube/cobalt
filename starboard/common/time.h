@@ -23,6 +23,10 @@ namespace starboard {
 // A convenience helper to get the current Monotonic time in microseconds.
 int64_t CurrentMonotonicTime();
 
+// A convenience helper to get the current thread-specific Monotonic time in
+// microseconds. Returns 0 if the system doesn't support thread-specific clock.
+int64_t CurrentMonotonicThreadTime();
+
 // A convenience helper to get the current POSIX system time in microseconds.
 int64_t CurrentPosixTime();
 

@@ -43,6 +43,20 @@ int64_t CurrentMonotonicTime() {
 #endif  // SB_API_VERSION >= 16
 }
 
+int64_t CurrentMonotonicThreadTime() {
+#if SB_API_VERSION >= 16
+  struct timespec ts;
+  if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts) != 0) {
+    // This is expected to happen on some systems, like Windows.
+    return 0;
+  }
+  return (static_cast<int64_t>(ts.tv_sec) * 1000000) +
+         (static_cast<int64_t>(ts.tv_nsec) / 1000);
+#else   // SB_API_VERSION >= 16
+  return SbTimeGetMonotonicThreadNow();
+#endif  // SB_API_VERSION >= 16
+}
+
 int64_t CurrentPosixTime() {
 #if SB_API_VERSION >= 16
   struct timeval tv;

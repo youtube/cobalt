@@ -9,6 +9,12 @@ since the version previous to it.
 
 ## Version 16
 
+### Decrecated SbTime APIs and migrated to POSIX time APIs
+The time APIs `SbTimeGetNow`, `SbTimeGetMonotonicNow`,
+`SbTimeIsTimeThreadNowSupported` and `SbTimeGetMonotonicThreadNow` are
+deprecated and the standard APIs `gettimeofday` from `<sys/time.h>` and
+`clock_gettime` from `<time.h>` should be used instead.
+
 ### Deprecated SbStringFormat APIs and migrated to POSIX memory APIs
 The StringFormat management APIs `SbStringFormat`, `SbStringFormatF`,
 `SbStringFormatWide`, `SbStringFormatUnsifeF` are deprecated and the

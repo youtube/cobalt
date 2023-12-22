@@ -12,8 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/time.h"
 
 SbTimeMonotonic SbTimeGetMonotonicThreadNow() {
   return SbTimeMonotonic(0);
 }
+
+#endif  // SB_API_VERSION < 16

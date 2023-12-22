@@ -374,9 +374,13 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbThreadSleep);
   REGISTER_SYMBOL(SbThreadYield);
   REGISTER_SYMBOL(SbTimeGetMonotonicNow);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbTimeGetMonotonicThreadNow);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbTimeGetNow);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbTimeIsTimeThreadNowSupported);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbTimeZoneGetCurrent);
   REGISTER_SYMBOL(SbTimeZoneGetName);
   REGISTER_SYMBOL(SbUiNavGetInterface);

@@ -36,8 +36,8 @@ const int kMaxSymbolNameLength = 1024;
 // few contentions at app startup set by the following constant.
 const int kNumberOfInitialContentionsToIgnore = 50;
 
-const SbTime kMinimumWaitToLog = 5 * kSbTimeMillisecond;
-const SbTime kLoggingInterval = 5 * kSbTimeSecond;
+const int64_t kMinimumWaitToLog = 5000;          // 5ms
+const int64_t kLoggingInterval = 5 * 1'000'000;  // 5s
 const int kStackTraceDepth = 0;
 
 volatile SbAtomic32 s_mutex_acquire_call_counter = 0;
@@ -50,7 +50,7 @@ ScopedMutexWaitTracker::ScopedMutexWaitTracker(SbMutex* mutex)
     : acquired_(SbMutexAcquireTry(mutex) == kSbMutexAcquired) {
   SbAtomicNoBarrier_Increment(&s_mutex_acquire_call_counter, 1);
   if (!acquired_) {
-    wait_start_ = SbTimeGetMonotonicNow();
+    wait_start_ = starboard::CurrentMonotonicTime();
   }
 }
 
@@ -63,7 +63,7 @@ ScopedMutexWaitTracker::~ScopedMutexWaitTracker() {
     return;
   }
 
-  auto elapsed = SbTimeGetMonotonicNow() - wait_start_;
+  auto elapsed = starboard::CurrentMonotonicTime() - wait_start_;
 
   for (;;) {
     SbAtomic32 old_value = s_mutex_max_contention_time;
