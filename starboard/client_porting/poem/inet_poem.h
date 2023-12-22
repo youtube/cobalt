@@ -18,6 +18,9 @@
 #define STARBOARD_CLIENT_PORTING_POEM_INET_POEM_H_
 
 #if defined(STARBOARD)
+
+#if SB_API_VERSION < 16
+
 #include "starboard/common/byte_swap.h"
 
 #undef htonl
@@ -32,6 +35,12 @@
 #undef ntohs
 #define ntohs(x) SB_NET_TO_HOST_U16(x)
 
-#endif  // STARBOARD
+#else  // SB_API_VERSION < 16
+
+#include <arpa/inet.h>
+
+#endif  // SB_API_VERSION < 16
+
+#endif  // defined(STARBOARD)
 
 #endif  // STARBOARD_CLIENT_PORTING_POEM_INET_POEM_H_
