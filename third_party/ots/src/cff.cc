@@ -12,13 +12,6 @@
 #include "cff_charstring.h"
 #include "variations.h"
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#define STRCHR_OTS strchr
-#else
-#define STRCHR_OTS std::strchr
-#endif
-
 // CFF - PostScript font program (Compact Font Format) table
 // http://www.microsoft.com/typography/otspec/cff.htm
 // http://www.microsoft.com/typography/otspec/cffspec.htm
@@ -1369,5 +1362,4 @@ bool OpenTypeCFF2::Serialize(OTSStream *out) {
 
 }  // namespace ots
 
-#undef STRCHR_OTS
 #undef TABLE_NAME

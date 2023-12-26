@@ -14,6 +14,10 @@
 
 config("ots_config") {
   include_dirs = [ "include" ]
+  defines = [ "HAVE_CONFIG_H" ]
+  if (is_win) {
+    cflags = [ "/wd4267" ]  # conversion from 'size_t' to 'off_t'
+  }
 }
 
 static_library("ots") {
@@ -104,8 +108,8 @@ static_library("ots") {
 
   deps = [
     "//starboard/common",
-    "//third_party/woff2:woff2_dec",
     "//third_party/brotli:dec",
+    "//third_party/woff2:woff2_dec",
     "//third_party/zlib",
   ]
 }
