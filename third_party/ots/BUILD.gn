@@ -15,9 +15,6 @@
 config("ots_config") {
   include_dirs = [ "include" ]
   defines = [ "HAVE_CONFIG_H" ]
-  if (is_win) {
-    cflags = [ "/wd4267" ]  # conversion from 'size_t' to 'off_t'
-  }
 }
 
 static_library("ots") {
