@@ -12,8 +12,6 @@
 #include <windows.h>
 #include <wincrypt.h>
 
-#include "starboard/types.h"
-
 // Undefine the macros which conflict with OpenSSL and define replacements. See
 // http://msdn.microsoft.com/en-us/library/windows/desktop/aa378145(v=vs.85).aspx
 #undef X509_CERT_PAIR

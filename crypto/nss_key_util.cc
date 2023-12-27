@@ -8,13 +8,13 @@
 #include <keyhi.h>
 #include <pk11pub.h>
 #include <secmod.h>
+#include <stdint.h>
 
 #include <memory>
 
 #include "base/logging.h"
 #include "crypto/nss_util.h"
 #include "crypto/nss_util_internal.h"
-#include "starboard/types.h"
 
 namespace crypto {
 

@@ -4,11 +4,12 @@
 
 #include "crypto/ec_private_key.h"
 
+#include <stdint.h>
+
 #include <memory>
 #include <vector>
 
 #include "base/macros.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {

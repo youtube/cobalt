@@ -4,10 +4,12 @@
 
 #include "crypto/signature_creator.h"
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include "base/logging.h"
 #include "crypto/openssl_util.h"
 #include "crypto/rsa_private_key.h"
-#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
 #include "third_party/boringssl/src/include/openssl/rsa.h"
 

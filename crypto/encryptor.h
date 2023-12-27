@@ -5,13 +5,15 @@
 #ifndef CRYPTO_ENCRYPTOR_H_
 #define CRYPTO_ENCRYPTOR_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <memory>
 #include <string>
 
 #include "base/strings/string_piece.h"
 #include "build/build_config.h"
 #include "crypto/crypto_export.h"
-#include "starboard/types.h"
 
 namespace crypto {
 
