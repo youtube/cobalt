@@ -132,7 +132,9 @@ time_t timegm(struct tm *);
 #endif
 
 #if _REDIR_TIME64
+#if !defined(STARBOARD)
 __REDIR(time, __time64);
+#endif  // !defined(STARBOARD)
 __REDIR(difftime, __difftime64);
 __REDIR(mktime, __mktime64);
 __REDIR(gmtime, __gmtime64);
