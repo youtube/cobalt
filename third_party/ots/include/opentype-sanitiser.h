@@ -7,10 +7,10 @@
 
 #if defined(STARBOARD)
 #include "starboard/common/byte_swap.h"
-#define NTOHL_OPENTYPE_SANITISER(x) SB_NET_TO_HOST_U32(x)
-#define NTOHS_OPENTYPE_SANITISER(x) SB_NET_TO_HOST_U16(x)
-#define HTONL_OPENTYPE_SANITISER(x) SB_HOST_TO_NET_U32(x)
-#define HTONS_OPENTYPE_SANITISER(x) SB_HOST_TO_NET_U16(x)
+#define ots_ntohl(x) SB_NET_TO_HOST_U32(x)
+#define ots_ntohs(x) SB_NET_TO_HOST_U16(x)
+#define ots_htonl(x) SB_HOST_TO_NET_U32(x)
+#define ots_htons(x) SB_HOST_TO_NET_U16(x)
 #elif defined(_WIN32)
 #include <stdlib.h>
 typedef signed char int8_t;
@@ -21,17 +21,17 @@ typedef int int32_t;
 typedef unsigned int uint32_t;
 typedef __int64 int64_t;
 typedef unsigned __int64 uint64_t;
-#define NTOHL_OPENTYPE_SANITISER(x) _byteswap_ulong (x)
-#define NTOHS_OPENTYPE_SANITISER(x) _byteswap_ushort (x)
-#define HTONL_OPENTYPE_SANITISER(x) _byteswap_ulong (x)
-#define HTONS_OPENTYPE_SANITISER(x) _byteswap_ushort (x)
+#define ots_ntohl(x) _byteswap_ulong (x)
+#define ots_ntohs(x) _byteswap_ushort (x)
+#define ots_htonl(x) _byteswap_ulong (x)
+#define ots_htons(x) _byteswap_ushort (x)
 #else
 #include <arpa/inet.h>
 #include <stdint.h>
-#define NTOHL_OPENTYPE_SANITISER(x) ntohl (x)
-#define NTOHS_OPENTYPE_SANITISER(x) ntohs (x)
-#define HTONL_OPENTYPE_SANITISER(x) htonl (x)
-#define HTONS_OPENTYPE_SANITISER(x) htons (x)
+#define ots_ntohl(x) ntohl (x)
+#define ots_ntohs(x) ntohs (x)
+#define ots_htonl(x) htonl (x)
+#define ots_htons(x) htons (x)
 #endif
 
 #include <sys/types.h>
@@ -78,14 +78,7 @@ class OTSStream {
       const size_t l = std::min(length, static_cast<size_t>(4) - chksum_offset);
       uint32_t tmp = 0;
       std::memcpy(reinterpret_cast<uint8_t *>(&tmp) + chksum_offset, data, l);
-#if defined(_MSC_VER)
-#pragma warning(push)
-#pragma warning(disable : 4267)  // possible loss of data
-#endif
-      chksum_ += NTOHL_OPENTYPE_SANITISER(tmp);
-#if defined(_MSC_VER)
-#pragma warning(pop)
-#endif
+      chksum_ += ots_ntohl(tmp);
       length -= l;
       offset += l;
     }
@@ -94,7 +87,7 @@ class OTSStream {
       uint32_t tmp;
       std::memcpy(&tmp, reinterpret_cast<const uint8_t *>(data) + offset,
         sizeof(uint32_t));
-      chksum_ += NTOHL_OPENTYPE_SANITISER(tmp);
+      chksum_ += ots_ntohl(tmp);
       length -= 4;
       offset += 4;
     }
@@ -104,19 +97,7 @@ class OTSStream {
       uint32_t tmp = 0;
       std::memcpy(&tmp,
                   reinterpret_cast<const uint8_t*>(data) + offset, length);
-#if defined(_MSC_VER)
-#pragma warning(push)
-#pragma warning(disable : 4267)  // possible loss of data
-#elif defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wshorten-64-to-32"
-#endif
-      chksum_ += NTOHL_OPENTYPE_SANITISER(tmp);
-#if defined(_MSC_VER)
-#pragma warning(pop)
-#elif defined(__clang__)
-#pragma clang diagnostic pop
-#endif
+      chksum_ += ots_ntohl(tmp);
     }
 
     return WriteRaw(data, orig_length);
@@ -144,41 +125,27 @@ class OTSStream {
   }
 
   bool WriteU16(uint16_t v) {
-    v = HTONS_OPENTYPE_SANITISER(v);
+    v = ots_htons(v);
     return Write(&v, sizeof(v));
   }
 
   bool WriteS16(int16_t v) {
-#if defined(_MSC_VER)
-#pragma warning(push)
-#pragma warning(disable : 4365)  // signed/unsigned mismatch
-#endif
-    v = HTONS_OPENTYPE_SANITISER(v);
-#if defined(_MSC_VER)
-#pragma warning(pop)
-#endif
+    v = ots_htons(v);
     return Write(&v, sizeof(v));
   }
 
   bool WriteU24(uint32_t v) {
-    v = HTONL_OPENTYPE_SANITISER(v);
+    v = ots_htonl(v);
     return Write(reinterpret_cast<uint8_t*>(&v)+1, 3);
   }
 
   bool WriteU32(uint32_t v) {
-#if defined(_MSC_VER)
-#pragma warning(push)
-#pragma warning(disable : 4365)  // signed/unsigned mismatch
-#endif
-    v = HTONL_OPENTYPE_SANITISER(v);
-#if defined(_MSC_VER)
-#pragma warning(pop)
-#endif
+    v = ots_htonl(v);
     return Write(&v, sizeof(v));
   }
 
   bool WriteS32(int32_t v) {
-    v = HTONL_OPENTYPE_SANITISER(v);
+    v = ots_htonl(v);
     return Write(&v, sizeof(v));
   }
 
@@ -241,10 +208,5 @@ class OTSContext {
 };
 
 }  // namespace ots
-
-#undef NTOHL_OPENTYPE_SANITISER
-#undef NTOHS_OPENTYPE_SANITISER
-#undef HTONL_OPENTYPE_SANITISER
-#undef HTONS_OPENTYPE_SANITISER
 
 #endif  // OPENTYPE_SANITISER_H_

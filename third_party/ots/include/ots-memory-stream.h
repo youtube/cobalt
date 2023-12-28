@@ -24,14 +24,7 @@ class MemoryStream : public OTSStream {
       return false;
     }
     std::memcpy(static_cast<char*>(ptr_) + off_, data, length);
-#if defined(_MSC_VER)
-#pragma warning(push)
-#pragma warning(disable : 4267)  // possible loss of data
-#endif
-    off_ += length;
-#if defined(_MSC_VER)
-#pragma warning(pop)
-#endif
+    off_ += static_cast<off_t>(length);
     return true;
   }
 
@@ -85,14 +78,7 @@ class ExpandingMemoryStream : public OTSStream {
       return WriteRaw(data, length);
     }
     std::memcpy(static_cast<char*>(ptr_) + off_, data, length);
-#if defined(_MSC_VER)
-#pragma warning(push)
-#pragma warning(disable : 4267)  // possible loss of data
-#endif
-    off_ += length;
-#if defined(_MSC_VER)
-#pragma warning(pop)
-#endif
+    off_ += static_cast<off_t>(length);
     return true;
   }
 

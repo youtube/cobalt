@@ -12,30 +12,6 @@
 #include <stddef.h>
 #include <cstdarg>
 #include <cstddef>
-
-#if defined(STARBOARD)
-#include "starboard/common/byte_swap.h"
-#define NTOHL_OTS(x) SB_NET_TO_HOST_U32(x)
-#define NTOHS_OTS(x) SB_NET_TO_HOST_U16(x)
-#elif defined(_WIN32)
-#include <stdlib.h>
-typedef signed char int8_t;
-typedef unsigned char uint8_t;
-typedef short int16_t;
-typedef unsigned short uint16_t;
-typedef int int32_t;
-typedef unsigned int uint32_t;
-typedef __int64 int64_t;
-typedef unsigned __int64 uint64_t;
-#define NTOHL_OTS(x) _byteswap_ulong (x)
-#define NTOHS_OTS(x) _byteswap_ushort (x)
-#else
-#include <arpa/inet.h>
-#include <stdint.h>
-#define NTOHL_OTS(x) ntohl (x)
-#define NTOHS_OTS(x) ntohs (x)
-#endif
-
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -51,7 +27,7 @@ char (&ArraySizeHelper(T (&array)[N]))[N];
 
 namespace ots {
 
-#if defined(STARBOARD) || !defined(OTS_DEBUG)
+#if !defined(OTS_DEBUG)
 #define OTS_FAILURE() false
 #else
 #define OTS_FAILURE() \
@@ -66,7 +42,7 @@ namespace ots {
 // message-less OTS_FAILURE(), so that the current parser will return 'false' as
 // its result (indicating a failure).
 
-#if defined(STARBOARD) || !defined(OTS_DEBUG)
+#if !defined(OTS_DEBUG)
 #define OTS_MESSAGE_(level,otf_,...) \
   (otf_)->context->Message(level,__VA_ARGS__)
 #else
@@ -136,7 +112,7 @@ class Buffer {
       return OTS_FAILURE();
     }
     std::memcpy(value, buffer_ + offset_, sizeof(uint16_t));
-    *value = NTOHS_OTS(*value);
+    *value = ots_ntohs(*value);
     offset_ += 2;
     return true;
   }
@@ -161,7 +137,7 @@ class Buffer {
       return OTS_FAILURE();
     }
     std::memcpy(value, buffer_ + offset_, sizeof(uint32_t));
-    *value = NTOHL_OTS(*value);
+    *value = ots_ntohl(*value);
     offset_ += 4;
     return true;
   }
@@ -376,8 +352,5 @@ struct FontFile {
 };
 
 }  // namespace ots
-
-#undef NTOHL_OTS
-#undef NTOHS_OTS
 
 #endif  // OTS_H_
