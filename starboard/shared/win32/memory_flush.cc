@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION < 16
 #include "starboard/common/log.h"
 #include "starboard/memory.h"
 
@@ -29,4 +28,3 @@ void SbMemoryFlush(void* virtual_address, int64_t size_bytes) {
   // TODO: Enable the following implementation when xb1 can compile it.
   // FlushInstructionCache(GetCurrentProcess(), virtual_address, size_bytes);
 }
-#endif  // SB_API_VERSION < 16

@@ -21,10 +21,9 @@
 #include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/memory.h"
 #include "starboard/time.h"
 #include "starboard/time_zone.h"
-
-#include "sys/mman.h"
 
 namespace v8 {
 namespace base {
@@ -126,13 +125,13 @@ void OS::SetRandomMmapSeed(int64_t seed) { SB_NOTIMPLEMENTED(); }
 void* OS::GetRandomMmapAddr() { return nullptr; }
 
 void* Allocate(void* address, size_t size, OS::MemoryPermission access) {
-  int prot_flags;
+  SbMemoryMapFlags sb_flags;
   switch (access) {
     case OS::MemoryPermission::kNoAccess:
-      prot_flags = PROT_NONE;
+      sb_flags = SbMemoryMapFlags(0);
       break;
     case OS::MemoryPermission::kReadWrite:
-      prot_flags = PROT_READ | PROT_WRITE;
+      sb_flags = SbMemoryMapFlags(kSbMemoryMapProtectReadWrite);
       break;
     default:
       SB_LOG(ERROR) << "The requested memory allocation access is not"
@@ -140,8 +139,8 @@ void* Allocate(void* address, size_t size, OS::MemoryPermission access) {
                     << static_cast<int>(access);
       return nullptr;
   }
-  void* result = mmap(nullptr, size, prot_flags, MAP_PRIVATE | MAP_ANON, -1, 0);
-  if (result == MAP_FAILED) {
+  void* result = SbMemoryMap(size, sb_flags, "v8::Base::Allocate");
+  if (result == SB_MEMORY_MAP_FAILED) {
     return nullptr;
   }
   return result;
@@ -184,36 +183,38 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
 
 // static
 bool OS::Free(void* address, const size_t size) {
-  return munmap(address, size) == 0;
+  return SbMemoryUnmap(address, size);
 }
 
 // static
 bool OS::Release(void* address, size_t size) {
-  return munmap(address, size) == 0;
+  return SbMemoryUnmap(address, size);
 }
 
 // static
 bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
-  int new_protection;
+  SbMemoryMapFlags new_protection;
   switch (access) {
     case OS::MemoryPermission::kNoAccess:
-      new_protection = PROT_NONE;
+      new_protection = SbMemoryMapFlags(0);
       break;
     case OS::MemoryPermission::kRead:
-      new_protection = PROT_READ;
+      new_protection = SbMemoryMapFlags(kSbMemoryMapProtectRead);
     case OS::MemoryPermission::kReadWrite:
-      new_protection = PROT_READ | PROT_WRITE;
+      new_protection = SbMemoryMapFlags(kSbMemoryMapProtectReadWrite);
       break;
     case OS::MemoryPermission::kReadExecute:
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
-      new_protection = PROT_READ | PROT_EXEC;
+      new_protection =
+          SbMemoryMapFlags(kSbMemoryMapProtectRead | kSbMemoryMapProtectExec);
 #else
       UNREACHABLE();
 #endif
       break;
     case OS::MemoryPermission::kReadWriteExecute:
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
-      new_protection = PROT_READ| PROT_WRITE| PROT_EXEC;
+      new_protection =
+          SbMemoryMapFlags(kSbMemoryMapProtectRead | kSbMemoryMapProtectWrite| kSbMemoryMapProtectExec);
 #else
       UNREACHABLE();
 #endif
@@ -223,7 +224,7 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
       // All other types are not supported by Starboard.
       return false;
   }
-  return mprotect(address, size, new_protection) == 0;
+  return SbMemoryProtect(address, size, new_protection);
 }
 
 // static

@@ -102,7 +102,6 @@ typedef HANDLE MemoryMap;
 #elif MAP_IMPLEMENTATION==MAP_STARBOARD
 #   include "starboard/file.h"
 #   include "cmemory.h"
-#   include <sys/mman.h>
 
     typedef void *MemoryMap;
 
@@ -431,7 +430,7 @@ typedef HANDLE MemoryMap;
                 uprv_free(pData->map);
             } else {
                 size_t dataLen = (char *)pData->map - (char *)pData->mapAddr;
-                munmap(pData->mapAddr, dataLen);
+                SbMemoryUnmap(pData->mapAddr, dataLen);
             }
             pData->map     = NULL;
             pData->mapAddr = NULL;

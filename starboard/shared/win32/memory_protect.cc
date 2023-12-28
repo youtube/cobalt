@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION < 16
 #include "starboard/memory.h"
 
 #include <windows.h>
@@ -57,5 +56,3 @@ bool SbMemoryProtect(void* virtual_address, int64_t size_bytes, int flags) {
   return VirtualProtectFromApp(virtual_address, size_bytes, new_protection,
                                &old_protection) != 0;
 }
-
-#endif  // SB_API_VERSION < 16
