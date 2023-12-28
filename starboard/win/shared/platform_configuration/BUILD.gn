@@ -46,8 +46,10 @@ config("platform_configuration") {
     "/FI ../../starboard/shared/win32/posix_emu/include/posix_force_include.h",
 
     # Add POSIX emulation headers
-    "/I../../starboard/shared/win32/posix_emu/include",
+    # "/I../../starboard/shared/win32/posix_emu/include",
   ]
+
+  include_dirs = ["//starboard/shared/win32/posix_emu/include"]
 
   ldflags = [
     # Suppress import library warning caused by the win32/posix_emu
