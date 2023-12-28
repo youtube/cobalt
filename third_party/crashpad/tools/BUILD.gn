@@ -48,7 +48,7 @@ if (!crashpad_is_ios) {
 
     if (crashpad_is_in_starboard) {
       deps += [
-        "//starboard",
+        "//starboard:starboard_group",
       ]
     }
 

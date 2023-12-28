@@ -22,7 +22,7 @@ target(gtest_target_type, "extension_test") {
   deps = [
     "//cobalt/base",
     "//cobalt/test:run_all_unittests",
-    "//starboard",
+    "//starboard:starboard_group",
     "//testing/gmock",
     "//testing/gtest",
   ]

@@ -47,7 +47,7 @@ static_library("media_stream") {
     "//cobalt/media",
     "//cobalt/script",
     "//cobalt/speech",
-    "//starboard",
+    "//starboard:starboard_group",
   ]
 }
 

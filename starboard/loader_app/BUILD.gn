@@ -29,7 +29,7 @@ group("common_loader_app_dependencies") {
     ":memory_tracker_thread",
     ":reset_evergreen_update",
     ":slot_management",
-    "//starboard",
+    "//starboard:starboard_group",
     "//starboard/elf_loader:constants",
     "//starboard/elf_loader:evergreen_info",
     "//starboard/elf_loader:sabi_string",
@@ -146,7 +146,7 @@ static_library("app_key_files") {
     "app_key_files.cc",
     "app_key_files.h",
   ]
-  deps = [ "//starboard" ]
+  deps = [ "//starboard:starboard_group" ]
 }
 
 target(gtest_target_type, "app_key_files_test") {
@@ -170,7 +170,7 @@ static_library("app_key") {
     "app_key_internal.h",
   ]
   deps = [
-    "//starboard",
+    "//starboard:starboard_group",
     "//third_party/modp_b64",
   ]
 }
@@ -233,7 +233,7 @@ static_library("installation_manager") {
   deps = [
     ":installation_store_proto",
     ":pending_restart",
-    "//starboard",
+    "//starboard:starboard_group",
   ]
 }
 
@@ -265,7 +265,7 @@ static_library("slot_management") {
     ":app_key_files",
     ":drain_file",
     ":installation_manager",
-    "//starboard",
+    "//starboard:starboard_group",
     "//starboard/elf_loader",
     "//starboard/elf_loader:constants",
     "//starboard/elf_loader:sabi_string",
@@ -325,7 +325,7 @@ static_library("reset_evergreen_update") {
     "reset_evergreen_update.cc",
     "reset_evergreen_update.h",
   ]
-  deps = [ "//starboard" ]
+  deps = [ "//starboard:starboard_group" ]
 }
 
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.

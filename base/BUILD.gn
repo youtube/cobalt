@@ -1562,7 +1562,7 @@ component("base") {
     deps += [
       "//nb",
       "//starboard/common",
-      "//starboard",
+      "//starboard:starboard_group",
       "//starboard/client_porting/eztime",
     ]
     deps -= [
