@@ -13,6 +13,7 @@
 # limitations under the License.
 
 config("modular") {
+  ldflags = []
   cflags = [
     "-ffunction-sections",
     "-fdata-sections",
@@ -170,8 +171,6 @@ config("modular") {
 
     defines += [ "THREAD_SANITIZER" ]
   }
-
-  ldflags = []
 
   # Wrap underlying POSIX implementations to be cross-compatible with
   # musl-based types that are used in modular builds. Evergreen builds use
