@@ -97,10 +97,6 @@ _ALLOWED_SB16_POSIX_SYMBOLS = [
     'strcasecmp',
     'strncasecmp',
     'time',
-    'mmap',
-    'munmap',
-    'mprotect',
-    'msync',
 ]
 
 

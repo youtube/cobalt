@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION < 16
-
 #include "starboard/memory.h"
 #include "starboard/shared/posix/page_internal.h"
 
@@ -21,5 +19,3 @@ void* SbMemoryMap(int64_t size_bytes, int flags, const char* name) {
   void* memory = SbPageMap(size_bytes, flags, name);
   return memory;
 }
-
-#endif  // SB_API_VERSION < 16

@@ -14,8 +14,6 @@
 
 #include "starboard/elf_loader/program_table.h"
 
-#include <sys/mman.h>
-
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/elf_loader/evergreen_info.h"
@@ -26,11 +24,13 @@
 #define MAYBE_MAP_FLAG(x, from, to) (((x) & (from)) ? (to) : 0)
 
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
-#define PFLAGS_TO_PROT(x)                 \
-  (MAYBE_MAP_FLAG((x), PF_X, PROT_EXEC) | \
-   MAYBE_MAP_FLAG((x), PF_R, PROT_READ) | \
-   MAYBE_MAP_FLAG((x), PF_W, PROT_WRITE))
+#define PFLAGS_TO_PROT(x)                               \
+  (MAYBE_MAP_FLAG((x), PF_X, kSbMemoryMapProtectExec) | \
+   MAYBE_MAP_FLAG((x), PF_R, kSbMemoryMapProtectRead) | \
+   MAYBE_MAP_FLAG((x), PF_W, kSbMemoryMapProtectWrite))
 #endif
+
+#define MAP_FAILED ((void*)-1)
 
 namespace starboard {
 namespace elf_loader {
@@ -92,7 +92,7 @@ bool ProgramTable::LoadProgramHeader(const Ehdr* elf_header, File* elf_file) {
     SB_DLOG(INFO) << "Allocated address=" << phdr_mmap_;
   } else {
     phdr_mmap_ =
-        mmap(nullptr, phdr_size_, PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+        SbMemoryMap(phdr_size_, kSbMemoryMapProtectWrite, "program_header");
     if (!phdr_mmap_) {
       SB_LOG(ERROR) << "Failed to allocate memory";
       return false;
@@ -105,7 +105,8 @@ bool ProgramTable::LoadProgramHeader(const Ehdr* elf_header, File* elf_file) {
                     << page_min;
       return false;
     }
-    bool mp_result = mprotect(phdr_mmap_, phdr_size_, PROT_READ) == 0;
+    bool mp_result =
+        SbMemoryProtect(phdr_mmap_, phdr_size_, kSbMemoryMapProtectRead);
     SB_DLOG(INFO) << "mp_result=" << mp_result;
     if (!mp_result) {
       SB_LOG(ERROR) << "Failed to protect program header";
@@ -204,7 +205,8 @@ bool ProgramTable::LoadSegments(File* elf_file) {
         }
       } else {
         SB_DLOG(INFO) << "Not using Memory Mapped Files";
-        mp_ret = mprotect(seg_addr, file_length, PROT_WRITE) == 0;
+        mp_ret =
+            SbMemoryProtect(seg_addr, file_length, kSbMemoryMapProtectWrite);
         SB_DLOG(INFO) << "segment vaddress=" << seg_addr;
 
         if (!mp_ret) {
@@ -219,7 +221,7 @@ bool ProgramTable::LoadSegments(File* elf_file) {
           return false;
         }
       }
-      mp_ret = mprotect(seg_addr, file_length, prot_flags) == 0;
+      mp_ret = SbMemoryProtect(seg_addr, file_length, prot_flags);
       SB_DLOG(INFO) << "mp_ret=" << mp_ret;
       if (!mp_ret) {
         SB_LOG(ERROR) << "Failed to protect segment";
@@ -249,9 +251,9 @@ bool ProgramTable::LoadSegments(File* elf_file) {
     // map for all extra pages.
     if (seg_page_end > seg_file_end) {
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
-      bool mprotect_fix =
-          mprotect(reinterpret_cast<void*>(seg_file_end),
-                   seg_page_end - seg_file_end, PROT_WRITE) == 0;
+      bool mprotect_fix = SbMemoryProtect(reinterpret_cast<void*>(seg_file_end),
+                                          seg_page_end - seg_file_end,
+                                          kSbMemoryMapProtectWrite);
       SB_DLOG(INFO) << "mprotect_fix=" << mprotect_fix;
       if (!mprotect_fix) {
         SB_LOG(ERROR) << "Failed to unprotect end of segment";
@@ -264,8 +266,9 @@ bool ProgramTable::LoadSegments(File* elf_file) {
       memset(reinterpret_cast<void*>(seg_file_end), 0,
              seg_page_end - seg_file_end);
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
-      mprotect(reinterpret_cast<void*>(seg_file_end),
-               seg_page_end - seg_file_end, PFLAGS_TO_PROT(phdr->p_flags));
+      SbMemoryProtect(reinterpret_cast<void*>(seg_file_end),
+                      seg_page_end - seg_file_end,
+                      PFLAGS_TO_PROT(phdr->p_flags));
       SB_DLOG(INFO) << "mprotect_fix=" << mprotect_fix;
       if (!mprotect_fix) {
         SB_LOG(ERROR) << "Failed to protect end of segment";
@@ -357,9 +360,9 @@ int ProgramTable::AdjustMemoryProtectionOfReadOnlySegments(
     Addr seg_page_end =
         PAGE_END(phdr->p_vaddr + phdr->p_memsz) + base_memory_address_;
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
-    int ret = mprotect(reinterpret_cast<void*>(seg_page_start),
-                       seg_page_end - seg_page_start,
-                       PFLAGS_TO_PROT(phdr->p_flags) | extra_prot_flags);
+    int ret = SbMemoryProtect(reinterpret_cast<void*>(seg_page_start),
+                              seg_page_end - seg_page_start,
+                              PFLAGS_TO_PROT(phdr->p_flags) | extra_prot_flags);
     if (ret < 0) {
       return -1;
     }
@@ -380,7 +383,7 @@ bool ProgramTable::ReserveLoadMemory() {
   SB_DLOG(INFO) << "Load size=" << load_size_;
 
   load_start_ =
-      mmap(nullptr, load_size_, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0);
+      SbMemoryMap(load_size_, kSbMemoryMapProtectReserved, "reserved_mem");
   if (load_start_ == MAP_FAILED) {
     SB_LOG(ERROR) << "Could not reserve " << load_size_
                   << " bytes of address space";
@@ -418,10 +421,10 @@ Addr ProgramTable::GetBaseMemoryAddress() {
 ProgramTable::~ProgramTable() {
   SetEvergreenInfo(NULL);
   if (load_start_) {
-    munmap(load_start_, load_size_);
+    SbMemoryUnmap(load_start_, load_size_);
   }
   if (phdr_mmap_) {
-    munmap(phdr_mmap_, phdr_size_);
+    SbMemoryUnmap(phdr_mmap_, phdr_size_);
   }
 }
 
