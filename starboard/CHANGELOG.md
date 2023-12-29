@@ -9,6 +9,10 @@ since the version previous to it.
 
 ## Version 16
 
+### Convert SbUiNavGetInterface Starboard API into an extension
+The `SbUiNavGetInterface` API is deprecated and replaced with a Starboard
+extension named `SbUiNavInterface`.
+
 ### Decrecated SbTime APIs and migrated to POSIX time APIs
 The time APIs `SbTimeGetNow`, `SbTimeGetMonotonicNow`,
 `SbTimeIsTimeThreadNowSupported` and `SbTimeGetMonotonicThreadNow` are
@@ -29,7 +33,7 @@ standard APIs `malloc`, `realloc`, `calloc`, `posix_memalign`, `free`
 from `<stdlib.h>` and `strdup` from `<string.h>` should be used instead.
 
 ### Deprecated SbMediaGetBufferAlignment
-The `SbMediaGetBufferAlignment`API was deprecated.
+The `SbMediaGetBufferAlignment` API was deprecated.
 
 ### Removed SbUser from SbStorageOpenRecord and SbStorageDeleteRecord
 The `SbStorageOpenRecord` and `SbStorageDeleteRecord` APIs defined in
