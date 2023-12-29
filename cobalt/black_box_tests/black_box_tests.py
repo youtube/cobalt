@@ -26,6 +26,9 @@ import socket
 import sys
 import unittest
 
+import os
+import subprocess
+
 from cobalt.black_box_tests import black_box_cobalt_runner
 from cobalt.black_box_tests import bbt_settings
 from cobalt.black_box_tests.proxy_server import ProxyServer
@@ -241,6 +244,8 @@ class BlackBoxTests(object):
             f'--dev_servers_listen_ip={_server_binding_address}')
     _launcher_params.target_params.append(
         f'--web-platform-test-server=http://web-platform.test:{_wpt_http_port}')
+    if os.getenv('COBALT_SYSTEM_ADB', ''):
+      _launcher_params.target_params.append('systools')
 
     # Port used to create the proxy server. If not specified, a random free
     # port is used.
@@ -351,6 +356,7 @@ def IsValidIpv6Address(address):
 
 
 def main():
+  subprocess.run(['python3', '-m', 'pip', 'freeze'], text=True, check=False)
   parser = argparse.ArgumentParser()
   parser.add_argument('-v', '--verbose', required=False, action='store_true')
   parser.add_argument(
