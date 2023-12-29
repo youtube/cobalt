@@ -114,12 +114,14 @@ repos:
         language: system
         types: [python]
         args: [-i, -vv]
+        exclude: (_pb2.py$)
     -   id: pylint
         name: pylint
         entry: pylint
         language: system
         types: [python]
         args: [-d W0201]
+        exclude: (_pb2.py$)
     -   id: google-java-format
         name: google-java-format
         entry: python ./precommit_hooks/google_java_format_wrapper.py
@@ -203,3 +205,9 @@ repos:
         entry: gn format
         language: system
         files: '.*\.gni?$'
+    -   id: metadata-check
+        name: Metadata checks
+        entry: python ./tools/metadata/validate.py
+        language: python
+        additional_dependencies: ['protobuf']
+        files: 'METADATA'
