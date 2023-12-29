@@ -5,43 +5,49 @@ default_stages: [commit]
 default_language_version:
     python: python3
 
+# Using undocumcneted 'ci' node so pre-commit doesn't complain about unknown
+# config values.
+ci:
+    exclude: &upstream |
+        (?x)^(
+            (
+                base|
+                build|
+                buildtools|
+                cobalt/updater|
+                components/crash/core/common|
+                components/metrics_services_manager|
+                components/metrics|
+                components/prefs|
+                components/ukm|
+                components/variations|
+                components/version_info|
+                crypto|
+                extensions/buildflags|
+                glimp/include|
+                net|
+                internal/kokoro/third-party|
+                internal/starboard/shared/playstation/glimp/shaders|
+                testing|
+                third_party|
+                tools/gyp|
+                tools/python|
+                url
+            ) |
+            tools/metrics/((?!cobalt).)*$ |
+            # Ignore everything under tools/metrics _except_ Cobalt files. We
+            # need those validated to keep the telemetry/metrics pipeline working.
+            components/update_client/((?!cobalt).)*$
+        )
+
 exclude: |
     (?x)^(
-        (
-            base|
-            build|
-            buildtools|
-            cobalt/updater|
-            components/crash/core/common|
-            components/metrics_services_manager|
-            components/metrics|
-            components/prefs|
-            components/ukm|
-            components/variations|
-            components/version_info|
-            crypto|
-            extensions/buildflags|
-            glimp/include|
-            net|
-            internal/kokoro/third-party|
-            internal/starboard/shared/playstation/glimp/shaders|
-            testing|
-            third_party|
-            tools/gyp|
-            tools/python|
-            url
-        )/
-        |
-        components/update_client/((?!cobalt).)*$
-        |
-        # Ignore everything under tools/metrics _except_ Cobalt files. We
-        # need those validated to keep the telemetry/metrics pipeline working.
-        tools/metrics/((?!cobalt\/).)*$|
         .*\.pb\.cc$ |
         .*\.pb\.h$ |
         .*\.patch$ |
         .*Proto.java$|
-        .*\.sig$
+        .*\.sig$ |
+        .*_pb2\.py$
     )
 
 repos:
@@ -49,10 +55,16 @@ repos:
     rev: e1668fe86af3810fbca72b8653fe478e66a0afdc  # v3.2.0
     hooks:
     -   id: check-case-conflict
+        exclude: *upstream
     -   id: end-of-file-fixer
+        exclude: *upstream
     -   id: trailing-whitespace
+        exclude: *upstream
     -   id: mixed-line-ending
+        exclude: *upstream
     -   id: check-xml
+        files: '.*\.xml$'
+        exclude: *upstream
 
 -   repo: https://cobalt.googlesource.com/codespell
     rev: 67c489d36dd4c52cbb9e4755d90c35c6231842ef  # v2.0.0
@@ -96,6 +108,7 @@ repos:
         exclude_types: [objective-c++]
         args: [-i, -style=file]
         additional_dependencies: ['clang-format']
+        exclude: *upstream
     -   id: cpplint
         name: cpplint
         entry: cpplint
@@ -114,24 +127,28 @@ repos:
         language: system
         types: [python]
         args: [-i, -vv]
+        exclude: *upstream
     -   id: pylint
         name: pylint
         entry: pylint
         language: system
         types: [python]
         args: [-d W0201]
+        exclude: *upstream
     -   id: google-java-format
         name: google-java-format
         entry: python ./precommit_hooks/google_java_format_wrapper.py
         language: python
         types: [java]
         args: [-i]
+        exclude: *upstream
     -   id: gcheckstyle
         name: Lint Java With gcheckstyle
         entry: python ./precommit_hooks/gcheckstyle_wrapper.py
         language: python
         types: [java]
         verbose: true
+        exclude: *upstream
     -   id: check-copyright-year
         name: check copyright year
         entry: python ./precommit_hooks/check_copyright_year.py
@@ -190,6 +207,7 @@ repos:
         language: python
         types: [python]
         verbose: true
+        exclude: *upstream
     -   id: check-bug-in-commit-message
         name: Check Bug In Commit Message
         description: Checks for a tracking bug in a commit message
@@ -203,3 +221,14 @@ repos:
         entry: gn format
         language: system
         files: '.*\.gni?$'
+        exclude: *upstream
+    -   id: metadata-check
+        name: Metadata checks
+        entry: python ./tools/metadata/validate.py
+        language: python
+        additional_dependencies: ['protobuf']
+        files: '.*/METADATA$'
+        exclude: |
+            (?x)^(
+                third_party/skia/site
+            )
