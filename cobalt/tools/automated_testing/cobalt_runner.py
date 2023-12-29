@@ -31,6 +31,8 @@ from cobalt.tools.automated_testing import c_val_names
 from cobalt.tools.automated_testing import webdriver_utils
 from starboard.tools import abstract_launcher
 
+import socket
+
 # Pattern to match Cobalt log line for when the WebDriver port has been
 # opened.
 RE_WEBDRIVER_LISTEN = re.compile(r'Starting WebDriver server on port (\d+)')
@@ -385,6 +387,10 @@ class CobaltRunner(object):
     startup_timeout_seconds = self.launcher.GetStartupTimeout()
     if not startup_timeout_seconds:
       startup_timeout_seconds = DEFAULT_STARTUP_TIMEOUT_SECONDS
+
+    logging.info('socket._GLOBAL_DEFAULT_TIMEOUT is %s',
+                 socket._GLOBAL_DEFAULT_TIMEOUT)
+    logging.info('Startup timeout set to %s', startup_timeout_seconds)
 
     with self.start_condition:
       if not self.start_condition.wait(startup_timeout_seconds):
