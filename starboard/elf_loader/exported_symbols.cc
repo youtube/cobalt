@@ -54,8 +54,8 @@
 #include "starboard/system.h"
 #include "starboard/thread.h"
 #include "starboard/time_zone.h"
-#include "starboard/ui_navigation.h"
 #if SB_API_VERSION < 16
+#include "starboard/ui_navigation.h"
 #include "starboard/user.h"
 #endif  // SB_API_VERSION < 16
 #include "starboard/window.h"
@@ -381,8 +381,8 @@ ExportedSymbols::ExportedSymbols() {
 #endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbTimeZoneGetCurrent);
   REGISTER_SYMBOL(SbTimeZoneGetName);
-  REGISTER_SYMBOL(SbUiNavGetInterface);
 #if SB_API_VERSION < 16
+  REGISTER_SYMBOL(SbUiNavGetInterface);
   REGISTER_SYMBOL(SbUserGetCurrent);
   REGISTER_SYMBOL(SbUserGetProperty);
   REGISTER_SYMBOL(SbUserGetPropertySize);

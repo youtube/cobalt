@@ -30,10 +30,8 @@
 // to user interaction. If the navigation item is a container, then the content
 // offset will also be queried to determine the placement of its content items.
 
-#ifndef STARBOARD_UI_NAVIGATION_H_
-#define STARBOARD_UI_NAVIGATION_H_
-
-#if SB_API_VERSION < 16
+#ifndef STARBOARD_EXTENSION_UI_NAVIGATION_H_
+#define STARBOARD_EXTENSION_UI_NAVIGATION_H_
 
 #include "starboard/configuration.h"
 #include "starboard/export.h"
@@ -43,6 +41,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define kCobaltExtensionUiNavigationName "dev.cobalt.extension.UiNavigation"
 
 // --- Types -----------------------------------------------------------------
 
@@ -126,6 +126,13 @@ typedef struct SbUiNavCallbacks {
 // All function pointers must be specified if the platform supports UI
 // navigation.
 typedef struct SbUiNavInterface {
+  // Name should be the string |kCobaltExtensionUiNavigationName|.
+  // This helps to validate that the extension API is correct.
+  const char* name;
+
+  // This specifies the version of the API that is implemented.
+  uint32_t version;
+
   // Create a new navigation item. When the user interacts with this item
   // the appropriate SbUiNavCallbacks function will be invoked with the
   // provided |callback_context|. An item is not interactable until it is
@@ -296,20 +303,8 @@ static SB_C_INLINE bool SbUiNavItemIsValid(SbUiNavItem item) {
   return item != kSbUiNavItemInvalid;
 }
 
-// Retrieve the platform's UI navigation implementation. If the platform does
-// not provide one, then return false without modifying |out_interface|.
-// Otherwise, initialize all members of |out_interface| and return true.
-// The |out_interface| pointer must not be NULL.
-SB_EXPORT bool SbUiNavGetInterface(SbUiNavInterface* out_interface);
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#else  // SB_API_VERSION < 16
-
-#error This file is deprecated with SB_API_VERSION 16.
-
-#endif  // SB_API_VERSION < 16
-
-#endif  // STARBOARD_UI_NAVIGATION_H_
+#endif  // STARBOARD_EXTENSION_UI_NAVIGATION_H_

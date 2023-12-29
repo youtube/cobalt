@@ -15,6 +15,11 @@
 #include "cobalt/ui_navigation/interface.h"
 
 #include "starboard/common/spin_lock.h"
+#if SB_API_VERSION >= 16
+#include <string.h>
+
+#include "starboard/system.h"
+#endif  //  SB_API_VERSION
 
 namespace cobalt {
 namespace ui_navigation {
@@ -138,6 +143,7 @@ void DoBatchUpdate(void (*update_function)(void*), void* context) {
 
 NativeInterface InitializeInterface() {
   NativeInterface interface = {0};
+#if SB_API_VERSION < 16
   SbUiNavInterface sb_ui_interface = {0};
   if (SbUiNavGetInterface(&sb_ui_interface)) {
     interface.create_item = sb_ui_interface.create_item;
@@ -161,7 +167,39 @@ NativeInterface InitializeInterface() {
     interface.do_batch_update = sb_ui_interface.do_batch_update;
     return interface;
   }
-
+#else   // SB_API_VERSION < 16
+  const SbUiNavInterface* sb_ui_interface =
+      static_cast<const SbUiNavInterface*>(
+          SbSystemGetExtension(kCobaltExtensionUiNavigationName));
+  if (sb_ui_interface &&
+      strcmp(sb_ui_interface->name, kCobaltExtensionUiNavigationName) == 0 &&
+      sb_ui_interface->version >= 1) {
+    interface.create_item = sb_ui_interface->create_item;
+    interface.destroy_item = sb_ui_interface->destroy_item;
+    interface.set_item_bounds = nullptr;
+    interface.get_item_bounds = nullptr;
+    interface.set_focus = sb_ui_interface->set_focus;
+    interface.set_item_enabled = sb_ui_interface->set_item_enabled;
+    interface.set_item_dir = sb_ui_interface->set_item_dir;
+    interface.set_item_size = sb_ui_interface->set_item_size;
+    interface.set_item_transform = sb_ui_interface->set_item_transform;
+    interface.get_item_focus_transform =
+        sb_ui_interface->get_item_focus_transform;
+    interface.get_item_focus_vector = sb_ui_interface->get_item_focus_vector;
+    interface.set_item_container_window =
+        sb_ui_interface->set_item_container_window;
+    interface.set_item_container_item =
+        sb_ui_interface->set_item_container_item;
+    interface.set_item_content_offset =
+        sb_ui_interface->set_item_content_offset;
+    interface.get_item_content_offset =
+        sb_ui_interface->get_item_content_offset;
+    interface.set_item_focus_duration =
+        sb_ui_interface->set_item_focus_duration;
+    interface.do_batch_update = sb_ui_interface->do_batch_update;
+    return interface;
+  }
+#endif  // SB_API_VERSION < 16
   interface.create_item = &CreateItem;
   interface.destroy_item = &DestroyItem;
   interface.set_item_bounds = &SetItemBounds;
