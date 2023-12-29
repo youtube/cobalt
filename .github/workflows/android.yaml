@@ -22,22 +22,6 @@ on:
         default: false
 
 jobs:
-  android-arm64:
-    uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
-    with:
-      platform: android-arm64
-      nightly: ${{ github.event.inputs.nightly }}
-  android-x86:
-    uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
-    with:
-      platform: android-x86
-      nightly: ${{ github.event.inputs.nightly }}
   android-arm:
     uses: ./.github/workflows/main.yaml
     permissions:

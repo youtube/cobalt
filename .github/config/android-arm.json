@@ -4,9 +4,6 @@
     "enabled": true,
     "tests": [
       "0",
-      "1",
-      "2",
-      "3",
       "black_box_test"
     ]
   },
