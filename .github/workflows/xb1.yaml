@@ -1,4 +1,4 @@
-name: win32
+name: xb1
 
 on:
   pull_request:
