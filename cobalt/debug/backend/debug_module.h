@@ -33,7 +33,7 @@
 #include "cobalt/debug/backend/page_agent.h"
 #include "cobalt/debug/backend/render_overlay.h"
 #include "cobalt/debug/backend/script_debugger_agent.h"
-#include "cobalt/debug/backend/tracing_agent.h"
+#include "cobalt/debug/backend/tracing_controller.h"
 #include "cobalt/debug/json_object.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/render_tree/resource_provider.h"
@@ -142,7 +142,7 @@ class DebugModule : public script::ScriptDebugger::Delegate {
   std::unique_ptr<OverlayAgent> overlay_agent_;
   std::unique_ptr<PageAgent> page_agent_;
   std::unique_ptr<ScriptDebuggerAgent> script_debugger_agent_;
-  std::unique_ptr<TracingAgent> tracing_agent_;
+  std::unique_ptr<TracingController> tracing_controller_;
 };
 
 }  // namespace backend
