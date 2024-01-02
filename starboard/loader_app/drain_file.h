@@ -37,9 +37,10 @@ extern const char kDrainFilePrefix[];
 // otherwise |false|.
 bool DrainFileTryDrain(const char* dir, const char* app_key);
 
-// Ranks the drain files in |dir| using DrainFileRank(), and compares the
-// provided |app_key| with the best ranked app key. Returns |true| if they
-// match, otherwise |false|.
+// Ranks the non-expired drain files in |dir| in non-descending order by drain
+// file creation time, breaking ties by a C string comparison of the app keys
+// of the drain files, and compares the provided |app_key| with the app key of
+// the first ranked drain file. Returns |true| if they match, otherwise |false|.
 bool DrainFileRankAndCheck(const char* dir, const char* app_key);
 
 // Clears all expired drain files in |dir| for all apps.
