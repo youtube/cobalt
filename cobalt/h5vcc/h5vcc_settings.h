@@ -58,6 +58,11 @@ class H5vccSettings : public script::Wrappable {
   // invalid or not set to the expected value.
   bool Set(const std::string& name, SetValueType value) const;
 
+  void SetPersistentSettingAsInt(const std::string& key, int value) const;
+
+  int GetPersistentSettingAsInt(const std::string& key,
+                                int default_setting) const;
+
   DEFINE_WRAPPABLE_TYPE(H5vccSettings);
 
  private:
