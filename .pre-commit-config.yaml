@@ -37,6 +37,7 @@ exclude: |
         # Ignore everything under tools/metrics _except_ Cobalt files. We
         # need those validated to keep the telemetry/metrics pipeline working.
         tools/metrics/((?!cobalt\/).)*$|
+        .*_pb2\.py |
         .*\.pb\.cc$ |
         .*\.pb\.h$ |
         .*\.patch$ |
