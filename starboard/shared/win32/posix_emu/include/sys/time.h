@@ -17,7 +17,9 @@
 
 #if defined(STARBOARD)
 
+#define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>  // For struct timeval
+#undef WIN32_LEAN_AND_MEAN
 
 #ifdef __cplusplus
 extern "C" {
