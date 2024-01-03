@@ -117,7 +117,7 @@ source_set("gtest") {
   ]
 
   # Some files include "src/gtest-internal-inl.h".
-  include_dirs = [ "src/googletest", "." ]
+  include_dirs = [ "src/googletest" ]
 
   public_configs = [ ":gtest_config" ]
 
@@ -126,6 +126,7 @@ source_set("gtest") {
 
   defines = []
   deps = []
+  public_deps = []
   if (is_nacl || !build_with_chromium) {
     defines += [ "GTEST_DISABLE_PRINT_STACK_TRACE" ]
     # sources -= [
