@@ -1,7 +1,3 @@
-name: "googletest"
-description:
-  "Google Test is Google's C++ test framework. src/ is taken from git hash listed here. BUILD.gn is copied from Chromium branch-heads/5735"
-
 third_party {
   url {
     type: GIT
@@ -9,9 +5,4 @@ third_party {
   }
   version: "af29db7ec28d6df1c7f0f745186884091e602e07"
   # from https://chromium.googlesource.com/chromium/src/+/114.0.5735.330/DEPS#331
-  last_upgrade_date {
-    year: 2023
-    month: 5
-    day: 19
-  }
 }
