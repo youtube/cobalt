@@ -70,11 +70,11 @@ def update_proto():
 
 
 def filter_files(path):
-  if not path.endswith('/METADATA'):
+  if not path.endswith(os.path.sep + 'METADATA'):
     return False
-  if '.dist-info/' in path:
+  if '.dist-info' in path:
     return False  # Python packaging files
-  if 'skia/site' in path:
+  if os.path.join('skia', 'site') in path:
     return False  # Different upstream files
   return True
 
