@@ -119,12 +119,12 @@ class BASE_EXPORT PlatformSharedMemoryRegion {
   // actual region size as allocated by the kernel.
   // Closes the |handle| and returns an invalid instance if passed parameters
   // are invalid.
-#if defined(STARBOARD)
   static PlatformSharedMemoryRegion Take(
       ScopedPlatformSharedMemoryHandle handle,
       Mode mode,
       size_t size,
       const UnguessableToken& guid);
+#if defined(STARBOARD)
 #elif BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_APPLE)
   // Specialized version of Take() for POSIX that takes only one file descriptor
   // instead of pair. Cannot be used with kWritable |mode|.

@@ -239,7 +239,7 @@ struct EMUCaller {
 
 template <class T>
 struct EMUCaller<T, typename std::enable_if<HasEMU<T>::value>::type> {
-  static size_t Call(const T& value) { return 0; }
+  static size_t Call(const T& value) { return EstimateMemoryUsage(value); }
 };
 
 template <template <class...> class Container, class I, class = void>

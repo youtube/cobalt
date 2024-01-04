@@ -164,6 +164,7 @@ default_compiler_configs = [
   "//build/config/compiler:default_optimization",
   "//build/config/compiler:chromium_code",
   "//build/config/sanitizers:default_sanitizer_flags",
+  "//starboard/build/config:hacky_build_config",
 ]
 
 if (use_thin_archive) {
