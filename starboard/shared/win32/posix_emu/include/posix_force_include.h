@@ -15,9 +15,15 @@
 #ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_POSIX_FORCE_INCLUDE_H_
 #define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_POSIX_FORCE_INCLUDE_H_
 
+#ifdef __cplusplus
 extern "C" {
+#endif
+
 int _mkdir(const char* dirname);
+
+#ifdef __cplusplus
 }
+#endif  // __cplusplus
 
 // MSVC deprecated strdup() in favor of _strdup()
 #define strdup _strdup
