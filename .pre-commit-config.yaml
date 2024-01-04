@@ -37,7 +37,7 @@ exclude: |
         # Ignore everything under tools/metrics _except_ Cobalt files. We
         # need those validated to keep the telemetry/metrics pipeline working.
         tools/metrics/((?!cobalt\/).)*$|
-        .*_pb2\.py |
+        .*_pb2\.py$ |
         .*\.pb\.cc$ |
         .*\.pb\.h$ |
         .*\.patch$ |
@@ -206,9 +206,9 @@ repos:
         files: '.*\.gni?$'
     -   id: meta-validate
         name: Validate METADATA files
-        entry: python tools/metadata/validate.py
+        entry: python -m tools.metadata.validate
         language: python
         additional_dependencies:
           - "protobuf"
         always_run: true
-        pass_filenames: true
+        pass_filenames: false
