@@ -15,10 +15,15 @@
 #ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_POSIX_FORCE_INCLUDE_H_
 #define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_POSIX_FORCE_INCLUDE_H_
 
+extern "C" {
+int _mkdir(const char* dirname);
+}
+
 // MSVC deprecated strdup() in favor of _strdup()
 #define strdup _strdup
 #define strcasecmp _stricmp
 #define strncasecmp _strnicmp
+#define mkdir _mkdir
 
 #if defined(STARBOARD)
 
