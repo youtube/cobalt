@@ -239,7 +239,7 @@ DrmSystemWidevine::DrmSystemWidevine(
 
   static WidevineStorage s_storage(GetWidevineStoragePath());
   EnsureWidevineCdmIsInitialized(company_name, model_name, &s_storage);
-  const bool kEnablePrivacyMode = true;
+  const bool kEnablePrivacyMode = false;
   cdm_.reset(wv3cdm::create(this, &s_storage, kEnablePrivacyMode));
   SB_DCHECK(cdm_);
 
