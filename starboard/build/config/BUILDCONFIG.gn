@@ -504,7 +504,11 @@ template("shared_library") {
     if (current_toolchain == starboard_toolchain) {
       executable("${actual_target_name}_loader") {
         output_name = "${actual_target_name}_loader"
-        forward_variables_from(invoker, [ "testonly" ])
+        forward_variables_from(invoker,
+                               [
+                                 "testonly",
+                                 "data_deps",
+                               ])
         sources = [ "//$starboard_path/starboard_loader.cc" ]
 
         if (defined(extra_platform_loader_sources)) {
