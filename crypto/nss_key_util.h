@@ -5,12 +5,13 @@
 #ifndef CRYPTO_NSS_KEY_UTIL_H_
 #define CRYPTO_NSS_KEY_UTIL_H_
 
+#include <stdint.h>
+
 #include <vector>
 
 #include "build/build_config.h"
 #include "crypto/crypto_export.h"
 #include "crypto/scoped_nss_types.h"
-#include "starboard/types.h"
 
 typedef struct PK11SlotInfoStr PK11SlotInfo;
 

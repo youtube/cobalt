@@ -3,7 +3,7 @@ AC_PREREQ([2.63])
 
 m4_define([MAJOR_VERSION], 2)
 m4_define([MINOR_VERSION], 9)
-m4_define([MICRO_VERSION], 12)
+m4_define([MICRO_VERSION], 13)
 
 AC_INIT([libxml2],[MAJOR_VERSION.MINOR_VERSION.MICRO_VERSION])
 AC_CONFIG_SRCDIR([entities.c])
@@ -21,21 +21,7 @@ LIBXML_VERSION_INFO=`expr $LIBXML_MAJOR_VERSION + $LIBXML_MINOR_VERSION`:$LIBXML
 
 LIBXML_VERSION_NUMBER=`expr $LIBXML_MAJOR_VERSION \* 10000 + $LIBXML_MINOR_VERSION \* 100 + $LIBXML_MICRO_VERSION`
 
-if test -f CVS/Entries ; then
-  extra=`grep ChangeLog CVS/Entries | grep -v LIBXML | sed -e s\%/ChangeLog/1\.%% -e s\%/.*$%%`
-  echo extra=$extra
-  if test "$extra" != ""
-  then
-      LIBXML_VERSION_EXTRA="-CVS$extra"
-  fi
-else if test -d .svn ; then
-  extra=`svn info | grep Revision | sed 's+Revision: ++'`
-  echo extra=$extra
-  if test "$extra" != ""
-  then
-      LIBXML_VERSION_EXTRA="-SVN$extra"
-  fi
-else if test -d .git ; then
+if test -d .git ; then
   extra=`git describe 2>/dev/null | sed 's+LIBXML[[0-9.]]*-++'`
   echo extra=$extra
   if test "$extra" != ""
@@ -43,8 +29,7 @@ else if test -d .git ; then
       LIBXML_VERSION_EXTRA="-GIT$extra"
   fi
 fi
-fi
-fi
+
 AC_SUBST(LIBXML_MAJOR_VERSION)
 AC_SUBST(LIBXML_MINOR_VERSION)
 AC_SUBST(LIBXML_MICRO_VERSION)
@@ -113,24 +98,23 @@ AC_ARG_WITH(catalog,
 AC_ARG_WITH(debug,
 [  --with-debug            add the debugging module (on)])
 AC_ARG_WITH(docbook,
-[  --with-docbook          add Docbook SGML support (on)])
+[  --with-docbook          add Docbook SGML support (off)])
 AC_ARG_WITH(fexceptions,
 [  --with-fexceptions      add GCC flag -fexceptions for C++ exceptions (off)])
 AC_ARG_WITH(ftp,
-[  --with-ftp              add the FTP support (on)])
+[  --with-ftp              add the FTP support (off)])
 AC_ARG_WITH(history,
 [  --with-history          add history support to xmllint shell(off)])
 AC_ARG_WITH(html,
 [  --with-html             add the HTML support (on)])
 dnl Specific dir for HTML output ?
 AC_ARG_WITH(html-dir, AS_HELP_STRING([--with-html-dir=path],
-            [path to base html directory, default $datadir/doc/html]),
-            [HTML_DIR=$withval], [HTML_DIR='$(datadir)/doc'])
+            [path to base html directory, default $docdir/html]),
+            [HTML_DIR=$withval], [HTML_DIR='$(docdir)/html'])
 
 AC_ARG_WITH(html-subdir, AS_HELP_STRING([--with-html-subdir=path],
-            [directory used under html-dir, default $PACKAGE-$VERSION/html]),
-            [test "x$withval" != "x" && HTML_DIR="$HTML_DIR/$withval"],
-            [HTML_DIR="$HTML_DIR/\$(PACKAGE)-\$(VERSION)/html"])
+            [directory used under html-dir, default '']),
+            [test "x$withval" != "x" && HTML_DIR="$HTML_DIR/$withval"])
 AC_SUBST(HTML_DIR)
 AC_ARG_WITH(http,
 [  --with-http             add the HTTP support (on)])
@@ -141,7 +125,7 @@ AC_ARG_WITH(icu,
 AC_ARG_WITH(iso8859x,
 [  --with-iso8859x         add ISO8859X support if no iconv (on)])
 AC_ARG_WITH(legacy,
-[  --with-legacy           add deprecated APIs for compatibility (on)])
+[  --with-legacy           add deprecated APIs for compatibility (off)])
 AC_ARG_WITH(mem_debug,
 [  --with-mem-debug        add the memory debugging module (off)])
 AC_ARG_WITH(minimum,
@@ -219,7 +203,7 @@ AC_ARG_ENABLE(rebuild-docs,
 if test "$enable_rebuild_docs" = "yes" -a "$srcdir" != "."; then
   AC_MSG_ERROR([cannot rebuild docs when builddir != srcdir])
 fi
-AM_CONDITIONAL([REBUILD_DOCS], [test "$enable_rebuild_docs" = "yes" -o "$USER" = "veillard"])
+AM_CONDITIONAL([REBUILD_DOCS], [test "$enable_rebuild_docs" = "yes"])
 
 dnl
 dnl hard dependencies on options
@@ -262,17 +246,9 @@ then
     then
       with_debug=no
     fi
-    if test "$with_docbook" = ""
-    then
-      with_docbook=no
-    fi
     if test "$with_fexceptions" = ""
     then
       with_fexceptions=no
-    fi
-    if test "$with_ftp" = ""
-    then
-      with_ftp=no 
     fi
     if test "$with_history" = ""
     then
@@ -293,10 +269,6 @@ then
     if test "$with_iso8859x" = ""
     then
       with_iso8859x=no
-    fi
-    if test "$with_legacy" = ""
-    then
-      with_legacy=no
     fi
     if test "$with_mem_debug" = ""
     then 
@@ -470,24 +442,12 @@ LIBS=${_libs}
 echo Checking headers
 
 dnl Checks for header files.
-AC_HEADER_DIRENT
-AC_HEADER_STDC
 AC_CHECK_HEADERS([fcntl.h])
 AC_CHECK_HEADERS([unistd.h])
-AC_CHECK_HEADERS([ctype.h])
-AC_CHECK_HEADERS([dirent.h])
-AC_CHECK_HEADERS([errno.h])
-AC_CHECK_HEADERS([malloc.h])
-AC_CHECK_HEADERS([stdarg.h])
 AC_CHECK_HEADERS([sys/stat.h])
 AC_CHECK_HEADERS([sys/types.h])
 AC_CHECK_HEADERS([stdint.h])
 AC_CHECK_HEADERS([inttypes.h])
-AC_CHECK_HEADERS([time.h])
-AC_CHECK_HEADERS([math.h])
-AC_CHECK_HEADERS([limits.h])
-AC_CHECK_HEADERS([float.h])
-AC_CHECK_HEADERS([stdlib.h])
 AC_CHECK_HEADERS([sys/socket.h], [], [],
 [#if HAVE_SYS_TYPES_H
 # include <sys/types.h>
@@ -512,7 +472,6 @@ AC_CHECK_HEADERS([sys/select.h])
 AC_CHECK_HEADERS([poll.h])
 AC_CHECK_HEADERS([sys/mman.h])
 AC_CHECK_HEADERS([sys/timeb.h])
-AC_CHECK_HEADERS([signal.h])
 AC_CHECK_HEADERS([arpa/nameser.h], [], [],
 [#if HAVE_SYS_TYPES_H
 # include <sys/types.h>
@@ -541,10 +500,9 @@ AC_TYPE_UINT32_T
 echo Checking libraries
 
 dnl Checks for library functions.
-AC_FUNC_STRFTIME
-AC_CHECK_FUNCS(strftime localtime gettimeofday ftime)
-AC_CHECK_FUNCS(stat signal)
-AC_CHECK_FUNCS(rand rand_r srand time)
+AC_CHECK_FUNCS(gettimeofday ftime)
+AC_CHECK_FUNCS(stat)
+AC_CHECK_FUNCS(rand_r)
 AC_CHECK_FUNCS(isascii mmap munmap putenv)
 
 AH_VERBATIM([HAVE_MUNMAP_AFTER],[/* mmap() is no good without munmap() */
@@ -741,13 +699,6 @@ fi
 
 dnl ******************************End IPv6 checks******************************
 
-dnl Checks for isnan in libm if not in libc
-AC_CHECK_FUNC(isnan, AC_DEFINE([HAVE_ISNAN],[], [Define if isnan is there]) , AC_CHECK_LIB(m, isnan,
-  [AC_DEFINE([HAVE_ISNAN],[], [Define if isnan is there])]))
-
-AC_CHECK_FUNC(isinf, AC_DEFINE([HAVE_ISINF], [], [Define if isinf is there]) , AC_CHECK_LIB(m, isinf,
-  [AC_DEFINE([HAVE_ISINF], [], [Define if isinf is there])]))
-
 XML_LIBDIR='-L${libdir}'
 XML_INCLUDEDIR='-I${includedir}/libxml2'
 
@@ -900,7 +851,7 @@ if test "$with_python" != "no" ; then
 	    then
 		PYTHON_SITE_PACKAGES=$with_python/lib/site-packages
 	    else
-		PYTHON_SITE_PACKAGES=`$PYTHON -c "from distutils import sysconfig; print(sysconfig.get_python_lib())"`
+		PYTHON_SITE_PACKAGES=$($PYTHON -c 'from distutils import sysconfig; print(sysconfig.get_python_lib(True,False,"${exec_prefix}"))')
 	    fi
 	fi
     fi
@@ -981,39 +932,6 @@ AC_SUBST(MODULE_EXTENSION)
 AC_SUBST(TEST_MODULES)
 
 dnl
-dnl Tester makes use of readline if present
-dnl
-
-dnl
-dnl specific tests to setup DV and Bill's devel environments with debug etc ...
-dnl (-Wunreachable-code)
-dnl
-if [[ "${LOGNAME}" = "veillard" -a "`pwd`" = "/u/veillard/XML" ]] || \
-   [[ "${LOGNAME}" = "veillard" -a "`pwd`" = "/home/veillard/libxml2" ]] || \
-   [[ "${LOGNAME}" = "bill" -a "`pwd`" = "/home/bill/gnomesvn/libxml2" ]]
-   then
-    if test "$with_minimum" != "yes"
-    then
-	if test "${with_mem_debug}" = "" ; then
-	    echo Activating memory debugging
-	    with_mem_debug="yes"
-	    with_run_debug="yes"
-	fi
-	if test "${with_docbook}" = "" ; then
-	    with_docbook="yes"
-	fi
-    fi
-    if test "${GCC}" = "yes" ; then
-    EXTRA_CFLAGS="-g -O -pedantic -W -Wformat -Wno-format-extra-args -Wunused -Wimplicit -Wreturn-type -Wswitch -Wcomment -Wtrigraphs -Wchar-subscripts -Wuninitialized -Wparentheses -Wshadow -Wpointer-arith -Wcast-align -Wwrite-strings -Waggregate-return -Wstrict-prototypes -Wmissing-prototypes -Wnested-externs -Winline -Wredundant-decls -Wall"
-    fi
-    STATIC_BINARIES="-static"
-dnl -Wcast-qual -ansi
-else
-    STATIC_BINARIES=
-fi
-AC_SUBST(STATIC_BINARIES)
-
-dnl
 dnl Check for trio string functions
 dnl
 
@@ -1063,7 +981,6 @@ else
             AC_CHECK_HEADER(pthread.h,
                 AC_CHECK_LIB(pthread, pthread_join,[
                 THREAD_LIBS="-lpthread"
-                AC_DEFINE([HAVE_LIBPTHREAD], [], [Define if pthread library is there (-lpthread)])
                 AC_DEFINE([HAVE_PTHREAD_H], [], [Define if <pthread.h> is there])
                 WITH_THREADS="1"]))
         fi
@@ -1153,7 +1070,7 @@ else
 fi
 AC_SUBST(WITH_TREE)
 
-if test "$with_ftp" = "no" ; then
+if test "$with_ftp" != "yes" ; then
     echo Disabling FTP support
     WITH_FTP=0
     FTP_OBJ=
@@ -1175,7 +1092,7 @@ fi
 AC_SUBST(WITH_HTTP)
 AC_SUBST(HTTP_OBJ)
 
-if test "$with_legacy" = "no" ; then
+if test "$with_legacy" != "yes" ; then
     echo Disabling deprecated APIs
     WITH_LEGACY=0
 else    
@@ -1299,7 +1216,7 @@ AC_SUBST(WITH_CATALOG)
 AC_SUBST(CATALOG_OBJ)
 AC_SUBST(TEST_CATALOG)
 
-if test "$with_docbook" = "no" ; then
+if test "$with_docbook" != "yes" ; then
     echo Disabling Docbook support
     WITH_DOCB=0
     DOCB_OBJ=
@@ -1513,8 +1430,6 @@ else
         else
             if test "$with_icu" != "yes" -a "$with_iconv" != "" ; then
                 CPPFLAGS="${CPPFLAGS} -I$with_icu"
-                # Export this since our headers include icu.h
-                XML_INCLUDEDIR="${XML_INCLUDEDIR} -I$with_icu"
             fi
 
             AC_CHECK_HEADER(unicode/ucnv.h,
@@ -1676,7 +1591,7 @@ dnl  AC_DEFINE([snprintf],[_snprintf],[Win32 Std C name mangling work-around])
 dnl  AC_DEFINE([vsnprintf],[_vsnprintf],[Win32 Std C name mangling work-around])
 dnl and do not redefine those functions is C-source files.
 dnl
-AC_CHECK_FUNCS(printf sprintf fprintf snprintf vfprintf vsprintf vsnprintf sscanf,,
+AC_CHECK_FUNCS(snprintf vsnprintf,,
 	NEED_TRIO=1)
 
 if test "$with_coverage" = "yes" -a "${GCC}" = "yes"
@@ -1701,8 +1616,6 @@ AC_SUBST(ICONV_LIBS)
 AC_SUBST(ICU_LIBS)
 AC_SUBST(XML_INCLUDEDIR)
 AC_SUBST(HTML_DIR)
-AC_SUBST(HAVE_ISNAN)
-AC_SUBST(HAVE_ISINF)
 AC_SUBST(PYTHON)
 AC_SUBST(PYTHON_VERSION)
 AC_SUBST(PYTHON_INCLUDES)

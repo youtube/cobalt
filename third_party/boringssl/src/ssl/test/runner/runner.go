@@ -1024,8 +1024,7 @@ func runTest(test *testCase, shimPath string, mallocNumToFail int64) error {
 			panic(fmt.Sprintf("The name of test %q suggests that it's version specific, but min/max version in the Config is %x/%x. One of them should probably be %x", test.name, test.config.MinVersion, test.config.MaxVersion, ver.version))
 		}
 
-		// Ignore this check against "TLS13", since TLS13 is used in many test names.
-		if ver.tls13Variant != 0 && ver.tls13Variant != TLS13RFC {
+		if ver.tls13Variant != 0 {
 			var foundFlag bool
 			for _, flag := range test.flags {
 				if flag == "-tls13-variant" {
@@ -1418,11 +1417,11 @@ func allShimVersions(protocol protocol) []tlsVersion {
 		return allVersions(protocol)
 	}
 	tls13Default := tlsVersion{
-		name:         "TLS13Default",
+		name:         "TLS13All",
 		version:      VersionTLS13,
 		excludeFlag:  "-no-tls13",
 		versionWire:  0,
-		tls13Variant: TLS13Default,
+		tls13Variant: TLS13All,
 	}
 
 	var shimVersions []tlsVersion
@@ -5581,7 +5580,7 @@ func addVersionNegotiationTests() {
 				}
 
 				if expectedVersion == VersionTLS13 && runnerVers.tls13Variant != shimVers.tls13Variant {
-					if shimVers.tls13Variant != TLS13Default {
+					if shimVers.tls13Variant != TLS13All {
 						expectedVersion = VersionTLS12
 					}
 				}
@@ -5782,7 +5781,7 @@ func addVersionNegotiationTests() {
 		name:     "IgnoreClientVersionOrder",
 		config: Config{
 			Bugs: ProtocolBugs{
-				SendSupportedVersions: []uint16{VersionTLS12, tls13Draft23Version},
+				SendSupportedVersions: []uint16{VersionTLS12, VersionTLS13},
 			},
 		},
 		expectedVersion: VersionTLS13,
@@ -5892,59 +5891,65 @@ func addVersionNegotiationTests() {
 	})
 
 	// Test TLS 1.3's downgrade signal.
-	testCases = append(testCases, testCase{
-		name: "Downgrade-TLS12-Client",
-		config: Config{
-			Bugs: ProtocolBugs{
-				NegotiateVersion: VersionTLS12,
-			},
-		},
-		tls13Variant:       TLS13RFC,
-		expectedVersion:    VersionTLS12,
-		shouldFail:         true,
-		expectedError:      ":TLS13_DOWNGRADE:",
-		expectedLocalError: "remote error: illegal parameter",
-	})
-	testCases = append(testCases, testCase{
-		testType: serverTest,
-		name:     "Downgrade-TLS12-Server",
-		config: Config{
-			Bugs: ProtocolBugs{
-				SendSupportedVersions: []uint16{VersionTLS12},
-			},
-		},
-		tls13Variant:       TLS13RFC,
-		expectedVersion:    VersionTLS12,
-		shouldFail:         true,
-		expectedLocalError: "tls: downgrade from TLS 1.3 detected",
-	})
+	var downgradeTests = []struct {
+		name            string
+		version         uint16
+		clientShimError string
+	}{
+		{"TLS12", VersionTLS12, "tls: downgrade from TLS 1.3 detected"},
+		{"TLS11", VersionTLS11, "tls: downgrade from TLS 1.2 detected"},
+		// TLS 1.0 does not have a dedicated value.
+		{"TLS10", VersionTLS10, "tls: downgrade from TLS 1.2 detected"},
+	}
 
-	testCases = append(testCases, testCase{
-		name: "Downgrade-TLS11-Client",
-		config: Config{
-			Bugs: ProtocolBugs{
-				NegotiateVersion: VersionTLS11,
+	for _, test := range downgradeTests {
+		// The client should enforce the downgrade sentinel.
+		testCases = append(testCases, testCase{
+			name: "Downgrade-" + test.name + "-Client",
+			config: Config{
+				Bugs: ProtocolBugs{
+					NegotiateVersion: test.version,
+				},
 			},
-		},
-		tls13Variant:       TLS13RFC,
-		expectedVersion:    VersionTLS11,
-		shouldFail:         true,
-		expectedError:      ":TLS13_DOWNGRADE:",
-		expectedLocalError: "remote error: illegal parameter",
-	})
-	testCases = append(testCases, testCase{
-		testType: serverTest,
-		name:     "Downgrade-TLS11-Server",
-		config: Config{
-			Bugs: ProtocolBugs{
-				SendSupportedVersions: []uint16{VersionTLS11},
+			tls13Variant:       TLS13RFC,
+			expectedVersion:    test.version,
+			shouldFail:         true,
+			expectedError:      ":TLS13_DOWNGRADE:",
+			expectedLocalError: "remote error: illegal parameter",
+		})
+
+		// The client should ignore the downgrade sentinel if
+		// configured.
+		testCases = append(testCases, testCase{
+			name: "Downgrade-" + test.name + "-Client-Ignore",
+			config: Config{
+				Bugs: ProtocolBugs{
+					NegotiateVersion: test.version,
+				},
 			},
-		},
-		tls13Variant:       TLS13RFC,
-		expectedVersion:    VersionTLS11,
-		shouldFail:         true,
-		expectedLocalError: "tls: downgrade from TLS 1.2 detected",
-	})
+			tls13Variant:    TLS13RFC,
+			expectedVersion: test.version,
+			flags: []string{
+				"-ignore-tls13-downgrade",
+				"-expect-tls13-downgrade",
+			},
+		})
+
+		// The server should emit the downgrade signal.
+		testCases = append(testCases, testCase{
+			testType: serverTest,
+			name:     "Downgrade-" + test.name + "-Server",
+			config: Config{
+				Bugs: ProtocolBugs{
+					SendSupportedVersions: []uint16{test.version},
+				},
+			},
+			tls13Variant:       TLS13RFC,
+			expectedVersion:    test.version,
+			shouldFail:         true,
+			expectedLocalError: test.clientShimError,
+		})
+	}
 
 	// Test that the draft TLS 1.3 variants don't trigger the downgrade logic.
 	testCases = append(testCases, testCase{
@@ -7626,17 +7631,6 @@ func addResumptionVersionTests() {
 						},
 					})
 				} else {
-					error := ":OLD_SESSION_VERSION_NOT_RETURNED:"
-					// Clients offering TLS 1.3 will send a fake session ID
-					// unrelated to the session being offer. This session ID is
-					// invalid for the server to echo, so the handshake fails at
-					// a different point. It's not syntactically possible for a
-					// server to convince our client that it's accepted a TLS
-					// 1.3 session at an older version.
-					if resumeVers.version < VersionTLS13 && sessionVers.version >= VersionTLS13 {
-						error = ":SERVER_ECHOED_INVALID_SESSION_ID:"
-					}
-
 					testCases = append(testCases, testCase{
 						protocol:      protocol,
 						name:          "Resume-Client-Mismatch" + suffix,
@@ -7655,7 +7649,7 @@ func addResumptionVersionTests() {
 						},
 						expectedResumeVersion: resumeVers.version,
 						shouldFail:            true,
-						expectedError:         error,
+						expectedError:         ":OLD_SESSION_VERSION_NOT_RETURNED:",
 						flags: []string{
 							"-on-initial-tls13-variant", strconv.Itoa(sessionVers.tls13Variant),
 							"-on-resume-tls13-variant", strconv.Itoa(resumeVers.tls13Variant),

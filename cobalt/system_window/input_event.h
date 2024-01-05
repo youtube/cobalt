@@ -20,7 +20,6 @@
 #include "cobalt/base/event.h"
 #include "cobalt/math/point_f.h"
 #include "starboard/event.h"
-#include "starboard/time.h"
 
 namespace cobalt {
 namespace system_window {
@@ -59,7 +58,7 @@ class InputEvent : public base::Event {
     kForwardButton = 1 << 8,
   };
 
-  InputEvent(SbTimeMonotonic timestamp, Type type, int device_id, int key_code,
+  InputEvent(int64_t timestamp, Type type, int device_id, int key_code,
              uint32 modifiers, bool is_repeat,
              const math::PointF& position = math::PointF(),
              const math::PointF& delta = math::PointF(), float pressure = 0,
@@ -82,7 +81,7 @@ class InputEvent : public base::Event {
 
   ~InputEvent() {}
 
-  SbTimeMonotonic timestamp() const { return timestamp_; }
+  int64_t timestamp() const { return timestamp_; }
   Type type() const { return type_; }
   int key_code() const { return key_code_; }
   int device_id() const { return device_id_; }
@@ -99,7 +98,7 @@ class InputEvent : public base::Event {
   BASE_EVENT_SUBCLASS(InputEvent);
 
  private:
-  SbTimeMonotonic timestamp_;
+  int64_t timestamp_;  // monotonic timestamp in microseconds.
   Type type_;
   int device_id_;
   int key_code_;

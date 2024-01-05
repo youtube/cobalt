@@ -232,7 +232,7 @@ config("platform_config") {
 group("platform") {
   if (is_starboard) {
     deps = [ "//starboard:starboard_group", ]
-    public_deps = [ "//third_party/boringssl:crypto" ]
+    public_deps = [ "//third_party/boringssl" ]
   } else {
   public_deps = [
     "//third_party/boringssl",

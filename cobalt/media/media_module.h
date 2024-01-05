@@ -133,8 +133,8 @@ class MediaModule : public WebMediaPlayerFactory,
   bool force_punch_out_by_default_ = false;
 
 #if SB_API_VERSION >= 15
-  SbTime audio_write_duration_local_ = kSbPlayerWriteDurationLocal;
-  SbTime audio_write_duration_remote_ = kSbPlayerWriteDurationRemote;
+  int64_t audio_write_duration_local_ = kSbPlayerWriteDurationLocal;
+  int64_t audio_write_duration_remote_ = kSbPlayerWriteDurationRemote;
 #endif  // SB_API_VERSION >= 15
 
   DecoderBufferAllocator decoder_buffer_allocator_;

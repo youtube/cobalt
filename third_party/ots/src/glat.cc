@@ -200,14 +200,27 @@ bool OpenTypeGLAT_v3::Parse(const uint8_t* data, size_t length,
       if (prevent_decompression) {
         return DropGraphite("Illegal nested compression");
       }
-      std::vector<uint8_t> decompressed(this->compHead & FULL_SIZE);
+      size_t decompressed_size = this->compHead & FULL_SIZE;
+      if (decompressed_size < length) {
+        return DropGraphite("Decompressed size is less than compressed size");
+      }
+      if (decompressed_size == 0) {
+        return DropGraphite("Decompressed size is set to 0");
+      }
+      // decompressed table must be <= OTS_MAX_DECOMPRESSED_TABLE_SIZE
+      if (decompressed_size > OTS_MAX_DECOMPRESSED_TABLE_SIZE) {
+        return DropGraphite("Decompressed size exceeds %gMB: %gMB",
+                            OTS_MAX_DECOMPRESSED_TABLE_SIZE / (1024.0 * 1024.0),
+                            decompressed_size / (1024.0 * 1024.0));
+      }
+      std::vector<uint8_t> decompressed(decompressed_size);
       int ret = LZ4_decompress_safe_partial(
           reinterpret_cast<const char*>(data + table.offset()),
           reinterpret_cast<char*>(decompressed.data()),
           table.remaining(),  // input buffer size (input size + padding)
           decompressed.size(),  // target output size
           decompressed.size());  // output buffer size
-      if (ret != decompressed.size()) {
+      if (ret < 0 || unsigned(ret) != decompressed.size()) {
         return DropGraphite("Decompression failed with error code %d", ret);
       }
       return this->Parse(decompressed.data(), decompressed.size(), true);
@@ -411,9 +424,6 @@ GlatEntry::SerializePart(OTSStream* out) const {
 // -----------------------------------------------------------------------------
 
 bool OpenTypeGLAT::Parse(const uint8_t* data, size_t length) {
-  if (GetFont()->dropped_graphite) {
-    return Drop("Skipping Graphite table");
-  }
   Buffer table(data, length);
   uint32_t version;
   if (!table.ReadU32(&version)) {

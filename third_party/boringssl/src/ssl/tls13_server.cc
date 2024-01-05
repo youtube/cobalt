@@ -36,7 +36,7 @@
 #include "internal.h"
 
 
-namespace bssl {
+BSSL_NAMESPACE_BEGIN
 
 enum server_hs_state_t {
   state_select_parameters = 0,
@@ -716,7 +716,7 @@ static enum ssl_hs_wait_t do_send_server_finished(SSL_HANDSHAKE *hs) {
 
     size_t finished_len;
     if (!tls13_finished_mac(hs, hs->expected_client_finished, &finished_len,
-                            0 /* client */)) {
+                            false /* client */)) {
       return ssl_hs_error;
     }
 
@@ -807,7 +807,7 @@ static enum ssl_hs_wait_t do_read_client_certificate(SSL_HANDSHAKE *hs) {
     return ssl_hs_ok;
   }
 
-  const int allow_anonymous =
+  const bool allow_anonymous =
       (hs->config->verify_mode & SSL_VERIFY_FAIL_IF_NO_PEER_CERT) == 0;
   SSLMessage msg;
   if (!ssl->method->get_message(ssl, &msg)) {
@@ -1028,4 +1028,4 @@ const char *tls13_server_handshake_state(SSL_HANDSHAKE *hs) {
   return "TLS 1.3 server unknown";
 }
 
-}  // namespace bssl
+BSSL_NAMESPACE_END

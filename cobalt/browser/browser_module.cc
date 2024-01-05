@@ -58,10 +58,10 @@
 #include "cobalt/web/navigator_ua_data.h"
 #include "starboard/atomic.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/extension/graphics.h"
 #include "starboard/system.h"
-#include "starboard/time.h"
 #include "third_party/icu/source/i18n/unicode/timezone.h"
 
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
@@ -88,8 +88,10 @@ struct NonTrivialGlobalVariables {
 
 NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   last_render_timestamp = &cobalt::timestamp::g_last_render_timestamp;
-  SbAtomicNoBarrier_Exchange64(last_render_timestamp,
-                               static_cast<SbAtomic64>(SbTimeGetNow()));
+  SbAtomicNoBarrier_Exchange64(
+      last_render_timestamp,
+      static_cast<SbAtomic64>(
+          starboard::PosixTimeToWindowsTime(starboard::CurrentPosixTime())));
 }
 
 base::LazyInstance<NonTrivialGlobalVariables>::DestructorAtExit
@@ -1578,7 +1580,7 @@ void BrowserModule::SetProxy(const std::string& proxy_rules) {
   network_module_->SetProxy(proxy_rules);
 }
 
-void BrowserModule::Blur(SbTimeMonotonic timestamp) {
+void BrowserModule::Blur(int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Blur()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateStarted);
@@ -1592,7 +1594,7 @@ void BrowserModule::Blur(SbTimeMonotonic timestamp) {
   }
 }
 
-void BrowserModule::Conceal(SbTimeMonotonic timestamp) {
+void BrowserModule::Conceal(int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Conceal()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateBlurred);
@@ -1600,7 +1602,7 @@ void BrowserModule::Conceal(SbTimeMonotonic timestamp) {
   ConcealInternal(timestamp);
 }
 
-void BrowserModule::Freeze(SbTimeMonotonic timestamp) {
+void BrowserModule::Freeze(int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Freeze()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateConcealed);
@@ -1608,7 +1610,7 @@ void BrowserModule::Freeze(SbTimeMonotonic timestamp) {
   FreezeInternal(timestamp);
 }
 
-void BrowserModule::Unfreeze(SbTimeMonotonic timestamp) {
+void BrowserModule::Unfreeze(int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Unfreeze()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateFrozen);
@@ -1617,7 +1619,7 @@ void BrowserModule::Unfreeze(SbTimeMonotonic timestamp) {
   NavigatePendingURL();
 }
 
-void BrowserModule::Reveal(SbTimeMonotonic timestamp) {
+void BrowserModule::Reveal(int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Reveal()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateConcealed);
@@ -1625,7 +1627,7 @@ void BrowserModule::Reveal(SbTimeMonotonic timestamp) {
   RevealInternal(timestamp);
 }
 
-void BrowserModule::Focus(SbTimeMonotonic timestamp) {
+void BrowserModule::Focus(int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Focus()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateBlurred);
@@ -1696,9 +1698,10 @@ void BrowserModule::OnWebModuleRendererSubmissionRasterized() {
 
 #if defined(COBALT_CHECK_RENDER_TIMEOUT)
 void BrowserModule::OnPollForRenderTimeout(const GURL& url) {
-  SbTime last_render_timestamp = static_cast<SbTime>(SbAtomicAcquire_Load64(
+  int64_t last_render_timestamp = static_cast<int64_t>(SbAtomicAcquire_Load64(
       non_trivial_global_variables.Get().last_render_timestamp));
-  base::Time last_render = base::Time::FromSbTime(last_render_timestamp);
+  base::Time last_render = base::Time::FromDeltaSinceWindowsEpoch(
+      base::TimeDelta::FromMicroseconds(last_render_timestamp));
   bool timeout_expiration = base::Time::Now() - base::TimeDelta::FromSeconds(
                                                     kLastRenderTimeoutSeconds) >
                             last_render;
@@ -1720,7 +1723,7 @@ void BrowserModule::OnPollForRenderTimeout(const GURL& url) {
 #endif
     SbAtomicNoBarrier_Exchange64(
         non_trivial_global_variables.Get().last_render_timestamp,
-        static_cast<SbAtomic64>(kSbTimeMax));
+        static_cast<SbAtomic64>(kSbInt64Max));
     if (SbSystemGetRandomUInt64() <
         kRenderTimeoutErrorPercentage * (UINT64_MAX / 100)) {
       OnError(url, std::string("Rendering Timeout"));
@@ -1889,7 +1892,7 @@ void BrowserModule::UpdateScreenSize() {
   }
 }
 
-void BrowserModule::ConcealInternal(SbTimeMonotonic timestamp) {
+void BrowserModule::ConcealInternal(int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::ConcealInternal()");
   FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
                     Conceal(GetResourceProvider(), timestamp));
@@ -1917,7 +1920,7 @@ void BrowserModule::ConcealInternal(SbTimeMonotonic timestamp) {
   }
 }
 
-void BrowserModule::FreezeInternal(SbTimeMonotonic timestamp) {
+void BrowserModule::FreezeInternal(int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::FreezeInternal()");
   FreezeMediaModule();
   // First freeze all our web modules which implies that they will release
@@ -1930,7 +1933,7 @@ void BrowserModule::FreezeInternal(SbTimeMonotonic timestamp) {
   }
 }
 
-void BrowserModule::RevealInternal(SbTimeMonotonic timestamp) {
+void BrowserModule::RevealInternal(int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::RevealInternal()");
   DCHECK(!renderer_module_);
   if (!system_window_) {
@@ -1954,7 +1957,7 @@ void BrowserModule::RevealInternal(SbTimeMonotonic timestamp) {
   }
 }
 
-void BrowserModule::UnfreezeInternal(SbTimeMonotonic timestamp) {
+void BrowserModule::UnfreezeInternal(int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::UnfreezeInternal()");
   // Set the Stub resource provider to media module and to web module
   // at Concealed state.
@@ -2243,7 +2246,7 @@ scoped_refptr<script::Wrappable> BrowserModule::CreateH5vccCallback(
   return scoped_refptr<script::Wrappable>(h5vcc_object);
 }
 
-void BrowserModule::SetDeepLinkTimestamp(SbTimeMonotonic timestamp) {
+void BrowserModule::SetDeepLinkTimestamp(int64_t timestamp) {
   if (base::MessageLoop::current() != self_message_loop_) {
     self_message_loop_->task_runner()->PostTask(
         FROM_HERE, base::Bind(&BrowserModule::SetDeepLinkTimestamp,

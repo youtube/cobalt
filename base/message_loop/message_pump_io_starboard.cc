@@ -215,7 +215,7 @@ void MessagePumpIOStarboard::Run(Delegate* delegate) {
     } else {
       TimeDelta delay = delayed_work_time_ - TimeTicks::Now();
       if (delay > TimeDelta()) {
-        SbSocketWaiterWaitTimed(waiter_, delay.ToSbTime());
+        SbSocketWaiterWaitTimed(waiter_, delay.InMicroseconds());
       } else {
         // It looks like delayed_work_time_ indicates a time in the past, so we
         // need to call DoDelayedWork now.

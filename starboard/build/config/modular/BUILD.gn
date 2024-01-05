@@ -13,6 +13,7 @@
 # limitations under the License.
 
 config("modular") {
+  ldflags = []
   cflags = [
     "-ffunction-sections",
     "-fdata-sections",
@@ -169,6 +170,19 @@ config("modular") {
     ]
 
     defines += [ "THREAD_SANITIZER" ]
+  }
+
+  # Wrap underlying POSIX implementations to be cross-compatible with
+  # musl-based types that are used in modular builds. Evergreen builds use
+  # a different map-based wrapping of these POSIX APIs.
+  # Note that the corresponding implementations of these wrappers need to be
+  # compiled into the Starboard shared library, which is handled in
+  # //starboard/build/config/starboard_target_type.gni.
+  if (!sb_is_evergreen && current_toolchain == cobalt_toolchain) {
+    ldflags += [
+      "-Wl,--wrap=clock_gettime",
+      "-Wl,--wrap=gettimeofday",
+    ]
   }
 }
 

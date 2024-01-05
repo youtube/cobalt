@@ -31,7 +31,7 @@
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
-#include "starboard/time.h"
+#include "starboard/common/time.h"
 
 namespace cobalt {
 namespace media_session {
@@ -96,8 +96,8 @@ class MediaSession : public script::Wrappable {
   void OnChanged();
 
   // Returns a time representing right now - may be overridden for testing.
-  virtual SbTimeMonotonic GetMonotonicNow() const {
-    return SbTimeGetMonotonicNow();
+  virtual int64_t GetMonotonicNow() const {
+    return starboard::CurrentMonotonicTime();
   }
 
   ActionMap action_map_;
@@ -106,7 +106,7 @@ class MediaSession : public script::Wrappable {
   MediaSessionPlaybackState playback_state_;
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
   bool is_change_task_queued_;
-  SbTimeMonotonic last_position_updated_time_;
+  int64_t last_position_updated_time_;
   base::Optional<MediaPositionState> media_position_state_;
 
   DISALLOW_COPY_AND_ASSIGN(MediaSession);

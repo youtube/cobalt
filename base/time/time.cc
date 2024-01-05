@@ -320,9 +320,7 @@ std::ostream& operator<<(std::ostream& os, TimeTicks time_ticks) {
 
 // static
 ThreadTicks ThreadTicks::Now() {
-  if (SbTimeIsTimeThreadNowSupported())
-    return internal::g_thread_ticks_now_function();
-  return ThreadTicks();
+  return internal::g_thread_ticks_now_function();
 }
 
 std::ostream& operator<<(std::ostream& os, ThreadTicks thread_ticks) {

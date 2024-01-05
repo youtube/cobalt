@@ -461,14 +461,17 @@ static_library("libvpxrc") {
   }
 
   sources = [
-    "//third_party/libvpx/source/libvpx/vp8/vp8_ratectrl_rtc.cc",
-    "//third_party/libvpx/source/libvpx/vp8/vp8_ratectrl_rtc.h",
     "//third_party/libvpx/source/libvpx/vp9/ratectrl_rtc.cc",
     "//third_party/libvpx/source/libvpx/vp9/ratectrl_rtc.h",
     "//third_party/libvpx/source/libvpx/vpx/internal/vpx_ratectrl_rtc.h",
   ]
 
   if (!use_cobalt_customizations) {
+    sources += [
+      "//third_party/libvpx/source/libvpx/vp8/vp8_ratectrl_rtc.cc",
+      "//third_party/libvpx/source/libvpx/vp8/vp8_ratectrl_rtc.h",
+    ]
+
     configs -= [ "//build/config/compiler:chromium_code" ]
     configs += [ "//build/config/compiler:no_chromium_code" ]
   }

@@ -18,6 +18,7 @@
 #include <sstream>
 #include <string>
 
+#include "starboard/common/time.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -89,10 +90,9 @@ bool CheckMapEquality(const MapA_Type& map_a, const MapB_Type& map_b) {
   return ok;
 }
 
-SbTimeMonotonic GetThreadTimeMonotonicNow() {
-  if (SbTimeIsTimeThreadNowSupported())
-    return SbTimeGetMonotonicThreadNow();
-  return SbTimeGetMonotonicNow();
+int64_t GetThreadTimeMonotonicNow() {
+  int64_t now = starboard::CurrentMonotonicThreadTime();
+  return now ? now : starboard::CurrentMonotonicTime();
 }
 
 // Generic stringification of the input map type. This allows good error
@@ -562,11 +562,11 @@ std::vector<std::pair<int, int> > GenerateRandomIntPairVector(
 }
 
 template <typename MapIntType>  // FlatMap<int, int> or std::map<int, int>
-SbTime PerfTestFind(const MapIntType& map,
-                    const std::vector<int>& search_queries_data,
-                    size_t query_count) {
+int64_t PerfTestFind(const MapIntType& map,
+                     const std::vector<int>& search_queries_data,
+                     size_t query_count) {
   SbThreadYield();  // Stabilizes time
-  SbTime start_time = GetThreadTimeMonotonicNow();
+  int64_t start_time = GetThreadTimeMonotonicNow();
   size_t index = 0;
   const size_t n = search_queries_data.size();
 
@@ -577,7 +577,7 @@ SbTime PerfTestFind(const MapIntType& map,
     map.find(search_queries_data[index]);
     ++index;
   }
-  SbTime delta_time = GetThreadTimeMonotonicNow() - start_time;
+  int64_t delta_time = GetThreadTimeMonotonicNow() - start_time;
 
   return delta_time;
 }
@@ -611,10 +611,10 @@ TEST(FlatMap, DISABLED_PerformanceTestFind) {
     FlatMap<int, int> flat_int_map(insert_data.begin(), insert_data.end());
     std::map<int, int> std_int_map(insert_data.begin(), insert_data.end());
 
-    SbTime time_flat_int_map =
+    int64_t time_flat_int_map =
         PerfTestFind(flat_int_map, query_data, kNumberOfQueries);
 
-    SbTime time_std_int_map =
+    int64_t time_std_int_map =
         PerfTestFind(std_int_map, query_data, kNumberOfQueries);
 
     double flat_map_speedup = static_cast<double>(time_std_int_map) /

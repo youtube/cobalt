@@ -438,7 +438,7 @@ OPENSSL_EXPORT void EVP_CIPHER_CTX_set_flags(const EVP_CIPHER_CTX *ctx,
 // EVP_CIPH_NO_PADDING disables padding in block ciphers.
 #define EVP_CIPH_NO_PADDING 0x800
 
-// EVP_CIPHER_CTX_ctrl commands.
+// The following are |EVP_CIPHER_CTX_ctrl| commands.
 #define EVP_CTRL_INIT 0x0
 #define EVP_CTRL_SET_KEY_LENGTH 0x1
 #define EVP_CTRL_GET_RC2_KEY_BITS 0x2
@@ -454,15 +454,12 @@ OPENSSL_EXPORT void EVP_CIPHER_CTX_set_flags(const EVP_CIPHER_CTX *ctx,
 #define EVP_CTRL_AEAD_SET_IV_FIXED 0x12
 #define EVP_CTRL_GCM_IV_GEN 0x13
 #define EVP_CTRL_AEAD_SET_MAC_KEY 0x17
-// Set the GCM invocation field, decrypt only
+// EVP_CTRL_GCM_SET_IV_INV sets the GCM invocation field, decrypt only
 #define EVP_CTRL_GCM_SET_IV_INV 0x18
 
-// GCM TLS constants
-// Length of fixed part of IV derived from PRF
+// The following constants are unused.
 #define EVP_GCM_TLS_FIXED_IV_LEN 4
-// Length of explicit part of IV part of TLS records
 #define EVP_GCM_TLS_EXPLICIT_IV_LEN 8
-// Length of tag for TLS
 #define EVP_GCM_TLS_TAG_LEN 16
 
 // The following are legacy aliases for AEAD |EVP_CIPHER_CTX_ctrl| values.
@@ -574,7 +571,7 @@ struct evp_cipher_st {
 #if !defined(BORINGSSL_NO_CXX)
 extern "C++" {
 
-namespace bssl {
+BSSL_NAMESPACE_BEGIN
 
 BORINGSSL_MAKE_DELETER(EVP_CIPHER_CTX, EVP_CIPHER_CTX_free)
 
@@ -582,7 +579,7 @@ using ScopedEVP_CIPHER_CTX =
     internal::StackAllocated<EVP_CIPHER_CTX, int, EVP_CIPHER_CTX_init,
                              EVP_CIPHER_CTX_cleanup>;
 
-}  // namespace bssl
+BSSL_NAMESPACE_END
 
 }  // extern C++
 #endif

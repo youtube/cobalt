@@ -9,7 +9,6 @@
 #include "starboard/mutex.h"
 #include "starboard/once.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 
 _LIBCPP_PUSH_MACROS
 #include <__undef_macros>
@@ -202,7 +201,7 @@ int __libcpp_condvar_timedwait(__libcpp_condvar_t* __cv, __libcpp_mutex_t* __m,
                                timespec* __ts) {
   // Convert the duration provided by __ts to a Starboard time. The conversion
   // is from seconds (10^1) and nanoseconds (10^-9) to microseconds (10^-6).
-  const SbTime duration = __ts->tv_sec * 1000000 + __ts->tv_nsec / 1000;
+  const int64_t duration = __ts->tv_sec * 1000000 + __ts->tv_nsec / 1000;
   return SbConditionVariableWaitTimed(__cv, __m, duration);
 }
 
@@ -265,7 +264,7 @@ void __libcpp_thread_yield() { SbThreadYield(); }
 
 void __libcpp_thread_sleep_for(const chrono::nanoseconds& __ns) {
   // Convert nanoseconds (10^-9) to microseconds (10^-6).
-  const SbTime duration = __ns.count() / 1000;
+  const int64_t duration = __ns.count() / 1000;
   SbThreadSleep(duration);
 }
 

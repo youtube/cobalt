@@ -352,8 +352,7 @@ class Window : public web::WindowOrWorkerGlobalScope,
   // Sets the current application state, forwarding on to the
   // ApplicationLifecycleState associated with it and its document, causing
   // precipitate events to be dispatched.
-  void SetApplicationState(base::ApplicationState state,
-                           SbTimeMonotonic timestamp);
+  void SetApplicationState(base::ApplicationState state, int64_t timestamp);
 
   // ApplicationLifecycleState::Observer implementation.
   void OnWindowFocusChanged(bool has_focus) override;

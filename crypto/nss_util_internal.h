@@ -14,7 +14,6 @@
 #include "base/macros.h"
 #include "crypto/crypto_export.h"
 #include "crypto/scoped_nss_types.h"
-#include "starboard/types.h"
 
 namespace base {
 class FilePath;

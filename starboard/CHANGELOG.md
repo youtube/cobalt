@@ -9,6 +9,22 @@ since the version previous to it.
 
 ## Version 16
 
+### Convert SbUiNavGetInterface Starboard API into an extension
+The `SbUiNavGetInterface` API is deprecated and replaced with a Starboard
+extension named `SbUiNavInterface`.
+
+### Decrecated SbTime APIs and migrated to POSIX time APIs
+The time APIs `SbTimeGetNow`, `SbTimeGetMonotonicNow`,
+`SbTimeIsTimeThreadNowSupported` and `SbTimeGetMonotonicThreadNow` are
+deprecated and the standard APIs `gettimeofday` from `<sys/time.h>` and
+`clock_gettime` from `<time.h>` should be used instead.
+
+### Deprecated SbStringFormat APIs and migrated to POSIX memory APIs
+The StringFormat management APIs `SbStringFormat`, `SbStringFormatF`,
+`SbStringFormatWide`, `SbStringFormatUnsifeF` are deprecated and the
+standard APIs `vsnprintf`, `vfnprintf`, `vswprintf`, `snprintf`
+from `<stdlib.h>` should be used instead.
+
 ### Deprecated SbMemory allocation APIs and migrated to POSIX memory APIs
 The memory management APIs `SbMemoryAllocate`, `SbMemoryReallocate`,
 `SbMemoryCalloc`, `SbMemoryAllocateAligned`, `SbMemoryDeallocate`,
@@ -17,7 +33,7 @@ standard APIs `malloc`, `realloc`, `calloc`, `posix_memalign`, `free`
 from `<stdlib.h>` and `strdup` from `<string.h>` should be used instead.
 
 ### Deprecated SbMediaGetBufferAlignment
-The `SbMediaGetBufferAlignment`API was deprecated.
+The `SbMediaGetBufferAlignment` API was deprecated.
 
 ### Removed SbUser from SbStorageOpenRecord and SbStorageDeleteRecord
 The `SbStorageOpenRecord` and `SbStorageDeleteRecord` APIs defined in
@@ -39,6 +55,9 @@ deprecated.
 ### Add a new enum `kIamfConfigObus` to `SbPlayerSampleSideDataType` in `starboard/player.h`
 This value allows IAMF samples to be written to Starboard along with IAMF
 Config OBUs as side data.
+
+### Deprecated SbStringScan and SbStringScanF
+The APIs defined in `starboard/string.h` are deprecated and the standard API `vsscanf` and `sscanf` are used instead.
 
 ## Version 15
 

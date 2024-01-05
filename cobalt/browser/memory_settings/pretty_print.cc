@@ -149,7 +149,7 @@ std::string ToMegabyteString(int64_t bytes, int decimal_places) {
   ss_fmt << "%." << decimal_places << "f MB";
 
   char buff[128];
-  SbStringFormatF(buff, sizeof(buff), ss_fmt.str().c_str(), megabytes);
+  snprintf(buff, sizeof(buff), ss_fmt.str().c_str(), megabytes);
   // Use 16
   return std::string(buff);
 }

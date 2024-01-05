@@ -16,11 +16,8 @@
 
 #include <openssl/chacha.h>
 
-#if !defined(OPENSSL_SYS_STARBOARD)
 #include <assert.h>
 #include <string.h>
-#endif  // !defined(OPENSSL_SYS_STARBOARD)
-#include <openssl/mem.h>
 
 #include <openssl/cpu.h>
 

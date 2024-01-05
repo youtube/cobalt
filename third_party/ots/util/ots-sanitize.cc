@@ -82,7 +82,7 @@ int main(int argc, char **argv) {
     std::string arg(argv[i]);
     if (arg.at(0) == '-') {
       if (arg == "--version")
-        return Log(PACKAGE_STRING);
+        return Log(PACKAGE " " VERSION);
       else if (arg == "--quiet")
         g_quiet = true;
       else

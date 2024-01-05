@@ -497,7 +497,7 @@ v8::MaybeLocal<v8::Script> V8cGlobalEnvironment::Compile(
       javascript_engine_version, v8::ScriptCompiler::CachedDataVersionTag(),
       v8c_source_code->source_utf8(), source_location.file_path);
   auto retrieved_cached_data = cobalt::cache::Cache::GetInstance()->Retrieve(
-      disk_cache::ResourceType::kCompiledScript, javascript_cache_key,
+      network::disk_cache::ResourceType::kCompiledScript, javascript_cache_key,
       [&]() -> std::pair<std::unique_ptr<std::vector<uint8_t>>,
                          base::Optional<base::Value>> {
         v8::Local<v8::Script> script;
@@ -535,7 +535,7 @@ v8::MaybeLocal<v8::Script> V8cGlobalEnvironment::Compile(
     }
   }
   cobalt::cache::Cache::GetInstance()->Delete(
-      disk_cache::ResourceType::kCompiledScript, javascript_cache_key);
+      network::disk_cache::ResourceType::kCompiledScript, javascript_cache_key);
   LOG(WARNING)
       << "CompileWithCaching: Failed to reuse the cached script rejected="
       << cached_code->rejected << ", key=" << javascript_cache_key;

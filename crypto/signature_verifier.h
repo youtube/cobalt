@@ -5,13 +5,14 @@
 #ifndef CRYPTO_SIGNATURE_VERIFIER_H_
 #define CRYPTO_SIGNATURE_VERIFIER_H_
 
+#include <stdint.h>
+
 #include <memory>
 #include <vector>
 
 #include "base/containers/span.h"
 #include "build/build_config.h"
 #include "crypto/crypto_export.h"
-#include "starboard/types.h"
 
 namespace crypto {
 

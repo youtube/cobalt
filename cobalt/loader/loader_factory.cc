@@ -48,8 +48,9 @@ std::unique_ptr<Loader> LoaderFactory::CreateImageLoader(
     const Loader::OnCompleteFunction& load_complete_callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  Loader::FetcherCreator fetcher_creator = MakeCachedFetcherCreator(
-      url, url_security_callback, kNoCORSMode, origin, disk_cache::kImage);
+  Loader::FetcherCreator fetcher_creator =
+      MakeCachedFetcherCreator(url, url_security_callback, kNoCORSMode, origin,
+                               network::disk_cache::kImage);
 
   std::unique_ptr<Loader> loader(new Loader(
       fetcher_creator,
@@ -67,7 +68,8 @@ std::unique_ptr<Loader> LoaderFactory::CreateImageLoader(
 std::unique_ptr<Loader> LoaderFactory::CreateLinkLoader(
     const GURL& url, const Origin& origin,
     const csp::SecurityCallback& url_security_callback,
-    const loader::RequestMode cors_mode, const disk_cache::ResourceType type,
+    const loader::RequestMode cors_mode,
+    const network::disk_cache::ResourceType type,
     const TextDecoder::TextAvailableCallback& link_available_callback,
     const Loader::OnCompleteFunction& load_complete_callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -120,7 +122,7 @@ std::unique_ptr<Loader> LoaderFactory::CreateTypefaceLoader(
 
   Loader::FetcherCreator fetcher_creator = MakeFetcherCreator(
       url, url_security_callback, kCORSModeSameOriginCredentials, origin,
-      disk_cache::kFont);
+      network::disk_cache::kFont);
 
   std::unique_ptr<Loader> loader(new Loader(
       fetcher_creator,
@@ -137,7 +139,7 @@ std::unique_ptr<Loader> LoaderFactory::CreateTypefaceLoader(
 Loader::FetcherCreator LoaderFactory::MakeCachedFetcherCreator(
     const GURL& url, const csp::SecurityCallback& url_security_callback,
     RequestMode request_mode, const Origin& origin,
-    const disk_cache::ResourceType type) {
+    const network::disk_cache::ResourceType type) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   auto fetcher_creator = MakeFetcherCreator(url, url_security_callback,

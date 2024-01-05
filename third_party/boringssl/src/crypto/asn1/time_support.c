@@ -55,22 +55,11 @@
  * (eay@cryptsoft.com).  This product includes software written by Tim
  * Hudson (tjh@cryptsoft.com). */
 
-#include <openssl/opensslconf.h>
-
-#if defined(STARBOARD)
-#if !SB_HAS_QUIRK(NO_GMTIME_R)
 #if !defined(_POSIX_C_SOURCE)
 #define _POSIX_C_SOURCE 201410L  /* for gmtime_r */
 #endif
-#endif  // !SB_HAS_QUIRK(NO_GMTIME_R)
-#else  // STARBOARD
-#if !defined(_POSIX_C_SOURCE)
-#define _POSIX_C_SOURCE 201410L  /* for gmtime_r */
-#endif  // !defined(_POSIX_C_SOURCE)
-#endif  // STARBOARD
 
 #include "asn1_locl.h"
-#include "asn1_internal.h"
 
 #include <time.h>
 

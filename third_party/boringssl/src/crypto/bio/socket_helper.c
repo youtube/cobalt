@@ -12,22 +12,17 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
-#if !defined(OPENSSL_SYS_STARBOARD)
 #undef _POSIX_C_SOURCE
 #define _POSIX_C_SOURCE 200112L
 
-#include <assert.h>
-#include <limits.h>
-#include <string.h>
-#include <sys/types.h>
-#endif  // !defined(OPENSSL_SYS_STARBOARD)
-
-#include <fcntl.h>
-#include <openssl/mem.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
 
 #if !defined(OPENSSL_TRUSTY)
+
+#include <fcntl.h>
+#include <string.h>
+#include <sys/types.h>
 
 #if !defined(OPENSSL_WINDOWS)
 #if !defined(OPENSSL_SYS_STARBOARD)
@@ -43,6 +38,7 @@ OPENSSL_MSVC_PRAGMA(warning(pop))
 
 #include "internal.h"
 #include "../internal.h"
+
 
 // |getaddrinfo| is platform releted, it's not supported on all platforms.
 // This function is used only if we use BIO_new_connect. As we don't use 

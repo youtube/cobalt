@@ -12,8 +12,6 @@
 
 #include <memory>
 
-#include "starboard/types.h"
-
 namespace crypto {
 
 template <typename Type, void (*Destroyer)(Type*)>

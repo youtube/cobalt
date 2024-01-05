@@ -56,10 +56,7 @@
 
 #include <openssl/digest.h>
 
-#if !defined(OPENSSL_SYS_STARBOARD)
 #include <string.h>
-#endif  // !defined(OPENSSL_SYS_STARBOARD)
-#include <openssl/mem.h>
 
 #include <openssl/asn1.h>
 #include <openssl/bytestring.h>

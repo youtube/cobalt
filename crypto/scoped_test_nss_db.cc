@@ -10,7 +10,6 @@
 #include "base/threading/thread_restrictions.h"
 #include "crypto/nss_util.h"
 #include "crypto/nss_util_internal.h"
-#include "starboard/types.h"
 
 namespace crypto {
 

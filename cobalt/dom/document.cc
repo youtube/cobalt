@@ -904,12 +904,12 @@ void Document::UpdateUiNavigation() {
 }
 
 bool Document::TrySetUiNavFocusElement(const void* focus_element,
-                                       SbTimeMonotonic time) {
-  if (ui_nav_focus_element_update_time_ > time) {
+                                       int64_t monotonic_time) {
+  if (ui_nav_focus_element_update_time_ > monotonic_time) {
     // A later focus update was already issued.
     return false;
   }
-  ui_nav_focus_element_update_time_ = time;
+  ui_nav_focus_element_update_time_ = monotonic_time;
   ui_nav_focus_element_ = focus_element;
   return true;
 }

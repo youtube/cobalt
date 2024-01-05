@@ -1549,92 +1549,6 @@ OPENSSL_EXPORT int SSL_export_keying_material(
     const uint8_t *context, size_t context_len, int use_context);
 
 
-// Custom extensions.
-//
-// The custom extension functions allow TLS extensions to be added to
-// ClientHello and ServerHello messages.
-
-// SSL_custom_ext_add_cb is a callback function that is called when the
-// ClientHello (for clients) or ServerHello (for servers) is constructed. In
-// the case of a server, this callback will only be called for a given
-// extension if the ClientHello contained that extension – it's not possible to
-// inject extensions into a ServerHello that the client didn't request.
-//
-// When called, |extension_value| will contain the extension number that is
-// being considered for addition (so that a single callback can handle multiple
-// extensions). If the callback wishes to include the extension, it must set
-// |*out| to point to |*out_len| bytes of extension contents and return one. In
-// this case, the corresponding |SSL_custom_ext_free_cb| callback will later be
-// called with the value of |*out| once that data has been copied.
-//
-// If the callback does not wish to add an extension it must return zero.
-//
-// Alternatively, the callback can abort the connection by setting
-// |*out_alert_value| to a TLS alert number and returning -1.
-typedef int (*SSL_custom_ext_add_cb)(SSL *ssl, unsigned extension_value,
-                                     const uint8_t **out, size_t *out_len,
-                                     int *out_alert_value, void *add_arg);
-
-// SSL_custom_ext_free_cb is a callback function that is called by OpenSSL iff
-// an |SSL_custom_ext_add_cb| callback previously returned one. In that case,
-// this callback is called and passed the |out| pointer that was returned by
-// the add callback. This is to free any dynamically allocated data created by
-// the add callback.
-typedef void (*SSL_custom_ext_free_cb)(SSL *ssl, unsigned extension_value,
-                                       const uint8_t *out, void *add_arg);
-
-// SSL_custom_ext_parse_cb is a callback function that is called by OpenSSL to
-// parse an extension from the peer: that is from the ServerHello for a client
-// and from the ClientHello for a server.
-//
-// When called, |extension_value| will contain the extension number and the
-// contents of the extension are |contents_len| bytes at |contents|.
-//
-// The callback must return one to continue the handshake. Otherwise, if it
-// returns zero, a fatal alert with value |*out_alert_value| is sent and the
-// handshake is aborted.
-typedef int (*SSL_custom_ext_parse_cb)(SSL *ssl, unsigned extension_value,
-                                       const uint8_t *contents,
-                                       size_t contents_len,
-                                       int *out_alert_value, void *parse_arg);
-
-// SSL_extension_supported returns one iff OpenSSL internally handles
-// extensions of type |extension_value|. This can be used to avoid registering
-// custom extension handlers for extensions that a future version of OpenSSL
-// may handle internally.
-OPENSSL_EXPORT int SSL_extension_supported(unsigned extension_value);
-
-// SSL_CTX_add_client_custom_ext registers callback functions for handling
-// custom TLS extensions for client connections.
-//
-// If |add_cb| is NULL then an empty extension will be added in each
-// ClientHello. Otherwise, see the comment for |SSL_custom_ext_add_cb| about
-// this callback.
-//
-// The |free_cb| may be NULL if |add_cb| doesn't dynamically allocate data that
-// needs to be freed.
-//
-// It returns one on success or zero on error. It's always an error to register
-// callbacks for the same extension twice, or to register callbacks for an
-// extension that OpenSSL handles internally. See |SSL_extension_supported| to
-// discover, at runtime, which extensions OpenSSL handles internally.
-OPENSSL_EXPORT int SSL_CTX_add_client_custom_ext(
-    SSL_CTX *ctx, unsigned extension_value, SSL_custom_ext_add_cb add_cb,
-    SSL_custom_ext_free_cb free_cb, void *add_arg,
-    SSL_custom_ext_parse_cb parse_cb, void *parse_arg);
-
-// SSL_CTX_add_server_custom_ext is the same as
-// |SSL_CTX_add_client_custom_ext|, but for server connections.
-//
-// Unlike on the client side, if |add_cb| is NULL no extension will be added.
-// The |add_cb|, if any, will only be called if the ClientHello contained a
-// matching extension.
-OPENSSL_EXPORT int SSL_CTX_add_server_custom_ext(
-    SSL_CTX *ctx, unsigned extension_value, SSL_custom_ext_add_cb add_cb,
-    SSL_custom_ext_free_cb free_cb, void *add_arg,
-    SSL_custom_ext_parse_cb parse_cb, void *parse_arg);
-
-
 // Sessions.
 //
 // An |SSL_SESSION| represents an SSL session that may be resumed in an
@@ -3092,7 +3006,7 @@ OPENSSL_EXPORT const char *SSL_get_psk_identity_hint(const SSL *ssl);
 OPENSSL_EXPORT const char *SSL_get_psk_identity(const SSL *ssl);
 
 
-// QUIC Transport Parameters.
+// QUIC transport parameters.
 //
 // draft-ietf-quic-tls defines a new TLS extension quic_transport_parameters
 // used by QUIC for each endpoint to unilaterally declare its supported
@@ -3469,15 +3383,13 @@ OPENSSL_EXPORT int SSL_renegotiate_pending(SSL *ssl);
 OPENSSL_EXPORT int SSL_total_renegotiations(const SSL *ssl);
 
 // tls13_variant_t determines what TLS 1.3 variant to negotiate.
-//
-// TODO(svaldez): Make |tls13_rfc| the default after callers are switched to
-// explicitly enable |tls13_all|.
 enum tls13_variant_t {
-  tls13_default = 0,
+  tls13_rfc = 0,
   tls13_draft23,
   tls13_draft28,
-  tls13_rfc,
-  tls13_all = tls13_default,
+  // tls13_all enables all variants of TLS 1.3, to keep the transition smooth as
+  // early adopters move to the final version.
+  tls13_all,
 };
 
 // SSL_CTX_set_tls13_variant sets which variant of TLS 1.3 we negotiate. On the
@@ -3756,6 +3668,10 @@ OPENSSL_EXPORT void SSL_CTX_set_false_start_allowed_without_alpn(SSL_CTX *ctx,
 // ignore the downgrade signal in the server's random value.
 OPENSSL_EXPORT void SSL_CTX_set_ignore_tls13_downgrade(SSL_CTX *ctx,
                                                        int ignore);
+
+// SSL_set_ignore_tls13_downgrade configures whether |ssl| ignores the downgrade
+// signal in the server's random value.
+OPENSSL_EXPORT void SSL_set_ignore_tls13_downgrade(SSL *ssl, int ignore);
 
 // SSL_is_tls13_downgrade returns one if the TLS 1.3 anti-downgrade
 // mechanism would have aborted |ssl|'s handshake and zero otherwise.
@@ -4404,6 +4320,7 @@ OPENSSL_EXPORT int SSL_CTX_set_tlsext_status_arg(SSL_CTX *ctx, void *arg);
 //
 // These defines exist for node.js, with the hope that we can eliminate the
 // need for them over time.
+
 #define SSLerr(function, reason) \
   ERR_put_error(ERR_LIB_SSL, 0, reason, __FILE__, __LINE__)
 
@@ -4471,6 +4388,10 @@ OPENSSL_EXPORT int SSL_CTX_set_tlsext_status_arg(SSL_CTX *ctx, void *arg);
 #define SSL_CTRL_SET_TMP_ECDH_CB doesnt_exist
 #define SSL_CTRL_SET_TMP_RSA doesnt_exist
 #define SSL_CTRL_SET_TMP_RSA_CB doesnt_exist
+
+// |BORINGSSL_PREFIX| already makes each of these symbols into macros, so there
+// is no need to define conflicting macros.
+#if !defined(BORINGSSL_PREFIX)
 
 #define DTLSv1_get_timeout DTLSv1_get_timeout
 #define DTLSv1_handle_timeout DTLSv1_handle_timeout
@@ -4541,6 +4462,8 @@ OPENSSL_EXPORT int SSL_CTX_set_tlsext_status_arg(SSL_CTX *ctx, void *arg);
 #define SSL_set_tmp_rsa SSL_set_tmp_rsa
 #define SSL_total_renegotiations SSL_total_renegotiations
 
+#endif // !defined(BORINGSSL_PREFIX)
+
 
 #if defined(__cplusplus)
 }  // extern C
@@ -4549,7 +4472,7 @@ OPENSSL_EXPORT int SSL_CTX_set_tlsext_status_arg(SSL_CTX *ctx, void *arg);
 
 extern "C++" {
 
-namespace bssl {
+BSSL_NAMESPACE_BEGIN
 
 BORINGSSL_MAKE_DELETER(SSL, SSL_free)
 BORINGSSL_MAKE_DELETER(SSL_CTX, SSL_CTX_free)
@@ -4661,7 +4584,7 @@ OPENSSL_EXPORT bool SSL_apply_handoff(SSL *ssl, Span<const uint8_t> handoff);
 OPENSSL_EXPORT bool SSL_serialize_handback(const SSL *ssl, CBB *out);
 OPENSSL_EXPORT bool SSL_apply_handback(SSL *ssl, Span<const uint8_t> handback);
 
-}  // namespace bssl
+BSSL_NAMESPACE_END
 
 }  // extern C++
 

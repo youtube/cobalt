@@ -15,6 +15,7 @@
 #include "starboard/elf_loader/exported_symbols.h"
 
 #include <stdlib.h>
+#include <time.h>
 
 #include "starboard/accessibility.h"
 #include "starboard/audio_sink.h"
@@ -42,6 +43,9 @@
 #include "starboard/mutex.h"
 #include "starboard/once.h"
 #include "starboard/player.h"
+#if SB_API_VERSION >= 16
+#include "starboard/shared/modular/posix_time_wrappers.h"
+#endif  // SB_API_VERSION >= 16
 #include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
 #include "starboard/speech_synthesis.h"
@@ -50,8 +54,8 @@
 #include "starboard/system.h"
 #include "starboard/thread.h"
 #include "starboard/time_zone.h"
-#include "starboard/ui_navigation.h"
 #if SB_API_VERSION < 16
+#include "starboard/ui_navigation.h"
 #include "starboard/user.h"
 #endif  // SB_API_VERSION < 16
 #include "starboard/window.h"
@@ -307,10 +311,10 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbStringCompareNoCase);
   REGISTER_SYMBOL(SbStringCompareNoCaseN);
   REGISTER_SYMBOL(SbStringDuplicate);
-#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbStringFormat);
   REGISTER_SYMBOL(SbStringFormatWide);
   REGISTER_SYMBOL(SbStringScan);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbSystemBreakIntoDebugger);
   REGISTER_SYMBOL(SbSystemClearLastError);
 #if SB_API_VERSION < 14
@@ -368,13 +372,17 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbThreadSleep);
   REGISTER_SYMBOL(SbThreadYield);
   REGISTER_SYMBOL(SbTimeGetMonotonicNow);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbTimeGetMonotonicThreadNow);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbTimeGetNow);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbTimeIsTimeThreadNowSupported);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbTimeZoneGetCurrent);
   REGISTER_SYMBOL(SbTimeZoneGetName);
-  REGISTER_SYMBOL(SbUiNavGetInterface);
 #if SB_API_VERSION < 16
+  REGISTER_SYMBOL(SbUiNavGetInterface);
   REGISTER_SYMBOL(SbUserGetCurrent);
   REGISTER_SYMBOL(SbUserGetProperty);
   REGISTER_SYMBOL(SbUserGetPropertySize);
@@ -404,6 +412,32 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(posix_memalign);
   REGISTER_SYMBOL(free);
+  REGISTER_SYMBOL(vsscanf);
+  REGISTER_SYMBOL(time);
+
+  // Custom mapped POSIX APIs to compatibility wrappers.
+  // These will rely on Starboard-side implementations that properly translate
+  // Platform-specific types with musl-based types. These wrappers are defined
+  // in //starboard/shared/modular.
+  // TODO: b/316603042 - Detect via NPLB and only add the wrapper if needed.
+  map_["clock_gettime"] = reinterpret_cast<const void*>(&__wrap_clock_gettime);
+  map_["gettimeofday"] = reinterpret_cast<const void*>(&__wrap_gettimeofday);
+
+  REGISTER_SYMBOL(sprintf);
+  REGISTER_SYMBOL(snprintf);
+  REGISTER_SYMBOL(vfwprintf);
+  REGISTER_SYMBOL(vsnprintf);
+#if defined(_MSC_VER)
+  // MSVC provides a template with the same name.
+  // The cast helps the compiler to pick the correct C function pointer to be
+  // used.
+  REGISTER_SYMBOL(
+      static_cast<int (*)(wchar_t* buffer, size_t count, const wchar_t* format,
+                          va_list argptr)>(vswprintf));
+#else
+  REGISTER_SYMBOL(vswprintf);
+#endif  // defined(_MSC_VER)
+
 #endif  // SB_API_VERSION >= 16
 
 }  // NOLINT

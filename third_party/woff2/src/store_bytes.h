@@ -13,7 +13,6 @@
 #include <inttypes.h>
 #include <stddef.h>
 #include <string.h>
-#define MEMCPY_STORE_BYTES memcpy
 
 #include "./port.h"
 
@@ -63,12 +62,10 @@ inline void Store16(int val, size_t* offset, uint8_t* dst) {
 
 inline void StoreBytes(const uint8_t* data, size_t len,
                        size_t* offset, uint8_t* dst) {
-  MEMCPY_STORE_BYTES(&dst[*offset], data, len);
+  memcpy(&dst[*offset], data, len);
   *offset += len;
 }
 
 } // namespace woff2
-
-#undef MEMCPY_STORE_BYTES
 
 #endif  // WOFF2_STORE_BYTES_H_

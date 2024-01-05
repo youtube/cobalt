@@ -47,7 +47,7 @@ class CValContainer {
 
   void StartTimer();
   void StopTimer();
-  void UpdateCVal(SbTime event_time);
+  void UpdateCVal(int64_t event_time_usec);
 
   // for testing only
   size_t GetSampleIndex() { return sample_write_index_; }
@@ -60,19 +60,19 @@ class CValContainer {
   std::string cval_name_;
 
  private:
-  base::CVal<SbTime, base::CValPublic> latest_;
-  base::CVal<SbTime, base::CValPublic> average_;
-  base::CVal<SbTime, base::CValPublic> maximum_;
-  base::CVal<SbTime, base::CValPublic> median_;
-  base::CVal<SbTime, base::CValPublic> minimum_;
+  base::CVal<int64_t, base::CValPublic> latest_;
+  base::CVal<int64_t, base::CValPublic> average_;
+  base::CVal<int64_t, base::CValPublic> maximum_;
+  base::CVal<int64_t, base::CValPublic> median_;
+  base::CVal<int64_t, base::CValPublic> minimum_;
 
-  SbTime samples_[kMaxSamples];
+  int64_t samples_[kMaxSamples];
   size_t sample_write_index_{0};
   size_t accumulated_sample_count_{0};
   bool first_sample_added_{false};
 
-  SbTime latest_time_start_{0};
-  SbTime latest_time_stop_{0};
+  int64_t latest_time_start_{0};
+  int64_t latest_time_stop_{0};
 };
 
 class CValStats {
@@ -90,7 +90,7 @@ class CValStats {
 
  private:
   std::map<MediaTiming, CValContainer> cval_containers_;
-  std::map<std::pair<MediaTiming, std::string>, SbTime> running_timers_;
+  std::map<std::pair<MediaTiming, std::string>, int64_t> running_timers_;
 
   bool enabled_{false};
 };

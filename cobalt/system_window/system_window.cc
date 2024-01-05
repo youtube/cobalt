@@ -22,6 +22,7 @@
 #include "base/strings/stringprintf.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/system_window/input_event.h"
+#include "starboard/common/time.h"
 #include "starboard/system.h"
 
 namespace cobalt {
@@ -120,10 +121,9 @@ void SystemWindow::DispatchInputEvent(const SbEvent* event,
   const SbInputData& data = *input_data;
 
   // Use the current time unless it was overridden.
-  SbTimeMonotonic timestamp = 0;
-  timestamp = event->timestamp;
+  int64_t timestamp = event->timestamp;
   if (timestamp == 0) {
-    timestamp = SbTimeGetMonotonicNow();
+    timestamp = starboard::CurrentMonotonicTime();
   }
   // Starboard handily uses the Microsoft key mapping, which is also what Cobalt
   // uses.

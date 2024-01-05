@@ -12,6 +12,10 @@ import("//build/toolchain/goma.gni")
 import("//build/toolchain/rbe.gni")
 import("//build/toolchain/toolchain.gni")
 
+if (use_cobalt_customizations) {
+  import("//starboard/build/config/os_definitions.gni")
+}
+
 if (is_nacl) {
   # To keep NaCl variables out of builds that don't include NaCl, all
   # variables defined in nacl/config.gni referenced here should be protected by
@@ -610,7 +614,12 @@ template("gcc_toolchain") {
       if (using_old_compiler) {
         link_command = "$ld {{ldflags}}${extra_ldflags} -o \"$unstripped_outfile\" $start_group_flag @\"$rspfile\" {{solibs}} $end_group_flag {{libs}} $tail_lib_dependencies"
       } else {
-        link_command = "$ld {{ldflags}}${extra_ldflags} {{libs}} -o \"$unstripped_outfile\" $start_group_flag @\"$rspfile\" {{solibs}} $end_group_flag$tail_lib_dependencies"
+        # Windows based platform modular builds dont link directly with the shared library.
+        if (is_host_win && sb_is_modular) {
+          link_command = "$ld {{ldflags}}${extra_ldflags} {{libs}} -o \"$unstripped_outfile\" $start_group_flag @\"$rspfile\"  $end_group_flag$tail_lib_dependencies"
+        } else {
+          link_command = "$ld {{ldflags}}${extra_ldflags} {{libs}} -o \"$unstripped_outfile\" $start_group_flag @\"$rspfile\" {{solibs}} $end_group_flag$tail_lib_dependencies"
+        }
       }
 
       # Generate a map file to be used for binary size analysis.

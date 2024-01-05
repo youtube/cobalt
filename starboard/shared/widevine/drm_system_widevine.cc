@@ -22,6 +22,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/memory.h"
 #include "starboard/once.h"
@@ -54,7 +55,7 @@ DECLARE_INSTANCE_COUNTER(DrmSystemWidevine);
 class WidevineClock : public wv3cdm::IClock {
  public:
   int64_t now() override {
-    return SbTimeToPosix(SbTimeGetNow()) / kSbTimeMillisecond;
+    return CurrentPosixTime() / 1000;  // in milliseconds
   }
 };
 
@@ -238,7 +239,7 @@ DrmSystemWidevine::DrmSystemWidevine(
 
   static WidevineStorage s_storage(GetWidevineStoragePath());
   EnsureWidevineCdmIsInitialized(company_name, model_name, &s_storage);
-  const bool kEnablePrivacyMode = true;
+  const bool kEnablePrivacyMode = false;
   cdm_.reset(wv3cdm::create(this, &s_storage, kEnablePrivacyMode));
   SB_DCHECK(cdm_);
 

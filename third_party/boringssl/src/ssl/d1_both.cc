@@ -127,7 +127,7 @@
 #include "internal.h"
 
 
-namespace bssl {
+BSSL_NAMESPACE_BEGIN
 
 // TODO(davidben): 28 comes from the size of IP + UDP header. Is this reasonable
 // for these values? Notably, why is kMinMTU a function of the transport
@@ -601,15 +601,6 @@ bool dtls1_add_change_cipher_spec(SSL *ssl) {
   return add_outgoing(ssl, true /* ChangeCipherSpec */, Array<uint8_t>());
 }
 
-bool dtls1_add_alert(SSL *ssl, uint8_t level, uint8_t desc) {
-  // The |add_alert| path is only used for warning alerts for now, which DTLS
-  // never sends. This will be implemented later once closure alerts are
-  // converted.
-  assert(false);
-  OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
-  return false;
-}
-
 // dtls1_update_mtu updates the current MTU from the BIO, ensuring it is above
 // the minimum.
 static void dtls1_update_mtu(SSL *ssl) {
@@ -848,4 +839,4 @@ unsigned int dtls1_min_mtu(void) {
   return kMinMTU;
 }
 
-}  // namespace bssl
+BSSL_NAMESPACE_END

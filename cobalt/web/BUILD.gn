@@ -37,6 +37,7 @@ static_library("web_events") {
     "//cobalt/script",
     "//cobalt/script:engine",
     "//cobalt/script/v8c:engine",
+    "//starboard/common",
     "//url",
   ]
 

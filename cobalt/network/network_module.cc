@@ -144,7 +144,7 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
   if (command_line->HasSwitch(switches::kMaxNetworkDelay)) {
     base::StringToInt64(
         command_line->GetSwitchValueASCII(switches::kMaxNetworkDelay),
-        &options_.max_network_delay);
+        &options_.max_network_delay_usec);
   }
 
 #if defined(ENABLE_NETWORK_LOGGING)

@@ -3,6 +3,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+from __future__ import absolute_import
 import unittest
 
 from pylib.base import base_test_result
@@ -279,6 +280,37 @@ class GtestTestInstanceTests(unittest.TestCase):
     self.assertEquals('mojom_tests.parse.ast_unittest.ASTTest.testNodeBase',
                       actual[0].GetName())
     self.assertEquals(base_test_result.ResultType.PASS, actual[0].GetType())
+
+  def testParseGTestJSON_skippedTest_example(self):
+    raw_json = """
+      {
+        "tests": {
+          "mojom_tests": {
+            "parse": {
+              "ast_unittest": {
+                "ASTTest": {
+                  "testNodeBase": {
+                    "expected": "SKIP",
+                    "actual": "SKIP",
+                  }
+                }
+              }
+            }
+          }
+        },
+        "interrupted": false,
+        "path_delimiter": ".",
+        "version": 3,
+        "seconds_since_epoch": 1406662283.764424,
+        "num_failures_by_type": {
+          "SKIP": 1
+        },
+      }"""
+    actual = gtest_test_instance.ParseGTestJSON(raw_json)
+    self.assertEquals(1, len(actual))
+    self.assertEquals('mojom_tests.parse.ast_unittest.ASTTest.testNodeBase',
+                      actual[0].GetName())
+    self.assertEquals(base_test_result.ResultType.SKIP, actual[0].GetType())
 
   def testTestNameWithoutDisabledPrefix_disabled(self):
     test_name_list = [

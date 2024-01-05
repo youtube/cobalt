@@ -20,10 +20,10 @@
 #if SB_ENABLE_CONCURRENCY_DEBUG
 
 #include "starboard/common/log.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/mutex.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 
 // WARNING: Features inside experimental namespace is strictly experimental and
 // can be changed or removed at any time, even within the same Cobalt/Starboard
@@ -47,7 +47,7 @@ class ScopedMutexWaitTracker {
 
  private:
   const bool acquired_;
-  SbTime wait_start_;
+  int64_t wait_start_;
 };
 
 // The class can be used to track how much CPU the thread consumes periodically.
@@ -57,8 +57,8 @@ class ScopedMutexWaitTracker {
 // thread at interval specified by |interval|.
 class ThreadTracker {
  public:
-  void CheckPoint(SbTime interval) {
-    SbTime wallclock_now = SbTimeGetMonotonicNow();
+  void CheckPoint(int64_t interval) {
+    int64_t wallclock_now = starboard::CurrentMonotonicTime();
 
     if (wallclock_now - last_wallclock_time_ < interval) {
       return;
@@ -67,7 +67,7 @@ class ThreadTracker {
     char name[kSbMaxThreadNameLength + 1];
     SbThreadGetName(name, kSbMaxThreadNameLength);
 
-    SbTime thread_now = SbTimeGetMonotonicThreadNow();
+    int64_t thread_now = starboard::CurrentMonotonicThreadTime();
     SB_LOG(INFO) << "Thread " << name << " uses "
                  << thread_now - last_thread_time_ << " during "
                  << wallclock_now - last_wallclock_time_;
@@ -76,8 +76,8 @@ class ThreadTracker {
   }
 
  private:
-  SbTime last_wallclock_time_ = SbTimeGetMonotonicNow();
-  SbTime last_thread_time_ = SbTimeGetMonotonicThreadNow();
+  int64_t last_wallclock_time_ = starboard::CurrentMonotonicTime();
+  int64_t last_thread_time_ = starboard::CurrentMonotonicThreadTime();
 };
 
 }  // namespace experimental

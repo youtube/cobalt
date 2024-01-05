@@ -40,7 +40,7 @@ class SbPlayerInterface {
   virtual SbPlayerOutputMode GetPreferredOutputMode(
       const SbPlayerCreationParam* creation_param) = 0;
   virtual void Destroy(SbPlayer player) = 0;
-  virtual void Seek(SbPlayer player, SbTime seek_to_timestamp, int ticket) = 0;
+  virtual void Seek(SbPlayer player, int64_t seek_to_timestamp, int ticket) = 0;
 
   virtual bool IsEnhancedAudioExtensionEnabled() const = 0;
   virtual void WriteSamples(SbPlayer player, SbMediaType sample_type,
@@ -108,7 +108,7 @@ class DefaultSbPlayerInterface final : public SbPlayerInterface {
   SbPlayerOutputMode GetPreferredOutputMode(
       const SbPlayerCreationParam* creation_param) override;
   void Destroy(SbPlayer player) override;
-  void Seek(SbPlayer player, SbTime seek_to_timestamp, int ticket) override;
+  void Seek(SbPlayer player, int64_t seek_to_timestamp, int ticket) override;
   bool IsEnhancedAudioExtensionEnabled() const override;
   void WriteSamples(SbPlayer player, SbMediaType sample_type,
                     const SbPlayerSampleInfo* sample_infos,

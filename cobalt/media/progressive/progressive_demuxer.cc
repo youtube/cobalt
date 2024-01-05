@@ -385,7 +385,8 @@ void ProgressiveDemuxer::AllocateBuffer() {
         VideoConfig().visible_rect().size().width(),
         VideoConfig().visible_rect().size().height(), kBitDepth);
     int progressive_duration_cap_in_seconds =
-        SbMediaGetBufferGarbageCollectionDurationThreshold() / kSbTimeSecond;
+        SbMediaGetBufferGarbageCollectionDurationThreshold() /
+        base::Time::kMicrosecondsPerSecond;
     const int kEstimatedBufferCountPerSeconds = 70;
     int progressive_buffer_count_cap =
         progressive_duration_cap_in_seconds * kEstimatedBufferCountPerSeconds;

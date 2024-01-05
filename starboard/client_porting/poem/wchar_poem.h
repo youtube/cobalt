@@ -23,9 +23,6 @@
 
 #include "starboard/string.h"
 
-#undef vswprintf
-#define vswprintf SbStringFormatWide
-
 #endif  // POEM_NO_EMULATION
 
 #endif  // STARBOARD

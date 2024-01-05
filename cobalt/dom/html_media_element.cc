@@ -382,7 +382,7 @@ double HTMLMediaElement::duration() const {
 }
 
 base::Time HTMLMediaElement::GetStartDate() const {
-  MLOG() << start_date_.ToSbTime();
+  MLOG() << start_date_.ToDeltaSinceWindowsEpoch().InMicroseconds();
   return start_date_;
 }
 

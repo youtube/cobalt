@@ -31,6 +31,7 @@
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/web/csp_delegate.h"
+#include "starboard/common/time.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -219,11 +220,11 @@ void HTMLLinkElement::Obtain() {
   loader::Origin origin = document->location()
                               ? document->location()->GetOriginAsObject()
                               : loader::Origin();
-  disk_cache::ResourceType type;
+  network::disk_cache::ResourceType type;
   if (rel() == "stylesheet") {
-    type = disk_cache::kCSS;
+    type = network::disk_cache::kCSS;
   } else if (IsValidSplashScreenFormat(rel())) {
-    type = disk_cache::kSplashScreen;
+    type = network::disk_cache::kSplashScreen;
   } else {
     LOG(WARNING) << "<link> has unsupported rel value: " << rel() << ".";
     NOTIMPLEMENTED();
@@ -317,11 +318,11 @@ void HTMLLinkElement::OnSplashscreenLoaded(Document* document,
 
 void HTMLLinkElement::OnStylesheetLoaded(Document* document,
                                          const std::string& content) {
-  auto before_parse_micros = SbTimeGetMonotonicNow();
+  auto before_parse_micros = starboard::CurrentMonotonicTime();
   scoped_refptr<cssom::CSSStyleSheet> css_style_sheet =
       document->html_element_context()->css_parser()->ParseStyleSheet(
           content, base::SourceLocation(href(), 1, 1));
-  auto after_parse_micros = SbTimeGetMonotonicNow();
+  auto after_parse_micros = starboard::CurrentMonotonicTime();
   auto css_kb = content.length() / 1000;
   // Only measure non-trivial CSS sizes and ignore non-HTTP schemes (e.g.,
   // file://), which are primarily used for debug purposes.

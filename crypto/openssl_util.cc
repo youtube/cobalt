@@ -4,11 +4,13 @@
 
 #include "crypto/openssl_util.h"
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <string>
 
 #include "base/logging.h"
 #include "base/strings/string_piece.h"
-#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/crypto.h"
 #include "third_party/boringssl/src/include/openssl/err.h"
 

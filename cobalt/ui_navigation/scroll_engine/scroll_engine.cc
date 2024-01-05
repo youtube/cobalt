@@ -395,11 +395,12 @@ void ScrollEngine::ScrollNavItemsWithDecayingScroll() {
   }
 }
 
-void ScrollEngine::Conceal(render_tree::ResourceProvider*, SbTimeMonotonic) {
+void ScrollEngine::Conceal(render_tree::ResourceProvider*,
+                           int64_t /* timestamp */) {
   nav_items_with_decaying_scroll_.clear();
 }
 
-void ScrollEngine::Freeze(SbTimeMonotonic) {
+void ScrollEngine::Freeze(int64_t /* timestamp */) {
   nav_items_with_decaying_scroll_.clear();
 }
 

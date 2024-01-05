@@ -224,25 +224,26 @@ BIO *BIO_new_file(const char *filename, const char *mode) {
 #endif  // NATIVE_TARGET_BUILD
   }
 
-  if ((ret = BIO_new(BIO_s_file())) == NULL) {
+  ret = BIO_new_fp(file, BIO_CLOSE);
+  if (ret == NULL) {
     fclose(file);
-    return (NULL);
+    return NULL;
   }
 
   BIO_clear_flags(ret, BIO_FLAGS_UPLINK); /* we did fopen -> we disengage
                                            * UPLINK */
 
-  BIO_set_fp(ret, file, BIO_CLOSE);
 #endif  // defined(OPENSSL_SYS_STARBOARD)
   return ret;
 }
 
 #if !defined(OPENSSL_NO_FP_API)
 BIO *BIO_new_fp(FILE *stream, int close_flag) {
-  BIO *ret;
+  BIO *ret = BIO_new(BIO_s_file());
 
-  if ((ret = BIO_new(BIO_s_file())) == NULL)
-    return (NULL);
+  if (ret == NULL) {
+    return NULL;
+  }
 
   BIO_set_flags(ret, BIO_FLAGS_UPLINK); /* redundant, left for
                                          * documentation puposes */
@@ -288,7 +289,7 @@ static int MS_CALLBACK file_free(BIO *a) {
     a->init = 0;
   }
 
-  return (1);
+  return 1;
 }
 
 static int MS_CALLBACK file_read(BIO *b, char *out, int outl) {
@@ -327,7 +328,8 @@ static int MS_CALLBACK file_read(BIO *b, char *out, int outl) {
 #endif  // defined(OPENSSL_SYS_STARBOARD)
   }
 
-  return (ret);
+  // fread reads at most |outl| bytes, so |ret| fits in an int.
+  return (int)ret;
 }
 
 static int MS_CALLBACK file_write(BIO *b, const char *in, int inl) {
@@ -679,4 +681,5 @@ int BIO_rw_filename(BIO *bio, const char *filename) {
   return BIO_ctrl(bio, BIO_C_SET_FILENAME,
                   BIO_CLOSE | BIO_FP_READ | BIO_FP_WRITE, (char *)filename);
 }
+
 #endif  // NATIVE_TARGET_BUILD

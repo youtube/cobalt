@@ -8,6 +8,9 @@ config("woff2_includes") {
 
 static_library("woff2_dec") {
   sources = [
+    "include/woff2/decode.h",
+    "include/woff2/encode.h",
+    "include/woff2/output.h",
     "src/buffer.h",
     "src/file.h",
     "src/round.h",
@@ -20,19 +23,18 @@ static_library("woff2_dec") {
     "src/woff2_common.h",
     "src/woff2_dec.cc",
     "src/woff2_out.cc",
-    "include/woff2/decode.h",
-    "include/woff2/encode.h",
-    "include/woff2/output.h",
-  ]
-  deps = [
-    "//starboard/common",
-    "//third_party/brotli:dec",
   ]
 
-  if (is_starboard) {
-    configs -= [ "//starboard/build/config:size" ]
-    configs += [ "//starboard/build/config:speed" ]
-  }
+if (is_starboard) {
+  configs -= [ "//starboard/build/config:size" ]
+  configs += [ "//starboard/build/config:speed" ]
+} else {
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+}
+
+  deps = [ "//third_party/brotli:dec" ]
+  deps += [ "//starboard/common" ]
 
   public_configs = [ ":woff2_includes" ]
 
@@ -41,4 +43,3 @@ static_library("woff2_dec") {
     cflags = [ "/wd4267" ]  # Conversion from size_t to 'type'.
   }
 }
-

@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <stddef.h>
+
 #include "crypto/secure_util.h"
-#include "starboard/types.h"
 
 namespace crypto {
 

@@ -12,7 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
 #include "starboard/ui_navigation.h"
+#else
+#include "starboard/extension/ui_navigation.h"
+#endif  // SB_API_VERSION
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -21,8 +25,14 @@ namespace {
 
 // This verifies that the UI navigation API is not implemented.
 TEST(UiNavigationTest, GetInterface) {
+#if SB_API_VERSION < 16
   SbUiNavInterface interface;
   EXPECT_FALSE(SbUiNavGetInterface(&interface));
+#else
+  const SbUiNavInterface* interface = static_cast<const SbUiNavInterface*>(
+      SbSystemGetExtension(kCobaltExtensionUiNavigationName));
+  EXPECT_FALSE(interface != nullptr);
+#endif  //  SB_API_VERSION
 }
 
 }  // namespace.

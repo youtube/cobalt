@@ -6,6 +6,8 @@
 // abstraction layer for Cobalt, an HTML5 container used mainly by YouTube
 // apps in the living room.
 
+#include <stdio.h>
+
 #include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
@@ -16,6 +18,7 @@
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/memory.h"
@@ -81,11 +84,10 @@ void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
 }
 
 int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
-  if (!SbTimeIsTimeThreadNowSupported()) return -1;
-
-  SbTimeMonotonic thread_now = SbTimeGetMonotonicThreadNow();
-  *secs = thread_now / kSbTimeSecond;
-  *usecs = thread_now % kSbTimeSecond;
+  int64_t thread_now = starboard::CurrentMonotonicThreadTime();
+  if (thread_now == 0) return -1;
+  *secs = thread_now / 1'000'000;
+  *usecs = thread_now % 1'000'000;
   return 0;
 }
 
@@ -345,7 +347,7 @@ int OS::SNPrintF(char* str, int length, const char* format, ...) {
 }
 
 int OS::VSNPrintF(char* str, int length, const char* format, va_list args) {
-  int n = SbStringFormat(str, length, format, args);
+  int n = vsnprintf(str, length, format, args);
   if (n < 0 || n >= length) {
     // If the length is zero, the assignment fails.
     if (length > 0) str[length - 1] = '\0';
@@ -445,14 +447,18 @@ class StarboardDefaultTimezoneCache : public StarboardTimezoneCache {
     return SbTimeZoneGetName();
   }
   double LocalTimeOffset(double time_ms, bool is_utc) override {
-    // SbTimeZOneGetCurrent returns an offset west of Greenwich, which has the
+    // SbTimeZoneGetCurrent returns an offset west of Greenwich, which has the
     // opposite sign V8 expects.
     // The starboard function returns offset in minutes. We convert to return
     // value in milliseconds.
     return SbTimeZoneGetCurrent() * 60.0 * msPerSecond * (-1);
   }
   double DaylightSavingsOffset(double time_ms) override {
-    EzTimeValue value = EzTimeValueFromSbTime(SbTimeGetNow());
+    int64_t posix_microseconds = starboard::CurrentPosixTime();
+    EzTimeValue value = {
+        posix_microseconds / 1'000'000,
+        (int32_t)(posix_microseconds % 1'000'000)
+    };
     EzTimeExploded ez_exploded;
     bool result = EzTimeValueExplode(&value, kEzTimeZoneLocal, &ez_exploded,
                                      NULL);

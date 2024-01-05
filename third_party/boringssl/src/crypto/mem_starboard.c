@@ -97,46 +97,6 @@ int CRYPTO_memcmp(const void *in_a, const void *in_b, size_t len) {
   return x;
 }
 
-const void *OPENSSL_memchr(const void *s, int c, size_t n) {
-  if (n == 0) {
-    return NULL;
-  }
-
-  return memchr(s, c, n);
-}
-
-int OPENSSL_memcmp(const void *s1, const void *s2, size_t n) {
-  if (n == 0) {
-    return 0;
-  }
-
-  return memcmp(s1, s2, n);
-}
-
-void *OPENSSL_memcpy(void *dst, const void *src, size_t n) {
-  if (n == 0) {
-    return dst;
-  }
-
-  return memcpy(dst, src, n);
-}
-
-void *OPENSSL_memmove(void *dst, const void *src, size_t n) {
-  if (n == 0) {
-    return dst;
-  }
-
-  return memmove(dst, src, n);
-}
-
-void *OPENSSL_memset(void *dst, int c, size_t n) {
-  if (n == 0) {
-    return dst;
-  }
-
-  return memset(dst, c, n);
-}
-
 uint32_t OPENSSL_hash32(const void *ptr, size_t len) {
   // These are the FNV-1a parameters for 32 bits.
   static const uint32_t kPrime = 16777619u;
@@ -221,5 +181,9 @@ int BIO_snprintf(char *buf, size_t n, const char *format, ...) {
 }
 
 int BIO_vsnprintf(char *buf, size_t n, const char *format, va_list args) {
+#if SB_API_VERSION < 16
   return SbStringFormat(buf, n, format, args);
+#else
+  return vsnprintf(buf, n, format, args);
+#endif
 }

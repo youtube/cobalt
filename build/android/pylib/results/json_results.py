@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+from __future__ import absolute_import
 import collections
 import itertools
 import json
@@ -125,7 +126,7 @@ def GenerateJsonTestResultFormatDict(test_run_results, interrupted):
   """
 
   tests = {}
-  counts = {'PASS': 0, 'FAIL': 0}
+  counts = {'PASS': 0, 'FAIL': 0, 'SKIP': 0, 'CRASH': 0, 'TIMEOUT': 0}
 
   for test_run_result in test_run_results:
     if isinstance(test_run_result, list):
@@ -142,8 +143,16 @@ def GenerateJsonTestResultFormatDict(test_run_results, interrupted):
 
       element['expected'] = 'PASS'
 
-      result = 'PASS' if r.GetType(
-      ) == base_test_result.ResultType.PASS else 'FAIL'
+      if r.GetType() == base_test_result.ResultType.PASS:
+        result = 'PASS'
+      elif r.GetType() == base_test_result.ResultType.SKIP:
+        result = 'SKIP'
+      elif r.GetType() == base_test_result.ResultType.CRASH:
+        result = 'CRASH'
+      elif r.GetType() == base_test_result.ResultType.TIMEOUT:
+        result = 'TIMEOUT'
+      else:
+        result = 'FAIL'
 
       if 'actual' in element:
         element['actual'] += ' ' + result
@@ -220,7 +229,7 @@ def ParseResultsFromJson(json_results):
   results_list = []
   testsuite_runs = json_results['per_iteration_data']
   for testsuite_run in testsuite_runs:
-    for test, test_runs in testsuite_run.iteritems():
+    for test, test_runs in six.iteritems(testsuite_run):
       results_list.extend(
           [base_test_result.BaseTestResult(test,
                                            string_as_status(tr['status']),

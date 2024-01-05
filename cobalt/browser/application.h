@@ -30,7 +30,6 @@
 #include "cobalt/network/network_module.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/system_window/system_window.h"
-#include "starboard/time.h"
 #if SB_IS(EVERGREEN)
 #include "cobalt/updater/updater_module.h"
 #endif
@@ -55,11 +54,11 @@ class Application {
   // The passed in |quit_closure| can be called internally by the Application
   // to signal that it would like to quit.
   Application(const base::Closure& quit_closure, bool should_preload,
-              SbTimeMonotonic timestamp);
+              int64_t timestamp);
   virtual ~Application();
 
   // Start from a preloaded state.
-  void Start(SbTimeMonotonic timestamp);
+  void Start(int64_t timestamp);
   void Quit();
   void HandleStarboardEvent(const SbEvent* event);
 
@@ -70,7 +69,7 @@ class Application {
   void OnNetworkEvent(const base::Event* event);
 
   // Called to handle an application event.
-  void OnApplicationEvent(SbEventType event_type, SbTimeMonotonic timestamp);
+  void OnApplicationEvent(SbEventType event_type, int64_t timestamp);
 
   // Called to handle a window size change event.
   void OnWindowSizeChangedEvent(const base::Event* event);
@@ -175,8 +174,8 @@ class Application {
   void UpdatePeriodicStats();
   void DispatchEventInternal(base::Event* event);
 
-  base::Optional<SbTimeMonotonic> preload_timestamp_;
-  base::Optional<SbTimeMonotonic> start_timestamp_;
+  base::Optional<int64_t> preload_timestamp_;
+  base::Optional<int64_t> start_timestamp_;
 
   // Json PrefStore used for persistent settings.
   std::unique_ptr<persistent_storage::PersistentSettings> persistent_settings_;
@@ -204,13 +203,13 @@ class Application {
   // Lock for access to unconsumed_deep_link_ from different threads.
   base::Lock unconsumed_deep_link_lock_;
 
-  SbTimeMonotonic deep_link_timestamp_ = 0;
+  int64_t deep_link_timestamp_ = 0;
 
   // Called when deep links are consumed.
   void OnDeepLinkConsumedCallback(const std::string& link);
 
   // Dispatch events for deep links.
-  void DispatchDeepLink(const char* link, SbTimeMonotonic timestamp);
+  void DispatchDeepLink(const char* link, int64_t timestamp);
   void DispatchDeepLinkIfNotConsumed();
 
 

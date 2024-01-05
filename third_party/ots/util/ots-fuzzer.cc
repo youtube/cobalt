@@ -14,9 +14,19 @@
 #include "ots-memory-stream.h"
 #include "ots.h"
 
+namespace {
+
+class Context: public ots::OTSContext {
+ public:
+  Context() {}
+  void Message(int, const char*, ...) {}
+};
+
+}
+
 // Entry point for LibFuzzer.
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  ots::OTSContext context;
+  Context context;
   ots::ExpandingMemoryStream stream(size /*initial*/, size * 8 /*limit*/);
   bool ok = context.Process(&stream, data, size);
 

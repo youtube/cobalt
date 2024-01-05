@@ -10,7 +10,6 @@
 #include "starboard/string.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 
 #ifndef OPENSSL_SYS_STARBOARD
 # define OPENSSL_SYS_STARBOARD
@@ -234,6 +233,7 @@
 #define OPENSSL_port_free free
 #define OPENSSL_port_malloc malloc
 #define OPENSSL_port_realloc realloc
+#define OPENSSL_port_sscanf sscanf
 #define OPENSSL_port_strdup strdup
 
 #define OPENSSL_port_abort SbSystemBreakIntoDebugger
@@ -243,7 +243,6 @@
 #define OPENSSL_port_gmtime_r EzTimeTExplodeUTC
 #define OPENSSL_port_printf SbLogFormatF
 #define OPENSSL_port_printferr SbLogFormatF
-#define OPENSSL_port_sscanf SbStringScanF
 #define OPENSSL_port_strcasecmp SbStringCompareNoCase
 #define OPENSSL_port_strerror(x) ""
 #define OPENSSL_port_strncasecmp SbStringCompareNoCaseN
