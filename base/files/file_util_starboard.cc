@@ -303,18 +303,6 @@ FilePath GetHomeDir() {
   return path;
 }
 
-// bool CreateTemporaryFile(FilePath *path) {
-//   internal::AssertBlockingAllowed();
-//   DCHECK(path);
-
-//   FilePath directory;
-//   if (!GetTempDir(&directory)) {
-//     return false;
-//   }
-
-//   return CreateTemporaryFileInDir(directory, path);
-// }
-
 ScopedFILE CreateAndOpenTemporaryStreamInDir(const FilePath& dir,
                                              FilePath* path) {
   ScopedFILE stream;

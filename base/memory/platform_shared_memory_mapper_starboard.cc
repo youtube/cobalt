@@ -14,6 +14,8 @@
 
 #include "base/memory/platform_shared_memory_mapper.h"
 
+#include "base/notreached.h"
+
 namespace base {
 
 absl::optional<span<uint8_t>> PlatformSharedMemoryMapper::Map(
@@ -21,9 +23,12 @@ absl::optional<span<uint8_t>> PlatformSharedMemoryMapper::Map(
     bool write_allowed,
     uint64_t offset,
     size_t size) {
+  NOTREACHED();
   return absl::optional<span<uint8_t>>();
 }
 
-void PlatformSharedMemoryMapper::Unmap(span<uint8_t> mapping) {}
+void PlatformSharedMemoryMapper::Unmap(span<uint8_t> mapping) {
+  NOTREACHED();
+}
 
 }
