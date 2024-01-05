@@ -42,7 +42,7 @@ target(gtest_target_type, "speech_test") {
     "//cobalt//browser:test_dependencies_on_browser",
     "//cobalt/media",
     "//cobalt/test:run_all_unittests",
-    "//starboard",
+    "//starboard:starboard_group",
     "//testing/gtest",
   ]
 }

@@ -93,7 +93,7 @@ target(gtest_target_type, "nb_test") {
 
     deps = [
       ":nb",
-      "//starboard",
+      "//starboard:starboard_group",
       "//testing/gmock:gmock",
       "//testing/gtest",
     ]
@@ -106,7 +106,7 @@ target(gtest_target_type, "reuse_allocator_benchmark") {
   deps = [
     ":nb",
     ":nb_copy_test_data",
-    "//starboard",
+    "//starboard:starboard_group",
   ]
 }
 

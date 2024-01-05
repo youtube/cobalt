@@ -107,7 +107,7 @@ component("media") {
     "//cobalt/system_window:system_window",
     "//nb",
     "//net",
-    "//starboard",
+    "//starboard:starboard_group",
     "//third_party/chromium/media",
     "//third_party/protobuf:protobuf_lite",
     "//url",
