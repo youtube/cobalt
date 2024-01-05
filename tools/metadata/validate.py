@@ -29,7 +29,8 @@ log = logging.getLogger(__name__)
 
 def validate_content(textproto_content,
                      metadata_file_path='',
-                     warn_deprecations=False):
+                     warn_deprecations=False,
+                     reference_check=False):
   # pylint: disable=import-outside-toplevel
   from tools.metadata.gen import metadata_file_pb2
   metadata = metadata_file_pb2.Metadata()
@@ -49,13 +50,30 @@ def validate_content(textproto_content,
                 metadata_file_path)
   if warn_deprecations and len(third_party.url) > 0:
     log.warning('"url" field is deprecated, please use "identifier" instead')
+  if reference_check:
+    git_id = [id for id in third_party.identifier if id.type == 'Git'][0]
+    given_hash = git_id.version.strip()
+    dir_me = os.path.dirname(metadata_file_path)
+    args = [
+        'git', 'log', '-1', '--pretty=%H', f'--grep=^git-subtree-dir: {dir_me}$'
+    ]
+    logging.info('Running %s', ' '.join(args))
+    result = subprocess.run(args, check=True, text=True, capture_output=True)
+    expected_hash = result.stdout.strip()
+    if expected_hash != given_hash:
+      print(f'Error, hash in METADADATA: {given_hash}, in git: {expected_hash}')
+    if len(git_id.closest_version) == 0:
+      raise RuntimeError('Tag / version must be provided in closest_version:')
 
 
-def validate_file(metadata_file_path, warn_deprecations=False):
+def validate_file(metadata_file_path,
+                  warn_deprecations=False,
+                  reference_check=False):
   logging.info('Validating %s', metadata_file_path)
   with open(metadata_file_path, 'r', encoding='utf-8') as f:
     textproto_content = f.read()
-    validate_content(textproto_content, metadata_file_path, warn_deprecations)
+    validate_content(textproto_content, metadata_file_path, warn_deprecations,
+                     reference_check)
 
 
 def update_proto():
@@ -91,13 +109,22 @@ def main():
       help='Update generated proto definition')
   parser.add_argument(
       '-v', '--verbose', action='store_true', help='Verbose output')
+  parser.add_argument(
+      '-r',
+      '--reference-check',
+      action='store_true',
+      help='Verify that METADATA hash matches git subtrees')
   args = parser.parse_args()
   if args.verbose:
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
   if args.update_proto:
     update_proto()
   if args.files:
-    _ = [validate_file(file) for file in args.files if filter_files(file)]
+    _ = [
+        validate_file(file, reference_check=args.reference_check)
+        for file in args.files
+        if filter_files(file)
+    ]
   else:  # Run all
     for root, _, files in os.walk(os.getcwd()):
       for file in [f for f in files if filter_files(os.path.join(root, f))]:
