@@ -201,7 +201,7 @@ static_library("browser") {
     "//crypto",
     "//nb",
     "//net",
-    "//starboard",
+    "//starboard:starboard_group",
     "//starboard/common",
     "//third_party/icu:icui18n",
     "//third_party/protobuf:protobuf_lite",

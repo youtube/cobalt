@@ -240,7 +240,7 @@ target(gtest_target_type, "nplb") {
   configs -= [ "//build/config/compiler:no_exceptions" ]
 
   deps = [
-    "//starboard",
+    "//starboard:starboard_group",
     "//starboard/common",
     "//starboard/nplb/compiler_compliance:cpp14_supported",
     "//starboard/shared/starboard/media:media_util",

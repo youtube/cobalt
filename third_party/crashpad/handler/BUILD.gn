@@ -105,7 +105,7 @@ static_library("handler") {
   }
 
   if (crashpad_is_in_starboard) {
-    public_deps += [ "//starboard" ]
+    public_deps += [ "//starboard:starboard_group", ]
   }
 }
 

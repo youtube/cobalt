@@ -105,7 +105,7 @@ static_library("speech") {
     "//cobalt/script",
     "//cobalt/web:dom_exception",
     "//content/browser/speech",
-    "//starboard",
+    "//starboard:starboard_group",
     "//third_party/flac",
     "//third_party/protobuf:protobuf_lite",
     "//url",
