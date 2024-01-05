@@ -4,16 +4,12 @@
 
 #include "net/third_party/quiche/src/http2/tools/http2_frame_builder.h"
 
-#ifdef STARBOARD
-#include "starboard/client_porting/poem/inet_poem.h"
-#else
 #ifdef WIN32
 #include <winsock2.h>  // for htonl() functions
 #else
 #include <arpa/inet.h>
 #include <netinet/in.h>  // for htonl, htons
 #endif
-#endif  // STARBOARD
 
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"

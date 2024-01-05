@@ -365,6 +365,10 @@ static_library("c_internal") {
     "src/multibyte/wcsrtombs.c",
     "src/multibyte/wcstombs.c",
     "src/multibyte/wctob.c",
+    "src/network/htonl.c",
+    "src/network/htons.c",
+    "src/network/ntohl.c",
+    "src/network/ntohs.c",
     "src/prng/rand.c",
 
     # Starboardized implementations
