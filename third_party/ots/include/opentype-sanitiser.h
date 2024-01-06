@@ -5,13 +5,7 @@
 #ifndef OPENTYPE_SANITISER_H_
 #define OPENTYPE_SANITISER_H_
 
-#if defined(STARBOARD)
-#include "starboard/common/byte_swap.h"
-#define ots_ntohl(x) SB_NET_TO_HOST_U32(x)
-#define ots_ntohs(x) SB_NET_TO_HOST_U16(x)
-#define ots_htonl(x) SB_HOST_TO_NET_U32(x)
-#define ots_htons(x) SB_HOST_TO_NET_U16(x)
-#elif defined(_WIN32)
+#if defined(_WIN32)
 #include <stdlib.h>
 typedef signed char int8_t;
 typedef unsigned char uint8_t;

@@ -44,6 +44,7 @@
 #include <netinet/in.h> /* for ntohl() */
 #endif
 #else  // STARBOARD
+#include <netinet/in.h> /* for ntohl() */
 #include "starboard/client_porting/poem/stdio_poem.h"
 #endif  // STARBOARD
 
@@ -69,11 +70,8 @@ typedef FLAC__uint32 bwword;
 #if WORDS_BIGENDIAN
 #define SWAP_BE_WORD_TO_HOST(x) (x)
 #else
-#if defined(_MSC_VER) && !defined(COBALT)
+#ifdef _MSC_VER
 #define SWAP_BE_WORD_TO_HOST(x) local_swap32_(x)
-#elif defined(STARBOARD)
-#include "starboard/common/byte_swap.h"
-#define SWAP_BE_WORD_TO_HOST(x) SB_NET_TO_HOST_U32(x)
 #else
 #define SWAP_BE_WORD_TO_HOST(x) ntohl(x)
 #endif

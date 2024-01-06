@@ -17,6 +17,7 @@
 
 #if defined(STARBOARD) && defined(_MSC_VER)
 
+#include <stdint.h>
 #include <stdlib.h>
 
 #include "starboard/configuration.h"

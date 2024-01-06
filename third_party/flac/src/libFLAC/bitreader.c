@@ -44,9 +44,11 @@
 #else
 #include <netinet/in.h> /* for ntohl() */
 #endif
-#endif  // STARBOARD
+#else  // STARBOARD
+#include <netinet/in.h> /* for ntohl() */
 #include "starboard/client_porting/poem/stdio_poem.h"
 #include "starboard/client_porting/poem/string_poem.h"
+#endif  // STARBOARD
 
 #include <stdlib.h> /* for malloc() */
 
@@ -67,11 +69,8 @@ typedef FLAC__uint32 brword;
 #if WORDS_BIGENDIAN
 #define SWAP_BE_WORD_TO_HOST(x) (x)
 #else
-#if defined(_MSC_VER) && !defined(COBALT)
+#ifdef _MSC_VER
 #define SWAP_BE_WORD_TO_HOST(x) local_swap32_(x)
-#elif defined(STARBOARD)
-#include "starboard/common/byte_swap.h"
-#define SWAP_BE_WORD_TO_HOST(x) SB_NET_TO_HOST_U32(x)
 #else
 #define SWAP_BE_WORD_TO_HOST(x) ntohl(x)
 #endif
@@ -158,7 +157,7 @@ struct FLAC__BitReader {
 	FLAC__CPUInfo cpu_info;
 };
 
-#if defined(_MSC_VER) && defined(HAVE_WINSOCK_H) && !defined(COBALT)
+#ifdef _MSC_VER
 /* OPT: an MSVC built-in would be better */
 static _inline FLAC__uint32 local_swap32_(FLAC__uint32 x)
 {
