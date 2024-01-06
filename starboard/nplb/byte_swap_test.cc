@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/byte_swap.h"
+#if SB_API_VERSION < 16
+
+#include "starboard/byte_swap.h"
 
 #include <iomanip>
 
@@ -36,7 +38,6 @@ const int64_t kTestS64 = static_cast<int64_t>(SB_INT64_C(0xFEDCBA9876543210));
 const int64_t kExpectedS64 =
     static_cast<int64_t>(SB_INT64_C(0x1032547698BADCFE));
 
-#if SB_API_VERSION < 16
 TEST(SbByteSwapTest, SunnyDay) {
   EXPECT_EQ(kExpectedU16, SbByteSwapU16(kTestU16));
   EXPECT_EQ(kExpectedS16, SbByteSwapS16(kTestS16));
@@ -47,7 +48,6 @@ TEST(SbByteSwapTest, SunnyDay) {
   EXPECT_EQ(kExpectedU64, SbByteSwapU64(kTestU64));
   EXPECT_EQ(kExpectedS64, SbByteSwapS64(kTestS64));
 }
-#endif
 
 #if SB_IS(BIG_ENDIAN)
 TEST(SbByteSwapTest, BigEndian) {
@@ -76,3 +76,5 @@ TEST(SbByteSwapTest, LittleEndian) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+
+#endif  // SB_API_VERSION < 16
