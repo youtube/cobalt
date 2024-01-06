@@ -29,6 +29,7 @@
 #include "starboard/common/socket.h"
 #include "starboard/common/string.h"
 #include "starboard/common/thread.h"
+#include "starboard/common/time.h"
 #include "starboard/once.h"
 #include "starboard/socket_waiter.h"
 
@@ -267,7 +268,7 @@ class SocketListener {
 
  private:
   void Run(Semaphore* joined_sema) {
-    while (!joined_sema->TakeWait(100 * kSbTimeMillisecond)) {
+    while (!joined_sema->TakeWait(100'000)) {
       scoped_ptr<Socket> client_connection(listen_socket_->Accept());
 
       if (client_connection) {
@@ -314,7 +315,7 @@ class NetLogServer {
     ScopedLock lock(socket_mutex_);
     client_socket_ = client_socket.Pass();
     client_socket_->SetSendBufferSize(NET_LOG_SOCKET_BUFFER_SIZE);
-    client_socket_->SetTcpKeepAlive(true, kSbTimeSecond);
+    client_socket_->SetTcpKeepAlive(true, 1'000'000);
   }
 
   // Has a client ever connected?
@@ -430,21 +431,21 @@ class ScopeGuard {
 
 const char kNetLogCommandSwitchWait[] = "net_log_wait_for_connection";
 
-void NetLogWaitForClientConnected(SbTime timeout) {
+void NetLogWaitForClientConnected(int64_t timeout) {
 #if !SB_LOGGING_IS_OFFICIAL_BUILD
   ScopeGuard guard;
   if (guard.IsEnabled()) {
-    SbTimeMonotonic expire_time = (timeout >= 0) && (timeout < kSbTimeMax)
-                                      ? SbTimeGetMonotonicNow() + timeout
-                                      : kSbTimeMax;
+    int64_t expire_time = (timeout >= 0) && (timeout < kSbInt64Max)
+                              ? CurrentMonotonicTime() + timeout
+                              : kSbInt64Max;
     while (true) {
       if (NetLogServer::Instance()->HasClientConnected()) {
         break;
       }
-      if (SbTimeGetMonotonicNow() > expire_time) {
+      if (CurrentMonotonicTime() > expire_time) {
         break;
       }
-      SbThreadSleep(kSbTimeMillisecond);
+      SbThreadSleep(1000);
     }
   }
 #endif

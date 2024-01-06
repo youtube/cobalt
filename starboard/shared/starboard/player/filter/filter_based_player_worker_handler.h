@@ -32,7 +32,6 @@
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/player_worker.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace shared {
@@ -53,7 +52,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
                      GetPlayerStateCB get_player_state_cb,
                      UpdatePlayerStateCB update_player_state_cb,
                      UpdatePlayerErrorCB update_player_error_cb) override;
-  HandlerResult Seek(SbTime seek_to_time, int ticket) override;
+  HandlerResult Seek(int64_t seek_to_time, int ticket) override;
   HandlerResult WriteSamples(const InputBuffers& input_buffers,
                              int* samples_written) override;
   HandlerResult WriteEndOfStream(SbMediaType sample_type) override;

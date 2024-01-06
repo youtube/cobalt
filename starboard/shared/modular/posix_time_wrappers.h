@@ -89,8 +89,13 @@ struct musl_timeval {
   int64_t /* time_t */ tv_sec;
   int64_t /* suseconds_t */ tv_usec;
 };
+// Copying macro constants from //third_party/musl/include/time.h
+#define MUSL_CLOCK_REALTIME 0
+#define MUSL_CLOCK_MONOTONIC 1
+#define MUSL_CLOCK_PROCESS_CPUTIME_ID 2
+#define MUSL_CLOCK_THREAD_CPUTIME_ID 3
 
-SB_EXPORT int __wrap_clock_gettime(int /*clockid_t */ clock_id,
+SB_EXPORT int __wrap_clock_gettime(int /*clockid_t */ musl_clock_id,
                                    struct musl_timespec* mts);
 
 SB_EXPORT int __wrap_gettimeofday(struct musl_timeval* mtv, void* tzp);

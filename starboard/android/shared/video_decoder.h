@@ -79,7 +79,7 @@ class VideoDecoder
   void Initialize(const DecoderStatusCB& decoder_status_cb,
                   const ErrorCB& error_cb) override;
   size_t GetPrerollFrameCount() const override;
-  SbTime GetPrerollTimeout() const override;
+  int64_t GetPrerollTimeout() const override;
   // As we hold output buffers received from MediaCodec, the max number of
   // cached frames depends on the max number of output buffers in MediaCodec,
   // which is device dependent. The media decoder may stall if we hold all
@@ -115,7 +115,7 @@ class VideoDecoder
   void OnFlushing() override;
 
   void TryToSignalPrerollForTunnelMode();
-  void OnTunnelModeFrameRendered(SbTime frame_timestamp);
+  void OnTunnelModeFrameRendered(int64_t frame_timestamp);
   void OnTunnelModePrerollTimeout();
   void OnTunnelModeCheckForNeedMoreInput();
 
@@ -188,7 +188,7 @@ class VideoDecoder
   int input_buffer_written_ = 0;
   bool first_texture_received_ = false;
   bool end_of_stream_written_ = false;
-  volatile SbTime first_buffer_timestamp_;
+  volatile int64_t first_buffer_timestamp_;  // microseconds
   atomic_bool has_new_texture_available_;
 
   // Use |owns_video_surface_| only on decoder thread, to avoid unnecessary

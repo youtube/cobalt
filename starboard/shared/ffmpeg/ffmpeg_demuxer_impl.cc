@@ -353,13 +353,13 @@ int64_t AVIOSeekOperation(void* opaque, int64_t offset, int whence) {
 
 int64_t ConvertFromTimeBaseToMicros(AVRational time_base, int64_t timestamp) {
   return FFmpegDemuxer::GetDispatch()->av_rescale_rnd(
-      timestamp, time_base.num * kSbTimeSecond, time_base.den,
+      timestamp, time_base.num * 1'000'000LL, time_base.den,
       static_cast<int>(AV_ROUND_NEAR_INF));
 }
 
 int64_t ConvertMicrosToTimeBase(AVRational time_base, int64_t timestamp_us) {
   return FFmpegDemuxer::GetDispatch()->av_rescale_rnd(
-      timestamp_us, time_base.den, time_base.num * kSbTimeSecond,
+      timestamp_us, time_base.den, time_base.num * 1'000'000LL,
       static_cast<int>(AV_ROUND_NEAR_INF));
 }
 
@@ -618,15 +618,15 @@ FFmpegDemuxerImpl<FFMPEG>::GetVideoConfig() const {
   return video_config_;
 }
 
-SbTime FFmpegDemuxerImpl<FFMPEG>::GetDuration() const {
+int64_t FFmpegDemuxerImpl<FFMPEG>::GetDuration() const {
   return duration_us_;
 }
 
-SbTime FFmpegDemuxerImpl<FFMPEG>::GetStartTime() const {
+int64_t FFmpegDemuxerImpl<FFMPEG>::GetStartTime() const {
   return start_time_;
 }
 
-SbTime FFmpegDemuxerImpl<FFMPEG>::GetTimelineOffset() const {
+int64_t FFmpegDemuxerImpl<FFMPEG>::GetTimelineOffset() const {
   return timeline_offset_us_;
 }
 

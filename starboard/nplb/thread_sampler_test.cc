@@ -13,9 +13,9 @@
 // limitations under the License.
 
 #include "starboard/common/atomic.h"
+#include "starboard/common/time.h"
 #include "starboard/nplb/thread_helpers.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -29,7 +29,7 @@ class CountingThread : public AbstractTestThread {
   void Run() override {
     while (!stop_.load()) {
       counter_.increment();
-      SbThreadSleep(kSbTimeMillisecond);
+      SbThreadSleep(1000);
     }
   }
 
@@ -40,10 +40,10 @@ class CountingThread : public AbstractTestThread {
 
   int32_t GetCount() { return counter_.load(); }
 
-  bool IsCounting(SbTime timeout) {
+  bool IsCounting(int64_t timeout) {
     int32_t end_count = GetCount() + 2;
-    SbTime end_time = SbTimeGetNow() + timeout;
-    while (SbTimeGetNow() < end_time) {
+    int64_t end_time = CurrentPosixTime() + timeout;
+    while (CurrentPosixTime() < end_time) {
       if (GetCount() >= end_count)
         return true;
       SbThreadYield();
@@ -117,15 +117,15 @@ TEST(ThreadSamplerTest, SunnyDayThreadFreeze) {
   EXPECT_TRUE(SbThreadSamplerIsValid(sampler));
 
   // Check that the thread is counting, with a long timeout to avoid flakiness.
-  EXPECT_TRUE(counting_thread.IsCounting(4 * kSbTimeSecond));
+  EXPECT_TRUE(counting_thread.IsCounting(4'000'000));
 
   // Check that the thread stops counting when frozen.
   EXPECT_NE(kSbThreadContextInvalid, SbThreadSamplerFreeze(sampler));
-  EXPECT_FALSE(counting_thread.IsCounting(100 * kSbTimeMillisecond));
+  EXPECT_FALSE(counting_thread.IsCounting(100'000));
 
   // Check that the thread is counting again when thawed.
   EXPECT_TRUE(SbThreadSamplerThaw(sampler));
-  EXPECT_TRUE(counting_thread.IsCounting(4 * kSbTimeSecond));
+  EXPECT_TRUE(counting_thread.IsCounting(4'000'000));
 
   SbThreadSamplerDestroy(sampler);
 }
@@ -144,7 +144,7 @@ TEST(ThreadSamplerTest, SunnyDayThreadContextPointers) {
 
   // Wait until the thread is counting before freezing it so that we know it's
   // in a valid stack frame.
-  EXPECT_TRUE(counting_thread.IsCounting(4 * kSbTimeSecond));
+  EXPECT_TRUE(counting_thread.IsCounting(4'000'000));
 
   SbThreadContext ctx = SbThreadSamplerFreeze(sampler);
   EXPECT_TRUE(SbThreadContextIsValid(ctx));

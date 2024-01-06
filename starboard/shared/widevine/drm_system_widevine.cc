@@ -30,7 +30,6 @@
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/widevine/widevine_storage.h"
 #include "starboard/shared/widevine/widevine_timer.h"
-#include "starboard/time.h"
 #include "third_party/internal/ce_cdm/core/include/log.h"  // for wvcdm::InitLogging();
 #include "third_party/internal/ce_cdm/core/include/string_conversions.h"
 
@@ -48,7 +47,7 @@ const char kWidevineStorageFileName[] = "wvcdm.dat";
 // Key usage may be blocked due to incomplete HDCP authentication which could
 // take up to 5 seconds. For such a case it is good to give a try few times to
 // get HDCP authentication complete. We set a timeout of 6 seconds for retries.
-const SbTimeMonotonic kUnblockKeyRetryTimeout = kSbTimeSecond * 6;
+const int64_t kUnblockKeyRetryTimeoutUsec = 6'000'000;
 
 DECLARE_INSTANCE_COUNTER(DrmSystemWidevine);
 
@@ -500,11 +499,11 @@ SbDrmSystemPrivate::DecryptStatus DrmSystemWidevine::Decrypt(
           {
             ScopedLock lock(unblock_key_retry_mutex_);
             if (!unblock_key_retry_start_time_) {
-              unblock_key_retry_start_time_ = SbTimeGetMonotonicNow();
+              unblock_key_retry_start_time_ = CurrentMonotonicTime();
             }
           }
-          if (SbTimeGetMonotonicNow() - unblock_key_retry_start_time_.value() <
-              kUnblockKeyRetryTimeout) {
+          if (CurrentMonotonicTime() - unblock_key_retry_start_time_.value() <
+              kUnblockKeyRetryTimeoutUsec) {
             return kRetry;
           }
         }

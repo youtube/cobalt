@@ -28,7 +28,7 @@ namespace filter {
 
 AudioRendererSinkImpl::AudioRendererSinkImpl()
     : create_audio_sink_func_(
-          [](SbTime start_media_time,
+          [](int64_t start_media_time,
              int channels,
              int sampling_frequency_hz,
              SbMediaAudioSampleType audio_sample_type,
@@ -78,7 +78,7 @@ bool AudioRendererSinkImpl::HasStarted() const {
 }
 
 void AudioRendererSinkImpl::Start(
-    SbTime media_start_time,
+    int64_t media_start_time,
     int channels,
     int sampling_frequency_hz,
     SbMediaAudioSampleType audio_sample_type,
@@ -167,7 +167,7 @@ void AudioRendererSinkImpl::UpdateSourceStatusFunc(int* frames_in_buffer,
 
 // static
 void AudioRendererSinkImpl::ConsumeFramesFunc(int frames_consumed,
-                                              SbTime frames_consumed_at,
+                                              int64_t frames_consumed_at,
                                               void* context) {
   AudioRendererSinkImpl* audio_renderer_sink =
       static_cast<AudioRendererSinkImpl*>(context);

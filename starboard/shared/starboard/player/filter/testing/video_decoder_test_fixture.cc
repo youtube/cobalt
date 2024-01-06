@@ -27,6 +27,7 @@
 #include "starboard/common/mutex.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
@@ -39,7 +40,6 @@
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -157,11 +157,10 @@ void VideoDecoderTestFixture::AssertInvalidDecodeTarget() {
 }
 #endif  // SB_HAS(GLES2)
 
-void VideoDecoderTestFixture::WaitForNextEvent(Event* event,
-                                               SbTimeMonotonic timeout) {
+void VideoDecoderTestFixture::WaitForNextEvent(Event* event, int64_t timeout) {
   ASSERT_TRUE(event);
 
-  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+  int64_t start = CurrentMonotonicTime();
   do {
     job_queue_->RunUntilIdle();
     GetDecodeTargetWhenSupported();
@@ -180,15 +179,14 @@ void VideoDecoderTestFixture::WaitForNextEvent(Event* event,
         return;
       }
     }
-    SbThreadSleep(kSbTimeMillisecond);
-  } while (SbTimeGetMonotonicNow() - start < timeout);
+    SbThreadSleep(1000);
+  } while (CurrentMonotonicTime() - start < timeout);
   event->status = kTimeout;
   SB_LOG(WARNING) << "WaitForNextEvent() timeout.";
 }
 
 bool VideoDecoderTestFixture::HasPendingEvents() {
-  const SbTime kDelay = 5 * kSbTimeMillisecond;
-  SbThreadSleep(kDelay);
+  SbThreadSleep(5000);
   ScopedLock scoped_lock(mutex_);
   return !event_queue_.empty();
 }

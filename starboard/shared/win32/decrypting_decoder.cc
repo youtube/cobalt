@@ -148,7 +148,7 @@ bool DecryptingDecoder::TryWriteInputBuffer(
     int size = input_buffer->size() - bytes_to_skip_in_sample;
 
     std::int64_t win32_timestamp =
-        ConvertToWin32Time(input_buffer->timestamp());
+        ConvertUsecToWin32Time(input_buffer->timestamp());
     const uint8_t* iv = NULL;
     int iv_size = 0;
     const SbDrmSubSampleMapping* subsample_mapping = NULL;

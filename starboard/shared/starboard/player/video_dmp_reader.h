@@ -47,7 +47,7 @@ class VideoDmpReader {
 
   class AccessUnit {
    public:
-    AccessUnit(SbTime timestamp,
+    AccessUnit(int64_t timestamp,
                const SbDrmSampleInfoWithSubSampleMapping* drm_sample_info,
                std::vector<uint8_t> data)
         : timestamp_(timestamp),
@@ -56,14 +56,14 @@ class VideoDmpReader {
                                ? SbDrmSampleInfoWithSubSampleMapping()
                                : *drm_sample_info),
           data_(std::move(data)) {}
-    SbTime timestamp() const { return timestamp_; }
+    int64_t timestamp() const { return timestamp_; }
     const SbDrmSampleInfo* drm_sample_info() const {
       return drm_sample_info_present_ ? &drm_sample_info_ : NULL;
     }
     const std::vector<uint8_t>& data() const { return data_; }
 
    private:
-    SbTime timestamp_;
+    int64_t timestamp_;  // microseconds
     bool drm_sample_info_present_;
     SbDrmSampleInfoWithSubSampleMapping drm_sample_info_;
     std::vector<uint8_t> data_;
@@ -71,7 +71,7 @@ class VideoDmpReader {
 
   class AudioAccessUnit : public AccessUnit {
    public:
-    AudioAccessUnit(SbTime timestamp,
+    AudioAccessUnit(int64_t timestamp,
                     const SbDrmSampleInfoWithSubSampleMapping* drm_sample_info,
                     std::vector<uint8_t> data,
                     media::AudioSampleInfo audio_sample_info)
@@ -87,7 +87,7 @@ class VideoDmpReader {
 
   class VideoAccessUnit : public AccessUnit {
    public:
-    VideoAccessUnit(SbTime timestamp,
+    VideoAccessUnit(int64_t timestamp,
                     const SbDrmSampleInfoWithSubSampleMapping* drm_sample_info,
                     std::vector<uint8_t> data,
                     media::VideoSampleInfo video_sample_info)
@@ -117,13 +117,13 @@ class VideoDmpReader {
   }
   int64_t audio_bitrate() const { return dmp_info_.audio_bitrate; }
   std::string audio_mime_type() const;
-  SbTime audio_duration() const { return dmp_info_.audio_duration; }
+  int64_t audio_duration() const { return dmp_info_.audio_duration; }
 
   SbMediaVideoCodec video_codec() const { return dmp_info_.video_codec; }
   int64_t video_bitrate() const { return dmp_info_.video_bitrate; }
   int video_fps() const { return dmp_info_.video_fps; }
   std::string video_mime_type();
-  SbTime video_duration() const { return dmp_info_.video_duration; }
+  int64_t video_duration() const { return dmp_info_.video_duration; }
 
   size_t number_of_audio_buffers() const {
     return dmp_info_.audio_access_units_size;

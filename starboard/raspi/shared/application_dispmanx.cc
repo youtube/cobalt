@@ -26,9 +26,7 @@
 #include "starboard/memory.h"
 #include "starboard/raspi/shared/window_internal.h"
 #include "starboard/shared/linux/dev_input/dev_input.h"
-#include "starboard/shared/posix/time_internal.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace raspi {
@@ -119,7 +117,7 @@ ApplicationDispmanx::PollNextSystemEvent() {
 }
 
 ::starboard::shared::starboard::Application::Event*
-ApplicationDispmanx::WaitForSystemEventWithTimeout(SbTime duration) {
+ApplicationDispmanx::WaitForSystemEventWithTimeout(int64_t duration) {
   SB_DCHECK(input_);
   Event* event = input_->WaitForSystemEventWithTimeout(duration);
   return event;

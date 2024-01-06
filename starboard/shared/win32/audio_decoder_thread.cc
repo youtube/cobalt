@@ -111,7 +111,7 @@ void AudioDecoderThread::Run() {
     }
 
     if (!work_done) {
-      semaphore_.TakeWait(kSbTimeMillisecond);
+      semaphore_.TakeWait(1000);
     }
   }
 }

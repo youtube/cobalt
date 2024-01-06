@@ -84,7 +84,7 @@ class MinRequiredFramesTester {
                                      bool* is_eos_reached,
                                      void* context);
   static void ConsumeFramesFunc(int frames_consumed,
-                                SbTime frames_consumed_at,
+                                int64_t frames_consumed_at,
                                 void* context);
   static void ErrorFunc(bool capability_changed,
                         const std::string& error_message,

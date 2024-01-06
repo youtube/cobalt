@@ -22,9 +22,9 @@
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
+#include "starboard/common/time.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 
 #ifndef __cplusplus
 #error "Only C++ files can include this header."
@@ -76,11 +76,11 @@ class JobQueue {
       return job_queue_->BelongsToCurrentThread();
     }
 
-    JobToken Schedule(const Job& job, SbTimeMonotonic delay = 0) {
-      return job_queue_->Schedule(job, this, delay);
+    JobToken Schedule(const Job& job, int64_t delay_usec = 0) {
+      return job_queue_->Schedule(job, this, delay_usec);
     }
-    JobToken Schedule(Job&& job, SbTimeMonotonic delay = 0) {
-      return job_queue_->Schedule(std::move(job), this, delay);
+    JobToken Schedule(Job&& job, int64_t delay_usec = 0) {
+      return job_queue_->Schedule(std::move(job), this, delay_usec);
     }
 
     void RemoveJobByToken(JobToken job_token) {
@@ -126,8 +126,8 @@ class JobQueue {
   JobQueue();
   ~JobQueue();
 
-  JobToken Schedule(const Job& job, SbTimeMonotonic delay = 0);
-  JobToken Schedule(Job&& job, SbTimeMonotonic delay = 0);
+  JobToken Schedule(const Job& job, int64_t delay_usec = 0);
+  JobToken Schedule(Job&& job, int64_t delay_usec = 0);
   void ScheduleAndWait(const Job& job);
   void ScheduleAndWait(Job&& job);
   void RemoveJobByToken(JobToken job_token);
@@ -146,7 +146,7 @@ class JobQueue {
  private:
 #if ENABLE_JOB_QUEUE_PROFILING
   // Reset the max value periodically to catch all local peaks.
-  static const SbTime kProfileResetInterval = kSbTimeSecond;
+  static const int64_t kProfileResetIntervalUsec = 1'000'000;  // 1 second
   static const int kProfileStackDepth = 10;
 #endif  // ENABLE_JOB_QUEUE_PROFILING
 
@@ -159,10 +159,10 @@ class JobQueue {
     int stack_size;
 #endif  // ENABLE_JOB_QUEUE_PROFILING
   };
-  typedef std::multimap<SbTimeMonotonic, JobRecord> TimeToJobRecordMap;
+  typedef std::multimap<int64_t, JobRecord> TimeToJobRecordMap;
 
-  JobToken Schedule(const Job& job, JobOwner* owner, SbTimeMonotonic delay);
-  JobToken Schedule(Job&& job, JobOwner* owner, SbTimeMonotonic delay);
+  JobToken Schedule(const Job& job, JobOwner* owner, int64_t delay_usec);
+  JobToken Schedule(Job&& job, JobOwner* owner, int64_t delay_usec);
   void RemoveJobsByOwner(JobOwner* owner);
   // Return true if a job is run, otherwise return false.  When there is no job
   // ready to run currently and |wait_for_next_job| is true, the function will
@@ -179,9 +179,9 @@ class JobQueue {
   bool stopped_ = false;
 
 #if ENABLE_JOB_QUEUE_PROFILING
-  SbTimeMonotonic last_reset_time_ = SbTimeGetMonotonicNow();
+  int64_t last_reset_time_ = CurrentMonotonicTime();
   JobRecord job_record_with_max_interval_;
-  SbTimeMonotonic max_job_interval_ = 0;
+  int64_t max_job_interval_ = 0;
   int jobs_processed_ = 0;
   int wait_times_ = 0;
 #endif  // ENABLE_JOB_QUEUE_PROFILING

@@ -15,6 +15,6 @@
 #include "starboard/socket_waiter.h"
 
 SbSocketWaiterResult SbSocketWaiterWaitTimed(SbSocketWaiter waiter,
-                                             SbTime duration) {
+                                             int64_t duration) {
   return kSbSocketWaiterResultInvalid;
 }

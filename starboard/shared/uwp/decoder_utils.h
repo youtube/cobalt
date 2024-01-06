@@ -21,7 +21,6 @@
 #include <algorithm>
 
 #include "starboard/media.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace shared {
@@ -33,7 +32,7 @@ Microsoft::WRL::ComPtr<ID3D11Device> GetDirectX11Device(void* display);
 // in containers. Useful in decoders for getting data from buffers keeped in
 // input queues;
 template <typename Container>
-const auto FindByTimestamp(const Container& container, SbTime timestamp) {
+const auto FindByTimestamp(const Container& container, int64_t timestamp) {
   return std::find_if(container.begin(), container.end(),
                       [=](const typename Container::value_type& value) {
                         return value->timestamp() == timestamp;
@@ -44,7 +43,7 @@ const auto FindByTimestamp(const Container& container, SbTime timestamp) {
 // from containers. Useful in decoders for cleaning up input and output queues
 // from expired buffers.
 template <typename Container>
-void RemoveByTimestamp(Container* container, SbTime timestamp) {
+void RemoveByTimestamp(Container* container, int64_t timestamp) {
   auto to_remove =
       std::find_if(container->begin(), container->end(),
                    [=](const typename Container::value_type& value) {

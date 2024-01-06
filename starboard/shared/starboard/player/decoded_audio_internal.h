@@ -39,13 +39,13 @@ class DecodedAudio : public RefCountedThreadSafe<DecodedAudio> {
   DecodedAudio(int channels,
                SbMediaAudioSampleType sample_type,
                SbMediaAudioFrameStorageType storage_type,
-               SbTime timestamp,
+               int64_t timestamp,
                int size_in_bytes);
 
   DecodedAudio(int channels,
                SbMediaAudioSampleType sample_type,
                SbMediaAudioFrameStorageType storage_type,
-               SbTime timestamp,
+               int64_t timestamp,
                int size_in_bytes,
                Buffer&& storage);
 
@@ -54,7 +54,7 @@ class DecodedAudio : public RefCountedThreadSafe<DecodedAudio> {
   SbMediaAudioFrameStorageType storage_type() const { return storage_type_; }
 
   bool is_end_of_stream() const { return channels_ == 0; }
-  SbTime timestamp() const { return timestamp_; }
+  int64_t timestamp() const { return timestamp_; }
   const uint8_t* data() const { return storage_.data() + offset_in_bytes_; }
   const int16_t* data_as_int16() const {
     return reinterpret_cast<const int16_t*>(storage_.data() + offset_in_bytes_);
@@ -78,10 +78,10 @@ class DecodedAudio : public RefCountedThreadSafe<DecodedAudio> {
   // During seeking, the target time can be in the middle of the DecodedAudio
   // object.  This function will adjust the object to the seek target time by
   // removing the frames in the beginning that are before the seek target time.
-  void AdjustForSeekTime(int sample_rate, SbTime seeking_to_time);
+  void AdjustForSeekTime(int sample_rate, int64_t seeking_to_time);
   void AdjustForDiscardedDurations(int sample_rate,
-                                   SbTime discarded_duration_from_front,
-                                   SbTime discarded_duration_from_back);
+                                   int64_t discarded_duration_from_front,
+                                   int64_t discarded_duration_from_back);
 
   bool IsFormat(SbMediaAudioSampleType sample_type,
                 SbMediaAudioFrameStorageType storage_type) const;
@@ -101,8 +101,8 @@ class DecodedAudio : public RefCountedThreadSafe<DecodedAudio> {
   const int channels_;
   const SbMediaAudioSampleType sample_type_;
   const SbMediaAudioFrameStorageType storage_type_;
-  // The timestamp of the first audio frame.
-  SbTime timestamp_;
+  // The timestamp of the first audio frame in microseconds.
+  int64_t timestamp_;
   Buffer storage_;
   // The audio samples to be played are stored in the memory region starts from
   // `storage_.data() + offset_in_bytes_`, `size_in_bytes_` bytes in total.

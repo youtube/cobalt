@@ -23,7 +23,6 @@
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
 #include "starboard/shared/win32/video_decoder.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 #include "starboard/xb1/shared/internal_shims.h"
 #if defined(INTERNAL_BUILD)
 #include "internal/starboard/xb1/dav1d_video_decoder.h"
@@ -46,7 +45,7 @@ using ::starboard::xb1::shared::GpuVideoDecoderBase;
 using ::starboard::xb1::shared::VpxVideoDecoder;
 #endif  // defined(INTERNAL_BUILD)
 
-const SbTime kReleaseTimeout = kSbTimeSecond;
+const int64_t kReleaseTimeoutUsec = 1'000'000;
 
 // kFrameBuffersPoolMemorySize is the size of gpu memory heap for common use
 // by vpx & av1 sw decoders.
@@ -115,9 +114,9 @@ void ExtendedResourcesManager::Run() {
 
   bool retrying_acquire = false;
   // Delay before retry acquiring to avoid pinning a core.
-  constexpr SbTime kRetryDelay = kSbTimeSecond / 10;
+  constexpr int64_t kRetryDelayUsec = 1'000'000 / 10;
   for (;;) {
-    switch (retrying_acquire ? event_queue_.GetTimed(kRetryDelay)
+    switch (retrying_acquire ? event_queue_.GetTimed(kRetryDelayUsec)
                              : event_queue_.Get()) {
       case kTimeout:
         SB_DCHECK(retrying_acquire);
@@ -324,7 +323,7 @@ bool ExtendedResourcesManager::AcquireExtendedResourcesInternal() {
           }
           semaphore.Put();
         });
-    if (semaphore.TakeWait(10 * kSbTimeSecond)) {
+    if (semaphore.TakeWait(10'000'000)) {
       acquisition_condition_.Signal();
       // If extended resource acquisition was not successful after the wait
       // time, signal a nonrecoverable failure, unless a release of
@@ -539,7 +538,7 @@ void ExtendedResourcesManager::ReleaseExtendedResourcesInternal() {
         pending_extended_resources_release_.store(false);
         semaphore.Put();
       });
-  if (!semaphore.TakeWait(kReleaseTimeout)) {
+  if (!semaphore.TakeWait(kReleaseTimeoutUsec)) {
     acquisition_condition_.Signal();
     // If extended resources are still acquired or the release is still pending
     // after the wait time, signal a nonrecoverable failure.

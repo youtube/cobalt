@@ -55,7 +55,7 @@ class SbSocketWaiterPrivate {
            bool persistent);
   bool Remove(SbSocket socket);
   void Wait();
-  SbSocketWaiterResult WaitTimed(SbTime duration);
+  SbSocketWaiterResult WaitTimed(int64_t duration_usec);
   void WakeUp();
   void HandleWakeUpRead();
 

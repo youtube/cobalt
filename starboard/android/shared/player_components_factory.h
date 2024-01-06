@@ -76,7 +76,7 @@ class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
  public:
   explicit AudioRendererSinkAndroid(int tunnel_mode_audio_session_id = -1)
       : AudioRendererSinkImpl(
-            [=](SbTime start_media_time,
+            [=](int64_t start_media_time,
                 int channels,
                 int sampling_frequency_hz,
                 SbMediaAudioSampleType audio_sample_type,
@@ -130,7 +130,7 @@ class AudioRendererSinkCallbackStub
     *is_playing = true;
     *is_eos_reached = false;
   }
-  void ConsumeFrames(int frames_consumed, SbTime frames_consumed_at) override {
+  void ConsumeFrames(int frames_consumed, int64_t frames_consumed_at) override {
     SB_DCHECK(frames_consumed == 0);
   }
 

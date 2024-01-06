@@ -26,8 +26,8 @@ namespace shared {
 
 namespace {
 
-const SbTimeMonotonic kBufferTooLateThreshold = -32 * kSbTimeMillisecond;
-const SbTimeMonotonic kBufferReadyThreshold = 50 * kSbTimeMillisecond;
+const int64_t kBufferTooLateThreshold = -32'000;  // -32ms
+const int64_t kBufferReadyThreshold = 50'000;     // 50ms
 
 jlong GetSystemNanoTime() {
   timespec now;
@@ -63,7 +63,7 @@ void VideoRenderAlgorithm::Render(
     bool is_audio_eos_played;
     bool is_underflow;
     double playback_rate;
-    SbTime playback_time = media_time_provider->GetCurrentMediaTime(
+    int64_t playback_time = media_time_provider->GetCurrentMediaTime(
         &is_audio_playing, &is_audio_eos_played, &is_underflow, &playback_rate);
     if (!is_audio_playing) {
       break;
@@ -93,15 +93,13 @@ void VideoRenderAlgorithm::Render(
     jlong early_us = frames->front()->timestamp() - playback_time;
 
     auto system_time_ns = GetSystemNanoTime();
-    auto unadjusted_frame_release_time_ns =
-        system_time_ns + (early_us * kSbTimeNanosecondsPerMicrosecond);
+    auto unadjusted_frame_release_time_ns = system_time_ns + (early_us * 1000);
 
     auto adjusted_release_time_ns =
         video_frame_release_time_helper_.AdjustReleaseTime(
             frames->front()->timestamp(), unadjusted_frame_release_time_ns);
 
-    early_us = (adjusted_release_time_ns - system_time_ns) /
-               kSbTimeNanosecondsPerMicrosecond;
+    early_us = (adjusted_release_time_ns - system_time_ns) / 1000;
 
     if (early_us < kBufferTooLateThreshold) {
       frames->pop_front();

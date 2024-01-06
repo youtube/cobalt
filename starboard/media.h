@@ -22,7 +22,6 @@
 
 #include "starboard/drm.h"
 #include "starboard/export.h"
-#include "starboard/time.h"
 #include "starboard/types.h"
 
 #ifdef __cplusplus
@@ -526,7 +525,7 @@ typedef struct SbMediaAudioConfiguration {
 
   // The expected latency of audio over this output, in microseconds, or |0| if
   // this device cannot provide this information.
-  SbTime latency;
+  int64_t latency;
 
   // The type of audio coding used over this connection.
   SbMediaAudioCodingType coding_type;
@@ -572,8 +571,8 @@ typedef struct SbMediaAudioStreamInfo {
 typedef struct SbMediaAudioSampleInfo {
   // The set of information of the video stream associated with this sample.
   SbMediaAudioStreamInfo stream_info;
-  SbTime discarded_duration_from_front;
-  SbTime discarded_duration_from_back;
+  int64_t discarded_duration_from_front;  // in microseconds.
+  int64_t discarded_duration_from_back;   // in microseconds.
 } SbMediaAudioSampleInfo;
 
 #else  // SB_API_VERSION >= 15
@@ -731,15 +730,16 @@ SB_EXPORT int SbMediaGetBufferAllocationUnit();
 // difficulty if this value is too low.
 SB_EXPORT int SbMediaGetAudioBufferBudget();
 
-// Specifies the duration threshold of media source garbage collection.  When
-// the accumulated duration in a source buffer exceeds this value, the media
-// source implementation will try to eject existing buffers from the cache. This
-// is usually triggered when the video being played has a simple content and the
-// encoded data is small.  In such case this can limit how much is allocated for
-// the book keeping data of the media buffers and avoid OOM of system heap. This
-// should return 170 seconds for most of the platforms.  But it can be further
-// reduced on systems with extremely low memory.
-SB_EXPORT SbTime SbMediaGetBufferGarbageCollectionDurationThreshold();
+// Specifies the duration threshold of media source garbage collection in
+// microseconds.  When the accumulated duration in a source buffer exceeds this
+// value, the media source implementation will try to eject existing buffers
+// from the cache. This is usually triggered when the video being played has a
+// simple content and the encoded data is small.  In such case this can limit
+// how much is allocated for the book keeping data of the media buffers and
+// avoid OOM of system heap. This should return 170 seconds for most of the
+// platforms.  But it can be further reduced on systems with extremely low
+// memory.
+SB_EXPORT int64_t SbMediaGetBufferGarbageCollectionDurationThreshold();
 
 // The amount of memory that will be used to store media buffers allocated
 // during system startup.  To allocate a large chunk at startup helps with
@@ -834,14 +834,14 @@ SB_EXPORT int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
 // Communicate to the platform how far past |current_playback_position| the app
 // will write audio samples. The app will write all samples between
 // |current_playback_position| and |current_playback_position| + |duration|, as
-// soon as they are available. The app may sometimes write more samples than
-// that, but the app only guarantees to write |duration| past
-// |current_playback_position| in general. The platform is responsible for
+// soon as they are available (during is in microseconds). The app may sometimes
+// write more samples than that, but the app only guarantees to write |duration|
+// past |current_playback_position| in general. The platform is responsible for
 // guaranteeing that when only |duration| audio samples are written at a time,
 // no playback issues occur (such as transient or indefinite hanging). The
 // platform may assume |duration| >= 0.5 seconds.
 #if SB_API_VERSION < 15
-SB_EXPORT void SbMediaSetAudioWriteDuration(SbTime duration);
+SB_EXPORT void SbMediaSetAudioWriteDuration(int64_t duration);
 #endif  // SB_API_VERSION < 15
 
 #ifdef __cplusplus

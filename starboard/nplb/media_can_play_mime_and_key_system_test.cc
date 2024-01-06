@@ -18,11 +18,11 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/media.h"
 #include "starboard/nplb/drm_helpers.h"
 #include "starboard/nplb/media_can_play_mime_and_key_system_test_helpers.h"
 #include "starboard/nplb/performance_helpers.h"
-#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -915,15 +915,15 @@ TEST(SbMediaCanPlayMimeAndKeySystem, VerifyMaxBitrate) {
 TEST(SbMediaCanPlayMimeAndKeySystem, FLAKY_ValidatePerformance) {
   auto test_sequential_function_calls =
       [](const SbMediaCanPlayMimeAndKeySystemParam* mime_params,
-         int num_function_calls, SbTimeMonotonic max_time_delta_per_call,
+         int num_function_calls, int64_t max_time_delta_per_call,
          const char* query_type) {
-        const SbTimeMonotonic time_start = SbTimeGetMonotonicNow();
+        const int64_t time_start = CurrentMonotonicTime();
         for (int i = 0; i < num_function_calls; ++i) {
           SbMediaCanPlayMimeAndKeySystem(mime_params[i].mime,
                                          mime_params[i].key_system);
         }
-        const SbTimeMonotonic time_last = SbTimeGetMonotonicNow();
-        const SbTimeMonotonic time_delta = time_last - time_start;
+        const int64_t time_last = CurrentMonotonicTime();
+        const int64_t time_delta = time_last - time_start;
         const double time_per_call =
             static_cast<double>(time_delta) / num_function_calls;
 
@@ -937,8 +937,8 @@ TEST(SbMediaCanPlayMimeAndKeySystem, FLAKY_ValidatePerformance) {
 
   // Warmup the cache.
   test_sequential_function_calls(kWarmupQueryParams,
-                                 SB_ARRAY_SIZE_INT(kWarmupQueryParams),
-                                 100 * kSbTimeMillisecond, "Warmup queries");
+                                 SB_ARRAY_SIZE_INT(kWarmupQueryParams), 100'000,
+                                 "Warmup queries");
 
   // First round of the queries.
   test_sequential_function_calls(

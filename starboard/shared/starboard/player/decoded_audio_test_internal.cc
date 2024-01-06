@@ -30,7 +30,7 @@ namespace {
 using ::starboard::shared::starboard::media::GetBytesPerSample;
 
 constexpr int kChannels = 2;
-constexpr SbTime kTimestamp = kSbTimeSecond;
+constexpr int64_t kTimestampUsec = 1'000'000;
 constexpr int kSizeInBytes = 4192;
 constexpr int kSampleRate = 22050;
 
@@ -190,7 +190,7 @@ TEST(DecodedAudioTest, CtorWithSize) {
   for (auto sample_type : kSampleTypes) {
     for (auto storage_type : kStorageTypes) {
       scoped_refptr<DecodedAudio> decoded_audio(new DecodedAudio(
-          kChannels, sample_type, storage_type, kTimestamp, kSizeInBytes));
+          kChannels, sample_type, storage_type, kTimestampUsec, kSizeInBytes));
 
       EXPECT_FALSE(decoded_audio->is_end_of_stream());
       EXPECT_EQ(decoded_audio->channels(), kChannels);
@@ -214,8 +214,8 @@ TEST(DecodedAudioTest, CtorWithMoveCtor) {
   const uint8_t* original_data_pointer = original.data();
 
   scoped_refptr<DecodedAudio> decoded_audio(
-      new DecodedAudio(kChannels, kSampleTypes[0], kStorageTypes[0], kTimestamp,
-                       128, std::move(original)));
+      new DecodedAudio(kChannels, kSampleTypes[0], kStorageTypes[0],
+                       kTimestampUsec, 128, std::move(original)));
   ASSERT_EQ(decoded_audio->size_in_bytes(), 128);
   ASSERT_NE(decoded_audio->data(), nullptr);
   ASSERT_EQ(decoded_audio->data(), original_data_pointer);
@@ -230,7 +230,7 @@ TEST(DecodedAudioTest, AdjustForSeekTime) {
     for (auto sample_type : kSampleTypes) {
       scoped_refptr<DecodedAudio> original_decoded_audio(new DecodedAudio(
           kChannels, sample_type, kSbMediaAudioFrameStorageTypeInterleaved,
-          kTimestamp, kSizeInBytes));
+          kTimestampUsec, kSizeInBytes));
       Fill(&original_decoded_audio);
 
       scoped_refptr<DecodedAudio> adjusted_decoded_audio =
@@ -244,24 +244,23 @@ TEST(DecodedAudioTest, AdjustForSeekTime) {
       // Adjust to an invalid timestamp before the time range of
       // `adjusted_decoded_audio`, it's a no-op.
       adjusted_decoded_audio->AdjustForSeekTime(
-          kSampleRate, adjusted_decoded_audio->timestamp() - kSbTimeSecond / 2);
+          kSampleRate, adjusted_decoded_audio->timestamp() - 1'000'000LL / 2);
       ASSERT_EQ(*original_decoded_audio, *adjusted_decoded_audio);
 
       // Adjust to an invalid timestamp after the time range of
       // `adjusted_decoded_audio`, it's also a no-op.
       adjusted_decoded_audio->AdjustForSeekTime(
-          kSampleRate,
-          adjusted_decoded_audio->timestamp() + kSbTimeSecond * 100);
+          kSampleRate, adjusted_decoded_audio->timestamp() + 1'000'000LL * 100);
       ASSERT_EQ(*original_decoded_audio, *adjusted_decoded_audio);
 
-      const SbTime duration = media::AudioFramesToDuration(
+      const int64_t duration = media::AudioFramesToDuration(
           adjusted_decoded_audio->frames(), kSampleRate);
-      const SbTime duration_of_one_frame =
+      const int64_t duration_of_one_frame =
           media::AudioFramesToDuration(1, kSampleRate) + 1;
       for (int i = 1; i < 10; ++i) {
         adjusted_decoded_audio = original_decoded_audio->Clone();
         // Adjust to the middle of `adjusted_decoded_audio`.
-        SbTime seek_time =
+        int64_t seek_time =
             adjusted_decoded_audio->timestamp() + duration * i / 10;
         adjusted_decoded_audio->AdjustForSeekTime(kSampleRate, seek_time);
         ASSERT_NEAR(adjusted_decoded_audio->frames(),
@@ -286,7 +285,7 @@ TEST(DecodedAudioTest, AdjustForDiscardedDurations) {
     for (auto sample_type : kSampleTypes) {
       scoped_refptr<DecodedAudio> original_decoded_audio(new DecodedAudio(
           kChannels, sample_type, kSbMediaAudioFrameStorageTypeInterleaved,
-          kTimestamp, kSizeInBytes));
+          kTimestampUsec, kSizeInBytes));
       Fill(&original_decoded_audio);
 
       scoped_refptr<DecodedAudio> adjusted_decoded_audio =
@@ -329,9 +328,9 @@ TEST(DecodedAudioTest, AdjustForDiscardedDurations) {
 TEST(DecodedAudioTest, SwitchFormatTo) {
   for (auto original_sample_type : kSampleTypes) {
     for (auto original_storage_type : kStorageTypes) {
-      scoped_refptr<DecodedAudio> original_decoded_audio(
-          new DecodedAudio(kChannels, original_sample_type,
-                           original_storage_type, kTimestamp, kSizeInBytes));
+      scoped_refptr<DecodedAudio> original_decoded_audio(new DecodedAudio(
+          kChannels, original_sample_type, original_storage_type,
+          kTimestampUsec, kSizeInBytes));
 
       Fill(&original_decoded_audio);
 
@@ -365,7 +364,7 @@ TEST(DecodedAudioTest, Clone) {
   for (auto sample_type : kSampleTypes) {
     scoped_refptr<DecodedAudio> decoded_audio(new DecodedAudio(
         kChannels, sample_type, kSbMediaAudioFrameStorageTypeInterleaved,
-        kTimestamp, kSizeInBytes));
+        kTimestampUsec, kSizeInBytes));
     Fill(&decoded_audio);
     auto copy = decoded_audio->Clone();
     ASSERT_EQ(*copy, *decoded_audio);

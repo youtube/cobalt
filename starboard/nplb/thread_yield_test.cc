@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/time.h"
 #include "starboard/nplb/thread_helpers.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -35,8 +35,8 @@ void* YieldingEntryPoint(void* context) {
     SbThreadYield();
   }
 
-  SbTimeMonotonic* end_time = static_cast<SbTimeMonotonic*>(context);
-  *end_time = SbTimeGetMonotonicNow();
+  int64_t* end_time = static_cast<int64_t*>(context);
+  *end_time = CurrentMonotonicTime();
   return NULL;
 }
 
@@ -45,8 +45,8 @@ void* UnyieldingEntryPoint(void* context) {
     DoNotYield();
   }
 
-  SbTimeMonotonic* end_time = static_cast<SbTimeMonotonic*>(context);
-  *end_time = SbTimeGetMonotonicNow();
+  int64_t* end_time = static_cast<int64_t*>(context);
+  *end_time = CurrentMonotonicTime();
   return NULL;
 }
 
@@ -76,7 +76,7 @@ TEST(SbThreadYieldTest, SunnyDayRace) {
     // and enough data for the averages to be consistently divergent.
     const int64_t kRacers = 32;
     SbThread threads[kRacers];
-    SbTimeMonotonic end_times[kRacers] = {0};
+    int64_t end_times[kRacers] = {0};
     for (int i = 0; i < kRacers; ++i) {
       threads[i] = SbThreadCreate(
           0, kSbThreadNoPriority, affinity, true, NULL,
@@ -93,8 +93,8 @@ TEST(SbThreadYieldTest, SunnyDayRace) {
     }
 
     // On average, Unyielders should finish sooner than Yielders.
-    SbTimeMonotonic average_yielder = 0;
-    SbTimeMonotonic average_unyielder = 0;
+    int64_t average_yielder = 0;
+    int64_t average_unyielder = 0;
     const int64_t kRacersPerGroup = kRacers / 2;
     for (int i = 0; i < kRacers; ++i) {
       if (IsYielder(trial, i)) {

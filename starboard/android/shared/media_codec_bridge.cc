@@ -515,7 +515,7 @@ void MediaCodecBridge::OnMediaCodecOutputFormatChanged() {
   handler_->OnMediaCodecOutputFormatChanged();
 }
 
-void MediaCodecBridge::OnMediaCodecFrameRendered(SbTime frame_timestamp) {
+void MediaCodecBridge::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
   handler_->OnMediaCodecFrameRendered(frame_timestamp);
 }
 

@@ -17,8 +17,8 @@
 #include "starboard/common/atomic.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
+#include "starboard/common/time.h"
 #include "starboard/event.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace shared {
@@ -61,7 +61,7 @@ Application::Event* QueueApplication::GetNextEvent() {
 
     // Then we block indefinitely on the Window's DFB queue.
     event = WaitForSystemEventWithTimeout(GetNextTimedEventTargetTime() -
-                                          SbTimeGetMonotonicNow());
+                                          CurrentMonotonicTime());
   }
 
   return event;
@@ -113,7 +113,7 @@ Application::TimedEvent* QueueApplication::GetNextDueTimedEvent() {
   return timed_event_queue_.Get();
 }
 
-SbTimeMonotonic QueueApplication::GetNextTimedEventTargetTime() {
+int64_t QueueApplication::GetNextTimedEventTargetTime() {
   return timed_event_queue_.GetTime();
 }
 
@@ -130,7 +130,7 @@ QueueApplication::TimedEventQueue::~TimedEventQueue() {
 
 bool QueueApplication::TimedEventQueue::Inject(TimedEvent* timed_event) {
   ScopedLock lock(mutex_);
-  SbTimeMonotonic oldTime = GetTimeLocked();
+  int64_t oldTime = GetTimeLocked();
   map_[timed_event->id] = timed_event;
   set_.insert(timed_event);
   return (timed_event->target_time < oldTime);
@@ -156,7 +156,7 @@ Application::TimedEvent* QueueApplication::TimedEventQueue::Get() {
   }
 
   TimedEvent* timed_event = *(set_.begin());
-  if (timed_event->target_time > SbTimeGetMonotonicNow()) {
+  if (timed_event->target_time > CurrentMonotonicTime()) {
     return NULL;
   }
 
@@ -165,19 +165,19 @@ Application::TimedEvent* QueueApplication::TimedEventQueue::Get() {
   return timed_event;
 }
 
-SbTimeMonotonic QueueApplication::TimedEventQueue::GetTime() {
+int64_t QueueApplication::TimedEventQueue::GetTime() {
   ScopedLock lock(mutex_);
   return GetTimeLocked();
 }
 
-SbTimeMonotonic QueueApplication::TimedEventQueue::GetTimeLocked() {
+int64_t QueueApplication::TimedEventQueue::GetTimeLocked() {
   if (set_.empty()) {
-    return kSbTimeMax;
+    return kSbInt64Max;
   }
 
   TimedEvent* timed_event = *(set_.begin());
-  SbTimeMonotonic time = timed_event->target_time;
-  SbTimeMonotonic now = SbTimeGetMonotonicNow();
+  int64_t time = timed_event->target_time;
+  int64_t now = CurrentMonotonicTime();
   if (time < now) {
     return now;
   }
@@ -188,7 +188,7 @@ SbTimeMonotonic QueueApplication::TimedEventQueue::GetTimeLocked() {
 // static
 bool QueueApplication::TimedEventQueue::IsLess(const TimedEvent* lhs,
                                                const TimedEvent* rhs) {
-  SbTimeMonotonic time_difference = lhs->target_time - rhs->target_time;
+  int64_t time_difference = lhs->target_time - rhs->target_time;
   if (time_difference != 0) {
     return time_difference < 0;
   }
@@ -214,8 +214,7 @@ Application::Event* QueueApplication::PollNextInjectedEvent() {
 
 Application::Event* QueueApplication::GetNextInjectedEvent() {
   for (;;) {
-    SbTimeMonotonic delay =
-        GetNextTimedEventTargetTime() - SbTimeGetMonotonicNow();
+    int64_t delay = GetNextTimedEventTargetTime() - CurrentMonotonicTime();
     Event* event = event_queue_.GetTimed(delay);
     if (event != NULL) {
       return event;

@@ -16,7 +16,6 @@
 
 #include "base/logging.h"
 #include "starboard/client_porting/eztime/eztime.h"
-#include "starboard/time.h"
 
 namespace base {
 

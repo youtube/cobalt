@@ -209,7 +209,7 @@ class GpuVideoDecoderBase::GPUDecodeTargetPrivate
     }
   }
 
-  SbTime timestamp() { return image_->timestamp(); }
+  int64_t timestamp() { return image_->timestamp(); }
 
   void ReleaseImage() {
     // Release the codec resource, while the D3D textures are still safe to use.
@@ -551,7 +551,7 @@ int GpuVideoDecoderBase::OnOutputRetrieved(
     return 0;
   }
 
-  SbTime timestamp = image->timestamp();
+  int64_t timestamp = image->timestamp();
   {
     ScopedLock input_queue_lock(written_inputs_mutex_);
     const auto iter = FindByTimestamp(written_inputs_, timestamp);
@@ -669,8 +669,7 @@ void GpuVideoDecoderBase::DecodeEndOfStream() {
     ScopedLock pending_inputs_lock(pending_inputs_mutex_);
     if (!pending_inputs_.empty()) {
       decoder_thread_->job_queue()->Schedule(
-          std::bind(&GpuVideoDecoderBase::DecodeEndOfStream, this),
-          kSbTimeMillisecond);
+          std::bind(&GpuVideoDecoderBase::DecodeEndOfStream, this), 1000);
       return;
     }
   }
@@ -784,7 +783,7 @@ GpuVideoDecoderBase::GetAvailableFrameBuffer(uint16_t width, uint16_t height) {
         return nullptr;
       }
       is_resetting = decoder_behavior_.load() == kResettingDecoder;
-      frame_buffers_condition_.WaitTimed(50 * kSbTimeMillisecond);
+      frame_buffers_condition_.WaitTimed(50'000);  // 50ms
       continue;
     }
   }
