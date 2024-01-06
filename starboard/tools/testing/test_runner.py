@@ -493,7 +493,13 @@ class TestRunner(object):
       # The filename is used by MH to deduce the target name.
       xml_filename = f"{target_name}_testoutput.xml"
       if out_path:
-        test_result_xml_path = os.path.join(out_path, xml_filename)
+        if self.platform in ["ps4", "ps5"]:
+          # The path separator used on ps4/5 is / but this script will be
+          # running on windows where \ is used.
+          path_sep = "/"
+        else:
+          path_sep = os.path.sep
+        test_result_xml_path = path_sep.join([out_path, xml_filename])
       else:
         test_result_xml_path = xml_filename
       test_params.append(f"--gtest_output=xml:{test_result_xml_path}")
