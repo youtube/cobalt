@@ -96,3 +96,11 @@ jobs:
           retention-days: 90
           compression-level: 0 # We expect kept artifacts to be already compressed
           if-no-files-found: error
+      - name: Upload the APKs to a release
+        if: ${{ github.event_name == 'release' }}
+        uses: skx/github-action-publish-binaries@b9ca5643b2f1d7371a6cba7f35333f1461bbc703 # release-2.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: |
+            .
