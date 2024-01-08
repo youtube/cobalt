@@ -433,6 +433,9 @@ void ApplicationAndroid::SendAndroidCommand(AndroidCommand::CommandType type,
 
 bool ApplicationAndroid::SendAndroidMotionEvent(
     const GameActivityMotionEvent* event) {
+  SB_LOG(INFO) << "Received Motion Event from Android OS."
+               << " source:" << event->source;
+
   bool result = false;
 
   ScopedLock lock(input_mutex_);
@@ -454,6 +457,13 @@ bool ApplicationAndroid::SendAndroidMotionEvent(
 
 bool ApplicationAndroid::SendAndroidKeyEvent(
     const GameActivityKeyEvent* event) {
+  // Find the value reference on
+  // https://developer.android.com/reference/android/view/KeyEvent
+  SB_LOG(INFO) << "Received Key Event from Android OS. "
+               << "keyCode:" << event->keyCode
+               << ", modifiers:" << event->modifiers
+               << ", source:" << event->source;
+
   bool result = false;
 
   ScopedLock lock(input_mutex_);
