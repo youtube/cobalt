@@ -1215,7 +1215,8 @@ component("base") {
 
   # Allow more direct string conversions on platforms with native utf8
   # strings
-  if (is_apple || is_chromeos || is_castos || is_cast_android || is_fuchsia) {
+  if (is_apple || is_chromeos || is_castos || is_cast_android || is_fuchsia ||
+      is_starboard) {
     defines += [ "SYSTEM_NATIVE_UTF8" ]
   }
 
@@ -3216,8 +3217,7 @@ test("base_unittests") {
     # "i18n/icu_util_unittest.cc",
     "i18n/message_formatter_unittest.cc",
     "i18n/number_formatting_unittest.cc",
-
-    # "i18n/rtl_unittest.cc",
+    "i18n/rtl_unittest.cc",
     "i18n/streaming_utf8_validator_unittest.cc",
 
     # "i18n/string_search_unittest.cc",
@@ -3736,7 +3736,8 @@ test("base_unittests") {
 
   # Allow more direct string conversions on platforms with native utf8
   # strings
-  if (is_apple || is_chromeos || is_castos || is_cast_android || is_fuchsia) {
+  if (is_apple || is_chromeos || is_castos || is_cast_android || is_fuchsia ||
+      is_starboard) {
     defines += [ "SYSTEM_NATIVE_UTF8" ]
   }
 
