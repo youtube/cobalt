@@ -20,18 +20,18 @@ namespace nplb {
 namespace {
 
 #if SB_API_VERSION >= 16
-TEST(SbStringCompareNoCaseTest, SunnyDaySelf) {
+TEST(SbStringCompareNoCasePosixTest, SunnyDaySelf) {
   const char kString[] = "0123456789";
   EXPECT_EQ(0, strcasecmp(kString, kString));
   EXPECT_EQ(0, strcasecmp("", ""));
 }
 
-TEST(SbStringCompareNoCaseTest, SunnyDayEmptyLessThanNotEmpty) {
+TEST(SbStringCompareNoCasePosixTest, SunnyDayEmptyLessThanNotEmpty) {
   const char kString[] = "0123456789";
   EXPECT_GT(0, strcasecmp("", kString));
 }
 
-TEST(SbStringCompareNoCaseTest, SunnyDayCase) {
+TEST(SbStringCompareNoCasePosixTest, SunnyDayCase) {
   const char kString1[] = "aBcDeFgHiJkLmNoPqRsTuVwXyZ";
   const char kString2[] = "AbCdEfGhIjKlMnOpQrStUvWxYz";
   EXPECT_EQ(0, strcasecmp(kString1, kString2));
