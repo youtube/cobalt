@@ -14,6 +14,10 @@
 
 import("//build/config/compiler/compiler.gni")
 
+# TODO: b/319085130 - This macro is only used temporarily to enable compilation
+#                     of upstream libraries being updated in Cobalt. Use it as
+#                     a way to show where we should be eventually using
+#                     upstream code as is.
 config("hacky_build_config") {
   defines = [ "USE_HACKY_COBALT_CHANGES" ]
 }
