@@ -17,7 +17,9 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+#include "starboard/file.h"
+#elif BUILDFLAG(IS_WIN)
 #include "base/win/windows_types.h"
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include <sys/stat.h>
@@ -58,7 +60,8 @@ class BASE_EXPORT FileEnumerator {
     // On POSIX systems, this is rounded down to the second.
     Time GetLastModifiedTime() const;
 
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+#elif BUILDFLAG(IS_WIN)
     // Note that the cAlternateFileName (used to hold the "short" 8.3 name)
     // of the WIN32_FIND_DATA will be empty. Since we don't use short file
     // names, we tell Windows to omit it which speeds up the query slightly.
@@ -72,7 +75,10 @@ class BASE_EXPORT FileEnumerator {
    private:
     friend class FileEnumerator;
 
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+    FilePath filename_;
+    SbFileInfo sb_info_;
+#elif BUILDFLAG(IS_WIN)
     CHROME_WIN32_FIND_DATA find_data_;
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
     stat_wrapper_t stat_;
@@ -92,7 +98,8 @@ class BASE_EXPORT FileEnumerator {
     // called.
     NAMES_ONLY = 1 << 3,
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
     SHOW_SYM_LINKS = 1 << 4,
 #endif
   };
@@ -188,7 +195,15 @@ class BASE_EXPORT FileEnumerator {
 
   bool IsPatternMatched(const FilePath& src) const;
 
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+  std::vector<FileInfo> ReadDirectory(const FilePath& source);
+
+  // The files in the current directory
+  std::vector<FileInfo> directory_entries_;
+
+  // The next entry to use from the directory_entries_ vector
+  size_t current_directory_entry_;
+#elif BUILDFLAG(IS_WIN)
   const WIN32_FIND_DATA& find_data() const {
     return *ChromeToWindowsType(&find_data_);
   }

@@ -7,6 +7,7 @@
 #include "base/i18n/file_util_icu.h"
 
 #include <stdint.h>
+#include <unicode/utf8.h>
 
 #include "base/check.h"
 #include "base/files/file_path.h"
@@ -282,6 +283,7 @@ void ReplaceIllegalCharactersInPath(FilePath::StringType* file_name,
   }
 }
 
+#if !defined(UCONFIG_NO_COLLATION)
 bool LocaleAwareCompareFilenames(const FilePath& a, const FilePath& b) {
   UErrorCode error_code = U_ZERO_ERROR;
   // Use the default collator. The default locale should have been properly
@@ -304,6 +306,7 @@ bool LocaleAwareCompareFilenames(const FilePath& a, const FilePath& b) {
              WideToUTF16(SysNativeMBToWide(b.value()))) == UCOL_LESS;
 #endif
 }
+#endif
 
 void NormalizeFileNameEncoding(FilePath* file_name) {
 #if BUILDFLAG(IS_CHROMEOS_ASH)

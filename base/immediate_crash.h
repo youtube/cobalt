@@ -6,6 +6,9 @@
 #define BASE_IMMEDIATE_CRASH_H_
 
 #include "build/build_config.h"
+#if defined(STARBOARD)
+#include "starboard/common/log.h"
+#endif
 
 // Crashes in the fastest possible way with no attempt at logging.
 // There are several constraints; see http://crbug.com/664209 for more context.
@@ -41,7 +44,9 @@
 // be removed in followups, so splitting it up like this now makes it easy to
 // land the followups.
 
-#if defined(COMPILER_GCC)
+#if defined(STARBOARD)
+#define IMMEDIATE_CRASH() SB_CHECK(false)
+#elif defined(COMPILER_GCC)
 
 #if BUILDFLAG(IS_NACL)
 
@@ -122,6 +127,7 @@
 
 #endif  // COMPILER_GCC
 
+#if !defined(STARBOARD)
 #define TRAP_SEQUENCE_() \
   do {                   \
     TRAP_SEQUENCE1_();   \
@@ -150,5 +156,14 @@ namespace base {
 }
 
 }  // namespace base
+
+#else
+
+namespace base {
+  [[noreturn]] inline void ImmediateCrash() {
+    SB_CHECK(false);
+  }
+}
+#endif
 
 #endif  // BASE_IMMEDIATE_CRASH_H_

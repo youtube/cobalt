@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <limits>
 #include <ostream>
+#include <cstring>
 
 #include "base/bits.h"
 #include "base/numerics/safe_conversions.h"

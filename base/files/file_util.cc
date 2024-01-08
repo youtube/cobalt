@@ -70,7 +70,8 @@ bool ReadStreamToSpanWithMaxSize(
   constexpr size_t kDefaultChunkSize = 1 << 16;
   size_t chunk_size = kDefaultChunkSize - 1;
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+#elif BUILDFLAG(IS_WIN)
   BY_HANDLE_FILE_INFORMATION file_info = {};
   if (::GetFileInformationByHandle(
           reinterpret_cast<HANDLE>(_get_osfhandle(_fileno(stream))),
@@ -172,7 +173,8 @@ bool Move(const FilePath& from_path, const FilePath& to_path) {
 }
 
 bool CopyFileContents(File& infile, File& outfile) {
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+#if defined(STARBOARD)
+#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   bool retry_slow = false;
   bool res =
       internal::CopyFileContentsWithSendfile(infile, outfile, retry_slow);
@@ -327,6 +329,8 @@ absl::optional<std::vector<uint8_t>> ReadFileToBytes(const FilePath& path) {
     return absl::nullopt;
   }
 
+#ifndef USE_HACKY_COBALT_CHANGES
+  // TODO(b/298237462): Implement ScopedFILE for Starboard.
   ScopedFILE file_stream(OpenFile(path, "rb"));
   if (!file_stream) {
     return absl::nullopt;
@@ -341,6 +345,9 @@ absl::optional<std::vector<uint8_t>> ReadFileToBytes(const FilePath& path) {
                                    })) {
     return absl::nullopt;
   }
+#else
+  std::vector<uint8_t> bytes;
+#endif
   return bytes;
 }
 
@@ -356,10 +363,13 @@ bool ReadFileToStringWithMaxSize(const FilePath& path,
     contents->clear();
   if (path.ReferencesParent())
     return false;
+#ifndef USE_HACKY_COBALT_CHANGES
   ScopedFILE file_stream(OpenFile(path, "rb"));
   if (!file_stream)
     return false;
   return ReadStreamToStringWithMaxSize(file_stream.get(), max_size, contents);
+#endif
+  return false;
 }
 
 bool IsDirectoryEmpty(const FilePath& dir_path) {

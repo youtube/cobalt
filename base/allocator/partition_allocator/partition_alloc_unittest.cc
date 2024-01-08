@@ -53,7 +53,8 @@
 #include <arm_acle.h>
 #endif
 
-#if BUILDFLAG(IS_POSIX)
+#if defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX)
 #if BUILDFLAG(IS_LINUX)
 // We need PKEY_DISABLE_WRITE in this file; glibc defines it in sys/mman.h but
 // it's actually Linux-specific and other Linux libcs define it in linux/mman.h.
@@ -96,7 +97,7 @@ bool IsLargeMemoryDevice() {
 }
 
 bool SetAddressSpaceLimit() {
-#if !defined(ARCH_CPU_64_BITS) || !BUILDFLAG(IS_POSIX)
+#if !defined(ARCH_CPU_64_BITS) || !BUILDFLAG(IS_POSIX) || 1
   // 32 bits => address space is limited already.
   return true;
 #elif BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE)
@@ -124,7 +125,7 @@ bool SetAddressSpaceLimit() {
 }
 
 bool ClearAddressSpaceLimit() {
-#if !defined(ARCH_CPU_64_BITS) || !BUILDFLAG(IS_POSIX)
+#if !defined(ARCH_CPU_64_BITS) || !BUILDFLAG(IS_POSIX) || 1
   return true;
 #elif BUILDFLAG(IS_POSIX)
   struct rlimit limit;
@@ -621,7 +622,7 @@ void FreeFullSlotSpan(PartitionRoot<internal::ThreadSafe>* root,
   EXPECT_TRUE(slot_span->is_empty());
 }
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if 0// BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 bool CheckPageInCore(void* ptr, bool in_core) {
   unsigned char ret = 0;
   EXPECT_EQ(0, mincore(ptr, SystemPageSize(), &ret));

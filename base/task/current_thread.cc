@@ -211,7 +211,8 @@ MessagePumpForIO* CurrentIOThread::GetMessagePumpForIO() const {
 
 #if !BUILDFLAG(IS_NACL)
 
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+#elif BUILDFLAG(IS_WIN)
 HRESULT CurrentIOThread::RegisterIOHandler(
     HANDLE file,
     MessagePumpForIO::IOHandler* handler) {

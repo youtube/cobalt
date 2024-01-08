@@ -10,7 +10,9 @@
 
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+#include "base/message_loop/message_pump_ui_starboard.h"
+#elif BUILDFLAG(IS_WIN)
 #include "base/message_loop/message_pump_win.h"
 #elif BUILDFLAG(IS_ANDROID)
 #include "base/message_loop/message_pump_android.h"
@@ -28,7 +30,9 @@
 
 namespace base {
 
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+using MessagePumpForUI = MessagePumpUIStarboard;
+#elif BUILDFLAG(IS_WIN)
 // Windows defines it as-is.
 using MessagePumpForUI = MessagePumpForUI;
 #elif BUILDFLAG(IS_ANDROID)

@@ -140,9 +140,11 @@ TEST(BreakIteratorTest, BreakWordThai) {
 // dictionary to detect word boundaries in Thai, Chinese, Japanese, Burmese,
 // and Khmer. Due to the size of such a table, the part for Chinese and
 // Japanese is not shipped on mobile.
+// Cobalt does not support Chinese/Japanese word breaking yet. This feature
+// requires a big dictionary(cjdict.txt) to support.
 #if !(BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID))
 
-TEST(BreakIteratorTest, BreakWordChinese) {
+TEST(BreakIteratorTest, DISABLED_BreakWordChinese) {
   // Terms in Traditional Chinese, without spaces in between.
   const char16_t term1[] = u"瀏覽";
   const char16_t term2[] = u"速度";
@@ -164,7 +166,7 @@ TEST(BreakIteratorTest, BreakWordChinese) {
   EXPECT_FALSE(iter.IsWord());
 }
 
-TEST(BreakIteratorTest, BreakWordJapanese) {
+TEST(BreakIteratorTest, DISABLED_BreakWordJapanese) {
   // Terms in Japanese, without spaces in between.
   const char16_t term1[] = u"モバイル";
   const char16_t term2[] = u"でも";
@@ -182,7 +184,7 @@ TEST(BreakIteratorTest, BreakWordJapanese) {
   EXPECT_FALSE(iter.IsWord());
 }
 
-TEST(BreakIteratorTest, BreakWordChineseEnglish) {
+TEST(BreakIteratorTest, DISABLED_BreakWordChineseEnglish) {
   // Terms in Simplified Chinese mixed with English and wide punctuations.
   std::u16string space(u" ");
   const char16_t token1[] = u"下载";

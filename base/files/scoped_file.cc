@@ -7,7 +7,8 @@
 #include "base/check.h"
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include <errno.h>
 #include <unistd.h>
 
@@ -17,7 +18,8 @@
 namespace base {
 namespace internal {
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 
 // static
 void ScopedFDCloseTraits::Free(int fd) {

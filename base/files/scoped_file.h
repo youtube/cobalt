@@ -13,11 +13,22 @@
 #include "base/scoped_generic.h"
 #include "build/build_config.h"
 
+#if defined(STARBOARD)
+#include "starboard/file.h"
+#include "starboard/types.h"
+#include "starboard/common/file.h"
+#endif
+
 namespace base {
 
 namespace internal {
 
-#if BUILDFLAG(IS_ANDROID)
+#if defined(STARBOARD)
+struct BASE_EXPORT ScopedSbFileCloseTraits {
+  static SbFile InvalidValue() { return kSbFileInvalid; }
+  static void Free(SbFile file) { SbFileClose(file); }
+};
+#elif BUILDFLAG(IS_ANDROID)
 // Use fdsan on android.
 struct BASE_EXPORT ScopedFDCloseTraits : public ScopedGenericOwnershipTracking {
   static int InvalidValue() { return -1; }
@@ -44,6 +55,15 @@ struct BASE_EXPORT ScopedFDCloseTraits {
 };
 #endif
 
+#if defined(STARBOARD)
+// Functor for |ScopedFILE| (below).
+struct ScopedFILECloser {
+  inline void operator()(SbFile* x) const {
+    if (x)
+      SbFileClose(*x);
+  }
+};
+#else
 // Functor for |ScopedFILE| (below).
 struct ScopedFILECloser {
   inline void operator()(FILE* x) const {
@@ -51,6 +71,7 @@ struct ScopedFILECloser {
       fclose(x);
   }
 };
+#endif
 
 }  // namespace internal
 
@@ -86,7 +107,9 @@ void BASE_EXPORT ResetFDOwnership();
 
 // -----------------------------------------------------------------------------
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if defined(STARBOARD)
+using ScopedFD = ScopedGeneric<SbFile, internal::ScopedSbFileCloseTraits>;
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 // A low-level Posix file descriptor closer class. Use this when writing
 // platform-specific code, especially that does non-file-like things with the
 // FD (like sockets).
@@ -102,7 +125,11 @@ typedef ScopedGeneric<int, internal::ScopedFDCloseTraits> ScopedFD;
 #endif
 
 // Automatically closes |FILE*|s.
+#if defined(STARBOARD)
+typedef std::unique_ptr<starboard::ScopedFile> ScopedFILE;
+#else
 typedef std::unique_ptr<FILE, internal::ScopedFILECloser> ScopedFILE;
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
 // Queries the ownership status of an FD, i.e. whether it is currently owned by

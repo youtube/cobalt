@@ -270,7 +270,8 @@ class BASE_EXPORT CurrentIOThread : public CurrentThread {
 
 #if !BUILDFLAG(IS_NACL)
 
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+#elif BUILDFLAG(IS_WIN)
   // Please see MessagePumpWin for definitions of these methods.
   HRESULT RegisterIOHandler(HANDLE file, MessagePumpForIO::IOHandler* handler);
   bool RegisterJobObject(HANDLE job, MessagePumpForIO::IOHandler* handler);
