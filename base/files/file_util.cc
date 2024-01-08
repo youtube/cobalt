@@ -173,7 +173,8 @@ bool Move(const FilePath& from_path, const FilePath& to_path) {
 }
 
 bool CopyFileContents(File& infile, File& outfile) {
-#if 0//BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+#if defined(STARBOARD)
+#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   bool retry_slow = false;
   bool res =
       internal::CopyFileContentsWithSendfile(infile, outfile, retry_slow);
@@ -328,21 +329,25 @@ absl::optional<std::vector<uint8_t>> ReadFileToBytes(const FilePath& path) {
     return absl::nullopt;
   }
 
+#ifndef USE_HACKY_COBALT_CHANGES
   // TODO(b/298237462): Implement ScopedFILE for Starboard.
-  // ScopedFILE file_stream(OpenFile(path, "rb"));
-  // if (!file_stream) {
-  //   return absl::nullopt;
-  // }
+  ScopedFILE file_stream(OpenFile(path, "rb"));
+  if (!file_stream) {
+    return absl::nullopt;
+  }
 
   std::vector<uint8_t> bytes;
-  // if (!ReadStreamToSpanWithMaxSize(file_stream.get(),
-  //                                  std::numeric_limits<size_t>::max(),
-  //                                  [&bytes](size_t size) {
-  //                                    bytes.resize(size);
-  //                                    return make_span(bytes);
-  //                                  })) {
-  //   return absl::nullopt;
-  // }
+  if (!ReadStreamToSpanWithMaxSize(file_stream.get(),
+                                   std::numeric_limits<size_t>::max(),
+                                   [&bytes](size_t size) {
+                                     bytes.resize(size);
+                                     return make_span(bytes);
+                                   })) {
+    return absl::nullopt;
+  }
+#else
+  std::vector<uint8_t> bytes;
+#endif
   return bytes;
 }
 
@@ -358,10 +363,12 @@ bool ReadFileToStringWithMaxSize(const FilePath& path,
     contents->clear();
   if (path.ReferencesParent())
     return false;
-  // ScopedFILE file_stream(OpenFile(path, "rb"));
-  // if (!file_stream)
-  //   return false;
-  // return ReadStreamToStringWithMaxSize(file_stream.get(), max_size, contents);
+#ifndef USE_HACKY_COBALT_CHANGES
+  ScopedFILE file_stream(OpenFile(path, "rb"));
+  if (!file_stream)
+    return false;
+  return ReadStreamToStringWithMaxSize(file_stream.get(), max_size, contents);
+#endif
   return false;
 }
 

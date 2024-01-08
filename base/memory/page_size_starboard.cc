@@ -14,9 +14,12 @@
 
 #include "base/memory/page_size.h"
 
+#include "base/notreached.h"
+
 namespace base {
 
 size_t GetPageSize() {
+  NOTREACHED();
   return 0;
 }
 

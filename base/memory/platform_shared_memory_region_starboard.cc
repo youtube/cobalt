@@ -14,6 +14,8 @@
 
 #include "base/memory/platform_shared_memory_region.h"
 
+#include "base/notreached.h"
+
 namespace base {
 namespace subtle {
 
@@ -22,39 +24,49 @@ PlatformSharedMemoryRegion PlatformSharedMemoryRegion::Take(
     Mode mode,
     size_t size,
     const UnguessableToken& guid) {
+  NOTREACHED();
   return {};
 }
 
-bool PlatformSharedMemoryRegion::IsValid() const { return false; }
+bool PlatformSharedMemoryRegion::IsValid() const {
+  NOTREACHED();
+  return false;
+}
 
 PlatformSharedMemoryRegion PlatformSharedMemoryRegion::Duplicate() const {
+  NOTREACHED();
   return {};
 }
 
-bool PlatformSharedMemoryRegion::ConvertToReadOnly() { return false; }
+bool PlatformSharedMemoryRegion::ConvertToReadOnly() {
+  NOTREACHED();
+  return false;
+}
 
-bool PlatformSharedMemoryRegion::ConvertToUnsafe() { return false; }
+bool PlatformSharedMemoryRegion::ConvertToUnsafe() {
+  NOTREACHED();
+  return false;
+}
 
 PlatformSharedMemoryRegion PlatformSharedMemoryRegion::Create(Mode mode,
                                                               size_t size) {
+  NOTREACHED();
   return {};
 }
 
 bool PlatformSharedMemoryRegion::CheckPlatformHandlePermissionsCorrespondToMode(
     PlatformSharedMemoryHandle handle,
     Mode mode,
-    size_t size) { return false; }
+    size_t size) {
+  NOTREACHED();
+  return false;
+}
 
-// PlatformSharedMemoryRegion::PlatformSharedMemoryRegion(
-//     ScopedFDPair handle,
-//     Mode mode,
-//     size_t size,
-//     const UnguessableToken& guid)
-//     : handle_(std::move(handle)), mode_(mode), size_(size), guid_(guid) {}
-
-PlatformSharedMemoryHandle PlatformSharedMemoryRegion::GetPlatformHandle() const {
+PlatformSharedMemoryHandle PlatformSharedMemoryRegion::GetPlatformHandle()
+    const {
+  NOTREACHED();
   return 0;
 }
 
-}
-}
+}  // namespace subtle
+}  // namespace base

@@ -44,7 +44,8 @@ class PrintBacktraceOutputHandler : public BacktraceOutputHandler {
   }
 
  private:
-  // DISALLOW_COPY_AND_ASSIGN(PrintBacktraceOutputHandler);
+  PrintBacktraceOutputHandler(const PrintBacktraceOutputHandler&) = delete;
+  PrintBacktraceOutputHandler& operator=(const PrintBacktraceOutputHandler&) = delete;
 };
 
 class StreamBacktraceOutputHandler : public BacktraceOutputHandler {
@@ -56,7 +57,8 @@ class StreamBacktraceOutputHandler : public BacktraceOutputHandler {
  private:
   std::ostream* os_;
 
-  // DISALLOW_COPY_AND_ASSIGN(StreamBacktraceOutputHandler);
+  StreamBacktraceOutputHandler(const StreamBacktraceOutputHandler&) = delete;
+  StreamBacktraceOutputHandler& operator=(const StreamBacktraceOutputHandler&) = delete;
 };
 
 // NOTE: code from sandbox/linux/seccomp-bpf/demo.cc.
@@ -151,24 +153,6 @@ void ProcessBacktrace(void* const* trace,
 }
 
 }  // namespace
-
-// StackTrace::StackTrace(size_t count) {
-//   // NOTE: This code MUST be async-signal safe (it's used by in-process
-//   // stack dumping signal handler). NO malloc or stdio is allowed here.
-
-//   // Though the SbSystemGetStack API documentation does not specify any possible
-//   // negative return values, we take no chance.
-//   count_ = std::max(SbSystemGetStack(trace_, count), 0);
-//   if (count_ < 1) {
-//     return;
-//   }
-
-//   // We can remove this call from the stack trace, since we know it is always
-//   // going to be in it.
-//   for (int i = 1; i < count_; ++i) {
-//     trace_[i - 1] = trace_[i];
-//   }
-// }
 
 size_t CollectStackTrace(void** trace, size_t count) {
   // NOTE: This code MUST be async-signal safe (it's used by in-process

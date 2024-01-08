@@ -264,11 +264,11 @@ static_library("test_support") {
     }
   }
 
-  if (is_posix || is_fuchsia) {
+  if (!is_starboard && (is_posix || is_fuchsia)) {
     sources += [
-      # "scoped_locale.cc",
-      # "scoped_locale.h",
-      # "test_file_util_posix.cc",
+      "scoped_locale.cc",
+      "scoped_locale.h",
+      "test_file_util_posix.cc",
     ]
   }
 

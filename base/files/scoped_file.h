@@ -127,7 +127,6 @@ typedef ScopedGeneric<int, internal::ScopedFDCloseTraits> ScopedFD;
 // Automatically closes |FILE*|s.
 #if defined(STARBOARD)
 typedef std::unique_ptr<starboard::ScopedFile> ScopedFILE;
-// typedef std::unique_ptr<starboard::ScopedFile, internal::ScopedFILECloser> ScopedFILE;
 #else
 typedef std::unique_ptr<FILE, internal::ScopedFILECloser> ScopedFILE;
 #endif
