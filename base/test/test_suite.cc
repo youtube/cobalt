@@ -53,6 +53,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/multiprocess_func_list.h"
 
+#if !defined(STARBOARD)
 #if BUILDFLAG(IS_APPLE)
 #include "base/mac/scoped_nsautorelease_pool.h"
 #endif  // BUILDFLAG(IS_APPLE)
@@ -85,6 +86,7 @@
 
 #include "base/debug/handle_hooks_win.h"
 #endif  // BUILDFLAG(IS_WIN)
+#endif
 
 #if BUILDFLAG(USE_PARTITION_ALLOC)
 #include "base/allocator/partition_alloc_support.h"
@@ -649,7 +651,8 @@ void TestSuite::Initialize() {
   // TODO(jshin): Should we set the locale via an OS X locale API here?
   i18n::SetICUDefaultLocale("en_US");
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if defined(STARBOARD)
+#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   test_fonts::SetUpFontconfig();
 #endif
 

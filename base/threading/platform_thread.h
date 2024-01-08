@@ -22,7 +22,9 @@
 #include "build/chromeos_buildflags.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+#include "starboard/thread.h"
+#elif BUILDFLAG(IS_WIN)
 #include "base/win/windows_types.h"
 #elif BUILDFLAG(IS_FUCHSIA)
 #include <zircon/types.h>
@@ -36,7 +38,9 @@
 namespace base {
 
 // Used for logging. Always an integer value.
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+typedef SbThreadId PlatformThreadId;
+#elif BUILDFLAG(IS_WIN)
 typedef DWORD PlatformThreadId;
 #elif BUILDFLAG(IS_FUCHSIA)
 typedef zx_handle_t PlatformThreadId;
@@ -50,7 +54,9 @@ static_assert(std::is_integral_v<PlatformThreadId>, "Always an integer value.");
 // Used to operate on threads.
 class PlatformThreadHandle {
  public:
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+  typedef SbThread Handle;
+#elif BUILDFLAG(IS_WIN)
   typedef void* Handle;
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   typedef pthread_t Handle;

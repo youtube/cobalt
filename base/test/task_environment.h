@@ -481,7 +481,8 @@ class TaskEnvironment {
   // Only set for instances using TimeSource::MOCK_TIME.
   std::unique_ptr<Clock> mock_clock_;
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   // Enables the FileDescriptorWatcher API iff running a MainThreadType::IO.
   std::unique_ptr<FileDescriptorWatcher> file_descriptor_watcher_;
 #endif

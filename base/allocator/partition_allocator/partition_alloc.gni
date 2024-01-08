@@ -20,7 +20,8 @@ if (is_nacl) {
 } else if (current_cpu == "x86" || current_cpu == "arm") {
   has_64_bit_pointers = false
 } else {
-  assert(false, "Unknown CPU: $current_cpu")
+  has_64_bit_pointers = true
+  # assert(false, "Unknown CPU: $current_cpu")
 }
 
 if (use_partition_alloc_as_malloc_default) {
@@ -305,7 +306,7 @@ assert(!use_asan_backup_ref_ptr || use_hookable_raw_ptr,
        "AsanBackupRefPtr requires RawPtrHookableImpl")
 
 declare_args() {
-  enable_pkeys = is_linux && target_cpu == "x64"
+  enable_pkeys = is_linux && target_cpu == "x64" && !use_cobalt_customizations
 }
 assert(!enable_pkeys || (is_linux && target_cpu == "x64"),
        "Pkeys are only supported on x64 linux")

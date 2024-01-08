@@ -11,7 +11,10 @@
 #include "base/thread_annotations.h"
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+#include "starboard/common/mutex.h"
+#include "base/check_op.h"
+#elif BUILDFLAG(IS_WIN)
 #include "base/win/windows_types.h"
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include <errno.h>
@@ -45,7 +48,9 @@ class BASE_EXPORT LockImpl {
   friend class base::win::internal::AutoNativeLock;
   friend class base::win::internal::ScopedHandleVerifier;
 
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+  using NativeHandle = SbMutex;
+#elif BUILDFLAG(IS_WIN)
   using NativeHandle = CHROME_SRWLOCK;
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   using NativeHandle = pthread_mutex_t;
@@ -93,7 +98,18 @@ void LockImpl::Lock() {
   LockInternal();
 }
 
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+bool LockImpl::Try() {
+  SbMutexResult result = SbMutexAcquireTry(&native_handle_);
+  DCHECK_NE(kSbMutexDestroyed, result);
+  return SbMutexIsSuccess(result);
+}
+
+void LockImpl::Unlock() {
+  bool result = SbMutexRelease(&native_handle_);
+  DCHECK(result);
+}
+#elif BUILDFLAG(IS_WIN)
 bool LockImpl::Try() {
   return !!::TryAcquireSRWLockExclusive(
       reinterpret_cast<PSRWLOCK>(&native_handle_));

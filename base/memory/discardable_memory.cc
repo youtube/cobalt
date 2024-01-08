@@ -18,6 +18,7 @@
 namespace base {
 
 namespace features {
+#if !defined(STARBOARD)
 #if BUILDFLAG(IS_POSIX)
 // Feature flag allowing the use of MADV_FREE discardable memory when there are
 // multiple supported discardable memory backings.
@@ -47,12 +48,14 @@ const base::FeatureParam<DiscardableMemoryTrialGroup>
 
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_CHROMEOS)
+#endif
 
 }  // namespace features
 
 namespace {
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if defined(STARBOARD)
+#elif BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
 DiscardableMemoryBacking GetBackingForFieldTrial() {
   DiscardableMemoryTrialGroup trial_group =
@@ -71,7 +74,8 @@ DiscardableMemoryBacking GetBackingForFieldTrial() {
 
 }  // namespace
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if defined(STARBOARD)
+#elif BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
 // Probe capabilities of this device to determine whether we should participate
 // in the discardable memory backing trial.
@@ -101,6 +105,7 @@ DiscardableMemory::DiscardableMemory() = default;
 DiscardableMemory::~DiscardableMemory() = default;
 
 DiscardableMemoryBacking GetDiscardableMemoryBacking() {
+#if !defined(STARBOARD)
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   if (DiscardableMemoryBackingFieldTrialIsEnabled()) {
     return GetBackingForFieldTrial();
@@ -120,6 +125,7 @@ DiscardableMemoryBacking GetDiscardableMemoryBacking() {
     return DiscardableMemoryBacking::kMadvFree;
   }
 #endif  // BUILDFLAG(IS_POSIX)
+#endif
 
   return DiscardableMemoryBacking::kSharedMemory;
 }
