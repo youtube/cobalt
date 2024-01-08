@@ -2625,3 +2625,5 @@ config("cet_shadow_stack") {
     ldflags = [ "/CETCOMPAT" ]
   }
 }
+
+config("prevent_unsafe_narrowing") {}

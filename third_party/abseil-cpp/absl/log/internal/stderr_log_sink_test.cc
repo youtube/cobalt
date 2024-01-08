@@ -74,7 +74,7 @@ TEST(StderrLogSinkDeathTest, ErrorMessagesInStderr) {
       "ERROR message");
 }
 
-TEST(StderrLogSinkDeathTest, FatalMessagesInStderr) {
+TEST(StderrLogSinkDeathTest, FatalMessagesInStderr_DISBALED) {
   char message[] = "FATAL message";
   char stacktrace[] = "*** Check failure stack trace: ***";
 

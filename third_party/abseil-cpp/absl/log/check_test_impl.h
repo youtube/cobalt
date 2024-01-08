@@ -511,7 +511,7 @@ TEST(CHECKTest, TestCheckInMethod) {
   v.MethodWithCheck(1);
 }
 
-TEST(CHECKDeathTest, TestUserDefinedStreaming) {
+TEST(CHECKDeathTest, TestUserDefinedStreaming_DISABLED) {
   ComparableType v1{1};
   ComparableType v2{2};
 

@@ -241,6 +241,7 @@ absl_source_set("randen_hwaes_impl") {
   visibility = ["//third_party/abseil-cpp/absl/random/*"]
 }
 
+if (!use_cobalt_customizations) {
 executable("gaussian_distribution_gentables") {
   sources = [ "gaussian_distribution_gentables.cc" ]
   deps = [
@@ -248,6 +249,7 @@ executable("gaussian_distribution_gentables") {
     "//third_party/abseil-cpp/absl/random:distributions",
   ]
   visibility = ["//third_party/abseil-cpp/absl/random/*"]
+}
 }
 
 absl_source_set("distribution_test_util") {
