@@ -303,6 +303,7 @@ absl_test("log_macro_hygiene_test") {
   ]
 }
 
+if (!use_cobalt_customizations) {
 absl_test("log_sink_test") {
   sources = [ "log_sink_test.cc" ]
   if (is_ios) {
@@ -320,6 +321,7 @@ absl_test("log_sink_test") {
     "//third_party/abseil-cpp/absl/log/internal:test_matchers",
     "//third_party/abseil-cpp/absl/strings",
   ]
+}
 }
 
 absl_test("log_streamer_test") {

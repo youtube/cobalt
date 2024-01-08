@@ -53,6 +53,7 @@
 //   syscall(SYS_write, /*int*/ fd, /*char* */ buf, /*size_t*/ len);
 // for low level operations that want to avoid libc.
 #if (defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__)) && \
+    !defined(STARBOARD) && \
     !defined(__ANDROID__)
 #include <sys/syscall.h>
 #define ABSL_HAVE_SYSCALL_WRITE 1
