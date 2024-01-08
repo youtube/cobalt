@@ -3174,7 +3174,7 @@ test("base_unittests") {
     "debug/task_trace_unittest.cc",
     "environment_unittest.cc",
 
-    # "feature_list_unittest.cc",
+    "feature_list_unittest.cc",
     # "files/file_enumerator_unittest.cc",
     "files/file_error_or_unittest.cc",
 
