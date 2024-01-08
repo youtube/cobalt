@@ -19,10 +19,10 @@
 #include "base/test/scoped_task_environment.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/media/base/mock_filters.h"
+#include "cobalt/media/base/pipeline.h"
 #include "cobalt/media/base/sbplayer_interface.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/chromium/media/base/decoder.h"
 
 namespace cobalt {
 namespace media {
@@ -64,7 +64,7 @@ class SbPlayerPipelineTest : public ::testing::Test {
  public:
   // Used for setting expectations on pipeline callbacks.  Using a StrictMock
   // also lets us test for missing callbacks.
-  class CallbackHelper : public MockPipelineClient {
+  class CallbackHelper {
    public:
     CallbackHelper() = default;
 
@@ -73,11 +73,19 @@ class SbPlayerPipelineTest : public ::testing::Test {
 
     virtual ~CallbackHelper() = default;
 
-    MOCK_METHOD1(OnStart, void(PipelineStatus));
-    MOCK_METHOD1(OnSeek, void(PipelineStatus));
-    MOCK_METHOD1(OnSuspend, void(PipelineStatus));
-    MOCK_METHOD1(OnResume, void(PipelineStatus));
-    MOCK_METHOD1(OnCdmAttached, void(bool));
+    MOCK_METHOD(void, OnDrmSystemReady,
+                (const DrmSystemReadyCB& drm_system_ready_cb));
+    MOCK_METHOD(void, OnPipelineEnded, (PipelineStatus));
+    MOCK_METHOD(void, OnPipelineError,
+                (PipelineStatus, const std::string& message));
+    MOCK_METHOD(void, OnPipelineSeek,
+                (PipelineStatus, bool is_initial_preroll,
+                 const std::string& error_message));
+    MOCK_METHOD(void, OnPipelineBufferingState,
+                (cobalt::media::Pipeline::BufferingState));
+    MOCK_METHOD(void, OnDurationChanged, ());
+    MOCK_METHOD(void, OnOutputModeChanged, ());
+    MOCK_METHOD(void, OnContentSizeChanged, ());
   };
 
   SbPlayerPipelineTest()
@@ -134,15 +142,40 @@ class SbPlayerPipelineTest : public ::testing::Test {
     streams_.push_back(audio_stream_.get());
   }
 
+  void StartPipeline() {
+    pipeline_->Start(
+        demuxer_.get(),
+        base::BindRepeating(&CallbackHelper::OnDrmSystemReady,
+                            base::Unretained(&callbacks_)),
+        base::BindRepeating(&CallbackHelper::OnPipelineEnded,
+                            base::Unretained(&callbacks_)),
+        base::BindRepeating(&CallbackHelper::OnPipelineError,
+                            base::Unretained(&callbacks_)),
+        base::BindRepeating(&CallbackHelper::OnPipelineSeek,
+                            base::Unretained(&callbacks_)),
+        base::BindRepeating(&CallbackHelper::OnPipelineBufferingState,
+                            base::Unretained(&callbacks_)),
+        base::BindRepeating(&CallbackHelper::OnDurationChanged,
+                            base::Unretained(&callbacks_)),
+        base::BindRepeating(&CallbackHelper::OnOutputModeChanged,
+                            base::Unretained(&callbacks_)),
+        base::BindRepeating(&CallbackHelper::OnContentSizeChanged,
+                            base::Unretained(&callbacks_)),
+        "");
+
+    // EXPECT_CALL(callbacks_, OnWaiting(_)).Times(0);
+    // EXPECT_CALL(callbacks_, OnWaiting(_)).Times(0);
+  }
+
   base::test::ScopedTaskEnvironment task_environment_;
 
-  // StrictMock<CallbackHelper> callbacks_;
+  StrictMock<CallbackHelper> callbacks_;
 
   std::unique_ptr<StrictMock<MockDemuxer>> demuxer_;
   std::unique_ptr<StrictMock<MockSbPlayerInterface>> sbplayer_interface_;
   scoped_refptr<StrictMock<MockDecodeTargetProvider>> decode_target_provider_;
 
-  scoped_refptr<Pipeline> pipeline_;
+  scoped_refptr<SbPlayerPipeline> pipeline_;
 
   // std::unique_ptr<StrictMock<MockRenderer>> scoped_renderer_;
   // base::WeakPtr<MockRenderer> renderer_;
@@ -162,18 +195,16 @@ TEST_F(SbPlayerPipelineTest, ConstructAndDestroy) {
   EXPECT_EQ(0.0, pipeline_->GetPlaybackRate());
 }
 
-TEST_F(SbPlayerPipelineTest, SetVolume) {
-  CreateAudioStream();
-  //  //SetDemuxerExpectations();
-  //
-  //  // The audio renderer should receive a call to SetVolume().
-  //  // float expected = 0.5f;
-  //  // EXPECT_CALL(*renderer_, SetVolume(expected));
-  //
-  //  // Initialize then set volume!
-  //  // StartPipelineAndExpect(PIPELINE_OK);
-  //  // pipeline_->SetVolume(expected);
-  //  base::RunLoop().RunUntilIdle();
+TEST_F(SbPlayerPipelineTest, PipelineStart) {
+  EXPECT_CALL(*demuxer_, OnInitialize(pipeline_.get(), _)).Times(1);
+  StartPipeline();
+  base::RunLoop().RunUntilIdle();
+}
+
+TEST_F(SbPlayerPipelineTest, SetDrmSystem) {
+  EXPECT_CALL(*demuxer_, OnInitialize(pipeline_.get(), _)).Times(1);
+  StartPipeline();
+  base::RunLoop().RunUntilIdle();
 }
 
 

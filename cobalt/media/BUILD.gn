@@ -144,7 +144,7 @@ target(gtest_target_type, "media_test") {
     "//cobalt/test:run_all_unittests",
     "//testing/gmock",
     "//testing/gtest",
-    "//third_party/chromium/media:media",
+    "//third_party/chromium/media",
   ]
 
   data_deps = [ "//cobalt/media/testing:cobalt_media_download_test_data" ]

@@ -15,12 +15,13 @@
 #ifndef COBALT_MEDIA_BASE_MOCK_FILTERS_H_
 #define COBALT_MEDIA_BASE_MOCK_FILTERS_H_
 
+#include <string>
+#include <vector>
+
+#include "cobalt/media/base/pipeline.h"
 #include "cobalt/media/base/sbplayer_pipeline.h"
-#include "string"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/chromium/media/base/pipeline.h"
-#include "vector"
 
 namespace cobalt {
 namespace media {
@@ -31,40 +32,9 @@ using ::media::Demuxer;
 using ::media::DemuxerHost;
 using ::media::DemuxerStream;
 using ::media::MediaTrack;
-using ::media::PipelineMetadata;
 using ::media::PipelineStatusCallback;
 using ::media::VideoDecoderConfig;
 using ::media::VideoPipelineInfo;
-
-class MockPipelineClient : public ::media::Pipeline::Client {
- public:
-  MockPipelineClient() = default;
-  ~MockPipelineClient() = default;
-
-  MOCK_METHOD1(OnError, void(PipelineStatus));
-  MOCK_METHOD0(OnEnded, void());
-  MOCK_METHOD1(OnMetadata, void(const PipelineMetadata&));
-  MOCK_METHOD2(OnBufferingStateChange,
-               void(::media::BufferingState,
-                    ::media::BufferingStateChangeReason));
-  MOCK_METHOD0(OnDurationChange, void());
-  MOCK_METHOD(void, OnAddTextTrack,
-              (const ::media::TextTrackConfig& config,
-               ::media::AddTextTrackDoneCB done_cb),
-              (override));
-  MOCK_METHOD1(OnWaiting, void(::media::WaitingReason));
-  MOCK_METHOD1(OnVideoNaturalSizeChange, void(const gfx::Size&));
-  MOCK_METHOD1(OnVideoOpacityChange, void(bool));
-  MOCK_METHOD0(OnVideoAverageKeyframeDistanceUpdate, void());
-  MOCK_METHOD1(OnAudioConfigChange, void(const AudioDecoderConfig&));
-  MOCK_METHOD1(OnVideoConfigChange, void(const VideoDecoderConfig&));
-
-  MOCK_METHOD1(OnAudioPipelineInfoChange, void(const AudioPipelineInfo&));
-  MOCK_METHOD1(OnVideoPipelineInfoChange, void(const VideoPipelineInfo&));
-  MOCK_METHOD1(OnVideoFrameRateChange, void(absl::optional<int>));
-  // MOCK_METHOD1(OnRemotePlayStateChange,
-  //              void(::media::MediaStatus::State state));
-};
 
 class MockDemuxer : public Demuxer {
  public:

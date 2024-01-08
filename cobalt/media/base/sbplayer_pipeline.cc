@@ -648,6 +648,7 @@ void SbPlayerPipeline::StartTask(StartTaskParameters parameters) {
     return;
   }
 #endif  // SB_HAS(PLAYER_WITH_URL)
+  LOG(INFO) << "YO THOR!";
   demuxer_->Initialize(
       this, BindToCurrentLoop(
                 base::Bind(&SbPlayerPipeline::OnDemuxerInitialized, this)));
