@@ -17,7 +17,6 @@
 
 namespace starboard {
 namespace nplb {
-namespace posix_compliance {
 namespace {
 
 #if SB_API_VERSION >= 16
@@ -58,6 +57,5 @@ TEST(PosixCompareNoCaseNTest, SunnyDayCase) {
 #endif  // SB_API_VERSION >= 16
 
 }  // namespace
-}  // namespace posix_compliance
 }  // namespace nplb
 }  // namespace starboard
