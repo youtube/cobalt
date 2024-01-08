@@ -625,6 +625,7 @@ TEST_F(FeatureListTest, UninitializedInstance_IsEnabledReturnsFalse) {
     FeatureList::RestoreInstanceForTesting(std::move(original_feature_list));
 }
 
+#if !defined(STARBOARD)
 TEST_F(FeatureListTest, DISABLED_StoreAndRetrieveFeaturesFromSharedMemory) {
   std::unique_ptr<base::FeatureList> feature_list(new base::FeatureList);
 
@@ -689,6 +690,8 @@ TEST_F(FeatureListTest, DISABLED_StoreAndRetrieveAssociatedFeaturesFromSharedMem
   EXPECT_EQ(associated_trial1, trial1);
   EXPECT_EQ(associated_trial2, trial2);
 }
+
+#endif  // !defined(STARBOARD)
 
 #if BUILDFLAG(ENABLE_BANNED_BASE_FEATURE_PREFIX) && \
     defined(GTEST_HAS_DEATH_TEST)
