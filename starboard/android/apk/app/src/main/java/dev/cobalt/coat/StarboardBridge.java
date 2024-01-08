@@ -118,6 +118,8 @@ public class StarboardBridge {
   private static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getTimeZone("America/Los_Angeles");
   private final long timeNanosecondsPerMicrosecond = 1000;
 
+  public static boolean enableBackgroundPlayback = false;
+
   public StarboardBridge(
       Context appContext,
       Holder<Activity> activityHolder,
@@ -189,6 +191,11 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   protected void startMediaPlaybackService() {
+    if (!enableBackgroundPlayback) {
+      Log.v(TAG, "Media Playback Service is disabled. Skip startMediaPlaybackService().");
+      return;
+    }
+
     if (cobaltMediaSession == null || !cobaltMediaSession.isActive()) {
       Log.w(TAG, "Do not start a MediaPlaybackService when the MediSsession is null or inactive.");
       return;
@@ -208,23 +215,38 @@ public class StarboardBridge {
         } else {
           appContext.startService(intent);
         }
-      } catch (SecurityException e) {
+      } catch (RuntimeException e) {
         Log.e(TAG, "Failed to start MediaPlaybackService with intent.", e);
         return;
       }
     } else {
       Log.i(TAG, "Warm start - Restarting the MediaPlaybackService.");
-      ((MediaPlaybackService) service).startService();
+      try {
+        ((MediaPlaybackService) service).startService();
+      } catch (RuntimeException e) {
+        Log.e(TAG, "Failed to restart MediaPlaybackService.", e);
+        return;
+      }
     }
   }
 
   @SuppressWarnings("unused")
   @UsedByNative
   protected void stopMediaPlaybackService() {
+    if (!enableBackgroundPlayback) {
+      Log.v(TAG, "Media Playback Service is disabled. Skip stopMediaPlaybackService().");
+      return;
+    }
+
     Service service = serviceHolder.get();
     if (service != null) {
       Log.i(TAG, "Stopping the MediaPlaybackService.");
-      ((MediaPlaybackService) service).stopService();
+      try {
+        ((MediaPlaybackService) service).stopService();
+      } catch (RuntimeException e) {
+        Log.e(TAG, "Failed to stop MediaPlaybackService.", e);
+        return;
+      }
     }
   }
 
@@ -845,5 +867,12 @@ public class StarboardBridge {
   @UsedByNative
   protected String getBuildFingerprint() {
     return Build.FINGERPRINT;
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  protected void enableBackgroundPlayback(boolean value) {
+    enableBackgroundPlayback = value;
+    Log.v(TAG, "StarboardBridge set enableBackgroundPlayback: %b", value);
   }
 }
