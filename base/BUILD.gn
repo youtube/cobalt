@@ -1084,7 +1084,7 @@ component("base") {
     "//third_party/modp_b64",
   ]
 
-  if (is_starboard && current_toolchain != host_toolchain){
+  if (is_starboard && current_toolchain != host_toolchain) {
     deps += [ "//starboard" ]
   }
 
@@ -2771,80 +2771,80 @@ component("i18n") {
 }
 
 if (!is_starboard) {
-test("base_perftests") {
-  sources = [
-    "hash/hash_perftest.cc",
-    "message_loop/message_pump_perftest.cc",
-    "observer_list_perftest.cc",
-    "rand_util_perftest.cc",
-    "strings/string_util_perftest.cc",
-    "substring_set_matcher/substring_set_matcher_perftest.cc",
-    "task/job_perftest.cc",
-    "task/sequence_manager/sequence_manager_perftest.cc",
-    "task/thread_pool/thread_pool_perftest.cc",
-    "threading/counter_perftest.cc",
-    "threading/thread_local_storage_perftest.cc",
+  test("base_perftests") {
+    sources = [
+      "hash/hash_perftest.cc",
+      "message_loop/message_pump_perftest.cc",
+      "observer_list_perftest.cc",
+      "rand_util_perftest.cc",
+      "strings/string_util_perftest.cc",
+      "substring_set_matcher/substring_set_matcher_perftest.cc",
+      "task/job_perftest.cc",
+      "task/sequence_manager/sequence_manager_perftest.cc",
+      "task/thread_pool/thread_pool_perftest.cc",
+      "threading/counter_perftest.cc",
+      "threading/thread_local_storage_perftest.cc",
 
-    # "test/run_all_unittests.cc",
-    "json/json_perftest.cc",
-    "synchronization/lock_perftest.cc",
-    "synchronization/waitable_event_perftest.cc",
-    "threading/thread_perftest.cc",
-  ]
-
-  deps = [
-    ":base",
-    ":debugging_buildflags",
-    "//base/test:test_support",
-    "//base/test:test_support_perf",
-    "//testing/gtest",
-    "//testing/perf",
-  ]
-
-  if (use_partition_alloc) {
-    sources += [
-      "allocator/partition_allocator/partition_alloc_perftest.cc",
-      "allocator/partition_allocator/partition_lock_perftest.cc",
+      # "test/run_all_unittests.cc",
+      "json/json_perftest.cc",
+      "synchronization/lock_perftest.cc",
+      "synchronization/waitable_event_perftest.cc",
+      "threading/thread_perftest.cc",
     ]
-    deps += [ ":partition_alloc_test_support" ]
+
+    deps = [
+      ":base",
+      ":debugging_buildflags",
+      "//base/test:test_support",
+      "//base/test:test_support_perf",
+      "//testing/gtest",
+      "//testing/perf",
+    ]
+
+    if (use_partition_alloc) {
+      sources += [
+        "allocator/partition_allocator/partition_alloc_perftest.cc",
+        "allocator/partition_allocator/partition_lock_perftest.cc",
+      ]
+      deps += [ ":partition_alloc_test_support" ]
+    }
+
+    data_deps = [
+      # Needed for isolate script to execute.
+      "//testing:run_perf_test",
+    ]
+
+    if (is_android) {
+      deps += [ "//testing/android/native_test:native_test_native_code" ]
+      shard_timeout = 600
+    }
+
+    if (is_fuchsia) {
+      # Run these performance tests against the actual system.
+      run_as_chromium_system_test = true
+    }
+
+    if (!is_official_build) {
+      # The extra data tables required by stack traces are turned off for official
+      # build, only do stack trace perftest for unofficial build
+      sources += [ "debug/stack_trace_perftest.cc" ]
+    }
+
+    if (build_allocation_stack_trace_recorder) {
+      sources += [ "debug/allocation_trace_perftest.cc" ]
+    }
   }
 
-  data_deps = [
-    # Needed for isolate script to execute.
-    "//testing:run_perf_test",
-  ]
-
-  if (is_android) {
-    deps += [ "//testing/android/native_test:native_test_native_code" ]
-    shard_timeout = 600
+  test("base_i18n_perftests") {
+    sources = [ "i18n/streaming_utf8_validator_perftest.cc" ]
+    deps = [
+      ":base",
+      ":i18n",
+      "//base/test:test_support",
+      "//base/test:test_support_perf",
+      "//testing/gtest",
+    ]
   }
-
-  if (is_fuchsia) {
-    # Run these performance tests against the actual system.
-    run_as_chromium_system_test = true
-  }
-
-  if (!is_official_build) {
-    # The extra data tables required by stack traces are turned off for official
-    # build, only do stack trace perftest for unofficial build
-    sources += [ "debug/stack_trace_perftest.cc" ]
-  }
-
-  if (build_allocation_stack_trace_recorder) {
-    sources += [ "debug/allocation_trace_perftest.cc" ]
-  }
-}
-
-test("base_i18n_perftests") {
-  sources = [ "i18n/streaming_utf8_validator_perftest.cc" ]
-  deps = [
-    ":base",
-    ":i18n",
-    "//base/test:test_support",
-    "//base/test:test_support_perf",
-    "//testing/gtest",
-  ]
-}
 }
 
 if (!is_ios && !use_cobalt_customizations) {
@@ -3249,13 +3249,11 @@ test("base_unittests") {
     "memory/ref_counted_memory_unittest.cc",
     "memory/ref_counted_unittest.cc",
     "memory/safe_ref_unittest.cc",
-
-    # "memory/shared_memory_hooks_unittest.cc",
-    # "memory/shared_memory_mapping_unittest.cc",
-    # "memory/shared_memory_region_unittest.cc",
+    "memory/shared_memory_hooks_unittest.cc",
+    "memory/shared_memory_mapping_unittest.cc",
+    "memory/shared_memory_region_unittest.cc",
     "memory/singleton_unittest.cc",
-
-    # "memory/unsafe_shared_memory_pool_unittest.cc",
+    "memory/unsafe_shared_memory_pool_unittest.cc",
     "memory/values_equivalent_unittest.cc",
     "memory/weak_auto_reset_unittest.cc",
     "memory/weak_ptr_unittest.cc",
@@ -3307,9 +3305,9 @@ test("base_unittests") {
     "process/environment_internal_unittest.cc",
 
     # "process/memory_unittest.cc",
-    # "process/process_metrics_unittest.cc",
-    # "process/process_unittest.cc",
-    # "process/process_util_unittest.cc",
+    "process/process_metrics_unittest.cc",
+    "process/process_unittest.cc",
+    "process/process_util_unittest.cc",
     "profiler/metadata_recorder_unittest.cc",
 
     # "profiler/module_cache_unittest.cc",
@@ -3516,9 +3514,21 @@ test("base_unittests") {
     sources -= [
       # Cobalt builds don't include build timestamps.
       "build_time_unittest.cc",
+
+      # Since Starboard lacks abstractions for multi-processing, and shared
+      # memory is solely used for inter-process communication, we disable
+      # shared memory and process code in Cobalt.
+      "memory/shared_memory_hooks_unittest.cc",
+      "memory/shared_memory_mapping_unittest.cc",
+      "memory/shared_memory_region_unittest.cc",
+      "memory/unsafe_shared_memory_pool_unittest.cc",
+
       # MessagePumpUIStarboard lives on top of an external message pump
       # and behaves differently than normal message pumps.
       "message_loop/message_pump_unittest.cc",
+      "process/process_metrics_unittest.cc",
+      "process/process_unittest.cc",
+      "process/process_util_unittest.cc",
     ]
   }
 
