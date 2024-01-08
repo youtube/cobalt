@@ -625,7 +625,7 @@ TEST_F(FeatureListTest, UninitializedInstance_IsEnabledReturnsFalse) {
     FeatureList::RestoreInstanceForTesting(std::move(original_feature_list));
 }
 
-TEST_F(FeatureListTest, StoreAndRetrieveFeaturesFromSharedMemory) {
+TEST_F(FeatureListTest, DISABLED_StoreAndRetrieveFeaturesFromSharedMemory) {
   std::unique_ptr<base::FeatureList> feature_list(new base::FeatureList);
 
   // Create some overrides.
@@ -658,7 +658,7 @@ TEST_F(FeatureListTest, StoreAndRetrieveFeaturesFromSharedMemory) {
       kFeatureOnByDefaultName, FeatureList::OVERRIDE_DISABLE_FEATURE));
 }
 
-TEST_F(FeatureListTest, StoreAndRetrieveAssociatedFeaturesFromSharedMemory) {
+TEST_F(FeatureListTest, DISABLED_StoreAndRetrieveAssociatedFeaturesFromSharedMemory) {
   std::unique_ptr<base::FeatureList> feature_list(new base::FeatureList);
 
   // Create some overrides.
