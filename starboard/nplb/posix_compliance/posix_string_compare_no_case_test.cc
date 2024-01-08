@@ -17,21 +17,22 @@
 
 namespace starboard {
 namespace nplb {
+namespace posix_compliance {
 namespace {
 
 #if SB_API_VERSION >= 16
-TEST(SbStringCompareNoCasePosixTest, SunnyDaySelf) {
+TEST(PosixCompareNoCaseTest, SunnyDaySelf) {
   const char kString[] = "0123456789";
   EXPECT_EQ(0, strcasecmp(kString, kString));
   EXPECT_EQ(0, strcasecmp("", ""));
 }
 
-TEST(SbStringCompareNoCasePosixTest, SunnyDayEmptyLessThanNotEmpty) {
+TEST(PosixCompareNoCaseTest, SunnyDayEmptyLessThanNotEmpty) {
   const char kString[] = "0123456789";
   EXPECT_GT(0, strcasecmp("", kString));
 }
 
-TEST(SbStringCompareNoCasePosixTest, SunnyDayCase) {
+TEST(PosixCompareNoCaseTest, SunnyDayCase) {
   const char kString1[] = "aBcDeFgHiJkLmNoPqRsTuVwXyZ";
   const char kString2[] = "AbCdEfGhIjKlMnOpQrStUvWxYz";
   EXPECT_EQ(0, strcasecmp(kString1, kString2));
@@ -39,5 +40,6 @@ TEST(SbStringCompareNoCasePosixTest, SunnyDayCase) {
 }
 #endif  // SB_API_VERSION >= 16
 }  // namespace
+}  // namespace posix_compliance
 }  // namespace nplb
 }  // namespace starboard
