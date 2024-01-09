@@ -1,0 +1,4 @@
+git-url: https://chromium.googlesource.com/chromium/src.git
+git-revision: 114.0.5735.334
+chromium-version: 114.0.5735.334
+chromium-dir: base/third_party/symbolize

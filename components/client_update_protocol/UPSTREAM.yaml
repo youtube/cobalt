@@ -1,0 +1,4 @@
+git-url: https://chromium.googlesource.com/chromium/src.git
+git-revision: 80.0.3987.162
+chromium-version: 80.0.3987.162
+chromium-dir: components/client_update_protocol

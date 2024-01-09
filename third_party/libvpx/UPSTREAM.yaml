@@ -1,0 +1,4 @@
+git-url: https://chromium.googlesource.com/chromium/src.git
+git-revision: 96.0.4664.219
+chromium-version: 96.0.4664.219
+chromium-dir: third_party/libvpx

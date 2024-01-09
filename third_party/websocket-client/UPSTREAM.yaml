@@ -1,0 +1,4 @@
+git-url: https://github.com/websocket-client/websocket-client.git
+git-revision: 3c25814664fef5b78716ed8841123ed1c0d17824
+chromium-version: not in chromium
+chromium-dir: not in chromium

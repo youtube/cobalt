@@ -1,0 +1,4 @@
+git-url: https://chromium.googlesource.com/chromium/src.git
+git-revision: 9728f19f59ce7bfda2601bd14f06ad1b284e2e77
+chromium-version: not in chromium
+chromium-dir: not in chromium  # but Chromium does have components/qr_code_generator

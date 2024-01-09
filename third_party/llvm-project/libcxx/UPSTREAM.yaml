@@ -1,0 +1,5 @@
+git-url: https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxx.git
+git-revision: 1127c78cf90cf253be614a1e1d3645da57edbeb4
+# from https://chromium.googlesource.com/chromium/src/+/111.0.5563.150/DEPS#486
+chromium-version: 111.0.5563.150
+chromium-dir: buildtools/third_party/libc++/trunk

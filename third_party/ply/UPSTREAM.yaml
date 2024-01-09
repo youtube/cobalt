@@ -1,0 +1,4 @@
+git-url: https://chromium.googlesource.com/chromium/src.git
+git-revision: 74.0.3729.169
+chromium-version: 74.0.3729.169
+chromium-dir: third_party/ply

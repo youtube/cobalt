@@ -1,0 +1,5 @@
+git-url: https://chromium.googlesource.com/chromium/deps/icu.git
+git-revision: d1e2bd28c490a92d410c8014b68527941e124212
+# from https://chromium.googlesource.com/chromium/src/+/88.0.4324.150/DEPS#1045
+chromium-version: 88.0.4324.150
+chromium-dir: third_party/icu

@@ -1,0 +1,4 @@
+git-url: https://chromium.googlesource.com/chromium/src.git
+git-revision: 48.0.2564.116
+chromium-version: 48.0.2564.116
+chromium-dir: third_party/harfbuzz-ng

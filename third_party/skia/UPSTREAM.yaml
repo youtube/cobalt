@@ -1,0 +1,5 @@
+git-url: https://skia.googlesource.com/skia.git
+git-revision: a91f9f612e5eeb93cf40a3c0ce7d7c6ddf838feb
+# from https://chromium.googlesource.com/chromium/src/+/80.0.3987.162/DEPS#176
+chromium-version: 80.0.3987.162
+chromium-dir: third_party/skia

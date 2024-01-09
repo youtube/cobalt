@@ -1,0 +1,5 @@
+git-url: https://chromium.googlesource.com/chromium/src.git
+git-revision: ed683925e4897a84b3bffc5c1414c85b97a129a3
+# from https://chromium.googlesource.com/chromium/src/+/108.0.5359.243/DEPS#1507
+chromium-version: 108.0.5359.243
+chromium-dir: third_party/libjpeg_turbo

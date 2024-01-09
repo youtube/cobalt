@@ -1,0 +1,4 @@
+git-url: https://github.com/google/woff2.git
+git-revision: 87.0.4280.142
+chromium-version: 87.0.4280.142
+chromium-dir: third_party/woff2

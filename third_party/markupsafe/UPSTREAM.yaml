@@ -1,0 +1,4 @@
+git-url: https://chromium.googlesource.com/chromium/src.git
+git-revision: 108.0.5359.243
+chromium-version: 108.0.5359.243
+chromium-dir: third_party/markupsafe

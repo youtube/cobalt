@@ -133,6 +133,13 @@ repos:
         language: python
         types: [java]
         verbose: true
+    -   id: upstream-yaml
+        name: Check UPSTREAM.yaml files
+        entry: python precommit_hooks/upstream_yaml.py
+        language: python
+        types: [yaml]
+        additional_dependencies: ['strictyaml']
+        verbose: true
     -   id: check-copyright-year
         name: check copyright year
         entry: python ./precommit_hooks/check_copyright_year.py

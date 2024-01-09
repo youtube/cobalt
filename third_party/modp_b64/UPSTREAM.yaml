@@ -1,0 +1,4 @@
+git-url: https://chromium.googlesource.com/chromium/src.git
+git-revision: 87.0.4280.142
+chromium-version: 87.0.4280.142
+chromium-dir: third_party/modp_b64

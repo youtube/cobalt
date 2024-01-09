@@ -1,0 +1,5 @@
+git-url: https://chromium.googlesource.com/external/github.com/google/benchmark.git
+git-revision: 367119482ff4abc3d73e4a109b410090fc281337
+# from https://chromium.googlesource.com/chromium/src/+/87.0.4280.142/DEPS#821
+chromium-version: 87.0.4280.142
+chromium-dir: third_party/google_benchmark/src
