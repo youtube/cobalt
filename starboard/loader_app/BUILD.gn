@@ -238,8 +238,8 @@ static_library("installation_manager") {
 }
 
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
-if (!is_host_win) {
-  target(gtest_target_type, "installation_manager_test") {
+if (current_toolchain == starboard_toolchain && !is_host_win) {
+  target(starboard_level_gtest_target_type, "installation_manager_test") {
     testonly = true
     sources = [
       "//starboard/common/test_main.cc",
@@ -279,8 +279,8 @@ static_library("slot_management") {
 }
 
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
-if (!is_host_win) {
-  target(gtest_target_type, "slot_management_test") {
+if (current_toolchain == starboard_toolchain && !is_host_win) {
+  target(starboard_level_gtest_target_type, "slot_management_test") {
     testonly = true
     sources = [
       "//starboard/common/test_main.cc",
@@ -329,8 +329,8 @@ static_library("reset_evergreen_update") {
 }
 
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
-if (!is_host_win) {
-  target(gtest_target_type, "reset_evergreen_update_test") {
+if (current_toolchain == starboard_toolchain && !is_host_win) {
+  target(starboard_level_gtest_target_type, "reset_evergreen_update_test") {
     testonly = true
     sources = [
       "//starboard/common/test_main.cc",
