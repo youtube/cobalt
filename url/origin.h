@@ -5,6 +5,8 @@
 #ifndef URL_ORIGIN_H_
 #define URL_ORIGIN_H_
 
+#include <stdint.h>
+
 #include <string>
 
 #include "base/debug/alias.h"
@@ -13,7 +15,6 @@
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/unguessable_token.h"
-#include "starboard/types.h"
 #include "url/scheme_host_port.h"
 #include "url/third_party/mozilla/url_parse.h"
 #include "url/url_canon.h"

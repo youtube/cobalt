@@ -4,6 +4,8 @@
 
 #include "url/gurl.h"
 
+#include <stddef.h>
+
 #include <algorithm>
 #include <ostream>
 
@@ -12,7 +14,6 @@
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/trace_event/memory_usage_estimator.h"
-#include "starboard/types.h"
 #include "url/url_canon_stdstring.h"
 #include "url/url_util.h"
 

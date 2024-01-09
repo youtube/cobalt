@@ -5,7 +5,7 @@
 #ifndef URL_URL_CONSTANTS_H_
 #define URL_URL_CONSTANTS_H_
 
-#include "starboard/types.h"
+#include <stddef.h>
 
 #include "url/url_export.h"
 

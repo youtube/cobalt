@@ -39,8 +39,6 @@
 #include <stdlib.h>
 
 #include "base/logging.h"
-#include "starboard/common/string.h"
-#include "starboard/types.h"
 #include "url/url_parse_internal.h"
 #include "url/url_util.h"
 #include "url/url_util_internal.h"

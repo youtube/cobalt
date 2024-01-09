@@ -6,9 +6,12 @@
 
 #include <string.h>
 
-#include "starboard/types.h"
 #include "url/url_canon.h"
 #include "url/url_canon_internal.h"
+
+#if defined(STARBOARD)
+#include "starboard/string.h"
+#endif
 
 namespace url {
 

@@ -9,7 +9,6 @@
 #include "base/strings/string16.h"
 #include "base/strings/string_piece.h"
 #include "jni/IDNStringUtil_jni.h"
-#include "starboard/types.h"
 #include "url/url_canon_internal.h"
 
 using base::android::ScopedJavaLocalRef;

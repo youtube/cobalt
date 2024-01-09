@@ -4,15 +4,11 @@
 
 #include "url/third_party/mozilla/url_parse.h"
 
+#include <stddef.h>
+
 #include "base/macros.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/third_party/mozilla/url_parse.h"
-
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#include "starboard/common/string.h"
-#include "starboard/types.h"
-#endif
 
 // Interesting IE file:isms...
 //

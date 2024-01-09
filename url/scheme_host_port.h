@@ -5,10 +5,11 @@
 #ifndef URL_SCHEME_HOST_PORT_H_
 #define URL_SCHEME_HOST_PORT_H_
 
+#include <stdint.h>
+
 #include <string>
 
 #include "base/strings/string_piece.h"
-#include "starboard/types.h"
 #include "url/url_export.h"
 
 class GURL;
@@ -112,12 +113,6 @@ class URL_EXPORT SchemeHostPort {
   SchemeHostPort& operator=(const SchemeHostPort&) = default;
   SchemeHostPort(SchemeHostPort&&) = default;
   SchemeHostPort& operator=(SchemeHostPort&&) = default;
-#if defined(STARBOARD)
-  // Cobalt's compiler can not generate operator== by default yet.
-  bool operator==(const SchemeHostPort& rhs) const {
-    return scheme_ == rhs.scheme_ && host_ == rhs.host_ && port_ == rhs.port_;
-  }
-#endif
 
   ~SchemeHostPort();
 

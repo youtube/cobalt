@@ -4,6 +4,7 @@
 
 #include "url/scheme_host_port.h"
 
+#include <stdint.h>
 #include <string.h>
 
 #include <tuple>
@@ -11,7 +12,6 @@
 #include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
-#include "starboard/types.h"
 #include "url/gurl.h"
 #include "url/third_party/mozilla/url_parse.h"
 #include "url/url_canon.h"
