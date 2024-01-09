@@ -633,8 +633,8 @@ void DrmSystemWidevine::onMessage(const std::string& wvcdm_session_id,
   }
 }
 
-void DrmSystemWidevine::onKeyStatusesChange(
-    const std::string& wvcdm_session_id) {
+void DrmSystemWidevine::onKeyStatusesChange(const std::string& wvcdm_session_id,
+                                            bool has_new_usable_key) {
   wv3cdm::KeyStatusMap key_statuses;
   wv3cdm::Status status = cdm_->getKeyStatuses(wvcdm_session_id, &key_statuses);
 
