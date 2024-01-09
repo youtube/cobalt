@@ -15,7 +15,6 @@
 #include "starboard/nplb/player_test_fixture.h"
 
 #include <algorithm>
-#include <cmath>
 #include <vector>
 
 #include "starboard/common/string.h"
@@ -377,21 +376,20 @@ int SbPlayerTestFixture::ConvertDurationToAudioBufferCount(
     int64_t duration) const {
   SB_DCHECK(HasAudio());
   SB_DCHECK(audio_dmp_reader_->number_of_audio_buffers());
-
-  // If this still rounds to 0, it may be necessary to increase
-  // kDurationPerWrite in player_write_sample_test.cc. Some codecs, like FLAC,
-  // compress the data well enough that 100ms of audio is less than a single
-  // frame. Other checks in this file will fail if this returns 0.
-  return std::round(duration * audio_dmp_reader_->number_of_audio_buffers() /
-                    static_cast<float>(audio_dmp_reader_->audio_duration()));
+  return std::max(
+      1,
+      static_cast<int>(duration * audio_dmp_reader_->number_of_audio_buffers() /
+                       audio_dmp_reader_->audio_duration()));
 }
 
 int SbPlayerTestFixture::ConvertDurationToVideoBufferCount(
     int64_t duration) const {
   SB_DCHECK(HasVideo());
   SB_DCHECK(video_dmp_reader_->number_of_video_buffers());
-  return duration * video_dmp_reader_->number_of_video_buffers() /
-         video_dmp_reader_->video_duration();
+  return std::max(
+      1,
+      static_cast<int>(duration * video_dmp_reader_->number_of_video_buffers() /
+                       video_dmp_reader_->video_duration()));
 }
 
 // static
