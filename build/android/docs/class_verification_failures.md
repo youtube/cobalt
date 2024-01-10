@@ -2,6 +2,13 @@
 
 [TOC]
 
+## This document is obsolete
+
+While class verification failures still exist, our Java optimizer, R8, has
+solved this problem for us. Developers should not have to worry about this
+problem unless there is a bug in R8. See [this bug](http://b/138781768) for where
+they implemented this solution for us.
+
 ## What's this all about?
 
 This document aims to explain class verification on Android, how this can affect
@@ -82,6 +89,9 @@ selectively to optimize space.
 
 ## Chromium's solution
 
+**Note:** This section is no longer relevant as R8 has fixed this for us. We intend
+to remove these ApiHelperFor classes - see [this bug](https://crbug.com/1302156).
+
 In Chromium, we try to avoid doing class verification at runtime by
 manually out-of-lining all Android API usage like so:
 
@@ -127,8 +137,7 @@ look as follows:
  * These need to exist in a separate class so that Android framework can successfully verify
  * classes without encountering the new APIs.
  */
-@VerifiesOnOMR1
-@TargetApi(Build.VERSION_CODES.O_MR1)
+@RequiresApi(Build.VERSION_CODES.O_MR1)
 public class ApiHelperForOMR1 {
     private ApiHelperForOMR1() {}
 
@@ -136,15 +145,14 @@ public class ApiHelperForOMR1 {
 }
 ```
 
-* `@VerifiesOnO_MR1`: this is a chromium-defined annotation to tell proguard
-  (and similar tools) not to inline this class or its methods (since that would
-  defeat the point of out-of-lining!)
-* `@TargetApi(Build.VERSION_CODES.O_MR1)`: this tells Android Lint it's OK to
+* `@RequiresApi(Build.VERSION_CODES.O_MR1)`: this tells Android Lint it's OK to
   use OMR1 APIs since this class is only used on OMR1 and above. Substitute
   `O_MR1` for the [appropriate constant][4], depending when the APIs were
   introduced.
 * Don't put any `SDK_INT` checks inside this class, because it must only be
   called on >= OMR1.
+* R8 is smart enough not to inline methods where doing so would introduce
+  verification failures (b/138781768)
 
 ### Out-of-lining if your method has a new type in its signature
 
@@ -174,7 +182,7 @@ public class FooBar {
 }
 
 @VerifiesOnP
-@TargetApi(Build.VERSION_CODES.P)
+@RequiresApi(Build.VERSION_CODES.P)
 public class ApiHelperForP {
     public static NewTypeInAndroidP getNewTypeInAndroidP() {
         return new NewTypeInAndroidP();

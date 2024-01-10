@@ -1,8 +1,7 @@
-# Copyright 2013 The Chromium Authors. All rights reserved.
+# Copyright 2013 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-from __future__ import print_function
 
 import difflib
 import hashlib
@@ -13,8 +12,7 @@ import sys
 import zipfile
 
 from util import build_utils
-
-sys.path.insert(1, os.path.join(build_utils.DIR_SOURCE_ROOT, 'build'))
+import action_helpers  # build_utils adds //build to sys.path.
 import print_python_deps
 
 # When set and a difference is detected, a diff of what changed is printed.
@@ -67,7 +65,7 @@ def CallAndWriteDepfileIfStale(on_stale_md5,
   # on bots that build with & without patch, and the patch changes the depfile
   # location.
   if hasattr(options, 'depfile') and options.depfile:
-    build_utils.WriteDepfile(options.depfile, output_paths[0], depfile_deps)
+    action_helpers.write_depfile(options.depfile, output_paths[0], depfile_deps)
 
 
 def CallAndRecordIfStale(function,
@@ -158,7 +156,7 @@ def CallAndRecordIfStale(function,
     new_metadata.ToFile(f)
 
 
-class Changes(object):
+class Changes:
   """Provides and API for querying what changed between runs."""
 
   def __init__(self, old_metadata, new_metadata, force, missing_outputs,
@@ -262,11 +260,11 @@ class Changes(object):
     """Returns a human-readable description of what changed."""
     if self.force:
       return 'force=True'
-    elif self.missing_outputs:
+    if self.missing_outputs:
       return 'Outputs do not exist:\n  ' + '\n  '.join(self.missing_outputs)
-    elif self.too_new:
+    if self.too_new:
       return 'Outputs newer than stamp file:\n  ' + '\n  '.join(self.too_new)
-    elif self.old_metadata is None:
+    if self.old_metadata is None:
       return 'Previous stamp file not found.'
 
     if self.old_metadata.StringsMd5() != self.new_metadata.StringsMd5():
@@ -294,7 +292,7 @@ class Changes(object):
     return 'I have no idea what changed (there is a bug).'
 
 
-class _Metadata(object):
+class _Metadata:
   """Data model for tracking change metadata.
 
   Args:

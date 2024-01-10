@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
-# Copyright 2017 The Chromium Authors. All rights reserved.
+# Copyright 2017 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 """Merges dependency Android manifests into a root manifest."""
 
 import argparse
+import collections
 import contextlib
 import os
 import sys
@@ -15,57 +16,62 @@ import xml.etree.ElementTree as ElementTree
 
 from util import build_utils
 from util import manifest_utils
+import action_helpers  # build_utils adds //build to sys.path.
 
 _MANIFEST_MERGER_MAIN_CLASS = 'com.android.manifmerger.Merger'
-_MANIFEST_MERGER_JARS = [
-    os.path.join('build-system', 'manifest-merger.jar'),
-    os.path.join('common', 'common.jar'),
-    os.path.join('sdk-common', 'sdk-common.jar'),
-    os.path.join('sdklib', 'sdklib.jar'),
-    os.path.join('external', 'com', 'google', 'guava', 'guava', '28.1-jre',
-                 'guava-28.1-jre.jar'),
-    os.path.join('external', 'kotlin-plugin-ij', 'Kotlin', 'kotlinc', 'lib',
-                 'kotlin-stdlib.jar'),
-    os.path.join('external', 'com', 'google', 'code', 'gson', 'gson', '2.8.5',
-                 'gson-2.8.5.jar'),
-]
 
 
 @contextlib.contextmanager
-def _ProcessManifest(manifest_path, min_sdk_version, target_sdk_version,
-                     max_sdk_version, manifest_package):
-  """Patches an Android manifest's package and performs assertions to ensure
-  correctness for the manifest.
-  """
+def _ProcessMainManifest(manifest_path, min_sdk_version, target_sdk_version,
+                         max_sdk_version, manifest_package):
+  """Patches the main Android manifest"""
   doc, manifest, _ = manifest_utils.ParseManifest(manifest_path)
-  manifest_utils.AssertUsesSdk(manifest, min_sdk_version, target_sdk_version,
-                               max_sdk_version)
+  manifest_utils.SetUsesSdk(manifest, target_sdk_version, min_sdk_version,
+                            max_sdk_version)
   assert manifest_utils.GetPackage(manifest) or manifest_package, \
             'Must set manifest package in GN or in AndroidManifest.xml'
-  manifest_utils.AssertPackage(manifest, manifest_package)
   if manifest_package:
     manifest.set('package', manifest_package)
-  tmp_prefix = os.path.basename(manifest_path)
+  tmp_prefix = manifest_path.replace(os.path.sep, '-')
   with tempfile.NamedTemporaryFile(prefix=tmp_prefix) as patched_manifest:
     manifest_utils.SaveManifest(doc, patched_manifest.name)
     yield patched_manifest.name, manifest_utils.GetPackage(manifest)
 
 
-def _BuildManifestMergerClasspath(android_sdk_cmdline_tools):
-  return ':'.join([
-      os.path.join(android_sdk_cmdline_tools, 'lib', jar)
-      for jar in _MANIFEST_MERGER_JARS
-  ])
+@contextlib.contextmanager
+def _ProcessOtherManifest(manifest_path, target_sdk_version,
+                          seen_package_names):
+  """Patches non-main AndroidManifest.xml if necessary."""
+  # 1. Ensure targetSdkVersion is set to the expected value to avoid
+  #    spurious permissions being added (b/222331337).
+  # 2. Ensure all manifests have a unique package name so that the merger
+  #    does not fail when this happens.
+  doc, manifest, _ = manifest_utils.ParseManifest(manifest_path)
+
+  changed_api = manifest_utils.SetTargetApiIfUnset(manifest, target_sdk_version)
+
+  package_name = manifest_utils.GetPackage(manifest)
+  package_count = seen_package_names[package_name]
+  seen_package_names[package_name] += 1
+  if package_count > 0:
+    manifest.set('package', f'{package_name}_{package_count}')
+
+  if package_count > 0 or changed_api:
+    tmp_prefix = manifest_path.replace(os.path.sep, '-')
+    with tempfile.NamedTemporaryFile(prefix=tmp_prefix) as patched_manifest:
+      manifest_utils.SaveManifest(doc, patched_manifest.name)
+      yield patched_manifest.name
+  else:
+    yield manifest_path
 
 
 def main(argv):
   argv = build_utils.ExpandFileArgs(argv)
   parser = argparse.ArgumentParser(description=__doc__)
-  build_utils.AddDepfileOption(parser)
-  parser.add_argument(
-      '--android-sdk-cmdline-tools',
-      help='Path to SDK\'s cmdline-tools folder.',
-      required=True)
+  action_helpers.add_depfile_arg(parser)
+  parser.add_argument('--manifest-merger-jar',
+                      help='Path to SDK\'s manifest merger jar.',
+                      required=True)
   parser.add_argument('--root-manifest',
                       help='Root manifest which to merge into',
                       required=True)
@@ -90,12 +96,10 @@ def main(argv):
                       help='Treat all warnings as errors.')
   args = parser.parse_args(argv)
 
-  classpath = _BuildManifestMergerClasspath(args.android_sdk_cmdline_tools)
-
-  with build_utils.AtomicOutput(args.output) as output:
-    cmd = build_utils.JavaCmd(args.warnings_as_errors) + [
+  with action_helpers.atomic_output(args.output) as output:
+    cmd = build_utils.JavaCmd() + [
         '-cp',
-        classpath,
+        args.manifest_merger_jar,
         _MANIFEST_MERGER_MAIN_CLASS,
         '--out',
         output.name,
@@ -111,14 +115,21 @@ def main(argv):
           'MAX_SDK_VERSION=' + args.max_sdk_version,
       ]
 
-    extras = build_utils.ParseGnList(args.extras)
-    if extras:
-      cmd += ['--libs', ':'.join(extras)]
+    extras = action_helpers.parse_gn_list(args.extras)
 
-    with _ProcessManifest(args.root_manifest, args.min_sdk_version,
-                          args.target_sdk_version, args.max_sdk_version,
-                          args.manifest_package) as tup:
-      root_manifest, package = tup
+    with contextlib.ExitStack() as stack:
+      root_manifest, package = stack.enter_context(
+          _ProcessMainManifest(args.root_manifest, args.min_sdk_version,
+                               args.target_sdk_version, args.max_sdk_version,
+                               args.manifest_package))
+      if extras:
+        seen_package_names = collections.Counter()
+        extras_processed = [
+            stack.enter_context(
+                _ProcessOtherManifest(e, args.target_sdk_version,
+                                      seen_package_names)) for e in extras
+        ]
+        cmd += ['--libs', ':'.join(extras_processed)]
       cmd += [
           '--main',
           root_manifest,
@@ -134,15 +145,8 @@ def main(argv):
           IsTimeStale(output.name, [root_manifest] + extras),
           fail_on_output=args.warnings_as_errors)
 
-    # Check for correct output.
-    _, manifest, _ = manifest_utils.ParseManifest(output.name)
-    manifest_utils.AssertUsesSdk(manifest, args.min_sdk_version,
-                                 args.target_sdk_version)
-    manifest_utils.AssertPackage(manifest, package)
-
   if args.depfile:
-    inputs = extras + classpath.split(':')
-    build_utils.WriteDepfile(args.depfile, args.output, inputs=inputs)
+    action_helpers.write_depfile(args.depfile, args.output, inputs=extras)
 
 
 if __name__ == '__main__':

@@ -1,5 +1,5 @@
-#!/usr/bin/env vpython3
-# Copyright 2020 The Chromium Authors. All rights reserved.
+#!/usr/bin/env python3
+# Copyright 2020 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -28,6 +28,7 @@ import collections
 import json
 import logging
 import os
+import shutil
 import subprocess
 import sys
 
@@ -48,25 +49,49 @@ _VALID_TYPES = (
     'java_annotation_processor',
     'java_binary',
     'java_library',
-    'junit_binary',
+    'robolectric_binary',
     'system_java_library',
 )
 
 
-def _run_ninja(output_dir, args):
-  cmd = [
-      'autoninja',
+def _resolve_ninja():
+  # Prefer the version on PATH, but fallback to known version if PATH doesn't
+  # have one (e.g. on bots).
+  if shutil.which('ninja') is None:
+    return os.path.join(_SRC_ROOT, 'third_party', 'ninja', 'ninja')
+  return 'ninja'
+
+
+def _resolve_autoninja():
+  # Prefer the version on PATH, but fallback to known version if PATH doesn't
+  # have one (e.g. on bots).
+  if shutil.which('autoninja') is None:
+    return os.path.join(_SRC_ROOT, 'third_party', 'depot_tools', 'autoninja')
+  return 'autoninja'
+
+
+def _run_ninja(output_dir, args, j_value=None, quiet=False):
+  if j_value:
+    cmd = [_resolve_ninja(), '-j', j_value]
+  else:
+    cmd = [_resolve_autoninja()]
+  cmd += [
       '-C',
       output_dir,
   ]
   cmd.extend(args)
   logging.info('Running: %r', cmd)
-  subprocess.run(cmd, check=True, stdout=sys.stderr)
+  if quiet:
+    subprocess.run(cmd, check=True, capture_output=True)
+  else:
+    subprocess.run(cmd, check=True, stdout=sys.stderr)
 
 
 def _query_for_build_config_targets(output_dir):
   # Query ninja rather than GN since it's faster.
-  cmd = ['ninja', '-C', output_dir, '-t', 'targets']
+  # Use ninja rather than autoninja to avoid extra output if user has set the
+  # NINJA_SUMMARIZE_BUILD environment variable.
+  cmd = [_resolve_ninja(), '-C', output_dir, '-t', 'targets']
   logging.info('Running: %r', cmd)
   ninja_output = subprocess.run(cmd,
                                 check=True,
@@ -83,7 +108,45 @@ def _query_for_build_config_targets(output_dir):
   return ret
 
 
-class _TargetEntry(object):
+def _query_json(*, json_dict: dict, query: str, path: str):
+  """Traverses through the json dictionary according to the query.
+
+  If at any point a key does not exist, return the empty string, but raise an
+  error if a key exists but is the wrong type.
+
+  This is roughly equivalent to returning
+  json_dict[queries[0]]?[queries[1]]?...[queries[N]]? where the ? means that if
+  the key doesn't exist, the empty string is returned.
+
+  Example:
+  Given json_dict = {'a': {'b': 'c'}}
+  - If queries = ['a', 'b']
+    Return: 'c'
+  - If queries = ['a', 'd']
+    Return ''
+  - If queries = ['x']
+    Return ''
+  - If queries = ['a', 'b', 'x']
+    Raise an error since json_dict['a']['b'] is the string 'c' instead of an
+    expected dict that can be indexed into.
+
+  Returns the final result after exhausting all the queries.
+  """
+  queries = query.split('.')
+  value = json_dict
+  try:
+    for key in queries:
+      value = value.get(key)
+      if value is None:
+        return ''
+  except AttributeError as e:
+    raise Exception(
+        f'Failed when attempting to get {queries} from {path}') from e
+  return value
+
+
+class _TargetEntry:
+
   def __init__(self, gn_target):
     assert gn_target.startswith('//'), f'{gn_target} does not start with //'
     assert ':' in gn_target, f'Non-root {gn_target} required'
@@ -100,23 +163,23 @@ class _TargetEntry(object):
 
   @property
   def build_config_path(self):
-    """Returns the filepath of the project's .build_config."""
+    """Returns the filepath of the project's .build_config.json."""
     ninja_target = self.ninja_target
     # Support targets at the root level. e.g. //:foo
     if ninja_target[0] == ':':
       ninja_target = ninja_target[1:]
-    subpath = ninja_target.replace(':', os.path.sep) + '.build_config'
+    subpath = ninja_target.replace(':', os.path.sep) + '.build_config.json'
     return os.path.join(constants.GetOutDirectory(), 'gen', subpath)
 
   def build_config(self):
-    """Reads and returns the project's .build_config JSON."""
+    """Reads and returns the project's .build_config.json JSON."""
     if not self._build_config:
       with open(self.build_config_path) as jsonfile:
         self._build_config = json.load(jsonfile)
     return self._build_config
 
   def get_type(self):
-    """Returns the target type from its .build_config."""
+    """Returns the target type from its .build_config.json."""
     return self.build_config()['deps_info']['type']
 
   def proguard_enabled(self):
@@ -145,12 +208,13 @@ def main():
   parser.add_argument('--print-types',
                       action='store_true',
                       help='Print type of each target')
-  parser.add_argument('--print-build-config-paths',
-                      action='store_true',
-                      help='Print path to the .build_config of each target')
+  parser.add_argument(
+      '--print-build-config-paths',
+      action='store_true',
+      help='Print path to the .build_config.json of each target')
   parser.add_argument('--build',
                       action='store_true',
-                      help='Build all .build_config files.')
+                      help='Build all .build_config.json files.')
   parser.add_argument('--type',
                       action='append',
                       help='Restrict to targets of given type',
@@ -160,14 +224,22 @@ def main():
                       help='Print counts of each target type.')
   parser.add_argument('--proguard-enabled',
                       action='store_true',
-                      help='Restrict to targets that have proguard enabled')
+                      help='Restrict to targets that have proguard enabled.')
+  parser.add_argument('--query',
+                      help='A dot separated string specifying a query for a '
+                      'build config json value of each target. Example: Use '
+                      '--query deps_info.unprocessed_jar_path to show a list '
+                      'of all targets that have a non-empty deps_info dict and '
+                      'non-empty "unprocessed_jar_path" value in that dict.')
+  parser.add_argument('-j', help='Use -j with ninja instead of autoninja.')
   parser.add_argument('-v', '--verbose', default=0, action='count')
+  parser.add_argument('-q', '--quiet', default=0, action='count')
   args = parser.parse_args()
 
   args.build |= bool(args.type or args.proguard_enabled or args.print_types
-                     or args.stats)
+                     or args.stats or args.query)
 
-  logging.basicConfig(level=logging.WARNING - (10 * args.verbose),
+  logging.basicConfig(level=logging.WARNING + 10 * (args.quiet - args.verbose),
                       format='%(levelname).1s %(relativeCreated)6d %(message)s')
 
   if args.output_directory:
@@ -180,8 +252,10 @@ def main():
   entries = [_TargetEntry(t) for t in targets]
 
   if args.build:
-    logging.warning('Building %d .build_config files...', len(entries))
-    _run_ninja(output_dir, [e.ninja_build_config_target for e in entries])
+    logging.warning('Building %d .build_config.json files...', len(entries))
+    _run_ninja(output_dir, [e.ninja_build_config_target for e in entries],
+               j_value=args.j,
+               quiet=args.quiet)
 
   if args.type:
     entries = [e for e in entries if e.get_type() in args.type]
@@ -208,6 +282,13 @@ def main():
         to_print = f'{to_print}: {e.get_type()}'
       elif args.print_build_config_paths:
         to_print = f'{to_print}: {e.build_config_path}'
+      elif args.query:
+        value = _query_json(json_dict=e.build_config(),
+                            query=args.query,
+                            path=e.build_config_path)
+        if not value:
+          continue
+        to_print = f'{to_print}: {value}'
 
       print(to_print)
 

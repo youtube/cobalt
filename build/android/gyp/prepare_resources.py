@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright (c) 2012 The Chromium Authors. All rights reserved.
+# Copyright 2012 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -18,6 +18,8 @@ from util import jar_info_utils
 from util import md5_check
 from util import resources_parser
 from util import resource_utils
+import action_helpers  # build_utils adds //build to sys.path.
+import zip_helpers
 
 
 def _ParseArgs(args):
@@ -27,7 +29,7 @@ def _ParseArgs(args):
     An options object as from argparse.ArgumentParser.parse_args()
   """
   parser = argparse.ArgumentParser(description=__doc__)
-  build_utils.AddDepfileOption(parser)
+  action_helpers.add_depfile_arg(parser)
 
   parser.add_argument('--res-sources-path',
                       required=True,
@@ -37,6 +39,12 @@ def _ParseArgs(args):
       '--r-text-in',
       help='Path to pre-existing R.txt. Its resource IDs override those found '
       'in the generated R.txt when generating R.java.')
+
+  parser.add_argument(
+      '--allow-missing-resources',
+      action='store_true',
+      help='Do not fail if some resources exist in the res/ dir but are not '
+      'listed in the sources.')
 
   parser.add_argument(
       '--resource-zip-out',
@@ -110,7 +118,7 @@ def _ZipResources(resource_dirs, zip_path, ignore_pattern):
     # the contents of possibly multiple res/ dirs each within an encapsulating
     # directory within the zip.
     z.comment = resource_utils.MULTIPLE_RES_MAGIC_STRING
-    build_utils.DoZip(files_to_zip, z)
+    zip_helpers.add_files_to_zip(files_to_zip, z)
 
 
 def _GenerateRTxt(options, r_txt_path):
@@ -130,7 +138,7 @@ def _GenerateRTxt(options, r_txt_path):
 
 def _OnStaleMd5(options):
   with resource_utils.BuildContext() as build:
-    if options.sources:
+    if options.sources and not options.allow_missing_resources:
       _CheckAllFilesListed(options.sources, options.resource_dirs)
     if options.r_text_in:
       r_txt_path = options.r_text_in

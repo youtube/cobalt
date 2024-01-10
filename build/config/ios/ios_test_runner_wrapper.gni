@@ -1,4 +1,4 @@
-# Copyright 2020 The Chromium Authors. All rights reserved.
+# Copyright 2020 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -93,6 +93,13 @@ template("ios_test_runner_wrapper") {
       "${shards}",
     ]
 
+    if (xcode_version_int >= 1400) {
+      executable_args += [
+        "--readline-timeout",
+        "600",
+      ]
+    }
+
     data_deps = [ "//testing:test_scripts_shared" ]
     if (defined(invoker.data_deps)) {
       data_deps += invoker.data_deps
@@ -124,19 +131,21 @@ template("ios_test_runner_wrapper") {
       _wrapper_output_name = wrapper_output_name
     }
 
-    # Test targets may attempt to generate multiple wrappers for a suite with
-    # multiple different toolchains when running with additional_target_cpus.
-    # Generate the wrapper script into root_out_dir rather than root_build_dir
-    # to ensure those wrappers are distinct.
-    wrapper_script = "${root_out_dir}/bin/${_wrapper_output_name}"
+    wrapper_script = "${root_build_dir}/bin/${_wrapper_output_name}"
 
     data = []
     if (defined(invoker.data)) {
       data += invoker.data
     }
     data += [
-      "//.vpython",
       "//ios/build/bots/scripts/",
+      "//ios/build/bots/scripts/plugin",
+
+      # gRPC interface for iOS test plugin
+      "//ios/testing/plugin",
+
+      # Variations test utilities used by variations_runner script.
+      "//testing/scripts/variations_seed_access_helper.py",
       "//testing/test_env.py",
     ]
   }
