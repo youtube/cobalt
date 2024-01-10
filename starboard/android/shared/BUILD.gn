@@ -440,7 +440,7 @@ static_library("starboard_platform") {
     "//third_party/opus",
   ]
 
-  if (sb_is_evergreen_compatible) {
+  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
     sources -= [
       "crash_handler.cc",
       "crash_handler.h",
