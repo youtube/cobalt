@@ -47,7 +47,7 @@ jobs:
         with:
           python-version: '3.7'
       - name: Install Pip Packages
-        run: pip install -r ${GITHUB_WORKSPACE}/requirements.txt
+        run: pip install -r ${GITHUB_WORKSPACE}/precommit_hooks/requirements.txt
       - name: Download Resources
         run: python ${GITHUB_WORKSPACE}/download_resources.py
       - name: pre-commit
