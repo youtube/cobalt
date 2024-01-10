@@ -68,12 +68,14 @@ group("gn_all") {
     deps += [ "//starboard/contrib/cast/cast_starboard_api/samples:cast" ]
   }
 
-  deps += [ "//starboard/elf_loader:elf_loader_test($starboard_toolchain)" ]
-
   if (!sb_is_evergreen) {
-    deps += [ "//third_party/lz4_lib:lz4" ]
+    deps += [
+      "//starboard/elf_loader:elf_loader_test($starboard_toolchain)",
+      "//third_party/lz4_lib:lz4",
+    ]
 
-    if (sb_is_evergreen_compatible) {
+    if (sb_is_evergreen_compatible &&
+        current_toolchain == starboard_toolchain) {
       deps += [ "//third_party/crashpad/client" ]
       data_deps = [
         "//starboard/loader_app($starboard_toolchain)",
@@ -122,7 +124,8 @@ group("starboard_group") {
     ]
 
     if (!sb_is_modular || sb_is_evergreen) {
-      if (sb_is_evergreen_compatible) {
+      if (sb_is_evergreen_compatible &&
+          current_toolchain == starboard_toolchain) {
         public_deps += [ "//third_party/crashpad/wrapper" ]
       } else {
         public_deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
