@@ -73,8 +73,8 @@ group("gn_all") {
 
     if (sb_is_evergreen_compatible) {
       deps += [
-        "//starboard/elf_loader:elf_loader_test($starboard_toolchain)",
-        "//starboard/loader_app:slot_management_test($starboard_toolchain)",
+        "//starboard/elf_loader:elf_loader_test_install($starboard_toolchain)",
+        "//starboard/loader_app:slot_management_test_install($starboard_toolchain)",
       ]
 
       if (current_toolchain == starboard_toolchain) {
