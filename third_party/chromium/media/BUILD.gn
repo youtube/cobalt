@@ -13,6 +13,7 @@
 # limitations under the License.
 
 config("media_config") {
+  include_dirs = [ "//third_party/abseil-cpp" ]
   if (is_win) {
     cflags = [
       "/wd4267",  # Conversion from 'size_t' to 'type', possible loss of data.
@@ -33,11 +34,11 @@ config("media_config") {
 
 config("media_config_public") {
   # TODO: Make include_dirs other than the first one private.
-  include_dirs = [ "..", "cobalt", "../../skia" ]
+  include_dirs = [ "//third_party/abseil-cpp", "..", "cobalt", "../../skia" ]
 }
 
 config("external_config") {
-  include_dirs = [ "..", "cobalt", "../../skia"  ]
+  include_dirs = [ "//third_party/abseil-cpp", "..", "cobalt", "../../skia"  ]
 }
 
 component("media") {
@@ -202,7 +203,6 @@ component("media") {
   ]
 
   sources += [
-    "cobalt/third_party/abseil-cpp/absl/types/optional.h",
     "cobalt/ui/gfx/geometry/point3_f.h",
     "cobalt/ui/gfx/geometry/point_base.h",
     "cobalt/ui/gfx/geometry/rect.h",
@@ -248,6 +248,7 @@ component("media") {
     "//build:chromeos_buildflags",
     "//net",
     "//starboard:starboard_group",
+    "//third_party/abseil-cpp/absl/types:optional",
     "//url",
   ]
 }

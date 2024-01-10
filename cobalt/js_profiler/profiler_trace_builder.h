@@ -20,7 +20,7 @@
 
 #include "base/time/time.h"
 #include "cobalt/script/sequence.h"
-#include "third_party/chromium/media/cobalt/third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "v8/include/v8-profiler.h"
 
 namespace cobalt {
