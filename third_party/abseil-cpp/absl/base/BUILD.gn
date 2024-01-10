@@ -46,6 +46,7 @@ absl_source_set("spinlock_wait") {
     "internal/spinlock_akaros.inc",
     "internal/spinlock_linux.inc",
     "internal/spinlock_posix.inc",
+    "internal/spinlock_starboard.inc",
     "internal/spinlock_wait.cc",
     "internal/spinlock_win32.inc",
   ]
@@ -54,6 +55,7 @@ absl_source_set("spinlock_wait") {
     ":base_internal",
     ":core_headers",
     ":errno_saver",
+    "//starboard:starboard_headers_only",
   ]
   visibility = [ "//third_party/abseil-cpp/absl/base:*" ]
 }
