@@ -46,6 +46,15 @@ def FixAbsolutePathInLine(line, relative_paths):
   return relative_path + line[len(absolute_path):]
 
 
+def FixAbsolutePathInLine(line, relative_paths):
+  """Fix absolute paths present in |line| to relative paths."""
+  absolute_path = line.split(':')[0]
+  relative_path = relative_paths.get(absolute_path, absolute_path)
+  if absolute_path == relative_path:
+    return line
+  return relative_path + line[len(absolute_path):]
+
+
 def FilterCompilerOutput(compiler_output, relative_paths):
   """Filers actool compilation output.
 

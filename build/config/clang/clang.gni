@@ -4,7 +4,9 @@
 
 import("//build/toolchain/toolchain.gni")
 
-default_clang_base_path = "//third_party/llvm-build/Release+Asserts"
+if (!use_cobalt_customizations) {
+  default_clang_base_path = "//third_party/llvm-build/Release+Asserts"
+}
 
 declare_args() {
   # Indicates if the build should use the Chrome-specific plugins for enforcing
@@ -18,5 +20,7 @@ declare_args() {
       build_with_chromium && !is_official_build &&
       ((is_linux && !is_castos) || (is_android && !is_cast_android))
 
-  clang_base_path = default_clang_base_path
+  if (!use_cobalt_customizations) {
+    clang_base_path = default_clang_base_path
+  }
 }

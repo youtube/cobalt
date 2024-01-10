@@ -843,6 +843,16 @@ def Main():
       action='store_true',
       help='Whether to run subprocess log outputs through the asan symbolizer.')
 
+  # This is for version skew testing. The current CI/CQ builder builds
+  # an ash chrome and pass it using --ash-chrome-path. In order to use the same
+  # builder for version skew testing, we use a new argument to override
+  # the ash chrome.
+  test_parser.add_argument(
+      '--ash-chrome-path-override',
+      type=str,
+      help='The same as --ash-chrome-path. But this will override '
+      '--ash-chrome-path or --ash-chrome-version if any of these '
+      'arguments exist.')
   args = arg_parser.parse_known_args()
   if not hasattr(args[0], "func"):
     # No command specified.
