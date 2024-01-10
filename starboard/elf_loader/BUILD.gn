@@ -161,7 +161,8 @@ if (sb_is_evergreen_compatible) {
 }
 
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
-if (!is_host_win) {
+# Run on evergreen or monolithic evergreen compatible platforms
+if (sb_is_evergreen || (!sb_is_modular && sb_is_evergreen_compatible)) {
   target(gtest_target_type, "elf_loader_test") {
     testonly = true
     sources = [ "//starboard/common/test_main.cc" ]
