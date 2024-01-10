@@ -68,6 +68,8 @@ group("gn_all") {
     deps += [ "//starboard/contrib/cast/cast_starboard_api/samples:cast" ]
   }
 
+  deps += [ "//starboard/elf_loader:elf_loader_test($starboard_toolchain)" ]
+
   if (!sb_is_evergreen) {
     deps += [ "//third_party/lz4_lib:lz4" ]
 
