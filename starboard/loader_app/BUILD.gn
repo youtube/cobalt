@@ -35,7 +35,7 @@ group("common_loader_app_dependencies") {
     "//starboard/elf_loader:sabi_string",
   ]
 
-  if (sb_is_evergreen_compatible) {
+  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
     public_deps += [ "//third_party/crashpad/wrapper" ]
   } else {
     public_deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
@@ -119,7 +119,7 @@ if (current_toolchain == starboard_toolchain) {
   not_needed([ "_common_loader_app_sources" ])
 }
 
-if (sb_is_evergreen_compatible) {
+if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
   # TODO: b/261635039 enable this target on Android
   target(final_executable_type, "loader_app_sys") {
     if ((target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" ||
@@ -271,7 +271,7 @@ static_library("slot_management") {
     "//starboard/elf_loader:sabi_string",
   ]
 
-  if (sb_is_evergreen_compatible) {
+  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
     deps += [ "//third_party/crashpad/wrapper" ]
   } else {
     deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]

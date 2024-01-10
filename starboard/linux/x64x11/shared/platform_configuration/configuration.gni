@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+sb_is_evergreen_compatible = true
+
 if (current_toolchain == default_toolchain &&
     build_with_separate_cobalt_toolchain) {
   import("//starboard/evergreen/x64/platform_configuration/configuration.gni")
@@ -21,7 +23,6 @@ if (current_toolchain == default_toolchain &&
 } else {
   import("//starboard/linux/shared/platform_configuration/configuration.gni")
 
-  sb_is_evergreen_compatible = true
   sb_evergreen_compatible_use_libunwind = true
 
   sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"

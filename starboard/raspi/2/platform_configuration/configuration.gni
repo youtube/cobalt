@@ -13,12 +13,14 @@
 # limitations under the License.
 
 import("//starboard/raspi/shared/platform_configuration/configuration.gni")
+
+sb_is_evergreen_compatible = true
+
 if (current_toolchain != default_toolchain ||
     !build_with_separate_cobalt_toolchain) {
   arm_float_abi = "hard"
 
   sb_evergreen_compatible_use_libunwind = true
-  sb_is_evergreen_compatible = true
 }
 
 if (!build_with_separate_cobalt_toolchain) {

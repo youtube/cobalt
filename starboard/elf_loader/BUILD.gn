@@ -63,7 +63,7 @@ static_library("elf_loader") {
   ]
 }
 
-if (sb_is_evergreen_compatible) {
+if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
   static_library("elf_loader_sys") {
     # System loader based on dlopen/dlsym.
     # Should be used only for debugging/troubleshooting.
@@ -126,7 +126,7 @@ if (current_toolchain == starboard_toolchain && !is_host_win) {
   }
 }
 
-if (sb_is_evergreen_compatible) {
+if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
   target(final_executable_type, "elf_loader_sys_sandbox") {
     # To properly function the system loader requires the starboard
     # symbols to be exported from the binary.
