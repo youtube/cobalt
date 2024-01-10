@@ -31,7 +31,10 @@ int SysInfo::NumberOfEfficientProcessorsImpl() {
 }
 
 size_t SysInfo::VMAllocationGranularity() {
-  return 0;
+  // This is referred to ONLY by persistent memory allocator and shared
+  // memory feature; not used in Cobalt production.
+  NOTIMPLEMENTED();
+  return 4096U;
 }
 
 // static

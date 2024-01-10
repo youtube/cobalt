@@ -743,7 +743,7 @@ class BASE_EXPORT LocalPersistentMemoryAllocator
   static void DeallocateLocalMemory(void* memory, size_t size, MemoryType type);
 };
 
-
+#if !defined(STARBOARD)
 // This allocator takes a writable shared memory mapping object and performs
 // allocation from it. The allocator takes ownership of the mapping object.
 class BASE_EXPORT WritableSharedPersistentMemoryAllocator
@@ -800,8 +800,10 @@ class BASE_EXPORT ReadOnlySharedPersistentMemoryAllocator
   base::ReadOnlySharedMemoryMapping shared_memory_;
 };
 
+#endif  // !defined(STARBOARD)
+
 // NACL doesn't support any kind of file access in build.
-#if !BUILDFLAG(IS_NACL)
+#if !BUILDFLAG(IS_NACL) && !defined(STARBOARD)
 // This allocator takes a memory-mapped file object and performs allocation
 // from it. The allocator takes ownership of the file object.
 class BASE_EXPORT FilePersistentMemoryAllocator
@@ -843,7 +845,7 @@ class BASE_EXPORT FilePersistentMemoryAllocator
  private:
   std::unique_ptr<MemoryMappedFile> mapped_file_;
 };
-#endif  // !BUILDFLAG(IS_NACL)
+#endif  // !BUILDFLAG(IS_NACL) && !defined(STARBOARD)
 
 // An allocation that is defined but not executed until required at a later
 // time. This allows for potential users of an allocation to be decoupled

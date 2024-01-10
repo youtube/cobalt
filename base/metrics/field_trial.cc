@@ -1218,6 +1218,9 @@ bool FieldTrialList::CreateTrialsFromSharedMemoryRegion(
 // static
 bool FieldTrialList::CreateTrialsFromSharedMemoryMapping(
     ReadOnlySharedMemoryMapping shm_mapping) {
+#if defined(STARBOARD)
+  return false;
+#else
   global_->field_trial_allocator_ =
       std::make_unique<ReadOnlySharedPersistentMemoryAllocator>(
           std::move(shm_mapping), 0, kAllocatorName);
@@ -1242,10 +1245,14 @@ bool FieldTrialList::CreateTrialsFromSharedMemoryMapping(
     }
   }
   return true;
+#endif // defined(STARBOARD)
 }
 
 // static
 void FieldTrialList::InstantiateFieldTrialAllocatorIfNeeded() {
+#if defined(STARBOARD)
+  return;
+#else
   if (!global_)
     return;
 
@@ -1278,6 +1285,7 @@ void FieldTrialList::InstantiateFieldTrialAllocatorIfNeeded() {
 #if !BUILDFLAG(IS_NACL)
   global_->readonly_allocator_region_ = std::move(shm.region);
 #endif
+#endif // !defined(STARBOARD)
 }
 
 // static
