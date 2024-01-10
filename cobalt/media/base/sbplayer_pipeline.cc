@@ -882,7 +882,7 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
           HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
               ? audio_write_duration_remote_
               : audio_write_duration_local_;
-      LOG(INFO) << "SbPlayerBridge created, with audio write duration at "
+      LOG(INFO) << "Test SbPlayerBridge created, with audio write duration at "
                 << audio_write_duration_for_preroll_;
 #endif  // SB_API_VERSION >= 15
 
