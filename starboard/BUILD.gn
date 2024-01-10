@@ -72,7 +72,11 @@ group("gn_all") {
     deps += [ "//third_party/lz4_lib:lz4" ]
 
     if (sb_is_evergreen_compatible) {
-      deps += [ "//starboard/elf_loader:elf_loader_test($starboard_toolchain)" ]
+      deps += [
+        "//starboard/elf_loader:elf_loader_test($starboard_toolchain)",
+        "//starboard/loader_app:slot_management_test($starboard_toolchain)",
+      ]
+
       if (current_toolchain == starboard_toolchain) {
         deps += [ "//third_party/crashpad/client" ]
         data_deps = [

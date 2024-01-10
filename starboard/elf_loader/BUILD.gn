@@ -154,8 +154,9 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
 if (current_toolchain == starboard_toolchain && !is_host_win) {
   target(starboard_level_gtest_target_type, "elf_loader_test") {
-    build_loader = false
     testonly = true
+    build_loader = false
+
     sources = [ "//starboard/common/test_main.cc" ]
     deps = [
       "//starboard:starboard_with_main",

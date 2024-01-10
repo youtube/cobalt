@@ -280,9 +280,11 @@ static_library("slot_management") {
 }
 
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
-if (!is_host_win) {
-  target(gtest_target_type, "slot_management_test") {
+if (current_toolchain == starboard_toolchain && !is_host_win) {
+  target(starboard_level_gtest_target_type, "slot_management_test") {
     testonly = true
+    build_loader = false
+
     sources = [
       "//starboard/common/test_main.cc",
       "slot_management_test.cc",
@@ -293,6 +295,7 @@ if (!is_host_win) {
       ":installation_manager",
       ":installation_store_proto",
       ":slot_management",
+      "//starboard:starboard_with_main",
       "//starboard/elf_loader:sabi_string",
       "//testing/gmock",
       "//testing/gtest",
