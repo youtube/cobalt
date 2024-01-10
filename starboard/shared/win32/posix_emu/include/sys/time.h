@@ -18,6 +18,7 @@
 #if defined(STARBOARD)
 
 #include <winsock2.h>  // For struct timeval
+#undef NO_ERROR        // http://b/302733082#comment15
 
 #ifdef __cplusplus
 extern "C" {

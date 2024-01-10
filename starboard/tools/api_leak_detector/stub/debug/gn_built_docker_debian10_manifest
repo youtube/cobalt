@@ -77,6 +77,8 @@ fwrite
 getc
 gettext
 getwc
+htonl
+htons
 ioctl
 isalpha
 isprint
@@ -86,6 +88,8 @@ lseek64
 mbrtowc
 mbsnrtowcs
 mbsrtowcs
+ntohl
+ntohs
 poll
 printf
 pthread_cond_broadcast
