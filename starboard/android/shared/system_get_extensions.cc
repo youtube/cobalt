@@ -19,6 +19,7 @@
 #include "starboard/android/shared/graphics.h"
 #include "starboard/android/shared/platform_info.h"
 #include "starboard/android/shared/platform_service.h"
+#include "starboard/android/shared/time_zone.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
@@ -33,6 +34,7 @@
 #include "starboard/extension/media_session.h"
 #include "starboard/extension/platform_info.h"
 #include "starboard/extension/platform_service.h"
+#include "starboard/extension/time_zone.h"
 
 const void* SbSystemGetExtension(const char* name) {
 #if SB_IS(EVERGREEN_COMPATIBLE)
@@ -67,6 +69,9 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kCobaltExtensionPlatformInfoName) == 0) {
     return starboard::android::shared::GetPlatformInfoApi();
+  }
+  if (strcmp(name, kStarboardExtensionTimeZoneName) == 0) {
+    return starboard::android::shared::GetTimeZoneApi();
   }
   return NULL;
 }
