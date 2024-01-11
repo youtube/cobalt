@@ -281,6 +281,14 @@ crypto_sources = [
   "src/third_party/fiat/p256_64.h",
 ]
 
+if (is_starboard) {
+  crypto_sources -= [
+    "src/crypto/bio/connect.c",
+    "src/crypto/bio/fd.c",
+    "src/crypto/bio/socket.c",
+  ]
+}
+
 crypto_headers = [
   "src/include/openssl/aead.h",
   "src/include/openssl/aes.h",
