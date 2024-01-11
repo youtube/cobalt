@@ -95,7 +95,11 @@ template("msvc_toolchain") {
       cl_prefix = env_wrapper
     }
 
-    sys_include_flags = ""
+    if (defined(invoker.sys_include_flags)) {
+      sys_include_flags = invoker.sys_include_flags
+    } else {
+      sys_include_flags = ""
+    }
 
     tool("cc") {
       precompiled_header_type = "msvc"

@@ -18,3 +18,20 @@ tool_base_path = "$msvc_path/bin/HostX64/x64"
 common_libpaths =
     "/LIBPATH:\"$wdk_lib_path/ucrt/x64\" /LIBPATH:\"$wdk_lib_path/um/x64\""
 sys_libpaths = "/LIBPATH:\"$msvc_path/lib/x64\" " + common_libpaths
+
+_sys_include_flags_list_absolute = [
+  "$wdk_include_path/shared",
+  "$wdk_include_path/ucrt",
+  "$wdk_include_path/um",
+  "$wdk_include_path/winrt",
+  "$msvc_path/include",
+]
+_sys_include_flags_list =
+    rebase_path(_sys_include_flags_list_absolute, root_build_dir)
+
+_common_sys_include_flags_list = []
+foreach(sys_include_flag, _sys_include_flags_list) {
+  _common_sys_include_flags_list += [ "/I\"${sys_include_flag}\"" ]
+}
+common_sys_include_flags =
+    string_join(" ", _common_sys_include_flags_list) + " "

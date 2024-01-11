@@ -21,6 +21,7 @@ msvc_toolchain("x64") {
   link = "$tool_base_path/link.exe"
   asm = "$tool_base_path/ml64.exe"
   sys_lib_flags = sys_libpaths
+  sys_include_flags = common_sys_include_flags
 
   toolchain_args = {
     is_clang = false

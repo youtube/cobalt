@@ -36,15 +36,6 @@ config("common") {
     "UNICODE",
   ]
 
-  # msvs_base
-  # OutputDirectory and IntermediateDirectory, maybe CharacterSet
-  include_dirs += [
-    "$wdk_include_path/shared",
-    "$wdk_include_path/ucrt",
-    "$wdk_include_path/um",
-    "$wdk_include_path/winrt",
-    "$msvc_path/include",
-  ]
   cflags += [
     "/EHsc",
     "/std:c++17",

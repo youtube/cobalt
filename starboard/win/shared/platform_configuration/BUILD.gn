@@ -43,10 +43,13 @@ config("platform_configuration") {
 
   cflags = [
     # Add POSIX emulation headers (note: sys/time.h cannot be force included)
-    "/FI ../../starboard/shared/win32/posix_emu/include/stdlib.h",
-    "/FI ../../starboard/shared/win32/posix_emu/include/time.h",
-    "/I../../starboard/shared/win32/posix_emu/include",
+    "/FI" + rebase_path("//starboard/shared/win32/posix_emu/include/stdlib.h",
+                        root_out_dir),
+    "/FI" + rebase_path("//starboard/shared/win32/posix_emu/include/time.h",
+                        root_out_dir),
   ]
+
+  include_dirs = [ "//starboard/shared/win32/posix_emu/include" ]
 
   ldflags = [
     # Suppress import library warning caused by the win32/posix_emu
