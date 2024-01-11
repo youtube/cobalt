@@ -363,13 +363,48 @@ bool ReadFileToStringWithMaxSize(const FilePath& path,
     contents->clear();
   if (path.ReferencesParent())
     return false;
-#ifndef USE_HACKY_COBALT_CHANGES
+#if defined(USE_HACKY_COBALT_CHANGES)
+  base::File file(path, base::File::FLAG_OPEN | base::File::FLAG_READ);
+  if (!file.IsValid()) {
+    return false;
+  }
+
+  // Use a smaller buffer than in Chromium so we don't run out of stack space.
+  const size_t kBufferSize = 1 << 12;
+  char buf[kBufferSize];
+  size_t len;
+  size_t size = 0;
+  bool read_status = true;
+
+  while ((len = file.ReadAtCurrentPos(buf, sizeof(buf))) > 0) {
+    if (contents) {
+      size_t bytes_to_add = std::min(len, max_size - size);
+      if (size + bytes_to_add > contents->max_size()) {
+        read_status = false;
+        break;
+      }
+      contents->append(buf, std::min(len, max_size - size));
+    }
+
+    if ((max_size - size) < len) {
+      read_status = false;
+      break;
+    }
+
+    size += len;
+  }
+
+  if (contents) {
+    contents->resize(contents->size());
+  }
+  read_status = read_status && file.IsValid();
+  return read_status;
+#else
   ScopedFILE file_stream(OpenFile(path, "rb"));
   if (!file_stream)
     return false;
   return ReadStreamToStringWithMaxSize(file_stream.get(), max_size, contents);
-#endif
-  return false;
+#endif  // defined(USE_HACKY_COBALT_CHANGES)
 }
 
 bool IsDirectoryEmpty(const FilePath& dir_path) {
