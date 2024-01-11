@@ -38,7 +38,7 @@ TEST(ArpaInet, BigEndian) {
   EXPECT_EQ(kTestU32, ntohl(kTestU32));
 }
 #else
-TEST(SbByteSwapTest, LittleEndian) {
+TEST(ArpaInet, LittleEndian) {
   EXPECT_EQ(kExpectedU16, htons(kTestU16));
   EXPECT_EQ(kExpectedU16, ntohs(kTestU16));
 

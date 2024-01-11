@@ -17,7 +17,7 @@
 #include "starboard/shared/libevent/socket_waiter_internal.h"
 
 SbSocketWaiterResult SbSocketWaiterWaitTimed(SbSocketWaiter waiter,
-                                             SbTime duration) {
+                                             int64_t duration) {
   if (!SbSocketWaiterIsValid(waiter)) {
     return kSbSocketWaiterResultInvalid;
   }

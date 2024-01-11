@@ -199,6 +199,20 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
     LOG(INFO) << (value ? "Enabling" : "Disabling")
               << " media metrics collection.";
     return true;
+  } else if (name == "BackgroundPlaybackEnabled") {
+    const StarboardExtensionH5vccConfigApi* h5vcc_config_api =
+        static_cast<const StarboardExtensionH5vccConfigApi*>(
+            SbSystemGetExtension(kStarboardExtensionH5vccConfigName));
+    if (h5vcc_config_api &&
+        strcmp(h5vcc_config_api->name, kStarboardExtensionH5vccConfigName) ==
+            0 &&
+        h5vcc_config_api->version >= 1) {
+      bool enable_background_playback = value;
+      LOG(INFO) << "Set BackgroundPlaybackEnabled to "
+                << (enable_background_playback ? "enabled" : "disabled");
+      h5vcc_config_api->EnableBackgroundPlayback(enable_background_playback);
+    }
+    return true;
 #if SB_API_VERSION >= 15
   } else if (name == "AudioWriteDurationLocal" && value > 0) {
     audio_write_duration_local_ = value;
@@ -209,17 +223,6 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
     audio_write_duration_remote_ = value;
     LOG(INFO) << "Set AudioWriteDurationRemote to "
               << audio_write_duration_remote_;
-    return true;
-  } else if (name == "BackgroundPlaybackEnabled" && value > 0) {
-    const StarboardExtensionH5vccConfigApi* h5vcc_config_api_ =
-        static_cast<const StarboardExtensionH5vccConfigApi*>(
-            SbSystemGetExtension(kStarboardExtensionH5vccConfigName));
-    if (h5vcc_config_api_) {
-      bool enable_background_playback = value;
-      LOG(INFO) << "Set BackgroundPlaybackEnabled to "
-                << (enable_background_playback ? "enabled" : "disabled");
-      h5vcc_config_api_->EnableBackgroundPlayback(enable_background_playback);
-    }
     return true;
 #endif  // SB_API_VERSION >= 15
   }

@@ -20,14 +20,13 @@
 #include "starboard/common/log.h"
 #include "starboard/common/queue.h"
 #include "starboard/nplb/drm_helpers.h"
-#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {
 namespace {
 
-constexpr SbTimeMonotonic kDefaultWaitForCallbackTimeout = kSbTimeSecond;
+constexpr int64_t kDefaultWaitForCallbackTimeout = 1'000'000;  // 1 second
 constexpr char kWidevineKeySystem[] = "com.widevine.alpha";
 constexpr char kCencInitDataType[] = "cenc";
 constexpr int kInitialTicket = kSbDrmTicketInvalid + 1;

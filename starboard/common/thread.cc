@@ -64,15 +64,15 @@ void Thread::Start(const Options& options) {
   SB_DCHECK(d_->thread_ != kSbThreadInvalid);
 }
 
-void Thread::Sleep(SbTime microseconds) {
+void Thread::Sleep(int64_t microseconds) {
   SbThreadSleep(microseconds);
 }
 
 void Thread::SleepMilliseconds(int value) {
-  return Sleep(value * kSbTimeMillisecond);
+  return Sleep(static_cast<int64_t>(value) * 1000);
 }
 
-bool Thread::WaitForJoin(SbTime timeout) {
+bool Thread::WaitForJoin(int64_t timeout) {
   bool joined = d_->join_sema_.TakeWait(timeout);
   if (joined) {
     SB_DCHECK(d_->join_called_.load());

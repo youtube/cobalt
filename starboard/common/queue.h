@@ -26,8 +26,8 @@
 
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
+#include "starboard/common/time.h"
 #include "starboard/export.h"
-#include "starboard/time.h"
 #include "starboard/types.h"
 
 namespace starboard {
@@ -76,19 +76,19 @@ class Queue {
   }
 
   // Gets the item at the front of the queue, blocking until there is such an
-  // item, or the given timeout duration expires, or the queue is woken up. If
-  // there are multiple waiters, this Queue guarantees that only one waiter will
-  // receive any given queue item.
-  T GetTimed(SbTime duration) {
+  // item, or the given timeout duration (in microseconds) expires, or the queue
+  // is woken up. If there are multiple waiters, this Queue guarantees that only
+  // one waiter will receive any given queue item.
+  T GetTimed(int64_t duration) {
     ScopedLock lock(mutex_);
-    SbTimeMonotonic start = SbTimeGetMonotonicNow();
+    int64_t start = CurrentMonotonicTime();
     while (queue_.empty()) {
       if (wake_) {
         wake_ = false;
         return T();
       }
 
-      SbTimeMonotonic elapsed = SbTimeGetMonotonicNow() - start;
+      int64_t elapsed = CurrentMonotonicTime() - start;
       if (elapsed >= duration) {
         return T();
       }

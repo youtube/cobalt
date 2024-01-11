@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/time.h"
 
 #include <windows.h>
@@ -28,3 +30,5 @@ SbTime SbTimeGetNow() {
   large_int.HighPart = file_time.dwHighDateTime;
   return static_cast<SbTime>(large_int.QuadPart) / 10;
 }
+
+#endif  // SB_API_VERSION < 16

@@ -47,9 +47,9 @@ class FFmpegDemuxer {
       const = 0;
   virtual const CobaltExtensionDemuxerVideoDecoderConfig& GetVideoConfig()
       const = 0;
-  virtual SbTime GetDuration() const = 0;
-  virtual SbTime GetStartTime() const = 0;
-  virtual SbTime GetTimelineOffset() const = 0;
+  virtual int64_t GetDuration() const = 0;        // microseconds
+  virtual int64_t GetStartTime() const = 0;       // microseconds
+  virtual int64_t GetTimelineOffset() const = 0;  // microseconds
   virtual void Read(CobaltExtensionDemuxerStreamType type,
                     CobaltExtensionDemuxerReadCB read_cb,
                     void* read_cb_user_data) = 0;

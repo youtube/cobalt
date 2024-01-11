@@ -43,7 +43,7 @@ class WatchDogThread : public Thread {
   ~WatchDogThread() { Join(); }
 
   void Run() override {
-    static const SbTime kSleepTime = kSbTimeMillisecond * 250;
+    static const int64_t kSleepTime = 250'000;  // 250ms
     int counter = 0;
     bool created_ok = false;
     SbFileError out_error = kSbFileOk;
@@ -68,7 +68,7 @@ class WatchDogThread : public Thread {
         SbFileWrite(file_handle, kDone, static_cast<int>(strlen(kDone)));
     RecordFileWriteStat(result);
     SbFileFlush(file_handle);
-    SbThreadSleep(50 * kSbTimeMillisecond);
+    SbThreadSleep(50'000);
     bool closed = SbFileClose(file_handle);
     SB_LOG_IF(ERROR, closed) << "Could not close file " << file_path_;
   }

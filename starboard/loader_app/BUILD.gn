@@ -35,14 +35,15 @@ group("common_loader_app_dependencies") {
     "//starboard/elf_loader:sabi_string",
   ]
 
-  if (sb_is_evergreen_compatible) {
+  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
     public_deps += [ "//third_party/crashpad/wrapper" ]
   } else {
     public_deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
   }
 }
 
-if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
+if (sb_is_evergreen_compatible && sb_evergreen_compatible_package &&
+    current_toolchain == starboard_toolchain) {
   copy("copy_loader_app_content") {
     install_content = true
     if (target_cpu == "arm" && arm_float_abi == "softfp") {
@@ -119,9 +120,9 @@ if (current_toolchain == starboard_toolchain) {
   not_needed([ "_common_loader_app_sources" ])
 }
 
-if (sb_is_evergreen_compatible) {
+if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
   # TODO: b/261635039 enable this target on Android
-  target(final_executable_type, "loader_app_sys") {
+  target(starboard_level_final_executable_type, "loader_app_sys") {
     if ((target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" ||
          target_cpu == "arm64") && target_os != "android") {
       sources = _common_loader_app_sources
@@ -271,7 +272,7 @@ static_library("slot_management") {
     "//starboard/elf_loader:sabi_string",
   ]
 
-  if (sb_is_evergreen_compatible) {
+  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
     deps += [ "//third_party/crashpad/wrapper" ]
   } else {
     deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
@@ -279,9 +280,11 @@ static_library("slot_management") {
 }
 
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
-if (!is_host_win) {
-  target(gtest_target_type, "slot_management_test") {
+if (current_toolchain == starboard_toolchain && !is_host_win) {
+  target(starboard_level_gtest_target_type, "slot_management_test") {
     testonly = true
+    build_loader = false
+
     sources = [
       "//starboard/common/test_main.cc",
       "slot_management_test.cc",
@@ -292,6 +295,7 @@ if (!is_host_win) {
       ":installation_manager",
       ":installation_store_proto",
       ":slot_management",
+      "//starboard:starboard_with_main",
       "//starboard/elf_loader:sabi_string",
       "//testing/gmock",
       "//testing/gtest",

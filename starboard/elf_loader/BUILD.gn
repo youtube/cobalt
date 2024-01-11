@@ -63,7 +63,7 @@ static_library("elf_loader") {
   ]
 }
 
-if (sb_is_evergreen_compatible) {
+if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
   static_library("elf_loader_sys") {
     # System loader based on dlopen/dlsym.
     # Should be used only for debugging/troubleshooting.
@@ -82,13 +82,8 @@ if (sb_is_evergreen_compatible) {
       "//starboard:starboard_group",
       "//starboard/common",
       "//starboard/shared/modular:posix_time_wrappers",
+      "//third_party/crashpad/wrapper",
     ]
-
-    if (sb_is_evergreen_compatible) {
-      deps += [ "//third_party/crashpad/wrapper" ]
-    } else {
-      deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
-    }
   }
 }
 
@@ -126,7 +121,7 @@ if (current_toolchain == starboard_toolchain && !is_host_win) {
   }
 }
 
-if (sb_is_evergreen_compatible) {
+if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
   target(final_executable_type, "elf_loader_sys_sandbox") {
     # To properly function the system loader requires the starboard
     # symbols to be exported from the binary.
@@ -153,20 +148,18 @@ if (sb_is_evergreen_compatible) {
       ":sabi_string",
       "//starboard:starboard_group",
     ]
-
-    if (!sb_is_evergreen_compatible) {
-      deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
-    }
   }
 }
 
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
-if (!is_host_win) {
-  target(gtest_target_type, "elf_loader_test") {
+if (current_toolchain == starboard_toolchain && !is_host_win) {
+  target(starboard_level_gtest_target_type, "elf_loader_test") {
     testonly = true
+    build_loader = false
+
     sources = [ "//starboard/common/test_main.cc" ]
     deps = [
-      "//starboard:starboard_group",
+      "//starboard:starboard_with_main",
       "//testing/gmock",
       "//testing/gtest",
     ]

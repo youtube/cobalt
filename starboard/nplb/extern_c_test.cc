@@ -52,7 +52,9 @@ extern "C" {
 #include "starboard/string.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"
+#if SB_API_VERSION < 16
 #include "starboard/time.h"
+#endif  // SB_API_VERSION < 16
 #include "starboard/time_zone.h"
 #include "starboard/types.h"
 #if SB_API_VERSION < 16

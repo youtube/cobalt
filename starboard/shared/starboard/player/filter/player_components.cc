@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/player/filter/player_components.h"
 
 #include "starboard/common/scoped_ptr.h"
+#include "starboard/common/time.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
@@ -44,9 +45,7 @@ typedef MediaTimeProviderImpl::MonotonicSystemTimeProvider
     MonotonicSystemTimeProvider;
 
 class MonotonicSystemTimeProviderImpl : public MonotonicSystemTimeProvider {
-  SbTimeMonotonic GetMonotonicNow() const override {
-    return SbTimeGetMonotonicNow();
-  }
+  int64_t GetMonotonicNow() const override { return CurrentMonotonicTime(); }
 };
 
 class PlayerComponentsImpl : public PlayerComponents {
@@ -252,7 +251,7 @@ void PlayerComponents::Factory::CreateStubVideoComponents(
     scoped_ptr<VideoDecoder>* video_decoder,
     scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
     scoped_refptr<VideoRendererSink>* video_renderer_sink) {
-  const SbTime kVideoSinkRenderInterval = 10 * kSbTimeMillisecond;
+  const int64_t kVideoSinkRenderIntervalUsec = 10'000;  // 10ms
 
   SB_DCHECK(video_decoder);
   SB_DCHECK(video_render_algorithm);
@@ -261,7 +260,7 @@ void PlayerComponents::Factory::CreateStubVideoComponents(
   video_decoder->reset(new StubVideoDecoder);
   video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
   *video_renderer_sink = new PunchoutVideoRendererSink(
-      creation_parameters.player(), kVideoSinkRenderInterval);
+      creation_parameters.player(), kVideoSinkRenderIntervalUsec);
 }
 
 void PlayerComponents::Factory::GetAudioRendererParams(

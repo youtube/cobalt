@@ -20,7 +20,6 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/shared/starboard/player/filter/video_frame_rate_estimator.h"
-#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -50,7 +49,7 @@ void SkipFrames(size_t frames_to_skip,
   }
 }
 
-Frames CreateFrames(const std::initializer_list<SbTime>& timestamps) {
+Frames CreateFrames(const std::initializer_list<int64_t>& timestamps) {
   Frames frames;
   for (auto timestamp : timestamps) {
     frames.push_back(new VideoFrame(timestamp));

@@ -24,11 +24,11 @@
 #include "starboard/common/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
+#include "starboard/common/time.h"
 #include "starboard/shared/pulse/pulse_dynamic_load_dispatcher.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 
 #if defined(ADDRESS_SANITIZER)
 // By default, Leak Sanitizer and Address Sanitizer is expected to exist
@@ -50,8 +50,8 @@ namespace {
 
 using starboard::media::GetBytesPerSample;
 
-const SbTime kAudioIdleSleepInterval = 15 * kSbTimeMillisecond;
-const SbTime kAudioRunningSleepInterval = 5 * kSbTimeMillisecond;
+const int64_t kAudioIdleSleepIntervalUsec = 15'000;    // 15ms
+const int64_t kAudioRunningSleepIntervalUsec = 5'000;  // 5ms
 // The minimum number of frames that can be written to Pulse once. A small
 // number will lead to more CPU being used as the callbacks will be called more
 // frequently.
@@ -276,7 +276,7 @@ bool PulseAudioSink::WriteFrameIfNecessary(pa_context* context) {
       SB_DCHECK(total_frames_played_ <= new_total_frames_played);
       int64_t consume = new_total_frames_played - total_frames_played_;
       if (consume > 0) {
-        consume_frames_func_(consume, SbTimeGetMonotonicNow(), context_);
+        consume_frames_func_(consume, CurrentMonotonicTime(), context_);
         total_frames_played_ = new_total_frames_played;
       }
     }
@@ -571,9 +571,9 @@ void PulseAudioSinkType::AudioThreadFunc() {
         pa_mainloop_iterate(mainloop_, 0, NULL);
       }
       if (has_running_sink) {
-        SbThreadSleep(kAudioRunningSleepInterval);
+        SbThreadSleep(kAudioRunningSleepIntervalUsec);
       } else {
-        SbThreadSleep(kAudioIdleSleepInterval);
+        SbThreadSleep(kAudioIdleSleepIntervalUsec);
       }
     }
   }

@@ -153,7 +153,7 @@ public class StarboardBridge {
 
   private native boolean nativeInitialize();
 
-  private native long nativeSbTimeGetMonotonicNow();
+  private native long nativeCurrentMonotonicTime();
 
   protected void onActivityStart(Activity activity, KeyboardEditor keyboardEditor) {
     activityHolder.set(activity);
@@ -233,11 +233,6 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   protected void stopMediaPlaybackService() {
-    if (!enableBackgroundPlayback) {
-      Log.v(TAG, "Media Playback Service is disabled. Skip stopMediaPlaybackService().");
-      return;
-    }
-
     Service service = serviceHolder.get();
     if (service != null) {
       Log.i(TAG, "Stopping the MediaPlaybackService.");
@@ -822,7 +817,7 @@ public class StarboardBridge {
     Activity activity = activityHolder.get();
     if (activity instanceof CobaltActivity) {
       long javaStartTimestamp = ((CobaltActivity) activity).getAppStartTimestamp();
-      long cppTimestamp = nativeSbTimeGetMonotonicNow();
+      long cppTimestamp = nativeCurrentMonotonicTime();
       long javaStopTimestamp = System.nanoTime();
       return cppTimestamp
           - (javaStartTimestamp - javaStopTimestamp) / timeNanosecondsPerMicrosecond;

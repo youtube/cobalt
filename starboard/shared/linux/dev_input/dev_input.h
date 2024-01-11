@@ -17,7 +17,6 @@
 
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/application.h"
-#include "starboard/time.h"
 #include "starboard/window.h"
 
 namespace starboard {
@@ -36,10 +35,10 @@ class DevInput {
   // responsible for deleting the returned event.
   virtual Event* PollNextSystemEvent() = 0;
 
-  // Waits for an event until the timeout |time| runs out. If an event occurs in
-  // this time, it is returned, otherwise NULL is returned. The caller is
-  // responsible for deleting the returned event.
-  virtual Event* WaitForSystemEventWithTimeout(SbTime duration) = 0;
+  // Waits for an event until the timeout |duration| (in microseconds) runs out.
+  // If an event occurs in this time, it is returned, otherwise NULL is
+  // returned. The caller is responsible for deleting the returned event.
+  virtual Event* WaitForSystemEventWithTimeout(int64_t duration) = 0;
 
   // Wakes up any thread waiting within a call to
   // WaitForSystemEventWithTimeout().

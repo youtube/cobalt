@@ -110,7 +110,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       typedef ::starboard::shared::openh264::VideoDecoder
           Openh264VideoDecoderImpl;
 
-      const SbTime kVideoSinkRenderInterval = 10 * kSbTimeMillisecond;
+      const int64_t kVideoSinkRenderIntervalUsec = 10'000;
 
       SB_DCHECK(video_decoder);
       SB_DCHECK(video_render_algorithm);
@@ -170,7 +170,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         *video_renderer_sink = NULL;
       } else {
         *video_renderer_sink = new PunchoutVideoRendererSink(
-            creation_parameters.player(), kVideoSinkRenderInterval);
+            creation_parameters.player(), kVideoSinkRenderIntervalUsec);
       }
     }
 

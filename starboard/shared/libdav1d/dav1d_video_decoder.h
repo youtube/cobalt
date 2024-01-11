@@ -46,7 +46,7 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
 
   // TODO: Verify if these values are correct.
   size_t GetPrerollFrameCount() const override { return 8; }
-  SbTime GetPrerollTimeout() const override { return kSbTimeMax; }
+  int64_t GetPrerollTimeout() const override { return kSbInt64Max; }
   size_t GetMaxNumberOfCachedFrames() const override { return 12; }
 
   void WriteInputBuffers(const InputBuffers& input_buffers) override;
@@ -68,7 +68,7 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   void InitializeCodec();
   void TeardownCodec();
   void DecodeOneBuffer(const scoped_refptr<InputBuffer>& input_buffer);
-  void DecodeEndOfStream(SbTime timeout);
+  void DecodeEndOfStream(int64_t timeout);
 
   // Sends all available decoded frames from dav1d for outputting. Returns the
   // number of frames decoded. The output argument tracks whether an

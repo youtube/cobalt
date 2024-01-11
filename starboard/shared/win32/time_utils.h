@@ -21,7 +21,7 @@ namespace starboard {
 namespace shared {
 namespace win32 {
 
-inline SbTime ConvertFileTimeTicksToSbTime(const LARGE_INTEGER ticks) {
+inline int64_t ConvertFileTimeTicksToUsec(const LARGE_INTEGER ticks) {
   // According to
   // https://msdn.microsoft.com/en-us/library/windows/desktop/ms724284(v=vs.85).aspx
   // FILETIME format is "Contains a 64-bit value representing the number of
@@ -30,7 +30,7 @@ inline SbTime ConvertFileTimeTicksToSbTime(const LARGE_INTEGER ticks) {
   return ticks.QuadPart / kNumber100nanosecondTicksInMicrosecond;
 }
 
-inline SbTime ConvertFileTimeToSbTime(const FILETIME file_time) {
+inline int64_t ConvertFileTimeToUsec(const FILETIME file_time) {
   // According to
   // https://msdn.microsoft.com/en-us/library/windows/desktop/ms724284(v=vs.85).aspx
   // FILETIME format is "Contains a 64-bit value representing the number of
@@ -38,21 +38,14 @@ inline SbTime ConvertFileTimeToSbTime(const FILETIME file_time) {
   LARGE_INTEGER ticks;
   ticks.QuadPart = (static_cast<LONGLONG>(file_time.dwHighDateTime) << 32) |
                    file_time.dwLowDateTime;
-  return ConvertFileTimeTicksToSbTime(ticks);
+  return ConvertFileTimeTicksToUsec(ticks);
 }
 
-inline SbTime ConvertSystemTimeToSbTime(const SYSTEMTIME system_time) {
-  FILETIME file_time = {0};
-  SystemTimeToFileTime(&system_time, &file_time);
-  return ConvertFileTimeToSbTime(file_time);
-}
-
-// Many Win32 calls take millis, but SbTime is microseconds.
+// Many Win32 calls take millis, but Starboard uses microseconds.
 // Many nplb tests assume waits are at least as long as requested, so
 // round up.
-inline DWORD ConvertSbTimeToMillisRoundUp(SbTime duration) {
-  const int64_t milliseconds_to_sleep =
-      (duration + kSbTimeMillisecond - 1) / kSbTimeMillisecond;
+inline DWORD ConvertUsecToMillisRoundUp(int64_t duration_usec) {
+  const int64_t milliseconds_to_sleep = (duration_usec + 1000 - 1) / 1000;
   return static_cast<DWORD>(milliseconds_to_sleep);
 }
 

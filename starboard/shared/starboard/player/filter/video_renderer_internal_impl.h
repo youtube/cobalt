@@ -33,7 +33,6 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace shared {
@@ -64,7 +63,7 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
 
   void WriteEndOfStream() override;
 
-  void Seek(SbTime seek_to_time) override;
+  void Seek(int64_t seek_to_time) override;
 
   bool IsEndOfStreamWritten() const override {
     return end_of_stream_written_.load();
@@ -104,7 +103,7 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
 
   atomic_bool need_more_input_;
   atomic_bool seeking_;
-  SbTime seeking_to_time_ = 0;
+  int64_t seeking_to_time_ = 0;  // microseconds
 
   // |number_of_frames_| = decoder_frames_.size() + sink_frames_.size()
   atomic_int32_t number_of_frames_;
@@ -126,29 +125,27 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
     kWaitForConsumption,
   };
 
-  static const SbTimeMonotonic kCheckBufferingStateInterval = kSbTimeSecond;
-  static const SbTimeMonotonic kDelayBeforeWarning = 2 * kSbTimeSecond;
-  static const SbTimeMonotonic kMinLagWarningInterval = 10 * kSbTimeSecond;
+  static const int64_t kCheckBufferingStateInterval = 1'000'000;  // 1 second
+  static const int64_t kDelayBeforeWarning = 2'000'000;           // 2 seconds
+  static const int64_t kMinLagWarningInterval = 10'000'000;       // 10 seconds
 
-  static const SbTimeMonotonic kMaxRenderIntervalBeforeWarning =
-      66 * kSbTimeMillisecond;
-  static const SbTimeMonotonic kMaxGetCurrentDecodeTargetDuration =
-      16 * kSbTimeMillisecond;
+  static const int64_t kMaxRenderIntervalBeforeWarning = 66'000;     // 66ms
+  static const int64_t kMaxGetCurrentDecodeTargetDuration = 16'000;  // 16ms
 
   void CheckBufferingState();
-  void CheckForFrameLag(SbTime last_decoded_frame_timestamp);
+  void CheckForFrameLag(int64_t last_decoded_frame_timestamp);
 
   volatile BufferingState buffering_state_ = kWaitForBuffer;
-  volatile SbTimeMonotonic last_buffering_state_update_ = 0;
-  volatile SbTimeMonotonic last_output_ = 0;
-  mutable volatile SbTime last_can_accept_more_data = 0;
+  volatile int64_t last_buffering_state_update_ = 0;       // microseconds
+  volatile int64_t last_output_ = 0;                       // microseconds
+  mutable volatile int64_t last_can_accept_more_data = 0;  // microseconds
 
-  SbTimeMonotonic time_of_last_lag_warning_;
+  int64_t time_of_last_lag_warning_;  // microseconds
 
-  SbTimeMonotonic time_of_last_render_call_ = -1;
+  int64_t time_of_last_render_call_ = -1;  // microseconds
 
-  SbTimeMonotonic first_input_written_at_ = 0;
-#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  int64_t first_input_written_at_ = 0;  // microseconds
+#endif                                  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 };
 
 }  // namespace filter

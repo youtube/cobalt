@@ -16,13 +16,11 @@
 
 #include <unistd.h>
 
-#include "starboard/time.h"
-
-void SbThreadSleep(SbTime duration) {
+void SbThreadSleep(int64_t duration) {
   if (duration <= 0) {
     return;
   }
 
-  // SbTime is microseconds, so this is easy.
+  // duration is microseconds, so this is easy.
   usleep(duration);
 }

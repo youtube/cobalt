@@ -15,7 +15,6 @@
 #ifndef STARBOARD_ANDROID_SHARED_H5VCC_CONFIG_H_
 #define STARBOARD_ANDROID_SHARED_H5VCC_CONFIG_H_
 
-// Omit namespace linux due to symbol name conflict.
 namespace starboard {
 namespace android {
 namespace shared {

@@ -225,15 +225,15 @@ void OnMediaSessionStateChanged(
   }
 
   jlong durationInMilliseconds;
-  if (session_state.duration == kSbTimeMax) {
+  if (session_state.duration == kSbInt64Max) {
     // Set duration to negative if duration is unknown or infinite, as with live
     // playback.
     // https://developer.android.com/reference/android/support/v4/media/MediaMetadataCompat#METADATA_KEY_DURATION
     durationInMilliseconds = -1;
   } else {
-    // SbTime is measured in microseconds while Android MediaSession expects
-    // duration in milliseconds.
-    durationInMilliseconds = session_state.duration / kSbTimeMillisecond;
+    // Starboard time is measured in microseconds while Android MediaSession
+    // expects duration in milliseconds.
+    durationInMilliseconds = session_state.duration / 1000;
   }
 
   env->CallStarboardVoidMethodOrAbort(
@@ -241,7 +241,7 @@ void OnMediaSessionStateChanged(
       "(IJJFLjava/lang/String;Ljava/lang/String;Ljava/lang/String;"
       "[Ldev/cobalt/media/MediaImage;J)V",
       playback_state, playback_state_actions,
-      session_state.current_playback_position / kSbTimeMillisecond,
+      session_state.current_playback_position / 1000,
       static_cast<jfloat>(session_state.actual_playback_rate), j_title.Get(),
       j_artist.Get(), j_album.Get(), j_artwork.Get(), durationInMilliseconds);
 }

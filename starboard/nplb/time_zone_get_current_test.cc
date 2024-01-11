@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "starboard/extension/time_zone.h"
-#include "starboard/nplb/time_constants.h"
 #include "starboard/system.h"
 #include "starboard/time_zone.h"
 #include "testing/gtest/include/gtest/gtest.h"

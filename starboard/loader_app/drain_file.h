@@ -15,18 +15,17 @@
 #ifndef STARBOARD_LOADER_APP_DRAIN_FILE_H_
 #define STARBOARD_LOADER_APP_DRAIN_FILE_H_
 
-#include "starboard/time.h"
 #include "starboard/types.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// The units of time that the drain file age is represented in.
-extern const SbTime kDrainFileAgeUnit;
+// The units of time that the drain file age is represented in, in microseconds.
+extern const int64_t kDrainFileAgeUnitUsec;
 
-// The amount of time of which a drain file is valid.
-extern const SbTime kDrainFileMaximumAge;
+// The amount of time of which a drain file is valid, in microseconds.
+extern const int64_t kDrainFileMaximumAgeUsec;
 
 // The prefix that all drain file names will have.
 extern const char kDrainFilePrefix[];

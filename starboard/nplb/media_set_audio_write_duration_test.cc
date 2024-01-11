@@ -16,6 +16,7 @@
 
 #include "starboard/common/optional.h"
 #include "starboard/common/spin_lock.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/nplb/player_creation_param_helpers.h"
 #include "starboard/nplb/player_test_util.h"
@@ -34,8 +35,8 @@ using shared::starboard::player::video_dmp::VideoDmpReader;
 using ::starboard::testing::FakeGraphicsContextProvider;
 using ::testing::ValuesIn;
 
-const SbTime kDuration = kSbTimeSecond / 2;
-const SbTime kSmallWaitInterval = 10 * kSbTimeMillisecond;
+const int64_t kDuration = 500'000;          // 0.5 seconds
+const int64_t kSmallWaitInterval = 10'000;  // 10 ms
 
 class SbMediaSetAudioWriteDurationTest
     : public ::testing::TestWithParam<const char*> {
@@ -128,10 +129,10 @@ class SbMediaSetAudioWriteDurationTest
   }
 
   void WaitForPlayerState(SbPlayerState desired_state) {
-    SbTime start_of_wait = SbTimeGetMonotonicNow();
-    const SbTime kMaxWaitTime = 3 * kSbTimeSecond;
+    int64_t start_of_wait = CurrentMonotonicTime();
+    const int64_t kMaxWaitTime = 3'000'000LL;  // 3 seconds
     while (player_state_ != desired_state &&
-           (SbTimeGetMonotonicNow() - start_of_wait) < kMaxWaitTime) {
+           (CurrentMonotonicTime() - start_of_wait) < kMaxWaitTime) {
       SbThreadSleep(kSmallWaitInterval);
       TryToWritePendingSample();
     }
@@ -148,10 +149,10 @@ class SbMediaSetAudioWriteDurationTest
   FakeGraphicsContextProvider fake_graphics_context_provider_;
   VideoDmpReader dmp_reader_;
   SbPlayerState player_state_ = kSbPlayerStateInitialized;
-  SbTime last_input_timestamp_ = 0;
-  SbTime first_input_timestamp_ = 0;
+  int64_t last_input_timestamp_ = 0;
+  int64_t first_input_timestamp_ = 0;
   int index_ = 0;
-  SbTime total_duration_ = kDuration;
+  int64_t total_duration_ = kDuration;
   // Guard access to |pending_decoder_status_|.
   mutable SbAtomic32 pending_decoder_status_lock_ =
       starboard::kSpinLockStateReleased;
@@ -200,16 +201,16 @@ TEST_P(SbMediaSetAudioWriteDurationTest, WriteLimitedInput) {
   WaitForPlayerState(kSbPlayerStatePresenting);
 
   // Wait until the playback time is > 0.
-  const SbTime kMaxWaitTime = 5 * kSbTimeSecond;
-  SbTime start_of_wait = SbTimeGetMonotonicNow();
+  const int64_t kMaxWaitTime = 5'000'000;  // 5 seconds
+  int64_t start_of_wait = CurrentMonotonicTime();
 #if SB_API_VERSION >= 15
   SbPlayerInfo info = {};
 #else   // SB_API_VERSION >= 15
   SbPlayerInfo2 info = {};
 #endif  // SB_API_VERSION >= 15
-  while (SbTimeGetMonotonicNow() - start_of_wait < kMaxWaitTime &&
+  while (CurrentMonotonicTime() - start_of_wait < kMaxWaitTime &&
          info.current_media_timestamp == 0) {
-    SbThreadSleep(kSbTimeMillisecond * 500);
+    SbThreadSleep(500'000);
 #if SB_API_VERSION >= 15
     SbPlayerGetInfo(player, &info);
 #else   // SB_API_VERSION >= 15
@@ -231,7 +232,7 @@ TEST_P(SbMediaSetAudioWriteDurationTest, WriteContinuedLimitedInput) {
 #endif  // SB_API_VERSION < 15
 
   // This directly impacts the runtime of the test.
-  total_duration_ = 15 * kSbTimeSecond;
+  total_duration_ = 15'000'000LL;  // 15 seconds
 
   SbPlayer player = CreatePlayer();
   WaitForPlayerState(kSbPlayerStateInitialized);
@@ -246,9 +247,9 @@ TEST_P(SbMediaSetAudioWriteDurationTest, WriteContinuedLimitedInput) {
 
   // Wait for the player to play far enough. It may not play all the way to
   // the end, but it should leave off no more than |kDuration|.
-  SbTime min_ending_playback_time = total_duration_ - kDuration;
-  SbTime start_of_wait = SbTimeGetMonotonicNow();
-  const SbTime kMaxWaitTime = total_duration_ + 5 * kSbTimeSecond;
+  int64_t min_ending_playback_time = total_duration_ - kDuration;
+  int64_t start_of_wait = CurrentMonotonicTime();
+  const int64_t kMaxWaitTime = total_duration_ + 5'000'000LL;
 #if SB_API_VERSION >= 15
   SbPlayerInfo info;
   SbPlayerGetInfo(player, &info);
@@ -257,7 +258,7 @@ TEST_P(SbMediaSetAudioWriteDurationTest, WriteContinuedLimitedInput) {
   SbPlayerGetInfo2(player, &info);
 #endif  // SB_API_VERSION >= 15
   while (info.current_media_timestamp < min_ending_playback_time &&
-         (SbTimeGetMonotonicNow() - start_of_wait) < kMaxWaitTime) {
+         (CurrentMonotonicTime() - start_of_wait) < kMaxWaitTime) {
 #if SB_API_VERSION >= 15
     SbPlayerGetInfo(player, &info);
 #else   // SB_API_VERSION >= 15

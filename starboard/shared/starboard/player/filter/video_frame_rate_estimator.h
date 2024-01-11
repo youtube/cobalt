@@ -20,7 +20,6 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace shared {
@@ -60,13 +59,13 @@ class VideoFrameRateEstimator {
   static constexpr double kFrameRateEpsilon = 0.1;
 
   void CalculateInitialFrameRate(const Frames& frames,
-                                 SbTime previous_frame_duration = 0);
+                                 int64_t previous_frame_duration = 0);
   void RefineFrameRate(const Frames& frames);
 
   double frame_rate_ = kInvalidFrameRate;
-  SbTime accumulated_frame_durations_;
+  int64_t accumulated_frame_durations_;  // microseconds
   int number_of_frame_durations_accumulated_;
-  SbTime last_checked_frame_timestamp_;
+  int64_t last_checked_frame_timestamp_;  // microseconds
 };
 
 }  // namespace filter

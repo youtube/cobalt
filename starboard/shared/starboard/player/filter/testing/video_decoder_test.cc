@@ -24,6 +24,7 @@
 #include "starboard/common/mutex.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
@@ -37,7 +38,6 @@
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -402,8 +402,8 @@ TEST_P(VideoDecoderTest, MultipleInputs) {
 }
 
 TEST_P(VideoDecoderTest, Preroll) {
-  SbTimeMonotonic start = SbTimeGetMonotonicNow();
-  SbTime preroll_timeout = fixture_.video_decoder()->GetPrerollTimeout();
+  int64_t start = CurrentMonotonicTime();
+  int64_t preroll_timeout = fixture_.video_decoder()->GetPrerollTimeout();
   bool error_occurred = false;
   ASSERT_NO_FATAL_FAILURE(fixture_.WriteMultipleInputs(
       0, fixture_.dmp_reader().number_of_video_buffers(),
@@ -418,7 +418,7 @@ TEST_P(VideoDecoderTest, Preroll) {
           *continue_process = false;
           return;
         }
-        if (SbTimeGetMonotonicNow() - start >= preroll_timeout) {
+        if (CurrentMonotonicTime() - start >= preroll_timeout) {
           // After preroll timeout, we should get at least 1 decoded frame.
           ASSERT_GT(fixture_.GetDecodedFramesCount(), 0);
           *continue_process = false;

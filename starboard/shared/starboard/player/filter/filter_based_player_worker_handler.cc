@@ -26,7 +26,6 @@
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace shared {
@@ -43,7 +42,7 @@ typedef shared::starboard::player::PlayerWorker::Handler::HandlerResult
     HandlerResult;
 
 // TODO: Make this configurable inside SbPlayerCreate().
-const SbTimeMonotonic kUpdateInterval = 200 * kSbTimeMillisecond;
+const int64_t kUpdateIntervalUsec = 200'000;  // 200ms
 
 #if defined(COBALT_BUILD_TYPE_GOLD)
 
@@ -187,12 +186,12 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
                   kSbMediaTypeVideo));
   }
 
-  update_job_token_ = Schedule(update_job_, kUpdateInterval);
+  update_job_token_ = Schedule(update_job_, kUpdateIntervalUsec);
 
   return HandlerResult{true};
 }
 
-HandlerResult FilterBasedPlayerWorkerHandler::Seek(SbTime seek_to_time,
+HandlerResult FilterBasedPlayerWorkerHandler::Seek(int64_t seek_to_time,
                                                    int ticket) {
   SB_DCHECK(BelongsToCurrentThread());
 
@@ -507,7 +506,7 @@ void FilterBasedPlayerWorkerHandler::Update() {
   }
 
   RemoveJobByToken(update_job_token_);
-  update_job_token_ = Schedule(update_job_, kUpdateInterval);
+  update_job_token_ = Schedule(update_job_, kUpdateIntervalUsec);
 }
 
 void FilterBasedPlayerWorkerHandler::Stop() {
