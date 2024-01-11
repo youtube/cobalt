@@ -1,4 +1,4 @@
-# Copyright (c) 2013 The Chromium Authors. All rights reserved.
+# Copyright 2013 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -6,7 +6,7 @@
 # WHAT IS THIS FILE?
 # =============================================================================
 #
-# This is the master GN build configuration. This file is loaded after the
+# This is the main GN build configuration. This file is loaded after the
 # build args (args.gn) for the build directory and after the toplevel ".gn"
 # file (which points to this file as the build configuration).
 #
@@ -128,6 +128,11 @@ declare_args() {
   # release (!is_debug). This might be better expressed as a tri-state
   # (debug, release, official) but for historical reasons there are two
   # separate flags.
+  #
+  # IMPORTANT NOTE: (!is_debug) is *not* sufficient to get satisfying
+  # performance. In particular, DCHECK()s are still enabled for release builds,
+  # which can halve overall performance, and do increase memory usage. Always
+  # set "is_official_build" to true for any build intended to ship to end-users.
   is_official_build = false
 
   # Set to true when compiling with the Clang compiler.
@@ -144,6 +149,11 @@ declare_args() {
   # This should not normally be set as a build argument.  It's here so that
   # every toolchain can pass through the "global" value via toolchain_args().
   host_toolchain = ""
+
+  # Do not set this directly.
+  # It should be set only by //build/toolchains/android:robolectric_x64.
+  # True when compiling native code for use with robolectric_binary().
+  is_robolectric = false
 
   # DON'T ADD MORE FLAGS HERE. Read the comment above.
 }
@@ -164,6 +174,8 @@ declare_args() {
 }
 
 assert(!(is_debug && is_official_build), "Can't do official debug builds")
+assert(!(current_os == "ios" && is_component_build),
+       "Can't use component build on iOS")
 
 # ==============================================================================
 # TOOLCHAIN SETUP
@@ -211,6 +223,8 @@ if (host_toolchain == "") {
     }
   } else if (host_os == "aix") {
     host_toolchain = "//build/toolchain/aix:$host_cpu"
+  } else if (host_os == "zos") {
+    host_toolchain = "//build/toolchain/zos:$host_cpu"
   } else {
     assert(false, "Unsupported host_os: $host_os")
   }
@@ -219,8 +233,7 @@ if (host_toolchain == "") {
 _default_toolchain = ""
 
 if (target_os == "android") {
-  assert(host_os == "linux" || host_os == "mac",
-         "Android builds are only supported on Linux and Mac hosts.")
+  assert(host_os == "linux", "Android builds are only supported on Linux.")
   _default_toolchain = "//build/toolchain/android:android_clang_$target_cpu"
 } else if (target_os == "chromeos" || target_os == "linux") {
   # See comments in build/toolchain/cros/BUILD.gn about board compiles.
@@ -253,6 +266,8 @@ if (target_os == "android") {
   _default_toolchain = "//build/toolchain/win:uwp_$target_cpu"
 } else if (target_os == "aix") {
   _default_toolchain = "//build/toolchain/aix:$target_cpu"
+} else if (target_os == "zos") {
+  _default_toolchain = "//build/toolchain/zos:$target_cpu"
 } else {
   assert(false, "Unsupported target_os: $target_os")
 }
@@ -318,21 +333,22 @@ default_compiler_configs = [
   "//build/config/compiler:afdo",
   "//build/config/compiler:afdo_optimize_size",
   "//build/config/compiler:cet_shadow_stack",
+  "//build/config/compiler:chromium_code",
   "//build/config/compiler:compiler",
   "//build/config/compiler:compiler_arm_fpu",
   "//build/config/compiler:compiler_arm_thumb",
-  "//build/config/compiler:chromium_code",
   "//build/config/compiler:default_include_dirs",
+  "//build/config/compiler:default_init_stack_vars",
   "//build/config/compiler:default_optimization",
   "//build/config/compiler:default_stack_frames",
   "//build/config/compiler:default_symbols",
   "//build/config/compiler:export_dynamic",
   "//build/config/compiler:no_exceptions",
   "//build/config/compiler:no_rtti",
+  "//build/config/compiler:no_unresolved_symbols",
   "//build/config/compiler:runtime_library",
   "//build/config/compiler:thin_archive",
   "//build/config/compiler:thinlto_optimize_default",
-  "//build/config/compiler:default_init_stack_vars",
   "//build/config/compiler/pgo:default_pgo_flags",
   "//build/config/coverage:default_coverage",
   "//build/config/sanitizers:default_sanitizer_flags",
@@ -382,8 +398,16 @@ if (is_debug) {
 # Static libraries and source sets use only the compiler ones.
 set_defaults("static_library") {
   configs = default_compiler_configs
+
+  # For Rust, a static library involves linking in all dependencies, and it
+  # performs LTO. But since we will perform LTO in the C++ linker which
+  # consumes the library, we defer LTO from Rust into the linker.
+  configs += [ "//build/config/compiler:rust_defer_lto_to_linker" ]
 }
 set_defaults("source_set") {
+  configs = default_compiler_configs
+}
+set_defaults("rust_library") {
   configs = default_compiler_configs
 }
 
@@ -399,8 +423,8 @@ if (is_win) {
     # that shouldn't use the windows subsystem.
     "//build/config/win:console",
   ]
-} else if (is_mac) {
-  _linker_configs = [ "//build/config/mac:strip_all" ]
+} else if (is_apple) {
+  _linker_configs = [ "//build/config/apple:strip_all" ]
 } else {
   _linker_configs = []
 }
@@ -450,6 +474,22 @@ set_defaults("loadable_module") {
   }
 }
 
+default_rust_proc_macro_configs =
+    default_shared_library_configs + [ "//build/rust:proc_macro_extern" ] +
+    # Rust proc macros don't support (Thin)LTO, so always remove it.
+    [
+      "//build/config/compiler:thinlto_optimize_default",
+      "//build/config/compiler:thinlto_optimize_max",
+    ] -
+    [
+      "//build/config/compiler:thinlto_optimize_default",
+      "//build/config/compiler:thinlto_optimize_max",
+    ]
+
+set_defaults("rust_proc_macro") {
+  configs = default_rust_proc_macro_configs
+}
+
 # A helper for forwarding testonly and visibility.
 # Forwarding "*" does not include variables from outer scopes (to avoid copying
 # all globals into each template invocation), so it will not pick up
@@ -474,6 +514,9 @@ foreach(_target_type,
           "executable",
           "loadable_module",
           "shared_library",
+          "rust_bin",
+          "rust_dylib",
+          "rust_cdylib",
         ]) {
   template(_target_type) {
     # Alias "target_name" because it is clobbered by forward_variables_from().
@@ -499,7 +542,7 @@ foreach(_target_type,
       # On Android, write shared library output file to metadata. We will use
       # this information to, for instance, collect all shared libraries that
       # should be packaged into an APK.
-      if (!defined(invoker.metadata) && is_android &&
+      if (!defined(invoker.metadata) && (is_android || is_robolectric) &&
           (_target_type == "shared_library" ||
            _target_type == "loadable_module")) {
         _output_name = _target_name
@@ -550,6 +593,16 @@ foreach(_target_type,
 template("component") {
   if (is_component_build) {
     _component_mode = "shared_library"
+
+    # Generate a unique output_name for a shared library if not set by invoker.
+    if (!defined(invoker.output_name)) {
+      _output_name = get_label_info(":$target_name", "label_no_toolchain")
+      _output_name =
+          string_replace(_output_name, "$target_name:$target_name", target_name)
+      _output_name = string_replace(_output_name, "//", "")
+      _output_name = string_replace(_output_name, "/", "_")
+      _output_name = string_replace(_output_name, ":", "_")
+    }
   } else if (defined(invoker.static_component_type)) {
     assert(invoker.static_component_type == "static_library" ||
            invoker.static_component_type == "source_set")
@@ -562,19 +615,139 @@ template("component") {
     _component_mode = "static_library"
   }
   target(_component_mode, target_name) {
+    if (defined(_output_name)) {
+      output_name = _output_name
+    }
     forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
     forward_variables_from(invoker, "*", TESTONLY_AND_VISIBILITY)
   }
 }
 
 # Component defaults
+# Set a variable since we also want to make this available
+# to mixed_component.gni
+if (is_component_build) {
+  default_component_configs = default_shared_library_configs
+  if (is_android) {
+    default_component_configs -=
+        [ "//build/config/android:hide_all_but_jni_onload" ]
+  }
+} else {
+  default_component_configs = default_compiler_configs
+}
+
 set_defaults("component") {
-  if (is_component_build) {
-    configs = default_shared_library_configs
-    if (is_android) {
-      configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
+  configs = default_component_configs
+}
+
+# =============================================================================
+# ACTION OVERRIDE
+# =============================================================================
+#
+# We override gn action() to support remote execution using rewrapper. The
+# invoker should set allow_remote to true if remote execution is desired.
+#
+# As remote execution requires inputs to be made more explicit than is normally
+# expected with gn, you may find that setting allow_remote to true will result
+# in many missing file errors. In most cases, this should be resolved by
+# explicitly declaring these inputs/sources.
+#
+# However, it may be impractical to determine these inputs in gn. For such
+# cases, the invoker can specify a custom input processor, which are currently
+# defined and implemented in //build/util/action_remote.py. The appropriate
+# value should be set using the custom_processor arg.
+
+# Variables needed by rbe.gni aren't available at the top of this file.
+import("//build/toolchain/rbe.gni")
+
+# TODO(b/253987456): Add action_foreach support.
+foreach(_target_type, [ "action" ]) {
+  template(_target_type) {
+    forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+    forward_variables_from(invoker, [ "allow_remote" ])
+    action("${target_name}") {
+      forward_variables_from(invoker,
+                             [
+                               "args",
+                               "assert_no_deps",
+                               "check_includes",
+                               "configs",
+                               "data_deps",
+                               "data",
+                               "depfile",
+                               "deps",
+                               "metadata",
+                               "outputs",
+                               "pool",
+                               "script",
+                               "public_configs",
+                               "public_deps",
+                               "response_file_contents",
+                               "sources",
+                               "write_runtime_deps",
+                             ])
+      allow_remote = false
+      if (defined(invoker.allow_remote)) {
+        allow_remote = invoker.allow_remote
+      }
+
+      # If remote execution is desired, only run remotely when use_remoteexec
+      # is enabled, and the environment is not nacl.
+      # TODO(b/259381924): Investigate enabling in nacl config.
+      if (allow_remote && use_remoteexec && !is_nacl) {
+        pool = "//build/toolchain:remote_action_pool($default_toolchain)"
+        script = "//build/util/action_remote.py"
+        inputs = [ invoker.script ]
+
+        re_inputs = [ rebase_path(invoker.script, rbe_exec_root) ]
+        if (defined(invoker.inputs)) {
+          foreach(input, invoker.inputs) {
+            re_inputs += [ rebase_path(input, rbe_exec_root) ]
+            inputs += [ input ]
+          }
+        }
+        if (defined(invoker.sources)) {
+          foreach(source, invoker.sources) {
+            re_inputs += [ rebase_path(source, rbe_exec_root) ]
+          }
+        }
+
+        re_outputs = []
+        if (defined(invoker.outputs)) {
+          foreach(output, invoker.outputs) {
+            re_outputs += [ rebase_path(output, rbe_exec_root) ]
+          }
+        }
+
+        # Write input/output lists to files as these can grow extremely large.
+        re_inputs_file = "$target_gen_dir/${target_name}__remote_inputs.rsp"
+        write_file(re_inputs_file, re_inputs)
+        inputs += [ re_inputs_file ]
+        re_outputs_file = "$target_gen_dir/${target_name}__remote_outputs.rsp"
+        write_file(re_outputs_file, re_outputs)
+
+        args = []
+        args += [ "$rbe_bin_dir/rewrapper" ]
+        if (defined(invoker.custom_processor)) {
+          args += [ "--custom_processor=" + invoker.custom_processor ]
+        }
+
+        args += [
+          "--cfg=$rbe_py_cfg_file",
+          "--exec_root=$rbe_exec_root",
+          "--input_list_paths=" + rebase_path(re_inputs_file, root_build_dir),
+          "--output_list_paths=" + rebase_path(re_outputs_file, root_build_dir),
+          "python3",
+          rebase_path(invoker.script, root_build_dir),
+        ]
+
+        if (defined(invoker.args)) {
+          args += invoker.args
+        }
+      } else {
+        forward_variables_from(invoker, [ "inputs" ])
+        not_needed(invoker, [ "custom_processor" ])
+      }
     }
-  } else {
-    configs = default_compiler_configs
   }
 }

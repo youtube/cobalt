@@ -97,6 +97,9 @@ config("compiler_flags") {
 
     # Suppress warnings in libjpeg
     "-Wno-shift-negative-value",
+
+    # Let older Clangs ignore newer Clangs' warnings.
+    "-Wno-unknown-warning-option",
   ]
 
   cflags_c += [

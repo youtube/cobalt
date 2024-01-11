@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-# Copyright 2017 The Chromium Authors. All rights reserved.
+# Copyright 2017 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 """Checks the number of static initializers in an APK's library."""
 
-from __future__ import print_function
 
 import argparse
 import os
@@ -23,8 +22,9 @@ _DUMP_STATIC_INITIALIZERS_PATH = os.path.join(build_utils.DIR_SOURCE_ROOT,
 
 
 def _RunReadelf(so_path, options, tool_prefix=''):
-  return subprocess.check_output([tool_prefix + 'readelf'] + options +
-                                 [so_path]).decode('utf8')
+  return subprocess.check_output(
+      [tool_prefix + 'readobj', '--elf-output-style=GNU'] + options +
+      [so_path]).decode('utf8')
 
 
 def _ParseLibBuildId(so_path, tool_prefix):
@@ -40,26 +40,16 @@ def _VerifyLibBuildIdsMatch(tool_prefix, *so_files):
                     'Your output directory is likely stale.')
 
 
-def _GetStaticInitializers(so_path, tool_prefix):
-  output = subprocess.check_output(
-      [_DUMP_STATIC_INITIALIZERS_PATH, '-d', so_path, '-t', tool_prefix])
-  summary = re.search(r'Found \d+ static initializers in (\d+) files.', output)
-  return output.splitlines()[:-1], int(summary.group(1))
-
-
-def _PrintDumpSIsCount(apk_so_name, unzipped_so, out_dir, tool_prefix):
-  lib_name = os.path.basename(apk_so_name).replace('crazy.', '')
-  so_with_symbols_path = os.path.join(out_dir, 'lib.unstripped', lib_name)
+def _DumpStaticInitializers(apk_so_name, unzipped_so, out_dir, tool_prefix):
+  so_with_symbols_path = os.path.join(out_dir, 'lib.unstripped',
+                                      os.path.basename(apk_so_name))
   if not os.path.exists(so_with_symbols_path):
-    raise Exception('Unstripped .so not found. Looked here: %s',
+    raise Exception('Unstripped .so not found. Looked here: %s' %
                     so_with_symbols_path)
   _VerifyLibBuildIdsMatch(tool_prefix, unzipped_so, so_with_symbols_path)
-  sis, _ = _GetStaticInitializers(so_with_symbols_path, tool_prefix)
-  for si in sis:
-    print(si)
+  subprocess.check_call([_DUMP_STATIC_INITIALIZERS_PATH, so_with_symbols_path])
 
 
-# Mostly copied from //infra/scripts/legacy/scripts/slave/chromium/sizes.py.
 def _ReadInitArray(so_path, tool_prefix, expect_no_initializers):
   stdout = _RunReadelf(so_path, ['-SW'], tool_prefix)
   # Matches: .init_array INIT_ARRAY 000000000516add0 5169dd0 000010 00 WA 0 0 8
@@ -68,9 +58,8 @@ def _ReadInitArray(so_path, tool_prefix, expect_no_initializers):
     if match:
       raise Exception(
           'Expected no initializers for %s, yet some were found' % so_path)
-    else:
-      return 0
-  elif not match:
+    return 0
+  if not match:
     raise Exception('Did not find section: .init_array in {}:\n{}'.format(
         so_path, stdout))
   size_str = re.split(r'\W+', match.group(0))[5]
@@ -92,13 +81,12 @@ def _CountStaticInitializers(so_path, tool_prefix, expect_no_initializers):
   # NOTE: this is very implementation-specific and makes assumptions
   # about how compiler and linker implement global static initializers.
   init_array_size = _ReadInitArray(so_path, tool_prefix, expect_no_initializers)
-  return init_array_size / word_size
+  assert init_array_size % word_size == 0
+  return init_array_size // word_size
 
 
 def _AnalyzeStaticInitializers(apk_or_aab, tool_prefix, dump_sis, out_dir,
                                ignored_libs, no_initializers_libs):
-  # Static initializer counting mostly copies logic in
-  # infra/scripts/legacy/scripts/slave/chromium/sizes.py.
   with zipfile.ZipFile(apk_or_aab) as z:
     so_files = [
         f for f in z.infolist() if f.filename.endswith('.so')
@@ -127,10 +115,7 @@ def _AnalyzeStaticInitializers(apk_or_aab, tool_prefix, dump_sis, out_dir,
         si_count += _CountStaticInitializers(temp.name, tool_prefix,
                                              expect_no_initializers)
         if dump_sis:
-          # Print count and list of SIs reported by dump-static-initializers.py.
-          # Doesn't work well on all archs (particularly arm), which is why
-          # the readelf method is used for tracking SI counts.
-          _PrintDumpSIsCount(f.filename, temp.name, out_dir, tool_prefix)
+          _DumpStaticInitializers(f.filename, temp.name, out_dir, tool_prefix)
   return si_count
 
 
@@ -164,18 +149,16 @@ def main():
       print('You have removed one or more static initializers. Thanks!')
       print('To fix the build, update the expectation in:')
       print('    //chrome/android/static_initializers.gni')
-    else:
-      print('Dumping static initializers via dump-static-initializers.py:')
-      sys.stdout.flush()
-      _AnalyzeStaticInitializers(args.apk_or_aab, args.tool_prefix, True, '.',
-                                 ignored_libs, no_initializers_libs)
       print()
-      print('If the above list is not useful, consider listing them with:')
-      print('    //tools/binary_size/diagnose_bloat.py')
-      print()
-      print('For more information:')
-      print('    https://chromium.googlesource.com/chromium/src/+/main/docs/'
-            'static_initializers.md')
+
+    print('Dumping static initializers via dump-static-initializers.py:')
+    sys.stdout.flush()
+    _AnalyzeStaticInitializers(args.apk_or_aab, args.tool_prefix, True, '.',
+                               ignored_libs, no_initializers_libs)
+    print()
+    print('For more information:')
+    print('    https://chromium.googlesource.com/chromium/src/+/main/docs/'
+          'static_initializers.md')
     sys.exit(1)
 
   if args.touch:

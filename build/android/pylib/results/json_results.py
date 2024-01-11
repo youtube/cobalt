@@ -1,8 +1,8 @@
-# Copyright 2014 The Chromium Authors. All rights reserved.
+# Copyright 2014 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-from __future__ import absolute_import
+
 import collections
 import itertools
 import json
@@ -233,6 +233,7 @@ def ParseResultsFromJson(json_results):
       results_list.extend(
           [base_test_result.BaseTestResult(test,
                                            string_as_status(tr['status']),
-                                           duration=tr['elapsed_time_ms'])
+                                           duration=tr['elapsed_time_ms'],
+                                           log=tr.get('output_snippet'))
           for tr in test_runs])
   return results_list

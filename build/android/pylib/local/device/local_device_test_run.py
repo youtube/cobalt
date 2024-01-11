@@ -1,12 +1,16 @@
-# Copyright 2014 The Chromium Authors. All rights reserved.
+# Copyright 2014 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 import fnmatch
+import hashlib
 import logging
 import posixpath
 import signal
-import thread
+try:
+  import _thread as thread
+except ImportError:
+  import thread
 import threading
 
 from devil import base_error
@@ -30,10 +34,9 @@ _SIGTERM_TEST_LOG = (
 def SubstituteDeviceRoot(device_path, device_root):
   if not device_path:
     return device_root
-  elif isinstance(device_path, list):
+  if isinstance(device_path, list):
     return posixpath.join(*(p if p else device_root for p in device_path))
-  else:
-    return device_path
+  return device_path
 
 
 class TestsTerminated(Exception):
@@ -42,22 +45,22 @@ class TestsTerminated(Exception):
 
 class InvalidShardingSettings(Exception):
   def __init__(self, shard_index, total_shards):
-    super(InvalidShardingSettings, self).__init__(
-        'Invalid sharding settings. shard_index: %d total_shards: %d'
-            % (shard_index, total_shards))
+    super().__init__(
+        'Invalid sharding settings. shard_index: %d total_shards: %d' %
+        (shard_index, total_shards))
 
 
 class LocalDeviceTestRun(test_run.TestRun):
 
   def __init__(self, env, test_instance):
-    super(LocalDeviceTestRun, self).__init__(env, test_instance)
+    super().__init__(env, test_instance)
     self._tools = {}
     # This is intended to be filled by a child class.
     self._installed_packages = []
     env.SetPreferredAbis(test_instance.GetPreferredAbis())
 
   #override
-  def RunTests(self, results):
+  def RunTests(self, results, raw_logs_fh=None):
     tests = self._GetTests()
 
     exit_now = threading.Event()
@@ -105,22 +108,23 @@ class LocalDeviceTestRun(test_run.TestRun):
 
           if isinstance(test, list):
             results.AddResults(
-                base_test_result.BaseTestResult(self._GetUniqueTestName(t),
-                                                GetResultTypeForTest(t))
-                for t in test)
+                base_test_result.BaseTestResult(
+                    self._GetUniqueTestName(t),
+                    base_test_result.ResultType.TIMEOUT) for t in test)
           else:
             results.AddResult(
-                base_test_result.BaseTestResult(self._GetUniqueTestName(test),
-                                                GetResultTypeForTest(test)))
-        except Exception as e:  # pylint: disable=broad-except
+                base_test_result.BaseTestResult(
+                    self._GetUniqueTestName(test),
+                    base_test_result.ResultType.TIMEOUT))
+        except device_errors.DeviceUnreachableError:
+          # If the device is no longer reachable then terminate this
+          # run_tests_on_device call.
+          raise
+        except base_error.BaseError:
+          # If we get a device error but believe the device is still
+          # reachable, attempt to continue using it.
           if isinstance(tests, test_collection.TestCollection):
             rerun = test
-          if (isinstance(e, device_errors.DeviceUnreachableError)
-              or not isinstance(e, base_error.BaseError)):
-            # If we get a device error but believe the device is still
-            # reachable, attempt to continue using it. Otherwise, raise
-            # the exception and terminate this run_tests_on_device call.
-            raise
 
           consecutive_device_errors += 1
           if consecutive_device_errors >= 3:
@@ -187,9 +191,9 @@ class LocalDeviceTestRun(test_run.TestRun):
           results.append(try_results)
 
           try:
-            if self._ShouldShard():
+            if self._ShouldShardTestsForDevices():
               tc = test_collection.TestCollection(
-                  self._CreateShards(grouped_tests))
+                  self._CreateShardsForDevices(grouped_tests))
               self._env.parallel_devices.pMap(
                   run_tests_on_device, tc, try_results).pGet(None)
             else:
@@ -234,17 +238,15 @@ class LocalDeviceTestRun(test_run.TestRun):
     tests_and_results = {}
     for test, name in tests_and_names:
       if name.endswith('*'):
-        tests_and_results[name] = (
-            test,
-            [r for n, r in all_test_results.iteritems()
-             if fnmatch.fnmatch(n, name)])
+        tests_and_results[name] = (test, [
+            r for n, r in all_test_results.items() if fnmatch.fnmatch(n, name)
+        ])
       else:
         tests_and_results[name] = (test, all_test_results.get(name))
 
-    failed_tests_and_results = (
-        (test, result) for test, result in tests_and_results.itervalues()
-        if is_failure_result(result)
-    )
+    failed_tests_and_results = ((test, result)
+                                for test, result in tests_and_results.values()
+                                if is_failure_result(result))
 
     return [t for t, r in failed_tests_and_results if self._ShouldRetry(t, r)]
 
@@ -256,6 +258,10 @@ class LocalDeviceTestRun(test_run.TestRun):
       raise InvalidShardingSettings(shard_index, total_shards)
 
     sharded_tests = []
+
+    # Sort tests by hash.
+    # TODO(crbug.com/1257820): Add sorting logic back to _PartitionTests.
+    tests = self._SortTests(tests)
 
     # Group tests by tests that should run in the same test invocation - either
     # unit tests or batched tests.
@@ -273,6 +279,14 @@ class LocalDeviceTestRun(test_run.TestRun):
         sharded_tests.append(t)
     return sharded_tests
 
+  # Sort by hash so we don't put all tests in a slow suite in the same
+  # partition.
+  def _SortTests(self, tests):
+    return sorted(tests,
+                  key=lambda t: hashlib.sha256(
+                      self._GetUniqueTestName(t[0] if isinstance(t, list) else t
+                                              ).encode()).hexdigest())
+
   # Partition tests evenly into |num_desired_partitions| partitions where
   # possible. However, many constraints make partitioning perfectly impossible.
   # If the max_partition_size isn't large enough, extra partitions may be
@@ -286,24 +300,9 @@ class LocalDeviceTestRun(test_run.TestRun):
     # pylint: disable=no-self-use
     partitions = []
 
-    # Sort by hash so we don't put all tests in a slow suite in the same
-    # partition.
-    tests = sorted(
-        tests,
-        key=lambda t: hash(
-            self._GetUniqueTestName(t[0] if isinstance(t, list) else t)))
-
-    def CountTestsIndividually(test):
-      if not isinstance(test, list):
-        return False
-      annotations = test[0]['annotations']
-      # UnitTests tests are really fast, so to balance shards better, count
-      # UnitTests Batches as single tests.
-      return ('Batch' not in annotations
-              or annotations['Batch']['value'] != 'UnitTests')
 
     num_not_yet_allocated = sum(
-        [len(test) - 1 for test in tests if CountTestsIndividually(test)])
+        [len(test) - 1 for test in tests if self._CountTestsIndividually(test)])
     num_not_yet_allocated += len(tests)
 
     # Fast linear partition approximation capped by max_partition_size. We
@@ -314,8 +313,7 @@ class LocalDeviceTestRun(test_run.TestRun):
     partitions.append([])
     last_partition_size = 0
     for test in tests:
-      test_count = len(test) if CountTestsIndividually(test) else 1
-      num_not_yet_allocated -= test_count
+      test_count = len(test) if self._CountTestsIndividually(test) else 1
       # Make a new shard whenever we would overfill the previous one. However,
       # if the size of the test group is larger than the max partition size on
       # its own, just put the group in its own shard instead of splitting up the
@@ -323,9 +321,6 @@ class LocalDeviceTestRun(test_run.TestRun):
       if (last_partition_size + test_count > partition_size
           and last_partition_size > 0):
         num_desired_partitions -= 1
-        partitions.append([])
-        partitions[-1].append(test)
-        last_partition_size = test_count
         if num_desired_partitions <= 0:
           # Too many tests for number of partitions, just fill all partitions
           # beyond num_desired_partitions.
@@ -334,13 +329,28 @@ class LocalDeviceTestRun(test_run.TestRun):
           # Re-balance remaining partitions.
           partition_size = min(num_not_yet_allocated // num_desired_partitions,
                                max_partition_size)
+        partitions.append([])
+        partitions[-1].append(test)
+        last_partition_size = test_count
       else:
         partitions[-1].append(test)
         last_partition_size += test_count
 
+      num_not_yet_allocated -= test_count
+
     if not partitions[-1]:
       partitions.pop()
     return partitions
+
+  def _CountTestsIndividually(self, test):
+    # pylint: disable=no-self-use
+    if not isinstance(test, list):
+      return False
+    annotations = test[0]['annotations']
+    # UnitTests tests are really fast, so to balance shards better, count
+    # UnitTests Batches as single tests.
+    return ('Batch' not in annotations
+            or annotations['Batch']['value'] != 'UnitTests')
 
   def GetTool(self, device):
     if str(device) not in self._tools:
@@ -348,7 +358,7 @@ class LocalDeviceTestRun(test_run.TestRun):
           self._env.tool, device)
     return self._tools[str(device)]
 
-  def _CreateShards(self, tests):
+  def _CreateShardsForDevices(self, tests):
     raise NotImplementedError
 
   def _GetUniqueTestName(self, test):
@@ -358,6 +368,13 @@ class LocalDeviceTestRun(test_run.TestRun):
   def _ShouldRetry(self, test, result):
     # pylint: disable=no-self-use,unused-argument
     return True
+
+  #override
+  def GetTestsForListing(self):
+    ret = self._GetTests()
+    ret = FlattenTestList(ret)
+    ret.sort()
+    return ret
 
   def _GetTests(self):
     raise NotImplementedError
@@ -369,8 +386,19 @@ class LocalDeviceTestRun(test_run.TestRun):
   def _RunTest(self, device, test):
     raise NotImplementedError
 
-  def _ShouldShard(self):
+  def _ShouldShardTestsForDevices(self):
     raise NotImplementedError
+
+
+def FlattenTestList(values):
+  """Returns a list with all nested lists (shard groupings) expanded."""
+  ret = []
+  for v in values:
+    if isinstance(v, list):
+      ret += v
+    else:
+      ret.append(v)
+  return ret
 
 
 def SetAppCompatibilityFlagsIfNecessary(packages, device):
