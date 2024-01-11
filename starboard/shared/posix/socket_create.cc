@@ -26,6 +26,7 @@
 
 namespace sbposix = starboard::shared::posix;
 
+#if SB_API_VERSION < 16
 SbSocket SbSocketCreate(SbSocketAddressType address_type,
                         SbSocketProtocol protocol) {
   int socket_domain;
@@ -83,3 +84,4 @@ SbSocket SbSocketCreate(SbSocketAddressType address_type,
 
   return new SbSocketPrivate(address_type, protocol, socket_fd);
 }
+#endif  // SB_API_VERSION < 16

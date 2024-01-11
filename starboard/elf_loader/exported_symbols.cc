@@ -268,13 +268,13 @@ ExportedSymbols::ExportedSymbols() {
 #endif  // SB_API_VERSION >= 15
   REGISTER_SYMBOL(SbSocketAccept);
   REGISTER_SYMBOL(SbSocketBind);
-  REGISTER_SYMBOL(SbSocketClearLastError);
   REGISTER_SYMBOL(SbSocketConnect);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbSocketCreate);
+#endif
   REGISTER_SYMBOL(SbSocketDestroy);
   REGISTER_SYMBOL(SbSocketFreeResolution);
   REGISTER_SYMBOL(SbSocketGetInterfaceAddress);
-  REGISTER_SYMBOL(SbSocketGetLastError);
   REGISTER_SYMBOL(SbSocketGetLocalAddress);
   REGISTER_SYMBOL(SbSocketIsConnected);
   REGISTER_SYMBOL(SbSocketIsConnectedAndIdle);
@@ -314,6 +314,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbStringFormat);
   REGISTER_SYMBOL(SbStringFormatWide);
   REGISTER_SYMBOL(SbStringScan);
+  REGISTER_SYMBOL(SbSocketClearLastError);
+  REGISTER_SYMBOL(SbSocketGetLastError);
 #endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbSystemBreakIntoDebugger);
   REGISTER_SYMBOL(SbSystemClearLastError);

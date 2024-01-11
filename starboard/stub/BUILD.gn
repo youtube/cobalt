@@ -159,7 +159,6 @@ static_library("stub_sources") {
     "//starboard/shared/stub/player_write_samples.cc",
     "//starboard/shared/stub/socket_accept.cc",
     "//starboard/shared/stub/socket_bind.cc",
-    "//starboard/shared/stub/socket_clear_last_error.cc",
     "//starboard/shared/stub/socket_connect.cc",
     "//starboard/shared/stub/socket_create.cc",
     "//starboard/shared/stub/socket_destroy.cc",

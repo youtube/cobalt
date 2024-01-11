@@ -12,7 +12,11 @@
 #include "base/logging.h"
 #include "net/base/net_export.h"
 #if defined(STARBOARD)
+#if SB_API_VERSION < 16
 #include "starboard/common/socket.h"
+#else
+#include <errno.h>
+#endif
 #include "starboard/system.h"
 #endif
 
@@ -57,6 +61,8 @@ NET_EXPORT bool IsDnsError(int error);
 NET_EXPORT Error MapSystemError(logging::SystemErrorCode os_error);
 
 #if defined(STARBOARD)
+
+#if SB_API_VERSION < 16
 // Map socket error code to Error.
 NET_EXPORT Error MapSocketError(SbSocketError error);
 
@@ -64,6 +70,7 @@ NET_EXPORT Error MapSocketError(SbSocketError error);
 static SB_C_INLINE Error MapLastSocketError(SbSocket socket) {
   return MapSocketError(SbSocketGetLastError(socket));
 }
+#endif  // SB_API_VERSION < 16
 
 // Gets the last system error as a net error.
 static SB_C_INLINE Error MapLastSystemError() {

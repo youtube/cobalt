@@ -26,6 +26,7 @@
 
 namespace sbwin32 = starboard::shared::win32;
 
+#if SB_API_VERSION < 16
 SbSocket SbSocketCreate(SbSocketAddressType address_type,
                         SbSocketProtocol protocol) {
   int socket_domain;
@@ -120,3 +121,4 @@ SbSocket SbSocketCreate(SbSocketAddressType address_type,
   return new SbSocketPrivate(address_type, protocol, socket_handle,
                              SbSocketPrivate::BindTarget::kUnbound);
 }
+#endif  // SB_API_VERSION < 16

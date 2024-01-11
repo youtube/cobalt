@@ -16,6 +16,8 @@
 # symbol visibility issues for windows based modular platform builds.
 source_set("posix_time_wrappers") {
   sources = [
+    "posix_socket_wrappers.cc",
+    "posix_socket_wrappers.h",
     "posix_time_wrappers.cc",
     "posix_time_wrappers.h",
   ]

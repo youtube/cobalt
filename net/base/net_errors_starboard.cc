@@ -36,6 +36,7 @@ Error MapSystemError(logging::SystemErrorCode error) {
   return ERR_FAILED;
 }
 
+#if SB_API_VERSION < 16
 Error MapSocketError(SbSocketError error) {
   if (error != kSbSocketOk)
     DVLOG(2) << "Error " << error;
@@ -55,5 +56,6 @@ Error MapSocketError(SbSocketError error) {
       return ERR_FAILED;
   }
 }
+#endif  // SB_API_VERSION < 16
 
 }  // namespace net

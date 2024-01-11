@@ -182,7 +182,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/posix/set_non_blocking_internal.cc",
     "//starboard/shared/posix/socket_accept.cc",
     "//starboard/shared/posix/socket_bind.cc",
-    "//starboard/shared/posix/socket_clear_last_error.cc",
     "//starboard/shared/posix/socket_connect.cc",
     "//starboard/shared/posix/socket_create.cc",
     "//starboard/shared/posix/socket_destroy.cc",

@@ -24,6 +24,9 @@
 
 #include "starboard/socket.h"
 #include "starboard/types.h"
+#if SB_API_VERSION >= 16
+#include "starboard/shared/modular/posix_socket_wrappers.h"
+#endif
 
 namespace starboard {
 

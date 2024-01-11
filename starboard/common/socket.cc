@@ -14,10 +14,14 @@
 
 #include "starboard/common/socket.h"
 
+#include <errno.h>
+#include <sys/socket.h>
+#include <unistd.h>
 #include <iomanip>
 
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
+#include "starboard/shared/modular/posix_socket_wrappers.h"
 
 namespace starboard {
 
@@ -52,16 +56,158 @@ bool GetLocalhostAddress(SbSocketAddressType address_type,
 }
 
 Socket::Socket(SbSocketAddressType address_type, SbSocketProtocol protocol)
-    : socket_(SbSocketCreate(address_type, protocol)) {}
+#if SB_API_VERSION < 16
+    : socket_(SbSocketCreate(address_type, protocol)) {
+}
+#else
+{
+  int socket_fd;
+  int socket_type;
+  int socket_protocol;
+  if (protocol == kSbSocketProtocolTcp) {
+    socket_type = SOCK_STREAM;
+    socket_protocol = IPPROTO_TCP;
+  } else {
+    socket_type = SOCK_DGRAM;
+    socket_protocol = IPPROTO_UDP;
+  }
+  socket_fd = ::socket(ConvertSocketAddressTypeToDomain(address_type),
+                       socket_type, socket_protocol);
+
+  if (socket_fd < 0) {
+    socket_ = kSbSocketInvalid;
+  } else if (!SocketSetNonBlocking(socket_fd)) {
+    // Something went wrong, we'll clean up (preserving errno) and return
+    // failure.
+    int save_errno = errno;
+    HANDLE_EINTR_WRAPPER(close(socket_fd));
+    errno = save_errno;
+    socket_ = kSbSocketInvalid;
+  } else {
+    socket_ = new SbSocketWrapper(address_type, protocol, socket_fd);
+  }
+#if !defined(MSG_NOSIGNAL) && defined(SO_NOSIGPIPE)
+  // Use SO_NOSIGPIPE to mute SIGPIPE on darwin systems.
+  int optval_set = 1;
+  setsockopt(socket_fd, SOL_SOCKET, SO_NOSIGPIPE,
+             reinterpret_cast<void*>(&optval_set), sizeof(int));
+#endif
+}
+#endif  // SB_API_VERSION < 16
 
 Socket::Socket(SbSocketAddressType address_type)
-    : socket_(SbSocketCreate(address_type, kSbSocketProtocolTcp)) {}
+#if SB_API_VERSION < 16
+    : socket_(SbSocketCreate(address_type, kSbSocketProtocolTcp)) {
+}
+#else
+{
+  int socket_fd;
+  int socket_type;
+  int socket_protocol;
+  socket_type = SOCK_STREAM;
+  socket_protocol = IPPROTO_TCP;
+
+  socket_fd = ::socket(ConvertSocketAddressTypeToDomain(address_type),
+                       socket_type, socket_protocol);
+
+  if (socket_fd < 0) {
+    socket_ = kSbSocketInvalid;
+  } else if (!SocketSetNonBlocking(socket_fd)) {
+    // Something went wrong, we'll clean up (preserving errno) and return
+    // failure.
+    int save_errno = errno;
+    HANDLE_EINTR_WRAPPER(close(socket_fd));
+    errno = save_errno;
+    socket_ = kSbSocketInvalid;
+  } else {
+    socket_ =
+        new SbSocketWrapper(address_type, kSbSocketProtocolTcp, socket_fd);
+  }
+#if !defined(MSG_NOSIGNAL) && defined(SO_NOSIGPIPE)
+  // Use SO_NOSIGPIPE to mute SIGPIPE on darwin systems.
+  int optval_set = 1;
+  setsockopt(socket_fd, SOL_SOCKET, SO_NOSIGPIPE,
+             reinterpret_cast<void*>(&optval_set), sizeof(int));
+#endif
+}
+#endif  // SB_API_VERSION < 16
 
 Socket::Socket(SbSocketProtocol protocol)
-    : socket_(SbSocketCreate(kSbSocketAddressTypeIpv4, protocol)) {}
+#if SB_API_VERSION < 16
+    : socket_(SbSocketCreate(kSbSocketAddressTypeIpv4, protocol)) {
+}
+#else
+{
+  int socket_fd;
+  int socket_type;
+  int socket_protocol;
+  if (protocol == kSbSocketProtocolTcp) {
+    socket_type = SOCK_STREAM;
+    socket_protocol = IPPROTO_TCP;
+  } else {
+    socket_type = SOCK_DGRAM;
+    socket_protocol = IPPROTO_UDP;
+  }
+
+  socket_fd = ::socket(AF_INET, socket_type, socket_protocol);
+
+  if (socket_fd < 0) {
+    socket_ = kSbSocketInvalid;
+  } else if (!SocketSetNonBlocking(socket_fd)) {
+    // Something went wrong, we'll clean up (preserving errno) and return
+    // failure.
+    int save_errno = errno;
+    HANDLE_EINTR_WRAPPER(close(socket_fd));
+    errno = save_errno;
+    socket_ = kSbSocketInvalid;
+  } else {
+    socket_ = new SbSocketWrapper(kSbSocketAddressTypeIpv4,
+                                  kSbSocketProtocolTcp, socket_fd);
+  }
+#if !defined(MSG_NOSIGNAL) && defined(SO_NOSIGPIPE)
+  // Use SO_NOSIGPIPE to mute SIGPIPE on darwin systems.
+  int optval_set = 1;
+  setsockopt(socket_fd, SOL_SOCKET, SO_NOSIGPIPE,
+             reinterpret_cast<void*>(&optval_set), sizeof(int));
+#endif
+}
+#endif  // SB_API_VERSION < 16
 
 Socket::Socket()
-    : socket_(SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp)) {}
+#if SB_API_VERSION < 16
+    : socket_(SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp)) {
+}
+#else
+{
+  int socket_fd;
+  int socket_type;
+  int socket_protocol;
+  socket_type = SOCK_STREAM;
+  socket_protocol = IPPROTO_TCP;
+
+  socket_fd = ::socket(AF_INET, socket_type, socket_protocol);
+
+  if (socket_fd < 0) {
+    socket_ = kSbSocketInvalid;
+  } else if (!SocketSetNonBlocking(socket_fd)) {
+    // Something went wrong, we'll clean up (preserving errno) and return
+    // failure.
+    int save_errno = errno;
+    HANDLE_EINTR_WRAPPER(close(socket_fd));
+    errno = save_errno;
+    socket_ = kSbSocketInvalid;
+  } else {
+    socket_ = new SbSocketWrapper(kSbSocketAddressTypeIpv4,
+                                  kSbSocketProtocolTcp, socket_fd);
+  }
+#if !defined(MSG_NOSIGNAL) && defined(SO_NOSIGPIPE)
+  // Use SO_NOSIGPIPE to mute SIGPIPE on darwin systems.
+  int optval_set = 1;
+  setsockopt(socket_fd, SOL_SOCKET, SO_NOSIGPIPE,
+             reinterpret_cast<void*>(&optval_set), sizeof(int));
+#endif
+}
+#endif  // SB_API_VERSION < 16
 
 Socket::~Socket() {
   SbSocketDestroy(socket_);
@@ -105,11 +251,19 @@ bool Socket::IsPending() {
 }
 
 SbSocketError Socket::GetLastError() {
+#if SB_API_VERSION < 16
   return SbSocketGetLastError(socket_);
+#else
+  return socket_->error;
+#endif
 }
 
 void Socket::ClearLastError() {
+#if SB_API_VERSION < 16
   SbSocketClearLastError(socket_);
+#else
+  socket_->socket_fd = kSbSocketOk;
+#endif
 }
 
 int Socket::ReceiveFrom(char* out_data,

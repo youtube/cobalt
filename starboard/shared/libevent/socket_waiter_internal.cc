@@ -56,7 +56,7 @@ SbSocket AcceptBySpinning(SbSocket server_socket, SbTime timeout) {
     }
 
     // If we didn't get a socket, it should be pending.
-    SB_DCHECK(SbSocketGetLastError(server_socket) == kSbSocketPending);
+    SB_DCHECK(server_socket->error == kSbSocketPending);
 
     // Check if we have passed our timeout.
     if (SbTimeGetMonotonicNow() - start >= timeout) {
@@ -78,8 +78,31 @@ void GetSocketPipe(SbSocket* client_socket, SbSocket* server_socket) {
   SbSocketAddress address = GetIpv4Localhost();
 
   // Setup a listening socket.
+#if SB_API_VERSION < 16
   SbSocket listen_socket =
       SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp);
+#else
+  int socket_fd = socket(kSbSocketAddressTypeIpv4, SOCK_STREAM, IPPROTO_TCP);
+  if (socket_fd < 0) {
+    listen_socket = kSbSocketInvalid;
+  } else if (!SocketSetNonBlocking(socket_fd)) {
+    // Something went wrong, we'll clean up (preserving errno) and return
+    // failure.
+    int save_errno = errno;
+    HANDLE_EINTR_WRAPPER(close(socket_fd));
+    errno = save_errno;
+    listen_socket = kSbSocketInvalid;
+  } else {
+    listen_socket = new SbSocketWrapper(kSbSocketAddressTypeIpv4,
+                                        kSbSocketProtocolTcp, socket_fd);
+  }
+#if !defined(MSG_NOSIGNAL) && defined(SO_NOSIGPIPE)
+  // Use SO_NOSIGPIPE to mute SIGPIPE on darwin systems.
+  int optval_set = 1;
+  setsockopt(socket_fd, SOL_SOCKET, SO_NOSIGPIPE,
+             reinterpret_cast<void*>(&optval_set), sizeof(int));
+#endif
+#endif  // SB_API_VERSION < 16
   SB_DCHECK(SbSocketIsValid(listen_socket));
   result = SbSocketSetReuseAddress(listen_socket, true);
   SB_DCHECK(result);
@@ -91,8 +114,31 @@ void GetSocketPipe(SbSocket* client_socket, SbSocket* server_socket) {
   SbSocketGetLocalAddress(listen_socket, &address);
 
   // Create a new socket to connect to the listening socket.
+#if SB_API_VERSION < 16
   *client_socket =
       SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp);
+#else
+  int socket_fd = socket(kSbSocketAddressTypeIpv4, SOCK_STREAM, IPPROTO_TCP);
+  if (socket_fd < 0) {
+    *client_socket = kSbSocketInvalid;
+  } else if (!SocketSetNonBlocking(socket_fd)) {
+    // Something went wrong, we'll clean up (preserving errno) and return
+    // failure.
+    int save_errno = errno;
+    HANDLE_EINTR_WRAPPER(close(socket_fd));
+    errno = save_errno;
+    *client_socket = kSbSocketInvalid;
+  } else {
+    *client_socket = new SbSocketWrapper(kSbSocketAddressTypeIpv4,
+                                         kSbSocketProtocolTcp, socket_fd);
+  }
+#if !defined(MSG_NOSIGNAL) && defined(SO_NOSIGPIPE)
+  // Use SO_NOSIGPIPE to mute SIGPIPE on darwin systems.
+  int optval_set = 1;
+  setsockopt(socket_fd, SOL_SOCKET, SO_NOSIGPIPE,
+             reinterpret_cast<void*>(&optval_set), sizeof(int));
+#endif
+#endif  // SB_API_VERSION < 16
   SB_DCHECK(SbSocketIsValid(*client_socket));
   // This connect will probably return pending, but we'll assume it will connect
   // eventually.

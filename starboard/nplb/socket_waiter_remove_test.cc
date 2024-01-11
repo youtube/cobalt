@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#if SB_API_VERSION < 16
 
 #include "starboard/common/socket.h"
 #include "starboard/nplb/socket_helpers.h"
@@ -94,3 +95,4 @@ INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+#endif

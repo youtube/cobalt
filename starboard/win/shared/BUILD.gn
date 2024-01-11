@@ -239,7 +239,6 @@ static_library("starboard_platform") {
     "//starboard/shared/win32/set_non_blocking_internal.h",
     "//starboard/shared/win32/socket_accept.cc",
     "//starboard/shared/win32/socket_bind.cc",
-    "//starboard/shared/win32/socket_clear_last_error.cc",
     "//starboard/shared/win32/socket_connect.cc",
     "//starboard/shared/win32/socket_create.cc",
     "//starboard/shared/win32/socket_destroy.cc",

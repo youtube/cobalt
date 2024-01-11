@@ -1,4 +1,4 @@
-// Copyright 2015 The Cobalt Authors. All Rights Reserved.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,67 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_POSIX_SOCKET_INTERNAL_H_
-#define STARBOARD_SHARED_POSIX_SOCKET_INTERNAL_H_
+#ifndef STARBOARD_SHARED_MODULAR_POSIX_SOCKET_WRAPPERS_H_
+#define STARBOARD_SHARED_MODULAR_POSIX_SOCKET_WRAPPERS_H_
 
 #include <errno.h>
 #include <netinet/in.h>
+#include <stdint.h>
 #include <sys/socket.h>
 
-#include "starboard/common/socket.h"
-#include "starboard/shared/internal_only.h"
-#include "starboard/socket_waiter.h"
+// #include "starboard/common/log.h"
+#include "starboard/configuration.h"
+#include "starboard/export.h"
+#include "starboard/socket.h"
 #include "starboard/types.h"
 
-#ifdef SB_API_VERSION < 16
-struct SbSocketPrivate {
-  SbSocketPrivate(SbSocketAddressType address_type,
-                  SbSocketProtocol protocol,
-                  int fd)
-      : address_type(address_type),
-        protocol(protocol),
-        socket_fd(fd),
-        error(kSbSocketOk),
-        waiter(kSbSocketWaiterInvalid) {}
-  ~SbSocketPrivate() {}
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-  // The address domain of this socket, IPv4 or IPv6.
-  SbSocketAddressType address_type;
+extern SbSocketError TranslateSocketErrnoToSbError(int error);
 
-  // The protocol of this socket, UDP or TCP.
-  SbSocketProtocol protocol;
+extern int ConvertSocketAddressTypeToDomain(SbSocketAddressType address_type);
 
-  // The file descriptor for this socket.
-  int socket_fd;
-
-  // The last error that occurred on this socket, or kSbSocketOk.
-  SbSocketError error;
-
-  // The waiter this socket is registered with, or kSbSocketWaiterInvalid.
-  SbSocketWaiter waiter;
-};
-#endif  // SB_API_VERSION < 16
-
-namespace starboard {
-namespace shared {
-namespace posix {
-
-// Translates an errno from a socket call into an SbSocketError.
-SbSocketError TranslateSocketErrno(int error);
-
-// Sets a boolean socket option, doing all appropriate checks.
-bool SetBooleanSocketOption(SbSocket socket,
-                            int level,
-                            int option_code,
-                            const char* option_name,
-                            bool value);
-
-// Sets an integer socket option, doing all appropriate checks.
-bool SetIntegerSocketOption(SbSocket socket,
-                            int level,
-                            int option_code,
-                            const char* option_name,
-                            int value);
+extern bool SocketSetNonBlocking(int socket_fd);
 
 // A helper class for converting back and forth from sockaddrs, ugh.
 class SockAddr {
@@ -127,8 +89,17 @@ class SockAddr {
   struct sockaddr_storage storage_;
 };
 
-}  // namespace posix
-}  // namespace shared
-}  // namespace starboard
+#define HANDLE_EINTR_WRAPPER(x)                         \
+  ({                                                    \
+    decltype(x) __eintr_result__;                       \
+    do {                                                \
+      __eintr_result__ = (x);                           \
+    } while (__eintr_result__ == -1 && errno == EINTR); \
+    __eintr_result__;                                   \
+  })
 
-#endif  // STARBOARD_SHARED_POSIX_SOCKET_INTERNAL_H_
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+
+#endif  // STARBOARD_SHARED_MODULAR_POSIX_SOCKET_WRAPPERS_H_

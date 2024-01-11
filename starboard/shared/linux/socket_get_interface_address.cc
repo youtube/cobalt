@@ -331,7 +331,32 @@ bool FindInterfaceIP(const SbSocketAddressType type,
 
 bool FindSourceAddressForDestination(const SbSocketAddress& destination,
                                      SbSocketAddress* out_source_address) {
+#if SB_API_VERSION < 16
   SbSocket socket = SbSocketCreate(destination.type, kSbSocketProtocolUdp);
+#else
+  SbSocket socket;
+  int socket_fd = socket(destination.type, SOCK_DGRAM, IPPROTO_UDP);
+  if (socket_fd < 0) {
+    socket = kSbSocketInvalid;
+  } else if (!SocketSetNonBlocking(socket_fd)) {
+    // Something went wrong, we'll clean up (preserving errno) and return
+    // failure.
+    int save_errno = errno;
+    HANDLE_EINTR_WRAPPER(close(socket_fd));
+    errno = save_errno;
+    socket = kSbSocketInvalid;
+  } else {
+    socket = new SbSocketWrapper(ConvertAddressFamily(family),
+                                 kSbSocketProtocolTcp, socket_fd);
+  }
+#if !defined(MSG_NOSIGNAL) && defined(SO_NOSIGPIPE)
+  // Use SO_NOSIGPIPE to mute SIGPIPE on darwin systems.
+  int optval_set = 1;
+  setsockopt(socket_fd, SOL_SOCKET, SO_NOSIGPIPE,
+             reinterpret_cast<void*>(&optval_set), sizeof(int));
+#endif
+#endif  // SB_API_VERSION < 16
+
   if (!SbSocketIsValid(socket)) {
     return false;
   }

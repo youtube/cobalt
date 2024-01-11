@@ -14,7 +14,7 @@
 
 // The Sunny Day test is used in several other tests as the way to detect if the
 // error is correct, so it is not repeated here.
-
+#if SB_API_VERSION < 16
 #include "starboard/common/socket.h"
 #include "starboard/nplb/socket_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -46,3 +46,4 @@ TEST(SbSocketClearLastErrorTest, RainyDayInvalidSocket) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+#endif

@@ -41,12 +41,23 @@
 extern "C" {
 #endif
 
+#if SB_API_VERSION < 16
 // Private structure representing a socket, which may or may not be connected or
 // listening.
 typedef struct SbSocketPrivate SbSocketPrivate;
 
 // A handle to a socket.
 typedef SbSocketPrivate* SbSocket;
+
+#else
+
+struct SbSocketWrapper;
+typedef struct SbSocketWrapper SbSocketWrapper;
+
+// A handle to a socket.
+typedef SbSocketWrapper* SbSocket;
+
+#endif
 
 // Enumeration of all Starboard socket operation results. Despite the enum
 // name, note that the value actually describes the outcome of an operation,
@@ -125,6 +136,41 @@ typedef struct SbSocketResolution {
 
 // Well-defined value for an invalid socket handle.
 #define kSbSocketInvalid ((SbSocket)NULL)
+
+#if SB_API_VERSION >= 16
+#include "starboard/shared/modular/posix_socket_wrappers.h"
+#include "starboard/socket_waiter.h"
+
+// Private structure representing a socket, which may or may not be connected or
+// listening.
+struct SbSocketWrapper {
+  SbSocketWrapper(SbSocketAddressType address_type,
+                  SbSocketProtocol protocol,
+                  int fd)
+      : address_type(address_type),
+        protocol(protocol),
+        socket_fd(fd),
+        error(kSbSocketOk),
+        waiter(kSbSocketWaiterInvalid) {}
+  ~SbSocketWrapper() {}
+
+  // The address domain of this socket, IPv4 or IPv6.
+  SbSocketAddressType address_type;
+
+  // The protocol of this socket, UDP or TCP.
+  SbSocketProtocol protocol;
+
+  // The file descriptor for this socket.
+  int socket_fd;
+
+  // The last error that occurred on this socket, or kSbSocketOk.
+  SbSocketError error;
+
+  // The waiter this socket is registered with, or kSbSocketWaiterInvalid.
+  SbSocketWaiter waiter;
+};
+
+#endif
 
 // Returns whether the given socket handle is valid.
 static SB_C_INLINE bool SbSocketIsValid(SbSocket socket) {
@@ -208,6 +254,7 @@ SB_EXPORT bool SbSocketIsConnected(SbSocket socket);
 // |socket|: The SbSocket to be checked.
 SB_EXPORT bool SbSocketIsConnectedAndIdle(SbSocket socket);
 
+#if SB_API_VERSION < 16
 // Returns the last error set on |socket|. If |socket| is not valid, this
 // function returns |kSbSocketErrorFailed|.
 //
@@ -217,6 +264,7 @@ SB_EXPORT SbSocketError SbSocketGetLastError(SbSocket socket);
 // Clears the last error set on |socket|. The return value indicates whether
 // the socket error was cleared.
 SB_EXPORT bool SbSocketClearLastError(SbSocket socket);
+#endif
 
 // Gets the address that this socket is bound to locally, if the socket is
 // connected. The return value indicates whether the address was retrieved

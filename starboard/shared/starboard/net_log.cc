@@ -189,7 +189,7 @@ class BufferedSocketWriter {
                                     bytes_to_write, NULL);
 
         if (result < 0) {
-          SbSocketError err = SbSocketGetLastError(dest_socket);
+          SbSocketError err = dest_socket->error;
           SbSocketClearLastError(dest_socket);
           if (err == kSbSocketPending) {
             blocked_counts_.increment();

@@ -14,7 +14,9 @@
 
 #include "starboard/common/socket.h"
 
+#if SB_API_VERSION < 16
 SbSocket SbSocketCreate(SbSocketAddressType address_type,
                         SbSocketProtocol protocol) {
   return kSbSocketInvalid;
 }
+#endif

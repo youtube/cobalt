@@ -39,6 +39,10 @@
 #include "starboard/time.h"
 #include "starboard/types.h"
 
+#if SB_API_VERSION >= 16
+#include "starboard/shared/modular/posix_socket_wrappers.h"
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
