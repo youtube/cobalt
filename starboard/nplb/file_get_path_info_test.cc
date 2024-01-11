@@ -16,11 +16,11 @@
 
 #include <string>
 
+#include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/nplb/file_helpers.h"
 #include "starboard/system.h"
-#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -52,12 +52,16 @@ TEST(SbFileGetPathInfoTest, WorksOnARegularFile) {
   for (int i = 0; i < kTrials; ++i) {
     // We can't assume filesystem timestamp precision, so go back a minute
     // for a better chance to contain the imprecision and rounding errors.
-    SbTime time = SbTimeGetNow() - kSbTimeMinute;
+    const int64_t kOneMinuteInMicroseconds = 60'000'000;
+    int64_t time =
+        PosixTimeToWindowsTime(CurrentPosixTime()) - kOneMinuteInMicroseconds;
 #if !SB_HAS_QUIRK(FILESYSTEM_ZERO_FILEINFO_TIME)
 #if SB_HAS_QUIRK(FILESYSTEM_COARSE_ACCESS_TIME)
     // On platforms with coarse access time, we assume 1 day precision and go
     // back 2 days to avoid rounding issues.
-    SbTime coarse_time = SbTimeGetNow() - (2 * kSbTimeDay);
+    const int64_t kOneDayInMicroseconds = 1'000'000LL * 60LL * 60LL * 24LL;
+    int64_t coarse_time = PosixTimeToWindowsTime(CurrentPosixTime()) -
+                          (2 * kOneDayInMicroseconds);
 #endif  // FILESYSTEM_COARSE_ACCESS_TIME
 #endif  // FILESYSTEM_ZERO_FILEINFO_TIME
 

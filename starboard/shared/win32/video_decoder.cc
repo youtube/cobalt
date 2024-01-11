@@ -20,7 +20,6 @@
 #include "starboard/shared/win32/dx_context_video_decoder.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/hardware_decode_target_internal.h"
-#include "starboard/time.h"
 
 // Include this after all other headers to avoid introducing redundant
 // definitions from other header files.
@@ -167,7 +166,7 @@ scoped_ptr<MediaTransform> CreateVideoTransform(
 
 class VideoFrameImpl : public VideoFrame {
  public:
-  VideoFrameImpl(SbTime timestamp, std::function<void(VideoFrame*)> release_cb)
+  VideoFrameImpl(int64_t timestamp, std::function<void(VideoFrame*)> release_cb)
       : VideoFrame(timestamp), release_cb_(release_cb) {
     SB_DCHECK(release_cb_);
   }
@@ -535,7 +534,7 @@ void VideoDecoder::ShutdownCodec() {
   // Microsoft recommends stalling to let other systems release their
   // references to the IMFSamples.
   if (video_codec_ == kSbMediaVideoCodecVp9) {
-    SbThreadSleep(150 * kSbTimeMillisecond);
+    SbThreadSleep(150'000);
   }
   decoder_.reset();
   video_processor_.Reset();
@@ -624,7 +623,7 @@ scoped_refptr<VideoFrame> VideoDecoder::CreateVideoFrame(
   // weak references to the actual sample.
   LONGLONG win32_sample_time = 0;
   CheckResult(sample->GetSampleTime(&win32_sample_time));
-  SbTime sample_time = ConvertToSbTime(win32_sample_time);
+  int64_t sample_time = ConvertWin32TimeToUsec(win32_sample_time);
 
   thread_lock_.Acquire();
   thread_outputs_.emplace_back(sample_time, video_area_, sample);
@@ -667,7 +666,7 @@ void VideoDecoder::DecoderThreadRun() {
     }
 
     if (event == nullptr) {
-      SbThreadSleep(kSbTimeMillisecond);
+      SbThreadSleep(1000);
     } else {
       switch (event->type) {
         case Event::kWriteInputBuffer:
@@ -772,7 +771,7 @@ void VideoDecoder::DecoderThreadRun() {
 
     if (!wrote_input && !read_output) {
       // Throttle decode loop since no I/O was possible.
-      SbThreadSleep(kSbTimeMillisecond);
+      SbThreadSleep(1000);
     }
   }
 }

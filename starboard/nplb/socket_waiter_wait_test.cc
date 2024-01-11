@@ -20,7 +20,6 @@
 #include "starboard/nplb/thread_helpers.h"
 #include "starboard/socket_waiter.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {

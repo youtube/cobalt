@@ -36,7 +36,6 @@
 
 #include "starboard/export.h"
 #include "starboard/socket.h"
-#include "starboard/time.h"
 #include "starboard/types.h"
 
 #ifdef __cplusplus
@@ -164,12 +163,12 @@ SB_EXPORT void SbSocketWaiterWait(SbSocketWaiter waiter);
 // The return value indicates the reason that the socket waiter exited.
 // This function should only be called on the thread that waits on this waiter.
 //
-// |duration|: The minimum amount of time after which the socket waiter should
-//   exit if it is not woken up before then. As with SbThreadSleep() (see
-//   thread.h), this function may wait longer than |duration|, such as if the
-//   timeout expires while a callback is being fired.
+// |duration|: The minimum amount of time in microseconds after which the socket
+//   waiter should exit if it is not woken up before then. As with
+//   SbThreadSleep() (see thread.h), this function may wait longer than
+//   |duration|, such as if the timeout expires while a callback is being fired.
 SB_EXPORT SbSocketWaiterResult SbSocketWaiterWaitTimed(SbSocketWaiter waiter,
-                                                       SbTime duration);
+                                                       int64_t duration);
 
 // Wakes up |waiter| once. This is the only thread-safe waiter function.
 // It can can be called from a SbSocketWaiterCallback to wake up its own waiter,

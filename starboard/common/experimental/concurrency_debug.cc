@@ -23,7 +23,6 @@
 #include "starboard/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
-#include "starboard/shared/posix/time_internal.h"
 #include "starboard/system.h"
 
 namespace starboard {

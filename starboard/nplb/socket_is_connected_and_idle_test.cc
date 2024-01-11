@@ -16,6 +16,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/socket.h"
+#include "starboard/common/time.h"
 #include "starboard/nplb/socket_helpers.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -38,9 +39,9 @@ class PairSbSocketIsConnectedAndIdleTest
   SbSocketAddressType GetClientAddressType() { return GetParam().second; }
 };
 
-bool IsNonIdleWithin(SbSocket socket, SbTimeMonotonic timeout) {
-  SbTimeMonotonic deadline = SbTimeGetMonotonicNow() + timeout;
-  while (SbTimeGetMonotonicNow() < deadline) {
+bool IsNonIdleWithin(SbSocket socket, int64_t timeout) {
+  int64_t deadline = CurrentMonotonicTime() + timeout;
+  while (CurrentMonotonicTime() < deadline) {
     if (!SbSocketIsConnectedAndIdle(socket)) {
       return true;
     }

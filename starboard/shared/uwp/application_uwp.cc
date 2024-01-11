@@ -38,6 +38,7 @@
 #include "starboard/common/string.h"
 #include "starboard/common/system_property.h"
 #include "starboard/common/thread.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/event.h"
 #include "starboard/input.h"
@@ -143,11 +144,6 @@ const Platform::String ^ kGenericPnpMonitorAqs = ref new Platform::String(
     L"True");
 
 const uint32_t kYuv420BitsPerPixelForHdr10Mode = 24;
-
-// The number of seconds to wait after requesting application stop. This is used
-// to exit the app when a suspend has been requested. This is a temporary
-// behavior that should be removed when not needed anymore.
-const SbTime kAppExitWaitTime = kSbTimeSecond * 30;
 
 // Per Microsoft, HdcpProtection::On means HDCP 1.x required.
 const HdcpProtection kHDCPProtectionMode = HdcpProtection::On;
@@ -273,7 +269,8 @@ void TryAddCommandArgsFromStarboardFile(std::vector<std::string>* args) {
   AddArgumentsFromFile(arguments_file_path.c_str(), args);
 }
 
-void AddCommandArgsFromNetArgs(SbTime timeout, std::vector<std::string>* args) {
+void AddCommandArgsFromNetArgs(int64_t timeout,
+                               std::vector<std::string>* args) {
   // Detect if NetArgs is enabled for this run. If so then receive and
   // then merge the arguments into this run.
   SB_LOG(INFO) << "Waiting for net args...";
@@ -333,7 +330,7 @@ std::string GetBinaryName() {
 void OnDeviceAdded(DeviceWatcher ^, DeviceInformation ^) {
   SB_LOG(INFO) << "DisplayStatusWatcher::OnDeviceAdded";
   // We need delay to give time for the display initializing after connect.
-  SbThreadSleep(15 * kSbTimeMillisecond);
+  SbThreadSleep(15'000);
 
   MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
 
@@ -370,7 +367,7 @@ extern void DrmSystemOnUwpResume();
 
 ref class App sealed : public IFrameworkView {
  public:
-  App(SbTimeMonotonic start_time)
+  App(int64_t start_time)
       : application_start_time_{start_time},
         previously_activated_(false),
 #if SB_API_VERSION >= 15
@@ -661,12 +658,12 @@ ref class App sealed : public IFrameworkView {
         CommandLine cmd_line(args_);
         if (cmd_line.HasSwitch(kNetArgsCommandSwitchWait)) {
           // Wait for net args is flaky and needs extended wait time on Xbox.
-          SbTime timeout = kSbTimeSecond * 30;
+          int64_t timeout_usec = 30'000'000;  // 30 seconds
           std::string val = cmd_line.GetSwitchValue(kNetArgsCommandSwitchWait);
           if (!val.empty()) {
-            timeout = atoi(val.c_str());
+            timeout_usec = atoi(val.c_str());
           }
-          AddCommandArgsFromNetArgs(timeout, &args_);
+          AddCommandArgsFromNetArgs(timeout_usec, &args_);
         }
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 
@@ -703,13 +700,13 @@ ref class App sealed : public IFrameworkView {
       }
 
       if (command_line->HasSwitch(kNetLogCommandSwitchWait)) {
-        SbTime timeout = kSbTimeSecond;
+        int64_t timeout_usec = 1'000'000;  // 1 second
         std::string val =
             command_line->GetSwitchValue(kNetLogCommandSwitchWait);
         if (!val.empty()) {
-          timeout = atoi(val.c_str());
+          timeout_usec = atoi(val.c_str());
         }
-        NetLogWaitForClientConnected(timeout);
+        NetLogWaitForClientConnected(timeout_usec);
       }
 
       if (command_line->HasSwitch(kLogPathSwitch)) {
@@ -794,16 +791,16 @@ ref class App sealed : public IFrameworkView {
 
   shared::uwp::ApplicationUwp application_;
   SuspendingDeferral ^ suspend_deferral_ = nullptr;
-  SbTimeMonotonic application_start_time_;
+  int64_t application_start_time_;
 };
 
 ref class Direct3DApplicationSource sealed : IFrameworkViewSource {
  public:
-  Direct3DApplicationSource(SbTimeMonotonic start_time)
+  Direct3DApplicationSource(int64_t start_time)
       : application_start_time_{start_time} {}
   virtual IFrameworkView ^ CreateView() {
     return ref new App(application_start_time_);
-  } private : SbTimeMonotonic application_start_time_;
+  } private : int64_t application_start_time_;
 };
 
 namespace shared {
@@ -1059,14 +1056,13 @@ void ApplicationUwp::InjectKeypress(SbKey key) {
 }
 
 void ApplicationUwp::InjectTimedEvent(Application::TimedEvent* timed_event) {
-  SbTimeMonotonic delay_usec =
-      timed_event->target_time - SbTimeGetMonotonicNow();
+  int64_t delay_usec = timed_event->target_time - CurrentMonotonicTime();
   if (delay_usec < 0) {
     delay_usec = 0;
   }
 
   // TimeSpan ticks are, like FILETIME, 100ns
-  const SbTimeMonotonic kTicksPerUsec = 10;
+  const int64_t kTicksPerUsec = 10;
 
   TimeSpan timespan;
   timespan.Duration = delay_usec * kTicksPerUsec;
@@ -1107,7 +1103,7 @@ Application::TimedEvent* ApplicationUwp::GetNextDueTimedEvent() {
   return nullptr;
 }
 
-SbTimeMonotonic ApplicationUwp::GetNextTimedEventTargetTime() {
+int64_t ApplicationUwp::GetNextTimedEventTargetTime() {
   SB_NOTIMPLEMENTED();
   return 0;
 }
@@ -1215,7 +1211,7 @@ bool ApplicationUwp::SetOutputProtection(bool should_enable_dhcp) {
                << (should_enable_dhcp ? "enable" : "disable")
                << " output protection.  Current status: "
                << (is_hdcp_on ? "enabled" : "disabled");
-  SbTimeMonotonic tick = SbTimeGetMonotonicNow();
+  int64_t tick = CurrentMonotonicTime();
 
   bool hdcp_success = false;
   if (should_enable_dhcp) {
@@ -1226,10 +1222,10 @@ bool ApplicationUwp::SetOutputProtection(bool should_enable_dhcp) {
 
   is_hdcp_on = (hdcp_success ? should_enable_dhcp : !should_enable_dhcp);
 
-  SbTimeMonotonic tock = SbTimeGetMonotonicNow();
+  int64_t tock = CurrentMonotonicTime();
   SB_LOG(INFO) << "Output protection is "
                << (is_hdcp_on ? "enabled" : "disabled")
-               << ".  Toggling HDCP took " << (tock - tick) / kSbTimeMillisecond
+               << ".  Toggling HDCP took " << (tock - tick) / 1000
                << " milliseconds.";
   return hdcp_success;
 }
@@ -1270,7 +1266,7 @@ namespace {
 // thread.
 class CoreApplicationThread : public ::starboard::Thread {
  public:
-  explicit CoreApplicationThread(SbTimeMonotonic start_time)
+  explicit CoreApplicationThread(int64_t start_time)
       : application_start_time_{start_time}, Thread("core_app") {}
   void Run() override {
     CoreApplication::Run(
@@ -1279,13 +1275,13 @@ class CoreApplicationThread : public ::starboard::Thread {
   }
 
  private:
-  SbTimeMonotonic application_start_time_;
+  int64_t application_start_time_;
 };
 
 }  // namespace
 
 int InternalMain() {
-  volatile auto start_time = SbTimeGetMonotonicNow();
+  volatile auto start_time = CurrentMonotonicTime();
   if (!IsDebuggerPresent()) {
     // By default, a Windows application will display a dialog box
     // when it crashes. This is extremely undesirable when run offline.

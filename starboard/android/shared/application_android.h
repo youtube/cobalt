@@ -103,7 +103,7 @@ class ApplicationAndroid
   void SbWindowSendInputEvent(const char* input_text, bool is_composing);
   void SendLowMemoryEvent();
   void OsNetworkStatusChange(bool became_online);
-  SbTimeMonotonic GetAppStartTimestamp();
+  int64_t GetAppStartTimestamp();  // microseconds
 
   void SendDateTimeConfigurationChangedEvent();
 
@@ -129,7 +129,7 @@ class ApplicationAndroid
 
   // --- QueueApplication overrides ---
   bool MayHaveSystemEvents() override { return handle_system_events_; }
-  Event* WaitForSystemEventWithTimeout(SbTime time) override;
+  Event* WaitForSystemEventWithTimeout(int64_t time) override;
   void WakeSystemEventWait() override;
 
  private:

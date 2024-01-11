@@ -17,7 +17,6 @@
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/starboard/application.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace raspi {
@@ -62,9 +61,10 @@ void VideoRendererSinkImpl::SetBounds(int z_index,
 }
 
 void VideoRendererSinkImpl::Update() {
-  const SbTime kUpdateInterval = 5 * kSbTimeMillisecond;
+  const int64_t kUpdateIntervalUsec = 5'000;
   render_cb_(std::bind(&VideoRendererSinkImpl::DrawFrame, this, _1, _2));
-  Schedule(std::bind(&VideoRendererSinkImpl::Update, this), kUpdateInterval);
+  Schedule(std::bind(&VideoRendererSinkImpl::Update, this),
+           kUpdateIntervalUsec);
 }
 
 VideoRendererSinkImpl::DrawFrameStatus VideoRendererSinkImpl::DrawFrame(

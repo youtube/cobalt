@@ -53,6 +53,9 @@
 #include "starboard/string.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"
+#if SB_API_VERSION < 16
+#include "starboard/time.h"
+#endif  // SB_API_VERSION < 16
 #include "starboard/time_zone.h"
 #if SB_API_VERSION < 16
 #include "starboard/ui_navigation.h"
@@ -371,12 +374,10 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbThreadSetName);
   REGISTER_SYMBOL(SbThreadSleep);
   REGISTER_SYMBOL(SbThreadYield);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbTimeGetMonotonicNow);
-#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbTimeGetMonotonicThreadNow);
-#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbTimeGetNow);
-#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbTimeIsTimeThreadNowSupported);
 #endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbTimeZoneGetCurrent);

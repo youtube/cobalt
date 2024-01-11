@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/time.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -21,7 +21,7 @@ namespace nplb {
 namespace {
 
 // Allow millisecond-level precision.
-const SbTime kPrecision = kSbTimeMillisecond;
+const int64_t kPrecision = 1000;  // 1ms
 
 TEST(SbThreadSleepTest, SunnyDay) {
   SbThreadSleep(0);
@@ -36,10 +36,10 @@ TEST(SbThreadSleepTest, SunnyDayAtLeastDelay) {
   const int64_t one = 1;
   for (int trial = 0; trial < kTrials; ++trial) {
     // This tests several delays, between about 15 to about 4 milliseconds.
-    const SbTime kDelay = kSbTimeSecond / (one << ((trial % 3) + 6));
-    SbTimeMonotonic start = SbTimeGetMonotonicNow();
+    const int64_t kDelay = 1'000'000LL / (one << ((trial % 3) + 6));
+    int64_t start = CurrentMonotonicTime();
     SbThreadSleep(kDelay);
-    SbTimeMonotonic end = SbTimeGetMonotonicNow();
+    int64_t end = CurrentMonotonicTime();
     EXPECT_LE(start + kDelay, end + kPrecision)
         << "Trial " << trial << ", kDelay=" << kDelay;
   }
@@ -48,10 +48,9 @@ TEST(SbThreadSleepTest, SunnyDayAtLeastDelay) {
 TEST(SbThreadSleepTest, RainyDayNegativeDuration) {
   const int kTrials = 128;
   for (int trial = 0; trial < kTrials; ++trial) {
-    SbTimeMonotonic start = SbTimeGetMonotonicNow();
-    SbThreadSleep(-kSbTimeSecond);
-    EXPECT_GT(kSbTimeSecond / 5, SbTimeGetMonotonicNow() - start)
-        << "Trial " << trial;
+    int64_t start = CurrentMonotonicTime();
+    SbThreadSleep(-1'000'000);
+    EXPECT_GT(200'000, CurrentMonotonicTime() - start) << "Trial " << trial;
   }
 }
 

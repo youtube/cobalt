@@ -49,7 +49,7 @@ namespace video_dmp {
 //
 //     audio/video access unit:
 //       fourcc type: 'adat'/'vdat'
-//       <8 bytes time stamp in SbTime>
+//       <8 bytes time stamp int64_t>
 //       <1 byte of drm_sample_info_present in bool>
 //         <4 bytes size of key_id> + |size| bytes of key id
 //         <4 bytes size of iv> + |size| bytes of iv

@@ -23,6 +23,7 @@
 #include <unordered_map>
 
 #include "starboard/common/mutex.h"
+#include "starboard/common/time.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/localized_strings.h"
 #include "starboard/shared/starboard/queue_application.h"
@@ -52,7 +53,7 @@ class ApplicationWin32 : public starboard::QueueApplication {
 
   bool DestroyWindow(SbWindow window);
 
-  void DispatchStart(SbTimeMonotonic timestamp) {
+  void DispatchStart(int64_t timestamp) {
     shared::starboard::Application::DispatchStart(timestamp);
   }
 
@@ -71,10 +72,11 @@ class ApplicationWin32 : public starboard::QueueApplication {
   // Returns true if it is valid to poll/query for system events.
   bool MayHaveSystemEvents() override { return true; }
 
-  // Waits for an event until the timeout |time| runs out.  If an event occurs
-  // in this time, it is returned, otherwise NULL is returned. If |time| is zero
-  // or negative, then this should function effectively like a no-wait poll.
-  Event* WaitForSystemEventWithTimeout(SbTime time) override;
+  // Waits for an event until the timeout |time| runs out (in microseconds).  If
+  // an event occurs in this time, it is returned, otherwise NULL is returned.
+  // If |time| is zero or negative, then this should function effectively like a
+  // no-wait poll.
+  Event* WaitForSystemEventWithTimeout(int64_t time) override;
 
   // Wakes up any thread waiting within a call to
   // WaitForSystemEventWithTimeout().
@@ -96,8 +98,8 @@ class ApplicationWin32 : public starboard::QueueApplication {
   void Teardown() override {}
 
   void ProcessNextSystemMessage();
-  SbTimeMonotonic GetNextTimedEventTargetTime() override {
-    return SbTimeGetMonotonicNow();
+  int64_t GetNextTimedEventTargetTime() override {
+    return CurrentMonotonicTime();
   }
 
   // Processes window key events, returning a corresponding Event instance.

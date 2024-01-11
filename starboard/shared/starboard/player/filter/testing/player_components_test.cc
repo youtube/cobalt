@@ -21,6 +21,7 @@
 
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
@@ -52,9 +53,9 @@ typedef PlayerComponents::Factory::CreationParameters CreationParameters;
 typedef std::tuple<const char*, const char*, SbPlayerOutputMode>
     PlayerComponentsTestParam;
 
-const SbTimeMonotonic kDefaultPrerollTimeOut = 5 * kSbTimeSecond;
-const SbTimeMonotonic kDefaultEndTimeOut = 5 * kSbTimeSecond;
-const SbTimeMonotonic kDefaultWriteTimeOut = 5 * kSbTimeSecond;
+const int64_t kDefaultPrerollTimeOut = 5'000'000;  // 5 seconds
+const int64_t kDefaultEndTimeOut = 5'000'000;      // 5 seconds
+const int64_t kDefaultWriteTimeOut = 5'000'000;    // 5 seconds
 
 const SbPlayer kDummyPlayer = reinterpret_cast<SbPlayer>(1);
 
@@ -156,7 +157,7 @@ class PlayerComponentsTest
     return true;
   }
 
-  void Seek(SbTime seek_to_time) {
+  void Seek(int64_t seek_to_time) {
     has_error_ = false;
     audio_prerolled_ = false;
     video_prerolled_ = false;
@@ -205,7 +206,7 @@ class PlayerComponentsTest
     GetMediaTimeProvider()->SetPlaybackRate(playback_rate_);
   }
 
-  SbTime GetMediaTime() {
+  int64_t GetMediaTime() {
     bool is_playing, is_eos_played, is_underflow;
     double playback_rate;
     return GetMediaTimeProvider()->GetCurrentMediaTime(
@@ -220,7 +221,7 @@ class PlayerComponentsTest
     return is_playing;
   }
 
-  SbTime GetCurrentAudioBufferTimestamp() const {
+  int64_t GetCurrentAudioBufferTimestamp() const {
     if (!GetAudioRenderer()) {
       return 0;
     }
@@ -231,7 +232,7 @@ class PlayerComponentsTest
         .timestamp;
   }
 
-  SbTime GetCurrentVideoBufferTimestamp() const {
+  int64_t GetCurrentVideoBufferTimestamp() const {
     if (!GetVideoRenderer()) {
       return 0;
     }
@@ -244,7 +245,7 @@ class PlayerComponentsTest
     }
     // The buffers are ordered by decoding order. We need to find the
     // presentation timestamp of next frame.
-    SbTime next_timestamps[2] = {
+    int64_t next_timestamps[2] = {
         video_reader_->GetPlayerSampleInfo(kSbMediaTypeVideo, video_index_)
             .timestamp,
         video_reader_->GetPlayerSampleInfo(kSbMediaTypeVideo, video_index_ + 1)
@@ -252,16 +253,16 @@ class PlayerComponentsTest
     return std::min(next_timestamps[0], next_timestamps[1]);
   }
 
-  SbTime GetMaxWrittenBufferTimestamp() const {
+  int64_t GetMaxWrittenBufferTimestamp() const {
     return std::max(GetCurrentVideoBufferTimestamp(),
                     GetCurrentAudioBufferTimestamp());
   }
 
-  void WriteDataUntilPrerolled(SbTime timeout = kDefaultPrerollTimeOut) {
-    SbTimeMonotonic start_time = SbTimeGetMonotonicNow();
-    SbTime max_timestamp = GetMediaTime() + kMaxWriteAheadDuration;
+  void WriteDataUntilPrerolled(int64_t timeout = kDefaultPrerollTimeOut) {
+    int64_t start_time = CurrentMonotonicTime();
+    int64_t max_timestamp = GetMediaTime() + kMaxWriteAheadDuration;
     while (!IsPlaybackPrerolled()) {
-      ASSERT_LE(SbTimeGetMonotonicNow() - start_time, timeout)
+      ASSERT_LE(CurrentMonotonicTime() - start_time, timeout)
           << "WriteDataUntilPrerolled() timed out, buffered audio ("
           << GetCurrentAudioBufferTimestamp() << "), buffered video ("
           << GetCurrentVideoBufferTimestamp() << "), max timestamp ("
@@ -269,7 +270,7 @@ class PlayerComponentsTest
       bool written = TryToWriteOneInputBuffer(max_timestamp);
       if (!written) {
         ASSERT_NO_FATAL_FAILURE(RenderAndProcessPendingJobs());
-        SbThreadSleep(5 * kSbTimeMillisecond);
+        SbThreadSleep(5000);
       }
     }
   }
@@ -277,15 +278,16 @@ class PlayerComponentsTest
   // The function will exit after all buffers before |eos_timestamp| are written
   // into the player. Note that, to avoid audio or video underflow, the function
   // allow to write buffers of timestamp greater than |timestamp|.
-  void WriteDataUntil(SbTime timestamp, SbTime timeout = kDefaultWriteTimeOut) {
+  void WriteDataUntil(int64_t timestamp,
+                      int64_t timeout = kDefaultWriteTimeOut) {
     SB_CHECK(playback_rate_ != 0);
 
-    SbTimeMonotonic last_input_filled_time = SbTimeGetMonotonicNow();
+    int64_t last_input_filled_time = CurrentMonotonicTime();
     while (
         (GetAudioRenderer() && GetCurrentAudioBufferTimestamp() < timestamp) ||
         (GetVideoRenderer() && GetCurrentVideoBufferTimestamp() < timestamp)) {
       if (last_input_filled_time != -1) {
-        ASSERT_LE(SbTimeGetMonotonicNow() - last_input_filled_time, timeout)
+        ASSERT_LE(CurrentMonotonicTime() - last_input_filled_time, timeout)
             << "WriteDataUntil() timed out, buffered audio ("
             << GetCurrentAudioBufferTimestamp() << "), buffered video ("
             << GetCurrentVideoBufferTimestamp() << "), timestamp (" << timestamp
@@ -294,23 +296,23 @@ class PlayerComponentsTest
       bool written =
           TryToWriteOneInputBuffer(timestamp + kMaxWriteAheadDuration);
       if (written) {
-        last_input_filled_time = SbTimeGetMonotonicNow();
+        last_input_filled_time = CurrentMonotonicTime();
       } else {
         ASSERT_NO_FATAL_FAILURE(RenderAndProcessPendingJobs());
-        SbThreadSleep(5 * kSbTimeMillisecond);
+        SbThreadSleep(5000);
       }
     }
   }
 
   // The function will write EOS immediately after all buffers before
   // |eos_timestamp| are written into the player.
-  void WriteDataAndEOS(SbTime eos_timestamp,
-                       SbTime timeout = kDefaultWriteTimeOut) {
+  void WriteDataAndEOS(int64_t eos_timestamp,
+                       int64_t timeout = kDefaultWriteTimeOut) {
     SB_CHECK(playback_rate_ != 0);
     bool audio_eos_written = !GetAudioRenderer();
     bool video_eos_written = !GetVideoRenderer();
 
-    SbTimeMonotonic last_input_filled_time = SbTimeGetMonotonicNow();
+    int64_t last_input_filled_time = CurrentMonotonicTime();
     while (!audio_eos_written || !video_eos_written) {
       if (!audio_eos_written &&
           GetCurrentAudioBufferTimestamp() >= eos_timestamp) {
@@ -323,7 +325,7 @@ class PlayerComponentsTest
         video_eos_written = true;
       }
       if (last_input_filled_time != -1) {
-        ASSERT_LE(SbTimeGetMonotonicNow() - last_input_filled_time, timeout)
+        ASSERT_LE(CurrentMonotonicTime() - last_input_filled_time, timeout)
             << "WriteDataAndEOS() timed out, buffered audio ("
             << GetCurrentAudioBufferTimestamp() << "), buffered video ("
             << GetCurrentVideoBufferTimestamp() << "), eos_timestamp ("
@@ -331,10 +333,10 @@ class PlayerComponentsTest
       }
       bool written = TryToWriteOneInputBuffer(eos_timestamp);
       if (written) {
-        last_input_filled_time = SbTimeGetMonotonicNow();
+        last_input_filled_time = CurrentMonotonicTime();
       } else {
         ASSERT_NO_FATAL_FAILURE(RenderAndProcessPendingJobs());
-        SbThreadSleep(5 * kSbTimeMillisecond);
+        SbThreadSleep(5000);
       }
     }
   }
@@ -351,27 +353,27 @@ class PlayerComponentsTest
   void WaitUntilPlaybackEnded() {
     SB_CHECK(playback_rate_ != 0);
 
-    SbTime duration = std::max(GetCurrentAudioBufferTimestamp(),
-                               GetCurrentVideoBufferTimestamp());
-    SbTime current_time = GetMediaTime();
-    SbTime expected_end_time =
-        SbTimeGetMonotonicNow() +
-        static_cast<SbTime>((duration - current_time) / playback_rate_) +
+    int64_t duration = std::max(GetCurrentAudioBufferTimestamp(),
+                                GetCurrentVideoBufferTimestamp());
+    int64_t current_time = GetMediaTime();
+    int64_t expected_end_time =
+        CurrentMonotonicTime() +
+        static_cast<int64_t>((duration - current_time) / playback_rate_) +
         kDefaultEndTimeOut;
 
     while (!IsPlaybackEnded()) {
       // If this fails, timeout must have been reached.
-      ASSERT_LE(SbTimeGetMonotonicNow(), expected_end_time)
+      ASSERT_LE(CurrentMonotonicTime(), expected_end_time)
           << "WaitUntilPlaybackEnded() timed out, buffered audio ("
           << GetCurrentAudioBufferTimestamp() << "), buffered video ("
           << GetCurrentVideoBufferTimestamp() << "), current media time is "
           << GetMediaTime() << ".";
       ASSERT_NO_FATAL_FAILURE(RenderAndProcessPendingJobs());
-      SbThreadSleep(5 * kSbTimeMillisecond);
+      SbThreadSleep(5000);
     }
     current_time = GetMediaTime();
     // TODO: investigate and reduce the tolerance.
-    ASSERT_LE(std::abs(current_time - duration), 500 * kSbTimeMillisecond)
+    ASSERT_LE(std::abs(current_time - duration), 500'000)
         << "Media time difference is too large, buffered audio("
         << GetCurrentAudioBufferTimestamp() << "), buffered video ("
         << GetCurrentVideoBufferTimestamp() << "), current media time is "
@@ -398,7 +400,7 @@ class PlayerComponentsTest
   // We won't write audio data more than 1s ahead of current media time in
   // cobalt. So, to test with the same condition, we limit max inputs ahead to
   // 1.5s in the tests.
-  const SbTime kMaxWriteAheadDuration = kSbTimeMillisecond * 1500;
+  const int64_t kMaxWriteAheadDuration = 1'500'000;
 
   void OnError(SbPlayerError error, const std::string& error_message) {
     has_error_ = true;
@@ -448,7 +450,7 @@ class PlayerComponentsTest
     }
   }
 
-  bool TryToWriteOneInputBuffer(SbTime max_timestamp) {
+  bool TryToWriteOneInputBuffer(int64_t max_timestamp) {
     bool input_buffer_written = false;
     if (GetAudioRenderer() && GetAudioRenderer()->CanAcceptMoreData() &&
         audio_index_ < audio_reader_->number_of_audio_buffers() &&
@@ -513,23 +515,23 @@ TEST_P(PlayerComponentsTest, SunnyDay) {
   ASSERT_EQ(GetMediaTime(), 0);
   ASSERT_FALSE(IsPlaying());
 
-  SbTimeMonotonic play_requested_at = SbTimeGetMonotonicNow();
+  int64_t play_requested_at = CurrentMonotonicTime();
   Play();
-  SbTime eos_timestamp =
-      std::max(kSbTimeSecond, GetMaxWrittenBufferTimestamp());
+  int64_t eos_timestamp =
+      std::max<int64_t>(1'000'000LL, GetMaxWrittenBufferTimestamp());
 
   ASSERT_NO_FATAL_FAILURE(WriteDataAndEOS(eos_timestamp));
   ASSERT_NO_FATAL_FAILURE(WaitUntilPlaybackEnded());
 
   // TODO: investigate and reduce the tolerance.
   // ASSERT_LE(
-  //     std::abs(SbTimeGetMonotonicNow() - (play_requested_at +
-  //     media_duration)), 300 * kSbTimeMillisecond);
+  //     std::abs(CurrentMonotonicTime() - (play_requested_at +
+  //     media_duration)), 300'000);
 }
 
 TEST_P(PlayerComponentsTest, ShortPlayback) {
   Seek(0);
-  ASSERT_NO_FATAL_FAILURE(WriteDataAndEOS(50 * kSbTimeMillisecond));
+  ASSERT_NO_FATAL_FAILURE(WriteDataAndEOS(50'000));
   Play();
   ASSERT_NO_FATAL_FAILURE(WaitUntilPlaybackEnded());
 }
@@ -540,27 +542,27 @@ TEST_P(PlayerComponentsTest, EOSWithoutInput) {
   Play();
   ASSERT_NO_FATAL_FAILURE(WaitUntilPlaybackEnded());
   // TODO: investigate and reduce the tolerance.
-  // ASSERT_LE(std::abs(GetMediaTime()), 100 * kSbTimeMillisecond);
+  // ASSERT_LE(std::abs(GetMediaTime()), 100'000);
 }
 
 TEST_P(PlayerComponentsTest, Pause) {
   Seek(0);
   ASSERT_NO_FATAL_FAILURE(WriteDataUntilPrerolled());
   Play();
-  ASSERT_NO_FATAL_FAILURE(WriteDataUntil(kSbTimeSecond));
+  ASSERT_NO_FATAL_FAILURE(WriteDataUntil(1'000'000));
   Pause();
   ASSERT_FALSE(IsPlaying());
 
-  SbTimeMonotonic start_time = SbTimeGetMonotonicNow();
-  while (SbTimeGetMonotonicNow() < start_time + 200 * kSbTimeMillisecond) {
+  int64_t start_time = CurrentMonotonicTime();
+  while (CurrentMonotonicTime() < start_time + 200'000) {
     ASSERT_NO_FATAL_FAILURE(RenderAndProcessPendingJobs());
-    SbThreadSleep(5 * kSbTimeMillisecond);
+    SbThreadSleep(5000);
   }
-  SbTime media_time = GetMediaTime();
-  start_time = SbTimeGetMonotonicNow();
-  while (SbTimeGetMonotonicNow() < start_time + 200 * kSbTimeMillisecond) {
+  int64_t media_time = GetMediaTime();
+  start_time = CurrentMonotonicTime();
+  while (CurrentMonotonicTime() < start_time + 200'000) {
     ASSERT_NO_FATAL_FAILURE(RenderAndProcessPendingJobs());
-    SbThreadSleep(5 * kSbTimeMillisecond);
+    SbThreadSleep(5000);
   }
   ASSERT_EQ(media_time, GetMediaTime());
 
@@ -579,13 +581,15 @@ TEST_P(PlayerComponentsTest, Pause) {
 //   ASSERT_EQ(GetMediaTime(), 0);
 //   ASSERT_FALSE(IsPlaying());
 
-//   SbTime media_duration_to_write = std::max(GetCurrentVideoBufferTimestamp(),
-//                                             GetCurrentAudioBufferTimestamp());
-//   media_duration_to_write = std::max(kSbTimeSecond, media_duration_to_write);
-//   SbTime media_duration_to_play =
-//       static_cast<SbTime>(media_duration_to_write / kPlaybackRate);
+//   int64_t media_duration_to_write =
+//       std::max(GetCurrentVideoBufferTimestamp(),
+//                GetCurrentAudioBufferTimestamp());
+//   media_duration_to_write =
+//       std::max<int64_t>(1'000'000LL, media_duration_to_write);
+//   int64_t media_duration_to_play =
+//       static_cast<int64_t>(media_duration_to_write / kPlaybackRate);
 
-//   SbTimeMonotonic play_requested_at = SbTimeGetMonotonicNow();
+//   int64_t play_requested_at = CurrentMonotonicTime();
 //   Play();
 
 //   ASSERT_NO_FATAL_FAILURE(WriteDataAndEOS(media_duration_to_write));
@@ -593,9 +597,8 @@ TEST_P(PlayerComponentsTest, Pause) {
 
 //   TODO: Enable the below check after we improve the accuracy of varied
 //   playback rate time reporting.
-//   ASSERT_GE(SbTimeGetMonotonicNow(),
-//             play_requested_at + media_duration_to_play - 200 *
-//             kSbTimeMillisecond);
+//   ASSERT_GE(CurrentMonotonicTime(),
+//             play_requested_at + media_duration_to_play - 200'000);
 // }
 
 // TEST_P(PlayerComponentsTest, PlaybackRateDouble) {
@@ -607,69 +610,69 @@ TEST_P(PlayerComponentsTest, Pause) {
 //   ASSERT_EQ(GetMediaTime(), 0);
 //   ASSERT_FALSE(IsPlaying());
 
-//   SbTime media_duration_to_write = std::max(GetCurrentVideoBufferTimestamp(),
-//                                             GetCurrentAudioBufferTimestamp());
+//   int64_t media_duration_to_write =
+//       std::max(GetCurrentVideoBufferTimestamp(),
+//                GetCurrentAudioBufferTimestamp());
 //   media_duration_to_write =
-//       std::max(kSbTimeSecond * 2, media_duration_to_write);
-//   SbTime media_duration_to_play =
-//       static_cast<SbTime>(media_duration_to_write / kPlaybackRate);
+//       std::max<int64_t>(2'000'000LL, media_duration_to_write);
+//   int64_t media_duration_to_play =
+//       static_cast<int64_t>(media_duration_to_write / kPlaybackRate);
 
-//   SbTimeMonotonic play_requested_at = SbTimeGetMonotonicNow();
+//   int64_t play_requested_at = CurrentMonotonicTime();
 //   Play();
 
 //   ASSERT_NO_FATAL_FAILURE(WriteDataAndEOS(media_duration_to_write));
 //   ASSERT_NO_FATAL_FAILURE(WaitUntilPlaybackEnded());
 
 //   playback rate time reporting.
-//   ASSERT_LE(SbTimeGetMonotonicNow(),
-//             play_requested_at + media_duration_to_play + 200 *
-//             kSbTimeMillisecond);
+//   ASSERT_LE(CurrentMonotonicTime(),
+//             play_requested_at + media_duration_to_play + 200'000);
 // }
 
 TEST_P(PlayerComponentsTest, SeekForward) {
-  SbTime seek_to_time = 0;
+  int64_t seek_to_time = 0;
   Seek(seek_to_time);
   ASSERT_NO_FATAL_FAILURE(WriteDataUntilPrerolled());
   ASSERT_EQ(GetMediaTime(), seek_to_time);
   ASSERT_FALSE(IsPlaying());
 
   Play();
-  ASSERT_NO_FATAL_FAILURE(WriteDataUntil(kSbTimeSecond));
+  ASSERT_NO_FATAL_FAILURE(WriteDataUntil(1'000'000));
 
   Pause();
-  seek_to_time = 2 * kSbTimeSecond;
+  seek_to_time = 2'000'000LL;
   Seek(seek_to_time);
   ASSERT_NO_FATAL_FAILURE(WriteDataUntilPrerolled());
   ASSERT_EQ(GetMediaTime(), seek_to_time);
   ASSERT_FALSE(IsPlaying());
 
   Play();
-  SbTime eos_timestamp =
-      std::max(GetMaxWrittenBufferTimestamp(), seek_to_time + kSbTimeSecond);
+  int64_t eos_timestamp = std::max<int64_t>(GetMaxWrittenBufferTimestamp(),
+                                            seek_to_time + 1'000'000LL);
   ASSERT_NO_FATAL_FAILURE(WriteDataAndEOS(eos_timestamp));
   ASSERT_NO_FATAL_FAILURE(WaitUntilPlaybackEnded());
 }
 
 TEST_P(PlayerComponentsTest, SeekBackward) {
-  SbTime seek_to_time = 3 * kSbTimeSecond;
+  int64_t seek_to_time = 3'000'000LL;
   Seek(seek_to_time);
   ASSERT_NO_FATAL_FAILURE(WriteDataUntilPrerolled());
   ASSERT_EQ(GetMediaTime(), seek_to_time);
   ASSERT_FALSE(IsPlaying());
 
   Play();
-  ASSERT_NO_FATAL_FAILURE(WriteDataAndEOS(seek_to_time + kSbTimeSecond));
+  ASSERT_NO_FATAL_FAILURE(WriteDataAndEOS(seek_to_time + 1'000'000LL));
 
   Pause();
-  seek_to_time = 1 * kSbTimeSecond;
+  seek_to_time = 1'000'000LL;
   Seek(seek_to_time);
   ASSERT_NO_FATAL_FAILURE(WriteDataUntilPrerolled());
   ASSERT_EQ(GetMediaTime(), seek_to_time);
   ASSERT_FALSE(IsPlaying());
 
   Play();
-  SbTime eos_timestamp =
-      std::max(GetMaxWrittenBufferTimestamp(), seek_to_time + kSbTimeSecond);
+  int64_t eos_timestamp = std::max<int64_t>(GetMaxWrittenBufferTimestamp(),
+                                            seek_to_time + 1'000'000LL);
   ASSERT_NO_FATAL_FAILURE(WriteDataAndEOS(eos_timestamp));
   ASSERT_NO_FATAL_FAILURE(WaitUntilPlaybackEnded());
 }
@@ -691,7 +694,7 @@ vector<PlayerComponentsTestParam> GetSupportedCreationParameters() {
   // Filter too short dmp files, as the tests need at least 4s of data.
   for (auto iter = audio_files.begin(); iter != audio_files.end();) {
     VideoDmpReader audio_dmp_reader(*iter, VideoDmpReader::kEnableReadOnDemand);
-    if (audio_dmp_reader.audio_duration() < 5 * kSbTimeSecond) {
+    if (audio_dmp_reader.audio_duration() < 5'000'000LL) {
       iter = audio_files.erase(iter);
     } else {
       iter++;
@@ -700,7 +703,7 @@ vector<PlayerComponentsTestParam> GetSupportedCreationParameters() {
   for (auto iter = video_params.begin(); iter != video_params.end();) {
     VideoDmpReader video_dmp_reader(std::get<0>(*iter),
                                     VideoDmpReader::kEnableReadOnDemand);
-    if (video_dmp_reader.video_duration() < 5 * kSbTimeSecond) {
+    if (video_dmp_reader.video_duration() < 5'000'000LL) {
       iter = video_params.erase(iter);
     } else {
       iter++;

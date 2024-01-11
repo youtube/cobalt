@@ -19,12 +19,12 @@
 #include "starboard/shared/win32/time_utils.h"
 #include "starboard/shared/win32/types_internal.h"
 
-using starboard::shared::win32::ConvertSbTimeToMillisRoundUp;
+using starboard::shared::win32::ConvertUsecToMillisRoundUp;
 
 SbConditionVariableResult SbConditionVariableWaitTimed(
     SbConditionVariable* condition,
     SbMutex* mutex,
-    SbTime timeout) {
+    int64_t timeout) {
   if (!condition || !mutex) {
     return kSbConditionVariableFailed;
   }
@@ -34,7 +34,7 @@ SbConditionVariableResult SbConditionVariableWaitTimed(
   }
   bool result = SleepConditionVariableSRW(
       SB_WIN32_INTERNAL_CONDITION(condition), SB_WIN32_INTERNAL_MUTEX(mutex),
-      ConvertSbTimeToMillisRoundUp(timeout), 0);
+      ConvertUsecToMillisRoundUp(timeout), 0);
 
   if (timeout == 0) {
     // Per documentation, "If the |timeout_duration| value is less than

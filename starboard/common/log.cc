@@ -24,7 +24,6 @@
 #include "starboard/common/string.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace logging {

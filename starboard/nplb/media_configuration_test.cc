@@ -15,7 +15,6 @@
 #include "starboard/media.h"
 
 #include "starboard/nplb/performance_helpers.h"
-#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -28,10 +27,10 @@ TEST(SbMediaConfigurationTest, ValidatePerformance) {
   const int count_audio_output = SbMediaGetAudioOutputCount();
   for (int i = 0; i < count_audio_output; ++i) {
     constexpr int kNumberOfCalls = 100;
-    constexpr SbTime kMaxAverageTimePerCall = 500;
+    constexpr int64_t kMaxAverageTimePerCallUsec = 500;
 
     SbMediaAudioConfiguration configuration;
-    TEST_PERF_FUNCWITHARGS_EXPLICIT(kNumberOfCalls, kMaxAverageTimePerCall,
+    TEST_PERF_FUNCWITHARGS_EXPLICIT(kNumberOfCalls, kMaxAverageTimePerCallUsec,
                                     SbMediaGetAudioConfiguration, i,
                                     &configuration);
   }

@@ -48,7 +48,7 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
 
   const std::vector<uint8_t>& side_data() const { return side_data_; }
 
-  SbTime timestamp() const { return timestamp_; }
+  int64_t timestamp() const { return timestamp_; }
   const media::AudioSampleInfo& audio_sample_info() const {
     SB_DCHECK(sample_type_ == kSbMediaTypeAudio);
     return audio_sample_info_;
@@ -83,7 +83,7 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
   const uint8_t* data_;
   int size_;
   std::vector<uint8_t> side_data_;
-  SbTime timestamp_;
+  int64_t timestamp_;  // microseconds
 
   media::AudioSampleInfo audio_sample_info_;
   media::VideoSampleInfo video_sample_info_;

@@ -118,8 +118,8 @@ void VideoDecoder::WriteEndOfStream() {
     return;
   }
 
-  decoder_thread_->job_queue()->Schedule(std::bind(
-      &VideoDecoder::DecodeEndOfStream, this, 100 * kSbTimeMillisecond));
+  decoder_thread_->job_queue()->Schedule(
+      std::bind(&VideoDecoder::DecodeEndOfStream, this, 100'000));
 }
 
 void VideoDecoder::Reset() {
@@ -267,18 +267,18 @@ void VideoDecoder::DecodeOneBuffer(
   ReportError(FormatString("|dav1d_send_data| failed with code %d.", result));
 }
 
-void VideoDecoder::DecodeEndOfStream(SbTime timeout) {
+void VideoDecoder::DecodeEndOfStream(int64_t timeout) {
   SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
 
   if (!TryToOutputFrames()) {
     return;
   }
   if (frames_being_decoded_ > 0 && timeout > 0) {
-    const SbTime delay_period = 5 * kSbTimeMillisecond;
+    const int64_t delay_period_usec = 5'000;  // 5ms
     decoder_thread_->job_queue()->Schedule(
         std::bind(&VideoDecoder::DecodeEndOfStream, this,
-                  timeout - delay_period),
-        delay_period);
+                  timeout - delay_period_usec),
+        delay_period_usec);
     return;
   } else {
     SB_LOG_IF(WARNING, frames_being_decoded_ > 0)

@@ -23,7 +23,6 @@
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 #include "starboard/types.h"
 
 namespace starboard {
@@ -65,12 +64,12 @@ class Thread {
 
  protected:
   static void* ThreadEntryPoint(void* context);
-  static void Sleep(SbTime microseconds);
+  static void Sleep(int64_t microseconds);
   static void SleepMilliseconds(int value);
 
   // Waits at most |timeout| microseconds for Join() to be called. If
   // Join() was called then return |true|, else |false|.
-  bool WaitForJoin(SbTime timeout);
+  bool WaitForJoin(int64_t timeout);
   Semaphore* join_sema();
   atomic_bool* joined_bool();
 

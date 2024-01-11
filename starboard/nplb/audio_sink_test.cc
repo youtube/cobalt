@@ -18,7 +18,6 @@
 
 #include "starboard/nplb/audio_sink_helpers.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -100,7 +99,7 @@ TEST(SbAudioSinkTest, Underflow) {
   environment.AppendFrame(frames_to_append);
 
   EXPECT_TRUE(environment.WaitUntilSomeFramesAreConsumed());
-  SbThreadSleep(250 * kSbTimeMillisecond);
+  SbThreadSleep(250'000);
   ASSERT_GT(environment.GetFrameBufferFreeSpaceInFrames(), 0);
   environment.AppendFrame(environment.GetFrameBufferFreeSpaceInFrames());
   EXPECT_TRUE(environment.WaitUntilAllFramesAreConsumed());

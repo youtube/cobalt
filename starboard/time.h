@@ -19,6 +19,8 @@
 #ifndef STARBOARD_TIME_H_
 #define STARBOARD_TIME_H_
 
+#if SB_API_VERSION < 16
+
 #include "starboard/export.h"
 #include "starboard/types.h"
 
@@ -91,8 +93,6 @@ SB_EXPORT SbTime SbTimeGetNow();
 // Gets a monotonically increasing time representing right now.
 SB_EXPORT SbTimeMonotonic SbTimeGetMonotonicNow();
 
-#if SB_API_VERSION < 16
-
 // Returns whether the current platform supports time thread now
 SB_EXPORT bool SbTimeIsTimeThreadNowSupported();
 
@@ -103,10 +103,14 @@ SB_EXPORT bool SbTimeIsTimeThreadNowSupported();
 // available then SbTimeGetMonotonicNow() should be used.
 SB_EXPORT SbTimeMonotonic SbTimeGetMonotonicThreadNow();
 
-#endif  // SB_API_VERSION < 16
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif
+
+#else  // SB_API_VERSION < 16
+
+#error This file is deprecated with SB_API_VERSION 16.
+
+#endif  // SB_API_VERSION < 16
 
 #endif  // STARBOARD_TIME_H_

@@ -14,13 +14,36 @@
 
 #include "starboard/shared/modular/posix_time_wrappers.h"
 
-int __wrap_clock_gettime(int /*clockid_t */ clock_id,
+#include "starboard/log.h"
+
+int __wrap_clock_gettime(int /*clockid_t */ musl_clock_id,
                          struct musl_timespec* mts) {
   if (!mts) {
     return -1;
   }
+  clockid_t clock_id;  // The type from platform toolchain.
+  // Map the MUSL clock_id constants to platform constants.
+  switch (musl_clock_id) {
+    case MUSL_CLOCK_REALTIME:
+      clock_id = CLOCK_REALTIME;
+      break;
+    case MUSL_CLOCK_MONOTONIC:
+      clock_id = CLOCK_MONOTONIC;
+      break;
+    case MUSL_CLOCK_PROCESS_CPUTIME_ID:
+      clock_id = CLOCK_PROCESS_CPUTIME_ID;
+      break;
+    case MUSL_CLOCK_THREAD_CPUTIME_ID:
+      clock_id = CLOCK_THREAD_CPUTIME_ID;
+      break;
+    default:
+      clock_id = CLOCK_REALTIME;
+      SbLog(kSbLogPriorityError,
+            "Unsuppored clock_id used in clock_gettime() - defaulting to "
+            "CLOCK_REALTIME.");
+  }
   struct timespec ts;  // The type from platform toolchain.
-  int retval = clock_gettime((clockid_t)clock_id, &ts);
+  int retval = clock_gettime(clock_id, &ts);
   mts->tv_sec = ts.tv_sec;
   mts->tv_nsec = ts.tv_nsec;
   return retval;

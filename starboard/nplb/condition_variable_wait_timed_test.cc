@@ -14,6 +14,7 @@
 
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
+#include "starboard/common/time.h"
 #include "starboard/nplb/thread_helpers.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -34,19 +35,19 @@ void DoSunnyDay(TakeThenSignalContext* context, bool check_timeout) {
       SbThreadCreate(0, kSbThreadNoPriority, kSbThreadNoAffinity, true, NULL,
                      TakeThenSignalEntryPoint, context);
 
-  const SbTime kDelay = kSbTimeMillisecond * 10;
+  const int64_t kDelay = 10'000;  // 10ms
   // Allow two-millisecond-level precision.
-  const SbTime kPrecision = kSbTimeMillisecond * 2;
+  const int64_t kPrecision = 2'000;  // 2ms
 
   // We know the thread hasn't signaled the condition variable yet, and won't
   // unless we tell it, so it should wait at least the whole delay time.
   if (check_timeout) {
     EXPECT_TRUE(SbMutexIsSuccess(SbMutexAcquire(&context->mutex)));
-    SbTimeMonotonic start = SbTimeGetMonotonicNow();
+    int64_t start = CurrentMonotonicTime();
     SbConditionVariableResult result = SbConditionVariableWaitTimed(
         &context->condition, &context->mutex, kDelay);
     EXPECT_EQ(kSbConditionVariableTimedOut, result);
-    SbTimeMonotonic elapsed = SbTimeGetMonotonicNow() - start;
+    int64_t elapsed = CurrentMonotonicTime() - start;
     EXPECT_LE(kDelay, elapsed + kPrecision);
     EXPECT_GT(kDelay * 2, elapsed - kPrecision);
     EXPECT_TRUE(SbMutexRelease(&context->mutex));
@@ -59,7 +60,7 @@ void DoSunnyDay(TakeThenSignalContext* context, bool check_timeout) {
     // acquire the mutex we are holding.
     context->do_signal.Put();
 
-    SbTimeMonotonic start = SbTimeGetMonotonicNow();
+    int64_t start = CurrentMonotonicTime();
 
     // We release the mutex when we wait, allowing the thread to actually do the
     // signaling, and ensuring we are waiting before it signals.
@@ -68,7 +69,7 @@ void DoSunnyDay(TakeThenSignalContext* context, bool check_timeout) {
     EXPECT_EQ(kSbConditionVariableSignaled, result);
 
     // We should have waited only a very small amount of time.
-    EXPECT_GT(kDelay, SbTimeGetMonotonicNow() - start);
+    EXPECT_GT(kDelay, CurrentMonotonicTime() - start);
 
     EXPECT_TRUE(SbMutexRelease(&context->mutex));
   }
@@ -110,7 +111,7 @@ TEST(SbConditionVariableWaitTimedTest, FLAKY_SunnyDayAutoInit) {
 // Test marked as flaky because it relies on timing sensitive execution similar
 // to DoSunnyDay().
 TEST(SbConditionVariableWaitTimedTest, FLAKY_SunnyDayNearMaxTime) {
-  const SbTime kOtherDelay = kSbTimeMillisecond * 10;
+  const int64_t kOtherDelay = 10'000;  // 10ms
   TakeThenSignalContext context = {TestSemaphore(0), SB_MUTEX_INITIALIZER,
                                    SB_CONDITION_VARIABLE_INITIALIZER,
                                    kOtherDelay};
@@ -121,7 +122,7 @@ TEST(SbConditionVariableWaitTimedTest, FLAKY_SunnyDayNearMaxTime) {
                      TakeThenSignalEntryPoint, &context);
 
   // Try to wait until the end of time.
-  const SbTime kDelay = kSbTimeMax;
+  const int64_t kDelay = kSbInt64Max;
 
   EXPECT_TRUE(SbMutexIsSuccess(SbMutexAcquire(&context.mutex)));
 
@@ -129,7 +130,7 @@ TEST(SbConditionVariableWaitTimedTest, FLAKY_SunnyDayNearMaxTime) {
   // acquire the mutex we are holding, after it waits for delay_after_signal.
   context.do_signal.Put();
 
-  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+  int64_t start = CurrentMonotonicTime();
 
   // We release the mutex when we wait, allowing the thread to actually do the
   // signaling, and ensuring we are waiting before it signals.
@@ -140,9 +141,9 @@ TEST(SbConditionVariableWaitTimedTest, FLAKY_SunnyDayNearMaxTime) {
   // We should have waited at least the delay_after_signal amount, but not the
   // full delay.
   // Add some padding to tolerate slightly imprecise sleeps.
-  EXPECT_LT(context.delay_after_signal, SbTimeGetMonotonicNow() - start +
-                                            (context.delay_after_signal / 10));
-  EXPECT_GT(kDelay, SbTimeGetMonotonicNow() - start);
+  EXPECT_LT(context.delay_after_signal,
+            CurrentMonotonicTime() - start + (context.delay_after_signal / 10));
+  EXPECT_GT(kDelay, CurrentMonotonicTime() - start);
 
   EXPECT_TRUE(SbMutexRelease(&context.mutex));
 

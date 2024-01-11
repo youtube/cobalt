@@ -25,7 +25,6 @@
 #include "starboard/drm.h"
 #include "starboard/export.h"
 #include "starboard/media.h"
-#include "starboard/time.h"
 #include "starboard/types.h"
 #include "starboard/window.h"
 
@@ -171,8 +170,8 @@ typedef struct SbPlayerSampleInfo {
   const void* buffer;
   // Size of the data pointed to by |buffer|.
   int buffer_size;
-  // The timestamp of the sample in SbTime.
-  SbTime timestamp;
+  // The timestamp of the sample in microseconds since Windows epoch UTC.
+  int64_t timestamp;
 
   // Points to an array of side data for the input, when available.
   SbPlayerSampleSideData* side_data;
@@ -202,14 +201,14 @@ typedef struct SbPlayerInfo2 {
 #endif  // SB_API_VERSION >= 15
   // The position of the playback head, as precisely as possible, in
   // microseconds.
-  SbTime current_media_timestamp;
+  int64_t current_media_timestamp;
 
   // The known duration of the currently playing media stream, in microseconds.
-  SbTime duration;
+  int64_t duration;
 
   // The result of getStartDate for the currently playing media stream, in
   // microseconds since the epoch of January 1, 1601 UTC.
-  SbTime start_date;
+  int64_t start_date;
 
   // The width of the currently displayed frame, in pixels, or 0 if not provided
   // by this player.
@@ -314,11 +313,11 @@ typedef void (*SbPlayerDeallocateSampleFunc)(SbPlayer player,
 #if SB_API_VERSION >= 15
 
 // The audio write duration when all the audio connectors are local.
-#define kSbPlayerWriteDurationLocal (kSbTimeSecond / 2)
+#define kSbPlayerWriteDurationLocal (1000000 / 2)  // 0.5 seconds
 
 // The audio write duration when at least one of the audio connectors are
 // remote.
-#define kSbPlayerWriteDurationRemote (kSbTimeSecond * 10)
+#define kSbPlayerWriteDurationRemote (1000000 * 10)  // 10 seconds
 
 #endif  // SB_API_VERSION >= 15
 
@@ -498,11 +497,11 @@ SB_EXPORT void SbPlayerDestroy(SbPlayer player);
 
 #if SB_API_VERSION >= 15
 SB_EXPORT void SbPlayerSeek(SbPlayer player,
-                            SbTime seek_to_timestamp,
+                            int64_t seek_to_timestamp,
                             int ticket);
 #else   // SB_API_VERSION >= 15
 SB_EXPORT void SbPlayerSeek2(SbPlayer player,
-                             SbTime seek_to_timestamp,
+                             int64_t seek_to_timestamp,
                              int ticket);
 #endif  // SB_API_VERSION >= 15
 

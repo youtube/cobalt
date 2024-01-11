@@ -18,11 +18,11 @@
 
 #include "starboard/shared/win32/time_utils.h"
 
-using starboard::shared::win32::ConvertSbTimeToMillisRoundUp;
+using starboard::shared::win32::ConvertUsecToMillisRoundUp;
 
-void SbThreadSleep(SbTime duration) {
+void SbThreadSleep(int64_t duration) {
   if (duration < 0) {
     return;
   }
-  Sleep(ConvertSbTimeToMillisRoundUp(duration));
+  Sleep(ConvertUsecToMillisRoundUp(duration));
 }

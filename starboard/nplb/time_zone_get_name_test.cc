@@ -16,7 +16,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/extension/time_zone.h"
-#include "starboard/nplb/time_constants.h"
 #include "starboard/system.h"
 #include "starboard/time_zone.h"
 #include "testing/gmock/include/gmock/gmock.h"

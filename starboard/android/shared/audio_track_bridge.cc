@@ -191,7 +191,7 @@ int AudioTrackBridge::WriteSample(const float* samples,
 
 int AudioTrackBridge::WriteSample(const uint16_t* samples,
                                   int num_of_samples,
-                                  SbTime sync_time,
+                                  int64_t sync_time,
                                   JniEnvExt* env /*= JniEnvExt::Get()*/) {
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
@@ -215,7 +215,7 @@ int AudioTrackBridge::WriteSample(const uint16_t* samples,
 
 int AudioTrackBridge::WriteSample(const uint8_t* samples,
                                   int num_of_samples,
-                                  SbTime sync_time,
+                                  int64_t sync_time,
                                   JniEnvExt* env /*= JniEnvExt::Get()*/) {
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
@@ -250,7 +250,7 @@ void AudioTrackBridge::SetVolume(double volume,
 }
 
 int64_t AudioTrackBridge::GetAudioTimestamp(
-    SbTime* updated_at,
+    int64_t* updated_at,
     JniEnvExt* env /*= JniEnvExt::Get()*/) {
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
@@ -261,7 +261,7 @@ int64_t AudioTrackBridge::GetAudioTimestamp(
   if (updated_at) {
     *updated_at =
         env->GetLongFieldOrAbort(j_audio_timestamp.Get(), "nanoTime", "J") /
-        kSbTimeNanosecondsPerMicrosecond;
+        1000;
   }
   return env->GetLongFieldOrAbort(j_audio_timestamp.Get(), "framePosition",
                                   "J");

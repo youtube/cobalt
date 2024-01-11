@@ -15,7 +15,6 @@
 #include "starboard/shared/widevine/widevine_timer.h"
 
 #include "starboard/common/log.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace shared {
@@ -62,7 +61,7 @@ void WidevineTimer::setTimeout(int64_t delay_in_milliseconds,
   }
 
   iter->second->Schedule([=]() { client->onTimerExpired(context); },
-                         delay_in_milliseconds * kSbTimeMillisecond);
+                         delay_in_milliseconds * 1000);
 }
 
 void WidevineTimer::cancel(IClient* client) {

@@ -28,7 +28,6 @@
 #if SB_API_VERSION < 16
 
 #include "starboard/export.h"
-#include "starboard/time.h"
 #include "starboard/types.h"
 
 #ifdef __cplusplus

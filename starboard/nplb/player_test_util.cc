@@ -254,9 +254,9 @@ void CallSbPlayerWriteSamples(
     shared::starboard::player::video_dmp::VideoDmpReader* dmp_reader,
     int start_index,
     int number_of_samples_to_write,
-    SbTime timestamp_offset,
-    const std::vector<SbTime>& discarded_durations_from_front,
-    const std::vector<SbTime>& discarded_durations_from_back) {
+    int64_t timestamp_offset,
+    const std::vector<int64_t>& discarded_durations_from_front,
+    const std::vector<int64_t>& discarded_durations_from_back) {
   SB_DCHECK(start_index >= 0);
   SB_DCHECK(number_of_samples_to_write > 0);
 

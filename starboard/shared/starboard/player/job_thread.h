@@ -50,16 +50,16 @@ class JobThread {
   }
 
   JobQueue::JobToken Schedule(const JobQueue::Job& job,
-                              SbTimeMonotonic delay = 0) {
+                              int64_t delay_usec = 0) {
     SB_DCHECK(job_queue_);
 
-    return job_queue_->Schedule(job, delay);
+    return job_queue_->Schedule(job, delay_usec);
   }
 
-  JobQueue::JobToken Schedule(JobQueue::Job&& job, SbTimeMonotonic delay = 0) {
+  JobQueue::JobToken Schedule(JobQueue::Job&& job, int64_t delay_usec = 0) {
     SB_DCHECK(job_queue_);
 
-    return job_queue_->Schedule(std::move(job), delay);
+    return job_queue_->Schedule(std::move(job), delay_usec);
   }
 
   void ScheduleAndWait(const JobQueue::Job& job) {

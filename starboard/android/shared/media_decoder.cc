@@ -36,7 +36,7 @@ const jint kNoSize = 0;
 const jint kNoBufferFlags = 0;
 
 // Delay to use after a retryable error has been encountered.
-const SbTime kErrorRetryDelay = 50 * kSbTimeMillisecond;
+const int64_t kErrorRetryDelay = 50'000;  // 50ms
 
 const char* GetNameForMediaCodecStatus(jint status) {
   switch (status) {
@@ -258,7 +258,7 @@ void MediaDecoder::DecoderThreadFunc() {
         bool can_process_input =
             pending_queue_input_buffer_task_ || (has_input && has_input_buffer);
         if (dequeue_output_results_.empty() && !can_process_input) {
-          if (!condition_variable_.WaitTimed(5 * kSbTimeSecond)) {
+          if (!condition_variable_.WaitTimed(5'000'000LL)) {
             SB_LOG_IF(ERROR, !stream_ended_.load())
                 << GetDecoderName(media_type_) << ": Wait() hits timeout.";
           }
@@ -355,7 +355,7 @@ void MediaDecoder::DecoderThreadFunc() {
         can_process_input =
             !pending_tasks.empty() && !input_buffer_indices.empty();
         if (!can_process_input && dequeue_output_results.empty()) {
-          condition_variable_.WaitTimed(kSbTimeMillisecond);
+          condition_variable_.WaitTimed(1000);
         }
       }
     }
@@ -639,7 +639,7 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
   condition_variable_.Signal();
 }
 
-void MediaDecoder::OnMediaCodecFrameRendered(SbTime frame_timestamp) {
+void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
   SB_DCHECK(tunnel_mode_enabled_);
   frame_rendered_cb_(frame_timestamp);
 }

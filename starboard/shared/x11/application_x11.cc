@@ -36,11 +36,9 @@
 #include "starboard/key.h"
 #include "starboard/player.h"
 #include "starboard/shared/linux/system_network_status.h"
-#include "starboard/shared/posix/time_internal.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
 #include "starboard/shared/x11/window_internal.h"
-#include "starboard/time.h"
 
 namespace {
 const char kTouchscreenPointerSwitch[] = "touchscreen_pointer";
@@ -805,7 +803,7 @@ void ApplicationX11::Composite() {
     }
   }
   composite_event_id_ =
-      SbEventSchedule(&CompositeCallback, this, kSbTimeSecond / 60);
+      SbEventSchedule(&CompositeCallback, this, 1'000'000 / 60);
 }
 
 void ApplicationX11::AcceptFrame(SbPlayer player,
@@ -911,7 +909,7 @@ bool ApplicationX11::MayHaveSystemEvents() {
 }
 
 shared::starboard::Application::Event*
-ApplicationX11::WaitForSystemEventWithTimeout(SbTime time) {
+ApplicationX11::WaitForSystemEventWithTimeout(int64_t time) {
   SB_DCHECK(display_);
 
   shared::starboard::Application::Event* pending_event = GetPendingEvent();
