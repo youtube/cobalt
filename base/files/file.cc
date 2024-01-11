@@ -64,6 +64,9 @@ File::File(Error error_details) : error_details_(error_details) {}
 
 File::File(File&& other)
     : file_(other.TakePlatformFile()),
+#if defined(STARBOARD)
+      file_name_(other.file_name_),
+#endif
       tracing_path_(other.tracing_path_),
       error_details_(other.error_details()),
       created_(other.created()),
@@ -81,6 +84,9 @@ File& File::operator=(File&& other) {
   error_details_ = other.error_details();
   created_ = other.created();
   async_ = other.async_;
+#if defined(STARBOARD)
+  file_name_ = other.file_name_;
+#endif
   return *this;
 }
 
@@ -101,6 +107,9 @@ void File::Initialize(const FilePath& path, uint32_t flags) {
   if (FileTracing::IsCategoryEnabled())
     tracing_path_ = path;
   SCOPED_FILE_TRACE("Initialize");
+#if defined(STARBOARD)
+  file_name_= path.AsUTF8Unsafe();
+#endif
   DoInitialize(path, flags);
 }
 #endif

@@ -389,6 +389,12 @@ class BASE_EXPORT File {
     return flags;
   }
 
+#if defined(STARBOARD)
+  std::string GetFileName() {
+    return file_name_;
+  }
+#endif
+
  private:
   friend class FileTracing::ScopedTrace;
 
@@ -413,6 +419,7 @@ class BASE_EXPORT File {
 
 #if defined(STARBOARD)
   bool append_;
+  std::string file_name_;
 #endif
 };
 

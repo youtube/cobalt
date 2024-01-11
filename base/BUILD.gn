@@ -3188,7 +3188,7 @@ test("base_unittests") {
     "files/important_file_writer_cleaner_unittest.cc",
     "files/important_file_writer_unittest.cc",
 
-    # "files/memory_mapped_file_unittest.cc",
+    "files/memory_mapped_file_unittest.cc",
     "files/safe_base_name_unittest.cc",
 
     # "files/scoped_temp_dir_unittest.cc",
