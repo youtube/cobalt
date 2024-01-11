@@ -17,11 +17,6 @@ import("//starboard/contrib/cast/cast.gni")
 
 target(gtest_target_type, "nplb") {
   testonly = true
-  defines = []
-
-  if (use_contrib_cast) {
-    defines += [ "USE_CONTRIB_CAST" ]
-  }
 
   sources = [
     "//starboard/common/test_main.cc",

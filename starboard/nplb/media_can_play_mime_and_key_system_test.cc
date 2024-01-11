@@ -960,33 +960,6 @@ TEST(SbMediaCanPlayMimeAndKeySystem, FLAKY_ValidatePerformance) {
                                  "Cached DRM queries");
 }
 
-#if defined(USE_CONTRIB_CAST)
-TEST(SbMediaCanPlayMimeAndKeySystem, CastCodecsAreSupported) {
-#if SB_API_VERSION >= 14
-  // FLAC
-  EXPECT_EQ(SbMediaCanPlayMimeAndKeySystem("audio/ogg; codecs=\"flac\";", ""),
-            kSbMediaSupportTypeProbably);
-
-  // MP3
-  EXPECT_EQ(SbMediaCanPlayMimeAndKeySystem("audio/mpeg; codecs=\"mp3\";", ""),
-            kSbMediaSupportTypeProbably);
-
-  // PCM
-  EXPECT_EQ(SbMediaCanPlayMimeAndKeySystem("audio/wav; codecs=\"1\";", ""),
-            kSbMediaSupportTypeProbably);
-#endif  // SB_API_VERSION >= 14
-
-  // Vorbis
-  EXPECT_EQ(
-      SbMediaCanPlayMimeAndKeySystem("audio/webm; codecs=\"vorbis\";", ""),
-      kSbMediaSupportTypeProbably);
-
-  // VP8
-  EXPECT_EQ(SbMediaCanPlayMimeAndKeySystem("video/webm; codecs=\"vp8\";", ""),
-            kSbMediaSupportTypeProbably);
-}
-#endif  // defined(USE_CONTRIB_CAST)
-
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard

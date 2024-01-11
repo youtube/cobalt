@@ -56,22 +56,18 @@ const char* kAudioOnlyTestFiles[] = {
     "beneath_the_canopy_opus_5_1.dmp",
     "beneath_the_canopy_opus_mono.dmp",
     "heaac.dmp",
-#if defined(USE_CONTRIB_CAST)
     "flac.dmp",
     "mp3.dmp",
     "pcm.dmp",
     "vorbis.dmp",
-#endif  // defined(USE_CONTRIB_CAST)
 };
 
 const char* kVideoTestFiles[] = {
     "beneath_the_canopy_137_avc.dmp",
     "beneath_the_canopy_248_vp9.dmp",
     "sintel_399_av1.dmp",
-#if defined(USE_CONTRIB_CAST)
     "vp8.dmp",
     "hevc.dmp",
-#endif  // defined(USE_CONTRIB_CAST)
 };
 
 const SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
