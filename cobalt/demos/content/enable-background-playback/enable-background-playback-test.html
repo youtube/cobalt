@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+
+<head>
+    <title>Test Enable Background Playback</title>
+</head>
+
+<body style="color: white;">
+    <script>
+    function main() {
+        if (window.h5vcc && window.h5vcc.settings) {
+            h5vcc.settings.set('Media.BackgroundPlaybackEnabled', 1);
+        }
+    }
+    main();
+    </script>
+</body>
