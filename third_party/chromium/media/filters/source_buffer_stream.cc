@@ -848,11 +848,11 @@ bool SourceBufferStream::GarbageCollectIfNeeded(base::TimeDelta media_time,
 #if defined(STARBOARD)
   // Address duration based GC.
   base::TimeDelta duration = GetBufferedDurationForGarbageCollection();
-  const int64_t duration_gc_threadold =
+  base::TimeDelta duration_gc_threadold =
       DecoderBuffer::Allocator::GetInstance()
           ->GetBufferGarbageCollectionDurationThreshold();
-  if (duration.InMicroseconds() > duration_gc_threadold) {
-    effective_memory_limit = ranges_size * duration_gc_threadold /
+  if (duration > duration_gc_threadold) {
+    effective_memory_limit = ranges_size * duration_gc_threadold.InMicroseconds() /
                              duration.InMicroseconds();
   }
 #endif  // defined(STARBOARD)
