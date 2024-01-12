@@ -15,7 +15,7 @@ import("//build/toolchain/goma.gni")
 import("//build/toolchain/kythe.gni")
 import("//build/util/generate_wrapper.gni")
 import("//build_overrides/build.gni")
-if (is_starboardized_toolchain || current_toolchain == default_toolchain) {
+if (current_toolchain == default_toolchain) {
   import("//build/toolchain/concurrent_links.gni")
 }
 assert(is_android)

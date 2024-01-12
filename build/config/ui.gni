@@ -38,7 +38,7 @@ declare_args() {
   toolkit_views = is_mac || is_win || is_linux || is_chromeos || is_fuchsia
 
   use_glib =
-      is_linux && !is_castos && !is_starboard &&
+      is_linux && !is_castos &&
       # Avoid the need for glib when Android is building things via secondary
       # toolchains.
       target_os != "android"

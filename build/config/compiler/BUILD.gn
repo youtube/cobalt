@@ -1652,13 +1652,13 @@ config("default_warnings") {
       }
 
       if (!use_cobalt_customizations) {
-        cflags += [
-          "-Wenum-compare-conditional",
+      cflags += [
+        "-Wenum-compare-conditional",
 
-          # Ignore warnings about MSVC optimization pragmas.
-          # TODO(thakis): Only for no_chromium_code? http://crbug.com/912662
-          "-Wno-ignored-pragma-optimize",
-        ]
+        # Ignore warnings about MSVC optimization pragmas.
+        # TODO(thakis): Only for no_chromium_code? http://crbug.com/912662
+        "-Wno-ignored-pragma-optimize",
+      ]
       }
 
       if (!use_cobalt_customizations && !is_nacl) {
@@ -1734,12 +1734,12 @@ config("chromium_code") {
       # The platform should set warning flags.
       cflags = []
     } else {
-      if (is_clang) {
-        cflags = [ "/W4" ]  # Warning level 4.
+    if (is_clang) {
+      cflags = [ "/W4" ]  # Warning level 4.
 
-        # Opt in to additional [[nodiscard]] on standard library methods.
-        defines = [ "_HAS_NODISCARD" ]
-      }
+      # Opt in to additional [[nodiscard]] on standard library methods.
+      defines = [ "_HAS_NODISCARD" ]
+    }
     }
   } else if (is_starboard) {
     # TODO(b/205790602): Revisit this code to be more compatible with platforms.
@@ -1805,7 +1805,6 @@ config("chromium_code") {
       # Warn on missing break statements at the end of switch cases.
       # For intentional fallthrough, use [[fallthrough]].
       "-Wimplicit-fallthrough",
-
     ]
 
     if (!is_starboard) {
@@ -1851,7 +1850,9 @@ config("chromium_code") {
     }
   }
 
-  configs = [ ":default_warnings" ]
+  configs = [
+    ":default_warnings",
+  ]
 
   if (!is_starboard) {
     configs += [

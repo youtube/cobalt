@@ -5,7 +5,7 @@
 import("//build/toolchain/toolchain.gni")
 
 if (!use_cobalt_customizations) {
-  default_clang_base_path = "//third_party/llvm-build/Release+Asserts"
+default_clang_base_path = "//third_party/llvm-build/Release+Asserts"
 }
 
 declare_args() {
@@ -21,6 +21,6 @@ declare_args() {
       ((is_linux && !is_castos) || (is_android && !is_cast_android))
 
   if (!use_cobalt_customizations) {
-    clang_base_path = default_clang_base_path
+  clang_base_path = default_clang_base_path
   }
 }
