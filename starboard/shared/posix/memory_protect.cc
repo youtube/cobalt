@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
 #include "starboard/shared/posix/page_internal.h"
@@ -19,3 +21,5 @@
 bool SbMemoryProtect(void* virtual_address, int64_t size_bytes, int flags) {
   return SbPageProtect(virtual_address, size_bytes, flags);
 }
+
+#endif  // SB_API_VERSION < 16
