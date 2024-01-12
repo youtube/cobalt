@@ -25,11 +25,14 @@ def app(environ, start_response):
 
   Changing the file or function name requires configuring a matching entrypoint.
   """
-  base_url = 'https://developers.google.com'
-  path_prefix = '/youtube/cobalt/docs'
+  base_url = 'https://developers.google.com/youtube/cobalt'
+  doc_prefix = '/docs'
   # Remove extension from filename if present.
   doc_path = os.path.splitext(environ['RAW_URI'])[0]
+  if not doc_path or doc_path == '/':
+    location = base_url
+  else:
+    location = f'{base_url}{doc_prefix}{doc_path}'
 
-  start_response('301 Moved Permanently',
-                 [('Location', f'{base_url}{path_prefix}{doc_path}')])
+  start_response('301 Moved Permanently', [('Location', location)])
   return []
