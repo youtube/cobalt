@@ -76,12 +76,12 @@ copy("local_player_test_files") {
   install_content = true
   subdir = "starboard/shared/starboard/player"
   sources = [
-    "testdata/flac.dmp",
-    "testdata/hevc.dmp",
-    "testdata/mp3.dmp",
-    "testdata/pcm.dmp",
-    "testdata/vorbis.dmp",
-    "testdata/vp8.dmp",
+    "testdata/sintel_5s_flac.dmp",
+    "testdata/sintel_5s_hevc.dmp",
+    "testdata/sintel_5s_mp3.dmp",
+    "testdata/sintel_5s_pcm_s16le.dmp",
+    "testdata/sintel_5s_vorbis.dmp",
+    "testdata/sintel_5s_vp8.dmp",
   ]
   outputs = [ "$sb_static_contents_output_data_dir/test/$subdir/testdata/{{source_file_part}}" ]
 }

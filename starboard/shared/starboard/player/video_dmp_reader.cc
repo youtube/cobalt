@@ -156,7 +156,7 @@ std::string VideoDmpReader::audio_mime_type() const {
       break;
 #if SB_API_VERSION >= 14
     case kSbMediaAudioCodecMp3:
-      ss << "audio/mpeg";
+      ss << "audio/mpeg; codecs=\"mp3\";";
       break;
     case kSbMediaAudioCodecFlac:
       ss << "audio/ogg; codecs=\"flac\";";
@@ -194,7 +194,7 @@ std::string VideoDmpReader::video_mime_type() {
       ss << "video/webm; codecs=\"vp8\";";
       break;
     case kSbMediaVideoCodecH265:
-      ss << "video/mp4; codecs=\"hev1\";";
+      ss << "video/mp4; codecs=\"hev1.1.6.L123.B0\";";
       break;
     default:
       SB_NOTREACHED() << "Unsupported video codec: " << dmp_info_.video_codec;

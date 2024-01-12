@@ -56,18 +56,18 @@ const char* kAudioOnlyTestFiles[] = {
     "beneath_the_canopy_opus_5_1.dmp",
     "beneath_the_canopy_opus_mono.dmp",
     "heaac.dmp",
-    "flac.dmp",
-    "mp3.dmp",
-    "pcm.dmp",
-    "vorbis.dmp",
+    "sintel_5s_flac.dmp",
+    "sintel_5s_mp3.dmp",
+    "sintel_5s_pcm_s16le.dmp",
+    "sintel_5s_vorbis.dmp",
 };
 
 const char* kVideoTestFiles[] = {
     "beneath_the_canopy_137_avc.dmp",
     "beneath_the_canopy_248_vp9.dmp",
     "sintel_399_av1.dmp",
-    "vp8.dmp",
-    "hevc.dmp",
+    "sintel_5s_vp8.dmp",
+    "sintel_5s_hevc.dmp",
 };
 
 const SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
