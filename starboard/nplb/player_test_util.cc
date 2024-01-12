@@ -56,9 +56,11 @@ const char* kAudioOnlyTestFiles[] = {
     "beneath_the_canopy_opus_5_1.dmp",
     "beneath_the_canopy_opus_mono.dmp",
     "heaac.dmp",
+#if SB_API_VERSION >= 14
     "sintel_5s_flac.dmp",
     "sintel_5s_mp3.dmp",
     "sintel_5s_pcm_s16le.dmp",
+#endif  // SB_API_VERSION >= 14
     "sintel_5s_vorbis.dmp",
 };
 
