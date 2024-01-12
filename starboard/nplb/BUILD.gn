@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import("//starboard/build/config/os_definitions.gni")
-import("//starboard/contrib/cast/cast.gni")
 
 target(gtest_target_type, "nplb") {
   testonly = true

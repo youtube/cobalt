@@ -16,7 +16,6 @@
 
 #include <algorithm>
 #include <functional>
-#include "starboard/media.h"
 
 namespace starboard {
 namespace shared {
