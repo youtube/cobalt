@@ -31,6 +31,7 @@ absl_source_set("log_severity") {
 absl_source_set("raw_logging_internal") {
   sources = [ "internal/raw_logging.cc" ]
   public = [ "internal/raw_logging.h" ]
+  deps = [ "//starboard:starboard_headers_only" ]
   public_deps = [
     ":atomic_hook",
     ":config",
