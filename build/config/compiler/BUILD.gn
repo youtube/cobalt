@@ -1631,14 +1631,13 @@ config("default_warnings") {
       # which we no longer use. Check if it makes sense to remove
       # this as well. http://crbug.com/316352
       "-Wno-unneeded-internal-declaration",
-
-      "-Wno-extra-semi",
-      "-Wno-pessimizing-move",
-      "-Wno-shadow",
     ]
 
     if (use_cobalt_customizations) {
       cflags += [
+        "-Wno-extra-semi",
+        "-Wno-pessimizing-move",
+        "-Wno-shadow",
         "-Wno-range-loop-bind-reference",
         "-Wno-range-loop-construct",
       ]
