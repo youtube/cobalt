@@ -37,6 +37,10 @@ declare_args() {
   # The default linker everywhere else.
   use_lld = is_clang && current_os != "zos"
 
+  if (use_cobalt_customizations && is_apple) {
+    use_lld = false
+  }
+
   # If true, optimize for size.
   # Default to favoring speed over size for platforms not listed below.
   optimize_for_size =

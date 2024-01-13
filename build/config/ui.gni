@@ -39,6 +39,7 @@ declare_args() {
 
   use_glib =
       is_linux && !is_castos &&
+      !is_starboard &&
       # Avoid the need for glib when Android is building things via secondary
       # toolchains.
       target_os != "android"
