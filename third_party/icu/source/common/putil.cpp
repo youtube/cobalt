@@ -43,8 +43,6 @@
 // compiler errors on some platforms.
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
-#include "starboard/client_porting/poem/stdio_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
 
 // Defines _XOPEN_SOURCE for access to POSIX functions.
@@ -88,13 +86,11 @@
 #include <math.h>
 
 /* Include standard headers. */
-#if !defined(STARBOARD)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <locale.h>
 #include <float.h>
-#endif
 
 #ifndef U_COMMON_IMPLEMENTATION
 #error U_COMMON_IMPLEMENTATION not set - must be set for all ICU source files in common/ - see https://unicode-org.github.io/icu/userguide/howtouseicu

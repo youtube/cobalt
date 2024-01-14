@@ -17,4 +17,3 @@
 #include "stdio_poem.h"
 #include "eztime_poem.h"
 #include "string_poem.h"
-#include "wchar_poem.h"

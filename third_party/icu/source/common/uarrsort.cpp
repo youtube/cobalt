@@ -20,9 +20,6 @@
 
 #include <cstddef>
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif  // defined(STARBOARD)
 #include "unicode/utypes.h"
 #include "cmemory.h"
 #include "uarrsort.h"
