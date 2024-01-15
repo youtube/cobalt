@@ -68,10 +68,6 @@ static const struct argument kArguments[] = {
         "-early-data", kBooleanArgument, "Allow early data",
     },
     {
-        "-tls13-variant", kOptionalArgument,
-        "Enable the specified experimental TLS 1.3 variant",
-    },
-    {
         "-www", kBooleanArgument,
         "The server will print connection information in response to a "
         "HTTP GET request.",
@@ -83,6 +79,10 @@ static const struct argument kArguments[] = {
     {
         "-require-any-client-cert", kBooleanArgument,
         "The server will require a client certificate.",
+    },
+    {
+        "-jdk11-workaround", kBooleanArgument,
+        "Enable the JDK 11 workaround",
     },
     {
         "", kOptionalArgument, "",
@@ -146,26 +146,6 @@ static bssl::UniquePtr<X509> MakeSelfSignedCert(EVP_PKEY *evp_pkey,
     return nullptr;
   }
   return x509;
-}
-
-static bool GetTLS13Variant(tls13_variant_t *out, const std::string &in) {
-  if (in == "draft23") {
-    *out = tls13_draft23;
-    return true;
-  }
-  if (in == "draft28") {
-    *out = tls13_draft28;
-    return true;
-  }
-  if (in == "rfc") {
-    *out = tls13_rfc;
-    return true;
-  }
-  if (in == "all") {
-    *out = tls13_all;
-    return true;
-  }
-  return false;
 }
 
 static void InfoCallback(const SSL *ssl, int type, int value) {
@@ -327,16 +307,6 @@ bool Server(const std::vector<std::string> &args) {
     SSL_CTX_set_early_data_enabled(ctx.get(), 1);
   }
 
-  if (args_map.count("-tls13-variant") != 0) {
-    tls13_variant_t variant;
-    if (!GetTLS13Variant(&variant, args_map["-tls13-variant"])) {
-      fprintf(stderr, "Unknown TLS 1.3 variant: %s\n",
-              args_map["-tls13-variant"].c_str());
-      return false;
-    }
-    SSL_CTX_set_tls13_variant(ctx.get(), variant);
-  }
-
   if (args_map.count("-debug") != 0) {
     SSL_CTX_set_info_callback(ctx.get(), InfoCallback);
   }
@@ -364,6 +334,10 @@ bool Server(const std::vector<std::string> &args) {
     BIO *bio = BIO_new_socket(sock, BIO_CLOSE);
     bssl::UniquePtr<SSL> ssl(SSL_new(ctx.get()));
     SSL_set_bio(ssl.get(), bio, bio);
+
+    if (args_map.count("-jdk11-workaround") != 0) {
+      SSL_set_jdk11_workaround(ssl.get(), 1);
+    }
 
     int ret = SSL_accept(ssl.get());
     if (ret != 1) {

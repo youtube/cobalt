@@ -1,3 +1,6 @@
+// This file is generated from a similarly-named Perl script in the BoringSSL
+// source tree. Do not edit by hand.
+
 #if defined(__has_feature)
 #if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
 #define OPENSSL_NO_ASM
@@ -74,7 +77,8 @@ _sha512_block_data_order:
 	ldp	x24,x25,[x0,#4*8]
 	add	x2,x1,x2,lsl#7	// end of input
 	ldp	x26,x27,[x0,#6*8]
-	adr	x30,LK512
+	adrp	x30,LK512@PAGE
+	add	x30,x30,LK512@PAGEOFF
 	stp	x0,x2,[x29,#96]
 
 Loop:
@@ -1021,6 +1025,7 @@ Loop_16_xx:
 	ret
 
 
+.section	__TEXT,__const
 .align	6
 
 LK512:
@@ -1066,15 +1071,6 @@ LK512:
 .quad	0x5fcb6fab3ad6faec,0x6c44198c4a475817
 .quad	0	// terminator
 
-#ifndef	__KERNEL__
-.align	3
-LOPENSSL_armcap_P:
-# ifdef	__ILP32__
-.long	_OPENSSL_armcap_P-.
-# else
-.quad	_OPENSSL_armcap_P-.
-# endif
-#endif
 .byte	83,72,65,53,49,50,32,98,108,111,99,107,32,116,114,97,110,115,102,111,114,109,32,102,111,114,32,65,82,77,118,56,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	2
 .align	2

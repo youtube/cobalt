@@ -139,8 +139,8 @@ def main():
   for (osname, arch, _, _, _) in generate_build_files.OS_ARCH_COMBOS:
     path = os.path.join(BORINGSSL_PATH, osname + '-' + arch)
     shutil.rmtree(path)
-  for file in GENERATED_FILES:
-    path = os.path.join(BORINGSSL_PATH, file)
+  for f in GENERATED_FILES:
+    path = os.path.join(BORINGSSL_PATH, f)
     os.unlink(path)
 
   # Generate new ones.
@@ -155,8 +155,8 @@ def main():
   for (osname, arch, _, _, _) in generate_build_files.OS_ARCH_COMBOS:
     path = os.path.join(BORINGSSL_PATH, osname + '-' + arch)
     subprocess.check_call(['git', 'add', path], cwd=SRC_PATH)
-  for file in GENERATED_FILES:
-    path = os.path.join(BORINGSSL_PATH, file)
+  for f in GENERATED_FILES:
+    path = os.path.join(BORINGSSL_PATH, f)
     subprocess.check_call(['git', 'add', path], cwd=SRC_PATH)
 
   message = """Roll src/third_party/boringssl/src %s..%s
@@ -179,7 +179,9 @@ https://boringssl.googlesource.com/boringssl/+log/%s..%s
   subprocess.check_call(['git', 'commit', '-m', message], cwd=SRC_PATH)
 
   # Print update notes.
-  notes = subprocess.check_output(['git', 'log', '--grep', '^Update-Note:', '-i', '%s..%s' % (old_head, new_head)], cwd=BORINGSSL_SRC_PATH).strip()
+  notes = subprocess.check_output(
+      ['git', 'log', '--grep', '^Update-Note:', '-i',
+       '%s..%s' % (old_head, new_head)], cwd=BORINGSSL_SRC_PATH).strip()
   if len(notes) > 0:
     print "\x1b[1mThe following changes contain updating notes\x1b[0m:\n\n"
     print notes

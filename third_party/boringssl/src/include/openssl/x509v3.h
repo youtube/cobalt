@@ -58,6 +58,7 @@
 #include <openssl/bio.h>
 #include <openssl/conf.h>
 #include <openssl/x509.h>
+#include <openssl/lhash.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -611,8 +612,11 @@ OPENSSL_EXPORT GENERAL_NAME *v2i_GENERAL_NAME_ex(GENERAL_NAME *out,
 				  X509V3_CTX *ctx, CONF_VALUE *cnf, int is_nc);
 OPENSSL_EXPORT void X509V3_conf_free(CONF_VALUE *val);
 
-typedef struct x509_must_be_null_st X509_MUST_BE_NULL;
-OPENSSL_EXPORT X509_EXTENSION *X509V3_EXT_conf_nid(X509_MUST_BE_NULL *conf, X509V3_CTX *ctx, int ext_nid, char *value);
+// X509V3_EXT_conf_nid contains the only exposed instance of an LHASH in our
+// public headers. The |conf| pointer must be NULL but cryptography.io wraps
+// this function so we cannot, yet, replace the type with a dummy struct.
+OPENSSL_EXPORT X509_EXTENSION *X509V3_EXT_conf_nid(LHASH_OF(CONF_VALUE) *conf, X509V3_CTX *ctx, int ext_nid, char *value);
+
 OPENSSL_EXPORT X509_EXTENSION *X509V3_EXT_nconf_nid(CONF *conf, X509V3_CTX *ctx, int ext_nid, char *value);
 OPENSSL_EXPORT X509_EXTENSION *X509V3_EXT_nconf(CONF *conf, X509V3_CTX *ctx, char *name, char *value);
 OPENSSL_EXPORT int X509V3_EXT_add_nconf_sk(CONF *conf, X509V3_CTX *ctx, char *section, STACK_OF(X509_EXTENSION) **sk);
@@ -661,10 +665,6 @@ OPENSSL_EXPORT int X509V3_EXT_free(int nid, void *ext_data);
 
 OPENSSL_EXPORT X509_EXTENSION *X509V3_EXT_i2d(int ext_nid, int crit, void *ext_struc);
 OPENSSL_EXPORT int X509V3_add1_i2d(STACK_OF(X509_EXTENSION) **x, int nid, void *value, int crit, unsigned long flags);
-
-char *hex_to_string(const unsigned char *buffer, long len);
-unsigned char *string_to_hex(const char *str, long *len);
-int name_cmp(const char *name, const char *cmp);
 
 OPENSSL_EXPORT void X509V3_EXT_val_prn(BIO *out, STACK_OF(CONF_VALUE) *val, int indent,
 								 int ml);

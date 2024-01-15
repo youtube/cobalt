@@ -18,6 +18,7 @@
 
 #include "internal.h"
 #include "../bn/internal.h"
+#include "../../internal.h"
 
 
 int ec_bignum_to_scalar(const EC_GROUP *group, EC_SCALAR *out,
@@ -30,6 +31,20 @@ int ec_bignum_to_scalar(const EC_GROUP *group, EC_SCALAR *out,
   return 1;
 }
 
+int ec_scalar_equal_vartime(const EC_GROUP *group, const EC_SCALAR *a,
+                            const EC_SCALAR *b) {
+  return OPENSSL_memcmp(a->words, b->words,
+                        group->order.width * sizeof(BN_ULONG)) == 0;
+}
+
+int ec_scalar_is_zero(const EC_GROUP *group, const EC_SCALAR *a) {
+  BN_ULONG mask = 0;
+  for (int i = 0; i < group->order.width; i++) {
+    mask |= a->words[i];
+  }
+  return mask == 0;
+}
+
 int ec_random_nonzero_scalar(const EC_GROUP *group, EC_SCALAR *out,
                              const uint8_t additional_data[32]) {
   return bn_rand_range_words(out->words, 1, group->order.d, group->order.width,
@@ -39,7 +54,7 @@ int ec_random_nonzero_scalar(const EC_GROUP *group, EC_SCALAR *out,
 void ec_scalar_add(const EC_GROUP *group, EC_SCALAR *r, const EC_SCALAR *a,
                    const EC_SCALAR *b) {
   const BIGNUM *order = &group->order;
-  BN_ULONG tmp[EC_MAX_SCALAR_WORDS];
+  BN_ULONG tmp[EC_MAX_WORDS];
   bn_mod_add_words(r->words, a->words, b->words, order->d, tmp, order->width);
   OPENSSL_cleanse(tmp, sizeof(tmp));
 }
@@ -73,4 +88,9 @@ void ec_simple_scalar_inv_montgomery(const EC_GROUP *group, EC_SCALAR *r,
 void ec_scalar_inv_montgomery(const EC_GROUP *group, EC_SCALAR *r,
                               const EC_SCALAR *a) {
   group->meth->scalar_inv_montgomery(group, r, a);
+}
+
+int ec_scalar_inv_montgomery_vartime(const EC_GROUP *group, EC_SCALAR *r,
+                                     const EC_SCALAR *a) {
+  return group->meth->scalar_inv_montgomery_vartime(group, r, a);
 }

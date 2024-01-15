@@ -303,7 +303,7 @@ static void ssl_get_compatible_server_ciphers(SSL_HANDSHAKE *hs,
   uint32_t mask_k = 0;
   uint32_t mask_a = 0;
 
-  if (ssl_has_certificate(hs->config)) {
+  if (ssl_has_certificate(hs)) {
     mask_a |= ssl_cipher_auth_mask_for_key(hs->local_pubkey.get());
     if (EVP_PKEY_id(hs->local_pubkey.get()) == EVP_PKEY_RSA) {
       mask_k |= SSL_kRSA;
@@ -401,6 +401,108 @@ static enum ssl_hs_wait_t do_start_accept(SSL_HANDSHAKE *hs) {
   return ssl_hs_ok;
 }
 
+// is_probably_jdk11_with_tls13 returns whether |client_hello| was probably sent
+// from a JDK 11 client with both TLS 1.3 and a prior version enabled.
+static bool is_probably_jdk11_with_tls13(const SSL_CLIENT_HELLO *client_hello) {
+  // JDK 11 ClientHellos contain a number of unusual properties which should
+  // limit false positives.
+
+  // JDK 11 does not support ChaCha20-Poly1305. This is unusual: many modern
+  // clients implement ChaCha20-Poly1305.
+  if (ssl_client_cipher_list_contains_cipher(
+          client_hello, TLS1_CK_CHACHA20_POLY1305_SHA256 & 0xffff)) {
+    return false;
+  }
+
+  // JDK 11 always sends extensions in a particular order.
+  constexpr uint16_t kMaxFragmentLength = 0x0001;
+  constexpr uint16_t kStatusRequestV2 = 0x0011;
+  static CONSTEXPR_ARRAY struct {
+    uint16_t id;
+    bool required;
+  } kJavaExtensions[] = {
+      {TLSEXT_TYPE_server_name, false},
+      {kMaxFragmentLength, false},
+      {TLSEXT_TYPE_status_request, false},
+      {TLSEXT_TYPE_supported_groups, true},
+      {TLSEXT_TYPE_ec_point_formats, false},
+      {TLSEXT_TYPE_signature_algorithms, true},
+      // Java always sends signature_algorithms_cert.
+      {TLSEXT_TYPE_signature_algorithms_cert, true},
+      {TLSEXT_TYPE_application_layer_protocol_negotiation, false},
+      {kStatusRequestV2, false},
+      {TLSEXT_TYPE_extended_master_secret, false},
+      {TLSEXT_TYPE_supported_versions, true},
+      {TLSEXT_TYPE_cookie, false},
+      {TLSEXT_TYPE_psk_key_exchange_modes, true},
+      {TLSEXT_TYPE_key_share, true},
+      {TLSEXT_TYPE_renegotiate, false},
+      {TLSEXT_TYPE_pre_shared_key, false},
+  };
+  Span<const uint8_t> sigalgs, sigalgs_cert;
+  bool has_status_request = false, has_status_request_v2 = false;
+  CBS extensions, supported_groups;
+  CBS_init(&extensions, client_hello->extensions, client_hello->extensions_len);
+  for (const auto &java_extension : kJavaExtensions) {
+    CBS copy = extensions;
+    uint16_t id;
+    if (CBS_get_u16(&copy, &id) && id == java_extension.id) {
+      // The next extension is the one we expected.
+      extensions = copy;
+      CBS body;
+      if (!CBS_get_u16_length_prefixed(&extensions, &body)) {
+        return false;
+      }
+      switch (id) {
+        case TLSEXT_TYPE_status_request:
+          has_status_request = true;
+          break;
+        case kStatusRequestV2:
+          has_status_request_v2 = true;
+          break;
+        case TLSEXT_TYPE_signature_algorithms:
+          sigalgs = body;
+          break;
+        case TLSEXT_TYPE_signature_algorithms_cert:
+          sigalgs_cert = body;
+          break;
+        case TLSEXT_TYPE_supported_groups:
+          supported_groups = body;
+          break;
+      }
+    } else if (java_extension.required) {
+      return false;
+    }
+  }
+  if (CBS_len(&extensions) != 0) {
+    return false;
+  }
+
+  // JDK 11 never advertises X25519. It is not offered by default, and
+  // -Djdk.tls.namedGroups=x25519 does not work. This is unusual: many modern
+  // clients implement X25519.
+  while (CBS_len(&supported_groups) > 0) {
+    uint16_t group;
+    if (!CBS_get_u16(&supported_groups, &group) ||
+        group == SSL_CURVE_X25519) {
+      return false;
+    }
+  }
+
+  if (// JDK 11 always sends the same contents in signature_algorithms and
+      // signature_algorithms_cert. This is unusual: signature_algorithms_cert,
+      // if omitted, is treated as if it were signature_algorithms.
+      sigalgs != sigalgs_cert ||
+      // When TLS 1.2 or below is enabled, JDK 11 sends status_request_v2 iff it
+      // sends status_request. This is unusual: status_request_v2 is not widely
+      // implemented.
+      has_status_request != has_status_request_v2) {
+    return false;
+  }
+
+  return true;
+}
+
 static enum ssl_hs_wait_t do_read_client_hello(SSL_HANDSHAKE *hs) {
   SSL *const ssl = hs->ssl;
 
@@ -444,6 +546,11 @@ static enum ssl_hs_wait_t do_read_client_hello(SSL_HANDSHAKE *hs) {
   // Freeze the version range after the early callback.
   if (!ssl_get_version_range(hs, &hs->min_version, &hs->max_version)) {
     return ssl_hs_error;
+  }
+
+  if (hs->config->jdk11_workaround &&
+      is_probably_jdk11_with_tls13(&client_hello)) {
+    hs->apply_jdk11_workaround = true;
   }
 
   uint8_t alert = SSL_AD_DECODE_ERROR;
@@ -674,6 +781,12 @@ static enum ssl_hs_wait_t do_select_parameters(SSL_HANDSHAKE *hs) {
   return ssl_hs_ok;
 }
 
+static void copy_suffix(Span<uint8_t> out, Span<const uint8_t> in) {
+  out = out.subspan(out.size() - in.size());
+  assert(out.size() == in.size());
+  OPENSSL_memcpy(out.data(), in.data(), in.size());
+}
+
 static enum ssl_hs_wait_t do_send_server_hello(SSL_HANDSHAKE *hs) {
   SSL *const ssl = hs->ssl;
 
@@ -705,13 +818,18 @@ static enum ssl_hs_wait_t do_send_server_hello(SSL_HANDSHAKE *hs) {
   // Implement the TLS 1.3 anti-downgrade feature.
   if (ssl_supports_version(hs, TLS1_3_VERSION)) {
     if (ssl_protocol_version(ssl) == TLS1_2_VERSION) {
-      OPENSSL_memcpy(ssl->s3->server_random + SSL3_RANDOM_SIZE -
-                         sizeof(kTLS13DowngradeRandom),
-                     kTLS13DowngradeRandom, sizeof(kTLS13DowngradeRandom));
+      if (hs->apply_jdk11_workaround) {
+        // JDK 11 implements the TLS 1.3 downgrade signal, so we cannot send it
+        // here. However, the signal is only effective if all TLS 1.2
+        // ServerHellos produced by the server are marked. Thus we send a
+        // different non-standard signal for the time being, until JDK 11.0.2 is
+        // released and clients have updated.
+        copy_suffix(ssl->s3->server_random, kJDK11DowngradeRandom);
+      } else {
+        copy_suffix(ssl->s3->server_random, kTLS13DowngradeRandom);
+      }
     } else {
-      OPENSSL_memcpy(ssl->s3->server_random + SSL3_RANDOM_SIZE -
-                         sizeof(kTLS12DowngradeRandom),
-                     kTLS12DowngradeRandom, sizeof(kTLS12DowngradeRandom));
+      copy_suffix(ssl->s3->server_random, kTLS12DowngradeRandom);
     }
   }
 
@@ -749,7 +867,7 @@ static enum ssl_hs_wait_t do_send_server_certificate(SSL_HANDSHAKE *hs) {
   ScopedCBB cbb;
 
   if (ssl_cipher_uses_certificate_auth(hs->new_cipher)) {
-    if (!ssl_has_certificate(hs->config)) {
+    if (!ssl_has_certificate(hs)) {
       OPENSSL_PUT_ERROR(SSL, SSL_R_NO_CERTIFICATE_SET);
       return ssl_hs_error;
     }
@@ -813,12 +931,12 @@ static enum ssl_hs_wait_t do_send_server_certificate(SSL_HANDSHAKE *hs) {
       hs->new_session->group_id = group_id;
 
       // Set up ECDH, generate a key, and emit the public half.
-      hs->key_share = SSLKeyShare::Create(group_id);
-      if (!hs->key_share ||
+      hs->key_shares[0] = SSLKeyShare::Create(group_id);
+      if (!hs->key_shares[0] ||
           !CBB_add_u8(cbb.get(), NAMED_CURVE_TYPE) ||
           !CBB_add_u16(cbb.get(), group_id) ||
           !CBB_add_u8_length_prefixed(cbb.get(), &child) ||
-          !hs->key_share->Offer(&child)) {
+          !hs->key_shares[0]->Offer(&child)) {
         return ssl_hs_error;
       }
     } else {
@@ -855,7 +973,7 @@ static enum ssl_hs_wait_t do_send_server_key_exchange(SSL_HANDSHAKE *hs) {
 
   // Add a signature.
   if (ssl_cipher_uses_certificate_auth(hs->new_cipher)) {
-    if (!ssl_has_private_key(hs->config)) {
+    if (!ssl_has_private_key(hs)) {
       ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_INTERNAL_ERROR);
       return ssl_hs_error;
     }
@@ -1107,6 +1225,8 @@ static enum ssl_hs_wait_t do_read_client_key_exchange(SSL_HANDSHAKE *hs) {
       return ssl_hs_error;
     }
 
+    CONSTTIME_SECRET(decrypt_buf.data(), decrypt_len);
+
     // Prepare a random premaster, to be used on invalid padding. See RFC 5246,
     // section 7.4.7.1.
     if (!premaster_secret.Init(SSL_MAX_MASTER_KEY_LENGTH) ||
@@ -1156,13 +1276,14 @@ static enum ssl_hs_wait_t do_read_client_key_exchange(SSL_HANDSHAKE *hs) {
 
     // Compute the premaster.
     uint8_t alert = SSL_AD_DECODE_ERROR;
-    if (!hs->key_share->Finish(&premaster_secret, &alert, peer_key)) {
+    if (!hs->key_shares[0]->Finish(&premaster_secret, &alert, peer_key)) {
       ssl_send_alert(ssl, SSL3_AL_FATAL, alert);
       return ssl_hs_error;
     }
 
     // The key exchange state may now be discarded.
-    hs->key_share.reset();
+    hs->key_shares[0].reset();
+    hs->key_shares[1].reset();
   } else if (!(alg_k & SSL_kPSK)) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
     ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_HANDSHAKE_FAILURE);
@@ -1228,6 +1349,8 @@ static enum ssl_hs_wait_t do_read_client_key_exchange(SSL_HANDSHAKE *hs) {
     return ssl_hs_error;
   }
   hs->new_session->extended_master_secret = hs->extended_master_secret;
+  CONSTTIME_DECLASSIFY(hs->new_session->master_key,
+                       hs->new_session->master_key_length);
 
   ssl->method->next_message(ssl);
   hs->state = state12_read_client_certificate_verify;

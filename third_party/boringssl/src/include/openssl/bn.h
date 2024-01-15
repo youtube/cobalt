@@ -142,9 +142,11 @@ extern "C" {
 // BN_ULONG is the native word size when working with big integers.
 //
 // Note: on some platforms, inttypes.h does not define print format macros in
-// C++ unless |__STDC_FORMAT_MACROS| defined. As this is a public header, bn.h
-// does not define |__STDC_FORMAT_MACROS| itself. C++ source files which use the
-// FMT macros must define it externally.
+// C++ unless |__STDC_FORMAT_MACROS| defined. This is due to text in C99 which
+// was never adopted in any C++ standard and explicitly overruled in C++11. As
+// this is a public header, bn.h does not define |__STDC_FORMAT_MACROS| itself.
+// Projects which use |BN_*_FMT*| with outdated C headers may need to define it
+// externally.
 #if defined(OPENSSL_64_BIT)
 #define BN_ULONG uint64_t
 #define BN_BITS2 64
@@ -158,7 +160,7 @@ extern "C" {
 #define BN_DEC_FMT1 "%" PRIu32
 #define BN_DEC_FMT2 "%09" PRIu32
 #define BN_HEX_FMT1 "%" PRIx32
-#define BN_HEX_FMT2 "%08" PRIx64
+#define BN_HEX_FMT2 "%08" PRIx32
 #else
 #error "Must define either OPENSSL_32_BIT or OPENSSL_64_BIT"
 #endif
@@ -929,6 +931,12 @@ OPENSSL_EXPORT BN_MONT_CTX *BN_MONT_CTX_new(void);
 // instead.
 OPENSSL_EXPORT int BN_MONT_CTX_set(BN_MONT_CTX *mont, const BIGNUM *mod,
                                    BN_CTX *ctx);
+
+// BN_bn2binpad behaves like |BN_bn2bin_padded|, but it returns |len| on success
+// and -1 on error.
+//
+// Use |BN_bn2bin_padded| instead. It is |size_t|-clean.
+OPENSSL_EXPORT int BN_bn2binpad(const BIGNUM *in, uint8_t *out, int len);
 
 
 // Private functions

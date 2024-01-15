@@ -506,6 +506,27 @@ void SSL_set_handoff_mode(SSL *ssl, bool on) {
   ssl->config->handoff = on;
 }
 
+bool SSL_get_traffic_secrets(const SSL *ssl,
+                             Span<const uint8_t> *out_read_traffic_secret,
+                             Span<const uint8_t> *out_write_traffic_secret) {
+  if (SSL_version(ssl) < TLS1_3_VERSION) {
+    OPENSSL_PUT_ERROR(SSL, SSL_R_WRONG_SSL_VERSION);
+    return false;
+  }
+
+  if (!ssl->s3->initial_handshake_complete) {
+    OPENSSL_PUT_ERROR(SSL, SSL_R_HANDSHAKE_NOT_COMPLETE);
+    return false;
+  }
+
+  *out_read_traffic_secret = Span<const uint8_t>(
+      ssl->s3->read_traffic_secret, ssl->s3->read_traffic_secret_len);
+  *out_write_traffic_secret = Span<const uint8_t>(
+      ssl->s3->write_traffic_secret, ssl->s3->write_traffic_secret_len);
+
+  return true;
+}
+
 BSSL_NAMESPACE_END
 
 using namespace bssl;
@@ -619,7 +640,6 @@ ssl_st::ssl_st(SSL_CTX *ctx_arg)
       max_send_fragment(ctx_arg->max_send_fragment),
       msg_callback(ctx_arg->msg_callback),
       msg_callback_arg(ctx_arg->msg_callback_arg),
-      tls13_variant(ctx_arg->tls13_variant),
       ctx(UpRef(ctx_arg)),
       session_ctx(UpRef(ctx_arg)),
       options(ctx->options),
@@ -694,6 +714,7 @@ SSL *SSL_new(SSL_CTX *ctx) {
   ssl->config->ocsp_stapling_enabled = ctx->ocsp_stapling_enabled;
   ssl->config->handoff = ctx->handoff;
   ssl->config->ignore_tls13_downgrade = ctx->ignore_tls13_downgrade;
+  ssl->quic_method = ctx->quic_method;
 
   if (!ssl->method->ssl_new(ssl.get()) ||
       !ssl->ctx->x509_method->ssl_new(ssl->s3->hs.get())) {
@@ -708,10 +729,12 @@ SSL_CONFIG::SSL_CONFIG(SSL *ssl_arg)
       signed_cert_timestamps_enabled(false),
       ocsp_stapling_enabled(false),
       channel_id_enabled(false),
+      enforce_rsa_key_usage(false),
       retain_only_sha256_of_client_certs(false),
       handoff(false),
       shed_handshake_config(false),
-      ignore_tls13_downgrade(false) {
+      ignore_tls13_downgrade(false),
+      jdk11_workaround(false) {
   assert(ssl);
 }
 
@@ -780,6 +803,74 @@ void SSL_set_bio(SSL *ssl, BIO *rbio, BIO *wbio) {
 BIO *SSL_get_rbio(const SSL *ssl) { return ssl->rbio.get(); }
 
 BIO *SSL_get_wbio(const SSL *ssl) { return ssl->wbio.get(); }
+
+size_t SSL_quic_max_handshake_flight_len(const SSL *ssl,
+                                         enum ssl_encryption_level_t level) {
+  // Limits flights to 16K by default when there are no large
+  // (certificate-carrying) messages.
+  static const size_t kDefaultLimit = 16384;
+
+  switch (level) {
+    case ssl_encryption_initial:
+      return kDefaultLimit;
+    case ssl_encryption_early_data:
+      // QUIC does not send EndOfEarlyData.
+      return 0;
+    case ssl_encryption_handshake:
+      if (ssl->server) {
+        // Servers may receive Certificate message if configured to request
+        // client certificates.
+        if (!!(ssl->config->verify_mode & SSL_VERIFY_PEER) &&
+            ssl->max_cert_list > kDefaultLimit) {
+          return ssl->max_cert_list;
+        }
+      } else {
+        // Clients may receive both Certificate message and a CertificateRequest
+        // message.
+        if (2*ssl->max_cert_list > kDefaultLimit) {
+          return 2*ssl->max_cert_list;
+        }
+      }
+      return kDefaultLimit;
+    case ssl_encryption_application:
+      // Note there is not actually a bound on the number of NewSessionTickets
+      // one may send in a row. This level may need more involved flow
+      // control. See https://github.com/quicwg/base-drafts/issues/1834.
+      return kDefaultLimit;
+  }
+
+  return 0;
+}
+
+enum ssl_encryption_level_t SSL_quic_read_level(const SSL *ssl) {
+  return ssl->s3->read_level;
+}
+
+enum ssl_encryption_level_t SSL_quic_write_level(const SSL *ssl) {
+  return ssl->s3->write_level;
+}
+
+int SSL_provide_quic_data(SSL *ssl, enum ssl_encryption_level_t level,
+                          const uint8_t *data, size_t len) {
+  if (ssl->quic_method == nullptr) {
+    OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+    return 0;
+  }
+
+  if (level != ssl->s3->read_level) {
+    OPENSSL_PUT_ERROR(SSL, SSL_R_WRONG_ENCRYPTION_LEVEL_RECEIVED);
+    return 0;
+  }
+
+  size_t new_len = (ssl->s3->hs_buf ? ssl->s3->hs_buf->length : 0) + len;
+  if (new_len < len ||
+      new_len > SSL_quic_max_handshake_flight_len(ssl, level)) {
+    OPENSSL_PUT_ERROR(SSL, SSL_R_EXCESSIVE_MESSAGE_SIZE);
+    return 0;
+  }
+
+  return tls_append_handshake_data(ssl, MakeConstSpan(data, len));
+}
 
 int SSL_do_handshake(SSL *ssl) {
   ssl_reset_error_state(ssl);
@@ -880,6 +971,33 @@ static int ssl_do_post_handshake(SSL *ssl, const SSLMessage &msg) {
   return 1;
 }
 
+int SSL_process_quic_post_handshake(SSL *ssl) {
+  ssl_reset_error_state(ssl);
+
+  if (SSL_in_init(ssl)) {
+    OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+    return 0;
+  }
+
+  // Replay post-handshake message errors.
+  if (!check_read_error(ssl)) {
+    return 0;
+  }
+
+  // Process any buffered post-handshake messages.
+  SSLMessage msg;
+  while (ssl->method->get_message(ssl, &msg)) {
+    // Handle the post-handshake message and try again.
+    if (!ssl_do_post_handshake(ssl, msg)) {
+      ssl_set_read_error(ssl);
+      return 0;
+    }
+    ssl->method->next_message(ssl);
+  }
+
+  return 1;
+}
+
 static int ssl_read_impl(SSL *ssl) {
   ssl_reset_error_state(ssl);
 
@@ -961,6 +1079,11 @@ int SSL_read(SSL *ssl, void *buf, int num) {
 }
 
 int SSL_peek(SSL *ssl, void *buf, int num) {
+  if (ssl->quic_method != nullptr) {
+    OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+    return 0;
+  }
+
   int ret = ssl_read_impl(ssl);
   if (ret <= 0) {
     return ret;
@@ -976,6 +1099,11 @@ int SSL_peek(SSL *ssl, void *buf, int num) {
 
 int SSL_write(SSL *ssl, const void *buf, int num) {
   ssl_reset_error_state(ssl);
+
+  if (ssl->quic_method != nullptr) {
+    OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+    return 0;
+  }
 
   if (ssl->do_handshake == NULL) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_UNINITIALIZED);
@@ -1006,6 +1134,37 @@ int SSL_write(SSL *ssl, const void *buf, int num) {
                                       (const uint8_t *)buf, num);
   } while (needs_handshake);
   return ret;
+}
+
+int SSL_key_update(SSL *ssl, int request_type) {
+  ssl_reset_error_state(ssl);
+
+  if (ssl->do_handshake == NULL) {
+    OPENSSL_PUT_ERROR(SSL, SSL_R_UNINITIALIZED);
+    return 0;
+  }
+
+  if (ssl->ctx->quic_method != nullptr) {
+    OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+    return 0;
+  }
+
+  if (!ssl->s3->initial_handshake_complete) {
+    OPENSSL_PUT_ERROR(SSL, SSL_R_HANDSHAKE_NOT_COMPLETE);
+    return 0;
+  }
+
+  if (ssl_protocol_version(ssl) < TLS1_3_VERSION) {
+    OPENSSL_PUT_ERROR(SSL, SSL_R_WRONG_SSL_VERSION);
+    return 0;
+  }
+
+  if (!ssl->s3->key_update_pending &&
+      !tls13_add_key_update(ssl, request_type)) {
+    return 0;
+  }
+
+  return 1;
 }
 
 int SSL_shutdown(SSL *ssl) {
@@ -1103,14 +1262,6 @@ void SSL_CTX_set_early_data_enabled(SSL_CTX *ctx, int enabled) {
   ctx->enable_early_data = !!enabled;
 }
 
-void SSL_CTX_set_tls13_variant(SSL_CTX *ctx, enum tls13_variant_t variant) {
-  ctx->tls13_variant = variant;
-}
-
-void SSL_set_tls13_variant(SSL *ssl, enum tls13_variant_t variant) {
-  ssl->tls13_variant = variant;
-}
-
 void SSL_set_early_data_enabled(SSL *ssl, int enabled) {
   ssl->enable_early_data = !!enabled;
 }
@@ -1193,6 +1344,9 @@ int SSL_get_error(const SSL *ssl, int ret_code) {
       return SSL_ERROR_HANDBACK;
 
     case SSL_READING: {
+      if (ssl->quic_method) {
+        return SSL_ERROR_WANT_READ;
+      }
       BIO *bio = SSL_get_rbio(ssl);
       if (BIO_should_read(bio)) {
         return SSL_ERROR_WANT_READ;
@@ -2191,7 +2345,8 @@ EVP_PKEY *SSL_CTX_get0_privatekey(const SSL_CTX *ctx) {
 }
 
 const SSL_CIPHER *SSL_get_current_cipher(const SSL *ssl) {
-  return ssl->s3->aead_write_ctx->cipher();
+  const SSL_SESSION *session = SSL_get_session(ssl);
+  return session == nullptr ? nullptr : session->cipher;
 }
 
 int SSL_session_reused(const SSL *ssl) {
@@ -2298,6 +2453,22 @@ char *SSL_get_shared_ciphers(const SSL *ssl, char *buf, int len) {
   }
   buf[0] = '\0';
   return buf;
+}
+
+int SSL_CTX_set_quic_method(SSL_CTX *ctx, const SSL_QUIC_METHOD *quic_method) {
+  if (ctx->method->is_dtls) {
+    return 0;
+  }
+  ctx->quic_method = quic_method;
+  return 1;
+}
+
+int SSL_set_quic_method(SSL *ssl, const SSL_QUIC_METHOD *quic_method) {
+  if (ssl->method->is_dtls) {
+    return 0;
+  }
+  ssl->quic_method = quic_method;
+  return 1;
 }
 
 int SSL_get_ex_new_index(long argl, void *argp, CRYPTO_EX_unused *unused,
@@ -2529,6 +2700,13 @@ void SSL_CTX_set_reverify_on_resume(SSL_CTX *ctx, int enabled) {
   ctx->reverify_on_resume = !!enabled;
 }
 
+void SSL_set_enforce_rsa_key_usage(SSL *ssl, int enabled) {
+  if (!ssl->config) {
+    return;
+  }
+  ssl->config->enforce_rsa_key_usage = !!enabled;
+}
+
 void SSL_set_renegotiate_mode(SSL *ssl, enum ssl_renegotiate_mode_t mode) {
   ssl->renegotiate_mode = mode;
 
@@ -2660,6 +2838,13 @@ void SSL_set_shed_handshake_config(SSL *ssl, int enable) {
   ssl->config->shed_handshake_config = !!enable;
 }
 
+void SSL_set_jdk11_workaround(SSL *ssl, int enable) {
+  if (!ssl->config) {
+    return;
+  }
+  ssl->config->jdk11_workaround = !!enable;
+}
+
 int SSL_clear(SSL *ssl) {
   if (!ssl->config) {
     return 0;  // SSL_clear may not be used after shedding config.
@@ -2751,6 +2936,19 @@ int SSL_set_tlsext_status_type(SSL *ssl, int type) {
   }
   ssl->config->ocsp_stapling_enabled = type == TLSEXT_STATUSTYPE_ocsp;
   return 1;
+}
+
+int SSL_get_tlsext_status_type(const SSL *ssl) {
+  if (ssl->server) {
+    SSL_HANDSHAKE *hs = ssl->s3->hs.get();
+    return hs != nullptr && hs->ocsp_stapling_requested
+        ? TLSEXT_STATUSTYPE_ocsp
+        : TLSEXT_STATUSTYPE_nothing;
+  }
+
+  return ssl->config != nullptr && ssl->config->ocsp_stapling_enabled
+             ? TLSEXT_STATUSTYPE_ocsp
+             : TLSEXT_STATUSTYPE_nothing;
 }
 
 int SSL_set_tlsext_status_ocsp_resp(SSL *ssl, uint8_t *resp, size_t resp_len) {

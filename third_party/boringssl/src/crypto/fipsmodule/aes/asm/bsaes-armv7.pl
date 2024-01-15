@@ -1113,8 +1113,11 @@ my ($inp,$out,$len,$key, $ivp,$fp,$rounds)=map("r$_",(0..3,8..10));
 my ($keysched)=("sp");
 
 $code.=<<___;
+@ TODO(davidben): This should be aes_nohw_cbc_encrypt, but that function does
+@ not exist. Rather than add it, patch this fallback out. See
+@ https://crbug.com/boringssl/256.
 .extern AES_cbc_encrypt
-.extern AES_decrypt
+.extern aes_nohw_decrypt
 
 .global	bsaes_cbc_encrypt
 .type	bsaes_cbc_encrypt,%function
@@ -1360,7 +1363,7 @@ bsaes_cbc_encrypt:
 	mov	r2, $key
 	vmov	@XMM[4],@XMM[15]		@ just in case ensure that IV
 	vmov	@XMM[5],@XMM[0]			@ and input are preserved
-	bl	AES_decrypt
+	bl	aes_nohw_decrypt
 	vld1.8	{@XMM[0]}, [$fp]		@ load result
 	veor	@XMM[0], @XMM[0], @XMM[4]	@ ^= IV
 	vmov	@XMM[15], @XMM[5]		@ @XMM[5] holds input
@@ -1390,7 +1393,7 @@ my $const = "r6";	# shared with _bsaes_encrypt8_alt
 my $keysched = "sp";
 
 $code.=<<___;
-.extern	AES_encrypt
+.extern	aes_nohw_encrypt
 .global	bsaes_ctr32_encrypt_blocks
 .type	bsaes_ctr32_encrypt_blocks,%function
 .align	5
@@ -1596,7 +1599,7 @@ bsaes_ctr32_encrypt_blocks:
 	mov	r1, sp			@ output on the stack
 	mov	r2, r7			@ key
 
-	bl	AES_encrypt
+	bl	aes_nohw_encrypt
 
 	vld1.8	{@XMM[0]}, [r4]!	@ load input
 	vld1.8	{@XMM[1]}, [sp]		@ load encrypted counter
@@ -1620,7 +1623,8 @@ bsaes_ctr32_encrypt_blocks:
 .size	bsaes_ctr32_encrypt_blocks,.-bsaes_ctr32_encrypt_blocks
 ___
 }
-{
+# In BorinSSL, we patch XTS support out.
+if (0) {
 ######################################################################
 # void bsaes_xts_[en|de]crypt(const char *inp,char *out,size_t len,
 #	const AES_KEY *key1, const AES_KEY *key2,
@@ -1657,7 +1661,7 @@ bsaes_xts_encrypt:
 	ldr	r0, [ip, #4]			@ iv[]
 	mov	r1, sp
 	ldr	r2, [ip, #0]			@ key2
-	bl	AES_encrypt
+	bl	aes_nohw_encrypt
 	mov	r0,sp				@ pointer to initial tweak
 #endif
 
@@ -1975,7 +1979,7 @@ $code.=<<___;
 	mov		r2, $key
 	mov		r4, $fp				@ preserve fp
 
-	bl		AES_encrypt
+	bl		aes_nohw_encrypt
 
 	vld1.8		{@XMM[0]}, [sp,:128]
 	veor		@XMM[0], @XMM[0], @XMM[8]
@@ -2007,7 +2011,7 @@ $code.=<<___;
 	mov		r2, $key
 	mov		r4, $fp			@ preserve fp
 
-	bl		AES_encrypt
+	bl		aes_nohw_encrypt
 
 	vld1.8		{@XMM[0]}, [sp,:128]
 	veor		@XMM[0], @XMM[0], @XMM[8]
@@ -2061,7 +2065,7 @@ bsaes_xts_decrypt:
 	ldr	r0, [ip, #4]			@ iv[]
 	mov	r1, sp
 	ldr	r2, [ip, #0]			@ key2
-	bl	AES_encrypt
+	bl	aes_nohw_encrypt
 	mov	r0, sp				@ pointer to initial tweak
 #endif
 
@@ -2387,7 +2391,7 @@ $code.=<<___;
 	mov		r2, $key
 	mov		r4, $fp				@ preserve fp
 
-	bl		AES_decrypt
+	bl		aes_nohw_decrypt
 
 	vld1.8		{@XMM[0]}, [sp,:128]
 	veor		@XMM[0], @XMM[0], @XMM[8]
@@ -2419,7 +2423,7 @@ $code.=<<___;
 	mov		r2, $key
 	mov		r4, $fp			@ preserve fp
 
-	bl		AES_decrypt
+	bl		aes_nohw_decrypt
 
 	vld1.8		{@XMM[0]}, [sp,:128]
 	veor		@XMM[0], @XMM[0], @XMM[9]
@@ -2442,7 +2446,7 @@ $code.=<<___;
 	vst1.8		{@XMM[0]}, [sp,:128]
 	mov		r2, $key
 
-	bl		AES_decrypt
+	bl		aes_nohw_decrypt
 
 	vld1.8		{@XMM[0]}, [sp,:128]
 	veor		@XMM[0], @XMM[0], @XMM[8]

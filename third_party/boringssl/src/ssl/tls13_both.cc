@@ -43,12 +43,15 @@ const uint8_t kHelloRetryRequest[SSL3_RANDOM_SIZE] = {
     0x8c, 0x5e, 0x07, 0x9e, 0x09, 0xe2, 0xc8, 0xa8, 0x33, 0x9c,
 };
 
+// See RFC 8446, section 4.1.3.
 const uint8_t kTLS12DowngradeRandom[8] = {0x44, 0x4f, 0x57, 0x4e,
                                           0x47, 0x52, 0x44, 0x00};
-
 const uint8_t kTLS13DowngradeRandom[8] = {0x44, 0x4f, 0x57, 0x4e,
                                           0x47, 0x52, 0x44, 0x01};
 
+// This is a non-standard randomly-generated value.
+const uint8_t kJDK11DowngradeRandom[8] = {0xed, 0xbf, 0xb4, 0xa8,
+                                          0xc2, 0x47, 0x10, 0xff};
 
 bool tls13_get_cert_verify_signature_input(
     SSL_HANDSHAKE *hs, Array<uint8_t> *out,
@@ -209,7 +212,8 @@ bool tls13_process_certificate(SSL_HANDSHAKE *hs, const SSLMessage &msg,
       }
       // TLS 1.3 always uses certificate keys for signing thus the correct
       // keyUsage is enforced.
-      if (!ssl_cert_check_digital_signature_key_usage(&certificate)) {
+      if (!ssl_cert_check_key_usage(&certificate,
+                                    key_usage_digital_signature)) {
         ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_ILLEGAL_PARAMETER);
         return false;
       }
@@ -415,6 +419,7 @@ bool tls13_process_finished(SSL_HANDSHAKE *hs, const SSLMessage &msg,
 bool tls13_add_certificate(SSL_HANDSHAKE *hs) {
   SSL *const ssl = hs->ssl;
   CERT *const cert = hs->config->cert.get();
+  DC *const dc = cert->dc.get();
 
   ScopedCBB cbb;
   CBB *body, body_storage, certificate_list;
@@ -438,7 +443,7 @@ bool tls13_add_certificate(SSL_HANDSHAKE *hs) {
     return false;
   }
 
-  if (!ssl_has_certificate(hs->config)) {
+  if (!ssl_has_certificate(hs)) {
     return ssl_add_message_cbb(ssl, cbb.get());
   }
 
@@ -478,6 +483,19 @@ bool tls13_add_certificate(SSL_HANDSHAKE *hs) {
         !CBB_flush(&extensions)) {
       OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
       return false;
+    }
+  }
+
+  if (ssl_signing_with_dc(hs)) {
+    const CRYPTO_BUFFER *raw = dc->raw.get();
+    if (!CBB_add_u16(&extensions, TLSEXT_TYPE_delegated_credential) ||
+        !CBB_add_u16(&extensions, CRYPTO_BUFFER_len(raw)) ||
+        !CBB_add_bytes(&extensions,
+                       CRYPTO_BUFFER_data(raw),
+                       CRYPTO_BUFFER_len(raw)) ||
+        !CBB_flush(&extensions)) {
+      OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
+      return 0;
     }
   }
 
@@ -604,6 +622,25 @@ bool tls13_add_finished(SSL_HANDSHAKE *hs) {
   return true;
 }
 
+bool tls13_add_key_update(SSL *ssl, int update_requested) {
+  ScopedCBB cbb;
+  CBB body_cbb;
+  if (!ssl->method->init_message(ssl, cbb.get(), &body_cbb,
+                                 SSL3_MT_KEY_UPDATE) ||
+      !CBB_add_u8(&body_cbb, update_requested) ||
+      !ssl_add_message_cbb(ssl, cbb.get()) ||
+      !tls13_rotate_traffic_key(ssl, evp_aead_seal)) {
+    return false;
+  }
+
+  // Suppress KeyUpdate acknowledgments until this change is written to the
+  // wire. This prevents us from accumulating write obligations when read and
+  // write progress at different rates. See RFC 8446, section 4.6.3.
+  ssl->s3->key_update_pending = true;
+
+  return true;
+}
+
 static bool tls13_receive_key_update(SSL *ssl, const SSLMessage &msg) {
   CBS body = msg.body;
   uint8_t key_update_request;
@@ -622,21 +659,9 @@ static bool tls13_receive_key_update(SSL *ssl, const SSLMessage &msg) {
 
   // Acknowledge the KeyUpdate
   if (key_update_request == SSL_KEY_UPDATE_REQUESTED &&
-      !ssl->s3->key_update_pending) {
-    ScopedCBB cbb;
-    CBB body_cbb;
-    if (!ssl->method->init_message(ssl, cbb.get(), &body_cbb,
-                                   SSL3_MT_KEY_UPDATE) ||
-        !CBB_add_u8(&body_cbb, SSL_KEY_UPDATE_NOT_REQUESTED) ||
-        !ssl_add_message_cbb(ssl, cbb.get()) ||
-        !tls13_rotate_traffic_key(ssl, evp_aead_seal)) {
-      return false;
-    }
-
-    // Suppress KeyUpdate acknowledgments until this change is written to the
-    // wire. This prevents us from accumulating write obligations when read and
-    // write progress at different rates. See RFC 8446, section 4.6.3.
-    ssl->s3->key_update_pending = true;
+      !ssl->s3->key_update_pending &&
+      !tls13_add_key_update(ssl, SSL_KEY_UPDATE_NOT_REQUESTED)) {
+    return false;
   }
 
   return true;
@@ -645,7 +670,8 @@ static bool tls13_receive_key_update(SSL *ssl, const SSLMessage &msg) {
 bool tls13_post_handshake(SSL *ssl, const SSLMessage &msg) {
   if (msg.type == SSL3_MT_KEY_UPDATE) {
     ssl->s3->key_update_count++;
-    if (ssl->s3->key_update_count > kMaxKeyUpdates) {
+    if (ssl->quic_method != nullptr ||
+        ssl->s3->key_update_count > kMaxKeyUpdates) {
       OPENSSL_PUT_ERROR(SSL, SSL_R_TOO_MANY_KEY_UPDATES);
       ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_UNEXPECTED_MESSAGE);
       return false;

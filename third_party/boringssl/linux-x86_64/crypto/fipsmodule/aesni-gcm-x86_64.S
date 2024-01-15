@@ -1,3 +1,6 @@
+# This file is generated from a similarly-named Perl script in the BoringSSL
+# source tree. Do not edit by hand.
+
 #if defined(__has_feature)
 #if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
 #define OPENSSL_NO_ASM
@@ -553,6 +556,13 @@ _aesni_ctr32_6x:
 .align	32
 aesni_gcm_encrypt:
 .cfi_startproc	
+#ifndef NDEBUG
+#ifndef BORINGSSL_FIPS
+.extern	BORINGSSL_function_hit
+.hidden BORINGSSL_function_hit
+	movb	$1,BORINGSSL_function_hit+2(%rip)
+#endif
+#endif
 	xorq	%r10,%r10
 
 

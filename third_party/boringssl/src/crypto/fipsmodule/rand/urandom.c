@@ -35,7 +35,24 @@
 #include <sys/ioctl.h>
 #endif
 #include <sys/syscall.h>
+
+#if !defined(OPENSSL_ANDROID)
+#define OPENSSL_HAS_GETAUXVAL
 #endif
+// glibc prior to 2.16 does not have getauxval and sys/auxv.h. Android has some
+// host builds (i.e. not building for Android itself, so |OPENSSL_ANDROID| is
+// unset) which are still using a 2.15 sysroot.
+//
+// TODO(davidben): Remove this once Android updates their sysroot.
+#if defined(__GLIBC_PREREQ)
+#if !__GLIBC_PREREQ(2, 16)
+#undef OPENSSL_HAS_GETAUXVAL
+#endif
+#endif
+#if defined(OPENSSL_HAS_GETAUXVAL)
+#include <sys/auxv.h>
+#endif
+#endif  // OPENSSL_LINUX
 
 #include <openssl/thread.h>
 #include <openssl/mem.h>
@@ -104,7 +121,7 @@ static ssize_t boringssl_getrandom(void *buf, size_t buf_len, unsigned flags) {
 #endif  // OPENSSL_LINUX
 
 // rand_lock is used to protect the |*_requested| variables.
-DEFINE_STATIC_MUTEX(rand_lock);
+DEFINE_STATIC_MUTEX(rand_lock)
 
 // The following constants are magic values of |urandom_fd|.
 static const int kUnset = 0;
@@ -112,12 +129,12 @@ static const int kHaveGetrandom = -3;
 
 // urandom_fd_requested is set by |RAND_set_urandom_fd|. It's protected by
 // |rand_lock|.
-DEFINE_BSS_GET(int, urandom_fd_requested);
+DEFINE_BSS_GET(int, urandom_fd_requested)
 
 // urandom_fd is a file descriptor to /dev/urandom. It's protected by |once|.
-DEFINE_BSS_GET(int, urandom_fd);
+DEFINE_BSS_GET(int, urandom_fd)
 
-DEFINE_STATIC_ONCE(rand_once);
+DEFINE_STATIC_ONCE(rand_once)
 
 // init_once initializes the state of this module to values previously
 // requested. This is the only function that modifies |urandom_fd| and
@@ -134,11 +151,21 @@ static void init_once(void) {
       boringssl_getrandom(&dummy, sizeof(dummy), GRND_NONBLOCK);
 
   if (getrandom_ret == -1 && errno == EAGAIN) {
-    fprintf(
-        stderr,
-        "getrandom indicates that the entropy pool has not been initialized. "
-        "Rather than continue with poor entropy, this process will block until "
-        "entropy is available.\n");
+    // Attempt to get the path of the current process to aid in debugging when
+    // something blocks.
+    const char *current_process = "<unknown>";
+#if defined(OPENSSL_HAS_GETAUXVAL)
+    const unsigned long getauxval_ret = getauxval(AT_EXECFN);
+    if (getauxval_ret != 0) {
+      current_process = (const char *)getauxval_ret;
+    }
+#endif
+
+    fprintf(stderr,
+            "%s: getrandom indicates that the entropy pool has not been "
+            "initialized. Rather than continue with poor entropy, this process "
+            "will block until entropy is available.\n",
+            current_process);
 
     getrandom_ret =
         boringssl_getrandom(&dummy, sizeof(dummy), 0 /* no flags */);

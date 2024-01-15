@@ -159,7 +159,7 @@ EC_KEY *EC_KEY_parse_private_key(CBS *cbs, const EC_GROUP *group) {
         (point_conversion_form_t)(CBS_data(&public_key)[0] & ~0x01);
   } else {
     // Compute the public key instead.
-    if (!ec_point_mul_scalar(group, ret->pub_key, &ret->priv_key->scalar, NULL,
+    if (!ec_point_mul_scalar(group, &ret->pub_key->raw, &ret->priv_key->scalar,
                              NULL, NULL)) {
       goto err;
     }

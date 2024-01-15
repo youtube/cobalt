@@ -54,10 +54,6 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#if !defined(__STDC_FORMAT_MACROS)
-#define __STDC_FORMAT_MACROS
-#endif
-
 #include <openssl/cpu.h>
 
 
@@ -152,23 +148,6 @@ void OPENSSL_cpuid_setup(void) {
   int is_intel = ebx == 0x756e6547 /* Genu */ &&
                  edx == 0x49656e69 /* ineI */ &&
                  ecx == 0x6c65746e /* ntel */;
-  int is_amd = ebx == 0x68747541 /* Auth */ &&
-               edx == 0x69746e65 /* enti */ &&
-               ecx == 0x444d4163 /* cAMD */;
-
-  int has_amd_xop = 0;
-  if (is_amd) {
-    // AMD-specific logic.
-    // See http://developer.amd.com/wordpress/media/2012/10/254811.pdf
-    OPENSSL_cpuid(&eax, &ebx, &ecx, &edx, 0x80000000);
-    uint32_t num_extended_ids = eax;
-    if (num_extended_ids >= 0x80000001) {
-      OPENSSL_cpuid(&eax, &ebx, &ecx, &edx, 0x80000001);
-      if (ecx & (1u << 11)) {
-        has_amd_xop = 1;
-      }
-    }
-  }
 
   uint32_t extended_features[2] = {0};
   if (num_ids >= 7) {
@@ -177,29 +156,11 @@ void OPENSSL_cpuid_setup(void) {
     extended_features[1] = ecx;
   }
 
-  // Determine the number of cores sharing an L1 data cache to adjust the
-  // hyper-threading bit.
-  uint32_t cores_per_cache = 0;
-  if (is_amd) {
-    // AMD CPUs never share an L1 data cache between threads but do set the HTT
-    // bit on multi-core CPUs.
-    cores_per_cache = 1;
-  } else if (num_ids >= 4) {
-    // TODO(davidben): The Intel manual says this CPUID leaf enumerates all
-    // caches using ECX and doesn't say which is first. Does this matter?
-    OPENSSL_cpuid(&eax, &ebx, &ecx, &edx, 4);
-    cores_per_cache = 1 + ((eax >> 14) & 0xfff);
-  }
-
   OPENSSL_cpuid(&eax, &ebx, &ecx, &edx, 1);
 
-  // Adjust the hyper-threading bit.
-  if (edx & (1u << 28)) {
-    uint32_t num_logical_cores = (ebx >> 16) & 0xff;
-    if (cores_per_cache == 1 || num_logical_cores <= 1) {
-      edx &= ~(1u << 28);
-    }
-  }
+  // Force the hyper-threading bit so that the more conservative path is always
+  // chosen.
+  edx |= 1u << 28;
 
   // Reserved bit #20 was historically repurposed to control the in-memory
   // representation of RC4 state. Always set it to zero.
@@ -220,12 +181,9 @@ void OPENSSL_cpuid_setup(void) {
     edx &= ~(1u << 30);
   }
 
-  // The SDBG bit is repurposed to denote AMD XOP support.
-  if (has_amd_xop) {
-    ecx |= (1u << 11);
-  } else {
-    ecx &= ~(1u << 11);
-  }
+  // The SDBG bit is repurposed to denote AMD XOP support. Don't ever use AMD
+  // XOP code paths.
+  ecx &= ~(1u << 11);
 
   uint64_t xcr0 = 0;
   if (ecx & (1u << 27)) {

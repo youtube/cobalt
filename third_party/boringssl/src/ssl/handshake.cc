@@ -135,6 +135,7 @@ SSL_HANDSHAKE::SSL_HANDSHAKE(SSL *ssl_arg)
       cert_request(false),
       certificate_status_expected(false),
       ocsp_stapling_requested(false),
+      delegated_credential_requested(false),
       should_ack_sni(false),
       in_false_start(false),
       in_early_data(false),
@@ -147,7 +148,8 @@ SSL_HANDSHAKE::SSL_HANDSHAKE(SSL *ssl_arg)
       pending_private_key_op(false),
       grease_seeded(false),
       handback(false),
-      cert_compression_negotiated(false) {
+      cert_compression_negotiated(false),
+      apply_jdk11_workaround(false) {
   assert(ssl);
 }
 
@@ -543,6 +545,16 @@ int ssl_run_handshake(SSL_HANDSHAKE *hs, bool *out_early_return) {
       case ssl_hs_read_server_hello:
       case ssl_hs_read_message:
       case ssl_hs_read_change_cipher_spec: {
+        if (ssl->quic_method) {
+          hs->wait = ssl_hs_ok;
+          // The change cipher spec is omitted in QUIC.
+          if (hs->wait != ssl_hs_read_change_cipher_spec) {
+            ssl->s3->rwstate = SSL_READING;
+            return -1;
+          }
+          break;
+        }
+
         uint8_t alert = SSL_AD_DECODE_ERROR;
         size_t consumed = 0;
         ssl_open_record_t ret;
