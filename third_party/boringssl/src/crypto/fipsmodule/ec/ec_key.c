@@ -267,7 +267,7 @@ int EC_KEY_set_public_key(EC_KEY *key, const EC_POINT *pub_key) {
     return 0;
   }
 
-  if (EC_GROUP_cmp(key->group, pub_key->group, NULL) != 0) {
+  if (pub_key != NULL && EC_GROUP_cmp(key->group, pub_key->group, NULL) != 0) {
     OPENSSL_PUT_ERROR(EC, EC_R_GROUP_MISMATCH);
     return 0;
   }
@@ -322,8 +322,8 @@ int EC_KEY_check_key(const EC_KEY *eckey) {
   if (eckey->priv_key != NULL) {
     point = EC_POINT_new(eckey->group);
     if (point == NULL ||
-        !ec_point_mul_scalar(eckey->group, &point->raw,
-                             &eckey->priv_key->scalar, NULL, NULL)) {
+        !ec_point_mul_scalar_base(eckey->group, &point->raw,
+                                  &eckey->priv_key->scalar)) {
       OPENSSL_PUT_ERROR(EC, ERR_R_EC_LIB);
       goto err;
     }
@@ -369,8 +369,8 @@ int EC_KEY_check_fips(const EC_KEY *key) {
   return 1;
 }
 
-int EC_KEY_set_public_key_affine_coordinates(EC_KEY *key, BIGNUM *x,
-                                             BIGNUM *y) {
+int EC_KEY_set_public_key_affine_coordinates(EC_KEY *key, const BIGNUM *x,
+                                             const BIGNUM *y) {
   EC_POINT *point = NULL;
   int ok = 0;
 
@@ -440,8 +440,7 @@ int EC_KEY_generate_key(EC_KEY *key) {
       // Generate the private key by testing candidates (FIPS 186-4 B.4.2).
       !ec_random_nonzero_scalar(key->group, &priv_key->scalar,
                                 kDefaultAdditionalData) ||
-      !ec_point_mul_scalar(key->group, &pub_key->raw, &priv_key->scalar, NULL,
-                           NULL)) {
+      !ec_point_mul_scalar_base(key->group, &pub_key->raw, &priv_key->scalar)) {
     EC_POINT_free(pub_key);
     ec_wrapped_scalar_free(priv_key);
     return 0;

@@ -135,7 +135,10 @@ func setWorkingDirectory() {
 	panic("Couldn't find BUILDING.md in a parent directory!")
 }
 
-type test []string
+type test struct {
+	args []string
+	env []string
+}
 
 func parseTestConfig(filename string) ([]test, error) {
 	in, err := os.Open(filename)
@@ -145,11 +148,22 @@ func parseTestConfig(filename string) ([]test, error) {
 	defer in.Close()
 
 	decoder := json.NewDecoder(in)
-	var result []test
+	var result [][]string
 	if err := decoder.Decode(&result); err != nil {
 		return nil, err
 	}
-	return result, nil
+
+	tests := make([]test, 0, len(result))
+	for _, args := range result {
+		var env []string
+		for len(args) > 0 && strings.HasPrefix(args[0], "$") {
+			env = append(env, args[0][1:])
+			args = args[1:]
+		}
+		tests = append(tests, test{args: args, env: env})
+	}
+
+	return tests, nil
 }
 
 func copyFile(dst, src string) error {
@@ -219,11 +233,11 @@ func main() {
 
 		seenBinary := make(map[string]struct{})
 		for _, test := range tests {
-			if _, ok := seenBinary[test[0]]; !ok {
-				binaries = append(binaries, test[0])
-				seenBinary[test[0]] = struct{}{}
+			if _, ok := seenBinary[test.args[0]]; !ok {
+				binaries = append(binaries, test.args[0])
+				seenBinary[test.args[0]] = struct{}{}
 			}
-			for _, arg := range test[1:] {
+			for _, arg := range test.args[1:] {
 				if strings.Contains(arg, "/") {
 					files = append(files, arg)
 				}
@@ -268,12 +282,39 @@ func main() {
 		}
 	}
 
+	var libraries []string
+	if _, err := os.Stat(filepath.Join(*buildDir, "crypto/libcrypto.so")); err == nil {
+		libraries = []string{
+			"libboringssl_gtest.so",
+			"crypto/libcrypto.so",
+			"decrepit/libdecrepit.so",
+			"ssl/libssl.so",
+		}
+	} else if !os.IsNotExist(err) {
+		fmt.Printf("Failed to stat crypto/libcrypto.so: %s\n", err)
+		os.Exit(1)
+	}
+
 	fmt.Printf("Copying test binaries...\n")
 	for _, binary := range binaries {
 		if err := copyFile(filepath.Join(tmpDir, "build", binary), filepath.Join(*buildDir, binary)); err != nil {
 			fmt.Printf("Failed to copy %s: %s\n", binary, err)
 			os.Exit(1)
 		}
+	}
+
+	var envPrefix string
+	if len(libraries) > 0 {
+		fmt.Printf("Copying libraries...\n")
+		for _, library := range libraries {
+			// Place all the libraries in a common directory so they
+			// can be passed to LD_LIBRARY_PATH once.
+			if err := copyFile(filepath.Join(tmpDir, "build", "lib", filepath.Base(library)), filepath.Join(*buildDir, library)); err != nil {
+				fmt.Printf("Failed to copy %s: %s\n", library, err)
+				os.Exit(1)
+			}
+		}
+		envPrefix = "env LD_LIBRARY_PATH=/data/local/tmp/boringssl-tmp/build/lib "
 	}
 
 	fmt.Printf("Copying data files...\n")
@@ -293,7 +334,7 @@ func main() {
 	var unitTestExit int
 	if enableUnitTests() {
 		fmt.Printf("Running unit tests...\n")
-		unitTestExit, err = adbShell(fmt.Sprintf("cd /data/local/tmp/boringssl-tmp && ./util/all_tests -json-output results.json %s", *allTestsArgs))
+		unitTestExit, err = adbShell(fmt.Sprintf("cd /data/local/tmp/boringssl-tmp && %s./util/all_tests -json-output results.json %s", envPrefix, *allTestsArgs))
 		if err != nil {
 			fmt.Printf("Failed to run unit tests: %s\n", err)
 			os.Exit(1)
@@ -303,7 +344,7 @@ func main() {
 	var sslTestExit int
 	if enableSSLTests() {
 		fmt.Printf("Running SSL tests...\n")
-		sslTestExit, err = adbShell(fmt.Sprintf("cd /data/local/tmp/boringssl-tmp/ssl/test/runner && ./runner -json-output ../../../results.json %s", *runnerArgs))
+		sslTestExit, err = adbShell(fmt.Sprintf("cd /data/local/tmp/boringssl-tmp/ssl/test/runner && %s./runner -json-output ../../../results.json %s", envPrefix, *runnerArgs))
 		if err != nil {
 			fmt.Printf("Failed to run SSL tests: %s\n", err)
 			os.Exit(1)

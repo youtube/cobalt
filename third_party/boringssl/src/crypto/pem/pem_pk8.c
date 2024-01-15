@@ -56,11 +56,6 @@
 
 #include <openssl/pem.h>
 
-#if !defined(OPENSSL_SYS_STARBOARD)
-#include <stdio.h>
-#endif  // !defined(OPENSSL_SYS_STARBOARD)
-
-#include <openssl/buf.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/mem.h>

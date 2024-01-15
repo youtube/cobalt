@@ -152,7 +152,6 @@
 #include <string.h>
 
 #include <openssl/bn.h>
-#include <openssl/buf.h>
 #include <openssl/bytestring.h>
 #include <openssl/cipher.h>
 #include <openssl/ec.h>
@@ -503,6 +502,54 @@ static bool is_probably_jdk11_with_tls13(const SSL_CLIENT_HELLO *client_hello) {
   return true;
 }
 
+static bool extract_sni(SSL_HANDSHAKE *hs, uint8_t *out_alert,
+                        const SSL_CLIENT_HELLO *client_hello) {
+  SSL *const ssl = hs->ssl;
+  CBS sni;
+  if (!ssl_client_hello_get_extension(client_hello, &sni,
+                                      TLSEXT_TYPE_server_name)) {
+    // No SNI extension to parse.
+    return true;
+  }
+
+  CBS server_name_list, host_name;
+  uint8_t name_type;
+  if (!CBS_get_u16_length_prefixed(&sni, &server_name_list) ||
+      !CBS_get_u8(&server_name_list, &name_type) ||
+      // Although the server_name extension was intended to be extensible to
+      // new name types and multiple names, OpenSSL 1.0.x had a bug which meant
+      // different name types will cause an error. Further, RFC 4366 originally
+      // defined syntax inextensibly. RFC 6066 corrected this mistake, but
+      // adding new name types is no longer feasible.
+      //
+      // Act as if the extensibility does not exist to simplify parsing.
+      !CBS_get_u16_length_prefixed(&server_name_list, &host_name) ||
+      CBS_len(&server_name_list) != 0 ||
+      CBS_len(&sni) != 0) {
+    *out_alert = SSL_AD_DECODE_ERROR;
+    return false;
+  }
+
+  if (name_type != TLSEXT_NAMETYPE_host_name ||
+      CBS_len(&host_name) == 0 ||
+      CBS_len(&host_name) > TLSEXT_MAXLEN_host_name ||
+      CBS_contains_zero_byte(&host_name)) {
+    *out_alert = SSL_AD_UNRECOGNIZED_NAME;
+    return false;
+  }
+
+  // Copy the hostname as a string.
+  char *raw = nullptr;
+  if (!CBS_strdup(&host_name, &raw)) {
+    *out_alert = SSL_AD_INTERNAL_ERROR;
+    return false;
+  }
+  ssl->s3->hostname.reset(raw);
+
+  hs->should_ack_sni = true;
+  return true;
+}
+
 static enum ssl_hs_wait_t do_read_client_hello(SSL_HANDSHAKE *hs) {
   SSL *const ssl = hs->ssl;
 
@@ -515,14 +562,20 @@ static enum ssl_hs_wait_t do_read_client_hello(SSL_HANDSHAKE *hs) {
     return ssl_hs_error;
   }
 
-  if (hs->config->handoff) {
-    return ssl_hs_handoff;
-  }
-
   SSL_CLIENT_HELLO client_hello;
   if (!ssl_client_hello_init(ssl, &client_hello, msg)) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_DECODE_ERROR);
     ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_DECODE_ERROR);
+    return ssl_hs_error;
+  }
+
+  if (hs->config->handoff) {
+    return ssl_hs_handoff;
+  }
+
+  uint8_t alert = SSL_AD_DECODE_ERROR;
+  if (!extract_sni(hs, &alert, &client_hello)) {
+    ssl_send_alert(ssl, SSL3_AL_FATAL, alert);
     return ssl_hs_error;
   }
 
@@ -553,7 +606,6 @@ static enum ssl_hs_wait_t do_read_client_hello(SSL_HANDSHAKE *hs) {
     hs->apply_jdk11_workaround = true;
   }
 
-  uint8_t alert = SSL_AD_DECODE_ERROR;
   if (!negotiate_version(hs, &alert, &client_hello)) {
     ssl_send_alert(ssl, SSL3_AL_FATAL, alert);
     return ssl_hs_error;
@@ -634,6 +686,8 @@ static enum ssl_hs_wait_t do_select_certificate(SSL_HANDSHAKE *hs) {
     hs->state = state12_tls13;
     return ssl_hs_ok;
   }
+
+  ssl->s3->early_data_reason = ssl_early_data_protocol_version;
 
   SSL_CLIENT_HELLO client_hello;
   if (!ssl_client_hello_init(ssl, &client_hello, msg)) {
@@ -1408,14 +1462,8 @@ static enum ssl_hs_wait_t do_read_client_certificate_verify(SSL_HANDSHAKE *hs) {
     return ssl_hs_error;
   }
 
-  bool sig_ok =
-      ssl_public_key_verify(ssl, signature, signature_algorithm,
-                            hs->peer_pubkey.get(), hs->transcript.buffer());
-#if defined(BORINGSSL_UNSAFE_FUZZER_MODE)
-  sig_ok = true;
-  ERR_clear_error();
-#endif
-  if (!sig_ok) {
+  if (!ssl_public_key_verify(ssl, signature, signature_algorithm,
+                             hs->peer_pubkey.get(), hs->transcript.buffer())) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_SIGNATURE);
     ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_DECRYPT_ERROR);
     return ssl_hs_error;

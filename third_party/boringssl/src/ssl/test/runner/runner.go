@@ -589,9 +589,6 @@ type testCase struct {
 	exportLabel          string
 	exportContext        string
 	useExportContext     bool
-	// exportEarlyKeyingMaterial, if non-zero, behaves like
-	// exportKeyingMaterial, but for the early exporter.
-	exportEarlyKeyingMaterial int
 	// flags, if not empty, contains a list of command-line flags that will
 	// be passed to the shim program.
 	flags []string
@@ -604,6 +601,9 @@ type testCase struct {
 	// sendWarningAlerts is the number of consecutive warning alerts to send
 	// before each test message.
 	sendWarningAlerts int
+	// sendUserCanceledAlerts is the number of consecutive user_canceled alerts to
+	// send before each test message.
+	sendUserCanceledAlerts int
 	// sendBogusAlertType, if true, causes a bogus alert of invalid type to
 	// be sent before each test message.
 	sendBogusAlertType bool
@@ -881,20 +881,6 @@ func doExchange(test *testCase, config *Config, conn net.Conn, isResume bool, tr
 		}
 	}
 
-	if isResume && test.exportEarlyKeyingMaterial > 0 {
-		actual := make([]byte, test.exportEarlyKeyingMaterial)
-		if _, err := io.ReadFull(tlsConn, actual); err != nil {
-			return err
-		}
-		expected, err := tlsConn.ExportEarlyKeyingMaterial(test.exportEarlyKeyingMaterial, []byte(test.exportLabel), []byte(test.exportContext))
-		if err != nil {
-			return err
-		}
-		if !bytes.Equal(actual, expected) {
-			return fmt.Errorf("early keying material mismatch; got %x, wanted %x", actual, expected)
-		}
-	}
-
 	if test.exportKeyingMaterial > 0 {
 		actual := make([]byte, test.exportKeyingMaterial)
 		if _, err := io.ReadFull(tlsConn, actual); err != nil {
@@ -1020,6 +1006,10 @@ func doExchange(test *testCase, config *Config, conn net.Conn, isResume bool, tr
 
 		for i := 0; i < test.sendWarningAlerts; i++ {
 			tlsConn.SendAlert(alertLevelWarning, alertUnexpectedMessage)
+		}
+
+		for i := 0; i < test.sendUserCanceledAlerts; i++ {
+			tlsConn.SendAlert(alertLevelWarning, alertUserCanceled)
 		}
 
 		if test.sendBogusAlertType {
@@ -1272,10 +1262,7 @@ func runTest(test *testCase, shimPath string, mallocNumToFail int64) error {
 			flags = append(flags, "-use-export-context")
 		}
 	}
-	if test.exportEarlyKeyingMaterial > 0 {
-		flags = append(flags, "-on-resume-export-early-keying-material", strconv.Itoa(test.exportEarlyKeyingMaterial))
-	}
-	if test.exportKeyingMaterial > 0 || test.exportEarlyKeyingMaterial > 0 {
+	if test.exportKeyingMaterial > 0 {
 		flags = append(flags, "-export-label", test.exportLabel)
 		flags = append(flags, "-export-context", test.exportContext)
 	}
@@ -1569,34 +1556,34 @@ type testCipherSuite struct {
 }
 
 var testCipherSuites = []testCipherSuite{
-	{"3DES-SHA", TLS_RSA_WITH_3DES_EDE_CBC_SHA},
-	{"AES128-GCM", TLS_RSA_WITH_AES_128_GCM_SHA256},
-	{"AES128-SHA", TLS_RSA_WITH_AES_128_CBC_SHA},
-	{"AES256-GCM", TLS_RSA_WITH_AES_256_GCM_SHA384},
-	{"AES256-SHA", TLS_RSA_WITH_AES_256_CBC_SHA},
-	{"ECDHE-ECDSA-AES128-GCM", TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
-	{"ECDHE-ECDSA-AES128-SHA", TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA},
-	{"ECDHE-ECDSA-AES256-GCM", TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384},
-	{"ECDHE-ECDSA-AES256-SHA", TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA},
-	{"ECDHE-ECDSA-CHACHA20-POLY1305", TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256},
-	{"ECDHE-RSA-AES128-GCM", TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
-	{"ECDHE-RSA-AES128-SHA", TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA},
-	{"ECDHE-RSA-AES256-GCM", TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384},
-	{"ECDHE-RSA-AES256-SHA", TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA},
-	{"ECDHE-RSA-CHACHA20-POLY1305", TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256},
-	{"PSK-AES128-CBC-SHA", TLS_PSK_WITH_AES_128_CBC_SHA},
-	{"PSK-AES256-CBC-SHA", TLS_PSK_WITH_AES_256_CBC_SHA},
-	{"ECDHE-PSK-AES128-CBC-SHA", TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA},
-	{"ECDHE-PSK-AES256-CBC-SHA", TLS_ECDHE_PSK_WITH_AES_256_CBC_SHA},
-	{"ECDHE-PSK-CHACHA20-POLY1305", TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256},
-	{"AEAD-CHACHA20-POLY1305", TLS_CHACHA20_POLY1305_SHA256},
-	{"AEAD-AES128-GCM-SHA256", TLS_AES_128_GCM_SHA256},
-	{"AEAD-AES256-GCM-SHA384", TLS_AES_256_GCM_SHA384},
-	{"NULL-SHA", TLS_RSA_WITH_NULL_SHA},
+	{"RSA_WITH_3DES_EDE_CBC_SHA", TLS_RSA_WITH_3DES_EDE_CBC_SHA},
+	{"RSA_WITH_AES_128_GCM_SHA256", TLS_RSA_WITH_AES_128_GCM_SHA256},
+	{"RSA_WITH_AES_128_CBC_SHA", TLS_RSA_WITH_AES_128_CBC_SHA},
+	{"RSA_WITH_AES_256_GCM_SHA384", TLS_RSA_WITH_AES_256_GCM_SHA384},
+	{"RSA_WITH_AES_256_CBC_SHA", TLS_RSA_WITH_AES_256_CBC_SHA},
+	{"ECDHE_ECDSA_WITH_AES_128_GCM_SHA256", TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
+	{"ECDHE_ECDSA_WITH_AES_128_CBC_SHA", TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA},
+	{"ECDHE_ECDSA_WITH_AES_256_GCM_SHA384", TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384},
+	{"ECDHE_ECDSA_WITH_AES_256_CBC_SHA", TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA},
+	{"ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256", TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256},
+	{"ECDHE_RSA_WITH_AES_128_GCM_SHA256", TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
+	{"ECDHE_RSA_WITH_AES_128_CBC_SHA", TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA},
+	{"ECDHE_RSA_WITH_AES_256_GCM_SHA384", TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384},
+	{"ECDHE_RSA_WITH_AES_256_CBC_SHA", TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA},
+	{"ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256", TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256},
+	{"PSK_WITH_AES_128_CBC_SHA", TLS_PSK_WITH_AES_128_CBC_SHA},
+	{"PSK_WITH_AES_256_CBC_SHA", TLS_PSK_WITH_AES_256_CBC_SHA},
+	{"ECDHE_PSK_WITH_AES_128_CBC_SHA", TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA},
+	{"ECDHE_PSK_WITH_AES_256_CBC_SHA", TLS_ECDHE_PSK_WITH_AES_256_CBC_SHA},
+	{"ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256", TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256},
+	{"CHACHA20_POLY1305_SHA256", TLS_CHACHA20_POLY1305_SHA256},
+	{"AES_128_GCM_SHA256", TLS_AES_128_GCM_SHA256},
+	{"AES_256_GCM_SHA384", TLS_AES_256_GCM_SHA384},
+	{"RSA_WITH_NULL_SHA", TLS_RSA_WITH_NULL_SHA},
 }
 
 func hasComponent(suiteName, component string) bool {
-	return strings.Contains("-"+suiteName+"-", "-"+component+"-")
+	return strings.Contains("_"+suiteName+"_", "_"+component+"_")
 }
 
 func isTLS12Only(suiteName string) bool {
@@ -1607,7 +1594,7 @@ func isTLS12Only(suiteName string) bool {
 }
 
 func isTLS13Suite(suiteName string) bool {
-	return strings.HasPrefix(suiteName, "AEAD-")
+	return !hasComponent(suiteName, "WITH")
 }
 
 func bigFromHex(hex string) *big.Int {
@@ -2610,8 +2597,28 @@ read alert 1 0
 			expectedError:      ":BAD_ALERT:",
 			expectedLocalError: "remote error: error decoding message",
 		},
+		// Although TLS 1.3 intended to remove warning alerts, it left in
+		// user_canceled. JDK11 misuses this alert as a post-handshake
+		// full-duplex signal. As a workaround, skip user_canceled as in
+		// TLS 1.2, which is consistent with NSS and OpenSSL.
 		{
-			name: "SendWarningAlerts",
+			name: "SendUserCanceledAlerts-TLS13",
+			config: Config{
+				MaxVersion: VersionTLS13,
+			},
+			sendUserCanceledAlerts: 4,
+		},
+		{
+			name: "SendUserCanceledAlerts-TooMany-TLS13",
+			config: Config{
+				MaxVersion: VersionTLS13,
+			},
+			sendUserCanceledAlerts: 5,
+			shouldFail:             true,
+			expectedError:          ":TOO_MANY_WARNING_ALERTS:",
+		},
+		{
+			name: "SendWarningAlerts-TooMany",
 			config: Config{
 				MaxVersion: VersionTLS12,
 			},
@@ -2620,7 +2627,7 @@ read alert 1 0
 			expectedError:     ":TOO_MANY_WARNING_ALERTS:",
 		},
 		{
-			name: "SendWarningAlerts-Async",
+			name: "SendWarningAlerts-TooMany-Async",
 			config: Config{
 				MaxVersion: VersionTLS12,
 			},
@@ -4403,6 +4410,7 @@ func addStateMachineCoverageTests(config stateMachineTestConfig) {
 		resumeSession: true,
 		// Ensure session tickets are used, not session IDs.
 		noSessionCache: true,
+		flags:          []string{"-expect-no-hrr"},
 	})
 	tests = append(tests, testCase{
 		name: "Basic-Client-RenewTicket",
@@ -4434,7 +4442,10 @@ func addStateMachineCoverageTests(config stateMachineTestConfig) {
 			},
 		},
 		resumeSession: true,
-		flags:         []string{"-expect-no-session-id"},
+		flags: []string{
+			"-expect-no-session-id",
+			"-expect-no-hrr",
+		},
 	})
 	tests = append(tests, testCase{
 		testType: serverTest,
@@ -4466,6 +4477,8 @@ func addStateMachineCoverageTests(config stateMachineTestConfig) {
 			},
 			resumeSession:        true,
 			resumeRenewedSession: true,
+			// 0-RTT being disabled overrides all other 0-RTT reasons.
+			flags: []string{"-expect-early-data-reason", "disabled"},
 		})
 
 		tests = append(tests, testCase{
@@ -4477,9 +4490,13 @@ func addStateMachineCoverageTests(config stateMachineTestConfig) {
 			},
 			resumeSession:        true,
 			resumeRenewedSession: true,
-			// TLS 1.3 uses tickets, so the session should not be
-			// cached statefully.
-			flags: []string{"-expect-no-session-id"},
+			flags: []string{
+				// TLS 1.3 uses tickets, so the session should not be
+				// cached statefully.
+				"-expect-no-session-id",
+				// 0-RTT being disabled overrides all other 0-RTT reasons.
+				"-expect-early-data-reason", "disabled",
+			},
 		})
 
 		tests = append(tests, testCase{
@@ -4496,6 +4513,7 @@ func addStateMachineCoverageTests(config stateMachineTestConfig) {
 			},
 			// Cover HelloRetryRequest during an ECDHE-PSK resumption.
 			resumeSession: true,
+			flags:         []string{"-expect-hrr"},
 		})
 
 		tests = append(tests, testCase{
@@ -4509,6 +4527,7 @@ func addStateMachineCoverageTests(config stateMachineTestConfig) {
 			},
 			// Cover HelloRetryRequest during an ECDHE-PSK resumption.
 			resumeSession: true,
+			flags:         []string{"-expect-hrr"},
 		})
 
 		tests = append(tests, testCase{
@@ -4532,7 +4551,7 @@ func addStateMachineCoverageTests(config stateMachineTestConfig) {
 			flags: []string{
 				"-enable-early-data",
 				"-expect-ticket-supports-early-data",
-				"-expect-accept-early-data",
+				"-on-resume-expect-accept-early-data",
 				"-on-resume-shim-writes-first",
 			},
 		})
@@ -4561,7 +4580,7 @@ func addStateMachineCoverageTests(config stateMachineTestConfig) {
 				flags: []string{
 					"-enable-early-data",
 					"-expect-ticket-supports-early-data",
-					"-expect-accept-early-data",
+					"-on-resume-expect-accept-early-data",
 					"-on-resume-read-with-unfinished-write",
 					"-on-resume-shim-writes-first",
 				},
@@ -4612,7 +4631,7 @@ func addStateMachineCoverageTests(config stateMachineTestConfig) {
 			resumeSession: true,
 			flags: []string{
 				"-enable-early-data",
-				"-expect-accept-early-data",
+				"-on-resume-expect-accept-early-data",
 			},
 			shouldFail:    true,
 			expectedError: ":TOO_MUCH_READ_EARLY_DATA:",
@@ -5277,6 +5296,18 @@ func addStateMachineCoverageTests(config stateMachineTestConfig) {
 			renegotiate: 1,
 			flags: []string{
 				"-renegotiate-freely",
+				"-expect-total-renegotiations", "1",
+			},
+		})
+
+		tests = append(tests, testCase{
+			name: "Renegotiate-Client-Explicit",
+			config: Config{
+				MaxVersion: VersionTLS12,
+			},
+			renegotiate: 1,
+			flags: []string{
+				"-renegotiate-explicit",
 				"-expect-total-renegotiations", "1",
 			},
 		})
@@ -6663,7 +6694,7 @@ func addExtensionTests() {
 			flags: []string{
 				"-token-binding-params",
 				base64.StdEncoding.EncodeToString([]byte{2, 1, 0}),
-				"-expected-token-binding-param",
+				"-expect-token-binding-param",
 				"2",
 			},
 		})
@@ -6712,7 +6743,7 @@ func addExtensionTests() {
 			flags: []string{
 				"-token-binding-params",
 				base64.StdEncoding.EncodeToString([]byte{2, 1, 0}),
-				"-expected-token-binding-param",
+				"-expect-token-binding-param",
 				"2",
 			},
 		})
@@ -6748,7 +6779,7 @@ func addExtensionTests() {
 			flags: []string{
 				"-token-binding-params",
 				base64.StdEncoding.EncodeToString([]byte{2, 1, 0}),
-				"-expected-token-binding-param",
+				"-expect-token-binding-param",
 				"2",
 			},
 		})
@@ -6766,7 +6797,7 @@ func addExtensionTests() {
 			flags: []string{
 				"-token-binding-params",
 				base64.StdEncoding.EncodeToString([]byte{0, 1, 2}),
-				"-expected-token-binding-param",
+				"-expect-token-binding-param",
 				"2",
 			},
 		})
@@ -6797,7 +6828,7 @@ func addExtensionTests() {
 			flags: []string{
 				"-token-binding-params",
 				base64.StdEncoding.EncodeToString([]byte{0, 1, 2}),
-				"-expected-token-binding-param",
+				"-expect-token-binding-param",
 				"2",
 			},
 			shouldFail:    true,
@@ -6817,7 +6848,7 @@ func addExtensionTests() {
 			flags: []string{
 				"-token-binding-params",
 				base64.StdEncoding.EncodeToString([]byte{0, 1, 2}),
-				"-expected-token-binding-param",
+				"-expect-token-binding-param",
 				"2",
 			},
 			shouldFail:    true,
@@ -6837,7 +6868,7 @@ func addExtensionTests() {
 			flags: []string{
 				"-token-binding-params",
 				base64.StdEncoding.EncodeToString([]byte{0, 1, 2}),
-				"-expected-token-binding-param",
+				"-expect-token-binding-param",
 				"2",
 			},
 			shouldFail:    true,
@@ -6873,7 +6904,7 @@ func addExtensionTests() {
 			flags: []string{
 				"-token-binding-params",
 				base64.StdEncoding.EncodeToString([]byte{0, 1, 2}),
-				"-expected-token-binding-param",
+				"-expect-token-binding-param",
 				"2",
 			},
 		})
@@ -7018,6 +7049,8 @@ func addExtensionTests() {
 					"-expect-ticket-supports-early-data",
 					"-token-binding-params",
 					base64.StdEncoding.EncodeToString([]byte{2, 1, 0}),
+					"-expect-reject-early-data",
+					"-on-retry-expect-early-data-reason", "token_binding",
 				},
 			})
 		}
@@ -7036,7 +7069,7 @@ func addExtensionTests() {
 				flags: []string{
 					"-quic-transport-params",
 					base64.StdEncoding.EncodeToString([]byte{3, 4}),
-					"-expected-quic-transport-params",
+					"-expect-quic-transport-params",
 					base64.StdEncoding.EncodeToString([]byte{1, 2}),
 				},
 				expectedQUICTransportParams: []byte{3, 4},
@@ -7053,7 +7086,7 @@ func addExtensionTests() {
 				flags: []string{
 					"-quic-transport-params",
 					base64.StdEncoding.EncodeToString([]byte{3, 4}),
-					"-expected-quic-transport-params",
+					"-expect-quic-transport-params",
 					base64.StdEncoding.EncodeToString([]byte{1, 2}),
 				},
 				expectedQUICTransportParams: []byte{3, 4},
@@ -7097,7 +7130,7 @@ func addExtensionTests() {
 					QUICTransportParams: []byte{1, 2},
 				},
 				flags: []string{
-					"-expected-quic-transport-params",
+					"-expect-quic-transport-params",
 					base64.StdEncoding.EncodeToString([]byte{1, 2}),
 				},
 				shouldFail:    true,
@@ -8045,94 +8078,132 @@ func addResumptionVersionTests() {
 		expectedError: ":OLD_SESSION_PRF_HASH_MISMATCH:",
 	})
 
-	testCases = append(testCases, testCase{
-		testType:      serverTest,
-		name:          "Resume-Server-BinderWrongLength",
-		resumeSession: true,
-		config: Config{
-			MaxVersion: VersionTLS13,
-			Bugs: ProtocolBugs{
-				SendShortPSKBinder: true,
+	for _, secondBinder := range []bool{false, true} {
+		var suffix string
+		var defaultCurves []CurveID
+		if secondBinder {
+			suffix = "-SecondBinder"
+			// Force a HelloRetryRequest by predicting an empty curve list.
+			defaultCurves = []CurveID{}
+		}
+
+		testCases = append(testCases, testCase{
+			testType:      serverTest,
+			name:          "Resume-Server-BinderWrongLength" + suffix,
+			resumeSession: true,
+			config: Config{
+				MaxVersion:    VersionTLS13,
+				DefaultCurves: defaultCurves,
+				Bugs: ProtocolBugs{
+					SendShortPSKBinder:         true,
+					OnlyCorruptSecondPSKBinder: secondBinder,
+				},
 			},
-		},
-		shouldFail:         true,
-		expectedLocalError: "remote error: error decrypting message",
-		expectedError:      ":DIGEST_CHECK_FAILED:",
-	})
+			shouldFail:         true,
+			expectedLocalError: "remote error: error decrypting message",
+			expectedError:      ":DIGEST_CHECK_FAILED:",
+		})
+
+		testCases = append(testCases, testCase{
+			testType:      serverTest,
+			name:          "Resume-Server-NoPSKBinder" + suffix,
+			resumeSession: true,
+			config: Config{
+				MaxVersion:    VersionTLS13,
+				DefaultCurves: defaultCurves,
+				Bugs: ProtocolBugs{
+					SendNoPSKBinder:            true,
+					OnlyCorruptSecondPSKBinder: secondBinder,
+				},
+			},
+			shouldFail:         true,
+			expectedLocalError: "remote error: error decoding message",
+			expectedError:      ":DECODE_ERROR:",
+		})
+
+		testCases = append(testCases, testCase{
+			testType:      serverTest,
+			name:          "Resume-Server-ExtraPSKBinder" + suffix,
+			resumeSession: true,
+			config: Config{
+				MaxVersion:    VersionTLS13,
+				DefaultCurves: defaultCurves,
+				Bugs: ProtocolBugs{
+					SendExtraPSKBinder:         true,
+					OnlyCorruptSecondPSKBinder: secondBinder,
+				},
+			},
+			shouldFail:         true,
+			expectedLocalError: "remote error: illegal parameter",
+			expectedError:      ":PSK_IDENTITY_BINDER_COUNT_MISMATCH:",
+		})
+
+		testCases = append(testCases, testCase{
+			testType:      serverTest,
+			name:          "Resume-Server-ExtraIdentityNoBinder" + suffix,
+			resumeSession: true,
+			config: Config{
+				MaxVersion:    VersionTLS13,
+				DefaultCurves: defaultCurves,
+				Bugs: ProtocolBugs{
+					ExtraPSKIdentity:           true,
+					OnlyCorruptSecondPSKBinder: secondBinder,
+				},
+			},
+			shouldFail:         true,
+			expectedLocalError: "remote error: illegal parameter",
+			expectedError:      ":PSK_IDENTITY_BINDER_COUNT_MISMATCH:",
+		})
+
+		testCases = append(testCases, testCase{
+			testType:      serverTest,
+			name:          "Resume-Server-InvalidPSKBinder" + suffix,
+			resumeSession: true,
+			config: Config{
+				MaxVersion:    VersionTLS13,
+				DefaultCurves: defaultCurves,
+				Bugs: ProtocolBugs{
+					SendInvalidPSKBinder:       true,
+					OnlyCorruptSecondPSKBinder: secondBinder,
+				},
+			},
+			shouldFail:         true,
+			expectedLocalError: "remote error: error decrypting message",
+			expectedError:      ":DIGEST_CHECK_FAILED:",
+		})
+
+		testCases = append(testCases, testCase{
+			testType:      serverTest,
+			name:          "Resume-Server-PSKBinderFirstExtension" + suffix,
+			resumeSession: true,
+			config: Config{
+				MaxVersion:    VersionTLS13,
+				DefaultCurves: defaultCurves,
+				Bugs: ProtocolBugs{
+					PSKBinderFirst:             true,
+					OnlyCorruptSecondPSKBinder: secondBinder,
+				},
+			},
+			shouldFail:         true,
+			expectedLocalError: "remote error: illegal parameter",
+			expectedError:      ":PRE_SHARED_KEY_MUST_BE_LAST:",
+		})
+	}
 
 	testCases = append(testCases, testCase{
 		testType:      serverTest,
-		name:          "Resume-Server-NoPSKBinder",
+		name:          "Resume-Server-OmitPSKsOnSecondClientHello",
 		resumeSession: true,
 		config: Config{
-			MaxVersion: VersionTLS13,
+			MaxVersion:    VersionTLS13,
+			DefaultCurves: []CurveID{},
 			Bugs: ProtocolBugs{
-				SendNoPSKBinder: true,
-			},
-		},
-		shouldFail:         true,
-		expectedLocalError: "remote error: error decoding message",
-		expectedError:      ":DECODE_ERROR:",
-	})
-
-	testCases = append(testCases, testCase{
-		testType:      serverTest,
-		name:          "Resume-Server-ExtraPSKBinder",
-		resumeSession: true,
-		config: Config{
-			MaxVersion: VersionTLS13,
-			Bugs: ProtocolBugs{
-				SendExtraPSKBinder: true,
+				OmitPSKsOnSecondClientHello: true,
 			},
 		},
 		shouldFail:         true,
 		expectedLocalError: "remote error: illegal parameter",
-		expectedError:      ":PSK_IDENTITY_BINDER_COUNT_MISMATCH:",
-	})
-
-	testCases = append(testCases, testCase{
-		testType:      serverTest,
-		name:          "Resume-Server-ExtraIdentityNoBinder",
-		resumeSession: true,
-		config: Config{
-			MaxVersion: VersionTLS13,
-			Bugs: ProtocolBugs{
-				ExtraPSKIdentity: true,
-			},
-		},
-		shouldFail:         true,
-		expectedLocalError: "remote error: illegal parameter",
-		expectedError:      ":PSK_IDENTITY_BINDER_COUNT_MISMATCH:",
-	})
-
-	testCases = append(testCases, testCase{
-		testType:      serverTest,
-		name:          "Resume-Server-InvalidPSKBinder",
-		resumeSession: true,
-		config: Config{
-			MaxVersion: VersionTLS13,
-			Bugs: ProtocolBugs{
-				SendInvalidPSKBinder: true,
-			},
-		},
-		shouldFail:         true,
-		expectedLocalError: "remote error: error decrypting message",
-		expectedError:      ":DIGEST_CHECK_FAILED:",
-	})
-
-	testCases = append(testCases, testCase{
-		testType:      serverTest,
-		name:          "Resume-Server-PSKBinderFirstExtension",
-		resumeSession: true,
-		config: Config{
-			MaxVersion: VersionTLS13,
-			Bugs: ProtocolBugs{
-				PSKBinderFirst: true,
-			},
-		},
-		shouldFail:         true,
-		expectedLocalError: "remote error: illegal parameter",
-		expectedError:      ":PRE_SHARED_KEY_MUST_BE_LAST:",
+		expectedError:      ":INCONSISTENT_CLIENT_HELLO:",
 	})
 }
 
@@ -8712,21 +8783,21 @@ var testSignatureAlgorithms = []struct {
 	id   signatureAlgorithm
 	cert testCert
 }{
-	{"RSA-PKCS1-SHA1", signatureRSAPKCS1WithSHA1, testCertRSA},
-	{"RSA-PKCS1-SHA256", signatureRSAPKCS1WithSHA256, testCertRSA},
-	{"RSA-PKCS1-SHA384", signatureRSAPKCS1WithSHA384, testCertRSA},
-	{"RSA-PKCS1-SHA512", signatureRSAPKCS1WithSHA512, testCertRSA},
-	{"ECDSA-SHA1", signatureECDSAWithSHA1, testCertECDSAP256},
+	{"RSA_PKCS1_SHA1", signatureRSAPKCS1WithSHA1, testCertRSA},
+	{"RSA_PKCS1_SHA256", signatureRSAPKCS1WithSHA256, testCertRSA},
+	{"RSA_PKCS1_SHA384", signatureRSAPKCS1WithSHA384, testCertRSA},
+	{"RSA_PKCS1_SHA512", signatureRSAPKCS1WithSHA512, testCertRSA},
+	{"ECDSA_SHA1", signatureECDSAWithSHA1, testCertECDSAP256},
 	// The “P256” in the following line is not a mistake. In TLS 1.2 the
 	// hash function doesn't have to match the curve and so the same
 	// signature algorithm works with P-224.
-	{"ECDSA-P224-SHA256", signatureECDSAWithP256AndSHA256, testCertECDSAP224},
-	{"ECDSA-P256-SHA256", signatureECDSAWithP256AndSHA256, testCertECDSAP256},
-	{"ECDSA-P384-SHA384", signatureECDSAWithP384AndSHA384, testCertECDSAP384},
-	{"ECDSA-P521-SHA512", signatureECDSAWithP521AndSHA512, testCertECDSAP521},
-	{"RSA-PSS-SHA256", signatureRSAPSSWithSHA256, testCertRSA},
-	{"RSA-PSS-SHA384", signatureRSAPSSWithSHA384, testCertRSA},
-	{"RSA-PSS-SHA512", signatureRSAPSSWithSHA512, testCertRSA},
+	{"ECDSA_P224_SHA256", signatureECDSAWithP256AndSHA256, testCertECDSAP224},
+	{"ECDSA_P256_SHA256", signatureECDSAWithP256AndSHA256, testCertECDSAP256},
+	{"ECDSA_P384_SHA384", signatureECDSAWithP384AndSHA384, testCertECDSAP384},
+	{"ECDSA_P521_SHA512", signatureECDSAWithP521AndSHA512, testCertECDSAP521},
+	{"RSA_PSS_SHA256", signatureRSAPSSWithSHA256, testCertRSA},
+	{"RSA_PSS_SHA384", signatureRSAPSSWithSHA384, testCertRSA},
+	{"RSA_PSS_SHA512", signatureRSAPSSWithSHA512, testCertRSA},
 	{"Ed25519", signatureEd25519, testCertEd25519},
 	// Tests for key types prior to TLS 1.2.
 	{"RSA", 0, testCertRSA},
@@ -10129,113 +10200,13 @@ func addExportKeyingMaterialTests() {
 				flags: []string{
 					"-enable-early-data",
 					"-expect-ticket-supports-early-data",
-					"-expect-accept-early-data",
+					"-on-resume-expect-accept-early-data",
 					"-on-resume-export-keying-material", "1024",
 					"-on-resume-export-label", "label",
 					"-on-resume-export-context", "context",
 				},
 				shouldFail:    true,
 				expectedError: ":HANDSHAKE_NOT_COMPLETE:",
-			})
-
-			// Test the early exporter works while the client is
-			// sending 0-RTT data. This data arrives during the
-			// server handshake, so we test it with ProtocolBugs.
-			testCases = append(testCases, testCase{
-				name: "ExportEarlyKeyingMaterial-Client-InEarlyData-" + vers.name,
-				config: Config{
-					MaxVersion:       vers.version,
-					MaxEarlyDataSize: 16384,
-				},
-				resumeConfig: &Config{
-					MaxVersion:       vers.version,
-					MaxEarlyDataSize: 16384,
-					Bugs: ProtocolBugs{
-						ExpectEarlyKeyingMaterial: 1024,
-						ExpectEarlyKeyingLabel:    "label",
-						ExpectEarlyKeyingContext:  "context",
-					},
-				},
-				resumeSession: true,
-				flags: []string{
-					"-enable-early-data",
-					"-expect-ticket-supports-early-data",
-					"-expect-accept-early-data",
-					"-on-resume-export-early-keying-material", "1024",
-					"-on-resume-export-label", "label",
-					"-on-resume-export-context", "context",
-				},
-			})
-
-			// Test the early exporter still works on the client
-			// after the handshake is confirmed. This arrives after
-			// the server handshake, so the normal hooks work.
-			testCases = append(testCases, testCase{
-				name: "ExportEarlyKeyingMaterial-Client-EarlyDataAccept-" + vers.name,
-				config: Config{
-					MaxVersion:       vers.version,
-					MaxEarlyDataSize: 16384,
-				},
-				resumeConfig: &Config{
-					MaxVersion:       vers.version,
-					MaxEarlyDataSize: 16384,
-				},
-				resumeSession:             true,
-				exportEarlyKeyingMaterial: 1024,
-				exportLabel:               "label",
-				exportContext:             "context",
-				flags: []string{
-					"-enable-early-data",
-					"-expect-ticket-supports-early-data",
-					"-expect-accept-early-data",
-					// Handshake twice on the client to force
-					// handshake confirmation.
-					"-handshake-twice",
-				},
-			})
-
-			// Test the early exporter does not work on the client
-			// if 0-RTT was not offered.
-			testCases = append(testCases, testCase{
-				name: "NoExportEarlyKeyingMaterial-Client-Initial-" + vers.name,
-				config: Config{
-					MaxVersion: vers.version,
-				},
-				flags:         []string{"-export-early-keying-material", "1024"},
-				shouldFail:    true,
-				expectedError: ":EARLY_DATA_NOT_IN_USE:",
-			})
-			testCases = append(testCases, testCase{
-				name: "NoExportEarlyKeyingMaterial-Client-Resume-" + vers.name,
-				config: Config{
-					MaxVersion: vers.version,
-				},
-				resumeSession: true,
-				flags:         []string{"-on-resume-export-early-keying-material", "1024"},
-				shouldFail:    true,
-				expectedError: ":EARLY_DATA_NOT_IN_USE:",
-			})
-
-			// Test the early exporter does not work on the client
-			// after a 0-RTT reject.
-			testCases = append(testCases, testCase{
-				name: "NoExportEarlyKeyingMaterial-Client-EarlyDataReject-" + vers.name,
-				config: Config{
-					MaxVersion:       vers.version,
-					MaxEarlyDataSize: 16384,
-					Bugs: ProtocolBugs{
-						AlwaysRejectEarlyData: true,
-					},
-				},
-				resumeSession: true,
-				flags: []string{
-					"-enable-early-data",
-					"-expect-ticket-supports-early-data",
-					"-expect-reject-early-data",
-					"-on-retry-export-early-keying-material", "1024",
-				},
-				shouldFail:    true,
-				expectedError: ":EARLY_DATA_NOT_IN_USE:",
 			})
 
 			// Test the normal exporter on the server in half-RTT.
@@ -10255,75 +10226,6 @@ func addExportKeyingMaterialTests() {
 				exportContext:        "context",
 				useExportContext:     true,
 				flags:                []string{"-enable-early-data"},
-			})
-
-			// Test the early exporter works on the server in half-RTT.
-			testCases = append(testCases, testCase{
-				testType: serverTest,
-				name:     "ExportEarlyKeyingMaterial-Server-HalfRTT-" + vers.name,
-				config: Config{
-					MaxVersion: vers.version,
-					Bugs: ProtocolBugs{
-						SendEarlyData:           [][]byte{},
-						ExpectEarlyDataAccepted: true,
-					},
-				},
-				resumeSession:             true,
-				exportEarlyKeyingMaterial: 1024,
-				exportLabel:               "label",
-				exportContext:             "context",
-				flags:                     []string{"-enable-early-data"},
-			})
-
-			// Test the early exporter does not work on the server
-			// if 0-RTT was not offered.
-			testCases = append(testCases, testCase{
-				testType: serverTest,
-				name:     "NoExportEarlyKeyingMaterial-Server-Initial-" + vers.name,
-				config: Config{
-					MaxVersion: vers.version,
-				},
-				flags:         []string{"-export-early-keying-material", "1024"},
-				shouldFail:    true,
-				expectedError: ":EARLY_DATA_NOT_IN_USE:",
-			})
-			testCases = append(testCases, testCase{
-				testType: serverTest,
-				name:     "NoExportEarlyKeyingMaterial-Server-Resume-" + vers.name,
-				config: Config{
-					MaxVersion: vers.version,
-				},
-				resumeSession: true,
-				flags:         []string{"-on-resume-export-early-keying-material", "1024"},
-				shouldFail:    true,
-				expectedError: ":EARLY_DATA_NOT_IN_USE:",
-			})
-		} else {
-			// Test the early exporter fails before TLS 1.3.
-			testCases = append(testCases, testCase{
-				name: "NoExportEarlyKeyingMaterial-Client-" + vers.name,
-				config: Config{
-					MaxVersion: vers.version,
-				},
-				resumeSession:             true,
-				exportEarlyKeyingMaterial: 1024,
-				exportLabel:               "label",
-				exportContext:             "context",
-				shouldFail:                true,
-				expectedError:             ":WRONG_SSL_VERSION:",
-			})
-			testCases = append(testCases, testCase{
-				testType: serverTest,
-				name:     "NoExportEarlyKeyingMaterial-Server-" + vers.name,
-				config: Config{
-					MaxVersion: vers.version,
-				},
-				resumeSession:             true,
-				exportEarlyKeyingMaterial: 1024,
-				exportLabel:               "label",
-				exportContext:             "context",
-				shouldFail:                true,
-				expectedError:             ":WRONG_SSL_VERSION:",
 			})
 		}
 	}
@@ -10584,10 +10486,14 @@ var testCurves = []struct {
 
 const bogusCurve = 0x1234
 
+func isPqGroup(r CurveID) bool {
+	return r == CurveCECPQ2
+}
+
 func addCurveTests() {
 	for _, curve := range testCurves {
 		for _, ver := range tlsVersions {
-			if curve.id == CurveCECPQ2 && ver.version < VersionTLS13 {
+			if isPqGroup(curve.id) && ver.version < VersionTLS13 {
 				continue
 			}
 
@@ -10629,7 +10535,7 @@ func addCurveTests() {
 				expectedCurveID: curve.id,
 			})
 
-			if curve.id != CurveX25519 && curve.id != CurveCECPQ2 {
+			if curve.id != CurveX25519 && !isPqGroup(curve.id) {
 				testCases = append(testCases, testCase{
 					name: "CurveTest-Client-Compressed-" + suffix,
 					config: Config{
@@ -11322,9 +11228,99 @@ func addSessionTicketTests() {
 		},
 	})
 
+	// Test that ticket age skew up to 60 seconds in either direction is accepted.
+	testCases = append(testCases, testCase{
+		testType: serverTest,
+		name:     "TLS13-TicketAgeSkew-Forward-60-Accept",
+		config: Config{
+			MaxVersion: VersionTLS13,
+			Bugs: ProtocolBugs{
+				SendTicketAge:           70 * time.Second,
+				SendEarlyData:           [][]byte{{1, 2, 3, 4}},
+				ExpectEarlyDataAccepted: true,
+				ExpectHalfRTTData:       [][]byte{{254, 253, 252, 251}},
+			},
+		},
+		resumeSession: true,
+		flags: []string{
+			"-resumption-delay", "10",
+			"-expect-ticket-age-skew", "60",
+			// 0-RTT is accepted.
+			"-enable-early-data",
+			"-on-resume-expect-accept-early-data",
+			"-on-resume-expect-early-data-reason", "accept",
+		},
+	})
+	testCases = append(testCases, testCase{
+		testType: serverTest,
+		name:     "TLS13-TicketAgeSkew-Backward-60-Accept",
+		config: Config{
+			MaxVersion: VersionTLS13,
+			Bugs: ProtocolBugs{
+				SendTicketAge:           10 * time.Second,
+				SendEarlyData:           [][]byte{{1, 2, 3, 4}},
+				ExpectEarlyDataAccepted: true,
+				ExpectHalfRTTData:       [][]byte{{254, 253, 252, 251}},
+			},
+		},
+		resumeSession: true,
+		flags: []string{
+			"-resumption-delay", "70",
+			"-expect-ticket-age-skew", "-60",
+			// 0-RTT is accepted.
+			"-enable-early-data",
+			"-on-resume-expect-accept-early-data",
+			"-on-resume-expect-early-data-reason", "accept",
+		},
+	})
+
+	// Test that ticket age skew beyond 60 seconds in either direction is rejected.
+	testCases = append(testCases, testCase{
+		testType: serverTest,
+		name:     "TLS13-TicketAgeSkew-Forward-61-Reject",
+		config: Config{
+			MaxVersion: VersionTLS13,
+			Bugs: ProtocolBugs{
+				SendTicketAge:           71 * time.Second,
+				SendEarlyData:           [][]byte{{1, 2, 3, 4}},
+				ExpectEarlyDataAccepted: false,
+			},
+		},
+		resumeSession: true,
+		flags: []string{
+			"-resumption-delay", "10",
+			"-expect-ticket-age-skew", "61",
+			// 0-RTT is rejected.
+			"-enable-early-data",
+			"-expect-reject-early-data",
+			"-on-resume-expect-early-data-reason", "ticket_age_skew",
+		},
+	})
+	testCases = append(testCases, testCase{
+		testType: serverTest,
+		name:     "TLS13-TicketAgeSkew-Backward-61-Reject",
+		config: Config{
+			MaxVersion: VersionTLS13,
+			Bugs: ProtocolBugs{
+				SendTicketAge:           10 * time.Second,
+				SendEarlyData:           [][]byte{{1, 2, 3, 4}},
+				ExpectEarlyDataAccepted: false,
+			},
+		},
+		resumeSession: true,
+		flags: []string{
+			"-resumption-delay", "71",
+			"-expect-ticket-age-skew", "-61",
+			// 0-RTT is rejected.
+			"-enable-early-data",
+			"-expect-reject-early-data",
+			"-on-resume-expect-early-data-reason", "ticket_age_skew",
+		},
+	})
+
 	testCases = append(testCases, testCase{
 		testType: clientTest,
-		name:     "TLS13-SendTicketEarlyDataInfo",
+		name:     "TLS13-SendTicketEarlyDataSupport",
 		config: Config{
 			MaxVersion:       VersionTLS13,
 			MaxEarlyDataSize: 16384,
@@ -11335,19 +11331,22 @@ func addSessionTicketTests() {
 		},
 	})
 
-	// Test that 0-RTT tickets are ignored in clients unless opted in.
+	// Test that 0-RTT tickets are still recorded as such when early data is disabled overall.
 	testCases = append(testCases, testCase{
 		testType: clientTest,
-		name:     "TLS13-SendTicketEarlyDataInfo-Disabled",
+		name:     "TLS13-SendTicketEarlyDataSupport-Disabled",
 		config: Config{
 			MaxVersion:       VersionTLS13,
 			MaxEarlyDataSize: 16384,
+		},
+		flags: []string{
+			"-expect-ticket-supports-early-data",
 		},
 	})
 
 	testCases = append(testCases, testCase{
 		testType: clientTest,
-		name:     "TLS13-DuplicateTicketEarlyDataInfo",
+		name:     "TLS13-DuplicateTicketEarlyDataSupport",
 		config: Config{
 			MaxVersion:       VersionTLS13,
 			MaxEarlyDataSize: 16384,
@@ -11362,7 +11361,7 @@ func addSessionTicketTests() {
 
 	testCases = append(testCases, testCase{
 		testType: serverTest,
-		name:     "TLS13-ExpectTicketEarlyDataInfo",
+		name:     "TLS13-ExpectTicketEarlyDataSupport",
 		config: Config{
 			MaxVersion: VersionTLS13,
 			Bugs: ProtocolBugs{
@@ -12329,7 +12328,9 @@ func addTLS13HandshakeTests() {
 		flags: []string{
 			"-enable-early-data",
 			"-expect-ticket-supports-early-data",
-			"-expect-accept-early-data",
+			"-on-initial-expect-early-data-reason", "no_session_offered",
+			"-on-resume-expect-accept-early-data",
+			"-on-resume-expect-early-data-reason", "accept",
 			"-on-resume-shim-writes-first",
 		},
 	})
@@ -12354,6 +12355,7 @@ func addTLS13HandshakeTests() {
 			"-expect-ticket-supports-early-data",
 			"-expect-reject-early-data",
 			"-on-resume-shim-writes-first",
+			"-on-retry-expect-early-data-reason", "peer_declined",
 		},
 	})
 
@@ -12373,10 +12375,14 @@ func addTLS13HandshakeTests() {
 		resumeSession: true,
 		flags: []string{
 			"-enable-early-data",
-			"-expect-accept-early-data",
+			"-on-initial-expect-early-data-reason", "no_session_offered",
+			"-on-resume-expect-accept-early-data",
+			"-on-resume-expect-early-data-reason", "accept",
 		},
 	})
 
+	// The above tests the most recent ticket. Additionally test that 0-RTT
+	// works on the first ticket issued by the server.
 	testCases = append(testCases, testCase{
 		testType: serverTest,
 		name:     "EarlyData-FirstTicket-Server-TLS13",
@@ -12394,7 +12400,8 @@ func addTLS13HandshakeTests() {
 		resumeSession: true,
 		flags: []string{
 			"-enable-early-data",
-			"-expect-accept-early-data",
+			"-on-resume-expect-accept-early-data",
+			"-on-resume-expect-early-data-reason", "accept",
 		},
 	})
 
@@ -12463,6 +12470,9 @@ func addTLS13HandshakeTests() {
 			},
 			DefaultCurves: []CurveID{},
 		},
+		// Though the session is not resumed and we send HelloRetryRequest,
+		// early data being disabled takes priority as the reject reason.
+		flags: []string{"-expect-early-data-reason", "disabled"},
 	})
 
 	testCases = append(testCases, testCase{
@@ -12561,6 +12571,7 @@ func addTLS13HandshakeTests() {
 			CurvePreferences: []CurveID{CurveX25519},
 		},
 		expectedCurveID: CurveX25519,
+		flags:           []string{"-expect-hrr"},
 	})
 
 	testCases = append(testCases, testCase{
@@ -12574,6 +12585,7 @@ func addTLS13HandshakeTests() {
 		// Although the ClientHello did not predict our preferred curve,
 		// we always select it whether it is predicted or not.
 		expectedCurveID: CurveX25519,
+		flags:           []string{"-expect-hrr"},
 	})
 
 	testCases = append(testCases, testCase{
@@ -12979,6 +12991,8 @@ func addTLS13HandshakeTests() {
 			},
 		},
 	})
+
+	// Test the client handles 0-RTT being rejected by a full handshake.
 	testCases = append(testCases, testCase{
 		testType: clientTest,
 		name:     "EarlyData-RejectTicket-Client-TLS13",
@@ -13000,6 +13014,9 @@ func addTLS13HandshakeTests() {
 			"-expect-ticket-supports-early-data",
 			"-expect-reject-early-data",
 			"-on-resume-shim-writes-first",
+			"-on-retry-expect-early-data-reason", "session_not_resumed",
+			// Test the peer certificate is reported correctly in each of the
+			// three logical connections.
 			"-on-initial-expect-peer-cert-file", path.Join(*resourceDir, rsaCertificateFile),
 			"-on-resume-expect-peer-cert-file", path.Join(*resourceDir, rsaCertificateFile),
 			"-on-retry-expect-peer-cert-file", path.Join(*resourceDir, ecdsaP256CertificateFile),
@@ -13008,6 +13025,34 @@ func addTLS13HandshakeTests() {
 		},
 	})
 
+	// Test the server rejects 0-RTT if it does not recognize the ticket.
+	testCases = append(testCases, testCase{
+		testType: serverTest,
+		name:     "EarlyData-RejectTicket-Server-TLS13",
+		config: Config{
+			MaxVersion: VersionTLS13,
+			MinVersion: VersionTLS13,
+			Bugs: ProtocolBugs{
+				SendEarlyData:           [][]byte{{1, 2, 3, 4}},
+				ExpectEarlyDataAccepted: false,
+				// Corrupt the ticket.
+				FilterTicket: func(in []byte) ([]byte, error) {
+					in[len(in)-1] ^= 1
+					return in, nil
+				},
+			},
+		},
+		messageCount:         2,
+		resumeSession:        true,
+		expectResumeRejected: true,
+		flags: []string{
+			"-enable-early-data",
+			"-on-resume-expect-reject-early-data",
+			"-on-resume-expect-early-data-reason", "session_not_resumed",
+		},
+	})
+
+	// Test the client handles 0-RTT being rejected via a HelloRetryRequest.
 	testCases = append(testCases, testCase{
 		testType: clientTest,
 		name:     "EarlyData-HRR-Client-TLS13",
@@ -13027,6 +13072,99 @@ func addTLS13HandshakeTests() {
 			"-enable-early-data",
 			"-expect-ticket-supports-early-data",
 			"-expect-reject-early-data",
+			"-on-retry-expect-early-data-reason", "hello_retry_request",
+		},
+	})
+
+	// Test the server rejects 0-RTT if it needs to send a HelloRetryRequest.
+	testCases = append(testCases, testCase{
+		testType: serverTest,
+		name:     "EarlyData-HRR-Server-TLS13",
+		config: Config{
+			MaxVersion: VersionTLS13,
+			MinVersion: VersionTLS13,
+			// Require a HelloRetryRequest for every curve.
+			DefaultCurves: []CurveID{},
+			Bugs: ProtocolBugs{
+				SendEarlyData:           [][]byte{{1, 2, 3, 4}},
+				ExpectEarlyDataAccepted: false,
+			},
+		},
+		messageCount:  2,
+		resumeSession: true,
+		flags: []string{
+			"-enable-early-data",
+			"-on-resume-expect-reject-early-data",
+			"-on-resume-expect-early-data-reason", "hello_retry_request",
+		},
+	})
+
+	// Test the client handles a 0-RTT reject from both ticket rejection and
+	// HelloRetryRequest.
+	testCases = append(testCases, testCase{
+		testType: clientTest,
+		name:     "EarlyData-HRR-RejectTicket-Client-TLS13",
+		config: Config{
+			MaxVersion:       VersionTLS13,
+			MaxEarlyDataSize: 16384,
+			Certificates:     []Certificate{rsaCertificate},
+		},
+		resumeConfig: &Config{
+			MaxVersion:             VersionTLS13,
+			MaxEarlyDataSize:       16384,
+			Certificates:           []Certificate{ecdsaP256Certificate},
+			SessionTicketsDisabled: true,
+			Bugs: ProtocolBugs{
+				SendHelloRetryRequestCookie: []byte{1, 2, 3, 4},
+			},
+		},
+		resumeSession:        true,
+		expectResumeRejected: true,
+		flags: []string{
+			"-enable-early-data",
+			"-expect-ticket-supports-early-data",
+			"-expect-reject-early-data",
+			// The client sees HelloRetryRequest before the resumption result,
+			// though neither value is inherently preferable.
+			"-on-retry-expect-early-data-reason", "hello_retry_request",
+			// Test the peer certificate is reported correctly in each of the
+			// three logical connections.
+			"-on-initial-expect-peer-cert-file", path.Join(*resourceDir, rsaCertificateFile),
+			"-on-resume-expect-peer-cert-file", path.Join(*resourceDir, rsaCertificateFile),
+			"-on-retry-expect-peer-cert-file", path.Join(*resourceDir, ecdsaP256CertificateFile),
+			// Session tickets are disabled, so the runner will not send a ticket.
+			"-on-retry-expect-no-session",
+		},
+	})
+
+	// Test the server rejects 0-RTT if it needs to send a HelloRetryRequest.
+	testCases = append(testCases, testCase{
+		testType: serverTest,
+		name:     "EarlyData-HRR-RejectTicket-Server-TLS13",
+		config: Config{
+			MaxVersion: VersionTLS13,
+			MinVersion: VersionTLS13,
+			// Require a HelloRetryRequest for every curve.
+			DefaultCurves: []CurveID{},
+			Bugs: ProtocolBugs{
+				SendEarlyData:           [][]byte{{1, 2, 3, 4}},
+				ExpectEarlyDataAccepted: false,
+				// Corrupt the ticket.
+				FilterTicket: func(in []byte) ([]byte, error) {
+					in[len(in)-1] ^= 1
+					return in, nil
+				},
+			},
+		},
+		messageCount:         2,
+		resumeSession:        true,
+		expectResumeRejected: true,
+		flags: []string{
+			"-enable-early-data",
+			"-on-resume-expect-reject-early-data",
+			// The server sees the missed resumption before HelloRetryRequest,
+			// though neither value is inherently preferable.
+			"-on-resume-expect-early-data-reason", "session_not_resumed",
 		},
 	})
 
@@ -13192,6 +13330,10 @@ func addTLS13HandshakeTests() {
 			"-enable-early-data",
 			"-expect-ticket-supports-early-data",
 			"-expect-reject-early-data",
+			// The client does not learn ALPN was the cause.
+			"-on-retry-expect-early-data-reason", "peer_declined",
+			// In the 0-RTT state, we surface the predicted ALPN. After
+			// processing the reject, we surface the real one.
 			"-on-initial-expect-alpn", "foo",
 			"-on-resume-expect-alpn", "foo",
 			"-on-retry-expect-alpn", "bar",
@@ -13218,6 +13360,10 @@ func addTLS13HandshakeTests() {
 			"-enable-early-data",
 			"-expect-ticket-supports-early-data",
 			"-expect-reject-early-data",
+			// The client does not learn ALPN was the cause.
+			"-on-retry-expect-early-data-reason", "peer_declined",
+			// In the 0-RTT state, we surface the predicted ALPN. After
+			// processing the reject, we surface the real one.
 			"-on-initial-expect-alpn", "",
 			"-on-resume-expect-alpn", "",
 			"-on-retry-expect-alpn", "foo",
@@ -13245,6 +13391,10 @@ func addTLS13HandshakeTests() {
 			"-enable-early-data",
 			"-expect-ticket-supports-early-data",
 			"-expect-reject-early-data",
+			// The client does not learn ALPN was the cause.
+			"-on-retry-expect-early-data-reason", "peer_declined",
+			// In the 0-RTT state, we surface the predicted ALPN. After
+			// processing the reject, we surface the real one.
 			"-on-initial-expect-alpn", "foo",
 			"-on-resume-expect-alpn", "foo",
 			"-on-retry-expect-alpn", "",
@@ -13299,10 +13449,31 @@ func addTLS13HandshakeTests() {
 			"-enable-early-data",
 			"-expect-ticket-supports-early-data",
 			"-expect-no-offer-early-data",
+			// Offer different ALPN values in the initial and resumption.
 			"-on-initial-advertise-alpn", "\x03foo",
-			"-on-resume-advertise-alpn", "\x03bar",
 			"-on-initial-expect-alpn", "foo",
+			"-on-resume-advertise-alpn", "\x03bar",
 			"-on-resume-expect-alpn", "bar",
+			// The ALPN mismatch comes from the client, so it reports it as the
+			// reason.
+			"-on-resume-expect-early-data-reason", "alpn_mismatch",
+		},
+	})
+
+	// Test that the client does not offer 0-RTT to servers which never
+	// advertise it.
+	testCases = append(testCases, testCase{
+		testType: clientTest,
+		name:     "EarlyData-NonZeroRTTSession-Client-TLS13",
+		config: Config{
+			MaxVersion: VersionTLS13,
+		},
+		resumeSession: true,
+		flags: []string{
+			"-enable-early-data",
+			"-on-resume-expect-no-offer-early-data",
+			// The client declines to offer 0-RTT because of the session.
+			"-on-resume-expect-early-data-reason", "unsupported_for_session",
 		},
 	})
 
@@ -13325,6 +13496,8 @@ func addTLS13HandshakeTests() {
 		flags: []string{
 			"-on-resume-enable-early-data",
 			"-expect-reject-early-data",
+			// The server rejects 0-RTT because of the session.
+			"-on-resume-expect-early-data-reason", "unsupported_for_session",
 		},
 	})
 
@@ -13350,6 +13523,7 @@ func addTLS13HandshakeTests() {
 			"-enable-early-data",
 			"-on-initial-select-alpn", "",
 			"-on-resume-select-alpn", "foo",
+			"-on-resume-expect-early-data-reason", "alpn_mismatch",
 		},
 	})
 
@@ -13375,6 +13549,7 @@ func addTLS13HandshakeTests() {
 			"-enable-early-data",
 			"-on-initial-select-alpn", "foo",
 			"-on-resume-select-alpn", "",
+			"-on-resume-expect-early-data-reason", "alpn_mismatch",
 		},
 	})
 
@@ -13399,6 +13574,7 @@ func addTLS13HandshakeTests() {
 			"-enable-early-data",
 			"-on-initial-select-alpn", "foo",
 			"-on-resume-select-alpn", "bar",
+			"-on-resume-expect-early-data-reason", "alpn_mismatch",
 		},
 	})
 
@@ -13443,6 +13619,8 @@ func addTLS13HandshakeTests() {
 			"-expect-ticket-supports-early-data",
 			"-send-channel-id", path.Join(*resourceDir, channelIDKeyFile),
 			"-expect-reject-early-data",
+			// The client never learns the reason was Channel ID.
+			"-on-retry-expect-early-data-reason", "peer_declined",
 		},
 	})
 
@@ -13460,7 +13638,8 @@ func addTLS13HandshakeTests() {
 			"-enable-early-data",
 			"-expect-ticket-supports-early-data",
 			"-send-channel-id", path.Join(*resourceDir, channelIDKeyFile),
-			"-expect-accept-early-data",
+			"-on-resume-expect-accept-early-data",
+			"-on-resume-expect-early-data-reason", "accept",
 		},
 	})
 
@@ -13484,6 +13663,7 @@ func addTLS13HandshakeTests() {
 			"-expect-reject-early-data",
 			"-expect-channel-id",
 			base64.StdEncoding.EncodeToString(channelIDBytes),
+			"-on-resume-expect-early-data-reason", "channel_id",
 		},
 	})
 
@@ -13504,8 +13684,9 @@ func addTLS13HandshakeTests() {
 		expectChannelID: false,
 		flags: []string{
 			"-enable-early-data",
-			"-expect-accept-early-data",
+			"-on-resume-expect-accept-early-data",
 			"-enable-channel-id",
+			"-on-resume-expect-early-data-reason", "accept",
 		},
 	})
 
@@ -13565,7 +13746,7 @@ func addTLS13HandshakeTests() {
 		flags: []string{
 			"-enable-early-data",
 			"-expect-ticket-supports-early-data",
-			"-expect-accept-early-data",
+			"-on-resume-expect-accept-early-data",
 			"-expect-version", strconv.Itoa(VersionTLS13),
 		},
 	})
@@ -13590,7 +13771,7 @@ func addTLS13HandshakeTests() {
 		flags: []string{
 			"-enable-early-data",
 			"-expect-ticket-supports-early-data",
-			"-expect-accept-early-data",
+			"-on-resume-expect-accept-early-data",
 		},
 		shouldFail:         true,
 		expectedError:      ":DIGEST_CHECK_FAILED:",
@@ -13614,7 +13795,7 @@ func addTLS13HandshakeTests() {
 		resumeSession: true,
 		flags: []string{
 			"-enable-early-data",
-			"-expect-accept-early-data",
+			"-on-resume-expect-accept-early-data",
 		},
 		shouldFail:         true,
 		expectedError:      ":DIGEST_CHECK_FAILED:",
@@ -13639,7 +13820,7 @@ func addTLS13HandshakeTests() {
 		flags: []string{
 			"-enable-early-data",
 			"-expect-ticket-supports-early-data",
-			"-expect-accept-early-data",
+			"-on-resume-expect-accept-early-data",
 		},
 		shouldFail:    true,
 		expectedError: ":DECODE_ERROR:",
@@ -13687,6 +13868,45 @@ func addTLS13HandshakeTests() {
 		expectedLocalError: "remote error: unexpected message",
 	})
 
+	// If the client or server has 0-RTT enabled but disabled TLS 1.3, it should
+	// report a reason of protocol_version.
+	testCases = append(testCases, testCase{
+		testType:        clientTest,
+		name:            "EarlyDataEnabled-Client-MaxTLS12",
+		expectedVersion: VersionTLS12,
+		flags: []string{
+			"-enable-early-data",
+			"-max-version", strconv.Itoa(VersionTLS12),
+			"-expect-early-data-reason", "protocol_version",
+		},
+	})
+	testCases = append(testCases, testCase{
+		testType:        serverTest,
+		name:            "EarlyDataEnabled-Server-MaxTLS12",
+		expectedVersion: VersionTLS12,
+		flags: []string{
+			"-enable-early-data",
+			"-max-version", strconv.Itoa(VersionTLS12),
+			"-expect-early-data-reason", "protocol_version",
+		},
+	})
+
+	// The server additionally reports protocol_version if it enabled TLS 1.3,
+	// but the peer negotiated TLS 1.2. (The corresponding situation does not
+	// exist on the client because negotiating TLS 1.2 with a 0-RTT ClientHello
+	// is a fatal error.)
+	testCases = append(testCases, testCase{
+		testType: serverTest,
+		name:     "EarlyDataEnabled-Server-NegotiateTLS12",
+		config: Config{
+			MaxVersion: VersionTLS12,
+		},
+		expectedVersion: VersionTLS12,
+		flags: []string{
+			"-enable-early-data",
+			"-expect-early-data-reason", "protocol_version",
+		},
+	})
 }
 
 func addTLS13CipherPreferenceTests() {
@@ -13756,6 +13976,7 @@ func addTLS13CipherPreferenceTests() {
 			"-curves", strconv.Itoa(int(CurveCECPQ2)),
 		},
 	})
+
 	// When a 256-bit cipher is offered, even if not in first place, it should be
 	// picked.
 	testCases = append(testCases, testCase{
@@ -14390,7 +14611,7 @@ func addExtraHandshakeTests() {
 		flags: []string{
 			"-async",
 			"-enable-early-data",
-			"-expect-accept-early-data",
+			"-on-resume-expect-accept-early-data",
 			"-no-op-extra-handshake",
 		},
 	})
@@ -14963,6 +15184,7 @@ func addDelegatedCredentialTests() {
 		},
 		flags: []string{
 			"-delegated-credential", ecdsaFlagValue,
+			"-expect-delegated-credential-used",
 		},
 	})
 

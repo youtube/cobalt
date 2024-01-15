@@ -60,6 +60,8 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+#include <openssl/err.h>
+
 #if defined(OPENSSL_WINDOWS)
 OPENSSL_MSVC_PRAGMA(warning(push, 3))
 #include <windows.h>
@@ -71,7 +73,18 @@ OPENSSL_MSVC_PRAGMA(warning(pop))
 
 #define OPENSSL_MALLOC_PREFIX 8
 
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(OPENSSL_ASAN)
+void __asan_poison_memory_region(const volatile void *addr, size_t size);
+void __asan_unpoison_memory_region(const volatile void *addr, size_t size);
+#else
+static void __asan_poison_memory_region(const void *addr, size_t size) {}
+static void __asan_unpoison_memory_region(const void *addr, size_t size) {}
+#endif
+
+// Windows doesn't really support weak symbols as of May 2019, and Clang on
+// Windows will emit strong symbols instead. See
+// https://bugs.llvm.org/show_bug.cgi?id=37598
+#if defined(__GNUC__) || (defined(__clang__) && !defined(_MSC_VER))
 // sdallocx is a sized |free| function. By passing the size (which we happen to
 // always know in BoringSSL), the malloc implementation can save work. We cannot
 // depend on |sdallocx| being available so we declare a wrapper that falls back
@@ -99,6 +112,7 @@ void *OPENSSL_malloc(size_t size) {
 
   *(size_t *)ptr = size;
 
+  __asan_poison_memory_region(ptr, OPENSSL_MALLOC_PREFIX);
   return ((uint8_t *)ptr) + OPENSSL_MALLOC_PREFIX;
 }
 
@@ -108,6 +122,7 @@ void OPENSSL_free(void *orig_ptr) {
   }
 
   void *ptr = ((uint8_t *)orig_ptr) - OPENSSL_MALLOC_PREFIX;
+  __asan_unpoison_memory_region(ptr, OPENSSL_MALLOC_PREFIX);
 
   size_t size = *(size_t *)ptr;
   OPENSSL_cleanse(ptr, size + OPENSSL_MALLOC_PREFIX);
@@ -120,7 +135,9 @@ void *OPENSSL_realloc(void *orig_ptr, size_t new_size) {
   }
 
   void *ptr = ((uint8_t *)orig_ptr) - OPENSSL_MALLOC_PREFIX;
+  __asan_unpoison_memory_region(ptr, OPENSSL_MALLOC_PREFIX);
   size_t old_size = *(size_t *)ptr;
+  __asan_poison_memory_region(ptr, OPENSSL_MALLOC_PREFIX);
 
   void *ret = OPENSSL_malloc(new_size);
   if (ret == NULL) {
@@ -151,6 +168,10 @@ void OPENSSL_cleanse(void *ptr, size_t len) {
   __asm__ __volatile__("" : : "r"(ptr) : "memory");
 #endif
 #endif  // !OPENSSL_NO_ASM
+}
+
+void OPENSSL_clear_free(void *ptr, size_t unused) {
+  OPENSSL_free(ptr);
 }
 
 int CRYPTO_memcmp(const void *in_a, const void *in_b, size_t len) {
@@ -192,6 +213,9 @@ size_t OPENSSL_strnlen(const char *s, size_t len) {
 }
 
 char *OPENSSL_strdup(const char *s) {
+  if (s == NULL) {
+    return NULL;
+  }
   const size_t len = strlen(s) + 1;
   char *ret = OPENSSL_malloc(len);
   if (ret == NULL) {
@@ -250,4 +274,69 @@ int BIO_snprintf(char *buf, size_t n, const char *format, ...) {
 
 int BIO_vsnprintf(char *buf, size_t n, const char *format, va_list args) {
   return vsnprintf(buf, n, format, args);
+}
+
+char *OPENSSL_strndup(const char *str, size_t size) {
+  char *ret;
+  size_t alloc_size;
+
+  if (str == NULL) {
+    return NULL;
+  }
+
+  size = OPENSSL_strnlen(str, size);
+
+  alloc_size = size + 1;
+  if (alloc_size < size) {
+    // overflow
+    OPENSSL_PUT_ERROR(CRYPTO, ERR_R_MALLOC_FAILURE);
+    return NULL;
+  }
+  ret = OPENSSL_malloc(alloc_size);
+  if (ret == NULL) {
+    OPENSSL_PUT_ERROR(CRYPTO, ERR_R_MALLOC_FAILURE);
+    return NULL;
+  }
+
+  OPENSSL_memcpy(ret, str, size);
+  ret[size] = '\0';
+  return ret;
+}
+
+size_t OPENSSL_strlcpy(char *dst, const char *src, size_t dst_size) {
+  size_t l = 0;
+
+  for (; dst_size > 1 && *src; dst_size--) {
+    *dst++ = *src++;
+    l++;
+  }
+
+  if (dst_size) {
+    *dst = 0;
+  }
+
+  return l + strlen(src);
+}
+
+size_t OPENSSL_strlcat(char *dst, const char *src, size_t dst_size) {
+  size_t l = 0;
+  for (; dst_size > 0 && *dst; dst_size--, dst++) {
+    l++;
+  }
+  return l + OPENSSL_strlcpy(dst, src, dst_size);
+}
+
+void *OPENSSL_memdup(const void *data, size_t size) {
+  if (size == 0) {
+    return NULL;
+  }
+
+  void *ret = OPENSSL_malloc(size);
+  if (ret == NULL) {
+    OPENSSL_PUT_ERROR(CRYPTO, ERR_R_MALLOC_FAILURE);
+    return NULL;
+  }
+
+  OPENSSL_memcpy(ret, data, size);
+  return ret;
 }

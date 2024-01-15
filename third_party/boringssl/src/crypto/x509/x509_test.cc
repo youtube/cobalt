@@ -32,6 +32,7 @@
 
 #include "../internal.h"
 #include "../test/test_util.h"
+#include "../x509v3/internal.h"
 
 
 std::string GetTestData(const char *path);
@@ -660,6 +661,273 @@ static const char kSelfSignedMismatchAlgorithms[] =
     "KStYq7X9PKseN+PvmfeoffIKc5R/Ha39oi7cGMVHCr8aiEhsf94=\n"
     "-----END CERTIFICATE-----\n";
 
+// kCommonNameWithSANs is a leaf certificate signed by kSANTypesRoot, with
+// *.host1.test as the common name and a SAN list of *.host2.test and
+// foo.host3.test.
+static const char kCommonNameWithSANs[] =
+    "-----BEGIN CERTIFICATE-----\n"
+    "MIIB2zCCAUSgAwIBAgIBAzANBgkqhkiG9w0BAQsFADArMRcwFQYDVQQKEw5Cb3Jp\n"
+    "bmdTU0wgVGVzdDEQMA4GA1UEAxMHUm9vdCBDQTAgFw0wMDAxMDEwMDAwMDBaGA8y\n"
+    "MDk5MDEwMTAwMDAwMFowNzEeMBwGA1UEChMVQ29tbW9uIG5hbWUgd2l0aCBTQU5z\n"
+    "MRUwEwYDVQQDDAwqLmhvc3QxLnRlc3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNC\n"
+    "AASgWzfnFnpQrokSLIC+LhCKJDUAY/2usfIDpOnafYoYCasbYetkmOslgyY4Nn07\n"
+    "zjvjNROprA/0bdULXAkdL9bNo0gwRjAbBgNVHSMEFDASgBBAN9cB+0AvuBx+VAQn\n"
+    "jFkBMCcGA1UdEQQgMB6CDCouaG9zdDIudGVzdIIOZm9vLmhvc3QzLnRlc3QwDQYJ\n"
+    "KoZIhvcNAQELBQADgYEAtv2e3hBhsslXB1HTxgusjoschWOVtvGZUaYlhkKzKTCL\n"
+    "4YpDn50BccnucBU/b9phYvaEZtyzOv4ZXhxTGyLnLrIVB9x5ikfCcfl+LNYNjDwM\n"
+    "enm/h1zOfJ7wXLyscD4kU29Wc/zxBd70thIgLYn16CC1S9NtXKsXXDXv5VVH/bg=\n"
+    "-----END CERTIFICATE-----\n";
+
+// kCommonNameWithSANs is a leaf certificate signed by kSANTypesRoot, with
+// *.host1.test as the common name and no SAN list.
+static const char kCommonNameWithoutSANs[] =
+    "-----BEGIN CERTIFICATE-----\n"
+    "MIIBtTCCAR6gAwIBAgIBAzANBgkqhkiG9w0BAQsFADArMRcwFQYDVQQKEw5Cb3Jp\n"
+    "bmdTU0wgVGVzdDEQMA4GA1UEAxMHUm9vdCBDQTAgFw0wMDAxMDEwMDAwMDBaGA8y\n"
+    "MDk5MDEwMTAwMDAwMFowOjEhMB8GA1UEChMYQ29tbW9uIG5hbWUgd2l0aG91dCBT\n"
+    "QU5zMRUwEwYDVQQDDAwqLmhvc3QxLnRlc3QwWTATBgcqhkjOPQIBBggqhkjOPQMB\n"
+    "BwNCAARt2vjlIrPE+kr11VS1rRP/AYQu4fvf1bNw/K9rwYlVBhmLMPYasEmpCtKE\n"
+    "0bDIFydtDYC3wZDpSS+YiaG40sdAox8wHTAbBgNVHSMEFDASgBBAN9cB+0AvuBx+\n"
+    "VAQnjFkBMA0GCSqGSIb3DQEBCwUAA4GBAHRbIeaCEytOpJpw9O2dlB656AHe1+t5\n"
+    "4JiS5mvtzoVOLn7fFk5EFQtZS7sG1Uc2XjlSw+iyvFoTFEqfKyU/mIdc2vBuPwA2\n"
+    "+YXT8aE4S+UZ9oz5j0gDpikGnkSCW0cyHD8L8fntNjaQRSaM482JpmtdmuxClmWO\n"
+    "pFFXI2B5usgI\n"
+    "-----END CERTIFICATE-----\n";
+
+// kCommonNameWithEmailSAN is a leaf certificate signed by kSANTypesRoot, with
+// *.host1.test as the common name and the email address test@host2.test in the
+// SAN list.
+static const char kCommonNameWithEmailSAN[] =
+    "-----BEGIN CERTIFICATE-----\n"
+    "MIIBvDCCASWgAwIBAgIBAjANBgkqhkiG9w0BAQsFADArMRcwFQYDVQQKEw5Cb3Jp\n"
+    "bmdTU0wgVGVzdDEQMA4GA1UEAxMHUm9vdCBDQTAgFw0wMDAxMDEwMDAwMDBaGA8y\n"
+    "MDk5MDEwMTAwMDAwMFowFzEVMBMGA1UEAwwMKi5ob3N0MS50ZXN0MFkwEwYHKoZI\n"
+    "zj0CAQYIKoZIzj0DAQcDQgAEtevOxcTjpPzlNGoUMFfZyr1k03/Hiuh+EsnuScDs\n"
+    "8XLKi6fDkvSaDClI99ycabQZRPIrvyT+dglDC6ugQd+CYqNJMEcwDAYDVR0TAQH/\n"
+    "BAIwADAbBgNVHSMEFDASgBBAN9cB+0AvuBx+VAQnjFkBMBoGA1UdEQQTMBGBD3Rl\n"
+    "c3RAaG9zdDIudGVzdDANBgkqhkiG9w0BAQsFAAOBgQCGbqb78OWJWl4zb+qw0Dz2\n"
+    "HJgZZJt6/+nNG/XJKdaYeS4eofsbwsJI4fuuOF6ZvYCJxVNtGqdfZDgycvFA9hjv\n"
+    "NGosBF1/spP17cmzTahLjxs71jDvHV/EQJbKGl/Zpta1Em1VrzSrwoOFabPXzZTJ\n"
+    "aet/mER21Z/9ZsTUoJQPJw==\n"
+    "-----END CERTIFICATE-----\n";
+
+// kCommonNameWithIPSAN is a leaf certificate signed by kSANTypesRoot, with
+// *.host1.test as the common name and the IP address 127.0.0.1 in the
+// SAN list.
+static const char kCommonNameWithIPSAN[] =
+    "-----BEGIN CERTIFICATE-----\n"
+    "MIIBsTCCARqgAwIBAgIBAjANBgkqhkiG9w0BAQsFADArMRcwFQYDVQQKEw5Cb3Jp\n"
+    "bmdTU0wgVGVzdDEQMA4GA1UEAxMHUm9vdCBDQTAgFw0wMDAxMDEwMDAwMDBaGA8y\n"
+    "MDk5MDEwMTAwMDAwMFowFzEVMBMGA1UEAwwMKi5ob3N0MS50ZXN0MFkwEwYHKoZI\n"
+    "zj0CAQYIKoZIzj0DAQcDQgAEFKrgkxm8PysXbwnHQeTD3p8YY0+sY4ssnZgmj8wX\n"
+    "KTyn893fdBHWlz71GO6t82wMTF5d+ZYwI2XU52pfl4SB2aM+MDwwDAYDVR0TAQH/\n"
+    "BAIwADAbBgNVHSMEFDASgBBAN9cB+0AvuBx+VAQnjFkBMA8GA1UdEQQIMAaHBH8A\n"
+    "AAEwDQYJKoZIhvcNAQELBQADgYEAQWZ8Oj059ZjS109V/ijMYT28xuAN5n6HHxCO\n"
+    "DopTP56Zu9+gme5wTETWEfocspZvgecoUOcedTFoKSQ7JafO09NcVLA+D6ddYpju\n"
+    "mgfuiLy9dDhqvX/NHaLBMxOBWWbOLwWE+ibyX+pOzjWRCw1L7eUXOr6PhZAOQsmU\n"
+    "D0+O6KI=\n"
+    "-----END CERTIFICATE-----\n";
+
+// kConstrainedIntermediate is an intermediate signed by kSANTypesRoot, with
+// permitted DNS names of permitted1.test and foo.permitted2.test and an
+// excluded DNS name of excluded.permitted1.test. Its private key is:
+//
+// -----BEGIN PRIVATE KEY-----
+// MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgTXUM4tJWM7OzATty
+// JhNOfIv/d8heWFBeKOfMR+RfaROhRANCAASbbbWYiN6mn+BCpg4XNpibOH0D/DN4
+// kZ5C/Ml2YVomC9T83OKk2CzB8fPAabPb4P4Vv+fIabpEfjWS5nzKLY1y
+// -----END PRIVATE KEY-----
+static const char kConstrainedIntermediate[] =
+    "-----BEGIN CERTIFICATE-----\n"
+    "MIICDjCCAXegAwIBAgIBAjANBgkqhkiG9w0BAQsFADArMRcwFQYDVQQKEw5Cb3Jp\n"
+    "bmdTU0wgVGVzdDEQMA4GA1UEAxMHUm9vdCBDQTAgFw0wMDAxMDEwMDAwMDBaGA8y\n"
+    "MDk5MDEwMTAwMDAwMFowKDEmMCQGA1UEAxMdTmFtZSBDb25zdHJhaW50cyBJbnRl\n"
+    "cm1lZGlhdGUwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASbbbWYiN6mn+BCpg4X\n"
+    "NpibOH0D/DN4kZ5C/Ml2YVomC9T83OKk2CzB8fPAabPb4P4Vv+fIabpEfjWS5nzK\n"
+    "LY1yo4GJMIGGMA8GA1UdEwEB/wQFMAMBAf8wGwYDVR0jBBQwEoAQQDfXAftAL7gc\n"
+    "flQEJ4xZATBWBgNVHR4BAf8ETDBKoCowEYIPcGVybWl0dGVkMS50ZXN0MBWCE2Zv\n"
+    "by5wZXJtaXR0ZWQyLnRlc3ShHDAaghhleGNsdWRlZC5wZXJtaXR0ZWQxLnRlc3Qw\n"
+    "DQYJKoZIhvcNAQELBQADgYEAFq1Ka05hiKREwRpSceQPzIIH4B5a5IVBg5/EvmQI\n"
+    "9V0fXyAE1GmahPt70sIBxIgzNTEaY8P/IoOuCdlZWe0msmyEO3S6YSAzOWR5Van6\n"
+    "cXmFM1uMd95TlkxUMRdV+jKJTvG6R/BM2zltaV7Xt662k5HtzT5Svw0rZlFaggZz\n"
+    "UyM=\n"
+    "-----END CERTIFICATE-----\n";
+
+// kCommonNamePermittedLeaf is a leaf certificate signed by
+// kConstrainedIntermediate. Its common name is permitted by the name
+// constraints.
+static const char kCommonNamePermittedLeaf[] =
+    "-----BEGIN CERTIFICATE-----\n"
+    "MIIBaDCCAQ2gAwIBAgIBAzAKBggqhkjOPQQDAjAoMSYwJAYDVQQDEx1OYW1lIENv\n"
+    "bnN0cmFpbnRzIEludGVybWVkaWF0ZTAgFw0wMDAxMDEwMDAwMDBaGA8yMDk5MDEw\n"
+    "MTAwMDAwMFowPjEeMBwGA1UEChMVQ29tbW9uIG5hbWUgcGVybWl0dGVkMRwwGgYD\n"
+    "VQQDExNmb28ucGVybWl0dGVkMS50ZXN0MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcD\n"
+    "QgAENX5Ycs8q8MRzPYUz6DqLHhJR3wcmniFRgkiEa7MxE/mRe00y0VGwH7xi7Aoc\n"
+    "emXPrtD4JwN5bssbcxWGAKYYzaMQMA4wDAYDVR0TAQH/BAIwADAKBggqhkjOPQQD\n"
+    "AgNJADBGAiEAtsnWuRQXtw2xbieC78Y8SVEtTjcZUx8uZyQe1GPLfGICIQDR4fNY\n"
+    "yg3PC94ydPNQZVsFxAne32CbonWWsokalTFpUQ==\n"
+    "-----END CERTIFICATE-----\n";
+static const char kCommonNamePermitted[] = "foo.permitted1.test";
+
+// kCommonNameNotPermittedLeaf is a leaf certificate signed by
+// kConstrainedIntermediate. Its common name is not permitted by the name
+// constraints.
+static const char kCommonNameNotPermittedLeaf[] =
+    "-----BEGIN CERTIFICATE-----\n"
+    "MIIBazCCARCgAwIBAgIBBDAKBggqhkjOPQQDAjAoMSYwJAYDVQQDEx1OYW1lIENv\n"
+    "bnN0cmFpbnRzIEludGVybWVkaWF0ZTAgFw0wMDAxMDEwMDAwMDBaGA8yMDk5MDEw\n"
+    "MTAwMDAwMFowQTEiMCAGA1UEChMZQ29tbW9uIG5hbWUgbm90IHBlcm1pdHRlZDEb\n"
+    "MBkGA1UEAxMSbm90LXBlcm1pdHRlZC50ZXN0MFkwEwYHKoZIzj0CAQYIKoZIzj0D\n"
+    "AQcDQgAEzfghKuWf0JoXb0Drp09C3yXMSQQ1byt+AUaymvsHOWsxQ9v1Q+vkF/IM\n"
+    "HRqGTk2TyxrB2iClVEn/Uu+YtYox1KMQMA4wDAYDVR0TAQH/BAIwADAKBggqhkjO\n"
+    "PQQDAgNJADBGAiEAxaUslxmoWL1tIvnDz7gDkto/HcmdU0jHVuUQLXcCG8wCIQCN\n"
+    "5xZjitlCQU8UB5qSu9wH4B+0JcVO3Ss4Az76HEJWMw==\n"
+    "-----END CERTIFICATE-----\n";
+static const char kCommonNameNotPermitted[] = "not-permitted.test";
+
+// kCommonNameNotPermittedWithSANsLeaf is a leaf certificate signed by
+// kConstrainedIntermediate. Its common name is not permitted by the name
+// constraints but it has a SAN list.
+static const char kCommonNameNotPermittedWithSANsLeaf[] =
+    "-----BEGIN CERTIFICATE-----\n"
+    "MIIBqTCCAU+gAwIBAgIBBjAKBggqhkjOPQQDAjAoMSYwJAYDVQQDEx1OYW1lIENv\n"
+    "bnN0cmFpbnRzIEludGVybWVkaWF0ZTAgFw0wMDAxMDEwMDAwMDBaGA8yMDk5MDEw\n"
+    "MTAwMDAwMFowSzEsMCoGA1UEChMjQ29tbW9uIG5hbWUgbm90IHBlcm1pdHRlZCB3\n"
+    "aXRoIFNBTlMxGzAZBgNVBAMTEm5vdC1wZXJtaXR0ZWQudGVzdDBZMBMGByqGSM49\n"
+    "AgEGCCqGSM49AwEHA0IABKsn9wOApXFHrqhLdQgbFSeaSoAIbxgO0zVSRZUb5naR\n"
+    "93zoL3MFOvZEF8xiEqh7le+l3XuUig0fwqpcsZzRNJajRTBDMAwGA1UdEwEB/wQC\n"
+    "MAAwMwYDVR0RBCwwKoITZm9vLnBlcm1pdHRlZDEudGVzdIITZm9vLnBlcm1pdHRl\n"
+    "ZDIudGVzdDAKBggqhkjOPQQDAgNIADBFAiACk+1f184KkKAXuntmrz+Ygcq8MiZl\n"
+    "4delx44FtcNaegIhAIA5nYfzxNcTXxDo3U+x1vSLH6Y7faLvHiFySp7O//q+\n"
+    "-----END CERTIFICATE-----\n";
+static const char kCommonNameNotPermittedWithSANs[] = "not-permitted.test";
+
+// kCommonNameNotDNSLeaf is a leaf certificate signed by
+// kConstrainedIntermediate. Its common name is not a DNS name.
+static const char kCommonNameNotDNSLeaf[] =
+    "-----BEGIN CERTIFICATE-----\n"
+    "MIIBYTCCAQagAwIBAgIBCDAKBggqhkjOPQQDAjAoMSYwJAYDVQQDEx1OYW1lIENv\n"
+    "bnN0cmFpbnRzIEludGVybWVkaWF0ZTAgFw0wMDAxMDEwMDAwMDBaGA8yMDk5MDEw\n"
+    "MTAwMDAwMFowNzEcMBoGA1UEChMTQ29tbW9uIG5hbWUgbm90IEROUzEXMBUGA1UE\n"
+    "AxMOTm90IGEgRE5TIG5hbWUwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASnueyc\n"
+    "Zxtnw5ke2J2T0/LwAK37auQP/RSFd9mem+BJVbgviawtAlignJmafp7Zw4/GdYEJ\n"
+    "Vm8qlriOJtluvXGcoxAwDjAMBgNVHRMBAf8EAjAAMAoGCCqGSM49BAMCA0kAMEYC\n"
+    "IQChUAmVNI39VHe0zemRE09VDcSEgOxr1nTvjLcg/Q8pVQIhAJYZnJI0YZAi05QH\n"
+    "RHNlAkTK2TnUaVn3fGSylaLiFS1r\n"
+    "-----END CERTIFICATE-----\n";
+static const char kCommonNameNotDNS[] = "Not a DNS name";
+
+// The following six certificates are issued by |kSANTypesRoot| and have
+// different extended key usage values. They were created with the following
+// Go program:
+//
+// func main() {
+//     block, _ := pem.Decode([]byte(rootKeyPEM))
+//     rootPriv, _ := x509.ParsePKCS1PrivateKey(block.Bytes)
+//     block, _ = pem.Decode([]byte(rootCertPEM))
+//     root, _ := x509.ParseCertificate(block.Bytes)
+//
+//     leafTemplate := &x509.Certificate{
+//         SerialNumber: big.NewInt(3),
+//         Subject: pkix.Name{
+//             CommonName: "EKU msSGC",
+//         },
+//         NotBefore:             time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC),
+//         NotAfter:              time.Date(2099, time.January, 1, 0, 0, 0, 0, time.UTC),
+//         BasicConstraintsValid: true,
+//         ExtKeyUsage:           []x509.ExtKeyUsage{FILL IN HERE},
+//     }
+//     leafKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+//     leafDER, err := x509.CreateCertificate(rand.Reader, leafTemplate, root, &leafKey.PublicKey, rootPriv)
+//     if err != nil {
+//         panic(err)
+//     }
+//     pem.Encode(os.Stdout, &pem.Block{Type: "CERTIFICATE", Bytes: leafDER})
+// }
+
+static const char kMicrosoftSGCCert[] =
+    "-----BEGIN CERTIFICATE-----\n"
+    "MIIBtDCCAR2gAwIBAgIBAzANBgkqhkiG9w0BAQsFADArMRcwFQYDVQQKEw5Cb3Jp\n"
+    "bmdTU0wgVGVzdDEQMA4GA1UEAxMHUm9vdCBDQTAgFw0wMDAxMDEwMDAwMDBaGA8y\n"
+    "MDk5MDEwMTAwMDAwMFowFDESMBAGA1UEAxMJRUtVIG1zU0dDMFkwEwYHKoZIzj0C\n"
+    "AQYIKoZIzj0DAQcDQgAEEn61v3Vs+q6bTyyRnrJvuKBE8PTNVLbXGB52jig4Qse2\n"
+    "mGygNEysS0uzZ0luz+rn2hDRUFL6sHLUs1d8UMbI/6NEMEIwFQYDVR0lBA4wDAYK\n"
+    "KwYBBAGCNwoDAzAMBgNVHRMBAf8EAjAAMBsGA1UdIwQUMBKAEEA31wH7QC+4HH5U\n"
+    "BCeMWQEwDQYJKoZIhvcNAQELBQADgYEAgDQI9RSo3E3ZVnU71TV/LjG9xwHtfk6I\n"
+    "rlNnlJJ0lsTHAuMc1mwCbzhtsmasetwYlIa9G8GFWB9Gh/QqHA7G649iGGmXShqe\n"
+    "aVDuWgeSEJxBPE2jILoMm4pEYF7jfonTn7XXX6O78yuSlP+NPIU0gUKHkWZ1sWk0\n"
+    "cC4l0r/6jik=\n"
+    "-----END CERTIFICATE-----\n";
+
+static const char kNetscapeSGCCert[] =
+    "-----BEGIN CERTIFICATE-----\n"
+    "MIIBszCCARygAwIBAgIBAzANBgkqhkiG9w0BAQsFADArMRcwFQYDVQQKEw5Cb3Jp\n"
+    "bmdTU0wgVGVzdDEQMA4GA1UEAxMHUm9vdCBDQTAgFw0wMDAxMDEwMDAwMDBaGA8y\n"
+    "MDk5MDEwMTAwMDAwMFowFDESMBAGA1UEAxMJRUtVIG1zU0dDMFkwEwYHKoZIzj0C\n"
+    "AQYIKoZIzj0DAQcDQgAE3NbT+TnBfq1DWJCezjaUL52YhDU7cOkI2S2PoWgJ1v7x\n"
+    "kKLwBonUFZjppZs69SyBHeJdti+KoJ3qTW+hCG08EaNDMEEwFAYDVR0lBA0wCwYJ\n"
+    "YIZIAYb4QgQBMAwGA1UdEwEB/wQCMAAwGwYDVR0jBBQwEoAQQDfXAftAL7gcflQE\n"
+    "J4xZATANBgkqhkiG9w0BAQsFAAOBgQBuiyVcfazekHkCWksxdFmjPmMtWCxFjkzc\n"
+    "8VBxFE0CfSHQAfZ8J7tXd1FbAq/eXdZvvo8v0JB4sOM4Ex1ob1fuvDFHdSAHAD7W\n"
+    "dhKIjJyzVojoxjCjyue0XMeEPl7RiqbdxoS/R5HFAqAF0T2OeQAqP9gTpOXoau1M\n"
+    "RQHX6HQJJg==\n"
+    "-----END CERTIFICATE-----\n";
+
+static const char kServerEKUCert[] =
+    "-----BEGIN CERTIFICATE-----\n"
+    "MIIBsjCCARugAwIBAgIBAzANBgkqhkiG9w0BAQsFADArMRcwFQYDVQQKEw5Cb3Jp\n"
+    "bmdTU0wgVGVzdDEQMA4GA1UEAxMHUm9vdCBDQTAgFw0wMDAxMDEwMDAwMDBaGA8y\n"
+    "MDk5MDEwMTAwMDAwMFowFDESMBAGA1UEAxMJRUtVIG1zU0dDMFkwEwYHKoZIzj0C\n"
+    "AQYIKoZIzj0DAQcDQgAEDd35i+VWPwIOKLrLWTuP5cqD+yJDB5nujEzPgkXP5LKJ\n"
+    "SZRbHTqTdpYZB2jy6y90RY2Bsjx7FfZ7nN5G2g1GOKNCMEAwEwYDVR0lBAwwCgYI\n"
+    "KwYBBQUHAwEwDAYDVR0TAQH/BAIwADAbBgNVHSMEFDASgBBAN9cB+0AvuBx+VAQn\n"
+    "jFkBMA0GCSqGSIb3DQEBCwUAA4GBAIKmbMBjuivL/rxDu7u7Vr3o3cdmEggBJxwL\n"
+    "iatNW3x1wg0645aNYOktW/iQ7mAAiziTY73GFyfiJDWqnY+CwA94ZWyQidjHdN/I\n"
+    "6BR52sN/dkYEoInYEbmDNMc/if+T0yqeBQLP4BeKLiT8p0qqaimae6LgibS19hDP\n"
+    "2hoEMdz2\n"
+    "-----END CERTIFICATE-----\n";
+
+static const char kServerEKUPlusMicrosoftSGCCert[] =
+    "-----BEGIN CERTIFICATE-----\n"
+    "MIIBvjCCASegAwIBAgIBAzANBgkqhkiG9w0BAQsFADArMRcwFQYDVQQKEw5Cb3Jp\n"
+    "bmdTU0wgVGVzdDEQMA4GA1UEAxMHUm9vdCBDQTAgFw0wMDAxMDEwMDAwMDBaGA8y\n"
+    "MDk5MDEwMTAwMDAwMFowFDESMBAGA1UEAxMJRUtVIG1zU0dDMFkwEwYHKoZIzj0C\n"
+    "AQYIKoZIzj0DAQcDQgAEDO1MYPxq+U4oXMIK8UnsS4C696wpcu4UOmcMJJ5CUd5Z\n"
+    "ZpJShN6kYKnrb3GK/6xEgbUGntmrzSRG5FYqk6QgD6NOMEwwHwYDVR0lBBgwFgYI\n"
+    "KwYBBQUHAwEGCisGAQQBgjcKAwMwDAYDVR0TAQH/BAIwADAbBgNVHSMEFDASgBBA\n"
+    "N9cB+0AvuBx+VAQnjFkBMA0GCSqGSIb3DQEBCwUAA4GBAHOu2IBa4lHzVGS36HxS\n"
+    "SejUE87Ji1ysM6BgkYbfxfS9MuV+J3UnqH57JjbH/3CFl4ZDWceF6SGBSCn8LqKa\n"
+    "KHpwoNFU3zA99iQzVJgbUyN0PbKwHEanLyKDJZyFk71R39ToxhSNQgaQYjZYCy1H\n"
+    "5V9oXd1bodEqVsOZ/mur24Ku\n"
+    "-----END CERTIFICATE-----\n";
+
+static const char kAnyEKU[] =
+    "-----BEGIN CERTIFICATE-----\n"
+    "MIIBrjCCARegAwIBAgIBAzANBgkqhkiG9w0BAQsFADArMRcwFQYDVQQKEw5Cb3Jp\n"
+    "bmdTU0wgVGVzdDEQMA4GA1UEAxMHUm9vdCBDQTAgFw0wMDAxMDEwMDAwMDBaGA8y\n"
+    "MDk5MDEwMTAwMDAwMFowFDESMBAGA1UEAxMJRUtVIG1zU0dDMFkwEwYHKoZIzj0C\n"
+    "AQYIKoZIzj0DAQcDQgAE9nsLABDporlTvx1OBUc4Hd5vxfX+8nS/OhbHmKtFLYNu\n"
+    "1CLLrImbwMQYD2G+PgLO6sQHmASq2jmJKp6ZWsRkTqM+MDwwDwYDVR0lBAgwBgYE\n"
+    "VR0lADAMBgNVHRMBAf8EAjAAMBsGA1UdIwQUMBKAEEA31wH7QC+4HH5UBCeMWQEw\n"
+    "DQYJKoZIhvcNAQELBQADgYEAxgjgn1SAzQ+2GeCicZ5ndvVhKIeFelGCQ989XTVq\n"
+    "uUbAYBW6v8GXNuVzoXYxDgNSanF6U+w+INrJ6daKVrIxAxdk9QFgBXqJoupuRAA3\n"
+    "/OqnmYux0EqOTLbTK1P8DhaiaD0KV6dWGUwzqsgBmPkZ0lgNaPjvb1mKV3jhBkjz\n"
+    "L6A=\n"
+    "-----END CERTIFICATE-----\n";
+
+static const char kNoEKU[] =
+    "-----BEGIN CERTIFICATE-----\n"
+    "MIIBnTCCAQagAwIBAgIBAzANBgkqhkiG9w0BAQsFADArMRcwFQYDVQQKEw5Cb3Jp\n"
+    "bmdTU0wgVGVzdDEQMA4GA1UEAxMHUm9vdCBDQTAgFw0wMDAxMDEwMDAwMDBaGA8y\n"
+    "MDk5MDEwMTAwMDAwMFowFDESMBAGA1UEAxMJRUtVIG1zU0dDMFkwEwYHKoZIzj0C\n"
+    "AQYIKoZIzj0DAQcDQgAEpSFSqbYY86ZcMamE606dqdyjWlwhSHKOLUFsUUIzkMPz\n"
+    "KHRu/x3Yzi8+Hm8eFK/TnCbkpYsYw4hIw00176dYzaMtMCswDAYDVR0TAQH/BAIw\n"
+    "ADAbBgNVHSMEFDASgBBAN9cB+0AvuBx+VAQnjFkBMA0GCSqGSIb3DQEBCwUAA4GB\n"
+    "AHvYzynIkjLThExHRS+385hfv4vgrQSMmCM1SAnEIjSBGsU7RPgiGAstN06XivuF\n"
+    "T1fNugRmTu4OtOIbfdYkcjavJufw9hR9zWTt77CNMTy9XmOZLgdS5boFTtLCztr3\n"
+    "TXHOSQQD8Dl4BK0wOet+TP6LBEjHlRFjAqK4bu9xpxV2\n"
+    "-----END CERTIFICATE-----\n";
+
 // CertFromPEM parses the given, NUL-terminated pem block and returns an
 // |X509*|.
 static bssl::UniquePtr<X509> CertFromPEM(const char *pem) {
@@ -723,7 +991,8 @@ static int Verify(X509 *leaf, const std::vector<X509 *> &roots,
                   const std::vector<X509 *> &intermediates,
                   const std::vector<X509_CRL *> &crls, unsigned long flags,
                   bool use_additional_untrusted,
-                  std::function<void(X509_VERIFY_PARAM *)> configure_callback) {
+                  std::function<void(X509_VERIFY_PARAM *)> configure_callback,
+                  int (*verify_callback)(int, X509_STORE_CTX *) = nullptr) {
   bssl::UniquePtr<STACK_OF(X509)> roots_stack(CertsToStack(roots));
   bssl::UniquePtr<STACK_OF(X509)> intermediates_stack(
       CertsToStack(intermediates));
@@ -1169,9 +1438,11 @@ TEST(X509Test, Ed25519Sign) {
   uint8_t pub_bytes[32], priv_bytes[64];
   ED25519_keypair(pub_bytes, priv_bytes);
 
-  bssl::UniquePtr<EVP_PKEY> pub(EVP_PKEY_new_ed25519_public(pub_bytes));
+  bssl::UniquePtr<EVP_PKEY> pub(
+      EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, nullptr, pub_bytes, 32));
   ASSERT_TRUE(pub);
-  bssl::UniquePtr<EVP_PKEY> priv(EVP_PKEY_new_ed25519_private(priv_bytes));
+  bssl::UniquePtr<EVP_PKEY> priv(
+      EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519, nullptr, priv_bytes, 32));
   ASSERT_TRUE(priv);
 
   bssl::ScopedEVP_MD_CTX md_ctx;
@@ -1744,6 +2015,216 @@ TEST(X509Test, PartialBIOReturn) {
   ASSERT_TRUE(cert2);
   EXPECT_EQ(0, X509_cmp(cert.get(), cert2.get()));
 }
+
+TEST(X509Test, CommonNameFallback) {
+  bssl::UniquePtr<X509> root = CertFromPEM(kSANTypesRoot);
+  ASSERT_TRUE(root);
+  bssl::UniquePtr<X509> with_sans = CertFromPEM(kCommonNameWithSANs);
+  ASSERT_TRUE(with_sans);
+  bssl::UniquePtr<X509> without_sans = CertFromPEM(kCommonNameWithoutSANs);
+  ASSERT_TRUE(without_sans);
+  bssl::UniquePtr<X509> with_email = CertFromPEM(kCommonNameWithEmailSAN);
+  ASSERT_TRUE(with_email);
+  bssl::UniquePtr<X509> with_ip = CertFromPEM(kCommonNameWithIPSAN);
+  ASSERT_TRUE(with_ip);
+
+  auto verify_cert = [&](X509 *leaf, unsigned flags, const char *host) {
+    return Verify(
+        leaf, {root.get()}, {}, {}, 0, false, [&](X509_VERIFY_PARAM *param) {
+          ASSERT_TRUE(X509_VERIFY_PARAM_set1_host(param, host, strlen(host)));
+          X509_VERIFY_PARAM_set_hostflags(param, flags);
+        });
+  };
+
+  // By default, the common name is ignored if the SAN list is present but
+  // otherwise is checked.
+  EXPECT_EQ(X509_V_ERR_HOSTNAME_MISMATCH,
+            verify_cert(with_sans.get(), 0 /* no flags */, "foo.host1.test"));
+  EXPECT_EQ(X509_V_OK,
+            verify_cert(with_sans.get(), 0 /* no flags */, "foo.host2.test"));
+  EXPECT_EQ(X509_V_OK,
+            verify_cert(with_sans.get(), 0 /* no flags */, "foo.host3.test"));
+  EXPECT_EQ(X509_V_OK, verify_cert(without_sans.get(), 0 /* no flags */,
+                                   "foo.host1.test"));
+  EXPECT_EQ(X509_V_ERR_HOSTNAME_MISMATCH,
+            verify_cert(with_email.get(), 0 /* no flags */, "foo.host1.test"));
+  EXPECT_EQ(X509_V_ERR_HOSTNAME_MISMATCH,
+            verify_cert(with_ip.get(), 0 /* no flags */, "foo.host1.test"));
+
+  // X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT is ignored.
+  EXPECT_EQ(X509_V_ERR_HOSTNAME_MISMATCH,
+            verify_cert(with_sans.get(), X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT,
+                        "foo.host1.test"));
+  EXPECT_EQ(X509_V_OK,
+            verify_cert(with_sans.get(), X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT,
+                        "foo.host2.test"));
+  EXPECT_EQ(X509_V_OK,
+            verify_cert(with_sans.get(), X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT,
+                        "foo.host3.test"));
+  EXPECT_EQ(X509_V_OK, verify_cert(without_sans.get(),
+                                   X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT,
+                                   "foo.host1.test"));
+  EXPECT_EQ(X509_V_ERR_HOSTNAME_MISMATCH,
+            verify_cert(with_email.get(), X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT,
+                        "foo.host1.test"));
+  EXPECT_EQ(X509_V_ERR_HOSTNAME_MISMATCH,
+            verify_cert(with_ip.get(), X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT,
+                        "foo.host1.test"));
+
+  // X509_CHECK_FLAG_NEVER_CHECK_SUBJECT implements the correct behavior: the
+  // common name is never checked.
+  EXPECT_EQ(X509_V_ERR_HOSTNAME_MISMATCH,
+            verify_cert(with_sans.get(), X509_CHECK_FLAG_NEVER_CHECK_SUBJECT,
+                        "foo.host1.test"));
+  EXPECT_EQ(X509_V_OK,
+            verify_cert(with_sans.get(), X509_CHECK_FLAG_NEVER_CHECK_SUBJECT,
+                        "foo.host2.test"));
+  EXPECT_EQ(X509_V_OK,
+            verify_cert(with_sans.get(), X509_CHECK_FLAG_NEVER_CHECK_SUBJECT,
+                        "foo.host3.test"));
+  EXPECT_EQ(X509_V_ERR_HOSTNAME_MISMATCH,
+            verify_cert(without_sans.get(), X509_CHECK_FLAG_NEVER_CHECK_SUBJECT,
+                        "foo.host1.test"));
+  EXPECT_EQ(X509_V_ERR_HOSTNAME_MISMATCH,
+            verify_cert(with_email.get(), X509_CHECK_FLAG_NEVER_CHECK_SUBJECT,
+                        "foo.host1.test"));
+  EXPECT_EQ(X509_V_ERR_HOSTNAME_MISMATCH,
+            verify_cert(with_ip.get(), X509_CHECK_FLAG_NEVER_CHECK_SUBJECT,
+                        "foo.host1.test"));
+}
+
+TEST(X509Test, LooksLikeDNSName) {
+    static const char *kValid[] = {
+        "example.com",
+        "eXample123-.com",
+        "*.example.com",
+        "exa_mple.com",
+        "example.com.",
+        "project-dev:us-central1:main",
+    };
+    static const char *kInvalid[] = {
+        "-eXample123-.com",
+        "",
+        ".",
+        "*",
+        "*.",
+        "example..com",
+        ".example.com",
+        "example.com..",
+        "*foo.example.com",
+        "foo.*.example.com",
+        "foo,bar",
+    };
+
+    for (const char *str : kValid) {
+      SCOPED_TRACE(str);
+      EXPECT_TRUE(x509v3_looks_like_dns_name(
+          reinterpret_cast<const uint8_t *>(str), strlen(str)));
+    }
+    for (const char *str : kInvalid) {
+      SCOPED_TRACE(str);
+      EXPECT_FALSE(x509v3_looks_like_dns_name(
+          reinterpret_cast<const uint8_t *>(str), strlen(str)));
+    }
+}
+
+TEST(X509Test, CommonNameAndNameConstraints) {
+  bssl::UniquePtr<X509> root = CertFromPEM(kSANTypesRoot);
+  ASSERT_TRUE(root);
+  bssl::UniquePtr<X509> intermediate = CertFromPEM(kConstrainedIntermediate);
+  ASSERT_TRUE(intermediate);
+  bssl::UniquePtr<X509> permitted = CertFromPEM(kCommonNamePermittedLeaf);
+  ASSERT_TRUE(permitted);
+  bssl::UniquePtr<X509> not_permitted =
+      CertFromPEM(kCommonNameNotPermittedLeaf);
+  ASSERT_TRUE(not_permitted);
+  bssl::UniquePtr<X509> not_permitted_with_sans =
+      CertFromPEM(kCommonNameNotPermittedWithSANsLeaf);
+  ASSERT_TRUE(not_permitted_with_sans);
+  bssl::UniquePtr<X509> not_dns = CertFromPEM(kCommonNameNotDNSLeaf);
+  ASSERT_TRUE(not_dns);
+
+  auto verify_cert = [&](X509 *leaf, unsigned flags, const char *host) {
+    return Verify(
+        leaf, {root.get()}, {intermediate.get()}, {}, 0, false,
+        [&](X509_VERIFY_PARAM *param) {
+          ASSERT_TRUE(X509_VERIFY_PARAM_set1_host(param, host, strlen(host)));
+          X509_VERIFY_PARAM_set_hostflags(param, flags);
+        });
+  };
+
+  // Certificates which would otherwise trigger the common name fallback are
+  // rejected whenever there are name constraints. We do this whether or not
+  // the common name matches the constraints.
+  EXPECT_EQ(
+      X509_V_ERR_NAME_CONSTRAINTS_WITHOUT_SANS,
+      verify_cert(permitted.get(), 0 /* no flags */, kCommonNamePermitted));
+  EXPECT_EQ(X509_V_ERR_NAME_CONSTRAINTS_WITHOUT_SANS,
+            verify_cert(not_permitted.get(), 0 /* no flags */,
+                        kCommonNameNotPermitted));
+
+  // This occurs even if the built-in name checks aren't used. The caller may
+  // separately call |X509_check_host|.
+  EXPECT_EQ(X509_V_ERR_NAME_CONSTRAINTS_WITHOUT_SANS,
+            Verify(not_permitted.get(), {root.get()}, {intermediate.get()}, {},
+                   0 /* no flags */, false, nullptr));
+
+  // If the leaf certificate has SANs, the common name fallback is always
+  // disabled, so the name constraints do not apply.
+  EXPECT_EQ(X509_V_OK, Verify(not_permitted_with_sans.get(), {root.get()},
+                              {intermediate.get()}, {}, 0, false, nullptr));
+  EXPECT_EQ(X509_V_ERR_HOSTNAME_MISMATCH,
+            verify_cert(not_permitted_with_sans.get(), 0 /* no flags */,
+                        kCommonNameNotPermittedWithSANs));
+
+  // If the common name does not look like a DNS name, we apply neither name
+  // constraints nor common name fallback.
+  EXPECT_EQ(X509_V_OK, Verify(not_dns.get(), {root.get()}, {intermediate.get()},
+                              {}, 0, false, nullptr));
+  EXPECT_EQ(X509_V_ERR_HOSTNAME_MISMATCH,
+            verify_cert(not_dns.get(), 0 /* no flags */, kCommonNameNotDNS));
+}
+
+TEST(X509Test, ServerGatedCryptoEKUs) {
+  bssl::UniquePtr<X509> root = CertFromPEM(kSANTypesRoot);
+  ASSERT_TRUE(root);
+  bssl::UniquePtr<X509> ms_sgc = CertFromPEM(kMicrosoftSGCCert);
+  ASSERT_TRUE(ms_sgc);
+  bssl::UniquePtr<X509> ns_sgc = CertFromPEM(kNetscapeSGCCert);
+  ASSERT_TRUE(ns_sgc);
+  bssl::UniquePtr<X509> server_eku = CertFromPEM(kServerEKUCert);
+  ASSERT_TRUE(server_eku);
+  bssl::UniquePtr<X509> server_eku_plus_ms_sgc =
+      CertFromPEM(kServerEKUPlusMicrosoftSGCCert);
+  ASSERT_TRUE(server_eku_plus_ms_sgc);
+  bssl::UniquePtr<X509> any_eku = CertFromPEM(kAnyEKU);
+  ASSERT_TRUE(any_eku);
+  bssl::UniquePtr<X509> no_eku = CertFromPEM(kNoEKU);
+  ASSERT_TRUE(no_eku);
+
+  auto verify_cert = [&root](X509 *leaf) {
+    return Verify(leaf, {root.get()}, /*intermediates=*/{}, /*crls=*/{},
+                  /*flags=*/0, /*use_additional_untrusted=*/false,
+                  [&](X509_VERIFY_PARAM *param) {
+                    ASSERT_TRUE(X509_VERIFY_PARAM_set_purpose(
+                        param, X509_PURPOSE_SSL_SERVER));
+                  });
+  };
+
+  // Neither the Microsoft nor Netscape SGC EKU should be sufficient for
+  // |X509_PURPOSE_SSL_SERVER|. The "any" EKU probably, technically, should be.
+  // However, we've never accepted it and it's not acceptable in leaf
+  // certificates by the Baseline, so perhaps we don't need this complexity.
+  for (X509 *leaf : {ms_sgc.get(), ns_sgc.get(), any_eku.get()}) {
+    EXPECT_EQ(X509_V_ERR_INVALID_PURPOSE, verify_cert(leaf));
+  }
+
+  // The server-auth EKU is sufficient, and it doesn't matter if an SGC EKU is
+  // also included. Lastly, not specifying an EKU is also valid.
+  for (X509 *leaf : {server_eku.get(), server_eku_plus_ms_sgc.get(),
+                     no_eku.get()}) {
+    EXPECT_EQ(X509_V_OK, verify_cert(leaf));
+  }
 
 TEST(X509Test, GeneralName)  {
   const std::vector<uint8_t> kNames[] = {

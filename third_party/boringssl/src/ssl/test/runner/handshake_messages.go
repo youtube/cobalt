@@ -598,6 +598,7 @@ func (m *clientHelloMsg) marshal() []byte {
 		extensions.addU16(extensionDelegatedCredentials)
 		extensions.addU16(0) // Length is always 0
 	}
+
 	// The PSK extension must be last. See https://tools.ietf.org/html/rfc8446#section-4.2.11
 	if len(m.pskIdentities) > 0 && !m.pskBinderFirst {
 		extensions.addU16(extensionPreSharedKey)

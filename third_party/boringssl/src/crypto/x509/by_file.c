@@ -59,7 +59,6 @@
 #include <stdlib.h>
 #endif  // !defined(OPENSSL_SYS_STARBOARD)
 
-#include <openssl/buf.h>
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/thread.h>

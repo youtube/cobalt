@@ -1319,21 +1319,6 @@ type ProtocolBugs struct {
 	// it was accepted.
 	SendEarlyDataExtension bool
 
-	// ExpectEarlyKeyingMaterial, if non-zero, causes a TLS 1.3 server to
-	// read an application data record after the ClientHello before it sends
-	// a ServerHello. The record's contents have the specified length and
-	// match the corresponding early exporter value. This is used to test
-	// the client using the early exporter in the 0-RTT state.
-	ExpectEarlyKeyingMaterial int
-
-	// ExpectEarlyKeyingLabel is the label to use with
-	// ExpectEarlyKeyingMaterial.
-	ExpectEarlyKeyingLabel string
-
-	// ExpectEarlyKeyingContext is the context string to use with
-	// ExpectEarlyKeyingMaterial
-	ExpectEarlyKeyingContext string
-
 	// ExpectEarlyData causes a TLS 1.3 server to read application
 	// data after the ClientHello (assuming the server is able to
 	// derive the key under which the data is encrypted) before it
@@ -1466,6 +1451,14 @@ type ProtocolBugs struct {
 	// ExpectGREASE, if true, causes messages without GREASE values to be
 	// rejected. See draft-davidben-tls-grease-01.
 	ExpectGREASE bool
+
+	// OmitPSKsOnSecondClientHello, if true, causes the client to omit the
+	// PSK extension on the second ClientHello.
+	OmitPSKsOnSecondClientHello bool
+
+	// OnlyCorruptSecondPSKBinder, if true, causes the options below to
+	// only apply to the second PSK binder.
+	OnlyCorruptSecondPSKBinder bool
 
 	// SendShortPSKBinder, if true, causes the client to send a PSK binder
 	// that is one byte shorter than it should be.

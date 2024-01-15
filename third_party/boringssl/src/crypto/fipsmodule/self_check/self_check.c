@@ -15,6 +15,7 @@
 #include <openssl/crypto.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <openssl/aead.h>
 #include <openssl/aes.h>
@@ -39,6 +40,21 @@
 // MSVC wants to put a NUL byte at the end of non-char arrays and so cannot
 // compile this.
 #if !defined(_MSC_VER)
+
+#if defined(BORINGSSL_FIPS) && defined(OPENSSL_ANDROID)
+// FIPS builds on Android will test for flag files, named after the module hash,
+// in /dev/boringssl/selftest/. If such a flag file exists, it's assumed that
+// self-tests have already passed and thus do not need to be repeated. (The
+// integrity tests always run, however.)
+//
+// If self-tests complete successfully and the environment variable named in
+// |kFlagWriteEnableEnvVar| is present, then the flag file will be created. The
+// flag file isn't written without the environment variable being set in order
+// to avoid SELinux violations on Android.
+#define BORINGSSL_FIPS_SELF_TEST_FLAG_FILE
+static const char kFlagPrefix[] = "/dev/boringssl/selftest/";
+static const char kFlagWriteEnableEnvVar[] = "BORINGSSL_SELF_TEST_CREATE_FLAG";
+#endif
 
 static void hexdump(const uint8_t *in, size_t len) {
   for (size_t i = 0; i < len; i++) {
@@ -234,7 +250,42 @@ static EC_KEY *self_test_ecdsa_key(void) {
   return ec_key;
 }
 
-int BORINGSSL_self_test(void) {
+#if defined(OPENSSL_ANDROID)
+static const size_t kModuleDigestSize = SHA256_DIGEST_LENGTH;
+#else
+static const size_t kModuleDigestSize = SHA512_DIGEST_LENGTH;
+#endif
+
+int boringssl_fips_self_test(
+    const uint8_t *module_hash, size_t module_hash_len) {
+#if defined(BORINGSSL_FIPS_SELF_TEST_FLAG_FILE)
+  char flag_path[sizeof(kFlagPrefix) + 2*kModuleDigestSize];
+  if (module_hash_len != 0) {
+    if (module_hash_len != kModuleDigestSize) {
+      fprintf(stderr,
+              "module hash of length %zu does not match expected length %zu\n",
+              module_hash_len, kModuleDigestSize);
+      BORINGSSL_FIPS_abort();
+    }
+
+    // Test whether the flag file exists.
+    memcpy(flag_path, kFlagPrefix, sizeof(kFlagPrefix) - 1);
+    static const char kHexTable[17] = "0123456789abcdef";
+    for (size_t i = 0; i < kModuleDigestSize; i++) {
+      flag_path[sizeof(kFlagPrefix) - 1 + 2 * i] =
+          kHexTable[module_hash[i] >> 4];
+      flag_path[sizeof(kFlagPrefix) - 1 + 2 * i + 1] =
+          kHexTable[module_hash[i] & 15];
+    }
+    flag_path[sizeof(flag_path) - 1] = 0;
+
+    if (access(flag_path, F_OK) == 0) {
+      // Flag file found. Skip self-tests.
+      return 1;
+    }
+  }
+#endif // BORINGSSL_FIPS_SELF_TEST_FLAG_FILE
+
   static const uint8_t kAESKey[16] = "BoringCrypto Key";
   static const uint8_t kAESIV[16] = {0};
   static const uint8_t kPlaintext[64] =
@@ -584,6 +635,16 @@ int BORINGSSL_self_test(void) {
 
   ret = 1;
 
+#if defined(BORINGSSL_FIPS_SELF_TEST_FLAG_FILE)
+  // Tests were successful. Write flag file if requested.
+  if (module_hash_len != 0 && getenv(kFlagWriteEnableEnvVar) != NULL) {
+    const int fd = open(flag_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd >= 0) {
+      close(fd);
+    }
+  }
+#endif  // BORINGSSL_FIPS_SELF_TEST_FLAG_FILE
+
 err:
   EVP_AEAD_CTX_cleanup(&aead_ctx);
   RSA_free(rsa_key);
@@ -591,6 +652,10 @@ err:
   ECDSA_SIG_free(sig);
 
   return ret;
+}
+
+int BORINGSSL_self_test(void) {
+  return boringssl_fips_self_test(NULL, 0);
 }
 
 #endif  // !_MSC_VER

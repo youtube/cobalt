@@ -112,12 +112,12 @@
 #include <limits.h>
 #include <string.h>
 
-#include <openssl/buf.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/mem.h>
 #include <openssl/rand.h>
 
+#include "../crypto/err/internal.h"
 #include "../crypto/internal.h"
 #include "internal.h"
 
@@ -381,7 +381,24 @@ ssl_open_record_t ssl3_open_change_cipher_spec(SSL *ssl, size_t *out_consumed,
   return ssl_open_record_success;
 }
 
-int ssl_send_alert(SSL *ssl, int level, int desc) {
+void ssl_send_alert(SSL *ssl, int level, int desc) {
+  // This function is called in response to a fatal error from the peer. Ignore
+  // any failures writing the alert and report only the original error. In
+  // particular, if the transport uses |SSL_write|, our existing error will be
+  // clobbered so we must save and restore the error queue. See
+  // https://crbug.com/959305.
+  //
+  // TODO(davidben): Return the alert out of the handshake, rather than calling
+  // this function internally everywhere.
+  //
+  // TODO(davidben): This does not allow retrying if the alert hit EAGAIN. See
+  // https://crbug.com/boringssl/130.
+  UniquePtr<ERR_SAVE_STATE> err_state(ERR_save_state());
+  ssl_send_alert_impl(ssl, level, desc);
+  ERR_restore_state(err_state.get());
+}
+
+int ssl_send_alert_impl(SSL *ssl, int level, int desc) {
   // It is illegal to send an alert when we've already sent a closing one.
   if (ssl->s3->write_shutdown != ssl_shutdown_none) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_PROTOCOL_IS_SHUTDOWN);
@@ -396,7 +413,7 @@ int ssl_send_alert(SSL *ssl, int level, int desc) {
     ssl->s3->write_shutdown = ssl_shutdown_error;
   }
 
-  ssl->s3->alert_dispatch = 1;
+  ssl->s3->alert_dispatch = true;
   ssl->s3->send_alert[0] = level;
   ssl->s3->send_alert[1] = desc;
   if (ssl->s3->write_buffer.empty()) {
@@ -423,7 +440,7 @@ int ssl3_dispatch_alert(SSL *ssl) {
     }
   }
 
-  ssl->s3->alert_dispatch = 0;
+  ssl->s3->alert_dispatch = false;
 
   // If the alert is fatal, flush the BIO now.
   if (ssl->s3->send_alert[0] == SSL3_AL_FATAL) {
