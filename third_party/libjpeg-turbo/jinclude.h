@@ -32,14 +32,10 @@
  * But we must pull it in because of the references to FILE in jpeglib.h.
  * You can remove those references if you want to compile without <stdio.h>.
  */
+
 #ifdef STARBOARD
-#include <stdlib.h>
-#include "starboard/client_porting/poem/stdio_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
-#include "starboard/client_porting/poem/strings_poem.h"
 #include "starboard/file.h"
-#define SNPRINTF snprintf
-#else
+#endif
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -61,7 +57,6 @@
 
 #define SNPRINTF  snprintf
 
-#endif
 #endif
 
 
