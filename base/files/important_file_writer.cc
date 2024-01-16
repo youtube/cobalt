@@ -35,6 +35,10 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
+#if defined(STARBOARD)
+#include "starboard/file.h"
+#include "starboard/types.h"
+#endif  // defined(STARBOARD)
 
 namespace base {
 
@@ -142,6 +146,15 @@ void ImportantFileWriter::ProduceAndWriteStringToFileAtomically(
     std::move(after_write_callback).Run(result);
 }
 
+#if defined(STARBOARD)
+// static
+bool ImportantFileWriter::WriteFileAtomicallyImpl(const FilePath& path,
+                                                  StringPiece data,
+                                                  StringPiece histogram_suffix,
+                                                  bool from_instance) {
+  return SbFileAtomicReplace(path.value().c_str(), data.data(), data.size());
+}
+#else
 // static
 bool ImportantFileWriter::WriteFileAtomicallyImpl(const FilePath& path,
                                                   StringPiece data,
@@ -267,6 +280,7 @@ bool ImportantFileWriter::WriteFileAtomicallyImpl(const FilePath& path,
 
   return result;
 }
+#endif  // defined(STARBOARD)
 
 ImportantFileWriter::ImportantFileWriter(
     const FilePath& path,
