@@ -18,6 +18,7 @@ config("media_config") {
     cflags = [
       "/wd4267",  # Conversion from 'size_t' to 'type', possible loss of data.
       "/wd4715",  # Not all control paths return a value.
+
       # Conversion from 'size_t' to 'int' requires a narrowing conversion.
       "/wd4838",
     ]
@@ -34,11 +35,21 @@ config("media_config") {
 
 config("media_config_public") {
   # TODO: Make include_dirs other than the first one private.
-  include_dirs = [ "//third_party/abseil-cpp", "..", "cobalt", "../../skia" ]
+  include_dirs = [
+    "//third_party/abseil-cpp",
+    "..",
+    "cobalt",
+    "../../skia",
+  ]
 }
 
 config("external_config") {
-  include_dirs = [ "//third_party/abseil-cpp", "..", "cobalt", "../../skia"  ]
+  include_dirs = [
+    "//third_party/abseil-cpp",
+    "..",
+    "cobalt",
+    "../../skia",
+  ]
 }
 
 component("media") {
@@ -63,10 +74,10 @@ component("media") {
     "base/decrypt_config.h",
     "base/demuxer.cc",
     "base/demuxer.h",
+    "base/demuxer_memory_limit.h",
     "base/demuxer_memory_limit_starboard.cc",
     "base/demuxer_stream.cc",
     "base/demuxer_stream.h",
-    "base/demuxer_memory_limit.h",
     "base/encryption_pattern.cc",
     "base/encryption_pattern.h",
     "base/encryption_scheme.cc",
@@ -78,10 +89,10 @@ component("media") {
     "base/media_track.h",
     "base/media_tracks.cc",
     "base/media_tracks.h",
-    "base/media_util.cc",
-    "base/media_util.h",
     "base/media_url_params.cc",
     "base/media_url_params.h",
+    "base/media_util.cc",
+    "base/media_util.h",
     "base/mime_util.cc",
     "base/mime_util.h",
     "base/mime_util_internal.cc",
@@ -104,10 +115,10 @@ component("media") {
     "base/text_track_config.h",
     "base/video_aspect_ratio.cc",
     "base/video_aspect_ratio.h",
-    "base/video_color_space.cc",
-    "base/video_color_space.h",
     "base/video_codecs.cc",
     "base/video_codecs.h",
+    "base/video_color_space.cc",
+    "base/video_color_space.h",
     "base/video_decoder_config.cc",
     "base/video_decoder_config.h",
     "base/video_transformation.cc",
@@ -203,33 +214,34 @@ component("media") {
   ]
 
   sources += [
-    "cobalt/ui/gfx/geometry/point3_f.h",
-    "cobalt/ui/gfx/geometry/point_base.h",
-    "cobalt/ui/gfx/geometry/rect.h",
-    "cobalt/ui/gfx/geometry/size_base.h",
-    "cobalt/ui/gfx/geometry/rect_base_impl.h",
-    "cobalt/ui/gfx/geometry/vector2d_f.h",
-    "cobalt/ui/gfx/geometry/rect_base.h",
-    "cobalt/ui/gfx/geometry/size_f.h",
-    "cobalt/ui/gfx/geometry/point_f.cc",
-    "cobalt/ui/gfx/geometry/point_f.h",
-    "cobalt/ui/gfx/geometry/point.cc",
-    "cobalt/ui/gfx/geometry/point.h",
-    "cobalt/ui/gfx/geometry/size.h",
-    "cobalt/ui/gfx/geometry/vector2d.h",
-    "cobalt/ui/gfx/color_space_export.h",
-    "cobalt/ui/gfx/hdr_metadata.h",
-    "cobalt/ui/gfx/native_pixmap_handle.h",
-    #"cobalt/ui/gfx/hdr_metadata.cc",
-    "cobalt/ui/gfx/color_space.h",
-    "cobalt/base/notreached.h",
-    "cobalt/base/cxx17_backports.h",
     "cobalt/base/bind_post_task.h",
     "cobalt/base/check.h",
-    "cobalt/base/types/strong_alias.h",
-    "cobalt/base/hash/md5.h",
     "cobalt/base/check_op.h",
+    "cobalt/base/cxx17_backports.h",
+    "cobalt/base/hash/md5.h",
+    "cobalt/base/notreached.h",
+    "cobalt/base/types/strong_alias.h",
     "cobalt/net/cookies/site_for_cookies.h",
+
+    #"cobalt/ui/gfx/hdr_metadata.cc",
+    "cobalt/ui/gfx/color_space.h",
+    "cobalt/ui/gfx/color_space_export.h",
+    "cobalt/ui/gfx/geometry/point.cc",
+    "cobalt/ui/gfx/geometry/point.h",
+    "cobalt/ui/gfx/geometry/point3_f.h",
+    "cobalt/ui/gfx/geometry/point_base.h",
+    "cobalt/ui/gfx/geometry/point_f.cc",
+    "cobalt/ui/gfx/geometry/point_f.h",
+    "cobalt/ui/gfx/geometry/rect.h",
+    "cobalt/ui/gfx/geometry/rect_base.h",
+    "cobalt/ui/gfx/geometry/rect_base_impl.h",
+    "cobalt/ui/gfx/geometry/size.h",
+    "cobalt/ui/gfx/geometry/size_base.h",
+    "cobalt/ui/gfx/geometry/size_f.h",
+    "cobalt/ui/gfx/geometry/vector2d.h",
+    "cobalt/ui/gfx/geometry/vector2d_f.h",
+    "cobalt/ui/gfx/hdr_metadata.h",
+    "cobalt/ui/gfx/native_pixmap_handle.h",
   ]
 
   configs -= [ "//starboard/build/config:size" ]
