@@ -11,10 +11,6 @@
 
 #if !UCONFIG_NO_FORMATTING
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#include "starboard/client_porting/poem/stdio_poem.h"
-#endif  // defined(STARBOARD)
 #include "unicode/calendar.h"
 #include <math.h>
 #include <float.h>
@@ -23,9 +19,7 @@
 #include "umutex.h"
 #include "ucln_in.h"
 #include "putilimp.h"
-#if !defined(STARBOARD)
 #include <stdio.h>  // for toString()
-#endif
 
 #if defined (PI) 
 #undef PI

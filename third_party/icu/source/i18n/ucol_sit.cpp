@@ -15,9 +15,6 @@
 * 03/12/2004  weiv      Creation
 */
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif  // defined(STARBOARD)
 #include "unicode/ustring.h"
 #include "unicode/udata.h"
 #include "unicode/utf16.h"

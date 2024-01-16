@@ -6,9 +6,6 @@
 * Corporation and others.  All Rights Reserved.
 **********************************************************************
 */
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif  // defined(STARBOARD)
 #include "unicode/usetiter.h"
 #include "unicode/uniset.h"
 #include "unicode/unistr.h"

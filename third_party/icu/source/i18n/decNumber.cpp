@@ -178,17 +178,11 @@
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
-
 #include <stdlib.h>                /* for malloc, free, etc.  */
-
-#if !defined(STARBOARD)
 /*  #include <stdio.h>   */        /* for printf [if needed]  */
 #include <string.h>                /* for strcpy  */
 #include <ctype.h>                 /* for lower  */
-#endif
-
 #include "cmemory.h"               /* for uprv_malloc, etc., in ICU */
 #include "decNumber.h"             /* base number library  */
 #include "decNumberLocal.h"        /* decNumber local types, etc.  */

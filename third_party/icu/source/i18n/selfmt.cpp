@@ -16,9 +16,6 @@
  *   11/16/09    kirtig      Improved version
  ********************************************************************/
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif  // defined(STARBOARD)
 #include "utypeinfo.h"  // for 'typeid' to work
 
 #include "unicode/messagepattern.h"

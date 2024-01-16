@@ -9,9 +9,6 @@
 
 #include "unicode/utypes.h"
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif  // defined(STARBOARD)
 #if !UCONFIG_NO_NORMALIZATION
 
 #include "unicode/caniter.h"

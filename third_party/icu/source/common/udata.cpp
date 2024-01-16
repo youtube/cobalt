@@ -18,7 +18,6 @@
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
 
 #include "unicode/utypes.h"  /* U_PLATFORM etc. */
@@ -76,13 +75,9 @@ might have to #include some other header
 /* If you are excruciatingly bored turn this on .. */
 /* #define UDATA_DEBUG 1 */
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/stdio_poem.h"
-#else
 #if defined(UDATA_DEBUG)
 #   include <stdio.h>
 #endif
-#endif  // defined(STARBOARD)
 
 U_NAMESPACE_USE
 
