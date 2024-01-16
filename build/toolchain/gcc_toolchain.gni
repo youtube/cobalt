@@ -432,7 +432,7 @@ template("single_gcc_toolchain") {
       if (!is_starboard_toolchain && is_starboard && sb_is_modular) {
         command = "$asm $md -MF $depfile ${rebuild_string}{{defines}} {{include_dirs}} {{cflags}} {{asmflags}}${extra_asmflags} -c {{source}} -o {{output}}"
       } else {
-        command = "$asm $md -MF $depfile ${rebuild_string}{{defines}} {{include_dirs}} {{asmflags}}${extra_asmflags} -c {{source}} -o {{output}}"
+      command = "$asm $md -MF $depfile ${rebuild_string}{{defines}} {{include_dirs}} {{asmflags}}${extra_asmflags} -c {{source}} -o {{output}}"
       }
 
       depsformat = "gcc"
