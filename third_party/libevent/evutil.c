@@ -36,10 +36,7 @@
 #endif  //  defined LIBEVENT_PLATFORM_HEADER
 
 #include "compat/sys/queue.h"
-
-// Include Starboard poems after all system headers.
-#include "starboard/client_porting/poem/stdio_poem.h"
-#else
+#else  // STARBOARD
 #ifdef WIN32
 #include <winsock2.h>
 #define WIN32_LEAN_AND_MEAN
@@ -57,19 +54,22 @@
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
+#endif  // STARBOARD
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
 #include <errno.h>
+#ifndef STARBOARD
 #if defined WIN32 && !defined(HAVE_GETTIMEOFDAY_H)
 #include <sys/timeb.h>
 #endif
+#endif
 #include <stdio.h>
+#ifndef STARBOARD
 #include <signal.h>
 
 #include <sys/queue.h>
 #endif
-
 #include "event.h"
 #include "event-internal.h"
 #include "evutil.h"
