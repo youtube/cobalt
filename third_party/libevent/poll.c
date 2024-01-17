@@ -37,16 +37,9 @@
 #include "libevent-starboard.h"
 #endif  //  defined LIBEVENT_PLATFORM_HEADER
 
-#include <poll.h>
-#include <stdlib.h>
-
 // Use libevent's local compatibility versions of these.
 #include "third_party/libevent/compat/sys/queue.h"
 #include "third_party/libevent/compat/sys/_libevent_time.h"
-
-// Include Starboard poems after all system headers.
-#include "starboard/client_porting/poem/stdio_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
 #else  // STARBOARD
 #include <sys/types.h>
 #ifdef HAVE_SYS_TIME_H
@@ -55,8 +48,11 @@
 #include <sys/_libevent_time.h>
 #endif
 #include <sys/queue.h>
+#endif  // STARBOARD
 #include <poll.h>
+#ifndef STARBOARD
 #include <signal.h>
+#endif  // STARBOARD
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -65,7 +61,6 @@
 #ifdef CHECK_INVARIANTS
 #include <assert.h>
 #endif
-#endif  // STARBOARD
 
 #include "event.h"
 #include "event-internal.h"

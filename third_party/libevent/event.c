@@ -36,10 +36,6 @@
 #endif  //  defined LIBEVENT_PLATFORM_HEADER
 
 #include "compat/sys/queue.h"
-
-// Include Starboard poems after all system headers.
-#include "starboard/client_porting/poem/assert_poem.h"
-#include "starboard/client_porting/poem/stdio_poem.h"
 #else  // STARBOARD
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -53,6 +49,7 @@
 #include <sys/_libevent_time.h>
 #endif
 #include <sys/queue.h>
+#endif  // STARBOARD
 #include <stdio.h>
 #include <stdlib.h>
 #ifndef WIN32
@@ -65,7 +62,6 @@
 #include <string.h>
 #include <assert.h>
 #include <time.h>
-#endif  // STARBOARD
 
 #include "event.h"
 #include "event-internal.h"
