@@ -102,6 +102,7 @@ MediaDecoder::MediaDecoder(Host* host,
     pending_tasks_.push_back(Event(audio_stream_info.audio_specific_config));
     number_of_pending_tasks_.increment();
   }
+  has_pending_format_changed_.store(false);
 }
 
 MediaDecoder::MediaDecoder(Host* host,
@@ -141,6 +142,7 @@ MediaDecoder::MediaDecoder(Host* host,
     SB_LOG(ERROR) << "Failed to create video media codec bridge with error: "
                   << *error_message;
   }
+  has_pending_format_changed_.store(false);
 }
 
 MediaDecoder::~MediaDecoder() {
@@ -265,8 +267,10 @@ void MediaDecoder::DecoderThreadFunc() {
           }
         }
         SB_DCHECK(dequeue_output_results.empty());
-        CollectPendingData_Locked(&pending_tasks, &input_buffer_indices,
-                                  &dequeue_output_results);
+        if (!destroying_.load()) {
+          CollectPendingData_Locked(&pending_tasks, &input_buffer_indices,
+                                    &dequeue_output_results);
+        }
       }
 
       for (auto dequeue_output_result : dequeue_output_results) {
@@ -287,6 +291,15 @@ void MediaDecoder::DecoderThreadFunc() {
         }
         if (!ProcessOneInputBuffer(&pending_tasks, &input_buffer_indices)) {
           break;
+        }
+      }
+
+      if (destroying_.load()) {
+        for (auto dequeue_output_result : dequeue_output_results) {
+          if (dequeue_output_result.index < 0) {
+            has_pending_format_changed_.store(true);
+            return;
+          }
         }
       }
     }
@@ -312,7 +325,7 @@ void MediaDecoder::DecoderThreadFunc() {
         collect_pending_data = !has_input || !has_output;
       }
 
-      if (collect_pending_data) {
+      if (!destroying_.load() && collect_pending_data) {
         ScopedLock scoped_lock(mutex_);
         CollectPendingData_Locked(&pending_tasks, &input_buffer_indices,
                                   &dequeue_output_results);
@@ -357,6 +370,15 @@ void MediaDecoder::DecoderThreadFunc() {
             !pending_tasks.empty() && !input_buffer_indices.empty();
         if (!can_process_input && dequeue_output_results.empty()) {
           condition_variable_.WaitTimed(1000);
+        }
+      }
+
+      if (destroying_.load()) {
+        for (auto dequeue_output_result : dequeue_output_results) {
+          if (dequeue_output_result.index < 0) {
+            has_pending_format_changed_.store(true);
+            return;
+          }
         }
       }
     }
@@ -616,6 +638,13 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
   SB_DCHECK(media_codec_bridge_);
   SB_DCHECK(buffer_index >= 0);
 
+  // After |decoder_thread_| is destroyed, it may still receive output buffer,
+  // discard this invalid output buffer.
+  // Tracking bug: b/291959069
+  if (destroying_.load() || !SbThreadIsValid(decoder_thread_)) {
+    return;
+  }
+
   DequeueOutputResult dequeue_output_result;
   dequeue_output_result.status = 0;
   dequeue_output_result.index = buffer_index;
@@ -642,6 +671,73 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
 
 void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
   frame_rendered_cb_(frame_timestamp);
+}
+
+bool MediaDecoder::Reset() {
+  // Try to flush if we can, otherwise return |false| to recreate the codec
+  // completely. Reset() is called by `player_worker` thread,
+  // but MediaDecoder is on `audio_decoder` and `video_decoder`
+  // threads, let `player_worker` destroy `audio_decoder` and
+  // `video_decoder` threads to clean up all pending tasks,
+  // and Flush()/Start() |media_codec_bridge_|.
+
+  // 1. Destroy `audio_decoder` and `video_decoder` threads.
+  destroying_.store(true);
+  {
+    ScopedLock scoped_lock(mutex_);
+    condition_variable_.Signal();
+  }
+  if (SbThreadIsValid(decoder_thread_)) {
+    SbThreadJoin(decoder_thread_, NULL);
+    decoder_thread_ = kSbThreadInvalid;
+  }
+
+  // 2. Flush()/Start() |media_codec_bridge_| and clean up pending tasks.
+  if (is_valid()) {
+    // 2.1. Flush() |media_codec_bridge_|.
+    host_->OnFlushing();
+    jint status = media_codec_bridge_->Flush();
+    if (status != MEDIA_CODEC_OK) {
+      SB_LOG(ERROR) << "Failed to flush media codec.";
+      return false;
+    }
+
+    // 2.2. Clean up pending_tasks and input_buffer/output_buffer indices.
+    for (auto dequeue_output_result : dequeue_output_results_) {
+      if (dequeue_output_result.index < 0) {
+        has_pending_format_changed_.store(true);
+        break;
+      }
+    }
+    number_of_pending_tasks_.store(0);
+    pending_tasks_.clear();
+    input_buffer_indices_.clear();
+    dequeue_output_results_.clear();
+    pending_queue_input_buffer_task_ = nullopt_t();
+
+    // 2.3. Add any pending format_changed before Flush().
+    if (has_pending_format_changed_.load()) {
+      DequeueOutputResult dequeue_output_result = {};
+      dequeue_output_result.index = -1;
+      dequeue_output_results_.push_back(dequeue_output_result);
+      has_pending_format_changed_.store(false);
+    }
+
+    // 2.4. Start() |media_codec_bridge_|. As the codec is configured in
+    // asynchronous mode, call Start() after Flush() has returned to
+    // resume codec operations. After Start(), input_buffer_index should
+    // start with 0.
+    if (!media_codec_bridge_->Start()) {
+      SB_LOG(ERROR) << "Failed to start media codec.";
+      return false;
+    }
+  }
+
+  // 3. Recreate `audio_decoder` and `video_decoder` threads in
+  // WriteInputBuffers().
+  stream_ended_.store(false);
+  destroying_.store(false);
+  return true;
 }
 
 }  // namespace shared
