@@ -352,6 +352,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   int64_t set_drm_system_ready_cb_time_ = -1;
 
+  FRIEND_TEST(SbPlayerPipelineTest, SetDrmSystem);
+
   DISALLOW_COPY_AND_ASSIGN(SbPlayerPipeline);
 };
 

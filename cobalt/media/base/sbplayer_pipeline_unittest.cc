@@ -54,7 +54,7 @@ using ::testing::StrictMock;
 
 namespace {
 SbDecodeTargetGraphicsContextProvider*
-MockGetSbDecodeTargetGraphicsContextProvider() {
+FakeGetSbDecodeTargetGraphicsContextProvider() {
   return NULL;
 }
 }  // namespace
@@ -96,10 +96,10 @@ class SbPlayerPipelineTest : public ::testing::Test {
     pipeline_ = new SbPlayerPipeline(
         sbplayer_interface_.get(), nullptr,
         task_environment_.GetMainThreadTaskRunner(),
-        base::Bind(MockGetSbDecodeTargetGraphicsContextProvider), true, false,
+        base::Bind(FakeGetSbDecodeTargetGraphicsContextProvider), true, false,
         true,
 #if SB_API_VERSION >= 15
-        10, 10,
+        kSbPlayerWriteDurationLocal, kSbPlayerWriteDurationRemote,
 #endif  // SB_API_VERSION >= 15
         nullptr, &media_metrics_provider_, decode_target_provider_.get());
 
@@ -201,12 +201,53 @@ TEST_F(SbPlayerPipelineTest, PipelineStart) {
   base::RunLoop().RunUntilIdle();
 }
 
+/// CreatePlayer(SbDrmSystem drm_system
 TEST_F(SbPlayerPipelineTest, SetDrmSystem) {
   EXPECT_CALL(*demuxer_, OnInitialize(pipeline_.get(), _)).Times(1);
-  StartPipeline();
+  // CreatePlayer
+  // StartPipeline();
+  // pipeline_->OnDemuxerInitialized(PIPELINE_OK);
+  // pipeline_->OnDemuxerInitialized(PIPELINE_ERROR_ABORT);
+  // PIPELINE_ERROR_INITIALIZATION_FAILED = 6,
+  // PIPELINE_ERROR_COULD_NOT_RENDER = 8,
+  // PIPELINE_ERROR_READ = 9,
+  // FRIEND_TEST(SbPlayerPipelineTest, SetDrmSystem);
   base::RunLoop().RunUntilIdle();
 }
 
+// SUSPEND and RESUME
+//   void Stop(const base::Closure& stop_cb) override;
+//   void Seek(base::TimeDelta time, const SeekCB& seek_cb);
+//   bool HasAudio() const override;
+//   bool HasVideo() const override;
+
+//   float GetPlaybackRate() const override;
+//   void SetPlaybackRate(float playback_rate) override;
+//   float GetVolume() const override;
+//   void SetVolume(float volume) override;
+
+//   base::TimeDelta GetMediaTime() override;
+//   ::media::Ranges<base::TimeDelta> GetBufferedTimeRanges() override;
+//   base::TimeDelta GetMediaDuration() const override;
+// #if SB_HAS(PLAYER_WITH_URL)
+//   base::TimeDelta GetMediaStartDate() const override;
+// #endif  // SB_HAS(PLAYER_WITH_URL)
+//   void GetNaturalVideoSize(gfx::Size* out_size) const override;
+//   std::vector<std::string> GetAudioConnectors() const override;
+
+//   bool DidLoadingProgress() const override;
+//   PipelineStatistics GetStatistics() const override;
+//   SetBoundsCB GetSetBoundsCB() override;
+//   void SetPreferredOutputModeToDecodeToTexture() override;
+// //
+// const SetDrmSystemReadyCB& set_drm_system_ready_cb,
+// const PipelineStatusCB& ended_cb,
+// const ErrorCB& error_cb, const SeekCB& seek_cb,
+// const BufferingStateCB& buffering_state_cb,
+// const base::Closure& duration_change_cb,
+// const base::Closure& output_mode_change_cb,
+// const base::Closure& content_size_change_cb,
+// const std::string& max_video_capabilities) {
 
 }  // namespace media
 }  // namespace cobalt

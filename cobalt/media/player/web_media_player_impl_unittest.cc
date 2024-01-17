@@ -15,6 +15,7 @@
 #include "cobalt/media/player/web_media_player_impl.h"
 
 #include "base/test/scoped_task_environment.h"
+#include "cobalt/media/base/mock_filters.h"
 #include "cobalt/media/base/sbplayer_interface.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -26,13 +27,15 @@ using ::cobalt::media::DefaultSbPlayerInterface;
 using ::cobalt::media::SbPlayerInterface;
 using ::cobalt::media::WebMediaPlayerImpl;
 using ::media::ChunkDemuxer;
+using ::testing::_;
 using ::testing::AtLeast;
 using ::testing::NiceMock;
+using ::testing::StrictMock;
 
 
 namespace {
 SbDecodeTargetGraphicsContextProvider*
-MockGetSbDecodeTargetGraphicsContextProvider() {
+FakeGetSbDecodeTargetGraphicsContextProvider() {
   return NULL;
 }
 }  // namespace
@@ -72,13 +75,15 @@ class MockWebMediaPlayerClient : public cobalt::media::WebMediaPlayerClient,
 
 class WebMediaPlayerImplTest : public ::testing::Test {
  public:
-  WebMediaPlayerImplTest() : sbplayer_interface_(new DefaultSbPlayerInterface) {
+  WebMediaPlayerImplTest()
+      : sbplayer_interface_(
+            std::make_unique<StrictMock<MockSbPlayerInterface>>()) {
     wmpi_ = std::make_unique<WebMediaPlayerImpl>(
         sbplayer_interface_.get(), nullptr,
-        base::Bind(MockGetSbDecodeTargetGraphicsContextProvider), &client_,
+        base::Bind(FakeGetSbDecodeTargetGraphicsContextProvider), &client_,
         &client_, true, false, true,
 #if SB_API_VERSION >= 15
-        10, 10,
+        kSbPlayerWriteDurationLocal, kSbPlayerWriteDurationRemote,
 #endif  // SB_API_VERSION >= 15
         nullptr);
   }
@@ -112,6 +117,7 @@ TEST_F(WebMediaPlayerImplTest, LoadMediaSource) {
   EXPECT_CALL(client_, NetworkStateChanged()).Times(1);
   EXPECT_CALL(client_, ReadyStateChanged()).Times(1);
   EXPECT_CALL(client_, MaxVideoCapabilities()).Times(1);
+  EXPECT_CALL(client_, SourceOpened(_)).Times(1);
   wmpi_->LoadMediaSource();
 }
 
