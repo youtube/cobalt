@@ -32,18 +32,11 @@
 
 #include <google/protobuf/stubs/stringprintf.h>
 
-#ifndef STARBOARD
-#include <stdio.h> // MSVC requires this for _vsnprintf
-#endif  // defined(STARBOARD)
-
 #include <errno.h>
 #include <stdarg.h> // For va_list and related operations
+#include <stdio.h> // MSVC requires this for _vsnprintf
 #include <vector>
 #include <google/protobuf/stubs/common.h>
-
-#ifdef STARBOARD
-#include "starboard/client_porting/poem/stdio_poem.h"
-#endif
 
 namespace google {
 namespace protobuf {

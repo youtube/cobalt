@@ -38,8 +38,6 @@
 // will not cross the end of the buffer, since we can avoid a lot
 // of branching in this case.
 
-#include "starboard/client_porting/poem/string_poem.h"
-
 #include <google/protobuf/io/coded_stream_inl.h>
 #include <algorithm>
 #include <utility>
