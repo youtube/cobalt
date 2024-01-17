@@ -61,7 +61,6 @@
 #include <string.h>
 #endif  // !defined(OPENSSL_SYS_STARBOARD) || SB_API_VERSION >= 16
 
-#include <openssl/buf.h>
 #include <openssl/dh.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>

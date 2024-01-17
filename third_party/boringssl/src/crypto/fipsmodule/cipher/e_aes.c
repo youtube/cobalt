@@ -68,6 +68,48 @@
 OPENSSL_MSVC_PRAGMA(warning(push))
 OPENSSL_MSVC_PRAGMA(warning(disable: 4702))  // Unreachable code.
 
+#if defined(BSAES)
+static void vpaes_ctr32_encrypt_blocks_with_bsaes(const uint8_t *in,
+                                                  uint8_t *out, size_t blocks,
+                                                  const AES_KEY *key,
+                                                  const uint8_t ivec[16]) {
+  // |bsaes_ctr32_encrypt_blocks| is faster than |vpaes_ctr32_encrypt_blocks|,
+  // but it takes at least one full 8-block batch to amortize the conversion.
+  if (blocks < 8) {
+    vpaes_ctr32_encrypt_blocks(in, out, blocks, key, ivec);
+    return;
+  }
+
+  size_t bsaes_blocks = blocks;
+  if (bsaes_blocks % 8 < 6) {
+    // |bsaes_ctr32_encrypt_blocks| internally works in 8-block batches. If the
+    // final batch is too small (under six blocks), it is faster to loop over
+    // |vpaes_encrypt|. Round |bsaes_blocks| down to a multiple of 8.
+    bsaes_blocks -= bsaes_blocks % 8;
+  }
+
+  AES_KEY bsaes;
+  vpaes_encrypt_key_to_bsaes(&bsaes, key);
+  bsaes_ctr32_encrypt_blocks(in, out, bsaes_blocks, &bsaes, ivec);
+  OPENSSL_cleanse(&bsaes, sizeof(bsaes));
+
+  in += 16 * bsaes_blocks;
+  out += 16 * bsaes_blocks;
+  blocks -= bsaes_blocks;
+
+  union {
+    uint32_t u32[4];
+    uint8_t u8[16];
+  } new_ivec;
+  memcpy(new_ivec.u8, ivec, 16);
+  uint32_t ctr = CRYPTO_bswap4(new_ivec.u32[3]) + bsaes_blocks;
+  new_ivec.u32[3] = CRYPTO_bswap4(ctr);
+
+  // Finish any remaining blocks with |vpaes_ctr32_encrypt_blocks|.
+  vpaes_ctr32_encrypt_blocks(in, out, blocks, key, new_ivec.u8);
+}
+#endif  // BSAES
+
 typedef struct {
   union {
     double align;
@@ -110,13 +152,23 @@ static int aes_init_key(EVP_CIPHER_CTX *ctx, const uint8_t *key,
         dat->stream.cbc = aes_hw_cbc_encrypt;
       }
     } else if (bsaes_capable() && mode == EVP_CIPH_CBC_MODE) {
-      ret = aes_nohw_set_decrypt_key(key, ctx->key_len * 8, &dat->ks.ks);
-      dat->block = aes_nohw_decrypt;
+      assert(vpaes_capable());
+      ret = vpaes_set_decrypt_key(key, ctx->key_len * 8, &dat->ks.ks);
+      if (ret == 0) {
+        vpaes_decrypt_key_to_bsaes(&dat->ks.ks, &dat->ks.ks);
+      }
+      // If |dat->stream.cbc| is provided, |dat->block| is never used.
+      dat->block = NULL;
       dat->stream.cbc = bsaes_cbc_encrypt;
     } else if (vpaes_capable()) {
       ret = vpaes_set_decrypt_key(key, ctx->key_len * 8, &dat->ks.ks);
       dat->block = vpaes_decrypt;
-      dat->stream.cbc = mode == EVP_CIPH_CBC_MODE ? vpaes_cbc_encrypt : NULL;
+      dat->stream.cbc = NULL;
+#if defined(VPAES_CBC)
+      if (mode == EVP_CIPH_CBC_MODE) {
+        dat->stream.cbc = vpaes_cbc_encrypt;
+      }
+#endif
     } else {
       ret = aes_nohw_set_decrypt_key(key, ctx->key_len * 8, &dat->ks.ks);
       dat->block = aes_nohw_decrypt;
@@ -136,14 +188,23 @@ static int aes_init_key(EVP_CIPHER_CTX *ctx, const uint8_t *key,
     } else if (mode == EVP_CIPH_CTR_MODE) {
       dat->stream.ctr = aes_hw_ctr32_encrypt_blocks;
     }
-  } else if (bsaes_capable() && mode == EVP_CIPH_CTR_MODE) {
-    ret = aes_nohw_set_encrypt_key(key, ctx->key_len * 8, &dat->ks.ks);
-    dat->block = aes_nohw_encrypt;
-    dat->stream.ctr = bsaes_ctr32_encrypt_blocks;
   } else if (vpaes_capable()) {
     ret = vpaes_set_encrypt_key(key, ctx->key_len * 8, &dat->ks.ks);
     dat->block = vpaes_encrypt;
-    dat->stream.cbc = mode == EVP_CIPH_CBC_MODE ? vpaes_cbc_encrypt : NULL;
+    dat->stream.cbc = NULL;
+#if defined(VPAES_CBC)
+    if (mode == EVP_CIPH_CBC_MODE) {
+      dat->stream.cbc = vpaes_cbc_encrypt;
+    }
+#endif
+    if (mode == EVP_CIPH_CTR_MODE) {
+#if defined(BSAES)
+      assert(bsaes_capable());
+      dat->stream.ctr = vpaes_ctr32_encrypt_blocks_with_bsaes;
+#elif defined(VPAES_CTR32)
+      dat->stream.ctr = vpaes_ctr32_encrypt_blocks;
+#endif
+    }
   } else {
     ret = aes_nohw_set_encrypt_key(key, ctx->key_len * 8, &dat->ks.ks);
     dat->block = aes_nohw_encrypt;
@@ -220,7 +281,7 @@ static int aes_ofb_cipher(EVP_CIPHER_CTX *ctx, uint8_t *out, const uint8_t *in,
 
 ctr128_f aes_ctr_set_key(AES_KEY *aes_key, GCM128_KEY *gcm_key,
                          block128_f *out_block, const uint8_t *key,
-                         size_t key_bytes, int large_inputs) {
+                         size_t key_bytes) {
   if (hwaes_capable()) {
     aes_hw_set_encrypt_key(key, key_bytes * 8, aes_key);
     if (gcm_key != NULL) {
@@ -232,20 +293,7 @@ ctr128_f aes_ctr_set_key(AES_KEY *aes_key, GCM128_KEY *gcm_key,
     return aes_hw_ctr32_encrypt_blocks;
   }
 
-  const int bsaes_ok = bsaes_capable();
-  const int vpaes_ok = vpaes_capable();
-  if (bsaes_ok && (large_inputs || !vpaes_ok)) {
-    aes_nohw_set_encrypt_key(key, key_bytes * 8, aes_key);
-    if (gcm_key != NULL) {
-      CRYPTO_gcm128_init_key(gcm_key, aes_key, aes_nohw_encrypt, 0);
-    }
-    if (out_block) {
-      *out_block = aes_nohw_encrypt;
-    }
-    return bsaes_ctr32_encrypt_blocks;
-  }
-
-  if (vpaes_ok) {
+  if (vpaes_capable()) {
     vpaes_set_encrypt_key(key, key_bytes * 8, aes_key);
     if (out_block) {
       *out_block = vpaes_encrypt;
@@ -253,7 +301,14 @@ ctr128_f aes_ctr_set_key(AES_KEY *aes_key, GCM128_KEY *gcm_key,
     if (gcm_key != NULL) {
       CRYPTO_gcm128_init_key(gcm_key, aes_key, vpaes_encrypt, 0);
     }
+#if defined(BSAES)
+    assert(bsaes_capable());
+    return vpaes_ctr32_encrypt_blocks_with_bsaes;
+#elif defined(VPAES_CTR32)
+    return vpaes_ctr32_encrypt_blocks;
+#else
     return NULL;
+#endif
   }
 
   aes_nohw_set_encrypt_key(key, key_bytes * 8, aes_key);
@@ -298,7 +353,7 @@ static int aes_gcm_init_key(EVP_CIPHER_CTX *ctx, const uint8_t *key,
   if (key) {
     OPENSSL_memset(&gctx->gcm, 0, sizeof(gctx->gcm));
     gctx->ctr = aes_ctr_set_key(&gctx->ks.ks, &gctx->gcm.gcm_key, NULL, key,
-                                ctx->key_len, 1 /* large inputs */);
+                                ctx->key_len);
     // If we have an iv can set it directly, otherwise use saved IV.
     if (iv == NULL && gctx->iv_set) {
       iv = gctx->iv;
@@ -439,6 +494,9 @@ static int aes_gcm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr) {
     case EVP_CTRL_COPY: {
       EVP_CIPHER_CTX *out = ptr;
       EVP_AES_GCM_CTX *gctx_out = aes_gcm_from_cipher_ctx(out);
+      // |EVP_CIPHER_CTX_copy| copies this generically, but we must redo it in
+      // case |out->cipher_data| and |in->cipher_data| are differently aligned.
+      OPENSSL_memcpy(gctx_out, gctx, sizeof(EVP_AES_GCM_CTX));
       if (gctx->iv == c->iv) {
         gctx_out->iv = out->iv;
       } else {
@@ -573,7 +631,7 @@ DEFINE_LOCAL_DATA(EVP_CIPHER, aes_128_gcm_generic) {
   out->key_len = 16;
   out->iv_len = 12;
   out->ctx_size = sizeof(EVP_AES_GCM_CTX) + EVP_AES_GCM_CTX_PADDING;
-  out->flags = EVP_CIPH_GCM_MODE | EVP_CIPH_CUSTOM_IV |
+  out->flags = EVP_CIPH_GCM_MODE | EVP_CIPH_CUSTOM_IV | EVP_CIPH_CUSTOM_COPY |
                EVP_CIPH_FLAG_CUSTOM_CIPHER | EVP_CIPH_ALWAYS_CALL_INIT |
                EVP_CIPH_CTRL_INIT | EVP_CIPH_FLAG_AEAD_CIPHER;
   out->init = aes_gcm_init_key;
@@ -641,7 +699,7 @@ DEFINE_LOCAL_DATA(EVP_CIPHER, aes_192_gcm_generic) {
   out->key_len = 24;
   out->iv_len = 12;
   out->ctx_size = sizeof(EVP_AES_GCM_CTX) + EVP_AES_GCM_CTX_PADDING;
-  out->flags = EVP_CIPH_GCM_MODE | EVP_CIPH_CUSTOM_IV |
+  out->flags = EVP_CIPH_GCM_MODE | EVP_CIPH_CUSTOM_IV | EVP_CIPH_CUSTOM_COPY |
                EVP_CIPH_FLAG_CUSTOM_CIPHER | EVP_CIPH_ALWAYS_CALL_INIT |
                EVP_CIPH_CTRL_INIT | EVP_CIPH_FLAG_AEAD_CIPHER;
   out->init = aes_gcm_init_key;
@@ -709,7 +767,7 @@ DEFINE_LOCAL_DATA(EVP_CIPHER, aes_256_gcm_generic) {
   out->key_len = 32;
   out->iv_len = 12;
   out->ctx_size = sizeof(EVP_AES_GCM_CTX) + EVP_AES_GCM_CTX_PADDING;
-  out->flags = EVP_CIPH_GCM_MODE | EVP_CIPH_CUSTOM_IV |
+  out->flags = EVP_CIPH_GCM_MODE | EVP_CIPH_CUSTOM_IV | EVP_CIPH_CUSTOM_COPY |
                EVP_CIPH_FLAG_CUSTOM_CIPHER | EVP_CIPH_ALWAYS_CALL_INIT |
                EVP_CIPH_CTRL_INIT | EVP_CIPH_FLAG_AEAD_CIPHER;
   out->init = aes_gcm_init_key;
@@ -827,7 +885,7 @@ static int aead_aes_gcm_init_impl(struct aead_aes_gcm_ctx *gcm_ctx,
                                   size_t key_len, size_t tag_len) {
   const size_t key_bits = key_len * 8;
 
-  if (key_bits != 128 && key_bits != 256) {
+  if (key_bits != 128 && key_bits != 192 && key_bits != 256) {
     OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_BAD_KEY_LENGTH);
     return 0;  // EVP_AEAD_CTX_init should catch this.
   }
@@ -841,8 +899,8 @@ static int aead_aes_gcm_init_impl(struct aead_aes_gcm_ctx *gcm_ctx,
     return 0;
   }
 
-  gcm_ctx->ctr = aes_ctr_set_key(&gcm_ctx->ks.ks, &gcm_ctx->gcm_key, NULL, key,
-                                 key_len, 1 /* large inputs */);
+  gcm_ctx->ctr =
+      aes_ctr_set_key(&gcm_ctx->ks.ks, &gcm_ctx->gcm_key, NULL, key, key_len);
   *out_tag_len = tag_len;
   return 1;
 }
@@ -984,6 +1042,21 @@ DEFINE_METHOD_FUNCTION(EVP_AEAD, EVP_aead_aes_128_gcm) {
   memset(out, 0, sizeof(EVP_AEAD));
 
   out->key_len = 16;
+  out->nonce_len = 12;
+  out->overhead = EVP_AEAD_AES_GCM_TAG_LEN;
+  out->max_tag_len = EVP_AEAD_AES_GCM_TAG_LEN;
+  out->seal_scatter_supports_extra_in = 1;
+
+  out->init = aead_aes_gcm_init;
+  out->cleanup = aead_aes_gcm_cleanup;
+  out->seal_scatter = aead_aes_gcm_seal_scatter;
+  out->open_gather = aead_aes_gcm_open_gather;
+}
+
+DEFINE_METHOD_FUNCTION(EVP_AEAD, EVP_aead_aes_192_gcm) {
+  memset(out, 0, sizeof(EVP_AEAD));
+
+  out->key_len = 24;
   out->nonce_len = 12;
   out->overhead = EVP_AEAD_AES_GCM_TAG_LEN;
   out->max_tag_len = EVP_AEAD_AES_GCM_TAG_LEN;
@@ -1203,6 +1276,8 @@ int EVP_has_aes_hardware(void) {
   return hwaes_capable() && crypto_gcm_clmul_enabled();
 #elif defined(OPENSSL_ARM) || defined(OPENSSL_AARCH64)
   return hwaes_capable() && CRYPTO_is_ARMv8_PMULL_capable();
+#elif defined(OPENSSL_PPC64LE)
+  return CRYPTO_is_PPC64LE_vcrypto_capable();
 #else
   return 0;
 #endif

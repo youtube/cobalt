@@ -422,6 +422,11 @@ static int aead_aes_gcm_siv_asm_open(const EVP_AEAD_CTX *ctx, uint8_t *out,
     return 0;
   }
 
+  if (nonce_len != EVP_AEAD_AES_GCM_SIV_NONCE_LEN) {
+    OPENSSL_PUT_ERROR(CIPHER, CIPHER_R_UNSUPPORTED_NONCE_SIZE);
+    return 0;
+  }
+
   const struct aead_aes_gcm_siv_asm_ctx *gcm_siv_ctx = asm_ctx_from_ctx(ctx);
   const size_t plaintext_len = in_len - EVP_AEAD_AES_GCM_SIV_TAG_LEN;
   const uint8_t *const given_tag = in + plaintext_len;
@@ -586,7 +591,7 @@ static int aead_aes_gcm_siv_init(EVP_AEAD_CTX *ctx, const uint8_t *key,
   OPENSSL_memset(gcm_siv_ctx, 0, sizeof(struct aead_aes_gcm_siv_ctx));
 
   aes_ctr_set_key(&gcm_siv_ctx->ks.ks, NULL, &gcm_siv_ctx->kgk_block, key,
-                  key_len, 1 /* large inputs */);
+                  key_len);
   gcm_siv_ctx->is_256 = (key_len == 32);
   ctx->tag_len = tag_len;
 
@@ -710,8 +715,7 @@ static void gcm_siv_keys(
 
   OPENSSL_memcpy(out_keys->auth_key, key_material, 16);
   aes_ctr_set_key(&out_keys->enc_key.ks, NULL, &out_keys->enc_block,
-                  key_material + 16, gcm_siv_ctx->is_256 ? 32 : 16,
-                  1 /* large inputs */);
+                  key_material + 16, gcm_siv_ctx->is_256 ? 32 : 16);
 }
 
 static int aead_aes_gcm_siv_seal_scatter(

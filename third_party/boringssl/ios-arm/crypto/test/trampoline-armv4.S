@@ -1,10 +1,11 @@
 // This file is generated from a similarly-named Perl script in the BoringSSL
 // source tree. Do not edit by hand.
 
-#if defined(__has_feature)
+#if !defined(__has_feature)
+#define __has_feature(x) 0
+#endif
 #if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
 #define OPENSSL_NO_ASM
-#endif
 #endif
 
 #if !defined(OPENSSL_NO_ASM)
@@ -29,7 +30,6 @@
 .private_extern	_abi_test_trampoline
 .align	4
 _abi_test_trampoline:
-Labi_test_trampoline_begin:
 	@ Save parameters and all callee-saved registers. For convenience, we
 	@ save r9 on iOS even though it's volatile.
 	vstmdb	sp!, {d8,d9,d10,d11,d12,d13,d14,d15}

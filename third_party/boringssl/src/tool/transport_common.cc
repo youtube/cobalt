@@ -16,7 +16,9 @@
 // pointer, on grounds that MSVC cannot check them. Unfortunately, there is no
 // way to suppress the warning just on one line. The warning is flagged inside
 // the STL itself, so suppressing at the |std::copy| call does not work.
+#if !defined(_SCL_SECURE_NO_WARNINGS)
 #define _SCL_SECURE_NO_WARNINGS
+#endif
 
 #include <openssl/base.h>
 
@@ -661,7 +663,8 @@ void PrintSSLError(FILE *file, const char *msg, int ssl_err, int ret) {
       fprintf(file, "%s: received close_notify\n", msg);
       break;
     default:
-      fprintf(file, "%s: unknown error type (%d)\n", msg, ssl_err);
+      fprintf(file, "%s: unexpected error: %s\n", msg,
+              SSL_error_description(ssl_err));
   }
   ERR_print_errors_fp(file);
 }

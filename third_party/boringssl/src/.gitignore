@@ -1,4 +1,6 @@
 build/
+build32/
+build64/
 ssl/test/runner/runner
 *.pyc
 *.swp
@@ -7,7 +9,7 @@ doc/*.html
 doc/doc.css
 
 util/bot/android_ndk
-util/bot/android_tools
+util/bot/android_sdk/public
 util/bot/cmake-linux64
 util/bot/cmake-linux64.tar.gz
 util/bot/cmake-mac

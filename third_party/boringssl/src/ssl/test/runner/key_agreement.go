@@ -7,6 +7,7 @@ package runner
 import (
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rsa"
 	"crypto/subtle"
@@ -17,7 +18,6 @@ import (
 	"math/big"
 
 	"boringssl.googlesource.com/boringssl/ssl/test/runner/curve25519"
-	"boringssl.googlesource.com/boringssl/ssl/test/runner/ed25519"
 	"boringssl.googlesource.com/boringssl/ssl/test/runner/hrss"
 )
 
@@ -594,7 +594,7 @@ func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Cer
 
 NextCandidate:
 	for _, candidate := range preferredCurves {
-		if candidate == CurveCECPQ2 && version < VersionTLS13 {
+		if isPqGroup(candidate) && version < VersionTLS13 {
 			// CECPQ2 is TLS 1.3-only.
 			continue
 		}

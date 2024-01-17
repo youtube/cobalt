@@ -157,7 +157,6 @@
 
 #include <openssl/aead.h>
 #include <openssl/bn.h>
-#include <openssl/buf.h>
 #include <openssl/bytestring.h>
 #include <openssl/ec_key.h>
 #include <openssl/ecdsa.h>
@@ -326,7 +325,7 @@ bool ssl_write_client_hello(SSL_HANDSHAKE *hs) {
   // Now that the length prefixes have been computed, fill in the placeholder
   // PSK binder.
   if (hs->needs_psk_binder &&
-      !tls13_write_psk_binder(hs, msg.data(), msg.size())) {
+      !tls13_write_psk_binder(hs, MakeSpan(msg))) {
     return false;
   }
 
@@ -456,11 +455,15 @@ static enum ssl_hs_wait_t do_enter_early_data(SSL_HANDSHAKE *hs) {
     return ssl_hs_error;
   }
 
-  if (!tls13_init_early_key_schedule(hs, ssl->session->master_key,
-                                     ssl->session->master_key_length) ||
-      !tls13_derive_early_secrets(hs) ||
+  if (!tls13_init_early_key_schedule(
+          hs, MakeConstSpan(ssl->session->master_key,
+                            ssl->session->master_key_length)) ||
+      !tls13_derive_early_secret(hs)) {
+    return ssl_hs_error;
+  }
+  if (ssl->quic_method == nullptr &&
       !tls13_set_traffic_key(ssl, ssl_encryption_early_data, evp_aead_seal,
-                             hs->early_traffic_secret, hs->hash_len)) {
+                             hs->early_traffic_secret())) {
     return ssl_hs_error;
   }
 
@@ -473,15 +476,28 @@ static enum ssl_hs_wait_t do_enter_early_data(SSL_HANDSHAKE *hs) {
 
 static enum ssl_hs_wait_t do_early_reverify_server_certificate(SSL_HANDSHAKE *hs) {
   if (hs->ssl->ctx->reverify_on_resume) {
-    switch (ssl_reverify_peer_cert(hs)) {
-    case ssl_verify_ok:
-      break;
-    case ssl_verify_invalid:
-      return ssl_hs_error;
-    case ssl_verify_retry:
-      hs->state = state_early_reverify_server_certificate;
-      return ssl_hs_certificate_verify;
+    // Don't send an alert on error. The alert be in early data, which the
+    // server may not accept anyway. It would also be a mismatch between QUIC
+    // and TCP because the QUIC early keys are deferred below.
+    //
+    // TODO(davidben): The client behavior should be to verify the certificate
+    // before deciding whether to offer the session and, if invalid, decline to
+    // send the session.
+    switch (ssl_reverify_peer_cert(hs, /*send_alert=*/false)) {
+      case ssl_verify_ok:
+        break;
+      case ssl_verify_invalid:
+        return ssl_hs_error;
+      case ssl_verify_retry:
+        hs->state = state_early_reverify_server_certificate;
+        return ssl_hs_certificate_verify;
     }
+  }
+
+  // Defer releasing the 0-RTT key to after certificate reverification, so the
+  // QUIC implementation does not accidentally write data too early.
+  if (!tls13_set_early_secret_for_quic(hs)) {
+    return ssl_hs_error;
   }
 
   hs->in_early_data = true;
@@ -903,7 +919,7 @@ static enum ssl_hs_wait_t do_verify_server_certificate(SSL_HANDSHAKE *hs) {
 static enum ssl_hs_wait_t do_reverify_server_certificate(SSL_HANDSHAKE *hs) {
   assert(hs->ssl->ctx->reverify_on_resume);
 
-  switch (ssl_reverify_peer_cert(hs)) {
+  switch (ssl_reverify_peer_cert(hs, /*send_alert=*/true)) {
     case ssl_verify_ok:
       break;
     case ssl_verify_invalid:
@@ -1071,13 +1087,8 @@ static enum ssl_hs_wait_t do_read_server_key_exchange(SSL_HANDSHAKE *hs) {
       return ssl_hs_error;
     }
 
-    bool sig_ok = ssl_public_key_verify(ssl, signature, signature_algorithm,
-                                        hs->peer_pubkey.get(), transcript_data);
-#if defined(BORINGSSL_UNSAFE_FUZZER_MODE)
-    sig_ok = true;
-    ERR_clear_error();
-#endif
-    if (!sig_ok) {
+    if (!ssl_public_key_verify(ssl, signature, signature_algorithm,
+                               hs->peer_pubkey.get(), transcript_data)) {
       // bad signature
       OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_SIGNATURE);
       ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_DECRYPT_ERROR);
@@ -1291,7 +1302,7 @@ static enum ssl_hs_wait_t do_send_client_key_exchange(SSL_HANDSHAKE *hs) {
     }
     assert(psk_len <= PSK_MAX_PSK_LEN);
 
-    hs->new_session->psk_identity.reset(BUF_strdup(identity));
+    hs->new_session->psk_identity.reset(OPENSSL_strdup(identity));
     if (hs->new_session->psk_identity == nullptr) {
       OPENSSL_PUT_ERROR(SSL, ERR_R_MALLOC_FAILURE);
       return ssl_hs_error;

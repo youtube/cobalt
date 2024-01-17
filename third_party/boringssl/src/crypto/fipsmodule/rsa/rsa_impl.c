@@ -554,7 +554,7 @@ int rsa_default_decrypt(RSA *rsa, size_t *out_len, uint8_t *out, size_t max_out,
   if (!ret) {
     OPENSSL_PUT_ERROR(RSA, RSA_R_PADDING_CHECK_FAILED);
   } else {
-    CONSTTIME_DECLASSIFY(out, out_len);
+    CONSTTIME_DECLASSIFY(out, *out_len);
   }
 
 err:
@@ -1035,7 +1035,7 @@ static int generate_prime(BIGNUM *out, int bits, const BIGNUM *e,
     }
 
     // RSA key generation's bottleneck is discarding composites. If it fails
-    // trial division, do not bother computing a GCD or performing Rabin-Miller.
+    // trial division, do not bother computing a GCD or performing Miller-Rabin.
     if (!bn_odd_number_is_obviously_composite(out)) {
       // Check gcd(out-1, e) is one (steps 4.5 and 5.6).
       int relatively_prime;
