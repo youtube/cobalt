@@ -3518,6 +3518,7 @@ test("base_unittests") {
       # Since Starboard lacks abstractions for multi-processing, and shared
       # memory is solely used for inter-process communication, we disable
       # shared memory and process code in Cobalt.
+      "memory/memory_pressure_listener_unittest.cc",
       "memory/shared_memory_hooks_unittest.cc",
       "memory/shared_memory_mapping_unittest.cc",
       "memory/shared_memory_region_unittest.cc",
