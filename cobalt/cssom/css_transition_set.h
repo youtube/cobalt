@@ -18,10 +18,10 @@
 #include <map>
 
 #include "base/basictypes.h"
-#include "base/optional.h"
 #include "base/time/time.h"
 #include "cobalt/cssom/css_transition.h"
 #include "cobalt/cssom/property_definitions.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace cssom {

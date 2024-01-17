@@ -74,7 +74,7 @@ struct ChooseConfigResult {
 // |system_window| can also be provided in which case the config returned will
 // also be guaranteed to match with it, and a EGLSurface will be returned
 // for that window.
-base::Optional<ChooseConfigResult> ChooseConfig(
+absl::optional<ChooseConfigResult> ChooseConfig(
     EGLDisplay display, EGLint* attribute_list,
     system_window::SystemWindow* system_window) {
   if (!system_window) {
@@ -93,7 +93,7 @@ base::Optional<ChooseConfigResult> ChooseConfig(
     } else {
       LOG(ERROR) << "Could not find a EGLConfig compatible with the specified "
                  << "attributes.";
-      return base::nullopt;
+      return absl::nullopt;
     }
   }
 
@@ -127,7 +127,7 @@ base::Optional<ChooseConfigResult> ChooseConfig(
   // We could not find a config with the provided window, return a failure.
   LOG(ERROR) << "Could not find a EGLConfig compatible with the specified "
              << "EGLNativeWindowType object and attributes.";
-  return base::nullopt;
+  return absl::nullopt;
 }
 
 }  // namespace
@@ -172,7 +172,7 @@ GraphicsSystemEGL::GraphicsSystemEGL(
                              EGL_OPENGL_ES2_BIT,
                              EGL_NONE};
 
-  base::Optional<ChooseConfigResult> choose_config_results =
+  absl::optional<ChooseConfigResult> choose_config_results =
       ChooseConfig(display_, attribute_list, system_window);
 
   if (configuration::Configuration::GetInstance()

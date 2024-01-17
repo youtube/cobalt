@@ -73,7 +73,7 @@ class GoogleSpeechService : public net::URLFetcherDelegate {
   void OnURLFetchUploadProgress(const net::URLFetcher* source, int64 current,
                                 int64 total) override {}
 
-  static base::Optional<std::string> GetSpeechAPIKey();
+  static absl::optional<std::string> GetSpeechAPIKey();
 
  private:
   void StartInternal(const SpeechRecognitionConfig& config, int sample_rate);

@@ -55,7 +55,7 @@ void DebuggerEventTarget::AddListener(
 
 void DebuggerEventTarget::NotifyListener(
     const DebuggerEventTarget::ListenerInfo* listener,
-    const std::string& method, const base::Optional<std::string>& json_params) {
+    const std::string& method, const absl::optional<std::string>& json_params) {
   DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), listener->task_runner);
   listener->callback.value().Run(method, json_params);
 }

@@ -87,7 +87,7 @@ void FlexLine::ResolveFlexibleLengthsAndCrossSize() {
         (!flex_factor_grow_ &&
          (item->flex_base_size() < hypothetical_main_size))) {
       // Freeze, setting its target main size to its hypothetical main size.
-      base::Optional<LayoutUnit> content_based_minimum_size =
+      absl::optional<LayoutUnit> content_based_minimum_size =
           item->GetContentBasedMinimumSize(
               layout_params_.containing_block_size);
       if (content_based_minimum_size.has_value()) {
@@ -190,7 +190,7 @@ void FlexLine::ResolveFlexibleLengthsAndCrossSize() {
     LayoutUnit unclamped_size = LayoutUnit();
     LayoutUnit clamped_size = LayoutUnit();
     for (auto& item : flexible_items) {
-      base::Optional<LayoutUnit> maybe_used_min_space;
+      absl::optional<LayoutUnit> maybe_used_min_space;
       if (flex_factor_grow_) {
         maybe_used_min_space = item->GetUsedMinMainAxisSizeIfNotAuto(
             layout_params_.containing_block_size);
@@ -198,7 +198,7 @@ void FlexLine::ResolveFlexibleLengthsAndCrossSize() {
         maybe_used_min_space = item->GetContentBasedMinimumSize(
             layout_params_.containing_block_size);
       }
-      base::Optional<LayoutUnit> used_max_space =
+      absl::optional<LayoutUnit> used_max_space =
           item->GetUsedMaxMainAxisSizeIfNotNone(
               layout_params_.containing_block_size);
 
@@ -323,12 +323,12 @@ void FlexLine::DetermineUsedCrossSizes(LayoutUnit container_cross_size) {
       // The used outer cross size is the used cross size of its flex line,
       // clamped according to the item's used min and max cross sizes.
       LayoutUnit cross_size = cross_size_ - item->GetContentToMarginCrossAxis();
-      base::Optional<LayoutUnit> min_cross_size =
+      absl::optional<LayoutUnit> min_cross_size =
           item->GetUsedMinCrossAxisSizeIfNotAuto(containing_block_size);
       if (min_cross_size && (*min_cross_size > cross_size)) {
         cross_size = *min_cross_size;
       }
-      base::Optional<LayoutUnit> max_cross_size =
+      absl::optional<LayoutUnit> max_cross_size =
           item->GetUsedMaxCrossAxisSizeIfNotNone(containing_block_size);
       if (max_cross_size && *max_cross_size < cross_size) {
         cross_size = *max_cross_size;

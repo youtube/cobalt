@@ -19,7 +19,6 @@
 #include <string>
 
 #include "base/memory/weak_ptr.h"
-#include "base/optional.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/base/source_location.h"
@@ -27,6 +26,7 @@
 #include "cobalt/loader/loader.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/web/url_utils.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace dom {
@@ -60,8 +60,8 @@ class HTMLScriptElement : public HTMLElement {
   bool async() const { return GetBooleanAttribute("async"); }
   void set_async(bool value) { SetBooleanAttribute("async", value); }
 
-  base::Optional<std::string> cross_origin() const;
-  void set_cross_origin(const base::Optional<std::string>& value);
+  absl::optional<std::string> cross_origin() const;
+  void set_cross_origin(const absl::optional<std::string>& value);
 
   std::string nonce() const { return GetAttribute("nonce").value_or(""); }
   void set_nonce(const std::string& value) { SetAttribute("nonce", value); }
@@ -109,12 +109,12 @@ class HTMLScriptElement : public HTMLElement {
 
   void OnSyncContentProduced(const loader::Origin& last_url_origin,
                              std::unique_ptr<std::string> content);
-  void OnSyncLoadingComplete(const base::Optional<std::string>& error);
+  void OnSyncLoadingComplete(const absl::optional<std::string>& error);
 
   void OnReadyToExecute();
   void OnContentProduced(const loader::Origin& last_url_origin,
                          std::unique_ptr<std::string> content);
-  void OnLoadingComplete(const base::Optional<std::string>& error);
+  void OnLoadingComplete(const absl::optional<std::string>& error);
 
   void ExecuteExternal();
   void ExecuteInternal();
@@ -141,7 +141,7 @@ class HTMLScriptElement : public HTMLElement {
   // Whether the script is ready to be executed.
   bool is_ready_;
   // If the script failed, contains the error message.
-  base::Optional<std::string> error_;
+  absl::optional<std::string> error_;
   // The option that defines how the script should be loaded and executed.
   int load_option_;
   // SourceLocation for inline script.

@@ -132,7 +132,7 @@ size_t SkiaGlyphAtlasTextureSetting::NumberOfReductions(
 }
 
 int64_t SumMemoryConsumption(
-    base::Optional<MemorySetting::MemoryType> memory_type_filter,
+    absl::optional<MemorySetting::MemoryType> memory_type_filter,
     const std::vector<const MemorySetting*>& memory_settings) {
   int64_t sum = 0;
   for (size_t i = 0; i < memory_settings.size(); ++i) {
@@ -145,7 +145,7 @@ int64_t SumMemoryConsumption(
 }
 
 int64_t SumMemoryConsumption(
-    base::Optional<MemorySetting::MemoryType> memory_type_filter,
+    absl::optional<MemorySetting::MemoryType> memory_type_filter,
     const std::vector<MemorySetting*>& memory_settings) {
   const std::vector<const MemorySetting*> const_vector(memory_settings.begin(),
                                                        memory_settings.end());

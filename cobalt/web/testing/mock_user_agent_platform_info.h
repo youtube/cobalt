@@ -37,7 +37,7 @@ class MockUserAgentPlatformInfo : public web::UserAgentPlatformInfo {
   const std::string& os_name_and_version() const override {
     return empty_string_;
   }
-  base::Optional<std::string> original_design_manufacturer() const override {
+  absl::optional<std::string> original_design_manufacturer() const override {
     return optional_empty_string_;
   }
 #if SB_API_VERSION < 15
@@ -48,19 +48,19 @@ class MockUserAgentPlatformInfo : public web::UserAgentPlatformInfo {
   const std::string& device_type_string() const override {
     return empty_string_;
   }
-  base::Optional<std::string> chipset_model_number() const override {
+  absl::optional<std::string> chipset_model_number() const override {
     return optional_empty_string_;
   }
-  base::Optional<std::string> model_year() const override {
+  absl::optional<std::string> model_year() const override {
     return optional_empty_string_;
   }
-  base::Optional<std::string> firmware_version() const override {
+  absl::optional<std::string> firmware_version() const override {
     return optional_empty_string_;
   }
-  base::Optional<std::string> brand() const override {
+  absl::optional<std::string> brand() const override {
     return optional_empty_string_;
   }
-  base::Optional<std::string> model() const override {
+  absl::optional<std::string> model() const override {
     return optional_empty_string_;
   }
   const std::string& aux_field() const override { return empty_string_; }
@@ -91,7 +91,7 @@ class MockUserAgentPlatformInfo : public web::UserAgentPlatformInfo {
 
  private:
   const std::string empty_string_;
-  base::Optional<std::string> optional_empty_string_;
+  absl::optional<std::string> optional_empty_string_;
 };  // namespace cobalt
 
 }  // namespace testing

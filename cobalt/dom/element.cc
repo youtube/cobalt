@@ -58,7 +58,7 @@ Element::Element(Document* document, base::Token local_name)
       local_name_(local_name),
       animations_(new web_animations::AnimationSet()) {}
 
-base::Optional<std::string> Element::text_content() const {
+absl::optional<std::string> Element::text_content() const {
   std::string content;
 
   const Node* child = first_child();
@@ -73,7 +73,7 @@ base::Optional<std::string> Element::text_content() const {
 }
 
 void Element::set_text_content(
-    const base::Optional<std::string>& text_content) {
+    const absl::optional<std::string>& text_content) {
   // https://www.w3.org/TR/dom/#dom-node-textcontent
   // 1. Let node be null.
   scoped_refptr<Node> new_node;
@@ -90,7 +90,7 @@ void Element::set_text_content(
 
 bool Element::HasAttributes() const { return !attribute_map_.empty(); }
 
-base::Optional<std::string> Element::GetAttributeNS(
+absl::optional<std::string> Element::GetAttributeNS(
     const std::string& namespace_uri, const std::string& name) const {
   // TODO: Implement namespaces, if we actually need this.
   NOTIMPLEMENTED();
@@ -155,7 +155,7 @@ const scoped_refptr<DOMTokenList>& Element::class_list() {
 
 // Algorithm for GetAttribute:
 //   https://www.w3.org/TR/2014/WD-dom-20140710/#dom-element-getattribute
-base::Optional<std::string> Element::GetAttribute(
+absl::optional<std::string> Element::GetAttribute(
     const std::string& name) const {
   Document* document = node_document();
 
@@ -183,7 +183,7 @@ base::Optional<std::string> Element::GetAttribute(
     }
   }
 
-  return base::nullopt;
+  return absl::nullopt;
 }
 
 // Algorithm for SetAttribute:
@@ -209,7 +209,7 @@ void Element::SetAttribute(const std::string& name, const std::string& value) {
   //    terminate these steps.
   // 5. Change attribute from context object to value.
 
-  base::Optional<std::string> old_value = GetAttribute(attr_name);
+  absl::optional<std::string> old_value = GetAttribute(attr_name);
   MutationReporter mutation_reporter(this, GatherInclusiveAncestorsObservers());
   mutation_reporter.ReportAttributesMutation(attr_name, old_value);
 
@@ -278,7 +278,7 @@ void Element::RemoveAttribute(const std::string& name) {
     attr_name = base::ToLowerASCII(attr_name);
   }
 
-  base::Optional<std::string> old_value = GetAttribute(attr_name);
+  absl::optional<std::string> old_value = GetAttribute(attr_name);
   if (old_value) {
     MutationReporter mutation_reporter(this,
                                        GatherInclusiveAncestorsObservers());
@@ -612,12 +612,12 @@ bool Element::HasFocus() {
   return document ? (document->active_element() == this) : false;
 }
 
-base::Optional<std::string> Element::GetStyleAttribute() const {
+absl::optional<std::string> Element::GetStyleAttribute() const {
   AttributeMap::const_iterator iter = attribute_map_.find(kStyleAttributeName);
   if (iter != attribute_map_.end()) {
     return iter->second;
   }
-  return base::nullopt;
+  return absl::nullopt;
 }
 
 void Element::SetStyleAttribute(const std::string& value) {

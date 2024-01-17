@@ -16,7 +16,7 @@
 #define COBALT_MATH_EXPONENTIAL_MOVING_AVERAGE_H_
 
 #include "base/logging.h"
-#include "base/optional.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace math {
@@ -33,7 +33,7 @@ class ExponentialMovingAverage {
     DCHECK_GE(1, new_value_weight_);
   }
 
-  const base::Optional<T>& average() const { return average_; }
+  const absl::optional<T>& average() const { return average_; }
 
   void AddValue(T value) {
     if (!average_) {
@@ -46,7 +46,7 @@ class ExponentialMovingAverage {
 
  private:
   const float new_value_weight_;
-  base::Optional<T> average_;
+  absl::optional<T> average_;
 };
 
 typedef ExponentialMovingAverage<float> ExponentialMovingAverageF;

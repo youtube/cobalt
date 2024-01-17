@@ -18,8 +18,8 @@
 #include <memory>
 #include <string>
 
-#include "base/optional.h"
 #include "base/values.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -35,9 +35,9 @@ class ServerStatus {
   static std::unique_ptr<base::Value> ToValue(const ServerStatus& status);
 
  private:
-  base::Optional<std::string> os_name_;
-  base::Optional<std::string> os_arch_;
-  base::Optional<std::string> os_version_;
+  absl::optional<std::string> os_name_;
+  absl::optional<std::string> os_arch_;
+  absl::optional<std::string> os_version_;
   std::string build_time_;
   std::string build_version_;
 };

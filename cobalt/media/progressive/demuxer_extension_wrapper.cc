@@ -116,7 +116,7 @@ class DemuxerExtensionWrapper::H264AnnexBConverter {
 
       // The SPS and PPS NALUs -- generated from the config -- should only be
       // sent with the first real NALU.
-      config_ = base::nullopt;
+      config_ = absl::nullopt;
 
       // TODO(b/231994311): Add the buffer's side_data here, for HDR10+ support.
       return DecoderBuffer::CopyFrom(rewritten.data(), rewritten.size());
@@ -130,7 +130,7 @@ class DemuxerExtensionWrapper::H264AnnexBConverter {
       : config_(std::move(config)), converter_(std::move(converter)) {}
 
   // This config data is only sent with the first NALU (as SPS and PPS NALUs).
-  base::Optional<AVCDecoderConfigurationRecord> config_;
+  absl::optional<AVCDecoderConfigurationRecord> config_;
   std::unique_ptr<H264ToAnnexBBitstreamConverter> converter_;
 };
 

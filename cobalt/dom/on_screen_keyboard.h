@@ -99,17 +99,17 @@ class OnScreenKeyboard : public web::EventTarget {
   void set_keep_focus(bool keep_focus);
   bool keep_focus() const { return keep_focus_; }
 
-  void set_background_color(base::Optional<std::string>& background_color) {
+  void set_background_color(absl::optional<std::string>& background_color) {
     background_color_ = background_color;
   }
-  base::Optional<std::string> background_color() const {
+  absl::optional<std::string> background_color() const {
     return background_color_;
   }
 
-  void set_light_theme(base::Optional<bool> light_theme) {
+  void set_light_theme(absl::optional<bool> light_theme) {
     light_theme_ = light_theme;
   }
-  base::Optional<bool> light_theme() const { return light_theme_; }
+  absl::optional<bool> light_theme() const { return light_theme_; }
 
   // Called by the WebModule to dispatch DOM show, hide, focus, blur and
   // suggestions updated events.
@@ -148,9 +148,9 @@ class OnScreenKeyboard : public web::EventTarget {
 
   bool suggestions_supported_;
 
-  base::Optional<std::string> background_color_;
+  absl::optional<std::string> background_color_;
 
-  base::Optional<bool> light_theme_;
+  absl::optional<bool> light_theme_;
 
   DISALLOW_COPY_AND_ASSIGN(OnScreenKeyboard);
 };

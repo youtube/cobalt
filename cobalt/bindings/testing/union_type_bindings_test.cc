@@ -142,12 +142,12 @@ TEST_F(UnionTypesBindingsTest, SetNullableUnion) {
       .WillOnce(SaveArg<0>(&union_type));
   EXPECT_TRUE(
       EvaluateScript("test.unionWithNullableMemberProperty = null;", NULL));
-  EXPECT_EQ(base::nullopt, union_type);
+  EXPECT_EQ(absl::nullopt, union_type);
 
   EXPECT_CALL(test_mock(), set_nullable_union_property(_))
       .WillOnce(SaveArg<0>(&union_type));
   EXPECT_TRUE(EvaluateScript("test.nullableUnionProperty = null;", NULL));
-  EXPECT_EQ(base::nullopt, union_type);
+  EXPECT_EQ(absl::nullopt, union_type);
 }
 
 TEST_F(UnionTypesBindingsTest, GetNullableUnion) {
@@ -155,13 +155,13 @@ TEST_F(UnionTypesBindingsTest, GetNullableUnion) {
 
   std::string result;
   EXPECT_CALL(test_mock(), union_with_nullable_member_property())
-      .WillOnce(Return(base::nullopt));
+      .WillOnce(Return(absl::nullopt));
   EXPECT_TRUE(
       EvaluateScript("test.unionWithNullableMemberProperty == null;", &result));
   EXPECT_STREQ("true", result.c_str());
 
   EXPECT_CALL(test_mock(), nullable_union_property())
-      .WillOnce(Return(base::nullopt));
+      .WillOnce(Return(absl::nullopt));
   EXPECT_TRUE(EvaluateScript("test.nullableUnionProperty == null;", &result));
   EXPECT_STREQ("true", result.c_str());
 }

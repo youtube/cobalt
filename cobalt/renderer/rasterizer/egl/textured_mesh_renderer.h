@@ -21,10 +21,10 @@
 #include <utility>
 #include <vector>
 
-#include "base/optional.h"
 #include "cobalt/math/rect.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/texture.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/glm/glm/mat4x4.hpp"
 
 namespace cobalt {
@@ -133,7 +133,7 @@ class TexturedMeshRenderer {
     int32 subtexture_size_uniform;
   };
   // We key each program off of their GL texture type and image type.
-  typedef std::tuple<uint32, Image::Type, base::Optional<int32> > CacheKey;
+  typedef std::tuple<uint32, Image::Type, absl::optional<int32> > CacheKey;
   typedef std::map<CacheKey, ProgramInfo> ProgramCache;
 
   uint32 GetQuadVBO();
@@ -166,7 +166,7 @@ class TexturedMeshRenderer {
   static const int kBlitPositionAttribute = 0;
   static const int kBlitTexcoordAttribute = 1;
 
-  base::Optional<uint32> quad_vbo_;
+  absl::optional<uint32> quad_vbo_;
 };
 
 }  // namespace egl

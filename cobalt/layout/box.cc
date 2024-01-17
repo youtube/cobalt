@@ -168,7 +168,7 @@ bool Box::ValidateUpdateSizeInputs(const LayoutParams& params) {
 }
 
 void Box::InvalidateUpdateSizeInputsOfBox() {
-  last_update_size_params_ = base::nullopt;
+  last_update_size_params_ = absl::nullopt;
 }
 
 void Box::InvalidateUpdateSizeInputsOfBoxAndAncestors() {
@@ -370,7 +370,7 @@ void Box::InvalidateCrossReferencesOfBoxAndAncestors() {
 }
 
 void Box::InvalidateRenderTreeNodesOfBoxAndAncestors() {
-  cached_render_tree_node_info_ = base::nullopt;
+  cached_render_tree_node_info_ = absl::nullopt;
   if (parent_) {
     parent_->InvalidateRenderTreeNodesOfBoxAndAncestors();
   }
@@ -814,10 +814,10 @@ void Box::RenderAndAnimate(
   render_tree::CompositionNode::Builder border_node_builder(border_box_offset);
   AnimateNode::Builder animate_node_builder;
 
-  const base::Optional<RoundedCorners> rounded_corners =
+  const absl::optional<RoundedCorners> rounded_corners =
       ComputeRoundedCorners();
 
-  const base::Optional<RoundedCorners> padding_rounded_corners =
+  const absl::optional<RoundedCorners> padding_rounded_corners =
       ComputePaddingRoundedCorners(rounded_corners);
 
   // Update intersection observers for any targets represented by this box.
@@ -1000,7 +1000,7 @@ void PopulateBaseStyleForBackgroundColorNode(
 }
 
 void SetupBackgroundColorNodeFromStyle(
-    const base::Optional<RoundedCorners>& rounded_corners,
+    const absl::optional<RoundedCorners>& rounded_corners,
     const scoped_refptr<const cssom::CSSComputedStyleData>& style,
     RectNode::Builder* rect_node_builder) {
   rect_node_builder->background_brush =
@@ -1079,7 +1079,7 @@ void PopulateBaseStyleForBorderNode(
 }
 
 void SetupBorderNodeFromUsedStyle(
-    const base::Optional<RoundedCorners>& rounded_corners,
+    const absl::optional<RoundedCorners>& rounded_corners,
     const InsetsLayoutUnit border_insets,
     const scoped_refptr<const cssom::CSSComputedStyleData>& style,
     RectNode::Builder* rect_node_builder) {
@@ -1446,7 +1446,7 @@ void SetupFilterNodeFromStyle(
   } else {
     // If opacity is 1, then no opacity filter should be applied, so the
     // source render tree should appear fully opaque.
-    filter_node_builder->opacity_filter = base::nullopt;
+    filter_node_builder->opacity_filter = absl::nullopt;
   }
 }
 
@@ -1472,7 +1472,7 @@ bool HasAnimatedOutline(const web_animations::AnimationSet* animation_set) {
 
 }  // namespace
 
-base::Optional<render_tree::RoundedCorners> Box::ComputeRoundedCorners() const {
+absl::optional<render_tree::RoundedCorners> Box::ComputeRoundedCorners() const {
   UsedBorderRadiusProvider border_radius_provider(GetClampedBorderBoxSize());
   render_tree::RoundedCorner border_top_left_radius;
   render_tree::RoundedCorner border_top_right_radius;
@@ -1508,7 +1508,7 @@ base::Optional<render_tree::RoundedCorners> Box::ComputeRoundedCorners() const {
         border_radius_provider.rounded_corner()->vertical);
   }
 
-  base::Optional<RoundedCorners> rounded_corners;
+  absl::optional<RoundedCorners> rounded_corners;
   if (!border_top_left_radius.IsSquare() ||
       !border_top_right_radius.IsSquare() ||
       !border_bottom_right_radius.IsSquare() ||
@@ -1523,9 +1523,9 @@ base::Optional<render_tree::RoundedCorners> Box::ComputeRoundedCorners() const {
   return rounded_corners;
 }
 
-base::Optional<render_tree::RoundedCorners> Box::ComputePaddingRoundedCorners(
-    const base::Optional<RoundedCorners>& rounded_corners) const {
-  base::Optional<RoundedCorners> padding_rounded_corners_if_different;
+absl::optional<render_tree::RoundedCorners> Box::ComputePaddingRoundedCorners(
+    const absl::optional<RoundedCorners>& rounded_corners) const {
+  absl::optional<RoundedCorners> padding_rounded_corners_if_different;
 
   if (rounded_corners && !border_insets_.zero()) {
     // If we have rounded corners and a non-zero border, then we need to
@@ -1536,7 +1536,7 @@ base::Optional<render_tree::RoundedCorners> Box::ComputePaddingRoundedCorners(
         border_insets_.right().toFloat(), border_insets_.bottom().toFloat()));
   }
 
-  const base::Optional<RoundedCorners>& padding_rounded_corners =
+  const absl::optional<RoundedCorners>& padding_rounded_corners =
       padding_rounded_corners_if_different
           ? padding_rounded_corners_if_different
           : rounded_corners;
@@ -1569,8 +1569,8 @@ scoped_refptr<ui_navigation::NavItem> Box::ComputeUiNavFocusForTransform()
 }
 
 void Box::RenderAndAnimateBoxShadow(
-    const base::Optional<RoundedCorners>& outer_rounded_corners,
-    const base::Optional<RoundedCorners>& inner_rounded_corners,
+    const absl::optional<RoundedCorners>& outer_rounded_corners,
+    const absl::optional<RoundedCorners>& inner_rounded_corners,
     CompositionNode::Builder* border_node_builder,
     AnimateNode::Builder* animate_node_builder) {
   if (computed_style()->box_shadow() != cssom::KeywordValue::GetNone()) {
@@ -1640,7 +1640,7 @@ void Box::RenderAndAnimateBoxShadow(
 }
 
 void Box::RenderAndAnimateBorder(
-    const base::Optional<RoundedCorners>& rounded_corners,
+    const absl::optional<RoundedCorners>& rounded_corners,
     CompositionNode::Builder* border_node_builder,
     AnimateNode::Builder* animate_node_builder) {
   bool has_animated_border = HasAnimatedBorder(animations());
@@ -1707,7 +1707,7 @@ math::RectF Box::GetBackgroundRect() {
 }
 
 void Box::RenderAndAnimateBackgroundColor(
-    const base::Optional<RoundedCorners>& rounded_corners,
+    const absl::optional<RoundedCorners>& rounded_corners,
     render_tree::CompositionNode::Builder* border_node_builder,
     AnimateNode::Builder* animate_node_builder) {
   bool background_color_animated =
@@ -1752,14 +1752,14 @@ void Box::RenderAndAnimateBackgroundColor(
 }
 
 Box::RenderAndAnimateBackgroundImageResult Box::RenderAndAnimateBackgroundImage(
-    const base::Optional<RoundedCorners>& rounded_corners) {
+    const absl::optional<RoundedCorners>& rounded_corners) {
   RenderAndAnimateBackgroundImageResult result;
   // We track a single render tree node because most of the time there will only
   // be one.  If there is more, we set |single_node| to NULL and instead
   // populate |composition|.  The code here tries to avoid using CompositionNode
   // if possible to avoid constructing an std::vector.
   scoped_refptr<render_tree::Node> single_node = NULL;
-  base::Optional<CompositionNode::Builder> composition;
+  absl::optional<CompositionNode::Builder> composition;
   result.is_opaque = false;
 
   math::RectF image_frame(GetBackgroundRect());
@@ -1852,10 +1852,10 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOpacity(
 scoped_refptr<render_tree::Node> Box::RenderAndAnimateOverflow(
     const scoped_refptr<render_tree::Node>& content_node,
     const math::Vector2dF& border_offset) {
-  const base::Optional<RoundedCorners> rounded_corners =
+  const absl::optional<RoundedCorners> rounded_corners =
       ComputeRoundedCorners();
 
-  const base::Optional<RoundedCorners> padding_rounded_corners =
+  const absl::optional<RoundedCorners> padding_rounded_corners =
       ComputePaddingRoundedCorners(rounded_corners);
 
   AnimateNode::Builder animate_node_builder;
@@ -1869,7 +1869,7 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOverflow(
 }
 
 scoped_refptr<render_tree::Node> Box::RenderAndAnimateOverflow(
-    const base::Optional<render_tree::RoundedCorners>& rounded_corners,
+    const absl::optional<render_tree::RoundedCorners>& rounded_corners,
     const scoped_refptr<render_tree::Node>& content_node,
     AnimateNode::Builder* animate_node_builder,
     const math::Vector2dF& border_node_offset) {
@@ -2097,11 +2097,11 @@ void Box::UpdateUiNavigationItem() {
 void Box::UpdateHorizontalMarginsAssumingBlockLevelInFlowBox(
     BaseDirection containing_block_direction, LayoutUnit containing_block_width,
     LayoutUnit border_box_width,
-    const base::Optional<LayoutUnit>& possibly_overconstrained_margin_left,
-    const base::Optional<LayoutUnit>& possibly_overconstrained_margin_right) {
-  base::Optional<LayoutUnit> maybe_margin_left =
+    const absl::optional<LayoutUnit>& possibly_overconstrained_margin_left,
+    const absl::optional<LayoutUnit>& possibly_overconstrained_margin_right) {
+  absl::optional<LayoutUnit> maybe_margin_left =
       possibly_overconstrained_margin_left;
-  base::Optional<LayoutUnit> maybe_margin_right =
+  absl::optional<LayoutUnit> maybe_margin_right =
       possibly_overconstrained_margin_right;
 
   // If "border-left-width" + "padding-left" + "width" + "padding-right" +

@@ -17,10 +17,10 @@
 #include <algorithm>
 #include <iterator>
 
-#include "base/optional.h"
 #include "cobalt/dom/attr.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/global_stats.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace dom {
@@ -187,7 +187,7 @@ scoped_refptr<Attr> NamedNodeMap::GetOrCreateAttr(
   }
 
   // We don't have an existing Attr object so we create a new once instead.
-  base::Optional<std::string> value = element_->GetAttribute(name);
+  absl::optional<std::string> value = element_->GetAttribute(name);
   scoped_refptr<Attr> attribute = new Attr(name, value.value_or(""), this);
   proxy_attributes_[name] = attribute->AsWeakPtr();
 

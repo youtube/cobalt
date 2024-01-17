@@ -33,7 +33,7 @@ void BakedAnimation::Apply(
     const base::TimeDelta& timeline_time,
     cssom::MutableCSSComputedStyleData* in_out_style) const {
   // Get the animation's local time from the Animation::Data object.
-  base::Optional<base::TimeDelta> local_time =
+  absl::optional<base::TimeDelta> local_time =
       animation_data_.ComputeLocalTimeFromTimelineTime(timeline_time);
 
   // Obtain the iteration progress from the AnimationEffectTimingReadOnly::Data

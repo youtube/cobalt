@@ -17,11 +17,11 @@
 
 #include <memory>
 
-#include "base/optional.h"
 #include "cobalt/cssom/property_definitions.h"
 #include "cobalt/cssom/property_list_value.h"
 #include "cobalt/cssom/time_list_value.h"
 #include "cobalt/cssom/timing_function_list_value.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace css_parser {
@@ -36,9 +36,9 @@ struct SingleAnimationShorthand {
 
   void ReplaceNullWithInitialValues();
 
-  base::Optional<base::TimeDelta> delay;
+  absl::optional<base::TimeDelta> delay;
   scoped_refptr<cssom::PropertyValue> direction;
-  base::Optional<base::TimeDelta> duration;
+  absl::optional<base::TimeDelta> duration;
   scoped_refptr<cssom::PropertyValue> fill_mode;
   scoped_refptr<cssom::PropertyValue> iteration_count;
   scoped_refptr<cssom::PropertyValue> name;

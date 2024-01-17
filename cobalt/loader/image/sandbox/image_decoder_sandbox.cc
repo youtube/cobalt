@@ -46,7 +46,7 @@ struct ImageDecoderCallback {
     image = value;
   }
 
-  void LoadCompleteCallback(const base::Optional<std::string>& error) {
+  void LoadCompleteCallback(const absl::optional<std::string>& error) {
     if (error) LOG(ERROR) << *error;
   }
 

@@ -19,10 +19,10 @@
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "cobalt/cssom/css_declared_style_data.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/script/exception_state.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace cssom {
@@ -52,7 +52,7 @@ class CSSDeclaredStyleDeclaration : public CSSStyleDeclaration {
 
   unsigned int length() const override;
 
-  base::Optional<std::string> Item(unsigned int index) const override;
+  absl::optional<std::string> Item(unsigned int index) const override;
 
   void SetPropertyValue(const std::string& property_name,
                         const std::string& property_value,

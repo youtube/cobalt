@@ -731,7 +731,7 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::GetBlitProgram(
     const Image& image) {
   Image::Type type = image.type;
   uint32 texture_target = image.textures[0].texture->GetTarget();
-  base::Optional<int32> texture_wrap_s;
+  absl::optional<int32> texture_wrap_s;
   if (type == Image::YUV_UYVY_422_BT709) {
     texture_wrap_s.emplace();
     GL_CALL(

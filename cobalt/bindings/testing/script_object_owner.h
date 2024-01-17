@@ -15,8 +15,8 @@
 #ifndef COBALT_BINDINGS_TESTING_SCRIPT_OBJECT_OWNER_H_
 #define COBALT_BINDINGS_TESTING_SCRIPT_OBJECT_OWNER_H_
 
-#include "base/optional.h"
 #include "cobalt/script/wrappable.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace bindings {
@@ -30,7 +30,7 @@ class ScriptObjectOwner {
     if (!object.IsNull()) {
       reference_.emplace(owner_, object);
     } else {
-      reference_ = base::nullopt;
+      reference_ = absl::nullopt;
     }
   }
   typename T::Reference& reference() { return reference_.value(); }
@@ -38,7 +38,7 @@ class ScriptObjectOwner {
 
  private:
   script::Wrappable* owner_;
-  base::Optional<typename T::Reference> reference_;
+  absl::optional<typename T::Reference> reference_;
 };
 
 }  // namespace testing

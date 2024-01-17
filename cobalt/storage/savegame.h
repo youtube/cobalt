@@ -22,8 +22,8 @@
 #include "base/basictypes.h"
 #include "base/callback.h"
 #include "base/files/file_path.h"
-#include "base/optional.h"
 #include "base/threading/thread_checker.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace storage {
@@ -50,7 +50,7 @@ class Savegame {
     // Defaults to Savegame::Create() but can be overridden for tests.
     Savegame::Factory factory;
     // The unique savegame ID for this Savegame, if any.
-    base::Optional<std::string> id;
+    absl::optional<std::string> id;
     // Whether to fallback to the default ID if data for this ID doesn't exist.
     bool fallback_to_default_id;
     // File path the Savegame should read/write from, rather than its default.

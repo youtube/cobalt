@@ -19,10 +19,10 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "cobalt/base/token.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/script/wrappable.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace dom {
@@ -37,12 +37,12 @@ class DOMTokenList : public script::Wrappable {
   //
   unsigned int length() const;
 
-  base::Optional<std::string> Item(unsigned int index) const;
+  absl::optional<std::string> Item(unsigned int index) const;
   bool Contains(const std::string& token) const;
   void Add(const std::vector<std::string>& tokens);
   void Remove(const std::vector<std::string>& tokens);
   bool Toggle(const std::string& token,
-              const base::Optional<bool>& force = base::nullopt);
+              const absl::optional<bool>& force = absl::nullopt);
   std::string AnonymousStringifier() const;
 
   // Custom, not in any spec.

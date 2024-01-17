@@ -61,7 +61,7 @@ bool IsNotAsciiWhitespace(char c) {
   return true;
 }
 
-base::Optional<std::string> GetAtobAllowedStr(const std::string& input_str) {
+absl::optional<std::string> GetAtobAllowedStr(const std::string& input_str) {
   // Our base64 decoding method does not check for forbidden characters. We use
   // the following method to reject string containing disallowed character or
   // format in atob().
@@ -83,12 +83,12 @@ base::Optional<std::string> GetAtobAllowedStr(const std::string& input_str) {
   // Step 3: If data's length divides by 4 leaving a remainder of 1, return
   // failure.
   if (output_str.length() % 4 == 1) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   // Step 4: If data contains a code point that is not allowed, return failure.
   for (char current_char : output_str) {
     if (!IsAtobAllowedChar(current_char)) {
-      return base::nullopt;
+      return absl::nullopt;
     }
   }
   // Customized step: add padding to string less than 4 character.
@@ -98,7 +98,7 @@ base::Optional<std::string> GetAtobAllowedStr(const std::string& input_str) {
   return output_str;
 }
 
-base::Optional<std::string> Utf8ToLatin1(const std::string& input) {
+absl::optional<std::string> Utf8ToLatin1(const std::string& input) {
   std::string output;
   unsigned char current_char_remainder = 0x00;
   for (unsigned char c : input) {
@@ -113,29 +113,29 @@ base::Optional<std::string> Utf8ToLatin1(const std::string& input) {
     } else if (c == 0xc3 && !current_char_remainder) {
       current_char_remainder = 0xc0;
     } else {
-      return base::nullopt;
+      return absl::nullopt;
     }
   }
   return output;
 }
 }  // namespace
 
-base::Optional<std::string> ForgivingBase64Encode(
+absl::optional<std::string> ForgivingBase64Encode(
     const std::string& string_to_encode) {
   // https://infra.spec.whatwg.org/#forgiving-base64-encode
   auto maybe_string_to_encode_in_latin1 = Utf8ToLatin1(string_to_encode);
   std::string output;
   if (!maybe_string_to_encode_in_latin1) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   base::Base64Encode(*maybe_string_to_encode_in_latin1, &output);
   if (!output.length() && maybe_string_to_encode_in_latin1->length()) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   return output;
 }
 
-base::Optional<std::vector<uint8_t>> ForgivingBase64Decode(
+absl::optional<std::vector<uint8_t>> ForgivingBase64Decode(
     const std::string& encoded_string) {
   // https://infra.spec.whatwg.org/#forgiving-base64-decode
   // Step 1-4:
@@ -146,7 +146,7 @@ base::Optional<std::vector<uint8_t>> ForgivingBase64Decode(
   // nullopt to signal failure.
   if (!maybe_encoded_string_no_whitespace ||
       !base::Base64Decode(*maybe_encoded_string_no_whitespace, &output)) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   return output;
 }

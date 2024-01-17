@@ -19,8 +19,8 @@
 #include <string>
 
 #include "base/logging.h"
-#include "base/optional.h"
 #include "cobalt/script/value_handle.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace script {

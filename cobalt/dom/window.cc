@@ -603,7 +603,7 @@ const scoped_refptr<media_session::MediaSession> Window::media_session() const {
 }
 
 void Window::CacheSplashScreen(const std::string& content,
-                               const base::Optional<std::string>& topic) {
+                               const absl::optional<std::string>& topic) {
   if (splash_screen_cache_callback_.is_null()) {
     return;
   }

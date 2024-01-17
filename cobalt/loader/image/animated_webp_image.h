@@ -22,7 +22,6 @@
 #include "base/basictypes.h"
 #include "base/cancelable_callback.h"
 #include "base/memory/weak_ptr.h"
-#include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread.h"
 #include "base/time/time.h"
@@ -31,6 +30,7 @@
 #include "cobalt/loader/image/image.h"
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/render_tree/resource_provider.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/libwebp/src/webp/demux.h"
 
 namespace cobalt {
@@ -120,7 +120,7 @@ class AnimatedWebPImage : public AnimatedImage {
   math::RectF previous_frame_rect_;
   base::CancelableClosure decode_closure_;
   base::TimeTicks current_frame_time_;
-  base::Optional<base::TimeTicks> next_frame_time_;
+  absl::optional<base::TimeTicks> next_frame_time_;
 
   // The original encoded data.
   std::vector<uint8> data_buffer_;

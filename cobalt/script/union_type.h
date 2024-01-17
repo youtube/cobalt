@@ -41,7 +41,7 @@
 //
 // Per the specification, there should be either 0 or 1 nullable types in union.
 // In the case that there is one nullable type, the entire union type should
-// be declared as nullable (with base::Optional<>). A corollary to this is that
+// be declared as nullable (with absl::optional<>). A corollary to this is that
 // none of the member types in the UnionTypeN template should be nullable.
 
 #include <iosfwd>
@@ -193,7 +193,7 @@ class UnionType2 {
   COMPILE_ASSERT(kNumNumericTypes <= 1, AmbiguousUnionTypeConversion);
 };
 
-// Needed to instantiate base::Optional<UnionTypeN>
+// Needed to instantiate absl::optional<UnionTypeN>
 template <typename T1, typename T2>
 inline std::ostream& operator<<(std::ostream& stream,
                                 const UnionType2<T1, T2>& union_value) {
@@ -378,7 +378,7 @@ class UnionType3 {
   COMPILE_ASSERT(kNumNumericTypes <= 1, AmbiguousUnionTypeConversion);
 };
 
-// Needed to instantiate base::Optional<UnionTypeN>
+// Needed to instantiate absl::optional<UnionTypeN>
 template <typename T1, typename T2, typename T3>
 inline std::ostream& operator<<(std::ostream& stream,
                                 const UnionType3<T1, T2, T3>& union_value) {
@@ -594,7 +594,7 @@ class UnionType4 {
   COMPILE_ASSERT(kNumNumericTypes <= 1, AmbiguousUnionTypeConversion);
 };
 
-// Needed to instantiate base::Optional<UnionTypeN>
+// Needed to instantiate absl::optional<UnionTypeN>
 template <typename T1, typename T2, typename T3, typename T4>
 inline std::ostream& operator<<(std::ostream& stream,
                                 const UnionType4<T1, T2, T3, T4>& union_value) {
@@ -841,7 +841,7 @@ class UnionType5 {
   COMPILE_ASSERT(kNumNumericTypes <= 1, AmbiguousUnionTypeConversion);
 };
 
-// Needed to instantiate base::Optional<UnionTypeN>
+// Needed to instantiate absl::optional<UnionTypeN>
 template <typename T1, typename T2, typename T3, typename T4, typename T5>
 inline std::ostream& operator<<(
     std::ostream& stream, const UnionType5<T1, T2, T3, T4, T5>& union_value) {

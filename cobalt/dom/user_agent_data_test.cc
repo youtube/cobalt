@@ -57,7 +57,7 @@ class UserAgentDataTest : public testing::TestWithJavaScript {
 
  private:
   static void StubLoadCompleteCallback(
-      const base::Optional<std::string>& error) {}
+      const absl::optional<std::string>& error) {}
   std::unique_ptr<browser::UserAgentPlatformInfo> platform_info_;
 
   void InitializeEmptyPlatformInfo();

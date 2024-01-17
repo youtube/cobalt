@@ -17,8 +17,8 @@
 
 #include <string>
 
-#include "base/optional.h"
 #include "starboard/system.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace web {
@@ -31,16 +31,16 @@ class UserAgentPlatformInfo {
 
   virtual const std::string& starboard_version() const = 0;
   virtual const std::string& os_name_and_version() const = 0;
-  virtual base::Optional<std::string> original_design_manufacturer() const = 0;
+  virtual absl::optional<std::string> original_design_manufacturer() const = 0;
 #if SB_API_VERSION < 15
   virtual SbSystemDeviceType device_type() const = 0;
 #endif
   virtual const std::string& device_type_string() const = 0;
-  virtual base::Optional<std::string> chipset_model_number() const = 0;
-  virtual base::Optional<std::string> model_year() const = 0;
-  virtual base::Optional<std::string> firmware_version() const = 0;
-  virtual base::Optional<std::string> brand() const = 0;
-  virtual base::Optional<std::string> model() const = 0;
+  virtual absl::optional<std::string> chipset_model_number() const = 0;
+  virtual absl::optional<std::string> model_year() const = 0;
+  virtual absl::optional<std::string> firmware_version() const = 0;
+  virtual absl::optional<std::string> brand() const = 0;
+  virtual absl::optional<std::string> model() const = 0;
   virtual const std::string& aux_field() const = 0;
   virtual const std::string& javascript_engine_version() const = 0;
   virtual const std::string& rasterizer_type() const = 0;

@@ -21,10 +21,10 @@
 #include <utility>
 
 #include "base/basictypes.h"
-#include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/input/camera_3d.h"
 #include "cobalt/input/input_poller.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/glm/glm/mat4x4.hpp"
 
 namespace cobalt {
@@ -79,7 +79,7 @@ class Camera3DInputPoller : public Camera3D {
   float yaw_in_radians_;
 
   // The time that the last update to the camera's state has occurred.
-  base::Optional<base::TimeTicks> last_update_;
+  absl::optional<base::TimeTicks> last_update_;
 
   // A map of keys bound to camera movements.
   KeycodeMap keycode_map_;

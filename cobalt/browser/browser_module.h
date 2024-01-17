@@ -21,7 +21,6 @@
 #include <vector>
 
 #include "base/observer_list.h"
-#include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
@@ -72,6 +71,7 @@
 #include "cobalt/webdriver/session_driver.h"
 #include "starboard/configuration.h"
 #include "starboard/window.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 #if defined(ENABLE_DEBUGGER)
@@ -111,9 +111,9 @@ class BrowserModule {
     WebModuleCreatedCallback web_module_created_callback;
     memory_settings::AutoMemSettings command_line_auto_mem_settings;
     memory_settings::AutoMemSettings build_auto_mem_settings;
-    base::Optional<GURL> fallback_splash_screen_url;
+    absl::optional<GURL> fallback_splash_screen_url;
     std::map<std::string, GURL> fallback_splash_screen_topic_map;
-    base::Optional<cssom::ViewportSize> requested_viewport_size;
+    absl::optional<cssom::ViewportSize> requested_viewport_size;
     bool enable_splash_screen_on_reloads;
     bool enable_on_screen_keyboard = true;
   };
@@ -160,20 +160,20 @@ class BrowserModule {
   void RequestScreenshotToFile(
       const base::FilePath& path,
       loader::image::EncodedStaticImage::ImageFormat image_format,
-      const base::Optional<math::Rect>& clip_rect,
+      const absl::optional<math::Rect>& clip_rect,
       const base::Closure& done_cb);
 
   // Request a screenshot to an in-memory buffer.
   void RequestScreenshotToMemory(
       loader::image::EncodedStaticImage::ImageFormat image_format,
-      const base::Optional<math::Rect>& clip_rect,
+      const absl::optional<math::Rect>& clip_rect,
       const ScreenShotWriter::ImageEncodeCompleteCallback& screenshot_ready);
 #endif  // defined(ENABLE_WEBDRIVER) || defined(ENABLE_DEBUGGER)
 
   // Request a screenshot to memory without compressing the image.
   void RequestScreenshotToMemoryUnencoded(
       const scoped_refptr<render_tree::Node>& render_tree_root,
-      const base::Optional<math::Rect>& clip_rect,
+      const absl::optional<math::Rect>& clip_rect,
       const renderer::Pipeline::RasterizationCompleteCallback& callback);
 
 #if defined(ENABLE_WEBDRIVER)
@@ -207,7 +207,7 @@ class BrowserModule {
   void ReduceMemory();
 
   void CheckMemory(const int64_t& used_cpu_memory,
-                   const base::Optional<int64_t>& used_gpu_memory);
+                   const absl::optional<int64_t>& used_gpu_memory);
 
   // Post a task to the main web module to update
   // |javascript_reserved_memory_|.
@@ -489,7 +489,7 @@ class BrowserModule {
 
   // Sets the fallback splash screen url to a topic-specific URL, if applicable.
   // Returns the topic used, or an empty Optional if a topic isn't found.
-  base::Optional<std::string> SetSplashScreenTopicFallback(const GURL& url);
+  absl::optional<std::string> SetSplashScreenTopicFallback(const GURL& url);
 
   // Callback function that creates the H5vcc object that will be injected into
   // the MainWebModule.
@@ -561,7 +561,7 @@ class BrowserModule {
 
   // A stub implementation of ResourceProvider that can be used until a real
   // ResourceProvider is created. Only valid in the Concealed state.
-  base::Optional<render_tree::ResourceProviderStub> resource_provider_stub_;
+  absl::optional<render_tree::ResourceProviderStub> resource_provider_stub_;
 
   // Controls all media playback related objects/resources.
   std::unique_ptr<media::MediaModule> media_module_;
@@ -656,7 +656,7 @@ class BrowserModule {
   debug::console::ConsoleCommandManager::CommandHandler
       disable_media_codecs_command_handler_;
 
-  base::Optional<SuspendFuzzer> suspend_fuzzer_;
+  absl::optional<SuspendFuzzer> suspend_fuzzer_;
 
   // An object that registers and owns console commands for controlling
   // Cobalt's lifecycle.
@@ -725,7 +725,7 @@ class BrowserModule {
 
   // The fallback URL to the splash screen. If empty (the default), no splash
   // screen will be displayed.
-  base::Optional<GURL> fallback_splash_screen_url_;
+  absl::optional<GURL> fallback_splash_screen_url_;
 
   // Number of main web modules that have taken place so far, indicating how
   // many navigations have occurred. This is helpful for distinguishing

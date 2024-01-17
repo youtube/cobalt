@@ -231,7 +231,7 @@ void Worker::OnContentProduced(const loader::Origin& last_url_origin,
   content_ = std::move(content);
 }
 
-void Worker::OnLoadingComplete(const base::Optional<std::string>& error) {
+void Worker::OnLoadingComplete(const absl::optional<std::string>& error) {
   // Algorithm for 'run a worker'
   //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#run-a-worker
   //     If the algorithm asynchronously completes with null or with a script

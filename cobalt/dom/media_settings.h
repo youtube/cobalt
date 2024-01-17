@@ -17,8 +17,8 @@
 
 #include <string>
 
-#include "base/optional.h"
 #include "base/synchronization/lock.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace dom {
@@ -30,18 +30,18 @@ namespace dom {
 // behaviors being controlled by them.
 class MediaSettings {
  public:
-  virtual base::Optional<int> GetSourceBufferEvictExtraInBytes() const = 0;
-  virtual base::Optional<int> GetMinimumProcessorCountToOffloadAlgorithm()
+  virtual absl::optional<int> GetSourceBufferEvictExtraInBytes() const = 0;
+  virtual absl::optional<int> GetMinimumProcessorCountToOffloadAlgorithm()
       const = 0;
-  virtual base::Optional<bool> IsAsynchronousReductionEnabled() const = 0;
-  virtual base::Optional<bool> IsAvoidCopyingArrayBufferEnabled() const = 0;
-  virtual base::Optional<bool> IsCallingEndedWhenClosedEnabled() const = 0;
-  virtual base::Optional<int> GetMaxSizeForImmediateJob() const = 0;
-  virtual base::Optional<int> GetMaxSourceBufferAppendSizeInBytes() const = 0;
+  virtual absl::optional<bool> IsAsynchronousReductionEnabled() const = 0;
+  virtual absl::optional<bool> IsAvoidCopyingArrayBufferEnabled() const = 0;
+  virtual absl::optional<bool> IsCallingEndedWhenClosedEnabled() const = 0;
+  virtual absl::optional<int> GetMaxSizeForImmediateJob() const = 0;
+  virtual absl::optional<int> GetMaxSourceBufferAppendSizeInBytes() const = 0;
 
-  virtual base::Optional<int>
+  virtual absl::optional<int>
   GetMediaElementTimeupdateEventIntervalInMilliseconds() const = 0;
-  virtual base::Optional<bool> IsPaintingVideoBackgroundToBlack() const = 0;
+  virtual absl::optional<bool> IsPaintingVideoBackgroundToBlack() const = 0;
 
  protected:
   MediaSettings() = default;
@@ -56,41 +56,41 @@ class MediaSettings {
 // This class is thread safe.
 class MediaSettingsImpl : public MediaSettings {
  public:
-  base::Optional<int> GetSourceBufferEvictExtraInBytes() const override {
+  absl::optional<int> GetSourceBufferEvictExtraInBytes() const override {
     base::AutoLock auto_lock(lock_);
     return source_buffer_evict_extra_in_bytes_;
   }
-  base::Optional<int> GetMinimumProcessorCountToOffloadAlgorithm()
+  absl::optional<int> GetMinimumProcessorCountToOffloadAlgorithm()
       const override {
     base::AutoLock auto_lock(lock_);
     return minimum_processor_count_to_offload_algorithm_;
   }
-  base::Optional<bool> IsAsynchronousReductionEnabled() const override {
+  absl::optional<bool> IsAsynchronousReductionEnabled() const override {
     base::AutoLock auto_lock(lock_);
     return is_asynchronous_reduction_enabled_;
   }
-  base::Optional<bool> IsAvoidCopyingArrayBufferEnabled() const override {
+  absl::optional<bool> IsAvoidCopyingArrayBufferEnabled() const override {
     base::AutoLock auto_lock(lock_);
     return is_avoid_copying_array_buffer_enabled_;
   }
-  base::Optional<bool> IsCallingEndedWhenClosedEnabled() const override {
+  absl::optional<bool> IsCallingEndedWhenClosedEnabled() const override {
     base::AutoLock auto_lock(lock_);
     return is_calling_ended_when_closed_enabled_;
   }
-  base::Optional<int> GetMaxSizeForImmediateJob() const override {
+  absl::optional<int> GetMaxSizeForImmediateJob() const override {
     base::AutoLock auto_lock(lock_);
     return max_size_for_immediate_job_;
   }
-  base::Optional<int> GetMaxSourceBufferAppendSizeInBytes() const override {
+  absl::optional<int> GetMaxSourceBufferAppendSizeInBytes() const override {
     base::AutoLock auto_lock(lock_);
     return max_source_buffer_append_size_in_bytes_;
   }
 
-  base::Optional<int> GetMediaElementTimeupdateEventIntervalInMilliseconds()
+  absl::optional<int> GetMediaElementTimeupdateEventIntervalInMilliseconds()
       const override {
     return media_element_timeupdate_event_interval_in_milliseconds_;
   }
-  base::Optional<bool> IsPaintingVideoBackgroundToBlack() const override {
+  absl::optional<bool> IsPaintingVideoBackgroundToBlack() const override {
     return is_painting_video_background_to_black_;
   }
 
@@ -101,17 +101,17 @@ class MediaSettingsImpl : public MediaSettings {
 
  private:
   mutable base::Lock lock_;
-  base::Optional<int> source_buffer_evict_extra_in_bytes_;
-  base::Optional<int> minimum_processor_count_to_offload_algorithm_;
-  base::Optional<bool> is_asynchronous_reduction_enabled_;
-  base::Optional<bool> is_avoid_copying_array_buffer_enabled_;
-  base::Optional<bool> is_calling_ended_when_closed_enabled_;
-  base::Optional<int> max_size_for_immediate_job_;
-  base::Optional<int> max_source_buffer_append_size_in_bytes_;
+  absl::optional<int> source_buffer_evict_extra_in_bytes_;
+  absl::optional<int> minimum_processor_count_to_offload_algorithm_;
+  absl::optional<bool> is_asynchronous_reduction_enabled_;
+  absl::optional<bool> is_avoid_copying_array_buffer_enabled_;
+  absl::optional<bool> is_calling_ended_when_closed_enabled_;
+  absl::optional<int> max_size_for_immediate_job_;
+  absl::optional<int> max_source_buffer_append_size_in_bytes_;
 
-  base::Optional<int> media_element_timeupdate_event_interval_in_milliseconds_;
+  absl::optional<int> media_element_timeupdate_event_interval_in_milliseconds_;
 
-  base::Optional<bool> is_painting_video_background_to_black_;
+  absl::optional<bool> is_painting_video_background_to_black_;
 };
 
 }  // namespace dom

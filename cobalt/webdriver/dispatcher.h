@@ -21,12 +21,12 @@
 
 #include "base/callback.h"
 #include "base/containers/hash_tables.h"
-#include "base/optional.h"
 #include "base/values.h"
 #include "cobalt/webdriver/protocol/response.h"
 #include "cobalt/webdriver/protocol/session_id.h"
 #include "cobalt/webdriver/server.h"
 #include "net/http/http_status_code.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -79,7 +79,7 @@ class WebDriverDispatcher {
     // https://www.selenium.dev/documentation/legacy/json_wire_protocol/#responses
     // https://www.selenium.dev/documentation/legacy/json_wire_protocol/#failed-commands
     virtual void SendResult(
-        const base::Optional<protocol::SessionId>& session_id,
+        const absl::optional<protocol::SessionId>& session_id,
         protocol::Response::StatusCode status_code,
         std::unique_ptr<base::Value> result) = 0;
 

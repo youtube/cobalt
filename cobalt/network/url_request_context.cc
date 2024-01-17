@@ -141,7 +141,7 @@ URLRequestContext::URLRequestContext(
 
   set_enable_brotli(true);
 
-  base::Optional<net::ProxyConfig> proxy_config;
+  absl::optional<net::ProxyConfig> proxy_config;
   if (!custom_proxy.empty()) {
     proxy_config = CreateCustomProxyConfig(custom_proxy);
   }

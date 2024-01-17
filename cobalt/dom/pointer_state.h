@@ -87,11 +87,11 @@ class PointerState {
   void ClearForShutdown();
 
   void SetClientCoordinates(int32_t pointer_id, math::Vector2dF position);
-  base::Optional<math::Vector2dF> GetClientCoordinates(int32_t pointer_id);
+  absl::optional<math::Vector2dF> GetClientCoordinates(int32_t pointer_id);
   void ClearClientCoordinates(int32_t pointer_id);
 
   void SetClientTimeStamp(int32_t pointer_id, uint64 time_stamp);
-  base::Optional<uint64> GetClientTimeStamp(int32_t pointer_id);
+  absl::optional<uint64> GetClientTimeStamp(int32_t pointer_id);
   void ClearTimeStamp(int32_t pointer_id);
 
   void SetPossibleScrollTargets(

@@ -17,9 +17,9 @@
 
 #include <string>
 
-#include "base/optional.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/event.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace dom {
@@ -29,15 +29,15 @@ class StorageEvent : public web::Event {
  public:
   StorageEvent();
   explicit StorageEvent(const std::string& type);
-  StorageEvent(const base::Optional<std::string>& key,
-               const base::Optional<std::string>& old_value,
-               const base::Optional<std::string>& new_value,
+  StorageEvent(const absl::optional<std::string>& key,
+               const absl::optional<std::string>& old_value,
+               const absl::optional<std::string>& new_value,
                const std::string& url,
                const scoped_refptr<Storage>& storage_area);
 
-  base::Optional<std::string> key() const { return key_; }
-  base::Optional<std::string> old_value() const { return old_value_; }
-  base::Optional<std::string> new_value() const { return new_value_; }
+  absl::optional<std::string> key() const { return key_; }
+  absl::optional<std::string> old_value() const { return old_value_; }
+  absl::optional<std::string> new_value() const { return new_value_; }
   std::string url() const { return url_; }
   scoped_refptr<Storage> storage_area() const;
 
@@ -45,9 +45,9 @@ class StorageEvent : public web::Event {
   void TraceMembers(script::Tracer* tracer) override;
 
  private:
-  base::Optional<std::string> key_;
-  base::Optional<std::string> old_value_;
-  base::Optional<std::string> new_value_;
+  absl::optional<std::string> key_;
+  absl::optional<std::string> old_value_;
+  absl::optional<std::string> new_value_;
   std::string url_;
   scoped_refptr<Storage> storage_area_;
 

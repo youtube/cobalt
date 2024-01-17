@@ -18,8 +18,8 @@
 #include <memory>
 #include <string>
 
-#include "base/optional.h"
 #include "base/values.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -31,7 +31,7 @@ namespace protocol {
 // https://www.selenium.dev/documentation/legacy/json_wire_protocol/#sessionsessionidexecute_async
 class Script {
  public:
-  static base::Optional<Script> FromValue(const base::Value* script);
+  static absl::optional<Script> FromValue(const base::Value* script);
   const std::string& function_body() const { return function_body_; }
   const std::string& argument_array() const { return argument_array_; }
 

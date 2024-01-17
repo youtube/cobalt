@@ -14,8 +14,8 @@
 #include "base/files/file_path.h"
 #include "base/files/file_starboard.h"
 #include "base/files/file_util.h"
-#include "base/optional.h"
 #include "base/path_service.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 // Implement functionality declared in SkOSFile.h via primitives provided
 // by Chromium.  In doing this, we need only ensure that support for Chromium

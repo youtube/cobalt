@@ -158,7 +158,7 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
   static void SendToServer(
       net::HttpServer* server, int connection_id, net::HttpStatusCode status,
       const std::string& message, const std::string& content_type,
-      const base::Optional<net::HttpServerResponseInfo>& response_info) {
+      const absl::optional<net::HttpServerResponseInfo>& response_info) {
     if (response_info) {
       server->SendResponse(connection_id, response_info.value(),
                            kTrafficAnnotation);
@@ -170,8 +170,8 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
   // Send a response on the Http Server's thread.
   void SendInternal(net::HttpStatusCode status, const std::string& message,
                     const std::string& content_type,
-                    base::Optional<net::HttpServerResponseInfo> response_info =
-                        base::Optional<net::HttpServerResponseInfo>()) {
+                    absl::optional<net::HttpServerResponseInfo> response_info =
+                        absl::optional<net::HttpServerResponseInfo>()) {
     if (base::ThreadTaskRunnerHandle::Get() == task_runner_) {
       SendToServer(server_, connection_id_, status, message, content_type,
                    response_info);

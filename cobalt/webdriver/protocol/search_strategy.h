@@ -17,8 +17,8 @@
 
 #include <string>
 
-#include "base/optional.h"
 #include "base/values.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -37,7 +37,7 @@ class SearchStrategy {
     kTagName,
     kXPath
   };
-  static base::Optional<SearchStrategy> FromValue(const base::Value* value);
+  static absl::optional<SearchStrategy> FromValue(const base::Value* value);
 
   Strategy strategy() const { return strategy_; }
   const std::string parameter() const { return parameter_; }

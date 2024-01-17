@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/optional.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/callback_interface_interface.h"
 #include "cobalt/bindings/testing/script_object_owner.h"
 #include "cobalt/bindings/testing/single_operation_interface.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 using ::testing::_;
 using ::testing::ContainsRegex;
@@ -76,7 +76,7 @@ TEST_F(CallbackInterfaceTest, ObjectCanImplementInterface) {
   EXPECT_CALL(*callback_arg_, ArbitraryFunction());
   EXPECT_CALL(test_mock(), SomeOperation());
   had_exception_ = true;
-  base::Optional<int32_t> return_value =
+  absl::optional<int32_t> return_value =
       interface_owner.reference().value().HandleCallback(
           test_mock_, callback_arg_, &had_exception_);
   EXPECT_FALSE(had_exception_);
@@ -104,7 +104,7 @@ TEST_F(CallbackInterfaceTest, FunctionCanImplementInterface) {
   EXPECT_CALL(*callback_arg_, ArbitraryFunction());
   EXPECT_CALL(test_mock(), SomeOperation());
   had_exception_ = true;
-  base::Optional<int32_t> return_value =
+  absl::optional<int32_t> return_value =
       interface_owner.reference().value().HandleCallback(
           test_mock_, callback_arg_, &had_exception_);
   EXPECT_FALSE(had_exception_);

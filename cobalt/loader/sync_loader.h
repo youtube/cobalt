@@ -20,11 +20,11 @@
 
 #include "base/callback.h"
 #include "base/message_loop/message_loop.h"
-#include "base/optional.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "cobalt/loader/decoder.h"
 #include "cobalt/loader/fetcher.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace loader {
@@ -36,7 +36,7 @@ void LoadSynchronously(
     base::MessageLoop* message_loop, base::WaitableEvent* interrupt_trigger,
     base::Callback<std::unique_ptr<Fetcher>(Fetcher::Handler*)> fetcher_creator,
     base::Callback<std::unique_ptr<Decoder>()> decoder_creator,
-    base::Callback<void(const base::Optional<std::string>&)>
+    base::Callback<void(const absl::optional<std::string>&)>
         load_complete_callback);
 
 }  // namespace loader

@@ -19,7 +19,6 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "base/threading/thread_checker.h"
 #include "base/timer/timer.h"
 #include "cobalt/dom/eme/media_keys.h"
@@ -31,6 +30,7 @@
 #include "cobalt/media/player/web_media_player.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/typed_arrays.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -65,8 +65,8 @@ class HTMLMediaElement : public HTMLElement,
   void set_src(const std::string& src);
   const std::string& current_src() const { return current_src_; }
 
-  base::Optional<std::string> cross_origin() const;
-  void set_cross_origin(const base::Optional<std::string>& value);
+  absl::optional<std::string> cross_origin() const;
+  void set_cross_origin(const absl::optional<std::string>& value);
 
   enum NetworkState {
     kNetworkEmpty,
@@ -305,7 +305,7 @@ class HTMLMediaElement : public HTMLElement,
   scoped_refptr<MediaError> error_;
 
   // Helper object to reduce the image capacity while a video is playing.
-  base::Optional<loader::image::ReducedCacheCapacityManager::Request>
+  absl::optional<loader::image::ReducedCacheCapacityManager::Request>
       reduced_image_cache_capacity_request_;
 
   scoped_refptr<eme::MediaKeys> media_keys_;

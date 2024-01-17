@@ -30,10 +30,10 @@ std::unique_ptr<base::Value> Button::ToValue(const Button& button) {
   return std::unique_ptr<base::Value>(button_object.release());
 }
 
-base::Optional<Button> Button::FromValue(const base::Value* value) {
+absl::optional<Button> Button::FromValue(const base::Value* value) {
   const base::DictionaryValue* dictionary_value;
   if (!value->GetAsDictionary(&dictionary_value)) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   int button = 0;
   dictionary_value->GetInteger(kButtonKey, &button);

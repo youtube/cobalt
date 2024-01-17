@@ -109,7 +109,7 @@ class Command {
                                 const std::string& params = "") {
     return Command(
         method, params,
-        base::Bind([](const base::Optional<std::string>& response) {}));
+        base::Bind([](const absl::optional<std::string>& response) {}));
   }
 
  private:

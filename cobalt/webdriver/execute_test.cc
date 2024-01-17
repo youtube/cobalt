@@ -95,7 +95,7 @@ TEST_F(ScriptExecutorTest, CreateSyncScript) {
       reinterpret_cast<intptr_t>(gc_prevented_params.params->function_object()),
       NULL);
   EXPECT_STREQ(gc_prevented_params.params->json_args().c_str(), "[]");
-  EXPECT_EQ(gc_prevented_params.params->async_timeout(), base::nullopt);
+  EXPECT_EQ(gc_prevented_params.params->async_timeout(), absl::nullopt);
 }
 
 TEST_F(ScriptExecutorTest, CreateAsyncScript) {

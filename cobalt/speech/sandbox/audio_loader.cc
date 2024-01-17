@@ -62,14 +62,14 @@ class DummyDecoder : public loader::Decoder {
     if (buffer_.size() == 0) {
       // No data loaded.
       if (!load_complete_callback_.is_null()) {
-        load_complete_callback_.Run(base::nullopt);
+        load_complete_callback_.Run(absl::nullopt);
       }
       done_callback_.Run(NULL, 0);
       return;
     }
 
     if (!load_complete_callback_.is_null()) {
-      load_complete_callback_.Run(base::nullopt);
+      load_complete_callback_.Run(absl::nullopt);
     }
     done_callback_.Run(reinterpret_cast<uint8*>(&buffer_[0]), buffer_.size());
   }
@@ -112,7 +112,7 @@ void AudioLoader::OnLoadingDone(const uint8* data, int size) {
   done_callback_.Run(data, size);
 }
 
-void AudioLoader::OnLoadingError(const base::Optional<std::string>& error) {
+void AudioLoader::OnLoadingError(const absl::optional<std::string>& error) {
   if (error) DLOG(WARNING) << "OnLoadingError with error message: " << *error;
 }
 

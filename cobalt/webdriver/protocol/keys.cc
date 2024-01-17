@@ -23,15 +23,15 @@ namespace {
 const char kValueKey[] = "value";
 }  // namespace
 
-base::Optional<Keys> Keys::FromValue(const base::Value* value) {
+absl::optional<Keys> Keys::FromValue(const base::Value* value) {
   const base::DictionaryValue* dictionary;
   if (!value->GetAsDictionary(&dictionary)) {
-    return base::nullopt;
+    return absl::nullopt;
   }
 
   const base::ListValue* list;
   if (!dictionary->GetList(kValueKey, &list)) {
-    return base::nullopt;
+    return absl::nullopt;
   }
 
   // Each item in the list should be a string which should be flattened into
@@ -40,13 +40,13 @@ base::Optional<Keys> Keys::FromValue(const base::Value* value) {
   for (size_t i = 0; i < list->GetSize(); ++i) {
     std::string item;
     if (!list->GetString(i, &item)) {
-      return base::nullopt;
+      return absl::nullopt;
     }
     keys += item;
   }
 
   if (!base::IsStringUTF8(keys)) {
-    return base::nullopt;
+    return absl::nullopt;
   }
 
   return Keys(keys);

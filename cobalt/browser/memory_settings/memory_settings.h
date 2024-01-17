@@ -23,12 +23,12 @@
 
 #include "base/callback.h"
 #include "base/compiler_specific.h"
-#include "base/optional.h"
 #include "cobalt/browser/memory_settings/scaling_function.h"
 #include "cobalt/browser/memory_settings/texture_dimensions.h"
 #include "cobalt/math/size.h"
 #include "starboard/configuration.h"
 #include "starboard/types.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace browser {
@@ -121,8 +121,8 @@ class IntSetting : public MemorySetting {
   void ScaleMemory(double absolute_constraining_value) override;
 
   int64_t value() const { return valid() ? value_ : 0; }
-  base::Optional<int64_t> optional_value() const {
-    base::Optional<int64_t> output;
+  absl::optional<int64_t> optional_value() const {
+    absl::optional<int64_t> output;
     if (valid()) {
       output = value_;
     }
@@ -152,8 +152,8 @@ class DimensionSetting : public MemorySetting {
   TextureDimensions value() const {
     return valid() ? value_ : TextureDimensions();
   }
-  base::Optional<TextureDimensions> optional_value() const {
-    base::Optional<TextureDimensions> output;
+  absl::optional<TextureDimensions> optional_value() const {
+    absl::optional<TextureDimensions> output;
     if (valid()) {
       output = value_;
     }
@@ -182,11 +182,11 @@ class SkiaGlyphAtlasTextureSetting : public DimensionSetting {
 };
 
 int64_t SumMemoryConsumption(
-    base::Optional<MemorySetting::MemoryType> memory_type_filter,
+    absl::optional<MemorySetting::MemoryType> memory_type_filter,
     const std::vector<const MemorySetting*>& memory_settings);
 
 int64_t SumMemoryConsumption(
-    base::Optional<MemorySetting::MemoryType> memory_type_filter,
+    absl::optional<MemorySetting::MemoryType> memory_type_filter,
     const std::vector<MemorySetting*>& memory_settings);
 
 }  // namespace memory_settings

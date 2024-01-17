@@ -199,7 +199,7 @@ ServiceWorkerContext::~ServiceWorkerContext() {
 }
 
 void ServiceWorkerContext::StartRegister(
-    const base::Optional<GURL>& maybe_scope_url,
+    const absl::optional<GURL>& maybe_scope_url,
     const GURL& script_url_with_fragment,
     std::unique_ptr<script::ValuePromiseWrappable::Reference> promise_reference,
     web::Context* client, const WorkerType& type,

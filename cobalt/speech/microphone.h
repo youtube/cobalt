@@ -19,7 +19,7 @@
 
 #include "base/basictypes.h"
 #include "base/files/file_path.h"
-#include "base/optional.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace speech {
@@ -42,7 +42,7 @@ class Microphone {
     // Audio data size.
     int audio_data_size;
     // Input file path.
-    base::Optional<base::FilePath> file_path;
+    absl::optional<base::FilePath> file_path;
   };
 
   virtual ~Microphone() {}

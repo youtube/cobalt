@@ -18,9 +18,9 @@
 #include <memory>
 #include <string>
 
-#include "base/optional.h"
 #include "base/values.h"
 #include "cobalt/webdriver/protocol/session_id.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -87,7 +87,7 @@ class Response {
   // Create a JSON object that will be used as the response body for a command:
   // https://www.selenium.dev/documentation/legacy/json_wire_protocol/#responses
   static std::unique_ptr<base::Value> CreateResponse(
-      const base::Optional<protocol::SessionId>& session_id,
+      const absl::optional<protocol::SessionId>& session_id,
       StatusCode status_code,
       std::unique_ptr<base::Value> webdriver_response_value);
 };

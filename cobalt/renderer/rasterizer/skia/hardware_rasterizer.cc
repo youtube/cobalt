@@ -137,15 +137,15 @@ class HardwareRasterizer::Impl {
 
   SkSurfaceMap sk_output_surface_map_;
 
-  base::Optional<ScratchSurfaceCache> scratch_surface_cache_;
+  absl::optional<ScratchSurfaceCache> scratch_surface_cache_;
 
-  base::Optional<egl::TexturedMeshRenderer> textured_mesh_renderer_;
+  absl::optional<egl::TexturedMeshRenderer> textured_mesh_renderer_;
 
   // Valid only for the duration of a call to RasterizeRenderTreeToCanvas().
   // Useful for directing textured_mesh_renderer_ on whether to flip its y-axis
   // or not since Skia does not let us pull that information out of the
   // SkCanvas object (which Skia would internally use to get this information).
-  base::Optional<GrSurfaceOrigin> current_surface_origin_;
+  absl::optional<GrSurfaceOrigin> current_surface_origin_;
 
   // If true, rasterizer will eschew performance optimizations in favor of
   // ensuring that each rasterization is pixel-wise deterministic, given
@@ -254,7 +254,7 @@ glm::mat4 ScaleMatrixFor360VideoAdjustment(const SkISize& canvas_size,
 // pixel width is actually half the size specified because there are two Y
 // values in each pixel.
 math::RectF AdjustContentRegionForImageType(
-    const base::Optional<AlternateRgbaFormat>& alternate_rgba_format,
+    const absl::optional<AlternateRgbaFormat>& alternate_rgba_format,
     const math::RectF& content_region) {
   if (!alternate_rgba_format) {
     return content_region;
@@ -667,9 +667,9 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
 
 HardwareRasterizer::Impl::~Impl() {
   graphics_context_->MakeCurrent();
-  textured_mesh_renderer_ = base::nullopt;
+  textured_mesh_renderer_ = absl::nullopt;
 
-  scratch_surface_cache_ = base::nullopt;
+  scratch_surface_cache_ = absl::nullopt;
   sk_output_surface_map_.clear();
   gr_context_.reset(NULL);
   graphics_context_->ReleaseCurrentContext();
@@ -857,7 +857,7 @@ void HardwareRasterizer::Impl::RasterizeRenderTreeToCanvas(
   // expected. Remove after switching to webdriver benchmark.
   TRACE_EVENT0("cobalt::renderer", "VisitRenderTree");
 
-  base::Optional<GrSurfaceOrigin> old_origin = current_surface_origin_;
+  absl::optional<GrSurfaceOrigin> old_origin = current_surface_origin_;
   current_surface_origin_.emplace(origin);
 
   RenderTreeNodeVisitor::CreateScratchSurfaceFunction

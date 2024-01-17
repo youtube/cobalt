@@ -21,10 +21,10 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "base/optional.h"
 #include "cobalt/cssom/property_definitions.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/wrappable.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace cssom {
@@ -512,7 +512,7 @@ class CSSStyleDeclaration : public script::Wrappable {
 
   virtual unsigned int length() const = 0;
 
-  virtual base::Optional<std::string> Item(unsigned int index) const = 0;
+  virtual absl::optional<std::string> Item(unsigned int index) const = 0;
 
   std::string GetPropertyValue(const std::string& property_name);
   virtual void SetPropertyValue(const std::string& property_name,

@@ -22,10 +22,10 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/color_stop.h"
 #include "cobalt/cssom/property_value.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace cssom {
@@ -57,10 +57,10 @@ class LinearGradientValue : public PropertyValue {
 
   void Accept(PropertyValueVisitor* visitor) override;
 
-  const base::Optional<float>& angle_in_radians() const {
+  const absl::optional<float>& angle_in_radians() const {
     return angle_in_radians_;
   }
-  const base::Optional<SideOrCorner>& side_or_corner() const {
+  const absl::optional<SideOrCorner>& side_or_corner() const {
     return side_or_corner_;
   }
   const ColorStopList& color_stop_list() const { return color_stop_list_; }
@@ -75,8 +75,8 @@ class LinearGradientValue : public PropertyValue {
   ~LinearGradientValue() override {}
 
   // Exactly one of |angle_in_radians_| and |side_or_corner_| is engaged.
-  const base::Optional<float> angle_in_radians_;
-  const base::Optional<SideOrCorner> side_or_corner_;
+  const absl::optional<float> angle_in_radians_;
+  const absl::optional<SideOrCorner> side_or_corner_;
   const ColorStopList color_stop_list_;
 
   DISALLOW_COPY_AND_ASSIGN(LinearGradientValue);

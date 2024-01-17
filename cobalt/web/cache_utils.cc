@@ -46,12 +46,12 @@ std::string FromV8String(v8::Isolate* isolate, v8::Local<v8::Value> value) {
   return result;
 }
 
-base::Optional<v8::Local<v8::Value>> Parse(v8::Isolate* isolate,
+absl::optional<v8::Local<v8::Value>> Parse(v8::Isolate* isolate,
                                            const std::string& json) {
   return Evaluate(isolate, "{ const obj = " + json + "; obj; }");
 }
 
-base::Optional<v8::Local<v8::Value>> BaseToV8(v8::Isolate* isolate,
+absl::optional<v8::Local<v8::Value>> BaseToV8(v8::Isolate* isolate,
                                               const base::Value& value) {
   auto json = std::make_unique<std::string>();
   base::JSONWriter::WriteWithOptions(
@@ -59,10 +59,10 @@ base::Optional<v8::Local<v8::Value>> BaseToV8(v8::Isolate* isolate,
   return Parse(isolate, *json);
 }
 
-base::Optional<v8::Local<v8::Promise>> OptionalPromise(
-    base::Optional<v8::Local<v8::Value>> value) {
+absl::optional<v8::Local<v8::Promise>> OptionalPromise(
+    absl::optional<v8::Local<v8::Value>> value) {
   if (!value || !(*value)->IsPromise()) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   return value->As<v8::Promise>();
 }
@@ -78,22 +78,22 @@ std::string Stringify(v8::Isolate* isolate, v8::Local<v8::Value> value) {
   return FromV8String(isolate, result.value());
 }
 
-base::Optional<base::Value> Deserialize(const std::string& json) {
+absl::optional<base::Value> Deserialize(const std::string& json) {
   if (json.empty()) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   return base::Value::FromUniquePtrValue(base::JSONReader::Read(json));
 }
 
-base::Optional<base::Value> V8ToBase(v8::Isolate* isolate,
+absl::optional<base::Value> V8ToBase(v8::Isolate* isolate,
                                      v8::Local<v8::Value> value) {
   return Deserialize(Stringify(isolate, value));
 }
 
 template <typename T>
-base::Optional<v8::Local<T>> ToOptional(v8::MaybeLocal<T> value) {
+absl::optional<v8::Local<T>> ToOptional(v8::MaybeLocal<T> value) {
   if (value.IsEmpty()) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   return value.ToLocalChecked();
 }
@@ -105,28 +105,28 @@ v8::Isolate* GetIsolate(v8::Local<v8::Value> object) {
   return object.As<v8::Object>()->GetIsolate();
 }
 
-base::Optional<v8::Local<v8::Value>> GetInternal(v8::Local<v8::Value> object,
+absl::optional<v8::Local<v8::Value>> GetInternal(v8::Local<v8::Value> object,
                                                  const std::string& path,
                                                  bool parent) {
   auto* isolate = GetIsolate(object);
   if (!isolate) {
-    return base::nullopt;
+    return absl::nullopt;
   }
 
-  base::Optional<v8::Local<v8::Value>> curr = object;
+  absl::optional<v8::Local<v8::Value>> curr = object;
   auto context = isolate->GetCurrentContext();
   auto parts = base::SplitString(path, ".", base::TRIM_WHITESPACE,
                                  base::SPLIT_WANT_NONEMPTY);
   int offset = parent ? -1 : 0;
   for (int i = 0; i < parts.size() + offset; i++) {
     if (!curr || !curr.value()->IsObject()) {
-      return base::nullopt;
+      return absl::nullopt;
     }
     std::string part = parts[i];
     if (base::ContainsOnlyChars(part, "0123456789")) {
       uint32_t index;
       if (!base::StringToUint32(part, &index)) {
-        return base::nullopt;
+        return absl::nullopt;
       }
       curr = ToOptional(curr->As<v8::Object>()->Get(context, index));
     } else {
@@ -137,7 +137,7 @@ base::Optional<v8::Local<v8::Value>> GetInternal(v8::Local<v8::Value> object,
   return curr;
 }
 
-base::Optional<v8::Local<v8::Value>> Get(v8::Local<v8::Value> object,
+absl::optional<v8::Local<v8::Value>> Get(v8::Local<v8::Value> object,
                                          const std::string& path) {
   return GetInternal(object, path, /*parent=*/false);
 }
@@ -173,21 +173,21 @@ const base::Value* Get(const base::Value& value, const std::string& path,
 
 template <typename T>
 using V8Transform =
-    std::function<base::Optional<T>(v8::Isolate*, v8::Local<v8::Value>)>;
+    std::function<absl::optional<T>(v8::Isolate*, v8::Local<v8::Value>)>;
 
 struct V8Transforms {
-  static base::Optional<double> ToDouble(v8::Isolate* isolate,
+  static absl::optional<double> ToDouble(v8::Isolate* isolate,
                                          v8::Local<v8::Value> value) {
     if (!value->IsNumber()) {
-      return base::nullopt;
+      return absl::nullopt;
     }
     return value.As<v8::Number>()->Value();
   }
 
-  static base::Optional<std::string> ToString(v8::Isolate* isolate,
+  static absl::optional<std::string> ToString(v8::Isolate* isolate,
                                               v8::Local<v8::Value> value) {
     if (!value->IsString()) {
-      return base::nullopt;
+      return absl::nullopt;
     }
     auto v8_string = value.As<v8::String>();
     std::string result;
@@ -199,21 +199,21 @@ struct V8Transforms {
 };  // V8Transforms
 
 template <typename T>
-base::Optional<T> Get(v8::Local<v8::Value> object, const std::string& path,
+absl::optional<T> Get(v8::Local<v8::Value> object, const std::string& path,
                       V8Transform<T> transform) {
   auto value = GetInternal(object, path, /*parent=*/false);
   if (!value) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   return transform(GetIsolate(object), value.value());
 }
 
-base::Optional<std::string> GetString(v8::Local<v8::Value> object,
+absl::optional<std::string> GetString(v8::Local<v8::Value> object,
                                       const std::string& path) {
   return Get<std::string>(object, path, V8Transforms::ToString);
 }
 
-base::Optional<double> GetNumber(v8::Local<v8::Value> object,
+absl::optional<double> GetNumber(v8::Local<v8::Value> object,
                                  const std::string& path) {
   return Get<double>(object, path, V8Transforms::ToDouble);
 }
@@ -254,16 +254,16 @@ std::vector<uint8_t> ToUint8Vector(v8::Local<v8::Value> buffer) {
   return std::move(vector);
 }
 
-base::Optional<v8::Local<v8::Value>> Call(
+absl::optional<v8::Local<v8::Value>> Call(
     v8::Local<v8::Value> object, const std::string& path,
     std::initializer_list<v8::Local<v8::Value>> args) {
   if (!object->IsObject()) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   v8::Local<v8::Value> result;
   auto optional_function = cache_utils::Get(object, path);
   if (!optional_function || !optional_function.value()->IsFunction()) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   auto context_object =
       cache_utils::GetInternal(object, path, /*parent=*/true).value();
@@ -275,11 +275,11 @@ base::Optional<v8::Local<v8::Value>> Call(
       context, context_object, argv.size(), argv.data()));
 }
 
-base::Optional<v8::Local<v8::Value>> Then(v8::Local<v8::Value> value,
+absl::optional<v8::Local<v8::Value>> Then(v8::Local<v8::Value> value,
                                           OnFullfilled on_fullfilled) {
   if (!value->IsPromise()) {
     on_fullfilled.Reset();
-    return base::nullopt;
+    return absl::nullopt;
   }
   auto promise = value.As<v8::Promise>();
   auto* isolate = promise->GetIsolate();
@@ -321,7 +321,7 @@ base::Optional<v8::Local<v8::Value>> Then(v8::Local<v8::Value> value,
           .ToLocalChecked());
   if (resulting_promise.IsEmpty()) {
     delete on_fullfilled_ptr;
-    return base::nullopt;
+    return absl::nullopt;
   }
   return resulting_promise.ToLocalChecked();
 }
@@ -387,22 +387,22 @@ v8::Local<v8::Value> ToV8Value(const script::Any& any) {
   return script::GetV8Value(*any.GetScriptValue());
 }
 
-base::Optional<v8::Local<v8::Value>> Evaluate(v8::Isolate* isolate,
+absl::optional<v8::Local<v8::Value>> Evaluate(v8::Isolate* isolate,
                                               const std::string& js_code) {
   auto context = isolate->GetCurrentContext();
   auto script = v8::Script::Compile(context, V8String(isolate, js_code));
   if (script.IsEmpty()) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   return ToOptional(script.ToLocalChecked()->Run(context));
 }
 
-base::Optional<v8::Local<v8::Value>> CreateInstance(
+absl::optional<v8::Local<v8::Value>> CreateInstance(
     v8::Isolate* isolate, const std::string& class_name,
     std::initializer_list<v8::Local<v8::Value>> args) {
   auto constructor = Evaluate(isolate, class_name);
   if (!constructor) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   auto context = isolate->GetCurrentContext();
   std::vector<v8::Local<v8::Value>> argv = args;
@@ -410,7 +410,7 @@ base::Optional<v8::Local<v8::Value>> CreateInstance(
       context, argv.size(), argv.data()));
 }
 
-base::Optional<v8::Local<v8::Value>> CreateRequest(v8::Isolate* isolate,
+absl::optional<v8::Local<v8::Value>> CreateRequest(v8::Isolate* isolate,
                                                    const std::string& url,
                                                    const base::Value& options) {
   auto v8_options = v8::Object::New(isolate);
@@ -434,14 +434,14 @@ base::Optional<v8::Local<v8::Value>> CreateRequest(v8::Isolate* isolate,
                         {V8String(isolate, url), v8_options});
 }
 
-base::Optional<v8::Local<v8::Value>> CreateResponse(
+absl::optional<v8::Local<v8::Value>> CreateResponse(
     v8::Isolate* isolate, const std::vector<uint8_t>& body,
     const base::Value& options) {
   auto status = options.FindKey("status");
   auto status_text = options.FindKey("statusText");
   auto headers = options.FindKey("headers");
   if (body.size() == 0 || !status || !status_text || !headers) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   auto v8_body = v8::ArrayBuffer::New(isolate, body.size());
   memcpy(v8_body->GetBackingStore()->Data(), body.data(), body.size());
@@ -460,10 +460,10 @@ base::Optional<v8::Local<v8::Value>> CreateResponse(
   return CreateInstance(isolate, "Response", {v8_body, v8_options});
 }
 
-base::Optional<base::Value> ExtractResponseOptions(
+absl::optional<base::Value> ExtractResponseOptions(
     v8::Local<v8::Value> response) {
   if (!response->IsObject()) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   auto response_object = response.As<v8::Object>();
   auto* isolate = response_object->GetIsolate();
@@ -480,7 +480,7 @@ base::Optional<base::Value> ExtractResponseOptions(
                          ")()");
   Delete(global, "___tempResponseObject");
   if (!result) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   return V8ToBase(isolate, result.value());
 }

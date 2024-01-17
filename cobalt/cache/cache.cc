@@ -21,7 +21,6 @@
 #include "base/callback_helpers.h"
 #include "base/files/file_util.h"
 #include "base/memory/singleton.h"
-#include "base/optional.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/values.h"
 #include "cobalt/configuration/configuration.h"
@@ -29,12 +28,13 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/extension/javascript_cache.h"
 #include "starboard/system.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace cache {
 namespace {
 
-base::Optional<uint32_t> GetMinSizeToCacheInBytes(
+absl::optional<uint32_t> GetMinSizeToCacheInBytes(
     network::disk_cache::ResourceType resource_type) {
   switch (resource_type) {
     case network::disk_cache::ResourceType::kCompiledScript:
@@ -42,11 +42,11 @@ base::Optional<uint32_t> GetMinSizeToCacheInBytes(
     case network::disk_cache::ResourceType::kServiceWorkerScript:
       return 1u;
     default:
-      return base::nullopt;
+      return absl::nullopt;
   }
 }
 
-base::Optional<std::string> GetSubdirectory(
+absl::optional<std::string> GetSubdirectory(
     network::disk_cache::ResourceType resource_type) {
   switch (resource_type) {
     case network::disk_cache::ResourceType::kCacheApi:
@@ -56,20 +56,20 @@ base::Optional<std::string> GetSubdirectory(
     case network::disk_cache::ResourceType::kServiceWorkerScript:
       return "service_worker_js";
     default:
-      return base::nullopt;
+      return absl::nullopt;
   }
 }
 
-base::Optional<base::FilePath> GetCacheDirectory(
+absl::optional<base::FilePath> GetCacheDirectory(
     network::disk_cache::ResourceType resource_type) {
   auto subdirectory = GetSubdirectory(resource_type);
   if (!subdirectory) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   std::vector<char> path(kSbFileMaxPath, 0);
   if (!SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(),
                        kSbFileMaxPath)) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   return base::FilePath(path.data()).Append(subdirectory.value());
 }
@@ -125,19 +125,19 @@ std::vector<uint32_t> Cache::KeysWithMetadata(
   return std::vector<uint32_t>();
 }
 
-base::Optional<base::Value> Cache::Metadata(
+absl::optional<base::Value> Cache::Metadata(
     network::disk_cache::ResourceType resource_type, uint32_t key) {
   auto* memory_capped_directory = GetMemoryCappedDirectory(resource_type);
   if (memory_capped_directory) {
     return memory_capped_directory->Metadata(key);
   }
-  return base::nullopt;
+  return absl::nullopt;
 }
 
 std::unique_ptr<std::vector<uint8_t>> Cache::Retrieve(
     network::disk_cache::ResourceType resource_type, uint32_t key,
     std::function<std::pair<std::unique_ptr<std::vector<uint8_t>>,
-                            base::Optional<base::Value>>()>
+                            absl::optional<base::Value>>()>
         generate) {
   base::ScopedClosureRunner notifier(base::BindOnce(
       &Cache::Notify, base::Unretained(this), resource_type, key));
@@ -238,7 +238,7 @@ void Cache::Resize(network::disk_cache::ResourceType resource_type,
   }
 }
 
-base::Optional<uint32_t> Cache::GetMaxCacheStorageInBytes(
+absl::optional<uint32_t> Cache::GetMaxCacheStorageInBytes(
     network::disk_cache::ResourceType resource_type) {
   switch (resource_type) {
     case network::disk_cache::ResourceType::kCacheApi:
@@ -246,7 +246,7 @@ base::Optional<uint32_t> Cache::GetMaxCacheStorageInBytes(
     case network::disk_cache::ResourceType::kServiceWorkerScript:
       return network::disk_cache::settings::GetQuota(resource_type);
     default:
-      return base::nullopt;
+      return absl::nullopt;
   }
 }
 
@@ -284,7 +284,7 @@ void Cache::Notify(network::disk_cache::ResourceType resource_type,
 
 void Cache::Store(network::disk_cache::ResourceType resource_type, uint32_t key,
                   const std::vector<uint8_t>& data,
-                  const base::Optional<base::Value>& metadata) {
+                  const absl::optional<base::Value>& metadata) {
   if (!CanCache(resource_type, data.size())) {
     return;
   }

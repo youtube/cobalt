@@ -169,8 +169,8 @@ void RenderTreeNodeVisitor::Visit(
   // our child's), retrieve our current total matrix and canvas viewport
   // rectangle so that we can later check if each child is within or outside
   // the viewport.
-  base::Optional<SkRect> canvas_bounds;
-  base::Optional<SkMatrix> total_matrix;
+  absl::optional<SkRect> canvas_bounds;
+  absl::optional<SkMatrix> total_matrix;
   if (children.size() > 1) {
     SkIRect canvas_boundsi;
     draw_state_.render_target->getDeviceClipBounds(&canvas_boundsi);
@@ -226,7 +226,7 @@ SkPath RoundedRectToSkiaPath(
 
 void ApplyViewportMask(
     RenderTreeNodeVisitorDrawState* draw_state,
-    const base::Optional<render_tree::ViewportFilter>& filter) {
+    const absl::optional<render_tree::ViewportFilter>& filter) {
   if (!filter) {
     return;
   }
@@ -249,7 +249,7 @@ SkColor ToSkColor(const render_tree::ColorRGBA& color) {
 
 void ApplyBlurFilterToPaint(
     SkPaint* paint,
-    const base::Optional<render_tree::BlurFilter>& blur_filter) {
+    const absl::optional<render_tree::BlurFilter>& blur_filter) {
   if (blur_filter && blur_filter->blur_sigma() > 0.0f) {
 #ifdef USE_SKIA_NEXT
     sk_sp<SkImageFilter> skia_blur_filter(SkImageFilters::Blur(
@@ -1212,7 +1212,7 @@ bool AllBorderSidesShareSameProperties(const render_tree::Border& border) {
           border.top == border.bottom);
 }
 
-base::Optional<SkPoint> CalculateIntersectionPoint(const SkPoint& a,
+absl::optional<SkPoint> CalculateIntersectionPoint(const SkPoint& a,
                                                    const SkPoint& b,
                                                    const SkPoint& c,
                                                    const SkPoint& d) {
@@ -1223,7 +1223,7 @@ base::Optional<SkPoint> CalculateIntersectionPoint(const SkPoint& a,
   const float ab_height = b.y() - a.y();
   const float cd_width = d.x() - c.x();
   const float cd_height = d.y() - c.y();
-  base::Optional<SkPoint> intersection;
+  absl::optional<SkPoint> intersection;
 
   const float determinant = (ab_width * cd_height) - (ab_height * cd_width);
   if (determinant) {
@@ -1283,7 +1283,7 @@ void DrawSolidRoundedRectBorderByEdge(
   // If no intersection point exists, the transition center is just the inner
   // point.
 
-  base::Optional<SkPoint> intersection;
+  absl::optional<SkPoint> intersection;
   // Top Left
   const SkPoint top_left_outer = {rect.x(), rect.y()};
   SkPoint top_left_inner = {rect.x() + border.left.width,
@@ -1506,7 +1506,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
   }
 
   // Apply rounded corners if it exists.
-  base::Optional<render_tree::RoundedCorners> inner_rounded_corners;
+  absl::optional<render_tree::RoundedCorners> inner_rounded_corners;
   if (rect_node->data().rounded_corners) {
     if (rect_node->data().border) {
       inner_rounded_corners = rect_node->data().rounded_corners->Inset(
@@ -1549,7 +1549,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
 namespace {
 struct RRect {
   RRect(const math::RectF& rect,
-        const base::Optional<render_tree::RoundedCorners>& rounded_corners)
+        const absl::optional<render_tree::RoundedCorners>& rounded_corners)
       : rect(rect), rounded_corners(rounded_corners) {}
 
   void Offset(const math::Vector2dF& offset) { rect.Offset(offset); }
@@ -1562,7 +1562,7 @@ struct RRect {
   }
 
   math::RectF rect;
-  base::Optional<render_tree::RoundedCorners> rounded_corners;
+  absl::optional<render_tree::RoundedCorners> rounded_corners;
 };
 
 // |shadow_rect| contains the original rect, offset according to the shadow's

@@ -19,7 +19,6 @@
 
 #include "base/logging.h"
 #include "base/message_loop/message_loop.h"
-#include "base/optional.h"
 #include "base/task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
@@ -32,6 +31,7 @@
 #include "cobalt/worker/registration_options.h"
 #include "cobalt/worker/service_worker_update_via_cache.h"
 #include "cobalt/worker/worker_type.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -145,7 +145,7 @@ script::HandlePromiseWrappable ServiceWorkerContainer::Register(
   const GURL& base_url = environment_settings()->base_url();
   GURL script_url = base_url.Resolve(url);
   // 4. Let scopeURL be null.
-  base::Optional<GURL> scope_url;
+  absl::optional<GURL> scope_url;
   // 5. If options["scope"] exists, set scopeURL to the result of parsing
   //    options["scope"] with this's relevant settings object’s API base URL.
   if (options.has_scope()) {

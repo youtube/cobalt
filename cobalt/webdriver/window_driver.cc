@@ -50,7 +50,7 @@ class SyncExecuteResultHandler : public ScriptExecutorResult::ResultHandler {
   }
 
  private:
-  base::Optional<std::string> result_;
+  absl::optional<std::string> result_;
 };
 
 class AsyncExecuteResultHandler : public ScriptExecutorResult::ResultHandler {
@@ -251,7 +251,7 @@ util::CommandResult<protocol::ScriptResult> WindowDriver::Execute(
   CommandResult result = util::CallOnMessageLoop(
       window_task_runner_,
       base::Bind(&WindowDriver::ExecuteScriptInternal, base::Unretained(this),
-                 script, base::nullopt, &result_handler),
+                 script, absl::nullopt, &result_handler),
       protocol::Response::kNoSuchWindow);
   if (result.is_success()) {
     return CommandResult(protocol::ScriptResult(result_handler.result()));
@@ -454,7 +454,7 @@ util::CommandResult<T> WindowDriver::FindElementsInternal(
 
 util::CommandResult<protocol::ScriptResult> WindowDriver::ExecuteScriptInternal(
     const protocol::Script& script,
-    base::Optional<base::TimeDelta> async_timeout,
+    absl::optional<base::TimeDelta> async_timeout,
     ScriptExecutorResult::ResultHandler* async_handler) {
   typedef util::CommandResult<protocol::ScriptResult> CommandResult;
   DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), window_task_runner_);
@@ -582,7 +582,7 @@ util::CommandResult<void> WindowDriver::MouseMoveToInternal(
   float x = 0;
   float y = 0;
   scoped_refptr<dom::Element> element;
-  const base::Optional<protocol::ElementId>& element_id = moveto.element();
+  const absl::optional<protocol::ElementId>& element_id = moveto.element();
   if (element_id) {
     // The element to move to.
     element = IdToElement(*element_id);

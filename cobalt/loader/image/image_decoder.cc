@@ -196,7 +196,7 @@ void ImageDecoder::Finish() {
       DCHECK(decoder_);
       if (auto image = decoder_->FinishAndMaybeReturnImage()) {
         image_available_callback_.Run(image);
-        load_complete_callback_.Run(base::nullopt);
+        load_complete_callback_.Run(absl::nullopt);
       } else {
         load_complete_callback_.Run(std::string(decoder_->GetTypeString() +
                                                 " failed to decode image."));

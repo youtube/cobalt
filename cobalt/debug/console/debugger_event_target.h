@@ -20,11 +20,11 @@
 
 #include "base/callback.h"
 #include "base/message_loop/message_loop.h"
-#include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace debug {
@@ -41,7 +41,7 @@ class DebuggerEventTarget : public script::Wrappable {
   // Type for JavaScript debugger event callback.
   typedef script::CallbackFunction<void(
       const std::string& method,
-      const base::Optional<std::string>& json_params)>
+      const absl::optional<std::string>& json_params)>
       DebuggerEventCallback;
   typedef script::ScriptValue<DebuggerEventCallback> DebuggerEventCallbackArg;
 
@@ -74,7 +74,7 @@ class DebuggerEventTarget : public script::Wrappable {
   // Notifies a particular listener. Called on the same message loop the
   // listener registered its callback from.
   void NotifyListener(const ListenerInfo* listener, const std::string& method,
-                      const base::Optional<std::string>& json_params);
+                      const absl::optional<std::string>& json_params);
 
  private:
   typedef std::set<ListenerInfo*> ListenerSet;

@@ -20,10 +20,10 @@
 
 #include "base/bind.h"
 #include "base/callback.h"
-#include "base/optional.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/dom/parser.h"
 #include "cobalt/loader/decoder.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace dom_parser {
@@ -87,7 +87,7 @@ class Parser : public dom::Parser {
   const int dom_max_element_depth_;
   const loader::Decoder::OnCompleteFunction load_complete_callback_;
 
-  void LoadCompleteCallback(const base::Optional<std::string>& error);
+  void LoadCompleteCallback(const absl::optional<std::string>& error);
 
   // Cobalt user can specify if they want to forbid Cobalt rendering without csp
   // headers.

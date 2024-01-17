@@ -345,7 +345,7 @@ TEST_P(WithJavaScript, PostMessage) {
   base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(port_->enabled());
 
-  base::Optional<script::ValueHandleHolder::Reference> reference;
+  absl::optional<script::ValueHandleHolder::Reference> reference;
   EvaluateScript("'PostMessageTestMessageString'", &reference);
   port_->PostMessage(reference->referenced_value());
 
@@ -365,7 +365,7 @@ TEST_P(WithJavaScript, PostFailedMessage) {
   base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(port_->enabled());
 
-  base::Optional<script::ValueHandleHolder::Reference> reference;
+  absl::optional<script::ValueHandleHolder::Reference> reference;
   EvaluateScript("new Function", &reference);
   port_->PostMessage(reference->referenced_value());
 
@@ -380,7 +380,7 @@ TEST_P(WithJavaScript, PostMessageBeforeListening) {
 
   port_->EntangleWithEventTarget(event_target_.get());
 
-  base::Optional<script::ValueHandleHolder::Reference> reference;
+  absl::optional<script::ValueHandleHolder::Reference> reference;
   EvaluateScript("'PostMessageTestMessageString'", &reference);
   port_->PostMessage(reference->referenced_value());
 

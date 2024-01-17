@@ -72,7 +72,7 @@ TEST_F(ExtendableMessageEventTestWithJavaScript,
 }
 
 TEST_F(ExtendableMessageEventTestWithJavaScript, ConstructorWithAny) {
-  base::Optional<script::ValueHandleHolder::Reference> reference;
+  absl::optional<script::ValueHandleHolder::Reference> reference;
   EvaluateScript("'ConstructorWithAnyMessageData'", &reference);
   auto* isolate = web::get_isolate(web_context()->environment_settings());
   const ExtendableMessageEventInit init;
@@ -132,12 +132,12 @@ TEST_F(ExtendableMessageEventTestWithJavaScript,
 TEST_F(ExtendableMessageEventTestWithJavaScript,
        ConstructorWithEventTypeAndInitDict) {
   ExtendableMessageEventInit init;
-  base::Optional<script::ValueHandleHolder::Reference> reference;
+  absl::optional<script::ValueHandleHolder::Reference> reference;
   EvaluateScript("'data_value'", &reference);
   init.set_data(&(reference->referenced_value()));
   init.set_origin("OriginString");
   init.set_last_event_id("lastEventIdString");
-  base::Optional<ExtendableMessageEvent::SourceType> client(
+  absl::optional<ExtendableMessageEvent::SourceType> client(
       Client::Create(web_context()->environment_settings()));
   init.set_source(client);
   scoped_refptr<ExtendableMessageEvent> event =

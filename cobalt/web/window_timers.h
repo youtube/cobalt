@@ -21,7 +21,6 @@
 
 #include "base/containers/hash_tables.h"
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "cobalt/base/application_state.h"
@@ -30,6 +29,7 @@
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/stat_tracker.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace web {
@@ -103,7 +103,7 @@ class WindowTimers {
     WindowTimers* window_timers_;
 
     // Store the desired run tim of a paused timer.
-    base::Optional<base::TimeTicks> desired_run_time_;
+    absl::optional<base::TimeTicks> desired_run_time_;
 
     friend class base::RefCounted<Timer>;
   };

@@ -200,6 +200,7 @@ target(gtest_target_type, "bindings_test") {
   deps = [
     ":bindings_test_implementation",
     ":bindings_test_support",
+    "//base",
     "//cobalt/base",
     "//cobalt/script",
     "//cobalt/script/v8c:engine",

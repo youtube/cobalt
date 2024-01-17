@@ -18,17 +18,17 @@
 #include <string>
 #include <vector>
 
-#include "base/optional.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace dom {
 
 // https://infra.spec.whatwg.org/#forgiving-base64-encode
-base::Optional<std::string> ForgivingBase64Encode(
+absl::optional<std::string> ForgivingBase64Encode(
     const std::string& string_to_encode);
 
 // https://infra.spec.whatwg.org/#forgiving-base64-decode
-base::Optional<std::vector<uint8_t>> ForgivingBase64Decode(
+absl::optional<std::vector<uint8_t>> ForgivingBase64Decode(
     const std::string& encoded_string);
 
 }  // namespace dom

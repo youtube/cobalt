@@ -70,7 +70,7 @@ TEST_F(EvaluateScriptTest, ThreeArguments) {
   EXPECT_TRUE(EvaluateScript(script, arbitrary_interface_mock, NULL));
 
   // Call with non-null, but unset optional handle.
-  base::Optional<ValueHandleHolder::Reference> value_handle;
+  absl::optional<ValueHandleHolder::Reference> value_handle;
   EXPECT_TRUE(EvaluateScript(script, arbitrary_interface_mock, &value_handle));
   ASSERT_FALSE(value_handle->referenced_value().IsNull());
 

@@ -40,7 +40,7 @@ void RenderOverlay::SetOverlay(
 
 void RenderOverlay::ClearInput() {
   input_layout_ = LayoutResults(NULL, base::TimeDelta());
-  input_receipt_time_ = base::nullopt;
+  input_receipt_time_ = absl::nullopt;
 }
 
 void RenderOverlay::Process() {

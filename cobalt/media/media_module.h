@@ -23,7 +23,6 @@
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "cobalt/math/size.h"
 #include "cobalt/media/base/sbplayer_interface.h"
 #include "cobalt/media/can_play_type_handler.h"
@@ -36,6 +35,7 @@
 #include "cobalt/system_window/system_window.h"
 #include "starboard/common/mutex.h"
 #include "starboard/player.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/chromium/media/base/media_log.h"
 
 namespace cobalt {

@@ -18,11 +18,11 @@
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
-#include "base/optional.h"
 #include "base/path_service.h"
 #include "cobalt/storage/savegame.h"
 #include "starboard/common/metrics/stats_tracker.h"
 #include "starboard/common/storage.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace storage {
@@ -89,7 +89,7 @@ bool WriteRecord(const std::unique_ptr<starboard::StorageRecord>& record,
 }
 
 std::unique_ptr<starboard::StorageRecord> CreateRecord(
-    const base::Optional<std::string>& id) {
+    const absl::optional<std::string>& id) {
   if (id) {
     return base::WrapUnique(new starboard::StorageRecord(id->c_str()));
   }
@@ -97,7 +97,7 @@ std::unique_ptr<starboard::StorageRecord> CreateRecord(
 }
 
 bool EnsureRecord(std::unique_ptr<starboard::StorageRecord>* record,
-                  const base::Optional<std::string>& id) {
+                  const absl::optional<std::string>& id) {
   if (!(*record) || !(*record)->IsValid()) {
     // Might have been deleted, so we'll create a new one.
     (*record) = CreateRecord(id);
@@ -182,7 +182,7 @@ bool SavegameStarboard::MigrateFromFallback() {
   }
 
   std::unique_ptr<starboard::StorageRecord> fallback_record;
-  if (!EnsureRecord(&fallback_record, base::nullopt)) {
+  if (!EnsureRecord(&fallback_record, absl::nullopt)) {
     DLOG(WARNING) << __FUNCTION__ << ": "
                   << "Failed to open default record.";
     return false;

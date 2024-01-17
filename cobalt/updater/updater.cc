@@ -15,7 +15,7 @@
 #include "base/logging.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/message_loop/message_loop.h"
-#include "base/optional.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "base/run_loop.h"
 #include "base/stl_util.h"
 #include "base/sys_info.h"

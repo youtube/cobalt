@@ -19,9 +19,9 @@
 #include <vector>
 
 #include "base/files/file_path.h"
-#include "base/optional.h"
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/math/size.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -30,7 +30,7 @@ namespace layout_tests {
 // Final parsed information about an individual Layout Test entry.
 struct TestInfo {
   TestInfo(const base::FilePath& base_file_path, const GURL& url,
-           const base::Optional<cssom::ViewportSize>& viewport_size)
+           const absl::optional<cssom::ViewportSize>& viewport_size)
       : base_file_path(base_file_path),
         url(url),
         viewport_size(viewport_size) {}
@@ -50,7 +50,7 @@ struct TestInfo {
   // The viewport_size is the size of the viewport used during the test.  It
   // may not be specified, in which case it is intended that a default viewport
   // size be used.
-  base::Optional<cssom::ViewportSize> viewport_size;
+  absl::optional<cssom::ViewportSize> viewport_size;
 };
 
 // Define operator<< so that this test parameter can be printed by gtest if

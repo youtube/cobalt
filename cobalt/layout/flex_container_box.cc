@@ -41,23 +41,23 @@ FlexContainerBox::~FlexContainerBox() {}
 void FlexContainerBox::DetermineAvailableSpace(
     const LayoutParams& layout_params, bool main_direction_is_horizontal,
     bool width_depends_on_containing_block,
-    const base::Optional<LayoutUnit>& maybe_width,
+    const absl::optional<LayoutUnit>& maybe_width,
     bool height_depends_on_containing_block,
-    const base::Optional<LayoutUnit>& maybe_height) {
+    const absl::optional<LayoutUnit>& maybe_height) {
   // Line Length Determination:
   //   https://www.w3.org/TR/css-flexbox-1/#line-sizing
   // 2. Determine the available main and cross space for the flex items.
-  base::Optional<LayoutUnit> main_space;
-  base::Optional<LayoutUnit> cross_space;
+  absl::optional<LayoutUnit> main_space;
+  absl::optional<LayoutUnit> cross_space;
   bool main_space_depends_on_containing_block;
 
-  base::Optional<LayoutUnit> min_width = GetUsedMinWidthIfNotAuto(
+  absl::optional<LayoutUnit> min_width = GetUsedMinWidthIfNotAuto(
       computed_style(), layout_params.containing_block_size, NULL);
-  base::Optional<LayoutUnit> max_width = GetUsedMaxWidthIfNotNone(
+  absl::optional<LayoutUnit> max_width = GetUsedMaxWidthIfNotNone(
       computed_style(), layout_params.containing_block_size, NULL);
-  base::Optional<LayoutUnit> min_height = GetUsedMinHeightIfNotAuto(
+  absl::optional<LayoutUnit> min_height = GetUsedMinHeightIfNotAuto(
       computed_style(), layout_params.containing_block_size);
-  base::Optional<LayoutUnit> max_height = GetUsedMaxHeightIfNotNone(
+  absl::optional<LayoutUnit> max_height = GetUsedMaxHeightIfNotNone(
       computed_style(), layout_params.containing_block_size);
 
   // For each dimension, if that dimension of the flex container's content box
@@ -114,10 +114,10 @@ void FlexContainerBox::DetermineAvailableSpace(
         // Otherwise, subtract the flex container's margin, border, and padding
         // from the space available to the flex container in that dimension and
         // use that value.
-        base::Optional<LayoutUnit> margin_main_start =
+        absl::optional<LayoutUnit> margin_main_start =
             GetUsedMarginLeftIfNotAuto(computed_style(),
                                        layout_params.containing_block_size);
-        base::Optional<LayoutUnit> margin_main_end =
+        absl::optional<LayoutUnit> margin_main_end =
             GetUsedMarginRightIfNotAuto(computed_style(),
                                         layout_params.containing_block_size);
         main_space = layout_params.containing_block_size.width() -
@@ -131,10 +131,10 @@ void FlexContainerBox::DetermineAvailableSpace(
         // Otherwise, subtract the flex container's margin, border, and padding
         // from the space available to the flex container in that dimension and
         // use that value.
-        base::Optional<LayoutUnit> margin_cross_start =
+        absl::optional<LayoutUnit> margin_cross_start =
             GetUsedMarginLeftIfNotAuto(computed_style(),
                                        layout_params.containing_block_size);
-        base::Optional<LayoutUnit> margin_cross_end =
+        absl::optional<LayoutUnit> margin_cross_end =
             GetUsedMarginRightIfNotAuto(computed_style(),
                                         layout_params.containing_block_size);
         cross_space = layout_params.containing_block_size.width() -
@@ -173,11 +173,11 @@ void FlexContainerBox::UpdateContentSizeAndMargins(
   //      https://www.w3.org/TR/css-flexbox-1/#algo-available
 
   bool width_depends_on_containing_block;
-  base::Optional<LayoutUnit> maybe_width = GetUsedWidthIfNotAuto(
+  absl::optional<LayoutUnit> maybe_width = GetUsedWidthIfNotAuto(
       computed_style(), layout_params.containing_block_size,
       &width_depends_on_containing_block);
   bool height_depends_on_containing_block;
-  base::Optional<LayoutUnit> maybe_height = GetUsedHeightIfNotAuto(
+  absl::optional<LayoutUnit> maybe_height = GetUsedHeightIfNotAuto(
       computed_style(), layout_params.containing_block_size,
       &height_depends_on_containing_block);
 
@@ -217,18 +217,18 @@ void FlexContainerBox::UpdateContentSizeAndMargins(
     }
   }
 
-  base::Optional<LayoutUnit> maybe_margin_left = GetUsedMarginLeftIfNotAuto(
+  absl::optional<LayoutUnit> maybe_margin_left = GetUsedMarginLeftIfNotAuto(
       computed_style(), layout_params.containing_block_size);
-  base::Optional<LayoutUnit> maybe_margin_right = GetUsedMarginRightIfNotAuto(
+  absl::optional<LayoutUnit> maybe_margin_right = GetUsedMarginRightIfNotAuto(
       computed_style(), layout_params.containing_block_size);
-  base::Optional<LayoutUnit> maybe_left = GetUsedLeftIfNotAuto(
+  absl::optional<LayoutUnit> maybe_left = GetUsedLeftIfNotAuto(
       computed_style(), layout_params.containing_block_size);
-  base::Optional<LayoutUnit> maybe_right = GetUsedRightIfNotAuto(
+  absl::optional<LayoutUnit> maybe_right = GetUsedRightIfNotAuto(
       computed_style(), layout_params.containing_block_size);
 
-  base::Optional<LayoutUnit> maybe_margin_top = GetUsedMarginTopIfNotAuto(
+  absl::optional<LayoutUnit> maybe_margin_top = GetUsedMarginTopIfNotAuto(
       computed_style(), layout_params.containing_block_size);
-  base::Optional<LayoutUnit> maybe_margin_bottom = GetUsedMarginBottomIfNotAuto(
+  absl::optional<LayoutUnit> maybe_margin_bottom = GetUsedMarginBottomIfNotAuto(
       computed_style(), layout_params.containing_block_size);
 
   set_margin_left(maybe_margin_left.value_or(LayoutUnit()));
@@ -242,9 +242,9 @@ void FlexContainerBox::UpdateContentSizeAndMargins(
         layout_params.containing_block_size.width(), maybe_left, maybe_right,
         maybe_width, maybe_margin_left, maybe_margin_right, maybe_height);
 
-    base::Optional<LayoutUnit> maybe_top = GetUsedTopIfNotAuto(
+    absl::optional<LayoutUnit> maybe_top = GetUsedTopIfNotAuto(
         computed_style(), layout_params.containing_block_size);
-    base::Optional<LayoutUnit> maybe_bottom = GetUsedBottomIfNotAuto(
+    absl::optional<LayoutUnit> maybe_bottom = GetUsedBottomIfNotAuto(
         computed_style(), layout_params.containing_block_size);
 
     UpdateHeightAssumingAbsolutelyPositionedBox(
@@ -543,8 +543,8 @@ BlockLevelFlexContainerBox::~BlockLevelFlexContainerBox() {}
 
 Box::Level BlockLevelFlexContainerBox::GetLevel() const { return kBlockLevel; }
 
-base::Optional<int> BlockLevelFlexContainerBox::GetBidiLevel() const {
-  return base::Optional<int>();
+absl::optional<int> BlockLevelFlexContainerBox::GetBidiLevel() const {
+  return absl::optional<int>();
 }
 
 #ifdef COBALT_BOX_DUMP_ENABLED
@@ -570,7 +570,7 @@ Box::Level InlineLevelFlexContainerBox::GetLevel() const {
   return kInlineLevel;
 }
 
-base::Optional<int> InlineLevelFlexContainerBox::GetBidiLevel() const {
+absl::optional<int> InlineLevelFlexContainerBox::GetBidiLevel() const {
   return paragraph_->GetBidiLevel(text_position_);
 }
 

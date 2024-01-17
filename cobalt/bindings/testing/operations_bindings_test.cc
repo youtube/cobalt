@@ -184,7 +184,7 @@ TEST_F(OperationsBindingsTest, OverloadedOperationByOptionality) {
   EXPECT_CALL(test_mock(), OverloadedNullable(A<int32_t>()));
   EXPECT_TRUE(EvaluateScript("test.overloadedNullable(5);", NULL));
 
-  EXPECT_CALL(test_mock(), OverloadedNullable(base::Optional<bool>()));
+  EXPECT_CALL(test_mock(), OverloadedNullable(absl::optional<bool>()));
   EXPECT_TRUE(EvaluateScript("test.overloadedNullable(null);", NULL));
 }
 

@@ -65,7 +65,7 @@ void ScreenshotFunction(
     scoped_refptr<base::SingleThreadTaskRunner> expected_message_loop,
     renderer::RenderTreePixelTester* pixel_tester,
     const scoped_refptr<render_tree::Node>& node,
-    const base::Optional<math::Rect>& clip_rect,
+    const absl::optional<math::Rect>& clip_rect,
     const dom::ScreenshotManager::OnUnencodedImageCallback& callback) {
   if (expected_message_loop &&
       !expected_message_loop->BelongsToCurrentThread()) {

@@ -20,8 +20,8 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "starboard/types.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/glm/glm/vec2.hpp"
 #include "third_party/glm/glm/vec3.hpp"
 

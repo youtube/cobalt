@@ -202,7 +202,7 @@ std::string Sanitize(const std::string& str, bool (*allowed)(int),
   return clean;
 }
 
-base::Optional<std::string> Sanitize(base::Optional<std::string> str,
+absl::optional<std::string> Sanitize(absl::optional<std::string> str,
                                      bool (*allowed)(int),
                                      const char* strip = nullptr) {
   std::string clean;
@@ -210,9 +210,9 @@ base::Optional<std::string> Sanitize(base::Optional<std::string> str,
     clean = Sanitize(str.value(), allowed, strip);
   }
   if (clean.empty()) {
-    return base::Optional<std::string>();
+    return absl::optional<std::string>();
   }
-  return base::Optional<std::string>(clean);
+  return absl::optional<std::string>(clean);
 }
 
 // Function that will query Starboard and populate a UserAgentPlatformInfo
@@ -462,7 +462,7 @@ void UserAgentPlatformInfo::set_os_name_and_version(
       Sanitize(os_name_and_version, isVCHARorSpace, kStripParentheses);
 }
 void UserAgentPlatformInfo::set_original_design_manufacturer(
-    base::Optional<std::string> original_design_manufacturer) {
+    absl::optional<std::string> original_design_manufacturer) {
   if (original_design_manufacturer) {
     original_design_manufacturer_ =
         Sanitize(original_design_manufacturer, isAsciiAlphaDigit);
@@ -480,33 +480,33 @@ void UserAgentPlatformInfo::set_device_type(const std::string& device_type) {
 }
 
 void UserAgentPlatformInfo::set_chipset_model_number(
-    base::Optional<std::string> chipset_model_number) {
+    absl::optional<std::string> chipset_model_number) {
   if (chipset_model_number) {
     chipset_model_number_ = Sanitize(chipset_model_number, isAsciiAlphaDigit);
   }
 }
 
 void UserAgentPlatformInfo::set_model_year(
-    base::Optional<std::string> model_year) {
+    absl::optional<std::string> model_year) {
   if (model_year) {
     model_year_ = Sanitize(model_year, base::IsAsciiDigit);
   }
 }
 
 void UserAgentPlatformInfo::set_firmware_version(
-    base::Optional<std::string> firmware_version) {
+    absl::optional<std::string> firmware_version) {
   if (firmware_version) {
     firmware_version_ = Sanitize(firmware_version, isTCHAR);
   }
 }
 
-void UserAgentPlatformInfo::set_brand(base::Optional<std::string> brand) {
+void UserAgentPlatformInfo::set_brand(absl::optional<std::string> brand) {
   if (brand) {
     brand_ = Sanitize(brand, isVCHARorSpace, kStripParenthesesAndComma);
   }
 }
 
-void UserAgentPlatformInfo::set_model(base::Optional<std::string> model) {
+void UserAgentPlatformInfo::set_model(absl::optional<std::string> model) {
   if (model) {
     model_ = Sanitize(model, isVCHARorSpace, kStripParenthesesAndComma);
   }

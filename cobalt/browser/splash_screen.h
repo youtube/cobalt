@@ -45,7 +45,7 @@ class SplashScreen : public LifecycleObserver {
                const cssom::ViewportSize& window_dimensions,
                render_tree::ResourceProvider* resource_provider,
                float layout_refresh_rate,
-               const base::Optional<GURL>& fallback_splash_screen_url,
+               const absl::optional<GURL>& fallback_splash_screen_url,
                cobalt::browser::SplashScreenCache* splash_screen_cache,
                const base::Callback<void(base::TimeDelta)>&
                    on_splash_screen_shutdown_complete,

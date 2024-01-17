@@ -97,10 +97,10 @@ unsigned int CSSDeclaredStyleDeclaration::length() const {
 // The item(index) method must return the property name of the CSS declaration
 // at position index.
 //   https://www.w3.org/TR/cssom/#dom-cssstyledeclaration-item
-base::Optional<std::string> CSSDeclaredStyleDeclaration::Item(
+absl::optional<std::string> CSSDeclaredStyleDeclaration::Item(
     unsigned int index) const {
   const char* item = data_ ? data_->Item(index) : NULL;
-  return item ? base::Optional<std::string>(item) : base::nullopt;
+  return item ? absl::optional<std::string>(item) : absl::nullopt;
 }
 
 std::string CSSDeclaredStyleDeclaration::GetDeclaredPropertyValueStringByKey(

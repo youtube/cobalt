@@ -18,11 +18,11 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "cobalt/layout/base_direction.h"
 #include "cobalt/layout/box.h"
 #include "cobalt/layout/layout_unit.h"
 #include "cobalt/render_tree/font.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace layout {
@@ -189,15 +189,15 @@ class LineBox {
   // Accessing boxes indicated by these indices are only valid before
   // EndUpdates() is called, because the positions of the boxes may change
   // during bidirectional sorting.
-  base::Optional<size_t> first_box_justifying_line_existence_index_;
-  base::Optional<size_t> first_non_collapsed_child_box_index_;
-  base::Optional<size_t> last_non_collapsed_child_box_index_;
+  absl::optional<size_t> first_box_justifying_line_existence_index_;
+  absl::optional<size_t> first_non_collapsed_child_box_index_;
+  absl::optional<size_t> last_non_collapsed_child_box_index_;
 
   // These flags are set when EndUpdates() is called. This allows the leading
   // and trailing white space state of the line to be accessible even after
   // the boxes have been moved as a result of bidirectional sorting.
-  base::Optional<bool> has_leading_white_space_;
-  base::Optional<bool> has_trailing_white_space_;
+  absl::optional<bool> has_leading_white_space_;
+  absl::optional<bool> has_trailing_white_space_;
 
   LayoutUnit shrink_to_fit_width_;
   LayoutUnit height_;

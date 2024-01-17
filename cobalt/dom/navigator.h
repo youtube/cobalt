@@ -18,7 +18,6 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "cobalt/dom/captions/system_caption_settings.h"
 #include "cobalt/dom/eme/media_key_system_configuration.h"
 #include "cobalt/dom/mime_type_array.h"
@@ -32,6 +31,7 @@
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/navigator_base.h"
 #include "cobalt/web/navigator_ua_data.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace dom {
@@ -89,14 +89,14 @@ class Navigator : public web::NavigatorBase {
  private:
   ~Navigator() override {}
 
-  base::Optional<script::Sequence<eme::MediaKeySystemMediaCapability>>
+  absl::optional<script::Sequence<eme::MediaKeySystemMediaCapability>>
   TryGetSupportedCapabilities(
       const media::CanPlayTypeHandler& can_play_type_handler,
       const std::string& key_system,
       const script::Sequence<eme::MediaKeySystemMediaCapability>&
           requested_media_capabilities);
 
-  base::Optional<eme::MediaKeySystemConfiguration> TryGetSupportedConfiguration(
+  absl::optional<eme::MediaKeySystemConfiguration> TryGetSupportedConfiguration(
       const media::CanPlayTypeHandler& can_play_type_handler,
       const std::string& key_system,
       const eme::MediaKeySystemConfiguration& candidate_configuration);
@@ -121,7 +121,7 @@ class Navigator : public web::NavigatorBase {
   scoped_refptr<media_session::MediaSession> media_session_;
   scoped_refptr<media_capture::MediaDevices> media_devices_;
   scoped_refptr<captions::SystemCaptionSettings> system_caption_settings_;
-  base::Optional<bool> key_system_with_attributes_supported_;
+  absl::optional<bool> key_system_with_attributes_supported_;
 
   base::Closure maybe_freeze_callback_;
   const media::WebMediaPlayerFactory* media_player_factory_ = nullptr;

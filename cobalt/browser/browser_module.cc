@@ -25,7 +25,6 @@
 #include "base/files/file_path.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
-#include "base/optional.h"
 #include "base/path_service.h"
 #include "base/stl_util.h"
 #include "base/strings/string_number_conversions.h"
@@ -62,6 +61,7 @@
 #include "starboard/configuration.h"
 #include "starboard/extension/graphics.h"
 #include "starboard/system.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/icu/source/i18n/unicode/timezone.h"
 
 using cobalt::cssom::ViewportSize;
@@ -188,7 +188,7 @@ void OnScreenshotMessage(BrowserModule* browser_module,
   base::FilePath output_path = dir.Append(screenshot_file_name);
   browser_module->RequestScreenshotToFile(
       output_path, loader::image::EncodedStaticImage::ImageFormat::kPNG,
-      /*clip_rect=*/base::nullopt,
+      /*clip_rect=*/absl::nullopt,
       base::Bind(&ScreenshotCompleteCallback, output_path));
 }
 
@@ -617,7 +617,7 @@ void BrowserModule::NavigateSetupSplashScreen(
   DestroySplashScreen();
   if (options_.enable_splash_screen_on_reloads ||
       main_web_module_generation_ == 1) {
-    base::Optional<std::string> topic = SetSplashScreenTopicFallback(url);
+    absl::optional<std::string> topic = SetSplashScreenTopicFallback(url);
     splash_screen_cache_->SetUrl(url, topic);
 
     if (fallback_splash_screen_url_ ||
@@ -786,7 +786,7 @@ void BrowserModule::EnsureScreenShotWriter() {
 void BrowserModule::RequestScreenshotToFile(
     const base::FilePath& path,
     loader::image::EncodedStaticImage::ImageFormat image_format,
-    const base::Optional<math::Rect>& clip_rect,
+    const absl::optional<math::Rect>& clip_rect,
     const base::Closure& done_callback) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::RequestScreenshotToFile()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
@@ -807,7 +807,7 @@ void BrowserModule::RequestScreenshotToFile(
 
 void BrowserModule::RequestScreenshotToMemory(
     loader::image::EncodedStaticImage::ImageFormat image_format,
-    const base::Optional<math::Rect>& clip_rect,
+    const absl::optional<math::Rect>& clip_rect,
     const ScreenShotWriter::ImageEncodeCompleteCallback& screenshot_ready) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::RequestScreenshotToMemory()");
   EnsureScreenShotWriter();
@@ -830,7 +830,7 @@ void BrowserModule::RequestScreenshotToMemory(
 // Request a screenshot to memory without compressing the image.
 void BrowserModule::RequestScreenshotToMemoryUnencoded(
     const scoped_refptr<render_tree::Node>& render_tree_root,
-    const base::Optional<math::Rect>& clip_rect,
+    const absl::optional<math::Rect>& clip_rect,
     const renderer::Pipeline::RasterizationCompleteCallback& callback) {
   EnsureScreenShotWriter();
   DCHECK(screen_shot_writer_);
@@ -1151,7 +1151,7 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
     if (!debug_console_layer_->HasRenderTree()) {
       return;
     }
-    debug_console_layer_->Submit(base::nullopt);
+    debug_console_layer_->Submit(absl::nullopt);
   } else {
     debug_console_layer_->Submit(
         CreateSubmissionFromLayoutResults(layout_results));
@@ -1621,7 +1621,7 @@ void BrowserModule::ReduceMemory() {
 
 void BrowserModule::CheckMemory(
     const int64_t& used_cpu_memory,
-    const base::Optional<int64_t>& used_gpu_memory) {
+    const absl::optional<int64_t>& used_gpu_memory) {
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   memory_settings_checker_.RunChecks(auto_mem_, used_cpu_memory,
                                      used_gpu_memory);
@@ -1746,7 +1746,7 @@ void BrowserModule::InitializeSystemWindow() {
     system_window_.reset(
         new system_window::SystemWindow(event_dispatcher_, window_size_));
   } else {
-    base::Optional<math::Size> maybe_size;
+    absl::optional<math::Size> maybe_size;
     if (options_.requested_viewport_size) {
       maybe_size = options_.requested_viewport_size->width_height();
     }
@@ -2095,7 +2095,7 @@ void BrowserModule::SubmitCurrentRenderTreeToRenderer() {
     return;
   }
 
-  base::Optional<renderer::Submission> submission =
+  absl::optional<renderer::Submission> submission =
       render_tree_combiner_.GetCurrentSubmission();
   if (submission) {
     renderer_module_->pipeline()->Submit(*submission);
@@ -2109,7 +2109,7 @@ SbWindow BrowserModule::GetSbWindow() {
   return system_window_->GetSbWindow();
 }
 
-base::Optional<std::string> BrowserModule::SetSplashScreenTopicFallback(
+absl::optional<std::string> BrowserModule::SetSplashScreenTopicFallback(
     const GURL& url) {
   std::map<std::string, std::string> url_param_map;
   // If this is the initial startup, use topic within deeplink, if specified.
@@ -2133,9 +2133,9 @@ base::Optional<std::string> BrowserModule::SetSplashScreenTopicFallback(
       // Update fallback splash screen url to topic-specific URL.
       fallback_splash_screen_url_ = splash_url;
     }
-    return base::Optional<std::string>(splash_topic);
+    return absl::optional<std::string>(splash_topic);
   }
-  return base::Optional<std::string>();
+  return absl::optional<std::string>();
 }
 
 void BrowserModule::GetParamMap(const std::string& url,

@@ -269,7 +269,7 @@ void Pipeline::Clear() {
 
 void Pipeline::RasterizeToRGBAPixels(
     const scoped_refptr<render_tree::Node>& render_tree_root,
-    const base::Optional<math::Rect>& clip_rect,
+    const absl::optional<math::Rect>& clip_rect,
     const RasterizationCompleteCallback& complete) {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::RasterizeToRGBAPixels()");
 
@@ -390,7 +390,7 @@ void Pipeline::ClearCurrentRenderTree() {
   if (watchdog) watchdog->Unregister(kWatchdogName);
 
   ResetSubmissionQueue();
-  rasterize_timer_ = base::nullopt;
+  rasterize_timer_ = absl::nullopt;
 }
 
 void Pipeline::RasterizeCurrentTree() {
@@ -463,14 +463,14 @@ void Pipeline::RasterizeCurrentTree() {
   if (time_fence_ && submission_queue_->submission_time(
                          base::TimeTicks::Now()) >= *time_fence_) {
     // A time fence was active and we just crossed it, so reset it.
-    time_fence_ = base::nullopt;
+    time_fence_ = absl::nullopt;
 
     if (post_fence_submission_) {
       // A submission was waiting to be queued once we passed the time fence,
       // so go ahead and queue it now.
       QueueSubmission(*post_fence_submission_, *post_fence_receipt_time_);
-      post_fence_submission_ = base::nullopt;
-      post_fence_receipt_time_ = base::nullopt;
+      post_fence_submission_ = absl::nullopt;
+      post_fence_receipt_time_ = absl::nullopt;
     }
   }
 }
@@ -547,8 +547,8 @@ bool Pipeline::RasterizeSubmissionToRenderTarget(
   if (submission.render_tree != last_render_tree_) {
     last_render_tree_ = submission.render_tree;
     last_animated_render_tree_ = NULL;
-    previous_animated_area_ = base::nullopt;
-    last_render_time_ = base::nullopt;
+    previous_animated_area_ = absl::nullopt;
+    last_render_time_ = absl::nullopt;
   }
 
   // Animate the render tree using the submitted animations.
@@ -578,7 +578,7 @@ bool Pipeline::RasterizeSubmissionToRenderTarget(
   math::RectF animated_bounds = results.get_animation_bounds_since.Run(
       last_render_time_ ? *last_render_time_ : base::TimeDelta());
   math::Rect rounded_bounds = math::RoundOut(animated_bounds);
-  base::Optional<math::Rect> redraw_area;
+  absl::optional<math::Rect> redraw_area;
   if (previous_animated_area_) {
     redraw_area = math::UnionRects(rounded_bounds, *previous_animated_area_);
   }
@@ -635,18 +635,18 @@ void Pipeline::ShutdownSubmissionQueue() {
 
   // Clear out our time fence data, especially |post_fence_submission_| which
   // may refer to a render tree.
-  time_fence_ = base::nullopt;
-  post_fence_submission_ = base::nullopt;
-  post_fence_receipt_time_ = base::nullopt;
+  time_fence_ = absl::nullopt;
+  post_fence_submission_ = absl::nullopt;
+  post_fence_receipt_time_ = absl::nullopt;
 
   // Stop and shutdown the rasterizer timer.  If we won't have a submission
   // queue anymore, we won't be able to rasterize anymore.
-  rasterize_timer_ = base::nullopt;
+  rasterize_timer_ = absl::nullopt;
 
   // Do not retain any more references to the current render tree (which
   // may refer to rasterizer resources) or animations which may refer to
   // render trees.
-  submission_queue_ = base::nullopt;
+  submission_queue_ = absl::nullopt;
 
   // Shut down our submission disposer thread.  This needs to happen now to
   // ensure that any pending "dispose" messages are processed.  Each disposal
@@ -661,7 +661,7 @@ void Pipeline::ShutdownRasterizerThread() {
   DCHECK_CALLED_ON_VALID_THREAD(rasterizer_thread_checker_);
 
   // Shutdown the FPS overlay which may reference render trees.
-  fps_overlay_ = base::nullopt;
+  fps_overlay_ = absl::nullopt;
 
   // Submit a fullscreen rect node to clear the display before shutting
   // down.  This can be helpful if we quit while playing a video via
@@ -800,7 +800,7 @@ void Pipeline::FrameStatsOnFlushCallback(
 
 void Pipeline::ResetSubmissionQueue() {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::ResetSubmissionQueue()");
-  submission_queue_ = base::nullopt;
+  submission_queue_ = absl::nullopt;
   submission_queue_.emplace(
       current_timeline_info_.max_submission_queue_size,
       base::TimeDelta::FromMillisecondsD(kTimeToConvergeInMS),

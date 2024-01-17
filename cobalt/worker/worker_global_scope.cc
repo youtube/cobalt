@@ -146,7 +146,7 @@ class ScriptLoader : public base::MessageLoop::DestructionObserver {
 
   void LoadingCompleteCallback(std::unique_ptr<loader::Loader>* loader,
                                std::unique_ptr<std::string>* output_error,
-                               const base::Optional<std::string>& error) {
+                               const absl::optional<std::string>& error) {
     TRACE_EVENT0("cobalt::worker", "ScriptLoader::LoadingCompleteCallback()");
     if (error) {
       output_error->reset(new std::string(std::move(error.value())));
@@ -211,7 +211,7 @@ class ScriptLoader : public base::MessageLoop::DestructionObserver {
   std::vector<std::unique_ptr<std::string>> errors_;
   std::vector<std::unique_ptr<loader::Loader>> loaders_;
 
-  base::Optional<std::string> error_;
+  absl::optional<std::string> error_;
 };
 
 }  // namespace

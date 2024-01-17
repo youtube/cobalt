@@ -16,13 +16,13 @@
 #define COBALT_RENDERER_RASTERIZER_RASTERIZER_H_
 
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "cobalt/math/rect.h"
 #include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/renderer/backend/render_target.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace renderer {
@@ -58,7 +58,7 @@ class Rasterizer {
     // dirty and needs to be updated.  If animations are playing for example,
     // then |dirty| can be setup to bound the animations.  A rasterizer is free
     // to ignore this value if they wish.
-    base::Optional<math::Rect> dirty;
+    absl::optional<math::Rect> dirty;
   };
 
   virtual ~Rasterizer() {}

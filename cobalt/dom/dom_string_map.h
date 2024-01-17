@@ -18,10 +18,10 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/property_enumerator.h"
 #include "cobalt/script/wrappable.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace dom {
@@ -42,7 +42,7 @@ class DOMStringMap : public script::Wrappable,
   explicit DOMStringMap(const scoped_refptr<Element>& element);
 
   // Web API: DOMStringMap
-  base::Optional<std::string> AnonymousNamedGetter(
+  absl::optional<std::string> AnonymousNamedGetter(
       const std::string& key, script::ExceptionState* exception_state);
   void AnonymousNamedSetter(const std::string& key, const std::string& value,
                             script::ExceptionState* exception_state);

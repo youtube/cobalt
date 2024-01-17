@@ -17,7 +17,6 @@
 
 #include <memory>
 
-#include "base/optional.h"
 #include "cobalt/cssom/css_computed_style_declaration.h"
 #include "cobalt/layout/base_direction.h"
 #include "cobalt/layout/block_container_box.h"
@@ -25,6 +24,7 @@
 #include "cobalt/layout/flex_formatting_context.h"
 #include "cobalt/layout/layout_unit.h"
 #include "cobalt/layout/paragraph.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace layout {
@@ -88,14 +88,14 @@ class FlexContainerBox : public BlockContainerBox {
   const BaseDirection base_direction_;
 
  private:
-  base::Optional<LayoutUnit> main_space_;
-  base::Optional<LayoutUnit> cross_space_;
+  absl::optional<LayoutUnit> main_space_;
+  absl::optional<LayoutUnit> cross_space_;
 
-  base::Optional<LayoutUnit> min_main_space_;
-  base::Optional<LayoutUnit> max_main_space_;
+  absl::optional<LayoutUnit> min_main_space_;
+  absl::optional<LayoutUnit> max_main_space_;
 
-  base::Optional<LayoutUnit> min_cross_space_;
-  base::Optional<LayoutUnit> max_cross_space_;
+  absl::optional<LayoutUnit> min_cross_space_;
+  absl::optional<LayoutUnit> max_cross_space_;
 
   LayoutUnit baseline_;
 
@@ -119,9 +119,9 @@ class FlexContainerBox : public BlockContainerBox {
   void DetermineAvailableSpace(const LayoutParams& layout_params,
                                bool main_direction_is_horizontal,
                                bool width_depends_on_containing_block,
-                               const base::Optional<LayoutUnit>& maybe_width,
+                               const absl::optional<LayoutUnit>& maybe_width,
                                bool height_depends_on_containing_block,
-                               const base::Optional<LayoutUnit>& maybe_height);
+                               const absl::optional<LayoutUnit>& maybe_height);
 
   AnonymousBlockBox* GetLastChildAsAnonymousBlockBox();
   AnonymousBlockBox* GetOrAddAnonymousBlockBox();
@@ -140,7 +140,7 @@ class BlockLevelFlexContainerBox : public FlexContainerBox {
 
   // From |Box|.
   Level GetLevel() const override;
-  base::Optional<int> GetBidiLevel() const override;
+  absl::optional<int> GetBidiLevel() const override;
 
  protected:
 // From |Box|.
@@ -161,7 +161,7 @@ class InlineLevelFlexContainerBox : public FlexContainerBox {
 
   // From |Box|.
   Level GetLevel() const override;
-  base::Optional<int> GetBidiLevel() const override;
+  absl::optional<int> GetBidiLevel() const override;
 
  protected:
 // From |Box|.

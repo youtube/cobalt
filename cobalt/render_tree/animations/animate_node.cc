@@ -393,7 +393,7 @@ void AnimateNode::BoundsVisitor::ApplyTransform(MatrixTransformNode* node) {
 class AnimateNode::ApplyVisitor : public NodeVisitor {
  public:
   ApplyVisitor(const TraverseList& traverse_list, base::TimeDelta time_offset,
-               const base::Optional<base::TimeDelta>& snapshot_time);
+               const absl::optional<base::TimeDelta>& snapshot_time);
 
   void Visit(animations::AnimateNode* animate) override {
     // An invariant of AnimateNodes is that they should never contain descendant
@@ -459,12 +459,12 @@ class AnimateNode::ApplyVisitor : public NodeVisitor {
 
   // Time at which the existing source render tree was created/last animated
   // at.
-  base::Optional<base::TimeDelta> snapshot_time_;
+  absl::optional<base::TimeDelta> snapshot_time_;
 };
 
 AnimateNode::ApplyVisitor::ApplyVisitor(
     const TraverseList& traverse_list, base::TimeDelta time_offset,
-    const base::Optional<base::TimeDelta>& snapshot_time)
+    const absl::optional<base::TimeDelta>& snapshot_time)
     : time_offset_(time_offset),
       traverse_list_(traverse_list),
       snapshot_time_(snapshot_time) {
@@ -533,7 +533,7 @@ AnimateNode::ApplyVisitor::VisitNode(T* node) {
     child_iterator.Next();
   }
 
-  base::Optional<typename T::Builder> builder;
+  absl::optional<typename T::Builder> builder;
   if (children_modified) {
     // Reuse the modified Builder object from child traversal if one of
     // our children was animated.

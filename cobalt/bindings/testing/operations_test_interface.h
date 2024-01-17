@@ -19,10 +19,10 @@
 #include <vector>
 
 #include "base/lazy_instance.h"
-#include "base/optional.h"
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 #include "cobalt/script/wrappable.h"
 #include "testing/gmock/include/gmock/gmock.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace bindings {
@@ -52,7 +52,7 @@ class OperationsTestInterface : public script::Wrappable {
 
   MOCK_METHOD1(OptionalArgumentWithDefault, void(double));
   MOCK_METHOD2(OptionalNullableArgumentsWithDefaults,
-               void(base::Optional<bool>,
+               void(absl::optional<bool>,
                     const scoped_refptr<ArbitraryInterface>&));
 
   MOCK_METHOD1(VariadicPrimitiveArguments, void(const std::vector<int32_t>));
@@ -77,7 +77,7 @@ class OperationsTestInterface : public script::Wrappable {
   }
 
   MOCK_METHOD1(OverloadedNullable, void(int32_t));
-  MOCK_METHOD1(OverloadedNullable, void(base::Optional<bool>));
+  MOCK_METHOD1(OverloadedNullable, void(absl::optional<bool>));
 
   DEFINE_WRAPPABLE_TYPE(OperationsTestInterface);
 

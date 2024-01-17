@@ -21,7 +21,6 @@
 
 #include "base/bind.h"
 #include "base/callback.h"
-#include "base/optional.h"
 #include "cobalt/base/debugger_hooks.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/cssom/css_parser.h"
@@ -41,6 +40,7 @@
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/web/testing/stub_web_context.h"
 #include "starboard/window.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -141,7 +141,7 @@ class StubWindow {
 
  private:
   static void StubLoadCompleteCallback(
-      const base::Optional<std::string>& error) {}
+      const absl::optional<std::string>& error) {}
 
   void InitializeWebContext() {
     web_context_.reset(new web::testing::StubWebContext());

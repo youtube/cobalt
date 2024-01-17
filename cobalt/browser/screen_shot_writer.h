@@ -19,7 +19,6 @@
 
 #include "base/callback.h"
 #include "base/files/file_path.h"
-#include "base/optional.h"
 #include "base/strings/string_piece.h"
 #include "base/threading/thread.h"
 #include "cobalt/dom/screenshot_manager.h"
@@ -28,6 +27,7 @@
 #include "cobalt/render_tree/image.h"
 #include "cobalt/renderer/pipeline.h"
 #include "cobalt/renderer/submission.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace browser {
@@ -56,7 +56,7 @@ class ScreenShotWriter {
       loader::image::EncodedStaticImage::ImageFormat desired_format,
       const base::FilePath& output_path,
       const scoped_refptr<render_tree::Node>& render_tree_root,
-      const base::Optional<math::Rect>& clip_rect,
+      const absl::optional<math::Rect>& clip_rect,
       const base::Closure& complete);
 
   // Renders the |render_tree_root| and converts it to the image format that is
@@ -64,13 +64,13 @@ class ScreenShotWriter {
   void RequestScreenshotToMemory(
       loader::image::EncodedStaticImage::ImageFormat desired_format,
       const scoped_refptr<render_tree::Node>& render_tree_root,
-      const base::Optional<math::Rect>& clip_rect,
+      const absl::optional<math::Rect>& clip_rect,
       const ImageEncodeCompleteCallback& callback);
 
   // Runs callback on screenshot thread.
   void RequestScreenshotToMemoryUnencoded(
       const scoped_refptr<render_tree::Node>& render_tree_root,
-      const base::Optional<math::Rect>& clip_rect,
+      const absl::optional<math::Rect>& clip_rect,
       const renderer::Pipeline::RasterizationCompleteCallback& callback);
 
  private:

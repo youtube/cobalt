@@ -77,7 +77,7 @@ constexpr int kTimeupdateEventIntervalInMilliseconds = 200;
 DECLARE_INSTANCE_COUNTER(HTMLMediaElement);
 
 loader::RequestMode GetRequestMode(
-    const base::Optional<std::string>& cross_origin_attribute) {
+    const absl::optional<std::string>& cross_origin_attribute) {
   // https://html.spec.whatwg.org/#cors-settings-attribute
   if (cross_origin_attribute) {
     if (*cross_origin_attribute == "use-credentials") {
@@ -188,8 +188,8 @@ void HTMLMediaElement::set_src(const std::string& src) {
   ScheduleLoad();
 }
 
-base::Optional<std::string> HTMLMediaElement::cross_origin() const {
-  base::Optional<std::string> cross_origin_attribute =
+absl::optional<std::string> HTMLMediaElement::cross_origin() const {
+  absl::optional<std::string> cross_origin_attribute =
       GetAttribute("crossOrigin");
   if (cross_origin_attribute &&
       (*cross_origin_attribute != "anonymous" &&
@@ -200,7 +200,7 @@ base::Optional<std::string> HTMLMediaElement::cross_origin() const {
 }
 
 void HTMLMediaElement::set_cross_origin(
-    const base::Optional<std::string>& value) {
+    const absl::optional<std::string>& value) {
   if (value) {
     SetAttribute("crossOrigin", *value);
   } else {
@@ -663,7 +663,7 @@ void HTMLMediaElement::CreateMediaPlayer() {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::CreateMediaPlayer()");
   LOG(INFO) << "Create media player.";
   if (src().empty()) {
-    reduced_image_cache_capacity_request_ = base::nullopt;
+    reduced_image_cache_capacity_request_ = absl::nullopt;
   } else if (html_element_context()
                  ->reduced_image_cache_capacity_manager()
                  ->reduced_capacity_percentage() != 1.0f) {
@@ -930,7 +930,7 @@ void HTMLMediaElement::ClearMediaPlayer() {
   pending_load_ = false;
   load_state_ = kWaitingForSource;
 
-  reduced_image_cache_capacity_request_ = base::nullopt;
+  reduced_image_cache_capacity_request_ = absl::nullopt;
 
   if (node_document()) {
     node_document()->OnDOMMutation();

@@ -39,7 +39,7 @@ int Round(const float f) {
 }  // namespace
 
 SystemWindow::SystemWindow(base::EventDispatcher* event_dispatcher,
-                           const base::Optional<math::Size>& window_size)
+                           const absl::optional<math::Size>& window_size)
     : event_dispatcher_(event_dispatcher),
       window_(kSbWindowInvalid),
       key_down_(false) {

@@ -15,7 +15,7 @@
 #ifndef COBALT_BASE_CAMERA_TRANSFORM_H_
 #define COBALT_BASE_CAMERA_TRANSFORM_H_
 
-#include "base/optional.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/glm/glm/mat4x4.hpp"
 
 namespace base {
@@ -30,7 +30,7 @@ class CameraTransform {
   };
 
   ProjectionAndView left_eye_or_mono;
-  base::Optional<ProjectionAndView> right_eye;  // For stereoscopic cameras.
+  absl::optional<ProjectionAndView> right_eye;  // For stereoscopic cameras.
 
   CameraTransform(glm::mat4 left_eye_or_mono_projection_matrix,
                   glm::mat4 left_eye_or_mono_view_matrix,

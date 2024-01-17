@@ -34,7 +34,7 @@ class UnionTypesInterface : public script::Wrappable {
   typedef script::UnionType4<std::string, bool,
                              scoped_refptr<ArbitraryInterface>, int32_t>
       UnionPropertyType;
-  typedef base::Optional<script::UnionType2<double, std::string>>
+  typedef absl::optional<script::UnionType2<double, std::string>>
       NullableUnionPropertyType;
   typedef script::UnionType2<scoped_refptr<BaseInterface>, std::string>
       UnionBasePropertyType;

@@ -37,14 +37,14 @@ class MockStorage : public Storage {
         .WillByDefault(Return(GURL("https://www.example.com")));
     EXPECT_CALL(*this, origin()).Times(1);
   }
-  MOCK_METHOD3(DispatchEvent, bool(const base::Optional<std::string>&,
-                                   const base::Optional<std::string>&,
-                                   const base::Optional<std::string>&));
+  MOCK_METHOD3(DispatchEvent, bool(const absl::optional<std::string>&,
+                                   const absl::optional<std::string>&,
+                                   const absl::optional<std::string>&));
   MOCK_CONST_METHOD0(origin, GURL());
 };
 
-base::Optional<std::string> ToOptStr(const char* str) {
-  return base::Optional<std::string>(str);
+absl::optional<std::string> ToOptStr(const char* str) {
+  return absl::optional<std::string>(str);
 }
 
 }  // namespace
@@ -79,9 +79,9 @@ TEST_F(StorageAreaTest, Identifier) {
 TEST_F(StorageAreaTest, SetItem) {
   scoped_refptr<MockStorage> mock_storage(new MockStorage());
   EXPECT_CALL(*mock_storage,
-              DispatchEvent(base::Optional<std::string>("key"),
-                            base::Optional<std::string>(base::nullopt),
-                            base::Optional<std::string>("value")));
+              DispatchEvent(absl::optional<std::string>("key"),
+                            absl::optional<std::string>(absl::nullopt),
+                            absl::optional<std::string>("value")));
   mock_storage->SetItem("key", "value");
 }
 
@@ -106,7 +106,7 @@ TEST_F(StorageAreaTest, IndexedKeys) {
 
 TEST_F(StorageAreaTest, Overwrite) {
   scoped_refptr<MockStorage> mock_storage(new MockStorage());
-  EXPECT_EQ(base::nullopt, mock_storage->GetItem("key"));
+  EXPECT_EQ(absl::nullopt, mock_storage->GetItem("key"));
   EXPECT_CALL(*mock_storage,
               DispatchEvent(ToOptStr("key"), _, ToOptStr("old_value")));
   mock_storage->SetItem("key", "old_value");

@@ -15,10 +15,10 @@
 #ifndef COBALT_RENDER_TREE_VIEWPORT_FILTER_H_
 #define COBALT_RENDER_TREE_VIEWPORT_FILTER_H_
 
-#include "base/optional.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/rounded_corners.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace render_tree {
@@ -48,7 +48,7 @@ class ViewportFilter {
 
  private:
   math::RectF viewport_;
-  base::Optional<RoundedCorners> rounded_corners_;
+  absl::optional<RoundedCorners> rounded_corners_;
 };
 
 }  // namespace render_tree

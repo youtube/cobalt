@@ -40,7 +40,7 @@ class CommandResultHandlerImpl
       : response_handler_(std::move(response_handler)) {}
 
   void SendResult(
-      const base::Optional<protocol::SessionId>& session_id,
+      const absl::optional<protocol::SessionId>& session_id,
       protocol::Response::StatusCode status_code,
       std::unique_ptr<base::Value> webdriver_response_value) override {
     std::unique_ptr<base::Value> response = protocol::Response::CreateResponse(
@@ -59,7 +59,7 @@ class CommandResultHandlerImpl
       response_handler_->SuccessData(content_type, data, len);
     } else {
       std::unique_ptr<base::Value> response =
-          protocol::Response::CreateResponse(base::nullopt, status_code, NULL);
+          protocol::Response::CreateResponse(absl::nullopt, status_code, NULL);
       response_handler_->FailedCommand(std::move(response));
     }
   }

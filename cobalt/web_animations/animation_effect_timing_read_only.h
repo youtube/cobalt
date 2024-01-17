@@ -21,11 +21,11 @@
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "base/time/time.h"
 #include "cobalt/cssom/timing_function.h"
 #include "cobalt/script/union_type.h"
 #include "cobalt/script/wrappable.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace web_animations {
@@ -107,34 +107,34 @@ class AnimationEffectTimingReadOnly : public script::Wrappable {
     // passed into KeyframeEffectReadOnly::Data::ComputeAnimatedPropertyValue()
     // to animate property values.
     struct IterationProgress {
-      base::Optional<double> iteration_progress;
-      base::Optional<double> current_iteration;
+      absl::optional<double> iteration_progress;
+      absl::optional<double> current_iteration;
     };
     IterationProgress ComputeIterationProgressFromLocalTime(
-        const base::Optional<base::TimeDelta>& local_time) const;
+        const absl::optional<base::TimeDelta>& local_time) const;
 
     // These methods are all based off of functionality defined by the Web
     // Animations specification.  They are all called internally by
     // ComputeIterationProgressFromLocalTime(), and are public primarily so that
     // they can be tested.
-    base::Optional<base::TimeDelta> ComputeActiveTimeFromLocalTime(
-        const base::Optional<base::TimeDelta>& local_time) const;
-    base::Optional<base::TimeDelta> ComputeScaledActiveTimeFromActiveTime(
-        const base::Optional<base::TimeDelta>& active_time) const;
-    base::Optional<base::TimeDelta> ComputeIterationTimeFromScaledActiveTime(
-        const base::Optional<base::TimeDelta>& scaled_active_time) const;
-    base::Optional<base::TimeDelta> ComputeDirectedTimeFromIterationTime(
-        const base::Optional<base::TimeDelta>& iteration_time,
-        const base::Optional<double>& current_iteration) const;
-    base::Optional<base::TimeDelta> ComputeTransformedTimeFromDirectedTime(
-        const base::Optional<base::TimeDelta>& directed_time) const;
-    base::Optional<double> ComputeIterationProgressFromTransformedTime(
-        const base::Optional<base::TimeDelta>& transformed_time) const;
+    absl::optional<base::TimeDelta> ComputeActiveTimeFromLocalTime(
+        const absl::optional<base::TimeDelta>& local_time) const;
+    absl::optional<base::TimeDelta> ComputeScaledActiveTimeFromActiveTime(
+        const absl::optional<base::TimeDelta>& active_time) const;
+    absl::optional<base::TimeDelta> ComputeIterationTimeFromScaledActiveTime(
+        const absl::optional<base::TimeDelta>& scaled_active_time) const;
+    absl::optional<base::TimeDelta> ComputeDirectedTimeFromIterationTime(
+        const absl::optional<base::TimeDelta>& iteration_time,
+        const absl::optional<double>& current_iteration) const;
+    absl::optional<base::TimeDelta> ComputeTransformedTimeFromDirectedTime(
+        const absl::optional<base::TimeDelta>& directed_time) const;
+    absl::optional<double> ComputeIterationProgressFromTransformedTime(
+        const absl::optional<base::TimeDelta>& transformed_time) const;
 
-    base::Optional<double> ComputeCurrentIteration(
-        const base::Optional<base::TimeDelta>& active_time,
-        const base::Optional<base::TimeDelta>& scaled_active_time,
-        const base::Optional<base::TimeDelta>& iteration_time) const;
+    absl::optional<double> ComputeCurrentIteration(
+        const absl::optional<base::TimeDelta>& active_time,
+        const absl::optional<base::TimeDelta>& scaled_active_time,
+        const absl::optional<base::TimeDelta>& iteration_time) const;
 
     base::TimeDelta time_until_after_phase(base::TimeDelta local_time) const;
 
@@ -145,7 +145,7 @@ class AnimationEffectTimingReadOnly : public script::Wrappable {
       kAfterPhase,
       kNoPhase,
     };
-    Phase GetPhase(const base::Optional<base::TimeDelta>& local_time) const;
+    Phase GetPhase(const absl::optional<base::TimeDelta>& local_time) const;
     base::TimeDelta active_duration() const;
     base::TimeDelta start_offset() const;
 

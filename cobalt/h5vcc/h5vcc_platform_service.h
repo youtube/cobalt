@@ -20,7 +20,6 @@
 #include <vector>
 
 #include "base/message_loop/message_loop.h"
-#include "base/optional.h"
 #include "base/single_thread_task_runner.h"
 #include "cobalt/script/array_buffer.h"
 #include "cobalt/script/callback_function.h"
@@ -28,6 +27,7 @@
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/dom_exception.h"
 #include "starboard/extension/platform_service.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace h5vcc {

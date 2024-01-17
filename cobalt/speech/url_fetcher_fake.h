@@ -15,6 +15,7 @@
 #ifndef COBALT_SPEECH_URL_FETCHER_FAKE_H_
 #define COBALT_SPEECH_URL_FETCHER_FAKE_H_
 
+#include "base/optional.h"
 #include "cobalt/speech/speech_configuration.h"
 
 #if defined(ENABLE_FAKE_MICROPHONE)
@@ -23,12 +24,12 @@
 #include <string>
 #include <utility>
 
-#include "base/optional.h"
 #include "base/threading/thread_checker.h"
 #include "base/timer/timer.h"
 #include "net/base/host_port_pair.h"
 #include "net/url_request/url_fetcher.h"
 #include "net/url_request/url_request_status.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -166,7 +167,7 @@ class URLFetcherFake : public net::URLFetcher {
   bool is_chunked_upload_;
   int download_index_;
   net::URLRequestStatus fake_status_;
-  base::Optional<base::RepeatingTimer> download_timer_;
+  absl::optional<base::RepeatingTimer> download_timer_;
   net::ProxyServer proxy_server_;
   std::unique_ptr<net::URLFetcherResponseWriter> response_data_writer_;
   net::HttpRequestHeaders extra_request_headers_;

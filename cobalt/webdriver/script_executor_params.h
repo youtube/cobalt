@@ -20,12 +20,12 @@
 #include <memory>
 #include <string>
 
-#include "base/optional.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -71,29 +71,29 @@ class ScriptExecutorParams : public script::Wrappable {
   static GCPreventedParams Create(
       const scoped_refptr<script::GlobalEnvironment>& global_environment,
       const std::string& function_body, const std::string& json_args) {
-    return Create(global_environment, function_body, json_args, base::nullopt);
+    return Create(global_environment, function_body, json_args, absl::nullopt);
   }
 
   static GCPreventedParams Create(
       const scoped_refptr<script::GlobalEnvironment>& global_environment,
       const std::string& function_body, const std::string& json_args,
-      base::Optional<base::TimeDelta> async_timeout);
+      absl::optional<base::TimeDelta> async_timeout);
 
   const script::ValueHandleHolder* function_object() {
     return function_object_ ? &function_object_->referenced_value() : NULL;
   }
   const std::string& json_args() { return json_args_; }
-  base::Optional<int32_t> async_timeout() { return async_timeout_; }
+  absl::optional<int32_t> async_timeout() { return async_timeout_; }
 
   DEFINE_WRAPPABLE_TYPE(ScriptExecutorParams);
 
  private:
   std::string function_body_;
-  base::Optional<script::ValueHandleHolder::Reference> function_object_;
+  absl::optional<script::ValueHandleHolder::Reference> function_object_;
   std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
       prevent_gc_until_create_complete_;
   std::string json_args_;
-  base::Optional<int32_t> async_timeout_;
+  absl::optional<int32_t> async_timeout_;
 };
 
 }  // namespace webdriver

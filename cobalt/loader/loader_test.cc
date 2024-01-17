@@ -19,7 +19,6 @@
 #include "base/bind.h"
 #include "base/files/file_util.h"
 #include "base/message_loop/message_loop.h"
-#include "base/optional.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/threading/thread_task_runner_handle.h"
@@ -28,6 +27,7 @@
 #include "cobalt/web/url_utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 using ::testing::_;
 using ::testing::InSequence;
@@ -63,7 +63,7 @@ class LoaderCallback {
   LoaderCallback() : run_loop_(NULL) {}
   explicit LoaderCallback(base::RunLoop* run_loop) : run_loop_(run_loop) {}
 
-  void OnLoadComplete(const base::Optional<std::string>& text) {
+  void OnLoadComplete(const absl::optional<std::string>& text) {
     if (!text) return;
 
     DLOG(ERROR) << *text;
@@ -137,7 +137,7 @@ class MockLoaderCallback : public LoaderCallback {
         .WillByDefault(Invoke(&real_, &LoaderCallback::OnLoadComplete));
   }
 
-  MOCK_METHOD1(OnLoadComplete, void(const base::Optional<std::string>&));
+  MOCK_METHOD1(OnLoadComplete, void(const absl::optional<std::string>&));
 
  private:
   LoaderCallback real_;

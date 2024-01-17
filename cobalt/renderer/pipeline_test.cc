@@ -17,7 +17,6 @@
 #include <cmath>
 #include <memory>
 
-#include "base/optional.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/resource_provider_stub.h"
@@ -25,6 +24,7 @@
 #include "cobalt/renderer/submission.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 using cobalt::renderer::Pipeline;
 using cobalt::renderer::rasterizer::Rasterizer;
@@ -87,7 +87,7 @@ class MockRasterizer : public Rasterizer {
 
  private:
   int* submission_count_;
-  base::Optional<base::TimeTicks> last_submission_time;
+  absl::optional<base::TimeTicks> last_submission_time;
   MockResourceProvider* provider_;
 };
 

@@ -18,9 +18,9 @@
 #include <memory>
 #include <string>
 
-#include "base/optional.h"
 #include "cobalt/script/scope.h"
 #include "cobalt/script/value_handle.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace script {
@@ -51,7 +51,7 @@ class CallFrame {
   virtual int GetLineNumber() = 0;
 
   // Current column number of executed statement.
-  virtual base::Optional<int> GetColumnNumber() = 0;
+  virtual absl::optional<int> GetColumnNumber() = 0;
 
   // The ID of the script being executed. Corresponds to the scriptId parameter
   // in the Debugger.scriptParsed event notification when the script was first

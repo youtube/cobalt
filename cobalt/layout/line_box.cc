@@ -431,8 +431,8 @@ bool LineBox::TryWrapChildrenAtLastOpportunity(
       // the line.
       if (first_non_collapsed_child_box_index_) {
         if (*first_non_collapsed_child_box_index_ >= wrap_index) {
-          first_non_collapsed_child_box_index_ = base::nullopt;
-          last_non_collapsed_child_box_index_ = base::nullopt;
+          first_non_collapsed_child_box_index_ = absl::nullopt;
+          last_non_collapsed_child_box_index_ = absl::nullopt;
         } else if (*last_non_collapsed_child_box_index_ >= wrap_index) {
           last_non_collapsed_child_box_index_ =
               first_non_collapsed_child_box_index_;

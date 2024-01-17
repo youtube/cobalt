@@ -19,9 +19,9 @@
 
 #include <string>
 
-#include "base/optional.h"
 #include "cobalt/browser/memory_settings/auto_mem.h"
 #include "starboard/types.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace browser {
@@ -34,7 +34,7 @@ class Checker {
  public:
   Checker();
   void RunChecks(const AutoMem& auto_mem, int64_t curr_cpu_memory_usage,
-                 base::Optional<int64_t> curr_gpu_memory_usage);
+                 absl::optional<int64_t> curr_gpu_memory_usage);
 
  private:
   bool cpu_memory_warning_fired_;

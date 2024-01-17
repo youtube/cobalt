@@ -60,7 +60,7 @@ class MockLayoutBoxes : public LayoutBoxes {
   MOCK_METHOD0(InvalidateCrossReferences, void());
   MOCK_METHOD0(InvalidateRenderTreeNodes, void());
   MOCK_METHOD0(scroll_area_cache,
-               base::Optional<std::pair<dom::Directionality, math::RectF>>&());
+               absl::optional<std::pair<dom::Directionality, math::RectF>>&());
   MOCK_METHOD1(SetUiNavItem,
                void(const scoped_refptr<ui_navigation::NavItem>& item));
 };

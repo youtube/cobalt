@@ -25,7 +25,6 @@
 #include "base/logging.h"
 #include "base/metrics/statistics_recorder.h"
 #include "base/metrics/user_metrics.h"
-#include "base/optional.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
@@ -68,6 +67,7 @@
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/math/size.h"
 #include "cobalt/script/javascript_engine.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #include "cobalt/storage/savegame_fake.h"
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
@@ -263,7 +263,7 @@ GURL GetInitialURL(bool should_preload) {
   return initial_url;
 }
 
-bool ValidateSplashScreen(const base::Optional<GURL>& url) {
+bool ValidateSplashScreen(const absl::optional<GURL>& url) {
   if (url->is_valid() &&
       (url->SchemeIsFile() || url->SchemeIs("h5vcc-embedded"))) {
     return true;
@@ -272,7 +272,7 @@ bool ValidateSplashScreen(const base::Optional<GURL>& url) {
   return false;
 }
 
-base::Optional<GURL> GetFallbackSplashScreenURL() {
+absl::optional<GURL> GetFallbackSplashScreenURL() {
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   std::string fallback_splash_screen_string;
   if (command_line->HasSwitch(switches::kFallbackSplashScreenURL)) {
@@ -283,9 +283,9 @@ base::Optional<GURL> GetFallbackSplashScreenURL() {
                                         ->CobaltFallbackSplashScreenUrl();
   }
   if (IsStringNone(fallback_splash_screen_string)) {
-    return base::Optional<GURL>();
+    return absl::optional<GURL>();
   }
-  base::Optional<GURL> fallback_splash_screen_url =
+  absl::optional<GURL> fallback_splash_screen_url =
       GURL(fallback_splash_screen_string);
   ValidateSplashScreen(fallback_splash_screen_url);
   return fallback_splash_screen_url;
@@ -294,7 +294,7 @@ base::Optional<GURL> GetFallbackSplashScreenURL() {
 // Parses the fallback_splash_screen_topics command line parameter
 // and maps topics to full file url locations, if valid.
 void ParseFallbackSplashScreenTopics(
-    const base::Optional<GURL>& default_fallback_splash_screen_url,
+    const absl::optional<GURL>& default_fallback_splash_screen_url,
     std::map<std::string, GURL>* fallback_splash_screen_topic_map) {
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   std::string topics;
@@ -313,7 +313,7 @@ void ParseFallbackSplashScreenTopics(
        iterator++) {
     std::string topic = iterator->first;
     std::string location = iterator->second;
-    base::Optional<GURL> topic_fallback_url = GURL(location);
+    absl::optional<GURL> topic_fallback_url = GURL(location);
 
     // If not a valid url, check whether it is a valid filename in the
     // same directory as the default fallback url.
@@ -378,11 +378,11 @@ void EnableUsingStubImageDecoderIfRequired() {
 }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
-base::Optional<cssom::ViewportSize> GetRequestedViewportSize(
+absl::optional<cssom::ViewportSize> GetRequestedViewportSize(
     base::CommandLine* command_line) {
   DCHECK(command_line);
   if (!command_line->HasSwitch(browser::switches::kViewport)) {
-    return base::nullopt;
+    return absl::nullopt;
   }
 
   std::string switch_value =
@@ -393,13 +393,13 @@ base::Optional<cssom::ViewportSize> GetRequestedViewportSize(
 
   if (lengths.empty()) {
     DLOG(ERROR) << "Viewport " << switch_value << " is invalid.";
-    return base::nullopt;
+    return absl::nullopt;
   }
 
   int width = 0;
   if (!base::StringToInt(lengths[0], &width)) {
     DLOG(ERROR) << "Viewport " << switch_value << " has invalid width.";
-    return base::nullopt;
+    return absl::nullopt;
   }
 
   if (lengths.size() < 2) {
@@ -415,7 +415,7 @@ base::Optional<cssom::ViewportSize> GetRequestedViewportSize(
   int height = 0;
   if (!base::StringToInt(lengths[1], &height)) {
     DLOG(ERROR) << "Viewport " << switch_value << " has invalid height.";
-    return base::nullopt;
+    return absl::nullopt;
   }
 
   if (lengths.size() < 3) {
@@ -427,7 +427,7 @@ base::Optional<cssom::ViewportSize> GetRequestedViewportSize(
     if (!base::StringToDouble(lengths[2], &screen_diagonal_inches)) {
       DLOG(ERROR) << "Viewport " << switch_value
                   << " has invalid screen_diagonal_inches.";
-      return base::nullopt;
+      return absl::nullopt;
     }
   }
 
@@ -436,7 +436,7 @@ base::Optional<cssom::ViewportSize> GetRequestedViewportSize(
     if (!base::StringToDouble(lengths[3], &video_pixel_ratio)) {
       DLOG(ERROR) << "Viewport " << switch_value
                   << " has invalid video_pixel_ratio.";
-      return base::nullopt;
+      return absl::nullopt;
     }
   }
 
@@ -662,7 +662,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   DLOG(INFO) << "Initial URL: " << initial_url;
 
   // Get the fallback splash screen URL.
-  base::Optional<GURL> fallback_splash_screen_url =
+  absl::optional<GURL> fallback_splash_screen_url =
       GetFallbackSplashScreenURL();
   DLOG(INFO) << "Fallback splash screen URL: "
              << (fallback_splash_screen_url ? fallback_splash_screen_url->spec()
@@ -700,7 +700,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
                        kWatchdogTimeWait, watchdog::NONE);
 
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  base::Optional<cssom::ViewportSize> requested_viewport_size =
+  absl::optional<cssom::ViewportSize> requested_viewport_size =
       GetRequestedViewportSize(command_line);
 
   unconsumed_deep_link_ = GetInitialDeepLink();
@@ -765,7 +765,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   base::VersionCompatibility::GetInstance()->SetMinimumVersion(minimum_version);
 
-  base::Optional<std::string> partition_key;
+  absl::optional<std::string> partition_key;
   if (command_line->HasSwitch(browser::switches::kLocalStoragePartitionUrl)) {
     std::string local_storage_partition_url = command_line->GetSwitchValueASCII(
         browser::switches::kLocalStoragePartitionUrl);
@@ -777,7 +777,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   network_module_options.storage_manager_options.savegame_options.id =
       partition_key;
 
-  base::Optional<std::string> default_key =
+  absl::optional<std::string> default_key =
       base::GetApplicationKey(GURL(kDefaultURL));
   if (command_line->HasSwitch(
           browser::switches::kForceMigrationForStoragePartitioning) ||
@@ -1426,7 +1426,7 @@ void Application::UpdatePeriodicStats() {
   }
 
   int64_t used_cpu_memory = SbSystemGetUsedCPUMemory();
-  base::Optional<int64_t> used_gpu_memory;
+  absl::optional<int64_t> used_gpu_memory;
   if (SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)) {
     used_gpu_memory = SbSystemGetUsedGPUMemory();
   }

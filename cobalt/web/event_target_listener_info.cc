@@ -90,7 +90,7 @@ void EventTargetListenerInfo::HandleEvent(const scoped_refptr<Event>& event) {
   TRACE_EVENT1("cobalt::dom", "EventTargetListenerInfo::HandleEvent",
                "Event Name", TRACE_STR_COPY(event->type().c_str()));
   bool had_exception;
-  base::Optional<bool> result;
+  absl::optional<bool> result;
 
   // Forward the HandleEvent() call to the appropriate internal object.
   if (event_listener_reference_) {

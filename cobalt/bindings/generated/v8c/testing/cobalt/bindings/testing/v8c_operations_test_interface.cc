@@ -318,8 +318,8 @@ void optionalNullableArgumentsWithDefaultsMethod(const v8::FunctionCallbackInfo<
     return;
   }
   // Optional arguments with default values
-  TypeTraits<base::Optional<bool > >::ConversionType arg1 =
-      base::nullopt;
+  TypeTraits<absl::optional<bool > >::ConversionType arg1 =
+      absl::nullopt;
   TypeTraits<scoped_refptr<ArbitraryInterface> >::ConversionType arg2 =
       NULL;
   size_t num_set_arguments = 2;
@@ -697,7 +697,7 @@ void overloadedNullableMethod2(
     return;
   }
   // Non-optional arguments
-  TypeTraits<base::Optional<bool > >::ConversionType arg;
+  TypeTraits<absl::optional<bool > >::ConversionType arg;
   DCHECK_LT(0, info.Length());
   v8::Local<v8::Value> non_optional_value0 = info[0];
   FromJSValue(isolate,

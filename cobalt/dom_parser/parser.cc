@@ -96,7 +96,7 @@ std::unique_ptr<loader::Decoder> Parser::ParseXMLDocumentAsync(
                      input_location, load_complete_callback_));
 }
 
-void Parser::LoadCompleteCallback(const base::Optional<std::string>& error) {
+void Parser::LoadCompleteCallback(const absl::optional<std::string>& error) {
   if (error) LOG(ERROR) << "Error in DOM parsing: " << error.value_or("");
 }
 

@@ -31,7 +31,7 @@ struct MockImageDecoderCallback {
   void SuccessCallback(const scoped_refptr<Image>& value) { image = value; }
 
   MOCK_METHOD1(LoadCompleteCallback,
-               void(const base::Optional<std::string>& message));
+               void(const absl::optional<std::string>& message));
 
   scoped_refptr<Image> image;
 };
@@ -54,7 +54,7 @@ class MockImageDecoder : public Decoder {
 
   scoped_refptr<Image> image();
 
-  void ExpectCallWithError(const base::Optional<std::string>& error);
+  void ExpectCallWithError(const absl::optional<std::string>& error);
 
  protected:
   std::unique_ptr<render_tree::ResourceProviderStub> resource_provider_stub_;
@@ -109,7 +109,7 @@ scoped_refptr<Image> MockImageDecoder::image() {
 }
 
 void MockImageDecoder::ExpectCallWithError(
-    const base::Optional<std::string>& error) {
+    const absl::optional<std::string>& error) {
   EXPECT_CALL(image_decoder_callback_, LoadCompleteCallback(error));
 }
 }  // namespace image

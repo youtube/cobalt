@@ -21,7 +21,6 @@
 #include <utility>
 
 #include "base/logging.h"
-#include "base/optional.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/type_id.h"
@@ -44,6 +43,7 @@
 #include "cobalt/renderer/rasterizer/skia/image.h"              // nogncheck
 #include "cobalt/renderer/rasterizer/skia/skottie_animation.h"  // nogncheck
 #include "starboard/configuration.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace renderer {
@@ -763,7 +763,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
 
   const render_tree::RectNode::Builder& data = rect_node->data();
   const std::unique_ptr<render_tree::Brush>& brush = data.background_brush;
-  base::Optional<render_tree::RoundedCorners> content_corners;
+  absl::optional<render_tree::RoundedCorners> content_corners;
   math::RectF content_rect(data.rect);
   bool content_rect_drawn = false;
 
@@ -896,7 +896,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectShadowNode* shadow_node) {
   }
 
   const render_tree::RectShadowNode::Builder& data = shadow_node->data();
-  base::Optional<render_tree::RoundedCorners> spread_corners =
+  absl::optional<render_tree::RoundedCorners> spread_corners =
       data.rounded_corners;
 
   std::unique_ptr<DrawObject> draw;

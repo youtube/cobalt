@@ -39,15 +39,15 @@ class MainAxisHorizontalFlexItem : public FlexItem {
 
   LayoutUnit GetContentToMarginMainAxis() const override;
   LayoutUnit GetContentToMarginCrossAxis() const override;
-  base::Optional<LayoutUnit> GetUsedMainAxisSizeIfNotAuto(
+  absl::optional<LayoutUnit> GetUsedMainAxisSizeIfNotAuto(
       const SizeLayoutUnit& containing_block_size) const override;
-  base::Optional<LayoutUnit> GetUsedMinMainAxisSizeIfNotAuto(
+  absl::optional<LayoutUnit> GetUsedMinMainAxisSizeIfNotAuto(
       const SizeLayoutUnit& containing_block_size) const override;
-  base::Optional<LayoutUnit> GetUsedMinCrossAxisSizeIfNotAuto(
+  absl::optional<LayoutUnit> GetUsedMinCrossAxisSizeIfNotAuto(
       const SizeLayoutUnit& containing_block_size) const override;
-  base::Optional<LayoutUnit> GetUsedMaxMainAxisSizeIfNotNone(
+  absl::optional<LayoutUnit> GetUsedMaxMainAxisSizeIfNotNone(
       const SizeLayoutUnit& containing_block_size) const override;
-  base::Optional<LayoutUnit> GetUsedMaxCrossAxisSizeIfNotNone(
+  absl::optional<LayoutUnit> GetUsedMaxCrossAxisSizeIfNotNone(
       const SizeLayoutUnit& containing_block_size) const override;
 
   void DetermineHypotheticalCrossSize(
@@ -76,34 +76,34 @@ LayoutUnit MainAxisHorizontalFlexItem::GetContentToMarginCrossAxis() const {
   return box()->GetContentToMarginVertical();
 }
 
-base::Optional<LayoutUnit>
+absl::optional<LayoutUnit>
 MainAxisHorizontalFlexItem::GetUsedMainAxisSizeIfNotAuto(
     const SizeLayoutUnit& containing_block_size) const {
   return GetUsedWidthIfNotAuto(computed_style(), containing_block_size, NULL);
 }
 
-base::Optional<LayoutUnit>
+absl::optional<LayoutUnit>
 MainAxisHorizontalFlexItem::GetUsedMinMainAxisSizeIfNotAuto(
     const SizeLayoutUnit& containing_block_size) const {
-  base::Optional<LayoutUnit> maybe_used_min_space =
+  absl::optional<LayoutUnit> maybe_used_min_space =
       GetUsedMinWidthIfNotAuto(computed_style(), containing_block_size, NULL);
   return maybe_used_min_space;
 }
 
-base::Optional<LayoutUnit>
+absl::optional<LayoutUnit>
 MainAxisHorizontalFlexItem::GetUsedMinCrossAxisSizeIfNotAuto(
     const SizeLayoutUnit& containing_block_size) const {
   return GetUsedMinHeightIfNotAuto(computed_style(), containing_block_size);
 }
 
-base::Optional<LayoutUnit>
+absl::optional<LayoutUnit>
 MainAxisHorizontalFlexItem::GetUsedMaxMainAxisSizeIfNotNone(
     const SizeLayoutUnit& containing_block_size) const {
   return GetUsedMaxWidthIfNotNone(computed_style(), containing_block_size,
                                   NULL);
 }
 
-base::Optional<LayoutUnit>
+absl::optional<LayoutUnit>
 MainAxisHorizontalFlexItem::GetUsedMaxCrossAxisSizeIfNotNone(
     const SizeLayoutUnit& containing_block_size) const {
   return GetUsedMaxHeightIfNotNone(computed_style(), containing_block_size);
@@ -180,15 +180,15 @@ class MainAxisVerticalFlexItem : public FlexItem {
   LayoutUnit GetContentToMarginMainAxis() const override;
   LayoutUnit GetContentToMarginCrossAxis() const override;
 
-  base::Optional<LayoutUnit> GetUsedMainAxisSizeIfNotAuto(
+  absl::optional<LayoutUnit> GetUsedMainAxisSizeIfNotAuto(
       const SizeLayoutUnit& containing_block_size) const override;
-  base::Optional<LayoutUnit> GetUsedMinMainAxisSizeIfNotAuto(
+  absl::optional<LayoutUnit> GetUsedMinMainAxisSizeIfNotAuto(
       const SizeLayoutUnit& containing_block_size) const override;
-  base::Optional<LayoutUnit> GetUsedMinCrossAxisSizeIfNotAuto(
+  absl::optional<LayoutUnit> GetUsedMinCrossAxisSizeIfNotAuto(
       const SizeLayoutUnit& containing_block_size) const override;
-  base::Optional<LayoutUnit> GetUsedMaxMainAxisSizeIfNotNone(
+  absl::optional<LayoutUnit> GetUsedMaxMainAxisSizeIfNotNone(
       const SizeLayoutUnit& containing_block_size) const override;
-  base::Optional<LayoutUnit> GetUsedMaxCrossAxisSizeIfNotNone(
+  absl::optional<LayoutUnit> GetUsedMaxCrossAxisSizeIfNotNone(
       const SizeLayoutUnit& containing_block_size) const override;
 
   void DetermineHypotheticalCrossSize(
@@ -217,32 +217,32 @@ LayoutUnit MainAxisVerticalFlexItem::GetContentToMarginCrossAxis() const {
   return box()->GetContentToMarginHorizontal();
 }
 
-base::Optional<LayoutUnit>
+absl::optional<LayoutUnit>
 MainAxisVerticalFlexItem::GetUsedMainAxisSizeIfNotAuto(
     const SizeLayoutUnit& containing_block_size) const {
   return GetUsedHeightIfNotAuto(computed_style(), containing_block_size, NULL);
 }
 
-base::Optional<LayoutUnit>
+absl::optional<LayoutUnit>
 MainAxisVerticalFlexItem::GetUsedMinMainAxisSizeIfNotAuto(
     const SizeLayoutUnit& containing_block_size) const {
   return GetUsedMinHeightIfNotAuto(computed_style(), containing_block_size);
 }
 
-base::Optional<LayoutUnit>
+absl::optional<LayoutUnit>
 MainAxisVerticalFlexItem::GetUsedMinCrossAxisSizeIfNotAuto(
     const SizeLayoutUnit& containing_block_size) const {
   return GetUsedMinWidthIfNotAuto(computed_style(), containing_block_size,
                                   NULL);
 }
 
-base::Optional<LayoutUnit>
+absl::optional<LayoutUnit>
 MainAxisVerticalFlexItem::GetUsedMaxMainAxisSizeIfNotNone(
     const SizeLayoutUnit& containing_block_size) const {
   return GetUsedMaxHeightIfNotNone(computed_style(), containing_block_size);
 }
 
-base::Optional<LayoutUnit>
+absl::optional<LayoutUnit>
 MainAxisVerticalFlexItem::GetUsedMaxCrossAxisSizeIfNotNone(
     const SizeLayoutUnit& containing_block_size) const {
   return GetUsedMaxWidthIfNotNone(computed_style(), containing_block_size,
@@ -342,7 +342,7 @@ bool FlexItem::OverflowIsVisible() const {
 }
 
 void FlexItem::DetermineFlexBaseSize(
-    const base::Optional<LayoutUnit>& main_space,
+    const absl::optional<LayoutUnit>& main_space,
     bool container_shrink_to_fit_width_forced) {
   // Absolutely positioned boxes are not flex items.
   DCHECK(!box()->IsAbsolutelyPositioned());
@@ -356,7 +356,7 @@ void FlexItem::DetermineFlexBaseSize(
 
   // A. If the item has a definite used flex basis, that's the flex base size.
   bool flex_basis_depends_on_available_space;
-  base::Optional<LayoutUnit> flex_basis = GetUsedFlexBasisIfNotContent(
+  absl::optional<LayoutUnit> flex_basis = GetUsedFlexBasisIfNotContent(
       computed_style(), main_direction_is_horizontal_,
       main_space.value_or(LayoutUnit()),
       &flex_basis_depends_on_available_space);
@@ -414,11 +414,11 @@ void FlexItem::DetermineHypotheticalMainSize(
     const SizeLayoutUnit& available_space) {
   // The hypothetical main size is the item's flex base size clamped
   // according to its used min and max main sizes.
-  base::Optional<LayoutUnit> maybe_min_main_size =
+  absl::optional<LayoutUnit> maybe_min_main_size =
       GetUsedMinMainAxisSizeIfNotAuto(available_space);
   LayoutUnit main_size =
       std::max(maybe_min_main_size.value_or(LayoutUnit()), flex_base_size());
-  base::Optional<LayoutUnit> maybe_max_main_size =
+  absl::optional<LayoutUnit> maybe_max_main_size =
       GetUsedMaxMainAxisSizeIfNotNone(available_space);
   if (maybe_max_main_size) {
     main_size = std::min(*maybe_max_main_size, main_size);
@@ -426,7 +426,7 @@ void FlexItem::DetermineHypotheticalMainSize(
   hypothetical_main_size_ = main_size;
 }
 
-base::Optional<LayoutUnit> FlexItem::GetContentBasedMinimumSize(
+absl::optional<LayoutUnit> FlexItem::GetContentBasedMinimumSize(
     const SizeLayoutUnit& containing_block_size) const {
   // Automatic Minimum Size of Flex Items.
   //   https://www.w3.org/TR/css-flexbox-1/#min-size-auto
@@ -435,9 +435,9 @@ base::Optional<LayoutUnit> FlexItem::GetContentBasedMinimumSize(
   // size suggestion is that size (clamped by its max main size property if
   // it's definite). It is otherwise undefined.
   //   https://www.w3.org/TR/css-flexbox-1/#specified-size-suggestion
-  base::Optional<LayoutUnit> specified_size_suggestion =
+  absl::optional<LayoutUnit> specified_size_suggestion =
       GetUsedMainAxisSizeIfNotAuto(containing_block_size);
-  base::Optional<LayoutUnit> maybe_max_main_size =
+  absl::optional<LayoutUnit> maybe_max_main_size =
       GetUsedMaxMainAxisSizeIfNotNone(containing_block_size);
   if (maybe_max_main_size.has_value() &&
       specified_size_suggestion.has_value()) {
@@ -448,10 +448,10 @@ base::Optional<LayoutUnit> FlexItem::GetContentBasedMinimumSize(
   // The content size suggestion is the min-content size in the main axis,
   // clamped by the max main size property if that is definite.
   //   https://www.w3.org/TR/css-flexbox-1/#content-size-suggestion
-  base::Optional<LayoutUnit> content_size_suggestion;
+  absl::optional<LayoutUnit> content_size_suggestion;
   if (OverflowIsVisible()) {
     if (main_direction_is_horizontal_) {
-      base::Optional<LayoutUnit> maybe_height =
+      absl::optional<LayoutUnit> maybe_height =
           GetUsedHeightIfNotAuto(computed_style(), containing_block_size, NULL);
       content_size_suggestion =
           box()->AsBlockContainerBox()->GetShrinkToFitWidth(
@@ -467,7 +467,7 @@ base::Optional<LayoutUnit> FlexItem::GetContentBasedMinimumSize(
 
   // If the box has neither a specified size suggestion nor an aspect ratio,
   // its content-based minimum size is the content size suggestion.
-  base::Optional<LayoutUnit> content_based_minimum_size =
+  absl::optional<LayoutUnit> content_based_minimum_size =
       content_size_suggestion;
   // In general, the content-based minimum size of a flex item is the smaller
   // of its content size suggestion and its specified size suggestion.
@@ -477,7 +477,7 @@ base::Optional<LayoutUnit> FlexItem::GetContentBasedMinimumSize(
         std::min(*content_size_suggestion, *specified_size_suggestion);
   }
 
-  base::Optional<LayoutUnit> specified_min_size_suggestion =
+  absl::optional<LayoutUnit> specified_min_size_suggestion =
       GetUsedMinMainAxisSizeIfNotAuto(containing_block_size);
   if (specified_min_size_suggestion.has_value()) {
     content_based_minimum_size = specified_min_size_suggestion;

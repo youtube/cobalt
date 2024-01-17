@@ -29,7 +29,7 @@ TEST(DOMImplementationTest, CreateDocumentWithEmptyName) {
   scoped_refptr<DOMImplementation> dom_implementation =
       new DOMImplementation(&html_element_context);
   scoped_refptr<Document> document =
-      dom_implementation->CreateDocument(base::Optional<std::string>(""), "");
+      dom_implementation->CreateDocument(absl::optional<std::string>(""), "");
   ASSERT_TRUE(document);
   EXPECT_TRUE(document->IsXMLDocument());
   EXPECT_FALSE(document->first_element_child());
@@ -40,7 +40,7 @@ TEST(DOMImplementationTest, CreateDocumentWithName) {
   scoped_refptr<DOMImplementation> dom_implementation =
       new DOMImplementation(&html_element_context);
   scoped_refptr<Document> document = dom_implementation->CreateDocument(
-      base::Optional<std::string>(""), "ROOT");
+      absl::optional<std::string>(""), "ROOT");
   ASSERT_TRUE(document);
   EXPECT_TRUE(document->IsXMLDocument());
   ASSERT_TRUE(document->first_element_child());

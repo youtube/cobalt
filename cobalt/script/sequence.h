@@ -59,7 +59,7 @@ class Sequence {
   SequenceType sequence_;
 };
 
-// Needed to instantiate base::Optional< Sequence<T> >
+// Needed to instantiate absl::optional< Sequence<T> >
 template <typename T>
 inline std::ostream& operator<<(std::ostream& stream,
                                 const Sequence<T>& sequence) {

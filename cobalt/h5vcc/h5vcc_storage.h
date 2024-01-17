@@ -18,7 +18,6 @@
 #include <string>
 
 #include "base/message_loop/message_loop.h"
-#include "base/optional.h"
 #include "cobalt/h5vcc/h5vcc_storage_resource_type_quota_bytes_dictionary.h"
 #include "cobalt/h5vcc/h5vcc_storage_set_quota_response.h"
 #include "cobalt/h5vcc/h5vcc_storage_verify_test_response.h"
@@ -29,6 +28,7 @@
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/script/wrappable.h"
 #include "net/http/http_cache.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace h5vcc {
@@ -39,7 +39,7 @@ class H5vccStorage : public script::Wrappable {
       network::NetworkModule* network_module,
       persistent_storage::PersistentSettings* persistent_settings);
   void ClearCookies();
-  void Flush(const base::Optional<bool>& sync);
+  void Flush(const absl::optional<bool>& sync);
   bool GetCookiesEnabled();
   void SetCookiesEnabled(bool enabled);
 

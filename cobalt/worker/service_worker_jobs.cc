@@ -525,7 +525,7 @@ bool ServiceWorkerJobs::UpdateOnResponseStarted(
   //   8.11. Let scopeURL be registration’s scope url.
   GURL scope_url = state->registration->scope_url();
   //   8.12. Let maxScopeString be null.
-  base::Optional<std::string> max_scope_string;
+  absl::optional<std::string> max_scope_string;
   //   8.13. If serviceWorkerAllowed is null, then:
   if (!service_worker_allowed_exists || service_worker_allowed.empty()) {
     //   8.13.1. Let resolvedScope be the result of parsing "./" using job’s
@@ -627,7 +627,7 @@ void ServiceWorkerJobs::UpdateOnContentProduced(
 
 void ServiceWorkerJobs::UpdateOnLoadingComplete(
     scoped_refptr<UpdateJobState> state,
-    const base::Optional<std::string>& error) {
+    const absl::optional<std::string>& error) {
   TRACE_EVENT0("cobalt::worker",
                "ServiceWorkerJobs::UpdateOnLoadingComplete()");
   DCHECK_EQ(message_loop(), base::MessageLoop::current());

@@ -17,11 +17,11 @@
 
 #include <memory>
 
-#include "base/optional.h"
 #include "cobalt/cssom/property_definitions.h"
 #include "cobalt/cssom/property_key_list_value.h"
 #include "cobalt/cssom/time_list_value.h"
 #include "cobalt/cssom/timing_function_list_value.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace css_parser {
@@ -36,10 +36,10 @@ struct SingleTransitionShorthand {
 
   void ReplaceNullWithInitialValues();
 
-  base::Optional<cssom::PropertyKey> property;
-  base::Optional<base::TimeDelta> duration;
+  absl::optional<cssom::PropertyKey> property;
+  absl::optional<base::TimeDelta> duration;
   scoped_refptr<cssom::TimingFunction> timing_function;
-  base::Optional<base::TimeDelta> delay;
+  absl::optional<base::TimeDelta> delay;
 
   bool error;
 };

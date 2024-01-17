@@ -285,7 +285,7 @@ void GoogleSpeechService::OnURLFetchComplete(const net::URLFetcher* source) {
 }
 
 // static
-base::Optional<std::string> GoogleSpeechService::GetSpeechAPIKey() {
+absl::optional<std::string> GoogleSpeechService::GetSpeechAPIKey() {
   const int kSpeechApiKeyLength = 100;
   char buffer[kSpeechApiKeyLength] = {0};
   bool result = SbSystemGetProperty(kSbSystemPropertySpeechApiKey, buffer,
@@ -293,7 +293,7 @@ base::Optional<std::string> GoogleSpeechService::GetSpeechAPIKey() {
   if (result) {
     return std::string(buffer);
   } else {
-    return base::nullopt;
+    return absl::nullopt;
   }
 }
 
@@ -335,7 +335,7 @@ void GoogleSpeechService::StartInternal(const SpeechRecognitionConfig& config,
   up_url = AppendQueryParameter(up_url, "pair", pair);
   up_url = AppendQueryParameter(up_url, "output", "pb");
 
-  base::Optional<std::string> api_key = GetSpeechAPIKey();
+  absl::optional<std::string> api_key = GetSpeechAPIKey();
   SB_DCHECK(api_key);
 
   up_url = AppendQueryParameter(up_url, "key", api_key.value_or(""));

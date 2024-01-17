@@ -102,7 +102,7 @@ class Worker : public base::MessageLoop::DestructionObserver {
 
   void OnContentProduced(const loader::Origin& last_url_origin,
                          std::unique_ptr<std::string> content);
-  void OnLoadingComplete(const base::Optional<std::string>& error);
+  void OnLoadingComplete(const absl::optional<std::string>& error);
   void OnReadyToExecute();
 
   void Obtain();

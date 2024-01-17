@@ -176,7 +176,7 @@ bool V8cGlobalEnvironment::EvaluateScript(
 bool V8cGlobalEnvironment::EvaluateScript(
     const scoped_refptr<SourceCode>& source_code,
     const scoped_refptr<Wrappable>& owning_object,
-    base::Optional<ValueHandleHolder::Reference>* out_value_handle) {
+    absl::optional<ValueHandleHolder::Reference>* out_value_handle) {
   TRACE_EVENT0("cobalt::script", "V8cGlobalEnvironment::EvaluateScript()");
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
@@ -499,13 +499,13 @@ v8::MaybeLocal<v8::Script> V8cGlobalEnvironment::Compile(
   auto retrieved_cached_data = cobalt::cache::Cache::GetInstance()->Retrieve(
       network::disk_cache::ResourceType::kCompiledScript, javascript_cache_key,
       [&]() -> std::pair<std::unique_ptr<std::vector<uint8_t>>,
-                         base::Optional<base::Value>> {
+                         absl::optional<base::Value>> {
         v8::Local<v8::Script> script;
         {
           TRACE_EVENT0("cobalt::script", "v8::Script::Compile()");
           if (!v8::Script::Compile(context, source, &script_origin)
                    .ToLocal(&script)) {
-            return std::make_pair(/*data=*/nullptr, /*metadata=*/base::nullopt);
+            return std::make_pair(/*data=*/nullptr, /*metadata=*/absl::nullopt);
           }
         }
         std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data(
@@ -513,7 +513,7 @@ v8::MaybeLocal<v8::Script> V8cGlobalEnvironment::Compile(
         return std::make_pair(
             std::make_unique<std::vector<uint8_t>>(
                 cached_data->data, cached_data->data + cached_data->length),
-            /*metadata=*/base::nullopt);
+            /*metadata=*/absl::nullopt);
       });
   if (!retrieved_cached_data) {
     return {};

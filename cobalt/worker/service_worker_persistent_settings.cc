@@ -379,7 +379,7 @@ ServiceWorkerPersistentSettings::WriteServiceWorkerObjectSettings(
         network::disk_cache::ResourceType::kServiceWorkerScript,
         web::cache_utils::GetKey(registration_key_string + script_url_string),
         data,
-        /* metadata */ base::nullopt);
+        /* metadata */ absl::nullopt);
 
     if (script_url_string == service_worker_object->script_url().spec()) {
       // Persist the raw headers from the ServiceWorkerObject script_url_

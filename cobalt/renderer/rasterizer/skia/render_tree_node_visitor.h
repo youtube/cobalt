@@ -19,7 +19,6 @@
 
 #include "base/callback.h"
 #include "base/compiler_specific.h"
-#include "base/optional.h"
 #include "cobalt/render_tree/clear_rect_node.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/filter_node.h"
@@ -34,6 +33,7 @@
 #include "cobalt/render_tree/text_node.h"
 #include "cobalt/renderer/backend/render_target.h"
 #include "cobalt/renderer/rasterizer/skia/render_tree_node_visitor_draw_state.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 
 namespace cobalt {

@@ -17,9 +17,9 @@
 #include <utility>
 
 #include "base/logging.h"
-#include "base/optional.h"
 #include "cobalt/cssom/interpolate_property_value.h"
 #include "cobalt/cssom/property_definitions.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace web_animations {
@@ -57,7 +57,7 @@ KeyframeEffectReadOnly::Data::Data(
 }
 
 void KeyframeEffectReadOnly::Data::CheckKeyframesSorted() const {
-  base::Optional<double> last_offset;
+  absl::optional<double> last_offset;
   for (KeyframeSequence::const_iterator iter = keyframes_.begin();
        iter != keyframes_.end(); ++iter) {
     DCHECK(iter->offset())
@@ -209,16 +209,16 @@ T FirstWithProperty(const T& start, const T& end,
 
 // Described within step 10 from:
 //   https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-effect-value-of-a-keyframe-animation-effect
-std::pair<base::Optional<PropertySpecificKeyframe>,
-          base::Optional<PropertySpecificKeyframe> >
+std::pair<absl::optional<PropertySpecificKeyframe>,
+          absl::optional<PropertySpecificKeyframe> >
 ComputeIntervalEndpoints(
     const KeyframeEffectReadOnly::Data::KeyframeSequence& keyframes,
     cssom::PropertyKey target_property,
     const scoped_refptr<cssom::PropertyValue>& underlying_value,
     double iteration_progress) {
   // We create a default being/end frame only if we find that we need them.
-  std::pair<base::Optional<PropertySpecificKeyframe>,
-            base::Optional<PropertySpecificKeyframe> >
+  std::pair<absl::optional<PropertySpecificKeyframe>,
+            absl::optional<PropertySpecificKeyframe> >
       interval_endpoints;
 
   if (iteration_progress < 0.0 &&
@@ -287,8 +287,8 @@ KeyframeEffectReadOnly::Data::ComputeAnimatedPropertyValue(
   }
 
   // 10. (see URL above for description).
-  std::pair<base::Optional<PropertySpecificKeyframe>,
-            base::Optional<PropertySpecificKeyframe> >
+  std::pair<absl::optional<PropertySpecificKeyframe>,
+            absl::optional<PropertySpecificKeyframe> >
       interval_endpoints = ComputeIntervalEndpoints(
           keyframes_, target_property, underlying_value, iteration_progress);
 

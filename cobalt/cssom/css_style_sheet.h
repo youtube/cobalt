@@ -22,13 +22,13 @@
 #include "base/containers/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "base/optional.h"
 #include "cobalt/cssom/cascade_precedence.h"
 #include "cobalt/cssom/mutation_observer.h"
 #include "cobalt/cssom/style_sheet.h"
 #include "cobalt/cssom/viewport_size.h"
 #include "cobalt/math/size.h"
 #include "cobalt/script/exception_state.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -117,7 +117,7 @@ class CSSStyleSheet : public StyleSheet, public MutationObserver {
 
   // This stores the most recent media parameters, used to detect when they
   // change, which will require a re-evaluation of the media rule expressions.
-  base::Optional<ViewportSize> previous_media_viewport_size_;
+  absl::optional<ViewportSize> previous_media_viewport_size_;
 
   // Origin of this style sheet.
   Origin origin_;

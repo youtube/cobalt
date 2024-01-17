@@ -15,8 +15,8 @@
 #ifndef COBALT_LAYOUT_FORMATTING_CONTEXT_H_
 #define COBALT_LAYOUT_FORMATTING_CONTEXT_H_
 
-#include "base/optional.h"
 #include "cobalt/layout/layout_unit.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace layout {
@@ -44,7 +44,7 @@ class FormattingContext {
   // In an inline formatting context this is the baseline of the last line box.
   // Disengaged, if there are no line boxes that affect the layout (for example,
   // empty line boxes are discounted).
-  const base::Optional<LayoutUnit>&
+  const absl::optional<LayoutUnit>&
   maybe_baseline_offset_from_top_content_edge() const {
     return maybe_baseline_offset_from_top_content_edge_;
   }
@@ -65,7 +65,7 @@ class FormattingContext {
  private:
   LayoutUnit shrink_to_fit_width_;
   LayoutUnit auto_height_;
-  base::Optional<LayoutUnit> maybe_baseline_offset_from_top_content_edge_;
+  absl::optional<LayoutUnit> maybe_baseline_offset_from_top_content_edge_;
 
   friend class FlexContainerBox;
   DISALLOW_COPY_AND_ASSIGN(FormattingContext);

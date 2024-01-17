@@ -28,11 +28,11 @@
 #include "base/containers/hash_tables.h"
 #include "base/logging.h"
 #include "base/memory/singleton.h"
-#include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "base/time/time.h"
 #include "cobalt/base/ref_counted_lock.h"
 #include "cobalt/base/type_id.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 // The CVal system allows you to mark certain variables to be part of the
 // CVal system and therefore analyzable and trackable by other systems.  All
@@ -423,12 +423,12 @@ class CValManager {
   // pair, the first element is true if the CVal exists, in which case the
   // second element is the value (as a string).  If the CVal does not exist,
   // the value of the second element is undefined.
-  Optional<std::string> GetValueAsString(const std::string& name);
+  absl::optional<std::string> GetValueAsString(const std::string& name);
 
   // Similar to the above, but formatting may be done on numerical values.
   // For example, large numbers may have metric postfixes appended to them.
   // i.e. 104857600 = 100M
-  Optional<std::string> GetValueAsPrettyString(const std::string& name);
+  absl::optional<std::string> GetValueAsPrettyString(const std::string& name);
 
  private:
   // Class can only be instanced via the singleton
@@ -451,8 +451,8 @@ class CValManager {
 
   // Helper function to remove code duplication between GetValueAsString
   // and GetValueAsPrettyString.
-  Optional<std::string> GetCValStringValue(const std::string& name,
-                                           bool pretty);
+  absl::optional<std::string> GetCValStringValue(const std::string& name,
+                                                 bool pretty);
 
 #if defined(ENABLE_DEBUG_C_VAL)
   // Lock that protects against changes to hooks.

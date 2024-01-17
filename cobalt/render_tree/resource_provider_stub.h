@@ -128,7 +128,7 @@ class ImageStub : public Image {
   std::unique_ptr<ImageDataStub> image_data_;
 
   std::unique_ptr<RawImageMemory> raw_image_memory_;
-  base::Optional<MultiPlaneImageDataDescriptor> multi_plane_descriptor_;
+  absl::optional<MultiPlaneImageDataDescriptor> multi_plane_descriptor_;
 };
 
 // Simple class that returns dummy data for metric information modeled on

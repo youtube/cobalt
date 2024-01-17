@@ -20,7 +20,6 @@
 #include <string>
 
 #include "base/memory/weak_ptr.h"
-#include "base/optional.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/script/callback_function.h"
@@ -31,6 +30,7 @@
 #include "cobalt/webdriver/protocol/element_id.h"
 #include "cobalt/webdriver/script_executor_params.h"
 #include "cobalt/webdriver/script_executor_result.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -86,7 +86,7 @@ class ScriptExecutor : public base::SupportsWeakPtr<ScriptExecutor>,
 
   THREAD_CHECKER(thread_checker_);
   ElementMapping* element_mapping_;
-  base::Optional<ExecuteFunctionCallbackHolder::Reference> execute_callback_;
+  absl::optional<ExecuteFunctionCallbackHolder::Reference> execute_callback_;
 };
 
 }  // namespace webdriver

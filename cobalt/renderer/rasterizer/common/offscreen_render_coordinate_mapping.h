@@ -22,10 +22,10 @@
 #ifndef COBALT_RENDERER_RASTERIZER_COMMON_OFFSCREEN_RENDER_COORDINATE_MAPPING_H_
 #define COBALT_RENDERER_RASTERIZER_COMMON_OFFSCREEN_RENDER_COORDINATE_MAPPING_H_
 
-#include "base/optional.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect.h"
 #include "cobalt/math/rect_f.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace renderer {
@@ -78,7 +78,7 @@ struct OffscreenRenderCoordinateMapping {
 // which can then be subsequently rendered to the main render target.
 OffscreenRenderCoordinateMapping GetOffscreenRenderCoordinateMapping(
     const math::RectF& local_bounds, const math::Matrix3F& transform,
-    const base::Optional<math::Rect>& viewport_bounds);
+    const absl::optional<math::Rect>& viewport_bounds);
 
 }  // namespace common
 }  // namespace rasterizer

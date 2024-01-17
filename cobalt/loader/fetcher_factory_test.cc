@@ -17,11 +17,11 @@
 #include <memory>
 #include <string>
 
-#include "base/optional.h"
 #include "base/run_loop.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/loader/file_fetcher.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace loader {
@@ -49,7 +49,7 @@ class StubFetcherHandler : public Fetcher::Handler {
 
   Fetcher* fetcher() const { return fetcher_; }
 
-  const base::Optional<std::string>& error_message() const {
+  const absl::optional<std::string>& error_message() const {
     return error_message_;
   }
 
@@ -65,7 +65,7 @@ class StubFetcherHandler : public Fetcher::Handler {
 
   base::RunLoop* run_loop_;
   Fetcher* fetcher_ = nullptr;
-  base::Optional<std::string> error_message_;
+  absl::optional<std::string> error_message_;
 };
 
 }  // namespace

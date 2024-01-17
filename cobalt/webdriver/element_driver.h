@@ -81,7 +81,7 @@ class ElementDriver {
       const protocol::SearchStrategy& strategy);
   util::CommandResult<void> SendClick(const protocol::Button& button);
   util::CommandResult<bool> Equals(ElementDriver* other_element_driver);
-  util::CommandResult<base::Optional<std::string> > GetAttribute(
+  util::CommandResult<absl::optional<std::string> > GetAttribute(
       const std::string& attribute_name);
   util::CommandResult<std::string> GetCssProperty(
       const std::string& property_name);

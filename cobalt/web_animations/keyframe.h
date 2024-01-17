@@ -23,11 +23,11 @@
 #include "base/compiler_specific.h"
 #include "base/containers/small_map.h"
 #include "base/logging.h"
-#include "base/optional.h"
 #include "cobalt/cssom/property_definitions.h"
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/timing_function.h"
 #include "cobalt/script/wrappable.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace web_animations {
@@ -52,8 +52,8 @@ class Keyframe : public script::Wrappable {
     Data(double offset, const scoped_refptr<cssom::TimingFunction>& easing)
         : offset_(offset), easing_(easing) {}
 
-    const base::Optional<double>& offset() const { return offset_; }
-    void set_offset(const base::Optional<double>& offset) { offset_ = offset; }
+    const absl::optional<double>& offset() const { return offset_; }
+    void set_offset(const absl::optional<double>& offset) { offset_ = offset; }
 
     const scoped_refptr<cssom::TimingFunction>& easing() const {
       return easing_;
@@ -82,15 +82,15 @@ class Keyframe : public script::Wrappable {
     }
 
    private:
-    base::Optional<double> offset_;
+    absl::optional<double> offset_;
     scoped_refptr<cssom::TimingFunction> easing_;
     PropertyValueMap property_values_;
   };
 
   Keyframe() {}
 
-  const base::Optional<double>& offset() const { return data_.offset(); }
-  void set_offset(const base::Optional<double>& offset) {
+  const absl::optional<double>& offset() const { return data_.offset(); }
+  void set_offset(const absl::optional<double>& offset) {
     data_.set_offset(offset);
   }
 

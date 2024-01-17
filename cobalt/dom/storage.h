@@ -21,10 +21,10 @@
 #include "base/callback.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "cobalt/dom/storage_area.h"
 #include "cobalt/script/property_enumerator.h"
 #include "cobalt/script/wrappable.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -46,10 +46,10 @@ class Storage : public script::Wrappable {
   unsigned int length() const {
     return static_cast<unsigned int>(area_->length());
   }
-  base::Optional<std::string> Key(unsigned int index) const {
+  absl::optional<std::string> Key(unsigned int index) const {
     return area_->Key(static_cast<int>(index));
   }
-  base::Optional<std::string> GetItem(const std::string& key) const {
+  absl::optional<std::string> GetItem(const std::string& key) const {
     return area_->GetItem(key);
   }
   void SetItem(const std::string& key, const std::string& value) {
@@ -64,9 +64,9 @@ class Storage : public script::Wrappable {
   // Custom, not in any spec.
   void EnumerateNamedProperties(script::PropertyEnumerator* enumerator) const;
 
-  virtual bool DispatchEvent(const base::Optional<std::string>& key,
-                             const base::Optional<std::string>& old_value,
-                             const base::Optional<std::string>& new_value);
+  virtual bool DispatchEvent(const absl::optional<std::string>& key,
+                             const absl::optional<std::string>& old_value,
+                             const absl::optional<std::string>& new_value);
   virtual GURL origin() const;
 
   DEFINE_WRAPPABLE_TYPE(Storage);

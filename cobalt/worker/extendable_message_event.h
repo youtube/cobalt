@@ -20,7 +20,6 @@
 #include <utility>
 
 #include "base/memory/scoped_refptr.h"
-#include "base/optional.h"
 #include "cobalt/base/token.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/union_type.h"
@@ -32,6 +31,7 @@
 #include "cobalt/worker/extendable_event.h"
 #include "cobalt/worker/extendable_message_event_init.h"
 #include "cobalt/worker/service_worker.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace worker {

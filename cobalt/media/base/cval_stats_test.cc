@@ -19,6 +19,7 @@
 
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 
 const char kCValnameLatest[] = "Media.SbPlayerCreateTime.Latest";
@@ -61,7 +62,7 @@ TEST(MediaCValStatsTest, NothingRecorded) {
 
   cval_stats_.StopTimer(MediaTiming::SbPlayerCreate, kPipelineIdentifier);
 
-  base::Optional<std::string> result =
+  absl::optional<std::string> result =
       cvm->GetValueAsPrettyString(kCValnameLatest);
   EXPECT_TRUE(result);
   EXPECT_EQ(*result, "0");
@@ -78,7 +79,7 @@ TEST(MediaCValStatsTest, EnableRecording) {
   SbThreadSleep(kSleepTime);
   cval_stats_.StopTimer(MediaTiming::SbPlayerCreate, kPipelineIdentifier);
 
-  base::Optional<std::string> result =
+  absl::optional<std::string> result =
       cvm->GetValueAsPrettyString(kCValnameLatest);
   EXPECT_TRUE(result);
   EXPECT_NE(*result, "0");
@@ -105,7 +106,7 @@ TEST(MediaCValStatsTest, DontGenerateHistoricalData) {
     cval_stats_.StopTimer(MediaTiming::SbPlayerCreate, kPipelineIdentifier);
   }
 
-  base::Optional<std::string> result =
+  absl::optional<std::string> result =
       cvm->GetValueAsPrettyString(kCValnameLatest);
   EXPECT_TRUE(result);
   EXPECT_NE(*result, "0");
@@ -132,7 +133,7 @@ TEST(MediaCValStatsTest, GenerateHistoricalData) {
     cval_stats_.StopTimer(MediaTiming::SbPlayerCreate, kPipelineIdentifier);
   }
 
-  base::Optional<std::string> result =
+  absl::optional<std::string> result =
       cvm->GetValueAsPrettyString(kCValnameAverage);
   EXPECT_TRUE(result);
   EXPECT_NE(*result, "0");

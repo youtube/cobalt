@@ -19,7 +19,6 @@
 #include <queue>
 #include <string>
 
-#include "base/optional.h"
 #include "base/threading/thread_checker.h"
 #include "base/timer/timer.h"
 #include "cobalt/loader/image/image_encoder.h"
@@ -27,6 +26,7 @@
 #include "cobalt/webdriver/dispatcher.h"
 #include "cobalt/webdriver/screenshot.h"
 #include "cobalt/webdriver/util/command_result.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace webdriver {

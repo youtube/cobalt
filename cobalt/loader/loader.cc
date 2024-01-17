@@ -148,7 +148,7 @@ bool Loader::DidFailFromTransientError() const {
   return fetcher_ && fetcher_->did_fail_from_transient_error();
 }
 
-void Loader::LoadComplete(const base::Optional<std::string>& error) {
+void Loader::LoadComplete(const absl::optional<std::string>& error) {
   is_load_complete_ = true;
   on_load_complete_.Run(error);
 }

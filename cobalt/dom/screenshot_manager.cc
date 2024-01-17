@@ -57,7 +57,7 @@ void ScreenshotManager::Screenshot(
   ++next_ticket_id_;
 
   screenshot_function_callback_.Run(
-      render_tree_root, /*clip_rect=*/base::nullopt, fill_screenshot);
+      render_tree_root, /*clip_rect=*/absl::nullopt, fill_screenshot);
 }
 
 void ScreenshotManager::FillScreenshot(

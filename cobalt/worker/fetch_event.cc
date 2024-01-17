@@ -60,7 +60,7 @@ FetchEvent::FetchEvent(
   load_timing_info_.service_worker_start_time = base::TimeTicks::Now();
 }
 
-base::Optional<v8::Local<v8::Promise>> FetchEvent::GetText(
+absl::optional<v8::Local<v8::Promise>> FetchEvent::GetText(
     v8::Local<v8::Promise> response_promise) {
   callback_task_runner_->PostTask(
       FROM_HERE, base::BindOnce(
@@ -76,7 +76,7 @@ base::Optional<v8::Local<v8::Promise>> FetchEvent::GetText(
 
 void FetchEvent::RespondWithDone() { respond_with_done_->value().Resolve(); }
 
-base::Optional<v8::Local<v8::Promise>> FetchEvent::DoRespondWith(
+absl::optional<v8::Local<v8::Promise>> FetchEvent::DoRespondWith(
     v8::Local<v8::Promise> text_promise) {
   auto* isolate = text_promise->GetIsolate();
   auto context = isolate->GetCurrentContext();

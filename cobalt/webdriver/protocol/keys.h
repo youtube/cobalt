@@ -17,8 +17,8 @@
 
 #include <string>
 
-#include "base/optional.h"
 #include "base/values.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -27,7 +27,7 @@ namespace protocol {
 // Wraps a utf8 string representing a sequence of key inputs.
 class Keys {
  public:
-  static base::Optional<Keys> FromValue(const base::Value* value);
+  static absl::optional<Keys> FromValue(const base::Value* value);
 
   const std::string& utf8_keys() const { return utf8_keys_; }
 

@@ -24,11 +24,11 @@
 #include <vector>
 
 #include "base/memory/scoped_refptr.h"
-#include "base/optional.h"
 #include "base/sequence_checker.h"
 #include "base/threading/thread.h"
 #include "cobalt/media/progressive/data_source_reader.h"
 #include "starboard/extension/demuxer.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/chromium/media/base/audio_decoder_config.h"
 #include "third_party/chromium/media/base/decoder_buffer.h"
 #include "third_party/chromium/media/base/demuxer.h"
@@ -83,8 +83,8 @@ class DemuxerExtensionStream : public ::media::DemuxerStream {
   typedef std::deque<ReadCB> ReadQueue;
 
   CobaltExtensionDemuxer* demuxer_ = nullptr;  // Not owned.
-  base::Optional<::media::VideoDecoderConfig> video_config_;
-  base::Optional<::media::AudioDecoderConfig> audio_config_;
+  absl::optional<::media::VideoDecoderConfig> video_config_;
+  absl::optional<::media::AudioDecoderConfig> audio_config_;
 
   // Protects everything below.
   mutable base::Lock lock_;
@@ -228,8 +228,8 @@ class DemuxerExtensionWrapper : public ::media::Demuxer {
   bool audio_reached_eos_ = false;
   bool flushing_ = false;
 
-  base::Optional<DemuxerExtensionStream> video_stream_;
-  base::Optional<DemuxerExtensionStream> audio_stream_;
+  absl::optional<DemuxerExtensionStream> video_stream_;
+  absl::optional<DemuxerExtensionStream> audio_stream_;
 
   std::unique_ptr<H264AnnexBConverter> h264_converter_;
 

@@ -25,9 +25,9 @@ StorageEvent::StorageEvent() : Event(base::Tokens::storage()) {}
 
 StorageEvent::StorageEvent(const std::string& type) : Event(type) {}
 
-StorageEvent::StorageEvent(const base::Optional<std::string>& key,
-                           const base::Optional<std::string>& old_value,
-                           const base::Optional<std::string>& new_value,
+StorageEvent::StorageEvent(const absl::optional<std::string>& key,
+                           const absl::optional<std::string>& old_value,
+                           const absl::optional<std::string>& new_value,
                            const std::string& url,
                            const scoped_refptr<Storage>& storage_area)
     : Event(base::Tokens::storage()),

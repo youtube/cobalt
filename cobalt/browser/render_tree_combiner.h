@@ -18,9 +18,9 @@
 #include <map>
 #include <memory>
 
-#include "base/optional.h"
 #include "base/time/time.h"
 #include "cobalt/renderer/submission.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace browser {
@@ -42,21 +42,21 @@ class RenderTreeCombiner {
     ~Layer();
 
     void Reset() {
-      render_tree_ = base::nullopt;
-      receipt_time_ = base::nullopt;
+      render_tree_ = absl::nullopt;
+      receipt_time_ = absl::nullopt;
     }
 
     // Submit render tree to the layer, and specify whether the time
     // received should be stored.
     void Submit(
-        const base::Optional<renderer::Submission>& render_tree_submission);
+        const absl::optional<renderer::Submission>& render_tree_submission);
 
     bool HasRenderTree() { return !!render_tree_; }
 
     // Returns a current submission object that can be passed into a renderer
     // for rasterization.  If the render tree does not exist, this will
-    // return a base::nullopt.
-    base::Optional<renderer::Submission> GetCurrentSubmission();
+    // return a absl::nullopt.
+    absl::optional<renderer::Submission> GetCurrentSubmission();
 
    private:
     friend class RenderTreeCombiner;
@@ -66,12 +66,12 @@ class RenderTreeCombiner {
     // Returns the current submission time for this particular layer.  This is
     // called by the RenderTreeCombiner on the |timeline_layer_| to determine
     // which value to pass in as the submission time for the renderer.
-    base::Optional<base::TimeDelta> CurrentTimeOffset();
+    absl::optional<base::TimeDelta> CurrentTimeOffset();
 
     RenderTreeCombiner* render_tree_combiner_;
 
-    base::Optional<renderer::Submission> render_tree_;
-    base::Optional<base::TimeTicks> receipt_time_;
+    absl::optional<renderer::Submission> render_tree_;
+    absl::optional<base::TimeTicks> receipt_time_;
   };
 
   RenderTreeCombiner();
@@ -83,8 +83,8 @@ class RenderTreeCombiner {
 
   // Returns a current submission object that can be passed into a renderer
   // for rasterization.  If no layers with render trees exist, this will return
-  // a base::nullopt.
-  base::Optional<renderer::Submission> GetCurrentSubmission();
+  // a absl::nullopt.
+  absl::optional<renderer::Submission> GetCurrentSubmission();
 
   // Names a single layer as the one responsible for providing the timeline
   // id and configuration to the output combined render tree.  Only a single

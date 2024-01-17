@@ -86,9 +86,9 @@ void FlexFormattingContext::CollectItemIntoLine(
 }
 
 void FlexFormattingContext::ResolveFlexibleLengthsAndCrossSizes(
-    const base::Optional<LayoutUnit>& cross_space,
-    const base::Optional<LayoutUnit>& min_cross_space,
-    const base::Optional<LayoutUnit>& max_cross_space,
+    const absl::optional<LayoutUnit>& cross_space,
+    const absl::optional<LayoutUnit>& min_cross_space,
+    const absl::optional<LayoutUnit>& max_cross_space,
     const scoped_refptr<cssom::PropertyValue>& align_content) {
   // Algorithm for Flex Layout:
   //   https://www.w3.org/TR/css-flexbox-1/#layout-algorithm

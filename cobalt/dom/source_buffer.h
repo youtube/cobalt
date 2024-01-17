@@ -53,7 +53,6 @@
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop/message_loop.h"
-#include "base/optional.h"
 #include "base/single_thread_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/timer/timer.h"
@@ -73,6 +72,7 @@
 #include "cobalt/script/exception_state.h"
 #include "cobalt/web/event_target.h"
 #include "starboard/common/mutex.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/chromium/media/base/media_tracks.h"
 #include "third_party/chromium/media/filters/chunk_demuxer.h"
 

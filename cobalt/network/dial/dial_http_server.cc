@@ -31,6 +31,7 @@
 #include "net/server/http_server_request_info.h"
 #include "net/socket/stream_socket.h"
 #include "net/socket/tcp_server_socket.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace network {
@@ -61,7 +62,7 @@ const char* kAppsPrefix = "/apps/";
 constexpr net::NetworkTrafficAnnotationTag kNetworkTrafficAnnotation =
     net::DefineNetworkTrafficAnnotation("dial_http_server", "dial_http_server");
 
-base::Optional<net::IPEndPoint> GetLocalIpAddress() {
+absl::optional<net::IPEndPoint> GetLocalIpAddress() {
   net::IPEndPoint ip_addr;
   SbSocketAddress local_ip;
   memset(&local_ip, 0, sizeof(local_ip));
@@ -75,7 +76,7 @@ base::Optional<net::IPEndPoint> GetLocalIpAddress() {
   if (!SbSocketGetInterfaceAddress(&destination, &local_ip, NULL) ||
       !ip_addr.FromSbSocketAddress(&local_ip)) {
     DLOG(WARNING) << "Unable to get a local interface address.";
-    return base::nullopt;
+    return absl::nullopt;
   }
 
   return ip_addr;
@@ -92,7 +93,7 @@ DialHttpServer::DialHttpServer(DialService* dial_service)
 
   auto* server_socket =
       new net::TCPServerSocket(NULL /*net_log*/, net::NetLogSource());
-  base::Optional<net::IPEndPoint> ip_addr = GetLocalIpAddress();
+  absl::optional<net::IPEndPoint> ip_addr = GetLocalIpAddress();
   if (!ip_addr) {
     LOG(ERROR) << "Can not get a local address for DIAL HTTP Server";
   } else {

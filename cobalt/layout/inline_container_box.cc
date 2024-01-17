@@ -154,7 +154,7 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
       // A computed value of "auto" for "margin-left" or "margin-right" becomes
       // a used value of "0".
       //   https://www.w3.org/TR/CSS21/visudet.html#inline-width
-      base::Optional<LayoutUnit> maybe_margin_left = GetUsedMarginLeftIfNotAuto(
+      absl::optional<LayoutUnit> maybe_margin_left = GetUsedMarginLeftIfNotAuto(
           computed_style(), layout_params.containing_block_size);
       set_margin_left(maybe_margin_left.value_or(LayoutUnit()));
     }
@@ -169,7 +169,7 @@ void InlineContainerBox::UpdateContentSizeAndMargins(
       // A computed value of "auto" for "margin-left" or "margin-right" becomes
       // a used value of "0".
       //   https://www.w3.org/TR/CSS21/visudet.html#inline-width
-      base::Optional<LayoutUnit> maybe_margin_right =
+      absl::optional<LayoutUnit> maybe_margin_right =
           GetUsedMarginRightIfNotAuto(computed_style(),
                                       layout_params.containing_block_size);
       set_margin_right(maybe_margin_right.value_or(LayoutUnit()));
@@ -376,12 +376,12 @@ bool InlineContainerBox::TrySplitAtSecondBidiLevelRun() {
   return true;
 }
 
-base::Optional<int> InlineContainerBox::GetBidiLevel() const {
+absl::optional<int> InlineContainerBox::GetBidiLevel() const {
   if (!child_boxes().empty()) {
     return child_boxes().front()->GetBidiLevel();
   }
 
-  return base::nullopt;
+  return absl::nullopt;
 }
 
 void InlineContainerBox::SetShouldCollapseLeadingWhiteSpace(

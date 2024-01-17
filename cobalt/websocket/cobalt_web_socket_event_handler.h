@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "base/optional.h"
 #include "cobalt/websocket/web_socket_frame_container.h"
 #include "cobalt/websocket/web_socket_handshake_helper.h"
 #include "net/base/io_buffer.h"

@@ -69,14 +69,14 @@ void Animation::Play() {
 // https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#cancel-an-animation
 void Animation::Cancel() {
   // 5.  Make animation's start time unresolved.
-  data_.set_start_time(base::nullopt);
+  data_.set_start_time(absl::nullopt);
 
   UpdatePendingTasks();
 }
 
-base::Optional<base::TimeDelta> Animation::current_time_as_time_delta() const {
+absl::optional<base::TimeDelta> Animation::current_time_as_time_delta() const {
   if (!timeline_) {
-    return base::nullopt;
+    return absl::nullopt;
   }
 
   return data_.ComputeLocalTimeFromTimelineTime(
@@ -84,10 +84,10 @@ base::Optional<base::TimeDelta> Animation::current_time_as_time_delta() const {
 }
 
 // https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-current-time-of-an-animation
-base::Optional<double> Animation::current_time() const {
-  base::Optional<base::TimeDelta> current_time = current_time_as_time_delta();
-  return current_time ? base::Optional<double>(current_time->InMillisecondsF())
-                      : base::nullopt;
+absl::optional<double> Animation::current_time() const {
+  absl::optional<base::TimeDelta> current_time = current_time_as_time_delta();
+  return current_time ? absl::optional<double>(current_time->InMillisecondsF())
+                      : absl::nullopt;
 }
 
 namespace {
@@ -97,22 +97,22 @@ base::TimeDelta ScaleTime(const base::TimeDelta& time, double scale) {
 }  // namespace
 
 // https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#the-current-time-of-an-animation
-base::Optional<base::TimeDelta>
+absl::optional<base::TimeDelta>
 Animation::Data::ComputeLocalTimeFromTimelineTime(
-    const base::Optional<base::TimeDelta>& timeline_time) const {
+    const absl::optional<base::TimeDelta>& timeline_time) const {
   // TODO: Take into account the hold time.
   if (!timeline_time || !start_time_) {
-    return base::nullopt;
+    return absl::nullopt;
   }
 
   return ScaleTime(*timeline_time - *start_time_, playback_rate_);
 }
 
-base::Optional<base::TimeDelta>
+absl::optional<base::TimeDelta>
 Animation::Data::ComputeTimelineTimeFromLocalTime(
-    const base::Optional<base::TimeDelta>& local_time) const {
+    const absl::optional<base::TimeDelta>& local_time) const {
   if (!start_time_ || !local_time) {
-    return base::nullopt;
+    return absl::nullopt;
   }
 
   if (local_time == base::TimeDelta::Max()) {
@@ -123,7 +123,7 @@ Animation::Data::ComputeTimelineTimeFromLocalTime(
 }
 
 // https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#setting-the-current-time-of-an-animation
-void Animation::set_current_time(const base::Optional<double>& current_time) {
+void Animation::set_current_time(const absl::optional<double>& current_time) {
   NOTIMPLEMENTED();
 }
 
@@ -159,7 +159,7 @@ void Animation::UpdatePendingTasks() {
   base::TimeDelta end_time_local =
       effect_->timing()->data().time_until_after_phase(base::TimeDelta());
 
-  base::Optional<base::TimeDelta> end_time_timeline =
+  absl::optional<base::TimeDelta> end_time_timeline =
       data_.ComputeTimelineTimeFromLocalTime(end_time_local);
 
   // If the local time is unresolved, then we cannot know when we will enter

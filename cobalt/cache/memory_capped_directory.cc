@@ -134,10 +134,10 @@ std::vector<uint32_t> MemoryCappedDirectory::KeysWithMetadata() {
   return keys;
 }
 
-base::Optional<base::Value> MemoryCappedDirectory::Metadata(uint32_t key) {
+absl::optional<base::Value> MemoryCappedDirectory::Metadata(uint32_t key) {
   auto metadata_path = GetFilePath(key).AddExtension(kMetadataExtension);
   if (!base::PathExists(metadata_path)) {
-    return base::nullopt;
+    return absl::nullopt;
   }
   std::string serialized_metadata;
   base::ReadFileToString(metadata_path, &serialized_metadata);
@@ -168,7 +168,7 @@ std::unique_ptr<std::vector<uint8_t>> MemoryCappedDirectory::Retrieve(
 
 void MemoryCappedDirectory::Store(uint32_t key,
                                   const std::vector<uint8_t>& data,
-                                  const base::Optional<base::Value>& metadata) {
+                                  const absl::optional<base::Value>& metadata) {
   base::AutoLock auto_lock(lock_);
   auto file_path = GetFilePath(key);
   uint32_t new_entry_size = static_cast<uint32_t>(data.size());

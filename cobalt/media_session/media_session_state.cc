@@ -20,9 +20,9 @@ namespace cobalt {
 namespace media_session {
 
 MediaSessionState::MediaSessionState(
-    base::Optional<MediaMetadataInit> metadata,
+    absl::optional<MediaMetadataInit> metadata,
     int64_t last_position_updated_time,
-    const base::Optional<MediaPositionState>& media_position_state,
+    const absl::optional<MediaPositionState>& media_position_state,
     MediaSessionPlaybackState actual_playback_state,
     AvailableActionsSet available_actions)
     : metadata_(metadata),

@@ -23,7 +23,6 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "base/message_loop/message_loop.h"
-#include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "base/task/sequence_manager/moveable_auto_lock.h"
 #include "cobalt/loader/fetcher_factory.h"
@@ -39,6 +38,7 @@
 #include "cobalt/worker/service_worker_registration_object.h"
 #include "cobalt/worker/service_worker_update_via_cache.h"
 #include "starboard/common/atomic.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -297,7 +297,7 @@ class ServiceWorkerJobs {
       scoped_refptr<UpdateJobState> state, loader::Fetcher* fetcher,
       const scoped_refptr<net::HttpResponseHeaders>& headers);
   void UpdateOnLoadingComplete(scoped_refptr<UpdateJobState> state,
-                               const base::Optional<std::string>& error);
+                               const absl::optional<std::string>& error);
 
   void UpdateOnRunServiceWorker(scoped_refptr<UpdateJobState> state,
                                 scoped_refptr<ServiceWorkerObject> worker,

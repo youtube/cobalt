@@ -235,7 +235,7 @@ void RecordImage(scoped_refptr<render_tree::Image>* image_pointer,
   *image_pointer = static_image->image();
 }
 
-void DecodeError(const base::Optional<std::string>& error) {
+void DecodeError(const absl::optional<std::string>& error) {
   if (error) LOG(ERROR) << *error;
 }
 }  // namespace
@@ -368,7 +368,7 @@ bool AnimatedWebPImage::AdvanceFrame() {
     // Check if we have finished looping, and if so return indicating that there
     // is no additional frame available.
     if (LoopingFinished()) {
-      next_frame_time_ = base::nullopt;
+      next_frame_time_ = absl::nullopt;
       return false;
     }
 

@@ -62,7 +62,7 @@ JSONObject ScriptDebuggerAgent::Freeze() {
   return agent_state;
 }
 
-base::Optional<Command> ScriptDebuggerAgent::RunCommand(Command command) {
+absl::optional<Command> ScriptDebuggerAgent::RunCommand(Command command) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Use an internal ID to store the pending command until we get a response.
@@ -83,12 +83,12 @@ base::Optional<Command> ScriptDebuggerAgent::RunCommand(Command command) {
   if (script_debugger_->DispatchProtocolMessage(method,
                                                 JSONStringify(message))) {
     // The command has been dispatched; keep ownership of it in the map.
-    return base::nullopt;
+    return absl::nullopt;
   }
 
   // Take the command back out of the map and return it for fallback.
   auto opt_command =
-      base::make_optional(std::move(pending_commands_.at(command_id)));
+      absl::make_optional(std::move(pending_commands_.at(command_id)));
   pending_commands_.erase(command_id);
   return opt_command;
 }

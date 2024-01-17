@@ -23,9 +23,9 @@
 #include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
 #include "base/macros.h"
-#include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "base/values.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace cache {
@@ -54,10 +54,10 @@ class MemoryCappedDirectory {
   bool Delete(uint32_t key);
   void DeleteAll();
   std::vector<uint32_t> KeysWithMetadata();
-  base::Optional<base::Value> Metadata(uint32_t key);
+  absl::optional<base::Value> Metadata(uint32_t key);
   std::unique_ptr<std::vector<uint8_t>> Retrieve(uint32_t key);
   void Store(uint32_t key, const std::vector<uint8_t>& data,
-             const base::Optional<base::Value>& metadata);
+             const absl::optional<base::Value>& metadata);
   void Resize(uint32_t size);
 
  private:

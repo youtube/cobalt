@@ -43,10 +43,10 @@ const char kDebugConsoleModeMediaString[] = "media";
 
 // Convert from a debug console visibility setting string to an integer
 // value specified by a constant defined in debug::console::DebugHub.
-base::Optional<int> DebugConsoleModeStringToInt(
+absl::optional<int> DebugConsoleModeStringToInt(
     const std::string& mode_string) {
   // Static casting is necessary in order to get around what appears to be a
-  // compiler error on Linux when implicitly constructing a base::Optional<int>
+  // compiler error on Linux when implicitly constructing a absl::optional<int>
   // from a static const int.
   if (mode_string == kDebugConsoleModeOffString) {
     return static_cast<int>(debug::console::kDebugConsoleModeOff);
@@ -61,13 +61,13 @@ base::Optional<int> DebugConsoleModeStringToInt(
   } else {
     DLOG(WARNING) << "Debug console mode \"" << mode_string
                   << "\" not recognized.";
-    return base::nullopt;
+    return absl::nullopt;
   }
 }
 
 // Returns the debug console mode as specified by the command line.
-// If unspecified by the command line, base::nullopt is returned.
-base::Optional<int> GetDebugConsoleModeFromCommandLine() {
+// If unspecified by the command line, absl::nullopt is returned.
+absl::optional<int> GetDebugConsoleModeFromCommandLine() {
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kDebugConsoleMode)) {
@@ -77,13 +77,13 @@ base::Optional<int> GetDebugConsoleModeFromCommandLine() {
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
-  return base::nullopt;
+  return absl::nullopt;
 }
 
 // Returns the debug console's initial visibility mode.
 int GetInitialMode() {
   // First check to see if the mode is explicitly set from the command line.
-  base::Optional<int> mode_from_command_line =
+  absl::optional<int> mode_from_command_line =
       GetDebugConsoleModeFromCommandLine();
   if (mode_from_command_line) {
     return *mode_from_command_line;

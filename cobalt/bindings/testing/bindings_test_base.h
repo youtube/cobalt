@@ -74,7 +74,7 @@ class BindingsTestBase : public ::testing::Test {
 
   bool EvaluateScript(const std::string& script,
                       const scoped_refptr<script::Wrappable>& owning_object,
-                      base::Optional<script::ValueHandleHolder::Reference>*
+                      absl::optional<script::ValueHandleHolder::Reference>*
                           out_value_handle = NULL) {
     scoped_refptr<script::SourceCode> source =
         script::SourceCode::CreateSourceCode(

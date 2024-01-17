@@ -21,13 +21,13 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "base/optional.h"
 #include "cobalt/base/debugger_hooks.h"
 #include "cobalt/base/token.h"
 #include "cobalt/dom/mutation_observer.h"
 #include "cobalt/dom/mutation_observer_init.h"
 #include "cobalt/dom/registered_observer_list.h"
 #include "cobalt/web/event_target.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace dom {
@@ -132,16 +132,16 @@ class Node : public web::EventTarget {
   Node* next_sibling() const { return next_sibling_.get(); }
   Node* previous_sibling() const { return previous_sibling_; }
 
-  virtual base::Optional<std::string> node_value() const {
-    return base::nullopt;
+  virtual absl::optional<std::string> node_value() const {
+    return absl::nullopt;
   }
-  virtual void set_node_value(const base::Optional<std::string>& node_value) {}
+  virtual void set_node_value(const absl::optional<std::string>& node_value) {}
 
-  virtual base::Optional<std::string> text_content() const {
-    return base::nullopt;
+  virtual absl::optional<std::string> text_content() const {
+    return absl::nullopt;
   }
   virtual void set_text_content(
-      const base::Optional<std::string>& text_content) {}
+      const absl::optional<std::string>& text_content) {}
 
   scoped_refptr<Node> CloneNode(bool deep) const;
 

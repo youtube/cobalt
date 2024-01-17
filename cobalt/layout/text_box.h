@@ -62,7 +62,7 @@ class TextBox : public Box {
 
   void SplitBidiLevelRuns() override;
   bool TrySplitAtSecondBidiLevelRun() override;
-  base::Optional<int> GetBidiLevel() const override;
+  absl::optional<int> GetBidiLevel() const override;
 
   void SetShouldCollapseLeadingWhiteSpace(
       bool should_collapse_leading_white_space) override;
@@ -183,7 +183,7 @@ class TextBox : public Box {
   bool has_trailing_line_break_;
 
   // A vertical offset of the baseline relatively to the origin of the text box.
-  base::Optional<LayoutUnit> baseline_offset_from_top_;
+  absl::optional<LayoutUnit> baseline_offset_from_top_;
 
   // Specifies whether or not this text box was created as a result of the split
   // of a text box.
@@ -201,7 +201,7 @@ class TextBox : public Box {
 
   // The width of the portion of the text that is unaffected by whitespace
   // collapsing.
-  base::Optional<LayoutUnit> non_collapsible_text_width_;
+  absl::optional<LayoutUnit> non_collapsible_text_width_;
 };
 
 }  // namespace layout

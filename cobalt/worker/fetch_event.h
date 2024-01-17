@@ -60,9 +60,9 @@ class FetchEvent : public ::cobalt::worker::ExtendableEvent {
   DEFINE_WRAPPABLE_TYPE(FetchEvent);
 
  private:
-  base::Optional<v8::Local<v8::Promise>> GetText(
+  absl::optional<v8::Local<v8::Promise>> GetText(
       v8::Local<v8::Promise> response_promise);
-  base::Optional<v8::Local<v8::Promise>> DoRespondWith(
+  absl::optional<v8::Local<v8::Promise>> DoRespondWith(
       v8::Local<v8::Promise> text_promise);
   void RespondWithDone();
 

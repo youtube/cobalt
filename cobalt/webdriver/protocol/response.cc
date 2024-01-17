@@ -30,7 +30,7 @@ std::unique_ptr<base::Value> Response::CreateErrorResponse(
 }
 
 std::unique_ptr<base::Value> Response::CreateResponse(
-    const base::Optional<protocol::SessionId>& session_id,
+    const absl::optional<protocol::SessionId>& session_id,
     StatusCode status_code,
     std::unique_ptr<base::Value> webdriver_response_value) {
   std::unique_ptr<base::DictionaryValue> http_response_value(

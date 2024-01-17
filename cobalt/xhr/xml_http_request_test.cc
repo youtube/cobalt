@@ -232,16 +232,16 @@ TEST_F(XhrTest, SetRequestHeader) {
 
 TEST_F(XhrTest, GetResponseHeader) {
   xhr_->xhr_impl_->set_state(XMLHttpRequest::kUnsent);
-  EXPECT_EQ(base::nullopt, xhr_->GetResponseHeader("Content-Type"));
+  EXPECT_EQ(absl::nullopt, xhr_->GetResponseHeader("Content-Type"));
   xhr_->xhr_impl_->set_state(XMLHttpRequest::kOpened);
-  EXPECT_EQ(base::nullopt, xhr_->GetResponseHeader("Content-Type"));
+  EXPECT_EQ(absl::nullopt, xhr_->GetResponseHeader("Content-Type"));
   xhr_->xhr_impl_->set_state(XMLHttpRequest::kHeadersReceived);
   scoped_refptr<net::HttpResponseHeaders> fake_headers(
       new net::HttpResponseHeaders(
           std::string(kFakeHeaders, kFakeHeaders + sizeof(kFakeHeaders))));
 
   xhr_->xhr_impl_->set_http_response_headers(fake_headers);
-  EXPECT_EQ(base::nullopt, xhr_->GetResponseHeader("Unknown"));
+  EXPECT_EQ(absl::nullopt, xhr_->GetResponseHeader("Unknown"));
   EXPECT_EQ("text/plain", xhr_->GetResponseHeader("Content-Type").value_or(""));
   EXPECT_EQ("text/plain", xhr_->GetResponseHeader("CONTENT-TYPE").value_or(""));
   EXPECT_EQ("2, 1",

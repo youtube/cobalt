@@ -17,9 +17,9 @@
 
 #include <vector>
 
-#include "base/optional.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/math/size_f.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace layout {
@@ -27,7 +27,7 @@ namespace layout {
 struct LetterboxDimensions {
   // The destination dimensions of the image such that its aspect ratio is
   // maintained.
-  base::Optional<math::RectF> image_rect;
+  absl::optional<math::RectF> image_rect;
 
   // A set of filling rectangles that pad the image.
   std::vector<math::RectF> fill_rects;

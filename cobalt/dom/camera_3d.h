@@ -87,7 +87,7 @@ class Camera3D : public script::Wrappable {
 
   // State to control the polling and event firing rate.
   base::RepeatingTimer orientation_event_timer_;
-  base::Optional<base::TimeTicks> last_event_time_;
+  absl::optional<base::TimeTicks> last_event_time_;
   double last_event_alpha_;
   double last_event_beta_;
   double last_event_gamma_;

@@ -25,13 +25,13 @@ InlineLevelReplacedBox::InlineLevelReplacedBox(
         css_computed_style_declaration,
     const ReplaceImageCB& replace_image_cb, const SetBoundsCB& set_bounds_cb,
     const scoped_refptr<Paragraph>& paragraph, int32 text_position,
-    const base::Optional<LayoutUnit>& maybe_intrinsic_width,
-    const base::Optional<LayoutUnit>& maybe_intrinsic_height,
-    const base::Optional<float>& maybe_intrinsic_ratio,
+    const absl::optional<LayoutUnit>& maybe_intrinsic_width,
+    const absl::optional<LayoutUnit>& maybe_intrinsic_height,
+    const absl::optional<float>& maybe_intrinsic_ratio,
     UsedStyleProvider* used_style_provider,
-    base::Optional<ReplacedBox::ReplacedBoxMode> replaced_box_mode,
+    absl::optional<ReplacedBox::ReplacedBoxMode> replaced_box_mode,
     const math::SizeF& content_size,
-    base::Optional<render_tree::LottieAnimation::LottieProperties>
+    absl::optional<render_tree::LottieAnimation::LottieProperties>
         lottie_properties,
     LayoutStatTracker* layout_stat_tracker)
     : ReplacedBox(css_computed_style_declaration, replace_image_cb,
@@ -69,8 +69,8 @@ bool InlineLevelReplacedBox::IsHiddenByEllipsis() const {
 void InlineLevelReplacedBox::UpdateHorizontalMargins(
     BaseDirection containing_block_direction, LayoutUnit containing_block_width,
     LayoutUnit border_box_width,
-    const base::Optional<LayoutUnit>& maybe_margin_left,
-    const base::Optional<LayoutUnit>& maybe_margin_right) {
+    const absl::optional<LayoutUnit>& maybe_margin_left,
+    const absl::optional<LayoutUnit>& maybe_margin_right) {
   // A computed value of "auto" for "margin-left" or "margin-right" becomes
   // a used value of "0".
   //   https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width

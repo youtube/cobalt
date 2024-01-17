@@ -19,12 +19,12 @@
 #include <set>
 #include <string>
 
-#include "base/optional.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/debug/backend/debug_dispatcher.h"
 #include "cobalt/debug/backend/script_debugger_agent.h"
 #include "cobalt/debug/command.h"
 #include "cobalt/script/script_debugger.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace debug {
@@ -45,7 +45,7 @@ class ScriptDebuggerAgent {
   bool IsSupportedDomain(const std::string& domain) {
     return supported_domains_.count(domain) != 0;
   }
-  base::Optional<Command> RunCommand(Command command);
+  absl::optional<Command> RunCommand(Command command);
   void SendCommandResponse(const std::string& json_response);
   void SendEvent(const std::string& json_event);
 

@@ -50,7 +50,7 @@ class MutationReporter {
   // of mutations.
   void ReportAttributesMutation(
       const std::string& name,
-      const base::Optional<std::string>& old_value) const;
+      const absl::optional<std::string>& old_value) const;
   void ReportCharacterDataMutation(const std::string& old_value) const;
   void ReportChildListMutation(
       const scoped_refptr<dom::NodeList>& added_nodes,

@@ -16,9 +16,9 @@
 #define COBALT_WEB_EVENT_LISTENER_H_
 
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/event.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace web {
@@ -32,7 +32,7 @@ class EventListener {
   //
   // Cobalt's implementation of callback interfaces requires the 'callback this'
   // to be explicitly passed in.
-  virtual base::Optional<bool> HandleEvent(
+  virtual absl::optional<bool> HandleEvent(
       const scoped_refptr<script::Wrappable>& callback_this,
       const scoped_refptr<Event>& event, bool* had_exception) const = 0;
 };

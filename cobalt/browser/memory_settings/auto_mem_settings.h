@@ -18,10 +18,10 @@
 #define COBALT_BROWSER_MEMORY_SETTINGS_AUTO_MEM_SETTINGS_H_
 
 #include "base/command_line.h"
-#include "base/optional.h"
 #include "cobalt/browser/memory_settings/texture_dimensions.h"
 #include "cobalt/math/size.h"
 #include "starboard/types.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace browser {
@@ -36,17 +36,17 @@ struct AutoMemSettings {
   explicit AutoMemSettings(Type type) : type(type) {}
 
   Type type;
-  base::Optional<int64_t> cobalt_encoded_image_cache_size_in_bytes;
-  base::Optional<int64_t> cobalt_image_cache_size_in_bytes;
-  base::Optional<int64_t> remote_typeface_cache_capacity_in_bytes;
-  base::Optional<int64_t> skia_cache_size_in_bytes;
-  base::Optional<TextureDimensions> skia_texture_atlas_dimensions;
-  base::Optional<int64_t> offscreen_target_cache_size_in_bytes;
+  absl::optional<int64_t> cobalt_encoded_image_cache_size_in_bytes;
+  absl::optional<int64_t> cobalt_image_cache_size_in_bytes;
+  absl::optional<int64_t> remote_typeface_cache_capacity_in_bytes;
+  absl::optional<int64_t> skia_cache_size_in_bytes;
+  absl::optional<TextureDimensions> skia_texture_atlas_dimensions;
+  absl::optional<int64_t> offscreen_target_cache_size_in_bytes;
 
-  base::Optional<int64_t> max_cpu_in_bytes;
-  base::Optional<int64_t> max_gpu_in_bytes;
-  base::Optional<int64_t> reduce_cpu_memory_by;
-  base::Optional<int64_t> reduce_gpu_memory_by;
+  absl::optional<int64_t> max_cpu_in_bytes;
+  absl::optional<int64_t> max_gpu_in_bytes;
+  absl::optional<int64_t> reduce_cpu_memory_by;
+  absl::optional<int64_t> reduce_gpu_memory_by;
 };
 
 AutoMemSettings GetDefaultBuildSettings();

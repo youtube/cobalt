@@ -189,7 +189,7 @@ TEST_F(CallbackFunctionTest, CallbackWithNullableParameters) {
 
   // Execute the callback
   FunctionType::ReturnValue value = function_owner.reference().value().Run(
-      base::nullopt, base::nullopt, NULL);
+      absl::nullopt, absl::nullopt, NULL);
   ASSERT_FALSE(value.exception);
 
   // Verify that each parameter got passed to script as expected.

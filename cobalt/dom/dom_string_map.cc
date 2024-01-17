@@ -29,11 +29,11 @@ const size_t kDataPrefixLength = sizeof(kDataPrefix) - 1;
 
 // See "The algorithm for getting the list of name-value pairs" at
 // https://www.w3.org/TR/html50/dom.html#dom-dataset.
-base::Optional<std::string> TryConvertAttributeNameToPropertyName(
+absl::optional<std::string> TryConvertAttributeNameToPropertyName(
     const std::string& attribute_name) {
   // First five characters of attribute name should be "data-".
   if (attribute_name.compare(0, kDataPrefixLength, kDataPrefix) != 0) {
-    return base::nullopt;
+    return absl::nullopt;
   }
 
   // For each "-" (U+002D) character in the name that is followed by
@@ -61,7 +61,7 @@ base::Optional<std::string> TryConvertAttributeNameToPropertyName(
     // Attribute name should not contain uppercase ASCII characters.
     if (base::ToLowerASCII(attribute_name_character) !=
         attribute_name_character) {
-      return base::nullopt;
+      return absl::nullopt;
     }
 
     // Convert to uppercase character if preceded by hyphen.
@@ -86,7 +86,7 @@ base::Optional<std::string> TryConvertAttributeNameToPropertyName(
 
 // See "The algorithm for setting names to certain values" at
 // https://www.w3.org/TR/html50/dom.html#dom-dataset.
-base::Optional<std::string> TryConvertPropertyNameToAttributeName(
+absl::optional<std::string> TryConvertPropertyNameToAttributeName(
     const std::string& property_name) {
   // Insert the string "data-" at the front of attribute name.
   std::string attribute_name = kDataPrefix;
@@ -102,7 +102,7 @@ base::Optional<std::string> TryConvertPropertyNameToAttributeName(
     // a lowercase ASCII letter, abort these steps.
     if (preceded_by_hyphen && base::ToUpperASCII(property_name_character) !=
                                   property_name_character) {
-      return base::nullopt;
+      return absl::nullopt;
     }
 
     // For each uppercase ASCII letter in name, insert a "-" (U+002D) character
@@ -128,23 +128,23 @@ DOMStringMap::DOMStringMap(const scoped_refptr<Element>& element)
   GlobalStats::GetInstance()->Add(this);
 }
 
-base::Optional<std::string> DOMStringMap::AnonymousNamedGetter(
+absl::optional<std::string> DOMStringMap::AnonymousNamedGetter(
     const std::string& property_name, script::ExceptionState* exception_state) {
-  base::Optional<std::string> attribute_name =
+  absl::optional<std::string> attribute_name =
       TryConvertPropertyNameToAttributeName(property_name);
   if (attribute_name) {
     return element_->GetAttribute(*attribute_name);
   } else {
     exception_state->SetSimpleException(script::kSyntaxError,
                                         property_name.c_str());
-    return base::nullopt;
+    return absl::nullopt;
   }
 }
 
 void DOMStringMap::AnonymousNamedSetter(
     const std::string& property_name, const std::string& value,
     script::ExceptionState* exception_state) {
-  base::Optional<std::string> attribute_name =
+  absl::optional<std::string> attribute_name =
       TryConvertPropertyNameToAttributeName(property_name);
   if (attribute_name) {
     element_->SetAttribute(*attribute_name, value);
@@ -156,7 +156,7 @@ void DOMStringMap::AnonymousNamedSetter(
 
 bool DOMStringMap::CanQueryNamedProperty(
     const std::string& property_name) const {
-  base::Optional<std::string> attribute_name =
+  absl::optional<std::string> attribute_name =
       TryConvertPropertyNameToAttributeName(property_name);
   // TODO: Throw a SyntaxError if attribute name is invalid once getters and
   // setters support throwing exceptions.
@@ -169,7 +169,7 @@ void DOMStringMap::EnumerateNamedProperties(
            attribute_iterator = element_->attribute_map().begin(),
            attribute_end_iterator = element_->attribute_map().end();
        attribute_iterator != attribute_end_iterator; ++attribute_iterator) {
-    base::Optional<std::string> property_name =
+    absl::optional<std::string> property_name =
         TryConvertAttributeNameToPropertyName(attribute_iterator->first);
     if (property_name) {
       enumerator->AddProperty(*property_name);

@@ -29,7 +29,7 @@ namespace web {
 namespace {
 
 v8::Local<v8::Value> ExpectState(
-    base::Optional<v8::Local<v8::Value>> promise_value,
+    absl::optional<v8::Local<v8::Value>> promise_value,
     v8::Promise::PromiseState expected) {
   EXPECT_TRUE(promise_value.has_value());
   EXPECT_TRUE(promise_value.value()->IsPromise());
@@ -173,7 +173,7 @@ TEST_F(CacheUtilsTest, ThenFulfilled) {
       cache_utils::Evaluate(isolate, "Promise.resolve('success')").value();
   auto still_fulfilled_promise = cache_utils::Then(
       promise, base::BindOnce([&](v8::Local<v8::Promise> p)
-                                  -> base::Optional<v8::Local<v8::Promise>> {
+                                  -> absl::optional<v8::Local<v8::Promise>> {
         auto* isolate = p->GetIsolate();
         std::string new_message =
             "still " + cache_utils::FromV8String(isolate, p->Result());
@@ -195,7 +195,7 @@ TEST_F(CacheUtilsTest, ThenFulfilledThenRejected) {
       cache_utils::Evaluate(isolate, "Promise.resolve('success')").value();
   auto rejected_promise = cache_utils::Then(
       promise, base::BindOnce([&](v8::Local<v8::Promise> p)
-                                  -> base::Optional<v8::Local<v8::Promise>> {
+                                  -> absl::optional<v8::Local<v8::Promise>> {
         auto* isolate = p->GetIsolate();
         std::string new_message =
             "no longer " + cache_utils::FromV8String(isolate, p->Result());
@@ -218,8 +218,8 @@ TEST_F(CacheUtilsTest, ThenRejected) {
   auto still_rejected_promise = cache_utils::Then(
       promise,
       base::BindOnce(
-          [](v8::Local<v8::Promise>) -> base::Optional<v8::Local<v8::Promise>> {
-            return base::nullopt;
+          [](v8::Local<v8::Promise>) -> absl::optional<v8::Local<v8::Promise>> {
+            return absl::nullopt;
           }));
   auto promise_result =
       ExpectState(still_rejected_promise, v8::Promise::PromiseState::kRejected);

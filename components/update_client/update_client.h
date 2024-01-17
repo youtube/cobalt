@@ -16,6 +16,7 @@
 #include "base/optional.h"
 #include "base/version.h"
 #include "components/update_client/update_client_errors.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 // The UpdateClient class is a facade with a simple interface. The interface
 // exposes a few APIs to install a CRX or update a group of CRXs.
@@ -282,7 +283,7 @@ using Callback = base::OnceCallback<void(Error error)>;
 class UpdateClient : public base::RefCounted<UpdateClient> {
  public:
   using CrxDataCallback =
-      base::OnceCallback<std::vector<base::Optional<CrxComponent>>(
+      base::OnceCallback<std::vector<absl::optional<CrxComponent>>(
           const std::vector<std::string>& ids)>;
 
   // Defines an interface to observe the UpdateClient. It provides

@@ -51,7 +51,7 @@ class MeshProjection : public base::RefCountedThreadSafe<MeshProjection> {
   };
 
   MeshProjection(MeshCollectionList mesh_collections,
-                 base::Optional<uint32> crc = base::nullopt)
+                 absl::optional<uint32> crc = absl::nullopt)
       : mesh_collections_(std::move(mesh_collections)), crc_(crc) {
     DCHECK_GT(mesh_collections_.size(), 0UL);
     DCHECK_LE(mesh_collections_.size(), 2UL);
@@ -59,7 +59,7 @@ class MeshProjection : public base::RefCountedThreadSafe<MeshProjection> {
     DCHECK_GT(mesh_collections_[0]->size(), 0UL);
   }
 
-  const base::Optional<uint32>& crc() const { return crc_; }
+  const absl::optional<uint32>& crc() const { return crc_; }
 
   // For stereo mode with distinct per-eye meshes, left eye is collection 0,
   // right is collection 1.
@@ -101,7 +101,7 @@ class MeshProjection : public base::RefCountedThreadSafe<MeshProjection> {
 
  private:
   const MeshCollectionList mesh_collections_;
-  const base::Optional<uint32> crc_;
+  const absl::optional<uint32> crc_;
 };
 
 }  // namespace mesh

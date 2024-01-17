@@ -37,7 +37,7 @@ void ScreenShotWriter::RequestScreenshotToFile(
     loader::image::EncodedStaticImage::ImageFormat desired_format,
     const base::FilePath& output_path,
     const scoped_refptr<render_tree::Node>& render_tree_root,
-    const base::Optional<math::Rect>& clip_rect,
+    const absl::optional<math::Rect>& clip_rect,
     const base::Closure& complete) {
   base::Callback<void(const scoped_refptr<loader::image::EncodedStaticImage>&)>
       done_encoding_callback =
@@ -52,7 +52,7 @@ void ScreenShotWriter::RequestScreenshotToFile(
 
 void ScreenShotWriter::RequestScreenshotToMemoryUnencoded(
     const scoped_refptr<render_tree::Node>& render_tree_root,
-    const base::Optional<math::Rect>& clip_rect,
+    const absl::optional<math::Rect>& clip_rect,
     const renderer::Pipeline::RasterizationCompleteCallback& callback) {
   DCHECK(!callback.is_null());
   if (clip_rect && clip_rect->IsEmpty()) {
@@ -68,7 +68,7 @@ void ScreenShotWriter::RequestScreenshotToMemoryUnencoded(
 void ScreenShotWriter::RequestScreenshotToMemory(
     loader::image::EncodedStaticImage::ImageFormat desired_format,
     const scoped_refptr<render_tree::Node>& render_tree_root,
-    const base::Optional<math::Rect>& clip_rect,
+    const absl::optional<math::Rect>& clip_rect,
     const ScreenShotWriter::ImageEncodeCompleteCallback& screenshot_ready) {
   renderer::Pipeline::RasterizationCompleteCallback callback =
       base::Bind(&ScreenShotWriter::EncodeData, base::Unretained(this),

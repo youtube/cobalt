@@ -263,7 +263,7 @@ void MediaSessionClient::UpdateMediaSessionState() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   scoped_refptr<MediaMetadata> session_metadata(media_session_->metadata());
-  base::Optional<MediaMetadataInit> metadata;
+  absl::optional<MediaMetadataInit> metadata;
   if (session_metadata) {
     metadata.emplace();
     metadata->set_title(session_metadata->title());

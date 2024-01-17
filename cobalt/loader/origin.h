@@ -17,7 +17,7 @@
 
 #include <string>
 
-#include "base/optional.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -50,11 +50,11 @@ class Origin {
   };
 
   // Helper function for extracting a tuple from a URL.  If a tuple cannot
-  // be extracted, then base::nullopt is returned.
-  static base::Optional<Origin::Tuple> GetTupleFromURL(
+  // be extracted, then absl::nullopt is returned.
+  static absl::optional<Origin::Tuple> GetTupleFromURL(
       const GURL& url, bool recurse_into_blob_paths);
 
-  base::Optional<Tuple> tuple_;
+  absl::optional<Tuple> tuple_;
 };
 }  // namespace loader
 }  // namespace cobalt

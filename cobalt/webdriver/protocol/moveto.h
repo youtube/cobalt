@@ -17,9 +17,9 @@
 
 #include <memory>
 
-#include "base/optional.h"
 #include "base/values.h"
 #include "cobalt/webdriver/protocol/element_id.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -30,19 +30,19 @@ namespace protocol {
 class Moveto {
  public:
   static std::unique_ptr<base::Value> ToValue(const Moveto& moveto);
-  static base::Optional<Moveto> FromValue(const base::Value* moveto);
+  static absl::optional<Moveto> FromValue(const base::Value* moveto);
 
-  const base::Optional<ElementId>& element() const { return element_; }
-  const base::Optional<int>& xoffset() const { return xoffset_; }
-  const base::Optional<int>& yoffset() const { return yoffset_; }
+  const absl::optional<ElementId>& element() const { return element_; }
+  const absl::optional<int>& xoffset() const { return xoffset_; }
+  const absl::optional<int>& yoffset() const { return yoffset_; }
 
  private:
-  Moveto(const base::Optional<ElementId>& element,
-         const base::Optional<int>& xoffset, const base::Optional<int>& yoffset)
+  Moveto(const absl::optional<ElementId>& element,
+         const absl::optional<int>& xoffset, const absl::optional<int>& yoffset)
       : element_(element), xoffset_(xoffset), yoffset_(yoffset) {}
-  const base::Optional<ElementId> element_;
-  const base::Optional<int> xoffset_;
-  const base::Optional<int> yoffset_;
+  const absl::optional<ElementId> element_;
+  const absl::optional<int> xoffset_;
+  const absl::optional<int> yoffset_;
 };
 
 }  // namespace protocol

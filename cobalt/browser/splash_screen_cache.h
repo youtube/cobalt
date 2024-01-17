@@ -19,9 +19,9 @@
 #include <string>
 #include <vector>
 
-#include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/loader/cache_fetcher.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -39,7 +39,7 @@ class SplashScreenCache {
 
   // Cache the splash screen.
   bool CacheSplashScreen(const std::string& content,
-                         const base::Optional<std::string>& topic) const;
+                         const absl::optional<std::string>& topic) const;
 
   // Read the cached the splash screen.
   int ReadCachedSplashScreen(const std::string& key,
@@ -49,21 +49,21 @@ class SplashScreenCache {
   bool IsSplashScreenCached() const;
 
   // Set the URL of the currently requested splash screen.
-  void SetUrl(const GURL& url, const base::Optional<std::string>& topic) {
+  void SetUrl(const GURL& url, const absl::optional<std::string>& topic) {
     url_ = url;
     topic_ = topic;
   }
 
   // Get the cache location of the currently requested splash screen.
   GURL GetCachedSplashScreenUrl() {
-    base::Optional<std::string> key = GetKeyForStartConfig(url_, topic_);
+    absl::optional<std::string> key = GetKeyForStartConfig(url_, topic_);
     return GURL(loader::kCacheScheme + ("://" + *key));
   }
 
  private:
   // Get the key that corresponds to the starting URL and (optional) topic.
-  base::Optional<std::string> GetKeyForStartConfig(
-      const GURL& url, const base::Optional<std::string>& topic) const;
+  absl::optional<std::string> GetKeyForStartConfig(
+      const GURL& url, const absl::optional<std::string>& topic) const;
 
   // Adds the directory to the path and subpath if the new path does not exceed
   // maximum length. Returns true if successful.
@@ -77,7 +77,7 @@ class SplashScreenCache {
   // Latest url that was navigated to.
   GURL url_;
   // Splash topic associated with startup.
-  base::Optional<std::string> topic_;
+  absl::optional<std::string> topic_;
 };
 
 }  // namespace browser

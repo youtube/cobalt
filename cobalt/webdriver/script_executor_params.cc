@@ -23,7 +23,7 @@ namespace webdriver {
 ScriptExecutorParams::GCPreventedParams ScriptExecutorParams::Create(
     const scoped_refptr<script::GlobalEnvironment>& global_environment,
     const std::string& function_body, const std::string& json_args,
-    base::Optional<base::TimeDelta> async_timeout) {
+    absl::optional<base::TimeDelta> async_timeout) {
   scoped_refptr<ScriptExecutorParams> params(new ScriptExecutorParams());
   DCHECK(!params->prevent_gc_until_create_complete_);
   params->prevent_gc_until_create_complete_.reset(

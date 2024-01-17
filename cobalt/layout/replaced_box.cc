@@ -101,13 +101,13 @@ ReplacedBox::ReplacedBox(
         css_computed_style_declaration,
     const ReplaceImageCB& replace_image_cb, const SetBoundsCB& set_bounds_cb,
     const scoped_refptr<Paragraph>& paragraph, int32 text_position,
-    const base::Optional<LayoutUnit>& maybe_intrinsic_width,
-    const base::Optional<LayoutUnit>& maybe_intrinsic_height,
-    const base::Optional<float>& maybe_intrinsic_ratio,
+    const absl::optional<LayoutUnit>& maybe_intrinsic_width,
+    const absl::optional<LayoutUnit>& maybe_intrinsic_height,
+    const absl::optional<float>& maybe_intrinsic_ratio,
     UsedStyleProvider* used_style_provider,
-    base::Optional<ReplacedBoxMode> replaced_box_mode,
+    absl::optional<ReplacedBoxMode> replaced_box_mode,
     const math::SizeF& content_size,
-    base::Optional<render_tree::LottieAnimation::LottieProperties>
+    absl::optional<render_tree::LottieAnimation::LottieProperties>
         lottie_properties,
     LayoutStatTracker* layout_stat_tracker)
     : Box(css_computed_style_declaration, used_style_provider,
@@ -183,7 +183,7 @@ void ReplacedBox::SplitBidiLevelRuns() {}
 
 bool ReplacedBox::TrySplitAtSecondBidiLevelRun() { return false; }
 
-base::Optional<int> ReplacedBox::GetBidiLevel() const {
+absl::optional<int> ReplacedBox::GetBidiLevel() const {
   return paragraph_->GetBidiLevel(text_position_);
 }
 
@@ -366,9 +366,9 @@ void ReplacedBox::RenderAndAnimateContent(
 
 void ReplacedBox::UpdateContentSizeAndMargins(
     const LayoutParams& layout_params) {
-  base::Optional<LayoutUnit> maybe_width = GetUsedWidthIfNotAuto(
+  absl::optional<LayoutUnit> maybe_width = GetUsedWidthIfNotAuto(
       computed_style(), layout_params.containing_block_size, NULL);
-  base::Optional<LayoutUnit> maybe_height = GetUsedHeightIfNotAuto(
+  absl::optional<LayoutUnit> maybe_height = GetUsedHeightIfNotAuto(
       computed_style(), layout_params.containing_block_size, NULL);
 
   if (layout_params.freeze_width) {
@@ -378,9 +378,9 @@ void ReplacedBox::UpdateContentSizeAndMargins(
     maybe_height = height();
   }
 
-  base::Optional<LayoutUnit> maybe_left = GetUsedLeftIfNotAuto(
+  absl::optional<LayoutUnit> maybe_left = GetUsedLeftIfNotAuto(
       computed_style(), layout_params.containing_block_size);
-  base::Optional<LayoutUnit> maybe_top = GetUsedTopIfNotAuto(
+  absl::optional<LayoutUnit> maybe_top = GetUsedTopIfNotAuto(
       computed_style(), layout_params.containing_block_size);
 
   if (IsAbsolutelyPositioned()) {
@@ -467,13 +467,13 @@ void ReplacedBox::UpdateContentSizeAndMargins(
     // 'height' specified as 'auto', the algorithm is as described in
     // https://www.w3.org/TR/CSS21/visudet.html#min-max-widths.
 
-    base::Optional<LayoutUnit> maybe_max_width = GetUsedMaxWidthIfNotNone(
+    absl::optional<LayoutUnit> maybe_max_width = GetUsedMaxWidthIfNotNone(
         computed_style(), layout_params.containing_block_size, NULL);
     LayoutUnit min_width =
         GetUsedMinWidthIfNotAuto(computed_style(),
                                  layout_params.containing_block_size, NULL)
             .value_or(LayoutUnit());
-    base::Optional<LayoutUnit> maybe_max_height = GetUsedMaxHeightIfNotNone(
+    absl::optional<LayoutUnit> maybe_max_height = GetUsedMaxHeightIfNotNone(
         computed_style(), layout_params.containing_block_size);
     LayoutUnit min_height =
         GetUsedMinHeightIfNotAuto(computed_style(),
@@ -492,14 +492,14 @@ void ReplacedBox::UpdateContentSizeAndMargins(
     // Take the max-width and max-height as max(min, max) so that min <= max
     // holds true.
     //   https://www.w3.org/TR/CSS21/visudet.html#min-max-widths
-    base::Optional<LayoutUnit> max_height;
+    absl::optional<LayoutUnit> max_height;
     bool h_greater_than_max_height = false;
     if (maybe_max_height) {
       max_height = std::max(min_height, *maybe_max_height);
       h_greater_than_max_height = h > *max_height;
     }
 
-    base::Optional<LayoutUnit> max_width;
+    absl::optional<LayoutUnit> max_width;
     bool w_greater_than_max_width = false;
     if (maybe_max_width) {
       max_width = std::max(min_width, *maybe_max_width);
@@ -609,9 +609,9 @@ void ReplacedBox::UpdateContentSizeAndMargins(
   // versus inline level replaced boxes.
   //   https://www.w3.org/TR/CSS21/visudet.html#inline-replaced-width
   //   https://www.w3.org/TR/CSS21/visudet.html#block-replaced-width
-  base::Optional<LayoutUnit> maybe_margin_left = GetUsedMarginLeftIfNotAuto(
+  absl::optional<LayoutUnit> maybe_margin_left = GetUsedMarginLeftIfNotAuto(
       computed_style(), layout_params.containing_block_size);
-  base::Optional<LayoutUnit> maybe_margin_right = GetUsedMarginRightIfNotAuto(
+  absl::optional<LayoutUnit> maybe_margin_right = GetUsedMarginRightIfNotAuto(
       computed_style(), layout_params.containing_block_size);
   LayoutUnit border_box_width = GetBorderBoxWidth();
   UpdateHorizontalMargins(layout_params.containing_block_direction,
@@ -619,9 +619,9 @@ void ReplacedBox::UpdateContentSizeAndMargins(
                           border_box_width, maybe_margin_left,
                           maybe_margin_right);
 
-  base::Optional<LayoutUnit> maybe_margin_top = GetUsedMarginTopIfNotAuto(
+  absl::optional<LayoutUnit> maybe_margin_top = GetUsedMarginTopIfNotAuto(
       computed_style(), layout_params.containing_block_size);
-  base::Optional<LayoutUnit> maybe_margin_bottom = GetUsedMarginBottomIfNotAuto(
+  absl::optional<LayoutUnit> maybe_margin_bottom = GetUsedMarginBottomIfNotAuto(
       computed_style(), layout_params.containing_block_size);
 
   // If "margin-top", or "margin-bottom" are "auto", their used value is 0.

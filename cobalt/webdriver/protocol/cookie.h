@@ -19,9 +19,9 @@
 #include <string>
 #include <vector>
 
-#include "base/optional.h"
 #include "base/time/time.h"
 #include "base/values.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -31,7 +31,7 @@ namespace protocol {
 class Cookie {
  public:
   static std::unique_ptr<base::Value> ToValue(const Cookie& cookie);
-  static base::Optional<Cookie> FromValue(const base::Value* value);
+  static absl::optional<Cookie> FromValue(const base::Value* value);
 
   // Populates a vector of Cookie objects given a semi-colon separated string
   // of cookies such as returned by Document.cookie.
@@ -40,27 +40,27 @@ class Cookie {
 
   const std::string& name() const { return name_; }
   const std::string& value() const { return value_; }
-  const base::Optional<std::string>& domain() const { return domain_; }
-  const base::Optional<std::string>& path() const { return path_; }
-  const base::Optional<bool>& secure() const { return secure_; }
-  const base::Optional<bool>& http_only() const { return http_only_; }
-  const base::Optional<base::Time>& expiry_time() const { return expiry_time_; }
+  const absl::optional<std::string>& domain() const { return domain_; }
+  const absl::optional<std::string>& path() const { return path_; }
+  const absl::optional<bool>& secure() const { return secure_; }
+  const absl::optional<bool>& http_only() const { return http_only_; }
+  const absl::optional<base::Time>& expiry_time() const { return expiry_time_; }
 
   // Constructs and returns a cookie string that could be passed to
   // Document.cookie, e.g. "foo=var; Path=/; Secure"
   std::string ToCookieString(const std::string& current_domain) const;
 
  private:
-  static base::Optional<Cookie> FromString(const std::string& cookie_as_string);
+  static absl::optional<Cookie> FromString(const std::string& cookie_as_string);
   Cookie(const std::string& name, const std::string& value)
       : name_(name), value_(value) {}
   std::string name_;
   std::string value_;
-  base::Optional<std::string> path_;
-  base::Optional<std::string> domain_;
-  base::Optional<bool> secure_;
-  base::Optional<bool> http_only_;
-  base::Optional<base::Time> expiry_time_;
+  absl::optional<std::string> path_;
+  absl::optional<std::string> domain_;
+  absl::optional<bool> secure_;
+  absl::optional<bool> http_only_;
+  absl::optional<base::Time> expiry_time_;
 };
 
 }  // namespace protocol

@@ -20,13 +20,13 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "base/optional.h"
 #include "cobalt/script/error_report.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/stack_frame.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "v8/include/v8.h"
 
 namespace cobalt {
@@ -78,7 +78,7 @@ class GlobalEnvironment : public base::RefCounted<GlobalEnvironment>,
   virtual bool EvaluateScript(
       const scoped_refptr<SourceCode>& script_utf8,
       const scoped_refptr<Wrappable>& owning_object,
-      base::Optional<ValueHandleHolder::Reference>* out_value_handle) = 0;
+      absl::optional<ValueHandleHolder::Reference>* out_value_handle) = 0;
 
   // Returns the stack trace as a vector of individual frames.
   // Set |max_frames| to 0 to retrieve all available frames. Otherwise

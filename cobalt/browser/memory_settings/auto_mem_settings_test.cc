@@ -35,9 +35,9 @@ base::CommandLine MakeCommandLine(const std::string& name,
   return command_line;
 }
 
-void TestParseInt(const base::Optional<int64_t>& expected,
+void TestParseInt(const absl::optional<int64_t>& expected,
                   const std::string& value, const std::string& name,
-                  base::Optional<int64_t>* setting) {
+                  absl::optional<int64_t>* setting) {
 #define TEST_EXTRAS                            \
   "expected=" << expected.value() << ", "      \
               << "name=\"" << name << "\", "   \
@@ -58,7 +58,7 @@ void TestParseInt(const base::Optional<int64_t>& expected,
 #undef TEST_EXTRAS
 }
 
-void TestAllParseInt(const base::Optional<int64_t>& expected,
+void TestAllParseInt(const absl::optional<int64_t>& expected,
                      const std::string& value) {
 #define TEST_PARSE_INT(expected, value, switch_name, field_name)      \
   {                                                                   \
@@ -82,7 +82,7 @@ void TestAllParseInt(const base::Optional<int64_t>& expected,
 #undef TEST_PARSE_INT
 }
 
-void TestParseDimensions(const base::Optional<TextureDimensions>& expected,
+void TestParseDimensions(const absl::optional<TextureDimensions>& expected,
                          const std::string& value) {
   base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
   command_line.AppendSwitchASCII(switches::kSkiaTextureAtlasDimensions, value);
@@ -179,23 +179,23 @@ TEST(AutoMemSettingsTest, ParseDimensionsLower) {
 }
 
 TEST(AutoMemSettingsTest, ParseDimensionsOne) {
-  TestParseDimensions(base::nullopt, "1234");
+  TestParseDimensions(absl::nullopt, "1234");
 }
 
 TEST(AutoMemSettingsTest, ParseDimensionsOneX) {
-  TestParseDimensions(base::nullopt, "1234x");
+  TestParseDimensions(absl::nullopt, "1234x");
 }
 
 TEST(AutoMemSettingsTest, ParseDimensionsTwoX) {
-  TestParseDimensions(base::nullopt, "1234x5678x");
+  TestParseDimensions(absl::nullopt, "1234x5678x");
 }
 
 TEST(AutoMemSettingsTest, ParseDimensionsBadNum1) {
-  TestParseDimensions(base::nullopt, "ABCDx1234");
+  TestParseDimensions(absl::nullopt, "ABCDx1234");
 }
 
 TEST(AutoMemSettingsTest, ParseDimensionsBadNum2) {
-  TestParseDimensions(base::nullopt, "1234xABCD");
+  TestParseDimensions(absl::nullopt, "1234xABCD");
 }
 
 TEST(AutoMemSettingsTest, ParseDimensionsUpper) {

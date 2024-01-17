@@ -52,7 +52,7 @@ debug::console::DebugConsoleMode DebugHub::GetDebugConsoleMode() const {
 }
 
 void DebugHub::Attach(const AttachCallbackArg& callback) {
-  last_error_ = base::nullopt;
+  last_error_ = absl::nullopt;
   debug_client_ = create_debug_client_callback_.Run(this);
 
   // |debug_client_| may be NULL if the WebModule is not available at this time.
@@ -66,7 +66,7 @@ void DebugHub::Attach(const AttachCallbackArg& callback) {
 }
 
 void DebugHub::Detach(const AttachCallbackArg& callback) {
-  last_error_ = base::nullopt;
+  last_error_ = absl::nullopt;
   debug_client_.reset();
   AttachCallbackArg::Reference callback_reference(this, callback);
   callback_reference.value().Run();
@@ -90,7 +90,7 @@ std::string DebugHub::ReadDebugContentText(const std::string& filename) {
 void DebugHub::SendCommand(const std::string& method,
                            const std::string& json_params,
                            const ResponseCallbackArg& callback) {
-  last_error_ = base::nullopt;
+  last_error_ = absl::nullopt;
   if (!debug_client_ || !debug_client_->IsAttached()) {
     std::unique_ptr<base::DictionaryValue> response(new base::DictionaryValue);
     response->SetString("error.message", "Debugger is not connected.");
@@ -141,7 +141,7 @@ void DebugHub::TraceMembers(script::Tracer* tracer) {
 
 void DebugHub::OnCommandResponse(
     const scoped_refptr<ResponseCallbackInfo>& callback_info,
-    const base::Optional<std::string>& response) const {
+    const absl::optional<std::string>& response) const {
   // Run the script callback on the message loop the command was sent from.
   callback_info->task_runner->PostTask(
       FROM_HERE, base::Bind(&DebugHub::RunResponseCallback, this, callback_info,
@@ -165,7 +165,7 @@ void DebugHub::OnDebugClientDetach(const std::string& reason) {
 
 void DebugHub::RunResponseCallback(
     const scoped_refptr<ResponseCallbackInfo>& callback_info,
-    base::Optional<std::string> response) const {
+    absl::optional<std::string> response) const {
   DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), callback_info->task_runner);
   callback_info->callback.value().Run(std::move(response));
 }

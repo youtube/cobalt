@@ -15,11 +15,11 @@
 #ifndef COBALT_SCRIPT_V8C_V8C_VALUE_HANDLE_H_
 #define COBALT_SCRIPT_V8C_V8C_VALUE_HANDLE_H_
 
-#include "base/optional.h"
 #include "cobalt/script/v8c/scoped_persistent.h"
 #include "cobalt/script/v8c/type_traits.h"
 #include "cobalt/script/v8c/v8c_user_object_holder.h"
 #include "cobalt/script/value_handle.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "v8/include/v8.h"
 
 namespace cobalt {

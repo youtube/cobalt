@@ -147,7 +147,7 @@ TEST_P(MessageEventTestWithJavaScript, ConstructorWithArrayBuffer) {
 }
 
 TEST_P(MessageEventTestWithJavaScript, ConstructorWithAny) {
-  base::Optional<script::ValueHandleHolder::Reference> reference;
+  absl::optional<script::ValueHandleHolder::Reference> reference;
   EvaluateScript("'ConstructorWithAnyMessageData'", &reference);
   auto* isolate = web::get_isolate(web_context()->environment_settings());
   auto structured_clone =
@@ -209,7 +209,7 @@ TEST_P(MessageEventTestWithJavaScript,
 
 TEST_P(MessageEventTestWithJavaScript, ConstructorWithEventTypeAndInitDict) {
   MessageEventInit init;
-  base::Optional<script::ValueHandleHolder::Reference> reference;
+  absl::optional<script::ValueHandleHolder::Reference> reference;
   EvaluateScript("'data_value'", &reference);
   init.set_data(&(reference->referenced_value()));
   init.set_origin("OriginString");

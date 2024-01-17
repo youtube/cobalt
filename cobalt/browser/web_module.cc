@@ -24,7 +24,6 @@
 #include "base/logging.h"
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop/message_loop.h"
-#include "base/optional.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread_checker.h"
@@ -77,6 +76,7 @@
 #include "starboard/accessibility.h"
 #include "starboard/common/log.h"
 #include "starboard/gles.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if defined(ENABLE_DEBUGGER)
 #include "cobalt/debug/backend/debug_module.h"  // nogncheck
@@ -95,18 +95,18 @@ const int kDOMMaxElementDepth = 32;
 
 void CacheUrlContent(SplashScreenCache* splash_screen_cache,
                      const std::string& content,
-                     const base::Optional<std::string>& topic) {
+                     const absl::optional<std::string>& topic) {
   splash_screen_cache->SplashScreenCache::CacheSplashScreen(content, topic);
 }
 
-base::Callback<void(const std::string&, const base::Optional<std::string>&)>
+base::Callback<void(const std::string&, const absl::optional<std::string>&)>
 CacheUrlContentCallback(SplashScreenCache* splash_screen_cache) {
   // This callback takes in first the url, then the content string.
   if (splash_screen_cache) {
     return base::Bind(CacheUrlContent, base::Unretained(splash_screen_cache));
   } else {
     return base::Callback<void(const std::string&,
-                               const base::Optional<std::string>&)>();
+                               const absl::optional<std::string>&)>();
   }
 }
 
@@ -317,7 +317,7 @@ class WebModule::Impl {
     return web_context_->global_environment();
   }
 
-  void OnLoadComplete(const base::Optional<std::string>& error) {
+  void OnLoadComplete(const absl::optional<std::string>& error) {
     if (error) error_callback_.Run(window_->location()->url(), *error);
 
     // Create Performance navigation timing info after document loading

@@ -18,8 +18,8 @@
 #include <memory>
 #include <string>
 
-#include "base/optional.h"
 #include "base/values.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -28,7 +28,7 @@ namespace protocol {
 // Opaque type that uniquely identifies a window from a WebDriver session.
 class WindowId {
  public:
-  static base::Optional<WindowId> FromValue(const base::Value* value);
+  static absl::optional<WindowId> FromValue(const base::Value* value);
   static std::unique_ptr<base::Value> ToValue(const WindowId& window_id) {
     return std::unique_ptr<base::Value>(new base::Value(window_id.id_));
   }

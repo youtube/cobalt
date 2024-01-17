@@ -21,7 +21,6 @@
 #include "base/callback_forward.h"
 #include "base/files/file_path.h"
 #include "base/logging.h"
-#include "base/optional.h"
 #include "base/rand_util.h"
 #include "base/run_loop.h"
 #include "base/stl_util.h"
@@ -41,6 +40,7 @@
 #include "starboard/common/file.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/extension/installation_manager.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace {
 
@@ -280,7 +280,7 @@ void UpdaterModule::Update() {
       base::BindOnce(
           [](base::Version manifest_version,
              const std::vector<std::string>& ids)
-              -> std::vector<base::Optional<update_client::CrxComponent>> {
+              -> std::vector<absl::optional<update_client::CrxComponent>> {
             update_client::CrxComponent component;
             component.name = "cobalt";
             component.app_id = ids[0];
@@ -289,7 +289,8 @@ void UpdaterModule::Update() {
                                      std::end(kCobaltPublicKeyHash));
             component.requires_network_encryption = true;
             component.crx_format_requirement = crx_file::VerifierFormat::CRX3;
-            return {component};
+            return {
+                absl::make_optional<update_client::CrxComponent>(component)};
           },
           manifest_version),
       false,

@@ -98,13 +98,13 @@ class CallOnMessageLoopHelper {
 
 // Used with CallWeakOnbase::MessageLoop.
 template <typename T, typename ReturnValue>
-base::Optional<ReturnValue> RunWeak(const base::Callback<T*()>& get_weak,
+absl::optional<ReturnValue> RunWeak(const base::Callback<T*()>& get_weak,
                                     const base::Callback<ReturnValue(T*)>& cb) {
   T* weak_object = get_weak.Run();
   if (weak_object) {
     return cb.Run(weak_object);
   } else {
-    return base::nullopt;
+    return absl::nullopt;
   }
 }
 }  // namespace internal
@@ -146,7 +146,7 @@ util::CommandResult<ReturnValue> CallOnMessageLoop(
 // Supports a common pattern in the various XXXDriver classes.
 // On the provided message loop, calls RunWeak which will run the callback |cb|
 // if |get_weak| returns a non-NULL pointer. RunWeak will return the result of
-// the callback, or base::nullopt if |get_weak| returned NULL and the callback
+// the callback, or absl::nullopt if |get_weak| returned NULL and the callback
 // wasn't run.
 // If the return value from RunWeak is valid, return a CommandResult that wraps
 // the value. Otherwise return |no_such_object_code| to indicate the correct
@@ -158,7 +158,7 @@ util::CommandResult<ReturnValue> CallWeakOnMessageLoopAndReturnResult(
     const base::Callback<ReturnValue(T*)>& cb,
     protocol::Response::StatusCode no_such_object_code) {
   typedef util::CommandResult<ReturnValue> CommandResult;
-  typedef base::Optional<ReturnValue> InternalResult;
+  typedef absl::optional<ReturnValue> InternalResult;
   InternalResult result;
   bool success = util::TryCallOnMessageLoop(
       task_runner, base::Bind(&internal::RunWeak<T, ReturnValue>, get_weak, cb),
