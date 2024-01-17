@@ -63,10 +63,6 @@
 #include <openssl/err.h>
 #include <openssl/mem.h>
 
-#ifdef STARBOARD
-#include "starboard/client_porting/poem/stdio_poem.h"
-#endif
-
 int BIO_printf(BIO *bio, const char *format, ...) {
   va_list args;
   char buf[256], *out, out_malloced = 0;
