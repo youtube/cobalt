@@ -13,18 +13,14 @@
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
-#include "starboard/client_porting/poem/stdio_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
-#else
-#include <string.h>  // for memcpy()
 #endif
+#include <stdlib.h>
+#include <string.h>  // for memcpy()
 #include "src/webp/decode.h"
 #include "src/webp/encode.h"
 #include "src/webp/format_constants.h"  // for MAX_PALETTE_SIZE
 #include "src/utils/color_cache_utils.h"
 #include "src/utils/utils.h"
-
-#include <stdlib.h>
 
 // If PRINT_MEM_INFO is defined, extra info (like total memory used, number of
 // alloc/free etc) is printed. For debugging/tuning purpose only (it's slow,
