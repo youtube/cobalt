@@ -33,9 +33,11 @@
 #  include <config.h>
 #endif
 
-#ifndef STARBOARD
+#include <stdlib.h> /* for malloc() */
 #include <string.h> /* for memcpy(), memset() */
-#if defined(_MSC_VER) && defined(HAVE_WINSOCK_H)
+#ifdef STARBOARD
+#include <netinet/in.h> /* for ntohl() */
+#elif defined(_MSC_VER) && defined(HAVE_WINSOCK_H)
 #include <winsock.h> /* for ntohl() */
 #elif defined FLAC__SYS_DARWIN
 #include <machine/endian.h> /* for ntohl() */
@@ -44,14 +46,6 @@
 #else
 #include <netinet/in.h> /* for ntohl() */
 #endif
-#else  // STARBOARD
-#include <netinet/in.h> /* for ntohl() */
-#include "starboard/client_porting/poem/stdio_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
-#endif  // STARBOARD
-
-#include <stdlib.h> /* for malloc() */
-
 #include "private/bitmath.h"
 #include "private/bitreader.h"
 #include "private/crc.h"
