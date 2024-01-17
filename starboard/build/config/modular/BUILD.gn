@@ -182,6 +182,7 @@ config("modular") {
     ldflags += [
       "-Wl,--wrap=clock_gettime",
       "-Wl,--wrap=gettimeofday",
+      "-Wl,--wrap=mmap",
     ]
   }
 }

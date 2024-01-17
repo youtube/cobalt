@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION < 16
-#include "starboard/memory.h"
+#include "starboard/shared/modular/posix_mmap_wrappers.h"
 
-#include <windows.h>
+#include <sys/mman.h>
 
-bool SbMemoryUnmap(void* virtual_address, int64_t size_bytes) {
-  // Note that SbMemoryUnmap documentation says that "This function can
-  // unmap multiple contiguous regions that were mapped with separate calls
-  // to SbMemoryMap()". Because of that, we cannot use MEM_FREE here.
-  return VirtualFree(virtual_address, size_bytes, MEM_DECOMMIT);
+void* __wrap_mmap(void* addr,
+                  size_t len,
+                  int prot,
+                  int flags,
+                  int fd,
+                  musl_off_t off) {
+  return mmap(addr, len, prot, flags, fd, static_cast<off_t>(off));
 }
-#endif  // SB_API_VERSION < 16

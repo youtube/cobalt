@@ -58,7 +58,7 @@ static_library("elf_loader") {
     ":evergreen_info",
     "//starboard:starboard_group",
     "//starboard/common",
-    "//starboard/shared/modular:posix_time_wrappers",
+    "//starboard/shared/modular:posix_wrappers",
     "//third_party/lz4_lib:lz4",
   ]
 }
@@ -81,7 +81,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       ":evergreen_info",
       "//starboard:starboard_group",
       "//starboard/common",
-      "//starboard/shared/modular:posix_time_wrappers",
+      "//starboard/shared/modular:posix_wrappers",
       "//third_party/crashpad/wrapper",
     ]
   }
