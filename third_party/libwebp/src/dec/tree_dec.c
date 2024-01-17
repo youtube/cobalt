@@ -11,10 +11,6 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif
-
 #include "src/dec/vp8i_dec.h"
 #include "src/dsp/cpu.h"
 #include "src/utils/bit_reader_inl_utils.h"

@@ -13,14 +13,12 @@
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
 #else
 #include <assert.h>
-#include <string.h>
 #endif
-
-#include <math.h>
 #include <stdlib.h>
+#include <string.h>
+#include <math.h>
 
 #include "src/enc/cost_enc.h"
 #include "src/enc/vp8i_enc.h"
