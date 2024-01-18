@@ -698,7 +698,7 @@ void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
     FormatSupportQueryMetrics::PrintAndResetMetrics();
   }
 
-  player_creation_time_ = starboard::CurrentMonotonicTime();
+  player_creation_time_ = base::Time::Now();
 
   cval_stats_->StartTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
   player_ = sbplayer_interface_->CreateUrlPlayer(
@@ -748,7 +748,7 @@ void SbPlayerBridge::CreatePlayer() {
     FormatSupportQueryMetrics::PrintAndResetMetrics();
   }
 
-  player_creation_time_ = starboard::CurrentMonotonicTime();
+  player_creation_time_ = base::Time::Now();
 
   SbPlayerCreationParam creation_param = {};
   creation_param.drm_system = drm_system_;
@@ -892,11 +892,12 @@ void SbPlayerBridge::WriteBuffersInternal(
       ++iter->second.second;
     }
 
-    if (sample_type == kSbMediaTypeAudio && first_audio_sample_time_ == 0) {
-      first_audio_sample_time_ = starboard::CurrentMonotonicTime();
+    if (sample_type == kSbMediaTypeAudio &&
+        first_audio_sample_time_.is_null()) {
+      first_audio_sample_time_ = base::Time::Now();
     } else if (sample_type == kSbMediaTypeVideo &&
-               first_video_sample_time_ == 0) {
-      first_video_sample_time_ = starboard::CurrentMonotonicTime();
+               first_video_sample_time_.is_null()) {
+      first_video_sample_time_ = base::Time::Now();
     }
 
     gathered_sbplayer_sample_infos_drm_info.push_back(SbDrmSampleInfo());
@@ -1103,8 +1104,8 @@ void SbPlayerBridge::OnPlayerStatus(SbPlayer player, SbPlayerState state,
     if (ticket_ == SB_PLAYER_INITIAL_TICKET) {
       ++ticket_;
     }
-    if (sb_player_state_initialized_time_ == 0) {
-      sb_player_state_initialized_time_ = starboard::CurrentMonotonicTime();
+    if (sb_player_state_initialized_time_.is_null()) {
+      sb_player_state_initialized_time_ = base::Time::Now();
     }
     sbplayer_interface_->Seek(player_, preroll_timestamp_.InMicroseconds(),
                               ticket_);
@@ -1113,11 +1114,11 @@ void SbPlayerBridge::OnPlayerStatus(SbPlayer player, SbPlayerState state,
     return;
   }
   if (state == kSbPlayerStatePrerolling &&
-      sb_player_state_prerolling_time_ == 0) {
-    sb_player_state_prerolling_time_ = starboard::CurrentMonotonicTime();
+      sb_player_state_prerolling_time_.is_null()) {
+    sb_player_state_prerolling_time_ = base::Time::Now();
   } else if (state == kSbPlayerStatePresenting &&
-             sb_player_state_presenting_time_ == 0) {
-    sb_player_state_presenting_time_ = starboard::CurrentMonotonicTime();
+             sb_player_state_presenting_time_.is_null()) {
+    sb_player_state_presenting_time_ = base::Time::Now();
 #if !defined(COBALT_BUILD_TYPE_GOLD)
     LogStartupLatency();
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
@@ -1286,37 +1287,42 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
 
 void SbPlayerBridge::LogStartupLatency() const {
   std::string first_events_str;
-  if (set_drm_system_ready_cb_time_ == -1) {
+  if (set_drm_system_ready_cb_time_.is_null()) {
     first_events_str = FormatString("%-40s0 us", "SbPlayerCreate() called");
   } else if (set_drm_system_ready_cb_time_ < player_creation_time_) {
     first_events_str = FormatString(
         "%-40s0 us\n%-40s%" PRId64 " us", "set_drm_system_ready_cb called",
         "SbPlayerCreate() called",
-        player_creation_time_ - set_drm_system_ready_cb_time_);
+        (player_creation_time_ - set_drm_system_ready_cb_time_)
+            .InMicroseconds());
   } else {
     first_events_str = FormatString(
         "%-40s0 us\n%-40s%" PRId64 " us", "SbPlayerCreate() called",
         "set_drm_system_ready_cb called",
-        set_drm_system_ready_cb_time_ - player_creation_time_);
+        (set_drm_system_ready_cb_time_ - player_creation_time_)
+            .InMicroseconds());
   }
 
-  int64_t first_event_time =
+  base::Time first_event_time =
       std::max(player_creation_time_, set_drm_system_ready_cb_time_);
-  int64_t player_initialization_time_delta =
+  base::TimeDelta player_initialization_time_delta =
       sb_player_state_initialized_time_ - first_event_time;
-  int64_t player_preroll_time_delta =
+  base::TimeDelta player_preroll_time_delta =
       sb_player_state_prerolling_time_ - sb_player_state_initialized_time_;
-  int64_t first_audio_sample_time_delta = std::max(
-      first_audio_sample_time_ - sb_player_state_prerolling_time_, int64_t());
-  int64_t first_video_sample_time_delta = std::max(
-      first_video_sample_time_ - sb_player_state_prerolling_time_, int64_t());
-  int64_t player_presenting_time_delta =
+  base::TimeDelta first_audio_sample_time_delta =
+      std::max(first_audio_sample_time_ - sb_player_state_prerolling_time_,
+               base::TimeDelta());
+  base::TimeDelta first_video_sample_time_delta =
+      std::max(first_video_sample_time_ - sb_player_state_prerolling_time_,
+               base::TimeDelta());
+  base::TimeDelta player_presenting_time_delta =
       sb_player_state_presenting_time_ -
       std::max(first_audio_sample_time_, first_video_sample_time_);
-  int64_t startup_latency = sb_player_state_presenting_time_ - first_event_time;
+  base::TimeDelta startup_latency =
+      sb_player_state_presenting_time_ - first_event_time;
 
-  StatisticsWrapper::GetInstance()->startup_latency.AddSample(startup_latency,
-                                                              1);
+  StatisticsWrapper::GetInstance()->startup_latency.AddSample(
+      startup_latency.InMicroseconds(), 1);
 
   // clang-format off
   LOG(INFO) << FormatString(
@@ -1330,10 +1336,10 @@ void SbPlayerBridge::LogStartupLatency() const {
       "  Startup latency statistics (us):"
       "        min: %" PRId64 ", median: %" PRId64 ", average: %" PRId64
       ", max: %" PRId64,
-      startup_latency,
-      first_events_str.c_str(), player_initialization_time_delta,
-      player_preroll_time_delta, first_audio_sample_time_delta,
-      first_video_sample_time_delta, player_presenting_time_delta,
+      startup_latency.InMicroseconds(),
+      first_events_str.c_str(), player_initialization_time_delta.InMicroseconds(),
+      player_preroll_time_delta.InMicroseconds(), first_audio_sample_time_delta.InMicroseconds(),
+      first_video_sample_time_delta.InMicroseconds(), player_presenting_time_delta.InMicroseconds(),
       StatisticsWrapper::GetInstance()->startup_latency.min(),
       StatisticsWrapper::GetInstance()->startup_latency.GetMedian(),
       StatisticsWrapper::GetInstance()->startup_latency.average(),

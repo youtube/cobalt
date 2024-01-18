@@ -108,14 +108,14 @@ void FormatSupportQueryMetrics::PrintAndResetMetrics() {
                      cached_query_durations_ + middle_index,
                      cached_query_durations_ + num_elements);
     auto middle_element = cached_query_durations_[middle_index];
-    return middle_element;
+    return middle_element.InMicroseconds();
   };
 
   LOG(INFO) << "Format support query metrics:\n\tNumber of queries: "
-            << total_num_queries_
-            << "\n\tTotal query time: " << total_query_duration_
+            << total_num_queries_ << "\n\tTotal query time: "
+            << total_query_duration_.InMicroseconds()
             << " us\n\tAverage query time: "
-            << total_query_duration_ / total_num_queries_
+            << total_query_duration_.InMicroseconds() / total_num_queries_
             << " us\n\tMedian query time: ~" << get_median()
             << " us\n\tLongest query: " << max_query_description_;
 

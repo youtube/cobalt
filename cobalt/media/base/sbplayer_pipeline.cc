@@ -1422,7 +1422,7 @@ std::string SbPlayerPipeline::GetTimeInformation() const {
 void SbPlayerPipeline::RunSetDrmSystemReadyCB(
     DrmSystemReadyCB drm_system_ready_cb) {
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::RunSetDrmSystemReadyCB");
-  set_drm_system_ready_cb_time_ = starboard::CurrentMonotonicTime();
+  set_drm_system_ready_cb_time_ = base::Time::Now();
   set_drm_system_ready_cb_.Run(drm_system_ready_cb);
 }
 

@@ -350,7 +350,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   int64_t last_resume_time_ = -1;
 
-  int64_t set_drm_system_ready_cb_time_ = -1;
+  base::Time set_drm_system_ready_cb_time_{};
 
   DISALLOW_COPY_AND_ASSIGN(SbPlayerPipeline);
 };
