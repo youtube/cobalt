@@ -3182,7 +3182,7 @@ test("base_unittests") {
     # "files/file_path_unittest.cc",
 
     # "files/file_path_watcher_unittest.cc",
-    # "files/file_proxy_unittest.cc",
+    "files/file_proxy_unittest.cc",
     # "files/file_unittest.cc",
     # "files/file_util_unittest.cc",
     "files/important_file_writer_cleaner_unittest.cc",
