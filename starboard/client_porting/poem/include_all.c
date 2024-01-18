@@ -14,6 +14,4 @@
 
 // Includes all headers in a C context to make sure they compile as C files.
 
-#include "stdio_poem.h"
 #include "eztime_poem.h"
-#include "string_poem.h"

@@ -12,7 +12,6 @@
 #include "base/macros.h"
 #include "base/strings/string16.h"
 #include "base/strings/utf_string_conversions.h"
-#include "starboard/client_porting/poem/string_poem.h"
 #include "starboard/common/string.h"
 #include "starboard/memory.h"
 #include "starboard/types.h"

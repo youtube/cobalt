@@ -20,7 +20,6 @@
 #include <sstream>
 
 #include "starboard/client_porting/eztime/eztime.h"
-#include "starboard/client_porting/poem/string_poem.h"
 #include "starboard/common/string.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"

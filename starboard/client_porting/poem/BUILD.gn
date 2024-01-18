@@ -18,7 +18,6 @@ target(gtest_target_type, "poem_unittests") {
   sources = [
     "include_all.c",
     "main.cc",
-    "string_poem_test.cc",
   ]
 
   deps = [
