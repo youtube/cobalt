@@ -40,8 +40,11 @@ ConditionVariable::~ConditionVariable() {
 }
 
 void ConditionVariable::Wait() {
-  internal::ScopedBlockingCallWithBaseSyncPrimitives scoped_blocking_call(FROM_HERE, 
-      BlockingType::MAY_BLOCK);
+  absl::optional<internal::ScopedBlockingCallWithBaseSyncPrimitives>
+      scoped_blocking_call;
+  if (waiting_is_blocking_)
+    scoped_blocking_call.emplace(FROM_HERE, BlockingType::MAY_BLOCK);
+
 #if !defined(NDEBUG) || defined(DCHECK_ALWAYS_ON)
   user_lock_->CheckHeldAndUnmark();
 #endif
@@ -54,8 +57,11 @@ void ConditionVariable::Wait() {
 }
 
 void ConditionVariable::TimedWait(const TimeDelta& max_time) {
-  internal::ScopedBlockingCallWithBaseSyncPrimitives scoped_blocking_call(FROM_HERE, 
-      BlockingType::MAY_BLOCK);
+  absl::optional<internal::ScopedBlockingCallWithBaseSyncPrimitives>
+      scoped_blocking_call;
+  if (waiting_is_blocking_)
+    scoped_blocking_call.emplace(FROM_HERE, BlockingType::MAY_BLOCK);
+
   SbTime duration = max_time.ToSbTime();
 
 #if !defined(NDEBUG) || defined(DCHECK_ALWAYS_ON)
