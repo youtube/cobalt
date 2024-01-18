@@ -3519,6 +3519,7 @@ test("base_unittests") {
       # memory is solely used for inter-process communication, we disable
       # shared memory and process code in Cobalt.
       "memory/discardable_shared_memory_unittest.cc",
+      "memory/memory_pressure_listener_unittest.cc",
       "memory/platform_shared_memory_region_unittest.cc",
       "memory/shared_memory_hooks_unittest.cc",
       "memory/shared_memory_mapping_unittest.cc",
