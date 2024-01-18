@@ -75,11 +75,19 @@ declare_args() {
   # on-device decoding and bitstream passthrough as supported by device.
   enable_platform_ac3_eac3_audio = proprietary_codecs && is_cast_media_device
 
+  # Enables AC4 audio handling in chromium. This includes demuxing,
+  # on-device decoding and bitstream passthrough as supported by device.
+  enable_platform_ac4_audio = false
+
   enable_platform_mpeg_h_audio = proprietary_codecs && is_cast_media_device
 
   # Enables DTS/DTSX audio handling in chromium. This includes demuxing,
   # on-device decoding and bitstream passthrough as supported by device.
   enable_platform_dts_audio = false
+
+  # Enables IAMF audio handling in chromium. This includes demuxing,
+  # on-device decoding and bitstream passthrough as supported by device.
+  enable_platform_iamf_audio = false
 
   # Enable Dolby Vision demuxing. Enabled by default for Chromecast and Windows.
   # Actual decoding must be provided by the platform. Since most Dolby Vision
