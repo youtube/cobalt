@@ -407,11 +407,11 @@ void Node::AdoptIntoDocument(Document* document) {
   }
 
   // 3. Set node's inclusive descendants's node document to document.
-  node_document_ = base::AsWeakPtr(document);
+  node_document_ = document;
   NodeDescendantsIterator it(this);
   Node* descendant = it.First();
   while (descendant) {
-    descendant->node_document_ = base::AsWeakPtr(document);
+    descendant->node_document_ = document;
     descendant = it.Next();
   }
 
@@ -460,7 +460,7 @@ Node::Node(Document* document)
 
 Node::Node(HTMLElementContext* html_element_context, Document* document)
     : web::EventTarget(html_element_context->environment_settings()),
-      node_document_(base::AsWeakPtr(document)),
+      node_document_(document),
       parent_(NULL),
       previous_sibling_(NULL),
       last_child_(NULL),

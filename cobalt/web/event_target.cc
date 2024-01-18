@@ -159,7 +159,7 @@ void EventTarget::PostToDispatchEventAndRunCallback(
   base::ThreadTaskRunnerHandle::Get()->PostTask(
       location,
       base::Bind(base::IgnoreResult(&EventTarget::DispatchEventAndRunCallback),
-                 base::AsWeakPtr<EventTarget>(this), event, callback));
+                 base::Unretained(this), event, callback));
 }
 
 void EventTarget::PostToDispatchEventNameAndRunCallback(
@@ -169,10 +169,9 @@ void EventTarget::PostToDispatchEventNameAndRunCallback(
     return;
   }
   base::ThreadTaskRunnerHandle::Get()->PostTask(
-      location,
-      base::Bind(
-          base::IgnoreResult(&EventTarget::DispatchEventNameAndRunCallback),
-          base::AsWeakPtr<EventTarget>(this), event_name, callback));
+      location, base::Bind(base::IgnoreResult(
+                               &EventTarget::DispatchEventNameAndRunCallback),
+                           base::Unretained(this), event_name, callback));
 }
 
 void EventTarget::SetAttributeEventListener(

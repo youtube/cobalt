@@ -386,8 +386,7 @@ void LottiePlayer::AllowGarbageCollectionAfterEventIsDispatched(
         scoped_prevent_gc) {
   PostToDispatchEventNameAndRunCallback(
       FROM_HERE, event_name,
-      base::Bind(&LottiePlayer::DestroyScopedPreventGC,
-                 base::AsWeakPtr<LottiePlayer>(this),
+      base::Bind(&LottiePlayer::DestroyScopedPreventGC, base::Unretained(this),
                  base::Passed(&scoped_prevent_gc)));
 }
 
@@ -445,34 +444,34 @@ void LottiePlayer::SetAnimationEventCallbacks() {
   properties_.onplay_callback =
       base::Bind(base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
                  callback_task_runner_, FROM_HERE,
-                 base::Bind(&LottiePlayer::OnPlay, base::AsWeakPtr(this)));
+                 base::Bind(&LottiePlayer::OnPlay, base::Unretained(this)));
   properties_.onpause_callback =
       base::Bind(base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
                  callback_task_runner_, FROM_HERE,
-                 base::Bind(&LottiePlayer::OnPause, base::AsWeakPtr(this)));
+                 base::Bind(&LottiePlayer::OnPause, base::Unretained(this)));
   properties_.onstop_callback =
       base::Bind(base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
                  callback_task_runner_, FROM_HERE,
-                 base::Bind(&LottiePlayer::OnStop, base::AsWeakPtr(this)));
+                 base::Bind(&LottiePlayer::OnStop, base::Unretained(this)));
   properties_.oncomplete_callback =
       base::Bind(base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
                  callback_task_runner_, FROM_HERE,
-                 base::Bind(&LottiePlayer::OnComplete, base::AsWeakPtr(this)));
+                 base::Bind(&LottiePlayer::OnComplete, base::Unretained(this)));
   properties_.onloop_callback =
       base::Bind(base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
                  callback_task_runner_, FROM_HERE,
-                 base::Bind(&LottiePlayer::OnLoop, base::AsWeakPtr(this)));
+                 base::Bind(&LottiePlayer::OnLoop, base::Unretained(this)));
   properties_.onenterframe_callback = base::Bind(
       &LottiePlayer::CallOnEnterFrame, callback_task_runner_,
-      base::Bind(&LottiePlayer::OnEnterFrame, base::AsWeakPtr(this)));
+      base::Bind(&LottiePlayer::OnEnterFrame, base::Unretained(this)));
   properties_.onfreeze_callback =
       base::Bind(base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
                  callback_task_runner_, FROM_HERE,
-                 base::Bind(&LottiePlayer::OnFreeze, base::AsWeakPtr(this)));
+                 base::Bind(&LottiePlayer::OnFreeze, base::Unretained(this)));
   properties_.onunfreeze_callback =
       base::Bind(base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
                  callback_task_runner_, FROM_HERE,
-                 base::Bind(&LottiePlayer::OnUnfreeze, base::AsWeakPtr(this)));
+                 base::Bind(&LottiePlayer::OnUnfreeze, base::Unretained(this)));
 }
 
 void LottiePlayer::OnPlay() { ScheduleEvent(base::Tokens::play()); }

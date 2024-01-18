@@ -86,7 +86,7 @@ scoped_refptr<web::Event> PointerState::GetNextQueuedPointerEvent() {
 
 void PointerState::SetPendingPointerCaptureTargetOverride(int32_t pointer_id,
                                                           Element* element) {
-  pending_target_override_[pointer_id] = base::AsWeakPtr(element);
+  pending_target_override_[pointer_id] = element;
 }
 
 void PointerState::ClearPendingPointerCaptureTargetOverride(

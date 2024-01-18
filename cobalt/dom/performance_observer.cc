@@ -71,7 +71,7 @@ class NativeCallback : public PerformanceObserver::CallbackInternal {
 PerformanceObserver::PerformanceObserver(
     const NativePerformanceObserverCallback& native_callback,
     const scoped_refptr<Performance>& performance)
-    : performance_(base::AsWeakPtr(performance.get())),
+    : performance_(performance),
       observer_type_(PerformanceObserverType::kUndefined),
       is_registered_(false) {
   callback_.reset(new NativeCallback(native_callback));
@@ -80,11 +80,10 @@ PerformanceObserver::PerformanceObserver(
 PerformanceObserver::PerformanceObserver(
     script::EnvironmentSettings* env_settings,
     const PerformanceObserverCallbackArg& callback)
-    : performance_(
-          base::AsWeakPtr(base::polymorphic_downcast<DOMSettings*>(env_settings)
-                              ->window()
-                              ->performance()
-                              .get())),
+    : performance_(base::polymorphic_downcast<DOMSettings*>(env_settings)
+                       ->window()
+                       ->performance()
+                       .get()),
       observer_type_(PerformanceObserverType::kUndefined),
       is_registered_(false) {
   callback_.reset(new ScriptCallback(callback, this));

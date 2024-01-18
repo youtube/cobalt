@@ -104,7 +104,7 @@ class PerformanceObserver : public script::Wrappable {
   };
 
   std::unique_ptr<CallbackInternal> callback_;
-  base::WeakPtr<Performance> performance_;
+  scoped_refptr<Performance> performance_;
   PerformanceEntryList observer_buffer_;
   PerformanceObserverType observer_type_;
   bool is_registered_;

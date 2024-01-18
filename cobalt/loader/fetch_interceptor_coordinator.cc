@@ -46,10 +46,14 @@ void FetchInterceptorCoordinator::TryIntercept(
     base::OnceClosure fallback) {
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#handle-fetch
 
+  LOG(WARNING) << "TryIntercept: " << url;
   if (!fetch_interceptor_) {
+    LOG(WARNING) << "TryIntercept skipped [fallback]: " << url;
     std::move(fallback).Run();
     return;
   }
+  LOG(WARNING) << "TryIntercept potential intercept: " << url;
+
   // Steps 17 to 23
   // TODO: add should skip event handling
   // (https://www.w3.org/TR/2022/CRD-service-workers-20220712/#should-skip-event).

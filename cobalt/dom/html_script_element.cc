@@ -184,7 +184,7 @@ void HTMLScriptElement::Prepare() {
   if (!node_document()) {
     return;
   }
-  document_ = base::AsWeakPtr<Document>(node_document());
+  document_ = node_document();
 
   // 6. If either:
   //    the script element has a type attribute and its value is the empty

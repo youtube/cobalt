@@ -37,7 +37,7 @@ scoped_refptr<base::BasicClock> CreateOffsetClock(Document* document,
 
 DocumentTimeline::DocumentTimeline(Document* document, double origin_time)
     : AnimationTimeline(CreateOffsetClock(document, origin_time)) {
-  document_ = base::AsWeakPtr<Document>(document);
+  document_ = document;
 }
 
 namespace {
@@ -53,8 +53,7 @@ DocumentTimeline::DocumentTimeline(script::EnvironmentSettings* settings,
                                    double origin_time)
     : AnimationTimeline(CreateOffsetClock(
           DocumentFromEnvironmentSettings(settings), origin_time)) {
-  document_ =
-      base::AsWeakPtr<Document>(DocumentFromEnvironmentSettings(settings));
+  document_ = DocumentFromEnvironmentSettings(settings);
 }
 
 DocumentTimeline::~DocumentTimeline() {}

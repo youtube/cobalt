@@ -121,7 +121,7 @@ void MutationObserver::Disconnect() {
   // The disconnect() method must, for each node in the context object's
   // list of nodes, remove any registered observer on node for which the context
   // object is the observer, and also empty context object's record queue.
-  for (WeakNodeVector::iterator it = observed_nodes_.begin();
+  for (NodeVector::iterator it = observed_nodes_.begin();
        it != observed_nodes_.end(); ++it) {
     dom::Node* node = it->get();
     if (node != NULL) {
@@ -190,7 +190,7 @@ void MutationObserver::CancelDebuggerAsyncTasks() {
 }
 
 void MutationObserver::TrackObservedNode(const scoped_refptr<dom::Node>& node) {
-  for (WeakNodeVector::iterator it = observed_nodes_.begin();
+  for (NodeVector::iterator it = observed_nodes_.begin();
        it != observed_nodes_.end();) {
     if (it->get() == NULL) {
       it = observed_nodes_.erase(it);
@@ -201,7 +201,7 @@ void MutationObserver::TrackObservedNode(const scoped_refptr<dom::Node>& node) {
     }
     ++it;
   }
-  observed_nodes_.push_back(base::AsWeakPtr(node.get()));
+  observed_nodes_.push_back(node.get());
 }
 
 void MutationObserver::ObserveInternal(

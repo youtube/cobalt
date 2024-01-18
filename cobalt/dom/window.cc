@@ -179,6 +179,7 @@ Window::Window(
       screenshot_manager_(settings, screenshot_function_callback),
       ui_nav_root_(ui_nav_root),
       enable_map_to_mesh_(enable_map_to_mesh) {
+  LOG(WARNING) << "document create";
   document_ = new Document(
       html_element_context(),
       Document::Options(
@@ -191,22 +192,26 @@ Window::Window(
 
   set_navigator_base(navigator_);
   document_->AddObserver(relay_on_load_event_.get());
-  html_element_context()->application_lifecycle_state()->AddObserver(this);
+  LOG(WARNING) << "application_lifecycle_state AddObserver";
+  // html_element_context()->application_lifecycle_state()->AddObserver(this);
   UpdateCamera3D(camera_3d);
 
   // Document load start is deferred from this constructor so that we can be
   // guaranteed that this Window object is fully constructed before document
   // loading begins.
+  LOG(WARNING) << "StartDocumentLoad ctor";
   base::ThreadTaskRunnerHandle::Get()->PostTask(
       FROM_HERE, base::Bind(&Window::StartDocumentLoad, base::Unretained(this),
                             fetcher_factory, settings->creation_url(),
                             dom_parser, load_complete_callback));
+  LOG(WARNING) << "ctor window done";
 }
 
 void Window::StartDocumentLoad(
     loader::FetcherFactory* fetcher_factory, const GURL& url,
     Parser* dom_parser,
     const loader::Decoder::OnCompleteFunction& load_complete_callback) {
+  LOG(WARNING) << "StartDocumentLoad";
   document_loader_.reset(new loader::Loader(
       base::Bind(&loader::FetcherFactory::CreateFetcher,
                  base::Unretained(fetcher_factory), url, /*main_resource=*/true,
@@ -522,7 +527,7 @@ void Window::UpdateCamera3D(const scoped_refptr<input::Camera3D>& camera_3d) {
   } else {
     // Create a new camera which uses the given input camera object.
     camera_3d_ = new Camera3D(camera_3d);
-    camera_3d_->StartOrientationEvents(base::AsWeakPtr(this));
+    camera_3d_->StartOrientationEvents(this);
   }
 }
 
@@ -626,6 +631,7 @@ const scoped_refptr<OnScreenKeyboard>& Window::on_screen_keyboard() const {
 void Window::ReleaseOnScreenKeyboard() { on_screen_keyboard_ = nullptr; }
 
 Window::~Window() {
+  LOG(WARNING) << "Window is being deleted";
   if (ui_nav_root_) {
     ui_nav_root_->SetEnabled(false);
   }

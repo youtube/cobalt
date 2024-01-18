@@ -70,7 +70,7 @@ class WindowDriver : private ElementMapping {
   typedef base::Callback<scoped_refptr<script::GlobalEnvironment>()>
       GetGlobalEnvironmentFunction;
   WindowDriver(const protocol::WindowId& window_id,
-               const base::WeakPtr<dom::Window>& window,
+               const scoped_refptr<dom::Window>& window,
                const GetGlobalEnvironmentFunction& get_global_environment,
                KeyboardEventInjector keyboard_event_injector,
                PointerEventInjector pointer_event_injector,
@@ -125,7 +125,7 @@ class WindowDriver : private ElementMapping {
   // Create a new ElementDriver that wraps this weak_element and return the
   // ElementId that maps to the new ElementDriver.
   protocol::ElementId CreateNewElementDriver(
-      const base::WeakPtr<dom::Element>& weak_element);
+      const scoped_refptr<dom::Element>& weak_element);
 
   // Shared logic between FindElement and FindElements.
   template <typename T>
@@ -180,7 +180,7 @@ class WindowDriver : private ElementMapping {
 
   // Weak handle to the dom::Window that must only be accessed from
   // |window_task_runner|
-  base::WeakPtr<dom::Window> window_;
+  scoped_refptr<dom::Window> window_;
 
   // This must only be accessed from |window_task_runner_|.
   GetGlobalEnvironmentFunction get_global_environment_;

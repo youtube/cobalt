@@ -220,8 +220,7 @@ void HTMLImageElement::AllowGarbageCollectionAfterEventIsDispatched(
   PostToDispatchEventNameAndRunCallback(
       FROM_HERE, event_name,
       base::Bind(&HTMLImageElement::DestroyScopedPreventGC,
-                 base::AsWeakPtr<HTMLImageElement>(this),
-                 base::Passed(&scoped_prevent_gc)));
+                 base::Unretained(this), base::Passed(&scoped_prevent_gc)));
 }
 
 void HTMLImageElement::DestroyScopedPreventGC(

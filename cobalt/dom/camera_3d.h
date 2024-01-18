@@ -69,13 +69,13 @@ class Camera3D : public script::Wrappable {
   // Custom, not in any spec.
   scoped_refptr<input::Camera3D> impl() { return impl_; }
 
-  void StartOrientationEvents(const base::WeakPtr<web::EventTarget>& target);
+  void StartOrientationEvents(web::EventTarget* target);
   void StopOrientationEvents();
 
   DEFINE_WRAPPABLE_TYPE(Camera3D);
 
  private:
-  void FireOrientationEvent(const base::WeakPtr<web::EventTarget> target);
+  void FireOrientationEvent(web::EventTarget* target);
 
   // We delegate all calls to the implementation of Camera3D so that all camera
   // state is stored within an object that is *not* a script::Wrappable. This

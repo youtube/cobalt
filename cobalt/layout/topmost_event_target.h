@@ -57,7 +57,7 @@ class TopmostEventTarget {
                      LayoutBoxes* layout_boxes,
                      const math::Vector2dF& coordinate);
 
-  base::WeakPtr<dom::HTMLElement> previous_html_element_weak_;
+  scoped_refptr<dom::HTMLElement> previous_html_element_weak_;
   scoped_refptr<dom::HTMLElement> html_element_;
   scoped_refptr<Box> box_;
   Box::RenderSequence render_sequence_;

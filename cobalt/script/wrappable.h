@@ -29,7 +29,8 @@
 namespace cobalt {
 namespace script {
 
-class Wrappable : public base::RefCounted<Wrappable>, public Traceable {
+class Wrappable : public base::RefCountedThreadSafe<Wrappable>,
+                  public Traceable {
  public:
   // A handle to this Wrappable's corresponding Wrapper object. It may be
   // NULL if no wrapper has been created. A Wrapper may get garbage collected
@@ -86,7 +87,7 @@ class Wrappable : public base::RefCounted<Wrappable>, public Traceable {
   // destroyed.
   std::unique_ptr<WeakWrapperHandle> cached_wrapper_;
 
-  friend class base::RefCounted<Wrappable>;
+  friend class base::RefCountedThreadSafe<Wrappable>;
 };
 
 }  // namespace script

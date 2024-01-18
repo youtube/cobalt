@@ -66,7 +66,7 @@ class PerformanceNavigationTiming : public PerformanceResourceTiming {
   DEFINE_WRAPPABLE_TYPE(PerformanceNavigationTiming);
 
  private:
-  base::WeakPtr<Document> document_;
+  scoped_refptr<Document> document_;
   base::TimeTicks time_origin_;
 
   DISALLOW_COPY_AND_ASSIGN(PerformanceNavigationTiming);

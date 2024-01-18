@@ -25,6 +25,7 @@
 #include "cobalt/dom/html_head_element.h"
 #include "cobalt/dom/html_heading_element.h"
 #include "cobalt/dom/html_html_element.h"
+#include "cobalt/dom/html_iframe_element.h"
 #include "cobalt/dom/html_image_element.h"
 #include "cobalt/dom/html_link_element.h"
 #include "cobalt/dom/html_meta_element.h"
@@ -151,6 +152,7 @@ HTMLElementFactory::HTMLElementFactory() {
   RegisterHTMLElementWithSingleTagName<HTMLDivElement>();
   RegisterHTMLElementWithSingleTagName<HTMLHeadElement>();
   RegisterHTMLElementWithSingleTagName<HTMLHtmlElement>();
+  RegisterHTMLElementWithSingleTagName<HTMLIframeElement>();
   RegisterHTMLElementWithSingleTagName<HTMLImageElement>();
   RegisterHTMLElementWithSingleTagName<HTMLLinkElement>();
   RegisterHTMLElementWithSingleTagName<HTMLMetaElement>();

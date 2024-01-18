@@ -118,7 +118,7 @@ std::vector<protocol::Cookie> GetAllCookies(dom::Window* window) {
 
 WindowDriver::WindowDriver(
     const protocol::WindowId& window_id,
-    const base::WeakPtr<dom::Window>& window,
+    const scoped_refptr<dom::Window>& window,
     const GetGlobalEnvironmentFunction& get_global_environment_function,
     KeyboardEventInjector keyboard_event_injector,
     PointerEventInjector pointer_event_injector,
@@ -408,7 +408,7 @@ protocol::ElementId WindowDriver::ElementToId(
     }
   }
 
-  return CreateNewElementDriver(base::AsWeakPtr(element.get()));
+  return CreateNewElementDriver(element);
 }
 
 scoped_refptr<dom::Element> WindowDriver::IdToElement(
@@ -419,7 +419,7 @@ scoped_refptr<dom::Element> WindowDriver::IdToElement(
 }
 
 protocol::ElementId WindowDriver::CreateNewElementDriver(
-    const base::WeakPtr<dom::Element>& weak_element) {
+    const scoped_refptr<dom::Element>& weak_element) {
   DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), window_task_runner_);
 
   protocol::ElementId element_id(
