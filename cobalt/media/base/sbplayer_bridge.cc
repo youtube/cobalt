@@ -417,7 +417,7 @@ void SbPlayerBridge::Seek(base::TimeDelta time) {
   DCHECK(SbPlayerIsValid(player_));
 
   ++ticket_;
-  sbplayer_interface_->Seek(player_, time.InMicroseconds(), ticket_);
+  sbplayer_interface_->Seek(player_, time, ticket_);
 
   sbplayer_interface_->SetPlaybackRate(player_, playback_rate_);
 }
@@ -1107,8 +1107,7 @@ void SbPlayerBridge::OnPlayerStatus(SbPlayer player, SbPlayerState state,
     if (sb_player_state_initialized_time_.is_null()) {
       sb_player_state_initialized_time_ = base::Time::Now();
     }
-    sbplayer_interface_->Seek(player_, preroll_timestamp_.InMicroseconds(),
-                              ticket_);
+    sbplayer_interface_->Seek(player_, preroll_timestamp_, ticket_);
     SetVolume(volume_);
     sbplayer_interface_->SetPlaybackRate(player_, playback_rate_);
     return;
