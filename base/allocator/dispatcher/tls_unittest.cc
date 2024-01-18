@@ -7,6 +7,7 @@
 #if USE_LOCAL_TLS_EMULATION()
 #include <algorithm>
 #include <array>
+#include <condition_variable>
 #include <cstddef>
 #include <functional>
 #include <mutex>
