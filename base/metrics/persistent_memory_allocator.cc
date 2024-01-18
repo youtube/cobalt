@@ -1097,7 +1097,7 @@ bool ReadOnlySharedPersistentMemoryAllocator::IsSharedMemoryAcceptable(
 
 #endif  // !defined(STARBOARD)
 
-#if !BUILDFLAG(IS_NACL) && !defined(STARBOARD)
+#if !BUILDFLAG(IS_NACL)
 //----- FilePersistentMemoryAllocator ------------------------------------------
 
 FilePersistentMemoryAllocator::FilePersistentMemoryAllocator(
@@ -1180,7 +1180,7 @@ void FilePersistentMemoryAllocator::FlushPartial(size_t length, bool sync) {
 #error Unsupported OS.
 #endif
 }
-#endif  // !BUILDFLAG(IS_NACL) && !defined(STARBOARD)
+#endif  // !BUILDFLAG(IS_NACL)
 
 //----- DelayedPersistentAllocation --------------------------------------------
 
