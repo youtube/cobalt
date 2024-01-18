@@ -1742,6 +1742,12 @@ component("base") {
       ]
     }
 
+    if (use_cobalt_customizations) {
+      sources += [
+        "process/launch_starboard.cc",
+      ]
+    }
+
     if (!use_cobalt_customizations && is_posix && !is_android) {
       sources += [ "debug/stack_trace_posix.cc" ]
     }
@@ -1767,6 +1773,13 @@ component("base") {
         "process/process_iterator.h",
         "process/process_metrics.cc",
         "process/process_metrics.h",
+      ]
+    }
+
+    if (!use_blink && use_cobalt_customizations) {
+      sources += [
+        "process/launch.cc",
+        "process/launch.h",
       ]
     }
 
@@ -3211,7 +3224,7 @@ test("base_unittests") {
     "debug/debugger_unittest.cc",
     "debug/dump_without_crashing_unittest.cc",
 
-    # "debug/stack_trace_unittest.cc",
+    "debug/stack_trace_unittest.cc",
     "debug/task_trace_unittest.cc",
     "environment_unittest.cc",
     "feature_list_unittest.cc",
