@@ -16,9 +16,6 @@
 #include "third_party/boringssl/src/include/openssl/err.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
 
-#include "starboard/client_porting/poem/string_poem.h"
-#include "starboard/memory.h"
-
 namespace quic {
 namespace {
 

@@ -4,14 +4,10 @@
 
 #include "net/filter/gzip_header.h"
 
-#include <string.h>
-
 #include <algorithm>
 
 #include "base/logging.h"
 #include "third_party/zlib/zlib.h"
-
-#include "starboard/client_porting/poem/string_poem.h"
 
 namespace net {
 
