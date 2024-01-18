@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/time/time.h"
 #include "cobalt/base/c_val.h"
 
 
@@ -47,7 +48,7 @@ class CValContainer {
 
   void StartTimer();
   void StopTimer();
-  void UpdateCVal(int64_t event_time_usec);
+  void UpdateCVal(base::TimeDelta event_time_usec);
 
   // for testing only
   size_t GetSampleIndex() { return sample_write_index_; }
@@ -60,19 +61,19 @@ class CValContainer {
   std::string cval_name_;
 
  private:
-  base::CVal<int64_t, base::CValPublic> latest_;
-  base::CVal<int64_t, base::CValPublic> average_;
-  base::CVal<int64_t, base::CValPublic> maximum_;
-  base::CVal<int64_t, base::CValPublic> median_;
-  base::CVal<int64_t, base::CValPublic> minimum_;
+  base::CVal<base::TimeDelta, base::CValPublic> latest_;
+  base::CVal<base::TimeDelta, base::CValPublic> average_;
+  base::CVal<base::TimeDelta, base::CValPublic> maximum_;
+  base::CVal<base::TimeDelta, base::CValPublic> median_;
+  base::CVal<base::TimeDelta, base::CValPublic> minimum_;
 
-  int64_t samples_[kMaxSamples];
+  base::TimeDelta samples_[kMaxSamples];
   size_t sample_write_index_{0};
   size_t accumulated_sample_count_{0};
   bool first_sample_added_{false};
 
-  int64_t latest_time_start_{0};
-  int64_t latest_time_stop_{0};
+  base::Time latest_time_start_;
+  base::Time latest_time_stop_;
 };
 
 class CValStats {
@@ -90,8 +91,7 @@ class CValStats {
 
  private:
   std::map<MediaTiming, CValContainer> cval_containers_;
-  std::map<std::pair<MediaTiming, std::string>, int64_t> running_timers_;
-
+  std::map<std::pair<MediaTiming, std::string>, base::Time> running_timers_;
   bool enabled_{false};
 };
 
