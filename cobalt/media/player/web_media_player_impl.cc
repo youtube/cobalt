@@ -395,6 +395,8 @@ void WebMediaPlayerImpl::SetVolume(float volume) {
   DCHECK_EQ(main_loop_, base::MessageLoop::current());
 
   pipeline_->SetVolume(volume);
+
+  // test my cobalt tools are still working
 }
 
 void WebMediaPlayerImpl::SetVisible(bool visible) {
