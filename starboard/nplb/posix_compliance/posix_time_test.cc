@@ -14,12 +14,29 @@
 
 #if SB_API_VERSION >= 16
 
+#include <sys/time.h>
+#include <time.h>
 #include "starboard/common/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {
 namespace {
+
+TEST(PosixTimeTest, TimeMatchesGettimeofday) {
+  time_t other_time_s = 0;
+  time_t time_s = time(&other_time_s);  // Seconds since Unix epoch.
+  struct timeval tv;
+  gettimeofday(&tv, NULL);  // Microseconds since Unix epoch.
+
+  EXPECT_EQ(time_s, other_time_s);
+
+  int64_t time_us = static_cast<int64_t>(time_s) * 1'000'000;
+  int64_t gettimeofday_us =
+      (static_cast<int64_t>(tv.tv_sec) * 1'000'000) + tv.tv_usec;
+  // Values should be within 1 second of each other.
+  EXPECT_NEAR(time_us, gettimeofday_us, 1'000'000);
+}
 
 TEST(PosixTimeTest, TimeIsKindOfSane) {
   int64_t now_usec = CurrentPosixTime();
@@ -50,7 +67,7 @@ TEST(PosixTimeTest, HasDecentResolution) {
   }
 }
 
-TEST(PosixTimeTest, MonotonickIsMonotonic) {
+TEST(PosixTimeTest, MonotonicIsMonotonic) {
   const int kTrials = 100;
   for (int trial = 0; trial < kTrials; ++trial) {
     int64_t timerStart = CurrentPosixTime();
@@ -75,6 +92,25 @@ TEST(PosixTimeTest, MonotonickIsMonotonic) {
       }
     }
   }
+}
+
+TEST(PosixTimeTest, GmtimeR) {
+  time_t timer = 1722468779;  // Wed 2024-07-31 23:32:59 UTC.
+  struct tm result;
+  memset(&result, 0, sizeof(result));
+
+  struct tm* retval = NULL;
+  retval = gmtime_r(&timer, &result);
+  EXPECT_EQ(retval, &result);
+  EXPECT_EQ(result.tm_year, 2024 - 1900);  // Year since 1900.
+  EXPECT_EQ(result.tm_mon, 7 - 1);         // Zero-indexed.
+  EXPECT_EQ(result.tm_mday, 31);
+  EXPECT_EQ(result.tm_hour, 23);
+  EXPECT_EQ(result.tm_min, 32);
+  EXPECT_EQ(result.tm_sec, 59);
+  EXPECT_EQ(result.tm_wday, 3);    // Wednesday, 0==Sunday.
+  EXPECT_EQ(result.tm_yday, 212);  // Zero-indexed; 2024 is a leap year.
+  EXPECT_EQ(result.tm_isdst, 0);   // GMT/UTC never has DST (even in July).
 }
 
 }  // namespace

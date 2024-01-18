@@ -16,7 +16,7 @@
 
 #include "starboard/log.h"
 
-int __wrap_clock_gettime(int /*clockid_t */ musl_clock_id,
+int __wrap_clock_gettime(int /* clockid_t */ musl_clock_id,
                          struct musl_timespec* mts) {
   if (!mts) {
     return -1;
@@ -58,4 +58,35 @@ int __wrap_gettimeofday(struct musl_timeval* mtv, void* tzp) {
   mtv->tv_sec = tv.tv_sec;
   mtv->tv_usec = tv.tv_usec;
   return retval;
+}
+
+int64_t __wrap_time(int64_t* /* time_t* */ musl_tloc) {
+  time_t t = time(NULL);  // The type from platform toolchain (may be 32-bits).
+  int64_t retval = static_cast<int64_t>(t);
+  if (musl_tloc) {
+    *musl_tloc = retval;
+  }
+  return retval;
+}
+
+struct musl_tm* __wrap_gmtime_r(const int64_t* /* time_t* */ musl_timer,
+                                struct musl_tm* musl_result) {
+  if (!musl_timer || !musl_result) {
+    return NULL;
+  }
+  time_t t = static_cast<time_t>(*musl_timer);  // Platform type may be 32-bits.
+  struct tm tm;  // The type from platform toolchain.
+  if (!gmtime_r(&t, &tm)) {
+    return NULL;
+  }
+  musl_result->tm_sec = tm.tm_sec;
+  musl_result->tm_min = tm.tm_min;
+  musl_result->tm_hour = tm.tm_hour;
+  musl_result->tm_mday = tm.tm_mday;
+  musl_result->tm_mon = tm.tm_mon;
+  musl_result->tm_year = tm.tm_year;
+  musl_result->tm_wday = tm.tm_wday;
+  musl_result->tm_yday = tm.tm_yday;
+  musl_result->tm_isdst = tm.tm_isdst;
+  return musl_result;
 }

@@ -40,6 +40,9 @@ extern "C" {
 // https://pubs.opengroup.org/onlinepubs/9699919799/functions/clock_gettime.html
 int clock_gettime(clockid_t clock_id, struct timespec* tp);
 
+// https://pubs.opengroup.org/onlinepubs/000095399/functions/gmtime_r.html
+struct tm* gmtime_r(const time_t* timer, struct tm* result);
+
 int posix_memalign(void** res, size_t alignment, size_t size);
 
 #ifdef __cplusplus
