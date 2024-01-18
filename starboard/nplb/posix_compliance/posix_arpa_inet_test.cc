@@ -30,7 +30,7 @@ const uint32_t kTestU32 = 0xFEDCBA98;
 const uint32_t kExpectedU32 = 0x98BADCFE;
 
 #if SB_IS(BIG_ENDIAN)
-TEST(ArpaInet, BigEndian) {
+TEST(PosixArpaInetTest, BigEndian) {
   EXPECT_EQ(kTestU16, htons(kTestU16));
   EXPECT_EQ(kTestU16, ntohs(kTestU16));
 
@@ -38,7 +38,7 @@ TEST(ArpaInet, BigEndian) {
   EXPECT_EQ(kTestU32, ntohl(kTestU32));
 }
 #else
-TEST(ArpaInet, LittleEndian) {
+TEST(PosixArpaInetTest, LittleEndian) {
   EXPECT_EQ(kExpectedU16, htons(kTestU16));
   EXPECT_EQ(kExpectedU16, ntohs(kTestU16));
 
