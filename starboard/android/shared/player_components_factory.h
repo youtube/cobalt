@@ -207,7 +207,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
                                                          error_message);
     }
 
-    bool audio_use_mediacodec_callback_thread = true;
+    bool audio_use_mediacodec_callback_thread = false;
     if (!creation_parameters.audio_mime().empty()) {
       MimeType audio_mime_type(creation_parameters.audio_mime());
       if (!audio_mime_type.is_valid() ||
@@ -222,7 +222,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         return scoped_ptr<PlayerComponents>();
       }
       audio_use_mediacodec_callback_thread =
-          audio_mime_type.GetParamBoolValue("mediacodeccallbackthread", true);
+          audio_mime_type.GetParamBoolValue("mediacodeccallbackthread", false);
     }
 
     SB_LOG(INFO) << "Creating passthrough components.";
@@ -242,7 +242,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       constexpr int kTunnelModeAudioSessionId = -1;
       constexpr bool kForceSecurePipelineUnderTunnelMode = false;
 
-      bool video_use_mediacodec_callback_thread = true;
+      bool video_use_mediacodec_callback_thread = false;
       if (!creation_parameters.video_mime().empty()) {
         MimeType video_mime_type(creation_parameters.video_mime());
         if (!video_mime_type.is_valid() ||
@@ -251,7 +251,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
           return scoped_ptr<PlayerComponents>();
         }
         video_use_mediacodec_callback_thread =
-            video_mime_type.GetParamBoolValue("mediacodeccallbackthread", true);
+            video_mime_type.GetParamBoolValue("mediacodeccallbackthread",
+                                              false);
       }
       scoped_ptr<VideoDecoder> video_decoder = CreateVideoDecoder(
           creation_parameters, kTunnelModeAudioSessionId,
@@ -375,7 +376,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
 
       using starboard::shared::starboard::media::AudioStreamInfo;
       bool audio_use_mediacodec_callback_thread =
-          audio_mime_type.GetParamBoolValue("mediacodeccallbackthread", true);
+          audio_mime_type.GetParamBoolValue("mediacodeccallbackthread", false);
       auto decoder_creator = [audio_use_mediacodec_callback_thread](
                                  const AudioStreamInfo& audio_stream_info,
                                  SbDrmSystem drm_system) {
@@ -429,7 +430,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         force_secure_pipeline_under_tunnel_mode = false;
       }
       bool video_use_mediacodec_callback_thread =
-          video_mime_type.GetParamBoolValue("mediacodeccallbackthread", true);
+          video_mime_type.GetParamBoolValue("mediacodeccallbackthread", false);
       scoped_ptr<VideoDecoder> video_decoder_impl = CreateVideoDecoder(
           creation_parameters, tunnel_mode_audio_session_id,
           force_secure_pipeline_under_tunnel_mode,

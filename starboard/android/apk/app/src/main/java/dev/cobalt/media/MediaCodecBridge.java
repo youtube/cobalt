@@ -537,6 +537,7 @@ class MediaCodecBridge {
           }
         };
     mMediaCodec.setCallback(mCallback, mHandler);
+    Log.e(TAG, "Brown mHandler " + mHandler + "/" + useCallbackThread);
 
     // TODO: support OnFrameRenderedListener for non tunnel mode
     if (tunnelModeAudioSessionId != -1) {
