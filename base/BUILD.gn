@@ -3109,8 +3109,8 @@ source_set("arm_bti_testfunctions") {
 
 test("base_unittests") {
   sources = [
-    # "allocator/dispatcher/dispatcher_unittest.cc",
-    # "allocator/dispatcher/initializer_unittest.cc",
+    "allocator/dispatcher/dispatcher_unittest.cc",
+    "allocator/dispatcher/initializer_unittest.cc",
     "allocator/dispatcher/internal/dispatcher_internal_unittest.cc",
     "allocator/dispatcher/testing/dispatcher_test.cc",
     "allocator/dispatcher/testing/dispatcher_test.h",
@@ -3220,7 +3220,7 @@ test("base_unittests") {
     "i18n/rtl_unittest.cc",
     "i18n/streaming_utf8_validator_unittest.cc",
 
-    # "i18n/string_search_unittest.cc",
+    "i18n/string_search_unittest.cc",
     "i18n/time_formatting_unittest.cc",
     "i18n/timezone_unittest.cc",
 
@@ -3240,10 +3240,10 @@ test("base_unittests") {
     "memory/aligned_memory_unittest.cc",
 
     # "memory/discardable_memory_backing_field_trial_unittest.cc",
-    # "memory/discardable_shared_memory_unittest.cc",
+    "memory/discardable_shared_memory_unittest.cc",
     "memory/memory_pressure_listener_unittest.cc",
 
-    # "memory/platform_shared_memory_region_unittest.cc",
+    "memory/platform_shared_memory_region_unittest.cc",
     "memory/ptr_util_unittest.cc",
     "memory/raw_ptr_asan_unittest.cc",
     "memory/ref_counted_memory_unittest.cc",
@@ -3304,7 +3304,7 @@ test("base_unittests") {
     "power_monitor/timer_sampling_event_source_unittest.cc",
     "process/environment_internal_unittest.cc",
 
-    # "process/memory_unittest.cc",
+    "process/memory_unittest.cc",
     "process/process_metrics_unittest.cc",
     "process/process_unittest.cc",
     "process/process_util_unittest.cc",
@@ -3518,7 +3518,9 @@ test("base_unittests") {
       # Since Starboard lacks abstractions for multi-processing, and shared
       # memory is solely used for inter-process communication, we disable
       # shared memory and process code in Cobalt.
+      "memory/discardable_shared_memory_unittest.cc",
       "memory/memory_pressure_listener_unittest.cc",
+      "memory/platform_shared_memory_region_unittest.cc",
       "memory/shared_memory_hooks_unittest.cc",
       "memory/shared_memory_mapping_unittest.cc",
       "memory/shared_memory_region_unittest.cc",
