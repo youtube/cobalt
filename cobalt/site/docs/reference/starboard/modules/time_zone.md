@@ -12,7 +12,7 @@ Provides access to the system time zone information.
 The number of minutes west of the Greenwich Prime Meridian, NOT including
 Daylight Savings Time adjustments.
 
-For example: PST/PDT is 480 minutes (28800 seconds, 8 hours).
+For example: America/Los_Angeles is 480 minutes (28800 seconds, 8 hours).
 
 #### Definition
 
@@ -34,15 +34,14 @@ SbTimeZone SbTimeZoneGetCurrent()
 
 ### SbTimeZoneGetName
 
-Gets a string representation of the current timezone. Note that the string
-representation can either be standard or daylight saving time. The output can be
-of the form: 1) A three-letter abbreviation such as "PST" or "PDT" (preferred).
-2) A time zone identifier such as "America/Los_Angeles" 3) An un-abbreviated
-name such as "Pacific Standard Time".
+Gets a string representation of the current timezone. The format should be in
+the IANA format [https://data.iana.org/time-zones/theory.html#naming](https://data.iana.org/time-zones/theory.html#naming)) .
+Names normally have the form AREA/LOCATION, where AREA is a continent or ocean,
+and LOCATION is a specific location within the area. Typical names are
+'Africa/Cairo', 'America/New_York', and 'Pacific/Honolulu'.
 
 #### Declaration
 
 ```
 const char* SbTimeZoneGetName()
 ```
-

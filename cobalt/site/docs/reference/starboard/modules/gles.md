@@ -459,4 +459,3 @@ typedef long int SbGlIntPtr
     internalformat, SbGlSizei width, SbGlSizei height, SbGlSizei depth)`
 *   `void(*glGetInternalformativ)(SbGlEnum target, SbGlEnum internalformat,
     SbGlEnum pname, SbGlSizei bufSize, SbGlInt32 *params)`
-

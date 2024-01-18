@@ -122,6 +122,18 @@ Here are examples of its usage:
     compatibility violations encountered.
 *   **Count.XHR** - The total number of xhr::XMLHttpRequest in existence
     globally.
+*   **Count.MainWebModule.AnimatedImage.Active** - The total number of currently
+    active animated image decoders. Same image from a single URL source rendered
+    multiple times across the content counts as one decoder.
+*   **Count.MainWebModule.AnimatedImage.DecodedFrames** - Total number of decoded
+    frames across all active image decoders. This number resets only when
+    WebModule gets re-created - e.g. page reload, navigation.
+*   **Count.MainWebModule.AnimatedImage.DecodingUnderruns** - Total number of
+    frames when animated image decoding has fallen behind real-time, as defined
+    by image frame exposure times. This indicates a CPU bottleneck.
+*   **Count.MainWebModule.AnimatedImage.DecodingOverruns** - Total number of
+    frames when animated image decoding has been attempted too early, before
+    next frame exposure time. This indicates a timing issue in platform.
 
 ### Event
 

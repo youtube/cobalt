@@ -125,4 +125,3 @@ held by the current thread.
 ```
 bool SbMutexRelease(SbMutex *mutex)
 ```
-

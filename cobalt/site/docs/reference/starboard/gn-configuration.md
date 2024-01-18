@@ -25,7 +25,7 @@ Book: /youtube/cobalt/_book.yaml
 | **`path_to_nasm`**<br><br> Where yasm can be found on the host device.<br><br>The default value is `"nasm"`. |
 | **`platform_tests_path`**<br><br> Set to the starboard_platform_tests target if the platform implements them.<br><br>The default value is `""`. |
 | **`sabi_path`**<br><br> Where the Starboard ABI file for this platform can be found.<br><br>The default value is `"starboard/sabi/default/sabi.json"`. |
-| **`sb_api_version`**<br><br> The Starboard API version of the current build configuration. The default value is meant to be overridden by a Starboard ABI file.<br><br>The default value is `16`. |
+| **`sb_api_version`**<br><br> The Starboard API version of the current build configuration. The default value is meant to be overridden by a Starboard ABI file.<br><br>The default value is `15`. |
 | **`sb_enable_benchmark`**<br><br> Used to enable benchmarks.<br><br>The default value is `false`. |
 | **`sb_enable_cpp17_audit`**<br><br> Enables an NPLB audit of C++17 support.<br><br>The default value is `true`. |
 | **`sb_enable_lib`**<br><br> Enables embedding Cobalt as a shared library within another app. This requires a 'lib' starboard implementation for the corresponding platform.<br><br>The default value is `false`. |
