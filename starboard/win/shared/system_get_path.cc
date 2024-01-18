@@ -16,7 +16,6 @@
 
 #include <windows.h>
 // pathcch.h must come after windows.h.
-#include <direct.h>
 #include <pathcch.h>
 
 #include <sys/stat.h>
