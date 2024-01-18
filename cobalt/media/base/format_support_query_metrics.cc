@@ -32,7 +32,7 @@ std::string CreateQueryDescription(const char* query_name,
                                    const std::string& mime_type,
                                    const std::string& key_system,
                                    SbMediaSupportType support_type,
-                                   int64_t query_duration) {
+                                   base::TimeDelta query_duration) {
   auto get_support_type_str = [](SbMediaSupportType support_type) {
     switch (support_type) {
       case kSbMediaSupportTypeNotSupported:
@@ -50,28 +50,30 @@ std::string CreateQueryDescription(const char* query_name,
   return starboard::FormatString(
       "%s(%s%s%s, %" PRId64 " us", query_name, mime_type.c_str(),
       (key_system.empty() ? ")" : ", " + key_system + ")").c_str(),
-      get_support_type_str(support_type), query_duration);
+      get_support_type_str(support_type), query_duration.InMicroseconds());
 }
 
 }  // namespace
 
 // static
-int64_t FormatSupportQueryMetrics::cached_query_durations_
+base::TimeDelta FormatSupportQueryMetrics::cached_query_durations_
     [kMaxCachedQueryDurations] = {};
 char FormatSupportQueryMetrics::max_query_description_
     [kMaxQueryDescriptionLength] = {};
-int64_t FormatSupportQueryMetrics::max_query_duration_ = 0;
-int64_t FormatSupportQueryMetrics::total_query_duration_ = 0;
+base::TimeDelta FormatSupportQueryMetrics::max_query_duration_ =
+    base::TimeDelta();
+base::TimeDelta FormatSupportQueryMetrics::total_query_duration_ =
+    base::TimeDelta();
 int FormatSupportQueryMetrics::total_num_queries_ = 0;
 
 FormatSupportQueryMetrics::FormatSupportQueryMetrics() {
-  start_time_ = starboard::CurrentMonotonicTime();
+  start_time_ = base::Time::Now();
 }
 
 void FormatSupportQueryMetrics::RecordAndLogQuery(
     const char* query_name, const std::string& mime_type,
     const std::string& key_system, SbMediaSupportType support_type) {
-  int64_t query_duration = starboard::CurrentMonotonicTime() - start_time_;
+  base::TimeDelta query_duration = base::Time::Now() - start_time_;
   total_query_duration_ += query_duration;
 
   std::string query_description = CreateQueryDescription(
@@ -117,10 +119,10 @@ void FormatSupportQueryMetrics::PrintAndResetMetrics() {
             << " us\n\tMedian query time: ~" << get_median()
             << " us\n\tLongest query: " << max_query_description_;
 
-  max_query_description_[0] = 0;
-  max_query_duration_ = 0;
-  total_query_duration_ = 0;
-  total_num_queries_ = 0;
+  max_query_description_[0] = {};
+  max_query_duration_ = {};
+  total_query_duration_ = {};
+  total_num_queries_ = {};
 }
 
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
