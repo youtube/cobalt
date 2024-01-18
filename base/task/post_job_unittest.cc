@@ -46,7 +46,7 @@ TEST(PostJobTest, CreateJobSimple) {
       CreateJob(FROM_HERE, {}, BindLambdaForTesting([&](JobDelegate* delegate) {
                   EXPECT_TRUE(job_started);
                   barrier.Run();
-#if defined(USE_HACKY_COBALT_CHANGES)
+#if defined(STARBOARD)
                   ScopedAllowBaseSyncPrimitivesForTesting allow_base_sync_primitives;
 #endif
                   threads_continue.Wait();
