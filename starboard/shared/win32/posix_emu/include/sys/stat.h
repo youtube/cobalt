@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_STAT_H_
 #define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_STAT_H_
 
+#include <sys/types.h>
+
 #if defined(STARBOARD)
 
 #ifdef __cplusplus
