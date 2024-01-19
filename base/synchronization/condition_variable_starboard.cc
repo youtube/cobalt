@@ -25,7 +25,7 @@ namespace base {
 
 ConditionVariable::ConditionVariable(Lock* user_lock)
     : user_mutex_(user_lock->lock_.native_handle())
-#if !defined(NDEBUG) || defined(DCHECK_ALWAYS_ON)
+#if DCHECK_IS_ON()
       ,
       user_lock_(user_lock)
 #endif
@@ -40,31 +40,36 @@ ConditionVariable::~ConditionVariable() {
 }
 
 void ConditionVariable::Wait() {
-  internal::ScopedBlockingCallWithBaseSyncPrimitives scoped_blocking_call(FROM_HERE, 
-      BlockingType::MAY_BLOCK);
-#if !defined(NDEBUG) || defined(DCHECK_ALWAYS_ON)
+  absl::optional<internal::ScopedBlockingCallWithBaseSyncPrimitives>
+      scoped_blocking_call;
+  if (waiting_is_blocking_)
+    scoped_blocking_call.emplace(FROM_HERE, BlockingType::MAY_BLOCK);
+
+#if DCHECK_IS_ON()
   user_lock_->CheckHeldAndUnmark();
 #endif
   SbConditionVariableResult result =
       SbConditionVariableWait(&condition_, user_mutex_);
   DCHECK(SbConditionVariableIsSignaled(result));
-#if !defined(NDEBUG) || defined(DCHECK_ALWAYS_ON)
+#if DCHECK_IS_ON()
   user_lock_->CheckUnheldAndMark();
 #endif
 }
 
 void ConditionVariable::TimedWait(const TimeDelta& max_time) {
-  internal::ScopedBlockingCallWithBaseSyncPrimitives scoped_blocking_call(FROM_HERE, 
-      BlockingType::MAY_BLOCK);
+  absl::optional<internal::ScopedBlockingCallWithBaseSyncPrimitives>
+      scoped_blocking_call;
+  if (waiting_is_blocking_)
+    scoped_blocking_call.emplace(FROM_HERE, BlockingType::MAY_BLOCK);
   SbTime duration = max_time.ToSbTime();
 
-#if !defined(NDEBUG) || defined(DCHECK_ALWAYS_ON)
+#if DCHECK_IS_ON()
   user_lock_->CheckHeldAndUnmark();
 #endif
   SbConditionVariableResult result =
       SbConditionVariableWaitTimed(&condition_, user_mutex_, duration);
   DCHECK_NE(kSbConditionVariableFailed, result);
-#if !defined(NDEBUG) || defined(DCHECK_ALWAYS_ON)
+#if DCHECK_IS_ON()
   user_lock_->CheckUnheldAndMark();
 #endif
 }
