@@ -135,9 +135,9 @@ class MediaModule : public WebMediaPlayerFactory,
 
 #if SB_API_VERSION >= 15
   base::TimeDelta audio_write_duration_local_ =
-      base::TimeDelta::FromMilliseconds(kSbPlayerWriteDurationLocal);
+      base::TimeDelta::FromMicroseconds(kSbPlayerWriteDurationLocal);
   base::TimeDelta audio_write_duration_remote_ =
-      base::TimeDelta::FromMilliseconds(kSbPlayerWriteDurationRemote);
+      base::TimeDelta::FromMicroseconds(kSbPlayerWriteDurationRemote);
 #endif  // SB_API_VERSION >= 15
 
   DecoderBufferAllocator decoder_buffer_allocator_;
