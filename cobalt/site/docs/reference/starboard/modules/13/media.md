@@ -224,7 +224,7 @@ Audio-specific configuration field. The `WAVEFORMATEX` structure is specified at
     The number of bytes per second expected with this format.
 *   `uint16_t block_alignment`
 
-    Byte block alignment, e.g, 4.
+    Byte block alignment, e.g., 4.
 *   `uint16_t bits_per_sample`
 
     The bit depth for the stream this represents, e.g. `8` or `16`.
@@ -576,7 +576,7 @@ Returns SbMediaBufferStorageType of type `SbMediaStorageTypeMemory` or
 in main memory allocated by SbMemory functions. For file storage, the media
 buffers will be stored in a temporary file in the system cache folder acquired
 by calling SbSystemGetPath() with "kSbSystemPathCacheDirectory". Note that when
-its value is "file" the media stack will still allocate memory to cache the the
+its value is "file" the media stack will still allocate memory to cache the
 buffers in use.
 
 #### Declaration

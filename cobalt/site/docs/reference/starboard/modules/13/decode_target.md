@@ -33,8 +33,7 @@ to run arbitrary code on the application's renderer thread with the renderer's
 EGLContext held current. This may be useful if your SbDecodeTarget creation code
 needs to execute GLES commands like, for example, glGenTextures().
 
-The primary usage is likely to be the the SbPlayer implementation on some
-platforms.
+The primary usage is likely to be the SbPlayer implementation on some platforms.
 
 ## SbDecodeTarget Example
 
