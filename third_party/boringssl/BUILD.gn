@@ -170,10 +170,12 @@ if (use_cobalt_customizations) {
     deps += [ "//native_client_sdk/src/libraries/nacl_io" ]
   }
 
+if (!use_cobalt_customizations) {
   if (!is_debug && !optimize_for_size) {
     configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_max" ]
   }
+}
 
   if (is_starboard) {
     sources -= [

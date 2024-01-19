@@ -20,7 +20,7 @@
 
 #include "fork_detect.h"
 
-#if defined(OPENSSL_LINUX)
+#if defined(OPENSSL_LINUX) && !defined(OPENSSL_SYS_STARBOARD)  // avoid calls to madvise and sysconf
 #include <sys/mman.h>
 #include <unistd.h>
 #include <stdlib.h>
