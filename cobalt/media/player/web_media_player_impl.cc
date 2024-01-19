@@ -112,7 +112,8 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
     bool allow_resume_after_suspend, bool allow_batched_sample_write,
     bool force_punch_out_by_default,
 #if SB_API_VERSION >= 15
-    int64_t audio_write_duration_local, int64_t audio_write_duration_remote,
+    base::TimeDelta audio_write_duration_local,
+    base::TimeDelta audio_write_duration_remote,
 #endif  // SB_API_VERSION >= 15
     ::media::MediaLog* const media_log)
     : pipeline_thread_("media_pipeline"),
@@ -145,8 +146,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       allow_resume_after_suspend_, allow_batched_sample_write_,
       force_punch_out_by_default_,
 #if SB_API_VERSION >= 15
-      base::TimeDelta::FromMicroseconds(audio_write_duration_local),
-      base::TimeDelta::FromMicroseconds(audio_write_duration_remote),
+      audio_write_duration_local, audio_write_duration_remote,
 #endif  // SB_API_VERSION >= 15
       media_log_, &media_metrics_provider_, decode_target_provider_.get());
 
