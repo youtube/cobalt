@@ -17,13 +17,13 @@ contribute them to the repository.
 
 Because it's helpful to build and run Cobalt during the exercises, you'll first
 want to set up your environment and make sure you can build Cobalt. You can
-follow <a href="/development/setup-linux.html">Set up your environment -
+follow <a href="../../development/setup-linux.md">Set up your environment -
 Linux</a> to do this if you're a Linux user. Please note that the exercise
 solutions assume you're using Linux but should be comparable to implementations
 for other platforms.
 
 Also note that while this codelab doesn't require it, you'll need to
-<a href="/starboard/porting.html">Port Cobalt to your platform</a> before you
+<a href="../../starboard/porting.md">Port Cobalt to your platform</a> before you
 can actually use a Starboard Extension to customize it for your platform.
 
 Finally, the exercises assume the ability to program in C and C++.
@@ -785,5 +785,5 @@ Please file this feature request with the appropriate priority and the Cobalt
 team will review the proposal accordingly. If the Cobalt team approves of the
 use case and design then a member of the team will assign the feature request
 back to you for implementation. At this point, please follow the
-<a href="/contributors/index.html">Contributing to Cobalt</a> guide to ensure
+<a href="../../contributors/index.md">Contributing to Cobalt</a> guide to ensure
 your code is compliant and can be reviewed and submitted.
