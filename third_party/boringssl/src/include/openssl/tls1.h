@@ -179,6 +179,7 @@ extern "C" {
 #define TLS1_AD_BAD_CERTIFICATE_HASH_VALUE 114
 #define TLS1_AD_UNKNOWN_PSK_IDENTITY 115
 #define TLS1_AD_CERTIFICATE_REQUIRED 116
+#define TLS1_AD_NO_APPLICATION_PROTOCOL 120
 
 // ExtensionType values from RFC6066
 #define TLSEXT_TYPE_server_name 0
@@ -231,9 +232,8 @@ extern "C" {
 // ExtensionType value from RFC5746
 #define TLSEXT_TYPE_renegotiate 0xff01
 
-// ExtensionType value from draft-ietf-tls-subcerts. This is not an IANA defined
-// extension number.
-#define TLSEXT_TYPE_delegated_credential 0xff02
+// ExtensionType value from draft-ietf-tls-subcerts.
+#define TLSEXT_TYPE_delegated_credential 0x22
 
 // ExtensionType value from RFC6962
 #define TLSEXT_TYPE_certificate_timestamp 18

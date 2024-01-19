@@ -62,7 +62,11 @@ bool tls13_init_key_schedule(SSL_HANDSHAKE *hs, Span<const uint8_t> psk) {
     return false;
   }
 
-  hs->transcript.FreeBuffer();
+  // Handback includes the whole handshake transcript, so we cannot free the
+  // transcript buffer in the handback case.
+  if (!hs->handback) {
+    hs->transcript.FreeBuffer();
+  }
   return hkdf_extract_to_secret(hs, psk);
 }
 
@@ -135,12 +139,18 @@ static bool derive_secret(SSL_HANDSHAKE *hs, Span<uint8_t> out,
 
 bool tls13_set_traffic_key(SSL *ssl, enum ssl_encryption_level_t level,
                            enum evp_aead_direction_t direction,
+                           const SSL_SESSION *session,
                            Span<const uint8_t> traffic_secret) {
-  const SSL_SESSION *session = SSL_get_session(ssl);
   uint16_t version = ssl_session_protocol_version(session);
-
   UniquePtr<SSLAEADContext> traffic_aead;
-  if (ssl->quic_method == nullptr) {
+  Span<const uint8_t> secret_for_quic;
+  if (ssl->quic_method != nullptr) {
+    // Install a placeholder SSLAEADContext so that SSL accessors work. The
+    // encryption itself will be handled by the SSL_QUIC_METHOD.
+    traffic_aead =
+        SSLAEADContext::CreatePlaceholderForQUIC(version, session->cipher);
+    secret_for_quic = traffic_secret;
+  } else {
     // Look up cipher suite properties.
     const EVP_AEAD *aead;
     size_t discard;
@@ -169,34 +179,15 @@ bool tls13_set_traffic_key(SSL *ssl, enum ssl_encryption_level_t level,
       return false;
     }
 
-
     traffic_aead = SSLAEADContext::Create(direction, session->ssl_version,
                                           SSL_is_dtls(ssl), session->cipher,
                                           key, Span<const uint8_t>(), iv);
-  } else {
-    // Install a placeholder SSLAEADContext so that SSL accessors work. The
-    // encryption itself will be handled by the SSL_QUIC_METHOD.
-    traffic_aead =
-        SSLAEADContext::CreatePlaceholderForQUIC(version, session->cipher);
-    // QUIC never installs early data keys at the TLS layer.
-    assert(level != ssl_encryption_early_data);
   }
 
   if (!traffic_aead) {
     return false;
   }
 
-  if (direction == evp_aead_open) {
-    if (!ssl->method->set_read_state(ssl, std::move(traffic_aead))) {
-      return false;
-    }
-  } else {
-    if (!ssl->method->set_write_state(ssl, std::move(traffic_aead))) {
-      return false;
-    }
-  }
-
-  // Save the traffic secret.
   if (traffic_secret.size() >
           OPENSSL_ARRAY_SIZE(ssl->s3->read_traffic_secret) ||
       traffic_secret.size() >
@@ -204,16 +195,23 @@ bool tls13_set_traffic_key(SSL *ssl, enum ssl_encryption_level_t level,
     OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
     return false;
   }
+
   if (direction == evp_aead_open) {
+    if (!ssl->method->set_read_state(ssl, level, std::move(traffic_aead),
+                                     secret_for_quic)) {
+      return false;
+    }
     OPENSSL_memmove(ssl->s3->read_traffic_secret, traffic_secret.data(),
                     traffic_secret.size());
     ssl->s3->read_traffic_secret_len = traffic_secret.size();
-    ssl->s3->read_level = level;
   } else {
+    if (!ssl->method->set_write_state(ssl, level, std::move(traffic_aead),
+                                      secret_for_quic)) {
+      return false;
+    }
     OPENSSL_memmove(ssl->s3->write_traffic_secret, traffic_secret.data(),
                     traffic_secret.size());
     ssl->s3->write_traffic_secret_len = traffic_secret.size();
-    ssl->s3->write_level = level;
   }
 
   return true;
@@ -239,47 +237,6 @@ bool tls13_derive_early_secret(SSL_HANDSHAKE *hs) {
   return true;
 }
 
-bool tls13_set_early_secret_for_quic(SSL_HANDSHAKE *hs) {
-  SSL *const ssl = hs->ssl;
-  if (ssl->quic_method == nullptr) {
-    return true;
-  }
-  if (ssl->server) {
-    if (!ssl->quic_method->set_encryption_secrets(
-            ssl, ssl_encryption_early_data, hs->early_traffic_secret().data(),
-            /*write_secret=*/nullptr, hs->early_traffic_secret().size())) {
-      OPENSSL_PUT_ERROR(SSL, SSL_R_QUIC_INTERNAL_ERROR);
-      return false;
-    }
-  } else {
-    if (!ssl->quic_method->set_encryption_secrets(
-            ssl, ssl_encryption_early_data, /*read_secret=*/nullptr,
-            hs->early_traffic_secret().data(),
-            hs->early_traffic_secret().size())) {
-      OPENSSL_PUT_ERROR(SSL, SSL_R_QUIC_INTERNAL_ERROR);
-      return false;
-    }
-  }
-  return true;
-}
-
-static bool set_quic_secrets(SSL_HANDSHAKE *hs, ssl_encryption_level_t level,
-                             Span<const uint8_t> client_write_secret,
-                             Span<const uint8_t> server_write_secret) {
-  SSL *const ssl = hs->ssl;
-  assert(client_write_secret.size() == server_write_secret.size());
-  if (ssl->quic_method == nullptr) {
-    return true;
-  }
-  if (!ssl->server) {
-    std::swap(client_write_secret, server_write_secret);
-  }
-  return ssl->quic_method->set_encryption_secrets(
-      ssl, level,
-      /*read_secret=*/client_write_secret.data(),
-      /*write_secret=*/server_write_secret.data(), client_write_secret.size());
-}
-
 bool tls13_derive_handshake_secrets(SSL_HANDSHAKE *hs) {
   SSL *const ssl = hs->ssl;
   if (!derive_secret(hs, hs->client_handshake_secret(),
@@ -289,10 +246,7 @@ bool tls13_derive_handshake_secrets(SSL_HANDSHAKE *hs) {
       !derive_secret(hs, hs->server_handshake_secret(),
                      label_to_span(kTLS13LabelServerHandshakeTraffic)) ||
       !ssl_log_secret(ssl, "SERVER_HANDSHAKE_TRAFFIC_SECRET",
-                      hs->server_handshake_secret()) ||
-      !set_quic_secrets(hs, ssl_encryption_handshake,
-                        hs->client_handshake_secret(),
-                        hs->server_handshake_secret())) {
+                      hs->server_handshake_secret())) {
     return false;
   }
 
@@ -315,10 +269,7 @@ bool tls13_derive_application_secrets(SSL_HANDSHAKE *hs) {
           label_to_span(kTLS13LabelExporter)) ||
       !ssl_log_secret(ssl, "EXPORTER_SECRET",
                       MakeConstSpan(ssl->s3->exporter_secret,
-                                    ssl->s3->exporter_secret_len)) ||
-      !set_quic_secrets(hs, ssl_encryption_application,
-                        hs->client_traffic_secret_0(),
-                        hs->server_traffic_secret_0())) {
+                                    ssl->s3->exporter_secret_len))) {
     return false;
   }
 
@@ -337,11 +288,12 @@ bool tls13_rotate_traffic_key(SSL *ssl, enum evp_aead_direction_t direction) {
                       ssl->s3->write_traffic_secret_len);
   }
 
-  const EVP_MD *digest = ssl_session_get_digest(SSL_get_session(ssl));
+  const SSL_SESSION *session = SSL_get_session(ssl);
+  const EVP_MD *digest = ssl_session_get_digest(session);
   return hkdf_expand_label(secret, digest, secret,
                            label_to_span(kTLS13LabelApplicationTraffic), {}) &&
          tls13_set_traffic_key(ssl, ssl_encryption_application, direction,
-                               secret);
+                               session, secret);
 }
 
 static const char kTLS13LabelResumption[] = "res master";

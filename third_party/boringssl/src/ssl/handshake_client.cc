@@ -259,7 +259,7 @@ static bool ssl_write_client_cipher_list(SSL_HANDSHAKE *hs, CBB *out) {
         continue;
       }
       any_enabled = true;
-      if (!CBB_add_u16(&child, ssl_cipher_get_value(cipher))) {
+      if (!CBB_add_u16(&child, SSL_CIPHER_get_protocol_id(cipher))) {
         return false;
       }
     }
@@ -406,7 +406,8 @@ static enum ssl_hs_wait_t do_start_connect(SSL_HANDSHAKE *hs) {
         (ssl->session->session_id_length == 0 &&
          ssl->session->ticket.empty()) ||
         ssl->session->not_resumable ||
-        !ssl_session_is_time_valid(ssl, ssl->session.get())) {
+        !ssl_session_is_time_valid(ssl, ssl->session.get()) ||
+        (ssl->quic_method != nullptr) != ssl->session->is_quic) {
       ssl_set_session(ssl, NULL);
     }
   }
@@ -415,17 +416,20 @@ static enum ssl_hs_wait_t do_start_connect(SSL_HANDSHAKE *hs) {
     return ssl_hs_error;
   }
 
-  if (ssl->session != nullptr &&
-      !ssl->s3->initial_handshake_complete &&
-      ssl->session->session_id_length > 0) {
-    hs->session_id_len = ssl->session->session_id_length;
-    OPENSSL_memcpy(hs->session_id, ssl->session->session_id,
-                   hs->session_id_len);
-  } else if (hs->max_version >= TLS1_3_VERSION) {
-    // Initialize a random session ID.
-    hs->session_id_len = sizeof(hs->session_id);
-    if (!RAND_bytes(hs->session_id, hs->session_id_len)) {
-      return ssl_hs_error;
+  // Never send a session ID in QUIC. QUIC uses TLS 1.3 at a minimum and
+  // disables TLS 1.3 middlebox compatibility mode.
+  if (ssl->quic_method == nullptr) {
+    if (ssl->session != nullptr && !ssl->s3->initial_handshake_complete &&
+        ssl->session->session_id_length > 0) {
+      hs->session_id_len = ssl->session->session_id_length;
+      OPENSSL_memcpy(hs->session_id, ssl->session->session_id,
+                     hs->session_id_len);
+    } else if (hs->max_version >= TLS1_3_VERSION) {
+      // Initialize a random session ID.
+      hs->session_id_len = sizeof(hs->session_id);
+      if (!RAND_bytes(hs->session_id, hs->session_id_len)) {
+        return ssl_hs_error;
+      }
     }
   }
 
@@ -461,11 +465,6 @@ static enum ssl_hs_wait_t do_enter_early_data(SSL_HANDSHAKE *hs) {
       !tls13_derive_early_secret(hs)) {
     return ssl_hs_error;
   }
-  if (ssl->quic_method == nullptr &&
-      !tls13_set_traffic_key(ssl, ssl_encryption_early_data, evp_aead_seal,
-                             hs->early_traffic_secret())) {
-    return ssl_hs_error;
-  }
 
   // Stash the early data session, so connection properties may be queried out
   // of it.
@@ -496,7 +495,9 @@ static enum ssl_hs_wait_t do_early_reverify_server_certificate(SSL_HANDSHAKE *hs
 
   // Defer releasing the 0-RTT key to after certificate reverification, so the
   // QUIC implementation does not accidentally write data too early.
-  if (!tls13_set_early_secret_for_quic(hs)) {
+  if (!tls13_set_traffic_key(hs->ssl, ssl_encryption_early_data, evp_aead_seal,
+                             hs->early_session.get(),
+                             hs->early_traffic_secret())) {
     return ssl_hs_error;
   }
 
@@ -1050,7 +1051,7 @@ static enum ssl_hs_wait_t do_read_server_key_exchange(SSL_HANDSHAKE *hs) {
         return ssl_hs_error;
       }
       uint8_t alert = SSL_AD_DECODE_ERROR;
-      if (!tls12_check_peer_sigalg(ssl, &alert, signature_algorithm)) {
+      if (!tls12_check_peer_sigalg(hs, &alert, signature_algorithm)) {
         ssl_send_alert(ssl, SSL3_AL_FATAL, alert);
         return ssl_hs_error;
       }
@@ -1201,6 +1202,13 @@ static enum ssl_hs_wait_t do_read_server_hello_done(SSL_HANDSHAKE *hs) {
     return ssl_hs_error;
   }
 
+  // ServerHelloDone should be the end of the flight.
+  if (ssl->method->has_unprocessed_handshake_data(ssl)) {
+    ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_UNEXPECTED_MESSAGE);
+    OPENSSL_PUT_ERROR(SSL, SSL_R_EXCESS_HANDSHAKE_DATA);
+    return ssl_hs_error;
+  }
+
   ssl->method->next_message(ssl);
   hs->state = state_send_client_certificate;
   return ssl_hs_ok;
@@ -1260,10 +1268,10 @@ static enum ssl_hs_wait_t do_send_client_key_exchange(SSL_HANDSHAKE *hs) {
   uint32_t alg_k = hs->new_cipher->algorithm_mkey;
   uint32_t alg_a = hs->new_cipher->algorithm_auth;
   if (ssl_cipher_uses_certificate_auth(hs->new_cipher)) {
-    CRYPTO_BUFFER *leaf =
+    const CRYPTO_BUFFER *leaf =
         sk_CRYPTO_BUFFER_value(hs->new_session->certs.get(), 0);
     CBS leaf_cbs;
-    CBS_init(&leaf_cbs, CRYPTO_BUFFER_data(leaf), CRYPTO_BUFFER_len(leaf));
+    CRYPTO_BUFFER_init_CBS(leaf, &leaf_cbs);
 
     // Check the key usage matches the cipher suite. We do this unconditionally
     // for non-RSA certificates. In particular, it's needed to distinguish ECDH
@@ -1273,7 +1281,7 @@ static enum ssl_hs_wait_t do_send_client_key_exchange(SSL_HANDSHAKE *hs) {
     ssl_key_usage_t intended_use = (alg_k & SSL_kRSA)
                                        ? key_usage_encipherment
                                        : key_usage_digital_signature;
-    if (ssl->config->enforce_rsa_key_usage ||
+    if (hs->config->enforce_rsa_key_usage ||
         EVP_PKEY_id(hs->peer_pubkey.get()) != EVP_PKEY_RSA) {
       if (!ssl_cert_check_key_usage(&leaf_cbs, intended_use)) {
         return ssl_hs_error;

@@ -441,7 +441,7 @@ enum ssl_hs_wait_t ssl_get_finished(SSL_HANDSHAKE *hs) {
   uint8_t finished[EVP_MAX_MD_SIZE];
   size_t finished_len;
   if (!hs->transcript.GetFinishedMAC(finished, &finished_len,
-                                     SSL_get_session(ssl), !ssl->server) ||
+                                     ssl_handshake_session(hs), !ssl->server) ||
       !ssl_hash_message(hs, msg)) {
     return ssl_hs_error;
   }
@@ -471,13 +471,20 @@ enum ssl_hs_wait_t ssl_get_finished(SSL_HANDSHAKE *hs) {
     ssl->s3->previous_server_finished_len = finished_len;
   }
 
+  // The Finished message should be the end of a flight.
+  if (ssl->method->has_unprocessed_handshake_data(ssl)) {
+    ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_UNEXPECTED_MESSAGE);
+    OPENSSL_PUT_ERROR(SSL, SSL_R_EXCESS_HANDSHAKE_DATA);
+    return ssl_hs_error;
+  }
+
   ssl->method->next_message(ssl);
   return ssl_hs_ok;
 }
 
 bool ssl_send_finished(SSL_HANDSHAKE *hs) {
   SSL *const ssl = hs->ssl;
-  const SSL_SESSION *session = SSL_get_session(ssl);
+  const SSL_SESSION *session = ssl_handshake_session(hs);
 
   uint8_t finished[EVP_MAX_MD_SIZE];
   size_t finished_len;
@@ -532,6 +539,13 @@ bool ssl_output_cert_chain(SSL_HANDSHAKE *hs) {
   }
 
   return true;
+}
+
+const SSL_SESSION *ssl_handshake_session(const SSL_HANDSHAKE *hs) {
+  if (hs->new_session) {
+    return hs->new_session.get();
+  }
+  return hs->ssl->session.get();
 }
 
 int ssl_run_handshake(SSL_HANDSHAKE *hs, bool *out_early_return) {
@@ -621,10 +635,15 @@ int ssl_run_handshake(SSL_HANDSHAKE *hs, bool *out_early_return) {
         hs->wait = ssl_hs_ok;
         return -1;
 
-      case ssl_hs_handback:
+      case ssl_hs_handback: {
+        int ret = ssl->method->flush_flight(ssl);
+        if (ret <= 0) {
+          return ret;
+        }
         ssl->s3->rwstate = SSL_ERROR_HANDBACK;
         hs->wait = ssl_hs_handback;
         return -1;
+      }
 
       case ssl_hs_x509_lookup:
         ssl->s3->rwstate = SSL_ERROR_WANT_X509_LOOKUP;
@@ -658,9 +677,8 @@ int ssl_run_handshake(SSL_HANDSHAKE *hs, bool *out_early_return) {
 
       case ssl_hs_early_data_rejected:
         assert(ssl->s3->early_data_reason != ssl_early_data_unknown);
+        assert(!hs->can_early_write);
         ssl->s3->rwstate = SSL_ERROR_EARLY_DATA_REJECTED;
-        // Cause |SSL_write| to start failing immediately.
-        hs->can_early_write = false;
         return -1;
 
       case ssl_hs_early_return:

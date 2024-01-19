@@ -211,6 +211,14 @@ typedef __uint128_t uint128_t;
 #define OPENSSL_FALLTHROUGH
 #endif
 
+// For convenience in testing 64-bit generic code, we allow disabling SSE2
+// intrinsics via |OPENSSL_NO_SSE2_FOR_TESTING|. x86_64 always has SSE2
+// available, so we would otherwise need to test such code on a non-x86_64
+// platform.
+#if defined(__SSE2__) && !defined(OPENSSL_NO_SSE2_FOR_TESTING)
+#define OPENSSL_SSE2
+#endif
+
 // buffers_alias returns one if |a| and |b| alias and zero otherwise.
 static inline int buffers_alias(const uint8_t *a, size_t a_len,
                                 const uint8_t *b, size_t b_len) {
@@ -714,6 +722,10 @@ OPENSSL_EXPORT void CRYPTO_free_ex_data(CRYPTO_EX_DATA_CLASS *ex_data_class,
 // Endianness conversions.
 
 #if defined(__GNUC__) && __GNUC__ >= 2
+static inline uint16_t CRYPTO_bswap2(uint16_t x) {
+  return __builtin_bswap16(x);
+}
+
 static inline uint32_t CRYPTO_bswap4(uint32_t x) {
   return __builtin_bswap32(x);
 }
@@ -725,7 +737,11 @@ static inline uint64_t CRYPTO_bswap8(uint64_t x) {
 OPENSSL_MSVC_PRAGMA(warning(push, 3))
 #include <stdlib.h>
 OPENSSL_MSVC_PRAGMA(warning(pop))
-#pragma intrinsic(_byteswap_uint64, _byteswap_ulong)
+#pragma intrinsic(_byteswap_uint64, _byteswap_ulong, _byteswap_ushort)
+static inline uint16_t CRYPTO_bswap2(uint16_t x) {
+  return _byteswap_ushort(x);
+}
+
 static inline uint32_t CRYPTO_bswap4(uint32_t x) {
   return _byteswap_ulong(x);
 }
@@ -734,6 +750,10 @@ static inline uint64_t CRYPTO_bswap8(uint64_t x) {
   return _byteswap_uint64(x);
 }
 #else
+static inline uint16_t CRYPTO_bswap2(uint16_t x) {
+  return (x >> 8) | (x << 8);
+}
+
 static inline uint32_t CRYPTO_bswap4(uint32_t x) {
   x = (x >> 16) | (x << 16);
   x = ((x & 0xff00ff00) >> 8) | ((x & 0x00ff00ff) << 8);

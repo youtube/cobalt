@@ -70,9 +70,15 @@
 #include "../bn/internal.h"
 #include "../../internal.h"
 #include "../delocate.h"
+#include "../rand/fork_detect.h"
 
 
-static int check_modulus_and_exponent_sizes(const RSA *rsa) {
+int rsa_check_public_key(const RSA *rsa) {
+  if (rsa->n == NULL || rsa->e == NULL) {
+    OPENSSL_PUT_ERROR(RSA, RSA_R_VALUE_MISSING);
+    return 0;
+  }
+
   unsigned rsa_bits = BN_num_bits(rsa->n);
 
   if (rsa_bits > 16 * 1024) {
@@ -252,8 +258,7 @@ size_t rsa_default_size(const RSA *rsa) {
 
 int RSA_encrypt(RSA *rsa, size_t *out_len, uint8_t *out, size_t max_out,
                 const uint8_t *in, size_t in_len, int padding) {
-  if (rsa->n == NULL || rsa->e == NULL) {
-    OPENSSL_PUT_ERROR(RSA, RSA_R_VALUE_MISSING);
+  if (!rsa_check_public_key(rsa)) {
     return 0;
   }
 
@@ -265,10 +270,6 @@ int RSA_encrypt(RSA *rsa, size_t *out_len, uint8_t *out, size_t max_out,
 
   if (max_out < rsa_size) {
     OPENSSL_PUT_ERROR(RSA, RSA_R_OUTPUT_BUFFER_TOO_SMALL);
-    return 0;
-  }
-
-  if (!check_modulus_and_exponent_sizes(rsa)) {
     return 0;
   }
 
@@ -345,7 +346,12 @@ err:
 // MAX_BLINDINGS_PER_RSA defines the maximum number of cached BN_BLINDINGs per
 // RSA*. Then this limit is exceeded, BN_BLINDING objects will be created and
 // destroyed as needed.
+#if defined(OPENSSL_TSAN)
+// Smaller under TSAN so that the edge case can be hit with fewer threads.
+#define MAX_BLINDINGS_PER_RSA 2
+#else
 #define MAX_BLINDINGS_PER_RSA 1024
+#endif
 
 // rsa_blinding_get returns a BN_BLINDING to use with |rsa|. It does this by
 // allocating one of the cached BN_BLINDING objects in |rsa->blindings|. If
@@ -360,80 +366,97 @@ static BN_BLINDING *rsa_blinding_get(RSA *rsa, unsigned *index_used,
   assert(rsa->mont_n != NULL);
 
   BN_BLINDING *ret = NULL;
-  BN_BLINDING **new_blindings;
-  uint8_t *new_blindings_inuse;
-  char overflow = 0;
-
+  const uint64_t fork_generation = CRYPTO_get_fork_generation();
   CRYPTO_MUTEX_lock_write(&rsa->lock);
 
-  unsigned i;
-  for (i = 0; i < rsa->num_blindings; i++) {
-    if (rsa->blindings_inuse[i] == 0) {
-      rsa->blindings_inuse[i] = 1;
-      ret = rsa->blindings[i];
-      *index_used = i;
-      break;
+  // Wipe the blinding cache on |fork|.
+  if (rsa->blinding_fork_generation != fork_generation) {
+    for (unsigned i = 0; i < rsa->num_blindings; i++) {
+      // The inuse flag must be zero unless we were forked from a
+      // multi-threaded process, in which case calling back into BoringSSL is
+      // forbidden.
+      assert(rsa->blindings_inuse[i] == 0);
+      BN_BLINDING_invalidate(rsa->blindings[i]);
+    }
+    rsa->blinding_fork_generation = fork_generation;
+  }
+
+  uint8_t *const free_inuse_flag =
+      OPENSSL_memchr(rsa->blindings_inuse, 0, rsa->num_blindings);
+  if (free_inuse_flag != NULL) {
+    *free_inuse_flag = 1;
+    *index_used = free_inuse_flag - rsa->blindings_inuse;
+    ret = rsa->blindings[*index_used];
+    goto out;
+  }
+
+  if (rsa->num_blindings >= MAX_BLINDINGS_PER_RSA) {
+    // No |BN_BLINDING| is free and nor can the cache be extended. This index
+    // value is magic and indicates to |rsa_blinding_release| that a
+    // |BN_BLINDING| was not inserted into the array.
+    *index_used = MAX_BLINDINGS_PER_RSA;
+    ret = BN_BLINDING_new();
+    goto out;
+  }
+
+  // Double the length of the cache.
+  OPENSSL_STATIC_ASSERT(MAX_BLINDINGS_PER_RSA < UINT_MAX / 2,
+                        "MAX_BLINDINGS_PER_RSA too large");
+  unsigned new_num_blindings = rsa->num_blindings * 2;
+  if (new_num_blindings == 0) {
+    new_num_blindings = 1;
+  }
+  if (new_num_blindings > MAX_BLINDINGS_PER_RSA) {
+    new_num_blindings = MAX_BLINDINGS_PER_RSA;
+  }
+  assert(new_num_blindings > rsa->num_blindings);
+
+  OPENSSL_STATIC_ASSERT(
+      MAX_BLINDINGS_PER_RSA < UINT_MAX / sizeof(BN_BLINDING *),
+      "MAX_BLINDINGS_PER_RSA too large");
+  BN_BLINDING **new_blindings =
+      OPENSSL_malloc(sizeof(BN_BLINDING *) * new_num_blindings);
+  uint8_t *new_blindings_inuse = OPENSSL_malloc(new_num_blindings);
+  if (new_blindings == NULL || new_blindings_inuse == NULL) {
+    goto err;
+  }
+
+  OPENSSL_memcpy(new_blindings, rsa->blindings,
+                 sizeof(BN_BLINDING *) * rsa->num_blindings);
+  OPENSSL_memcpy(new_blindings_inuse, rsa->blindings_inuse, rsa->num_blindings);
+
+  for (unsigned i = rsa->num_blindings; i < new_num_blindings; i++) {
+    new_blindings[i] = BN_BLINDING_new();
+    if (new_blindings[i] == NULL) {
+      for (unsigned j = rsa->num_blindings; j < i; j++) {
+        BN_BLINDING_free(new_blindings[j]);
+      }
+      goto err;
     }
   }
+  memset(&new_blindings_inuse[rsa->num_blindings], 0,
+         new_num_blindings - rsa->num_blindings);
 
-  if (ret != NULL) {
-    CRYPTO_MUTEX_unlock_write(&rsa->lock);
-    return ret;
-  }
-
-  overflow = rsa->num_blindings >= MAX_BLINDINGS_PER_RSA;
-
-  // We didn't find a free BN_BLINDING to use so increase the length of
-  // the arrays by one and use the newly created element.
-
-  CRYPTO_MUTEX_unlock_write(&rsa->lock);
-  ret = BN_BLINDING_new();
-  if (ret == NULL) {
-    return NULL;
-  }
-
-  if (overflow) {
-    // We cannot add any more cached BN_BLINDINGs so we use |ret|
-    // and mark it for destruction in |rsa_blinding_release|.
-    *index_used = MAX_BLINDINGS_PER_RSA;
-    return ret;
-  }
-
-  CRYPTO_MUTEX_lock_write(&rsa->lock);
-
-  new_blindings =
-      OPENSSL_malloc(sizeof(BN_BLINDING *) * (rsa->num_blindings + 1));
-  if (new_blindings == NULL) {
-    goto err1;
-  }
-  OPENSSL_memcpy(new_blindings, rsa->blindings,
-         sizeof(BN_BLINDING *) * rsa->num_blindings);
-  new_blindings[rsa->num_blindings] = ret;
-
-  new_blindings_inuse = OPENSSL_malloc(rsa->num_blindings + 1);
-  if (new_blindings_inuse == NULL) {
-    goto err2;
-  }
-  OPENSSL_memcpy(new_blindings_inuse, rsa->blindings_inuse, rsa->num_blindings);
   new_blindings_inuse[rsa->num_blindings] = 1;
   *index_used = rsa->num_blindings;
+  assert(*index_used != MAX_BLINDINGS_PER_RSA);
+  ret = new_blindings[rsa->num_blindings];
 
   OPENSSL_free(rsa->blindings);
   rsa->blindings = new_blindings;
   OPENSSL_free(rsa->blindings_inuse);
   rsa->blindings_inuse = new_blindings_inuse;
-  rsa->num_blindings++;
+  rsa->num_blindings = new_num_blindings;
 
-  CRYPTO_MUTEX_unlock_write(&rsa->lock);
-  return ret;
+  goto out;
 
-err2:
+err:
+  OPENSSL_free(new_blindings_inuse);
   OPENSSL_free(new_blindings);
 
-err1:
+out:
   CRYPTO_MUTEX_unlock_write(&rsa->lock);
-  BN_BLINDING_free(ret);
-  return NULL;
+  return ret;
 }
 
 // rsa_blinding_release marks the cached BN_BLINDING at the given index as free
@@ -569,8 +592,7 @@ static int mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx);
 
 int RSA_verify_raw(RSA *rsa, size_t *out_len, uint8_t *out, size_t max_out,
                    const uint8_t *in, size_t in_len, int padding) {
-  if (rsa->n == NULL || rsa->e == NULL) {
-    OPENSSL_PUT_ERROR(RSA, RSA_R_VALUE_MISSING);
+  if (!rsa_check_public_key(rsa)) {
     return 0;
   }
 
@@ -584,10 +606,6 @@ int RSA_verify_raw(RSA *rsa, size_t *out_len, uint8_t *out, size_t max_out,
 
   if (in_len != rsa_size) {
     OPENSSL_PUT_ERROR(RSA, RSA_R_DATA_LEN_NOT_EQUAL_TO_MOD_LEN);
-    return 0;
-  }
-
-  if (!check_modulus_and_exponent_sizes(rsa)) {
     return 0;
   }
 
@@ -1046,8 +1064,8 @@ static int generate_prime(BIGNUM *out, int bits, const BIGNUM *e,
       if (relatively_prime) {
         // Test |out| for primality (steps 4.5.1 and 5.6.1).
         int is_probable_prime;
-        if (!BN_primality_test(&is_probable_prime, out, BN_prime_checks, ctx, 0,
-                               cb)) {
+        if (!BN_primality_test(&is_probable_prime, out,
+                               BN_prime_checks_for_generation, ctx, 0, cb)) {
           goto err;
         }
         if (is_probable_prime) {
@@ -1098,8 +1116,8 @@ static int rsa_generate_key_impl(RSA *rsa, int bits, const BIGNUM *e_value,
 
   // Reject excessively large public exponents. Windows CryptoAPI and Go don't
   // support values larger than 32 bits, so match their limits for generating
-  // keys. (|check_modulus_and_exponent_sizes| uses a slightly more conservative
-  // value, but we don't need to support generating such keys.)
+  // keys. (|rsa_check_public_key| uses a slightly more conservative value, but
+  // we don't need to support generating such keys.)
   // https://github.com/golang/go/issues/3161
   // https://msdn.microsoft.com/en-us/library/aa387685(VS.85).aspx
   if (BN_num_bits(e_value) > 32) {

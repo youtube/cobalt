@@ -180,12 +180,12 @@ https://boringssl.googlesource.com/boringssl/+log/%s..%s
   if crbug_commits:
     message += 'The following commits have Chromium bugs associated:\n'
     for commit in crbug_commits:
-      message += '  ' + FormatCommit(commit)
+      message += '  ' + FormatCommit(commit) + '\n'
     message += '\n'
   if update_note_commits:
     message += 'The following commits have update notes:\n'
     for commit in update_note_commits:
-      message += '  ' + FormatCommit(commit)
+      message += '  ' + FormatCommit(commit) + '\n'
     message += '\n'
   if crbugs:
     message += 'Bug: %s\n' % (', '.join(str(bug) for bug in sorted(crbugs)),)
