@@ -63,7 +63,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
       bool allow_resume_after_suspend, bool allow_batched_sample_write,
       bool force_punch_out_by_default,
 #if SB_API_VERSION >= 15
-      int64_t audio_write_duration_local, int64_t audio_write_duration_remote,
+      base::TimeDelta audio_write_duration_local,
+      base::TimeDelta audio_write_duration_remote,
 #endif  // SB_API_VERSION >= 15
       MediaLog* media_log, MediaMetricsProvider* media_metrics_provider,
       DecodeTargetProvider* decode_target_provider);
@@ -311,36 +312,36 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   DecodeTargetProvider* decode_target_provider_;
 
 #if SB_API_VERSION >= 15
-  const int64_t audio_write_duration_local_;
-  const int64_t audio_write_duration_remote_;
+  const base::TimeDelta audio_write_duration_local_;
+  const base::TimeDelta audio_write_duration_remote_;
 
   // The two variables below should always contain the same value.  They are
   // kept as separate variables so we can keep the existing implementation as
   // is, which simplifies the implementation across multiple Starboard versions.
-  int64_t audio_write_duration_ = 0;
-  int64_t audio_write_duration_for_preroll_ = audio_write_duration_;
+  base::TimeDelta audio_write_duration_;
+  base::TimeDelta audio_write_duration_for_preroll_ = audio_write_duration_;
 #else   // SB_API_VERSION >= 15
   // Read audio from the stream if |timestamp_of_last_written_audio_| is less
   // than |seek_time_| + |audio_write_duration_for_preroll_|, this effectively
   // allows 10 seconds of audio to be written to the SbPlayer after playback
   // startup or seek.
-  int64_t audio_write_duration_for_preroll_ =
-      10 * base::Time::kMicrosecondsPerSecond;
+  base::TimeDelta audio_write_duration_for_preroll_ =
+      base::TimeDelta::FromSeconds(10);
   // Don't read audio from the stream more than |audio_write_duration_| ahead of
   // the current media time during playing.
-  int64_t audio_write_duration_ = 1 * base::Time::kMicrosecondsPerSecond;
+  base::TimeDelta audio_write_duration_ = base::TimeDelta::FromSeconds(1);
 #endif  // SB_API_VERSION >= 15
   // Only call GetMediaTime() from OnNeedData if it has been
   // |kMediaTimeCheckInterval| since the last call to GetMediaTime().
-  static const int64_t kMediaTimeCheckInterval =
-      0.1 * base::Time::kMicrosecondsPerSecond;
+  static constexpr base::TimeDelta kMediaTimeCheckInterval =
+      base::TimeDelta::FromMicroseconds(100);
   // Timestamp for the last written audio.
-  int64_t timestamp_of_last_written_audio_ = 0;
+  base::TimeDelta timestamp_of_last_written_audio_;
 
   // Last media time reported by GetMediaTime().
-  base::CVal<int64_t> last_media_time_;
+  base::CVal<base::TimeDelta> last_media_time_;
   // Timestamp microseconds when we last checked the media time.
-  int64_t last_time_media_time_retrieved_ = 0;
+  base::Time last_time_media_time_retrieved_;
   // Counter for retrograde media time.
   size_t retrograde_media_time_counter_ = 0;
   // The maximum video playback capabilities required for the playback.
@@ -348,7 +349,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   PlaybackStatistics playback_statistics_;
 
-  int64_t last_resume_time_ = -1;
+  base::Time last_resume_time_{};
 
   base::Time set_drm_system_ready_cb_time_{};
 

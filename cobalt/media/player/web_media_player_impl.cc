@@ -19,6 +19,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/instance_counter.h"
 #include "cobalt/media/base/drm_system.h"
@@ -144,7 +145,8 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       allow_resume_after_suspend_, allow_batched_sample_write_,
       force_punch_out_by_default_,
 #if SB_API_VERSION >= 15
-      audio_write_duration_local, audio_write_duration_remote,
+      base::TimeDelta::FromMicroseconds(audio_write_duration_local),
+      base::TimeDelta::FromMicroseconds(audio_write_duration_remote),
 #endif  // SB_API_VERSION >= 15
       media_log_, &media_metrics_provider_, decode_target_provider_.get());
 
