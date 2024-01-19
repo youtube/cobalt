@@ -420,6 +420,7 @@ class BASE_EXPORT File {
   bool async_ = false;
 
 #if defined(STARBOARD)
+  bool delete_on_close_;
   std::string file_name_;
   bool append_ = false;
 #endif

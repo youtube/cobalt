@@ -961,6 +961,7 @@ component("base") {
       "debug/debugger_starboard.cc",
       "debug/stack_trace_starboard.cc",
       "files/file_enumerator_starboard.cc",
+      "files/file_path_watcher_stub.cc",
       "files/file_starboard.cc",
       "files/file_util_starboard.cc",
       "files/memory_mapped_file_starboard.cc",
@@ -971,6 +972,7 @@ component("base") {
       "message_loop/message_pump_io_starboard.h",
       "message_loop/message_pump_ui_starboard.cc",
       "message_loop/message_pump_ui_starboard.h",
+      "process/launch_starboard.cc",
       "process/memory_starboard.cc",
       "process/process_starboard.cc",
       "profiler/module_cache_starboard.cc",
@@ -1738,12 +1740,6 @@ component("base") {
         "profiler/stack_copier_signal.h",
         "profiler/thread_delegate_posix.cc",
         "profiler/thread_delegate_posix.h",
-      ]
-    }
-
-    if (use_cobalt_customizations) {
-      sources += [
-        "process/launch_starboard.cc",
       ]
     }
 
@@ -3230,16 +3226,15 @@ test("base_unittests") {
     "environment_unittest.cc",
     "feature_list_unittest.cc",
 
-    # "files/file_enumerator_unittest.cc",
+    "files/file_enumerator_unittest.cc",
     "files/file_error_or_unittest.cc",
 
-    # "files/file_path_unittest.cc",
+    "files/file_path_unittest.cc",
 
-    # "files/file_path_watcher_unittest.cc",
-    "files/file_proxy_unittest.cc",
-
-    # "files/file_unittest.cc",
-    # "files/file_util_unittest.cc",
+    "files/file_path_watcher_unittest.cc",
+    # "files/file_proxy_unittest.cc",
+    "files/file_unittest.cc",
+    "files/file_util_unittest.cc",
     "files/important_file_writer_cleaner_unittest.cc",
     "files/important_file_writer_unittest.cc",
     "files/memory_mapped_file_unittest.cc",
@@ -4115,6 +4110,10 @@ test("base_unittests") {
 
   if (!use_cobalt_customizations && !is_fuchsia && !is_ios) {
     sources += [ "files/file_locking_unittest.cc" ]
+  }
+
+  if (use_cobalt_customizations) {
+    sources -= [ "files/file_path_watcher_unittest.cc" ]
   }
 
   if (is_android) {

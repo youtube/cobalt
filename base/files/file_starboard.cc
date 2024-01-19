@@ -16,9 +16,12 @@
 
 #include "base/files/file_starboard.h"
 
+#include <errno.h>
+
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/logging.h"
+#include "base/strings/stringprintf.h"
 #include "base/threading/thread_restrictions.h"
 #include "starboard/common/metrics/stats_tracker.h"
 #include "starboard/common/log.h"
@@ -63,6 +66,9 @@ void File::Close() {
   SCOPED_FILE_TRACE("Close");
   internal::AssertBlockingAllowed();
   file_.reset();
+  if (delete_on_close_) {
+    SbFileDelete(file_name_.c_str());
+  }
 }
 
 int64_t File::Seek(Whence whence, int64_t offset) {
@@ -267,8 +273,18 @@ bool File::GetInfo(Info* info) {
 }
 
 File::Error File::GetLastFileError() {
-  SB_NOTIMPLEMENTED();
-  return File::FILE_ERROR_MAX;
+  int err = errno;
+  switch (err) {
+    case ENOENT:
+      return static_cast<File::Error>(kSbFileErrorNotFound);
+    case EACCES:
+      return static_cast<File::Error>(kSbFileErrorAccessDenied);
+    case EEXIST:
+      return static_cast<File::Error>(kSbFileErrorExists);
+    default:
+      NOTREACHED() << base::StringPrintf("Unhandled errno: %d", err);
+  }
+  return FILE_ERROR_FAILED;
 }
 
 // Static.
@@ -338,8 +354,6 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
       error_details_ = FILE_ERROR_FAILED;
   }
 
-  DCHECK(flags & FLAG_WRITE || flags & FLAG_READ || flags & FLAG_APPEND);
-
   if (flags & FLAG_READ) {
     open_flags |= kSbFileRead;
   }
@@ -361,10 +375,7 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
     }
   }
 
-  if (flags & FLAG_DELETE_ON_CLOSE) {
-    NOTREACHED() << "Not supported on Starboard platforms right now.";
-  }
-
+  delete_on_close_ = (flags & FLAG_DELETE_ON_CLOSE) == FLAG_DELETE_ON_CLOSE;
   async_ = ((flags & FLAG_ASYNC) == FLAG_ASYNC);
 }
 

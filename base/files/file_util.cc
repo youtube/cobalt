@@ -367,7 +367,11 @@ absl::optional<std::vector<uint8_t>> ReadFileToBytes(const FilePath& path) {
     return absl::nullopt;
   }
 #else
-  std::vector<uint8_t> bytes;
+  std::string contents;
+  if (!ReadFileToString(path, &contents)) {
+    return absl::nullopt;
+  }
+  std::vector<uint8_t> bytes(contents.begin(), contents.end());
 #endif
   return bytes;
 }

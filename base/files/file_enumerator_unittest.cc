@@ -184,6 +184,8 @@ TEST(FileEnumerator, SingleFileInFolderForDirSearch) {
   }
 }
 
+// Starboard does not support patterns.
+#if !defined(STARBOARD)
 TEST(FileEnumerator, SingleFileInFolderWithFiltering) {
   ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
@@ -202,7 +204,10 @@ TEST(FileEnumerator, SingleFileInFolderWithFiltering) {
     EXPECT_THAT(files, IsEmpty());
   }
 }
+#endif  // !defined(STARBOARD)
 
+// Starboard does not support patterns.
+#if !defined(STARBOARD)
 TEST(FileEnumerator, TwoFilesInFolder) {
   ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
@@ -231,6 +236,7 @@ TEST(FileEnumerator, TwoFilesInFolder) {
     EXPECT_THAT(files, UnorderedElementsAre(foo_txt, bar_txt));
   }
 }
+#endif  // !defined(STARBOARD)
 
 TEST(FileEnumerator, SingleFolderInFolderForFileSearch) {
   ScopedTempDir temp_dir;
@@ -264,6 +270,8 @@ TEST(FileEnumerator, SingleFolderInFolderForDirSearch) {
   }
 }
 
+// Starboard does not support patterns.
+#if !defined(STARBOARD)
 TEST(FileEnumerator, TwoFoldersInFolder) {
   ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
@@ -285,6 +293,7 @@ TEST(FileEnumerator, TwoFoldersInFolder) {
     EXPECT_THAT(files, ElementsAre(subdir_foo));
   }
 }
+#endif  // !defined(STARBOARD)
 
 TEST(FileEnumerator, FolderAndFileInFolder) {
   ScopedTempDir temp_dir;
@@ -354,6 +363,8 @@ TEST(FileEnumerator, FileInSubfolder) {
   }
 }
 
+// Starboard does not support patterns.
+#if !defined(STARBOARD)
 TEST(FileEnumerator, FilesInSubfoldersWithFiltering) {
   ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
@@ -391,6 +402,7 @@ TEST(FileEnumerator, FilesInSubfoldersWithFiltering) {
                         FileEnumerator::FolderSearchPolicy::ALL);
   EXPECT_THAT(files, UnorderedElementsAre(subdir_foo, foo_foo, bar_foo));
 }
+#endif  // !defined(STARBOARD)
 
 TEST(FileEnumerator, InvalidDirectory) {
   ScopedTempDir temp_dir;
@@ -415,7 +427,7 @@ TEST(FileEnumerator, InvalidDirectory) {
 #endif
 }
 
-#if BUILDFLAG(IS_POSIX)
+#if BUILDFLAG(IS_POSIX) && !defined(STARBOARD)
 TEST(FileEnumerator, SymLinkLoops) {
   ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
