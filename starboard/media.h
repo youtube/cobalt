@@ -605,7 +605,7 @@ typedef struct SbMediaAudioSampleInfo {
   // The number of bytes per second expected with this format.
   uint32_t average_bytes_per_second;
 
-  // Byte block alignment, e.g, 4.
+  // Byte block alignment, e.g., 4.
   uint16_t block_alignment;
 
   // The bit depth for the stream this represents, e.g. |8| or |16|.
@@ -807,7 +807,7 @@ SB_EXPORT int SbMediaGetProgressiveBufferBudget(SbMediaVideoCodec codec,
 // media buffers will be stored in a temporary file in the system cache folder
 // acquired by calling SbSystemGetPath() with "kSbSystemPathCacheDirectory".
 // Note that when its value is "file" the media stack will still allocate memory
-// to cache the the buffers in use.
+// to cache the buffers in use.
 SB_EXPORT SbMediaBufferStorageType SbMediaGetBufferStorageType();
 
 // If SbMediaGetBufferUsingMemoryPool returns true, it indicates that media
