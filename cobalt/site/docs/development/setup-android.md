@@ -10,7 +10,7 @@ device. The package being built here is referred to as CoAT (Cobalt on Android T
 
 <aside class="note">
 <b>Note:</b> Before proceeding further, refer to the documentation for
-<a href="setup-linux.html">"Set up your environment - Linux"</a>. Complete the
+<a href="setup-linux.md">"Set up your environment - Linux"</a>. Complete the
 sections <b>Set up your workstation</b> and <b>Set up developer tools</b>, then
 return and complete the following steps.
 </aside>
