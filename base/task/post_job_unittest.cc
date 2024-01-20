@@ -15,7 +15,6 @@
 #include "base/test/test_timeouts.h"
 #include "base/test/test_waitable_event.h"
 #include "base/threading/platform_thread.h"
-#include "base/threading/thread_restrictions.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -46,9 +45,6 @@ TEST(PostJobTest, CreateJobSimple) {
       CreateJob(FROM_HERE, {}, BindLambdaForTesting([&](JobDelegate* delegate) {
                   EXPECT_TRUE(job_started);
                   barrier.Run();
-#if defined(STARBOARD)
-                  ScopedAllowBaseSyncPrimitivesForTesting allow_base_sync_primitives;
-#endif
                   threads_continue.Wait();
                   --num_tasks_to_run;
                 }),
