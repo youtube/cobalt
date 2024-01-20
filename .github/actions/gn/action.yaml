@@ -9,7 +9,7 @@ runs:
         echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
     - name: Set up Cloud SDK
       if: startsWith(${{matrix.target_platform}}, 'android')
-      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
+      uses: google-github-actions/setup-gcloud@v2
     - name: Configure Android Environment
       shell: bash
       if: startsWith(${{matrix.target_platform}}, 'android')
