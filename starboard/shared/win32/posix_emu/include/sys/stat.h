@@ -21,7 +21,9 @@
 extern "C" {
 #endif
 
-int mkdir(const char* path, unsigned int mode);
+typedef unsigned int mode_t;
+
+int mkdir(const char* path, mode_t mode);
 
 #ifdef __cplusplus
 }
