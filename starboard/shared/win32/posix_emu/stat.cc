@@ -13,7 +13,8 @@
 // limitations under the License.
 
 #include <direct.h>
+#include <sys/stat.h>
 
-extern "C" int mkdir(const char* path, typename mode_t mode) {
+extern "C" int mkdir(const char* path, mode_t mode) {
   return _mkdir(path);
 }

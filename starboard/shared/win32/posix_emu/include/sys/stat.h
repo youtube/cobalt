@@ -17,11 +17,11 @@
 
 #if defined(STARBOARD)
 
+typedef unsigned int mode_t;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-typedef unsigned int mode_t;
 
 int mkdir(const char* path, mode_t mode);
 
