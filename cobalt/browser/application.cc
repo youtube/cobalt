@@ -616,9 +616,8 @@ void AddCrashLogApplicationState(base::ApplicationState state) {
     return;
   }
 
-  // Crash handler is not supported, fallback to crash log dictionary.
-  h5vcc::CrashLogDictionary::GetInstance()->SetString("application_state",
-                                                      application_state);
+  LOG(ERROR) << "Crash handler extension not implemented, at least not at the "
+             << "required version, so not sending application state.";
 }
 
 }  // namespace

@@ -31,44 +31,12 @@
 #include "net/url_request/url_fetcher.h"
 #if defined(STARBOARD)
 #include "starboard/configuration.h"
-#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-#define HANDLE_CORE_DUMP
-#include "base/lazy_instance.h"
-#include STARBOARD_CORE_DUMP_HANDLER_INCLUDE
-#endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
 #endif  // defined(STARBOARD)
 
 namespace cobalt {
 namespace loader {
 
 namespace {
-
-#if defined(HANDLE_CORE_DUMP)
-
-class NetFetcherLog {
- public:
-  NetFetcherLog() : total_fetched_bytes_(0) {
-    SbCoreDumpRegisterHandler(CoreDumpHandler, this);
-  }
-  ~NetFetcherLog() { SbCoreDumpUnregisterHandler(CoreDumpHandler, this); }
-
-  static void CoreDumpHandler(void* context) {
-    SbCoreDumpLogInteger(
-        "NetFetcher total fetched bytes",
-        static_cast<NetFetcherLog*>(context)->total_fetched_bytes_);
-  }
-
-  void IncrementFetchedBytes(int length) { total_fetched_bytes_ += length; }
-
- private:
-  int total_fetched_bytes_;
-  DISALLOW_COPY_AND_ASSIGN(NetFetcherLog);
-};
-
-base::LazyInstance<NetFetcherLog>::DestructorAtExit net_fetcher_log =
-    LAZY_INSTANCE_INITIALIZER;
-
-#endif  // defined(HANDLE_CORE_DUMP)
 
 bool IsResponseCodeSuccess(int response_code) {
   // NetFetcher only considers success to be if the network request
@@ -302,10 +270,6 @@ void NetFetcher::OnURLFetchDownloadProgress(const net::URLFetcher* source,
     if (data.empty()) {
       return;
     }
-#if defined(HANDLE_CORE_DUMP)
-    net_fetcher_log.Get().IncrementFetchedBytes(
-        static_cast<int>(data.length()));
-#endif
     handler()->OnReceivedPassed(
         this, std::unique_ptr<std::string>(new std::string(std::move(data))));
   }

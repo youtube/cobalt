@@ -64,11 +64,6 @@
 #include "starboard/time.h"
 #include "third_party/icu/source/i18n/unicode/timezone.h"
 
-#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-#include "base/memory/ptr_util.h"
-#include STARBOARD_CORE_DUMP_HANDLER_INCLUDE
-#endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-
 using cobalt::cssom::ViewportSize;
 
 namespace cobalt {
@@ -304,15 +299,6 @@ BrowserModule::BrowserModule(const GURL& url,
   service_worker_registry_.reset(new ServiceWorkerRegistry(
       &web_settings_, network_module, platform_info_.get()));
 
-#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-  SbCoreDumpRegisterHandler(BrowserModule::CoreDumpHandler, this);
-  on_error_triggered_count_ = 0;
-#if defined(COBALT_CHECK_RENDER_TIMEOUT)
-  recovery_mechanism_triggered_count_ = 0;
-  timeout_response_trigger_count_ = 0;
-#endif  // defined(COBALT_CHECK_RENDER_TIMEOUT)
-#endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-
 #if defined(COBALT_CHECK_RENDER_TIMEOUT)
   timeout_polling_thread_.Start();
   timeout_polling_thread_.message_loop()->task_runner()->PostDelayedTask(
@@ -465,9 +451,6 @@ BrowserModule::~BrowserModule() {
   }
 
   on_error_retry_timer_.Stop();
-#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-  SbCoreDumpUnregisterHandler(BrowserModule::CoreDumpHandler, this);
-#endif
 
 #if defined(ENABLE_DEBUGGER)
   if (debug_console_) {
@@ -752,22 +735,6 @@ void BrowserModule::Reload() {
       "location.reload();",
       base::SourceLocation("[object BrowserModule]", 1, 1));
 }
-
-#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-// static
-void BrowserModule::CoreDumpHandler(void* browser_module_as_void) {
-  BrowserModule* browser_module =
-      static_cast<BrowserModule*>(browser_module_as_void);
-  SbCoreDumpLogInteger("BrowserModule.on_error_triggered_count_",
-                       browser_module->on_error_triggered_count_);
-#if defined(COBALT_CHECK_RENDER_TIMEOUT)
-  SbCoreDumpLogInteger("BrowserModule.recovery_mechanism_triggered_count_",
-                       browser_module->recovery_mechanism_triggered_count_);
-  SbCoreDumpLogInteger("BrowserModule.timeout_response_trigger_count_",
-                       browser_module->timeout_response_trigger_count_);
-#endif  // defined(COBALT_CHECK_RENDER_TIMEOUT)
-}
-#endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
 
 void BrowserModule::OnLoad() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnLoad()");
@@ -1341,10 +1308,6 @@ void BrowserModule::OnError(const GURL& url, const std::string& error) {
     return;
   }
 
-#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-  on_error_triggered_count_++;
-#endif
-
   // Set |pending_navigate_url_| to the url where the error occurred. This will
   // cause the OnError callback to Navigate() to this URL if it receives a
   // positive response; otherwise, if Cobalt is currently preloaded or
@@ -1715,18 +1678,12 @@ void BrowserModule::OnPollForRenderTimeout(const GURL& url) {
   }
 
   if (timeout_response_trigger) {
-#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-    timeout_response_trigger_count_++;
-#endif
     SbAtomicNoBarrier_Exchange64(
         non_trivial_global_variables.Get().last_render_timestamp,
         static_cast<SbAtomic64>(kSbTimeMax));
     if (SbSystemGetRandomUInt64() <
         kRenderTimeoutErrorPercentage * (UINT64_MAX / 100)) {
       OnError(url, std::string("Rendering Timeout"));
-#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-      recovery_mechanism_triggered_count_++;
-#endif
     } else {
       SB_DLOG(INFO) << "Received OnRenderTimeout, ignoring by random chance.";
     }
