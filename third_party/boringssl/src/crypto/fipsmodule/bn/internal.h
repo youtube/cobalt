@@ -123,7 +123,7 @@
 #ifndef OPENSSL_HEADER_BN_INTERNAL_H
 #define OPENSSL_HEADER_BN_INTERNAL_H
 
-#include <openssl/base.h>
+#include <openssl/bn.h>
 
 #if defined(OPENSSL_X86_64) && defined(_MSC_VER)
 OPENSSL_MSVC_PRAGMA(warning(push, 3))
@@ -241,6 +241,14 @@ void bn_select_words(BN_ULONG *r, BN_ULONG mask, const BN_ULONG *a,
 // least significant word first.
 int bn_set_words(BIGNUM *bn, const BN_ULONG *words, size_t num);
 
+// bn_set_static_words acts like |bn_set_words|, but doesn't copy the data. A
+// flag is set on |bn| so that |BN_free| won't attempt to free the data.
+//
+// The |STATIC_BIGNUM| macro is probably a better solution for this outside of
+// the FIPS module. Inside of the FIPS module that macro generates rel.ro data,
+// which doesn't work with FIPS requirements.
+void bn_set_static_words(BIGNUM *bn, const BN_ULONG *words, size_t num);
+
 // bn_fits_in_words returns one if |bn| may be represented in |num| words, plus
 // a sign bit, and zero otherwise.
 int bn_fits_in_words(const BIGNUM *bn, size_t num);
@@ -289,7 +297,7 @@ void bn_mul_comba4(BN_ULONG r[8], const BN_ULONG a[4], const BN_ULONG b[4]);
 void bn_mul_comba8(BN_ULONG r[16], const BN_ULONG a[8], const BN_ULONG b[8]);
 
 // bn_sqr_comba8 sets |r| to |a|^2.
-void bn_sqr_comba8(BN_ULONG r[16], const BN_ULONG a[4]);
+void bn_sqr_comba8(BN_ULONG r[16], const BN_ULONG a[8]);
 
 // bn_sqr_comba4 sets |r| to |a|^2.
 void bn_sqr_comba4(BN_ULONG r[8], const BN_ULONG a[4]);
@@ -544,12 +552,15 @@ int bn_sqr_consttime(BIGNUM *r, const BIGNUM *a, BN_CTX *ctx);
 // bn_div_consttime behaves like |BN_div|, but it rejects negative inputs and
 // treats both inputs, including their magnitudes, as secret. It is, as a
 // result, much slower than |BN_div| and should only be used for rare operations
-// where Montgomery reduction is not available.
+// where Montgomery reduction is not available. |divisor_min_bits| is a
+// public lower bound for |BN_num_bits(divisor)|. When |divisor|'s bit width is
+// public, this can speed up the operation.
 //
 // Note that |quotient->width| will be set pessimally to |numerator->width|.
 OPENSSL_EXPORT int bn_div_consttime(BIGNUM *quotient, BIGNUM *remainder,
                                     const BIGNUM *numerator,
-                                    const BIGNUM *divisor, BN_CTX *ctx);
+                                    const BIGNUM *divisor,
+                                    unsigned divisor_min_bits, BN_CTX *ctx);
 
 // bn_is_relatively_prime checks whether GCD(|x|, |y|) is one. On success, it
 // returns one and sets |*out_relatively_prime| to one if the GCD was one and

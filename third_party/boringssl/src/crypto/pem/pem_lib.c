@@ -119,7 +119,6 @@ void PEM_dek_info(char *buf, const char *type, int len, char *str)
     buf[j + i * 2 + 1] = '\0';
 }
 
-#ifndef OPENSSL_NO_FP_API
 void *PEM_ASN1_read(d2i_of_void *d2i, const char *name, FILE *fp, void **x,
                     pem_password_cb *cb, void *u)
 {
@@ -132,7 +131,6 @@ void *PEM_ASN1_read(d2i_of_void *d2i, const char *name, FILE *fp, void **x,
     BIO_free(b);
     return ret;
 }
-#endif
 
 static int check_pem(const char *nm, const char *name)
 {
@@ -254,7 +252,6 @@ int PEM_bytes_read_bio(unsigned char **pdata, long *plen, char **pnm,
     return ret;
 }
 
-#ifndef OPENSSL_NO_FP_API
 int PEM_ASN1_write(i2d_of_void *i2d, const char *name, FILE *fp,
                    void *x, const EVP_CIPHER *enc, unsigned char *kstr,
                    int klen, pem_password_cb *callback, void *u)
@@ -268,7 +265,6 @@ int PEM_ASN1_write(i2d_of_void *i2d, const char *name, FILE *fp,
     BIO_free(b);
     return ret;
 }
-#endif
 
 int PEM_ASN1_write_bio(i2d_of_void *i2d, const char *name, BIO *bp,
                        void *x, const EVP_CIPHER *enc, unsigned char *kstr,
@@ -509,7 +505,6 @@ static int load_iv(char **fromp, unsigned char *to, int num)
     return (1);
 }
 
-#ifndef OPENSSL_NO_FP_API
 int PEM_write(FILE *fp, const char *name, const char *header,
               const unsigned char *data, long len)
 {
@@ -522,7 +517,6 @@ int PEM_write(FILE *fp, const char *name, const char *header,
     BIO_free(b);
     return (ret);
 }
-#endif
 
 int PEM_write_bio(BIO *bp, const char *name, const char *header,
                   const unsigned char *data, long len)
@@ -580,7 +574,6 @@ int PEM_write_bio(BIO *bp, const char *name, const char *header,
     return (0);
 }
 
-#ifndef OPENSSL_NO_FP_API
 int PEM_read(FILE *fp, char **name, char **header, unsigned char **data,
              long *len)
 {
@@ -593,7 +586,6 @@ int PEM_read(FILE *fp, char **name, char **header, unsigned char **data,
     BIO_free(b);
     return (ret);
 }
-#endif
 
 int PEM_read_bio(BIO *bp, char **name, char **header, unsigned char **data,
                  long *len)

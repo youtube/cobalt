@@ -168,7 +168,7 @@ static bool add_record_to_flight(SSL *ssl, uint8_t type,
   return true;
 }
 
-bool tls_init_message(SSL *ssl, CBB *cbb, CBB *body, uint8_t type) {
+bool tls_init_message(const SSL *ssl, CBB *cbb, CBB *body, uint8_t type) {
   // Pick a modest size hint to save most of the |realloc| calls.
   if (!CBB_init(cbb, 64) ||
       !CBB_add_u8(cbb, type) ||
@@ -181,7 +181,7 @@ bool tls_init_message(SSL *ssl, CBB *cbb, CBB *body, uint8_t type) {
   return true;
 }
 
-bool tls_finish_message(SSL *ssl, CBB *cbb, Array<uint8_t> *out_msg) {
+bool tls_finish_message(const SSL *ssl, CBB *cbb, Array<uint8_t> *out_msg) {
   return CBBFinishArray(cbb, out_msg);
 }
 
@@ -251,7 +251,8 @@ bool tls_flush_pending_hs_data(SSL *ssl) {
       MakeConstSpan(reinterpret_cast<const uint8_t *>(pending_hs_data->data),
                     pending_hs_data->length);
   if (ssl->quic_method) {
-    if (!ssl->quic_method->add_handshake_data(ssl, ssl->s3->write_level,
+    if ((ssl->s3->hs == nullptr || !ssl->s3->hs->hints_requested) &&
+        !ssl->quic_method->add_handshake_data(ssl, ssl->s3->write_level,
                                               data.data(), data.size())) {
       OPENSSL_PUT_ERROR(SSL, SSL_R_QUIC_INTERNAL_ERROR);
       return false;
@@ -320,6 +321,11 @@ int tls_flush_flight(SSL *ssl) {
       ssl->s3->rwstate = SSL_ERROR_WANT_WRITE;
       return ret;
     }
+  }
+
+  if (ssl->wbio == nullptr) {
+    OPENSSL_PUT_ERROR(SSL, SSL_R_BIO_NOT_SET);
+    return -1;
   }
 
   // Write the pending flight.

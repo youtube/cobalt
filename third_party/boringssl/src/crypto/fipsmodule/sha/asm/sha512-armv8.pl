@@ -47,7 +47,7 @@ if ($flavour && $flavour ne "void") {
     ( $xlate="${dir}../../../perlasm/arm-xlate.pl" and -f $xlate) or
     die "can't locate arm-xlate.pl";
 
-    open OUT,"| \"$^X\" $xlate $flavour $output";
+    open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
     *STDOUT=*OUT;
 } else {
     open OUT,">$output";
@@ -179,6 +179,7 @@ $code.=<<___;
 .text
 
 .extern	OPENSSL_armcap_P
+.hidden	OPENSSL_armcap_P
 .globl	$func
 .type	$func,%function
 .align	6
@@ -423,13 +424,6 @@ $code.=<<___;
 ___
 }
 
-$code.=<<___;
-#ifndef	__KERNEL__
-.comm	OPENSSL_armcap_P,4,4
-.hidden	OPENSSL_armcap_P
-#endif
-___
-
 {   my  %opcode = (
 	"sha256h"	=> 0x5e004000,	"sha256h2"	=> 0x5e005000,
 	"sha256su0"	=> 0x5e282800,	"sha256su1"	=> 0x5e006000	);
@@ -465,4 +459,4 @@ foreach(split("\n",$code)) {
 	print $_,"\n";
 }
 
-close STDOUT or die "error closing STDOUT";
+close STDOUT or die "error closing STDOUT: $!";

@@ -106,7 +106,10 @@ OPENSSL_EXPORT const EVP_CIPHER *EVP_rc2_cbc(void);
 const EVP_CIPHER *EVP_rc2_40_cbc(void);
 
 // EVP_get_cipherbynid returns the cipher corresponding to the given NID, or
-// NULL if no such cipher is known.
+// NULL if no such cipher is known. Note using this function links almost every
+// cipher implemented by BoringSSL into the binary, whether the caller uses them
+// or not. Size-conscious callers, such as client software, should not use this
+// function.
 OPENSSL_EXPORT const EVP_CIPHER *EVP_get_cipherbynid(int nid);
 
 
@@ -409,7 +412,10 @@ OPENSSL_EXPORT int EVP_DecryptInit(EVP_CIPHER_CTX *ctx,
 OPENSSL_EXPORT int EVP_add_cipher_alias(const char *a, const char *b);
 
 // EVP_get_cipherbyname returns an |EVP_CIPHER| given a human readable name in
-// |name|, or NULL if the name is unknown.
+// |name|, or NULL if the name is unknown. Note using this function links almost
+// every cipher implemented by BoringSSL into the binary, not just the ones the
+// caller requests. Size-conscious callers, such as client software, should not
+// use this function.
 OPENSSL_EXPORT const EVP_CIPHER *EVP_get_cipherbyname(const char *name);
 
 // These AEADs are deprecated AES-GCM implementations that set
@@ -431,8 +437,23 @@ OPENSSL_EXPORT const EVP_CIPHER *EVP_des_ede3_ecb(void);
 // EVP_aes_128_cfb128 is only available in decrepit.
 OPENSSL_EXPORT const EVP_CIPHER *EVP_aes_128_cfb128(void);
 
+// EVP_aes_128_cfb is an alias for |EVP_aes_128_cfb128| and is only available in
+// decrepit.
+OPENSSL_EXPORT const EVP_CIPHER *EVP_aes_128_cfb(void);
+
+// EVP_aes_192_cfb128 is only available in decrepit.
+OPENSSL_EXPORT const EVP_CIPHER *EVP_aes_192_cfb128(void);
+
+// EVP_aes_192_cfb is an alias for |EVP_aes_192_cfb128| and is only available in
+// decrepit.
+OPENSSL_EXPORT const EVP_CIPHER *EVP_aes_192_cfb(void);
+
 // EVP_aes_256_cfb128 is only available in decrepit.
 OPENSSL_EXPORT const EVP_CIPHER *EVP_aes_256_cfb128(void);
+
+// EVP_aes_256_cfb is an alias for |EVP_aes_256_cfb128| and is only available in
+// decrepit.
+OPENSSL_EXPORT const EVP_CIPHER *EVP_aes_256_cfb(void);
 
 // EVP_bf_ecb is Blowfish in ECB mode and is only available in decrepit.
 OPENSSL_EXPORT const EVP_CIPHER *EVP_bf_ecb(void);
@@ -540,10 +561,6 @@ struct evp_cipher_ctx_st {
 
   // final_used is non-zero if the |final| buffer contains plaintext.
   int final_used;
-
-  // block_mask contains |cipher->block_size| minus one. (The block size
-  // assumed to be a power of two.)
-  int block_mask;
 
   uint8_t final[EVP_MAX_BLOCK_LENGTH];  // possible final block
 } /* EVP_CIPHER_CTX */;

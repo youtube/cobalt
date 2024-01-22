@@ -536,7 +536,7 @@ int bn_mul_consttime(BIGNUM *r, const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx) {
 void bn_mul_small(BN_ULONG *r, size_t num_r, const BN_ULONG *a, size_t num_a,
                   const BN_ULONG *b, size_t num_b) {
   if (num_r != num_a + num_b) {
-    OPENSSL_port_abort();
+    abort();
   }
   // TODO(davidben): Should this call |bn_mul_comba4| too? |BN_mul| does not
   // hit that code.
@@ -735,7 +735,7 @@ int BN_sqr(BIGNUM *r, const BIGNUM *a, BN_CTX *ctx) {
 
 void bn_sqr_small(BN_ULONG *r, size_t num_r, const BN_ULONG *a, size_t num_a) {
   if (num_r != 2 * num_a || num_a > BN_SMALL_MAX_WORDS) {
-    OPENSSL_port_abort();
+    abort();
   }
   if (num_a == 4) {
     bn_sqr_comba4(r, a);

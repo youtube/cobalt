@@ -83,6 +83,7 @@
 #if !defined(OPENSSL_TRUSTY)
 
 #include "../internal.h"
+#include "internal.h"
 
 typedef struct lookup_dir_hashes_st {
     unsigned long hash;

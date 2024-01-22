@@ -556,6 +556,19 @@ static void TestQuotient(BIGNUMFileTest *t, BN_CTX *ctx) {
   EXPECT_BIGNUMS_EQUAL("A / B", quotient.get(), ret.get());
   EXPECT_BIGNUMS_EQUAL("A % B", remainder.get(), ret2.get());
 
+  ASSERT_TRUE(BN_copy(ret.get(), a.get()));
+  ASSERT_TRUE(BN_copy(ret2.get(), b.get()));
+  ASSERT_TRUE(BN_div(ret.get(), ret2.get(), ret.get(), ret2.get(), ctx));
+  EXPECT_BIGNUMS_EQUAL("A / B (in-place)", quotient.get(), ret.get());
+  EXPECT_BIGNUMS_EQUAL("A % B (in-place)", remainder.get(), ret2.get());
+
+  ASSERT_TRUE(BN_copy(ret2.get(), a.get()));
+  ASSERT_TRUE(BN_copy(ret.get(), b.get()));
+  ASSERT_TRUE(BN_div(ret.get(), ret2.get(), ret2.get(), ret.get(), ctx));
+  EXPECT_BIGNUMS_EQUAL("A / B (in-place, swapped)", quotient.get(), ret.get());
+  EXPECT_BIGNUMS_EQUAL("A % B (in-place, swapped)", remainder.get(),
+                       ret2.get());
+
   ASSERT_TRUE(BN_mul(ret.get(), quotient.get(), b.get(), ctx));
   ASSERT_TRUE(BN_add(ret.get(), ret.get(), remainder.get()));
   EXPECT_BIGNUMS_EQUAL("Quotient * B + Remainder", a.get(), ret.get());
@@ -600,9 +613,17 @@ static void TestQuotient(BIGNUMFileTest *t, BN_CTX *ctx) {
     }
   }
 
-  ASSERT_TRUE(bn_div_consttime(ret.get(), ret2.get(), a.get(), b.get(), ctx));
+  ASSERT_TRUE(bn_div_consttime(ret.get(), ret2.get(), a.get(), b.get(),
+                               /*divisor_min_bits=*/0, ctx));
   EXPECT_BIGNUMS_EQUAL("A / B (constant-time)", quotient.get(), ret.get());
   EXPECT_BIGNUMS_EQUAL("A % B (constant-time)", remainder.get(), ret2.get());
+
+  ASSERT_TRUE(bn_div_consttime(ret.get(), ret2.get(), a.get(), b.get(),
+                               /*divisor_min_bits=*/BN_num_bits(b.get()), ctx));
+  EXPECT_BIGNUMS_EQUAL("A / B (constant-time, public width)", quotient.get(),
+                       ret.get());
+  EXPECT_BIGNUMS_EQUAL("A % B (constant-time, public width)", remainder.get(),
+                       ret2.get());
 }
 
 static void TestModMul(BIGNUMFileTest *t, BN_CTX *ctx) {
