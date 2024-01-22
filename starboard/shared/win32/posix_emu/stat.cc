@@ -15,8 +15,6 @@
 #include <direct.h>
 #include <sys/stat.h>
 
-#include "starboard/types.h"
-
 extern "C" int mkdir(const char* path, mode_t mode) {
   return _mkdir(path);
 }
