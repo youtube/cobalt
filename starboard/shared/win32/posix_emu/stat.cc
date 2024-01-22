@@ -15,6 +15,6 @@
 #include <direct.h>
 #include <sys/stat.h>
 
-extern "C" int mkdir(const char* path, mode_t mode) {
+extern "C" int mkdir(const char* path, unsigned int mode) {
   return _mkdir(path);
 }
