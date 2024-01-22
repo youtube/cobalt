@@ -244,15 +244,6 @@ class BrowserModule {
   void SetDeepLinkTimestamp(int64_t timestamp);
 
  private:
-#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-  static void CoreDumpHandler(void* browser_module_as_void);
-  int on_error_triggered_count_;
-#if defined(COBALT_CHECK_RENDER_TIMEOUT)
-  int recovery_mechanism_triggered_count_;
-  int timeout_response_trigger_count_;
-#endif  // defined(COBALT_CHECK_RENDER_TIMEOUT)
-#endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-
   // Called when the WebModule's Window.onload event is fired.
   void OnLoad();
 
