@@ -14,6 +14,6 @@
 
 #include <direct.h>
 
-extern "C" int mkdir(const char* path, mode_t mode) {
+extern "C" int mkdir(const char* path, typename mode_t mode) {
   return _mkdir(path);
 }
