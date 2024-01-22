@@ -1,3 +1,5 @@
+# coding=utf8
+
 # Copyright (c) 2015, Google Inc.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -413,6 +415,216 @@ class GYP(object):
 
       gypi.write('  }\n}\n')
 
+class CMake(object):
+
+  def __init__(self):
+    self.header = \
+R'''# Copyright (c) 2019 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# This file is created by generate_build_files.py. Do not edit manually.
+
+cmake_minimum_required(VERSION 3.0)
+
+project(BoringSSL LANGUAGES C CXX)
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  set(CLANG 1)
+endif()
+
+if(CMAKE_COMPILER_IS_GNUCXX OR CLANG)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fvisibility=hidden -fno-common -fno-exceptions -fno-rtti")
+  if(APPLE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+  endif()
+
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden -fno-common")
+  if((CMAKE_C_COMPILER_VERSION VERSION_GREATER "4.8.99") OR CLANG)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11")
+  else()
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99")
+  endif()
+endif()
+
+# pthread_rwlock_t requires a feature flag.
+if(NOT WIN32)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_XOPEN_SOURCE=700")
+endif()
+
+if(WIN32)
+  add_definitions(-D_HAS_EXCEPTIONS=0)
+  add_definitions(-DWIN32_LEAN_AND_MEAN)
+  add_definitions(-DNOMINMAX)
+  # Allow use of fopen.
+  add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+  # VS 2017 and higher supports STL-only warning suppressions.
+  # A bug in CMake < 3.13.0 may cause the space in this value to
+  # cause issues when building with NASM. In that case, update CMake.
+  add_definitions("-D_STL_EXTRA_DISABLED_WARNINGS=4774 4987")
+endif()
+
+add_definitions(-DBORINGSSL_IMPLEMENTATION)
+
+# CMake's iOS support uses Apple's multiple-architecture toolchain. It takes an
+# architecture list from CMAKE_OSX_ARCHITECTURES, leaves CMAKE_SYSTEM_PROCESSOR
+# alone, and expects all architecture-specific logic to be conditioned within
+# the source files rather than the build. This does not work for our assembly
+# files, so we fix CMAKE_SYSTEM_PROCESSOR and only support single-architecture
+# builds.
+if(NOT OPENSSL_NO_ASM AND CMAKE_OSX_ARCHITECTURES)
+  list(LENGTH CMAKE_OSX_ARCHITECTURES NUM_ARCHES)
+  if(NOT ${NUM_ARCHES} EQUAL 1)
+    message(FATAL_ERROR "Universal binaries not supported.")
+  endif()
+  list(GET CMAKE_OSX_ARCHITECTURES 0 CMAKE_SYSTEM_PROCESSOR)
+endif()
+
+if(OPENSSL_NO_ASM)
+  add_definitions(-DOPENSSL_NO_ASM)
+  set(ARCH "generic")
+elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64")
+  set(ARCH "x86_64")
+elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "amd64")
+  set(ARCH "x86_64")
+elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "AMD64")
+  # cmake reports AMD64 on Windows, but we might be building for 32-bit.
+  if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    set(ARCH "x86_64")
+  else()
+    set(ARCH "x86")
+  endif()
+elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86")
+  set(ARCH "x86")
+elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "i386")
+  set(ARCH "x86")
+elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "i686")
+  set(ARCH "x86")
+elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
+  set(ARCH "aarch64")
+elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "arm64")
+  set(ARCH "aarch64")
+# Apple A12 Bionic chipset which is added in iPhone XS/XS Max/XR uses arm64e architecture.
+elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "arm64e")
+  set(ARCH "aarch64")
+elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^arm*")
+  set(ARCH "arm")
+elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "mips")
+  # Just to avoid the “unknown processor” error.
+  set(ARCH "generic")
+elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "ppc64le")
+  set(ARCH "ppc64le")
+else()
+  message(FATAL_ERROR "Unknown processor:" ${CMAKE_SYSTEM_PROCESSOR})
+endif()
+
+if(NOT OPENSSL_NO_ASM)
+  if(UNIX)
+    enable_language(ASM)
+
+    # Clang's integerated assembler does not support debug symbols.
+    if(NOT CMAKE_ASM_COMPILER_ID MATCHES "Clang")
+      set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -Wa,-g")
+    endif()
+
+    # CMake does not add -isysroot and -arch flags to assembly.
+    if(APPLE)
+      if(CMAKE_OSX_SYSROOT)
+        set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -isysroot \"${CMAKE_OSX_SYSROOT}\"")
+      endif()
+      foreach(arch ${CMAKE_OSX_ARCHITECTURES})
+        set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -arch ${arch}")
+      endforeach()
+    endif()
+  else()
+    set(CMAKE_ASM_NASM_FLAGS "${CMAKE_ASM_NASM_FLAGS} -gcv8")
+    enable_language(ASM_NASM)
+  endif()
+endif()
+
+if(BUILD_SHARED_LIBS)
+  add_definitions(-DBORINGSSL_SHARED_LIBRARY)
+  # Enable position-independent code globally. This is needed because
+  # some library targets are OBJECT libraries.
+  set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
+endif()
+
+include_directories(src/include)
+
+'''
+
+  def PrintLibrary(self, out, name, files):
+    out.write('add_library(\n')
+    out.write('  %s\n\n' % name)
+
+    for f in sorted(files):
+      out.write('  %s\n' % PathOf(f))
+
+    out.write(')\n\n')
+
+  def PrintExe(self, out, name, files, libs):
+    out.write('add_executable(\n')
+    out.write('  %s\n\n' % name)
+
+    for f in sorted(files):
+      out.write('  %s\n' % PathOf(f))
+
+    out.write(')\n\n')
+    out.write('target_link_libraries(%s %s)\n\n' % (name, ' '.join(libs)))
+
+  def PrintSection(self, out, name, files):
+    out.write('set(\n')
+    out.write('  %s\n\n' % name)
+    for f in sorted(files):
+      out.write('  %s\n' % PathOf(f))
+    out.write(')\n\n')
+
+  def WriteFiles(self, files, asm_outputs):
+    with open('CMakeLists.txt', 'w+') as cmake:
+      cmake.write(self.header)
+
+      for ((osname, arch), asm_files) in asm_outputs:
+        self.PrintSection(cmake, 'CRYPTO_%s_%s_SOURCES' % (osname, arch),
+            asm_files)
+
+      cmake.write(
+R'''if(APPLE AND ${ARCH} STREQUAL "aarch64")
+  set(CRYPTO_ARCH_SOURCES ${CRYPTO_ios_aarch64_SOURCES})
+elseif(APPLE AND ${ARCH} STREQUAL "arm")
+  set(CRYPTO_ARCH_SOURCES ${CRYPTO_ios_arm_SOURCES})
+elseif(APPLE)
+  set(CRYPTO_ARCH_SOURCES ${CRYPTO_mac_${ARCH}_SOURCES})
+elseif(UNIX)
+  set(CRYPTO_ARCH_SOURCES ${CRYPTO_linux_${ARCH}_SOURCES})
+elseif(WIN32)
+  set(CRYPTO_ARCH_SOURCES ${CRYPTO_win_${ARCH}_SOURCES})
+endif()
+
+''')
+
+      self.PrintLibrary(cmake, 'crypto',
+          files['crypto'] + ['${CRYPTO_ARCH_SOURCES}'])
+      self.PrintLibrary(cmake, 'ssl', files['ssl'])
+      self.PrintExe(cmake, 'bssl', files['tool'], ['ssl', 'crypto'])
+
+      cmake.write(
+R'''if(NOT WIN32 AND NOT ANDROID)
+  target_link_libraries(crypto pthread)
+endif()
+
+if(WIN32)
+  target_link_libraries(bssl ws2_32)
+endif()
+
+''')
+
+class JSON(object):
+  def WriteFiles(self, files, asm_outputs):
+    sources = dict(files)
+    for ((osname, arch), asm_files) in asm_outputs:
+      sources['crypto_%s_%s' % (osname, arch)] = asm_files
+    with open('sources.json', 'w+') as f:
+      json.dump(sources, f, sort_keys=True, indent=2)
 
 def FindCMakeFiles(directory):
   """Returns list of all CMakeLists.txt files recursively in directory."""
@@ -489,6 +701,7 @@ def FindCFiles(directory, filter_func):
       if not filter_func(path, dirname, True):
         del dirnames[i]
 
+  cfiles.sort()
   return cfiles
 
 
@@ -508,6 +721,7 @@ def FindHeaderFiles(directory, filter_func):
         if not filter_func(path, dirname, True):
           del dirnames[i]
 
+  hfiles.sort()
   return hfiles
 
 
@@ -605,6 +819,9 @@ def WriteAsmFiles(perlasms):
   for (key, non_perl_asm_files) in NON_PERL_FILES.iteritems():
     asmfiles.setdefault(key, []).extend(non_perl_asm_files)
 
+  for files in asmfiles.itervalues():
+    files.sort()
+
   return asmfiles
 
 
@@ -646,12 +863,6 @@ def main(platforms):
   tool_c_files = FindCFiles(os.path.join('src', 'tool'), NoTests)
   tool_h_files = FindHeaderFiles(os.path.join('src', 'tool'), AllFiles)
 
-  # third_party/fiat/p256.c lives in third_party/fiat, but it is a FIPS
-  # fragment, not a normal source file.
-  p256 = os.path.join('src', 'third_party', 'fiat', 'p256.c')
-  fips_fragments.append(p256)
-  crypto_c_files.remove(p256)
-
   # BCM shared library C files
   bcm_crypto_c_files = [
       os.path.join('src', 'crypto', 'fipsmodule', 'bcm.c')
@@ -663,6 +874,7 @@ def main(platforms):
                           cwd=os.path.join('src', 'crypto', 'err'),
                           stdout=err_data)
   crypto_c_files.append('err_data.c')
+  crypto_c_files.sort()
 
   test_support_c_files = FindCFiles(os.path.join('src', 'crypto', 'test'),
                                     NotGTestSupport)
@@ -692,12 +904,14 @@ def main(platforms):
       file for file in crypto_test_files
       if not file.endswith('/urandom_test.cc')
   ]
+  crypto_test_files.sort()
 
   ssl_test_files = FindCFiles(os.path.join('src', 'ssl'), OnlyTests)
   ssl_test_files += [
       'src/crypto/test/abi_test.cc',
       'src/crypto/test/gtest_main.cc',
   ]
+  ssl_test_files.sort()
 
   urandom_test_files = [
       'src/crypto/fipsmodule/rand/urandom_test.cc',
@@ -705,17 +919,13 @@ def main(platforms):
 
   fuzz_c_files = FindCFiles(os.path.join('src', 'fuzz'), NoTests)
 
-  ssl_h_files = (
-      FindHeaderFiles(
-          os.path.join('src', 'include', 'openssl'),
-          SSLHeaderFiles))
+  ssl_h_files = FindHeaderFiles(os.path.join('src', 'include', 'openssl'),
+                                SSLHeaderFiles)
 
   def NotSSLHeaderFiles(path, filename, is_dir):
     return not SSLHeaderFiles(path, filename, is_dir)
-  crypto_h_files = (
-      FindHeaderFiles(
-          os.path.join('src', 'include', 'openssl'),
-          NotSSLHeaderFiles))
+  crypto_h_files = FindHeaderFiles(os.path.join('src', 'include', 'openssl'),
+                                   NotSSLHeaderFiles)
 
   ssl_internal_h_files = FindHeaderFiles(os.path.join('src', 'ssl'), NoTests)
   crypto_internal_h_files = (
@@ -727,19 +937,19 @@ def main(platforms):
       'crypto': crypto_c_files,
       'crypto_headers': crypto_h_files,
       'crypto_internal_headers': crypto_internal_h_files,
-      'crypto_test': sorted(crypto_test_files),
+      'crypto_test': crypto_test_files,
       'crypto_test_data': sorted('src/' + x for x in cmake['CRYPTO_TEST_DATA']),
       'fips_fragments': fips_fragments,
       'fuzz': fuzz_c_files,
       'ssl': ssl_source_files,
       'ssl_headers': ssl_h_files,
       'ssl_internal_headers': ssl_internal_h_files,
-      'ssl_test': sorted(ssl_test_files),
+      'ssl_test': ssl_test_files,
       'tool': tool_c_files,
       'tool_headers': tool_h_files,
       'test_support': test_support_c_files,
       'test_support_headers': test_support_h_files,
-      'urandom_test': sorted(urandom_test_files),
+      'urandom_test': urandom_test_files,
   }
 
   asm_outputs = sorted(WriteAsmFiles(ReadPerlAsmOperations()).iteritems())
@@ -749,10 +959,20 @@ def main(platforms):
 
   return 0
 
+ALL_PLATFORMS = {
+    'android': Android,
+    'android-cmake': AndroidCMake,
+    'bazel': Bazel,
+    'cmake': CMake,
+    'eureka': Eureka,
+    'gn': GN,
+    'gyp': GYP,
+    'json': JSON,
+}
 
 if __name__ == '__main__':
-  parser = optparse.OptionParser(usage='Usage: %prog [--prefix=<path>]'
-      ' [android|android-cmake|bazel|eureka|gn|gyp]')
+  parser = optparse.OptionParser(usage='Usage: %%prog [--prefix=<path>] [%s]' %
+                                 '|'.join(sorted(ALL_PLATFORMS.keys())))
   parser.add_option('--prefix', dest='prefix',
       help='For Bazel, prepend argument to all source files')
   parser.add_option(
@@ -769,20 +989,10 @@ if __name__ == '__main__':
 
   platforms = []
   for s in args:
-    if s == 'android':
-      platforms.append(Android())
-    elif s == 'android-cmake':
-      platforms.append(AndroidCMake())
-    elif s == 'bazel':
-      platforms.append(Bazel())
-    elif s == 'eureka':
-      platforms.append(Eureka())
-    elif s == 'gn':
-      platforms.append(GN())
-    elif s == 'gyp':
-      platforms.append(GYP())
-    else:
+    platform = ALL_PLATFORMS.get(s)
+    if platform is None:
       parser.print_help()
       sys.exit(1)
+    platforms.append(platform())
 
   sys.exit(main(platforms))

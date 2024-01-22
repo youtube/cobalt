@@ -11,10 +11,10 @@
 
     "BadRSAClientKeyExchange*": "Fuzzer mode does not notice a bad premaster secret.",
 
-    "TrailingMessageData-TLS13-ServerHello": "Fuzzer mode will not read the peer's alert as a MAC error",
+    "TrailingMessageData-TLS13-ServerHello-*": "Fuzzer mode will not read the peer's alert as a MAC error",
     "UnexpectedUnencryptedExtension-Client-TLS13": "Fuzzer mode will not read the peer's alert as a MAC error",
     "UnknownUnencryptedExtension-Client-TLS13": "Fuzzer mode will not read the peer's alert as a MAC error",
-    "WrongMessageType-TLS13-ServerHello": "Fuzzer mode will not read the peer's alert as a MAC error",
+    "WrongMessageType-TLS13-ServerHello-*": "Fuzzer mode will not read the peer's alert as a MAC error",
 
     "BadECDSA-*": "Fuzzer mode always accepts a signature.",
     "*-InvalidSignature-*": "Fuzzer mode always accepts a signature.",
@@ -42,9 +42,9 @@
     "EarlyData-ALPNOmitted1-Server-*": "Trial decryption does not work with the NULL cipher.",
     "EarlyData-ALPNOmitted2-Server-*": "Trial decryption does not work with the NULL cipher.",
     "*-EarlyData-RejectUnfinishedWrite-Client-*": "Trial decryption does not work with the NULL cipher.",
-    "EarlyData-Reject*-Client-*": "Trial decryption does not work with the NULL cipher.",
+    "EarlyData-Reject*-Client*": "Trial decryption does not work with the NULL cipher.",
     "CustomExtensions-Server-EarlyDataOffered": "Trial decryption does not work with the NULL cipher.",
-    "*-TicketAgeSkew-*-Reject": "Trial decryption does not work with the NULL cipher.",
+    "*-TicketAgeSkew-*-Reject*": "Trial decryption does not work with the NULL cipher.",
 
     "Renegotiate-Client-BadExt*": "Fuzzer mode does not check renegotiation_info.",
 

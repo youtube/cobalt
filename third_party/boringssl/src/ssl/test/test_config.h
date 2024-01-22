@@ -27,6 +27,7 @@ struct TestConfig {
   int port = 0;
   bool is_server = false;
   bool is_dtls = false;
+  bool is_quic = false;
   int resume_count = 0;
   std::string write_settings;
   bool fallback_scsv = false;
@@ -151,14 +152,12 @@ struct TestConfig {
   bool no_op_extra_handshake = false;
   bool handshake_twice = false;
   bool allow_unknown_alpn_protos = false;
-  bool enable_ed25519 = false;
   bool use_custom_verify_callback = false;
   std::string expect_msg_callback;
   bool allow_false_start_without_alpn = false;
   bool ignore_tls13_downgrade = false;
   bool expect_tls13_downgrade = false;
   bool handoff = false;
-  bool no_rsa_pss_rsae_certs = false;
   bool use_ocsp_callback = false;
   bool set_ocsp_in_callback = false;
   bool decline_ocsp_callback = false;
@@ -178,6 +177,7 @@ struct TestConfig {
   std::string expect_early_data_reason;
   bool expect_hrr = false;
   bool expect_no_hrr = false;
+  bool wait_for_debugger = false;
 
   int argc;
   char **argv;
