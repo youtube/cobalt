@@ -34,8 +34,6 @@ namespace cobalt {
 namespace media {
 namespace {
 
-using base::Time;
-using base::TimeDelta;
 using ::media::AudioDecoderConfig;
 using ::media::DecoderBuffer;
 using ::media::Demuxer;

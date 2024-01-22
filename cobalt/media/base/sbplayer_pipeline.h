@@ -48,6 +48,9 @@
 namespace cobalt {
 namespace media {
 
+using base::Time;
+using base::TimeDelta;
+
 // SbPlayerPipeline is a PipelineBase implementation that uses the SbPlayer
 // interface internally.
 class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
@@ -63,8 +66,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
       bool allow_resume_after_suspend, bool allow_batched_sample_write,
       bool force_punch_out_by_default,
 #if SB_API_VERSION >= 15
-      base::TimeDelta audio_write_duration_local,
-      base::TimeDelta audio_write_duration_remote,
+      TimeDelta audio_write_duration_local,
+      TimeDelta audio_write_duration_remote,
 #endif  // SB_API_VERSION >= 15
       MediaLog* media_log, MediaMetricsProvider* media_metrics_provider,
       DecodeTargetProvider* decode_target_provider);
@@ -96,7 +99,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
   void Stop(const base::Closure& stop_cb) override;
-  void Seek(base::TimeDelta time, const SeekCB& seek_cb);
+  void Seek(TimeDelta time, const SeekCB& seek_cb);
   bool HasAudio() const override;
   bool HasVideo() const override;
 
@@ -105,11 +108,11 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   float GetVolume() const override;
   void SetVolume(float volume) override;
 
-  base::TimeDelta GetMediaTime() override;
-  ::media::Ranges<base::TimeDelta> GetBufferedTimeRanges() override;
-  base::TimeDelta GetMediaDuration() const override;
+  TimeDelta GetMediaTime() override;
+  ::media::Ranges<TimeDelta> GetBufferedTimeRanges() override;
+  TimeDelta GetMediaDuration() const override;
 #if SB_HAS(PLAYER_WITH_URL)
-  base::TimeDelta GetMediaStartDate() const override;
+  TimeDelta GetMediaStartDate() const override;
 #endif  // SB_HAS(PLAYER_WITH_URL)
   void GetNaturalVideoSize(gfx::Size* out_size) const override;
   std::vector<std::string> GetAudioConnectors() const override;
@@ -142,12 +145,12 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void StartTask(StartTaskParameters parameters);
   void SetVolumeTask(float volume);
   void SetPlaybackRateTask(float volume);
-  void SetDurationTask(base::TimeDelta duration);
+  void SetDurationTask(TimeDelta duration);
 
   // DemuxerHost implementation.
   void OnBufferedTimeRangesChanged(
-      const ::media::Ranges<base::TimeDelta>& ranges) override;
-  void SetDuration(base::TimeDelta duration) override;
+      const ::media::Ranges<TimeDelta>& ranges) override;
+  void SetDuration(TimeDelta duration) override;
   void OnDemuxerError(PipelineStatus error) override;
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -183,7 +186,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   // Store the media time retrieved by GetMediaTime so we can cache it as an
   // estimate and avoid calling SbPlayerGetInfo too frequently.
-  void StoreMediaTime(base::TimeDelta media_time);
+  void StoreMediaTime(TimeDelta media_time);
 
   // Retrieve the statistics as a string and append to message.
   std::string AppendStatisticsString(const std::string& message) const;
@@ -229,7 +232,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   mutable base::Lock lock_;
 
   // Amount of available buffered data.  Set by filters.
-  ::media::Ranges<base::TimeDelta> buffered_time_ranges_;
+  ::media::Ranges<TimeDelta> buffered_time_ranges_;
 
   // True when AddBufferedByteRange() has been called more recently than
   // DidLoadingProgress().
@@ -281,10 +284,10 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   bool audio_read_in_progress_ = false;
   bool audio_read_delayed_ = false;
   bool video_read_in_progress_ = false;
-  base::CVal<base::TimeDelta> duration_;
+  base::CVal<TimeDelta> duration_;
 
 #if SB_HAS(PLAYER_WITH_URL)
-  base::TimeDelta start_date_;
+  TimeDelta start_date_;
   bool is_url_based_;
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
@@ -298,7 +301,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   // Temporary callback used for Start() and Seek().
   SeekCB seek_cb_;
-  base::TimeDelta seek_time_;
+  TimeDelta seek_time_;
   std::unique_ptr<SbPlayerBridge> player_bridge_;
   bool is_initial_preroll_ = true;
   base::CVal<bool> started_;
@@ -312,36 +315,35 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   DecodeTargetProvider* decode_target_provider_;
 
 #if SB_API_VERSION >= 15
-  const base::TimeDelta audio_write_duration_local_;
-  const base::TimeDelta audio_write_duration_remote_;
+  const TimeDelta audio_write_duration_local_;
+  const TimeDelta audio_write_duration_remote_;
 
   // The two variables below should always contain the same value.  They are
   // kept as separate variables so we can keep the existing implementation as
   // is, which simplifies the implementation across multiple Starboard versions.
-  base::TimeDelta audio_write_duration_;
-  base::TimeDelta audio_write_duration_for_preroll_ = audio_write_duration_;
+  TimeDelta audio_write_duration_;
+  TimeDelta audio_write_duration_for_preroll_ = audio_write_duration_;
 #else   // SB_API_VERSION >= 15
   // Read audio from the stream if |timestamp_of_last_written_audio_| is less
   // than |seek_time_| + |audio_write_duration_for_preroll_|, this effectively
   // allows 10 seconds of audio to be written to the SbPlayer after playback
   // startup or seek.
-  base::TimeDelta audio_write_duration_for_preroll_ =
-      base::TimeDelta::FromSeconds(10);
+  TimeDelta audio_write_duration_for_preroll_ = TimeDelta::FromSeconds(10);
   // Don't read audio from the stream more than |audio_write_duration_| ahead of
   // the current media time during playing.
-  base::TimeDelta audio_write_duration_ = base::TimeDelta::FromSeconds(1);
+  TimeDelta audio_write_duration_ = TimeDelta::FromSeconds(1);
 #endif  // SB_API_VERSION >= 15
   // Only call GetMediaTime() from OnNeedData if it has been
   // |kMediaTimeCheckInterval| since the last call to GetMediaTime().
-  static constexpr base::TimeDelta kMediaTimeCheckInterval =
-      base::TimeDelta::FromMicroseconds(100);
+  static constexpr TimeDelta kMediaTimeCheckInterval =
+      TimeDelta::FromMicroseconds(100);
   // Timestamp for the last written audio.
-  base::TimeDelta timestamp_of_last_written_audio_;
+  TimeDelta timestamp_of_last_written_audio_;
 
   // Last media time reported by GetMediaTime().
-  base::CVal<base::TimeDelta> last_media_time_;
+  base::CVal<TimeDelta> last_media_time_;
   // Timestamp microseconds when we last checked the media time.
-  base::Time last_time_media_time_retrieved_;
+  Time last_time_media_time_retrieved_;
   // Counter for retrograde media time.
   size_t retrograde_media_time_counter_ = 0;
   // The maximum video playback capabilities required for the playback.
@@ -349,9 +351,9 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   PlaybackStatistics playback_statistics_;
 
-  base::Time last_resume_time_{};
+  Time last_resume_time_;
 
-  base::Time set_drm_system_ready_cb_time_{};
+  Time set_drm_system_ready_cb_time_;
 
   DISALLOW_COPY_AND_ASSIGN(SbPlayerPipeline);
 };

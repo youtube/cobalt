@@ -19,7 +19,6 @@
 #include "base/logging.h"
 #include "base/strings/string_util.h"
 #include "starboard/common/string.h"
-#include "starboard/common/time.h"
 
 namespace cobalt {
 namespace media {

@@ -29,7 +29,6 @@
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
 #include "starboard/common/string.h"
-#include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
 #include "starboard/once.h"
@@ -40,6 +39,8 @@ namespace media {
 
 namespace {
 
+using base::Time;
+using base::TimeDelta;
 using starboard::FormatString;
 using starboard::GetPlayerOutputModeName;
 
@@ -394,7 +395,7 @@ void SbPlayerBridge::PrepareForSeek() {
   sbplayer_interface_->SetPlaybackRate(player_, 0.f);
 }
 
-void SbPlayerBridge::Seek(base::TimeDelta time) {
+void SbPlayerBridge::Seek(TimeDelta time) {
   DCHECK(task_runner_->BelongsToCurrentThread());
 
   decoder_buffer_cache_.ClearAll();
@@ -453,7 +454,7 @@ void SbPlayerBridge::SetPlaybackRate(double playback_rate) {
 
 void SbPlayerBridge::GetInfo(uint32* video_frames_decoded,
                              uint32* video_frames_dropped,
-                             base::TimeDelta* media_time) {
+                             TimeDelta* media_time) {
   DCHECK(video_frames_decoded || video_frames_dropped || media_time);
 
   base::AutoLock auto_lock(lock_);
@@ -493,13 +494,13 @@ SbPlayerBridge::GetAudioConfigurations() {
 
 #if SB_HAS(PLAYER_WITH_URL)
 void SbPlayerBridge::GetUrlPlayerBufferedTimeRanges(
-    base::TimeDelta* buffer_start_time, base::TimeDelta* buffer_length_time) {
+    TimeDelta* buffer_start_time, TimeDelta* buffer_length_time) {
   DCHECK(buffer_start_time || buffer_length_time);
   DCHECK(is_url_based_);
 
   if (state_ == kSuspended) {
-    *buffer_start_time = base::TimeDelta();
-    *buffer_length_time = base::TimeDelta();
+    *buffer_start_time = TimeDelta();
+    *buffer_length_time = TimeDelta();
     return;
   }
 
@@ -509,12 +510,12 @@ void SbPlayerBridge::GetUrlPlayerBufferedTimeRanges(
   sbplayer_interface_->GetUrlPlayerExtraInfo(player_, &url_player_info);
 
   if (buffer_start_time) {
-    *buffer_start_time = base::TimeDelta::FromMicroseconds(
-        url_player_info.buffer_start_timestamp);
+    *buffer_start_time =
+        TimeDelta::FromMicroseconds(url_player_info.buffer_start_timestamp);
   }
   if (buffer_length_time) {
     *buffer_length_time =
-        base::TimeDelta::FromMicroseconds(url_player_info.buffer_duration);
+        TimeDelta::FromMicroseconds(url_player_info.buffer_duration);
   }
 }
 
@@ -545,11 +546,11 @@ void SbPlayerBridge::GetVideoResolution(int* frame_width, int* frame_height) {
   *frame_height = video_stream_info_.frame_height;
 }
 
-base::TimeDelta SbPlayerBridge::GetDuration() {
+TimeDelta SbPlayerBridge::GetDuration() {
   DCHECK(is_url_based_);
 
   if (state_ == kSuspended) {
-    return base::TimeDelta();
+    return TimeDelta();
   }
 
   DCHECK(SbPlayerIsValid(player_));
@@ -562,16 +563,16 @@ base::TimeDelta SbPlayerBridge::GetDuration() {
   sbplayer_interface_->GetInfo(player_, &info);
   if (info.duration == SB_PLAYER_NO_DURATION) {
     // URL-based player may not have loaded asset yet, so map no duration to 0.
-    return base::TimeDelta();
+    return TimeDelta();
   }
-  return base::TimeDelta::FromMicroseconds(info.duration);
+  return TimeDelta::FromMicroseconds(info.duration);
 }
 
-base::TimeDelta SbPlayerBridge::GetStartDate() {
+TimeDelta SbPlayerBridge::GetStartDate() {
   DCHECK(is_url_based_);
 
   if (state_ == kSuspended) {
-    return base::TimeDelta();
+    return TimeDelta();
   }
 
   DCHECK(SbPlayerIsValid(player_));
@@ -582,7 +583,7 @@ base::TimeDelta SbPlayerBridge::GetStartDate() {
   SbPlayerInfo2 info;
 #endif  // SB_API_VERSION >= 15
   sbplayer_interface_->GetInfo(player_, &info);
-  return base::TimeDelta::FromMicroseconds(info.start_date);
+  return TimeDelta::FromMicroseconds(info.start_date);
 }
 
 void SbPlayerBridge::SetDrmSystem(SbDrmSystem drm_system) {
@@ -698,7 +699,7 @@ void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
     FormatSupportQueryMetrics::PrintAndResetMetrics();
   }
 
-  player_creation_time_ = base::Time::Now();
+  player_creation_time_ = Time::Now();
 
   cval_stats_->StartTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
   player_ = sbplayer_interface_->CreateUrlPlayer(
@@ -748,7 +749,7 @@ void SbPlayerBridge::CreatePlayer() {
     FormatSupportQueryMetrics::PrintAndResetMetrics();
   }
 
-  player_creation_time_ = base::Time::Now();
+  player_creation_time_ = Time::Now();
 
   SbPlayerCreationParam creation_param = {};
   creation_param.drm_system = drm_system_;
@@ -894,10 +895,10 @@ void SbPlayerBridge::WriteBuffersInternal(
 
     if (sample_type == kSbMediaTypeAudio &&
         first_audio_sample_time_.is_null()) {
-      first_audio_sample_time_ = base::Time::Now();
+      first_audio_sample_time_ = Time::Now();
     } else if (sample_type == kSbMediaTypeVideo &&
                first_video_sample_time_.is_null()) {
-      first_video_sample_time_ = base::Time::Now();
+      first_video_sample_time_ = Time::Now();
     }
 
     gathered_sbplayer_sample_infos_drm_info.push_back(SbDrmSampleInfo());
@@ -972,7 +973,7 @@ SbPlayerOutputMode SbPlayerBridge::GetSbPlayerOutputMode() {
 
 void SbPlayerBridge::GetInfo_Locked(uint32* video_frames_decoded,
                                     uint32* video_frames_dropped,
-                                    base::TimeDelta* media_time) {
+                                    TimeDelta* media_time) {
   lock_.AssertAcquired();
   if (state_ == kSuspended) {
     if (video_frames_decoded) {
@@ -997,8 +998,7 @@ void SbPlayerBridge::GetInfo_Locked(uint32* video_frames_decoded,
   sbplayer_interface_->GetInfo(player_, &info);
 
   if (media_time) {
-    *media_time =
-        base::TimeDelta::FromMicroseconds(info.current_media_timestamp);
+    *media_time = TimeDelta::FromMicroseconds(info.current_media_timestamp);
   }
   if (video_frames_decoded) {
     *video_frames_decoded = info.total_video_frames;
@@ -1025,7 +1025,7 @@ void SbPlayerBridge::ClearDecoderBufferCache() {
   DCHECK(task_runner_->BelongsToCurrentThread());
 
   if (state_ != kResuming) {
-    base::TimeDelta media_time;
+    TimeDelta media_time;
     GetInfo(NULL, NULL, &media_time);
     decoder_buffer_cache_.ClearSegmentsBeforeMediaTime(media_time);
   }
@@ -1034,8 +1034,7 @@ void SbPlayerBridge::ClearDecoderBufferCache() {
       FROM_HERE,
       base::Bind(&SbPlayerBridge::CallbackHelper::ClearDecoderBufferCache,
                  callback_helper_),
-      base::TimeDelta::FromMilliseconds(
-          kClearDecoderCacheIntervalInMilliseconds));
+      TimeDelta::FromMilliseconds(kClearDecoderCacheIntervalInMilliseconds));
 }
 
 void SbPlayerBridge::OnDecoderStatus(SbPlayer player, SbMediaType type,
@@ -1105,7 +1104,7 @@ void SbPlayerBridge::OnPlayerStatus(SbPlayer player, SbPlayerState state,
       ++ticket_;
     }
     if (sb_player_state_initialized_time_.is_null()) {
-      sb_player_state_initialized_time_ = base::Time::Now();
+      sb_player_state_initialized_time_ = Time::Now();
     }
     sbplayer_interface_->Seek(player_, preroll_timestamp_, ticket_);
     SetVolume(volume_);
@@ -1114,10 +1113,10 @@ void SbPlayerBridge::OnPlayerStatus(SbPlayer player, SbPlayerState state,
   }
   if (state == kSbPlayerStatePrerolling &&
       sb_player_state_prerolling_time_.is_null()) {
-    sb_player_state_prerolling_time_ = base::Time::Now();
+    sb_player_state_prerolling_time_ = Time::Now();
   } else if (state == kSbPlayerStatePresenting &&
              sb_player_state_presenting_time_.is_null()) {
-    sb_player_state_presenting_time_ = base::Time::Now();
+    sb_player_state_presenting_time_ = Time::Now();
 #if !defined(COBALT_BUILD_TYPE_GOLD)
     LogStartupLatency();
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
@@ -1302,22 +1301,20 @@ void SbPlayerBridge::LogStartupLatency() const {
             .InMicroseconds());
   }
 
-  base::Time first_event_time =
+  Time first_event_time =
       std::max(player_creation_time_, set_drm_system_ready_cb_time_);
-  base::TimeDelta player_initialization_time_delta =
+  TimeDelta player_initialization_time_delta =
       sb_player_state_initialized_time_ - first_event_time;
-  base::TimeDelta player_preroll_time_delta =
+  TimeDelta player_preroll_time_delta =
       sb_player_state_prerolling_time_ - sb_player_state_initialized_time_;
-  base::TimeDelta first_audio_sample_time_delta =
-      std::max(first_audio_sample_time_ - sb_player_state_prerolling_time_,
-               base::TimeDelta());
-  base::TimeDelta first_video_sample_time_delta =
-      std::max(first_video_sample_time_ - sb_player_state_prerolling_time_,
-               base::TimeDelta());
-  base::TimeDelta player_presenting_time_delta =
+  TimeDelta first_audio_sample_time_delta = std::max(
+      first_audio_sample_time_ - sb_player_state_prerolling_time_, TimeDelta());
+  TimeDelta first_video_sample_time_delta = std::max(
+      first_video_sample_time_ - sb_player_state_prerolling_time_, TimeDelta());
+  TimeDelta player_presenting_time_delta =
       sb_player_state_presenting_time_ -
       std::max(first_audio_sample_time_, first_video_sample_time_);
-  base::TimeDelta startup_latency =
+  TimeDelta startup_latency =
       sb_player_state_presenting_time_ - first_event_time;
 
   StatisticsWrapper::GetInstance()->startup_latency.AddSample(
