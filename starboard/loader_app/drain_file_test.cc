@@ -51,12 +51,12 @@ class DrainFileTest : public ::testing::Test {
 #if SB_API_VERSION < 16
     ASSERT_TRUE(SbDirectoryCreate(temp_dir_.data()));
 #else
-  int created;
-  #ifdef _WIN32
-  created = _mkdir(temp_dir_.data());
-  #else
-  created = mkdir(temp_dir_.data(), 0700);
-  #endif
+    int created;
+#ifdef _WIN32
+    created = _mkdir(temp_dir_.data());
+#else
+    created = mkdir(temp_dir_.data(), 0700);
+#endif
     bool exists = SbDirectoryCanOpen(temp_dir_.data());
     ASSERT_TRUE(created == 0 || exists);
 #endif  // SB_API_VERSION < 16
@@ -230,11 +230,11 @@ TEST_F(DrainFileTest, SunnyDayPrepareDirectory) {
   EXPECT_TRUE(SbDirectoryCreate(dir.c_str()));
 #else
   int created;
-  #ifdef _WIN32
+#ifdef _WIN32
   created = _mkdir(dir.c_str());
-  #else
+#else
   created = mkdir(dir.c_str(), 0700);
-  #endif
+#endif
   bool exists = SbDirectoryCanOpen(dir.c_str());
   EXPECT_TRUE(created == 0 || exists);
 #endif  // SB_API_VERSION < 16

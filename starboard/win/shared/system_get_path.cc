@@ -18,11 +18,11 @@
 // pathcch.h must come after windows.h.
 #include <pathcch.h>
 
+#include <direct.h>
 #include <sys/stat.h>
 #include <codecvt>
 #include <cstring>
 #include <locale>
-#include <direct.h>
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -141,11 +141,11 @@ bool CreateAndGetTempPath(char* out_path, int path_size) {
       path_size) {
     return false;
   }
-  #ifdef _WIN32
-    _mkdir(out_path);
-  #else
-    mkdir(out_path, 0700);
-  #endif
+#ifdef _WIN32
+  _mkdir(out_path);
+#else
+  mkdir(out_path, 0700);
+#endif
 
   size_t length = strlen(out_path);
   if (length < 1 || length > path_size) {

@@ -41,11 +41,11 @@ class AppKeyFilesTest : public testing::Test {
 #if SB_API_VERSION < 16
     SbDirectoryCreate(dir_.c_str());
 #else
-  #ifdef _WIN32
-  _mkdir(dir_.c_str());
-  #else
-  mkdir(dir_.c_str(), 0700);
-  #endif
+#ifdef _WIN32
+    _mkdir(dir_.c_str());
+#else
+    mkdir(dir_.c_str(), 0700);
+#endif
 #endif  // SB_API_VERSION < 16
   }
 

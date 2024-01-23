@@ -60,14 +60,13 @@ bool MemoryCappedDirectory::FileInfo::OldestFirst::operator()(
 // static
 std::unique_ptr<MemoryCappedDirectory> MemoryCappedDirectory::Create(
     const base::FilePath& directory_path, uint32_t max_size) {
-      int retval;
+  int retval;
 #ifdef _WIN32
-    retval = _mkdir(directory_path.value().c_str());
-  #else
-    retval = mkdir(directory_path.value().c_str(), 0700);
-  #endif
-  if (retval != 0 &&
-      !SbDirectoryCanOpen(directory_path.value().c_str())) {
+  retval = _mkdir(directory_path.value().c_str());
+#else
+  retval = mkdir(directory_path.value().c_str(), 0700);
+#endif
+  if (retval != 0 && !SbDirectoryCanOpen(directory_path.value().c_str())) {
     return nullptr;
   }
   auto memory_capped_directory = std::unique_ptr<MemoryCappedDirectory>(
@@ -132,10 +131,10 @@ void MemoryCappedDirectory::DeleteAll() {
   base::DeleteFile(directory_path_, true);
   // Re-create the directory_path_ which will now be empty.
 #ifdef _WIN32
-    _mkdir(directory_path_.value().c_str());
-  #else
-    mkdir(directory_path_.value().c_str(), 0700);
-  #endif
+  _mkdir(directory_path_.value().c_str());
+#else
+  mkdir(directory_path_.value().c_str(), 0700);
+#endif
   file_info_heap_.clear();
   file_sizes_.clear();
   file_keys_with_metadata_.clear();

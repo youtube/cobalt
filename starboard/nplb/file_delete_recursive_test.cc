@@ -55,12 +55,12 @@ TEST(SbFileDeleteRecursiveTest, SunnyDayDeleteExistingPath) {
 #if SB_API_VERSION < 16
     EXPECT_TRUE(SbDirectoryCreate(path.c_str()));
 #else
-  int created;
-  #ifdef _WIN32
-  created = _mkdir(path.c_str());
-  #else
-  created = mkdir(path.c_str(), 0700);
-  #endif
+    int created;
+#ifdef _WIN32
+    created = _mkdir(path.c_str());
+#else
+    created = mkdir(path.c_str(), 0700);
+#endif
     bool exists = SbDirectoryCanOpen(path.c_str());
     EXPECT_TRUE(created == 0 || exists);
 #endif  // SB_API_VERSION < 16
@@ -98,11 +98,11 @@ TEST(SbFileDeleteRecursiveTest, SunnyDayDeletePreserveRoot) {
   EXPECT_TRUE(SbDirectoryCreate(root.c_str()));
 #else
   int created;
-  #ifdef _WIN32
+#ifdef _WIN32
   created = _mkdir(root.c_str());
-  #else
+#else
   created = mkdir(root.c_str(), 0700);
-  #endif
+#endif
   bool exists = SbDirectoryCanOpen(root.c_str());
   EXPECT_TRUE(created == 0 || exists);
 #endif  // SB_API_VERSION < 16

@@ -51,12 +51,12 @@ bool CreateDirsForKey(const std::string& key) {
     starboard::strlcat(path.data(),
                        key.substr(prev_found, found - prev_found).c_str(),
                        kSbFileMaxPath);
-  int retval;
-  #ifdef _WIN32
+    int retval;
+#ifdef _WIN32
     retval = _mkdir(path.data());
-  #else
+#else
     retval = mkdir(path.data(), 0700);
-  #endif
+#endif
     if (retval != 0 && !SbDirectoryCanOpen(path.data())) {
       return false;
     }

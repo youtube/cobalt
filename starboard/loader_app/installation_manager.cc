@@ -711,11 +711,11 @@ bool InstallationManager::CreateInstallationDirs() {
       return false;
     }
     int created;
-    #ifdef _WIN32
+#ifdef _WIN32
     created = _mkdir(path.data());
-    #else
+#else
     created = mkdir(path.data(), 0700);
-    #endif
+#endif
     if (created != 0 && !SbDirectoryCanOpen(path.data())) {
       return false;
     }
