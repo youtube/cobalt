@@ -14,7 +14,7 @@
 
 #include "cobalt/browser/application.h"
 
-#include <hash>
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -628,6 +628,8 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
                          int64_t timestamp)
     : message_loop_(base::MessageLoop::current()), quit_closure_(quit_closure) {
   DCHECK(!quit_closure_.is_null());
+  std::size_t hash_test = std::hash<std::string>{}("foo");
+  LOG(info) << hash_test;
   if (should_preload) {
     preload_timestamp_ = timestamp;
   } else {
