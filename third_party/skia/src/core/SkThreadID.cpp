@@ -7,7 +7,10 @@
 
 #include "include/private/SkThreadID.h"
 
-#ifdef SK_BUILD_FOR_WIN
+#if defined(STARBOARD)
+    #include "starboard/thread.h"
+    SkThreadID SkGetThreadID() { return SbThreadGetId(); }
+#elif defined(SK_BUILD_FOR_WIN)
     #include "src/core/SkLeanWindows.h"
     SkThreadID SkGetThreadID() { return GetCurrentThreadId(); }
 #else

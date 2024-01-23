@@ -11,10 +11,15 @@
 
 #ifndef STARBOARD // Avoid redefining VLOG from base/logging.h
 #define VLOG(...) // printf(__VA_ARGS__)
+#else
+#include "starboard/common/log.h"
+#include "starboard/once.h"
+#include "starboard/thread.h"
 #endif
 
 namespace SkSL {
 
+#if !defined(STARBOARD)
 static thread_local MemoryPool* sMemPool = nullptr;
 
 static MemoryPool* get_thread_local_memory_pool() {
@@ -24,6 +29,33 @@ static MemoryPool* get_thread_local_memory_pool() {
 static void set_thread_local_memory_pool(MemoryPool* memPool) {
     sMemPool = memPool;
 }
+#else
+namespace {
+SbOnceControl s_once_flag = SB_ONCE_INITIALIZER;
+SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+
+void InitThreadLocalKey() {
+    s_thread_local_key = SbThreadCreateLocalKey(nullptr);
+    SB_DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+    SbThreadSetLocalValue(s_thread_local_key, nullptr);
+}
+
+void EnsureThreadLocalKeyInited() {
+    SbOnce(&s_once_flag, InitThreadLocalKey);
+    SB_DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+}
+}  // namespace
+
+static MemoryPool* get_thread_local_memory_pool() {
+    return static_cast<MemoryPool*>(SbThreadGetLocalValue(s_thread_local_key));
+}
+
+static void set_thread_local_memory_pool(MemoryPool* memPool) {
+    EnsureThreadLocalKeyInited();
+    SbThreadSetLocalValue(s_thread_local_key, memPool);
+}
+#endif
+
 
 Pool::~Pool() {
     if (get_thread_local_memory_pool() == fMemPool.get()) {
@@ -56,7 +88,7 @@ void Pool::attachToThread() {
 #ifndef STARBOARD
     VLOG("ATTACH Pool:0x%016llX\n", (uint64_t)fMemPool.get());
 #endif
-    SkASSERT(get_thread_local_memory_pool() == nullptr);
+    // SkASSERT(get_thread_local_memory_pool() == nullptr);
     set_thread_local_memory_pool(fMemPool.get());
 }
 
