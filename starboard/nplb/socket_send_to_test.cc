@@ -15,6 +15,8 @@
 // SendTo is largely tested with ReceiveFrom, so look there for more involved
 // tests.
 
+#if SB_API_VERSION < 16
+
 #include <utility>
 
 #include "starboard/common/socket.h"
@@ -208,3 +210,4 @@ INSTANTIATE_TEST_CASE_P(
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+#endif  // SB_API_VERSION < 16

@@ -15,6 +15,8 @@
 // The basic Sunny Day test is a subset of other Sunny Day tests, so it is not
 // repeated here.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/common/socket.h"
 #include "starboard/nplb/socket_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -61,3 +63,4 @@ INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+#endif  // SB_API_VERSION < 16

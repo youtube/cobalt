@@ -95,6 +95,11 @@ int Transfer(Socket* receive_socket,
              Socket* send_socket,
              const char* send_data,
              int size);
+int Transfer(int receive_socket_fd,
+             char* out_data,
+             int send_socket_fd,
+             const char* send_data,
+             int size);
 
 struct ConnectedTrio {
   ConnectedTrio()
@@ -217,6 +222,42 @@ std::string GetSbSocketAddressTypeProtocolPairName(
     ::testing::TestParamInfo<std::pair<SbSocketAddressType, SbSocketProtocol>>
         info);
 #endif  // #if !defined(COBALT_BUILD_TYPE_GOLD)
+
+#if defined(_WIN32)
+#include <errno.h>
+#include <io.h>
+#include <winsock2.h>
+#else
+#include <fcntl.h>
+#include <netinet/in.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#endif
+extern const int kMaxConn;
+int PosixSocketCreate(int domain, int type, int protocol);
+int PosixSocketClose(int socket_fd);
+int PosixSocketBind(int socket_fd, sockaddr* paddr, int addr_size);
+int PosixSocketListen(int socket_fd);
+int PosixSocketTcpSend(int socket_fd, const char* data, int data_size);
+int PosixSocketUdpSendTo(int socket_fd,
+                         const char* data,
+                         int data_size,
+                         sockaddr* destination);
+int PosixCreateListeningTcpSocket(int domain, int type, int protocol, int port);
+int PosixCreateConnectingTcpSocket(int domain,
+                                   int type,
+                                   int protocol,
+                                   int port);
+int PosixSocketSetReuseAddress(int socket_fd, bool reuse);
+int PosixSocketAcceptBySpinning(int server_socket_fd, int64_t timeout);
+int PosixSocketCreateAndConnect(int server_address_type,
+                                int client_address_type,
+                                int port,
+                                int64_t timeout,
+                                int* listen_socket_fd,
+                                int* server_socket_fd,
+                                int* client_socket_fd);
 
 }  // namespace nplb
 }  // namespace starboard

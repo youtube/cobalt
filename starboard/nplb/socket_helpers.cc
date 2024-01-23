@@ -32,6 +32,18 @@ namespace {
 int port_number_for_tests = 0;
 SbOnceControl valid_port_once_control = SB_ONCE_INITIALIZER;
 
+#if defined(SOMAXCONN)
+const int kMaxConn = SOMAXCONN;
+#else
+// Some posix platforms such as FreeBSD do not define SOMAXCONN.
+// In this case, set the value to an arbitrary number large enough to
+// satisfy most use-cases and tests, empirically we have found that 128
+// is sufficient.  All implementations of listen() specify that a backlog
+// parameter larger than the system max will be silently truncated to the
+// system's max.
+const int kMaxConn = 128;
+#endif
+
 void InitializePortNumberForTests() {
   // Create a listening socket. Let the system choose a port for us.
   SbSocket socket = CreateListeningTcpSocket(kSbSocketAddressTypeIpv4, 0);
