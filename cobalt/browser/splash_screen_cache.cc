@@ -31,6 +31,10 @@
 #include "starboard/directory.h"
 #include "sys/stat.h"
 
+#ifdef _WIN32
+#include <direct.h>
+#endif
+
 namespace cobalt {
 namespace browser {
 namespace {
@@ -47,7 +51,13 @@ bool CreateDirsForKey(const std::string& key) {
     starboard::strlcat(path.data(),
                        key.substr(prev_found, found - prev_found).c_str(),
                        kSbFileMaxPath);
-    if (mkdir(path.data(), 0700) != 0 && !SbDirectoryCanOpen(path.data())) {
+  int retval;
+  #ifdef _WIN32
+    retval = _mkdir(path.data());
+  #else
+    retval = mkdir(path.data(), 0700);
+  #endif
+    if (retval != 0 && !SbDirectoryCanOpen(path.data())) {
       return false;
     }
     prev_found = found;

@@ -19,7 +19,9 @@
 
 #include "starboard/configuration_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
+#ifdef _WIN32
+#include <direct.h>
+#endif
 namespace starboard {
 namespace loader_app {
 namespace {
@@ -39,7 +41,11 @@ class AppKeyFilesTest : public testing::Test {
 #if SB_API_VERSION < 16
     SbDirectoryCreate(dir_.c_str());
 #else
-    mkdir(dir_.c_str(), 0700);
+  #ifdef _WIN32
+  _mkdir(dir_.c_str());
+  #else
+  mkdir(dir_.c_str(), 0700);
+  #endif
 #endif  // SB_API_VERSION < 16
   }
 

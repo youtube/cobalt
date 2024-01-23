@@ -284,6 +284,10 @@
 #include "starboard/types.h"
 #endif  // !defined(STARBOARD)
 
+#ifdef _WIN32
+#include <direct.h>
+#endif
+
 #if defined __APPLE__
 #include <AvailabilityMacros.h>
 #include <TargetConditionals.h>
@@ -2136,7 +2140,11 @@ inline void *MemSet(void *s, int c, size_t n) {
 inline void Assert(bool b) { SB_CHECK(b); }
 
 inline int MkDir(const char* path, int /*mode*/) {
-  return mkdir(path, 0700);
+#ifdef _WIN32
+   return _mkdir(path);
+  #else
+   return mkdir(path, 0700);
+  #endif
 }
 
 inline void VPrintF(const char* format, va_list args) {
