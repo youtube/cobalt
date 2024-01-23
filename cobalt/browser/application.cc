@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/application.h"
 
+#include <hash>
 #include <map>
 #include <memory>
 #include <string>
