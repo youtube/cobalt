@@ -630,7 +630,7 @@ void ReplacedBox::UpdateContentSizeAndMargins(
   set_margin_bottom(maybe_margin_bottom.value_or(LayoutUnit()));
 }
 
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
 
 void ReplacedBox::DumpProperties(std::ostream* stream) const {
   Box::DumpProperties(stream);
@@ -639,7 +639,7 @@ void ReplacedBox::DumpProperties(std::ostream* stream) const {
           << "bidi_level=" << paragraph_->GetBidiLevel(text_position_) << " ";
 }
 
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
 void ReplacedBox::RenderAndAnimateContentWithMapToMesh(
     CompositionNode::Builder* border_node_builder,

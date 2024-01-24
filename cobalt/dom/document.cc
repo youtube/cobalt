@@ -292,7 +292,7 @@ std::string Document::dir() const {
   // attribute of the html element, if any, limited to only known values. If
   // there is no such element, then the attribute must return the empty string
   // and do nothing on setting.
-  HTMLHtmlElement* html_element = html();
+  HTMLElement* html_element = html();
   if (!html_element) {
     return "";
   }
@@ -306,7 +306,7 @@ void Document::set_dir(const std::string& value) {
   // attribute of the html element, if any, limited to only known values. If
   // there is no such element, then the attribute must return the empty string
   // and do nothing on setting.
-  HTMLHtmlElement* html_element = html();
+  HTMLElement* html_element = html();
   if (html_element) {
     html_element->set_dir(value);
   }
@@ -319,7 +319,7 @@ scoped_refptr<HTMLBodyElement> Document::body() const {
   // is either a body element or a frameset element. If there is no such
   // element, it is null.
   //   https://www.w3.org/TR/html50/dom.html#the-body-element-0
-  HTMLHtmlElement* html_element = html().get();
+  HTMLElement* html_element = html().get();
   if (!html_element) {
     return NULL;
   }
@@ -356,7 +356,7 @@ void Document::set_body(const scoped_refptr<HTMLBodyElement>& body) {
   //    exception and abort these steps.
   // 5. Otherwise, the body element is null, but there's a root element. Append
   //    the new value to the root element.
-  scoped_refptr<HTMLHtmlElement> current_html = html();
+  scoped_refptr<HTMLElement> current_html = html();
   if (!current_html) {
     // TODO: Throw JS HierarchyRequestError.
     return;
@@ -374,7 +374,7 @@ scoped_refptr<HTMLHeadElement> Document::head() const {
   // The head element of a document is the first head element that is a child of
   // the html element, if there is one, or null otherwise.
   //   https://www.w3.org/TR/html50/dom.html#the-head-element-0
-  HTMLHtmlElement* html_element = html().get();
+  HTMLElement* html_element = html().get();
   if (!html_element) {
     return NULL;
   }
@@ -521,16 +521,19 @@ scoped_refptr<Node> Document::Duplicate() const {
                       Document::Options(location()->url()));
 }
 
-scoped_refptr<HTMLHtmlElement> Document::html() const {
+scoped_refptr<HTMLElement> Document::html() const {
   // The html element of a document is the document's root element, if there is
   // one and it's an html element, or null otherwise.
   //   https://www.w3.org/TR/html50/dom.html#the-html-element-0
   Element* root = document_element().get();
   if (!root) {
-    return NULL;
+    return nullptr;
   }
-  HTMLElement* root_html_element = root->AsHTMLElement();
-  return root_html_element ? root_html_element->AsHTMLHtmlElement() : NULL;
+  HTMLElement* html_root = root->AsHTMLElement();
+  if (!html_root || !html_root->AsHTMLHtmlElement()) {
+    return nullptr;
+  }
+  return html_root;
 }
 
 void Document::SetActiveElement(Element* active_element) {
@@ -677,7 +680,7 @@ void Document::OnCSSMutation() {
   are_font_faces_dirty_ = true;
   are_keyframes_dirty_ = true;
 
-  scoped_refptr<HTMLHtmlElement> current_html = html();
+  scoped_refptr<HTMLElement> current_html = html();
   if (current_html) {
     current_html->InvalidateComputedStylesOfNodeAndDescendants();
   }
@@ -694,7 +697,7 @@ void Document::OnDOMMutation() {
 }
 
 void Document::OnTypefaceLoadEvent() {
-  scoped_refptr<HTMLHtmlElement> current_html = html();
+  scoped_refptr<HTMLElement> current_html = html();
   if (current_html) {
     current_html->InvalidateLayoutBoxesOfNodeAndDescendants();
   }
@@ -932,7 +935,7 @@ void Document::SetViewport(const ViewportSize& viewport_size) {
   is_computed_style_dirty_ = true;
   is_selector_tree_dirty_ = true;
 
-  scoped_refptr<HTMLHtmlElement> current_html = html();
+  scoped_refptr<HTMLElement> current_html = html();
   if (current_html) {
     current_html->InvalidateComputedStylesOfNodeAndDescendants();
   }
@@ -994,7 +997,7 @@ void Document::UpdateSelectorTree() {
     // compatibility.
     selector_tree_->ValidateVersionCompatibility();
 
-    scoped_refptr<HTMLHtmlElement> current_html = html();
+    scoped_refptr<HTMLElement> current_html = html();
     if (current_html) {
       current_html->ClearRuleMatchingStateOnElementAndSiblingsAndDescendants();
     }
@@ -1013,14 +1016,14 @@ void Document::PurgeCachedResources() {
   // elements that had images purged when processing resumes.
   is_computed_style_dirty_ = true;
 
-  scoped_refptr<HTMLHtmlElement> current_html = html();
+  scoped_refptr<HTMLElement> current_html = html();
   if (current_html) {
     current_html->PurgeCachedBackgroundImagesOfNodeAndDescendants();
   }
 }
 
 void Document::InvalidateLayoutBoxes() {
-  scoped_refptr<HTMLHtmlElement> current_html = html();
+  scoped_refptr<HTMLElement> current_html = html();
   if (current_html) {
     current_html->InvalidateLayoutBoxesOfNodeAndDescendants();
   }
@@ -1350,7 +1353,7 @@ void Document::UpdateKeyframes() {
 
     // This should eventually be altered to only invalidate the tree when the
     // the keyframes map changed.
-    scoped_refptr<HTMLHtmlElement> current_html = html();
+    scoped_refptr<HTMLElement> current_html = html();
     if (current_html) {
       current_html->InvalidateComputedStylesOfNodeAndDescendants();
     }

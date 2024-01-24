@@ -448,7 +448,7 @@ void TextBox::RenderAndAnimateContent(
 
 bool TextBox::IsTransformable() const { return false; }
 
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
 
 void TextBox::DumpClassName(std::ostream* stream) const {
   *stream << "TextBox ";
@@ -478,7 +478,7 @@ void TextBox::DumpChildrenWithIndent(std::ostream* stream, int indent) const {
   *stream << "\"" << GetNonCollapsibleText() << "\"\n";
 }
 
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
 void TextBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
     BaseDirection base_direction, LayoutUnit desired_offset,
