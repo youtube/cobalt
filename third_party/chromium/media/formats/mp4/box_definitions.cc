@@ -1438,6 +1438,114 @@ bool OpusSpecificBox::Parse(BoxReader* reader) {
   return true;
 }
 
+#if defined(STARBOARD)
+IamfSpecificBox::IamfSpecificBox() {}
+
+IamfSpecificBox::IamfSpecificBox(const IamfSpecificBox& other) = default;
+
+IamfSpecificBox::~IamfSpecificBox() = default;
+
+FourCC IamfSpecificBox::BoxType() const { return FOURCC_IAMF; }
+
+bool IamfSpecificBox::Parse(BoxReader* reader) {
+  int obu_bitstream_size = reader->box_size() - reader->pos();
+  config_obus.resize(obu_bitstream_size);
+  memcpy(&config_obus[0], reader->buffer() + reader->pos(), obu_bitstream_size);
+  RCHECK(reader->SkipBytes(obu_bitstream_size));
+
+  BufferReader config_reader(config_obus.data(), config_obus.size());
+
+  while (config_reader.pos() < config_reader.buffer_size()) {
+    RCHECK(ReadOBU(&config_reader));
+  }
+
+  return true;
+}
+
+bool IamfSpecificBox::ReadOBU(BufferReader* reader) {
+#if !defined(ARCH_CPU_LITTLE_ENDIAN)
+#error The code below assumes little-endianness.
+#endif
+
+  uint8_t obu_type;
+  uint32_t obu_size;
+  RCHECK(ReadOBUHeader(reader, &obu_type, &obu_size));
+  size_t read_stop_pos = reader->pos() + obu_size;
+
+  switch (static_cast<int>(obu_type)) {
+    case kIamfConfigObuTypeCodecConfig:
+    case kIamfConfigObuTypeAudioElement:
+    case kIamfConfigObuTypeMixPresentation:
+      break;
+    case kIamfConfigObuTypeSequenceHeader:
+      uint32_t ia_code;
+      RCHECK(reader->Read4(&ia_code));
+      RCHECK(ia_code == FOURCC_IAMF);
+
+      RCHECK(reader->Read1(&profile));
+      RCHECK(profile <= 1);
+
+      break;
+    default:
+      MEDIA_LOG(INFO, reader->media_log())
+          << "Unhandled IAMF OBU type " << static_cast<int>(obu_type);
+      return false;
+  }
+
+  size_t remaining_size = read_stop_pos - reader->pos();
+  RCHECK(reader->SkipBytes(remaining_size));
+  return true;
+}
+
+bool IamfSpecificBox::ReadOBUHeader(BufferReader* reader, uint8_t* obu_type,
+                                    uint32_t* obu_size) {
+  uint8_t header_flags;
+  RCHECK(reader->Read1(&header_flags));
+  *obu_type = (header_flags >> 3) & 0x1f;
+
+  bool obu_redundant_copy = (header_flags >> 2) & 1;
+  bool obu_trimming_status_flag = (header_flags >> 1) & 1;
+  bool obu_extension_flag = header_flags & 1;
+
+  redundant_copy |= obu_redundant_copy;
+
+  RCHECK(ReadLeb128Value(reader, obu_size));
+  RCHECK(reader->HasBytes(*obu_size));
+
+  RCHECK(!obu_trimming_status_flag);
+  if (obu_extension_flag) {
+    uint32_t extension_header_size;
+    int last_reader_pos = reader->pos();
+    RCHECK(ReadLeb128Value(reader, &extension_header_size));
+    int num_leb128_bytes_read = reader->pos() - last_reader_pos;
+    RCHECK(reader->SkipBytes(extension_header_size));
+    obu_size -= (num_leb128_bytes_read + extension_header_size);
+  }
+  return true;
+}
+
+// Algorithm from the AV1 specification.
+// https://aomediacodec.github.io/av1-spec/#leb128.
+bool IamfSpecificBox::ReadLeb128Value(BufferReader* reader,
+                                      uint32_t* value) const {
+  DCHECK(reader);
+  DCHECK(value);
+  *value = 0;
+  bool error = true;
+  for (int i = 0; i < sizeof(uint32_t); ++i) {
+    uint8_t byte;
+    RCHECK(reader->Read1(&byte));
+    *value |= ((byte & 0x7f) << (i * 7));
+    if (!(byte & 0x80)) {
+      error = false;
+      break;
+    }
+  }
+
+  return !error;
+}
+#endif  // defined(STARBOARD)
+
 AudioSampleEntry::AudioSampleEntry()
     : format(FOURCC_NULL),
       data_reference_index(0),
@@ -1466,6 +1574,14 @@ bool AudioSampleEntry::Parse(BoxReader* reader) {
          reader->Read4(&samplerate));
   // Convert from 16.16 fixed point to integer
   samplerate >>= 16;
+
+#if defined(STARBOARD)
+  if(format == FOURCC_IAMF) {
+    RCHECK_MEDIA_LOGGED(iamf.Parse(reader), reader->media_log(),
+                        "Failure parsing IamfSpecificBox (iamf)");
+    return true;
+  }
+#endif  // defined(STARBOARD)
 
   RCHECK(reader->ScanChildren());
   if (format == FOURCC_ENCA) {

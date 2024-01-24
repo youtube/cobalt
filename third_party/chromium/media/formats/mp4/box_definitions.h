@@ -378,6 +378,31 @@ struct MEDIA_EXPORT OpusSpecificBox : Box {
   uint32_t sample_rate;
 };
 
+#if defined(STARBOARD)
+struct MEDIA_EXPORT IamfSpecificBox : Box {
+  enum IamfConfigObuType {
+    // The following enum values are mapped to their respective Config OBU
+    // values in the IAMF specification.
+    // https://aomediacodec.github.io/iamf/#obu-header-syntax.
+    kIamfConfigObuTypeCodecConfig = 0,
+    kIamfConfigObuTypeAudioElement = 1,
+    kIamfConfigObuTypeMixPresentation = 2,
+    kIamfConfigObuTypeSequenceHeader = 31,
+  };
+
+  DECLARE_BOX_METHODS(IamfSpecificBox);
+  bool ReadOBU(BufferReader* reader);
+  bool ReadOBUHeader(BufferReader* reader, uint8_t* obu_type,
+                     uint32_t* obu_size);
+  bool ReadLeb128Value(BufferReader* reader, uint32_t* value) const;
+
+  uint8_t profile;
+  bool redundant_copy = false;
+
+  std::vector<uint8_t> config_obus;
+};
+#endif  // defined(STARBOARD)
+
 struct MEDIA_EXPORT AudioSampleEntry : Box {
   DECLARE_BOX_METHODS(AudioSampleEntry);
 
@@ -391,6 +416,9 @@ struct MEDIA_EXPORT AudioSampleEntry : Box {
   ElementaryStreamDescriptor esds;
   FlacSpecificBox dfla;
   OpusSpecificBox dops;
+#if defined(STARBOARD)
+  IamfSpecificBox iamf;
+#endif  // defined(STARBOARD)
 };
 
 struct MEDIA_EXPORT SampleDescription : Box {

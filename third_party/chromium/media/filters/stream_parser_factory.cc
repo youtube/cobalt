@@ -65,8 +65,15 @@ struct CodecInfo {
     HISTOGRAM_FLAC,
     HISTOGRAM_AV1,
     HISTOGRAM_MPEG_H_AUDIO,
+#if defined(STARBOARD)
+    // TODO: Add IAMF to enums.xml.
+    HISTOGRAM_IAMF,
+    HISTOGRAM_MAX =
+        HISTOGRAM_IAMF  // Must be equal to largest logged entry.
+#else
     HISTOGRAM_MAX =
         HISTOGRAM_MPEG_H_AUDIO  // Must be equal to largest logged entry.
+#endif  // defined(STARBOARD)
   };
 
   const char* pattern;
@@ -237,6 +244,11 @@ static const CodecInfo kMPEG4VP09CodecInfo = {
 static const CodecInfo kMPEG4FLACCodecInfo = {"flac", CodecInfo::AUDIO, nullptr,
                                               CodecInfo::HISTOGRAM_FLAC};
 
+#if defined(STARBOARD)
+static const CodecInfo kIAMFCodecInfo = {"iamf", CodecInfo::AUDIO, nullptr,
+                                         CodecInfo::HISTOGRAM_IAMF};
+#endif  // defined(STARBOARD)
+
 static const CodecInfo* const kVideoMP4Codecs[] = {&kMPEG4FLACCodecInfo,
                                                    &kOpusCodecInfo,
                                                    &kMPEG4VP09CodecInfo,
@@ -265,6 +277,9 @@ static const CodecInfo* const kVideoMP4Codecs[] = {&kMPEG4FLACCodecInfo,
 #if BUILDFLAG(ENABLE_AV1_DECODER)
                                                    &kAV1CodecInfo,
 #endif
+#if defined(STARBOARD)
+                                                   &kIAMFCodecInfo,
+#endif  // defined(STARBOARD)
                                                    nullptr};
 
 static const CodecInfo* const kAudioMP4Codecs[] = {&kMPEG4FLACCodecInfo,
@@ -285,6 +300,9 @@ static const CodecInfo* const kAudioMP4Codecs[] = {&kMPEG4FLACCodecInfo,
                                                    &kEAC3CodecInfo3,
 #endif  // BUILDFLAG(ENABLE_PLATFORM_AC3_EAC3_AUDIO)
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
+#if defined(STARBOARD)
+                                                   &kIAMFCodecInfo,
+#endif  // defined(STARBOARD)
                                                    nullptr};
 
 static StreamParser* BuildMP4Parser(base::span<const std::string> codecs,

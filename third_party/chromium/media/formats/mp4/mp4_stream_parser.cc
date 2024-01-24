@@ -132,6 +132,9 @@ void MP4StreamParser::Reset() {
   runs_.reset();
   moof_head_ = 0;
   mdat_tail_ = 0;
+#if defined(STARBOARD)
+  prepended_first_config_obus_ = false;
+#endif  // defined(STARBOARD)
 }
 
 void MP4StreamParser::Flush() {
@@ -338,6 +341,9 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
 #if BUILDFLAG(ENABLE_PLATFORM_MPEG_H_AUDIO)
           audio_format != FOURCC_MHM1 && audio_format != FOURCC_MHA1 &&
 #endif
+#if defined(STARBOARD)
+          audio_format != FOURCC_IAMF &&
+#endif  // defined(STARBOARD)
           audio_format != FOURCC_MP4A) {
         MEDIA_LOG(ERROR, media_log_)
             << "Unsupported audio format 0x" << std::hex << entry.format
@@ -384,8 +390,20 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
         codec = AudioCodec::kMpegHAudio;
         channel_layout = CHANNEL_LAYOUT_BITSTREAM;
         sample_per_second = entry.samplerate;
-        extra_data = entry.dfla.stream_info;
 #endif
+#if defined(STARBOARD)
+      } else if (audio_format == FOURCC_IAMF) {
+        codec = AudioCodec::kIAMF;
+        profile = entry.iamf.profile == 0 ? AudioCodecProfile::kIAMF_SIMPLE
+                                          : AudioCodecProfile::kIAMF_BASE;
+        extra_data = entry.iamf.config_obus;
+        // The correct values for the channel layout and sample rate can
+        // be parsed from the bitstream in |extra_data|. They are set to
+        // the following values here to create a valid AudioDecoderConfig.
+        // TODO: Parse the bitstream to set the correct values here.
+        channel_layout = CHANNEL_LAYOUT_STEREO;
+        sample_per_second = 48000;
+#endif  // defined(STARBOARD)
       } else {
         uint8_t audio_type = entry.esds.object_type;
 #if BUILDFLAG(ENABLE_PLATFORM_AC3_EAC3_AUDIO)
@@ -478,6 +496,11 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
         audio_config.set_profile(profile);
         audio_config.set_aac_extra_data(std::move(aac_extra_data));
       }
+#if defined(STARBOARD)
+      if (codec == AudioCodec::kIAMF) {
+        audio_config.set_profile(profile);
+      }
+#endif  // defined(STARBOARD)
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
 
       DVLOG(1) << "audio_track_id=" << audio_track_id
@@ -718,6 +741,22 @@ bool MP4StreamParser::PrepareAACBuffer(
 }
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
 
+#if defined(STARBOARD)
+void MP4StreamParser::PrependIAMFConfigOBUs(
+    const IamfSpecificBox& iamf_box, std::vector<uint8_t>* frame_buf,
+    std::vector<SubsampleEntry>* subsamples) const {
+  frame_buf->insert(frame_buf->begin(), iamf_box.config_obus.begin(),
+                    iamf_box.config_obus.end());
+  if (subsamples->empty()) {
+    subsamples->push_back(
+        SubsampleEntry(iamf_box.config_obus.size(),
+                       frame_buf->size() - iamf_box.config_obus.size()));
+  } else {
+    (*subsamples)[0].clear_bytes += iamf_box.config_obus.size();
+  }
+}
+#endif  // defined(STARBOARD)
+
 ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
   DCHECK_EQ(state_, kEmittingSamples);
 
@@ -882,6 +921,16 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
       return ParseResult::kError;
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
     }
+#if defined(STARBOARD)
+    if (runs_->audio_description().format == FOURCC_IAMF) {
+      if (!runs_->audio_description().iamf.redundant_copy ||
+          !prepended_first_config_obus_) {
+        PrependIAMFConfigOBUs(runs_->audio_description().iamf, &frame_buf,
+                              &subsamples);
+        prepended_first_config_obus_ = true;
+      }
+    }
+#endif  // defined(STARBOARD)
   }
 
   if (decrypt_config) {
