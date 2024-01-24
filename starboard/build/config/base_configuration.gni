@@ -170,6 +170,11 @@ declare_args() {
 
   # Enable WASM and install WebAssembly global.
   v8_enable_webassembly = false
+
+  # Set this to true if the modular toolchain linker doesn't strip
+  # all unused symbols and nplb fails to link.
+  # TODO: b/297808555 Remove this flag after nplb is fixed
+  sb_has_unused_symbol_issue = false
 }
 
 if (current_toolchain == starboard_toolchain &&

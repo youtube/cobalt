@@ -27,3 +27,9 @@ static_library("starboard_platform") {
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
 }
+
+if (build_with_separate_cobalt_toolchain) {
+  group("starboard_platform_with_main") {
+    deps = [ "//starboard/linux/x64x11:starboard_platform_with_main" ]
+  }
+}
