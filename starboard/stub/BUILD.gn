@@ -90,6 +90,7 @@ static_library("stub_sources") {
     "//starboard/shared/stub/file_get_path_info.cc",
     "//starboard/shared/stub/file_open.cc",
     "//starboard/shared/stub/file_read.cc",
+    "//starboard/shared/stub/file_rename.cc",
     "//starboard/shared/stub/file_seek.cc",
     "//starboard/shared/stub/file_truncate.cc",
     "//starboard/shared/stub/file_write.cc",

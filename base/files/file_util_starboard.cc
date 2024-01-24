@@ -129,6 +129,116 @@ bool CreateTemporaryDirInDirImpl(const FilePath &base_dir,
   return true;
 }
 
+bool AdvanceEnumerator(FileEnumerator* traversal,
+                       FilePath* out_next_path,
+                       bool* out_next_file_is_directory) {
+  DCHECK(out_next_path);
+  DCHECK(out_next_file_is_directory);
+  *out_next_path = traversal->Next();
+  if (out_next_path->empty())
+    return false;
+
+  *out_next_file_is_directory = traversal->GetInfo().IsDirectory();
+  return true;
+}
+
+bool DoCopyDirectory(const FilePath& from_path,
+                     const FilePath& to_path,
+                     bool recursive,
+                     bool open_exclusive) {
+  ScopedBlockingCall scoped_blocking_call(BlockingType::MAY_BLOCK);
+  // Some old callers of CopyDirectory want it to support wildcards.
+  // After some discussion, we decided to fix those callers.
+  // Break loudly here if anyone tries to do this.
+  DCHECK(to_path.value().find('*') == std::string::npos);
+  DCHECK(from_path.value().find('*') == std::string::npos);
+
+#if defined(PATH_MAX)
+  size_t max_path_length = PATH_MAX;
+#elif defined(MAX_PATH)
+  size_t max_path_length = MAX_PATH;
+#else
+  size_t max_path_length = 4096;
+#endif
+  if (from_path.value().length() >= max_path_length ||
+      to_path.value().length() >= max_path_length) {
+    return false;
+  }
+
+  // This function does not properly handle destinations within the source
+  FilePath real_to_path = to_path;
+  if (PathExists(real_to_path))
+    real_to_path = MakeAbsoluteFilePath(real_to_path);
+  else
+    real_to_path = MakeAbsoluteFilePath(real_to_path.DirName());
+  if (real_to_path.empty())
+    return false;
+
+  FilePath real_from_path = MakeAbsoluteFilePath(from_path);
+  if (real_from_path.empty())
+    return false;
+  if (real_to_path == real_from_path || real_from_path.IsParent(real_to_path))
+    return false;
+
+  int traverse_type = FileEnumerator::FILES;
+  if (recursive)
+    traverse_type |= FileEnumerator::DIRECTORIES;
+  FileEnumerator traversal(from_path, recursive, traverse_type);
+
+  // We have to mimic windows behavior here. |to_path| may not exist yet,
+  // start the loop with |to_path|.
+  // struct stat from_stat;
+  FilePath current = from_path;
+
+  File::Info from_file_info;
+  if (!GetFileInfo(from_path, &from_file_info)) {
+    return false;
+  }
+  bool from_file_is_directory = from_file_info.is_directory;
+  FilePath from_path_base = from_path;
+  if (recursive && DirectoryExists(to_path)) {
+    // If the destination already exists and is a directory, then the
+    // top level of source needs to be copied.
+    from_path_base = from_path.DirName();
+  }
+
+  do {
+    // current is the source path, including from_path, so append
+    // the suffix after from_path to to_path to create the target_path.
+    FilePath target_path(to_path);
+    if (from_path_base != current &&
+        !from_path_base.AppendRelativePath(current, &target_path)) {
+      return false;
+    }
+
+    if (from_file_is_directory) {
+      if (!open_exclusive && DirectoryExists(target_path) ||
+          CreateDirectory(target_path)) {
+        continue;
+      }
+      DPLOG(ERROR) << "CopyDirectory() couldn't create directory: "
+                   << target_path.value();
+      return false;
+    }
+
+    if (from_file_info.is_symbolic_link) {
+      DLOG(WARNING) << "CopyDirectory() skipping non-regular file: "
+                    << current.value();
+      continue;
+    }
+
+    if (open_exclusive && PathExists(target_path)) {
+      return false;
+    }
+    if (!CopyFile(current, target_path)) {
+      DLOG(ERROR) << "CopyDirectory() couldn't copy file: " << current.value();
+      return false;
+    }
+  } while (AdvanceEnumerator(&traversal, &current, &from_file_is_directory));
+
+  return true;
+}
+
 }  // namespace
 
 bool AbsolutePath(FilePath* path) {
@@ -179,6 +289,25 @@ bool DeleteFile(const FilePath &path, bool recursive) {
   }
 
   return success;
+}
+
+bool ReplaceFile(const FilePath& from_path,
+                 const FilePath& to_path,
+                 File::Error* error) {
+  AssertBlockingAllowed();
+  return SbFileRename(from_path.value().c_str(), to_path.value().c_str());
+}
+
+bool CopyDirectory(const FilePath& from_path,
+                   const FilePath& to_path,
+                   bool recursive) {
+  return DoCopyDirectory(from_path, to_path, recursive, false);
+}
+
+bool CopyDirectoryExcl(const FilePath& from_path,
+                       const FilePath& to_path,
+                       bool recursive) {
+  return DoCopyDirectory(from_path, to_path, recursive, true);
 }
 
 bool CopyFile(const FilePath &from_path, const FilePath &to_path) {
@@ -459,9 +588,25 @@ namespace internal {
 
 bool MoveUnsafe(const FilePath& from_path, const FilePath& to_path) {
   AssertBlockingAllowed();
-  // Moving files is not supported in Starboard.
-  NOTREACHED();
-  return false;
+  File::Info from_file_info;
+  File::Info to_file_info;
+  if (!GetFileInfo(from_path, &from_file_info)) {
+    return false;
+  }
+  if (GetFileInfo(to_path, &to_file_info)) {
+    if (from_file_info.is_directory != to_file_info.is_directory) {
+      return false;
+    }
+  }
+
+  if (SbFileRename(from_path.value().c_str(), to_path.value().c_str()))
+    return true;
+
+  if (!CopyDirectory(from_path, to_path, true))
+    return false;
+
+  DeleteFile(from_path, true);
+  return true;
 }
 
 }  // internal

@@ -261,6 +261,9 @@ SB_EXPORT bool SbFileCanOpen(const char* path, int flags);
 // |mode|: The mode string to be converted into flags.
 SB_EXPORT int SbFileModeStringToFlags(const char* mode);
 
+// Moves file or directory.
+SB_EXPORT bool SbFileRename(const char* from_path, const char* to_path);
+
 // Reads |size| bytes (or until EOF is reached) from |file| into |data|,
 // starting at the file's current position.
 //

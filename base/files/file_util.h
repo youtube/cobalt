@@ -77,7 +77,6 @@ BASE_EXPORT bool DeleteFile(const FilePath& path, bool recursive);
 BASE_EXPORT bool DeleteFileAfterReboot(const FilePath& path);
 #endif
 
-#if !defined(STARBOARD)
 // Moves the given path, whether it's a file or a directory.
 // If a simple rename is not possible, such as in the case where the paths are
 // on different volumes, this will attempt to copy and delete. Returns
@@ -94,7 +93,6 @@ BASE_EXPORT bool Move(const FilePath& from_path, const FilePath& to_path);
 BASE_EXPORT bool ReplaceFile(const FilePath& from_path,
                              const FilePath& to_path,
                              File::Error* error);
-#endif  // !defined(STARBOARD)
 
 // Copies a single file. Use CopyDirectory() to copy directories.
 // This function fails if either path contains traversal components ('..').
@@ -118,7 +116,6 @@ BASE_EXPORT bool ReplaceFile(const FilePath& from_path,
 //   read permissions. i.e. Always 0644.
 BASE_EXPORT bool CopyFile(const FilePath& from_path, const FilePath& to_path);
 
-#if !defined(STARBOARD)
 // Copies the given path, and optionally all subdirectories and their contents
 // as well.
 //
@@ -131,7 +128,6 @@ BASE_EXPORT bool CopyFile(const FilePath& from_path, const FilePath& to_path);
 BASE_EXPORT bool CopyDirectory(const FilePath& from_path,
                                const FilePath& to_path,
                                bool recursive);
-#endif  // !defined(STARBOARD)
 
 // Like CopyDirectory() except trying to overwrite an existing file will not
 // work and will return false.
