@@ -39,7 +39,7 @@ int CRYPTO_refcount_dec_and_test_zero(CRYPTO_refcount_t *count) {
 
   CRYPTO_STATIC_MUTEX_lock_write(&g_refcount_lock);
   if (*count == 0) {
-    OPENSSL_port_abort();
+    abort();
   }
   if (*count < CRYPTO_REFCOUNT_MAX) {
     (*count)--;

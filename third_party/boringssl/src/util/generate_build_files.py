@@ -37,6 +37,7 @@ OS_ARCH_COMBOS = [
     ('mac', 'x86_64', 'macosx', [], 'S'),
     ('win', 'x86', 'win32n', ['-DOPENSSL_IA32_SSE2'], 'asm'),
     ('win', 'x86_64', 'nasm', [], 'asm'),
+    ('win', 'aarch64', 'win64', [], 'S'),
 ]
 
 # NON_PERL_FILES enumerates assembly files that are not processed by the
@@ -357,6 +358,8 @@ class GN(object):
       self.PrintVariableSection(out, 'ssl_sources',
                                 files['ssl'] + files['ssl_internal_headers'])
       self.PrintVariableSection(out, 'ssl_headers', files['ssl_headers'])
+      self.PrintVariableSection(out, 'tool_sources',
+                                files['tool'] + files['tool_headers'])
 
       for ((osname, arch), asm_files) in asm_outputs:
         self.PrintVariableSection(
@@ -425,7 +428,7 @@ R'''# Copyright (c) 2019 The Chromium Authors. All rights reserved.
 
 # This file is created by generate_build_files.py. Do not edit manually.
 
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.5)
 
 project(BoringSSL LANGUAGES C CXX)
 
@@ -439,12 +442,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CLANG)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
   endif()
 
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden -fno-common")
-  if((CMAKE_C_COMPILER_VERSION VERSION_GREATER "4.8.99") OR CLANG)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11")
-  else()
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99")
-  endif()
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden -fno-common -std=c11")
 endif()
 
 # pthread_rwlock_t requires a feature flag.
@@ -474,7 +472,7 @@ add_definitions(-DBORINGSSL_IMPLEMENTATION)
 # builds.
 if(NOT OPENSSL_NO_ASM AND CMAKE_OSX_ARCHITECTURES)
   list(LENGTH CMAKE_OSX_ARCHITECTURES NUM_ARCHES)
-  if(NOT ${NUM_ARCHES} EQUAL 1)
+  if(NOT NUM_ARCHES EQUAL 1)
     message(FATAL_ERROR "Universal binaries not supported.")
   endif()
   list(GET CMAKE_OSX_ARCHITECTURES 0 CMAKE_SYSTEM_PROCESSOR)
@@ -483,36 +481,36 @@ endif()
 if(OPENSSL_NO_ASM)
   add_definitions(-DOPENSSL_NO_ASM)
   set(ARCH "generic")
-elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
   set(ARCH "x86_64")
-elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "amd64")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "amd64")
   set(ARCH "x86_64")
-elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "AMD64")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
   # cmake reports AMD64 on Windows, but we might be building for 32-bit.
   if(CMAKE_SIZEOF_VOID_P EQUAL 8)
     set(ARCH "x86_64")
   else()
     set(ARCH "x86")
   endif()
-elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86")
   set(ARCH "x86")
-elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "i386")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "i386")
   set(ARCH "x86")
-elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "i686")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "i686")
   set(ARCH "x86")
-elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
   set(ARCH "aarch64")
-elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "arm64")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
   set(ARCH "aarch64")
 # Apple A12 Bionic chipset which is added in iPhone XS/XS Max/XR uses arm64e architecture.
-elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "arm64e")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64e")
   set(ARCH "aarch64")
-elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^arm*")
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^arm*")
   set(ARCH "arm")
-elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "mips")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "mips")
   # Just to avoid the “unknown processor” error.
   set(ARCH "generic")
-elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "ppc64le")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "ppc64le")
   set(ARCH "ppc64le")
 else()
   message(FATAL_ERROR "Unknown processor:" ${CMAKE_SYSTEM_PROCESSOR})
@@ -588,9 +586,9 @@ include_directories(src/include)
             asm_files)
 
       cmake.write(
-R'''if(APPLE AND ${ARCH} STREQUAL "aarch64")
+R'''if(APPLE AND ARCH STREQUAL "aarch64")
   set(CRYPTO_ARCH_SOURCES ${CRYPTO_ios_aarch64_SOURCES})
-elseif(APPLE AND ${ARCH} STREQUAL "arm")
+elseif(APPLE AND ARCH STREQUAL "arm")
   set(CRYPTO_ARCH_SOURCES ${CRYPTO_ios_arm_SOURCES})
 elseif(APPLE)
   set(CRYPTO_ARCH_SOURCES ${CRYPTO_mac_${ARCH}_SOURCES})
@@ -816,10 +814,10 @@ def WriteAsmFiles(perlasms):
                 perlasm['extra_args'] + extra_args)
         asmfiles.setdefault(key, []).append(output)
 
-  for (key, non_perl_asm_files) in NON_PERL_FILES.iteritems():
+  for (key, non_perl_asm_files) in NON_PERL_FILES.items():
     asmfiles.setdefault(key, []).extend(non_perl_asm_files)
 
-  for files in asmfiles.itervalues():
+  for files in asmfiles.values():
     files.sort()
 
   return asmfiles
@@ -952,7 +950,7 @@ def main(platforms):
       'urandom_test': urandom_test_files,
   }
 
-  asm_outputs = sorted(WriteAsmFiles(ReadPerlAsmOperations()).iteritems())
+  asm_outputs = sorted(WriteAsmFiles(ReadPerlAsmOperations()).items())
 
   for platform in platforms:
     platform.WriteFiles(files, asm_outputs)

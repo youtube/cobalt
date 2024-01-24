@@ -1009,7 +1009,7 @@ _vpaes_schedule_mangle:
 
 .Lschedule_mangle_both:
 	tbl	v3.16b, {v3.16b}, v1.16b	// vpshufb	%xmm1,	%xmm3,	%xmm3
-	add	x8, x8, #64-16			// add	$-16,	%r8
+	add	x8, x8, #48			// add	$-16,	%r8
 	and	x8, x8, #~(1<<6)		// and	$0x30,	%r8
 	st1	{v3.2d}, [x2]			// vmovdqu	%xmm3,	(%rdx)
 	ret
@@ -1100,8 +1100,8 @@ vpaes_cbc_encrypt:
 	st1	{v0.16b}, [x4]	// write ivec
 
 	ldp	x29,x30,[sp],#16
-	AARCH64_VALIDATE_LINK_REGISTER
 .Lcbc_abort:
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 .size	vpaes_cbc_encrypt,.-vpaes_cbc_encrypt
 

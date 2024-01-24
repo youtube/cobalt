@@ -79,7 +79,6 @@
 # define SHA1_ASM
 # define SHA256_ASM
 # define SHA512_ASM
-# define MD5_ASM
 # define DES_PTR 
 # define DES_RISC1
 # define DES_UNROLL
