@@ -47,7 +47,7 @@ config("common") {
   ]
   cflags += [
     "/EHsc",
-    "/std:c++17",
+    "/std:c++20",
   ]
 
   # msvs_debug/_devel/etc
