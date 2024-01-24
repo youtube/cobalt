@@ -24,6 +24,7 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
+#include "base/time/time.h"
 #include "cobalt/math/size.h"
 #include "cobalt/media/base/sbplayer_interface.h"
 #include "cobalt/media/can_play_type_handler.h"
@@ -133,8 +134,15 @@ class MediaModule : public WebMediaPlayerFactory,
   bool force_punch_out_by_default_ = false;
 
 #if SB_API_VERSION >= 15
+<<<<<<< HEAD
   SbTime audio_write_duration_local_ = kSbPlayerWriteDurationLocal;
   SbTime audio_write_duration_remote_ = kSbPlayerWriteDurationRemote;
+=======
+  base::TimeDelta audio_write_duration_local_ =
+      base::TimeDelta::FromMicroseconds(kSbPlayerWriteDurationLocal);
+  base::TimeDelta audio_write_duration_remote_ =
+      base::TimeDelta::FromMicroseconds(kSbPlayerWriteDurationRemote);
+>>>>>>> 29389bbcbba ([media] Replace instances of int64_t with base::Time (#2236))
 #endif  // SB_API_VERSION >= 15
 
   DecoderBufferAllocator decoder_buffer_allocator_;

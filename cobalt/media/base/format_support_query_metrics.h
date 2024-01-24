@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "base/time/time.h"
 #include "starboard/media.h"
 #include "starboard/time.h"
 
@@ -52,6 +53,7 @@ class FormatSupportQueryMetrics {
   static constexpr int kMaxCachedQueryDurations = 150;
   static constexpr int kMaxQueryDescriptionLength = 350;
 
+<<<<<<< HEAD
   static SbTimeMonotonic cached_query_durations_[kMaxCachedQueryDurations];
   static char max_query_description_[kMaxQueryDescriptionLength];
   static SbTimeMonotonic max_query_duration_;
@@ -59,6 +61,15 @@ class FormatSupportQueryMetrics {
   static int total_num_queries_;
 
   SbTimeMonotonic start_time_ = 0;
+=======
+  static base::TimeDelta cached_query_durations_[kMaxCachedQueryDurations];
+  static char max_query_description_[kMaxQueryDescriptionLength];
+  static base::TimeDelta max_query_duration_;
+  static base::TimeDelta total_query_duration_;
+  static int total_num_queries_;
+
+  base::Time start_time_{};
+>>>>>>> 29389bbcbba ([media] Replace instances of int64_t with base::Time (#2236))
 };
 
 #endif  // defined(COBALT_BUILD_TYPE_GOLD)
