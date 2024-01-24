@@ -64,6 +64,7 @@
 #include <openssl/asn1.h>
 
 #if defined(OPENSSL_SYS_STARBOARD)
+#include <stdlib.h>
 #include "starboard/client_porting/poem/eztime_poem.h"
 #endif  // defined(OPENSSL_SYS_STARBOARD)
 
