@@ -64,24 +64,31 @@
 #include <openssl/obj.h>
 
 #include "../internal.h"
+#include "internal.h"
 
 
-int i2d_ASN1_OBJECT(ASN1_OBJECT *a, unsigned char **pp)
+int i2d_ASN1_OBJECT(const ASN1_OBJECT *a, unsigned char **pp)
 {
-    unsigned char *p, *allocated = NULL;
-    int objsize;
+    if (a == NULL) {
+        OPENSSL_PUT_ERROR(ASN1, ERR_R_PASSED_NULL_PARAMETER);
+        return -1;
+    }
 
-    if ((a == NULL) || (a->data == NULL))
-        return (0);
+    if (a->length == 0) {
+        OPENSSL_PUT_ERROR(ASN1, ASN1_R_ILLEGAL_OBJECT);
+        return -1;
+    }
 
-    objsize = ASN1_object_size(0, a->length, V_ASN1_OBJECT);
-    if (pp == NULL || objsize == -1)
+    int objsize = ASN1_object_size(0, a->length, V_ASN1_OBJECT);
+    if (pp == NULL || objsize == -1) {
         return objsize;
+    }
 
+    unsigned char *p, *allocated = NULL;
     if (*pp == NULL) {
         if ((p = allocated = OPENSSL_malloc(objsize)) == NULL) {
             OPENSSL_PUT_ERROR(ASN1, ERR_R_MALLOC_FAILURE);
-            return 0;
+            return -1;
         }
     } else {
         p = *pp;
@@ -98,12 +105,12 @@ int i2d_ASN1_OBJECT(ASN1_OBJECT *a, unsigned char **pp)
     return objsize;
 }
 
-int i2t_ASN1_OBJECT(char *buf, int buf_len, ASN1_OBJECT *a)
+int i2t_ASN1_OBJECT(char *buf, int buf_len, const ASN1_OBJECT *a)
 {
     return OBJ_obj2txt(buf, buf_len, a, 0);
 }
 
-int i2a_ASN1_OBJECT(BIO *bp, ASN1_OBJECT *a)
+int i2a_ASN1_OBJECT(BIO *bp, const ASN1_OBJECT *a)
 {
     char buf[80], *p = buf;
     int i;
@@ -180,16 +187,13 @@ ASN1_OBJECT *c2i_ASN1_OBJECT(ASN1_OBJECT **a, const unsigned char **pp,
         }
     }
 
-    /*
-     * only the ASN1_OBJECTs from the 'table' will have values for ->sn or
-     * ->ln
-     */
     if ((a == NULL) || ((*a) == NULL) ||
         !((*a)->flags & ASN1_OBJECT_FLAG_DYNAMIC)) {
         if ((ret = ASN1_OBJECT_new()) == NULL)
             return (NULL);
-    } else
+    } else {
         ret = (*a);
+    }
 
     p = *pp;
     /* detach data from object */
@@ -208,12 +212,17 @@ ASN1_OBJECT *c2i_ASN1_OBJECT(ASN1_OBJECT **a, const unsigned char **pp,
         ret->flags |= ASN1_OBJECT_FLAG_DYNAMIC_DATA;
     }
     OPENSSL_memcpy(data, p, length);
+    /* If there are dynamic strings, free them here, and clear the flag */
+    if ((ret->flags & ASN1_OBJECT_FLAG_DYNAMIC_STRINGS) != 0) {
+        OPENSSL_free((char *)ret->sn);
+        OPENSSL_free((char *)ret->ln);
+        ret->flags &= ~ASN1_OBJECT_FLAG_DYNAMIC_STRINGS;
+    }
     /* reattach data to object, after which it remains const */
     ret->data = data;
     ret->length = length;
     ret->sn = NULL;
     ret->ln = NULL;
-    /* ret->flags=ASN1_OBJECT_FLAG_DYNAMIC; we know it is dynamic */
     p += length;
 
     if (a != NULL)
@@ -250,19 +259,12 @@ void ASN1_OBJECT_free(ASN1_OBJECT *a)
     if (a == NULL)
         return;
     if (a->flags & ASN1_OBJECT_FLAG_DYNAMIC_STRINGS) {
-#ifndef CONST_STRICT            /* disable purely for compile-time strict
-                                 * const checking. Doing this on a "real"
-                                 * compile will cause memory leaks */
-        if (a->sn != NULL)
-            OPENSSL_free((void *)a->sn);
-        if (a->ln != NULL)
-            OPENSSL_free((void *)a->ln);
-#endif
+        OPENSSL_free((void *)a->sn);
+        OPENSSL_free((void *)a->ln);
         a->sn = a->ln = NULL;
     }
     if (a->flags & ASN1_OBJECT_FLAG_DYNAMIC_DATA) {
-        if (a->data != NULL)
-            OPENSSL_free((void *)a->data);
+        OPENSSL_free((void *)a->data);
         a->data = NULL;
         a->length = 0;
     }
@@ -270,7 +272,7 @@ void ASN1_OBJECT_free(ASN1_OBJECT *a)
         OPENSSL_free(a);
 }
 
-ASN1_OBJECT *ASN1_OBJECT_create(int nid, unsigned char *data, int len,
+ASN1_OBJECT *ASN1_OBJECT_create(int nid, const unsigned char *data, int len,
                                 const char *sn, const char *ln)
 {
     ASN1_OBJECT o;

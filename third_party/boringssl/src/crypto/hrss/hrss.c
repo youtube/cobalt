@@ -22,16 +22,8 @@
 #include <openssl/cpu.h>
 #include <openssl/hmac.h>
 #include <openssl/mem.h>
+#include <openssl/rand.h>
 #include <openssl/sha.h>
-
-#if defined(OPENSSL_X86) || defined(OPENSSL_X86_64)
-#include <emmintrin.h>
-#endif
-
-#if (defined(OPENSSL_ARM) || defined(OPENSSL_AARCH64)) && \
-    (defined(__ARM_NEON__) || defined(__ARM_NEON))
-#include <arm_neon.h>
-#endif
 
 #if defined(_MSC_VER)
 #define RESTRICT
@@ -42,6 +34,15 @@
 #include "../internal.h"
 #include "internal.h"
 
+#if defined(OPENSSL_SSE2)
+#include <emmintrin.h>
+#endif
+
+#if (defined(OPENSSL_ARM) || defined(OPENSSL_AARCH64)) && \
+    (defined(__ARM_NEON__) || defined(__ARM_NEON))
+#include <arm_neon.h>
+#endif
+
 // This is an implementation of [HRSS], but with a KEM transformation based on
 // [SXY]. The primary references are:
 
@@ -51,8 +52,8 @@
 // SXY: https://eprint.iacr.org/2017/1005.pdf
 // NTRUTN14:
 // https://assets.onboardsecurity.com/static/downloads/NTRU/resources/NTRUTech014.pdf
-// NTRUCOMP:
-// https://eprint.iacr.org/2018/1174
+// NTRUCOMP: https://eprint.iacr.org/2018/1174
+// SAFEGCD: https://gcd.cr.yp.to/papers.html#safegcd
 
 
 // Vector operations.
@@ -63,22 +64,15 @@
 // 128-bit vector. The following functions abstract over the differences between
 // NEON and SSE2 for implementing some vector operations.
 
-// TODO: MSVC can likely also be made to work with vector operations.
-#if ((defined(__SSE__) && defined(OPENSSL_X86)) || defined(OPENSSL_X86_64)) && \
-    (defined(__clang__) || !defined(_MSC_VER))
+// TODO: MSVC can likely also be made to work with vector operations, but ^ must
+// be replaced with _mm_xor_si128, etc.
+#if defined(OPENSSL_SSE2) && (defined(__clang__) || !defined(_MSC_VER))
 
 #define HRSS_HAVE_VECTOR_UNIT
 typedef __m128i vec_t;
 
 // vec_capable returns one iff the current platform supports SSE2.
-static int vec_capable(void) {
-#if defined(__SSE2__)
-  return 1;
-#else
-  int has_sse2 = (OPENSSL_ia32cap_P[0] & (1 << 26)) != 0;
-  return has_sse2;
-#endif
-}
+static int vec_capable(void) { return 1; }
 
 // vec_add performs a pair-wise addition of four uint16s from |a| and |b|.
 static inline vec_t vec_add(vec_t a, vec_t b) { return _mm_add_epi16(a, b); }
@@ -191,13 +185,6 @@ static inline vec_t vec_broadcast_bit(vec_t a) {
                            0b01010101);
 }
 
-// vec_broadcast_bit15 duplicates the most-significant bit of the first word in
-// |a| to all bits in a vector and returns the result.
-static inline vec_t vec_broadcast_bit15(vec_t a) {
-  return _mm_shuffle_epi32(_mm_srai_epi32(_mm_slli_epi64(a, 63 - 15), 31),
-                           0b01010101);
-}
-
 // vec_get_word returns the |i|th uint16_t in |v|. (This is a macro because the
 // compiler requires that |i| be a compile-time constant.)
 #define vec_get_word(v, i) _mm_extract_epi16(v, i)
@@ -250,11 +237,6 @@ static inline uint16_t vec_get_word(vec_t v, unsigned i) {
 
 static inline vec_t vec_broadcast_bit(vec_t a) {
   a = (vec_t)vshrq_n_s16(((int16x8_t)a) << 15, 15);
-  return vdupq_lane_u16(vget_low_u16(a), 0);
-}
-
-static inline vec_t vec_broadcast_bit15(vec_t a) {
-  a = (vec_t)vshrq_n_s16((int16x8_t)a, 15);
   return vdupq_lane_u16(vget_low_u16(a), 0);
 }
 
@@ -331,99 +313,64 @@ static void poly2_zero(struct poly2 *p) {
   OPENSSL_memset(&p->v[0], 0, sizeof(crypto_word_t) * WORDS_PER_POLY);
 }
 
-// poly2_cmov sets |out| to |in| iff |mov| is all ones.
-static void poly2_cmov(struct poly2 *out, const struct poly2 *in,
-                       crypto_word_t mov) {
+// word_reverse returns |in| with the bits in reverse order.
+static crypto_word_t word_reverse(crypto_word_t in) {
+#if defined(OPENSSL_64_BIT)
+  static const crypto_word_t kMasks[6] = {
+    UINT64_C(0x5555555555555555),
+    UINT64_C(0x3333333333333333),
+    UINT64_C(0x0f0f0f0f0f0f0f0f),
+    UINT64_C(0x00ff00ff00ff00ff),
+    UINT64_C(0x0000ffff0000ffff),
+    UINT64_C(0x00000000ffffffff),
+  };
+#else
+  static const crypto_word_t kMasks[5] = {
+    0x55555555,
+    0x33333333,
+    0x0f0f0f0f,
+    0x00ff00ff,
+    0x0000ffff,
+  };
+#endif
+
+  for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(kMasks); i++) {
+    in = ((in >> (1 << i)) & kMasks[i]) | ((in & kMasks[i]) << (1 << i));
+  }
+
+  return in;
+}
+
+// lsb_to_all replicates the least-significant bit of |v| to all bits of the
+// word. This is used in bit-slicing operations to make a vector from a fixed
+// value.
+static crypto_word_t lsb_to_all(crypto_word_t v) { return 0u - (v & 1); }
+
+// poly2_mod_phiN reduces |p| by Φ(N).
+static void poly2_mod_phiN(struct poly2 *p) {
+  // m is the term at x^700, replicated to every bit.
+  const crypto_word_t m =
+      lsb_to_all(p->v[WORDS_PER_POLY - 1] >> (BITS_IN_LAST_WORD - 1));
   for (size_t i = 0; i < WORDS_PER_POLY; i++) {
-    out->v[i] = (out->v[i] & ~mov) | (in->v[i] & mov);
+    p->v[i] ^= m;
   }
+  p->v[WORDS_PER_POLY - 1] &= (UINT64_C(1) << (BITS_IN_LAST_WORD - 1)) - 1;
 }
 
-// poly2_rotr_words performs a right-rotate on |in|, writing the result to
-// |out|. The shift count, |bits|, must be a non-zero multiple of the word size.
-static void poly2_rotr_words(struct poly2 *out, const struct poly2 *in,
-                             size_t bits) {
-  assert(bits >= BITS_PER_WORD && bits % BITS_PER_WORD == 0);
-  assert(out != in);
-
-  const size_t start = bits / BITS_PER_WORD;
-  const size_t n = (N - bits) / BITS_PER_WORD;
-
-  // The rotate is by a whole number of words so the first few words are easy:
-  // just move them down.
-  for (size_t i = 0; i < n; i++) {
-    out->v[i] = in->v[start + i];
+// poly2_reverse_700 reverses the order of the first 700 bits of |in| and writes
+// the result to |out|.
+static void poly2_reverse_700(struct poly2 *out, const struct poly2 *in) {
+  struct poly2 t;
+  for (size_t i = 0; i < WORDS_PER_POLY; i++) {
+    t.v[i] = word_reverse(in->v[i]);
   }
 
-  // Since the last word is only partially filled, however, the remainder needs
-  // shifting and merging of words to take care of that.
-  crypto_word_t carry = in->v[WORDS_PER_POLY - 1];
-
-  for (size_t i = 0; i < start; i++) {
-    out->v[n + i] = carry | in->v[i] << BITS_IN_LAST_WORD;
-    carry = in->v[i] >> (BITS_PER_WORD - BITS_IN_LAST_WORD);
+  static const size_t shift = BITS_PER_WORD - ((N-1) % BITS_PER_WORD);
+  for (size_t i = 0; i < WORDS_PER_POLY-1; i++) {
+    out->v[i] = t.v[WORDS_PER_POLY-1-i] >> shift;
+    out->v[i] |= t.v[WORDS_PER_POLY-2-i] << (BITS_PER_WORD - shift);
   }
-
-  out->v[WORDS_PER_POLY - 1] = carry;
-}
-
-// poly2_rotr_bits performs a right-rotate on |in|, writing the result to |out|.
-// The shift count, |bits|, must be a power of two that is less than
-// |BITS_PER_WORD|.
-static void poly2_rotr_bits(struct poly2 *out, const struct poly2 *in,
-                            size_t bits) {
-  assert(bits <= BITS_PER_WORD / 2);
-  assert(bits != 0);
-  assert((bits & (bits - 1)) == 0);
-  assert(out != in);
-
-  // BITS_PER_WORD/2 is the greatest legal value of |bits|. If
-  // |BITS_IN_LAST_WORD| is smaller than this then the code below doesn't work
-  // because more than the last word needs to carry down in the previous one and
-  // so on.
-  OPENSSL_STATIC_ASSERT(
-      BITS_IN_LAST_WORD >= BITS_PER_WORD / 2,
-      "there are more carry bits than fit in BITS_IN_LAST_WORD");
-
-  crypto_word_t carry = in->v[WORDS_PER_POLY - 1] << (BITS_PER_WORD - bits);
-
-  for (size_t i = WORDS_PER_POLY - 2; i < WORDS_PER_POLY; i--) {
-    out->v[i] = carry | in->v[i] >> bits;
-    carry = in->v[i] << (BITS_PER_WORD - bits);
-  }
-
-  crypto_word_t last_word = carry >> (BITS_PER_WORD - BITS_IN_LAST_WORD) |
-                            in->v[WORDS_PER_POLY - 1] >> bits;
-  last_word &= (UINT64_C(1) << BITS_IN_LAST_WORD) - 1;
-  out->v[WORDS_PER_POLY - 1] = last_word;
-}
-
-// HRSS_poly2_rotr_consttime right-rotates |p| by |bits| in constant-time.
-void HRSS_poly2_rotr_consttime(struct poly2 *p, size_t bits) {
-  assert(bits <= N);
-  assert(p->v[WORDS_PER_POLY-1] >> BITS_IN_LAST_WORD == 0);
-
-  // Constant-time rotation is implemented by calculating the rotations of
-  // powers-of-two bits and throwing away the unneeded values. 2^9 (i.e. 512) is
-  // the largest power-of-two shift that we need to consider because 2^10 > N.
-#define HRSS_POLY2_MAX_SHIFT 9
-  size_t shift = HRSS_POLY2_MAX_SHIFT;
-  OPENSSL_STATIC_ASSERT((1 << (HRSS_POLY2_MAX_SHIFT + 1)) > N,
-                        "maximum shift is too small");
-  OPENSSL_STATIC_ASSERT((1 << HRSS_POLY2_MAX_SHIFT) <= N,
-                        "maximum shift is too large");
-  struct poly2 shifted;
-
-  for (; (UINT64_C(1) << shift) >= BITS_PER_WORD; shift--) {
-    poly2_rotr_words(&shifted, p, UINT64_C(1) << shift);
-    poly2_cmov(p, &shifted, ~((1 & (bits >> shift)) - 1));
-  }
-
-  for (; shift < HRSS_POLY2_MAX_SHIFT; shift--) {
-    poly2_rotr_bits(&shifted, p, UINT64_C(1) << shift);
-    poly2_cmov(p, &shifted, ~((1 & (bits >> shift)) - 1));
-  }
-#undef HRSS_POLY2_MAX_SHIFT
+  out->v[WORDS_PER_POLY-1] = t.v[0] >> shift;
 }
 
 // poly2_cswap exchanges the values of |a| and |b| if |swap| is all ones.
@@ -544,7 +491,14 @@ static void poly3_zero(struct poly3 *p) {
   poly2_zero(&p->a);
 }
 
-// poly3_word_mul sets (|out_s|, |out_a) to (|s1|, |a1|) × (|s2|, |a2|).
+// poly3_reverse_700 reverses the order of the first 700 terms of |in| and
+// writes them to |out|.
+static void poly3_reverse_700(struct poly3 *out, const struct poly3 *in) {
+  poly2_reverse_700(&out->a, &in->a);
+  poly2_reverse_700(&out->s, &in->s);
+}
+
+// poly3_word_mul sets (|out_s|, |out_a|) to (|s1|, |a1|) × (|s2|, |a2|).
 static void poly3_word_mul(crypto_word_t *out_s, crypto_word_t *out_a,
                            const crypto_word_t s1, const crypto_word_t a1,
                            const crypto_word_t s2, const crypto_word_t a2) {
@@ -570,11 +524,6 @@ static void poly3_word_sub(crypto_word_t *out_s, crypto_word_t *out_a,
   *out_a = t | (s1 ^ s2);
 }
 
-// lsb_to_all replicates the least-significant bit of |v| to all bits of the
-// word. This is used in bit-slicing operations to make a vector from a fixed
-// value.
-static crypto_word_t lsb_to_all(crypto_word_t v) { return 0u - (v & 1); }
-
 // poly3_mul_const sets |p| to |p|×m, where m = (ms, ma).
 static void poly3_mul_const(struct poly3 *p, crypto_word_t ms,
                             crypto_word_t ma) {
@@ -584,13 +533,6 @@ static void poly3_mul_const(struct poly3 *p, crypto_word_t ms,
   for (size_t i = 0; i < WORDS_PER_POLY; i++) {
     poly3_word_mul(&p->s.v[i], &p->a.v[i], p->s.v[i], p->a.v[i], ms, ma);
   }
-}
-
-// poly3_rotr_consttime right-rotates |p| by |bits| in constant-time.
-static void poly3_rotr_consttime(struct poly3 *p, size_t bits) {
-  assert(bits <= N);
-  HRSS_poly2_rotr_consttime(&p->s, bits);
-  HRSS_poly2_rotr_consttime(&p->a, bits);
 }
 
 // poly3_fmadd sets |out| to |out| - |in|×m, where m is (ms, ma).
@@ -835,83 +777,64 @@ static inline void poly3_vec_fmsub(vec_t a_s[6], vec_t a_a[6], vec_t b_s[6],
 // poly3_invert_vec sets |*out| to |in|^-1, i.e. such that |out|×|in| == 1 mod
 // Φ(N).
 static void poly3_invert_vec(struct poly3 *out, const struct poly3 *in) {
-  // See the comment in |HRSS_poly3_invert| about this algorithm. In addition to
-  // the changes described there, this implementation attempts to use vector
-  // registers to speed up the computation. Even non-poly3 variables are held in
-  // vectors where possible to minimise the amount of data movement between
-  // the vector and general-purpose registers.
-
-  vec_t b_s[6], b_a[6], c_s[6], c_a[6], f_s[6], f_a[6], g_s[6], g_a[6];
+  // This algorithm is taken from section 7.1 of [SAFEGCD].
   const vec_t kZero = {0};
   const vec_t kOne = {1};
-  static const uint8_t kOneBytes[sizeof(vec_t)] = {1};
   static const uint8_t kBottomSixtyOne[sizeof(vec_t)] = {
       0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x1f};
 
-  memset(b_s, 0, sizeof(b_s));
-  memcpy(b_a, kOneBytes, sizeof(kOneBytes));
-  memset(&b_a[1], 0, 5 * sizeof(vec_t));
+  vec_t v_s[6], v_a[6], r_s[6], r_a[6], f_s[6], f_a[6], g_s[6], g_a[6];
+  // v = 0
+  memset(&v_s, 0, sizeof(v_s));
+  memset(&v_a, 0, sizeof(v_a));
+  // r = 1
+  memset(&r_s, 0, sizeof(r_s));
+  memset(&r_a, 0, sizeof(r_a));
+  r_a[0] = kOne;
+  // f = all ones.
+  memset(f_s, 0, sizeof(f_s));
+  memset(f_a, 0xff, 5 * sizeof(vec_t));
+  memcpy(&f_a[5], kBottomSixtyOne, sizeof(kBottomSixtyOne));
+  // g is the reversal of |in|.
+  struct poly3 in_reversed;
+  poly3_reverse_700(&in_reversed, in);
+  g_s[5] = kZero;
+  memcpy(&g_s, &in_reversed.s.v, WORDS_PER_POLY * sizeof(crypto_word_t));
+  g_a[5] = kZero;
+  memcpy(&g_a, &in_reversed.a.v, WORDS_PER_POLY * sizeof(crypto_word_t));
 
-  memset(c_s, 0, sizeof(c_s));
-  memset(c_a, 0, sizeof(c_a));
+  int delta = 1;
 
-  f_s[5] = kZero;
-  memcpy(f_s, in->s.v, WORDS_PER_POLY * sizeof(crypto_word_t));
-  f_a[5] = kZero;
-  memcpy(f_a, in->a.v, WORDS_PER_POLY * sizeof(crypto_word_t));
+  for (size_t i = 0; i < (2*(N-1)) - 1; i++) {
+    poly3_vec_lshift1(v_s, v_a);
 
-  // Set g to all ones.
-  memset(g_s, 0, sizeof(g_s));
-  memset(g_a, 0xff, 5 * sizeof(vec_t));
-  memcpy(&g_a[5], kBottomSixtyOne, sizeof(kBottomSixtyOne));
+    const crypto_word_t delta_sign_bit = (delta >> (sizeof(delta) * 8 - 1)) & 1;
+    const crypto_word_t delta_is_non_negative = delta_sign_bit - 1;
+    const crypto_word_t delta_is_non_zero = ~constant_time_is_zero_w(delta);
+    const vec_t g_has_constant_term = vec_broadcast_bit(g_a[0]);
+    const vec_t mask_w =
+        {delta_is_non_negative & delta_is_non_zero};
+    const vec_t mask = vec_broadcast_bit(mask_w) & g_has_constant_term;
 
-  vec_t deg_f = {N - 1}, deg_g = {N - 1}, rotation = kZero;
-  vec_t k = kOne;
-  vec_t f0s = {0}, f0a = {0};
-  vec_t still_going;
-  memset(&still_going, 0xff, sizeof(still_going));
+    const vec_t c_a = vec_broadcast_bit(f_a[0] & g_a[0]);
+    const vec_t c_s = vec_broadcast_bit((f_s[0] ^ g_s[0]) & c_a);
 
-  for (unsigned i = 0; i < 2 * (N - 1) - 1; i++) {
-    const vec_t s_a = vec_broadcast_bit(still_going & (f_a[0] & g_a[0]));
-    const vec_t s_s =
-        vec_broadcast_bit(still_going & ((f_s[0] ^ g_s[0]) & s_a));
-    const vec_t should_swap =
-        (s_s | s_a) & vec_broadcast_bit15(deg_f - deg_g);
+    delta = constant_time_select_int(lsb_to_all(mask[0]), -delta, delta);
+    delta++;
 
-    poly3_vec_cswap(f_s, f_a, g_s, g_a, should_swap);
-    poly3_vec_fmsub(f_s, f_a, g_s, g_a, s_s, s_a);
-    poly3_vec_rshift1(f_s, f_a);
+    poly3_vec_cswap(f_s, f_a, g_s, g_a, mask);
+    poly3_vec_fmsub(g_s, g_a, f_s, f_a, c_s, c_a);
+    poly3_vec_rshift1(g_s, g_a);
 
-    poly3_vec_cswap(b_s, b_a, c_s, c_a, should_swap);
-    poly3_vec_fmsub(b_s, b_a, c_s, c_a, s_s, s_a);
-    poly3_vec_lshift1(c_s, c_a);
-
-    const vec_t deg_sum = should_swap & (deg_f ^ deg_g);
-    deg_f ^= deg_sum;
-    deg_g ^= deg_sum;
-
-    deg_f -= kOne;
-    still_going &= ~vec_broadcast_bit15(deg_f - kOne);
-
-    const vec_t f0_is_nonzero = vec_broadcast_bit(f_s[0] | f_a[0]);
-    // |f0_is_nonzero| implies |still_going|.
-    rotation ^= f0_is_nonzero & (k ^ rotation);
-    k += kOne;
-
-    const vec_t f0s_sum = f0_is_nonzero & (f_s[0] ^ f0s);
-    f0s ^= f0s_sum;
-    const vec_t f0a_sum = f0_is_nonzero & (f_a[0] ^ f0a);
-    f0a ^= f0a_sum;
+    poly3_vec_cswap(v_s, v_a, r_s, r_a, mask);
+    poly3_vec_fmsub(r_s, r_a, v_s, v_a, c_s, c_a);
   }
 
-  crypto_word_t rotation_word = vec_get_word(rotation, 0);
-  rotation_word -= N & constant_time_lt_w(N, rotation_word);
-  memcpy(out->s.v, b_s, WORDS_PER_POLY * sizeof(crypto_word_t));
-  memcpy(out->a.v, b_a, WORDS_PER_POLY * sizeof(crypto_word_t));
-  assert(poly3_top_bits_are_clear(out));
-  poly3_rotr_consttime(out, rotation_word);
-  poly3_mul_const(out, vec_get_word(f0s, 0), vec_get_word(f0a, 0));
-  poly3_mod_phiN(out);
+  assert(delta == 0);
+  memcpy(out->s.v, v_s, WORDS_PER_POLY * sizeof(crypto_word_t));
+  memcpy(out->a.v, v_a, WORDS_PER_POLY * sizeof(crypto_word_t));
+  poly3_mul_const(out, vec_get_word(f_s[0], 0), vec_get_word(f_a[0], 0));
+  poly3_reverse_700(out, out);
 }
 
 #endif  // HRSS_HAVE_VECTOR_UNIT
@@ -928,71 +851,50 @@ void HRSS_poly3_invert(struct poly3 *out, const struct poly3 *in) {
   }
 #endif
 
-  // This algorithm mostly follows algorithm 10 in the paper. Some changes:
-  //   1) k should start at zero, not one. In the code below k is omitted and
-  //      the loop counter, |i|, is used instead.
-  //   2) The rotation count is conditionally updated to handle trailing zero
-  //      coefficients.
-  // The best explanation for why it works is in the "Why it works" section of
-  // [NTRUTN14].
+  // This algorithm is taken from section 7.1 of [SAFEGCD].
+  struct poly3 v, r, f, g;
+  // v = 0
+  poly3_zero(&v);
+  // r = 1
+  poly3_zero(&r);
+  r.a.v[0] = 1;
+  // f = all ones.
+  OPENSSL_memset(&f.s, 0, sizeof(struct poly2));
+  OPENSSL_memset(&f.a, 0xff, sizeof(struct poly2));
+  f.a.v[WORDS_PER_POLY - 1] >>= BITS_PER_WORD - BITS_IN_LAST_WORD;
+  // g is the reversal of |in|.
+  poly3_reverse_700(&g, in);
+  int delta = 1;
 
-  struct poly3 c, f, g;
-  OPENSSL_memcpy(&f, in, sizeof(f));
+  for (size_t i = 0; i < (2*(N-1)) - 1; i++) {
+    poly3_lshift1(&v);
 
-  // Set g to all ones.
-  OPENSSL_memset(&g.s, 0, sizeof(struct poly2));
-  OPENSSL_memset(&g.a, 0xff, sizeof(struct poly2));
-  g.a.v[WORDS_PER_POLY - 1] >>= BITS_PER_WORD - BITS_IN_LAST_WORD;
+    const crypto_word_t delta_sign_bit = (delta >> (sizeof(delta) * 8 - 1)) & 1;
+    const crypto_word_t delta_is_non_negative = delta_sign_bit - 1;
+    const crypto_word_t delta_is_non_zero = ~constant_time_is_zero_w(delta);
+    const crypto_word_t g_has_constant_term = lsb_to_all(g.a.v[0]);
+    const crypto_word_t mask =
+        g_has_constant_term & delta_is_non_negative & delta_is_non_zero;
 
-  struct poly3 *b = out;
-  poly3_zero(b);
-  poly3_zero(&c);
-  // Set b to one.
-  b->a.v[0] = 1;
+    crypto_word_t c_s, c_a;
+    poly3_word_mul(&c_s, &c_a, f.s.v[0], f.a.v[0], g.s.v[0], g.a.v[0]);
+    c_s = lsb_to_all(c_s);
+    c_a = lsb_to_all(c_a);
 
-  crypto_word_t deg_f = N - 1, deg_g = N - 1, rotation = 0;
-  crypto_word_t f0s = 0, f0a = 0;
-  crypto_word_t still_going = CONSTTIME_TRUE_W;
+    delta = constant_time_select_int(mask, -delta, delta);
+    delta++;
 
-  for (unsigned i = 0; i < 2 * (N - 1) - 1; i++) {
-    const crypto_word_t s_a = lsb_to_all(
-        still_going & (f.a.v[0] & g.a.v[0]));
-    const crypto_word_t s_s = lsb_to_all(
-        still_going & ((f.s.v[0] ^ g.s.v[0]) & s_a));
-    const crypto_word_t should_swap =
-        (s_s | s_a) & constant_time_lt_w(deg_f, deg_g);
+    poly3_cswap(&f, &g, mask);
+    poly3_fmsub(&g, &f, c_s, c_a);
+    poly3_rshift1(&g);
 
-    poly3_cswap(&f, &g, should_swap);
-    poly3_cswap(b, &c, should_swap);
-
-    const crypto_word_t deg_sum = should_swap & (deg_f ^ deg_g);
-    deg_f ^= deg_sum;
-    deg_g ^= deg_sum;
-    assert(deg_g >= 1);
-
-    poly3_fmsub(&f, &g, s_s, s_a);
-    poly3_fmsub(b, &c, s_s, s_a);
-    poly3_rshift1(&f);
-    poly3_lshift1(&c);
-
-    deg_f--;
-    const crypto_word_t f0_is_nonzero =
-        lsb_to_all(f.s.v[0]) | lsb_to_all(f.a.v[0]);
-    // |f0_is_nonzero| implies |still_going|.
-    assert(!(f0_is_nonzero && !still_going));
-    still_going &= ~constant_time_is_zero_w(deg_f);
-
-    rotation = constant_time_select_w(f0_is_nonzero, i, rotation);
-    f0s = constant_time_select_w(f0_is_nonzero, f.s.v[0], f0s);
-    f0a = constant_time_select_w(f0_is_nonzero, f.a.v[0], f0a);
+    poly3_cswap(&v, &r, mask);
+    poly3_fmsub(&r, &v, c_s, c_a);
   }
 
-  rotation++;
-  rotation -= N & constant_time_lt_w(N, rotation);
-  assert(poly3_top_bits_are_clear(out));
-  poly3_rotr_consttime(out, rotation);
-  poly3_mul_const(out, f0s, f0a);
-  poly3_mod_phiN(out);
+  assert(delta == 0);
+  poly3_mul_const(&v, f.s.v[0], f.a.v[0]);
+  poly3_reverse_700(out, &v);
 }
 
 // Polynomials in Q.
@@ -1037,6 +939,34 @@ OPENSSL_UNUSED static void poly_print(const struct poly *p) {
   }
   printf("]\n");
 }
+
+// POLY_MUL_SCRATCH contains space for the working variables needed by
+// |poly_mul|. The contents afterwards may be discarded, but the object may also
+// be reused with future |poly_mul| calls to save heap allocations.
+//
+// This object must have 32-byte alignment.
+struct POLY_MUL_SCRATCH {
+  union {
+    // This is used by |poly_mul_novec|.
+    struct {
+      uint16_t prod[2 * N];
+      uint16_t scratch[1318];
+    } novec;
+
+#if defined(HRSS_HAVE_VECTOR_UNIT)
+    // This is used by |poly_mul_vec|.
+    struct {
+      vec_t prod[VECS_PER_POLY * 2];
+      vec_t scratch[172];
+    } vec;
+#endif
+
+#if defined(POLY_RQ_MUL_ASM)
+    // This is the space used by |poly_Rq_mul|.
+    uint8_t rq[POLY_MUL_RQ_SCRATCH_SPACE];
+#endif
+  } u;
+};
 
 #if defined(HRSS_HAVE_VECTOR_UNIT)
 
@@ -1283,17 +1213,17 @@ static void poly_mul_vec_aux(vec_t *restrict out, vec_t *restrict scratch,
 }
 
 // poly_mul_vec sets |*out| to |x|×|y| mod (𝑥^n - 1).
-static void poly_mul_vec(struct poly *out, const struct poly *x,
-                         const struct poly *y) {
+static void poly_mul_vec(struct POLY_MUL_SCRATCH *scratch, struct poly *out,
+                         const struct poly *x, const struct poly *y) {
   OPENSSL_memset((uint16_t *)&x->v[N], 0, 3 * sizeof(uint16_t));
   OPENSSL_memset((uint16_t *)&y->v[N], 0, 3 * sizeof(uint16_t));
 
   OPENSSL_STATIC_ASSERT(sizeof(out->v) == sizeof(vec_t) * VECS_PER_POLY,
                         "struct poly is the wrong size");
 
-  vec_t prod[VECS_PER_POLY * 2];
-  vec_t scratch[172];
-  poly_mul_vec_aux(prod, scratch, x->vectors, y->vectors, VECS_PER_POLY);
+  vec_t *const prod = scratch->u.vec.prod;
+  vec_t *const aux_scratch = scratch->u.vec.scratch;
+  poly_mul_vec_aux(prod, aux_scratch, x->vectors, y->vectors, VECS_PER_POLY);
 
   // |prod| needs to be reduced mod (𝑥^n - 1), which just involves adding the
   // upper-half to the lower-half. However, N is 701, which isn't a multiple of
@@ -1370,11 +1300,11 @@ static void poly_mul_novec_aux(uint16_t *out, uint16_t *scratch,
 }
 
 // poly_mul_novec sets |*out| to |x|×|y| mod (𝑥^n - 1).
-static void poly_mul_novec(struct poly *out, const struct poly *x,
-                           const struct poly *y) {
-  uint16_t prod[2 * N];
-  uint16_t scratch[1318];
-  poly_mul_novec_aux(prod, scratch, x->v, y->v, N);
+static void poly_mul_novec(struct POLY_MUL_SCRATCH *scratch, struct poly *out,
+                           const struct poly *x, const struct poly *y) {
+  uint16_t *const prod = scratch->u.novec.prod;
+  uint16_t *const aux_scratch = scratch->u.novec.scratch;
+  poly_mul_novec_aux(prod, aux_scratch, x->v, y->v, N);
 
   for (size_t i = 0; i < N; i++) {
     out->v[i] = prod[i] + prod[i + N];
@@ -1382,25 +1312,25 @@ static void poly_mul_novec(struct poly *out, const struct poly *x,
   OPENSSL_memset(&out->v[N], 0, 3 * sizeof(uint16_t));
 }
 
-static void poly_mul(struct poly *r, const struct poly *a,
-                     const struct poly *b) {
+static void poly_mul(struct POLY_MUL_SCRATCH *scratch, struct poly *r,
+                     const struct poly *a, const struct poly *b) {
 #if defined(POLY_RQ_MUL_ASM)
   const int has_avx2 = (OPENSSL_ia32cap_P[2] & (1 << 5)) != 0;
   if (has_avx2) {
-    poly_Rq_mul(r->v, a->v, b->v);
+    poly_Rq_mul(r->v, a->v, b->v, scratch->u.rq);
     return;
   }
 #endif
 
 #if defined(HRSS_HAVE_VECTOR_UNIT)
   if (vec_capable()) {
-    poly_mul_vec(r, a, b);
+    poly_mul_vec(scratch, r, a, b);
     return;
   }
 #endif
 
   // Fallback, non-vector case.
-  poly_mul_novec(r, a, b);
+  poly_mul_novec(scratch, r, a, b);
 }
 
 // poly_mul_x_minus_1 sets |p| to |p|×(𝑥 - 1) mod (𝑥^n - 1).
@@ -1598,56 +1528,55 @@ static void poly_from_poly3(struct poly *out, const struct poly3 *in) {
 // Φ(N)), all mod 2. This isn't useful in itself, but is part of doing inversion
 // mod Q.
 static void poly_invert_mod2(struct poly *out, const struct poly *in) {
-  // This algorithm follows algorithm 10 in the paper. (Although, in contrast to
-  // the paper, k should start at zero, not one, and the rotation count is needs
-  // to handle trailing zero coefficients.) The best explanation for why it
-  // works is in the "Why it works" section of [NTRUTN14].
+  // This algorithm is taken from section 7.1 of [SAFEGCD].
+  struct poly2 v, r, f, g;
 
-  struct poly2 b, c, f, g;
-  poly2_from_poly(&f, in);
-  OPENSSL_memset(&b, 0, sizeof(b));
-  b.v[0] = 1;
-  OPENSSL_memset(&c, 0, sizeof(c));
+  // v = 0
+  poly2_zero(&v);
+  // r = 1
+  poly2_zero(&r);
+  r.v[0] = 1;
+  // f = all ones.
+  OPENSSL_memset(&f, 0xff, sizeof(struct poly2));
+  f.v[WORDS_PER_POLY - 1] >>= BITS_PER_WORD - BITS_IN_LAST_WORD;
+  // g is the reversal of |in|.
+  poly2_from_poly(&g, in);
+  poly2_mod_phiN(&g);
+  poly2_reverse_700(&g, &g);
+  int delta = 1;
 
-  // Set g to all ones.
-  OPENSSL_memset(&g, 0xff, sizeof(struct poly2));
-  g.v[WORDS_PER_POLY - 1] >>= BITS_PER_WORD - BITS_IN_LAST_WORD;
+  for (size_t i = 0; i < (2*(N-1)) - 1; i++) {
+    poly2_lshift1(&v);
 
-  crypto_word_t deg_f = N - 1, deg_g = N - 1, rotation = 0;
-  crypto_word_t still_going = CONSTTIME_TRUE_W;
+    const crypto_word_t delta_sign_bit = (delta >> (sizeof(delta) * 8 - 1)) & 1;
+    const crypto_word_t delta_is_non_negative = delta_sign_bit - 1;
+    const crypto_word_t delta_is_non_zero = ~constant_time_is_zero_w(delta);
+    const crypto_word_t g_has_constant_term = lsb_to_all(g.v[0]);
+    const crypto_word_t mask =
+        g_has_constant_term & delta_is_non_negative & delta_is_non_zero;
 
-  for (unsigned i = 0; i < 2 * (N - 1) - 1; i++) {
-    const crypto_word_t s = still_going & lsb_to_all(f.v[0]);
-    const crypto_word_t should_swap = s & constant_time_lt_w(deg_f, deg_g);
-    poly2_cswap(&f, &g, should_swap);
-    poly2_cswap(&b, &c, should_swap);
-    const crypto_word_t deg_sum = should_swap & (deg_f ^ deg_g);
-    deg_f ^= deg_sum;
-    deg_g ^= deg_sum;
-    assert(deg_g >= 1);
-    poly2_fmadd(&f, &g, s);
-    poly2_fmadd(&b, &c, s);
+    const crypto_word_t c = lsb_to_all(f.v[0] & g.v[0]);
 
-    poly2_rshift1(&f);
-    poly2_lshift1(&c);
+    delta = constant_time_select_int(mask, -delta, delta);
+    delta++;
 
-    deg_f--;
-    const crypto_word_t f0_is_nonzero = lsb_to_all(f.v[0]);
-    // |f0_is_nonzero| implies |still_going|.
-    assert(!(f0_is_nonzero && !still_going));
-    rotation = constant_time_select_w(f0_is_nonzero, i, rotation);
-    still_going &= ~constant_time_is_zero_w(deg_f);
+    poly2_cswap(&f, &g, mask);
+    poly2_fmadd(&g, &f, c);
+    poly2_rshift1(&g);
+
+    poly2_cswap(&v, &r, mask);
+    poly2_fmadd(&r, &v, c);
   }
 
-  rotation++;
-  rotation -= N & constant_time_lt_w(N, rotation);
-  assert(poly2_top_bits_are_clear(&b));
-  HRSS_poly2_rotr_consttime(&b, rotation);
-  poly_from_poly2(out, &b);
+  assert(delta == 0);
+  assert(f.v[0] & 1);
+  poly2_reverse_700(&v, &v);
+  poly_from_poly2(out, &v);
 }
 
 // poly_invert sets |*out| to |in^-1| (i.e. such that |*out|×|in| = 1 mod Φ(N)).
-static void poly_invert(struct poly *out, const struct poly *in) {
+static void poly_invert(struct POLY_MUL_SCRATCH *scratch, struct poly *out,
+                        const struct poly *in) {
   // Inversion mod Q, which is done based on the result of inverting mod
   // 2. See [NTRUTN14] paper, bottom of page two.
   struct poly a, *b, tmp;
@@ -1664,9 +1593,9 @@ static void poly_invert(struct poly *out, const struct poly *in) {
   // We are working mod Q=2**13 and we need to iterate ceil(log_2(13))
   // times, which is four.
   for (unsigned i = 0; i < 4; i++) {
-    poly_mul(&tmp, &a, b);
+    poly_mul(scratch, &tmp, &a, b);
     tmp.v[0] += 2;
-    poly_mul(b, b, &tmp);
+    poly_mul(scratch, b, b, &tmp);
   }
 }
 
@@ -1970,9 +1899,7 @@ static struct public_key *public_key_from_external(
       sizeof(struct HRSS_public_key) >= sizeof(struct public_key) + 15,
       "HRSS public key too small");
 
-  uintptr_t p = (uintptr_t)ext;
-  p = (p + 15) & ~15;
-  return (struct public_key *)p;
+  return align_pointer(ext->opaque, 16);
 }
 
 // private_key_from_external does the same thing as |public_key_from_external|,
@@ -1984,151 +1911,219 @@ static struct private_key *private_key_from_external(
       sizeof(struct HRSS_private_key) >= sizeof(struct private_key) + 15,
       "HRSS private key too small");
 
-  uintptr_t p = (uintptr_t)ext;
-  p = (p + 15) & ~15;
-  return (struct private_key *)p;
+  return align_pointer(ext->opaque, 16);
 }
 
-void HRSS_generate_key(
+// malloc_align32 returns a pointer to |size| bytes of 32-byte-aligned heap and
+// sets |*out_ptr| to a value that can be passed to |OPENSSL_free| to release
+// it. It returns NULL if out of memory.
+static void *malloc_align32(void **out_ptr, size_t size) {
+  void *ptr = OPENSSL_malloc(size + 31);
+  if (!ptr) {
+    *out_ptr = NULL;
+    return NULL;
+  }
+
+  *out_ptr = ptr;
+  return align_pointer(ptr, 32);
+}
+
+int HRSS_generate_key(
     struct HRSS_public_key *out_pub, struct HRSS_private_key *out_priv,
     const uint8_t in[HRSS_SAMPLE_BYTES + HRSS_SAMPLE_BYTES + 32]) {
   struct public_key *pub = public_key_from_external(out_pub);
   struct private_key *priv = private_key_from_external(out_priv);
 
+  struct vars {
+    struct POLY_MUL_SCRATCH scratch;
+    struct poly f;
+    struct poly pg_phi1;
+    struct poly pfg_phi1;
+    struct poly pfg_phi1_inverse;
+  };
+
+  void *malloc_ptr;
+  struct vars *const vars = malloc_align32(&malloc_ptr, sizeof(struct vars));
+  if (!vars) {
+    // If the caller ignores the return value the output will still be safe.
+    // The private key output is randomised in case it's later passed to
+    // |HRSS_encap|.
+    memset(out_pub, 0, sizeof(struct HRSS_public_key));
+    RAND_bytes((uint8_t*) out_priv, sizeof(struct HRSS_private_key));
+    return 0;
+  }
+
   OPENSSL_memcpy(priv->hmac_key, in + 2 * HRSS_SAMPLE_BYTES,
                  sizeof(priv->hmac_key));
 
-  struct poly f;
-  poly_short_sample_plus(&f, in);
-  poly3_from_poly(&priv->f, &f);
+  poly_short_sample_plus(&vars->f, in);
+  poly3_from_poly(&priv->f, &vars->f);
   HRSS_poly3_invert(&priv->f_inverse, &priv->f);
 
   // pg_phi1 is p (i.e. 3) × g × Φ(1) (i.e. 𝑥-1).
-  struct poly pg_phi1;
-  poly_short_sample_plus(&pg_phi1, in + HRSS_SAMPLE_BYTES);
+  poly_short_sample_plus(&vars->pg_phi1, in + HRSS_SAMPLE_BYTES);
   for (unsigned i = 0; i < N; i++) {
-    pg_phi1.v[i] *= 3;
+    vars->pg_phi1.v[i] *= 3;
   }
-  poly_mul_x_minus_1(&pg_phi1);
+  poly_mul_x_minus_1(&vars->pg_phi1);
 
-  struct poly pfg_phi1;
-  poly_mul(&pfg_phi1, &f, &pg_phi1);
+  poly_mul(&vars->scratch, &vars->pfg_phi1, &vars->f, &vars->pg_phi1);
 
-  struct poly pfg_phi1_inverse;
-  poly_invert(&pfg_phi1_inverse, &pfg_phi1);
+  poly_invert(&vars->scratch, &vars->pfg_phi1_inverse, &vars->pfg_phi1);
 
-  poly_mul(&pub->ph, &pfg_phi1_inverse, &pg_phi1);
-  poly_mul(&pub->ph, &pub->ph, &pg_phi1);
+  poly_mul(&vars->scratch, &pub->ph, &vars->pfg_phi1_inverse, &vars->pg_phi1);
+  poly_mul(&vars->scratch, &pub->ph, &pub->ph, &vars->pg_phi1);
   poly_clamp(&pub->ph);
 
-  poly_mul(&priv->ph_inverse, &pfg_phi1_inverse, &f);
-  poly_mul(&priv->ph_inverse, &priv->ph_inverse, &f);
+  poly_mul(&vars->scratch, &priv->ph_inverse, &vars->pfg_phi1_inverse,
+           &vars->f);
+  poly_mul(&vars->scratch, &priv->ph_inverse, &priv->ph_inverse, &vars->f);
   poly_clamp(&priv->ph_inverse);
+
+  OPENSSL_free(malloc_ptr);
+  return 1;
 }
 
 static const char kSharedKey[] = "shared key";
 
-void HRSS_encap(uint8_t out_ciphertext[POLY_BYTES],
-                uint8_t out_shared_key[32],
-                const struct HRSS_public_key *in_pub,
-                const uint8_t in[HRSS_SAMPLE_BYTES + HRSS_SAMPLE_BYTES]) {
+int HRSS_encap(uint8_t out_ciphertext[POLY_BYTES], uint8_t out_shared_key[32],
+               const struct HRSS_public_key *in_pub,
+               const uint8_t in[HRSS_SAMPLE_BYTES + HRSS_SAMPLE_BYTES]) {
   const struct public_key *pub =
       public_key_from_external((struct HRSS_public_key *)in_pub);
-  struct poly m, r, m_lifted;
-  poly_short_sample(&m, in);
-  poly_short_sample(&r, in + HRSS_SAMPLE_BYTES);
-  poly_lift(&m_lifted, &m);
 
-  struct poly prh_plus_m;
-  poly_mul(&prh_plus_m, &r, &pub->ph);
-  for (unsigned i = 0; i < N; i++) {
-    prh_plus_m.v[i] += m_lifted.v[i];
+  struct vars {
+    struct POLY_MUL_SCRATCH scratch;
+    struct poly m, r, m_lifted;
+    struct poly prh_plus_m;
+    SHA256_CTX hash_ctx;
+    uint8_t m_bytes[HRSS_POLY3_BYTES];
+    uint8_t r_bytes[HRSS_POLY3_BYTES];
+  };
+
+  void *malloc_ptr;
+  struct vars *const vars = malloc_align32(&malloc_ptr, sizeof(struct vars));
+  if (!vars) {
+    // If the caller ignores the return value the output will still be safe.
+    // The private key output is randomised in case it's used to encrypt and
+    // transmit something.
+    memset(out_ciphertext, 0, POLY_BYTES);
+    RAND_bytes(out_shared_key, 32);
+    return 0;
   }
 
-  poly_marshal(out_ciphertext, &prh_plus_m);
+  poly_short_sample(&vars->m, in);
+  poly_short_sample(&vars->r, in + HRSS_SAMPLE_BYTES);
+  poly_lift(&vars->m_lifted, &vars->m);
 
-  uint8_t m_bytes[HRSS_POLY3_BYTES], r_bytes[HRSS_POLY3_BYTES];
-  poly_marshal_mod3(m_bytes, &m);
-  poly_marshal_mod3(r_bytes, &r);
+  poly_mul(&vars->scratch, &vars->prh_plus_m, &vars->r, &pub->ph);
+  for (unsigned i = 0; i < N; i++) {
+    vars->prh_plus_m.v[i] += vars->m_lifted.v[i];
+  }
 
-  SHA256_CTX hash_ctx;
-  SHA256_Init(&hash_ctx);
-  SHA256_Update(&hash_ctx, kSharedKey, sizeof(kSharedKey));
-  SHA256_Update(&hash_ctx, m_bytes, sizeof(m_bytes));
-  SHA256_Update(&hash_ctx, r_bytes, sizeof(r_bytes));
-  SHA256_Update(&hash_ctx, out_ciphertext, POLY_BYTES);
-  SHA256_Final(out_shared_key, &hash_ctx);
+  poly_marshal(out_ciphertext, &vars->prh_plus_m);
+
+  poly_marshal_mod3(vars->m_bytes, &vars->m);
+  poly_marshal_mod3(vars->r_bytes, &vars->r);
+
+  SHA256_Init(&vars->hash_ctx);
+  SHA256_Update(&vars->hash_ctx, kSharedKey, sizeof(kSharedKey));
+  SHA256_Update(&vars->hash_ctx, vars->m_bytes, sizeof(vars->m_bytes));
+  SHA256_Update(&vars->hash_ctx, vars->r_bytes, sizeof(vars->r_bytes));
+  SHA256_Update(&vars->hash_ctx, out_ciphertext, POLY_BYTES);
+  SHA256_Final(out_shared_key, &vars->hash_ctx);
+
+  OPENSSL_free(malloc_ptr);
+  return 1;
 }
 
-void HRSS_decap(uint8_t out_shared_key[HRSS_KEY_BYTES],
+int HRSS_decap(uint8_t out_shared_key[HRSS_KEY_BYTES],
                 const struct HRSS_private_key *in_priv,
                 const uint8_t *ciphertext, size_t ciphertext_len) {
   const struct private_key *priv =
       private_key_from_external((struct HRSS_private_key *)in_priv);
 
+  struct vars {
+    struct POLY_MUL_SCRATCH scratch;
+    uint8_t masked_key[SHA256_CBLOCK];
+    SHA256_CTX hash_ctx;
+    struct poly c;
+    struct poly f, cf;
+    struct poly3 cf3, m3;
+    struct poly m, m_lifted;
+    struct poly r;
+    struct poly3 r3;
+    uint8_t expected_ciphertext[HRSS_CIPHERTEXT_BYTES];
+    uint8_t m_bytes[HRSS_POLY3_BYTES];
+    uint8_t r_bytes[HRSS_POLY3_BYTES];
+    uint8_t shared_key[32];
+  };
+
+  void *malloc_ptr;
+  struct vars *const vars = malloc_align32(&malloc_ptr, sizeof(struct vars));
+  if (!vars) {
+    // If the caller ignores the return value the output will still be safe.
+    // The private key output is randomised in case it's used to encrypt and
+    // transmit something.
+    RAND_bytes(out_shared_key, HRSS_KEY_BYTES);
+    return 0;
+  }
+
   // This is HMAC, expanded inline rather than using the |HMAC| function so that
   // we can avoid dealing with possible allocation failures and so keep this
   // function infallible.
-  uint8_t masked_key[SHA256_CBLOCK];
-  OPENSSL_STATIC_ASSERT(sizeof(priv->hmac_key) <= sizeof(masked_key),
+  OPENSSL_STATIC_ASSERT(sizeof(priv->hmac_key) <= sizeof(vars->masked_key),
                         "HRSS HMAC key larger than SHA-256 block size");
   for (size_t i = 0; i < sizeof(priv->hmac_key); i++) {
-    masked_key[i] = priv->hmac_key[i] ^ 0x36;
+    vars->masked_key[i] = priv->hmac_key[i] ^ 0x36;
   }
-  OPENSSL_memset(masked_key + sizeof(priv->hmac_key), 0x36,
-                 sizeof(masked_key) - sizeof(priv->hmac_key));
+  OPENSSL_memset(vars->masked_key + sizeof(priv->hmac_key), 0x36,
+                 sizeof(vars->masked_key) - sizeof(priv->hmac_key));
 
-  SHA256_CTX hash_ctx;
-  SHA256_Init(&hash_ctx);
-  SHA256_Update(&hash_ctx, masked_key, sizeof(masked_key));
-  SHA256_Update(&hash_ctx, ciphertext, ciphertext_len);
+  SHA256_Init(&vars->hash_ctx);
+  SHA256_Update(&vars->hash_ctx, vars->masked_key, sizeof(vars->masked_key));
+  SHA256_Update(&vars->hash_ctx, ciphertext, ciphertext_len);
   uint8_t inner_digest[SHA256_DIGEST_LENGTH];
-  SHA256_Final(inner_digest, &hash_ctx);
+  SHA256_Final(inner_digest, &vars->hash_ctx);
 
   for (size_t i = 0; i < sizeof(priv->hmac_key); i++) {
-    masked_key[i] ^= (0x5c ^ 0x36);
+    vars->masked_key[i] ^= (0x5c ^ 0x36);
   }
-  OPENSSL_memset(masked_key + sizeof(priv->hmac_key), 0x5c,
-                 sizeof(masked_key) - sizeof(priv->hmac_key));
+  OPENSSL_memset(vars->masked_key + sizeof(priv->hmac_key), 0x5c,
+                 sizeof(vars->masked_key) - sizeof(priv->hmac_key));
 
-  SHA256_Init(&hash_ctx);
-  SHA256_Update(&hash_ctx, masked_key, sizeof(masked_key));
-  SHA256_Update(&hash_ctx, inner_digest, sizeof(inner_digest));
+  SHA256_Init(&vars->hash_ctx);
+  SHA256_Update(&vars->hash_ctx, vars->masked_key, sizeof(vars->masked_key));
+  SHA256_Update(&vars->hash_ctx, inner_digest, sizeof(inner_digest));
   OPENSSL_STATIC_ASSERT(HRSS_KEY_BYTES == SHA256_DIGEST_LENGTH,
                         "HRSS shared key length incorrect");
-  SHA256_Final(out_shared_key, &hash_ctx);
+  SHA256_Final(out_shared_key, &vars->hash_ctx);
 
-  struct poly c;
   // If the ciphertext is publicly invalid then a random shared key is still
   // returned to simply the logic of the caller, but this path is not constant
   // time.
   if (ciphertext_len != HRSS_CIPHERTEXT_BYTES ||
-      !poly_unmarshal(&c, ciphertext)) {
-    return;
+      !poly_unmarshal(&vars->c, ciphertext)) {
+    goto out;
   }
 
-  struct poly f, cf;
-  struct poly3 cf3, m3;
-  poly_from_poly3(&f, &priv->f);
-  poly_mul(&cf, &c, &f);
-  poly3_from_poly(&cf3, &cf);
+  poly_from_poly3(&vars->f, &priv->f);
+  poly_mul(&vars->scratch, &vars->cf, &vars->c, &vars->f);
+  poly3_from_poly(&vars->cf3, &vars->cf);
   // Note that cf3 is not reduced mod Φ(N). That reduction is deferred.
-  HRSS_poly3_mul(&m3, &cf3, &priv->f_inverse);
+  HRSS_poly3_mul(&vars->m3, &vars->cf3, &priv->f_inverse);
 
-  struct poly m, m_lifted;
-  poly_from_poly3(&m, &m3);
-  poly_lift(&m_lifted, &m);
+  poly_from_poly3(&vars->m, &vars->m3);
+  poly_lift(&vars->m_lifted, &vars->m);
 
-  struct poly r;
   for (unsigned i = 0; i < N; i++) {
-    r.v[i] = c.v[i] - m_lifted.v[i];
+    vars->r.v[i] = vars->c.v[i] - vars->m_lifted.v[i];
   }
-  poly_mul(&r, &r, &priv->ph_inverse);
-  poly_mod_phiN(&r);
-  poly_clamp(&r);
+  poly_mul(&vars->scratch, &vars->r, &vars->r, &priv->ph_inverse);
+  poly_mod_phiN(&vars->r);
+  poly_clamp(&vars->r);
 
-  struct poly3 r3;
-  crypto_word_t ok = poly3_from_poly_checked(&r3, &r);
+  crypto_word_t ok = poly3_from_poly_checked(&vars->r3, &vars->r);
 
   // [NTRUCOMP] section 5.1 includes ReEnc2 and a proof that it's valid. Rather
   // than do an expensive |poly_mul|, it rebuilds |c'| from |c - lift(m)|
@@ -2153,32 +2148,34 @@ void HRSS_decap(uint8_t out_shared_key[HRSS_KEY_BYTES],
   // The |poly_marshal| here then is just confirming that |poly_unmarshal| is
   // strict and could be omitted.
 
-  uint8_t expected_ciphertext[HRSS_CIPHERTEXT_BYTES];
   OPENSSL_STATIC_ASSERT(HRSS_CIPHERTEXT_BYTES == POLY_BYTES,
                         "ciphertext is the wrong size");
-  assert(ciphertext_len == sizeof(expected_ciphertext));
-  poly_marshal(expected_ciphertext, &c);
+  assert(ciphertext_len == sizeof(vars->expected_ciphertext));
+  poly_marshal(vars->expected_ciphertext, &vars->c);
 
-  uint8_t m_bytes[HRSS_POLY3_BYTES];
-  uint8_t r_bytes[HRSS_POLY3_BYTES];
-  poly_marshal_mod3(m_bytes, &m);
-  poly_marshal_mod3(r_bytes, &r);
+  poly_marshal_mod3(vars->m_bytes, &vars->m);
+  poly_marshal_mod3(vars->r_bytes, &vars->r);
 
-  ok &= constant_time_is_zero_w(CRYPTO_memcmp(ciphertext, expected_ciphertext,
-                                              sizeof(expected_ciphertext)));
+  ok &= constant_time_is_zero_w(
+      CRYPTO_memcmp(ciphertext, vars->expected_ciphertext,
+                    sizeof(vars->expected_ciphertext)));
 
-  uint8_t shared_key[32];
-  SHA256_Init(&hash_ctx);
-  SHA256_Update(&hash_ctx, kSharedKey, sizeof(kSharedKey));
-  SHA256_Update(&hash_ctx, m_bytes, sizeof(m_bytes));
-  SHA256_Update(&hash_ctx, r_bytes, sizeof(r_bytes));
-  SHA256_Update(&hash_ctx, expected_ciphertext, sizeof(expected_ciphertext));
-  SHA256_Final(shared_key, &hash_ctx);
+  SHA256_Init(&vars->hash_ctx);
+  SHA256_Update(&vars->hash_ctx, kSharedKey, sizeof(kSharedKey));
+  SHA256_Update(&vars->hash_ctx, vars->m_bytes, sizeof(vars->m_bytes));
+  SHA256_Update(&vars->hash_ctx, vars->r_bytes, sizeof(vars->r_bytes));
+  SHA256_Update(&vars->hash_ctx, vars->expected_ciphertext,
+                sizeof(vars->expected_ciphertext));
+  SHA256_Final(vars->shared_key, &vars->hash_ctx);
 
-  for (unsigned i = 0; i < sizeof(shared_key); i++) {
+  for (unsigned i = 0; i < sizeof(vars->shared_key); i++) {
     out_shared_key[i] =
-        constant_time_select_8(ok, shared_key[i], out_shared_key[i]);
+        constant_time_select_8(ok, vars->shared_key[i], out_shared_key[i]);
   }
+
+out:
+  OPENSSL_free(malloc_ptr);
+  return 1;
 }
 
 void HRSS_marshal_public_key(uint8_t out[HRSS_PUBLIC_KEY_BYTES],

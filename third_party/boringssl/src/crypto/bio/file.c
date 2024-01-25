@@ -551,7 +551,7 @@ static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr) {
         *fpp = (SbFile)b->ptr;
       }
 #else   // defined(OPENSSL_SYS_STARBOARD)
-      /* the ptr parameter is actually a FILE ** in this case. */
+      // the ptr parameter is actually a FILE ** in this case.
       if (ptr != NULL) {
         fpp = (FILE **)ptr;
         *fpp = (FILE *)b->ptr;

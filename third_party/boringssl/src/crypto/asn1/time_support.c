@@ -59,7 +59,7 @@
 #define _POSIX_C_SOURCE 201410L  /* for gmtime_r */
 #endif
 
-#include "asn1_locl.h"
+#include "internal.h"
 
 #include <time.h>
 
@@ -75,10 +75,9 @@ struct tm *OPENSSL_gmtime(const time_t *time, struct tm *result) {
     return NULL;
   }
   return result;
-#else  // !defined(OPENSSL_WINDOWS)
-  result = gmtime(time);
-  return result;
-#endif  // defined(OPENSSL_WINDOWS)
+#else
+  return gmtime_r(time, result);
+#endif
 #endif  // defined(OPENSSL_SYS_STARBOARD)
 }
 

@@ -17,7 +17,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -31,6 +30,7 @@ import (
 	"sync"
 	"syscall"
 
+	"boringssl.googlesource.com/boringssl/util/testconfig"
 	"boringssl.googlesource.com/boringssl/util/testresult"
 )
 
@@ -51,12 +51,12 @@ var (
 )
 
 func simulateARMCPUsDefault() bool {
-	return runtime.GOOS == "linux" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64")
+	return (runtime.GOOS == "linux" || runtime.GOOS == "android") && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64")
 }
 
 type test struct {
-	env              []string
-	args             []string
+	testconfig.Test
+
 	shard, numShards int
 	// cpu, if not empty, contains a code to simulate. For SDE, run `sde64
 	// -help` to get a list of these codes. For ARM, see gtest_main.cc for
@@ -82,14 +82,21 @@ var sdeCPUs = []string{
 	"ivb", // Ivy Bridge
 	"hsw", // Haswell
 	"bdw", // Broadwell
-	"skx", // Skylake Server
-	"skl", // Skylake Client
-	"cnl", // Cannonlake
-	"knl", // Knights Landing
 	"slt", // Saltwell
 	"slm", // Silvermont
 	"glm", // Goldmont
-	"knm", // Knights Mill
+	"glp", // Goldmont Plus
+	"tnt", // Tremont
+	"skl", // Skylake
+	"cnl", // Cannon Lake
+	"icl", // Ice Lake
+	"skx", // Skylake server
+	"clx", // Cascade Lake
+	"cpx", // Cooper Lake
+	"icx", // Ice Lake server
+	"knl", // Knights landing
+	"knm", // Knights mill
+	"tgl", // Tiger Lake
 }
 
 var armCPUs = []string{
@@ -146,8 +153,8 @@ var (
 )
 
 func runTestOnce(test test, mallocNumToFail int64) (passed bool, err error) {
-	prog := path.Join(*buildDir, test.args[0])
-	args := append([]string{}, test.args[1:]...)
+	prog := path.Join(*buildDir, test.Cmd[0])
+	args := append([]string{}, test.Cmd[1:]...)
 	if *simulateARMCPUs && test.cpu != "" {
 		args = append(args, "--cpu="+test.cpu)
 	}
@@ -168,10 +175,10 @@ func runTestOnce(test test, mallocNumToFail int64) (passed bool, err error) {
 	} else {
 		cmd = exec.Command(prog, args...)
 	}
-	if test.env != nil {
+	if test.Env != nil {
 		cmd.Env = make([]string, len(os.Environ()))
 		copy(cmd.Env, os.Environ())
-		cmd.Env = append(cmd.Env, test.env...)
+		cmd.Env = append(cmd.Env, test.Env...)
 	}
 	var outBuf bytes.Buffer
 	cmd.Stdout = &outBuf
@@ -249,31 +256,6 @@ func setWorkingDirectory() {
 	panic("Couldn't find BUILDING.md in a parent directory!")
 }
 
-func parseTestConfig(filename string) ([]test, error) {
-	in, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer in.Close()
-
-	decoder := json.NewDecoder(in)
-	var testArgs [][]string
-	if err := decoder.Decode(&testArgs); err != nil {
-		return nil, err
-	}
-
-	var result []test
-	for _, args := range testArgs {
-		var env []string
-		for len(args) > 0 && strings.HasPrefix(args[0], "$") {
-			env = append(env, args[0][1:])
-			args = args[1:]
-		}
-		result = append(result, test{args: args, env: env})
-	}
-	return result, nil
-}
-
 func worker(tests <-chan test, results chan<- result, done *sync.WaitGroup) {
 	defer done.Done()
 	for test := range tests {
@@ -283,7 +265,7 @@ func worker(tests <-chan test, results chan<- result, done *sync.WaitGroup) {
 }
 
 func (t test) shortName() string {
-	return t.args[0] + t.shardMsg() + t.cpuMsg() + t.envMsg()
+	return t.Cmd[0] + t.shardMsg() + t.cpuMsg() + t.envMsg()
 }
 
 func SpaceIf(returnSpace bool) string {
@@ -294,7 +276,7 @@ func SpaceIf(returnSpace bool) string {
 }
 
 func (t test) longName() string {
-	return strings.Join(t.env, " ") + SpaceIf(len(t.env) != 0) + strings.Join(t.args, " ") + t.cpuMsg()
+	return strings.Join(t.Env, " ") + SpaceIf(len(t.Env) != 0) + strings.Join(t.Cmd, " ") + t.cpuMsg()
 }
 
 func (t test) shardMsg() string {
@@ -314,7 +296,7 @@ func (t test) cpuMsg() string {
 }
 
 func (t test) envMsg() string {
-	if len(t.env) == 0 {
+	if len(t.Env) == 0 {
 		return ""
 	}
 
@@ -322,16 +304,16 @@ func (t test) envMsg() string {
 }
 
 func (t test) getGTestShards() ([]test, error) {
-	if *numWorkers == 1 || len(t.args) != 1 {
+	if *numWorkers == 1 || len(t.Cmd) != 1 {
 		return []test{t}, nil
 	}
 
 	// Only shard the three GTest-based tests.
-	if t.args[0] != "crypto/crypto_test" && t.args[0] != "ssl/ssl_test" && t.args[0] != "decrepit/decrepit_test" {
+	if t.Cmd[0] != "crypto/crypto_test" && t.Cmd[0] != "ssl/ssl_test" && t.Cmd[0] != "decrepit/decrepit_test" {
 		return []test{t}, nil
 	}
 
-	prog := path.Join(*buildDir, t.args[0])
+	prog := path.Join(*buildDir, t.Cmd[0])
 	cmd := exec.Command(prog, "--gtest_list_tests")
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout
@@ -388,7 +370,7 @@ func (t test) getGTestShards() ([]test, error) {
 			n = testsPerShard
 		}
 		shard := t
-		shard.args = []string{shard.args[0], "--gtest_filter=" + strings.Join(shuffled[i:i+n], ":")}
+		shard.Cmd = []string{shard.Cmd[0], "--gtest_filter=" + strings.Join(shuffled[i:i+n], ":")}
 		shard.shard = len(shards)
 		shards = append(shards, shard)
 	}
@@ -404,7 +386,7 @@ func main() {
 	flag.Parse()
 	setWorkingDirectory()
 
-	testCases, err := parseTestConfig("util/all_tests.json")
+	testCases, err := testconfig.ParseTestConfig("util/all_tests.json")
 	if err != nil {
 		fmt.Printf("Failed to parse input: %s\n", err)
 		os.Exit(1)
@@ -420,8 +402,12 @@ func main() {
 	}
 
 	go func() {
-		for _, test := range testCases {
+		for _, baseTest := range testCases {
+			test := test{Test: baseTest}
 			if *useSDE {
+				if test.SkipSDE {
+					continue
+				}
 				// SDE generates plenty of tasks and gets slower
 				// with additional sharding.
 				for _, cpu := range sdeCPUs {
@@ -459,7 +445,7 @@ func main() {
 	var failed, skipped []test
 	for testResult := range results {
 		test := testResult.Test
-		args := test.args
+		args := test.Cmd
 
 		if testResult.Error == errTestSkipped {
 			fmt.Printf("%s\n", test.longName())
@@ -491,14 +477,14 @@ func main() {
 	if len(skipped) > 0 {
 		fmt.Printf("\n%d of %d tests were skipped:\n", len(skipped), len(testCases))
 		for _, test := range skipped {
-			fmt.Printf("\t%s%s\n", strings.Join(test.args, " "), test.cpuMsg())
+			fmt.Printf("\t%s%s\n", strings.Join(test.Cmd, " "), test.cpuMsg())
 		}
 	}
 
 	if len(failed) > 0 {
 		fmt.Printf("\n%d of %d tests failed:\n", len(failed), len(testCases))
 		for _, test := range failed {
-			fmt.Printf("\t%s%s\n", strings.Join(test.args, " "), test.cpuMsg())
+			fmt.Printf("\t%s%s\n", strings.Join(test.Cmd, " "), test.cpuMsg())
 		}
 		os.Exit(1)
 	}

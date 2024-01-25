@@ -17,6 +17,7 @@
 #include <set>
 #include <string>
 
+#include "base/time/time.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -29,7 +30,7 @@ const char kCValnameMinimum[] = "Media.SbPlayerCreateTime.Minimum";
 
 const char kPipelineIdentifier[] = "test_pipeline";
 
-constexpr int64_t kSleepTime = 50;  // 50 microseconds
+constexpr base::TimeDelta kSleepTime = base::TimeDelta::FromMicroseconds(50);
 
 namespace cobalt {
 namespace media {
@@ -57,12 +58,11 @@ TEST(MediaCValStatsTest, NothingRecorded) {
   CValStats cval_stats_;
 
   cval_stats_.StartTimer(MediaTiming::SbPlayerCreate, kPipelineIdentifier);
-  SbThreadSleep(kSleepTime);
+  SbThreadSleep(kSleepTime.InMicroseconds());
 
   cval_stats_.StopTimer(MediaTiming::SbPlayerCreate, kPipelineIdentifier);
 
-  base::Optional<std::string> result =
-      cvm->GetValueAsPrettyString(kCValnameLatest);
+  base::Optional<std::string> result = cvm->GetValueAsString(kCValnameLatest);
   EXPECT_TRUE(result);
   EXPECT_EQ(*result, "0");
 }
@@ -75,19 +75,18 @@ TEST(MediaCValStatsTest, EnableRecording) {
   cval_stats_.Enable(true);
 
   cval_stats_.StartTimer(MediaTiming::SbPlayerCreate, kPipelineIdentifier);
-  SbThreadSleep(kSleepTime);
+  SbThreadSleep(kSleepTime.InMicroseconds());
   cval_stats_.StopTimer(MediaTiming::SbPlayerCreate, kPipelineIdentifier);
 
-  base::Optional<std::string> result =
-      cvm->GetValueAsPrettyString(kCValnameLatest);
+  base::Optional<std::string> result = cvm->GetValueAsString(kCValnameLatest);
   EXPECT_TRUE(result);
   EXPECT_NE(*result, "0");
 
-  result = cvm->GetValueAsPrettyString(kCValnameMinimum);
+  result = cvm->GetValueAsString(kCValnameMinimum);
   EXPECT_TRUE(result);
   EXPECT_NE(*result, "0");
 
-  result = cvm->GetValueAsPrettyString(kCValnameMaximum);
+  result = cvm->GetValueAsString(kCValnameMaximum);
   EXPECT_TRUE(result);
   EXPECT_NE(*result, "0");
 }
@@ -101,20 +100,19 @@ TEST(MediaCValStatsTest, DontGenerateHistoricalData) {
 
   for (int i = 0; i < kMediaDefaultMaxSamplesBeforeCalculation - 1; i++) {
     cval_stats_.StartTimer(MediaTiming::SbPlayerCreate, kPipelineIdentifier);
-    SbThreadSleep(kSleepTime);
+    SbThreadSleep(kSleepTime.InMicroseconds());
     cval_stats_.StopTimer(MediaTiming::SbPlayerCreate, kPipelineIdentifier);
   }
 
-  base::Optional<std::string> result =
-      cvm->GetValueAsPrettyString(kCValnameLatest);
+  base::Optional<std::string> result = cvm->GetValueAsString(kCValnameLatest);
   EXPECT_TRUE(result);
   EXPECT_NE(*result, "0");
 
-  result = cvm->GetValueAsPrettyString(kCValnameAverage);
+  result = cvm->GetValueAsString(kCValnameAverage);
   EXPECT_TRUE(result);
   EXPECT_EQ(*result, "0");
 
-  result = cvm->GetValueAsPrettyString(kCValnameMedian);
+  result = cvm->GetValueAsString(kCValnameMedian);
   EXPECT_TRUE(result);
   EXPECT_EQ(*result, "0");
 }
@@ -128,16 +126,15 @@ TEST(MediaCValStatsTest, GenerateHistoricalData) {
 
   for (int i = 0; i < kMediaDefaultMaxSamplesBeforeCalculation; i++) {
     cval_stats_.StartTimer(MediaTiming::SbPlayerCreate, kPipelineIdentifier);
-    SbThreadSleep(kSleepTime);
+    SbThreadSleep(kSleepTime.InMicroseconds());
     cval_stats_.StopTimer(MediaTiming::SbPlayerCreate, kPipelineIdentifier);
   }
 
-  base::Optional<std::string> result =
-      cvm->GetValueAsPrettyString(kCValnameAverage);
+  base::Optional<std::string> result = cvm->GetValueAsString(kCValnameAverage);
   EXPECT_TRUE(result);
   EXPECT_NE(*result, "0");
 
-  result = cvm->GetValueAsPrettyString(kCValnameMedian);
+  result = cvm->GetValueAsString(kCValnameMedian);
   EXPECT_TRUE(result);
   EXPECT_NE(*result, "0");
 }

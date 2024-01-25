@@ -31,6 +31,7 @@
 #include "../internal.h"
 
 #include "aes/aes.c"
+#include "aes/aes_nohw.c"
 #include "aes/key_wrap.c"
 #include "aes/mode_wrappers.c"
 #include "bn/add.c"
@@ -59,6 +60,8 @@
 #include "cipher/e_aes.c"
 #include "cipher/e_des.c"
 #include "des/des.c"
+#include "dh/check.c"
+#include "dh/dh.c"
 #include "digest/digest.c"
 #include "digest/digests.c"
 #include "ecdh/ecdh.c"
@@ -69,7 +72,7 @@
 #include "ec/felem.c"
 #include "ec/oct.c"
 #include "ec/p224-64.c"
-#include "../../third_party/fiat/p256.c"
+#include "ec/p256.c"
 #include "ec/p256-x86_64.c"
 #include "ec/scalar.c"
 #include "ec/simple.c"
@@ -87,12 +90,14 @@
 #include "modes/ofb.c"
 #include "modes/polyval.c"
 #include "rand/ctrdrbg.c"
+#include "rand/fork_detect.c"
 #include "rand/rand.c"
 #include "rand/urandom.c"
 #include "rsa/blinding.c"
 #include "rsa/padding.c"
 #include "rsa/rsa.c"
 #include "rsa/rsa_impl.c"
+#include "self_check/fips.c"
 #include "self_check/self_check.c"
 #include "sha/sha1-altivec.c"
 #include "sha/sha1.c"
@@ -191,7 +196,7 @@ BORINGSSL_bcm_power_on_self_test(void) {
   assert_within(rodata_start, kP256Params, rodata_end);
   assert_within(rodata_start, kPKCS1SigPrefixes, rodata_end);
 
-#if defined(OPENSSL_ANDROID)
+#if defined(OPENSSL_AARCH64) || defined(OPENSSL_ANDROID)
   uint8_t result[SHA256_DIGEST_LENGTH];
   const EVP_MD *const kHashFunction = EVP_sha256();
 #else
@@ -253,7 +258,7 @@ err:
 
 void BORINGSSL_FIPS_abort(void) {
   for (;;) {
-    OPENSSL_port_abort();
+    abort();
     exit(1);
   }
 }

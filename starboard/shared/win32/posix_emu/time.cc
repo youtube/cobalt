@@ -97,3 +97,10 @@ extern "C" int clock_gettime(clockid_t clock_id, struct timespec* tp) {
   }
   return -1;
 }
+
+extern "C" struct tm* gmtime_r(const time_t* timer, struct tm* result) {
+  if (gmtime_s(result, timer) != 0) {
+    return NULL;
+  }
+  return result;
+}

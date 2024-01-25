@@ -404,6 +404,15 @@ int CBB_add_bytes(CBB *cbb, const uint8_t *data, size_t len) {
   return 1;
 }
 
+int CBB_add_zeros(CBB *cbb, size_t len) {
+  uint8_t *out;
+  if (!CBB_add_space(cbb, &out, len)) {
+    return 0;
+  }
+  OPENSSL_memset(out, 0, len);
+  return 1;
+}
+
 int CBB_add_space(CBB *cbb, uint8_t **out_data, size_t len) {
   if (!CBB_flush(cbb) ||
       !cbb_buffer_add(cbb->base, out_data, len)) {
@@ -447,6 +456,10 @@ int CBB_add_u16(CBB *cbb, uint16_t value) {
   return cbb_buffer_add_u(cbb->base, value, 2);
 }
 
+int CBB_add_u16le(CBB *cbb, uint16_t value) {
+  return CBB_add_u16(cbb, CRYPTO_bswap2(value));
+}
+
 int CBB_add_u24(CBB *cbb, uint32_t value) {
   if (!CBB_flush(cbb)) {
     return 0;
@@ -463,11 +476,19 @@ int CBB_add_u32(CBB *cbb, uint32_t value) {
   return cbb_buffer_add_u(cbb->base, value, 4);
 }
 
+int CBB_add_u32le(CBB *cbb, uint32_t value) {
+  return CBB_add_u32(cbb, CRYPTO_bswap4(value));
+}
+
 int CBB_add_u64(CBB *cbb, uint64_t value) {
   if (!CBB_flush(cbb)) {
     return 0;
   }
   return cbb_buffer_add_u(cbb->base, value, 8);
+}
+
+int CBB_add_u64le(CBB *cbb, uint64_t value) {
+  return CBB_add_u64(cbb, CRYPTO_bswap8(value));
 }
 
 void CBB_discard_child(CBB *cbb) {
@@ -513,6 +534,34 @@ int CBB_add_asn1_uint64(CBB *cbb, uint64_t value) {
     return 0;
   }
 
+  return CBB_flush(cbb);
+}
+
+int CBB_add_asn1_int64(CBB *cbb, int64_t value) {
+  if (value >= 0) {
+    return CBB_add_asn1_uint64(cbb, value);
+  }
+
+  union {
+    int64_t i;
+    uint8_t bytes[sizeof(int64_t)];
+  } u;
+  u.i = value;
+  int start = 7;
+  // Skip leading sign-extension bytes unless they are necessary.
+  while (start > 0 && (u.bytes[start] == 0xff && (u.bytes[start - 1] & 0x80))) {
+    start--;
+  }
+
+  CBB child;
+  if (!CBB_add_asn1(cbb, &child, CBS_ASN1_INTEGER)) {
+    return 0;
+  }
+  for (int i = start; i >= 0; i--) {
+    if (!CBB_add_u8(&child, u.bytes[i])) {
+      return 0;
+    }
+  }
   return CBB_flush(cbb);
 }
 

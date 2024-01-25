@@ -28,38 +28,6 @@
 namespace cobalt {
 namespace h5vcc {
 
-// We keep a global mapping of all registered logs.  When a crash occurs, we
-// will iterate through the mapping in this dictionary to extract all
-// logged entries and write them to the system's crash logger via Starboard.
-class CrashLogDictionary {
- public:
-  static CrashLogDictionary* GetInstance();
-
-  void SetString(const std::string& key, const std::string& value);
-
- private:
-  CrashLogDictionary();
-
-  static void CoreDumpHandler(void* context);
-
-  void OnCrash();
-
-  friend struct base::DefaultSingletonTraits<CrashLogDictionary>;
-
-  base::subtle::Atomic32 accessing_log_data_;
-
-  // It is possible for multiple threads to call the H5VCC interface at the
-  // same time, and they will all forward to this global singleton, so we
-  // use this mutex to protect against concurrent access.
-  base::Lock mutex_;
-
-  typedef std::map<std::string, std::string> StringMap;
-  // Keeps track of all string values to be logged when a crash occurs.
-  StringMap string_log_map_;
-
-  DISALLOW_COPY_AND_ASSIGN(CrashLogDictionary);
-};
-
 class H5vccCrashLog : public script::Wrappable {
  public:
   H5vccCrashLog() {}

@@ -397,6 +397,8 @@ static_library("c_internal") {
     "src/starboard/sys/time/gettimeofday.c",
     "src/starboard/time/__tz.c",
     "src/starboard/time/clock_gettime.c",
+    "src/starboard/time/gmtime_r.c",
+    "src/starboard/time/time.c",
     "src/stdio/__toread.c",
     "src/stdio/__uflow.c",
     "src/stdio/fprintf.c",
@@ -525,6 +527,7 @@ static_library("c_internal") {
 
   deps = [
     "//starboard:starboard_headers_only",
+    "//starboard/client_porting/eztime",
     "//starboard/common:common_headers_only",
   ]
 }

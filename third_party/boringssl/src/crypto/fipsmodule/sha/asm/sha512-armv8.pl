@@ -47,7 +47,7 @@ if ($flavour && $flavour ne "void") {
     ( $xlate="${dir}../../../perlasm/arm-xlate.pl" and -f $xlate) or
     die "can't locate arm-xlate.pl";
 
-    open OUT,"| \"$^X\" $xlate $flavour $output";
+    open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
     *STDOUT=*OUT;
 } else {
     open OUT,">$output";
@@ -179,12 +179,14 @@ $code.=<<___;
 .text
 
 .extern	OPENSSL_armcap_P
+.hidden	OPENSSL_armcap_P
 .globl	$func
 .type	$func,%function
 .align	6
 $func:
 ___
 $code.=<<___	if ($SZ==4);
+	AARCH64_VALID_CALL_TARGET
 #ifndef	__KERNEL__
 #if __has_feature(hwaddress_sanitizer) && __clang_major__ >= 10
 	adrp	x16,:pg_hi21_nc:OPENSSL_armcap_P
@@ -197,6 +199,7 @@ $code.=<<___	if ($SZ==4);
 #endif
 ___
 $code.=<<___;
+	AARCH64_SIGN_LINK_REGISTER
 	stp	x29,x30,[sp,#-128]!
 	add	x29,sp,#0
 
@@ -259,6 +262,7 @@ $code.=<<___;
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#128
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 .size	$func,.-$func
 
@@ -350,6 +354,7 @@ $code.=<<___;
 .align	6
 sha256_block_armv8:
 .Lv8_entry:
+	// Armv8.3-A PAuth: even though x30 is pushed to stack it is not popped later.
 	stp		x29,x30,[sp,#-16]!
 	add		x29,sp,#0
 
@@ -419,13 +424,6 @@ $code.=<<___;
 ___
 }
 
-$code.=<<___;
-#ifndef	__KERNEL__
-.comm	OPENSSL_armcap_P,4,4
-.hidden	OPENSSL_armcap_P
-#endif
-___
-
 {   my  %opcode = (
 	"sha256h"	=> 0x5e004000,	"sha256h2"	=> 0x5e005000,
 	"sha256su0"	=> 0x5e282800,	"sha256su1"	=> 0x5e006000	);
@@ -461,4 +459,4 @@ foreach(split("\n",$code)) {
 	print $_,"\n";
 }
 
-close STDOUT or die "error closing STDOUT";
+close STDOUT or die "error closing STDOUT: $!";

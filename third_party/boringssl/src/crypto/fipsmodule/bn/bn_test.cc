@@ -73,6 +73,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <algorithm>
 #include <utility>
 
 #include <gtest/gtest.h>
@@ -91,6 +92,7 @@
 #include "../../test/abi_test.h"
 #include "../../test/file_test.h"
 #include "../../test/test_util.h"
+#include "../../test/wycheproof_util.h"
 
 
 static int HexToBIGNUM(bssl::UniquePtr<BIGNUM> *out, const char *in) {
@@ -554,6 +556,19 @@ static void TestQuotient(BIGNUMFileTest *t, BN_CTX *ctx) {
   EXPECT_BIGNUMS_EQUAL("A / B", quotient.get(), ret.get());
   EXPECT_BIGNUMS_EQUAL("A % B", remainder.get(), ret2.get());
 
+  ASSERT_TRUE(BN_copy(ret.get(), a.get()));
+  ASSERT_TRUE(BN_copy(ret2.get(), b.get()));
+  ASSERT_TRUE(BN_div(ret.get(), ret2.get(), ret.get(), ret2.get(), ctx));
+  EXPECT_BIGNUMS_EQUAL("A / B (in-place)", quotient.get(), ret.get());
+  EXPECT_BIGNUMS_EQUAL("A % B (in-place)", remainder.get(), ret2.get());
+
+  ASSERT_TRUE(BN_copy(ret2.get(), a.get()));
+  ASSERT_TRUE(BN_copy(ret.get(), b.get()));
+  ASSERT_TRUE(BN_div(ret.get(), ret2.get(), ret2.get(), ret.get(), ctx));
+  EXPECT_BIGNUMS_EQUAL("A / B (in-place, swapped)", quotient.get(), ret.get());
+  EXPECT_BIGNUMS_EQUAL("A % B (in-place, swapped)", remainder.get(),
+                       ret2.get());
+
   ASSERT_TRUE(BN_mul(ret.get(), quotient.get(), b.get(), ctx));
   ASSERT_TRUE(BN_add(ret.get(), ret.get(), remainder.get()));
   EXPECT_BIGNUMS_EQUAL("Quotient * B + Remainder", a.get(), ret.get());
@@ -598,9 +613,17 @@ static void TestQuotient(BIGNUMFileTest *t, BN_CTX *ctx) {
     }
   }
 
-  ASSERT_TRUE(bn_div_consttime(ret.get(), ret2.get(), a.get(), b.get(), ctx));
+  ASSERT_TRUE(bn_div_consttime(ret.get(), ret2.get(), a.get(), b.get(),
+                               /*divisor_min_bits=*/0, ctx));
   EXPECT_BIGNUMS_EQUAL("A / B (constant-time)", quotient.get(), ret.get());
   EXPECT_BIGNUMS_EQUAL("A % B (constant-time)", remainder.get(), ret2.get());
+
+  ASSERT_TRUE(bn_div_consttime(ret.get(), ret2.get(), a.get(), b.get(),
+                               /*divisor_min_bits=*/BN_num_bits(b.get()), ctx));
+  EXPECT_BIGNUMS_EQUAL("A / B (constant-time, public width)", quotient.get(),
+                       ret.get());
+  EXPECT_BIGNUMS_EQUAL("A % B (constant-time, public width)", remainder.get(),
+                       ret2.get());
 }
 
 static void TestModMul(BIGNUMFileTest *t, BN_CTX *ctx) {
@@ -657,11 +680,26 @@ static void TestModMul(BIGNUMFileTest *t, BN_CTX *ctx) {
       bn_mod_mul_montgomery_small(r_words.get(), a_words.get(), b_words.get(),
                                   m_width, mont.get());
       // Use the second half of |tmp| so ASan will catch out-of-bounds writes.
-      bn_from_montgomery_small(r_words.get(), r_words.get(), m_width,
+      bn_from_montgomery_small(r_words.get(), m_width, r_words.get(), m_width,
                                mont.get());
       ASSERT_TRUE(bn_set_words(ret.get(), r_words.get(), m_width));
       EXPECT_BIGNUMS_EQUAL("A * B (mod M) (Montgomery, words)", mod_mul.get(),
                            ret.get());
+
+      // |bn_from_montgomery_small| must additionally work on double-width
+      // inputs. Test this by running |bn_from_montgomery_small| on the result
+      // of a product. Note |a_words| * |b_words| has an extra factor of R^2, so
+      // we must reduce twice.
+      std::unique_ptr<BN_ULONG[]> prod_words(new BN_ULONG[m_width * 2]);
+      bn_mul_small(prod_words.get(), m_width * 2, a_words.get(), m_width,
+                   b_words.get(), m_width);
+      bn_from_montgomery_small(r_words.get(), m_width, prod_words.get(),
+                               m_width * 2, mont.get());
+      bn_from_montgomery_small(r_words.get(), m_width, r_words.get(), m_width,
+                               mont.get());
+      ASSERT_TRUE(bn_set_words(ret.get(), r_words.get(), m_width));
+      EXPECT_BIGNUMS_EQUAL("A * B (mod M) (Montgomery, words)",
+                           mod_mul.get(), ret.get());
     }
 #endif
   }
@@ -719,7 +757,8 @@ static void TestModSquare(BIGNUMFileTest *t, BN_CTX *ctx) {
       bn_to_montgomery_small(a_words.get(), a_words.get(), m_width, mont.get());
       bn_mod_mul_montgomery_small(r_words.get(), a_words.get(), a_words.get(),
                                   m_width, mont.get());
-      bn_from_montgomery_small(r_words.get(), r_words.get(), m_width, mont.get());
+      bn_from_montgomery_small(r_words.get(), m_width, r_words.get(), m_width,
+                               mont.get());
       ASSERT_TRUE(bn_set_words(ret.get(), r_words.get(), m_width));
       EXPECT_BIGNUMS_EQUAL("A * A (mod M) (Montgomery, words)",
                            mod_square.get(), ret.get());
@@ -730,7 +769,7 @@ static void TestModSquare(BIGNUMFileTest *t, BN_CTX *ctx) {
       bn_mod_mul_montgomery_small(r_words.get(), a_words.get(),
                                   a_copy_words.get(), m_width, mont.get());
       // Use the second half of |tmp| so ASan will catch out-of-bounds writes.
-      bn_from_montgomery_small(r_words.get(), r_words.get(), m_width,
+      bn_from_montgomery_small(r_words.get(), m_width, r_words.get(), m_width,
                                mont.get());
       ASSERT_TRUE(bn_set_words(ret.get(), r_words.get(), m_width));
       EXPECT_BIGNUMS_EQUAL("A * A_copy (mod M) (Montgomery, words)",
@@ -781,7 +820,7 @@ static void TestModExp(BIGNUMFileTest *t, BN_CTX *ctx) {
       bn_to_montgomery_small(a_words.get(), a_words.get(), m_width, mont.get());
       bn_mod_exp_mont_small(r_words.get(), a_words.get(), m_width, e->d,
                             e->width, mont.get());
-      bn_from_montgomery_small(r_words.get(), r_words.get(), m_width,
+      bn_from_montgomery_small(r_words.get(), m_width, r_words.get(), m_width,
                                mont.get());
       ASSERT_TRUE(bn_set_words(ret.get(), r_words.get(), m_width));
       EXPECT_BIGNUMS_EQUAL("A ^ E (mod M) (Montgomery, words)", mod_exp.get(),
@@ -1986,16 +2025,17 @@ TEST_F(BNTest, PrimeChecking) {
 
     ASSERT_TRUE(BN_set_word(p.get(), i));
     ASSERT_TRUE(BN_primality_test(
-        &is_probably_prime_1, p.get(), BN_prime_checks, ctx(),
+        &is_probably_prime_1, p.get(), BN_prime_checks_for_generation, ctx(),
         false /* do_trial_division */, nullptr /* callback */));
     EXPECT_EQ(is_prime ? 1 : 0, is_probably_prime_1);
     ASSERT_TRUE(BN_primality_test(
-        &is_probably_prime_2, p.get(), BN_prime_checks, ctx(),
+        &is_probably_prime_2, p.get(), BN_prime_checks_for_generation, ctx(),
         true /* do_trial_division */, nullptr /* callback */));
     EXPECT_EQ(is_prime ? 1 : 0, is_probably_prime_2);
     if (i > 3 && i % 2 == 1) {
       ASSERT_TRUE(BN_enhanced_miller_rabin_primality_test(
-          &result_3, p.get(), BN_prime_checks, ctx(), nullptr /* callback */));
+          &result_3, p.get(), BN_prime_checks_for_generation, ctx(),
+          nullptr /* callback */));
       EXPECT_EQ(is_prime, result_3 == bn_probably_prime);
     }
   }
@@ -2003,13 +2043,13 @@ TEST_F(BNTest, PrimeChecking) {
   // Negative numbers are not prime.
   ASSERT_TRUE(BN_set_word(p.get(), 7));
   BN_set_negative(p.get(), 1);
-  ASSERT_TRUE(BN_primality_test(&is_probably_prime_1, p.get(), BN_prime_checks,
-                                ctx(), false /* do_trial_division */,
-                                nullptr /* callback */));
+  ASSERT_TRUE(BN_primality_test(
+      &is_probably_prime_1, p.get(), BN_prime_checks_for_generation, ctx(),
+      false /* do_trial_division */, nullptr /* callback */));
   EXPECT_EQ(0, is_probably_prime_1);
-  ASSERT_TRUE(BN_primality_test(&is_probably_prime_2, p.get(), BN_prime_checks,
-                                ctx(), true /* do_trial_division */,
-                                nullptr /* callback */));
+  ASSERT_TRUE(BN_primality_test(
+      &is_probably_prime_2, p.get(), BN_prime_checks_for_generation, ctx(),
+      true /* do_trial_division */, nullptr /* callback */));
   EXPECT_EQ(0, is_probably_prime_2);
 
   static const char *kComposites[] = {
@@ -2068,17 +2108,18 @@ TEST_F(BNTest, PrimeChecking) {
     EXPECT_NE(0, DecimalToBIGNUM(&p, str));
 
     ASSERT_TRUE(BN_primality_test(
-        &is_probably_prime_1, p.get(), BN_prime_checks, ctx(),
+        &is_probably_prime_1, p.get(), BN_prime_checks_for_generation, ctx(),
         false /* do_trial_division */, nullptr /* callback */));
     EXPECT_EQ(0, is_probably_prime_1);
 
     ASSERT_TRUE(BN_primality_test(
-        &is_probably_prime_2, p.get(), BN_prime_checks, ctx(),
+        &is_probably_prime_2, p.get(), BN_prime_checks_for_generation, ctx(),
         true /* do_trial_division */, nullptr /* callback */));
     EXPECT_EQ(0, is_probably_prime_2);
 
     ASSERT_TRUE(BN_enhanced_miller_rabin_primality_test(
-        &result_3, p.get(), BN_prime_checks, ctx(), nullptr /* callback */));
+        &result_3, p.get(), BN_prime_checks_for_generation, ctx(),
+        nullptr /* callback */));
     EXPECT_EQ(bn_composite, result_3);
   }
 
@@ -2257,25 +2298,27 @@ TEST_F(BNTest, PrimeChecking) {
     EXPECT_NE(0, HexToBIGNUM(&p, str));
 
     ASSERT_TRUE(BN_primality_test(
-        &is_probably_prime_1, p.get(), BN_prime_checks, ctx(),
+        &is_probably_prime_1, p.get(), BN_prime_checks_for_generation, ctx(),
         false /* do_trial_division */, nullptr /* callback */));
     EXPECT_EQ(1, is_probably_prime_1);
 
     ASSERT_TRUE(BN_primality_test(
-        &is_probably_prime_2, p.get(), BN_prime_checks, ctx(),
+        &is_probably_prime_2, p.get(), BN_prime_checks_for_generation, ctx(),
         true /* do_trial_division */, nullptr /* callback */));
     EXPECT_EQ(1, is_probably_prime_2);
 
     ASSERT_TRUE(BN_enhanced_miller_rabin_primality_test(
-        &result_3, p.get(), BN_prime_checks, ctx(), nullptr /* callback */));
+        &result_3, p.get(), BN_prime_checks_for_generation, ctx(),
+        nullptr /* callback */));
     EXPECT_EQ(bn_probably_prime, result_3);
   }
 
   // BN_primality_test works with null |BN_CTX|.
   ASSERT_TRUE(BN_set_word(p.get(), 5));
-  ASSERT_TRUE(BN_primality_test(
-      &is_probably_prime_1, p.get(), BN_prime_checks, nullptr /* ctx */,
-      false /* do_trial_division */, nullptr /* callback */));
+  ASSERT_TRUE(
+      BN_primality_test(&is_probably_prime_1, p.get(),
+                        BN_prime_checks_for_generation, nullptr /* ctx */,
+                        false /* do_trial_division */, nullptr /* callback */));
   EXPECT_EQ(1, is_probably_prime_1);
 }
 
@@ -2302,6 +2345,44 @@ TEST_F(BNTest, MillerRabinIteration) {
         std::string result;
         ASSERT_TRUE(t->GetAttribute(&result, "Result"));
         EXPECT_EQ(result, possibly_prime ? "PossiblyPrime" : "Composite");
+      });
+}
+
+// These tests are very slow, so we disable them by default to avoid timing out
+// downstream consumers. They are enabled when running tests standalone via
+// all_tests.go.
+TEST_F(BNTest, DISABLED_WycheproofPrimality) {
+  FileTestGTest(
+      "third_party/wycheproof_testvectors/primality_test.txt",
+      [&](FileTest *t) {
+        WycheproofResult result;
+        ASSERT_TRUE(GetWycheproofResult(t, &result));
+        bssl::UniquePtr<BIGNUM> value = GetWycheproofBIGNUM(t, "value", false);
+        ASSERT_TRUE(value);
+
+        for (int checks :
+             {BN_prime_checks_for_validation, BN_prime_checks_for_generation}) {
+          SCOPED_TRACE(checks);
+          if (checks == BN_prime_checks_for_generation &&
+              std::find(result.flags.begin(), result.flags.end(),
+                        "WorstCaseMillerRabin") != result.flags.end()) {
+            // Skip the worst case Miller-Rabin cases.
+            // |BN_prime_checks_for_generation| relies on such values being rare
+            // when generating primes.
+            continue;
+          }
+
+          int is_probably_prime;
+          ASSERT_TRUE(BN_primality_test(&is_probably_prime, value.get(), checks,
+                                        ctx(),
+                                        /*do_trial_division=*/false, nullptr));
+          EXPECT_EQ(result.IsValid() ? 1 : 0, is_probably_prime);
+
+          ASSERT_TRUE(BN_primality_test(&is_probably_prime, value.get(), checks,
+                                        ctx(),
+                                        /*do_trial_division=*/true, nullptr));
+          EXPECT_EQ(result.IsValid() ? 1 : 0, is_probably_prime);
+        }
       });
 }
 

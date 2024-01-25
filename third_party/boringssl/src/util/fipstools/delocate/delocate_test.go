@@ -47,9 +47,11 @@ var delocateTests = []delocateTest{
 	{"x86_64-Basic", []string{"in.s"}, "out.s"},
 	{"x86_64-BSS", []string{"in.s"}, "out.s"},
 	{"x86_64-GOTRewrite", []string{"in.s"}, "out.s"},
+	{"x86_64-LargeMemory", []string{"in.s"}, "out.s"},
 	{"x86_64-LabelRewrite", []string{"in1.s", "in2.s"}, "out.s"},
 	{"x86_64-Sections", []string{"in.s"}, "out.s"},
 	{"x86_64-ThreeArg", []string{"in.s"}, "out.s"},
+	{"aarch64-Basic", []string{"in.s"}, "out.s"},
 }
 
 func TestDelocate(t *testing.T) {

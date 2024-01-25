@@ -47,6 +47,10 @@ declare_args() {
   # pass-through to HDMI sink on Chromecast.
   enable_platform_ac3_eac3_audio = proprietary_codecs && is_chromecast
 
+  # Enables IAMF audio handling in chromium. This includes demuxing,
+  # on-device decoding and bitstream passthrough as supported by device.
+  enable_platform_iamf_audio = false
+
   enable_platform_mpeg_h_audio = proprietary_codecs && is_chromecast
 
   enable_mse_mpeg2ts_stream_parser =

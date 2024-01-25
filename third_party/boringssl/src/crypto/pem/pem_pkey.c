@@ -152,7 +152,6 @@ int PEM_write_bio_PrivateKey(BIO *bp, EVP_PKEY *x, const EVP_CIPHER *enc,
     return PEM_write_bio_PKCS8PrivateKey(bp, x, enc, (char *)kstr, klen, cb, u);
 }
 
-#ifndef OPENSSL_NO_FP_API
 EVP_PKEY *PEM_read_PrivateKey(FILE *fp, EVP_PKEY **x, pem_password_cb *cb,
                               void *u)
 {
@@ -180,7 +179,6 @@ int PEM_write_PrivateKey(FILE *fp, EVP_PKEY *x, const EVP_CIPHER *enc,
     return ret;
 }
 
-#endif
 
 /* Transparently read in PKCS#3 or X9.42 DH parameters */
 
@@ -205,7 +203,6 @@ DH *PEM_read_bio_DHparams(BIO *bp, DH **x, pem_password_cb *cb, void *u)
     return ret;
 }
 
-#ifndef OPENSSL_NO_FP_API
 DH *PEM_read_DHparams(FILE *fp, DH **x, pem_password_cb *cb, void *u)
 {
     BIO *b = BIO_new_fp(fp, BIO_NOCLOSE);
@@ -217,4 +214,3 @@ DH *PEM_read_DHparams(FILE *fp, DH **x, pem_password_cb *cb, void *u)
     BIO_free(b);
     return ret;
 }
-#endif
