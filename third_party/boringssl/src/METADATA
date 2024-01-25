@@ -11,8 +11,8 @@ third_party {
     type: GIT
     value: "https://boringssl.googlesource.com/boringssl"
   }
-  version: "87f316d7748268eb56f2dc147bd593254ae93198"
-  # from https://chromium.googlesource.com/chromium/src/+/96.0.4664.219/DEPS#261
+  version: "27ffcc6e19bbafddf1b59ec0bc6df2904de7eb2c"
+  # from https://chromium.googlesource.com/chromium/src/+/102.0.5005.193/DEPS#276
   last_upgrade_date {
     year: 2018
     month: 8

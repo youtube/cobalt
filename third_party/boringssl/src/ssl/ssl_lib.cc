@@ -390,8 +390,8 @@ void ssl_ctx_get_current_time(const SSL_CTX *ctx,
     out_clock->tv_usec = time.millitm * 1000;
   }
 #else
-  OPENSSL_port_timeval clock;
-  OPENSSL_port_gettimeofday(&clock, NULL);
+  struct timeval clock;
+  gettimeofday(&clock, NULL);
   if (clock.tv_sec < 0) {
     assert(0);
     out_clock->tv_sec = 0;
@@ -1697,6 +1697,10 @@ int SSL_set_read_ahead(SSL *ssl, int yes) { return 1; }
 
 int SSL_pending(const SSL *ssl) {
   return static_cast<int>(ssl->s3->pending_app_data.size());
+}
+
+int SSL_has_pending(const SSL *ssl) {
+  return SSL_pending(ssl) != 0 || !ssl->s3->read_buffer.empty();
 }
 
 int SSL_CTX_check_private_key(const SSL_CTX *ctx) {

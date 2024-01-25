@@ -245,14 +245,6 @@ UniquePtr<T> MakeUnique(Args &&... args) {
   { abort(); }
 #endif
 
-// CONSTEXPR_ARRAY works around a VS 2015 bug where ranged for loops don't work
-// on constexpr arrays.
-#if defined(_MSC_VER) && !defined(__clang__) && _MSC_VER < 1910
-#define CONSTEXPR_ARRAY const
-#else
-#define CONSTEXPR_ARRAY constexpr
-#endif
-
 // Array<T> is an owning array of elements of |T|.
 template <typename T>
 class Array {
@@ -1498,17 +1490,19 @@ enum ssl_client_hello_type_t {
 // ClientHelloOuter |client_hello_outer|. If successful, it writes the recovered
 // ClientHelloInner to |out_client_hello_inner|. It returns true on success and
 // false on failure.
+//
+// This function is exported for fuzzing.
 OPENSSL_EXPORT bool ssl_decode_client_hello_inner(
     SSL *ssl, uint8_t *out_alert, Array<uint8_t> *out_client_hello_inner,
     Span<const uint8_t> encoded_client_hello_inner,
     const SSL_CLIENT_HELLO *client_hello_outer);
 
-// ssl_client_hello_decrypt attempts to decrypt the |payload| and writes the
-// result to |*out|. |payload| must point into |client_hello_outer|. It returns
-// true on success and false on error. On error, it sets |*out_is_decrypt_error|
-// to whether the failure was due to a bad ciphertext.
-bool ssl_client_hello_decrypt(EVP_HPKE_CTX *hpke_ctx, Array<uint8_t> *out,
-                              bool *out_is_decrypt_error,
+// ssl_client_hello_decrypt attempts to decrypt and decode the |payload|. It
+// writes the result to |*out|. |payload| must point into |client_hello_outer|.
+// It returns true on success and false on error. On error, it sets
+// |*out_is_decrypt_error| to whether the failure was due to a bad ciphertext.
+bool ssl_client_hello_decrypt(SSL_HANDSHAKE *hs, uint8_t *out_alert,
+                              bool *out_is_decrypt_error, Array<uint8_t> *out,
                               const SSL_CLIENT_HELLO *client_hello_outer,
                               Span<const uint8_t> payload);
 
@@ -3511,7 +3505,7 @@ struct ssl_ctx_st {
   bssl::UniquePtr<bssl::CERT> cert;
 
   // callback that allows applications to peek at protocol messages
-  void (*msg_callback)(int write_p, int version, int content_type,
+  void (*msg_callback)(int is_write, int version, int content_type,
                        const void *buf, size_t len, SSL *ssl,
                        void *arg) = nullptr;
   void *msg_callback_arg = nullptr;
@@ -3692,7 +3686,7 @@ struct ssl_ctx_st {
 
  private:
   ~ssl_ctx_st();
-  friend void SSL_CTX_free(SSL_CTX *);
+  friend OPENSSL_EXPORT void SSL_CTX_free(SSL_CTX *);
 };
 
 struct ssl_st {
@@ -3934,7 +3928,7 @@ struct ssl_session_st {
 
  private:
   ~ssl_session_st();
-  friend void SSL_SESSION_free(SSL_SESSION *);
+  friend OPENSSL_EXPORT void SSL_SESSION_free(SSL_SESSION *);
 };
 
 struct ssl_ech_keys_st {
@@ -3947,7 +3941,7 @@ struct ssl_ech_keys_st {
 
  private:
   ~ssl_ech_keys_st() = default;
-  friend void SSL_ECH_KEYS_free(SSL_ECH_KEYS *);
+  friend OPENSSL_EXPORT void SSL_ECH_KEYS_free(SSL_ECH_KEYS *);
 };
 
 #endif  // OPENSSL_HEADER_SSL_INTERNAL_H

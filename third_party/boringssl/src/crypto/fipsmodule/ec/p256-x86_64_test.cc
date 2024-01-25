@@ -20,7 +20,6 @@
 #include <gtest/gtest.h>
 
 #include <openssl/bn.h>
-#include <openssl/cpu.h>
 #include <openssl/ec.h>
 #include <openssl/mem.h>
 #include <openssl/nid.h>
@@ -99,7 +98,7 @@ TEST(P256_X86_64Test, SelectW7) {
 }
 
 TEST(P256_X86_64Test, BEEU) {
-  if ((OPENSSL_ia32cap_P[1] & (1 << 28)) == 0) {
+  if (!CRYPTO_is_AVX_capable()) {
     // No AVX support; cannot run the BEEU code.
     return;
   }

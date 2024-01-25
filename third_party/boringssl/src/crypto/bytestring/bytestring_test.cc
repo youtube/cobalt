@@ -22,6 +22,7 @@
 
 #include <openssl/bytestring.h>
 #include <openssl/crypto.h>
+#include <openssl/span.h>
 
 #include "internal.h"
 #include "../internal.h"
@@ -594,22 +595,22 @@ TEST(CBBTest, ASN1) {
   EXPECT_EQ(Bytes(test_data.data(), test_data.size()), Bytes(buf + 10, 100000));
 }
 
-static void ExpectBerConvert(const char *name, const uint8_t *der_expected,
-                             size_t der_len, const uint8_t *ber,
-                             size_t ber_len) {
+static void ExpectBerConvert(const char *name,
+                             bssl::Span<const uint8_t> der_expected,
+                             bssl::Span<const uint8_t> ber) {
   SCOPED_TRACE(name);
   CBS in, out;
   uint8_t *storage;
 
-  CBS_init(&in, ber, ber_len);
+  CBS_init(&in, ber.data(), ber.size());
   ASSERT_TRUE(CBS_asn1_ber_to_der(&in, &out, &storage));
   bssl::UniquePtr<uint8_t> scoper(storage);
 
-  EXPECT_EQ(Bytes(der_expected, der_len), Bytes(CBS_data(&out), CBS_len(&out)));
+  EXPECT_EQ(Bytes(der_expected), Bytes(CBS_data(&out), CBS_len(&out)));
   if (storage != nullptr) {
-    EXPECT_NE(Bytes(der_expected, der_len), Bytes(ber, ber_len));
+    EXPECT_NE(Bytes(der_expected), Bytes(ber));
   } else {
-    EXPECT_EQ(Bytes(der_expected, der_len), Bytes(ber, ber_len));
+    EXPECT_EQ(Bytes(der_expected), Bytes(ber));
   }
 }
 
@@ -670,51 +671,60 @@ TEST(CBSTest, BerConvert) {
       0xa0, 0x08, 0x04, 0x02, 0x00, 0x01, 0x04, 0x02, 0x02, 0x03,
   };
 
-  ExpectBerConvert("kSimpleBER", kSimpleBER, sizeof(kSimpleBER), kSimpleBER,
-                   sizeof(kSimpleBER));
+  // kConstructedBitString contains a BER constructed BIT STRING. These are not
+  // supported and thus are left unchanged.
+  static const uint8_t kConstructedBitStringBER[] = {
+      0x23, 0x0a, 0x03, 0x03, 0x00, 0x12, 0x34, 0x03, 0x03, 0x00, 0x56, 0x78};
+
+  ExpectBerConvert("kSimpleBER", kSimpleBER, kSimpleBER);
   ExpectBerConvert("kNonMinimalLengthBER", kNonMinimalLengthDER,
-                   sizeof(kNonMinimalLengthDER), kNonMinimalLengthBER,
-                   sizeof(kNonMinimalLengthBER));
-  ExpectBerConvert("kIndefBER", kIndefDER, sizeof(kIndefDER), kIndefBER,
-                   sizeof(kIndefBER));
-  ExpectBerConvert("kIndefBER2", kIndefDER2, sizeof(kIndefDER2), kIndefBER2,
-                   sizeof(kIndefBER2));
-  ExpectBerConvert("kOctetStringBER", kOctetStringDER, sizeof(kOctetStringDER),
-                   kOctetStringBER, sizeof(kOctetStringBER));
-  ExpectBerConvert("kNSSBER", kNSSDER, sizeof(kNSSDER), kNSSBER,
-                   sizeof(kNSSBER));
+                   kNonMinimalLengthBER);
+  ExpectBerConvert("kIndefBER", kIndefDER, kIndefBER);
+  ExpectBerConvert("kIndefBER2", kIndefDER2, kIndefBER2);
+  ExpectBerConvert("kOctetStringBER", kOctetStringDER, kOctetStringBER);
+  ExpectBerConvert("kNSSBER", kNSSDER, kNSSBER);
   ExpectBerConvert("kConstructedStringBER", kConstructedStringDER,
-                   sizeof(kConstructedStringDER), kConstructedStringBER,
-                   sizeof(kConstructedStringBER));
+                   kConstructedStringBER);
+  ExpectBerConvert("kConstructedBitStringBER", kConstructedBitStringBER,
+                   kConstructedBitStringBER);
 }
 
 struct BERTest {
   const char *in_hex;
   bool ok;
   bool ber_found;
+  bool indefinite;
   unsigned tag;
 };
 
 static const BERTest kBERTests[] = {
-  // Trivial cases, also valid DER.
-  {"0000", true, false, 0},
-  {"0100", true, false, 1},
-  {"020101", true, false, 2},
+    // Trivial cases, also valid DER.
+    {"0000", true, false, false, 0},
+    {"0100", true, false, false, 1},
+    {"020101", true, false, false, 2},
 
-  // Non-minimally encoded lengths.
-  {"02810101", true, true, 2},
-  {"0282000101", true, true, 2},
-  {"028300000101", true, true, 2},
-  {"02840000000101", true, true, 2},
-  // Technically valid BER, but not handled.
-  {"02850000000101", false, false, 0},
+    // Non-minimally encoded lengths.
+    {"02810101", true, true, false, 2},
+    {"0282000101", true, true, false, 2},
+    {"028300000101", true, true, false, 2},
+    {"02840000000101", true, true, false, 2},
+    // Technically valid BER, but not handled.
+    {"02850000000101", false, false, false, 0},
 
-  {"0280", false, false, 0},  // Indefinite length, but not constructed.
-  {"2280", true, true, CBS_ASN1_CONSTRUCTED | 2},  // Indefinite length.
-  {"3f0000", false, false, 0},  // Invalid extended tag zero (X.690 8.1.2.4.2.c)
-  {"1f0100", false, false, 0},  // Should be a low-number tag form, even in BER.
-  {"1f4000", true, false, 0x40},
-  {"1f804000", false, false, 0},  // Non-minimal tags are invalid, even in BER.
+    // Indefinite length, but not constructed.
+    {"0280", false, false, false, 0},
+    // Indefinite length.
+    {"2280", true, true, true, CBS_ASN1_CONSTRUCTED | 2},
+    // Indefinite length with multi-byte tag.
+    {"bf1f80", true, true, true,
+     CBS_ASN1_CONSTRUCTED | CBS_ASN1_CONTEXT_SPECIFIC | 31},
+    // Invalid extended tag zero (X.690 8.1.2.4.2.c)
+    {"3f0000", false, false, false, 0},
+    // Should be a low-number tag form, even in BER.
+    {"1f0100", false, false, false, 0},
+    {"1f4000", true, false, false, 0x40},
+    // Non-minimal tags are invalid, even in BER.
+    {"1f804000", false, false, false, 0},
 };
 
 TEST(CBSTest, BERElementTest) {
@@ -728,14 +738,16 @@ TEST(CBSTest, BERElementTest) {
     unsigned tag;
     size_t header_len;
     int ber_found;
-    int ok =
-        CBS_get_any_ber_asn1_element(&in, &out, &tag, &header_len, &ber_found);
+    int indefinite;
+    int ok = CBS_get_any_ber_asn1_element(&in, &out, &tag, &header_len,
+                                          &ber_found, &indefinite);
     ASSERT_TRUE((ok == 1) == test.ok);
     if (!test.ok) {
       continue;
     }
 
-    EXPECT_TRUE((ber_found == 1) == test.ber_found);
+    EXPECT_EQ(test.ber_found ? 1 : 0, ber_found);
+    EXPECT_EQ(test.indefinite ? 1 : 0, indefinite);
     EXPECT_LE(header_len, in_bytes.size());
     EXPECT_EQ(CBS_len(&out), in_bytes.size());
     EXPECT_EQ(CBS_len(&in), 0u);

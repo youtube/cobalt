@@ -67,9 +67,6 @@
 #define SECS_PER_DAY (24 * 60 * 60)
 
 struct tm *OPENSSL_gmtime(const time_t *time, struct tm *result) {
-#if defined(OPENSSL_SYS_STARBOARD)
-  return OPENSSL_port_gmtime_r(time, result);
-#else  // defined(OPENSSL_SYS_STARBOARD)
 #if defined(OPENSSL_WINDOWS)
   if (gmtime_s(result, time)) {
     return NULL;
@@ -78,7 +75,6 @@ struct tm *OPENSSL_gmtime(const time_t *time, struct tm *result) {
 #else
   return gmtime_r(time, result);
 #endif
-#endif  // defined(OPENSSL_SYS_STARBOARD)
 }
 
 /* Convert date to and from julian day Uses Fliegel & Van Flandern algorithm */

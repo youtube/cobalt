@@ -364,9 +364,30 @@ OPENSSL_EXPORT int SSL_read(SSL *ssl, void *buf, int num);
 // SSL_peek behaves like |SSL_read| but does not consume any bytes returned.
 OPENSSL_EXPORT int SSL_peek(SSL *ssl, void *buf, int num);
 
-// SSL_pending returns the number of bytes available in |ssl|. It does not read
-// from the transport.
+// SSL_pending returns the number of buffered, decrypted bytes available for
+// read in |ssl|. It does not read from the transport.
+//
+// In DTLS, it is possible for this function to return zero while there is
+// buffered, undecrypted data from the transport in |ssl|. For example,
+// |SSL_read| may read a datagram with two records, decrypt the first, and leave
+// the second buffered for a subsequent call to |SSL_read|. Callers that wish to
+// detect this case can use |SSL_has_pending|.
 OPENSSL_EXPORT int SSL_pending(const SSL *ssl);
+
+// SSL_has_pending returns one if |ssl| has buffered, decrypted bytes available
+// for read, or if |ssl| has buffered data from the transport that has not yet
+// been decrypted. If |ssl| has neither, this function returns zero.
+//
+// In TLS, BoringSSL does not implement read-ahead, so this function returns one
+// if and only if |SSL_pending| would return a non-zero value. In DTLS, it is
+// possible for this function to return one while |SSL_pending| returns zero.
+// For example, |SSL_read| may read a datagram with two records, decrypt the
+// first, and leave the second buffered for a subsequent call to |SSL_read|.
+//
+// As a result, if this function returns one, the next call to |SSL_read| may
+// still fail, read from the transport, or both. The buffered, undecrypted data
+// may be invalid or incomplete.
+OPENSSL_EXPORT int SSL_has_pending(const SSL *ssl);
 
 // SSL_write writes up to |num| bytes from |buf| into |ssl|. It implicitly runs
 // any pending handshakes, including renegotiations when enabled. On success, it
@@ -2440,6 +2461,15 @@ OPENSSL_EXPORT int (*SSL_CTX_get_verify_callback(const SSL_CTX *ctx))(
 OPENSSL_EXPORT int (*SSL_get_verify_callback(const SSL *ssl))(
     int ok, X509_STORE_CTX *store_ctx);
 
+// SSL_set1_host sets a DNS name that will be required to be present in the
+// verified leaf certificate. It returns one on success and zero on error.
+//
+// Note: unless _some_ name checking is performed, certificate validation is
+// ineffective. Simply checking that a host has some certificate from a CA is
+// rarely meaningful—you have to check that the CA believed that the host was
+// who you expect to be talking to.
+OPENSSL_EXPORT int SSL_set1_host(SSL *ssl, const char *hostname);
+
 // SSL_CTX_set_verify_depth sets the maximum depth of a certificate chain
 // accepted in verification. This number does not include the leaf, so a depth
 // of 1 allows the leaf and one CA certificate.
@@ -2612,6 +2642,11 @@ OPENSSL_EXPORT int SSL_CTX_set_verify_algorithm_prefs(SSL_CTX *ctx,
 OPENSSL_EXPORT int SSL_set_verify_algorithm_prefs(SSL *ssl,
                                                   const uint16_t *prefs,
                                                   size_t num_prefs);
+
+// SSL_set_hostflags calls |X509_VERIFY_PARAM_set_hostflags| on the
+// |X509_VERIFY_PARAM| associated with this |SSL*|. The |flags| argument
+// should be one of the |X509_CHECK_*| constants.
+OPENSSL_EXPORT void SSL_set_hostflags(SSL *ssl, unsigned flags);
 
 
 // Client certificate CA list.
@@ -3889,6 +3924,10 @@ OPENSSL_EXPORT uint64_t SSL_get_read_sequence(const SSL *ssl);
 // two most significant bytes.
 OPENSSL_EXPORT uint64_t SSL_get_write_sequence(const SSL *ssl);
 
+// SSL_CTX_set_record_protocol_version returns whether |version| is zero.
+OPENSSL_EXPORT int SSL_CTX_set_record_protocol_version(SSL_CTX *ctx,
+                                                       int version);
+
 
 // Handshake hints.
 //
@@ -4002,10 +4041,16 @@ OPENSSL_EXPORT int SSL_set_handshake_hints(SSL *ssl, const uint8_t *hints,
 // |len| bytes from |buf| contain the handshake message, one-byte
 // ChangeCipherSpec body, and two-byte alert, respectively.
 //
+// In connections that enable ECH, |cb| is additionally called with
+// |content_type| = |SSL3_RT_CLIENT_HELLO_INNER| for each ClientHelloInner that
+// is encrypted or decrypted. The |len| bytes from |buf| contain the
+// ClientHelloInner, including the reconstructed outer extensions and handshake
+// header.
+//
 // For a V2ClientHello, |version| is |SSL2_VERSION|, |content_type| is zero, and
 // the |len| bytes from |buf| contain the V2ClientHello structure.
 OPENSSL_EXPORT void SSL_CTX_set_msg_callback(
-    SSL_CTX *ctx, void (*cb)(int write_p, int version, int content_type,
+    SSL_CTX *ctx, void (*cb)(int is_write, int version, int content_type,
                              const void *buf, size_t len, SSL *ssl, void *arg));
 
 // SSL_CTX_set_msg_callback_arg sets the |arg| parameter of the message
@@ -4160,7 +4205,7 @@ OPENSSL_EXPORT int SSL_set_max_send_fragment(SSL *ssl,
 // callbacks that are called very early on during the server handshake. At this
 // point, much of the SSL* hasn't been filled out and only the ClientHello can
 // be depended on.
-typedef struct ssl_early_callback_ctx {
+struct ssl_early_callback_ctx {
   SSL *ssl;
   const uint8_t *client_hello;
   size_t client_hello_len;
@@ -4175,7 +4220,7 @@ typedef struct ssl_early_callback_ctx {
   size_t compression_methods_len;
   const uint8_t *extensions;
   size_t extensions_len;
-} SSL_CLIENT_HELLO;
+} /* SSL_CLIENT_HELLO */;
 
 // ssl_select_cert_result_t enumerates the possible results from selecting a
 // certificate with |select_certificate_cb|.
@@ -4577,20 +4622,13 @@ OPENSSL_EXPORT int SSL_get_shared_sigalgs(SSL *ssl, int idx, int *psign,
 // SSL_MODE_HANDSHAKE_CUTTHROUGH is the same as SSL_MODE_ENABLE_FALSE_START.
 #define SSL_MODE_HANDSHAKE_CUTTHROUGH SSL_MODE_ENABLE_FALSE_START
 
-// i2d_SSL_SESSION serializes |in| to the bytes pointed to by |*pp|. On success,
-// it returns the number of bytes written and advances |*pp| by that many bytes.
-// On failure, it returns -1. If |pp| is NULL, no bytes are written and only the
-// length is returned.
+// i2d_SSL_SESSION serializes |in|, as described in |i2d_SAMPLE|.
 //
 // Use |SSL_SESSION_to_bytes| instead.
 OPENSSL_EXPORT int i2d_SSL_SESSION(SSL_SESSION *in, uint8_t **pp);
 
 // d2i_SSL_SESSION parses a serialized session from the |length| bytes pointed
-// to by |*pp|. It returns the new |SSL_SESSION| and advances |*pp| by the
-// number of bytes consumed on success and NULL on failure. The caller takes
-// ownership of the new session and must call |SSL_SESSION_free| when done.
-//
-// If |a| is non-NULL, |*a| is released and set the new |SSL_SESSION|.
+// to by |*pp|, as described in |d2i_SAMPLE|.
 //
 // Use |SSL_SESSION_from_bytes| instead.
 OPENSSL_EXPORT SSL_SESSION *d2i_SSL_SESSION(SSL_SESSION **a, const uint8_t **pp,
@@ -5568,7 +5606,7 @@ BSSL_NAMESPACE_END
 #define SSL_R_INVALID_ECH_PUBLIC_NAME 317
 #define SSL_R_INVALID_ECH_CONFIG_LIST 318
 #define SSL_R_ECH_REJECTED 319
-#define SSL_R_OUTER_EXTENSION_NOT_FOUND 320
+#define SSL_R_INVALID_OUTER_EXTENSION 320
 #define SSL_R_INCONSISTENT_ECH_NEGOTIATION 321
 #define SSL_R_SSLV3_ALERT_CLOSE_NOTIFY 1000
 #define SSL_R_SSLV3_ALERT_UNEXPECTED_MESSAGE 1010

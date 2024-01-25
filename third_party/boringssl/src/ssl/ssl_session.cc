@@ -946,8 +946,6 @@ ssl_session_st::ssl_session_st(const SSL_X509_METHOD *method)
       is_quic(false),
       has_application_settings(false) {
   CRYPTO_new_ex_data(&ex_data);
-  // OPENSSL_port_time can't be used here because the name conflict between
-  // the variable and system call needs to be resolved.
   time = ::time(nullptr);
 }
 
