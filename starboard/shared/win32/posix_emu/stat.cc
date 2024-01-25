@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <windows.h>
 #include <direct.h>
+#include <windows.h>
 
 #include "starboard/common/log.h"
 #include "starboard/types.h"
 
-int sb_mkdir(const char *path, mode_t mode) {
+int sb_mkdir(const char* path, mode_t mode) {
   return _mkdir(path);
 }
-

@@ -20,7 +20,6 @@
 #define strcasecmp _stricmp
 #define strncasecmp _strnicmp
 
-
 #if defined(STARBOARD)
 
 #define free sb_free
@@ -38,7 +37,7 @@ typedef int clockid_t;
 #define CLOCK_THREAD_CPUTIME_ID 3
 
 typedef unsigned int mode_t;
-int sb_mkdir(const char *path, mode_t mode);
+int sb_mkdir(const char* path, mode_t mode);
 
 #ifdef __cplusplus
 extern "C" {
