@@ -221,7 +221,6 @@
 #ifndef OPENSSL_OPENSSL_CONFIG_STARBOARD_OPENSSL_OPENSSLCONF_H
 #define OPENSSL_OPENSSL_CONFIG_STARBOARD_OPENSSL_OPENSSLCONF_H
 
-#define OPENSSL_port_abort SbSystemBreakIntoDebugger
 #define OPENSSL_port_getenv(x) NULL
 #define OPENSSL_port_strerror(x) ""
 
