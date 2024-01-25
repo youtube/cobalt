@@ -66,6 +66,10 @@ _FILTERED_TESTS = {
         'SbPlayerGetAudioConfigurationTests/SbPlayerGetAudioConfigurationTest.NoInput/*',
         'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.NoInput/*',
 
+        # Android does not support AC3 and EAC3 partial audio.
+        'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.PartialAudio*/*ac3*',
+        'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.PartialAudio*/*ec3*',
+
         # Android does not use SbDrmSessionClosedFunc, which these tests
         # depend on.
         'SbDrmSessionTest.SunnyDay',
