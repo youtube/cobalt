@@ -14,9 +14,12 @@
 
 #if SB_API_VERSION >= 16
 
-#if defined(OS_WIN)
-#include <mswsock.h>
+#if defined(_WIN32)
+// WinSock includes need to be in particular order
+// clang-format off
 #include <winsock2.h>
+#include <mswsock.h>
+#include <WS2tcpip.h>
 #else
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -37,11 +40,11 @@ class PosixSocketSetOptionsTest : public ::testing::TestWithParam<int> {
 };
 
 TEST_P(PosixSocketSetOptionsTest, TryThemAllTCP) {
-#if defined(OS_WIN)
+#if defined(_WIN32)
   int socket_fd =
       WSASocketW(GetSocketDomain(), SOCK_STREAM, IPPROTO_TCP, nullptr, 0, 0);
 #else
-  int socket_fd = ::socket(GetSocketDomain(), SOCK_STREAM, IPPROTO_TCP);
+  int socket_fd = socket(GetSocketDomain(), SOCK_STREAM, IPPROTO_TCP);
 #endif
 
   int true_val = 1;
@@ -55,22 +58,31 @@ TEST_P(PosixSocketSetOptionsTest, TryThemAllTCP) {
   EXPECT_EQ(setsockopt(socket_fd, SOL_SOCKET, SO_SNDBUF, &value, sizeof(value)),
             0);
 
+  // Test TCP keepalive option.
   int period_seconds = static_cast<int>(30'000'000 / 1'000'000);
   EXPECT_EQ(setsockopt(socket_fd, SOL_SOCKET, SO_KEEPALIVE, &true_val,
                        sizeof(true_val)),
             0);
+  #if defined(__APPLE__)
+  // For reference:
+  // https://stackoverflow.com/questions/15860127/how-to-configure-tcp-keepalive-under-mac-os-
+  EXPECT_EQ(setsockopt(socket_fd, IPPROTO_TCP, TCP_KEEPALIVE, &period_seconds,
+                       sizeof(period_seconds)),
+            0);
+  #else
   EXPECT_EQ(setsockopt(socket_fd, SOL_TCP, TCP_KEEPIDLE, &period_seconds,
                        sizeof(period_seconds)),
             0);
   EXPECT_EQ(setsockopt(socket_fd, SOL_TCP, TCP_KEEPINTVL, &period_seconds,
                        sizeof(period_seconds)),
             0);
+  #endif
 
   EXPECT_EQ(setsockopt(socket_fd, IPPROTO_TCP, TCP_NODELAY, &true_val,
                        sizeof(true_val)),
             0);
 
-#if defined(OS_WIN)
+#if defined(_WIN32)
   closesocket(socket_fd);
 #else
   close(socket_fd);
@@ -78,11 +90,11 @@ TEST_P(PosixSocketSetOptionsTest, TryThemAllTCP) {
 }
 
 TEST_P(PosixSocketSetOptionsTest, TryThemAllUDP) {
-#if defined(OS_WIN)
+#if defined(_WIN32)
   int socket_fd =
       WSASocketW(GetSocketDomain(), SOCK_STREAM, IPPROTO_TCP, nullptr, 0, 0);
 #else
-  int socket_fd = ::socket(GetSocketDomain(), SOCK_STREAM, IPPROTO_TCP);
+  int socket_fd = socket(GetSocketDomain(), SOCK_STREAM, IPPROTO_TCP);
 #endif
 
   int true_val = 1;
@@ -99,7 +111,7 @@ TEST_P(PosixSocketSetOptionsTest, TryThemAllUDP) {
   EXPECT_EQ(setsockopt(socket_fd, SOL_SOCKET, SO_SNDBUF, &value, sizeof(value)),
             0);
 
-#if defined(OS_WIN)
+#if defined(_WIN32)
   closesocket(socket_fd);
 #else
   close(socket_fd);
