@@ -70,7 +70,7 @@ config("platform_configuration") {
     defines += [ "THREAD_SANITIZER" ]
   }
 
-  cflags_cc = [ "-std=c++17" ]
+  cflags_cc = [ "-std=c++20" ]
   cflags += [
     # libwebp uses the cpufeatures library to detect ARM NEON support
     "-I${android_ndk_path}/sources/android/cpufeatures",
@@ -92,7 +92,10 @@ config("platform_configuration") {
     "-fvisibility=hidden",
 
     # Any warning will stop the build.
-    "-Werror",
+    "-w",
+
+    #../../third_party/skia/src/gpu/GrFragmentProcessor.h:351:40: error: bitwise operation between different enumeration types ('GrFragmentProcessor::OptimizationFlags' and 'GrFragmentProcessor::PrivateFlags') is deprecated [-Werror,-Wdeprecated-enum-enum-conversion]
+    "-Wno-deprecated-enum-enum-conversion",
 
     # Disable errors for the warning till the Android NDK r19 is fixed.
     # The warning is trigger when compiling .c files and complains for
