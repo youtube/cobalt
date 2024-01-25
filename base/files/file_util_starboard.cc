@@ -317,9 +317,8 @@ bool CreateDirectoryAndGetError(const FilePath &full_path, File::Error* error) {
   AssertBlockingAllowed();
 
   // Fast-path: can the full path be resolved from the full path?
-  int retval = mkdir(full_path.value().c_str(), 0700);
   if (DirectoryExists(full_path) ||
-      retval == 0 ||
+      mkdir(full_path.value().c_str(), 0700) == 0 ||
       SbDirectoryCanOpen(full_path.value().c_str())) {
     return true;
   }
@@ -344,8 +343,7 @@ bool CreateDirectoryAndGetError(const FilePath &full_path, File::Error* error) {
     if (DirectoryExists(*i)) {
       continue;
     }
-    int retval2 = mkdir(i->value().c_str(), 0700);
-    if (retval2 != 0 && !SbDirectoryCanOpen(i->value().c_str())) {
+    if (mkdir(i->value().c_str(), 0700) != 0 && !SbDirectoryCanOpen(i->value().c_str())) {
       if (error)
         *error = File::OSErrorToFileError(SbSystemGetLastError());
       return false;

@@ -707,8 +707,7 @@ bool InstallationManager::CreateInstallationDirs() {
     if (!GetInstallationPathInternal(i, path.data(), kSbFileMaxPath)) {
       return false;
     }
-    int created = mkdir(path.data(), 0700);
-    if (created != 0 && !SbDirectoryCanOpen(path.data())) {
+    if (!SbDirectoryCanOpen(path.data()) && mkdir(path.data(), 0700) != 0) {
       return false;
     }
   }

@@ -37,9 +37,8 @@ TEST(SbFileDeleteTest, SunnyDayDeleteExistingDirectory) {
 #if SB_API_VERSION < 16
   EXPECT_TRUE(SbDirectoryCreate(path.c_str()));
 #else
-  int created = mkdir(path.c_str(), 0700);
-  bool exists = SbDirectoryCanOpen(path.c_str());
-  EXPECT_TRUE(created == 0 || exists);
+  EXPECT_TRUE(SbDirectoryCanOpen(path.c_str()) ||
+              mkdir(path.c_str(), 0700) == 0);
 #endif  // SB_API_VERSION < 16
   EXPECT_TRUE(SbDirectoryCanOpen(path.c_str()));
   EXPECT_TRUE(SbFileDelete(path.c_str()));
