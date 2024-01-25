@@ -112,10 +112,6 @@ if (concurrent_links == "") {
   }
 } else {
   assert(!use_thin_lto, "can't explicitly set concurrent_links with thinlto")
-
-  # Convert the value to a number if it's a string.
-  concurrent_links =
-      exec_script("//starboard/build/echo.py", [ concurrent_links ], "value")
   concurrent_links_logs =
       [ "concurrent_links set by GN arg (value=$concurrent_links)" ]
 }
