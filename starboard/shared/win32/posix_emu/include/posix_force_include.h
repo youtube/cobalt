@@ -20,9 +20,13 @@
 #define strcasecmp _stricmp
 #define strncasecmp _strnicmp
 
+
 #if defined(STARBOARD)
 
 #define free sb_free
+
+#undef mkdir
+#define mkdir sb_mkdir
 
 #include <time.h>  // For struct timespec
 
@@ -32,6 +36,9 @@ typedef int clockid_t;
 #define CLOCK_MONOTONIC 1
 #define CLOCK_PROCESS_CPUTIME_ID 2
 #define CLOCK_THREAD_CPUTIME_ID 3
+
+typedef unsigned int mode_t;
+int sb_mkdir(const char *path, mode_t mode);
 
 #ifdef __cplusplus
 extern "C" {

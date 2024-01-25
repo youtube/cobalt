@@ -17,9 +17,6 @@
 #include "starboard/file.h"
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#ifdef _WIN32
-#include <direct.h>
-#endif
 namespace starboard {
 namespace nplb {
 namespace {
@@ -40,12 +37,7 @@ TEST(SbFileDeleteTest, SunnyDayDeleteExistingDirectory) {
 #if SB_API_VERSION < 16
   EXPECT_TRUE(SbDirectoryCreate(path.c_str()));
 #else
-  int created;
-#ifdef _WIN32
-  created = _mkdir(path.c_str());
-#else
-  created = mkdir(path.c_str(), 0700);
-#endif
+  int created = mkdir(path.c_str(), 0700);
   bool exists = SbDirectoryCanOpen(path.c_str());
   EXPECT_TRUE(created == 0 || exists);
 #endif  // SB_API_VERSION < 16

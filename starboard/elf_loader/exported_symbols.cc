@@ -47,9 +47,7 @@
 #if SB_API_VERSION >= 16
 #include "starboard/shared/modular/posix_mmap_wrappers.h"
 #include "starboard/shared/modular/posix_time_wrappers.h"
-#ifdef _WIN32
-#include <direct.h>
-#endif
+
 #endif  // SB_API_VERSION >= 16
 #include "starboard/socket.h"
 #include "starboard/socket_waiter.h"

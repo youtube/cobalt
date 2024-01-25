@@ -33,9 +33,6 @@
 #endif  // !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 #include "starboard/once.h"
 #include "starboard/string.h"
-#ifdef _WIN32
-#include <direct.h>
-#endif
 
 namespace starboard {
 namespace loader_app {
@@ -710,12 +707,7 @@ bool InstallationManager::CreateInstallationDirs() {
     if (!GetInstallationPathInternal(i, path.data(), kSbFileMaxPath)) {
       return false;
     }
-    int created;
-#ifdef _WIN32
-    created = _mkdir(path.data());
-#else
-    created = mkdir(path.data(), 0700);
-#endif
+    int created = mkdir(path.data(), 0700);
     if (created != 0 && !SbDirectoryCanOpen(path.data())) {
       return false;
     }
