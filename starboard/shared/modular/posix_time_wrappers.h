@@ -72,22 +72,35 @@ extern "C" {
 #define __SB_BYTE_ORDER 1234
 #endif
 #if SB_IS(ARCH_ARM64) || SB_IS(ARCH_X64)
-#define __SB_LONG_TYPE int64_t
+#define __MUSL_LONG_TYPE int64_t
 #else
-#define __SB_LONG_TYPE int32_t
+#define __MUSL_LONG_TYPE int32_t
 #endif
 // Note, these structs need to ABI match the musl definitions.
 struct musl_timespec {
   int64_t /* time_t */ tv_sec;
-  int : 8 * (sizeof(int64_t) - sizeof(__SB_LONG_TYPE)) *
+  int : 8 * (sizeof(int64_t) - sizeof(__MUSL_LONG_TYPE)) *
       (__SB_BYTE_ORDER == 4321);
-  __SB_LONG_TYPE /* long */ tv_nsec;
-  int : 8 * (sizeof(int64_t) - sizeof(__SB_LONG_TYPE)) *
+  __MUSL_LONG_TYPE /* long */ tv_nsec;
+  int : 8 * (sizeof(int64_t) - sizeof(__MUSL_LONG_TYPE)) *
       (__SB_BYTE_ORDER != 4321);
 };
 struct musl_timeval {
   int64_t /* time_t */ tv_sec;
   int64_t /* suseconds_t */ tv_usec;
+};
+struct musl_tm {
+  int32_t /* int */ tm_sec;
+  int32_t /* int */ tm_min;
+  int32_t /* int */ tm_hour;
+  int32_t /* int */ tm_mday;
+  int32_t /* int */ tm_mon;
+  int32_t /* int */ tm_year;
+  int32_t /* int */ tm_wday;
+  int32_t /* int */ tm_yday;
+  int32_t /* int */ tm_isdst;
+  __MUSL_LONG_TYPE /* long */ __tm_gmtoff;
+  const char* __tm_zone;
 };
 // Copying macro constants from //third_party/musl/include/time.h
 #define MUSL_CLOCK_REALTIME 0
@@ -95,10 +108,16 @@ struct musl_timeval {
 #define MUSL_CLOCK_PROCESS_CPUTIME_ID 2
 #define MUSL_CLOCK_THREAD_CPUTIME_ID 3
 
-SB_EXPORT int __wrap_clock_gettime(int /*clockid_t */ musl_clock_id,
+SB_EXPORT int __wrap_clock_gettime(int /* clockid_t */ musl_clock_id,
                                    struct musl_timespec* mts);
 
 SB_EXPORT int __wrap_gettimeofday(struct musl_timeval* mtv, void* tzp);
+
+SB_EXPORT int64_t __wrap_time(int64_t* /* time_t* */ musl_tloc);
+
+SB_EXPORT struct musl_tm* __wrap_gmtime_r(
+    const int64_t* /* time_t* */ musl_timer,
+    struct musl_tm* musl_result);
 
 #ifdef __cplusplus
 }  // extern "C"

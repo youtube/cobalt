@@ -16,7 +16,6 @@
 
 #include <stdlib.h>
 #include <sys/mman.h>
-#include <time.h>
 
 #include "starboard/accessibility.h"
 #include "starboard/audio_sink.h"
@@ -417,8 +416,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(posix_memalign);
   REGISTER_SYMBOL(free);
   REGISTER_SYMBOL(vsscanf);
-  REGISTER_SYMBOL(time);
-  REGISTER_SYMBOL(mmap);
   REGISTER_SYMBOL(mprotect);
   REGISTER_SYMBOL(munmap);
   REGISTER_SYMBOL(msync);
@@ -430,6 +427,8 @@ ExportedSymbols::ExportedSymbols() {
   // TODO: b/316603042 - Detect via NPLB and only add the wrapper if needed.
   map_["clock_gettime"] = reinterpret_cast<const void*>(&__wrap_clock_gettime);
   map_["gettimeofday"] = reinterpret_cast<const void*>(&__wrap_gettimeofday);
+  map_["time"] = reinterpret_cast<const void*>(&__wrap_time);
+  map_["gmtime_r"] = reinterpret_cast<const void*>(&__wrap_gmtime_r);
   map_["mmap"] = reinterpret_cast<const void*>(&__wrap_mmap);
 
   REGISTER_SYMBOL(sprintf);

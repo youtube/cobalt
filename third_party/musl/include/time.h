@@ -144,7 +144,9 @@ __REDIR(timespec_get, __timespec_get_time64);
 #if defined(_POSIX_SOURCE) || defined(_POSIX_C_SOURCE) \
  || defined(_XOPEN_SOURCE) || defined(_GNU_SOURCE) \
  || defined(_BSD_SOURCE)
+#if !defined(STARBOARD)
 __REDIR(gmtime_r, __gmtime64_r);
+#endif  // !defined(STARBOARD)
 __REDIR(localtime_r, __localtime64_r);
 __REDIR(ctime_r, __ctime64_r);
 __REDIR(nanosleep, __nanosleep_time64);
