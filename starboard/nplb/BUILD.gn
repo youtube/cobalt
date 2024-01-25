@@ -136,6 +136,7 @@ target(gtest_target_type, "nplb") {
     "player_write_sample_test.cc",
     "posix_compliance/posix_arpa_inet_test.cc",
     "posix_compliance/posix_memory_map_test.cc",
+    "posix_compliance/posix_socket_set_options_test.cc",
     "posix_compliance/posix_string_compare_no_case_n_test.cc",
     "posix_compliance/posix_string_compare_no_case_test.cc",
     "posix_compliance/posix_string_format_test.cc",
