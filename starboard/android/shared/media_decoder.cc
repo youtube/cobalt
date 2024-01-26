@@ -76,7 +76,8 @@ const char* GetDecoderName(SbMediaType media_type) {
 
 MediaDecoder::MediaDecoder(Host* host,
                            const AudioStreamInfo& audio_stream_info,
-                           SbDrmSystem drm_system)
+                           SbDrmSystem drm_system,
+                           bool use_mediacodec_callback_thread)
     : media_type_(kSbMediaTypeAudio),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
@@ -87,7 +88,7 @@ MediaDecoder::MediaDecoder(Host* host,
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
   media_codec_bridge_ = MediaCodecBridge::CreateAudioMediaCodecBridge(
-      audio_stream_info, this, j_media_crypto);
+      audio_stream_info, this, j_media_crypto, use_mediacodec_callback_thread);
   if (!media_codec_bridge_) {
     SB_LOG(ERROR) << "Failed to create audio media codec bridge.";
     return;
@@ -119,6 +120,7 @@ MediaDecoder::MediaDecoder(Host* host,
                            int tunnel_mode_audio_session_id,
                            bool force_big_endian_hdr_metadata,
                            bool force_improved_support_check,
+                           bool use_mediacodec_callback_thread,
                            std::string* error_message)
     : media_type_(kSbMediaTypeVideo),
       host_(host),
@@ -137,7 +139,7 @@ MediaDecoder::MediaDecoder(Host* host,
       j_output_surface, j_media_crypto, color_metadata, require_secured_decoder,
       require_software_codec, tunnel_mode_audio_session_id,
       force_big_endian_hdr_metadata, force_improved_support_check,
-      error_message);
+      use_mediacodec_callback_thread, error_message);
   if (!media_codec_bridge_) {
     SB_LOG(ERROR) << "Failed to create video media codec bridge with error: "
                   << *error_message;
