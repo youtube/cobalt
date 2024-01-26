@@ -66,6 +66,9 @@ config("compiler_flags") {
       # Default visibility to hidden, to enable dead stripping.
       "-fvisibility=hidden",
     ]
+    if (is_clang_18) {
+      cflags += [ "-Wno-invalid-offsetof" ]
+    }
 
     if (is_gold) {
       cflags += [

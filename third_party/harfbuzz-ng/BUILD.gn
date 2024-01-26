@@ -54,6 +54,11 @@ if (use_system_harfbuzz) {
         # by static_assert).
         "-Wno-unused-local-typedef",
       ]
+      if (is_clang_18) {
+        cflags += [
+          "-Wno-vla-extension-static-assert"
+        ]
+      }
     }
     if (is_win) {
       if (is_starboard) {

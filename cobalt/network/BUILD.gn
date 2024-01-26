@@ -292,5 +292,8 @@ if (enable_in_app_dial) {
       "//net:http_server",
       "//starboard/common",
     ]
+    if (is_clang_18 && use_cobalt_customizations) {
+      cflags = [ "-Wno-invalid-offsetof" ]
+    }
   }
 }

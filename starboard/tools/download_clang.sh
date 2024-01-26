@@ -16,7 +16,7 @@
 
 set -e
 
-CLANG_VERSION="${1:-16-init-17653-g39da55e8-2}"
+CLANG_VERSION="${1:-18-init-17730-gf670112a-1}"
 TOOLCHAIN_ROOT="${HOME}/starboard-toolchains/"
 TOOLCHAIN_HOME="${TOOLCHAIN_ROOT}/x86_64-linux-gnu-clang-chromium-${CLANG_VERSION}"
 

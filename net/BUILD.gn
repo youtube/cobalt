@@ -1737,6 +1737,11 @@ component("net") {
       "-Wno-unqualified-std-cast-call",
     ]
   }
+  if (is_clang_18 && use_cobalt_customizations) {
+    cflags += [
+      "-Wno-invalid-offsetof",
+    ]
+  }
 }
 
 proto_library("net_nqe_proto") {
