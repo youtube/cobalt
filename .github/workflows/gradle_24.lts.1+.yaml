@@ -18,11 +18,16 @@ jobs:
 
     steps:
       - uses: kaidokert/checkout@v3.5.999
+<<<<<<< HEAD:.github/workflows/gradle_24.lts.1+.yaml
       - name: Set up JDK 11
+=======
+        timeout-minutes: 30
+      - name: Set up JDK 17
+>>>>>>> 79c1ce0e246 (Upgrade CoAT to use jdk 17 (#2268)):.github/workflows/gradle.yaml
         uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
-          java-version: 11
+          java-version: 17
       - name: Validate Gradle wrapper
         uses: gradle/wrapper-validation-action@ccb4328a959376b642e027874838f60f8e596de3 #v1.0.6
       - name: Build with Gradle

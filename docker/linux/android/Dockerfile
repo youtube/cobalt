@@ -14,10 +14,18 @@
 
 FROM cobalt-build-base
 
+<<<<<<< HEAD
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \
+=======
+# TODO: b/309157124 - add --no-install-recommends.
+RUN apt update -qqy
+RUN apt -y install wget curl
+RUN wget https://download.oracle.com/java/17/latest/jdk-17_linux-x64_bin.deb
+RUN apt install -qqy \
+>>>>>>> 79c1ce0e246 (Upgrade CoAT to use jdk 17 (#2268))
         libxml2-dev \
-        default-jdk \
+        ./jdk-17_linux-x64_bin.deb \
         binutils-arm-linux-gnueabi \
         g++-multilib \
     && /opt/clean-after-apt.sh
