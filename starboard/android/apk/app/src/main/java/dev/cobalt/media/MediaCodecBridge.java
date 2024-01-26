@@ -31,6 +31,8 @@ import android.media.MediaCrypto;
 import android.media.MediaFormat;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.view.Surface;
 import androidx.annotation.Nullable;
 import dev.cobalt.util.Log;
@@ -92,6 +94,9 @@ class MediaCodecBridge {
   // Only create one of these and reuse it to avoid excessive allocations,
   // which would cause GC cycles long enough to impact playback.
   private final MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
+
+  private Handler mHandler = null;
+  private HandlerThread mCallbackThread = null;
 
   // Type of bitrate adjustment for video encoder.
   public enum BitrateAdjustmentTypes {
@@ -451,7 +456,8 @@ class MediaCodecBridge {
       MediaCodec mediaCodec,
       String mime,
       BitrateAdjustmentTypes bitrateAdjustmentType,
-      int tunnelModeAudioSessionId) {
+      int tunnelModeAudioSessionId,
+      boolean useCallbackThread) {
     if (mediaCodec == null) {
       throw new IllegalArgumentException();
     }
@@ -461,6 +467,11 @@ class MediaCodecBridge {
     mLastPresentationTimeUs = 0;
     mFlushed = true;
     mBitrateAdjustmentType = bitrateAdjustmentType;
+    if (useCallbackThread) {
+      mCallbackThread = new HandlerThread("MediaCodec:Callback:Handler");
+      mCallbackThread.start();
+      mHandler = new Handler(mCallbackThread.getLooper());
+    }
     mCallback =
         new MediaCodec.Callback() {
           @Override
@@ -525,7 +536,7 @@ class MediaCodecBridge {
             }
           }
         };
-    mMediaCodec.setCallback(mCallback);
+    mMediaCodec.setCallback(mCallback, mHandler);
 
     // TODO: support OnFrameRenderedListener for non tunnel mode
     if (tunnelModeAudioSessionId != -1) {
@@ -555,6 +566,7 @@ class MediaCodecBridge {
       int sampleRate,
       int channelCount,
       MediaCrypto crypto,
+      boolean useCallbackThread,
       @Nullable byte[] configurationData) {
     if (decoderName.equals("")) {
       Log.e(TAG, "Invalid decoder name.");
@@ -573,7 +585,12 @@ class MediaCodecBridge {
     }
     MediaCodecBridge bridge =
         new MediaCodecBridge(
-            nativeMediaCodecBridge, mediaCodec, mime, BitrateAdjustmentTypes.NO_ADJUSTMENT, -1);
+            nativeMediaCodecBridge,
+            mediaCodec,
+            mime,
+            BitrateAdjustmentTypes.NO_ADJUSTMENT,
+            -1,
+            useCallbackThread);
 
     MediaFormat mediaFormat = createAudioFormat(mime, sampleRate, channelCount);
 
@@ -618,6 +635,7 @@ class MediaCodecBridge {
       MediaCrypto crypto,
       ColorInfo colorInfo,
       int tunnelModeAudioSessionId,
+      boolean useCallbackThread,
       CreateMediaCodecBridgeResult outCreateMediaCodecBridgeResult) {
     MediaCodec mediaCodec = null;
     outCreateMediaCodecBridgeResult.mMediaCodecBridge = null;
@@ -671,7 +689,8 @@ class MediaCodecBridge {
             mediaCodec,
             mime,
             BitrateAdjustmentTypes.NO_ADJUSTMENT,
-            tunnelModeAudioSessionId);
+            tunnelModeAudioSessionId,
+            useCallbackThread);
     MediaFormat mediaFormat =
         createVideoDecoderFormat(mime, widthHint, heightHint, videoCapabilities);
 
@@ -806,6 +825,11 @@ class MediaCodecBridge {
       Log.e(TAG, "Cannot release media codec", e);
     }
     mMediaCodec = null;
+    if (mCallbackThread != null) {
+      mCallbackThread.quitSafely();
+      mCallbackThread = null;
+      mHandler = null;
+    }
   }
 
   @SuppressWarnings("unused")
