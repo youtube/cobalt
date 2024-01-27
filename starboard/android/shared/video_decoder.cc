@@ -358,6 +358,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
                            bool force_big_endian_hdr_metadata,
                            bool force_improved_support_check,
                            bool use_mediacodec_callback_thread,
+                           int max_video_input_size,
                            std::string* error_message)
     : video_codec_(video_stream_info.codec),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
@@ -366,6 +367,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
           decode_target_graphics_context_provider),
       max_video_capabilities_(max_video_capabilities),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
+      max_video_input_size_(max_video_input_size),
       force_reset_surface_under_tunnel_mode_(
           force_reset_surface_under_tunnel_mode),
       has_new_texture_available_(false),
@@ -716,7 +718,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       std::bind(&VideoDecoder::OnTunnelModeFrameRendered, this, _1),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
       force_improved_support_check_, use_mediacodec_callback_thread_,
-      error_message));
+      max_video_input_size_, error_message));
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
       media_decoder_->Initialize(

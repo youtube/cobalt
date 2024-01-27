@@ -72,6 +72,7 @@ class VideoDecoder
                bool force_big_endian_hdr_metadata,
                bool force_improved_support_check,
                bool use_mediacodec_callback_thread,
+               int max_input_size,
                std::string* error_message);
   ~VideoDecoder() override;
 
@@ -151,6 +152,9 @@ class VideoDecoder
   const bool force_big_endian_hdr_metadata_;
 
   const int tunnel_mode_audio_session_id_ = -1;
+
+  // Set the maximum size in bytes of an input buffer for video.
+  const int max_video_input_size_;
 
   // Force resetting the video surface after tunnel mode playback, which
   // prevents video distortion on some devices.

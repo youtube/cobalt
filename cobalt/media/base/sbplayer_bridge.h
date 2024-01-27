@@ -94,7 +94,7 @@ class SbPlayerBridge {
                  SbPlayerOutputMode default_output_mode,
                  DecodeTargetProvider* const decode_target_provider,
                  const std::string& max_video_capabilities,
-                 std::string pipeline_identifier);
+                 int max_video_input_size, std::string pipeline_identifier);
 
   ~SbPlayerBridge();
 
@@ -300,6 +300,9 @@ class SbPlayerBridge {
   std::string video_mime_type_;
   // A string of video maximum capabilities.
   std::string max_video_capabilities_;
+
+  // Set the maximum size in bytes of an input buffer for video.
+  int max_video_input_size_;
 
   // Keep track of errors during player creation.
   bool is_creating_player_ = false;

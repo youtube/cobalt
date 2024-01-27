@@ -49,7 +49,7 @@ using video_dmp::VideoDmpReader;
 typedef VideoDmpReader::AudioAccessUnit AudioAccessUnit;
 typedef VideoDmpReader::VideoAccessUnit VideoAccessUnit;
 typedef PlayerComponents::Factory::CreationParameters CreationParameters;
-typedef std::tuple<const char*, const char*, SbPlayerOutputMode>
+typedef std::tuple<const char*, const char*, SbPlayerOutputMode, int>
     PlayerComponentsTestParam;
 
 const SbTimeMonotonic kDefaultPrerollTimeOut = 5 * kSbTimeSecond;
@@ -64,12 +64,14 @@ class PlayerComponentsTest
   PlayerComponentsTest()
       : audio_filename_(std::get<0>(GetParam())),
         video_filename_(std::get<1>(GetParam())),
-        output_mode_(std::get<2>(GetParam())) {
+        output_mode_(std::get<2>(GetParam())),
+        max_video_input_size_(std::get<3>(GetParam())) {
     SB_LOG(INFO) << "Testing: \"" << audio_filename_ << "\", \""
                  << video_filename_
                  << (output_mode_ == kSbPlayerOutputModeDecodeToTexture
-                         ? "\", kSbPlayerOutputModeDecodeToTexture."
-                         : "\", kSbPlayerOutputModePunchOut.");
+                         ? "\", kSbPlayerOutputModeDecodeToTexture, "
+                         : "\", kSbPlayerOutputModePunchOut, ")
+                 << max_video_input_size_ << ".";
   }
 
   void SetUp() override {
@@ -89,7 +91,10 @@ class PlayerComponentsTest
       CreationParameters creation_parameters(
           audio_reader_->audio_stream_info(),
           video_reader_->video_stream_info(), kDummyPlayer, output_mode_,
+          max_video_input_size_,
           fake_graphics_context_provider_.decoder_target_provider());
+      ASSERT_EQ(creation_parameters.max_video_input_size(),
+                max_video_input_size_);
       player_components_ =
           factory->CreateComponents(creation_parameters, &error_message);
     } else if (audio_reader_) {
@@ -103,7 +108,10 @@ class PlayerComponentsTest
       ASSERT_TRUE(video_reader_);
       CreationParameters creation_parameters(
           video_reader_->video_stream_info(), kDummyPlayer, output_mode_,
+          max_video_input_size_,
           fake_graphics_context_provider_.decoder_target_provider());
+      ASSERT_EQ(creation_parameters.max_video_input_size(),
+                max_video_input_size_);
       player_components_ =
           factory->CreateComponents(creation_parameters, &error_message);
     }
@@ -471,6 +479,7 @@ class PlayerComponentsTest
   const std::string audio_filename_;
   const std::string video_filename_;
   const SbPlayerOutputMode output_mode_;
+  const int max_video_input_size_;
   JobQueue job_queue_;
   FakeGraphicsContextProvider fake_graphics_context_provider_;
   unique_ptr<VideoDmpReader> audio_reader_;
@@ -491,12 +500,14 @@ std::string GetPlayerComponentsTestConfigName(
   std::string audio_filename(std::get<0>(info.param));
   std::string video_filename(std::get<1>(info.param));
   SbPlayerOutputMode output_mode = std::get<2>(info.param);
+  int max_video_input_size = std::get<3>(info.param);
 
   std::string config_name(FormatString(
-      "%s_%s_%s", audio_filename.empty() ? "null" : audio_filename.c_str(),
+      "%s_%s_%s_%d", audio_filename.empty() ? "null" : audio_filename.c_str(),
       video_filename.empty() ? "null" : video_filename.c_str(),
       output_mode == kSbPlayerOutputModeDecodeToTexture ? "DecodeToTexture"
-                                                        : "Punchout"));
+                                                        : "Punchout",
+      max_video_input_size));
 
   std::replace(config_name.begin(), config_name.end(), '.', '_');
   return config_name;
@@ -675,13 +686,15 @@ TEST_P(PlayerComponentsTest, SeekBackward) {
 }
 
 PlayerComponentsTestParam CreateParam(const char* audio_file,
-                                      const VideoTestParam& video_param) {
+                                      const VideoTestParam& video_param,
+                                      const int max_video_input_size) {
   return std::make_tuple(audio_file, std::get<0>(video_param),
-                         std::get<1>(video_param));
+                         std::get<1>(video_param), max_video_input_size);
 }
 
 vector<PlayerComponentsTestParam> GetSupportedCreationParameters() {
   vector<PlayerComponentsTestParam> supported_parameters;
+  int max_video_input_size = 0;
 
   // TODO: Enable tests of "heaac.dmp".
   vector<const char*> audio_files =
@@ -708,10 +721,11 @@ vector<PlayerComponentsTestParam> GetSupportedCreationParameters() {
   }
 
   for (size_t i = 0; i < video_params.size(); i++) {
-    supported_parameters.push_back(CreateParam("", video_params[i]));
+    supported_parameters.push_back(
+        CreateParam("", video_params[i], max_video_input_size));
     for (size_t j = 0; j < audio_files.size(); j++) {
       supported_parameters.push_back(
-          CreateParam(audio_files[j], video_params[i]));
+          CreateParam(audio_files[j], video_params[i], max_video_input_size));
     }
   }
   SB_DCHECK(supported_parameters.size() < 50)
@@ -723,13 +737,15 @@ vector<PlayerComponentsTestParam> GetSupportedCreationParameters() {
             kSbPlayerOutputModeDecodeToTexture, kSbMediaVideoCodecNone,
             kSbDrmSystemInvalid)) {
       supported_parameters.push_back(std::make_tuple(
-          audio_files[i], "", kSbPlayerOutputModeDecodeToTexture));
+          audio_files[i], "", kSbPlayerOutputModeDecodeToTexture,
+          max_video_input_size));
     }
     if (PlayerComponents::Factory::OutputModeSupported(
             kSbPlayerOutputModePunchOut, kSbMediaVideoCodecNone,
             kSbDrmSystemInvalid)) {
       supported_parameters.push_back(
-          std::make_tuple(audio_files[i], "", kSbPlayerOutputModePunchOut));
+          std::make_tuple(audio_files[i], "", kSbPlayerOutputModePunchOut,
+                          max_video_input_size));
     }
   }
 

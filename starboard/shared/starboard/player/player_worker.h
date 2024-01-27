@@ -111,6 +111,8 @@ class PlayerWorker {
 
     virtual SbDecodeTarget GetCurrentDecodeTarget() = 0;
 
+    virtual void SetMaxVideoInputSize(int max_video_input_size) = 0;
+
    private:
     Handler(const Handler&) = delete;
     Handler& operator=(const Handler&) = delete;
