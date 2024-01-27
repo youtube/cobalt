@@ -40,5 +40,3 @@ no_pedantic_warnings_config_path =
 cobalt_licenses_platform = "evergreen"
 
 install_target_path = "//starboard/build/install/install_target.gni"
-
-is_clang_16 = true

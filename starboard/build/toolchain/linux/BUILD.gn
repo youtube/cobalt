@@ -22,7 +22,6 @@ clang_toolchain("x64") {
     current_os = "linux"
     current_cpu = "x64"
     toolchain_config_path = "//starboard/build/config/linux:host"
-    is_clang_16 = true
   }
 }
 
@@ -33,6 +32,5 @@ clang_toolchain("x86") {
     current_os = "linux"
     current_cpu = "x86"
     toolchain_config_path = "//starboard/build/config/linux:host"
-    is_clang_16 = true
   }
 }
