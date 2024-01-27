@@ -236,6 +236,13 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       return scoped_ptr<PlayerComponents>();
     }
 
+    // Set max_video_input_size with a non-zero value to overwrite
+    // MediaFormat.KEY_MAX_INPUT_SIZE. Use -1 as default value.
+    int max_video_input_size = creation_parameters.max_video_input_size();
+    SB_LOG_IF(INFO, max_video_input_size != 0)
+        << "The maximum size in bytes of a buffer of data is "
+        << max_video_input_size;
+
     scoped_ptr<::starboard::shared::starboard::player::filter::VideoRenderer>
         video_renderer;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
@@ -253,10 +260,11 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         video_use_mediacodec_callback_thread =
             video_mime_type.GetParamBoolValue("mediacodeccallbackthread", true);
       }
-      scoped_ptr<VideoDecoder> video_decoder = CreateVideoDecoder(
-          creation_parameters, kTunnelModeAudioSessionId,
-          kForceSecurePipelineUnderTunnelMode,
-          video_use_mediacodec_callback_thread, error_message);
+      scoped_ptr<VideoDecoder> video_decoder =
+          CreateVideoDecoder(creation_parameters, kTunnelModeAudioSessionId,
+                             kForceSecurePipelineUnderTunnelMode,
+                             video_use_mediacodec_callback_thread,
+                             max_video_input_size, error_message);
       if (video_decoder) {
         using starboard::shared::starboard::player::filter::VideoRendererImpl;
 
@@ -424,16 +432,23 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       SB_DCHECK(video_render_algorithm);
       SB_DCHECK(video_renderer_sink);
       SB_DCHECK(error_message);
+      // Set max_video_input_size with a non-zero value to overwrite
+      // MediaFormat.KEY_MAX_INPUT_SIZE. Use -1 as default value.
+      int max_video_input_size = creation_parameters.max_video_input_size();
+      SB_LOG_IF(INFO, max_video_input_size != 0)
+          << "The maximum size in bytes of a buffer of data is "
+          << max_video_input_size;
 
       if (tunnel_mode_audio_session_id == -1) {
         force_secure_pipeline_under_tunnel_mode = false;
       }
       bool video_use_mediacodec_callback_thread =
           video_mime_type.GetParamBoolValue("mediacodeccallbackthread", true);
-      scoped_ptr<VideoDecoder> video_decoder_impl = CreateVideoDecoder(
-          creation_parameters, tunnel_mode_audio_session_id,
-          force_secure_pipeline_under_tunnel_mode,
-          video_use_mediacodec_callback_thread, error_message);
+      scoped_ptr<VideoDecoder> video_decoder_impl =
+          CreateVideoDecoder(creation_parameters, tunnel_mode_audio_session_id,
+                             force_secure_pipeline_under_tunnel_mode,
+                             video_use_mediacodec_callback_thread,
+                             max_video_input_size, error_message);
       if (video_decoder_impl) {
         *video_render_algorithm = video_decoder_impl->GetRenderAlgorithm();
         *video_renderer_sink = video_decoder_impl->GetSink();
@@ -478,6 +493,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       int tunnel_mode_audio_session_id,
       bool force_secure_pipeline_under_tunnel_mode,
       bool use_mediacodec_callback_thread,
+      int max_video_input_size,
       std::string* error_message) {
     bool force_big_endian_hdr_metadata = false;
     if (!creation_parameters.video_mime().empty()) {
@@ -499,7 +515,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         creation_parameters.max_video_capabilities(),
         tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode,
         kForceResetSurfaceUnderTunnelMode, force_big_endian_hdr_metadata,
-        use_mediacodec_callback_thread, error_message));
+        use_mediacodec_callback_thread, max_video_input_size, error_message));
     if (creation_parameters.video_codec() == kSbMediaVideoCodecAv1 ||
         video_decoder->is_decoder_created()) {
       return video_decoder.Pass();
