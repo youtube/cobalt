@@ -165,6 +165,9 @@ public class AudioTrackBridge {
       }
       audioTrackBufferSize /= 2;
     }
+    if (isAudioTrackValid()) {
+      audioTrackBufferSize = audioTrack.getBufferSizeInFrames() * channelCount * getBytesPerSample(sampleType);
+    }
     Log.i(
         TAG,
         "AudioTrack created with buffer size %d (preferred: %d).  The minimum buffer size is"
