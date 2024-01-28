@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "starboard/android/shared/media_capabilities_cache.h"
+#include "starboard/android/shared/player_perf.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
@@ -162,6 +163,8 @@ AudioTrackAudioSink::AudioTrackAudioSink(
     return;
   }
 
+  SetAudioTrackBridge(&bridge_);
+
   pthread_create(&audio_out_thread_, nullptr,
                  &AudioTrackAudioSink::ThreadEntryPoint, this);
   SB_DCHECK(audio_out_thread_ != 0);
@@ -193,6 +196,10 @@ void* AudioTrackAudioSink::ThreadEntryPoint(void* context) {
   ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityRealTime);
 
   AudioTrackAudioSink* sink = reinterpret_cast<AudioTrackAudioSink*>(context);
+  char name[128] = {0};
+  pthread_getname_np(pthread_self(), name, SB_ARRAY_SIZE_INT(name));
+  // TODO(b/350737545): fix thread name.
+  AddThreadIDInternal("audio_track_aud", static_cast<int32_t>(SbThreadGetId()));
   sink->AudioThreadFunc();
 
   return NULL;

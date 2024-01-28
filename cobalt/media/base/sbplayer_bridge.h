@@ -29,6 +29,7 @@
 #include "cobalt/media/base/decode_target_provider.h"
 #include "cobalt/media/base/decoder_buffer_cache.h"
 #include "cobalt/media/base/sbplayer_interface.h"
+#include "cobalt/media/base/sbplayer_perf.h"
 #include "cobalt/media/base/sbplayer_set_bounds_helper.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/decoder_buffer.h"
@@ -326,6 +327,9 @@ class SbPlayerBridge {
   // Used for Gathered Sample Write.
   bool pending_audio_eos_buffer_ = false;
   bool pending_video_eos_buffer_ = false;
+
+  base::Thread perf_thread_;
+  SbPlayerPerf* sbplayer_perf_;
 
   CValStats* cval_stats_;
   std::string pipeline_identifier_;

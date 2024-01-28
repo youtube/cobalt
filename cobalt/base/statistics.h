@@ -37,6 +37,12 @@ inline int64_t DefaultSampleToValueFunc(int64_t dividend, int64_t divisor) {
 
 }  // namespace internal
 
+typedef struct Percentiles {
+  int64_t percentile_25th;
+  int64_t median;
+  int64_t percentile_75th;
+} Percentiles;
+
 // Track the statistics of a series of generic samples reprensented as
 // dividends and divisors in integer types.  The value of a sample is calculated
 // by `SampleToValueFunc` using its dividend and divisor.
@@ -78,6 +84,8 @@ class Statistics {
   int64_t max() const { return 0; }
 
   int64_t GetMedian() const { return 0; }
+  void GetPercentiles(Percentiles* out_percentiles) {}
+  size_t GetNumberOfSamples() { return 0; }
 };
 
 #else  // defined(COBALT_BUILD_TYPE_GOLD)
@@ -151,13 +159,32 @@ class Statistics {
       samples_to_copy -= MaxSamples - first_sample_index_;
       copy.insert(copy.end(), samples_, samples_ + samples_to_copy);
     }
-
-    std::nth_element(copy.begin(), copy.begin() + number_of_samples_ / 2,
-                     copy.end(), [](const Sample& left, const Sample& right) {
-                       return GetSampleValue(left) < GetSampleValue(right);
-                     });
-    return GetSampleValue(copy[number_of_samples_ / 2]);
+    return GetNthPercentile(copy, number_of_samples_ / 2);
   }
+
+  void GetPercentiles(Percentiles* out_percentiles) {
+    if (number_of_samples_ == 0) {
+      return;
+    }
+    std::vector<Sample> copy;
+    copy.reserve(number_of_samples_);
+    if (first_sample_index_ + number_of_samples_ <= MaxSamples) {
+      copy.assign(samples_ + first_sample_index_,
+                  samples_ + first_sample_index_ + number_of_samples_);
+    } else {
+      auto samples_to_copy = number_of_samples_;
+      copy.assign(samples_ + first_sample_index_, samples_ + MaxSamples);
+      samples_to_copy -= MaxSamples - first_sample_index_;
+      copy.insert(copy.end(), samples_, samples_ + samples_to_copy);
+    }
+    out_percentiles->percentile_25th =
+        GetNthPercentile(copy, number_of_samples_ / 4);
+    out_percentiles->median = GetNthPercentile(copy, number_of_samples_ / 2);
+    out_percentiles->percentile_75th =
+        GetNthPercentile(copy, number_of_samples_ * 3 / 4);
+  }
+
+  size_t GetNumberOfSamples() { return number_of_samples_; }
 
  private:
   Statistics(const Statistics&) = delete;
@@ -171,6 +198,14 @@ class Statistics {
   static int64_t GetSampleValue(const Sample& sample) {
     return SampleToValueFunc(static_cast<int64_t>(sample.dividend),
                              static_cast<int64_t>(sample.divisor));
+  }
+
+  static int GetNthPercentile(std::vector<Sample>& copy, int place) {
+    std::nth_element(copy.begin(), copy.begin() + place, copy.end(),
+                     [](const Sample& left, const Sample& right) {
+                       return GetSampleValue(left) < GetSampleValue(right);
+                     });
+    return GetSampleValue(copy[place]);
   }
 
   bool first_sample_added_ = false;

@@ -33,6 +33,7 @@
 #include "starboard/common/player.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
+#include "starboard/extension/player_perf.h"
 #include "starboard/extension/player_set_max_video_input_size.h"
 #include "starboard/memory.h"
 
@@ -45,6 +46,12 @@ using base::Time;
 using base::TimeDelta;
 using starboard::FormatString;
 using starboard::GetPlayerOutputModeName;
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+constexpr bool kForceCPUUtilizationMeasure = true;
+#else
+constexpr bool kForceCPUUtilizationMeasure = false;
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
 class StatisticsWrapper {
  public:
@@ -253,6 +260,7 @@ SbPlayerBridge::SbPlayerBridge(
       decode_target_provider_(decode_target_provider),
       max_video_capabilities_(max_video_capabilities),
       max_video_input_size_(max_video_input_size),
+      perf_thread_("sbplayer_perf"),
       cval_stats_(&interface->cval_stats_),
       pipeline_identifier_(pipeline_identifier)
 #if SB_HAS(PLAYER_WITH_URL)
@@ -277,6 +285,19 @@ SbPlayerBridge::SbPlayerBridge(
     SendColorSpaceHistogram();
   }
 
+  const StarboardExtensionPlayerPerfApi* player_perf_extension =
+      static_cast<const StarboardExtensionPlayerPerfApi*>(
+          SbSystemGetExtension(kStarboardExtensionPlayerPerfName));
+  if (kForceCPUUtilizationMeasure && player_perf_extension &&
+      strcmp(player_perf_extension->name, kStarboardExtensionPlayerPerfName) ==
+          0 &&
+      player_perf_extension->version >= 1) {
+    perf_thread_.Start();
+    player_perf_extension->AddThreadID(
+        perf_thread_.thread_name().c_str(),
+        static_cast<int32_t>(perf_thread_.GetThreadId()));
+  }
+
   output_mode_ = ComputeSbPlayerOutputMode(default_output_mode);
 
   CreatePlayer();
@@ -291,6 +312,19 @@ SbPlayerBridge::SbPlayerBridge(
 
 SbPlayerBridge::~SbPlayerBridge() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+
+  const StarboardExtensionPlayerPerfApi* player_perf_extension =
+      static_cast<const StarboardExtensionPlayerPerfApi*>(
+          SbSystemGetExtension(kStarboardExtensionPlayerPerfName));
+  if (kForceCPUUtilizationMeasure && player_perf_extension &&
+      strcmp(player_perf_extension->name, kStarboardExtensionPlayerPerfName) ==
+          0 &&
+      player_perf_extension->version >= 1) {
+    if (sbplayer_perf_) {
+      sbplayer_perf_->Stop();
+    }
+    perf_thread_.Stop();
+  }
 
   callback_helper_->ResetPlayer();
   set_bounds_helper_->SetPlayerBridge(NULL);
@@ -798,6 +832,17 @@ void SbPlayerBridge::CreatePlayer() {
       &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,
       &SbPlayerBridge::PlayerErrorCB, this,
       get_decode_target_graphics_context_provider_func_.Run());
+  const StarboardExtensionPlayerPerfApi* player_perf_extension =
+      static_cast<const StarboardExtensionPlayerPerfApi*>(
+          SbSystemGetExtension(kStarboardExtensionPlayerPerfName));
+  if (kForceCPUUtilizationMeasure && player_perf_extension &&
+      strcmp(player_perf_extension->name, kStarboardExtensionPlayerPerfName) ==
+          0 &&
+      player_perf_extension->version >= 1) {
+    sbplayer_perf_ = new SbPlayerPerf(sbplayer_interface_, player_,
+                                      perf_thread_.task_runner());
+    sbplayer_perf_->Start();
+  }
   cval_stats_->StopTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
 
   is_creating_player_ = false;
@@ -1341,7 +1386,7 @@ void SbPlayerBridge::LogStartupLatency() const {
       startup_latency.InMicroseconds(), 1);
 
   // clang-format off
-  LOG(INFO) << FormatString(
+  LOG(ERROR) << FormatString(
       "\nSbPlayer startup latencies: %" PRId64 " us\n"
       "  Event name                              time since last event\n"
       "  %s\n"  // |first_events_str| populated above

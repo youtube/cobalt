@@ -32,6 +32,7 @@
 #include "media/base/limits.h"
 #include "media/base/timestamp_constants.h"
 #include "media/filters/chunk_demuxer.h"
+#include "starboard/extension/player_perf.h"
 #include "starboard/system.h"
 #include "starboard/types.h"
 #include "ui/gfx/geometry/rect.h"
@@ -140,6 +141,17 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
   media_log_->AddEvent<::media::MediaLogEvent::kWebMediaPlayerCreated>();
 
   pipeline_thread_.Start();
+  const StarboardExtensionPlayerPerfApi* player_perf_extension =
+      static_cast<const StarboardExtensionPlayerPerfApi*>(
+          SbSystemGetExtension(kStarboardExtensionPlayerPerfName));
+  if (player_perf_extension &&
+      strcmp(player_perf_extension->name, kStarboardExtensionPlayerPerfName) ==
+          0 &&
+      player_perf_extension->version >= 1) {
+    player_perf_extension->AddThreadID(
+        pipeline_thread_.thread_name().c_str(),
+        static_cast<int32_t>(pipeline_thread_.GetThreadId()));
+  }
   pipeline_ = new SbPlayerPipeline(
       interface, window, pipeline_thread_.task_runner(),
       get_decode_target_graphics_context_provider_func,

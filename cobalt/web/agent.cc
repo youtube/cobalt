@@ -46,6 +46,7 @@
 #include "cobalt/worker/service_worker_registration.h"
 #include "cobalt/worker/service_worker_registration_object.h"
 #include "cobalt/worker/worker_consts.h"
+#include "starboard/extension/player_perf.h"
 
 namespace cobalt {
 namespace web {
@@ -638,6 +639,17 @@ void Agent::Run(const Options& options, InitializeCallback initialize_callback,
   task_runner()->PostTask(
       FROM_HERE, base::Bind(&SignalWaitableEvent,
                             base::Unretained(&destruction_observer_added_)));
+  const StarboardExtensionPlayerPerfApi* player_perf_extension =
+      static_cast<const StarboardExtensionPlayerPerfApi*>(
+          SbSystemGetExtension(kStarboardExtensionPlayerPerfName));
+  if (player_perf_extension &&
+      strcmp(player_perf_extension->name, kStarboardExtensionPlayerPerfName) ==
+          0 &&
+      player_perf_extension->version >= 1) {
+    player_perf_extension->AddThreadID(
+        thread_.thread_name().c_str(),
+        static_cast<int32_t>(thread_.GetThreadId()));
+  }
 }
 
 void Agent::InitializeTaskInThread(const Options& options,

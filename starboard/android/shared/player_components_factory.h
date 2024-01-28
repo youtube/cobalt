@@ -28,6 +28,7 @@
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/player_perf.h"
 #include "starboard/android/shared/video_decoder.h"
 #include "starboard/atomic.h"
 #include "starboard/common/log.h"
@@ -501,6 +502,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       }
     }
 
+    SetMediaVideoDecoderCodec(creation_parameters.video_codec());
+    SetMediaAudioDecoderCodec(creation_parameters.audio_codec());
     return true;
   }
 
