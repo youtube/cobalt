@@ -229,7 +229,8 @@ void SbPlayerPipeline::Start(Demuxer* demuxer,
                              const base::Closure& duration_change_cb,
                              const base::Closure& output_mode_change_cb,
                              const base::Closure& content_size_change_cb,
-                             const std::string& max_video_capabilities) {
+                             const std::string& max_video_capabilities,
+                             const int max_video_input_size) {
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::Start");
 
   DCHECK(!ended_cb.is_null());
@@ -252,6 +253,7 @@ void SbPlayerPipeline::Start(Demuxer* demuxer,
   parameters.output_mode_change_cb = output_mode_change_cb;
   parameters.content_size_change_cb = content_size_change_cb;
   parameters.max_video_capabilities = max_video_capabilities;
+  parameters.max_video_input_size = max_video_input_size;
 #if SB_HAS(PLAYER_WITH_URL)
   parameters.is_url_based = false;
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -640,6 +642,7 @@ void SbPlayerPipeline::StartTask(StartTaskParameters parameters) {
   output_mode_change_cb_ = parameters.output_mode_change_cb;
   content_size_change_cb_ = parameters.content_size_change_cb;
   max_video_capabilities_ = parameters.max_video_capabilities;
+  max_video_input_size_ = parameters.max_video_input_size;
 #if SB_HAS(PLAYER_WITH_URL)
   is_url_based_ = parameters.is_url_based;
   if (is_url_based_) {
@@ -837,7 +840,7 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
         audio_mime_type, video_config, video_mime_type, window_, drm_system,
         this, set_bounds_helper_.get(), allow_resume_after_suspend_,
         default_output_mode_, decode_target_provider_, max_video_capabilities_,
-        pipeline_identifier_));
+        max_video_input_size_, pipeline_identifier_));
     if (player_bridge_->IsValid()) {
 #if SB_API_VERSION >= 15
       // TODO(b/267678497): When `player_bridge_->GetAudioConfigurations()`

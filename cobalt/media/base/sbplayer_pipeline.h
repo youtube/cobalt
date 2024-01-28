@@ -82,7 +82,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
              const base::Closure& duration_change_cb,
              const base::Closure& output_mode_change_cb,
              const base::Closure& content_size_change_cb,
-             const std::string& max_video_capabilities) override;
+             const std::string& max_video_capabilities,
+             const int max_video_input_size) override;
 #if SB_HAS(PLAYER_WITH_URL)
   void Start(const SetDrmSystemReadyCB& set_drm_system_ready_cb,
              const OnEncryptedMediaInitDataEncounteredCB&
@@ -133,6 +134,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
     base::Closure output_mode_change_cb;
     base::Closure content_size_change_cb;
     std::string max_video_capabilities;
+    int max_video_input_size;
 #if SB_HAS(PLAYER_WITH_URL)
     std::string source_url;
     bool is_url_based;
@@ -344,6 +346,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   size_t retrograde_media_time_counter_ = 0;
   // The maximum video playback capabilities required for the playback.
   base::CVal<std::string> max_video_capabilities_;
+  // Set the maximum size in bytes of an input buffer for video.
+  int max_video_input_size_;
 
   PlaybackStatistics playback_statistics_;
 

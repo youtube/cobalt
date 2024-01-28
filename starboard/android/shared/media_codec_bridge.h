@@ -176,6 +176,7 @@ class MediaCodecBridge {
       bool force_big_endian_hdr_metadata,
       bool force_improved_support_check,
       bool use_callback_thread,
+      int max_video_input_size,
       std::string* error_message);
 
   ~MediaCodecBridge();

@@ -83,6 +83,7 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
       audio_stream_info_(creation_param->audio_sample_info),
 #endif  // SB_API_VERSION >= 15
       output_mode_(creation_param->output_mode),
+      max_video_input_size_(0),
       decode_target_graphics_context_provider_(provider),
 #if SB_API_VERSION >= 15
       video_stream_info_(creation_param->video_stream_info) {
@@ -138,7 +139,8 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
 
   PlayerComponents::Factory::CreationParameters creation_parameters(
       audio_stream_info_, video_stream_info_, player_, output_mode_,
-      decode_target_graphics_context_provider_, drm_system_);
+      max_video_input_size_, decode_target_graphics_context_provider_,
+      drm_system_);
 
   {
     ::starboard::ScopedLock lock(player_components_existence_mutex_);
@@ -544,6 +546,13 @@ SbDecodeTarget FilterBasedPlayerWorkerHandler::GetCurrentDecodeTarget() {
     player_components_existence_mutex_.Release();
   }
   return decode_target;
+}
+
+void FilterBasedPlayerWorkerHandler::SetMaxVideoInputSize(
+    int max_video_input_size) {
+  SB_LOG(INFO) << "Set max_video_input_size from " << max_video_input_size_
+               << " to " << max_video_input_size;
+  max_video_input_size_ = max_video_input_size;
 }
 
 }  // namespace filter

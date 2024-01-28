@@ -61,6 +61,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   HandlerResult SetPlaybackRate(double playback_rate) override;
   void SetVolume(double volume) override;
   HandlerResult SetBounds(const Bounds& bounds) override;
+  void SetMaxVideoInputSize(int max_video_input_size) override;
   void Stop() override;
 
   void Update();
@@ -111,6 +112,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   bool video_ended_ = false;
 
   SbPlayerOutputMode output_mode_;
+  int max_video_input_size_;
   SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider_;
   const media::VideoStreamInfo video_stream_info_;
