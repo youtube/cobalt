@@ -51,6 +51,8 @@ component("media") {
     "base/sbplayer_bridge.h",
     "base/sbplayer_interface.cc",
     "base/sbplayer_interface.h",
+    "base/sbplayer_perf.cc",
+    "base/sbplayer_perf.h",
     "base/sbplayer_pipeline.cc",
     "base/sbplayer_pipeline.h",
     "base/sbplayer_set_bounds_helper.cc",
