@@ -385,7 +385,7 @@ void X509_VERIFY_PARAM_set_depth(X509_VERIFY_PARAM *param, int depth)
     param->depth = depth;
 }
 
-void X509_VERIFY_PARAM_set_time(X509_VERIFY_PARAM *param, OPENSSL_port_time_t t)
+void X509_VERIFY_PARAM_set_time(X509_VERIFY_PARAM *param, time_t t)
 {
     param->check_time = t;
     param->flags |= X509_V_FLAG_USE_CHECK_TIME;
@@ -528,7 +528,7 @@ static const X509_VERIFY_PARAM default_table[] = {
      (char *)"default",         /* X509 default parameters */
      0,                         /* Check time */
      0,                         /* internal flags */
-     0,                         /* flags */
+     X509_V_FLAG_TRUSTED_FIRST, /* flags */
      0,                         /* purpose */
      0,                         /* trust */
      100,                       /* depth */

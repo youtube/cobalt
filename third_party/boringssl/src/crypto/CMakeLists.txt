@@ -203,7 +203,6 @@ add_library(
   asn1/a_bool.c
   asn1/a_d2i_fp.c
   asn1/a_dup.c
-  asn1/a_enum.c
   asn1/a_gentm.c
   asn1/a_i2d_fp.c
   asn1/a_int.c
@@ -220,7 +219,6 @@ add_library(
   asn1/asn1_lib.c
   asn1/asn1_par.c
   asn1/asn_pack.c
-  asn1/f_enum.c
   asn1/f_int.c
   asn1/f_string.c
   asn1/tasn_dec.c
@@ -257,6 +255,7 @@ add_library(
   cipher_extra/e_aesctrhmac.c
   cipher_extra/e_aesgcmsiv.c
   cipher_extra/e_chacha20poly1305.c
+  cipher_extra/e_des.c
   cipher_extra/e_null.c
   cipher_extra/e_rc2.c
   cipher_extra/e_rc4.c
@@ -264,16 +263,18 @@ add_library(
   cipher_extra/tls_cbc.c
   cmac/cmac.c
   conf/conf.c
-  cpu-aarch64-fuchsia.c
-  cpu-aarch64-linux.c
-  cpu-aarch64-win.c
-  cpu-arm-linux.c
-  cpu-arm.c
-  cpu-intel.c
-  cpu-ppc64le.c
+  cpu_aarch64_apple.c
+  cpu_aarch64_fuchsia.c
+  cpu_aarch64_linux.c
+  cpu_aarch64_win.c
+  cpu_arm_linux.c
+  cpu_arm.c
+  cpu_intel.c
+  cpu_ppc64le.c
   crypto.c
   curve25519/curve25519.c
   curve25519/spake25519.c
+  des/des.c
   dh_extra/params.c
   dh_extra/dh_asn1.c
   digest_extra/digest_extra.c
@@ -436,17 +437,13 @@ add_library(
 )
 
 if(FIPS_SHARED)
-  set(EXTRA_INJECT_HASH_ARGS)
-  if(ANDROID)
-    set(EXTRA_INJECT_HASH_ARGS "-sha256")
-  endif()
   # Rewrite libcrypto.so to inject the correct module hash value. This assumes
   # UNIX-style library naming, but we only support FIPS mode on Linux anyway.
   add_custom_command(
     TARGET crypto POST_BUILD
     COMMAND ${GO_EXECUTABLE} run
     ${CMAKE_CURRENT_SOURCE_DIR}/../util/fipstools/inject_hash/inject_hash.go
-    -o libcrypto.so -in-object libcrypto.so ${EXTRA_INJECT_HASH_ARGS}
+    -o libcrypto.so -in-object libcrypto.so
     # The DEPENDS argument to a POST_BUILD rule appears to be ignored. Thus
     # go_executable isn't used (as it doesn't get built), but we list this
     # dependency anyway in case it starts working in some CMake version.
@@ -504,7 +501,7 @@ add_executable(
   compiler_test.cc
   conf/conf_test.cc
   constant_time_test.cc
-  cpu-arm-linux_test.cc
+  cpu_arm_linux_test.cc
   crypto_test.cc
   curve25519/ed25519_test.cc
   curve25519/spake25519_test.cc
@@ -553,7 +550,6 @@ add_executable(
   x509/x509_test.cc
   x509/x509_time_test.cc
   x509v3/tab_test.cc
-  x509v3/v3name_test.cc
 
   $<TARGET_OBJECTS:crypto_test_data>
   $<TARGET_OBJECTS:boringssl_gtest_main>

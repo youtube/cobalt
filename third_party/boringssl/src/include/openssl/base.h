@@ -195,7 +195,7 @@ extern "C" {
 // A consumer may use this symbol in the preprocessor to temporarily build
 // against multiple revisions of BoringSSL at the same time. It is not
 // recommended to do so for longer than is necessary.
-#define BORINGSSL_API_VERSION 16
+#define BORINGSSL_API_VERSION 17
 
 #if defined(BORINGSSL_SHARED_LIBRARY)
 
@@ -328,8 +328,11 @@ enum ssl_verify_result_t BORINGSSL_ENUM_INT;
 // CRYPTO_THREADID is a dummy value.
 typedef int CRYPTO_THREADID;
 
+// An |ASN1_NULL| is an opaque type. asn1.h represents the ASN.1 NULL value as
+// an opaque, non-NULL |ASN1_NULL*| pointer.
+typedef struct asn1_null_st ASN1_NULL;
+
 typedef int ASN1_BOOLEAN;
-typedef int ASN1_NULL;
 typedef struct ASN1_ITEM_st ASN1_ITEM;
 typedef struct asn1_object_st ASN1_OBJECT;
 typedef struct asn1_pctx_st ASN1_PCTX;
@@ -373,7 +376,6 @@ typedef struct X509_name_st X509_NAME;
 typedef struct X509_pubkey_st X509_PUBKEY;
 typedef struct X509_req_st X509_REQ;
 typedef struct X509_sig_st X509_SIG;
-typedef struct X509_val_st X509_VAL;
 typedef struct bignum_ctx BN_CTX;
 typedef struct bignum_st BIGNUM;
 typedef struct bio_method_st BIO_METHOD;
@@ -431,6 +433,7 @@ typedef struct spake2_ctx_st SPAKE2_CTX;
 typedef struct srtp_protection_profile_st SRTP_PROTECTION_PROFILE;
 typedef struct ssl_cipher_st SSL_CIPHER;
 typedef struct ssl_ctx_st SSL_CTX;
+typedef struct ssl_early_callback_ctx SSL_CLIENT_HELLO;
 typedef struct ssl_ech_keys_st SSL_ECH_KEYS;
 typedef struct ssl_method_st SSL_METHOD;
 typedef struct ssl_private_key_method_st SSL_PRIVATE_KEY_METHOD;
@@ -445,7 +448,6 @@ typedef struct trust_token_issuer_st TRUST_TOKEN_ISSUER;
 typedef struct trust_token_method_st TRUST_TOKEN_METHOD;
 typedef struct v3_ext_ctx X509V3_CTX;
 typedef struct x509_attributes_st X509_ATTRIBUTE;
-typedef struct x509_cert_aux_st X509_CERT_AUX;
 typedef struct x509_crl_method_st X509_CRL_METHOD;
 typedef struct x509_lookup_st X509_LOOKUP;
 typedef struct x509_lookup_method_st X509_LOOKUP_METHOD;

@@ -63,6 +63,8 @@
 #include <openssl/evp.h>
 #include <openssl/x509.h>
 
+#include "../asn1/internal.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -70,10 +72,12 @@ extern "C" {
 
 /* Internal structures. */
 
-struct X509_val_st {
+typedef struct X509_val_st {
   ASN1_TIME *notBefore;
   ASN1_TIME *notAfter;
-} /* X509_VAL */;
+} X509_VAL;
+
+DECLARE_ASN1_FUNCTIONS(X509_VAL)
 
 struct X509_pubkey_st {
   X509_ALGOR *algor;
@@ -102,13 +106,14 @@ struct x509_attributes_st {
   STACK_OF(ASN1_TYPE) *set;
 } /* X509_ATTRIBUTE */;
 
-struct x509_cert_aux_st {
+typedef struct x509_cert_aux_st {
   STACK_OF(ASN1_OBJECT) *trust;   // trusted uses
   STACK_OF(ASN1_OBJECT) *reject;  // rejected uses
   ASN1_UTF8STRING *alias;         // "friendly name"
   ASN1_OCTET_STRING *keyid;       // key id of private key
-  STACK_OF(X509_ALGOR) *other;    // other unspecified info
-} /* X509_CERT_AUX */;
+} X509_CERT_AUX;
+
+DECLARE_ASN1_FUNCTIONS(X509_CERT_AUX)
 
 struct X509_extension_st {
   ASN1_OBJECT *object;
@@ -151,7 +156,7 @@ struct x509_st {
   STACK_OF(DIST_POINT) *crldp;
   STACK_OF(GENERAL_NAME) *altname;
   NAME_CONSTRAINTS *nc;
-  unsigned char sha1_hash[SHA_DIGEST_LENGTH];
+  unsigned char cert_hash[SHA256_DIGEST_LENGTH];
   X509_CERT_AUX *aux;
   CRYPTO_BUFFER *buf;
   CRYPTO_MUTEX lock;
@@ -174,6 +179,16 @@ struct X509_req_st {
   ASN1_BIT_STRING *signature;
   CRYPTO_refcount_t references;
 } /* X509_REQ */;
+
+struct x509_revoked_st {
+  ASN1_INTEGER *serialNumber;
+  ASN1_TIME *revocationDate;
+  STACK_OF(X509_EXTENSION) /* optional */ *extensions;
+  // Set up if indirect CRL
+  STACK_OF(GENERAL_NAME) *issuer;
+  // Revocation reason
+  int reason;
+} /* X509_REVOKED */;
 
 typedef struct {
   ASN1_INTEGER *version;
@@ -204,7 +219,7 @@ struct X509_crl_st {
   // CRL and base CRL numbers for delta processing
   ASN1_INTEGER *crl_number;
   ASN1_INTEGER *base_crl_number;
-  unsigned char sha1_hash[SHA_DIGEST_LENGTH];
+  unsigned char crl_hash[SHA256_DIGEST_LENGTH];
   STACK_OF(GENERAL_NAMES) *issuers;
   const X509_CRL_METHOD *meth;
   void *meth_data;
@@ -212,7 +227,7 @@ struct X509_crl_st {
 
 struct X509_VERIFY_PARAM_st {
   char *name;
-  OPENSSL_port_time_t check_time;   // Time to use
+  time_t check_time;                // Time to use
   unsigned long inh_flags;          // Inheritance flags
   unsigned long flags;              // Various verify flags
   int purpose;                      // purpose to check untrusted certificates
@@ -268,7 +283,6 @@ struct x509_store_st {
   int cache;                    // if true, stash any hits
   STACK_OF(X509_OBJECT) *objs;  // Cache of all objects
   CRYPTO_MUTEX objs_lock;
-  STACK_OF(X509) *additional_untrusted;
 
   // These are external lookup methods
   STACK_OF(X509_LOOKUP) *get_cert_methods;
@@ -354,6 +368,10 @@ struct x509_store_ctx_st {
 
   CRYPTO_EX_DATA ex_data;
 } /* X509_STORE_CTX */;
+
+ASN1_TYPE *ASN1_generate_v3(const char *str, X509V3_CTX *cnf);
+
+int X509_CERT_AUX_print(BIO *bp, X509_CERT_AUX *x, int indent);
 
 
 /* RSA-PSS functions. */

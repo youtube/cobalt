@@ -18,16 +18,6 @@
  * should not be used. Customizations vs. the piii config this was branched from
  * are guarded by the NATIVE_TARGET_BUILD preprocessor macro. */
 
-#ifdef NATIVE_TARGET_BUILD
-// Resolve shim types as POSIX types.
-#define OPENSSL_port_time_t time_t
-#define OPENSSL_port_timeval struct timeval
-
-// Resolve shim system calls as Linux system calls.
-#define OPENSSL_port_time time
-#define OPENSSL_port_gettimeofday gettimeofday
-#endif  // NATIVE_TARGET_BUILD
-
 /* OpenSSL was configured with the following options: */
 #ifndef OPENSSL_DOING_MAKEDEPEND
 
@@ -328,19 +318,6 @@ YOU SHOULD NOT HAVE BOTH DES_RISC1 AND DES_RISC2 DEFINED!!!!!
 #endif /* HEADER_DES_LOCL_H */
 
 #ifdef NATIVE_TARGET_BUILD
-#define OPENSSL_port_abort abort
-#define OPENSSL_port_assert(x) assert(x)
-#define OPENSSL_port_free free
 #define OPENSSL_port_getenv(x) getenv(x)
-#define OPENSSL_port_gettimeofday gettimeofday
-#define OPENSSL_port_gmtime_r gmtime_r
-#define OPENSSL_port_malloc malloc
-#define OPENSSL_port_printf print
-#define OPENSSL_port_printferr printferr
-#define OPENSSL_port_realloc realloc
-#define OPENSSL_port_sscanf sscanf
-#define OPENSSL_port_strcasecmp strcasecmp
-#define OPENSSL_port_strdup strdup
 #define OPENSSL_port_strerror(x) strerror(x)
-#define OPENSSL_port_strncasecmp strncasecmp
 #endif  // NATIVE_TARGET_BUILD
