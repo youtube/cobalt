@@ -226,7 +226,7 @@ TEST_P(InstallationManagerTest, Reset) {
 #if SB_API_VERSION < 16
     SbDirectoryCreate(slot_path.c_str());
 #else
-    mkdir(slot_path.c_str(), 0700)
+    mkdir(slot_path.c_str(), 0700);
 #endif  // SB_API_VERSION < 16
     slot_path += kSbFileSepString;
     slot_path += "test_file";
