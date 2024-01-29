@@ -17,6 +17,9 @@ return and complete the following steps.
 
 1.  Download and install [Android Studio](https://developer.android.com/studio/).
 
+1.  Install [JDK 17](https://www.oracle.com/java/technologies/javase/jdk17-archive-downloads.html)
+    and make sure it's before any other JDK on your PATH.
+
 1.  To enable parallel gradle builds, add the following to your `~/.bashrc`:
 
     ```
