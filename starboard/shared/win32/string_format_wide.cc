@@ -16,9 +16,11 @@
 
 #include <stdio.h>
 
+#if SB_API_VERSION < 16
 int SbStringFormatWide(wchar_t* out_buffer,
                        size_t buffer_size,
                        const wchar_t* format,
                        va_list arguments) {
   return _vsnwprintf(out_buffer, buffer_size, format, arguments);
 }
+#endif

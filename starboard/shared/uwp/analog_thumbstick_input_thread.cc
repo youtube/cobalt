@@ -44,7 +44,7 @@ class AnalogThumbstickThread::Impl : public Thread {
     while (!join_called()) {
       Update();
       // 120hz to provide smooth 60fps playback.
-      SbThreadSleep(kSbTimeSecond / kPollingFrequency);
+      SbThreadSleep(1'000'000LL / kPollingFrequency);
     }
   }
 

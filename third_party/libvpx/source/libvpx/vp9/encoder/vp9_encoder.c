@@ -2086,12 +2086,12 @@ void vp9_change_config(struct VP9_COMP *cpi, const VP9EncoderConfig *oxcf) {
   if (last_w != cpi->oxcf.width || last_h != cpi->oxcf.height) {
     vpx_free(cpi->consec_zero_mv);
     CHECK_MEM_ERROR(
-        &cm->error, cpi->consec_zero_mv,
+        cm, cpi->consec_zero_mv,
         vpx_calloc(cm->mi_rows * cm->mi_cols, sizeof(*cpi->consec_zero_mv)));
 
     vpx_free(cpi->skin_map);
     CHECK_MEM_ERROR(
-        &cm->error, cpi->skin_map,
+        cm, cpi->skin_map,
         vpx_calloc(cm->mi_rows * cm->mi_cols, sizeof(cpi->skin_map[0])));
 
     free_copy_partition_data(cpi);

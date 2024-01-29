@@ -23,11 +23,11 @@
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
 #include "starboard/shared/alsa/alsa_util.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace shared {
@@ -143,7 +143,7 @@ class AlsaAudioSink : public SbAudioSinkPrivate {
   starboard::Mutex mutex_;
   starboard::ConditionVariable creation_signal_;
 
-  SbTime time_to_wait_;
+  int64_t time_to_wait_;
 
   bool destroying_;
 
@@ -177,7 +177,7 @@ AlsaAudioSink::AlsaAudioSink(
       context_(context),
       audio_out_thread_(kSbThreadInvalid),
       creation_signal_(mutex_),
-      time_to_wait_(kFramesPerRequest * kSbTimeSecond / sampling_frequency_hz /
+      time_to_wait_(kFramesPerRequest * 1'000'000LL / sampling_frequency_hz /
                     2),
       destroying_(false),
       frame_buffer_(frame_buffers[0]),
@@ -346,7 +346,7 @@ void AlsaAudioSink::WriteFrames(double playback_rate,
           IncrementPointerByBytes(frame_buffer_,
                                   offset_in_frames * bytes_per_frame),
           frames_to_buffer_end);
-      consume_frames_func_(consumed, SbTimeGetMonotonicNow(), context_);
+      consume_frames_func_(consumed, CurrentMonotonicTime(), context_);
       if (consumed != frames_to_buffer_end) {
         SB_DLOG(INFO) << "alsa::AlsaAudioSink exits write frames : consumed "
                       << consumed << " frames, with " << frames_to_buffer_end
@@ -363,7 +363,7 @@ void AlsaAudioSink::WriteFrames(double playback_rate,
                         IncrementPointerByBytes(
                             frame_buffer_, offset_in_frames * bytes_per_frame),
                         frames_to_write);
-    consume_frames_func_(consumed, SbTimeGetMonotonicNow(), context_);
+    consume_frames_func_(consumed, CurrentMonotonicTime(), context_);
   } else {
     // A very low quality resampler that simply shift the audio frames to play
     // at the right time.
@@ -392,7 +392,7 @@ void AlsaAudioSink::WriteFrames(double playback_rate,
 
     int consumed =
         AlsaWriteFrames(playback_handle_, &resample_buffer_[0], target_frames);
-    consume_frames_func_(consumed * playback_rate_, SbTimeGetMonotonicNow(),
+    consume_frames_func_(consumed * playback_rate_, CurrentMonotonicTime(),
                          context_);
   }
 }

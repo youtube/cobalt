@@ -360,9 +360,13 @@ class CobaltRunner(object):
   def _StartWebdriver(self, port):
     host, webdriver_port = self.launcher.GetHostAndPortGivenPort(port)
     self.webdriver_url = f'http://{host}:{webdriver_port}/'
+
+    # Create remote and set a timeout before making the connection
+    rc = self.selenium_webdriver_module.remote.remote_connection
+    executor = rc.RemoteConnection(self.webdriver_url)
+    executor.set_timeout(WEBDRIVER_HTTP_TIMEOUT_SECONDS)
     self.webdriver = self.selenium_webdriver_module.Remote(
-        self.webdriver_url, COBALT_WEBDRIVER_CAPABILITIES)
-    self.webdriver.command_executor.set_timeout(WEBDRIVER_HTTP_TIMEOUT_SECONDS)
+        executor, COBALT_WEBDRIVER_CAPABILITIES)
     logging.info('Selenium Connected')
     self.test_script_started.set()
     with self.start_condition:
@@ -373,11 +377,12 @@ class CobaltRunner(object):
     if self.webdriver:
       self.webdriver.quit()
     if self.webdriver_url:
+      rc = self.selenium_webdriver_module.remote.remote_connection
+      executor = rc.RemoteConnection(self.webdriver_url)
+      executor.set_timeout(WEBDRIVER_HTTP_TIMEOUT_SECONDS)
       self.webdriver = self.selenium_webdriver_module.Remote(
-          self.webdriver_url, COBALT_WEBDRIVER_CAPABILITIES)
+          executor, COBALT_WEBDRIVER_CAPABILITIES)
     if self.webdriver:
-      self.webdriver.command_executor.set_timeout(
-          WEBDRIVER_HTTP_TIMEOUT_SECONDS)
       logging.info('Selenium Reconnected')
 
   def WaitForStart(self):

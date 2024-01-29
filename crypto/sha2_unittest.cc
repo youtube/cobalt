@@ -4,7 +4,9 @@
 
 #include "crypto/sha2.h"
 
-#include "starboard/types.h"
+#include <stddef.h>
+#include <stdint.h>
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 TEST(Sha256Test, Test1) {

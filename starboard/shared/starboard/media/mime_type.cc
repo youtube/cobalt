@@ -50,8 +50,7 @@ void ParseParamTypeAndValue(const std::string& name,
 
   int count;
   int i;
-  if (SbStringScanF(value.c_str(), "%d%n", &i, &count) == 1 &&
-      count == value.size()) {
+  if (sscanf(value.c_str(), "%d%n", &i, &count) == 1 && count == value.size()) {
     param->type = MimeType::kParamTypeInteger;
     param->int_value = i;
     return;

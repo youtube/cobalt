@@ -299,16 +299,16 @@ TEST(VideoSampleInfoTest, CobaltExtensionEnhancedAudioMediaVideoSampleInfo) {
 
 TEST(MediaUtilTest, AudioDurationToFrames) {
   EXPECT_EQ(AudioDurationToFrames(0, 48000), 0);
-  EXPECT_EQ(AudioDurationToFrames(kSbTimeSecond / 2, 48000), 48000 / 2);
-  EXPECT_EQ(AudioDurationToFrames(kSbTimeSecond, 48000), 48000);
-  EXPECT_EQ(AudioDurationToFrames(kSbTimeSecond * 2, 48000), 48000 * 2);
+  EXPECT_EQ(AudioDurationToFrames(1'000'000LL / 2, 48000), 48000 / 2);
+  EXPECT_EQ(AudioDurationToFrames(1'000'000LL, 48000), 48000);
+  EXPECT_EQ(AudioDurationToFrames(1'000'000LL * 2, 48000), 48000 * 2);
 }
 
 TEST(MediaUtilTest, AudioFramesToDuration) {
   EXPECT_EQ(AudioFramesToDuration(0, 48000), 0);
-  EXPECT_EQ(AudioFramesToDuration(48000 / 2, 48000), kSbTimeSecond / 2);
-  EXPECT_EQ(AudioFramesToDuration(48000, 48000), kSbTimeSecond);
-  EXPECT_EQ(AudioFramesToDuration(48000 * 2, 48000), kSbTimeSecond * 2);
+  EXPECT_EQ(AudioFramesToDuration(48000 / 2, 48000), 1'000'000LL / 2);
+  EXPECT_EQ(AudioFramesToDuration(48000, 48000), 1'000'000LL);
+  EXPECT_EQ(AudioFramesToDuration(48000 * 2, 48000), 1'000'000LL * 2);
 }
 
 }  // namespace

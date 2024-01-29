@@ -13,12 +13,14 @@
 # limitations under the License.
 
 build_with_chromium = false
+is_nacl_nonsfi = false
 
 declare_args() {
   # Android 32-bit non-component, non-clang builds cannot have symbol_level=2
   # due to 4GiB file size limit, see https://crbug.com/648948.
   # Set this flag to true to skip the assertion.
   ignore_elf32_limitations = false
+  is_chromecast = false
 }
 
 enable_java_templates = false

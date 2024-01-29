@@ -14,14 +14,6 @@
 #include "third_party/boringssl/src/include/openssl/base.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 
-
-enum ssl_encryption_level_t {
-  ssl_encryption_initial = 0,
-  ssl_encryption_early_data,
-  ssl_encryption_handshake,
-  ssl_encryption_application,
-};
-
 namespace quic {
 
 class QuicCryptoStream;

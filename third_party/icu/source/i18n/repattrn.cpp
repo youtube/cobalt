@@ -15,7 +15,6 @@
 #if !UCONFIG_NO_REGULAR_EXPRESSIONS
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
 
 #include "unicode/regex.h"

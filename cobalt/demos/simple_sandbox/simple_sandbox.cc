@@ -30,7 +30,7 @@ class SimpleSandbox {
 
   static void StartApplication(int argc, char** argv, const char* link,
                                const base::Closure& quit_closure,
-                               SbTimeMonotonic timestamp);
+                               int64_t timestamp);
 
   static void StopApplication();
 
@@ -44,7 +44,7 @@ class SimpleSandbox {
 // static
 void SimpleSandbox::StartApplication(int argc, char** argv, const char* link,
                                      const base::Closure& quit_closure,
-                                     SbTimeMonotonic timestamp) {
+                                     int64_t timestamp) {
   LOG(INFO) << "SimpleSandbox::StartApplication";
 
   SimpleSandbox::GetInstance()->thread()->Start();

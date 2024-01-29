@@ -21,6 +21,7 @@
 
 #include "base/task/post_task.h"
 #include "base/task_runner_util.h"
+#include "base/time/time.h"
 #include "starboard/extension/demuxer.h"
 #include "starboard/system.h"
 #include "third_party/chromium/media/base/audio_codecs.h"
@@ -626,11 +627,11 @@ base::TimeDelta DemuxerExtensionWrapper::GetStartTime() const {
 }
 
 base::Time DemuxerExtensionWrapper::GetTimelineOffset() const {
-  const SbTime reported_time = impl_->GetTimelineOffset(impl_->user_data);
-  return reported_time == 0
+  const base::TimeDelta reported_time = base::TimeDelta::FromMicroseconds(
+      impl_->GetTimelineOffset(impl_->user_data));
+  return reported_time.is_zero()
              ? base::Time()
-             : base::Time::FromDeltaSinceWindowsEpoch(
-                   base::TimeDelta::FromMicroseconds(reported_time));
+             : base::Time::FromDeltaSinceWindowsEpoch(reported_time);
 }
 
 int64_t DemuxerExtensionWrapper::GetMemoryUsage() const {

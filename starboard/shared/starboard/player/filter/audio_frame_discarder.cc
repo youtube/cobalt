@@ -69,9 +69,9 @@ void AudioFrameDiscarder::AdjustForDiscardedDurations(
   // We accept a small offset due to the precision of computation. If the
   // outputs have different timestamps than inputs, discarded durations will be
   // ignored.
-  const SbTimeMonotonic kTimestampOffset = 10;
+  const int64_t kTimestampOffsetUsec = 10;
   if (std::abs(input_info.timestamp - (*decoded_audio)->timestamp()) >
-      kTimestampOffset) {
+      kTimestampOffsetUsec) {
     SB_LOG(WARNING) << "Inconsistent timestamps between InputBuffer (@"
                     << input_info.timestamp << ") and DecodedAudio (@"
                     << (*decoded_audio)->timestamp() << ").";

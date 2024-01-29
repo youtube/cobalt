@@ -9,10 +9,6 @@
 
 #include <algorithm>
 
-#include "starboard/types.h"
-
-#include "starboard/memory.h"
-
 #include "base/logging.h"
 #include "crypto/p224.h"
 #include "crypto/random.h"

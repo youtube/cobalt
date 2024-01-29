@@ -17,29 +17,35 @@
 #include "base/compiler_specific.h"
 #include "base/time/time.h"
 #include "cobalt/web/event_target.h"
+#include "starboard/common/time.h"
 
 namespace cobalt {
 namespace web {
 
 Event::Event(UninitializedFlag uninitialized_flag)
-    : event_phase_(kNone), time_stamp_(GetEventTime(SbTimeGetMonotonicNow())) {
+    : event_phase_(kNone),
+      time_stamp_(GetEventTime(starboard::CurrentMonotonicTime())) {
   InitEventInternal(base::Token(), false, false);
 }
 
+Event::Event(const char* type) : Event(base::Token(type)) {}
 Event::Event(const std::string& type) : Event(base::Token(type)) {}
 Event::Event(base::Token type)
-    : event_phase_(kNone), time_stamp_(GetEventTime(SbTimeGetMonotonicNow())) {
+    : event_phase_(kNone),
+      time_stamp_(GetEventTime(starboard::CurrentMonotonicTime())) {
   InitEventInternal(type, false, false);
 }
 Event::Event(const std::string& type, const EventInit& init_dict)
     : Event(base::Token(type), init_dict) {}
 Event::Event(base::Token type, Bubbles bubbles, Cancelable cancelable)
-    : event_phase_(kNone), time_stamp_(GetEventTime(SbTimeGetMonotonicNow())) {
+    : event_phase_(kNone),
+      time_stamp_(GetEventTime(starboard::CurrentMonotonicTime())) {
   InitEventInternal(type, bubbles == kBubbles, cancelable == kCancelable);
 }
 
 Event::Event(base::Token type, const EventInit& init_dict)
-    : event_phase_(kNone), time_stamp_(GetEventTime(SbTimeGetMonotonicNow())) {
+    : event_phase_(kNone),
+      time_stamp_(GetEventTime(starboard::CurrentMonotonicTime())) {
   SB_DCHECK(init_dict.has_bubbles());
   SB_DCHECK(init_dict.has_cancelable());
   if (init_dict.time_stamp() != 0) {
@@ -91,12 +97,16 @@ void Event::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(current_target_);
 }
 
-uint64 Event::GetEventTime(SbTimeMonotonic monotonic_time) {
+uint64 Event::GetEventTime(int64_t monotonic_time) {
+  // Current delta from Windows epoch.
+  int64_t time_delta =
+      starboard::PosixTimeToWindowsTime(starboard::CurrentPosixTime()) -
+      starboard::CurrentMonotonicTime();
+  base::Time base_time = base::Time::FromDeltaSinceWindowsEpoch(
+      base::TimeDelta::FromMicroseconds(time_delta + monotonic_time));
   // For now, continue using the old specification which specifies real time
-  // since 1970.
+  // since 1970 by calling the `ToJsTime` method.
   // https://www.w3.org/TR/dom/#dom-event-timestamp
-  SbTimeMonotonic time_delta = SbTimeGetNow() - SbTimeGetMonotonicNow();
-  base::Time base_time = base::Time::FromSbTime(time_delta + monotonic_time);
   return static_cast<uint64>(base_time.ToJsTime());
 }
 

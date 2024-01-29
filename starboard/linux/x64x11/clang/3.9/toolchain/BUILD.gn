@@ -20,9 +20,7 @@ import("//starboard/shared/toolchain/overridable_gcc_toolchain.gni")
 _target_llvm_3_9_bin_dir = "/usr/lib/llvm-3.9/bin"
 
 cobalt_clang_toolchain("cobalt") {
-  variables = {
-    native_linker_path = "${_target_llvm_3_9_bin_dir}/clang++"
-  }
+  native_linker_path = "${_target_llvm_3_9_bin_dir}/clang++"
 }
 
 overridable_gcc_toolchain("starboard") {

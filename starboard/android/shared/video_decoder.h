@@ -70,6 +70,8 @@ class VideoDecoder
                bool force_secure_pipeline_under_tunnel_mode,
                bool force_reset_surface_under_tunnel_mode,
                bool force_big_endian_hdr_metadata,
+               bool use_mediacodec_callback_thread,
+               int max_input_size,
                std::string* error_message);
   ~VideoDecoder() override;
 
@@ -79,7 +81,7 @@ class VideoDecoder
   void Initialize(const DecoderStatusCB& decoder_status_cb,
                   const ErrorCB& error_cb) override;
   size_t GetPrerollFrameCount() const override;
-  SbTime GetPrerollTimeout() const override;
+  int64_t GetPrerollTimeout() const override;
   // As we hold output buffers received from MediaCodec, the max number of
   // cached frames depends on the max number of output buffers in MediaCodec,
   // which is device dependent. The media decoder may stall if we hold all
@@ -115,7 +117,7 @@ class VideoDecoder
   void OnFlushing() override;
 
   void TryToSignalPrerollForTunnelMode();
-  void OnTunnelModeFrameRendered(SbTime frame_timestamp);
+  void OnTunnelModeFrameRendered(int64_t frame_timestamp);
   void OnTunnelModePrerollTimeout();
   void OnTunnelModeCheckForNeedMoreInput();
 
@@ -145,6 +147,9 @@ class VideoDecoder
   const bool force_big_endian_hdr_metadata_;
 
   const int tunnel_mode_audio_session_id_ = -1;
+
+  // Set the maximum size in bytes of an input buffer for video.
+  const int max_video_input_size_;
 
   // Force resetting the video surface after tunnel mode playback, which
   // prevents video distortion on some devices.
@@ -188,7 +193,7 @@ class VideoDecoder
   int input_buffer_written_ = 0;
   bool first_texture_received_ = false;
   bool end_of_stream_written_ = false;
-  volatile SbTime first_buffer_timestamp_;
+  volatile int64_t first_buffer_timestamp_;  // microseconds
   atomic_bool has_new_texture_available_;
 
   // Use |owns_video_surface_| only on decoder thread, to avoid unnecessary
@@ -209,6 +214,10 @@ class VideoDecoder
   bool first_output_format_changed_ = false;
   optional<VideoOutputFormat> output_format_;
   size_t number_of_preroll_frames_;
+
+  // Set mediacodec callback with a handler on another thread to avoid running
+  // callbacks on the main thread and being blocked by other main thread tasks.
+  const bool use_mediacodec_callback_thread_;
 };
 
 }  // namespace shared

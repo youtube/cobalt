@@ -34,7 +34,6 @@
 #define STARBOARD_SOCKET_H_
 
 #include "starboard/export.h"
-#include "starboard/time.h"
 #include "starboard/types.h"
 
 #ifdef __cplusplus
@@ -356,14 +355,14 @@ SB_EXPORT bool SbSocketSetSendBufferSize(SbSocket socket, int32_t size);
 // return value indicates whether the option was actually set.
 //
 // |socket|: The SbSocket for which the option is set.
-// |value|: If set to |true|, then |period| specifies the minimum time
-//   (SbTime) is always in microseconds) between keep-alive packets. If
-//   set to |false|, |period| is ignored.
-// |period|: The time between keep-alive packets. This value is only relevant
-//   if |value| is |true|.
+// |value|: If set to |true|, then |period| specifies the minimum time in
+//   microseconds between keep-alive packets. If set to |false|, |period|
+//   is ignored.
+// |period|: The time in microseconds between keep-alive packets. This value
+//   is only relevant if |value| is |true|.
 SB_EXPORT bool SbSocketSetTcpKeepAlive(SbSocket socket,
                                        bool value,
-                                       SbTime period);
+                                       int64_t period);
 
 // Sets the |TCP_NODELAY|, or equivalent, option to |value| on |socket|. The
 // return value indicates whether the option was actually set.

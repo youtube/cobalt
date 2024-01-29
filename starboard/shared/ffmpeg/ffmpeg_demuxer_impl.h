@@ -23,7 +23,6 @@
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
 #include "starboard/shared/ffmpeg/ffmpeg_demuxer.h"
 #include "starboard/shared/ffmpeg/ffmpeg_demuxer_impl_interface.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace shared {
@@ -54,9 +53,9 @@ class FFmpegDemuxerImpl<FFMPEG> : public FFmpegDemuxer {
       const override;
   const CobaltExtensionDemuxerVideoDecoderConfig& GetVideoConfig()
       const override;
-  SbTime GetDuration() const override;
-  SbTime GetStartTime() const override;
-  SbTime GetTimelineOffset() const override;
+  int64_t GetDuration() const override;
+  int64_t GetStartTime() const override;
+  int64_t GetTimelineOffset() const override;
   void Read(CobaltExtensionDemuxerStreamType type,
             CobaltExtensionDemuxerReadCB read_cb,
             void* read_cb_user_data) override;

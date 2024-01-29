@@ -17,6 +17,7 @@
 #include <atomic>
 #include <vector>
 
+#include "starboard/common/time.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/thread.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -32,7 +33,7 @@ namespace {
 using ::testing::ElementsAre;
 
 // Require at least millisecond-level precision.
-constexpr SbTime kPrecision = kSbTimeMillisecond;
+constexpr int64_t kPrecisionUsec = 1000;
 
 void ExecutePendingJobs(JobThread* job_thread) {
   job_thread->ScheduleAndWait([]() {});
@@ -44,14 +45,14 @@ TEST(JobThreadTest, ScheduledJobsAreExecutedInOrder) {
   job_thread.Schedule([&]() { values.push_back(1); });
   job_thread.Schedule([&]() { values.push_back(2); });
   job_thread.Schedule([&]() { values.push_back(3); });
-  job_thread.Schedule([&]() { values.push_back(4); }, 1 * kPrecision);
-  job_thread.Schedule([&]() { values.push_back(5); }, 1 * kPrecision);
-  job_thread.Schedule([&]() { values.push_back(6); }, 1 * kPrecision);
-  job_thread.Schedule([&]() { values.push_back(7); }, 2 * kPrecision);
-  job_thread.Schedule([&]() { values.push_back(8); }, 3 * kPrecision);
+  job_thread.Schedule([&]() { values.push_back(4); }, 1 * kPrecisionUsec);
+  job_thread.Schedule([&]() { values.push_back(5); }, 1 * kPrecisionUsec);
+  job_thread.Schedule([&]() { values.push_back(6); }, 1 * kPrecisionUsec);
+  job_thread.Schedule([&]() { values.push_back(7); }, 2 * kPrecisionUsec);
+  job_thread.Schedule([&]() { values.push_back(8); }, 3 * kPrecisionUsec);
 
   // Sleep past the last scheduled job.
-  SbThreadSleep(4 * kPrecision);
+  SbThreadSleep(4 * kPrecisionUsec);
 
   ExecutePendingJobs(&job_thread);
 
@@ -59,16 +60,16 @@ TEST(JobThreadTest, ScheduledJobsAreExecutedInOrder) {
 }
 
 TEST(JobThreadTest, ScheduleAndWaitWaits) {
-  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+  int64_t start = CurrentMonotonicTime();
   std::atomic_bool job_1 = {false};
   JobThread job_thread{"JobThreadTests"};
   job_thread.ScheduleAndWait([&]() {
-    SbThreadSleep(1 * kPrecision);
+    SbThreadSleep(1 * kPrecisionUsec);
     job_1 = true;
   });
   // Verify that the job ran and that it took at least as long as it slept.
   EXPECT_TRUE(job_1);
-  EXPECT_GE(SbTimeGetMonotonicNow() - start, 1 * kPrecision);
+  EXPECT_GE(CurrentMonotonicTime() - start, 1 * kPrecisionUsec);
 }
 
 TEST(JobThreadTest, ScheduledJobsShouldNotExecuteAfterGoingOutOfScope) {
@@ -77,19 +78,19 @@ TEST(JobThreadTest, ScheduledJobsShouldNotExecuteAfterGoingOutOfScope) {
     JobThread job_thread{"JobThreadTests"};
     std::function<void()> job = [&]() {
       counter++;
-      job_thread.Schedule(job, 2 * kPrecision);
+      job_thread.Schedule(job, 2 * kPrecisionUsec);
     };
     job_thread.Schedule(job);
 
     // Wait for the job to run at least once and reschedule itself.
-    SbThreadSleep(1 * kPrecision);
+    SbThreadSleep(1 * kPrecisionUsec);
     ExecutePendingJobs(&job_thread);
   }
   int end_value = counter;
   EXPECT_GE(counter, 1);
 
   // Sleep past two more (potential) executions and verify there were none.
-  SbThreadSleep(4 * kPrecision);
+  SbThreadSleep(4 * kPrecisionUsec);
   EXPECT_EQ(counter, end_value);
 }
 
@@ -120,7 +121,7 @@ TEST(JobThreadTest, CanceledJobsAreCanceled) {
   int checkpoint_2 = counter_2;
 
   // Sleep and wait for pending jobs to run.
-  SbThreadSleep(1 * kPrecision);
+  SbThreadSleep(1 * kPrecisionUsec);
   ExecutePendingJobs(&job_thread);
 
   // Job 1 should not have run again.

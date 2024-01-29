@@ -176,9 +176,10 @@ int DecoderBufferAllocator::GetBufferPadding() const {
 #endif  // SB_API_VERSION >= 14
 }
 
-SbTime DecoderBufferAllocator::GetBufferGarbageCollectionDurationThreshold()
-    const {
-  return SbMediaGetBufferGarbageCollectionDurationThreshold();
+base::TimeDelta
+DecoderBufferAllocator::GetBufferGarbageCollectionDurationThreshold() const {
+  return base::TimeDelta::FromMicroseconds(
+      SbMediaGetBufferGarbageCollectionDurationThreshold());
 }
 
 int DecoderBufferAllocator::GetProgressiveBufferBudget(

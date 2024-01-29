@@ -36,7 +36,7 @@ const jint kNoSize = 0;
 const jint kNoBufferFlags = 0;
 
 // Delay to use after a retryable error has been encountered.
-const SbTime kErrorRetryDelay = 50 * kSbTimeMillisecond;
+const int64_t kErrorRetryDelay = 50'000;  // 50ms
 
 const char* GetNameForMediaCodecStatus(jint status) {
   switch (status) {
@@ -76,7 +76,8 @@ const char* GetDecoderName(SbMediaType media_type) {
 
 MediaDecoder::MediaDecoder(Host* host,
                            const AudioStreamInfo& audio_stream_info,
-                           SbDrmSystem drm_system)
+                           SbDrmSystem drm_system,
+                           bool use_mediacodec_callback_thread)
     : media_type_(kSbMediaTypeAudio),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
@@ -87,7 +88,7 @@ MediaDecoder::MediaDecoder(Host* host,
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
   media_codec_bridge_ = MediaCodecBridge::CreateAudioMediaCodecBridge(
-      audio_stream_info, this, j_media_crypto);
+      audio_stream_info, this, j_media_crypto, use_mediacodec_callback_thread);
   if (!media_codec_bridge_) {
     SB_LOG(ERROR) << "Failed to create audio media codec bridge.";
     return;
@@ -118,6 +119,8 @@ MediaDecoder::MediaDecoder(Host* host,
                            const FrameRenderedCB& frame_rendered_cb,
                            int tunnel_mode_audio_session_id,
                            bool force_big_endian_hdr_metadata,
+                           bool use_mediacodec_callback_thread,
+                           int max_video_input_size,
                            std::string* error_message)
     : media_type_(kSbMediaTypeVideo),
       host_(host),
@@ -135,7 +138,8 @@ MediaDecoder::MediaDecoder(Host* host,
       video_codec, width_hint, height_hint, fps, max_width, max_height, this,
       j_output_surface, j_media_crypto, color_metadata, require_secured_decoder,
       require_software_codec, tunnel_mode_audio_session_id,
-      force_big_endian_hdr_metadata, error_message);
+      force_big_endian_hdr_metadata, use_mediacodec_callback_thread,
+      max_video_input_size, error_message);
   if (!media_codec_bridge_) {
     SB_LOG(ERROR) << "Failed to create video media codec bridge with error: "
                   << *error_message;
@@ -258,7 +262,7 @@ void MediaDecoder::DecoderThreadFunc() {
         bool can_process_input =
             pending_queue_input_buffer_task_ || (has_input && has_input_buffer);
         if (dequeue_output_results_.empty() && !can_process_input) {
-          if (!condition_variable_.WaitTimed(5 * kSbTimeSecond)) {
+          if (!condition_variable_.WaitTimed(5'000'000LL)) {
             SB_LOG_IF(ERROR, !stream_ended_.load())
                 << GetDecoderName(media_type_) << ": Wait() hits timeout.";
           }
@@ -355,7 +359,7 @@ void MediaDecoder::DecoderThreadFunc() {
         can_process_input =
             !pending_tasks.empty() && !input_buffer_indices.empty();
         if (!can_process_input && dequeue_output_results.empty()) {
-          condition_variable_.WaitTimed(kSbTimeMillisecond);
+          condition_variable_.WaitTimed(1000);
         }
       }
     }
@@ -639,7 +643,7 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
   condition_variable_.Signal();
 }
 
-void MediaDecoder::OnMediaCodecFrameRendered(SbTime frame_timestamp) {
+void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
   SB_DCHECK(tunnel_mode_enabled_);
   frame_rendered_cb_(frame_timestamp);
 }

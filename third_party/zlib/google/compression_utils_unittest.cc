@@ -12,6 +12,7 @@
 #include "base/logging.h"
 #include "base/stl_util.h"
 #include "starboard/common/log.h"
+#include "starboard/common/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace compression {
@@ -101,22 +102,22 @@ TEST(CompressionUtilsTest, OutputCompressionAndDecompressionDuration) {
   for (size_t i = 0; i < kSize; ++i)
     data[i] = static_cast<char>(i & 0xFF);
 
-  SbTime begin = SbTimeGetNow();
+  int64_t begin = starboard::CurrentPosixTime();
 
   std::string compressed_data;
   EXPECT_TRUE(GzipCompress(data, &compressed_data));
 
   SB_LOG(INFO) << "GzipCompress() of 32MiB took "
-               << (SbTimeGetNow() - begin) / kSbTimeMillisecond
+               << (starboard::CurrentPosixTime() - begin) / 1000
                << " milliseconds.";
 
-  begin = SbTimeGetNow();
+  begin = starboard::CurrentPosixTime();
 
   std::string uncompressed_data;
   EXPECT_TRUE(GzipUncompress(compressed_data, &uncompressed_data));
 
   SB_LOG(INFO) << "GzipUncompress() of 32MiB took "
-               << (SbTimeGetNow() - begin) / kSbTimeMillisecond
+               << (starboard::CurrentPosixTime() - begin) / 1000
                << " milliseconds.";
 }
 #endif

@@ -69,7 +69,7 @@
   }
 
 
-  FT_CALLBACK_DEF( FT_UInt32 )
+  FT_CALLBACK_DEF( FT_UInt )
   cff_cmap_encoding_char_next( CFF_CMapStd   cmap,
                                FT_UInt32    *pchar_code )
   {
@@ -77,28 +77,16 @@
     FT_UInt32  char_code = *pchar_code;
 
 
-    *pchar_code = 0;
-
-    if ( char_code < 255 )
+    while ( char_code < 255 )
     {
-      FT_UInt  code = (FT_UInt)( char_code + 1 );
-
-
-      for (;;)
+      result = cmap->gids[++char_code];
+      if ( result )
       {
-        if ( code >= 256 )
-          break;
-
-        result = cmap->gids[code];
-        if ( result != 0 )
-        {
-          *pchar_code = code;
-          break;
-        }
-
-        code++;
+        *pchar_code = char_code;
+        break;
       }
     }
+
     return result;
   }
 
@@ -197,7 +185,7 @@
   }
 
 
-  FT_CALLBACK_DEF( FT_UInt32 )
+  FT_CALLBACK_DEF( FT_UInt )
   cff_cmap_unicode_char_next( PS_Unicodes  unicodes,
                               FT_UInt32   *pchar_code )
   {

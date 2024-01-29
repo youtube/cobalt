@@ -26,7 +26,6 @@
 #include "cobalt/media_session/media_session_action_details.h"
 #include "cobalt/media_session/media_session_state.h"
 #include "starboard/extension/media_session.h"
-#include "starboard/time.h"
 
 namespace cobalt {
 namespace media_session {

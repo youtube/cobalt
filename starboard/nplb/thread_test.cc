@@ -28,7 +28,7 @@ class TestRunThread : public Thread {
   TestRunThread() : Thread("TestThread"), finished_(false) {}
 
   void Run() override {
-    while (!WaitForJoin(kSbTimeMillisecond)) {
+    while (!WaitForJoin(1000)) {
     }
     finished_.store(true);
   }

@@ -18,11 +18,11 @@
 
 #include "starboard/common/file.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/memory.h"
 #include "starboard/nplb/file_helpers.h"
 #include "starboard/system.h"
-#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -206,7 +206,7 @@ TEST(SbSystemGetPath, ExecutableFileCreationTimeIsSound) {
   result = SbFileGetPathInfo(path.data(), &executable_file_info);
   ASSERT_TRUE(result);
 
-  SbTime now = SbTimeGetNow();
+  int64_t now = PosixTimeToWindowsTime(CurrentPosixTime());
   EXPECT_GT(now, executable_file_info.creation_time);
 }
 

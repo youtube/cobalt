@@ -11,11 +11,7 @@
 
 #if !UCONFIG_NO_FORMATTING
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#else
 #include <stdlib.h>
-#endif  // defined(STARBOARD)
 
 #include "unicode/datefmt.h"
 #include "unicode/reldatefmt.h"

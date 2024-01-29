@@ -4,15 +4,11 @@
 
 #include "crypto/rsa_private_key.h"
 
+#include <stdint.h>
+
 #include <memory>
 
 #include "testing/gtest/include/gtest/gtest.h"
-
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
-#endif
 
 namespace {
 

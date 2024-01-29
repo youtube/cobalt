@@ -27,6 +27,7 @@
 #include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/media.h"
 #include "starboard/memory.h"
@@ -56,7 +57,7 @@ using ::testing::Combine;
 using ::testing::ValuesIn;
 using video_dmp::VideoDmpReader;
 
-const SbTimeMonotonic kWaitForNextEventTimeOut = 5 * kSbTimeSecond;
+const int64_t kWaitForNextEventTimeOut = 5'000'000;  // 5 seconds
 
 scoped_refptr<DecodedAudio> ConsolidateDecodedAudios(
     const std::vector<scoped_refptr<DecodedAudio>>& decoded_audios) {
@@ -149,8 +150,8 @@ class AudioDecoderTest
   }
 
   void WaitForNextEvent(Event* event) {
-    SbTimeMonotonic start = SbTimeGetMonotonicNow();
-    while (SbTimeGetMonotonicNow() - start < kWaitForNextEventTimeOut) {
+    int64_t start = CurrentMonotonicTime();
+    while (CurrentMonotonicTime() - start < kWaitForNextEventTimeOut) {
       job_queue_.RunUntilIdle();
       {
         ScopedLock scoped_lock(event_queue_mutex_);
@@ -165,7 +166,7 @@ class AudioDecoderTest
           return;
         }
       }
-      SbThreadSleep(kSbTimeMillisecond);
+      SbThreadSleep(1000);
     }
     *event = kError;
   }
@@ -189,8 +190,8 @@ class AudioDecoderTest
   }
 
   void WriteSingleInput(size_t index,
-                        SbTime discarded_duration_from_front,
-                        SbTime discarded_duration_from_back) {
+                        int64_t discarded_duration_from_front,
+                        int64_t discarded_duration_from_back) {
     SB_DCHECK(IsPartialAudioSupported());
 
     ASSERT_TRUE(can_accept_more_input_);
@@ -276,15 +277,15 @@ class AudioDecoderTest
   }
 
   // The start_index will be updated to the new position.
-  void WriteTimeLimitedInputs(int* start_index, SbTime time_limit) {
+  void WriteTimeLimitedInputs(int* start_index, int64_t time_limit) {
     SB_DCHECK(start_index);
     SB_DCHECK(*start_index >= 0);
     SB_DCHECK(*start_index < dmp_reader_.number_of_audio_buffers());
     ASSERT_NO_FATAL_FAILURE(
         WriteSingleInput(static_cast<size_t>(*start_index)));
     SB_DCHECK(last_input_buffer_);
-    SbTime last_timestamp = last_input_buffer_->timestamp();
-    SbTime first_timestamp = last_timestamp;
+    int64_t last_timestamp = last_input_buffer_->timestamp();
+    int64_t first_timestamp = last_timestamp;
     ++(*start_index);
 
     while (last_timestamp - first_timestamp < time_limit &&
@@ -374,8 +375,8 @@ class AudioDecoderTest
 
   scoped_refptr<InputBuffer> GetAudioInputBuffer(
       size_t index,
-      SbTime discarded_duration_from_front,
-      SbTime discarded_duration_from_back) {
+      int64_t discarded_duration_from_front,
+      int64_t discarded_duration_from_back) {
     SB_DCHECK(IsPartialAudioSupported());
 
     auto input_buffer = testing::GetAudioInputBuffer(
@@ -649,7 +650,7 @@ TEST_P(AudioDecoderTest, MultipleInputs) {
 }
 
 TEST_P(AudioDecoderTest, LimitedInput) {
-  SbTime duration = kSbTimeSecond / 2;
+  int64_t duration = 500'000;  // 0.5 seconds
 #if SB_API_VERSION < 15
   SbMediaSetAudioWriteDuration(duration);
 #endif  // SB_API_VERSION < 15
@@ -668,12 +669,12 @@ TEST_P(AudioDecoderTest, LimitedInput) {
 
 TEST_P(AudioDecoderTest, ContinuedLimitedInput) {
   constexpr int kMaxAccessUnitsToDecode = 256;
-  SbTime duration = kSbTimeSecond / 2;
+  int64_t duration = 500'000;  // 0.5 seconds
 #if SB_API_VERSION < 15
   SbMediaSetAudioWriteDuration(duration);
 #endif  // SB_API_VERSION < 15
 
-  SbTime start = SbTimeGetMonotonicNow();
+  int64_t start = CurrentMonotonicTime();
   int start_index = 0;
   Event event;
   while (true) {
@@ -701,7 +702,7 @@ TEST_P(AudioDecoderTest, ContinuedLimitedInput) {
   }
   WriteEndOfStream();
   ASSERT_NO_FATAL_FAILURE(DrainOutputs());
-  SbTime elapsed = SbTimeGetMonotonicNow() - start;
+  int64_t elapsed = CurrentMonotonicTime() - start;
   SB_LOG(INFO) << "Decoding " << dmp_reader_.number_of_audio_buffers()
                << " access units of "
                << GetMediaAudioCodecName(dmp_reader_.audio_codec()) << " takes "
@@ -761,7 +762,7 @@ TEST_P(AudioDecoderTest, PartialAudio) {
     ASSERT_GT(decoded_audio_sample_rate_, 0);
     auto frames_per_access_unit =
         reference_decoded_audio->frames() / number_of_input_to_write;
-    SbTime duration_to_discard =
+    int64_t duration_to_discard =
         media::AudioFramesToDuration(frames_per_access_unit,
                                      decoded_audio_sample_rate_) /
         4;
@@ -769,8 +770,8 @@ TEST_P(AudioDecoderTest, PartialAudio) {
     ResetDecoder();
 
     for (int i = 0; i < number_of_input_to_write; ++i) {
-      SbTime duration_to_discard_from_front = i == 0 ? duration_to_discard : 0;
-      SbTime duration_to_discard_from_back =
+      int64_t duration_to_discard_from_front = i == 0 ? duration_to_discard : 0;
+      int64_t duration_to_discard_from_back =
           i == number_of_input_to_write - 1 ? duration_to_discard : 0;
       ASSERT_NO_FATAL_FAILURE(WriteSingleInput(
           i, duration_to_discard_from_front, duration_to_discard_from_back));

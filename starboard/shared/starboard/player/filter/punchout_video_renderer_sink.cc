@@ -28,7 +28,7 @@ using std::placeholders::_1;
 using std::placeholders::_2;
 
 PunchoutVideoRendererSink::PunchoutVideoRendererSink(SbPlayer player,
-                                                     SbTime render_interval)
+                                                     int64_t render_interval)
     : player_(player),
       render_interval_(render_interval),
       thread_(kSbThreadInvalid),

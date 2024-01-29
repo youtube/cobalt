@@ -16,6 +16,7 @@
 
 #include <algorithm>
 
+#include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
 #include "starboard/raspi/shared/open_max/decode_target_create.h"
@@ -85,7 +86,7 @@ SbDecodeTarget OpenMaxImageDecodeComponent::Decode(
     if (write_size > 0) {
       write_size =
           WriteData(reinterpret_cast<const uint8_t*>(data) + data_size_written,
-                    write_size, kDataEOS, SbTimeGetMonotonicNow());
+                    write_size, kDataEOS, CurrentMonotonicTime());
       SB_DCHECK(write_size >= 0);
       data_size_written += write_size;
     }
@@ -94,7 +95,7 @@ SbDecodeTarget OpenMaxImageDecodeComponent::Decode(
       break;
     } else if (write_size == 0 && output_size == 0) {
       // Wait for buffers to become available.
-      SbThreadSleep(kSbTimeMillisecond);
+      SbThreadSleep(1000);
     }
   }
 

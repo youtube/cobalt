@@ -51,7 +51,7 @@ class MediaDecoder
   typedef ::starboard::shared::starboard::player::filter::ErrorCB ErrorCB;
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
   typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
-  typedef std::function<void(SbTime)> FrameRenderedCB;
+  typedef std::function<void(int64_t)> FrameRenderedCB;
 
   // This class should be implemented by the users of MediaDecoder to receive
   // various notifications.  Note that all such functions are called on the
@@ -79,7 +79,8 @@ class MediaDecoder
 
   MediaDecoder(Host* host,
                const AudioStreamInfo& audio_stream_info,
-               SbDrmSystem drm_system);
+               SbDrmSystem drm_system,
+               bool use_mediacodec_callback_thread);
   MediaDecoder(Host* host,
                SbMediaVideoCodec video_codec,
                // `width_hint` and `height_hint` are used to create the Android
@@ -97,6 +98,8 @@ class MediaDecoder
                const FrameRenderedCB& frame_rendered_cb,
                int tunnel_mode_audio_session_id,
                bool force_big_endian_hdr_metadata,
+               bool use_mediacodec_callback_thread,
+               int max_video_input_size,
                std::string* error_message);
   ~MediaDecoder();
 
@@ -168,7 +171,7 @@ class MediaDecoder
                                          int64_t presentation_time_us,
                                          int size) override;
   void OnMediaCodecOutputFormatChanged() override;
-  void OnMediaCodecFrameRendered(SbTime frame_timestamp) override;
+  void OnMediaCodecFrameRendered(int64_t frame_timestamp) override;
 
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
 

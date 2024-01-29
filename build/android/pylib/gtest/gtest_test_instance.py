@@ -1,8 +1,9 @@
-# Copyright 2014 The Chromium Authors. All rights reserved.
+# Copyright 2014 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import HTMLParser
+
+
 import json
 import logging
 import os
@@ -11,6 +12,7 @@ import tempfile
 import threading
 import xml.etree.ElementTree
 
+import six
 from devil.android import apk_helper
 from pylib import constants
 from pylib.constants import host_paths
@@ -18,6 +20,7 @@ from pylib.base import base_test_result
 from pylib.base import test_instance
 from pylib.symbols import stack_symbolizer
 from pylib.utils import test_filter
+
 
 with host_paths.SysPath(host_paths.BUILD_COMMON_PATH):
   import unittest_util # pylint: disable=import-error
@@ -246,7 +249,7 @@ def ParseGTestXML(xml_content):
   if not xml_content:
     return results
 
-  html = HTMLParser.HTMLParser()
+  html = six.moves.html_parser.HTMLParser()
 
   testsuites = xml.etree.ElementTree.fromstring(xml_content)
   for testsuite in testsuites:
@@ -276,17 +279,25 @@ def ParseGTestJSON(json_content):
 
   json_data = json.loads(json_content)
 
-  openstack = json_data['tests'].items()
+  openstack = list(json_data['tests'].items())
 
   while openstack:
     name, value = openstack.pop()
 
     if 'expected' in value and 'actual' in value:
-      result_type = base_test_result.ResultType.PASS if value[
-          'actual'] == 'PASS' else base_test_result.ResultType.FAIL
+      if value['actual'] == 'PASS':
+        result_type = base_test_result.ResultType.PASS
+      elif value['actual'] == 'SKIP':
+        result_type = base_test_result.ResultType.SKIP
+      elif value['actual'] == 'CRASH':
+        result_type = base_test_result.ResultType.CRASH
+      elif value['actual'] == 'TIMEOUT':
+        result_type = base_test_result.ResultType.TIMEOUT
+      else:
+        result_type = base_test_result.ResultType.FAIL
       results.append(base_test_result.BaseTestResult(name, result_type))
     else:
-      openstack += [("%s.%s" % (name, k), v) for k, v in value.iteritems()]
+      openstack += [("%s.%s" % (name, k), v) for k, v in six.iteritems(value)]
 
   return results
 
@@ -308,7 +319,7 @@ def TestNameWithoutDisabledPrefix(test_name):
 class GtestTestInstance(test_instance.TestInstance):
 
   def __init__(self, args, data_deps_delegate, error_func):
-    super(GtestTestInstance, self).__init__()
+    super().__init__()
     # TODO(jbudorick): Support multiple test suites.
     if len(args.suite_name) > 1:
       raise ValueError('Platform mode currently supports only 1 gtest suite')
@@ -328,6 +339,7 @@ class GtestTestInstance(test_instance.TestInstance):
     self._symbolizer = stack_symbolizer.Symbolizer(None)
     self._total_external_shards = args.test_launcher_total_shards
     self._wait_for_java_debugger = args.wait_for_java_debugger
+    self._use_existing_test_data = args.use_existing_test_data
 
     # GYP:
     if args.executable_dist_dir:
@@ -374,7 +386,7 @@ class GtestTestInstance(test_instance.TestInstance):
       error_func('Could not find apk or executable for %s' % self._suite)
 
     self._data_deps = []
-    self._gtest_filter = test_filter.InitializeFilterFromArgs(args)
+    self._gtest_filters = test_filter.InitializeFiltersFromArgs(args)
     self._run_disabled = args.run_disabled
 
     self._data_deps_delegate = data_deps_delegate
@@ -463,8 +475,8 @@ class GtestTestInstance(test_instance.TestInstance):
     return self._gs_test_artifacts_bucket
 
   @property
-  def gtest_filter(self):
-    return self._gtest_filter
+  def gtest_filters(self):
+    return self._gtest_filters
 
   @property
   def isolated_script_test_output(self):
@@ -522,6 +534,10 @@ class GtestTestInstance(test_instance.TestInstance):
   def wait_for_java_debugger(self):
     return self._wait_for_java_debugger
 
+  @property
+  def use_existing_test_data(self):
+    return self._use_existing_test_data
+
   #override
   def TestType(self):
     return 'gtest'
@@ -559,8 +575,8 @@ class GtestTestInstance(test_instance.TestInstance):
     """
     gtest_filter_strings = [
         self._GenerateDisabledFilterString(disabled_prefixes)]
-    if self._gtest_filter:
-      gtest_filter_strings.append(self._gtest_filter)
+    if self._gtest_filters:
+      gtest_filter_strings.extend(self._gtest_filters)
 
     filtered_test_list = test_list
     # This lock is required because on older versions of Python
@@ -571,12 +587,16 @@ class GtestTestInstance(test_instance.TestInstance):
         filtered_test_list = unittest_util.FilterTestNames(
             filtered_test_list, gtest_filter_string)
 
-      if self._run_disabled and self._gtest_filter:
+      if self._run_disabled and self._gtest_filters:
         out_filtered_test_list = list(set(test_list)-set(filtered_test_list))
         for test in out_filtered_test_list:
           test_name_no_disabled = TestNameWithoutDisabledPrefix(test)
-          if test_name_no_disabled != test and unittest_util.FilterTestNames(
-              [test_name_no_disabled], self._gtest_filter):
+          if test_name_no_disabled == test:
+            continue
+          if all(
+              unittest_util.FilterTestNames([test_name_no_disabled],
+                                            gtest_filter)
+              for gtest_filter in self._gtest_filters):
             filtered_test_list.append(test)
     return filtered_test_list
 
@@ -607,4 +627,3 @@ class GtestTestInstance(test_instance.TestInstance):
   #override
   def TearDown(self):
     """Do nothing."""
-    pass

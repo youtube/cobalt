@@ -7,10 +7,35 @@
 #include <sstream>
 #include <string>
 
-#include "json.h"
+#include "encoding.h"
 
 namespace crdtp {
-namespace {
+class SingleThreadedPlatform : public json::Platform {
+  bool StrToD(const char* str, double* result) const override {
+    const char* saved_locale = std::setlocale(LC_NUMERIC, nullptr);
+    char* end;
+    *result = std::strtod(str, &end);
+    std::setlocale(LC_NUMERIC, saved_locale);
+    if (errno == ERANGE) {
+      // errno must be reset, e.g. see the example here:
+      // https://en.cppreference.com/w/cpp/string/byte/strtof
+      errno = 0;
+      return false;
+    }
+    return end == str + strlen(str);
+  }
+
+  std::unique_ptr<char[]> DToStr(double value) const override {
+    std::stringstream ss;
+    ss.imbue(std::locale("C"));
+    ss << value;
+    std::string str = ss.str();
+    std::unique_ptr<char[]> result(new char[str.size() + 1]);
+    memcpy(result.get(), str.c_str(), str.size() + 1);
+    return result;
+  }
+};
+
 int Transcode(const std::string& cmd,
               const std::string& input_file_name,
               const std::string& output_file_name) {
@@ -26,11 +51,12 @@ int Transcode(const std::string& cmd,
     in += buffer.substr(0, input_file.gcount());
   }
   Status status;
+  SingleThreadedPlatform platform;
   std::string out;
   if (cmd == "--json-to-cbor") {
-    status = json::ConvertJSONToCBOR(SpanFrom(in), &out);
+    status = json::ConvertJSONToCBOR(platform, SpanFrom(in), &out);
   } else if (cmd == "--cbor-to-json") {
-    status = json::ConvertCBORToJSON(SpanFrom(in), &out);
+    status = json::ConvertCBORToJSON(platform, SpanFrom(in), &out);
   } else {
     std::cerr << "unknown command " << cmd << "\n";
     return 1;
@@ -47,7 +73,6 @@ int Transcode(const std::string& cmd,
   output_file.write(out.data(), out.size());
   return 0;
 }
-}  // namespace
 }  // namespace crdtp
 
 int main(int argc, char** argv) {

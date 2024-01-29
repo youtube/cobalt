@@ -117,9 +117,13 @@ OPENSSL_EXPORT int BIO_read(BIO *bio, void *data, int len);
 // return a line for this call, remove the warning above.
 OPENSSL_EXPORT int BIO_gets(BIO *bio, char *buf, int size);
 
-// BIO_write writes |len| bytes from |data| to BIO. It returns the number of
+// BIO_write writes |len| bytes from |data| to |bio|. It returns the number of
 // bytes written or a negative number on error.
 OPENSSL_EXPORT int BIO_write(BIO *bio, const void *data, int len);
+
+// BIO_write_all writes |len| bytes from |data| to |bio|, looping as necessary.
+// It returns one if all bytes were successfully written and zero on error.
+OPENSSL_EXPORT int BIO_write_all(BIO *bio, const void *data, size_t len);
 
 // BIO_puts writes a NUL terminated string from |buf| to |bio|. It returns the
 // number of bytes written or a negative number on error.
@@ -194,6 +198,10 @@ OPENSSL_EXPORT int BIO_should_io_special(const BIO *bio);
 // BIO_get_retry_reason returns the special I/O operation that needs to be
 // retried. The return value is one of the |BIO_RR_*| values.
 OPENSSL_EXPORT int BIO_get_retry_reason(const BIO *bio);
+
+// BIO_set_retry_reason sets the special I/O operation that needs to be retried
+// to |reason|, which should be one of the |BIO_RR_*| values.
+OPENSSL_EXPORT void BIO_set_retry_reason(BIO *bio, int reason);
 
 // BIO_clear_flags ANDs |bio->flags| with the bitwise-complement of |flags|.
 OPENSSL_EXPORT void BIO_clear_flags(BIO *bio, int flags);
@@ -369,7 +377,9 @@ OPENSSL_EXPORT int BIO_read_asn1(BIO *bio, uint8_t **out, size_t *out_len,
 OPENSSL_EXPORT const BIO_METHOD *BIO_s_mem(void);
 
 // BIO_new_mem_buf creates read-only BIO that reads from |len| bytes at |buf|.
-// It does not take ownership of |buf|. It returns the BIO or NULL on error.
+// It returns the BIO or NULL on error. This function does not copy or take
+// ownership of |buf|. The caller must ensure the memory pointed to by |buf|
+// outlives the |BIO|.
 //
 // If |len| is negative, then |buf| is treated as a NUL-terminated string, but
 // don't depend on this in new code.
@@ -511,6 +521,25 @@ OPENSSL_EXPORT int BIO_append_filename(BIO *bio, const char *filename);
 // as the |FILE| for |bio|. It returns one on success and zero otherwise. The
 // |FILE| will be closed when |bio| is freed.
 OPENSSL_EXPORT int BIO_rw_filename(BIO *bio, const char *filename);
+
+// BIO_tell returns the file offset of |bio|, or a negative number on error or
+// if |bio| does not support the operation.
+//
+// TODO(https://crbug.com/boringssl/465): On platforms where |long| is 32-bit,
+// this function cannot report 64-bit offsets.
+OPENSSL_EXPORT long BIO_tell(BIO *bio);
+
+// BIO_seek sets the file offset of |bio| to |offset|. It returns a non-negative
+// number on success and a negative number on error. If |bio| is a file
+// descriptor |BIO|, it returns the resulting file offset on success. If |bio|
+// is a file |BIO|, it returns zero on success.
+//
+// WARNING: This function's return value conventions differs from most functions
+// in this library.
+//
+// TODO(https://crbug.com/boringssl/465): On platforms where |long| is 32-bit,
+// this function cannot handle 64-bit offsets.
+OPENSSL_EXPORT long BIO_seek(BIO *bio, long offset);
 
 
 // Socket BIOs.
@@ -691,26 +720,49 @@ OPENSSL_EXPORT void BIO_set_init(BIO *bio, int init);
 OPENSSL_EXPORT int BIO_get_init(BIO *bio);
 
 // These are values of the |cmd| argument to |BIO_ctrl|.
-#define BIO_CTRL_RESET		1  // opt - rewind/zero etc
-#define BIO_CTRL_EOF		2  // opt - are we at the eof
-#define BIO_CTRL_INFO		3  // opt - extra tit-bits
-#define BIO_CTRL_SET		4  // man - set the 'IO' type
-#define BIO_CTRL_GET		5  // man - get the 'IO' type
-#define BIO_CTRL_PUSH	6
-#define BIO_CTRL_POP	7
-#define BIO_CTRL_GET_CLOSE	8  // man - set the 'close' on free
-#define BIO_CTRL_SET_CLOSE	9  // man - set the 'close' on free
-#define BIO_CTRL_PENDING	10  // opt - is their more data buffered
-#define BIO_CTRL_FLUSH		11  // opt - 'flush' buffered output
-#define BIO_CTRL_WPENDING	13  // opt - number of bytes still to write
-// callback is int cb(BIO *bio,state,ret);
-#define BIO_CTRL_SET_CALLBACK	14  // opt - set callback function
-#define BIO_CTRL_GET_CALLBACK	15  // opt - set callback function
-#define BIO_CTRL_SET_FILENAME	30	  // BIO_s_file special
 
-// BIO_CTRL_DUP is never used, but exists to allow code to compile more
-// easily.
-#define BIO_CTRL_DUP	12
+// BIO_CTRL_RESET implements |BIO_reset|. The arguments are unused.
+#define BIO_CTRL_RESET 1
+
+// BIO_CTRL_EOF implements |BIO_eof|. The arguments are unused.
+#define BIO_CTRL_EOF 2
+
+// BIO_CTRL_INFO is a legacy command that returns information specific to the
+// type of |BIO|. It is not safe to call generically and should not be
+// implemented in new |BIO| types.
+#define BIO_CTRL_INFO 3
+
+// BIO_CTRL_GET_CLOSE returns the close flag set by |BIO_CTRL_SET_CLOSE|. The
+// arguments are unused.
+#define BIO_CTRL_GET_CLOSE 8
+
+// BIO_CTRL_SET_CLOSE implements |BIO_set_close|. The |larg| argument is the
+// close flag.
+#define BIO_CTRL_SET_CLOSE 9
+
+// BIO_CTRL_PENDING implements |BIO_pending|. The arguments are unused.
+#define BIO_CTRL_PENDING 10
+
+// BIO_CTRL_FLUSH implements |BIO_flush|. The arguments are unused.
+#define BIO_CTRL_FLUSH 11
+
+// BIO_CTRL_WPENDING implements |BIO_wpending|. The arguments are unused.
+#define BIO_CTRL_WPENDING 13
+
+// BIO_CTRL_SET_CALLBACK sets an informational callback of type
+// int cb(BIO *bio, int state, int ret)
+#define BIO_CTRL_SET_CALLBACK 14
+
+// BIO_CTRL_GET_CALLBACK returns the callback set by |BIO_CTRL_SET_CALLBACK|.
+#define BIO_CTRL_GET_CALLBACK 15
+
+// The following are never used, but are defined to aid porting existing code.
+#define BIO_CTRL_SET 4
+#define BIO_CTRL_GET 5
+#define BIO_CTRL_PUSH 6
+#define BIO_CTRL_POP 7
+#define BIO_CTRL_DUP 12
+#define BIO_CTRL_SET_FILENAME 30
 
 
 // Deprecated functions.
@@ -720,6 +772,8 @@ OPENSSL_EXPORT int BIO_get_init(BIO *bio);
 // |BIO_flush| when done writing, to signal that no more data are to be
 // encoded. The flag |BIO_FLAGS_BASE64_NO_NL| may be set to encode all the data
 // on one line.
+//
+// Use |EVP_EncodeBlock| and |EVP_DecodeBase64| instead.
 OPENSSL_EXPORT const BIO_METHOD *BIO_f_base64(void);
 
 OPENSSL_EXPORT void BIO_set_retry_special(BIO *bio);
@@ -747,8 +801,8 @@ OPENSSL_EXPORT int BIO_meth_set_puts(BIO_METHOD *method,
 #define BIO_FLAGS_RWS (BIO_FLAGS_READ | BIO_FLAGS_WRITE | BIO_FLAGS_IO_SPECIAL)
 #define BIO_FLAGS_SHOULD_RETRY 0x08
 #define BIO_FLAGS_BASE64_NO_NL 0x100
-// This is used with memory BIOs: it means we shouldn't free up or change the
-// data in any way.
+// BIO_FLAGS_MEM_RDONLY is used with memory BIOs. It means we shouldn't free up
+// or change the data in any way.
 #define BIO_FLAGS_MEM_RDONLY 0x200
 
 // These are the 'types' of BIOs
@@ -776,7 +830,7 @@ OPENSSL_EXPORT int BIO_meth_set_puts(BIO_METHOD *method,
 #define BIO_TYPE_ASN1 (22 | 0x0200)  // filter
 #define BIO_TYPE_COMP (23 | 0x0200)  // filter
 
-// |BIO_TYPE_DESCRIPTOR| denotes that the |BIO| responds to the |BIO_C_SET_FD|
+// BIO_TYPE_DESCRIPTOR denotes that the |BIO| responds to the |BIO_C_SET_FD|
 // (|BIO_set_fd|) and |BIO_C_GET_FD| (|BIO_get_fd|) control hooks.
 #define BIO_TYPE_DESCRIPTOR 0x0100  // socket, fd, connect or accept
 #define BIO_TYPE_FILTER 0x0200
@@ -823,61 +877,61 @@ struct bio_st {
   size_t num_read, num_write;
 };
 
-#define BIO_C_SET_CONNECT			100
-#define BIO_C_DO_STATE_MACHINE			101
-#define BIO_C_SET_NBIO				102
-#define BIO_C_SET_PROXY_PARAM			103
-#define BIO_C_SET_FD				104
-#define BIO_C_GET_FD				105
-#define BIO_C_SET_FILE_PTR			106
-#define BIO_C_GET_FILE_PTR			107
-#define BIO_C_SET_FILENAME			108
-#define BIO_C_SET_SSL				109
-#define BIO_C_GET_SSL				110
-#define BIO_C_SET_MD				111
-#define BIO_C_GET_MD				112
-#define BIO_C_GET_CIPHER_STATUS			113
-#define BIO_C_SET_BUF_MEM			114
-#define BIO_C_GET_BUF_MEM_PTR			115
-#define BIO_C_GET_BUFF_NUM_LINES		116
-#define BIO_C_SET_BUFF_SIZE			117
-#define BIO_C_SET_ACCEPT			118
-#define BIO_C_SSL_MODE				119
-#define BIO_C_GET_MD_CTX			120
-#define BIO_C_GET_PROXY_PARAM			121
-#define BIO_C_SET_BUFF_READ_DATA		122  // data to read first
-#define BIO_C_GET_ACCEPT			124
-#define BIO_C_SET_SSL_RENEGOTIATE_BYTES		125
-#define BIO_C_GET_SSL_NUM_RENEGOTIATES		126
-#define BIO_C_SET_SSL_RENEGOTIATE_TIMEOUT	127
-#define BIO_C_FILE_SEEK				128
-#define BIO_C_GET_CIPHER_CTX			129
-#define BIO_C_SET_BUF_MEM_EOF_RETURN		130  //return end of input value
-#define BIO_C_SET_BIND_MODE			131
-#define BIO_C_GET_BIND_MODE			132
-#define BIO_C_FILE_TELL				133
-#define BIO_C_GET_SOCKS				134
-#define BIO_C_SET_SOCKS				135
+#define BIO_C_SET_CONNECT 100
+#define BIO_C_DO_STATE_MACHINE 101
+#define BIO_C_SET_NBIO 102
+#define BIO_C_SET_PROXY_PARAM 103
+#define BIO_C_SET_FD 104
+#define BIO_C_GET_FD 105
+#define BIO_C_SET_FILE_PTR 106
+#define BIO_C_GET_FILE_PTR 107
+#define BIO_C_SET_FILENAME 108
+#define BIO_C_SET_SSL 109
+#define BIO_C_GET_SSL 110
+#define BIO_C_SET_MD 111
+#define BIO_C_GET_MD 112
+#define BIO_C_GET_CIPHER_STATUS 113
+#define BIO_C_SET_BUF_MEM 114
+#define BIO_C_GET_BUF_MEM_PTR 115
+#define BIO_C_GET_BUFF_NUM_LINES 116
+#define BIO_C_SET_BUFF_SIZE 117
+#define BIO_C_SET_ACCEPT 118
+#define BIO_C_SSL_MODE 119
+#define BIO_C_GET_MD_CTX 120
+#define BIO_C_GET_PROXY_PARAM 121
+#define BIO_C_SET_BUFF_READ_DATA 122  // data to read first
+#define BIO_C_GET_ACCEPT 124
+#define BIO_C_SET_SSL_RENEGOTIATE_BYTES 125
+#define BIO_C_GET_SSL_NUM_RENEGOTIATES 126
+#define BIO_C_SET_SSL_RENEGOTIATE_TIMEOUT 127
+#define BIO_C_FILE_SEEK 128
+#define BIO_C_GET_CIPHER_CTX 129
+#define BIO_C_SET_BUF_MEM_EOF_RETURN 130  // return end of input value
+#define BIO_C_SET_BIND_MODE 131
+#define BIO_C_GET_BIND_MODE 132
+#define BIO_C_FILE_TELL 133
+#define BIO_C_GET_SOCKS 134
+#define BIO_C_SET_SOCKS 135
 
-#define BIO_C_SET_WRITE_BUF_SIZE		136  // for BIO_s_bio
-#define BIO_C_GET_WRITE_BUF_SIZE		137
-#define BIO_C_GET_WRITE_GUARANTEE		140
-#define BIO_C_GET_READ_REQUEST			141
-#define BIO_C_SHUTDOWN_WR			142
-#define BIO_C_NREAD0				143
-#define BIO_C_NREAD				144
-#define BIO_C_NWRITE0				145
-#define BIO_C_NWRITE				146
-#define BIO_C_RESET_READ_REQUEST		147
-#define BIO_C_SET_MD_CTX			148
+#define BIO_C_SET_WRITE_BUF_SIZE 136  // for BIO_s_bio
+#define BIO_C_GET_WRITE_BUF_SIZE 137
+#define BIO_C_GET_WRITE_GUARANTEE 140
+#define BIO_C_GET_READ_REQUEST 141
+#define BIO_C_SHUTDOWN_WR 142
+#define BIO_C_NREAD0 143
+#define BIO_C_NREAD 144
+#define BIO_C_NWRITE0 145
+#define BIO_C_NWRITE 146
+#define BIO_C_RESET_READ_REQUEST 147
+#define BIO_C_SET_MD_CTX 148
 
-#define BIO_C_SET_PREFIX			149
-#define BIO_C_GET_PREFIX			150
-#define BIO_C_SET_SUFFIX			151
-#define BIO_C_GET_SUFFIX			152
+#define BIO_C_SET_PREFIX 149
+#define BIO_C_GET_PREFIX 150
+#define BIO_C_SET_SUFFIX 151
+#define BIO_C_GET_SUFFIX 152
 
-#define BIO_C_SET_EX_ARG			153
-#define BIO_C_GET_EX_ARG			154
+#define BIO_C_SET_EX_ARG 153
+#define BIO_C_GET_EX_ARG 154
 
 
 #if defined(__cplusplus)
@@ -885,12 +939,13 @@ struct bio_st {
 
 extern "C++" {
 
-namespace bssl {
+BSSL_NAMESPACE_BEGIN
 
 BORINGSSL_MAKE_DELETER(BIO, BIO_free)
 BORINGSSL_MAKE_UP_REF(BIO, BIO_up_ref)
+BORINGSSL_MAKE_DELETER(BIO_METHOD, BIO_meth_free)
 
-}  // namespace bssl
+BSSL_NAMESPACE_END
 
 }  // extern C++
 

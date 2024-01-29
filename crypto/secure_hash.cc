@@ -4,12 +4,12 @@
 
 #include "crypto/secure_hash.h"
 
+#include <stddef.h>
+
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/pickle.h"
 #include "crypto/openssl_util.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/mem.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
 

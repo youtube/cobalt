@@ -4,11 +4,13 @@
 
 #include "crypto/p224_spake.h"
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <string>
 
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace crypto {

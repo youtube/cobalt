@@ -33,11 +33,13 @@
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/memory.h"
 
-// TODO: Detect Neon on ARM platform and enable SIMD.
 #if SB_IS(ARCH_X86) || SB_IS(ARCH_X64)
 #define USE_SIMD 1
 #include <xmmintrin.h>
-#endif  // SB_IS(ARCH_X86) || SB_IS(ARCH_X64)
+#elif (SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)) && defined(USE_NEON)
+#define USE_SIMD 1
+#include <arm_neon.h>
+#endif
 
 namespace starboard {
 namespace shared {
@@ -111,7 +113,7 @@ void MultiChannelDotProduct(const scoped_refptr<DecodedAudio>& a,
     // Reduce to a single float for this channel.
     float32x2_t m_half = vadd_f32(vget_high_f32(m_sum), vget_low_f32(m_sum));
     dot_product[ch] = vget_lane_f32(vpadd_f32(m_half, m_half), 0);
-#endif  // SB_IS(ARCH_X86) || SB_IS(ARCH_X64)
+#endif
   }
 
   if (!rem) {

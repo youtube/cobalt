@@ -14,4 +14,4 @@
 
 #include "starboard/thread.h"
 
-void SbThreadSleep(SbTime duration) {}
+void SbThreadSleep(int64_t duration) {}

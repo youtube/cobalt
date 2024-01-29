@@ -37,10 +37,6 @@
 
 #include "stdlib.h"
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif
-
 namespace skottie {
 
 namespace internal {

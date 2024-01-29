@@ -15,11 +15,11 @@
 #include "starboard/client_porting/eztime/eztime.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/system.h"
-#include "starboard/time.h"
 typedef SbFile FileHandle;
 typedef SbMutex MutexHandle;
 #else
@@ -210,7 +210,7 @@ int32_t CurrentProcessId() {
 
 uint64_t TickCount() {
 #if defined(STARBOARD)
-  return static_cast<uint64_t>(SbTimeGetMonotonicNow());
+  return starboard::CurrentMonotonicTime();
 #else
 #if defined(OS_WIN)
   return GetTickCount();

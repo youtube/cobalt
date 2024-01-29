@@ -136,7 +136,7 @@ class TestWithJavaScriptBase : public TypeIdProvider {
     global_environment()->EnableEval();
     global_environment()->SetReportEvalCallback(base::Closure());
     return script::SourceCode::CreateSourceCode(
-        js_code, base::SourceLocation(__FILE__, __LINE__, 1));
+        js_code, base::SourceLocation(js_code.c_str(), 1, 1));
   }
 
   std::unique_ptr<web::testing::StubWebContext> web_context_;
@@ -151,7 +151,7 @@ class TestWithJavaScriptBase : public TypeIdProvider {
 };
 
 template <class GlobalScope>
-class GetGlobalScopeTypeIdBase : public ::testing::Test {
+class GetGlobalScopeTypeIdBase {
  public:
   base::TypeId GetGlobalScopeTypeId() const {
     return base::GetTypeId<GlobalScope>();
@@ -178,26 +178,36 @@ class TestWorkersWithJavaScript
         base::GetTypeId<ServiceWorkerGlobalScope>()};
     return worker_types;
   }
-  static std::string GetTypeName(::testing::TestParamInfo<base::TypeId> info) {
-    if (info.param == base::GetTypeId<DedicatedWorkerGlobalScope>()) {
+  static std::string GetName(const base::TypeId type) {
+    if (type == base::GetTypeId<DedicatedWorkerGlobalScope>()) {
       return "DedicatedWorkerGlobalScope";
     }
-    if (info.param == base::GetTypeId<ServiceWorkerGlobalScope>()) {
+    if (type == base::GetTypeId<ServiceWorkerGlobalScope>()) {
       return "ServiceWorkerGlobalScope";
     }
     return "Unknown";
+  }
+
+  static std::string GetTypeName(
+      const ::testing::TestParamInfo<base::TypeId> info) {
+    return GetName(info.param);
   }
 };
 
 // Helper classes for running TEST_F() tests on only one type of worker.
 class TestDedicatedWorkerWithJavaScript
     : public TestWithJavaScriptBase<
-          GetGlobalScopeTypeIdBase<DedicatedWorkerGlobalScope>> {};
+          GetGlobalScopeTypeIdBase<DedicatedWorkerGlobalScope>>,
+      public ::testing::Test {};
 
 // Helper classes for running TEST_F() tests on only one type of worker.
-class TestServiceWorkerWithJavaScript
+class TestServiceWorkerWithJavaScriptBase
     : public TestWithJavaScriptBase<
           GetGlobalScopeTypeIdBase<ServiceWorkerGlobalScope>> {};
+
+class TestServiceWorkerWithJavaScript
+    : public TestServiceWorkerWithJavaScriptBase,
+      public ::testing::Test {};
 
 }  // namespace testing
 }  // namespace worker

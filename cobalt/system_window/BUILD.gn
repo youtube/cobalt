@@ -25,5 +25,6 @@ static_library("system_window") {
     "//cobalt/base",
     "//cobalt/math",
     "//starboard:starboard_headers_only",
+    "//starboard/common",
   ]
 }

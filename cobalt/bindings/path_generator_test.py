@@ -16,7 +16,6 @@
 
 import unittest
 
-from . import _env  # pylint: disable=unused-import
 from cobalt.bindings.path_generator import PathBuilder
 
 

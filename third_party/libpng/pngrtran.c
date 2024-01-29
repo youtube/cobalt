@@ -1,8 +1,8 @@
 
 /* pngrtran.c - transforms the data in a row for PNG readers
  *
- * Last changed in libpng 1.2.45 [July 7, 2011]
- * Copyright (c) 1998-2011 Glenn Randers-Pehrson
+ * Last changed in libpng 1.2.51 [February 6, 2014]
+ * Copyright (c) 1998-2014 Glenn Randers-Pehrson
  * (Version 0.96 Copyright (c) 1996, 1997 Andreas Dilger)
  * (Version 0.88 Copyright (c) 1995, 1996 Guy Eric Schalnat, Group 42, Inc.)
  *
@@ -19,7 +19,6 @@
 #define PNG_INTERNAL
 #define PNG_NO_PEDANTIC_WARNINGS
 #include "png.h"
-#include "starboard/client_porting/cwrappers/pow_wrapper.h"
 #ifdef PNG_READ_SUPPORTED
 
 /* Set the action on getting a CRC error for an ancillary or critical chunk. */
@@ -918,7 +917,10 @@ png_init_read_transformations(png_structp png_ptr)
     for (i=0; i<png_ptr->num_trans; i++)
     {
       if (png_ptr->trans[i] != 0 && png_ptr->trans[i] != 0xff)
+      {
         k=1; /* Partial transparency is present */
+        break;
+      }
     }
     if (k == 0)
       png_ptr->transformations &= ~PNG_GAMMA;
@@ -1164,6 +1166,7 @@ png_init_read_transformations(png_structp png_ptr)
 
 #ifdef PNG_READ_SHIFT_SUPPORTED
    if ((png_ptr->transformations & PNG_SHIFT) &&
+      !(png_ptr->transformations & PNG_EXPAND) &&
       (color_type == PNG_COLOR_TYPE_PALETTE))
    {
       png_uint_16 i;
@@ -1184,6 +1187,8 @@ png_init_read_transformations(png_structp png_ptr)
          png_ptr->palette[i].green >>= sg;
          png_ptr->palette[i].blue >>= sb;
       }
+
+      png_ptr->transformations &= ~PNG_SHIFT;
    }
 #endif  /* PNG_READ_SHIFT_SUPPORTED */
  }
@@ -1374,6 +1379,9 @@ png_do_read_transformations(png_structp png_ptr)
    {
       if (png_ptr->row_info.color_type == PNG_COLOR_TYPE_PALETTE)
       {
+         if (png_ptr->palette == NULL)
+            png_error (png_ptr, "Palette is NULL in indexed image");
+
          png_do_expand_palette(&(png_ptr->row_info), png_ptr->row_buf + 1,
             png_ptr->palette, png_ptr->trans, png_ptr->num_trans);
       }

@@ -82,7 +82,7 @@
 #include "../../internal.h"
 
 
-DEFINE_STATIC_EX_DATA_CLASS(g_ec_ex_data_class);
+DEFINE_STATIC_EX_DATA_CLASS(g_ec_ex_data_class)
 
 static EC_WRAPPED_SCALAR *ec_wrapped_scalar_new(const EC_GROUP *group) {
   EC_WRAPPED_SCALAR *wrapped = OPENSSL_malloc(sizeof(EC_WRAPPED_SCALAR));
@@ -171,7 +171,6 @@ void EC_KEY_free(EC_KEY *r) {
   EC_GROUP_free(r->group);
   EC_POINT_free(r->pub_key);
   ec_wrapped_scalar_free(r->priv_key);
-  BN_free(r->fixed_k);
 
   CRYPTO_free_ex_data(g_ec_ex_data_class_bss_get(), r, &r->ex_data);
 
@@ -267,7 +266,7 @@ int EC_KEY_set_public_key(EC_KEY *key, const EC_POINT *pub_key) {
     return 0;
   }
 
-  if (EC_GROUP_cmp(key->group, pub_key->group, NULL) != 0) {
+  if (pub_key != NULL && EC_GROUP_cmp(key->group, pub_key->group, NULL) != 0) {
     OPENSSL_PUT_ERROR(EC, EC_R_GROUP_MISMATCH);
     return 0;
   }
@@ -292,10 +291,6 @@ void EC_KEY_set_conv_form(EC_KEY *key, point_conversion_form_t cform) {
 }
 
 int EC_KEY_check_key(const EC_KEY *eckey) {
-  int ok = 0;
-  BN_CTX *ctx = NULL;
-  EC_POINT *point = NULL;
-
   if (!eckey || !eckey->group || !eckey->pub_key) {
     OPENSSL_PUT_ERROR(EC, ERR_R_PASSED_NULL_PARAMETER);
     return 0;
@@ -303,41 +298,34 @@ int EC_KEY_check_key(const EC_KEY *eckey) {
 
   if (EC_POINT_is_at_infinity(eckey->group, eckey->pub_key)) {
     OPENSSL_PUT_ERROR(EC, EC_R_POINT_AT_INFINITY);
-    goto err;
+    return 0;
   }
 
-  ctx = BN_CTX_new();
-
-  if (ctx == NULL) {
-    goto err;
-  }
-
-  // testing whether the pub_key is on the elliptic curve
-  if (!EC_POINT_is_on_curve(eckey->group, eckey->pub_key, ctx)) {
+  // Test whether the public key is on the elliptic curve.
+  if (!EC_POINT_is_on_curve(eckey->group, eckey->pub_key, NULL)) {
     OPENSSL_PUT_ERROR(EC, EC_R_POINT_IS_NOT_ON_CURVE);
-    goto err;
+    return 0;
   }
-  // in case the priv_key is present :
-  // check if generator * priv_key == pub_key
-  if (eckey->priv_key != NULL) {
-    point = EC_POINT_new(eckey->group);
-    if (point == NULL ||
-        !ec_point_mul_scalar(eckey->group, point, &eckey->priv_key->scalar,
-                             NULL, NULL, ctx)) {
-      OPENSSL_PUT_ERROR(EC, ERR_R_EC_LIB);
-      goto err;
-    }
-    if (EC_POINT_cmp(eckey->group, point, eckey->pub_key, ctx) != 0) {
-      OPENSSL_PUT_ERROR(EC, EC_R_INVALID_PRIVATE_KEY);
-      goto err;
-    }
-  }
-  ok = 1;
 
-err:
-  BN_CTX_free(ctx);
-  EC_POINT_free(point);
-  return ok;
+  // Check the public and private keys match.
+  //
+  // NOTE: this is a FIPS pair-wise consistency check for the ECDH case. See SP
+  // 800-56Ar3, page 36.
+  if (eckey->priv_key != NULL) {
+    EC_RAW_POINT point;
+    if (!ec_point_mul_scalar_base(eckey->group, &point,
+                                  &eckey->priv_key->scalar)) {
+      OPENSSL_PUT_ERROR(EC, ERR_R_EC_LIB);
+      return 0;
+    }
+    if (!ec_GFp_simple_points_equal(eckey->group, &point,
+                                    &eckey->pub_key->raw)) {
+      OPENSSL_PUT_ERROR(EC, EC_R_INVALID_PRIVATE_KEY);
+      return 0;
+    }
+  }
+
+  return 1;
 }
 
 int EC_KEY_check_fips(const EC_KEY *key) {
@@ -354,9 +342,9 @@ int EC_KEY_check_fips(const EC_KEY *key) {
   if (key->priv_key) {
     uint8_t data[16] = {0};
     ECDSA_SIG *sig = ECDSA_do_sign(data, sizeof(data), key);
-#if defined(BORINGSSL_FIPS_BREAK_ECDSA_PWCT)
-    data[0] = ~data[0];
-#endif
+    if (boringssl_fips_break_test("ECDSA_PWCT")) {
+      data[0] = ~data[0];
+    }
     int ok = sig != NULL &&
              ECDSA_do_verify(data, sizeof(data), sig, key);
     ECDSA_SIG_free(sig);
@@ -369,8 +357,8 @@ int EC_KEY_check_fips(const EC_KEY *key) {
   return 1;
 }
 
-int EC_KEY_set_public_key_affine_coordinates(EC_KEY *key, BIGNUM *x,
-                                             BIGNUM *y) {
+int EC_KEY_set_public_key_affine_coordinates(EC_KEY *key, const BIGNUM *x,
+                                             const BIGNUM *y) {
   EC_POINT *point = NULL;
   int ok = 0;
 
@@ -394,6 +382,33 @@ err:
   return ok;
 }
 
+size_t EC_KEY_key2buf(const EC_KEY *key, point_conversion_form_t form,
+                      unsigned char **out_buf, BN_CTX *ctx) {
+  if (key == NULL || key->pub_key == NULL || key->group == NULL) {
+    return 0;
+  }
+
+  const size_t len =
+      EC_POINT_point2oct(key->group, key->pub_key, form, NULL, 0, ctx);
+  if (len == 0) {
+    return 0;
+  }
+
+  uint8_t *buf = OPENSSL_malloc(len);
+  if (buf == NULL) {
+    return 0;
+  }
+
+  if (EC_POINT_point2oct(key->group, key->pub_key, form, buf, len, ctx) !=
+      len) {
+    OPENSSL_free(buf);
+    return 0;
+  }
+
+  *out_buf = buf;
+  return len;
+}
+
 int EC_KEY_generate_key(EC_KEY *key) {
   if (key == NULL || key->group == NULL) {
     OPENSSL_PUT_ERROR(EC, ERR_R_PASSED_NULL_PARAMETER);
@@ -413,8 +428,7 @@ int EC_KEY_generate_key(EC_KEY *key) {
       // Generate the private key by testing candidates (FIPS 186-4 B.4.2).
       !ec_random_nonzero_scalar(key->group, &priv_key->scalar,
                                 kDefaultAdditionalData) ||
-      !ec_point_mul_scalar(key->group, pub_key, &priv_key->scalar, NULL, NULL,
-                           NULL)) {
+      !ec_point_mul_scalar_base(key->group, &pub_key->raw, &priv_key->scalar)) {
     EC_POINT_free(pub_key);
     ec_wrapped_scalar_free(priv_key);
     return 0;
@@ -428,7 +442,17 @@ int EC_KEY_generate_key(EC_KEY *key) {
 }
 
 int EC_KEY_generate_key_fips(EC_KEY *eckey) {
-  return EC_KEY_generate_key(eckey) && EC_KEY_check_fips(eckey);
+  boringssl_ensure_ecc_self_test();
+
+  if (EC_KEY_generate_key(eckey) && EC_KEY_check_fips(eckey)) {
+    return 1;
+  }
+
+  EC_POINT_free(eckey->pub_key);
+  ec_wrapped_scalar_free(eckey->priv_key);
+  eckey->pub_key = NULL;
+  eckey->priv_key = NULL;
+  return 0;
 }
 
 int EC_KEY_get_ex_new_index(long argl, void *argp, CRYPTO_EX_unused *unused,

@@ -25,6 +25,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/network/disk_cache/resource_type.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/script/exception_message.h"
 #include "cobalt/script/promise.h"
@@ -37,7 +38,6 @@
 #include "cobalt/worker/worker_consts.h"
 #include "cobalt/worker/worker_global_scope.h"
 #include "net/base/completion_once_callback.h"
-#include "net/disk_cache/cobalt/resource_type.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -237,7 +237,7 @@ bool ServiceWorkerPersistentSettings::ReadServiceWorkerObjectSettings(
       auto script_url = GURL(script_url_string);
       std::unique_ptr<std::vector<uint8_t>> data =
           cobalt::cache::Cache::GetInstance()->Retrieve(
-              disk_cache::ResourceType::kServiceWorkerScript,
+              network::disk_cache::ResourceType::kServiceWorkerScript,
               web::cache_utils::GetKey(key_string + script_url_string));
       if (data == nullptr) {
         return false;
@@ -376,7 +376,7 @@ ServiceWorkerPersistentSettings::WriteServiceWorkerObjectSettings(
     std::string resource = *(script_resource.second.content.get());
     std::vector<uint8_t> data(resource.begin(), resource.end());
     cobalt::cache::Cache::GetInstance()->Store(
-        disk_cache::ResourceType::kServiceWorkerScript,
+        network::disk_cache::ResourceType::kServiceWorkerScript,
         web::cache_utils::GetKey(registration_key_string + script_url_string),
         data,
         /* metadata */ base::nullopt);
@@ -442,7 +442,7 @@ void ServiceWorkerPersistentSettings::RemoveServiceWorkerObjectSettings(
       if (script_url_value.is_string()) {
         auto script_url_string = script_url_value.GetString();
         cobalt::cache::Cache::GetInstance()->Delete(
-            disk_cache::ResourceType::kServiceWorkerScript,
+            network::disk_cache::ResourceType::kServiceWorkerScript,
             web::cache_utils::GetKey(key_string + script_url_string));
       }
     }

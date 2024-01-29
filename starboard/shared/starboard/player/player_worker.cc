@@ -47,7 +47,7 @@ const int kPlayerStackSize = 0;
 // TODO: Reduce this as there should be enough frames caches in the renderers.
 //       Also this should be configurable for platforms with very limited video
 //       backlogs.
-const SbTimeMonotonic kWritePendingSampleDelay = 8 * kSbTimeMillisecond;
+const int64_t kWritePendingSampleDelayUsec = 8'000;  // 8ms
 
 DECLARE_INSTANCE_COUNTER(PlayerWorker);
 
@@ -138,7 +138,7 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
   SB_DCHECK(job_queue_);
 }
 
-void PlayerWorker::UpdateMediaInfo(SbTime time,
+void PlayerWorker::UpdateMediaInfo(int64_t time,
                                    int dropped_video_frames,
                                    bool is_progressing) {
   if (player_state_ == kSbPlayerStatePresenting) {
@@ -222,7 +222,7 @@ void PlayerWorker::DoInit() {
   }
 }
 
-void PlayerWorker::DoSeek(SbTime seek_to_time, int ticket) {
+void PlayerWorker::DoSeek(int64_t seek_to_time, int ticket) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
   SB_DCHECK(player_state_ != kSbPlayerStateDestroyed);
@@ -309,7 +309,7 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
     if (!write_pending_sample_job_token_.is_valid()) {
       write_pending_sample_job_token_ = job_queue_->Schedule(
           std::bind(&PlayerWorker::DoWritePendingSamples, this),
-          kWritePendingSampleDelay);
+          kWritePendingSampleDelayUsec);
     }
   }
 }

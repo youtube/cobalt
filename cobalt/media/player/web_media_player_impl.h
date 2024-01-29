@@ -113,8 +113,8 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
                      bool allow_batched_sample_write,
                      bool force_punch_out_by_default,
 #if SB_API_VERSION >= 15
-                     SbTime audio_write_duration_local,
-                     SbTime audio_write_duration_remote,
+                     base::TimeDelta audio_write_duration_local,
+                     base::TimeDelta audio_write_duration_remote,
 #endif  // SB_API_VERSION >= 15
                      ::media::MediaLog* const media_log);
   ~WebMediaPlayerImpl() override;

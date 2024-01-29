@@ -74,8 +74,8 @@
 #include "handler/mac/crash_report_exception_handler.h"
 #include "handler/mac/exception_handler_server.h"
 #include "handler/mac/file_limit_annotation.h"
+#include "util/mach/bootstrap.h"
 #include "util/mach/child_port_handshake.h"
-#include "util/mach/mach_extensions.h"
 #include "util/posix/close_stdio.h"
 #include "util/posix/signals.h"
 #elif defined(OS_WIN)
@@ -86,15 +86,6 @@
 #include "util/win/handle.h"
 #include "util/win/initial_client_data.h"
 #include "util/win/session_end_watcher.h"
-#elif defined(OS_FUCHSIA)
-#include <zircon/process.h>
-#include <zircon/processargs.h>
-
-#include <lib/zx/channel.h>
-#include <lib/zx/job.h>
-
-#include "handler/fuchsia/crash_report_exception_handler.h"
-#include "handler/fuchsia/exception_handler_server.h"
 #elif defined(OS_LINUX)
 #include "handler/linux/crash_report_exception_handler.h"
 #include "handler/linux/exception_handler_server.h"
@@ -436,22 +427,6 @@ void InstallCrashHandler() {
   SetConsoleCtrlHandler(ConsoleHandler, true);
   static TerminateHandler* terminate_handler = new TerminateHandler();
   ALLOW_UNUSED_LOCAL(terminate_handler);
-}
-
-#elif defined(OS_FUCHSIA)
-
-void InstallCrashHandler() {
-  // There's nothing to do here. Crashes in this process will already be caught
-  // here because this handler process is in the same job that has had its
-  // exception port bound.
-
-  // TODO(scottmg): This should collect metrics on handler crashes, at a
-  // minimum. https://crashpad.chromium.org/bug/230.
-}
-
-void ReinstallCrashHandler() {
-  // TODO(scottmg): Fuchsia: https://crashpad.chromium.org/bug/196
-  NOTREACHED();
 }
 
 #endif  // OS_MACOSX
@@ -1077,10 +1052,6 @@ int HandlerMain(int argc,
       database.get(),
       static_cast<CrashReportUploadThread*>(upload_thread.Get()),
       &options.annotations,
-#if defined(OS_FUCHSIA)
-      // TODO(scottmg): Process level file attachments, and for all platforms.
-      nullptr,
-#endif
 #if defined(OS_ANDROID)
       options.write_minidump_to_database,
       options.write_minidump_to_log,
@@ -1171,26 +1142,6 @@ int HandlerMain(int argc,
   if (!options.pipe_name.empty()) {
     exception_handler_server.SetPipeName(base::UTF8ToUTF16(options.pipe_name));
   }
-#elif defined(OS_FUCHSIA)
-  // These handles are logically "moved" into these variables when retrieved by
-  // zx_take_startup_handle(). Both are given to ExceptionHandlerServer which
-  // owns them in this process. There is currently no "connect-later" mode on
-  // Fuchsia, all the binding must be done by the client before starting
-  // crashpad_handler.
-  zx::job root_job(zx_take_startup_handle(PA_HND(PA_USER0, 0)));
-  if (!root_job.is_valid()) {
-    LOG(ERROR) << "no job handle passed in startup handle 0";
-    return EXIT_FAILURE;
-  }
-
-  zx::channel exception_channel(zx_take_startup_handle(PA_HND(PA_USER0, 1)));
-  if (!exception_channel.is_valid()) {
-    LOG(ERROR) << "no exception channel handle passed in startup handle 1";
-    return EXIT_FAILURE;
-  }
-
-  ExceptionHandlerServer exception_handler_server(std::move(root_job),
-                                                  std::move(exception_channel));
 #elif defined(OS_LINUX) || defined(OS_ANDROID)
   ExceptionHandlerServer exception_handler_server;
 #endif  // OS_MACOSX

@@ -56,9 +56,7 @@
  * [including the GNU Public Licence.] */
 
 #include <openssl/opensslconf.h>
-#if !defined(OPENSSL_SYS_STARBOARD)
 #include <string.h>
-#endif  // !defined(OPENSSL_SYS_STARBOARD)
 
 #ifndef OPENSSL_NO_POSIX_IO
 #include <sys/stat.h>
@@ -85,6 +83,7 @@
 #if !defined(OPENSSL_TRUSTY)
 
 #include "../internal.h"
+#include "internal.h"
 
 typedef struct lookup_dir_hashes_st {
     unsigned long hash;
@@ -258,7 +257,7 @@ static int add_cert_dir(BY_DIR *ctx, const char *dir, int type)
                 by_dir_entry_free(ent);
                 return 0;
             }
-            BUF_strlcpy(ent->dir, ss, len + 1);
+            OPENSSL_strlcpy(ent->dir, ss, len + 1);
             if (!sk_BY_DIR_ENTRY_push(ctx->dirs, ent)) {
                 by_dir_entry_free(ent);
                 return 0;
@@ -384,7 +383,7 @@ static int get_cert_by_subject(X509_LOOKUP *xl, int type, X509_NAME *name,
                                  postfix, k);
                 }
 #ifndef OPENSSL_NO_POSIX_IO
-#if defined(_WIN32) && !defined(__LB_XB1__) && !defined(__LB_XB360__)
+# if defined(_WIN32) && !defined(stat)
 #  define stat _stat
 # endif
                 {
@@ -459,6 +458,13 @@ static int get_cert_by_subject(X509_LOOKUP *xl, int type, X509_NAME *name,
                 ok = 1;
                 ret->type = tmp->type;
                 OPENSSL_memcpy(&ret->data, &tmp->data, sizeof(ret->data));
+
+                /*
+                 * Clear any errors that might have been raised processing empty
+                 * or malformed files.
+                 */
+                ERR_clear_error();
+
                 /*
                  * If we were going to up the reference count, we would need
                  * to do it on a perl 'type' basis

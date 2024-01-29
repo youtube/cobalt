@@ -17,7 +17,7 @@
 
 #if SB_API_VERSION < 16
 
-#include "starboard/common/byte_swap.h"
+#include "starboard/byte_swap.h"
 
 #include <stdlib.h>
 

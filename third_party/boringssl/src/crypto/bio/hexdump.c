@@ -56,11 +56,8 @@
 
 #include <openssl/bio.h>
 
-#if !defined(OPENSSL_SYS_STARBOARD)
 #include <limits.h>
 #include <string.h>
-#endif  // !defined(OPENSSL_SYS_STARBOARD)
-#include <openssl/mem.h>
 
 #include "../internal.h"
 

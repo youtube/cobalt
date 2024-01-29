@@ -230,7 +230,7 @@ TEST_P(SbPlayerGetAudioConfigurationTest, MultipleSeeks) {
     ASSERT_EQ(initial_configs, configs_after_presenting);
   }
 
-  const SbTime seek_to_time = kSbTimeSecond;
+  const int64_t seek_to_time = 1'000'000;  // 1 second
   ASSERT_NO_FATAL_FAILURE(player_fixture.Seek(seek_to_time));
 
   std::vector<SbMediaAudioConfiguration> configs_after_seek;

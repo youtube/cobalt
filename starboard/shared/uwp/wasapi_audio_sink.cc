@@ -226,7 +226,7 @@ double WASAPIAudioSink::GetCurrentPlaybackTime(uint64_t* updated_at) {
 
   return (static_cast<double>(pos) /
           static_cast<double>(audio_clock_frequency_)) *
-         kSbTimeSecond;
+         1'000'000;
 }
 
 void WASAPIAudioSink::OutputFrames() {
@@ -240,7 +240,7 @@ void WASAPIAudioSink::OutputFrames() {
 
   int frames_copied = 0;
   uint32_t frames_in_client_buffer = 0;
-  SbTime output_frames_job_delay = 5 * kSbTimeMillisecond;
+  int64_t output_frames_job_delay_usec = 5'000;  // 5ms
   HRESULT hr = audio_client_->GetCurrentPadding(&frames_in_client_buffer);
   CHECK_HRESULT_OK(hr);
   int frames_available = static_cast<int>(client_buffer_size_in_frames_) -
@@ -267,13 +267,13 @@ void WASAPIAudioSink::OutputFrames() {
 
     hr = render_client_->ReleaseBuffer(frames_copied, 0 /* dwFlags */);
     CHECK_HRESULT_OK(hr);
-    output_frames_job_delay = 0;
+    output_frames_job_delay_usec = 0;
   }
 
   if (!pending_decoded_audios_.empty()) {
     job_thread_->job_queue()->Schedule(
         std::bind(&WASAPIAudioSink::OutputFrames, this),
-        output_frames_job_delay);
+        output_frames_job_delay_usec);
   }
 }
 

@@ -11,9 +11,6 @@
 * created by: Markus W. Scherer & Maxime Serrano
 */
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif  // defined(STARBOARD)
 #include "dictionarydata.h"
 #include "unicode/ucharstrie.h"
 #include "unicode/bytestrie.h"

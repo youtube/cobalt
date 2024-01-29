@@ -21,7 +21,6 @@
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
 #include "unicode/gender.h"
 #include "unicode/ugender.h"

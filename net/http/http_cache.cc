@@ -7,8 +7,6 @@
 #include <algorithm>
 #include <utility>
 
-#include "starboard/types.h"
-
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/callback.h"
@@ -37,7 +35,6 @@
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
 #include "net/base/upload_data_stream.h"
-#include "net/disk_cache/cobalt/resource_type.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/http/http_cache_lookup_manager.h"
 #include "net/http/http_cache_transaction.h"
@@ -593,13 +590,6 @@ std::string HttpCache::GenerateCacheKey(const HttpRequestInfo* request) {
                base::StringPrintf("%" PRId64 "/",
                                   request->upload_data_stream->identifier()));
   }
-#if defined(STARBOARD)
-  if (request->extra_headers.HasHeader(HttpRequestHeaders::kResourceType)) {
-    std::string type = std::to_string(disk_cache::kOther);
-    request->extra_headers.GetHeader(HttpRequestHeaders::kResourceType, &type);
-    url.insert(0, type + "/");
-  }
-#endif
   return url;
 }
 

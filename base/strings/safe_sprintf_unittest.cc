@@ -16,7 +16,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if defined(STARBOARD)
-#include "starboard/client_porting/poem/stdio_poem.h"
 #include "starboard/common/string.h"
 #include "starboard/memory.h"
 #include "starboard/types.h"

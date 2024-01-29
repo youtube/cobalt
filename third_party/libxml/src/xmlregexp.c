@@ -8256,5 +8256,4 @@ xmlExpCtxtNbCons(xmlExpCtxtPtr ctxt) {
 
 #endif /* LIBXML_EXPR_ENABLED */
 #define bottom_xmlregexp
-#include "third_party/libxml/src/elfgcchack.h"
 #endif /* LIBXML_REGEXP_ENABLED */

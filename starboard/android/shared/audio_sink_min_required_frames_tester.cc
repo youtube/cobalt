@@ -129,7 +129,7 @@ void MinRequiredFramesTester::TesterThreadFunc() {
         &MinRequiredFramesTester::ErrorFunc, 0, -1, false, this);
     {
       ScopedLock scoped_lock(mutex_);
-      wait_timeout = !condition_variable_.WaitTimed(kSbTimeSecond * 5);
+      wait_timeout = !condition_variable_.WaitTimed(5'000'000);
     }
 
     // Get start threshold before release the audio sink.
@@ -191,7 +191,7 @@ void MinRequiredFramesTester::UpdateSourceStatusFunc(int* frames_in_buffer,
 
 // static
 void MinRequiredFramesTester::ConsumeFramesFunc(int frames_consumed,
-                                                SbTime frames_consumed_at,
+                                                int64_t frames_consumed_at,
                                                 void* context) {
   MinRequiredFramesTester* tester =
       static_cast<MinRequiredFramesTester*>(context);

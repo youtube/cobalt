@@ -51,9 +51,6 @@
 #include "starboard/common/log.h"
 #include "starboard/system.h"
 #include "starboard/types.h"
-
-// Include Starboard poems after all system headers.
-#include "starboard/client_porting/poem/string_poem.h"
 #else  // STARBOARD
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -61,6 +58,7 @@
 #undef WIN32_LEAN_AND_MEAN
 #endif
 #include <sys/types.h>
+#endif  // STARBOARD
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #else
@@ -71,8 +69,6 @@
 #include <stdarg.h>
 #include <string.h>
 #include <errno.h>
-#endif  // STARBOARD
-
 #include "event.h"
 
 #include "log.h"

@@ -22,7 +22,6 @@
 
 #include "starboard/common/mutex.h"
 #include "starboard/condition_variable.h"
-#include "starboard/time.h"
 #include "starboard/types.h"
 
 namespace starboard {
@@ -39,8 +38,9 @@ class ConditionVariable {
 
   // Returns |true| if this condition variable was signaled. Otherwise |false|
   // means that the condition variable timed out. In either case the
-  // mutex has been re-acquired once this function returns.
-  bool WaitTimed(SbTime duration) const;
+  // mutex has been re-acquired once this function returns. The |duration| is
+  // microseconds.
+  bool WaitTimed(int64_t duration) const;
 
   void Broadcast() const;
   void Signal() const;

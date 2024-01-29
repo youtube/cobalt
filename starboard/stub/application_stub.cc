@@ -42,7 +42,7 @@ shared::starboard::Application::Event* ApplicationStub::PollNextSystemEvent() {
 }
 
 shared::starboard::Application::Event*
-ApplicationStub::WaitForSystemEventWithTimeout(SbTime time) {
+ApplicationStub::WaitForSystemEventWithTimeout(int64_t time) {
   return NULL;
 }
 

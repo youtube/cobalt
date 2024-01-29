@@ -22,7 +22,6 @@
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
-#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -45,7 +44,7 @@ class AudioFrameDiscarderTest : public ::testing::TestWithParam<const char*> {
   VideoDmpReader dmp_reader_;
 };
 
-scoped_refptr<DecodedAudio> MakeDecodedAudio(int channels, SbTime timestamp) {
+scoped_refptr<DecodedAudio> MakeDecodedAudio(int channels, int64_t timestamp) {
   scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
       channels, kSbMediaAudioSampleTypeFloat32,
       kSbMediaAudioFrameStorageTypeInterleaved, timestamp,
@@ -105,7 +104,7 @@ TEST_P(AudioFrameDiscarderTest, PartialAudio) {
   InputBuffers input_buffers;
   std::vector<scoped_refptr<DecodedAudio>> decoded_audios;
   const auto& audio_stream_info = dmp_reader_.audio_stream_info();
-  const SbTime duration = media::AudioFramesToDuration(
+  const int64_t duration = media::AudioFramesToDuration(
       MakeDecodedAudio(audio_stream_info.number_of_channels, 0)->frames(),
       audio_stream_info.samples_per_second);
 

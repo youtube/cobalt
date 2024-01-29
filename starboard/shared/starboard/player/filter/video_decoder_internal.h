@@ -69,12 +69,12 @@ class VideoDecoder {
   // is considered to be complete.
   virtual size_t GetPrerollFrameCount() const = 0;
 
-  // Returns the timeout that preroll is considered to be finished.  Once the
-  // first frame is decoded and the timeout has passed, the preroll will be
-  // considered as finished even if there isn't enough frames decoded as
-  // suggested by GetPrerollFrameCount().
-  // On most platforms this can be simply set to |kSbTimeMax|.
-  virtual SbTime GetPrerollTimeout() const = 0;
+  // Returns the timeout (in microseconds) that preroll is considered to be
+  // finished.  Once the first frame is decoded and the timeout has passed, the
+  // preroll will be considered as finished even if there isn't enough frames
+  // decoded as suggested by GetPrerollFrameCount().
+  // On most platforms this can be simply set to |kSbInt64Max|.
+  virtual int64_t GetPrerollTimeout() const = 0;
 
   // Returns a soft limit of the maximum number of frames the user of this class
   // (usually the VideoRenderer) should cache, i.e. the user won't write more

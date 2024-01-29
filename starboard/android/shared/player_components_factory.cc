@@ -44,7 +44,11 @@ bool PlayerComponents::Factory::OutputModeSupported(
       return true;
     }
     DrmSystem* android_drm_system = static_cast<DrmSystem*>(drm_system);
-    return !android_drm_system->require_secured_decoder();
+    bool require_secure_decoder = android_drm_system->require_secured_decoder();
+    SB_LOG_IF(INFO, require_secure_decoder)
+        << "Output mode under decode-to-texture is not supported due to secure "
+           "decoder is required.";
+    return !require_secure_decoder;
   }
 
   return false;

@@ -6,12 +6,12 @@
 
 #include <keyhi.h>
 #include <pk11pub.h>
+#include <stdint.h>
 
 #include <vector>
 
 #include "crypto/nss_util.h"
 #include "crypto/scoped_nss_types.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace crypto {

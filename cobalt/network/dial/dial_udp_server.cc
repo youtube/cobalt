@@ -14,11 +14,8 @@
 
 #include "cobalt/network/dial/dial_udp_server.h"
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/inet_poem.h"
-#else
 #include <arpa/inet.h>
-#endif
+
 #include <memory>
 #include <utility>
 #include <vector>

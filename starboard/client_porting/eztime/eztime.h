@@ -18,7 +18,6 @@
 #if defined(STARBOARD)
 
 #include "starboard/common/log.h"
-#include "starboard/time.h"
 #include "starboard/types.h"
 
 #ifdef __cplusplus
@@ -111,29 +110,30 @@ typedef enum EzTimeZone {
 // --- Simple Conversion Functions --------------------------------------------
 
 // Converts SbTime to EzTimeT. NOTE: This is LOSSY.
-static SB_C_FORCE_INLINE EzTimeT EzTimeTFromSbTime(SbTime in_time) {
-  return SbTimeNarrow(SbTimeToPosix(in_time), kSbTimeSecond);
+static SB_C_FORCE_INLINE EzTimeT EzTimeTFromSbTime(int64_t in_time) {
+  int64_t posix_time = in_time - 11644473600000000ULL;
+  return posix_time >= 0 ? posix_time / 1000000
+                         : (posix_time - 1000000 + 1) / 1000000;
 }
 
 // Converts EzTimeT to SbTime.
-static SB_C_FORCE_INLINE SbTime EzTimeTToSbTime(EzTimeT in_time) {
-  return SbTimeFromPosix(in_time * kSbTimeSecond);
+static SB_C_FORCE_INLINE int64_t EzTimeTToSbTime(EzTimeT in_time) {
+  int64_t posix_time = in_time * 1000000;
+  return posix_time + 11644473600000000ULL;
 }
 
 // Converts SbTime to EzTimeValue.
-static SB_C_FORCE_INLINE EzTimeValue EzTimeValueFromSbTime(SbTime in_time) {
+static SB_C_FORCE_INLINE EzTimeValue EzTimeValueFromSbTime(int64_t in_time) {
   EzTimeT sec = EzTimeTFromSbTime(in_time);
-  SbTime diff = in_time - EzTimeTToSbTime(sec);
+  int64_t diff = in_time - EzTimeTToSbTime(sec);
   SB_DCHECK(diff >= INT_MIN);
   SB_DCHECK(diff <= INT_MAX);
-  EzTimeValue value = {sec, (int)diff};  // Some compilers do not support
-                                         // returning the initializer list
-                                         // directly.
+  EzTimeValue value = {sec, (int)diff};  // NOLINT(readability/casting)
   return value;
 }
 
 // Converts EzTimeValue to SbTime.
-static SB_C_FORCE_INLINE SbTime EzTimeValueToSbTime(const EzTimeValue* value) {
+static SB_C_FORCE_INLINE int64_t EzTimeValueToSbTime(const EzTimeValue* value) {
   return EzTimeTToSbTime(value->tv_sec) + value->tv_usec;
 }
 

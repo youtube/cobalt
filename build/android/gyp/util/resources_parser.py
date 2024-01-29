@@ -1,4 +1,4 @@
-# Copyright 2020 The Chromium Authors. All rights reserved.
+# Copyright 2020 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -9,6 +9,7 @@ from xml.etree import ElementTree
 
 from util import build_utils
 from util import resource_utils
+import action_helpers  # build_utils adds //build to sys.path.
 
 _TextSymbolEntry = collections.namedtuple(
     'RTextEntry', ('java_type', 'resource_type', 'name', 'value'))
@@ -21,7 +22,7 @@ def _ResourceNameToJavaSymbol(resource_name):
   return re.sub('[\.:]', '_', resource_name)
 
 
-class RTxtGenerator(object):
+class RTxtGenerator:
   def __init__(self,
                res_dirs,
                ignore_pattern=resource_utils.AAPT_IGNORE_PATTERN):
@@ -73,13 +74,19 @@ class RTxtGenerator(object):
       ret.update(self._ExtractNewIdsFromNode(child))
     return ret
 
+  def _ParseXml(self, xml_path):
+    try:
+      return ElementTree.parse(xml_path).getroot()
+    except Exception as e:
+      raise RuntimeError('Failure parsing {}:\n'.format(xml_path)) from e
+
   def _ExtractNewIdsFromXml(self, xml_path):
-    root = ElementTree.parse(xml_path).getroot()
-    return self._ExtractNewIdsFromNode(root)
+    return self._ExtractNewIdsFromNode(self._ParseXml(xml_path))
 
   def _ParseValuesXml(self, xml_path):
     ret = set()
-    root = ElementTree.parse(xml_path).getroot()
+    root = self._ParseXml(xml_path)
+
     assert root.tag == 'resources'
     for child in root:
       if child.tag == 'eat-comment':
@@ -91,12 +98,18 @@ class RTxtGenerator(object):
       if child.tag == 'declare-styleable':
         ret.update(self._ParseDeclareStyleable(child))
       else:
-        if child.tag == 'item':
+        if child.tag in ('item', 'public'):
           resource_type = child.attrib['type']
         elif child.tag in ('array', 'integer-array', 'string-array'):
           resource_type = 'array'
         else:
           resource_type = child.tag
+        parsed_element = ElementTree.tostring(child, encoding='unicode').strip()
+        assert resource_type in resource_utils.ALL_RESOURCE_TYPES, (
+            f'Infered resource type ({resource_type}) from xml entry '
+            f'({parsed_element}) (found in {xml_path}) is not listed in '
+            'resource_utils.ALL_RESOURCE_TYPES. Teach resources_parser.py how '
+            'to parse this entry and/or add to the list.')
         name = _ResourceNameToJavaSymbol(child.attrib['name'])
         ret.add(_TextSymbolEntry('int', resource_type, name, _DUMMY_RTXT_ID))
     return ret
@@ -131,11 +144,11 @@ class RTxtGenerator(object):
     ret = set()
     for res_dir in self.res_dirs:
       ret.update(self._CollectResourcesListFromDirectory(res_dir))
-    return ret
+    return sorted(ret)
 
   def WriteRTxtFile(self, rtxt_path):
     resources = self._CollectResourcesListFromDirectories()
-    with build_utils.AtomicOutput(rtxt_path, mode='w') as f:
+    with action_helpers.atomic_output(rtxt_path, mode='w') as f:
       for resource in resources:
         line = '{0.java_type} {0.resource_type} {0.name} {0.value}\n'.format(
             resource)

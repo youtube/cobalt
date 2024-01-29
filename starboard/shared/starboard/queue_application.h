@@ -53,7 +53,7 @@ class QueueApplication : public Application {
   void InjectTimedEvent(TimedEvent* timed_event) override;
   void CancelTimedEvent(SbEventId event_id) override;
   TimedEvent* GetNextDueTimedEvent() override;
-  SbTimeMonotonic GetNextTimedEventTargetTime() override;
+  int64_t GetNextTimedEventTargetTime() override;
 
   // Add the given event onto the event queue, then process the queue until the
   // event is handled. This is similar to DispatchAndDelete but will process
@@ -68,13 +68,14 @@ class QueueApplication : public Application {
 
   // Returns an event if one exists, otherwise returns NULL.
   virtual Event* PollNextSystemEvent() {
-    return WaitForSystemEventWithTimeout(SbTime());
+    return WaitForSystemEventWithTimeout(0);
   }
 
-  // Waits for an event until the timeout |time| runs out.  If an event occurs
-  // in this time, it is returned, otherwise NULL is returned. If |time| is zero
-  // or negative, then this should function effectively like a no-wait poll.
-  virtual Event* WaitForSystemEventWithTimeout(SbTime time) = 0;
+  // Waits for an event until the timeout |time| (in microseconds) runs out. If
+  // an event occurs in this time, it is returned, otherwise NULL is returned.
+  // If |time| is zero or negative, then this should function effectively like
+  // a no-wait poll.
+  virtual Event* WaitForSystemEventWithTimeout(int64_t time) = 0;
 
   // Wakes up any thread waiting within a call to
   // WaitForSystemEventWithTimeout().
@@ -110,10 +111,10 @@ class QueueApplication : public Application {
     bool Inject(TimedEvent* timed_event);
     void Cancel(SbEventId event_id);
     TimedEvent* Get();
-    SbTimeMonotonic GetTime();
+    int64_t GetTime();
 
    private:
-    SbTimeMonotonic GetTimeLocked();
+    int64_t GetTimeLocked();
     typedef bool (*TimedEventComparator)(const TimedEvent* lhs,
                                          const TimedEvent* rhs);
     static bool IsLess(const TimedEvent* lhs, const TimedEvent* rhs);

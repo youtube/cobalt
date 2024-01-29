@@ -17,7 +17,6 @@
 
 #include "starboard/common/socket.h"
 #include "starboard/nplb/socket_helpers.h"
-#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {

@@ -18,8 +18,9 @@ if (current_toolchain != default_toolchain ||
   arm_float_abi = "hard"
 
   sb_evergreen_compatible_use_libunwind = true
-  sb_is_evergreen_compatible = true
 }
+
+sb_is_evergreen_compatible = true
 
 if (!build_with_separate_cobalt_toolchain) {
   separate_install_targets_for_bundling = true

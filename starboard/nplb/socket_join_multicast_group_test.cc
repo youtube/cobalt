@@ -13,9 +13,9 @@
 // limitations under the License.
 
 #include "starboard/common/socket.h"
+#include "starboard/common/time.h"
 #include "starboard/nplb/socket_helpers.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -83,16 +83,16 @@ TEST(SbSocketJoinMulticastGroupTest, SunnyDay) {
   }
 
   SbSocketAddress receive_address;
-  SbTimeMonotonic stop_time = SbTimeGetMonotonicNow() + kSbTimeSecond;
+  int64_t stop_time = CurrentMonotonicTime() + 1'000'000LL;
   while (true) {
     // Breaks the case where the test will hang in a loop when
     // SbSocketReceiveFrom() always returns kSbSocketPending.
-    ASSERT_LE(SbTimeGetMonotonicNow(), stop_time) << "Multicast timed out.";
+    ASSERT_LE(CurrentMonotonicTime(), stop_time) << "Multicast timed out.";
     int received = SbSocketReceiveFrom(
         receive_socket, buf, SB_ARRAY_SIZE_INT(buf), &receive_address);
     if (received < 0 &&
         SbSocketGetLastError(receive_socket) == kSbSocketPending) {
-      SbThreadSleep(kSbTimeMillisecond);
+      SbThreadSleep(1000);
       continue;
     }
     EXPECT_EQ(SB_ARRAY_SIZE_INT(kBuf), received);

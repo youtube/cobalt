@@ -23,7 +23,7 @@ namespace loader_app {
 
 ScopedDrainFile::ScopedDrainFile(const std::string& dir,
                                  const std::string& app_key,
-                                 SbTime timestamp) {
+                                 int64_t timestamp) {
   app_key_.assign(app_key);
 
   path_.assign(dir);
@@ -31,7 +31,7 @@ ScopedDrainFile::ScopedDrainFile(const std::string& dir,
   path_.append(kDrainFilePrefix);
   path_.append(app_key);
   path_.append("_");
-  path_.append(std::to_string(timestamp / kDrainFileAgeUnit));
+  path_.append(std::to_string(timestamp / kDrainFileAgeUnitUsec));
 
   CreateFile();
 }

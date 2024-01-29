@@ -11,6 +11,7 @@
 #include "base/sequenced_task_runner.h"
 #include "base/stl_util.h"
 #include "base/threading/sequenced_task_runner_handle.h"
+#include "base/time/time.h"
 #include "net/base/elements_upload_data_stream.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
@@ -26,14 +27,14 @@
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_getter.h"
 #include "net/url_request/url_request_throttler_manager.h"
-#include "starboard/time.h"
+#include "starboard/common/time.h"
 #include "starboard/types.h"
 #include "url/origin.h"
 
 namespace {
 
 #if defined(STARBOARD)
-const SbTime kInformDownloadProgressInterval = 50 * kSbTimeMillisecond;
+const int64_t kInformDownloadProgressIntervalUsec = 50 * base::Time::kMicrosecondsPerMillisecond;
 #else   // defined(STARBOARD)
 const int kBufferSize = 4096;
 #endif  // defined(STARBOARD)
@@ -567,15 +568,15 @@ void URLFetcherCore::OnReadCompleted(URLRequest* request,
 
 #if defined(STARBOARD)
   // Prime it to the current time so it is only called after the loop, or every
-  // time when the loop takes |kInformDownloadProgressInterval|.
-  SbTime download_progress_informed_at = SbTimeGetMonotonicNow();
+  // time when the loop takes |kInformDownloadProgressIntervalUsec|.
+  int64_t download_progress_informed_at = starboard::CurrentMonotonicTime();
   bool did_read_after_inform_download_progress = false;
 
   while (bytes_read > 0) {
     current_response_bytes_ += bytes_read;
     did_read_after_inform_download_progress = true;
-    auto now = SbTimeGetMonotonicNow();
-    if (now - download_progress_informed_at > kInformDownloadProgressInterval) {
+    auto now = starboard::CurrentMonotonicTime();
+    if (now - download_progress_informed_at > kInformDownloadProgressIntervalUsec) {
       InformDelegateDownloadProgress();
       download_progress_informed_at = now;
       did_read_after_inform_download_progress = false;

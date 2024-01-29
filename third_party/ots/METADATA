@@ -11,7 +11,8 @@ third_party {
     type: GIT
     value: "https://github.com/khaledhosny/ots.git"
   }
-  version: "f7238234966c466c5e3d11ee822e9760be0c527a"
+  version: "ee537ac096667eed6559124164c3e8482646fd77"
+  # from https://chromium.googlesource.com/chromium/src/+/90.0.4430.218/DEPS#275
   last_upgrade_date {
     year: 2018
     month: 2

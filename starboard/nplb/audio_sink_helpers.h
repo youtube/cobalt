@@ -21,7 +21,6 @@
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
 #include "starboard/media.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace nplb {
@@ -67,7 +66,7 @@ class AudioSinkTestFrameBuffers {
 class AudioSinkTestEnvironment {
  public:
   static const int kSampleRateCD = 44100;
-  static const SbTimeMonotonic kTimeToTry = kSbTimeSecond;
+  static const int64_t kTimeToTry = 1'000'000;  // 1 second
 
   explicit AudioSinkTestEnvironment(
       const AudioSinkTestFrameBuffers& frame_buffers);

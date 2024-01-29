@@ -9,7 +9,6 @@
 #include "url/third_party/mozilla/url_parse.h"
 
 #if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
 #include "starboard/common/string.h"
 #include "starboard/types.h"
 #endif

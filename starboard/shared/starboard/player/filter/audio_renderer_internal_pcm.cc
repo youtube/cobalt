@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <string>
 
+#include "starboard/common/time.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
@@ -77,7 +78,7 @@ AudioRendererPcm::AudioRendererPcm(
       sink_sample_type_(GetSinkAudioSampleType(audio_renderer_sink.get())),
       bytes_per_frame_(media::GetBytesPerSample(sink_sample_type_) * channels_),
       frame_buffer_(max_cached_frames_ * bytes_per_frame_),
-      frames_consumed_set_at_(SbTimeGetMonotonicNow()),
+      frames_consumed_set_at_(CurrentMonotonicTime()),
       decoder_(decoder.Pass()),
       process_audio_data_job_(
           std::bind(&AudioRendererPcm::ProcessAudioData, this)),
@@ -222,7 +223,7 @@ void AudioRendererPcm::SetPlaybackRate(double playback_rate) {
   }
 }
 
-void AudioRendererPcm::Seek(SbTime seek_to_time) {
+void AudioRendererPcm::Seek(int64_t seek_to_time) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(seek_to_time >= 0);
 
@@ -233,7 +234,7 @@ void AudioRendererPcm::Seek(SbTime seek_to_time) {
     // GetCurrentMediaTime() returns |seeking_to_time_|.
     ScopedLock scoped_lock(mutex_);
     eos_state_ = kEOSNotReceived;
-    seeking_to_time_ = std::max<SbTime>(seek_to_time, 0);
+    seeking_to_time_ = std::max<int64_t>(seek_to_time, 0);
     last_media_time_ = seek_to_time;
     ended_cb_called_ = false;
     seeking_ = true;
@@ -251,7 +252,7 @@ void AudioRendererPcm::Seek(SbTime seek_to_time) {
   frames_consumed_by_sink_since_last_get_current_time_ = 0;
   pending_decoder_outputs_ = 0;
   audio_frame_tracker_.Reset();
-  frames_consumed_set_at_ = SbTimeGetMonotonicNow();
+  frames_consumed_set_at_ = CurrentMonotonicTime();
   can_accept_more_data_ = true;
   process_audio_data_job_token_.ResetToInvalid();
 
@@ -276,18 +277,18 @@ void AudioRendererPcm::Seek(SbTime seek_to_time) {
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 }
 
-SbTime AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
-                                             bool* is_eos_played,
-                                             bool* is_underflow,
-                                             double* playback_rate) {
+int64_t AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
+                                              bool* is_eos_played,
+                                              bool* is_underflow,
+                                              double* playback_rate) {
   SB_DCHECK(is_playing);
   SB_DCHECK(is_eos_played);
   SB_DCHECK(is_underflow);
   SB_DCHECK(playback_rate);
 
-  SbTime media_time = 0;
-  SbTimeMonotonic now = -1;
-  SbTimeMonotonic elasped_since_last_set = 0;
+  int64_t media_time = 0;
+  int64_t now = -1;
+  int64_t elasped_since_last_set = 0;
   int64_t frames_played = 0;
   int samples_per_second = 1;
 
@@ -317,17 +318,17 @@ SbTime AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
     // a long delay.  So ensure that ConsumeFrames() is called after Play()
     // before taking elapsed time into account.
     if (!paused_ && playback_rate_ > 0.f && consume_frames_called_) {
-      now = SbTimeGetMonotonicNow();
+      now = CurrentMonotonicTime();
       elasped_since_last_set = now - frames_consumed_set_at_;
     }
     samples_per_second = *decoder_sample_rate_;
     int64_t elapsed_frames =
-        elasped_since_last_set * samples_per_second / kSbTimeSecond;
+        elasped_since_last_set * samples_per_second / 1'000'000LL;
     frames_played =
         audio_frame_tracker_.GetFutureFramesPlayedAdjustedToPlaybackRate(
             elapsed_frames, playback_rate);
     media_time =
-        seeking_to_time_ + frames_played * kSbTimeSecond / samples_per_second;
+        seeking_to_time_ + frames_played * 1'000'000LL / samples_per_second;
     if (media_time < last_media_time_) {
 #if SB_LOG_MEDIA_TIME_STATS
       SB_LOG(WARNING) << "Audio time runs backwards from " << last_media_time_
@@ -343,8 +344,8 @@ SbTime AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
     system_and_media_time_offset_ = now - media_time;
   }
   if (system_and_media_time_offset_ > 0) {
-    SbTime offset = now - media_time;
-    SbTime drift = offset - system_and_media_time_offset_;
+    int64_t offset = now - media_time;
+    int64_t drift = offset - system_and_media_time_offset_;
     min_drift_ = std::min(drift, min_drift_);
     max_drift_ = std::max(drift, max_drift_);
     SB_LOG(ERROR) << "Media time stats: (" << now << "-"
@@ -356,7 +357,7 @@ SbTime AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
                   // How long the audio frames left in sink can be played.
                   << (total_frames_sent_to_sink_ -
                       total_frames_consumed_by_sink_) *
-                         kSbTimeSecond / samples_per_second;
+                         1'000'000LL / samples_per_second;
   }
 #endif  // SB_LOG_MEDIA_TIME_STATS
 
@@ -421,7 +422,7 @@ void AudioRendererPcm::GetSourceStatus(int* frames_in_buffer,
 }
 
 void AudioRendererPcm::ConsumeFrames(int frames_consumed,
-                                     SbTime frames_consumed_at) {
+                                     int64_t frames_consumed_at) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   sink_callbacks_since_last_check_.increment();
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
@@ -462,7 +463,7 @@ void AudioRendererPcm::OnError(bool capability_changed,
 }
 
 void AudioRendererPcm::UpdateVariablesOnSinkThread_Locked(
-    SbTime system_time_on_consume_frames) {
+    int64_t system_time_on_consume_frames) {
   mutex_.DCheckAcquired();
 
   if (frames_consumed_on_sink_thread_ > 0) {
@@ -590,8 +591,8 @@ void AudioRendererPcm::ProcessAudioData() {
     if (audio_renderer_sink_->HasStarted() && time_stretcher_.IsQueueFull()) {
       // There is no room to do any further processing, schedule the function
       // again for a later time.  The delay time is 1/4 of the buffer size.
-      const SbTimeMonotonic delay =
-          max_cached_frames_ * kSbTimeSecond / *decoder_sample_rate_ / 4;
+      const int64_t delay =
+          max_cached_frames_ * 1'000'000LL / *decoder_sample_rate_ / 4;
       process_audio_data_job_token_ = Schedule(process_audio_data_job_, delay);
       return;
     }
@@ -657,20 +658,19 @@ void AudioRendererPcm::ProcessAudioData() {
   }
 
   if (seeking_ || playback_rate_ == 0.0) {
-    process_audio_data_job_token_ =
-        Schedule(process_audio_data_job_, 5 * kSbTimeMillisecond);
+    process_audio_data_job_token_ = Schedule(process_audio_data_job_, 5'000);
     return;
   }
 
   if (is_frame_buffer_full) {
     // There are still audio data not appended so schedule a callback later.
-    SbTimeMonotonic delay = 0;
+    int64_t delay = 0;
     int64_t frames_in_buffer =
         total_frames_sent_to_sink_ - total_frames_consumed_by_sink_;
     if (max_cached_frames_ - frames_in_buffer < max_cached_frames_ / 4) {
       int frames_to_delay = static_cast<int>(
           max_cached_frames_ / 4 - (max_cached_frames_ - frames_in_buffer));
-      delay = frames_to_delay * kSbTimeSecond / *decoder_sample_rate_;
+      delay = frames_to_delay * 1'000'000LL / *decoder_sample_rate_;
     }
     process_audio_data_job_token_ = Schedule(process_audio_data_job_, delay);
   }
@@ -764,11 +764,11 @@ void AudioRendererPcm::CheckAudioSinkStatus() {
   }
 
   // Check if sink has updated.
-  SbTimeMonotonic elapsed = SbTimeGetMonotonicNow() - frames_consumed_set_at_;
+  int64_t elapsed = CurrentMonotonicTime() - frames_consumed_set_at_;
   if (elapsed > kCheckAudioSinkStatusInterval) {
     ScopedLock lock(mutex_);
     SB_DLOG(WARNING) << "|frames_consumed_| has not been updated for "
-                     << elapsed / kSbTimeSecond << " seconds, with "
+                     << elapsed / 1'000'000LL << " seconds, with "
                      << total_frames_sent_to_sink_ -
                             total_frames_consumed_by_sink_
                      << " frames in sink, " << (underflow_ ? "underflow, " : "")
