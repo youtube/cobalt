@@ -27,5 +27,3 @@ pedantic_warnings_config_path =
     "//starboard/win/shared/platform_configuration:pedantic_warnings"
 
 cobalt_platform_dependencies = [ "//starboard/egl_and_gles" ]
-
-sb_enable_cpp17_audit = true
