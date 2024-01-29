@@ -206,7 +206,6 @@ TEST_P(InstallationManagerTest, InitializeMultiple) {
   ASSERT_EQ(IM_SUCCESS, ImInitialize(GetParam(), kAppKey));
 }
 
-#if SB_API_VERSION < 16
 TEST_P(InstallationManagerTest, Reset) {
   if (!storage_path_implemented_) {
     return;
@@ -224,7 +223,11 @@ TEST_P(InstallationManagerTest, Reset) {
     std::string slot_path = buf.data();
     slot_path += kSbFileSepString;
     slot_path += "test_dir";
+#if SB_API_VERSION < 16
     SbDirectoryCreate(slot_path.c_str());
+#else
+    mkdir(slot_path.c_str(), 0700)
+#endif  // SB_API_VERSION < 16
     slot_path += kSbFileSepString;
     slot_path += "test_file";
     created_files.push_back(slot_path);
@@ -246,7 +249,6 @@ TEST_P(InstallationManagerTest, Reset) {
     ASSERT_TRUE(SbFileExists(buf.data()));
   }
 }
-#endif  // SB_API_VERSION < 16
 
 TEST_P(InstallationManagerTest, GetAppKey) {
   if (!storage_path_implemented_) {
