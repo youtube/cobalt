@@ -177,7 +177,7 @@ struct TestConfig {
   bool install_cert_compression_algs = false;
   int install_one_cert_compression_alg = 0;
   bool reverify_on_resume = false;
-  bool enforce_rsa_key_usage = false;
+  bool no_enforce_rsa_key_usage = false;
   bool is_handshaker_supported = false;
   bool handshaker_resume = false;
   std::string handshaker_path;
@@ -193,6 +193,7 @@ struct TestConfig {
   bool wait_for_debugger = false;
   std::string quic_early_data_context;
   int early_write_after_message = 0;
+  bool fips_202205 = false;
 
   int argc;
   char **argv;
