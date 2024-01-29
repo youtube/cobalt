@@ -25,7 +25,6 @@ Options:
 import argparse
 import os
 import sys
-import _env  # pylint: disable=unused-import
 
 from cobalt.bindings.idl_compiler_cobalt import IdlCompilerCobalt
 from cobalt.bindings.v8c.code_generator_v8c import CodeGeneratorV8c
