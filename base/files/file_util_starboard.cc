@@ -232,7 +232,7 @@ bool CopyFile(const FilePath &from_path, const FilePath &to_path) {
 
 bool PathExists(const FilePath &path) {
   AssertBlockingAllowed();
-    return SbFileExists(path.value().c_str());
+  return SbFileExists(path.value().c_str());
 }
 
 bool PathIsWritable(const FilePath &path) {
@@ -352,7 +352,6 @@ bool CreateDirectoryAndGetError(const FilePath &full_path, File::Error* error) {
 
   return true;
 }
-
 
 bool IsLink(const FilePath &file_path) {
   AssertBlockingAllowed();
