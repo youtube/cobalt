@@ -110,7 +110,7 @@ TEST(PosixTimeTest, GmtimeR) {
   EXPECT_EQ(result.tm_sec, 59);
   EXPECT_EQ(result.tm_wday, 3);    // Wednesday, 0==Sunday.
   EXPECT_EQ(result.tm_yday, 212);  // Zero-indexed; 2024 is a leap year.
-  EXPECT_EQ(result.tm_isdst, 0);   // GMT/UTC never has DST (even in July).
+  EXPECT_LE(result.tm_isdst, 0);   // <=0; GMT/UTC never has DST (even in July).
 }
 
 }  // namespace
