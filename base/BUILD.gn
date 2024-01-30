@@ -1642,8 +1642,6 @@ component("base") {
       "native_library.h",
       "path_service.cc",
       "path_service.h",
-      "process/process_metrics.cc",
-      "process/process_metrics.h",
       "scoped_native_library.cc",
       "scoped_native_library.h",
       "system/sys_info.cc",
@@ -1744,10 +1742,12 @@ component("base") {
         "process/memory.h",
         "process/process_iterator.cc",
         "process/process_iterator.h",
+        "process/process_metrics.cc",
+        "process/process_metrics.h",
       ]
     }
 
-    if (is_linux || is_chromeos) {
+    if (!use_cobalt_customizations && (is_linux || is_chromeos)) {
       sources += [
         "base_paths_posix.cc",
         "debug/elf_reader.cc",
@@ -3373,7 +3373,7 @@ test("base_unittests") {
     # "synchronization/waitable_event_watcher_unittest.cc",
     "sys_byteorder_unittest.cc",
 
-    # "system/sys_info_unittest.cc",
+    "system/sys_info_unittest.cc",
     "system/system_monitor_unittest.cc",
     "task/bind_post_task_unittest.cc",
     "task/cancelable_task_tracker_unittest.cc",
