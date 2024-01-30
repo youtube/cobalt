@@ -20,6 +20,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <winsock2.h>
+#undef NO_ERROR  // http://b/302733082#comment15
+//  TODO: b/324981660 undefine the caller of this GetCurrentTime in
+//  <winsock2.h>
+#undef GetCurrentTime
 
 #include "starboard/configuration.h"
 

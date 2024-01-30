@@ -53,5 +53,4 @@ TEST(PosixSocketCreateTest, ManyTcpAtOnce) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
-   //
 #endif  // SB_API_VERSION >= 16

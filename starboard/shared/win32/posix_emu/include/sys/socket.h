@@ -16,6 +16,7 @@
 #define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_SOCKET_H_
 
 #include <winsock2.h>
+#undef NO_ERROR  // http://b/302733082#comment15
 
 #include "starboard/common/log.h"
 #include "starboard/types.h"

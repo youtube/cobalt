@@ -14,15 +14,19 @@
 
 #include <io.h>
 #include <time.h>
-#include <windows.h>
 #include <winsock2.h>
+#undef NO_ERROR  // http://b/302733082#comment15
 #include <map>
-
 #include "starboard/common/log.h"
 #include "starboard/types.h"
 
 int gen_fd() {
-  return rand() % (0x7FFFFFFF) + 1;
+  static int fd = 100;
+  fd++;
+  if (fd == 0x7FFFFFFF) {
+    fd = 100;
+  }
+  return fd;
 }
 
 struct CriticalSection {
@@ -30,42 +34,44 @@ struct CriticalSection {
   CRITICAL_SECTION critical_section_;
 };
 
-static std::map<int, SOCKET>* m_addr = nullptr;
-static CriticalSection s_critical_section;
+static std::map<int, SOCKET>* g_map_addr = nullptr;
+static CriticalSection g_critical_section;
 
 int handle_db_put(SOCKET socket_handle) {
-  EnterCriticalSection(&s_critical_section.critical_section_);
-  if (m_addr == nullptr) {
-    m_addr = new std::map<int, SOCKET>();
+  EnterCriticalSection(&g_critical_section.critical_section_);
+  if (g_map_addr == nullptr) {
+    g_map_addr = new std::map<int, SOCKET>();
   }
 
   int fd = gen_fd();
-  while (m_addr->find(fd) != m_addr->end()) {
+  // Go through the map and make sure there isn't duplicated index
+  // already.
+  while (g_map_addr->find(fd) != g_map_addr->end()) {
     fd = gen_fd();
   }
 
-  m_addr->insert({fd, socket_handle});
-  LeaveCriticalSection(&s_critical_section.critical_section_);
+  g_map_addr->insert({fd, socket_handle});
+  LeaveCriticalSection(&g_critical_section.critical_section_);
   return fd;
 }
 
 SOCKET handle_db_get(int fd, bool erase) {
-  EnterCriticalSection(&s_critical_section.critical_section_);
-  if (m_addr == nullptr) {
-    m_addr = new std::map<int, SOCKET>();
+  EnterCriticalSection(&g_critical_section.critical_section_);
+  if (g_map_addr == nullptr) {
+    g_map_addr = new std::map<int, SOCKET>();
     return INVALID_SOCKET;
   }
 
-  auto itr = m_addr->find(fd);
-  if (itr == m_addr->end()) {
+  auto itr = g_map_addr->find(fd);
+  if (itr == g_map_addr->end()) {
     return INVALID_SOCKET;
   }
 
   SOCKET socket_handle = itr->second;
   if (erase) {
-    m_addr->erase(fd);
+    g_map_addr->erase(fd);
   }
-  LeaveCriticalSection(&s_critical_section.critical_section_);
+  LeaveCriticalSection(&g_critical_section.critical_section_);
   return socket_handle;
 }
 
