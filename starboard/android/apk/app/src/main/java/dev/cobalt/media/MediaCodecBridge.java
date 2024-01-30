@@ -796,7 +796,7 @@ class MediaCodecBridge {
       }
     }
 
-    if (maxVideoInputSize != 0) {
+    if (maxVideoInputSize > 0) {
       mediaFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, maxVideoInputSize);
       try {
         Log.i(
