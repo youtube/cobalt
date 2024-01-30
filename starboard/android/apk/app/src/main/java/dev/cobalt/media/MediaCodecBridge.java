@@ -556,6 +556,7 @@ class MediaCodecBridge {
     }
   }
 
+  @UsedByNative
   public static boolean isFrameRenderedCallbackEnabled() {
     // Starting with Android 14, onFrameRendered should be called accurately for each rendered
     // frame.

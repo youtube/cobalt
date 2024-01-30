@@ -28,8 +28,8 @@ namespace shared {
 class VideoRenderAlgorithm : public ::starboard::shared::starboard::player::
                                  filter::VideoRenderAlgorithm {
  public:
-  explicit VideoRenderAlgorithm(VideoDecoder* video_decoder,
-                                VideoFrameTracker* frame_tracker);
+  VideoRenderAlgorithm(VideoDecoder* video_decoder,
+                       VideoFrameTracker* frame_tracker);
 
   void Render(MediaTimeProvider* media_time_provider,
               std::list<scoped_refptr<VideoFrame>>* frames,
