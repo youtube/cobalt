@@ -682,9 +682,18 @@ void SbPlayerPipeline::SetDurationTask(TimeDelta duration) {
 
 void SbPlayerPipeline::OnBufferedTimeRangesChanged(
     const ::media::Ranges<base::TimeDelta>& ranges) {
+<<<<<<< HEAD
   base::AutoLock auto_lock(lock_);
   did_loading_progress_ = true;
   buffered_time_ranges_ = ranges;
+=======
+  {
+    base::AutoLock auto_lock(lock_);
+    did_loading_progress_ = true;
+    buffered_time_ranges_ = ranges;
+  }
+  buffering_state_cb_.Run(kBufferedRangeChanged);
+>>>>>>> 33404533026 (Pause player when demuxer is underflow (#2075))
 }
 
 void SbPlayerPipeline::SetDuration(TimeDelta duration) {
