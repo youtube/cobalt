@@ -1101,8 +1101,8 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type,
     // |kMediaTimeCheckInterval|.
     if (!is_video_eos_written_ &&
         timestamp_of_last_written_audio_ - seek_time_ >
-        AdjustWriteDurationForPlaybackRate(audio_write_duration_for_preroll_,
-                                           playback_rate_)) {
+            AdjustWriteDurationForPlaybackRate(
+                audio_write_duration_for_preroll_, playback_rate_)) {
       // The estimated time ahead of playback may be negative if no audio has
       // been written.
       TimeDelta time_ahead_of_playback =
