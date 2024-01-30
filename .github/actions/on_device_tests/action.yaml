@@ -43,7 +43,7 @@ runs:
           echo "USE_SHARDING=1" >> $GITHUB_ENV
         fi
       shell: bash
-    - name: trigger ${{ env.SHARD_NAME }} tests on ${{ matrix.platform }} platform
+    - name: run ${{ env.SHARD_NAME }} tests on ${{ matrix.platform }} platform
       env:
         GITHUB_SHA: ${{ github.sha }}
         GITHUB_TOKEN: ${{ github.token }}
@@ -59,44 +59,30 @@ runs:
         GITHUB_COMMIT_AUTHOR_EMAIL: ${{ github.event.commits[0].author.email }}
       run: |
         set -uxe
-        SESSION_ID=$(
-          python3 tools/on_device_tests_gateway_client.py \
-            --token ${GITHUB_TOKEN} \
-            --change_id "${GITHUB_PR_HEAD_SHA:-$GITHUB_SHA}" \
-            trigger \
-            --test_type ${{ env.TEST_TYPE }} \
-            --platform ${{ matrix.target_platform }} \
-            --config ${{ matrix.config }} \
-            --tag cobalt_github_${GITHUB_EVENT_NAME} \
-            --builder_name github_${{ matrix.platform }}_tests \
-            --build_number ${GITHUB_RUN_NUMBER} \
-            ${LOADER_PLATFORM:+"--loader_config" "$LOADER_CONFIG"} \
-            ${LOADER_PLATFORM:+"--loader_platform" "$LOADER_PLATFORM"} \
-            ${DIMENSION:+"--dimension" "$DIMENSION"} \
-            ${USE_SHARDING:+"--unittest_shard_index" "${{ matrix.shard }}"} \
-            ${ON_DEVICE_TEST_ATTEMPTS:+"--test_attempts" "$ON_DEVICE_TEST_ATTEMPTS"} \
-            --archive_path gs://${PROJECT_NAME}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{ matrix.platform }}_${{ matrix.config }}/artifacts.tar \
-            --label github \
-            --label ${GITHUB_EVENT_NAME} \
-            --label ${WORKFLOW} \
-            --label actor-${GITHUB_ACTOR} \
-            --label actor_id-${GITHUB_ACTOR_ID} \
-            --label triggering_actor-${GITHUB_TRIGGERING_ACTOR} \
-            --label sha-${GITHUB_SHA} \
-            --label repository-${GITHUB_REPO} \
-            --label author-${GITHUB_PR_HEAD_USER_LOGIN:-$GITHUB_COMMIT_AUTHOR_USERNAME} \
-            --label author_id-${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL}
-        )
-        echo "SESSION_ID=$SESSION_ID" >> $GITHUB_ENV
-      shell: bash
-    - name: watch ${{ env.SHARD_NAME }} tests on ${{ matrix.platform }} platform
-      env:
-        GITHUB_TOKEN: ${{ github.token }}
-        GITHUB_SHA: ${{ github.sha }}
-      run: |
-        set -uxe
         python3 tools/on_device_tests_gateway_client.py \
-          --token "${GITHUB_TOKEN}" \
-          --change_id "${GITHUB_SHA}" \
-          watch ${{ env.SESSION_ID }}
+          --token ${GITHUB_TOKEN} \
+          --change_id "${GITHUB_PR_HEAD_SHA:-$GITHUB_SHA}" \
+          trigger \
+          --test_type ${{ env.TEST_TYPE }} \
+          --platform ${{ matrix.target_platform }} \
+          --config ${{ matrix.config }} \
+          --tag cobalt_github_${GITHUB_EVENT_NAME} \
+          --builder_name github_${{ matrix.platform }}_tests \
+          --build_number ${GITHUB_RUN_NUMBER} \
+          ${LOADER_PLATFORM:+"--loader_config" "$LOADER_CONFIG"} \
+          ${LOADER_PLATFORM:+"--loader_platform" "$LOADER_PLATFORM"} \
+          ${DIMENSION:+"--dimension" "$DIMENSION"} \
+          ${USE_SHARDING:+"--unittest_shard_index" "${{ matrix.shard }}"} \
+          ${ON_DEVICE_TEST_ATTEMPTS:+"--test_attempts" "$ON_DEVICE_TEST_ATTEMPTS"} \
+          --archive_path gs://${PROJECT_NAME}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{ matrix.platform }}_${{ matrix.config }}/artifacts.tar \
+          --label github \
+          --label ${GITHUB_EVENT_NAME} \
+          --label ${WORKFLOW} \
+          --label actor-${GITHUB_ACTOR} \
+          --label actor_id-${GITHUB_ACTOR_ID} \
+          --label triggering_actor-${GITHUB_TRIGGERING_ACTOR} \
+          --label sha-${GITHUB_SHA} \
+          --label repository-${GITHUB_REPO} \
+          --label author-${GITHUB_PR_HEAD_USER_LOGIN:-$GITHUB_COMMIT_AUTHOR_USERNAME} \
+          --label author_id-${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL}
       shell: bash
