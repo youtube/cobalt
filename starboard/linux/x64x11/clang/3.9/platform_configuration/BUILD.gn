@@ -102,11 +102,7 @@ config("compiler_flags") {
     "-Wno-unknown-warning-option",
   ]
 
-  cflags_c += [
-    # Limit to C99. This allows Linux to be a canary build for any
-    # C11 features that are not supported on some platforms' compilers.
-    "-std=c99",
-  ]
+  cflags_c += [ "-std=c11" ]
 
   cflags_cc += [ "-std=c++14" ]
 
