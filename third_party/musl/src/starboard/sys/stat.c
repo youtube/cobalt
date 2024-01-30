@@ -6,8 +6,9 @@
 
 int mkdir(const char *path, mode_t mode)
 {
-    if (SbDirectoryCreate(path))
+    if (SbDirectoryCreate(path)){
         return 0;
+    }
     return -1;
 }
 
