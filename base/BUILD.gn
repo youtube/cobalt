@@ -1093,6 +1093,10 @@ component("base") {
   # to provide the appropriate `#define` here.
   defines += [ "IS_RAW_PTR_IMPL" ]
 
+  if (!is_gold) {
+    defines += [ "ENABLE_TEST_DATA" ]
+  }
+
   if (is_apple) {
     deps += [ "//base/time/buildflags:buildflags" ]
   }
@@ -2969,34 +2973,39 @@ source_set("base_stack_sampling_profiler_test_util") {
   }
 }
 
-if (is_apple) {
-  bundle_data("base_unittests_bundle_data") {
-    testonly = true
-    sources = [
-      "//tools/metrics/histograms/enums.xml",
-      "test/data/file_util/binary_file.bin",
-      "test/data/file_util/binary_file_diff.bin",
-      "test/data/file_util/binary_file_same.bin",
-      "test/data/file_util/blank_line.txt",
-      "test/data/file_util/blank_line_crlf.txt",
-      "test/data/file_util/crlf.txt",
-      "test/data/file_util/different.txt",
-      "test/data/file_util/different_first.txt",
-      "test/data/file_util/different_last.txt",
-      "test/data/file_util/empty1.txt",
-      "test/data/file_util/empty2.txt",
-      "test/data/file_util/first1.txt",
-      "test/data/file_util/first2.txt",
-      "test/data/file_util/original.txt",
-      "test/data/file_util/same.txt",
-      "test/data/file_util/same_length.txt",
-      "test/data/file_util/shortened.txt",
-      "test/data/json/bom_feff.json",
-      "test/data/pe_image_reader/signed.exe",
-      "test/data/serializer_nested_test.json",
-      "test/data/serializer_test.json",
-      "test/data/serializer_test_nowhitespace.json",
-    ]
+copy("base_unittests_bundle_data") {
+  testonly = true
+  if (is_starboard) {
+    install_content = true
+  }
+  sources = [
+    "//tools/metrics/histograms/enums.xml",
+    "test/data/file_util/binary_file.bin",
+    "test/data/file_util/binary_file_diff.bin",
+    "test/data/file_util/binary_file_same.bin",
+    "test/data/file_util/blank_line.txt",
+    "test/data/file_util/blank_line_crlf.txt",
+    "test/data/file_util/crlf.txt",
+    "test/data/file_util/different.txt",
+    "test/data/file_util/different_first.txt",
+    "test/data/file_util/different_last.txt",
+    "test/data/file_util/empty1.txt",
+    "test/data/file_util/empty2.txt",
+    "test/data/file_util/first1.txt",
+    "test/data/file_util/first2.txt",
+    "test/data/file_util/original.txt",
+    "test/data/file_util/same.txt",
+    "test/data/file_util/same_length.txt",
+    "test/data/file_util/shortened.txt",
+    "test/data/json/bom_feff.json",
+    "test/data/pe_image_reader/signed.exe",
+    "test/data/serializer_nested_test.json",
+    "test/data/serializer_test.json",
+    "test/data/serializer_test_nowhitespace.json",
+  ]
+  if (is_starboard) {
+    outputs = [ "$sb_static_contents_output_data_dir/test/base/{{source_target_relative}}" ]
+  } else {
     outputs = [ "{{bundle_resources_dir}}/" +
                 "{{source_root_relative_dir}}/{{source_file_part}}" ]
   }
@@ -3174,8 +3183,8 @@ test("base_unittests") {
     # "debug/stack_trace_unittest.cc",
     "debug/task_trace_unittest.cc",
     "environment_unittest.cc",
-
     "feature_list_unittest.cc",
+
     # "files/file_enumerator_unittest.cc",
     "files/file_error_or_unittest.cc",
 
@@ -3275,7 +3284,6 @@ test("base_unittests") {
     # "metrics/histogram_threadsafe_unittest.cc",
     # "metrics/histogram_unittest.cc",
     "metrics/metrics_hashes_unittest.cc",
-
     "metrics/persistent_histogram_allocator_unittest.cc",
     "metrics/persistent_histogram_storage_unittest.cc",
     "metrics/persistent_memory_allocator_unittest.cc",
@@ -3595,10 +3603,10 @@ test("base_unittests") {
   }
 
   if (is_apple) {
-    public_deps = [ ":base_unittests_bundle_data" ]
-
     deps += [ ":base_unittests_arc" ]
   }
+
+  public_deps = [ ":base_unittests_bundle_data" ]
 
   if (!is_ios) {
     sources += [ "allocator/partition_allocator/tagging_unittest.cc" ]
