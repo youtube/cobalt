@@ -23,6 +23,7 @@
 #include "cobalt/media/base/sbplayer_interface.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/chromium/media/filters/chunk_demuxer.h"
 
 namespace cobalt {
 namespace media {
@@ -39,6 +40,7 @@ namespace media {
 
 using ::cobalt::media::DefaultSbPlayerInterface;
 using ::cobalt::media::SbPlayerInterface;
+using ::media::ChunkDemuxer;
 using ::media::Demuxer;
 using ::media::DemuxerHost;
 using ::media::DemuxerStream;
@@ -62,16 +64,20 @@ FakeGetSbDecodeTargetGraphicsContextProvider() {
 
 class SbPlayerPipelineTest : public ::testing::Test {
  public:
-  // Used for setting expectations on pipeline callbacks.  Using a StrictMock
-  // also lets us test for missing callbacks.
-  class CallbackHelper {
+  class MockWebMediaPlayerImpl {
    public:
-    CallbackHelper() = default;
+    MockWebMediaPlayerImpl() = default;
 
-    CallbackHelper(const CallbackHelper&) = delete;
-    CallbackHelper& operator=(const CallbackHelper&) = delete;
+    MockWebMediaPlayerImpl(const MockWebMediaPlayerImpl&) = delete;
+    MockWebMediaPlayerImpl& operator=(const MockWebMediaPlayerImpl&) = delete;
 
-    virtual ~CallbackHelper() = default;
+    virtual ~MockWebMediaPlayerImpl() = default;
+
+    MOCK_METHOD(void, OnDemuxerOpened, ());
+    MOCK_METHOD(void, OnProgress, ());
+    MOCK_METHOD(void, OnEncryptedMediaInitDataEncounteredWrapper,
+                (::media::EmeInitDataType init_data_type,
+                 const std::vector<uint8_t>& init_data));
 
     MOCK_METHOD(void, OnDrmSystemReady,
                 (const DrmSystemReadyCB& drm_system_ready_cb));
@@ -88,11 +94,21 @@ class SbPlayerPipelineTest : public ::testing::Test {
     MOCK_METHOD(void, OnContentSizeChanged, ());
   };
 
-  SbPlayerPipelineTest()
-      : demuxer_(std::make_unique<StrictMock<MockDemuxer>>()),
-        sbplayer_interface_(
-            std::make_unique<StrictMock<MockSbPlayerInterface>>()) {
+  SbPlayerPipelineTest() {
+    sbplayer_interface_ = std::make_unique<StrictMock<MockSbPlayerInterface>>();
+
     decode_target_provider_ = new StrictMock<MockDecodeTargetProvider>();
+
+    chunk_demuxer_ = std::make_unique<ChunkDemuxer>(
+        base::BindRepeating(&MockWebMediaPlayerImpl::OnDemuxerOpened,
+                            base::Unretained(&wmpi_)),
+        base::BindRepeating(&MockWebMediaPlayerImpl::OnProgress,
+                            base::Unretained(&wmpi_)),
+        base::BindRepeating(
+            &MockWebMediaPlayerImpl::OnEncryptedMediaInitDataEncounteredWrapper,
+            base::Unretained(&wmpi_)),
+        &media_log_);
+
     pipeline_ = new SbPlayerPipeline(
         sbplayer_interface_.get(), nullptr,
         task_environment_.GetMainThreadTaskRunner(),
@@ -102,14 +118,6 @@ class SbPlayerPipelineTest : public ::testing::Test {
         kSbPlayerWriteDurationLocal, kSbPlayerWriteDurationRemote,
 #endif  // SB_API_VERSION >= 15
         nullptr, &media_metrics_provider_, decode_target_provider_.get());
-
-    std::vector<DemuxerStream*> empty;
-    EXPECT_CALL(*demuxer_, GetAllStreams()).WillRepeatedly(Return(empty));
-
-    EXPECT_CALL(*demuxer_, GetTimelineOffset())
-        .WillRepeatedly(Return(base::Time()));
-
-    EXPECT_CALL(*demuxer_, GetStartTime()).WillRepeatedly(Return(start_time_));
   }
 
   ~SbPlayerPipelineTest() = default;
@@ -117,7 +125,7 @@ class SbPlayerPipelineTest : public ::testing::Test {
  protected:
   // Sets up expectations to allow the demuxer to initialize.
   // void SetDemuxerExpectations(base::TimeDelta duration) {
-  //   EXPECT_CALL(callbacks_, OnDurationChange());
+  //   EXPECT_CALL(wmpi_, OnDurationChange());
   //   // EXPECT_CALL(*demuxer_, OnInitialize(_, _))
   //   //     .WillOnce(DoAll(SaveArg<0>(&demuxer_host_),
   //   //                     SetDemuxerProperties(duration),
@@ -144,38 +152,40 @@ class SbPlayerPipelineTest : public ::testing::Test {
 
   void StartPipeline() {
     pipeline_->Start(
-        demuxer_.get(),
-        base::BindRepeating(&CallbackHelper::OnDrmSystemReady,
-                            base::Unretained(&callbacks_)),
-        base::BindRepeating(&CallbackHelper::OnPipelineEnded,
-                            base::Unretained(&callbacks_)),
-        base::BindRepeating(&CallbackHelper::OnPipelineError,
-                            base::Unretained(&callbacks_)),
-        base::BindRepeating(&CallbackHelper::OnPipelineSeek,
-                            base::Unretained(&callbacks_)),
-        base::BindRepeating(&CallbackHelper::OnPipelineBufferingState,
-                            base::Unretained(&callbacks_)),
-        base::BindRepeating(&CallbackHelper::OnDurationChanged,
-                            base::Unretained(&callbacks_)),
-        base::BindRepeating(&CallbackHelper::OnOutputModeChanged,
-                            base::Unretained(&callbacks_)),
-        base::BindRepeating(&CallbackHelper::OnContentSizeChanged,
-                            base::Unretained(&callbacks_)),
+        chunk_demuxer_.get(),
+        base::BindRepeating(&MockWebMediaPlayerImpl::OnDrmSystemReady,
+                            base::Unretained(&wmpi_)),
+        base::BindRepeating(&MockWebMediaPlayerImpl::OnPipelineEnded,
+                            base::Unretained(&wmpi_)),
+        base::BindRepeating(&MockWebMediaPlayerImpl::OnPipelineError,
+                            base::Unretained(&wmpi_)),
+        base::BindRepeating(&MockWebMediaPlayerImpl::OnPipelineSeek,
+                            base::Unretained(&wmpi_)),
+        base::BindRepeating(&MockWebMediaPlayerImpl::OnPipelineBufferingState,
+                            base::Unretained(&wmpi_)),
+        base::BindRepeating(&MockWebMediaPlayerImpl::OnDurationChanged,
+                            base::Unretained(&wmpi_)),
+        base::BindRepeating(&MockWebMediaPlayerImpl::OnOutputModeChanged,
+                            base::Unretained(&wmpi_)),
+        base::BindRepeating(&MockWebMediaPlayerImpl::OnContentSizeChanged,
+                            base::Unretained(&wmpi_)),
         "");
 
-    // EXPECT_CALL(callbacks_, OnWaiting(_)).Times(0);
-    // EXPECT_CALL(callbacks_, OnWaiting(_)).Times(0);
+    // EXPECT_CALL(wmpi_, OnWaiting(_)).Times(0);
+    // EXPECT_CALL(wmpi_, OnWaiting(_)).Times(0);
   }
 
   base::test::ScopedTaskEnvironment task_environment_;
 
-  StrictMock<CallbackHelper> callbacks_;
+  StrictMock<MockWebMediaPlayerImpl> wmpi_;
 
-  std::unique_ptr<StrictMock<MockDemuxer>> demuxer_;
   std::unique_ptr<StrictMock<MockSbPlayerInterface>> sbplayer_interface_;
   scoped_refptr<StrictMock<MockDecodeTargetProvider>> decode_target_provider_;
 
-  scoped_refptr<SbPlayerPipeline> pipeline_;
+  scoped_refptr<Pipeline> pipeline_;
+
+  std::unique_ptr<::media::Demuxer> progressive_demuxer_;
+  std::unique_ptr<ChunkDemuxer> chunk_demuxer_;
 
   // std::unique_ptr<StrictMock<MockRenderer>> scoped_renderer_;
   // base::WeakPtr<MockRenderer> renderer_;
@@ -185,6 +195,8 @@ class SbPlayerPipelineTest : public ::testing::Test {
 
   base::TimeDelta start_time_;
   MediaMetricsProvider media_metrics_provider_;
+
+  ::media::MediaLog media_log_;
 };
 
 
@@ -196,24 +208,46 @@ TEST_F(SbPlayerPipelineTest, ConstructAndDestroy) {
 }
 
 TEST_F(SbPlayerPipelineTest, PipelineStart) {
-  EXPECT_CALL(*demuxer_, OnInitialize(pipeline_.get(), _)).Times(1);
+  EXPECT_CALL(wmpi_, OnDemuxerOpened());
   StartPipeline();
   base::RunLoop().RunUntilIdle();
 }
 
-/// CreatePlayer(SbDrmSystem drm_system
-TEST_F(SbPlayerPipelineTest, SetDrmSystem) {
-  EXPECT_CALL(*demuxer_, OnInitialize(pipeline_.get(), _)).Times(1);
-  // CreatePlayer
-  // StartPipeline();
-  // pipeline_->OnDemuxerInitialized(PIPELINE_OK);
-  // pipeline_->OnDemuxerInitialized(PIPELINE_ERROR_ABORT);
-  // PIPELINE_ERROR_INITIALIZATION_FAILED = 6,
-  // PIPELINE_ERROR_COULD_NOT_RENDER = 8,
-  // PIPELINE_ERROR_READ = 9,
-  // FRIEND_TEST(SbPlayerPipelineTest, SetDrmSystem);
-  base::RunLoop().RunUntilIdle();
+constexpr char kInputWebm[] = "bear-320x240.webm";
+
+std::string Wurd(std::vector<char>& chars) {
+  std::stringstream ss;
+  for (const auto& c : chars) {
+    ss << c;
+  }
+  return ss.str();
 }
+
+TEST_F(SbPlayerPipelineTest, ReadTestFileData) {
+  LOG(INFO) << "YO THOR:" << kSbSystemPathTempDirectory;
+  std::vector<char> temp_path(kSbFileMaxPath);
+  bool system_path_success = SbSystemGetPath(
+      kSbSystemPathTempDirectory, temp_path.data(), temp_path.size());
+  LOG(INFO) << "YO THOR:" << kSbSystemPathTempDirectory << " "
+            << Wurd(temp_path);
+  //  const std::string filename = ResolveTestFilename(kInputWebm);
+  //  std::ifstream input(filename, std::ios_base::binary)
+}
+
+// /// CreatePlayer(SbDrmSystem drm_system
+// TEST_F(SbPlayerPipelineTest, SetDrmSystem) {
+//   // CreatePlayer
+//   StartPipeline();
+//   // pipeline_->OnDemuxerInitialized(PIPELINE_OK);
+//   // pipeline_->OnDemuxerInitialized(PIPELINE_ERROR_ABORT);
+//   // PIPELINE_ERROR_INITIALIZATION_FAILED = 6,
+//   // PIPELINE_ERROR_COULD_NOT_RENDER = 8,
+//   // PIPELINE_ERROR_READ = 9,
+//
+//   // FRIEND_TEST(SbPlayerPipelineTest, SetDrmSystem);
+//   base::RunLoop().RunUntilIdle();
+//
+// }
 
 // SUSPEND and RESUME
 //   void Stop(const base::Closure& stop_cb) override;

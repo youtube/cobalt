@@ -646,6 +646,7 @@ std::string ChunkDemuxer::GetDisplayName() const {
 void ChunkDemuxer::Initialize(DemuxerHost* host,
                               PipelineStatusCallback init_cb) {
   DVLOG(1) << "Initialize()";
+  LOG(INFO) << "YO THOR CHUMK Initialize()";
   TRACE_EVENT_ASYNC_BEGIN0("media", "ChunkDemuxer::Initialize", this);
 
   base::OnceClosure open_cb;

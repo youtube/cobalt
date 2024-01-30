@@ -254,7 +254,6 @@ SbPlayerBridge::SbPlayerBridge(
       is_url_based_(false)
 #endif  // SB_HAS(PLAYER_WITH_URL
 {
-  LOG(INFO) << "YO THOR _ BRIDGE CTOR\n";
   DCHECK(!get_decode_target_graphics_context_provider_func_.is_null());
   DCHECK(audio_config.IsValidConfig() || video_config.IsValidConfig());
   DCHECK(host_);

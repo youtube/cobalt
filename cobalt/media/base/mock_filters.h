@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "cobalt/media/base/data_source.h"
 #include "cobalt/media/base/pipeline.h"
 #include "cobalt/media/base/sbplayer_pipeline.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -213,6 +214,24 @@ class MockDecodeTargetProvider : public DecodeTargetProvider {
   MockDecodeTargetProvider() = default;
   MockDecodeTargetProvider(const MockDecodeTargetProvider&) = delete;
   MockDecodeTargetProvider& operator=(const MockDecodeTargetProvider&) = delete;
+};
+
+class MockDataSource : public DataSource {
+ public:
+  MockDataSource() = default;
+  ~MockDataSource() = default;
+  MockDataSource(const MockDataSource&) = delete;
+  MockDataSource& operator=(const MockDataSource&) = delete;
+
+  MOCK_METHOD(void, Read,
+              (int64_t position, int size, uint8_t* data,
+               const DataSource::ReadCB& read_cb),
+              (override));
+  MOCK_METHOD(void, Stop, (), (override));
+  MOCK_METHOD(void, Abort, (), (override));
+  MOCK_METHOD(bool, GetSize, (int64_t * size_out), (override));
+  MOCK_METHOD(void, SetDownloadingStatusCB,
+              (const DownloadingStatusCB& downloading_status_cb), (override));
 };
 
 }  // namespace media

@@ -119,6 +119,9 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void SetPreferredOutputModeToDecodeToTexture() override;
 
  private:
+  friend class SbPlayerPipelineTest;
+  FRIEND_TEST(SbPlayerPipelineTest, PipelineStart);
+
   // Used to post parameters to SbPlayerPipeline::StartTask() as the number of
   // parameters exceed what base::Bind() can support.
   struct StartTaskParameters {
