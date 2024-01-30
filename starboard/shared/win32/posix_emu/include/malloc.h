@@ -17,6 +17,12 @@
 
 #include <../ucrt/malloc.h>  // The Visual Studio version of this same file
 
+// b/199773752, b/309016038: Remove when the PS5 SDK is updated past version 4.
+#if __STDC_VERSION__ == 201112L && !defined(__cplusplus)
+#define alignof _Alignof
+#define static_assert _Static_assert
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
