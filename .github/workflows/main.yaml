@@ -201,7 +201,7 @@ jobs:
         with:
           type: onhost
           os: linux
-      # Build bootloader if neccessary.
+      # Build bootloader if necessary.
       - name: Set bootloader config
         if: ${{ needs.initialize.outputs.bootloader != 'null' && matrix.config == 'devel' }}
         run: echo "COBALT_BOOTLOADER=${{needs.initialize.outputs.bootloader}}" >> $GITHUB_ENV
@@ -274,44 +274,35 @@ jobs:
           if [ "${{ matrix.dimension }}" != "null" ]; then
             echo "DIMENSION=${{ matrix.dimension }}" >> $GITHUB_ENV
           fi
-      - name: trigger ${{ matrix.type }} tests on ${{ matrix.platform }} platform
+      - name: run ${{ matrix.type }} tests on ${{ matrix.platform }} platform
         id: on_device_test
-        run: |
-          SESSION_ID=$(
-            python3 tools/on_device_tests_gateway_client.py \
-              --token ${{ github.token }} \
-              --change_id "${{ github.sha }}" \
-              trigger \
-              --test_type ${{ matrix.type }} \
-              --platform ${{ matrix.target_platform }} \
-              --config ${{ matrix.config }} \
-              --tag cobalt_github_${{ github.event_name }} \
-              --builder_name github_${{ matrix.platform }}_tests \
-              --build_number ${GITHUB_RUN_NUMBER} \
-              --version '23.lts.1+' \
-              ${LOADER_PLATFORM:+"--loader_config" "$LOADER_CONFIG"} \
-              ${LOADER_PLATFORM:+"--loader_platform" "$LOADER_PLATFORM"} \
-              ${DIMENSION:+"--dimension" "$DIMENSION"} \
-              --archive_path gs://${PROJECT_NAME}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{ matrix.platform }}_${{ matrix.config }}/artifacts.tar \
-              --label github \
-              --label ${{ github.event_name }} \
-              --label ${{ github.workflow }} \
-              --label actor-${{ github.actor }} \
-              --label actor_id-${{ github.actor_id }} \
-              --label triggering_actor-${{ github.triggering_actor }} \
-              --label sha-${{ github.sha }} \
-              --label repository-${{ github.repository }} \
-              --label author-${{ github.event.pull_request.head.user.login || github.event.commits[0].author.username }} \
-              --label author_id-${{ github.event.pull_request.head.user.id || github.event.commits[0].author.email }}
-          )
-          echo "SESSION_ID=$SESSION_ID" >> $GITHUB_ENV
-        shell: bash
-      - name: watch ${{ matrix.type }} tests on ${{ matrix.platform }} platform
         run: |
           python3 tools/on_device_tests_gateway_client.py \
             --token ${{ github.token }} \
             --change_id "${{ github.sha }}" \
-            watch ${{ env.SESSION_ID }}
+            trigger \
+            --test_type ${{ matrix.type }} \
+            --platform ${{ matrix.target_platform }} \
+            --config ${{ matrix.config }} \
+            --tag cobalt_github_${{ github.event_name }} \
+            --builder_name github_${{ matrix.platform }}_tests \
+            --build_number ${GITHUB_RUN_NUMBER} \
+            --version '23.lts.1+' \
+            ${LOADER_PLATFORM:+"--loader_config" "$LOADER_CONFIG"} \
+            ${LOADER_PLATFORM:+"--loader_platform" "$LOADER_PLATFORM"} \
+            ${DIMENSION:+"--dimension" "$DIMENSION"} \
+            --archive_path gs://${PROJECT_NAME}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{ matrix.platform }}_${{ matrix.config }}/artifacts.tar \
+            --label github \
+            --label ${{ github.event_name }} \
+            --label ${{ github.workflow }} \
+            --label actor-${{ github.actor }} \
+            --label actor_id-${{ github.actor_id }} \
+            --label triggering_actor-${{ github.triggering_actor }} \
+            --label sha-${{ github.sha }} \
+            --label repository-${{ github.repository }} \
+            --label author-${{ github.event.pull_request.head.user.login || github.event.commits[0].author.username }} \
+            --label author_id-${{ github.event.pull_request.head.user.id || github.event.commits[0].author.email }}
+        shell: bash
 
   # Runs on-host integration and unit tests.
   on-host-test:
