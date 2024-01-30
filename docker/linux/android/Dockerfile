@@ -15,24 +15,24 @@
 ARG FROM_IMAGE
 FROM ${FROM_IMAGE:-cobalt-build-base}
 
-# TODO: b/309157124 - add --no-install-recommends.
 RUN apt update -qqy
-RUN apt install -qqy \
+RUN apt install -qqy --no-install-recommends \
         curl \
         libxml2-dev \
         binutils-arm-linux-gnueabi \
         g++-multilib \
     && /opt/clean-after-apt.sh
 
-# Jdk17, verify SHA256 of the installation file, then install it.
-ARG JDK17_DOWNLOAD_URL="https://download.oracle.com/java/17/latest/jdk-17_linux-x64_bin.deb"
-ARG JDK17_TMP_FILE="/tmp/jdk-17_linux-x64_bin.deb"
-ARG JDK17_SHA256SUM="0871ec2276b3440ab03e4bb1e77a9d7645f82eb9d6c449d743a585845c370269  ${JDK17_TMP_FILE}"
+# TODO: b/312772759 - Remove when openjdk-17-jdk is available in apt repo.
+# Install Oracle JDK-17.
+ARG JDK17_DEB_FILE="jdk-17_linux-x64_bin.deb"
+ARG JDK17_SHA256SUM="0871ec2276b3440ab03e4bb1e77a9d7645f82eb9d6c449d743a585845c370269  /tmp/${JDK17_DEB_FILE}"
 
-RUN curl --location --silent --output ${JDK17_TMP_FILE} ${JDK17_DOWNLOAD_URL} \
+RUN curl --location --silent --output /tmp/${JDK17_DEB_FILE} \
+      'https://download.oracle.com/java/17/latest/${JDK17_DEB_FILE}' \
     && echo ${JDK17_SHA256SUM} | sha256sum --check \
-    && apt install -qqy ${JDK17_TMP_FILE} \
-    && rm ${JDK17_TMP_FILE}
+    && apt install -qqy /tmp/${JDK17_DEB_FILE} \
+    && rm /tmp/${JDK17_DEB_FILE}
 
 RUN mkdir -p /root/.android
 
