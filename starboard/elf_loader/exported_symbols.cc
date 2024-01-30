@@ -16,6 +16,8 @@
 
 #include <stdlib.h>
 #include <sys/mman.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 #include "starboard/accessibility.h"
 #include "starboard/audio_sink.h"
@@ -410,15 +412,21 @@ ExportedSymbols::ExportedSymbols() {
 
 #if SB_API_VERSION >= 16
   // POSIX APIs
-  REGISTER_SYMBOL(malloc);
-  REGISTER_SYMBOL(realloc);
   REGISTER_SYMBOL(calloc);
-  REGISTER_SYMBOL(posix_memalign);
+  REGISTER_SYMBOL(close);
   REGISTER_SYMBOL(free);
-  REGISTER_SYMBOL(vsscanf);
+  REGISTER_SYMBOL(malloc);
   REGISTER_SYMBOL(mprotect);
-  REGISTER_SYMBOL(munmap);
   REGISTER_SYMBOL(msync);
+  REGISTER_SYMBOL(munmap);
+  REGISTER_SYMBOL(posix_memalign);
+  REGISTER_SYMBOL(realloc);
+  REGISTER_SYMBOL(socket);
+  REGISTER_SYMBOL(snprintf);
+  REGISTER_SYMBOL(sprintf);
+  REGISTER_SYMBOL(vfwprintf);
+  REGISTER_SYMBOL(vsnprintf);
+  REGISTER_SYMBOL(vsscanf);
 
   // Custom mapped POSIX APIs to compatibility wrappers.
   // These will rely on Starboard-side implementations that properly translate
@@ -431,10 +439,6 @@ ExportedSymbols::ExportedSymbols() {
   map_["gmtime_r"] = reinterpret_cast<const void*>(&__wrap_gmtime_r);
   map_["mmap"] = reinterpret_cast<const void*>(&__wrap_mmap);
 
-  REGISTER_SYMBOL(sprintf);
-  REGISTER_SYMBOL(snprintf);
-  REGISTER_SYMBOL(vfwprintf);
-  REGISTER_SYMBOL(vsnprintf);
 #if defined(_MSC_VER)
   // MSVC provides a template with the same name.
   // The cast helps the compiler to pick the correct C function pointer to be

@@ -12,17 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_ARPA_INET_H_
-#define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_ARPA_INET_H_
+#ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_UNISTD_H_
+#define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_UNISTD_H_
 
-#if defined(STARBOARD) && defined(_MSC_VER)
+#if defined(STARBOARD)
 
-#include <stdint.h>
-#include <stdlib.h>
-#include <winsock2.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#include "starboard/configuration.h"
+int close(int fd);
 
-#endif  // defined(STARBOARD) && defined(_MSC_VER)
+#ifdef __cplusplus
+}
+#endif  // __cplusplus
 
-#endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_ARPA_INET_H_
+#endif  // defined(STARBOARD)
+#endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_UNISTD_H_

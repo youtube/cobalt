@@ -9,6 +9,12 @@ since the version previous to it.
 
 ## Version 16
 
+### Deprecated SbSocketCreate and migrated to POSIX socket API
+The Deprecated APIs are `SbSocketCreate` and `SbSocketDestroy`.
+The standard APIs `socket` is declared in `<sys/socket.h>` and
+`close` is declared in `<unistd.h>`, which is also shared by
+file operations.
+
 ### Convert SbUiNavGetInterface Starboard API into an extension
 The `SbUiNavGetInterface` API is deprecated and replaced with a Starboard
 extension named `SbUiNavInterface`.
