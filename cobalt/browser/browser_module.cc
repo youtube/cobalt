@@ -35,6 +35,7 @@
 #include "cobalt/base/init_cobalt.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/base/tokens.h"
+#include "cobalt/browser/on_screen_keyboard_extension_bridge.h"
 #include "cobalt/browser/on_screen_keyboard_starboard_bridge.h"
 #include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/switches.h"
@@ -237,12 +238,6 @@ BrowserModule::BrowserModule(const GURL& url,
       updater_module_(updater_module),
 #endif
       splash_screen_cache_(new SplashScreenCache()),
-      on_screen_keyboard_bridge_(
-          OnScreenKeyboardStarboardBridge::IsSupported() &&
-                  options.enable_on_screen_keyboard
-              ? new OnScreenKeyboardStarboardBridge(base::Bind(
-                    &BrowserModule::GetSbWindow, base::Unretained(this)))
-              : NULL),
       web_module_loaded_(base::WaitableEvent::ResetPolicy::MANUAL,
                          base::WaitableEvent::InitialState::NOT_SIGNALED),
       web_module_created_callback_(options_.web_module_created_callback),
@@ -293,6 +288,28 @@ BrowserModule::BrowserModule(const GURL& url,
       current_splash_screen_timeline_id_(-1),
       current_main_web_module_timeline_id_(-1) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::BrowserModule()");
+
+  if (options.enable_on_screen_keyboard) {
+    if (OnScreenKeyboardExtensionBridge::IsSupported()) {
+      const CobaltExtensionOnScreenKeyboardApi* on_screen_keyboard_extension =
+          static_cast<const CobaltExtensionOnScreenKeyboardApi*>(
+              SbSystemGetExtension(kCobaltExtensionOnScreenKeyboardName));
+      on_screen_keyboard_bridge_ =
+          std::make_unique<OnScreenKeyboardExtensionBridge>(
+              base::Bind(&BrowserModule::GetSbWindow, base::Unretained(this)),
+              on_screen_keyboard_extension);
+    } else {
+      if (OnScreenKeyboardStarboardBridge::IsSupported()) {
+        on_screen_keyboard_bridge_ =
+            std::make_unique<OnScreenKeyboardStarboardBridge>(base::Bind(
+                &BrowserModule::GetSbWindow, base::Unretained(this)));
+      } else {
+        on_screen_keyboard_bridge_ = NULL;
+      }
+    }
+  } else {
+    on_screen_keyboard_bridge_ = NULL;
+  }
 
   // Apply platform memory setting adjustments and defaults.
   ApplyAutoMemSettings();
