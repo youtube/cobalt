@@ -112,6 +112,11 @@ jobs:
         run: |
           docker_runner_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.docker_runner_service')
           echo "docker_runner_service=${docker_runner_service}" >> $GITHUB_ENV
+      - id: set-runner-tag
+        shell: bash
+        run: |
+          runner_tag=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.runner_tag')
+          echo "runner_tag=${runner_tag}" >> $GITHUB_ENV
     outputs:
       platforms: ${{ env.platforms }}
       includes: ${{ env.includes }}
@@ -120,6 +125,7 @@ jobs:
       on_host_test_shards: ${{ env.on_host_test_shards }}
       docker_service: ${{ env.docker_service }}
       docker_runner_service: ${{ env.docker_runner_service }}
+      runner_tag: ${{ env.runner_tag }}
   # Build windows docker images.
   build-docker-image:
     needs: [initialize]
@@ -152,7 +158,7 @@ jobs:
   build:
     needs: [initialize]
     permissions: {}
-    runs-on: [self-hosted, win32]
+    runs-on: [self-hosted, "${{ needs.initialize.outputs.runner_tag }}"]
     name: ${{matrix.name}}_${{matrix.config}}
     strategy:
       fail-fast: false
@@ -186,7 +192,7 @@ jobs:
     needs: [initialize, build]
     permissions: {}
     if: needs.initialize.outputs.on_host_test == 'true'
-    runs-on: [self-hosted, win32]
+    runs-on: [self-hosted, "${{ needs.initialize.outputs.runner_tag }}"]
     name: ${{matrix.name}}_${{matrix.shard}}_test
     strategy:
       fail-fast: false
