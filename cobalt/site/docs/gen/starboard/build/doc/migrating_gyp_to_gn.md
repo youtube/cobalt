@@ -204,7 +204,7 @@ them.
 ### Validating a Target
 
 If you're migrating a single target, it's simple to check: just configure the
-build using the the necessary arguments then build that target with `ninja`,
+build using the necessary arguments then build that target with `ninja`,
 i.e.:
 
 ```

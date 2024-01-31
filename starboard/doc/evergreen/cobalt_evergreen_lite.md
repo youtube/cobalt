@@ -1,6 +1,5 @@
 # Evergreen Lite Partner Doc
 
-
 ## What is Cobalt Evergreen Lite?
 
 Evergreen Lite is a Cobalt configuration similar to Evergreen Full. Evergreen
