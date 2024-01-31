@@ -71,7 +71,7 @@ runs:
           --tag cobalt_github_${GITHUB_EVENT_NAME} \
           --builder_name github_${{ matrix.platform }}_tests \
           --build_number ${GITHUB_RUN_NUMBER} \
-          --builder_url GITHUB_WORKFLOW_RUN \
+          --builder_url ${GITHUB_RUN_URL} \
           ${LOADER_PLATFORM:+"--loader_config" "$LOADER_CONFIG"} \
           ${LOADER_PLATFORM:+"--loader_platform" "$LOADER_PLATFORM"} \
           ${DIMENSION:+"--dimension" "$DIMENSION"} \
