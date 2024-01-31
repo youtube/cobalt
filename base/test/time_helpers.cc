@@ -32,11 +32,6 @@ namespace test {
 namespace time_helpers {
 
 namespace {
-base::Time UDateToTime(UDate udate) {
-  return base::Time::UnixEpoch() +
-         base::TimeDelta::FromMicroseconds(static_cast<int64_t>(
-             udate * base::Time::kMicrosecondsPerMillisecond));
-}
 
 const char* ToMonthString(int month) {
   switch (month) {
@@ -69,57 +64,6 @@ const char* ToMonthString(int month) {
   return "UNK";
 }
 }  // namespace
-
-base::Time FieldsToTime(TimeZone timezone,
-                        int year,
-                        int month,
-                        int date,
-                        int hour,
-                        int minute,
-                        int second) {
-  UErrorCode status = U_ZERO_ERROR;
-  UChar timezone_buffer[32] = {0};
-  UChar* timezone_uname = NULL;
-  switch (timezone) {
-    case kTimeZonePacific:
-      u_strFromUTF8(timezone_buffer, arraysize(timezone_buffer), NULL,
-                    "America/Los_Angeles", -1, &status);
-      timezone_uname = timezone_buffer;
-      break;
-    case kTimeZoneGMT:
-      u_strFromUTF8(timezone_buffer, arraysize(timezone_buffer), NULL,
-                    "Etc/GMT", -1, &status);
-      timezone_uname = timezone_buffer;
-    case kTimeZoneLocal:
-      // Leave NULL.
-      break;
-  }
-
-  UCHECK(status);
-  UCalendar* calendar =
-      ucal_open(timezone_uname, -1, uloc_getDefault(), UCAL_DEFAULT, &status);
-  DCHECK(calendar);
-  UCHECK(status);
-  ucal_setMillis(calendar, 0, &status);  // Clear the calendar.
-  UCHECK(status);
-  ucal_setDateTime(calendar, year, month - 1 + UCAL_JANUARY, date, hour, minute,
-                   second, &status);
-  UCHECK(status);
-  UDate udate = ucal_getMillis(calendar, &status);
-  UCHECK(status);
-  ucal_close(calendar);
-  return UDateToTime(udate);
-}
-
-base::Time TestDateToTime(TimeZone timezone) {
-  return FieldsToTime(timezone,
-                      2007,  // year
-                      10,    // month
-                      15,    // date
-                      12,    // hour
-                      45,    // minute
-                      0);    // second
-}
 
 std::string TimeFormatUTC(base::Time time) {
   Time::Exploded exploded;

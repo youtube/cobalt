@@ -26,34 +26,6 @@ namespace base {
 namespace test {
 namespace time_helpers {
 
-// Some TimeZone values that can be used in tests.
-enum TimeZone {
-  kTimeZoneGMT,
-  kTimeZoneLocal,
-  kTimeZonePacific,
-};
-
-// Converts a set of fields in a timezone to a time.
-// |timezone| is one of the enumerated timezones.
-// |year| is a full 4-digit year
-// |month| is a 1-based month (1 = January)
-// |date| is a 1-based day-of-month (first day of month is 1)
-// |hour| is the 0-based 24-hour clock hour-of-the-day
-//        (midnight is 0, noon is 12, 3pm is 15)
-// |minute| is the 0-based clock minute-of-the-hour (0-59)
-// |second| is the 0-based clock second-of-the-minute (0-59)
-base::Time FieldsToTime(TimeZone timezone,
-                        int year,
-                        int month,
-                        int date,
-                        int hour,
-                        int minute,
-                        int second);
-
-// Defines a standard date to use in tests.
-// Mon, Oct 15 12:45:00 PDT 2007
-base::Time TestDateToTime(TimeZone timezone);
-
 // Formats the given time into a UTC something parsable by
 // base::Time::FromString().
 std::string TimeFormatUTC(base::Time time);
