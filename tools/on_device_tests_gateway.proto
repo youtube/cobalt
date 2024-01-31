@@ -54,6 +54,7 @@ message OnDeviceTestsCommand {
   string retry_level = 19;
   string start_timeout = 20;
   string test_timeout = 21;
+  string builder_url = 22;
 }
 
 // Working directory and command line arguments to be passed to the gateway.
