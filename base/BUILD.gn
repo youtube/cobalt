@@ -3488,7 +3488,7 @@ test("base_unittests") {
     "time/pr_time_unittest.cc",
     "time/time_delta_from_string_unittest.cc",
 
-    # "time/time_unittest.cc",
+    "time/time_unittest.cc",
     "timer/elapsed_timer_unittest.cc",
     "timer/hi_res_timer_manager_unittest.cc",
     "timer/lap_timer_unittest.cc",
