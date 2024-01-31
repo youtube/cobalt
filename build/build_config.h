@@ -55,9 +55,7 @@
 #include "build/buildflag.h"  // IWYU pragma: export
 
 // A set of macros to use for platform detection.
-#if defined(STARBOARD)
-// noop
-#elif defined(__native_client__)
+#if defined(__native_client__)
 // __native_client__ must be first, so that other OS_ defines are not set.
 #define OS_NACL 1
 #elif defined(ANDROID)
