@@ -39,7 +39,7 @@ _FILTERED_TESTS = {
         # the following tests depend upon.
         'VideoDecoderTests/VideoDecoderTest.ThreeMoreDecoders/*',
 
-        # TODO(b/b/323250981): Flaky tests on Android
+        # TODO(b/323250981): Flaky tests on Android
         'PlayerComponentsTests/PlayerComponentsTest.*',
     ],
     'nplb': [
