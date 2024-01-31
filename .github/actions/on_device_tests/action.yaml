@@ -57,11 +57,12 @@ runs:
         GITHUB_PR_HEAD_USER_ID: ${{ github.event.pull_request.head.user.id }}
         GITHUB_COMMIT_AUTHOR_USERNAME: ${{ github.event.commits[0].author.username }}
         GITHUB_COMMIT_AUTHOR_EMAIL: ${{ github.event.commits[0].author.email }}
+        GITHUB_PR_NUMBER: ${{ github.event.pull_request.number }}
       run: |
         set -uxe
         python3 -u tools/on_device_tests_gateway_client.py \
           --token ${GITHUB_TOKEN} \
-          --change_id "${GITHUB_PR_HEAD_SHA:-$GITHUB_SHA}" \
+          --change_id ${GITHUB_PR_NUMBER:-postsubmit} \
           trigger \
           --test_type ${{ env.TEST_TYPE }} \
           --platform ${{ matrix.target_platform }} \
