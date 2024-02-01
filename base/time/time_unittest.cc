@@ -5,7 +5,10 @@
 #include "base/time/time.h"
 
 #include <stdint.h>
+
+#if !defined(STARBOARD)
 #include <time.h>
+#endif
 
 #include <limits>
 #include <string>
@@ -24,7 +27,9 @@
 #include "third_party/icu/source/common/unicode/utypes.h"
 #include "third_party/icu/source/i18n/unicode/timezone.h"
 
-#if BUILDFLAG(IS_ANDROID)
+#if defined(STARBOARD)
+#include "base/test/time_helpers.h"
+#elif BUILDFLAG(IS_ANDROID)
 #include "base/android/jni_android.h"
 #elif BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_CHROMEOS)
 #include "base/test/icu_test_util.h"
@@ -184,6 +189,14 @@ class TimeTest : public testing::Test {
 #endif
 
   void SetUp() override {
+#if defined(STARBOARD)
+    // Since we don't have access to mktime, let's use time_helpers to do the
+    // same thing in a portable way.
+    comparison_time_local_ = base::test::time_helpers::TestDateToTime(
+        base::test::time_helpers::kTimeZoneLocal);
+    comparison_time_pdt_ = base::test::time_helpers::TestDateToTime(
+        base::test::time_helpers::kTimeZonePacific);
+#else   // defined(STARBOARD)
     // Use mktime to get a time_t, and turn it into a PRTime by converting
     // seconds to microseconds.  Use 15th Oct 2007 12:45:00 local.  This
     // must be a time guaranteed to be outside of a DST fallback hour in
@@ -206,6 +219,7 @@ class TimeTest : public testing::Test {
 
     // time_t representation of 15th Oct 2007 12:45:00 PDT
     comparison_time_pdt_ = Time::FromTimeT(1192477500);
+#endif
   }
 
   Time comparison_time_local_;
@@ -340,6 +354,7 @@ TEST_F(TimeTest, JsTime) {
   EXPECT_EQ(kWindowsEpoch, time.ToJsTimeIgnoringNull());
 }
 
+#if !defined(STARBOARD)
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 TEST_F(TimeTest, FromTimeVal) {
   Time now = Time::Now();
@@ -347,6 +362,7 @@ TEST_F(TimeTest, FromTimeVal) {
   EXPECT_EQ(now, also_now);
 }
 #endif  // BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#endif
 
 TEST_F(TimeTest, FromExplodedWithMilliseconds) {
   // Some platform implementations of FromExploded are liable to drop
@@ -878,6 +894,7 @@ TEST_F(TimeTest, MaxConversions) {
   EXPECT_TRUE(t.is_max());
   EXPECT_EQ(std::numeric_limits<time_t>::max(), t.ToTimeT());
 
+#if !defined(STARBOARD)
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   struct timeval tval;
   tval.tv_sec = std::numeric_limits<time_t>::max();
@@ -888,6 +905,7 @@ TEST_F(TimeTest, MaxConversions) {
   EXPECT_EQ(std::numeric_limits<time_t>::max(), tval.tv_sec);
   EXPECT_EQ(static_cast<suseconds_t>(Time::kMicrosecondsPerSecond) - 1,
       tval.tv_usec);
+#endif
 #endif
 
 #if BUILDFLAG(IS_APPLE)
@@ -994,9 +1012,10 @@ TEST_F(TimeTest, Explode_Y10KCompliance) {
     Time time;
     Time::Exploded expected;
   } kTestCases[] = {
+#if !defined(STARBOARD)
       // A very long time ago.
       {Time::Min(), Time::Exploded{-290677, 12, 4, 23, 19, 59, 5, 224}},
-
+#endif
       // Before/On/After 1 Jan 1601.
       {make_time(-kHalfYearInMicros),
        Time::Exploded{1600, 7, 1, 3, 0, 0, 0, 0}},
@@ -1042,9 +1061,10 @@ TEST_F(TimeTest, Explode_Y10KCompliance) {
        Time::Exploded{287396, 10, 3, 12, 8, 59, 0, 992}},
       {make_time(kIcuMaxMicrosOffset + kHalfYearInMicros),
        Time::Exploded{287397, 4, 3, 12, 8, 59, 0, 992}},
-
+#if !defined(STARBOARD)
       // A very long time from now.
       {Time::Max(), Time::Exploded{293878, 1, 4, 10, 4, 0, 54, 775}},
+#endif
   };
 
   for (const TestCase& test_case : kTestCases) {
@@ -1679,6 +1699,7 @@ TEST(TimeDelta, InXXXOverflow) {
       "");
 }
 
+#if !defined(STARBOARD)
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 TEST(TimeDelta, TimeSpecConversion) {
   TimeDelta delta = Seconds(0);
@@ -1706,6 +1727,7 @@ TEST(TimeDelta, TimeSpecConversion) {
   EXPECT_EQ(delta, TimeDelta::FromTimeSpec(result));
 }
 #endif  // BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#endif
 
 // Our internal time format is serialized in things like databases, so it's
 // important that it's consistent across all our platforms.  We use the 1601
