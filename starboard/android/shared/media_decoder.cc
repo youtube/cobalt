@@ -644,8 +644,12 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
   condition_variable_.Signal();
 }
 
+<<<<<<< HEAD
 void MediaDecoder::OnMediaCodecFrameRendered(SbTime frame_timestamp) {
   SB_DCHECK(tunnel_mode_enabled_);
+=======
+void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
+>>>>>>> abf33fb1e11 ([android] Enable OnFrameRendered callback (#2345))
   frame_rendered_cb_(frame_timestamp);
 }
 

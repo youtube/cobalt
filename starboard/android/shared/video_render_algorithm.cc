@@ -37,8 +37,9 @@ jlong GetSystemNanoTime() {
 
 }  // namespace
 
-VideoRenderAlgorithm::VideoRenderAlgorithm(VideoDecoder* video_decoder)
-    : video_decoder_(video_decoder) {
+VideoRenderAlgorithm::VideoRenderAlgorithm(VideoDecoder* video_decoder,
+                                           VideoFrameTracker* frame_tracker)
+    : video_decoder_(video_decoder), frame_tracker_(frame_tracker) {
   SB_DCHECK(video_decoder_);
   video_decoder_->SetPlaybackRate(playback_rate_);
 }
@@ -114,6 +115,19 @@ void VideoRenderAlgorithm::Render(
       break;
     }
   }
+}
+
+void VideoRenderAlgorithm::Seek(int64_t seek_to_time) {
+  if (frame_tracker_) {
+    frame_tracker_->Seek(seek_to_time);
+  }
+}
+
+int VideoRenderAlgorithm::GetDroppedFrames() {
+  if (frame_tracker_) {
+    return frame_tracker_->UpdateAndGetDroppedFrames();
+  }
+  return dropped_frames_;
 }
 
 VideoRenderAlgorithm::VideoFrameReleaseTimeHelper::
