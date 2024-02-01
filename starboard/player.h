@@ -66,11 +66,13 @@ typedef enum SbPlayerState {
 
 typedef enum SbPlayerError {
   kSbPlayerErrorDecode,
+#if SB_API_VERSION < 16
   // The playback capability of the player has changed, likely because of a
   // change of the system environment.  For example, the system may support vp9
   // decoding with an external GPU.  When the external GPU is detached, this
   // error code can signal the app to retry the playback, possibly with h264.
   kSbPlayerErrorCapabilityChanged,
+#endif  // SB_API_VERSION < 16
   // The max value of SbPlayer error type. It should always at the bottom
   // of SbPlayerError and never be used.
   kSbPlayerErrorMax,
@@ -320,6 +322,14 @@ typedef void (*SbPlayerDeallocateSampleFunc)(SbPlayer player,
 #define kSbPlayerWriteDurationRemote (1000000 * 10)  // 10 seconds
 
 #endif  // SB_API_VERSION >= 15
+
+#if SB_API_VERSION >= 16
+// The playback capability of the player has changed, likely because of a
+// change of the system environment.  For example, the system may support vp9
+// decoding with an external GPU.  When the external GPU is detached, this
+// error message can signal the app to retry the playback, possibly with h264.
+#define kSbPlayerErrorMessageCapabilityChanged "MEDIA_ERR_CAPABILITY_CHANGED"
+#endif  // SB_API_VERSION >= 16
 
 // Returns whether the given player handle is valid.
 static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
@@ -686,7 +696,10 @@ SB_EXPORT SbDecodeTarget SbPlayerGetCurrentFrame(SbPlayer player);
 // Once at least one audio configurations are returned, the return values and
 // their orders shouldn't change during the life time of |player|.  The platform
 // may inform the app of any changes by sending
-// `kSbPlayerErrorCapabilityChanged` to request a playback restart.
+// `kSbPlayerErrorCapabilityChanged` to request a playback restart for Starboard
+//  versions 15 and below. Starting from Starboard version 16, the platform may
+//  inform the app of any changes by sending a player error with the message set
+//  to |kSbPlayerErrorMessageCapabilityChanged|.
 //
 // |player|: The player about which information is being retrieved. Must not be
 //   |kSbPlayerInvalid|.

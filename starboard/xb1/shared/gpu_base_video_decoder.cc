@@ -18,6 +18,7 @@
 #include <wrl/client.h>
 #include <algorithm>
 
+#include "starboard/common/string.h"
 #include "starboard/once.h"
 #include "starboard/shared/uwp/application_uwp.h"
 #include "starboard/shared/uwp/async_utils.h"
@@ -700,8 +701,15 @@ void GpuVideoDecoderBase::UpdateHdrMetadata(
     const SbMediaColorMetadata& color_metadata) {
   SB_DCHECK(is_hdr_video_);
   if (!ApplicationUwp::Get()->IsHdrSupported()) {
+#if SB_API_VERSION < 16
     ReportError(kSbPlayerErrorCapabilityChanged,
                 "HDR sink lost while HDR video playing.");
+#else
+    error_cb_(
+        kSbPlayerErrorDecode,
+        ::starboard::FormatString("%s: HDR sink lost while HDR video playing.",
+                                  kSbPlayerErrorMessageCapabilityChanged));
+#endif  // SB_API_VERSION < 16
     return;
   }
   if (!needs_hdr_metadata_update_) {

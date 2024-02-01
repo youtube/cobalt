@@ -63,12 +63,12 @@ enum PipelineStatus {
   // https://crbug.com/1208618
   PIPELINE_ERROR_HARDWARE_CONTEXT_RESET = 23,
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION < 16
   // Transient errors.
   PLAYBACK_CAPABILITY_CHANGED = 24,
 
   PIPELINE_STATUS_MAX = PLAYBACK_CAPABILITY_CHANGED,
-#else  // defined(STARBOARD)
+#else  // defined(STARBOARD) && SB_API_VERSION < 16
   // Must be equal to the largest value ever logged.
   PIPELINE_STATUS_MAX = PIPELINE_ERROR_HARDWARE_CONTEXT_RESET,
 #endif  // defined(STARBOARD)

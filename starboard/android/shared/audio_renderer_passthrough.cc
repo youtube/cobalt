@@ -458,8 +458,12 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
   if (audio_track_bridge_->GetAndResetHasAudioDeviceChanged()) {
     SB_LOG(INFO) << "Audio device changed, raising a capability changed error "
                     "to restart playback.";
+#if SB_API_VERSION < 16
     error_cb_(kSbPlayerErrorCapabilityChanged,
               "Audio device capability changed");
+#else
+    error_cb_(kSbPlayerErrorDecode, kSbPlayerErrorMessageCapabilityChanged);
+#endif  // SB_API_VERSION < 16
     audio_track_bridge_->PauseAndFlush();
     return;
   }
@@ -535,8 +539,13 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
           SB_LOG(INFO)
               << "Write error for dead audio track, audio device capability "
                  "has likely changed. Restarting playback.";
+#if SB_API_VERSION < 16
           error_cb_(kSbPlayerErrorCapabilityChanged,
                     "Audio device capability changed");
+#else
+          error_cb_(kSbPlayerErrorDecode,
+                    kSbPlayerErrorMessageCapabilityChanged);
+#endif  // #if SB_API_VERSION < 16
         } else {
           // `kSbPlayerErrorDecode` is used for general SbPlayer error, there is
           // no error code corresponding to audio sink.

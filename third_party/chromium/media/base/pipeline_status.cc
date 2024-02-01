@@ -94,11 +94,11 @@ StatusCode PipelineStatusToStatusCode(PipelineStatus status) {
       return StatusCode::kPipelineErrorDemuxerErrorDetectedHLS;
     case PIPELINE_ERROR_HARDWARE_CONTEXT_RESET:
       return StatusCode::kPipelineErrorHardwareContextReset;
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION < 16
     case PLAYBACK_CAPABILITY_CHANGED:
       NOTREACHED();
       return StatusCode::kPipelineErrorDecode;
-#endif  // defined(STARBOARD)
+#endif  // defined(STARBOARD) && SB_API_VERSION < 16
   }
 
   NOTREACHED();
@@ -132,9 +132,9 @@ std::string PipelineStatusToString(PipelineStatus status) {
     STRINGIFY_STATUS_CASE(CHUNK_DEMUXER_ERROR_EOS_STATUS_DECODE_ERROR);
     STRINGIFY_STATUS_CASE(CHUNK_DEMUXER_ERROR_EOS_STATUS_NETWORK_ERROR);
     STRINGIFY_STATUS_CASE(AUDIO_RENDERER_ERROR);
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION < 16
     STRINGIFY_STATUS_CASE(PLAYBACK_CAPABILITY_CHANGED);
-#endif  // defined(STARBOARD)
+#endif  // defined(STARBOARD) && SB_API_VERSION < 16
   }
 
 #undef STRINGIFY_STATUS_CASE

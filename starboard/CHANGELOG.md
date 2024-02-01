@@ -9,6 +9,13 @@ since the version previous to it.
 
 ## Version 16
 
+### Add constant kSbPlayerErrorMessageCapabilityChanged
+The constant `kSbPlayerErrorMessageCapabilityChanged` is added to inform the
+app of configuration changes.
+
+### Deprecated kSbPlayerErrorCapabilityChanged
+The `kSbPlayerErrorCapabilityChanged` enum was deprecated.
+
 ### Convert SbUiNavGetInterface Starboard API into an extension
 The `SbUiNavGetInterface` API is deprecated and replaced with a Starboard
 extension named `SbUiNavInterface`.
