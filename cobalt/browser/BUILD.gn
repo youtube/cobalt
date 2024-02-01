@@ -118,8 +118,6 @@ static_library("browser") {
     "client_hint_headers.h",
     "device_authentication.cc",
     "device_authentication.h",
-    "on_screen_keyboard_extension_bridge.cc",
-    "on_screen_keyboard_extension_bridge.h",
     "on_screen_keyboard_starboard_bridge.cc",
     "on_screen_keyboard_starboard_bridge.h",
     "render_tree_combiner.cc",
