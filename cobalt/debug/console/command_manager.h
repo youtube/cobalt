@@ -47,17 +47,26 @@ namespace console {
 class ConsoleCommandManager {
  public:
   // Type for a callback to handle a command.
-  typedef base::Callback<void(const std::string& message)> CommandCallback;
+  typedef base::Callback<void(const std::string& message)> VoidCommandCallback;
+  typedef base::Callback<std::string(const std::string& message)>
+      StringCommandCallback;
 
   // Command handler that registers itself with this object.
   class CommandHandler {
    public:
-    CommandHandler(const std::string& command, const CommandCallback& callback,
+    CommandHandler(const std::string& command,
+                   const VoidCommandCallback& callback,
+                   const std::string& short_help, const std::string& long_help);
+    CommandHandler(const std::string& command,
+                   const StringCommandCallback& callback,
                    const std::string& short_help, const std::string& long_help);
     ~CommandHandler();
 
     const std::string& command() const { return command_; }
-    const CommandCallback& callback() const { return callback_; }
+    const VoidCommandCallback& void_callback() const { return void_callback_; }
+    const StringCommandCallback& string_callback() const {
+      return string_callback_;
+    }
     const std::string& short_help() const { return short_help_; }
     const std::string& long_help() const { return long_help_; }
 
@@ -66,7 +75,8 @@ class ConsoleCommandManager {
 
    private:
     std::string command_;
-    CommandCallback callback_;
+    VoidCommandCallback void_callback_;
+    StringCommandCallback string_callback_;
     std::string short_help_;
     std::string long_help_;
   };
@@ -78,8 +88,8 @@ class ConsoleCommandManager {
 
   // Handles a command by posting the message to the handler registered for
   // the specified command, if any.
-  void HandleCommand(const std::string& command,
-                     const std::string& message) const;
+  std::string HandleCommand(const std::string& command,
+                            const std::string& message) const;
 
   // Returns a set of all the currently registered commands.
   std::set<std::string> GetRegisteredCommands() const;

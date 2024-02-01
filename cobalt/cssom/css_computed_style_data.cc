@@ -315,7 +315,13 @@ void CSSComputedStyleData::AssignFrom(const CSSComputedStyleData& rhs) {
   is_inline_before_blockification_ = rhs.is_inline_before_blockification_;
 }
 
+
 std::string CSSComputedStyleData::SerializeCSSDeclarationBlock() const {
+  return SerializeCSSDeclarationBlockInternal(true);
+}
+
+std::string CSSComputedStyleData::SerializeCSSDeclarationBlockInternal(
+    bool include_inherited) const {
   // All longhand properties that are supported CSS properties, in
   // lexicographical order, with the value being the resolved value.
   //   https://www.w3.org/TR/2013/WD-cssom-20131205/#dom-window-getcomputedstyle
@@ -325,6 +331,7 @@ std::string CSSComputedStyleData::SerializeCSSDeclarationBlock() const {
   std::string serialized_text;
   for (size_t index = 0; index <= kMaxLonghandPropertyKey; ++index) {
     PropertyKey key = GetLexicographicalLonghandPropertyKey(index);
+    if (!(include_inherited || IsDeclared(key))) continue;
     if (!serialized_text.empty()) {
       serialized_text.push_back(' ');
     }
