@@ -33,7 +33,8 @@ class LibraryLoader {
   virtual bool Load(const std::string& library_path,
                     const std::string& content_path,
                     bool use_compression,
-                    bool use_memory_mapped_file) = 0;
+                    bool use_memory_mapped_file,
+                    bool use_binary_diff) = 0;
 
   // Resolve a symbol by name.
   virtual void* Resolve(const std::string& symbol) = 0;

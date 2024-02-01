@@ -92,10 +92,14 @@ BSDiffStatus ApplyBinaryPatch(const base::FilePath& old_stream,
 
 // The patch stream starts with a MBSPatchHeader.
 typedef struct MBSPatchHeader_ {
-  char tag[8];      // Contains MBS_PATCH_HEADER_TAG.
-  uint32_t slen;    // Length of the file to be patched.
+  char tag[8];    // Contains MBS_PATCH_HEADER_TAG.
+  uint32_t slen;  // Length of the file to be patched.
+// TODO(hwarriner): removed to keep the dependencies light, but we probably do
+// want to use a checksum.
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
   uint32_t scrc32;  // CRC32 of the file to be patched.
-  uint32_t dlen;    // Length of the result file.
+#endif
+  uint32_t dlen;  // Length of the result file.
 } MBSPatchHeader;
 
 // This is the value for the tag field.  Must match length exactly, not counting

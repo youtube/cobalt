@@ -29,10 +29,11 @@ static scoped_ptr<EvergreenConfig> g_evergreen_config;
 void EvergreenConfig::Create(
     const char* library_path,
     const char* content_path,
+    const char* system_image_path,
     const void* (*custom_get_extension)(const char* name)) {
   starboard::ScopedLock lock(g_evergreen_config_mutex);
-  g_evergreen_config.reset(
-      new EvergreenConfig(library_path, content_path, custom_get_extension));
+  g_evergreen_config.reset(new EvergreenConfig(
+      library_path, content_path, system_image_path, custom_get_extension));
 }
 
 const EvergreenConfig* EvergreenConfig::GetInstance() {
@@ -43,9 +44,11 @@ const EvergreenConfig* EvergreenConfig::GetInstance() {
 EvergreenConfig::EvergreenConfig(
     const char* library_path,
     const char* content_path,
+    const char* system_image_path,
     const void* (*custom_get_extension)(const char* name))
     : library_path_(library_path),
       content_path_(content_path),
+      system_image_path_(system_image_path),
       custom_get_extension_(custom_get_extension) {}
 }  // namespace elf_loader
 }  // namespace starboard

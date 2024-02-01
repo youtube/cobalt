@@ -47,6 +47,9 @@ const char kCobaltLibraryName[] = "libcobalt.so";
 // Filename for the compressed Cobalt binary.
 const char kCompressedCobaltLibraryName[] = "libcobalt.lz4";
 
+// Filename for the binary patch of the Cobalt binary.
+const char kBinaryPatchName[] = "libcobalt.bin";
+
 // Relative path for the content directory of
 // the Cobalt installation.
 const char kCobaltContentPath[] = "content";
@@ -230,19 +233,29 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
     snprintf(uncompressed_lib_path.data(), kSbFileMaxPath, "%s%s%s%s%s",
              installation_path.data(), kSbFileSepString, kCobaltLibraryPath,
              kSbFileSepString, kCobaltLibraryName);
+    std::vector<char> binary_patch_path(kSbFileMaxPath);
+    snprintf(binary_patch_path.data(), kSbFileMaxPath, "%s%s%s%s%s",
+             installation_path.data(), kSbFileSepString, kCobaltLibraryPath,
+             kSbFileSepString, kBinaryPatchName);
 
     std::string lib_path;
     bool use_compression;
+    bool use_binary_diff = false;
     if (SbFileExists(compressed_lib_path.data())) {
       lib_path = compressed_lib_path.data();
       use_compression = true;
     } else if (SbFileExists(uncompressed_lib_path.data())) {
       lib_path = uncompressed_lib_path.data();
       use_compression = false;
+    } else if (SbFileExists(binary_patch_path.data())) {
+      lib_path = binary_patch_path.data();
+      use_compression = false;
+      use_binary_diff = true;
     } else {
       SB_LOG(ERROR) << "No library found at compressed "
                     << compressed_lib_path.data() << " or uncompressed "
-                    << uncompressed_lib_path.data() << " path";
+                    << uncompressed_lib_path.data() << " or binary patch "
+                    << binary_patch_path.data() << " path";
       return NULL;
     }
 
@@ -267,7 +280,7 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
     SB_LOG(INFO) << "content=" << content;
 
     if (!library_loader->Load(lib_path, content.c_str(), use_compression,
-                              use_memory_mapped_file)) {
+                              use_memory_mapped_file, use_binary_diff)) {
       SB_LOG(WARNING) << "Failed to load Cobalt!";
 
       // Hard failure. Discard the image and auto rollback, but only if

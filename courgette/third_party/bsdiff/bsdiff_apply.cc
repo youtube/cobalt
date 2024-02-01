@@ -42,12 +42,16 @@
 
 #include "base/files/file_util.h"
 #include "base/files/memory_mapped_file.h"
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
 #include "courgette/crc.h"
+#endif
 #include "courgette/streams.h"
 
 namespace {
 
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
 using courgette::CalculateCrc;
+#endif
 using courgette::SinkStream;
 using courgette::SinkStreamSet;
 using courgette::SourceStream;
@@ -62,8 +66,10 @@ BSDiffStatus MBS_ReadHeader(SourceStream* stream, MBSPatchHeader* header) {
     return READ_ERROR;
   if (!stream->ReadVarint32(&header->slen))
     return READ_ERROR;
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
   if (!stream->ReadVarint32(&header->scrc32))
     return READ_ERROR;
+#endif
   if (!stream->ReadVarint32(&header->dlen))
     return READ_ERROR;
 
@@ -183,8 +189,10 @@ BSDiffStatus ApplyBinaryPatch(SourceStream* old_stream,
   if (old_size != header.slen)
     return UNEXPECTED_ERROR;
 
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
   if (CalculateCrc(old_start, old_size) != header.scrc32)
     return CRC_ERROR;
+#endif
 
   return MBS_ApplyPatch(&header, patch_stream, old_start, old_size, new_stream);
 }
@@ -217,15 +225,15 @@ BSDiffStatus ApplyBinaryPatch(base::File old_file,
   }
 
   // Write the stream to disk.
-  int written = new_file.Write(
-      0,
-      reinterpret_cast<const char*>(new_sink_stream.Buffer()),
-      static_cast<int>(new_sink_stream.Length()));
+  int written =
+      new_file.Write(0, reinterpret_cast<const char*>(new_sink_stream.Buffer()),
+                     static_cast<int>(new_sink_stream.Length()));
   if (written != static_cast<int>(new_sink_stream.Length()))
     return WRITE_ERROR;
   return OK;
 }
 
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
 BSDiffStatus ApplyBinaryPatch(const base::FilePath& old_file_path,
                               const base::FilePath& patch_file_path,
                               const base::FilePath& new_file_path) {
@@ -243,5 +251,6 @@ BSDiffStatus ApplyBinaryPatch(const base::FilePath& old_file_path,
     base::DeleteFile(new_file_path);
   return result;
 }
+#endif
 
 }  // namespace bsdiff

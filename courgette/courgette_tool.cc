@@ -7,10 +7,14 @@
 #include <stdint.h>
 
 #include <initializer_list>
+#if defined(USE_COBALT_CUSTOMIZATIONS)
+#include <iostream>
+#endif
 #include <memory>
 #include <string>
 #include <vector>
 
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
 #include "base/at_exit.h"
 #include "base/command_line.h"
 #include "base/files/file_path.h"
@@ -26,11 +30,16 @@
 #include "courgette/courgette_flow.h"
 #include "courgette/encoded_program.h"
 #include "courgette/program_detector.h"
+#endif
 #include "courgette/streams.h"
 #include "courgette/third_party/bsdiff/bsdiff.h"
+#if defined(USE_COBALT_CUSTOMIZATIONS)
+#include "starboard/common/log.h"
+#include "starboard/file.h"
+#endif
 
 namespace {
-
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
 using courgette::CourgetteFlow;
 
 const char kUsageGen[] = "-gen <old_in> <new_in> <patch_out>";
@@ -96,20 +105,46 @@ class BufferedFileReader : public courgette::BasicBuffer {
  private:
   base::MemoryMappedFile buffer_;
 };
+#endif
 
 /******** Various helpers ********/
 
 void WriteSinkToFile(const courgette::SinkStream* sink,
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
                      const base::FilePath& output_file) {
+#else
+                     const char* output_path) {
+#endif
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
   int count = base::WriteFile(output_file,
                               reinterpret_cast<const char*>(sink->Buffer()),
                               static_cast<int>(sink->Length()));
+#else
+  SbFile dst_file =
+      SbFileOpen(output_path, kSbFileCreateAlways | kSbFileWrite, NULL, NULL);
+  if (dst_file == kSbFileInvalid) {
+    SB_LOG(WARNING) << "Failed to open file=" << output_path;
+    return;
+  }
+  int count =
+      SbFileWriteAll(dst_file, reinterpret_cast<const char*>(sink->Buffer()),
+                     static_cast<int>(sink->Length()));
+#endif
   if (count == -1)
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
     Problem("Can't write output.");
+#else
+    std::cerr << "Can't write output.";
+#endif
   if (static_cast<size_t>(count) != sink->Length())
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
     Problem("Incomplete write.");
+#else
+    std::cerr << "Incomplete write.";
+#endif
 }
 
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
 bool Supported(const base::FilePath& input_file) {
   bool result = false;
 
@@ -350,52 +385,146 @@ void ApplyEnsemblePatch(const base::FilePath& old_file,
 
   Problem("-apply failed.");
 }
+#endif
 
-void GenerateBSDiffPatch(const base::FilePath& old_file,
-                         const base::FilePath& new_file,
-                         const base::FilePath& patch_file) {
+#if defined(USE_COBALT_CUSTOMIZATIONS)
+bool LoadContents(const char* file_path, std::vector<char>& buffer) {
+  SbFile file =
+      SbFileOpen(file_path, kSbFileOpenOnly | kSbFileRead, NULL, NULL);
+  if (!file) {
+    return false;
+  }
+
+  SbFileInfo file_info;
+  if (!SbFileGetInfo(file, &file_info)) {
+    return false;
+  }
+
+  buffer.resize(file_info.size);
+  if (file_info.size != SbFileReadAll(file, buffer.data(), file_info.size)) {
+    return false;
+  }
+  return true;
+}
+#endif
+
+void GenerateBSDiffPatch(
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
+    const base::FilePath& old_file,
+    const base::FilePath& new_file,
+    const base::FilePath& patch_file) {
+#else
+    const char* old_file_path,
+    const char* new_file_path,
+    const char* patch_file_path) {
+#endif
+
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
   BufferedFileReader old_buffer(old_file, "'old' input");
   BufferedFileReader new_buffer(new_file, "'new' input");
+#else
+  std::vector<char> old_contents;
+  if (!LoadContents(old_file_path, old_contents)) {
+    SB_LOG(INFO) << "Failed to load contents from " << old_file_path;
+    return;
+  }
+
+  std::vector<char> new_contents;
+  if (!LoadContents(new_file_path, new_contents)) {
+    SB_LOG(INFO) << "Failed to load contents from " << new_file_path;
+    return;
+  }
+#endif
 
   courgette::SourceStream old_stream;
   courgette::SourceStream new_stream;
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
   old_stream.Init(old_buffer.data(), old_buffer.length());
   new_stream.Init(new_buffer.data(), new_buffer.length());
+#else
+  old_stream.Init(old_contents.data(), old_contents.size());
+  new_stream.Init(new_contents.data(), new_contents.size());
+#endif
 
   courgette::SinkStream patch_stream;
   bsdiff::BSDiffStatus status =
       bsdiff::CreateBinaryPatch(&old_stream, &new_stream, &patch_stream);
 
   if (status != bsdiff::OK)
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
     Problem("-genbsdiff failed.");
+#else
+    std::cerr << "Failed to generate patch\n";
+#endif
 
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
   WriteSinkToFile(&patch_stream, patch_file);
+#else
+  WriteSinkToFile(&patch_stream, patch_file_path);
+#endif
 }
 
-void ApplyBSDiffPatch(const base::FilePath& old_file,
-                      const base::FilePath& patch_file,
-                      const base::FilePath& new_file) {
+void ApplyBSDiffPatch(
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
+    const base::FilePath& old_file,
+    const base::FilePath& patch_file,
+    const base::FilePath& new_file) {
+#else
+    const char* old_file_path,
+    const char* patch_file_path,
+    const char* new_file_path) {
+#endif
+
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
   BufferedFileReader old_buffer(old_file, "'old' input");
   BufferedFileReader patch_buffer(patch_file, "'patch' input");
+#else
+  std::vector<char> old_contents;
+  if (!LoadContents(old_file_path, old_contents)) {
+    SB_LOG(INFO) << "Failed to load contents from " << old_file_path;
+    return;
+  }
+
+  std::vector<char> patch_contents;
+  if (!LoadContents(patch_file_path, patch_contents)) {
+    SB_LOG(INFO) << "Failed to load contents from " << patch_file_path;
+    return;
+  }
+#endif
 
   courgette::SourceStream old_stream;
   courgette::SourceStream patch_stream;
+
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
   old_stream.Init(old_buffer.data(), old_buffer.length());
   patch_stream.Init(patch_buffer.data(), patch_buffer.length());
+#else
+  old_stream.Init(old_contents.data(), old_contents.size());
+  patch_stream.Init(patch_contents.data(), patch_contents.size());
+#endif
 
   courgette::SinkStream new_stream;
   bsdiff::BSDiffStatus status =
       bsdiff::ApplyBinaryPatch(&old_stream, &patch_stream, &new_stream);
 
   if (status != bsdiff::OK)
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
     Problem("-applybsdiff failed.");
+#else
+    std::cerr << "Failed to apply patch\n";
+#endif
 
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
   WriteSinkToFile(&new_stream, new_file);
+#else
+  WriteSinkToFile(&new_stream, new_file_path);
+#endif
 }
 
 }  // namespace
 
 int main(int argc, const char* argv[]) {
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
   base::AtExitManager at_exit_manager;
   base::CommandLine::Init(argc, argv);
   const base::CommandLine& command_line =
@@ -489,6 +618,25 @@ int main(int argc, const char* argv[]) {
       UsageProblem("No operation specified");
     }
   }
+#else
+  if (argc != 5) {
+    std::cerr << "Usage: courgette bsdiff <old> <new> <patch> OR "
+              << "courgette bsdiff-patch <old> <patch> <new>"
+              << "\n";
+    return 1;
+  }
+
+  if (strcmp(argv[1], "bsdiff") == 0) {
+    GenerateBSDiffPatch(argv[2], argv[3], argv[4]);
+  } else if (strcmp(argv[1], "bsdiff-patch") == 0) {
+    ApplyBSDiffPatch(argv[2], argv[3], argv[4]);
+  } else {
+    std::cerr << "Usage: courgette bsdiff <old> <new> <patch> OR "
+              << "courgette bsdiff-patch <old> <patch> <new>"
+              << "\n";
+    return 1;
+  }
+#endif
 
   return 0;
 }

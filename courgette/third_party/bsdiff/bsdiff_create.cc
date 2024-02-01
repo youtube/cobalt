@@ -62,7 +62,9 @@
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
 
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
 #include "courgette/crc.h"
+#endif
 #include "courgette/streams.h"
 #include "courgette/third_party/bsdiff/bsdiff_search.h"
 #include "courgette/third_party/bsdiff/paged_array.h"
@@ -70,7 +72,9 @@
 
 namespace {
 
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
 using courgette::CalculateCrc;
+#endif
 using courgette::PagedArray;
 using courgette::SinkStream;
 using courgette::SinkStreamSet;
@@ -84,7 +88,9 @@ namespace bsdiff {
 static CheckBool WriteHeader(SinkStream* stream, MBSPatchHeader* header) {
   bool ok = stream->Write(header->tag, sizeof(header->tag));
   ok &= stream->WriteVarint32(header->slen);
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
   ok &= stream->WriteVarint32(header->scrc32);
+#endif
   ok &= stream->WriteVarint32(header->dlen);
   return ok;
 }
@@ -118,8 +124,8 @@ BSDiffStatus CreateBinaryPatch(SourceStream* old_stream,
   }
 
   base::Time q_start_time = base::Time::Now();
-  divsuf::saint_t result = divsuf::divsufsort_include_empty(
-      old, I.begin(), oldsize);
+  divsuf::saint_t result =
+      divsuf::divsufsort_include_empty(old, I.begin(), oldsize);
   VLOG(1) << " done divsufsort "
           << (base::Time::Now() - q_start_time).InSecondsF();
   if (result != 0)
@@ -308,8 +314,8 @@ BSDiffStatus CreateBinaryPatch(SourceStream* old_stream,
           extra_count, seek_adjustment);
 #endif
 
-      lastscan = scan - lenb;  // Include the backward extension in seed.
-      lastpos = match.pos - lenb;    //  ditto.
+      lastscan = scan - lenb;      // Include the backward extension in seed.
+      lastpos = match.pos - lenb;  //  ditto.
       lastoffset = lastpos - lastscan;
     }
   }
@@ -325,7 +331,9 @@ BSDiffStatus CreateBinaryPatch(SourceStream* old_stream,
                 "MBS_PATCH_HEADER_TAG must match header field size");
   memcpy(header.tag, MBS_PATCH_HEADER_TAG, sizeof(header.tag));
   header.slen = oldsize;
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
   header.scrc32 = CalculateCrc(old, oldsize);
+#endif
   header.dlen = newsize;
 
   if (!WriteHeader(patch_stream, &header))

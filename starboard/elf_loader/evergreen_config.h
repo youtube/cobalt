@@ -30,6 +30,7 @@ struct EvergreenConfig {
   // Factory method to create the configuration.
   static void Create(const char* library_path,
                      const char* content_path,
+                     const char* system_image_path,
                      const void* (*custom_get_extension_)(const char* name));
 
   // Retrieves the singleton instance of the configuration.
@@ -41,12 +42,17 @@ struct EvergreenConfig {
   // Absolute path to the content directory for this binary.
   const std::string content_path_;
 
+  // Absolute path to the system image, i.e., the original value of
+  // kSbSystemPathContentDirectory.
+  const std::string system_image_path_;
+
   // Getter to a custom extension to be added to Starboard.
   const void* (*custom_get_extension_)(const char* name);
 
  private:
   EvergreenConfig(const char* library_path,
                   const char* content_path,
+                  const char* system_image_path,
                   const void* (*custom_get_extension_)(const char* name));
   EvergreenConfig(const EvergreenConfig&) = delete;
   void operator=(const EvergreenConfig&) = delete;

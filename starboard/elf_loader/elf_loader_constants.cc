@@ -18,6 +18,7 @@ namespace starboard {
 namespace elf_loader {
 
 const char kCompressionSuffix[] = ".lz4";
+const char kBinaryPatchSuffix[] = ".bin";
 const char kEvergreenLibrary[] = "evergreen_library";
 const char kEvergreenContent[] = "evergreen_content";
 

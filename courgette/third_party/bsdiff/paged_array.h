@@ -15,7 +15,9 @@
 #include <iterator>
 #include <type_traits>
 
+#if !defined(USE_COBALT_CUSTOMIZATIONS)
 #include "base/check.h"
+#endif
 #include "base/logging.h"
 #include "base/macros.h"
 #include "base/process/memory.h"
