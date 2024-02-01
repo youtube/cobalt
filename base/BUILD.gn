@@ -3343,7 +3343,7 @@ test("base_unittests") {
     "strings/abseil_string_number_conversions_unittest.cc",
     "strings/escape_unittest.cc",
 
-    # "strings/no_trigraphs_unittest.cc",
+    "strings/no_trigraphs_unittest.cc",
     "strings/pattern_unittest.cc",
     "strings/safe_sprintf_unittest.cc",
     "strings/strcat_unittest.cc",
@@ -3355,7 +3355,7 @@ test("base_unittests") {
     "strings/stringize_macros_unittest.cc",
     "strings/stringprintf_unittest.cc",
 
-    # "strings/sys_string_conversions_unittest.cc",
+    "strings/sys_string_conversions_unittest.cc",
     "strings/to_string_test.cc",
     "strings/utf_offset_string_conversions_unittest.cc",
     "strings/utf_string_conversions_unittest.cc",
@@ -3536,6 +3536,10 @@ test("base_unittests") {
       "process/process_unittest.cc",
       "process/process_util_unittest.cc",
     ]
+
+    if (is_clang) {
+      cflags_cc = [ "-Wno-trigraphs" ]
+    }
   }
 
   if (!is_cronet_build) {
