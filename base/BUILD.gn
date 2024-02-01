@@ -3462,11 +3462,11 @@ test("base_unittests") {
     "thread_annotations_unittest.cc",
     "threading/hang_watcher_unittest.cc",
 
-    # "threading/platform_thread_unittest.cc",
+    "threading/platform_thread_unittest.cc",
     "threading/post_task_and_reply_impl_unittest.cc",
     "threading/scoped_blocking_call_unittest.cc",
 
-    # "threading/scoped_thread_priority_unittest.cc",
+    "threading/scoped_thread_priority_unittest.cc",
     "threading/sequence_bound_unittest.cc",
     "threading/sequence_local_storage_map_unittest.cc",
     "threading/sequence_local_storage_slot_unittest.cc",
