@@ -118,7 +118,8 @@ class VideoDecoder
   void OnFlushing() override;
 
   void TryToSignalPrerollForTunnelMode();
-  void OnTunnelModeFrameRendered(SbTime frame_timestamp);
+  bool IsFrameRenderedCallbackEnabled();
+  void OnFrameRendered(SbTime frame_timestamp);
   void OnTunnelModePrerollTimeout();
   void OnTunnelModeCheckForNeedMoreInput();
 
@@ -163,7 +164,10 @@ class VideoDecoder
   // we create a dummy drm system to force the video playing in secure pipeline
   // to enable tunnel mode.
   scoped_ptr<DrmSystem> drm_system_to_enforce_tunnel_mode_;
+
+  const bool is_video_frame_tracker_enabled_;
   scoped_ptr<VideoFrameTracker> video_frame_tracker_;
+
   // Preroll in tunnel mode is handled in this class instead of in the renderer.
   atomic_bool tunnel_mode_prerolling_{true};
   atomic_bool tunnel_mode_frame_rendered_;
