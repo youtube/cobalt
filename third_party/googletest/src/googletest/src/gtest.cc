@@ -1167,17 +1167,10 @@ class Timer {
 // around subject to adjustments by the system, to measure elapsed time use
 // Timer instead.
 TimeInMillis GetTimeInMillis() {
-#if GTEST_OS_STARBOARD
-  // Use EzTime to get millis from posix epoch.
-  EzTimeValue time_value;
-  EzTimeValueGetNow(&time_value, NULL);
-  return time_value.tv_sec * 1000 + time_value.tv_usec / 1000;
-#else
   return std::chrono::duration_cast<std::chrono::milliseconds>(
              std::chrono::system_clock::now() -
              std::chrono::system_clock::from_time_t(0))
       .count();
-#endif // GTEST_OS_STARBOARD
 }
 
 // Utilities
