@@ -44,7 +44,7 @@ std::string GetParent(const std::string& path) {
 }
 
 }  // namespace
-#if SB_API_VERSION < 16
+
 bool SbDirectoryCreate(const char* path) {
   // Require a non-empty, absolute path.
   if (!path || path[0] != '/') {
@@ -72,4 +72,3 @@ bool SbDirectoryCreate(const char* path) {
   // racing process or thread), so check again.
   return SbDirectoryCanOpen(adjusted.c_str());
 }
-#endif  // SB_API_VERSION < 16

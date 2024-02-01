@@ -395,7 +395,6 @@ static_library("c_internal") {
     "src/starboard/stdio/vswprintf.c",
     "src/starboard/stdlib/strtod_l.c",
     "src/starboard/sys/time/gettimeofday.c",
-    "src/starboard/sys/stat.c",
     "src/starboard/time/__tz.c",
     "src/starboard/time/clock_gettime.c",
     "src/starboard/time/gmtime_r.c",
