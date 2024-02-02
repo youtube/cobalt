@@ -81,7 +81,15 @@ std::string SysInfo::OperatingSystemVersion() {
   return SysInfo::OperatingSystemName();
 }
 
+// static
+void SysInfo::OperatingSystemVersionNumbers(int32_t* major_version,
+                                            int32_t* minor_version,
+                                            int32_t* bugfix_version) {
+  NOTIMPLEMENTED();
+}
+
 SysInfo::HardwareInfo SysInfo::GetHardwareInfoSync() {
+  NOTIMPLEMENTED();
   HardwareInfo info;
   return info;
 }
