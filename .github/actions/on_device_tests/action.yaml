@@ -59,7 +59,7 @@ runs:
         GITHUB_COMMIT_AUTHOR_EMAIL: ${{ github.event.commits[0].author.email }}
       run: |
         set -uxe
-        python3 tools/on_device_tests_gateway_client.py \
+        python3 -u tools/on_device_tests_gateway_client.py \
           --token ${GITHUB_TOKEN} \
           --change_id "${GITHUB_PR_HEAD_SHA:-$GITHUB_SHA}" \
           trigger \
