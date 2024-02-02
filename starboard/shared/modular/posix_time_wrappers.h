@@ -115,7 +115,15 @@ SB_EXPORT int __wrap_gettimeofday(struct musl_timeval* mtv, void* tzp);
 
 SB_EXPORT int64_t __wrap_time(int64_t* /* time_t* */ musl_tloc);
 
+SB_EXPORT int64_t __wrap_timegm(struct musl_tm* musl_timeptr);
+
+SB_EXPORT int64_t __wrap_mktime(struct musl_tm* musl_timeptr);
+
 SB_EXPORT struct musl_tm* __wrap_gmtime_r(
+    const int64_t* /* time_t* */ musl_timer,
+    struct musl_tm* musl_result);
+
+SB_EXPORT struct musl_tm* __wrap_localtime_r(
     const int64_t* /* time_t* */ musl_timer,
     struct musl_tm* musl_result);
 

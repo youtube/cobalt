@@ -182,14 +182,17 @@ config("modular") {
     ldflags += [
       "-Wl,--wrap=clock_gettime",
       "-Wl,--wrap=gettimeofday",
-      "-Wl,--wrap=time",
       "-Wl,--wrap=gmtime_r",
+      "-Wl,--wrap=localtime_r",
+      "-Wl,--wrap=mktime",
       "-Wl,--wrap=mmap",
       "-Wl,--wrap=pthread_mutex_destroy",
       "-Wl,--wrap=pthread_mutex_init",
       "-Wl,--wrap=pthread_mutex_lock",
-      "-Wl,--wrap=pthread_mutex_unlock",
       "-Wl,--wrap=pthread_mutex_trylock",
+      "-Wl,--wrap=pthread_mutex_unlock",
+      "-Wl,--wrap=time",
+      "-Wl,--wrap=timegm",
     ]
   }
 }

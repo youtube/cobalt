@@ -451,6 +451,8 @@ ExportedSymbols::ExportedSymbols() {
   map_["clock_gettime"] = reinterpret_cast<const void*>(&__wrap_clock_gettime);
   map_["gettimeofday"] = reinterpret_cast<const void*>(&__wrap_gettimeofday);
   map_["gmtime_r"] = reinterpret_cast<const void*>(&__wrap_gmtime_r);
+  map_["localtime_r"] = reinterpret_cast<const void*>(&__wrap_localtime_r);
+  map_["mktime"] = reinterpret_cast<const void*>(&__wrap_mktime);
   map_["mmap"] = reinterpret_cast<const void*>(&__wrap_mmap);
   map_["pthread_mutex_destroy"] =
       reinterpret_cast<const void*>(&__wrap_pthread_mutex_destroy);
@@ -458,11 +460,12 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__wrap_pthread_mutex_init);
   map_["pthread_mutex_lock"] =
       reinterpret_cast<const void*>(&__wrap_pthread_mutex_lock);
-  map_["pthread_mutex_unlock"] =
-      reinterpret_cast<const void*>(&__wrap_pthread_mutex_unlock);
   map_["pthread_mutex_trylock"] =
       reinterpret_cast<const void*>(&__wrap_pthread_mutex_trylock);
+  map_["pthread_mutex_unlock"] =
+      reinterpret_cast<const void*>(&__wrap_pthread_mutex_unlock);
   map_["time"] = reinterpret_cast<const void*>(&__wrap_time);
+  map_["timegm"] = reinterpret_cast<const void*>(&__wrap_timegm);
 
 #if defined(_MSC_VER)
   // MSVC provides a template with the same name.
