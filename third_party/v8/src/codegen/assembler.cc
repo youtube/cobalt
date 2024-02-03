@@ -122,14 +122,17 @@ class ExternalAssemblerBufferImpl : public AssemblerBuffer {
     FATAL("Cannot grow external assembler buffer");
   }
 
+#if !defined(V8_OS_STARBOARD)
   void* operator new(std::size_t count);
   void operator delete(void* ptr) noexcept;
+#endif  // !defined(V8_OS_STARBOARD)
 
  private:
   byte* const start_;
   const int size_;
 };
 
+#if !defined(V8_OS_STARBOARD)
 static thread_local std::aligned_storage_t<sizeof(ExternalAssemblerBufferImpl),
                                            alignof(ExternalAssemblerBufferImpl)>
     tls_singleton_storage;
@@ -153,6 +156,7 @@ void ExternalAssemblerBufferImpl::operator delete(void* ptr) noexcept {
   }
   ::operator delete(ptr);
 }
+#endif  // !defined(V8_OS_STARBOARD)
 
 }  // namespace
 
