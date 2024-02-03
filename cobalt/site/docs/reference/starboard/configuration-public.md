@@ -96,11 +96,3 @@ Book: /youtube/cobalt/_book.yaml
 | **`SB_IS_WCHAR_T_UTF16`**<br><br>The default value in the Stub implementation is `1` |
 | **`SB_IS_WCHAR_T_UNSIGNED`**<br><br>Chrome only defines this for ARMEL. Chrome has an exclusion for iOS here, we should too when we support iOS.<br><br>The default value in the Stub implementation is `1` |
 | **`SB_HAS_QUIRK_SOCKET_BSD_HEADERS`**<br><br>This quirk is used to switch the headers included in starboard/shared/linux/socket_get_interface_address.cc for darwin system headers. It may be removed at some point in favor of a different solution.<br><br>By default, this property is undefined. |
-| **`SB_HAS_QUIRK_NO_GMTIME_R`**<br><br>Some platforms don't support gmtime_r. Platforms where this is the case should define the following quirk.<br><br>By default, this property is undefined. |
-
-
-## Timing API
-
-| Properties |
-| :--- |
-| **`SB_HAS_TIME_THREAD_NOW`**<br><br>Whether this platform has an API to retrieve how long the current thread has spent in the executing state.<br><br>The default value in the Stub implementation is `1` |
