@@ -132,12 +132,6 @@
 // Specifies whether this platform supports pipe.
 #define SB_HAS_PIPE 1
 
-// --- Timing API ------------------------------------------------------------
-
-// Whether this platform has an API to retrieve how long the current thread
-// has spent in the executing state.
-#define SB_HAS_TIME_THREAD_NOW 1
-
 // --- Thread Configuration --------------------------------------------------
 
 // --- Tuneable Parameters ---------------------------------------------------
