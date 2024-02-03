@@ -36,7 +36,9 @@ class MediaError : public script::Wrappable {
     kMediaErrDecode = 3,
     kMediaErrSrcNotSupported = 4,
     kMediaErrEncrypted = 5,
+#if SB_API_VERSION < 16
     kMediaErrCapabilityChanged = 1000,
+#endif  // SB_API_VERSION < 16
   };
 
   // Custom, not in any spec.
