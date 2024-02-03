@@ -38,7 +38,9 @@
 // This is due to the difference in group sizes (see comment at the beginning of
 // the file). We can solve this by implementating a new non-SSE Group that
 // behaves like GroupSse2Impl (and uses group size 16) in the future.
+#if !defined(V8_OS_STARBOARD)  // warning treated as error
 #warning "You should avoid building on a non-SSE platform for a SSE target!"
+#endif  // !defined(V8_OS_STARBOARD)
 #endif
 #endif
 #endif
