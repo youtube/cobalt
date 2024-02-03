@@ -216,7 +216,7 @@ inline void StoreSeqCst(T* p, T value) {
 
 #error Unsupported platform!
 
-#endif  // V8_OS_STARBOARD
+#endif
 
 template <typename T>
 T FromObject(Handle<Object> number);
