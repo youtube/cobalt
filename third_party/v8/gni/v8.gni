@@ -75,7 +75,9 @@ declare_args() {
   # will not be available, and embedder APIs to generate WebAssembly modules
   # will fail. Also, asm.js will not be translated to WebAssembly and will be
   # executed as standard JavaScript instead.
+if (!is_starboard) {  # declared in starboard/build/config
   v8_enable_webassembly = ""
+}
 
   # Add fuzzilli fuzzer support.
   v8_fuzzilli = false
