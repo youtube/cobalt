@@ -705,7 +705,7 @@ void GpuVideoDecoderBase::UpdateHdrMetadata(
     ReportError(kSbPlayerErrorCapabilityChanged,
                 "HDR sink lost while HDR video playing.");
 #else
-    error_cb_(
+    ReportError(
         kSbPlayerErrorDecode,
         ::starboard::FormatString("%s: HDR sink lost while HDR video playing.",
                                   kSbPlayerErrorMessageCapabilityChanged));
