@@ -322,6 +322,10 @@ void* OS::GetRandomMmapAddr() {
   // 42 bits of virtual addressing. Truncate to 40 bits to allow kernel chance
   // to fulfill request.
   raw_addr &= uint64_t{0xFFFFFF0000};
+#elif V8_TARGET_ARCH_RISCV64
+  // TODO(RISCV): We need more information from the kernel to correctly mask
+  // this address for RISC-V. https://github.com/v8-riscv/v8/issues/375
+  raw_addr &= uint64_t{0xFFFFFF0000};
 #else
   raw_addr &= 0x3FFFF000;
 
@@ -415,6 +419,16 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
 
   int prot = GetProtectionFromMemoryPermission(access);
   int ret = mprotect(address, size, prot);
+
+  // MacOS 11.2 on Apple Silicon refuses to switch permissions from
+  // rwx to none. Just use madvise instead.
+#if defined(V8_OS_MACOSX)
+  if (ret != 0 && access == OS::MemoryPermission::kNoAccess) {
+    ret = madvise(address, size, MADV_FREE_REUSABLE);
+    return ret == 0;
+  }
+#endif
+
   if (ret == 0 && access == OS::MemoryPermission::kNoAccess) {
     // This is advisory; ignore errors and continue execution.
     USE(DiscardSystemPages(address, size));
@@ -510,6 +524,8 @@ void OS::DebugBreak() {
 #elif V8_HOST_ARCH_S390
   // Software breakpoint instruction is 0x0001
   asm volatile(".word 0x0001");
+#elif V8_HOST_ARCH_RISCV64
+  asm("ebreak");
 #else
 #error Unsupported host architecture.
 #endif

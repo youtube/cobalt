@@ -123,21 +123,50 @@ void FixedArray::NoWriteBarrierSet(FixedArray array, int index, Object value) {
   RELAXED_WRITE_FIELD(array, offset, value);
 }
 
-Object FixedArray::synchronized_get(int index) const {
+Object FixedArray::get(int index, RelaxedLoadTag) const {
   IsolateRoot isolate = GetIsolateForPtrCompr(*this);
-  return synchronized_get(isolate, index);
+  return get(isolate, index);
 }
 
-Object FixedArray::synchronized_get(IsolateRoot isolate, int index) const {
+Object FixedArray::get(IsolateRoot isolate, int index, RelaxedLoadTag) const {
+  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
+  return RELAXED_READ_FIELD(*this, OffsetOfElementAt(index));
+}
+
+void FixedArray::set(int index, Object value, RelaxedStoreTag,
+                     WriteBarrierMode mode) {
+  DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
+  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
+  RELAXED_WRITE_FIELD(*this, OffsetOfElementAt(index), value);
+  CONDITIONAL_WRITE_BARRIER(*this, OffsetOfElementAt(index), value, mode);
+}
+
+void FixedArray::set(int index, Smi value, RelaxedStoreTag tag) {
+  DCHECK(Object(value).IsSmi());
+  set(index, value, tag, SKIP_WRITE_BARRIER);
+}
+
+Object FixedArray::get(int index, AcquireLoadTag) const {
+  IsolateRoot isolate = GetIsolateForPtrCompr(*this);
+  return get(isolate, index);
+}
+
+Object FixedArray::get(IsolateRoot isolate, int index, AcquireLoadTag) const {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   return ACQUIRE_READ_FIELD(*this, OffsetOfElementAt(index));
 }
 
-void FixedArray::synchronized_set(int index, Smi value) {
+void FixedArray::set(int index, Object value, ReleaseStoreTag,
+                     WriteBarrierMode mode) {
   DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  DCHECK(Object(value).IsSmi());
   RELEASE_WRITE_FIELD(*this, OffsetOfElementAt(index), value);
+  CONDITIONAL_WRITE_BARRIER(*this, OffsetOfElementAt(index), value, mode);
+}
+
+void FixedArray::set(int index, Smi value, ReleaseStoreTag tag) {
+  DCHECK(Object(value).IsSmi());
+  set(index, value, tag, SKIP_WRITE_BARRIER);
 }
 
 void FixedArray::set_undefined(int index) {
@@ -337,7 +366,7 @@ int Search(T* array, Name name, int valid_entries, int* out_insertion_index,
 double FixedDoubleArray::get_scalar(int index) {
   DCHECK(map() != GetReadOnlyRoots().fixed_cow_array_map() &&
          map() != GetReadOnlyRoots().fixed_array_map());
-  DCHECK(index >= 0 && index < this->length());
+  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   DCHECK(!is_the_hole(index));
   return ReadField<double>(kHeaderSize + index * kDoubleSize);
 }
@@ -345,7 +374,7 @@ double FixedDoubleArray::get_scalar(int index) {
 uint64_t FixedDoubleArray::get_representation(int index) {
   DCHECK(map() != GetReadOnlyRoots().fixed_cow_array_map() &&
          map() != GetReadOnlyRoots().fixed_array_map());
-  DCHECK(index >= 0 && index < this->length());
+  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   int offset = kHeaderSize + index * kDoubleSize;
   // Bug(v8:8875): Doubles may be unaligned.
   return base::ReadUnalignedValue<uint64_t>(field_address(offset));
@@ -363,6 +392,7 @@ Handle<Object> FixedDoubleArray::get(FixedDoubleArray array, int index,
 void FixedDoubleArray::set(int index, double value) {
   DCHECK(map() != GetReadOnlyRoots().fixed_cow_array_map() &&
          map() != GetReadOnlyRoots().fixed_array_map());
+  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   int offset = kHeaderSize + index * kDoubleSize;
   if (std::isnan(value)) {
     WriteField<double>(offset, std::numeric_limits<double>::quiet_NaN());
@@ -379,6 +409,7 @@ void FixedDoubleArray::set_the_hole(Isolate* isolate, int index) {
 void FixedDoubleArray::set_the_hole(int index) {
   DCHECK(map() != GetReadOnlyRoots().fixed_cow_array_map() &&
          map() != GetReadOnlyRoots().fixed_array_map());
+  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   int offset = kHeaderSize + index * kDoubleSize;
   base::WriteUnalignedValue<uint64_t>(field_address(offset), kHoleNanInt64);
 }
