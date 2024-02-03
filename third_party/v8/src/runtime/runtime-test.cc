@@ -1128,12 +1128,16 @@ RUNTIME_FUNCTION(Runtime_WasmTraceExit) {
       }
       case wasm::kF32: {
         float_t value = ReadUnalignedValue<float_t>(value_addr_smi.ptr());
+#if !defined(V8_OS_STARBOARD)  // format warning treated as error
         PrintF(" -> %f\n", value);
+#endif  // !defined(V8_OS_STARBOARD)
         break;
       }
       case wasm::kF64: {
         double_t value = ReadUnalignedValue<double_t>(value_addr_smi.ptr());
+#if !defined(V8_OS_STARBOARD)  // warning treated as error
         PrintF(" -> %f\n", value);
+#endif  // !defined(V8_OS_STARBOARD)
         break;
       }
       default:
