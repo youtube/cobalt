@@ -63,6 +63,7 @@ _FILTERED_TESTS = {
     ],
     'blackbox': [
         'wasm_basic_test',  # b/312292233 (see also b/303845477)
+        'web_debugger',  # b/324131079
     ],
 }
 
@@ -78,6 +79,7 @@ if os.getenv('MODULAR_BUILD', '0') == '1':
       'preload_launch_parameter',
       'preload_visibility',
       'suspend_visibility',
+      'web_debugger',  # b/324131079
   ]
 
 
