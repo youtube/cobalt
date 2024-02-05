@@ -22,7 +22,6 @@
 #include <sys/stat.h>
 #include <time.h>
 
-#include "base/logging.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/posix/impl/file_impl.h"
 
