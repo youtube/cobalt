@@ -173,7 +173,8 @@ bool Move(const FilePath& from_path, const FilePath& to_path) {
 }
 
 bool CopyFileContents(File& infile, File& outfile) {
-#if 0//BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+#if defined(STARBOARD)
+#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   bool retry_slow = false;
   bool res =
       internal::CopyFileContentsWithSendfile(infile, outfile, retry_slow);
@@ -328,21 +329,25 @@ absl::optional<std::vector<uint8_t>> ReadFileToBytes(const FilePath& path) {
     return absl::nullopt;
   }
 
+#ifndef USE_HACKY_COBALT_CHANGES
   // TODO(b/298237462): Implement ScopedFILE for Starboard.
-  // ScopedFILE file_stream(OpenFile(path, "rb"));
-  // if (!file_stream) {
-  //   return absl::nullopt;
-  // }
+  ScopedFILE file_stream(OpenFile(path, "rb"));
+  if (!file_stream) {
+    return absl::nullopt;
+  }
 
   std::vector<uint8_t> bytes;
-  // if (!ReadStreamToSpanWithMaxSize(file_stream.get(),
-  //                                  std::numeric_limits<size_t>::max(),
-  //                                  [&bytes](size_t size) {
-  //                                    bytes.resize(size);
-  //                                    return make_span(bytes);
-  //                                  })) {
-  //   return absl::nullopt;
-  // }
+  if (!ReadStreamToSpanWithMaxSize(file_stream.get(),
+                                   std::numeric_limits<size_t>::max(),
+                                   [&bytes](size_t size) {
+                                     bytes.resize(size);
+                                     return make_span(bytes);
+                                   })) {
+    return absl::nullopt;
+  }
+#else
+  std::vector<uint8_t> bytes;
+#endif
   return bytes;
 }
 
@@ -358,11 +363,48 @@ bool ReadFileToStringWithMaxSize(const FilePath& path,
     contents->clear();
   if (path.ReferencesParent())
     return false;
-  // ScopedFILE file_stream(OpenFile(path, "rb"));
-  // if (!file_stream)
-  //   return false;
-  // return ReadStreamToStringWithMaxSize(file_stream.get(), max_size, contents);
-  return false;
+#if defined(USE_HACKY_COBALT_CHANGES)
+  base::File file(path, base::File::FLAG_OPEN | base::File::FLAG_READ);
+  if (!file.IsValid()) {
+    return false;
+  }
+
+  // Use a smaller buffer than in Chromium so we don't run out of stack space.
+  const size_t kBufferSize = 1 << 12;
+  char buf[kBufferSize];
+  size_t len;
+  size_t size = 0;
+  bool read_status = true;
+
+  while ((len = file.ReadAtCurrentPos(buf, sizeof(buf))) > 0) {
+    if (contents) {
+      size_t bytes_to_add = std::min(len, max_size - size);
+      if (size + bytes_to_add > contents->max_size()) {
+        read_status = false;
+        break;
+      }
+      contents->append(buf, std::min(len, max_size - size));
+    }
+
+    if ((max_size - size) < len) {
+      read_status = false;
+      break;
+    }
+
+    size += len;
+  }
+
+  if (contents) {
+    contents->resize(contents->size());
+  }
+  read_status = read_status && file.IsValid();
+  return read_status;
+#else
+  ScopedFILE file_stream(OpenFile(path, "rb"));
+  if (!file_stream)
+    return false;
+  return ReadStreamToStringWithMaxSize(file_stream.get(), max_size, contents);
+#endif  // defined(USE_HACKY_COBALT_CHANGES)
 }
 
 bool IsDirectoryEmpty(const FilePath& dir_path) {

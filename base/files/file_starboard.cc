@@ -303,6 +303,7 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
 
   created_ = false;
   append_ = flags & FLAG_APPEND;
+  file_name_ = path.AsUTF8Unsafe();
 
   int open_flags = 0;
   switch (flags & (FLAG_OPEN | FLAG_CREATE |

@@ -348,11 +348,17 @@ PersistentMemoryAllocator::PersistentMemoryAllocator(Memory memory,
   // Ensure that memory segment is of acceptable size.
   CHECK(IsMemoryAcceptable(memory.base, size, page_size, readonly));
 
+  // The |is_lock_free| function has been found to require additional library
+  // linkage that we'd like to avoid on Starboard platforms.  Additionally we
+  // don't support multi-process applications on Starboard currently, so this
+  // code will not be used.
+#if !defined(STARBOARD)
   // These atomics operate inter-process and so must be lock-free.
   DCHECK(SharedMetadata().freeptr.is_lock_free());
   DCHECK(SharedMetadata().flags.is_lock_free());
   DCHECK(BlockHeader().next.is_lock_free());
   CHECK(corrupt_.is_lock_free());
+#endif  // !defined(STARBOARD)
 
   if (shared_meta()->cookie != kGlobalCookie) {
     if (readonly) {
@@ -1025,6 +1031,7 @@ void LocalPersistentMemoryAllocator::DeallocateLocalMemory(void* memory,
   }
 
   DCHECK_EQ(MEM_VIRTUAL, type);
+
 #if BUILDFLAG(IS_WIN)
   BOOL success = ::VirtualFree(memory, 0, MEM_DECOMMIT);
   DCHECK(success);
@@ -1037,6 +1044,7 @@ void LocalPersistentMemoryAllocator::DeallocateLocalMemory(void* memory,
 }
 
 //----- WritableSharedPersistentMemoryAllocator --------------------------------
+#if !defined(STARBOARD)
 
 WritableSharedPersistentMemoryAllocator::
     WritableSharedPersistentMemoryAllocator(
@@ -1059,9 +1067,11 @@ bool WritableSharedPersistentMemoryAllocator::IsSharedMemoryAcceptable(
     const base::WritableSharedMemoryMapping& memory) {
   return IsMemoryAcceptable(memory.memory(), memory.size(), 0, false);
 }
+#endif  // !defined(STARBOARD)
+
 
 //----- ReadOnlySharedPersistentMemoryAllocator --------------------------------
-
+#if !defined(STARBOARD)
 ReadOnlySharedPersistentMemoryAllocator::
     ReadOnlySharedPersistentMemoryAllocator(
         base::ReadOnlySharedMemoryMapping memory,
@@ -1084,6 +1094,8 @@ bool ReadOnlySharedPersistentMemoryAllocator::IsSharedMemoryAcceptable(
     const base::ReadOnlySharedMemoryMapping& memory) {
   return IsMemoryAcceptable(memory.memory(), memory.size(), 0, true);
 }
+
+#endif  // !defined(STARBOARD)
 
 #if !BUILDFLAG(IS_NACL)
 //----- FilePersistentMemoryAllocator ------------------------------------------

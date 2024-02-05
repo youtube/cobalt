@@ -162,4 +162,10 @@ size_t PlatformThread::GetDefaultThreadStackSize() {
   return 0;
 }
 
+// static
+ThreadPriorityForTest PlatformThread::GetCurrentThreadPriorityForTest() {
+  NOTIMPLEMENTED();
+  return ThreadPriorityForTest::kNormal;
+}
+
 }  // namespace base

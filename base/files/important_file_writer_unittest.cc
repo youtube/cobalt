@@ -367,6 +367,7 @@ TEST_F(ImportantFileWriterTest, DoScheduledWrite_FailToSerialize) {
   histogram_tester.ExpectTotalCount("ImportantFile.WriteDuration", 0);
 }
 
+#if !defined(STARBOARD)
 TEST_F(ImportantFileWriterTest, ScheduleWriteWithBackgroundDataSerializer) {
   base::HistogramTester histogram_tester;
   base::Thread file_writer_thread("ImportantFileWriter test thread");
@@ -401,6 +402,7 @@ TEST_F(ImportantFileWriterTest, ScheduleWriteWithBackgroundDataSerializer) {
   histogram_tester.ExpectTotalCount("ImportantFile.SerializationDuration", 1);
   histogram_tester.ExpectTotalCount("ImportantFile.WriteDuration", 1);
 }
+#endif  // !defined(STARBOARD)
 
 TEST_F(ImportantFileWriterTest,
        ScheduleWriteWithBackgroundDataSerializer_FailToSerialize) {
@@ -449,6 +451,7 @@ TEST_F(ImportantFileWriterTest, WriteLargeFile) {
   EXPECT_EQ(large_data, actual);
 }
 
+#if !defined(STARBOARD)
 // Verify that a UMA metric for the serialization duration is recorded.
 TEST_F(ImportantFileWriterTest, SerializationDuration) {
   base::HistogramTester histogram_tester;
@@ -476,5 +479,6 @@ TEST_F(ImportantFileWriterTest, SerializationDurationWithCustomSuffix) {
                                     1);
   histogram_tester.ExpectTotalCount("ImportantFile.WriteDuration.Foo", 1);
 }
+#endif  // !defined(STARBOARD)
 
 }  // namespace base

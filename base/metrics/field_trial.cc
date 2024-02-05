@@ -694,7 +694,7 @@ void FieldTrialList::CreateTrialsFromCommandLine(const CommandLine& cmd_line,
                                                  uint32_t fd_key) {
   global_->create_trials_from_command_line_called_ = true;
 
-#if 0//!BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS) && !defined(STARBOARD)
   if (cmd_line.HasSwitch(switches::kFieldTrialHandle)) {
     std::string switch_value =
         cmd_line.GetSwitchValueASCII(switches::kFieldTrialHandle);
@@ -748,7 +748,7 @@ void FieldTrialList::PopulateLaunchOptionsWithFieldTrialState(
     return;
   }
 
-#if 0//!BUILDFLAG(IS_NACL)
+#if !BUILDFLAG(IS_NACL) && !defined(STARBOARD)
   global_->field_trial_allocator_->UpdateTrackingHistograms();
   std::string switch_value = SerializeSharedMemoryRegionMetadata(
       global_->readonly_allocator_region_, launch_options);
@@ -1046,7 +1046,7 @@ FieldTrialList* FieldTrialList::BackupInstanceForTesting() {
 void FieldTrialList::RestoreInstanceForTesting(FieldTrialList* instance) {
   global_ = instance;
 }
-#if defined(STARBOARD)
+#ifdef USE_HACKY_COBALT_CHANGES
 // TODO(b/298237462): Try to enable the below code.
 #elif !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS)
 
@@ -1218,6 +1218,9 @@ bool FieldTrialList::CreateTrialsFromSharedMemoryRegion(
 // static
 bool FieldTrialList::CreateTrialsFromSharedMemoryMapping(
     ReadOnlySharedMemoryMapping shm_mapping) {
+#if defined(STARBOARD)
+  return false;
+#else
   global_->field_trial_allocator_ =
       std::make_unique<ReadOnlySharedPersistentMemoryAllocator>(
           std::move(shm_mapping), 0, kAllocatorName);
@@ -1242,10 +1245,14 @@ bool FieldTrialList::CreateTrialsFromSharedMemoryMapping(
     }
   }
   return true;
+#endif // defined(STARBOARD)
 }
 
 // static
 void FieldTrialList::InstantiateFieldTrialAllocatorIfNeeded() {
+#if defined(STARBOARD)
+  return;
+#else
   if (!global_)
     return;
 
@@ -1278,6 +1285,7 @@ void FieldTrialList::InstantiateFieldTrialAllocatorIfNeeded() {
 #if !BUILDFLAG(IS_NACL)
   global_->readonly_allocator_region_ = std::move(shm.region);
 #endif
+#endif // !defined(STARBOARD)
 }
 
 // static

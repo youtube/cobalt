@@ -31,7 +31,10 @@ int SysInfo::NumberOfEfficientProcessorsImpl() {
 }
 
 size_t SysInfo::VMAllocationGranularity() {
-  return 0;
+  // This is referred to ONLY by persistent memory allocator and shared
+  // memory feature; not used in Cobalt production.
+  NOTIMPLEMENTED();
+  return 4096U;
 }
 
 // static
@@ -78,7 +81,15 @@ std::string SysInfo::OperatingSystemVersion() {
   return SysInfo::OperatingSystemName();
 }
 
+// static
+void SysInfo::OperatingSystemVersionNumbers(int32_t* major_version,
+                                            int32_t* minor_version,
+                                            int32_t* bugfix_version) {
+  NOTIMPLEMENTED();
+}
+
 SysInfo::HardwareInfo SysInfo::GetHardwareInfoSync() {
+  NOTIMPLEMENTED();
   HardwareInfo info;
   return info;
 }

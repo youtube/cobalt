@@ -170,6 +170,13 @@ static_library("test_support") {
     "//third_party/libxml:xml_reader",
   ]
 
+  if (is_starboard) {
+    sources += [
+      "time_helpers.cc",
+      "time_helpers.h",
+    ]
+  }
+
   if (enable_base_tracing) {
     public_deps += [ "//third_party/perfetto:perfetto_test_support" ]
     if (!is_chromeos) {
@@ -264,11 +271,11 @@ static_library("test_support") {
     }
   }
 
-  if (is_posix || is_fuchsia) {
+  if (!is_starboard && (is_posix || is_fuchsia)) {
     sources += [
-      # "scoped_locale.cc",
-      # "scoped_locale.h",
-      # "test_file_util_posix.cc",
+      "scoped_locale.cc",
+      "scoped_locale.h",
+      "test_file_util_posix.cc",
     ]
   }
 
