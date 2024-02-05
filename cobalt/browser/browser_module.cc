@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <map>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "base/bind.h"
@@ -143,6 +144,16 @@ const char kFuzzerToggleCommandLongHelp[] =
     "activated or not.  While activated, input will constantly and randomly be "
     "generated and passed directly into the main web module.";
 
+#if defined(ENABLE_DEBUGGER)
+// Command to reload the current URL.
+const char kBoxDumpCommand[] = "boxdump";
+
+// Help strings for the navigate command.
+const char kBoxDumpCommandShortHelp[] = "Return a box dump.";
+const char kBoxDumpCommandLongHelp[] =
+    "Returns a dump of the most recent layout box tree.";
+#endif
+
 const char kScreenshotCommand[] = "screenshot";
 const char kScreenshotCommandShortHelp[] = "Takes a screenshot.";
 const char kScreenshotCommandLongHelp[] =
@@ -258,6 +269,12 @@ BrowserModule::BrowserModule(const GURL& url,
           kFuzzerToggleCommand,
           base::Bind(&BrowserModule::OnFuzzerToggle, base::Unretained(this)),
           kFuzzerToggleCommandShortHelp, kFuzzerToggleCommandLongHelp)),
+#if defined(ENABLE_DEBUGGER)
+      ALLOW_THIS_IN_INITIALIZER_LIST(boxdump_command_handler_(
+          kBoxDumpCommand,
+          base::Bind(&BrowserModule::OnBoxDumpMessage, base::Unretained(this)),
+          kBoxDumpCommandShortHelp, kBoxDumpCommandLongHelp)),
+#endif  // defined(ENABLE_DEBUGGER)
       ALLOW_THIS_IN_INITIALIZER_LIST(screenshot_command_handler_(
           kScreenshotCommand,
           base::Bind(&OnScreenshotMessage, base::Unretained(this)),
@@ -806,6 +823,13 @@ void BrowserModule::RequestScreenshotToFile(
     const base::Optional<math::Rect>& clip_rect,
     const base::Closure& done_callback) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::RequestScreenshotToFile()");
+  if (!self_message_loop_->task_runner()->BelongsToCurrentThread()) {
+    self_message_loop_->task_runner()->PostTask(
+        FROM_HERE, base::Bind(&BrowserModule::RequestScreenshotToFile,
+                              base::Unretained(this), path, image_format,
+                              clip_rect, std::move(done_callback)));
+    return;
+  }
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   EnsureScreenShotWriter();
   DCHECK(screen_shot_writer_);
@@ -2238,6 +2262,16 @@ void BrowserModule::ValidateCacheBackendSettings() {
   if (!http_cache) return;
   network_module_->url_request_context()->ValidateCachePersistentSettings();
 }
+
+#if defined(ENABLE_DEBUGGER)
+std::string BrowserModule::OnBoxDumpMessage(const std::string& message) {
+  std::string response = "No MainWebModule.";
+  if (web_module_) {
+    response = web_module_->OnBoxDumpMessage(message);
+  }
+  return response;
+}
+#endif
 
 }  // namespace browser
 }  // namespace cobalt

@@ -67,13 +67,16 @@ void CobaltAgent::SendConsoleCommand(Command command) {
   if (params) {
     std::string console_command;
     if (params->GetString("command", &console_command)) {
+      JSONObject response(new base::DictionaryValue());
       std::string message;
       params->GetString("message", &message);
       console::ConsoleCommandManager* console_command_manager =
           console::ConsoleCommandManager::GetInstance();
       DCHECK(console_command_manager);
-      console_command_manager->HandleCommand(console_command, message);
-      command.SendResponse();
+      std::string response_string =
+          console_command_manager->HandleCommand(console_command, message);
+      response->SetString("result", std::move(response_string));
+      command.SendResponse(response);
       return;
     }
   }

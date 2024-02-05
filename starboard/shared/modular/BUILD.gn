@@ -18,6 +18,8 @@ source_set("posix_wrappers") {
   sources = [
     "posix_mmap_wrappers.cc",
     "posix_mmap_wrappers.h",
+    "posix_pthread_wrappers.cc",
+    "posix_pthread_wrappers.h",
     "posix_time_wrappers.cc",
     "posix_time_wrappers.h",
   ]

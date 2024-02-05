@@ -96,10 +96,6 @@ static_library("layout") {
     "white_space_processing.h",
   ]
 
-  if (is_debug) {
-    defines = [ "COBALT_BOX_DUMP_ENABLED" ]
-  }
-
   configs -= [ "//starboard/build/config:size" ]
   configs += [ "//starboard/build/config:speed" ]
 

@@ -181,6 +181,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
   }
 
   WasmCompilationResult result;
+
   switch (tier_) {
     case ExecutionTier::kNone:
       UNREACHABLE();

@@ -629,7 +629,7 @@ class ELF {
 #else
 #error Unsupported target architecture.
 #endif
-    memcpy(header->ident, ident, 16);
+    base::Memcpy(header->ident, ident, 16);
     header->type = 1;
 #if V8_TARGET_ARCH_IA32
     header->machine = 3;
@@ -1978,7 +1978,7 @@ static void AddJITCodeEntry(CodeMap* map, const AddressRange& range,
 
 static void AddCode(const char* name, Code code, SharedFunctionInfo shared,
                     LineInfo* lineinfo) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   CodeMap* code_map = GetCodeMap();
   AddressRange range;
