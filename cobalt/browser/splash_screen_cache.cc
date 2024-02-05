@@ -101,7 +101,8 @@ bool SplashScreenCache::IsSplashScreenCached() const {
   if (!key) return false;
   std::string full_path =
       std::string(path.data()) + kSbFileSepString + key.value();
-  return SbFileExists(full_path.c_str());
+  struct stat file_info;
+  return stat(full_path.c_str(), &file_info) == 0;
 }
 
 int SplashScreenCache::ReadCachedSplashScreen(

@@ -188,7 +188,8 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
   ::crashpad::CrashpadClient* client = GetCrashpadClient();
 
   const base::FilePath handler_path = GetPathToCrashpadHandlerBinary();
-  if (!SbFileExists(handler_path.value().c_str())) {
+  struct stat file_info;
+  if (stat(handler_path.value().c_str(), &file_info) != 0) {
     LOG(WARNING) << "crashpad_handler not at expected location of "
                  << handler_path.value();
     return;

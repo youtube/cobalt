@@ -33,11 +33,11 @@ bool CheckBadFileExists(const char* installation_path, const char* app_key) {
   std::string bad_app_key_file_path =
       starboard::loader_app::GetBadAppKeyFilePath(installation_path, app_key);
   SB_DCHECK(!bad_app_key_file_path.empty());
+  struct stat file_info;
+  bool fileexists = stat(bad_app_key_file_path.c_str(), &file_info) == 0;
   LOG(INFO) << "bad_app_key_file_path: " << bad_app_key_file_path;
-  LOG(INFO) << "bad_app_key_file_path SbFileExists: "
-            << SbFileExists(bad_app_key_file_path.c_str());
-  return !bad_app_key_file_path.empty() &&
-         SbFileExists(bad_app_key_file_path.c_str());
+  LOG(INFO) << "bad_app_key_file_path FileExists: " << fileexists;
+  return !bad_app_key_file_path.empty() && fileexists;
 }
 
 uint64_t ComputeSlotSize(
@@ -324,18 +324,20 @@ bool CobaltQuickUpdate(
     std::string good_app_key_file_path =
         starboard::loader_app::GetGoodAppKeyFilePath(
             installation_dir.value().c_str(), app_key);
+    struct stat file_info;
     if (!installed_version.IsValid()) {
       LOG(WARNING) << "CobaltQuickInstallation: invalid version ";
       continue;
     } else if (slot_candidate_version < installed_version &&
                current_version < installed_version &&
-               (i == 0 || !DrainFileIsAnotherAppDraining(
-                              installation_dir.value().c_str(), app_key) &&
-                              !CheckBadFileExists(
-                                  installation_dir.value().c_str(), app_key) &&
-                              !SbFileExists(good_app_key_file_path.c_str()) &&
-                              starboard::loader_app::AnyGoodAppKeyFile(
-                                  installation_dir.value().c_str()))) {
+               (i == 0 ||
+                !DrainFileIsAnotherAppDraining(installation_dir.value().c_str(),
+                                               app_key) &&
+                    !CheckBadFileExists(installation_dir.value().c_str(),
+                                        app_key) &&
+                    stat(good_app_key_file_path.c_str(), &file_info) != 0 &&
+                    starboard::loader_app::AnyGoodAppKeyFile(
+                        installation_dir.value().c_str()))) {
       // Found a slot with newer version than the current version. It's either
       // the system image slot, or a writeable installation slot that's not
       // draining, and no bad file of current app exists, and a good file
