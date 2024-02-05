@@ -29,7 +29,6 @@
 #include "starboard/event.h"
 #include "starboard/log.h"
 #include "starboard/shared/starboard/command_line.h"
-#include "starboard/shared/starboard/starboard_switches.h"
 #include "starboard/thread.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "third_party/crashpad/wrapper/wrapper.h"  // nogncheck
@@ -215,7 +214,7 @@ void InstallCrashpadHandler(const CommandLine& command_line) {
   }
 
   third_party::crashpad::wrapper::InstallCrashpadHandler(
-      /*start_at_crash=*/true, extracted_ca_certificates_path);
+      extracted_ca_certificates_path);
 }
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
 
