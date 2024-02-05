@@ -4,6 +4,7 @@
 
 #include "base/files/dir_reader_posix.h"
 
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>

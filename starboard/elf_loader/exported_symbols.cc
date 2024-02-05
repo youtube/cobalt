@@ -20,6 +20,7 @@
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #include "starboard/accessibility.h"
 #include "starboard/audio_sink.h"

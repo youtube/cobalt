@@ -15,6 +15,7 @@
 // GetInfo is mostly tested in the course of other tests.
 
 #include <string>
+#include <sys/stat.h>
 
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"

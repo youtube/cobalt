@@ -16,6 +16,7 @@
 
 #include "base/files/file_util.h"
 
+#include <sys/stat.h>
 #include <stack>
 #include <string>
 

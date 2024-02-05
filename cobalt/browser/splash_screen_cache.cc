@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/splash_screen_cache.h"
 
+#include <sys/stat.h>
 #include <memory>
 #include <string>
 #include <vector>

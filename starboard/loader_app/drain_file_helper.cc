@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sys/stat.h>
+
 #include "starboard/loader_app/drain_file_helper.h"
 
 #include "starboard/common/file.h"

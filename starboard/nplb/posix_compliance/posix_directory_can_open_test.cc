@@ -11,8 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#if SB_API_VERSION >= 16
 #include <string>
+#include <sys/stat.h>
 
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
@@ -69,4 +69,3 @@ TEST(PosixDirectoryCanOpenTest, FailureRegularFile) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
-#endif  // SB_API_VERSION >=16

@@ -14,6 +14,7 @@
 
 #include "third_party/crashpad/wrapper/wrapper.h"
 
+#include <sys/stat.h>
 #include <map>
 #include <vector>
 
