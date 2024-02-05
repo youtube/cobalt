@@ -1123,6 +1123,11 @@ base::TimeDelta ChunkDemuxer::GetWriteHead(const std::string& id) const {
   return iter->second[0]->GetWriteHead();
 }
 
+bool ChunkDemuxer::GetIsEndOfStreamReceived() const {
+  base::AutoLock auto_lock(lock_);
+  return state_ >= ENDED;
+}
+
 void ChunkDemuxer::SetSourceBufferStreamMemoryLimit(const std::string& id,
                                                     size_t limit) {
   base::AutoLock auto_lock(lock_);

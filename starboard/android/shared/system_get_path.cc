@@ -99,7 +99,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       if (starboard::strlcat(path, "/storage", kPathSize) >= kPathSize) {
         return false;
       }
-      SbDirectoryCreate(path);
+      mkdir(path, 0700);
       break;
     }
     case kSbSystemPathCacheDirectory: {
@@ -110,7 +110,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
         return false;
       }
 
-      SbDirectoryCreate(path);
+      mkdir(path, 0700);
       break;
     }
 
@@ -122,7 +122,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
         return false;
       }
 
-      SbDirectoryCreate(path);
+      mkdir(path, 0700);
       break;
     }
 
@@ -131,7 +131,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
         return false;
       }
 
-      SbDirectoryCreate(path);
+      mkdir(path, 0700);
       break;
     }
 

@@ -645,12 +645,12 @@ class Box : public base::RefCounted<Box> {
   virtual TextBox* AsTextBox();
   virtual const TextBox* AsTextBox() const;
 
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
   // Used by box generator to set a DOM node that produced this box.
   void SetGeneratingNode(dom::Node* generating_node);
   // Used by derived classes to dump their children.
   void DumpWithIndent(std::ostream* stream, int indent) const;
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
   ContainerBox* parent() { return parent_; }
   const ContainerBox* parent() const { return parent_; }
@@ -794,14 +794,14 @@ class Box : public base::RefCounted<Box> {
   //   https://www.w3.org/TR/css3-transforms/#transformable-element
   virtual bool IsTransformable() const = 0;
 
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
   void DumpIndent(std::ostream* stream, int indent) const;
   virtual void DumpClassName(std::ostream* stream) const = 0;
   // Overriders must call the base method.
   virtual void DumpProperties(std::ostream* stream) const;
   // Overriders must call the base method.
   virtual void DumpChildrenWithIndent(std::ostream* stream, int indent) const;
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
   // Updates the source container box's cross references with its descendants in
   // the box tree that have it as their containing block or stacking context.
@@ -944,9 +944,9 @@ class Box : public base::RefCounted<Box> {
   UsedStyleProvider* const used_style_provider_;
   LayoutStatTracker* const layout_stat_tracker_;
 
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
   std::string generating_html_;
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
   // The parent of this box is the box that owns this child and is the direct
   // parent.  If DOM element A is a parent of DOM element B, and box A is
@@ -1029,7 +1029,7 @@ class Box : public base::RefCounted<Box> {
   DISALLOW_COPY_AND_ASSIGN(Box);
 };
 
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
 
 // Dumps a box tree recursively to a stream.
 // Used for layout debugging, not intended for production.
@@ -1038,7 +1038,7 @@ inline std::ostream& operator<<(std::ostream& stream, const Box& box) {
   return stream;
 }
 
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
 typedef std::vector<scoped_refptr<Box> > Boxes;
 

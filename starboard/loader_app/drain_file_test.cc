@@ -27,7 +27,6 @@
 #include "starboard/system.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
 namespace starboard {
 namespace loader_app {
 namespace {
@@ -46,7 +45,12 @@ class DrainFileTest : public ::testing::Test {
     // Use dedicated dir for testing to avoid meddling with other files.
     starboard::strlcat(temp_dir_.data(), kSbFileSepString, kSbFileMaxPath);
     starboard::strlcat(temp_dir_.data(), "df", kSbFileMaxPath);
+#if SB_API_VERSION < 16
     ASSERT_TRUE(SbDirectoryCreate(temp_dir_.data()));
+#else
+    ASSERT_TRUE(SbDirectoryCanOpen(temp_dir_.data()) ||
+                mkdir(temp_dir_.data(), 0700) == 0);
+#endif  // SB_API_VERSION < 16
   }
 
   void TearDown() override { DrainFileClearForApp(GetTempDir(), ""); }
@@ -203,6 +207,16 @@ TEST_F(DrainFileTest, SunnyDayRankCorrectlyIgnoresExpired) {
   EXPECT_TRUE(SbFileDelete(early_and_expired.path().c_str()));
 }
 
+// Tests the "racing updaters" scenario.
+TEST_F(DrainFileTest, RankAndCheckWithFirstRankedFileFromOtherAppReturnsFalse) {
+  const int64_t timestamp = PosixTimeToWindowsTime(CurrentPosixTime());
+
+  ScopedDrainFile earlier(GetTempDir(), "a", timestamp);
+  ScopedDrainFile later(GetTempDir(), "b", timestamp + kDrainFileAgeUnitUsec);
+
+  EXPECT_FALSE(DrainFileRankAndCheck(GetTempDir(), "b"));
+}
+
 // All files in the directory should be cleared except for drain files with an
 // app key matching the provided app key.
 TEST_F(DrainFileTest, SunnyDayPrepareDirectory) {
@@ -213,7 +227,11 @@ TEST_F(DrainFileTest, SunnyDayPrepareDirectory) {
   dir.append(kSbFileSepString);
   dir.append("to_delete");
 
+#if SB_API_VERSION < 16
   EXPECT_TRUE(SbDirectoryCreate(dir.c_str()));
+#else
+  EXPECT_TRUE(SbDirectoryCanOpen(dir.c_str()) || mkdir(dir.c_str(), 0700) == 0);
+#endif  // SB_API_VERSION < 16
   EXPECT_TRUE(SbFileExists(dir.c_str()));
 
   // Create a file with the app key in the name.

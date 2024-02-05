@@ -88,7 +88,7 @@ class MediaCodecBridge {
   private double mPlaybackRate = 1.0;
   private int mFps = 30;
 
-  private MediaCodec.OnFrameRenderedListener mTunnelModeFrameRendererListener;
+  private MediaCodec.OnFrameRenderedListener mFrameRendererListener;
 
   // Functions that require this will be called frequently in a tight loop.
   // Only create one of these and reuse it to avoid excessive allocations,
@@ -538,9 +538,8 @@ class MediaCodecBridge {
         };
     mMediaCodec.setCallback(mCallback, mHandler);
 
-    // TODO: support OnFrameRenderedListener for non tunnel mode
-    if (tunnelModeAudioSessionId != -1) {
-      mTunnelModeFrameRendererListener =
+    if (isFrameRenderedCallbackEnabled() || tunnelModeAudioSessionId != -1) {
+      mFrameRendererListener =
           new MediaCodec.OnFrameRenderedListener() {
             @Override
             public void onFrameRendered(MediaCodec codec, long presentationTimeUs, long nanoTime) {
@@ -553,8 +552,15 @@ class MediaCodecBridge {
               }
             }
           };
-      mMediaCodec.setOnFrameRenderedListener(mTunnelModeFrameRendererListener, null);
+      mMediaCodec.setOnFrameRenderedListener(mFrameRendererListener, null);
     }
+  }
+
+  @UsedByNative
+  public static boolean isFrameRenderedCallbackEnabled() {
+    // Starting with Android 14, onFrameRendered should be called accurately for each rendered
+    // frame.
+    return Build.VERSION.SDK_INT >= 34;
   }
 
   @SuppressWarnings("unused")
@@ -796,7 +802,7 @@ class MediaCodecBridge {
       }
     }
 
-    if (maxVideoInputSize != 0) {
+    if (maxVideoInputSize > 0) {
       mediaFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, maxVideoInputSize);
       try {
         Log.i(

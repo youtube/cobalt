@@ -117,27 +117,46 @@ export default class CobaltPanel extends UI.VBox {
         }));
 
         const consoleContainer = this.element.createChild('div', 'console-container');
-        consoleContainer.appendChild(UI.createTextButton(Common.UIString('DebugCommand'), event => {
-            const outputElement = document.getElementsByClassName('console-output')[0];
-            const command = document.getElementsByClassName('debug-command')[0].value;
-            if (command.length == 0) {
-                const result = this._cobaltAgent.invoke_getConsoleCommands().then(result => {
-                    outputElement.innerHTML = JSON.stringify(result.commands, undefined, 2);
-                });
-            } else {
-                const result = this._cobaltAgent.invoke_sendConsoleCommand({
-                    command: command,
-                    message: document.getElementsByClassName('debug-message')[0].value
-                }).then(result => {
-                    outputElement.innerHTML = JSON.stringify(result, undefined, 2);
-                });
+        consoleContainer.appendChild(UI.createLabel('Debug Command:'));
+        var commandInput = consoleContainer.appendChild(UI.createInput('debug-command', 'text'));
+        commandInput.addEventListener("keypress", event => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                const consoleResponse = document.getElementsByClassName('console-response')[0];
+                const command = document.getElementsByClassName('debug-command')[0].value;
+                if (command.length == 0) {
+                    const result = this._cobaltAgent.invoke_getConsoleCommands().then(result => {
+                        consoleResponse.innerHTML = JSON.stringify(result.commands, undefined, 2);
+                    });
+                } else {
+                    const result = this._cobaltAgent.invoke_sendConsoleCommand({
+                        command: command,
+                        message: document.getElementsByClassName('debug-message')[0].value
+                    }).then(result => {
+                        consoleResponse.innerHTML = result;
+                    });
+                }
             }
-        }));
-        consoleContainer.appendChild(UI.createLabel('Command:'));
-        consoleContainer.appendChild(UI.createInput('debug-command', 'text'));
+        });
         consoleContainer.appendChild(UI.createLabel('Message:'));
         consoleContainer.appendChild(UI.createInput('debug-message', 'text'));
-        consoleContainer.createChild('pre', 'console-output');
+        consoleContainer.appendChild(UI.createTextButton(Common.UIString('Download Response'), event => {
+            const command = document.getElementsByClassName('debug-command')[0].value;
+            const filename = "commmand_" + command + '.txt';
+            download_element.setAttribute('href', 'data:text/plain;charset=utf-8,' +
+                encodeURIComponent(document.getElementsByClassName("console-response")[0].value));
+            download_element.setAttribute('download', filename);
+            download_element.click();
+            download_element.setAttribute('href', undefined);
+        }));
+        const textAreaContainer = consoleContainer.createChild('div');
+        textAreaContainer.setAttribute("style", "display: flex; flex-direction:column;");
+        textAreaContainer.setAttribute("width", "100%");
+        textAreaContainer.setAttribute("height", "100%");
+        const consoleResponse = textAreaContainer.createChild('textarea', 'console-response');
+        consoleResponse.setAttribute("style", "margin: 0;");
+        consoleResponse.setAttribute("rows", "25");
+        consoleResponse.setAttribute("wrap", "off");
     }
 
     async run(expression) {

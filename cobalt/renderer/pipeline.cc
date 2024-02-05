@@ -688,17 +688,25 @@ void Pipeline::ShutdownRasterizerThread() {
 }
 
 #if defined(ENABLE_DEBUGGER)
-void Pipeline::OnDumpCurrentRenderTree(const std::string& message) {
-  if (base::MessageLoop::current() != rasterizer_thread_.message_loop()) {
-    rasterizer_thread_.message_loop()->task_runner()->PostTask(
-        FROM_HERE, base::Bind(&Pipeline::OnDumpCurrentRenderTree,
-                              base::Unretained(this), message));
-    return;
+std::string Pipeline::OnDumpCurrentRenderTree(const std::string& message) {
+  std::string response;
+  if (!rasterizer_thread_.message_loop()
+           ->task_runner()
+           ->BelongsToCurrentThread()) {
+    rasterizer_thread_.message_loop()->task_runner()->PostBlockingTask(
+        FROM_HERE, base::Bind(
+                       [](Pipeline* pipeline, const std::string& message,
+                          std::string* response) {
+                         *response = pipeline->OnDumpCurrentRenderTree(message);
+                       },
+                       base::Unretained(this), message, &response));
+    return response;
   }
 
   if (!rasterize_timer_) {
-    LOG(INFO) << "No render tree available yet.";
-    return;
+    response = "No render tree available yet.";
+    LOG(INFO) << response;
+    return response;
   }
 
   // Grab the most recent submission, animate it, and then dump the results to
@@ -712,19 +720,20 @@ void Pipeline::OnDumpCurrentRenderTree(const std::string& message) {
   render_tree::animations::AnimateNode::AnimateResults results =
       animate_node->Apply(submission.time_offset);
 
-  std::string tree_dump =
+  response =
       render_tree::DumpRenderTreeToString(results.animated->source().get());
   if (message.empty() || message == "undefined") {
     // If no filename was specified, send output to the console.
-    LOG(INFO) << tree_dump.c_str();
+    LOG(INFO) << response;
   } else {
     // If a filename was specified, dump the output to that file.
     base::FilePath out_dir;
     base::PathService::Get(paths::DIR_COBALT_DEBUG_OUT, &out_dir);
 
-    base::WriteFile(out_dir.Append(message), tree_dump.c_str(),
-                    tree_dump.length());
+    base::WriteFile(out_dir.Append(message), response.c_str(),
+                    response.length());
   }
+  return response;
 }
 
 void Pipeline::OnToggleFpsStdout(const std::string& message) {

@@ -256,7 +256,6 @@ void Engine::operator delete(void* p) { ::operator delete(p); }
 auto Engine::make(own<Config>&& config) -> own<Engine> {
   i::FLAG_expose_gc = true;
   i::FLAG_experimental_wasm_reftypes = true;
-  i::FLAG_experimental_wasm_bigint = true;
   i::FLAG_experimental_wasm_mv = true;
   auto engine = new (std::nothrow) EngineImpl;
   if (!engine) return own<Engine>();
@@ -2220,7 +2219,7 @@ struct borrowed_vec {
                              const wasm_##name##_t data[]) {            \
     auto v2 = wasm::vec<Name>::make_uninitialized(size);                \
     if (v2.size() != 0) {                                               \
-      memcpy(v2.get(), data, size * sizeof(wasm_##name##_t));           \
+      v8::base::Memcpy(v2.get(), data, size * sizeof(wasm_##name##_t)); \
     }                                                                   \
     *out = release_##name##_vec(std::move(v2));                         \
   }                                                                     \

@@ -63,7 +63,8 @@
 #endif
 
 #ifdef OPENSSL_SYS_STARBOARD
-#include "e_os.h"
+#include "starboard/configuration_constants.h"
+#define LIST_SEPARATOR_CHAR kSbPathSepChar
 #endif
 
 #ifdef NATIVE_TARGET_BUILD

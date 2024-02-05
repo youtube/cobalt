@@ -83,6 +83,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   enum BufferingState {
     kHaveMetadata,
     kPrerollCompleted,
+    kBufferedRangeChanged,
   };
 
   typedef base::Callback<void(BufferingState)> BufferingStateCB;

@@ -29,10 +29,23 @@ ConsoleCommandManager* ConsoleCommandManager::GetInstance() {
 
 ConsoleCommandManager::CommandHandler::CommandHandler(
     const std::string& command,
-    const ConsoleCommandManager::CommandCallback& callback,
+    const ConsoleCommandManager::VoidCommandCallback& callback,
     const std::string& short_help, const std::string& long_help)
     : command_(command),
-      callback_(callback),
+      void_callback_(callback),
+      short_help_(short_help),
+      long_help_(long_help) {
+  ConsoleCommandManager* manager = ConsoleCommandManager::GetInstance();
+  DCHECK(manager);
+  manager->RegisterCommandHandler(this);
+}
+
+ConsoleCommandManager::CommandHandler::CommandHandler(
+    const std::string& command,
+    const ConsoleCommandManager::StringCommandCallback& callback,
+    const std::string& short_help, const std::string& long_help)
+    : command_(command),
+      string_callback_(callback),
       short_help_(short_help),
       long_help_(long_help) {
   ConsoleCommandManager* manager = ConsoleCommandManager::GetInstance();
@@ -56,16 +69,25 @@ bool ConsoleCommandManager::CommandHandler::IsOnEnableOrTrue(
 }
 
 
-void ConsoleCommandManager::HandleCommand(const std::string& command,
-                                          const std::string& message) const {
+std::string ConsoleCommandManager::HandleCommand(
+    const std::string& command, const std::string& message) const {
   DCHECK_GT(command.length(), size_t(0));
   base::AutoLock auto_lock(lock_);
   CommandHandlerMap::const_iterator iter = command_command_map_.find(command);
+  std::string response;
   if (iter != command_command_map_.end()) {
-    iter->second->callback().Run(message);
+    const CommandHandler* handler = iter->second;
+    if (!handler->void_callback().is_null()) {
+      handler->void_callback().Run(message);
+      response = "Command dispatched.";
+    } else if (!handler->string_callback().is_null()) {
+      response = handler->string_callback().Run(message);
+    }
   } else {
-    DLOG(WARNING) << "No handler registered for command: " << command;
+    response = "No handler registered for command";
   }
+  DLOG(INFO) << "Console Command " << command << " response: \n" << response;
+  return response;
 }
 
 std::set<std::string> ConsoleCommandManager::GetRegisteredCommands() const {

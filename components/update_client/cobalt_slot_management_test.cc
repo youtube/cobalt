@@ -19,9 +19,11 @@
 
 #include "base/strings/string_util.h"
 #include "starboard/common/file.h"
+#include "starboard/common/time.h"
 #include "starboard/extension/free_space.h"
 #include "starboard/loader_app/app_key_files.h"
 #include "starboard/loader_app/drain_file.h"
+#include "starboard/loader_app/drain_file_helper.h"
 #include "starboard/loader_app/installation_manager.h"
 #include "starboard/loader_app/system_get_extension_shim.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -117,7 +119,7 @@ TEST_F(CobaltSlotManagementTest, SelectEmptySlot) {
                              base::CompareCase::SENSITIVE));
 }
 
-TEST_F(CobaltSlotManagementTest, SelectSlotBailOnDraining) {
+TEST_F(CobaltSlotManagementTest, SelectSlotBailsIfOtherAppIsDraining) {
   if (!storage_path_implemented_) {
     return;
   }
@@ -183,6 +185,31 @@ TEST_F(CobaltSlotManagementTest, ConfirmSlot) {
 
   ASSERT_EQ(IM_INSTALLATION_STATUS_NOT_SUCCESS, ImGetInstallationStatus(1));
   ASSERT_EQ(IM_MAX_NUM_TRIES, ImGetInstallationNumTriesLeft(1));
+}
+
+// Tests the "racing updaters" scenario.
+TEST_F(CobaltSlotManagementTest, ConfirmSlotBailsIfOtherAppStartedDrainFirst) {
+  if (!storage_path_implemented_) {
+    return;
+  }
+
+  CobaltSlotManagement cobalt_slot_management;
+  std::string slot_path = storage_path_;
+  slot_path += kSbFileSepString;
+  slot_path += "installation_1";
+  ASSERT_TRUE(cobalt_slot_management.Init(api_));
+  base::FilePath dir;
+  ASSERT_TRUE(cobalt_slot_management.SelectSlot(&dir));
+
+  // In order to be higher ranked, the other app's drain file needs to be older
+  // but not expired.
+  int64_t current_time_us =
+      starboard::PosixTimeToWindowsTime(starboard::CurrentPosixTime());
+  starboard::loader_app::ScopedDrainFile racing_drain_file(
+      slot_path, kTestAppKey2,
+      current_time_us - (kDrainFileMaximumAgeUsec / 2));
+
+  ASSERT_FALSE(cobalt_slot_management.ConfirmSlot(dir));
 }
 
 TEST_F(CobaltSlotManagementTest, CleanupAllDrainFiles) {
