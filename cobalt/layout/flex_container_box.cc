@@ -87,7 +87,7 @@ void FlexContainerBox::DetermineAvailableSpace(
   } else {
     bool freeze_main_space = layout_params.freeze_height;
     bool freeze_cross_space =
-        layout_params.freeze_height || layout_params.shrink_to_fit_width_forced;
+        layout_params.freeze_width || layout_params.shrink_to_fit_width_forced;
     main_space_depends_on_containing_block =
         height_depends_on_containing_block && (!freeze_main_space);
     main_space = maybe_height;
@@ -104,7 +104,9 @@ void FlexContainerBox::DetermineAvailableSpace(
       main_space = height();
     }
     if (freeze_cross_space) {
-      cross_space = width();
+      if (!layout_params.shrink_to_fit_width_forced) {
+        cross_space = width();
+      }
     }
   }
 
@@ -127,7 +129,7 @@ void FlexContainerBox::DetermineAvailableSpace(
                      padding_left() - padding_right();
       }
     } else {
-      if (!cross_space) {
+      if (!cross_space && !layout_params.shrink_to_fit_width_forced) {
         // Otherwise, subtract the flex container's margin, border, and padding
         // from the space available to the flex container in that dimension and
         // use that value.
@@ -147,7 +149,10 @@ void FlexContainerBox::DetermineAvailableSpace(
   }
 
   main_space_ = main_space;
-  cross_space_ = cross_space;
+  if ((!main_direction_is_horizontal && !layout_params.freeze_width) ||
+      (main_direction_is_horizontal && !layout_params.freeze_height)) {
+    cross_space_ = cross_space;
+  }
 }
 
 // From |Box|.
@@ -193,7 +198,7 @@ void FlexContainerBox::UpdateContentSizeAndMargins(
       main_direction_is_horizontal ? main_space : cross_space,
       main_direction_is_horizontal ? cross_space : main_space);
 
-  LayoutParams child_layout_params;
+  LayoutParams child_layout_params(layout_params);
   child_layout_params.containing_block_size = available_space;
 
   FlexFormattingContext flex_formatting_context(
@@ -257,12 +262,15 @@ void FlexContainerBox::UpdateContentSizeAndMargins(
   // 4. Determine the main size of the flex container using the rules of the
   // formatting context in which it participates.
   if (!layout_params.freeze_width) {
+    const bool is_horizontal = MainDirectionIsHorizontal();
     UpdateContentWidthAndMargins(layout_params.containing_block_direction,
                                  layout_params.containing_block_size.width(),
                                  layout_params.shrink_to_fit_width_forced,
                                  width_depends_on_containing_block, maybe_left,
                                  maybe_right, maybe_margin_left,
-                                 maybe_margin_right, main_space_, cross_space_);
+                                 maybe_margin_right,
+                                 is_horizontal ? main_space_ : cross_space_,
+                                 is_horizontal ? cross_space_ : main_space_);
   }
   if (main_direction_is_horizontal) {
     main_size = width();
@@ -536,6 +544,7 @@ void FlexContainerBox::DumpProperties(std::ostream* stream) const {
   BlockContainerBox::DumpProperties(stream);
 
   *stream << "base_direction=" << base_direction_
+          << " MainDirectionIsHorizontal=" << MainDirectionIsHorizontal()
           << " main_space=" << main_space_.value_or(LayoutUnit())
           << " cross_space=" << cross_space_.value_or(LayoutUnit())
           << " min_main_space=" << min_main_space_.value_or(LayoutUnit())

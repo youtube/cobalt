@@ -83,6 +83,17 @@ class FlexFormattingContext : public FormattingContext {
 
   std::vector<std::unique_ptr<FlexLine>> lines_;
 
+  friend std::ostream& operator<<(std::ostream& os,
+                                  const FlexFormattingContext& data) {
+    os << "layout_params=" << data.layout_params_
+       << " main_direction_is_horizontal=" << data.main_direction_is_horizontal_
+       << " direction_is_reversed=" << data.direction_is_reversed_
+       << " multi_line=" << data.multi_line_
+       << " cross_size=" << data.cross_size_
+       << " fit_content_main_size_=" << data.fit_content_main_size_;
+    return os;
+  }
+
   DISALLOW_COPY_AND_ASSIGN(FlexFormattingContext);
 };
 
