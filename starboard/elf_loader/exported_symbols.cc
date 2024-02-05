@@ -158,7 +158,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbFileCanOpen);
   REGISTER_SYMBOL(SbFileClose);
   REGISTER_SYMBOL(SbFileDelete);
+  // #if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbFileExists);
+  // #endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbFileFlush);
   REGISTER_SYMBOL(SbFileGetInfo);
   REGISTER_SYMBOL(SbFileGetPathInfo);

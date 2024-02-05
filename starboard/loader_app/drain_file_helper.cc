@@ -43,7 +43,8 @@ ScopedDrainFile::~ScopedDrainFile() {
 }
 
 bool ScopedDrainFile::Exists() const {
-  return SbFileExists(path_.c_str());
+  struct stat info;
+  return stat(path_.c_str(), &info) == 0;
 }
 
 const std::string& ScopedDrainFile::app_key() const {

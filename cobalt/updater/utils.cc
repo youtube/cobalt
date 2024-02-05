@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <vector>
+#include <sys/stat.h>
 
 #include "base/base_paths.h"
 #include "base/files/file_path.h"

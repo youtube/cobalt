@@ -165,7 +165,8 @@ std::string ExtractCertificatesToFileSystem() {
   apk_path.append(std::string(kSbFileSepString) + "app" + kSbFileSepString +
                   "cobalt" + kSbFileSepString + "content" + kSbFileSepString +
                   "ssl" + kSbFileSepString + "certs");
-  if (!SbFileExists(apk_path.c_str())) {
+  struct stat info;
+  if (stat(apk_path.c_str(), &info) != 0) {
     SB_LOG(WARNING) << "CA certificates directory not found in APK";
     return "";
   }
