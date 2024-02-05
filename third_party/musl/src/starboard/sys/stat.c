@@ -45,12 +45,8 @@ int stat(const char *path, struct stat *file_info)
 }
 
 inline time_t WindowsUsecToTimeT(int64_t time) {
-    return static_cast<time_t>(WindowsTimeToPosixTime(time) / 1000000);
-}
-
-// Converts a Windows microseconds timestamp to a Posix microseconds timestamp.
-inline time_t WindowsTimeToPosixTime(int64_t posix_time) {
-  // Subtract number of microseconds since Jan 1, 1601 (UTC) until Jan 1, 1970 (UTC).
-  return posix_time - 11644473600000000ULL;
+    int64_t posix_time = time - 11644473600000000ULL;
+    posix_time = posix_time / 1000000;
+    return (time_t)posix_time;
 }
 #endif  // SB_API_VERSION < 16
