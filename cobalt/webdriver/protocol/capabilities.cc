@@ -50,7 +50,7 @@ const char kRequiredCapabilitiesKey[] = "requiredCapabilities";
 class CapabilityReader {
  public:
   CapabilityReader(Capabilities* capabilities,
-                   base::DictionaryValue* capabilities_value)
+                   base::Value::Dict* capabilities_value)
       : capabilities_(capabilities), capabilities_value_(capabilities_value) {}
 
   template <base::Optional<std::string> Capabilities::*member>
@@ -75,8 +75,8 @@ class CapabilityReader {
 
   template <typename T, base::Optional<T> Capabilities::*member>
   void TryReadCapability(const char* key) {
-    const base::DictionaryValue* dictionary_value;
-    if (capabilities_value_->GetDictionary(key, &dictionary_value)) {
+    const base::Value* dictionary_value = capabilities_value_->Find(key);
+    if (dictionary_value) {
       (capabilities_->*member) = T::FromValue(dictionary_value);
       if (capabilities_->*member) {
         bool removed = capabilities_value_->Remove(key, NULL);
@@ -87,43 +87,42 @@ class CapabilityReader {
 
  private:
   Capabilities* capabilities_;
-  base::DictionaryValue* capabilities_value_;
+  base::Value::Dict* capabilities_value_;
 };
 
 class CapabilityWriter {
  public:
   CapabilityWriter(const Capabilities& capabilities,
-                   base::DictionaryValue* capabilities_value)
+                   base::Value::Dict* capabilities_value)
       : capabilities_(capabilities), capabilities_value_(capabilities_value) {}
 
   template <base::Optional<std::string> Capabilities::*member>
   void TryWriteCapability(const char* key) {
     if (capabilities_.*member) {
-      capabilities_value_->SetString(key, (capabilities_.*member).value_or(""));
+      capabilities_value_->Set(key, (capabilities_.*member).value_or(""));
     }
   }
 
   template <base::Optional<bool> Capabilities::*member>
   void TryWriteCapability(const char* key) {
     if (capabilities_.*member) {
-      capabilities_value_->SetBoolean(key,
-                                      (capabilities_.*member).value_or(false));
+      capabilities_value_->Set(key, (capabilities_.*member).value_or(false));
     }
   }
 
  private:
   const Capabilities& capabilities_;
-  base::DictionaryValue* capabilities_value_;
+  base::Value::Dict* capabilities_value_;
 };
 
 }  // namespace
 
 std::unique_ptr<base::Value> Capabilities::ToValue(
     const Capabilities& capabilities) {
-  std::unique_ptr<base::DictionaryValue> capabilities_value(
-      new base::DictionaryValue());
+  base::Value ret(base::Value::Type::DICT);
+  base::Value::Dict* capabilities_value = ret->GetIfDict();
 
-  CapabilityWriter writer(capabilities, capabilities_value.get());
+  CapabilityWriter writer(capabilities, capabilities_value);
   // Write all the capabilities that have been set.
   writer.TryWriteCapability<&Capabilities::browser_name_>(kBrowserNameKey);
   writer.TryWriteCapability<&Capabilities::version_>(kVersionKey);
@@ -149,7 +148,7 @@ std::unique_ptr<base::Value> Capabilities::ToValue(
       kAcceptSslCertsKey);
   writer.TryWriteCapability<&Capabilities::native_events_>(kNativeEventsKey);
 
-  return std::unique_ptr<base::Value>(capabilities_value.release());
+  return base::Value::ToUniquePtrValue(std::move(ret));
 }
 
 base::Optional<Capabilities> Capabilities::FromValue(const base::Value* value) {
@@ -160,12 +159,11 @@ base::Optional<Capabilities> Capabilities::FromValue(const base::Value* value) {
   // Create a new Capabilities object, and copy the capabilities dictionary
   // from which we will read capabilities
   Capabilities capabilities;
-  std::unique_ptr<base::DictionaryValue> capabilities_copy(
-      value_as_dictionary->DeepCopy());
+  base::Value::Dict capabilities_copy = value_as_dictionary->Clone();
 
   // Read all the capabilities we know about, and remove handled capabilities
   // from the dictionary.
-  CapabilityReader reader(&capabilities, capabilities_copy.get());
+  CapabilityReader reader(&capabilities, &capabilities_copy);
   reader.TryReadCapability<&Capabilities::browser_name_>(kBrowserNameKey);
   reader.TryReadCapability<&Capabilities::version_>(kVersionKey);
   reader.TryReadCapability<&Capabilities::platform_>(kPlatformKey);
@@ -230,8 +228,9 @@ base::Optional<RequestedCapabilities> RequestedCapabilities::FromValue(
     return base::nullopt;
   }
   base::Optional<Capabilities> required;
-  if (requested_capabilities_value->Get(kRequiredCapabilitiesKey,
-                                        &capabilities_value)) {
+  capabilities_value =
+      requested_capabilities_value->Find(kRequiredCapabilitiesKey);
+  if (capabilities_value) {
     required = Capabilities::FromValue(capabilities_value);
   }
   if (required) {

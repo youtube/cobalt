@@ -70,6 +70,7 @@ static_library("worker") {
 
   deps = [
     "//cobalt/browser:generated_bindings",
+    "//cobalt/cache",
     "//cobalt/loader",
     "//cobalt/web",
     "//net",

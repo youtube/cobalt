@@ -267,7 +267,7 @@ void ScrollEngine::HandlePointerEventForActiveItem(
   ScrollNavItemWithVector(active_item_, drag_vector);
 }
 
-void ScrollEngine::HandlePointerEvent(base::Token type,
+void ScrollEngine::HandlePointerEvent(base_token::Token type,
                                       const dom::PointerEventInit& event) {
   DCHECK(base::MessageLoop::current() == scroll_engine_.message_loop());
 

@@ -47,7 +47,7 @@ class HTMLMediaElement : public HTMLElement,
   typedef ::cobalt::media::WebMediaPlayer WebMediaPlayer;
   typedef ::cobalt::media::WebMediaPlayerClient WebMediaPlayerClient;
 
-  HTMLMediaElement(Document* document, base::Token tag_name);
+  HTMLMediaElement(Document* document, base_token::Token tag_name);
   ~HTMLMediaElement() override;
 
   // Web API: HTMLMediaElement
@@ -189,7 +189,7 @@ class HTMLMediaElement : public HTMLElement,
 
   // Events
   void ScheduleTimeupdateEvent(bool periodic_event);
-  void ScheduleOwnEvent(base::Token event_name);
+  void ScheduleOwnEvent(base_token::Token event_name);
   void CancelPendingEventsAndCallbacks();
   bool ProcessingMediaPlayerCallback() const {
     return processing_media_player_callback_ > 0;

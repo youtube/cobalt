@@ -39,7 +39,7 @@ StrategyStringMapping strategy_mapping[] = {
 
 bool GetSearchStrategyFromString(const std::string& strategy_string,
                                  SearchStrategy::Strategy* out_strategy) {
-  for (size_t i = 0; i < arraysize(strategy_mapping); ++i) {
+  for (size_t i = 0; i < std::size(strategy_mapping); ++i) {
     if (strategy_mapping[i].name == strategy_string) {
       *out_strategy = strategy_mapping[i].strategy;
       return true;
@@ -67,7 +67,7 @@ base::Optional<SearchStrategy> SearchStrategy::FromValue(
   if (!GetSearchStrategyFromString(using_strategy, &strategy)) {
     return base::nullopt;
   }
-  return SearchStrategy(strategy, parameter);
+  return SearchStrategy(strategy, *parameter);
 }
 
 }  // namespace protocol

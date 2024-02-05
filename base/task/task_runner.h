@@ -73,6 +73,10 @@ class BASE_EXPORT TaskRunner
   virtual bool PostDelayedTask(const Location& from_here,
                                OnceClosure task,
                                base::TimeDelta delay) = 0;
+  void WaitForFence() {}
+  bool RunsTasksInCurrentSequence() { return false; }
+  void PostBlockingTask() {}
+  void PostBlockingTask(base::Location f, RepeatingClosure foo) {}
 
   // Posts |task| on the current TaskRunner.  On completion, |reply| is posted
   // to the sequence that called PostTaskAndReply().  On the success case,

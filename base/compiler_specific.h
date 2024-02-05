@@ -228,6 +228,20 @@
 #define HAS_FEATURE(FEATURE) 0
 #endif
 
+#if defined(COMPILER_MSVC)
+#define ALLOW_THIS_IN_INITIALIZER_LIST(code) \
+  MSVC_PUSH_DISABLE_WARNING(4355)            \
+  code MSVC_POP_WARNING()
+#else
+#define _Printf_format_string_
+#define MSVC_SUPPRESS_WARNING(n)
+#define MSVC_PUSH_DISABLE_WARNING(n)
+#define MSVC_POP_WARNING()
+#define MSVC_DISABLE_OPTIMIZE()
+#define MSVC_ENABLE_OPTIMIZE()
+#define ALLOW_THIS_IN_INITIALIZER_LIST(code) code
+#endif
+
 #if defined(COMPILER_GCC)
 #define PRETTY_FUNCTION __PRETTY_FUNCTION__
 #elif defined(COMPILER_MSVC)

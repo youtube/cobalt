@@ -34,13 +34,14 @@ class SystemWindow;
 
 namespace input {
 
-typedef base::Callback<void(base::Token type, const dom::PointerEventInit&)>
+typedef base::Callback<void(base_token::Token type,
+                            const dom::PointerEventInit&)>
     PointerEventCallback;
 
-typedef base::Callback<void(base::Token type, const dom::WheelEventInit&)>
+typedef base::Callback<void(base_token::Token type, const dom::WheelEventInit&)>
     WheelEventCallback;
 
-typedef base::Callback<void(base::Token type, const dom::InputEventInit&)>
+typedef base::Callback<void(base_token::Token type, const dom::InputEventInit&)>
     InputEventCallback;
 
 // InputDeviceManager listens to events from platform-specific input devices

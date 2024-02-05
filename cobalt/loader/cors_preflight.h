@@ -27,12 +27,12 @@
 #include "base/message_loop/message_loop.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/loader/cors_preflight_cache.h"
+#include "cobalt/network/custom/url_fetcher.h"
+#include "cobalt/network/custom/url_fetcher_delegate.h"
 #include "cobalt/network/network_delegate.h"
 #include "cobalt/network/network_module.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
-#include "net/url_request/url_fetcher.h"
-#include "net/url_request/url_fetcher_delegate.h"
 #include "url/gurl.h"
 
 namespace cobalt {

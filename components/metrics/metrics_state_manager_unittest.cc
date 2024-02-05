@@ -13,7 +13,6 @@
 #include "base/bind.h"
 #include "base/command_line.h"
 #include "base/macros.h"
-#include "base/strings/string16.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "components/metrics/client_info.h"
 #include "components/metrics/metrics_log.h"
@@ -177,7 +176,9 @@ TEST_F(MetricsStateManagerTest,
     state_manager->GetLowEntropySource();
 
     EXPECT_FALSE(low_entropy_pref->IsDefaultValue());
-    EXPECT_TRUE(low_entropy_pref->GetValue()->GetAsInteger(&low_entropy_value));
+    auto low_entropy_value_optional = low_entropy_pref->GetValue()->GetIfInt();
+    EXPECT_TRUE(low_entropy_value_optional.has_value());
+    low_entropy_value = low_entropy_value_optional.value();
   }
 
   // Now, set a dummy value in the permuted entropy cache pref and verify that

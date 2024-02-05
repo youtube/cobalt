@@ -8,6 +8,7 @@
 #include <set>
 #include <string>
 
+#include "base/callback.h"
 #include "base/macros.h"
 #include "base/metrics/field_trial.h"
 #include "components/variations/variations_associated_data.h"

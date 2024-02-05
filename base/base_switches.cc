@@ -8,6 +8,12 @@
 
 namespace switches {
 
+// Setting this switch defines which font format(s) Cobalt will load locally.
+// Values include 'ttf', 'ttf-preferred', 'woff2', and 'woff2-preferred'.
+// Values with 'preferred' can load all types of fonts but prioritize the
+// format specified. 'woff2-preferred' is the default value.
+const char kFontFormat[] = "font-format";
+
 // Delays execution of TaskPriority::BEST_EFFORT tasks until shutdown.
 const char kDisableBestEffortTasks[] = "disable-best-effort-tasks";
 

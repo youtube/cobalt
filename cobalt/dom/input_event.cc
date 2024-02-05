@@ -29,12 +29,13 @@ InputEvent::InputEvent(const std::string& type)
       is_composing_(false) {}
 
 InputEvent::InputEvent(const std::string& type, const InputEventInit& init_dict)
-    : UIEvent(base::Token(type), kBubbles, kCancelable, init_dict.view(),
+    : UIEvent(base_token::Token(type), kBubbles, kCancelable, init_dict.view(),
               init_dict),
       data_(init_dict.data()),
       is_composing_(init_dict.is_composing()) {}
 
-InputEvent::InputEvent(base::Token type, const scoped_refptr<Window>& view,
+InputEvent::InputEvent(base_token::Token type,
+                       const scoped_refptr<Window>& view,
                        const InputEventInit& init_dict)
     : UIEvent(type, kBubbles, kCancelable, view, init_dict),
       data_(init_dict.data()),

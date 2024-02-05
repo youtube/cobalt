@@ -61,10 +61,10 @@ class EventTargetListenerInfo {
     kAddEventListener,
   };
 
-  EventTargetListenerInfo(script::Wrappable* wrappable, base::Token type,
+  EventTargetListenerInfo(script::Wrappable* wrappable, base_token::Token type,
                           AttachMethod attach, bool use_capture,
                           const EventListenerScriptValue& script_value);
-  EventTargetListenerInfo(script::Wrappable* wrappable, base::Token type,
+  EventTargetListenerInfo(script::Wrappable* wrappable, base_token::Token type,
                           AttachMethod attach, bool use_capture,
                           bool unpack_error_event,
                           const OnErrorEventListenerScriptValue& script_value);
@@ -77,7 +77,7 @@ class EventTargetListenerInfo {
   ~EventTargetListenerInfo();
 
   const void* task() const { return task_; }
-  base::Token type() const { return type_; }
+  base_token::Token type() const { return type_; }
   bool is_attribute() const { return is_attribute_; }
   bool use_capture() const { return use_capture_; }
 
@@ -116,7 +116,7 @@ class EventTargetListenerInfo {
   // unique task.
   const void* const task_;
 
-  base::Token const type_;
+  base_token::Token const type_;
   bool const is_attribute_;
   bool const use_capture_;
   bool const unpack_error_event_;

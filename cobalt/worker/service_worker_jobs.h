@@ -25,7 +25,7 @@
 #include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
-#include "base/task/sequence_manager/moveable_auto_lock.h"
+#include "base/task/common/checked_lock.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/script_loader_factory.h"
 #include "cobalt/network/network_module.h"
@@ -159,11 +159,10 @@ class ServiceWorkerJobs {
 
     // Also return a held autolock, to ensure the item remains a valid item in
     // the queue while it's in use.
-    std::pair<Job*, base::sequence_manager::MoveableAutoLock> LastItem() {
-      base::sequence_manager::MoveableAutoLock lock(mutex_);
+    std::pair<Job*, base::AutoLock> LastItem() {
+      base::AutoLock lock(mutex_);
       Job* job = jobs_.empty() ? nullptr : jobs_.back().get();
-      return std::pair<Job*, base::sequence_manager::MoveableAutoLock>(
-          job, std::move(lock));
+      return std::pair<Job*, base::AutoLock>(job, std::move(lock));
     }
 
     // Ensure no references are kept to JS objects for a client that is about to

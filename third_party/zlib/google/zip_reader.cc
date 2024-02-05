@@ -10,7 +10,7 @@
 #include "base/files/file.h"
 #include "base/logging.h"
 #include "base/macros.h"
-#include "base/single_thread_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/thread_task_runner_handle.h"
@@ -113,7 +113,7 @@ ZipReader::EntryInfo::EntryInfo(const std::string& file_name_in_zip,
   is_unsafe_ = file_path_.ReferencesParent();
 
   // We also consider that the file name is unsafe, if it's invalid UTF-8.
-  base::string16 file_name_utf16;
+  std::u16string file_name_utf16;
   if (!base::UTF8ToUTF16(file_name_in_zip.data(), file_name_in_zip.size(),
                          &file_name_utf16)) {
     is_unsafe_ = true;
@@ -176,7 +176,7 @@ bool ZipReader::Open(const base::FilePath& zip_file_path) {
 bool ZipReader::OpenFromPlatformFile(base::PlatformFile zip_fd) {
   DCHECK(!zip_file_);
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(STARBOARD)
   zip_file_ = internal::OpenFdForUnzipping(zip_fd);
 #elif defined(OS_WIN)
   zip_file_ = internal::OpenHandleForUnzipping(zip_fd);
@@ -359,7 +359,7 @@ void ZipReader::ExtractCurrentEntryToFilePathAsync(
   base::ThreadTaskRunnerHandle::Get()->PostTask(
       FROM_HERE,
       base::BindOnce(&ZipReader::ExtractChunk, weak_ptr_factory_.GetWeakPtr(),
-                     Passed(std::move(output_file)),
+                     std::move(output_file),
                      std::move(success_callback), std::move(failure_callback),
                      progress_callback, 0 /* initial offset */));
 }
@@ -461,7 +461,7 @@ void ZipReader::ExtractChunk(base::File output_file,
     base::ThreadTaskRunnerHandle::Get()->PostTask(
         FROM_HERE,
         base::BindOnce(&ZipReader::ExtractChunk, weak_ptr_factory_.GetWeakPtr(),
-                       Passed(std::move(output_file)),
+                       std::move(output_file),
                        std::move(success_callback), std::move(failure_callback),
                        progress_callback, current_progress));
   }

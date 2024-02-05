@@ -90,10 +90,10 @@ class WindowTimers {
 
     // Create and start a timer of the specified TimerClass type.
     template <class TimerClass>
-    std::unique_ptr<base::internal::TimerBase> CreateAndStart();
+    std::unique_ptr<base::internal::DelayTimerBase> CreateAndStart();
 
     TimerType type_;
-    std::unique_ptr<base::internal::TimerBase> timer_;
+    std::unique_ptr<base::internal::DelayTimerBase> timer_;
     TimerCallbackArg::Reference callback_;
     StatTracker* const stat_tracker_;
     const base::DebuggerHooks& debugger_hooks_;

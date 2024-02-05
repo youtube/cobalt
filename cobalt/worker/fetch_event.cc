@@ -29,12 +29,12 @@ namespace worker {
 FetchEvent::FetchEvent(script::EnvironmentSettings* environment_settings,
                        const std::string& type,
                        const FetchEventInit& event_init_dict)
-    : FetchEvent(environment_settings, base::Token(type), event_init_dict,
+    : FetchEvent(environment_settings, base_token::Token(type), event_init_dict,
                  base::ThreadTaskRunnerHandle::Get(), RespondWithCallback(),
                  ReportLoadTimingInfo()) {}
 
 FetchEvent::FetchEvent(
-    script::EnvironmentSettings* environment_settings, base::Token type,
+    script::EnvironmentSettings* environment_settings, base_token::Token type,
     const FetchEventInit& event_init_dict,
     scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
     RespondWithCallback respond_with_callback,

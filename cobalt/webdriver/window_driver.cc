@@ -558,7 +558,7 @@ void WindowDriver::InitPointerEvent(dom::PointerEventInit* event) {
   event->set_is_primary(true);
 }
 
-void WindowDriver::InjectPointerEvent(base::Token type,
+void WindowDriver::InjectPointerEvent(base_token::Token type,
                                       const dom::PointerEventInit& event,
                                       scoped_refptr<dom::Element> element) {
   pointer_x_ = event.screen_x();

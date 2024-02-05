@@ -31,7 +31,7 @@ class HTMLHeadElement : public HTMLElement {
   static const char kTagName[];
 
   explicit HTMLHeadElement(Document* document)
-      : HTMLElement(document, base::Token(kTagName)) {}
+      : HTMLElement(document, base_token::Token(kTagName)) {}
 
   // Custom, not in any spec.
   scoped_refptr<HTMLHeadElement> AsHTMLHeadElement() override { return this; }

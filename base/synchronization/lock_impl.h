@@ -159,7 +159,7 @@ class SCOPED_LOCKABLE BasicAutoLock {
     lock_.AssertAcquired();
   }
 
-  BasicAutoLock(const BasicAutoLock&) = delete;
+  // BasicAutoLock(const BasicAutoLock&) = delete;
   BasicAutoLock& operator=(const BasicAutoLock&) = delete;
 
   ~BasicAutoLock() UNLOCK_FUNCTION() {

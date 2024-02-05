@@ -19,6 +19,7 @@
 #include "base/bind.h"
 #include "base/logging.h"
 #include "base/message_loop/message_loop.h"
+#include "base/message_loop/message_pump_for_ui.h"
 #include "cobalt/base/init_cobalt.h"
 #include "cobalt/base/wrap_main.h"
 #include "starboard/client_porting/wrap_main/wrap_main.h"

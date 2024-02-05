@@ -8,6 +8,7 @@
 #include <map>
 #include <utility>
 
+#include "base/optional.h"
 #include "base/bind.h"
 #include "base/debug/alias.h"
 #include "base/debug/dump_without_crashing.h"
@@ -16,13 +17,12 @@
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/metrics/histogram.h"
-#include "base/single_thread_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/stl_util.h"
+#include "base/json/values_util.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/threading/thread_task_runner_handle.h"
-#include "base/util/values/values_util.h"
-#include "base/value_conversions.h"
 #include "build/build_config.h"
 #include "components/prefs/default_pref_store.h"
 #include "components/prefs/pref_notifier_impl.h"
@@ -234,18 +234,18 @@ void PrefService::IteratePreferenceValues(
     callback.Run(it.first, *GetPreferenceValue(it.first));
 }
 
-std::unique_ptr<base::DictionaryValue> PrefService::GetPreferenceValues(
+base::Value::Dict PrefService::GetPreferenceValues(
     IncludeDefaults include_defaults) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  std::unique_ptr<base::DictionaryValue> out(new base::DictionaryValue);
+  base::Value::Dict out;
   for (const auto& it : *pref_registry_) {
     if (include_defaults == INCLUDE_DEFAULTS) {
-      out->Set(it.first, GetPreferenceValue(it.first)->CreateDeepCopy());
+      out.Set(it.first, GetPreferenceValue(it.first)->Clone());
     } else {
       const Preference* pref = FindPreference(it.first);
       if (pref->IsDefaultValue())
         continue;
-      out->Set(it.first, pref->GetValue()->CreateDeepCopy());
+      out.Set(it.first, pref->GetValue()->Clone());
     }
   }
   return out;
@@ -320,18 +320,18 @@ const base::Value* PrefService::Get(const std::string& path) const {
   return value;
 }
 
-const base::DictionaryValue* PrefService::GetDictionary(
+const base::Value::Dict* PrefService::GetDictionary(
     const std::string& path) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   const base::Value* value = GetPreferenceValueChecked(path);
   if (!value)
     return nullptr;
-  if (value->type() != base::Value::Type::DICTIONARY) {
+  if (value->type() != base::Value::Type::DICT) {
     NOTREACHED();
     return nullptr;
   }
-  return static_cast<const base::DictionaryValue*>(value);
+  return value->GetIfDict();
 }
 
 const base::Value* PrefService::GetUserPrefValue(
@@ -374,7 +374,7 @@ const base::Value* PrefService::GetDefaultPrefValue(
   return value;
 }
 
-const base::ListValue* PrefService::GetList(const std::string& path) const {
+const base::Value::List* PrefService::GetList(const std::string& path) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   const base::Value* value = GetPreferenceValueChecked(path);
@@ -384,7 +384,7 @@ const base::ListValue* PrefService::GetList(const std::string& path) const {
     NOTREACHED();
     return nullptr;
   }
-  return static_cast<const base::ListValue*>(value);
+  return value->GetIfList();
 }
 
 void PrefService::AddPrefObserver(const std::string& path, PrefObserver* obs) {
@@ -471,46 +471,54 @@ void PrefService::RemovePrefObserverAllPrefs(PrefObserver* obs) {
 }
 
 void PrefService::Set(const std::string& path, const base::Value& value) {
-  SetUserPrefValue(path, value.CreateDeepCopy());
+  SetUserPrefValue(path, value.Clone());
+}
+
+void PrefService::SetList(const std::string& path, const base::Value::List& value) {
+  SetUserPrefValue(path, base::Value(value.Clone()));
+}
+
+void PrefService::SetDict(const std::string& path, const base::Value::Dict& value) {
+  SetUserPrefValue(path, base::Value(value.Clone()));
 }
 
 void PrefService::SetBoolean(const std::string& path, bool value) {
-  SetUserPrefValue(path, std::make_unique<base::Value>(value));
+  SetUserPrefValue(path, base::Value(value));
 }
 
 void PrefService::SetInteger(const std::string& path, int value) {
-  SetUserPrefValue(path, std::make_unique<base::Value>(value));
+  SetUserPrefValue(path, base::Value(value));
 }
 
 void PrefService::SetDouble(const std::string& path, double value) {
-  SetUserPrefValue(path, std::make_unique<base::Value>(value));
+  SetUserPrefValue(path, base::Value(value));
 }
 
 void PrefService::SetString(const std::string& path, const std::string& value) {
-  SetUserPrefValue(path, std::make_unique<base::Value>(value));
+  SetUserPrefValue(path, base::Value(value));
 }
 
 void PrefService::SetFilePath(const std::string& path,
                               const base::FilePath& value) {
   SetUserPrefValue(
-      path, base::Value::ToUniquePtrValue(base::CreateFilePathValue(value)));
+      path, base::Value(base::CreateFilePathValue(value)));
 }
 
 void PrefService::SetInt64(const std::string& path, int64_t value) {
   SetUserPrefValue(path,
-                   base::Value::ToUniquePtrValue(util::Int64ToValue(value)));
+                   base::Value(base::Value(static_cast<int>(value))));
 }
 
 int64_t PrefService::GetInt64(const std::string& path) const {
   const base::Value* value = GetPreferenceValueChecked(path);
-  base::Optional<int64_t> integer = util::ValueToInt64(value);
+  absl::optional<int64_t> integer = base::ValueToInt64(value);
   DCHECK(integer);
   return integer.value_or(0);
 }
 
 void PrefService::SetUint64(const std::string& path, uint64_t value) {
   SetUserPrefValue(path,
-                   std::make_unique<base::Value>(base::NumberToString(value)));
+                   base::Value(base::NumberToString(value)));
 }
 
 uint64_t PrefService::GetUint64(const std::string& path) const {
@@ -530,31 +538,31 @@ uint64_t PrefService::GetUint64(const std::string& path) const {
 
 void PrefService::SetTime(const std::string& path, base::Time value) {
   SetUserPrefValue(path,
-                   base::Value::ToUniquePtrValue(util::TimeToValue(value)));
+                   base::Value(base::TimeToValue(value)));
 }
 
 base::Time PrefService::GetTime(const std::string& path) const {
   const base::Value* value = GetPreferenceValueChecked(path);
-  base::Optional<base::Time> time = util::ValueToTime(value);
+  absl::optional<base::Time> time = base::ValueToTime(value);
   DCHECK(time);
   return time.value_or(base::Time());
 }
 
 void PrefService::SetTimeDelta(const std::string& path, base::TimeDelta value) {
   SetUserPrefValue(
-      path, base::Value::ToUniquePtrValue(util::TimeDeltaToValue(value)));
+      path, base::Value(base::TimeDeltaToValue(value)));
 }
 
 base::TimeDelta PrefService::GetTimeDelta(const std::string& path) const {
   const base::Value* value = GetPreferenceValueChecked(path);
-  base::Optional<base::TimeDelta> time_delta = util::ValueToTimeDelta(value);
+  absl::optional<base::TimeDelta> time_delta = base::ValueToTimeDelta(value);
   DCHECK(time_delta);
   return time_delta.value_or(base::TimeDelta());
 }
 
 base::Value* PrefService::GetMutableUserPref(const std::string& path,
                                              base::Value::Type type) {
-  CHECK(type == base::Value::Type::DICTIONARY ||
+  CHECK(type == base::Value::Type::DICT ||
         type == base::Value::Type::LIST);
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
@@ -590,7 +598,7 @@ base::Value* PrefService::GetMutableUserPref(const std::string& path,
     DEBUG_ALIAS_FOR_CSTR(path_copy, path.c_str(), 1024);
     base::debug::DumpWithoutCrashing();
   }
-  user_pref_store_->SetValueSilently(path, default_value->CreateDeepCopy(),
+  user_pref_store_->SetValueSilently(path, default_value->Clone(),
                                      GetWriteFlags(pref));
   user_pref_store_->GetMutableValue(path, &value);
   return value;
@@ -610,7 +618,7 @@ void PrefService::ReportUserPrefChanged(
 }
 
 void PrefService::SetUserPrefValue(const std::string& path,
-                                   std::unique_ptr<base::Value> new_value) {
+                                   base::Value new_value) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   const Preference* pref = FindPreference(path);

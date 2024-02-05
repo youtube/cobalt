@@ -52,7 +52,7 @@ class VertexBufferObject {
   GLuint mesh_vertex_buffer_;
   THREAD_CHECKER(thread_checker_);
 
-  DISALLOW_COPY_AND_ASSIGN(VertexBufferObject);
+  // DISALLOW_COPY_AND_ASSIGN(VertexBufferObject);
 };
 
 }  // namespace skia

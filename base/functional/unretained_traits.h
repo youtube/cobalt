@@ -32,6 +32,10 @@ struct hb_set_t;
 struct wl_gpu;
 struct wl_shm;
 struct wl_surface;
+struct SbPlayerPrivate;
+struct SbWindowPrivate;
+struct SbUiNavItemPrivate;
+struct SbDrmSystemPrivate;
 
 namespace base::internal {
 
@@ -113,6 +117,15 @@ template <>
 inline constexpr bool IsIncompleteTypeSafeForUnretained<wl_shm> = true;
 template <>
 inline constexpr bool IsIncompleteTypeSafeForUnretained<wl_surface> = true;
+
+template <>
+inline constexpr bool IsIncompleteTypeSafeForUnretained<SbPlayerPrivate> = true;
+template <>
+inline constexpr bool IsIncompleteTypeSafeForUnretained<SbWindowPrivate> = true;
+template <>
+inline constexpr bool IsIncompleteTypeSafeForUnretained<SbUiNavItemPrivate> = true;
+template <>
+inline constexpr bool IsIncompleteTypeSafeForUnretained<SbDrmSystemPrivate> = true;
 
 template <typename T, typename SFINAE = void>
 struct TypeSupportsUnretained {

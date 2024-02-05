@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 
+#include "base/logging.h"
 #include "base/optional.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
@@ -50,8 +51,8 @@ base::Optional<TextureDimensions> MakeDimensionsIfValid(TextureDimensions td) {
 }
 
 bool StringValueSignalsAutoset(const std::string& value) {
-  return base::LowerCaseEqualsASCII(value, "auto") ||
-         base::LowerCaseEqualsASCII(value, "autoset") || value == "-1";
+  return base::EqualsCaseInsensitiveASCII(value, "auto") ||
+         base::EqualsCaseInsensitiveASCII(value, "autoset") || value == "-1";
 }
 
 struct ParsedIntValue {

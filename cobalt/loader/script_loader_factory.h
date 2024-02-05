@@ -38,9 +38,9 @@ namespace loader {
 // maintains all context necessary to create the various resource types.
 class ScriptLoaderFactory {
  public:
-  ScriptLoaderFactory(const char* name, FetcherFactory* fetcher_factory,
-                      base::ThreadPriority loader_thread_priority =
-                          base::ThreadPriority::NORMAL);
+  ScriptLoaderFactory(
+      const char* name, FetcherFactory* fetcher_factory,
+      base::ThreadType loader_thread_priority = base::ThreadType::kDefault);
 
   // Creates a loader that fetches and decodes a Javascript resource.
   std::unique_ptr<Loader> CreateScriptLoader(
@@ -71,7 +71,7 @@ class ScriptLoaderFactory {
   Loader::FetcherCreator MakeFetcherCreator(
       const GURL& url, const csp::SecurityCallback& url_security_callback,
       RequestMode request_mode, const Origin& origin,
-      disk_cache::ResourceType type = disk_cache::kOther,
+      network::disk_cache::ResourceType type = network::disk_cache::kOther,
       net::HttpRequestHeaders headers = net::HttpRequestHeaders(),
       bool skip_fetch_intercept = false);
 

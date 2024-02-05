@@ -22,14 +22,14 @@
 #include "base/threading/thread.h"
 #include "cobalt/loader/url_fetcher_string_writer.h"
 #include "cobalt/media/base/audio_bus.h"
+#include "cobalt/network/custom/url_fetcher.h"
+#include "cobalt/network/custom/url_fetcher_delegate.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/speech/audio_encoder_flac.h"
 #include "cobalt/speech/google_streaming_api.pb.h"
 #include "cobalt/speech/speech_recognition_config.h"
 #include "cobalt/speech/speech_recognition_event.h"
 #include "content/browser/speech/chunked_byte_buffer.h"
-#include "net/url_request/url_fetcher.h"
-#include "net/url_request/url_fetcher_delegate.h"
 
 namespace cobalt {
 namespace speech {

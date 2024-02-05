@@ -25,11 +25,11 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/loader/fetcher.h"
+#include "cobalt/network/custom/url_fetcher.h"
+#include "cobalt/network/custom/url_fetcher_delegate.h"
+#include "cobalt/network/disk_cache/resource_type.h"
 #include "cobalt/network/network_module.h"
-#include "net/disk_cache/cobalt/resource_type.h"
 #include "net/http/http_request_headers.h"
-#include "net/url_request/url_fetcher.h"
-#include "net/url_request/url_fetcher_delegate.h"
 #include "starboard/common/atomic.h"
 #include "url/gurl.h"
 
@@ -46,10 +46,10 @@ class NetFetcher : public Fetcher,
    public:
     Options()
         : request_method(net::URLFetcher::GET),
-          resource_type(disk_cache::kOther),
+          resource_type(network::disk_cache::kOther),
           skip_fetch_intercept(false) {}
     net::URLFetcher::RequestType request_method;
-    disk_cache::ResourceType resource_type;
+    network::disk_cache::ResourceType resource_type;
     net::HttpRequestHeaders headers;
     bool skip_fetch_intercept;
   };
@@ -111,7 +111,7 @@ class NetFetcher : public Fetcher,
   csp::SecurityCallback security_callback_;
   // Ensure we can cancel any in-flight Start() task if we are destroyed
   // after being constructed, but before Start() runs.
-  base::CancelableClosure start_callback_;
+  base::CancelableRepeatingClosure start_callback_;
 
   network::CORSPolicy cors_policy_;
   // True if request mode is CORS and request URL's origin is different from

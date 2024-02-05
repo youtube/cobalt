@@ -20,10 +20,12 @@
 #include <utility>
 #include <vector>
 
+#include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop/message_loop.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread_task_runner_handle.h"
+#include "base/time/time.h"
 #include "v8/include/libplatform/libplatform.h"
 #include "v8/include/v8-platform.h"
 #include "v8/include/v8.h"
@@ -140,7 +142,7 @@ class CobaltPlatform : public v8::Platform {
     // reference cycle. Also this class should be guaranteed to live shorter
     // than the thread.
     base::SingleThreadTaskRunner* task_runner_;
-    base::WeakPtrFactory<CobaltV8TaskRunner> weak_ptr_factory_;
+    base::WeakPtrFactory<CobaltV8TaskRunner> weak_ptr_factory_{this};
     // If tasks are posted before isolate is registered, we record their delay
     // and post them when isolate is registered to a thread.
     std::vector<std::unique_ptr<TaskBeforeRegistration>>

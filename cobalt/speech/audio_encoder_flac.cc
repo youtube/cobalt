@@ -92,7 +92,7 @@ std::string AudioEncoderFlac::GetMimeType() const {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   return std::string(kContentTypeFLAC) +
-         base::UintToString(FLAC__stream_encoder_get_sample_rate(encoder_));
+         std::to_string(FLAC__stream_encoder_get_sample_rate(encoder_));
 }
 
 std::string AudioEncoderFlac::GetAndClearAvailableEncodedData() {

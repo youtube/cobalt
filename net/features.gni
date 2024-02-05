@@ -11,7 +11,7 @@ declare_args() {
 
   # WebSockets and socket stream code are not used when blink is not used
   # and are optional in cronet.
-  enable_websockets = use_blink
+  enable_websockets = use_blink || true
 
   # Enable Kerberos authentication. It is disabled by default on iOS, Fuchsia
   # and Chromecast, at least for now. This feature needs configuration

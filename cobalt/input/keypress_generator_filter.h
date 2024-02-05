@@ -32,7 +32,7 @@ class KeypressGeneratorFilter : public KeyEventHandler {
 
   // Conditionally generates an additional keypress event.
   // Passes on the new and original events for further processing/handling.
-  void HandleKeyboardEvent(base::Token type,
+  void HandleKeyboardEvent(base_token::Token type,
                            const dom::KeyboardEventInit& event) override;
 
  protected:
@@ -40,7 +40,7 @@ class KeypressGeneratorFilter : public KeyEventHandler {
   // 1. The original event is a keydown.
   // 2. The keycode corresponds to a printable character, or BS/Enter.
   bool ConditionallyGenerateKeypressEvent(
-      base::Token type, const dom::KeyboardEventInit& orig_event);
+      base_token::Token type, const dom::KeyboardEventInit& orig_event);
 };
 
 }  // namespace input

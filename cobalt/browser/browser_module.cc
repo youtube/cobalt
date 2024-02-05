@@ -29,6 +29,7 @@
 #include "base/path_service.h"
 #include "base/stl_util.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_tokenizer.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/cobalt_paths.h"
@@ -450,10 +451,10 @@ BrowserModule::~BrowserModule() {
   switch (application_state_) {
     case base::kApplicationStateStarted:
       Blur(0);
-      FALLTHROUGH;
+      [[clang::fallthrough]];
     case base::kApplicationStateBlurred:
       Conceal(0);
-      FALLTHROUGH;
+      [[clang::fallthrough]];
     case base::kApplicationStateConcealed:
       Freeze(0);
       break;
@@ -1172,7 +1173,7 @@ void BrowserModule::OnNavigateTimedTrace(const std::string& time) {
 #endif  // defined(ENABLE_DEBUGGER)
 
 void BrowserModule::OnOnScreenKeyboardInputEventProduced(
-    base::Token type, const dom::InputEventInit& event) {
+    base_token::Token type, const dom::InputEventInit& event) {
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::OnOnScreenKeyboardInputEventProduced()");
   if (base::MessageLoop::current() != self_message_loop_) {
@@ -1192,7 +1193,7 @@ void BrowserModule::OnOnScreenKeyboardInputEventProduced(
   InjectOnScreenKeyboardInputEventToMainWebModule(type, event);
 }
 
-void BrowserModule::OnKeyEventProduced(base::Token type,
+void BrowserModule::OnKeyEventProduced(base_token::Token type,
                                        const dom::KeyboardEventInit& event) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnKeyEventProduced()");
   if (base::MessageLoop::current() != self_message_loop_) {
@@ -1210,7 +1211,7 @@ void BrowserModule::OnKeyEventProduced(base::Token type,
   InjectKeyEventToMainWebModule(type, event);
 }
 
-void BrowserModule::OnPointerEventProduced(base::Token type,
+void BrowserModule::OnPointerEventProduced(base_token::Token type,
                                            const dom::PointerEventInit& event) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnPointerEventProduced()");
   if (base::MessageLoop::current() != self_message_loop_) {
@@ -1236,7 +1237,7 @@ void BrowserModule::OnPointerEventProduced(base::Token type,
   web_module_->InjectPointerEvent(type, event);
 }
 
-void BrowserModule::OnWheelEventProduced(base::Token type,
+void BrowserModule::OnWheelEventProduced(base_token::Token type,
                                          const dom::WheelEventInit& event) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnWheelEventProduced()");
   if (base::MessageLoop::current() != self_message_loop_) {
@@ -1271,7 +1272,7 @@ void BrowserModule::OnWindowOnOfflineEvent(const base::Event* event) {
 }
 
 void BrowserModule::InjectKeyEventToMainWebModule(
-    base::Token type, const dom::KeyboardEventInit& event) {
+    base_token::Token type, const dom::KeyboardEventInit& event) {
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::InjectKeyEventToMainWebModule()");
   if (base::MessageLoop::current() != self_message_loop_) {
@@ -1286,7 +1287,7 @@ void BrowserModule::InjectKeyEventToMainWebModule(
 }
 
 void BrowserModule::InjectOnScreenKeyboardInputEventToMainWebModule(
-    base::Token type, const dom::InputEventInit& event) {
+    base_token::Token type, const dom::InputEventInit& event) {
   TRACE_EVENT0(
       "cobalt::browser",
       "BrowserModule::InjectOnScreenKeyboardInputEventToMainWebModule()");
@@ -1373,7 +1374,7 @@ void BrowserModule::OnNetworkFailureSystemPlatformResponse(
   }
 }
 
-bool BrowserModule::FilterKeyEvent(base::Token type,
+bool BrowserModule::FilterKeyEvent(base_token::Token type,
                                    const dom::KeyboardEventInit& event) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::FilterKeyEvent()");
   // Check for hotkeys first. If it is a hotkey, no more processing is needed.
@@ -1394,7 +1395,7 @@ bool BrowserModule::FilterKeyEvent(base::Token type,
 }
 
 bool BrowserModule::FilterKeyEventForHotkeys(
-    base::Token type, const dom::KeyboardEventInit& event) {
+    base_token::Token type, const dom::KeyboardEventInit& event) {
 #if defined(ENABLE_DEBUGGER)
   if (event.key_code() == dom::keycode::kF1 ||
       (event.ctrl_key() && event.key_code() == dom::keycode::kO)) {
@@ -1428,7 +1429,7 @@ void BrowserModule::RemoveURLHandler(
     const URLHandler::URLHandlerCallback& callback) {
   for (URLHandlerCollection::iterator iter = url_handlers_.begin();
        iter != url_handlers_.end(); ++iter) {
-    if (iter->Equals(callback)) {
+    if (*iter == callback) {
       url_handlers_.erase(iter);
       return;
     }

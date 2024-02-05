@@ -102,12 +102,12 @@ class EventTarget : public script::Wrappable,
   // Creates a new event with the given name and calls DispatchEvent with it,
   // and runs dispatched_callback after finish.
   void DispatchEventNameAndRunCallback(
-      base::Token event_name, const base::Closure& dispatched_callback);
+      base_token::Token event_name, const base::Closure& dispatched_callback);
 
   // Posts a task on the current message loop to dispatch event by name. It
   // does nothing if there is no current message loop.
   void PostToDispatchEventName(const base::Location& location,
-                               base::Token event_name);
+                               base_token::Token event_name);
 
   // Posts a task on the current message loop to dispatch event. It does nothing
   // if there is no current message loop.
@@ -118,7 +118,7 @@ class EventTarget : public script::Wrappable,
   // runs dispatched_callback after finish. It does nothing if there is no
   // current message loop.
   void PostToDispatchEventNameAndRunCallback(
-      const base::Location& location, base::Token event_name,
+      const base::Location& location, base_token::Token event_name,
       const base::Closure& dispatched_callback);
 
   // Posts a task on the current message loop to dispatch event, and runs
@@ -129,7 +129,7 @@ class EventTarget : public script::Wrappable,
       const base::Closure& dispatched_callback);
 
   // Check if target has event listener (attribute or not attribute).
-  bool HasEventListener(base::Token type);
+  bool HasEventListener(base_token::Token type);
 
   // Web API: GlobalEventHandlers (implements)
   // Many objects can have event handlers specified. These act as non-capture
@@ -498,23 +498,23 @@ class EventTarget : public script::Wrappable,
 
   // Set an event listener assigned as an attribute. Overwrite the existing one
   // if there is any.
-  void SetAttributeEventListener(base::Token type,
+  void SetAttributeEventListener(base_token::Token type,
                                  const EventListenerScriptValue& listener);
 
   // Get the event listener currently assigned to an attribute, or NULL if
   // there is none.
   const EventListenerScriptValue* GetAttributeEventListener(
-      base::Token type) const;
+      base_token::Token type) const;
 
   // Similar to SetAttributeEventListener(), but this function should only
   // be called with type == base::Tokens::error().
   void SetAttributeOnErrorEventListener(
-      base::Token type, const OnErrorEventListenerScriptValue& listener);
+      base_token::Token type, const OnErrorEventListenerScriptValue& listener);
 
   // Similar to GetAttributeEventListener(), but this function should only
   // be called with type == base::Tokens::error().
   const OnErrorEventListenerScriptValue* GetAttributeOnErrorEventListener(
-      base::Token type) const;
+      base_token::Token type) const;
 
   // Return true if one or more event listeners are registered
   bool HasOneOrMoreAttributeEventListener() const;
@@ -537,8 +537,8 @@ class EventTarget : public script::Wrappable,
     return environment_settings_;
   }
 
-  std::set<base::Token>& event_listener_event_types() const {
-    static std::set<base::Token> event_listener_event_types;
+  std::set<base_token::Token>& event_listener_event_types() const {
+    static std::set<base_token::Token> event_listener_event_types;
     for (auto& event_listener_info : event_listener_infos_) {
       event_listener_event_types.insert(event_listener_info->type());
     }
@@ -555,7 +555,7 @@ class EventTarget : public script::Wrappable,
   void SetAttributeEventListenerInternal(
       std::unique_ptr<EventTargetListenerInfo> event_handler);
   EventTargetListenerInfo* GetAttributeEventListenerInternal(
-      base::Token type) const;
+      base_token::Token type) const;
 
   void AddEventListenerInternal(
       std::unique_ptr<EventTargetListenerInfo> listener);

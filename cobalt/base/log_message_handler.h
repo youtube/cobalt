@@ -94,7 +94,7 @@ class LogMessageHandler {
 
   bool suppress_log_output_;
 
-  DISALLOW_COPY_AND_ASSIGN(LogMessageHandler);
+  // DISALLOW_COPY_AND_ASSIGN(LogMessageHandler);
 };
 
 }  // namespace base

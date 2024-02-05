@@ -36,32 +36,33 @@ constexpr char kTracingAgent[] = "TracingAgent";
 // state for all agents. Returns a NULL JSONObject if either |agents_state| is
 // NULL or it doesn't hold a state for the agent.
 JSONObject RemoveAgentState(const std::string& agent_name,
-                            base::DictionaryValue* state_dict) {
-  if (state_dict == nullptr) {
-    return JSONObject();
-  }
+                            base::Value::Dict* state_dict) {
+  return nullptr;
+  // if (state_dict == nullptr) {
+  //   return JSONObject();
+  // }
 
-  std::unique_ptr<base::Value> value;
-  if (!state_dict->Remove(agent_name, &value)) {
-    return JSONObject();
-  }
+  // std::unique_ptr<base::Value> value;
+  // if (!state_dict->Remove(agent_name, &value)) {
+  //   return JSONObject();
+  // }
 
-  std::unique_ptr<base::DictionaryValue> dictionary_value =
-      base::DictionaryValue::From(std::move(value));
-  if (!dictionary_value) {
-    DLOG(ERROR) << "Unexpected state type for " << agent_name;
-    return JSONObject();
-  }
+  // std::unique_ptr<base::DictionaryValue> dictionary_value =
+  //     base::DictionaryValue::From(std::move(value));
+  // if (!dictionary_value) {
+  //   DLOG(ERROR) << "Unexpected state type for " << agent_name;
+  //   return JSONObject();
+  // }
 
-  return dictionary_value;
+  // return dictionary_value;
 }
 
-void StoreAgentState(base::DictionaryValue* state_dict,
+void StoreAgentState(base::Value::Dict* state_dict,
                      const std::string& agent_name, JSONObject agent_state) {
-  if (agent_state) {
-    state_dict->Set(agent_name,
-                    std::unique_ptr<base::Value>(agent_state.release()));
-  }
+  // if (agent_state) {
+  //   state_dict->Set(agent_name,
+  //                   std::unique_ptr<base::Value>(agent_state.release()));
+  // }
 }
 
 }  // namespace

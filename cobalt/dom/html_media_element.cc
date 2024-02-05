@@ -128,7 +128,8 @@ bool OriginIsSafe(loader::RequestMode request_mode, const GURL& resource_url,
 
 }  // namespace
 
-HTMLMediaElement::HTMLMediaElement(Document* document, base::Token tag_name)
+HTMLMediaElement::HTMLMediaElement(Document* document,
+                                   base_token::Token tag_name)
     : HTMLElement(document, tag_name),
       load_state_(kWaitingForSource),
       ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
@@ -1092,7 +1093,7 @@ void HTMLMediaElement::ScheduleTimeupdateEvent(bool periodic_event) {
   }
 }
 
-void HTMLMediaElement::ScheduleOwnEvent(base::Token event_name) {
+void HTMLMediaElement::ScheduleOwnEvent(base_token::Token event_name) {
   LOG_IF(INFO, event_name == base::Tokens::error())
       << "onerror event fired with error " << (error_ ? error_->code() : 0);
   MLOG() << event_name;

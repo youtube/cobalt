@@ -1074,7 +1074,7 @@ scoped_refptr<GlyphBuffer> CreateGlyphBuffer(
     font = resource_provider->GetLocalTypeface(font_family_name, font_style)
                ->CreateFontWithSize(font_size);
   } else {
-    base::string16 utf16_string;
+    std::u16string utf16_string;
     base::CodepageToUTF16(text, base::kCodepageUTF8,
                           base::OnStringConversionError::SUBSTITUTE,
                           &utf16_string);

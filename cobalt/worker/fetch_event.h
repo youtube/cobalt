@@ -39,7 +39,7 @@ class FetchEvent : public ::cobalt::worker::ExtendableEvent {
 
   FetchEvent(script::EnvironmentSettings*, const std::string& type,
              const FetchEventInit& event_init_dict);
-  FetchEvent(script::EnvironmentSettings*, base::Token type,
+  FetchEvent(script::EnvironmentSettings*, base_token::Token type,
              const FetchEventInit& event_init_dict,
              scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
              RespondWithCallback respond_with_callback,

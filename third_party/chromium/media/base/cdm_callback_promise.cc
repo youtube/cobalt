@@ -4,7 +4,7 @@
 
 #include "media/base/cdm_callback_promise.h"
 
-#include "base/callback_helpers.h"
+#include "base/functional/callback_helpers.h"
 #include "base/check.h"
 
 namespace media {

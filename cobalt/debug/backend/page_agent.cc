@@ -65,17 +65,17 @@ void PageAgent::Reload(Command command) {
 void PageAgent::GetResourceTree(Command command) {
   if (!EnsureEnabled(&command)) return;
 
-  JSONObject response(new base::DictionaryValue());
-  JSONObject frame(new base::DictionaryValue());
-  frame->SetString("id", "Cobalt");
-  frame->SetString("loaderId", "Cobalt");
-  frame->SetString("mimeType", "text/html");
-  frame->SetString("securityOrigin", window_->document()->url());
-  frame->SetString("url", window_->document()->url());
-  response->Set("result.frameTree.frame", std::move(frame));
-  response->Set("result.frameTree.resources",
-                std::make_unique<base::ListValue>());
-  command.SendResponse(response);
+  // JSONObject response(new base::DictionaryValue());
+  // JSONObject frame(new base::DictionaryValue());
+  // frame->SetString("id", "Cobalt");
+  // frame->SetString("loaderId", "Cobalt");
+  // frame->SetString("mimeType", "text/html");
+  // frame->SetString("securityOrigin", window_->document()->url());
+  // frame->SetString("url", window_->document()->url());
+  // response->Set("result.frameTree.frame", std::move(frame));
+  // response->Set("result.frameTree.resources",
+  //               std::make_unique<base::ListValue>());
+  command.SendResponse(JSONObject(nullptr));
 }
 
 void PageAgent::SetOverlayMessage(Command command) {
@@ -85,7 +85,7 @@ void PageAgent::SetOverlayMessage(Command command) {
   JSONObject params = JSONParse(command.GetParams());
   bool got_message = false;
   if (params) {
-    got_message = params->GetString("message", &message);
+    // got_message = params->GetString("message", &message);
   }
 
   if (got_message) {

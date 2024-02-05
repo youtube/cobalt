@@ -56,7 +56,7 @@ class DocumentLoader : public dom::DocumentObserver {
         loader_factory_(new loader::LoaderFactory(
             "Test" /* name */, &fetcher_factory_, resource_provider_stub_.get(),
             debugger_hooks_, 0 /* encoded_image_cache_capacity */,
-            base::ThreadPriority::BACKGROUND)),
+            base::ThreadType::kBackground)),
         image_cache_(loader::image::CreateImageCache(
             "Test.ImageCache", debugger_hooks_, 32U * 1024 * 1024,
             loader_factory_.get())),
@@ -84,7 +84,7 @@ class DocumentLoader : public dom::DocumentObserver {
     document_loader_.reset(new loader::Loader(
         base::Bind(&loader::FetcherFactory::CreateFetcher,
                    base::Unretained(&fetcher_factory_), url,
-                   /*main_resource=*/true, disk_cache::kHTML),
+                   /*main_resource=*/true, network::disk_cache::kHTML),
         base::Bind(&dom_parser::Parser::ParseDocumentAsync,
                    base::Unretained(dom_parser_.get()), document_,
                    base::SourceLocation(url.spec(), 1, 1)),

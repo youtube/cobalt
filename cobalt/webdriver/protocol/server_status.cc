@@ -52,29 +52,28 @@ ServerStatus::ServerStatus() {
 }
 
 std::unique_ptr<base::Value> ServerStatus::ToValue(const ServerStatus& status) {
-  std::unique_ptr<base::DictionaryValue> build_value(
-      new base::DictionaryValue());
-  build_value->SetString("time", status.build_time_);
-  build_value->SetString("version", status.build_version_);
+  base::Value::Dict build_value;
+  build_value.Set("time", status.build_time_);
+  build_value.Set("version", status.build_version_);
 
-  std::unique_ptr<base::DictionaryValue> os_value(new base::DictionaryValue());
+  base::Value::Dict os_value;
 
   if (status.os_arch_) {
-    os_value->SetString("arch", *status.os_arch_);
+    os_value.Set("arch", *status.os_arch_);
   }
   if (status.os_name_) {
-    os_value->SetString("name", *status.os_name_);
+    os_value.Set("name", *status.os_name_);
   }
   if (status.os_version_) {
-    os_value->SetString("version", *status.os_version_);
+    os_value.Set("version", *status.os_version_);
   }
 
-  std::unique_ptr<base::DictionaryValue> status_value(
-      new base::DictionaryValue());
+  base::Value ret(base::Value::Type::DICT);
+  base::Value::Dict* status_value = ret->GetIfDict();
   status_value->Set("os", std::move(os_value));
   status_value->Set("build", std::move(build_value));
 
-  return std::unique_ptr<base::Value>(status_value.release());
+  return base::Value::ToUniquePtrValue(std::move(ret));
 }
 
 }  // namespace protocol

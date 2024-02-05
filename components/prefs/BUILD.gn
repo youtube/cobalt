@@ -68,7 +68,7 @@ static_library("prefs") {
 
   deps = [
     "//base",
-    "//base/util/values:values_util",
+    # "//base/util/values:values_util",
   ]
 }
 

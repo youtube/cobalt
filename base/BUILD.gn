@@ -847,6 +847,7 @@ component("base") {
     "third_party/nspr/prtime.h",
     "third_party/superfasthash/superfasthash.c",
     "thread_annotations.h",
+    "threading/thread_task_runner_handle.cc",
     "threading/hang_watcher.cc",
     "threading/hang_watcher.h",
     "threading/platform_thread.cc",

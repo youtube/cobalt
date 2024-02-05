@@ -51,7 +51,7 @@ class Directive {
   std::string text_;
   ContentSecurityPolicy* policy_;
 
-  DISALLOW_COPY_AND_ASSIGN(Directive);
+  // DISALLOW_COPY_AND_ASSIGN(Directive);
 };
 
 }  // namespace csp

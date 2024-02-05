@@ -46,7 +46,7 @@ void AgentBase::Thaw(JSONObject agent_state) {
   if (!agent_state) return;
 
   // Restore state
-  if (agent_state->FindKeyOfType(kEnabled, Value::Type::BOOLEAN)->GetBool()) {
+  if (agent_state->FindBool(kEnabled).value_or(false)) {
     Enable(Command::IgnoreResponse(domain_ + ".enable"));
   }
 }
@@ -54,8 +54,8 @@ void AgentBase::Thaw(JSONObject agent_state) {
 JSONObject AgentBase::Freeze() {
   dispatcher_->RemoveDomain(domain_);
 
-  JSONObject agent_state(new base::DictionaryValue());
-  agent_state->SetKey(kEnabled, Value(enabled_));
+  JSONObject agent_state(new base::Value::Dict());
+  agent_state->Set(kEnabled, Value(enabled_));
   return agent_state;
 }
 

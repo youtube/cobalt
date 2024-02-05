@@ -20,8 +20,12 @@
 #include <utility>
 #include <vector>
 
+#include "base/bind.h"
+#include "base/command_line.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/configuration/configuration.h"
+#include "cobalt/network/disk_cache/cobalt_backend_impl.h"
+#include "cobalt/network/disk_cache/resource_type.h"
 #include "cobalt/network/job_factory_config.h"
 #include "cobalt/network/network_delegate.h"
 #include "cobalt/network/persistent_cookie_store.h"
@@ -33,59 +37,56 @@
 #include "net/cert/cert_verify_proc.h"
 #include "net/cert/ct_policy_enforcer.h"
 #include "net/cert/do_nothing_ct_verifier.h"
-#include "net/cert_net/cert_net_fetcher_impl.h"
-#include "net/disk_cache/cobalt/cobalt_backend_impl.h"
 #include "net/dns/host_cache.h"
+#include "net/dns/host_resolver.h"
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_network_layer.h"
-#include "net/http/http_server_properties_impl.h"
+#include "net/http/http_network_session.h"
 #include "net/http/http_transaction_factory.h"
 #include "net/proxy_resolution/proxy_config.h"
 #include "net/proxy_resolution/proxy_resolution_service.h"
 #include "net/ssl/ssl_config_service.h"
 #include "net/ssl/ssl_config_service_defaults.h"
-#include "net/third_party/quic/platform/api/quic_flags.h"
-#include "net/url_request/data_protocol_handler.h"
-#include "net/url_request/url_request_job_factory_impl.h"
-
 namespace {
 
 const char kPersistentSettingsJson[] = "cache_settings.json";
 
 
 void ReadDiskCacheSize(cobalt::persistent_storage::PersistentSettings* settings,
-                       int64_t max_bytes) {
-  auto total_size = 0;
-  disk_cache::ResourceTypeMetadata kTypeMetadataNew[disk_cache::kTypeCount];
+                       int64_t max_bytes) {}
+//   auto total_size = 0;
+//   cobalt::network::disk_cache::ResourceTypeMetadata
+//   kTypeMetadataNew[cobalt::network::disk_cache::kTypeCount];
 
-  for (int i = 0; i < disk_cache::kTypeCount; i++) {
-    auto metadata = disk_cache::kTypeMetadata[i];
-    uint32_t bucket_size =
-        static_cast<uint32_t>(settings->GetPersistentSettingAsDouble(
-            metadata.directory, metadata.max_size_bytes));
-    kTypeMetadataNew[i] = {metadata.directory, bucket_size};
+//   for (int i = 0; i < disk_cache::kTypeCount; i++) {
+//     auto metadata = cobalt::network::disk_cache::kTypeMetadata[i];
+//     uint32_t bucket_size =
+//         static_cast<uint32_t>(settings->GetPersistentSettingAsDouble(
+//             metadata.directory, metadata.max_size_bytes));
+//     kTypeMetadataNew[i] = {metadata.directory, bucket_size};
 
-    total_size += bucket_size;
-  }
+//     total_size += bucket_size;
+//   }
 
-  // Check if PersistentSettings values are valid and can replace the
-  // disk_cache::kTypeMetadata.
-  if (total_size <= max_bytes) {
-    std::copy(std::begin(kTypeMetadataNew), std::end(kTypeMetadataNew),
-              std::begin(disk_cache::kTypeMetadata));
-    return;
-  }
+//   // Check if PersistentSettings values are valid and can replace the
+//   // disk_cache::kTypeMetadata.
+//   if (total_size <= max_bytes) {
+//     std::copy(std::begin(kTypeMetadataNew), std::end(kTypeMetadataNew),
+//               std::begin(disk_cache::kTypeMetadata));
+//     return;
+//   }
 
-  // PersistentSettings values are invalid and will be replaced by the default
-  // values in disk_cache::kTypeMetadata.
-  for (int i = 0; i < disk_cache::kTypeCount; i++) {
-    auto metadata = disk_cache::kTypeMetadata[i];
-    settings->SetPersistentSetting(
-        metadata.directory, std::make_unique<base::Value>(
-                                static_cast<double>(metadata.max_size_bytes)));
-  }
-}
+//   // PersistentSettings values are invalid and will be replaced by the
+//   default
+//   // values in disk_cache::kTypeMetadata.
+//   for (int i = 0; i < disk_cache::kTypeCount; i++) {
+//     auto metadata = disk_cache::kTypeMetadata[i];
+//     settings->SetPersistentSetting(
+//         metadata.directory, std::make_unique<base::Value>(
+//                                 static_cast<double>(metadata.max_size_bytes)));
+//   }
+// }
 }  // namespace
 
 namespace cobalt {
@@ -112,10 +113,8 @@ URLRequestContext::URLRequestContext(
     net::NetLog* net_log, bool ignore_certificate_errors,
     scoped_refptr<base::SequencedTaskRunner> network_task_runner,
     persistent_storage::PersistentSettings* persistent_settings)
-    : ALLOW_THIS_IN_INITIALIZER_LIST(storage_(this))
 #if defined(ENABLE_DEBUGGER)
-      ,
-      ALLOW_THIS_IN_INITIALIZER_LIST(quic_toggle_command_handler_(
+    : ALLOW_THIS_IN_INITIALIZER_LIST(quic_toggle_command_handler_(
           kQUICToggleCommand,
           base::Bind(&URLRequestContext::OnQuicToggle, base::Unretained(this)),
           kQUICToggleCommandShortHelp, kQUICToggleCommandLongHelp))
@@ -129,18 +128,18 @@ URLRequestContext::URLRequestContext(
       std::unique_ptr<net::CookieStore>(new net::CookieMonster(
           persistent_cookie_store_, NULL /* channel_id_service */, net_log)));
 
-  set_enable_brotli(true);
+  // set_enable_brotli(true);
 
   base::Optional<net::ProxyConfig> proxy_config;
   if (!custom_proxy.empty()) {
     proxy_config = CreateCustomProxyConfig(custom_proxy);
   }
 
-  storage_.set_proxy_resolution_service(
-      net::ProxyResolutionService::CreateUsingSystemProxyResolver(
-          std::unique_ptr<net::ProxyConfigService>(
-              new ProxyConfigService(proxy_config)),
-          net_log));
+  // set_proxy_resolution_service(
+  //     net::ProxyResolutionService::CreateUsingSystemProxyResolver(
+  //         std::unique_ptr<net::ProxyConfigService>(
+  //             new ProxyConfigService(proxy_config)),
+  //         net_log));
 
   // ack decimation significantly increases download bandwidth on low-end
   // android devices.
@@ -159,35 +158,33 @@ URLRequestContext::URLRequestContext(
   // As of Chromium m70 net, CreateDefault will return a caching multi-thread
   // cert verifier, the verification cache will usually cache 25-40
   // results in a single session which can take up to 100KB memory.
-  storage_.set_cert_verifier(net::CertVerifier::CreateDefault());
-  storage_.set_transport_security_state(
-      std::make_unique<net::TransportSecurityState>());
+  // set_cert_verifier(net::CertVerifier::CreateDefault());
+  // set_transport_security_state(
+  //     std::make_unique<net::TransportSecurityState>());
   // TODO: Investigate if we want the cert transparency verifier.
-  storage_.set_cert_transparency_verifier(
-      std::make_unique<net::DoNothingCTVerifier>());
-  storage_.set_ssl_config_service(
-      std::make_unique<net::SSLConfigServiceDefaults>());
+  // set_cert_transparency_verifier(
+  //     std::make_unique<net::DoNothingCTVerifier>());
+  // set_ssl_config_service(std::make_unique<net::SSLConfigServiceDefaults>());
 
-  storage_.set_http_auth_handler_factory(
-      net::HttpAuthHandlerFactory::CreateDefault(host_resolver()));
-  storage_.set_http_server_properties(
-      std::make_unique<net::HttpServerPropertiesImpl>());
+  // set_http_auth_handler_factory(net::HttpAuthHandlerFactory::CreateDefault());
+  // set_http_server_properties(
+  //     std::make_unique<net::HttpServerPropertiesImpl>());
 
-  net::HttpNetworkSession::Params params;
+  net::HttpNetworkSessionParams params;
 
   if (configuration::Configuration::GetInstance()->CobaltEnableQuic()) {
     base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
     params.enable_quic = !command_line->HasSwitch(switches::kDisableQuic);
-    params.use_quic_for_unknown_origins = params.enable_quic;
+    // params.use_quic_for_unknown_origins = params.enable_quic;
   }
 #if defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
-  params.ignore_certificate_errors = ignore_certificate_errors;
-  if (ignore_certificate_errors) {
-    cert_verifier()->set_ignore_certificate_errors(true);
-    LOG(INFO) << "ignore_certificate_errors option specified, Certificate "
-                 "validation results will be ignored but error message will "
-                 "still be displayed.";
-  }
+  // params.ignore_certificate_errors = ignore_certificate_errors;
+  // if (ignore_certificate_errors) {
+  //   cert_verifier()->set_ignore_certificate_errors(true);
+  //   LOG(INFO) << "ignore_certificate_errors option specified, Certificate "
+  //                "validation results will be ignored but error message will "
+  //                "still be displayed.";
+  // }
 #endif  // defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
 
   net::HttpNetworkSession::Context context;
@@ -204,20 +201,20 @@ URLRequestContext::URLRequestContext(
   context.http_server_properties = http_server_properties();
 #if defined(ENABLE_NETWORK_LOGGING)
   context.net_log = net_log;
-  set_net_log(net_log);
+  // set_net_log(net_log);
 #else
 #endif
   context.socket_performance_watcher_factory = NULL;
   context.network_quality_provider = NULL;
 
-  storage_.set_http_network_session(
-      std::make_unique<net::HttpNetworkSession>(params, context));
+  // set_http_network_session(
+  //     std::make_unique<net::HttpNetworkSession>(params, context));
   std::vector<char> path(kSbFileMaxPath, 0);
   if (!SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(),
                        kSbFileMaxPath)) {
-    storage_.set_http_transaction_factory(
-        std::unique_ptr<net::HttpNetworkLayer>(
-            new net::HttpNetworkLayer(storage_.http_network_session())));
+    // set_http_transaction_factory(
+    //     std::unique_ptr<net::HttpNetworkLayer>(
+    //         new net::HttpNetworkLayer(http_network_session_)));
   } else {
     using_http_cache_ = true;
 
@@ -254,16 +251,15 @@ URLRequestContext::URLRequestContext(
     storage_.set_http_transaction_factory(std::move(http_cache));
   }
 
-  auto* job_factory = new net::URLRequestJobFactoryImpl();
-  job_factory->SetProtocolHandler(url::kDataScheme,
-                                  std::make_unique<net::DataProtocolHandler>());
+  auto* job_factory = new net::URLRequestJobFactory();
+  // job_factory->SetProtocolHandler(url::kDataScheme,
+  //                                 std::make_unique<net::DataProtocolHandler>());
 
 #if defined(ENABLE_CONFIGURE_REQUEST_JOB_FACTORY)
   ConfigureRequestJobFactory(job_factory);
 #endif  // defined(ENABLE_CONFIGURE_REQUEST_JOB_FACTORY)
 
-  storage_.set_job_factory(
-      std::unique_ptr<net::URLRequestJobFactory>(job_factory));
+  // set_job_factory(std::unique_ptr<net::URLRequestJobFactory>(job_factory));
 }
 
 URLRequestContext::~URLRequestContext() {}
@@ -271,34 +267,34 @@ URLRequestContext::~URLRequestContext() {}
 void URLRequestContext::SetProxy(const std::string& proxy_rules) {
   net::ProxyConfig proxy_config = CreateCustomProxyConfig(proxy_rules);
   // ProxyService takes ownership of the ProxyConfigService.
-  proxy_resolution_service()->ResetConfigService(
-      std::make_unique<ProxyConfigService>(proxy_config));
+  // proxy_resolution_service()->ResetConfigService(
+  //     std::make_unique<ProxyConfigService>(proxy_config));
 }
 
 void URLRequestContext::SetEnableQuic(bool enable_quic) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  storage_.http_network_session()->SetEnableQuic(enable_quic);
+  // http_network_session()->SetEnableQuic(enable_quic);
 }
 
-bool URLRequestContext::using_http_cache() { return using_http_cache_; }
+// bool URLRequestContext::using_http_cache() { return using_http_cache_; }
 
 #if defined(ENABLE_DEBUGGER)
 void URLRequestContext::OnQuicToggle(const std::string& message) {
-  DCHECK(storage_.http_network_session());
-  storage_.http_network_session()->ToggleQuic();
+  // DCHECK(http_network_session());
+  // http_network_session()->ToggleQuic();
 }
 #endif  // defined(ENABLE_DEBUGGER)
 
 void URLRequestContext::UpdateCacheSizeSetting(disk_cache::ResourceType type,
                                                uint32_t bytes) {
-  CHECK(cache_persistent_settings_);
-  cache_persistent_settings_->SetPersistentSetting(
-      disk_cache::kTypeMetadata[type].directory,
-      std::make_unique<base::Value>(static_cast<double>(bytes)));
+  // CHECK(cache_persistent_settings_);
+  // cache_persistent_settings_->SetPersistentSetting(
+  //     disk_cache::kTypeMetadata[type].directory,
+  //     std::make_unique<base::Value>(static_cast<double>(bytes)));
 }
 
 void URLRequestContext::ValidateCachePersistentSettings() {
-  cache_persistent_settings_->ValidatePersistentSettings();
+  // cache_persistent_settings_->ValidatePersistentSettings();
 }
 
 }  // namespace network

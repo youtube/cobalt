@@ -15,6 +15,9 @@ class Time;
 class TimeDelta;
 class UnguessableToken;
 
+BASE_EXPORT Value CreateFilePathValue(const FilePath& in_value);// { return base::Value(); }
+BASE_EXPORT bool GetValueAsFilePath(const Value& value, FilePath* file_path);// { return false; }
+
 // Simple helper functions for converting between Value and other types.
 // The Value representation is stable, suitable for persistent storage
 // e.g. as JSON on disk.

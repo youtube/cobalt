@@ -12,6 +12,7 @@
 
 namespace switches {
 
+extern const char kFontFormat[];
 extern const char kDisableBestEffortTasks[];
 extern const char kDisableBreakpad[];
 extern const char kDisableFeatures[];

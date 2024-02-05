@@ -62,16 +62,18 @@ struct ForwardType<std::unique_ptr<T>> {
 // response object.
 template <typename T>
 std::unique_ptr<base::Value> ToValue(const T& value) {
-  return T::ToValue(value);
+  return nullptr;
+  // return T::ToValue(value);
 }
 
 template <typename T>
 std::unique_ptr<base::Value> ToValue(const std::vector<T>& value) {
-  std::unique_ptr<base::ListValue> list_value(new base::ListValue());
+  base::Value ret(base::Value::Type::LIST);
+  base::Value::List* list_value = ret.GetIfList();
   for (int i = 0; i < value.size(); ++i) {
-    list_value->Append(std::move(ToValue<T>(value[i])));
+    // list_value->Append(*std::move(ToValue<T>(value[i])));
   }
-  return std::unique_ptr<base::Value>(list_value.release());
+  return base::Value::ToUniquePtrValue(std::move(ret));
 }
 
 // Partial template specialization for base::optional.
@@ -123,7 +125,7 @@ base::Optional<GURL> FromValue(const base::Value* value) {
       !dictionary_value->GetString(kUrlKey, &url)) {
     return base::nullopt;
   }
-  return GURL(url.c_str());
+  return GURL(url->c_str());
 }
 
 // Returns an appropriate response through the CommandResultHandler.

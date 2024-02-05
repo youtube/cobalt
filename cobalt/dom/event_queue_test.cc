@@ -17,6 +17,7 @@
 #include <memory>
 
 #include "base/message_loop/message_loop.h"
+#include "base/run_loop.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/script/testing/fake_script_value.h"
 #include "cobalt/web/event.h"
@@ -56,7 +57,7 @@ class EventQueueTest : public ::testing::Test {
 TEST_F(EventQueueTest, EventWithoutTargetTest) {
   scoped_refptr<web::EventTarget> event_target =
       new web::EventTarget(&environment_settings_);
-  scoped_refptr<web::Event> event = new web::Event(base::Token("event"));
+  scoped_refptr<web::Event> event = new web::Event(base_token::Token("event"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
   EventQueue event_queue(event_target.get());
@@ -74,7 +75,7 @@ TEST_F(EventQueueTest, EventWithoutTargetTest) {
 TEST_F(EventQueueTest, EventWithTargetTest) {
   scoped_refptr<web::EventTarget> event_target =
       new web::EventTarget(&environment_settings_);
-  scoped_refptr<web::Event> event = new web::Event(base::Token("event"));
+  scoped_refptr<web::Event> event = new web::Event(base_token::Token("event"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
   EventQueue event_queue(event_target.get());
@@ -93,7 +94,7 @@ TEST_F(EventQueueTest, EventWithTargetTest) {
 TEST_F(EventQueueTest, CancelAllEventsTest) {
   scoped_refptr<web::EventTarget> event_target =
       new web::EventTarget(&environment_settings_);
-  scoped_refptr<web::Event> event = new web::Event(base::Token("event"));
+  scoped_refptr<web::Event> event = new web::Event(base_token::Token("event"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
   EventQueue event_queue(event_target.get());
@@ -117,7 +118,7 @@ TEST_F(EventQueueTest, EventWithDifferentTargetTest) {
       new web::EventTarget(&environment_settings_);
   scoped_refptr<web::EventTarget> event_target_2 =
       new web::EventTarget(&environment_settings_);
-  scoped_refptr<web::Event> event = new web::Event(base::Token("event"));
+  scoped_refptr<web::Event> event = new web::Event(base_token::Token("event"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
 

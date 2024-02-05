@@ -41,10 +41,11 @@ class UniversalSelector;
 //   https://www.w3.org/TR/selectors4/#simple
 class SimpleSelector : public Selector {
  public:
-  SimpleSelector(SimpleSelectorType type, base::Token prefix, base::Token text)
+  SimpleSelector(SimpleSelectorType type, base_token::Token prefix,
+                 base_token::Token text)
       : type_(type), prefix_(prefix), text_(text), value_("") {}
-  SimpleSelector(SimpleSelectorType type, base::Token prefix, base::Token text,
-                 const std::string& value)
+  SimpleSelector(SimpleSelectorType type, base_token::Token prefix,
+                 base_token::Token text, const std::string& value)
       : type_(type), prefix_(prefix), text_(text), value_(value) {}
   ~SimpleSelector() override {}
 
@@ -57,9 +58,9 @@ class SimpleSelector : public Selector {
   SimpleSelectorType type() const { return type_; }
 
   // Returns token representation of the selector.
-  base::Token prefix() const { return prefix_; }
-  base::Token text() const { return text_; }
-  base::Token value() const { return base::Token(value_); }
+  base_token::Token prefix() const { return prefix_; }
+  base_token::Token text() const { return text_; }
+  base_token::Token value() const { return base_token::Token(value_); }
 
   virtual PseudoElement* AsPseudoElement() { return NULL; }
   virtual UniversalSelector* AsUniversalSelector() { return NULL; }
@@ -79,8 +80,8 @@ class SimpleSelector : public Selector {
 
  private:
   SimpleSelectorType type_;
-  base::Token prefix_;
-  base::Token text_;
+  base_token::Token prefix_;
+  base_token::Token text_;
   std::string value_;
 };
 

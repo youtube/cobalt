@@ -6,6 +6,7 @@
 
 #include "base/files/file.h"
 #include "base/files/file_util.h"
+#include "base/logging.h"
 #include "base/strings/string_util.h"
 #include "third_party/zlib/google/zip_internal.h"
 

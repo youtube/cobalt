@@ -368,7 +368,7 @@ void SbPlayerPipeline::Seek(TimeDelta time, const SeekCB& seek_cb) {
   DCHECK(!seek_cb.is_null());
 
   if (audio_read_in_progress_ || video_read_in_progress_) {
-    const TimeDelta kDelay = TimeDelta::FromMilliseconds(50);
+    const TimeDelta kDelay = base::Milliseconds(50);
     task_runner_->PostDelayedTask(
         FROM_HERE, base::Bind(&SbPlayerPipeline::Seek, this, time, seek_cb),
         kDelay);
@@ -789,7 +789,7 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
     task_runner_->PostDelayedTask(
         FROM_HERE,
         base::Bind(&SbPlayerPipeline::CreatePlayer, this, drm_system),
-        TimeDelta::FromMilliseconds(kRetryDelayAtSuspendInMilliseconds));
+        base::Milliseconds(kRetryDelayAtSuspendInMilliseconds));
     return;
   }
 
@@ -902,7 +902,7 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
     task_runner_->PostDelayedTask(
         FROM_HERE,
         base::Bind(&SbPlayerPipeline::OnDemuxerInitialized, this, status),
-        TimeDelta::FromMilliseconds(kRetryDelayAtSuspendInMilliseconds));
+        base::Milliseconds(kRetryDelayAtSuspendInMilliseconds));
     return;
   }
 

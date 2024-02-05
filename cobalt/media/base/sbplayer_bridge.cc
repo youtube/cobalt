@@ -139,7 +139,8 @@ void SbPlayerBridge::CallbackHelper::OnDecoderStatus(SbPlayer player,
                                                      int ticket) {
   base::AutoLock auto_lock(lock_);
   if (player_bridge_) {
-    player_bridge_->OnDecoderStatus(player, type, state, ticket);
+    player_bridge_->OnDecoderStatus(static_cast<SbPlayer>(player), type, state,
+                                    ticket);
   }
 }
 

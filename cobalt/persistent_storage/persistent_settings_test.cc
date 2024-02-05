@@ -18,10 +18,9 @@
 #include <vector>
 
 #include "base/bind.h"
-#include "base/bind_internal.h"
-#include "base/callback_forward.h"
+#include "base/functional/callback_forward.h"
 #include "base/synchronization/waitable_event.h"
-#include "base/test/scoped_task_environment.h"
+#include "base/test/task_environment.h"
 #include "base/values.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
@@ -41,8 +40,8 @@ class PersistentSettingTest : public testing::Test {
  protected:
   PersistentSettingTest()
       : scoped_task_environment_(
-            base::test::ScopedTaskEnvironment::MainThreadType::DEFAULT,
-            base::test::ScopedTaskEnvironment::ExecutionMode::ASYNC) {
+            base::test::TaskEnvironment::MainThreadType::DEFAULT,
+            base::test::TaskEnvironment::ThreadPoolExecutionMode::ASYNC) {
     std::vector<char> storage_dir(kSbFileMaxPath + 1, 0);
     SbSystemGetPath(kSbSystemPathCacheDirectory, storage_dir.data(),
                     kSbFileMaxPath);
@@ -61,7 +60,7 @@ class PersistentSettingTest : public testing::Test {
     starboard::SbFileDeleteRecursive(persistent_settings_file_.c_str(), true);
   }
 
-  base::test::ScopedTaskEnvironment scoped_task_environment_;
+  base::test::TaskEnvironment scoped_task_environment_;
   std::string persistent_settings_file_;
   base::WaitableEvent test_done_ = {
       base::WaitableEvent::ResetPolicy::MANUAL,
@@ -316,10 +315,11 @@ TEST_F(PersistentSettingTest, GetSetList) {
       },
       persistent_settings.get(), &test_done_);
 
-  std::vector<base::Value> list;
-  list.emplace_back("hello");
+  base::Value list(base::Value::Type::LIST);
+  list->GetList().Append("hello");
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(list), std::move(closure), true);
+      "key", base::Value::ToUniquePtrValue(std::move(list)), std::move(closure),
+      true);
   test_done_.Wait();
   test_done_.Reset();
 
@@ -337,9 +337,10 @@ TEST_F(PersistentSettingTest, GetSetList) {
       },
       persistent_settings.get(), &test_done_);
 
-  list.emplace_back("there");
+  list->GetList().Append("there");
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(list), std::move(closure), true);
+      "key", base::Value::ToUniquePtrValue(std::move(list)), std::move(closure),
+      true);
   test_done_.Wait();
   test_done_.Reset();
 
@@ -359,9 +360,10 @@ TEST_F(PersistentSettingTest, GetSetList) {
       },
       persistent_settings.get(), &test_done_);
 
-  list.emplace_back(42);
+  list.GetList().Append(42);
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(list), std::move(closure), true);
+      "key", base::Value::ToUniquePtrValue(std::move(list)), std::move(closure),
+      true);
   test_done_.Wait();
   test_done_.Reset();
 }
@@ -384,10 +386,11 @@ TEST_F(PersistentSettingTest, GetSetDictionary) {
       },
       persistent_settings.get(), &test_done_);
 
-  base::flat_map<std::string, std::unique_ptr<base::Value>> dict;
-  dict.try_emplace("key_string", std::make_unique<base::Value>("hello"));
+  base::Value dict(base::Value::Type::DICT);
+  dict.GetDict().Set("key_string", "hello");
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(dict), std::move(closure), true);
+      "key", base::Value::ToUniquePtrValue(std::move(dict)), std::move(closure),
+      true);
   test_done_.Wait();
   test_done_.Reset();
 
@@ -406,9 +409,10 @@ TEST_F(PersistentSettingTest, GetSetDictionary) {
       },
       persistent_settings.get(), &test_done_);
 
-  dict.try_emplace("key_int", std::make_unique<base::Value>(42));
+  dict.GetDict().Set("key_int", 42);
   persistent_settings->SetPersistentSetting(
-      "key", std::make_unique<base::Value>(dict), std::move(closure), true);
+      "key", base::Value::ToUniquePtrValue(std::move(dict)), std::move(closure),
+      true);
   test_done_.Wait();
   test_done_.Reset();
 }
@@ -437,12 +441,11 @@ TEST_F(PersistentSettingTest, URLAsKey) {
 
   // Test that json_pref_store uses SetKey instead of Set, making URL
   // keys viable.
-  base::flat_map<std::string, std::unique_ptr<base::Value>> dict;
-  dict.try_emplace("http://127.0.0.1:45019/",
-                   std::make_unique<base::Value>("Dictionary URL Key Works!"));
-  persistent_settings->SetPersistentSetting("http://127.0.0.1:45019/",
-                                            std::make_unique<base::Value>(dict),
-                                            std::move(closure), true);
+  base::Value dict(base::Value::Type::DICT);
+  dict.GetDict().Set("http://127.0.0.1:45019/", "Dictionary URL Key Works!");
+  persistent_settings->SetPersistentSetting(
+      "http://127.0.0.1:45019/", base::Value::ToUniquePtrValue(std::move(dict)),
+      std::move(closure), true);
   test_done_.Wait();
   test_done_.Reset();
 

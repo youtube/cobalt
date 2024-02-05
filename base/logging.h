@@ -26,6 +26,8 @@
 #include "starboard/common/log.h"
 #include "starboard/system.h"
 #include "starboard/types.h"
+#include "base/check_op.h"
+#include "base/notreached.h"
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)

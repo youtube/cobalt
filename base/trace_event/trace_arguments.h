@@ -17,9 +17,9 @@
 #include "base/memory/raw_ptr_exclusion.h"
 #include "base/trace_event/common/trace_event_common.h"
 #include "base/tracing_buildflags.h"
-#include "third_party/perfetto/include/perfetto/protozero/scattered_heap_buffer.h"
-#include "third_party/perfetto/include/perfetto/tracing/traced_value.h"
-#include "third_party/perfetto/protos/perfetto/trace/track_event/debug_annotation.pbzero.h"
+// #include "third_party/perfetto/include/perfetto/protozero/scattered_heap_buffer.h"
+// #include "third_party/perfetto/include/perfetto/tracing/traced_value.h"
+// #include "third_party/perfetto/protos/perfetto/trace/track_event/debug_annotation.pbzero.h"
 
 // Trace macro can have one or two optional arguments, each one of them
 // identified by a name (a C string literal) and a value, which can be an
@@ -233,8 +233,8 @@ union BASE_EXPORT TraceValue {
   RAW_PTR_EXCLUSION ConvertableToTraceFormat* as_convertable;
   // This field is not a raw_ptr<> because it was filtered by the rewriter for:
   // #union
-  RAW_PTR_EXCLUSION protozero::HeapBuffered<
-      perfetto::protos::pbzero::DebugAnnotation>* as_proto;
+  // RAW_PTR_EXCLUSION protozero::HeapBuffered<
+  //     perfetto::protos::pbzero::DebugAnnotation>* as_proto;
 
   // Static method to create a new TraceValue instance from a given
   // initialization value. Note that this deduces the TRACE_VALUE_TYPE_XXX
@@ -344,24 +344,20 @@ union BASE_EXPORT TraceValue {
     using ValueType = typename InnerType<T>::type;
     static const unsigned char value = Helper<ValueType>::kType;
   };
-  template <typename T>
-  struct TypeFor<T,
-                 typename std::enable_if<
-                     !HasHelperSupport<typename InnerType<T>::type>::value &&
-                     perfetto::internal::has_traced_value_support<
-                         typename InnerType<T>::type>::value>::type> {
-    static const unsigned char value = TRACE_VALUE_TYPE_PROTO;
-  };
+  // template <typename T>
+  // struct TypeFor<T,
+  //                typename std::enable_if<
+  //                    !HasHelperSupport<typename InnerType<T>::type>::value &&
+  //                    perfetto::internal::has_traced_value_support<
+  //                        typename InnerType<T>::type>::value>::type> {
+  //   static const unsigned char value = TRACE_VALUE_TYPE_PROTO;
+  // };
 
   // TraceValue::TypeCheck<T>::value is only defined iff T can be used to
   // initialize a TraceValue instance. This is useful to restrict template
   // instantiation to only the appropriate type (see TraceArguments
   // constructors below).
-  template <typename T,
-            class = std::enable_if_t<
-                HasHelperSupport<typename InnerType<T>::type>::value ||
-                perfetto::internal::has_traced_value_support<
-                    typename InnerType<T>::type>::value>>
+  template <typename T>
   struct TypeCheck {
     static const bool value = true;
   };
@@ -387,18 +383,18 @@ union BASE_EXPORT TraceValue {
     Helper<ValueType>::SetValue(this, std::forward<T>(value));
   }
 
-  template <class T>
-  typename std::enable_if<
-      !HasHelperSupport<typename InnerType<T>::type>::value &&
-      perfetto::internal::has_traced_value_support<
-          typename InnerType<T>::type>::value>::type
-  Init(T&& value) {
-    as_proto = new protozero::HeapBuffered<
-        perfetto::protos::pbzero::DebugAnnotation>();
-    perfetto::WriteIntoTracedValue(
-        perfetto::internal::CreateTracedValueFromProto(as_proto->get()),
-        std::forward<T>(value));
-  }
+  // template <class T>
+  // typename std::enable_if<
+  //     !HasHelperSupport<typename InnerType<T>::type>::value &&
+  //     perfetto::internal::has_traced_value_support<
+  //         typename InnerType<T>::type>::value>::type
+  // Init(T&& value) {
+  //   as_proto = new protozero::HeapBuffered<
+  //       perfetto::protos::pbzero::DebugAnnotation>();
+  //   perfetto::WriteIntoTracedValue(
+  //       perfetto::internal::CreateTracedValueFromProto(as_proto->get()),
+  //       std::forward<T>(value));
+  // }
 };
 
 // TraceValue::Helper for integers and enums.
@@ -698,8 +694,8 @@ class BASE_EXPORT TraceArguments {
     for (size_t n = 0; n < size_; ++n) {
       if (types_[n] == TRACE_VALUE_TYPE_CONVERTABLE)
         delete values_[n].as_convertable;
-      if (types_[n] == TRACE_VALUE_TYPE_PROTO)
-        delete values_[n].as_proto;
+      // if (types_[n] == TRACE_VALUE_TYPE_PROTO)
+        // delete values_[n].as_proto;
     }
   }
 

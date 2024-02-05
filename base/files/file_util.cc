@@ -329,7 +329,6 @@ absl::optional<std::vector<uint8_t>> ReadFileToBytes(const FilePath& path) {
   }
 
   // TODO(b/298237462): Implement ScopedFILE for Starboard.
-  // ScopedFILE file_stream(OpenFile(path, "rb"));
   // if (!file_stream) {
   //   return absl::nullopt;
   // }

@@ -16,8 +16,8 @@
 
 #include <memory>
 
-#include "base/callback_forward.h"
 #include "base/command_line.h"
+#include "base/functional/callback_forward.h"
 #include "base/metrics/field_trial.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "components/metrics/client_info.h"

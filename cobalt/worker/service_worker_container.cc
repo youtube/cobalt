@@ -20,7 +20,6 @@
 #include "base/logging.h"
 #include "base/message_loop/message_loop.h"
 #include "base/optional.h"
-#include "base/task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/dom/dom_settings.h"
@@ -91,7 +90,7 @@ script::HandlePromiseWrappable ServiceWorkerContainer::ready() {
 }
 
 void ServiceWorkerContainer::MaybeResolveReadyPromise(
-    ServiceWorkerRegistrationObject* registration) {
+    scoped_refptr<ServiceWorkerRegistrationObject> registration) {
   // This implements resolving of the ready promise for the Activate algorithm
   // (steps 7.1-7.3) as well as for the ready attribute (step 3.3).
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#activation-algorithm
@@ -222,14 +221,15 @@ void ServiceWorkerContainer::GetRegistrationTask(
   }
 
   // 5. Set clientURL’s fragment to null.
-  url::Replacements<char> replacements;
+  GURL::Replacements replacements;
   replacements.ClearRef();
   client_url = client_url.ReplaceComponents(replacements);
   DCHECK(!client_url.has_ref() || client_url.ref().empty());
 
   // 6. If the origin of clientURL is not client’s origin, return a promise
   //    rejected with a "SecurityError" web::DOMException.
-  if (client_url.GetOrigin() != base_url.GetOrigin()) {
+  if (client_url.DeprecatedGetOriginAsURL() !=
+      base_url.DeprecatedGetOriginAsURL()) {
     promise_reference->value().Reject(
         new web::DOMException(web::DOMException::kSecurityErr));
     return;

@@ -85,7 +85,7 @@ TEST_F(FetcherFactoryTest, InvalidURL) {
   StubFetcherHandler stub_fetcher_handler(&run_loop);
 
   fetcher_ = fetcher_factory_.CreateFetcher(
-      GURL("invalid-url"), /*main_resource=*/false, disk_cache::kOther,
+      GURL("invalid-url"), /*main_resource=*/false, network::disk_cache::kOther,
       &stub_fetcher_handler);
   EXPECT_TRUE(fetcher_);
 
@@ -98,9 +98,9 @@ TEST_F(FetcherFactoryTest, EmptyFileURL) {
   base::RunLoop run_loop;
   StubFetcherHandler stub_fetcher_handler(&run_loop);
 
-  fetcher_ =
-      fetcher_factory_.CreateFetcher(GURL("file:///"), /*main_resource=*/false,
-                                     disk_cache::kOther, &stub_fetcher_handler);
+  fetcher_ = fetcher_factory_.CreateFetcher(
+      GURL("file:///"), /*main_resource=*/false, network::disk_cache::kOther,
+      &stub_fetcher_handler);
   EXPECT_TRUE(fetcher_);
 
   run_loop.Run();
@@ -113,8 +113,8 @@ TEST_F(FetcherFactoryTest, FileURLCannotConvertToFilePath) {
   StubFetcherHandler stub_fetcher_handler(&run_loop);
 
   fetcher_ = fetcher_factory_.CreateFetcher(
-      GURL("file://file.txt"), /*main_resource=*/false, disk_cache::kOther,
-      &stub_fetcher_handler);
+      GURL("file://file.txt"), /*main_resource=*/false,
+      network::disk_cache::kOther, &stub_fetcher_handler);
   EXPECT_TRUE(fetcher_);
 
   run_loop.Run();
@@ -131,12 +131,12 @@ TEST_F(FetcherFactoryTest, MultipleCreations) {
 
   fetcher_ = fetcher_factory_.CreateFetcher(
       GURL("file:///nonempty-url-1"), /*main_resource=*/false,
-      disk_cache::kOther, &stub_fetcher_handler);
+      network::disk_cache::kOther, &stub_fetcher_handler);
   EXPECT_TRUE(fetcher_);
 
   fetcher_ = fetcher_factory_.CreateFetcher(
       GURL("file:///nonempty-url-2"), /*main_resource=*/false,
-      disk_cache::kOther, &stub_fetcher_handler);
+      network::disk_cache::kOther, &stub_fetcher_handler);
   EXPECT_TRUE(fetcher_);
   run_loop.Run();
   EXPECT_EQ(fetcher_.get(), stub_fetcher_handler.fetcher());

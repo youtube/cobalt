@@ -92,8 +92,8 @@ void DebugHub::SendCommand(const std::string& method,
                            const ResponseCallbackArg& callback) {
   last_error_ = base::nullopt;
   if (!debug_client_ || !debug_client_->IsAttached()) {
-    std::unique_ptr<base::DictionaryValue> response(new base::DictionaryValue);
-    response->SetString("error.message", "Debugger is not connected.");
+    std::unique_ptr<base::Value::Dict> response(new base::Value::Dict);
+    response->Set("error.message", "Debugger is not connected.");
     std::string json_response;
     auto* response_as_value = static_cast<const base::Value*>(response.get());
     base::JSONWriter::Write(*response_as_value, &json_response);
@@ -158,8 +158,8 @@ void DebugHub::OnDebugClientEvent(const std::string& method,
 void DebugHub::OnDebugClientDetach(const std::string& reason) {
   DLOG(INFO) << "Debugger detached: " + reason;
   const std::string method = "Inspector.detached";
-  JSONObject params(new base::DictionaryValue());
-  params->SetString("reason", reason);
+  JSONObject params(new base::Value::Dict());
+  params->Set("reason", reason);
   on_event_->DispatchEvent(method, JSONStringify(params));
 }
 

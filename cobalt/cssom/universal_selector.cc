@@ -26,7 +26,7 @@ void UniversalSelector::Accept(SelectorVisitor* visitor) {
 void UniversalSelector::IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                                               SelectorTree::Node* child_node,
                                               CombinatorType combinator) {
-  parent_node->AppendSimpleSelector(base::Token(), kUniversalSelector,
+  parent_node->AppendSimpleSelector(base_token::Token(), kUniversalSelector,
                                     combinator, child_node);
 }
 

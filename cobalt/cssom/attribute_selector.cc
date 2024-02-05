@@ -36,15 +36,15 @@ std::string GetValue(AttributeSelector::ValueMatchType value_match_type,
 }  // namespace
 
 AttributeSelector::AttributeSelector(const std::string& attribute_name)
-    : SimpleSelector(kAttributeSelector, base::Token(),
-                     base::Token(attribute_name)),
+    : SimpleSelector(kAttributeSelector, base_token::Token(),
+                     base_token::Token(attribute_name)),
       value_match_type_(kNoMatch) {}
 
 AttributeSelector::AttributeSelector(const std::string& attribute_name,
                                      ValueMatchType value_match_type,
                                      const std::string& attribute_value)
-    : SimpleSelector(kAttributeSelector, base::Token(),
-                     base::Token(attribute_name),
+    : SimpleSelector(kAttributeSelector, base_token::Token(),
+                     base_token::Token(attribute_name),
                      GetValue(value_match_type, attribute_value)),
       value_match_type_(value_match_type),
       value_(attribute_value) {}

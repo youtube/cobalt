@@ -172,7 +172,7 @@ class SourceBuffer : public web::EventTarget {
 
 
   void OnInitSegmentReceived(std::unique_ptr<MediaTracks> tracks);
-  void ScheduleEvent(base::Token event_name);
+  void ScheduleEvent(base_token::Token event_name);
   bool PrepareAppend(size_t new_data_size,
                      script::ExceptionState* exception_state);
   void AppendBufferInternal(const unsigned char* data, size_t size,

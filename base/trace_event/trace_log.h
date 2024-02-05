@@ -81,7 +81,7 @@ class BASE_EXPORT TraceLog :
     RECORDING_MODE = 1 << 0,
   };
 
-  static TraceLog* GetInstance();
+  static TraceLog* GetInstance() {return nullptr;}
 
   TraceLog(const TraceLog&) = delete;
   TraceLog& operator=(const TraceLog&) = delete;
@@ -95,7 +95,7 @@ class BASE_EXPORT TraceLog :
 
   // See TraceConfig comments for details on how to control which categories
   // will be traced. Only RECORDING_MODE is supported.
-  void SetEnabled(const TraceConfig& trace_config, uint8_t modes_to_enable);
+  void SetEnabled(const TraceConfig& trace_config, uint8_t modes_to_enable) {}
 
 #if BUILDFLAG(USE_PERFETTO_CLIENT_LIBRARY)
   // Enable tracing using a customized Perfetto trace config. This allows, for
@@ -106,8 +106,8 @@ class BASE_EXPORT TraceLog :
 #endif
 
   // Disables tracing for all categories. Only RECORDING_MODE is supported.
-  void SetDisabled();
-  void SetDisabled(uint8_t modes_to_disable);
+  void SetDisabled() {}
+  void SetDisabled(uint8_t modes_to_disable) {}
 
   // Returns true if TraceLog is enabled on recording mode.
   // Note: Returns false even if FILTERING_MODE is enabled.
@@ -235,7 +235,7 @@ class BASE_EXPORT TraceLog :
   using OutputCallback =
       base::RepeatingCallback<void(const scoped_refptr<base::RefCountedString>&,
                                    bool has_more_events)>;
-  void Flush(const OutputCallback& cb, bool use_worker_thread = false);
+  void Flush(const OutputCallback& cb, bool use_worker_thread = false) {}
 
   // Cancels tracing and discards collected data.
   void CancelTracing(const OutputCallback& cb);

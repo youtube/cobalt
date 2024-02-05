@@ -151,7 +151,7 @@ class WebModule::Impl {
   // currently focused element receives the event. If element is specified, we
   // must be on the WebModule's message loop.
   void InjectOnScreenKeyboardInputEvent(
-      base::Token type, const dom::InputEventInit& event,
+      base_token::Token type, const dom::InputEventInit& event,
       scoped_refptr<dom::Element> element = scoped_refptr<dom::Element>());
   // Injects an on screen keyboard shown event into the web module. Event is
   // directed at the on screen keyboard element.
@@ -174,7 +174,7 @@ class WebModule::Impl {
   // focused element receives the event. If element is specified, we must be
   // on the WebModule's message loop
   void InjectKeyboardEvent(
-      base::Token type, const dom::KeyboardEventInit& event,
+      base_token::Token type, const dom::KeyboardEventInit& event,
       scoped_refptr<dom::Element> element = scoped_refptr<dom::Element>());
 
   // Injects a pointer event into the web module. Event is directed at a
@@ -182,7 +182,7 @@ class WebModule::Impl {
   // focused element receives the event. If element is specified, we must be
   // on the WebModule's message loop
   void InjectPointerEvent(
-      base::Token type, const dom::PointerEventInit& event,
+      base_token::Token type, const dom::PointerEventInit& event,
       scoped_refptr<dom::Element> element = scoped_refptr<dom::Element>());
 
   // Injects a wheel event into the web module. Event is directed at a
@@ -190,7 +190,7 @@ class WebModule::Impl {
   // focused element receives the event. If element is specified, we must be
   // on the WebModule's message loop
   void InjectWheelEvent(
-      base::Token type, const dom::WheelEventInit& event,
+      base_token::Token type, const dom::WheelEventInit& event,
       scoped_refptr<dom::Element> element = scoped_refptr<dom::Element>());
 
   // Injects a beforeunload event into the web module. If this event is not
@@ -820,7 +820,7 @@ void WebModule::Impl::InjectInputEvent(scoped_refptr<dom::Element> element,
 }
 
 void WebModule::Impl::InjectOnScreenKeyboardInputEvent(
-    base::Token type, const dom::InputEventInit& event,
+    base_token::Token type, const dom::InputEventInit& event,
     scoped_refptr<dom::Element> element) {
   scoped_refptr<dom::InputEvent> input_event(
       new dom::InputEvent(type, window_, event));
@@ -874,7 +874,7 @@ void WebModule::Impl::InjectOnScreenKeyboardSuggestionsUpdatedEvent(
 }
 
 
-void WebModule::Impl::InjectKeyboardEvent(base::Token type,
+void WebModule::Impl::InjectKeyboardEvent(base_token::Token type,
                                           const dom::KeyboardEventInit& event,
                                           scoped_refptr<dom::Element> element) {
   scoped_refptr<dom::KeyboardEvent> keyboard_event(
@@ -882,7 +882,7 @@ void WebModule::Impl::InjectKeyboardEvent(base::Token type,
   InjectInputEvent(element, keyboard_event);
 }
 
-void WebModule::Impl::InjectPointerEvent(base::Token type,
+void WebModule::Impl::InjectPointerEvent(base_token::Token type,
                                          const dom::PointerEventInit& event,
                                          scoped_refptr<dom::Element> element) {
   scoped_refptr<dom::PointerEvent> pointer_event(
@@ -890,7 +890,7 @@ void WebModule::Impl::InjectPointerEvent(base::Token type,
   InjectInputEvent(element, pointer_event);
 }
 
-void WebModule::Impl::InjectWheelEvent(base::Token type,
+void WebModule::Impl::InjectWheelEvent(base_token::Token type,
                                        const dom::WheelEventInit& event,
                                        scoped_refptr<dom::Element> element) {
   scoped_refptr<dom::WheelEvent> wheel_event(
@@ -1403,7 +1403,7 @@ void WebModule::InitializeTaskInThread(const ConstructionData& data,
   TASK_TO_ENSURE_IMPL_ON_THREAD(PostBlockingTask, function, ##__VA_ARGS__)
 
 void WebModule::InjectOnScreenKeyboardInputEvent(
-    base::Token type, const dom::InputEventInit& event) {
+    base_token::Token type, const dom::InputEventInit& event) {
   TRACE_EVENT1("cobalt::browser",
                "WebModule::InjectOnScreenKeyboardInputEvent()", "type",
                TRACE_STR_COPY(type.c_str()));
@@ -1453,7 +1453,7 @@ void WebModule::InjectOnScreenKeyboardSuggestionsUpdatedEvent(int ticket) {
 }
 
 
-void WebModule::InjectKeyboardEvent(base::Token type,
+void WebModule::InjectKeyboardEvent(base_token::Token type,
                                     const dom::KeyboardEventInit& event) {
   TRACE_EVENT1("cobalt::browser", "WebModule::InjectKeyboardEvent()", "type",
                TRACE_STR_COPY(type.c_str()));
@@ -1461,7 +1461,7 @@ void WebModule::InjectKeyboardEvent(base::Token type,
   impl_->InjectKeyboardEvent(type, event);
 }
 
-void WebModule::InjectPointerEvent(base::Token type,
+void WebModule::InjectPointerEvent(base_token::Token type,
                                    const dom::PointerEventInit& event) {
   TRACE_EVENT1("cobalt::browser", "WebModule::InjectPointerEvent()", "type",
                TRACE_STR_COPY(type.c_str()));
@@ -1469,7 +1469,7 @@ void WebModule::InjectPointerEvent(base::Token type,
   impl_->InjectPointerEvent(type, event);
 }
 
-void WebModule::InjectWheelEvent(base::Token type,
+void WebModule::InjectWheelEvent(base_token::Token type,
                                  const dom::WheelEventInit& event) {
   TRACE_EVENT1("cobalt::browser", "WebModule::InjectWheelEvent()", "type",
                TRACE_STR_COPY(type.c_str()));

@@ -72,7 +72,7 @@ class InterceptingPrefFilter : public PrefFilter {
       std::unique_ptr<base::DictionaryValue> pref_store_contents) override;
   void FilterUpdate(const std::string& path) override {}
   OnWriteCallbackPair FilterSerializeData(
-      base::DictionaryValue* pref_store_contents) override {
+      base::Value::Dict& pref_store_contents) override {
     return on_write_callback_pair_;
   }
   void OnStoreDeletionFromDisk() override {}

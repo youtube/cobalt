@@ -18,6 +18,7 @@
 #include <memory>
 
 #include "base/basictypes.h"
+#include "base/macros.h"
 
 namespace cobalt {
 namespace cssom {

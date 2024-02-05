@@ -7,7 +7,7 @@
 #include <utility>
 
 #include "base/bind.h"
-#include "base/callback_helpers.h"
+#include "base/functional/callback_helpers.h"
 #include "build/build_config.h"
 #include "media/base/bind_to_current_loop.h"
 #include "media/capture/video/video_capture_metrics.h"

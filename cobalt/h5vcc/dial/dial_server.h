@@ -26,11 +26,11 @@
 #include "cobalt/h5vcc/dial/dial_http_request.h"
 #include "cobalt/h5vcc/dial/dial_http_response.h"
 #include "cobalt/h5vcc/script_callback_wrapper.h"
+#include "cobalt/network/dial/dial_service.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
-#include "net/dial/dial_service.h"
 
 namespace cobalt {
 namespace h5vcc {
@@ -81,7 +81,7 @@ class DialServer : public script::Wrappable,
   THREAD_CHECKER(thread_checker_);
   CallbackMap callback_map_[kMethodCount];
 
-  scoped_refptr<net::DialServiceProxy> dial_service_proxy_;
+  scoped_refptr<network::DialServiceProxy> dial_service_proxy_;
   scoped_refptr<ServiceHandler> service_handler_;
 
   DISALLOW_COPY_AND_ASSIGN(DialServer);

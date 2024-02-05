@@ -116,7 +116,7 @@ const int64_t kWatchdogTimeInterval = 10000000;
 const int64_t kWatchdogTimeWait = 2000000;
 
 bool IsStringNone(const std::string& str) {
-  return !base::strcasecmp(str.c_str(), "none");
+  return !strcasecmp(str.c_str(), "none");
 }
 
 #if defined(ENABLE_WEBDRIVER) || defined(ENABLE_DEBUGGER)
@@ -478,11 +478,12 @@ int StringToLogLevel(const std::string& log_level) {
 
 void SetIntegerIfSwitchIsSet(const char* switch_name, int* output) {
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(switch_name)) {
-    int32 out;
-    if (base::StringToInt32(
-            base::CommandLine::ForCurrentProcess()->GetSwitchValueNative(
-                switch_name),
-            &out)) {
+    size_t idx;
+    std::string str =
+        base::CommandLine::ForCurrentProcess()->GetSwitchValueNative(
+            switch_name);
+    int32 out = std::stoi(str, &idx);
+    if (str.size() != idx) {
       LOG(INFO) << "Command line switch '" << switch_name << "': Modifying "
                 << *output << " -> " << out;
       *output = out;

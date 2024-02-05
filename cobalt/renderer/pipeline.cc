@@ -195,11 +195,8 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
   // so we detach it here and let it reattach itself to the rasterizer thread
   // when CalledOnValidThread() is called on rasterizer_thread_checker_ below.
   DETACH_FROM_THREAD(rasterizer_thread_checker_);
-
-  base::Thread::Options thread_options(base::MessageLoop::TYPE_DEFAULT,
-                                       kRendererThreadStackSize);
-  thread_options.priority = base::ThreadPriority::HIGHEST;
-  rasterizer_thread_.StartWithOptions(thread_options);
+  rasterizer_thread_.StartWithOptions(
+      base::Thread::Options(base::ThreadType::kMaxValue));
 
   rasterizer_thread_.message_loop()->task_runner()->PostTask(
       FROM_HERE,
@@ -621,10 +618,8 @@ void Pipeline::InitializeRasterizerThread(
   // we never interrupt the rasterizer in order to dispose render trees, but
   // at the same time we do want to prioritize cleaning them up to avoid
   // large queues of pending render tree disposals.
-  base::Thread::Options options(base::MessageLoop::TYPE_DEFAULT,
-                                kRendererThreadStackSize);
-  options.priority = base::ThreadPriority::HIGHEST;
-  submission_disposal_thread_.StartWithOptions(options);
+  submission_disposal_thread_.StartWithOptions(
+      base::Thread::Options(base::ThreadType::kMaxValue));
 
   ResetSubmissionQueue();
 }

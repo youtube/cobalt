@@ -31,7 +31,7 @@ class HTMLSpanElement : public HTMLElement {
   static const char kTagName[];
 
   explicit HTMLSpanElement(Document* document)
-      : HTMLElement(document, base::Token(kTagName)) {}
+      : HTMLElement(document, base_token::Token(kTagName)) {}
 
   // Custom, not in any spec.
   scoped_refptr<HTMLSpanElement> AsHTMLSpanElement() override { return this; }

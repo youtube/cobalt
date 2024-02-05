@@ -34,14 +34,14 @@ KeyboardEvent::KeyboardEvent(const std::string& type)
 // TODO: Initialize from init_dict.key() or init_dict.code() when not empty.
 KeyboardEvent::KeyboardEvent(const std::string& type,
                              const KeyboardEventInit& init_dict)
-    : UIEventWithKeyState(base::Token(type), kBubbles, kCancelable,
+    : UIEventWithKeyState(base_token::Token(type), kBubbles, kCancelable,
                           init_dict.view(), init_dict),
       key_location_(static_cast<KeyLocationCode>(init_dict.location())),
       key_code_(init_dict.key_code()),
       char_code_(init_dict.char_code()),
       repeat_(init_dict.repeat()) {}
 
-KeyboardEvent::KeyboardEvent(base::Token type,
+KeyboardEvent::KeyboardEvent(base_token::Token type,
                              const scoped_refptr<Window>& view,
                              const KeyboardEventInit& init_dict)
     : UIEventWithKeyState(type, kBubbles, kCancelable, view, init_dict),

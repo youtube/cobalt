@@ -10,7 +10,7 @@
 #include <limits>
 
 #include "base/bind.h"
-#include "base/callback_helpers.h"
+#include "base/functional/callback_helpers.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/files/scoped_file.h"
@@ -118,7 +118,7 @@ class GbmDeviceWrapper {
           version->name,
           base::checked_cast<std::string::size_type>(version->name_len));
       drmFreeVersion(version);
-      if (base::LowerCaseEqualsASCII(version_name, "vgem"))
+      if (base::EqualsCaseInsensitiveASCII(version_name, "vgem"))
         continue;
       gbm_device_ = ui::CreateGbmDevice(render_node_file_.GetPlatformFile());
       if (gbm_device_)

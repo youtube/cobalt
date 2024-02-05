@@ -6,11 +6,10 @@
 
 #include <utility>
 
+#include "base/json/values_util.h"
 #include "base/callback.h"
-#include "base/callback_helpers.h"
+#include "base/functional/callback_helpers.h"
 #include "base/location.h"
-#include "base/threading/sequenced_task_runner_handle.h"
-#include "base/value_conversions.h"
 #include "components/prefs/pref_service.h"
 
 using base::SequencedTaskRunner;
@@ -72,7 +71,7 @@ void PrefMemberBase::UpdateValueFromPref(const base::Closure& callback) const {
   DCHECK(pref);
   if (!internal())
     CreateInternal();
-  internal()->UpdateValue(pref->GetValue()->DeepCopy(), pref->IsManaged(),
+  internal()->UpdateValue(nullptr, pref->IsManaged(),
                           pref->IsUserModifiable(), callback);
 }
 
@@ -88,7 +87,7 @@ void PrefMemberBase::InvokeUnnamedCallback(const base::Closure& callback,
 }
 
 PrefMemberBase::Internal::Internal()
-    : owning_task_runner_(base::SequencedTaskRunnerHandle::Get()),
+    : owning_task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       is_managed_(false),
       is_user_modifiable_(false) {}
 
@@ -129,15 +128,15 @@ bool PrefMemberVectorStringUpdate(const base::Value& value,
                                   std::vector<std::string>* string_vector) {
   if (!value.is_list())
     return false;
-  const base::ListValue* list = static_cast<const base::ListValue*>(&value);
+  const base::Value::List* list = value.GetIfList();
 
   std::vector<std::string> local_vector;
   for (auto it = list->begin(); it != list->end(); ++it) {
-    std::string string_value;
-    if (!it->GetAsString(&string_value))
+    const std::string* string_value = it->GetIfString();
+    if (string_value == nullptr) {
       return false;
-
-    local_vector.push_back(string_value);
+    }
+    local_vector.push_back(*string_value);
   }
 
   string_vector->swap(local_vector);
@@ -154,7 +153,10 @@ void PrefMember<bool>::UpdatePref(const bool& value) {
 template <>
 bool PrefMember<bool>::Internal::UpdateValueInternal(
     const base::Value& value) const {
-  return value.GetAsBoolean(&value_);
+  absl::optional<bool> temp = value.GetIfBool();
+  if (value.is_bool())
+    value_ = value.GetBool();
+  return value.is_bool();;
 }
 
 template <>
@@ -165,7 +167,10 @@ void PrefMember<int>::UpdatePref(const int& value) {
 template <>
 bool PrefMember<int>::Internal::UpdateValueInternal(
     const base::Value& value) const {
-  return value.GetAsInteger(&value_);
+  absl::optional<int> temp = value.GetIfInt();
+  if (value.is_int())
+    value_ = value.GetInt();
+  return value.is_int();
 }
 
 template <>
@@ -176,7 +181,9 @@ void PrefMember<double>::UpdatePref(const double& value) {
 template <>
 bool PrefMember<double>::Internal::UpdateValueInternal(
     const base::Value& value) const {
-  return value.GetAsDouble(&value_);
+  if (value.is_double() || value.is_int())
+    value_ = value.GetDouble();
+  return value.is_double() || value.is_int();
 }
 
 template <>
@@ -187,7 +194,9 @@ void PrefMember<std::string>::UpdatePref(const std::string& value) {
 template <>
 bool PrefMember<std::string>::Internal::UpdateValueInternal(
     const base::Value& value) const {
-  return value.GetAsString(&value_);
+  if (value.is_string())
+    value_ = value.GetString();
+  return value.is_string();
 }
 
 template <>
@@ -198,15 +207,21 @@ void PrefMember<base::FilePath>::UpdatePref(const base::FilePath& value) {
 template <>
 bool PrefMember<base::FilePath>::Internal::UpdateValueInternal(
     const base::Value& value) const {
-  return base::GetValueAsFilePath(value, &value_);
+  absl::optional<base::FilePath> path = base::ValueToFilePath(value);
+  if (!path)
+    return false;
+  value_ = *path;
+  return true;
 }
 
 template <>
 void PrefMember<std::vector<std::string> >::UpdatePref(
     const std::vector<std::string>& value) {
-  base::ListValue list_value;
-  list_value.AppendStrings(value);
-  prefs()->Set(pref_name(), list_value);
+  base::Value::List list_value;
+  for (const std::string& val : value)
+    list_value.Append(val);
+
+  prefs()->SetList(pref_name(), std::move(list_value));
 }
 
 template <>

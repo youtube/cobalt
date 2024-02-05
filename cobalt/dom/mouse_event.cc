@@ -32,7 +32,7 @@ MouseEvent::MouseEvent(const std::string& type)
       buttons_(0) {}
 
 MouseEvent::MouseEvent(const std::string& type, const MouseEventInit& init_dict)
-    : UIEventWithKeyState(base::Token(type), kBubbles, kCancelable,
+    : UIEventWithKeyState(base_token::Token(type), kBubbles, kCancelable,
                           init_dict.view(), init_dict),
       screen_x_(static_cast<float>(init_dict.screen_x())),
       screen_y_(static_cast<float>(init_dict.screen_y())),
@@ -42,7 +42,8 @@ MouseEvent::MouseEvent(const std::string& type, const MouseEventInit& init_dict)
       buttons_(init_dict.buttons()),
       related_target_(init_dict.related_target()) {}
 
-MouseEvent::MouseEvent(base::Token type, const scoped_refptr<Window>& view,
+MouseEvent::MouseEvent(base_token::Token type,
+                       const scoped_refptr<Window>& view,
                        const MouseEventInit& init_dict)
     : UIEventWithKeyState(type, kBubbles, kCancelable, view, init_dict),
       screen_x_(static_cast<float>(init_dict.screen_x())),
@@ -53,8 +54,8 @@ MouseEvent::MouseEvent(base::Token type, const scoped_refptr<Window>& view,
       buttons_(init_dict.buttons()),
       related_target_(init_dict.related_target()) {}
 
-MouseEvent::MouseEvent(base::Token type, Bubbles bubbles, Cancelable cancelable,
-                       const scoped_refptr<Window>& view,
+MouseEvent::MouseEvent(base_token::Token type, Bubbles bubbles,
+                       Cancelable cancelable, const scoped_refptr<Window>& view,
                        const MouseEventInit& init_dict)
     : UIEventWithKeyState(type, bubbles, cancelable, view, init_dict),
       screen_x_(static_cast<float>(init_dict.screen_x())),

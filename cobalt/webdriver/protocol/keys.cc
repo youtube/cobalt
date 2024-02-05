@@ -28,6 +28,7 @@ base::Optional<Keys> Keys::FromValue(const base::Value* value) {
   if (!value->GetAsDictionary(&dictionary)) {
     return base::nullopt;
   }
+  const base::Value::Dict* dictionary = value->GetIfDict();
 
   const base::ListValue* list;
   if (!dictionary->GetList(kValueKey, &list)) {
@@ -42,7 +43,7 @@ base::Optional<Keys> Keys::FromValue(const base::Value* value) {
     if (!list->GetString(i, &item)) {
       return base::nullopt;
     }
-    keys += item;
+    keys += item.GetString();
   }
 
   if (!base::IsStringUTF8(keys)) {

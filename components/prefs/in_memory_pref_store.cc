@@ -18,8 +18,8 @@ bool InMemoryPrefStore::GetValue(const std::string& key,
   return prefs_.GetValue(key, value);
 }
 
-std::unique_ptr<base::DictionaryValue> InMemoryPrefStore::GetValues() const {
-  return prefs_.AsDictionaryValue();
+base::Value::Dict InMemoryPrefStore::GetValues() const {
+  return prefs_.AsDict();
 }
 
 bool InMemoryPrefStore::GetMutableValue(const std::string& key,
@@ -36,7 +36,7 @@ void InMemoryPrefStore::RemoveObserver(PrefStore::Observer* observer) {
 }
 
 bool InMemoryPrefStore::HasObservers() const {
-  return observers_.might_have_observers();
+  return !observers_.empty();
 }
 
 bool InMemoryPrefStore::IsInitializationComplete() const {
@@ -44,18 +44,18 @@ bool InMemoryPrefStore::IsInitializationComplete() const {
 }
 
 void InMemoryPrefStore::SetValue(const std::string& key,
-                                 std::unique_ptr<base::Value> value,
+                                 base::Value value,
                                  uint32_t flags) {
-  DCHECK(value);
-  if (prefs_.SetValue(key, base::Value::FromUniquePtrValue(std::move(value))))
+  DCHECK(!value.is_none());
+  if (prefs_.SetValue(key, std::move(value)))
     ReportValueChanged(key, flags);
 }
 
 void InMemoryPrefStore::SetValueSilently(const std::string& key,
-                                         std::unique_ptr<base::Value> value,
+                                         base::Value value,
                                          uint32_t flags) {
-  DCHECK(value);
-  prefs_.SetValue(key, base::Value::FromUniquePtrValue(std::move(value)));
+  DCHECK(!value.is_none());
+  prefs_.SetValue(key, std::move(value));
 }
 
 void InMemoryPrefStore::RemoveValue(const std::string& key, uint32_t flags) {

@@ -90,7 +90,7 @@ TextShaper::TextShaper()
     : local_glyph_array_size_(0), local_text_buffer_size_(0) {}
 
 scoped_refptr<GlyphBuffer> TextShaper::CreateGlyphBuffer(
-    const base::char16* text_buffer, size_t text_length,
+    const char16_t* text_buffer, size_t text_length,
     const std::string& language, bool is_rtl,
     render_tree::FontProvider* font_provider) {
   math::RectF bounds;
@@ -103,7 +103,7 @@ scoped_refptr<GlyphBuffer> TextShaper::CreateGlyphBuffer(
 scoped_refptr<GlyphBuffer> TextShaper::CreateGlyphBuffer(
     const std::string& utf8_string,
     const scoped_refptr<render_tree::Font>& font) {
-  base::string16 utf16_string;
+  std::u16string utf16_string;
   base::CodepageToUTF16(utf8_string, base::kCodepageUTF8,
                         base::OnStringConversionError::SUBSTITUTE,
                         &utf16_string);
@@ -112,9 +112,8 @@ scoped_refptr<GlyphBuffer> TextShaper::CreateGlyphBuffer(
                            false, &font_provider);
 }
 
-float TextShaper::GetTextWidth(const base::char16* text_buffer,
-                               size_t text_length, const std::string& language,
-                               bool is_rtl,
+float TextShaper::GetTextWidth(const char16_t* text_buffer, size_t text_length,
+                               const std::string& language, bool is_rtl,
                                render_tree::FontProvider* font_provider,
                                render_tree::FontVector* maybe_used_fonts) {
   return ShapeText(text_buffer, text_length, language, is_rtl, font_provider,
@@ -126,7 +125,7 @@ void TextShaper::PurgeCaches() {
   harfbuzz_font_provider_.PurgeCaches();
 }
 
-float TextShaper::ShapeText(const base::char16* text_buffer, size_t text_length,
+float TextShaper::ShapeText(const char16_t* text_buffer, size_t text_length,
                             const std::string& language, bool is_rtl,
                             render_tree::FontProvider* font_provider,
                             SkTextBlobBuilder* maybe_builder,
@@ -155,8 +154,7 @@ float TextShaper::ShapeText(const base::char16* text_buffer, size_t text_length,
 
     for (int i = 0; i < script_runs.size(); ++i) {
       ScriptRun& run = script_runs[i];
-      const base::char16* script_run_text_buffer =
-          text_buffer + run.start_index;
+      const char16_t* script_run_text_buffer = text_buffer + run.start_index;
 
       // Check to see if the script run requires HarfBuzz. Because HarfBuzz
       // shaping is much slower than simple shaping, we only want to run
@@ -191,7 +189,7 @@ float TextShaper::ShapeText(const base::char16* text_buffer, size_t text_length,
   return total_width;
 }
 
-bool TextShaper::CollectScriptRuns(const base::char16* text_buffer,
+bool TextShaper::CollectScriptRuns(const char16_t* text_buffer,
                                    size_t text_length,
                                    render_tree::FontProvider* font_provider,
                                    ScriptRuns* runs) {
@@ -283,7 +281,7 @@ bool TextShaper::CollectScriptRuns(const base::char16* text_buffer,
   return true;
 }
 
-void TextShaper::ShapeComplexRun(const base::char16* text_buffer,
+void TextShaper::ShapeComplexRun(const char16_t* text_buffer,
                                  const ScriptRun& script_run,
                                  const std::string& language, bool is_rtl,
                                  render_tree::FontProvider* font_provider,
@@ -376,7 +374,7 @@ void TextShaper::ShapeComplexRun(const base::char16* text_buffer,
 }
 
 void TextShaper::ShapeSimpleRunWithDirection(
-    const base::char16* text_buffer, size_t text_length, bool is_rtl,
+    const char16_t* text_buffer, size_t text_length, bool is_rtl,
     render_tree::FontProvider* font_provider, SkTextBlobBuilder* maybe_builder,
     VerticalBounds* maybe_vertical_bounds,
     render_tree::FontVector* maybe_used_fonts, float* total_width) {
@@ -412,8 +410,7 @@ void TextShaper::ShapeSimpleRunWithDirection(
   }
 }
 
-void TextShaper::ShapeSimpleRun(const base::char16* text_buffer,
-                                size_t text_length,
+void TextShaper::ShapeSimpleRun(const char16_t* text_buffer, size_t text_length,
                                 render_tree::FontProvider* font_provider,
                                 SkTextBlobBuilder* maybe_builder,
                                 VerticalBounds* maybe_vertical_bounds,
@@ -521,7 +518,7 @@ void TextShaper::EnsureLocalGlyphArraysHaveSize(size_t size) {
 void TextShaper::EnsureLocalTextBufferHasSize(size_t size) {
   if (local_text_buffer_size_ < size) {
     local_text_buffer_size_ = size;
-    local_text_buffer_.reset(new base::char16[size]);
+    local_text_buffer_.reset(new char16_t[size]);
   }
 }
 

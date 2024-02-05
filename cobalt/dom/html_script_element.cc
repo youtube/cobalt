@@ -66,7 +66,7 @@ loader::RequestMode GetRequestMode(
 const char HTMLScriptElement::kTagName[] = "script";
 
 HTMLScriptElement::HTMLScriptElement(Document* document)
-    : HTMLElement(document, base::Token(kTagName)),
+    : HTMLElement(document, base_token::Token(kTagName)),
       is_already_started_(false),
       is_parser_inserted_(false),
       is_ready_(false),
@@ -343,7 +343,7 @@ void HTMLScriptElement::Prepare() {
               /*main_resource=*/false, csp_callback, request_mode_,
               document_->location() ? document_->location()->GetOriginAsObject()
                                     : loader::Origin(),
-              disk_cache::kUncompiledScript, net::HttpRequestHeaders(),
+              network::disk_cache::kUncompiledScript, net::HttpRequestHeaders(),
               /*skip_fetch_intercept=*/false),
           base::Bind(&loader::TextDecoder::Create,
                      base::Bind(&HTMLScriptElement::OnSyncContentProduced,
@@ -706,7 +706,7 @@ void HTMLScriptElement::Execute(const std::string& content,
 }
 
 void HTMLScriptElement::PreventGarbageCollectionAndPostToDispatchEvent(
-    const base::Location& location, const base::Token& token,
+    const base::Location& location, const base_token::Token& token,
     std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>*
         scoped_prevent_gc) {
   // Ensure that this HTMLScriptElement is not garbage collected until the event

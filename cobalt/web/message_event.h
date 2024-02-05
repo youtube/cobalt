@@ -55,12 +55,12 @@ class MessageEvent : public Event {
       : Event(uninitialized_flag) {}
 
   explicit MessageEvent(const std::string& type) : Event(type) {}
-  MessageEvent(base::Token type,
+  MessageEvent(base_token::Token type,
                std::unique_ptr<script::StructuredClone> structured_clone)
       : Event(type),
         response_type_(kAny),
         structured_clone_(std::move(structured_clone)) {}
-  MessageEvent(base::Token type, ResponseType response_type,
+  MessageEvent(base_token::Token type, ResponseType response_type,
                const scoped_refptr<net::IOBufferWithSize>& data)
       : Event(type), response_type_(response_type), data_io_buffer_(data) {}
   MessageEvent(const std::string& type, const MessageEventInit& init_dict);

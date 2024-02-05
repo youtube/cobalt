@@ -35,8 +35,8 @@ class SelectorVisitor;
 class TypeSelector : public SimpleSelector {
  public:
   explicit TypeSelector(const std::string& element_name)
-      : SimpleSelector(kTypeSelector, base::Token(),
-                       base::Token(element_name)) {}
+      : SimpleSelector(kTypeSelector, base_token::Token(),
+                       base_token::Token(element_name)) {}
   ~TypeSelector() override {}
 
   // From Selector.
@@ -49,7 +49,7 @@ class TypeSelector : public SimpleSelector {
                              CombinatorType combinator) override;
 
   // Rest of public methods.
-  base::Token element_name() const { return text(); }
+  base_token::Token element_name() const { return text(); }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(TypeSelector);

@@ -46,7 +46,7 @@ class MEDIA_EXPORT DataSource {
 
   // Returns true and the file size, false if the file size could not be
   // retrieved.
-  virtual bool GetSize(int64_t* size_out) WARN_UNUSED_RESULT = 0;
+  [[noreturn]] virtual bool GetSize(int64_t* size_out) = 0;
 
   // Returns true if we are performing streaming. In this case seeking is
   // not possible.

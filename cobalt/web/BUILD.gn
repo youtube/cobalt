@@ -167,7 +167,10 @@ static_library("dom_exception") {
     "dom_exception.h",
   ]
 
-  deps = [ "//cobalt/script" ]
+  deps = [
+    "//base",
+    "//cobalt/script",
+  ]
 }
 
 target(gtest_target_type, "web_test") {

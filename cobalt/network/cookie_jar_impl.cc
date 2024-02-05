@@ -30,13 +30,13 @@ class CookiesGetter {
                 base::TaskRunner* network_task_runner)
       : event_(base::WaitableEvent::ResetPolicy::MANUAL,
                base::WaitableEvent::InitialState::NOT_SIGNALED) {
-    network_task_runner->PostTask(
-        FROM_HERE,
-        base::Bind(
-            &::net::CookieStore::GetCookieListWithOptionsAsync,
-            base::Unretained(cookie_store), origin, net::CookieOptions(),
-            base::Passed(base::BindOnce(&CookiesGetter::CompletionCallback,
-                                        base::Unretained(this)))));
+    // network_task_runner->PostTask(
+    //     FROM_HERE,
+    //     base::BindOnce(
+    //         &::net::CookieStore::GetCookieListWithOptionsAsync,
+    //         base::Unretained(cookie_store), origin, net::CookieOptions(),
+    //         base::Passed(base::BindOnce(&CookiesGetter::CompletionCallback,
+    //                                     base::Unretained(this)))));
   }
 
   net::CookieList WaitForCookies() {
@@ -72,11 +72,11 @@ net::CookieList CookieJarImpl::GetCookies(const GURL& origin) {
 
 void CookieJarImpl::SetCookie(const GURL& origin,
                               const std::string& cookie_line) {
-  network_task_runner_->PostTask(
-      FROM_HERE,
-      base::Bind(&net::CookieStore::SetCookieWithOptionsAsync,
-                 base::Unretained(cookie_store_), origin, cookie_line,
-                 net::CookieOptions(), base::Callback<void(bool)>()));
+  // network_task_runner_->PostTask(
+  //     FROM_HERE,
+  //     base::Bind(&net::CookieStore::SetCookieWithOptionsAsync,
+  //                base::Unretained(cookie_store_), origin, cookie_line,
+  //                net::CookieOptions(), base::Callback<void(bool)>()));
 }
 
 }  // namespace network

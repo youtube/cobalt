@@ -81,7 +81,11 @@ bool PrefValueMap::empty() const {
 
 bool PrefValueMap::GetBoolean(const std::string& key, bool* value) const {
   const base::Value* stored_value = nullptr;
-  return GetValue(key, &stored_value) && stored_value->GetAsBoolean(value);
+  if (GetValue(key, &stored_value) && stored_value->is_bool()) {
+    *value = stored_value->GetBool();
+    return true;
+  }
+  return false;
 }
 
 void PrefValueMap::SetBoolean(const std::string& key, bool value) {
@@ -90,7 +94,11 @@ void PrefValueMap::SetBoolean(const std::string& key, bool value) {
 
 bool PrefValueMap::GetString(const std::string& key, std::string* value) const {
   const base::Value* stored_value = nullptr;
-  return GetValue(key, &stored_value) && stored_value->GetAsString(value);
+  if (GetValue(key, &stored_value) && stored_value->is_string()) {
+    *value = stored_value->GetString();
+    return true;
+  }
+  return false;
 }
 
 void PrefValueMap::SetString(const std::string& key, const std::string& value) {
@@ -99,7 +107,11 @@ void PrefValueMap::SetString(const std::string& key, const std::string& value) {
 
 bool PrefValueMap::GetInteger(const std::string& key, int* value) const {
   const base::Value* stored_value = nullptr;
-  return GetValue(key, &stored_value) && stored_value->GetAsInteger(value);
+  if (GetValue(key, &stored_value) && stored_value->is_int()) {
+    *value = stored_value->GetInt();
+    return true;
+  }
+  return false;
 }
 
 void PrefValueMap::SetInteger(const std::string& key, const int value) {
@@ -129,7 +141,7 @@ void PrefValueMap::GetDifferingKeys(
   while (this_pref != this_prefs.end() && other_pref != other_prefs.end()) {
     const int diff = this_pref->first.compare(other_pref->first);
     if (diff == 0) {
-      if (!this_pref->second->Equals(other_pref->second))
+      if (*this_pref->second != *other_pref->second)
         differing_keys->push_back(this_pref->first);
       ++this_pref;
       ++other_pref;
@@ -149,10 +161,10 @@ void PrefValueMap::GetDifferingKeys(
     differing_keys->push_back(other_pref->first);
 }
 
-std::unique_ptr<base::DictionaryValue> PrefValueMap::AsDictionaryValue() const {
-  auto dictionary = std::make_unique<base::DictionaryValue>();
+base::Value::Dict PrefValueMap::AsDict() const {
+  base::Value::Dict dictionary;
   for (const auto& value : prefs_)
-    dictionary->Set(value.first, value.second.CreateDeepCopy());
+    dictionary.SetByDottedPath(value.first, value.second.Clone());
 
   return dictionary;
 }

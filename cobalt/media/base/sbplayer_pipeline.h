@@ -19,11 +19,11 @@
 #include <string>
 #include <vector>
 
-#include "base/callback_helpers.h"
+#include "base/functional/callback_helpers.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
-#include "base/task_runner.h"
+#include "base/task/task_runner.h"
 #include "base/time/time.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/math/size.h"

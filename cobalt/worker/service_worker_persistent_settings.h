@@ -77,7 +77,7 @@ class ServiceWorkerPersistentSettings {
       RegistrationMapKey key,
       scoped_refptr<ServiceWorkerRegistrationObject> registration);
 
-  std::unique_ptr<base::Value> WriteServiceWorkerObjectSettings(
+  base::Value::Dict WriteServiceWorkerObjectSettings(
       std::string registration_key_string,
       const scoped_refptr<ServiceWorkerObject>& service_worker_object);
 

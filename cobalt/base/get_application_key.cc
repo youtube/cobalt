@@ -31,7 +31,7 @@ GURL GetApplicationOrigin(const GURL& url) {
     return GURL();
   }
 
-  url::Replacements<char> replacements;
+  GURL::Replacements replacements;
   replacements.ClearUsername();
   replacements.ClearPassword();
   replacements.ClearQuery();

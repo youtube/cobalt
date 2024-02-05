@@ -16,6 +16,7 @@
 
 #include <string>
 
+#include "base/bind.h"
 #include "base/logging.h"
 #include "base/message_loop/message_loop.h"
 #include "base/threading/thread_task_runner_handle.h"
@@ -98,9 +99,9 @@ class Command {
 
   void SendErrorResponse(ErrorCode error_code,
                          const std::string& error_message) {
-    JSONObject error_response(new base::DictionaryValue());
-    error_response->SetInteger("error.code", error_code);
-    error_response->SetString("error.message", error_message);
+    JSONObject error_response(new base::Value::Dict());
+    error_response->Set("error.code", error_code);
+    error_response->Set("error.message", error_message);
     SendResponse(error_response);
   }
 

@@ -99,7 +99,7 @@ class StubWindow {
     loader_factory_.reset(new loader::LoaderFactory(
         "Test", web_context()->fetcher_factory(), NULL,
         web_context()->environment_settings()->debugger_hooks(), 0,
-        base::ThreadPriority::DEFAULT));
+        base::ThreadType::kDefault));
     system_caption_settings_ = new cobalt::dom::captions::SystemCaptionSettings(
         web_context()->environment_settings());
     if (!css_parser_) {

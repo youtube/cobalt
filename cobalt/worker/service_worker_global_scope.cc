@@ -20,7 +20,7 @@
 #include "base/bind.h"
 #include "base/logging.h"
 #include "base/message_loop/message_loop.h"
-#include "base/sequenced_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
@@ -67,7 +67,7 @@ void ServiceWorkerGlobalScope::ImportScripts(
   WorkerGlobalScope::ImportScriptsInternal(
       urls, exception_state,
       base::Bind(
-          [](ServiceWorkerObject* service_worker, const GURL& url,
+          [](base::WeakPtr<ServiceWorkerObject> service_worker, const GURL& url,
              script::ExceptionState* exception_state) -> std::string* {
             // 2. Let map be serviceWorker’s script resource map.
             DCHECK(service_worker);
@@ -116,7 +116,7 @@ void ServiceWorkerGlobalScope::ImportScripts(
           },
           service_worker_object_),
       base::Bind(
-          [](ServiceWorkerObject* service_worker, const GURL& url,
+          [](base::WeakPtr<ServiceWorkerObject> service_worker, const GURL& url,
              std::string* content) {
             // 10. If response’s cache state is not "local", set registration’s
             //     last update check time to the current time.
@@ -245,20 +245,20 @@ void ServiceWorkerGlobalScope::StartFetch(
   auto* global_environment = get_global_environment(environment_settings());
   auto* isolate = global_environment->isolate();
   script::v8c::EntryScope entry_scope(isolate);
-  base::DictionaryValue options;
+  base::Value::Dict options;
   if (main_resource) {
-    options.SetKey("mode", base::Value("navigate"));
+    options.Set("mode", base::Value("navigate"));
   }
-  base::ListValue headers;
+  base::Value::List headers;
   for (auto header_pair : request_headers.GetHeaderVector()) {
-    base::ListValue header;
-    header.GetList().emplace_back(header_pair.key);
-    header.GetList().emplace_back(header_pair.value);
-    headers.GetList().push_back(std::move(header));
+    base::Value::List header;
+    header.Append(header_pair.key);
+    header.Append(header_pair.value);
+    headers.Append(std::move(header));
   }
-  options.SetKey("headers", std::move(headers));
-  auto request =
-      web::cache_utils::CreateRequest(isolate, url.spec(), std::move(options));
+  options.Set("headers", std::move(headers));
+  auto request = web::cache_utils::CreateRequest(
+      isolate, url.spec(), base::Value(std::move(options)));
   if (!request) {
     callback_task_runner->PostTask(FROM_HERE, std::move(fallback));
     return;

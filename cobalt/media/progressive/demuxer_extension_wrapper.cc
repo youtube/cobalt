@@ -19,8 +19,6 @@
 #include <string>
 #include <utility>
 
-#include "base/task/post_task.h"
-#include "base/task_runner_util.h"
 #include "starboard/extension/demuxer.h"
 #include "starboard/system.h"
 #include "third_party/chromium/media/base/audio_codecs.h"
@@ -480,9 +478,8 @@ void DemuxerExtensionWrapper::Initialize(DemuxerHost* host,
 
   // |status_cb| cannot be called until this function returns, so we post a task
   // here.
-  base::PostTaskAndReplyWithResult(
-      blocking_thread_.message_loop()->task_runner().get(), FROM_HERE,
-      base::BindOnce(impl_->Initialize, impl_->user_data),
+  blocking_thread_.message_loop()->task_runner()->PostTaskAndReplyWithResult(
+      FROM_HERE, base::BindOnce(impl_->Initialize, impl_->user_data),
       base::BindOnce(&DemuxerExtensionWrapper::OnInitializeDone,
                      base::Unretained(this), std::move(status_cb)));
 }

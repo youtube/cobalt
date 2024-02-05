@@ -69,7 +69,7 @@ int ADTSStreamParser::ParseFrameHeader(const uint8_t* data,
 
   const int bytes_read = reader.bits_read() / 8;
   if (sync != 0xfff || layer != 0 || frame_length < bytes_read ||
-      sample_rate_index >= kADTSFrequencyTableSize ||
+      // sample_rate_index >= kADTSFrequencyTableSize ||
       channel_layout_index >= kADTSChannelLayoutTableSize) {
     if (media_log()) {
       LIMITED_MEDIA_LOG(DEBUG, media_log(), adts_parse_error_limit_, 5)

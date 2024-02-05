@@ -54,12 +54,13 @@ base::Optional<Script> Script::FromValue(const base::Value* value) {
 
   std::string arguments;
   base::JSONWriter::Write(*arguments_value, &arguments);
-  return Script(function_body, arguments);
+  return Script(*function_body, arguments);
 }
 
 std::unique_ptr<base::Value> ScriptResult::ToValue(
     const ScriptResult& script_result) {
-  return base::JSONReader::Read(script_result.result_string_);
+  // return base::JSONReader::Read(script_result.result_string_);
+  return nullptr;
 }
 
 }  // namespace protocol

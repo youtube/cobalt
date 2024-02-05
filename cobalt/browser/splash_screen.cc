@@ -73,10 +73,11 @@ SplashScreen::SplashScreen(
   // We want the splash screen to load and appear as quickly as possible, so
   // we set it and its image decoding thread to be high priority.
   web_module_options.web_options.thread_priority =
-      base::ThreadPriority::HIGHEST;
-  web_module_options.loader_thread_priority = base::ThreadPriority::HIGHEST;
+      base::ThreadType::kDisplayCritical;
+  web_module_options.loader_thread_priority =
+      base::ThreadType::kDisplayCritical;
   web_module_options.animated_image_decode_thread_priority =
-      base::ThreadPriority::HIGHEST;
+      base::ThreadType::kDisplayCritical;
 
   base::Optional<GURL> url_to_pass = fallback_splash_screen_url;
   DCHECK(fallback_splash_screen_url ||

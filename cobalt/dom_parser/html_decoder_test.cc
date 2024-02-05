@@ -74,7 +74,7 @@ HTMLDecoderTest::HTMLDecoderTest()
     : loader_factory_("Test" /* name */, &fetcher_factory_,
                       NULL /* ResourceProvider */, null_debugger_hooks_,
                       0 /* encoded_image_cache_capacity */,
-                      base::ThreadPriority::DEFAULT),
+                      base::ThreadType::kDefault),
       dom_parser_(new Parser()),
       dom_stat_tracker_(new dom::DomStatTracker("HTMLDecoderTest")),
       html_element_context_(

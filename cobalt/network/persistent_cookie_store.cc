@@ -39,16 +39,16 @@ void CookieStorageInit(
   memory_store.GetAllCookies(&actual_cookies);
 
   DCHECK(loaded_callback_task_runner);
-  if (!loaded_callback.is_null()) {
-    loaded_callback_task_runner->PostTask(
-        FROM_HERE,
-        base::Bind(
-            [](const PersistentCookieStore::LoadedCallback& loaded_callback,
-               std::vector<std::unique_ptr<net::CanonicalCookie>> cookies) {
-              loaded_callback.Run(std::move(cookies));
-            },
-            loaded_callback, base::Passed(&actual_cookies)));
-  }
+  // if (!loaded_callback.is_null()) {
+  //   loaded_callback_task_runner->PostTask(
+  //       FROM_HERE,
+  //       base::Bind(
+  //           [](const PersistentCookieStore::LoadedCallback& loaded_callback,
+  //              std::vector<std::unique_ptr<net::CanonicalCookie>> cookies) {
+  //             loaded_callback.Run(std::move(cookies));
+  //           },
+  //           loaded_callback, base::Passed(&actual_cookies)));
+  // }
 }
 
 void CookieStorageAddCookie(const net::CanonicalCookie& cc,
@@ -82,15 +82,15 @@ void SendEmptyCookieList(
     const PersistentCookieStore::LoadedCallback& loaded_callback,
     scoped_refptr<base::SequencedTaskRunner> loaded_callback_task_runner,
     const storage::MemoryStore& memory_store) {
-  loaded_callback_task_runner->PostTask(
-      FROM_HERE,
-      base::Bind(
-          [](const PersistentCookieStore::LoadedCallback& loaded_callback) {
-            std::vector<std::unique_ptr<net::CanonicalCookie>>
-                empty_cookie_list;
-            loaded_callback.Run(std::move(empty_cookie_list));
-          },
-          loaded_callback));
+  // loaded_callback_task_runner->PostTask(
+  //     FROM_HERE,
+  //     base::Bind(
+  //         [](const PersistentCookieStore::LoadedCallback& loaded_callback) {
+  //           std::vector<std::unique_ptr<net::CanonicalCookie>>
+  //               empty_cookie_list;
+  //           loaded_callback.Run(std::move(empty_cookie_list));
+  //         },
+  //         loaded_callback));
 }
 
 }  // namespace
@@ -102,25 +102,27 @@ PersistentCookieStore::PersistentCookieStore(
 
 PersistentCookieStore::~PersistentCookieStore() {}
 
-void PersistentCookieStore::Load(const LoadedCallback& loaded_callback,
+void PersistentCookieStore::Load(LoadedCallback loaded_callback,
                                  const net::NetLogWithSource& net_log) {
   net_log.BeginEvent(net::NetLogEventType::COOKIE_PERSISTENT_STORE_LOAD);
   //  DCHECK_EQ(base::MessageLoop::current()->task_runner(),
   //            loaded_callback_task_runner_);
-  storage_->WithReadOnlyMemoryStore(base::Bind(
-      &CookieStorageInit, loaded_callback, loaded_callback_task_runner_));
+  storage_->WithReadOnlyMemoryStore(base::Bind(&CookieStorageInit,
+                                               std::move(loaded_callback),
+                                               loaded_callback_task_runner_));
 }
 
-void PersistentCookieStore::LoadCookiesForKey(
-    const std::string& key, const LoadedCallback& loaded_callback) {
+void PersistentCookieStore::LoadCookiesForKey(const std::string& key,
+                                              LoadedCallback loaded_callback) {
   // We don't support loading of individual cookies.
   // This is always called after Load(), so just post the callback to the
   // Storage thread to make sure it is run after Load() has finished. See
   // comments in net/cookie_monster.cc for more information.
   DCHECK_EQ(base::MessageLoop::current()->task_runner(),
             loaded_callback_task_runner_);
-  storage_->WithReadOnlyMemoryStore(base::Bind(
-      &SendEmptyCookieList, loaded_callback, loaded_callback_task_runner_));
+  storage_->WithReadOnlyMemoryStore(base::Bind(&SendEmptyCookieList,
+                                               std::move(loaded_callback),
+                                               loaded_callback_task_runner_));
 }
 
 void PersistentCookieStore::AddCookie(const net::CanonicalCookie& cc) {
@@ -143,7 +145,7 @@ void PersistentCookieStore::SetForceKeepSessionState() {
   NOTREACHED();
 }
 
-void PersistentCookieStore::SetBeforeFlushCallback(
+void PersistentCookieStore::SetBeforeCommitCallback(
     base::RepeatingClosure callback) {
   NOTIMPLEMENTED();
 }

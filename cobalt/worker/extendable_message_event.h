@@ -47,17 +47,17 @@ class ExtendableMessageEvent : public ExtendableEvent {
                                   const std::string& type)
       : ExtendableEvent(settings, type) {}
   explicit ExtendableMessageEvent(script::EnvironmentSettings* settings,
-                                  base::Token type)
+                                  base_token::Token type)
       : ExtendableEvent(settings, type) {}
   ExtendableMessageEvent(script::EnvironmentSettings* settings,
                          const std::string& type,
                          const ExtendableMessageEventInit& init_dict)
-      : ExtendableMessageEvent(settings, base::Token(type), init_dict) {}
+      : ExtendableMessageEvent(settings, base_token::Token(type), init_dict) {}
   ExtendableMessageEvent(script::EnvironmentSettings* settings,
-                         base::Token type,
+                         base_token::Token type,
                          const ExtendableMessageEventInit& init_dict);
   ExtendableMessageEvent(
-      script::EnvironmentSettings* settings, base::Token type,
+      script::EnvironmentSettings* settings, base_token::Token type,
       const ExtendableMessageEventInit& init_dict,
       std::unique_ptr<script::StructuredClone> structured_clone)
       : ExtendableMessageEvent(settings, type, init_dict) {

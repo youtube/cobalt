@@ -430,6 +430,13 @@ class SupportsWeakPtr : public internal::SupportsWeakPtrBase {
     return WeakPtr<T>(weak_reference_owner_.GetRef(), static_cast<T*>(this));
   }
 
+#if defined(STARBOARD)
+  // Call this method to invalidate all existing weak pointers.
+  // This may be useful to call explicitly in a destructor of a derived class,
+  // as the SupportsWeakPtr destructor won't run until late in destruction.
+  void InvalidateWeakPtrs() { weak_reference_owner_.Invalidate(); }
+#endif
+
  protected:
   ~SupportsWeakPtr() = default;
 

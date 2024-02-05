@@ -29,18 +29,19 @@
 
 #include "base/bind.h"
 #include "base/rand_util.h"
+#include "base/strings/escape.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/language.h"
 #include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/network/custom/url_fetcher.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/speech/microphone.h"
 #include "cobalt/speech/speech_configuration.h"
 #include "cobalt/speech/speech_recognition_error.h"
-#include "net/base/escape.h"
-#include "net/url_request/url_fetcher.h"
+#include "net/base/net_errors.h"
 
 #if defined(SB_USE_SB_MICROPHONE)
 #include "starboard/system.h"
@@ -61,7 +62,7 @@ GURL AppendPath(const GURL& url, const std::string& value) {
 
   if (!path.empty()) path += "/";
 
-  path += net::EscapePath(value);
+  path += base::EscapePath(value);
   GURL::Replacements replacements;
   replacements.SetPathStr(path);
   return url.ReplaceComponents(replacements);
@@ -73,10 +74,10 @@ GURL AppendQueryParameter(const GURL& url, const std::string& new_query,
 
   if (!query.empty()) query += "&";
 
-  query += net::EscapeQueryParamValue(new_query, true);
+  query += base::EscapeQueryParamValue(new_query, true);
 
   if (!value.empty()) {
-    query += "=" + net::EscapeQueryParamValue(value, true);
+    query += "=" + base::EscapeQueryParamValue(value, true);
   }
 
   GURL::Replacements replacements;
@@ -240,11 +241,11 @@ void GoogleSpeechService::OnURLFetchDownloadProgress(
   std::string data;
   download_data_writer_->GetAndResetData(&data);
 
-  const net::URLRequestStatus& status = source->GetStatus();
+  const net::Error status = source->GetStatus();
   const int response_code = source->GetResponseCode();
 
   if (source == downstream_fetcher_.get()) {
-    if (status.is_success() && IsResponseCodeSuccess(response_code)) {
+    if (status == net::OK && IsResponseCodeSuccess(response_code)) {
       chunked_byte_buffer_.Append(data);
       while (chunked_byte_buffer_.HasChunks()) {
         std::unique_ptr<std::vector<uint8_t> > chunk =
@@ -310,7 +311,7 @@ void GoogleSpeechService::StartInternal(const SpeechRecognitionConfig& config,
   encoder_.reset(new AudioEncoderFlac(sample_rate));
 
   // Required for streaming on both up and down connections.
-  std::string pair = base::Uint64ToString(base::RandUint64());
+  std::string pair = std::to_string(base::RandUint64());
 
   // Set up down stream first.
   GURL down_url(kBaseStreamURL);
@@ -349,7 +350,7 @@ void GoogleSpeechService::StartInternal(const SpeechRecognitionConfig& config,
 
   if (config.max_alternatives) {
     up_url = AppendQueryParameter(up_url, "maxAlternatives",
-                                  base::UintToString(config.max_alternatives));
+                                  std::to_string(config.max_alternatives));
   }
 
   if (config.continuous) {

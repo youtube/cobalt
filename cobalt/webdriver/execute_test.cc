@@ -55,10 +55,10 @@ class JSONScriptExecutorResult : public ScriptExecutorResult::ResultHandler {
     json_result_ = base::JSONReader::Read(result.c_str());
   }
   void OnTimeout() { NOTREACHED(); }
-  base::Value* json_result() { return json_result_.get(); }
+  absl::optional<base::Value> json_result() { return std::move(json_result_); }
 
  private:
-  std::unique_ptr<base::Value> json_result_;
+  absl::optional<base::Value> json_result_;
 };
 
 class ScriptExecutorTest : public ::testing::Test {
@@ -263,14 +263,15 @@ TEST_F(ScriptExecutorTest, ConvertWebElement) {
   JSONScriptExecutorResult result_handler;
   EXPECT_TRUE(
       script_executor_->Execute(gc_prevented_params.params, &result_handler));
-  ASSERT_TRUE(result_handler.json_result());
+  ASSERT_TRUE(result_handler.json_result().has_value());
 
-  std::string element_id;
-  base::DictionaryValue* dictionary_value;
-  ASSERT_TRUE(result_handler.json_result()->GetAsDictionary(&dictionary_value));
-  EXPECT_TRUE(dictionary_value->GetString(protocol::ElementId::kElementKey,
-                                          &element_id));
-  EXPECT_STREQ(element_id.c_str(), "id123");
+  ASSERT_TRUE(result_handler.json_result().value().is_dict());
+  const base::Value::Dict* dictionary_value =
+      result_handler.json_result().value().GetIfDict();
+  const std::string* element_id =
+      dictionary_value->FindString(protocol::ElementId::kElementKey);
+  EXPECT_TRUE(!!element_id);
+  EXPECT_STREQ(element_id->c_str(), "id123");
 }
 
 TEST_F(ScriptExecutorTest, ConvertArray) {
@@ -284,17 +285,17 @@ TEST_F(ScriptExecutorTest, ConvertArray) {
   JSONScriptExecutorResult result_handler;
   EXPECT_TRUE(
       script_executor_->Execute(gc_prevented_params.params, &result_handler));
-  ASSERT_TRUE(result_handler.json_result());
+  ASSERT_TRUE(result_handler.json_result().has_value());
 
-  base::ListValue* list_value;
-  ASSERT_TRUE(result_handler.json_result()->GetAsList(&list_value));
-  ASSERT_EQ(list_value->GetSize(), 2);
+  ASSERT_TRUE(result_handler.json_result().value().is_list());
+  const base::Value::List* list_value =
+      result_handler.json_result().value().GetIfList();
+  ASSERT_EQ(list_value->size(), 2);
 
-  int value;
-  EXPECT_TRUE(list_value->GetInteger(0, &value));
-  EXPECT_EQ(value, 6);
-  EXPECT_TRUE(list_value->GetInteger(1, &value));
-  EXPECT_EQ(value, 7);
+  EXPECT_TRUE((*list_value)[0].is_int());
+  EXPECT_EQ((*list_value)[0].GetInt(), 6);
+  EXPECT_TRUE((*list_value)[1].is_int());
+  EXPECT_EQ((*list_value)[1].GetInt(), 7);
 }
 
 TEST_F(ScriptExecutorTest, ConvertObject) {
@@ -310,13 +311,14 @@ TEST_F(ScriptExecutorTest, ConvertObject) {
   JSONScriptExecutorResult result_handler;
   EXPECT_TRUE(
       script_executor_->Execute(gc_prevented_params.params, &result_handler));
-  ASSERT_TRUE(result_handler.json_result());
+  ASSERT_TRUE(result_handler.json_result().has_value());
 
-  int value;
-  base::DictionaryValue* dictionary_value;
-  ASSERT_TRUE(result_handler.json_result()->GetAsDictionary(&dictionary_value));
-  EXPECT_TRUE(dictionary_value->GetInteger("sum", &value));
-  EXPECT_EQ(value, 11);
+  ASSERT_TRUE(result_handler.json_result().value().is_dict());
+  const base::Value::Dict* dictionary_value =
+      result_handler.json_result().value().GetIfDict();
+  absl::optional<int> value = dictionary_value->FindInt("sum");
+  EXPECT_TRUE(value.has_value());
+  EXPECT_EQ(value.value(), 11);
 }
 
 }  // namespace webdriver

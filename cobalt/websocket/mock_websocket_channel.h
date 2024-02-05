@@ -42,7 +42,7 @@ class MockWebSocketChannel : public net::WebSocketChannel {
                    scoped_refptr<net::IOBuffer> buffer, size_t buffer_size));
   net::WebSocketChannel::ChannelState SendFrame(
       bool fin, net::WebSocketFrameHeader::OpCode op_code,
-      scoped_refptr<net::IOBuffer> buffer, size_t buffer_size) override {
+      scoped_refptr<net::IOBuffer> buffer, size_t buffer_size) {
     base::AutoLock scoped_lock(lock_);
     return MockSendFrame(fin, op_code, buffer, buffer_size);
   }

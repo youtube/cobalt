@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/bind.h"
 #include "base/message_loop/message_loop.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "starboard/configuration.h"

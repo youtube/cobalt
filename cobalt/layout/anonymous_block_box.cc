@@ -44,8 +44,9 @@ Box::MarginCollapsingStatus AnonymousBlockBox::GetMarginCollapsingStatus()
     const {
   // If all enclosed boxes are absolutely-positioned, ignore it for
   // margin-collapse.
-  if (std::all_of(child_boxes().begin(), child_boxes().end(),
-                  [](Box* b) { return b->IsAbsolutelyPositioned(); })) {
+  if (std::all_of(
+          child_boxes().begin(), child_boxes().end(),
+          [](scoped_refptr<Box> b) { return b->IsAbsolutelyPositioned(); })) {
     return kIgnore;
   }
 
@@ -99,7 +100,7 @@ void AnonymousBlockBox::RenderAndAnimateContent(
 
     // Only render the ellipses if the color is not completely transparent.
     if (used_color.a() > 0.0f) {
-      base::char16 ellipsis_value = used_font_->GetEllipsisValue();
+      char16_t ellipsis_value = used_font_->GetEllipsisValue();
       scoped_refptr<render_tree::GlyphBuffer> glyph_buffer =
           used_font_->CreateGlyphBuffer(&ellipsis_value, 1, false);
 

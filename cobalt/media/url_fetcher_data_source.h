@@ -30,9 +30,9 @@
 #include "cobalt/loader/origin.h"
 #include "cobalt/loader/url_fetcher_string_writer.h"
 #include "cobalt/media/base/data_source.h"
+#include "cobalt/network/custom/url_fetcher.h"
+#include "cobalt/network/custom/url_fetcher_delegate.h"
 #include "cobalt/network/network_module.h"
-#include "net/url_request/url_fetcher.h"
-#include "net/url_request/url_fetcher_delegate.h"
 #include "url/gurl.h"
 
 namespace cobalt {

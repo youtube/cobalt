@@ -67,17 +67,17 @@ class MockResourceProvider : public ResourceProvider {
   MOCK_METHOD2(CreateTypefaceFromRawDataMock,
                Typeface*(RawTypefaceDataVector* raw_data,
                          std::string* error_string));
-  MOCK_METHOD5(CreateGlyphBufferMock,
-               render_tree::GlyphBuffer*(
-                   const base::char16* text_buffer, size_t text_length,
-                   const std::string& language, bool is_rtl,
-                   render_tree::FontProvider* font_provider));
+  MOCK_METHOD5(
+      CreateGlyphBufferMock,
+      render_tree::GlyphBuffer*(const char16_t* text_buffer, size_t text_length,
+                                const std::string& language, bool is_rtl,
+                                render_tree::FontProvider* font_provider));
   MOCK_METHOD2(
       CreateGlyphBufferMock,
       render_tree::GlyphBuffer*(const std::string& utf8_string,
                                 const scoped_refptr<render_tree::Font>& font));
   MOCK_METHOD6(GetTextWidth,
-               float(const base::char16* text_buffer, size_t text_length,
+               float(const char16_t* text_buffer, size_t text_length,
                      const std::string& language, bool is_rtl,
                      render_tree::FontProvider* font_provider,
                      render_tree::FontVector* maybe_used_fonts));
@@ -148,7 +148,7 @@ class MockResourceProvider : public ResourceProvider {
         CreateTypefaceFromRawDataMock(raw_data.get(), error_string));
   }
   scoped_refptr<render_tree::GlyphBuffer> CreateGlyphBuffer(
-      const base::char16* text_buffer, size_t text_length,
+      const char16_t* text_buffer, size_t text_length,
       const std::string& language, bool is_rtl,
       render_tree::FontProvider* font_provider) {
     return scoped_refptr<render_tree::GlyphBuffer>(CreateGlyphBufferMock(

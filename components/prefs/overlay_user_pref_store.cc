@@ -63,7 +63,7 @@ void OverlayUserPrefStore::RemoveObserver(PrefStore::Observer* observer) {
 }
 
 bool OverlayUserPrefStore::HasObservers() const {
-  return observers_.might_have_observers();
+  return !observers_.empty();
 }
 
 bool OverlayUserPrefStore::IsInitializationComplete() const {
@@ -83,7 +83,7 @@ bool OverlayUserPrefStore::GetValue(const std::string& key,
   return persistent_user_pref_store_->GetValue(key, result);
 }
 
-std::unique_ptr<base::DictionaryValue> OverlayUserPrefStore::GetValues() const {
+base::Value::Dict OverlayUserPrefStore::GetValues() const {
   auto values = ephemeral_user_pref_store_->GetValues();
   auto persistent_values = persistent_user_pref_store_->GetValues();
 
@@ -91,13 +91,13 @@ std::unique_ptr<base::DictionaryValue> OverlayUserPrefStore::GetValues() const {
   // store). Then the values of preferences in |persistent_names_set_| are
   // overwritten by the content of |persistent_user_pref_store_| (the persistent
   // store).
-  for (const auto& key : persistent_names_set_) {
-    std::unique_ptr<base::Value> out_value;
-    persistent_values->Remove(key, &out_value);
-    if (out_value) {
-      values->Set(key, std::move(out_value));
-    }
-  }
+  // for (const auto& key : persistent_names_set_) {
+  //   std::unique_ptr<base::Value> out_value;
+  //   persistent_values->Remove(key, &out_value);
+  //   if (out_value) {
+  //     values->Set(key, std::move(out_value));
+  //   }
+  // }
   return values;
 }
 
@@ -116,14 +116,14 @@ bool OverlayUserPrefStore::GetMutableValue(const std::string& key,
     return false;
 
   ephemeral_user_pref_store_->SetValue(
-      key, persistent_value->CreateDeepCopy(),
+      key, persistent_value->Clone(),
       WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
   ephemeral_user_pref_store_->GetMutableValue(key, result);
   return true;
 }
 
 void OverlayUserPrefStore::SetValue(const std::string& key,
-                                    std::unique_ptr<base::Value> value,
+                                    base::Value value,
                                     uint32_t flags) {
   if (ShallBeStoredInPersistent(key)) {
     persistent_user_pref_store_->SetValue(key, std::move(value), flags);
@@ -138,7 +138,7 @@ void OverlayUserPrefStore::SetValue(const std::string& key,
 }
 
 void OverlayUserPrefStore::SetValueSilently(const std::string& key,
-                                            std::unique_ptr<base::Value> value,
+                                            base::Value value,
                                             uint32_t flags) {
   if (ShallBeStoredInPersistent(key)) {
     persistent_user_pref_store_->SetValueSilently(key, std::move(value), flags);

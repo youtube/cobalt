@@ -20,7 +20,6 @@
 #include <utility>
 
 #include "base/lazy_instance.h"
-#include "base/message_loop/message_loop_task_runner.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/console_log.h"
@@ -243,7 +242,7 @@ int32 HTMLElement::tab_index() const {
 }
 
 void HTMLElement::set_tab_index(int32 tab_index) {
-  SetAttribute("tabindex", base::Int32ToString(tab_index));
+  SetAttribute("tabindex", std::to_string(tab_index));
 }
 
 // Algorithm for Focus:
@@ -1254,7 +1253,7 @@ void HTMLElement::OnUiNavScroll(SbTimeMonotonic /* time */) {
                             web::Event::kNotCancelable, window));
 }
 
-HTMLElement::HTMLElement(Document* document, base::Token local_name)
+HTMLElement::HTMLElement(Document* document, base_token::Token local_name)
     : Element(document, local_name),
       dom_stat_tracker_(document->html_element_context()->dom_stat_tracker()),
       locked_for_focus_(false),
@@ -1554,8 +1553,9 @@ void HTMLElement::SetDir(const std::string& value) {
 }
 
 void HTMLElement::SetTabIndex(const std::string& value) {
-  int32 tabindex;
-  if (base::StringToInt32(value, &tabindex)) {
+  std::string::size_type idx;
+  int32 tabindex = std::stoi(value, &idx);
+  if (value.length() == idx) {
     tabindex_ = tabindex;
   } else {
     tabindex_ = base::nullopt;

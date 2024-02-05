@@ -29,11 +29,11 @@ namespace dom {
 class TransitionEvent : public web::Event {
  public:
   explicit TransitionEvent(const std::string& type)
-      : Event(base::Token(type), kBubbles, kCancelable),
+      : Event(base_token::Token(type), kBubbles, kCancelable),
         property_(cssom::kNoneProperty),
         elapsed_time_(0) {}
 
-  TransitionEvent(base::Token type, cssom::PropertyKey property,
+  TransitionEvent(base_token::Token type, cssom::PropertyKey property,
                   float elapsed_time)
       : Event(type, kBubbles, kCancelable),
         property_(property),

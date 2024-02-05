@@ -297,7 +297,7 @@ static const int kTableSarWidth[] = {0,  1,  12, 10, 16,  40, 24, 20, 32,
                                      80, 18, 15, 64, 160, 4,  3,  2};
 static const int kTableSarHeight[] = {0,  1,  11, 11, 11, 33, 11, 11, 11,
                                       33, 11, 11, 33, 99, 3,  2,  1};
-static_assert(base::size(kTableSarWidth) == base::size(kTableSarHeight),
+static_assert(std::size(kTableSarWidth) == std::size(kTableSarHeight),
               "sar tables must have the same size");
 
 H264Parser::H264Parser() {
@@ -811,7 +811,7 @@ H264Parser::Result H264Parser::ParseSPSScalingLists(H264SPS* sps) {
     READ_BOOL_OR_RETURN(&seq_scaling_list_present_flag);
 
     if (seq_scaling_list_present_flag) {
-      res = ParseScalingList(base::size(sps->scaling_list4x4[i]),
+      res = ParseScalingList(std::size(sps->scaling_list4x4[i]),
                              sps->scaling_list4x4[i], &use_default);
       if (res != kOk)
         return res;
@@ -830,7 +830,7 @@ H264Parser::Result H264Parser::ParseSPSScalingLists(H264SPS* sps) {
     READ_BOOL_OR_RETURN(&seq_scaling_list_present_flag);
 
     if (seq_scaling_list_present_flag) {
-      res = ParseScalingList(base::size(sps->scaling_list8x8[i]),
+      res = ParseScalingList(std::size(sps->scaling_list8x8[i]),
                              sps->scaling_list8x8[i], &use_default);
       if (res != kOk)
         return res;
@@ -858,7 +858,7 @@ H264Parser::Result H264Parser::ParsePPSScalingLists(const H264SPS& sps,
     READ_BOOL_OR_RETURN(&pic_scaling_list_present_flag);
 
     if (pic_scaling_list_present_flag) {
-      res = ParseScalingList(base::size(pps->scaling_list4x4[i]),
+      res = ParseScalingList(std::size(pps->scaling_list4x4[i]),
                              pps->scaling_list4x4[i], &use_default);
       if (res != kOk)
         return res;
@@ -884,7 +884,7 @@ H264Parser::Result H264Parser::ParsePPSScalingLists(const H264SPS& sps,
       READ_BOOL_OR_RETURN(&pic_scaling_list_present_flag);
 
       if (pic_scaling_list_present_flag) {
-        res = ParseScalingList(base::size(pps->scaling_list8x8[i]),
+        res = ParseScalingList(std::size(pps->scaling_list8x8[i]),
                                pps->scaling_list8x8[i], &use_default);
         if (res != kOk)
           return res;
@@ -941,7 +941,7 @@ H264Parser::Result H264Parser::ParseVUIParameters(H264SPS* sps) {
       READ_BITS_OR_RETURN(16, &sps->sar_width);
       READ_BITS_OR_RETURN(16, &sps->sar_height);
     } else {
-      const int max_aspect_ratio_idc = base::size(kTableSarWidth) - 1;
+      const int max_aspect_ratio_idc = std::size(kTableSarWidth) - 1;
       IN_RANGE_OR_RETURN(aspect_ratio_idc, 0, max_aspect_ratio_idc);
       sps->sar_width = kTableSarWidth[aspect_ratio_idc];
       sps->sar_height = kTableSarHeight[aspect_ratio_idc];
@@ -1388,7 +1388,7 @@ H264Parser::Result H264Parser::ParseDecRefPicMarking(H264SliceHeader* shdr) {
     H264DecRefPicMarking* marking;
     if (shdr->adaptive_ref_pic_marking_mode_flag) {
       size_t i;
-      for (i = 0; i < base::size(shdr->ref_pic_marking); ++i) {
+      for (i = 0; i < std::size(shdr->ref_pic_marking); ++i) {
         marking = &shdr->ref_pic_marking[i];
 
         READ_UE_OR_RETURN(&marking->memory_mgmnt_control_operation);
@@ -1413,7 +1413,7 @@ H264Parser::Result H264Parser::ParseDecRefPicMarking(H264SliceHeader* shdr) {
           return kInvalidStream;
       }
 
-      if (i == base::size(shdr->ref_pic_marking)) {
+      if (i == std::size(shdr->ref_pic_marking)) {
         DVLOG(1) << "Ran out of dec ref pic marking fields";
         return kUnsupportedStream;
       }

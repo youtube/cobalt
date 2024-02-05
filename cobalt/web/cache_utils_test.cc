@@ -107,21 +107,22 @@ TEST_F(CacheUtilsTest, ResponseHeaders) {
   auto* body_begin = reinterpret_cast<const uint8_t*>(body_string.data());
   auto* body_end = body_begin + body_string.size();
   std::vector<uint8_t> body(body_begin, body_end);
-  base::DictionaryValue initial_options;
-  initial_options.SetKey("status", base::Value(200));
-  initial_options.SetKey("statusText", base::Value("OK"));
-  base::ListValue initial_headers;
-  base::ListValue header_1;
-  header_1.GetList().emplace_back("a");
-  header_1.GetList().emplace_back("1");
-  initial_headers.GetList().push_back(std::move(header_1));
-  base::ListValue header_2;
-  header_2.GetList().emplace_back("b");
-  header_2.GetList().emplace_back("2");
-  initial_headers.GetList().push_back(std::move(header_2));
-  initial_options.SetKey("headers", std::move(initial_headers));
-  auto response =
-      cache_utils::CreateResponse(isolate, body, initial_options).value();
+  base::Value::Dict initial_options;
+  initial_options.Set("status", base::Value(200));
+  initial_options.Set("statusText", base::Value("OK"));
+  base::Value::List initial_headers;
+  base::Value::List header_1;
+  header_1.Append("a");
+  header_1.Append("1");
+  initial_headers.Append(std::move(header_1));
+  base::Value::List header_2;
+  header_2.Append("b");
+  header_2.Append("2");
+  initial_headers.Append(std::move(header_2));
+  initial_options.Set("headers", std::move(initial_headers));
+  auto response = cache_utils::CreateResponse(
+                      isolate, body, base::Value(std::move(initial_options)))
+                      .value();
 
   EXPECT_DOUBLE_EQ(200, cache_utils::FromNumber(
                             cache_utils::Get(response, "status").value()));

@@ -16,7 +16,7 @@ MockWebSocketChannel::MockWebSocketChannel(
     WebSocketImpl* impl, network::NetworkModule* network_module)
     : net::WebSocketChannel(std::unique_ptr<net::WebSocketEventInterface>(
                                 new CobaltWebSocketEventHandler(impl)),
-                            network_module->url_request_context()) {}
+                            nullptr) {}
 
 MockWebSocketChannel::~MockWebSocketChannel() = default;
 

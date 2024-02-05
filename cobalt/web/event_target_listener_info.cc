@@ -23,7 +23,7 @@ namespace cobalt {
 namespace web {
 
 EventTargetListenerInfo::EventTargetListenerInfo(
-    script::Wrappable* wrappable, base::Token type, AttachMethod attach,
+    script::Wrappable* wrappable, base_token::Token type, AttachMethod attach,
     bool use_capture, const EventListenerScriptValue& script_value)
     : ALLOW_THIS_IN_INITIALIZER_LIST(task_(this)),
       type_(type),
@@ -38,7 +38,7 @@ EventTargetListenerInfo::EventTargetListenerInfo(
 }
 
 EventTargetListenerInfo::EventTargetListenerInfo(
-    script::Wrappable* wrappable, base::Token type, AttachMethod attach,
+    script::Wrappable* wrappable, base_token::Token type, AttachMethod attach,
     bool use_capture, bool unpack_error_event,
     const OnErrorEventListenerScriptValue& script_value)
     : ALLOW_THIS_IN_INITIALIZER_LIST(task_(this)),

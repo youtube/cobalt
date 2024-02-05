@@ -24,13 +24,13 @@ namespace eme {
 // See step 5 in https://www.w3.org/TR/encrypted-media/#initdata-encountered.
 MediaEncryptedEvent::MediaEncryptedEvent(
     script::EnvironmentSettings* environment_settings, const std::string& type)
-    : Event(base::Token(type), kNotBubbles, kNotCancelable) {}
+    : Event(base_token::Token(type), kNotBubbles, kNotCancelable) {}
 
 // See step 5 in https://www.w3.org/TR/encrypted-media/#initdata-encountered.
 MediaEncryptedEvent::MediaEncryptedEvent(
     script::EnvironmentSettings* environment_settings, const std::string& type,
     const MediaEncryptedEventInit& event_init_dict)
-    : Event(base::Token(type), kNotBubbles, kNotCancelable),
+    : Event(base_token::Token(type), kNotBubbles, kNotCancelable),
       init_data_type_(event_init_dict.init_data_type()) {
   if (event_init_dict.init_data() && !event_init_dict.init_data()->IsNull()) {
     auto* global_wrappable = web::get_global_wrappable(environment_settings);

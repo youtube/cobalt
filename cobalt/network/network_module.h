@@ -20,7 +20,7 @@
 #include <vector>
 
 #include "base/message_loop/message_loop.h"
-#include "base/sequenced_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/network/cobalt_net_log.h"
@@ -31,14 +31,12 @@
 #include "cobalt/network/url_request_context_getter.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/storage/storage_manager.h"
-#include "net/base/static_cookie_policy.h"
 #include "url/gurl.h"
 #if defined(DIAL_SERVER)
 // Including this header causes a link error on Windows, since we
 // don't have StreamListenSocket.
-#include "net/dial/dial_service.h"
+#include "cobalt/network/dial/dial_service.h"
 #endif
-#include "net/url_request/http_user_agent_settings.h"
 #include "starboard/common/atomic.h"
 
 namespace base {
@@ -124,7 +122,7 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
   network_bridge::CookieJar* cookie_jar() const { return cookie_jar_.get(); }
   network_bridge::PostSender GetPostSender() const;
 #if defined(DIAL_SERVER)
-  scoped_refptr<net::DialServiceProxy> dial_service_proxy() const {
+  scoped_refptr<network::DialServiceProxy> dial_service_proxy() const {
     return dial_service_proxy_;
   }
 #endif
@@ -159,8 +157,8 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
   std::unique_ptr<net::HttpUserAgentSettings> http_user_agent_settings_;
   std::unique_ptr<network_bridge::CookieJar> cookie_jar_;
 #if defined(DIAL_SERVER)
-  std::unique_ptr<net::DialService> dial_service_;
-  scoped_refptr<net::DialServiceProxy> dial_service_proxy_;
+  std::unique_ptr<network::DialService> dial_service_;
+  scoped_refptr<network::DialServiceProxy> dial_service_proxy_;
 #endif
   std::unique_ptr<network_bridge::NetPoster> net_poster_;
   std::unique_ptr<CobaltNetLog> net_log_;

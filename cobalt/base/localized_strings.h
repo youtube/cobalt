@@ -51,7 +51,7 @@ class LocalizedStrings {
 
   StringMap strings_;
 
-  DISALLOW_COPY_AND_ASSIGN(LocalizedStrings);
+  // DISALLOW_COPY_AND_ASSIGN(LocalizedStrings);
 };
 
 }  // namespace base

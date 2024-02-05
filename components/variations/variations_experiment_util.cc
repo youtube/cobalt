@@ -5,6 +5,7 @@
 #include "components/variations/variations_experiment_util.h"
 
 #include <vector>
+#include <string>
 
 #include "base/logging.h"
 #include "base/strings/stringprintf.h"
@@ -13,7 +14,7 @@
 
 namespace variations {
 
-const base::char16 kExperimentLabelSeparator = ';';
+const base::WStringPiece kExperimentLabelSeparator = L";";
 
 namespace {
 
@@ -24,7 +25,7 @@ const char* const kMonths[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
 
 }  // namespace
 
-base::string16 BuildExperimentDateString(const base::Time& current_time) {
+::std::u16string BuildExperimentDateString(const base::Time& current_time) {
   // The Google Update experiment_labels timestamp format is:
   // "DAY, DD0 MON YYYY HH0:MI0:SE0 TZ"
   //  DAY = 3 character day of week,

@@ -14,6 +14,8 @@
 
 #include "cobalt/configuration/configuration.h"
 
+#include <string.h>
+
 #include "base/logging.h"
 #include "base/memory/singleton.h"
 #include "starboard/common/configuration_defaults.h"

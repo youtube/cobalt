@@ -30,7 +30,7 @@ namespace media_capture {
 // https://w3c.github.io/mediacapture-record/#blob-event
 class BlobEvent : public web::Event {
  public:
-  explicit BlobEvent(base::Token type,
+  explicit BlobEvent(base_token::Token type,
                      const media_capture::BlobEventInit& blob_event_init)
       : web::Event(type) {
     Init(blob_event_init);
@@ -40,8 +40,8 @@ class BlobEvent : public web::Event {
       : web::Event(type) {
     Init(blob_event_init);
   }
-  explicit BlobEvent(base::Token type, const scoped_refptr<web::Blob>& blob,
-                     double timecode)
+  explicit BlobEvent(base_token::Token type,
+                     const scoped_refptr<web::Blob>& blob, double timecode)
       : web::Event(type), blob_(blob), timecode_(timecode) {}
   explicit BlobEvent(const std::string& type,
                      const scoped_refptr<web::Blob>& blob, double timecode)

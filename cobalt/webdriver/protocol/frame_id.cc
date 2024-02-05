@@ -22,7 +22,6 @@ const char kFrameIdKey[] = "id";
 }  // namespace
 
 base::Optional<FrameId> FrameId::FromValue(const base::Value* value) {
-  const base::DictionaryValue* dictionary_value;
   const base::Value* frame_id_value;
   if (value->GetAsDictionary(&dictionary_value) &&
       dictionary_value->Get(kFrameIdKey, &frame_id_value)) {

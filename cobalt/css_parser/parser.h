@@ -19,6 +19,7 @@
 #include <string>
 
 #include "base/callback.h"
+#include "base/macros.h"
 #include "cobalt/base/debugger_hooks.h"
 #include "cobalt/cssom/css_parser.h"
 

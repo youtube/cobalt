@@ -91,7 +91,7 @@ class COMPONENTS_PREFS_EXPORT PrefService {
     base::Value::Type GetType() const { return type_; }
 
     // Returns the value of the Preference, falling back to the registered
-    // default value if no other has been set.
+    // default value if no other has been .
     const base::Value* GetValue() const;
 
     // Returns the value recommended by the admin, if any.
@@ -222,8 +222,8 @@ class COMPONENTS_PREFS_EXPORT PrefService {
   // Note that |path| must point to a registered preference. In that case, these
   // functions will never return NULL.
   const base::Value* Get(const std::string& path) const;
-  const base::DictionaryValue* GetDictionary(const std::string& path) const;
-  const base::ListValue* GetList(const std::string& path) const;
+  const base::Value::Dict* GetDictionary(const std::string& path) const;
+  const base::Value::List* GetList(const std::string& path) const;
 
   // Removes a user pref and restores the pref to its default value.
   void ClearPref(const std::string& path);
@@ -234,6 +234,8 @@ class COMPONENTS_PREFS_EXPORT PrefService {
   // Set(), but to modify the value of a dictionary or list use either
   // ListPrefUpdate or DictionaryPrefUpdate from scoped_user_pref_update.h.
   void Set(const std::string& path, const base::Value& value);
+  void SetList(const std::string& path, const base::Value::List& value);
+  void SetDict(const std::string& path, const base::Value::Dict& value);
   void SetBoolean(const std::string& path, bool value);
   void SetInteger(const std::string& path, int value);
   void SetDouble(const std::string& path, double value);
@@ -295,7 +297,7 @@ class COMPONENTS_PREFS_EXPORT PrefService {
   // If INCLUDE_DEFAULTS is requested, preferences set to their default values
   // will be included. Otherwise, these will be omitted from the returned
   // dictionary.
-  std::unique_ptr<base::DictionaryValue> GetPreferenceValues(
+  base::Value::Dict GetPreferenceValues(
       IncludeDefaults include_defaults) const;
 
   bool ReadOnly() const;
@@ -429,7 +431,7 @@ class COMPONENTS_PREFS_EXPORT PrefService {
   // Sets the value for this pref path in the user pref store and informs the
   // PrefNotifier of the change.
   void SetUserPrefValue(const std::string& path,
-                        std::unique_ptr<base::Value> new_value);
+                        base::Value new_value);
 
   // Load preferences from storage, attempting to diagnose and handle errors.
   // This should only be called from the constructor.

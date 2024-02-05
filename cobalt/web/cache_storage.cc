@@ -80,7 +80,7 @@ script::HandlePromiseBool CacheStorage::Delete(
                      [](std::unique_ptr<script::ValuePromiseBool::Reference>
                             promise_reference) {
                        cache::Cache::GetInstance()->Delete(
-                           disk_cache::ResourceType::kCacheApi);
+                           network::disk_cache::ResourceType::kCacheApi);
                        promise_reference->value().Resolve(true);
                      },
                      std::move(promise_reference)));

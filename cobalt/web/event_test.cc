@@ -31,7 +31,7 @@ class EventTest : public ::testing::Test {
 };
 
 TEST_F(EventTest, DefaultConstructor) {
-  scoped_refptr<Event> event = new Event(base::Token("event"));
+  scoped_refptr<Event> event = new Event(base_token::Token("event"));
 
   EXPECT_EQ("event", event->type());
   EXPECT_EQ(NULL, event->target().get());
@@ -46,8 +46,8 @@ TEST_F(EventTest, DefaultConstructor) {
 }
 
 TEST_F(EventTest, NonDefaultConstructor) {
-  scoped_refptr<Event> event =
-      new Event(base::Token("event"), Event::kBubbles, Event::kCancelable);
+  scoped_refptr<Event> event = new Event(base_token::Token("event"),
+                                         Event::kBubbles, Event::kCancelable);
 
   EXPECT_EQ("event", event->type());
   EXPECT_EQ(NULL, event->target().get());
@@ -69,13 +69,13 @@ TEST_F(EventTest, TimeStamp) {
   // issue.
   uint64 now_in_js = static_cast<uint64>(base::Time::Now().ToJsTime());
   uint64 episilon_in_ms = base::Time::kMillisecondsPerSecond * 60;
-  scoped_refptr<Event> event = new Event(base::Token("event"));
+  scoped_refptr<Event> event = new Event(base_token::Token("event"));
 
   EXPECT_GE(event->time_stamp(), now_in_js - episilon_in_ms);
 }
 
 TEST_F(EventTest, InitEvent) {
-  scoped_refptr<Event> event = new Event(base::Token("event_1"));
+  scoped_refptr<Event> event = new Event(base_token::Token("event_1"));
   double time_stamp = static_cast<double>(event->time_stamp());
 
   event->StopImmediatePropagation();
@@ -105,13 +105,13 @@ TEST_F(EventTest, InitEvent) {
 }
 
 TEST_F(EventTest, StopPropagation) {
-  scoped_refptr<Event> event = new Event(base::Token("event"));
+  scoped_refptr<Event> event = new Event(base_token::Token("event"));
   event->StopPropagation();
   EXPECT_TRUE(event->propagation_stopped());
 }
 
 TEST_F(EventTest, StopImmediatePropagation) {
-  scoped_refptr<Event> event = new Event(base::Token("event"));
+  scoped_refptr<Event> event = new Event(base_token::Token("event"));
   event->StopImmediatePropagation();
   EXPECT_TRUE(event->propagation_stopped());
   EXPECT_TRUE(event->immediate_propagation_stopped());
@@ -119,18 +119,18 @@ TEST_F(EventTest, StopImmediatePropagation) {
 
 TEST_F(EventTest, PreventDefault) {
   scoped_refptr<Event> event = new Event(
-      base::Token("event"), Event::kNotBubbles, Event::kNotCancelable);
+      base_token::Token("event"), Event::kNotBubbles, Event::kNotCancelable);
   event->PreventDefault();
   EXPECT_FALSE(event->default_prevented());
   // explicitly init it to non-cancelable.
-  event =
-      new Event(base::Token("event"), Event::kNotBubbles, Event::kCancelable);
+  event = new Event(base_token::Token("event"), Event::kNotBubbles,
+                    Event::kCancelable);
   event->PreventDefault();
   EXPECT_TRUE(event->default_prevented());
 }
 
 TEST_F(EventTest, EventPhase) {
-  scoped_refptr<Event> event = new Event(base::Token("event"));
+  scoped_refptr<Event> event = new Event(base_token::Token("event"));
   event->set_event_phase(Event::kCapturingPhase);
   EXPECT_EQ(Event::kCapturingPhase, event->event_phase());
   EXPECT_TRUE(event->IsBeingDispatched());

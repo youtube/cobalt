@@ -21,13 +21,13 @@ class ExpiredHistogramsChecker final : public base::RecordHistogramChecker {
   // Takes sorted in nondecreasing order array of histogram hashes, its size and
   // list of whitelisted histogram names concatenated as a comma-separated
   // string.
-  ExpiredHistogramsChecker(const uint64_t* array,
+  ExpiredHistogramsChecker(const uint32_t* array,
                            size_t size,
                            const std::string& whitelist_str);
   ~ExpiredHistogramsChecker() override;
 
   // Checks if the given |histogram_hash| corresponds to an expired histogram.
-  bool ShouldRecord(uint64_t histogram_hash) const override;
+  bool ShouldRecord(uint32_t histogram_hash) const override;
 
  private:
   // Initializes the |whitelist_| array of histogram hashes that should be
@@ -35,13 +35,13 @@ class ExpiredHistogramsChecker final : public base::RecordHistogramChecker {
   void InitWhitelist(const std::string& whitelist_str);
 
   // Array of expired histogram hashes.
-  const uint64_t* const array_;
+  const uint32_t* const array_;
 
   // Size of the |array_|.
   const size_t size_;
 
   // List of expired histogram hashes that should be recorded.
-  std::set<uint64_t> whitelist_;
+  std::set<uint32_t> whitelist_;
 
   DISALLOW_COPY_AND_ASSIGN(ExpiredHistogramsChecker);
 };

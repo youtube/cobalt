@@ -19,7 +19,7 @@
 
 namespace metrics {
 
-CleanExitBeacon::CleanExitBeacon(const base::string16& backup_registry_key,
+CleanExitBeacon::CleanExitBeacon(const std::wstring& backup_registry_key,
                                  PrefService* local_state)
     : local_state_(local_state),
       initial_value_(local_state->GetBoolean(prefs::kStabilityExitedCleanly)),

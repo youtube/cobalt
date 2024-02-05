@@ -17,6 +17,7 @@
 #include <memory>
 #include <vector>
 
+#include "base/bind.h"
 #include "base/memory/ptr_util.h"
 
 namespace cobalt {
@@ -100,7 +101,7 @@ AudioLoader::AudioLoader(const GURL& url,
   loader_ = base::WrapUnique(new loader::Loader(
       base::Bind(&loader::FetcherFactory::CreateFetcher,
                  base::Unretained(fetcher_factory_.get()), url,
-                 /*main_resource=*/false, disk_cache::kOther),
+                 /*main_resource=*/false, network::disk_cache::kOther),
       base::Bind(&DummyDecoder::Create, base::Bind(&AudioLoader::OnLoadingDone,
                                                    base::Unretained(this))),
       base::Bind(&AudioLoader::OnLoadingError, base::Unretained(this))));

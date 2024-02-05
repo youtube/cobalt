@@ -19,6 +19,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/bind.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/network/network_module.h"
 #include "net/base/net_errors.h"
@@ -40,8 +41,8 @@ void NetPoster::Send(const GURL& url, const std::string& content_type,
     return;
   }
 
-  std::unique_ptr<net::URLFetcher> url_fetcher =
-      net::URLFetcher::Create(url, net::URLFetcher::POST, this);
+  std::unique_ptr<net::URLFetcher> url_fetcher = nullptr;
+  // net::URLFetcher::Create(url, net::URLFetcher::POST, this);
 
   // In general it doesn't make sense to follow redirects for POST requests.
   // And for CSP reporting we are required not to follow them.
@@ -55,7 +56,7 @@ void NetPoster::Send(const GURL& url, const std::string& content_type,
     url_fetcher->SetUploadData(content_type, data);
   }
   url_fetcher->Start();
-  fetchers_.push_back(std::move(url_fetcher));
+  // fetchers_.push_back(std::move(url_fetcher));
 }
 
 void NetPoster::OnURLFetchComplete(const net::URLFetcher* source) {

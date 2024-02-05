@@ -30,7 +30,7 @@ JSONObject JSONParse(const std::string& json, int* parse_error) {
     *parse_error = json_reader.error_code();
   }
   // Scoped pointer may be NULL - caller must check.
-  return JSONObject(dictionary);
+  return JSONObject(nullptr);
 }
 
 JSONObject JSONParse(const std::string& json) { return JSONParse(json, NULL); }

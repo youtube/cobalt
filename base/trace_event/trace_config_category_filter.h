@@ -19,9 +19,9 @@ class BASE_EXPORT TraceConfigCategoryFilter {
  public:
   using StringList = std::vector<std::string>;
 
-  TraceConfigCategoryFilter();
+  TraceConfigCategoryFilter() {}
   TraceConfigCategoryFilter(const TraceConfigCategoryFilter& other);
-  ~TraceConfigCategoryFilter();
+  ~TraceConfigCategoryFilter() {}
 
   TraceConfigCategoryFilter& operator=(const TraceConfigCategoryFilter& rhs);
 

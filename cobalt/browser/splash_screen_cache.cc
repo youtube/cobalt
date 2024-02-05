@@ -21,7 +21,7 @@
 #include "base/base64.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
-#include "base/hash.h"
+#include "base/hash/hash.h"
 #include "base/optional.h"
 #include "base/strings/string_util.h"
 #include "base/synchronization/lock.h"

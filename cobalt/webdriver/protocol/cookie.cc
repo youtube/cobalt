@@ -16,6 +16,7 @@
 
 #include <memory>
 
+#include "base/logging.h"
 #include "base/strings/string_split.h"
 #include "base/strings/stringprintf.h"
 
@@ -37,41 +38,43 @@ const char kExpiryKey[] = "expiry";
 }  // namespace
 
 std::unique_ptr<base::Value> Cookie::ToValue(const Cookie& cookie) {
-  std::unique_ptr<base::DictionaryValue> cookie_value(
-      new base::DictionaryValue());
-  cookie_value->SetString(kNameKey, cookie.name_);
-  cookie_value->SetString(kValueKey, cookie.value_);
-  return std::unique_ptr<base::Value>(cookie_value.release());
+  base::Value ret(base::Value::Type::DICT);
+  base::Value::Dict* cookie_value = ret->GetIfDict();
+  cookie_value->Set(kNameKey, cookie.name_);
+  cookie_value->Set(kValueKey, cookie.value_);
+  return base::Value::ToUniquePtrValue(std::move(ret));
 }
 
 base::Optional<Cookie> Cookie::FromValue(const base::Value* value) {
   // TODO: Malformed data should return an "unable to set cookie"
   // error, but the current implementation will return "invalid parameter".
-  const base::DictionaryValue* dictionary_value;
-  if (!value->GetAsDictionary(&dictionary_value)) {
+  const base::Value::Dict* dictionary_value = value->GetIfDict();
+  if (!dictionary_value) {
     DLOG(INFO) << "Parameter is not a dictionary.";
     return base::nullopt;
   }
 
-  const base::DictionaryValue* cookie_dictionary_value;
-  if (!dictionary_value->GetDictionary(kCookieKey, &cookie_dictionary_value)) {
+  const base::Value::Dict* cookie_dictionary_value =
+      dictionary_value->FindDict(kCookieKey);
+  if (!cookie_dictionary_value) {
     DLOG(INFO) << base::StringPrintf("Value of key [%s] is not a JSON object.",
                                      kCookieKey);
     return base::nullopt;
   }
 
-  std::string cookie_name;
-  std::string cookie_value;
+  const std::string* cookie_name =
+      cookie_dictionary_value->FindString(kNameKey);
+  const std::string* cookie_value =
+      cookie_dictionary_value->FindString(kValueKey);
   // Name and value are required.
-  if (!cookie_dictionary_value->GetString(kNameKey, &cookie_name) ||
-      !cookie_dictionary_value->GetString(kValueKey, &cookie_value)) {
+  if (!cookie_name || !cookie_value) {
     DLOG(INFO) << base::StringPrintf(
         "cookie.%s or cookie.%s either does not exist or is not a string",
         kNameKey, kValueKey);
     return base::nullopt;
   }
 
-  Cookie new_cookie(cookie_name, cookie_value);
+  Cookie new_cookie(*cookie_name, *cookie_value);
 
   std::string string_value;
   if (cookie_dictionary_value->HasKey(kDomainKey)) {

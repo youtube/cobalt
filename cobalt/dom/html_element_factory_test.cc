@@ -59,7 +59,7 @@ class HTMLElementFactoryTest : public ::testing::Test {
         loader_factory_("Test" /* name */, &fetcher_factory_,
                         NULL /* resource loader */, null_debugger_hooks_,
                         0 /* encoded_image_cache_capacity */,
-                        base::ThreadPriority::DEFAULT),
+                        base::ThreadType::kDefault),
         dom_parser_(new dom_parser::Parser()),
         dom_stat_tracker_(new DomStatTracker("HTMLElementFactoryTest")),
         html_element_context_(

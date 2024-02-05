@@ -18,6 +18,7 @@
 #define COBALT_BROWSER_MEMORY_SETTINGS_TEXTURE_DIMENSIONS_H_
 
 #include <iosfwd>
+#include <string>
 
 #include "starboard/types.h"
 
@@ -71,8 +72,9 @@ class TextureDimensions {
 
 inline std::ostream& operator<<(std::ostream& stream,
                                 const TextureDimensions& dimensions) {
-  stream << dimensions.width() << "x" << dimensions.height() << "x"
-         << dimensions.bytes_per_pixel();
+  stream << std::to_string(dimensions.width()) + "x" +
+                std::to_string(dimensions.height()) + "x" +
+                std::to_string(dimensions.bytes_per_pixel());
   return stream;
 }
 

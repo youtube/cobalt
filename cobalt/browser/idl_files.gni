@@ -71,6 +71,7 @@ source_idl_files = [
   "//cobalt/dom/focus_event.idl",
   "//cobalt/dom/history.idl",
   "//cobalt/dom/html_anchor_element.idl",
+
   "//cobalt/dom/html_audio_element.idl",
   "//cobalt/dom/html_body_element.idl",
   "//cobalt/dom/html_br_element.idl",

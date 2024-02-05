@@ -48,9 +48,9 @@ std::string SerializeExcludingFragment(const GURL& url) {
   replacements.ClearPassword();
   replacements.ClearQuery();
   replacements.ClearRef();
-  return base::TrimString(url.ReplaceComponents(replacements).spec(), "/",
-                          base::TrimPositions::TRIM_TRAILING)
-      .as_string();
+  return std::string(
+      base::TrimString(url.ReplaceComponents(replacements).spec(), "/",
+                       base::TrimPositions::TRIM_TRAILING));
 }
 
 }  // namespace

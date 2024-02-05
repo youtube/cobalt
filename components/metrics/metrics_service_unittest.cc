@@ -16,7 +16,6 @@
 #include "base/metrics/statistics_recorder.h"
 #include "base/metrics/user_metrics.h"
 #include "base/stl_util.h"
-#include "base/strings/string16.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_simple_task_runner.h"
 #include "base/threading/platform_thread.h"
@@ -83,7 +82,6 @@ class MetricsServiceTest : public testing::Test {
  public:
   MetricsServiceTest()
       : task_runner_(new base::TestSimpleTaskRunner),
-        task_runner_handle_(task_runner_),
         enabled_state_provider_(new TestEnabledStateProvider(false, false)) {
     base::SetRecordActionTaskRunner(task_runner_);
     MetricsService::RegisterPrefs(testing_local_state_.registry());
@@ -144,7 +142,6 @@ class MetricsServiceTest : public testing::Test {
 
  protected:
   scoped_refptr<base::TestSimpleTaskRunner> task_runner_;
-  base::ThreadTaskRunnerHandle task_runner_handle_;
   base::test::ScopedFeatureList feature_list_;
 
  private:

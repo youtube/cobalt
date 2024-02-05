@@ -137,7 +137,7 @@ class ServiceWorkerContext {
   void SetActiveWorker(web::EnvironmentSettings* client);
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#activation-algorithm
-  void Activate(ServiceWorkerRegistrationObject* registration);
+  void Activate(scoped_refptr<ServiceWorkerRegistrationObject> registration);
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#clear-registration-algorithm
   void ClearRegistration(ServiceWorkerRegistrationObject* registration);
@@ -175,7 +175,8 @@ class ServiceWorkerContext {
   void TryActivate(ServiceWorkerRegistrationObject* registration);
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#service-worker-has-no-pending-events
-  bool ServiceWorkerHasNoPendingEvents(ServiceWorkerObject* worker);
+  bool ServiceWorkerHasNoPendingEvents(
+      scoped_refptr<ServiceWorkerObject> worker);
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#update-registration-state-algorithm
   void UpdateRegistrationState(
@@ -183,7 +184,8 @@ class ServiceWorkerContext {
       const scoped_refptr<ServiceWorkerObject>& source);
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#update-state-algorithm
-  void UpdateWorkerState(ServiceWorkerObject* worker, ServiceWorkerState state);
+  void UpdateWorkerState(scoped_refptr<ServiceWorkerObject> worker,
+                         ServiceWorkerState state);
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#on-client-unload-algorithm
   void HandleServiceWorkerClientUnload(web::Context* client);

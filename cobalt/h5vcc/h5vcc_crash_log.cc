@@ -23,6 +23,7 @@
 #include "base/memory/singleton.h"
 #include "base/synchronization/lock.h"
 #include "starboard/extension/crash_handler.h"
+#include "starboard/memory.h"
 
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
 #include STARBOARD_CORE_DUMP_HANDLER_INCLUDE

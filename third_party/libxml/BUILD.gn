@@ -158,10 +158,10 @@ static_library("libxml") {
   if (use_cobalt_customizations) {
     visibility += [
       "//base/test:test_support",
-      # "//cobalt/base",
+      "//cobalt/base",
       "//cobalt/dom_parser",
       "//cobalt/renderer/rasterizer/skia/skia",
-      # "//components/update_client",
+      "//components/update_client",
     ]
   }
   if (is_ios) {

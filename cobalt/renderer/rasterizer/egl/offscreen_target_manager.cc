@@ -493,8 +493,8 @@ void OffscreenTargetManager::InitializeTargets(const math::Size& frame_size) {
   } else if (num_atlases > kMaxAtlases) {
     DCHECK(atlas_size == max_size);
     num_atlases = kMaxAtlases;
-    DLOG_ONCE(WARNING) << "More memory was allotted for offscreen render"
-                       << " targets than will be used.";
+    DLOG(WARNING) << "More memory was allotted for offscreen render"
+                  << " targets than will be used.";
   }
   offscreen_cache_ = CreateOffscreenAtlas(atlas_size, true);
   CHECK(offscreen_cache_);

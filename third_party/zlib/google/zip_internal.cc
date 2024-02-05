@@ -20,7 +20,7 @@
 #include "third_party/zlib/contrib/minizip/zip.h"
 #if defined(OS_WIN)
 #include "third_party/zlib/contrib/minizip/iowin32.h"
-#elif defined(OS_POSIX)
+#elif defined(OS_POSIX) && !defined(STARBOARD)
 #include "third_party/zlib/contrib/minizip/ioapi.h"
 #elif defined(STARBOARD)
 #include "third_party/zlib/contrib/minizip/iostarboard.h"
@@ -84,7 +84,7 @@ void* ZipOpenFunc(void *opaque, const char* filename, int mode) {
 }
 #endif
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(STARBOARD)
 // Callback function for zlib that opens a file stream from a file descriptor.
 // Since we do not own the file descriptor, dup it so that we can fdopen/fclose
 // a file stream.
@@ -287,7 +287,7 @@ unzFile OpenForUnzipping(const std::string& file_name_utf8) {
   return unzOpen2(file_name_utf8.c_str(), zip_func_ptrs);
 }
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(STARBOARD)
 unzFile OpenFdForUnzipping(int zip_fd) {
   zlib_filefunc_def zip_funcs;
   FillFdOpenFileFunc(&zip_funcs, zip_fd);
@@ -349,7 +349,7 @@ zipFile OpenForZipping(const std::string& file_name_utf8, int append_flag) {
                   zip_func_ptrs);
 }
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(STARBOARD)
 zipFile OpenFdForZipping(int zip_fd, int append_flag) {
   zlib_filefunc_def zip_funcs;
   FillFdOpenFileFunc(&zip_funcs, zip_fd);

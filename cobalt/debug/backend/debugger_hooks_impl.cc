@@ -32,7 +32,8 @@ const char* kConsoleMethodName[] = {
     "error",  // LOG_ERROR
     "error",  // LOG_FATAL - there is no console.fatal() function.
 };
-static_assert(::logging::LOG_NUM_SEVERITIES == arraysize(kConsoleMethodName),
+static_assert(::logging::LOGGING_NUM_SEVERITIES ==
+                  arraysize(kConsoleMethodName),
               "Incorrect count of kConsoleMethodName");
 
 }  // namespace

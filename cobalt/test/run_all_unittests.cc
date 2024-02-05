@@ -16,6 +16,7 @@
 #include "base/command_line.h"
 #include "base/path_service.h"
 #include "base/test/test_suite.h"
+#include "base/threading/platform_thread.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/path_provider.h"
 #include "starboard/client_porting/wrap_main/wrap_main.h"

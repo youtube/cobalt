@@ -122,8 +122,9 @@ class BASE_I18N_EXPORT UTF16CharIterator {
   // of the string.
   bool Rewind();
 
- private:
   UTF16CharIterator(base::StringPiece16 str, size_t initial_pos);
+ private:
+  
 
   // Fills in the current character we found and advances to the next
   // character, updating all flags as necessary.

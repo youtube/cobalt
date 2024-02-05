@@ -20,6 +20,7 @@
 #include <utility>
 
 #include "base/compiler_specific.h"
+#include "base/macros.h"
 #include "cobalt/base/polymorphic_equatable.h"
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/cssom/property_value_visitor.h"

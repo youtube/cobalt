@@ -16,6 +16,7 @@
 
 #include <vector>
 
+#include "base/logging.h"
 #include "base/strings/string_util.h"
 
 namespace cobalt {
@@ -43,16 +44,17 @@ base::Optional<Proxy> Proxy::FromValue(const base::Value* value) {
   if (!dictionary_value->GetString(kProxyTypeKey, &proxy_type_string)) {
     return base::nullopt;
   }
-  proxy_type_string = base::ToLowerASCII(proxy_type_string);
+  const std::string proxy_type_string =
+      base::ToLowerASCII(*proxy_type_string_ptr);
   if (proxy_type_string == kManualProxyType) {
     std::vector<std::string> proxy_rules;
-    std::string http_proxy;
-    if (dictionary_value->GetString(kHttpProxyKey, &http_proxy)) {
-      proxy_rules.push_back(std::string("http=") + http_proxy);
+    const std::string* http_proxy = dictionary_value->FindString(kHttpProxyKey);
+    if (http_proxy) {
+      proxy_rules.push_back(std::string("http=") + *http_proxy);
     }
-    std::string https_proxy;
-    if (dictionary_value->GetString(kSslProxyKey, &https_proxy)) {
-      proxy_rules.push_back(std::string("https=") + https_proxy);
+    const std::string* https_proxy = dictionary_value->FindString(kSslProxyKey);
+    if (https_proxy) {
+      proxy_rules.push_back(std::string("https=") + *https_proxy);
     }
     if (!proxy_rules.empty()) {
       return Proxy(base::JoinString(proxy_rules, ";"));

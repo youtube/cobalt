@@ -4,9 +4,9 @@
 
 #include "base/logging.h"
 
-#ifdef BASE_CHECK_H_
-#error "logging.h should not include check.h"
-#endif
+// #ifdef BASE_CHECK_H_
+// #error "logging.h should not include check.h"
+// #endif
 
 #include <limits.h>
 #include <stdint.h>

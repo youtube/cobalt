@@ -24,7 +24,7 @@ namespace eme {
 // See step 2 in https://www.w3.org/TR/encrypted-media/#queue-message.
 MediaKeyMessageEvent::MediaKeyMessageEvent(
     const std::string& type, const MediaKeyMessageEventInit& event_init_dict)
-    : Event(base::Token(type), kNotBubbles, kNotCancelable),
+    : Event(base_token::Token(type), kNotBubbles, kNotCancelable),
       message_type_(event_init_dict.message_type()),
       message_reference_(this, *event_init_dict.message()) {}
 

@@ -18,10 +18,12 @@
 #include <utility>
 #include <vector>
 
+#include "base/bind.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/message_loop/message_loop.h"
 #include "base/path_service.h"
+#include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/time/time.h"
@@ -46,7 +48,8 @@ std::unique_ptr<net::CanonicalCookie> CreateTestCookie() {
       net::CanonicalCookie::CreateSanitizedCookie(
           url, "A", "2", "www.example.com", "/test", current_time,
           expiration_time, base::Time(), false, false,
-          net::CookieSameSite::DEFAULT_MODE, net::COOKIE_PRIORITY_DEFAULT));
+          net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_DEFAULT,
+          false, absl::nullopt));
   return cookie;
 }
 
@@ -141,9 +144,8 @@ TEST_F(PersistentCookieStoreTest, LoadGetsAddedCookies) {
   // We OnCookieLoaded will be posted to the separate thread to enable
   // synchronous test logic.
   base::Thread separate_thread("Cookie Callback");
-  base::Thread::Options thread_options;
-  thread_options.priority = base::ThreadPriority::HIGHEST;
-  separate_thread.StartWithOptions(thread_options);
+  separate_thread.StartWithOptions(
+      base::Thread::Options(base::ThreadType::kMaxValue));
   cookie_store_ = new PersistentCookieStore(storage_manager_.get(),
                                             separate_thread.task_runner());
   CookieLoader loader;

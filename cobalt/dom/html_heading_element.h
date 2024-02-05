@@ -31,7 +31,7 @@ class HTMLHeadingElement : public HTMLElement {
   static const int kTagNameCount;
   static const char* kTagNames[];
 
-  HTMLHeadingElement(Document* document, base::Token tag_name)
+  HTMLHeadingElement(Document* document, base_token::Token tag_name)
       : HTMLElement(document, tag_name) {}
 
   // Custom, not in any spec.
