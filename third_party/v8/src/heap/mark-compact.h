@@ -200,8 +200,7 @@ class MarkCompactCollectorBase {
   inline Isolate* isolate();
 
  protected:
-  explicit MarkCompactCollectorBase(Heap* heap)
-      : heap_(heap), old_to_new_slots_(0) {}
+  explicit MarkCompactCollectorBase(Heap* heap) : heap_(heap) {}
 
   // Marking operations for objects reachable from roots.
   virtual void MarkLiveObjects() = 0;
@@ -240,8 +239,7 @@ class MarkCompactCollectorBase {
 
   Heap* heap_;
   // Number of old to new slots. Should be computed during MarkLiveObjects.
-  // -1 indicates that the value couldn't be computed.
-  int old_to_new_slots_;
+  base::Optional<size_t> old_to_new_slots_;
 };
 
 class MinorMarkingState final
@@ -361,7 +359,7 @@ class MainMarkingVisitor final
                                 MarkingState> {
  public:
   // This is used for revisiting objects that were black allocated.
-  class RevisitScope {
+  class V8_NODISCARD RevisitScope {
    public:
     explicit RevisitScope(MainMarkingVisitor* visitor) : visitor_(visitor) {
       DCHECK(!visitor->revisiting_object_);
@@ -571,6 +569,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   unsigned epoch() const { return epoch_; }
 
+  BytecodeFlushMode bytecode_flush_mode() const { return bytecode_flush_mode_; }
+
   explicit MarkCompactCollector(Heap* heap);
   ~MarkCompactCollector() override;
 
@@ -681,6 +681,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void TrimEnumCache(Map map, DescriptorArray descriptors);
   bool CompactTransitionArray(Map map, TransitionArray transitions,
                               DescriptorArray descriptors);
+  bool TransitionArrayNeedsCompaction(TransitionArray transitions,
+                                      int num_transitions);
 
   // After all reachable objects have been marked those weak map entries
   // with an unreachable key are removed from all encountered weak maps.
@@ -784,11 +786,17 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   //   around.
   unsigned epoch_ = 0;
 
+  // Bytecode flushing is disabled when the code coverage mode is changed. Since
+  // that can happen while a GC is happening and we need the
+  // bytecode_flush_mode_ to remain the same through out a GC, we record this at
+  // the start of each GC.
+  BytecodeFlushMode bytecode_flush_mode_;
+
   friend class FullEvacuator;
   friend class RecordMigratedSlotVisitor;
 };
 
-class EvacuationScope {
+class V8_NODISCARD EvacuationScope {
  public:
   explicit EvacuationScope(MarkCompactCollector* collector)
       : collector_(collector) {

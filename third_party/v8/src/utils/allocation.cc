@@ -1,4 +1,4 @@
-﻿// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,6 @@
 #include "src/base/logging.h"
 #include "src/base/page-allocator.h"
 #include "src/base/platform/platform.h"
-#include "src/base/platform/wrappers.h"
 #include "src/flags/flags.h"
 #include "src/init/v8.h"
 #include "src/sanitizer/lsan-page-allocator.h"
@@ -19,6 +18,8 @@
 
 #if V8_LIBC_BIONIC
 #include <malloc.h>  // NOLINT
+
+#include "src/base/platform/wrappers.h"
 #endif
 
 namespace v8 {

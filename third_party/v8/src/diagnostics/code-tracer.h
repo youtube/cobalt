@@ -41,7 +41,7 @@ class CodeTracer final : public Malloced {
     WriteChars(filename_.begin(), "", 0, false);
   }
 
-  class Scope {
+  class V8_NODISCARD Scope {
    public:
     explicit Scope(CodeTracer* tracer) : tracer_(tracer) { tracer->OpenFile(); }
     ~Scope() { tracer_->CloseFile(); }
@@ -52,7 +52,7 @@ class CodeTracer final : public Malloced {
     CodeTracer* tracer_;
   };
 
-  class StreamScope : public Scope {
+  class V8_NODISCARD StreamScope : public Scope {
    public:
     explicit StreamScope(CodeTracer* tracer) : Scope(tracer) {
       FILE* file = this->file();

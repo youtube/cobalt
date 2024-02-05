@@ -29,6 +29,14 @@ enum BaseDirection {
   kLeftToRightBaseDirection,
 };
 
+#ifdef ENABLE_DEBUGGER
+inline std::ostream& operator<<(std::ostream& os,
+                                BaseDirection base_direction) {
+  os << (base_direction == kRightToLeftBaseDirection ? "RTL" : "LTR");
+  return os;
+}
+#endif
+
 }  // namespace layout
 }  // namespace cobalt
 

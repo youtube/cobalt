@@ -644,7 +644,6 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
 }
 
 void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
-  SB_DCHECK(tunnel_mode_enabled_);
   frame_rendered_cb_(frame_timestamp);
 }
 

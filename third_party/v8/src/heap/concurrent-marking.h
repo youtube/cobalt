@@ -44,7 +44,7 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   // When the scope is entered, the concurrent marking tasks
   // are preempted and are not looking at the heap objects, concurrent marking
   // is resumed when the scope is exited.
-  class PauseScope {
+  class V8_NODISCARD PauseScope {
    public:
     explicit PauseScope(ConcurrentMarking* concurrent_marking);
     ~PauseScope();
@@ -105,8 +105,8 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
     char cache_line_padding[64];
   };
   class JobTask;
-  void Run(JobDelegate* delegate, unsigned mark_compact_epoch,
-           bool is_forced_gc);
+  void Run(JobDelegate* delegate, BytecodeFlushMode bytecode_flush_mode,
+           unsigned mark_compact_epoch, bool is_forced_gc);
   size_t GetMaxConcurrency(size_t worker_count);
 
   std::unique_ptr<JobHandle> job_handle_;
