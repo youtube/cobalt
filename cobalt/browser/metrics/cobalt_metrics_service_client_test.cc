@@ -59,7 +59,7 @@ class CobaltMetricsServiceClientTest : public ::testing::Test {
         std::make_unique<CobaltEnabledStateProvider>(false, false);
     ::metrics::MetricsService::RegisterPrefs(prefs_.registry());
     metrics_state_manager_ = ::metrics::MetricsStateManager::Create(
-        &prefs_, enabled_state_provider_.get(), base::string16(),
+        &prefs_, enabled_state_provider_.get(), std::wstring(),
         base::BindRepeating(&TestStoreMetricsClientInfo),
         base::BindRepeating(&TestLoadMetricsClientInfo));
 

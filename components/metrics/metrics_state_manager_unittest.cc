@@ -37,7 +37,7 @@ class MetricsStateManagerTest : public testing::Test {
 
   std::unique_ptr<MetricsStateManager> CreateStateManager() {
     return MetricsStateManager::Create(
-        &prefs_, enabled_state_provider_.get(), base::string16(),
+        &prefs_, enabled_state_provider_.get(), std::wstring(),
         base::Bind(&MetricsStateManagerTest::MockStoreClientInfoBackup,
                    base::Unretained(this)),
         base::Bind(&MetricsStateManagerTest::LoadFakeClientInfoBackup,

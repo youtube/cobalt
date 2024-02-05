@@ -178,49 +178,52 @@ void DebugModule::BuildInternal(const ConstructionData& data) {
   // Restore the agents with their state from before navigation. Do this
   // unconditionally to give the agents a place to initialize themselves whether
   // or not state is being restored.
-  base::DictionaryValue* agents_state =
-      data.debugger_state == nullptr ? nullptr
-                                     : data.debugger_state->agents_state.get();
-  cobalt_agent_->Thaw(RemoveAgentState(kCobaltAgent, agents_state));
-  script_debugger_agent_->Thaw(
-      RemoveAgentState(kScriptDebuggerAgent, agents_state));
-  log_agent_->Thaw(RemoveAgentState(kLogAgent, agents_state));
-  dom_agent_->Thaw(RemoveAgentState(kDomAgent, agents_state));
-  css_agent_->Thaw(RemoveAgentState(kCssAgent, agents_state));
-  if (overlay_agent_)
-    overlay_agent_->Thaw(RemoveAgentState(kOverlayAgent, agents_state));
-  if (page_agent_)
-    page_agent_->Thaw(RemoveAgentState(kPageAgent, agents_state));
-  tracing_agent_->Thaw(RemoveAgentState(kTracingAgent, agents_state));
+  // base::DictionaryValue* agents_state =
+  //     data.debugger_state == nullptr ? nullptr
+  //                                    :
+  //                                    data.debugger_state->agents_state.get();
+  // cobalt_agent_->Thaw(RemoveAgentState(kCobaltAgent, agents_state));
+  // script_debugger_agent_->Thaw(
+  //     RemoveAgentState(kScriptDebuggerAgent, agents_state));
+  // log_agent_->Thaw(RemoveAgentState(kLogAgent, agents_state));
+  // dom_agent_->Thaw(RemoveAgentState(kDomAgent, agents_state));
+  // css_agent_->Thaw(RemoveAgentState(kCssAgent, agents_state));
+  // if (overlay_agent_)
+  //   overlay_agent_->Thaw(RemoveAgentState(kOverlayAgent, agents_state));
+  // if (page_agent_)
+  //   page_agent_->Thaw(RemoveAgentState(kPageAgent, agents_state));
+  // tracing_agent_->Thaw(RemoveAgentState(kTracingAgent, agents_state));
 
   is_frozen_ = false;
 }
 
 std::unique_ptr<DebuggerState> DebugModule::Freeze() {
-  DCHECK(!is_frozen_);
-  is_frozen_ = true;
+  return nullptr;
+  // DCHECK(!is_frozen_);
+  // is_frozen_ = true;
 
-  std::unique_ptr<DebuggerState> debugger_state(new DebuggerState());
+  // std::unique_ptr<DebuggerState> debugger_state(new DebuggerState());
 
-  debugger_state->agents_state.reset(new base::DictionaryValue());
-  base::DictionaryValue* agents_state = debugger_state->agents_state.get();
-  StoreAgentState(agents_state, kCobaltAgent, cobalt_agent_->Freeze());
-  StoreAgentState(agents_state, kScriptDebuggerAgent,
-                  script_debugger_agent_->Freeze());
-  StoreAgentState(agents_state, kLogAgent, log_agent_->Freeze());
-  StoreAgentState(agents_state, kDomAgent, dom_agent_->Freeze());
-  StoreAgentState(agents_state, kCssAgent, css_agent_->Freeze());
-  if (overlay_agent_)
-    StoreAgentState(agents_state, kOverlayAgent, overlay_agent_->Freeze());
-  if (page_agent_)
-    StoreAgentState(agents_state, kPageAgent, page_agent_->Freeze());
-  StoreAgentState(agents_state, kTracingAgent, tracing_agent_->Freeze());
+  // debugger_state->agents_state.reset(new base::DictionaryValue());
+  // base::DictionaryValue* agents_state = debugger_state->agents_state.get();
+  // StoreAgentState(agents_state, kCobaltAgent, cobalt_agent_->Freeze());
+  // StoreAgentState(agents_state, kScriptDebuggerAgent,
+  //                 script_debugger_agent_->Freeze());
+  // StoreAgentState(agents_state, kLogAgent, log_agent_->Freeze());
+  // StoreAgentState(agents_state, kDomAgent, dom_agent_->Freeze());
+  // StoreAgentState(agents_state, kCssAgent, css_agent_->Freeze());
+  // if (overlay_agent_)
+  //   StoreAgentState(agents_state, kOverlayAgent, overlay_agent_->Freeze());
+  // if (page_agent_)
+  //   StoreAgentState(agents_state, kPageAgent, page_agent_->Freeze());
+  // StoreAgentState(agents_state, kTracingAgent, tracing_agent_->Freeze());
 
-  // Take the clients from the dispatcher last so they still get events that the
-  // agents might send as part of being frozen.
-  debugger_state->attached_clients = debug_dispatcher_->ReleaseClients();
+  // // Take the clients from the dispatcher last so they still get events that
+  // the
+  // // agents might send as part of being frozen.
+  // debugger_state->attached_clients = debug_dispatcher_->ReleaseClients();
 
-  return debugger_state;
+  // return debugger_state;
 }
 
 void DebugModule::SendEvent(const std::string& method,

@@ -84,7 +84,7 @@ bool AddDirectoryEntryToZip(zipFile zip_file,
 
 }  // namespace
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(STARBOARD)
 // static
 std::unique_ptr<ZipWriter> ZipWriter::CreateWithFd(
     int zip_file_fd,

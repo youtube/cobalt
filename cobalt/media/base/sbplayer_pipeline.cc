@@ -478,7 +478,7 @@ TimeDelta SbPlayerPipeline::GetMediaTime() {
                     << media_time.ToSbTime() << ", last: " << last_media_time_
                     << ".";
     }
-    media_time = base::TimeDelta::FromMicroseconds(last_media_time_);
+    media_time = base::TimeDelta::FromMicroseconds(last_media_time_.value());
     retrograde_media_time_counter_++;
   } else if (retrograde_media_time_counter_ != 0) {
     DLOG(WARNING) << "Received " << retrograde_media_time_counter_

@@ -720,9 +720,9 @@ base::Optional<std::string> XMLHttpRequestImpl::GetResponseHeader(
   }
 
   // Set-Cookie should be stripped from the response headers in OnDone().
-  if (base::LowerCaseEqualsASCII(header, "set-cookie") ||
-      base::LowerCaseEqualsASCII(header, "set-cookie2")) {
-    return base::nullopt;
+  if (base::EqualsCaseInsensitiveASCII(header, "set-cookie") ||
+      base::EqualsCaseInsensitiveASCII(header, "set-cookie2")) {
+    return absl::nullopt;
   }
 
   bool found;
@@ -733,7 +733,7 @@ base::Optional<std::string> XMLHttpRequestImpl::GetResponseHeader(
   } else {
     found = http_response_headers_->GetNormalizedHeader(header, &value);
   }
-  return found ? base::make_optional(value) : base::nullopt;
+  return found ? absl::make_optional(value) : base::nullopt;
 }
 
 std::string XMLHttpRequestImpl::GetAllResponseHeaders() {

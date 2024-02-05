@@ -33,7 +33,7 @@ class MemoryStoreTest : public ::testing::Test {
       : origin1_(GURL("https://www.example1.com")),
         origin2_(GURL("https://www.example2.com")) {
     base::Time current_time = base::Time::FromInternalValue(12345);
-    expiration_time_ = current_time + base::TimeDelta::FromDays(1);
+    expiration_time_ = current_time + base::Days(1);
 
     Cookie* cookie = storage_proto_.add_cookies();
     cookie->set_name("name");
@@ -55,23 +55,31 @@ class MemoryStoreTest : public ::testing::Test {
 
     memory_store_.Initialize(storage_data_);
 
-    cookie_.reset(new net::CanonicalCookie(
-        "name", "value", "domain", "/path/foo", current_time, expiration_time_,
-        current_time, true /* secure */, true /* http_only */,
-        net::CookieSameSite::DEFAULT_MODE, net::COOKIE_PRIORITY_DEFAULT));
+    cookie_.reset(net::CanonicalCookie::CreateUnsafeCookieForTesting(
+                      "name", "value", "domain", "/path/foo", current_time,
+                      expiration_time_, current_time, current_time,
+                      true /* secure */, true /* http_only */,
+                      net::CookieSameSite::NO_RESTRICTION,
+                      net::COOKIE_PRIORITY_DEFAULT, false /* same_party */)
+                      .get());
 
-    last_access_time_ = current_time + base::TimeDelta::FromDays(50);
+    last_access_time_ = current_time + base::Days(50);
 
-    updated_cookie_.reset(new net::CanonicalCookie(
-        "name", "value", "domain", "/path/foo", current_time, expiration_time_,
-        current_time, true /* secure */, true /* http_only */,
-        net::CookieSameSite::DEFAULT_MODE, net::COOKIE_PRIORITY_DEFAULT));
+    updated_cookie_.reset(
+        net::CanonicalCookie::CreateUnsafeCookieForTesting(
+            "name", "value", "domain", "/path/foo", current_time,
+            expiration_time_, current_time, current_time, true /* secure */,
+            true /* http_only */, net::CookieSameSite::NO_RESTRICTION,
+            net::COOKIE_PRIORITY_DEFAULT, false)
+            .get());
 
-    new_cookie_.reset(new net::CanonicalCookie(
-        "name1", "value2", "domain2", "/path/foo2", current_time,
-        expiration_time_, current_time, false /* secure */,
-        false /* http_only */, net::CookieSameSite::DEFAULT_MODE,
-        net::COOKIE_PRIORITY_DEFAULT));
+    new_cookie_.reset(
+        net::CanonicalCookie::CreateUnsafeCookieForTesting(
+            "name1", "value2", "domain2", "/path/foo2", current_time,
+            expiration_time_, current_time, current_time, false /* secure */,
+            false /* http_only */, net::CookieSameSite::NO_RESTRICTION,
+            net::COOKIE_PRIORITY_DEFAULT, false)
+            .get());
   }
   ~MemoryStoreTest() {}
 

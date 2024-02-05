@@ -143,8 +143,7 @@ absl::optional<std::vector<uint8_t>> ForgivingBase64Decode(
   // Step 5-10:
   // If input string format is not allowed or base64 encoding failed, return
   // nullopt to signal failure.
-  if (!maybe_encoded_string_no_whitespace ||
-      !base::Base64Decode(*maybe_encoded_string_no_whitespace, &output)) {
+  if (!maybe_encoded_string_no_whitespace) {
     return base::nullopt;
   }
   return base::Base64Decode(*maybe_encoded_string_no_whitespace);

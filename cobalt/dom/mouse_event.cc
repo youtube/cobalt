@@ -23,7 +23,8 @@ namespace cobalt {
 namespace dom {
 
 MouseEvent::MouseEvent(const std::string& type)
-    : UIEventWithKeyState(base::Token(type), kBubbles, kCancelable, NULL),
+    : UIEventWithKeyState(base_token::Token(type), kBubbles, kCancelable,
+                          nullptr),
       screen_x_(0),
       screen_y_(0),
       client_x_(0),

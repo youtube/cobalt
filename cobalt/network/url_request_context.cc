@@ -124,9 +124,10 @@ URLRequestContext::URLRequestContext(
     persistent_cookie_store_ =
         new PersistentCookieStore(storage_manager, network_task_runner);
   }
-  storage_.set_cookie_store(
-      std::unique_ptr<net::CookieStore>(new net::CookieMonster(
-          persistent_cookie_store_, NULL /* channel_id_service */, net_log)));
+  // set_cookie_store(std::unique_ptr<net::CookieStore>(new net::CookieMonster(
+  //     persistent_cookie_store_,
+  //     base::TimeDelta::FromInternalValue(0) /* channel_id_service */,
+  //     net_log)));
 
   // set_enable_brotli(true);
 
@@ -143,18 +144,16 @@ URLRequestContext::URLRequestContext(
 
   // ack decimation significantly increases download bandwidth on low-end
   // android devices.
-  SetQuicFlag(&FLAGS_quic_reloadable_flag_quic_enable_ack_decimation, true);
+  // SetQuicFlag(&FLAGS_quic_reloadable_flag_quic_enable_ack_decimation, true);
 
-  net::HostResolver::Options options;
-  options.max_concurrent_resolves = net::HostResolver::kDefaultParallelism;
-  options.max_retry_attempts = net::HostResolver::kDefaultRetryAttempts;
-  options.enable_caching = true;
-  storage_.set_host_resolver(
-      net::HostResolver::CreateSystemResolver(options, NULL));
+  net::HostResolver::ManagerOptions options;
+  // options.enable_caching = true;
+  // set_host_resolver(
+  //     net::HostResolver::CreateStandaloneResolver(nullptr, options));
 
-  storage_.set_ct_policy_enforcer(std::unique_ptr<net::CTPolicyEnforcer>(
-      new net::DefaultCTPolicyEnforcer()));
-  DCHECK(ct_policy_enforcer());
+  // set_ct_policy_enforcer(std::unique_ptr<net::CTPolicyEnforcer>(
+  //     new net::DefaultCTPolicyEnforcer()));
+  // DCHECK(ct_policy_enforcer());
   // As of Chromium m70 net, CreateDefault will return a caching multi-thread
   // cert verifier, the verification cache will usually cache 25-40
   // results in a single session which can take up to 100KB memory.
@@ -187,25 +186,25 @@ URLRequestContext::URLRequestContext(
   // }
 #endif  // defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
 
-  net::HttpNetworkSession::Context context;
-  context.client_socket_factory = NULL;
-  context.host_resolver = host_resolver();
-  context.cert_verifier = cert_verifier();
-  context.ct_policy_enforcer = ct_policy_enforcer();
-  context.channel_id_service = NULL;
-  context.transport_security_state = transport_security_state();
-  context.cert_transparency_verifier = cert_transparency_verifier();
-  context.proxy_resolution_service = proxy_resolution_service();
-  context.ssl_config_service = ssl_config_service();
-  context.http_auth_handler_factory = http_auth_handler_factory();
-  context.http_server_properties = http_server_properties();
+  net::HttpNetworkSessionContext context;
+  context.client_socket_factory = nullptr;
+  // context.host_resolver = host_resolver();
+  // context.cert_verifier = cert_verifier();
+  // context.ct_policy_enforcer = ct_policy_enforcer();
+  // context.channel_id_service = NULL;
+  // context.transport_security_state = transport_security_state();
+  // // context.cert_transparency_verifier = cert_transparency_verifier();
+  // context.proxy_resolution_service = proxy_resolution_service();
+  // context.ssl_config_service = ssl_config_service();
+  // context.http_auth_handler_factory = http_auth_handler_factory();
+  // context.http_server_properties = http_server_properties();
 #if defined(ENABLE_NETWORK_LOGGING)
   context.net_log = net_log;
   // set_net_log(net_log);
 #else
 #endif
-  context.socket_performance_watcher_factory = NULL;
-  context.network_quality_provider = NULL;
+  context.socket_performance_watcher_factory = nullptr;
+  // context.network_quality_provider = NULL;
 
   // set_http_network_session(
   //     std::make_unique<net::HttpNetworkSession>(params, context));
@@ -227,28 +226,28 @@ URLRequestContext::URLRequestContext(
     max_cache_bytes -= (1 << 20);
 
     // Initialize and read caching persistent settings
-    cache_persistent_settings_ =
-        std::make_unique<cobalt::persistent_storage::PersistentSettings>(
-            kPersistentSettingsJson);
-    ReadDiskCacheSize(cache_persistent_settings_.get(), max_cache_bytes);
+    // cache_persistent_settings_ =
+    //     std::make_unique<cobalt::persistent_storage::PersistentSettings>(
+    //         kPersistentSettingsJson);
+    // ReadDiskCacheSize(cache_persistent_settings_.get(), max_cache_bytes);
 
-    auto http_cache = std::make_unique<net::HttpCache>(
-        storage_.http_network_session(),
-        std::make_unique<net::HttpCache::DefaultBackend>(
-            net::DISK_CACHE, net::CACHE_BACKEND_DEFAULT,
-            base::FilePath(std::string(path.data())),
-            /* max_bytes */ max_cache_bytes),
-        true);
-    if (persistent_settings != nullptr) {
-      auto cache_enabled = persistent_settings->GetPersistentSettingAsBool(
-          disk_cache::kCacheEnabledPersistentSettingsKey, true);
+    // auto http_cache = std::make_unique<net::HttpCache>(
+    //     http_network_session(),
+    //     std::make_unique<net::HttpCache::DefaultBackend>(
+    //         net::DISK_CACHE, net::CACHE_BACKEND_DEFAULT, nullptr,
+    //         base::FilePath(std::string(path.data())),
+    //         /* max_bytes */ max_cache_bytes, false),
+    //     true);
+    // if (persistent_settings != nullptr) {
+    //   auto cache_enabled = persistent_settings->GetPersistentSettingAsBool(
+    //       disk_cache::kCacheEnabledPersistentSettingsKey, true);
 
-      if (!cache_enabled) {
-        http_cache->set_mode(net::HttpCache::Mode::DISABLE);
-      }
-    }
+    //   if (!cache_enabled) {
+    //     http_cache->set_mode(net::HttpCache::Mode::DISABLE);
+    //   }
+    // }
 
-    storage_.set_http_transaction_factory(std::move(http_cache));
+    // set_http_transaction_factory(std::move(http_cache));
   }
 
   auto* job_factory = new net::URLRequestJobFactory();

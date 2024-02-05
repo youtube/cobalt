@@ -118,7 +118,7 @@ void OverlayAgent::HighlightRect(Command command) {
   if (!EnsureEnabled(&command)) return;
 
   JSONObject params = JSONParse(command.GetParams());
-  render_layer_->SetFrontLayer(RenderHighlightRect(params.get()));
+  // render_layer_->SetFrontLayer(RenderHighlightRect(params.get()));
   command.SendResponse();
 }
 

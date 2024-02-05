@@ -76,55 +76,50 @@ base::Optional<Cookie> Cookie::FromValue(const base::Value* value) {
 
   Cookie new_cookie(*cookie_name, *cookie_value);
 
-  std::string string_value;
-  if (cookie_dictionary_value->HasKey(kDomainKey)) {
-    if (cookie_dictionary_value->GetString(kDomainKey, &string_value)) {
-      new_cookie.domain_ = string_value;
-    } else {
-      DLOG(INFO) << base::StringPrintf("cookie.%s is not a string", kDomainKey);
-      return base::nullopt;
-    }
-  }
-  if (cookie_dictionary_value->HasKey(kPathKey)) {
-    if (cookie_dictionary_value->GetString(kPathKey, &string_value)) {
-      new_cookie.path_ = string_value;
-    } else {
-      DLOG(INFO) << base::StringPrintf("cookie.%s is not a string", kPathKey);
-      return base::nullopt;
-    }
+  const std::string* domain_value =
+      cookie_dictionary_value->FindString(kDomainKey);
+  if (domain_value) {
+    new_cookie.domain_ = *domain_value;
+  } else if (cookie_dictionary_value->contains(kDomainKey)) {
+    DLOG(INFO) << base::StringPrintf("cookie.%s is not a string", kDomainKey);
+    return base::nullopt;
   }
 
-  bool bool_value = false;
-  if (cookie_dictionary_value->HasKey(kSecureKey)) {
-    if (cookie_dictionary_value->GetBoolean(kSecureKey, &bool_value)) {
-      new_cookie.secure_ = bool_value;
-    } else {
-      DLOG(INFO) << base::StringPrintf("cookie.%s is not a boolean",
-                                       kSecureKey);
-      return base::nullopt;
-    }
-  }
-  if (cookie_dictionary_value->HasKey(kHttpOnlyKey)) {
-    if (cookie_dictionary_value->GetBoolean(kHttpOnlyKey, &bool_value)) {
-      new_cookie.http_only_ = bool_value;
-    } else {
-      DLOG(INFO) << base::StringPrintf("cookie.%s is not a boolean",
-                                       kHttpOnlyKey);
-      return base::nullopt;
-    }
+  const std::string* path_value = cookie_dictionary_value->FindString(kPathKey);
+  if (path_value) {
+    new_cookie.path_ = *path_value;
+  } else if (cookie_dictionary_value->contains(kPathKey)) {
+    DLOG(INFO) << base::StringPrintf("cookie.%s is not a string", kPathKey);
+    return base::nullopt;
   }
 
-  int timestamp_value = 0;
-  if (cookie_dictionary_value->HasKey(kExpiryKey)) {
-    if (cookie_dictionary_value->GetInteger(kExpiryKey, &timestamp_value)) {
-      base::TimeDelta seconds_since_epoch =
-          base::TimeDelta::FromSeconds(timestamp_value);
-      new_cookie.expiry_time_ = base::Time::UnixEpoch() + seconds_since_epoch;
-    } else {
-      DLOG(INFO) << base::StringPrintf("cookie.%s is not an integer",
-                                       kExpiryKey);
-      return base::nullopt;
-    }
+  base::Optional<bool> secure_value =
+      cookie_dictionary_value->FindBool(kSecureKey);
+  if (secure_value.has_value()) {
+    new_cookie.secure_ = secure_value.value();
+  } else if (cookie_dictionary_value->contains(kSecureKey)) {
+    DLOG(INFO) << base::StringPrintf("cookie.%s is not a boolean", kSecureKey);
+    return base::nullopt;
+  }
+
+  base::Optional<bool> http_only_value =
+      cookie_dictionary_value->FindBool(kHttpOnlyKey);
+  if (http_only_value.has_value()) {
+    new_cookie.http_only_ = http_only_value.value();
+  } else if (cookie_dictionary_value->contains(kHttpOnlyKey)) {
+    DLOG(INFO) << base::StringPrintf("cookie.%s is not a boolean",
+                                     kHttpOnlyKey);
+    return base::nullopt;
+  }
+
+  base::Optional<int> expiry_value =
+      cookie_dictionary_value->FindInt(kExpiryKey);
+  if (expiry_value.has_value()) {
+    base::TimeDelta seconds_since_epoch = base::Seconds(expiry_value.value());
+    new_cookie.expiry_time_ = base::Time::UnixEpoch() + seconds_since_epoch;
+  } else if (cookie_dictionary_value->contains(kExpiryKey)) {
+    DLOG(INFO) << base::StringPrintf("cookie.%s is not an integer", kExpiryKey);
+    return base::nullopt;
   }
   return new_cookie;
 }

@@ -209,18 +209,18 @@ void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
 
   net::NetLog* net_log = NULL;
 #if defined(ENABLE_NETWORK_LOGGING)
-  net_log = net_log_.get();
+  // net_log = net_log_.get();
 #endif
   url_request_context_.reset(
       new URLRequestContext(storage_manager_.get(), options_.custom_proxy,
                             net_log, options_.ignore_certificate_errors,
                             task_runner(), options_.persistent_settings));
-  network_delegate_.reset(new NetworkDelegate(options_.cookie_policy,
-                                              options_.https_requirement,
-                                              options_.cors_policy));
-  url_request_context_->set_http_user_agent_settings(
-      http_user_agent_settings_.get());
-  url_request_context_->set_network_delegate(network_delegate_.get());
+  // network_delegate_.reset(new NetworkDelegate(options_.cookie_policy,
+  //                                             options_.https_requirement,
+  //                                             options_.cors_policy));
+  // url_request_context_->set_http_user_agent_settings(
+  //     http_user_agent_settings_.get());
+  // url_request_context_->set_network_delegate(network_delegate_.get());
   cookie_jar_.reset(new CookieJarImpl(url_request_context_->cookie_store(),
                                       task_runner().get()));
 #if defined(DIAL_SERVER)

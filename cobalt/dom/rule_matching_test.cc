@@ -879,7 +879,8 @@ TEST_F(RuleMatchingTest, QuerySelectorAllShouldReturnAllMatches) {
 }
 
 TEST_F(RuleMatchingTest, ElementMatches) {
-  scoped_refptr<Element> root = new Element(document(), base::Token("root"));
+  scoped_refptr<Element> root =
+      new Element(document(), base_token::Token("root"));
   StrictMock<MockExceptionState> exception_state;
   EXPECT_TRUE(root->Matches("root", &exception_state));
   EXPECT_FALSE(root->Matches("r", &exception_state));

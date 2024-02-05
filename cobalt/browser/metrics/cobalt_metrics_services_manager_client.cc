@@ -98,7 +98,7 @@ void CobaltMetricsServicesManagerClient::
     ::metrics::MetricsService::RegisterPrefs(pref_registry.get());
 
     metrics_state_manager_ = ::metrics::MetricsStateManager::Create(
-        local_state_.get(), enabled_state_provider_.get(), base::string16(),
+        local_state_.get(), enabled_state_provider_.get(), std::wstring(),
         base::BindRepeating(&StoreMetricsClientInfo),
         base::BindRepeating(&LoadMetricsClientInfo));
   }

@@ -55,20 +55,20 @@ class CapabilityReader {
 
   template <base::Optional<std::string> Capabilities::*member>
   void TryReadCapability(const char* key) {
-    std::string value;
-    if (capabilities_value_->GetString(key, &value)) {
-      (capabilities_->*member) = value;
-      bool removed = capabilities_value_->Remove(key, NULL);
+    std::string* value = capabilities_value_->FindString(key);
+    if (value) {
+      (capabilities_->*member) = *value;
+      bool removed = capabilities_value_->Remove(key);
       DCHECK(removed);
     }
   }
 
   template <base::Optional<bool> Capabilities::*member>
   void TryReadCapability(const char* key) {
-    bool value;
-    if (capabilities_value_->GetBoolean(key, &value)) {
-      (capabilities_->*member) = value;
-      bool removed = capabilities_value_->Remove(key, NULL);
+    absl::optional<bool> value = capabilities_value_->FindBool(key);
+    if (value.has_value()) {
+      (capabilities_->*member) = value.value();
+      bool removed = capabilities_value_->Remove(key);
       DCHECK(removed);
     }
   }
@@ -79,7 +79,7 @@ class CapabilityReader {
     if (dictionary_value) {
       (capabilities_->*member) = T::FromValue(dictionary_value);
       if (capabilities_->*member) {
-        bool removed = capabilities_value_->Remove(key, NULL);
+        bool removed = capabilities_value_->Remove(key);
         DCHECK(removed);
       }
     }
@@ -152,8 +152,8 @@ std::unique_ptr<base::Value> Capabilities::ToValue(
 }
 
 base::Optional<Capabilities> Capabilities::FromValue(const base::Value* value) {
-  const base::DictionaryValue* value_as_dictionary;
-  if (!value->GetAsDictionary(&value_as_dictionary)) {
+  const base::Value::Dict* value_as_dictionary = value->GetIfDict();
+  if (!value_as_dictionary) {
     return base::nullopt;
   }
   // Create a new Capabilities object, and copy the capabilities dictionary
@@ -212,15 +212,15 @@ bool Capabilities::AreCapabilitiesSupported() const {
 base::Optional<RequestedCapabilities> RequestedCapabilities::FromValue(
     const base::Value* value) {
   DCHECK(value);
-  const base::DictionaryValue* requested_capabilities_value;
-  if (!value->GetAsDictionary(&requested_capabilities_value)) {
+  const base::Value::Dict* requested_capabilities_value = value->GetIfDict();
+  if (!requested_capabilities_value) {
     return base::nullopt;
   }
 
   base::Optional<Capabilities> desired;
-  const base::Value* capabilities_value = NULL;
-  if (requested_capabilities_value->Get(kDesiredCapabilitiesKey,
-                                        &capabilities_value)) {
+  const base::Value* capabilities_value =
+      requested_capabilities_value->Find(kDesiredCapabilitiesKey);
+  if (capabilities_value) {
     desired = Capabilities::FromValue(capabilities_value);
   }
   if (!desired) {

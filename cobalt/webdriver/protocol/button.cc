@@ -31,8 +31,8 @@ std::unique_ptr<base::Value> Button::ToValue(const Button& button) {
 }
 
 base::Optional<Button> Button::FromValue(const base::Value* value) {
-  const base::DictionaryValue* dictionary_value;
-  if (!value->GetAsDictionary(&dictionary_value)) {
+  const base::Value::Dict* dictionary_value = value->GetIfDict();
+  if (!dictionary_value) {
     return base::nullopt;
   }
   absl::optional<int> button = dictionary_value->FindInt(kButtonKey);

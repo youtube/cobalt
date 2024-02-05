@@ -24,7 +24,7 @@ namespace cobalt {
 namespace dom {
 
 InputEvent::InputEvent(const std::string& type)
-    : UIEvent(base::Token(type), kBubbles, kCancelable, NULL),
+    : UIEvent(base_token::Token(type), kBubbles, kCancelable, NULL),
       data_(""),
       is_composing_(false) {}
 

@@ -59,27 +59,30 @@ void NetPoster::Send(const GURL& url, const std::string& content_type,
   // fetchers_.push_back(std::move(url_fetcher));
 }
 
-void NetPoster::OnURLFetchComplete(const net::URLFetcher* source) {
-  // Make sure the thread that created the fetcher is the same one that deletes
-  // it. Otherwise we have unsafe access to the fetchers_ list.
-  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(),
-            network_module_->task_runner());
-  net::URLRequestStatus status = source->GetStatus();
-  if (!status.is_success()) {
-    DLOG(WARNING) << "NetPoster failed to POST to " << source->GetURL()
-                  << " with error " << net::ErrorToString(status.error());
-  }
-  std::vector<std::unique_ptr<net::URLFetcher>>::iterator it =
-      std::find_if(fetchers_.begin(), fetchers_.end(),
-                   [&](const std::unique_ptr<net::URLFetcher>& i) {
-                     return source == i.get();
-                   });
-  if (it != fetchers_.end()) {
-    fetchers_.erase(it);
-  } else {
-    NOTREACHED() << "Expected to find net::URLFetcher";
-  }
-}
+void NetPoster::OnReadCompleted(net::URLRequest* request, int bytes_read) {}
+
+// void NetPoster::OnURLFetchComplete(const net::URLFetcher* source) {
+//   // Make sure the thread that created the fetcher is the same one that
+//   deletes
+//   // it. Otherwise we have unsafe access to the fetchers_ list.
+//   DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(),
+//             network_module_->task_runner());
+//   net::Error status = source->GetStatus();
+//   if (!status.is_success()) {
+//     DLOG(WARNING) << "NetPoster failed to POST to " << source->GetURL()
+//                   << " with error " << net::ErrorToString(status.error());
+//   }
+//   std::vector<std::unique_ptr<net::URLFetcher>>::iterator it =
+//       std::find_if(fetchers_.begin(), fetchers_.end(),
+//                    [&](const std::unique_ptr<net::URLFetcher>& i) {
+//                      return source == i.get();
+//                    });
+//   if (it != fetchers_.end()) {
+//     fetchers_.erase(it);
+//   } else {
+//     NOTREACHED() << "Expected to find net::URLFetcher";
+//   }
+// }
 
 }  // namespace network
 }  // namespace cobalt

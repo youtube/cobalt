@@ -25,7 +25,7 @@ namespace cobalt {
 namespace dom {
 
 KeyboardEvent::KeyboardEvent(const std::string& type)
-    : UIEventWithKeyState(base::Token(type), kBubbles, kCancelable, NULL),
+    : UIEventWithKeyState(base_token::Token(type), kBubbles, kCancelable, NULL),
       key_location_(kDomKeyLocationStandard),
       key_code_(0),
       char_code_(0),

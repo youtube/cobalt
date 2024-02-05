@@ -41,7 +41,7 @@ class NamedNodeMapTest : public ::testing::Test {
 NamedNodeMapTest::NamedNodeMapTest() {
   EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
   document_ = new Document(&html_element_context_);
-  element_ = new Element(document_, base::Token("element"));
+  element_ = new Element(document_.get(), base_token::Token("element"));
 }
 
 NamedNodeMapTest::~NamedNodeMapTest() {

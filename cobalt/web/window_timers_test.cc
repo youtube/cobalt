@@ -203,8 +203,7 @@ TEST_F(WindowTimersTest, TimeoutIsCalledWhenDelayed) {
   EXPECT_EQ(NextMainThreadPendingTaskDelay(),
             base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds));
 
-  AdvanceMockTickClock(
-      base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds + 1000));
+  AdvanceClock(base::Milliseconds(kTimerDelayInMilliseconds + 1000));
   RunUntilIdle();
   EXPECT_EQ(GetPendingMainThreadTaskCount(), 0);
 }
@@ -355,8 +354,7 @@ TEST_F(WindowTimersTest, IntervalDrifts) {
             base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds));
 
   while (interval_count--) {
-    AdvanceMockTickClock(
-        base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds + 1000));
+    AdvanceClock(base::Milliseconds(kTimerDelayInMilliseconds + 1000));
     RunUntilIdle();
   }
   EXPECT_EQ(GetPendingMainThreadTaskCount(), 1);

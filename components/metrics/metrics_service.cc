@@ -922,7 +922,7 @@ void MetricsService::PrepareProviderMetricsTask() {
   bool found = PrepareProviderMetricsLog();
   base::TimeDelta next_check = found ? base::TimeDelta::FromSeconds(5)
                                      : base::TimeDelta::FromMinutes(15);
-  base::SequencedTaskRunnerHandle::Get()->PostDelayedTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE,
       base::BindOnce(&MetricsService::PrepareProviderMetricsTask,
                      self_ptr_factory_.GetWeakPtr()),

@@ -51,21 +51,18 @@ bool GetSearchStrategyFromString(const std::string& strategy_string,
 
 base::Optional<SearchStrategy> SearchStrategy::FromValue(
     const base::Value* value) {
-  const base::DictionaryValue* dictionary_value;
-  if (!value->GetAsDictionary(&dictionary_value)) {
-    return base::nullopt;
+  const base::Value::Dict* dictionary_value = value->GetIfDict();
+  if (!dictionary_value) {
+    return absl::nullopt;
   }
-  std::string using_strategy;
-  std::string parameter;
-  if (!dictionary_value->GetString(kUsingKey, &using_strategy)) {
-    return base::nullopt;
-  }
-  if (!dictionary_value->GetString(kValueKey, &parameter)) {
-    return base::nullopt;
+  const std::string* using_strategy = dictionary_value->FindString(kUsingKey);
+  const std::string* parameter = dictionary_value->FindString(kValueKey);
+  if (!using_strategy || !parameter) {
+    return absl::nullopt;
   }
   SearchStrategy::Strategy strategy;
-  if (!GetSearchStrategyFromString(using_strategy, &strategy)) {
-    return base::nullopt;
+  if (!GetSearchStrategyFromString(*using_strategy, &strategy)) {
+    return absl::nullopt;
   }
   return SearchStrategy(strategy, *parameter);
 }

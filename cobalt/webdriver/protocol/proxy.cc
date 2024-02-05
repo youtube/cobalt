@@ -36,12 +36,13 @@ const char kManualProxyType[] = "manual";
 }  // namespace
 
 base::Optional<Proxy> Proxy::FromValue(const base::Value* value) {
-  const base::DictionaryValue* dictionary_value;
-  if (!value->GetAsDictionary(&dictionary_value)) {
+  const base::Value::Dict* dictionary_value = value->GetIfDict();
+  if (!dictionary_value) {
     return base::nullopt;
   }
-  std::string proxy_type_string;
-  if (!dictionary_value->GetString(kProxyTypeKey, &proxy_type_string)) {
+  const std::string* proxy_type_string_ptr =
+      dictionary_value->FindString(kProxyTypeKey);
+  if (!proxy_type_string_ptr) {
     return base::nullopt;
   }
   const std::string proxy_type_string =

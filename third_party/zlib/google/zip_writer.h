@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/files/file_path.h"
+#include "base/macros.h"
 #include "build/build_config.h"
 #include "third_party/zlib/google/zip.h"
 

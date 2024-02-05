@@ -222,13 +222,10 @@ void DebugWebServer::OnWebSocketMessage(int connection_id, std::string json) {
   // Parameters are optional.
   const base::Value* params_value = json_object->Find(kParamsField);
   std::string json_params;
-  if (json_object->Remove(kParamsField, &params_value)) {
-    base::DictionaryValue* params_dictionary = NULL;
-    params_value->GetAsDictionary(&params_dictionary);
-    params_value.release();
-    JSONObject params(params_dictionary);
-    DCHECK(params);
-    json_params = JSONStringify(params);
+  if (json_object->Remove(kParamsField) && params_value->is_dict()) {
+    // JSONObject params(base::Value::ToUniquePtrValue(*params_value));
+    // DCHECK(params);
+    // json_params = JSONStringify(params);
   }
 
   if (!debug_client_ || !debug_client_->IsAttached()) {

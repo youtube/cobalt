@@ -20,6 +20,7 @@
 
 #include "base/bind.h"
 #include "base/message_loop/message_loop_current.h"
+#include "base/run_loop.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/web/dom_exception.h"
@@ -434,7 +435,7 @@ bool ServiceWorkerContext::WaitForAsynchronousExtensions(
     if (registration->done_event()->TimedWait(
             base::TimeDelta::FromMilliseconds(100)))
       break;
-    base::MessageLoopCurrent::ScopedNestableTaskAllower allow;
+    // base::MessageLoopCurrent::ScopedNestableTaskAllower allow;
     base::RunLoop().RunUntilIdle();
   } while ((base::TimeTicks::Now() - wait_start_time) <
            kWaitForAsynchronousExtensionsTimeout);
@@ -559,7 +560,7 @@ void ServiceWorkerContext::Activate(
                                             ->navigator_base()
                                             ->service_worker()
                                             .get()),
-                       base::Unretained(registration)));
+                       base::Unretained(registration.get())));
   }
   // 8. For each client of matchedClients:
   // 8.1. If client is a window client, unassociate client’s responsible
@@ -946,7 +947,7 @@ void ServiceWorkerContext::UpdateWorkerState(
                                  new web::Event(base::Tokens::statechange()));
                            }
                          },
-                         context, base::Unretained(worker), state));
+                         context, base::Unretained(worker.get()), state));
     }
   }
 }

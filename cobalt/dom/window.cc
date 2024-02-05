@@ -363,10 +363,9 @@ const scoped_refptr<Screen>& Window::screen() { return screen_; }
 std::string Window::Btoa(const std::string& string_to_encode,
                          script::ExceptionState* exception_state) {
   TRACE_EVENT0("cobalt::dom", "Window::Btoa()");
-  LOG_ONCE(WARNING)
-      << "In older Cobalt(<19), btoa() can not take a string"
-         " containing NULL. Be careful that you don't need to stay "
-         "compatible with old versions of Cobalt if you use btoa.";
+  LOG(WARNING) << "In older Cobalt(<19), btoa() can not take a string"
+                  " containing NULL. Be careful that you don't need to stay "
+                  "compatible with old versions of Cobalt if you use btoa.";
   auto output = ForgivingBase64Encode(string_to_encode);
   if (!output) {
     web::DOMException::Raise(web::DOMException::kInvalidCharacterErr,

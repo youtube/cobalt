@@ -123,9 +123,10 @@ base::Optional<v8::Local<v8::Value>> GetInternal(v8::Local<v8::Value> object,
       return base::nullopt;
     }
     std::string part = parts[i];
-    if (base::ContainsOnlyChars(part, "0123456789")) {
-      uint32_t index;
-      if (!base::StringToUint32(part, &index)) {
+    if (part.find_first_not_of("0123456789") == std::string::npos) {
+      size_t idx;
+      uint32_t index = std::stoi(part, &idx);
+      if (part.size() != idx) {
         return base::nullopt;
       }
       curr = ToOptional(curr->As<v8::Object>()->Get(context, index));
