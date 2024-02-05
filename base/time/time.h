@@ -134,6 +134,78 @@ class BASE_EXPORT TimeDelta {
   constexpr TimeDelta() = default;
 
 #if defined(STARBOARD)
+  static constexpr int64_t kHoursPerDay = 24;
+  static constexpr int64_t kSecondsPerMinute = 60;
+  static constexpr int64_t kMinutesPerHour = 60;
+  static constexpr int64_t kSecondsPerHour =
+      kSecondsPerMinute * kMinutesPerHour;
+  static constexpr int64_t kMillisecondsPerSecond = 1000;
+  static constexpr int64_t kMillisecondsPerDay =
+      kMillisecondsPerSecond * kSecondsPerHour * kHoursPerDay;
+  static constexpr int64_t kMicrosecondsPerMillisecond = 1000;
+  static constexpr int64_t kMicrosecondsPerSecond =
+      kMicrosecondsPerMillisecond * kMillisecondsPerSecond;
+  static constexpr int64_t kMicrosecondsPerMinute =
+      kMicrosecondsPerSecond * kSecondsPerMinute;
+  static constexpr int64_t kMicrosecondsPerHour =
+      kMicrosecondsPerMinute * kMinutesPerHour;
+  static constexpr int64_t kMicrosecondsPerDay =
+      kMicrosecondsPerHour * kHoursPerDay;
+  static constexpr int64_t kMicrosecondsPerWeek = kMicrosecondsPerDay * 7;
+  static constexpr int64_t kNanosecondsPerMicrosecond = 1000;
+  static constexpr int64_t kNanosecondsPerSecond =
+      kNanosecondsPerMicrosecond * kMicrosecondsPerSecond;
+
+  template <typename T>
+  static constexpr TimeDelta FromDays(T n) {
+    return FromInternalValue(MakeClampedNum(n) * kMicrosecondsPerDay);
+  }
+
+  template <typename T>
+  static constexpr TimeDelta FromHours(T n) {
+    return TimeDelta::FromInternalValue(MakeClampedNum(n) *
+                                        kMicrosecondsPerHour);
+  }
+  template <typename T>
+  static constexpr TimeDelta FromMinutes(T n) {
+    return TimeDelta::FromInternalValue(MakeClampedNum(n) *
+                                        kMicrosecondsPerMinute);
+  }
+  template <typename T>
+  static constexpr TimeDelta FromSeconds(T n) {
+    return TimeDelta::FromInternalValue(MakeClampedNum(n) *
+                                        kMicrosecondsPerSecond);
+  }
+  template <typename T>
+  static constexpr TimeDelta FromSecondsD(T n) {
+    return TimeDelta::FromInternalValue(MakeClampedNum(n) *
+                                        kMicrosecondsPerSecond);
+  }
+  template <typename T>
+  static constexpr TimeDelta FromMilliseconds(T n) {
+    return TimeDelta::FromInternalValue(MakeClampedNum(n) *
+                                        kMicrosecondsPerMillisecond);
+  }
+  template <typename T>
+  static constexpr TimeDelta FromMillisecondsD(T n) {
+    return TimeDelta::FromInternalValue(MakeClampedNum(n) *
+                                        kMicrosecondsPerMillisecond);
+  }
+  template <typename T>
+  static constexpr TimeDelta FromMicroseconds(T n) {
+    return TimeDelta::FromInternalValue(MakeClampedNum(n));
+  }
+  template <typename T>
+  static constexpr TimeDelta FromNanoseconds(T n) {
+    return TimeDelta::FromInternalValue(MakeClampedNum(n) /
+                                        kNanosecondsPerMicrosecond);
+  }
+  template <typename T>
+  static constexpr TimeDelta FromHertz(T n) {
+    return n ? TimeDelta::FromInternalValue(kMicrosecondsPerSecond /
+                                            MakeClampedNum(n))
+            : TimeDelta::Max();
+  }
 #elif BUILDFLAG(IS_WIN)
   static TimeDelta FromQPCValue(LONGLONG qpc_value);
   // TODO(crbug.com/989694): Avoid base::TimeDelta factory functions

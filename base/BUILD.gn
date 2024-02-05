@@ -847,7 +847,6 @@ component("base") {
     "third_party/nspr/prtime.h",
     "third_party/superfasthash/superfasthash.c",
     "thread_annotations.h",
-    "threading/thread_task_runner_handle.cc",
     "threading/hang_watcher.cc",
     "threading/hang_watcher.h",
     "threading/platform_thread.cc",
@@ -974,6 +973,7 @@ component("base") {
       "message_loop/message_pump_ui_starboard.h",
       "process/memory_starboard.cc",
       "process/process_starboard.cc",
+      "threading/thread_task_runner_handle.cc",
 
       # "profiler/native_stack_sampler_starboard.cc",
       "rand_util_starboard.cc",

@@ -1,6 +1,10 @@
 #ifndef BASE_CONTAINERS_HASH_MAP_H_
 #define BASE_CONTAINERS_HASH_MAP_H_
 
+#ifndef USE_HACKY_COBALT_CHANGES
+#error "TODO: Remove these"
+#endif
+
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>

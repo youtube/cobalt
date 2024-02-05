@@ -18,12 +18,14 @@
 
 namespace base {
 
+#ifdef USE_HACKY_COBALT_CHANGES
 // Test to see if a set or map contains a particular key.
 // Returns true if the key is in the collection.
 template <typename Collection, typename Key>
 bool ContainsKey(const Collection& collection, const Key& key) {
   return collection.find(key) != collection.end();
 }
+#endif
 
 namespace internal {
 
@@ -133,12 +135,6 @@ ResultType STLSetIntersection(const Arg1& a1, const Arg2& a2) {
                         std::inserter(result, result.end()));
   return result;
 }
-
-// template <class T, class Allocator, class Predicate>
-// void EraseIf(std::vector<T, Allocator>& container, Predicate pred) {
-//   container.erase(std::remove_if(container.begin(), container.end(), pred),
-//                   container.end());
-// }
 
 // A helper class to be used as the predicate with |EraseIf| to implement
 // in-place set intersection. Helps implement the algorithm of going through

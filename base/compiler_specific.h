@@ -228,6 +228,7 @@
 #define HAS_FEATURE(FEATURE) 0
 #endif
 
+#ifdef USE_HACKY_COBALT_CHANGES
 #if defined(COMPILER_MSVC)
 #define ALLOW_THIS_IN_INITIALIZER_LIST(code) \
   MSVC_PUSH_DISABLE_WARNING(4355)            \
@@ -240,6 +241,7 @@
 #define MSVC_DISABLE_OPTIMIZE()
 #define MSVC_ENABLE_OPTIMIZE()
 #define ALLOW_THIS_IN_INITIALIZER_LIST(code) code
+#endif
 #endif
 
 #if defined(COMPILER_GCC)

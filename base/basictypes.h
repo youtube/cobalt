@@ -1,6 +1,10 @@
 #ifndef BASE_BASICTYPES_H_
 #define BASE_BASICTYPES_H_
 
+#ifndef USE_HACKY_COBALT_CHANGES
+#error "TODO: Remove these"
+#endif
+
 #include <limits.h>  // So we can set the bounds of our types
 #include <stddef.h>  // For size_t
 #include <string.h>  // for memcpy

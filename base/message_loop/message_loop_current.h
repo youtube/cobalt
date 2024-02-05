@@ -1,6 +1,10 @@
 #ifndef BASE_MESSAGE_LOOP_MESSAGE_LOOP_CURRENT_H_
 #define BASE_MESSAGE_LOOP_MESSAGE_LOOP_CURRENT_H_
 
+#ifndef USE_HACKY_COBALT_CHANGES
+#error "Remove stubs"
+#endif
+
 #include "base/task/task_runner.h"
 
 namespace base {

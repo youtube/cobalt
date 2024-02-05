@@ -14,6 +14,10 @@
 
 import("//build/config/compiler/compiler.gni")
 
+config("hacky_build_config") {
+  defines = [ "USE_HACKY_COBALT_CHANGES" ]
+}
+
 config("base") {
   defines = [ "USE_COBALT_CUSTOMIZATIONS" ]
 

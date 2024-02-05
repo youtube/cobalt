@@ -32,10 +32,12 @@ struct hb_set_t;
 struct wl_gpu;
 struct wl_shm;
 struct wl_surface;
+#ifdef USE_HACKY_COBALT_CHANGES
 struct SbPlayerPrivate;
 struct SbWindowPrivate;
 struct SbUiNavItemPrivate;
 struct SbDrmSystemPrivate;
+#endif
 
 namespace base::internal {
 
@@ -118,6 +120,7 @@ inline constexpr bool IsIncompleteTypeSafeForUnretained<wl_shm> = true;
 template <>
 inline constexpr bool IsIncompleteTypeSafeForUnretained<wl_surface> = true;
 
+#ifdef USE_HACKY_COBALT_CHANGES
 template <>
 inline constexpr bool IsIncompleteTypeSafeForUnretained<SbPlayerPrivate> = true;
 template <>
@@ -126,6 +129,7 @@ template <>
 inline constexpr bool IsIncompleteTypeSafeForUnretained<SbUiNavItemPrivate> = true;
 template <>
 inline constexpr bool IsIncompleteTypeSafeForUnretained<SbDrmSystemPrivate> = true;
+#endif
 
 template <typename T, typename SFINAE = void>
 struct TypeSupportsUnretained {

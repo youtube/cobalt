@@ -1,6 +1,10 @@
 #ifndef BASE_MESSAGE_LOOP_MESSAGE_LOOP_H_
 #define BASE_MESSAGE_LOOP_MESSAGE_LOOP_H_
 
+#ifndef USE_HACKY_COBALT_CHANGES
+#error "Remove stubs"
+#endif
+
 #include "base/task/task_runner.h"
 #include "base/message_loop/message_loop_current.h"
 #include "base/message_loop/message_pump_type.h"

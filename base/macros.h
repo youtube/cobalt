@@ -1,6 +1,10 @@
 #ifndef BASE_MACROS_H_
 #define BASE_MACROS_H_
 
+#ifndef USE_HACKY_COBALT_CHANGES
+#error "remove these"
+#endif
+
 // Put this in the declarations for a class to be uncopyable.
 #define DISALLOW_COPY(TypeName) \
   TypeName(const TypeName&) = delete

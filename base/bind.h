@@ -1,6 +1,10 @@
 #ifndef BASE_BIND_H_
 #define BASE_BIND_H_
 
+#ifndef USE_HACKY_COBALT_CHANGES
+#error "TODO: Remove these"
+#endif
+
 #include <utility>
 
 #include "base/functional/bind.h"

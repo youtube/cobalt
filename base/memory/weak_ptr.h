@@ -255,6 +255,11 @@ class TRIVIAL_ABI WeakPtr {
 
   T* get() const { return ref_.IsValid() ? ptr_ : nullptr; }
 
+#if defined(STARBOARD)
+  // TODO[Cobalt]: Remove the implicit convertor.
+  operator T*() const { return get(); }
+#endif
+
   // Provide access to the underlying T as a reference. Will CHECK() if the T
   // pointee is no longer alive.
   T& operator*() const {
@@ -320,6 +325,7 @@ class TRIVIAL_ABI WeakPtr {
   RAW_PTR_EXCLUSION T* ptr_ = nullptr;
 };
 
+#if !defined(STARBOARD)
 // Allow callers to compare WeakPtrs against nullptr to test validity.
 template <class T>
 bool operator!=(const WeakPtr<T>& weak_ptr, std::nullptr_t) {
@@ -337,6 +343,7 @@ template <class T>
 bool operator==(std::nullptr_t, const WeakPtr<T>& weak_ptr) {
   return weak_ptr == nullptr;
 }
+#endif
 
 namespace internal {
 class BASE_EXPORT WeakPtrFactoryBase {

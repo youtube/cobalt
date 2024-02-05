@@ -26,7 +26,7 @@
 
 namespace base {
 
-#ifdef STARBOARD
+#ifdef USE_HACKY_COBALT_CHANGES
 template <typename CallbackType>
 bool ResetAndRunIfNotNull(CallbackType* cb) {
   if (cb->is_null()) {
