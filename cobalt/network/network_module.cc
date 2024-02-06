@@ -175,7 +175,7 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
   // Launch the IO thread.
   base::Thread::Options thread_options;
   thread_options.message_loop_type = base::MessageLoop::TYPE_IO;
-  thread_options.stack_size = 256 * 1024;
+  thread_options.stack_size = 512 * 1024;
   thread_options.priority = base::ThreadPriority::NORMAL;
   thread_->StartWithOptions(thread_options);
 
