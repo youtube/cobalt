@@ -220,7 +220,6 @@ class MEDIA_EXPORT DecoderBuffer
   // If there's no data in this buffer, it represents end of stream.
 #if defined(STARBOARD)
   bool end_of_stream() const { return !data_; }
-  void shrink_to(size_t size) { DCHECK_LE(size, size_); size_ = size; }
 #else  // defined(STARBOARD)
   bool end_of_stream() const { return !shared_mem_mapping_ && !shm_ && !data_; }
 #endif  // defined(STARBOARD)

@@ -443,7 +443,6 @@ void ProgressiveDemuxer::Download(scoped_refptr<DecoderBuffer> buffer) {
     return;
   }
 
-  // copy timestamp and duration values
   buffer->set_timestamp(requested_au_->GetTimestamp());
   buffer->set_duration(requested_au_->GetDuration());
 
@@ -451,7 +450,14 @@ void ProgressiveDemuxer::Download(scoped_refptr<DecoderBuffer> buffer) {
   if (requested_au_->GetType() == DemuxerStream::AUDIO) {
     audio_demuxer_stream_->EnqueueBuffer(buffer);
   } else if (requested_au_->GetType() == DemuxerStream::VIDEO) {
-    video_demuxer_stream_->EnqueueBuffer(buffer);
+    // Copy everything to a new DecoderBuffer to overwrite data size.
+    scoped_refptr<DecoderBuffer> output_buffer =
+        DecoderBuffer::CopyFrom(buffer->data(), requested_au_->GetSize());
+    output_buffer->set_is_key_frame(requested_au_->IsKeyframe());
+    output_buffer->set_timestamp(requested_au_->GetTimestamp());
+    output_buffer->set_duration(requested_au_->GetDuration());
+
+    video_demuxer_stream_->EnqueueBuffer(output_buffer);
   } else {
     NOTREACHED() << "invalid buffer type enqueued";
   }

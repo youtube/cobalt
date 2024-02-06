@@ -242,7 +242,6 @@ bool VideoAU::Read(DataSourceReader* reader, DecoderBuffer* buffer) {
   }
 
   size_ = decoder_buffer_offset;
-  buffer->shrink_to(size_);
 
   if (!parser_->Prepend(this, buffer)) {
     DLOG(ERROR) << "prepend fail";
