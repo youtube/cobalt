@@ -17,7 +17,6 @@
 #include <functional>
 
 #include "starboard/common/log.h"
-#include "starboard/common/string.h"
 #include "starboard/shared/win32/dx_context_video_decoder.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/hardware_decode_target_internal.h"
@@ -297,15 +296,8 @@ void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
     thread_events_.emplace_back(
         new Event{Event::kWriteInputBuffer, input_buffer});
   } else {
-#if SB_API_VERSION < 16
     error_cb_(kSbPlayerErrorCapabilityChanged,
               "HDR sink lost while HDR video playing.");
-#else
-    error_cb_(
-        kSbPlayerErrorDecode,
-        ::starboard::FormatString("%s: HDR sink lost while HDR video playing.",
-                                  kSbPlayerErrorMessageCapabilityChanged));
-#endif  // SB_API_VERSION < 16
   }
 }
 

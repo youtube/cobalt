@@ -17,7 +17,6 @@
 #include <algorithm>
 #include <string>
 
-#include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -454,14 +453,7 @@ void AudioRendererPcm::OnError(bool capability_changed,
                                const std::string& error_message) {
   SB_DCHECK(error_cb_);
   if (capability_changed) {
-#if SB_API_VERSION < 16
     error_cb_(kSbPlayerErrorCapabilityChanged, error_message);
-#else
-    error_cb_(kSbPlayerErrorDecode,
-              ::starboard::FormatString("%s: %s",
-                                        kSbPlayerErrorMessageCapabilityChanged,
-                                        error_message.c_str()));
-#endif  // SB_API_VERSION < 16
   } else {
     // Send |kSbPlayerErrorDecode| on fatal audio sink error.  The error code
     // will be mapped into MediaError eventually, and there is no corresponding
