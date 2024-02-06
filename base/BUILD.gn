@@ -3344,7 +3344,6 @@ test("base_unittests") {
     "security_unittest.cc",
     "sequence_checker_unittest.cc",
     "sequence_token_unittest.cc",
-
     "state_transitions_unittest.cc",
     "stl_util_unittest.cc",
     "strings/abseil_string_number_conversions_unittest.cc",
@@ -3367,8 +3366,7 @@ test("base_unittests") {
     "substring_set_matcher/string_pattern_unittest.cc",
     "substring_set_matcher/substring_set_matcher_unittest.cc",
     "supports_user_data_unittest.cc",
-
-    # "sync_socket_unittest.cc",
+    "sync_socket_unittest.cc",
     "synchronization/atomic_flag_unittest.cc",
 
     # "synchronization/condition_variable_unittest.cc",
@@ -3439,7 +3437,6 @@ test("base_unittests") {
     "test/gtest_links_unittest.cc",
     "test/gtest_tags_unittest.cc",
     "test/gtest_xml_unittest_result_printer_unittest.cc",
-
     "test/launcher/test_launcher_unittest.cc",
     "test/launcher/test_results_tracker_unittest.cc",
     "test/memory/dangling_ptr_instrumentation.cc",
@@ -3543,6 +3540,9 @@ test("base_unittests") {
       "native_library_unittest.cc",
       "test/launcher/test_launcher_unittest.cc",
       "test/launcher/test_results_tracker_unittest.cc",
+
+      # SyncSocket is not implemented in Starboard.
+      "sync_socket_unittest.cc",
     ]
 
     if (is_clang) {
