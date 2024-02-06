@@ -16,4 +16,3 @@ import(
     "//starboard/linux/x64x11/shared/platform_configuration/configuration.gni")
 
 gl_type = "system_gles2"
-is_clang_16 = true
