@@ -1651,6 +1651,16 @@ component("base") {
       "task/thread_pool/initialization_util.h",
     ]
 
+    if (is_starboard) {
+      sources -= [
+        # Not used by cobalt.
+        "native_library.cc",
+        "native_library.h",
+        "scoped_native_library.cc",
+        "scoped_native_library.h",
+      ]
+    }
+
     if (is_win) {
       sources += [
         "base_paths_win.cc",
@@ -3290,7 +3300,7 @@ test("base_unittests") {
 
     # "metrics/sparse_histogram_unittest.cc",
     # "metrics/statistics_recorder_unittest.cc",
-    # "native_library_unittest.cc",
+    "native_library_unittest.cc",
     "no_destructor_unittest.cc",
     "observer_list_threadsafe_unittest.cc",
     "observer_list_unittest.cc",
@@ -3535,6 +3545,9 @@ test("base_unittests") {
       "process/process_metrics_unittest.cc",
       "process/process_unittest.cc",
       "process/process_util_unittest.cc",
+
+      # Not used by cobalt.
+      "native_library_unittest.cc",
     ]
 
     if (is_clang) {
