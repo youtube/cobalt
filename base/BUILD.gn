@@ -3369,7 +3369,7 @@ test("base_unittests") {
     "sync_socket_unittest.cc",
     "synchronization/atomic_flag_unittest.cc",
 
-    # "synchronization/condition_variable_unittest.cc",
+    "synchronization/condition_variable_unittest.cc",
     "synchronization/lock_unittest.cc",
     "synchronization/waitable_event_unittest.cc",
 
