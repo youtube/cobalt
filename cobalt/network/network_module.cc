@@ -37,6 +37,7 @@ const char kCaptureModeIncludeCookiesAndCredentials[] =
 const char kCaptureModeIncludeSocketBytes[] = "IncludeSocketBytes";
 const char kDefaultNetLogName[] = "cobalt_netlog.json";
 #endif
+constexpr size_t kNetworkModuleStackSize = 512 * 1024;
 }  // namespace
 
 NetworkModule::NetworkModule(const Options& options) : options_(options) {
@@ -175,7 +176,10 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
   // Launch the IO thread.
   base::Thread::Options thread_options;
   thread_options.message_loop_type = base::MessageLoop::TYPE_IO;
-  thread_options.stack_size = 512 * 1024;
+  // Without setting a stack size here, the system default will be used
+  // which can be quite a bit larger (e.g. 4MB on Linux)
+  // Setting it manually keeps it managed.
+  thread_options.stack_size = kNetworkModuleStackSize;
   thread_options.priority = base::ThreadPriority::NORMAL;
   thread_->StartWithOptions(thread_options);
 
