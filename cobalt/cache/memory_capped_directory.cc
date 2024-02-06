@@ -141,8 +141,13 @@ base::Optional<base::Value> MemoryCappedDirectory::Metadata(uint32_t key) {
   }
   std::string serialized_metadata;
   base::ReadFileToString(metadata_path, &serialized_metadata);
+
+#ifndef USE_HACKY_COBALT_CHANGES
+  return base::Value::FromUniquePtrValue(
+      base::JSONReader::Read(serialized_metadata));
+#else
   return base::Value::FromUniquePtrValue(nullptr);
-  // base::JSONReader::Read(serialized_metadata));
+#endif
 }
 
 std::unique_ptr<std::vector<uint8_t>> MemoryCappedDirectory::Retrieve(

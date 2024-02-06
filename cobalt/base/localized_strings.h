@@ -18,6 +18,7 @@
 #include <map>
 #include <string>
 
+#include "base/macros.h"
 #include "base/memory/singleton.h"
 
 namespace base {
@@ -51,7 +52,7 @@ class LocalizedStrings {
 
   StringMap strings_;
 
-  // DISALLOW_COPY_AND_ASSIGN(LocalizedStrings);
+  DISALLOW_COPY_AND_ASSIGN(LocalizedStrings);
 };
 
 }  // namespace base

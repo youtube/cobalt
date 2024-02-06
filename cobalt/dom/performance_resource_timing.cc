@@ -122,12 +122,19 @@ uint64_t PerformanceResourceTiming::transfer_size() const {
   // 1. If this's cache mode is "local", then return 0.
   // 2. If this's cache mode is "validated", then return 300.
   // 3. Return this's timing info's encoded body size plus 300.
-  return 0;  // timing_info_.encoded_body_size +
-             // kPerformanceResourceTimingHeaderSize;
+#ifndef USE_HACKY_COBALT_CHANGES
+  return timing_info_.encoded_body_size + kPerformanceResourceTimingHeaderSize;
+#else
+  return 0;
+#endif
 }
 
 uint64_t PerformanceResourceTiming::encoded_body_size() const {
-  return 0;  // timing_info_.encoded_body_size;
+#ifndef USE_HACKY_COBALT_CHANGES
+  return timing_info_.encoded_body_size;
+#else
+  return 0;
+#endif
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::worker_start() const {

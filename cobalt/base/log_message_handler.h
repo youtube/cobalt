@@ -20,6 +20,7 @@
 
 #include "base/callback.h"
 #include "base/logging.h"
+#include "base/macros.h"
 #include "base/memory/singleton.h"
 #include "base/synchronization/lock.h"
 
@@ -94,7 +95,7 @@ class LogMessageHandler {
 
   bool suppress_log_output_;
 
-  // DISALLOW_COPY_AND_ASSIGN(LogMessageHandler);
+  DISALLOW_COPY_AND_ASSIGN(LogMessageHandler);
 };
 
 }  // namespace base

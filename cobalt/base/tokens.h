@@ -15,6 +15,7 @@
 #ifndef COBALT_BASE_TOKENS_H_
 #define COBALT_BASE_TOKENS_H_
 
+#include "base/macros.h"
 #include "base/memory/singleton.h"
 #include "cobalt/base/token.h"
 
@@ -223,7 +224,7 @@ class Tokens {
   // the initialization list which causes a compile error.
   char dummy_;
 
-  // DISALLOW_COPY_AND_ASSIGN(Tokens);
+  DISALLOW_COPY_AND_ASSIGN(Tokens);
 };
 
 #undef EVENT_NAMES_FOR_EACH

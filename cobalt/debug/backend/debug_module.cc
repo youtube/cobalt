@@ -37,32 +37,37 @@ constexpr char kTracingAgent[] = "TracingAgent";
 // NULL or it doesn't hold a state for the agent.
 JSONObject RemoveAgentState(const std::string& agent_name,
                             base::Value::Dict* state_dict) {
+#ifndef USE_HACKY_COBALT_CHANGES
+  if (state_dict == nullptr) {
+    return JSONObject();
+  }
+
+  std::unique_ptr<base::Value> value;
+  if (!state_dict->Remove(agent_name, &value)) {
+    return JSONObject();
+  }
+
+  std::unique_ptr<base::DictionaryValue> dictionary_value =
+      base::DictionaryValue::From(std::move(value));
+  if (!dictionary_value) {
+    DLOG(ERROR) << "Unexpected state type for " << agent_name;
+    return JSONObject();
+  }
+
+  return dictionary_value;
+#else
   return nullptr;
-  // if (state_dict == nullptr) {
-  //   return JSONObject();
-  // }
-
-  // std::unique_ptr<base::Value> value;
-  // if (!state_dict->Remove(agent_name, &value)) {
-  //   return JSONObject();
-  // }
-
-  // std::unique_ptr<base::DictionaryValue> dictionary_value =
-  //     base::DictionaryValue::From(std::move(value));
-  // if (!dictionary_value) {
-  //   DLOG(ERROR) << "Unexpected state type for " << agent_name;
-  //   return JSONObject();
-  // }
-
-  // return dictionary_value;
+#endif
 }
 
 void StoreAgentState(base::Value::Dict* state_dict,
                      const std::string& agent_name, JSONObject agent_state) {
-  // if (agent_state) {
-  //   state_dict->Set(agent_name,
-  //                   std::unique_ptr<base::Value>(agent_state.release()));
-  // }
+#ifndef USE_HACKY_COBALT_CHANGES
+  if (agent_state) {
+    state_dict->Set(agent_name,
+                    std::unique_ptr<base::Value>(agent_state.release()));
+  }
+#endif
 }
 
 }  // namespace
@@ -178,52 +183,56 @@ void DebugModule::BuildInternal(const ConstructionData& data) {
   // Restore the agents with their state from before navigation. Do this
   // unconditionally to give the agents a place to initialize themselves whether
   // or not state is being restored.
-  // base::DictionaryValue* agents_state =
-  //     data.debugger_state == nullptr ? nullptr
-  //                                    :
-  //                                    data.debugger_state->agents_state.get();
-  // cobalt_agent_->Thaw(RemoveAgentState(kCobaltAgent, agents_state));
-  // script_debugger_agent_->Thaw(
-  //     RemoveAgentState(kScriptDebuggerAgent, agents_state));
-  // log_agent_->Thaw(RemoveAgentState(kLogAgent, agents_state));
-  // dom_agent_->Thaw(RemoveAgentState(kDomAgent, agents_state));
-  // css_agent_->Thaw(RemoveAgentState(kCssAgent, agents_state));
-  // if (overlay_agent_)
-  //   overlay_agent_->Thaw(RemoveAgentState(kOverlayAgent, agents_state));
-  // if (page_agent_)
-  //   page_agent_->Thaw(RemoveAgentState(kPageAgent, agents_state));
-  // tracing_agent_->Thaw(RemoveAgentState(kTracingAgent, agents_state));
+#ifndef USE_HACKY_COBALT_CHANGES
+  base::DictionaryValue* agents_state =
+      data.debugger_state == nullptr ? nullptr
+                                     : data.debugger_state->agents_state.get();
+  cobalt_agent_->Thaw(RemoveAgentState(kCobaltAgent, agents_state));
+  script_debugger_agent_->Thaw(
+      RemoveAgentState(kScriptDebuggerAgent, agents_state));
+  log_agent_->Thaw(RemoveAgentState(kLogAgent, agents_state));
+  dom_agent_->Thaw(RemoveAgentState(kDomAgent, agents_state));
+  css_agent_->Thaw(RemoveAgentState(kCssAgent, agents_state));
+  if (overlay_agent_)
+    overlay_agent_->Thaw(RemoveAgentState(kOverlayAgent, agents_state));
+  if (page_agent_)
+    page_agent_->Thaw(RemoveAgentState(kPageAgent, agents_state));
+  tracing_agent_->Thaw(RemoveAgentState(kTracingAgent, agents_state));
+#endif
 
   is_frozen_ = false;
 }
 
 std::unique_ptr<DebuggerState> DebugModule::Freeze() {
+#ifndef USE_HACKY_COBALT_CHANGES
+  DCHECK(!is_frozen_);
+  is_frozen_ = true;
+
+  std::unique_ptr<DebuggerState> debugger_state(new DebuggerState());
+
+  debugger_state->agents_state.reset(new base::DictionaryValue());
+  base::DictionaryValue* agents_state = debugger_state->agents_state.get();
+  StoreAgentState(agents_state, kCobaltAgent, cobalt_agent_->Freeze());
+  StoreAgentState(agents_state, kScriptDebuggerAgent,
+                  script_debugger_agent_->Freeze());
+  StoreAgentState(agents_state, kLogAgent, log_agent_->Freeze());
+  StoreAgentState(agents_state, kDomAgent, dom_agent_->Freeze());
+  StoreAgentState(agents_state, kCssAgent, css_agent_->Freeze());
+  if (overlay_agent_)
+    StoreAgentState(agents_state, kOverlayAgent, overlay_agent_->Freeze());
+  if (page_agent_)
+    StoreAgentState(agents_state, kPageAgent, page_agent_->Freeze());
+  StoreAgentState(agents_state, kTracingAgent, tracing_agent_->Freeze());
+
+  // Take the clients from the dispatcher last so they still get events that
+  the
+      // agents might send as part of being frozen.
+      debugger_state->attached_clients = debug_dispatcher_->ReleaseClients();
+
+  return debugger_state;
+#else
   return nullptr;
-  // DCHECK(!is_frozen_);
-  // is_frozen_ = true;
-
-  // std::unique_ptr<DebuggerState> debugger_state(new DebuggerState());
-
-  // debugger_state->agents_state.reset(new base::DictionaryValue());
-  // base::DictionaryValue* agents_state = debugger_state->agents_state.get();
-  // StoreAgentState(agents_state, kCobaltAgent, cobalt_agent_->Freeze());
-  // StoreAgentState(agents_state, kScriptDebuggerAgent,
-  //                 script_debugger_agent_->Freeze());
-  // StoreAgentState(agents_state, kLogAgent, log_agent_->Freeze());
-  // StoreAgentState(agents_state, kDomAgent, dom_agent_->Freeze());
-  // StoreAgentState(agents_state, kCssAgent, css_agent_->Freeze());
-  // if (overlay_agent_)
-  //   StoreAgentState(agents_state, kOverlayAgent, overlay_agent_->Freeze());
-  // if (page_agent_)
-  //   StoreAgentState(agents_state, kPageAgent, page_agent_->Freeze());
-  // StoreAgentState(agents_state, kTracingAgent, tracing_agent_->Freeze());
-
-  // // Take the clients from the dispatcher last so they still get events that
-  // the
-  // // agents might send as part of being frozen.
-  // debugger_state->attached_clients = debug_dispatcher_->ReleaseClients();
-
-  // return debugger_state;
+#endif
 }
 
 void DebugModule::SendEvent(const std::string& method,

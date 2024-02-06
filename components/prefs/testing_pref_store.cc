@@ -53,7 +53,9 @@ bool TestingPrefStore::IsInitializationComplete() const {
 void TestingPrefStore::SetValue(const std::string& key,
                                 base::Value value,
                                 uint32_t flags) {
-  // DCHECK(!value.is_none());
+#ifndef USE_HACKY_COBALT_CHANGES
+  DCHECK(!value.is_none());
+#endif
   if (prefs_.SetValue(key, base::Value(std::move(value)))) {
     committed_ = false;
     NotifyPrefValueChanged(key);
@@ -63,7 +65,9 @@ void TestingPrefStore::SetValue(const std::string& key,
 void TestingPrefStore::SetValueSilently(const std::string& key,
                                         base::Value value,
                                         uint32_t flags) {
-  // DCHECK(!value.is_none());
+#ifndef USE_HACKY_COBALT_CHANGES
+  DCHECK(!value.is_none());
+#endif
   CheckPrefIsSerializable(key, value);
   if (prefs_.SetValue(key, base::Value(std::move(value))))
     committed_ = false;

@@ -164,7 +164,9 @@ void VariationsHttpHeaderProvider::InitVariationIDsCacheIfNeeded() {
 
   // Register for additional cache updates. This is done first to avoid a race
   // that could cause registered FieldTrials to be missed.
-  // DCHECK(base::ThreadTaskRunnerHandle::IsSet());
+#ifndef USE_HACKY_COBALT_CHANGES
+  DCHECK(base::ThreadTaskRunnerHandle::IsSet());
+#endif
   base::FieldTrialList::AddObserver(this);
 
   base::TimeTicks before_time = base::TimeTicks::Now();

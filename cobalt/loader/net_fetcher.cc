@@ -126,18 +126,20 @@ NetFetcher::NetFetcher(const GURL& url, bool main_resource,
     request_cross_origin_ = true;
     url_fetcher_->AddExtraRequestHeader("Origin:" + origin.SerializedOrigin());
   }
-  // std::string content_type =
-  //     std::string(net::HttpRequestHeaders::kResourceType) + ":" +
-  //     std::to_string(options.resource_type);
-  // url_fetcher_->AddExtraRequestHeader(content_type);
-  // if ((request_cross_origin_ &&
-  //      (request_mode == kCORSModeSameOriginCredentials)) ||
-  //     request_mode == kCORSModeOmitCredentials) {
-  //   const uint32 kDisableCookiesLoadFlags =
-  //       net::LOAD_NORMAL | net::LOAD_DO_NOT_SAVE_COOKIES |
-  //       net::LOAD_DO_NOT_SEND_COOKIES | net::LOAD_DO_NOT_SEND_AUTH_DATA;
-  //   url_fetcher_->SetLoadFlags(kDisableCookiesLoadFlags);
-  // }
+#ifndef USE_HACKY_COBALT_CHANGES
+  std::string content_type =
+      std::string(net::HttpRequestHeaders::kResourceType) + ":" +
+      std::to_string(options.resource_type);
+  url_fetcher_->AddExtraRequestHeader(content_type);
+  if ((request_cross_origin_ &&
+       (request_mode == kCORSModeSameOriginCredentials)) ||
+      request_mode == kCORSModeOmitCredentials) {
+    const uint32 kDisableCookiesLoadFlags =
+        net::LOAD_NORMAL | net::LOAD_DO_NOT_SAVE_COOKIES |
+        net::LOAD_DO_NOT_SEND_COOKIES | net::LOAD_DO_NOT_SEND_AUTH_DATA;
+    url_fetcher_->SetLoadFlags(kDisableCookiesLoadFlags);
+  }
+#endif
   network_module->AddClientHintHeaders(*url_fetcher_, network::kCallTypeLoader);
 
   // Delay the actual start until this function is complete. Otherwise we might

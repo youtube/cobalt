@@ -75,8 +75,10 @@ class URLRequestContext : public net::CobaltURLRequestContext {
 #endif  // defined(ENABLE_DEBUGGER)
 
   // Persistent settings module for Cobalt disk cache quotas
-  // std::unique_ptr<cobalt::persistent_storage::PersistentSettings>
-  //     cache_persistent_settings_;
+#ifndef USE_HACKY_COBALT_CHANGES
+  std::unique_ptr<cobalt::persistent_storage::PersistentSettings>
+      cache_persistent_settings_;
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestContext);
 };

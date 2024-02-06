@@ -39,16 +39,18 @@ void CookieStorageInit(
   memory_store.GetAllCookies(&actual_cookies);
 
   DCHECK(loaded_callback_task_runner);
-  // if (!loaded_callback.is_null()) {
-  //   loaded_callback_task_runner->PostTask(
-  //       FROM_HERE,
-  //       base::Bind(
-  //           [](const PersistentCookieStore::LoadedCallback& loaded_callback,
-  //              std::vector<std::unique_ptr<net::CanonicalCookie>> cookies) {
-  //             loaded_callback.Run(std::move(cookies));
-  //           },
-  //           loaded_callback, base::Passed(&actual_cookies)));
-  // }
+#ifndef USE_HACKY_COBALT_CHANGES
+  if (!loaded_callback.is_null()) {
+    loaded_callback_task_runner->PostTask(
+        FROM_HERE,
+        base::Bind(
+            [](const PersistentCookieStore::LoadedCallback& loaded_callback,
+               std::vector<std::unique_ptr<net::CanonicalCookie>> cookies) {
+              loaded_callback.Run(std::move(cookies));
+            },
+            loaded_callback, base::Passed(&actual_cookies)));
+  }
+#endif
 }
 
 void CookieStorageAddCookie(const net::CanonicalCookie& cc,
@@ -82,15 +84,17 @@ void SendEmptyCookieList(
     const PersistentCookieStore::LoadedCallback& loaded_callback,
     scoped_refptr<base::SequencedTaskRunner> loaded_callback_task_runner,
     const storage::MemoryStore& memory_store) {
-  // loaded_callback_task_runner->PostTask(
-  //     FROM_HERE,
-  //     base::Bind(
-  //         [](const PersistentCookieStore::LoadedCallback& loaded_callback) {
-  //           std::vector<std::unique_ptr<net::CanonicalCookie>>
-  //               empty_cookie_list;
-  //           loaded_callback.Run(std::move(empty_cookie_list));
-  //         },
-  //         loaded_callback));
+#ifndef USE_HACKY_COBALT_CHANGES
+  loaded_callback_task_runner->PostTask(
+      FROM_HERE,
+      base::Bind(
+          [](const PersistentCookieStore::LoadedCallback& loaded_callback) {
+            std::vector<std::unique_ptr<net::CanonicalCookie>>
+                empty_cookie_list;
+            loaded_callback.Run(std::move(empty_cookie_list));
+          },
+          loaded_callback));
+#endif
 }
 
 }  // namespace

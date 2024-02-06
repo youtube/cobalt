@@ -1456,10 +1456,12 @@ void XMLHttpRequestImpl::StartRequest(const std::string& request_body) {
     // To make a cross-origin request, add origin, referrer source, credentials,
     // omit credentials flag, force preflight flag
     if (!with_credentials_) {
-      // const uint32 kDisableCookiesLoadFlags =
-      //     net::LOAD_NORMAL | net::LOAD_DO_NOT_SAVE_COOKIES |
-      //     net::LOAD_DO_NOT_SEND_COOKIES | net::LOAD_DO_NOT_SEND_AUTH_DATA;
-      // url_fetcher_->SetLoadFlags(kDisableCookiesLoadFlags);
+#ifndef USE_HACKY_COBALT_CHANGES
+      const uint32 kDisableCookiesLoadFlags =
+          net::LOAD_NORMAL | net::LOAD_DO_NOT_SAVE_COOKIES |
+          net::LOAD_DO_NOT_SEND_COOKIES | net::LOAD_DO_NOT_SEND_AUTH_DATA;
+      url_fetcher_->SetLoadFlags(kDisableCookiesLoadFlags);
+#endif
     } else {
       // For credentials mode: If the withCredentials attribute value is true,
       // "include", and "same-origin" otherwise.

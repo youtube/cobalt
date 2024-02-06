@@ -18,6 +18,7 @@
 #include <memory>
 #include <vector>
 
+#include "base/macros.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/render_tree/mesh.h"
 #include "cobalt/renderer/egl_and_gles.h"
@@ -52,7 +53,7 @@ class VertexBufferObject {
   GLuint mesh_vertex_buffer_;
   THREAD_CHECKER(thread_checker_);
 
-  // DISALLOW_COPY_AND_ASSIGN(VertexBufferObject);
+  DISALLOW_COPY_AND_ASSIGN(VertexBufferObject);
 };
 
 }  // namespace skia

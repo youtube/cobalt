@@ -59,8 +59,11 @@ base::Optional<Script> Script::FromValue(const base::Value* value) {
 
 std::unique_ptr<base::Value> ScriptResult::ToValue(
     const ScriptResult& script_result) {
-  // return base::JSONReader::Read(script_result.result_string_);
+#ifndef USE_HACKY_COBALT_CHANGES
+  return base::JSONReader::Read(script_result.result_string_);
+#else
   return nullptr;
+#endif
 }
 
 }  // namespace protocol

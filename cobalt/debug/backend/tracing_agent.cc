@@ -135,7 +135,9 @@ void TracingAgent::AppendTraceEvent(const std::string& trace_event_json) {
 
   JSONObject event = JSONParse(trace_event_json);
   if (event) {
-    // collected_events_->Append(std::move(event));
+#ifndef USE_HACKY_COBALT_CHANGES
+    collected_events_->Append(std::move(event));
+#endif
     collected_size_ += trace_event_json.size();
   }
 
@@ -154,7 +156,9 @@ void TracingAgent::SendDataCollectedEvent() {
     collected_size_ = 0;
     JSONObject params(new base::Value::Dict());
     // Releasing the list into the value param avoids copying it.
-    // params->Set("value", std::move(collected_events_));
+#ifndef USE_HACKY_COBALT_CHANGES
+    params->Set("value", std::move(collected_events_));
+#endif
     dispatcher_->SendEvent(std::string(kInspectorDomain) + ".dataCollected",
                            params);
   }

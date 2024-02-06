@@ -44,11 +44,15 @@ class NetPoster : public network_bridge::NetPoster, net::URLRequest::Delegate {
 
  private:
   // From net::URLFetcherDelegate
-  // void OnURLFetchComplete(const net::URLFetcher* source) override;
+#ifndef USE_HACKY_COBALT_CHANGES
+  void OnURLFetchComplete(const net::URLFetcher* source) override;
+#endif
   void OnReadCompleted(net::URLRequest* request, int bytes_read) override;
 
   NetworkModule* network_module_;
-  // std::vector<std::unique_ptr<net::URLFetcher>> fetchers_;
+#ifndef USE_HACKY_COBALT_CHANGES
+  std::vector<std::unique_ptr<net::URLFetcher>> fetchers_;
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(NetPoster);
 };

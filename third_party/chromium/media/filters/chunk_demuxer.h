@@ -215,7 +215,7 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   base::TimeDelta write_head_ GUARDED_BY(lock_);
 #endif  // defined(STARBOARD)
 
-  // DISALLOW_IMPLICIT_CONSTRUCTORS(ChunkDemuxerStream);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ChunkDemuxerStream);
 };
 
 // Demuxer implementation that allows chunks of media data to be passed

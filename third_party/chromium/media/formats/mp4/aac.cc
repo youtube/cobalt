@@ -117,26 +117,30 @@ bool AAC::Parse(const std::vector<uint8_t>& data, MediaLog* media_log) {
   }
 
   if (frequency_ == 0) {
-    // if (frequency_index_ >= kADTSFrequencyTableSize) {
-    //   MEDIA_LOG(ERROR, media_log)
-    //       << "Sampling Frequency Index(0x" << std::hex
-    //       << static_cast<int>(frequency_index_)
-    //       << ") is not supported. Please see ISO 14496-3:2009 Table 1.18 "
-    //       << "for supported Sampling Frequencies.";
-    //   return false;
-    // }
+#ifndef USE_HACKY_COBALT_CHANGES
+    if (frequency_index_ >= kADTSFrequencyTableSize) {
+      MEDIA_LOG(ERROR, media_log)
+          << "Sampling Frequency Index(0x" << std::hex
+          << static_cast<int>(frequency_index_)
+          << ") is not supported. Please see ISO 14496-3:2009 Table 1.18 "
+          << "for supported Sampling Frequencies.";
+      return false;
+    }
+#endif
     frequency_ = kADTSFrequencyTable[frequency_index_];
   }
 
   if (extension_frequency_ == 0 && extension_frequency_index != 0xff) {
-    // if (extension_frequency_index >= kADTSFrequencyTableSize) {
-    //   MEDIA_LOG(ERROR, media_log)
-    //       << "Extension Sampling Frequency Index(0x" << std::hex
-    //       << static_cast<int>(extension_frequency_index)
-    //       << ") is not supported. Please see ISO 14496-3:2009 Table 1.18 "
-    //       << "for supported Sampling Frequencies.";
-    //   return false;
-    // }
+#ifndef USE_HACKY_COBALT_CHANGES
+    if (extension_frequency_index >= kADTSFrequencyTableSize) {
+      MEDIA_LOG(ERROR, media_log)
+          << "Extension Sampling Frequency Index(0x" << std::hex
+          << static_cast<int>(extension_frequency_index)
+          << ") is not supported. Please see ISO 14496-3:2009 Table 1.18 "
+          << "for supported Sampling Frequencies.";
+      return false;
+    }
+#endif
     extension_frequency_ = kADTSFrequencyTable[extension_frequency_index];
   }
 

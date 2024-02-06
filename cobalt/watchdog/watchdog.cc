@@ -142,12 +142,15 @@ std::shared_ptr<base::Value> Watchdog::GetViolationsMap() {
   if (violations_map_ == nullptr) {
     starboard::ScopedFile read_file(GetWatchdogFilePath().c_str(),
                                     kSbFileOpenOnly | kSbFileRead);
-    // if (read_file.IsValid()) {
-    //   int64_t kFileSize = read_file.GetSize();
-    //   std::vector<char> buffer(kFileSize + 1, 0);
-    //   read_file.ReadAll(buffer.data(), kFileSize);
-    //   violations_map_ = base::JSONReader::Read(std::string(buffer.data()));
-    // }
+#ifndef USE_HACKY_COBALT_CHANGES
+//     // if (read_file.IsValid()) {
+//     //   int64_t kFileSize = read_file.GetSize();
+//     //   std::vector<char> buffer(kFileSize + 1, 0);
+//     //   read_file.ReadAll(buffer.data(), kFileSize);
+//     //   violations_map_ =
+//     base::JSONReader::Read(std::string(buffer.data()));
+//     // }
+#endif
 
     if (violations_map_ == nullptr) {
       SB_LOG(INFO) << "[Watchdog] No previous violations JSON.";

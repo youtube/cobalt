@@ -225,15 +225,17 @@ MemoryCappedDirectory* Cache::GetMemoryCappedDirectory(
     return it->second.get();
   }
 
-  // // Read in size from persistent storage.
-  // auto metadata = cobalt::network::disk_cache::kTypeMetadata[resource_type];
-  // if (persistent_settings_) {
-  //   uint32_t bucket_size = static_cast<uint32_t>(
-  //       persistent_settings_->GetPersistentSettingAsDouble(
-  //           metadata.directory, metadata.max_size_bytes));
-  //   disk_cache::kTypeMetadata[resource_type] = {metadata.directory,
-  //                                               bucket_size};
-  // }
+#ifndef USE_HACKY_COBALT_CHANGES
+  // Read in size from persistent storage.
+  auto metadata = cobalt::network::disk_cache::kTypeMetadata[resource_type];
+  if (persistent_settings_) {
+    uint32_t bucket_size = static_cast<uint32_t>(
+        persistent_settings_->GetPersistentSettingAsDouble(
+            metadata.directory, metadata.max_size_bytes));
+    disk_cache::kTypeMetadata[resource_type] = {metadata.directory,
+                                                bucket_size};
+  }
+#endif
 
   auto cache_directory = GetCacheDirectory(resource_type);
   auto max_size = GetMaxCacheStorageInBytes(resource_type);
@@ -256,15 +258,17 @@ void Cache::Resize(cobalt::network::disk_cache::ResourceType resource_type,
       resource_type !=
           cobalt::network::disk_cache::ResourceType::kServiceWorkerScript)
     return;
-  // if (bytes == disk_cache::?kTypeMetadata[resource_type].max_size_bytes)
-  // return;
+#ifndef USE_HACKY_COBALT_CHANGES
+  if (bytes == disk_cache::?kTypeMetadata[resource_type].max_size_bytes)
+    return;
 
-  // if (persistent_settings_) {
-  //   persistent_settings_->SetPersistentSetting(
-  //       disk_cache::kTypeMetadata[resource_type].directory,
-  //       std::make_unique<base::Value>(static_cast<double>(bytes)));
-  // }
-  // disk_cache::kTypeMetadata[resource_type].max_size_bytes = bytes;
+  if (persistent_settings_) {
+    persistent_settings_->SetPersistentSetting(
+        disk_cache::kTypeMetadata[resource_type].directory,
+        std::make_unique<base::Value>(static_cast<double>(bytes)));
+  }
+  disk_cache::kTypeMetadata[resource_type].max_size_bytes = bytes;
+#endif
   auto* memory_capped_directory = GetMemoryCappedDirectory(resource_type);
   if (memory_capped_directory) {
     memory_capped_directory->Resize(bytes);

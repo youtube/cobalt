@@ -38,9 +38,15 @@ ScriptLoaderFactory::ScriptLoaderFactory(
     : fetcher_factory_(fetcher_factory),
       load_thread_("ResourceLoader"),
       is_suspended_(false) {
-  // options = static_cast<SbThreadPriority>(loader_thread_priority);
+#ifndef USE_HACKY_COBALT_CHANGES
+  base::Thread::Options options(base::MessageLoop::TYPE_DEFAULT,
+                                kLoadThreadStackSize);
+  options.priority = loader_thread_priority;
+  load_thread_.StartWithOptions(options);
+#else
   load_thread_.StartWithOptions(base::Thread::Options(
       base::MessageLoop::TYPE_DEFAULT, kLoadThreadStackSize));
+#endif
 }
 
 std::unique_ptr<Loader> ScriptLoaderFactory::CreateScriptLoader(

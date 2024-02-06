@@ -73,7 +73,9 @@ void CobaltWebSocketEventHandler::OnDataFrame(bool fin,
   if (type != net::WebSocketFrameHeader::kOpCodeContinuation) {
     DCHECK_EQ(message_type_, type);
   }
-  // frame_data_.push_back(std::make_pair(std::move(payload), buffer_size));
+#ifndef USE_HACKY_COBALT_CHANGES
+  frame_data_.push_back(std::make_pair(std::move(payload), buffer_size));
+#endif
   if (fin) {
     std::size_t message_length = GetMessageLength(frame_data_);
     scoped_refptr<net::IOBufferWithSize> buf =

@@ -223,9 +223,11 @@ void DebugWebServer::OnWebSocketMessage(int connection_id, std::string json) {
   const base::Value* params_value = json_object->Find(kParamsField);
   std::string json_params;
   if (json_object->Remove(kParamsField) && params_value->is_dict()) {
-    // JSONObject params(base::Value::ToUniquePtrValue(*params_value));
-    // DCHECK(params);
-    // json_params = JSONStringify(params);
+#ifndef USE_HACKY_COBALT_CHANGES
+    JSONObject params(base::Value::ToUniquePtrValue(*params_value));
+    DCHECK(params);
+    json_params = JSONStringify(params);
+#endif
   }
 
   if (!debug_client_ || !debug_client_->IsAttached()) {
@@ -241,18 +243,22 @@ void DebugWebServer::OnWebSocketMessage(int connection_id, std::string json) {
 void DebugWebServer::SendErrorResponseOverWebSocket(
     int id, const std::string& message) {
   DCHECK_GE(websocket_id_, 0);
-  // JSONObject response(new base::DictionaryValue());
-  // response->SetInteger(kIdField, id);
-  // response->SetString(kErrorField, message);
+#ifndef USE_HACKY_COBALT_CHANGES
+  JSONObject response(new base::DictionaryValue());
+  response->SetInteger(kIdField, id);
+  response->SetString(kErrorField, message);
+#endif
   server_->SendOverWebSocket(websocket_id_, JSONStringify(nullptr),
                              kNetworkTrafficAnnotation);
 }
 
 void DebugWebServer::OnDebuggerResponse(
     int id, const base::Optional<std::string>& response) {
-  // JSONObject response_object = JSONParse(response.value());
-  // DCHECK(response_object);
-  // response_object->SetInteger(kIdField, id);
+#ifndef USE_HACKY_COBALT_CHANGES
+  JSONObject response_object = JSONParse(response.value());
+  DCHECK(response_object);
+  response_object->SetInteger(kIdField, id);
+#endif
   server_->SendOverWebSocket(websocket_id_, JSONStringify(nullptr),
                              kNetworkTrafficAnnotation);
 }
@@ -273,9 +279,11 @@ void DebugWebServer::OnDebugClientEvent(const std::string& method,
     return;
   }
 
-  // JSONObject event(new base::DictionaryValue());
-  // event->SetString(kMethodField, method);
-  // event->Set(kParamsField, JSONParse(json_params));
+#ifndef USE_HACKY_COBALT_CHANGES
+  JSONObject event(new base::DictionaryValue());
+  event->SetString(kMethodField, method);
+  event->Set(kParamsField, JSONParse(json_params));
+#endif
   server_->SendOverWebSocket(websocket_id_, JSONStringify(nullptr),
                              kNetworkTrafficAnnotation);
 }

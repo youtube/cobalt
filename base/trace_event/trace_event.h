@@ -5,6 +5,10 @@
 #ifndef BASE_TRACE_EVENT_TRACE_EVENT_H_
 #define BASE_TRACE_EVENT_TRACE_EVENT_H_
 
+#ifndef USE_HACKY_COBALT_CHANGES
+#error "base/trace_event/ should be reverted to use perfetto."
+#endif
+
 #define TRACE_EVENT0(category_group, name) ""
 #define TRACE_EVENT1(category_group, name, arg1_name, arg1_val) ""
 #define TRACE_EVENT2(category_group, name, arg1_name, arg1_val, arg2_name,   \

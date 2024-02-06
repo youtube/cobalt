@@ -118,7 +118,9 @@ void OverlayAgent::HighlightRect(Command command) {
   if (!EnsureEnabled(&command)) return;
 
   JSONObject params = JSONParse(command.GetParams());
-  // render_layer_->SetFrontLayer(RenderHighlightRect(params.get()));
+#ifndef USE_HACKY_COBALT_CHANGES
+  render_layer_->SetFrontLayer(RenderHighlightRect(params.get()));
+#endif
   command.SendResponse();
 }
 

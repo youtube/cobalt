@@ -18,6 +18,7 @@
 #include <memory>
 
 #include "base/basictypes.h"
+#include "base/macros.h"
 #include "cobalt/base/event_dispatcher.h"
 
 namespace cobalt {
@@ -38,8 +39,8 @@ class NetworkSystem {
  protected:
   NetworkSystem() {}
 
-  //  private:
-  // DISALLOW_COPY_AND_ASSIGN(NetworkSystem);
+ private:
+  DISALLOW_COPY_AND_ASSIGN(NetworkSystem);
 };
 
 }  // namespace network
