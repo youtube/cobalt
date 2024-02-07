@@ -104,14 +104,14 @@ runs:
         tags="${tags},os:${{ inputs.os }}"
         echo $tags > ${TEST_RESULTS_DIR}/${{ matrix.platform }}/TAGS
     - name: Archive unit test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: (success() || failure()) && steps.run-tests.outputs.test_type == 'unit_tests'
       with:
         name: unit-test-results
         path: ${{env.TEST_RESULTS_DIR}}/
     - name: Archive coverage html report
       if: success() && matrix.shard == 'coverage'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: coverage-report
         path: ${{env.COVERAGE_DIR}}/html
