@@ -28,7 +28,7 @@ RUN apt update -qqy \
     && /opt/clean-after-apt.sh
 
 COPY ./linux-x64x11/requirements.txt /opt/requirements.txt
-RUN python3 -m pip install --require-hashes --no-deps -r /opt/requirements.txt
+RUN python3 -m pip install --break-system-packages --require-hashes --no-deps -r /opt/requirements.txt
 
 CMD gn gen ${OUTDIR}/${PLATFORM}${SB_API_VERSION:+-sbversion-$SB_API_VERSION}_${CONFIG:-debug} --args="target_platform=\"${PLATFORM}\" build_type=\"${CONFIG:-debug}\" ${SB_API_VERSION:+sb_api_version=$SB_API_VERSION}" && \
     ninja -v -j ${NINJA_PARALLEL} -C ${OUTDIR}/${PLATFORM}${SB_API_VERSION:+-sbversion-$SB_API_VERSION}_${CONFIG:-debug} ${TARGET:-cobalt_install}
