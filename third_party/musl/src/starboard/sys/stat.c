@@ -14,7 +14,7 @@ int mkdir(const char *path, mode_t mode)
     return -1;
 }
 
-inline time_t WindowsUsecToTimeT(int64_t time) {
+static SB_C_FORCE_INLINE time_t WindowsUsecToTimeT(int64_t time) {
     int64_t posix_time = time - 11644473600000000ULL;
     posix_time = posix_time / 1000000;
     return posix_time;
