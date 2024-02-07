@@ -16,6 +16,7 @@
 #define HEADER_TEST_CONFIG
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <openssl/base.h>
@@ -27,19 +28,31 @@ struct TestConfig {
   int port = 0;
   bool is_server = false;
   bool is_dtls = false;
+  bool is_quic = false;
   int resume_count = 0;
   std::string write_settings;
   bool fallback_scsv = false;
-  std::vector<int> signing_prefs;
-  std::vector<int> verify_prefs;
-  std::vector<int> expected_peer_verify_prefs;
+  std::vector<uint16_t> signing_prefs;
+  std::vector<uint16_t> verify_prefs;
+  std::vector<uint16_t> expect_peer_verify_prefs;
+  std::vector<int> curves;
   std::string key_file;
   std::string cert_file;
-  std::string expected_server_name;
-  std::string expected_certificate_types;
+  std::string expect_server_name;
+  bool enable_ech_grease = false;
+  std::vector<std::string> ech_server_configs;
+  std::vector<std::string> ech_server_keys;
+  std::vector<int> ech_is_retry_config;
+  bool expect_ech_accept = false;
+  std::string expect_ech_name_override;
+  bool expect_no_ech_name_override = false;
+  std::string expect_ech_retry_configs;
+  bool expect_no_ech_retry_configs = false;
+  std::string ech_config_list;
+  std::string expect_certificate_types;
   bool require_any_client_certificate = false;
   std::string advertise_npn;
-  std::string expected_next_proto;
+  std::string expect_next_proto;
   bool false_start = false;
   std::string select_next_proto;
   bool async = false;
@@ -51,34 +64,38 @@ struct TestConfig {
   bool no_tls11 = false;
   bool no_tls1 = false;
   bool no_ticket = false;
-  std::string expected_channel_id;
+  std::string expect_channel_id;
   bool enable_channel_id = false;
   std::string send_channel_id;
-  int expected_token_binding_param = -1;
-  std::string send_token_binding_params;
   bool shim_writes_first = false;
   std::string host_name;
   std::string advertise_alpn;
-  std::string expected_alpn;
-  std::string expected_late_alpn;
-  std::string expected_advertised_alpn;
+  std::string expect_alpn;
+  std::string expect_late_alpn;
+  std::string expect_advertised_alpn;
   std::string select_alpn;
   bool decline_alpn = false;
+  bool reject_alpn = false;
   bool select_empty_alpn = false;
+  bool defer_alps = false;
+  std::vector<std::pair<std::string, std::string>> application_settings;
+  std::unique_ptr<std::string> expect_peer_application_settings;
   std::string quic_transport_params;
-  std::string expected_quic_transport_params;
+  std::string expect_quic_transport_params;
+  // Set quic_use_legacy_codepoint to 0 or 1 to configure, -1 uses default.
+  int quic_use_legacy_codepoint = -1;
   bool expect_session_miss = false;
   bool expect_extended_master_secret = false;
   std::string psk;
   std::string psk_identity;
   std::string srtp_profiles;
   bool enable_ocsp_stapling = false;
-  std::string expected_ocsp_response;
+  std::string expect_ocsp_response;
   bool enable_signed_cert_timestamps = false;
-  std::string expected_signed_cert_timestamps;
-  int min_version = 0;
-  int max_version = 0;
-  int expect_version = 0;
+  std::string expect_signed_cert_timestamps;
+  uint16_t min_version = 0;
+  uint16_t max_version = 0;
+  uint16_t expect_version = 0;
   int mtu = 0;
   bool implicit_handshake = false;
   bool use_early_callback = false;
@@ -88,7 +105,6 @@ struct TestConfig {
   bool fail_cert_callback = false;
   std::string cipher;
   bool handshake_never_done = false;
-  int export_early_keying_material = 0;
   int export_keying_material = 0;
   std::string export_label;
   std::string export_context;
@@ -103,11 +119,6 @@ struct TestConfig {
   bool use_ticket_callback = false;
   bool renew_ticket = false;
   bool enable_early_data = false;
-  int tls13_variant = 0;
-  bool enable_client_custom_extension = false;
-  bool enable_server_custom_extension = false;
-  bool custom_extension_skip = false;
-  bool custom_extension_fail_add = false;
   std::string ocsp_response;
   bool check_close_notify = false;
   bool shim_shuts_down = false;
@@ -120,23 +131,24 @@ struct TestConfig {
   bool renegotiate_once = false;
   bool renegotiate_freely = false;
   bool renegotiate_ignore = false;
+  bool renegotiate_explicit = false;
   bool forbid_renegotiation_after_handshake = false;
-  int expect_peer_signature_algorithm = 0;
-  bool p384_only = false;
-  bool enable_all_curves = false;
-  int expect_curve_id = 0;
+  uint16_t expect_peer_signature_algorithm = 0;
+  uint16_t expect_curve_id = 0;
   bool use_old_client_cert_callback = false;
   int initial_timeout_duration_ms = 0;
   std::string use_client_ca_list;
-  std::string expected_client_ca_list;
+  std::string expect_client_ca_list;
   bool send_alert = false;
   bool peek_then_read = false;
   bool enable_grease = false;
+  bool permute_extensions = false;
   int max_cert_list = 0;
   std::string ticket_key;
   bool use_exporter_between_reads = false;
-  int expect_cipher_aes = 0;
-  int expect_cipher_no_aes = 0;
+  uint16_t expect_cipher_aes = 0;
+  uint16_t expect_cipher_no_aes = 0;
+  uint16_t expect_cipher = 0;
   std::string expect_peer_cert_file;
   int resumption_delay = 0;
   bool retain_only_sha256_client_cert = false;
@@ -152,23 +164,35 @@ struct TestConfig {
   bool no_op_extra_handshake = false;
   bool handshake_twice = false;
   bool allow_unknown_alpn_protos = false;
-  bool enable_ed25519 = false;
   bool use_custom_verify_callback = false;
   std::string expect_msg_callback;
   bool allow_false_start_without_alpn = false;
-  bool ignore_tls13_downgrade = false;
-  bool expect_tls13_downgrade = false;
   bool handoff = false;
-  bool no_rsa_pss_rsae_certs = false;
+  bool handshake_hints = false;
+  bool allow_hint_mismatch = false;
   bool use_ocsp_callback = false;
   bool set_ocsp_in_callback = false;
   bool decline_ocsp_callback = false;
   bool fail_ocsp_callback = false;
   bool install_cert_compression_algs = false;
+  int install_one_cert_compression_alg = 0;
   bool reverify_on_resume = false;
+  bool enforce_rsa_key_usage = false;
   bool is_handshaker_supported = false;
   bool handshaker_resume = false;
   std::string handshaker_path;
+  bool jdk11_workaround = false;
+  bool server_preference = false;
+  bool export_traffic_secrets = false;
+  bool key_update = false;
+  bool expect_delegated_credential_used = false;
+  std::string delegated_credential;
+  std::string expect_early_data_reason;
+  bool expect_hrr = false;
+  bool expect_no_hrr = false;
+  bool wait_for_debugger = false;
+  std::string quic_early_data_context;
+  int early_write_after_message = 0;
 
   int argc;
   char **argv;
@@ -176,11 +200,10 @@ struct TestConfig {
   bssl::UniquePtr<SSL_CTX> SetupCtx(SSL_CTX *old_ctx) const;
 
   bssl::UniquePtr<SSL> NewSSL(SSL_CTX *ssl_ctx, SSL_SESSION *session,
-                              bool is_resume,
                               std::unique_ptr<TestState> test_state) const;
 };
 
-bool ParseConfig(int argc, char **argv, TestConfig *out_initial,
+bool ParseConfig(int argc, char **argv, bool is_shim, TestConfig *out_initial,
                  TestConfig *out_resume, TestConfig *out_retry);
 
 bool SetTestConfig(SSL *ssl, const TestConfig *config);

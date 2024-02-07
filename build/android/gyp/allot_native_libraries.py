@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright 2019 The Chromium Authors. All rights reserved.
+# Copyright 2019 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -46,6 +46,7 @@ import json
 import sys
 
 from util import build_utils
+import action_helpers  # build_utils adds //build to sys.path.
 
 
 def _ModuleLibrariesPair(arg):
@@ -145,7 +146,7 @@ def main(args):
       help='A pair of parent module name and child module name '
       '(format: "<parent>:<child>"). Can be specified multiple times.')
   options = parser.parse_args(build_utils.ExpandFileArgs(args))
-  options.libraries = [(m, build_utils.ParseGnList(l))
+  options.libraries = [(m, action_helpers.parse_gn_list(l))
                        for m, l in options.libraries]
 
   # Parse input creating libraries and dependency tree.

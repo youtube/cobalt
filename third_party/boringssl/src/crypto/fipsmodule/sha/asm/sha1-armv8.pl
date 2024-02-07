@@ -40,7 +40,7 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}../../../perlasm/arm-xlate.pl" and -f $xlate) or
 die "can't locate arm-xlate.pl";
 
-open OUT,"| \"$^X\" $xlate $flavour $output";
+open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\"";
 *STDOUT=*OUT;
 
 ($ctx,$inp,$num)=("x0","x1","x2");
@@ -61,7 +61,7 @@ $code.=<<___ if ($i<14 && !($i&1));
 	ldr	@Xx[$i+2],[$inp,#`($i+2)*4-64`]
 ___
 $code.=<<___ if ($i<14 && ($i&1));
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	ror	@Xx[$i+1],@Xx[$i+1],#32
 #else
 	rev32	@Xx[$i+1],@Xx[$i+1]
@@ -176,18 +176,19 @@ $code.=<<___;
 .text
 
 .extern	OPENSSL_armcap_P
+.hidden OPENSSL_armcap_P
 .globl	sha1_block_data_order
 .type	sha1_block_data_order,%function
 .align	6
 sha1_block_data_order:
-#ifdef	__ILP32__
-	ldrsw	x16,.LOPENSSL_armcap_P
+	// Armv8.3-A PAuth: even though x30 is pushed to stack it is not popped later.
+	AARCH64_VALID_CALL_TARGET
+#if __has_feature(hwaddress_sanitizer) && __clang_major__ >= 10
+	adrp	x16,:pg_hi21_nc:OPENSSL_armcap_P
 #else
-	ldr	x16,.LOPENSSL_armcap_P
+	adrp	x16,:pg_hi21:OPENSSL_armcap_P
 #endif
-	adr	x17,.LOPENSSL_armcap_P
-	add	x16,x16,x17
-	ldr	w16,[x16]
+	ldr	w16,[x16,:lo12:OPENSSL_armcap_P]
 	tst	w16,#ARMV8_SHA1
 	b.ne	.Lv8_entry
 
@@ -208,7 +209,7 @@ sha1_block_data_order:
 	movz	$K,#0x7999
 	sub	$num,$num,#1
 	movk	$K,#0x5a82,lsl#16
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	ror	$Xx[0],@Xx[0],#32
 #else
 	rev32	@Xx[0],@Xx[0]
@@ -251,11 +252,14 @@ $code.=<<___;
 .type	sha1_block_armv8,%function
 .align	6
 sha1_block_armv8:
+	// Armv8.3-A PAuth: even though x30 is pushed to stack it is not popped later.
+	AARCH64_VALID_CALL_TARGET
 .Lv8_entry:
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 
-	adr	x4,.Lconst
+	adrp	x4,:pg_hi21:.Lconst
+	add	x4,x4,:lo12:.Lconst
 	eor	$E,$E,$E
 	ld1.32	{$ABCD},[$ctx],#16
 	ld1.32	{$E}[0],[$ctx]
@@ -315,21 +319,15 @@ $code.=<<___;
 	ldr	x29,[sp],#16
 	ret
 .size	sha1_block_armv8,.-sha1_block_armv8
+.section .rodata
 .align	6
 .Lconst:
 .long	0x5a827999,0x5a827999,0x5a827999,0x5a827999	//K_00_19
 .long	0x6ed9eba1,0x6ed9eba1,0x6ed9eba1,0x6ed9eba1	//K_20_39
 .long	0x8f1bbcdc,0x8f1bbcdc,0x8f1bbcdc,0x8f1bbcdc	//K_40_59
 .long	0xca62c1d6,0xca62c1d6,0xca62c1d6,0xca62c1d6	//K_60_79
-.LOPENSSL_armcap_P:
-#ifdef	__ILP32__
-.long	OPENSSL_armcap_P-.
-#else
-.quad	OPENSSL_armcap_P-.
-#endif
 .asciz	"SHA1 block transform for ARMv8, CRYPTOGAMS by <appro\@openssl.org>"
 .align	2
-.comm	OPENSSL_armcap_P,4,4
 ___
 }}}
 
@@ -361,4 +359,4 @@ foreach(split("\n",$code)) {
 	print $_,"\n";
 }
 
-close STDOUT;
+close STDOUT or die "error closing STDOUT: $!";

@@ -14,9 +14,6 @@
 #include "net/base/net_errors.h"
 #include "net/cert/asn1_util.h"
 #include "net/ssl/channel_id_service.h"
-#include "starboard/client_porting/poem/string_poem.h"
-#include "starboard/memory.h"
-#include "starboard/string.h"
 
 namespace net {
 

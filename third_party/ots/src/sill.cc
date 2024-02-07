@@ -11,9 +11,6 @@
 namespace ots {
 
 bool OpenTypeSILL::Parse(const uint8_t* data, size_t length) {
-  if (GetFont()->dropped_graphite) {
-    return Drop("Skipping Graphite table");
-  }
   Buffer table(data, length);
 
   if (!table.ReadU32(&this->version) || this->version >> 16 != 1) {
@@ -35,7 +32,7 @@ bool OpenTypeSILL::Parse(const uint8_t* data, size_t length) {
       this->searchRange = this->entrySelector = this->rangeShift = 0;
     }
   } else {
-    unsigned floorLog2 = std::floor(log2(this->numLangs));
+    unsigned floorLog2 = std::floor(std::log2(this->numLangs));
     if (this->searchRange != (unsigned)std::pow(2, floorLog2) ||
         this->entrySelector != floorLog2 ||
         this->rangeShift != this->numLangs - this->searchRange) {

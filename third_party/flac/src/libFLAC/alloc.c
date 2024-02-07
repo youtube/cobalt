@@ -8,7 +8,6 @@
 #include <stdint.h>
 #endif
 #endif  // STARBOARD
-#include "starboard/client_porting/poem/stdio_poem.h"
 #include "share/alloc.h"
 
 #include <stdlib.h>

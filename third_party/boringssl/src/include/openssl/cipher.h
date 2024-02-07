@@ -106,7 +106,10 @@ OPENSSL_EXPORT const EVP_CIPHER *EVP_rc2_cbc(void);
 const EVP_CIPHER *EVP_rc2_40_cbc(void);
 
 // EVP_get_cipherbynid returns the cipher corresponding to the given NID, or
-// NULL if no such cipher is known.
+// NULL if no such cipher is known. Note using this function links almost every
+// cipher implemented by BoringSSL into the binary, whether the caller uses them
+// or not. Size-conscious callers, such as client software, should not use this
+// function.
 OPENSSL_EXPORT const EVP_CIPHER *EVP_get_cipherbynid(int nid);
 
 
@@ -136,8 +139,8 @@ OPENSSL_EXPORT int EVP_CIPHER_CTX_copy(EVP_CIPHER_CTX *out,
                                        const EVP_CIPHER_CTX *in);
 
 // EVP_CIPHER_CTX_reset calls |EVP_CIPHER_CTX_cleanup| followed by
-// |EVP_CIPHER_CTX_init|.
-OPENSSL_EXPORT void EVP_CIPHER_CTX_reset(EVP_CIPHER_CTX *ctx);
+// |EVP_CIPHER_CTX_init| and returns one.
+OPENSSL_EXPORT int EVP_CIPHER_CTX_reset(EVP_CIPHER_CTX *ctx);
 
 
 // Cipher context configuration.
@@ -198,7 +201,7 @@ OPENSSL_EXPORT int EVP_DecryptUpdate(EVP_CIPHER_CTX *ctx, uint8_t *out,
 //
 // WARNING: it is unsafe to call this function with unauthenticated
 // ciphertext if padding is enabled.
-OPENSSL_EXPORT int EVP_DecryptFinal_ex(EVP_CIPHER_CTX *ctx, unsigned char *out,
+OPENSSL_EXPORT int EVP_DecryptFinal_ex(EVP_CIPHER_CTX *ctx, uint8_t *out,
                                        int *out_len);
 
 // EVP_Cipher performs a one-shot encryption/decryption operation. No partial
@@ -380,6 +383,12 @@ OPENSSL_EXPORT int EVP_BytesToKey(const EVP_CIPHER *type, const EVP_MD *md,
 // processing.
 #define EVP_CIPH_CUSTOM_COPY 0x1000
 
+// EVP_CIPH_FLAG_NON_FIPS_ALLOW is meaningless. In OpenSSL it permits non-FIPS
+// algorithms in FIPS mode. But BoringSSL FIPS mode doesn't prohibit algorithms
+// (it's up the the caller to use the FIPS module in a fashion compliant with
+// their needs). Thus this exists only to allow code to compile.
+#define EVP_CIPH_FLAG_NON_FIPS_ALLOW 0
+
 
 // Deprecated functions
 
@@ -399,11 +408,26 @@ OPENSSL_EXPORT int EVP_DecryptInit(EVP_CIPHER_CTX *ctx,
                                    const EVP_CIPHER *cipher, const uint8_t *key,
                                    const uint8_t *iv);
 
+// EVP_CipherFinal calls |EVP_CipherFinal_ex|.
+OPENSSL_EXPORT int EVP_CipherFinal(EVP_CIPHER_CTX *ctx, uint8_t *out,
+                                   int *out_len);
+
+// EVP_EncryptFinal calls |EVP_EncryptFinal_ex|.
+OPENSSL_EXPORT int EVP_EncryptFinal(EVP_CIPHER_CTX *ctx, uint8_t *out,
+                                    int *out_len);
+
+// EVP_DecryptFinal calls |EVP_DecryptFinal_ex|.
+OPENSSL_EXPORT int EVP_DecryptFinal(EVP_CIPHER_CTX *ctx, uint8_t *out,
+                                    int *out_len);
+
 // EVP_add_cipher_alias does nothing and returns one.
 OPENSSL_EXPORT int EVP_add_cipher_alias(const char *a, const char *b);
 
 // EVP_get_cipherbyname returns an |EVP_CIPHER| given a human readable name in
-// |name|, or NULL if the name is unknown.
+// |name|, or NULL if the name is unknown. Note using this function links almost
+// every cipher implemented by BoringSSL into the binary, not just the ones the
+// caller requests. Size-conscious callers, such as client software, should not
+// use this function.
 OPENSSL_EXPORT const EVP_CIPHER *EVP_get_cipherbyname(const char *name);
 
 // These AEADs are deprecated AES-GCM implementations that set
@@ -419,13 +443,50 @@ OPENSSL_EXPORT const EVP_CIPHER *EVP_aes_192_ctr(void);
 OPENSSL_EXPORT const EVP_CIPHER *EVP_aes_192_gcm(void);
 OPENSSL_EXPORT const EVP_CIPHER *EVP_aes_192_ofb(void);
 
+// EVP_des_ede3_ecb is an alias for |EVP_des_ede3|. Use the former instead.
+OPENSSL_EXPORT const EVP_CIPHER *EVP_des_ede3_ecb(void);
+
 // EVP_aes_128_cfb128 is only available in decrepit.
 OPENSSL_EXPORT const EVP_CIPHER *EVP_aes_128_cfb128(void);
 
+// EVP_aes_128_cfb is an alias for |EVP_aes_128_cfb128| and is only available in
+// decrepit.
+OPENSSL_EXPORT const EVP_CIPHER *EVP_aes_128_cfb(void);
+
+// EVP_aes_192_cfb128 is only available in decrepit.
+OPENSSL_EXPORT const EVP_CIPHER *EVP_aes_192_cfb128(void);
+
+// EVP_aes_192_cfb is an alias for |EVP_aes_192_cfb128| and is only available in
+// decrepit.
+OPENSSL_EXPORT const EVP_CIPHER *EVP_aes_192_cfb(void);
+
+// EVP_aes_256_cfb128 is only available in decrepit.
+OPENSSL_EXPORT const EVP_CIPHER *EVP_aes_256_cfb128(void);
+
+// EVP_aes_256_cfb is an alias for |EVP_aes_256_cfb128| and is only available in
+// decrepit.
+OPENSSL_EXPORT const EVP_CIPHER *EVP_aes_256_cfb(void);
+
+// EVP_bf_ecb is Blowfish in ECB mode and is only available in decrepit.
+OPENSSL_EXPORT const EVP_CIPHER *EVP_bf_ecb(void);
+
+// EVP_bf_cbc is Blowfish in CBC mode and is only available in decrepit.
+OPENSSL_EXPORT const EVP_CIPHER *EVP_bf_cbc(void);
+
+// EVP_bf_cfb is Blowfish in 64-bit CFB mode and is only available in decrepit.
+OPENSSL_EXPORT const EVP_CIPHER *EVP_bf_cfb(void);
+
+// EVP_cast5_ecb is CAST5 in ECB mode and is only available in decrepit.
+OPENSSL_EXPORT const EVP_CIPHER *EVP_cast5_ecb(void);
+
+// EVP_cast5_cbc is CAST5 in CBC mode and is only available in decrepit.
+OPENSSL_EXPORT const EVP_CIPHER *EVP_cast5_cbc(void);
+
 // The following flags do nothing and are included only to make it easier to
 // compile code with BoringSSL.
-#define EVP_CIPH_CCM_MODE 0
-#define EVP_CIPH_WRAP_MODE 0
+#define EVP_CIPH_CCM_MODE (-1)
+#define EVP_CIPH_OCB_MODE (-2)
+#define EVP_CIPH_WRAP_MODE (-3)
 #define EVP_CIPHER_CTX_FLAG_WRAP_ALLOW 0
 
 // EVP_CIPHER_CTX_set_flags does nothing.
@@ -438,7 +499,7 @@ OPENSSL_EXPORT void EVP_CIPHER_CTX_set_flags(const EVP_CIPHER_CTX *ctx,
 // EVP_CIPH_NO_PADDING disables padding in block ciphers.
 #define EVP_CIPH_NO_PADDING 0x800
 
-// EVP_CIPHER_CTX_ctrl commands.
+// The following are |EVP_CIPHER_CTX_ctrl| commands.
 #define EVP_CTRL_INIT 0x0
 #define EVP_CTRL_SET_KEY_LENGTH 0x1
 #define EVP_CTRL_GET_RC2_KEY_BITS 0x2
@@ -454,15 +515,12 @@ OPENSSL_EXPORT void EVP_CIPHER_CTX_set_flags(const EVP_CIPHER_CTX *ctx,
 #define EVP_CTRL_AEAD_SET_IV_FIXED 0x12
 #define EVP_CTRL_GCM_IV_GEN 0x13
 #define EVP_CTRL_AEAD_SET_MAC_KEY 0x17
-// Set the GCM invocation field, decrypt only
+// EVP_CTRL_GCM_SET_IV_INV sets the GCM invocation field, decrypt only
 #define EVP_CTRL_GCM_SET_IV_INV 0x18
 
-// GCM TLS constants
-// Length of fixed part of IV derived from PRF
+// The following constants are unused.
 #define EVP_GCM_TLS_FIXED_IV_LEN 4
-// Length of explicit part of IV part of TLS records
 #define EVP_GCM_TLS_EXPLICIT_IV_LEN 8
-// Length of tag for TLS
 #define EVP_GCM_TLS_TAG_LEN 16
 
 // The following are legacy aliases for AEAD |EVP_CIPHER_CTX_ctrl| values.
@@ -515,10 +573,6 @@ struct evp_cipher_ctx_st {
 
   // final_used is non-zero if the |final| buffer contains plaintext.
   int final_used;
-
-  // block_mask contains |cipher->block_size| minus one. (The block size
-  // assumed to be a power of two.)
-  int block_mask;
 
   uint8_t final[EVP_MAX_BLOCK_LENGTH];  // possible final block
 } /* EVP_CIPHER_CTX */;
@@ -574,7 +628,7 @@ struct evp_cipher_st {
 #if !defined(BORINGSSL_NO_CXX)
 extern "C++" {
 
-namespace bssl {
+BSSL_NAMESPACE_BEGIN
 
 BORINGSSL_MAKE_DELETER(EVP_CIPHER_CTX, EVP_CIPHER_CTX_free)
 
@@ -582,7 +636,7 @@ using ScopedEVP_CIPHER_CTX =
     internal::StackAllocated<EVP_CIPHER_CTX, int, EVP_CIPHER_CTX_init,
                              EVP_CIPHER_CTX_cleanup>;
 
-}  // namespace bssl
+BSSL_NAMESPACE_END
 
 }  // extern C++
 #endif

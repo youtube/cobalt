@@ -22,7 +22,6 @@
 #include "starboard/common/mutex.h"
 #include "starboard/raspi/shared/open_max/open_max_component_base.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace raspi {
@@ -53,7 +52,7 @@ class OpenMaxComponent : protected OpenMaxComponentBase {
   // Write data to the input buffer. Returns the number of bytes written or
   // -1 if an error occurred.
   // This will return immediately once no more buffers are available.
-  int WriteData(const void* data, int size, DataType type, SbTime timestamp);
+  int WriteData(const void* data, int size, DataType type, int64_t timestamp);
 
   // Write an empty buffer that is flagged as the end of the input stream.
   // This will block until a buffer is available.

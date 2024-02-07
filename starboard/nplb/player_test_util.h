@@ -107,9 +107,9 @@ void CallSbPlayerWriteSamples(
     shared::starboard::player::video_dmp::VideoDmpReader* dmp_reader,
     int start_index,
     int number_of_samples_to_write,
-    SbTime timestamp_offset = 0,
-    const std::vector<SbTime>& discarded_durations_from_front = {},
-    const std::vector<SbTime>& discarded_durations_from_back = {});
+    int64_t timestamp_offset = 0,
+    const std::vector<int64_t>& discarded_durations_from_front = {},
+    const std::vector<int64_t>& discarded_durations_from_back = {});
 
 bool IsOutputModeSupported(SbPlayerOutputMode output_mode,
                            SbMediaAudioCodec audio_codec,

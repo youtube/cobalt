@@ -4,12 +4,13 @@
 
 #include "crypto/secure_hash.h"
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <memory>
 #include <string>
 
 #include "crypto/sha2.h"
-#include "starboard/memory.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 TEST(SecureHashTest, TestUpdate) {

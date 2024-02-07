@@ -18,10 +18,6 @@
 
 #include "base/strings/string_number_conversions.h"
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif
-
 namespace SkSL {
 
 String String::printf(const char* fmt, ...) {

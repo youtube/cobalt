@@ -10,7 +10,7 @@ test "x$top_builddir" = x && top_builddir=.
 # Usage: ./test_fuzzed_fonts.sh [ttf_or_otf_file_name]
 
 BASE_DIR=$top_srcdir/tests/fonts
-CHECKER=$top_builddir/ots-testfuzz$EXEEXT
+CHECKER=$top_builddir/ots-fuzzer$EXEEXT
 
 if [ ! -x "$CHECKER" ] ; then
   echo "$CHECKER is not found."

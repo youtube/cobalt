@@ -138,7 +138,7 @@ class MediaCodecBridge {
                                                    int size) = 0;
     virtual void OnMediaCodecOutputFormatChanged() = 0;
     // This is only called on video decoder when tunnel mode is enabled.
-    virtual void OnMediaCodecFrameRendered(SbTime frame_timestamp) = 0;
+    virtual void OnMediaCodecFrameRendered(int64_t frame_timestamp) = 0;
 
    protected:
     ~Handler() {}
@@ -147,7 +147,8 @@ class MediaCodecBridge {
   static scoped_ptr<MediaCodecBridge> CreateAudioMediaCodecBridge(
       const AudioStreamInfo& audio_stream_info,
       Handler* handler,
-      jobject j_media_crypto);
+      jobject j_media_crypto,
+      bool use_callback_thread);
 
   // `max_width` and `max_height` can be set to positive values to specify the
   // maximum resolutions the video can be adapted to.
@@ -173,6 +174,8 @@ class MediaCodecBridge {
       bool require_software_codec,
       int tunnel_mode_audio_session_id,
       bool force_big_endian_hdr_metadata,
+      bool use_callback_thread,
+      int max_video_input_size,
       std::string* error_message);
 
   ~MediaCodecBridge();
@@ -211,7 +214,7 @@ class MediaCodecBridge {
                                          int64_t presentation_time_us,
                                          int size);
   void OnMediaCodecOutputFormatChanged();
-  void OnMediaCodecFrameRendered(SbTime frame_timestamp);
+  void OnMediaCodecFrameRendered(int64_t frame_timestamp);
 
  private:
   // |MediaCodecBridge|s must only be created through its factory methods.

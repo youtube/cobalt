@@ -70,7 +70,6 @@ OPENSSL_MSVC_PRAGMA(warning(push, 3))
 OPENSSL_MSVC_PRAGMA(warning(pop))
 #endif
 
-#include <openssl/buf.h>
 #include <openssl/err.h>
 #include <openssl/mem.h>
 
@@ -147,10 +146,6 @@ static int fd_new(BIO *bio) {
 }
 
 static int fd_free(BIO *bio) {
-  if (bio == NULL) {
-    return 0;
-  }
-
   if (bio->shutdown) {
     if (bio->init) {
       BORINGSSL_CLOSE(bio->num);

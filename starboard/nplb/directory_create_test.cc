@@ -25,9 +25,10 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-const std::string kManyFileSeparators = std::string(kSbFileSepString) +
-                                        kSbFileSepString + kSbFileSepString +
-                                        kSbFileSepString;
+#if SB_API_VERSION < 16
+const std::string kManyFileSeparators =  // NOLINT
+    std::string(kSbFileSepString) + kSbFileSepString + kSbFileSepString +
+    kSbFileSepString;
 
 // NOTE: There is a test missing here, for creating a directory right off of the
 // root. But, this is likely to fail due to permissions, so we can't make a
@@ -105,7 +106,7 @@ TEST(SbDirectoryCreateTest, FailureNotAbsolute) {
   EXPECT_FALSE(SbDirectoryCreate(kPath));
   EXPECT_FALSE(SbDirectoryCanOpen(kPath));
 }
-
+#endif  // SB_API_VERSION < 16
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard

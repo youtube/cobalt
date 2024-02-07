@@ -54,6 +54,6 @@ void Initialize() {
 
 }  // namespace
 
-void SbIcuInit() {
+void IcuInit() {
   SbOnce(&g_initialization_once, &Initialize);
 }

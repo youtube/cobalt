@@ -17,6 +17,6 @@
 SbConditionVariableResult SbConditionVariableWaitTimed(
     SbConditionVariable* condition,
     SbMutex* mutex,
-    SbTime timeout) {
+    int64_t timeout) {
   return kSbConditionVariableFailed;
 }

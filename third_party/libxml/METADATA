@@ -7,7 +7,7 @@ third_party {
     type: GIT
     value: "https://chromium.googlesource.com/chromium/src"
   }
-  version: "96.0.4664.153"
+  version: "96.0.4664.219"
   last_upgrade_date {
     year: 2023
     month: 6

@@ -10,6 +10,8 @@ add_library(
   d1_srtp.cc
   dtls_method.cc
   dtls_record.cc
+  encrypted_client_hello.cc
+  extensions.cc
   handoff.cc
   handshake.cc
   handshake_client.cc
@@ -32,7 +34,6 @@ add_library(
   ssl_versions.cc
   ssl_x509.cc
   t1_enc.cc
-  t1_lib.cc
   tls_method.cc
   tls_record.cc
   tls13_both.cc
@@ -41,6 +42,8 @@ add_library(
   tls13_server.cc
 )
 
+add_dependencies(ssl global_target)
+
 target_link_libraries(ssl crypto)
 
 add_executable(
@@ -48,12 +51,14 @@ add_executable(
 
   span_test.cc
   ssl_test.cc
+  ssl_c_test.c
 
   $<TARGET_OBJECTS:boringssl_gtest_main>
-  $<TARGET_OBJECTS:test_support>
 )
 
-target_link_libraries(ssl_test ssl crypto boringssl_gtest)
+add_dependencies(ssl_test global_target)
+
+target_link_libraries(ssl_test test_support_lib boringssl_gtest ssl crypto)
 if(WIN32)
   target_link_libraries(ssl_test ws2_32)
 endif()

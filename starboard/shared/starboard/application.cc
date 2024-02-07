@@ -196,7 +196,7 @@ void Application::WindowSizeChanged(void* context,
 
 SbEventId Application::Schedule(SbEventCallback callback,
                                 void* context,
-                                SbTimeMonotonic delay) {
+                                int64_t delay) {
   SbEventId id = SbAtomicNoBarrier_Increment(&g_next_event_id, 1);
   InjectTimedEvent(new TimedEvent(id, callback, context, delay));
   return id;
@@ -226,13 +226,13 @@ void Application::SetStartLink(const char* start_link) {
   }
 }
 
-void Application::DispatchStart(SbTimeMonotonic timestamp) {
+void Application::DispatchStart(int64_t timestamp) {
   SB_DCHECK(IsCurrentThread());
   SB_DCHECK(state_ == kStateUnstarted);
   DispatchAndDelete(CreateInitialEvent(kSbEventTypeStart, timestamp));
 }
 
-void Application::DispatchPreload(SbTimeMonotonic timestamp) {
+void Application::DispatchPreload(int64_t timestamp) {
   SB_DCHECK(IsCurrentThread());
   SB_DCHECK(state_ == kStateUnstarted);
   DispatchAndDelete(CreateInitialEvent(kSbEventTypePreload, timestamp));
@@ -256,7 +256,7 @@ bool Application::DispatchAndDelete(Application::Event* event) {
   // HandleEventAndUpdateState() rather than Inject() for the intermediate
   // events because there may already be other lifecycle events in the queue.
 
-  SbTimeMonotonic timestamp = scoped_event->event->timestamp;
+  int64_t timestamp = scoped_event->event->timestamp;
   switch (scoped_event->event->type) {
     case kSbEventTypePreload:
       if (state() != kStateUnstarted) {
@@ -479,7 +479,7 @@ void Application::CallTeardownCallbacks() {
 }
 
 Application::Event* Application::CreateInitialEvent(SbEventType type,
-                                                    SbTimeMonotonic timestamp) {
+                                                    int64_t timestamp) {
   SB_DCHECK(type == kSbEventTypePreload || type == kSbEventTypeStart);
   SbEventStartData* start_data = new SbEventStartData();
   memset(start_data, 0, sizeof(SbEventStartData));
@@ -499,9 +499,9 @@ Application::Event* Application::CreateInitialEvent(SbEventType type,
 int Application::RunLoop() {
   SB_DCHECK(command_line_);
   if (IsPreloadImmediate()) {
-    DispatchPreload(SbTimeGetMonotonicNow());
+    DispatchPreload(CurrentMonotonicTime());
   } else if (IsStartImmediate()) {
-    DispatchStart(SbTimeGetMonotonicNow());
+    DispatchStart(CurrentMonotonicTime());
   }
 
   for (;;) {

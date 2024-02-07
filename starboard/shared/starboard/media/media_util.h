@@ -83,8 +83,8 @@ struct AudioSampleInfo {
   // `SbMediaAudioSampleInfo` defined in `media.h`.  Please refer to the comment
   // of `SbMediaAudioSampleInfo` for more details.
   AudioStreamInfo stream_info;
-  SbTime discarded_duration_from_front = 0;
-  SbTime discarded_duration_from_back = 0;
+  int64_t discarded_duration_from_front = 0;  // in microseconds.
+  int64_t discarded_duration_from_back = 0;   // in microseconds.
 };
 
 // Encapsulates all information contained in `SbMediaVideoStreamInfo`.  It
@@ -164,8 +164,9 @@ std::string GetMixedRepresentation(const uint8_t* data,
 bool IsAudioSampleInfoSubstantiallyDifferent(const AudioStreamInfo& left,
                                              const AudioStreamInfo& right);
 
-int AudioDurationToFrames(SbTime duration, int samples_per_second);
-SbTime AudioFramesToDuration(int frames, int samples_per_second);
+// Durations are in microseconds.
+int AudioDurationToFrames(int64_t duration, int samples_per_second);
+int64_t AudioFramesToDuration(int frames, int samples_per_second);
 
 }  // namespace media
 }  // namespace starboard

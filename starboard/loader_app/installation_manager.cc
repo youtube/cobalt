@@ -14,6 +14,7 @@
 
 #include "starboard/loader_app/installation_manager.h"
 
+#include <sys/stat.h>
 #include <set>
 #include <string>
 #include <vector>
@@ -201,18 +202,17 @@ std::string InstallationManager::DumpInstallationSlots() {
   out << "size=";
   const int kBufSize = 50;
   char buf_num[kBufSize];
-  SbStringFormatF(buf_num, kBufSize, "%d",
-                  installation_store_.installations_size());
+  snprintf(buf_num, kBufSize, "%d", installation_store_.installations_size());
   out << buf_num;
 
   out << " roll_forward_to_installation=";
-  SbStringFormatF(buf_num, kBufSize, "%d",
-                  installation_store_.roll_forward_to_installation());
+  snprintf(buf_num, kBufSize, "%d",
+           installation_store_.roll_forward_to_installation());
   out << buf_num;
   out << ";";
   for (int i = 0; i < installation_store_.installations_size(); i++) {
     out << " installation_";
-    SbStringFormatF(buf_num, kBufSize, "%d", i);
+    snprintf(buf_num, kBufSize, "%d", i);
     out << buf_num;
     out << " is_successful=";
     if (installation_store_.installations(i).is_successful()) {
@@ -222,13 +222,13 @@ std::string InstallationManager::DumpInstallationSlots() {
     }
 
     out << " num_tries_left=";
-    SbStringFormatF(buf_num, kBufSize, "%d",
-                    installation_store_.installations(i).num_tries_left());
+    snprintf(buf_num, kBufSize, "%d",
+             installation_store_.installations(i).num_tries_left());
     out << buf_num;
 
     out << " priority=";
-    SbStringFormatF(buf_num, kBufSize, "%d",
-                    installation_store_.installations(i).priority());
+    snprintf(buf_num, kBufSize, "%d",
+             installation_store_.installations(i).priority());
     out << buf_num;
     out << ";";
   }
@@ -686,11 +686,11 @@ bool InstallationManager::GetInstallationPathInternal(int installation_index,
   // SLOT_0 is placed in |kSbSystemPathContentDirectory|, under the subdirectory
   // 'app/cobalt'.
   if (installation_index == 0) {
-    SbStringFormatF(path, path_length, "%s%s%s%s%s", content_dir_.c_str(),
-                    kSbFileSepString, "app", kSbFileSepString, "cobalt");
+    snprintf(path, path_length, "%s%s%s%s%s", content_dir_.c_str(),
+             kSbFileSepString, "app", kSbFileSepString, "cobalt");
   } else {
-    SbStringFormatF(path, path_length, "%s%s%s%d", storage_dir_.c_str(),
-                    kSbFileSepString, "installation_", installation_index);
+    snprintf(path, path_length, "%s%s%s%d", storage_dir_.c_str(),
+             kSbFileSepString, "installation_", installation_index);
   }
 
   return true;
@@ -707,8 +707,7 @@ bool InstallationManager::CreateInstallationDirs() {
     if (!GetInstallationPathInternal(i, path.data(), kSbFileMaxPath)) {
       return false;
     }
-
-    if (!SbDirectoryCreate(path.data())) {
+    if (!SbDirectoryCanOpen(path.data()) && mkdir(path.data(), 0700) != 0) {
       return false;
     }
   }

@@ -111,8 +111,10 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
     bool allow_resume_after_suspend, bool allow_batched_sample_write,
     bool force_punch_out_by_default,
 #if SB_API_VERSION >= 15
-    SbTime audio_write_duration_local, SbTime audio_write_duration_remote,
+    base::TimeDelta audio_write_duration_local,
+    base::TimeDelta audio_write_duration_remote,
 #endif  // SB_API_VERSION >= 15
+    base::TimeDelta demuxer_underflow_threshold,
     ::media::MediaLog* const media_log)
     : pipeline_thread_("media_pipeline"),
       network_state_(WebMediaPlayer::kNetworkStateEmpty),
@@ -123,6 +125,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       allow_resume_after_suspend_(allow_resume_after_suspend),
       allow_batched_sample_write_(allow_batched_sample_write),
       force_punch_out_by_default_(force_punch_out_by_default),
+      demuxer_underflow_threshold_(demuxer_underflow_threshold),
       proxy_(new WebMediaPlayerProxy(main_loop_->task_runner(), this)),
       media_log_(media_log),
       is_local_source_(false),
@@ -233,6 +236,8 @@ void WebMediaPlayerImpl::LoadUrl(const GURL& url) {
 
   is_local_source_ = !url.SchemeIs("http") && !url.SchemeIs("https");
 
+  state_.is_url_based = true;
+  state_.is_demuxer_underflow = false;
   StartPipeline(url);
   media_metrics_provider_.Initialize(false);
 }
@@ -314,7 +319,7 @@ void WebMediaPlayerImpl::Play() {
   DCHECK_EQ(main_loop_, base::MessageLoop::current());
 
   state_.paused = false;
-  pipeline_->SetPlaybackRate(state_.playback_rate);
+  UpdatePlayState();
 
   media_log_->AddEvent<::media::MediaLogEvent::kPlay>();
   media_metrics_provider_.SetHasPlayed();
@@ -324,7 +329,7 @@ void WebMediaPlayerImpl::Pause() {
   DCHECK_EQ(main_loop_, base::MessageLoop::current());
 
   state_.paused = true;
-  pipeline_->SetPlaybackRate(0.0f);
+  UpdatePlayState();
   state_.paused_time = pipeline_->GetMediaTime();
 
   media_log_->AddEvent<::media::MediaLogEvent::kPause>();
@@ -360,6 +365,9 @@ void WebMediaPlayerImpl::Seek(double seconds) {
   if (state_.paused) state_.paused_time = seek_time;
 
   state_.seeking = true;
+  state_.is_prerolled = false;
+  state_.is_demuxer_underflow = !state_.is_url_based;
+  demuxer_underflow_timer_.Stop();
 
   if (chunk_demuxer_) {
     chunk_demuxer_->StartWaitingForSeek(seek_time);
@@ -386,9 +394,7 @@ void WebMediaPlayerImpl::SetRate(float rate) {
   }
 
   state_.playback_rate = rate;
-  if (!state_.paused) {
-    pipeline_->SetPlaybackRate(rate);
-  }
+  UpdatePlayState();
 }
 
 void WebMediaPlayerImpl::SetVolume(float volume) {
@@ -439,8 +445,7 @@ std::vector<std::string> WebMediaPlayerImpl::GetAudioConnectors() const {
 
 bool WebMediaPlayerImpl::IsPaused() const {
   DCHECK_EQ(main_loop_, base::MessageLoop::current());
-
-  return pipeline_->GetPlaybackRate() == 0.0f;
+  return state_.paused || state_.playback_rate == 0.0f;
 }
 
 bool WebMediaPlayerImpl::IsSeeking() const {
@@ -476,7 +481,8 @@ base::Time WebMediaPlayerImpl::GetStartDate() const {
 
   base::TimeDelta start_date = pipeline_->GetMediaStartDate();
 
-  return base::Time::FromSbTime(start_date.InMicroseconds());
+  return base::Time::FromDeltaSinceWindowsEpoch(
+      base::TimeDelta::FromMicroseconds(start_date.InMicroseconds()));
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
@@ -766,6 +772,7 @@ void WebMediaPlayerImpl::OnPipelineError(::media::PipelineStatus error,
 
 void WebMediaPlayerImpl::OnPipelineBufferingState(
     Pipeline::BufferingState buffering_state) {
+  DCHECK_EQ(main_loop_, base::MessageLoop::current());
   DVLOG(1) << "OnPipelineBufferingState(" << buffering_state << ")";
 
   // If |is_resuming_from_background_mode_| is true, we are exiting background
@@ -780,8 +787,19 @@ void WebMediaPlayerImpl::OnPipelineBufferingState(
       SetReadyState(WebMediaPlayer::kReadyStateHaveMetadata);
       break;
     case Pipeline::kPrerollCompleted:
-      SetReadyState(WebMediaPlayer::kReadyStateHaveEnoughData);
+      // Start underflow checks.
+      state_.is_prerolled = true;
+      CheckDemuxerUnderflow();
+      SetReadyState(state_.is_demuxer_underflow
+                        ? WebMediaPlayer::kReadyStateHaveCurrentData
+                        : WebMediaPlayer::kReadyStateHaveEnoughData);
+      // TODO: rename SetHaveEnough().
       media_metrics_provider_.SetHaveEnough();
+      break;
+    case Pipeline::kBufferedRangeChanged:
+      if (state_.is_prerolled && state_.is_demuxer_underflow) {
+        CheckDemuxerUnderflow();
+      }
       break;
   }
 }
@@ -792,6 +810,80 @@ void WebMediaPlayerImpl::OnDemuxerOpened() {
   DCHECK(chunk_demuxer_);
 
   GetClient()->SourceOpened(chunk_demuxer_.get());
+}
+
+void WebMediaPlayerImpl::CheckDemuxerUnderflow() {
+  DCHECK_EQ(main_loop_, base::MessageLoop::current());
+  DCHECK(pipeline_);
+  DCHECK(!state_.is_media_source || chunk_demuxer_);
+  DCHECK(!state_.is_progressive || progressive_demuxer_);
+
+  if (state_.is_url_based) {
+    return;
+  }
+
+  if (demuxer_underflow_threshold_.is_zero()) {
+    // When |demuxer_underflow_threshold_| is set to 0, we don't check demuxer
+    // underflow.
+    SetDemuxerUnderflow(false);
+    return;
+  }
+
+  if ((state_.is_media_source && chunk_demuxer_->GetIsEndOfStreamReceived()) ||
+      (state_.is_progressive &&
+       progressive_demuxer_->GetIsEndOfStreamReceived())) {
+    // End of stream has been received, so we don't check underflow.
+    SetDemuxerUnderflow(false);
+    return;
+  }
+
+  base::TimeDelta media_time = pipeline_->GetMediaTime();
+  ::media::Ranges<base::TimeDelta> buffered_ranges =
+      pipeline_->GetBufferedTimeRanges();
+  base::TimeDelta buffered_duration;
+  for (size_t i = 0; i < buffered_ranges.size(); i++) {
+    if (buffered_ranges.end(i) < media_time) {
+      continue;
+    }
+    if (buffered_ranges.start(i) > media_time) {
+      break;
+    }
+    buffered_duration = buffered_ranges.end(i) - media_time;
+  }
+
+  // Adjust buffered duration for playback rate.
+  if (state_.playback_rate > 0) {
+    buffered_duration /= state_.playback_rate;
+  }
+  if (buffered_duration > demuxer_underflow_threshold_) {
+    SetDemuxerUnderflow(false);
+    // Note that the callback may be delayed if the main module thread is busy.
+    demuxer_underflow_timer_.Start(
+        FROM_HERE, buffered_duration - demuxer_underflow_threshold_, this,
+        &WebMediaPlayerImpl::CheckDemuxerUnderflow);
+    return;
+  }
+
+  // The buffered data is not enough to continue the playing.
+  SetDemuxerUnderflow(true);
+}
+
+void WebMediaPlayerImpl::SetDemuxerUnderflow(bool is_underflow) {
+  if (state_.is_demuxer_underflow == is_underflow) {
+    return;
+  }
+
+  state_.is_demuxer_underflow = is_underflow;
+  if (state_.is_demuxer_underflow &&
+      ready_state_ > WebMediaPlayer::kReadyStateHaveCurrentData) {
+    SetReadyState(WebMediaPlayer::kReadyStateHaveCurrentData);
+  }
+  if (!state_.is_demuxer_underflow &&
+      ready_state_ == WebMediaPlayer::kReadyStateHaveCurrentData) {
+    SetReadyState(WebMediaPlayer::kReadyStateHaveEnoughData);
+  }
+
+  UpdatePlayState();
 }
 
 void WebMediaPlayerImpl::OnDownloadingStatusChanged(bool is_downloading) {
@@ -842,7 +934,7 @@ void WebMediaPlayerImpl::StartPipeline(::media::Demuxer* demuxer) {
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDurationChanged),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnOutputModeChanged),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnContentSizeChanged),
-      GetClient()->MaxVideoCapabilities());
+      GetClient()->MaxVideoCapabilities(), GetClient()->MaxVideoInputSize());
 }
 
 void WebMediaPlayerImpl::SetNetworkState(WebMediaPlayer::NetworkState state) {
@@ -878,6 +970,17 @@ void WebMediaPlayerImpl::SetReadyState(WebMediaPlayer::ReadyState state) {
   ready_state_ = state;
   // Always notify to ensure client has the latest value.
   GetClient()->ReadyStateChanged();
+}
+
+void WebMediaPlayerImpl::UpdatePlayState() {
+  bool should_be_paused =
+      state_.paused || !state_.is_prerolled || state_.is_demuxer_underflow;
+  float playback_rate = pipeline_->GetPlaybackRate();
+  if (!should_be_paused && playback_rate != state_.playback_rate) {
+    pipeline_->SetPlaybackRate(state_.playback_rate);
+  } else if (should_be_paused && playback_rate > 0.0f) {
+    pipeline_->SetPlaybackRate(0.0f);
+  }
 }
 
 void WebMediaPlayerImpl::Destroy() {
@@ -972,6 +1075,14 @@ WebMediaPlayerClient* WebMediaPlayerImpl::GetClient() {
 void WebMediaPlayerImpl::OnDurationChanged() {
   if (ready_state_ == WebMediaPlayer::kReadyStateHaveNothing) return;
 
+  if (state_.is_prerolled && state_.is_demuxer_underflow) {
+    // We currently only call CheckDemuxerUnderflow() when demuxer is already
+    // underflow to reduce the frequency of CheckDemuxerUnderflow() calls.
+    // Technically, when OnDurationChanged() is triggered by
+    // MediaSource.remove(), the removed data may lead to underflow. But as it's
+    // barely used, we currently ignore it.
+    CheckDemuxerUnderflow();
+  }
   GetClient()->DurationChanged();
 }
 

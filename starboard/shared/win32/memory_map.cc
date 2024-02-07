@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
 #include "starboard/memory.h"
 
 #include <windows.h>
@@ -49,3 +50,4 @@ void* SbMemoryMap(int64_t size_bytes, int flags, const char* name) {
       protect);
   return memory;
 }
+#endif  // SB_API_VERSION < 16

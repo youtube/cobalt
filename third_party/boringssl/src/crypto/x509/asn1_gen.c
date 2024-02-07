@@ -65,6 +65,8 @@
 #include <openssl/x509v3.h>
 
 #include "../internal.h"
+#include "../x509v3/internal.h"
+#include "internal.h"
 
 /*
  * Although this file is in crypto/x509 for layering purposes, it emits
@@ -122,7 +124,7 @@ typedef struct {
     int exp_count;
 } tag_exp_arg;
 
-static ASN1_TYPE *generate_v3(char *str, X509V3_CTX *cnf, int depth,
+static ASN1_TYPE *generate_v3(const char *str, X509V3_CTX *cnf, int depth,
                               int *perr);
 static int bitstr_cb(const char *elem, int len, void *bitstr);
 static int asn1_cb(const char *elem, int len, void *bitstr);
@@ -135,18 +137,7 @@ static ASN1_TYPE *asn1_multi(int utype, const char *section, X509V3_CTX *cnf,
 static ASN1_TYPE *asn1_str2type(const char *str, int format, int utype);
 static int asn1_str2tag(const char *tagstr, int len);
 
-ASN1_TYPE *ASN1_generate_nconf(char *str, CONF *nconf)
-{
-    X509V3_CTX cnf;
-
-    if (!nconf)
-        return ASN1_generate_v3(str, NULL);
-
-    X509V3_set_nconf(&cnf, nconf);
-    return ASN1_generate_v3(str, &cnf);
-}
-
-ASN1_TYPE *ASN1_generate_v3(char *str, X509V3_CTX *cnf)
+ASN1_TYPE *ASN1_generate_v3(const char *str, X509V3_CTX *cnf)
 {
     int err = 0;
     ASN1_TYPE *ret = generate_v3(str, cnf, 0, &err);
@@ -155,7 +146,7 @@ ASN1_TYPE *ASN1_generate_v3(char *str, X509V3_CTX *cnf)
     return ret;
 }
 
-static ASN1_TYPE *generate_v3(char *str, X509V3_CTX *cnf, int depth,
+static ASN1_TYPE *generate_v3(const char *str, X509V3_CTX *cnf, int depth,
                               int *perr)
 {
     ASN1_TYPE *ret;
@@ -224,13 +215,7 @@ static ASN1_TYPE *generate_v3(char *str, X509V3_CTX *cnf, int depth,
          * For IMPLICIT tagging the length should match the original length
          * and constructed flag should be consistent.
          */
-        if (r & 0x1) {
-            /* Indefinite length constructed */
-            hdr_constructed = 2;
-            hdr_len = 0;
-        } else
-            /* Just retain constructed flag */
-            hdr_constructed = r & V_ASN1_CONSTRUCTED;
+        hdr_constructed = r & V_ASN1_CONSTRUCTED;
         /*
          * Work out new length with IMPLICIT tag: ignore constructed because
          * it will mess up if indefinite length
@@ -769,7 +754,7 @@ static ASN1_TYPE *asn1_str2type(const char *str, int format, int utype)
 
         if (format == ASN1_GEN_FORMAT_HEX) {
 
-            if (!(rdata = string_to_hex((char *)str, &rdlen))) {
+            if (!(rdata = x509v3_hex_to_bytes((char *)str, &rdlen))) {
                 OPENSSL_PUT_ERROR(ASN1, ASN1_R_ILLEGAL_HEX);
                 goto bad_str;
             }

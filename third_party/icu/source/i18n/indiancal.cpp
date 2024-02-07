@@ -10,13 +10,8 @@
  */
 
 #include "indiancal.h"
-#if !defined(STARBOARD)
 #include <stdlib.h>
-#endif
 #if !UCONFIG_NO_FORMATTING
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif  // defined(STARBOARD)
 
 #include "mutex.h"
 #include <float.h>
@@ -26,10 +21,8 @@
 
 // Debugging
 #ifdef U_DEBUG_INDIANCAL
-#if !defined(STARBOARD)
 #include <stdio.h>
 #include <stdarg.h>
-#endif
 
 #endif
 

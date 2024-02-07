@@ -3,133 +3,88 @@
 # found in the LICENSE file.
 
 {
-  'variables': {
-    'conditions': [
-      [ 'os_posix == 1 and OS != "mac" and OS != "android"', {
-        # Maybe link to system .so once the security concerns are thought
-        # through, since we already use it due to GTK.
-        'use_system_libpng%': 0,
-      }, {  # os_posix != 1 or OS == "mac"
-        'use_system_libpng%': 0,
-      }],
-    ],
-  },
-  'conditions': [
-    ['use_system_libpng==0', {
-      'targets': [
-        {
-          'target_name': 'libpng',
-          'dependencies': [
-            '../zlib/zlib.gyp:zlib',
-          ],
+  'targets': [
+    {
+      'target_name': 'libpng',
+      'dependencies': [
+        '../zlib/zlib.gyp:zlib',
+      ],
+      'variables': {
+        # Upstream uses self-assignment to avoid warnings.
+        'clang_warning_flags': [ '-Wno-self-assign' ]
+      },
+      'defines': [
+        'CHROME_PNG_WRITE_SUPPORT',
+        'PNG_USER_CONFIG',
+      ],
+      'sources': [
+        'png.c',
+        'png.h',
+        'pngconf.h',
+        'pngerror.c',
+        'pnggccrd.c',
+        'pngget.c',
+        'pngmem.c',
+        'pngpread.c',
+        'pngread.c',
+        'pngrio.c',
+        'pngrtran.c',
+        'pngrutil.c',
+        'pngset.c',
+        'pngtrans.c',
+        'pngusr.h',
+        'pngvcrd.c',
+        'pngwio.c',
+        'pngwrite.c',
+        'pngwtran.c',
+        'pngwutil.c',
+      ],
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '.',
+        ],
+        'defines': [
+          'CHROME_PNG_WRITE_SUPPORT',
+          'PNG_USER_CONFIG',
+        ],
+      },
+      'export_dependent_settings': [
+        '../zlib/zlib.gyp:zlib',
+      ],
+      # TODO(jschuh): http://crbug.com/167187
+      'msvs_disabled_warnings': [ 4267 ],
+      'conditions': [
+        ['OS!="win"', {'product_name': 'png'}],
+        ['OS=="win"', {
+          'type': '<(component)',
+        }, {
+          # Chromium libpng does not support building as a shared_library
+          # on non-Windows platforms.
+          'type': 'static_library',
+        }],
+        ['OS=="win" and component=="shared_library"', {
           'defines': [
-            'CHROME_PNG_WRITE_SUPPORT',
-            'PNG_USER_CONFIG',
-          ],
-          'sources': [
-            'png.c',
-            'png.h',
-            'pngconf.h',
-            'pngerror.c',
-            'pnggccrd.c',
-            'pngget.c',
-            'pngmem.c',
-            'pngpread.c',
-            'pngread.c',
-            'pngrio.c',
-            'pngrtran.c',
-            'pngrutil.c',
-            'pngset.c',
-            'pngtrans.c',
-            'pngusr.h',
-            'pngvcrd.c',
-            'pngwio.c',
-            'pngwrite.c',
-            'pngwtran.c',
-            'pngwutil.c',
+            'PNG_BUILD_DLL',
+            'PNG_NO_MODULEDEF',
           ],
           'direct_dependent_settings': {
-            'include_dirs': [
-              '.',
-            ],
             'defines': [
-              'CHROME_PNG_WRITE_SUPPORT',
-              'PNG_USER_CONFIG',
+              'PNG_USE_DLL',
             ],
           },
-          'export_dependent_settings': [
-            '../zlib/zlib.gyp:zlib',
+        }],
+        ['OS=="android"', {
+          'toolsets': ['target', 'host'],
+          'defines': [
+            'CHROME_PNG_READ_PACK_SUPPORT',  # Required by freetype.
           ],
-          'conditions': [
-            ['OS!="win"', {'product_name': 'png'}],
-            ['OS=="win"', {
-              'type': '<(component)',
-            }, {
-              # Chromium libpng does not support building as a shared_library
-              # on non-Windows platforms.
-              'type': 'static_library',
-            }],
-            ['OS=="win" and component=="shared_library"', {
-              'defines': [
-                'PNG_BUILD_DLL',
-                'PNG_NO_MODULEDEF',
-              ],
-              'direct_dependent_settings': {
-                'defines': [
-                  'PNG_USE_DLL',
-                ],
-              },          
-            }],
-            ['OS=="android"', {
-              'toolsets': ['target', 'host'],
-            }],
-          ],
-        },
-      ]
-    }, {
-      'conditions': [
-        ['sysroot!=""', {
-          'variables': {
-            'pkg-config': '../../build/linux/pkg-config-wrapper "<(sysroot)" "<(target_arch)"',
-          },
-        }, {
-          'variables': {
-            'pkg-config': 'pkg-config'
+          'direct_dependent_settings': {
+            'defines': [
+              'CHROME_PNG_READ_PACK_SUPPORT',
+            ],
           },
         }],
       ],
-      'targets': [
-        {
-          'target_name': 'libpng',
-          'type': 'none',
-          'dependencies': [
-            '../zlib/zlib.gyp:zlib',
-          ],
-          'direct_dependent_settings': {
-            'cflags': [
-              '<!@(<(pkg-config) --cflags libpng)',
-            ],
-          },
-          'link_settings': {
-            'ldflags': [
-              '<!@(<(pkg-config) --libs-only-L --libs-only-other libpng)',
-            ],
-            'libraries': [
-              '<!@(<(pkg-config) --libs-only-l libpng)',
-            ],
-          },
-          'variables': {
-            'headers_root_path': '.',
-            'header_filenames': [
-              'png.h',
-              'pngconf.h',
-            ],
-          },
-          'includes': [
-            '../../build/shim_headers.gypi',
-          ],
-        },
-      ],
-    }],
-  ],
+    },
+  ]
 }

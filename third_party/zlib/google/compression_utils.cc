@@ -12,10 +12,6 @@
 
 #include "third_party/zlib/google/compression_utils_portable.h"
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/stdio_poem.h"
-#endif
-
 namespace compression {
 
 bool GzipCompress(base::StringPiece input,

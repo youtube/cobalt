@@ -18,11 +18,11 @@
 
 #include "starboard/common/file.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/memory.h"
 #include "starboard/nplb/file_helpers.h"
 #include "starboard/system.h"
-#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -128,8 +128,13 @@ TEST(SbSystemGetPathTest, CanCreateAndRemoveDirectoryInCache) {
     EXPECT_TRUE(SbFileDelete(path.data()));
     EXPECT_FALSE(SbFileExists(path.data()));
 
-    // Create the directory and confirm it exists and can be opened.
+// Create the directory and confirm it exists and can be opened.
+#if SB_API_VERSION < 16
     EXPECT_TRUE(SbDirectoryCreate(path.data()));
+#else
+    EXPECT_TRUE(SbDirectoryCanOpen(path.data()) ||
+                mkdir(path.data(), 0700) == 0);
+#endif  // SB_API_VERSION < 16
     EXPECT_TRUE(SbFileExists(path.data()));
     EXPECT_TRUE(SbDirectoryCanOpen(path.data()));
     SbDirectory directory = SbDirectoryOpen(path.data(), NULL);
@@ -206,7 +211,7 @@ TEST(SbSystemGetPath, ExecutableFileCreationTimeIsSound) {
   result = SbFileGetPathInfo(path.data(), &executable_file_info);
   ASSERT_TRUE(result);
 
-  SbTime now = SbTimeGetNow();
+  int64_t now = PosixTimeToWindowsTime(CurrentPosixTime());
   EXPECT_GT(now, executable_file_info.creation_time);
 }
 

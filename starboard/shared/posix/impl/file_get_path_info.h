@@ -20,8 +20,7 @@
 #include "starboard/file.h"
 
 #include <sys/stat.h>
-
-#include "starboard/shared/posix/time_internal.h"
+#include <time.h>
 
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/posix/impl/file_impl.h"
@@ -42,11 +41,11 @@ bool FileGetPathInfo(const char* path, SbFileInfo* out_info) {
     return false;
   }
 
-  out_info->creation_time = FromTimeT(file_info.st_ctime);
+  out_info->creation_time = TimeTToWindowsUsec(file_info.st_ctime);
   out_info->is_directory = S_ISDIR(file_info.st_mode);
   out_info->is_symbolic_link = S_ISLNK(file_info.st_mode);
-  out_info->last_accessed = FromTimeT(file_info.st_atime);
-  out_info->last_modified = FromTimeT(file_info.st_mtime);
+  out_info->last_accessed = TimeTToWindowsUsec(file_info.st_atime);
+  out_info->last_modified = TimeTToWindowsUsec(file_info.st_mtime);
   out_info->size = file_info.st_size;
   return true;
 }

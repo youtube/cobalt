@@ -11,22 +11,21 @@
 #include <limits>
 #include <string>
 
-#include "starboard/types.h"
-
 #include "base/build_time.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/macros.h"
 #include "base/strings/stringprintf.h"
-#if defined(STARBOARD)
-#include "base/test/time_helpers.h"
-#endif  // defined(STARBOARD)
 #include "base/threading/platform_thread.h"
 #include "base/time/time_override.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if defined(OS_ANDROID)
+#if defined(STARBOARD)
+#include "starboard/common/time.h"
+#include "starboard/types.h"
+#include "base/test/time_helpers.h"
+#elif defined(OS_ANDROID)
 #include "base/android/jni_android.h"
 #elif defined(OS_IOS)
 #include "base/ios/ios_util.h"
@@ -1006,7 +1005,7 @@ ThreadTicks ThreadTicksOverride::now_ticks_;
 #define MAYBE_NowOverride NowOverride
 #endif
 TEST(ThreadTicks, MAYBE_NowOverride) {
-  if (!SbTimeIsTimeThreadNowSupported()) {
+  if (starboard::CurrentMonotonicThreadTime() == 0) {
     SB_LOG(INFO) << "Time thread now not supported. Test skipped.";
     return;
   }

@@ -42,7 +42,7 @@ namespace {
 void UpdateEventInit(const system_window::InputEvent* input_event,
                      web::EventInit* event) {
   if (input_event->timestamp() != 0) {
-    // Convert SbTimeMonotonic to DOMTimeStamp.
+    // Convert monotonic int64_t to DOMTimeStamp.
     event->set_time_stamp(
         cobalt::web::Event::GetEventTime(input_event->timestamp()));
   }

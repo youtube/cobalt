@@ -21,14 +21,14 @@
 
 namespace sbposix = starboard::shared::posix;
 
-bool SbSocketSetTcpKeepAlive(SbSocket socket, bool value, SbTime period) {
+bool SbSocketSetTcpKeepAlive(SbSocket socket, bool value, int64_t period) {
   bool result = sbposix::SetBooleanSocketOption(
       socket, SOL_SOCKET, SO_KEEPALIVE, "SO_KEEPALIVE", value);
   if (!result) {
     return false;
   }
 
-  int period_seconds = static_cast<int>(period / kSbTimeSecond);
+  int period_seconds = static_cast<int>(period / 1'000'000);
   result = sbposix::SetIntegerSocketOption(socket, SOL_TCP, TCP_KEEPIDLE,
                                            "TCP_KEEPIDLE", period_seconds);
   if (!result) {

@@ -20,7 +20,6 @@
 
 #include "starboard/common/mutex.h"
 #include "starboard/shared/starboard/thread_checker.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace android {
@@ -31,13 +30,13 @@ class VideoFrameTracker {
   explicit VideoFrameTracker(int max_pending_frames_size)
       : max_pending_frames_size_(max_pending_frames_size) {}
 
-  SbTime seek_to_time() const;
+  int64_t seek_to_time() const;
 
-  void OnInputBuffer(SbTime timestamp);
+  void OnInputBuffer(int64_t timestamp);
 
   void OnFrameRendered(int64_t frame_timestamp);
 
-  void Seek(SbTime seek_to_time);
+  void Seek(int64_t seek_to_time);
 
   int UpdateAndGetDroppedFrames();
 
@@ -46,15 +45,15 @@ class VideoFrameTracker {
 
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
 
-  std::list<SbTime> frames_to_be_rendered_;
+  std::list<int64_t> frames_to_be_rendered_;
 
   const int max_pending_frames_size_;
   int dropped_frames_ = 0;
-  SbTime seek_to_time_ = 0;
+  int64_t seek_to_time_ = 0;  // microseconds
 
   Mutex rendered_frames_mutex_;
-  std::vector<SbTime> rendered_frames_on_tracker_thread_;
-  std::vector<SbTime> rendered_frames_on_decoder_thread_;
+  std::vector<int64_t> rendered_frames_on_tracker_thread_;  // microseconds
+  std::vector<int64_t> rendered_frames_on_decoder_thread_;  // microseconds
 };
 
 }  // namespace shared

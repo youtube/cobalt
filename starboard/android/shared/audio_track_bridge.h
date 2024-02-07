@@ -20,7 +20,6 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/common/optional.h"
 #include "starboard/media.h"
-#include "starboard/time.h"
 #include "starboard/types.h"
 
 namespace starboard {
@@ -66,21 +65,21 @@ class AudioTrackBridge {
                   JniEnvExt* env = JniEnvExt::Get());
   int WriteSample(const uint16_t* samples,
                   int num_of_samples,
-                  SbTime sync_time,
+                  int64_t sync_time,
                   JniEnvExt* env = JniEnvExt::Get());
   // This is used by passthrough, it treats samples as if they are in bytes.
   // Returns zero or the positive number of samples written, or a negative error
   // code.
   int WriteSample(const uint8_t* buffer,
                   int num_of_samples,
-                  SbTime sync_time,
+                  int64_t sync_time,
                   JniEnvExt* env = JniEnvExt::Get());
 
   void SetVolume(double volume, JniEnvExt* env = JniEnvExt::Get());
 
   // |updated_at| contains the timestamp when the audio timstamp is updated on
   // return.  It can be nullptr.
-  int64_t GetAudioTimestamp(SbTime* updated_at,
+  int64_t GetAudioTimestamp(int64_t* updated_at,
                             JniEnvExt* env = JniEnvExt::Get());
   bool GetAndResetHasAudioDeviceChanged(JniEnvExt* env = JniEnvExt::Get());
   int GetUnderrunCount(JniEnvExt* env = JniEnvExt::Get());

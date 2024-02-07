@@ -144,7 +144,7 @@ bool Socket::SetSendBufferSize(int32_t size) {
   return SbSocketSetSendBufferSize(socket_, size);
 }
 
-bool Socket::SetTcpKeepAlive(bool value, SbTime period) {
+bool Socket::SetTcpKeepAlive(bool value, int64_t period) {
   return SbSocketSetTcpKeepAlive(socket_, value, period);
 }
 

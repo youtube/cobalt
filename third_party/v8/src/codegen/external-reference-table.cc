@@ -12,6 +12,7 @@
 #if defined(DEBUG) && defined(V8_OS_LINUX) && !defined(V8_OS_ANDROID)
 #define SYMBOLIZE_FUNCTION
 #include <execinfo.h>
+
 #include <vector>
 
 #include "src/base/platform/wrappers.h"

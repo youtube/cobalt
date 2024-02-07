@@ -95,6 +95,7 @@ chrono string
 chrono string_view
 chrono tuple
 chrono type_traits
+chrono vector
 chrono version
 cinttypes cstdint
 cmath version
@@ -137,7 +138,6 @@ coroutine cstddef
 coroutine cstdint
 coroutine cstring
 coroutine limits
-coroutine type_traits
 coroutine version
 cstddef version
 ctgmath ccomplex
@@ -272,11 +272,14 @@ format initializer_list
 format limits
 format locale
 format optional
+format queue
+format stack
 format stdexcept
 format string
 format string_view
 format tuple
 format type_traits
+format vector
 format version
 forward_list compare
 forward_list cstddef
@@ -448,12 +451,10 @@ new cstddef
 new cstdlib
 new exception
 new version
-numbers type_traits
 numbers version
 numeric cmath
 numeric cstddef
 numeric limits
-numeric type_traits
 numeric version
 optional compare
 optional cstddef

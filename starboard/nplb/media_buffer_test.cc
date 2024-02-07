@@ -236,8 +236,8 @@ TEST(SbMediaBufferTest, AudioBudget) {
 }
 
 TEST(SbMediaBufferTest, GarbageCollectionDurationThreshold) {
-  int kMinGarbageCollectionDurationThreshold = 30 * kSbTimeSecond;
-  int kMaxGarbageCollectionDurationThreshold = 240 * kSbTimeSecond;
+  int kMinGarbageCollectionDurationThreshold = 30'000'000LL;   // 30 seconds
+  int kMaxGarbageCollectionDurationThreshold = 240'000'000LL;  // 240 seconds
   int threshold = SbMediaGetBufferGarbageCollectionDurationThreshold();
   EXPECT_GE(threshold, kMinGarbageCollectionDurationThreshold);
   EXPECT_LE(threshold, kMaxGarbageCollectionDurationThreshold);

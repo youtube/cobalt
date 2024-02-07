@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-_is_python2 = exec_script("//build/util/is_python2.py", [], "json")
+_is_python2 = exec_script("//starboard/build/util/is_python2.py", [], "json")
 assert(!_is_python2, "`python` must resolve to Python 3 when building with GN.")
 
 declare_args() {

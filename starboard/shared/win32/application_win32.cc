@@ -203,7 +203,7 @@ bool ApplicationWin32::OnSbSystemRaisePlatformError(
 }
 
 Application::Event* ApplicationWin32::WaitForSystemEventWithTimeout(
-    SbTime time) {
+    int64_t time) {
   ProcessNextSystemMessage();
   if (pending_event_) {
     Event* out = pending_event_;
@@ -212,7 +212,7 @@ Application::Event* ApplicationWin32::WaitForSystemEventWithTimeout(
   }
 
   ScopedLock lock(stop_waiting_for_system_events_mutex_);
-  if (time <= SbTimeGetMonotonicNow() || stop_waiting_for_system_events_) {
+  if (time <= CurrentMonotonicTime() || stop_waiting_for_system_events_) {
     stop_waiting_for_system_events_ = false;
     return nullptr;
   }

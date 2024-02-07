@@ -88,12 +88,21 @@ _UNKNOWN_SOURCE_FILES = 'unknown_source_file(s)'
 # Allowed POSIX symbols in Starboard 16
 _ALLOWED_SB16_POSIX_SYMBOLS = [
     'calloc',
+    'clock_gettime',
     'free',
+    'gettimeofday',
+    'gmtime_r',
     'malloc',
     'posix_memalign',
     'realloc',
     'strcasecmp',
     'strncasecmp',
+    'time',
+    'mmap',
+    'munmap',
+    'mprotect',
+    'msync',
+    'mkdir',
 ]
 
 

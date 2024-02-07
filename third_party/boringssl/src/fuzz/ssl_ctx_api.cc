@@ -22,6 +22,7 @@
 #include <openssl/bytestring.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
+#include <openssl/hpke.h>
 #include <openssl/rsa.h>
 #include <openssl/ssl.h>
 #include <openssl/stack.h>
@@ -253,6 +254,7 @@ static bool GetVector(std::vector<T> *out, CBS *cbs) {
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len) {
   constexpr size_t kMaxExpensiveAPIs = 100;
+  constexpr size_t kMaxAPIs = 10000;
   unsigned expensive_api_count = 0;
 
   const std::function<void(SSL_CTX *, CBS *)> kAPIs[] = {
@@ -490,6 +492,28 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len) {
         }
         SSL_CTX_set1_sigalgs_list(ctx, sigalgs.c_str());
       },
+      [](SSL_CTX *ctx, CBS *cbs) {
+        bssl::UniquePtr<SSL_ECH_KEYS> keys(SSL_ECH_KEYS_new());
+        if (keys == nullptr) {
+          return;
+        }
+        uint8_t is_retry_config;
+        CBS ech_config, private_key;
+        if (!CBS_get_u8(cbs, &is_retry_config) ||
+            !CBS_get_u16_length_prefixed(cbs, &ech_config) ||
+            !CBS_get_u16_length_prefixed(cbs, &private_key)) {
+          return;
+        }
+        bssl::ScopedEVP_HPKE_KEY key;
+        if (!EVP_HPKE_KEY_init(key.get(), EVP_hpke_x25519_hkdf_sha256(),
+                               CBS_data(&private_key), CBS_len(&private_key)) ||
+            !SSL_ECH_KEYS_add(keys.get(), is_retry_config,
+                              CBS_data(&ech_config), CBS_len(&ech_config),
+                              key.get()) ||
+            !SSL_CTX_set1_ech_keys(ctx, keys.get())) {
+          return;
+        }
+      },
   };
 
   bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
@@ -501,7 +525,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len) {
   CBS cbs;
   CBS_init(&cbs, buf, len);
 
-  for (;;) {
+  for (unsigned i = 0; i < kMaxAPIs; i++) {
     uint8_t index;
     if (!CBS_get_u8(&cbs, &index)) {
       break;

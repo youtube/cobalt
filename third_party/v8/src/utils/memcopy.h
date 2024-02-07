@@ -8,10 +8,12 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <algorithm>
 
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/base/platform/wrappers.h"
 
 namespace v8 {
 namespace internal {
@@ -43,7 +45,7 @@ using MemCopyUint8Function = void (*)(uint8_t* dest, const uint8_t* src,
 V8_EXPORT_PRIVATE extern MemCopyUint8Function memcopy_uint8_function;
 V8_INLINE void MemCopyUint8Wrapper(uint8_t* dest, const uint8_t* src,
                                    size_t chars) {
-  memcpy(dest, src, chars);
+  base::Memcpy(dest, src, chars);
 }
 // For values < 16, the assembler function is slower than the inlined C code.
 const size_t kMinComplexMemCopy = 16;
@@ -64,7 +66,7 @@ using MemCopyUint8Function = void (*)(uint8_t* dest, const uint8_t* src,
 V8_EXPORT_PRIVATE extern MemCopyUint8Function memcopy_uint8_function;
 V8_INLINE void MemCopyUint8Wrapper(uint8_t* dest, const uint8_t* src,
                                    size_t chars) {
-  memcpy(dest, src, chars);
+  base::Memcpy(dest, src, chars);
 }
 // For values < 16, the assembler function is slower than the inlined C code.
 const size_t kMinComplexMemCopy = 16;
@@ -85,7 +87,7 @@ inline void MemCopy(void* dest, const void* src, size_t size) {
   switch (size) {
 #define CASE(N)                 \
   case N:                       \
-    memcpy(dest, src, N); \
+    base::Memcpy(dest, src, N); \
     return;
     CASE(1)
     CASE(2)
@@ -105,7 +107,7 @@ inline void MemCopy(void* dest, const void* src, size_t size) {
     CASE(16)
 #undef CASE
     default:
-      memcpy(dest, src, size);
+      base::Memcpy(dest, src, size);
       return;
   }
 }

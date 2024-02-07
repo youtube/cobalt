@@ -15,6 +15,7 @@
 #include "cobalt/worker/worker_global_scope.h"
 
 #include <memory>
+#include <tuple>
 
 #include "cobalt/base/tokens.h"
 #include "cobalt/bindings/testing/utils.h"
@@ -28,18 +29,20 @@ namespace cobalt {
 namespace worker {
 
 using script::testing::FakeScriptValue;
-using web::testing::MockEventListener;
 
-class WorkerGlobalScopeTest : public testing::TestWorkersWithJavaScript {
+class WorkerGlobalScopeTestBase {
  protected:
-  WorkerGlobalScopeTest() {
-    fake_event_listener_ = MockEventListener::Create();
+  WorkerGlobalScopeTestBase() {
+    fake_event_listener_ = web::testing::MockEventListener::Create();
   }
 
-  ~WorkerGlobalScopeTest() override {}
+  virtual ~WorkerGlobalScopeTestBase() {}
 
-  std::unique_ptr<MockEventListener> fake_event_listener_;
+  std::unique_ptr<web::testing::MockEventListener> fake_event_listener_;
 };
+
+class WorkerGlobalScopeTest : public WorkerGlobalScopeTestBase,
+                              public testing::TestWorkersWithJavaScript {};
 
 TEST_P(WorkerGlobalScopeTest, SelfIsExpectedWorkerGlobalScope) {
   std::string result;
@@ -312,10 +315,75 @@ TEST_P(WorkerGlobalScopeTest, OnUnhandledrejectionEvent) {
   EXPECT_EQ("handled", result);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     WorkerGlobalScopeTests, WorkerGlobalScopeTest,
     ::testing::ValuesIn(testing::TestWorkersWithJavaScript::GetWorkerTypes()),
     testing::TestWorkersWithJavaScript::GetTypeName);
+
+class GetGlobalScopeTypeIdWithParamTuple
+    : public ::testing::TestWithParam<std::tuple<base::TypeId, const char*>> {
+ public:
+  base::TypeId GetGlobalScopeTypeId() const { return std::get<0>(GetParam()); }
+};
+
+namespace {
+class WorkerGlobalScopeTestEventTest : public WorkerGlobalScopeTestBase,
+                                       public testing::TestWithJavaScriptBase<
+                                           GetGlobalScopeTypeIdWithParamTuple> {
+};
+
+std::string GetEventName(
+    ::testing::TestParamInfo<std::tuple<base::TypeId, const char*>> info) {
+  std::string name;
+  name.append(
+      testing::TestWorkersWithJavaScript::GetName(std::get<0>(info.param)));
+  name.push_back('_');
+  name.append(std::get<1>(info.param));
+  return name;
+}
+
+const char* events[] = {"languagechange", "offline", "online",
+                        "rejectionhandled", "unhandledrejection"};
+}  // namespace
+
+TEST_P(WorkerGlobalScopeTestEventTest, AddEventListener) {
+  const char* event_name = std::get<1>(GetParam());
+  worker_global_scope()->AddEventListener(
+      event_name,
+      FakeScriptValue<web::EventListener>(fake_event_listener_.get()), true);
+  fake_event_listener_->ExpectHandleEventCall(event_name,
+                                              worker_global_scope());
+  worker_global_scope()->DispatchEvent(new web::Event(event_name));
+}
+
+TEST_P(WorkerGlobalScopeTestEventTest, OnEvent) {
+  const char* event_name = std::get<1>(GetParam());
+  std::string result;
+  EXPECT_TRUE(EvaluateScript(base::StringPrintf("typeof this.on%s", event_name),
+                             &result));
+  EXPECT_EQ("object", result);
+
+  EXPECT_TRUE(
+      EvaluateScript(base::StringPrintf(R"(
+    logString = '(empty)';
+    self.on%s = function() {
+      logString = '%s';
+    };
+    self.dispatchEvent(new Event('%s'));
+    logString;
+  )",
+                                        event_name, event_name, event_name),
+                     &result));
+  EXPECT_EQ(event_name, result);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    WorkerGlobalScopeTest, WorkerGlobalScopeTestEventTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(
+            testing::TestWorkersWithJavaScript::GetWorkerTypes()),
+        ::testing::ValuesIn(events)),
+    GetEventName);
 
 }  // namespace worker
 }  // namespace cobalt

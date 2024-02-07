@@ -154,7 +154,7 @@ void VideoDmpWriter::DumpAccessUnit(
   const SbMediaType& sample_type = input_buffer->sample_type();
   const void* sample_buffer = static_cast<const void*>(input_buffer->data());
   const int& sample_buffer_size = input_buffer->size();
-  const SbTime& sample_timestamp = input_buffer->timestamp();
+  const int64_t& sample_timestamp = input_buffer->timestamp();
   const SbDrmSampleInfo* drm_sample_info = input_buffer->drm_info();
 
   if (sample_type == kSbMediaTypeAudio) {

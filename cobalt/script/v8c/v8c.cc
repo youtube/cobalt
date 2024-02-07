@@ -76,8 +76,7 @@ void SetupBindings(GlobalEnvironment* global_environment) {
 cobalt::script::StandaloneJavascriptRunner* g_javascript_runner = NULL;
 
 void StartApplication(int argc, char** argv, const char* /*link */,
-                      const base::Closure& quit_closure,
-                      SbTimeMonotonic timestamp) {
+                      const base::Closure& quit_closure, int64_t timestamp) {
   DCHECK(!g_javascript_runner);
   g_javascript_runner = new cobalt::script::StandaloneJavascriptRunner(
       base::ThreadTaskRunnerHandle::Get());

@@ -108,8 +108,8 @@ class MockCobaltExtensionDemuxer {
  public:
   MOCK_METHOD0(Initialize, CobaltExtensionDemuxerStatus());
   MOCK_METHOD1(Seek, CobaltExtensionDemuxerStatus(int64_t seek_time_us));
-  MOCK_METHOD0(GetStartTime, SbTime());
-  MOCK_METHOD0(GetTimelineOffset, SbTime());
+  MOCK_METHOD0(GetStartTime, int64_t());
+  MOCK_METHOD0(GetTimelineOffset, int64_t());
   MOCK_METHOD3(Read, void(CobaltExtensionDemuxerStreamType type,
                           CobaltExtensionDemuxerReadCB read_cb,
                           void* read_cb_user_data));
@@ -117,7 +117,7 @@ class MockCobaltExtensionDemuxer {
                bool(CobaltExtensionDemuxerAudioDecoderConfig* config));
   MOCK_METHOD1(GetVideoConfig,
                bool(CobaltExtensionDemuxerVideoDecoderConfig* config));
-  MOCK_METHOD0(GetDuration, SbTime());
+  MOCK_METHOD0(GetDuration, int64_t());
 
   // Pure C functions to be used in CobaltExtensionDemuxer. These expect
   // |user_data| to be a pointer to a MockCobaltExtensionDemuxer.
@@ -131,11 +131,11 @@ class MockCobaltExtensionDemuxer {
         seek_time_us);
   }
 
-  static SbTime GetStartTimeImpl(void* user_data) {
+  static int64_t GetStartTimeImpl(void* user_data) {
     return static_cast<MockCobaltExtensionDemuxer*>(user_data)->GetStartTime();
   }
 
-  static SbTime GetTimelineOffsetImpl(void* user_data) {
+  static int64_t GetTimelineOffsetImpl(void* user_data) {
     return static_cast<MockCobaltExtensionDemuxer*>(user_data)
         ->GetTimelineOffset();
   }
@@ -158,7 +158,7 @@ class MockCobaltExtensionDemuxer {
         config);
   }
 
-  static SbTime GetDurationImpl(void* user_data) {
+  static int64_t GetDurationImpl(void* user_data) {
     return static_cast<MockCobaltExtensionDemuxer*>(user_data)->GetDuration();
   }
 };

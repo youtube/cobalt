@@ -1,4 +1,4 @@
-# Copyright (c) 2012 The Chromium Authors. All rights reserved.
+# Copyright 2012 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -8,12 +8,10 @@
 
 # pylint: disable=W0212
 
-from __future__ import absolute_import
-import collections
+
 import glob
 import logging
 import os
-import subprocess
 
 import devil.android.sdk.keyevent
 from devil.android.constants import chrome
@@ -27,6 +25,7 @@ keyevent = devil.android.sdk.keyevent
 DIR_SOURCE_ROOT = os.environ.get('CHECKOUT_SOURCE_ROOT',
     os.path.abspath(os.path.join(os.path.dirname(__file__),
                                  os.pardir, os.pardir, os.pardir, os.pardir)))
+JAVA_HOME = os.path.join(DIR_SOURCE_ROOT, 'third_party', 'jdk', 'current')
 
 PACKAGE_INFO = dict(chrome.PACKAGE_INFO)
 PACKAGE_INFO.update({
@@ -72,9 +71,9 @@ PACKAGE_INFO.update({
     chrome.PackageInfo('com.google.android.webview',
                        'com.android.cts.webkit.WebViewStartupCtsActivity',
                        'webview-command-line', None),
-    'android_system_webview_shell':
-    chrome.PackageInfo('org.chromium.webview_shell',
-                       'org.chromium.webview_shell.WebViewBrowserActivity',
+    'android_google_webview_cts_debug':
+    chrome.PackageInfo('com.google.android.webview.debug',
+                       'com.android.cts.webkit.WebViewStartupCtsActivity',
                        'webview-command-line', None),
     'android_webview_ui_test':
     chrome.PackageInfo('org.chromium.webview_ui_test',
@@ -115,7 +114,7 @@ DEVICE_PERF_OUTPUT_DIR = (
 
 SCREENSHOTS_DIR = os.path.join(DIR_SOURCE_ROOT, 'out_screenshots')
 
-ANDROID_SDK_BUILD_TOOLS_VERSION = '30.0.1'
+ANDROID_SDK_BUILD_TOOLS_VERSION = '33.0.0'
 ANDROID_SDK_ROOT = os.path.join(DIR_SOURCE_ROOT, 'third_party', 'android_sdk',
                                 'public')
 ANDROID_SDK_TOOLS = os.path.join(ANDROID_SDK_ROOT,
@@ -151,13 +150,13 @@ PYTHON_UNIT_TEST_SUITES = {
             'devil.android.md5sum_test',
             'devil.utils.cmd_helper_test',
             'pylib.results.json_results_test',
-            'pylib.utils.proguard_test',
         ]
     },
     'gyp_py_unittests': {
         'path':
         os.path.join(DIR_SOURCE_ROOT, 'build', 'android', 'gyp'),
         'test_modules': [
+            'create_unwind_table_tests',
             'java_cpp_enum_tests',
             'java_cpp_strings_tests',
             'java_google_api_keys_tests',
@@ -202,7 +201,7 @@ def SetOutputDirectory(output_directory):
   CheckOutputDirectory(). Typically by providing an --output-dir or
   --chromium-output-dir option.
   """
-  os.environ['CHROMIUM_OUTPUT_DIR'] = output_directory
+  os.environ['CHROMIUM_OUTPUT_DIR'] = os.path.abspath(output_directory)
 
 
 # The message that is printed when the Chromium output directory cannot

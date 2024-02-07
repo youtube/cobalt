@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
 
 #include "starboard/common/log.h"
+#include "starboard/common/time.h"
 
 namespace starboard {
 namespace shared {
@@ -52,7 +53,7 @@ void VideoRenderAlgorithmImpl::Render(
   bool is_audio_eos_played;
   bool is_underflow;
   double playback_rate;
-  SbTime media_time = media_time_provider->GetCurrentMediaTime(
+  int64_t media_time = media_time_provider->GetCurrentMediaTime(
       &is_audio_playing, &is_audio_eos_played, &is_underflow, &playback_rate);
 
   // Video frames are synced to the audio timestamp. However, the audio
@@ -72,7 +73,7 @@ void VideoRenderAlgorithmImpl::Render(
   // * Then the frame with timestamp 40 is displayed twice (for sample
   //   timestamps 31 and 40).
   // * Then the frame with timestamp 50 is dropped.
-  const SbTime kMediaTimeThreshold = kSbTimeSecond / 250;
+  const int64_t kMediaTimeThresholdUsec = 1'000'000LL / 250;
 
   // Favor advancing the frame sooner. This addresses the situation where the
   // audio timestamp query interval is a little shorter than a frame. This
@@ -82,7 +83,7 @@ void VideoRenderAlgorithmImpl::Render(
   // to frame timestamp 30 when the sample time is 19.
   if (is_audio_playing && frames->size() > 1 &&
       frames->front()->timestamp() == last_frame_timestamp_ &&
-      last_frame_timestamp_ - kMediaTimeThreshold < media_time) {
+      last_frame_timestamp_ - kMediaTimeThresholdUsec < media_time) {
     frames->pop_front();
   }
 
@@ -96,10 +97,10 @@ void VideoRenderAlgorithmImpl::Render(
   // however, the "early advance" logic from above would force frame 30 to
   // move onto frame 40 on sample timestamp 31.
   while (frames->size() > 1 && !frames->front()->is_end_of_stream() &&
-         frames->front()->timestamp() + kMediaTimeThreshold < media_time) {
+         frames->front()->timestamp() + kMediaTimeThresholdUsec < media_time) {
     if (frames->front()->timestamp() != last_frame_timestamp_) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-      auto now = SbTimeGetMonotonicNow();
+      auto now = CurrentMonotonicTime();
       SB_LOG(WARNING)
           << "Dropping frame @ " << frames->front()->timestamp()
           << " microseconds, the elasped media time/system time from"
@@ -131,11 +132,11 @@ void VideoRenderAlgorithmImpl::Render(
 
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   media_time_of_last_render_call_ = media_time;
-  system_time_of_last_render_call_ = SbTimeGetMonotonicNow();
+  system_time_of_last_render_call_ = CurrentMonotonicTime();
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 }
 
-void VideoRenderAlgorithmImpl::Seek(SbTime seek_to_time) {
+void VideoRenderAlgorithmImpl::Seek(int64_t seek_to_time) {
   if (get_refresh_rate_fn_) {
     last_frame_timestamp_ = -1;
     current_frame_rendered_times_ = -1;
@@ -167,7 +168,7 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
   bool is_audio_eos_played;
   bool is_underflow;
   double playback_rate;
-  SbTime media_time = media_time_provider->GetCurrentMediaTime(
+  int64_t media_time = media_time_provider->GetCurrentMediaTime(
       &is_audio_playing, &is_audio_eos_played, &is_underflow, &playback_rate);
 
   while (frames->size() > 1 && !frames->front()->is_end_of_stream() &&
@@ -189,7 +190,7 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
     cadence_pattern_generator_.UpdateFrameRate(frame_rate * playback_rate);
     SB_DCHECK(cadence_pattern_generator_.has_cadence());
 
-    auto frame_duration = static_cast<SbTime>(kSbTimeSecond / refresh_rate);
+    auto frame_duration = static_cast<int64_t>(1'000'000LL / refresh_rate);
 
     if (current_frame_rendered_times_ >=
         cadence_pattern_generator_.GetNumberOfTimesCurrentFrameDisplays()) {
@@ -216,7 +217,7 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
     if (frames->front()->timestamp() != last_frame_timestamp_) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
       ++times_logged_;
-      auto now = SbTimeGetMonotonicNow();
+      auto now = CurrentMonotonicTime();
       SB_LOG_IF(WARNING, times_logged_ < kMaxLogPerPlaybackSession)
           << "Dropping frame @ " << frames->front()->timestamp()
           << " microseconds, the elasped media time/system time from"
@@ -229,7 +230,7 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
     } else {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
       ++times_logged_;
-      auto now = SbTimeGetMonotonicNow();
+      auto now = CurrentMonotonicTime();
       SB_LOG_IF(WARNING, times_logged_ < kMaxLogPerPlaybackSession)
           << "Frame @ " << frames->front()->timestamp()
           << " microseconds should be displayed "
@@ -287,7 +288,7 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
 
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   media_time_of_last_render_call_ = media_time;
-  system_time_of_last_render_call_ = SbTimeGetMonotonicNow();
+  system_time_of_last_render_call_ = CurrentMonotonicTime();
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 }
 

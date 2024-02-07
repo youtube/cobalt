@@ -23,6 +23,9 @@
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/configuration/configuration.h"
+#include "cobalt/network/disk_cache/cobalt_backend_factory.h"
+#include "cobalt/network/disk_cache/cobalt_backend_impl.h"
+#include "cobalt/network/disk_cache/resource_type.h"
 #include "cobalt/network/job_factory_config.h"
 #include "cobalt/network/network_delegate.h"
 #include "cobalt/network/persistent_cookie_store.h"
@@ -35,7 +38,6 @@
 #include "net/cert/ct_policy_enforcer.h"
 #include "net/cert/do_nothing_ct_verifier.h"
 #include "net/cert_net/cert_net_fetcher_impl.h"
-#include "net/disk_cache/cobalt/cobalt_backend_impl.h"
 #include "net/dns/host_cache.h"
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_cache.h"
@@ -49,8 +51,11 @@
 #include "net/third_party/quic/platform/api/quic_flags.h"
 #include "net/url_request/data_protocol_handler.h"
 #include "net/url_request/url_request_job_factory_impl.h"
+#include "starboard/common/murmurhash2.h"
 #include "starboard/configuration_constants.h"
 
+namespace cobalt {
+namespace network {
 namespace {
 
 const char kPersistentSettingsJson[] = "cache_settings.json";
@@ -92,11 +97,10 @@ void LoadDiskCacheQuotaSettings(
   }
 }
 
-}  // namespace
+uint32_t GetKey(const std::string& s) {
+  return starboard::MurmurHash2_32(s.c_str(), s.size());
+}
 
-namespace cobalt {
-namespace network {
-namespace {
 net::ProxyConfig CreateCustomProxyConfig(const std::string& proxy_rules) {
   net::ProxyConfig proxy_config = net::ProxyConfig::CreateDirect();
   proxy_config.proxy_rules().ParseFromString(proxy_rules);
@@ -244,10 +248,9 @@ URLRequestContext::URLRequestContext(
 
     auto http_cache = std::make_unique<net::HttpCache>(
         storage_.http_network_session(),
-        std::make_unique<net::HttpCache::DefaultBackend>(
-            net::DISK_CACHE, net::CACHE_BACKEND_DEFAULT,
+        std::make_unique<disk_cache::CobaltBackendFactory>(
             base::FilePath(std::string(path.data())),
-            /* max_bytes */ max_cache_bytes),
+            /* max_bytes */ max_cache_bytes, this),
         true);
     if (persistent_settings != nullptr) {
       auto cache_enabled = persistent_settings->GetPersistentSettingAsBool(
@@ -306,6 +309,19 @@ void URLRequestContext::UpdateCacheSizeSetting(disk_cache::ResourceType type,
 
 void URLRequestContext::ValidateCachePersistentSettings() {
   cache_persistent_settings_->ValidatePersistentSettings();
+}
+
+void URLRequestContext::AssociateKeyWithResourceType(
+    const std::string& key, disk_cache::ResourceType resource_type) {
+  url_resource_type_map_[GetKey(key)] = resource_type;
+}
+
+disk_cache::ResourceType URLRequestContext::GetType(const std::string& key) {
+  uint32_t uint_key = GetKey(key);
+  if (url_resource_type_map_.count(uint_key) == 0) {
+    return disk_cache::kOther;
+  }
+  return url_resource_type_map_[uint_key];
 }
 
 }  // namespace network

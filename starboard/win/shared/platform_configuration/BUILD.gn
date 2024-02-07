@@ -42,8 +42,11 @@ config("platform_configuration") {
   ]
 
   cflags = [
+    # Force include in every module
+    "/FI ../../starboard/shared/win32/posix_emu/include/posix_force_include.h",
+
     # Add POSIX emulation headers
-    "/FI ../../starboard/shared/win32/posix_emu/include/stdlib.h",
+    "/I../../starboard/shared/win32/posix_emu/include",
   ]
 
   ldflags = [

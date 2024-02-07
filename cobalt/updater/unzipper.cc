@@ -8,7 +8,8 @@
 #include <utility>
 #include "base/callback.h"
 #include "base/files/file_path.h"
-#include "starboard/time.h"
+#include "base/time/time.h"
+#include "starboard/common/time.h"
 #include "third_party/zlib/google/zip.h"
 
 namespace cobalt {
@@ -22,26 +23,28 @@ class UnzipperImpl : public update_client::Unzipper {
 
   void Unzip(const base::FilePath& zip_path, const base::FilePath& output_path,
              UnzipCompleteCallback callback) override {
-    SbTimeMonotonic time_before_unzip = SbTimeGetMonotonicNow();
+    int64_t time_before_unzip = starboard::CurrentMonotonicTime();
     std::move(callback).Run(zip::Unzip(zip_path, output_path));
-    SbTimeMonotonic time_unzip_took =
-        SbTimeGetMonotonicNow() - time_before_unzip;
+    int64_t time_unzip_took_usec =
+        starboard::CurrentMonotonicTime() - time_before_unzip;
     LOG(INFO) << "Unzip file path = " << zip_path;
     LOG(INFO) << "output_path = " << output_path;
-    LOG(INFO) << "Unzip took " << time_unzip_took / kSbTimeMillisecond
+    LOG(INFO) << "Unzip took "
+              << time_unzip_took_usec / base::Time::kMicrosecondsPerMillisecond
               << " milliseconds.";
   }
 
 #if defined(IN_MEMORY_UPDATES)
   void Unzip(const std::string& zip_str, const base::FilePath& output_path,
              UnzipCompleteCallback callback) override {
-    SbTimeMonotonic time_before_unzip = SbTimeGetMonotonicNow();
+    int64_t time_before_unzip = starboard::CurrentMonotonicTime();
     std::move(callback).Run(zip::Unzip(zip_str, output_path));
-    SbTimeMonotonic time_unzip_took =
-        SbTimeGetMonotonicNow() - time_before_unzip;
+    int64_t time_unzip_took_usec =
+        starboard::CurrentMonotonicTime() - time_before_unzip;
     LOG(INFO) << "Unzip from string";
     LOG(INFO) << "output_path = " << output_path;
-    LOG(INFO) << "Unzip took " << time_unzip_took / kSbTimeMillisecond
+    LOG(INFO) << "Unzip took "
+              << time_unzip_took_usec / base::Time::kMicrosecondsPerMillisecond
               << " milliseconds.";
   }
 #endif

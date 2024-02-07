@@ -1,4 +1,4 @@
-# Copyright 2016 The Chromium Authors. All rights reserved.
+# Copyright 2016 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -7,16 +7,19 @@ import re
 
 from pylib import constants
 
-
 _EXCLUSIONS = [
-    re.compile(r'.*OWNERS'),  # Should never be included.
+    # Misc files that exist to document directories
+    re.compile(r'.*METADATA'),
+    re.compile(r'.*OWNERS'),
+    re.compile(r'.*\.md'),
     re.compile(r'.*\.crx'),  # Chrome extension zip files.
-    re.compile(os.path.join('.*',
-                            r'\.git.*')),  # Any '.git*' directories/files.
+    re.compile(r'.*/\.git.*'),  # Any '.git*' directories/files.
     re.compile(r'.*\.so'),  # Libraries packed into .apk.
     re.compile(r'.*Mojo.*manifest\.json'),  # Some source_set()s pull these in.
     re.compile(r'.*\.py'),  # Some test_support targets include python deps.
     re.compile(r'.*\.apk'),  # Should be installed separately.
+    re.compile(r'.*\.jar'),  # Never need java intermediates.
+    re.compile(r'.*\.crx'),  # Used by download_from_google_storage.
     re.compile(r'.*lib.java/.*'),  # Never need java intermediates.
 
     # Test filter files:
@@ -30,21 +33,27 @@ _EXCLUSIONS = [
 
     # v8's blobs and icu data get packaged into APKs.
     re.compile(r'.*snapshot_blob.*\.bin'),
-    re.compile(r'.*icudtl.bin'),
+    re.compile(r'.*icudtl\.bin'),
 
     # Scripts that are needed by swarming, but not on devices:
     re.compile(r'.*llvm-symbolizer'),
-    re.compile(r'.*md5sum_bin'),
-    re.compile(os.path.join('.*', 'development', 'scripts', 'stack')),
+    re.compile(r'.*md5sum_(?:bin|dist)'),
+    re.compile(r'.*/development/scripts/stack'),
+    re.compile(r'.*/build/android/pylib/symbols'),
+    re.compile(r'.*/build/android/stacktrace'),
 
     # Required for java deobfuscation on the host:
     re.compile(r'.*build/android/stacktrace/.*'),
     re.compile(r'.*third_party/jdk/.*'),
     re.compile(r'.*third_party/proguard/.*'),
 
+    # Our tests don't need these.
+    re.compile(r'.*/devtools-frontend/src/front_end/.*'),
+
     # Build artifacts:
     re.compile(r'.*\.stamp'),
-    re.compile(r'.*.pak\.info'),
+    re.compile(r'.*\.pak\.info'),
+    re.compile(r'.*\.build_config.json'),
     re.compile(r'.*\.incremental\.json'),
 ]
 

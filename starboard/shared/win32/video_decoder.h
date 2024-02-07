@@ -58,7 +58,7 @@ class VideoDecoder
   void Initialize(const DecoderStatusCB& decoder_status_cb,
                   const ErrorCB& error_cb) override;
   size_t GetPrerollFrameCount() const override;
-  SbTime GetPrerollTimeout() const override { return kSbTimeMax; }
+  int64_t GetPrerollTimeout() const override { return kSbInt64Max; }
   size_t GetMaxNumberOfCachedFrames() const override;
 
   void WriteInputBuffers(const InputBuffers& input_buffers) override;
@@ -83,11 +83,11 @@ class VideoDecoder
   };
 
   struct Output {
-    Output(SbTime time,
+    Output(int64_t time,
            const RECT& video_area,
            const ComPtr<IMFSample>& video_sample)
         : time(time), video_area(video_area), video_sample(video_sample) {}
-    SbTime time;
+    int64_t time;
     RECT video_area;
     ComPtr<IMFSample> video_sample;
   };

@@ -122,6 +122,8 @@ class TranslatedValue {
     return storage_;
   }
 
+  void ReplaceElementsArrayWithCopy();
+
   Kind kind_;
   MaterializationState materialization_state_ = kUninitialized;
   TranslatedState* container_;  // This is only needed for materialization of
@@ -318,7 +320,15 @@ class TranslatedFrame {
 
 class TranslatedState {
  public:
-  TranslatedState() = default;
+  // There are two constructors, each for a different purpose:
+
+  // The default constructor is for the purpose of deoptimizing an optimized
+  // frame (replacing it with one or several unoptimized frames). It is used by
+  // the Deoptimizer.
+  TranslatedState() : purpose_(kDeoptimization) {}
+
+  // This constructor is for the purpose of merely inspecting an optimized
+  // frame. It is used by stack trace generation and various debugging features.
   explicit TranslatedState(const JavaScriptFrame* frame);
 
   void Prepare(Address stack_frame_pointer);
@@ -353,6 +363,12 @@ class TranslatedState {
  private:
   friend TranslatedValue;
 
+  // See the description of the constructors for an explanation of the two
+  // purposes. The only actual difference is that in the kFrameInspection case
+  // extra work is needed to not violate assumptions made by left-trimming.  For
+  // details, see the code around ReplaceElementsArrayWithCopy.
+  enum Purpose { kDeoptimization, kFrameInspection };
+
   TranslatedFrame CreateNextTranslatedFrame(TranslationIterator* iterator,
                                             FixedArray literal_array,
                                             Address fp, FILE* trace_file);
@@ -386,13 +402,13 @@ class TranslatedState {
                                        std::stack<int>* worklist);
   Handle<HeapObject> InitializeObjectAt(TranslatedValue* slot);
   void InitializeCapturedObjectAt(int object_index, std::stack<int>* worklist,
-                                  const DisallowHeapAllocation& no_allocation);
+                                  const DisallowGarbageCollection& no_gc);
   void InitializeJSObjectAt(TranslatedFrame* frame, int* value_index,
                             TranslatedValue* slot, Handle<Map> map,
-                            const DisallowHeapAllocation& no_allocation);
+                            const DisallowGarbageCollection& no_gc);
   void InitializeObjectWithTaggedFieldsAt(
       TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
-      Handle<Map> map, const DisallowHeapAllocation& no_allocation);
+      Handle<Map> map, const DisallowGarbageCollection& no_gc);
 
   void ReadUpdateFeedback(TranslationIterator* iterator,
                           FixedArray literal_array, FILE* trace_file);
@@ -409,6 +425,7 @@ class TranslatedState {
   static Float32 GetFloatSlot(Address fp, int slot_index);
   static Float64 GetDoubleSlot(Address fp, int slot_index);
 
+  Purpose const purpose_;
   std::vector<TranslatedFrame> frames_;
   Isolate* isolate_ = nullptr;
   Address stack_frame_pointer_ = kNullAddress;
@@ -447,7 +464,8 @@ class Deoptimizer : public Malloced {
 
   static DeoptInfo GetDeoptInfo(Code code, Address from);
 
-  static int ComputeSourcePositionFromBytecodeArray(SharedFunctionInfo shared,
+  static int ComputeSourcePositionFromBytecodeArray(Isolate* isolate,
+                                                    SharedFunctionInfo shared,
                                                     BailoutId node_id);
 
   static const char* MessageFor(DeoptimizeKind kind, bool reuse_code);
@@ -501,8 +519,13 @@ class Deoptimizer : public Malloced {
 
   static void ComputeOutputFrames(Deoptimizer* deoptimizer);
 
+  // Returns the builtin that will perform a check and either eagerly deopt with
+  // |reason| or resume execution in the optimized code.
+  V8_EXPORT_PRIVATE static Builtins::Name GetDeoptWithResumeBuiltin(
+      DeoptimizeReason reason);
+
   V8_EXPORT_PRIVATE static Builtins::Name GetDeoptimizationEntry(
-      Isolate* isolate, DeoptimizeKind kind);
+      DeoptimizeKind kind);
 
   // Returns true if {addr} is a deoptimization entry and stores its type in
   // {type_out}. Returns false if {addr} is not a deoptimization entry.
@@ -542,6 +565,10 @@ class Deoptimizer : public Malloced {
   // kSupportsFixedDeoptExitSizes is true.
   V8_EXPORT_PRIVATE static const int kNonLazyDeoptExitSize;
   V8_EXPORT_PRIVATE static const int kLazyDeoptExitSize;
+  V8_EXPORT_PRIVATE static const int kEagerWithResumeBeforeArgsSize;
+  V8_EXPORT_PRIVATE static const int kEagerWithResumeDeoptExitSize;
+  V8_EXPORT_PRIVATE static const int kEagerWithResumeImmedArgs1PcOffset;
+  V8_EXPORT_PRIVATE static const int kEagerWithResumeImmedArgs2PcOffset;
 
   // Tracing.
   static void TraceMarkForDeoptimization(Code code, const char* reason);

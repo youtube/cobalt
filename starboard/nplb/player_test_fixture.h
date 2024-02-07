@@ -42,9 +42,9 @@ class SbPlayerTestFixture {
     struct AudioSamplesDescriptor {
       int start_index = 0;
       int samples_count = 0;
-      SbTime timestamp_offset = 0;
-      SbTime discarded_duration_from_front = 0;
-      SbTime discarded_duration_from_back = 0;
+      int64_t timestamp_offset = 0;
+      int64_t discarded_duration_from_front = 0;
+      int64_t discarded_duration_from_back = 0;
       bool is_end_of_stream = false;
     };
 
@@ -57,9 +57,9 @@ class SbPlayerTestFixture {
     GroupedSamples& AddAudioSamples(int start_index, int number_of_samples);
     GroupedSamples& AddAudioSamples(int start_index,
                                     int number_of_samples,
-                                    SbTime timestamp_offset,
-                                    SbTime discarded_duration_from_front,
-                                    SbTime discarded_duration_from_back);
+                                    int64_t timestamp_offset,
+                                    int64_t discarded_duration_from_front,
+                                    int64_t discarded_duration_from_back);
     GroupedSamples& AddAudioEOS();
     GroupedSamples& AddVideoSamples(int start_index, int number_of_samples);
     GroupedSamples& AddVideoEOS();
@@ -76,7 +76,7 @@ class SbPlayerTestFixture {
       testing::FakeGraphicsContextProvider* fake_graphics_context_provider);
   ~SbPlayerTestFixture();
 
-  void Seek(const SbTime time);
+  void Seek(const int64_t time);
   // Write audio and video samples. It waits for
   // |kSbPlayerDecoderStateNeedsData| internally. When writing EOS are
   // requested, the function will write EOS after all samples of the same type
@@ -86,22 +86,21 @@ class SbPlayerTestFixture {
   void WaitForPlayerPresenting();
   // Wait until kSbPlayerStateEndOfStream received.
   void WaitForPlayerEndOfStream();
-  SbTime GetCurrentMediaTime() const;
+  int64_t GetCurrentMediaTime() const;
 
-  void SetAudioWriteDuration(SbTime duration);
+  void SetAudioWriteDuration(int64_t duration);
 
   SbPlayer GetPlayer() const { return player_; }
   bool HasAudio() const { return audio_dmp_reader_; }
   bool HasVideo() const { return video_dmp_reader_; }
 
-  SbTime GetAudioSampleTimestamp(int index) const;
-  int ConvertDurationToAudioBufferCount(SbTime duration) const;
-  int ConvertDurationToVideoBufferCount(SbTime duration) const;
+  int64_t GetAudioSampleTimestamp(int index) const;
+  int ConvertDurationToAudioBufferCount(int64_t duration) const;
+  int ConvertDurationToVideoBufferCount(int64_t duration) const;
 
  private:
-  static constexpr SbTime kDefaultWaitForPlayerStateTimeout = 5 * kSbTimeSecond;
-  static constexpr SbTime kDefaultWaitForCallbackEventTimeout =
-      15 * kSbTimeMillisecond;
+  static constexpr int64_t kDefaultWaitForPlayerStateTimeout = 5'000'000LL;
+  static constexpr int64_t kDefaultWaitForCallbackEventTimeout = 15'000;
 
   typedef shared::starboard::player::video_dmp::VideoDmpReader VideoDmpReader;
 
@@ -160,9 +159,9 @@ class SbPlayerTestFixture {
 
   void WriteAudioSamples(int start_index,
                          int samples_to_write,
-                         SbTime timestamp_offset,
-                         SbTime discarded_duration_from_front,
-                         SbTime discarded_duration_from_back);
+                         int64_t timestamp_offset,
+                         int64_t discarded_duration_from_front,
+                         int64_t discarded_duration_from_back);
   void WriteVideoSamples(int start_index, int samples_to_write);
   void WriteEndOfStream(SbMediaType media_type);
 
@@ -172,16 +171,16 @@ class SbPlayerTestFixture {
   // * |player_state_set_| for SbPlayerState updates.
   // Executes a blocking wait for any new CallbackEvents to be enqueued.
   void WaitAndProcessNextEvent(
-      SbTime timeout = kDefaultWaitForCallbackEventTimeout);
+      int64_t timeout = kDefaultWaitForCallbackEventTimeout);
 
   // Waits for |kSbPlayerDecoderStateNeedsData| to be sent.
   void WaitForDecoderStateNeedsData(
-      const SbTime timeout = kDefaultWaitForCallbackEventTimeout);
+      const int64_t timeout = kDefaultWaitForCallbackEventTimeout);
 
   // Waits for desired player state update to be sent.
   void WaitForPlayerState(
       const SbPlayerState desired_state,
-      const SbTime timeout = kDefaultWaitForPlayerStateTimeout);
+      const int64_t timeout = kDefaultWaitForPlayerStateTimeout);
 
   // When the |output_mode| is decoding to texture, then this method is used to
   // advance the decoded frames.
@@ -214,9 +213,9 @@ class SbPlayerTestFixture {
   bool can_accept_more_video_data_ = false;
 
   // The duration of how far past the current playback position we will write
-  // audio samples.
-  SbTime audio_write_duration_ = 0;
-  SbTime last_written_audio_timestamp_ = 0;
+  // audio samples, in microseconds.
+  int64_t audio_write_duration_ = 0;
+  int64_t last_written_audio_timestamp_ = 0;
 
   // Set of received player state updates from the underlying player. This is
   // used to check that the state updates occur in a valid order during normal

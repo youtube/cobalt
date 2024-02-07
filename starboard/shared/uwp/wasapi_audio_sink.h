@@ -31,7 +31,6 @@
 #include "starboard/shared/starboard/player/job_thread.h"
 #include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/shared/win32/wasapi_include.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace shared {

@@ -83,6 +83,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   enum BufferingState {
     kHaveMetadata,
     kPrerollCompleted,
+    kBufferedRangeChanged,
   };
 
   typedef base::Callback<void(BufferingState)> BufferingStateCB;
@@ -126,7 +127,8 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
                      const base::Closure& duration_change_cb,
                      const base::Closure& output_mode_change_cb,
                      const base::Closure& content_size_change_cb,
-                     const std::string& max_video_capabilities) = 0;
+                     const std::string& max_video_capabilities,
+                     const int max_video_input_size) = 0;
 
 #if SB_HAS(PLAYER_WITH_URL)
   // Build a pipeline with an url-base player.

@@ -293,7 +293,7 @@ void LinkReceiver::Impl::Run() {
   }
 
   char port_string[32] = {0};
-  SbStringFormatF(port_string, SB_ARRAY_SIZE(port_string), "%d", actual_port_);
+  snprintf(port_string, SB_ARRAY_SIZE(port_string), "%d", actual_port_);
   CreateTemporaryFile("link_receiver_port", port_string, strlen(port_string));
 
   if (!AddForAccept(listen_socket_.get())) {

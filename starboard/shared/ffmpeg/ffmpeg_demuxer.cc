@@ -17,7 +17,6 @@
 #include <memory>
 
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace shared {
@@ -34,11 +33,11 @@ CobaltExtensionDemuxerStatus FFmpegDemuxer_Seek(int64_t seek_time_us,
   return static_cast<FFmpegDemuxer*>(user_data)->Seek(seek_time_us);
 }
 
-SbTime FFmpegDemuxer_GetStartTime(void* user_data) {
+int64_t FFmpegDemuxer_GetStartTime(void* user_data) {
   return static_cast<FFmpegDemuxer*>(user_data)->GetStartTime();
 }
 
-SbTime FFmpegDemuxer_GetTimelineOffset(void* user_data) {
+int64_t FFmpegDemuxer_GetTimelineOffset(void* user_data) {
   return static_cast<FFmpegDemuxer*>(user_data)->GetTimelineOffset();
 }
 
@@ -72,7 +71,7 @@ bool FFmpegDemuxer_GetVideoConfig(
   return true;
 }
 
-SbTime FFmpegDemuxer_GetDuration(void* user_data) {
+int64_t FFmpegDemuxer_GetDuration(void* user_data) {
   return static_cast<FFmpegDemuxer*>(user_data)->GetDuration();
 }
 

@@ -17,6 +17,7 @@
 #ifndef STARBOARD_SHARED_POSIX_IMPL_FILE_IMPL_H_
 #define STARBOARD_SHARED_POSIX_IMPL_FILE_IMPL_H_
 
+#include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/file.h"
 
@@ -25,5 +26,20 @@
 // Ensure SbFile is typedef'd to a SbFilePrivate* that has a descriptor field.
 SB_COMPILE_ASSERT(sizeof(((SbFile)0)->descriptor),
                   SbFilePrivate_must_have_descriptor);
+
+namespace starboard {
+namespace shared {
+namespace posix {
+namespace impl {
+
+inline int64_t TimeTToWindowsUsec(time_t time) {
+  int64_t posix_usec = static_cast<int64_t>(time) * 1000000;
+  return PosixTimeToWindowsTime(posix_usec);
+}
+
+}  // namespace impl
+}  // namespace posix
+}  // namespace shared
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_POSIX_IMPL_FILE_IMPL_H_

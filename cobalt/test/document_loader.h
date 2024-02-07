@@ -84,7 +84,7 @@ class DocumentLoader : public dom::DocumentObserver {
     document_loader_.reset(new loader::Loader(
         base::Bind(&loader::FetcherFactory::CreateFetcher,
                    base::Unretained(&fetcher_factory_), url,
-                   /*main_resource=*/true, disk_cache::kHTML),
+                   /*main_resource=*/true, network::disk_cache::kHTML),
         base::Bind(&dom_parser::Parser::ParseDocumentAsync,
                    base::Unretained(dom_parser_.get()), document_,
                    base::SourceLocation(url.spec(), 1, 1)),

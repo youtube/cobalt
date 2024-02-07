@@ -325,7 +325,7 @@ scoped_refptr<ContainerBox> BlockContainerBox::TrySplitAtEnd() {
 
 bool BlockContainerBox::IsTransformable() const { return true; }
 
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
 
 void BlockContainerBox::DumpProperties(std::ostream* stream) const {
   ContainerBox::DumpProperties(stream);
@@ -335,7 +335,7 @@ void BlockContainerBox::DumpProperties(std::ostream* stream) const {
           << std::noboolalpha;
 }
 
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
 // Based on https://www.w3.org/TR/CSS21/visudet.html#abs-non-replaced-width.
 //

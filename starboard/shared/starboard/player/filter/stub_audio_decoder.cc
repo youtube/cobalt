@@ -46,7 +46,7 @@ int CalculateFramesPerInputBuffer(int sample_rate,
   SB_DCHECK(first);
   SB_DCHECK(second);
 
-  SbTime duration = second->timestamp() - first->timestamp();
+  int64_t duration = second->timestamp() - first->timestamp();
   if (duration <= 0) {
     SB_LOG(ERROR) << "Duration (" << duration << ") for InputBuffer@ "
                   << first->timestamp() << " is invalid.";
@@ -57,7 +57,7 @@ int CalculateFramesPerInputBuffer(int sample_rate,
 }
 
 scoped_refptr<DecodedAudio> CreateDecodedAudio(
-    SbTime timestamp,
+    int64_t timestamp,
     SbMediaAudioSampleType sample_type,
     int number_of_channels,
     int frames) {
@@ -216,7 +216,7 @@ void StubAudioDecoder::DecodeOneBuffer(
 
         auto offset_in_frames =
             offset_in_bytes / (sample_size * number_of_channels_);
-        SbTime timestamp =
+        int64_t timestamp =
             decoded_audio->timestamp() +
             AudioDurationToFrames(offset_in_frames, samples_per_second_);
 

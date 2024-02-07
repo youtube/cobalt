@@ -10,12 +10,15 @@ device. The package being built here is referred to as CoAT (Cobalt on Android T
 
 <aside class="note">
 <b>Note:</b> Before proceeding further, refer to the documentation for
-<a href="setup-linux.html">"Set up your environment - Linux"</a>. Complete the
+<a href="setup-linux.md">"Set up your environment - Linux"</a>. Complete the
 sections <b>Set up your workstation</b> and <b>Set up developer tools</b>, then
 return and complete the following steps.
 </aside>
 
 1.  Download and install [Android Studio](https://developer.android.com/studio/).
+
+1.  Install [JDK 17](https://www.oracle.com/java/technologies/javase/jdk17-archive-downloads.html)
+    and make sure it's before any other JDK on your PATH.
 
 1.  To enable parallel gradle builds, add the following to your `~/.bashrc`:
 
@@ -98,11 +101,11 @@ Go ahead and click 'yes' to open the SDK manager to install the following:
     Android Studio, you can add the roots, or if not then choose to ignore them.
 1.  If you didn't already get prompted to install the SDK, do it now by going to
     Tools -> SDK Manager (or
-    <img src="/images/android-sdk-manager-icon.png" style="display:inline;"></img>
+    <img src="../../images/android-sdk-manager-icon.png" style="display:inline;"></img>
     ) on the toolbar) and making the same choices as shown in step 4.
 1.  Make a new virtual device (= emulator) via
     Tools -> AVD Manager (or
-    <img src="/images/android-avd-manager-icon.png" style="display: inline;"></img>
+    <img src="../../images/android-avd-manager-icon.png" style="display: inline;"></img>
     on the toolbar).
       *   Category: TV -> Android TV (720p)
       *   System image: Pie (API 28) x86 (you'll have to download the image)
@@ -178,7 +181,7 @@ Go ahead and click 'yes' to open the SDK manager to install the following:
 1.  In the sidebar on the left, you should see `app` appear as bolded top-level
     item.  If you don't see this, restart Android Studio.
 1.  To run the app and attach the debugger: Run -> Debug 'app' (or
-    <img src="/images/android-debug-icon.png" style="display: inline;"></img>
+    <img src="../../images/android-debug-icon.png" style="display: inline;"></img>
     in the toolbar)
 1.  If it's taking awhile, it's probably the ninja build. You can see that it is
     still processing by looking for a rotating spinner labeled "Gradle Build

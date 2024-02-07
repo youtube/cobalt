@@ -120,9 +120,6 @@ the guidelines follow thusly as follows.
     casting the handle back and forth to the pointer type.
   * If a word in the name of a type is redundant with the module name, it is
     omitted.
-        * A monotonic time type in the Time module is `SbTimeMonotonic`, not
-          ~~`SbMonotonicTime`, `SbTimeMonotonicTime`, or
-          `SbTimeMonotonicSbTime`~~.
 
 ### Functions
 
@@ -188,10 +185,8 @@ namespace at the starboard repository root.
   * After the `k`, all constants have `Sb`, the Starboard namespace.
       * `kSb`
   * After `kSb`, all constants then have the module name.
-      * `kSbTime`
       * `kSbFile`
   * After `kSb<module>` comes the rest of the name of the constant.
-      * `kSbTimeMillisecond`
       * `kSbFileInvalid`
   * Enum entries are prefixed with the full name of the enum.
       * The enum `SbSystemDeviceType` contains entries like

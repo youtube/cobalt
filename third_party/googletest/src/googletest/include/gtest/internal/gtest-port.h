@@ -269,6 +269,7 @@
 #else  // !defined(STARBOARD)
 
 #include <stdlib.h>
+#include <sys/stat.h>
 
 #include "starboard/common/log.h"
 #include "starboard/common/spin_lock.h"
@@ -302,6 +303,7 @@
 #include <type_traits>
 #include <vector>
 
+#include <stdio.h>
 
 #include "gtest/internal/custom/gtest-port.h"
 #include "gtest/internal/gtest-port-arch.h"
@@ -2108,7 +2110,7 @@ inline void Abort() { SbSystemBreakIntoDebugger(); }
 
 inline int VSNPrintF(char* out_buffer, size_t size, const char* format,
                       va_list args) {
-  return SbStringFormat(out_buffer, size, format, args);
+  return vsnprintf(out_buffer, size, format, args);
 }
 
 inline size_t StrLen(const char *str) {
@@ -2134,7 +2136,7 @@ inline void *MemSet(void *s, int c, size_t n) {
 inline void Assert(bool b) { SB_CHECK(b); }
 
 inline int MkDir(const char* path, int /*mode*/) {
-  return SbDirectoryCreate(path) ? 0 : -1;
+   return mkdir(path, 0700);
 }
 
 inline void VPrintF(const char* format, va_list args) {

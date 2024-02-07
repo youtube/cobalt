@@ -19,7 +19,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
-#include "starboard/time.h"
+#include "starboard/common/time.h"
 
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
 #include SB_PLAYER_DMP_WRITER_INCLUDE_PATH
@@ -32,11 +32,11 @@ using std::placeholders::_2;
 using std::placeholders::_3;
 using std::placeholders::_4;
 
-SbTime CalculateMediaTime(SbTime media_time,
-                          SbTimeMonotonic media_time_update_time,
-                          double playback_rate) {
-  SbTimeMonotonic elapsed = SbTimeGetMonotonicNow() - media_time_update_time;
-  return media_time + static_cast<SbTime>(elapsed * playback_rate);
+int64_t CalculateMediaTime(int64_t media_time,
+                           int64_t media_time_update_time,
+                           double playback_rate) {
+  int64_t elapsed = starboard::CurrentMonotonicTime() - media_time_update_time;
+  return media_time + static_cast<int64_t>(elapsed * playback_rate);
 }
 
 }  // namespace
@@ -54,7 +54,7 @@ SbPlayerPrivate::SbPlayerPrivate(
     starboard::scoped_ptr<PlayerWorker::Handler> player_worker_handler)
     : sample_deallocate_func_(sample_deallocate_func),
       context_(context),
-      media_time_updated_at_(SbTimeGetMonotonicNow()) {
+      media_time_updated_at_(starboard::CurrentMonotonicTime()) {
   worker_ = starboard::make_scoped_ptr(PlayerWorker::CreateInstance(
       audio_codec, video_codec, player_worker_handler.Pass(),
       std::bind(&SbPlayerPrivate::UpdateMediaInfo, this, _1, _2, _3, _4),
@@ -88,12 +88,12 @@ SbPlayerPrivate* SbPlayerPrivate::CreateInstance(
   return nullptr;
 }
 
-void SbPlayerPrivate::Seek(SbTime seek_to_time, int ticket) {
+void SbPlayerPrivate::Seek(int64_t seek_to_time, int ticket) {
   {
     starboard::ScopedLock lock(mutex_);
     SB_DCHECK(ticket_ != ticket);
     media_time_ = seek_to_time;
-    media_time_updated_at_ = SbTimeGetMonotonicNow();
+    media_time_updated_at_ = starboard::CurrentMonotonicTime();
     is_progressing_ = false;
     ticket_ = ticket;
   }
@@ -156,7 +156,7 @@ void SbPlayerPrivate::SetVolume(double volume) {
   worker_->SetVolume(volume_);
 }
 
-void SbPlayerPrivate::UpdateMediaInfo(SbTime media_time,
+void SbPlayerPrivate::UpdateMediaInfo(int64_t media_time,
                                       int dropped_video_frames,
                                       int ticket,
                                       bool is_progressing) {
@@ -166,7 +166,7 @@ void SbPlayerPrivate::UpdateMediaInfo(SbTime media_time,
   }
   media_time_ = media_time;
   is_progressing_ = is_progressing;
-  media_time_updated_at_ = SbTimeGetMonotonicNow();
+  media_time_updated_at_ = starboard::CurrentMonotonicTime();
   dropped_video_frames_ = dropped_video_frames;
 }
 
@@ -183,7 +183,7 @@ bool SbPlayerPrivate::GetAudioConfiguration(
   starboard::ScopedLock lock(audio_configurations_mutex_);
   if (audio_configurations_.empty()) {
 #if !defined(COBALT_BUILD_TYPE_GOLD)
-    SbTime start = SbTimeGetMonotonicNow();
+    int64_t start = starboard::CurrentMonotonicTime();
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
     for (int i = 0; i < 32; ++i) {
       SbMediaAudioConfiguration audio_configuration;
@@ -205,7 +205,7 @@ bool SbPlayerPrivate::GetAudioConfiguration(
       }
     }
 #if !defined(COBALT_BUILD_TYPE_GOLD)
-    SbTime elapsed = SbTimeGetMonotonicNow() - start;
+    int64_t elapsed = starboard::CurrentMonotonicTime() - start;
     SB_LOG(INFO)
         << "GetAudioConfiguration(): Updating audio configurations takes "
         << elapsed << " microseconds.";

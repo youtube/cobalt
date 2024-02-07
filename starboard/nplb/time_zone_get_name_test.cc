@@ -16,7 +16,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/extension/time_zone.h"
-#include "starboard/nplb/time_constants.h"
 #include "starboard/system.h"
 #include "starboard/time_zone.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -68,6 +67,7 @@ TEST(SbTimeZoneGetNameTest, IsIANAFormat) {
                      // TODO(b/304351956): Remove Etc after fixing builders.
                      std::string("Indian"), std::string("Etc")));
   char* city = strtok(NULL, "/");
+  ASSERT_NE(city, (char*)NULL);
   EXPECT_TRUE(strlen(city) != 0);
 }
 
