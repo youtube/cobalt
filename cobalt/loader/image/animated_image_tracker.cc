@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <utility>
 
+#include "base/metrics/histogram_functions.h"
 #include "base/strings/stringprintf.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -140,13 +141,27 @@ void AnimatedImageTracker::Reset() {
 }
 
 void AnimatedImageTracker::OnRenderTreeRasterized() {
+  bool is_main_webmodule = name_ == "MainWebModule";
   count_animated_images_active = playing_urls_.size();
+  if (is_main_webmodule) {
+    UmaHistogramExactLinear("AnimatedImage.MainWebModule.Active",
+                            count_animated_images_active, UINT_MAX);
+  }
   for (const auto& playing_url : playing_urls_) {
     auto image = image_map_[playing_url.first].get();
     auto stats = image->GetFrameDeltaStats();
     count_animated_frames_decoded += stats.frames_decoded;
     count_animated_frames_decoding_underrun += stats.frames_underrun;
     count_animated_frames_decoding_overrun += stats.frames_overrun;
+    if (is_main_webmodule) {
+      UmaHistogramExactLinear("AnimatedImage.MainWebModule.DecodedFrames",
+                              count_animated_frames_decoded, UINT_MAX);
+      UmaHistogramExactLinear("AnimatedImage.MainWebModule.DecodingUnderruns",
+                              count_animated_frames_decoding_underrun,
+                              UINT_MAX);
+      UmaHistogramExactLinear("AnimatedImage.MainWebModule.DecodingOverruns",
+                              count_animated_frames_decoding_overrun, UINT_MAX);
+    }
   }
 }
 
