@@ -380,7 +380,7 @@ class BASE_EXPORT File {
   bool async_;
 
 #if defined(STARBOARD)
-  bool append_;
+  bool append_ = false;
 #endif
 
   DISALLOW_COPY_AND_ASSIGN(File);
