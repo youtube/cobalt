@@ -31,7 +31,7 @@ namespace {
 
 using starboard::ScopedLock;
 
-const bool kEnableAllocationLog = false;
+const bool kEnableAllocationLog = true;
 
 const size_t kAllocationRecordGranularity = 512 * 1024;
 // Used to determine if the memory allocated is large. The underlying logic can
@@ -46,6 +46,10 @@ DecoderBufferAllocator::DecoderBufferAllocator()
           SbMediaIsBufferPoolAllocateOnDemand()),
       initial_capacity_(SbMediaGetInitialBufferCapacity()),
       allocation_unit_(SbMediaGetBufferAllocationUnit()) {
+  DLOG(INFO) << "YO THOR DecoderBufferAllocator -- Initial Capacity:"
+             << initial_capacity_ << " Allocation Unit:" << allocation_unit_
+             << "ON DEMAND?" << is_memory_pool_allocated_on_demand_
+             << " USING POOL?" << using_memory_pool_;
   if (!using_memory_pool_) {
     DLOG(INFO) << "Allocated media buffer memory using malloc* functions.";
     Allocator::Set(this);
@@ -64,6 +68,7 @@ DecoderBufferAllocator::DecoderBufferAllocator()
 }
 
 DecoderBufferAllocator::~DecoderBufferAllocator() {
+  LOG(INFO) << "YO THOR - DECODER BUFFER ALLOCATOR DTOR";
   Allocator::Set(nullptr);
 
   if (!using_memory_pool_) {
@@ -102,7 +107,11 @@ void DecoderBufferAllocator::Resume() {
 }
 
 void* DecoderBufferAllocator::Allocate(size_t size, size_t alignment) {
+  LOG(INFO) << "YO THOR - BUFFY ALLOCATOR :: ALLOCATE - SIZE:" << size
+            << " ALIGN:" << alignment;
   if (!using_memory_pool_) {
+    LOG(INFO) << "YO THOR - NOT USING MEMORY POOL -= - LETS CALL SBMEMORY "
+                 "BYTES USED FOR and POSIX MEMALIGN";
     sbmemory_bytes_used_.fetch_add(size);
     void* p = nullptr;
     posix_memalign(&p, alignment, size);
@@ -110,6 +119,8 @@ void* DecoderBufferAllocator::Allocate(size_t size, size_t alignment) {
     return p;
   }
 
+  LOG(INFO)
+      << "YO THOR - WE ARE USING MEMORY POOL -= - LETS CALL REUSE ALLOCATOR";
   ScopedLock scoped_lock(mutex_);
 
   EnsureReuseAllocatorIsCreated();
@@ -117,8 +128,10 @@ void* DecoderBufferAllocator::Allocate(size_t size, size_t alignment) {
   void* p = reuse_allocator_->Allocate(size, alignment);
   CHECK(p);
 
-  LOG_IF(INFO, kEnableAllocationLog)
-      << "Media Allocation Log " << p << " " << size << " " << alignment << " ";
+  LOG(INFO) << "YO THOR - TOTES ALLOCS:";
+  reuse_allocator_->PrintAllocations();
+  LOG_IF(INFO, kEnableAllocationLog) << "Media Allocation :: ALLOCATE Log " << p
+                                     << " " << size << " " << alignment << " ";
   return p;
 }
 
@@ -129,6 +142,7 @@ void DecoderBufferAllocator::Free(void* p, size_t size) {
   }
 
   if (!using_memory_pool_) {
+    LOG(INFO) << "YO THOR - NOT USING MEMORY POOL?";
     sbmemory_bytes_used_.fetch_sub(size);
     free(p);
     return;

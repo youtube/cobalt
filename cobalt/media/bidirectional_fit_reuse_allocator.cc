@@ -30,7 +30,9 @@ BidirectionalFitReuseAllocator::BidirectionalFitReuseAllocator(
     )
     : ReuseAllocatorBase(fallback_allocator, initial_capacity,
                          allocation_increment, max_capacity),
-      small_allocation_threshold_(small_allocation_threshold) {}
+      small_allocation_threshold_(small_allocation_threshold) {
+  SB_LOG(INFO) << "YO THOR - BI DIRECTIONAL FIT REUSE ALLOCATRO CTOR";
+}
 
 starboard::common::ReuseAllocatorBase::FreeBlockSet::iterator
 BidirectionalFitReuseAllocator::FindFreeBlock(std::size_t size,

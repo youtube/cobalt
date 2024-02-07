@@ -14,6 +14,9 @@
 
 #include "starboard/media.h"
 
+#include "starboard/common/log.h"
+
 bool SbMediaIsBufferPoolAllocateOnDemand() {
+  SB_LOG(INFO) << "YO THOR - SHARED - ALLOC ON DEMAND TRUE";
   return true;
 }
