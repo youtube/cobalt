@@ -14,6 +14,8 @@
 
 // GetInfo is mostly tested in the course of other tests.
 
+#include <sys/stat.h>
+
 #include <string>
 #include <sys/stat.h>
 

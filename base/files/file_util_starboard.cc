@@ -19,6 +19,7 @@
 #include <sys/stat.h>
 #include <stack>
 #include <string>
+#include <sys/stat.h>
 
 #include "base/base_paths.h"
 #include "base/files/file_enumerator.h"
