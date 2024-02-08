@@ -65,7 +65,7 @@ static_assert(sizeof(void*) != 8, "");
 #endif
 
 #if BUILDFLAG(HAS_64_BIT_POINTERS) && \
-    (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)) && !defined(STARBOARD)
+    (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID))
 #include <linux/version.h>
 // TODO(bikineev): Enable for ChromeOS.
 #define PA_CONFIG_STARSCAN_UFFD_WRITE_PROTECTOR_SUPPORTED() \

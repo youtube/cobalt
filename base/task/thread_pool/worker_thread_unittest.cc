@@ -11,10 +11,12 @@
 #include <utility>
 #include <vector>
 
+#if !defined(USE_HACKY_COBALT_CHANGES)
 #include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
 #include "base/allocator/partition_allocator/partition_alloc_config.h"
 #include "base/allocator/partition_allocator/shim/allocator_shim.h"
 #include "base/allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.h"
+#endif
 #include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"

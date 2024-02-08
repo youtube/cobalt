@@ -1,4 +1,4 @@
-# Copyright 2014 The Chromium Authors.
+# Copyright 2014 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -13,9 +13,9 @@ if (is_starboard) {
 
     # Version of Windows SDK. XB1 requires >=10.0.22000.0.
     if (current_os == "winuwp") {
-      windows_sdk_version = "10.0.22000.0"
+      wdk_version = "10.0.22000.0"
     } else {
-      windows_sdk_version = "10.0.18362.0"
+      wdk_version = "10.0.18362.0"
     }
   }
 
@@ -32,9 +32,9 @@ if (is_starboard) {
     # Path to Visual Studio.
     visual_studio_path = _default_visual_studio_path
 
-    wdk_include_path = "$windows_sdk_path/include/$windows_sdk_version"
+    wdk_include_path = "$windows_sdk_path/include/$wdk_version"
 
-    wdk_lib_path = "$windows_sdk_path/lib/$windows_sdk_version"
+    wdk_lib_path = "$windows_sdk_path/lib/$wdk_version"
   }
 
   declare_args() {

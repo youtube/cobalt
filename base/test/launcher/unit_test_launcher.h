@@ -17,6 +17,8 @@
 #include "base/test/launcher/test_launcher.h"
 #include "build/build_config.h"
 
+#if !defined(STARBOARD)
+
 namespace base {
 
 // Callback that runs a test suite and returns exit code.
@@ -188,5 +190,7 @@ class MergeTestFilterSwitchHandler : public DuplicateSwitchHandler {
 };
 
 }   // namespace base
+
+#endif  // !defined(STARBOARD)
 
 #endif  // BASE_TEST_LAUNCHER_UNIT_TEST_LAUNCHER_H_

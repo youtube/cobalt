@@ -171,6 +171,12 @@ static_library("test_support") {
   ]
 
   if (is_starboard) {
+    sources -= [
+      "launcher/unit_test_launcher.h",
+      "test_shared_memory_util.cc",
+      "test_shared_memory_util.h",
+    ]
+
     sources += [
       "time_helpers.cc",
       "time_helpers.h",

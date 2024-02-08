@@ -6,7 +6,9 @@
 #define BASE_ALLOCATOR_DISPATCHER_INTERNAL_DISPATCH_DATA_H_
 
 #include "base/allocator/buildflags.h"
+#if defined(USE_HACKY_COBALT_CHANGES)
 #include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
+#endif
 #include "base/base_export.h"
 #include "build/build_config.h"
 

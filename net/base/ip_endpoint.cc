@@ -265,7 +265,6 @@ bool IPEndPoint::FromSockAddr(const struct sockaddr* sock_addr,
   }
   return false;  // Unrecognized |sa_family|.
 }
-// #endif // defined(STARBOARD)
 
 std::string IPEndPoint::ToString() const {
 #if BUILDFLAG(IS_WIN)

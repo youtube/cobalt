@@ -217,10 +217,12 @@ BASE_EXPORT bool DirectoryExists(const FilePath& path);
 BASE_EXPORT bool ContentsEqual(const FilePath& filename1,
                                const FilePath& filename2);
 
+#if defined(STARBOARD)
 // Returns true if the contents of the two text files given are equal, false
 // otherwise.  This routine treats "\r\n" and "\n" as equivalent.
 BASE_EXPORT bool TextContentsEqual(const FilePath& filename1,
                                    const FilePath& filename2);
+#endif  // !defined(STARBOARD)
 
 // Reads the file at |path| and returns a vector of bytes on success, and
 // nullopt on error. For security reasons, a |path| containing path traversal
@@ -517,9 +519,11 @@ BASE_EXPORT FILE* FileToFILE(File file, const char* mode);
 // Returns a new handle to the file underlying |file_stream|.
 BASE_EXPORT File FILEToFile(FILE* file_stream);
 
+#if !defined(STARBOARD)
 // Truncates an open file to end at the location of the current file pointer.
 // This is a cross-platform analog to Windows' SetEndOfFile() function.
 BASE_EXPORT bool TruncateFile(FILE* file);
+#endif  // !defined(STARBOARD)
 
 // Reads at most the given number of bytes from the file into the buffer.
 // Returns the number of read bytes, or -1 on error.

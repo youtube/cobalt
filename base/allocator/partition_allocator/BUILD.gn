@@ -360,6 +360,11 @@ component("partition_alloc") {
   if (enable_pkeys && is_debug) {
     configs += [ ":no_stack_protector" ]
   }
+
+  # Need to include |component("partition_alloc")| for gn check.
+  if (is_starboard) {
+    sources = []
+  }
 }
 
 source_set("raw_ptr") {

@@ -4,7 +4,9 @@
 
 #include "base/test/test_suite.h"
 
+#ifndef STARBOARD
 #include <signal.h>
+#endif
 
 #include <memory>
 
@@ -161,7 +163,9 @@ class FeatureListScopedToEachTest : public testing::EmptyTestEventListener {
         command_line->GetSwitchValueASCII(switches::kDisableFeatures);
     enabled += ",TestFeatureForBrowserTest1";
     disabled += ",TestFeatureForBrowserTest2";
+#if !defined(STARBOARD)
     scoped_feature_list_.InitFromCommandLine(enabled, disabled);
+#endif
 
     // The enable-features and disable-features flags were just slurped into a
     // FeatureList, so remove them from the command line. Tests should enable
@@ -298,11 +302,13 @@ void InitializeLogging() {
 
 }  // namespace
 
+#if !defined(STARBOARD)
 int RunUnitTestsUsingBaseTestSuite(int argc, char** argv) {
   TestSuite test_suite(argc, argv);
   return LaunchUnitTests(argc, argv,
                          BindOnce(&TestSuite::Run, Unretained(&test_suite)));
 }
+#endif
 
 TestSuite::TestSuite(int argc, char** argv) {
   PreInitialize();
@@ -383,7 +389,7 @@ void TestSuite::PreInitialize() {
 
   // On Android, AtExitManager is created in
   // testing/android/native_test_wrapper.cc before main() is called.
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !defined(STARBOARD)
   at_exit_manager_ = std::make_unique<AtExitManager>();
 #endif
 
@@ -410,6 +416,7 @@ void TestSuite::AddTestLauncherResultPrinter() {
     return;
   }
 
+#if !defined(STARBOARD)
   printer_ = new XmlUnitTestResultPrinter;
   CHECK(printer_->Initialize(output_path))
       << "Output path is " << output_path.AsUTF8Unsafe()
@@ -417,6 +424,7 @@ void TestSuite::AddTestLauncherResultPrinter() {
   testing::TestEventListeners& listeners =
       testing::UnitTest::GetInstance()->listeners();
   listeners.Append(printer_);
+#endif
 }
 
 // Don't add additional code to this method.  Instead add it to
@@ -505,6 +513,7 @@ void TestSuite::UnitTestAssertHandler(const char* file,
   }
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if !defined(STARBOARD)
   // XmlUnitTestResultPrinter inherits gtest format, where assert has summary
   // and message. In GTest, summary is just a logged text, and message is a
   // logged text, concatenated with stack trace of assert.
@@ -514,10 +523,15 @@ void TestSuite::UnitTestAssertHandler(const char* file,
     const std::string stack_trace_str = summary_str + std::string(stack_trace);
     printer_->OnAssert(file, line, summary_str, stack_trace_str);
   }
+#endif
 
+#if defined(STARBOARD)
+  SbSystemRequestStop(1);
+#else
   // The logging system actually prints the message before calling the assert
   // handler. Just exit now to avoid printing too many stack traces.
   _exit(1);
+#endif
 }
 
 #if BUILDFLAG(IS_WIN)

@@ -84,9 +84,6 @@ if (is_mac) {
     use_system_xcode = true
   }
 }
-declare_args() {
-  use_x11 = is_linux
-}
 
 # Get the path to the starboard implementation and include its GN
 # configuration.

@@ -6,9 +6,11 @@
 
 #include "base/allocator/buildflags.h"
 #include "base/allocator/dispatcher/internal/dispatch_data.h"
+#if !defined(USE_HACKY_COBALT_CHANGES)
 #include "base/allocator/partition_allocator/partition_alloc.h"
 #include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
 #include "base/allocator/partition_allocator/shim/allocator_shim.h"
+#endif
 #include "base/check.h"
 #include "base/dcheck_is_on.h"
 #include "base/no_destructor.h"

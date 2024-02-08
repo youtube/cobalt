@@ -522,6 +522,14 @@ inline FuchsiaLogSeverity LogSeverityToFuchsiaLogSeverity(
 #endif  // BUILDFLAG(IS_FUCHSIA)
 
 void WriteToFd(int fd, const char* data, size_t length) {
+#if defined(STARBOARD)
+  if (length > 0) {
+    SbLogRaw(data);
+    if (data[length - 1] != '\n') {
+      SbLogRaw("\n");
+    }
+  }
+#else
   size_t bytes_written = 0;
   long rv;
   while (bytes_written < length) {
@@ -532,6 +540,7 @@ void WriteToFd(int fd, const char* data, size_t length) {
     }
     bytes_written += static_cast<size_t>(rv);
   }
+#endif  // defined(STARBOARD)
 }
 
 void SetLogFatalCrashKey(LogMessage* log_message) {

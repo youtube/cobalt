@@ -18,6 +18,9 @@
 #elif BUILDFLAG(IS_POSIX)
 #include <sys/types.h>
 #include "base/files/scoped_file.h"
+#elif defined(STARBOARD)
+#include "base/files/scoped_file.h"
+#include "starboard/file.h"
 #endif
 
 namespace base::subtle {
@@ -51,7 +54,7 @@ struct BASE_EXPORT ScopedFDPair {
 
 // Platform-specific shared memory type used by the shared memory system.
 #if defined(STARBOARD)
-using PlatformSharedMemoryHandle = int;
+using PlatformSharedMemoryHandle = SbFile;
 using ScopedPlatformSharedMemoryHandle = ScopedFD;
 #elif BUILDFLAG(IS_APPLE)
 using PlatformSharedMemoryHandle = mach_port_t;

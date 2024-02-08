@@ -15,7 +15,7 @@ struct iovec {
   void* iov_base; /* Pointer to data.  */
   size_t iov_len; /* Length of data.  */
 };
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(USE_HACKY_COBALT_CHANGES)
 #include <sys/uio.h>
 #endif  // BUILDFLAG(IS_WIN)
 

@@ -219,6 +219,24 @@ bool ContentsEqual(const FilePath& filename1, const FilePath& filename2) {
   // We open the file in binary format even if they are text files because
   // we are just comparing that bytes are exactly same in both files and not
   // doing anything smart with text formatting.
+#ifdef STARBOARD
+  // std::ifstream doesn't work on all our platforms.
+  base::File file1(filename1, base::File::FLAG_OPEN | base::File::FLAG_READ);
+  base::File file2(filename2, base::File::FLAG_OPEN | base::File::FLAG_READ);
+  auto file1_length = file1.GetLength();
+  if (file1_length != file2.GetLength()) {
+    return false;
+  }
+  std::unique_ptr<char[]> file1_content(new char[file1_length]());
+  std::unique_ptr<char[]> file2_content(new char[file1_length]());
+  if (file1.ReadAtCurrentPos(file1_content.get(), file1_length) != file1_length ||
+      file2.ReadAtCurrentPos(file2_content.get(), file1_length) != file1_length) {
+    return false;
+  }
+
+  return memcmp(file1_content.get(), file2_content.get(),
+                file1_length) == 0;
+#else
 #if BUILDFLAG(IS_WIN)
   std::ifstream file1(filename1.value().c_str(),
                       std::ios::in | std::ios::binary);
@@ -252,8 +270,10 @@ bool ContentsEqual(const FilePath& filename1, const FilePath& filename2) {
   file1.close();
   file2.close();
   return true;
+#endif
 }
 
+#if !defined(STARBOARD)
 bool TextContentsEqual(const FilePath& filename1, const FilePath& filename2) {
 #if BUILDFLAG(IS_WIN)
   std::ifstream file1(filename1.value().c_str(), std::ios::in);
@@ -298,6 +318,7 @@ bool TextContentsEqual(const FilePath& filename1, const FilePath& filename2) {
 
   return true;
 }
+#endif  // !defined(STARBOARD)
 
 bool ReadStreamToString(FILE* stream, std::string* contents) {
   return ReadStreamToStringWithMaxSize(
@@ -468,6 +489,7 @@ bool CloseFile(FILE* file) {
   return fclose(file) == 0;
 }
 
+#if !defined(STARBOARD)
 bool TruncateFile(FILE* file) {
   if (file == nullptr)
     return false;
@@ -485,6 +507,7 @@ bool TruncateFile(FILE* file) {
 #endif
   return true;
 }
+#endif  // !defined(STARBOARD)
 
 bool WriteFile(const FilePath& filename, span<const uint8_t> data) {
   int size = checked_cast<int>(data.size());

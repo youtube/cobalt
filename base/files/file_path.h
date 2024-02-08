@@ -126,7 +126,7 @@
 // base::StringPrintf("Path is %" PRFilePath ".\n", path.value().c_str());
 #if BUILDFLAG(IS_WIN)
 #define PRFilePath "ls"
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
 #define PRFilePath "s"
 #endif  // BUILDFLAG(IS_WIN)
 
@@ -140,7 +140,7 @@
 #define FILE_PATH_LITERAL_INTERNAL(x) L##x
 #define FILE_PATH_LITERAL(x) FILE_PATH_LITERAL_INTERNAL(x)
 
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
 #define FILE_PATH_LITERAL(x) x
 #endif  // BUILDFLAG(IS_WIN)
 
@@ -158,7 +158,7 @@ class BASE_EXPORT FilePath {
   // On Windows, for Unicode-aware applications, native pathnames are wchar_t
   // arrays encoded in UTF-16.
   typedef std::wstring StringType;
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
   // On most platforms, native pathnames are char arrays, and the encoding
   // may or may not be specified.  On Mac OS X, native pathnames are encoded
   // in UTF-8.
