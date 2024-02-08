@@ -101,6 +101,7 @@ const std::string GetEvergreenFileType(const std::string& installation_path) {
   std::string uncompressed_library_path = base::StrCat(
       {installation_path, kSbFileSepString, kUncompressedLibraryPath});
 
+  struct stat file_info;
   if (SbFileExists(compressed_library_path.c_str())) {
     return "Compressed";
   } else if (SbFileExists(uncompressed_library_path.c_str())) {
