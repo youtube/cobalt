@@ -60,10 +60,6 @@ deprecated.
 ### Deprecated SbStringScan and SbStringScanF
 The APIs defined in `starboard/string.h` are deprecated and the standard API `vsscanf` and `sscanf` are used instead.
 
-### Decrecated SbDirectory APIs and migrated to POSIX directory APIs
-The directory API `SbDirectoryCreate` is deprecated and the standard APIs
-`mkdir` from `<sys/stat.h>` should be used instead.
-
 ## Version 15
 
 ### SbMemoryReporter is no longer used

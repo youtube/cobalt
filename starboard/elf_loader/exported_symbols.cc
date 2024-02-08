@@ -16,7 +16,6 @@
 
 #include <stdlib.h>
 #include <sys/mman.h>
-#include <sys/stat.h>
 
 #include "starboard/accessibility.h"
 #include "starboard/audio_sink.h"
@@ -48,7 +47,6 @@
 #include "starboard/shared/modular/posix_mmap_wrappers.h"
 #include "starboard/shared/modular/posix_pthread_wrappers.h"
 #include "starboard/shared/modular/posix_time_wrappers.h"
-
 #endif  // SB_API_VERSION >= 16
 #include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
@@ -139,9 +137,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbDecodeTargetRelease);
   REGISTER_SYMBOL(SbDirectoryCanOpen);
   REGISTER_SYMBOL(SbDirectoryClose);
-#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbDirectoryCreate);
-#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbDirectoryGetNext);
   REGISTER_SYMBOL(SbDirectoryOpen);
   REGISTER_SYMBOL(SbDrmCloseSession);
@@ -424,7 +420,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(mprotect);
   REGISTER_SYMBOL(munmap);
   REGISTER_SYMBOL(msync);
-  REGISTER_SYMBOL(mkdir);
 
   // Custom mapped POSIX APIs to compatibility wrappers.
   // These will rely on Starboard-side implementations that properly translate
