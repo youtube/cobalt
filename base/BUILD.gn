@@ -1085,6 +1085,12 @@ component("base") {
     "//third_party/modp_b64",
   ]
 
+  if (is_starboard) {
+    deps -= [
+      "//base/allocator/partition_allocator:raw_ptr",
+    ]
+  }
+
   if (is_starboard && current_toolchain != host_toolchain) {
     deps += [ "//starboard" ]
   }
@@ -1133,6 +1139,12 @@ component("base") {
     "//build:chromeos_buildflags",
     "//third_party/abseil-cpp:absl",
   ]
+
+  if (is_starboard) {
+    public_deps -= [
+      "//base/allocator/partition_allocator:buildflags",
+    ]
+  }
 
   if (build_rust_base_conversions) {
     # Base provides conversions between CXX types and base types (e.g.
@@ -1441,7 +1453,7 @@ component("base") {
   }
 
   # Fuchsia.
-  if (is_fuchsia) {
+  if (is_fuchsia && !is_starboard) {
     sources += [
       "base_paths_fuchsia.cc",
       "debug/debugger_fuchsia.cc",
@@ -2769,9 +2781,18 @@ component("i18n") {
     "//build:chromeos_buildflags",
   ]
 
+  if (is_starboard) {
+    public_deps -= [ "//third_party/ced" ]
+  }
+
   if (!is_debug) {
-    configs -= [ "//build/config/compiler:default_optimization" ]
-    configs += [ "//build/config/compiler:optimize_max" ]
+    if (is_starboard) {
+      configs -= [ "//starboard/build/config:size" ]
+      configs += [ "//starboard/build/config:speed" ]
+    } else {
+      configs -= [ "//build/config/compiler:default_optimization" ]
+      configs += [ "//build/config/compiler:optimize_max" ]
+    }
   }
 
   if (is_chromeos_lacros) {
@@ -2781,7 +2802,7 @@ component("i18n") {
     ]
   }
 
-  if (is_mac) {
+  if (is_mac && !is_starboard) {
     frameworks = [ "CoreFoundation.framework" ]
   }
 }
@@ -3139,7 +3160,7 @@ test("base_unittests") {
     "allocator/dispatcher/tls_unittest.cc",
     "allocator/partition_allocator/pointers/raw_ptr_test_support.h",
 
-    # "allocator/partition_allocator/pointers/raw_ptr_unittest.cc",
+    "allocator/partition_allocator/pointers/raw_ptr_unittest.cc",
     "allocator/partition_allocator/pointers/raw_ref_unittest.cc",
     "at_exit_unittest.cc",
     "atomicops_unittest.cc",
@@ -3557,6 +3578,15 @@ test("base_unittests") {
       "task/sequence_manager/sequence_manager_impl_unittest.cc",
       "test/task_environment_unittest.cc",
       "values_unittest.cc",
+
+      # Depends on USE_PARTITION_ALLOC.
+      "allocator/partition_allocator/pointers/raw_ptr_test_support.h",
+      "allocator/partition_allocator/pointers/raw_ptr_unittest.cc",
+      "allocator/partition_allocator/pointers/raw_ref_unittest.cc",
+
+      # Previously disabled tests.
+      "environment_unittest.cc",
+      "files/memory_mapped_file_unittest.cc",
     ]
 
     if (is_clang) {
@@ -3628,7 +3658,7 @@ test("base_unittests") {
 
   public_deps = [ ":base_unittests_bundle_data" ]
 
-  if (!is_ios) {
+  if (!is_ios && !is_starboard) {
     sources += [ "allocator/partition_allocator/tagging_unittest.cc" ]
   }
 
@@ -5075,5 +5105,9 @@ source_set("partition_alloc_test_support") {
   if (!is_debug) {
     configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_speed" ]
+  }
+
+  if (is_starboard) {
+    sources = []
   }
 }

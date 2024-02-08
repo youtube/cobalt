@@ -1069,6 +1069,12 @@ component("net") {
     "url_request/websocket_handshake_userdata_key.h",
   ]
 
+  if (is_starboard) {
+    sources += [
+      "base/file_stream_context_starboard.cc",
+    ]
+  }
+
   if (is_posix || is_fuchsia) {
     # sources += [ "base/net_errors_posix.cc" ]
   }
@@ -1348,6 +1354,12 @@ component("net") {
     "disk_cache/simple/simple_util_posix.cc",
     "http/url_security_manager_posix.cc",
   ]
+
+  if (is_starboard) {
+    sources -= [
+      "base/file_stream_context_posix.cc",
+    ]
+  }
 
   if (false) {
     sources += [
@@ -1700,6 +1712,12 @@ source_set("net_deps") {
 
     # "//third_party/boringssl",
   ]
+
+  if (is_starboard) {
+    public_deps += [
+      "//starboard/common",
+    ]
+  }
 
   public_configs = net_configs
 

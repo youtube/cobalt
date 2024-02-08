@@ -448,9 +448,13 @@ config("internal_config_base") {
           "-Werror",
           "-Wno-unknown-pragmas",
           "-Wno-invalid-offsetof",
+          "-Wno-deprecated-declarations",
         ]
       } else if (!is_win) {
-        cflags = [ "-Wno-invalid-offsetof" ]
+        cflags = [
+          "-Wno-invalid-offsetof",
+          "-Wno-deprecated-declarations",
+        ]
       }
     } else if (!is_win) {
       cflags = [
@@ -4092,7 +4096,10 @@ if (is_starboard && current_toolchain == host_toolchain) {
     check_includes = false
 
     if (is_clang_16 && use_cobalt_customizations) {
-      cflags_c = [ "-Wno-deprecated-non-prototype"]
+      cflags_c = [
+        "-Wno-deprecated-non-prototype",
+        "-Wno-implicit-fallthrough",
+      ]
     }
     sources = [
       "//third_party/zlib/adler32.c",

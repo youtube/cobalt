@@ -171,7 +171,7 @@ UChar32 GetNextCodePoint(const FilePath::StringType* const file_name,
   // Windows uses UTF-16 encoding for filenames.
   U16_NEXT(file_name->data(), cursor, static_cast<int>(file_name->length()),
            code_point);
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
   // Mac and Chrome OS use UTF-8 encoding for filenames.
   // Linux doesn't actually define file system encoding. Try to parse as
   // UTF-8.

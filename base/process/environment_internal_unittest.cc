@@ -11,6 +11,8 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
+#if !defined(STARBOARD)
+
 using EnvironmentInternalTest = PlatformTest;
 
 namespace base {
@@ -159,3 +161,5 @@ TEST_F(EnvironmentInternalTest, AlterEnvironment) {
 
 }  // namespace internal
 }  // namespace base
+
+#endif  // !defined(STARBOARD)

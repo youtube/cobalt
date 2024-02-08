@@ -12,6 +12,9 @@
 #include "base/base_export.h"
 #include "base/compiler_specific.h"
 #include "build/build_config.h"
+#if defined(STARBOARD)
+#include "starboard/types.h"
+#endif
 
 namespace base {
 

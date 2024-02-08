@@ -6,6 +6,9 @@
 
 #include <memory>
 #include <sstream>
+#if defined(USE_HACKY_COBALT_CHANGES)
+#include <unistd.h>
+#endif
 
 #include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
