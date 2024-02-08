@@ -19,6 +19,7 @@
 #include "starboard/shared/win32/file_internal.h"
 #include "starboard/shared/win32/wchar_utils.h"
 
+#if SB_API_VERSION < 16
 bool SbFileExists(const char* path) {
   using starboard::shared::win32::CStringToWString;
   using starboard::shared::win32::IsValidHandle;
@@ -50,3 +51,4 @@ bool SbFileExists(const char* path) {
 
   return PathEndsWith(path_wstring, find_data.cFileName);
 }
+#endif

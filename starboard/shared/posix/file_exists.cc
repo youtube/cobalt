@@ -16,6 +16,8 @@
 
 #include "starboard/shared/posix/impl/file_exists.h"
 
+#if SB_API_VERSION < 16
 bool SbFileExists(const char* path) {
   return ::starboard::shared::posix::impl::FileExists(path);
 }
+#endif

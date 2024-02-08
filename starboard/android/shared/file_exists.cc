@@ -14,6 +14,8 @@
 
 #include "starboard/file.h"
 
+#if SB_API_VERSION < 16
 bool SbFileExists(const char* path) {
   return SbFileCanOpen(path, kSbFileRead);
 }
+#endif

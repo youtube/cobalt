@@ -92,7 +92,7 @@ bool CheckBadFileExists(const char* installation_path, const char* app_key) {
   struct stat info;
   bool file_exists = stat(bad_app_key_file_path.c_str(), &info) == 0;
   SB_LOG(INFO) << "bad_app_key_file_path: " << bad_app_key_file_path;
-  SB_LOG(INFO) << "bad_app_key_file_path SbFileExists: " << file_exists;
+  SB_LOG(INFO) << "bad_app_key_file_path FileExists: " << file_exists;
   return !bad_app_key_file_path.empty() && file_exists;
 }
 

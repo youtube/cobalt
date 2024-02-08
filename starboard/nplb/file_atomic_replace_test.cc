@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sys/stat.h>
+
 #include "starboard/file.h"
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -44,12 +46,21 @@ bool CompareFileContentsToString(const char* filename,
   return strncmp(str, result, kTestContentsLength) == 0;
 }
 
+bool FileExists(const char* path) {
+#if SB_API_VERSION < 16
+  return SbFileExists(path);
+#else
+  struct stat info;
+  return stat(path, &info) == 0;
+#endif
+}
+
 TEST(SbFileAtomicReplaceTest, ReplacesValidFile) {
   ScopedRandomFile random_file(ScopedRandomFile::kDefaultLength,
                                ScopedRandomFile::kCreate);
   const std::string& filename = random_file.filename();
 
-  EXPECT_TRUE(SbFileExists(filename.c_str()));
+  EXPECT_TRUE(FileExists(filename.c_str()));
   EXPECT_TRUE(SbFileAtomicReplace(filename.c_str(), kTestContents,
                                   kTestContentsLength));
   EXPECT_TRUE(CompareFileContentsToString(filename.c_str(), kTestContents,
@@ -60,7 +71,7 @@ TEST(SbFileAtomicReplaceTest, ReplacesNonExistentFile) {
   ScopedRandomFile random_file(ScopedRandomFile::kDontCreate);
   const std::string& filename = random_file.filename();
 
-  EXPECT_FALSE(SbFileExists(filename.c_str()));
+  EXPECT_FALSE(FileExists(filename.c_str()));
   EXPECT_TRUE(SbFileAtomicReplace(filename.c_str(), kTestContents,
                                   kTestContentsLength));
   EXPECT_TRUE(CompareFileContentsToString(filename.c_str(), kTestContents,
@@ -71,7 +82,7 @@ TEST(SbFileAtomicReplaceTest, ReplacesWithNoData) {
   ScopedRandomFile random_file(ScopedRandomFile::kCreate);
   const std::string& filename = random_file.filename();
 
-  EXPECT_TRUE(SbFileExists(filename.c_str()));
+  EXPECT_TRUE(FileExists(filename.c_str()));
   EXPECT_TRUE(SbFileAtomicReplace(filename.c_str(), nullptr, 0));
   EXPECT_TRUE(CompareFileContentsToString(filename.c_str(), "\0", 0));
 }
@@ -80,7 +91,7 @@ TEST(SbFileAtomicReplaceTest, FailsWithNoDataButLength) {
   ScopedRandomFile random_file(ScopedRandomFile::kCreate);
   const std::string& filename = random_file.filename();
 
-  EXPECT_TRUE(SbFileExists(filename.c_str()));
+  EXPECT_TRUE(FileExists(filename.c_str()));
   EXPECT_FALSE(SbFileAtomicReplace(filename.c_str(), nullptr, 1));
 }
 
@@ -88,7 +99,7 @@ TEST(SbFileAtomicReplaceTest, FailsWithInvalidLength) {
   ScopedRandomFile random_file(ScopedRandomFile::kCreate);
   const std::string& filename = random_file.filename();
 
-  EXPECT_TRUE(SbFileExists(filename.c_str()));
+  EXPECT_TRUE(FileExists(filename.c_str()));
   EXPECT_FALSE(SbFileAtomicReplace(filename.c_str(), kTestContents, -1));
 }
 

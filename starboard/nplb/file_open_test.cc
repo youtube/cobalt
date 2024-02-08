@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sys/stat.h>
 #include <iomanip>
 #include <string>
 
@@ -40,10 +41,19 @@ void BasicTest(bool existing,
               << ", original_line=" << original_line
 
   if (!existing) {
+#if SB_API_VERSION < 16
     EXPECT_FALSE(SbFileExists(filename.c_str())) << SB_FILE_OPEN_TEST_CONTEXT;
     if (SbFileExists(filename.c_str())) {
       return;
     }
+#else
+    struct stat info;
+    EXPECT_FALSE(stat(filename.c_str(), &info) == 0)
+        << SB_FILE_OPEN_TEST_CONTEXT;
+    if (stat(filename.c_str(), &info) == 0) {
+      return;
+    }
+#endif
   }
 
   bool created = !expected_created;

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sys/stat.h>
 #include <string>
 
 #include "starboard/configuration_constants.h"
@@ -23,6 +24,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+#if SB_API_VERSION < 16
 TEST(SbDirectoryCanOpenTest, SunnyDay) {
   std::string path = starboard::nplb::GetTempDir();
   EXPECT_FALSE(path.empty());
@@ -58,7 +60,7 @@ TEST(SbDirectoryCanOpenTest, FailureRegularFile) {
   EXPECT_TRUE(SbFileExists(file.filename().c_str()));
   EXPECT_FALSE(SbDirectoryCanOpen(file.filename().c_str()));
 }
-
+#endif  // SB_API_VERSION < 16
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
