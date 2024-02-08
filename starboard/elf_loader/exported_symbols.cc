@@ -451,7 +451,7 @@ ExportedSymbols::ExportedSymbols() {
   // The cast helps the compiler to pick the correct C function pointer to be
   // used.
   REGISTER_SYMBOL(
-      static_cast<int (*)(wchar_t* buffer, size_t count, const wchar_t* format,
+      static_cast<int (*)(wchar_t * buffer, size_t count, const wchar_t* format,
                           va_list argptr)>(vswprintf));
 #else
   REGISTER_SYMBOL(vswprintf);
