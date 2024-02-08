@@ -22,6 +22,9 @@
 
 #define free sb_free
 
+#undef open
+#define open _open
+
 #include <time.h>  // For struct timespec
 
 // https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/time.h.html

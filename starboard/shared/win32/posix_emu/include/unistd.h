@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,18 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// #if SB_API_VERSION < 16
+#ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_UNISTD_H_
+#define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_UNISTD_H_
 
-#include "starboard/shared/posix/file_internal.h"
+#if defined(STARBOARD)
 
-#include "starboard/shared/posix/impl/file_open.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-SbFile SbFileOpen(const char* path,
-                  int flags,
-                  bool* out_created,
-                  SbFileError* out_error) {
-  return ::starboard::shared::posix::impl::FileOpen(path, flags, out_created,
-                                                    out_error);
+int close(int fd);
+
+#ifdef __cplusplus
 }
+#endif  // __cplusplus
 
-// #endif // SB_API_VERSION < 16
+#endif  // defined(STARBOARD)
+#endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_UNISTD_H_
