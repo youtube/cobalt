@@ -43,6 +43,7 @@
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/global_stats.h"
+#include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_script_element.h"
 #include "cobalt/dom/input_event.h"
 #include "cobalt/dom/input_event_init.h"
@@ -59,6 +60,7 @@
 #include "cobalt/dom/wheel_event.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/dom_parser/parser.h"
+#include "cobalt/layout/container_box.h"
 #include "cobalt/layout/topmost_event_target.h"
 #include "cobalt/loader/image/animated_image_tracker.h"
 #include "cobalt/loader/loader_factory.h"
@@ -85,7 +87,7 @@
 namespace cobalt {
 namespace browser {
 
-using cobalt::cssom::ViewportSize;
+using cssom::ViewportSize;
 
 namespace {
 
@@ -282,6 +284,10 @@ class WebModule::Impl {
   void SetUnloadEventTimingInfo(base::TimeTicks start_time,
                                 base::TimeTicks end_time);
 
+#if defined(ENABLE_DEBUGGER)
+  std::string OnBoxDumpMessage(const std::string& message);
+#endif  // ENABLE_DEBUGGER
+
  private:
   class DocumentLoadedObserver;
 
@@ -464,8 +470,7 @@ class WebModule::Impl {
 
   bool should_retain_remote_typeface_cache_on_freeze_;
 
-  scoped_refptr<cobalt::dom::captions::SystemCaptionSettings>
-      system_caption_settings_;
+  scoped_refptr<dom::captions::SystemCaptionSettings> system_caption_settings_;
 
   // This event is used to interrupt the loader when JavaScript is loaded
   // synchronously.  It is manually reset so that events like Freeze can be
@@ -1698,6 +1703,44 @@ void WebModule::SetUnloadEventTimingInfo(base::TimeTicks start_time,
   POST_TO_ENSURE_IMPL_ON_THREAD(SetUnloadEventTimingInfo, start_time, end_time);
   impl_->SetUnloadEventTimingInfo(start_time, end_time);
 }
+
+#if defined(ENABLE_DEBUGGER)
+std::string WebModule::OnBoxDumpMessage(const std::string& message) {
+  if (message_loop()->task_runner()->BelongsToCurrentThread()) {
+    return impl_->OnBoxDumpMessage(message);
+  } else {
+    std::string response;
+    message_loop()->task_runner()->PostBlockingTask(
+        FROM_HERE, base::Bind(
+                       [](WebModule::Impl* impl, const std::string& message,
+                          std::string* response) {
+                         *response = impl->OnBoxDumpMessage(message);
+                       },
+                       base::Unretained(impl_.get()), message, &response));
+    return response;
+  }
+}
+
+std::string WebModule::Impl::OnBoxDumpMessage(const std::string& message) {
+  DCHECK(window_);
+  std::string boxdump;
+  dom::HTMLElement* html_element = window_->document()->html();
+  if (html_element->layout_boxes() &&
+      html_element->layout_boxes()->type() ==
+          dom::LayoutBoxes::kLayoutLayoutBoxes) {
+    layout::LayoutBoxes* layout_boxes =
+        base::polymorphic_downcast<layout::LayoutBoxes*>(
+            html_element->layout_boxes());
+    if (!layout_boxes->boxes().empty()) {
+      std::ostringstream out("", std::ios_base::ate);
+      layout_boxes->boxes()[0]->GetContainingBlock()->DumpWithIndent(&out, 0);
+      boxdump = out.str();
+    }
+  }
+  return boxdump;
+}
+
+#endif  // ENABLE_DEBUGGER
 
 }  // namespace browser
 }  // namespace cobalt

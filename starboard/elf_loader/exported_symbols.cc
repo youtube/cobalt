@@ -47,6 +47,7 @@
 #include "starboard/player.h"
 #if SB_API_VERSION >= 16
 #include "starboard/shared/modular/posix_mmap_wrappers.h"
+#include "starboard/shared/modular/posix_pthread_wrappers.h"
 #include "starboard/shared/modular/posix_time_wrappers.h"
 #endif  // SB_API_VERSION >= 16
 #include "starboard/socket.h"
@@ -438,6 +439,16 @@ ExportedSymbols::ExportedSymbols() {
   map_["time"] = reinterpret_cast<const void*>(&__wrap_time);
   map_["gmtime_r"] = reinterpret_cast<const void*>(&__wrap_gmtime_r);
   map_["mmap"] = reinterpret_cast<const void*>(&__wrap_mmap);
+  map_["pthread_mutex_destroy"] =
+      reinterpret_cast<const void*>(&__wrap_pthread_mutex_destroy);
+  map_["pthread_mutex_init"] =
+      reinterpret_cast<const void*>(&__wrap_pthread_mutex_init);
+  map_["pthread_mutex_lock"] =
+      reinterpret_cast<const void*>(&__wrap_pthread_mutex_lock);
+  map_["pthread_mutex_unlock"] =
+      reinterpret_cast<const void*>(&__wrap_pthread_mutex_unlock);
+  map_["pthread_mutex_trylock"] =
+      reinterpret_cast<const void*>(&__wrap_pthread_mutex_trylock);
 
 #if defined(_MSC_VER)
   // MSVC provides a template with the same name.

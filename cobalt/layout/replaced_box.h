@@ -98,9 +98,9 @@ class ReplacedBox : public Box {
 
   bool IsTransformable() const override { return true; }
 
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
   void DumpProperties(std::ostream* stream) const override;
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
   // Rest of the protected methods.
 

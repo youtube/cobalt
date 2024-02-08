@@ -12,7 +12,6 @@
 #include "src/objects/torque-defined-classes-inl.h"
 #include "src/objects/stack-frame-info-inl.h"
 
-
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 

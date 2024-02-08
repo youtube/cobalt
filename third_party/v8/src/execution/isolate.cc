@@ -39,6 +39,7 @@
 #include "src/diagnostics/compilation-statistics.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
+#include "src/execution/local-isolate.h"
 #include "src/execution/messages.h"
 #include "src/execution/microtask-queue.h"
 #include "src/execution/protectors-inl.h"
@@ -107,15 +108,9 @@
 #include "src/heap/conservative-stack-visitor.h"
 #endif
 
-#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
-#define CONST const
-#else
-#define CONST
-#endif
-
-extern "C" CONST uint8_t* v8_Default_embedded_blob_code_;
+extern "C" const uint8_t* v8_Default_embedded_blob_code_;
 extern "C" uint32_t v8_Default_embedded_blob_code_size_;
-extern "C" CONST uint8_t* v8_Default_embedded_blob_data_;
+extern "C" const uint8_t* v8_Default_embedded_blob_data_;
 extern "C" uint32_t v8_Default_embedded_blob_data_size_;
 
 namespace v8 {
@@ -133,13 +128,13 @@ namespace internal {
 #define TRACE_ISOLATE(tag)
 #endif
 
-CONST uint8_t* DefaultEmbeddedBlobCode() {
+const uint8_t* DefaultEmbeddedBlobCode() {
   return v8_Default_embedded_blob_code_;
 }
 uint32_t DefaultEmbeddedBlobCodeSize() {
   return v8_Default_embedded_blob_code_size_;
 }
-CONST uint8_t* DefaultEmbeddedBlobData() {
+const uint8_t* DefaultEmbeddedBlobData() {
   return v8_Default_embedded_blob_data_;
 }
 uint32_t DefaultEmbeddedBlobDataSize() {
@@ -175,13 +170,9 @@ namespace {
 // variables before accessing them. Different threads may race, but this is fine
 // since they all attempt to set the same values of the blob pointer and size.
 
-#if defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
-// This is why we need the CONST workaround in this file: atomic can't be used
-// with const on some compiler.
-#endif
-std::atomic<CONST uint8_t*> current_embedded_blob_code_(nullptr);
+std::atomic<const uint8_t*> current_embedded_blob_code_(nullptr);
 std::atomic<uint32_t> current_embedded_blob_code_size_(0);
-std::atomic<CONST uint8_t*> current_embedded_blob_data_(nullptr);
+std::atomic<const uint8_t*> current_embedded_blob_data_(nullptr);
 std::atomic<uint32_t> current_embedded_blob_data_size_(0);
 
 // The various workflows around embedded snapshots are fairly complex. We need
@@ -214,25 +205,25 @@ std::atomic<uint32_t> current_embedded_blob_data_size_(0);
 // - current_embedded_blob_refs_
 base::LazyMutex current_embedded_blob_refcount_mutex_ = LAZY_MUTEX_INITIALIZER;
 
-CONST uint8_t* sticky_embedded_blob_code_ = nullptr;
+const uint8_t* sticky_embedded_blob_code_ = nullptr;
 uint32_t sticky_embedded_blob_code_size_ = 0;
-CONST uint8_t* sticky_embedded_blob_data_ = nullptr;
+const uint8_t* sticky_embedded_blob_data_ = nullptr;
 uint32_t sticky_embedded_blob_data_size_ = 0;
 
 bool enable_embedded_blob_refcounting_ = true;
 int current_embedded_blob_refs_ = 0;
 
-CONST uint8_t* StickyEmbeddedBlobCode() { return sticky_embedded_blob_code_; }
+const uint8_t* StickyEmbeddedBlobCode() { return sticky_embedded_blob_code_; }
 uint32_t StickyEmbeddedBlobCodeSize() {
   return sticky_embedded_blob_code_size_;
 }
-CONST uint8_t* StickyEmbeddedBlobData() { return sticky_embedded_blob_data_; }
+const uint8_t* StickyEmbeddedBlobData() { return sticky_embedded_blob_data_; }
 uint32_t StickyEmbeddedBlobDataSize() {
   return sticky_embedded_blob_data_size_;
 }
 
-void SetStickyEmbeddedBlob(CONST uint8_t* code, uint32_t code_size,
-                           CONST uint8_t* data, uint32_t data_size) {
+void SetStickyEmbeddedBlob(const uint8_t* code, uint32_t code_size,
+                           const uint8_t* data, uint32_t data_size) {
   sticky_embedded_blob_code_ = code;
   sticky_embedded_blob_code_size_ = code_size;
   sticky_embedded_blob_data_ = data;
@@ -287,8 +278,8 @@ bool Isolate::CurrentEmbeddedBlobIsBinaryEmbedded() {
   return code == DefaultEmbeddedBlobCode();
 }
 
-void Isolate::SetEmbeddedBlob(CONST uint8_t* code, uint32_t code_size,
-                              CONST uint8_t* data, uint32_t data_size) {
+void Isolate::SetEmbeddedBlob(const uint8_t* code, uint32_t code_size,
+                              const uint8_t* data, uint32_t data_size) {
   CHECK_NOT_NULL(code);
   CHECK_NOT_NULL(data);
 
@@ -389,7 +380,7 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
   DCHECK(builtins_.is_initialized());
   DCHECK(Builtins::AllBuiltinsAreIsolateIndependent());
 
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
 
   static constexpr size_t kSeed = 0;
   size_t hash = kSeed;
@@ -647,7 +638,7 @@ class FrameArrayBuilder {
         break;
     }
 
-    elements_ = isolate->factory()->NewFrameArray(Min(limit, 10));
+    elements_ = isolate->factory()->NewFrameArray(std::min(limit, 10));
   }
 
   void AppendAsyncFrame(Handle<JSGeneratorObject> generator_object) {
@@ -659,7 +650,8 @@ class FrameArrayBuilder {
 
     Handle<Object> receiver(generator_object->receiver(), isolate_);
     Handle<AbstractCode> code(
-        AbstractCode::cast(function->shared().GetBytecodeArray()), isolate_);
+        AbstractCode::cast(function->shared().GetBytecodeArray(isolate_)),
+        isolate_);
     int offset = Smi::ToInt(generator_object->input_or_debug_pos());
     // The stored bytecode offset is relative to a different base than what
     // is used in the source position table, hence the subtraction.
@@ -889,7 +881,7 @@ bool GetStackTraceLimit(Isolate* isolate, int* result) {
   if (!stack_trace_limit->IsNumber()) return false;
 
   // Ensure that limit is not negative.
-  *result = Max(FastD2IChecked(stack_trace_limit->Number()), 0);
+  *result = std::max(FastD2IChecked(stack_trace_limit->Number()), 0);
 
   if (*result != FLAG_stack_trace_limit) {
     isolate->CountUsage(v8::Isolate::kErrorStackTraceLimit);
@@ -1270,7 +1262,7 @@ Address Isolate::GetAbstractPC(int* line, int* column) {
 Handle<FixedArray> Isolate::CaptureCurrentStackTrace(
     int frame_limit, StackTrace::StackTraceOptions stack_trace_options) {
   CaptureStackTraceOptions options;
-  options.limit = Max(frame_limit, 0);  // Ensure no negative values.
+  options.limit = std::max(frame_limit, 0);  // Ensure no negative values.
   options.skip_mode = SKIP_NONE;
   options.capture_builtin_exit_frames = false;
   options.async_stack_trace = false;
@@ -1352,10 +1344,10 @@ void Isolate::ReportFailedAccessCheck(Handle<JSObject> receiver) {
   HandleScope scope(this);
   Handle<Object> data;
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     AccessCheckInfo access_check_info = AccessCheckInfo::Get(this, receiver);
     if (access_check_info.is_null()) {
-      AllowHeapAllocation doesnt_matter_anymore;
+      no_gc.Release();
       return ScheduleThrow(
           *factory()->NewTypeError(MessageTemplate::kNoAccess));
     }
@@ -1378,7 +1370,7 @@ bool Isolate::MayAccess(Handle<Context> accessing_context,
   // During bootstrapping, callback functions are not enabled yet.
   if (bootstrapper()->IsActive()) return true;
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
 
     if (receiver->IsJSGlobalProxy()) {
       Object receiver_context = JSGlobalProxy::cast(*receiver).native_context();
@@ -1400,7 +1392,7 @@ bool Isolate::MayAccess(Handle<Context> accessing_context,
   Handle<Object> data;
   v8::AccessCheckCallback callback = nullptr;
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     AccessCheckInfo access_check_info = AccessCheckInfo::Get(this, receiver);
     if (access_check_info.is_null()) return false;
     Object fun_obj = access_check_info.callback();
@@ -1623,8 +1615,7 @@ Object Isolate::ThrowInternal(Object raw_exception, MessageLocation* location) {
 // Script::GetLineNumber and Script::GetColumnNumber can allocate on the heap to
 // initialize the line_ends array, so be careful when calling them.
 #ifdef DEBUG
-      if (AllowHeapAllocation::IsAllowed() &&
-          AllowGarbageCollection::IsAllowed()) {
+      if (AllowGarbageCollection::IsAllowed()) {
 #else
       if ((false)) {
 #endif
@@ -1642,7 +1633,6 @@ Object Isolate::ThrowInternal(Object raw_exception, MessageLocation* location) {
     raw_exception.Print();
     PrintF("Stack Trace:\n");
     PrintStack(stdout);
-
     PrintF("=========================================================\n");
   }
 
@@ -2243,7 +2233,7 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
       const int code_offset = elements->Offset(i).value();
       Handle<Script> casted_script(Script::cast(script), this);
       if (shared->HasBytecodeArray() &&
-          shared->GetBytecodeArray().HasSourcePositionTable()) {
+          shared->GetBytecodeArray(this).HasSourcePositionTable()) {
         int pos = abstract_code.SourcePosition(code_offset);
         *target = MessageLocation(casted_script, pos, pos + 1, shared);
       } else {
@@ -2922,6 +2912,7 @@ void Isolate::Delete(Isolate* isolate) {
   Isolate* saved_isolate = reinterpret_cast<Isolate*>(
       base::Thread::GetThreadLocal(isolate->isolate_key_));
   SetIsolateThreadLocals(isolate, nullptr);
+  isolate->set_thread_id(ThreadId::Current());
 
   isolate->Deinit();
 
@@ -3120,7 +3111,12 @@ void Isolate::Deinit() {
   // This stops cancelable tasks (i.e. concurrent marking tasks)
   cancelable_task_manager()->CancelAndWait();
 
+  main_thread_local_isolate_->heap()->FreeLinearAllocationArea();
+
   heap_.TearDown();
+
+  main_thread_local_isolate_.reset();
+
   FILE* logfile = logger_->TearDownAndGetLogFile();
   if (logfile != nullptr) base::Fclose(logfile);
 
@@ -3339,9 +3335,9 @@ bool IsolateIsCompatibleWithEmbeddedBlob(Isolate* isolate) {
 }  // namespace
 
 void Isolate::InitializeDefaultEmbeddedBlob() {
-  CONST uint8_t* code = DefaultEmbeddedBlobCode();
+  const uint8_t* code = DefaultEmbeddedBlobCode();
   uint32_t code_size = DefaultEmbeddedBlobCodeSize();
-  CONST uint8_t* data = DefaultEmbeddedBlobData();
+  const uint8_t* data = DefaultEmbeddedBlobData();
   uint32_t data_size = DefaultEmbeddedBlobDataSize();
 
 #ifdef V8_MULTI_SNAPSHOTS
@@ -3395,14 +3391,9 @@ void Isolate::CreateAndSetEmbeddedBlob() {
                                                       &data, &data_size);
 
     CHECK_EQ(0, current_embedded_blob_refs_);
-#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
     const uint8_t* const_code = const_cast<const uint8_t*>(code);
     const uint8_t* const_data = const_cast<const uint8_t*>(data);
     SetEmbeddedBlob(const_code, code_size, const_data, data_size);
-#else
-    SetEmbeddedBlob(code, code_size, data, data_size);
-#endif
-
     current_embedded_blob_refs_++;
 
     SetStickyEmbeddedBlob(code, code_size, data, data_size);
@@ -3555,6 +3546,10 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   heap_.SetUp();
   ReadOnlyHeap::SetUp(this, read_only_snapshot_data, can_rehash);
   heap_.SetUpSpaces();
+
+  // Create LocalIsolate/LocalHeap for the main thread and set state to Running.
+  main_thread_local_isolate_.reset(new LocalIsolate(this, ThreadKind::kMain));
+  main_thread_local_heap()->Unpark();
 
   isolate_data_.external_reference_table()->Init(this);
 
@@ -3858,7 +3853,7 @@ void Isolate::DumpAndResetStats() {
 
 void Isolate::AbortConcurrentOptimization(BlockingBehavior behavior) {
   if (concurrent_recompilation_enabled()) {
-    DisallowHeapAllocation no_recursive_gc;
+    DisallowGarbageCollection no_recursive_gc;
     optimizing_compile_dispatcher()->Flush(behavior);
   }
 }
@@ -3958,7 +3953,7 @@ Isolate::KnownPrototype Isolate::IsArrayOrObjectOrStringPrototype(
 }
 
 bool Isolate::IsInAnyContext(Object object, uint32_t index) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   Object context = heap()->native_contexts_list();
   while (!context.IsUndefined(this)) {
     Context current_context = Context::cast(context);
@@ -3971,7 +3966,7 @@ bool Isolate::IsInAnyContext(Object object, uint32_t index) {
 }
 
 void Isolate::UpdateNoElementsProtectorOnSetElement(Handle<JSObject> object) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   if (!object->map().is_prototype_map()) return;
   if (!Protectors::IsNoElementsIntact(this)) return;
   KnownPrototype obj_type = IsArrayOrObjectOrStringPrototype(*object);
@@ -3985,7 +3980,7 @@ void Isolate::UpdateNoElementsProtectorOnSetElement(Handle<JSObject> object) {
 }
 
 bool Isolate::IsAnyInitialArrayPrototype(Handle<JSArray> array) {
-  DisallowHeapAllocation no_gc;
+  DisallowGarbageCollection no_gc;
   return IsInAnyContext(*array, Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
 }
 
@@ -4562,7 +4557,7 @@ void Isolate::CollectSourcePositionsForAllBytecodeArrays() {
   HandleScope scope(this);
   std::vector<Handle<SharedFunctionInfo>> sfis;
   {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     HeapObjectIterator iterator(heap());
     for (HeapObject obj = iterator.Next(); !obj.is_null();
          obj = iterator.Next()) {
@@ -4580,13 +4575,41 @@ void Isolate::CollectSourcePositionsForAllBytecodeArrays() {
 }
 
 #ifdef V8_INTL_SUPPORT
-icu::UMemory* Isolate::get_cached_icu_object(ICUObjectCacheType cache_type) {
-  return icu_object_cache_[cache_type].get();
+namespace {
+std::string GetStringFromLocale(Handle<Object> locales_obj) {
+  DCHECK(locales_obj->IsString() || locales_obj->IsUndefined());
+  if (locales_obj->IsString()) {
+    return std::string(String::cast(*locales_obj).ToCString().get());
+  }
+
+  return "";
+}
+}  // namespace
+
+icu::UMemory* Isolate::get_cached_icu_object(ICUObjectCacheType cache_type,
+                                             Handle<Object> locales_obj) {
+  std::string locale = GetStringFromLocale(locales_obj);
+  auto value = icu_object_cache_.find(cache_type);
+  if (value == icu_object_cache_.end()) return nullptr;
+
+  ICUCachePair pair = value->second;
+  if (pair.first != locale) return nullptr;
+
+  return pair.second.get();
 }
 
-void Isolate::set_icu_object_in_cache(ICUObjectCacheType cache_type,
-                                      std::shared_ptr<icu::UMemory> obj) {
-  icu_object_cache_[cache_type] = obj;
+void Isolate::set_icu_object_in_cache(
+    ICUObjectCacheType cache_type, Handle<Object> locales_obj,
+    std::shared_ptr<icu::UMemory> icu_formatter) {
+  std::string locale = GetStringFromLocale(locales_obj);
+  ICUCachePair pair = std::make_pair(locale, icu_formatter);
+
+  auto it = icu_object_cache_.find(cache_type);
+  if (it == icu_object_cache_.end()) {
+    icu_object_cache_.insert({cache_type, pair});
+  } else {
+    it->second = pair;
+  }
 }
 
 void Isolate::clear_cached_icu_object(ICUObjectCacheType cache_type) {
@@ -4744,6 +4767,15 @@ void Isolate::RemoveContextIdCallback(const v8::WeakCallbackInfo<void>& data) {
   Isolate* isolate = reinterpret_cast<Isolate*>(data.GetIsolate());
   uintptr_t context_id = reinterpret_cast<uintptr_t>(data.GetParameter());
   isolate->recorder_context_id_map_.erase(context_id);
+}
+
+LocalHeap* Isolate::main_thread_local_heap() {
+  return main_thread_local_isolate()->heap();
+}
+
+LocalHeap* Isolate::CurrentLocalHeap() {
+  LocalHeap* local_heap = LocalHeap::Current();
+  return local_heap ? local_heap : main_thread_local_heap();
 }
 
 // |chunk| is either a Page or an executable LargePage.

@@ -1,4 +1,4 @@
-﻿// Copyright 2016 the V8 project authors. All rights reserved.
+// Copyright 2016 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -38,6 +38,9 @@ class PossiblyEmptyBuckets {
   }
 
   ~PossiblyEmptyBuckets() { Release(); }
+
+  PossiblyEmptyBuckets(const PossiblyEmptyBuckets&) = delete;
+  PossiblyEmptyBuckets& operator=(const PossiblyEmptyBuckets&) = delete;
 
   void Initialize() {
     bitmap_ = kNullAddress;
@@ -117,8 +120,6 @@ class PossiblyEmptyBuckets {
   }
 
   FRIEND_TEST(PossiblyEmptyBucketsTest, WordsForBuckets);
-
-  DISALLOW_COPY_AND_ASSIGN(PossiblyEmptyBuckets);
 };
 
 STATIC_ASSERT(std::is_standard_layout<PossiblyEmptyBuckets>::value);
@@ -181,6 +182,7 @@ class SlotSet {
       DCHECK_NULL(*slot_set->bucket(i));
     }
 #endif
+
     AlignedFree(reinterpret_cast<uint8_t*>(slot_set) - kInitialBucketsSize);
   }
 
@@ -603,6 +605,7 @@ STATIC_ASSERT(std::is_standard_layout<SlotSet::Bucket>::value);
 enum SlotType {
   FULL_EMBEDDED_OBJECT_SLOT,
   COMPRESSED_EMBEDDED_OBJECT_SLOT,
+  DATA_EMBEDDED_OBJECT_SLOT,
   FULL_OBJECT_SLOT,
   COMPRESSED_OBJECT_SLOT,
   CODE_TARGET_SLOT,
@@ -638,7 +641,7 @@ class V8_EXPORT_PRIVATE TypedSlots {
   static const size_t kInitialBufferSize = 100;
   static const size_t kMaxBufferSize = 16 * KB;
   static size_t NextCapacity(size_t capacity) {
-    return Min(kMaxBufferSize, capacity * 2);
+    return std::min({kMaxBufferSize, capacity * 2});
   }
   Chunk* EnsureChunk();
   Chunk* NewChunk(Chunk* next, size_t capacity);

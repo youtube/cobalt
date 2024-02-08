@@ -144,12 +144,6 @@
 
 // --- Thread Configuration --------------------------------------------------
 
-// --- Timing API ------------------------------------------------------------
-
-// Whether this platform has an API to retrieve how long the current thread
-// has spent in the executing state.
-#define SB_HAS_TIME_THREAD_NOW 0
-
 // --- Tuneable Parameters ---------------------------------------------------
 
 // --- User Configuration ----------------------------------------------------

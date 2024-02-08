@@ -203,6 +203,16 @@ TEST_F(DrainFileTest, SunnyDayRankCorrectlyIgnoresExpired) {
   EXPECT_TRUE(SbFileDelete(early_and_expired.path().c_str()));
 }
 
+// Tests the "racing updaters" scenario.
+TEST_F(DrainFileTest, RankAndCheckWithFirstRankedFileFromOtherAppReturnsFalse) {
+  const int64_t timestamp = PosixTimeToWindowsTime(CurrentPosixTime());
+
+  ScopedDrainFile earlier(GetTempDir(), "a", timestamp);
+  ScopedDrainFile later(GetTempDir(), "b", timestamp + kDrainFileAgeUnitUsec);
+
+  EXPECT_FALSE(DrainFileRankAndCheck(GetTempDir(), "b"));
+}
+
 // All files in the directory should be cleared except for drain files with an
 // app key matching the provided app key.
 TEST_F(DrainFileTest, SunnyDayPrepareDirectory) {

@@ -42,6 +42,28 @@ typedef struct CobaltExtensionOnScreenKeyboardApi {
 
   // This function overrides the light theme of on-screen keyboard.
   void (*SetLightTheme)(SbWindow window, bool light_theme);
+
+  void (*Show)(SbWindow window, const char* input_text, int ticket);
+
+  void (*Hide)(SbWindow window, int ticket);
+
+  void (*Focus)(SbWindow window, int ticket);
+
+  void (*Blur)(SbWindow window, int ticket);
+
+  void (*UpdateSuggestions)(SbWindow window,
+                            const char* suggestions[],
+                            int num_suggestions,
+                            int ticket);
+
+  bool (*IsShown)(SbWindow window);
+
+  bool (*SuggestionsSupported)(SbWindow window);
+
+  bool (*GetBoundingRect)(SbWindow window, SbWindowRect* bounding_rect);
+
+  void (*SetKeepFocus)(SbWindow window, bool keep_focus);
+
 } CobaltExtensionOnScreenKeyboardApi;
 
 #ifdef __cplusplus
