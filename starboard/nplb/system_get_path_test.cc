@@ -128,13 +128,8 @@ TEST(SbSystemGetPathTest, CanCreateAndRemoveDirectoryInCache) {
     EXPECT_TRUE(SbFileDelete(path.data()));
     EXPECT_FALSE(SbFileExists(path.data()));
 
-// Create the directory and confirm it exists and can be opened.
-#if SB_API_VERSION < 16
+    // Create the directory and confirm it exists and can be opened.
     EXPECT_TRUE(SbDirectoryCreate(path.data()));
-#else
-    EXPECT_TRUE(SbDirectoryCanOpen(path.data()) ||
-                mkdir(path.data(), 0700) == 0);
-#endif  // SB_API_VERSION < 16
     EXPECT_TRUE(SbFileExists(path.data()));
     EXPECT_TRUE(SbDirectoryCanOpen(path.data()));
     SbDirectory directory = SbDirectoryOpen(path.data(), NULL);

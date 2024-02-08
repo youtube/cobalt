@@ -25,8 +25,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_API_VERSION < 16
-const std::string kManyFileSeparators =  // NOLINT
+const std::string kManyFileSeparators =  // NOLINT(runtime/string)
     std::string(kSbFileSepString) + kSbFileSepString + kSbFileSepString +
     kSbFileSepString;
 
@@ -106,7 +105,7 @@ TEST(SbDirectoryCreateTest, FailureNotAbsolute) {
   EXPECT_FALSE(SbDirectoryCreate(kPath));
   EXPECT_FALSE(SbDirectoryCanOpen(kPath));
 }
-#endif  // SB_API_VERSION < 16
+
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
