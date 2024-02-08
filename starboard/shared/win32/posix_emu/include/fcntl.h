@@ -12,8 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <io.h>
+#ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_FCNTL_H_
+#define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_FCNTL_H_
 
-int close(int fd) {
-  return _close(fd);
+#if defined(STARBOARD)
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+int open(const char* path, int oflag, ...);
+
+#ifdef __cplusplus
 }
+#endif  // __cplusplus
+
+#endif  // defined(STARBOARD)
+#endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_FCNTL_H_
