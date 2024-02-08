@@ -11,7 +11,7 @@
 #include "src/core/SkCpu.h"
 
 #if defined(SK_CPU_X86)
-    #if defined(SK_BUILD_FOR_WIN)
+    #if defined(_MSC_VER)
         #include <intrin.h>
         static void cpuid (uint32_t abcd[4]) { __cpuid  ((int*)abcd, 1);    }
         static void cpuid7(uint32_t abcd[4]) { __cpuidex((int*)abcd, 7, 0); }
@@ -57,6 +57,7 @@
             if (abcd[1] & (1<<5)) { features |= SkCpu::AVX2; }
             if (abcd[1] & (1<<3)) { features |= SkCpu::BMI1; }
             if (abcd[1] & (1<<8)) { features |= SkCpu::BMI2; }
+            if (abcd[1] & (1<<9)) { features |= SkCpu::ERMS; }
 
             if ((xgetbv(0) & (7<<5)) == (7<<5)) {  // All ZMM state bits enabled too.
                 if (abcd[1] & (1<<16)) { features |= SkCpu::AVX512F; }

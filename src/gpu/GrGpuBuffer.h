@@ -8,8 +8,8 @@
 #ifndef GrGpuBuffer_DEFINED
 #define GrGpuBuffer_DEFINED
 
-#include "include/gpu/GrGpuResource.h"
 #include "src/gpu/GrBuffer.h"
+#include "src/gpu/GrGpuResource.h"
 
 class GrGpu;
 
@@ -19,7 +19,7 @@ public:
      * Computes a scratch key for a GPU-side buffer with a "dynamic" access pattern. (Buffers with
      * "static" and "stream" patterns are disqualified by nature from being cached and reused.)
      */
-    static void ComputeScratchKeyForDynamicVBO(size_t size, GrGpuBufferType, GrScratchKey*);
+    static void ComputeScratchKeyForDynamicBuffer(size_t size, GrGpuBufferType, GrScratchKey*);
 
     GrAccessPattern accessPattern() const { return fAccessPattern; }
 
@@ -98,6 +98,12 @@ private:
     size_t            fSizeInBytes;
     GrAccessPattern   fAccessPattern;
     GrGpuBufferType   fIntendedType;
+
+#ifdef SK_DEBUG
+    // Static and stream access buffers are only ever written to once. This is used to track that
+    // and assert it is true.
+    bool              fHasWrittenToBuffer = false;
+#endif
 };
 
 #endif

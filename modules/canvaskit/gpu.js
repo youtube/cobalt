@@ -1,5 +1,6 @@
 // Adds compile-time JS functions to augment the CanvasKit interface.
 // Specifically, anything that should only be on the GPU version of canvaskit.
+// Functions in this file are supplemented by cpu.js.
 (function(CanvasKit){
     CanvasKit._extraInitializations = CanvasKit._extraInitializations || [];
     CanvasKit._extraInitializations.push(function() {
@@ -10,89 +11,134 @@
         return defaultValue;
       }
 
-      function makeWebGLContext(canvas, attrs) {
-        var contextAttributes = {
-          alpha: get(attrs, 'alpha', 1),
-          depth: get(attrs, 'depth', 1),
-          stencil: get(attrs, 'stencil', 8),
-          antialias: get(attrs, 'antialias', 1),
-          premultipliedAlpha: get(attrs, 'premultipliedAlpha', 1),
-          preserveDrawingBuffer: get(attrs, 'preserveDrawingBuffer', 0),
-          preferLowPowerToHighPerformance: get(attrs, 'preferLowPowerToHighPerformance', 0),
-          failIfMajorPerformanceCaveat: get(attrs, 'failIfMajorPerformanceCaveat', 0),
-          majorVersion: get(attrs, 'majorVersion', 2),
-          minorVersion: get(attrs, 'minorVersion', 0),
-          enableExtensionsByDefault: get(attrs, 'enableExtensionsByDefault', 1),
-          explicitSwapControl: get(attrs, 'explicitSwapControl', 0),
-          renderViaOffscreenBackBuffer: get(attrs, 'renderViaOffscreenBackBuffer', 0),
-        };
+      CanvasKit.GetWebGLContext = function(canvas, attrs) {
         if (!canvas) {
-          SkDebug('null canvas passed into makeWebGLContext');
-          return 0;
+          throw 'null canvas passed into makeWebGLContext';
         }
+        var contextAttributes = {
+          'alpha': get(attrs, 'alpha', 1),
+          'depth': get(attrs, 'depth', 1),
+          'stencil': get(attrs, 'stencil', 8),
+          'antialias': get(attrs, 'antialias', 0),
+          'premultipliedAlpha': get(attrs, 'premultipliedAlpha', 1),
+          'preserveDrawingBuffer': get(attrs, 'preserveDrawingBuffer', 0),
+          'preferLowPowerToHighPerformance': get(attrs, 'preferLowPowerToHighPerformance', 0),
+          'failIfMajorPerformanceCaveat': get(attrs, 'failIfMajorPerformanceCaveat', 0),
+          'enableExtensionsByDefault': get(attrs, 'enableExtensionsByDefault', 1),
+          'explicitSwapControl': get(attrs, 'explicitSwapControl', 0),
+          'renderViaOffscreenBackBuffer': get(attrs, 'renderViaOffscreenBackBuffer', 0),
+        };
+
+        if (attrs && attrs['majorVersion']) {
+          contextAttributes['majorVersion'] = attrs['majorVersion']
+        } else {
+          // Default to WebGL 2 if available and not specified.
+          contextAttributes['majorVersion'] = (typeof WebGL2RenderingContext !== 'undefined') ? 2 : 1;
+        }
+
         // This check is from the emscripten version
         if (contextAttributes['explicitSwapControl']) {
-          SkDebug('explicitSwapControl is not supported');
+          throw 'explicitSwapControl is not supported';
+        }
+        // Creates a WebGL context and sets it to be the current context.
+        // These functions are defined in emscripten's library_webgl.js
+        var handle = GL.createContext(canvas, contextAttributes);
+        if (!handle) {
           return 0;
         }
-        // GL is an enscripten provided helper
-        // See https://github.com/emscripten-core/emscripten/blob/incoming/src/library_webgl.js
-        var ctx = GL.createContext(canvas, contextAttributes);
-
-        if (!ctx && contextAttributes.majorVersion > 1) {
-          contextAttributes.majorVersion = 1;  // fall back to WebGL 1.0
-          contextAttributes.minorVersion = 0;
-          ctx = GL.createContext(canvas, contextAttributes);
-        }
-        return ctx;
-      }
-
-      CanvasKit.GetWebGLContext = function(canvas, attrs) {
-        return makeWebGLContext(canvas, attrs);
+        GL.makeContextCurrent(handle);
+        return handle;
       };
 
-      // arg can be of types:
+      CanvasKit.deleteContext = function(handle) {
+        GL.deleteContext(handle);
+      };
+
+      CanvasKit._setTextureCleanup({
+        "deleteTexture": function(webglHandle, texHandle) {
+          var tex = GL.textures[texHandle];
+          if (tex) {
+            GL.getContext(webglHandle).GLctx.deleteTexture(tex);
+          }
+          GL.textures[texHandle] = null;
+        },
+      });
+
+      CanvasKit.MakeGrContext = function(ctx) {
+        // Make sure we are pointing at the right WebGL context.
+        if (!this.setCurrentContext(ctx)) {
+          return null;
+        }
+        var grCtx = this._MakeGrContext();
+        if (!grCtx) {
+          return null;
+        }
+        // This context is an index into the emscripten-provided GL wrapper.
+        grCtx._context = ctx;
+        return grCtx;
+      }
+
+      CanvasKit.MakeOnScreenGLSurface = function(grCtx, w, h, colorspace) {
+        var surface = this._MakeOnScreenGLSurface(grCtx, w, h, colorspace);
+        if (!surface) {
+          return null;
+        }
+        surface._context = grCtx._context;
+        return surface;
+      }
+
+      CanvasKit.MakeRenderTarget = function(grCtx, w, h) {
+        var surface = this._MakeRenderTargetWH(grCtx, w, h);
+        if (!surface) {
+          return null;
+        }
+        surface._context = grCtx._context;
+        return surface;
+      }
+
+      CanvasKit.MakeRenderTarget = function(grCtx, imageInfo) {
+        var surface = this._MakeRenderTargetII(grCtx, imageInfo);
+        if (!surface) {
+          return null;
+        }
+        surface._context = grCtx._context;
+        return surface;
+      }
+
+      // idOrElement can be of types:
       //  - String - in which case it is interpreted as an id of a
       //          canvas element.
       //  - HTMLCanvasElement - in which the provided canvas element will
       //          be used directly.
-      // Width and height can be provided to override those on the canvas
-      // element, or specify a height for when a context is provided.
-      CanvasKit.MakeWebGLCanvasSurface = function(arg, width, height) {
-        var canvas = arg;
-        if (canvas.tagName !== 'CANVAS') {
-          canvas = document.getElementById(arg);
+      // colorSpace - sk_sp<ColorSpace> - one of the supported color spaces:
+      //          CanvasKit.ColorSpace.SRGB
+      //          CanvasKit.ColorSpace.DISPLAY_P3
+      //          CanvasKit.ColorSpace.ADOBE_RGB
+      CanvasKit.MakeWebGLCanvasSurface = function(idOrElement, colorSpace, attrs) {
+        colorSpace = colorSpace || null;
+        var canvas = idOrElement;
+        var isHTMLCanvas = typeof HTMLCanvasElement !== 'undefined' && canvas instanceof HTMLCanvasElement;
+        var isOffscreenCanvas = typeof OffscreenCanvas !== 'undefined' && canvas instanceof OffscreenCanvas;
+        if (!isHTMLCanvas && !isOffscreenCanvas) {
+          canvas = document.getElementById(idOrElement);
           if (!canvas) {
-            throw 'Canvas with id ' + arg + ' was not found';
+            throw 'Canvas with id ' + idOrElement + ' was not found';
           }
         }
-        // we are ok with all the defaults
-        var ctx = this.GetWebGLContext(canvas);
 
+        var ctx = this.GetWebGLContext(canvas, attrs);
         if (!ctx || ctx < 0) {
           throw 'failed to create webgl context: err ' + ctx;
         }
 
-        if (!canvas && (!width || !height)) {
-          throw 'height and width must be provided with context';
-        }
-
         var grcontext = this.MakeGrContext(ctx);
 
-        if (grcontext) {
-           // Bump the default resource cache limit.
-          var RESOURCE_CACHE_BYTES = 256 * 1024 * 1024;
-          grcontext.setResourceCacheLimitBytes(RESOURCE_CACHE_BYTES);
-        }
-
-
-        // Maybe better to use clientWidth/height.  See:
-        // https://webglfundamentals.org/webgl/lessons/webgl-anti-patterns.html
-        var surface = this.MakeOnScreenGLSurface(grcontext,
-                                                 width  || canvas.width,
-                                                 height || canvas.height);
+        // Note that canvas.width/height here is used because it gives the size of the buffer we're
+        // rendering into. This may not be the same size the element is displayed on the page, which
+        // constrolled by css, and available in canvas.clientWidth/height.
+        var surface = this.MakeOnScreenGLSurface(grcontext, canvas.width, canvas.height, colorSpace);
         if (!surface) {
-          SkDebug('falling back from GPU implementation to a SW based one');
+          Debug('falling back from GPU implementation to a SW based one');
           // we need to throw away the old canvas (which was locked to
           // a webGL context) and create a new one so we can
           var newCanvas = canvas.cloneNode(true);
@@ -103,11 +149,60 @@
 
           return CanvasKit.MakeSWCanvasSurface(newCanvas);
         }
-        surface._context = ctx;
-        surface.grContext = grcontext;
         return surface;
       };
       // Default to trying WebGL first.
       CanvasKit.MakeCanvasSurface = CanvasKit.MakeWebGLCanvasSurface;
+
+      CanvasKit.Surface.prototype.makeImageFromTexture = function(tex, info) {
+        if (!info['colorSpace']) {
+          info['colorSpace'] = CanvasKit.ColorSpace.SRGB;
+        }
+        // GL is an emscripten object that holds onto WebGL state. One item in that state is
+        // an array of textures, of which the index is the handle/id.
+        var texHandle = GL.textures.length;
+        if (!texHandle) {
+          // If our texture handle is 0, Skia interprets that as an invalid texture id.
+          // As a special case, we push a null texture there so the first texture has id 1.
+          GL.textures.push(null);
+          texHandle = 1;
+        }
+        GL.textures.push(tex);
+        return this._makeImageFromTexture(GL.currentContext.handle, texHandle, info);
+      };
+
+      CanvasKit.Surface.prototype.makeImageFromTextureSource = function(src, w, h) {
+        // If the user specified a height or width in the image info, we use that. Otherwise,
+        // we try to find the natural media type (for <img> and <video>) and then fall back to
+        // the height and width (to cover <canvas>, ImageBitmap or ImageData).
+        var height = h || src.naturalHeight || src.videoHeight || src.height;
+        var width = w || src.naturalWidth || src.videoWidth || src.width;
+        // We want to be pointing at the context associated with this surface.
+        CanvasKit.setCurrentContext(this._context);
+        var glCtx = GL.currentContext.GLctx;
+        var newTex = glCtx.createTexture();
+        glCtx.bindTexture(glCtx.TEXTURE_2D, newTex);
+        if (GL.currentContext.version === 2) {
+          glCtx.texImage2D(glCtx.TEXTURE_2D, 0, glCtx.RGBA, width, height, 0, glCtx.RGBA, glCtx.UNSIGNED_BYTE, src);
+        } else {
+          glCtx.texImage2D(glCtx.TEXTURE_2D, 0, glCtx.RGBA, glCtx.RGBA, glCtx.UNSIGNED_BYTE, src);
+        }
+        glCtx.bindTexture(glCtx.TEXTURE_2D, null);
+        var info = {
+          'height': height,
+          'width': width,
+          'colorType': CanvasKit.ColorType.RGBA_8888,
+          'alphaType': CanvasKit.AlphaType.Unpremul,
+          'colorSpace': CanvasKit.ColorSpace.SRGB,
+        };
+        return this.makeImageFromTexture(newTex, info);
+      };
+
+      CanvasKit.setCurrentContext = function(ctx) {
+        if (!ctx) {
+          return false;
+        }
+        return GL.makeContextCurrent(ctx);
+      };
     });
 }(Module)); // When this file is loaded in, the high level object is "Module";

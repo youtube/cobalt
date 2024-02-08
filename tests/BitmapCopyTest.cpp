@@ -14,6 +14,7 @@
 #include "include/core/SkRefCnt.h"
 #include "include/core/SkSize.h"
 #include "include/core/SkTypes.h"
+#include "src/core/SkOpts.h"
 #include "tests/Test.h"
 #include "tools/ToolUtils.h"
 
@@ -64,11 +65,10 @@ static const Pair gPairs[] = {
     { kRGBA_F16_SkColorType,    "0101011"  },
 };
 
-static const int W = 20;
-static const int H = 33;
-
 static void setup_src_bitmaps(SkBitmap* srcOpaque, SkBitmap* srcPremul,
                               SkColorType ct) {
+    const int W = 20;
+    const int H = 33;
     sk_sp<SkColorSpace> colorSpace = nullptr;
     if (kRGBA_F16_SkColorType == ct) {
         colorSpace = SkColorSpace::MakeSRGB();
@@ -81,6 +81,7 @@ static void setup_src_bitmaps(SkBitmap* srcOpaque, SkBitmap* srcPremul,
 }
 
 DEF_TEST(BitmapCopy_extractSubset, reporter) {
+    const int W = 20;
     for (size_t i = 0; i < SK_ARRAY_COUNT(gPairs); i++) {
         SkBitmap srcOpaque, srcPremul;
         setup_src_bitmaps(&srcOpaque, &srcPremul, gPairs[i].fColorType);
@@ -91,13 +92,11 @@ DEF_TEST(BitmapCopy_extractSubset, reporter) {
         // Extract a subset which has the same width as the original. This
         // catches a bug where we cloned the genID incorrectly.
         r.setLTRB(0, 1, W, 3);
-        bitmap.setIsVolatile(true);
         // Relies on old behavior of extractSubset failing if colortype is unknown
         if (kUnknown_SkColorType != bitmap.colorType() && bitmap.extractSubset(&subset, r)) {
             REPORTER_ASSERT(reporter, subset.width() == W);
             REPORTER_ASSERT(reporter, subset.height() == 2);
             REPORTER_ASSERT(reporter, subset.alphaType() == bitmap.alphaType());
-            REPORTER_ASSERT(reporter, subset.isVolatile() == true);
 
             // Test copying an extracted subset.
             for (size_t j = 0; j < SK_ARRAY_COUNT(gPairs); j++) {
@@ -120,10 +119,8 @@ DEF_TEST(BitmapCopy_extractSubset, reporter) {
         }
 
         bitmap = srcPremul;
-        bitmap.setIsVolatile(false);
         if (bitmap.extractSubset(&subset, r)) {
             REPORTER_ASSERT(reporter, subset.alphaType() == bitmap.alphaType());
-            REPORTER_ASSERT(reporter, subset.isVolatile() == false);
         }
     }
 }

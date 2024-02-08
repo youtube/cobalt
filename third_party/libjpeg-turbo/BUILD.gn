@@ -20,7 +20,19 @@ if (skia_use_system_libjpeg_turbo) {
       "../externals/libjpeg-turbo",
     ]
 
-    defines = [ "TURBO_FOR_WINDOWS" ]
+    defines = [
+      "TURBO_FOR_WINDOWS",
+
+      # Add support for arithmetic encoding (C_) and decoding (D_).
+      # This matches Android. Note that such JPEGs are likely rare, given lack of
+      # support by major browsers.
+      "C_ARITH_CODING_SUPPORTED=1",
+      "D_ARITH_CODING_SUPPORTED=1",
+    ]
+
+    if (!is_win || is_clang) {
+      defines += [ "USE_CLZ_INTRINSIC" ]  # Cuts a 64K table.
+    }
 
     sources = [
       "../externals/libjpeg-turbo/jaricom.c",
@@ -65,21 +77,41 @@ if (skia_use_system_libjpeg_turbo) {
       "../externals/libjpeg-turbo/jidctred.c",
       "../externals/libjpeg-turbo/jmemmgr.c",
       "../externals/libjpeg-turbo/jmemnobs.c",
+      "../externals/libjpeg-turbo/jpeg_nbits_table.c",
       "../externals/libjpeg-turbo/jquant1.c",
       "../externals/libjpeg-turbo/jquant2.c",
       "../externals/libjpeg-turbo/jutils.c",
     ]
 
-    if (current_cpu == "arm" && !is_ios && !is_win) {
+    if (!is_win && (current_cpu == "arm" || current_cpu == "arm64")) {
+      defines += [ "NEON_INTRINSICS" ]
       sources += [
-        "../externals/libjpeg-turbo/simd/arm/jsimd.c",
-        "../externals/libjpeg-turbo/simd/arm/jsimd_neon.S",
+        "../externals/libjpeg-turbo/simd/arm/jccolor-neon.c",
+        "../externals/libjpeg-turbo/simd/arm/jcgray-neon.c",
+        "../externals/libjpeg-turbo/simd/arm/jcphuff-neon.c",
+        "../externals/libjpeg-turbo/simd/arm/jcsample-neon.c",
+        "../externals/libjpeg-turbo/simd/arm/jdcolor-neon.c",
+        "../externals/libjpeg-turbo/simd/arm/jdmerge-neon.c",
+        "../externals/libjpeg-turbo/simd/arm/jdsample-neon.c",
+        "../externals/libjpeg-turbo/simd/arm/jfdctfst-neon.c",
+        "../externals/libjpeg-turbo/simd/arm/jfdctint-neon.c",
+        "../externals/libjpeg-turbo/simd/arm/jidctfst-neon.c",
+        "../externals/libjpeg-turbo/simd/arm/jidctint-neon.c",
+        "../externals/libjpeg-turbo/simd/arm/jidctred-neon.c",
+        "../externals/libjpeg-turbo/simd/arm/jquanti-neon.c",
       ]
-    } else if (current_cpu == "arm64" && !is_ios && !is_win) {
-      sources += [
-        "../externals/libjpeg-turbo/simd/arm64/jsimd.c",
-        "../externals/libjpeg-turbo/simd/arm64/jsimd_neon.S",
-      ]
+      include_dirs = [ "../externals/libjpeg-turbo/simd/arm" ]
+      if (current_cpu == "arm") {
+        sources += [
+          "../externals/libjpeg-turbo/simd/arm/aarch32/jchuff-neon.c",
+          "../externals/libjpeg-turbo/simd/arm/aarch32/jsimd.c",
+        ]
+      } else if (current_cpu == "arm64") {
+        sources += [
+          "../externals/libjpeg-turbo/simd/arm/aarch64/jchuff-neon.c",
+          "../externals/libjpeg-turbo/simd/arm/aarch64/jsimd.c",
+        ]
+      }
     } else {
       sources += [ "../externals/libjpeg-turbo/jsimd_none.c" ]
     }

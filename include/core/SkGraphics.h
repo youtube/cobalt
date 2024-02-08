@@ -66,30 +66,6 @@ public:
      */
     static int SetFontCacheCountLimit(int count);
 
-    /*
-     *  Returns the maximum point size for text that may be cached.
-     *
-     *  Sizes above this will be drawn directly from the font's outline.
-     *  Setting this to a large value may speed up drawing larger text (repeatedly),
-     *  but could cause the cache to purge other sizes more often.
-     *
-     *  This value is a hint to the font engine, and the actual limit may be different due to
-     *  implementation specific details.
-     */
-    static int GetFontCachePointSizeLimit();
-
-    /*
-     *  Set the maximum point size for text that may be cached, returning the previous value.
-     *
-     *  Sizes above this will be drawn directly from the font's outline.
-     *  Setting this to a large value may speed up drawing larger text (repeatedly),
-     *  but could cause the cache to purge other sizes more often.
-     *
-     *  This value is a hint to the font engine, and the actual limit may be different due to
-     *  implementation specific details.
-     */
-    static int SetFontCachePointSizeLimit(int maxPointSize);
-
     /**
      *  For debugging purposes, this will attempt to purge the font cache. It
      *  does not change the limit, but will cause subsequent font measures and
@@ -98,11 +74,7 @@ public:
     static void PurgeFontCache();
 
     /**
-     *  Scaling bitmaps with the kHigh_SkFilterQuality setting is
-     *  expensive, so the result is saved in the global Scaled Image
-     *  Cache.
-     *
-     *  This function returns the memory usage of the Scaled Image Cache.
+     *  This function returns the memory used for temporary images and other resources.
      */
     static size_t GetResourceCacheTotalBytesUsed();
 
@@ -167,6 +139,11 @@ public:
      */
     static ImageGeneratorFromEncodedDataFactory
                     SetImageGeneratorFromEncodedDataFactory(ImageGeneratorFromEncodedDataFactory);
+
+    /**
+     *  Call early in main() to allow Skia to use a JIT to accelerate CPU-bound operations.
+     */
+    static void AllowJIT();
 };
 
 class SkAutoGraphics {

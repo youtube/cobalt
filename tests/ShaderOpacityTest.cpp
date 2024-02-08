@@ -6,10 +6,13 @@
  */
 
 #include "include/core/SkBitmap.h"
+#include "include/core/SkCanvas.h"
 #include "include/core/SkShader.h"
+#include "include/core/SkSurface.h"
 #include "include/effects/SkGradientShader.h"
 #include "src/shaders/SkColorShader.h"
 #include "tests/Test.h"
+#include "tools/ToolUtils.h"
 
 static void test_bitmap(skiatest::Reporter* reporter) {
     SkImageInfo info = SkImageInfo::MakeN32Premul(2, 2);
@@ -18,7 +21,7 @@ static void test_bitmap(skiatest::Reporter* reporter) {
     bmp.setInfo(info);
 
     // test 1: bitmap without pixel data
-    auto shader = bmp.makeShader(SkTileMode::kClamp, SkTileMode::kClamp);
+    auto shader = bmp.makeShader(SkSamplingOptions());
     REPORTER_ASSERT(reporter, shader);
     REPORTER_ASSERT(reporter, !shader->isOpaque());
 
@@ -26,19 +29,19 @@ static void test_bitmap(skiatest::Reporter* reporter) {
     bmp.allocPixels(info);
 
     // test 2: not opaque by default
-    shader = bmp.makeShader();
+    shader = bmp.makeShader(SkSamplingOptions());
     REPORTER_ASSERT(reporter, shader);
     REPORTER_ASSERT(reporter, !shader->isOpaque());
 
     // test 3: explicitly opaque
     bmp.setAlphaType(kOpaque_SkAlphaType);
-    shader = bmp.makeShader();
+    shader = bmp.makeShader(SkSamplingOptions());
     REPORTER_ASSERT(reporter, shader);
     REPORTER_ASSERT(reporter, shader->isOpaque());
 
     // test 4: explicitly not opaque
     bmp.setAlphaType(kPremul_SkAlphaType);
-    shader = bmp.makeShader();
+    shader = bmp.makeShader(SkSamplingOptions());
     REPORTER_ASSERT(reporter, shader);
     REPORTER_ASSERT(reporter, !shader->isOpaque());
 }

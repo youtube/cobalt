@@ -9,6 +9,7 @@
 #include "include/core/SkPoint3.h"
 #include "include/core/SkVertices.h"
 #include "include/private/SkColorData.h"
+#include "include/private/SkTPin.h"
 #include "src/core/SkDrawShadowInfo.h"
 #include "src/core/SkGeometry.h"
 #include "src/core/SkPointPriv.h"
@@ -38,9 +39,9 @@ public:
     }
 
 protected:
-    static constexpr auto kMinHeight = 0.1f;
-    static constexpr auto kPenumbraColor = SK_ColorTRANSPARENT;
-    static constexpr auto kUmbraColor = SK_ColorBLACK;
+    inline static constexpr auto kMinHeight = 0.1f;
+    inline static constexpr auto kPenumbraColor = SK_ColorTRANSPARENT;
+    inline static constexpr auto kUmbraColor = SK_ColorBLACK;
 
     int vertexCount() const { return fPositions.count(); }
     int indexCount() const { return fIndices.count(); }
@@ -123,10 +124,6 @@ protected:
     SkVector            fPrevOutset;
     SkPoint             fPrevPoint;
 };
-
-// make external linkage happy
-constexpr SkColor SkBaseShadowTessellator::kUmbraColor;
-constexpr SkColor SkBaseShadowTessellator::kPenumbraColor;
 
 static bool compute_normal(const SkPoint& p0, const SkPoint& p1, SkScalar dir,
                            SkVector* newNormal) {
@@ -900,7 +897,7 @@ public:
 private:
     bool computePathPolygon(const SkPath& path, const SkMatrix& ctm);
 
-    typedef SkBaseShadowTessellator INHERITED;
+    using INHERITED = SkBaseShadowTessellator;
 };
 
 SkAmbientShadowTessellator::SkAmbientShadowTessellator(const SkPath& path,
@@ -913,8 +910,8 @@ SkAmbientShadowTessellator::SkAmbientShadowTessellator(const SkPath& path,
     // umbraColor is the interior value, penumbraColor the exterior value.
     auto outset = SkDrawShadowMetrics::AmbientBlurRadius(baseZ);
     auto inset = outset * SkDrawShadowMetrics::AmbientRecipAlpha(baseZ) - outset;
-    inset = SkScalarPin(inset, 0, SkTMin(path.getBounds().width(),
-                                         path.getBounds().height()));
+    inset = SkTPin(inset, 0.0f, std::min(path.getBounds().width(),
+                                       path.getBounds().height()));
 
     if (!this->computePathPolygon(path, ctm)) {
         return;
@@ -990,27 +987,27 @@ class SkSpotShadowTessellator : public SkBaseShadowTessellator {
 public:
     SkSpotShadowTessellator(const SkPath& path, const SkMatrix& ctm,
                             const SkPoint3& zPlaneParams, const SkPoint3& lightPos,
-                            SkScalar lightRadius, bool transparent);
+                            SkScalar lightRadius, bool transparent, bool directional);
 
 private:
     bool computeClipAndPathPolygons(const SkPath& path, const SkMatrix& ctm,
                                     const SkMatrix& shadowTransform);
     void addToClip(const SkVector& nextPoint);
 
-    typedef SkBaseShadowTessellator INHERITED;
+    using INHERITED = SkBaseShadowTessellator;
 };
 
 SkSpotShadowTessellator::SkSpotShadowTessellator(const SkPath& path, const SkMatrix& ctm,
                                                  const SkPoint3& zPlaneParams,
                                                  const SkPoint3& lightPos, SkScalar lightRadius,
-                                                 bool transparent)
+                                                 bool transparent, bool directional)
     : INHERITED(zPlaneParams, path.getBounds(), transparent) {
 
     // Compute the blur radius, scale and translation for the spot shadow.
     SkMatrix shadowTransform;
     SkScalar outset;
-    if (!SkDrawShadowMetrics::GetSpotShadowTransform(lightPos, lightRadius,
-                                                     ctm, zPlaneParams, path.getBounds(),
+    if (!SkDrawShadowMetrics::GetSpotShadowTransform(lightPos, lightRadius, ctm, zPlaneParams,
+                                                     path.getBounds(), directional,
                                                      &shadowTransform, &outset)) {
         return;
     }
@@ -1158,12 +1155,14 @@ sk_sp<SkVertices> SkShadowTessellator::MakeAmbient(const SkPath& path, const SkM
 
 sk_sp<SkVertices> SkShadowTessellator::MakeSpot(const SkPath& path, const SkMatrix& ctm,
                                                 const SkPoint3& zPlane, const SkPoint3& lightPos,
-                                                SkScalar lightRadius,  bool transparent) {
+                                                SkScalar lightRadius,  bool transparent,
+                                                bool directional) {
     if (!ctm.mapRect(path.getBounds()).isFinite() || !zPlane.isFinite() ||
         !lightPos.isFinite() || !(lightPos.fZ >= SK_ScalarNearlyZero) ||
         !SkScalarIsFinite(lightRadius) || !(lightRadius >= SK_ScalarNearlyZero)) {
         return nullptr;
     }
-    SkSpotShadowTessellator spotTess(path, ctm, zPlane, lightPos, lightRadius, transparent);
+    SkSpotShadowTessellator spotTess(path, ctm, zPlane, lightPos, lightRadius, transparent,
+                                     directional);
     return spotTess.releaseVertices();
 }

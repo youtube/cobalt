@@ -51,7 +51,7 @@ public:
             // only assert we're unique if we're not empty
             SkASSERT(this->unique());
         }
-        return fPtr;
+        return const_cast<void*>(fPtr);
     }
 
     /**
@@ -105,7 +105,7 @@ public:
      *  SkData. Suitable for with const globals.
      */
     static sk_sp<SkData> MakeWithoutCopy(const void* data, size_t length) {
-        return MakeWithProc(data, length, DummyReleaseProc, nullptr);
+        return MakeWithProc(data, length, NoopReleaseProc, nullptr);
     }
 
     /**
@@ -161,7 +161,7 @@ private:
     friend class SkNVRefCnt<SkData>;
     ReleaseProc fReleaseProc;
     void*       fReleaseProcContext;
-    void*       fPtr;
+    const void* fPtr;
     size_t      fSize;
 
     SkData(const void* ptr, size_t size, ReleaseProc, void* context);
@@ -174,9 +174,9 @@ private:
     // shared internal factory
     static sk_sp<SkData> PrivateNewWithCopy(const void* srcOrNull, size_t length);
 
-    static void DummyReleaseProc(const void*, void*); // {}
+    static void NoopReleaseProc(const void*, void*); // {}
 
-    typedef SkRefCnt INHERITED;
+    using INHERITED = SkRefCnt;
 };
 
 #endif

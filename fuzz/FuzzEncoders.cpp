@@ -77,7 +77,7 @@ DEF_FUZZ(WEBPEncoder, fuzz) {
 // and dump out a corpus for this fuzzer.
 DEF_FUZZ(_MakeEncoderCorpus, fuzz) {
     auto bytes = fuzz->fBytes;
-    SkDebugf("bytes %d\n", bytes->size());
+    SkDebugf("bytes %zu\n", bytes->size());
     auto img = SkImage::MakeFromEncoded(bytes);
     if (nullptr == img.get()) {
         SkDebugf("invalid image, could not decode\n");
@@ -92,7 +92,7 @@ DEF_FUZZ(_MakeEncoderCorpus, fuzz) {
     dstPixels.resize(img->height() * rowBytes);
     SkPixmap pm(SkImageInfo::MakeN32Premul(img->width(), img->height()),
         &dstPixels.front(), rowBytes);
-    if (!img->readPixels(pm, 0, 0)) {
+    if (!img->readPixels(nullptr, pm, 0, 0)) {
         SkDebugf("Could not read pixmap\n");
         return;
     }

@@ -8,12 +8,12 @@ void draw(SkCanvas* canvas) {
     sk_sp<SkSurface> lil(big->makeSurface(SkImageInfo::MakeN32(32, 32, kPremul_SkAlphaType)));
     big->getCanvas()->clear(SK_ColorRED);
     lil->getCanvas()->clear(SK_ColorBLACK);
-    lil->draw(big->getCanvas(), 16, 16, nullptr);
+    lil->draw(big->getCanvas(), 16, 16);
     SkPixmap pixmap;
     if (big->peekPixels(&pixmap)) {
         SkBitmap bigBits;
         bigBits.installPixels(pixmap);
-        canvas->drawBitmap(bigBits, 0, 0);
+        canvas->drawImage(bigBits.asImage(), 0, 0);
     }
 }
 }  // END FIDDLE

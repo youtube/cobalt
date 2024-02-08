@@ -494,10 +494,6 @@ void drawBitmap(const SkBitmap& bitmap, SkScalar left, SkScalar top, const SkPai
 SkCanvas
 void drawBitmapLattice(const SkBitmap& bitmap, const Lattice& lattice, const SkRect& dst, const SkPaint* paint = nullptr);
 
-[Canvas_drawBitmapNine]
-SkCanvas
-void drawBitmapNine(const SkBitmap& bitmap, const SkIRect& center, const SkRect& dst, const SkPaint* paint = nullptr);
-
 [Canvas_drawBitmapRect_2]
 SkCanvas
 void drawBitmapRect(const SkBitmap& bitmap, const SkIRect& isrc, const SkRect& dst, const SkPaint* paint, SrcRectConstraint constraint = kStrict_SrcRectConstraint);
@@ -1004,10 +1000,6 @@ int32_t x() const;
 SkIPoint
 int32_t y() const;
 
-[IRect_EmptyIRect]
-SkIRect
-static const SkIRect& EmptyIRect();
-
 [IRect_Intersects]
 SkIRect
 static bool Intersects(const SkIRect& a, const SkIRect& b);
@@ -1335,7 +1327,7 @@ sk_sp<SkImage> makeSubset(const SkIRect& subset) const;
 
 [Image_makeTextureImage]
 SkImage
-sk_sp<SkImage> makeTextureImage(GrContext* context, SkColorSpace* dstColorSpace, GrMipMapped mipMapped = GrMipMapped::kNo) const;
+sk_sp<SkImage> makeTextureImage(GrContext* context, SkColorSpace* dstColorSpace, GrMipmapped mipMapped = GrMipmapped::kNo) const;
 
 [Image_makeWithFilter]
 SkImage
@@ -2010,10 +2002,6 @@ int countText(const void* text, size_t byteLength) const;
 SkPaint
 uint8_t getAlpha() const;
 
-[Paint_getBlendMode]
-SkPaint
-SkBlendMode getBlendMode() const;
-
 [Paint_getColor]
 SkPaint
 SkColor getColor() const;
@@ -2025,10 +2013,6 @@ SkColor4f getColor4f() const;
 [Paint_getColorFilter]
 SkPaint
 SkColorFilter* getColorFilter() const;
-
-[Paint_getDrawLooper]
-SkPaint
-SkDrawLooper* getDrawLooper() const;
 
 [Paint_getFillPath_2]
 [Shader_Methods_a]
@@ -2055,10 +2039,6 @@ SkScalar getFontMetrics(SkFontMetrics* metrics) const;
 [Paint_getFontSpacing]
 SkPaint
 SkScalar getFontSpacing() const;
-
-[Paint_getHash]
-SkPaint
-uint32_t getHash() const;
 
 [Paint_getHinting]
 SkPaint
@@ -2200,10 +2180,6 @@ bool operator==(const SkPaint& a, const SkPaint& b);
 SkPaint
 sk_sp<SkColorFilter> refColorFilter() const;
 
-[Paint_refDrawLooper]
-SkPaint
-sk_sp<SkDrawLooper> refDrawLooper() const;
-
 [Paint_refImageFilter]
 SkPaint
 sk_sp<SkImageFilter> refImageFilter() const;
@@ -2270,11 +2246,6 @@ void setColorFilter(sk_sp<SkColorFilter> colorFilter);
 SkPaint
 void setDither(bool dither);
 
-[Paint_setDrawLooper]
-[Text_Size]
-SkPaint
-void setDrawLooper(sk_sp<SkDrawLooper> drawLooper);
-
 [Paint_setEmbeddedBitmapText]
 SkPaint
 void setEmbeddedBitmapText(bool useEmbeddedBitmapText);
@@ -2297,11 +2268,6 @@ void setFlags(uint32_t flags);
 [Paint_setHinting]
 SkPaint
 void setHinting(SkFontHinting hintingLevel);
-
-[Draw_Looper_Methods]
-[Paint_setImageFilter]
-SkPaint
-void setImageFilter(sk_sp<SkImageFilter> imageFilter);
 
 [Paint_setLCDRenderText]
 SkPaint
@@ -2532,7 +2498,6 @@ SkPath
 SkPath& conicTo(const SkPoint& p1, const SkPoint& p2, SkScalar w);
 
 [Path_Iter_conicWeight]
-[Path_RawIter_conicWeight]
 SkPath
 SkScalar conicWeight() const;
 
@@ -2725,10 +2690,6 @@ SkPath& moveTo(SkScalar x, SkScalar y);
 SkPath
 SkPath& moveTo(const SkPoint& p);
 
-[Path_RawIter_next]
-SkPath
-Verb next(SkPoint pts[4]);
-
 [Path_Iter_next]
 SkPath
 Verb next(SkPoint pts[4], bool doConsumeDegenerates = true, bool exact = false);
@@ -2752,10 +2713,6 @@ SkPath& operator=(const SkPath& path);
 [Path_equal_operator]
 SkPath
 bool operator==(const SkPath& a, const SkPath& b);
-
-[Path_RawIter_peek]
-SkPath
-Verb peek() const;
 
 [Path_quadTo]
 SkPath
@@ -3936,10 +3893,6 @@ SkRegion
 [Surface_MakeFromBackendTexture]
 SkSurface
 static sk_sp<SkSurface> MakeFromBackendTexture(GrContext* context, const GrBackendTexture& backendTexture, GrSurfaceOrigin origin, int sampleCnt, SkColorType colorType, sk_sp<SkColorSpace> colorSpace, const SkSurfaceProps* surfaceProps);
-
-[Surface_MakeFromBackendTextureAsRenderTarget]
-SkSurface
-static sk_sp<SkSurface> MakeFromBackendTextureAsRenderTarget(GrContext* context, const GrBackendTexture& backendTexture, GrSurfaceOrigin origin, int sampleCnt, SkColorType colorType, sk_sp<SkColorSpace> colorSpace, const SkSurfaceProps* surfaceProps);
 
 [Surface_MakeNull]
 SkSurface

@@ -7,8 +7,8 @@
 
 #include "include/core/SkString.h"
 #include "include/gpu/GrContextOptions.h"
+#include "include/private/SkSLString.h"
 #include "src/gpu/GrShaderUtils.h"
-#include "src/sksl/SkSLString.h"
 
 namespace GrShaderUtils {
 
@@ -189,26 +189,33 @@ SkSL::String PrettyPrint(const SkSL::String& string) {
     return pp.prettify(string);
 }
 
-// Prints shaders one line at the time. This ensures they don't get truncated by the adb log.
-void PrintLineByLine(const char* header, const SkSL::String& text) {
-    if (header) {
-        SkDebugf("%s\n", header);
-    }
+void VisitLineByLine(const SkSL::String& text,
+                     const std::function<void(int lineNumber, const char* lineText)>& visitFn) {
     SkTArray<SkString> lines;
     SkStrSplit(text.c_str(), "\n", kStrict_SkStrSplitMode, &lines);
     for (int i = 0; i < lines.count(); ++i) {
-        SkDebugf("%4i\t%s\n", i + 1, lines[i].c_str());
+        visitFn(i + 1, lines[i].c_str());
     }
+}
+
+SkSL::String BuildShaderErrorMessage(const char* shader, const char* errors) {
+    SkSL::String abortText{"Shader compilation error\n"
+                           "------------------------\n"};
+    VisitLineByLine(shader, [&](int lineNumber, const char* lineText) {
+        abortText.appendf("%4i\t%s\n", lineNumber, lineText);
+    });
+    abortText.appendf("Errors:\n%s", errors);
+    return abortText;
 }
 
 GrContextOptions::ShaderErrorHandler* DefaultShaderErrorHandler() {
     class GrDefaultShaderErrorHandler : public GrContextOptions::ShaderErrorHandler {
     public:
         void compileError(const char* shader, const char* errors) override {
-            SkDebugf("Shader compilation error\n"
-                     "------------------------\n");
-            PrintLineByLine(nullptr, shader);
-            SkDebugf("Errors:\n%s\n", errors);
+            SkSL::String message = BuildShaderErrorMessage(shader, errors);
+            VisitLineByLine(message, [](int, const char* lineText) {
+                SkDebugf("%s\n", lineText);
+            });
             SkDEBUGFAIL("Shader compilation failed!");
         }
     };
@@ -217,4 +224,14 @@ GrContextOptions::ShaderErrorHandler* DefaultShaderErrorHandler() {
     return &gHandler;
 }
 
-}  // namespace
+void PrintShaderBanner(SkSL::ProgramKind programKind) {
+    const char* typeName = "Unknown";
+    switch (programKind) {
+        case SkSL::ProgramKind::kVertex:   typeName = "Vertex";   break;
+        case SkSL::ProgramKind::kFragment: typeName = "Fragment"; break;
+        default: break;
+    }
+    SkDebugf("---- %s shader ----------------------------------------------------\n", typeName);
+}
+
+}  // namespace GrShaderUtils

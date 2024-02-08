@@ -6,77 +6,19 @@
  */
 
 #include "gm/gm.h"
+#include "include/core/SkBitmap.h"
 #include "include/core/SkBlendMode.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkColor.h"
 #include "include/core/SkMatrix.h"
 #include "include/core/SkPaint.h"
-#include "include/core/SkPath.h"
+#include "include/core/SkPathBuilder.h"
 #include "include/core/SkRect.h"
 #include "include/core/SkScalar.h"
 #include "include/core/SkSize.h"
 #include "include/core/SkString.h"
 #include "src/core/SkCanvasPriv.h"
 #include "tools/ToolUtils.h"
-
-static void do_draw(SkCanvas* canvas, const SkRect& r) {
-    SkPaint paint;
-    paint.setBlendMode(SkBlendMode::kSrc);
-    paint.setColor(0x800000FF);
-    canvas->drawRect(r, paint);
-}
-
-/**
- *  Exercise SkCanvasPriv::kDontClipToLayer_SaveLayerFlag flag, which does not limit the clip to the
- *  layer's bounds. Thus when a draw occurs, it can (depending on "where" it is) draw into the layer
- *  and/or draw onto the surrounding portions of the canvas, or both.
- *
- *  This GM has a 100x100 rectangle (r), which its going to draw. However first it creates a layer
- *  with this flag covering 1/2 of the rectangle (upper half). Then it draws the rect in SRC mode.
- *
- *  The portion of the draw that intersects the layer should see the SRC draw, apply it to the layer
- *  and then during restore, it will SRC_OVER that layer onto the canvas (SRC_OVER since the layer
- *  has no paint, so it gets the default xfermode during restore).
- *
- *  Note: when we talk about drawing directly into the "canvas", in fact we are drawing into an
- *        "outer" layer we created (filled with red). This is a testing detail, so that our final
- *        output image is itself opaque, otherwise we make it harder to view the GM as a PNG.
- *
- *  The portion of the draw below the layer draws directly into the canvas. Since it is in SRC mode,
- *  it will write 0x80 to the canvas' alpha, overwriting the "red", which then gets blended with
- *  the GM's white background.
- *
- *  The portion in the layer, will end up SRC_OVERing the 0x80 layer pixels onto the canvas' red
- *  pixels, making magenta.
- *
- *  Thus the expected result is the upper half to be magenta 0xFF7F0080, and the lower half to be
- *  light blue 0xFF7F7FFF.
- */
-DEF_SIMPLE_GM(dont_clip_to_layer, canvas, 120, 120) {
-    const SkRect r { 10, 10, 110, 110 };
-
-    // Wrap the entire test inside a red layer, so we don't punch the actual gm's alpha with
-    // kSrc_Mode, which makes it hard to view (we like our GMs to have opaque pixels).
-    canvas->saveLayer(&r, nullptr);
-    canvas->drawColor(SK_ColorRED);
-
-    SkRect r0 = { 20, 20, 100, 55 };
-    SkRect r1 = { 20, 65, 100, 100 };
-
-    SkCanvas::SaveLayerRec rec;
-    rec.fPaint = nullptr;
-    rec.fBounds = &r0;
-    rec.fBackdrop = nullptr;
-    rec.fSaveLayerFlags = SkCanvasPriv::kDontClipToLayer_SaveLayerFlag;
-    canvas->saveLayer(rec);
-    rec.fBounds = &r1;
-    canvas->saveLayer(rec);
-    do_draw(canvas, r);
-    canvas->restore();
-    canvas->restore();
-
-    canvas->restore();  // red-layer
-}
 
 /** Draw a 2px border around the target, then red behind the target;
     set the clip to match the target, then draw >> the target in blue.
@@ -159,17 +101,9 @@ DEF_SIMPLE_GM(aaclip, canvas, 240, 120) {
 #ifdef SK_BUILD_FOR_MAC
 
 #include "include/utils/mac/SkCGUtils.h"
-#include "src/core/SkMakeUnique.h"
 
 static std::unique_ptr<SkCanvas> make_canvas(const SkBitmap& bm) {
-    const SkImageInfo& info = bm.info();
-    if (info.bytesPerPixel() == 4) {
-        return SkCanvas::MakeRasterDirectN32(info.width(), info.height(),
-                                             (SkPMColor*)bm.getPixels(),
-                                             bm.rowBytes());
-    } else {
-        return skstd::make_unique<SkCanvas>(bm);
-    }
+    return SkCanvas::MakeRasterDirect(bm.info(), bm.getPixels(), bm.rowBytes());
 }
 
 static void test_image(SkCanvas* canvas, const SkImageInfo& info) {
@@ -186,13 +120,13 @@ static void test_image(SkCanvas* canvas, const SkImageInfo& info) {
     paint.setAntiAlias(true);
     paint.setColor(SK_ColorBLUE);
     make_canvas(bm)->drawCircle(50, 50, 49, paint);
-    canvas->drawBitmap(bm, 10, 10);
+    canvas->drawImage(bm.asImage(), 10, 10);
 
     CGImageRef image = SkCreateCGImageRefWithColorspace(bm, nullptr);
 
     SkBitmap bm2;
     SkCreateBitmapFromCGImage(&bm2, image);
-    canvas->drawBitmap(bm2, 10, 120);
+    canvas->drawImage(bm2.asImage(), 10, 120);
     canvas->drawImage(SkMakeImageFromCGImage(image), 10, 120 + bm2.height() + 10);
 
     CGImageRelease(image);
@@ -233,12 +167,13 @@ class ClipCubicGM : public skiagm::GM {
     SkPath fVPath, fHPath;
 public:
     ClipCubicGM() {
-        fVPath.moveTo(W, 0);
-        fVPath.cubicTo(W, H-10, 0, 10, 0, H);
+        fVPath = SkPathBuilder().moveTo(W, 0)
+                                .cubicTo(W, H-10, 0, 10, 0, H)
+                                .detach();
 
         SkMatrix pivot;
         pivot.setRotate(90, W/2, H/2);
-        fVPath.transform(pivot, &fHPath);
+        fHPath = fVPath.makeTransform(pivot);
     }
 
 protected:
@@ -287,6 +222,6 @@ protected:
     }
 
 private:
-    typedef skiagm::GM INHERITED;
+    using INHERITED = skiagm::GM;
 };
 DEF_GM(return new ClipCubicGM;)

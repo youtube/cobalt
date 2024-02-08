@@ -7,7 +7,9 @@
 
 #include "src/utils/SkPatchUtils.h"
 
+#include "include/core/SkVertices.h"
 #include "include/private/SkColorData.h"
+#include "include/private/SkTPin.h"
 #include "include/private/SkTo.h"
 #include "src/core/SkArenaAlloc.h"
 #include "src/core/SkColorSpacePriv.h"
@@ -44,7 +46,7 @@ namespace {
         kBottomRight_Corner,
         kBottomLeft_Corner
     };
-}
+}  // namespace
 
 /**
  * Evaluator to sample the values of a cubic bezier using forward differences.
@@ -182,10 +184,10 @@ SkISize SkPatchUtils::GetLevelOfDetail(const SkPoint cubics[12], const SkMatrix*
     }
 
     // Level of detail per axis, based on the larger side between top and bottom or left and right
-    int lodX = static_cast<int>(SkMaxScalar(topLength, bottomLength) / kPartitionSize);
-    int lodY = static_cast<int>(SkMaxScalar(leftLength, rightLength) / kPartitionSize);
+    int lodX = static_cast<int>(std::max(topLength, bottomLength) / kPartitionSize);
+    int lodY = static_cast<int>(std::max(leftLength, rightLength) / kPartitionSize);
 
-    return SkISize::Make(SkMax32(8, lodX), SkMax32(8, lodY));
+    return SkISize::Make(std::max(8, lodX), std::max(8, lodY));
 }
 
 void SkPatchUtils::GetTopCubic(const SkPoint cubics[12], SkPoint points[4]) {
@@ -221,7 +223,7 @@ static void skcolor_to_float(SkPMColor4f* dst, const SkColor* src, int count, Sk
                                             kUnpremul_SkAlphaType, SkColorSpace::MakeSRGB());
     SkImageInfo dstInfo = SkImageInfo::Make(count, 1, kRGBA_F32_SkColorType,
                                             kPremul_SkAlphaType, sk_ref_sp(dstCS));
-    SkConvertPixels(dstInfo, dst, 0, srcInfo, src, 0);
+    SkAssertResult(SkConvertPixels(dstInfo, dst, 0, srcInfo, src, 0));
 }
 
 static void float_to_skcolor(SkColor* dst, const SkPMColor4f* src, int count, SkColorSpace* srcCS) {
@@ -229,7 +231,7 @@ static void float_to_skcolor(SkColor* dst, const SkPMColor4f* src, int count, Sk
                                             kPremul_SkAlphaType, sk_ref_sp(srcCS));
     SkImageInfo dstInfo = SkImageInfo::Make(count, 1, kBGRA_8888_SkColorType,
                                             kUnpremul_SkAlphaType, SkColorSpace::MakeSRGB());
-    SkConvertPixels(dstInfo, dst, 0, srcInfo, src, 0);
+    SkAssertResult(SkConvertPixels(dstInfo, dst, 0, srcInfo, src, 0));
 }
 
 sk_sp<SkVertices> SkPatchUtils::MakeVertices(const SkPoint cubics[12], const SkColor srcColors[4],
@@ -357,9 +359,9 @@ sk_sp<SkVertices> SkPatchUtils::MakeVertices(const SkPoint cubics[12], const SkC
                 indices[i + 4] = indices[i + 2];
                 indices[i + 5] = (x + 1) * stride + y;
             }
-            v = SkScalarClampMax(v + 1.f / lodY, 1);
+            v = SkTPin(v + 1.f / lodY, 0.0f, 1.0f);
         }
-        u = SkScalarClampMax(u + 1.f / lodX, 1);
+        u = SkTPin(u + 1.f / lodX, 0.0f, 1.0f);
     }
 
     if (tmpColors) {

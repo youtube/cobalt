@@ -49,11 +49,23 @@ class PerlinNoiseGM : public skiagm::GM {
               float baseFrequencyX, float baseFrequencyY, int numOctaves, float seed,
               bool stitchTiles) {
         SkISize tileSize = SkISize::Make(fSize.width() / 2, fSize.height() / 2);
-        sk_sp<SkShader> shader = (type == Type::kFractalNoise) ?
-            SkPerlinNoiseShader::MakeFractalNoise(baseFrequencyX, baseFrequencyY, numOctaves,
-                                                  seed, stitchTiles ? &tileSize : nullptr) :
-            SkPerlinNoiseShader::MakeTurbulence(baseFrequencyX, baseFrequencyY, numOctaves,
-                                                seed, stitchTiles ? &tileSize : nullptr);
+        sk_sp<SkShader> shader;
+        switch (type) {
+            case Type::kFractalNoise:
+                shader = SkPerlinNoiseShader::MakeFractalNoise(baseFrequencyX,
+                                                               baseFrequencyY,
+                                                               numOctaves,
+                                                               seed,
+                                                               stitchTiles ? &tileSize : nullptr);
+                break;
+            case Type::kTurbulence:
+                shader = SkPerlinNoiseShader::MakeTurbulence(baseFrequencyX,
+                                                             baseFrequencyY,
+                                                             numOctaves,
+                                                             seed,
+                                                             stitchTiles ? &tileSize : nullptr);
+                break;
+        }
         SkPaint paint;
         paint.setShader(std::move(shader));
         if (stitchTiles) {
@@ -100,7 +112,7 @@ class PerlinNoiseGM : public skiagm::GM {
     }
 
 private:
-    typedef GM INHERITED;
+    using INHERITED = GM;
 };
 
 class PerlinNoiseGM2 : public skiagm::GM {

@@ -8,7 +8,7 @@
 #include "gm/gm.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkPaint.h"
-#include "include/core/SkPath.h"
+#include "include/core/SkPathBuilder.h"
 
 // crbug.com/982968
 // Intended to draw a curvy triangle.
@@ -18,25 +18,25 @@
 // The fix was to use doubles for this part of the calc in SkPath::arcTo().
 //
 DEF_SIMPLE_GM(shallow_angle_path_arcto, canvas, 300, 300) {
-    SkPath path;
+    SkPathBuilder path;
     SkPaint paint;
     paint.setStyle(SkPaint::kStroke_Style);
 
-    path.moveTo(313.44189096331155f, 106.6009423589212f);
-    path.arcTo(284.3113082008462f, 207.1407719157063f,
-               255.15053777129728f, 307.6718505416374f,
-               697212.0011054524f);
-    path.lineTo(255.15053777129728f, 307.6718505416374f);
-    path.arcTo(340.4737465981018f, 252.6907319346971f,
-               433.54333477716153f, 212.18116363345337f,
-               1251.2484277907251f);
-    path.lineTo(433.54333477716153f, 212.18116363345337f);
-    path.arcTo(350.19513833839466f, 185.89280014838369f,
-               313.44189096331155f, 106.6009423589212f,
+    path.moveTo(313.44189096331155f, 106.6009423589212f)
+        .arcTo({284.3113082008462f, 207.1407719157063f},
+               {255.15053777129728f, 307.6718505416374f},
+               697212.0011054524f)
+        .lineTo(255.15053777129728f, 307.6718505416374f)
+        .arcTo({340.4737465981018f, 252.6907319346971f},
+               {433.54333477716153f, 212.18116363345337f},
+               1251.2484277907251f)
+        .lineTo(433.54333477716153f, 212.18116363345337f)
+        .arcTo({350.19513833839466f, 185.89280014838369f},
+               {313.44189096331155f, 106.6009423589212f},
                198.03116885327813f);
 
     canvas->translate(-200, -50);
-    canvas->drawPath(path, paint);
+    canvas->drawPath(path.detach(), paint);
 };
 
 #include "include/utils/SkParsePath.h"
@@ -55,4 +55,79 @@ DEF_SIMPLE_GM(arcto_skbug_9272, canvas, 150, 150) {
     canvas->translate(30, 30);
     canvas->drawPath(path, paint);
     canvas->drawPath(path2, paint);
+}
+
+static SkPath old_school_polygon(const SkPoint pts[], size_t count, bool isClosed) {
+    SkPath path;
+    path.addPoly(pts, count, isClosed);
+    return path;
+}
+
+static SkPath new_school_polygon(const SkPoint pts[], size_t count, bool isClosed) {
+    return SkPath::Polygon(pts, count, isClosed);
+}
+
+DEF_SIMPLE_GM(path_append_extend, canvas, 400, 400) {
+    const SkPoint p0[] = {
+        { 10, 30 }, {30, 10}, {50, 30},
+    };
+    const SkPoint p1[] = {
+        { 10, 50 }, {30, 70}, {50, 50},
+    };
+
+    const SkPath path1 = SkPath::Polygon(p1, SK_ARRAY_COUNT(p1), false);
+
+    SkPaint paint;
+    paint.setStroke(true);
+    paint.setStrokeWidth(9);
+    paint.setAntiAlias(true);
+
+    // addPath() sometimes checks for perspective, so we want to test that
+    const SkScalar x = 0.0001f; // tiny amount of perspective
+    const SkMatrix perspective = SkMatrix::MakeAll(1, 0, 0,
+                                                   0, 1, 0,
+                                                   x, 0, 1);
+
+    for (bool isClosed : {false, true}) {
+        for (auto proc : {old_school_polygon, new_school_polygon}) {
+            canvas->save();
+
+            SkPath path0 = proc(p0, SK_ARRAY_COUNT(p0), isClosed);
+
+            canvas->drawPath(path0, paint);
+            canvas->drawPath(path1, paint);
+
+            canvas->translate(80, 0);
+            {
+                SkPath path = path0;
+                path.addPath(path1, SkPath::kAppend_AddPathMode);
+                canvas->drawPath(path, paint);
+            }
+
+            canvas->translate(80, 0);
+            {
+                SkPath path = path0;
+                path.addPath(path1, perspective, SkPath::kAppend_AddPathMode);
+                canvas->drawPath(path, paint);
+            }
+
+            canvas->translate(80, 0);
+            {
+                SkPath path = path0;
+                path.addPath(path1, SkPath::kExtend_AddPathMode);
+                canvas->drawPath(path, paint);
+            }
+
+            canvas->translate(80, 0);
+            {
+                SkPath path = path0;
+                path.addPath(path1, perspective, SkPath::kExtend_AddPathMode);
+                canvas->drawPath(path, paint);
+            }
+
+            canvas->restore();
+            canvas->translate(0, 100);
+        }
+    }
+
 }

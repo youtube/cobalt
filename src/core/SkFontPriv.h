@@ -11,6 +11,7 @@
 #include "include/core/SkFont.h"
 #include "include/core/SkMatrix.h"
 #include "include/core/SkTypeface.h"
+#include "include/private/SkTemplates.h"
 
 class SkReadBuffer;
 class SkWriteBuffer;
@@ -31,13 +32,13 @@ public:
      *  constraints, but since we ask for unhinted paths, the two values
      *  need not match per-se.
      */
-    static constexpr int kCanonicalTextSizeForPaths  = 64;
+    inline static constexpr int kCanonicalTextSizeForPaths  = 64;
 
     /**
      *  Return a matrix that applies the paint's text values: size, scale, skew
      */
     static SkMatrix MakeTextMatrix(SkScalar size, SkScalar scaleX, SkScalar skewX) {
-        SkMatrix m = SkMatrix::MakeScale(size * scaleX, size);
+        SkMatrix m = SkMatrix::Scale(size * scaleX, size);
         if (skewX) {
             m.postSkew(skewX, 0);
         }
@@ -88,6 +89,9 @@ public:
             fCount = length >> 1;
         } else {
             fCount = font.countText(text, length, encoding);
+            if (fCount < 0) {
+                fCount = 0;
+            }
             fStorage.reset(fCount);
             font.textToGlyphs(text, length, encoding, fStorage.get(), fCount);
             fGlyphs = fStorage.get();

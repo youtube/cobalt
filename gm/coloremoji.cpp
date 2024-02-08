@@ -34,7 +34,7 @@
 #include <utility>
 
 /*
- * Spits out a dummy gradient to test blur with shader on paint
+ * Spits out an arbitrary gradient to test blur with shader on paint
  */
 static sk_sp<SkShader> MakeLinear() {
     constexpr SkPoint     kPts[] = { { 0, 0 }, { 32, 32 } };
@@ -75,7 +75,7 @@ protected:
         sk_sp<SkTypeface> typeface;
         const char* text;
     } emojiFont;
-    virtual void onOnceBeforeDraw() override {
+    void onOnceBeforeDraw() override {
         emojiFont.typeface = ToolUtils::emoji_typeface();
         emojiFont.text     = ToolUtils::emoji_sample_text();
     }
@@ -191,11 +191,11 @@ protected:
         }
     }
 
-    typedef GM INHERITED;
+    using INHERITED = GM;
 };
 
 //////////////////////////////////////////////////////////////////////////////
 
 DEF_GM(return new ColorEmojiGM;)
 
-}
+}  // namespace skiagm
