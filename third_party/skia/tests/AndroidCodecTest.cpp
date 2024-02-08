@@ -160,7 +160,7 @@ DEF_TEST(AndroidCodec_wide, r) {
         return;
     }
 
-    auto expected = SkColorSpace::MakeRGB(SkNamedTransferFn::kSRGB, SkNamedGamut::kDCIP3);
+    auto expected = SkColorSpace::MakeRGB(SkNamedTransferFn::kSRGB, SkNamedGamut::kDisplayP3);
     REPORTER_ASSERT(r, SkColorSpace::Equals(cs.get(), expected.get()));
 }
 
@@ -201,101 +201,4 @@ DEF_TEST(AndroidCodec_P3, r) {
         { 0.0116729736f, 0.0950927734f, 0.71812439f   },
     }};
     REPORTER_ASSERT(r, 0 == memcmp(&matrix, &kExpected, sizeof(skcms_Matrix3x3)));
-}
-
-DEF_TEST(AndroidCodec_orientation, r) {
-    if (GetResourcePath().isEmpty()) {
-        return;
-    }
-
-    for (const char* ext : { "jpg", "webp" })
-    for (char i = '1'; i <= '8'; ++i) {
-        SkString path = SkStringPrintf("images/orientation/%c.%s", i, ext);
-        auto data = GetResourceAsData(path.c_str());
-        auto gen = SkCodecImageGenerator::MakeFromEncodedCodec(data);
-        if (!gen) {
-            ERRORF(r, "failed to decode %s", path.c_str());
-            return;
-        }
-
-        // Dimensions after adjusting for the origin.
-        const SkISize expectedDims = { 100, 80 };
-
-        // SkCodecImageGenerator automatically adjusts for the origin.
-        REPORTER_ASSERT(r, gen->getInfo().dimensions() == expectedDims);
-
-        auto androidCodec = SkAndroidCodec::MakeFromCodec(SkCodec::MakeFromData(data));
-        if (!androidCodec) {
-            ERRORF(r, "failed to decode %s", path.c_str());
-            return;
-        }
-
-        // SkAndroidCodec does not adjust for the origin by default. Dimensions may be reversed.
-        if (SkPixmapPriv::ShouldSwapWidthHeight(androidCodec->codec()->getOrigin())) {
-            auto swappedDims = SkPixmapPriv::SwapWidthHeight(androidCodec->getInfo()).dimensions();
-            REPORTER_ASSERT(r, expectedDims == swappedDims);
-        } else {
-            REPORTER_ASSERT(r, expectedDims == androidCodec->getInfo().dimensions());
-        }
-
-        // Passing kRespect adjusts for the origin.
-        androidCodec = SkAndroidCodec::MakeFromCodec(SkCodec::MakeFromData(std::move(data)),
-                SkAndroidCodec::ExifOrientationBehavior::kRespect);
-        auto info = androidCodec->getInfo();
-        REPORTER_ASSERT(r, info.dimensions() == expectedDims);
-
-        SkBitmap fromGenerator;
-        fromGenerator.allocPixels(info);
-        REPORTER_ASSERT(r, gen->getPixels(info, fromGenerator.getPixels(),
-                                          fromGenerator.rowBytes()));
-
-        SkBitmap fromAndroidCodec;
-        fromAndroidCodec.allocPixels(info);
-        auto result = androidCodec->getPixels(info, fromAndroidCodec.getPixels(),
-                                              fromAndroidCodec.rowBytes());
-        REPORTER_ASSERT(r, result == SkCodec::kSuccess);
-
-        for (int i = 0; i < info.width();  ++i)
-        for (int j = 0; j < info.height(); ++j) {
-            SkColor c1 = *fromGenerator   .getAddr32(i, j);
-            SkColor c2 = *fromAndroidCodec.getAddr32(i, j);
-            if (c1 != c2) {
-                ERRORF(r, "Bitmaps for %s do not match starting at position %i, %i\n"
-                          "\tfromGenerator: %x\tfromAndroidCodec: %x", path.c_str(), i, j,
-                          c1, c2);
-                return;
-            }
-        }
-    }
-}
-
-DEF_TEST(AndroidCodec_sampledOrientation, r) {
-    if (GetResourcePath().isEmpty()) {
-        return;
-    }
-
-    // kRightTop_SkEncodedOrigin    = 6, // Rotated 90 CW
-    auto path = "images/orientation/6.jpg";
-    auto data = GetResourceAsData(path);
-    if (!data) {
-        ERRORF(r, "Failed to get resource %s", path);
-        return;
-    }
-
-    auto androidCodec = SkAndroidCodec::MakeFromCodec(SkCodec::MakeFromData(std::move(data)),
-                SkAndroidCodec::ExifOrientationBehavior::kRespect);
-    constexpr int sampleSize = 7;
-    auto sampledDims = androidCodec->getSampledDimensions(sampleSize);
-
-    SkAndroidCodec::AndroidOptions options;
-    options.fSampleSize = sampleSize;
-
-    SkBitmap bm;
-    auto info = androidCodec->getInfo().makeDimensions(sampledDims);
-    bm.allocPixels(info);
-
-    auto result = androidCodec->getAndroidPixels(info, bm.getPixels(), bm.rowBytes(), &options);
-    if (result != SkCodec::kSuccess) {
-        ERRORF(r, "got result \"%s\"\n", SkCodec::ResultToString(result));
-    }
 }

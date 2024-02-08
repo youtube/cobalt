@@ -11,8 +11,10 @@
 #include "include/core/SkMatrix.h"
 #include "include/core/SkRect.h"
 #include "include/core/SkString.h"
-#include "include/gpu/GrGpuResource.h"
-#include "src/gpu/GrNonAtomicRef.h"
+#include "include/gpu/GrRecordingContext.h"
+#include "src/gpu/GrGpuResource.h"
+#include "src/gpu/GrMemoryPool.h"
+#include "src/gpu/GrRecordingContextPriv.h"
 #include "src/gpu/GrTracing.h"
 #include "src/gpu/GrXferProcessor.h"
 #include <atomic>
@@ -20,8 +22,10 @@
 
 class GrAppliedClip;
 class GrCaps;
+class GrDstProxyView;
 class GrOpFlushState;
 class GrOpsRenderPass;
+class GrPaint;
 
 /**
  * GrOp is the base class for all Ganesh deferred GPU operations. To facilitate reordering and to
@@ -65,13 +69,30 @@ class GrOpsRenderPass;
 
 class GrOp : private SkNoncopyable {
 public:
+    using Owner = std::unique_ptr<GrOp>;
+
+    template<typename Op, typename... Args>
+    static Owner Make(GrRecordingContext* context, Args&&... args) {
+        return Owner{new Op(std::forward<Args>(args)...)};
+    }
+
+    template<typename Op, typename... Args>
+    static Owner MakeWithProcessorSet(
+            GrRecordingContext* context, const SkPMColor4f& color,
+            GrPaint&& paint, Args&&... args);
+
+    template<typename Op, typename... Args>
+    static Owner MakeWithExtraMemory(
+            GrRecordingContext* context, size_t extraSize, Args&&... args) {
+        void* bytes = ::operator new(sizeof(Op) + extraSize);
+        return Owner{new (bytes) Op(std::forward<Args>(args)...)};
+    }
+
     virtual ~GrOp() = default;
 
     virtual const char* name() const = 0;
 
-    using VisitProxyFunc = std::function<void(GrSurfaceProxy*, GrMipMapped)>;
-
-    virtual void visitProxies(const VisitProxyFunc&) const {
+    virtual void visitProxies(const GrVisitProxyFunc&) const {
         // This default implementation assumes the op has no proxies
     }
 
@@ -95,7 +116,8 @@ public:
         kCannotCombine
     };
 
-    CombineResult combineIfPossible(GrOp* that, const GrCaps& caps);
+    // The arenas are the same as what was available when the op was created.
+    CombineResult combineIfPossible(GrOp* that, SkArenaAlloc* alloc, const GrCaps& caps);
 
     const SkRect& bounds() const {
         SkASSERT(kUninitialized_BoundsFlag != fBoundsFlags);
@@ -118,18 +140,7 @@ public:
         return SkToBool(fBoundsFlags & kZeroArea_BoundsFlag);
     }
 
-#ifdef SK_DEBUG
-    // All GrOp-derived classes should be allocated in and deleted from a GrMemoryPool
-    void* operator new(size_t size);
-    void operator delete(void* target);
-
-    void* operator new(size_t size, void* placement) {
-        return ::operator new(size, placement);
-    }
-    void operator delete(void* target, void* placement) {
-        ::operator delete(target, placement);
-    }
-#endif
+    void operator delete(void* p) { ::operator delete(p); }
 
     /**
      * Helper for safely down-casting to a GrOp subclass
@@ -159,16 +170,22 @@ public:
      * onPrePrepare must be prepared to handle both cases (when onPrePrepare has been called
      * ahead of time and when it has not been called).
      */
-    void prePrepare(GrRecordingContext* context, GrSurfaceProxyView* dstView, GrAppliedClip* clip,
-                    const GrXferProcessor::DstProxyView& dstProxyView) {
-        this->onPrePrepare(context, dstView, clip, dstProxyView);
+    void prePrepare(GrRecordingContext* context, const GrSurfaceProxyView& dstView,
+                    GrAppliedClip* clip, const GrDstProxyView& dstProxyView,
+                    GrXferBarrierFlags renderPassXferBarriers, GrLoadOp colorLoadOp) {
+        TRACE_EVENT0("skia.gpu", name());
+        this->onPrePrepare(context, dstView, clip, dstProxyView, renderPassXferBarriers,
+                           colorLoadOp);
     }
 
     /**
      * Called prior to executing. The op should perform any resource creation or data transfers
      * necessary before execute() is called.
      */
-    void prepare(GrOpFlushState* state) { this->onPrepare(state); }
+    void prepare(GrOpFlushState* state) {
+        TRACE_EVENT0("skia.gpu", name());
+        this->onPrepare(state);
+    }
 
     /** Issues the op's commands to GrGpu. */
     void execute(GrOpFlushState* state, const SkRect& chainBounds) {
@@ -177,15 +194,12 @@ public:
     }
 
     /** Used for spewing information about ops when debugging. */
-#ifdef SK_DEBUG
-    virtual SkString dumpInfo() const {
-        SkString string;
-        string.appendf("OpBounds: [L: %.2f, T: %.2f, R: %.2f, B: %.2f]\n",
-                       fBounds.fLeft, fBounds.fTop, fBounds.fRight, fBounds.fBottom);
-        return string;
+#if GR_TEST_UTILS
+    virtual SkString dumpInfo() const final {
+        return SkStringPrintf("%s\nOpBounds: [L: %.2f, T: %.2f, R: %.2f, B: %.2f]",
+                              this->onDumpInfo().c_str(), fBounds.fLeft, fBounds.fTop,
+                              fBounds.fRight, fBounds.fBottom);
     }
-#else
-    SkString dumpInfo() const { return SkString("<Op information unavailable>"); }
 #endif
 
     /**
@@ -221,7 +235,7 @@ public:
      * Concatenates two op chains. This op must be a tail and the passed op must be a head. The ops
      * must be of the same subclass.
      */
-    void chainConcat(std::unique_ptr<GrOp>);
+    void chainConcat(GrOp::Owner);
     /** Returns true if this is the head of a chain (including a length 1 chain). */
     bool isChainHead() const { return !fPrevInChain; }
     /** Returns true if this is the tail of a chain (including a length 1 chain). */
@@ -234,7 +248,7 @@ public:
      * Cuts the chain after this op. The returned op is the op that was previously next in the
      * chain or null if this was already a tail.
      */
-    std::unique_ptr<GrOp> cutChain();
+    GrOp::Owner cutChain();
     SkDEBUGCODE(void validateChain(GrOp* expectedTail = nullptr) const);
 
 #ifdef SK_DEBUG
@@ -288,25 +302,30 @@ private:
         return fBounds.joinPossiblyEmptyRect(that.fBounds);
     }
 
-    virtual CombineResult onCombineIfPossible(GrOp*, const GrCaps&) {
+    virtual CombineResult onCombineIfPossible(GrOp*, SkArenaAlloc*, const GrCaps&) {
         return CombineResult::kCannotCombine;
     }
 
     // TODO: the parameters to onPrePrepare mirror GrOpFlushState::OpArgs - fuse the two?
     virtual void onPrePrepare(GrRecordingContext*,
-                              const GrSurfaceProxyView*,
+                              const GrSurfaceProxyView& writeView,
                               GrAppliedClip*,
-                              const GrXferProcessor::DstProxyView&) {}
+                              const GrDstProxyView&,
+                              GrXferBarrierFlags renderPassXferBarriers,
+                              GrLoadOp colorLoadOp) = 0;
     virtual void onPrepare(GrOpFlushState*) = 0;
     // If this op is chained then chainBounds is the union of the bounds of all ops in the chain.
     // Otherwise, this op's bounds.
     virtual void onExecute(GrOpFlushState*, const SkRect& chainBounds) = 0;
+#if GR_TEST_UTILS
+    virtual SkString onDumpInfo() const { return SkString(); }
+#endif
 
     static uint32_t GenID(std::atomic<uint32_t>* idCounter) {
-        uint32_t id = (*idCounter)++;
+        uint32_t id = idCounter->fetch_add(1, std::memory_order_relaxed);
         if (id == 0) {
             SK_ABORT("This should never wrap as it should only be called once for each GrOp "
-                   "subclass.");
+                     "subclass.");
         }
         return id;
     }
@@ -327,7 +346,7 @@ private:
         SkDEBUGCODE(kUninitialized_BoundsFlag   = 0x4)
     };
 
-    std::unique_ptr<GrOp>               fNextInChain;
+    Owner                               fNextInChain{nullptr};
     GrOp*                               fPrevInChain = nullptr;
     const uint16_t                      fClassID;
     uint16_t                            fBoundsFlags;

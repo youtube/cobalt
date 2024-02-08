@@ -10,7 +10,7 @@
 
 #include "src/gpu/GrOpsRenderPass.h"
 
-#include "src/gpu/GrTexturePriv.h"
+#include "src/gpu/GrTexture.h"
 #include "src/gpu/mock/GrMockGpu.h"
 
 class GrMockOpsRenderPass : public GrOpsRenderPass {
@@ -24,30 +24,41 @@ public:
 
     GrGpu* gpu() override { return fGpu; }
     void inlineUpload(GrOpFlushState*, GrDeferredTextureUploadFn&) override {}
-    void insertEventMarker(const char*) override {}
-    void begin() override {
-        if (GrLoadOp::kClear == fColorLoadOp) {
-            this->markRenderTargetDirty();
-        }
-    }
-    void end() override {}
 
     int numDraws() const { return fNumDraws; }
 
 private:
-    void onDraw(const GrProgramInfo&, const GrMesh[], int meshCount,
-                const SkRect& bounds) override {
+    void onBegin() override {
+        if (GrLoadOp::kClear == fColorLoadOp) {
+            this->markRenderTargetDirty();
+        }
+    }
+    bool onBindPipeline(const GrProgramInfo&, const SkRect&) override { return true; }
+    void onSetScissorRect(const SkIRect&) override {}
+    bool onBindTextures(const GrGeometryProcessor&,
+                        const GrSurfaceProxy* const geomProcTextures[],
+                        const GrPipeline&) override {
+        return true;
+    }
+    void onBindBuffers(sk_sp<const GrBuffer> indexBuffer, sk_sp<const GrBuffer> instanceBuffer,
+                       sk_sp<const GrBuffer> vertexBuffer, GrPrimitiveRestart) override {}
+    void onDraw(int, int) override { this->noopDraw(); }
+    void onDrawIndexed(int, int, uint16_t, uint16_t, int) override { this->noopDraw(); }
+    void onDrawInstanced(int, int, int, int) override { this->noopDraw(); }
+    void onDrawIndexedInstanced(int, int, int, int, int) override { this->noopDraw(); }
+    void onDrawIndirect(const GrBuffer*, size_t, int) override { this->noopDraw(); }
+    void onDrawIndexedIndirect(const GrBuffer*, size_t, int) override { this->noopDraw(); }
+    void onClear(const GrScissorState& scissor, std::array<float, 4>) override {
+        this->markRenderTargetDirty();
+    }
+    void onClearStencilClip(const GrScissorState& scissor, bool insideStencilMask) override {}
+    void noopDraw() {
         this->markRenderTargetDirty();
         ++fNumDraws;
     }
-    void onClear(const GrFixedClip&, const SkPMColor4f&) override {
-        this->markRenderTargetDirty();
-    }
-    void onClearStencilClip(const GrFixedClip&, bool insideStencilMask) override {}
-
     void markRenderTargetDirty() {
         if (auto* tex = fRenderTarget->asTexture()) {
-            tex->texturePriv().markMipMapsDirty();
+            tex->markMipmapsDirty();
         }
     }
 
@@ -55,7 +66,7 @@ private:
     GrLoadOp fColorLoadOp;
     int fNumDraws = 0;
 
-    typedef GrOpsRenderPass INHERITED;
+    using INHERITED = GrOpsRenderPass;
 };
 
 #endif

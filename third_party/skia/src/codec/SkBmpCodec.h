@@ -102,8 +102,8 @@ protected:
      * BMPs are typically encoded as BGRA/BGR so this is a more efficient choice
      * than RGBA.
      */
-    static constexpr SkColorType kXformSrcColorType = kBGRA_8888_SkColorType;
-    static constexpr auto kXformSrcColorFormat = skcms_PixelFormat_BGRA_8888;
+    inline static constexpr SkColorType kXformSrcColorType = kBGRA_8888_SkColorType;
+    inline static constexpr auto kXformSrcColorFormat = skcms_PixelFormat_BGRA_8888;
 
 private:
 
@@ -145,7 +145,7 @@ private:
     const size_t                fSrcRowBytes;
     std::unique_ptr<uint32_t[]> fXformBuffer;
 
-    typedef SkCodec INHERITED;
+    using INHERITED = SkCodec;
 };
 
 #endif

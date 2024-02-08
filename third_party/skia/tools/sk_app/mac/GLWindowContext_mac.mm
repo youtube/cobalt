@@ -33,11 +33,13 @@ public:
     void resize(int w, int h) override;
 
 private:
+    void teardownContext();
+
     NSView*              fMainView;
     NSOpenGLContext*     fGLContext;
     NSOpenGLPixelFormat* fPixelFormat;
 
-    typedef GLWindowContext INHERITED;
+    using INHERITED = GLWindowContext;
 };
 
 GLWindowContext_mac::GLWindowContext_mac(const MacWindowInfo& info, const DisplayParams& params)
@@ -51,6 +53,11 @@ GLWindowContext_mac::GLWindowContext_mac(const MacWindowInfo& info, const Displa
 }
 
 GLWindowContext_mac::~GLWindowContext_mac() {
+    teardownContext();
+}
+
+void GLWindowContext_mac::teardownContext() {
+    [NSOpenGLContext clearCurrentContext];
     [fPixelFormat release];
     fPixelFormat = nil;
     [fGLContext release];
@@ -62,7 +69,7 @@ sk_sp<const GrGLInterface> GLWindowContext_mac::onInitializeContext() {
 
     if (!fGLContext) {
         // set up pixel format
-        constexpr int kMaxAttributes = 18;
+        constexpr int kMaxAttributes = 19;
         NSOpenGLPixelFormatAttribute attributes[kMaxAttributes];
         int numAttributes = 0;
         attributes[numAttributes++] = NSOpenGLPFAAccelerated;
@@ -79,6 +86,7 @@ sk_sp<const GrGLInterface> GLWindowContext_mac::onInitializeContext() {
         attributes[numAttributes++] = NSOpenGLPFAStencilSize;
         attributes[numAttributes++] = 8;
         if (fDisplayParams.fMSAASampleCount > 1) {
+            attributes[numAttributes++] = NSOpenGLPFAMultisample;
             attributes[numAttributes++] = NSOpenGLPFASampleBuffers;
             attributes[numAttributes++] = 1;
             attributes[numAttributes++] = NSOpenGLPFASamples;
@@ -103,8 +111,7 @@ sk_sp<const GrGLInterface> GLWindowContext_mac::onInitializeContext() {
             return nullptr;
         }
 
-        // TODO: support Retina displays
-        [fMainView setWantsBestResolutionOpenGLSurface:NO];
+        [fMainView setWantsBestResolutionOpenGLSurface:YES];
         [fGLContext setView:fMainView];
     }
 
@@ -125,12 +132,11 @@ sk_sp<const GrGLInterface> GLWindowContext_mac::onInitializeContext() {
     GLint sampleCount;
     [fPixelFormat getValues:&sampleCount forAttribute:NSOpenGLPFASamples forVirtualScreen:0];
     fSampleCount = sampleCount;
-    fSampleCount = SkTMax(fSampleCount, 1);
+    fSampleCount = std::max(fSampleCount, 1);
 
-    const NSRect viewportRect = [fMainView frame];
-    fWidth = viewportRect.size.width;
-    fHeight = viewportRect.size.height;
-
+    CGFloat backingScaleFactor = sk_app::GetBackingScaleFactor(fMainView);
+    fWidth = fMainView.bounds.size.width * backingScaleFactor;
+    fHeight = fMainView.bounds.size.height * backingScaleFactor;
     glViewport(0, 0, fWidth, fHeight);
 
     return GrGLMakeNativeInterface();
@@ -139,10 +145,7 @@ sk_sp<const GrGLInterface> GLWindowContext_mac::onInitializeContext() {
 void GLWindowContext_mac::onDestroyContext() {
     // We only need to tear down the GLContext if we've changed the sample count.
     if (fGLContext && fSampleCount != fDisplayParams.fMSAASampleCount) {
-        [fPixelFormat release];
-        fPixelFormat = nil;
-        [fGLContext release];
-        fGLContext = nil;
+        teardownContext();
     }
 }
 
@@ -152,7 +155,9 @@ void GLWindowContext_mac::onSwapBuffers() {
 
 void GLWindowContext_mac::resize(int w, int h) {
     [fGLContext update];
-    INHERITED::resize(w, h);
+
+    // The super class always recreates the context.
+    INHERITED::resize(0, 0);
 }
 
 

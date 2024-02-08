@@ -50,26 +50,24 @@ public:
 
             (void) m2.setPolyToPoly((const SkPoint*)src1, (SkPoint*)dst1, 4);
 
-            {
-                const SkPoint src[] = {
-                    { SkIntToScalar(1), SkIntToScalar(0) },
-                    { SkIntToScalar(4), SkIntToScalar(7) },
-                    { SkIntToScalar(10), SkIntToScalar(2) }
-                };
-                const SkPoint dst[] = {
-                    { SkIntToScalar(4), SkIntToScalar(2) },
-                    { SkIntToScalar(45), SkIntToScalar(26) },
-                    { SkIntToScalar(32), SkIntToScalar(17) }
-                };
+            const SkPoint src2[] = {
+                { SkIntToScalar(1), SkIntToScalar(0) },
+                { SkIntToScalar(4), SkIntToScalar(7) },
+                { SkIntToScalar(10), SkIntToScalar(2) }
+            };
+            const SkPoint dst2[] = {
+                { SkIntToScalar(4), SkIntToScalar(2) },
+                { SkIntToScalar(45), SkIntToScalar(26) },
+                { SkIntToScalar(32), SkIntToScalar(17) }
+            };
 
-                SkMatrix m0;
-                m0.setPolyToPoly(src, dst, 3);
-            }
+            SkMatrix m0;
+            m0.setPolyToPoly(src2, dst2, 3);
         }
     }
 
 protected:
-    virtual SkString name() { return SkString("PolyToPolyView"); }
+    SkString name() override { return SkString("PolyToPolyView"); }
 
     static void doDraw(SkCanvas* canvas, SkPaint* paint, const SkFont& font, const int isrc[],
                        const int idst[], int count) {
@@ -105,7 +103,7 @@ protected:
         canvas->restore();
     }
 
-    virtual void onDrawContent(SkCanvas* canvas) {
+    void onDrawContent(SkCanvas* canvas) override {
         SkPaint paint;
         paint.setAntiAlias(true);
         paint.setStrokeWidth(SkIntToScalar(4));
@@ -147,7 +145,7 @@ protected:
     }
 
 private:
-    typedef Sample INHERITED;
+    using INHERITED = Sample;
 };
 
 //////////////////////////////////////////////////////////////////////////////

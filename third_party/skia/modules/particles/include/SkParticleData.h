@@ -9,7 +9,6 @@
 #define SkParticleData_DEFINED
 
 #include "include/private/SkTemplates.h"
-#include "include/utils/SkRandom.h"
 
 /*
  *  Various structs used to communicate particle information among emitters, affectors, etc.
@@ -32,13 +31,12 @@ struct SkParticles {
         kColorB,
         kColorA,
         kSpriteFrame,
-        kFlags,       // This is the only non-float data (it's actually uint32_t)
+        kRandom,
 
         kNumChannels,
     };
 
     SkAutoTMalloc<float>    fData[kNumChannels];
-    SkAutoTMalloc<SkRandom> fRandom;
 };
 
 #endif // SkParticleData_DEFINED

@@ -17,8 +17,8 @@
 #include "include/utils/SkRandom.h"
 
 #if SK_SUPPORT_GPU
-#include "include/gpu/GrContext.h"
-#include "src/gpu/GrContextPriv.h"
+#include "include/gpu/GrDirectContext.h"
+#include "src/gpu/GrDirectContextPriv.h"
 #endif
 
 static sk_sp<SkTypeface> chinese_typeface() {
@@ -38,8 +38,8 @@ static sk_sp<SkTypeface> chinese_typeface() {
 }
 
 class ChineseFlingView : public Sample {
-    static constexpr int kNumBlobs = 200;
-    static constexpr int kWordLength = 16;
+    inline static constexpr int kNumBlobs = 200;
+    inline static constexpr int kWordLength = 16;
 
     sk_sp<SkTypeface>    fTypeface;
     SkFontMetrics        fMetrics;
@@ -103,8 +103,8 @@ class ChineseFlingView : public Sample {
 };
 
 class ChineseZoomView : public Sample {
-    static constexpr int kNumBlobs = 8;
-    static constexpr int kParagraphLength = 175;
+    inline static constexpr int kNumBlobs = 8;
+    inline static constexpr int kParagraphLength = 175;
 
     bool                 fAfterFirstFrame = false;
     sk_sp<SkTypeface>    fTypeface;
@@ -137,24 +137,28 @@ class ChineseZoomView : public Sample {
 
         if (fAfterFirstFrame) {
 #if SK_SUPPORT_GPU
-            GrContext* grContext = canvas->getGrContext();
-            if (grContext) {
-                sk_sp<SkImage> image = grContext->priv().testingOnly_getFontAtlasImage(
+            auto direct = GrAsDirectContext(canvas->recordingContext());
+            if (direct) {
+                sk_sp<SkImage> image = direct->priv().testingOnly_getFontAtlasImage(
                             GrMaskFormat::kA8_GrMaskFormat, 0);
                 canvas->drawImageRect(image,
-                                      SkRect::MakeXYWH(10.0f, 10.0f, 512.0f, 512.0), &paint);
-                image = grContext->priv().testingOnly_getFontAtlasImage(
+                                      SkRect::MakeXYWH(10.0f, 10.0f, 512.0f, 512.0),
+                                      SkSamplingOptions(), &paint);
+                image = direct->priv().testingOnly_getFontAtlasImage(
                         GrMaskFormat::kA8_GrMaskFormat, 1);
                 canvas->drawImageRect(image,
-                                      SkRect::MakeXYWH(522.0f, 10.0f, 512.f, 512.0f), &paint);
-                image = grContext->priv().testingOnly_getFontAtlasImage(
+                                      SkRect::MakeXYWH(522.0f, 10.0f, 512.f, 512.0f),
+                                      SkSamplingOptions(), &paint);
+                image = direct->priv().testingOnly_getFontAtlasImage(
                         GrMaskFormat::kA8_GrMaskFormat, 2);
                 canvas->drawImageRect(image,
-                                      SkRect::MakeXYWH(10.0f, 522.0f, 512.0f, 512.0f), &paint);
-                image = grContext->priv().testingOnly_getFontAtlasImage(
+                                      SkRect::MakeXYWH(10.0f, 522.0f, 512.0f, 512.0f),
+                                      SkSamplingOptions(), &paint);
+                image = direct->priv().testingOnly_getFontAtlasImage(
                         GrMaskFormat::kA8_GrMaskFormat, 3);
                 canvas->drawImageRect(image,
-                                      SkRect::MakeXYWH(522.0f, 522.0f, 512.0f, 512.0f), &paint);
+                                      SkRect::MakeXYWH(522.0f, 522.0f, 512.0f, 512.0f),
+                                      SkSamplingOptions(), &paint);
             }
 #endif
         }
@@ -191,7 +195,7 @@ class ChineseZoomView : public Sample {
             auto paragraphLength = kParagraphLength;
             SkScalar y = 0;
             while (paragraphLength - 45 > 0) {
-                auto currentLineLength = SkTMin(45, paragraphLength - 45);
+                auto currentLineLength = std::min(45, paragraphLength - 45);
                 this->createRandomLine(glyphs, currentLineLength);
 
                 ToolUtils::add_to_text_blob_w_len(&builder,

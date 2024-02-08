@@ -22,17 +22,14 @@ struct GrNativeRect {
     int fWidth;
     int fHeight;
 
-    static GrNativeRect MakeRelativeTo(GrSurfaceOrigin org, int rtHeight, const SkIRect& devRect) {
+    static GrNativeRect MakeRelativeTo(GrSurfaceOrigin origin, int rtHeight, SkIRect devRect) {
         GrNativeRect nativeRect;
-        nativeRect.setRelativeTo(org, rtHeight, devRect);
+        nativeRect.setRelativeTo(origin, rtHeight, devRect);
         return nativeRect;
     }
 
-    static GrNativeRect MakeRelativeTo(GrSurfaceOrigin origin, int surfaceHeight, int leftOffset,
-                                       int topOffset, int width, int height) {
-        GrNativeRect nativeRect;
-        nativeRect.setRelativeTo(origin, surfaceHeight, leftOffset, topOffset, width, height);
-        return nativeRect;
+    static SkIRect MakeIRectRelativeTo(GrSurfaceOrigin origin, int rtHeight, SkIRect devRect) {
+        return MakeRelativeTo(origin, rtHeight, devRect).asSkIRect();
     }
 
     /**
@@ -41,11 +38,11 @@ struct GrNativeRect {
     const int* asInts() const {
         return &fX;
 
-        GR_STATIC_ASSERT(0 == offsetof(GrNativeRect, fX));
-        GR_STATIC_ASSERT(4 == offsetof(GrNativeRect, fY));
-        GR_STATIC_ASSERT(8 == offsetof(GrNativeRect, fWidth));
-        GR_STATIC_ASSERT(12 == offsetof(GrNativeRect, fHeight));
-        GR_STATIC_ASSERT(16 == sizeof(GrNativeRect));  // For an array of GrNativeRect.
+        static_assert(0 == offsetof(GrNativeRect, fX));
+        static_assert(4 == offsetof(GrNativeRect, fY));
+        static_assert(8 == offsetof(GrNativeRect, fWidth));
+        static_assert(12 == offsetof(GrNativeRect, fHeight));
+        static_assert(16 == sizeof(GrNativeRect));  // For an array of GrNativeRect.
     }
     int* asInts() { return &fX; }
 

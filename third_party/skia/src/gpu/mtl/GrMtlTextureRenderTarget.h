@@ -15,13 +15,14 @@ class GrMtlTextureRenderTarget: public GrMtlTexture, public GrMtlRenderTarget {
 public:
     static sk_sp<GrMtlTextureRenderTarget> MakeNewTextureRenderTarget(GrMtlGpu*,
                                                                       SkBudgeted,
-                                                                      const GrSurfaceDesc&,
+                                                                      SkISize,
                                                                       int sampleCnt,
-                                                                      MTLTextureDescriptor*,
-                                                                      GrMipMapsStatus);
+                                                                      MTLPixelFormat,
+                                                                      uint32_t mipLevels,
+                                                                      GrMipmapStatus);
 
     static sk_sp<GrMtlTextureRenderTarget> MakeWrappedTextureRenderTarget(GrMtlGpu*,
-                                                                          const GrSurfaceDesc&,
+                                                                          SkISize,
                                                                           int sampleCnt,
                                                                           id<MTLTexture>,
                                                                           GrWrapCacheable);
@@ -43,44 +44,21 @@ protected:
 private:
     GrMtlTextureRenderTarget(GrMtlGpu* gpu,
                              SkBudgeted budgeted,
-                             const GrSurfaceDesc& desc,
-                             int sampleCnt,
-                             id<MTLTexture> colorTexture,
-                             id<MTLTexture> resolveTexture,
-                             GrMipMapsStatus);
+                             SkISize,
+                             sk_sp<GrMtlAttachment> texture,
+                             sk_sp<GrMtlAttachment> colorAttachment,
+                             sk_sp<GrMtlAttachment> resolveAttachment,
+                             GrMipmapStatus);
 
     GrMtlTextureRenderTarget(GrMtlGpu* gpu,
-                             SkBudgeted budgeted,
-                             const GrSurfaceDesc& desc,
-                             id<MTLTexture> colorTexture,
-                             GrMipMapsStatus);
-
-    GrMtlTextureRenderTarget(GrMtlGpu* gpu,
-                             const GrSurfaceDesc& desc,
-                             int sampleCnt,
-                             id<MTLTexture> colorTexture,
-                             id<MTLTexture> resolveTexture,
-                             GrMipMapsStatus,
+                             SkISize,
+                             sk_sp<GrMtlAttachment> texture,
+                             sk_sp<GrMtlAttachment> colorAttachment,
+                             sk_sp<GrMtlAttachment> resolveAttachment,
+                             GrMipmapStatus,
                              GrWrapCacheable cacheable);
 
-    GrMtlTextureRenderTarget(GrMtlGpu* gpu,
-                             const GrSurfaceDesc& desc,
-                             id<MTLTexture> colorTexture,
-                             GrMipMapsStatus,
-                             GrWrapCacheable cacheable);
-
-    size_t onGpuMemorySize() const override {
-        // TODO: When used as render targets certain formats may actually have a larger size than
-        // the base format size. Check to make sure we are reporting the correct value here.
-        // The plus 1 is to account for the resolve texture or if not using msaa the RT itself
-        int numColorSamples = this->numSamples();
-        if (numColorSamples > 1) {
-            ++numColorSamples;
-        }
-        const GrCaps& caps = *this->getGpu()->caps();
-        return GrSurface::ComputeSize(caps, this->backendFormat(), this->dimensions(),
-                                      numColorSamples, GrMipMapped::kNo);
-    }
+    size_t onGpuMemorySize() const override;
 };
 
 #endif

@@ -9,7 +9,6 @@
 #include "include/core/SkBitmap.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkColor.h"
-#include "include/core/SkFilterQuality.h"
 #include "include/core/SkImage.h"
 #include "include/core/SkImageInfo.h"
 #include "include/core/SkMatrix.h"
@@ -56,10 +55,9 @@ protected:
     }
 
     void onOnceBeforeDraw() override {
-        fBitmap = ToolUtils::create_checkerboard_bitmap(
+        fBitmapImage = ToolUtils::create_checkerboard_image(
                 kCellSize, kCellSize, SK_ColorBLUE, SK_ColorYELLOW, kCellSize / 10);
 
-        fBitmapShader = fBitmap.makeShader();
         SkPoint pts1[] = {
             { 0, 0 },
             { SkIntToScalar(kCellSize), SkIntToScalar(kCellSize) }
@@ -89,14 +87,12 @@ protected:
         fPath.close();
     }
 
-    void drawRow(SkCanvas* canvas, SkFilterQuality filterQ) {
+    void drawRow(SkCanvas* canvas, const SkSamplingOptions& sampling) {
         SkPaint filterPaint;
-        filterPaint.setFilterQuality(filterQ);
         filterPaint.setAntiAlias(fDoAA);
 
         SkPaint pathPaint;
-        pathPaint.setShader(fBitmapShader);
-        pathPaint.setFilterQuality(filterQ);
+        pathPaint.setShader(fBitmapImage->makeShader(sampling));
         pathPaint.setAntiAlias(fDoAA);
 
         SkPaint gradPaint1;
@@ -112,13 +108,13 @@ protected:
 
         canvas->save();
         canvas->concat(fPerspMatrix);
-        canvas->drawBitmapRect(fBitmap, r, &filterPaint);
+        canvas->drawImageRect(fBitmapImage, r, sampling, &filterPaint);
         canvas->restore();
 
         canvas->translate(SkIntToScalar(kCellSize), 0);
         canvas->save();
         canvas->concat(fPerspMatrix);
-        canvas->drawImage(fImage.get(), 0, 0, &filterPaint);
+        canvas->drawImage(fImage.get(), 0, 0, sampling, &filterPaint);
         canvas->restore();
 
         canvas->translate(SkIntToScalar(kCellSize), 0);
@@ -149,38 +145,83 @@ protected:
     }
 
     void onDraw(SkCanvas* canvas) override {
-        if (!fImage || !fImage->isValid(canvas->getGrContext())) {
+        if (!fImage || !fImage->isValid(canvas->recordingContext())) {
             fImage = make_image(canvas, kCellSize, kCellSize);
         }
 
-        this->drawRow(canvas, kNone_SkFilterQuality);
+        this->drawRow(canvas, SkSamplingOptions(SkFilterMode::kNearest));
         canvas->translate(0, SkIntToScalar(kCellSize));
-        this->drawRow(canvas, kLow_SkFilterQuality);
+        this->drawRow(canvas, SkSamplingOptions(SkFilterMode::kLinear));
         canvas->translate(0, SkIntToScalar(kCellSize));
-        this->drawRow(canvas, kMedium_SkFilterQuality);
+        this->drawRow(canvas, SkSamplingOptions(SkFilterMode::kLinear,
+                                                SkMipmapMode::kNearest));
         canvas->translate(0, SkIntToScalar(kCellSize));
-        this->drawRow(canvas, kHigh_SkFilterQuality);
+        this->drawRow(canvas, SkSamplingOptions(SkCubicResampler::Mitchell()));
         canvas->translate(0, SkIntToScalar(kCellSize));
     }
 private:
-    static constexpr int kCellSize = 50;
-    static constexpr int kNumRows = 4;
-    static constexpr int kNumCols = 6;
+    inline static constexpr int kCellSize = 50;
+    inline static constexpr int kNumRows = 4;
+    inline static constexpr int kNumCols = 6;
 
     bool            fDoAA;
     SkPath          fPath;
-    sk_sp<SkShader> fBitmapShader;
     sk_sp<SkShader> fLinearGrad1;
     sk_sp<SkShader> fLinearGrad2;
     SkMatrix        fPerspMatrix;
     sk_sp<SkImage>  fImage;
-    SkBitmap        fBitmap;
+    sk_sp<SkImage>  fBitmapImage;
 
-    typedef GM INHERITED;
+    using INHERITED = GM;
 };
+DEF_GM(return new PerspShadersGM(true);)
+DEF_GM(return new PerspShadersGM(false);)
+}  // namespace skiagm
 
 //////////////////////////////////////////////////////////////////////////////
 
-DEF_GM(return new PerspShadersGM(true);)
-DEF_GM(return new PerspShadersGM(false);)
+#include "tools/Resources.h"
+
+static SkPath make_path() {
+    SkRandom rand;
+    auto rand_pt = [&rand]() {
+        auto x = rand.nextF();
+        auto y = rand.nextF();
+        return SkPoint{x * 400, y * 400};
+    };
+
+    SkPath path;
+    for (int i = 0; i < 4; ++i) {
+        SkPoint pts[6];
+        for (auto& p : pts) {
+            p = rand_pt();
+        }
+        path.moveTo(pts[0]).quadTo(pts[1], pts[2]).quadTo(pts[3], pts[4]).lineTo(pts[5]);
+    }
+    return path;
+}
+
+DEF_SIMPLE_GM(perspective_clip, canvas, 800, 800) {
+    SkPath path = make_path();
+    auto shader = GetResourceAsImage("images/mandrill_128.png")
+                                    ->makeShader(SkSamplingOptions(), SkMatrix::Scale(3, 3));
+
+    SkPaint paint;
+    paint.setColor({0.75, 0.75, 0.75, 1});
+    canvas->drawPath(path, paint);
+
+    // This is a crazy perspective matrix, derived from halfplanes3, to draw a shape where
+    // part of it is "behind" the viewer, hence showing the need for "half-plane" clipping
+    // when in perspective.
+    SkMatrix mx;
+    const SkScalar array[] = {
+        -1.7866f,  1.3357f, 273.0295f,
+        -1.0820f,  1.3186f, 135.5196f,
+        -0.0047f, -0.0015f,  2.1485f,
+    };
+    mx.set9(array);
+
+    paint.setShader(shader);
+    canvas->concat(mx);
+    canvas->drawPath(path, paint);
 }
