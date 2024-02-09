@@ -18,6 +18,7 @@
 
 #include <stack>
 #include <string>
+#include <sys/stat.h>
 
 #include "base/base_paths.h"
 #include "base/files/file_enumerator.h"
@@ -317,7 +318,8 @@ bool CreateDirectoryAndGetError(const FilePath &full_path, File::Error* error) {
 
   // Fast-path: can the full path be resolved from the full path?
   if (DirectoryExists(full_path) ||
-      SbDirectoryCreate(full_path.value().c_str())) {
+      mkdir(full_path.value().c_str(), 0700) == 0 ||
+      SbDirectoryCanOpen(full_path.value().c_str())) {
     return true;
   }
 
@@ -341,8 +343,7 @@ bool CreateDirectoryAndGetError(const FilePath &full_path, File::Error* error) {
     if (DirectoryExists(*i)) {
       continue;
     }
-
-    if (!SbDirectoryCreate(i->value().c_str())) {
+    if (mkdir(i->value().c_str(), 0700) != 0 && !SbDirectoryCanOpen(i->value().c_str())) {
       if (error)
         *error = File::OSErrorToFileError(SbSystemGetLastError());
       return false;

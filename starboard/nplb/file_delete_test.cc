@@ -17,7 +17,6 @@
 #include "starboard/file.h"
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
 namespace starboard {
 namespace nplb {
 namespace {
@@ -35,7 +34,12 @@ TEST(SbFileDeleteTest, SunnyDayDeleteExistingDirectory) {
   const std::string& path = file.filename();
 
   EXPECT_FALSE(SbFileExists(path.c_str()));
+#if SB_API_VERSION < 16
   EXPECT_TRUE(SbDirectoryCreate(path.c_str()));
+#else
+  EXPECT_TRUE(SbDirectoryCanOpen(path.c_str()) ||
+              mkdir(path.c_str(), 0700) == 0);
+#endif  // SB_API_VERSION < 16
   EXPECT_TRUE(SbDirectoryCanOpen(path.c_str()));
   EXPECT_TRUE(SbFileDelete(path.c_str()));
 }

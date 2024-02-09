@@ -29,6 +29,7 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
+#include "sys/stat.h"
 
 namespace cobalt {
 namespace browser {
@@ -46,7 +47,7 @@ bool CreateDirsForKey(const std::string& key) {
     starboard::strlcat(path.data(),
                        key.substr(prev_found, found - prev_found).c_str(),
                        kSbFileMaxPath);
-    if (!SbDirectoryCreate(path.data())) {
+    if (!SbDirectoryCanOpen(path.data()) && mkdir(path.data(), 0700) != 0) {
       return false;
     }
     prev_found = found;
