@@ -183,9 +183,6 @@ config("native_target_build") {
 config("starboard_implementation") {
   # This allows the benchmarks to include internal only header files.
   defines = [ "STARBOARD_IMPLEMENTATION" ]
-  if (current_cpu == "arm64" || (current_cpu == "arm" && arm_use_neon)) {
-    defines += [ "USE_NEON" ]
-  }
 }
 
 config("speed") {
