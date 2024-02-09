@@ -17,6 +17,10 @@
 
 #include <stdint.h>
 
+#include "starboard/drm.h"
+#include "starboard/media.h"
+#include "starboard/player.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

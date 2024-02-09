@@ -247,10 +247,10 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       return scoped_ptr<PlayerComponents>();
     }
 
-    // Set max_video_input_size with a positive value to overwrite
-    // MediaFormat.KEY_MAX_INPUT_SIZE. Use 0 as default value.
+    // Set max_video_input_size with a non-zero value to overwrite
+    // MediaFormat.KEY_MAX_INPUT_SIZE. Use -1 as default value.
     int max_video_input_size = creation_parameters.max_video_input_size();
-    SB_LOG_IF(INFO, max_video_input_size > 0)
+    SB_LOG_IF(INFO, max_video_input_size != 0)
         << "The maximum size in bytes of a buffer of data is "
         << max_video_input_size;
 
@@ -477,10 +477,10 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       SB_DCHECK(video_render_algorithm);
       SB_DCHECK(video_renderer_sink);
       SB_DCHECK(error_message);
-      // Set max_video_input_size with a positive value to overwrite
-      // MediaFormat.KEY_MAX_INPUT_SIZE. Use 0 as default value.
+      // Set max_video_input_size with a non-zero value to overwrite
+      // MediaFormat.KEY_MAX_INPUT_SIZE. Use -1 as default value.
       int max_video_input_size = creation_parameters.max_video_input_size();
-      SB_LOG_IF(INFO, max_video_input_size > 0)
+      SB_LOG_IF(INFO, max_video_input_size != 0)
           << "The maximum size in bytes of a buffer of data is "
           << max_video_input_size;
 
