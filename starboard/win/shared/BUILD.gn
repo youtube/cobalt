@@ -236,6 +236,7 @@ static_library("starboard_platform") {
     "//starboard/shared/win32/posix_emu/mman.cc",
     "//starboard/shared/win32/posix_emu/posix_memalign.cc",
     "//starboard/shared/win32/posix_emu/pthread.cc",
+    "//starboard/shared/win32/posix_emu/string.cc",
     "//starboard/shared/win32/posix_emu/time.cc",
     "//starboard/shared/win32/set_non_blocking_internal.cc",
     "//starboard/shared/win32/set_non_blocking_internal.h",
