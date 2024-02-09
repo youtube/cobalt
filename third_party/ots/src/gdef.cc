@@ -11,20 +11,17 @@
 #include "gsub.h"
 #include "layout.h"
 #include "maxp.h"
+#include "variations.h"
 
 // GDEF - The Glyph Definition Table
 // http://www.microsoft.com/typography/otspec/gdef.htm
 
 namespace {
 
-// The maximum class value in class definition tables.
-const uint16_t kMaxClassDefValue = 0xFFFF;
 // The maximum class value in the glyph class definision table.
 const uint16_t kMaxGlyphClassDefValue = 4;
 // The maximum format number of caret value tables.
-// We don't support format 3 for now. See the comment in
-// ParseLigCaretListTable() for the reason.
-const uint16_t kMaxCaretValueFormat = 2;
+const uint16_t kMaxCaretValueFormat = 3;
 
 }  // namespace
 
@@ -86,9 +83,9 @@ bool OpenTypeGDEF::ParseAttachListTable(const uint8_t *data, size_t length) {
       if (!subtable.ReadU16(&point_index)) {
         return Error("Can't read point index %d in point %d", j, i);
       }
-      // Contour point indeces are in increasing numerical order
+      // Contour point indices are in increasing numerical order
       if (last_point_index != 0 && last_point_index >= point_index) {
-        return Error("bad contour indeces: %u >= %u",
+        return Error("bad contour indices: %u >= %u",
                     last_point_index, point_index);
       }
       last_point_index = point_index;
@@ -165,9 +162,6 @@ bool OpenTypeGDEF::ParseLigCaretListTable(const uint8_t *data, size_t length) {
       if (!subtable.ReadU16(&caret_format)) {
         return Error("Can't read caret values table %d in glyph %d", j, i);
       }
-      // TODO(bashi): We only support caret value format 1 and 2 for now
-      // because there are no fonts which contain caret value format 3
-      // as far as we investigated.
       if (caret_format == 0 || caret_format > kMaxCaretValueFormat) {
         return Error("bad caret value format: %u", caret_format);
       }
@@ -175,6 +169,24 @@ bool OpenTypeGDEF::ParseLigCaretListTable(const uint8_t *data, size_t length) {
       // arbitrary value.
       if (!subtable.Skip(2)) {
         return Error("Bad caret value table structure %d in glyph %d", j, i);
+      }
+      if (caret_format == 3) {
+        uint16_t offset_device = 0;
+        if (!subtable.ReadU16(&offset_device)) {
+          return Error("Can't read device offset for caret value %d "
+                       "in glyph %d", j, i);
+        }
+        uint16_t absolute_offset = lig_glyphs[i] + caret_value_offsets[j]
+                                   + offset_device;
+        if (offset_device == 0 || absolute_offset >= length) {
+          return Error("Bad device offset for caret value %d in glyph %d: %d",
+                       j, i, offset_device);
+        }
+        if (!ots::ParseDeviceTable(GetFont(), data + absolute_offset,
+                                   length - absolute_offset)) {
+          return Error("Bad device table for caret value %d in glyph %d",
+                       j, i, offset_device);
+        }
       }
     }
   }
@@ -228,17 +240,13 @@ bool OpenTypeGDEF::Parse(const uint8_t *data, size_t length) {
 
   Buffer table(data, length);
 
-  uint32_t version = 0;
-  if (!table.ReadU32(&version)) {
+  uint16_t version_major = 0, version_minor = 0;
+  if (!table.ReadU16(&version_major) ||
+      !table.ReadU16(&version_minor)) {
     return Error("Incomplete table");
   }
-  if (version < 0x00010000 || version == 0x00010001) {
+  if (version_major != 1 || version_minor == 1) { // there is no v1.1
     return Error("Bad version");
-  }
-
-  bool version_2 = false;
-  if (version >= 0x00010002) {
-    version_2 = true;
   }
 
   uint16_t offset_glyph_class_def = 0;
@@ -252,15 +260,23 @@ bool OpenTypeGDEF::Parse(const uint8_t *data, size_t length) {
     return Error("Incomplete table");
   }
   uint16_t offset_mark_glyph_sets_def = 0;
-  if (version_2) {
+  if (version_minor >= 2) {
     if (!table.ReadU16(&offset_mark_glyph_sets_def)) {
+      return Error("Incomplete table");
+    }
+  }
+  uint32_t item_var_store_offset = 0;
+  if (version_minor >= 3) {
+    if (!table.ReadU32(&item_var_store_offset)) {
       return Error("Incomplete table");
     }
   }
 
   unsigned gdef_header_end = 4 + 4 * 2;
-  if (version_2)
+  if (version_minor >= 2)
     gdef_header_end += 2;
+  if (version_minor >= 3)
+    gdef_header_end += 4;
 
   // Parse subtables
   if (offset_glyph_class_def) {
@@ -320,6 +336,18 @@ bool OpenTypeGDEF::Parse(const uint8_t *data, size_t length) {
       return Error("Invalid mark glyph sets");
     }
   }
+
+  if (item_var_store_offset) {
+    if (item_var_store_offset >= length ||
+        item_var_store_offset < gdef_header_end) {
+      return Error("invalid offset to item variation store");
+    }
+    if (!ParseItemVariationStore(GetFont(), data + item_var_store_offset,
+                                 length - item_var_store_offset)) {
+      return Error("Invalid item variation store");
+    }
+  }
+
   this->m_data = data;
   this->m_length = length;
   return true;

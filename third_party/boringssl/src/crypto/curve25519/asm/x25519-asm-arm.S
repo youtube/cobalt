@@ -17,7 +17,17 @@
  * domain licensed but the standard ISC license is included above to keep
  * licensing simple. */
 
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
+#define OPENSSL_NO_ASM
+#endif
+#endif
+
 #if !defined(OPENSSL_NO_ASM) && defined(__arm__) && !defined(__APPLE__)
+
+#if defined(BORINGSSL_PREFIX)
+#include <boringssl_prefix_symbols_asm.h>
+#endif
 
 .fpu neon
 .text
@@ -2120,3 +2130,7 @@ vpop {q4,q5,q6,q7}
 bx lr
 
 #endif  /* !OPENSSL_NO_ASM && __arm__ && !__APPLE__ */
+
+#if defined(__ELF__)
+.section	.note.GNU-stack,"",%progbits
+#endif

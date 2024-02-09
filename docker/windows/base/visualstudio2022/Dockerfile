@@ -22,9 +22,13 @@ FROM ${FROM_IMAGE}
 SHELL ["powershell", "-ExecutionPolicy", "Unrestricted", "-Command", `
        "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
+# Pins Visual Studio 2022 release version to 17.4.6 (includes Clang 15.0.1).
+# This should be kept in sync with the VS installer used in the dev workstation
+# setup script in: `tools/install_visual_studio_22.ps1`
+ARG MSVS_INSTALLER_URL="https://download.visualstudio.microsoft.com/download/pr/d1ed8638-9e88-461e-92b7-4e29cc6172c3/38b09fc09ae9e590b73ae6752a0ebfd62579798969041bd341689273b842bc10/vs_BuildTools.exe"
 RUN mkdir C:\TEMP;`
     Write-Host ('Downloading vs_buildtools.exe');`
-    Invoke-WebRequest -Uri https://aka.ms/vs/17/release/vs_buildtools.exe `
+    Invoke-WebRequest -Uri ${env:MSVS_INSTALLER_URL} `
       -OutFile C:\TEMP\vs_buildtools.exe
 
 RUN Write-Host ('Installing vs_buildtools.exe');`
@@ -39,7 +43,6 @@ RUN Write-Host ('Installing vs_buildtools.exe');`
     Remove-Item -Force -Recurse ${env:ProgramFiles(x86)}\'Microsoft Visual Studio'\Installer;`
     Remove-Item -Force -Recurse $env:TEMP\*;`
     Remove-Item -Force -Recurse $env:ProgramData\'Package Cache'\;`
-    Remove-Item -Force -Recurse C:\BuildTools\VC\Tools\Llvm\ARM64;`
     Remove-Item -Force -Recurse C:\BuildTools\Common7\IDE;`
     Remove-Item C:\TEMP\vs_buildtools.exe
 

@@ -17,8 +17,10 @@
 #include <algorithm>
 
 #include "base/logging.h"
+#include "base/time/time.h"
 #include "cobalt/base/statistics.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/once.h"
 #include "starboard/types.h"
 
@@ -29,8 +31,10 @@ namespace dom {
 
 namespace {
 
-int GetBandwidth(std::size_t size, SbTimeMonotonic duration) {
-  return duration == 0 ? 0 : size * kSbTimeSecond / duration;
+int GetBandwidth(std::size_t size, int64_t duration_us) {
+  return duration_us == 0
+             ? 0
+             : size * base::Time::kMicrosecondsPerSecond / duration_us;
 }
 
 int64_t GetBandwidthForStatistics(int64_t size, int64_t duration) {
@@ -38,7 +42,7 @@ int64_t GetBandwidthForStatistics(int64_t size, int64_t duration) {
 }
 
 using BandwidthStatistics =
-    base::Statistics<int64_t, SbTimeMonotonic, 1024, GetBandwidthForStatistics>;
+    base::Statistics<int64_t, int64_t, 1024, GetBandwidthForStatistics>;
 
 class StatisticsWrapper {
  public:
@@ -66,9 +70,8 @@ void SourceBufferMetrics::StartTracking() {
 
   DCHECK(!is_tracking_);
   is_tracking_ = true;
-  wall_start_time_ = SbTimeGetMonotonicNow();
-  thread_start_time_ =
-      SbTimeIsTimeThreadNowSupported() ? SbTimeGetMonotonicThreadNow() : -1;
+  wall_start_time_ = starboard::CurrentMonotonicTime();
+  thread_start_time_ = starboard::CurrentMonotonicThreadTime();
 }
 
 void SourceBufferMetrics::EndTracking(std::size_t size_appended) {
@@ -79,11 +82,9 @@ void SourceBufferMetrics::EndTracking(std::size_t size_appended) {
   DCHECK(is_tracking_);
   is_tracking_ = false;
 
-  SbTimeMonotonic wall_duration = SbTimeGetMonotonicNow() - wall_start_time_;
-  SbTimeMonotonic thread_duration =
-      SbTimeIsTimeThreadNowSupported()
-          ? SbTimeGetMonotonicThreadNow() - thread_start_time_
-          : 0;
+  int64_t wall_duration = starboard::CurrentMonotonicTime() - wall_start_time_;
+  int64_t thread_duration =
+      starboard::CurrentMonotonicThreadTime() - thread_start_time_;
   total_wall_time_ += wall_duration;
   total_thread_time_ += thread_duration;
 
@@ -91,9 +92,7 @@ void SourceBufferMetrics::EndTracking(std::size_t size_appended) {
 
   if (size_appended > 0) {
     int wall_bandwidth = GetBandwidth(size_appended, wall_duration);
-    int thread_bandwidth = SbTimeIsTimeThreadNowSupported()
-                               ? GetBandwidth(size_appended, thread_duration)
-                               : 0;
+    int thread_bandwidth = GetBandwidth(size_appended, thread_duration);
 
     max_wall_bandwidth_ = std::max(max_wall_bandwidth_, wall_bandwidth);
     min_wall_bandwidth_ = std::min(min_wall_bandwidth_, wall_bandwidth);

@@ -82,7 +82,9 @@ SbPlayerOutputMode SbPlayerGetPreferredOutputMode(
         is_sdr) {
       return kSbPlayerOutputModeDecodeToTexture;
     }
-    SB_LOG(ERROR) << "Invalid output mode due to play HDR video on sub player";
+    SB_LOG_IF(INFO, !is_sdr)
+        << "Returning kSbPlayerOutputModeInvalid as HDR videos are not "
+           "supported under decode-to-texture.";
     return kSbPlayerOutputModeInvalid;
   }
 

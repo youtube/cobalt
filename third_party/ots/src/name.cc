@@ -6,42 +6,44 @@
 
 #include <algorithm>
 #include <cstring>
-
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#define STRCHR_OTS strchr
-#else
-#define STRCHR_OTS std::strchr
-#endif
+#include <cctype>
 
 // name - Naming Table
 // http://www.microsoft.com/typography/otspec/name.htm
 
 namespace {
 
-bool ValidInPsName(char c) {
-  return (c > 0x20 && c < 0x7f && !STRCHR_OTS("[](){}<>/%", c));
+// We disallow characters outside the URI spec "unreserved characters"
+// set; any chars outside this set will be replaced by underscore.
+bool AllowedInPsName(char c) {
+  return isalnum(c) || std::strchr("-._~", c);
 }
 
-bool CheckPsNameAscii(const std::string& name) {
+bool SanitizePsNameAscii(std::string& name) {
+  if (name.size() > 63)
+    return false;
+
   for (unsigned i = 0; i < name.size(); ++i) {
-    if (!ValidInPsName(name[i])) {
-      return false;
+    if (!AllowedInPsName(name[i])) {
+      name[i] = '_';
     }
   }
   return true;
 }
 
-bool CheckPsNameUtf16Be(const std::string& name) {
+bool SanitizePsNameUtf16Be(std::string& name) {
   if ((name.size() & 1) != 0)
+    return false;
+  if (name.size() > 2 * 63)
     return false;
 
   for (unsigned i = 0; i < name.size(); i += 2) {
     if (name[i] != 0) {
+      // non-Latin1 char in psname? reject it altogether
       return false;
     }
-    if (!ValidInPsName(name[i+1])) {
-      return false;
+    if (!AllowedInPsName(name[i+1])) {
+      name[i] = '_';
     }
   }
   return true;
@@ -138,13 +140,15 @@ bool OpenTypeNAME::Parse(const uint8_t* data, size_t length) {
     rec.text.assign(string_base + name_offset, name_length);
 
     if (rec.name_id == 6) {
-      // PostScript name: check that it is valid, if not then discard it
+      // PostScript name: "sanitize" it by replacing any chars outside the
+      // URI spec "unreserved" set by underscore, or reject the name entirely
+      // (and use a fallback) if it looks really broken.
       if (rec.platform_id == 1) {
-        if (!CheckPsNameAscii(rec.text)) {
+        if (!SanitizePsNameAscii(rec.text)) {
           continue;
         }
       } else if (rec.platform_id == 0 || rec.platform_id == 3) {
-        if (!CheckPsNameUtf16Be(rec.text)) {
+        if (!SanitizePsNameUtf16Be(rec.text)) {
           continue;
         }
       }
@@ -175,6 +179,14 @@ bool OpenTypeNAME::Parse(const uint8_t* data, size_t length) {
           tag_offset + tag_length;
       if (tag_end > length) {
         return Error("bad end of tag %d > %ld for langTagRecord %d", tag_end, length, i);
+      }
+      // Lang tag is BCP 47 tag per the spec, the recommonded BCP 47 max tag
+      // length is 35:
+      // https://tools.ietf.org/html/bcp47#section-4.4.1
+      // We are being too generous and allowing for 100 (multiplied by 2 since
+      // this is UTF-16 string).
+      if (tag_length > 100 * 2) {
+        return Error("Too long language tag for LangTagRecord %d: %d", i, tag_length);
       }
       std::string tag(string_base + tag_offset, tag_length);
       this->lang_tags.push_back(tag);
@@ -210,17 +222,16 @@ bool OpenTypeNAME::Parse(const uint8_t* data, size_t length) {
   // if not, we'll add our fixed versions here
   bool mac_name[kStdNameCount] = { 0 };
   bool win_name[kStdNameCount] = { 0 };
-  for (std::vector<NameRecord>::iterator name_iter = this->names.begin();
-       name_iter != this->names.end(); ++name_iter) {
-    const uint16_t id = name_iter->name_id;
+  for (const auto& name : this->names) {
+    const uint16_t id = name.name_id;
     if (id >= kStdNameCount || kStdNames[id] == NULL) {
       continue;
     }
-    if (name_iter->platform_id == 1) {
+    if (name.platform_id == 1) {
       mac_name[id] = true;
       continue;
     }
-    if (name_iter->platform_id == 3) {
+    if (name.platform_id == 3) {
       win_name[id] = true;
       continue;
     }
@@ -273,9 +284,7 @@ bool OpenTypeNAME::Serialize(OTSStream* out) {
   }
 
   std::string string_data;
-  for (std::vector<NameRecord>::const_iterator name_iter = this->names.begin();
-       name_iter != this->names.end(); ++name_iter) {
-    const NameRecord& rec = *name_iter;
+  for (const auto& rec : this->names) {
     if (string_data.size() + rec.text.size() >
             std::numeric_limits<uint16_t>::max() ||
         !out->WriteU16(rec.platform_id) ||
@@ -293,16 +302,14 @@ bool OpenTypeNAME::Serialize(OTSStream* out) {
     if (!out->WriteU16(lang_tag_count)) {
       return Error("Faile to write langTagCount");
     }
-    for (std::vector<std::string>::const_iterator tag_iter =
-             this->lang_tags.begin();
-         tag_iter != this->lang_tags.end(); ++tag_iter) {
-      if (string_data.size() + tag_iter->size() >
+    for (const auto& tag : this->lang_tags) {
+      if (string_data.size() + tag.size() >
               std::numeric_limits<uint16_t>::max() ||
-          !out->WriteU16(static_cast<uint16_t>(tag_iter->size())) ||
+          !out->WriteU16(static_cast<uint16_t>(tag.size())) ||
           !out->WriteU16(static_cast<uint16_t>(string_data.size()))) {
         return Error("Failed to write langTagRecord");
       }
-      string_data.append(*tag_iter);
+      string_data.append(tag);
     }
   }
 
@@ -360,5 +367,3 @@ bool OpenTypeNAME::IsValidNameId(uint16_t nameID, bool addIfMissing) {
 }
 
 }  // namespace
-
-#undef STRCHR_OTS

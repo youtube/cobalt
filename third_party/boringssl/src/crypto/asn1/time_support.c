@@ -55,22 +55,11 @@
  * (eay@cryptsoft.com).  This product includes software written by Tim
  * Hudson (tjh@cryptsoft.com). */
 
-#include <openssl/opensslconf.h>
-
-#if defined(STARBOARD)
-#if !SB_HAS_QUIRK(NO_GMTIME_R)
 #if !defined(_POSIX_C_SOURCE)
 #define _POSIX_C_SOURCE 201410L  /* for gmtime_r */
 #endif
-#endif  // !SB_HAS_QUIRK(NO_GMTIME_R)
-#else  // STARBOARD
-#if !defined(_POSIX_C_SOURCE)
-#define _POSIX_C_SOURCE 201410L  /* for gmtime_r */
-#endif  // !defined(_POSIX_C_SOURCE)
-#endif  // STARBOARD
 
-#include "asn1_locl.h"
-#include "asn1_internal.h"
+#include "internal.h"
 
 #include <time.h>
 
@@ -78,19 +67,14 @@
 #define SECS_PER_DAY (24 * 60 * 60)
 
 struct tm *OPENSSL_gmtime(const time_t *time, struct tm *result) {
-#if defined(OPENSSL_SYS_STARBOARD)
-  return OPENSSL_port_gmtime_r(time, result);
-#else  // defined(OPENSSL_SYS_STARBOARD)
 #if defined(OPENSSL_WINDOWS)
   if (gmtime_s(result, time)) {
     return NULL;
   }
   return result;
-#else  // !defined(OPENSSL_WINDOWS)
-  result = gmtime(time);
-  return result;
-#endif  // defined(OPENSSL_WINDOWS)
-#endif  // defined(OPENSSL_SYS_STARBOARD)
+#else
+  return gmtime_r(time, result);
+#endif
 }
 
 /* Convert date to and from julian day Uses Fliegel & Van Flandern algorithm */

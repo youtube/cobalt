@@ -27,7 +27,6 @@
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
-#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -63,7 +62,7 @@ bool CreateAudioComponents(bool using_stub_decoder,
                            scoped_ptr<AudioDecoder>* audio_decoder,
                            scoped_ptr<AudioRendererSink>* audio_renderer_sink);
 
-::testing::AssertionResult AlmostEqualTime(SbTime time1, SbTime time2);
+::testing::AssertionResult AlmostEqualTime(int64_t time1, int64_t time2);
 
 media::VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec);
 
@@ -76,8 +75,8 @@ scoped_refptr<InputBuffer> GetAudioInputBuffer(
 scoped_refptr<InputBuffer> GetAudioInputBuffer(
     video_dmp::VideoDmpReader* dmp_reader,
     size_t index,
-    SbTime discarded_duration_from_front,
-    SbTime discarded_duration_from_back);
+    int64_t discarded_duration_from_front,
+    int64_t discarded_duration_from_back);
 
 }  // namespace testing
 }  // namespace filter

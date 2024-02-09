@@ -19,7 +19,6 @@
 
 #include "starboard/audio_sink.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace shared {
@@ -37,7 +36,7 @@ class AudioRendererSink {
                                  bool* is_playing,
                                  bool* is_eos_reached) = 0;
     virtual void ConsumeFrames(int frames_consumed,
-                               SbTime frames_consumed_at) = 0;
+                               int64_t frames_consumed_at) = 0;
 
     // When |capability_changed| is true, it hints that the error is caused by a
     // a transient capability on the platform.  The app should retry playback
@@ -59,7 +58,7 @@ class AudioRendererSink {
       int sampling_frequency_hz) const = 0;
 
   virtual bool HasStarted() const = 0;
-  virtual void Start(SbTime media_start_time,
+  virtual void Start(int64_t media_start_time,
                      int channels,
                      int sampling_frequency_hz,
                      SbMediaAudioSampleType audio_sample_type,

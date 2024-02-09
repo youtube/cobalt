@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
 #include "starboard/memory.h"
 
 #include <windows.h>
@@ -22,3 +23,4 @@ bool SbMemoryUnmap(void* virtual_address, int64_t size_bytes) {
   // to SbMemoryMap()". Because of that, we cannot use MEM_FREE here.
   return VirtualFree(virtual_address, size_bytes, MEM_DECOMMIT);
 }
+#endif  // SB_API_VERSION < 16

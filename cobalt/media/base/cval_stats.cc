@@ -23,30 +23,33 @@ CValContainer::CValContainer(std::string name,
                              int max_samples_before_calculation)
     : cval_name_{name},
       max_samples_before_calculation_{max_samples_before_calculation},
-      latest_{"Media." + name + ".Latest", 0, "Latest sample in microseconds."},
-      average_{"Media." + name + ".Average", 0,
-               "Average sample in microseconds."},
-      maximum_{"Media." + name + ".Maximum", 0,
-               "Maximum sample in microseconds."},
-      median_{"Media." + name + ".Median", 0, "Median sample in microseconds."},
-      minimum_{"Media." + name + ".Minimum", 0,
-               "Minimum sample in microseconds."} {}
+      latest_{
+          "Media." + name + ".Latest", {}, "Latest sample in microseconds."},
+      average_{
+          "Media." + name + ".Average", {}, "Average sample in microseconds."},
+      maximum_{
+          "Media." + name + ".Maximum", {}, "Maximum sample in microseconds."},
+      median_{
+          "Media." + name + ".Median", {}, "Median sample in microseconds."},
+      minimum_{
+          "Media." + name + ".Minimum", {}, "Minimum sample in microseconds."} {
+}
 
-void CValContainer::UpdateCVal(SbTime event_timing) {
-  latest_ = event_timing;
+void CValContainer::UpdateCVal(TimeDelta event_time) {
+  latest_ = event_time;
   accumulated_sample_count_++;
 
   if (!first_sample_added_) {
-    minimum_ = event_timing;
-    maximum_ = event_timing;
+    minimum_ = event_time;
+    maximum_ = event_time;
     first_sample_added_ = true;
   }
 
-  samples_[sample_write_index_] = event_timing;
+  samples_[sample_write_index_] = event_time;
   sample_write_index_ = (sample_write_index_ + 1) % kMaxSamples;
 
   if (accumulated_sample_count_ % max_samples_before_calculation_ == 0) {
-    std::vector<SbTime> copy;
+    std::vector<TimeDelta> copy;
     int copy_size = std::min(accumulated_sample_count_, kMaxSamples);
     copy.reserve(copy_size);
     copy.assign(samples_, samples_ + copy_size);
@@ -60,7 +63,7 @@ void CValContainer::UpdateCVal(SbTime event_timing) {
     minimum_ = std::min(minimum_.value(), copy[0]);
     maximum_ = std::max(maximum_.value(), copy[copy.size() - 1]);
 
-    auto local_average = std::accumulate(copy.begin(), copy.end(), 0);
+    auto local_average = std::accumulate(copy.begin(), copy.end(), TimeDelta());
     average_ += (local_average - average_.value()) / accumulated_sample_count_;
   }
 }
@@ -88,7 +91,7 @@ void CValStats::StartTimer(MediaTiming event_type,
   if (!enabled_) return;
 
   running_timers_[std::make_pair(event_type, pipeline_identifier)] =
-      SbTimeGetMonotonicNow();
+      Time::Now();
 }
 
 void CValStats::StopTimer(MediaTiming event_type,
@@ -98,7 +101,7 @@ void CValStats::StopTimer(MediaTiming event_type,
   auto key = std::make_pair(event_type, pipeline_identifier);
   DCHECK(running_timers_.find(key) != running_timers_.end());
 
-  SbTime time_taken = SbTimeGetMonotonicNow() - running_timers_[key];
+  TimeDelta time_taken = Time::Now() - running_timers_[key];
   auto cval_container = cval_containers_.find(event_type);
   if (cval_container != cval_containers_.end()) {
     cval_container->second.UpdateCVal(time_taken);

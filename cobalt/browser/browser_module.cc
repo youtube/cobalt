@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <map>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "base/bind.h"
@@ -35,6 +36,7 @@
 #include "cobalt/base/init_cobalt.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/base/tokens.h"
+#include "cobalt/browser/on_screen_keyboard_extension_bridge.h"
 #include "cobalt/browser/on_screen_keyboard_starboard_bridge.h"
 #include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/switches.h"
@@ -58,16 +60,11 @@
 #include "cobalt/web/navigator_ua_data.h"
 #include "starboard/atomic.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/extension/graphics.h"
 #include "starboard/system.h"
-#include "starboard/time.h"
 #include "third_party/icu/source/i18n/unicode/timezone.h"
-
-#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-#include "base/memory/ptr_util.h"
-#include STARBOARD_CORE_DUMP_HANDLER_INCLUDE
-#endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
 
 using cobalt::cssom::ViewportSize;
 
@@ -88,8 +85,10 @@ struct NonTrivialGlobalVariables {
 
 NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   last_render_timestamp = &cobalt::timestamp::g_last_render_timestamp;
-  SbAtomicNoBarrier_Exchange64(last_render_timestamp,
-                               static_cast<SbAtomic64>(SbTimeGetNow()));
+  SbAtomicNoBarrier_Exchange64(
+      last_render_timestamp,
+      static_cast<SbAtomic64>(
+          starboard::PosixTimeToWindowsTime(starboard::CurrentPosixTime())));
 }
 
 base::LazyInstance<NonTrivialGlobalVariables>::DestructorAtExit
@@ -144,6 +143,16 @@ const char kFuzzerToggleCommandLongHelp[] =
     "Each time this is called, it will toggle whether the input fuzzer is "
     "activated or not.  While activated, input will constantly and randomly be "
     "generated and passed directly into the main web module.";
+
+#if defined(ENABLE_DEBUGGER)
+// Command to reload the current URL.
+const char kBoxDumpCommand[] = "boxdump";
+
+// Help strings for the navigate command.
+const char kBoxDumpCommandShortHelp[] = "Return a box dump.";
+const char kBoxDumpCommandLongHelp[] =
+    "Returns a dump of the most recent layout box tree.";
+#endif
 
 const char kScreenshotCommand[] = "screenshot";
 const char kScreenshotCommandShortHelp[] = "Takes a screenshot.";
@@ -240,12 +249,6 @@ BrowserModule::BrowserModule(const GURL& url,
       updater_module_(updater_module),
 #endif
       splash_screen_cache_(new SplashScreenCache()),
-      on_screen_keyboard_bridge_(
-          OnScreenKeyboardStarboardBridge::IsSupported() &&
-                  options.enable_on_screen_keyboard
-              ? new OnScreenKeyboardStarboardBridge(base::Bind(
-                    &BrowserModule::GetSbWindow, base::Unretained(this)))
-              : NULL),
       web_module_loaded_(base::WaitableEvent::ResetPolicy::MANUAL,
                          base::WaitableEvent::InitialState::NOT_SIGNALED),
       web_module_created_callback_(options_.web_module_created_callback),
@@ -266,6 +269,12 @@ BrowserModule::BrowserModule(const GURL& url,
           kFuzzerToggleCommand,
           base::Bind(&BrowserModule::OnFuzzerToggle, base::Unretained(this)),
           kFuzzerToggleCommandShortHelp, kFuzzerToggleCommandLongHelp)),
+#if defined(ENABLE_DEBUGGER)
+      ALLOW_THIS_IN_INITIALIZER_LIST(boxdump_command_handler_(
+          kBoxDumpCommand,
+          base::Bind(&BrowserModule::OnBoxDumpMessage, base::Unretained(this)),
+          kBoxDumpCommandShortHelp, kBoxDumpCommandLongHelp)),
+#endif  // defined(ENABLE_DEBUGGER)
       ALLOW_THIS_IN_INITIALIZER_LIST(screenshot_command_handler_(
           kScreenshotCommand,
           base::Bind(&OnScreenshotMessage, base::Unretained(this)),
@@ -297,21 +306,34 @@ BrowserModule::BrowserModule(const GURL& url,
       current_main_web_module_timeline_id_(-1) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::BrowserModule()");
 
+  if (options.enable_on_screen_keyboard) {
+    if (OnScreenKeyboardExtensionBridge::IsSupported()) {
+      const CobaltExtensionOnScreenKeyboardApi* on_screen_keyboard_extension =
+          static_cast<const CobaltExtensionOnScreenKeyboardApi*>(
+              SbSystemGetExtension(kCobaltExtensionOnScreenKeyboardName));
+      on_screen_keyboard_bridge_ =
+          std::make_unique<OnScreenKeyboardExtensionBridge>(
+              base::Bind(&BrowserModule::GetSbWindow, base::Unretained(this)),
+              on_screen_keyboard_extension);
+    } else {
+      if (OnScreenKeyboardStarboardBridge::IsSupported()) {
+        on_screen_keyboard_bridge_ =
+            std::make_unique<OnScreenKeyboardStarboardBridge>(base::Bind(
+                &BrowserModule::GetSbWindow, base::Unretained(this)));
+      } else {
+        on_screen_keyboard_bridge_ = NULL;
+      }
+    }
+  } else {
+    on_screen_keyboard_bridge_ = NULL;
+  }
+
   // Apply platform memory setting adjustments and defaults.
   ApplyAutoMemSettings();
 
   platform_info_.reset(new browser::UserAgentPlatformInfo());
   service_worker_registry_.reset(new ServiceWorkerRegistry(
       &web_settings_, network_module, platform_info_.get()));
-
-#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-  SbCoreDumpRegisterHandler(BrowserModule::CoreDumpHandler, this);
-  on_error_triggered_count_ = 0;
-#if defined(COBALT_CHECK_RENDER_TIMEOUT)
-  recovery_mechanism_triggered_count_ = 0;
-  timeout_response_trigger_count_ = 0;
-#endif  // defined(COBALT_CHECK_RENDER_TIMEOUT)
-#endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
 
 #if defined(COBALT_CHECK_RENDER_TIMEOUT)
   timeout_polling_thread_.Start();
@@ -465,9 +487,6 @@ BrowserModule::~BrowserModule() {
   }
 
   on_error_retry_timer_.Stop();
-#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-  SbCoreDumpUnregisterHandler(BrowserModule::CoreDumpHandler, this);
-#endif
 
 #if defined(ENABLE_DEBUGGER)
   if (debug_console_) {
@@ -753,22 +772,6 @@ void BrowserModule::Reload() {
       base::SourceLocation("[object BrowserModule]", 1, 1));
 }
 
-#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-// static
-void BrowserModule::CoreDumpHandler(void* browser_module_as_void) {
-  BrowserModule* browser_module =
-      static_cast<BrowserModule*>(browser_module_as_void);
-  SbCoreDumpLogInteger("BrowserModule.on_error_triggered_count_",
-                       browser_module->on_error_triggered_count_);
-#if defined(COBALT_CHECK_RENDER_TIMEOUT)
-  SbCoreDumpLogInteger("BrowserModule.recovery_mechanism_triggered_count_",
-                       browser_module->recovery_mechanism_triggered_count_);
-  SbCoreDumpLogInteger("BrowserModule.timeout_response_trigger_count_",
-                       browser_module->timeout_response_trigger_count_);
-#endif  // defined(COBALT_CHECK_RENDER_TIMEOUT)
-}
-#endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-
 void BrowserModule::OnLoad() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnLoad()");
   // Repost to our own message loop if necessary. This also prevents
@@ -820,6 +823,13 @@ void BrowserModule::RequestScreenshotToFile(
     const base::Optional<math::Rect>& clip_rect,
     const base::Closure& done_callback) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::RequestScreenshotToFile()");
+  if (!self_message_loop_->task_runner()->BelongsToCurrentThread()) {
+    self_message_loop_->task_runner()->PostTask(
+        FROM_HERE, base::Bind(&BrowserModule::RequestScreenshotToFile,
+                              base::Unretained(this), path, image_format,
+                              clip_rect, std::move(done_callback)));
+    return;
+  }
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   EnsureScreenShotWriter();
   DCHECK(screen_shot_writer_);
@@ -1341,10 +1351,6 @@ void BrowserModule::OnError(const GURL& url, const std::string& error) {
     return;
   }
 
-#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-  on_error_triggered_count_++;
-#endif
-
   // Set |pending_navigate_url_| to the url where the error occurred. This will
   // cause the OnError callback to Navigate() to this URL if it receives a
   // positive response; otherwise, if Cobalt is currently preloaded or
@@ -1578,7 +1584,7 @@ void BrowserModule::SetProxy(const std::string& proxy_rules) {
   network_module_->SetProxy(proxy_rules);
 }
 
-void BrowserModule::Blur(SbTimeMonotonic timestamp) {
+void BrowserModule::Blur(int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Blur()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateStarted);
@@ -1592,7 +1598,7 @@ void BrowserModule::Blur(SbTimeMonotonic timestamp) {
   }
 }
 
-void BrowserModule::Conceal(SbTimeMonotonic timestamp) {
+void BrowserModule::Conceal(int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Conceal()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateBlurred);
@@ -1600,7 +1606,7 @@ void BrowserModule::Conceal(SbTimeMonotonic timestamp) {
   ConcealInternal(timestamp);
 }
 
-void BrowserModule::Freeze(SbTimeMonotonic timestamp) {
+void BrowserModule::Freeze(int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Freeze()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateConcealed);
@@ -1608,7 +1614,7 @@ void BrowserModule::Freeze(SbTimeMonotonic timestamp) {
   FreezeInternal(timestamp);
 }
 
-void BrowserModule::Unfreeze(SbTimeMonotonic timestamp) {
+void BrowserModule::Unfreeze(int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Unfreeze()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateFrozen);
@@ -1617,7 +1623,7 @@ void BrowserModule::Unfreeze(SbTimeMonotonic timestamp) {
   NavigatePendingURL();
 }
 
-void BrowserModule::Reveal(SbTimeMonotonic timestamp) {
+void BrowserModule::Reveal(int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Reveal()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateConcealed);
@@ -1625,7 +1631,7 @@ void BrowserModule::Reveal(SbTimeMonotonic timestamp) {
   RevealInternal(timestamp);
 }
 
-void BrowserModule::Focus(SbTimeMonotonic timestamp) {
+void BrowserModule::Focus(int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Focus()");
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   DCHECK(application_state_ == base::kApplicationStateBlurred);
@@ -1696,9 +1702,10 @@ void BrowserModule::OnWebModuleRendererSubmissionRasterized() {
 
 #if defined(COBALT_CHECK_RENDER_TIMEOUT)
 void BrowserModule::OnPollForRenderTimeout(const GURL& url) {
-  SbTime last_render_timestamp = static_cast<SbTime>(SbAtomicAcquire_Load64(
+  int64_t last_render_timestamp = static_cast<int64_t>(SbAtomicAcquire_Load64(
       non_trivial_global_variables.Get().last_render_timestamp));
-  base::Time last_render = base::Time::FromSbTime(last_render_timestamp);
+  base::Time last_render = base::Time::FromDeltaSinceWindowsEpoch(
+      base::TimeDelta::FromMicroseconds(last_render_timestamp));
   bool timeout_expiration = base::Time::Now() - base::TimeDelta::FromSeconds(
                                                     kLastRenderTimeoutSeconds) >
                             last_render;
@@ -1715,18 +1722,12 @@ void BrowserModule::OnPollForRenderTimeout(const GURL& url) {
   }
 
   if (timeout_response_trigger) {
-#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-    timeout_response_trigger_count_++;
-#endif
     SbAtomicNoBarrier_Exchange64(
         non_trivial_global_variables.Get().last_render_timestamp,
-        static_cast<SbAtomic64>(kSbTimeMax));
+        static_cast<SbAtomic64>(kSbInt64Max));
     if (SbSystemGetRandomUInt64() <
         kRenderTimeoutErrorPercentage * (UINT64_MAX / 100)) {
       OnError(url, std::string("Rendering Timeout"));
-#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-      recovery_mechanism_triggered_count_++;
-#endif
     } else {
       SB_DLOG(INFO) << "Received OnRenderTimeout, ignoring by random chance.";
     }
@@ -1889,7 +1890,7 @@ void BrowserModule::UpdateScreenSize() {
   }
 }
 
-void BrowserModule::ConcealInternal(SbTimeMonotonic timestamp) {
+void BrowserModule::ConcealInternal(int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::ConcealInternal()");
   FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
                     Conceal(GetResourceProvider(), timestamp));
@@ -1917,7 +1918,7 @@ void BrowserModule::ConcealInternal(SbTimeMonotonic timestamp) {
   }
 }
 
-void BrowserModule::FreezeInternal(SbTimeMonotonic timestamp) {
+void BrowserModule::FreezeInternal(int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::FreezeInternal()");
   FreezeMediaModule();
   // First freeze all our web modules which implies that they will release
@@ -1930,7 +1931,7 @@ void BrowserModule::FreezeInternal(SbTimeMonotonic timestamp) {
   }
 }
 
-void BrowserModule::RevealInternal(SbTimeMonotonic timestamp) {
+void BrowserModule::RevealInternal(int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::RevealInternal()");
   DCHECK(!renderer_module_);
   if (!system_window_) {
@@ -1954,7 +1955,7 @@ void BrowserModule::RevealInternal(SbTimeMonotonic timestamp) {
   }
 }
 
-void BrowserModule::UnfreezeInternal(SbTimeMonotonic timestamp) {
+void BrowserModule::UnfreezeInternal(int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::UnfreezeInternal()");
   // Set the Stub resource provider to media module and to web module
   // at Concealed state.
@@ -2243,7 +2244,7 @@ scoped_refptr<script::Wrappable> BrowserModule::CreateH5vccCallback(
   return scoped_refptr<script::Wrappable>(h5vcc_object);
 }
 
-void BrowserModule::SetDeepLinkTimestamp(SbTimeMonotonic timestamp) {
+void BrowserModule::SetDeepLinkTimestamp(int64_t timestamp) {
   if (base::MessageLoop::current() != self_message_loop_) {
     self_message_loop_->task_runner()->PostTask(
         FROM_HERE, base::Bind(&BrowserModule::SetDeepLinkTimestamp,
@@ -2261,6 +2262,16 @@ void BrowserModule::ValidateCacheBackendSettings() {
   if (!http_cache) return;
   network_module_->url_request_context()->ValidateCachePersistentSettings();
 }
+
+#if defined(ENABLE_DEBUGGER)
+std::string BrowserModule::OnBoxDumpMessage(const std::string& message) {
+  std::string response = "No MainWebModule.";
+  if (web_module_) {
+    response = web_module_->OnBoxDumpMessage(message);
+  }
+  return response;
+}
+#endif
 
 }  // namespace browser
 }  // namespace cobalt

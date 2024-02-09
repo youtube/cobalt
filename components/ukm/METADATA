@@ -14,7 +14,7 @@ third_party {
   version: "70.0.3538.110"
   last_upgrade_date {
     year: 2018
-    month: 08
+    month: 8
     day: 29
   }
 }

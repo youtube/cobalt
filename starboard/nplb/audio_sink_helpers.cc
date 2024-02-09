@@ -17,6 +17,7 @@
 #include <algorithm>
 
 #include "starboard/common/log.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 
 namespace starboard {
@@ -124,13 +125,13 @@ int AudioSinkTestEnvironment::GetFrameBufferFreeSpaceInFrames() const {
 bool AudioSinkTestEnvironment::WaitUntilUpdateStatusCalled() {
   ScopedLock lock(mutex_);
   int update_source_status_call_count = update_source_status_call_count_;
-  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+  int64_t start = CurrentMonotonicTime();
   while (update_source_status_call_count == update_source_status_call_count_) {
-    SbTime time_elapsed = SbTimeGetMonotonicNow() - start;
+    int64_t time_elapsed = CurrentMonotonicTime() - start;
     if (time_elapsed >= kTimeToTry) {
       return false;
     }
-    SbTime time_to_wait = kTimeToTry - time_elapsed;
+    int64_t time_to_wait = kTimeToTry - time_elapsed;
     condition_variable_.WaitTimed(time_to_wait);
   }
   return true;
@@ -139,13 +140,13 @@ bool AudioSinkTestEnvironment::WaitUntilUpdateStatusCalled() {
 bool AudioSinkTestEnvironment::WaitUntilSomeFramesAreConsumed() {
   ScopedLock lock(mutex_);
   int frames_consumed = frames_consumed_;
-  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+  int64_t start = CurrentMonotonicTime();
   while (frames_consumed == frames_consumed_) {
-    SbTime time_elapsed = SbTimeGetMonotonicNow() - start;
+    int64_t time_elapsed = CurrentMonotonicTime() - start;
     if (time_elapsed >= kTimeToTry) {
       return false;
     }
-    SbTime time_to_wait = kTimeToTry - time_elapsed;
+    int64_t time_to_wait = kTimeToTry - time_elapsed;
     condition_variable_.WaitTimed(time_to_wait);
   }
   return true;
@@ -157,15 +158,15 @@ bool AudioSinkTestEnvironment::WaitUntilAllFramesAreConsumed() {
   ScopedLock lock(mutex_);
   is_eos_reached_ = true;
   int frames_appended_before_eos = frames_appended_;
-  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+  int64_t start = CurrentMonotonicTime();
   int silence_frames_appended = 0;
 
   while (frames_consumed_ < frames_appended_before_eos) {
-    SbTime time_elapsed = SbTimeGetMonotonicNow() - start;
+    int64_t time_elapsed = CurrentMonotonicTime() - start;
     if (time_elapsed >= kTimeToTry) {
       return false;
     }
-    SbTime time_to_wait = kTimeToTry - time_elapsed;
+    int64_t time_to_wait = kTimeToTry - time_elapsed;
 
     // Append silence as some audio sink implementations won't be able to finish
     // playback to the last frames filled.

@@ -68,7 +68,7 @@ class Socket {
   bool SetReuseAddress(bool value);
   bool SetReceiveBufferSize(int32_t size);
   bool SetSendBufferSize(int32_t size);
-  bool SetTcpKeepAlive(bool value, SbTime period);
+  bool SetTcpKeepAlive(bool value, int64_t period);  // period in microseconds.
   bool SetTcpNoDelay(bool value);
   bool SetTcpWindowScaling(bool value);
   bool JoinMulticastGroup(const SbSocketAddress* address);

@@ -32,10 +32,8 @@
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
-#else
-#include <string.h>
 #endif  // defined(STARBOARD)
+#include <string.h>
 
 #include "unicode/uchar.h"
 #include "unicode/uniset.h"

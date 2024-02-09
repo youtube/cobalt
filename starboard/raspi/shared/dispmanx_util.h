@@ -149,7 +149,7 @@ class DispmanxElement {
 class DispmanxVideoFrame
     : public starboard::shared::starboard::player::filter::VideoFrame {
  public:
-  DispmanxVideoFrame(SbTime time,
+  DispmanxVideoFrame(int64_t time,
                      DispmanxYUV420Resource* resource,
                      std::function<void(DispmanxYUV420Resource*)> release_cb)
       : VideoFrame(time), resource_(resource), release_cb_(release_cb) {

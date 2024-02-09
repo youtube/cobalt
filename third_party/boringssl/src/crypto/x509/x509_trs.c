@@ -54,11 +54,14 @@
  * (eay@cryptsoft.com).  This product includes software written by Tim
  * Hudson (tjh@cryptsoft.com). */
 
-#include <openssl/buf.h>
 #include <openssl/err.h>
 #include <openssl/mem.h>
 #include <openssl/obj.h>
 #include <openssl/x509v3.h>
+
+#include "../x509v3/internal.h"
+#include "internal.h"
+
 
 static int tr_cmp(const X509_TRUST **a, const X509_TRUST **b);
 static void trtable_free(X509_TRUST *p);
@@ -68,7 +71,6 @@ static int trust_1oid(X509_TRUST *trust, X509 *x, int flags);
 static int trust_compat(X509_TRUST *trust, X509 *x, int flags);
 
 static int obj_trust(int id, X509 *x, int flags);
-static int (*default_trust) (int id, X509 *x, int flags) = obj_trust;
 
 /*
  * WARNING: the following table should be kept in order of trust and without
@@ -103,14 +105,6 @@ static int tr_cmp(const X509_TRUST **a, const X509_TRUST **b)
     return (*a)->trust - (*b)->trust;
 }
 
-int (*X509_TRUST_set_default(int (*trust) (int, X509 *, int))) (int, X509 *,
-                                                                int) {
-    int (*oldtrust) (int, X509 *, int);
-    oldtrust = default_trust;
-    default_trust = trust;
-    return oldtrust;
-}
-
 int X509_check_trust(X509 *x, int id, int flags)
 {
     X509_TRUST *pt;
@@ -127,7 +121,7 @@ int X509_check_trust(X509 *x, int id, int flags)
     }
     idx = X509_TRUST_get_by_id(id);
     if (idx == -1)
-        return default_trust(id, x, flags);
+        return obj_trust(id, x, flags);
     pt = X509_TRUST_get0(idx);
     return pt->check_trust(pt, x, flags);
 }
@@ -201,7 +195,7 @@ int X509_TRUST_add(int id, int flags, int (*ck) (X509_TRUST *, X509 *, int),
         trtmp = X509_TRUST_get0(idx);
 
     /* Duplicate the supplied name. */
-    name_dup = BUF_strdup(name);
+    name_dup = OPENSSL_strdup(name);
     if (name_dup == NULL) {
         OPENSSL_PUT_ERROR(X509, ERR_R_MALLOC_FAILURE);
         if (idx == -1)
@@ -259,17 +253,17 @@ void X509_TRUST_cleanup(void)
     trtable = NULL;
 }
 
-int X509_TRUST_get_flags(X509_TRUST *xp)
+int X509_TRUST_get_flags(const X509_TRUST *xp)
 {
     return xp->flags;
 }
 
-char *X509_TRUST_get0_name(X509_TRUST *xp)
+char *X509_TRUST_get0_name(const X509_TRUST *xp)
 {
     return xp->name;
 }
 
-int X509_TRUST_get_trust(X509_TRUST *xp)
+int X509_TRUST_get_trust(const X509_TRUST *xp)
 {
     return xp->trust;
 }
@@ -294,7 +288,8 @@ static int trust_1oid(X509_TRUST *trust, X509 *x, int flags)
 
 static int trust_compat(X509_TRUST *trust, X509 *x, int flags)
 {
-    X509_check_purpose(x, -1, 0);
+    if (!x509v3_cache_extensions(x))
+        return X509_TRUST_UNTRUSTED;
     if (x->ex_flags & EXFLAG_SS)
         return X509_TRUST_TRUSTED;
     else

@@ -36,15 +36,15 @@ namespace shared {
 namespace win32 {
 
 // Converts microseconds to 10Mhz (100ns time).
-int64_t ConvertToWin32Time(SbTime input) {
+int64_t ConvertUsecToWin32Time(int64_t input) {
   int64_t out = input;
   out *= 10;
   return out;
 }
 
 // Convert the other way around.
-SbTime ConvertToSbTime(int64_t input) {
-  SbTime out = input;
+int64_t ConvertWin32TimeToUsec(int64_t input) {
+  int64_t out = input;
   out /= 10;
   return out;
 }

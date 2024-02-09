@@ -180,7 +180,7 @@ void VideoDecoder::DecodeOneBuffer(
 
   SB_DCHECK(context_);
 
-  SbTime timestamp = input_buffer->timestamp();
+  int64_t timestamp = input_buffer->timestamp();
   de265_error status = de265_push_data(context_, input_buffer->data(),
                                        input_buffer->size(), timestamp, 0);
   if (status != DE265_OK) {

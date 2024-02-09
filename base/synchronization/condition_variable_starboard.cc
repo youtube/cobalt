@@ -56,7 +56,7 @@ void ConditionVariable::Wait() {
 void ConditionVariable::TimedWait(const TimeDelta& max_time) {
   internal::ScopedBlockingCallWithBaseSyncPrimitives scoped_blocking_call(
       BlockingType::MAY_BLOCK);
-  SbTime duration = max_time.ToSbTime();
+  int64_t duration = max_time.InMicroseconds();
 
 #if !defined(NDEBUG) || defined(DCHECK_ALWAYS_ON)
   user_lock_->CheckHeldAndUnmark();

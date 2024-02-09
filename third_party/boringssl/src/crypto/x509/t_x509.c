@@ -54,7 +54,8 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.] */
 
-#include <ctype.h>
+#include <assert.h>
+
 #include <openssl/asn1.h>
 #include <openssl/bio.h>
 #include <openssl/digest.h>
@@ -68,28 +69,23 @@
 #include "internal.h"
 
 
-#ifndef OPENSSL_NO_FP_API
 int X509_print_ex_fp(FILE *fp, X509 *x, unsigned long nmflag,
                      unsigned long cflag)
 {
-    BIO *b;
-    int ret;
-
-    if ((b = BIO_new(BIO_s_file())) == NULL) {
+    BIO *b = BIO_new_fp(fp, BIO_NOCLOSE);
+    if (b == NULL) {
         OPENSSL_PUT_ERROR(X509, ERR_R_BUF_LIB);
-        return (0);
+        return 0;
     }
-    BIO_set_fp(b, fp, BIO_NOCLOSE);
-    ret = X509_print_ex(b, x, nmflag, cflag);
+    int ret = X509_print_ex(b, x, nmflag, cflag);
     BIO_free(b);
-    return (ret);
+    return ret;
 }
 
 int X509_print_fp(FILE *fp, X509 *x)
 {
     return X509_print_ex_fp(fp, x, XN_FLAG_COMPAT, X509_FLAG_COMPAT);
 }
-#endif
 
 int X509_print(BIO *bp, X509 *x)
 {
@@ -104,7 +100,6 @@ int X509_print_ex(BIO *bp, X509 *x, unsigned long nmflags,
     char *m = NULL, mlch = ' ';
     int nmindent = 0;
     X509_CINF *ci;
-    ASN1_INTEGER *bs;
     EVP_PKEY *pkey = NULL;
     const char *neg;
 
@@ -124,38 +119,41 @@ int X509_print_ex(BIO *bp, X509 *x, unsigned long nmflags,
             goto err;
     }
     if (!(cflag & X509_FLAG_NO_VERSION)) {
+        /* TODO(https://crbug.com/boringssl/467): This loses information on some
+         * invalid versions, but we should fix this by making invalid versions
+         * impossible. */
         l = X509_get_version(x);
-        if (BIO_printf(bp, "%8sVersion: %lu (0x%lx)\n", "", l + 1, l) <= 0)
+        if (BIO_printf(bp, "%8sVersion: %ld (0x%lx)\n", "", l + 1,
+                       (unsigned long)l) <= 0) {
             goto err;
+        }
     }
     if (!(cflag & X509_FLAG_NO_SERIAL)) {
-
-        if (BIO_write(bp, "        Serial Number:", 22) <= 0)
+        if (BIO_write(bp, "        Serial Number:", 22) <= 0) {
             goto err;
-
-        bs = X509_get_serialNumber(x);
-        if (bs->length < (int)sizeof(long)
-            || (bs->length == sizeof(long) && (bs->data[0] & 0x80) == 0)) {
-            l = ASN1_INTEGER_get(bs);
-            if (bs->type == V_ASN1_NEG_INTEGER) {
-                l = -l;
-                neg = "-";
-            } else
-                neg = "";
-            if (BIO_printf(bp, " %s%lu (%s0x%lx)\n", neg, l, neg, l) <= 0)
-                goto err;
-        } else {
-            neg = (bs->type == V_ASN1_NEG_INTEGER) ? " (Negative)" : "";
-            if (BIO_printf(bp, "\n%12s%s", "", neg) <= 0)
-                goto err;
-
-            for (i = 0; i < bs->length; i++) {
-                if (BIO_printf(bp, "%02x%c", bs->data[i],
-                               ((i + 1 == bs->length) ? '\n' : ':')) <= 0)
-                    goto err;
-            }
         }
 
+        const ASN1_INTEGER *serial = X509_get0_serialNumber(x);
+        uint64_t serial_u64;
+        if (ASN1_INTEGER_get_uint64(&serial_u64, serial)) {
+            assert(serial->type != V_ASN1_NEG_INTEGER);
+            if (BIO_printf(bp, " %" PRIu64 " (0x%" PRIx64 ")\n", serial_u64,
+                           serial_u64) <= 0) {
+              goto err;
+            }
+        } else {
+            neg = (serial->type == V_ASN1_NEG_INTEGER) ? " (Negative)" : "";
+            if (BIO_printf(bp, "\n%12s%s", "", neg) <= 0) {
+                goto err;
+            }
+
+            for (i = 0; i < serial->length; i++) {
+                if (BIO_printf(bp, "%02x%c", serial->data[i],
+                               ((i + 1 == serial->length) ? '\n' : ':')) <= 0) {
+                    goto err;
+                }
+            }
+        }
     }
 
     if (!(cflag & X509_FLAG_NO_SIGNAME)) {
@@ -321,188 +319,10 @@ int X509_signature_print(BIO *bp, const X509_ALGOR *sigalg,
     return 1;
 }
 
-int ASN1_STRING_print(BIO *bp, const ASN1_STRING *v)
-{
-    int i, n;
-    char buf[80];
-    const char *p;
-
-    if (v == NULL)
-        return (0);
-    n = 0;
-    p = (const char *)v->data;
-    for (i = 0; i < v->length; i++) {
-        if ((p[i] > '~') || ((p[i] < ' ') &&
-                             (p[i] != '\n') && (p[i] != '\r')))
-            buf[n] = '.';
-        else
-            buf[n] = p[i];
-        n++;
-        if (n >= 80) {
-            if (BIO_write(bp, buf, n) <= 0)
-                return (0);
-            n = 0;
-        }
-    }
-    if (n > 0)
-        if (BIO_write(bp, buf, n) <= 0)
-            return (0);
-    return (1);
-}
-
-int ASN1_TIME_print(BIO *bp, const ASN1_TIME *tm)
-{
-    if (tm->type == V_ASN1_UTCTIME)
-        return ASN1_UTCTIME_print(bp, tm);
-    if (tm->type == V_ASN1_GENERALIZEDTIME)
-        return ASN1_GENERALIZEDTIME_print(bp, tm);
-    BIO_write(bp, "Bad time value", 14);
-    return (0);
-}
-
-static const char *const mon[12] = {
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-};
-
-int ASN1_GENERALIZEDTIME_print(BIO *bp, const ASN1_GENERALIZEDTIME *tm)
-{
-    char *v;
-    int gmt = 0;
-    int i;
-    int y = 0, M = 0, d = 0, h = 0, m = 0, s = 0;
-    char *f = NULL;
-    int f_len = 0;
-
-    i = tm->length;
-    v = (char *)tm->data;
-
-    if (i < 12)
-        goto err;
-    if (v[i - 1] == 'Z')
-        gmt = 1;
-    for (i = 0; i < 12; i++)
-        if ((v[i] > '9') || (v[i] < '0'))
-            goto err;
-    y = (v[0] - '0') * 1000 + (v[1] - '0') * 100 + (v[2] - '0') * 10 + (v[3] -
-                                                                        '0');
-    M = (v[4] - '0') * 10 + (v[5] - '0');
-    if ((M > 12) || (M < 1))
-        goto err;
-    d = (v[6] - '0') * 10 + (v[7] - '0');
-    h = (v[8] - '0') * 10 + (v[9] - '0');
-    m = (v[10] - '0') * 10 + (v[11] - '0');
-    if (tm->length >= 14 &&
-        (v[12] >= '0') && (v[12] <= '9') &&
-        (v[13] >= '0') && (v[13] <= '9')) {
-        s = (v[12] - '0') * 10 + (v[13] - '0');
-        /* Check for fractions of seconds. */
-        if (tm->length >= 15 && v[14] == '.') {
-            int l = tm->length;
-            f = &v[14];         /* The decimal point. */
-            f_len = 1;
-            while (14 + f_len < l && f[f_len] >= '0' && f[f_len] <= '9')
-                ++f_len;
-        }
-    }
-
-    if (BIO_printf(bp, "%s %2d %02d:%02d:%02d%.*s %d%s",
-                   mon[M - 1], d, h, m, s, f_len, f, y,
-                   (gmt) ? " GMT" : "") <= 0)
-        return (0);
-    else
-        return (1);
- err:
-    BIO_write(bp, "Bad time value", 14);
-    return (0);
-}
-
-// consume_two_digits is a helper function for ASN1_UTCTIME_print. If |*v|,
-// assumed to be |*len| bytes long, has two leading digits, updates |*out| with
-// their value, updates |v| and |len|, and returns one. Otherwise, returns
-// zero.
-static int consume_two_digits(int* out, const char **v, int *len) {
-  if (*len < 2|| !isdigit((*v)[0]) || !isdigit((*v)[1])) {
-    return 0;
-  }
-  *out = ((*v)[0] - '0') * 10 + ((*v)[1] - '0');
-  *len -= 2;
-  *v += 2;
-  return 1;
-}
-
-// consume_zulu_timezone is a helper function for ASN1_UTCTIME_print. If |*v|,
-// assumed to be |*len| bytes long, starts with "Z" then it updates |*v| and
-// |*len| and returns one. Otherwise returns zero.
-static int consume_zulu_timezone(const char **v, int *len) {
-  if (*len == 0 || (*v)[0] != 'Z') {
-    return 0;
-  }
-
-  *len -= 1;
-  *v += 1;
-  return 1;
-}
-
-int ASN1_UTCTIME_print(BIO *bp, const ASN1_UTCTIME *tm) {
-  const char *v = (const char *)tm->data;
-  int len = tm->length;
-  int Y = 0, M = 0, D = 0, h = 0, m = 0, s = 0;
-
-  // YYMMDDhhmm are required to be present.
-  if (!consume_two_digits(&Y, &v, &len) ||
-      !consume_two_digits(&M, &v, &len) ||
-      !consume_two_digits(&D, &v, &len) ||
-      !consume_two_digits(&h, &v, &len) ||
-      !consume_two_digits(&m, &v, &len)) {
-    goto err;
-  }
-  // https://tools.ietf.org/html/rfc5280, section 4.1.2.5.1, requires seconds
-  // to be present, but historically this code has forgiven its absence.
-  consume_two_digits(&s, &v, &len);
-
-  // https://tools.ietf.org/html/rfc5280, section 4.1.2.5.1, specifies this
-  // interpretation of the year.
-  if (Y < 50) {
-    Y += 2000;
-  } else {
-    Y += 1900;
-  }
-  if (M > 12 || M == 0) {
-    goto err;
-  }
-  if (D > 31 || D == 0) {
-    goto err;
-  }
-  if (h > 23 || m > 59 || s > 60) {
-    goto err;
-  }
-
-  // https://tools.ietf.org/html/rfc5280, section 4.1.2.5.1, requires the "Z"
-  // to be present, but historically this code has forgiven its absence.
-  const int is_gmt = consume_zulu_timezone(&v, &len);
-
-  // https://tools.ietf.org/html/rfc5280, section 4.1.2.5.1, does not permit
-  // the specification of timezones using the +hhmm / -hhmm syntax, which is
-  // the only other thing that might legitimately be found at the end.
-  if (len) {
-    goto err;
-  }
-
-  return BIO_printf(bp, "%s %2d %02d:%02d:%02d %d%s", mon[M - 1], D, h, m, s, Y,
-                    is_gmt ? " GMT" : "") > 0;
-
-err:
-  BIO_write(bp, "Bad time value", 14);
-  return 0;
-}
-
-int X509_NAME_print(BIO *bp, X509_NAME *name, int obase)
+int X509_NAME_print(BIO *bp, const X509_NAME *name, int obase)
 {
     char *s, *c, *b;
-    int ret = 0, l, i;
-
-    l = 80 - 2 - obase;
+    int ret = 0, i;
 
     b = X509_NAME_oneline(name, NULL, 0);
     if (!b)
@@ -529,12 +349,10 @@ int X509_NAME_print(BIO *bp, X509_NAME *name, int obase)
                 if (BIO_write(bp, ", ", 2) != 2)
                     goto err;
             }
-            l--;
         }
         if (*s == '\0')
             break;
         s++;
-        l--;
     }
 
     ret = 1;

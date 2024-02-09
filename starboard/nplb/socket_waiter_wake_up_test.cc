@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/time.h"
 #include "starboard/nplb/socket_helpers.h"
 #include "starboard/nplb/thread_helpers.h"
 #include "starboard/socket_waiter.h"
@@ -125,10 +126,10 @@ TEST(SbSocketWaiterWakeUpTest, CallFromOtherThreadWakesUp) {
     context.waiter = waiter;
 
     SbThread thread = Spawn(&context, &WakeUpSleepEntryPoint);
-    SbTimeMonotonic start = SbTimeGetMonotonicNow();
+    int64_t start = CurrentMonotonicTime();
     context.semaphore.Put();
     TimedWait(waiter);
-    SbTimeMonotonic duration = SbTimeGetMonotonicNow() - start;
+    int64_t duration = CurrentMonotonicTime() - start;
     EXPECT_GT(kSocketTimeout * 2, duration);
     EXPECT_LE(kSocketTimeout, duration);
     Join(thread);

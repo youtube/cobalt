@@ -18,6 +18,7 @@
 #include <memory>
 
 #include "base/compiler_specific.h"
+#include "base/time/time.h"
 #include "cobalt/media/bidirectional_fit_reuse_allocator.h"
 #include "cobalt/media/decoder_buffer_memory_info.h"
 #include "cobalt/media/starboard_memory_allocator.h"
@@ -46,7 +47,7 @@ class DecoderBufferAllocator : public ::media::DecoderBuffer::Allocator,
   int GetAudioBufferBudget() const override;
   int GetBufferAlignment() const override;
   int GetBufferPadding() const override;
-  SbTime GetBufferGarbageCollectionDurationThreshold() const override;
+  base::TimeDelta GetBufferGarbageCollectionDurationThreshold() const override;
   int GetProgressiveBufferBudget(SbMediaVideoCodec codec, int resolution_width,
                                  int resolution_height,
                                  int bits_per_pixel) const override;

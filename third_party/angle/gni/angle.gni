@@ -38,7 +38,7 @@ if (angle_has_build) {
 
 if (build_with_chromium) {
   import("//ui/ozone/ozone.gni")
-} else {
+} else if (!defined(ozone_platform_gbm)) {
   declare_args() {
     ozone_platform_gbm = false
   }

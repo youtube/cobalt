@@ -15,9 +15,6 @@
 * 10/11/2001  Doug      Ported from ICU4J
 */
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif  // defined(STARBOARD)
 #include "nfrs.h"
 
 #if U_HAVE_RBNF

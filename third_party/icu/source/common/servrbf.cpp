@@ -12,9 +12,6 @@
 
 #if !UCONFIG_NO_SERVICE
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif  // defined(STARBOARD)
 #include "unicode/resbund.h"
 #include "uresimp.h"
 #include "cmemory.h"

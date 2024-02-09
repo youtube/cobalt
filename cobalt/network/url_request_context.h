@@ -15,15 +15,16 @@
 #ifndef COBALT_NETWORK_URL_REQUEST_CONTEXT_H_
 #define COBALT_NETWORK_URL_REQUEST_CONTEXT_H_
 
+#include <map>
 #include <memory>
 #include <string>
 
 #include "base/basictypes.h"
 #include "base/macros.h"
 #include "base/sequence_checker.h"
+#include "cobalt/network/disk_cache/resource_type.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "net/cookies/cookie_monster.h"
-#include "net/disk_cache/cobalt/resource_type.h"
 #include "net/log/net_log.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_getter.h"
@@ -58,6 +59,10 @@ class URLRequestContext : public net::URLRequestContext {
   void UpdateCacheSizeSetting(disk_cache::ResourceType type, uint32_t bytes);
   void ValidateCachePersistentSettings();
 
+  void AssociateKeyWithResourceType(const std::string& key,
+                                    disk_cache::ResourceType resource_type);
+  disk_cache::ResourceType GetType(const std::string& key);
+
  private:
   SEQUENCE_CHECKER(sequence_checker_);
   net::URLRequestContextStorage storage_;
@@ -78,6 +83,7 @@ class URLRequestContext : public net::URLRequestContext {
   // Persistent settings module for Cobalt disk cache quotas
   std::unique_ptr<cobalt::persistent_storage::PersistentSettings>
       cache_persistent_settings_;
+  std::map<uint32_t, disk_cache::ResourceType> url_resource_type_map_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestContext);
 };

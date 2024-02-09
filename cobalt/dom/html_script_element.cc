@@ -343,7 +343,7 @@ void HTMLScriptElement::Prepare() {
               /*main_resource=*/false, csp_callback, request_mode_,
               document_->location() ? document_->location()->GetOriginAsObject()
                                     : loader::Origin(),
-              disk_cache::kUncompiledScript, net::HttpRequestHeaders(),
+              network::disk_cache::kUncompiledScript, net::HttpRequestHeaders(),
               /*skip_fetch_intercept=*/false),
           base::Bind(&loader::TextDecoder::Create,
                      base::Bind(&HTMLScriptElement::OnSyncContentProduced,

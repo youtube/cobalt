@@ -45,7 +45,7 @@ static_library("oemcrypto") {
 
   deps = [
     "//starboard/common",
-    "//third_party/boringssl:crypto",
+    "//third_party/boringssl",
     "//third_party/internal/ce_cdm/oemcrypto/mock:oec_mock",
   ]
 }

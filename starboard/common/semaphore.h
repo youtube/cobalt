@@ -18,7 +18,6 @@
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
 #include "starboard/configuration.h"
-#include "starboard/time.h"
 
 namespace starboard {
 
@@ -43,9 +42,9 @@ class Semaphore {
   // is returned then the effects are the same as if Take() had been invoked.
   bool TakeTry();
 
-  // Same as Take(), but will wait at most, wait_us microseconds.
+  // Same as Take(), but will wait at most |wait_us| microseconds.
   // Returns |false| if the semaphore timed out, |true| otherwise.
-  bool TakeWait(SbTime wait_us);
+  bool TakeWait(int64_t wait_us);
 
  private:
   Mutex mutex_;

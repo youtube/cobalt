@@ -1477,7 +1477,7 @@ void XMLHttpRequestImpl::StartRequest(const std::string& request_body) {
     StartURLFetcher(environment_settings()
                         ->context()
                         ->network_module()
-                        ->max_network_delay(),
+                        ->max_network_delay_usec(),
                     url_fetcher_generation_);
   }
 }
@@ -1525,15 +1525,15 @@ void XMLHttpRequestImpl::PrepareForNewRequest() {
   is_redirect_ = false;
 }
 
-void XMLHttpRequestImpl::StartURLFetcher(const SbTime max_artificial_delay,
-                                         const int url_fetcher_generation) {
-  if (max_artificial_delay > 0) {
+void XMLHttpRequestImpl::StartURLFetcher(
+    const int64_t max_artificial_delay_usec, const int url_fetcher_generation) {
+  if (max_artificial_delay_usec > 0) {
     base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
         FROM_HERE,
         base::Bind(&XMLHttpRequestImpl::StartURLFetcher, base::Unretained(this),
                    0, url_fetcher_generation_),
         base::TimeDelta::FromMicroseconds(base::RandUint64() %
-                                          max_artificial_delay));
+                                          max_artificial_delay_usec));
     return;
   }
 
@@ -1555,9 +1555,11 @@ void XMLHttpRequestImpl::CORSPreflightErrorCallback() {
 
 void XMLHttpRequestImpl::CORSPreflightSuccessCallback() {
   DCHECK(environment_settings()->context()->network_module());
-  StartURLFetcher(
-      environment_settings()->context()->network_module()->max_network_delay(),
-      url_fetcher_generation_);
+  StartURLFetcher(environment_settings()
+                      ->context()
+                      ->network_module()
+                      ->max_network_delay_usec(),
+                  url_fetcher_generation_);
 }
 
 DOMXMLHttpRequestImpl::DOMXMLHttpRequestImpl(XMLHttpRequest* xhr)

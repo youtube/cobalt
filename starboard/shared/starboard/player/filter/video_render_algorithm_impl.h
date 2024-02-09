@@ -28,7 +28,6 @@
 #include "starboard/shared/starboard/player/filter/video_frame_rate_estimator.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace shared {
@@ -46,7 +45,7 @@ class VideoRenderAlgorithmImpl : public VideoRenderAlgorithm {
   void Render(MediaTimeProvider* media_time_provider,
               std::list<scoped_refptr<VideoFrame>>* frames,
               VideoRendererSink::DrawFrameCB draw_frame_cb) override;
-  void Seek(SbTime seek_to_time) override;
+  void Seek(int64_t seek_to_time) override;
   int GetDroppedFrames() override { return dropped_frames_; }
 
  private:
@@ -63,11 +62,11 @@ class VideoRenderAlgorithmImpl : public VideoRenderAlgorithm {
   static constexpr int kMaxLogPerPlaybackSession = 32;
 
   int times_logged_ = 0;
-  SbTime media_time_of_last_render_call_;
-  SbTime system_time_of_last_render_call_;
+  int64_t media_time_of_last_render_call_;   // microseconds
+  int64_t system_time_of_last_render_call_;  // microseconds
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 
-  SbTime last_frame_timestamp_ = -1;
+  int64_t last_frame_timestamp_ = -1;  // microseconds
   int current_frame_rendered_times_ = -1;
   int dropped_frames_ = 0;
 };

@@ -31,7 +31,7 @@
 #define FUZZER_MODE false
 #endif
 
-namespace bssl {
+BSSL_NAMESPACE_BEGIN
 
 SSLAEADContext::SSLAEADContext(uint16_t version_arg, bool is_dtls_arg,
                                const SSL_CIPHER *cipher_arg)
@@ -42,7 +42,6 @@ SSLAEADContext::SSLAEADContext(uint16_t version_arg, bool is_dtls_arg,
       random_variable_nonce_(false),
       xor_fixed_nonce_(false),
       omit_length_in_ad_(false),
-      omit_ad_(false),
       ad_is_header_(false) {
   OPENSSL_memset(fixed_nonce_, 0, sizeof(fixed_nonce_));
 }
@@ -55,7 +54,7 @@ UniquePtr<SSLAEADContext> SSLAEADContext::CreateNullCipher(bool is_dtls) {
 }
 
 UniquePtr<SSLAEADContext> SSLAEADContext::Create(
-    enum evp_aead_direction_t direction, uint16_t version, int is_dtls,
+    enum evp_aead_direction_t direction, uint16_t version, bool is_dtls,
     const SSL_CIPHER *cipher, Span<const uint8_t> enc_key,
     Span<const uint8_t> mac_key, Span<const uint8_t> fixed_iv) {
   const EVP_AEAD *aead;
@@ -134,11 +133,7 @@ UniquePtr<SSLAEADContext> SSLAEADContext::Create(
       aead_ctx->xor_fixed_nonce_ = true;
       aead_ctx->variable_nonce_len_ = 8;
       aead_ctx->variable_nonce_included_in_record_ = false;
-      if (ssl_is_draft28(version)) {
-        aead_ctx->ad_is_header_ = true;
-      } else {
-        aead_ctx->omit_ad_ = true;
-      }
+      aead_ctx->ad_is_header_ = true;
       assert(fixed_iv.size() >= aead_ctx->variable_nonce_len_);
     }
   } else {
@@ -149,6 +144,11 @@ UniquePtr<SSLAEADContext> SSLAEADContext::Create(
   }
 
   return aead_ctx;
+}
+
+UniquePtr<SSLAEADContext> SSLAEADContext::CreatePlaceholderForQUIC(
+    uint16_t version, const SSL_CIPHER *cipher) {
+  return MakeUnique<SSLAEADContext>(version, false, cipher);
 }
 
 void SSLAEADContext::SetVersionIfNullCipher(uint16_t version) {
@@ -224,10 +224,6 @@ Span<const uint8_t> SSLAEADContext::GetAdditionalData(
     const uint8_t seqnum[8], size_t plaintext_len, Span<const uint8_t> header) {
   if (ad_is_header_) {
     return header;
-  }
-
-  if (omit_ad_) {
-    return {};
   }
 
   OPENSSL_memcpy(storage, seqnum, 8);
@@ -433,4 +429,4 @@ bool SSLAEADContext::GetIV(const uint8_t **out_iv, size_t *out_iv_len) const {
          EVP_AEAD_CTX_get_iv(ctx_.get(), out_iv, out_iv_len);
 }
 
-}  // namespace bssl
+BSSL_NAMESPACE_END

@@ -61,15 +61,13 @@ class MessagePort : public script::Wrappable,
   void Start();
   void Close();
 
-  const web::EventTargetListenerInfo::EventListenerScriptValue* onmessage()
-      const {
+  const EventTarget::EventListenerScriptValue* onmessage() const {
     return event_target_ ? event_target_->GetAttributeEventListener(
                                base::Tokens::message())
                          : nullptr;
   }
   void set_onmessage(
-      const web::EventTargetListenerInfo::EventListenerScriptValue&
-          event_listener) {
+      const EventTarget::EventListenerScriptValue& event_listener) {
     if (!event_target_) {
       return;
     }
@@ -77,20 +75,44 @@ class MessagePort : public script::Wrappable,
                                              event_listener);
   }
 
-  const web::EventTargetListenerInfo::EventListenerScriptValue* onmessageerror()
-      const {
+  const EventTarget::EventListenerScriptValue* onmessageerror() const {
     return event_target_ ? event_target_->GetAttributeEventListener(
                                base::Tokens::messageerror())
                          : nullptr;
   }
   void set_onmessageerror(
-      const web::EventTargetListenerInfo::EventListenerScriptValue&
-          event_listener) {
+      const EventTarget::EventListenerScriptValue& event_listener) {
     if (!event_target_) {
       return;
     }
     event_target_->SetAttributeEventListener(base::Tokens::messageerror(),
                                              event_listener);
+  }
+
+  // Web API: EventTarget
+  //
+  void AddEventListener(const std::string& type,
+                        const EventTarget::EventListenerScriptValue& listener,
+                        bool use_capture) {
+    if (!event_target_) {
+      return;
+    }
+    event_target_->AddEventListener(type, listener, use_capture);
+  }
+  void RemoveEventListener(
+      const std::string& type,
+      const EventTarget::EventListenerScriptValue& listener, bool use_capture) {
+    if (!event_target_) {
+      return;
+    }
+    event_target_->RemoveEventListener(type, listener, use_capture);
+  }
+  bool DispatchEvent(const scoped_refptr<Event>& event,
+                     script::ExceptionState* exception_state) {
+    if (!event_target_) {
+      return false;
+    }
+    return event_target_->DispatchEvent(event, exception_state);
   }
 
   EventTarget* event_target() const { return event_target_; }
@@ -99,18 +121,17 @@ class MessagePort : public script::Wrappable,
                          : nullptr;
   }
   base::TaskRunner* target_task_runner() const {
-    return event_target_ ? event_target_->environment_settings()
-                               ->context()
-                               ->message_loop()
-                               ->task_runner()
-                         : nullptr;
+    return context() ? context()->message_loop()->task_runner() : nullptr;
   }
+
+  bool enabled() { return enabled_; }
 
   DEFINE_WRAPPABLE_TYPE(MessagePort);
 
  private:
   void PostMessageSerializedLocked(
       std::unique_ptr<script::StructuredClone> structured_clone);
+  void CloseLocked();
 
   base::Lock mutex_;
   std::vector<std::unique_ptr<script::StructuredClone>> unshipped_messages_;

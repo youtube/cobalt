@@ -11,9 +11,6 @@
 
 #if !UCONFIG_NO_SERVICE
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif  // defined(STARBOARD)
 #include "serv.h"
 #include "umutex.h"
 

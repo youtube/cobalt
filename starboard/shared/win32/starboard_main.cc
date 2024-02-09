@@ -40,12 +40,12 @@ namespace {
 
 void WaitForNetLogIfNecessary(const CommandLine& cmd_line) {
   if (cmd_line.HasSwitch(kNetLogCommandSwitchWait)) {
-    SbTime timeout = kSbTimeSecond * 2;
+    int64_t timeout_usec = 2'000'000;  // 2 seconds.
     std::string val = cmd_line.GetSwitchValue(kNetLogCommandSwitchWait);
     if (!val.empty()) {
-      timeout = atoi(val.c_str());
+      timeout_usec = atoi(val.c_str());
     }
-    NetLogWaitForClientConnected(timeout);
+    NetLogWaitForClientConnected(timeout_usec);
   }
 }
 

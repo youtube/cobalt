@@ -26,6 +26,7 @@
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/media/base/format_support_query_metrics.h"
 #include "starboard/common/string.h"
+#include "starboard/extension/h5vcc_config.h"
 #include "starboard/media.h"
 #include "starboard/window.h"
 #include "third_party/chromium/media/base/mime_util.h"
@@ -198,20 +199,38 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
     LOG(INFO) << (value ? "Enabling" : "Disabling")
               << " media metrics collection.";
     return true;
+  } else if (name == "BackgroundPlaybackEnabled") {
+    const StarboardExtensionH5vccConfigApi* h5vcc_config_api =
+        static_cast<const StarboardExtensionH5vccConfigApi*>(
+            SbSystemGetExtension(kStarboardExtensionH5vccConfigName));
+    if (h5vcc_config_api &&
+        strcmp(h5vcc_config_api->name, kStarboardExtensionH5vccConfigName) ==
+            0 &&
+        h5vcc_config_api->version >= 1) {
+      bool enable_background_playback = value;
+      LOG(INFO) << "Set BackgroundPlaybackEnabled to "
+                << (enable_background_playback ? "enabled" : "disabled");
+      h5vcc_config_api->EnableBackgroundPlayback(enable_background_playback);
+    }
+    return true;
 #if SB_API_VERSION >= 15
   } else if (name == "AudioWriteDurationLocal" && value > 0) {
-    audio_write_duration_local_ = value;
+    audio_write_duration_local_ = base::TimeDelta::FromMicroseconds(value);
     LOG(INFO) << "Set AudioWriteDurationLocal to "
-              << audio_write_duration_local_;
+              << audio_write_duration_local_.InMicroseconds();
     return true;
   } else if (name == "AudioWriteDurationRemote" && value > 0) {
-    audio_write_duration_remote_ = value;
+    audio_write_duration_remote_ = base::TimeDelta::FromMicroseconds(value);
     LOG(INFO) << "Set AudioWriteDurationRemote to "
-              << audio_write_duration_remote_;
+              << audio_write_duration_remote_.InMicroseconds();
     return true;
 #endif  // SB_API_VERSION >= 15
+  } else if (name == "DemuxerUnderflowThreshold" && value >= 0) {
+    demuxer_underflow_threshold_ = base::TimeDelta::FromMicroseconds(value);
+    LOG(INFO) << "Set DemuxerUnderflowThreshold to "
+              << demuxer_underflow_threshold_;
+    return true;
   }
-
   return false;
 }
 
@@ -231,7 +250,7 @@ std::unique_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(
 #if SB_API_VERSION >= 15
       audio_write_duration_local_, audio_write_duration_remote_,
 #endif  // SB_API_VERSION >= 15
-      &media_log_));
+      demuxer_underflow_threshold_, &media_log_));
 }
 
 void MediaModule::Suspend() {

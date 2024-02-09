@@ -11097,5 +11097,4 @@ xmlRelaxNGValidateDoc(xmlRelaxNGValidCtxtPtr ctxt, xmlDocPtr doc)
 }
 
 #define bottom_relaxng
-#include "third_party/libxml/src/elfgcchack.h"
 #endif /* LIBXML_SCHEMAS_ENABLED */

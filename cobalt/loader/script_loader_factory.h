@@ -71,7 +71,7 @@ class ScriptLoaderFactory {
   Loader::FetcherCreator MakeFetcherCreator(
       const GURL& url, const csp::SecurityCallback& url_security_callback,
       RequestMode request_mode, const Origin& origin,
-      disk_cache::ResourceType type = disk_cache::kOther,
+      network::disk_cache::ResourceType type = network::disk_cache::kOther,
       net::HttpRequestHeaders headers = net::HttpRequestHeaders(),
       bool skip_fetch_intercept = false);
 

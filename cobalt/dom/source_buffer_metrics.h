@@ -15,7 +15,7 @@
 #ifndef COBALT_DOM_SOURCE_BUFFER_METRICS_H_
 #define COBALT_DOM_SOURCE_BUFFER_METRICS_H_
 
-#include "starboard/time.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace dom {
@@ -50,15 +50,15 @@ class SourceBufferMetrics {
   SourceBufferMetrics(const SourceBufferMetrics&) = delete;
   SourceBufferMetrics& operator=(const SourceBufferMetrics&) = delete;
 
-  SbTimeMonotonic wall_start_time_ = 0;
-  SbTimeMonotonic thread_start_time_ = 0;
+  int64_t wall_start_time_ = 0;
+  int64_t thread_start_time_ = 0;
 
   const bool is_primary_video_;
   bool is_tracking_ = false;
 
   size_t total_size_ = 0;
-  SbTime total_thread_time_ = 0;
-  SbTime total_wall_time_ = 0;
+  int64_t total_thread_time_ = 0;
+  int64_t total_wall_time_ = 0;
   int max_thread_bandwidth_ = 0;
   int min_thread_bandwidth_ = INT_MAX;
   int max_wall_bandwidth_ = 0;

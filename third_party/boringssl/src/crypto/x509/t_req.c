@@ -63,15 +63,15 @@
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 
+#include "internal.h"
+
 
 int X509_REQ_print_fp(FILE *fp, X509_REQ *x) {
-  BIO *bio = BIO_new(BIO_s_file());
+  BIO *bio = BIO_new_fp(fp, BIO_NOCLOSE);
   if (bio == NULL) {
     OPENSSL_PUT_ERROR(X509, ERR_R_BUF_LIB);
     return 0;
   }
-
-  BIO_set_fp(bio, fp, BIO_NOCLOSE);
   int ret = X509_REQ_print(bio, x);
   BIO_free(bio);
   return ret;
@@ -103,8 +103,12 @@ int X509_REQ_print_ex(BIO *bio, X509_REQ *x, unsigned long nmflags,
     }
   }
   if (!(cflag & X509_FLAG_NO_VERSION)) {
+    /* TODO(https://crbug.com/boringssl/467): This loses information on some
+     * invalid versions, but we should fix this by making invalid versions
+     * impossible. */
     l = X509_REQ_get_version(x);
-    if (BIO_printf(bio, "%8sVersion: %ld (0x%lx)\n", "", l + 1, l) <= 0) {
+    if (BIO_printf(bio, "%8sVersion: %ld (0x%lx)\n", "", l + 1,
+                   (unsigned long)l) <= 0) {
       goto err;
     }
   }

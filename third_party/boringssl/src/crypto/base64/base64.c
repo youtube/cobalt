@@ -56,12 +56,9 @@
 
 #include <openssl/base64.h>
 
-#if !defined(OPENSSL_SYS_STARBOARD)
 #include <assert.h>
 #include <limits.h>
 #include <string.h>
-#endif  // !defined(OPENSSL_SYS_STARBOARD)
-#include <openssl/mem.h>
 
 #include <openssl/type_check.h>
 
@@ -101,8 +98,8 @@ static uint8_t conv_bin2ascii(uint8_t a) {
   return ret;
 }
 
-OPENSSL_COMPILE_ASSERT(sizeof(((EVP_ENCODE_CTX *)(NULL))->data) % 3 == 0,
-                       data_length_must_be_multiple_of_base64_chunk_size);
+OPENSSL_STATIC_ASSERT(sizeof(((EVP_ENCODE_CTX *)(NULL))->data) % 3 == 0,
+                      "data length must be a multiple of base64 chunk size");
 
 int EVP_EncodedLength(size_t *out_len, size_t len) {
   if (len + 2 < len) {
@@ -123,6 +120,19 @@ int EVP_EncodedLength(size_t *out_len, size_t len) {
 
   *out_len = len;
   return 1;
+}
+
+EVP_ENCODE_CTX *EVP_ENCODE_CTX_new(void) {
+  EVP_ENCODE_CTX *ret = OPENSSL_malloc(sizeof(EVP_ENCODE_CTX));
+  if (ret == NULL) {
+    return NULL;
+  }
+  OPENSSL_memset(ret, 0, sizeof(EVP_ENCODE_CTX));
+  return ret;
+}
+
+void EVP_ENCODE_CTX_free(EVP_ENCODE_CTX *ctx) {
+  OPENSSL_free(ctx);
 }
 
 void EVP_EncodeInit(EVP_ENCODE_CTX *ctx) {
@@ -268,14 +278,17 @@ static uint8_t base64_ascii_to_bin(uint8_t a) {
   const uint8_t is_slash = constant_time_eq_8(a, '/');
   const uint8_t is_equals = constant_time_eq_8(a, '=');
 
-  uint8_t ret = 0xff;  // 0xff signals invalid.
-  ret = constant_time_select_8(is_upper, a - 'A', ret);       // [0,26)
-  ret = constant_time_select_8(is_lower, a - 'a' + 26, ret);  // [26,52)
-  ret = constant_time_select_8(is_digit, a - '0' + 52, ret);  // [52,62)
-  ret = constant_time_select_8(is_plus, 62, ret);
-  ret = constant_time_select_8(is_slash, 63, ret);
-  // Padding maps to zero, to be further handled by the caller.
-  ret = constant_time_select_8(is_equals, 0, ret);
+  uint8_t ret = 0;
+  ret |= is_upper & (a - 'A');       // [0,26)
+  ret |= is_lower & (a - 'a' + 26);  // [26,52)
+  ret |= is_digit & (a - '0' + 52);  // [52,62)
+  ret |= is_plus & 62;
+  ret |= is_slash & 63;
+  // Invalid inputs, 'A', and '=' have all been mapped to zero. Map invalid
+  // inputs to 0xff. Note '=' is padding and handled separately by the caller.
+  const uint8_t is_valid =
+      is_upper | is_lower | is_digit | is_plus | is_slash | is_equals;
+  ret |= ~is_valid;
   return ret;
 }
 

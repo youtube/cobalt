@@ -118,6 +118,8 @@ public class StarboardBridge {
   private static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getTimeZone("America/Los_Angeles");
   private final long timeNanosecondsPerMicrosecond = 1000;
 
+  public static boolean enableBackgroundPlayback = false;
+
   public StarboardBridge(
       Context appContext,
       Holder<Activity> activityHolder,
@@ -151,7 +153,7 @@ public class StarboardBridge {
 
   private native boolean nativeInitialize();
 
-  private native long nativeSbTimeGetMonotonicNow();
+  private native long nativeCurrentMonotonicTime();
 
   protected void onActivityStart(Activity activity, KeyboardEditor keyboardEditor) {
     activityHolder.set(activity);
@@ -189,6 +191,11 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   protected void startMediaPlaybackService() {
+    if (!enableBackgroundPlayback) {
+      Log.v(TAG, "Media Playback Service is disabled. Skip startMediaPlaybackService().");
+      return;
+    }
+
     if (cobaltMediaSession == null || !cobaltMediaSession.isActive()) {
       Log.w(TAG, "Do not start a MediaPlaybackService when the MediSsession is null or inactive.");
       return;
@@ -208,13 +215,18 @@ public class StarboardBridge {
         } else {
           appContext.startService(intent);
         }
-      } catch (SecurityException e) {
+      } catch (RuntimeException e) {
         Log.e(TAG, "Failed to start MediaPlaybackService with intent.", e);
         return;
       }
     } else {
       Log.i(TAG, "Warm start - Restarting the MediaPlaybackService.");
-      ((MediaPlaybackService) service).startService();
+      try {
+        ((MediaPlaybackService) service).startService();
+      } catch (RuntimeException e) {
+        Log.e(TAG, "Failed to restart MediaPlaybackService.", e);
+        return;
+      }
     }
   }
 
@@ -224,7 +236,12 @@ public class StarboardBridge {
     Service service = serviceHolder.get();
     if (service != null) {
       Log.i(TAG, "Stopping the MediaPlaybackService.");
-      ((MediaPlaybackService) service).stopService();
+      try {
+        ((MediaPlaybackService) service).stopService();
+      } catch (RuntimeException e) {
+        Log.e(TAG, "Failed to stop MediaPlaybackService.", e);
+        return;
+      }
     }
   }
 
@@ -800,7 +817,7 @@ public class StarboardBridge {
     Activity activity = activityHolder.get();
     if (activity instanceof CobaltActivity) {
       long javaStartTimestamp = ((CobaltActivity) activity).getAppStartTimestamp();
-      long cppTimestamp = nativeSbTimeGetMonotonicNow();
+      long cppTimestamp = nativeCurrentMonotonicTime();
       long javaStopTimestamp = System.nanoTime();
       return cppTimestamp
           - (javaStartTimestamp - javaStopTimestamp) / timeNanosecondsPerMicrosecond;
@@ -845,5 +862,12 @@ public class StarboardBridge {
   @UsedByNative
   protected String getBuildFingerprint() {
     return Build.FINGERPRINT;
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  protected void enableBackgroundPlayback(boolean value) {
+    enableBackgroundPlayback = value;
+    Log.v(TAG, "StarboardBridge set enableBackgroundPlayback: %b", value);
   }
 }

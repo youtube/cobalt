@@ -34,7 +34,6 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#include "starboard/common/byte_swap.h"
 #include "starboard/common/log.h"
 #include "starboard/memory.h"
 #include "starboard/shared/posix/socket_internal.h"

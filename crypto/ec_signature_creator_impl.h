@@ -5,12 +5,13 @@
 #ifndef CRYPTO_EC_SIGNATURE_CREATOR_IMPL_H_
 #define CRYPTO_EC_SIGNATURE_CREATOR_IMPL_H_
 
+#include <stdint.h>
+
 #include <vector>
 
 #include "base/compiler_specific.h"
 #include "base/macros.h"
 #include "crypto/ec_signature_creator.h"
-#include "starboard/types.h"
 
 namespace crypto {
 

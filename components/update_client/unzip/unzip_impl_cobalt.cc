@@ -9,7 +9,6 @@
 
 #include "base/callback.h"
 #include "base/files/file_path.h"
-#include "starboard/time.h"
 #include "third_party/zlib/google/zip.h"
 
 namespace update_client {

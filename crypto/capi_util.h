@@ -6,9 +6,9 @@
 #define CRYPTO_CAPI_UTIL_H_
 
 #include <windows.h>
+#include <stddef.h>
 
 #include "crypto/crypto_export.h"
-#include "starboard/types.h"
 
 namespace crypto {
 

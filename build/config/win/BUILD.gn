@@ -1,7 +1,8 @@
-# Copyright (c) 2013 The Chromium Authors. All rights reserved.
+# Copyright 2013 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/c++/c++.gni")
 import("//build/config/chrome_build.gni")
 import("//build/config/clang/clang.gni")
 import("//build/config/compiler/compiler.gni")
@@ -12,6 +13,7 @@ if (!is_starboard) {
 import("//build/timestamp.gni")
 }
 import("//build/toolchain/goma.gni")
+import("//build/toolchain/rbe.gni")
 import("//build/toolchain/toolchain.gni")
 
 assert(is_win)
@@ -67,7 +69,14 @@ config("compiler") {
   ]
 
   if (is_clang) {
-    cflags += [ "/Zc:twoPhase" ]
+    cflags += [
+      "/Zc:twoPhase",
+
+      # Consistently use backslash as the path separator when expanding the
+      # __FILE__ macro when targeting Windows regardless of the build
+      # environment.
+      "-ffile-reproducible",
+    ]
   }
 
   # Force C/C++ mode for the given GN detected file type. This is necessary
@@ -98,9 +107,17 @@ config("compiler") {
     }
 
     if (current_cpu == "x86") {
-      cflags += [ "-m32" ]
+      if (host_cpu == "x86" || host_cpu == "x64") {
+        cflags += [ "-m32" ]
+      } else {
+        cflags += [ "--target=i386-windows" ]
+      }
     } else if (current_cpu == "x64") {
-      cflags += [ "-m64" ]
+      if (host_cpu == "x86" || host_cpu == "x64") {
+        cflags += [ "-m64" ]
+      } else {
+        cflags += [ "--target=x86_64-windows" ]
+      }
     } else if (current_cpu == "arm64") {
       cflags += [ "--target=arm64-windows" ]
     } else {
@@ -114,13 +131,13 @@ config("compiler") {
       cflags += [ "-msse3" ]
     }
 
-    if (exec_script("//build/win/use_ansi_codes.py", [], "trim string") ==
+    # Enable ANSI escape codes if something emulating them is around (cmd.exe
+    # doesn't understand ANSI escape codes by default). Make sure to not enable
+    # this if goma/remoteexec is in use, because this will lower cache hits.
+    if (!use_goma && !use_remoteexec &&
+        exec_script("//build/win/use_ansi_codes.py", [], "trim string") ==
         "True") {
-      cflags += [
-        # cmd.exe doesn't understand ANSI escape codes by default,
-        # so only enable them if something emulating them is around.
-        "-fansi-escape-codes",
-      ]
+      cflags += [ "-fansi-escape-codes" ]
     }
 
     if (use_clang_diagnostics_format) {
@@ -128,7 +145,8 @@ config("compiler") {
     }
   }
 
-  if (use_lld && !use_thin_lto && (is_clang || !use_goma)) {
+  # Disabled with cc_wrapper because of https://github.com/mozilla/sccache/issues/264
+  if (use_lld && !use_thin_lto && (is_clang || !use_goma) && cc_wrapper == "") {
     # /Brepro lets the compiler not write the mtime field in the .obj output.
     # link.exe /incremental relies on this field to work correctly, but lld
     # never looks at this timestamp, so it's safe to pass this flag with
@@ -151,6 +169,15 @@ config("compiler") {
     # Don't look for libpaths in %LIB%, similar to /X in cflags above.
     ldflags += [ "/lldignoreenv" ]
   }
+
+  # Some binaries create PDBs larger than 4 GiB. Increasing the PDB page size
+  # to 8 KiB allows 8 GiB PDBs. The larger page size also allows larger block maps
+  # which is a PDB limit that was hit in https://crbug.com/1406510. The page size
+  # can easily be increased in the future to allow even larger PDBs or larger
+  # block maps.
+  # This flag requires lld-link.exe or link.exe from VS 2022 or later to create
+  # the PDBs, and tools from circa 22H2 or later to consume the PDBs.
+  ldflags += [ "/pdbpagesize:8192" ]
 
   if (!is_debug && !is_component_build) {
     # Enable standard linker optimizations like GC (/OPT:REF) and ICF in static
@@ -258,16 +285,13 @@ config("runtime_library") {
   }
 }
 
-# Chromium supports running on Windows 7, but if these constants are set to
-# Windows 7, then newer APIs aren't made available by the Windows SDK.
-# So we set this to Windows 10 and then are careful to check at runtime
-# to only call newer APIs when they're available.
+# Chromium only supports Windowes 10+.
 # Some third-party libraries assume that these defines set what version of
 # Windows is available at runtime. Targets using these libraries need to
 # manually override this config for their compiles.
 config("winver") {
   defines = [
-    "NTDDI_VERSION=NTDDI_WIN10_VB",
+    "NTDDI_VERSION=NTDDI_WIN10_NI",
 
     # We can't say `=_WIN32_WINNT_WIN10` here because some files do
     # `#if WINVER < 0x0600` without including windows.h before,
@@ -279,48 +303,11 @@ config("winver") {
 
 # Linker flags for Windows SDK setup, this is applied only to EXEs and DLLs.
 config("sdk_link") {
-  assert(current_cpu == "x64" || current_cpu == "x86" || current_cpu == "arm" ||
-             current_cpu == "arm64",
-         "Only supports x64, x86, arm and arm64 CPUs")
-  if (current_cpu == "x64") {
-    ldflags = [ "/MACHINE:X64" ]
-  } else if (current_cpu == "x86") {
+  if (current_cpu == "x86") {
     ldflags = [
-      "/MACHINE:X86",
       "/SAFESEH",  # Not compatible with x64 so use only for x86.
       "/largeaddressaware",
     ]
-  } else if (current_cpu == "arm") {
-    ldflags = [ "/MACHINE:ARM" ]
-  } else if (current_cpu == "arm64") {
-    ldflags = [ "/MACHINE:ARM64" ]
-  }
-
-  if (!is_starboard) {
-  vcvars_toolchain_data = exec_script("../../toolchain/win/setup_toolchain.py",
-                                      [
-                                        visual_studio_path,
-                                        windows_sdk_path,
-                                        visual_studio_runtime_dirs,
-                                        current_os,
-                                        current_cpu,
-                                        "none",
-                                      ],
-                                      "scope")
-
-  vc_lib_path = vcvars_toolchain_data.vc_lib_path
-  if (defined(vcvars_toolchain_data.vc_lib_atlmfc_path)) {
-    vc_lib_atlmfc_path = vcvars_toolchain_data.vc_lib_atlmfc_path
-  }
-  vc_lib_um_path = vcvars_toolchain_data.vc_lib_um_path
-
-  lib_dirs = [
-    "$vc_lib_um_path",
-    "$vc_lib_path",
-  ]
-  if (defined(vc_lib_atlmfc_path)) {
-    lib_dirs += [ "$vc_lib_atlmfc_path" ]
-  }
   }
 }
 
@@ -344,17 +331,26 @@ config("common_linker_setup") {
   }
 }
 
+# Flags that should be applied to building .exe files but not .dll files.
+config("exe_flags") {
+  rustflags = [ "-Ctarget-feature=+crt-static" ]
+}
+
 config("default_cfg_compiler") {
   # Emit table of address-taken functions for Control-Flow Guard (CFG).
   # This is needed to allow functions to be called by code that is built
   # with CFG enabled, such as system libraries.
   # The CFG guards are only emitted if |win_enable_cfg_guards| is enabled.
-  if (is_clang) {
-    if (win_enable_cfg_guards) {
+  if (win_enable_cfg_guards) {
+    if (is_clang) {
       cflags = [ "/guard:cf" ]
-    } else {
+    }
+    rustflags = [ "-Ccontrol-flow-guard" ]
+  } else {
+    if (is_clang) {
       cflags = [ "/guard:cf,nochecks" ]
     }
+    rustflags = [ "-Ccontrol-flow-guard=nochecks" ]
   }
 }
 
@@ -367,6 +363,7 @@ config("disable_guards_cfg_compiler") {
   if (is_clang) {
     cflags = [ "/guard:cf,nochecks" ]
   }
+  rustflags = [ "-Ccontrol-flow-guard=nochecks" ]
 }
 
 config("cfi_linker") {
@@ -493,8 +490,17 @@ config("default_crt") {
 config("release_crt") {
   if (is_component_build) {
     cflags = [ "/MD" ]
+
+    if (use_custom_libcxx) {
+      # On Windows, including libcpmt[d]/msvcprt[d] explicitly links the C++
+      # standard library, which libc++ needs for exception_ptr internals.
+      ldflags = [ "/DEFAULTLIB:msvcprt.lib" ]
+    }
   } else {
     cflags = [ "/MT" ]
+    if (use_custom_libcxx) {
+      ldflags = [ "/DEFAULTLIB:libcpmt.lib" ]
+    }
   }
 }
 
@@ -502,8 +508,14 @@ config("dynamic_crt") {
   if (is_debug) {
     # This pulls in the DLL debug CRT and defines _DEBUG
     cflags = [ "/MDd" ]
+    if (use_custom_libcxx) {
+      ldflags = [ "/DEFAULTLIB:msvcprtd.lib" ]
+    }
   } else {
     cflags = [ "/MD" ]
+    if (use_custom_libcxx) {
+      ldflags = [ "/DEFAULTLIB:msvcprt.lib" ]
+    }
   }
 }
 
@@ -511,8 +523,14 @@ config("static_crt") {
   if (is_debug) {
     # This pulls in the static debug CRT and defines _DEBUG
     cflags = [ "/MTd" ]
+    if (use_custom_libcxx) {
+      ldflags = [ "/DEFAULTLIB:libcpmtd.lib" ]
+    }
   } else {
     cflags = [ "/MT" ]
+    if (use_custom_libcxx) {
+      ldflags = [ "/DEFAULTLIB:libcpmt.lib" ]
+    }
   }
 }
 

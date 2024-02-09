@@ -108,6 +108,7 @@
    *
    */
 
+
 #if defined( STARBOARD )
 #include "starboard/string.h"
 #include "starboard/file.h"
@@ -123,7 +124,7 @@
 #define ft_fread(b, s, n, f) SbFileRead((f), (char *)(b), (s) * (n))
 #define ft_fseek(f, o, w) SbFileSeek((f), (w), (o))
 #define ft_ftell(f)    SbFileSeek((f), kSbFileFromCurrent, 0)
-#define ft_sprintf  SbStringFormatUnsafeF
+#define ft_sprintf  sprintf
 #else
 #include <stdio.h>
 
@@ -155,6 +156,7 @@
    *
    */
 
+
 #define ft_scalloc   calloc
 #define ft_sfree     free
 #define ft_smalloc   malloc
@@ -168,7 +170,6 @@
    */
 
 
-#include <stdlib.h>
 #define ft_strtol  strtol
 
 #if defined( STARBOARD )

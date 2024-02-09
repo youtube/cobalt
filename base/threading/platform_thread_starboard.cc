@@ -101,7 +101,7 @@ void PlatformThread::YieldCurrentThread() {
 
 // static
 void PlatformThread::Sleep(TimeDelta duration) {
-  SbThreadSleep(duration.ToSbTime());
+  SbThreadSleep(duration.InMicroseconds());
 }
 
 // static

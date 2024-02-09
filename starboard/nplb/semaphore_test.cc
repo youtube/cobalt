@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "starboard/common/semaphore.h"
+#include "starboard/common/time.h"
 #include "starboard/nplb/thread_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -64,16 +65,16 @@ TEST(Semaphore, ThreadTakes) {
 
 class ThreadTakesWaitSemaphore : public AbstractTestThread {
  public:
-  explicit ThreadTakesWaitSemaphore(SbTime wait_us)
+  explicit ThreadTakesWaitSemaphore(int64_t wait_us)
       : thread_started_(false),
         wait_us_(wait_us),
         result_signaled_(false),
         result_wait_time_(0) {}
   void Run() override {
     thread_started_ = true;
-    SbTime start_time = SbTimeGetMonotonicNow();
+    int64_t start_time = CurrentMonotonicTime();
     result_signaled_ = semaphore_.TakeWait(wait_us_);
-    result_wait_time_ = SbTimeGetMonotonicNow() - start_time;
+    result_wait_time_ = CurrentMonotonicTime() - start_time;
   }
 
   // Use a volatile bool to signal when the thread has started executing
@@ -81,21 +82,21 @@ class ThreadTakesWaitSemaphore : public AbstractTestThread {
   // time after signalling the semaphore to return from the Put.
   volatile bool thread_started_;
 
-  SbTime wait_us_;
+  int64_t wait_us_;
   Semaphore semaphore_;
   bool result_signaled_;
-  SbTime result_wait_time_;
+  int64_t result_wait_time_;
 };
 
 TEST(Semaphore, FLAKY_ThreadTakesWait_PutBeforeTimeExpires) {
-  SbTime timeout_time = kSbTimeMillisecond * 250;
-  SbTime wait_time = kSbTimeMillisecond;
+  int64_t timeout_time = 250'000;  // 250ms
+  int64_t wait_time = 1000;        // 1ms
   ThreadTakesWaitSemaphore thread(timeout_time);
 
   // Create thread and wait for it to start executing.
   thread.Start();
   while (!thread.thread_started_) {
-    SbThreadSleep(kSbTimeMillisecond);
+    SbThreadSleep(1000);
   }
 
   SbThreadSleep(wait_time);
@@ -119,16 +120,16 @@ TEST(Semaphore, ThreadTakesWait_TimeExpires) {
   const int attempts = 20;  // Retest up to 20 times.
   bool passed = false;
 
-  const SbTime kTimeThreshold = kSbTimeMillisecond * 5;
+  const int64_t kTimeThreshold = 5'000;  // 5ms
 
   for (int i = 0; i < attempts; ++i) {
-    SbTime wait_time = kSbTimeMillisecond * 20;
+    int64_t wait_time = 20'000;  // 20ms
     ThreadTakesWaitSemaphore thread(wait_time);
 
     // Create thread and wait for it to start executing.
     thread.Start();
     while (!thread.thread_started_) {
-      SbThreadSleep(kSbTimeMillisecond);
+      SbThreadSleep(1000);
     }
 
     // It is possible for the thread to be preempted just before processing

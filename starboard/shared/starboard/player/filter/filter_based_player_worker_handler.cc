@@ -26,7 +26,6 @@
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace shared {
@@ -43,7 +42,7 @@ typedef shared::starboard::player::PlayerWorker::Handler::HandlerResult
     HandlerResult;
 
 // TODO: Make this configurable inside SbPlayerCreate().
-const SbTimeMonotonic kUpdateInterval = 200 * kSbTimeMillisecond;
+const int64_t kUpdateIntervalUsec = 200'000;  // 200ms
 
 #if defined(COBALT_BUILD_TYPE_GOLD)
 
@@ -83,6 +82,7 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
       audio_stream_info_(creation_param->audio_sample_info),
 #endif  // SB_API_VERSION >= 15
       output_mode_(creation_param->output_mode),
+      max_video_input_size_(0),
       decode_target_graphics_context_provider_(provider),
 #if SB_API_VERSION >= 15
       video_stream_info_(creation_param->video_stream_info) {
@@ -138,7 +138,8 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
 
   PlayerComponents::Factory::CreationParameters creation_parameters(
       audio_stream_info_, video_stream_info_, player_, output_mode_,
-      decode_target_graphics_context_provider_, drm_system_);
+      max_video_input_size_, decode_target_graphics_context_provider_,
+      drm_system_);
 
   {
     ::starboard::ScopedLock lock(player_components_existence_mutex_);
@@ -187,12 +188,12 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
                   kSbMediaTypeVideo));
   }
 
-  update_job_token_ = Schedule(update_job_, kUpdateInterval);
+  update_job_token_ = Schedule(update_job_, kUpdateIntervalUsec);
 
   return HandlerResult{true};
 }
 
-HandlerResult FilterBasedPlayerWorkerHandler::Seek(SbTime seek_to_time,
+HandlerResult FilterBasedPlayerWorkerHandler::Seek(int64_t seek_to_time,
                                                    int ticket) {
   SB_DCHECK(BelongsToCurrentThread());
 
@@ -507,7 +508,7 @@ void FilterBasedPlayerWorkerHandler::Update() {
   }
 
   RemoveJobByToken(update_job_token_);
-  update_job_token_ = Schedule(update_job_, kUpdateInterval);
+  update_job_token_ = Schedule(update_job_, kUpdateIntervalUsec);
 }
 
 void FilterBasedPlayerWorkerHandler::Stop() {
@@ -544,6 +545,13 @@ SbDecodeTarget FilterBasedPlayerWorkerHandler::GetCurrentDecodeTarget() {
     player_components_existence_mutex_.Release();
   }
   return decode_target;
+}
+
+void FilterBasedPlayerWorkerHandler::SetMaxVideoInputSize(
+    int max_video_input_size) {
+  SB_LOG(INFO) << "Set max_video_input_size from " << max_video_input_size_
+               << " to " << max_video_input_size;
+  max_video_input_size_ = max_video_input_size;
 }
 
 }  // namespace filter

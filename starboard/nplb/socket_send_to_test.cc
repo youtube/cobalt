@@ -18,10 +18,10 @@
 #include <utility>
 
 #include "starboard/common/socket.h"
+#include "starboard/common/time.h"
 #include "starboard/memory.h"
 #include "starboard/nplb/socket_helpers.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -48,13 +48,13 @@ void* SendToServerSocketEntryPoint(void* trio_as_void_ptr) {
   // Continue sending to the socket until it fails to send. It's expected that
   // SbSocketSendTo will fail when the server socket closes, but the application
   // should not terminate.
-  SbTime start = SbTimeGetMonotonicNow();
-  SbTime now = start;
-  SbTime kTimeout = kSbTimeSecond;
+  int64_t start = CurrentMonotonicTime();
+  int64_t now = start;
+  int64_t kTimeout = 1'000'000;  // 1 second
   int result = 0;
   while (result >= 0 && (now - start < kTimeout)) {
     result = SbSocketSendTo(trio->server_socket, send_buf, kBufSize, NULL);
-    now = SbTimeGetMonotonicNow();
+    now = CurrentMonotonicTime();
   }
 
   delete[] send_buf;
@@ -169,7 +169,7 @@ TEST_P(PairSbSocketSendToTest, RainyDaySendToSocketConnectionReset) {
   int kNumRetries = 1000;
   for (int i = 0; i < kNumRetries; ++i) {
     char buff[kChunkSize] = {};
-    SbThreadSleep(kSbTimeMillisecond);
+    SbThreadSleep(1000);
     int result = trio->client_socket->SendTo(buff, sizeof(buff), NULL);
 
     if (result < 0) {

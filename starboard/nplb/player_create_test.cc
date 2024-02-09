@@ -19,13 +19,13 @@
 #include "starboard/common/media.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/optional.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/decode_target.h"
 #include "starboard/nplb/player_creation_param_helpers.h"
 #include "starboard/nplb/player_test_util.h"
 #include "starboard/player.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
-#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -93,12 +93,12 @@ class SbPlayerTest : public ::testing::Test {
   }
 
   void WaitForPlayerInitializedOrError(bool* error_occurred) {
-    const SbTime kWaitTimeout = kSbTimeSecond * 5;
+    const int64_t kWaitTimeout = 5'000'000LL;  // 5 seconds
 
     SB_DCHECK(error_occurred);
     *error_occurred = false;
 
-    const SbTimeMonotonic wait_end = SbTimeGetMonotonicNow() + kWaitTimeout;
+    const int64_t wait_end = CurrentMonotonicTime() + kWaitTimeout;
 
     for (;;) {
       ScopedLock scoped_lock(mutex_);
@@ -113,7 +113,7 @@ class SbPlayerTest : public ::testing::Test {
         return;
       }
 
-      auto now = SbTimeGetMonotonicNow();
+      auto now = CurrentMonotonicTime();
       if (now > wait_end) {
         break;
       }

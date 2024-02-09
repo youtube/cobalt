@@ -14,6 +14,7 @@
 
 #include "starboard/client_porting/eztime/eztime.h"
 #include "starboard/client_porting/eztime/test_constants.h"
+#include "starboard/common/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -22,7 +23,7 @@ namespace eztime {
 namespace {
 
 TEST(EzTimeTFromSbTime, IsTransitive) {
-  SbTime sb_time = EzTimeTToSbTime(kTestTimePositive);
+  int64_t sb_time = EzTimeTToSbTime(kTestTimePositive);
   EzTimeT ez_time = EzTimeTFromSbTime(sb_time);
   EXPECT_EQ(kTestTimePositive, ez_time);
 
@@ -49,7 +50,7 @@ TEST(EzTimeTFromSbTime, IsTransitive) {
 
 TEST(EzTimeValueFromSbTime, IsTransitive) {
   EzTimeValue time_value = EzTimeTToEzTimeValue(kTestTimePositive);
-  SbTime sb_time = EzTimeValueToSbTime(&time_value);
+  int64_t sb_time = EzTimeValueToSbTime(&time_value);
   EzTimeValue time_value2 = EzTimeValueFromSbTime(sb_time);
   EXPECT_EQ(time_value.tv_sec, time_value2.tv_sec);
   EXPECT_EQ(time_value.tv_usec, time_value2.tv_usec);
@@ -63,11 +64,11 @@ TEST(EzTimeValueFromSbTime, IsTransitive) {
 
 TEST(EzTimeTGetNowTest, IsKindOfSane) {
   EzTimeT ez_time = EzTimeTGetNow(NULL);
-  SbTime sb_time = SbTimeGetNow();
+  int64_t sb_time = PosixTimeToWindowsTime(CurrentPosixTime());
 
   // They should be within a second of each other.
-  EXPECT_GT(kSbTimeSecond, sb_time - EzTimeTToSbTime(ez_time));
-  EXPECT_GT(kSbTimeSecond, EzTimeTToSbTime(ez_time) - sb_time);
+  EXPECT_GT(1'000'000LL, sb_time - EzTimeTToSbTime(ez_time));
+  EXPECT_GT(1'000'000LL, EzTimeTToSbTime(ez_time) - sb_time);
 
   // Now should be after the time I wrote this test.
   EXPECT_LE(kTestTimeWritten, ez_time);
@@ -84,11 +85,11 @@ TEST(EzTimeTGetNowTest, IsKindOfSane) {
 TEST(EzTimeValueGetNowTest, IsKindOfSane) {
   EzTimeValue time_value = {0};
   EXPECT_EQ(0, EzTimeValueGetNow(&time_value, NULL));
-  SbTime sb_time = SbTimeGetNow();
+  int64_t sb_time = PosixTimeToWindowsTime(CurrentPosixTime());
 
   // They should be within a second of each other.
-  EXPECT_GT(kSbTimeSecond, sb_time - EzTimeValueToSbTime(&time_value));
-  EXPECT_GT(kSbTimeSecond, EzTimeValueToSbTime(&time_value) - sb_time);
+  EXPECT_GT(1'000'000LL, sb_time - EzTimeValueToSbTime(&time_value));
+  EXPECT_GT(1'000'000LL, EzTimeValueToSbTime(&time_value) - sb_time);
 
   // Now should be after the time I wrote this test.
   EzTimeT ez_time = EzTimeTFromSbTime(EzTimeValueToSbTime(&time_value));

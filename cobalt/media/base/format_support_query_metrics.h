@@ -17,8 +17,8 @@
 
 #include <string>
 
+#include "base/time/time.h"
 #include "starboard/media.h"
-#include "starboard/time.h"
 
 namespace cobalt {
 namespace media {
@@ -52,13 +52,13 @@ class FormatSupportQueryMetrics {
   static constexpr int kMaxCachedQueryDurations = 150;
   static constexpr int kMaxQueryDescriptionLength = 350;
 
-  static SbTimeMonotonic cached_query_durations_[kMaxCachedQueryDurations];
+  static base::TimeDelta cached_query_durations_[kMaxCachedQueryDurations];
   static char max_query_description_[kMaxQueryDescriptionLength];
-  static SbTimeMonotonic max_query_duration_;
-  static SbTimeMonotonic total_query_duration_;
+  static base::TimeDelta max_query_duration_;
+  static base::TimeDelta total_query_duration_;
   static int total_num_queries_;
 
-  SbTimeMonotonic start_time_ = 0;
+  base::Time start_time_{};
 };
 
 #endif  // defined(COBALT_BUILD_TYPE_GOLD)

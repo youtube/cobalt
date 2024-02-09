@@ -1,15 +1,13 @@
+; This file is generated from a similarly-named Perl script in the BoringSSL
+; source tree. Do not edit by hand.
+
+%ifdef BORINGSSL_PREFIX
+%include "boringssl_prefix_symbols_nasm.inc"
+%endif
 %ifidn __OUTPUT_FORMAT__,obj
 section	code	use32 class=code align=64
 %elifidn __OUTPUT_FORMAT__,win32
-%ifdef __YASM_VERSION_ID__
-%if __YASM_VERSION_ID__ < 01010000h
-%error yasm version 1.1.0 or later needed.
-%endif
-; Yasm automatically includes .00 and complains about redefining it.
-; https://www.tortall.net/projects/yasm/manual/html/objfmt-win32-safeseh.html
-%else
 $@feat.00 equ 1
-%endif
 section	.text	code align=64
 %else
 section	.text	code

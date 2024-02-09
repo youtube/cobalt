@@ -12,24 +12,13 @@
 #if defined(STARBOARD)
 #include "starboard/client_porting/cwrappers/pow_wrapper.h"
 #include "starboard/client_porting/poem/assert_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
 #endif  // defined(STARBOARD)
 #include <math.h>
-#if !defined(STARBOARD)
 #include <stdio.h>
-#endif
 
 #include "unicode/utypes.h"
 #include "unicode/localpointer.h"
 #include "unicode/plurrule.h"
-
-// These files must be included after plurrule.h, for the #define in the poems
-// to work successfully.
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/stdio_poem.h"
-#include "starboard/client_porting/poem/wchar_poem.h"
-#endif  // defined(STARBOARD)
-
 #include "unicode/upluralrules.h"
 #include "unicode/ures.h"
 #include "unicode/numfmt.h"

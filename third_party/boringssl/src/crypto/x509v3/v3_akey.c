@@ -66,6 +66,9 @@
 #include <openssl/obj.h>
 #include <openssl/x509v3.h>
 
+#include "internal.h"
+
+
 static STACK_OF(CONF_VALUE) *i2v_AUTHORITY_KEYID(X509V3_EXT_METHOD *method,
                                                  AUTHORITY_KEYID *akeyid,
                                                  STACK_OF(CONF_VALUE)
@@ -90,20 +93,36 @@ static STACK_OF(CONF_VALUE) *i2v_AUTHORITY_KEYID(X509V3_EXT_METHOD *method,
                                                  STACK_OF(CONF_VALUE)
                                                  *extlist)
 {
-    char *tmp;
+    int extlist_was_null = extlist == NULL;
     if (akeyid->keyid) {
-        tmp = hex_to_string(akeyid->keyid->data, akeyid->keyid->length);
-        X509V3_add_value("keyid", tmp, &extlist);
+        char *tmp = x509v3_bytes_to_hex(akeyid->keyid->data,
+                                        akeyid->keyid->length);
+        int ok = tmp != NULL && X509V3_add_value("keyid", tmp, &extlist);
         OPENSSL_free(tmp);
+        if (!ok) {
+            goto err;
+        }
     }
-    if (akeyid->issuer)
-        extlist = i2v_GENERAL_NAMES(NULL, akeyid->issuer, extlist);
+    if (akeyid->issuer) {
+        STACK_OF(CONF_VALUE) *tmpextlist =
+            i2v_GENERAL_NAMES(NULL, akeyid->issuer, extlist);
+        if (tmpextlist == NULL) {
+            goto err;
+        }
+        extlist = tmpextlist;
+    }
     if (akeyid->serial) {
-        tmp = hex_to_string(akeyid->serial->data, akeyid->serial->length);
-        X509V3_add_value("serial", tmp, &extlist);
-        OPENSSL_free(tmp);
+        if (!X509V3_add_value_int("serial", akeyid->serial, &extlist)) {
+            goto err;
+        }
     }
     return extlist;
+
+err:
+    if (extlist_was_null) {
+        sk_CONF_VALUE_pop_free(extlist, X509V3_conf_free);
+    }
+    return NULL;
 }
 
 /*
@@ -169,7 +188,7 @@ static AUTHORITY_KEYID *v2i_AUTHORITY_KEYID(X509V3_EXT_METHOD *method,
 
     if ((issuer && !ikeyid) || (issuer == 2)) {
         isname = X509_NAME_dup(X509_get_issuer_name(cert));
-        serial = M_ASN1_INTEGER_dup(X509_get_serialNumber(cert));
+        serial = ASN1_INTEGER_dup(X509_get_serialNumber(cert));
         if (!isname || !serial) {
             OPENSSL_PUT_ERROR(X509V3, X509V3_R_UNABLE_TO_GET_ISSUER_DETAILS);
             goto err;
@@ -198,7 +217,7 @@ static AUTHORITY_KEYID *v2i_AUTHORITY_KEYID(X509V3_EXT_METHOD *method,
 
  err:
     X509_NAME_free(isname);
-    M_ASN1_INTEGER_free(serial);
-    M_ASN1_OCTET_STRING_free(ikeyid);
+    ASN1_INTEGER_free(serial);
+    ASN1_OCTET_STRING_free(ikeyid);
     return NULL;
 }

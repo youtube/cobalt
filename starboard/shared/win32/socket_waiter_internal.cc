@@ -21,6 +21,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/optional.h"
+#include "starboard/common/time.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/socket_internal.h"
 #include "starboard/shared/win32/thread_private.h"
@@ -280,14 +281,14 @@ void SbSocketWaiterPrivate::Wait() {
 
   // We basically wait for the largest amount of time to achieve an indefinite
   // block.
-  WaitTimed(kSbTimeMax);
+  WaitTimed(kSbInt64Max);
 }
 
-SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(SbTime duration) {
+SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(int64_t duration_usec) {
   SB_DCHECK(SbThreadIsCurrent(thread_));
 
-  const SbTimeMonotonic start_time = SbTimeGetMonotonicNow();
-  int64_t duration_left = duration;
+  const int64_t start_time = starboard::CurrentMonotonicTime();
+  int64_t duration_left = duration_usec;
 
   while (true) {
     // |waitees_| could have been modified in the last loop iteration, so
@@ -295,7 +296,7 @@ SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(SbTime duration) {
     const DWORD number_events =
         static_cast<DWORD>(waitees_.GetHandleArraySize());
 
-    const DWORD millis = sbwin32::ConvertSbTimeToMillisRoundUp(duration_left);
+    const DWORD millis = sbwin32::ConvertUsecToMillisRoundUp(duration_left);
 
     {
       starboard::ScopedLock lock(unhandled_wakeup_count_mutex_);
@@ -395,7 +396,7 @@ SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(SbTime duration) {
     }
 
     const int64_t time_elapsed =
-        static_cast<std::int64_t>(SbTimeGetMonotonicNow()) -
+        static_cast<std::int64_t>(starboard::CurrentMonotonicTime()) -
         static_cast<std::int64_t>(start_time);
     duration_left -= time_elapsed;
     if (duration_left < 0) {

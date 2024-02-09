@@ -2,9 +2,8 @@
 
 ## Requirements
 
-*   Raspberry Pi 2 (image configured per
-    [instructions](https://cobalt.dev/development/setup-raspi.html) on
-    cobalt.dev)
+*   Raspberry Pi environment setup per
+    [instructions](https://developers.google.com/youtube/cobalt/docs/development/setup-raspi).
 
 ## Build instructions
 

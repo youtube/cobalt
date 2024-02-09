@@ -209,7 +209,7 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
           test_params.push_back(std::make_tuple(filename, output_mode));
           break;
         } else if (need_to_check_with_wait && !decoder_has_been_checked_once) {
-          SbThreadSleep(kSbTimeSecond);
+          SbThreadSleep(1'000'000);
         } else {
           break;
         }
@@ -255,9 +255,9 @@ bool CreateAudioComponents(bool using_stub_decoder,
   return false;
 }
 
-AssertionResult AlmostEqualTime(SbTime time1, SbTime time2) {
-  const SbTime kEpsilon = kSbTimeSecond / 1000;
-  SbTime diff = time1 - time2;
+AssertionResult AlmostEqualTime(int64_t time1, int64_t time2) {
+  const int64_t kEpsilon = 1000;  // 1ms
+  int64_t diff = time1 - time2;
   if (-kEpsilon <= diff && diff <= kEpsilon) {
     return AssertionSuccess();
   }
@@ -305,8 +305,8 @@ scoped_refptr<InputBuffer> GetAudioInputBuffer(
 scoped_refptr<InputBuffer> GetAudioInputBuffer(
     video_dmp::VideoDmpReader* dmp_reader,
     size_t index,
-    SbTime discarded_duration_from_front,
-    SbTime discarded_duration_from_back) {
+    int64_t discarded_duration_from_front,
+    int64_t discarded_duration_from_back) {
   SB_DCHECK(dmp_reader);
   auto player_sample_info =
       dmp_reader->GetPlayerSampleInfo(kSbMediaTypeAudio, index);

@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+#!/usr/bin/env python3
+# Copyright 2011 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 """Small utility function to find depot_tools and add it to the python path.
@@ -11,7 +11,6 @@ This can also be used as a standalone script to print out the depot_tools
 directory location.
 """
 
-from __future__ import print_function
 
 import os
 import sys

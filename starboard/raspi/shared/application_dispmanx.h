@@ -68,7 +68,7 @@ class ApplicationDispmanx
   // --- QueueApplication overrides ---
   bool MayHaveSystemEvents() override;
   Event* PollNextSystemEvent() override;
-  Event* WaitForSystemEventWithTimeout(SbTime duration) override;
+  Event* WaitForSystemEventWithTimeout(int64_t duration) override;
   void WakeSystemEventWait() override;
 
   bool IsStartImmediate() override { return !HasPreloadSwitch(); }

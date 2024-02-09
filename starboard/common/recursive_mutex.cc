@@ -14,7 +14,6 @@
 
 #include "starboard/common/recursive_mutex.h"
 #include "starboard/common/log.h"
-#include "starboard/time.h"
 
 namespace starboard {
 

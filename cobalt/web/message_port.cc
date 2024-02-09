@@ -34,15 +34,17 @@ namespace cobalt {
 namespace web {
 
 void MessagePort::EntangleWithEventTarget(web::EventTarget* event_target) {
-  DCHECK(!event_target_);
   {
     base::AutoLock lock(mutex_);
-    event_target_ = event_target;
-    if (!event_target_) {
-      enabled_ = false;
+    if (event_target_ && (event_target != event_target_)) {
+      CloseLocked();
+    }
+    if (!event_target) {
       return;
     }
+    event_target_ = event_target;
   }
+  DCHECK(target_task_runner());
   target_task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(&Context::AddEnvironmentSettingsChangeObserver,
@@ -78,18 +80,21 @@ void MessagePort::Start() {
   // not already enabled.
   //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#dom-messageport-start
   base::AutoLock lock(mutex_);
-  if (!event_target_) {
-    return;
+  if (event_target_) {
+    enabled_ = true;
+    for (auto& message : unshipped_messages_) {
+      PostMessageSerializedLocked(std::move(message));
+    }
+    unshipped_messages_.clear();
   }
-  enabled_ = true;
-  for (auto& message : unshipped_messages_) {
-    PostMessageSerializedLocked(std::move(message));
-  }
-  unshipped_messages_.clear();
 }
 
 void MessagePort::Close() {
   base::AutoLock lock(mutex_);
+  CloseLocked();
+}
+
+void MessagePort::CloseLocked() {
   unshipped_messages_.clear();
   if (!event_target_) {
     return;
@@ -115,7 +120,8 @@ void MessagePort::PostMessage(const script::ValueHandleHolder& message) {
 
 void MessagePort::PostMessageSerializedLocked(
     std::unique_ptr<script::StructuredClone> structured_clone) {
-  if (!structured_clone || !event_target_ || !enabled_) {
+  if (!structured_clone || !event_target_ || !enabled_ ||
+      structured_clone->failed()) {
     return;
   }
   // TODO: Forward the location of the origating API call to the PostTask

@@ -5,11 +5,12 @@
 #ifndef CRYPTO_HKDF_H_
 #define CRYPTO_HKDF_H_
 
+#include <stddef.h>
+
 #include <string>
 
 #include "base/strings/string_piece.h"
 #include "crypto/crypto_export.h"
-#include "starboard/types.h"
 
 namespace crypto {
 

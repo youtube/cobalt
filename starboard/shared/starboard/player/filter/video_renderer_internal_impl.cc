@@ -17,6 +17,8 @@
 #include <algorithm>
 #include <functional>
 
+#include "starboard/common/time.h"
+
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -28,7 +30,7 @@ namespace {
 using std::placeholders::_1;
 using std::placeholders::_2;
 
-const SbTime kSeekTimeoutRetryInterval = 25 * kSbTimeMillisecond;
+const int64_t kSeekTimeoutRetryInterval = 25'000;  // 25ms
 
 }  // namespace
 
@@ -54,12 +56,12 @@ VideoRendererImpl::VideoRendererImpl(scoped_ptr<VideoDecoder> decoder,
       << " Playback performance may not be ideal.";
 
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-  last_buffering_state_update_ = SbTimeGetMonotonicNow();
+  last_buffering_state_update_ = CurrentMonotonicTime();
   last_output_ = last_buffering_state_update_;
   last_can_accept_more_data = last_buffering_state_update_;
   Schedule(std::bind(&VideoRendererImpl::CheckBufferingState, this),
            kCheckBufferingStateInterval);
-  time_of_last_lag_warning_ = SbTimeGetMonotonicNow() - kMinLagWarningInterval;
+  time_of_last_lag_warning_ = CurrentMonotonicTime() - kMinLagWarningInterval;
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 }
 
@@ -110,7 +112,7 @@ void VideoRendererImpl::WriteSamples(const InputBuffers& input_buffers) {
 
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   buffering_state_ = kWaitForConsumption;
-  last_buffering_state_update_ = SbTimeGetMonotonicNow();
+  last_buffering_state_update_ = CurrentMonotonicTime();
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 
   if (end_of_stream_written_.load()) {
@@ -123,7 +125,7 @@ void VideoRendererImpl::WriteSamples(const InputBuffers& input_buffers) {
   if (!first_input_written_) {
     first_input_written_ = true;
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-    first_input_written_at_ = SbTimeGetMonotonicNow();
+    first_input_written_at_ = CurrentMonotonicTime();
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   }
 
@@ -148,7 +150,7 @@ void VideoRendererImpl::WriteEndOfStream() {
   decoder_->WriteEndOfStream();
 }
 
-void VideoRendererImpl::Seek(SbTime seek_to_time) {
+void VideoRendererImpl::Seek(int64_t seek_to_time) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(seek_to_time >= 0);
 
@@ -159,7 +161,7 @@ void VideoRendererImpl::Seek(SbTime seek_to_time) {
 
   // After decoder_->Reset(), OnDecoderStatus() won't be called before another
   // WriteSample().  So it is safe to modify |seeking_to_time_| here.
-  seeking_to_time_ = std::max<SbTime>(seek_to_time, 0);
+  seeking_to_time_ = std::max<int64_t>(seek_to_time, 0);
   seeking_.store(true);
   end_of_stream_written_.store(false);
   end_of_stream_decoded_.store(false);
@@ -169,7 +171,7 @@ void VideoRendererImpl::Seek(SbTime seek_to_time) {
   CancelPendingJobs();
 
   auto preroll_timeout = decoder_->GetPrerollTimeout();
-  if (preroll_timeout != kSbTimeMax) {
+  if (preroll_timeout != kSbInt64Max) {
     Schedule(std::bind(&VideoRendererImpl::OnSeekTimeout, this),
              preroll_timeout);
   }
@@ -196,7 +198,7 @@ bool VideoRendererImpl::CanAcceptMoreData() const {
       !end_of_stream_written_.load() && need_more_input_.load();
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   if (can_accept_more_data) {
-    last_can_accept_more_data = SbTimeGetMonotonicNow();
+    last_can_accept_more_data = CurrentMonotonicTime();
   }
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   return can_accept_more_data;
@@ -219,7 +221,7 @@ SbDecodeTarget VideoRendererImpl::GetCurrentDecodeTarget() {
   SB_DCHECK(decoder_);
 
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-  auto start = SbTimeGetMonotonicNow();
+  auto start = CurrentMonotonicTime();
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 
   // TODO: Ensure that |sink_| is NULL when decode target is used across all
@@ -231,7 +233,7 @@ SbDecodeTarget VideoRendererImpl::GetCurrentDecodeTarget() {
   auto decode_target = decoder_->GetCurrentDecodeTarget();
 
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-  auto end = SbTimeGetMonotonicNow();
+  auto end = CurrentMonotonicTime();
   if (end - start > kMaxGetCurrentDecodeTargetDuration) {
     SB_LOG(WARNING) << "VideoRendererImpl::GetCurrentDecodeTarget() takes "
                     << end - start << " microseconds.";
@@ -254,7 +256,7 @@ void VideoRendererImpl::OnDecoderStatus(
 
   if (frame) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-    last_output_ = SbTimeGetMonotonicNow();
+    last_output_ = CurrentMonotonicTime();
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 
     SB_DCHECK(first_input_written_);
@@ -288,7 +290,7 @@ void VideoRendererImpl::OnDecoderStatus(
         seeking_.exchange(false)) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
       SB_LOG(INFO) << "Video preroll takes "
-                   << SbTimeGetMonotonicNow() - first_input_written_at_
+                   << CurrentMonotonicTime() - first_input_written_at_
                    << " microseconds.";
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
       Schedule(prerolled_cb_);
@@ -298,7 +300,7 @@ void VideoRendererImpl::OnDecoderStatus(
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   if (status == VideoDecoder::kNeedMoreInput) {
     buffering_state_ = kWaitForBuffer;
-    last_buffering_state_update_ = SbTimeGetMonotonicNow();
+    last_buffering_state_update_ = CurrentMonotonicTime();
   }
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 
@@ -307,7 +309,7 @@ void VideoRendererImpl::OnDecoderStatus(
 
 void VideoRendererImpl::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-  auto now = SbTimeGetMonotonicNow();
+  auto now = CurrentMonotonicTime();
   if (time_of_last_render_call_ != -1) {
     auto time_since_last_call = now - time_of_last_render_call_;
     if (time_since_last_call > kMaxRenderIntervalBeforeWarning) {
@@ -348,7 +350,7 @@ void VideoRendererImpl::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   // Update this at last to ensure that the delay of Render() call isn't caused
   // by the slowness of Render() itself.
-  time_of_last_render_call_ = SbTimeGetMonotonicNow();
+  time_of_last_render_call_ = CurrentMonotonicTime();
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 }
 
@@ -369,7 +371,7 @@ void VideoRendererImpl::CheckBufferingState() {
   if (end_of_stream_decoded_.load()) {
     return;
   }
-  auto now = SbTimeGetMonotonicNow();
+  auto now = CurrentMonotonicTime();
   if (!end_of_stream_written_.load()) {
     auto elapsed = now - last_buffering_state_update_;
     if (elapsed > kDelayBeforeWarning) {
@@ -397,8 +399,8 @@ void VideoRendererImpl::CheckBufferingState() {
            kCheckBufferingStateInterval);
 }
 
-void VideoRendererImpl::CheckForFrameLag(SbTime last_decoded_frame_timestamp) {
-  SbTimeMonotonic now = SbTimeGetMonotonicNow();
+void VideoRendererImpl::CheckForFrameLag(int64_t last_decoded_frame_timestamp) {
+  int64_t now = CurrentMonotonicTime();
   // Limit check frequency to minimize call to GetCurrentMediaTime().
   if (now - time_of_last_lag_warning_ < kMinLagWarningInterval) {
     return;
@@ -409,18 +411,18 @@ void VideoRendererImpl::CheckForFrameLag(SbTime last_decoded_frame_timestamp) {
   bool is_eos_played;
   bool is_underflow;
   double playback_rate;
-  SbTime media_time = media_time_provider_->GetCurrentMediaTime(
+  int64_t media_time = media_time_provider_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
   if (is_eos_played) {
     return;
   }
-  SbTime frame_time = last_decoded_frame_timestamp;
-  SbTime diff_media_frame_time = media_time - frame_time;
+  int64_t frame_time = last_decoded_frame_timestamp;
+  int64_t diff_media_frame_time = media_time - frame_time;
   if (diff_media_frame_time <= kDelayBeforeWarning) {
     return;
   }
   SB_LOG(WARNING) << "Video renderer wrote sample with frame time"
-                  << " lagging " << diff_media_frame_time * 1.0f / kSbTimeSecond
+                  << " lagging " << diff_media_frame_time * 1.0f / 1'000'000LL
                   << " s behind media time";
 }
 

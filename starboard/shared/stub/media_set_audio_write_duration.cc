@@ -18,10 +18,10 @@
 
 #if SB_API_VERSION < 15
 
-void SbMediaSetAudioWriteDuration(SbTime duration) {
+void SbMediaSetAudioWriteDuration(int64_t duration) {
   // The stub implementation assumes no further action is needed from the
   // platform to be compatible with limits >= 0.5 second.
-  SB_DCHECK(duration >= kSbTimeSecond / 2)
+  SB_DCHECK(duration >= 500'000)
       << "Limiting audio to less than 0.5 seconds is unexpected.";
 }
 

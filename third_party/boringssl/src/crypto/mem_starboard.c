@@ -13,6 +13,8 @@
 
 #include <string.h>
 
+#include <openssl/err.h>
+
 #if defined(OPENSSL_WINDOWS)
 OPENSSL_MSVC_PRAGMA(warning(push, 3))
 #include <windows.h>
@@ -97,46 +99,6 @@ int CRYPTO_memcmp(const void *in_a, const void *in_b, size_t len) {
   return x;
 }
 
-const void *OPENSSL_memchr(const void *s, int c, size_t n) {
-  if (n == 0) {
-    return NULL;
-  }
-
-  return memchr(s, c, n);
-}
-
-int OPENSSL_memcmp(const void *s1, const void *s2, size_t n) {
-  if (n == 0) {
-    return 0;
-  }
-
-  return memcmp(s1, s2, n);
-}
-
-void *OPENSSL_memcpy(void *dst, const void *src, size_t n) {
-  if (n == 0) {
-    return dst;
-  }
-
-  return memcpy(dst, src, n);
-}
-
-void *OPENSSL_memmove(void *dst, const void *src, size_t n) {
-  if (n == 0) {
-    return dst;
-  }
-
-  return memmove(dst, src, n);
-}
-
-void *OPENSSL_memset(void *dst, int c, size_t n) {
-  if (n == 0) {
-    return dst;
-  }
-
-  return memset(dst, c, n);
-}
-
 uint32_t OPENSSL_hash32(const void *ptr, size_t len) {
   // These are the FNV-1a parameters for 32 bits.
   static const uint32_t kPrime = 16777619u;
@@ -153,6 +115,8 @@ uint32_t OPENSSL_hash32(const void *ptr, size_t len) {
   return h;
 }
 
+uint32_t OPENSSL_strhash(const char *s) { return OPENSSL_hash32(s, strlen(s)); }
+
 size_t OPENSSL_strnlen(const char *s, size_t len) {
   for (size_t i = 0; i < len; i++) {
     if (s[i] == 0) {
@@ -164,6 +128,9 @@ size_t OPENSSL_strnlen(const char *s, size_t len) {
 }
 
 char *OPENSSL_strdup(const char *s) {
+  if (s == NULL) {
+    return NULL;
+  }
   const size_t len = strlen(s) + 1;
   char *ret = OPENSSL_malloc(len);
   if (ret == NULL) {
@@ -221,5 +188,74 @@ int BIO_snprintf(char *buf, size_t n, const char *format, ...) {
 }
 
 int BIO_vsnprintf(char *buf, size_t n, const char *format, va_list args) {
+#if SB_API_VERSION < 16
   return SbStringFormat(buf, n, format, args);
+#else
+  return vsnprintf(buf, n, format, args);
+#endif
+}
+
+char *OPENSSL_strndup(const char *str, size_t size) {
+  char *ret;
+  size_t alloc_size;
+
+  if (str == NULL) {
+    return NULL;
+  }
+
+  size = OPENSSL_strnlen(str, size);
+
+  alloc_size = size + 1;
+  if (alloc_size < size) {
+    // overflow
+    OPENSSL_PUT_ERROR(CRYPTO, ERR_R_MALLOC_FAILURE);
+    return NULL;
+  }
+  ret = OPENSSL_malloc(alloc_size);
+  if (ret == NULL) {
+    OPENSSL_PUT_ERROR(CRYPTO, ERR_R_MALLOC_FAILURE);
+    return NULL;
+  }
+
+  OPENSSL_memcpy(ret, str, size);
+  ret[size] = '\0';
+  return ret;
+}
+
+size_t OPENSSL_strlcpy(char *dst, const char *src, size_t dst_size) {
+  size_t l = 0;
+
+  for (; dst_size > 1 && *src; dst_size--) {
+    *dst++ = *src++;
+    l++;
+  }
+
+  if (dst_size) {
+    *dst = 0;
+  }
+
+  return l + strlen(src);
+}
+
+size_t OPENSSL_strlcat(char *dst, const char *src, size_t dst_size) {
+  size_t l = 0;
+  for (; dst_size > 0 && *dst; dst_size--, dst++) {
+    l++;
+  }
+  return l + OPENSSL_strlcpy(dst, src, dst_size);
+}
+
+void *OPENSSL_memdup(const void *data, size_t size) {
+  if (size == 0) {
+    return NULL;
+  }
+
+  void *ret = OPENSSL_malloc(size);
+  if (ret == NULL) {
+    OPENSSL_PUT_ERROR(CRYPTO, ERR_R_MALLOC_FAILURE);
+    return NULL;
+  }
+
+  OPENSSL_memcpy(ret, data, size);
+  return ret;
 }

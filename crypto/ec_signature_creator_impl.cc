@@ -4,10 +4,12 @@
 
 #include "crypto/ec_signature_creator_impl.h"
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include "base/logging.h"
 #include "crypto/ec_private_key.h"
 #include "crypto/openssl_util.h"
-#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/bn.h"
 #include "third_party/boringssl/src/include/openssl/ec.h"
 #include "third_party/boringssl/src/include/openssl/ecdsa.h"

@@ -127,7 +127,7 @@ int main(int argc, char **argv) {
   //
   // However, a WOFF font gets decompressed and so can be *much* larger than
   // the original.
-  std::unique_ptr<uint8_t> result(new uint8_t[in.size() * 8]);
+  std::unique_ptr<uint8_t[]> result(new uint8_t[in.size() * 8]);
   ots::MemoryStream output(result.get(), in.size() * 8);
 
   ots::TestContext context(0);
@@ -138,7 +138,7 @@ int main(int argc, char **argv) {
   }
   const size_t result_len = output.Tell();
 
-  std::unique_ptr<uint8_t> result2(new uint8_t[result_len]);
+  std::unique_ptr<uint8_t[]> result2(new uint8_t[result_len]);
   ots::MemoryStream output2(result2.get(), result_len);
   if (!context.Process(&output2, result.get(), result_len)) {
     std::fprintf(stderr, "Failed to sanitize previous output!\n");

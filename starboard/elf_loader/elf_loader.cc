@@ -19,6 +19,7 @@
 #include "starboard/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/paths.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/elf_loader/elf_loader_impl.h"
 #include "starboard/elf_loader/evergreen_config.h"
@@ -78,12 +79,11 @@ bool ElfLoader::Load(const std::string& library_path,
   EvergreenConfig::Create(library_path_.c_str(), content_path_.c_str(),
                           custom_get_extension);
   SB_LOG(INFO) << "evergreen_config: content_path=" << content_path_;
-  SbTime start_time = SbTimeGetMonotonicNow();
+  int64_t start_time = CurrentMonotonicTime();
   bool res = impl_->Load(library_path_.c_str(), use_compression,
                          use_memory_mapped_file);
-  SbTime end_time = SbTimeGetMonotonicNow();
-  SB_LOG(INFO) << "Loading took: "
-               << (end_time - start_time) / kSbTimeMillisecond << " ms";
+  int64_t end_time = CurrentMonotonicTime();
+  SB_LOG(INFO) << "Loading took: " << (end_time - start_time) / 1000 << " ms";
   return res;
 }
 

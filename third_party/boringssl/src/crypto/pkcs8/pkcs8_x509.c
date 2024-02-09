@@ -96,10 +96,8 @@ static int pkey_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
   // Since the structure must still be valid use ASN1_OP_FREE_PRE
   if (operation == ASN1_OP_FREE_PRE) {
     PKCS8_PRIV_KEY_INFO *key = (PKCS8_PRIV_KEY_INFO *)*pval;
-    if (key->pkey && key->pkey->type == V_ASN1_OCTET_STRING &&
-        key->pkey->value.octet_string) {
-      OPENSSL_cleanse(key->pkey->value.octet_string->data,
-                      key->pkey->value.octet_string->length);
+    if (key->pkey) {
+      OPENSSL_cleanse(key->pkey->data, key->pkey->length);
     }
   }
   return 1;
@@ -108,11 +106,44 @@ static int pkey_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
 ASN1_SEQUENCE_cb(PKCS8_PRIV_KEY_INFO, pkey_cb) = {
   ASN1_SIMPLE(PKCS8_PRIV_KEY_INFO, version, ASN1_INTEGER),
   ASN1_SIMPLE(PKCS8_PRIV_KEY_INFO, pkeyalg, X509_ALGOR),
-  ASN1_SIMPLE(PKCS8_PRIV_KEY_INFO, pkey, ASN1_ANY),
+  ASN1_SIMPLE(PKCS8_PRIV_KEY_INFO, pkey, ASN1_OCTET_STRING),
   ASN1_IMP_SET_OF_OPT(PKCS8_PRIV_KEY_INFO, attributes, X509_ATTRIBUTE, 0)
 } ASN1_SEQUENCE_END_cb(PKCS8_PRIV_KEY_INFO, PKCS8_PRIV_KEY_INFO)
 
 IMPLEMENT_ASN1_FUNCTIONS(PKCS8_PRIV_KEY_INFO)
+
+int PKCS8_pkey_set0(PKCS8_PRIV_KEY_INFO *priv, ASN1_OBJECT *aobj, int version,
+                    int ptype, void *pval, uint8_t *penc, int penclen) {
+  if (version >= 0 &&
+      !ASN1_INTEGER_set(priv->version, version)) {
+    return 0;
+  }
+
+  if (!X509_ALGOR_set0(priv->pkeyalg, aobj, ptype, pval)) {
+    return 0;
+  }
+
+  if (penc != NULL) {
+    ASN1_STRING_set0(priv->pkey, penc, penclen);
+  }
+
+  return 1;
+}
+
+int PKCS8_pkey_get0(ASN1_OBJECT **ppkalg, const uint8_t **pk, int *ppklen,
+                    X509_ALGOR **pa, PKCS8_PRIV_KEY_INFO *p8) {
+  if (ppkalg) {
+    *ppkalg = p8->pkeyalg->algorithm;
+  }
+  if (pk) {
+    *pk = ASN1_STRING_data(p8->pkey);
+    *ppklen = ASN1_STRING_length(p8->pkey);
+  }
+  if (pa) {
+    *pa = p8->pkeyalg;
+  }
+  return 1;
+}
 
 EVP_PKEY *EVP_PKCS82PKEY(PKCS8_PRIV_KEY_INFO *p8) {
   uint8_t *der = NULL;
@@ -293,6 +324,10 @@ err:
   return ret;
 }
 
+// 1.2.840.113549.1.12.10.1.1
+static const uint8_t kKeyBag[] = {0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
+                                  0x01, 0x0c, 0x0a, 0x01, 0x01};
+
 // 1.2.840.113549.1.12.10.1.2
 static const uint8_t kPKCS8ShroudedKeyBag[] = {
     0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x0c, 0x0a, 0x01, 0x02};
@@ -392,16 +427,20 @@ static int PKCS12_handle_safe_bag(CBS *safe_bag, struct pkcs12_context *ctx) {
     return 0;
   }
 
-  if (CBS_mem_equal(&bag_id, kPKCS8ShroudedKeyBag,
-                    sizeof(kPKCS8ShroudedKeyBag))) {
-    // See RFC 7292, section 4.2.2.
+  const int is_key_bag = CBS_mem_equal(&bag_id, kKeyBag, sizeof(kKeyBag));
+  const int is_shrouded_key_bag = CBS_mem_equal(&bag_id, kPKCS8ShroudedKeyBag,
+                                                sizeof(kPKCS8ShroudedKeyBag));
+  if (is_key_bag || is_shrouded_key_bag) {
+    // See RFC 7292, section 4.2.1 and 4.2.2.
     if (*ctx->out_key) {
       OPENSSL_PUT_ERROR(PKCS8, PKCS8_R_MULTIPLE_PRIVATE_KEYS_IN_PKCS12);
       return 0;
     }
 
-    EVP_PKEY *pkey = PKCS8_parse_encrypted_private_key(
-        &wrapped_value, ctx->password, ctx->password_len);
+    EVP_PKEY *pkey =
+        is_key_bag ? EVP_parse_private_key(&wrapped_value)
+                   : PKCS8_parse_encrypted_private_key(
+                         &wrapped_value, ctx->password, ctx->password_len);
     if (pkey == NULL) {
       return 0;
     }
@@ -863,17 +902,7 @@ int i2d_PKCS12(const PKCS12 *p12, uint8_t **out) {
 }
 
 int i2d_PKCS12_bio(BIO *bio, const PKCS12 *p12) {
-  size_t written = 0;
-  while (written < p12->ber_len) {
-    size_t todo = p12->ber_len - written;
-    int len = todo > INT_MAX ? INT_MAX : (int)todo;
-    int ret = BIO_write(bio, p12->ber_bytes + written, len);
-    if (ret <= 0) {
-      return 0;
-    }
-    written += (size_t)ret;
-  }
-  return 1;
+  return BIO_write_all(bio, p12->ber_bytes, p12->ber_len);
 }
 
 #ifndef OPENSSL_NO_FP_API
@@ -916,9 +945,20 @@ int PKCS12_parse(const PKCS12 *p12, const char *password, EVP_PKEY **out_pkey,
     return 0;
   }
 
+  // OpenSSL selects the last certificate which matches the private key as
+  // |out_cert|.
   *out_cert = NULL;
-  if (sk_X509_num(ca_certs) > 0) {
-    *out_cert = sk_X509_shift(ca_certs);
+  size_t num_certs = sk_X509_num(ca_certs);
+  if (*out_pkey != NULL && num_certs > 0) {
+    for (size_t i = num_certs - 1; i < num_certs; i--) {
+      X509 *cert = sk_X509_value(ca_certs, i);
+      if (X509_check_private_key(cert, *out_pkey)) {
+        *out_cert = cert;
+        sk_X509_delete(ca_certs, i);
+        break;
+      }
+      ERR_clear_error();
+    }
   }
 
   if (out_ca_certs) {
@@ -957,8 +997,8 @@ int PKCS12_verify_mac(const PKCS12 *p12, const char *password,
 
 // add_bag_attributes adds the bagAttributes field of a SafeBag structure,
 // containing the specified friendlyName and localKeyId attributes.
-static int add_bag_attributes(CBB *bag, const char *name, const uint8_t *key_id,
-                              size_t key_id_len) {
+static int add_bag_attributes(CBB *bag, const char *name, size_t name_len,
+                              const uint8_t *key_id, size_t key_id_len) {
   if (name == NULL && key_id_len == 0) {
     return 1;  // Omit the OPTIONAL SET.
   }
@@ -967,7 +1007,7 @@ static int add_bag_attributes(CBB *bag, const char *name, const uint8_t *key_id,
   if (!CBB_add_asn1(bag, &attrs, CBS_ASN1_SET)) {
     return 0;
   }
-  if (name != NULL) {
+  if (name_len != 0) {
     // See https://tools.ietf.org/html/rfc2985, section 5.5.1.
     if (!CBB_add_asn1(&attrs, &attr, CBS_ASN1_SEQUENCE) ||
         !CBB_add_asn1(&attr, &oid, CBS_ASN1_OBJECT) ||
@@ -978,7 +1018,7 @@ static int add_bag_attributes(CBB *bag, const char *name, const uint8_t *key_id,
     }
     // Convert the friendly name to a BMPString.
     CBS name_cbs;
-    CBS_init(&name_cbs, (const uint8_t *)name, strlen(name));
+    CBS_init(&name_cbs, (const uint8_t *)name, name_len);
     while (CBS_len(&name_cbs) != 0) {
       uint32_t c;
       if (!cbs_get_utf8(&name_cbs, &c) ||
@@ -1023,41 +1063,48 @@ static int add_cert_bag(CBB *cbb, X509 *cert, const char *name,
   }
   uint8_t *buf;
   int len = i2d_X509(cert, NULL);
+
+  int int_name_len = 0;
+  const char *cert_name = (const char *)X509_alias_get0(cert, &int_name_len);
+  size_t name_len = int_name_len;
+  if (name) {
+    if (name_len != 0) {
+      OPENSSL_PUT_ERROR(PKCS8, PKCS8_R_AMBIGUOUS_FRIENDLY_NAME);
+      return 0;
+    }
+    name_len = strlen(name);
+  } else {
+    name = cert_name;
+  }
+
   if (len < 0 ||
       !CBB_add_space(&cert_value, &buf, (size_t)len) ||
       i2d_X509(cert, &buf) < 0 ||
-      !add_bag_attributes(&bag, name, key_id, key_id_len) ||
+      !add_bag_attributes(&bag, name, name_len, key_id, key_id_len) ||
       !CBB_flush(cbb)) {
     return 0;
   }
   return 1;
 }
 
-static int make_cert_safe_contents(uint8_t **out_data, size_t *out_len,
-                                   X509 *cert, const STACK_OF(X509) *chain,
-                                   const char *name, const uint8_t *key_id,
-                                   size_t key_id_len) {
-  int ret = 0;
-  CBB cbb, safe_contents;
-  if (!CBB_init(&cbb, 0) ||
-      !CBB_add_asn1(&cbb, &safe_contents, CBS_ASN1_SEQUENCE) ||
+static int add_cert_safe_contents(CBB *cbb, X509 *cert,
+                                  const STACK_OF(X509) *chain, const char *name,
+                                  const uint8_t *key_id, size_t key_id_len) {
+  CBB safe_contents;
+  if (!CBB_add_asn1(cbb, &safe_contents, CBS_ASN1_SEQUENCE) ||
       (cert != NULL &&
        !add_cert_bag(&safe_contents, cert, name, key_id, key_id_len))) {
-    goto err;
+    return 0;
   }
 
   for (size_t i = 0; i < sk_X509_num(chain); i++) {
     // Only the leaf certificate gets attributes.
     if (!add_cert_bag(&safe_contents, sk_X509_value(chain, i), NULL, NULL, 0)) {
-      goto err;
+      return 0;
     }
   }
 
-  ret = CBB_finish(&cbb, out_data, out_len);
-
-err:
-  CBB_cleanup(&cbb);
-  return ret;
+  return CBB_flush(cbb);
 }
 
 static int add_encrypted_data(CBB *out, int pbe_nid, const char *password,
@@ -1132,7 +1179,7 @@ PKCS12 *PKCS12_create(const char *password, const char *name,
     cert_nid = NID_pbe_WithSHA1And40BitRC2_CBC;
   }
   if (iterations == 0) {
-    iterations = PKCS5_DEFAULT_ITERATIONS;
+    iterations = PKCS12_DEFAULT_ITER;
   }
   if (mac_iterations == 0) {
     mac_iterations = 1;
@@ -1140,9 +1187,6 @@ PKCS12 *PKCS12_create(const char *password, const char *name,
   if (// In OpenSSL, this specifies a non-standard Microsoft key usage extension
       // which we do not currently support.
       key_type != 0 ||
-      // In OpenSSL, -1 here means to use no encryption, which we do not
-      // currently support.
-      key_nid < 0 || cert_nid < 0 ||
       // In OpenSSL, -1 here means to omit the MAC, which we do not
       // currently support. Omitting it is also invalid for a password-based
       // PKCS#12 file.
@@ -1152,6 +1196,36 @@ PKCS12 *PKCS12_create(const char *password, const char *name,
     OPENSSL_PUT_ERROR(PKCS8, PKCS8_R_UNSUPPORTED_OPTIONS);
     return 0;
   }
+
+  // PKCS#12 is a very confusing recursive data format, built out of another
+  // recursive data format. Section 5.1 of RFC 7292 describes the encoding
+  // algorithm, but there is no clear overview. A quick summary:
+  //
+  // PKCS#7 defines a ContentInfo structure, which is a overgeneralized typed
+  // combinator structure for applying cryptography. We care about two types. A
+  // data ContentInfo contains an OCTET STRING and is a leaf node of the
+  // combinator tree. An encrypted-data ContentInfo contains encryption
+  // parameters (key derivation and encryption) and wraps another ContentInfo,
+  // usually data.
+  //
+  // A PKCS#12 file is a PFX structure (section 4), which contains a single data
+  // ContentInfo and a MAC over it. This root ContentInfo is the
+  // AuthenticatedSafe and its payload is a SEQUENCE of other ContentInfos, so
+  // that different parts of the PKCS#12 file can by differently protected.
+  //
+  // Each ContentInfo in the AuthenticatedSafe, after undoing all the PKCS#7
+  // combinators, has SafeContents payload. A SafeContents is a SEQUENCE of
+  // SafeBag. SafeBag is PKCS#12's typed structure, with subtypes such as KeyBag
+  // and CertBag. Confusingly, there is a SafeContents bag type which itself
+  // recursively contains more SafeBags, but we do not implement this. Bags also
+  // can have attributes.
+  //
+  // The grouping of SafeBags into intermediate ContentInfos does not appear to
+  // be significant, except that all SafeBags sharing a ContentInfo have the
+  // same level of protection. Additionally, while keys may be encrypted by
+  // placing a KeyBag in an encrypted-data ContentInfo, PKCS#12 also defines a
+  // key-specific encryption container, PKCS8ShroudedKeyBag, which is used
+  // instead.
 
   // Note that |password| may be NULL to specify no password, rather than the
   // empty string. They are encoded differently in PKCS#12. (One is the empty
@@ -1195,24 +1269,43 @@ PKCS12 *PKCS12_create(const char *password, const char *name,
   // If there are any certificates, place them in CertBags wrapped in a single
   // encrypted ContentInfo.
   if (cert != NULL || sk_X509_num(chain) > 0) {
-    uint8_t *data;
-    size_t len;
-    if (!make_cert_safe_contents(&data, &len, cert, chain, name, key_id,
-                                 key_id_len)) {
-      goto err;
-    }
-    int ok = add_encrypted_data(&content_infos, cert_nid, password,
-                                password_len, iterations, data, len);
-    OPENSSL_free(data);
-    if (!ok) {
-      goto err;
+    if (cert_nid < 0) {
+      // Place the certificates in an unencrypted ContentInfo. This could be
+      // more compactly-encoded by reusing the same ContentInfo as the key, but
+      // OpenSSL does not do this. We keep them separate for consistency. (Keys,
+      // even when encrypted, are always placed in unencrypted ContentInfos.
+      // PKCS#12 defines bag-level encryption for keys.)
+      CBB content_info, oid, wrapper, data;
+      if (!CBB_add_asn1(&content_infos, &content_info, CBS_ASN1_SEQUENCE) ||
+          !CBB_add_asn1(&content_info, &oid, CBS_ASN1_OBJECT) ||
+          !CBB_add_bytes(&oid, kPKCS7Data, sizeof(kPKCS7Data)) ||
+          !CBB_add_asn1(&content_info, &wrapper,
+                        CBS_ASN1_CONSTRUCTED | CBS_ASN1_CONTEXT_SPECIFIC | 0) ||
+          !CBB_add_asn1(&wrapper, &data, CBS_ASN1_OCTETSTRING) ||
+          !add_cert_safe_contents(&data, cert, chain, name, key_id,
+                                  key_id_len) ||
+          !CBB_flush(&content_infos)) {
+        goto err;
+      }
+    } else {
+      CBB plaintext_cbb;
+      int ok = CBB_init(&plaintext_cbb, 0) &&
+               add_cert_safe_contents(&plaintext_cbb, cert, chain, name, key_id,
+                                      key_id_len) &&
+               add_encrypted_data(
+                   &content_infos, cert_nid, password, password_len, iterations,
+                   CBB_data(&plaintext_cbb), CBB_len(&plaintext_cbb));
+      CBB_cleanup(&plaintext_cbb);
+      if (!ok) {
+        goto err;
+      }
     }
   }
 
-  // If there is a key, place it in a single PKCS8ShroudedKeyBag wrapped in an
-  // unencrypted ContentInfo. (One could also place it in a KeyBag inside an
-  // encrypted ContentInfo, but OpenSSL does not do this and some PKCS#12
-  // consumers do not support KeyBags.)
+  // If there is a key, place it in a single KeyBag or PKCS8ShroudedKeyBag
+  // wrapped in an unencrypted ContentInfo. (One could also place it in a KeyBag
+  // inside an encrypted ContentInfo, but OpenSSL does not do this and some
+  // PKCS#12 consumers do not support KeyBags.)
   if (pkey != NULL) {
     CBB content_info, oid, wrapper, data, safe_contents, bag, bag_oid,
         bag_contents;
@@ -1226,16 +1319,33 @@ PKCS12 *PKCS12_create(const char *password, const char *name,
         !CBB_add_asn1(&data, &safe_contents, CBS_ASN1_SEQUENCE) ||
         // Add a SafeBag containing a PKCS8ShroudedKeyBag.
         !CBB_add_asn1(&safe_contents, &bag, CBS_ASN1_SEQUENCE) ||
-        !CBB_add_asn1(&bag, &bag_oid, CBS_ASN1_OBJECT) ||
-        !CBB_add_bytes(&bag_oid, kPKCS8ShroudedKeyBag,
-                       sizeof(kPKCS8ShroudedKeyBag)) ||
-        !CBB_add_asn1(&bag, &bag_contents,
-                      CBS_ASN1_CONSTRUCTED | CBS_ASN1_CONTEXT_SPECIFIC | 0) ||
-        !PKCS8_marshal_encrypted_private_key(
-            &bag_contents, key_nid, NULL, password, password_len,
-            NULL /* generate a random salt */, 0 /* use default salt length */,
-            iterations, pkey) ||
-        !add_bag_attributes(&bag, name, key_id, key_id_len) ||
+        !CBB_add_asn1(&bag, &bag_oid, CBS_ASN1_OBJECT)) {
+      goto err;
+    }
+    if (key_nid < 0) {
+      if (!CBB_add_bytes(&bag_oid, kKeyBag, sizeof(kKeyBag)) ||
+          !CBB_add_asn1(&bag, &bag_contents,
+                        CBS_ASN1_CONSTRUCTED | CBS_ASN1_CONTEXT_SPECIFIC | 0) ||
+          !EVP_marshal_private_key(&bag_contents, pkey)) {
+        goto err;
+      }
+    } else {
+      if (!CBB_add_bytes(&bag_oid, kPKCS8ShroudedKeyBag,
+                         sizeof(kPKCS8ShroudedKeyBag)) ||
+          !CBB_add_asn1(&bag, &bag_contents,
+                        CBS_ASN1_CONSTRUCTED | CBS_ASN1_CONTEXT_SPECIFIC | 0) ||
+          !PKCS8_marshal_encrypted_private_key(
+              &bag_contents, key_nid, NULL, password, password_len,
+              NULL /* generate a random salt */,
+              0 /* use default salt length */, iterations, pkey)) {
+        goto err;
+      }
+    }
+    size_t name_len = 0;
+    if (name) {
+      name_len = strlen(name);
+    }
+    if (!add_bag_attributes(&bag, name, name_len, key_id, key_id_len) ||
         !CBB_flush(&content_infos)) {
       goto err;
     }

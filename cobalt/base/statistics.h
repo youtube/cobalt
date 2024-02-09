@@ -42,7 +42,7 @@ inline int64_t DefaultSampleToValueFunc(int64_t dividend, int64_t divisor) {
 // by `SampleToValueFunc` using its dividend and divisor.
 //
 // Example usages:
-//   1. Set dividends to bytes in int and divisors to SbTime, to track the
+//   1. Set dividends to bytes in int and divisors to int64_t, to track the
 //      statistics of bandwidth.
 //   2. Set the divisor to always be 1, to track the statistics of a count or a
 //      duration.
