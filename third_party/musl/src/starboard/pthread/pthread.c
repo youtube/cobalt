@@ -44,7 +44,8 @@ int pthread_mutex_unlock(pthread_mutex_t* mutex) {
 }
 
 int pthread_mutex_trylock(pthread_mutex_t* mutex) {
-  if (SbMutexAcquireTry((SbMutex*)mutex->mutex_buffer)) {
+  SbMutexResult result = SbMutexAcquireTry((SbMutex*)mutex->mutex_buffer); 
+  if (result == kSbMutexAcquired) {
     return 0;
   }
   return EINVAL;
