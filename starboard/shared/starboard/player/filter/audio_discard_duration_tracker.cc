@@ -1,4 +1,4 @@
-// Copyright 2023 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,73 +26,73 @@ namespace filter {
 
 void AudioDiscardDurationTracker::CacheMultipleDiscardDurations(
     const InputBuffers& input_buffers,
-    SbTime buffer_duration) {
+    int64_t buffer_duration_us) {
   ScopedLock lock(mutex_);
   for (const auto& input_buffer : input_buffers) {
-    CacheDiscardDuration(input_buffer, buffer_duration);
+    CacheDiscardDuration(input_buffer, buffer_duration_us);
   }
 }
 
-SbTime AudioDiscardDurationTracker::AdjustTimeForTotalDiscardDuration(
-    SbTime timestamp) {
+int64_t AudioDiscardDurationTracker::AdjustTimeForTotalDiscardDuration(
+    int64_t timestamp_us) {
   ScopedLock lock(mutex_);
-  SB_LOG_IF(WARNING, last_received_timestamp_ > timestamp)
-      << "Last received timestamp " << last_received_timestamp_
-      << " is greater than timestamp " << timestamp
+  SB_LOG_IF(WARNING, last_received_timestamp_us_ > timestamp_us)
+      << "Last received timestamp " << last_received_timestamp_us_
+      << " is greater than timestamp " << timestamp_us
       << ". AudioDiscardDurationTracker::AdjustTimeForTotalDiscardDuration() "
          "requires monotonically increasing timestamps.";
-  last_received_timestamp_ = timestamp;
+  last_received_timestamp_us_ = timestamp_us;
 
   // As a lot of time may have passed since the last call to
   // AdjustTimeForTotalDiscardDuration(), remove all AudioDiscardInfos that
   // have already been passed by the |timestamp|.
   while (discard_infos_.size() > 0 &&
-         timestamp >= discard_infos_.front().discard_start_timestamp +
-                          discard_infos_.front().discard_duration) {
-    total_discard_duration_ += discard_infos_.front().discard_duration;
+         timestamp_us >= discard_infos_.front().discard_start_timestamp_us +
+                             discard_infos_.front().discard_duration_us) {
+    total_discard_duration_us_ += discard_infos_.front().discard_duration_us;
     discard_infos_.pop();
   }
 
   if (discard_infos_.size() > 0) {
-    SbTime discard_start_timestamp =
-        discard_infos_.front().discard_start_timestamp;
-    SbTime discard_end_timestamp =
-        discard_start_timestamp + discard_infos_.front().discard_duration;
-    if (timestamp >= discard_start_timestamp &&
-        timestamp < discard_end_timestamp) {
+    int64_t discard_start_timestamp_us =
+        discard_infos_.front().discard_start_timestamp_us;
+    int64_t discard_end_timestamp_us =
+        discard_start_timestamp_us + discard_infos_.front().discard_duration_us;
+    if (timestamp_us >= discard_start_timestamp_us &&
+        timestamp_us < discard_end_timestamp_us) {
       // "Freeze" the timestamp at |discard_start_timestamp| if |timestamp|
       // falls within the discard period.
-      return std::max(SbTime(0),
-                      discard_start_timestamp - total_discard_duration_);
+      return std::max(int64_t(0),
+                      discard_start_timestamp_us - total_discard_duration_us_);
     }
   }
 
-  return std::max(SbTime(0), timestamp - total_discard_duration_);
+  return std::max(int64_t(0), timestamp_us - total_discard_duration_us_);
 }
 
 void AudioDiscardDurationTracker::CacheDiscardDuration(
     const scoped_refptr<InputBuffer>& input_buffer,
-    SbTime buffer_duration) {
+    int64_t buffer_duration_us) {
   mutex_.DCheckAcquired();
-  SbTime discard_duration_from_front =
+  int64_t discard_duration_from_front_us =
       input_buffer->audio_sample_info().discarded_duration_from_front;
-  SbTime discard_duration_from_back =
+  int64_t discard_duration_from_back_us =
       input_buffer->audio_sample_info().discarded_duration_from_back;
 
-  if (discard_duration_from_front + discard_duration_from_back >=
-      buffer_duration) {
+  if (discard_duration_from_front_us + discard_duration_from_back_us >=
+      buffer_duration_us) {
     discard_infos_.push(
-        AudioDiscardInfo{buffer_duration, input_buffer->timestamp()});
+        AudioDiscardInfo{buffer_duration_us, input_buffer->timestamp()});
   } else {
-    if (discard_duration_from_front > 0) {
-      discard_infos_.push(AudioDiscardInfo{discard_duration_from_front,
+    if (discard_duration_from_front_us > 0) {
+      discard_infos_.push(AudioDiscardInfo{discard_duration_from_front_us,
                                            input_buffer->timestamp()});
     }
-    if (discard_duration_from_back > 0) {
-      discard_infos_.push(AudioDiscardInfo{discard_duration_from_back,
+    if (discard_duration_from_back_us > 0) {
+      discard_infos_.push(AudioDiscardInfo{discard_duration_from_back_us,
                                            input_buffer->timestamp() +
-                                               buffer_duration -
-                                               discard_duration_from_back});
+                                               buffer_duration_us -
+                                               discard_duration_from_back_us});
     }
   }
 

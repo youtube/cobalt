@@ -1,4 +1,4 @@
-// Copyright 2023 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace shared {
@@ -37,7 +36,7 @@ using ::starboard::scoped_refptr;
 class AudioDiscardDurationTracker {
  public:
   void CacheMultipleDiscardDurations(const InputBuffers& input_buffers,
-                                     SbTime buffer_duration);
+                                     int64_t buffer_duration_us);
   // Adjusts the given timestamp by taking the total duration of discarded audio
   // into account. When |timestamp| falls within the current AudioDiscardInfo,
   // AdjustTimeForTotalDiscardDuration() will return a timestamp based on the
@@ -55,18 +54,18 @@ class AudioDiscardDurationTracker {
   //
   // Timestamps passed to AdjustTimeForTotalDiscardDuration() must be
   // monotonically increasing for the algorithm to run correctly.
-  SbTime AdjustTimeForTotalDiscardDuration(SbTime timestamp);
+  int64_t AdjustTimeForTotalDiscardDuration(int64_t timestamp_us);
   void Reset() {
     ScopedLock lock(mutex_);
     discard_infos_ = std::queue<AudioDiscardInfo>();
-    total_discard_duration_ = 0;
-    last_received_timestamp_ = 0;
+    total_discard_duration_us_ = 0;
+    last_received_timestamp_us_ = 0;
   }
 
  private:
   struct AudioDiscardInfo {
-    SbTime discard_duration;
-    SbTime discard_start_timestamp;
+    int64_t discard_duration_us;
+    int64_t discard_start_timestamp_us;
   };
 
   // Stores the timestamps and audio discard durations of an InputBuffer
@@ -86,14 +85,14 @@ class AudioDiscardDurationTracker {
   // the duration of the buffer, a single AudioDiscardInfo is created to discard
   // the entire duration of the buffer.
   void CacheDiscardDuration(const scoped_refptr<InputBuffer>& input_buffer,
-                            SbTime buffer_duration);
+                            int64_t buffer_duration_us);
 
   Mutex mutex_;
   std::queue<AudioDiscardInfo> discard_infos_;
-  SbTime total_discard_duration_ = 0;
+  int64_t total_discard_duration_us_ = 0;
   // Used to check for timestamp regressions in
   // AdjustTimeForTotalDiscardDuration().
-  SbTime last_received_timestamp_ = 0;
+  int64_t last_received_timestamp_us_ = 0;
 
   static constexpr size_t kMaxNumberOfPendingAudioDiscardInfos = 128;
 };

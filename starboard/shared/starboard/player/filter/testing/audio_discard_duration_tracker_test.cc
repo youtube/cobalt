@@ -1,4 +1,4 @@
-// Copyright 2023 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
-#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -41,7 +40,7 @@ class AudioDiscardDurationTrackerTest
  protected:
   VideoDmpReader dmp_reader_;
   // TODO: Determine the duration from the InputBuffer itself.
-  const SbTime kPassthroughBufferDuration = 32 * kSbTimeMillisecond;
+  const int64_t kPassthroughBufferDurationUs = 32'000;  // 32 ms
 };
 
 TEST_P(AudioDiscardDurationTrackerTest, SingleInputNonPartialAudio) {
@@ -51,13 +50,13 @@ TEST_P(AudioDiscardDurationTrackerTest, SingleInputNonPartialAudio) {
   InputBuffers input_buffers = {input_buffer};
   AudioDiscardDurationTracker tracker;
   tracker.CacheMultipleDiscardDurations(input_buffers,
-                                        kPassthroughBufferDuration);
+                                        kPassthroughBufferDurationUs);
 
-  SbTime timestamp = kPassthroughBufferDuration;
-  SbTime adjusted_timestamp =
-      tracker.AdjustTimeForTotalDiscardDuration(timestamp);
+  int64_t timestamp_us = kPassthroughBufferDurationUs;
+  int64_t adjusted_timestamp_us =
+      tracker.AdjustTimeForTotalDiscardDuration(timestamp_us);
 
-  EXPECT_EQ(adjusted_timestamp, timestamp);
+  EXPECT_EQ(adjusted_timestamp_us, timestamp_us);
 }
 
 TEST_P(AudioDiscardDurationTrackerTest, MultipleInputsNonPartialAudio) {
@@ -72,27 +71,27 @@ TEST_P(AudioDiscardDurationTrackerTest, MultipleInputsNonPartialAudio) {
 
   AudioDiscardDurationTracker tracker;
   tracker.CacheMultipleDiscardDurations(input_buffers,
-                                        kPassthroughBufferDuration);
+                                        kPassthroughBufferDurationUs);
 
   for (int i = 1; i <= buffers_written; ++i) {
-    SbTime timestamp = kPassthroughBufferDuration * i;
-    SbTime adjusted_timestamp =
-        tracker.AdjustTimeForTotalDiscardDuration(timestamp);
-    EXPECT_EQ(adjusted_timestamp, timestamp);
+    int64_t timestamp_us = kPassthroughBufferDurationUs * i;
+    int64_t adjusted_timestamp_us =
+        tracker.AdjustTimeForTotalDiscardDuration(timestamp_us);
+    EXPECT_EQ(adjusted_timestamp_us, timestamp_us);
   }
 }
 
 TEST_P(AudioDiscardDurationTrackerTest, SingleInputPartialAudio) {
-  const SbTime kDiscardDuration = 10 * kSbTimeMillisecond;
+  const int64_t kDiscardDurationUs = 10'000;  // 10 ms.
 
   // Discard front only.
   scoped_refptr<InputBuffer> input_buffer =
-      GetAudioInputBuffer(&dmp_reader_, 0, kDiscardDuration, 0);
+      GetAudioInputBuffer(&dmp_reader_, 0, kDiscardDurationUs, 0);
   InputBuffers input_buffers = {input_buffer};
 
   AudioDiscardDurationTracker tracker;
   tracker.CacheMultipleDiscardDurations(input_buffers,
-                                        kPassthroughBufferDuration);
+                                        kPassthroughBufferDurationUs);
 
   // The timestamp at which audio begins to be discarded. For a 32 ms buffer at
   // timestamp 50 ms with a front discard duration of 10 ms, the discard start
@@ -100,142 +99,149 @@ TEST_P(AudioDiscardDurationTrackerTest, SingleInputPartialAudio) {
   // duration 32 ms at timestamp 50 ms with a back discard duration of 10 ms,
   // the discard start timestamp is 50 ms + 32 ms - 10 ms = 72 ms, ending at 50
   // ms + 32 ms = 82 ms.
-  SbTime discard_start_timestamp = input_buffer->timestamp();
-  SbTime discard_end_timestamp = discard_start_timestamp + kDiscardDuration;
+  int64_t discard_start_timestamp_us = input_buffer->timestamp();
+  int64_t discard_end_timestamp_us =
+      discard_start_timestamp_us + kDiscardDurationUs;
 
-  SbTime adjusted_timestamp =
-      tracker.AdjustTimeForTotalDiscardDuration(discard_start_timestamp);
-  EXPECT_EQ(adjusted_timestamp, discard_start_timestamp);
+  int64_t adjusted_timestamp_us =
+      tracker.AdjustTimeForTotalDiscardDuration(discard_start_timestamp_us);
+  EXPECT_EQ(adjusted_timestamp_us, discard_start_timestamp_us);
 
-  adjusted_timestamp = tracker.AdjustTimeForTotalDiscardDuration(
-      discard_start_timestamp + kDiscardDuration / 2);
+  adjusted_timestamp_us = tracker.AdjustTimeForTotalDiscardDuration(
+      discard_start_timestamp_us + kDiscardDurationUs / 2);
   // Expect the timestamp to be adjusted midway through the discard duration.
-  EXPECT_EQ(adjusted_timestamp, discard_start_timestamp);
+  EXPECT_EQ(adjusted_timestamp_us, discard_start_timestamp);
 
-  adjusted_timestamp =
-      tracker.AdjustTimeForTotalDiscardDuration(discard_end_timestamp);
-  EXPECT_EQ(adjusted_timestamp, discard_start_timestamp);
+  adjusted_timestamp_us =
+      tracker.AdjustTimeForTotalDiscardDuration(discard_end_timestamp_us);
+  EXPECT_EQ(adjusted_timestamp_us, discard_start_timestamp);
 
   // A timestamp beyond the end of the discard duration.
-  SbTime incremented_timestamp =
-      5 + kDiscardDuration + input_buffer->timestamp();
-  adjusted_timestamp =
-      tracker.AdjustTimeForTotalDiscardDuration(incremented_timestamp);
+  int64_t incremented_timestamp_us =
+      5 + kDiscardDurationUs + input_buffer->timestamp();
+  adjusted_timestamp_us =
+      tracker.AdjustTimeForTotalDiscardDuration(incremented_timestamp_us);
   // After the timestamp progresses beyond the end of the discard duration,
   // expect the adjusted timestamp to subtract the total discard duration.
-  EXPECT_EQ(adjusted_timestamp, incremented_timestamp - kDiscardDuration);
+  EXPECT_EQ(adjusted_timestamp_us,
+            incremented_timestamp_us - kDiscardDurationUs);
 
   tracker.Reset();
   input_buffers.clear();
 
   // Discard back only.
-  input_buffer = GetAudioInputBuffer(&dmp_reader_, 0, 0, kDiscardDuration);
+  input_buffer = GetAudioInputBuffer(&dmp_reader_, 0, 0, kDiscardDurationUs);
   input_buffers = {input_buffer};
   tracker.CacheMultipleDiscardDurations(input_buffers,
-                                        kPassthroughBufferDuration);
+                                        kPassthroughBufferDurationUs);
 
-  discard_start_timestamp =
-      input_buffer->timestamp() + kPassthroughBufferDuration - kDiscardDuration;
-  discard_end_timestamp = discard_start_timestamp + kDiscardDuration;
+  discard_start_timestamp_us = input_buffer->timestamp() +
+                               kPassthroughBufferDurationUs -
+                               kDiscardDurationUs;
+  discard_end_timestamp_us = discard_start_timestamp_us + kDiscardDurationUs;
 
-  adjusted_timestamp =
-      tracker.AdjustTimeForTotalDiscardDuration(discard_start_timestamp);
-  EXPECT_EQ(adjusted_timestamp, discard_start_timestamp);
+  adjusted_timestamp_us =
+      tracker.AdjustTimeForTotalDiscardDuration(discard_start_timestamp_us);
+  EXPECT_EQ(adjusted_timestamp_us, discard_start_timestamp_us);
 
-  adjusted_timestamp = tracker.AdjustTimeForTotalDiscardDuration(
-      discard_start_timestamp + kDiscardDuration / 2);
-  EXPECT_EQ(adjusted_timestamp, discard_start_timestamp);
+  adjusted_timestamp_us = tracker.AdjustTimeForTotalDiscardDuration(
+      discard_start_timestamp_us + kDiscardDurationUs / 2);
+  EXPECT_EQ(adjusted_timestamp_us, discard_start_timestamp_us);
 
-  adjusted_timestamp =
-      tracker.AdjustTimeForTotalDiscardDuration(discard_end_timestamp);
-  EXPECT_EQ(adjusted_timestamp, discard_start_timestamp);
+  adjusted_timestamp_us =
+      tracker.AdjustTimeForTotalDiscardDuration(discard_end_timestamp_us);
+  EXPECT_EQ(adjusted_timestamp_us, discard_start_timestamp_us);
 
-  incremented_timestamp =
-      5 + kPassthroughBufferDuration + input_buffer->timestamp();
-  adjusted_timestamp =
-      tracker.AdjustTimeForTotalDiscardDuration(incremented_timestamp);
-  EXPECT_EQ(adjusted_timestamp, incremented_timestamp - kDiscardDuration);
+  incremented_timestamp_us =
+      5 + kPassthroughBufferDurationUs + input_buffer->timestamp();
+  adjusted_timestamp_us =
+      tracker.AdjustTimeForTotalDiscardDuration(incremented_timestamp_us);
+  EXPECT_EQ(adjusted_timestamp_us,
+            incremented_timestamp_us - kDiscardDurationUs);
 
   tracker.Reset();
   input_buffers.clear();
 
   // Discard both front and back.
-  input_buffer =
-      GetAudioInputBuffer(&dmp_reader_, 0, kDiscardDuration, kDiscardDuration);
-  SbTime front_discard_duration = kDiscardDuration;
-  SbTime back_discard_duration = kDiscardDuration;
+  input_buffer = GetAudioInputBuffer(&dmp_reader_, 0, kDiscardDurationUs,
+                                     kDiscardDurationUs);
+  int64_t front_discard_duration_us = kDiscardDurationUs;
+  int64_t back_discard_duration = kDiscardDurationUs;
   input_buffers = {input_buffer};
   tracker.CacheMultipleDiscardDurations(input_buffers,
-                                        kPassthroughBufferDuration);
+                                        kPassthroughBufferDurationUs);
 
-  SbTime discard_front_start_timestamp = input_buffer->timestamp();
-  SbTime discard_front_end_timestamp =
-      discard_front_start_timestamp + front_discard_duration;
+  int64_t discard_front_start_timestamp_us = input_buffer->timestamp();
+  int64_t discard_front_end_timestamp_us =
+      discard_front_start_timestamp_us + front_discard_duration_us;
 
   // Check the start of the input buffer.
-  adjusted_timestamp =
+  adjusted_timestamp_us =
       tracker.AdjustTimeForTotalDiscardDuration(input_buffer->timestamp());
-  EXPECT_EQ(adjusted_timestamp, discard_front_start_timestamp);
+  EXPECT_EQ(adjusted_timestamp_us, discard_front_start_timestamp_us);
 
   // Check the middle of the input buffer, in between discard durations.
-  incremented_timestamp = discard_front_end_timestamp + 5 * kSbTimeMillisecond;
-  adjusted_timestamp =
-      tracker.AdjustTimeForTotalDiscardDuration(incremented_timestamp);
-  EXPECT_EQ(adjusted_timestamp, incremented_timestamp - front_discard_duration);
+  incremented_timestamp_us =
+      discard_front_end_timestamp_us + 5 * kSbTimeMillisecond;
+  adjusted_timestamp_us =
+      tracker.AdjustTimeForTotalDiscardDuration(incremented_timestamp_us);
+  EXPECT_EQ(adjusted_timestamp_us,
+            incremented_timestamp_us - front_discard_duration_us);
 
   // Check the end of the input buffer.
-  adjusted_timestamp = tracker.AdjustTimeForTotalDiscardDuration(
-      input_buffer->timestamp() + kPassthroughBufferDuration);
-  EXPECT_EQ(adjusted_timestamp,
-            input_buffer->timestamp() + kPassthroughBufferDuration -
-                front_discard_duration - back_discard_duration);
+  adjusted_timestamp_us = tracker.AdjustTimeForTotalDiscardDuration(
+      input_buffer->timestamp() + kPassthroughBufferDurationUs);
+  EXPECT_EQ(adjusted_timestamp_us,
+            input_buffer->timestamp() + kPassthroughBufferDurationUs -
+                front_discard_duration_us - back_discard_duration);
 }
 
 TEST_P(AudioDiscardDurationTrackerTest, MultipleInputsPartialAudio) {
   InputBuffers input_buffers;
 
   int buffers_written = 0;
-  const SbTime kDiscardDuration = kPassthroughBufferDuration / 2;
+  const int64_t kDiscardDurationUs = kPassthroughBufferDurationUs / 2;
   for (int i = 0; i < std::min<int>(32, dmp_reader_.number_of_audio_buffers());
        ++i) {
-    SbTime front_discard_duration = i % 2 == 0 ? kDiscardDuration : 0;
-    SbTime back_discard_duration = i % 2 == 0 ? 0 : kDiscardDuration;
+    int64_t front_discard_duration_us = i % 2 == 0 ? kDiscardDurationUs : 0;
+    int64_t back_discard_duration = i % 2 == 0 ? 0 : kDiscardDurationUs;
     input_buffers.push_back(GetAudioInputBuffer(
-        &dmp_reader_, i, front_discard_duration, back_discard_duration));
+        &dmp_reader_, i, front_discard_duration_us, back_discard_duration));
     ++buffers_written;
   }
 
   AudioDiscardDurationTracker tracker;
   tracker.CacheMultipleDiscardDurations(input_buffers,
-                                        kPassthroughBufferDuration);
+                                        kPassthroughBufferDurationUs);
 
   for (int i = 1; i <= buffers_written; ++i) {
-    SbTime timestamp = kPassthroughBufferDuration * i;
-    SbTime adjusted_timestamp =
-        tracker.AdjustTimeForTotalDiscardDuration(timestamp);
-    SbTime expected_timestamp = timestamp - i * kDiscardDuration;
-    EXPECT_EQ(adjusted_timestamp, expected_timestamp);
+    int64_t timestamp_us = kPassthroughBufferDurationUs * i;
+    int64_t adjusted_timestamp_us =
+        tracker.AdjustTimeForTotalDiscardDuration(timestamp_us);
+    int64_t expected_timestamp_us = timestamp_us - i * kDiscardDurationUs;
+    EXPECT_EQ(adjusted_timestamp_us, expected_timestamp_us);
   }
 }
 
 TEST_P(AudioDiscardDurationTrackerTest, DiscardAll) {
-  scoped_refptr<InputBuffer> input_buffer = GetAudioInputBuffer(
-      &dmp_reader_, 0, kPassthroughBufferDuration, kPassthroughBufferDuration);
+  scoped_refptr<InputBuffer> input_buffer =
+      GetAudioInputBuffer(&dmp_reader_, 0, kPassthroughBufferDurationUs,
+                          kPassthroughBufferDurationUs);
 
   AudioDiscardDurationTracker tracker;
   InputBuffers input_buffers = {input_buffer};
   tracker.CacheMultipleDiscardDurations(input_buffers,
-                                        kPassthroughBufferDuration);
+                                        kPassthroughBufferDurationUs);
 
-  SbTime adjusted_timestamp =
+  int64_t adjusted_timestamp_us =
       tracker.AdjustTimeForTotalDiscardDuration(input_buffer->timestamp());
-  EXPECT_EQ(input_buffer->timestamp(), adjusted_timestamp);
+  EXPECT_EQ(input_buffer->timestamp(), adjusted_timestamp_us);
 
   // As the entire buffer is discarded, expect the adjusted timestamp to match
   // the timestamp of the input buffer.
-  adjusted_timestamp = tracker.AdjustTimeForTotalDiscardDuration(
-      input_buffer->timestamp() + kPassthroughBufferDuration);
-  EXPECT_EQ(adjusted_timestamp, input_buffer->timestamp());
+  adjusted_timestamp_us = tracker.AdjustTimeForTotalDiscardDuration(
+      input_buffer->timestamp() + kPassthroughBufferDurationUs);
+  EXPECT_EQ(adjusted_timestamp_us, input_buffer->timestamp());
 
   tracker.Reset();
   input_buffers.clear();
@@ -244,20 +250,20 @@ TEST_P(AudioDiscardDurationTrackerTest, DiscardAll) {
   for (int i = 0; i < std::min<int>(32, dmp_reader_.number_of_audio_buffers());
        ++i) {
     input_buffers.push_back(GetAudioInputBuffer(&dmp_reader_, i,
-                                                kPassthroughBufferDuration,
-                                                kPassthroughBufferDuration));
+                                                kPassthroughBufferDurationUs,
+                                                kPassthroughBufferDurationUs));
     ++buffers_written;
   }
 
   tracker.CacheMultipleDiscardDurations(input_buffers,
-                                        kPassthroughBufferDuration);
+                                        kPassthroughBufferDurationUs);
 
-  SbTime initial_timestamp = GetAudioInputBuffer(&dmp_reader_, 0)->timestamp();
+  int64_t initial_timestamp = GetAudioInputBuffer(&dmp_reader_, 0)->timestamp();
   for (int i = 1; i <= buffers_written; ++i) {
-    SbTime timestamp = kPassthroughBufferDuration * i;
-    SbTime adjusted_timestamp =
-        tracker.AdjustTimeForTotalDiscardDuration(timestamp);
-    EXPECT_EQ(adjusted_timestamp, initial_timestamp);
+    int64_t timestamp_us = kPassthroughBufferDurationUs * i;
+    int64_t adjusted_timestamp_us =
+        tracker.AdjustTimeForTotalDiscardDuration(timestamp_us);
+    EXPECT_EQ(adjusted_timestamp_us, initial_timestamp);
   }
 }
 
@@ -266,17 +272,17 @@ TEST_P(AudioDiscardDurationTrackerTest, TimestampRegression) {
     GTEST_SKIP() << "Too few audio buffers to run test.";
   }
 
-  const SbTime kDiscardDuration = 10 * kSbTimeMillisecond;
+  const int64_t kDiscardDurationUs = 10 * kSbTimeMillisecond;
 
   scoped_refptr<InputBuffer> first_input_buffer =
-      GetAudioInputBuffer(&dmp_reader_, 0, kDiscardDuration, 0);
+      GetAudioInputBuffer(&dmp_reader_, 0, kDiscardDurationUs, 0);
   scoped_refptr<InputBuffer> second_input_buffer =
-      GetAudioInputBuffer(&dmp_reader_, 1, kDiscardDuration, 0);
+      GetAudioInputBuffer(&dmp_reader_, 1, kDiscardDurationUs, 0);
 
   InputBuffers input_buffers = {first_input_buffer, second_input_buffer};
   AudioDiscardDurationTracker tracker;
   tracker.CacheMultipleDiscardDurations(input_buffers,
-                                        kPassthroughBufferDuration);
+                                        kPassthroughBufferDurationUs);
 
   tracker.AdjustTimeForTotalDiscardDuration(second_input_buffer->timestamp());
   // Expect AudioDiscardDurationTracker not to crash when processing a timestamp
