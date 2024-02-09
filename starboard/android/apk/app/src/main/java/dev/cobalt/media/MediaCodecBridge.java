@@ -304,6 +304,10 @@ class MediaCodecBridge {
     @SuppressWarnings("unused")
     @UsedByNative
     private int textureWidth() {
+      if (formatHasCropValues()) {
+        return cropRight() - cropLeft() + 1;
+      }
+
       return (mFormat != null && mFormat.containsKey(MediaFormat.KEY_WIDTH))
           ? mFormat.getInteger(MediaFormat.KEY_WIDTH)
           : 0;
@@ -312,6 +316,10 @@ class MediaCodecBridge {
     @SuppressWarnings("unused")
     @UsedByNative
     private int textureHeight() {
+      if (formatHasCropValues()) {
+        return cropBottom() - cropTop() + 1;
+      }
+
       return (mFormat != null && mFormat.containsKey(MediaFormat.KEY_HEIGHT))
           ? mFormat.getInteger(MediaFormat.KEY_HEIGHT)
           : 0;
