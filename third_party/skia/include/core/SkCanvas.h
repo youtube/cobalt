@@ -299,12 +299,7 @@ public:
      */
     virtual GrRecordingContext* recordingContext();
 
-    /** Sometimes a canvas is owned by a surface. If it is, getSurface() will return a bare
-     *  pointer to that surface, else this will return nullptr.
-     */
-    SkSurface* getSurface() const;
-
-#if defined(COBALT)
+#ifdef STARBOARD
     /**
      * Return the framebuffer object identifier for the render target, if
      * applicable.
@@ -312,6 +307,11 @@ public:
      */
     intptr_t getRenderTargetHandle() const;
 #endif
+
+    /** Sometimes a canvas is owned by a surface. If it is, getSurface() will return a bare
+     *  pointer to that surface, else this will return nullptr.
+     */
+    SkSurface* getSurface() const;
 
     /** Returns the pixel base address, SkImageInfo, rowBytes, and origin if the pixels
         can be read directly. The returned address is only valid
@@ -2375,7 +2375,12 @@ private:
     sk_sp<SkMarkerStack> fMarkerStack;
 
     // the first N recs that can fit here mean we won't call malloc
+#if defined(STARBOARD)
+    // Cobalt uses various compilers, set a safe larger size.
+    static constexpr int kMCRecSize      = 112;
+#else
     static constexpr int kMCRecSize      = 96; // most recent measurement
+#endif 
     static constexpr int kMCRecCount     = 32; // common depth for save/restores
 
     intptr_t fMCRecStorage[kMCRecSize * kMCRecCount / sizeof(intptr_t)];

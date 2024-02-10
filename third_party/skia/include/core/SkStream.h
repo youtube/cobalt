@@ -317,7 +317,7 @@ public:
      *  beginning of the SkFILEStream and size bytes later will be the end.
      *  The C FILE stream will be closed in the destructor.
      */
-    explicit SkFILEStream(FILE* file, size_t size);
+    explicit SkFILEStream(SkFile* file, size_t size);
 
     ~SkFILEStream() override;
 
@@ -351,9 +351,9 @@ public:
     size_t getLength() const override;
 
 private:
-    explicit SkFILEStream(FILE*, size_t size, size_t start);
-    explicit SkFILEStream(std::shared_ptr<FILE>, size_t end, size_t start);
-    explicit SkFILEStream(std::shared_ptr<FILE>, size_t end, size_t start, size_t current);
+    explicit SkFILEStream(SkFile*, size_t size, size_t start);
+    explicit SkFILEStream(std::shared_ptr<SkFile>, size_t end, size_t start);
+    explicit SkFILEStream(std::shared_ptr<SkFile>, size_t end, size_t start, size_t current);
 
     SkStreamAsset* onDuplicate() const override;
     SkStreamAsset* onFork() const override;

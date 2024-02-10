@@ -18,9 +18,7 @@
 #define SkUserConfig_DEFINED  // NOLINT
 
 #if defined(STARBOARD)
-#if defined(USE_SKIA_NEXT)
 #include "base/logging.h"
-#endif
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/types.h"
@@ -272,7 +270,6 @@ SK_API void SkDebugf_FileLine(const char* file, int line, bool fatal,
 
 // The block below is copied from Skia m79's SkPostConfig.h to preserve the
 // behavior of SK_GL being defined by default.
-#ifdef USE_SKIA_NEXT
 /**
  * If GPU is enabled but no GPU backends are enabled then enable GL by default.
  * Traditionally clients have relied on Skia always building with the GL backend
@@ -281,7 +278,6 @@ SK_API void SkDebugf_FileLine(const char* file, int line, bool fatal,
 #if SK_SUPPORT_GPU
 #if !defined(SK_GL) && !defined(SK_VULKAN) && !defined(SK_METAL)
 #define SK_GL
-#endif
 #endif
 #endif
 

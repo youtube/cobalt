@@ -185,6 +185,7 @@ void ThreadContext::ReportErrors(PositionInfo pos) {
     GetErrorReporter().reportPendingErrors(pos);
 }
 
+#if !defined(STARBOARD)
 thread_local ThreadContext* instance = nullptr;
 
 bool ThreadContext::IsActive() {
@@ -201,5 +202,39 @@ void ThreadContext::SetInstance(std::unique_ptr<ThreadContext> newInstance) {
     delete instance;
     instance = newInstance.release();
 }
+#else
+#include "starboard/common/log.h"
+#include "starboard/once.h"
+#include "starboard/thread.h"
+namespace {
+ThreadContext* instance = nullptr;
+
+SbOnceControl s_once_flag = SB_ONCE_INITIALIZER;
+SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+
+void InitThreadLocalKey() {
+    s_thread_local_key = SbThreadCreateLocalKey(nullptr);
+    SB_DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+    SbThreadSetLocalValue(s_thread_local_key, nullptr);
+}
+
+void EnsureThreadLocalKeyInited() {
+    SbOnce(&s_once_flag, InitThreadLocalKey);
+    SB_DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+}
+}  // namespace
+
+bool ThreadContext::IsActive() { return SbThreadGetLocalValue(s_thread_local_key) != nullptr; }
+
+ThreadContext& ThreadContext::Instance() { return *instance; }
+
+void ThreadContext::SetInstance(std::unique_ptr<ThreadContext> newInstance) {
+    EnsureThreadLocalKeyInited();
+    delete instance;
+    SbThreadSetLocalValue(s_thread_local_key, static_cast<void*>(newInstance.release()));
+    instance = static_cast<ThreadContext*>(SbThreadGetLocalValue(s_thread_local_key));
+}
+
+#endif
 
 } // namespace SkSL

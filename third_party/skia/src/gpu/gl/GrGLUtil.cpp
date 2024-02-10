@@ -68,15 +68,6 @@ GrGLVersion GrGLGetVersionFromString(const char* versionString) {
         return GR_GL_INVALID_VER;
     }
 
-#if defined(STARBOARD) && !defined(GLES3_SUPPORTED)
-    // If we are in a build that does not support GLES3 (or it is explicitly
-    // disabled), ensure that Skia returns GLES2 as the version being used by
-    // performing the check before attempting to parse the string below.
-    if (strstr(versionString, "OpenGL ES")) {
-        return GR_GL_VER(2, 0);
-    }
-#endif
-
     int major, minor;
 
     // check for mesa
@@ -90,44 +81,6 @@ GrGLVersion GrGLGetVersionFromString(const char* versionString) {
     if (2 == n) {
         return GR_GL_VER(major, minor);
     }
-
-#if defined(STARBOARD)
-    // Use API calls to find out the version for OpenGL ES
-    // over using string parsing to determine the correct version.
-    //
-    // This is useful when a OpenGL 2.0 context is requested and received, but
-    // the version string still shows version 3.0
-    if (strstr(versionString, "OpenGL ES")) {
-        EGLint client_type = -1;
-        EGLBoolean success = false;
-        do {
-            success = EGL_CALL_SIMPLE(eglQueryContext(EGL_CALL_SIMPLE(eglGetCurrentDisplay()),
-                                                      EGL_CALL_SIMPLE(eglGetCurrentContext()),
-                                                      EGL_CONTEXT_CLIENT_TYPE, &client_type));
-            if (!success || (client_type != EGL_OPENGL_ES_API)) {
-                break;
-            }
-            EGLint client_version = -1;
-            success = EGL_CALL_SIMPLE(eglQueryContext(EGL_CALL_SIMPLE(eglGetCurrentDisplay()),
-                                                      EGL_CALL_SIMPLE(eglGetCurrentContext()),
-                                                      EGL_CONTEXT_CLIENT_VERSION,
-                                                      &client_version));
-            if (!success) {
-                break;
-            }
-#if defined(COBALT)
-            if (strstr(versionString, "Mesa")) {
-              // Some Mesa implementations, e.g. OpenGL ES 3.0 Mesa 11.2.0,
-              // will claim GL version 3.0, but do not adhere to the spec.
-              // E.g. it still requires internal and external formats for
-              // 2D textures to be the same.
-              client_version = SkTMin(client_version, 2);
-            }
-#endif
-            return GR_GL_VER(client_version, 0);
-        } while (0);
-    }
-#endif  // defined(STARBOARD)
 
     // WebGL might look like "OpenGL ES 2.0 (WebGL 1.0 (OpenGL ES 2.0 Chromium))"
     int esMajor, esMinor;

@@ -152,7 +152,7 @@ bool SkWStream::writeStream(SkStream* stream, size_t length) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-SkFILEStream::SkFILEStream(std::shared_ptr<FILE> file, size_t end, size_t start, size_t current)
+SkFILEStream::SkFILEStream(std::shared_ptr<SkFile> file, size_t end, size_t start, size_t current)
     : fFILE(std::move(file))
     , fEnd(end)
     , fStart(std::min(start, fEnd))
@@ -162,15 +162,15 @@ SkFILEStream::SkFILEStream(std::shared_ptr<FILE> file, size_t end, size_t start,
     SkASSERT(fCurrent == current);
 }
 
-SkFILEStream::SkFILEStream(std::shared_ptr<FILE> file, size_t end, size_t start)
+SkFILEStream::SkFILEStream(std::shared_ptr<SkFile> file, size_t end, size_t start)
     : SkFILEStream(std::move(file), end, start, start)
 { }
 
-SkFILEStream::SkFILEStream(FILE* file, size_t size, size_t start)
-    : SkFILEStream(std::shared_ptr<FILE>(file, sk_fclose), SkSafeMath::Add(start, size), start)
+SkFILEStream::SkFILEStream(SkFile* file, size_t size, size_t start)
+    : SkFILEStream(std::shared_ptr<SkFile>(file, sk_fclose), SkSafeMath::Add(start, size), start)
 { }
 
-SkFILEStream::SkFILEStream(FILE* file, size_t size)
+SkFILEStream::SkFILEStream(SkFile* file, size_t size)
     : SkFILEStream(file, size, file ? sk_ftell(file) : 0)
 { }
 

@@ -21,11 +21,6 @@
 #include "src/sksl/codegen/SkSLPipelineStageCodeGenerator.h"
 #include "src/sksl/ir/SkSLVarDeclarations.h"
 
-#if defined(STARBOARD)
-#include "starboard/log.h"
-#define printf(format, ...) SbLogFormatF(format, __VA_ARGS__)
-#endif
-
 class GrSkSLFP::Impl : public ProgramImpl {
 public:
     void emitCode(EmitArgs& args) override {

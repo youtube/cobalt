@@ -33,26 +33,34 @@
 namespace skgpu::v1 {
 
 // If we have thread local, then cache memory for a single AtlasTextOp.
+#if !defined(STARBOARD)
 static thread_local void* gCache = nullptr;
+#endif
+
 void* AtlasTextOp::operator new(size_t s) {
+#if !defined(STARBOARD)
     if (gCache != nullptr) {
         return std::exchange(gCache, nullptr);
     }
-
+#endif
     return ::operator new(s);
 }
 
 void AtlasTextOp::operator delete(void* bytes) noexcept {
+#if !defined(STARBOARD)
     if (gCache == nullptr) {
         gCache = bytes;
         return;
     }
+#endif
     ::operator delete(bytes);
 }
 
 void AtlasTextOp::ClearCache() {
+#if !defined(STARBOARD)
     ::operator delete(gCache);
     gCache = nullptr;
+#endif
 }
 
 AtlasTextOp::AtlasTextOp(MaskType maskType,

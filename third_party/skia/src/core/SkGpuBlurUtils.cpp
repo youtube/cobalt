@@ -468,7 +468,6 @@ std::unique_ptr<skgpu::v1::SurfaceDrawContext> GaussianBlur(GrRecordingContext* 
     if (!srcView.asTextureProxy()) {
         return nullptr;
     }
-#endif
 
     int maxRenderTargetSize = rContext->priv().caps()->maxRenderTargetSize();
     if (dstBounds.width() > maxRenderTargetSize || dstBounds.height() > maxRenderTargetSize) {

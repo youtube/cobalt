@@ -1722,7 +1722,7 @@ GrRecordingContext* SkCanvas::recordingContext() {
     return nullptr;
 }
 
-#if defined(COBALT)
+#ifdef STARBOARD
 intptr_t SkCanvas::getRenderTargetHandle() const {
     if (fSurfaceBase) {
         GrBackendRenderTarget target =
