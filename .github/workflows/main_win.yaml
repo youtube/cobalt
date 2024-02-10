@@ -90,8 +90,13 @@ jobs:
       - id: set-on-device-test
         shell: bash
         run: |
-          on_device_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test.enabled')
+          on_device_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test')
           echo "on_device_test=${on_device_test}" >> $GITHUB_ENV
+      - id: set-on-device-test-attempts
+        shell: bash
+        run: |
+          on_device_test_attempts=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test.test_attempts // empty')
+          echo "on_device_test_attempts=${on_device_test_attempts}" >> $GITHUB_ENV
       - id: set-on-host-test
         shell: bash
         run: |
@@ -121,6 +126,7 @@ jobs:
       platforms: ${{ env.platforms }}
       includes: ${{ env.includes }}
       on_device_test: ${{ env.on_device_test }}
+      on_device_test_attempts: ${{ env.on_device_test_attempts }}
       on_host_test: ${{ env.on_host_test }}
       on_host_test_shards: ${{ env.on_host_test_shards }}
       docker_service: ${{ env.docker_service }}
@@ -154,6 +160,43 @@ jobs:
         uses: ./.github/actions/docker_win
         with:
           service: ${{ needs.initialize.outputs.docker_runner_service }}
+
+  # Builds, tags, and pushes Cobalt unit test image to ghr.
+  docker-unittest-image:
+    if: always()
+    needs: [initialize]
+    permissions:
+      packages: write
+    runs-on: [self-hosted, linux-runner]
+    steps:
+      - name: Checkout files
+        uses: kaidokert/checkout@v3.5.999
+        timeout-minutes: 30
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Login to Docker Registry ${{env.REGISTRY}}
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build docker image
+        id: build-docker-image
+        uses: ./.github/actions/docker
+        with:
+          docker_service: linux-x64x11-unittest
+          docker_image: cobalt-linux-x64x11-unittest
+      - name: Set Docker Tag Output
+        id: set-docker-unittest-tag-output
+        shell: bash
+        run: |
+          set -u
+          echo $DOCKER_TAG
+          echo "docker_unittest_tag=$DOCKER_TAG" >> $GITHUB_ENV
+    outputs:
+      docker_unittest_tag: ${{env.docker_unittest_tag}}
+
   # Runs builds.
   build:
     needs: [initialize]
@@ -186,6 +229,49 @@ jobs:
         with:
           type: onhost
           os: windows
+      - name: Upload On Device Test Artifacts
+        if: |
+          matrix.config == 'devel' &&
+          fromJSON(needs.initialize.outputs.on_device_test).enabled == true &&
+          (
+            github.event_name != 'pull_request' ||
+            contains(github.event.pull_request.labels.*.name, 'on_device')
+          )
+        uses: ./.github/actions/upload_test_artifacts
+        with:
+          type: ondevice
+          os: linux
+
+  # Runs on-device integration and unit tests.
+  on-device-test:
+    needs: [initialize, build]
+    # Run ODT when on_device label is applied on PR.
+    # Also, run ODT on push and schedule if not explicitly disabled via repo vars.
+    if: always()
+    runs-on: [self-hosted, odt-runner]
+    name: ${{ matrix.name }}_on_device_${{ matrix.shard }}
+    container: ${{ needs.docker-unittest-image.outputs.docker_unittest_tag }}
+    permissions: {}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        config: [devel]
+        shard: ${{ fromJson(needs.initialize.outputs.on_device_test).tests }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+    env:
+      COBALT_BOOTLOADER: ${{ needs.initialize.outputs.bootloader }}
+      ON_DEVICE_TEST_ATTEMPTS: ${{ needs.initialize.outputs.on_device_test_attempts }}
+      MODULAR_BUILD: ${{ inputs.modular && 1 || 0 }}
+    steps:
+      - name: Checkout
+        uses: kaidokert/checkout@v3.5.999
+        timeout-minutes: 30
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Run Tests (${{ matrix.shard }})
+        uses: ./.github/actions/on_device_tests
 
   # Runs on the host unit and integration tests.
   on-host-test:
