@@ -3,6 +3,15 @@
   "__comment" : "TODO: Deploy a runner and change this",
   "docker_runner_service": "runner-xb1",
   "runner_tag": "xb1",
+  "on_device_test": {
+    "enabled": true,
+    "tests": [
+      "0",
+      "1",
+      "2",
+      "3"
+    ]
+  },
   "platforms": [
     "xb1"
   ],
