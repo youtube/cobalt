@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
 #ifndef COBALT_JS_PROFILER_PROFILER_H_
 #define COBALT_JS_PROFILER_PROFILER_H_
 
@@ -19,20 +20,24 @@
 #include <string>
 
 #include "cobalt/dom/performance_high_resolution_time.h"
+#include "cobalt/js_profiler/profiler_group.h"
 #include "cobalt/js_profiler/profiler_init_options.h"
 #include "cobalt/js_profiler/profiler_trace.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/event_target.h"
-#include "third_party/v8/include/cppgc/member.h"
 #include "third_party/v8/include/v8-profiler.h"
 
 namespace cobalt {
 namespace js_profiler {
 
+// Forward declaration of ProfilerGroup
+class ProfilerGroup;
+
 class Profiler : public cobalt::web::EventTarget {
  public:
+  static const int kBaseSampleIntervalMs = 10;
   using ProfilerTracePromise = script::HandlePromiseWrappable;
 
   Profiler(script::EnvironmentSettings* settings, ProfilerInitOptions options,
@@ -44,40 +49,20 @@ class Profiler : public cobalt::web::EventTarget {
   bool stopped() const { return stopped_; }
 
   dom::DOMHighResTimeStamp sample_interval() const { return sample_interval_; }
-
+  std::string ProfilerId() const { return profiler_id_; }
   DEFINE_WRAPPABLE_TYPE(Profiler);
 
-  virtual v8::CpuProfilingStatus ImplProfilingStart(
-      std::string profiler_id, v8::CpuProfilingOptions options,
-      script::EnvironmentSettings* settings);
-
  private:
-  void PerformStop(script::EnvironmentSettings* environment_settings,
+  void PerformStop(ProfilerGroup* profiler_group,
                    std::unique_ptr<script::ValuePromiseWrappable::Reference>
                        promise_reference,
                    base::TimeTicks time_origin, std::string profiler_id);
 
-  std::string nextProfileId();
-
   bool stopped_;
   dom::DOMHighResTimeStamp sample_interval_;
-  v8::CpuProfiler* cpu_profiler_ = nullptr;
   base::TimeTicks time_origin_;
   std::string profiler_id_;
-};
-
-class ProfilerMaxSamplesDelegate : public v8::DiscardedSamplesDelegate {
- public:
-  explicit ProfilerMaxSamplesDelegate(Profiler* profiler)
-      : profiler_(profiler) {}
-  void Notify() override {
-    if (profiler_.Get()) {
-      profiler_->DispatchEvent(new web::Event("samplebufferfull"));
-    }
-  }
-
- private:
-  cppgc::WeakMember<Profiler> profiler_;
+  ProfilerGroup* profiler_group_;
 };
 
 }  // namespace js_profiler
