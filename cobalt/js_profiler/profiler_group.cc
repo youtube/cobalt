@@ -52,7 +52,8 @@ ProfilerGroup* ProfilerGroup::From(v8::Isolate* isolate) {
 }
 
 v8::CpuProfilingStatus ProfilerGroup::ProfilerStart(
-    Profiler* profiler, v8::CpuProfilingOptions options) {
+    Profiler* profiler, script::GlobalEnvironment* global_env,
+    v8::CpuProfilingOptions options) {
   if (!cpu_profiler_) {
     cpu_profiler_ = v8::CpuProfiler::New(isolate_);
     cpu_profiler_->SetSamplingInterval(
@@ -61,6 +62,7 @@ v8::CpuProfilingStatus ProfilerGroup::ProfilerStart(
   }
   profilers_.push_back(profiler);
   num_active_profilers_++;
+  profiler->PreventGarbageCollection(global_env);
   return cpu_profiler_->StartProfiling(
       toV8String(isolate_, profiler->ProfilerId()), options,
       std::make_unique<ProfilerMaxSamplesDelegate>(this,
@@ -70,6 +72,7 @@ v8::CpuProfilingStatus ProfilerGroup::ProfilerStart(
 v8::CpuProfile* ProfilerGroup::ProfilerStop(Profiler* profiler) {
   auto profile = cpu_profiler_->StopProfiling(
       toV8String(isolate_, profiler->ProfilerId()));
+  profiler->AllowGarbageCollection();
   this->PopProfiler(profiler->ProfilerId());
   return profile;
 }

@@ -50,6 +50,10 @@ class Profiler : public cobalt::web::EventTarget {
 
   dom::DOMHighResTimeStamp sample_interval() const { return sample_interval_; }
   std::string ProfilerId() const { return profiler_id_; }
+
+  void PreventGarbageCollection(script::GlobalEnvironment* global_environment);
+  void AllowGarbageCollection();
+
   DEFINE_WRAPPABLE_TYPE(Profiler);
 
  private:
@@ -63,6 +67,8 @@ class Profiler : public cobalt::web::EventTarget {
   base::TimeTicks time_origin_;
   std::string profiler_id_;
   ProfilerGroup* profiler_group_;
+  std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
+      prevent_gc_until_complete_;
 };
 
 }  // namespace js_profiler

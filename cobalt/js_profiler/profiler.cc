@@ -26,6 +26,7 @@
 #include "cobalt/web/context.h"
 #include "cobalt/web/dom_exception.h"
 #include "cobalt/web/environment_settings_helper.h"
+#include "starboard/common/log.h"
 
 namespace cobalt {
 namespace js_profiler {
@@ -59,8 +60,13 @@ Profiler::Profiler(script::EnvironmentSettings* settings,
   }
   sample_interval_ = effective_sample_interval_ms;
 
+  SB_LOG(INFO) << "[PROFILER] START " + profiler_id_;
+  auto global_env =
+      base::polymorphic_downcast<web::EnvironmentSettings*>(settings)
+          ->context()
+          ->global_environment();
   auto status = profiler_group_->ProfilerStart(
-      this,
+      this, global_env,
       v8::CpuProfilingOptions(v8::kLeafNodeLineNumbers,
                               options.max_buffer_size(), sample_interval_us));
 
@@ -73,7 +79,9 @@ Profiler::Profiler(script::EnvironmentSettings* settings,
   }
 }
 
-Profiler::~Profiler() {}
+Profiler::~Profiler() {
+  SB_LOG(INFO) << "[PROFILER] DECONSTRUCTOR " + profiler_id_;
+}
 
 Profiler::ProfilerTracePromise Profiler::Stop(
     script::EnvironmentSettings* environment_settings) {
@@ -98,6 +106,21 @@ Profiler::ProfilerTracePromise Profiler::Stop(
                                           "Profiler already stopped."));
   }
   return promise;
+}
+
+void Profiler::PreventGarbageCollection(
+    script::GlobalEnvironment* global_environment) {
+  SB_LOG(INFO) << "[PROFILER] PREFREEZE GC " + profiler_id_;
+  // THIS LINE ALWAYS CRASHES!!!
+  prevent_gc_until_complete_.reset(
+      new script::GlobalEnvironment::ScopedPreventGarbageCollection(
+          global_environment, this));
+  SB_LOG(INFO) << "[PROFILER] FROZE GC " + profiler_id_;
+}
+
+void Profiler::AllowGarbageCollection() {
+  SB_LOG(INFO) << "[PROFILER] ALLOW GC " + profiler_id_;
+  prevent_gc_until_complete_.reset();
 }
 
 void Profiler::PerformStop(

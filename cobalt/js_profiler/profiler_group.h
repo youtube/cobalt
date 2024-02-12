@@ -23,6 +23,7 @@
 
 #include "base/memory/singleton.h"
 #include "cobalt/js_profiler/profiler.h"
+#include "cobalt/script/global_environment.h"
 #include "third_party/v8/include/v8-profiler.h"
 #include "v8/include/cppgc/member.h"
 #include "v8/include/libplatform/libplatform.h"
@@ -43,6 +44,7 @@ class ProfilerGroup {
   explicit ProfilerGroup(v8::Isolate* isolate) : isolate_(isolate) {}
 
   v8::CpuProfilingStatus ProfilerStart(Profiler* profiler,
+                                       script::GlobalEnvironment* global_env,
                                        v8::CpuProfilingOptions options);
 
   v8::CpuProfile* ProfilerStop(Profiler* profiler);
