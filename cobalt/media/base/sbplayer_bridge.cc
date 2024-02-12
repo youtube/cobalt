@@ -745,6 +745,7 @@ void SbPlayerBridge::CreatePlayer() {
                   "Invalid output mode returned by "
                   "SbPlayerBridge::ComputeSbPlayerOutputMode()");
     is_creating_player_ = false;
+    player_ = kSbPlayerInvalid;
     return;
   }
 
