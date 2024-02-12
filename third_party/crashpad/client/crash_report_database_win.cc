@@ -583,6 +583,11 @@ bool CreateDirectoryIfNecessary(const base::FilePath& path) {
   return EnsureDirectory(path);
 }
 
+bool WasCreatedSooner(CrashReportDatabase::Report a,
+                      CrashReportDatabase::Report b) {
+  return a.creation_time < b.creation_time;
+}
+
 }  // namespace
 
 // CrashReportDatabaseWin ------------------------------------------------------
@@ -611,6 +616,7 @@ class CrashReportDatabaseWin : public CrashReportDatabase {
                                    Metrics::CrashSkippedReason reason) override;
   OperationStatus DeleteReport(const UUID& uuid) override;
   OperationStatus RequestUpload(const UUID& uuid) override;
+  OperationStatus RemoveOldReports(int num_reports_to_keep) override;
 
  private:
   // CrashReportDatabase:
@@ -767,6 +773,32 @@ OperationStatus CrashReportDatabaseWin::GetReportForUploading(
     report->reset(upload_report.release());
   }
   return os;
+}
+
+OperationStatus CrashReportDatabaseWin::RemoveOldReports(
+    int num_reports_to_keep) {
+  std::vector<CrashReportDatabase::Report> pending_reports;
+  std::vector<CrashReportDatabase::Report> completed_reports;
+  std::vector<CrashReportDatabase::Report> all_reports;
+
+  GetPendingReports(&pending_reports);
+  GetCompletedReports(&completed_reports);
+
+  all_reports.insert(
+      all_reports.end(), pending_reports.begin(), pending_reports.end());
+  all_reports.insert(
+      all_reports.end(), completed_reports.begin(), completed_reports.end());
+  std::sort(all_reports.begin(), all_reports.end(), WasCreatedSooner);
+
+  while (all_reports.size() > num_reports_to_keep) {
+    OperationStatus os = DeleteReport((*all_reports.begin()).uuid);
+    if (os != kNoError) {
+      return os;
+    }
+    all_reports.erase(all_reports.begin());
+  }
+
+  return kNoError;
 }
 
 OperationStatus CrashReportDatabaseWin::RecordUploadAttempt(

@@ -82,6 +82,9 @@ group("gn_all") {
         ]
       }
     }
+    if (target_os == "win" || target_os == "winuwp") {
+      deps += [ "//third_party/crashpad/client" ]
+    }
   }
 }
 

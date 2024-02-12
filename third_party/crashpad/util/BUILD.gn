@@ -435,6 +435,9 @@ crashpad_static_library("util") {
       "process/process_memory_sanitized.cc",
       "process/process_memory_sanitized.h",
     ]
+    if (crashpad_is_in_starboard || crashpad_is_in_native_target_build) {
+      sources += [ "//starboard/elf_loader/evergreen_info.h" ]
+    }
   }
 
   if (crashpad_is_win) {

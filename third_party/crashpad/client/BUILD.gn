@@ -14,7 +14,7 @@
 
 import("../build/crashpad_buildconfig.gni")
 
-static_library("client") {
+crashpad_static_library("client") {
   check_includes = false
 
   sources = [
