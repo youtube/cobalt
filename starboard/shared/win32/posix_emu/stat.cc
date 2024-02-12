@@ -18,8 +18,8 @@
 extern "C" {
 #endif
 
-int stat(const char *restrict path, struct stat *restrict buf);
-  return _stat(path, buf);
+int stat(const char* restrict path, struct stat* restrict buf);
+return _stat(path, buf);
 }
 
 #ifdef __cplusplus
