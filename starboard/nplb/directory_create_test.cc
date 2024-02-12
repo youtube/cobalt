@@ -37,7 +37,7 @@ TEST(SbDirectoryCreateTest, SunnyDay) {
   ScopedRandomFile dir(ScopedRandomFile::kDontCreate);
 
   const std::string& path = dir.filename();
-
+#if SB_API_VERSION < 16
   EXPECT_FALSE(SbDirectoryCanOpen(path.c_str()));
   EXPECT_TRUE(SbDirectoryCreate(path.c_str()));
   EXPECT_TRUE(SbDirectoryCanOpen(path.c_str()));
@@ -45,16 +45,31 @@ TEST(SbDirectoryCreateTest, SunnyDay) {
   // Should return true if called redundantly.
   EXPECT_TRUE(SbDirectoryCreate(path.c_str()));
   EXPECT_TRUE(SbDirectoryCanOpen(path.c_str()));
+#else
+  struct stat file_info;
+  EXPECT_FALSE(stat(path.c_str(), &file_info));
+  EXPECT_TRUE(SbDirectoryCreate(path.c_str()));
+  EXPECT_TRUE(stat(path.c_str(), &file_info));
+
+  // Should return true if called redundantly.
+  EXPECT_TRUE(SbDirectoryCreate(path.c_str()));
+  EXPECT_TRUE(stat(path.c_str(), &file_info));
+#endif
 }
 
 TEST(SbDirectoryCreateTest, SunnyDayTrailingSeparators) {
   ScopedRandomFile dir(ScopedRandomFile::kDontCreate);
-
   std::string path = dir.filename() + kManyFileSeparators.c_str();
-
+#if SB_API_VERSION < 16
   EXPECT_FALSE(SbDirectoryCanOpen(path.c_str()));
   EXPECT_TRUE(SbDirectoryCreate(path.c_str()));
   EXPECT_TRUE(SbDirectoryCanOpen(path.c_str()));
+#else
+  struct stat file_info;
+  EXPECT_FALSE(stat(path.c_str(), &file_info));
+  EXPECT_TRUE(SbDirectoryCreate(path.c_str()));
+  EXPECT_TRUE(stat(path.c_str(), &file_info));
+#endif  // SB_API_VERSION < 16
 }
 
 TEST(SbDirectoryCreateTest, SunnyDayTempDirectory) {
@@ -62,9 +77,17 @@ TEST(SbDirectoryCreateTest, SunnyDayTempDirectory) {
   bool system_path_success = SbSystemGetPath(kSbSystemPathTempDirectory,
                                              temp_path.data(), kSbFileMaxPath);
   ASSERT_TRUE(system_path_success);
+#if SB_API_VERSION < 16
   EXPECT_TRUE(SbDirectoryCanOpen(temp_path.data()));
   EXPECT_TRUE(SbDirectoryCreate(temp_path.data()));
   EXPECT_TRUE(SbDirectoryCanOpen(temp_path.data()));
+#else
+  struct stat file_info;
+  EXPECT_TRUE(stat(temp_path.data(), &file_info));
+  EXPECT_TRUE(SbDirectoryCreate(temp_path.data()));
+  EXPECT_TRUE(stat(temp_path.data(), &file_info));
+
+#endif  // SB_API_VERSION < 16
 }
 
 TEST(SbDirectoryCreateTest, SunnyDayTempDirectoryManySeparators) {
@@ -75,10 +98,16 @@ TEST(SbDirectoryCreateTest, SunnyDayTempDirectoryManySeparators) {
   const int new_size = starboard::strlcat(
       temp_path.data(), kManyFileSeparators.c_str(), kSbFileMaxPath);
   ASSERT_LT(new_size, kSbFileMaxPath);
-
+#if SB_API_VERSION < 16
   EXPECT_TRUE(SbDirectoryCanOpen(temp_path.data()));
   EXPECT_TRUE(SbDirectoryCreate(temp_path.data()));
   EXPECT_TRUE(SbDirectoryCanOpen(temp_path.data()));
+#else
+  struct stat file_info;
+  EXPECT_TRUE(stat(temp_path.data(), &file_info));
+  EXPECT_TRUE(SbDirectoryCreate(temp_path.data()));
+  EXPECT_TRUE(stat(temp_path.data(), &file_info));
+#endif  // SB_API_VERSION < 16
 }
 
 TEST(SbDirectoryCreateTest, FailureNullPath) {
@@ -92,18 +121,30 @@ TEST(SbDirectoryCreateTest, FailureEmptyPath) {
 TEST(SbDirectoryCreateTest, FailureNonexistentParent) {
   ScopedRandomFile dir(ScopedRandomFile::kDontCreate);
   std::string path = dir.filename() + kSbFileSepString + "test";
-
+#if SB_API_VERSION < 16
   EXPECT_FALSE(SbDirectoryCanOpen(path.c_str()));
   EXPECT_FALSE(SbDirectoryCreate(path.c_str()));
   EXPECT_FALSE(SbDirectoryCanOpen(path.c_str()));
+#else
+  struct stat file_info;
+  EXPECT_FALSE(stat(path.c_str(), &file_info));
+  EXPECT_FALSE(SbDirectoryCreate(path.c_str()));
+  EXPECT_FALSE(stat(path.c_str(), &file_info));
+#endif
 }
 
 TEST(SbDirectoryCreateTest, FailureNotAbsolute) {
   const char* kPath = "hallo";
-
+#if SB_API_VERSION < 16
   EXPECT_FALSE(SbDirectoryCanOpen(kPath));
   EXPECT_FALSE(SbDirectoryCreate(kPath));
   EXPECT_FALSE(SbDirectoryCanOpen(kPath));
+#else
+  struct stat file_info;
+  EXPECT_FALSE(stat(kPath, &file_info));
+  EXPECT_FALSE(SbDirectoryCreate(kPath));
+  EXPECT_FALSE(stat(kPath, &file_info));
+#endif
 }
 
 }  // namespace

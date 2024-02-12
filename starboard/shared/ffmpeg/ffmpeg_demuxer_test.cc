@@ -14,6 +14,7 @@
 
 #include "starboard/shared/ffmpeg/ffmpeg_demuxer.h"
 
+#include <sys/stat.h>
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>
@@ -55,7 +56,8 @@ std::string ResolveTestFilename(const char* filename) {
       std::string(content_path.data()) + kSbFileSepChar + "third_party" +
       kSbFileSepChar + "chromium" + kSbFileSepChar + "media" + kSbFileSepChar +
       "test" + kSbFileSepChar + "data";
-  SB_CHECK(SbDirectoryCanOpen(directory_path.c_str()))
+  struct stat file_info;
+  SB_CHECK(stat(directory_path.c_str(), &file_info))
       << "Cannot open directory " << directory_path;
   return directory_path + kSbFileSepChar + filename;
 }

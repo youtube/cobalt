@@ -55,12 +55,13 @@ bool SbDirectoryCreate(const char* path) {
   std::string adjusted(path);
   RemoveTrailingSeparators(&adjusted);
 
-  if (SbDirectoryCanOpen(adjusted.c_str())) {
+  struct stat file_info;
+  if (stat(adjusted.c_str(), &file_info)) {
     return true;
   }
 
   std::string parent = GetParent(adjusted);
-  if (!parent.empty() && !SbDirectoryCanOpen(parent.c_str())) {
+  if (!parent.empty() && !SbDirectoryCanOpen(parent.c_str(), &file_info)) {
     return false;
   }
 
@@ -70,5 +71,5 @@ bool SbDirectoryCreate(const char* path) {
 
   // If mkdir failed, the directory may still exist now (because of another
   // racing process or thread), so check again.
-  return SbDirectoryCanOpen(adjusted.c_str());
+  return SbDirectoryCanOpen(adjusted.c_str(), &file_info);
 }

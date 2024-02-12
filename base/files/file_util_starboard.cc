@@ -141,7 +141,8 @@ bool DeleteFile(const FilePath &path, bool recursive) {
   AssertBlockingAllowed();
   const char *path_str = path.value().c_str();
 
-  bool directory = SbDirectoryCanOpen(path_str);
+  struct stat file_info;
+  bool directory = stat(path_str, &file_info);
   if (!recursive || !directory) {
     return SbFileDelete(path_str);
   }
