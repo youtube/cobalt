@@ -107,6 +107,7 @@ _ALLOWED_SB16_POSIX_SYMBOLS = [
     'msync',
     'stat',
     '__stat_time64',
+    '__xstat',
 ]
 
 
