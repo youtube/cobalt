@@ -3,12 +3,16 @@ description:
   "Subtree at third_party/flac."
 
 third_party {
-  url {
-    type: GIT
-    value: "https://chromium.googlesource.com/chromium/deps/flac"
+  identifier {
+    type: "ChromiumVersion"
+    value: "39.0.2171.99"  # from https://chromereleases.googleblog.com/2015/01/stable-channel-update.html
   }
-  version: "0635a091379d9677f1ddde5f2eec85d0f096f219"
-  # from https://chromium.googlesource.com/chromium/src/+/39.0.2171.99/DEPS#278
+  identifier {
+    type: "Git"
+    value: "https://chromium.googlesource.com/chromium/deps/flac.git"
+    version: "0635a091379d9677f1ddde5f2eec85d0f096f219"
+    # from https://chromium.googlesource.com/chromium/src/+/39.0.2171.99/DEPS#278
+  }
   last_upgrade_date {
     year: 2012
     month: 10
