@@ -17,10 +17,6 @@ static_library("http_server") {
     "//chrome/test/chromedriver/*",
     "//content/browser",
     "//net:net_web_socket_encoder_fuzzer_deps",
-    "//cobalt/network:*",
-    "//cobalt/webdriver",
-    "//cobalt/debug",
-    "//cobalt/h5vcc",
   ]
 
   friend = [
@@ -31,6 +27,21 @@ static_library("http_server") {
     "//chrome/test/chromedriver/*",
     "//content/browser",
   ]
+
+  if (use_cobalt_customizations) {
+    visibility += [
+      "//cobalt/debug",
+      "//cobalt/h5vcc",
+      "//cobalt/network:*",
+      "//cobalt/webdriver",
+    ]
+    friend += [
+      "//cobalt/webdriver",
+      "//cobalt/debug",
+      "//cobalt/network:*",
+      "//cobalt/h5vcc",
+    ]
+  }
 
   if (enable_websockets || true) {
     sources = [
