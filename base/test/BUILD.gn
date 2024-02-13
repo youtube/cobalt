@@ -175,6 +175,10 @@ static_library("test_support") {
       "time_helpers.cc",
       "time_helpers.h",
     ]
+    sources -= [
+      "metrics/histogram_enum_reader.cc",
+      "metrics/histogram_enum_reader.h",
+    ]
   }
 
   if (enable_base_tracing) {
