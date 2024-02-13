@@ -6,9 +6,7 @@
 
 #include <stdint.h>
 
-#if !defined(STARBOARD)
 #include <time.h>
-#endif
 
 #include <limits>
 #include <string>
@@ -27,9 +25,7 @@
 #include "third_party/icu/source/common/unicode/utypes.h"
 #include "third_party/icu/source/i18n/unicode/timezone.h"
 
-#if defined(STARBOARD)
-#include "base/test/time_helpers.h"
-#elif BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
 #include "base/android/jni_android.h"
 #elif BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_CHROMEOS)
 #include "base/test/icu_test_util.h"
@@ -189,14 +185,6 @@ class TimeTest : public testing::Test {
 #endif
 
   void SetUp() override {
-#if defined(STARBOARD)
-    // Since we don't have access to mktime, let's use time_helpers to do the
-    // same thing in a portable way.
-    comparison_time_local_ = base::test::time_helpers::TestDateToTime(
-        base::test::time_helpers::kTimeZoneLocal);
-    comparison_time_pdt_ = base::test::time_helpers::TestDateToTime(
-        base::test::time_helpers::kTimeZonePacific);
-#else   // defined(STARBOARD)
     // Use mktime to get a time_t, and turn it into a PRTime by converting
     // seconds to microseconds.  Use 15th Oct 2007 12:45:00 local.  This
     // must be a time guaranteed to be outside of a DST fallback hour in
@@ -219,7 +207,6 @@ class TimeTest : public testing::Test {
 
     // time_t representation of 15th Oct 2007 12:45:00 PDT
     comparison_time_pdt_ = Time::FromTimeT(1192477500);
-#endif
   }
 
   Time comparison_time_local_;
@@ -297,6 +284,7 @@ TEST_F(TimeTest, UTCTimeT) {
   EXPECT_EQ(now_t_1, now_t_2);
 }
 
+#if !defined(STARBOARD)
 // Test conversions to/from time_t and exploding/unexploding (local time).
 TEST_F(TimeTest, LocalTimeT) {
   // C library time and exploded time.
@@ -336,6 +324,7 @@ TEST_F(TimeTest, LocalTimeT) {
   time_t now_t_2 = our_time_2.ToTimeT();
   EXPECT_EQ(now_t_1, now_t_2);
 }
+#endif
 
 // Test conversions to/from javascript time.
 TEST_F(TimeTest, JsTime) {

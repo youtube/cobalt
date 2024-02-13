@@ -219,6 +219,7 @@ void RunTest_DelayTimer_Deleted(
 // Each test is run against each type of main thread.  That way we are sure
 // that timers work properly in all configurations.
 
+#if !defined(STARBOARD)
 class TimerTestWithThreadType
     : public testing::TestWithParam<test::TaskEnvironment::MainThreadType> {};
 
@@ -235,6 +236,7 @@ TEST_P(TimerTestWithThreadType, OneShotTimers_Cancel) {
 TEST_P(TimerTestWithThreadType, OneShotSelfDeletingTimer) {
   RunTest_OneShotSelfDeletingTimer(GetParam());
 }
+#endif
 
 TEST(TimerTest, OneShotTimer_CustomTaskRunner) {
   auto task_runner = base::MakeRefCounted<TestSimpleTaskRunner>();
@@ -268,6 +270,7 @@ TEST(TimerTest, OneShotTimerWithTickClock) {
   EXPECT_FALSE(timer.IsRunning());
 }
 
+#if !defined(STARBOARD)
 TEST_P(TimerTestWithThreadType, RepeatingTimer) {
   RunTest_RepeatingTimer(GetParam(), kTestDelay);
 }
@@ -283,6 +286,7 @@ TEST_P(TimerTestWithThreadType, RepeatingTimerZeroDelay) {
 TEST_P(TimerTestWithThreadType, RepeatingTimerZeroDelay_Cancel) {
   RunTest_RepeatingTimer_Cancel(GetParam(), Seconds(0));
 }
+#endif
 
 TEST(TimerTest, RepeatingTimerWithTickClock) {
   test::TaskEnvironment task_environment(
@@ -297,6 +301,7 @@ TEST(TimerTest, RepeatingTimerWithTickClock) {
   EXPECT_EQ(expected_times_called, receiver.TimesCalled());
 }
 
+#if !defined(STARBOARD)
 TEST_P(TimerTestWithThreadType, DelayTimer_NoCall) {
   RunTest_DelayTimer_NoCall(GetParam());
 }
@@ -312,6 +317,7 @@ TEST_P(TimerTestWithThreadType, DelayTimer_Reset) {
 TEST_P(TimerTestWithThreadType, DelayTimer_Deleted) {
   RunTest_DelayTimer_Deleted(GetParam());
 }
+#endif
 
 TEST(TimerTest, DelayTimerWithTickClock) {
   test::TaskEnvironment task_environment(
@@ -653,8 +659,10 @@ TEST(TimerTest, MetronomeTimerCancel) {
   EXPECT_EQ(start + Seconds(5), TimeTicks::Now());
 }
 
+#if !defined(STARBOARD)
 INSTANTIATE_TEST_SUITE_P(All,
                          TimerTestWithThreadType,
                          testing::ValuesIn(testing_main_threads));
+#endif
 
 }  // namespace base
