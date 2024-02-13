@@ -385,7 +385,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   DEFINE_WRAPPABLE_TYPE(HTMLElement);
 
  protected:
-  HTMLElement(Document* document, base::Token local_name);
+  HTMLElement(Document* document, base_token::Token local_name);
   ~HTMLElement() override;
 
   void OnInsertedIntoDocument() override;

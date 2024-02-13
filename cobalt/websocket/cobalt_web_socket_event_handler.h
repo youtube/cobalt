@@ -49,19 +49,15 @@ class CobaltWebSocketEventHandler : public net::WebSocketEventInterface {
 
   // Called in response to an AddChannelRequest. This means that a response has
   // been received from the remote server.
-  void OnAddChannelResponse(const std::string& selected_subprotocol,
-                            const std::string& extensions) override;
+  void OnAddChannelResponse(
+      std::unique_ptr<net::WebSocketHandshakeResponseInfo> response,
+      const std::string& selected_subprotocol,
+      const std::string& extensions) override;
 
   // Called when a data frame has been received from the remote host and needs
   // to be forwarded to the renderer process.
   void OnDataFrame(bool fin, WebSocketMessageType type,
-                   scoped_refptr<net::IOBuffer> buffer,
-                   size_t buffer_size) override;
-
-  // Called to provide more send quota for this channel to the renderer
-  // process. Currently the quota units are always bytes of message body
-  // data. In future it might depend on the type of multiplexing in use.
-  void OnFlowControl(int64_t quota) override;
+                   base::span<const char> payload) override;
 
   // Called when the remote server has Started the WebSocket Closing
   // Handshake. The client should not attempt to send any more messages after
@@ -92,15 +88,12 @@ class CobaltWebSocketEventHandler : public net::WebSocketEventInterface {
   // called.
   //
   // This function deletes the Channel.
-  void OnFailChannel(const std::string& message) override;
+  void OnFailChannel(const std::string& message, int net_error,
+                     absl::optional<int> response_code) override;
 
   // Called when the browser starts the WebSocket Opening Handshake.
   void OnStartOpeningHandshake(
       std::unique_ptr<net::WebSocketHandshakeRequestInfo> request) override {}
-
-  // Called when the browser finishes the WebSocket Opening Handshake.
-  void OnFinishOpeningHandshake(
-      std::unique_ptr<net::WebSocketHandshakeResponseInfo> response) override {}
 
   // Called on SSL Certificate Error during the SSL handshake. Should result in
   // a call to either ssl_error_callbacks->ContinueSSLRequest() or
@@ -111,7 +104,8 @@ class CobaltWebSocketEventHandler : public net::WebSocketEventInterface {
   void OnSSLCertificateError(
       std::unique_ptr<net::WebSocketEventInterface::SSLErrorCallbacks>
           ssl_error_callbacks,
-      const GURL& url, const net::SSLInfo& ssl_info, bool fatal) override;
+      const GURL& url, int net_error, const net::SSLInfo& ssl_info,
+      bool fatal) override;
 
   // Called when authentication is required. Returns a net error. The opening
   // handshake is blocked when this function returns ERR_IO_PENDING.
@@ -123,15 +117,14 @@ class CobaltWebSocketEventHandler : public net::WebSocketEventInterface {
   // async case) cancels authentication. Otherwise the new credentials are set
   // and the opening handshake will be retried with the credentials.
   int OnAuthRequired(
-      scoped_refptr<net::AuthChallengeInfo> auth_info,
+      const net::AuthChallengeInfo& auth_info,
       scoped_refptr<net::HttpResponseHeaders> response_headers,
-      const net::HostPortPair& host_port_pair,
+      const net::IPEndPoint& socket_address,
       base::OnceCallback<void(const net::AuthCredentials*)> callback,
-      base::Optional<net::AuthCredentials>* credentials) override;
+      absl::optional<net::AuthCredentials>* credentials) override;
 
-  // Called when a write completes, and |bytes_written| indicates how many bytes
-  // were written.
-  void OnWriteDone(uint64_t bytes_written) override;
+  bool HasPendingDataFrames() override;
+  void OnSendDataFrameDone() override;
 
  protected:
   CobaltWebSocketEventHandler() {}

@@ -22,7 +22,6 @@
 #include "base/rand_util.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
-#include "base/task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/time/time.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -44,6 +43,7 @@
 #include "cobalt/web/csp_delegate.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/xhr/global_stats.h"
+#include "net/base/net_errors.h"
 #include "net/http/http_util.h"
 
 namespace cobalt {
@@ -76,15 +76,15 @@ const char* kPerformanceResourceTimingInitiatorType = "xmlhttprequest";
 
 bool MethodNameToRequestType(const std::string& method,
                              net::URLFetcher::RequestType* request_type) {
-  if (base::LowerCaseEqualsASCII(method, "get")) {
+  if (base::EqualsCaseInsensitiveASCII(method, "get")) {
     *request_type = net::URLFetcher::GET;
-  } else if (base::LowerCaseEqualsASCII(method, "post")) {
+  } else if (base::EqualsCaseInsensitiveASCII(method, "post")) {
     *request_type = net::URLFetcher::POST;
-  } else if (base::LowerCaseEqualsASCII(method, "head")) {
+  } else if (base::EqualsCaseInsensitiveASCII(method, "head")) {
     *request_type = net::URLFetcher::HEAD;
-  } else if (base::LowerCaseEqualsASCII(method, "delete")) {
+  } else if (base::EqualsCaseInsensitiveASCII(method, "delete")) {
     *request_type = net::URLFetcher::DELETE_REQUEST;
-  } else if (base::LowerCaseEqualsASCII(method, "put")) {
+  } else if (base::EqualsCaseInsensitiveASCII(method, "put")) {
     *request_type = net::URLFetcher::PUT;
   } else {
     return false;
@@ -125,14 +125,14 @@ const char* StateName(XMLHttpRequest::State state) {
 
 bool IsForbiddenMethod(const std::string& method) {
   for (size_t i = 0; i < arraysize(kForbiddenMethods); ++i) {
-    if (base::LowerCaseEqualsASCII(method, kForbiddenMethods[i])) {
+    if (base::EqualsCaseInsensitiveASCII(method, kForbiddenMethods[i])) {
       return true;
     }
   }
   return false;
 }
 
-base::Token RequestErrorTypeName(XMLHttpRequest::RequestErrorType type) {
+base_token::Token RequestErrorTypeName(XMLHttpRequest::RequestErrorType type) {
   switch (type) {
     case XMLHttpRequest::kNetworkError:
       return base::Tokens::error();
@@ -142,11 +142,11 @@ base::Token RequestErrorTypeName(XMLHttpRequest::RequestErrorType type) {
       return base::Tokens::abort();
   }
   NOTREACHED();
-  return base::Token();
+  return base_token::Token();
 }
 
 void FireProgressEvent(XMLHttpRequestEventTarget* target,
-                       base::Token event_name) {
+                       base_token::Token event_name) {
   if (!target) {
     return;
   }
@@ -154,8 +154,8 @@ void FireProgressEvent(XMLHttpRequestEventTarget* target,
 }
 
 void FireProgressEvent(XMLHttpRequestEventTarget* target,
-                       base::Token event_name, uint64 loaded, uint64 total,
-                       bool length_computable) {
+                       base_token::Token event_name, uint64 loaded,
+                       uint64 total, bool length_computable) {
   if (!target) {
     return;
   }
@@ -473,7 +473,7 @@ void XMLHttpRequestImpl::SetRequestHeader(
     return;
   }
 
-  if (!net::HttpUtil::IsSafeHeader(header)) {
+  if (!net::HttpUtil::IsSafeHeader(header, value)) {
     DLOG(WARNING) << "Rejecting unsafe header " << header;
     return;
   }
@@ -720,9 +720,9 @@ base::Optional<std::string> XMLHttpRequestImpl::GetResponseHeader(
   }
 
   // Set-Cookie should be stripped from the response headers in OnDone().
-  if (base::LowerCaseEqualsASCII(header, "set-cookie") ||
-      base::LowerCaseEqualsASCII(header, "set-cookie2")) {
-    return base::nullopt;
+  if (base::EqualsCaseInsensitiveASCII(header, "set-cookie") ||
+      base::EqualsCaseInsensitiveASCII(header, "set-cookie2")) {
+    return absl::nullopt;
   }
 
   bool found;
@@ -733,7 +733,7 @@ base::Optional<std::string> XMLHttpRequestImpl::GetResponseHeader(
   } else {
     found = http_response_headers_->GetNormalizedHeader(header, &value);
   }
-  return found ? base::make_optional(value) : base::nullopt;
+  return found ? absl::make_optional(value) : base::nullopt;
 }
 
 std::string XMLHttpRequestImpl::GetAllResponseHeaders() {
@@ -776,8 +776,7 @@ const std::string& XMLHttpRequestImpl::response_text(
   // isn't kDone isn't efficient for large responses.  Fortunately this feature
   // is rarely used.
   if (state_ == XMLHttpRequest::kLoading) {
-    LOG_ONCE(WARNING)
-        << "Retrieving responseText while loading can be inefficient.";
+    LOG(WARNING) << "Retrieving responseText while loading can be inefficient.";
     return response_body_->GetTemporaryReferenceOfString();
   }
   return response_body_->GetReferenceOfStringAndSeal();
@@ -936,8 +935,7 @@ void XMLHttpRequestImpl::OnURLFetchResponseStarted(
 
   if (mime_type_override_.length()) {
     http_response_headers_->RemoveHeader("Content-Type");
-    http_response_headers_->AddHeader(std::string("Content-Type: ") +
-                                      mime_type_override_);
+    http_response_headers_->AddHeader("Content-Type", mime_type_override_);
   }
 
   if (fetch_mode_callback_) {
@@ -1052,8 +1050,8 @@ void XMLHttpRequestImpl::OnURLFetchComplete(const net::URLFetcher* source) {
     this->GetLoadTimingInfoAndCreateResourceTiming();
   }
 
-  const net::URLRequestStatus& status = source->GetStatus();
-  if (status.is_success()) {
+  const net::Error status = source->GetStatus();
+  if (status == net::OK) {
     stop_timeout_ = true;
     if (error_) {
       // Ensure the fetch callbacks are reset when URL fetch is complete,
@@ -1260,7 +1258,7 @@ void XMLHttpRequestImpl::HandleRequestError(
   // Change state and fire readystatechange event.
   ChangeState(XMLHttpRequest::kDone);
 
-  base::Token error_name = RequestErrorTypeName(request_error_type);
+  base_token::Token error_name = RequestErrorTypeName(request_error_type);
   // Step 5
   if (!upload_complete_) {
     upload_complete_ = true;
@@ -1458,10 +1456,12 @@ void XMLHttpRequestImpl::StartRequest(const std::string& request_body) {
     // To make a cross-origin request, add origin, referrer source, credentials,
     // omit credentials flag, force preflight flag
     if (!with_credentials_) {
+#ifndef USE_HACKY_COBALT_CHANGES
       const uint32 kDisableCookiesLoadFlags =
           net::LOAD_NORMAL | net::LOAD_DO_NOT_SAVE_COOKIES |
           net::LOAD_DO_NOT_SEND_COOKIES | net::LOAD_DO_NOT_SEND_AUTH_DATA;
       url_fetcher_->SetLoadFlags(kDisableCookiesLoadFlags);
+#endif
     } else {
       // For credentials mode: If the withCredentials attribute value is true,
       // "include", and "same-origin" otherwise.
@@ -1694,7 +1694,7 @@ std::ostream& operator<<(std::ostream& out, const XMLHttpRequest& xhr) {
       xhr.xhr_impl_->error_ ? "true" : "false",
       xhr.xhr_impl_->sent_ ? "true" : "false",
       xhr.xhr_impl_->stop_timeout_ ? "true" : "false",
-      response_text.as_string().c_str());
+      std::string(response_text).c_str());
   out << xhr_out;
 #else
 #endif

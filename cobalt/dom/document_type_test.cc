@@ -33,7 +33,7 @@ class DocumentTypeTest : public ::testing::Test {
 
 TEST_F(DocumentTypeTest, Duplicate) {
   scoped_refptr<DocumentType> doctype = new DocumentType(
-      document_, base::Token("name"), "public_id", "system_id");
+      document_, base_token::Token("name"), "public_id", "system_id");
   scoped_refptr<DocumentType> new_doctype =
       doctype->Duplicate()->AsDocumentType();
   ASSERT_TRUE(new_doctype);

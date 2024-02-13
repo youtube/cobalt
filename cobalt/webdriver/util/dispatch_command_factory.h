@@ -62,16 +62,23 @@ struct ForwardType<std::unique_ptr<T>> {
 // response object.
 template <typename T>
 std::unique_ptr<base::Value> ToValue(const T& value) {
+#ifndef USE_HACKY_COBALT_CHANGES
   return T::ToValue(value);
+#else
+  return nullptr;
+#endif
 }
 
 template <typename T>
 std::unique_ptr<base::Value> ToValue(const std::vector<T>& value) {
-  std::unique_ptr<base::ListValue> list_value(new base::ListValue());
+  base::Value ret(base::Value::Type::LIST);
+  base::Value::List* list_value = ret.GetIfList();
   for (int i = 0; i < value.size(); ++i) {
-    list_value->Append(std::move(ToValue<T>(value[i])));
+#ifndef USE_HACKY_COBALT_CHANGES
+    list_value->Append(*std::move(ToValue<T>(value[i])));
+#endif
   }
-  return std::unique_ptr<base::Value>(list_value.release());
+  return base::Value::ToUniquePtrValue(std::move(ret));
 }
 
 // Partial template specialization for base::optional.
@@ -108,7 +115,7 @@ std::unique_ptr<base::Value> ToValue(
 }
 
 // Convert a base::Value to a base::Optional<T>. If value could not be converted
-// base::nullopt will be returned.
+// absl::nullopt will be returned.
 template <typename T>
 base::Optional<T> FromValue(const base::Value* value) {
   return T::FromValue(value);
@@ -117,13 +124,16 @@ base::Optional<T> FromValue(const base::Value* value) {
 template <>
 base::Optional<GURL> FromValue(const base::Value* value) {
   const char kUrlKey[] = "url";
-  std::string url;
-  const base::DictionaryValue* dictionary_value;
-  if (!value->GetAsDictionary(&dictionary_value) ||
-      !dictionary_value->GetString(kUrlKey, &url)) {
-    return base::nullopt;
+
+  const base::Value::Dict* dictionary_value = value->GetIfDict();
+  if (!dictionary_value) {
+    return absl::nullopt;
   }
-  return GURL(url.c_str());
+  const std::string* url = dictionary_value->FindString(kUrlKey);
+  if (!url) {
+    return absl::nullopt;
+  }
+  return GURL(url->c_str());
 }
 
 // Returns an appropriate response through the CommandResultHandler.

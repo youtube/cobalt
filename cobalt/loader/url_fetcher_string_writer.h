@@ -21,9 +21,9 @@
 
 #include "base/callback.h"
 #include "base/synchronization/lock.h"
-#include "base/task_runner.h"
+#include "base/task/task_runner.h"
+#include "cobalt/network/custom/url_fetcher_response_writer.h"
 #include "net/base/io_buffer.h"
-#include "net/url_request/url_fetcher_response_writer.h"
 
 namespace cobalt {
 namespace loader {

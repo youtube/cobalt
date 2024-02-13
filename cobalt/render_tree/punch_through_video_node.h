@@ -49,7 +49,7 @@ class PunchThroughVideoNode : public Node {
         : rect(rect), set_bounds_cb(set_bounds_cb) {}
 
     bool operator==(const Builder& other) const {
-      return rect == other.rect && set_bounds_cb.Equals(other.set_bounds_cb);
+      return rect == other.rect && set_bounds_cb == other.set_bounds_cb;
     }
 
     // The destination rectangle (size includes border).

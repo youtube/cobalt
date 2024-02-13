@@ -24,21 +24,20 @@ const char kButtonKey[] = "button";
 }
 
 std::unique_ptr<base::Value> Button::ToValue(const Button& button) {
-  std::unique_ptr<base::DictionaryValue> button_object(
-      new base::DictionaryValue());
-  button_object->SetInteger(kButtonKey, button.button_);
-  return std::unique_ptr<base::Value>(button_object.release());
+  base::Value ret(base::Value::Type::DICT);
+  base::Value::Dict* button_object = ret.GetIfDict();
+  button_object->Set(kButtonKey, button.button_);
+  return base::Value::ToUniquePtrValue(std::move(ret));
 }
 
 base::Optional<Button> Button::FromValue(const base::Value* value) {
-  const base::DictionaryValue* dictionary_value;
-  if (!value->GetAsDictionary(&dictionary_value)) {
+  const base::Value::Dict* dictionary_value = value->GetIfDict();
+  if (!dictionary_value) {
     return base::nullopt;
   }
-  int button = 0;
-  dictionary_value->GetInteger(kButtonKey, &button);
+  absl::optional<int> button = dictionary_value->FindInt(kButtonKey);
 
-  return Button(button);
+  return Button(button.value_or(0));
 }
 
 }  // namespace protocol

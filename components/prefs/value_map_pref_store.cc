@@ -17,8 +17,8 @@ bool ValueMapPrefStore::GetValue(const std::string& key,
   return prefs_.GetValue(key, value);
 }
 
-std::unique_ptr<base::DictionaryValue> ValueMapPrefStore::GetValues() const {
-  return prefs_.AsDictionaryValue();
+base::Value::Dict ValueMapPrefStore::GetValues() const {
+  return prefs_.AsDict();
 }
 
 void ValueMapPrefStore::AddObserver(PrefStore::Observer* observer) {
@@ -30,14 +30,16 @@ void ValueMapPrefStore::RemoveObserver(PrefStore::Observer* observer) {
 }
 
 bool ValueMapPrefStore::HasObservers() const {
-  return observers_.might_have_observers();
+  return !observers_.empty();
 }
 
 void ValueMapPrefStore::SetValue(const std::string& key,
-                                 std::unique_ptr<base::Value> value,
+                                 base::Value value,
                                  uint32_t flags) {
+#ifndef USE_HACKY_COBALT_CHANGES
   DCHECK(value);
-  if (prefs_.SetValue(key, base::Value::FromUniquePtrValue(std::move(value)))) {
+#endif
+  if (prefs_.SetValue(key, std::move(value))) {
     for (Observer& observer : observers_)
       observer.OnPrefValueChanged(key);
   }
@@ -62,10 +64,12 @@ void ValueMapPrefStore::ReportValueChanged(const std::string& key,
 }
 
 void ValueMapPrefStore::SetValueSilently(const std::string& key,
-                                         std::unique_ptr<base::Value> value,
+                                         base::Value value,
                                          uint32_t flags) {
+#ifndef USE_HACKY_COBALT_CHANGES
   DCHECK(value);
-  prefs_.SetValue(key, base::Value::FromUniquePtrValue(std::move(value)));
+#endif
+  prefs_.SetValue(key, std::move(value));
 }
 
 ValueMapPrefStore::~ValueMapPrefStore() {}

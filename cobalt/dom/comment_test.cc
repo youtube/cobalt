@@ -75,7 +75,8 @@ TEST_F(CommentTest, Duplicate) {
 }
 
 TEST_F(CommentTest, CommentCheckAttach) {
-  scoped_refptr<Element> root = new Element(document_, base::Token("root"));
+  scoped_refptr<Element> root =
+      new Element(document_, base_token::Token("root"));
 
   scoped_refptr<Node> comment =
       root->AppendChild(new Comment(document_, "comment"));
@@ -97,7 +98,8 @@ TEST_F(CommentTest, TextContent) {
 }
 
 TEST_F(CommentTest, InnerHTML) {
-  scoped_refptr<Element> root = new Element(document_, base::Token("root"));
+  scoped_refptr<Element> root =
+      new Element(document_, base_token::Token("root"));
 
   root->AppendChild(new Text(document_, "t1"));
   root->AppendChild(new Comment(document_, "comment"));

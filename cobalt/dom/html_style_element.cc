@@ -38,7 +38,7 @@ constexpr base::TimeDelta kParseTimeHistogramMaxTime =
 const char HTMLStyleElement::kTagName[] = "style";
 
 HTMLStyleElement::HTMLStyleElement(Document* document)
-    : HTMLElement(document, base::Token(kTagName)),
+    : HTMLElement(document, base_token::Token(kTagName)),
       is_parser_inserted_(false),
       inline_style_location_(GetSourceLocationName(), 1, 1) {}
 

@@ -133,7 +133,80 @@ class BASE_EXPORT TimeDelta {
  public:
   constexpr TimeDelta() = default;
 
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+  static constexpr int64_t kHoursPerDay = 24;
+  static constexpr int64_t kSecondsPerMinute = 60;
+  static constexpr int64_t kMinutesPerHour = 60;
+  static constexpr int64_t kSecondsPerHour =
+      kSecondsPerMinute * kMinutesPerHour;
+  static constexpr int64_t kMillisecondsPerSecond = 1000;
+  static constexpr int64_t kMillisecondsPerDay =
+      kMillisecondsPerSecond * kSecondsPerHour * kHoursPerDay;
+  static constexpr int64_t kMicrosecondsPerMillisecond = 1000;
+  static constexpr int64_t kMicrosecondsPerSecond =
+      kMicrosecondsPerMillisecond * kMillisecondsPerSecond;
+  static constexpr int64_t kMicrosecondsPerMinute =
+      kMicrosecondsPerSecond * kSecondsPerMinute;
+  static constexpr int64_t kMicrosecondsPerHour =
+      kMicrosecondsPerMinute * kMinutesPerHour;
+  static constexpr int64_t kMicrosecondsPerDay =
+      kMicrosecondsPerHour * kHoursPerDay;
+  static constexpr int64_t kMicrosecondsPerWeek = kMicrosecondsPerDay * 7;
+  static constexpr int64_t kNanosecondsPerMicrosecond = 1000;
+  static constexpr int64_t kNanosecondsPerSecond =
+      kNanosecondsPerMicrosecond * kMicrosecondsPerSecond;
+
+  template <typename T>
+  static constexpr TimeDelta FromDays(T n) {
+    return FromInternalValue(MakeClampedNum(n) * kMicrosecondsPerDay);
+  }
+
+  template <typename T>
+  static constexpr TimeDelta FromHours(T n) {
+    return TimeDelta::FromInternalValue(MakeClampedNum(n) *
+                                        kMicrosecondsPerHour);
+  }
+  template <typename T>
+  static constexpr TimeDelta FromMinutes(T n) {
+    return TimeDelta::FromInternalValue(MakeClampedNum(n) *
+                                        kMicrosecondsPerMinute);
+  }
+  template <typename T>
+  static constexpr TimeDelta FromSeconds(T n) {
+    return TimeDelta::FromInternalValue(MakeClampedNum(n) *
+                                        kMicrosecondsPerSecond);
+  }
+  template <typename T>
+  static constexpr TimeDelta FromSecondsD(T n) {
+    return TimeDelta::FromInternalValue(MakeClampedNum(n) *
+                                        kMicrosecondsPerSecond);
+  }
+  template <typename T>
+  static constexpr TimeDelta FromMilliseconds(T n) {
+    return TimeDelta::FromInternalValue(MakeClampedNum(n) *
+                                        kMicrosecondsPerMillisecond);
+  }
+  template <typename T>
+  static constexpr TimeDelta FromMillisecondsD(T n) {
+    return TimeDelta::FromInternalValue(MakeClampedNum(n) *
+                                        kMicrosecondsPerMillisecond);
+  }
+  template <typename T>
+  static constexpr TimeDelta FromMicroseconds(T n) {
+    return TimeDelta::FromInternalValue(MakeClampedNum(n));
+  }
+  template <typename T>
+  static constexpr TimeDelta FromNanoseconds(T n) {
+    return TimeDelta::FromInternalValue(MakeClampedNum(n) /
+                                        kNanosecondsPerMicrosecond);
+  }
+  template <typename T>
+  static constexpr TimeDelta FromHertz(T n) {
+    return n ? TimeDelta::FromInternalValue(kMicrosecondsPerSecond /
+                                            MakeClampedNum(n))
+            : TimeDelta::Max();
+  }
+#elif BUILDFLAG(IS_WIN)
   static TimeDelta FromQPCValue(LONGLONG qpc_value);
   // TODO(crbug.com/989694): Avoid base::TimeDelta factory functions
   // based on absolute time
@@ -207,7 +280,7 @@ class BASE_EXPORT TimeDelta {
 
 #if defined(STARBOARD)
   SbTime ToSbTime() const;
-#endif
+#else
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   struct timespec ToTimeSpec() const;
 #endif
@@ -217,6 +290,7 @@ class BASE_EXPORT TimeDelta {
 #if BUILDFLAG(IS_WIN)
   ABI::Windows::Foundation::DateTime ToWinrtDateTime() const;
   ABI::Windows::Foundation::TimeSpan ToWinrtTimeSpan() const;
+#endif
 #endif
 
   // Returns the frequency in Hertz (cycles per second) that has a period of
@@ -669,7 +743,8 @@ class BASE_EXPORT Time : public time_internal::TimeBase<Time> {
   static Time FromDoubleT(double dt);
   double ToDoubleT() const;
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   // Converts the timespec structure to time. MacOS X 10.8.3 (and tentatively,
   // earlier versions) will have the |ts|'s tv_nsec component zeroed out,
   // having a 1 second resolution, which agrees with
@@ -698,7 +773,7 @@ class BASE_EXPORT Time : public time_internal::TimeBase<Time> {
 #if defined(STARBOARD)
   static Time FromSbTime(SbTime t);
   SbTime ToSbTime() const;
-#endif
+#else
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   static Time FromTimeVal(struct timeval t);
   struct timeval ToTimeVal() const;
@@ -715,6 +790,7 @@ class BASE_EXPORT Time : public time_internal::TimeBase<Time> {
 #if defined(__OBJC__)
   static Time FromNSDate(NSDate* date);
   NSDate* ToNSDate() const;
+#endif
 #endif
 
 #if BUILDFLAG(IS_WIN)

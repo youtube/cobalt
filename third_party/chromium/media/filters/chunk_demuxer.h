@@ -281,18 +281,15 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // chunks for this ID.
   Status AddId(const std::string& id,
                const std::string& content_type,
-               const std::string& codecs) WARN_UNUSED_RESULT;
+               const std::string& codecs);
   Status AddId(const std::string& id,
-               std::unique_ptr<AudioDecoderConfig> audio_config)
-      WARN_UNUSED_RESULT;
+               std::unique_ptr<AudioDecoderConfig> audio_config);
   Status AddId(const std::string& id,
-               std::unique_ptr<VideoDecoderConfig> video_config)
-      WARN_UNUSED_RESULT;
+               std::unique_ptr<VideoDecoderConfig> video_config);
 
 #if defined(STARBOARD)
   // Special version of AddId() that retains the |mime_type| from the web app.
-  Status AddId(const std::string& id, const std::string& mime_type)
-      WARN_UNUSED_RESULT;
+  Status AddId(const std::string& id, const std::string& mime_type);
 #endif  // defined (STARBOARD)
 
   // Notifies a caller via |tracks_updated_cb| that the set of media tracks
@@ -336,7 +333,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
                   size_t length,
                   base::TimeDelta append_window_start,
                   base::TimeDelta append_window_end,
-                  base::TimeDelta* timestamp_offset) WARN_UNUSED_RESULT;
+                  base::TimeDelta* timestamp_offset);
 
   // Appends webcodecs encoded chunks (already converted by caller into a
   // BufferQueue of StreamParserBuffers) to the source buffer associated with
@@ -346,7 +343,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
                     std::unique_ptr<StreamParser::BufferQueue> buffer_queue,
                     base::TimeDelta append_window_start,
                     base::TimeDelta append_window_end,
-                    base::TimeDelta* timestamp_offset) WARN_UNUSED_RESULT;
+                    base::TimeDelta* timestamp_offset);
 
   // Aborts parsing the current segment and reset the parser to a state where
   // it can accept a new segment.
@@ -388,7 +385,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // https://w3c.github.io/media-source/#sourcebuffer-coded-frame-eviction
   bool EvictCodedFrames(const std::string& id,
                         base::TimeDelta currentMediaTime,
-                        size_t newDataSize) WARN_UNUSED_RESULT;
+                        size_t newDataSize);
 
 #if defined(STARBOARD)
   base::TimeDelta GetWriteHead(const std::string& id) const;

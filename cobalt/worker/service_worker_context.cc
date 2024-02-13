@@ -20,6 +20,7 @@
 
 #include "base/bind.h"
 #include "base/message_loop/message_loop_current.h"
+#include "base/run_loop.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/web/dom_exception.h"
@@ -220,7 +221,7 @@ void ServiceWorkerContext::StartRegister(
   }
 
   // 2. Set scriptURL’s fragment to null.
-  url::Replacements<char> replacements;
+  GURL::Replacements replacements;
   replacements.ClearRef();
   GURL script_url = script_url_with_fragment.ReplaceComponents(replacements);
   DCHECK(!script_url.has_ref() || script_url.ref().empty());
@@ -434,7 +435,9 @@ bool ServiceWorkerContext::WaitForAsynchronousExtensions(
     if (registration->done_event()->TimedWait(
             base::TimeDelta::FromMilliseconds(100)))
       break;
+#ifndef USE_HACKY_COBALT_CHANGES
     base::MessageLoopCurrent::ScopedNestableTaskAllower allow;
+#endif
     base::RunLoop().RunUntilIdle();
   } while ((base::TimeTicks::Now() - wait_start_time) <
            kWaitForAsynchronousExtensionsTimeout);
@@ -498,7 +501,7 @@ void ServiceWorkerContext::TryActivate(
 }
 
 void ServiceWorkerContext::Activate(
-    ServiceWorkerRegistrationObject* registration) {
+    scoped_refptr<ServiceWorkerRegistrationObject> registration) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerContext::Activate()");
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
   // Algorithm for Activate:
@@ -559,7 +562,7 @@ void ServiceWorkerContext::Activate(
                                             ->navigator_base()
                                             ->service_worker()
                                             .get()),
-                       base::Unretained(registration)));
+                       base::Unretained(registration.get())));
   }
   // 8. For each client of matchedClients:
   // 8.1. If client is a window client, unassociate client’s responsible
@@ -688,7 +691,7 @@ void ServiceWorkerContext::NotifyControllerChange(web::Context* client) {
 }
 
 bool ServiceWorkerContext::ServiceWorkerHasNoPendingEvents(
-    ServiceWorkerObject* worker) {
+    scoped_refptr<ServiceWorkerObject> worker) {
   // Algorithm for Service Worker Has No Pending Events
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#service-worker-has-no-pending-events
   // TODO(b/240174245): Implement this using the 'set of extended events'.
@@ -898,8 +901,8 @@ void ServiceWorkerContext::UpdateRegistrationState(
   }
 }
 
-void ServiceWorkerContext::UpdateWorkerState(ServiceWorkerObject* worker,
-                                             ServiceWorkerState state) {
+void ServiceWorkerContext::UpdateWorkerState(
+    scoped_refptr<ServiceWorkerObject> worker, ServiceWorkerState state) {
   TRACE_EVENT1("cobalt::worker", "ServiceWorkerContext::UpdateWorkerState()",
                "state", state);
   DCHECK_EQ(message_loop(), base::MessageLoop::current());
@@ -946,7 +949,7 @@ void ServiceWorkerContext::UpdateWorkerState(ServiceWorkerObject* worker,
                                  new web::Event(base::Tokens::statechange()));
                            }
                          },
-                         context, base::Unretained(worker), state));
+                         context, base::Unretained(worker.get()), state));
     }
   }
 }

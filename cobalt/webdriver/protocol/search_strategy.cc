@@ -39,7 +39,7 @@ StrategyStringMapping strategy_mapping[] = {
 
 bool GetSearchStrategyFromString(const std::string& strategy_string,
                                  SearchStrategy::Strategy* out_strategy) {
-  for (size_t i = 0; i < arraysize(strategy_mapping); ++i) {
+  for (size_t i = 0; i < std::size(strategy_mapping); ++i) {
     if (strategy_mapping[i].name == strategy_string) {
       *out_strategy = strategy_mapping[i].strategy;
       return true;
@@ -51,23 +51,20 @@ bool GetSearchStrategyFromString(const std::string& strategy_string,
 
 base::Optional<SearchStrategy> SearchStrategy::FromValue(
     const base::Value* value) {
-  const base::DictionaryValue* dictionary_value;
-  if (!value->GetAsDictionary(&dictionary_value)) {
-    return base::nullopt;
+  const base::Value::Dict* dictionary_value = value->GetIfDict();
+  if (!dictionary_value) {
+    return absl::nullopt;
   }
-  std::string using_strategy;
-  std::string parameter;
-  if (!dictionary_value->GetString(kUsingKey, &using_strategy)) {
-    return base::nullopt;
-  }
-  if (!dictionary_value->GetString(kValueKey, &parameter)) {
-    return base::nullopt;
+  const std::string* using_strategy = dictionary_value->FindString(kUsingKey);
+  const std::string* parameter = dictionary_value->FindString(kValueKey);
+  if (!using_strategy || !parameter) {
+    return absl::nullopt;
   }
   SearchStrategy::Strategy strategy;
-  if (!GetSearchStrategyFromString(using_strategy, &strategy)) {
-    return base::nullopt;
+  if (!GetSearchStrategyFromString(*using_strategy, &strategy)) {
+    return absl::nullopt;
   }
-  return SearchStrategy(strategy, parameter);
+  return SearchStrategy(strategy, *parameter);
 }
 
 }  // namespace protocol

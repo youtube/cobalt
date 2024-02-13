@@ -115,9 +115,10 @@ class LottiePlayer : public HTMLElement {
   void OnLoadingSuccess();
   void OnLoadingError();
 
-  void PreventGarbageCollectionUntilEventIsDispatched(base::Token event_name);
+  void PreventGarbageCollectionUntilEventIsDispatched(
+      base_token::Token event_name);
   void AllowGarbageCollectionAfterEventIsDispatched(
-      base::Token event_name,
+      base_token::Token event_name,
       std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
           scoped_prevent_gc);
   void DestroyScopedPreventGC(
@@ -131,7 +132,7 @@ class LottiePlayer : public HTMLElement {
   void SetMode(LottieAnimation::LottieMode mode);
   void UpdateLottieObjects();
 
-  void ScheduleEvent(base::Token event_name);
+  void ScheduleEvent(base_token::Token event_name);
   void SetAnimationEventCallbacks();
 
   // These are callbacks triggered during animation playback.

@@ -4,6 +4,8 @@
 
 #include "cobalt/math/matrix3_f.h"
 
+#include <string.h>
+
 #include <algorithm>
 #include <cmath>
 #include <limits>

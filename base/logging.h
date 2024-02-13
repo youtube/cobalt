@@ -26,6 +26,10 @@
 #include "starboard/common/log.h"
 #include "starboard/system.h"
 #include "starboard/types.h"
+#ifdef USE_HACKY_COBALT_CHANGES
+#include "base/check_op.h"
+#include "base/notreached.h"
+#endif
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)

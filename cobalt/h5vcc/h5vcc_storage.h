@@ -23,11 +23,11 @@
 #include "cobalt/h5vcc/h5vcc_storage_set_quota_response.h"
 #include "cobalt/h5vcc/h5vcc_storage_verify_test_response.h"
 #include "cobalt/h5vcc/h5vcc_storage_write_test_response.h"
+#include "cobalt/network/disk_cache/cobalt_backend_impl.h"
+#include "cobalt/network/disk_cache/resource_type.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/script/wrappable.h"
-#include "net/disk_cache/cobalt/cobalt_backend_impl.h"
-#include "net/disk_cache/cobalt/resource_type.h"
 #include "net/http/http_cache.h"
 
 namespace cobalt {
@@ -58,7 +58,8 @@ class H5vccStorage : public script::Wrappable {
   // Set Quota bytes per disk_cache::ResourceType.
   H5vccStorageSetQuotaResponse SetQuota(
       H5vccStorageResourceTypeQuotaBytesDictionary quota);
-  void SetAndSaveQuotaForBackend(disk_cache::ResourceType type, uint32_t bytes);
+  void SetAndSaveQuotaForBackend(network::disk_cache::ResourceType type,
+                                 uint32_t bytes);
 
   void EnableCache();
 
@@ -78,7 +79,7 @@ class H5vccStorage : public script::Wrappable {
   persistent_storage::PersistentSettings* persistent_settings_;
 
   net::HttpCache* http_cache_;
-  disk_cache::CobaltBackendImpl* cache_backend_;
+  network::disk_cache::CobaltBackendImpl* cache_backend_;
 
   bool ValidatedCacheBackend();
 

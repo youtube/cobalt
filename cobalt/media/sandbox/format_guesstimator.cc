@@ -20,6 +20,7 @@
 
 #include "base/bind.h"
 #include "base/path_service.h"
+#include "base/run_loop.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"

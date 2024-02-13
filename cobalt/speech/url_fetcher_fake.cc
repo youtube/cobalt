@@ -20,10 +20,10 @@
 
 #include "base/basictypes.h"
 #include "base/sys_byteorder.h"
+#include "cobalt/network/custom/url_fetcher_delegate.h"
+#include "cobalt/network/custom/url_fetcher_response_writer.h"
 #include "cobalt/speech/google_streaming_api.pb.h"
 #include "net/base/io_buffer.h"
-#include "net/url_request/url_fetcher_delegate.h"
-#include "net/url_request/url_fetcher_response_writer.h"
 #include "starboard/common/log.h"
 
 namespace cobalt {
@@ -160,9 +160,7 @@ void URLFetcherFake::Start() {
   }
 }
 
-const net::URLRequestStatus& URLFetcherFake::GetStatus() const {
-  return fake_status_;
-}
+const net::Error& URLFetcherFake::GetStatus() const { return fake_status_; }
 
 int URLFetcherFake::GetResponseCode() const { return 200; }
 

@@ -21,6 +21,7 @@
 #include "base/callback.h"
 #include "base/message_loop/message_loop.h"
 #include "base/optional.h"
+#include "base/single_thread_task_runner.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_value.h"

@@ -703,7 +703,7 @@ bool MediaSource::IsUpdating() const {
   return false;
 }
 
-void MediaSource::ScheduleEvent(base::Token event_name) {
+void MediaSource::ScheduleEvent(base_token::Token event_name) {
   scoped_refptr<web::Event> event = new web::Event(event_name);
   event->set_target(this);
   event_queue_.Enqueue(event);

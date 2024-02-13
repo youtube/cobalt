@@ -49,9 +49,9 @@ class BASE_EXPORT TraceConfig {
   // Specifies the memory dump config for tracing.
   // Used only when "memory-infra" category is enabled.
   struct BASE_EXPORT MemoryDumpConfig {
-    MemoryDumpConfig();
+    MemoryDumpConfig() {}
     MemoryDumpConfig(const MemoryDumpConfig& other);
-    ~MemoryDumpConfig();
+    ~MemoryDumpConfig() {}
 
     // Specifies the triggers in the memory dump config.
     struct Trigger {
@@ -65,7 +65,7 @@ class BASE_EXPORT TraceConfig {
       // Default value for |breakdown_threshold_bytes|.
       enum { kDefaultBreakdownThresholdBytes = 1024 };
 
-      HeapProfiler();
+      HeapProfiler() {}
 
       // Reset the options to default.
       void Clear();
@@ -89,11 +89,11 @@ class BASE_EXPORT TraceConfig {
 
   class BASE_EXPORT ProcessFilterConfig {
    public:
-    ProcessFilterConfig();
+    ProcessFilterConfig() {}
     explicit ProcessFilterConfig(
         const std::unordered_set<base::ProcessId>& included_process_ids);
     ProcessFilterConfig(const ProcessFilterConfig&);
-    ~ProcessFilterConfig();
+    ~ProcessFilterConfig() {}
 
     bool empty() const { return included_process_ids_.empty(); }
 
@@ -121,7 +121,7 @@ class BASE_EXPORT TraceConfig {
     explicit EventFilterConfig(const std::string& predicate_name);
     EventFilterConfig(const EventFilterConfig& tc);
 
-    ~EventFilterConfig();
+    ~EventFilterConfig() {}
 
     EventFilterConfig& operator=(const EventFilterConfig& rhs);
 
@@ -150,7 +150,7 @@ class BASE_EXPORT TraceConfig {
 
   static std::string TraceRecordModeToStr(TraceRecordMode record_mode);
 
-  TraceConfig();
+  TraceConfig() {}
 
   // Create TraceConfig object from category filter and trace options strings.
   //
@@ -223,7 +223,7 @@ class BASE_EXPORT TraceConfig {
 
   TraceConfig(const TraceConfig& tc);
 
-  ~TraceConfig();
+  ~TraceConfig() {}
 
   TraceConfig& operator=(const TraceConfig& rhs);
 

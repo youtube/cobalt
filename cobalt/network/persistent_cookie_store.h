@@ -18,7 +18,7 @@
 #include <string>
 #include <vector>
 
-#include "base/sequenced_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/storage/storage_manager.h"
 #include "net/cookies/cookie_monster.h"
 
@@ -33,11 +33,11 @@ class PersistentCookieStore : public net::CookieMonster::PersistentCookieStore {
   ~PersistentCookieStore() override;
 
   // net::CookieMonster::PersistentCookieStore methods
-  void Load(const LoadedCallback& loaded_callback,
+  void Load(LoadedCallback loaded_callback,
             const net::NetLogWithSource& net_log) override;
 
   void LoadCookiesForKey(const std::string& key,
-                         const LoadedCallback& loaded_callback) override;
+                         LoadedCallback loaded_callback) override;
 
   void AddCookie(const net::CanonicalCookie& cc) override;
   void UpdateCookieAccessTime(const net::CanonicalCookie& cc) override;
@@ -45,7 +45,7 @@ class PersistentCookieStore : public net::CookieMonster::PersistentCookieStore {
 
   void SetForceKeepSessionState() override;
 
-  void SetBeforeFlushCallback(base::RepeatingClosure callback) override;
+  void SetBeforeCommitCallback(base::RepeatingClosure callback) override;
   void Flush(base::OnceClosure callback) override;
 
  private:

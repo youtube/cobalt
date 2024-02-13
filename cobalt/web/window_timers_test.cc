@@ -18,7 +18,7 @@
 #include <string>
 
 #include "base/run_loop.h"
-#include "base/test/scoped_task_environment.h"
+#include "base/test/task_environment.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
 #include "cobalt/script/callback_function.h"
@@ -26,7 +26,7 @@
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/testing/fake_script_value.h"
 #include "cobalt/web/stat_tracker.h"
-#include "net/test/test_with_scoped_task_environment.h"
+#include "net/test/test_with_task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -84,12 +84,10 @@ const int kTimerDelayInMilliseconds = 100;
 using ::cobalt::script::testing::FakeScriptValue;
 
 class WindowTimersTest : public ::testing::Test,
-                         public net::WithScopedTaskEnvironment {
+                         public net::WithTaskEnvironment {
  protected:
   WindowTimersTest()
-      : WithScopedTaskEnvironment(
-            base::test::ScopedTaskEnvironment::MainThreadType::MOCK_TIME),
-        stat_tracker_("WindowTimersTest", "Test"),
+      : stat_tracker_("WindowTimersTest", "Test"),
         callback_(&mock_timer_callback_) {
     script::Wrappable* foo = nullptr;
     timers_.reset(
@@ -205,8 +203,7 @@ TEST_F(WindowTimersTest, TimeoutIsCalledWhenDelayed) {
   EXPECT_EQ(NextMainThreadPendingTaskDelay(),
             base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds));
 
-  AdvanceMockTickClock(
-      base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds + 1000));
+  AdvanceClock(base::Milliseconds(kTimerDelayInMilliseconds + 1000));
   RunUntilIdle();
   EXPECT_EQ(GetPendingMainThreadTaskCount(), 0);
 }
@@ -357,8 +354,7 @@ TEST_F(WindowTimersTest, IntervalDrifts) {
             base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds));
 
   while (interval_count--) {
-    AdvanceMockTickClock(
-        base::TimeDelta::FromMilliseconds(kTimerDelayInMilliseconds + 1000));
+    AdvanceClock(base::Milliseconds(kTimerDelayInMilliseconds + 1000));
     RunUntilIdle();
   }
   EXPECT_EQ(GetPendingMainThreadTaskCount(), 1);

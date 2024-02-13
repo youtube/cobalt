@@ -67,10 +67,10 @@ class PersistedLogs : public LogStore {
 
  private:
   // Writes the list to the ListValue.
-  void WriteLogsToPrefList(base::ListValue* list) const;
+  void WriteLogsToPrefList(base::Value::List* list) const;
 
   // Reads the list from the ListValue.
-  void ReadLogsFromPrefList(const base::ListValue& list);
+  void ReadLogsFromPrefList(const base::Value::List& list);
 
   // An object for recording UMA metrics.
   std::unique_ptr<PersistedLogsMetrics> metrics_;

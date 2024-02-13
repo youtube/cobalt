@@ -16,6 +16,7 @@
 
 #include <memory>
 
+#include "base/bind.h"
 #include "base/logging.h"
 #include "cobalt/base/polymorphic_downcast.h"
 
@@ -23,8 +24,7 @@ namespace cobalt {
 namespace script {
 namespace v8c {
 
-CobaltPlatform::CobaltV8TaskRunner::CobaltV8TaskRunner()
-    : ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)) {}
+CobaltPlatform::CobaltV8TaskRunner::CobaltV8TaskRunner() {}
 
 void CobaltPlatform::CobaltV8TaskRunner::PostTask(
     std::unique_ptr<v8::Task> task) {
@@ -104,7 +104,7 @@ void CobaltPlatform::RegisterIsolateOnThread(v8::Isolate* isolate,
   CobaltPlatform::CobaltV8TaskRunner* cobalt_v8_task_runner =
       base::polymorphic_downcast<CobaltPlatform::CobaltV8TaskRunner*>(
           task_runner.get());
-  cobalt_v8_task_runner->SetTaskRunner(message_loop->task_runner().get());
+  cobalt_v8_task_runner->SetTaskRunner(nullptr);
 }
 
 void CobaltPlatform::UnregisterIsolateOnThread(v8::Isolate* isolate) {

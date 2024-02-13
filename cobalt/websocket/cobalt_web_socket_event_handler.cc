@@ -60,19 +60,22 @@ std::size_t CombineFramesChunks(FrameDataVector::const_iterator begin,
 }  // namespace
 
 void CobaltWebSocketEventHandler::OnAddChannelResponse(
+    std::unique_ptr<net::WebSocketHandshakeResponseInfo> response,
     const std::string& selected_subprotocol, const std::string& extensions) {
   creator_->OnHandshakeComplete(selected_subprotocol);
 }
-void CobaltWebSocketEventHandler::OnDataFrame(
-    bool fin, WebSocketMessageType type, scoped_refptr<net::IOBuffer> buffer,
-    size_t buffer_size) {
+void CobaltWebSocketEventHandler::OnDataFrame(bool fin,
+                                              WebSocketMessageType type,
+                                              base::span<const char> payload) {
   if (message_type_ == net::WebSocketFrameHeader::kOpCodeControlUnused) {
     message_type_ = type;
   }
   if (type != net::WebSocketFrameHeader::kOpCodeContinuation) {
     DCHECK_EQ(message_type_, type);
   }
-  frame_data_.push_back(std::make_pair(std::move(buffer), buffer_size));
+#ifndef USE_HACKY_COBALT_CHANGES
+  frame_data_.push_back(std::make_pair(std::move(payload), buffer_size));
+#endif
   if (fin) {
     std::size_t message_length = GetMessageLength(frame_data_);
     scoped_refptr<net::IOBufferWithSize> buf =
@@ -100,7 +103,9 @@ void CobaltWebSocketEventHandler::OnClosingHandshake() {
                     "Received close handshake initiation.");
 }
 
-void CobaltWebSocketEventHandler::OnFailChannel(const std::string& message) {
+void CobaltWebSocketEventHandler::OnFailChannel(
+    const std::string& message, int net_error,
+    absl::optional<int> response_code) {
   DLOG(WARNING) << "WebSocket channel failed due to: " << message;
   creator_->OnClose(true, net::kWebSocketErrorAbnormalClosure, message);
 }
@@ -111,9 +116,8 @@ void CobaltWebSocketEventHandler::OnDropChannel(bool was_clean, uint16_t code,
 }
 
 void CobaltWebSocketEventHandler::OnSSLCertificateError(
-    std::unique_ptr<net::WebSocketEventInterface::SSLErrorCallbacks>
-        ssl_error_callbacks,
-    const GURL& url, const net::SSLInfo& ssl_info, bool fatal) {
+    std::unique_ptr<SSLErrorCallbacks> ssl_error_callbacks, const GURL& url,
+    int net_error, const net::SSLInfo& ssl_info, bool fatal) {
   // TODO: determine if there are circumstances we want to continue
   // the request.
   DLOG(WARNING) << "SSL cert failure occurred, cancelling connection";
@@ -121,22 +125,21 @@ void CobaltWebSocketEventHandler::OnSSLCertificateError(
                                         nullptr);
 }
 int CobaltWebSocketEventHandler::OnAuthRequired(
-    scoped_refptr<net::AuthChallengeInfo> auth_info,
+    const net::AuthChallengeInfo& auth_info,
     scoped_refptr<net::HttpResponseHeaders> response_headers,
-    const net::HostPortPair& host_port_pair,
+    const net::IPEndPoint& socket_address,
     base::OnceCallback<void(const net::AuthCredentials*)> callback,
-    base::Optional<net::AuthCredentials>* credentials) {
+    absl::optional<net::AuthCredentials>* credentials) {
   NOTIMPLEMENTED();
   return net::OK;
 }
 
-void CobaltWebSocketEventHandler::OnWriteDone(uint64_t bytes_written) {
-  creator_->OnWriteDone(bytes_written);
+bool CobaltWebSocketEventHandler::HasPendingDataFrames() {
+  NOTIMPLEMENTED();
+  return false;
 }
 
-void CobaltWebSocketEventHandler::OnFlowControl(int64_t quota) {
-  creator_->OnFlowControl(quota);
-}
+void CobaltWebSocketEventHandler::OnSendDataFrameDone() { NOTIMPLEMENTED(); }
 
 }  // namespace websocket
 }  // namespace cobalt

@@ -12,6 +12,9 @@
 
 namespace switches {
 
+#ifdef USE_HACKY_COBALT_CHANGES
+extern const char kFontFormat[];
+#endif
 extern const char kDisableBestEffortTasks[];
 extern const char kDisableBreakpad[];
 extern const char kDisableFeatures[];

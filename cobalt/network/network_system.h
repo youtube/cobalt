@@ -18,6 +18,7 @@
 #include <memory>
 
 #include "base/basictypes.h"
+#include "base/macros.h"
 #include "cobalt/base/event_dispatcher.h"
 
 namespace cobalt {

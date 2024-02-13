@@ -29,11 +29,11 @@ namespace dom {
 class AnimationEvent : public web::Event {
  public:
   explicit AnimationEvent(const std::string& type)
-      : Event(base::Token(type), kBubbles, kNotCancelable),
+      : Event(base_token::Token(type), kBubbles, kNotCancelable),
         animation_name_(""),
         elapsed_time_(0) {}
 
-  AnimationEvent(base::Token type, const std::string& animation_name,
+  AnimationEvent(base_token::Token type, const std::string& animation_name,
                  float elapsed_time)
       : Event(type, kBubbles, kNotCancelable),
         animation_name_(animation_name),

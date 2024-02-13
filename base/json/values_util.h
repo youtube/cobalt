@@ -15,6 +15,11 @@ class Time;
 class TimeDelta;
 class UnguessableToken;
 
+#ifdef USE_HACKY_COBALT_CHANGES
+BASE_EXPORT Value CreateFilePathValue(const FilePath& in_value);
+BASE_EXPORT bool GetValueAsFilePath(const Value& value, FilePath* file_path);
+#endif
+
 // Simple helper functions for converting between Value and other types.
 // The Value representation is stable, suitable for persistent storage
 // e.g. as JSON on disk.

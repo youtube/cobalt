@@ -252,7 +252,8 @@ void ImageDecoder::Resume(render_tree::ResourceProvider* resource_provider) {
 }
 
 void ImageDecoder::SetDeletionPending() {
-  base::subtle::Acquire_Store(&is_deletion_pending_, true);
+  base::subtle::NoBarrier_Store(&is_deletion_pending_, true);
+  std::atomic_thread_fence(std::memory_order_seq_cst);
 }
 
 void ImageDecoder::DecodeChunkInternal(const uint8* input_bytes, size_t size) {

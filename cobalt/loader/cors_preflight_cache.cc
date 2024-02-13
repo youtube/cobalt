@@ -25,15 +25,15 @@
 namespace {
 bool MethodNameToRequestType(const std::string& method,
                              net::URLFetcher::RequestType* request_type) {
-  if (base::LowerCaseEqualsASCII(method, "get")) {
+  if (base::EqualsCaseInsensitiveASCII(method, "get")) {
     *request_type = net::URLFetcher::GET;
-  } else if (base::LowerCaseEqualsASCII(method, "post")) {
+  } else if (base::EqualsCaseInsensitiveASCII(method, "post")) {
     *request_type = net::URLFetcher::POST;
-  } else if (base::LowerCaseEqualsASCII(method, "head")) {
+  } else if (base::EqualsCaseInsensitiveASCII(method, "head")) {
     *request_type = net::URLFetcher::HEAD;
-  } else if (base::LowerCaseEqualsASCII(method, "delete")) {
+  } else if (base::EqualsCaseInsensitiveASCII(method, "delete")) {
     *request_type = net::URLFetcher::DELETE_REQUEST;
-  } else if (base::LowerCaseEqualsASCII(method, "put")) {
+  } else if (base::EqualsCaseInsensitiveASCII(method, "put")) {
     *request_type = net::URLFetcher::PUT;
   } else {
     return false;

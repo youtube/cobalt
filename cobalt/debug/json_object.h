@@ -25,9 +25,9 @@
 namespace cobalt {
 namespace debug {
 
-typedef std::unique_ptr<base::DictionaryValue> JSONObject;
+typedef std::unique_ptr<base::Value::Dict> JSONObject;
 
-typedef std::unique_ptr<base::ListValue> JSONList;
+typedef std::unique_ptr<base::Value::List> JSONList;
 
 JSONObject JSONParse(const std::string& json, int* parse_error);
 

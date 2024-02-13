@@ -95,7 +95,7 @@ static_library("ots") {
 
   public_configs = [ ":ots_config" ]
 
-  configs += [ "//build/config/compiler:chromium_code" ]
+  # configs += [ "//build/config/compiler:chromium_code" ]
 
   deps = [
     "//starboard/common",

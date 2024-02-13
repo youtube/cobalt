@@ -174,7 +174,7 @@ struct CanTargetBox {
   const math::Vector2dF* coordinate;
   explicit CanTargetBox(const math::Vector2dF* coordinate)
       : coordinate(coordinate) {}
-  bool operator()(const Box* box) const {
+  bool operator()(const scoped_refptr<Box> box) const {
     return box->CoordinateCanTarget(coordinate);
   }
 };
@@ -342,7 +342,7 @@ void SendCompatibilityMappingMouseEvent(
   // Send compatibility mapping mouse event if needed.
   //   https://www.w3.org/TR/2015/REC-pointerevents-20150224/#compatibility-mapping-with-mouse-events
   bool has_compatibility_mouse_event = true;
-  base::Token type = pointer_event->type();
+  base_token::Token type = pointer_event->type();
   if (type == base::Tokens::pointerdown()) {
     // If the pointer event dispatched was pointerdown and the event was
     // canceled, then set the PREVENT MOUSE EVENT flag for this pointerType.
@@ -493,7 +493,7 @@ void TopmostEventTarget::ConsiderBoxes(
                                        LayoutUnit(coordinate.y()));
   for (Boxes::const_iterator box_iterator = boxes.begin();
        box_iterator != boxes.end(); ++box_iterator) {
-    Box* box = *box_iterator;
+    Box* box = box_iterator->get();
     do {
       if (box->IsUnderCoordinate(layout_coordinate)) {
         Box::RenderSequence render_sequence = box->GetRenderSequence();

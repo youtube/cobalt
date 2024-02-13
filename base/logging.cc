@@ -4,8 +4,10 @@
 
 #include "base/logging.h"
 
+#ifndef USE_HACKY_COBALT_CHANGES
 #ifdef BASE_CHECK_H_
 #error "logging.h should not include check.h"
+#endif
 #endif
 
 #include <limits.h>

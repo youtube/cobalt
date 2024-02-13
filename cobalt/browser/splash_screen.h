@@ -104,7 +104,7 @@ class SplashScreen : public LifecycleObserver {
 
   // This is called by Shutdown (via window.close) or after
   // the time limit has been exceeded.
-  base::CancelableCallback<void(base::TimeDelta)>
+  base::CancelableRepeatingCallback<void(base::TimeDelta)>
       on_splash_screen_shutdown_complete_;
 
   // True if SplashScreen::Shutdown() has been called.

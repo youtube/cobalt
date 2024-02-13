@@ -9,9 +9,9 @@
 #include <utility>
 
 #include "base/base64.h"
-#include "base/md5.h"
+#include "base/hash/md5.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/sha1.h"
+#include "base/hash/sha1.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/timer/elapsed_timer.h"
 #include "components/metrics/persisted_logs_metrics.h"
@@ -39,6 +39,16 @@ std::string DecodeFromBase64(const std::string& to_convert) {
   std::string result;
   base::Base64Decode(to_convert, &result);
   return result;
+}
+
+bool GetString(const base::Value::Dict& dict,
+               base::StringPiece key,
+               std::string& out) {
+  const std::string* value = dict.FindString(key);
+  if (!value)
+    return false;
+  out = *value;
+  return true;
 }
 
 }  // namespace
@@ -125,8 +135,10 @@ void PersistedLogs::DiscardStagedLog() {
 }
 
 void PersistedLogs::PersistUnsentLogs() const {
+#ifndef USE_HACKY_COBALT_CHANGES
   ListPrefUpdate update(local_state_, pref_name_);
   WriteLogsToPrefList(update.Get());
+#endif
 }
 
 void PersistedLogs::LoadPersistedUnsentLogs() {
@@ -136,7 +148,7 @@ void PersistedLogs::LoadPersistedUnsentLogs() {
 void PersistedLogs::StoreLog(const std::string& log_data) {
   list_.push_back(LogInfo());
   list_.back().Init(metrics_.get(), log_data,
-                    base::Int64ToString(base::Time::Now().ToTimeT()));
+                    std::to_string(base::Time::Now().ToTimeT()));
 }
 
 void PersistedLogs::Purge() {
@@ -147,22 +159,22 @@ void PersistedLogs::Purge() {
   local_state_->ClearPref(pref_name_);
 }
 
-void PersistedLogs::ReadLogsFromPrefList(const base::ListValue& list_value) {
+void PersistedLogs::ReadLogsFromPrefList(const base::Value::List& list_value) {
   if (list_value.empty()) {
     metrics_->RecordLogReadStatus(PersistedLogsMetrics::LIST_EMPTY);
     return;
   }
 
-  const size_t log_count = list_value.GetSize();
+  const size_t log_count = list_value.size();
 
   DCHECK(list_.empty());
   list_.resize(log_count);
 
   for (size_t i = 0; i < log_count; ++i) {
-    const base::DictionaryValue* dict;
-    if (!list_value.GetDictionary(i, &dict) ||
-        !dict->GetString(kLogDataKey, &list_[i].compressed_log_data) ||
-        !dict->GetString(kLogHashKey, &list_[i].hash)) {
+    const base::Value::Dict* dict = list_value[i].GetIfDict();
+    std::unique_ptr<LogInfo> info = std::make_unique<LogInfo>();
+    if (!dict || !GetString(*dict, kLogDataKey, info->compressed_log_data) ||
+        !GetString(*dict, kLogHashKey, info->hash)) {
       list_.clear();
       metrics_->RecordLogReadStatus(
           PersistedLogsMetrics::LOG_STRING_CORRUPTION);
@@ -176,14 +188,14 @@ void PersistedLogs::ReadLogsFromPrefList(const base::ListValue& list_value) {
     // older logs.
     // NOTE: Should be added to the check with other fields once migration is
     // over.
-    dict->GetString(kLogTimestampKey, &list_[i].timestamp);
+    GetString(*dict, kLogTimestampKey, list_[i].timestamp);
   }
 
   metrics_->RecordLogReadStatus(PersistedLogsMetrics::RECALL_SUCCESS);
 }
 
-void PersistedLogs::WriteLogsToPrefList(base::ListValue* list_value) const {
-  list_value->Clear();
+void PersistedLogs::WriteLogsToPrefList(base::Value::List* list_value) const {
+  list_value->clear();
 
   // Keep the most recent logs which are smaller than |max_log_size_|.
   // We keep at least |min_log_bytes_| and |min_log_count_| of logs before
@@ -212,12 +224,11 @@ void PersistedLogs::WriteLogsToPrefList(base::ListValue* list_value) const {
       dropped_logs_num++;
       continue;
     }
-    std::unique_ptr<base::DictionaryValue> dict_value(
-        new base::DictionaryValue);
-    dict_value->SetString(kLogHashKey, EncodeToBase64(list_[i].hash));
-    dict_value->SetString(kLogDataKey,
-                          EncodeToBase64(list_[i].compressed_log_data));
-    dict_value->SetString(kLogTimestampKey, list_[i].timestamp);
+
+    base::Value::Dict dict_value;
+    dict_value.Set(kLogHashKey, EncodeToBase64(list_[i].hash));
+    dict_value.Set(kLogDataKey, EncodeToBase64(list_[i].compressed_log_data));
+    dict_value.Set(kLogTimestampKey, list_[i].timestamp);
     list_value->Append(std::move(dict_value));
   }
   if (dropped_logs_num > 0)

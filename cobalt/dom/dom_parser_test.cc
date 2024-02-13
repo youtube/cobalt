@@ -52,7 +52,7 @@ DOMParserTest::DOMParserTest()
       loader_factory_("Test" /* name */, &fetcher_factory_,
                       NULL /* resource provider */, null_debugger_hooks_,
                       0 /* encoded_image_cache_capacity */,
-                      base::ThreadPriority::DEFAULT),
+                      base::ThreadType::kDefault),
       dom_parser_parser_(new dom_parser::Parser()),
       html_element_context_(
           &environment_settings_, &fetcher_factory_, &loader_factory_,

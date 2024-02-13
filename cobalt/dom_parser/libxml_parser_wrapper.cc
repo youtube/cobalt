@@ -240,8 +240,8 @@ void LibxmlParserWrapper::OnStartElement(
     const std::string& name, const ParserAttributeVector& attributes) {
   scoped_refptr<dom::Element> element = document_->CreateElement(name);
   for (size_t i = 0; i < attributes.size(); ++i) {
-    element->SetAttribute(attributes[i].name.as_string(),
-                          attributes[i].value.as_string());
+    element->SetAttribute(std::string(attributes[i].name),
+                          std::string(attributes[i].value));
   }
 
   if (static_cast<int>(node_stack_.size()) <= dom_max_element_depth_) {

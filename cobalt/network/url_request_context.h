@@ -21,13 +21,13 @@
 #include "base/basictypes.h"
 #include "base/macros.h"
 #include "base/sequence_checker.h"
+#include "cobalt/network/custom/url_fetcher.h"
+#include "cobalt/network/disk_cache/resource_type.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
 #include "net/cookies/cookie_monster.h"
-#include "net/disk_cache/cobalt/resource_type.h"
 #include "net/log/net_log.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_getter.h"
-#include "net/url_request/url_request_context_storage.h"
 
 #if defined(ENABLE_DEBUGGER)
 #include "cobalt/debug/console/command_manager.h"  // nogncheck
@@ -40,27 +40,26 @@ class StorageManager;
 
 namespace network {
 
-class URLRequestContext : public net::URLRequestContext {
+class URLRequestContext : public net::CobaltURLRequestContext {
  public:
   URLRequestContext(
       storage::StorageManager* storage_manager, const std::string& custom_proxy,
       net::NetLog* net_log, bool ignore_certificate_errors,
       scoped_refptr<base::SequencedTaskRunner> network_task_runner,
       persistent_storage::PersistentSettings* persistent_settings);
-  ~URLRequestContext() override;
+  ~URLRequestContext();
 
   void SetProxy(const std::string& custom_proxy_rules);
 
   void SetEnableQuic(bool enable_quic);
 
-  bool using_http_cache();
+  bool using_http_cache() { return false; }
 
   void UpdateCacheSizeSetting(disk_cache::ResourceType type, uint32_t bytes);
   void ValidateCachePersistentSettings();
 
  private:
   SEQUENCE_CHECKER(sequence_checker_);
-  net::URLRequestContextStorage storage_;
   scoped_refptr<net::CookieMonster::PersistentCookieStore>
       persistent_cookie_store_;
 
@@ -76,8 +75,10 @@ class URLRequestContext : public net::URLRequestContext {
 #endif  // defined(ENABLE_DEBUGGER)
 
   // Persistent settings module for Cobalt disk cache quotas
+#ifndef USE_HACKY_COBALT_CHANGES
   std::unique_ptr<cobalt::persistent_storage::PersistentSettings>
       cache_persistent_settings_;
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestContext);
 };

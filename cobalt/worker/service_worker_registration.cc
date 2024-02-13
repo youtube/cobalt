@@ -18,7 +18,6 @@
 
 #include "base/logging.h"
 #include "base/message_loop/message_loop.h"
-#include "base/task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/script/environment_settings.h"

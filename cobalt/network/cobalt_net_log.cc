@@ -25,9 +25,9 @@ namespace network {
 
 CobaltNetLog::CobaltNetLog(const base::FilePath& log_path,
                            net::NetLogCaptureMode capture_mode)
-    : net_log_logger_(
-          net::FileNetLogObserver::CreateUnbounded(log_path, nullptr)) {
-  net_log_logger_->StartObserving(this, capture_mode);
+    : net_log_logger_(net::FileNetLogObserver::CreateUnbounded(
+          log_path, capture_mode, nullptr)) {
+  net_log_logger_->StartObserving(net_log());
 }
 
 CobaltNetLog::~CobaltNetLog() {

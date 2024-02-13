@@ -10,12 +10,9 @@
 
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
+#include "base/values.h"
 #include "components/prefs/prefs_export.h"
 
-namespace base {
-class DictionaryValue;
-class Value;
-}  // namespace base
 
 // This is an abstract interface for reading and writing from/to a persistent
 // preference store, used by PrefService. An implementation using a JSON file
@@ -55,7 +52,7 @@ class COMPONENTS_PREFS_EXPORT PrefStore : public base::RefCounted<PrefStore> {
                         const base::Value** result) const = 0;
 
   // Get all the values. Never returns a null pointer.
-  virtual std::unique_ptr<base::DictionaryValue> GetValues() const = 0;
+  virtual base::Value::Dict GetValues() const = 0;
 
  protected:
   friend class base::RefCounted<PrefStore>;

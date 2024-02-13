@@ -25,6 +25,8 @@
 #include "base/basictypes.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "net/base/net_errors.h"
+#include "net/http/http_util.h"
 #include "starboard/common/string.h"
 
 namespace cobalt {
@@ -321,7 +323,7 @@ void CORSPreflight::Start() {
 
 void CORSPreflight::OnURLFetchComplete(const net::URLFetcher* source) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  if (source->GetStatus().status() != net::URLRequestStatus::SUCCESS) {
+  if (source->GetStatus() != net::Error::OK) {
     error_callback_.Run();
     return;
   }

@@ -144,11 +144,11 @@ class ServiceWorkerObject
 
   // Algorithm for Should Skip Event:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#should-skip-event-algorithm
-  bool ShouldSkipEvent(base::Token event_name);
+  bool ShouldSkipEvent(base_token::Token event_name);
 
   std::string options_name() { return options_.name; }
 
-  std::set<base::Token>& set_of_event_types_to_handle() {
+  std::set<base_token::Token>& set_of_event_types_to_handle() {
     return set_of_event_types_to_handle_;
   }
 
@@ -201,7 +201,7 @@ class ServiceWorkerObject
   scoped_refptr<WorkerGlobalScope> worker_global_scope_;
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dfn-set-of-event-types-to-handle
-  std::set<base::Token> set_of_event_types_to_handle_;
+  std::set<base_token::Token> set_of_event_types_to_handle_;
 };
 
 }  // namespace worker

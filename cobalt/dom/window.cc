@@ -210,7 +210,7 @@ void Window::StartDocumentLoad(
   document_loader_.reset(new loader::Loader(
       base::Bind(&loader::FetcherFactory::CreateFetcher,
                  base::Unretained(fetcher_factory), url, /*main_resource=*/true,
-                 disk_cache::kHTML),
+                 network::disk_cache::kHTML),
       base::Bind(&Parser::ParseDocumentAsync, base::Unretained(dom_parser),
                  document_, base::SourceLocation(url.spec(), 1, 1)),
       load_complete_callback));
@@ -317,8 +317,8 @@ scoped_refptr<cssom::CSSStyleDeclaration> Window::GetComputedStyle(
 
     // 3. If pseudoElt is as an ASCII case-insensitive match for either
     // ':before' or '::before' let obj be the ::before pseudo-element of elt.
-    if (base::LowerCaseEqualsASCII(pseudo_elt, ":before") ||
-        base::LowerCaseEqualsASCII(pseudo_elt, "::before")) {
+    if (base::EqualsCaseInsensitiveASCII(pseudo_elt, ":before") ||
+        base::EqualsCaseInsensitiveASCII(pseudo_elt, "::before")) {
       PseudoElement* pseudo_element =
           html_element->pseudo_element(kBeforePseudoElementType);
       obj = pseudo_element ? pseudo_element->css_computed_style_declaration()
@@ -327,8 +327,8 @@ scoped_refptr<cssom::CSSStyleDeclaration> Window::GetComputedStyle(
 
     // 4. If pseudoElt is as an ASCII case-insensitive match for either ':after'
     // or '::after' let obj be the ::after pseudo-element of elt.
-    if (base::LowerCaseEqualsASCII(pseudo_elt, ":after") ||
-        base::LowerCaseEqualsASCII(pseudo_elt, "::after")) {
+    if (base::EqualsCaseInsensitiveASCII(pseudo_elt, ":after") ||
+        base::EqualsCaseInsensitiveASCII(pseudo_elt, "::after")) {
       PseudoElement* pseudo_element =
           html_element->pseudo_element(kAfterPseudoElementType);
       obj = pseudo_element ? pseudo_element->css_computed_style_declaration()
@@ -363,10 +363,9 @@ const scoped_refptr<Screen>& Window::screen() { return screen_; }
 std::string Window::Btoa(const std::string& string_to_encode,
                          script::ExceptionState* exception_state) {
   TRACE_EVENT0("cobalt::dom", "Window::Btoa()");
-  LOG_ONCE(WARNING)
-      << "In older Cobalt(<19), btoa() can not take a string"
-         " containing NULL. Be careful that you don't need to stay "
-         "compatible with old versions of Cobalt if you use btoa.";
+  LOG(WARNING) << "In older Cobalt(<19), btoa() can not take a string"
+                  " containing NULL. Be careful that you don't need to stay "
+                  "compatible with old versions of Cobalt if you use btoa.";
   auto output = ForgivingBase64Encode(string_to_encode);
   if (!output) {
     web::DOMException::Raise(web::DOMException::kInvalidCharacterErr,

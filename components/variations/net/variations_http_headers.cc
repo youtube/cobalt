@@ -79,7 +79,7 @@ bool IsGoogleDomain(const GURL& url) {
       return true;
   }
   for (size_t i = 0; i < arraysize(kHostsToSetHeadersFor); ++i) {
-    if (base::LowerCaseEqualsASCII(host, kHostsToSetHeadersFor[i]))
+    if (base::EqualsCaseInsensitiveASCII(host, kHostsToSetHeadersFor[i]))
       return true;
   }
 

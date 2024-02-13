@@ -20,11 +20,12 @@
 #include <utility>
 
 #include "base/bind.h"
-#include "base/callback_helpers.h"
+#include "base/functional/callback_helpers.h"
 #include "base/strings/string_number_conversions.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/loader/cors_preflight.h"
 #include "cobalt/loader/url_fetcher_string_writer.h"
+#include "net/base/net_errors.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_status_code.h"
 
@@ -97,7 +98,7 @@ void URLFetcherDataSource::Stop() {
     base::AutoLock auto_lock(lock_);
 
     if (!pending_read_cb_.is_null()) {
-      base::ResetAndReturn(&pending_read_cb_).Run(0);
+      std::move(pending_read_cb_).Run(0);
     }
     // From this moment on, any call to Read() should be treated as an error.
     // Note that we cannot reset |fetcher_| here because of:
@@ -143,7 +144,7 @@ void URLFetcherDataSource::OnURLFetchResponseStarted(
     return;
   }
 
-  if (!source->GetStatus().is_success()) {
+  if (source->GetStatus() != net::OK) {
     // The error will be handled on OnURLFetchComplete()
     error_occured_ = true;
     return;
@@ -158,7 +159,7 @@ void URLFetcherDataSource::OnURLFetchResponseStarted(
         !security_callback_.Run(source->GetURL(), true /*did redirect*/)) {
       error_occured_ = true;
       if (!pending_read_cb_.is_null()) {
-        base::ResetAndReturn(&pending_read_cb_).Run(-1);
+        std::move(pending_read_cb_).Run(-1);
       }
       return;
     }
@@ -176,7 +177,7 @@ void URLFetcherDataSource::OnURLFetchResponseStarted(
     } else {
       error_occured_ = true;
       if (!pending_read_cb_.is_null()) {
-        base::ResetAndReturn(&pending_read_cb_).Run(-1);
+        std::move(pending_read_cb_).Run(-1);
       }
       return;
     }
@@ -296,14 +297,14 @@ void URLFetcherDataSource::OnURLFetchComplete(const net::URLFetcher* source) {
     return;
   }
 
-  const net::URLRequestStatus& status = source->GetStatus();
-  if (status.is_success()) {
+  const net::Error status = source->GetStatus();
+  if (status == net::OK) {
     if (!total_size_of_resource_ && last_request_size_ != 0) {
       total_size_of_resource_ = buffer_offset_ + buffer_.GetLength();
     }
   } else {
     LOG(ERROR) << "URLFetcherDataSource::OnURLFetchComplete called with error "
-               << status.error();
+               << status;
     error_occured_ = true;
     buffer_.Clear();
   }
@@ -330,7 +331,7 @@ void URLFetcherDataSource::CreateNewFetcher() {
       (!security_callback_.is_null() && !security_callback_.Run(url_, false))) {
     error_occured_ = true;
     if (!pending_read_cb_.is_null()) {
-      base::ResetAndReturn(&pending_read_cb_).Run(-1);
+      std::move(pending_read_cb_).Run(-1);
     }
     UpdateDownloadingStatus(/* is_downloading = */ false);
     return;
@@ -490,7 +491,7 @@ void URLFetcherDataSource::ProcessPendingRead_Locked() {
   lock_.AssertAcquired();
   if (!pending_read_cb_.is_null()) {
     Read_Locked(pending_read_position_, pending_read_size_, pending_read_data_,
-                base::ResetAndReturn(&pending_read_cb_));
+                std::move(pending_read_cb_));
   }
 }
 
@@ -514,7 +515,7 @@ void URLFetcherDataSource::CancelableClosure::Call() {
   // closure_.Run() has to be called when the lock is acquired to avoid race
   // condition.
   if (!closure_.is_null()) {
-    base::ResetAndReturn(&closure_).Run();
+    std::move(closure_).Run();
   }
 }
 

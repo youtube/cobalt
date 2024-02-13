@@ -81,7 +81,7 @@ NodeTest::NodeTest() {
 }
 
 NodeTest::~NodeTest() {
-  document_ = NULL;
+  document_ = nullptr;
   EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
 }
 
@@ -90,16 +90,18 @@ NodeTest::~NodeTest() {
 //////////////////////////////////////////////////////////////////////////
 
 TEST_F(NodeTest, CreateNode) {
-  scoped_refptr<Node> node = new Element(document_);
+  scoped_refptr<Node> node = new Element(document_.get());
   ASSERT_TRUE(node);
 }
 
 TEST_F(NodeTest, CloneNode) {
-  scoped_refptr<Element> root = new Element(document_, base::Token("root"));
+  scoped_refptr<Element> root =
+      new Element(document_.get(), base_token::Token("root"));
   root->SetAttribute("id", "root");
-  root->AppendChild(new Text(document_, "text"));
+  root->AppendChild(new Text(document_.get(), "text"));
   scoped_refptr<Element> child =
-      root->AppendChild(new Element(document_, base::Token("child")))
+      root->AppendChild(
+              new Element(document_.get(), base_token::Token("child")))
           ->AsElement();
   child->SetAttribute("id", "child");
 
@@ -286,16 +288,18 @@ TEST_F(NodeTest, ParentElement) {
 }
 
 TEST_F(NodeTest, ParentNode) {
-  scoped_refptr<Node> node = new Element(document_);
-  node->AppendChild(new Text(document_, "first"));
+  scoped_refptr<Node> node = new Element(document_.get());
+  node->AppendChild(new Text(document_.get(), "first"));
   scoped_refptr<Element> child1 =
-      node->AppendChild(new Element(document_, base::Token("child1")))
+      node->AppendChild(
+              new Element(document_.get(), base_token::Token("child1")))
           ->AsElement();
-  node->AppendChild(new Text(document_, "middle"));
+  node->AppendChild(new Text(document_.get(), "middle"));
   scoped_refptr<Element> child2 =
-      node->AppendChild(new Element(document_, base::Token("child2")))
+      node->AppendChild(
+              new Element(document_.get(), base_token::Token("child2")))
           ->AsElement();
-  node->AppendChild(new Text(document_, "last"));
+  node->AppendChild(new Text(document_.get(), "last"));
   child1->SetAttribute("id", "1");
   child2->SetAttribute("id", "2");
   scoped_refptr<HTMLCollection> children = node->children();
@@ -324,19 +328,22 @@ TEST_F(NodeTest, ParentNode) {
 }
 
 TEST_F(NodeTest, NonDocumentTypeChildNode) {
-  scoped_refptr<Node> node = new Element(document_);
-  node->AppendChild(new Text(document_, "first"));
+  scoped_refptr<Node> node = new Element(document_.get());
+  node->AppendChild(new Text(document_.get(), "first"));
   scoped_refptr<Element> child1 =
-      node->AppendChild(new Element(document_, base::Token("child1")))
+      node->AppendChild(
+              new Element(document_.get(), base_token::Token("child1")))
           ->AsElement();
-  node->AppendChild(new Text(document_, "middle"));
+  node->AppendChild(new Text(document_.get(), "middle"));
   scoped_refptr<Element> child2 =
-      node->AppendChild(new Element(document_, base::Token("child2")))
+      node->AppendChild(
+              new Element(document_.get(), base_token::Token("child2")))
           ->AsElement();
   scoped_refptr<Element> child3 =
-      node->AppendChild(new Element(document_, base::Token("child3")))
+      node->AppendChild(
+              new Element(document_.get(), base_token::Token("child3")))
           ->AsElement();
-  node->AppendChild(new Text(document_, "last"));
+  node->AppendChild(new Text(document_.get(), "last"));
   scoped_refptr<HTMLCollection> children = node->children();
 
   EXPECT_EQ(kNullNode, child1->previous_element_sibling());
@@ -348,8 +355,8 @@ TEST_F(NodeTest, NonDocumentTypeChildNode) {
 }
 
 TEST_F(NodeTest, OwnerDocumentAndNodeDocument) {
-  scoped_refptr<Node> element1 = new Element(document_);
-  scoped_refptr<Node> element2 = new Element(document_);
+  scoped_refptr<Node> element1 = new Element(document_.get());
+  scoped_refptr<Node> element2 = new Element(document_.get());
   EXPECT_FALSE(document_->owner_document());
   EXPECT_EQ(document_, document_->node_document());
   EXPECT_EQ(document_, element1->owner_document());
@@ -359,12 +366,12 @@ TEST_F(NodeTest, OwnerDocumentAndNodeDocument) {
 }
 
 TEST_F(NodeTest, AdoptIntoDocument) {
-  scoped_refptr<Element> element = new Element(document_);
+  scoped_refptr<Element> element = new Element(document_.get());
   document_->AppendChild(element);
   EXPECT_EQ(document_, element->node_document());
 
   scoped_refptr<Document> new_document = new Document(&html_element_context_);
-  element->AdoptIntoDocument(new_document);
+  element->AdoptIntoDocument(new_document.get());
   EXPECT_EQ(new_document, element->node_document());
   EXPECT_EQ(NULL, element->parent_node());
 }

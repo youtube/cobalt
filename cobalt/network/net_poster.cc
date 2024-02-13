@@ -19,6 +19,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/bind.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/network/network_module.h"
 #include "net/base/net_errors.h"
@@ -40,8 +41,12 @@ void NetPoster::Send(const GURL& url, const std::string& content_type,
     return;
   }
 
+#ifndef USE_HACKY_COBALT_CHANGES
   std::unique_ptr<net::URLFetcher> url_fetcher =
       net::URLFetcher::Create(url, net::URLFetcher::POST, this);
+#else
+  std::unique_ptr<net::URLFetcher> url_fetcher = nullptr;
+#endif
 
   // In general it doesn't make sense to follow redirects for POST requests.
   // And for CSP reporting we are required not to follow them.
@@ -55,15 +60,21 @@ void NetPoster::Send(const GURL& url, const std::string& content_type,
     url_fetcher->SetUploadData(content_type, data);
   }
   url_fetcher->Start();
+#ifndef USE_HACKY_COBALT_CHANGES
   fetchers_.push_back(std::move(url_fetcher));
+#endif
 }
 
+void NetPoster::OnReadCompleted(net::URLRequest* request, int bytes_read) {}
+
+#ifndef USE_HACKY_COBALT_CHANGES
 void NetPoster::OnURLFetchComplete(const net::URLFetcher* source) {
-  // Make sure the thread that created the fetcher is the same one that deletes
-  // it. Otherwise we have unsafe access to the fetchers_ list.
-  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(),
-            network_module_->task_runner());
-  net::URLRequestStatus status = source->GetStatus();
+  // Make sure the thread that created the fetcher is the same one that
+  deletes
+      // it. Otherwise we have unsafe access to the fetchers_ list.
+      DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(),
+                network_module_->task_runner());
+  net::Error status = source->GetStatus();
   if (!status.is_success()) {
     DLOG(WARNING) << "NetPoster failed to POST to " << source->GetURL()
                   << " with error " << net::ErrorToString(status.error());
@@ -79,6 +90,7 @@ void NetPoster::OnURLFetchComplete(const net::URLFetcher* source) {
     NOTREACHED() << "Expected to find net::URLFetcher";
   }
 }
+#endif
 
 }  // namespace network
 }  // namespace cobalt

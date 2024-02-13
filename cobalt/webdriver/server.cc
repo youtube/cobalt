@@ -40,11 +40,11 @@ constexpr net::NetworkTrafficAnnotationTag kTrafficAnnotation =
     net::DefineNetworkTrafficAnnotation("webdriver_server", "WebDriver Server");
 
 WebDriverServer::HttpMethod StringToHttpMethod(const std::string& method) {
-  if (base::LowerCaseEqualsASCII(method, "get")) {
+  if (base::EqualsCaseInsensitiveASCII(method, "get")) {
     return WebDriverServer::kGet;
-  } else if (base::LowerCaseEqualsASCII(method, "post")) {
+  } else if (base::EqualsCaseInsensitiveASCII(method, "post")) {
     return WebDriverServer::kPost;
-  } else if (base::LowerCaseEqualsASCII(method, "delete")) {
+  } else if (base::EqualsCaseInsensitiveASCII(method, "delete")) {
     return WebDriverServer::kDelete;
   }
   return WebDriverServer::kUnknownMethod;
@@ -233,11 +233,14 @@ void WebDriverServer::OnHttpRequest(int connection_id,
   std::unique_ptr<base::Value> parameters;
   HttpMethod method = StringToHttpMethod(info.method);
   if (method == kPost) {
-    base::JSONReader reader;
-    parameters = std::move(reader.ReadToValue(info.data));
-    if (!parameters) {
+    base::JSONReader::Result result =
+        base::JSONReader::ReadAndReturnValueWithError(info.data);
+    if (result.has_value()) {
+      parameters = base::Value::ToUniquePtrValue(std::move(result.value()));
+    } else {
       // Failed to parse request body as JSON.
-      response_handler->MissingCommandParameters(reader.GetErrorMessage());
+      response_handler->MissingCommandParameters(
+          std::move(result.error().message));
       return;
     }
   }

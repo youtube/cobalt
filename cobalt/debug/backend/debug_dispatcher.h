@@ -110,7 +110,7 @@ class DebugDispatcher {
   // is supported, ownership of the command parameter should be kept and used to
   // send the response. If the command is not supported, the command should be
   // returned so the dispatcher can try calling a JS fallback implementation.
-  typedef base::Callback<base::Optional<Command>(Command command)>
+  typedef base::Callback<absl::optional<Command>(Command command)>
       CommandHandler;
 
   DebugDispatcher(script::ScriptDebugger* script_debugger,

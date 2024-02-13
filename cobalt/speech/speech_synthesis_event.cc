@@ -20,7 +20,7 @@ namespace cobalt {
 namespace speech {
 
 SpeechSynthesisEvent::SpeechSynthesisEvent(
-    base::Token event_name,
+    base_token::Token event_name,
     const scoped_refptr<SpeechSynthesisUtterance>& utterance)
     : Event(event_name, web::Event::kBubbles, web::Event::kNotCancelable),
       utterance_(utterance) {}

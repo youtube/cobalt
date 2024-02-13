@@ -30,6 +30,7 @@
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/window.h"
+#include "cobalt/network/disk_cache/resource_type.h"
 #include "cobalt/web/csp_delegate.h"
 #include "url/gurl.h"
 
@@ -219,11 +220,11 @@ void HTMLLinkElement::Obtain() {
   loader::Origin origin = document->location()
                               ? document->location()->GetOriginAsObject()
                               : loader::Origin();
-  disk_cache::ResourceType type;
+  network::disk_cache::ResourceType type;
   if (rel() == "stylesheet") {
-    type = disk_cache::kCSS;
+    type = network::disk_cache::kCSS;
   } else if (IsValidSplashScreenFormat(rel())) {
-    type = disk_cache::kSplashScreen;
+    type = network::disk_cache::kSplashScreen;
   } else {
     LOG(WARNING) << "<link> has unsupported rel value: " << rel() << ".";
     NOTIMPLEMENTED();

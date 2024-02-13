@@ -49,7 +49,7 @@ std::unique_ptr<FontCache::FontFaceMap> CreateFontFaceMapHelper(
   scoped_refptr<dom::FontFaceStyleSet::Entry> entry =
       base::MakeRefCounted<dom::FontFaceStyleSet::Entry>();
   entry->sources.push_back(
-      FontFaceSource(local_font_name.as_string()));  // local()
+      FontFaceSource(std::string(local_font_name)));  // local()
   entry->sources.push_back(FontFaceSource(
       GURL("https://example.com/Dancing-Regular.woff")));  // url()
   ffss.AddEntry(entry);

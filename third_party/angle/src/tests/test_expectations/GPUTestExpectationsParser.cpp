@@ -210,7 +210,7 @@ inline bool DoLowerCaseEqualsASCII(Iter a_begin, Iter a_end, const char *b)
     return *b == 0;
 }
 
-inline bool LowerCaseEqualsASCII(const std::string &a, const char *b)
+inline bool EqualsCaseInsensitiveASCII(const std::string &a, const char *b)
 {
     return DoLowerCaseEqualsASCII(a.begin(), a.end(), b);
 }
@@ -222,7 +222,7 @@ inline Token ParseToken(const std::string &word)
 
     for (int32_t i = 0; i < kNumberOfExactMatchTokens; ++i)
     {
-        if (LowerCaseEqualsASCII(word, kTokenData[i].name))
+        if (EqualsCaseInsensitiveASCII(word, kTokenData[i].name))
             return static_cast<Token>(i);
     }
     return kTokenWord;

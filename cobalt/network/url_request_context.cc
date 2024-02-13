@@ -20,8 +20,12 @@
 #include <utility>
 #include <vector>
 
+#include "base/bind.h"
+#include "base/command_line.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/configuration/configuration.h"
+#include "cobalt/network/disk_cache/cobalt_backend_impl.h"
+#include "cobalt/network/disk_cache/resource_type.h"
 #include "cobalt/network/job_factory_config.h"
 #include "cobalt/network/network_delegate.h"
 #include "cobalt/network/persistent_cookie_store.h"
@@ -33,22 +37,17 @@
 #include "net/cert/cert_verify_proc.h"
 #include "net/cert/ct_policy_enforcer.h"
 #include "net/cert/do_nothing_ct_verifier.h"
-#include "net/cert_net/cert_net_fetcher_impl.h"
-#include "net/disk_cache/cobalt/cobalt_backend_impl.h"
 #include "net/dns/host_cache.h"
+#include "net/dns/host_resolver.h"
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_network_layer.h"
-#include "net/http/http_server_properties_impl.h"
+#include "net/http/http_network_session.h"
 #include "net/http/http_transaction_factory.h"
 #include "net/proxy_resolution/proxy_config.h"
 #include "net/proxy_resolution/proxy_resolution_service.h"
 #include "net/ssl/ssl_config_service.h"
 #include "net/ssl/ssl_config_service_defaults.h"
-#include "net/third_party/quic/platform/api/quic_flags.h"
-#include "net/url_request/data_protocol_handler.h"
-#include "net/url_request/url_request_job_factory_impl.h"
-
 namespace {
 
 const char kPersistentSettingsJson[] = "cache_settings.json";
@@ -56,11 +55,13 @@ const char kPersistentSettingsJson[] = "cache_settings.json";
 
 void ReadDiskCacheSize(cobalt::persistent_storage::PersistentSettings* settings,
                        int64_t max_bytes) {
+#ifndef USE_HACKY_COBALT_CHANGES
   auto total_size = 0;
-  disk_cache::ResourceTypeMetadata kTypeMetadataNew[disk_cache::kTypeCount];
+  cobalt::network::disk_cache::ResourceTypeMetadata
+      kTypeMetadataNew[cobalt::network::disk_cache::kTypeCount];
 
   for (int i = 0; i < disk_cache::kTypeCount; i++) {
-    auto metadata = disk_cache::kTypeMetadata[i];
+    auto metadata = cobalt::network::disk_cache::kTypeMetadata[i];
     uint32_t bucket_size =
         static_cast<uint32_t>(settings->GetPersistentSettingAsDouble(
             metadata.directory, metadata.max_size_bytes));
@@ -77,15 +78,19 @@ void ReadDiskCacheSize(cobalt::persistent_storage::PersistentSettings* settings,
     return;
   }
 
-  // PersistentSettings values are invalid and will be replaced by the default
-  // values in disk_cache::kTypeMetadata.
-  for (int i = 0; i < disk_cache::kTypeCount; i++) {
+  // PersistentSettings values are invalid and will be replaced by the
+  default
+      // values in disk_cache::kTypeMetadata.
+      for (int i = 0; i < disk_cache::kTypeCount; i++) {
     auto metadata = disk_cache::kTypeMetadata[i];
     settings->SetPersistentSetting(
         metadata.directory, std::make_unique<base::Value>(
                                 static_cast<double>(metadata.max_size_bytes)));
   }
 }
+#else
+}
+#endif
 }  // namespace
 
 namespace cobalt {
@@ -112,10 +117,8 @@ URLRequestContext::URLRequestContext(
     net::NetLog* net_log, bool ignore_certificate_errors,
     scoped_refptr<base::SequencedTaskRunner> network_task_runner,
     persistent_storage::PersistentSettings* persistent_settings)
-    : ALLOW_THIS_IN_INITIALIZER_LIST(storage_(this))
 #if defined(ENABLE_DEBUGGER)
-      ,
-      ALLOW_THIS_IN_INITIALIZER_LIST(quic_toggle_command_handler_(
+    : ALLOW_THIS_IN_INITIALIZER_LIST(quic_toggle_command_handler_(
           kQUICToggleCommand,
           base::Bind(&URLRequestContext::OnQuicToggle, base::Unretained(this)),
           kQUICToggleCommandShortHelp, kQUICToggleCommandLongHelp))
@@ -125,62 +128,67 @@ URLRequestContext::URLRequestContext(
     persistent_cookie_store_ =
         new PersistentCookieStore(storage_manager, network_task_runner);
   }
-  storage_.set_cookie_store(
-      std::unique_ptr<net::CookieStore>(new net::CookieMonster(
-          persistent_cookie_store_, NULL /* channel_id_service */, net_log)));
+#ifndef USE_HACKY_COBALT_CHANGES
+  set_cookie_store(std::unique_ptr<net::CookieStore>(new net::CookieMonster(
+      persistent_cookie_store_,
+      base::TimeDelta::FromInternalValue(0) /* channel_id_service */,
+      net_log)));
 
   set_enable_brotli(true);
+#endif
 
   base::Optional<net::ProxyConfig> proxy_config;
   if (!custom_proxy.empty()) {
     proxy_config = CreateCustomProxyConfig(custom_proxy);
   }
 
-  storage_.set_proxy_resolution_service(
+#ifndef USE_HACKY_COBALT_CHANGES
+  set_proxy_resolution_service(
       net::ProxyResolutionService::CreateUsingSystemProxyResolver(
           std::unique_ptr<net::ProxyConfigService>(
               new ProxyConfigService(proxy_config)),
           net_log));
+#endif
 
   // ack decimation significantly increases download bandwidth on low-end
   // android devices.
+#ifndef USE_HACKY_COBALT_CHANGES
   SetQuicFlag(&FLAGS_quic_reloadable_flag_quic_enable_ack_decimation, true);
+#endif
 
-  net::HostResolver::Options options;
-  options.max_concurrent_resolves = net::HostResolver::kDefaultParallelism;
-  options.max_retry_attempts = net::HostResolver::kDefaultRetryAttempts;
+  net::HostResolver::ManagerOptions options;
+#ifndef USE_HACKY_COBALT_CHANGES
   options.enable_caching = true;
-  storage_.set_host_resolver(
-      net::HostResolver::CreateSystemResolver(options, NULL));
+  set_host_resolver(
+      net::HostResolver::CreateStandaloneResolver(nullptr, options));
 
-  storage_.set_ct_policy_enforcer(std::unique_ptr<net::CTPolicyEnforcer>(
+  set_ct_policy_enforcer(std::unique_ptr<net::CTPolicyEnforcer>(
       new net::DefaultCTPolicyEnforcer()));
   DCHECK(ct_policy_enforcer());
   // As of Chromium m70 net, CreateDefault will return a caching multi-thread
   // cert verifier, the verification cache will usually cache 25-40
   // results in a single session which can take up to 100KB memory.
-  storage_.set_cert_verifier(net::CertVerifier::CreateDefault());
-  storage_.set_transport_security_state(
-      std::make_unique<net::TransportSecurityState>());
+  set_cert_verifier(net::CertVerifier::CreateDefault());
+  set_transport_security_state(std::make_unique<net::TransportSecurityState>());
   // TODO: Investigate if we want the cert transparency verifier.
-  storage_.set_cert_transparency_verifier(
-      std::make_unique<net::DoNothingCTVerifier>());
-  storage_.set_ssl_config_service(
-      std::make_unique<net::SSLConfigServiceDefaults>());
+  set_cert_transparency_verifier(std::make_unique<net::DoNothingCTVerifier>());
+  set_ssl_config_service(std::make_unique<net::SSLConfigServiceDefaults>());
 
-  storage_.set_http_auth_handler_factory(
-      net::HttpAuthHandlerFactory::CreateDefault(host_resolver()));
-  storage_.set_http_server_properties(
-      std::make_unique<net::HttpServerPropertiesImpl>());
+  set_http_auth_handler_factory(net::HttpAuthHandlerFactory::CreateDefault());
+  set_http_server_properties(std::make_unique<net::HttpServerPropertiesImpl>());
+#endif
 
-  net::HttpNetworkSession::Params params;
+  net::HttpNetworkSessionParams params;
 
   if (configuration::Configuration::GetInstance()->CobaltEnableQuic()) {
     base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
     params.enable_quic = !command_line->HasSwitch(switches::kDisableQuic);
+#ifndef USE_HACKY_COBALT_CHANGES
     params.use_quic_for_unknown_origins = params.enable_quic;
+#endif
   }
 #if defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
+#ifndef USE_HACKY_COBALT_CHANGES
   params.ignore_certificate_errors = ignore_certificate_errors;
   if (ignore_certificate_errors) {
     cert_verifier()->set_ignore_certificate_errors(true);
@@ -188,36 +196,44 @@ URLRequestContext::URLRequestContext(
                  "validation results will be ignored but error message will "
                  "still be displayed.";
   }
+#endif
 #endif  // defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
 
-  net::HttpNetworkSession::Context context;
-  context.client_socket_factory = NULL;
+  net::HttpNetworkSessionContext context;
+  context.client_socket_factory = nullptr;
+#ifndef USE_HACKY_COBALT_CHANGES
   context.host_resolver = host_resolver();
   context.cert_verifier = cert_verifier();
   context.ct_policy_enforcer = ct_policy_enforcer();
   context.channel_id_service = NULL;
   context.transport_security_state = transport_security_state();
-  context.cert_transparency_verifier = cert_transparency_verifier();
+  // context.cert_transparency_verifier = cert_transparency_verifier();
   context.proxy_resolution_service = proxy_resolution_service();
   context.ssl_config_service = ssl_config_service();
   context.http_auth_handler_factory = http_auth_handler_factory();
   context.http_server_properties = http_server_properties();
+#endif
 #if defined(ENABLE_NETWORK_LOGGING)
   context.net_log = net_log;
+#ifndef USE_HACKY_COBALT_CHANGES
   set_net_log(net_log);
+#endif
 #else
 #endif
-  context.socket_performance_watcher_factory = NULL;
+  context.socket_performance_watcher_factory = nullptr;
+#ifndef USE_HACKY_COBALT_CHANGES
   context.network_quality_provider = NULL;
 
-  storage_.set_http_network_session(
+  set_http_network_session(
       std::make_unique<net::HttpNetworkSession>(params, context));
+#endif
   std::vector<char> path(kSbFileMaxPath, 0);
   if (!SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(),
                        kSbFileMaxPath)) {
-    storage_.set_http_transaction_factory(
-        std::unique_ptr<net::HttpNetworkLayer>(
-            new net::HttpNetworkLayer(storage_.http_network_session())));
+#ifndef USE_HACKY_COBALT_CHANGES
+    set_http_transaction_factory(std::unique_ptr<net::HttpNetworkLayer>(
+        new net::HttpNetworkLayer(http_network_session_)));
+#endif
   } else {
     using_http_cache_ = true;
 
@@ -230,17 +246,18 @@ URLRequestContext::URLRequestContext(
     max_cache_bytes -= (1 << 20);
 
     // Initialize and read caching persistent settings
+#ifndef USE_HACKY_COBALT_CHANGES
     cache_persistent_settings_ =
         std::make_unique<cobalt::persistent_storage::PersistentSettings>(
             kPersistentSettingsJson);
     ReadDiskCacheSize(cache_persistent_settings_.get(), max_cache_bytes);
 
     auto http_cache = std::make_unique<net::HttpCache>(
-        storage_.http_network_session(),
+        http_network_session(),
         std::make_unique<net::HttpCache::DefaultBackend>(
-            net::DISK_CACHE, net::CACHE_BACKEND_DEFAULT,
+            net::DISK_CACHE, net::CACHE_BACKEND_DEFAULT, nullptr,
             base::FilePath(std::string(path.data())),
-            /* max_bytes */ max_cache_bytes),
+            /* max_bytes */ max_cache_bytes, false),
         true);
     if (persistent_settings != nullptr) {
       auto cache_enabled = persistent_settings->GetPersistentSettingAsBool(
@@ -251,19 +268,23 @@ URLRequestContext::URLRequestContext(
       }
     }
 
-    storage_.set_http_transaction_factory(std::move(http_cache));
+    set_http_transaction_factory(std::move(http_cache));
+#endif
   }
 
-  auto* job_factory = new net::URLRequestJobFactoryImpl();
+  auto* job_factory = new net::URLRequestJobFactory();
+#ifndef USE_HACKY_COBALT_CHANGES
   job_factory->SetProtocolHandler(url::kDataScheme,
                                   std::make_unique<net::DataProtocolHandler>());
+#endif
 
 #if defined(ENABLE_CONFIGURE_REQUEST_JOB_FACTORY)
   ConfigureRequestJobFactory(job_factory);
 #endif  // defined(ENABLE_CONFIGURE_REQUEST_JOB_FACTORY)
 
-  storage_.set_job_factory(
-      std::unique_ptr<net::URLRequestJobFactory>(job_factory));
+#ifndef USE_HACKY_COBALT_CHANGES
+  set_job_factory(std::unique_ptr<net::URLRequestJobFactory>(job_factory));
+#endif
 }
 
 URLRequestContext::~URLRequestContext() {}
@@ -271,34 +292,46 @@ URLRequestContext::~URLRequestContext() {}
 void URLRequestContext::SetProxy(const std::string& proxy_rules) {
   net::ProxyConfig proxy_config = CreateCustomProxyConfig(proxy_rules);
   // ProxyService takes ownership of the ProxyConfigService.
+#ifndef USE_HACKY_COBALT_CHANGES
   proxy_resolution_service()->ResetConfigService(
       std::make_unique<ProxyConfigService>(proxy_config));
+#endif
 }
 
 void URLRequestContext::SetEnableQuic(bool enable_quic) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  storage_.http_network_session()->SetEnableQuic(enable_quic);
+#ifndef USE_HACKY_COBALT_CHANGES
+  http_network_session()->SetEnableQuic(enable_quic);
+#endif
 }
 
+#ifndef USE_HACKY_COBALT_CHANGES
 bool URLRequestContext::using_http_cache() { return using_http_cache_; }
+#endif
 
 #if defined(ENABLE_DEBUGGER)
 void URLRequestContext::OnQuicToggle(const std::string& message) {
-  DCHECK(storage_.http_network_session());
-  storage_.http_network_session()->ToggleQuic();
+#ifndef USE_HACKY_COBALT_CHANGES
+  DCHECK(http_network_session());
+  http_network_session()->ToggleQuic();
+#endif
 }
 #endif  // defined(ENABLE_DEBUGGER)
 
 void URLRequestContext::UpdateCacheSizeSetting(disk_cache::ResourceType type,
                                                uint32_t bytes) {
+#ifndef USE_HACKY_COBALT_CHANGES
   CHECK(cache_persistent_settings_);
   cache_persistent_settings_->SetPersistentSetting(
       disk_cache::kTypeMetadata[type].directory,
       std::make_unique<base::Value>(static_cast<double>(bytes)));
+#endif
 }
 
 void URLRequestContext::ValidateCachePersistentSettings() {
+#ifndef USE_HACKY_COBALT_CHANGES
   cache_persistent_settings_->ValidatePersistentSettings();
+#endif
 }
 
 }  // namespace network

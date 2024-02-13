@@ -41,8 +41,8 @@ namespace web {
 
 namespace {
 
-const disk_cache::ResourceType kResourceType =
-    disk_cache::ResourceType::kCacheApi;
+const network::disk_cache::ResourceType kResourceType =
+    network::disk_cache::ResourceType::kCacheApi;
 
 }  // namespace
 
@@ -102,7 +102,7 @@ void Cache::Fetcher::ReadResponse(net::URLRequest* request) {
 
   // Read completed synchronously. Call |OnReadCompleted()| asynchronously to
   // avoid blocking IO.
-  base::SequencedTaskRunnerHandle::Get()->PostTask(
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&Cache::Fetcher::OnReadCompleted,
                                 base::Unretained(this), request, bytes_read));
 }
@@ -122,10 +122,10 @@ void Cache::Fetcher::OnResponseStarted(net::URLRequest* request,
   std::string value;
   while (
       request->response_headers()->EnumerateHeaderLines(&iter, &name, &value)) {
-    base::ListValue header;
-    header.GetList().emplace_back(name);
-    header.GetList().emplace_back(value);
-    headers_.GetList().push_back(std::move(header));
+    base::Value::List header;
+    header.Append(name);
+    header.Append(value);
+    headers_.Append(std::move(header));
   }
   int initial_capacity = request->response_headers()->HasHeader(
                              net::HttpRequestHeaders::kContentLength)
@@ -302,13 +302,13 @@ script::HandlePromiseVoid Cache::Put(
               promise_reference->value().Reject();
               return base::nullopt;
             }
-            base::DictionaryValue metadata;
-            metadata.SetKey("url", base::Value(url));
-            metadata.SetKey("options", std::move(options.value()));
+            base::Value::Dict metadata;
+            metadata.Set("url", base::Value(url));
+            metadata.Set("options", std::move(options.value()));
             cache::Cache::GetInstance()->Store(
                 kResourceType, key,
                 cache_utils::ToUint8Vector(array_buffer_promise->Result()),
-                std::move(metadata));
+                base::Value(std::move(metadata)));
             promise_reference->value().Resolve();
             return base::nullopt;
           },
@@ -426,16 +426,17 @@ void Cache::OnFetchCompletedMainThread(uint32_t key, bool success) {
     return;
   }
   {
-    base::DictionaryValue metadata;
-    metadata.SetKey("url", base::Value(fetcher->url().spec()));
-    base::DictionaryValue options;
-    options.SetKey("status", base::Value(status));
-    options.SetKey("statusText", base::Value(fetcher->status_text()));
-    options.SetKey("headers", std::move(fetcher->headers()));
-    metadata.SetKey("options", std::move(options));
+    base::Value::Dict metadata;
+    metadata.Set("url", base::Value(fetcher->url().spec()));
+    base::Value::Dict options;
+    options.Set("status", base::Value(status));
+    options.Set("statusText", base::Value(fetcher->status_text()));
+    options.Set("headers", std::move(fetcher->headers()));
+    metadata.Set("options", std::move(options));
 
-    cache::Cache::GetInstance()->Store(
-        kResourceType, key, fetcher->BufferToVector(), std::move(metadata));
+    cache::Cache::GetInstance()->Store(kResourceType, key,
+                                       fetcher->BufferToVector(),
+                                       base::Value(std::move(metadata)));
   }
   if (fetcher->mime_type() == "text/javascript") {
     auto* environment_settings = fetch_contexts_[key].second;

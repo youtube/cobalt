@@ -48,7 +48,7 @@ DOMTokenListTest::~DOMTokenListTest() {
 
 TEST_F(DOMTokenListTest, DOMTokenListShouldBeAlive) {
   scoped_refptr<Element> element =
-      new Element(document_, base::Token("element"));
+      new Element(document_, base_token::Token("element"));
   scoped_refptr<DOMTokenList> dom_token_list =
       new DOMTokenList(element, "class");
   EXPECT_EQ(0, dom_token_list->length());
@@ -62,7 +62,7 @@ TEST_F(DOMTokenListTest, DOMTokenListShouldBeAlive) {
 
 TEST_F(DOMTokenListTest, DOMTokenListContains) {
   scoped_refptr<Element> element =
-      new Element(document_, base::Token("element"));
+      new Element(document_, base_token::Token("element"));
   scoped_refptr<DOMTokenList> dom_token_list =
       new DOMTokenList(element, "class");
   element->SetAttribute("class", "a b c");
@@ -74,7 +74,7 @@ TEST_F(DOMTokenListTest, DOMTokenListContains) {
 
 TEST_F(DOMTokenListTest, DOMTokenListAdd) {
   scoped_refptr<Element> element =
-      new Element(document_, base::Token("element"));
+      new Element(document_, base_token::Token("element"));
   scoped_refptr<DOMTokenList> dom_token_list =
       new DOMTokenList(element, "class");
   element->SetAttribute("class", "a b c");
@@ -90,7 +90,7 @@ TEST_F(DOMTokenListTest, DOMTokenListAdd) {
 
 TEST_F(DOMTokenListTest, DOMTokenListRemove) {
   scoped_refptr<Element> element =
-      new Element(document_, base::Token("element"));
+      new Element(document_, base_token::Token("element"));
   scoped_refptr<DOMTokenList> dom_token_list =
       new DOMTokenList(element, "class");
   element->SetAttribute("class", "a b c");
@@ -105,7 +105,7 @@ TEST_F(DOMTokenListTest, DOMTokenListRemove) {
 
 TEST_F(DOMTokenListTest, DOMTokenListToggle) {
   scoped_refptr<Element> element =
-      new Element(document_, base::Token("element"));
+      new Element(document_, base_token::Token("element"));
   scoped_refptr<DOMTokenList> dom_token_list =
       new DOMTokenList(element, "class");
   element->SetAttribute("class", "a b c");
@@ -129,7 +129,7 @@ TEST_F(DOMTokenListTest, DOMTokenListToggle) {
 
 TEST_F(DOMTokenListTest, DOMTokenListAnonymousStringifier) {
   scoped_refptr<Element> element =
-      new Element(document_, base::Token("element"));
+      new Element(document_, base_token::Token("element"));
   scoped_refptr<DOMTokenList> dom_token_list =
       new DOMTokenList(element, "class");
   std::vector<std::string> vs;

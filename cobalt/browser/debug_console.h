@@ -61,22 +61,25 @@ class DebugConsole : public LifecycleObserver {
   // Filters a key event.
   // Returns true if the event should be passed on to other handlers,
   // false if it was consumed within this function.
-  bool FilterKeyEvent(base::Token type, const dom::KeyboardEventInit& event);
+  bool FilterKeyEvent(base_token::Token type,
+                      const dom::KeyboardEventInit& event);
 
   // Filters a pointer event.
   // Returns true if the event should be passed on to other handlers,
   // false if it was consumed within this function.
-  bool FilterPointerEvent(base::Token type, const dom::PointerEventInit& event);
+  bool FilterPointerEvent(base_token::Token type,
+                          const dom::PointerEventInit& event);
 
   // Filters a wheel event.
   // Returns true if the event should be passed on to other handlers,
   // false if it was consumed within this function.
-  bool FilterWheelEvent(base::Token type, const dom::WheelEventInit& event);
+  bool FilterWheelEvent(base_token::Token type,
+                        const dom::WheelEventInit& event);
 
   // Filters an on screen keyboard input event.
   // Returns true if the event should be passed on to other handlers,
   // false if it was consumed within this function.
-  bool FilterOnScreenKeyboardInputEvent(base::Token type,
+  bool FilterOnScreenKeyboardInputEvent(base_token::Token type,
                                         const dom::InputEventInit& event);
 
   const WebModule& web_module() const { return *web_module_; }

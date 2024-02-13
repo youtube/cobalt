@@ -311,7 +311,7 @@ bool WorkerGlobalScope::LoadImportsAndReturnIfUpdated(
   //   8.21.1.4. Let fetchedResponse be the result of fetching importRequest.
   web::EnvironmentSettings* settings = environment_settings();
   const GURL& base_url = settings->base_url();
-  loader::Origin origin = loader::Origin(base_url.GetOrigin());
+  loader::Origin origin = loader::Origin(base_url.DeprecatedGetOriginAsURL());
   ScriptLoader script_loader(settings->context());
   script_loader.Load(csp_delegate(), origin, request_urls);
 
@@ -396,7 +396,7 @@ void WorkerGlobalScope::ImportScriptsInternal(
     }
   }
 
-  loader::Origin origin = loader::Origin(base_url.GetOrigin());
+  loader::Origin origin = loader::Origin(base_url.DeprecatedGetOriginAsURL());
 
   // 5. For each url in the resulting URL records, run these substeps:
   // 5.1. Fetch a classic worker-imported script given url and settings

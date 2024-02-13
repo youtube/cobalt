@@ -17,6 +17,7 @@
 #include <string>
 #include <utility>
 
+#include "base/bind.h"
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #include "base/command_line.h"
 #endif

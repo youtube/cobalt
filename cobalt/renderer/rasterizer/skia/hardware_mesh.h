@@ -21,7 +21,7 @@
 #include <utility>
 #include <vector>
 
-#include "base/single_thread_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/rasterizer/skia/vertex_buffer_object.h"

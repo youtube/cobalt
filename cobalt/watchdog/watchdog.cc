@@ -142,17 +142,19 @@ std::shared_ptr<base::Value> Watchdog::GetViolationsMap() {
   if (violations_map_ == nullptr) {
     starboard::ScopedFile read_file(GetWatchdogFilePath().c_str(),
                                     kSbFileOpenOnly | kSbFileRead);
-    if (read_file.IsValid()) {
-      int64_t kFileSize = read_file.GetSize();
-      std::vector<char> buffer(kFileSize + 1, 0);
-      read_file.ReadAll(buffer.data(), kFileSize);
-      violations_map_ = base::JSONReader::Read(std::string(buffer.data()));
-    }
+#ifndef USE_HACKY_COBALT_CHANGES
+//     // if (read_file.IsValid()) {
+//     //   int64_t kFileSize = read_file.GetSize();
+//     //   std::vector<char> buffer(kFileSize + 1, 0);
+//     //   read_file.ReadAll(buffer.data(), kFileSize);
+//     //   violations_map_ =
+//     base::JSONReader::Read(std::string(buffer.data()));
+//     // }
+#endif
 
     if (violations_map_ == nullptr) {
       SB_LOG(INFO) << "[Watchdog] No previous violations JSON.";
-      violations_map_ =
-          std::make_unique<base::Value>(base::Value::Type::DICTIONARY);
+      violations_map_ = std::make_unique<base::Value>(base::Value::Type::DICT);
     }
   }
   return violations_map_;
@@ -293,7 +295,7 @@ void Watchdog::UpdateViolationsMap(void* context, Client* client,
 
   if (new_violation) {
     // New unique violation, creates violation in violations map.
-    base::Value violation(base::Value::Type::DICTIONARY);
+    base::Value violation(base::Value::Type::DICT);
     violation.SetKey("pingInfos", client->ping_infos.Clone());
     violation.SetKey("monitorState",
                      base::Value(std::string(
@@ -319,25 +321,25 @@ void Watchdog::UpdateViolationsMap(void* context, Client* client,
             (time_delta - client->time_interval_microseconds) / 1000)));
     base::Value registered_clients(base::Value::Type::LIST);
     for (auto& it : static_cast<Watchdog*>(context)->client_map_) {
-      registered_clients.GetList().emplace_back(base::Value(it.first));
+      registered_clients.GetList().Append(base::Value(it.first));
     }
     for (auto& it : static_cast<Watchdog*>(context)->client_list_) {
-      registered_clients.GetList().emplace_back(base::Value(it->name));
+      registered_clients.GetList().Append(base::Value(it->name));
     }
     violation.SetKey("registeredClients", registered_clients.Clone());
 
     // Adds new violation to violations map.
     if (violation_dict == nullptr) {
-      base::Value dict(base::Value::Type::DICTIONARY);
+      base::Value dict(base::Value::Type::DICT);
       dict.SetKey("description", base::Value(client->description));
       base::Value list(base::Value::Type::LIST);
-      list.GetList().emplace_back(violation.Clone());
+      list.GetList().Append(violation.Clone());
       dict.SetKey("violations", list.Clone());
       (static_cast<Watchdog*>(context)->GetViolationsMap())
           ->SetKey(client->name, dict.Clone());
     } else {
       base::Value* violations = violation_dict->FindKey("violations");
-      violations->GetList().emplace_back(violation.Clone());
+      violations->GetList().Append(violation.Clone());
     }
   } else {
     // Consecutive non-unique violation, updates violation in violations map.
@@ -354,7 +356,7 @@ void Watchdog::UpdateViolationsMap(void* context, Client* client,
   static_cast<Watchdog*>(context)->pending_write_ = true;
 
   int violations_count = 0;
-  for (const auto& it :
+  for (auto& it :
        (static_cast<Watchdog*>(context)->GetViolationsMap())->DictItems()) {
     base::Value& violation_dict = it.second;
     base::Value* violations = violation_dict.FindKey("violations");
@@ -373,7 +375,7 @@ void Watchdog::EvictWatchdogViolation(void* context) {
   int evicted_count = 0;
   int64_t evicted_timestamp_millis = 0;
 
-  for (const auto& it :
+  for (auto& it :
        (static_cast<Watchdog*>(context)->GetViolationsMap())->DictItems()) {
     std::string name = it.first;
     base::Value& violation_dict = it.second;
@@ -407,7 +409,7 @@ void Watchdog::EvictWatchdogViolation(void* context) {
       (static_cast<Watchdog*>(context)->GetViolationsMap())
           ->RemoveKey(evicted_name);
     }
-    if (static_cast<Watchdog*>(context)->GetViolationsMap()->DictEmpty()) {
+    if (static_cast<Watchdog*>(context)->GetViolationsMap()->DictSize() == 0) {
       starboard::SbFileDeleteRecursive(
           static_cast<Watchdog*>(context)->GetWatchdogFilePath().c_str(), true);
       static_cast<Watchdog*>(context)->pending_write_ = false;
@@ -629,12 +631,12 @@ bool Watchdog::PingHelper(Client* client, const std::string& name,
 
   if (info != "") {
     // Creates new ping_info.
-    base::Value ping_info(base::Value::Type::DICTIONARY);
+    base::Value ping_info(base::Value::Type::DICT);
     ping_info.SetKey("timestampMilliseconds",
                      base::Value(std::to_string(current_time / 1000)));
     ping_info.SetKey("info", base::Value(info));
 
-    client->ping_infos.GetList().emplace_back(ping_info.Clone());
+    client->ping_infos.GetList().Append(ping_info.Clone());
     if (client->ping_infos.GetList().size() > kWatchdogMaxPingInfos)
       client->ping_infos.GetList().erase(client->ping_infos.GetList().begin());
   }
@@ -651,17 +653,17 @@ std::string Watchdog::GetWatchdogViolations(
 
   starboard::ScopedLock scoped_lock(mutex_);
 
-  if (!GetViolationsMap()->DictEmpty()) {
+  if (GetViolationsMap()->DictSize() != 0) {
     if (clients.empty()) {
       // Gets all Watchdog violations if no clients are given.
       base::JSONWriter::Write(*GetViolationsMap(), &fetched_violations_json);
       if (clear) {
-        static_cast<base::DictionaryValue*>(GetViolationsMap().get())->Clear();
+        GetViolationsMap()->GetDict()->clear();
         starboard::SbFileDeleteRecursive(GetWatchdogFilePath().c_str(), true);
       }
     } else {
       // Gets all Watchdog violations of the given clients.
-      base::Value fetched_violations(base::Value::Type::DICTIONARY);
+      base::Value fetched_violations(base::Value::Type::DICT);
       for (std::string name : clients) {
         base::Value* violation_dict = GetViolationsMap()->FindKey(name);
         if (violation_dict != nullptr) {
@@ -672,7 +674,7 @@ std::string Watchdog::GetWatchdogViolations(
           }
         }
       }
-      if (!fetched_violations.DictEmpty()) {
+      if (fetched_violations.DictSize() != 0) {
         base::JSONWriter::Write(fetched_violations, &fetched_violations_json);
       }
       if (clear) {
@@ -694,7 +696,7 @@ void Watchdog::EvictOldWatchdogViolations() {
   std::vector<std::string> empty_violations;
 
   // Iterates through map removing old violations.
-  for (const auto& map_it : GetViolationsMap()->DictItems()) {
+  for (auto& map_it : GetViolationsMap()->DictItems()) {
     std::string name = map_it.first;
     base::Value& violation_dict = map_it.second;
     base::Value* violations = violation_dict.FindKey("violations");
@@ -719,7 +721,7 @@ void Watchdog::EvictOldWatchdogViolations() {
   for (std::string name : empty_violations) {
     GetViolationsMap()->RemoveKey(name);
   }
-  if (GetViolationsMap()->DictEmpty()) {
+  if (GetViolationsMap()->DictSize() == 0) {
     starboard::SbFileDeleteRecursive(GetWatchdogFilePath().c_str(), true);
     pending_write_ = false;
   }

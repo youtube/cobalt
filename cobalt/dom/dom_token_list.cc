@@ -111,7 +111,7 @@ void DOMTokenList::Add(const std::vector<std::string>& tokens) {
     if (std::find(tokens_.begin(), tokens_.end(), *it) != tokens_.end()) {
       continue;
     }
-    tokens_.push_back(base::Token(*it));
+    tokens_.push_back(base_token::Token(*it));
   }
 
   // 4. Run the update steps.
@@ -159,7 +159,7 @@ bool DOMTokenList::Toggle(const std::string& token,
     return false;
   }
 
-  bool containsToken = ContainsValid(base::Token(token));
+  bool containsToken = ContainsValid(base_token::Token(token));
 
   // If token in tokens, and force is true, return true.
   // If token not in tokens, and force is false, return false.
@@ -173,7 +173,7 @@ bool DOMTokenList::Toggle(const std::string& token,
     tokens_.erase(std::remove(tokens_.begin(), tokens_.end(), token),
                   tokens_.end());
   } else {
-    tokens_.push_back(base::Token(token));
+    tokens_.push_back(base_token::Token(token));
   }
 
   // Run the update steps.
@@ -201,7 +201,7 @@ std::string DOMTokenList::AnonymousStringifier() const {
   return result;
 }
 
-bool DOMTokenList::ContainsValid(base::Token valid_token) const {
+bool DOMTokenList::ContainsValid(base_token::Token valid_token) const {
   MaybeRefresh();
 
   // This version of Contains does not process steps 1 and 2 and requires the
@@ -219,7 +219,7 @@ bool DOMTokenList::ContainsValid(base::Token valid_token) const {
   return false;
 }
 
-const std::vector<base::Token>& DOMTokenList::GetTokens() const {
+const std::vector<base_token::Token>& DOMTokenList::GetTokens() const {
   MaybeRefresh();
   return tokens_;
 }
@@ -262,7 +262,7 @@ void DOMTokenList::MaybeRefresh() const {
     tokens_.clear();
     tokens_.reserve(tokens.size());
     for (size_t i = 0; i < tokens.size(); ++i) {
-      tokens_.push_back(base::Token(tokens[i]));
+      tokens_.push_back(base_token::Token(tokens[i]));
     }
   }
 }

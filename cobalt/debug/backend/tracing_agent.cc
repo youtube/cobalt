@@ -73,13 +73,13 @@ JSONObject TracingAgent::Freeze() {
   dispatcher_->RemoveDomain(kInspectorDomain);
 
   // Save state
-  JSONObject agent_state(new base::DictionaryValue());
-  agent_state->SetKey(kStarted, base::Value(tracing_started_));
-  base::Value::ListStorage categories_list;
+  JSONObject agent_state(new base::Value::Dict());
+  agent_state->Set(kStarted, base::Value(tracing_started_));
+  base::Value::List categories_list;
   for (const auto& category : categories_) {
-    categories_list.emplace_back(category);
+    categories_list.Append(category);
   }
-  agent_state->SetKey(kCategories, base::Value(std::move(categories_list)));
+  agent_state->Set(kCategories, base::Value(std::move(categories_list)));
 
   return agent_state;
 }
@@ -110,7 +110,8 @@ void TracingAgent::Start(Command command) {
   // Parse comma-separated tracing categories parameter.
   categories_.clear();
   std::string category_param;
-  if (params->GetString("categories", &category_param)) {
+  if (params->FindString("categories")) {
+    category_param = *(params->FindString("categories"));
     for (size_t pos = 0, comma; pos < category_param.size(); pos = comma + 1) {
       comma = category_param.find(',', pos);
       if (comma == std::string::npos) comma = category_param.size();
@@ -129,12 +130,14 @@ void TracingAgent::AppendTraceEvent(const std::string& trace_event_json) {
   // We initialize a new list into which we collect events both when we start,
   // and after each time it's released in |SendDataCollectedEvent|.
   if (!collected_events_) {
-    collected_events_.reset(new base::ListValue());
+    collected_events_.reset(new base::Value::List());
   }
 
   JSONObject event = JSONParse(trace_event_json);
   if (event) {
+#ifndef USE_HACKY_COBALT_CHANGES
     collected_events_->Append(std::move(event));
+#endif
     collected_size_ += trace_event_json.size();
   }
 
@@ -151,9 +154,11 @@ void TracingAgent::FlushTraceEvents() {
 void TracingAgent::SendDataCollectedEvent() {
   if (collected_events_) {
     collected_size_ = 0;
-    JSONObject params(new base::DictionaryValue());
+    JSONObject params(new base::Value::Dict());
     // Releasing the list into the value param avoids copying it.
+#ifndef USE_HACKY_COBALT_CHANGES
     params->Set("value", std::move(collected_events_));
+#endif
     dispatcher_->SendEvent(std::string(kInspectorDomain) + ".dataCollected",
                            params);
   }

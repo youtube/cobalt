@@ -18,7 +18,9 @@
 #include <set>
 #include <string>
 
-#include "net/base/static_cookie_policy.h"
+#include "base/macros.h"
+#include "net/base/network_delegate.h"
+#include "net/cookies/static_cookie_policy.h"
 #include "net/url_request/url_request.h"
 #include "url/gurl.h"
 
@@ -58,48 +60,56 @@ class NetworkDelegate : public net::NetworkDelegate {
   int OnBeforeURLRequest(net::URLRequest* request,
                          net::CompletionOnceCallback callback,
                          GURL* new_url) override;
-  int OnBeforeStartTransaction(net::URLRequest* request,
-                               net::CompletionOnceCallback callback,
-                               net::HttpRequestHeaders* headers) override;
+  int OnBeforeStartTransaction(
+      net::URLRequest* request, const net::HttpRequestHeaders& headers,
+      OnBeforeStartTransactionCallback callback) override;
+#ifndef USE_HACKY_COBALT_CHANGES
   void OnBeforeSendHeaders(net::URLRequest* request,
                            const net::ProxyInfo& proxy_info,
                            const net::ProxyRetryInfoMap& proxy_retry_info,
                            net::HttpRequestHeaders* headers) override;
   void OnStartTransaction(net::URLRequest* request,
                           const net::HttpRequestHeaders& headers) override;
+#endif
   int OnHeadersReceived(
       net::URLRequest* request, net::CompletionOnceCallback callback,
       const net::HttpResponseHeaders* original_response_headers,
       scoped_refptr<net::HttpResponseHeaders>* override_response_headers,
-      GURL* allowed_unsafe_redirect_url) override;
+      const net::IPEndPoint& remote_endpoint,
+      absl::optional<GURL>* preserve_fragment_on_redirect_url) override;
   void OnBeforeRedirect(net::URLRequest* request,
                         const GURL& new_location) override;
   void OnResponseStarted(net::URLRequest* request, int net_error) override;
+#ifndef USE_HACKY_COBALT_CHANGES
   void OnNetworkBytesReceived(net::URLRequest* request,
                               int64_t bytes_received) override;
   void OnNetworkBytesSent(net::URLRequest* request,
                           int64_t bytes_sent) override;
+#endif
   void OnCompleted(net::URLRequest* request, bool started,
                    int net_error) override;
   void OnURLRequestDestroyed(net::URLRequest* request) override;
 
-  void OnPACScriptError(int line_number, const base::string16& error) override;
+  void OnPACScriptError(int line_number, const std::u16string& error) override;
+#ifndef USE_HACKY_COBALT_CHANGES
   net::NetworkDelegate::AuthRequiredResponse OnAuthRequired(
       net::URLRequest* request, const net::AuthChallengeInfo& auth_info,
       AuthCallback callback, net::AuthCredentials* credentials) override;
   bool OnCanGetCookies(const net::URLRequest& request,
                        const net::CookieList& cookie_list,
                        bool allowed_from_caller) override;
+#endif
   bool OnCanSetCookie(const net::URLRequest& request,
                       const net::CanonicalCookie& cookie,
-                      net::CookieOptions* options,
-                      bool allowed_from_caller) override;
+                      net::CookieOptions* options) override;
+#ifndef USE_HACKY_COBALT_CHANGES
   bool OnCanAccessFile(const net::URLRequest& request,
                        const base::FilePath& original_path,
                        const base::FilePath& absolute_path) const override;
   bool OnCanEnablePrivacyMode(const GURL& url,
                               const GURL& site_for_cookies) const override;
   bool OnAreExperimentalCookieFeaturesEnabled() const override;
+#endif
   bool OnCancelURLRequestWithPolicyViolatingReferrerHeader(
       const net::URLRequest& request, const GURL& target_url,
       const GURL& referrer_url) const override;

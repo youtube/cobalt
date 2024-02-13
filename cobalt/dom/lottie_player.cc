@@ -39,7 +39,7 @@ using render_tree::LottieAnimation;
 const char LottiePlayer::kTagName[] = "lottie-player";
 
 LottiePlayer::LottiePlayer(Document* document)
-    : HTMLElement(document, base::Token(kTagName)),
+    : HTMLElement(document, base_token::Token(kTagName)),
       autoplaying_(true),
       ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
       callback_task_runner_(base::ThreadTaskRunnerHandle::Get()) {
@@ -75,13 +75,13 @@ void LottiePlayer::set_background(std::string background) {
 int LottiePlayer::count() const { return properties_.count; }
 
 void LottiePlayer::set_count(int count) {
-  SetAttribute("count", base::Int32ToString(count));
+  SetAttribute("count", std::to_string(count));
 }
 
 int LottiePlayer::direction() const { return properties_.direction; }
 
 void LottiePlayer::set_direction(int direction) {
-  SetAttribute("direction", base::Int32ToString(direction));
+  SetAttribute("direction", std::to_string(direction));
 }
 
 bool LottiePlayer::hover() const { return GetBooleanAttribute("hover"); }
@@ -245,13 +245,9 @@ void LottiePlayer::OnSetAttribute(const std::string& name,
   } else if (name == "background") {
     SetStyleAttribute("background:" + value);
   } else if (name == "count") {
-    int count;
-    base::StringToInt32(value, &count);
-    SetCount(count);
+    SetCount(std::stoi(value, nullptr));
   } else if (name == "direction") {
-    int direction;
-    base::StringToInt32(value, &direction);
-    SetDirection(direction);
+    SetDirection(std::stoi(value, nullptr));
   } else if (name == "loop") {
     SetLooping(true);
   } else if (name == "mode") {
@@ -370,7 +366,7 @@ void LottiePlayer::OnLoadingError() {
 }
 
 void LottiePlayer::PreventGarbageCollectionUntilEventIsDispatched(
-    base::Token event_name) {
+    base_token::Token event_name) {
   std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
       prevent_gc_until_event_dispatch(
           new script::GlobalEnvironment::ScopedPreventGarbageCollection(
@@ -381,7 +377,7 @@ void LottiePlayer::PreventGarbageCollectionUntilEventIsDispatched(
 }
 
 void LottiePlayer::AllowGarbageCollectionAfterEventIsDispatched(
-    base::Token event_name,
+    base_token::Token event_name,
     std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
         scoped_prevent_gc) {
   PostToDispatchEventNameAndRunCallback(
@@ -433,7 +429,7 @@ void LottiePlayer::UpdateLottieObjects() {
   InvalidateLayoutBoxesOfNodeAndAncestors();
 }
 
-void LottiePlayer::ScheduleEvent(base::Token event_name) {
+void LottiePlayer::ScheduleEvent(base_token::Token event_name) {
   // https://github.com/LottieFiles/lottie-player#events
   scoped_refptr<web::Event> event = new web::Event(event_name);
   event->set_target(this);

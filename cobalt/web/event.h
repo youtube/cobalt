@@ -61,16 +61,16 @@ class Event : public script::Wrappable {
 
   // Creates an event that cannot be bubbled and cancelled.
   explicit Event(const std::string& type);
-  explicit Event(base::Token type);
+  explicit Event(base_token::Token type);
   Event(const std::string& type, const EventInit& init_dict);
-  Event(base::Token type, Bubbles bubbles, Cancelable cancelable);
-  Event(base::Token type, const EventInit& init_dict);
+  Event(base_token::Token type, Bubbles bubbles, Cancelable cancelable);
+  Event(base_token::Token type, const EventInit& init_dict);
 
   ~Event() override;
 
   // Web API: Event
   //
-  base::Token type() const { return type_; }
+  base_token::Token type() const { return type_; }
   const scoped_refptr<EventTarget>& target() const;
   const scoped_refptr<EventTarget>& current_target() const;
   EventPhase event_phase() const { return event_phase_; }
@@ -137,9 +137,9 @@ class Event : public script::Wrappable {
   void TraceMembers(script::Tracer* tracer) override;
 
  private:
-  void InitEventInternal(base::Token type, bool bubbles, bool cancelable);
+  void InitEventInternal(base_token::Token type, bool bubbles, bool cancelable);
 
-  base::Token type_;
+  base_token::Token type_;
 
   scoped_refptr<EventTarget> target_;
   scoped_refptr<EventTarget> current_target_;

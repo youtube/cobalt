@@ -40,7 +40,7 @@ HTMLImageElement::HTMLImageElement(script::EnvironmentSettings* env_settings)
                       ->window()
                       ->document()
                       .get(),
-                  base::Token(kTagName)) {}
+                  base_token::Token(kTagName)) {}
 
 void HTMLImageElement::PurgeCachedBackgroundImagesOfNodeAndDescendants() {
   if (!cached_image_loaded_callback_handler_) {
@@ -203,7 +203,7 @@ void HTMLImageElement::OnLoadingError() {
 }
 
 void HTMLImageElement::PreventGarbageCollectionUntilEventIsDispatched(
-    base::Token event_name) {
+    base_token::Token event_name) {
   std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
       prevent_gc_until_event_dispatch(
           new script::GlobalEnvironment::ScopedPreventGarbageCollection(
@@ -214,7 +214,7 @@ void HTMLImageElement::PreventGarbageCollectionUntilEventIsDispatched(
 }
 
 void HTMLImageElement::AllowGarbageCollectionAfterEventIsDispatched(
-    base::Token event_name,
+    base_token::Token event_name,
     std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
         scoped_prevent_gc) {
   PostToDispatchEventNameAndRunCallback(

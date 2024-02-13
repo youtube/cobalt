@@ -63,4 +63,9 @@ Process::~Process() {}
 
 void Process::TerminateCurrentProcessImmediately(int) {}
 
+bool Process::IsValid() const { return false; }
+bool Process::WaitForExitWithTimeout(TimeDelta timeout, int* exit_code) const { return false; }
+bool Process::Terminate(int exit_code, bool wait) const { return false; }
+void Process::Close() {}
+
 }  // namespace base

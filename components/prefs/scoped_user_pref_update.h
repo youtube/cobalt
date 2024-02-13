@@ -95,10 +95,10 @@ class ScopedUserPrefUpdate : public subtle::ScopedUserPrefUpdateBase {
   DISALLOW_COPY_AND_ASSIGN(ScopedUserPrefUpdate);
 };
 
-typedef ScopedUserPrefUpdate<base::DictionaryValue,
-                             base::Value::Type::DICTIONARY>
+typedef ScopedUserPrefUpdate<base::Value::Dict,
+                             base::Value::Type::DICT>
     DictionaryPrefUpdate;
-typedef ScopedUserPrefUpdate<base::ListValue, base::Value::Type::LIST>
+typedef ScopedUserPrefUpdate<base::Value::List, base::Value::Type::LIST>
     ListPrefUpdate;
 
 #endif  // COMPONENTS_PREFS_SCOPED_USER_PREF_UPDATE_H_

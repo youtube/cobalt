@@ -74,7 +74,7 @@ std::string VariationsHttpHeaderProvider::GetVariationsString() {
     base::AutoLock scoped_lock(lock_);
     for (const VariationIDEntry& entry : GetAllVariationIds()) {
       if (entry.second == GOOGLE_WEB_PROPERTIES) {
-        ids_string.append(base::IntToString(entry.first));
+        ids_string.append(std::to_string(entry.first));
         ids_string.push_back(' ');
       }
     }
@@ -164,7 +164,9 @@ void VariationsHttpHeaderProvider::InitVariationIDsCacheIfNeeded() {
 
   // Register for additional cache updates. This is done first to avoid a race
   // that could cause registered FieldTrials to be missed.
+#ifndef USE_HACKY_COBALT_CHANGES
   DCHECK(base::ThreadTaskRunnerHandle::IsSet());
+#endif
   base::FieldTrialList::AddObserver(this);
 
   base::TimeTicks before_time = base::TimeTicks::Now();

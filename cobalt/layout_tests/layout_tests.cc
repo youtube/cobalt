@@ -19,7 +19,7 @@
 #include "base/command_line.h"
 #include "base/message_loop/message_loop.h"
 #include "base/path_service.h"
-#include "base/test/scoped_task_environment.h"
+#include "base/test/task_environment.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/cssom/viewport_size.h"
@@ -112,7 +112,7 @@ void RunTest(const TestInfo& test_info,
   // Setup a message loop for the current thread since we will be constructing
   // a WebModule, which requires a message loop to exist for the current
   // thread.
-  base::test::ScopedTaskEnvironment scoped_environment;
+  base::test::TaskEnvironment scoped_environment;
 
   // Setup the pixel tester we will use to perform pixel tests on the render
   // trees output by the web module.

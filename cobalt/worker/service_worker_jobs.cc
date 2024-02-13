@@ -44,10 +44,10 @@ bool IsOriginPotentiallyTrustworthy(const GURL& url) {
 
   const url::Origin origin(url::Origin::Create(url));
   // 1. If origin is an opaque origin, return "Not Trustworthy".
-  if (origin.unique()) return false;
+  if (origin.opaque()) return false;
 
   // 2. Assert: origin is a tuple origin.
-  DCHECK(!origin.unique());
+  DCHECK(!origin.opaque());
   DCHECK(url.is_valid());
 
   // 3. If origin’s scheme is either "https" or "wss", return "Potentially
@@ -465,7 +465,8 @@ void ServiceWorkerJobs::Update(Job* job) {
   //         as part of fetch’s process response for the response response.
   // Note: The CSP check for the script_url is done in StartRegister, where
   // the client's CSP list can still be referred to.
-  loader::Origin origin = loader::Origin(job->script_url.GetOrigin());
+  loader::Origin origin =
+      loader::Origin(job->script_url.DeprecatedGetOriginAsURL());
   job->loader = script_loader_factory_->CreateScriptLoader(
       job->script_url, origin, csp_callback,
       base::Bind(&ServiceWorkerJobs::UpdateOnContentProduced,

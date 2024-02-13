@@ -106,7 +106,7 @@ ZipParams::ZipParams(const base::FilePath& src_dir,
       dest_file_(dest_file),
       file_accessor_(new DirectFileAccessor(src_dir)) {}
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(STARBOARD)
 // Does not take ownership of |fd|.
 ZipParams::ZipParams(const base::FilePath& src_dir, int dest_fd)
     : src_dir_(src_dir),
@@ -154,7 +154,7 @@ bool Zip(const ZipParams& params) {
   }
 
   std::unique_ptr<internal::ZipWriter> zip_writer;
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(STARBOARD)
   if (params.dest_fd() != base::kInvalidPlatformFile) {
     DCHECK(params.dest_file().empty());
     zip_writer = internal::ZipWriter::CreateWithFd(
@@ -361,7 +361,7 @@ bool Zip(const base::FilePath& src_dir, const base::FilePath& dest_file,
   }
 }
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(STARBOARD)
 bool ZipFiles(const base::FilePath& src_dir,
               const std::vector<base::FilePath>& src_relative_paths,
               int dest_fd) {

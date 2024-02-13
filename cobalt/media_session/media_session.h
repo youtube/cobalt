@@ -22,6 +22,7 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/message_loop/message_loop.h"
+#include "base/single_thread_task_runner.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/media_session/media_metadata.h"
 #include "cobalt/media_session/media_position_state.h"

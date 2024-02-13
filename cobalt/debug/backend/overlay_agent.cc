@@ -36,7 +36,7 @@ namespace {
 // Returns the float value of a param, or 0.0 if undefined or non-numeric.
 float GetFloatParam(const Value* params, base::StringPiece key) {
   if (!params || !params->is_dict()) return 0.0f;
-  const Value* v = params->FindKey(key);
+  const Value* v = params->GetIfDict()->Find(key);
   if (!v || !(v->is_double() || v->is_int())) return 0.0f;
   return static_cast<float>(v->GetDouble());
 }
@@ -59,8 +59,8 @@ scoped_refptr<render_tree::RectNode> RenderHighlightRect(const Value* params) {
   float y = GetFloatParam(params, "y");
   float width = GetFloatParam(params, "width");
   float height = GetFloatParam(params, "height");
-  ColorRGBA color(RenderColor(params->FindKey("color")));
-  const Value* outline_param = params->FindKey("outlineColor");
+  ColorRGBA color(RenderColor(params->GetIfDict()->Find("color")));
+  const Value* outline_param = params->GetIfDict()->Find("outlineColor");
   ColorRGBA outline_color(RenderColor(outline_param));
   float outline_width = outline_param ? 1.0f : 0.0f;
   return base::MakeRefCounted<render_tree::RectNode>(
@@ -96,7 +96,7 @@ void OverlayAgent::HighlightNode(Command command) {
   JSONObject rects_response = dispatcher_->RunScriptCommand(
       "Overlay._highlightNodeRects", command.GetParams());
   const Value* highlight_rects =
-      rects_response->FindPath({"result", "highlightRects"});
+      rects_response->FindByDottedPath("result.highlightRects");
   if (!highlight_rects) {
     command.SendErrorResponse(Command::kInvalidParams,
                               "Can't get node highlights.");
@@ -118,7 +118,9 @@ void OverlayAgent::HighlightRect(Command command) {
   if (!EnsureEnabled(&command)) return;
 
   JSONObject params = JSONParse(command.GetParams());
+#ifndef USE_HACKY_COBALT_CHANGES
   render_layer_->SetFrontLayer(RenderHighlightRect(params.get()));
+#endif
   command.SendResponse();
 }
 

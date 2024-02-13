@@ -19,7 +19,7 @@
 #include <string>
 
 #include "base/message_loop/message_loop.h"
-#include "base/test/scoped_task_environment.h"
+#include "base/test/task_environment.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/global_environment.h"
@@ -207,7 +207,7 @@ class StubWebContext final : public Context {
   // Name of the web instance.
   const std::string name_;
 
-  base::test::ScopedTaskEnvironment env_;
+  base::test::TaskEnvironment env_;
 
   std::unique_ptr<loader::FetcherFactory> fetcher_factory_;
   std::unique_ptr<Blob::Registry> blob_registry_;

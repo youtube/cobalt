@@ -212,18 +212,24 @@ JSONObject DebugDispatcher::RunScriptCommand(const std::string& method,
   std::string json_result;
   bool success = script_runner_->RunCommand(method, json_params, &json_result);
 
-  JSONObject response(new base::DictionaryValue());
+#ifndef USE_HACKY_COBALT_CHANGES
+  JSONObject response(new base::Value::Dict());
+#else
+  JSONObject response(nullptr);
+#endif
   if (success) {
     JSONObject result = JSONParse(json_result);
     if (result) {
+#ifndef USE_HACKY_COBALT_CHANGES
       response->Set("result", std::unique_ptr<base::Value>(result.release()));
+#endif
     }
   } else if (json_result.empty()) {
     // Unimplemented commands aren't successful, and |json_result| is empty.
     response.reset();
   } else {
     // On error, |json_result| is the error message.
-    response->SetString("error.message", json_result);
+    response->Set("error.message", json_result);
   }
   return response;
 }

@@ -14,6 +14,8 @@
 
 #include "cobalt/renderer/backend/graphics_context.h"
 
+#include <string.h>
+
 #include "base/logging.h"
 #include "starboard/gles.h"
 #include "starboard/string.h"

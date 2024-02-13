@@ -25,6 +25,7 @@
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/thread.h"
+#include "base/threading/thread_checker.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/debugger_hooks.h"
@@ -118,7 +119,7 @@ class AnimatedWebPImage : public AnimatedImage {
 
   render_tree::ColorRGBA background_color_;
   math::RectF previous_frame_rect_;
-  base::CancelableClosure decode_closure_;
+  base::CancelableRepeatingClosure decode_closure_;
   base::TimeTicks current_frame_time_;
   base::Optional<base::TimeTicks> next_frame_time_;
 

@@ -16,7 +16,12 @@ config("compiler_flags") {
   cflags = []
   cflags_c = []
   cflags_cc = []
-  defines = []
+  defines = [
+    "WARN_UNUSED_RESULT=",
+    "ALLOW_UNUSED_TYPE=",
+    "BASE_HASH_NAMESPACE=std",
+    "BASE_HASH_USE_HASH_STRUCT",
+  ]
   ldflags = [ "-Wl,--error-limit=0" ]
 
   if (is_debug) {
@@ -274,6 +279,12 @@ config("no_pedantic_warnings") {
     "-Wno-ignored-qualifiers",
     "-Wno-unreachable-code-loop-increment",
     "-Wno-c++20-extensions",
+    "-Wno-unreachable-code",
+    "-Wno-null-pointer-subtraction",
+    "-Wno-self-assign",
+    "-Wno-shadow",
+    "-Wno-sometimes-uninitialized",
+    "-Wno-delete-non-abstract-non-virtual-dtor",
   ]
   cflags += extra_should_be_removed
 }

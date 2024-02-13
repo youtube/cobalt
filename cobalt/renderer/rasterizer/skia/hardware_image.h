@@ -20,6 +20,7 @@
 
 #include "base/containers/hash_tables.h"
 #include "base/message_loop/message_loop.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"

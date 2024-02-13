@@ -165,9 +165,9 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
       std::string capture_mode_string =
           command_line->GetSwitchValueASCII(switches::kNetLogCaptureMode);
       if (capture_mode_string == kCaptureModeIncludeCookiesAndCredentials) {
-        capture_mode = net::NetLogCaptureMode::IncludeCookiesAndCredentials();
+        capture_mode = net::NetLogCaptureMode::kIncludeSensitive;
       } else if (capture_mode_string == kCaptureModeIncludeSocketBytes) {
-        capture_mode = net::NetLogCaptureMode::IncludeSocketBytes();
+        capture_mode = net::NetLogCaptureMode::kEverything;
       }
     }
     net_log_.reset(new CobaltNetLog(net_log_path, capture_mode));
@@ -177,11 +177,16 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
   // Launch the IO thread.
+#ifndef USE_HACKY_COBALT_CHANGES
   base::Thread::Options thread_options;
   thread_options.message_loop_type = base::MessageLoop::TYPE_IO;
   thread_options.stack_size = 256 * 1024;
   thread_options.priority = base::ThreadPriority::NORMAL;
   thread_->StartWithOptions(thread_options);
+#else
+  thread_->StartWithOptions(
+      base::Thread::Options(base::MessageLoop::TYPE_IO, 256 * 1024));
+#endif
 
   base::WaitableEvent creation_event(
       base::WaitableEvent::ResetPolicy::MANUAL,
@@ -208,23 +213,27 @@ void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
 
   net::NetLog* net_log = NULL;
 #if defined(ENABLE_NETWORK_LOGGING)
+#ifndef USE_HACKY_COBALT_CHANGES
   net_log = net_log_.get();
+#endif
 #endif
   url_request_context_.reset(
       new URLRequestContext(storage_manager_.get(), options_.custom_proxy,
                             net_log, options_.ignore_certificate_errors,
                             task_runner(), options_.persistent_settings));
+#ifndef USE_HACKY_COBALT_CHANGES
   network_delegate_.reset(new NetworkDelegate(options_.cookie_policy,
                                               options_.https_requirement,
                                               options_.cors_policy));
   url_request_context_->set_http_user_agent_settings(
       http_user_agent_settings_.get());
   url_request_context_->set_network_delegate(network_delegate_.get());
+#endif
   cookie_jar_.reset(new CookieJarImpl(url_request_context_->cookie_store(),
                                       task_runner().get()));
 #if defined(DIAL_SERVER)
-  dial_service_.reset(new net::DialService());
-  dial_service_proxy_ = new net::DialServiceProxy(dial_service_->AsWeakPtr());
+  dial_service_.reset(new DialService());
+  dial_service_proxy_ = new DialServiceProxy(dial_service_->AsWeakPtr());
 #endif
 
   net_poster_.reset(new NetPoster(this));

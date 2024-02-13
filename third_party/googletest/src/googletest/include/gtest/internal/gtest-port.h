@@ -2144,8 +2144,8 @@ inline void PrintF(const char* format, ...) {
 
 inline void Flush() { SbLogFlush(); }
 
-inline void *Malloc(size_t n) { return SbMemoryAllocate(n); }
-inline void Free(void *p) { return SbMemoryDeallocate(p); }
+inline void *Malloc(size_t n) { return malloc(n); }
+inline void Free(void *p) { return free(p); }
 
 #else // GTEST_OS_STARBOARD
 

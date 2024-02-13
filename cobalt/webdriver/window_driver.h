@@ -60,10 +60,12 @@ namespace webdriver {
 // will map to a method on this class.
 class WindowDriver : private ElementMapping {
  public:
-  typedef base::Callback<void(const base::Token, const dom::KeyboardEventInit&,
+  typedef base::Callback<void(const base_token::Token,
+                              const dom::KeyboardEventInit&,
                               scoped_refptr<dom::Element>)>
       KeyboardEventInjector;
-  typedef base::Callback<void(const base::Token, const dom::PointerEventInit&,
+  typedef base::Callback<void(const base_token::Token,
+                              const dom::PointerEventInit&,
                               scoped_refptr<dom::Element>)>
       PointerEventInjector;
 
@@ -148,7 +150,8 @@ class WindowDriver : private ElementMapping {
 
   // Used to receive pointer positions from events injected from an
   // ElementDriver.
-  void InjectPointerEvent(base::Token type, const dom::PointerEventInit& event,
+  void InjectPointerEvent(base_token::Token type,
+                          const dom::PointerEventInit& event,
                           scoped_refptr<dom::Element> element);
 
   util::CommandResult<void> MouseMoveToInternal(const protocol::Moveto& moveto);

@@ -101,14 +101,12 @@ void WebSocketImpl::DoConnect(
 
   websocket_channel_->SendAddChannelRequest(
       url, desired_sub_protocols_, url::Origin::Create(GURL(origin_)),
-      connect_url_ /*site_for_cookies*/,
-      net::HttpRequestHeaders() /*additional_headers*/);
+      net::SiteForCookies::FromUrl(connect_url_) /*site_for_cookies*/,
+      net::IsolationInfo(), net::HttpRequestHeaders() /*additional_headers*/,
+      net::DefineNetworkTrafficAnnotation("websocket_server",
+                                          "websocket_server"));
   channel_created_event
       ->Signal();  // Signal that this->websocket_channel_ has been assigned.
-
-  // On Cobalt we do not support flow control.
-  auto flow_control_result = websocket_channel_->SendFlowControl(INT_MAX);
-  DCHECK_EQ(net::WebSocketChannel::CHANNEL_ALIVE, flow_control_result);
 }
 
 void WebSocketImpl::Close(const net::WebSocketError code,

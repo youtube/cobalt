@@ -130,7 +130,7 @@ static PrinterInfoKey printer_info_keys[] = {
 ScopedPrinterInfo::ScopedPrinterInfo(base::StringPiece data) {
   std::vector<base::StringPiece> info = base::SplitStringPiece(
       data, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
-  for (size_t i = 0; i < arraysize(printer_info_keys); ++i) {
+  for (size_t i = 0; i < std::size(printer_info_keys); ++i) {
     if (i < info.size())
       printer_info_keys[i].Set(info[i]);
     else

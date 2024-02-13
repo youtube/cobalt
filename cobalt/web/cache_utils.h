@@ -115,8 +115,8 @@ void Trace(v8::Isolate* isolate,
 std::string Stringify(v8::Isolate* isolate, v8::Local<v8::Value> value);
 base::Optional<v8::Local<v8::Value>> BaseToV8(v8::Isolate* isolate,
                                               const base::Value& value);
-base::Optional<base::Value> Deserialize(const std::string& json);
-base::Optional<base::Value> V8ToBase(v8::Isolate* isolate,
+absl::optional<base::Value> Deserialize(const std::string& json);
+absl::optional<base::Value> V8ToBase(v8::Isolate* isolate,
                                      v8::Local<v8::Value> value);
 
 double FromNumber(v8::Local<v8::Value> value);
@@ -132,11 +132,11 @@ base::Optional<v8::Local<v8::Value>> Evaluate(v8::Isolate* isolate,
 
 base::Optional<v8::Local<v8::Value>> CreateRequest(
     v8::Isolate* isolate, const std::string& url,
-    const base::Value& options = base::DictionaryValue());
+    const base::Value& options = base::Value(base::Value::Type::DICT));
 base::Optional<v8::Local<v8::Value>> CreateResponse(
     v8::Isolate* isolate, const std::vector<uint8_t>& body,
     const base::Value& options);
-base::Optional<base::Value> ExtractResponseOptions(
+absl::optional<base::Value> ExtractResponseOptions(
     v8::Local<v8::Value> response);
 
 uint32_t GetKey(const std::string& s);

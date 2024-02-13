@@ -361,7 +361,7 @@ void GatherCandidateNodesFromSelectorNodesMap(
     cssom::SimpleSelectorType simple_selector_type,
     cssom::CombinatorType combinator_type,
     const SelectorTree::Node* parent_node,
-    const SelectorTree::SelectorTextToNodesMap* map, base::Token key,
+    const SelectorTree::SelectorTextToNodesMap* map, base_token::Token key,
     SelectorTree::NodePairs* candidate_nodes) {
   SelectorTree::SelectorTextToNodesMap::const_iterator it = map->find(key);
   if (it != map->end()) {
@@ -455,7 +455,7 @@ bool GatherMatchingNodes(const SelectorTree::Nodes& nodes,
   SelectorTree::NodePairs* candidate_node_pairs = scratchpad_node_pairs;
   candidate_node_pairs->clear();
 
-  const std::vector<base::Token>& element_class_list =
+  const std::vector<base_token::Token>& element_class_list =
       element->class_list()->GetTokens();
 
   // Don't retrieve the element's attributes until they are needed. Retrieving
@@ -476,7 +476,7 @@ bool GatherMatchingNodes(const SelectorTree::Nodes& nodes,
       if (node->HasSimpleSelector(cssom::kUniversalSelector, combinator_type)) {
         GatherCandidateNodesFromSelectorNodesMap(
             cssom::kUniversalSelector, combinator_type, node,
-            selector_nodes_map, base::Token(), candidate_node_pairs);
+            selector_nodes_map, base_token::Token(), candidate_node_pairs);
       }
 
       // Type selector.
@@ -499,7 +499,7 @@ bool GatherMatchingNodes(const SelectorTree::Nodes& nodes,
           GatherCandidateNodesFromSelectorNodesMap(
               cssom::kAttributeSelector, combinator_type, node,
               selector_nodes_map,
-              base::Token(element_attributes->Item(index)->name()),
+              base_token::Token(element_attributes->Item(index)->name()),
               candidate_node_pairs);
         }
       }

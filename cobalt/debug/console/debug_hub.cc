@@ -52,7 +52,7 @@ debug::console::DebugConsoleMode DebugHub::GetDebugConsoleMode() const {
 }
 
 void DebugHub::Attach(const AttachCallbackArg& callback) {
-  last_error_ = base::nullopt;
+  last_error_ = absl::nullopt;
   debug_client_ = create_debug_client_callback_.Run(this);
 
   // |debug_client_| may be NULL if the WebModule is not available at this time.
@@ -66,7 +66,7 @@ void DebugHub::Attach(const AttachCallbackArg& callback) {
 }
 
 void DebugHub::Detach(const AttachCallbackArg& callback) {
-  last_error_ = base::nullopt;
+  last_error_ = absl::nullopt;
   debug_client_.reset();
   AttachCallbackArg::Reference callback_reference(this, callback);
   callback_reference.value().Run();
@@ -90,12 +90,12 @@ std::string DebugHub::ReadDebugContentText(const std::string& filename) {
 void DebugHub::SendCommand(const std::string& method,
                            const std::string& json_params,
                            const ResponseCallbackArg& callback) {
-  last_error_ = base::nullopt;
+  last_error_ = absl::nullopt;
   if (!debug_client_ || !debug_client_->IsAttached()) {
-    std::unique_ptr<base::DictionaryValue> response(new base::DictionaryValue);
-    response->SetString("error.message", "Debugger is not connected.");
+    std::unique_ptr<base::Value::Dict> response(new base::Value::Dict);
+    response->Set("error.message", "Debugger is not connected.");
     std::string json_response;
-    auto* response_as_value = static_cast<const base::Value*>(response.get());
+    auto response_as_value = response.get();
     base::JSONWriter::Write(*response_as_value, &json_response);
     ResponseCallbackArg::Reference callback_ref(this, callback);
     callback_ref.value().Run(json_response);
@@ -158,8 +158,8 @@ void DebugHub::OnDebugClientEvent(const std::string& method,
 void DebugHub::OnDebugClientDetach(const std::string& reason) {
   DLOG(INFO) << "Debugger detached: " + reason;
   const std::string method = "Inspector.detached";
-  JSONObject params(new base::DictionaryValue());
-  params->SetString("reason", reason);
+  JSONObject params(new base::Value::Dict());
+  params->Set("reason", reason);
   on_event_->DispatchEvent(method, JSONStringify(params));
 }
 

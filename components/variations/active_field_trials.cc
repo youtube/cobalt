@@ -26,8 +26,8 @@ void GetFieldTrialActiveGroupIdsForActiveGroups(
   DCHECK(name_group_ids->empty());
   for (auto it = active_groups.begin(); it != active_groups.end(); ++it) {
     name_group_ids->push_back(
-        MakeActiveGroupId(it->trial_name + suffix.as_string(),
-                          it->group_name + suffix.as_string()));
+        MakeActiveGroupId(it->trial_name + std::string(suffix),
+                          it->group_name + std::string(suffix)));
   }
 }
 

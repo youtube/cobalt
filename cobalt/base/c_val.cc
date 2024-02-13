@@ -127,7 +127,7 @@ Optional<std::string> CValManager::GetCValStringValue(const std::string& name,
   // indicate that it does not exist.
   NameVarMap::const_iterator found = registered_vars_->find(name);
   if (found == registered_vars_->end()) {
-    return nullopt;
+    return absl::nullopt;
   } else {
     return (pretty ? found->second->GetValueAsPrettyString()
                    : found->second->GetValueAsString());

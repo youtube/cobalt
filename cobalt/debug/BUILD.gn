@@ -76,7 +76,7 @@ static_library("debug") {
     "//cobalt/speech",
     "//cobalt/web",
     "//net",
-    "//net:http_server",
+    "//net/server:http_server",
     "//starboard",
     "//third_party/devtools:devtools_frontend_resources",
   ]

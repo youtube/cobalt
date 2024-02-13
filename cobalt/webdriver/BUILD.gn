@@ -30,7 +30,7 @@ static_library("webdriver") {
     "//cobalt/math",
     "//cobalt/script",
     "//net",
-    "//net:http_server",
+    "//net/server:http_server",
     "//starboard/common",
     "//third_party/icu:icuuc",
     "//url",

@@ -29,6 +29,8 @@
 #include "cobalt/loader/cors_preflight.h"
 #include "cobalt/loader/net_fetcher.h"
 #include "cobalt/loader/origin.h"
+#include "cobalt/network/custom/url_fetcher.h"
+#include "cobalt/network/custom/url_fetcher_delegate.h"
 #include "cobalt/script/array_buffer.h"
 #include "cobalt/script/array_buffer_view.h"
 #include "cobalt/script/environment_settings.h"
@@ -44,8 +46,6 @@
 #include "net/base/load_timing_info.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
-#include "net/url_request/url_fetcher.h"
-#include "net/url_request/url_fetcher_delegate.h"
 #include "starboard/common/atomic.h"
 #include "url/gurl.h"
 

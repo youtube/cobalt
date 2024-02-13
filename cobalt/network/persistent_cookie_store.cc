@@ -39,6 +39,7 @@ void CookieStorageInit(
   memory_store.GetAllCookies(&actual_cookies);
 
   DCHECK(loaded_callback_task_runner);
+#ifndef USE_HACKY_COBALT_CHANGES
   if (!loaded_callback.is_null()) {
     loaded_callback_task_runner->PostTask(
         FROM_HERE,
@@ -49,6 +50,7 @@ void CookieStorageInit(
             },
             loaded_callback, base::Passed(&actual_cookies)));
   }
+#endif
 }
 
 void CookieStorageAddCookie(const net::CanonicalCookie& cc,
@@ -82,6 +84,7 @@ void SendEmptyCookieList(
     const PersistentCookieStore::LoadedCallback& loaded_callback,
     scoped_refptr<base::SequencedTaskRunner> loaded_callback_task_runner,
     const storage::MemoryStore& memory_store) {
+#ifndef USE_HACKY_COBALT_CHANGES
   loaded_callback_task_runner->PostTask(
       FROM_HERE,
       base::Bind(
@@ -91,6 +94,7 @@ void SendEmptyCookieList(
             loaded_callback.Run(std::move(empty_cookie_list));
           },
           loaded_callback));
+#endif
 }
 
 }  // namespace
@@ -102,25 +106,27 @@ PersistentCookieStore::PersistentCookieStore(
 
 PersistentCookieStore::~PersistentCookieStore() {}
 
-void PersistentCookieStore::Load(const LoadedCallback& loaded_callback,
+void PersistentCookieStore::Load(LoadedCallback loaded_callback,
                                  const net::NetLogWithSource& net_log) {
   net_log.BeginEvent(net::NetLogEventType::COOKIE_PERSISTENT_STORE_LOAD);
   //  DCHECK_EQ(base::MessageLoop::current()->task_runner(),
   //            loaded_callback_task_runner_);
-  storage_->WithReadOnlyMemoryStore(base::Bind(
-      &CookieStorageInit, loaded_callback, loaded_callback_task_runner_));
+  storage_->WithReadOnlyMemoryStore(base::Bind(&CookieStorageInit,
+                                               std::move(loaded_callback),
+                                               loaded_callback_task_runner_));
 }
 
-void PersistentCookieStore::LoadCookiesForKey(
-    const std::string& key, const LoadedCallback& loaded_callback) {
+void PersistentCookieStore::LoadCookiesForKey(const std::string& key,
+                                              LoadedCallback loaded_callback) {
   // We don't support loading of individual cookies.
   // This is always called after Load(), so just post the callback to the
   // Storage thread to make sure it is run after Load() has finished. See
   // comments in net/cookie_monster.cc for more information.
   DCHECK_EQ(base::MessageLoop::current()->task_runner(),
             loaded_callback_task_runner_);
-  storage_->WithReadOnlyMemoryStore(base::Bind(
-      &SendEmptyCookieList, loaded_callback, loaded_callback_task_runner_));
+  storage_->WithReadOnlyMemoryStore(base::Bind(&SendEmptyCookieList,
+                                               std::move(loaded_callback),
+                                               loaded_callback_task_runner_));
 }
 
 void PersistentCookieStore::AddCookie(const net::CanonicalCookie& cc) {
@@ -143,7 +149,7 @@ void PersistentCookieStore::SetForceKeepSessionState() {
   NOTREACHED();
 }
 
-void PersistentCookieStore::SetBeforeFlushCallback(
+void PersistentCookieStore::SetBeforeCommitCallback(
     base::RepeatingClosure callback) {
   NOTIMPLEMENTED();
 }

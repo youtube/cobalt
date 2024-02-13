@@ -17,6 +17,10 @@ static_library("http_server") {
     "//chrome/test/chromedriver/*",
     "//content/browser",
     "//net:net_web_socket_encoder_fuzzer_deps",
+    "//cobalt/network:*",
+    "//cobalt/webdriver",
+    "//cobalt/debug",
+    "//cobalt/h5vcc",
   ]
 
   friend = [
@@ -28,7 +32,7 @@ static_library("http_server") {
     "//content/browser",
   ]
 
-  if (enable_websockets) {
+  if (enable_websockets || true) {
     sources = [
       "http_connection.cc",
       "http_connection.h",
@@ -70,7 +74,7 @@ source_set("tests") {
   }
 }
 
-if (enable_websockets && use_fuzzing_engine) {
+if (enable_websockets && !use_cobalt_customizations && use_fuzzing_engine) {
   # This is a separate target because //net/server:http_server
   # wants to limit its visibility to a select number of target, but the
   # "fuzzer_test" template expands on iOS to many targets that need to

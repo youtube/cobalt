@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include "base/logging.h"
 #include "base/files/file_path.h"
 #include "base/strings/string_number_conversions.h"
 
@@ -22,7 +23,7 @@ void CommandLinePrefStore::ApplyStringSwitches(
   for (size_t i = 0; i < size; ++i) {
     if (command_line_->HasSwitch(string_switch[i].switch_name)) {
       SetValue(string_switch[i].preference_path,
-               std::make_unique<base::Value>(command_line_->GetSwitchValueASCII(
+               base::Value(command_line_->GetSwitchValueASCII(
                    string_switch[i].switch_name)),
                WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
     }
@@ -35,7 +36,7 @@ void CommandLinePrefStore::ApplyPathSwitches(
   for (size_t i = 0; i < size; ++i) {
     if (command_line_->HasSwitch(path_switch[i].switch_name)) {
       SetValue(path_switch[i].preference_path,
-               std::make_unique<base::Value>(
+               base::Value(
                    command_line_->GetSwitchValuePath(path_switch[i].switch_name)
                        .value()),
                WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
@@ -58,7 +59,7 @@ void CommandLinePrefStore::ApplyIntegerSwitches(
         continue;
       }
       SetValue(integer_switch[i].preference_path,
-               std::make_unique<base::Value>(int_value),
+               base::Value(int_value),
                WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
     }
   }
@@ -71,7 +72,7 @@ void CommandLinePrefStore::ApplyBooleanSwitches(
   for (size_t i = 0; i < size; ++i) {
     if (command_line_->HasSwitch(boolean_switch_map[i].switch_name)) {
       SetValue(boolean_switch_map[i].preference_path,
-               std::make_unique<base::Value>(boolean_switch_map[i].set_value),
+               base::Value(boolean_switch_map[i].set_value),
                WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
     }
   }

@@ -19,7 +19,7 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "base/test/scoped_task_environment.h"
+#include "base/test/task_environment.h"
 #include "cobalt/bindings/testing/window.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/global_environment.h"
@@ -88,7 +88,7 @@ class BindingsTestBase : public ::testing::Test {
   Window* window() { return window_.get(); }
 
  protected:
-  base::test::ScopedTaskEnvironment task_env_;
+  base::test::TaskEnvironment task_env_;
   const std::unique_ptr<script::JavaScriptEngine> engine_;
   const scoped_refptr<script::GlobalEnvironment> global_environment_;
   const std::unique_ptr<script::EnvironmentSettings> environment_settings_;

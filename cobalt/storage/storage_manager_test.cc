@@ -21,6 +21,7 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/path_service.h"
+#include "base/run_loop.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/base/cobalt_paths.h"

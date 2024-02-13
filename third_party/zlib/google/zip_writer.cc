@@ -6,6 +6,7 @@
 
 #include "base/files/file.h"
 #include "base/files/file_util.h"
+#include "base/logging.h"
 #include "base/strings/string_util.h"
 #include "third_party/zlib/google/zip_internal.h"
 
@@ -83,7 +84,7 @@ bool AddDirectoryEntryToZip(zipFile zip_file,
 
 }  // namespace
 
-#if defined(OS_POSIX)
+#if defined(OS_POSIX) && !defined(STARBOARD)
 // static
 std::unique_ptr<ZipWriter> ZipWriter::CreateWithFd(
     int zip_file_fd,

@@ -24,25 +24,24 @@ const char kValueKey[] = "value";
 }  // namespace
 
 base::Optional<Keys> Keys::FromValue(const base::Value* value) {
-  const base::DictionaryValue* dictionary;
-  if (!value->GetAsDictionary(&dictionary)) {
+  if (!value->is_dict()) {
     return base::nullopt;
   }
+  const base::Value::Dict* dictionary = value->GetIfDict();
 
-  const base::ListValue* list;
-  if (!dictionary->GetList(kValueKey, &list)) {
+  const base::Value::List* list = dictionary->FindList(kValueKey);
+  if (list) {
     return base::nullopt;
   }
 
   // Each item in the list should be a string which should be flattened into
   // a single sequence of keys.
   std::string keys;
-  for (size_t i = 0; i < list->GetSize(); ++i) {
-    std::string item;
-    if (!list->GetString(i, &item)) {
-      return base::nullopt;
+  for (auto& item : *list) {
+    if (!item.is_string()) {
+      return absl::nullopt;
     }
-    keys += item;
+    keys += item.GetString();
   }
 
   if (!base::IsStringUTF8(keys)) {

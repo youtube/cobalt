@@ -17,7 +17,7 @@
 #include <memory>
 #include <utility>
 
-#include "base/hash.h"
+#include "base/hash/hash.h"
 #include "base/json/json_writer.h"
 #include "base/values.h"
 #include "cobalt/dom/document.h"
@@ -68,9 +68,9 @@ std::string StripUrlForUseInReport(const GURL& origin_url, const GURL& url) {
     // 1. Non-standard scheme.
     return url.scheme();
   }
-  if (origin_url.GetOrigin() != url.GetOrigin()) {
+  if (origin_url.DeprecatedGetOriginAsURL() != url.DeprecatedGetOriginAsURL()) {
     // 2. Mismatched origin.
-    return url.GetOrigin().spec();
+    return url.DeprecatedGetOriginAsURL().spec();
   } else {
     // 3. Same origin- strip username, password and ref.
     GURL::Replacements replacements;
@@ -159,29 +159,25 @@ void CspViolationReporter::Report(const csp::ViolationInfo& violation_info) {
   // sent explicitly. As for which directive was violated, that's pretty
   // harmless information.
 
-  std::unique_ptr<base::DictionaryValue> csp_report(
-      new base::DictionaryValue());
-  csp_report->SetString(kDocumentUri, violation_data.document_uri);
-  csp_report->SetString(kReferrer, violation_data.referrer);
-  csp_report->SetString(kViolatedDirective, violation_data.violated_directive);
-  csp_report->SetString(kEffectiveDirective,
-                        violation_data.effective_directive);
-  csp_report->SetString(kOriginalPolicy, violation_data.original_policy);
-  csp_report->SetString(kBlockedUri, violation_data.blocked_uri);
+  base::Value::Dict csp_report;
+  csp_report->Set(kDocumentUri, violation_data.document_uri);
+  csp_report->Set(kReferrer, violation_data.referrer);
+  csp_report->Set(kViolatedDirective, violation_data.violated_directive);
+  csp_report->Set(kEffectiveDirective, violation_data.effective_directive);
+  csp_report->Set(kOriginalPolicy, violation_data.original_policy);
+  csp_report->Set(kBlockedUri, violation_data.blocked_uri);
   if (!violation_data.source_file.empty() && violation_data.line_number != 0) {
-    csp_report->SetString(kSourceFile, violation_data.source_file);
-    csp_report->SetInteger(kLineNumber, violation_data.line_number);
-    csp_report->SetInteger(kColumnNumber, violation_data.column_number);
+    csp_report->Set(kSourceFile, violation_data.source_file);
+    csp_report->Set(kLineNumber, violation_data.line_number);
+    csp_report->Set(kColumnNumber, violation_data.column_number);
   }
-  csp_report->SetInteger(kStatusCode, violation_data.status_code);
+  csp_report->Set(kStatusCode, violation_data.status_code);
 
-  std::unique_ptr<base::DictionaryValue> report_object(
-      new base::DictionaryValue());
+  base::Value::Dict report_object;
   report_object->Set(kCspReport, std::move(csp_report));
 
   std::string json_string;
-  base::JSONWriter::Write(*static_cast<base::Value*>(report_object.get()),
-                          &json_string);
+  base::JSONWriter::Write(report_object, &json_string);
 
   SendViolationReports(violation_info.endpoints, json_string);
 }

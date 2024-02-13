@@ -32,6 +32,9 @@ union UnguessableTokenRepresentation {
 
 }  // namespace
 
+Value CreateFilePathValue(const FilePath& in_value) { return base::Value(); }
+bool GetValueAsFilePath(const Value& value, FilePath* file_path) { return false; }
+
 Value Int64ToValue(int64_t integer) {
   return Value(NumberToString(integer));
 }

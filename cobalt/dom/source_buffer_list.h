@@ -91,7 +91,7 @@ class SourceBufferList : public web::EventTarget {
  private:
   // From EventTarget.
   std::string GetDebugName() override { return "SourceBufferList"; }
-  void ScheduleEvent(base::Token event_name);
+  void ScheduleEvent(base_token::Token event_name);
 
   // Use vector so we can reserve memory in ctor.
   typedef std::vector<scoped_refptr<SourceBuffer> > SourceBuffers;

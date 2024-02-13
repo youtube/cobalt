@@ -34,6 +34,21 @@ constexpr bool IsPowerOfTwo(T value) {
   return value > 0 && (value & (value - 1)) == 0;
 }
 
+#ifdef USE_HACKY_COBALT_CHANGES
+// Round up |size| to a multiple of alignment, which must be a power of two.
+inline size_t Align(size_t size, size_t alignment) {
+  DCHECK(IsPowerOfTwo(alignment));
+  return (size + alignment - 1) & ~(alignment - 1);
+}
+
+// Round up |size| to a multiple of alignment, which must be a power of two.
+inline constexpr size_t AlignUp(size_t size, size_t alignment) {
+  DCHECK(IsPowerOfTwo(alignment));
+  return (size + alignment - 1) & ~(alignment - 1);
+}
+#endif
+
+
 // Round down |size| to a multiple of alignment, which must be a power of two.
 template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
 constexpr T AlignDown(T size, T alignment) {

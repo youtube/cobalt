@@ -122,8 +122,14 @@ class BASE_I18N_EXPORT UTF16CharIterator {
   // of the string.
   bool Rewind();
 
- private:
+#ifdef USE_HACKY_COBALT_CHANGES
   UTF16CharIterator(base::StringPiece16 str, size_t initial_pos);
+#endif
+
+ private:
+#ifndef USE_HACKY_COBALT_CHANGES
+  UTF16CharIterator(base::StringPiece16 str, size_t initial_pos);
+#endif
 
   // Fills in the current character we found and advances to the next
   // character, updating all flags as necessary.

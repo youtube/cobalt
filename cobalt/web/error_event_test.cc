@@ -19,7 +19,7 @@
 
 #include "base/bind.h"
 #include "base/logging.h"
-#include "base/test/scoped_task_environment.h"
+#include "base/test/task_environment.h"
 #include "cobalt/script/testing/fake_script_value.h"
 #include "cobalt/web/error_event_init.h"
 #include "cobalt/web/testing/gtest_workarounds.h"

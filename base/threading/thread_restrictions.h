@@ -966,6 +966,10 @@ INLINE_OR_NOT_TAIL_CALLED void AssertSingletonAllowed()
 // Disallow using singleton on the current thread.
 INLINE_OR_NOT_TAIL_CALLED void DisallowSingleton() EMPTY_BODY_IF_DCHECK_IS_OFF;
 
+#if defined(STARBOARD)
+INLINE_OR_NOT_TAIL_CALLED bool GetSingletonAllowed() EMPTY_BODY_IF_DCHECK_IS_OFF;
+#endif
+
 // Disallows singletons within its scope.
 class BASE_EXPORT [[maybe_unused, nodiscard]] ScopedDisallowSingleton {
  public:

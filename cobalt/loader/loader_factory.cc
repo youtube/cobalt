@@ -16,6 +16,7 @@
 
 #include <memory>
 
+#include "base/bind.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/loader/image/threaded_image_decoder_proxy.h"
 
@@ -26,7 +27,7 @@ LoaderFactory::LoaderFactory(const char* name, FetcherFactory* fetcher_factory,
                              render_tree::ResourceProvider* resource_provider,
                              const base::DebuggerHooks& debugger_hooks,
                              size_t encoded_image_cache_capacity,
-                             base::ThreadPriority loader_thread_priority)
+                             base::ThreadType loader_thread_priority)
     : ScriptLoaderFactory(name, fetcher_factory, loader_thread_priority),
       debugger_hooks_(debugger_hooks),
       resource_provider_(resource_provider) {
@@ -48,8 +49,9 @@ std::unique_ptr<Loader> LoaderFactory::CreateImageLoader(
     const Loader::OnCompleteFunction& load_complete_callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  Loader::FetcherCreator fetcher_creator = MakeCachedFetcherCreator(
-      url, url_security_callback, kNoCORSMode, origin, disk_cache::kImage);
+  Loader::FetcherCreator fetcher_creator =
+      MakeCachedFetcherCreator(url, url_security_callback, kNoCORSMode, origin,
+                               network::disk_cache::kImage);
 
   std::unique_ptr<Loader> loader(new Loader(
       fetcher_creator,
@@ -67,7 +69,8 @@ std::unique_ptr<Loader> LoaderFactory::CreateImageLoader(
 std::unique_ptr<Loader> LoaderFactory::CreateLinkLoader(
     const GURL& url, const Origin& origin,
     const csp::SecurityCallback& url_security_callback,
-    const loader::RequestMode cors_mode, const disk_cache::ResourceType type,
+    const loader::RequestMode cors_mode,
+    const network::disk_cache::ResourceType type,
     const TextDecoder::TextAvailableCallback& link_available_callback,
     const Loader::OnCompleteFunction& load_complete_callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -120,7 +123,7 @@ std::unique_ptr<Loader> LoaderFactory::CreateTypefaceLoader(
 
   Loader::FetcherCreator fetcher_creator = MakeFetcherCreator(
       url, url_security_callback, kCORSModeSameOriginCredentials, origin,
-      disk_cache::kFont);
+      network::disk_cache::kFont);
 
   std::unique_ptr<Loader> loader(new Loader(
       fetcher_creator,
@@ -137,7 +140,7 @@ std::unique_ptr<Loader> LoaderFactory::CreateTypefaceLoader(
 Loader::FetcherCreator LoaderFactory::MakeCachedFetcherCreator(
     const GURL& url, const csp::SecurityCallback& url_security_callback,
     RequestMode request_mode, const Origin& origin,
-    const disk_cache::ResourceType type) {
+    const network::disk_cache::ResourceType type) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   auto fetcher_creator = MakeFetcherCreator(url, url_security_callback,

@@ -35,7 +35,7 @@ class HTMLTitleElement : public HTMLElement {
   static const char kTagName[];
 
   explicit HTMLTitleElement(Document* document)
-      : HTMLElement(document, base::Token(kTagName)) {}
+      : HTMLElement(document, base_token::Token(kTagName)) {}
 
   // Custom, not in any spec.
   scoped_refptr<HTMLTitleElement> AsHTMLTitleElement() override { return this; }

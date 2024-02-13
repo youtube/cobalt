@@ -18,6 +18,7 @@
 
 #include <string>
 
+#include "base/bind.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/render_tree/brush.h"

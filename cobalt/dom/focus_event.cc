@@ -19,8 +19,8 @@ namespace dom {
 
 FocusEvent::FocusEvent(const std::string& type)
     : UIEvent(type), related_target_(NULL) {}
-FocusEvent::FocusEvent(base::Token type, Bubbles bubbles, Cancelable cancelable,
-                       const scoped_refptr<Window>& view,
+FocusEvent::FocusEvent(base_token::Token type, Bubbles bubbles,
+                       Cancelable cancelable, const scoped_refptr<Window>& view,
                        const scoped_refptr<web::EventTarget>& related_target)
     : UIEvent(type, bubbles, cancelable, view),
       related_target_(related_target) {}

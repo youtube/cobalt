@@ -117,6 +117,7 @@ bool AAC::Parse(const std::vector<uint8_t>& data, MediaLog* media_log) {
   }
 
   if (frequency_ == 0) {
+#ifndef USE_HACKY_COBALT_CHANGES
     if (frequency_index_ >= kADTSFrequencyTableSize) {
       MEDIA_LOG(ERROR, media_log)
           << "Sampling Frequency Index(0x" << std::hex
@@ -125,10 +126,12 @@ bool AAC::Parse(const std::vector<uint8_t>& data, MediaLog* media_log) {
           << "for supported Sampling Frequencies.";
       return false;
     }
+#endif
     frequency_ = kADTSFrequencyTable[frequency_index_];
   }
 
   if (extension_frequency_ == 0 && extension_frequency_index != 0xff) {
+#ifndef USE_HACKY_COBALT_CHANGES
     if (extension_frequency_index >= kADTSFrequencyTableSize) {
       MEDIA_LOG(ERROR, media_log)
           << "Extension Sampling Frequency Index(0x" << std::hex
@@ -137,6 +140,7 @@ bool AAC::Parse(const std::vector<uint8_t>& data, MediaLog* media_log) {
           << "for supported Sampling Frequencies.";
       return false;
     }
+#endif
     extension_frequency_ = kADTSFrequencyTable[extension_frequency_index];
   }
 

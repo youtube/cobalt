@@ -56,19 +56,19 @@ DOMHighResTimeStamp PerformanceResourceTiming::fetch_start() const {
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::domain_lookup_start() const {
-  if (timing_info_.connect_timing.dns_start.is_null()) {
+  if (timing_info_.connect_timing.domain_lookup_start.is_null()) {
     return PerformanceEntry::start_time();
   }
   return Performance::MonotonicTimeToDOMHighResTimeStamp(
-      time_origin_, timing_info_.connect_timing.dns_start);
+      time_origin_, timing_info_.connect_timing.domain_lookup_start);
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::domain_lookup_end() const {
-  if (timing_info_.connect_timing.dns_end.is_null()) {
+  if (timing_info_.connect_timing.domain_lookup_end.is_null()) {
     return PerformanceEntry::start_time();
   }
   return Performance::MonotonicTimeToDOMHighResTimeStamp(
-      time_origin_, timing_info_.connect_timing.dns_end);
+      time_origin_, timing_info_.connect_timing.domain_lookup_end);
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::connect_start() const {
@@ -122,11 +122,19 @@ uint64_t PerformanceResourceTiming::transfer_size() const {
   // 1. If this's cache mode is "local", then return 0.
   // 2. If this's cache mode is "validated", then return 300.
   // 3. Return this's timing info's encoded body size plus 300.
+#ifndef USE_HACKY_COBALT_CHANGES
   return timing_info_.encoded_body_size + kPerformanceResourceTimingHeaderSize;
+#else
+  return 0;
+#endif
 }
 
 uint64_t PerformanceResourceTiming::encoded_body_size() const {
+#ifndef USE_HACKY_COBALT_CHANGES
   return timing_info_.encoded_body_size;
+#else
+  return 0;
+#endif
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::worker_start() const {

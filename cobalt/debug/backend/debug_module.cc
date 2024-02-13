@@ -36,7 +36,8 @@ constexpr char kTracingAgent[] = "TracingAgent";
 // state for all agents. Returns a NULL JSONObject if either |agents_state| is
 // NULL or it doesn't hold a state for the agent.
 JSONObject RemoveAgentState(const std::string& agent_name,
-                            base::DictionaryValue* state_dict) {
+                            base::Value::Dict* state_dict) {
+#ifndef USE_HACKY_COBALT_CHANGES
   if (state_dict == nullptr) {
     return JSONObject();
   }
@@ -54,14 +55,19 @@ JSONObject RemoveAgentState(const std::string& agent_name,
   }
 
   return dictionary_value;
+#else
+  return nullptr;
+#endif
 }
 
-void StoreAgentState(base::DictionaryValue* state_dict,
+void StoreAgentState(base::Value::Dict* state_dict,
                      const std::string& agent_name, JSONObject agent_state) {
+#ifndef USE_HACKY_COBALT_CHANGES
   if (agent_state) {
     state_dict->Set(agent_name,
                     std::unique_ptr<base::Value>(agent_state.release()));
   }
+#endif
 }
 
 }  // namespace
@@ -177,6 +183,7 @@ void DebugModule::BuildInternal(const ConstructionData& data) {
   // Restore the agents with their state from before navigation. Do this
   // unconditionally to give the agents a place to initialize themselves whether
   // or not state is being restored.
+#ifndef USE_HACKY_COBALT_CHANGES
   base::DictionaryValue* agents_state =
       data.debugger_state == nullptr ? nullptr
                                      : data.debugger_state->agents_state.get();
@@ -191,11 +198,13 @@ void DebugModule::BuildInternal(const ConstructionData& data) {
   if (page_agent_)
     page_agent_->Thaw(RemoveAgentState(kPageAgent, agents_state));
   tracing_agent_->Thaw(RemoveAgentState(kTracingAgent, agents_state));
+#endif
 
   is_frozen_ = false;
 }
 
 std::unique_ptr<DebuggerState> DebugModule::Freeze() {
+#ifndef USE_HACKY_COBALT_CHANGES
   DCHECK(!is_frozen_);
   is_frozen_ = true;
 
@@ -215,11 +224,15 @@ std::unique_ptr<DebuggerState> DebugModule::Freeze() {
     StoreAgentState(agents_state, kPageAgent, page_agent_->Freeze());
   StoreAgentState(agents_state, kTracingAgent, tracing_agent_->Freeze());
 
-  // Take the clients from the dispatcher last so they still get events that the
-  // agents might send as part of being frozen.
-  debugger_state->attached_clients = debug_dispatcher_->ReleaseClients();
+  // Take the clients from the dispatcher last so they still get events that
+  the
+      // agents might send as part of being frozen.
+      debugger_state->attached_clients = debug_dispatcher_->ReleaseClients();
 
   return debugger_state;
+#else
+  return nullptr;
+#endif
 }
 
 void DebugModule::SendEvent(const std::string& method,

@@ -28,7 +28,7 @@ namespace metrics {
 CobaltMetricsServicesManager* CobaltMetricsServicesManager::instance_ = nullptr;
 
 CobaltMetricsServicesManager::CobaltMetricsServicesManager()
-    : task_runner_(base::ThreadTaskRunnerHandle::Get()),
+    : task_runner_(base::SingleThreadTaskRunner::GetCurrentDefault()),
       metrics_services_manager::MetricsServicesManager(
           std::make_unique<CobaltMetricsServicesManagerClient>()) {}
 

@@ -985,6 +985,7 @@ component("base") {
       "sys_info_starboard.cc",
       "threading/platform_thread_starboard.cc",
       "threading/thread_local_storage_starboard.cc",
+      "threading/thread_task_runner_handle.cc",
       "time/time_now_starboard.cc",
       "time/time_starboard.cc",
     ]

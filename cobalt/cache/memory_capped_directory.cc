@@ -90,11 +90,11 @@ bool MemoryCappedDirectory::Delete(uint32_t key) {
   base::AutoLock auto_lock(lock_);
   auto file_path = GetFilePath(key);
   if (base::PathExists(file_path)) {
-    base::DeleteFile(file_path, false);
+    base::DeleteFile(file_path);
   }
   auto metadata_path = file_path.AddExtension(kMetadataExtension);
   if (base::PathExists(metadata_path)) {
-    base::DeleteFile(metadata_path, false);
+    base::DeleteFile(metadata_path);
   }
   file_sizes_.erase(file_path);
   file_keys_with_metadata_.erase(metadata_path);
@@ -116,7 +116,7 @@ bool MemoryCappedDirectory::Delete(uint32_t key) {
 void MemoryCappedDirectory::DeleteAll() {
   base::AutoLock auto_lock(lock_);
   // Recursively delete the contents of the directory_path_.
-  base::DeleteFile(directory_path_, true);
+  base::DeleteFile(directory_path_);
   // Re-create the directory_path_ which will now be empty.
   SbDirectoryCreate(directory_path_.value().c_str());
   file_info_heap_.clear();
@@ -141,8 +141,13 @@ base::Optional<base::Value> MemoryCappedDirectory::Metadata(uint32_t key) {
   }
   std::string serialized_metadata;
   base::ReadFileToString(metadata_path, &serialized_metadata);
+
+#ifndef USE_HACKY_COBALT_CHANGES
   return base::Value::FromUniquePtrValue(
       base::JSONReader::Read(serialized_metadata));
+#else
+  return base::Value::FromUniquePtrValue(nullptr);
+#endif
 }
 
 std::unique_ptr<std::vector<uint8_t>> MemoryCappedDirectory::Retrieve(
@@ -184,9 +189,9 @@ void MemoryCappedDirectory::Store(uint32_t key,
   int bytes_written = base::WriteFile(
       file_path, reinterpret_cast<const char*>(data.data()), data.size());
   if (bytes_written != data.size()) {
-    base::DeleteFile(file_path, false);
+    base::DeleteFile(file_path);
     if (metadata) {
-      base::DeleteFile(file_path.AddExtension(kMetadataExtension), false);
+      base::DeleteFile(file_path.AddExtension(kMetadataExtension));
     }
     return;
   }
@@ -213,7 +218,7 @@ MemoryCappedDirectory::MemoryCappedDirectory(
     : directory_path_(directory_path), max_size_(max_size), size_(0u) {}
 
 base::FilePath MemoryCappedDirectory::GetFilePath(uint32_t key) const {
-  return directory_path_.Append(base::UintToString(key));
+  return directory_path_.Append(std::to_string(key));
 }
 
 bool MemoryCappedDirectory::EnsureEnoughSpace(
@@ -230,10 +235,10 @@ bool MemoryCappedDirectory::EnsureEnoughSpace(
                   MemoryCappedDirectory::FileInfo::OldestFirst());
     auto removed = heap->back();
     size_ -= removed.size_;
-    base::DeleteFile(removed.file_path_, false);
+    base::DeleteFile(removed.file_path_);
     auto metadata_path = removed.file_path_.AddExtension(kMetadataExtension);
     if (base::PathExists(metadata_path)) {
-      base::DeleteFile(metadata_path, false);
+      base::DeleteFile(metadata_path);
     }
     file_sizes_.erase(removed.file_path_);
     file_keys_with_metadata_.erase(removed.file_path_);

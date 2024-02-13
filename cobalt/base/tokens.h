@@ -15,6 +15,7 @@
 #ifndef COBALT_BASE_TOKENS_H_
 #define COBALT_BASE_TOKENS_H_
 
+#include "base/macros.h"
 #include "base/memory/singleton.h"
 #include "cobalt/base/token.h"
 
@@ -187,9 +188,9 @@ class Tokens {
   static Tokens* GetInstance();
 
 #define DEFINE_TOKEN_ACCESSOR_WITH_NAME_ONLY(name) \
-  static base::Token name() { return GetInstance()->name##_; }
+  static base_token::Token name() { return GetInstance()->name##_; }
 #define DEFINE_TOKEN_ACCESSOR_WITH_NAME_AND_VALUE(name, value) \
-  static base::Token name() { return GetInstance()->name##_; }
+  static base_token::Token name() { return GetInstance()->name##_; }
 
   TOKENS_FOR_EACH_WITH_NAME_ONLY(DEFINE_TOKEN_ACCESSOR_WITH_NAME_ONLY)
   TOKENS_FOR_EACH_WITH_NAME_AND_VALUE(DEFINE_TOKEN_ACCESSOR_WITH_NAME_AND_VALUE)
@@ -210,9 +211,9 @@ class Tokens {
 #undef INITIALIZE_TOKEN_WITH_NAME_ONLY
 #undef INITIALIZE_TOKEN_WITH_NAME_AND_VALUE
 
-#define DECLARE_TOKEN_WITH_NAME_ONLY(name) const base::Token name##_;
+#define DECLARE_TOKEN_WITH_NAME_ONLY(name) const base_token::Token name##_;
 #define DECLARE_TOKEN_WITH_NAME_AND_VALUE(name, value) \
-  const base::Token name##_;
+  const base_token::Token name##_;
   TOKENS_FOR_EACH_WITH_NAME_ONLY(DECLARE_TOKEN_WITH_NAME_ONLY)
   TOKENS_FOR_EACH_WITH_NAME_AND_VALUE(DECLARE_TOKEN_WITH_NAME_AND_VALUE)
 #undef DECLARE_TOKEN_WITH_NAME_ONLY

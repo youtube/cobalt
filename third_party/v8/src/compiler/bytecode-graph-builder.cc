@@ -3574,7 +3574,7 @@ void BytecodeGraphBuilder::BuildSwitchOnSmi(Node* condition) {
       bytecode_iterator().GetJumpTableTargetOffsets();
 
   NewSwitch(condition, offsets.size() + 1);
-  for (const auto& entry : offsets) {
+  for (auto entry : offsets) {
     SubEnvironment sub_environment(this);
     NewIfValue(entry.case_value);
     MergeIntoSuccessorEnvironment(entry.target_offset);

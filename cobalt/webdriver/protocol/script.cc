@@ -29,37 +29,41 @@ const char kArgsKey[] = "args";
 }  // namespace
 
 base::Optional<Script> Script::FromValue(const base::Value* value) {
-  const base::DictionaryValue* dictionary_value;
-  if (!value->GetAsDictionary(&dictionary_value)) {
-    return base::nullopt;
+  const base::Value::Dict* dictionary_value = value->GetIfDict();
+  if (!dictionary_value) {
+    return absl::nullopt;
   }
-  std::string function_body;
-  if (!dictionary_value->GetString(kScriptKey, &function_body)) {
-    return base::nullopt;
+  const std::string* function_body = dictionary_value->FindString(kScriptKey);
+  if (!function_body) {
+    return absl::nullopt;
   }
 
   // Arguments are supposed to be an array where each element in the array is
   // an argument.
   // Rather than extract the arguments here, just serialize it to a string. The
   // script execution harness will extract and convert the arguments.
-  const base::Value* arguments_value;
-  if (!dictionary_value->Get(kArgsKey, &arguments_value)) {
-    return base::nullopt;
+  const base::Value* arguments_value = dictionary_value->Find(kArgsKey);
+  if (!arguments_value) {
+    return absl::nullopt;
   }
 
   // Ensure this is a JSON list.
   if (!arguments_value->is_list()) {
-    return base::nullopt;
+    return absl::nullopt;
   }
 
   std::string arguments;
   base::JSONWriter::Write(*arguments_value, &arguments);
-  return Script(function_body, arguments);
+  return Script(*function_body, arguments);
 }
 
 std::unique_ptr<base::Value> ScriptResult::ToValue(
     const ScriptResult& script_result) {
+#ifndef USE_HACKY_COBALT_CHANGES
   return base::JSONReader::Read(script_result.result_string_);
+#else
+  return nullptr;
+#endif
 }
 
 }  // namespace protocol

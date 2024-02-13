@@ -54,7 +54,7 @@ enable_python_utils =
 # Platforms that cannot use python_utils (like Android but see full
 # list above) will instead use a remote server.
 use_remote_test_server =
-    !enable_python_utils && (enable_websockets || (is_cronet_build && !is_ios))
+    !enable_python_utils && (enable_websockets || (is_cronet_build && !is_ios)) && false
 
 # Whether //net should use an external GSSAPI library for implementing HTTP
 # Negotiate authentication. All platforms for which use_kerberos is true should
@@ -1570,7 +1570,7 @@ component("net") {
     ]
   }
 
-  if (enable_websockets) {
+  if (enable_websockets || true) {
     sources += [
       "websockets/websocket_basic_handshake_stream.cc",
       "websockets/websocket_basic_handshake_stream.h",
@@ -2112,14 +2112,14 @@ static_library("test_support") {
       "test/spawned_test_server/remote_test_server_spawner_request.cc",
       "test/spawned_test_server/remote_test_server_spawner_request.h",
     ]
-  } else if (!is_ios) {
+  } else if (!is_ios && !is_starboard) {
     sources += [
       "test/spawned_test_server/local_test_server.cc",
       "test/spawned_test_server/local_test_server.h",
     ]
     if (is_win) {
       sources += [ "test/spawned_test_server/local_test_server_win.cc" ]
-    } else if (false) {
+    } else if (is_posix) {
       sources += [ "test/spawned_test_server/local_test_server_posix.cc" ]
     }
   }
@@ -3170,7 +3170,7 @@ test("net_unittests") {
       "websockets/websocket_test_util.h",
     ]
 
-    if (!is_ios) {
+    if (!is_ios && !is_starboard) {
       # TODO(crbug.com/1281277): iOS does not have support for the spawned test
       # server, which is used by this test. The long term plan is to add
       # websocket support to the embedded test server and when that happens,

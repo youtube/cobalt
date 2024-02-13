@@ -26,9 +26,10 @@
 #include "cobalt/loader/cors_preflight.h"
 #include "cobalt/loader/fetch_interceptor_coordinator.h"
 #include "cobalt/loader/url_fetcher_string_writer.h"
+#include "cobalt/network/custom/url_fetcher.h"
 #include "cobalt/network/network_module.h"
 #include "net/base/mime_util.h"
-#include "net/url_request/url_fetcher.h"
+#include "net/base/net_errors.h"
 #if defined(STARBOARD)
 #include "starboard/configuration.h"
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
@@ -105,7 +106,8 @@ NetFetcher::NetFetcher(const GURL& url, bool main_resource,
       cors_policy_(network_module->network_delegate()->cors_policy()),
       request_cross_origin_(false),
       origin_(origin),
-      request_script_(options.resource_type == disk_cache::kUncompiledScript),
+      request_script_(options.resource_type ==
+                      network::disk_cache::kUncompiledScript),
       task_runner_(base::ThreadTaskRunnerHandle::Get()),
       skip_fetch_intercept_(options.skip_fetch_intercept),
       will_destroy_current_message_loop_(false),
@@ -124,6 +126,7 @@ NetFetcher::NetFetcher(const GURL& url, bool main_resource,
     request_cross_origin_ = true;
     url_fetcher_->AddExtraRequestHeader("Origin:" + origin.SerializedOrigin());
   }
+#ifndef USE_HACKY_COBALT_CHANGES
   std::string content_type =
       std::string(net::HttpRequestHeaders::kResourceType) + ":" +
       std::to_string(options.resource_type);
@@ -136,6 +139,7 @@ NetFetcher::NetFetcher(const GURL& url, bool main_resource,
         net::LOAD_DO_NOT_SEND_COOKIES | net::LOAD_DO_NOT_SEND_AUTH_DATA;
     url_fetcher_->SetLoadFlags(kDisableCookiesLoadFlags);
   }
+#endif
   network_module->AddClientHintHeaders(*url_fetcher_, network::kCallTypeLoader);
 
   // Delay the actual start until this function is complete. Otherwise we might
@@ -253,9 +257,9 @@ void NetFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   TRACE_EVENT1("cobalt::loader", "NetFetcher::OnURLFetchComplete", "url",
                url_fetcher_->GetOriginalURL().spec());
-  const net::URLRequestStatus& status = source->GetStatus();
+  const net::Error status = source->GetStatus();
   const int response_code = source->GetResponseCode();
-  if (status.is_success() && IsResponseCodeSuccess(response_code)) {
+  if (status == net::Error::OK && IsResponseCodeSuccess(response_code)) {
     auto* download_data_writer =
         base::polymorphic_downcast<URLFetcherStringWriter*>(
             source->GetResponseWriter());
@@ -272,20 +276,19 @@ void NetFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
     // Check for response codes and errors that are considered transient. These
     // are the ones that net::URLFetcherCore is willing to attempt retries on,
     // along with ERR_NAME_RESOLUTION_FAILED, which indicates a socket error.
-    if (response_code >= 500 ||
-        status.error() == net::ERR_TEMPORARILY_THROTTLED ||
-        status.error() == net::ERR_NETWORK_CHANGED ||
-        status.error() == net::ERR_NAME_RESOLUTION_FAILED ||
-        status.error() == net::ERR_CONNECTION_RESET ||
-        status.error() == net::ERR_CONNECTION_CLOSED ||
-        status.error() == net::ERR_CONNECTION_ABORTED) {
+    if (response_code >= 500 || status == net::ERR_TEMPORARILY_THROTTLED ||
+        status == net::ERR_NETWORK_CHANGED ||
+        status == net::ERR_NAME_RESOLUTION_FAILED ||
+        status == net::ERR_CONNECTION_RESET ||
+        status == net::ERR_CONNECTION_CLOSED ||
+        status == net::ERR_CONNECTION_ABORTED) {
       did_fail_from_transient_error_ = true;
     }
 
-    std::string msg(base::StringPrintf(
-        "NetFetcher error on %s: %s, response code %d",
-        source->GetURL().spec().c_str(),
-        net::ErrorToString(status.error()).c_str(), response_code));
+    std::string msg(
+        base::StringPrintf("NetFetcher error on %s: %s, response code %d",
+                           source->GetURL().spec().c_str(),
+                           net::ErrorToString(status).c_str(), response_code));
     return HandleError(msg).InvalidateThis();
   }
 }

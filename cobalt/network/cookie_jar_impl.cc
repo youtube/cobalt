@@ -30,13 +30,15 @@ class CookiesGetter {
                 base::TaskRunner* network_task_runner)
       : event_(base::WaitableEvent::ResetPolicy::MANUAL,
                base::WaitableEvent::InitialState::NOT_SIGNALED) {
+#ifndef USE_HACKY_COBALT_CHANGES
     network_task_runner->PostTask(
         FROM_HERE,
-        base::Bind(
+        base::BindOnce(
             &::net::CookieStore::GetCookieListWithOptionsAsync,
             base::Unretained(cookie_store), origin, net::CookieOptions(),
             base::Passed(base::BindOnce(&CookiesGetter::CompletionCallback,
                                         base::Unretained(this)))));
+#endif
   }
 
   net::CookieList WaitForCookies() {
@@ -72,11 +74,13 @@ net::CookieList CookieJarImpl::GetCookies(const GURL& origin) {
 
 void CookieJarImpl::SetCookie(const GURL& origin,
                               const std::string& cookie_line) {
+#ifndef USE_HACKY_COBALT_CHANGES
   network_task_runner_->PostTask(
       FROM_HERE,
       base::Bind(&net::CookieStore::SetCookieWithOptionsAsync,
                  base::Unretained(cookie_store_), origin, cookie_line,
                  net::CookieOptions(), base::Callback<void(bool)>()));
+#endif
 }
 
 }  // namespace network

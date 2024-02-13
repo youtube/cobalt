@@ -570,6 +570,7 @@ static_library("default_options") {
   sources = [ "//cobalt/renderer/get_default_rasterizer_for_platform.cc" ]
 
   deps = [
+    "//base",
     "//cobalt/configuration",
     "//cobalt/renderer/backend:renderer_backend",
     "//cobalt/renderer/rasterizer/egl:hardware_rasterizer",

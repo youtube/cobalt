@@ -82,7 +82,7 @@ BlockFormattingBlockContainerBox::UpdateRectOfInFlowChildBoxes(
                                  top_margin_is_collapsible));
   for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
        child_box_iterator != child_boxes().end(); ++child_box_iterator) {
-    Box* child_box = *child_box_iterator;
+    Box* child_box = child_box_iterator->get();
     block_formatting_context->UpdateRect(child_box);
   }
 

@@ -35,8 +35,8 @@ const char HTMLMetaElement::kTagName[] = "meta";
 void HTMLMetaElement::OnInsertedIntoDocument() {
   HTMLElement::OnInsertedIntoDocument();
   std::string http_equiv_attribute = GetAttribute("http-equiv").value_or("");
-  if (base::LowerCaseEqualsASCII(http_equiv_attribute,
-                                 kContentSecurityPolicy)) {
+  if (base::EqualsCaseInsensitiveASCII(http_equiv_attribute,
+                                       kContentSecurityPolicy)) {
     std::string csp_text = GetAttribute("content").value_or("");
     csp::HeaderSource header_source = IsDescendantOfHeadElement()
                                           ? csp::kHeaderSourceMeta
@@ -47,9 +47,9 @@ void HTMLMetaElement::OnInsertedIntoDocument() {
   }
 
   std::string cobalt_jit_attribute = GetAttribute("cobalt-jit").value_or("");
-  if (base::LowerCaseEqualsASCII(cobalt_jit_attribute, "disable")) {
+  if (base::EqualsCaseInsensitiveASCII(cobalt_jit_attribute, "disable")) {
     node_document()->DisableJit();
-  } else if (!base::LowerCaseEqualsASCII(cobalt_jit_attribute, "")) {
+  } else if (!base::EqualsCaseInsensitiveASCII(cobalt_jit_attribute, "")) {
     LOG(WARNING) << "Invalid value for \"cobalt-jit\" element: "
                  << cobalt_jit_attribute;
   }

@@ -17,6 +17,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/bind.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
@@ -525,7 +526,7 @@ HardwareResourceProvider::CreateTypefaceFromRawData(
 
 scoped_refptr<render_tree::GlyphBuffer>
 HardwareResourceProvider::CreateGlyphBuffer(
-    const base::char16* text_buffer, size_t text_length,
+    const char16_t* text_buffer, size_t text_length,
     const std::string& language, bool is_rtl,
     render_tree::FontProvider* font_provider) {
   return text_shaper_.CreateGlyphBuffer(text_buffer, text_length, language,
@@ -540,7 +541,7 @@ HardwareResourceProvider::CreateGlyphBuffer(
 }
 
 float HardwareResourceProvider::GetTextWidth(
-    const base::char16* text_buffer, size_t text_length,
+    const char16_t* text_buffer, size_t text_length,
     const std::string& language, bool is_rtl,
     render_tree::FontProvider* font_provider,
     render_tree::FontVector* maybe_used_fonts) {

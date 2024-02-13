@@ -23,32 +23,31 @@ namespace protocol {
 
 std::unique_ptr<base::Value> Response::CreateErrorResponse(
     const std::string& message) {
-  std::unique_ptr<base::DictionaryValue> error_value(
-      new base::DictionaryValue());
-  error_value->SetString("message", message);
-  return std::unique_ptr<base::Value>(error_value.release());
+  base::Value ret(base::Value::Type::DICT);
+  base::Value::Dict* error_value = ret->GetIfDict();
+  error_value->Set("message", message);
+  return base::Value::ToUniquePtrValue(std::move(ret));
 }
 
 std::unique_ptr<base::Value> Response::CreateResponse(
     const base::Optional<protocol::SessionId>& session_id,
     StatusCode status_code,
     std::unique_ptr<base::Value> webdriver_response_value) {
-  std::unique_ptr<base::DictionaryValue> http_response_value(
-      new base::DictionaryValue());
+  base::Value ret(base::Value::Type::DICT);
+  base::Value::Dict* http_response_value = ret->GetIfDict();
   if (session_id) {
     http_response_value->Set(
-        "sessionId",
-        std::move(protocol::SessionId::ToValue(session_id.value())));
+        "sessionId", protocol::SessionId::ToValue(session_id.value())->Clone());
   } else {
-    http_response_value->Set("sessionId", std::make_unique<base::Value>());
+    http_response_value->Set("sessionId", base::Value());
   }
-  http_response_value->SetInteger("status", status_code);
+  http_response_value->Set("status", status_code);
   if (webdriver_response_value) {
-    http_response_value->Set("value", std::move(webdriver_response_value));
+    http_response_value->Set("value", webdriver_response_value->Clone());
   } else {
-    http_response_value->Set("value", std::make_unique<base::Value>());
+    http_response_value->Set("value", base::Value());
   }
-  return std::unique_ptr<base::Value>(std::move(http_response_value));
+  return base::Value::ToUniquePtrValue(std::move(ret));
 }
 
 }  // namespace protocol

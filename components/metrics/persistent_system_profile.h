@@ -10,6 +10,7 @@
 #include "base/strings/string_piece.h"
 #include "base/threading/thread_checker.h"
 #include "third_party/metrics_proto/system_profile.pb.h"
+#include "base/macros.h"
 
 namespace base {
 template <typename T>

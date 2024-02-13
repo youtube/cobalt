@@ -202,8 +202,7 @@ void DebugWebServer::OnClose(int connection_id) {
   }
 }
 
-void DebugWebServer::OnWebSocketMessage(int connection_id,
-                                        const std::string& json) {
+void DebugWebServer::OnWebSocketMessage(int connection_id, std::string json) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK_EQ(connection_id, websocket_id_) << "Mismatched WebSocket ID";
 
@@ -212,51 +211,55 @@ void DebugWebServer::OnWebSocketMessage(int connection_id,
   if (!json_object) {
     return SendErrorResponseOverWebSocket(websocket_id_, "Error parsing JSON");
   }
-  int id = 0;
-  if (!json_object->GetInteger(kIdField, &id)) {
-    return SendErrorResponseOverWebSocket(id, "Missing request id");
+  absl::optional<int> id = json_object->FindInt(kIdField);
+  if (!id.has_value()) {
+    return SendErrorResponseOverWebSocket(0, "Missing request id");
   }
-  std::string method;
-  if (!json_object->GetString(kMethodField, &method)) {
-    return SendErrorResponseOverWebSocket(id, "Missing method");
+  std::string* method = json_object->FindString(kMethodField);
+  if (!method) {
+    return SendErrorResponseOverWebSocket(id.value(), "Missing method");
   }
   // Parameters are optional.
-  std::unique_ptr<base::Value> params_value;
+  const base::Value* params_value = json_object->Find(kParamsField);
   std::string json_params;
-  if (json_object->Remove(kParamsField, &params_value)) {
-    base::DictionaryValue* params_dictionary = NULL;
-    params_value->GetAsDictionary(&params_dictionary);
-    params_value.release();
-    JSONObject params(params_dictionary);
+  if (json_object->Remove(kParamsField) && params_value->is_dict()) {
+#ifndef USE_HACKY_COBALT_CHANGES
+    JSONObject params(base::Value::ToUniquePtrValue(*params_value));
     DCHECK(params);
     json_params = JSONStringify(params);
+#endif
   }
 
   if (!debug_client_ || !debug_client_->IsAttached()) {
-    return SendErrorResponseOverWebSocket(id, "Debugger is not connected.");
+    return SendErrorResponseOverWebSocket(id.value(),
+                                          "Debugger is not connected.");
   }
 
-  debug_client_->SendCommand(method, json_params,
+  debug_client_->SendCommand(*method, json_params,
                              base::Bind(&DebugWebServer::OnDebuggerResponse,
-                                        base::Unretained(this), id));
+                                        base::Unretained(this), id.value()));
 }
 
 void DebugWebServer::SendErrorResponseOverWebSocket(
     int id, const std::string& message) {
   DCHECK_GE(websocket_id_, 0);
+#ifndef USE_HACKY_COBALT_CHANGES
   JSONObject response(new base::DictionaryValue());
   response->SetInteger(kIdField, id);
   response->SetString(kErrorField, message);
-  server_->SendOverWebSocket(websocket_id_, JSONStringify(response),
+#endif
+  server_->SendOverWebSocket(websocket_id_, JSONStringify(nullptr),
                              kNetworkTrafficAnnotation);
 }
 
 void DebugWebServer::OnDebuggerResponse(
     int id, const base::Optional<std::string>& response) {
+#ifndef USE_HACKY_COBALT_CHANGES
   JSONObject response_object = JSONParse(response.value());
   DCHECK(response_object);
   response_object->SetInteger(kIdField, id);
-  server_->SendOverWebSocket(websocket_id_, JSONStringify(response_object),
+#endif
+  server_->SendOverWebSocket(websocket_id_, JSONStringify(nullptr),
                              kNetworkTrafficAnnotation);
 }
 
@@ -276,10 +279,12 @@ void DebugWebServer::OnDebugClientEvent(const std::string& method,
     return;
   }
 
+#ifndef USE_HACKY_COBALT_CHANGES
   JSONObject event(new base::DictionaryValue());
   event->SetString(kMethodField, method);
   event->Set(kParamsField, JSONParse(json_params));
-  server_->SendOverWebSocket(websocket_id_, JSONStringify(event),
+#endif
+  server_->SendOverWebSocket(websocket_id_, JSONStringify(nullptr),
                              kNetworkTrafficAnnotation);
 }
 
@@ -294,10 +299,10 @@ void DebugWebServer::OnDebugClientDetach(const std::string& reason) {
   }
 
   DLOG(INFO) << "Got detach event: " << reason;
-  JSONObject event(new base::DictionaryValue());
-  event->SetString(kMethodField, kDetached);
-  event->SetString(kDetachReasonField, reason);
-  server_->SendOverWebSocket(websocket_id_, JSONStringify(event),
+  // JSONObject event(new base::DictionaryValue());
+  // event->SetString(kMethodField, kDetached);
+  // event->SetString(kDetachReasonField, reason);
+  server_->SendOverWebSocket(websocket_id_, JSONStringify(nullptr),
                              kNetworkTrafficAnnotation);
 }
 

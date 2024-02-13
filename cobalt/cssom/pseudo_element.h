@@ -38,7 +38,7 @@ class BeforePseudoElement;
 //   https://www.w3.org/TR/selectors4/#pseudo-elements
 class PseudoElement : public SimpleSelector {
  public:
-  explicit PseudoElement(base::Token text)
+  explicit PseudoElement(base_token::Token text)
       : SimpleSelector(kPseudoElement,
                        base::Tokens::pseudo_element_selector_prefix(), text) {}
   ~PseudoElement() override {}

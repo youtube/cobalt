@@ -28,53 +28,42 @@ const char kYoffsetKey[] = "yoffset";
 }  // namespace
 
 std::unique_ptr<base::Value> Moveto::ToValue(const Moveto& moveto) {
-  std::unique_ptr<base::DictionaryValue> moveto_object(
-      new base::DictionaryValue());
+  base::Value ret(base::Value::Type::DICT);
+  base::Value::Dict* moveto_object = ret->GetIfDict();
   if (moveto.element_) {
     moveto_object->Set(kElementKey,
-                       std::move(ElementId::ToValue(*moveto.element_)));
+                       ElementId::ToValue(*moveto.element_)->Clone());
   }
   if (moveto.xoffset_) {
-    moveto_object->SetInteger(kXoffsetKey, *moveto.xoffset_);
+    moveto_object->Set(kXoffsetKey, *moveto.xoffset_);
   }
   if (moveto.yoffset_) {
-    moveto_object->SetInteger(kYoffsetKey, *moveto.yoffset_);
+    moveto_object->Set(kYoffsetKey, *moveto.yoffset_);
   }
-  return std::unique_ptr<base::Value>(moveto_object.release());
+  return base::Value::ToUniquePtrValue(std::move(ret));
 }
 
 base::Optional<Moveto> Moveto::FromValue(const base::Value* value) {
-  const base::DictionaryValue* dictionary_value = nullptr;
-  if (!value->GetAsDictionary(&dictionary_value)) {
+  const base::Value::Dict* dictionary_value = value->GetIfDict();
+  if (!dictionary_value) {
     return base::nullopt;
   }
 
   base::Optional<ElementId> element;
-  std::string element_id;
-  if (dictionary_value->GetString(kElementKey, &element_id) &&
-      !element_id.empty()) {
-    element = ElementId(element_id);
+  const std::string* element_id = dictionary_value->FindString(kElementKey);
+  if (element_id && !element_id->empty()) {
+    element = ElementId(*element_id);
   } else {
-    const base::Value* element_value =
-        value->FindKeyOfType(kElementKey, base::Value::Type::DICTIONARY);
+    const base::Value* element_value = dictionary_value->Find(kElementKey);
     if (element_value) {
       element = ElementId::FromValue(element_value);
     }
   }
 
-  int xoffset_value = 0;
-  base::Optional<int> xoffset;
-  if (dictionary_value->GetInteger(kXoffsetKey, &xoffset_value)) {
-    xoffset = xoffset_value;
-  }
+  absl::optional<int> xoffset = dictionary_value->FindInt(kXoffsetKey);
+  absl::optional<int> yoffset = dictionary_value->FindInt(kYoffsetKey);
 
-  int yoffset_value = 0;
-  base::Optional<int> yoffset;
-  if (dictionary_value->GetInteger(kYoffsetKey, &yoffset_value)) {
-    yoffset = yoffset_value;
-  }
-
-  return Moveto(element, xoffset, yoffset);
+  return Moveto(element, xoffset.value_or(0), yoffset.value_or(0));
 }
 
 }  // namespace protocol

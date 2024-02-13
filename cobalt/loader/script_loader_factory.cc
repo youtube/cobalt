@@ -17,6 +17,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/bind.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/loader/image/threaded_image_decoder_proxy.h"
 
@@ -33,14 +34,19 @@ const size_t kLoadThreadStackSize = 0;
 
 ScriptLoaderFactory::ScriptLoaderFactory(
     const char* name, FetcherFactory* fetcher_factory,
-    base::ThreadPriority loader_thread_priority)
+    base::ThreadType loader_thread_priority)
     : fetcher_factory_(fetcher_factory),
       load_thread_("ResourceLoader"),
       is_suspended_(false) {
+#ifndef USE_HACKY_COBALT_CHANGES
   base::Thread::Options options(base::MessageLoop::TYPE_DEFAULT,
                                 kLoadThreadStackSize);
   options.priority = loader_thread_priority;
   load_thread_.StartWithOptions(options);
+#else
+  load_thread_.StartWithOptions(base::Thread::Options(
+      base::MessageLoop::TYPE_DEFAULT, kLoadThreadStackSize));
+#endif
 }
 
 std::unique_ptr<Loader> ScriptLoaderFactory::CreateScriptLoader(
@@ -52,9 +58,10 @@ std::unique_ptr<Loader> ScriptLoaderFactory::CreateScriptLoader(
     net::HttpRequestHeaders headers, bool skip_fetch_intercept) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  Loader::FetcherCreator fetcher_creator = MakeFetcherCreator(
-      url, url_security_callback, kNoCORSMode, origin,
-      disk_cache::kUncompiledScript, std::move(headers), skip_fetch_intercept);
+  Loader::FetcherCreator fetcher_creator =
+      MakeFetcherCreator(url, url_security_callback, kNoCORSMode, origin,
+                         network::disk_cache::kUncompiledScript,
+                         std::move(headers), skip_fetch_intercept);
 
   std::unique_ptr<Loader> loader(
       new Loader(fetcher_creator,
@@ -72,7 +79,7 @@ std::unique_ptr<Loader> ScriptLoaderFactory::CreateScriptLoader(
 Loader::FetcherCreator ScriptLoaderFactory::MakeFetcherCreator(
     const GURL& url, const csp::SecurityCallback& url_security_callback,
     RequestMode request_mode, const Origin& origin,
-    disk_cache::ResourceType type, net::HttpRequestHeaders headers,
+    network::disk_cache::ResourceType type, net::HttpRequestHeaders headers,
     bool skip_fetch_intercept) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 

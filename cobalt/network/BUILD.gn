@@ -18,6 +18,7 @@ static_library("network") {
   sources = [
     "cookie_jar_impl.cc",
     "cookie_jar_impl.h",
+    "disk_cache/impl.cc",
     "job_factory_config.h",
     "local_network.cc",
     "local_network.h",
@@ -63,7 +64,7 @@ static_library("network") {
   }
 
   if (enable_in_app_dial) {
-    deps += [ "//net:cobalt_dial_server" ]
+    deps += [ ":cobalt_dial_server" ]
   }
 
   # Enable network logging on all but gold builds.
@@ -246,4 +247,43 @@ target(gtest_target_type, "network_test") {
     "//testing/gtest",
     "//url",
   ]
+  if (enable_in_app_dial) {
+    sources += [
+      "dial/dial_http_server_unittest.cc",
+      "dial/dial_service_unittest.cc",
+      "dial/dial_test_helpers.h",
+      "dial/dial_udp_server_unittests.cc",
+    ]
+    deps += [
+      ":cobalt_dial_server",
+      "//net",
+      "//net:test_support",
+      "//net/server:http_server",
+    ]
+  }
+}
+
+if (enable_in_app_dial) {
+  static_library("cobalt_dial_server") {
+    sources = [
+      "dial/dial_http_server.cc",
+      "dial/dial_http_server.h",
+      "dial/dial_service.cc",
+      "dial/dial_service.h",
+      "dial/dial_service_handler.h",
+      "dial/dial_system_config.cc",
+      "dial/dial_system_config.h",
+      "dial/dial_system_config_starboard.cc",
+      "dial/dial_udp_server.cc",
+      "dial/dial_udp_server.h",
+      "dial/dial_udp_socket_factory.cc",
+      "dial/dial_udp_socket_factory.h",
+    ]
+    deps = [
+      "//base:base",
+      "//net",
+      "//net/server:http_server",
+      "//starboard/common",
+    ]
+  }
 }

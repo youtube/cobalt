@@ -91,8 +91,8 @@ bool ValidateUpgrade(const net::HttpResponseHeaders* headers,
     return false;
   }
 
-  if (!base::LowerCaseEqualsASCII(value,
-                                  net::websockets::kWebSocketLowercase)) {
+  if (!base::EqualsCaseInsensitiveASCII(value,
+                                        net::websockets::kWebSocketLowercase)) {
     *failure_message = "'Upgrade' header value is not 'WebSocket': " + value;
     return false;
   }

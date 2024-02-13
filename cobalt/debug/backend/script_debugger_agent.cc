@@ -47,7 +47,7 @@ void ScriptDebuggerAgent::Thaw(JSONObject agent_state) {
   }
   std::string script_debugger_state;
   if (agent_state) {
-    agent_state->GetString(kScriptDebuggerState, &script_debugger_state);
+    script_debugger_state = *agent_state->FindString(kScriptDebuggerState);
   }
   script_debugger_->Attach(script_debugger_state);
 }
@@ -56,24 +56,26 @@ JSONObject ScriptDebuggerAgent::Freeze() {
   for (auto domain : supported_domains_) {
     dispatcher_->RemoveDomain(domain);
   }
-  JSONObject agent_state(new base::DictionaryValue());
+  JSONObject agent_state(new base::Value::Dict());
   std::string script_debugger_state = script_debugger_->Detach();
-  agent_state->SetString(kScriptDebuggerState, script_debugger_state);
+  agent_state->Set(kScriptDebuggerState, script_debugger_state);
   return agent_state;
 }
 
-base::Optional<Command> ScriptDebuggerAgent::RunCommand(Command command) {
+absl::optional<Command> ScriptDebuggerAgent::RunCommand(Command command) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Use an internal ID to store the pending command until we get a response.
   int command_id = ++last_command_id_;
 
-  JSONObject message(new base::DictionaryValue());
-  message->SetInteger(kId, command_id);
-  message->SetString(kMethod, command.GetMethod());
+  JSONObject message(new base::Value::Dict());
+  message->Set(kId, command_id);
+  message->Set(kMethod, command.GetMethod());
   JSONObject params = JSONParse(command.GetParams());
   if (params) {
+#ifndef USE_HACKY_COBALT_CHANGES
     message->Set(kParams, std::move(params));
+#endif
   }
 
   // Store the pending command before dispatching it so that we can find it if
@@ -88,7 +90,7 @@ base::Optional<Command> ScriptDebuggerAgent::RunCommand(Command command) {
 
   // Take the command back out of the map and return it for fallback.
   auto opt_command =
-      base::make_optional(std::move(pending_commands_.at(command_id)));
+      absl::make_optional(std::move(pending_commands_.at(command_id)));
   pending_commands_.erase(command_id);
   return opt_command;
 }
@@ -99,8 +101,8 @@ void ScriptDebuggerAgent::SendCommandResponse(
 
   // Strip the internal ID from the response, and get its value.
   int command_id = 0;
-  response->GetInteger(kId, &command_id);
-  response->Remove(kId, nullptr);
+  command_id = *response->FindInt(kId);
+  response->Remove(kId);
 
   // Use the stripped ID to lookup the command it's a response for.
   auto iter = pending_commands_.find(command_id);
@@ -116,13 +118,14 @@ void ScriptDebuggerAgent::SendEvent(const std::string& json_event) {
   JSONObject event = JSONParse(json_event);
 
   std::string method;
-  event->GetString(kMethod, &method);
+  method = *event->FindString(kMethod);
 
   JSONObject params;
-  base::Value* value = nullptr;
-  base::DictionaryValue* dict_value = nullptr;
-  if (event->Get(kParams, &value) && value->GetAsDictionary(&dict_value)) {
-    params.reset(dict_value->DeepCopy());
+  base::Value value(base::Value::Type::DICT);
+  base::Value::Dict* dict_value = value->GetIfDict();
+  if (event->Find(kParams)->is_dict()) {
+    dict_value = event->FindDict(kParams);
+    params.reset(base::Value::ToUniquePtrValue(std::move(value))->GetIfDict());
   }
 
   dispatcher_->SendEvent(method, params);

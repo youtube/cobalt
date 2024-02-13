@@ -17,6 +17,7 @@
 #include <set>
 #include <utility>
 
+#include "base/logging.h"
 #include "cobalt/network/local_network.h"
 #include "cobalt/network/socket_address_parser.h"
 #include "net/base/net_errors.h"
@@ -43,7 +44,7 @@ int NetworkDelegate::OnBeforeURLRequest(net::URLRequest* request,
       url.SchemeIs("data")) {
     return net::OK;
   } else if (https_requirement_ == kHTTPSOptional) {
-    DLOG_ONCE(WARNING)
+    DLOG(WARNING)
         << "Pages must be served over secure scheme, otherwise it will fail to "
            "load in production builds of Cobalt.";
     return net::OK;
@@ -87,11 +88,12 @@ int NetworkDelegate::OnBeforeURLRequest(net::URLRequest* request,
 }
 
 int NetworkDelegate::OnBeforeStartTransaction(
-    net::URLRequest* request, net::CompletionOnceCallback callback,
-    net::HttpRequestHeaders* headers) {
+    net::URLRequest* request, const net::HttpRequestHeaders& headers,
+    OnBeforeStartTransactionCallback callback) {
   return net::OK;
 }
 
+#ifndef USE_HACKY_COBALT_CHANGES
 void NetworkDelegate::OnBeforeSendHeaders(
     net::URLRequest* request, const net::ProxyInfo& proxy_info,
     const net::ProxyRetryInfoMap& proxy_retry_info,
@@ -99,12 +101,14 @@ void NetworkDelegate::OnBeforeSendHeaders(
 
 void NetworkDelegate::OnStartTransaction(
     net::URLRequest* request, const net::HttpRequestHeaders& headers) {}
+#endif
 
 int NetworkDelegate::OnHeadersReceived(
     net::URLRequest* request, net::CompletionOnceCallback callback,
     const net::HttpResponseHeaders* original_response_headers,
     scoped_refptr<net::HttpResponseHeaders>* override_response_headers,
-    GURL* allowed_unsafe_redirect_url) {
+    const net::IPEndPoint& remote_endpoint,
+    absl::optional<GURL>* preserve_fragment_on_redirect_url) {
   return net::OK;
 }
 
@@ -114,11 +118,13 @@ void NetworkDelegate::OnBeforeRedirect(net::URLRequest* request,
 void NetworkDelegate::OnResponseStarted(net::URLRequest* request,
                                         int net_error) {}
 
+#ifndef USE_HACKY_COBALT_CHANGES
 void NetworkDelegate::OnNetworkBytesReceived(net::URLRequest* request,
                                              int64_t bytes_received) {}
 
 void NetworkDelegate::OnNetworkBytesSent(net::URLRequest* request,
                                          int64_t bytes_sent) {}
+#endif
 
 void NetworkDelegate::OnCompleted(net::URLRequest* request, bool started,
                                   int net_error) {}
@@ -126,8 +132,9 @@ void NetworkDelegate::OnCompleted(net::URLRequest* request, bool started,
 void NetworkDelegate::OnURLRequestDestroyed(net::URLRequest* request) {}
 
 void NetworkDelegate::OnPACScriptError(int line_number,
-                                       const base::string16& error) {}
+                                       const std::u16string& error) {}
 
+#ifndef USE_HACKY_COBALT_CHANGES
 net::NetworkDelegate::AuthRequiredResponse NetworkDelegate::OnAuthRequired(
     net::URLRequest* request, const net::AuthChallengeInfo& auth_info,
     AuthCallback callback, net::AuthCredentials* credentials) {
@@ -144,19 +151,17 @@ bool NetworkDelegate::OnCanGetCookies(const net::URLRequest& request,
   int rv = policy.CanAccessCookies(request.url(), request.site_for_cookies());
   return rv == net::OK;
 }
+#endif
 
 bool NetworkDelegate::OnCanSetCookie(const net::URLRequest& request,
                                      const net::CanonicalCookie& cookie,
-                                     net::CookieOptions* options,
-                                     bool allowed_from_caller) {
-  if (!allowed_from_caller) {
-    return false;
-  }
+                                     net::CookieOptions* options) {
   net::StaticCookiePolicy policy(ComputeCookiePolicy());
   int rv = policy.CanAccessCookies(request.url(), request.site_for_cookies());
   return rv == net::OK;
 }
 
+#ifndef USE_HACKY_COBALT_CHANGES
 bool NetworkDelegate::OnCanAccessFile(
     const net::URLRequest& request, const base::FilePath& original_path,
     const base::FilePath& absolute_path) const {
@@ -171,6 +176,7 @@ bool NetworkDelegate::OnCanEnablePrivacyMode(
 bool NetworkDelegate::OnAreExperimentalCookieFeaturesEnabled() const {
   return false;
 }
+#endif
 
 bool NetworkDelegate::OnCancelURLRequestWithPolicyViolatingReferrerHeader(
     const net::URLRequest& request, const GURL& target_url,

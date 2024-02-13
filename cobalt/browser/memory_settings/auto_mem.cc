@@ -224,7 +224,7 @@ void CheckConstrainingValues(const MemorySetting& memory_setting) {
     values.push_back(actual_constraining_value);
   }
 
-  DCHECK(base::STLIsSorted(values))
+  DCHECK(std::is_sorted(std::begin(values), std::end(values)))
       << "Constrainer in " << memory_setting.name()
       << " does not produce "
          "monotonically decreasing values as input goes from 1.0 -> 0.0";

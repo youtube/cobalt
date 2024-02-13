@@ -133,7 +133,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       allow_resume_after_suspend_(allow_resume_after_suspend),
       allow_batched_sample_write_(allow_batched_sample_write),
       force_punch_out_by_default_(force_punch_out_by_default),
-      proxy_(new WebMediaPlayerProxy(main_loop_->task_runner(), this)),
+      proxy_(nullptr),
       media_log_(media_log),
       is_local_source_(false),
       suppress_destruction_errors_(false),

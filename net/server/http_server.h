@@ -95,6 +95,12 @@ class HttpServer {
   // Copies the local address to |address|. Returns a network error code.
   int GetLocalAddress(IPEndPoint* address);
 
+#if defined(STARBOARD)
+  // Like GetLocalAddress(), but if listening to IPADDR_ANY returns the local
+  // address of an arbitrary interface (choosing IPv4 address over IPv6).
+  int GetLocalInterfaceAddress(IPEndPoint* address);
+#endif
+
  private:
   friend class HttpServerTest;
 

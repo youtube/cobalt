@@ -18,6 +18,7 @@
 #include <memory>
 #include <unordered_map>
 
+#include "base/bind.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/renderer/backend/egl/framebuffer_render_target.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"

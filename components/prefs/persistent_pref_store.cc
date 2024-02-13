@@ -6,7 +6,7 @@
 
 #include <utility>
 
-#include "base/threading/sequenced_task_runner_handle.h"
+#include "base/task/sequenced_task_runner.h"
 
 void PersistentPrefStore::CommitPendingWrite(
     base::OnceClosure reply_callback,
@@ -21,7 +21,7 @@ void PersistentPrefStore::CommitPendingWrite(
     std::move(synchronous_done_callback).Run();
 
   if (reply_callback) {
-    base::SequencedTaskRunnerHandle::Get()->PostTask(FROM_HERE,
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(FROM_HERE,
                                                      std::move(reply_callback));
   }
 }

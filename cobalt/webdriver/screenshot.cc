@@ -16,6 +16,7 @@
 #include "cobalt/webdriver/screenshot.h"
 
 #include "base/base64.h"
+#include "base/bind.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/webdriver/util/command_result.h"
@@ -75,11 +76,12 @@ util::CommandResult<std::string> Screenshot::RequestScreenshot(
   std::string encoded;
   {
     // base64 encode the contents of the file to be returned to the client.
-    if (!base::Base64Encode(
-            base::StringPiece(
-                reinterpret_cast<char*>(context.compressed_file->GetMemory()),
-                file_size_in_bytes),
-            &encoded)) {
+    base::Base64Encode(
+        base::StringPiece(
+            reinterpret_cast<char*>(context.compressed_file->GetMemory()),
+            file_size_in_bytes),
+        &encoded);
+    if (encoded.empty()) {
       return CommandResult(protocol::Response::kUnknownError,
                            "Failed to base64 encode screenshot file contents.");
     }

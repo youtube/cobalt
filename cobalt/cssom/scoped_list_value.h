@@ -21,6 +21,7 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "base/macros.h"
 #include "cobalt/cssom/property_value.h"
 
 namespace cobalt {

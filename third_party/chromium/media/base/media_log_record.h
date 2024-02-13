@@ -23,8 +23,7 @@ struct MediaLogRecord {
   MediaLogRecord& operator=(const MediaLogRecord& event) {
     id = event.id;
     type = event.type;
-    std::unique_ptr<base::DictionaryValue> event_copy(event.params.DeepCopy());
-    params.Swap(event_copy.get());
+    params = event.params.Clone();
     time = event.time;
     return *this;
   }
@@ -47,7 +46,7 @@ struct MediaLogRecord {
 
   int32_t id;
   Type type;
-  base::DictionaryValue params;
+  base::Value params;
   base::TimeTicks time;
 };
 

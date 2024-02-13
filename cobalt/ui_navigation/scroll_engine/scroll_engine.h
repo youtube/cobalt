@@ -55,7 +55,8 @@ class ScrollEngine {
   ScrollEngine();
   ~ScrollEngine();
 
-  void HandlePointerEvent(base::Token type, const dom::PointerEventInit& event);
+  void HandlePointerEvent(base_token::Token type,
+                          const dom::PointerEventInit& event);
   void HandleScrollStart(scoped_refptr<ui_navigation::NavItem> scroll_container,
                          ScrollType scroll_type, int32_t pointer_id,
                          math::Vector2dF initial_coordinates,

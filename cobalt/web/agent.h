@@ -50,7 +50,7 @@ class Agent : public base::MessageLoop::DestructionObserver {
 
     // Specifies the priority of the web agent's thread.  This is the thread
     // that is responsible for executing JavaScript.
-    base::ThreadPriority thread_priority = base::ThreadPriority::NORMAL;
+    base::ThreadType thread_priority = base::ThreadType::kDefault;
 
     size_t stack_size = 0;
     // injected_global_attributes contains a map of attributes to be injected

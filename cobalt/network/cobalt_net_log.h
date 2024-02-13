@@ -28,11 +28,13 @@
 namespace cobalt {
 namespace network {
 
-class CobaltNetLog : public ::net::NetLog {
+class CobaltNetLog : public ::net::NetLog::ThreadSafeObserver {
  public:
   CobaltNetLog(const base::FilePath& log_path,
                ::net::NetLogCaptureMode capture_mode);
-  ~CobaltNetLog() override;
+  ~CobaltNetLog();
+
+  void OnAddEntry(const net::NetLogEntry& entry) override{};
 
  private:
   std::unique_ptr<net::FileNetLogObserver> net_log_logger_;
