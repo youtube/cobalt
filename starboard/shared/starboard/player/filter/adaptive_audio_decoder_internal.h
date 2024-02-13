@@ -36,7 +36,7 @@ namespace filter {
 
 class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
  public:
-  typedef std::function<scoped_ptr<filter::AudioDecoder>(
+  typedef std::function<unique_ptr_alias<filter::AudioDecoder>(
       const media::AudioStreamInfo& audio_stream_info,
       SbDrmSystem drm_system)>
       AudioDecoderCreator;
@@ -80,9 +80,9 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   OutputCB output_cb_ = nullptr;
   ErrorCB error_cb_ = nullptr;
 
-  scoped_ptr<filter::AudioDecoder> audio_decoder_;
-  scoped_ptr<filter::AudioResampler> resampler_;
-  scoped_ptr<filter::AudioChannelLayoutMixer> channel_mixer_;
+  unique_ptr_alias<filter::AudioDecoder> audio_decoder_;
+  std::unique_ptr<filter::AudioResampler> resampler_;
+  std::unique_ptr<filter::AudioChannelLayoutMixer> channel_mixer_;
   InputBuffers pending_input_buffers_;
   ConsumedCB pending_consumed_cb_;
   std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;

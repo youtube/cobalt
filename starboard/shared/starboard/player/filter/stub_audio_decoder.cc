@@ -154,7 +154,6 @@ void StubAudioDecoder::Reset() {
 
 void StubAudioDecoder::DecodeBuffers(const InputBuffers& input_buffers,
                                      const ConsumedCB& consumed_cb) {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
   for (const auto& input_buffer : input_buffers) {
     DecodeOneBuffer(input_buffer);
   }
@@ -163,7 +162,6 @@ void StubAudioDecoder::DecodeBuffers(const InputBuffers& input_buffers,
 
 void StubAudioDecoder::DecodeOneBuffer(
     const scoped_refptr<InputBuffer>& input_buffer) {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
   const int kMaxInputBeforeMultipleDecodedAudios = 4;
 
   if (last_input_buffer_) {
@@ -240,8 +238,6 @@ void StubAudioDecoder::DecodeOneBuffer(
 }
 
 void StubAudioDecoder::DecodeEndOfStream() {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
-
   if (last_input_buffer_) {
     if (!frames_per_input_) {
       if (codec_ == kSbMediaAudioCodecOpus) {
