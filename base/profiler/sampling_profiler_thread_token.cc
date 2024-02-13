@@ -16,7 +16,9 @@ namespace base {
 
 SamplingProfilerThreadToken GetSamplingProfilerCurrentThreadToken() {
   PlatformThreadId id = PlatformThread::CurrentId();
-#if BUILDFLAG(IS_ANDROID)
+#if defined(STARBOARD)
+  return {id};
+#elif BUILDFLAG(IS_ANDROID)
   return {id, pthread_self()};
 #elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   absl::optional<uintptr_t> maybe_stack_base =

@@ -973,10 +973,10 @@ component("base") {
       "message_loop/message_pump_ui_starboard.h",
       "process/memory_starboard.cc",
       "process/process_starboard.cc",
+      "profiler/module_cache_starboard.cc",
 
       # "profiler/native_stack_sampler_starboard.cc",
       "rand_util_starboard.cc",
-      "sampling_heap_profiler/module_cache_starboard.cc",
       "strings/string_util_starboard.h",
       "strings/sys_string_conversions_starboard.cc",
       "synchronization/condition_variable_starboard.cc",
@@ -3306,7 +3306,6 @@ test("base_unittests") {
     "observer_list_unittest.cc",
     "one_shot_event_unittest.cc",
     "parameter_pack_unittest.cc",
-
     "path_service_unittest.cc",
     "pickle_unittest.cc",
     "power_monitor/battery_level_provider_unittest.cc",
@@ -3321,15 +3320,13 @@ test("base_unittests") {
     "process/process_unittest.cc",
     "process/process_util_unittest.cc",
     "profiler/metadata_recorder_unittest.cc",
-
-    # "profiler/module_cache_unittest.cc",
+    "profiler/module_cache_unittest.cc",
     "profiler/sample_metadata_unittest.cc",
     "profiler/stack_buffer_unittest.cc",
     "profiler/stack_copier_suspend_unittest.cc",
     "profiler/stack_copier_unittest.cc",
-
-    # "profiler/stack_sampler_unittest.cc",
-    # "profiler/stack_sampling_profiler_unittest.cc",
+    "profiler/stack_sampler_unittest.cc",
+    "profiler/stack_sampling_profiler_unittest.cc",
     "rand_util_unittest.cc",
 
     # "ranges/algorithm_unittest.cc",
@@ -3352,7 +3349,6 @@ test("base_unittests") {
     "stl_util_unittest.cc",
     "strings/abseil_string_number_conversions_unittest.cc",
     "strings/escape_unittest.cc",
-
     "strings/no_trigraphs_unittest.cc",
     "strings/pattern_unittest.cc",
     "strings/safe_sprintf_unittest.cc",
@@ -3364,7 +3360,6 @@ test("base_unittests") {
     "strings/string_util_unittest.cc",
     "strings/stringize_macros_unittest.cc",
     "strings/stringprintf_unittest.cc",
-
     "strings/sys_string_conversions_unittest.cc",
     "strings/to_string_test.cc",
     "strings/utf_offset_string_conversions_unittest.cc",
@@ -3382,7 +3377,6 @@ test("base_unittests") {
 
     # "synchronization/waitable_event_watcher_unittest.cc",
     "sys_byteorder_unittest.cc",
-
     "system/sys_info_unittest.cc",
     "system/system_monitor_unittest.cc",
     "task/bind_post_task_unittest.cc",
@@ -3462,7 +3456,6 @@ test("base_unittests") {
     "test/scoped_mock_clock_override_unittest.cc",
     "test/scoped_mock_time_message_loop_task_runner_unittest.cc",
     "test/scoped_run_loop_timeout_unittest.cc",
-
     "test/task_environment_unittest.cc",
     "test/test_future_unittest.cc",
     "test/test_mock_time_task_runner_unittest.cc",
@@ -3471,11 +3464,9 @@ test("base_unittests") {
     "third_party/dynamic_annotations/dynamic_annotations_compiletest.cc",
     "thread_annotations_unittest.cc",
     "threading/hang_watcher_unittest.cc",
-
     "threading/platform_thread_unittest.cc",
     "threading/post_task_and_reply_impl_unittest.cc",
     "threading/scoped_blocking_call_unittest.cc",
-
     "threading/scoped_thread_priority_unittest.cc",
     "threading/sequence_bound_unittest.cc",
     "threading/sequence_local_storage_map_unittest.cc",
@@ -3491,7 +3482,6 @@ test("base_unittests") {
     "threading/watchdog_unittest.cc",
     "time/pr_time_unittest.cc",
     "time/time_delta_from_string_unittest.cc",
-
     "time/time_unittest.cc",
     "timer/elapsed_timer_unittest.cc",
     "timer/hi_res_timer_manager_unittest.cc",
@@ -3546,6 +3536,9 @@ test("base_unittests") {
       "process/process_unittest.cc",
       "process/process_util_unittest.cc",
 
+      # moduleCache is not implemented in Starboard.
+      "profiler/module_cache_unittest.cc",
+
       # Not used by cobalt.
       "native_library_unittest.cc",
       "test/launcher/test_launcher_unittest.cc",
@@ -3580,8 +3573,7 @@ test("base_unittests") {
   deps = [
     ":arm_bti_testfunctions",
     ":base",
-
-    # ":base_stack_sampling_profiler_test_util",
+    ":base_stack_sampling_profiler_test_util",
     ":feature_list_buildflags",
     ":i18n",
     ":sanitizer_buildflags",
