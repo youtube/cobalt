@@ -7,7 +7,6 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
-#include "src/common/globals.h"
 #include "src/logging/counters.h"
 #include "src/objects/js-proxy.h"
 #include "src/objects/objects-inl.h"
@@ -52,10 +51,8 @@ TNode<JSProxy> ProxiesCodeStubAssembler::AllocateProxy(
   BIND(&create_proxy);
   TNode<HeapObject> proxy = Allocate(JSProxy::kSize);
   StoreMapNoWriteBarrier(proxy, map.value());
-  RootIndex empty_dict = V8_DICT_MODE_PROTOTYPES_BOOL
-                             ? RootIndex::kEmptyOrderedPropertyDictionary
-                             : RootIndex::kEmptyPropertyDictionary;
-  StoreObjectFieldRoot(proxy, JSProxy::kPropertiesOrHashOffset, empty_dict);
+  StoreObjectFieldRoot(proxy, JSProxy::kPropertiesOrHashOffset,
+                       RootIndex::kEmptyPropertyDictionary);
   StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kTargetOffset, target);
   StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kHandlerOffset, handler);
 

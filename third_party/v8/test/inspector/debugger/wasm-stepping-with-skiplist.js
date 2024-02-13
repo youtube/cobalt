@@ -44,26 +44,30 @@ const call_function_offset = loop_body_start_offset + 12;
 const func_a_start_offset = func_a.body_offset;
 const func_a_end_offset = func_a_start_offset + 2;
 
-InspectorTest.runAsyncTestSuite([
-  async function test() {
-    await Protocol.Debugger.enable();
-    InspectorTest.log('Setting up global instance variable');
-    WasmInspectorTest.instantiate(module_bytes);
-    const [, {params: wasmScript}] = await Protocol.Debugger.onceScriptParsed(2);
-    const scriptId = wasmScript.scriptId;
+runTest()
+    .catch(reason => InspectorTest.log(`Failed: ${reason}`))
+    .then(InspectorTest.completeTest);
 
-    InspectorTest.log('Got wasm script: ' + wasmScript.url);
+async function runTest() {
+  await Protocol.Debugger.enable();
+  InspectorTest.log('Setting up global instance variable');
+  WasmInspectorTest.instantiate(module_bytes);
+  const [, {params: wasmScript}] = await Protocol.Debugger.onceScriptParsed(2);
+  const scriptId = wasmScript.scriptId;
 
-    let bpmsg = await Protocol.Debugger.setBreakpoint({
-      location:
-          {scriptId: scriptId, lineNumber: 0, columnNumber: loop_start_offset}
-    });
-    InspectorTest.logMessage(bpmsg.result.actualLocation);
+  InspectorTest.log('Got wasm script: ' + wasmScript.url);
 
-    await checkValidSkipLists(scriptId);
-    await checkInvalidSkipLists(scriptId);
-  }
-]);
+  let bpmsg = await Protocol.Debugger.setBreakpoint({
+    location:
+        {scriptId: scriptId, lineNumber: 0, columnNumber: loop_start_offset}
+  });
+  InspectorTest.logMessage(bpmsg.result.actualLocation);
+
+  await checkValidSkipLists(scriptId);
+  await checkInvalidSkipLists(scriptId);
+
+  InspectorTest.log('Finished!');
+}
 
 async function checkValidSkipLists(scriptId) {
   InspectorTest.log('Test with valid skip lists');

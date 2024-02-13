@@ -267,7 +267,6 @@ class ActivationsFinder : public ThreadVisitor {
           SafepointEntry safepoint = code.GetSafepointEntry(it.frame()->pc());
           int trampoline_pc = safepoint.trampoline_pc();
           DCHECK_IMPLIES(code == topmost_, safe_to_deopt_);
-          STATIC_ASSERT(SafepointEntry::kNoTrampolinePC == -1);
           CHECK_GE(trampoline_pc, 0);
           // Replace the current pc on the stack with the trampoline.
           // TODO(v8:10026): avoid replacing a signed pointer.
@@ -293,7 +292,7 @@ class ActivationsFinder : public ThreadVisitor {
 // and replace pc on the stack for codes marked for deoptimization.
 // static
 void Deoptimizer::DeoptimizeMarkedCodeForContext(NativeContext native_context) {
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_allocation;
 
   Isolate* isolate = native_context.GetIsolate();
   Code topmost_optimized_code;
@@ -386,7 +385,7 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
   TraceDeoptAll(isolate);
   isolate->AbortConcurrentOptimization(BlockingBehavior::kBlock);
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_allocation;
   // For all contexts, mark all code, then deoptimize.
   Object context = isolate->heap()->native_contexts_list();
   while (!context.IsUndefined(isolate)) {
@@ -404,7 +403,7 @@ void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
   TraceDeoptMarked(isolate);
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_allocation;
   // For all contexts, deoptimize code already marked.
   Object context = isolate->heap()->native_contexts_list();
   while (!context.IsUndefined(isolate)) {
@@ -472,8 +471,6 @@ const char* Deoptimizer::MessageFor(DeoptimizeKind kind, bool reuse_code) {
       return "deopt-lazy";
     case DeoptimizeKind::kBailout:
       return "bailout";
-    case DeoptimizeKind::kEagerWithResume:
-      return "eager-with-resume";
   }
 }
 
@@ -526,6 +523,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
 
   DCHECK(function.IsJSFunction());
 #ifdef DEBUG
+  DCHECK(AllowHeapAllocation::IsAllowed());
   DCHECK(AllowGarbageCollection::IsAllowed());
   disallow_garbage_collection_ = new DisallowGarbageCollection();
 #endif  // DEBUG
@@ -555,42 +553,25 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
         DeoptimizationData::cast(compiled_code_.deoptimization_data());
     Address deopt_start = compiled_code_.raw_instruction_start() +
                           deopt_data.DeoptExitStart().value();
-    int eager_soft_and_bailout_deopt_count =
-        deopt_data.EagerSoftAndBailoutDeoptCount().value();
+    int non_lazy_deopt_count = deopt_data.NonLazyDeoptCount().value();
     Address lazy_deopt_start =
-        deopt_start +
-        eager_soft_and_bailout_deopt_count * kNonLazyDeoptExitSize;
-    int lazy_deopt_count = deopt_data.LazyDeoptCount().value();
-    Address eager_with_resume_deopt_start =
-        lazy_deopt_start + lazy_deopt_count * kLazyDeoptExitSize;
-    // The deoptimization exits are sorted so that lazy deopt exits appear after
-    // eager deopts, and eager with resume deopts appear last.
-    static_assert(DeoptimizeKind::kEagerWithResume == kLastDeoptimizeKind,
-                  "eager with resume deopts are expected to be emitted last");
-    static_assert(static_cast<int>(DeoptimizeKind::kLazy) ==
-                      static_cast<int>(kLastDeoptimizeKind) - 1,
-                  "lazy deopts are expected to be emitted second from last");
+        deopt_start + non_lazy_deopt_count * kNonLazyDeoptExitSize;
+    // The deoptimization exits are sorted so that lazy deopt exits appear last.
+    static_assert(DeoptimizeKind::kLazy == kLastDeoptimizeKind,
+                  "lazy deopts are expected to be emitted last");
     // from_ is the value of the link register after the call to the
     // deoptimizer, so for the last lazy deopt, from_ points to the first
-    // non-lazy deopt, so we use <=, similarly for the last non-lazy deopt and
-    // the first deopt with resume entry.
+    // non-lazy deopt, so we use <=.
     if (from_ <= lazy_deopt_start) {
       int offset =
           static_cast<int>(from_ - kNonLazyDeoptExitSize - deopt_start);
       DCHECK_EQ(0, offset % kNonLazyDeoptExitSize);
       bailout_id_ = offset / kNonLazyDeoptExitSize;
-    } else if (from_ <= eager_with_resume_deopt_start) {
+    } else {
       int offset =
           static_cast<int>(from_ - kLazyDeoptExitSize - lazy_deopt_start);
       DCHECK_EQ(0, offset % kLazyDeoptExitSize);
-      bailout_id_ =
-          eager_soft_and_bailout_deopt_count + (offset / kLazyDeoptExitSize);
-    } else {
-      int offset = static_cast<int>(from_ - kNonLazyDeoptExitSize -
-                                    eager_with_resume_deopt_start);
-      DCHECK_EQ(0, offset % kEagerWithResumeDeoptExitSize);
-      bailout_id_ = eager_soft_and_bailout_deopt_count + lazy_deopt_count +
-                    (offset / kEagerWithResumeDeoptExitSize);
+      bailout_id_ = non_lazy_deopt_count + (offset / kLazyDeoptExitSize);
     }
   }
 }
@@ -635,16 +616,8 @@ void Deoptimizer::DeleteFrameDescriptions() {
 #endif  // DEBUG
 }
 
-Builtins::Name Deoptimizer::GetDeoptWithResumeBuiltin(DeoptimizeReason reason) {
-  switch (reason) {
-    case DeoptimizeReason::kDynamicCheckMaps:
-      return Builtins::kDynamicCheckMapsTrampoline;
-    default:
-      UNREACHABLE();
-  }
-}
-
-Builtins::Name Deoptimizer::GetDeoptimizationEntry(DeoptimizeKind kind) {
+Builtins::Name Deoptimizer::GetDeoptimizationEntry(Isolate* isolate,
+                                                   DeoptimizeKind kind) {
   switch (kind) {
     case DeoptimizeKind::kEager:
       return Builtins::kDeoptimizationEntry_Eager;
@@ -654,11 +627,6 @@ Builtins::Name Deoptimizer::GetDeoptimizationEntry(DeoptimizeKind kind) {
       return Builtins::kDeoptimizationEntry_Bailout;
     case DeoptimizeKind::kLazy:
       return Builtins::kDeoptimizationEntry_Lazy;
-    case DeoptimizeKind::kEagerWithResume:
-      // EagerWithResume deopts will call a special builtin (specified by
-      // GetDeoptWithResumeBuiltin) which will itself select the deoptimization
-      // entry builtin if it decides to deopt instead of resuming execution.
-      UNREACHABLE();
   }
 }
 
@@ -710,13 +678,12 @@ int Deoptimizer::GetDeoptimizedCodeCount(Isolate* isolate) {
 
 namespace {
 
-int LookupCatchHandler(Isolate* isolate, TranslatedFrame* translated_frame,
-                       int* data_out) {
+int LookupCatchHandler(TranslatedFrame* translated_frame, int* data_out) {
   switch (translated_frame->kind()) {
     case TranslatedFrame::kInterpretedFunction: {
       int bytecode_offset = translated_frame->node_id().ToInt();
       HandlerTable table(
-          translated_frame->raw_shared_info().GetBytecodeArray(isolate));
+          translated_frame->raw_shared_info().GetBytecodeArray());
       return table.LookupRange(bytecode_offset, data_out, nullptr);
     }
     case TranslatedFrame::kJavaScriptBuiltinContinuationWithCatch: {
@@ -764,9 +731,9 @@ void Deoptimizer::TraceDeoptEnd(double deopt_duration) {
 
 // static
 void Deoptimizer::TraceMarkForDeoptimization(Code code, const char* reason) {
-  if (!FLAG_trace_deopt) return;
+  if (!FLAG_trace_deopt_verbose) return;
 
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_gc;
   Isolate* isolate = code.GetIsolate();
   Object maybe_data = code.deoptimization_data();
   if (maybe_data == ReadOnlyRoots(isolate).empty_fixed_array()) return;
@@ -778,9 +745,8 @@ void Deoptimizer::TraceMarkForDeoptimization(Code code, const char* reason) {
   deopt_data.SharedFunctionInfo().ShortPrint(scope.file());
   PrintF(") (opt id %d) for deoptimization, reason: %s]\n",
          deopt_data.OptimizationId().value(), reason);
-
-  no_gc.Release();
   {
+    AllowHeapAllocation yes_gc;
     HandleScope scope(isolate);
     PROFILE(
         isolate,
@@ -797,7 +763,7 @@ void Deoptimizer::TraceEvictFromOptimizedCodeCache(SharedFunctionInfo sfi,
                                                    const char* reason) {
   if (!FLAG_trace_deopt_verbose) return;
 
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_gc;
   CodeTracer::Scope scope(sfi.GetIsolate()->GetCodeTracer());
   PrintF(scope.file(),
          "[evicting optimized code marked for deoptimization (%s) for ",
@@ -903,7 +869,7 @@ void Deoptimizer::DoComputeOutputFrames() {
     size_t catch_handler_frame_index = count;
     for (size_t i = count; i-- > 0;) {
       catch_handler_pc_offset_ = LookupCatchHandler(
-          isolate(), &(translated_state_.frames()[i]), &catch_handler_data_);
+          &(translated_state_.frames()[i]), &catch_handler_data_);
       if (catch_handler_pc_offset_ >= 0) {
         catch_handler_frame_index = i;
         break;
@@ -1018,7 +984,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   TranslatedFrame::iterator function_iterator = value_iterator++;
   if (verbose_tracing_enabled()) {
     PrintF(trace_scope()->file(), "  translating interpreted frame ");
-    std::unique_ptr<char[]> name = shared.DebugNameCStr();
+    std::unique_ptr<char[]> name = shared.DebugName().ToCString();
     PrintF(trace_scope()->file(), "%s", name.get());
     PrintF(trace_scope()->file(),
            " => bytecode_offset=%d, variable_frame_size=%d, frame_size=%d%s\n",
@@ -1141,7 +1107,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   // Set the bytecode array pointer.
   Object bytecode_array = shared.HasBreakInfo()
                               ? shared.GetDebugInfo().DebugBytecodeArray()
-                              : shared.GetBytecodeArray(isolate());
+                              : shared.GetBytecodeArray();
   frame_writer.PushRawObject(bytecode_array, "bytecode array\n");
 
   // The bytecode offset was mentioned explicitly in the BEGIN_FRAME.
@@ -2463,7 +2429,7 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(TranslatedState* state,
 
   DCHECK_EQ(TranslatedFrame::kInterpretedFunction, frame_it->kind());
   source_position_ = Deoptimizer::ComputeSourcePositionFromBytecodeArray(
-      isolate, *frame_it->shared_info(), frame_it->node_id());
+      *frame_it->shared_info(), frame_it->node_id());
 
   DCHECK_EQ(parameter_count,
             function_->shared().internal_formal_parameter_count());
@@ -2525,9 +2491,9 @@ Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code code, Address pc) {
 
 // static
 int Deoptimizer::ComputeSourcePositionFromBytecodeArray(
-    Isolate* isolate, SharedFunctionInfo shared, BailoutId node_id) {
+    SharedFunctionInfo shared, BailoutId node_id) {
   DCHECK(shared.HasBytecodeArray());
-  return AbstractCode::cast(shared.GetBytecodeArray(isolate))
+  return AbstractCode::cast(shared.GetBytecodeArray())
       .SourcePosition(node_id.ToInt());
 }
 
@@ -2958,7 +2924,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       int return_value_offset = iterator->Next();
       int return_value_count = iterator->Next();
       if (trace_file != nullptr) {
-        std::unique_ptr<char[]> name = shared_info.DebugNameCStr();
+        std::unique_ptr<char[]> name = shared_info.DebugName().ToCString();
         PrintF(trace_file, "  reading input frame %s", name.get());
         int arg_count = InternalFormalParameterCountWithReceiver(shared_info);
         PrintF(trace_file,
@@ -2977,7 +2943,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
           SharedFunctionInfo::cast(literal_array.get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {
-        std::unique_ptr<char[]> name = shared_info.DebugNameCStr();
+        std::unique_ptr<char[]> name = shared_info.DebugName().ToCString();
         PrintF(trace_file, "  reading arguments adaptor frame %s", name.get());
         PrintF(trace_file, " => height=%d; inputs:\n", height);
       }
@@ -2990,7 +2956,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
           SharedFunctionInfo::cast(literal_array.get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {
-        std::unique_ptr<char[]> name = shared_info.DebugNameCStr();
+        std::unique_ptr<char[]> name = shared_info.DebugName().ToCString();
         PrintF(trace_file, "  reading construct stub frame %s", name.get());
         PrintF(trace_file, " => bailout_id=%d, height=%d; inputs:\n",
                bailout_id.ToInt(), height);
@@ -3005,7 +2971,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
           SharedFunctionInfo::cast(literal_array.get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {
-        std::unique_ptr<char[]> name = shared_info.DebugNameCStr();
+        std::unique_ptr<char[]> name = shared_info.DebugName().ToCString();
         PrintF(trace_file, "  reading builtin continuation frame %s",
                name.get());
         PrintF(trace_file, " => bailout_id=%d, height=%d; inputs:\n",
@@ -3021,7 +2987,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
           SharedFunctionInfo::cast(literal_array.get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {
-        std::unique_ptr<char[]> name = shared_info.DebugNameCStr();
+        std::unique_ptr<char[]> name = shared_info.DebugName().ToCString();
         PrintF(trace_file, "  reading JavaScript builtin continuation frame %s",
                name.get());
         PrintF(trace_file, " => bailout_id=%d, height=%d; inputs:\n",
@@ -3036,7 +3002,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
           SharedFunctionInfo::cast(literal_array.get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {
-        std::unique_ptr<char[]> name = shared_info.DebugNameCStr();
+        std::unique_ptr<char[]> name = shared_info.DebugName().ToCString();
         PrintF(trace_file,
                "  reading JavaScript builtin continuation frame with catch %s",
                name.get());
@@ -3511,8 +3477,7 @@ Address TranslatedState::DecompressIfNeeded(intptr_t value) {
   }
 }
 
-TranslatedState::TranslatedState(const JavaScriptFrame* frame)
-    : purpose_(kFrameInspection) {
+TranslatedState::TranslatedState(const JavaScriptFrame* frame) {
   int deopt_index = Safepoint::kNoDeoptimizationIndex;
   DeoptimizationData data =
       static_cast<const OptimizedFrame*>(frame)->GetDeoptimizationData(
@@ -3634,7 +3599,7 @@ TranslatedValue* TranslatedState::GetValueByObjectIndex(int object_index) {
 Handle<HeapObject> TranslatedState::InitializeObjectAt(TranslatedValue* slot) {
   slot = ResolveCapturedObject(slot);
 
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_allocation;
   if (slot->materialization_state() != TranslatedValue::kFinished) {
     std::stack<int> worklist;
     worklist.push(slot->object_index());
@@ -3643,7 +3608,7 @@ Handle<HeapObject> TranslatedState::InitializeObjectAt(TranslatedValue* slot) {
     while (!worklist.empty()) {
       int index = worklist.top();
       worklist.pop();
-      InitializeCapturedObjectAt(index, &worklist, no_gc);
+      InitializeCapturedObjectAt(index, &worklist, no_allocation);
     }
   }
   return slot->storage();
@@ -3651,7 +3616,7 @@ Handle<HeapObject> TranslatedState::InitializeObjectAt(TranslatedValue* slot) {
 
 void TranslatedState::InitializeCapturedObjectAt(
     int object_index, std::stack<int>* worklist,
-    const DisallowGarbageCollection& no_gc) {
+    const DisallowHeapAllocation& no_allocation) {
   CHECK_LT(static_cast<size_t>(object_index), object_positions_.size());
   TranslatedState::ObjectPosition pos = object_positions_[object_index];
   int value_index = pos.value_index_;
@@ -3718,12 +3683,13 @@ void TranslatedState::InitializeCapturedObjectAt(
     case PROPERTY_ARRAY_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
     case SLOPPY_ARGUMENTS_ELEMENTS_TYPE:
-      InitializeObjectWithTaggedFieldsAt(frame, &value_index, slot, map, no_gc);
+      InitializeObjectWithTaggedFieldsAt(frame, &value_index, slot, map,
+                                         no_allocation);
       break;
 
     default:
       CHECK(map->IsJSObjectMap());
-      InitializeJSObjectAt(frame, &value_index, slot, map, no_gc);
+      InitializeJSObjectAt(frame, &value_index, slot, map, no_allocation);
       break;
   }
   CHECK_EQ(value_index, children_init_index);
@@ -3908,61 +3874,23 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
     }
 
     default:
+      CHECK(map->IsJSObjectMap());
       EnsureJSObjectAllocated(slot, map);
-      int remaining_children_count = slot->GetChildrenCount() - 1;
-
-      TranslatedValue* properties_slot = frame->ValueAt(value_index);
-      value_index++, remaining_children_count--;
+      TranslatedValue* properties_slot = &(frame->values_[value_index]);
+      value_index++;
       if (properties_slot->kind() == TranslatedValue::kCapturedObject) {
-        // We are materializing the property array, so make sure we put the
-        // mutable heap numbers at the right places.
+        // If we are materializing the property array, make sure we put
+        // the mutable heap numbers at the right places.
         EnsurePropertiesAllocatedAndMarked(properties_slot, map);
         EnsureChildrenAllocated(properties_slot->GetChildrenCount(), frame,
                                 &value_index, worklist);
-      } else {
-        CHECK_EQ(properties_slot->kind(), TranslatedValue::kTagged);
       }
-
-      TranslatedValue* elements_slot = frame->ValueAt(value_index);
-      value_index++, remaining_children_count--;
-      if (elements_slot->kind() == TranslatedValue::kCapturedObject ||
-          !map->IsJSArrayMap()) {
-        // Handle this case with the other remaining children below.
-        value_index--, remaining_children_count++;
-      } else {
-        CHECK_EQ(elements_slot->kind(), TranslatedValue::kTagged);
-        elements_slot->GetValue();
-        if (purpose_ == kFrameInspection) {
-          // We are materializing a JSArray for the purpose of frame inspection.
-          // If we were to construct it with the above elements value then an
-          // actual deopt later on might create another JSArray instance with
-          // the same elements store. That would violate the key assumption
-          // behind left-trimming.
-          elements_slot->ReplaceElementsArrayWithCopy();
-        }
-      }
-
-      // Make sure all the remaining children (after the map, properties store,
-      // and possibly elements store) are allocated.
-      return EnsureChildrenAllocated(remaining_children_count, frame,
+      // Make sure all the remaining children (after the map and properties) are
+      // allocated.
+      return EnsureChildrenAllocated(slot->GetChildrenCount() - 2, frame,
                                      &value_index, worklist);
   }
   UNREACHABLE();
-}
-
-void TranslatedValue::ReplaceElementsArrayWithCopy() {
-  DCHECK_EQ(kind(), TranslatedValue::kTagged);
-  DCHECK_EQ(materialization_state(), TranslatedValue::kFinished);
-  auto elements = Handle<FixedArrayBase>::cast(GetValue());
-  DCHECK(elements->IsFixedArray() || elements->IsFixedDoubleArray());
-  if (elements->IsFixedDoubleArray()) {
-    DCHECK(!elements->IsCowArray());
-    set_storage(isolate()->factory()->CopyFixedDoubleArray(
-        Handle<FixedDoubleArray>::cast(elements)));
-  } else if (!elements->IsCowArray()) {
-    set_storage(isolate()->factory()->CopyFixedArray(
-        Handle<FixedArray>::cast(elements)));
-  }
 }
 
 void TranslatedState::EnsureChildrenAllocated(int count, TranslatedFrame* frame,
@@ -4030,7 +3958,6 @@ Handle<ByteArray> TranslatedState::AllocateStorageFor(TranslatedValue* slot) {
 
 void TranslatedState::EnsureJSObjectAllocated(TranslatedValue* slot,
                                               Handle<Map> map) {
-  CHECK(map->IsJSObjectMap());
   CHECK_EQ(map->instance_size(), slot->GetChildrenCount() * kTaggedSize);
 
   Handle<ByteArray> object_storage = AllocateStorageFor(slot);
@@ -4080,7 +4007,7 @@ Handle<Object> TranslatedState::GetValueAndAdvance(TranslatedFrame* frame,
 
 void TranslatedState::InitializeJSObjectAt(
     TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
-    Handle<Map> map, const DisallowGarbageCollection& no_gc) {
+    Handle<Map> map, const DisallowHeapAllocation& no_allocation) {
   Handle<HeapObject> object_storage = Handle<HeapObject>::cast(slot->storage_);
   DCHECK_EQ(TranslatedValue::kCapturedObject, slot->kind());
 
@@ -4088,7 +4015,7 @@ void TranslatedState::InitializeJSObjectAt(
   CHECK_GE(slot->GetChildrenCount(), 2);
 
   // Notify the concurrent marker about the layout change.
-  isolate()->heap()->NotifyObjectLayoutChange(*object_storage, no_gc);
+  isolate()->heap()->NotifyObjectLayoutChange(*object_storage, no_allocation);
 
   // Fill the property array field.
   {
@@ -4131,7 +4058,7 @@ void TranslatedState::InitializeJSObjectAt(
 
 void TranslatedState::InitializeObjectWithTaggedFieldsAt(
     TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
-    Handle<Map> map, const DisallowGarbageCollection& no_gc) {
+    Handle<Map> map, const DisallowHeapAllocation& no_allocation) {
   Handle<HeapObject> object_storage = Handle<HeapObject>::cast(slot->storage_);
 
   // Skip the writes if we already have the canonical empty fixed array.
@@ -4143,7 +4070,7 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
   }
 
   // Notify the concurrent marker about the layout change.
-  isolate()->heap()->NotifyObjectLayoutChange(*object_storage, no_gc);
+  isolate()->heap()->NotifyObjectLayoutChange(*object_storage, no_allocation);
 
   // Write the fields to the object.
   for (int i = 1; i < slot->GetChildrenCount(); i++) {

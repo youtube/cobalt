@@ -549,6 +549,8 @@ class SerializerForBackgroundCompilation {
 
   Handle<FeedbackVector> feedback_vector() const;
   Handle<BytecodeArray> bytecode_array() const;
+  BytecodeAnalysis const& GetBytecodeAnalysis(
+      SerializationPolicy policy = SerializationPolicy::kAssumeSerialized);
 
   JSHeapBroker* broker() const { return broker_; }
   CompilationDependencies* dependencies() const { return dependencies_; }
@@ -556,7 +558,6 @@ class SerializerForBackgroundCompilation {
   Environment* environment() const { return environment_; }
   SerializerForBackgroundCompilationFlags flags() const { return flags_; }
   BailoutId osr_offset() const { return osr_offset_; }
-  const BytecodeAnalysis& bytecode_analysis() { return *bytecode_analysis_; }
 
   JSHeapBroker* const broker_;
   CompilationDependencies* const dependencies_;
@@ -566,7 +567,6 @@ class SerializerForBackgroundCompilation {
   // {closure_hints_} but that would be cumbersome.
   VirtualClosure const function_;
   BailoutId const osr_offset_;
-  base::Optional<BytecodeAnalysis> bytecode_analysis_;
   ZoneUnorderedMap<int, Environment*> jump_target_environments_;
   Environment* const environment_;
   HintsVector const arguments_;
@@ -839,7 +839,7 @@ void Hints::Reset(Hints* other, Zone* zone) {
 
 class SerializerForBackgroundCompilation::Environment : public ZoneObject {
  public:
-  Environment(Zone* zone, Isolate* isolate, CompilationSubject function);
+  Environment(Zone* zone, CompilationSubject function);
   Environment(Zone* zone, Isolate* isolate, CompilationSubject function,
               base::Optional<Hints> new_target, const HintsVector& arguments,
               MissingArgumentsPolicy padding);
@@ -881,15 +881,15 @@ class SerializerForBackgroundCompilation::Environment : public ZoneObject {
 };
 
 SerializerForBackgroundCompilation::Environment::Environment(
-    Zone* zone, Isolate* isolate, CompilationSubject function)
+    Zone* zone, CompilationSubject function)
     : parameters_hints_(function.virtual_closure()
                             .shared()
-                            ->GetBytecodeArray(isolate)
+                            ->GetBytecodeArray()
                             .parameter_count(),
                         Hints(), zone),
       locals_hints_(function.virtual_closure()
                         .shared()
-                        ->GetBytecodeArray(isolate)
+                        ->GetBytecodeArray()
                         .register_count(),
                     Hints(), zone) {
   // Consume the virtual_closure's context hint information.
@@ -900,7 +900,7 @@ SerializerForBackgroundCompilation::Environment::Environment(
     Zone* zone, Isolate* isolate, CompilationSubject function,
     base::Optional<Hints> new_target, const HintsVector& arguments,
     MissingArgumentsPolicy padding)
-    : Environment(zone, isolate, function) {
+    : Environment(zone, function) {
   // Set the hints for the actually passed arguments, at most up to
   // the parameter_count.
   for (size_t i = 0; i < std::min(arguments.size(), parameters_hints_.size());
@@ -922,7 +922,7 @@ SerializerForBackgroundCompilation::Environment::Environment(
   interpreter::Register new_target_reg =
       function.virtual_closure()
           .shared()
-          ->GetBytecodeArray(isolate)
+          ->GetBytecodeArray()
           .incoming_new_target_or_generator_register();
   if (new_target_reg.is_valid()) {
     Hints& hints = register_hints(new_target_reg);
@@ -1065,8 +1065,7 @@ SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
       osr_offset_(osr_offset),
       jump_target_environments_(zone()),
       environment_(zone()->New<Environment>(
-          zone(), broker_->isolate(),
-          CompilationSubject(closure, broker_->isolate(), zone()))),
+          zone(), CompilationSubject(closure, broker_->isolate(), zone()))),
       arguments_(zone()) {
   closure_hints_.AddConstant(closure, zone(), broker_);
   JSFunctionRef(broker, closure).Serialize();
@@ -1257,12 +1256,21 @@ Handle<FeedbackVector> SerializerForBackgroundCompilation::feedback_vector()
 
 Handle<BytecodeArray> SerializerForBackgroundCompilation::bytecode_array()
     const {
-  return handle(function().shared()->GetBytecodeArray(broker()->isolate()),
-                broker()->isolate());
+  return handle(function().shared()->GetBytecodeArray(), broker()->isolate());
+}
+
+BytecodeAnalysis const& SerializerForBackgroundCompilation::GetBytecodeAnalysis(
+    SerializationPolicy policy) {
+  return broker()->GetBytecodeAnalysis(
+      bytecode_array(), osr_offset(),
+      flags() &
+          SerializerForBackgroundCompilationFlag::kAnalyzeEnvironmentLiveness,
+      policy);
 }
 
 void SerializerForBackgroundCompilation::TraverseBytecode() {
-  bytecode_analysis_.emplace(bytecode_array(), zone(), osr_offset(), false);
+  BytecodeAnalysis const& bytecode_analysis =
+      GetBytecodeAnalysis(SerializationPolicy::kSerializeIfNeeded);
   BytecodeArrayRef(broker(), bytecode_array()).SerializeForCompilation();
 
   BytecodeArrayIterator iterator(bytecode_array());
@@ -1300,10 +1308,10 @@ void SerializerForBackgroundCompilation::TraverseBytecode() {
     try_start_matcher.HandlerOffsetForCurrentPosition(
         save_handler_environments);
 
-    if (bytecode_analysis().IsLoopHeader(current_offset)) {
+    if (bytecode_analysis.IsLoopHeader(current_offset)) {
       // Graph builder might insert jumps to resume targets in the loop body.
       LoopInfo const& loop_info =
-          bytecode_analysis().GetLoopInfoFor(current_offset);
+          bytecode_analysis.GetLoopInfoFor(current_offset);
       for (const auto& target : loop_info.resume_jump_targets()) {
         ContributeToJumpTargetEnvironment(target.target_offset());
       }
@@ -1367,16 +1375,11 @@ void SerializerForBackgroundCompilation::VisitGetTemplateObject(
       broker(), iterator->GetConstantForIndexOperand(0, broker()->isolate()));
   FeedbackSlot slot = iterator->GetSlotOperand(1);
   FeedbackSource source(feedback_vector(), slot);
-
-  ProcessedFeedback const& feedback =
-      broker()->ProcessFeedbackForTemplateObject(source);
-  if (feedback.IsInsufficient()) {
-    environment()->accumulator_hints() = Hints();
-  } else {
-    JSArrayRef template_object = feedback.AsTemplateObject().value();
-    environment()->accumulator_hints() =
-        Hints::SingleConstant(template_object.object(), zone());
-  }
+  SharedFunctionInfoRef shared(broker(), function().shared());
+  JSArrayRef template_object = shared.GetTemplateObject(
+      description, source, SerializationPolicy::kSerializeIfNeeded);
+  environment()->accumulator_hints() =
+      Hints::SingleConstant(template_object.object(), zone());
 }
 
 void SerializerForBackgroundCompilation::VisitLdaTrue(
@@ -2028,17 +2031,14 @@ void SerializerForBackgroundCompilation::ProcessCalleeForCallOrConstruct(
   Handle<SharedFunctionInfo> shared = callee.shared(broker()->isolate());
   if (shared->IsApiFunction()) {
     ProcessApiCall(shared, arguments);
-    DCHECK_NE(shared->GetInlineability(broker()->isolate()),
-              SharedFunctionInfo::kIsInlineable);
+    DCHECK_NE(shared->GetInlineability(), SharedFunctionInfo::kIsInlineable);
   } else if (shared->HasBuiltinId()) {
     ProcessBuiltinCall(shared, new_target, arguments, speculation_mode, padding,
                        result_hints);
-    DCHECK_NE(shared->GetInlineability(broker()->isolate()),
-              SharedFunctionInfo::kIsInlineable);
+    DCHECK_NE(shared->GetInlineability(), SharedFunctionInfo::kIsInlineable);
   } else if ((flags() &
               SerializerForBackgroundCompilationFlag::kEnableTurboInlining) &&
-             shared->GetInlineability(broker()->isolate()) ==
-                 SharedFunctionInfo::kIsInlineable &&
+             shared->GetInlineability() == SharedFunctionInfo::kIsInlineable &&
              callee.HasFeedbackVector()) {
     CompilationSubject subject =
         callee.ToCompilationSubject(broker()->isolate(), zone());
@@ -2777,7 +2777,7 @@ void SerializerForBackgroundCompilation::VisitSwitchOnSmiNoFeedback(
 
 void SerializerForBackgroundCompilation::VisitSwitchOnGeneratorState(
     interpreter::BytecodeArrayIterator* iterator) {
-  for (const auto& target : bytecode_analysis().resume_jump_targets()) {
+  for (const auto& target : GetBytecodeAnalysis().resume_jump_targets()) {
     ContributeToJumpTargetEnvironment(target.target_offset());
   }
 }

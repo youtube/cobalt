@@ -182,7 +182,7 @@ class Logger : public CodeEventListener {
   void ApiNamedPropertyAccess(const char* tag, JSObject holder, Object name);
   void ApiIndexedPropertyAccess(const char* tag, JSObject holder,
                                 uint32_t index);
-  void ApiObjectAccess(const char* tag, JSReceiver obj);
+  void ApiObjectAccess(const char* tag, JSObject obj);
   void ApiEntryCall(const char* name);
 
   // ==== Events logged by --log-code. ====
@@ -201,8 +201,7 @@ class Logger : public CodeEventListener {
                        Handle<SharedFunctionInfo> shared,
                        Handle<Name> script_name, int line, int column) override;
   void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
-                       wasm::WasmName name, const char* source_url,
-                       int code_offset, int script_id) override;
+                       wasm::WasmName name) override;
 
   void CallbackEvent(Handle<Name> name, Address entry_point) override;
   void GetterCallbackEvent(Handle<Name> name, Address entry_point) override;
@@ -248,7 +247,7 @@ class Logger : public CodeEventListener {
 
   V8_EXPORT_PRIVATE void TimerEvent(StartEnd se, const char* name);
 
-  void BasicBlockCounterEvent(const char* name, int block_id, double count);
+  void BasicBlockCounterEvent(const char* name, int block_id, uint32_t count);
 
   void BuiltinHashEvent(const char* name, int hash);
 
@@ -281,6 +280,9 @@ class Logger : public CodeEventListener {
   V8_INLINE static CodeEventListener::LogEventsAndTags ToNativeByScript(
       CodeEventListener::LogEventsAndTags, Script);
 
+  // Used for logging stubs found in the snapshot.
+  void LogCodeObject(Object code_object);
+
  private:
   void UpdateIsLogging(bool value);
 
@@ -311,10 +313,6 @@ class Logger : public CodeEventListener {
   // Logs a scripts sources. Keeps track of all logged scripts to ensure that
   // each script is logged only once.
   bool EnsureLogScriptSource(Script script);
-
-  void LogSourceCodeInformation(Handle<AbstractCode> code,
-                                Handle<SharedFunctionInfo> shared);
-  void LogCodeDisassemble(Handle<AbstractCode> code);
 
   int64_t Time();
 
@@ -374,7 +372,7 @@ TIMER_EVENTS_LIST(V)
 #undef V
 
 template <class TimerEvent>
-class V8_NODISCARD TimerEventScope {
+class TimerEventScope {
  public:
   explicit TimerEventScope(Isolate* isolate) : isolate_(isolate) {
     LogTimerEvent(Logger::START);
@@ -404,8 +402,7 @@ class V8_EXPORT_PRIVATE CodeEventLogger : public CodeEventListener {
                        Handle<SharedFunctionInfo> shared,
                        Handle<Name> script_name, int line, int column) override;
   void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
-                       wasm::WasmName name, const char* source_url,
-                       int code_offset, int script_id) override;
+                       wasm::WasmName name) override;
 
   void RegExpCodeCreateEvent(Handle<AbstractCode> code,
                              Handle<String> source) override;
@@ -464,8 +461,7 @@ class ExternalCodeEventListener : public CodeEventListener {
                        Handle<SharedFunctionInfo> shared, Handle<Name> source,
                        int line, int column) override;
   void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
-                       wasm::WasmName name, const char* source_url,
-                       int code_offset, int script_id) override;
+                       wasm::WasmName name) override;
 
   void RegExpCodeCreateEvent(Handle<AbstractCode> code,
                              Handle<String> source) override;

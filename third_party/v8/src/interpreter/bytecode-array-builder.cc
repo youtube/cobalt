@@ -110,7 +110,7 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
 
 #ifdef DEBUG
 int BytecodeArrayBuilder::CheckBytecodeMatches(BytecodeArray bytecode) {
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_gc;
   return bytecode_array_writer_.CheckBytecodeMatches(bytecode);
 }
 #endif
@@ -227,10 +227,6 @@ class UnsignedOperandHelper {
 
  private:
   static bool IsValid(size_t value) {
-#if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wtautological-compare"
-#endif
     switch (type_info) {
       case OperandTypeInfo::kFixedUnsignedByte:
         return value <= kMaxUInt8;
@@ -241,9 +237,6 @@ class UnsignedOperandHelper {
       default:
         UNREACHABLE();
     }
-#if __clang__
-#pragma clang diagnostic pop
-#endif
   }
 };
 
@@ -622,14 +615,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(Smi smi) {
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(double value) {
-  // If we can encode the value as a Smi, we should.
-  int smi;
-  if (DoubleToSmiInteger(value, &smi)) {
-    LoadLiteral(Smi::FromInt(smi));
-  } else {
-    size_t entry = GetConstantPoolEntry(value);
-    OutputLdaConstant(entry);
-  }
+  size_t entry = GetConstantPoolEntry(value);
+  OutputLdaConstant(entry);
   return *this;
 }
 

@@ -111,10 +111,9 @@ void JSFunction::CompleteInobjectSlackTrackingIfActive() {
   }
 }
 
-template <typename LocalIsolate>
-AbstractCode JSFunction::abstract_code(LocalIsolate* isolate) {
+AbstractCode JSFunction::abstract_code() {
   if (ActiveTierIsIgnition()) {
-    return AbstractCode::cast(shared().GetBytecodeArray(isolate));
+    return AbstractCode::cast(shared().GetBytecodeArray());
   } else {
     return AbstractCode::cast(code());
   }

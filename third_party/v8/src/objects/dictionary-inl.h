@@ -139,7 +139,7 @@ void Dictionary<Derived, Shape>::SetEntry(InternalIndex entry, Object key,
   DCHECK(Dictionary::kEntrySize == 2 || Dictionary::kEntrySize == 3);
   DCHECK(!key.IsName() || details.dictionary_index() > 0);
   int index = DerivedHashTable::EntryToIndex(entry);
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = this->GetWriteBarrierMode(no_gc);
   this->set(index + Derived::kEntryKeyIndex, key, mode);
   this->set(index + Derived::kEntryValueIndex, value, mode);
@@ -279,24 +279,21 @@ bool NameDictionaryShape::IsMatch(Handle<Name> key, Object other) {
 }
 
 uint32_t NameDictionaryShape::Hash(ReadOnlyRoots roots, Handle<Name> key) {
-  DCHECK(key->IsUniqueName());
-  return key->hash();
+  return key->Hash();
 }
 
 uint32_t NameDictionaryShape::HashForObject(ReadOnlyRoots roots, Object other) {
-  DCHECK(other.IsUniqueName());
-  return Name::cast(other).hash();
+  return Name::cast(other).Hash();
 }
 
 bool GlobalDictionaryShape::IsMatch(Handle<Name> key, Object other) {
-  DCHECK(key->IsUniqueName());
   DCHECK(PropertyCell::cast(other).name().IsUniqueName());
   return *key == PropertyCell::cast(other).name();
 }
 
 uint32_t GlobalDictionaryShape::HashForObject(ReadOnlyRoots roots,
                                               Object other) {
-  return PropertyCell::cast(other).name().hash();
+  return PropertyCell::cast(other).name().Hash();
 }
 
 Handle<Object> NameDictionaryShape::AsHandle(Isolate* isolate,
@@ -323,11 +320,7 @@ void GlobalDictionaryShape::DetailsAtPut(Dictionary dict, InternalIndex entry,
                                          PropertyDetails value) {
   DCHECK(entry.is_found());
   PropertyCell cell = dict.CellAt(entry);
-  // Deopt when when making a writable property read-only. The reverse direction
-  // is uninteresting because Turbofan does not currently rely on read-only
-  // unless the property is also configurable, in which case it will stay
-  // read-only forever.
-  if (!cell.property_details().IsReadOnly() && value.IsReadOnly()) {
+  if (cell.property_details().IsReadOnly() != value.IsReadOnly()) {
     cell.dependent_code().DeoptimizeDependentCodeGroup(
         DependentCode::kPropertyCellChangedGroup);
   }

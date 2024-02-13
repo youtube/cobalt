@@ -5,6 +5,7 @@
 ---
 wrap: no
 test function name: test
+private methods: yes
 
 ---
 snippet: "

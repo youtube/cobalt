@@ -253,10 +253,9 @@ class ActualScript : public V8DebuggerScript {
     if (!m_hash.isEmpty()) return m_hash;
     v8::HandleScope scope(m_isolate);
     v8::Local<v8::String> v8Source;
-    if (!script()->Source().ToLocal(&v8Source)) {
-      v8Source = v8::String::Empty(m_isolate);
+    if (script()->Source().ToLocal(&v8Source)) {
+      m_hash = calculateHash(m_isolate, v8Source);
     }
-    m_hash = calculateHash(m_isolate, v8Source);
     DCHECK(!m_hash.isEmpty());
     return m_hash;
   }

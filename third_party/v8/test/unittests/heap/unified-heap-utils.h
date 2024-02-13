@@ -26,6 +26,7 @@ class UnifiedHeapTest : public TestWithHeapInternals {
   cppgc::AllocationHandle& allocation_handle();
 
  private:
+  std::unique_ptr<CppHeap> cpp_heap_;
   bool saved_incremental_marking_wrappers_;
 };
 

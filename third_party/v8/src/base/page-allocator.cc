@@ -5,7 +5,6 @@
 #include "src/base/page-allocator.h"
 
 #include "src/base/platform/platform.h"
-#include "src/base/platform/wrappers.h"
 
 #if V8_OS_MACOSX
 #include <sys/mman.h>  // For MAP_JIT.
@@ -109,7 +108,7 @@ PageAllocator::AllocateSharedPages(size_t size, const void* original_address) {
   void* ptr =
       base::OS::AllocateShared(size, base::OS::MemoryPermission::kReadWrite);
   CHECK_NOT_NULL(ptr);
-  base::Memcpy(ptr, original_address, size);
+  memcpy(ptr, original_address, size);
   bool success = base::OS::SetPermissions(
       ptr, size, base::OS::MemoryPermission::kReadWrite);
   CHECK(success);

@@ -119,7 +119,7 @@ class RuntimeCallStatsTest : public TestWithNativeContext {
 };
 
 // Temporarily use the native time to modify the test time.
-class V8_NODISCARD ElapsedTimeScope {
+class ElapsedTimeScope {
  public:
   explicit ElapsedTimeScope(RuntimeCallStatsTest* test) : test_(test) {
     timer_.Start();
@@ -132,7 +132,7 @@ class V8_NODISCARD ElapsedTimeScope {
 };
 
 // Temporarily use the default time source.
-class V8_NODISCARD NativeTimeScope {
+class NativeTimeScope {
  public:
   NativeTimeScope() {
     CHECK_EQ(RuntimeCallTimer::Now, &RuntimeCallStatsTestNow);

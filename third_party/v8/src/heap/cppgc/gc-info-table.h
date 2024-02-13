@@ -51,8 +51,6 @@ class V8_EXPORT GCInfoTable final {
   // of testing code.
   explicit GCInfoTable(PageAllocator* page_allocator);
   ~GCInfoTable();
-  GCInfoTable(const GCInfoTable&) = delete;
-  GCInfoTable& operator=(const GCInfoTable&) = delete;
 
   GCInfoIndex RegisterNewGCInfo(const GCInfo& info);
 
@@ -86,13 +84,12 @@ class V8_EXPORT GCInfoTable final {
   GCInfoIndex limit_ = 0;
 
   v8::base::Mutex table_mutex_;
+
+  DISALLOW_COPY_AND_ASSIGN(GCInfoTable);
 };
 
 class V8_EXPORT GlobalGCInfoTable final {
  public:
-  GlobalGCInfoTable(const GlobalGCInfoTable&) = delete;
-  GlobalGCInfoTable& operator=(const GlobalGCInfoTable&) = delete;
-
   // Sets up a singleton table that can be acquired using Get().
   static void Create(PageAllocator* page_allocator);
 
@@ -109,6 +106,7 @@ class V8_EXPORT GlobalGCInfoTable final {
   static GCInfoTable* global_table_;
 
   DISALLOW_NEW_AND_DELETE()
+  DISALLOW_COPY_AND_ASSIGN(GlobalGCInfoTable);
 };
 
 }  // namespace internal

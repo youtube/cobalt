@@ -414,7 +414,9 @@ class WeakArrayList::Iterator {
  private:
   int index_;
   WeakArrayList array_;
-  DISALLOW_GARBAGE_COLLECTION(no_gc_)
+#ifdef DEBUG
+  DisallowHeapAllocation no_gc_;
+#endif  // DEBUG
 };
 
 // Generic array grows dynamically with O(1) amortized insertion.

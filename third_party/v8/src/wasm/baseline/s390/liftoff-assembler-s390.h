@@ -5,58 +5,14 @@
 #ifndef V8_WASM_BASELINE_S390_LIFTOFF_ASSEMBLER_S390_H_
 #define V8_WASM_BASELINE_S390_LIFTOFF_ASSEMBLER_S390_H_
 
-#include "src/base/platform/wrappers.h"
-#include "src/codegen/assembler.h"
-#include "src/heap/memory-chunk.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
-#include "src/wasm/simd-shuffle.h"
+
 
 namespace v8 {
 namespace internal {
 namespace wasm {
 
 namespace liftoff {
-
-inline constexpr Condition ToCondition(LiftoffCondition liftoff_cond) {
-  switch (liftoff_cond) {
-    case kEqual:
-      return eq;
-    case kUnequal:
-      return ne;
-    case kSignedLessThan:
-    case kUnsignedLessThan:
-      return lt;
-    case kSignedLessEqual:
-    case kUnsignedLessEqual:
-      return le;
-    case kSignedGreaterEqual:
-    case kUnsignedGreaterEqual:
-      return ge;
-    case kSignedGreaterThan:
-    case kUnsignedGreaterThan:
-      return gt;
-  }
-}
-
-inline constexpr bool UseSignedOp(LiftoffCondition liftoff_cond) {
-  switch (liftoff_cond) {
-    case kEqual:
-    case kUnequal:
-    case kSignedLessThan:
-    case kSignedLessEqual:
-    case kSignedGreaterThan:
-    case kSignedGreaterEqual:
-      return true;
-    case kUnsignedLessThan:
-    case kUnsignedLessEqual:
-    case kUnsignedGreaterThan:
-    case kUnsignedGreaterEqual:
-      return false;
-    default:
-      UNREACHABLE();
-  }
-  return false;
-}
 
 //  half
 //  slot        Frame
@@ -82,20 +38,17 @@ inline constexpr bool UseSignedOp(LiftoffCondition liftoff_cond) {
 //
 constexpr int32_t kInstanceOffset = 2 * kSystemPointerSize;
 
-inline MemOperand GetStackSlot(uint32_t offset) {
-  return MemOperand(fp, -offset);
+inline MemOperand GetHalfStackSlot(int offset, RegPairHalf half) {
+  int32_t half_offset =
+      half == kLowWord ? 0 : LiftoffAssembler::kStackSlotSize / 2;
+  return MemOperand(fp, -offset + half_offset);
 }
-
-inline MemOperand GetInstanceOperand() { return GetStackSlot(kInstanceOffset); }
-
 
 }  // namespace liftoff
 
 int LiftoffAssembler::PrepareStackFrame() {
   bailout(kUnsupportedArchitecture, "PrepareStackFrame");
-  int offset = pc_offset();
-  lay(sp, MemOperand(sp));
-  return offset;
+  return 0;
 }
 
 void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
@@ -103,32 +56,13 @@ void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
   bailout(kUnsupportedArchitecture, "PrepareTailCall");
 }
 
-void LiftoffAssembler::AlignFrameSize() {}
-
-void LiftoffAssembler::PatchPrepareStackFrame(int offset) {
-  int frame_size = GetTotalFrameSize() - kSystemPointerSize;
-
-  constexpr int LayInstrSize = 6;
-
-#ifdef USE_SIMULATOR
-  // When using the simulator, deal with Liftoff which allocates the stack
-  // before checking it.
-  // TODO(arm): Remove this when the stack check mechanism will be updated.
-  if (frame_size > KB / 2) {
-    bailout(kOtherReason,
-            "Stack limited to 512 bytes to avoid a bug in StackCheck");
-    return;
-  }
-#endif
-  Assembler patching_assembler(
-      AssemblerOptions{},
-      ExternalAssemblerBuffer(buffer_start_ + offset, LayInstrSize + kGap));
-  patching_assembler.lay(sp, MemOperand(sp, -frame_size));
+void LiftoffAssembler::PatchPrepareStackFrame(int offset, int frame_size) {
+  bailout(kUnsupportedArchitecture, "PatchPrepareStackFrame");
 }
 
 void LiftoffAssembler::FinishCode() {}
 
-void LiftoffAssembler::AbortCompilation() { AbortedCodeGeneration(); }
+void LiftoffAssembler::AbortCompilation() {}
 
 // static
 constexpr int LiftoffAssembler::StaticStackFrameSize() {
@@ -177,7 +111,6 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
 }
 
 void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
-                                          Register offset_reg,
                                           int32_t offset_imm,
                                           LiftoffRegister src,
                                           LiftoffRegList pinned) {
@@ -185,70 +118,70 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 }
 
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
-                            Register offset_reg, uintptr_t offset_imm,
+                            Register offset_reg, uint32_t offset_imm,
                             LoadType type, LiftoffRegList pinned,
                             uint32_t* protected_load_pc, bool is_load_mem) {
   bailout(kUnsupportedArchitecture, "Load");
 }
 
 void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
-                             uintptr_t offset_imm, LiftoffRegister src,
+                             uint32_t offset_imm, LiftoffRegister src,
                              StoreType type, LiftoffRegList pinned,
                              uint32_t* protected_store_pc, bool is_store_mem) {
   bailout(kUnsupportedArchitecture, "Store");
 }
 
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
-                                  Register offset_reg, uintptr_t offset_imm,
+                                  Register offset_reg, uint32_t offset_imm,
                                   LoadType type, LiftoffRegList pinned) {
   bailout(kAtomics, "AtomicLoad");
 }
 
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
-                                   uintptr_t offset_imm, LiftoffRegister src,
+                                   uint32_t offset_imm, LiftoffRegister src,
                                    StoreType type, LiftoffRegList pinned) {
   bailout(kAtomics, "AtomicStore");
 }
 
 void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,
-                                 uintptr_t offset_imm, LiftoffRegister value,
+                                 uint32_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
   bailout(kAtomics, "AtomicAdd");
 }
 
 void LiftoffAssembler::AtomicSub(Register dst_addr, Register offset_reg,
-                                 uintptr_t offset_imm, LiftoffRegister value,
+                                 uint32_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
   bailout(kAtomics, "AtomicSub");
 }
 
 void LiftoffAssembler::AtomicAnd(Register dst_addr, Register offset_reg,
-                                 uintptr_t offset_imm, LiftoffRegister value,
+                                 uint32_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
   bailout(kAtomics, "AtomicAnd");
 }
 
 void LiftoffAssembler::AtomicOr(Register dst_addr, Register offset_reg,
-                                uintptr_t offset_imm, LiftoffRegister value,
+                                uint32_t offset_imm, LiftoffRegister value,
                                 LiftoffRegister result, StoreType type) {
   bailout(kAtomics, "AtomicOr");
 }
 
 void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
-                                 uintptr_t offset_imm, LiftoffRegister value,
+                                 uint32_t offset_imm, LiftoffRegister value,
                                  LiftoffRegister result, StoreType type) {
   bailout(kAtomics, "AtomicXor");
 }
 
 void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
-                                      uintptr_t offset_imm,
+                                      uint32_t offset_imm,
                                       LiftoffRegister value,
                                       LiftoffRegister result, StoreType type) {
   bailout(kAtomics, "AtomicExchange");
 }
 
 void LiftoffAssembler::AtomicCompareExchange(
-    Register dst_addr, Register offset_reg, uintptr_t offset_imm,
+    Register dst_addr, Register offset_reg, uint32_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
     StoreType type) {
   bailout(kAtomics, "AtomicCompareExchange");
@@ -317,25 +250,26 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
     // instructions per slot.
     uint32_t remainder = size;
     for (; remainder >= kStackSlotSize; remainder -= kStackSlotSize) {
-      StoreU64(r0, liftoff::GetStackSlot(start + remainder));
+      StoreP(r0, liftoff::GetHalfStackSlot(start + remainder, kLowWord));
+      StoreP(r0, liftoff::GetHalfStackSlot(start + remainder, kHighWord));
     }
     DCHECK(remainder == 4 || remainder == 0);
     if (remainder) {
-      StoreU32(r0, liftoff::GetStackSlot(start + remainder));
+      StoreP(r0, liftoff::GetHalfStackSlot(start + remainder, kLowWord));
     }
   } else {
     // General case for bigger counts (9 instructions).
     // Use r3 for start address (inclusive), r4 for end address (exclusive).
     push(r3);
     push(r4);
-    SubS64(r3, fp, Operand(start + size));
-    SubS64(r4, fp, Operand(start));
+    SubP(r3, fp, Operand(start + size));
+    SubP(r4, fp, Operand(start));
 
     Label loop;
     bind(&loop);
-    StoreU64(r0, MemOperand(r0));
+    StoreP(r0, MemOperand(r0));
     la(r0, MemOperand(r0, kSystemPointerSize));
-    CmpU64(r3, r4);
+    CmpLogicalP(r3, r4);
     bne(&loop);
 
     pop(r4);
@@ -405,7 +339,7 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
   }
 
 UNIMPLEMENTED_I32_BINOP_I(i32_add)
-UNIMPLEMENTED_I32_BINOP_I(i32_sub)
+UNIMPLEMENTED_I32_BINOP(i32_sub)
 UNIMPLEMENTED_I32_BINOP(i32_mul)
 UNIMPLEMENTED_I32_BINOP_I(i32_and)
 UNIMPLEMENTED_I32_BINOP_I(i32_or)
@@ -413,7 +347,7 @@ UNIMPLEMENTED_I32_BINOP_I(i32_xor)
 UNIMPLEMENTED_I32_SHIFTOP(i32_shl)
 UNIMPLEMENTED_I32_SHIFTOP(i32_sar)
 UNIMPLEMENTED_I32_SHIFTOP(i32_shr)
-UNIMPLEMENTED_I64_BINOP(i64_add)
+UNIMPLEMENTED_I64_BINOP_I(i64_add)
 UNIMPLEMENTED_I64_BINOP(i64_sub)
 UNIMPLEMENTED_I64_BINOP(i64_mul)
 #ifdef V8_TARGET_ARCH_S390X
@@ -430,6 +364,8 @@ UNIMPLEMENTED_FP_BINOP(f32_add)
 UNIMPLEMENTED_FP_BINOP(f32_sub)
 UNIMPLEMENTED_FP_BINOP(f32_mul)
 UNIMPLEMENTED_FP_BINOP(f32_div)
+UNIMPLEMENTED_FP_BINOP(f32_min)
+UNIMPLEMENTED_FP_BINOP(f32_max)
 UNIMPLEMENTED_FP_BINOP(f32_copysign)
 UNIMPLEMENTED_FP_UNOP(f32_abs)
 UNIMPLEMENTED_FP_UNOP(f32_neg)
@@ -442,6 +378,8 @@ UNIMPLEMENTED_FP_BINOP(f64_add)
 UNIMPLEMENTED_FP_BINOP(f64_sub)
 UNIMPLEMENTED_FP_BINOP(f64_mul)
 UNIMPLEMENTED_FP_BINOP(f64_div)
+UNIMPLEMENTED_FP_BINOP(f64_min)
+UNIMPLEMENTED_FP_BINOP(f64_max)
 UNIMPLEMENTED_FP_BINOP(f64_copysign)
 UNIMPLEMENTED_FP_UNOP(f64_abs)
 UNIMPLEMENTED_FP_UNOP(f64_neg)
@@ -471,47 +409,6 @@ bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
                                        LiftoffRegister src) {
   bailout(kUnsupportedArchitecture, "i64_popcnt");
   return true;
-}
-
-void LiftoffAssembler::emit_i64_addi(LiftoffRegister dst, LiftoffRegister lhs,
-                                     int64_t imm) {
-  bailout(kUnsupportedArchitecture, "i64_addi");
-}
-
-void LiftoffAssembler::emit_f64_min(DoubleRegister dst, DoubleRegister lhs,
-                                    DoubleRegister rhs) {
-  if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1)) {
-    vfmin(dst, lhs, rhs, Condition(1), Condition(8), Condition(3));
-    return;
-  }
-  DoubleMin(dst, lhs, rhs);
-}
-
-void LiftoffAssembler::emit_f32_min(DoubleRegister dst, DoubleRegister lhs,
-                                    DoubleRegister rhs) {
-  if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1)) {
-    vfmin(dst, lhs, rhs, Condition(1), Condition(8), Condition(2));
-    return;
-  }
-  FloatMin(dst, lhs, rhs);
-}
-
-void LiftoffAssembler::emit_f64_max(DoubleRegister dst, DoubleRegister lhs,
-                                    DoubleRegister rhs) {
-  if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1)) {
-    vfmax(dst, lhs, rhs, Condition(1), Condition(8), Condition(3));
-    return;
-  }
-  DoubleMax(dst, lhs, rhs);
-}
-
-void LiftoffAssembler::emit_f32_max(DoubleRegister dst, DoubleRegister lhs,
-                                    DoubleRegister rhs) {
-  if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1)) {
-    vfmax(dst, lhs, rhs, Condition(1), Condition(8), Condition(2));
-    return;
-  }
-  FloatMax(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
@@ -614,106 +511,45 @@ void LiftoffAssembler::emit_jump(Label* label) {
   bailout(kUnsupportedArchitecture, "emit_jump");
 }
 
-void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
-                                      Label* label, ValueType type,
-                                      Register lhs, Register rhs) {
-  Condition cond = liftoff::ToCondition(liftoff_cond);
-  bool use_signed = liftoff::UseSignedOp(liftoff_cond);
-
-  if (type.kind() == ValueType::kI32) {
-    if (rhs == no_reg) {
-      if (use_signed) {
-        CmpS32(lhs, Operand::Zero());
-      } else {
-        CmpU32(lhs, Operand::Zero());
-      }
-    } else {
-      if (use_signed) {
-        CmpS32(lhs, rhs);
-      } else {
-        CmpU32(lhs, rhs);
-      }
-    }
-  } else {
-    CHECK_EQ(type.kind(), ValueType::kI64);
-    if (rhs == no_reg) {
-      if (use_signed) {
-        CmpS64(lhs, Operand::Zero());
-      } else {
-        CmpU64(lhs, Operand::Zero());
-      }
-    } else {
-      if (use_signed) {
-        CmpS64(lhs, rhs);
-      } else {
-        CmpU64(lhs, rhs);
-      }
-    }
-  }
-  b(cond, label);
+void LiftoffAssembler::emit_jump(Register target) {
+  bailout(kUnsupportedArchitecture, "emit_jump");
 }
 
-void LiftoffAssembler::emit_i32_cond_jumpi(LiftoffCondition liftoff_cond,
-                                           Label* label, Register lhs,
-                                           int32_t imm) {
-  bailout(kUnsupportedArchitecture, "emit_i32_cond_jumpi");
+void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
+                                      ValueType type, Register lhs,
+                                      Register rhs) {
+  bailout(kUnsupportedArchitecture, "emit_cond_jump");
 }
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
   bailout(kUnsupportedArchitecture, "emit_i32_eqz");
 }
 
-#define EMIT_SET_CONDITION(dst, cond) \
-  {                                   \
-    Label done;                       \
-    lghi(dst, Operand(1));            \
-    b(cond, &done);                   \
-    lghi(dst, Operand(0));            \
-    bind(&done);                      \
-  }
-
-void LiftoffAssembler::emit_i32_set_cond(LiftoffCondition liftoff_cond,
-                                         Register dst, Register lhs,
-                                         Register rhs) {
-  bool use_signed = liftoff::UseSignedOp(liftoff_cond);
-  if (use_signed) {
-    CmpS32(lhs, rhs);
-  } else {
-    CmpU32(lhs, rhs);
-  }
-
-  EMIT_SET_CONDITION(dst, liftoff::ToCondition(liftoff_cond));
+void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
+                                         Register lhs, Register rhs) {
+  bailout(kUnsupportedArchitecture, "emit_i32_set_cond");
 }
 
 void LiftoffAssembler::emit_i64_eqz(Register dst, LiftoffRegister src) {
   bailout(kUnsupportedArchitecture, "emit_i64_eqz");
 }
 
-void LiftoffAssembler::emit_i64_set_cond(LiftoffCondition liftoff_cond,
-                                         Register dst, LiftoffRegister lhs,
+void LiftoffAssembler::emit_i64_set_cond(Condition cond, Register dst,
+                                         LiftoffRegister lhs,
                                          LiftoffRegister rhs) {
-  bool use_signed = liftoff::UseSignedOp(liftoff_cond);
-  if (use_signed) {
-    CmpS64(lhs.gp(), rhs.gp());
-  } else {
-    CmpU64(lhs.gp(), rhs.gp());
-  }
-
-  EMIT_SET_CONDITION(dst, liftoff::ToCondition(liftoff_cond));
+  bailout(kUnsupportedArchitecture, "emit_i64_set_cond");
 }
 
-void LiftoffAssembler::emit_f32_set_cond(LiftoffCondition liftoff_cond,
-                                         Register dst, DoubleRegister lhs,
+void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
+                                         DoubleRegister lhs,
                                          DoubleRegister rhs) {
-  cebr(lhs, rhs);
-  EMIT_SET_CONDITION(dst, liftoff::ToCondition(liftoff_cond));
+  bailout(kUnsupportedArchitecture, "emit_f32_set_cond");
 }
 
-void LiftoffAssembler::emit_f64_set_cond(LiftoffCondition liftoff_cond,
-                                         Register dst, DoubleRegister lhs,
+void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
+                                         DoubleRegister lhs,
                                          DoubleRegister rhs) {
-  cdbr(lhs, rhs);
-  EMIT_SET_CONDITION(dst, liftoff::ToCondition(liftoff_cond));
+  bailout(kUnsupportedArchitecture, "emit_f64_set_cond");
 }
 
 bool LiftoffAssembler::emit_select(LiftoffRegister dst, Register condition,
@@ -723,24 +559,12 @@ bool LiftoffAssembler::emit_select(LiftoffRegister dst, Register condition,
   return false;
 }
 
-void LiftoffAssembler::emit_smi_check(Register obj, Label* target,
-                                      SmiCheckMode mode) {
-  bailout(kUnsupportedArchitecture, "emit_smi_check");
-}
-
 void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
-                                     Register offset_reg, uintptr_t offset_imm,
+                                     Register offset_reg, uint32_t offset_imm,
                                      LoadType type,
                                      LoadTransformationKind transform,
                                      uint32_t* protected_load_pc) {
   bailout(kSimd, "Load transform unimplemented");
-}
-
-void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
-                                Register addr, Register offset_reg,
-                                uintptr_t offset_imm, LoadType type,
-                                uint8_t laneidx, uint32_t* protected_load_pc) {
-  bailout(kSimd, "loadlane");
 }
 
 void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
@@ -1013,35 +837,6 @@ void LiftoffAssembler::emit_i64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
   bailout(kUnsupportedArchitecture, "emit_i64x2mul");
 }
 
-void LiftoffAssembler::emit_i64x2_extmul_low_i32x4_s(LiftoffRegister dst,
-                                                     LiftoffRegister src1,
-                                                     LiftoffRegister src2) {
-  bailout(kSimd, "i64x2_extmul_low_i32x4_s unsupported");
-}
-
-void LiftoffAssembler::emit_i64x2_extmul_low_i32x4_u(LiftoffRegister dst,
-                                                     LiftoffRegister src1,
-                                                     LiftoffRegister src2) {
-  bailout(kSimd, "i64x2_extmul_low_i32x4_u unsupported");
-}
-
-void LiftoffAssembler::emit_i64x2_extmul_high_i32x4_s(LiftoffRegister dst,
-                                                      LiftoffRegister src1,
-                                                      LiftoffRegister src2) {
-  bailout(kSimd, "i64x2_extmul_high_i32x4_s unsupported");
-}
-
-void LiftoffAssembler::emit_i64x2_bitmask(LiftoffRegister dst,
-                                          LiftoffRegister src) {
-  bailout(kSimd, "i64x2_bitmask");
-}
-
-void LiftoffAssembler::emit_i64x2_extmul_high_i32x4_u(LiftoffRegister dst,
-                                                      LiftoffRegister src1,
-                                                      LiftoffRegister src2) {
-  bailout(kSimd, "i64x2_extmul_high_i32x4_u unsupported");
-}
-
 void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   bailout(kUnsupportedArchitecture, "emit_i32x4_splat");
@@ -1155,30 +950,6 @@ void LiftoffAssembler::emit_i32x4_dot_i16x8_s(LiftoffRegister dst,
                                               LiftoffRegister lhs,
                                               LiftoffRegister rhs) {
   bailout(kSimd, "i32x4_dot_i16x8_s");
-}
-
-void LiftoffAssembler::emit_i32x4_extmul_low_i16x8_s(LiftoffRegister dst,
-                                                     LiftoffRegister src1,
-                                                     LiftoffRegister src2) {
-  bailout(kSimd, "i32x4_extmul_low_i16x8_s unsupported");
-}
-
-void LiftoffAssembler::emit_i32x4_extmul_low_i16x8_u(LiftoffRegister dst,
-                                                     LiftoffRegister src1,
-                                                     LiftoffRegister src2) {
-  bailout(kSimd, "i32x4_extmul_low_i16x8_u unsupported");
-}
-
-void LiftoffAssembler::emit_i32x4_extmul_high_i16x8_s(LiftoffRegister dst,
-                                                      LiftoffRegister src1,
-                                                      LiftoffRegister src2) {
-  bailout(kSimd, "i32x4_extmul_high_i16x8_s unsupported");
-}
-
-void LiftoffAssembler::emit_i32x4_extmul_high_i16x8_u(LiftoffRegister dst,
-                                                      LiftoffRegister src1,
-                                                      LiftoffRegister src2) {
-  bailout(kSimd, "i32x4_extmul_high_i16x8_u unsupported");
 }
 
 void LiftoffAssembler::emit_i16x8_splat(LiftoffRegister dst,
@@ -1318,30 +1089,6 @@ void LiftoffAssembler::emit_i16x8_extract_lane_s(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  uint8_t imm_lane_idx) {
   bailout(kUnsupportedArchitecture, "emit_i16x8extractlane_s");
-}
-
-void LiftoffAssembler::emit_i16x8_extmul_low_i8x16_s(LiftoffRegister dst,
-                                                     LiftoffRegister src1,
-                                                     LiftoffRegister src2) {
-  bailout(kSimd, "i16x8.extmul_low_i8x16_s unsupported");
-}
-
-void LiftoffAssembler::emit_i16x8_extmul_low_i8x16_u(LiftoffRegister dst,
-                                                     LiftoffRegister src1,
-                                                     LiftoffRegister src2) {
-  bailout(kSimd, "i16x8.extmul_low_i8x16_u unsupported");
-}
-
-void LiftoffAssembler::emit_i16x8_extmul_high_i8x16_s(LiftoffRegister dst,
-                                                      LiftoffRegister src1,
-                                                      LiftoffRegister src2) {
-  bailout(kSimd, "i16x8.extmul_high_i8x16_s unsupported");
-}
-
-void LiftoffAssembler::emit_i16x8_extmul_high_i8x16_u(LiftoffRegister dst,
-                                                      LiftoffRegister src1,
-                                                      LiftoffRegister src2) {
-  bailout(kSimd, "i16x8_extmul_high_i8x16_u unsupported");
 }
 
 void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
@@ -1787,13 +1534,6 @@ void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
 
 void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
   bailout(kUnsupportedArchitecture, "PopRegisters");
-}
-
-void LiftoffAssembler::RecordSpillsInSafepoint(Safepoint& safepoint,
-                                               LiftoffRegList all_spills,
-                                               LiftoffRegList ref_spills,
-                                               int spill_offset) {
-  bailout(kRefTypes, "RecordSpillsInSafepoint");
 }
 
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {

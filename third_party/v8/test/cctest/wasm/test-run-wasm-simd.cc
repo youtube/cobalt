@@ -332,16 +332,16 @@ bool ExpectFused(TestExecutionTier tier) {
 }  // namespace
 
 #define WASM_SIMD_CHECK_LANE_S(TYPE, value, LANE_TYPE, lane_value, lane_index) \
-  WASM_IF(WASM_##LANE_TYPE##_NE(WASM_LOCAL_GET(lane_value),                    \
+  WASM_IF(WASM_##LANE_TYPE##_NE(WASM_GET_LOCAL(lane_value),                    \
                                 WASM_SIMD_##TYPE##_EXTRACT_LANE(               \
-                                    lane_index, WASM_LOCAL_GET(value))),       \
+                                    lane_index, WASM_GET_LOCAL(value))),       \
           WASM_RETURN1(WASM_ZERO))
 
 // Unsigned Extracts are only available for I8x16, I16x8 types
 #define WASM_SIMD_CHECK_LANE_U(TYPE, value, LANE_TYPE, lane_value, lane_index) \
-  WASM_IF(WASM_##LANE_TYPE##_NE(WASM_LOCAL_GET(lane_value),                    \
+  WASM_IF(WASM_##LANE_TYPE##_NE(WASM_GET_LOCAL(lane_value),                    \
                                 WASM_SIMD_##TYPE##_EXTRACT_LANE_U(             \
-                                    lane_index, WASM_LOCAL_GET(value))),       \
+                                    lane_index, WASM_GET_LOCAL(value))),       \
           WASM_RETURN1(WASM_ZERO))
 
 // The macro below disables tests lowering for certain nodes where the simd
@@ -400,7 +400,7 @@ WASM_SIMD_TEST(S128Globals) {
   // Set up a global to hold input and output vectors.
   int32_t* g0 = r.builder().AddGlobal<int32_t>(kWasmS128);
   int32_t* g1 = r.builder().AddGlobal<int32_t>(kWasmS128);
-  BUILD(r, WASM_GLOBAL_SET(1, WASM_GLOBAL_GET(0)), WASM_ONE);
+  BUILD(r, WASM_SET_GLOBAL(1, WASM_GET_GLOBAL(0)), WASM_ONE);
 
   FOR_INT32_INPUTS(x) {
     for (int i = 0; i < 4; i++) {
@@ -420,7 +420,7 @@ WASM_SIMD_TEST(F32x4Splat) {
   // Set up a global to hold output vector.
   float* g = r.builder().AddGlobal<float>(kWasmS128);
   byte param1 = 0;
-  BUILD(r, WASM_GLOBAL_SET(0, WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(param1))),
+  BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(param1))),
         WASM_ONE);
 
   FOR_FLOAT32_INPUTS(x) {
@@ -443,15 +443,15 @@ WASM_SIMD_TEST(F32x4ReplaceLane) {
   float* g = r.builder().AddGlobal<float>(kWasmS128);
   // Build function to replace each lane with its (FP) index.
   byte temp1 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_F32x4_SPLAT(WASM_F32(3.14159f))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_F32x4_REPLACE_LANE(
-                                  0, WASM_LOCAL_GET(temp1), WASM_F32(0.0f))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_F32x4_REPLACE_LANE(
-                                  1, WASM_LOCAL_GET(temp1), WASM_F32(1.0f))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_F32x4_REPLACE_LANE(
-                                  2, WASM_LOCAL_GET(temp1), WASM_F32(2.0f))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_F32x4_REPLACE_LANE(
-                               3, WASM_LOCAL_GET(temp1), WASM_F32(3.0f))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_F32x4_SPLAT(WASM_F32(3.14159f))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_F32x4_REPLACE_LANE(
+                                  0, WASM_GET_LOCAL(temp1), WASM_F32(0.0f))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_F32x4_REPLACE_LANE(
+                                  1, WASM_GET_LOCAL(temp1), WASM_F32(1.0f))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_F32x4_REPLACE_LANE(
+                                  2, WASM_GET_LOCAL(temp1), WASM_F32(2.0f))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_F32x4_REPLACE_LANE(
+                               3, WASM_GET_LOCAL(temp1), WASM_F32(3.0f))),
         WASM_ONE);
 
   r.Call();
@@ -469,11 +469,11 @@ WASM_SIMD_TEST(F32x4ConvertI32x4) {
   // Build fn to splat test value, perform conversions, and write the results.
   byte value = 0;
   byte temp1 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(value))),
-        WASM_GLOBAL_SET(
-            0, WASM_SIMD_UNOP(kExprF32x4SConvertI32x4, WASM_LOCAL_GET(temp1))),
-        WASM_GLOBAL_SET(
-            1, WASM_SIMD_UNOP(kExprF32x4UConvertI32x4, WASM_LOCAL_GET(temp1))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(value))),
+        WASM_SET_GLOBAL(
+            0, WASM_SIMD_UNOP(kExprF32x4SConvertI32x4, WASM_GET_LOCAL(temp1))),
+        WASM_SET_GLOBAL(
+            1, WASM_SIMD_UNOP(kExprF32x4UConvertI32x4, WASM_GET_LOCAL(temp1))),
         WASM_ONE);
 
   FOR_INT32_INPUTS(x) {
@@ -558,8 +558,8 @@ void RunF32x4UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   // Build fn to splat test value, perform unop, and write the result.
   byte value = 0;
   byte temp1 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(value))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_UNOP(opcode, WASM_LOCAL_GET(temp1))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(value))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_UNOP(opcode, WASM_GET_LOCAL(temp1))),
         WASM_ONE);
 
   FOR_FLOAT32_INPUTS(x) {
@@ -644,10 +644,10 @@ void RunF32x4BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   byte value1 = 0, value2 = 1;
   byte temp1 = r.AllocateLocal(kWasmS128);
   byte temp2 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(value1))),
-        WASM_LOCAL_SET(temp2, WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(value2))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_BINOP(opcode, WASM_LOCAL_GET(temp1),
-                                           WASM_LOCAL_GET(temp2))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(value1))),
+        WASM_SET_LOCAL(temp2, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(value2))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_BINOP(opcode, WASM_GET_LOCAL(temp1),
+                                           WASM_GET_LOCAL(temp2))),
         WASM_ONE);
 
   FOR_FLOAT32_INPUTS(x) {
@@ -720,10 +720,10 @@ void RunF32x4CompareOpTest(TestExecutionTier execution_tier,
   byte value1 = 0, value2 = 1;
   byte temp1 = r.AllocateLocal(kWasmS128);
   byte temp2 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(value1))),
-        WASM_LOCAL_SET(temp2, WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(value2))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_BINOP(opcode, WASM_LOCAL_GET(temp1),
-                                           WASM_LOCAL_GET(temp2))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(value1))),
+        WASM_SET_LOCAL(temp2, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(value2))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_BINOP(opcode, WASM_GET_LOCAL(temp1),
+                                           WASM_GET_LOCAL(temp2))),
         WASM_ONE);
 
   FOR_FLOAT32_INPUTS(x) {
@@ -765,8 +765,7 @@ WASM_SIMD_TEST(F32x4Le) {
   RunF32x4CompareOpTest(execution_tier, lower_simd, kExprF32x4Le, LessEqual);
 }
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 || \
-    V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_X64
 // TODO(v8:10983) Prototyping sign select.
 template <typename T>
 void RunSignSelect(TestExecutionTier execution_tier, LowerSimd lower_simd,
@@ -777,7 +776,7 @@ void RunSignSelect(TestExecutionTier execution_tier, LowerSimd lower_simd,
   T* output = r.builder().template AddGlobal<T>(kWasmS128);
 
   // Splat 2 constant values, then use a mask that selects alternate lanes.
-  BUILD(r, WASM_LOCAL_GET(0), WASM_SIMD_OP(splat), WASM_LOCAL_GET(1),
+  BUILD(r, WASM_GET_LOCAL(0), WASM_SIMD_OP(splat), WASM_GET_LOCAL(1),
         WASM_SIMD_OP(splat), WASM_SIMD_CONSTANT(mask), WASM_SIMD_OP(signselect),
         kExprGlobalSet, 0, WASM_ONE);
 
@@ -823,8 +822,7 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2SignSelect) {
   RunSignSelect<int64_t>(execution_tier, lower_simd, kExprI64x2SignSelect,
                          kExprI64x2Splat, mask);
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 ||
-        // V8_TARGET_ARCH_ARM
+#endif  // V8_TARGET_ARCH_X64
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
 WASM_SIMD_TEST_NO_LOWERING(F32x4Qfma) {
@@ -835,10 +833,10 @@ WASM_SIMD_TEST_NO_LOWERING(F32x4Qfma) {
   // Build fn to splat test values, perform compare op, and write the result.
   byte value1 = 0, value2 = 1, value3 = 2;
   BUILD(r,
-        WASM_GLOBAL_SET(0, WASM_SIMD_F32x4_QFMA(
-                               WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(value1)),
-                               WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(value2)),
-                               WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(value3)))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_F32x4_QFMA(
+                               WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(value1)),
+                               WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(value2)),
+                               WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(value3)))),
         WASM_ONE);
 
   for (FMOperation<float> x : qfma_vector<float>()) {
@@ -860,10 +858,10 @@ WASM_SIMD_TEST_NO_LOWERING(F32x4Qfms) {
   // Build fn to splat test values, perform compare op, and write the result.
   byte value1 = 0, value2 = 1, value3 = 2;
   BUILD(r,
-        WASM_GLOBAL_SET(0, WASM_SIMD_F32x4_QFMS(
-                               WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(value1)),
-                               WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(value2)),
-                               WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(value3)))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_F32x4_QFMS(
+                               WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(value1)),
+                               WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(value2)),
+                               WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(value3)))),
         WASM_ONE);
 
   for (FMOperation<float> x : qfms_vector<float>()) {
@@ -883,7 +881,7 @@ WASM_SIMD_TEST(I64x2Splat) {
   // Set up a global to hold output vector.
   int64_t* g = r.builder().AddGlobal<int64_t>(kWasmS128);
   byte param1 = 0;
-  BUILD(r, WASM_GLOBAL_SET(0, WASM_SIMD_I64x2_SPLAT(WASM_LOCAL_GET(param1))),
+  BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(param1))),
         WASM_ONE);
 
   FOR_INT64_INPUTS(x) {
@@ -902,10 +900,10 @@ WASM_SIMD_TEST(I64x2ExtractLane) {
   r.AllocateLocal(kWasmS128);
   BUILD(
       r,
-      WASM_LOCAL_SET(0, WASM_SIMD_I64x2_EXTRACT_LANE(
+      WASM_SET_LOCAL(0, WASM_SIMD_I64x2_EXTRACT_LANE(
                             0, WASM_SIMD_I64x2_SPLAT(WASM_I64V(0xFFFFFFFFFF)))),
-      WASM_LOCAL_SET(1, WASM_SIMD_I64x2_SPLAT(WASM_LOCAL_GET(0))),
-      WASM_SIMD_I64x2_EXTRACT_LANE(1, WASM_LOCAL_GET(1)));
+      WASM_SET_LOCAL(1, WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(0))),
+      WASM_SIMD_I64x2_EXTRACT_LANE(1, WASM_GET_LOCAL(1)));
   CHECK_EQ(0xFFFFFFFFFF, r.Call());
 }
 
@@ -915,11 +913,11 @@ WASM_SIMD_TEST(I64x2ReplaceLane) {
   int64_t* g = r.builder().AddGlobal<int64_t>(kWasmS128);
   // Build function to replace each lane with its index.
   byte temp1 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_I64x2_SPLAT(WASM_I64V(-1))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_I64x2_REPLACE_LANE(
-                                  0, WASM_LOCAL_GET(temp1), WASM_I64V(0))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_I64x2_REPLACE_LANE(
-                               1, WASM_LOCAL_GET(temp1), WASM_I64V(1))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I64x2_SPLAT(WASM_I64V(-1))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_I64x2_REPLACE_LANE(
+                                  0, WASM_GET_LOCAL(temp1), WASM_I64V(0))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_I64x2_REPLACE_LANE(
+                               1, WASM_GET_LOCAL(temp1), WASM_I64V(1))),
         WASM_ONE);
 
   r.Call();
@@ -936,8 +934,8 @@ void RunI64x2UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   // Build fn to splat test value, perform unop, and write the result.
   byte value = 0;
   byte temp1 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_I64x2_SPLAT(WASM_LOCAL_GET(value))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_UNOP(opcode, WASM_LOCAL_GET(temp1))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(value))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_UNOP(opcode, WASM_GET_LOCAL(temp1))),
         WASM_ONE);
 
   FOR_INT64_INPUTS(x) {
@@ -966,11 +964,11 @@ void RunI64x2ShiftOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
     byte simd = r.AllocateLocal(kWasmS128);
     // Shift using an immediate, and shift using a value loaded from memory.
     BUILD(
-        r, WASM_LOCAL_SET(simd, WASM_SIMD_I64x2_SPLAT(WASM_LOCAL_GET(value))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_SHIFT_OP(opcode, WASM_LOCAL_GET(simd),
+        r, WASM_SET_LOCAL(simd, WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(value))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_SHIFT_OP(opcode, WASM_GET_LOCAL(simd),
                                               WASM_I32V(shift))),
-        WASM_GLOBAL_SET(1, WASM_SIMD_SHIFT_OP(
-                               opcode, WASM_LOCAL_GET(simd),
+        WASM_SET_GLOBAL(1, WASM_SIMD_SHIFT_OP(
+                               opcode, WASM_GET_LOCAL(simd),
                                WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO))),
         WASM_ONE);
 
@@ -1011,10 +1009,10 @@ void RunI64x2BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   byte value1 = 0, value2 = 1;
   byte temp1 = r.AllocateLocal(kWasmS128);
   byte temp2 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_I64x2_SPLAT(WASM_LOCAL_GET(value1))),
-        WASM_LOCAL_SET(temp2, WASM_SIMD_I64x2_SPLAT(WASM_LOCAL_GET(value2))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_BINOP(opcode, WASM_LOCAL_GET(temp1),
-                                           WASM_LOCAL_GET(temp2))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(value1))),
+        WASM_SET_LOCAL(temp2, WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(value2))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_BINOP(opcode, WASM_GET_LOCAL(temp1),
+                                           WASM_GET_LOCAL(temp2))),
         WASM_ONE);
 
   FOR_INT64_INPUTS(x) {
@@ -1038,22 +1036,18 @@ WASM_SIMD_TEST(I64x2Sub) {
                     base::SubWithWraparound);
 }
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X || \
-    V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS64 || \
-    V8_TARGET_ARCH_MIPS
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
 WASM_SIMD_TEST_NO_LOWERING(I64x2Eq) {
   RunI64x2BinOpTest(execution_tier, lower_simd, kExprI64x2Eq, Equal);
 }
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X ||
-        // V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS64 ||
-        // V8_TARGET_ARCH_MIPS
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_S390X
 
 WASM_SIMD_TEST(F64x2Splat) {
   WasmRunner<int32_t, double> r(execution_tier, lower_simd);
   // Set up a global to hold output vector.
   double* g = r.builder().AddGlobal<double>(kWasmS128);
   byte param1 = 0;
-  BUILD(r, WASM_GLOBAL_SET(0, WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(param1))),
+  BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_F64x2_SPLAT(WASM_GET_LOCAL(param1))),
         WASM_ONE);
 
   FOR_FLOAT64_INPUTS(x) {
@@ -1076,11 +1070,11 @@ WASM_SIMD_TEST(F64x2ExtractLane) {
   byte temp1 = r.AllocateLocal(kWasmF64);
   byte temp2 = r.AllocateLocal(kWasmS128);
   BUILD(r,
-        WASM_LOCAL_SET(temp1,
+        WASM_SET_LOCAL(temp1,
                        WASM_SIMD_F64x2_EXTRACT_LANE(
-                           0, WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(param1)))),
-        WASM_LOCAL_SET(temp2, WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(temp1))),
-        WASM_SIMD_F64x2_EXTRACT_LANE(1, WASM_LOCAL_GET(temp2)));
+                           0, WASM_SIMD_F64x2_SPLAT(WASM_GET_LOCAL(param1)))),
+        WASM_SET_LOCAL(temp2, WASM_SIMD_F64x2_SPLAT(WASM_GET_LOCAL(temp1))),
+        WASM_SIMD_F64x2_EXTRACT_LANE(1, WASM_GET_LOCAL(temp2)));
   FOR_FLOAT64_INPUTS(x) {
     double actual = r.Call(x);
     double expected = x;
@@ -1099,13 +1093,13 @@ WASM_SIMD_TEST(F64x2ReplaceLane) {
   double* g1 = r.builder().AddGlobal<double>(kWasmS128);
   // Build function to replace each lane with its (FP) index.
   byte temp1 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_F64x2_SPLAT(WASM_F64(1e100))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_F64x2_SPLAT(WASM_F64(1e100))),
         // Replace lane 0.
-        WASM_GLOBAL_SET(0, WASM_SIMD_F64x2_REPLACE_LANE(
-                               0, WASM_LOCAL_GET(temp1), WASM_F64(0.0f))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_F64x2_REPLACE_LANE(
+                               0, WASM_GET_LOCAL(temp1), WASM_F64(0.0f))),
         // Replace lane 1.
-        WASM_GLOBAL_SET(1, WASM_SIMD_F64x2_REPLACE_LANE(
-                               1, WASM_LOCAL_GET(temp1), WASM_F64(1.0f))),
+        WASM_SET_GLOBAL(1, WASM_SIMD_F64x2_REPLACE_LANE(
+                               1, WASM_GET_LOCAL(temp1), WASM_F64(1.0f))),
         WASM_ONE);
 
   r.Call();
@@ -1217,8 +1211,8 @@ void RunF64x2UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   // Build fn to splat test value, perform unop, and write the result.
   byte value = 0;
   byte temp1 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(value))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_UNOP(opcode, WASM_LOCAL_GET(temp1))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_F64x2_SPLAT(WASM_GET_LOCAL(value))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_UNOP(opcode, WASM_GET_LOCAL(temp1))),
         WASM_ONE);
 
   FOR_FLOAT64_INPUTS(x) {
@@ -1291,10 +1285,10 @@ void RunF64x2BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   byte value1 = 0, value2 = 1;
   byte temp1 = r.AllocateLocal(kWasmS128);
   byte temp2 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(value1))),
-        WASM_LOCAL_SET(temp2, WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(value2))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_BINOP(opcode, WASM_LOCAL_GET(temp1),
-                                           WASM_LOCAL_GET(temp2))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_F64x2_SPLAT(WASM_GET_LOCAL(value1))),
+        WASM_SET_LOCAL(temp2, WASM_SIMD_F64x2_SPLAT(WASM_GET_LOCAL(value2))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_BINOP(opcode, WASM_GET_LOCAL(temp1),
+                                           WASM_GET_LOCAL(temp2))),
         WASM_ONE);
 
   FOR_FLOAT64_INPUTS(x) {
@@ -1365,13 +1359,13 @@ void RunF64x2CompareOpTest(TestExecutionTier execution_tier,
   byte temp2 = r.AllocateLocal(kWasmS128);
   // Make the lanes of each temp compare differently:
   // temp1 = y, x and temp2 = y, y.
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(value1))),
-        WASM_LOCAL_SET(temp1,
-                       WASM_SIMD_F64x2_REPLACE_LANE(1, WASM_LOCAL_GET(temp1),
-                                                    WASM_LOCAL_GET(value2))),
-        WASM_LOCAL_SET(temp2, WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(value2))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_BINOP(opcode, WASM_LOCAL_GET(temp1),
-                                           WASM_LOCAL_GET(temp2))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_F64x2_SPLAT(WASM_GET_LOCAL(value1))),
+        WASM_SET_LOCAL(temp1,
+                       WASM_SIMD_F64x2_REPLACE_LANE(1, WASM_GET_LOCAL(temp1),
+                                                    WASM_GET_LOCAL(value2))),
+        WASM_SET_LOCAL(temp2, WASM_SIMD_F64x2_SPLAT(WASM_GET_LOCAL(value2))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_BINOP(opcode, WASM_GET_LOCAL(temp1),
+                                           WASM_GET_LOCAL(temp2))),
         WASM_ONE);
 
   FOR_FLOAT64_INPUTS(x) {
@@ -1435,10 +1429,10 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Qfma) {
   // Build fn to splat test values, perform compare op, and write the result.
   byte value1 = 0, value2 = 1, value3 = 2;
   BUILD(r,
-        WASM_GLOBAL_SET(0, WASM_SIMD_F64x2_QFMA(
-                               WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(value1)),
-                               WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(value2)),
-                               WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(value3)))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_F64x2_QFMA(
+                               WASM_SIMD_F64x2_SPLAT(WASM_GET_LOCAL(value1)),
+                               WASM_SIMD_F64x2_SPLAT(WASM_GET_LOCAL(value2)),
+                               WASM_SIMD_F64x2_SPLAT(WASM_GET_LOCAL(value3)))),
         WASM_ONE);
 
   for (FMOperation<double> x : qfma_vector<double>()) {
@@ -1460,10 +1454,10 @@ WASM_SIMD_TEST_NO_LOWERING(F64x2Qfms) {
   // Build fn to splat test values, perform compare op, and write the result.
   byte value1 = 0, value2 = 1, value3 = 2;
   BUILD(r,
-        WASM_GLOBAL_SET(0, WASM_SIMD_F64x2_QFMS(
-                               WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(value1)),
-                               WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(value2)),
-                               WASM_SIMD_F64x2_SPLAT(WASM_LOCAL_GET(value3)))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_F64x2_QFMS(
+                               WASM_SIMD_F64x2_SPLAT(WASM_GET_LOCAL(value1)),
+                               WASM_SIMD_F64x2_SPLAT(WASM_GET_LOCAL(value2)),
+                               WASM_SIMD_F64x2_SPLAT(WASM_GET_LOCAL(value3)))),
         WASM_ONE);
 
   for (FMOperation<double> x : qfms_vector<double>()) {
@@ -1483,7 +1477,7 @@ WASM_SIMD_TEST(I32x4Splat) {
   // Set up a global to hold output vector.
   int32_t* g = r.builder().AddGlobal<int32_t>(kWasmS128);
   byte param1 = 0;
-  BUILD(r, WASM_GLOBAL_SET(0, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(param1))),
+  BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(param1))),
         WASM_ONE);
 
   FOR_INT32_INPUTS(x) {
@@ -1502,15 +1496,15 @@ WASM_SIMD_TEST(I32x4ReplaceLane) {
   int32_t* g = r.builder().AddGlobal<int32_t>(kWasmS128);
   // Build function to replace each lane with its index.
   byte temp1 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_I32x4_SPLAT(WASM_I32V(-1))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_I32x4_REPLACE_LANE(
-                                  0, WASM_LOCAL_GET(temp1), WASM_I32V(0))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_I32x4_REPLACE_LANE(
-                                  1, WASM_LOCAL_GET(temp1), WASM_I32V(1))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_I32x4_REPLACE_LANE(
-                                  2, WASM_LOCAL_GET(temp1), WASM_I32V(2))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_I32x4_REPLACE_LANE(
-                               3, WASM_LOCAL_GET(temp1), WASM_I32V(3))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I32x4_SPLAT(WASM_I32V(-1))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_I32x4_REPLACE_LANE(
+                                  0, WASM_GET_LOCAL(temp1), WASM_I32V(0))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_I32x4_REPLACE_LANE(
+                                  1, WASM_GET_LOCAL(temp1), WASM_I32V(1))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_I32x4_REPLACE_LANE(
+                                  2, WASM_GET_LOCAL(temp1), WASM_I32V(2))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_I32x4_REPLACE_LANE(
+                               3, WASM_GET_LOCAL(temp1), WASM_I32V(3))),
         WASM_ONE);
 
   r.Call();
@@ -1524,7 +1518,7 @@ WASM_SIMD_TEST(I16x8Splat) {
   // Set up a global to hold output vector.
   int16_t* g = r.builder().AddGlobal<int16_t>(kWasmS128);
   byte param1 = 0;
-  BUILD(r, WASM_GLOBAL_SET(0, WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(param1))),
+  BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(param1))),
         WASM_ONE);
 
   FOR_INT16_INPUTS(x) {
@@ -1553,23 +1547,23 @@ WASM_SIMD_TEST(I16x8ReplaceLane) {
   int16_t* g = r.builder().AddGlobal<int16_t>(kWasmS128);
   // Build function to replace each lane with its index.
   byte temp1 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_I16x8_SPLAT(WASM_I32V(-1))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_I16x8_REPLACE_LANE(
-                                  0, WASM_LOCAL_GET(temp1), WASM_I32V(0))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_I16x8_REPLACE_LANE(
-                                  1, WASM_LOCAL_GET(temp1), WASM_I32V(1))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_I16x8_REPLACE_LANE(
-                                  2, WASM_LOCAL_GET(temp1), WASM_I32V(2))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_I16x8_REPLACE_LANE(
-                                  3, WASM_LOCAL_GET(temp1), WASM_I32V(3))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_I16x8_REPLACE_LANE(
-                                  4, WASM_LOCAL_GET(temp1), WASM_I32V(4))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_I16x8_REPLACE_LANE(
-                                  5, WASM_LOCAL_GET(temp1), WASM_I32V(5))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_I16x8_REPLACE_LANE(
-                                  6, WASM_LOCAL_GET(temp1), WASM_I32V(6))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_I16x8_REPLACE_LANE(
-                               7, WASM_LOCAL_GET(temp1), WASM_I32V(7))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I16x8_SPLAT(WASM_I32V(-1))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_I16x8_REPLACE_LANE(
+                                  0, WASM_GET_LOCAL(temp1), WASM_I32V(0))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_I16x8_REPLACE_LANE(
+                                  1, WASM_GET_LOCAL(temp1), WASM_I32V(1))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_I16x8_REPLACE_LANE(
+                                  2, WASM_GET_LOCAL(temp1), WASM_I32V(2))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_I16x8_REPLACE_LANE(
+                                  3, WASM_GET_LOCAL(temp1), WASM_I32V(3))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_I16x8_REPLACE_LANE(
+                                  4, WASM_GET_LOCAL(temp1), WASM_I32V(4))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_I16x8_REPLACE_LANE(
+                                  5, WASM_GET_LOCAL(temp1), WASM_I32V(5))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_I16x8_REPLACE_LANE(
+                                  6, WASM_GET_LOCAL(temp1), WASM_I32V(6))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_I16x8_REPLACE_LANE(
+                               7, WASM_GET_LOCAL(temp1), WASM_I32V(7))),
         WASM_ONE);
 
   r.Call();
@@ -1582,12 +1576,12 @@ WASM_SIMD_TEST(I8x16BitMask) {
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
   byte value1 = r.AllocateLocal(kWasmS128);
 
-  BUILD(r, WASM_LOCAL_SET(value1, WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(0))),
-        WASM_LOCAL_SET(value1, WASM_SIMD_I8x16_REPLACE_LANE(
-                                   0, WASM_LOCAL_GET(value1), WASM_I32V(0))),
-        WASM_LOCAL_SET(value1, WASM_SIMD_I8x16_REPLACE_LANE(
-                                   1, WASM_LOCAL_GET(value1), WASM_I32V(-1))),
-        WASM_SIMD_UNOP(kExprI8x16BitMask, WASM_LOCAL_GET(value1)));
+  BUILD(r, WASM_SET_LOCAL(value1, WASM_SIMD_I8x16_SPLAT(WASM_GET_LOCAL(0))),
+        WASM_SET_LOCAL(value1, WASM_SIMD_I8x16_REPLACE_LANE(
+                                   0, WASM_GET_LOCAL(value1), WASM_I32V(0))),
+        WASM_SET_LOCAL(value1, WASM_SIMD_I8x16_REPLACE_LANE(
+                                   1, WASM_GET_LOCAL(value1), WASM_I32V(-1))),
+        WASM_SIMD_UNOP(kExprI8x16BitMask, WASM_GET_LOCAL(value1)));
 
   FOR_INT8_INPUTS(x) {
     int32_t actual = r.Call(x);
@@ -1601,12 +1595,12 @@ WASM_SIMD_TEST(I16x8BitMask) {
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
   byte value1 = r.AllocateLocal(kWasmS128);
 
-  BUILD(r, WASM_LOCAL_SET(value1, WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(0))),
-        WASM_LOCAL_SET(value1, WASM_SIMD_I16x8_REPLACE_LANE(
-                                   0, WASM_LOCAL_GET(value1), WASM_I32V(0))),
-        WASM_LOCAL_SET(value1, WASM_SIMD_I16x8_REPLACE_LANE(
-                                   1, WASM_LOCAL_GET(value1), WASM_I32V(-1))),
-        WASM_SIMD_UNOP(kExprI16x8BitMask, WASM_LOCAL_GET(value1)));
+  BUILD(r, WASM_SET_LOCAL(value1, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(0))),
+        WASM_SET_LOCAL(value1, WASM_SIMD_I16x8_REPLACE_LANE(
+                                   0, WASM_GET_LOCAL(value1), WASM_I32V(0))),
+        WASM_SET_LOCAL(value1, WASM_SIMD_I16x8_REPLACE_LANE(
+                                   1, WASM_GET_LOCAL(value1), WASM_I32V(-1))),
+        WASM_SIMD_UNOP(kExprI16x8BitMask, WASM_GET_LOCAL(value1)));
 
   FOR_INT16_INPUTS(x) {
     int32_t actual = r.Call(x);
@@ -1620,12 +1614,12 @@ WASM_SIMD_TEST(I32x4BitMask) {
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
   byte value1 = r.AllocateLocal(kWasmS128);
 
-  BUILD(r, WASM_LOCAL_SET(value1, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(0))),
-        WASM_LOCAL_SET(value1, WASM_SIMD_I32x4_REPLACE_LANE(
-                                   0, WASM_LOCAL_GET(value1), WASM_I32V(0))),
-        WASM_LOCAL_SET(value1, WASM_SIMD_I32x4_REPLACE_LANE(
-                                   1, WASM_LOCAL_GET(value1), WASM_I32V(-1))),
-        WASM_SIMD_UNOP(kExprI32x4BitMask, WASM_LOCAL_GET(value1)));
+  BUILD(r, WASM_SET_LOCAL(value1, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(0))),
+        WASM_SET_LOCAL(value1, WASM_SIMD_I32x4_REPLACE_LANE(
+                                   0, WASM_GET_LOCAL(value1), WASM_I32V(0))),
+        WASM_SET_LOCAL(value1, WASM_SIMD_I32x4_REPLACE_LANE(
+                                   1, WASM_GET_LOCAL(value1), WASM_I32V(-1))),
+        WASM_SIMD_UNOP(kExprI32x4BitMask, WASM_GET_LOCAL(value1)));
 
   FOR_INT32_INPUTS(x) {
     int32_t actual = r.Call(x);
@@ -1635,14 +1629,17 @@ WASM_SIMD_TEST(I32x4BitMask) {
   }
 }
 
+// TODO(v8:10997) Prototyping i64x2.bitmask.
+#if V8_TARGET_ARCH_X64
 WASM_SIMD_TEST_NO_LOWERING(I64x2BitMask) {
+  FLAG_SCOPE(wasm_simd_post_mvp);
   WasmRunner<int32_t, int64_t> r(execution_tier, lower_simd);
   byte value1 = r.AllocateLocal(kWasmS128);
 
-  BUILD(r, WASM_LOCAL_SET(value1, WASM_SIMD_I64x2_SPLAT(WASM_LOCAL_GET(0))),
-        WASM_LOCAL_SET(value1, WASM_SIMD_I64x2_REPLACE_LANE(
-                                   0, WASM_LOCAL_GET(value1), WASM_I64V_1(0))),
-        WASM_SIMD_UNOP(kExprI64x2BitMask, WASM_LOCAL_GET(value1)));
+  BUILD(r, WASM_SET_LOCAL(value1, WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(0))),
+        WASM_SET_LOCAL(value1, WASM_SIMD_I64x2_REPLACE_LANE(
+                                   0, WASM_GET_LOCAL(value1), WASM_I64V_1(0))),
+        WASM_SIMD_UNOP(kExprI64x2BitMask, WASM_GET_LOCAL(value1)));
 
   for (int64_t x : compiler::ValueHelper::GetVector<int64_t>()) {
     int32_t actual = r.Call(x);
@@ -1651,13 +1648,14 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2BitMask) {
     CHECK_EQ(actual, expected);
   }
 }
+#endif  // V8_TARGET_ARCH_X64
 
 WASM_SIMD_TEST(I8x16Splat) {
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
   // Set up a global to hold output vector.
   int8_t* g = r.builder().AddGlobal<int8_t>(kWasmS128);
   byte param1 = 0;
-  BUILD(r, WASM_GLOBAL_SET(0, WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(param1))),
+  BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_I8x16_SPLAT(WASM_GET_LOCAL(param1))),
         WASM_ONE);
 
   FOR_INT8_INPUTS(x) {
@@ -1686,39 +1684,39 @@ WASM_SIMD_TEST(I8x16ReplaceLane) {
   int8_t* g = r.builder().AddGlobal<int8_t>(kWasmS128);
   // Build function to replace each lane with its index.
   byte temp1 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_I8x16_SPLAT(WASM_I32V(-1))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
-                                  0, WASM_LOCAL_GET(temp1), WASM_I32V(0))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
-                                  1, WASM_LOCAL_GET(temp1), WASM_I32V(1))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
-                                  2, WASM_LOCAL_GET(temp1), WASM_I32V(2))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
-                                  3, WASM_LOCAL_GET(temp1), WASM_I32V(3))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
-                                  4, WASM_LOCAL_GET(temp1), WASM_I32V(4))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
-                                  5, WASM_LOCAL_GET(temp1), WASM_I32V(5))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
-                                  6, WASM_LOCAL_GET(temp1), WASM_I32V(6))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
-                                  7, WASM_LOCAL_GET(temp1), WASM_I32V(7))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
-                                  8, WASM_LOCAL_GET(temp1), WASM_I32V(8))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
-                                  9, WASM_LOCAL_GET(temp1), WASM_I32V(9))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
-                                  10, WASM_LOCAL_GET(temp1), WASM_I32V(10))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
-                                  11, WASM_LOCAL_GET(temp1), WASM_I32V(11))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
-                                  12, WASM_LOCAL_GET(temp1), WASM_I32V(12))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
-                                  13, WASM_LOCAL_GET(temp1), WASM_I32V(13))),
-        WASM_LOCAL_SET(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
-                                  14, WASM_LOCAL_GET(temp1), WASM_I32V(14))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_I8x16_REPLACE_LANE(
-                               15, WASM_LOCAL_GET(temp1), WASM_I32V(15))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I8x16_SPLAT(WASM_I32V(-1))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
+                                  0, WASM_GET_LOCAL(temp1), WASM_I32V(0))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
+                                  1, WASM_GET_LOCAL(temp1), WASM_I32V(1))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
+                                  2, WASM_GET_LOCAL(temp1), WASM_I32V(2))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
+                                  3, WASM_GET_LOCAL(temp1), WASM_I32V(3))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
+                                  4, WASM_GET_LOCAL(temp1), WASM_I32V(4))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
+                                  5, WASM_GET_LOCAL(temp1), WASM_I32V(5))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
+                                  6, WASM_GET_LOCAL(temp1), WASM_I32V(6))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
+                                  7, WASM_GET_LOCAL(temp1), WASM_I32V(7))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
+                                  8, WASM_GET_LOCAL(temp1), WASM_I32V(8))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
+                                  9, WASM_GET_LOCAL(temp1), WASM_I32V(9))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
+                                  10, WASM_GET_LOCAL(temp1), WASM_I32V(10))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
+                                  11, WASM_GET_LOCAL(temp1), WASM_I32V(11))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
+                                  12, WASM_GET_LOCAL(temp1), WASM_I32V(12))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
+                                  13, WASM_GET_LOCAL(temp1), WASM_I32V(13))),
+        WASM_SET_LOCAL(temp1, WASM_SIMD_I8x16_REPLACE_LANE(
+                                  14, WASM_GET_LOCAL(temp1), WASM_I32V(14))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_I8x16_REPLACE_LANE(
+                               15, WASM_GET_LOCAL(temp1), WASM_I32V(15))),
         WASM_ONE);
 
   r.Call();
@@ -1750,11 +1748,11 @@ WASM_SIMD_TEST(I32x4ConvertF32x4) {
   // Build fn to splat test value, perform conversions, and write the results.
   byte value = 0;
   byte temp1 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(value))),
-        WASM_GLOBAL_SET(
-            0, WASM_SIMD_UNOP(kExprI32x4SConvertF32x4, WASM_LOCAL_GET(temp1))),
-        WASM_GLOBAL_SET(
-            1, WASM_SIMD_UNOP(kExprI32x4UConvertF32x4, WASM_LOCAL_GET(temp1))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(value))),
+        WASM_SET_GLOBAL(
+            0, WASM_SIMD_UNOP(kExprI32x4SConvertF32x4, WASM_GET_LOCAL(temp1))),
+        WASM_SET_GLOBAL(
+            1, WASM_SIMD_UNOP(kExprI32x4UConvertF32x4, WASM_GET_LOCAL(temp1))),
         WASM_ONE);
 
   FOR_FLOAT32_INPUTS(x) {
@@ -1780,15 +1778,15 @@ WASM_SIMD_TEST(I32x4ConvertI16x8) {
   // Build fn to splat test value, perform conversions, and write the results.
   byte value = 0;
   byte temp1 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(value))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_UNOP(kExprI32x4SConvertI16x8High,
-                                          WASM_LOCAL_GET(temp1))),
-        WASM_GLOBAL_SET(1, WASM_SIMD_UNOP(kExprI32x4SConvertI16x8Low,
-                                          WASM_LOCAL_GET(temp1))),
-        WASM_GLOBAL_SET(2, WASM_SIMD_UNOP(kExprI32x4UConvertI16x8High,
-                                          WASM_LOCAL_GET(temp1))),
-        WASM_GLOBAL_SET(3, WASM_SIMD_UNOP(kExprI32x4UConvertI16x8Low,
-                                          WASM_LOCAL_GET(temp1))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(value))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_UNOP(kExprI32x4SConvertI16x8High,
+                                          WASM_GET_LOCAL(temp1))),
+        WASM_SET_GLOBAL(1, WASM_SIMD_UNOP(kExprI32x4SConvertI16x8Low,
+                                          WASM_GET_LOCAL(temp1))),
+        WASM_SET_GLOBAL(2, WASM_SIMD_UNOP(kExprI32x4UConvertI16x8High,
+                                          WASM_GET_LOCAL(temp1))),
+        WASM_SET_GLOBAL(3, WASM_SIMD_UNOP(kExprI32x4UConvertI16x8Low,
+                                          WASM_GET_LOCAL(temp1))),
         WASM_ONE);
 
   FOR_INT16_INPUTS(x) {
@@ -1806,8 +1804,7 @@ WASM_SIMD_TEST(I32x4ConvertI16x8) {
 
 // TODO(v8:10972) Prototyping i64x2 convert from i32x4.
 // Tests both signed and unsigned conversion from I32x4 (unpacking).
-#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || \
-    V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_ARM64
 WASM_SIMD_TEST_NO_LOWERING(I64x2ConvertI32x4) {
   FLAG_SCOPE(wasm_simd_post_mvp);
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
@@ -1819,15 +1816,15 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2ConvertI32x4) {
   // Build fn to splat test value, perform conversions, and write the results.
   byte value = 0;
   byte temp1 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(value))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_UNOP(kExprI64x2SConvertI32x4High,
-                                          WASM_LOCAL_GET(temp1))),
-        WASM_GLOBAL_SET(1, WASM_SIMD_UNOP(kExprI64x2SConvertI32x4Low,
-                                          WASM_LOCAL_GET(temp1))),
-        WASM_GLOBAL_SET(2, WASM_SIMD_UNOP(kExprI64x2UConvertI32x4High,
-                                          WASM_LOCAL_GET(temp1))),
-        WASM_GLOBAL_SET(3, WASM_SIMD_UNOP(kExprI64x2UConvertI32x4Low,
-                                          WASM_LOCAL_GET(temp1))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(value))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_UNOP(kExprI64x2SConvertI32x4High,
+                                          WASM_GET_LOCAL(temp1))),
+        WASM_SET_GLOBAL(1, WASM_SIMD_UNOP(kExprI64x2SConvertI32x4Low,
+                                          WASM_GET_LOCAL(temp1))),
+        WASM_SET_GLOBAL(2, WASM_SIMD_UNOP(kExprI64x2UConvertI32x4High,
+                                          WASM_GET_LOCAL(temp1))),
+        WASM_SET_GLOBAL(3, WASM_SIMD_UNOP(kExprI64x2UConvertI32x4Low,
+                                          WASM_GET_LOCAL(temp1))),
         WASM_ONE);
 
   FOR_INT32_INPUTS(x) {
@@ -1842,8 +1839,7 @@ WASM_SIMD_TEST_NO_LOWERING(I64x2ConvertI32x4) {
     }
   }
 }
-#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 ||
-        // V8_TARGET_ARCH_ARM
+#endif  // V8_TARGET_ARCH_ARM64
 
 void RunI32x4UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
                       WasmOpcode opcode, Int32UnOp expected_op) {
@@ -1853,8 +1849,8 @@ void RunI32x4UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   // Build fn to splat test value, perform unop, and write the result.
   byte value = 0;
   byte temp1 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(value))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_UNOP(opcode, WASM_LOCAL_GET(temp1))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(value))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_UNOP(opcode, WASM_GET_LOCAL(temp1))),
         WASM_ONE);
 
   FOR_INT32_INPUTS(x) {
@@ -1880,8 +1876,7 @@ WASM_SIMD_TEST(S128Not) {
                    [](int32_t x) { return ~x; });
 }
 
-#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X64 || \
-    V8_TARGET_ARCH_IA32
+#if V8_TARGET_ARCH_ARM64
 // TODO(v8:11086) Prototype i32x4.extadd_pairwise_i16x8_{s,u}
 template <typename Narrow, typename Wide>
 void RunExtAddPairwiseTest(TestExecutionTier execution_tier,
@@ -1895,7 +1890,7 @@ void RunExtAddPairwiseTest(TestExecutionTier execution_tier,
   // TODO(v8:11086) We splat the same value, so pairwise adding ends up adding
   // the same value to itself, consider a more complicated test, like having 2
   // vectors, and shuffling them.
-  BUILD(r, WASM_LOCAL_GET(0), WASM_SIMD_OP(splat),
+  BUILD(r, WASM_GET_LOCAL(0), WASM_SIMD_OP(splat),
         WASM_SIMD_OP(ext_add_pairwise), kExprGlobalSet, 0, WASM_ONE);
 
   for (Narrow x : compiler::ValueHelper::GetVector<Narrow>()) {
@@ -1930,8 +1925,7 @@ WASM_SIMD_TEST_NO_LOWERING(I16x8ExtAddPairwiseI8x16U) {
                                            kExprI16x8ExtAddPairwiseI8x16U,
                                            kExprI8x16Splat);
 }
-#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X64 ||
-        // V8_TARGET_ARCH_IA32
+#endif  // V8_TARGET_ARCH_ARM64
 
 void RunI32x4BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
                        WasmOpcode opcode, Int32BinOp expected_op) {
@@ -1942,10 +1936,10 @@ void RunI32x4BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   byte value1 = 0, value2 = 1;
   byte temp1 = r.AllocateLocal(kWasmS128);
   byte temp2 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(value1))),
-        WASM_LOCAL_SET(temp2, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(value2))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_BINOP(opcode, WASM_LOCAL_GET(temp1),
-                                           WASM_LOCAL_GET(temp2))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(value1))),
+        WASM_SET_LOCAL(temp2, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(value2))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_BINOP(opcode, WASM_GET_LOCAL(temp1),
+                                           WASM_GET_LOCAL(temp2))),
         WASM_ONE);
 
   FOR_INT32_INPUTS(x) {
@@ -2067,11 +2061,11 @@ void RunI32x4ShiftOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
     byte simd = r.AllocateLocal(kWasmS128);
     // Shift using an immediate, and shift using a value loaded from memory.
     BUILD(
-        r, WASM_LOCAL_SET(simd, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(value))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_SHIFT_OP(opcode, WASM_LOCAL_GET(simd),
+        r, WASM_SET_LOCAL(simd, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(value))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_SHIFT_OP(opcode, WASM_GET_LOCAL(simd),
                                               WASM_I32V(shift))),
-        WASM_GLOBAL_SET(1, WASM_SIMD_SHIFT_OP(
-                               opcode, WASM_LOCAL_GET(simd),
+        WASM_SET_GLOBAL(1, WASM_SIMD_SHIFT_OP(
+                               opcode, WASM_GET_LOCAL(simd),
                                WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO))),
         WASM_ONE);
 
@@ -2113,15 +2107,15 @@ WASM_SIMD_TEST(I16x8ConvertI8x16) {
   // Build fn to splat test value, perform conversions, and write the results.
   byte value = 0;
   byte temp1 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(value))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_UNOP(kExprI16x8SConvertI8x16High,
-                                          WASM_LOCAL_GET(temp1))),
-        WASM_GLOBAL_SET(1, WASM_SIMD_UNOP(kExprI16x8SConvertI8x16Low,
-                                          WASM_LOCAL_GET(temp1))),
-        WASM_GLOBAL_SET(2, WASM_SIMD_UNOP(kExprI16x8UConvertI8x16High,
-                                          WASM_LOCAL_GET(temp1))),
-        WASM_GLOBAL_SET(3, WASM_SIMD_UNOP(kExprI16x8UConvertI8x16Low,
-                                          WASM_LOCAL_GET(temp1))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I8x16_SPLAT(WASM_GET_LOCAL(value))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_UNOP(kExprI16x8SConvertI8x16High,
+                                          WASM_GET_LOCAL(temp1))),
+        WASM_SET_GLOBAL(1, WASM_SIMD_UNOP(kExprI16x8SConvertI8x16Low,
+                                          WASM_GET_LOCAL(temp1))),
+        WASM_SET_GLOBAL(2, WASM_SIMD_UNOP(kExprI16x8UConvertI8x16High,
+                                          WASM_GET_LOCAL(temp1))),
+        WASM_SET_GLOBAL(3, WASM_SIMD_UNOP(kExprI16x8UConvertI8x16Low,
+                                          WASM_GET_LOCAL(temp1))),
         WASM_ONE);
 
   FOR_INT8_INPUTS(x) {
@@ -2146,13 +2140,13 @@ WASM_SIMD_TEST(I16x8ConvertI32x4) {
   // Build fn to splat test value, perform conversions, and write the results.
   byte value = 0;
   byte temp1 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(value))),
-        WASM_GLOBAL_SET(
-            0, WASM_SIMD_BINOP(kExprI16x8SConvertI32x4, WASM_LOCAL_GET(temp1),
-                               WASM_LOCAL_GET(temp1))),
-        WASM_GLOBAL_SET(
-            1, WASM_SIMD_BINOP(kExprI16x8UConvertI32x4, WASM_LOCAL_GET(temp1),
-                               WASM_LOCAL_GET(temp1))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(value))),
+        WASM_SET_GLOBAL(
+            0, WASM_SIMD_BINOP(kExprI16x8SConvertI32x4, WASM_GET_LOCAL(temp1),
+                               WASM_GET_LOCAL(temp1))),
+        WASM_SET_GLOBAL(
+            1, WASM_SIMD_BINOP(kExprI16x8UConvertI32x4, WASM_GET_LOCAL(temp1),
+                               WASM_GET_LOCAL(temp1))),
         WASM_ONE);
 
   FOR_INT32_INPUTS(x) {
@@ -2174,8 +2168,8 @@ void RunI16x8UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   // Build fn to splat test value, perform unop, and write the result.
   byte value = 0;
   byte temp1 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(value))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_UNOP(opcode, WASM_LOCAL_GET(temp1))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(value))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_UNOP(opcode, WASM_GET_LOCAL(temp1))),
         WASM_ONE);
 
   FOR_INT16_INPUTS(x) {
@@ -2206,10 +2200,10 @@ void RunI16x8BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   byte value1 = 0, value2 = 1;
   byte temp1 = r.AllocateLocal(kWasmS128);
   byte temp2 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(value1))),
-        WASM_LOCAL_SET(temp2, WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(value2))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_BINOP(opcode, WASM_LOCAL_GET(temp1),
-                                           WASM_LOCAL_GET(temp2))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(value1))),
+        WASM_SET_LOCAL(temp2, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(value2))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_BINOP(opcode, WASM_GET_LOCAL(temp1),
+                                           WASM_GET_LOCAL(temp2))),
         WASM_ONE);
 
   for (T x : compiler::ValueHelper::GetVector<T>()) {
@@ -2324,12 +2318,15 @@ WASM_SIMD_TEST(I16x8RoundingAverageU) {
                               base::RoundingAverageUnsigned);
 }
 
+#if V8_TARGET_ARCH_ARM64
+// TODO(v8:10971) Prototype i16x8.q15mulr_sat_s
 WASM_SIMD_TEST_NO_LOWERING(I16x8Q15MulRSatS) {
   FLAG_SCOPE(wasm_simd_post_mvp);
   RunI16x8BinOpTest<int16_t>(execution_tier, lower_simd, kExprI16x8Q15MulRSatS,
                              SaturateRoundingQMul<int16_t>);
 }
 
+// TODO(v8:11008) Prototype extended multiplication.
 namespace {
 enum class MulHalf { kLow, kHigh };
 
@@ -2341,18 +2338,19 @@ template <typename S, typename T, typename OpType = T (*)(S, S)>
 void RunExtMulTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
                    WasmOpcode opcode, OpType expected_op, WasmOpcode splat,
                    MulHalf half) {
+  FLAG_SCOPE(wasm_simd_post_mvp);
   WasmRunner<int32_t, S, S> r(execution_tier, lower_simd);
   int lane_to_zero = half == MulHalf::kLow ? 1 : 0;
   T* g = r.builder().template AddGlobal<T>(kWasmS128);
 
   BUILD(r,
-        WASM_GLOBAL_SET(
+        WASM_SET_GLOBAL(
             0, WASM_SIMD_BINOP(
                    opcode,
                    WASM_SIMD_I64x2_REPLACE_LANE(
-                       lane_to_zero, WASM_SIMD_UNOP(splat, WASM_LOCAL_GET(0)),
+                       lane_to_zero, WASM_SIMD_UNOP(splat, WASM_GET_LOCAL(0)),
                        WASM_I64V_1(0)),
-                   WASM_SIMD_UNOP(splat, WASM_LOCAL_GET(1)))),
+                   WASM_SIMD_UNOP(splat, WASM_GET_LOCAL(1)))),
         WASM_ONE);
 
   constexpr int lanes = kSimd128Size / sizeof(T);
@@ -2368,77 +2366,78 @@ void RunExtMulTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
 }
 }  // namespace
 
-WASM_SIMD_TEST(I16x8ExtMulLowI8x16S) {
+WASM_SIMD_TEST_NO_LOWERING(I16x8ExtMulLowI8x16S) {
   RunExtMulTest<int8_t, int16_t>(execution_tier, lower_simd,
                                  kExprI16x8ExtMulLowI8x16S, MultiplyLong,
                                  kExprI8x16Splat, MulHalf::kLow);
 }
 
-WASM_SIMD_TEST(I16x8ExtMulHighI8x16S) {
+WASM_SIMD_TEST_NO_LOWERING(I16x8ExtMulHighI8x16S) {
   RunExtMulTest<int8_t, int16_t>(execution_tier, lower_simd,
                                  kExprI16x8ExtMulHighI8x16S, MultiplyLong,
                                  kExprI8x16Splat, MulHalf::kHigh);
 }
 
-WASM_SIMD_TEST(I16x8ExtMulLowI8x16U) {
+WASM_SIMD_TEST_NO_LOWERING(I16x8ExtMulLowI8x16U) {
   RunExtMulTest<uint8_t, uint16_t>(execution_tier, lower_simd,
                                    kExprI16x8ExtMulLowI8x16U, MultiplyLong,
                                    kExprI8x16Splat, MulHalf::kLow);
 }
 
-WASM_SIMD_TEST(I16x8ExtMulHighI8x16U) {
+WASM_SIMD_TEST_NO_LOWERING(I16x8ExtMulHighI8x16U) {
   RunExtMulTest<uint8_t, uint16_t>(execution_tier, lower_simd,
                                    kExprI16x8ExtMulHighI8x16U, MultiplyLong,
                                    kExprI8x16Splat, MulHalf::kHigh);
 }
 
-WASM_SIMD_TEST(I32x4ExtMulLowI16x8S) {
+WASM_SIMD_TEST_NO_LOWERING(I32x4ExtMulLowI16x8S) {
   RunExtMulTest<int16_t, int32_t>(execution_tier, lower_simd,
                                   kExprI32x4ExtMulLowI16x8S, MultiplyLong,
                                   kExprI16x8Splat, MulHalf::kLow);
 }
 
-WASM_SIMD_TEST(I32x4ExtMulHighI16x8S) {
+WASM_SIMD_TEST_NO_LOWERING(I32x4ExtMulHighI16x8S) {
   RunExtMulTest<int16_t, int32_t>(execution_tier, lower_simd,
                                   kExprI32x4ExtMulHighI16x8S, MultiplyLong,
                                   kExprI16x8Splat, MulHalf::kHigh);
 }
 
-WASM_SIMD_TEST(I32x4ExtMulLowI16x8U) {
+WASM_SIMD_TEST_NO_LOWERING(I32x4ExtMulLowI16x8U) {
   RunExtMulTest<uint16_t, uint32_t>(execution_tier, lower_simd,
                                     kExprI32x4ExtMulLowI16x8U, MultiplyLong,
                                     kExprI16x8Splat, MulHalf::kLow);
 }
 
-WASM_SIMD_TEST(I32x4ExtMulHighI16x8U) {
+WASM_SIMD_TEST_NO_LOWERING(I32x4ExtMulHighI16x8U) {
   RunExtMulTest<uint16_t, uint32_t>(execution_tier, lower_simd,
                                     kExprI32x4ExtMulHighI16x8U, MultiplyLong,
                                     kExprI16x8Splat, MulHalf::kHigh);
 }
 
-WASM_SIMD_TEST(I64x2ExtMulLowI32x4S) {
+WASM_SIMD_TEST_NO_LOWERING(I64x2ExtMulLowI32x4S) {
   RunExtMulTest<int32_t, int64_t>(execution_tier, lower_simd,
                                   kExprI64x2ExtMulLowI32x4S, MultiplyLong,
                                   kExprI32x4Splat, MulHalf::kLow);
 }
 
-WASM_SIMD_TEST(I64x2ExtMulHighI32x4S) {
+WASM_SIMD_TEST_NO_LOWERING(I64x2ExtMulHighI32x4S) {
   RunExtMulTest<int32_t, int64_t>(execution_tier, lower_simd,
                                   kExprI64x2ExtMulHighI32x4S, MultiplyLong,
                                   kExprI32x4Splat, MulHalf::kHigh);
 }
 
-WASM_SIMD_TEST(I64x2ExtMulLowI32x4U) {
+WASM_SIMD_TEST_NO_LOWERING(I64x2ExtMulLowI32x4U) {
   RunExtMulTest<uint32_t, uint64_t>(execution_tier, lower_simd,
                                     kExprI64x2ExtMulLowI32x4U, MultiplyLong,
                                     kExprI32x4Splat, MulHalf::kLow);
 }
 
-WASM_SIMD_TEST(I64x2ExtMulHighI32x4U) {
+WASM_SIMD_TEST_NO_LOWERING(I64x2ExtMulHighI32x4U) {
   RunExtMulTest<uint32_t, uint64_t>(execution_tier, lower_simd,
                                     kExprI64x2ExtMulHighI32x4U, MultiplyLong,
                                     kExprI32x4Splat, MulHalf::kHigh);
 }
+#endif  // V8_TARGET_ARCH_ARM64
 
 WASM_SIMD_TEST(I32x4DotI16x8S) {
   WasmRunner<int32_t, int16_t, int16_t> r(execution_tier, lower_simd);
@@ -2446,11 +2445,11 @@ WASM_SIMD_TEST(I32x4DotI16x8S) {
   byte value1 = 0, value2 = 1;
   byte temp1 = r.AllocateLocal(kWasmS128);
   byte temp2 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(value1))),
-        WASM_LOCAL_SET(temp2, WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(value2))),
-        WASM_GLOBAL_SET(
-            0, WASM_SIMD_BINOP(kExprI32x4DotI16x8S, WASM_LOCAL_GET(temp1),
-                               WASM_LOCAL_GET(temp2))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(value1))),
+        WASM_SET_LOCAL(temp2, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(value2))),
+        WASM_SET_GLOBAL(
+            0, WASM_SIMD_BINOP(kExprI32x4DotI16x8S, WASM_GET_LOCAL(temp1),
+                               WASM_GET_LOCAL(temp2))),
         WASM_ONE);
 
   for (int16_t x : compiler::ValueHelper::GetVector<int16_t>()) {
@@ -2477,11 +2476,11 @@ void RunI16x8ShiftOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
     byte simd = r.AllocateLocal(kWasmS128);
     // Shift using an immediate, and shift using a value loaded from memory.
     BUILD(
-        r, WASM_LOCAL_SET(simd, WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(value))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_SHIFT_OP(opcode, WASM_LOCAL_GET(simd),
+        r, WASM_SET_LOCAL(simd, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(value))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_SHIFT_OP(opcode, WASM_GET_LOCAL(simd),
                                               WASM_I32V(shift))),
-        WASM_GLOBAL_SET(1, WASM_SIMD_SHIFT_OP(
-                               opcode, WASM_LOCAL_GET(simd),
+        WASM_SET_GLOBAL(1, WASM_SIMD_SHIFT_OP(
+                               opcode, WASM_GET_LOCAL(simd),
                                WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO))),
         WASM_ONE);
 
@@ -2520,8 +2519,8 @@ void RunI8x16UnOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   // Build fn to splat test value, perform unop, and write the result.
   byte value = 0;
   byte temp1 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(value))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_UNOP(opcode, WASM_LOCAL_GET(temp1))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I8x16_SPLAT(WASM_GET_LOCAL(value))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_UNOP(opcode, WASM_GET_LOCAL(temp1))),
         WASM_ONE);
 
   FOR_INT8_INPUTS(x) {
@@ -2542,7 +2541,7 @@ WASM_SIMD_TEST(I8x16Abs) {
   RunI8x16UnOpTest(execution_tier, lower_simd, kExprI8x16Abs, Abs);
 }
 
-#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_ARM64
 // TODO(v8:11002) Prototype i8x16.popcnt.
 WASM_SIMD_TEST_NO_LOWERING(I8x16Popcnt) {
   FLAG_SCOPE(wasm_simd_post_mvp);
@@ -2552,9 +2551,9 @@ WASM_SIMD_TEST_NO_LOWERING(I8x16Popcnt) {
   // Build fn to splat test value, perform unop, and write the result.
   byte value = 0;
   byte temp1 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(value))),
-        WASM_GLOBAL_SET(
-            0, WASM_SIMD_UNOP(kExprI8x16Popcnt, WASM_LOCAL_GET(temp1))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I8x16_SPLAT(WASM_GET_LOCAL(value))),
+        WASM_SET_GLOBAL(
+            0, WASM_SIMD_UNOP(kExprI8x16Popcnt, WASM_GET_LOCAL(temp1))),
         WASM_ONE);
 
   FOR_UINT8_INPUTS(x) {
@@ -2565,7 +2564,7 @@ WASM_SIMD_TEST_NO_LOWERING(I8x16Popcnt) {
     }
   }
 }
-#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
+#endif  // V8_TARGET_ARCH_ARM64
 
 // Tests both signed and unsigned conversion from I16x8 (packing).
 WASM_SIMD_TEST(I8x16ConvertI16x8) {
@@ -2576,13 +2575,13 @@ WASM_SIMD_TEST(I8x16ConvertI16x8) {
   // Build fn to splat test value, perform conversions, and write the results.
   byte value = 0;
   byte temp1 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(value))),
-        WASM_GLOBAL_SET(
-            0, WASM_SIMD_BINOP(kExprI8x16SConvertI16x8, WASM_LOCAL_GET(temp1),
-                               WASM_LOCAL_GET(temp1))),
-        WASM_GLOBAL_SET(
-            1, WASM_SIMD_BINOP(kExprI8x16UConvertI16x8, WASM_LOCAL_GET(temp1),
-                               WASM_LOCAL_GET(temp1))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(value))),
+        WASM_SET_GLOBAL(
+            0, WASM_SIMD_BINOP(kExprI8x16SConvertI16x8, WASM_GET_LOCAL(temp1),
+                               WASM_GET_LOCAL(temp1))),
+        WASM_SET_GLOBAL(
+            1, WASM_SIMD_BINOP(kExprI8x16UConvertI16x8, WASM_GET_LOCAL(temp1),
+                               WASM_GET_LOCAL(temp1))),
         WASM_ONE);
 
   FOR_INT16_INPUTS(x) {
@@ -2606,10 +2605,10 @@ void RunI8x16BinOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   byte value1 = 0, value2 = 1;
   byte temp1 = r.AllocateLocal(kWasmS128);
   byte temp2 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(value1))),
-        WASM_LOCAL_SET(temp2, WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(value2))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_BINOP(opcode, WASM_LOCAL_GET(temp1),
-                                           WASM_LOCAL_GET(temp2))),
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I8x16_SPLAT(WASM_GET_LOCAL(value1))),
+        WASM_SET_LOCAL(temp2, WASM_SIMD_I8x16_SPLAT(WASM_GET_LOCAL(value2))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_BINOP(opcode, WASM_GET_LOCAL(temp1),
+                                           WASM_GET_LOCAL(temp2))),
         WASM_ONE);
 
   for (T x : compiler::ValueHelper::GetVector<T>()) {
@@ -2737,11 +2736,11 @@ void RunI8x16ShiftOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
     byte simd = r.AllocateLocal(kWasmS128);
     // Shift using an immediate, and shift using a value loaded from memory.
     BUILD(
-        r, WASM_LOCAL_SET(simd, WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(value))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_SHIFT_OP(opcode, WASM_LOCAL_GET(simd),
+        r, WASM_SET_LOCAL(simd, WASM_SIMD_I8x16_SPLAT(WASM_GET_LOCAL(value))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_SHIFT_OP(opcode, WASM_GET_LOCAL(simd),
                                               WASM_I32V(shift))),
-        WASM_GLOBAL_SET(1, WASM_SIMD_SHIFT_OP(
-                               opcode, WASM_LOCAL_GET(simd),
+        WASM_SET_GLOBAL(1, WASM_SIMD_SHIFT_OP(
+                               opcode, WASM_GET_LOCAL(simd),
                                WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO))),
         WASM_ONE);
 
@@ -2785,21 +2784,21 @@ WASM_SIMD_TEST(I8x16ShrU) {
     byte zero = r.AllocateLocal(kWasmS128);                                  \
     byte mask = r.AllocateLocal(kWasmS128);                                  \
     BUILD(r,                                                                 \
-          WASM_LOCAL_SET(src1,                                               \
-                         WASM_SIMD_I##format##_SPLAT(WASM_LOCAL_GET(val1))), \
-          WASM_LOCAL_SET(src2,                                               \
-                         WASM_SIMD_I##format##_SPLAT(WASM_LOCAL_GET(val2))), \
-          WASM_LOCAL_SET(zero, WASM_SIMD_I##format##_SPLAT(WASM_ZERO)),      \
-          WASM_LOCAL_SET(mask, WASM_SIMD_I##format##_REPLACE_LANE(           \
-                                   1, WASM_LOCAL_GET(zero), WASM_I32V(-1))), \
-          WASM_LOCAL_SET(mask, WASM_SIMD_I##format##_REPLACE_LANE(           \
-                                   2, WASM_LOCAL_GET(mask), WASM_I32V(-1))), \
-          WASM_LOCAL_SET(                                                    \
+          WASM_SET_LOCAL(src1,                                               \
+                         WASM_SIMD_I##format##_SPLAT(WASM_GET_LOCAL(val1))), \
+          WASM_SET_LOCAL(src2,                                               \
+                         WASM_SIMD_I##format##_SPLAT(WASM_GET_LOCAL(val2))), \
+          WASM_SET_LOCAL(zero, WASM_SIMD_I##format##_SPLAT(WASM_ZERO)),      \
+          WASM_SET_LOCAL(mask, WASM_SIMD_I##format##_REPLACE_LANE(           \
+                                   1, WASM_GET_LOCAL(zero), WASM_I32V(-1))), \
+          WASM_SET_LOCAL(mask, WASM_SIMD_I##format##_REPLACE_LANE(           \
+                                   2, WASM_GET_LOCAL(mask), WASM_I32V(-1))), \
+          WASM_SET_LOCAL(                                                    \
               mask,                                                          \
               WASM_SIMD_SELECT(                                              \
-                  format, WASM_LOCAL_GET(src1), WASM_LOCAL_GET(src2),        \
-                  WASM_SIMD_BINOP(kExprI##format##Ne, WASM_LOCAL_GET(mask),  \
-                                  WASM_LOCAL_GET(zero)))),                   \
+                  format, WASM_GET_LOCAL(src1), WASM_GET_LOCAL(src2),        \
+                  WASM_SIMD_BINOP(kExprI##format##Ne, WASM_GET_LOCAL(mask),  \
+                                  WASM_GET_LOCAL(zero)))),                   \
           WASM_SIMD_CHECK_LANE_S(I##format, mask, I32, val2, 0),             \
           WASM_SIMD_CHECK_LANE_S(I##format, mask, I32, val1, 1),             \
           WASM_SIMD_CHECK_LANE_S(I##format, mask, I32, val1, 2),             \
@@ -2815,7 +2814,7 @@ WASM_SIMD_SELECT_TEST(8x16)
 // Test Select by making a mask where the 0th and 3rd lanes are non-zero and the
 // rest 0. The mask is not the result of a comparison op.
 #define WASM_SIMD_NON_CANONICAL_SELECT_TEST(format)                           \
-  WASM_SIMD_TEST(S##format##NonCanonicalSelect) {                             \
+  WASM_SIMD_TEST_NO_LOWERING(S##format##NonCanonicalSelect) {                 \
     WasmRunner<int32_t, int32_t, int32_t, int32_t> r(execution_tier,          \
                                                      lower_simd);             \
     byte val1 = 0;                                                            \
@@ -2826,18 +2825,18 @@ WASM_SIMD_SELECT_TEST(8x16)
     byte zero = r.AllocateLocal(kWasmS128);                                   \
     byte mask = r.AllocateLocal(kWasmS128);                                   \
     BUILD(r,                                                                  \
-          WASM_LOCAL_SET(src1,                                                \
-                         WASM_SIMD_I##format##_SPLAT(WASM_LOCAL_GET(val1))),  \
-          WASM_LOCAL_SET(src2,                                                \
-                         WASM_SIMD_I##format##_SPLAT(WASM_LOCAL_GET(val2))),  \
-          WASM_LOCAL_SET(zero, WASM_SIMD_I##format##_SPLAT(WASM_ZERO)),       \
-          WASM_LOCAL_SET(mask, WASM_SIMD_I##format##_REPLACE_LANE(            \
-                                   1, WASM_LOCAL_GET(zero), WASM_I32V(0xF))), \
-          WASM_LOCAL_SET(mask, WASM_SIMD_I##format##_REPLACE_LANE(            \
-                                   2, WASM_LOCAL_GET(mask), WASM_I32V(0xF))), \
-          WASM_LOCAL_SET(mask, WASM_SIMD_SELECT(format, WASM_LOCAL_GET(src1), \
-                                                WASM_LOCAL_GET(src2),         \
-                                                WASM_LOCAL_GET(mask))),       \
+          WASM_SET_LOCAL(src1,                                                \
+                         WASM_SIMD_I##format##_SPLAT(WASM_GET_LOCAL(val1))),  \
+          WASM_SET_LOCAL(src2,                                                \
+                         WASM_SIMD_I##format##_SPLAT(WASM_GET_LOCAL(val2))),  \
+          WASM_SET_LOCAL(zero, WASM_SIMD_I##format##_SPLAT(WASM_ZERO)),       \
+          WASM_SET_LOCAL(mask, WASM_SIMD_I##format##_REPLACE_LANE(            \
+                                   1, WASM_GET_LOCAL(zero), WASM_I32V(0xF))), \
+          WASM_SET_LOCAL(mask, WASM_SIMD_I##format##_REPLACE_LANE(            \
+                                   2, WASM_GET_LOCAL(mask), WASM_I32V(0xF))), \
+          WASM_SET_LOCAL(mask, WASM_SIMD_SELECT(format, WASM_GET_LOCAL(src1), \
+                                                WASM_GET_LOCAL(src2),         \
+                                                WASM_GET_LOCAL(mask))),       \
           WASM_SIMD_CHECK_LANE_S(I##format, mask, I32, val2, 0),              \
           WASM_SIMD_CHECK_LANE_S(I##format, mask, I32, combined, 1),          \
           WASM_SIMD_CHECK_LANE_S(I##format, mask, I32, combined, 2),          \
@@ -2866,14 +2865,14 @@ void RunBinaryLaneOpTest(
   }
   if (simd_op == kExprI8x16Shuffle) {
     BUILD(r,
-          WASM_GLOBAL_SET(0, WASM_SIMD_I8x16_SHUFFLE_OP(simd_op, expected,
-                                                        WASM_GLOBAL_GET(0),
-                                                        WASM_GLOBAL_GET(1))),
+          WASM_SET_GLOBAL(0, WASM_SIMD_I8x16_SHUFFLE_OP(simd_op, expected,
+                                                        WASM_GET_GLOBAL(0),
+                                                        WASM_GET_GLOBAL(1))),
           WASM_ONE);
   } else {
     BUILD(r,
-          WASM_GLOBAL_SET(0, WASM_SIMD_BINOP(simd_op, WASM_GLOBAL_GET(0),
-                                             WASM_GLOBAL_GET(1))),
+          WASM_SET_GLOBAL(0, WASM_SIMD_BINOP(simd_op, WASM_GET_GLOBAL(0),
+                                             WASM_GET_GLOBAL(1))),
           WASM_ONE);
   }
 
@@ -2940,7 +2939,6 @@ void RunShuffleOpTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   V(S32x4TransposeRight) \
   V(S32x2Reverse)        \
   V(S32x4Irregular)      \
-  V(S32x4Rotate)         \
   V(S16x8Dup)            \
   V(S16x8ZipLeft)        \
   V(S16x8ZipRight)       \
@@ -2993,7 +2991,6 @@ ShuffleMap test_shuffles = {
      {{4, 5, 6, 7, 0, 1, 2, 3, 12, 13, 14, 15, 8, 9, 10, 11}}},
     {kS32x4Irregular,
      {{0, 1, 2, 3, 16, 17, 18, 19, 16, 17, 18, 19, 20, 21, 22, 23}}},
-    {kS32x4Rotate, {{4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3}}},
     {kS16x8Dup,
      {{18, 19, 18, 19, 18, 19, 18, 19, 18, 19, 18, 19, 18, 19, 18, 19}}},
     {kS16x8ZipLeft, {{0, 1, 16, 17, 2, 3, 18, 19, 4, 5, 20, 21, 6, 7, 22, 23}}},
@@ -3075,28 +3072,6 @@ WASM_SIMD_TEST(S8x16Concat) {
   }
 }
 
-WASM_SIMD_TEST(ShuffleShufps) {
-  // We reverse engineer the shufps immediates into 8x16 shuffles.
-  std::array<int8_t, kSimd128Size> expected;
-  for (int mask = 0; mask < 256; mask++) {
-    // Each iteration of this loop sets byte[i] of the 32x4 lanes.
-    // Low 2 lanes (2-bits each) select from first input.
-    uint8_t index0 = (mask & 3) * 4;
-    uint8_t index1 = ((mask >> 2) & 3) * 4;
-    // Next 2 bits select from src2, so add 16 to the index.
-    uint8_t index2 = ((mask >> 4) & 3) * 4 + 16;
-    uint8_t index3 = ((mask >> 6) & 3) * 4 + 16;
-
-    for (int i = 0; i < 4; i++) {
-      expected[0 + i] = index0 + i;
-      expected[4 + i] = index1 + i;
-      expected[8 + i] = index2 + i;
-      expected[12 + i] = index3 + i;
-    }
-    RunShuffleOpTest(execution_tier, lower_simd, kExprI8x16Shuffle, expected);
-  }
-}
-
 struct SwizzleTestArgs {
   const Shuffle input;
   const Shuffle indices;
@@ -3133,8 +3108,8 @@ WASM_SIMD_TEST(I8x16Swizzle) {
   uint8_t* src1 = r.builder().AddGlobal<uint8_t>(kWasmS128);
   BUILD(
       r,
-      WASM_GLOBAL_SET(0, WASM_SIMD_BINOP(kExprI8x16Swizzle, WASM_GLOBAL_GET(1),
-                                         WASM_GLOBAL_GET(2))),
+      WASM_SET_GLOBAL(0, WASM_SIMD_BINOP(kExprI8x16Swizzle, WASM_GET_GLOBAL(1),
+                                         WASM_GET_GLOBAL(2))),
       WASM_ONE);
 
   for (SwizzleTestArgs si : swizzle_test_vector) {
@@ -3189,7 +3164,7 @@ void BuildShuffle(const std::vector<Shuffle>& shuffles,
   // Perform the leaf shuffles on globals 0 and 1.
   size_t row_index = (shuffles.size() - 1) / 2;
   for (size_t i = row_index; i < shuffles.size(); ++i) {
-    byte operands[] = {WASM_GLOBAL_GET(0), WASM_GLOBAL_GET(1)};
+    byte operands[] = {WASM_GET_GLOBAL(0), WASM_GET_GLOBAL(1)};
     for (size_t j = 0; j < arraysize(operands); ++j)
       buffer->push_back(operands[j]);
     AppendShuffle(shuffles[i], buffer);
@@ -3269,65 +3244,65 @@ WASM_SIMD_TEST(S8x16MultiShuffleFuzz) {
     byte zero = r.AllocateLocal(kWasmS128);                                    \
     byte one_one = r.AllocateLocal(kWasmS128);                                 \
     byte reduced = r.AllocateLocal(kWasmI32);                                  \
-    BUILD(r, WASM_LOCAL_SET(zero, WASM_SIMD_I##format##_SPLAT(int_type(0))),   \
-          WASM_LOCAL_SET(                                                      \
+    BUILD(r, WASM_SET_LOCAL(zero, WASM_SIMD_I##format##_SPLAT(int_type(0))),   \
+          WASM_SET_LOCAL(                                                      \
               reduced, WASM_SIMD_UNOP(kExprV##format##AnyTrue,                 \
                                       WASM_SIMD_BINOP(kExprI##format##Eq,      \
-                                                      WASM_LOCAL_GET(zero),    \
-                                                      WASM_LOCAL_GET(zero)))), \
-          WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(reduced), WASM_ZERO),             \
+                                                      WASM_GET_LOCAL(zero),    \
+                                                      WASM_GET_LOCAL(zero)))), \
+          WASM_IF(WASM_I32_EQ(WASM_GET_LOCAL(reduced), WASM_ZERO),             \
                   WASM_RETURN1(WASM_ZERO)),                                    \
-          WASM_LOCAL_SET(                                                      \
+          WASM_SET_LOCAL(                                                      \
               reduced, WASM_SIMD_UNOP(kExprV##format##AnyTrue,                 \
                                       WASM_SIMD_BINOP(kExprI##format##Ne,      \
-                                                      WASM_LOCAL_GET(zero),    \
-                                                      WASM_LOCAL_GET(zero)))), \
-          WASM_IF(WASM_I32_NE(WASM_LOCAL_GET(reduced), WASM_ZERO),             \
+                                                      WASM_GET_LOCAL(zero),    \
+                                                      WASM_GET_LOCAL(zero)))), \
+          WASM_IF(WASM_I32_NE(WASM_GET_LOCAL(reduced), WASM_ZERO),             \
                   WASM_RETURN1(WASM_ZERO)),                                    \
-          WASM_LOCAL_SET(                                                      \
+          WASM_SET_LOCAL(                                                      \
               reduced, WASM_SIMD_UNOP(kExprV##format##AllTrue,                 \
                                       WASM_SIMD_BINOP(kExprI##format##Eq,      \
-                                                      WASM_LOCAL_GET(zero),    \
-                                                      WASM_LOCAL_GET(zero)))), \
-          WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(reduced), WASM_ZERO),             \
+                                                      WASM_GET_LOCAL(zero),    \
+                                                      WASM_GET_LOCAL(zero)))), \
+          WASM_IF(WASM_I32_EQ(WASM_GET_LOCAL(reduced), WASM_ZERO),             \
                   WASM_RETURN1(WASM_ZERO)),                                    \
-          WASM_LOCAL_SET(                                                      \
+          WASM_SET_LOCAL(                                                      \
               reduced, WASM_SIMD_UNOP(kExprV##format##AllTrue,                 \
                                       WASM_SIMD_BINOP(kExprI##format##Ne,      \
-                                                      WASM_LOCAL_GET(zero),    \
-                                                      WASM_LOCAL_GET(zero)))), \
-          WASM_IF(WASM_I32_NE(WASM_LOCAL_GET(reduced), WASM_ZERO),             \
+                                                      WASM_GET_LOCAL(zero),    \
+                                                      WASM_GET_LOCAL(zero)))), \
+          WASM_IF(WASM_I32_NE(WASM_GET_LOCAL(reduced), WASM_ZERO),             \
                   WASM_RETURN1(WASM_ZERO)),                                    \
-          WASM_LOCAL_SET(one_one,                                              \
+          WASM_SET_LOCAL(one_one,                                              \
                          WASM_SIMD_I##format##_REPLACE_LANE(                   \
-                             lanes - 1, WASM_LOCAL_GET(zero), int_type(1))),   \
-          WASM_LOCAL_SET(                                                      \
+                             lanes - 1, WASM_GET_LOCAL(zero), int_type(1))),   \
+          WASM_SET_LOCAL(                                                      \
               reduced, WASM_SIMD_UNOP(kExprV##format##AnyTrue,                 \
                                       WASM_SIMD_BINOP(kExprI##format##Eq,      \
-                                                      WASM_LOCAL_GET(one_one), \
-                                                      WASM_LOCAL_GET(zero)))), \
-          WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(reduced), WASM_ZERO),             \
+                                                      WASM_GET_LOCAL(one_one), \
+                                                      WASM_GET_LOCAL(zero)))), \
+          WASM_IF(WASM_I32_EQ(WASM_GET_LOCAL(reduced), WASM_ZERO),             \
                   WASM_RETURN1(WASM_ZERO)),                                    \
-          WASM_LOCAL_SET(                                                      \
+          WASM_SET_LOCAL(                                                      \
               reduced, WASM_SIMD_UNOP(kExprV##format##AnyTrue,                 \
                                       WASM_SIMD_BINOP(kExprI##format##Ne,      \
-                                                      WASM_LOCAL_GET(one_one), \
-                                                      WASM_LOCAL_GET(zero)))), \
-          WASM_IF(WASM_I32_EQ(WASM_LOCAL_GET(reduced), WASM_ZERO),             \
+                                                      WASM_GET_LOCAL(one_one), \
+                                                      WASM_GET_LOCAL(zero)))), \
+          WASM_IF(WASM_I32_EQ(WASM_GET_LOCAL(reduced), WASM_ZERO),             \
                   WASM_RETURN1(WASM_ZERO)),                                    \
-          WASM_LOCAL_SET(                                                      \
+          WASM_SET_LOCAL(                                                      \
               reduced, WASM_SIMD_UNOP(kExprV##format##AllTrue,                 \
                                       WASM_SIMD_BINOP(kExprI##format##Eq,      \
-                                                      WASM_LOCAL_GET(one_one), \
-                                                      WASM_LOCAL_GET(zero)))), \
-          WASM_IF(WASM_I32_NE(WASM_LOCAL_GET(reduced), WASM_ZERO),             \
+                                                      WASM_GET_LOCAL(one_one), \
+                                                      WASM_GET_LOCAL(zero)))), \
+          WASM_IF(WASM_I32_NE(WASM_GET_LOCAL(reduced), WASM_ZERO),             \
                   WASM_RETURN1(WASM_ZERO)),                                    \
-          WASM_LOCAL_SET(                                                      \
+          WASM_SET_LOCAL(                                                      \
               reduced, WASM_SIMD_UNOP(kExprV##format##AllTrue,                 \
                                       WASM_SIMD_BINOP(kExprI##format##Ne,      \
-                                                      WASM_LOCAL_GET(one_one), \
-                                                      WASM_LOCAL_GET(zero)))), \
-          WASM_IF(WASM_I32_NE(WASM_LOCAL_GET(reduced), WASM_ZERO),             \
+                                                      WASM_GET_LOCAL(one_one), \
+                                                      WASM_GET_LOCAL(zero)))), \
+          WASM_IF(WASM_I32_NE(WASM_GET_LOCAL(reduced), WASM_ZERO),             \
                   WASM_RETURN1(WASM_ZERO)),                                    \
           WASM_ONE);                                                           \
     CHECK_EQ(1, r.Call());                                                     \
@@ -3362,10 +3337,10 @@ WASM_SIMD_TEST(SimdF32x4ExtractLane) {
   r.AllocateLocal(kWasmF32);
   r.AllocateLocal(kWasmS128);
   BUILD(r,
-        WASM_LOCAL_SET(0, WASM_SIMD_F32x4_EXTRACT_LANE(
+        WASM_SET_LOCAL(0, WASM_SIMD_F32x4_EXTRACT_LANE(
                               0, WASM_SIMD_F32x4_SPLAT(WASM_F32(30.5)))),
-        WASM_LOCAL_SET(1, WASM_SIMD_F32x4_SPLAT(WASM_LOCAL_GET(0))),
-        WASM_SIMD_F32x4_EXTRACT_LANE(1, WASM_LOCAL_GET(1)));
+        WASM_SET_LOCAL(1, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(0))),
+        WASM_SIMD_F32x4_EXTRACT_LANE(1, WASM_GET_LOCAL(1)));
   CHECK_EQ(30.5, r.Call());
 }
 
@@ -3406,9 +3381,9 @@ WASM_SIMD_TEST(SimdI32x4AddWithF32x4) {
 WASM_SIMD_TEST(SimdI32x4Local) {
   WasmRunner<int32_t> r(execution_tier, lower_simd);
   r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(0, WASM_SIMD_I32x4_SPLAT(WASM_I32V(31))),
+  BUILD(r, WASM_SET_LOCAL(0, WASM_SIMD_I32x4_SPLAT(WASM_I32V(31))),
 
-        WASM_SIMD_I32x4_EXTRACT_LANE(0, WASM_LOCAL_GET(0)));
+        WASM_SIMD_I32x4_EXTRACT_LANE(0, WASM_GET_LOCAL(0)));
   CHECK_EQ(31, r.Call());
 }
 
@@ -3417,10 +3392,10 @@ WASM_SIMD_TEST(SimdI32x4SplatFromExtract) {
   r.AllocateLocal(kWasmI32);
   r.AllocateLocal(kWasmS128);
   BUILD(r,
-        WASM_LOCAL_SET(0, WASM_SIMD_I32x4_EXTRACT_LANE(
+        WASM_SET_LOCAL(0, WASM_SIMD_I32x4_EXTRACT_LANE(
                               0, WASM_SIMD_I32x4_SPLAT(WASM_I32V(76)))),
-        WASM_LOCAL_SET(1, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(0))),
-        WASM_SIMD_I32x4_EXTRACT_LANE(1, WASM_LOCAL_GET(1)));
+        WASM_SET_LOCAL(1, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(0))),
+        WASM_SIMD_I32x4_EXTRACT_LANE(1, WASM_GET_LOCAL(1)));
   CHECK_EQ(76, r.Call());
 }
 
@@ -3430,31 +3405,31 @@ WASM_SIMD_TEST(SimdI32x4For) {
   r.AllocateLocal(kWasmS128);
   BUILD(r,
 
-        WASM_LOCAL_SET(1, WASM_SIMD_I32x4_SPLAT(WASM_I32V(31))),
-        WASM_LOCAL_SET(1, WASM_SIMD_I32x4_REPLACE_LANE(1, WASM_LOCAL_GET(1),
+        WASM_SET_LOCAL(1, WASM_SIMD_I32x4_SPLAT(WASM_I32V(31))),
+        WASM_SET_LOCAL(1, WASM_SIMD_I32x4_REPLACE_LANE(1, WASM_GET_LOCAL(1),
                                                        WASM_I32V(53))),
-        WASM_LOCAL_SET(1, WASM_SIMD_I32x4_REPLACE_LANE(2, WASM_LOCAL_GET(1),
+        WASM_SET_LOCAL(1, WASM_SIMD_I32x4_REPLACE_LANE(2, WASM_GET_LOCAL(1),
                                                        WASM_I32V(23))),
-        WASM_LOCAL_SET(0, WASM_I32V(0)),
+        WASM_SET_LOCAL(0, WASM_I32V(0)),
         WASM_LOOP(
-            WASM_LOCAL_SET(
-                1, WASM_SIMD_BINOP(kExprI32x4Add, WASM_LOCAL_GET(1),
+            WASM_SET_LOCAL(
+                1, WASM_SIMD_BINOP(kExprI32x4Add, WASM_GET_LOCAL(1),
                                    WASM_SIMD_I32x4_SPLAT(WASM_I32V(1)))),
             WASM_IF(WASM_I32_NE(WASM_INC_LOCAL(0), WASM_I32V(5)), WASM_BR(1))),
-        WASM_LOCAL_SET(0, WASM_I32V(1)),
-        WASM_IF(WASM_I32_NE(WASM_SIMD_I32x4_EXTRACT_LANE(0, WASM_LOCAL_GET(1)),
+        WASM_SET_LOCAL(0, WASM_I32V(1)),
+        WASM_IF(WASM_I32_NE(WASM_SIMD_I32x4_EXTRACT_LANE(0, WASM_GET_LOCAL(1)),
                             WASM_I32V(36)),
-                WASM_LOCAL_SET(0, WASM_I32V(0))),
-        WASM_IF(WASM_I32_NE(WASM_SIMD_I32x4_EXTRACT_LANE(1, WASM_LOCAL_GET(1)),
+                WASM_SET_LOCAL(0, WASM_I32V(0))),
+        WASM_IF(WASM_I32_NE(WASM_SIMD_I32x4_EXTRACT_LANE(1, WASM_GET_LOCAL(1)),
                             WASM_I32V(58)),
-                WASM_LOCAL_SET(0, WASM_I32V(0))),
-        WASM_IF(WASM_I32_NE(WASM_SIMD_I32x4_EXTRACT_LANE(2, WASM_LOCAL_GET(1)),
+                WASM_SET_LOCAL(0, WASM_I32V(0))),
+        WASM_IF(WASM_I32_NE(WASM_SIMD_I32x4_EXTRACT_LANE(2, WASM_GET_LOCAL(1)),
                             WASM_I32V(28)),
-                WASM_LOCAL_SET(0, WASM_I32V(0))),
-        WASM_IF(WASM_I32_NE(WASM_SIMD_I32x4_EXTRACT_LANE(3, WASM_LOCAL_GET(1)),
+                WASM_SET_LOCAL(0, WASM_I32V(0))),
+        WASM_IF(WASM_I32_NE(WASM_SIMD_I32x4_EXTRACT_LANE(3, WASM_GET_LOCAL(1)),
                             WASM_I32V(36)),
-                WASM_LOCAL_SET(0, WASM_I32V(0))),
-        WASM_LOCAL_GET(0));
+                WASM_SET_LOCAL(0, WASM_I32V(0))),
+        WASM_GET_LOCAL(0));
   CHECK_EQ(1, r.Call());
 }
 
@@ -3462,23 +3437,23 @@ WASM_SIMD_TEST(SimdF32x4For) {
   WasmRunner<int32_t> r(execution_tier, lower_simd);
   r.AllocateLocal(kWasmI32);
   r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(1, WASM_SIMD_F32x4_SPLAT(WASM_F32(21.25))),
-        WASM_LOCAL_SET(1, WASM_SIMD_F32x4_REPLACE_LANE(3, WASM_LOCAL_GET(1),
+  BUILD(r, WASM_SET_LOCAL(1, WASM_SIMD_F32x4_SPLAT(WASM_F32(21.25))),
+        WASM_SET_LOCAL(1, WASM_SIMD_F32x4_REPLACE_LANE(3, WASM_GET_LOCAL(1),
                                                        WASM_F32(19.5))),
-        WASM_LOCAL_SET(0, WASM_I32V(0)),
+        WASM_SET_LOCAL(0, WASM_I32V(0)),
         WASM_LOOP(
-            WASM_LOCAL_SET(
-                1, WASM_SIMD_BINOP(kExprF32x4Add, WASM_LOCAL_GET(1),
+            WASM_SET_LOCAL(
+                1, WASM_SIMD_BINOP(kExprF32x4Add, WASM_GET_LOCAL(1),
                                    WASM_SIMD_F32x4_SPLAT(WASM_F32(2.0)))),
             WASM_IF(WASM_I32_NE(WASM_INC_LOCAL(0), WASM_I32V(3)), WASM_BR(1))),
-        WASM_LOCAL_SET(0, WASM_I32V(1)),
-        WASM_IF(WASM_F32_NE(WASM_SIMD_F32x4_EXTRACT_LANE(0, WASM_LOCAL_GET(1)),
+        WASM_SET_LOCAL(0, WASM_I32V(1)),
+        WASM_IF(WASM_F32_NE(WASM_SIMD_F32x4_EXTRACT_LANE(0, WASM_GET_LOCAL(1)),
                             WASM_F32(27.25)),
-                WASM_LOCAL_SET(0, WASM_I32V(0))),
-        WASM_IF(WASM_F32_NE(WASM_SIMD_F32x4_EXTRACT_LANE(3, WASM_LOCAL_GET(1)),
+                WASM_SET_LOCAL(0, WASM_I32V(0))),
+        WASM_IF(WASM_F32_NE(WASM_SIMD_F32x4_EXTRACT_LANE(3, WASM_GET_LOCAL(1)),
                             WASM_F32(25.5)),
-                WASM_LOCAL_SET(0, WASM_I32V(0))),
-        WASM_LOCAL_GET(0));
+                WASM_SET_LOCAL(0, WASM_I32V(0))),
+        WASM_GET_LOCAL(0));
   CHECK_EQ(1, r.Call());
 }
 
@@ -3509,20 +3484,20 @@ WASM_SIMD_TEST(SimdI32x4GetGlobal) {
   SetVectorByLanes(global, {{0, 1, 2, 3}});
   r.AllocateLocal(kWasmI32);
   BUILD(
-      r, WASM_LOCAL_SET(1, WASM_I32V(1)),
+      r, WASM_SET_LOCAL(1, WASM_I32V(1)),
       WASM_IF(WASM_I32_NE(WASM_I32V(0),
-                          WASM_SIMD_I32x4_EXTRACT_LANE(0, WASM_GLOBAL_GET(4))),
-              WASM_LOCAL_SET(1, WASM_I32V(0))),
+                          WASM_SIMD_I32x4_EXTRACT_LANE(0, WASM_GET_GLOBAL(4))),
+              WASM_SET_LOCAL(1, WASM_I32V(0))),
       WASM_IF(WASM_I32_NE(WASM_I32V(1),
-                          WASM_SIMD_I32x4_EXTRACT_LANE(1, WASM_GLOBAL_GET(4))),
-              WASM_LOCAL_SET(1, WASM_I32V(0))),
+                          WASM_SIMD_I32x4_EXTRACT_LANE(1, WASM_GET_GLOBAL(4))),
+              WASM_SET_LOCAL(1, WASM_I32V(0))),
       WASM_IF(WASM_I32_NE(WASM_I32V(2),
-                          WASM_SIMD_I32x4_EXTRACT_LANE(2, WASM_GLOBAL_GET(4))),
-              WASM_LOCAL_SET(1, WASM_I32V(0))),
+                          WASM_SIMD_I32x4_EXTRACT_LANE(2, WASM_GET_GLOBAL(4))),
+              WASM_SET_LOCAL(1, WASM_I32V(0))),
       WASM_IF(WASM_I32_NE(WASM_I32V(3),
-                          WASM_SIMD_I32x4_EXTRACT_LANE(3, WASM_GLOBAL_GET(4))),
-              WASM_LOCAL_SET(1, WASM_I32V(0))),
-      WASM_LOCAL_GET(1));
+                          WASM_SIMD_I32x4_EXTRACT_LANE(3, WASM_GET_GLOBAL(4))),
+              WASM_SET_LOCAL(1, WASM_I32V(0))),
+      WASM_GET_LOCAL(1));
   CHECK_EQ(1, r.Call(0));
 }
 
@@ -3534,12 +3509,12 @@ WASM_SIMD_TEST(SimdI32x4SetGlobal) {
   r.builder().AddGlobal<int32_t>(kWasmI32);  // purposefully unused
   r.builder().AddGlobal<int32_t>(kWasmI32);  // purposefully unused
   int32_t* global = r.builder().AddGlobal<int32_t>(kWasmS128);
-  BUILD(r, WASM_GLOBAL_SET(4, WASM_SIMD_I32x4_SPLAT(WASM_I32V(23))),
-        WASM_GLOBAL_SET(4, WASM_SIMD_I32x4_REPLACE_LANE(1, WASM_GLOBAL_GET(4),
+  BUILD(r, WASM_SET_GLOBAL(4, WASM_SIMD_I32x4_SPLAT(WASM_I32V(23))),
+        WASM_SET_GLOBAL(4, WASM_SIMD_I32x4_REPLACE_LANE(1, WASM_GET_GLOBAL(4),
                                                         WASM_I32V(34))),
-        WASM_GLOBAL_SET(4, WASM_SIMD_I32x4_REPLACE_LANE(2, WASM_GLOBAL_GET(4),
+        WASM_SET_GLOBAL(4, WASM_SIMD_I32x4_REPLACE_LANE(2, WASM_GET_GLOBAL(4),
                                                         WASM_I32V(45))),
-        WASM_GLOBAL_SET(4, WASM_SIMD_I32x4_REPLACE_LANE(3, WASM_GLOBAL_GET(4),
+        WASM_SET_GLOBAL(4, WASM_SIMD_I32x4_REPLACE_LANE(3, WASM_GET_GLOBAL(4),
                                                         WASM_I32V(56))),
         WASM_I32V(1));
   CHECK_EQ(1, r.Call(0));
@@ -3555,32 +3530,32 @@ WASM_SIMD_TEST(SimdF32x4GetGlobal) {
   SetVectorByLanes<float>(global, {{0.0, 1.5, 2.25, 3.5}});
   r.AllocateLocal(kWasmI32);
   BUILD(
-      r, WASM_LOCAL_SET(1, WASM_I32V(1)),
+      r, WASM_SET_LOCAL(1, WASM_I32V(1)),
       WASM_IF(WASM_F32_NE(WASM_F32(0.0),
-                          WASM_SIMD_F32x4_EXTRACT_LANE(0, WASM_GLOBAL_GET(0))),
-              WASM_LOCAL_SET(1, WASM_I32V(0))),
+                          WASM_SIMD_F32x4_EXTRACT_LANE(0, WASM_GET_GLOBAL(0))),
+              WASM_SET_LOCAL(1, WASM_I32V(0))),
       WASM_IF(WASM_F32_NE(WASM_F32(1.5),
-                          WASM_SIMD_F32x4_EXTRACT_LANE(1, WASM_GLOBAL_GET(0))),
-              WASM_LOCAL_SET(1, WASM_I32V(0))),
+                          WASM_SIMD_F32x4_EXTRACT_LANE(1, WASM_GET_GLOBAL(0))),
+              WASM_SET_LOCAL(1, WASM_I32V(0))),
       WASM_IF(WASM_F32_NE(WASM_F32(2.25),
-                          WASM_SIMD_F32x4_EXTRACT_LANE(2, WASM_GLOBAL_GET(0))),
-              WASM_LOCAL_SET(1, WASM_I32V(0))),
+                          WASM_SIMD_F32x4_EXTRACT_LANE(2, WASM_GET_GLOBAL(0))),
+              WASM_SET_LOCAL(1, WASM_I32V(0))),
       WASM_IF(WASM_F32_NE(WASM_F32(3.5),
-                          WASM_SIMD_F32x4_EXTRACT_LANE(3, WASM_GLOBAL_GET(0))),
-              WASM_LOCAL_SET(1, WASM_I32V(0))),
-      WASM_LOCAL_GET(1));
+                          WASM_SIMD_F32x4_EXTRACT_LANE(3, WASM_GET_GLOBAL(0))),
+              WASM_SET_LOCAL(1, WASM_I32V(0))),
+      WASM_GET_LOCAL(1));
   CHECK_EQ(1, r.Call(0));
 }
 
 WASM_SIMD_TEST(SimdF32x4SetGlobal) {
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
   float* global = r.builder().AddGlobal<float>(kWasmS128);
-  BUILD(r, WASM_GLOBAL_SET(0, WASM_SIMD_F32x4_SPLAT(WASM_F32(13.5))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_F32x4_REPLACE_LANE(1, WASM_GLOBAL_GET(0),
+  BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_F32x4_SPLAT(WASM_F32(13.5))),
+        WASM_SET_GLOBAL(0, WASM_SIMD_F32x4_REPLACE_LANE(1, WASM_GET_GLOBAL(0),
                                                         WASM_F32(45.5))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_F32x4_REPLACE_LANE(2, WASM_GLOBAL_GET(0),
+        WASM_SET_GLOBAL(0, WASM_SIMD_F32x4_REPLACE_LANE(2, WASM_GET_GLOBAL(0),
                                                         WASM_F32(32.25))),
-        WASM_GLOBAL_SET(0, WASM_SIMD_F32x4_REPLACE_LANE(3, WASM_GLOBAL_GET(0),
+        WASM_SET_GLOBAL(0, WASM_SIMD_F32x4_REPLACE_LANE(3, WASM_GET_GLOBAL(0),
                                                         WASM_F32(65.0))),
         WASM_I32V(1));
   CHECK_EQ(1, r.Call(0));
@@ -3589,60 +3564,6 @@ WASM_SIMD_TEST(SimdF32x4SetGlobal) {
   CHECK_EQ(GetScalar(global, 2), 32.25f);
   CHECK_EQ(GetScalar(global, 3), 65.0f);
 }
-
-#if V8_TARGET_ARCH_ARM64
-// TODO(v8:11168): Prototyping prefetch.
-WASM_SIMD_TEST(SimdPrefetch) {
-  FLAG_SCOPE(wasm_simd_post_mvp);
-
-  {
-    // Test PrefetchT.
-    WasmRunner<int32_t> r(execution_tier, lower_simd);
-    int32_t* memory =
-        r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
-    BUILD(r, WASM_ZERO, WASM_SIMD_OP(kExprPrefetchT), ZERO_ALIGNMENT,
-          ZERO_OFFSET,
-          WASM_SIMD_I32x4_EXTRACT_LANE(0, WASM_SIMD_LOAD_MEM(WASM_ZERO)));
-
-    FOR_INT32_INPUTS(i) {
-      r.builder().WriteMemory(&memory[0], i);
-      CHECK_EQ(i, r.Call());
-    }
-  }
-
-  {
-    // Test PrefetchNT.
-    WasmRunner<int32_t> r(execution_tier, lower_simd);
-    int32_t* memory =
-        r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
-    BUILD(r, WASM_ZERO, WASM_SIMD_OP(kExprPrefetchNT), ZERO_ALIGNMENT,
-          ZERO_OFFSET,
-          WASM_SIMD_I32x4_EXTRACT_LANE(0, WASM_SIMD_LOAD_MEM(WASM_ZERO)));
-
-    FOR_INT32_INPUTS(i) {
-      r.builder().WriteMemory(&memory[0], i);
-      CHECK_EQ(i, r.Call());
-    }
-  }
-
-  {
-    // Test OOB.
-    WasmRunner<int32_t> r(execution_tier, lower_simd);
-    int32_t* memory =
-        r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
-
-    // Prefetch kWasmPageSize+1 but still load from 0.
-    BUILD(r, WASM_I32V(kWasmPageSize + 1), WASM_SIMD_OP(kExprPrefetchNT),
-          ZERO_ALIGNMENT, ZERO_OFFSET,
-          WASM_SIMD_I32x4_EXTRACT_LANE(0, WASM_SIMD_LOAD_MEM(WASM_ZERO)));
-
-    FOR_INT32_INPUTS(i) {
-      r.builder().WriteMemory(&memory[0], i);
-      CHECK_EQ(i, r.Call());
-    }
-  }
-}
-#endif  // V8_TARGET_ARCH_ARM64
 
 WASM_SIMD_TEST(SimdLoadStoreLoad) {
   WasmRunner<int32_t> r(execution_tier, lower_simd);
@@ -3657,33 +3578,6 @@ WASM_SIMD_TEST(SimdLoadStoreLoad) {
     int32_t expected = i;
     r.builder().WriteMemory(&memory[1], expected);
     CHECK_EQ(expected, r.Call());
-  }
-
-  {
-    // OOB tests for loads.
-    WasmRunner<int32_t, uint32_t> r(execution_tier, lower_simd);
-    r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
-    BUILD(r, WASM_SIMD_I32x4_EXTRACT_LANE(
-                 0, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(0))));
-
-    for (uint32_t offset = kWasmPageSize - (kSimd128Size - 1);
-         offset < kWasmPageSize; ++offset) {
-      CHECK_TRAP(r.Call(offset));
-    }
-  }
-
-  {
-    // OOB tests for stores.
-    WasmRunner<int32_t, uint32_t> r(execution_tier, lower_simd);
-    r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
-    BUILD(r,
-          WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(0), WASM_SIMD_LOAD_MEM(WASM_ZERO)),
-          WASM_ONE);
-
-    for (uint32_t offset = kWasmPageSize - (kSimd128Size - 1);
-         offset < kWasmPageSize; ++offset) {
-      CHECK_TRAP(r.Call(offset));
-    }
   }
 }
 
@@ -3708,32 +3602,6 @@ WASM_SIMD_TEST(SimdLoadStoreLoadMemargOffset) {
     r.builder().WriteMemory(&memory[1], expected);
     CHECK_EQ(expected, r.Call());
   }
-
-  {
-    // OOB tests for loads with offsets.
-    for (uint32_t offset = kWasmPageSize - (kSimd128Size - 1);
-         offset < kWasmPageSize; ++offset) {
-      WasmRunner<int32_t> r(execution_tier, lower_simd);
-      r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
-      BUILD(r, WASM_SIMD_I32x4_EXTRACT_LANE(
-                   0, WASM_SIMD_LOAD_MEM_OFFSET(U32V_3(offset), WASM_ZERO)));
-      CHECK_TRAP(r.Call());
-    }
-  }
-
-  {
-    // OOB tests for stores with offsets
-    for (uint32_t offset = kWasmPageSize - (kSimd128Size - 1);
-         offset < kWasmPageSize; ++offset) {
-      WasmRunner<int32_t, uint32_t> r(execution_tier, lower_simd);
-      r.builder().AddMemoryElems<int32_t>(kWasmPageSize / sizeof(int32_t));
-      BUILD(r,
-            WASM_SIMD_STORE_MEM_OFFSET(U32V_3(offset), WASM_ZERO,
-                                       WASM_SIMD_LOAD_MEM(WASM_ZERO)),
-            WASM_ONE);
-      CHECK_TRAP(r.Call(offset));
-    }
-  }
 }
 
 // Test a multi-byte opcode with offset values that encode into valid opcodes.
@@ -3745,7 +3613,7 @@ WASM_SIMD_TEST(S128Load8SplatOffset) {
   int8_t* memory = r.builder().AddMemoryElems<int8_t>(kWasmPageSize);
   int8_t* global = r.builder().AddGlobal<int8_t>(kWasmS128);
   BUILD(r,
-        WASM_GLOBAL_SET(
+        WASM_SET_GLOBAL(
             0, WASM_SIMD_LOAD_OP_OFFSET(kExprS128Load8Splat, WASM_I32V(0),
                                         U32V_2(offset))),
         WASM_ONE);
@@ -3767,7 +3635,7 @@ void RunLoadSplatTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   WasmRunner<int32_t> r(execution_tier, lower_simd);
   T* memory = r.builder().AddMemoryElems<T>(kWasmPageSize / sizeof(T));
   T* global = r.builder().AddGlobal<T>(kWasmS128);
-  BUILD(r, WASM_GLOBAL_SET(0, WASM_SIMD_LOAD_OP(op, WASM_I32V(mem_index))),
+  BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_LOAD_OP(op, WASM_I32V(mem_index))),
         WASM_ONE);
 
   for (T x : compiler::ValueHelper::GetVector<T>()) {
@@ -3785,7 +3653,7 @@ void RunLoadSplatTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
     r.builder().AddMemoryElems<T>(kWasmPageSize / sizeof(T));
     r.builder().AddGlobal<T>(kWasmS128);
 
-    BUILD(r, WASM_GLOBAL_SET(0, WASM_SIMD_LOAD_OP(op, WASM_LOCAL_GET(0))),
+    BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_LOAD_OP(op, WASM_GET_LOCAL(0))),
           WASM_ONE);
 
     // Load splats load sizeof(T) bytes.
@@ -3826,7 +3694,7 @@ void RunLoadExtendTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
     S* memory = r.builder().AddMemoryElems<S>(kWasmPageSize / sizeof(S));
     T* global = r.builder().AddGlobal<T>(kWasmS128);
     BUILD(r,
-          WASM_GLOBAL_SET(0, WASM_SIMD_LOAD_OP_ALIGNMENT(
+          WASM_SET_GLOBAL(0, WASM_SIMD_LOAD_OP_ALIGNMENT(
                                  op, WASM_I32V(mem_index), alignment)),
           WASM_ONE);
 
@@ -3849,7 +3717,7 @@ void RunLoadExtendTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
     T* global = r.builder().AddGlobal<T>(kWasmS128);
     constexpr byte offset = sizeof(S);
     BUILD(r,
-          WASM_GLOBAL_SET(0, WASM_SIMD_LOAD_OP_OFFSET(op, WASM_ZERO, offset)),
+          WASM_SET_GLOBAL(0, WASM_SIMD_LOAD_OP_OFFSET(op, WASM_ZERO, offset)),
           WASM_ONE);
 
     // Let max_s be the max_s value for type S, we set up the memory as such:
@@ -3876,7 +3744,7 @@ void RunLoadExtendTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
     r.builder().AddMemoryElems<S>(kWasmPageSize / sizeof(S));
     r.builder().AddGlobal<T>(kWasmS128);
 
-    BUILD(r, WASM_GLOBAL_SET(0, WASM_SIMD_LOAD_OP(op, WASM_LOCAL_GET(0))),
+    BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_LOAD_OP(op, WASM_GET_LOCAL(0))),
           WASM_ONE);
 
     // Load extends load 8 bytes, so should trap from -7.
@@ -3939,7 +3807,7 @@ void RunLoadZeroTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
     WasmRunner<int32_t> r(execution_tier, lower_simd);
     std::tie(memory, global) = initialize_builder(&r);
 
-    BUILD(r, WASM_GLOBAL_SET(0, WASM_SIMD_LOAD_OP(op, WASM_I32V(mem_index))),
+    BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_LOAD_OP(op, WASM_I32V(mem_index))),
           WASM_ONE);
     r.Call();
 
@@ -3958,7 +3826,7 @@ void RunLoadZeroTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
 
     BUILD(
         r,
-        WASM_GLOBAL_SET(0, WASM_SIMD_LOAD_OP_OFFSET(op, WASM_ZERO, mem_index)),
+        WASM_SET_GLOBAL(0, WASM_SIMD_LOAD_OP_OFFSET(op, WASM_ZERO, mem_index)),
         WASM_ONE);
     r.Call();
 
@@ -3976,7 +3844,7 @@ void RunLoadZeroTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
     r.builder().AddMemoryElems<S>(kWasmPageSize / sizeof(S));
     r.builder().AddGlobal<S>(kWasmS128);
 
-    BUILD(r, WASM_GLOBAL_SET(0, WASM_SIMD_LOAD_OP(op, WASM_LOCAL_GET(0))),
+    BUILD(r, WASM_SET_GLOBAL(0, WASM_SIMD_LOAD_OP(op, WASM_GET_LOCAL(0))),
           WASM_ONE);
 
     // Load extends load sizeof(S) bytes.
@@ -3995,13 +3863,17 @@ WASM_SIMD_TEST(S128Load64Zero) {
   RunLoadZeroTest<int64_t>(execution_tier, lower_simd, kExprS128Load64Zero);
 }
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 || \
-    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_MIPS64
+#if V8_TARGET_ARCH_X64
 // TODO(v8:10975): Prototyping load lane and store lane.
 template <typename T>
 void RunLoadLaneTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
                      WasmOpcode load_op, WasmOpcode splat_op) {
   FLAG_SCOPE(wasm_simd_post_mvp);
+  if (execution_tier == TestExecutionTier::kLiftoff) {
+    // Not yet implemented.
+    return;
+  }
+
   WasmOpcode const_op =
       splat_op == kExprI64x2Splat ? kExprI64Const : kExprI32Const;
 
@@ -4065,7 +3937,7 @@ void RunLoadLaneTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
     r.builder().AddMemoryElems<T>(kWasmPageSize / sizeof(T));
     r.builder().AddGlobal<T>(kWasmS128);
 
-    BUILD(r, WASM_LOCAL_GET(0), const_op, splat_value, WASM_SIMD_OP(splat_op),
+    BUILD(r, WASM_GET_LOCAL(0), const_op, splat_value, WASM_SIMD_OP(splat_op),
           WASM_SIMD_OP(load_op), ZERO_ALIGNMENT, ZERO_OFFSET, 0, kExprGlobalSet,
           0, WASM_ONE);
 
@@ -4107,24 +3979,23 @@ void RunStoreLaneTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   }
 
   constexpr int lanes = kSimd128Size / sizeof(T);
-  constexpr int mem_index = 16;  // Store to mem index 16 (bytes).
+  constexpr int mem_index = 16;  // Store from mem index 16 (bytes).
   constexpr int splat_value = 33;
   WasmOpcode const_op =
       splat_op == kExprI64x2Splat ? kExprI64Const : kExprI32Const;
 
-  T* memory;  // Will be set by build_fn.
+  for (int lane_index = 0; lane_index < lanes; lane_index++) {
+    WasmRunner<int32_t> r(execution_tier, lower_simd);
+    T* memory = r.builder().AddMemoryElems<T>(kWasmPageSize / sizeof(T));
 
-  auto build_fn = [=, &memory](WasmRunner<int32_t>& r, int mem_index,
-                               int lane_index, int alignment, int offset) {
-    memory = r.builder().AddMemoryElems<T>(kWasmPageSize / sizeof(T));
-    // Splat splat_value, then only Store and replace a single lane.
+    // Splat splat_value, then only Store and replace a single lane with the
     BUILD(r, WASM_I32V(mem_index), const_op, splat_value,
-          WASM_SIMD_OP(splat_op), WASM_SIMD_OP(store_op), alignment, offset,
-          lane_index, WASM_ONE);
-    r.builder().BlankMemory();
-  };
+          WASM_SIMD_OP(splat_op), WASM_SIMD_OP(store_op), ZERO_ALIGNMENT,
+          ZERO_OFFSET, lane_index, WASM_ONE);
 
-  auto check_results = [=](WasmRunner<int32_t>& r, T* memory) {
+    r.builder().BlankMemory();
+    r.Call();
+
     for (int i = 0; i < lanes; i++) {
       CHECK_EQ(0, r.builder().ReadMemory(&memory[i]));
     }
@@ -4134,30 +4005,6 @@ void RunStoreLaneTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
     for (int i = lanes + 1; i < lanes * 2; i++) {
       CHECK_EQ(0, r.builder().ReadMemory(&memory[i]));
     }
-  };
-
-  for (int lane_index = 0; lane_index < lanes; lane_index++) {
-    WasmRunner<int32_t> r(execution_tier, lower_simd);
-    build_fn(r, mem_index, lane_index, ZERO_ALIGNMENT, ZERO_OFFSET);
-    r.Call();
-    check_results(r, memory);
-  }
-
-  // Check all possible alignments.
-  constexpr int max_alignment = base::bits::CountTrailingZeros(sizeof(T));
-  for (byte alignment = 0; alignment <= max_alignment; ++alignment) {
-    WasmRunner<int32_t> r(execution_tier, lower_simd);
-    build_fn(r, mem_index, /*lane_index=*/0, alignment, ZERO_OFFSET);
-    r.Call();
-    check_results(r, memory);
-  }
-
-  {
-    // Use memarg for offset.
-    WasmRunner<int32_t> r(execution_tier, lower_simd);
-    build_fn(r, /*mem_index=*/0, /*lane_index=*/0, ZERO_ALIGNMENT, mem_index);
-    r.Call();
-    check_results(r, memory);
   }
 
   // OOB stores
@@ -4165,7 +4012,7 @@ void RunStoreLaneTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
     WasmRunner<int32_t, uint32_t> r(execution_tier, lower_simd);
     r.builder().AddMemoryElems<T>(kWasmPageSize / sizeof(T));
 
-    BUILD(r, WASM_LOCAL_GET(0), const_op, splat_value, WASM_SIMD_OP(splat_op),
+    BUILD(r, WASM_GET_LOCAL(0), const_op, splat_value, WASM_SIMD_OP(splat_op),
           WASM_SIMD_OP(store_op), ZERO_ALIGNMENT, ZERO_OFFSET, 0, WASM_ONE);
 
     // StoreLane stores sizeof(T) bytes.
@@ -4196,8 +4043,7 @@ WASM_SIMD_TEST_NO_LOWERING(S128Store64Lane) {
                             kExprI64x2Splat);
 }
 
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 ||
-        // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_MIPS64
+#endif  // V8_TARGET_ARCH_X64
 
 #define WASM_SIMD_ANYTRUE_TEST(format, lanes, max, param_type)                \
   WASM_SIMD_TEST(S##format##AnyTrue) {                                        \
@@ -4207,8 +4053,8 @@ WASM_SIMD_TEST_NO_LOWERING(S128Store64Lane) {
     byte simd = r.AllocateLocal(kWasmS128);                                   \
     BUILD(                                                                    \
         r,                                                                    \
-        WASM_LOCAL_SET(simd, WASM_SIMD_I##format##_SPLAT(WASM_LOCAL_GET(0))), \
-        WASM_SIMD_UNOP(kExprV##format##AnyTrue, WASM_LOCAL_GET(simd)));       \
+        WASM_SET_LOCAL(simd, WASM_SIMD_I##format##_SPLAT(WASM_GET_LOCAL(0))), \
+        WASM_SIMD_UNOP(kExprV##format##AnyTrue, WASM_GET_LOCAL(simd)));       \
     CHECK_EQ(1, r.Call(max));                                                 \
     CHECK_EQ(1, r.Call(5));                                                   \
     CHECK_EQ(0, r.Call(0));                                                   \
@@ -4223,8 +4069,8 @@ WASM_SIMD_ANYTRUE_TEST(8x16, 16, 0xff, int32_t)
 WASM_SIMD_TEST(V32x4AnytrueWithNegativeZero) {
   WasmRunner<int32_t, int64_t> r(execution_tier, lower_simd);
   byte simd = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(simd, WASM_SIMD_I64x2_SPLAT(WASM_LOCAL_GET(0))),
-        WASM_SIMD_UNOP(kExprV32x4AnyTrue, WASM_LOCAL_GET(simd)));
+  BUILD(r, WASM_SET_LOCAL(simd, WASM_SIMD_I64x2_SPLAT(WASM_GET_LOCAL(0))),
+        WASM_SIMD_UNOP(kExprV32x4AnyTrue, WASM_GET_LOCAL(simd)));
   CHECK_EQ(1, r.Call(0x8000000000000000));
   CHECK_EQ(0, r.Call(0x0000000000000000));
 }
@@ -4237,8 +4083,8 @@ WASM_SIMD_TEST(V32x4AnytrueWithNegativeZero) {
     byte simd = r.AllocateLocal(kWasmS128);                                   \
     BUILD(                                                                    \
         r,                                                                    \
-        WASM_LOCAL_SET(simd, WASM_SIMD_I##format##_SPLAT(WASM_LOCAL_GET(0))), \
-        WASM_SIMD_UNOP(kExprV##format##AllTrue, WASM_LOCAL_GET(simd)));       \
+        WASM_SET_LOCAL(simd, WASM_SIMD_I##format##_SPLAT(WASM_GET_LOCAL(0))), \
+        WASM_SIMD_UNOP(kExprV##format##AllTrue, WASM_GET_LOCAL(simd)));       \
     CHECK_EQ(1, r.Call(max));                                                 \
     CHECK_EQ(1, r.Call(0x1));                                                 \
     CHECK_EQ(0, r.Call(0));                                                   \
@@ -4251,12 +4097,12 @@ WASM_SIMD_TEST(BitSelect) {
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
   byte simd = r.AllocateLocal(kWasmS128);
   BUILD(r,
-        WASM_LOCAL_SET(
+        WASM_SET_LOCAL(
             simd,
             WASM_SIMD_SELECT(32x4, WASM_SIMD_I32x4_SPLAT(WASM_I32V(0x01020304)),
                              WASM_SIMD_I32x4_SPLAT(WASM_I32V(0)),
-                             WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(0)))),
-        WASM_SIMD_I32x4_EXTRACT_LANE(0, WASM_LOCAL_GET(simd)));
+                             WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(0)))),
+        WASM_SIMD_I32x4_EXTRACT_LANE(0, WASM_GET_LOCAL(simd)));
   CHECK_EQ(0x01020304, r.Call(0xFFFFFFFF));
 }
 
@@ -4265,7 +4111,7 @@ void RunSimdConstTest(TestExecutionTier execution_tier, LowerSimd lower_simd,
   WasmRunner<uint32_t> r(execution_tier, lower_simd);
   byte temp1 = r.AllocateLocal(kWasmS128);
   uint8_t* src0 = r.builder().AddGlobal<uint8_t>(kWasmS128);
-  BUILD(r, WASM_GLOBAL_SET(temp1, WASM_SIMD_CONSTANT(expected)), WASM_ONE);
+  BUILD(r, WASM_SET_GLOBAL(temp1, WASM_SIMD_CONSTANT(expected)), WASM_ONE);
   CHECK_EQ(1, r.Call());
   for (size_t i = 0; i < expected.size(); i++) {
     CHECK_EQ(ReadLittleEndianValue<uint8_t>(&src0[i]), expected[i]);
@@ -4318,11 +4164,11 @@ void RunI8x16MixedRelationalOpTest(TestExecutionTier execution_tier,
   byte temp1 = r.AllocateLocal(kWasmS128);
   byte temp2 = r.AllocateLocal(kWasmS128);
   byte temp3 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(value1))),
-        WASM_LOCAL_SET(temp2, WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(value2))),
-        WASM_LOCAL_SET(temp3, WASM_SIMD_BINOP(opcode, WASM_LOCAL_GET(temp1),
-                                              WASM_LOCAL_GET(temp2))),
-        WASM_SIMD_I8x16_EXTRACT_LANE(0, WASM_LOCAL_GET(temp3)));
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I8x16_SPLAT(WASM_GET_LOCAL(value1))),
+        WASM_SET_LOCAL(temp2, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(value2))),
+        WASM_SET_LOCAL(temp3, WASM_SIMD_BINOP(opcode, WASM_GET_LOCAL(temp1),
+                                              WASM_GET_LOCAL(temp2))),
+        WASM_SIMD_I8x16_EXTRACT_LANE(0, WASM_GET_LOCAL(temp3)));
 
   CHECK_EQ(expected_op(0xff, static_cast<uint8_t>(0x7fff)),
            r.Call(0xff, 0x7fff));
@@ -4357,11 +4203,11 @@ void RunI16x8MixedRelationalOpTest(TestExecutionTier execution_tier,
   byte temp1 = r.AllocateLocal(kWasmS128);
   byte temp2 = r.AllocateLocal(kWasmS128);
   byte temp3 = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(value1))),
-        WASM_LOCAL_SET(temp2, WASM_SIMD_I32x4_SPLAT(WASM_LOCAL_GET(value2))),
-        WASM_LOCAL_SET(temp3, WASM_SIMD_BINOP(opcode, WASM_LOCAL_GET(temp1),
-                                              WASM_LOCAL_GET(temp2))),
-        WASM_SIMD_I16x8_EXTRACT_LANE(0, WASM_LOCAL_GET(temp3)));
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(value1))),
+        WASM_SET_LOCAL(temp2, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(value2))),
+        WASM_SET_LOCAL(temp3, WASM_SIMD_BINOP(opcode, WASM_GET_LOCAL(temp1),
+                                              WASM_GET_LOCAL(temp2))),
+        WASM_SIMD_I16x8_EXTRACT_LANE(0, WASM_GET_LOCAL(temp3)));
 
   CHECK_EQ(expected_op(0xffff, static_cast<uint16_t>(0x7fffffff)),
            r.Call(0xffff, 0x7fffffff));
@@ -4392,8 +4238,8 @@ WASM_SIMD_TEST(I16x8ExtractLaneU_I8x16Splat) {
   // Test that we are correctly signed/unsigned extending when extracting.
   WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
   byte simd_val = r.AllocateLocal(kWasmS128);
-  BUILD(r, WASM_LOCAL_SET(simd_val, WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(0))),
-        WASM_SIMD_I16x8_EXTRACT_LANE_U(0, WASM_LOCAL_GET(simd_val)));
+  BUILD(r, WASM_SET_LOCAL(simd_val, WASM_SIMD_I8x16_SPLAT(WASM_GET_LOCAL(0))),
+        WASM_SIMD_I16x8_EXTRACT_LANE_U(0, WASM_GET_LOCAL(simd_val)));
   CHECK_EQ(0xfafa, r.Call(0xfa));
 }
 
@@ -4403,8 +4249,8 @@ WASM_SIMD_TEST(I16x8ExtractLaneU_I8x16Splat) {
     byte int_val = r.AllocateLocal(kWasmI32);                                  \
     byte simd_val = r.AllocateLocal(kWasmS128);                                \
     BUILD(r,                                                                   \
-          WASM_LOCAL_SET(simd_val,                                             \
-                         WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(int_val))),      \
+          WASM_SET_LOCAL(simd_val,                                             \
+                         WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(int_val))),      \
           WASM_SIMD_CHECK_LANE_U(I16x8, simd_val, I32, int_val, 0),            \
           WASM_SIMD_CHECK_LANE_U(I16x8, simd_val, I32, int_val, 2),            \
           WASM_SIMD_CHECK_LANE_U(I16x8, simd_val, I32, int_val, 4),            \
@@ -4420,8 +4266,8 @@ WASM_EXTRACT_I16x8_TEST(S, UINT16) WASM_EXTRACT_I16x8_TEST(I, INT16)
     byte int_val = r.AllocateLocal(kWasmI32);                             \
     byte simd_val = r.AllocateLocal(kWasmS128);                           \
     BUILD(r,                                                              \
-          WASM_LOCAL_SET(simd_val,                                        \
-                         WASM_SIMD_I8x16_SPLAT(WASM_LOCAL_GET(int_val))), \
+          WASM_SET_LOCAL(simd_val,                                        \
+                         WASM_SIMD_I8x16_SPLAT(WASM_GET_LOCAL(int_val))), \
           WASM_SIMD_CHECK_LANE_U(I8x16, simd_val, I32, int_val, 1),       \
           WASM_SIMD_CHECK_LANE_U(I8x16, simd_val, I32, int_val, 3),       \
           WASM_SIMD_CHECK_LANE_U(I8x16, simd_val, I32, int_val, 5),       \

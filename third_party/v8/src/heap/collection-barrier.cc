@@ -5,7 +5,6 @@
 #include "src/heap/collection-barrier.h"
 
 #include "src/base/platform/time.h"
-#include "src/common/globals.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
@@ -32,16 +31,13 @@ class BackgroundCollectionInterruptTask : public CancelableTask {
       : CancelableTask(heap->isolate()), heap_(heap) {}
 
   ~BackgroundCollectionInterruptTask() override = default;
-  BackgroundCollectionInterruptTask(const BackgroundCollectionInterruptTask&) =
-      delete;
-  BackgroundCollectionInterruptTask& operator=(
-      const BackgroundCollectionInterruptTask&) = delete;
 
  private:
   // v8::internal::CancelableTask overrides.
   void RunInternal() override { heap_->CheckCollectionRequested(); }
 
   Heap* heap_;
+  DISALLOW_COPY_AND_ASSIGN(BackgroundCollectionInterruptTask);
 };
 
 void CollectionBarrier::AwaitCollectionBackground() {
@@ -91,8 +87,8 @@ void CollectionBarrier::ActivateStackGuardAndPostTask() {
 }
 
 void CollectionBarrier::BlockUntilCollected() {
-  TRACE_GC1(heap_->tracer(), GCTracer::Scope::BACKGROUND_COLLECTION,
-            ThreadKind::kBackground);
+  TRACE_BACKGROUND_GC(heap_->tracer(),
+                      GCTracer::BackgroundScope::BACKGROUND_COLLECTION);
   base::MutexGuard guard(&mutex_);
 
   while (CollectionRequested()) {

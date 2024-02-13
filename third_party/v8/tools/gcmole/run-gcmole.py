@@ -15,18 +15,19 @@ import sys
 GCMOLE_PATH = os.path.dirname(os.path.abspath(__file__))
 CLANG_BIN = os.path.join(GCMOLE_PATH, 'gcmole-tools', 'bin')
 CLANG_PLUGINS = os.path.join(GCMOLE_PATH, 'gcmole-tools')
-DRIVER = os.path.join(GCMOLE_PATH, 'gcmole.py')
+LUA = os.path.join(GCMOLE_PATH, 'gcmole-tools', 'lua52')
+DRIVER = os.path.join(GCMOLE_PATH, 'gcmole.lua')
 BASE_PATH = os.path.dirname(os.path.dirname(GCMOLE_PATH))
 
-assert len(sys.argv) >= 2
+assert len(sys.argv) == 2
 
 if not os.path.isfile("out/build/gen/torque-generated/builtin-definitions.h"):
   print("Expected generated headers in out/build/gen.")
-  print("Either build v8 in out/build or change the 'out/build/gen' location in gcmole.py")
+  print("Either build v8 in out/build or change gcmole.lua:115")
   sys.exit(-1)
 
 proc = subprocess.Popen(
-    [sys.executable, DRIVER] + sys.argv[1:],
+    [LUA, DRIVER, sys.argv[1]],
     env={'CLANG_BIN': CLANG_BIN, 'CLANG_PLUGINS': CLANG_PLUGINS},
     cwd=BASE_PATH,
 )

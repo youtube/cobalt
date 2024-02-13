@@ -365,7 +365,7 @@ inline bool StringEndsWith(const std::string& s, const std::string& suffix) {
   return s.substr(s.size() - suffix.size()) == suffix;
 }
 
-class V8_NODISCARD IfDefScope {
+class IfDefScope {
  public:
   IfDefScope(std::ostream& os, std::string d);
   ~IfDefScope();
@@ -377,7 +377,7 @@ class V8_NODISCARD IfDefScope {
   std::string d_;
 };
 
-class V8_NODISCARD NamespaceScope {
+class NamespaceScope {
  public:
   NamespaceScope(std::ostream& os,
                  std::initializer_list<std::string> namespaces);
@@ -390,7 +390,7 @@ class V8_NODISCARD NamespaceScope {
   std::vector<std::string> d_;
 };
 
-class V8_NODISCARD IncludeGuardScope {
+class IncludeGuardScope {
  public:
   IncludeGuardScope(std::ostream& os, std::string file_name);
   ~IncludeGuardScope();
@@ -402,7 +402,7 @@ class V8_NODISCARD IncludeGuardScope {
   std::string d_;
 };
 
-class V8_NODISCARD IncludeObjectMacrosScope {
+class IncludeObjectMacrosScope {
  public:
   explicit IncludeObjectMacrosScope(std::ostream& os);
   ~IncludeObjectMacrosScope();

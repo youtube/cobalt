@@ -34,8 +34,6 @@ class ExternalReferenceEncoder {
   };
 
   explicit ExternalReferenceEncoder(Isolate* isolate);
-  ExternalReferenceEncoder(const ExternalReferenceEncoder&) = delete;
-  ExternalReferenceEncoder& operator=(const ExternalReferenceEncoder&) = delete;
 #ifdef DEBUG
   ~ExternalReferenceEncoder();
 #endif  // DEBUG
@@ -52,6 +50,8 @@ class ExternalReferenceEncoder {
   std::vector<int> count_;
   const intptr_t* api_references_;
 #endif  // DEBUG
+
+  DISALLOW_COPY_AND_ASSIGN(ExternalReferenceEncoder);
 };
 
 }  // namespace internal

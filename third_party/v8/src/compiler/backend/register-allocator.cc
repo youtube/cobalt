@@ -2600,12 +2600,7 @@ void BundleBuilder::BuildBundles() {
         LiveRangeBundle* input_bundle = input_range->get_bundle();
         if (input_bundle != nullptr) {
           TRACE("Merge\n");
-          LiveRangeBundle* merged = LiveRangeBundle::TryMerge(
-              out, input_bundle, data()->is_trace_alloc());
-          if (merged != nullptr) {
-            DCHECK_EQ(out_range->get_bundle(), merged);
-            DCHECK_EQ(input_range->get_bundle(), merged);
-            out = merged;
+          if (out->TryMerge(input_bundle, data()->is_trace_alloc())) {
             TRACE("Merged %d and %d to %d\n", phi->virtual_register(), input,
                   out->id());
           } else if (input_range->Start() > out_range->Start()) {
@@ -2646,16 +2641,13 @@ bool LiveRangeBundle::TryAddRange(LiveRange* range) {
   InsertUses(range->first_interval());
   return true;
 }
+bool LiveRangeBundle::TryMerge(LiveRangeBundle* other, bool trace_alloc) {
+  if (other == this) return true;
 
-LiveRangeBundle* LiveRangeBundle::TryMerge(LiveRangeBundle* lhs,
-                                           LiveRangeBundle* rhs,
-                                           bool trace_alloc) {
-  if (rhs == lhs) return nullptr;
+  auto iter1 = uses_.begin();
+  auto iter2 = other->uses_.begin();
 
-  auto iter1 = lhs->uses_.begin();
-  auto iter2 = rhs->uses_.begin();
-
-  while (iter1 != lhs->uses_.end() && iter2 != rhs->uses_.end()) {
+  while (iter1 != uses_.end() && iter2 != other->uses_.end()) {
     if (iter1->start >= iter2->end) {
       ++iter2;
     } else if (iter2->start >= iter1->end) {
@@ -2663,25 +2655,21 @@ LiveRangeBundle* LiveRangeBundle::TryMerge(LiveRangeBundle* lhs,
     } else {
       TRACE_COND(trace_alloc, "No merge %d:%d %d:%d\n", iter1->start,
                  iter1->end, iter2->start, iter2->end);
-      return nullptr;
+      return false;
     }
   }
   // Uses are disjoint, merging is possible.
-  if (lhs->uses_.size() < rhs->uses_.size()) {
-    // Merge the smallest bundle into the biggest.
-    std::swap(lhs, rhs);
+  for (auto it = other->ranges_.begin(); it != other->ranges_.end(); ++it) {
+    (*it)->set_bundle(this);
+    InsertUses((*it)->first_interval());
   }
-  for (auto it = rhs->ranges_.begin(); it != rhs->ranges_.end(); ++it) {
-    (*it)->set_bundle(lhs);
-    lhs->InsertUses((*it)->first_interval());
-  }
-  lhs->ranges_.insert(rhs->ranges_.begin(), rhs->ranges_.end());
-  rhs->ranges_.clear();
-  return lhs;
+  ranges_.insert(other->ranges_.begin(), other->ranges_.end());
+  other->ranges_.clear();
+
+  return true;
 }
 
-void LiveRangeBundle::MergeSpillRangesAndClear() {
-  DCHECK_IMPLIES(ranges_.empty(), uses_.empty());
+void LiveRangeBundle::MergeSpillRanges() {
   SpillRange* target = nullptr;
   for (auto range : ranges_) {
     if (range->TopLevel()->HasSpillRange()) {
@@ -2693,11 +2681,6 @@ void LiveRangeBundle::MergeSpillRangesAndClear() {
       }
     }
   }
-  // Clear the fields so that we don't try to merge the spill ranges again when
-  // we hit the same bundle from a different LiveRange in AssignSpillSlots.
-  // LiveRangeBundles are not used after this.
-  ranges_.clear();
-  uses_.clear();
 }
 
 RegisterAllocator::RegisterAllocator(TopTierRegisterAllocationData* data,
@@ -4498,7 +4481,7 @@ void OperandAssigner::AssignSpillSlots() {
   for (auto range : data()->live_ranges()) {
     data()->tick_counter()->TickAndMaybeEnterSafepoint();
     if (range != nullptr && range->get_bundle() != nullptr) {
-      range->get_bundle()->MergeSpillRangesAndClear();
+      range->get_bundle()->MergeSpillRanges();
     }
   }
   ZoneVector<SpillRange*>& spill_ranges = data()->spill_ranges();

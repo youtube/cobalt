@@ -82,7 +82,7 @@ class InjectedScript::ProtocolPromiseHandler {
     }
 
     v8::MaybeLocal<v8::Promise> originalPromise =
-        value->IsPromise() ? value.As<v8::Promise>()
+        value->IsPromise() ? v8::Local<v8::Promise>::Cast(value)
                            : v8::MaybeLocal<v8::Promise>();
     V8InspectorImpl* inspector = session->inspector();
     ProtocolPromiseHandler* handler = new ProtocolPromiseHandler(
@@ -119,8 +119,9 @@ class InjectedScript::ProtocolPromiseHandler {
         info.Data().As<v8::External>()->Value());
     DCHECK(handler);
     v8::Local<v8::Value> value =
-        info.Length() > 0 ? info[0]
-                          : v8::Undefined(info.GetIsolate()).As<v8::Value>();
+        info.Length() > 0
+            ? info[0]
+            : v8::Local<v8::Value>::Cast(v8::Undefined(info.GetIsolate()));
     handler->thenCallback(value);
     delete handler;
   }
@@ -130,8 +131,9 @@ class InjectedScript::ProtocolPromiseHandler {
         info.Data().As<v8::External>()->Value());
     DCHECK(handler);
     v8::Local<v8::Value> value =
-        info.Length() > 0 ? info[0]
-                          : v8::Undefined(info.GetIsolate()).As<v8::Value>();
+        info.Length() > 0
+            ? info[0]
+            : v8::Local<v8::Value>::Cast(v8::Undefined(info.GetIsolate()));
     handler->catchCallback(value);
     delete handler;
   }
@@ -266,8 +268,8 @@ class InjectedScript::ProtocolPromiseHandler {
           toProtocolString(isolate,
                            result->ToDetailString(isolate->GetCurrentContext())
                                .ToLocalChecked());
-      v8::Local<v8::StackTrace> stackTrace =
-          v8::debug::GetDetailedStackTrace(isolate, result.As<v8::Object>());
+      v8::Local<v8::StackTrace> stackTrace = v8::debug::GetDetailedStackTrace(
+          isolate, v8::Local<v8::Object>::Cast(result));
       if (!stackTrace.IsEmpty()) {
         stack = m_inspector->debugger()->createStackTrace(stackTrace);
       }
@@ -798,17 +800,15 @@ Response InjectedScript::createExceptionDetails(
                   : message->GetStartColumn(m_context->context()).FromMaybe(0))
           .build();
   if (!message.IsEmpty()) {
-    exceptionDetails->setScriptId(
-        String16::fromInteger(message->GetScriptOrigin().ScriptId()));
+    exceptionDetails->setScriptId(String16::fromInteger(
+        static_cast<int>(message->GetScriptOrigin().ScriptID()->Value())));
     v8::Local<v8::StackTrace> stackTrace = message->GetStackTrace();
-    if (!stackTrace.IsEmpty() && stackTrace->GetFrameCount() > 0) {
-      std::unique_ptr<V8StackTraceImpl> v8StackTrace =
-          m_context->inspector()->debugger()->createStackTrace(stackTrace);
-      if (v8StackTrace) {
-        exceptionDetails->setStackTrace(v8StackTrace->buildInspectorObjectImpl(
-            m_context->inspector()->debugger()));
-      }
-    }
+    if (!stackTrace.IsEmpty() && stackTrace->GetFrameCount() > 0)
+      exceptionDetails->setStackTrace(
+          m_context->inspector()
+              ->debugger()
+              ->createStackTrace(stackTrace)
+              ->buildInspectorObjectImpl(m_context->inspector()->debugger()));
   }
   Response response =
       addExceptionToDetails(exception, exceptionDetails.get(), objectGroup);

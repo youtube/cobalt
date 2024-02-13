@@ -22,6 +22,7 @@ namespace internal {
   V(Cell)                              \
   V(Code)                              \
   V(CodeDataContainer)                 \
+  V(Context)                           \
   V(CoverageInfo)                      \
   V(DataHandler)                       \
   V(EmbedderDataArray)                 \
@@ -43,6 +44,7 @@ namespace internal {
   V(PropertyArray)                     \
   V(PropertyCell)                      \
   V(PrototypeInfo)                     \
+  V(SharedFunctionInfo)                \
   V(SmallOrderedHashMap)               \
   V(SmallOrderedHashSet)               \
   V(SmallOrderedNameDictionary)        \
@@ -50,6 +52,8 @@ namespace internal {
   V(Symbol)                            \
   V(SyntheticModule)                   \
   V(TransitionArray)                   \
+  V(UncompiledDataWithoutPreparseData) \
+  V(UncompiledDataWithPreparseData)    \
   V(WasmArray)                         \
   V(WasmIndirectFunctionTable)         \
   V(WasmInstanceObject)                \

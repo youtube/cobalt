@@ -1557,7 +1557,7 @@ TEST(TestThatAlwaysFails) {
 int CountBuiltins() {
   // Check that we have not deserialized any additional builtin.
   HeapObjectIterator iterator(CcTest::heap());
-  DisallowGarbageCollection no_gc;
+  DisallowGarbageCollection no_allocation;
   int counter = 0;
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
@@ -1622,7 +1622,7 @@ TEST(CodeSerializerWithProfiler) {
       isolate, orig_source, Handle<String>(), &cache,
       v8::ScriptCompiler::kNoCompileOptions);
 
-  CHECK(!orig->GetBytecodeArray(isolate).HasSourcePositionTable());
+  CHECK(!orig->GetBytecodeArray().HasSourcePositionTable());
 
   isolate->set_is_profiling(true);
 
@@ -1634,7 +1634,7 @@ TEST(CodeSerializerWithProfiler) {
 
   // Since the profiler is now enabled, source positions should be collected
   // after deserialization.
-  CHECK(copy->GetBytecodeArray(isolate).HasSourcePositionTable());
+  CHECK(copy->GetBytecodeArray().HasSourcePositionTable());
 
   delete cache;
 }
@@ -1677,8 +1677,8 @@ void TestCodeSerializerOnePlusOneImpl(bool verify_builtins_count = true) {
   CHECK(Script::cast(copy->script()).source() == *copy_source);
 
   Handle<JSFunction> copy_fun =
-      Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
-          .Build();
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          copy, isolate->native_context());
   Handle<JSObject> global(isolate->context().global_object(), isolate);
   Handle<Object> copy_result =
       Execution::Call(isolate, copy_fun, global, 0, nullptr).ToHandleChecked();
@@ -1764,8 +1764,8 @@ TEST(CodeSerializerInternalizedString) {
       isolate, orig_source, Handle<String>(), &script_data,
       v8::ScriptCompiler::kNoCompileOptions);
   Handle<JSFunction> orig_fun =
-      Factory::JSFunctionBuilder{isolate, orig, isolate->native_context()}
-          .Build();
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          orig, isolate->native_context());
   Handle<Object> orig_result =
       Execution::Call(isolate, orig_fun, global, 0, nullptr).ToHandleChecked();
   CHECK(orig_result->IsInternalizedString());
@@ -1782,8 +1782,8 @@ TEST(CodeSerializerInternalizedString) {
   CHECK(Script::cast(copy->script()).source() == *copy_source);
 
   Handle<JSFunction> copy_fun =
-      Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
-          .Build();
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          copy, isolate->native_context());
   CHECK_NE(*orig_fun, *copy_fun);
   Handle<Object> copy_result =
       Execution::Call(isolate, copy_fun, global, 0, nullptr).ToHandleChecked();
@@ -1824,7 +1824,7 @@ TEST(CodeSerializerLargeCodeObject) {
       isolate, source_str, Handle<String>(), &cache,
       v8::ScriptCompiler::kNoCompileOptions);
 
-  CHECK(isolate->heap()->InSpace(orig->abstract_code(isolate), LO_SPACE));
+  CHECK(isolate->heap()->InSpace(orig->abstract_code(), LO_SPACE));
 
   Handle<SharedFunctionInfo> copy;
   {
@@ -1835,8 +1835,8 @@ TEST(CodeSerializerLargeCodeObject) {
   CHECK_NE(*orig, *copy);
 
   Handle<JSFunction> copy_fun =
-      Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
-          .Build();
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          copy, isolate->native_context());
 
   Handle<Object> copy_result =
       Execution::Call(isolate, copy_fun, global, 0, nullptr).ToHandleChecked();
@@ -1890,7 +1890,7 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
       isolate, source_str, Handle<String>(), &cache,
       v8::ScriptCompiler::kNoCompileOptions);
 
-  CHECK(heap->InSpace(orig->abstract_code(isolate), LO_SPACE));
+  CHECK(heap->InSpace(orig->abstract_code(), LO_SPACE));
 
   // Pretend that incremental marking is on when deserialization begins.
   heap::ForceEvacuationCandidate(ec_page);
@@ -1914,8 +1914,8 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
   CcTest::CollectAllGarbage();
 
   Handle<JSFunction> copy_fun =
-      Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
-          .Build();
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          copy, isolate->native_context());
 
   Handle<Object> copy_result =
       Execution::Call(isolate, copy_fun, global, 0, nullptr).ToHandleChecked();
@@ -1964,8 +1964,8 @@ TEST(CodeSerializerLargeStrings) {
   CHECK_NE(*orig, *copy);
 
   Handle<JSFunction> copy_fun =
-      Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
-          .Build();
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          copy, isolate->native_context());
 
   Handle<Object> copy_result =
       Execution::Call(isolate, copy_fun, global, 0, nullptr).ToHandleChecked();
@@ -2038,8 +2038,8 @@ TEST(CodeSerializerThreeBigStrings) {
   CHECK_NE(*orig, *copy);
 
   Handle<JSFunction> copy_fun =
-      Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
-          .Build();
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          copy, isolate->native_context());
 
   USE(Execution::Call(isolate, copy_fun, global, 0, nullptr));
 
@@ -2114,28 +2114,28 @@ TEST(CodeSerializerExternalString) {
   v8::HandleScope scope(CcTest::isolate());
 
   // Obtain external internalized one-byte string.
-  SerializerOneByteResource one_byte_resource("one_byte_but_long", 17);
+  SerializerOneByteResource one_byte_resource("one_byte", 8);
   Handle<String> one_byte_string =
-      isolate->factory()->NewStringFromAsciiChecked("one_byte_but_long");
+      isolate->factory()->NewStringFromAsciiChecked("one_byte");
   one_byte_string = isolate->factory()->InternalizeString(one_byte_string);
   one_byte_string->MakeExternal(&one_byte_resource);
   CHECK(one_byte_string->IsExternalOneByteString());
   CHECK(one_byte_string->IsInternalizedString());
 
   // Obtain external internalized two-byte string.
-  SerializerTwoByteResource two_byte_resource("two_byte_but_long", 17);
+  SerializerTwoByteResource two_byte_resource("two_byte", 8);
   Handle<String> two_byte_string =
-      isolate->factory()->NewStringFromAsciiChecked("two_byte_but_long");
+      isolate->factory()->NewStringFromAsciiChecked("two_byte");
   two_byte_string = isolate->factory()->InternalizeString(two_byte_string);
   two_byte_string->MakeExternal(&two_byte_resource);
   CHECK(two_byte_string->IsExternalTwoByteString());
   CHECK(two_byte_string->IsInternalizedString());
 
   const char* source =
-      "var o = {}                                 \n"
-      "o.one_byte_but_long = 7;                   \n"
-      "o.two_byte_but_long = 8;                   \n"
-      "o.one_byte_but_long + o.two_byte_but_long; \n";
+      "var o = {}               \n"
+      "o.one_byte = 7;          \n"
+      "o.two_byte = 8;          \n"
+      "o.one_byte + o.two_byte; \n";
   Handle<String> source_string = isolate->factory()
                                      ->NewStringFromUtf8(CStrVector(source))
                                      .ToHandleChecked();
@@ -2156,8 +2156,8 @@ TEST(CodeSerializerExternalString) {
   CHECK_NE(*orig, *copy);
 
   Handle<JSFunction> copy_fun =
-      Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
-          .Build();
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          copy, isolate->native_context());
 
   Handle<Object> copy_result =
       Execution::Call(isolate, copy_fun, global, 0, nullptr).ToHandleChecked();
@@ -2220,8 +2220,7 @@ TEST(CodeSerializerLargeExternalString) {
   CHECK_NE(*orig, *copy);
 
   Handle<JSFunction> copy_fun =
-      Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
-          .Build();
+      f->NewFunctionFromSharedFunctionInfo(copy, isolate->native_context());
 
   Handle<Object> copy_result =
       Execution::Call(isolate, copy_fun, global, 0, nullptr).ToHandleChecked();
@@ -2274,8 +2273,7 @@ TEST(CodeSerializerExternalScriptName) {
   CHECK_NE(*orig, *copy);
 
   Handle<JSFunction> copy_fun =
-      Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
-          .Build();
+      f->NewFunctionFromSharedFunctionInfo(copy, isolate->native_context());
 
   Handle<Object> copy_result =
       Execution::Call(isolate, copy_fun, global, 0, nullptr).ToHandleChecked();
@@ -2447,7 +2445,6 @@ TEST(CodeSerializerAfterExecute) {
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate2 = v8::Isolate::New(create_params);
-  Isolate* i_isolate2 = reinterpret_cast<Isolate*>(isolate2);
 
   {
     v8::Isolate::Scope iscope(isolate2);
@@ -2460,7 +2457,8 @@ TEST(CodeSerializerAfterExecute) {
     v8::ScriptCompiler::Source source(source_str, origin, cache);
     v8::Local<v8::UnboundScript> script;
     {
-      DisallowCompilation no_compile_expected(i_isolate2);
+      DisallowCompilation no_compile_expected(
+          reinterpret_cast<Isolate*>(isolate2));
       script = v8::ScriptCompiler::CompileUnboundScript(
                    isolate2, &source, v8::ScriptCompiler::kConsumeCodeCache)
                    .ToLocalChecked();
@@ -2469,11 +2467,12 @@ TEST(CodeSerializerAfterExecute) {
 
     Handle<SharedFunctionInfo> sfi = v8::Utils::OpenHandle(*script);
     CHECK(sfi->HasBytecodeArray());
-    BytecodeArray bytecode = sfi->GetBytecodeArray(i_isolate2);
+    BytecodeArray bytecode = sfi->GetBytecodeArray();
     CHECK_EQ(bytecode.osr_loop_nesting_level(), 0);
 
     {
-      DisallowCompilation no_compile_expected(i_isolate2);
+      DisallowCompilation no_compile_expected(
+          reinterpret_cast<Isolate*>(isolate2));
       v8::Local<v8::Value> result = script->BindToCurrentContext()
                                         ->Run(isolate2->GetCurrentContext())
                                         .ToLocalChecked();
@@ -4061,7 +4060,7 @@ UNINITIALIZED_TEST(SnapshotCreatorAnonClassWithKeep) {
   delete[] blob.data;
 }
 
-class V8_NODISCARD DisableLazySourcePositionScope {
+class DisableLazySourcePositionScope {
  public:
   DisableLazySourcePositionScope()
       : backup_value_(FLAG_enable_lazy_source_positions) {

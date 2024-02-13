@@ -51,9 +51,6 @@ class GlobalHandles::NodeBlock final {
                                            global_handles_(global_handles),
                                            space_(space) {}
 
-  NodeBlock(const NodeBlock&) = delete;
-  NodeBlock& operator=(const NodeBlock&) = delete;
-
   NodeType* at(size_t index) { return &nodes_[index]; }
   const NodeType* at(size_t index) const { return &nodes_[index]; }
   GlobalHandles::NodeSpace<NodeType>* space() const { return space_; }
@@ -76,6 +73,8 @@ class GlobalHandles::NodeBlock final {
   NodeBlock* next_used_ = nullptr;
   NodeBlock* prev_used_ = nullptr;
   uint32_t used_nodes_ = 0;
+
+  DISALLOW_COPY_AND_ASSIGN(NodeBlock);
 };
 
 template <class NodeType>
@@ -144,9 +143,6 @@ class GlobalHandles::NodeIterator final {
   NodeIterator(NodeIterator&& other) V8_NOEXCEPT : block_(other.block_),
                                                    index_(other.index_) {}
 
-  NodeIterator(const NodeIterator&) = delete;
-  NodeIterator& operator=(const NodeIterator&) = delete;
-
   bool operator==(const NodeIterator& other) const {
     return block_ == other.block_;
   }
@@ -167,6 +163,8 @@ class GlobalHandles::NodeIterator final {
  private:
   BlockType* block_ = nullptr;
   size_t index_ = 0;
+
+  DISALLOW_COPY_AND_ASSIGN(NodeIterator);
 };
 
 template <class NodeType>
@@ -415,9 +413,6 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
     set_in_young_list(false);
   }
 
-  Node(const Node&) = delete;
-  Node& operator=(const Node&) = delete;
-
   void Zap() {
     DCHECK(IsInUse());
     // Zap the values for eager trapping.
@@ -624,6 +619,8 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
   WeakCallbackInfo<void>::Callback weak_callback_;
 
   friend class NodeBase<Node>;
+
+  DISALLOW_COPY_AND_ASSIGN(Node);
 };
 
 class GlobalHandles::TracedNode final
@@ -1741,9 +1738,9 @@ void EternalHandles::IterateAllRoots(RootVisitor* visitor) {
   int limit = size_;
   for (Address* block : blocks_) {
     DCHECK_GT(limit, 0);
-    visitor->VisitRootPointers(
-        Root::kEternalHandles, nullptr, FullObjectSlot(block),
-        FullObjectSlot(block + std::min({limit, kSize})));
+    visitor->VisitRootPointers(Root::kEternalHandles, nullptr,
+                               FullObjectSlot(block),
+                               FullObjectSlot(block + Min(limit, kSize)));
     limit -= kSize;
   }
 }

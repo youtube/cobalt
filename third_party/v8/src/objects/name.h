@@ -23,11 +23,12 @@ namespace internal {
 class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
  public:
   // Tells whether the hash code has been computed.
-  inline bool HasHashCode() const;
+  inline bool HasHashCode();
 
   // Returns a hash value used for the property table. Ensures that the hash
   // value is computed.
-  inline uint32_t EnsureHash();
+  // TODO(ishell): rename to EnsureHash().
+  inline uint32_t Hash();
 
   // Returns a hash value used for the property table (same as Hash()), assumes
   // the hash is already computed.
@@ -138,7 +139,8 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
   static const int kEmptyHashField =
       kIsNotIntegerIndexMask | kHashNotComputedMask;
 
-  static inline bool IsHashFieldComputed(uint32_t raw_hash_field);
+ protected:
+  static inline bool IsHashFieldComputed(uint32_t field);
 
   TQ_OBJECT_CONSTRUCTORS(Name)
 };
