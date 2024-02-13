@@ -40,14 +40,13 @@ namespace wasm {
 WasmCompilationResult ExecuteLiftoffCompilation(
     AccountingAllocator* allocator, CompilationEnv* env,
     const FunctionBody& func_body, int func_index, ForDebugging for_debugging,
-    Counters* counters, WasmFeatures* detected, Vector<int> breakpoints,
+    Counters* counters, WasmFeatures* detected, Vector<const int> breakpoints,
     std::unique_ptr<DebugSideTable>* debug_sidetable, int dead_breakpoint) {
   return WasmCompilationResult();
 }
 
 std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
-    AccountingAllocator* allocator, CompilationEnv* env,
-    const FunctionBody& func_body, int func_index) {
+    const WasmCode* code) {
   return std::unique_ptr<DebugSideTable>();
 }
 
