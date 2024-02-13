@@ -60,8 +60,8 @@
   #if !defined(int32_t)
 /* #include <stdint.h>   */         /* C99 standard integers           */
   #endif
-#if !defined(STARBOARD)
   #include <stdio.h>               /* for printf, etc.                */
+#if !defined(STARBOARD)
   #include <signal.h>              /* for traps                       */
 #endif
 

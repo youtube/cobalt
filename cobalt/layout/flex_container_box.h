@@ -87,6 +87,11 @@ class FlexContainerBox : public BlockContainerBox {
   // https://www.w3.org/TR/css-writing-modes-3/#inline-base-direction
   const BaseDirection base_direction_;
 
+// From |Box|.
+#ifdef ENABLE_DEBUGGER
+  void DumpProperties(std::ostream* stream) const override;
+#endif  // ENABLE_DEBUGGER
+
  private:
   base::Optional<LayoutUnit> main_space_;
   base::Optional<LayoutUnit> cross_space_;
@@ -144,9 +149,9 @@ class BlockLevelFlexContainerBox : public FlexContainerBox {
 
  protected:
 // From |Box|.
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
   void DumpClassName(std::ostream* stream) const override;
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 };
 
 class InlineLevelFlexContainerBox : public FlexContainerBox {
@@ -165,9 +170,10 @@ class InlineLevelFlexContainerBox : public FlexContainerBox {
 
  protected:
 // From |Box|.
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
   void DumpClassName(std::ostream* stream) const override;
-#endif  // COBALT_BOX_DUMP_ENABLED
+  void DumpProperties(std::ostream* stream) const override;
+#endif  // ENABLE_DEBUGGER
  private:
   const scoped_refptr<Paragraph> paragraph_;
   int32 text_position_;

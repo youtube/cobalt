@@ -307,7 +307,7 @@ void SkFontMgr_Cobalt::LoadLocaleDefault() {
   std::string script =
       icu::Locale::createCanonical(base::GetSystemLanguageScript().c_str())
           .getScript();
-  if (SbStringCompareNoCase(script.c_str(), ROBOTO_SCRIPT) == 0) {
+  if (strcasecmp(script.c_str(), ROBOTO_SCRIPT) == 0) {
     return;
   }
 
@@ -515,7 +515,7 @@ bool SkFontMgr_Cobalt::CheckIfFamilyMatchesLocaleScript(
   }
   std::string family_script =
       icu::Locale::createCanonical(family_tag.c_str()).getScript();
-  if (SbStringCompareNoCase(script, family_script.c_str()) != 0) {
+  if (strcasecmp(script, family_script.c_str()) != 0) {
     return false;
   }
 

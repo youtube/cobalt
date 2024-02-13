@@ -29,7 +29,7 @@ class VideoFrameImpl
  public:
   typedef ::starboard::shared::starboard::player::filter::VideoFrame VideoFrame;
 
-  VideoFrameImpl(SbTime timestamp, std::function<void(VideoFrame*)> release_cb)
+  VideoFrameImpl(int64_t timestamp, std::function<void(VideoFrame*)> release_cb)
       : VideoFrame(timestamp), release_cb_(release_cb) {
     SB_DCHECK(release_cb_);
   }

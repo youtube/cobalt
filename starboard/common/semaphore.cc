@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "starboard/common/semaphore.h"
+#include "starboard/common/time.h"
 
 namespace starboard {
 
@@ -46,14 +47,14 @@ bool Semaphore::TakeTry() {
   return true;
 }
 
-bool Semaphore::TakeWait(SbTime wait_us) {
+bool Semaphore::TakeWait(int64_t wait_us) {
   if (wait_us <= 0) {
     return TakeTry();
   }
-  SbTime expire_time = SbTimeGetMonotonicNow() + wait_us;
+  int64_t expire_time = CurrentMonotonicTime() + wait_us;
   ScopedLock lock(mutex_);
   while (permits_ <= 0) {
-    SbTime remaining_wait_time = expire_time - SbTimeGetMonotonicNow();
+    int64_t remaining_wait_time = expire_time - CurrentMonotonicTime();
     if (remaining_wait_time <= 0) {
       return false;  // Timed out.
     }

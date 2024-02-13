@@ -452,18 +452,18 @@ bool IsAudioSampleInfoSubstantiallyDifferent(const AudioStreamInfo& left,
          left.audio_specific_config != right.audio_specific_config;
 }
 
-int AudioDurationToFrames(SbTime duration, int samples_per_second) {
+int AudioDurationToFrames(int64_t duration, int samples_per_second) {
   SB_DCHECK(samples_per_second > 0)
       << "samples_per_second has to be greater than 0";
-  // The same as `frames = (duration / kSbTimeSecond) * samples_per_second`,
+  // The same as `frames = (duration / 1'000'000) * samples_per_second`,
   // switch order to avoid precision loss due to integer division.
-  return duration * samples_per_second / kSbTimeSecond;
+  return duration * samples_per_second / 1'000'000LL;
 }
 
-SbTime AudioFramesToDuration(int frames, int samples_per_second) {
+int64_t AudioFramesToDuration(int frames, int samples_per_second) {
   SB_DCHECK(samples_per_second > 0)
       << "samples_per_second has to be greater than 0";
-  return frames * kSbTimeSecond / std::max(samples_per_second, 1);
+  return frames * 1'000'000LL / std::max(samples_per_second, 1);
 }
 
 }  // namespace media

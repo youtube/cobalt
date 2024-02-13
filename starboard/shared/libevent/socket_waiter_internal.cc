@@ -23,10 +23,10 @@
 #include <utility>
 
 #include "starboard/common/log.h"
+#include "starboard/common/time.h"
 #include "starboard/shared/posix/handle_eintr.h"
 #include "starboard/shared/posix/set_non_blocking_internal.h"
 #include "starboard/shared/posix/socket_internal.h"
-#include "starboard/shared/posix/time_internal.h"
 #include "starboard/thread.h"
 #include "third_party/libevent/event.h"
 
@@ -47,8 +47,8 @@ SbSocketAddress GetIpv4Localhost() {
   return address;
 }
 
-SbSocket AcceptBySpinning(SbSocket server_socket, SbTime timeout) {
-  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+SbSocket AcceptBySpinning(SbSocket server_socket, int64_t timeout) {
+  int64_t start = starboard::CurrentMonotonicTime();
   while (true) {
     SbSocket accepted_socket = SbSocketAccept(server_socket);
     if (SbSocketIsValid(accepted_socket)) {
@@ -59,7 +59,7 @@ SbSocket AcceptBySpinning(SbSocket server_socket, SbTime timeout) {
     SB_DCHECK(SbSocketGetLastError(server_socket) == kSbSocketPending);
 
     // Check if we have passed our timeout.
-    if (SbTimeGetMonotonicNow() - start >= timeout) {
+    if (starboard::CurrentMonotonicTime() - start >= timeout) {
       break;
     }
 
@@ -74,7 +74,7 @@ SbSocket AcceptBySpinning(SbSocket server_socket, SbTime timeout) {
 void GetSocketPipe(SbSocket* client_socket, SbSocket* server_socket) {
   int result;
   SbSocketError sb_socket_result;
-  const SbTimeMonotonic kTimeout = kSbTimeSecond / 15;
+  const int64_t kTimeoutUsec = 1'000'000 / 15;
   SbSocketAddress address = GetIpv4Localhost();
 
   // Setup a listening socket.
@@ -101,7 +101,7 @@ void GetSocketPipe(SbSocket* client_socket, SbSocket* server_socket) {
             sb_socket_result == kSbSocketPending);
 
   // Spin until the accept happens (or we get impatient).
-  *server_socket = AcceptBySpinning(listen_socket, kTimeout);
+  *server_socket = AcceptBySpinning(listen_socket, kTimeoutUsec);
   SB_DCHECK(SbSocketIsValid(*server_socket));
 
   result = SbSocketDestroy(listen_socket);
@@ -257,10 +257,10 @@ void SbSocketWaiterPrivate::Wait() {
 
   // We basically wait for the largest amount of time to achieve an indefinite
   // block.
-  WaitTimed(kSbTimeMax);
+  WaitTimed(kSbInt64Max);
 }
 
-SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(SbTime duration) {
+SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(int64_t duration_usec) {
   SB_DCHECK(SbThreadIsCurrent(thread_));
 
   // The way to do this is apparently to create a timeout event, call WakeUp
@@ -269,9 +269,10 @@ SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(SbTime duration) {
   timeout_set(&event, &SbSocketWaiterPrivate::LibeventTimeoutCallback, this);
   event_base_set(base_, &event);
 
-  if (duration < kSbTimeMax) {
+  if (duration_usec < kSbInt64Max) {
     struct timeval tv;
-    ToTimevalDuration(duration, &tv);
+    tv.tv_sec = duration_usec / 1'000'000;
+    tv.tv_usec = duration_usec % 1'000'000;
     timeout_add(&event, &tv);
   }
 
@@ -283,7 +284,7 @@ SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(SbTime duration) {
       woken_up_ ? kSbSocketWaiterResultWokenUp : kSbSocketWaiterResultTimedOut;
   woken_up_ = false;
 
-  if (duration < kSbTimeMax) {
+  if (duration_usec < kSbInt64Max) {
     // We clean this up, in case we were awakened early, to prevent a spurious
     // wake-up later.
     timeout_del(&event);

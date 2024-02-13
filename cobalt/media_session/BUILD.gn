@@ -37,6 +37,7 @@ static_library("media_session") {
     "//cobalt/math",
     "//cobalt/script",
     "//starboard:starboard_headers_only",
+    "//starboard/common",
   ]
 }
 

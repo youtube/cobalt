@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -51,7 +53,6 @@ TEST(SbMemoryReallocateTest, CanReadWriteToResult) {
   for (int i = 0; i < kSize; ++i) {
     EXPECT_EQ(data[i], static_cast<char>(i));
   }
-
   SbMemoryDeallocate(memory);
 }
 
@@ -73,7 +74,6 @@ TEST(SbMemoryReallocateTest, ReallocatesSmaller) {
   for (int i = 0; i < kSize / 2; ++i) {
     EXPECT_EQ(data[i], static_cast<char>(i));
   }
-
   SbMemoryDeallocate(memory);
 }
 
@@ -90,6 +90,7 @@ TEST(SbMemoryReallocateTest, ReallocatesBigger) {
   }
 
   memory = SbMemoryReallocate(memory, kSize * 2);
+
   ASSERT_NE(static_cast<void*>(NULL), memory);
   data = static_cast<char*>(memory);
   for (int i = 0; i < kSize; ++i) {
@@ -111,8 +112,10 @@ TEST(SbMemoryReallocateTest, ReallocatesBigger) {
 // Should be deleted or fixed.
 TEST(SbMemoryReallocateTest, DISABLED_ReallocatestoZero) {
   void* memory = SbMemoryAllocate(kSize);
+
   ASSERT_NE(static_cast<void*>(NULL), memory);
   memory = SbMemoryReallocate(memory, 0);
+
   // See allocates zero above.
   SbMemoryDeallocate(memory);
 }
@@ -130,6 +133,7 @@ TEST(SbMemoryReallocateTest, ReallocatestoSameSize) {
   }
 
   memory = SbMemoryReallocate(memory, kSize);
+
   data = static_cast<char*>(memory);
   ASSERT_NE(static_cast<void*>(NULL), memory);
   for (int i = 0; i < kSize; ++i) {
@@ -142,3 +146,5 @@ TEST(SbMemoryReallocateTest, ReallocatestoSameSize) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+
+#endif  // SB_API_VERSION < 16

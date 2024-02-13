@@ -18,6 +18,7 @@
 #include <string>
 #include <utility>
 
+#include "base/metrics/histogram_functions.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/media_capture/media_device_info.h"
@@ -64,6 +65,11 @@ std::unique_ptr<Microphone> CreateMicrophone(
 #endif  // defined(ENABLE_MICROPHONE_IDL)
 
   return mic;
+}
+
+void LogMicCreationSucceededHistogramItem(bool mic_creation_succeeded) {
+  base::UmaHistogramBoolean("Cobalt.MediaDevices.MicCreationSucceeded",
+                            mic_creation_succeeded);
 }
 
 }  // namespace.
@@ -169,6 +175,9 @@ void MediaDevices::OnMicrophoneError(
     speech::MicrophoneManager::MicrophoneError error, std::string message) {
   DLOG(INFO) << "MediaDevices::OnMicrophoneError " << message;
 
+  // Log failed mic creation in UMA histogram
+  LogMicCreationSucceededHistogramItem(false);
+
   // No special error handling logic besides logging the message above, so just
   // delegate to the OnMicrophoneStopped() functionality.
   OnMicrophoneStopped();
@@ -195,6 +204,9 @@ void MediaDevices::OnMicrophoneStopped() {
 }
 
 void MediaDevices::OnMicrophoneSuccess() {
+  // Log successful mic creation in UMA histogram
+  LogMicCreationSucceededHistogramItem(true);
+
   if (javascript_message_loop_->task_runner() !=
       base::ThreadTaskRunnerHandle::Get()) {
     javascript_message_loop_->task_runner()->PostTask(

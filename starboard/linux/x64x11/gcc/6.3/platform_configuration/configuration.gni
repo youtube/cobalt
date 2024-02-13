@@ -25,6 +25,4 @@ if (current_toolchain == default_toolchain &&
   sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
   gl_type = "angle"
   sb_angle_enable_gl = true
-
-  sb_enable_cpp17_audit = false
 }

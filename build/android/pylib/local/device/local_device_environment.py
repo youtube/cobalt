@@ -1,8 +1,8 @@
-# Copyright 2014 The Chromium Authors. All rights reserved.
+# Copyright 2014 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-from __future__ import absolute_import
+
 import datetime
 import functools
 import logging
@@ -33,6 +33,8 @@ LOGCAT_FILTERS = [
   'DEBUG:I',
   'StrictMode:D',
 ]
+
+SYSTEM_USER_ID = 0
 
 
 def _DeviceCachePath(device):
@@ -84,7 +86,7 @@ def handle_shard_failures_with(on_failure):
   return decorator
 
 
-def place_nomedia_on_device(dev, device_root):
+def place_nomedia_on_device(dev, device_root, run_as=None, as_root=False):
   """Places .nomedia file in test data root.
 
   This helps to prevent system from scanning media files inside test data.
@@ -94,10 +96,19 @@ def place_nomedia_on_device(dev, device_root):
     device_root: Base path on device to place .nomedia file.
   """
 
-  dev.RunShellCommand(['mkdir', '-p', device_root], check_return=True)
-  dev.WriteFile('%s/.nomedia' % device_root, 'https://crbug.com/796640')
+  dev.RunShellCommand(['mkdir', '-p', device_root],
+                      run_as=run_as,
+                      as_root=as_root,
+                      check_return=True)
+  dev.WriteFile('%s/.nomedia' % device_root,
+                'https://crbug.com/796640',
+                run_as=run_as,
+                as_root=as_root)
 
 
+# TODO(1262303): After Telemetry is supported by python3 we can re-add
+# super without arguments in this script.
+# pylint: disable=super-with-arguments
 class LocalDeviceEnvironment(environment.Environment):
 
   def __init__(self, args, output_manager, _error_func):
@@ -124,6 +135,8 @@ class LocalDeviceEnvironment(environment.Environment):
     self._trace_all = None
     if hasattr(args, 'trace_all'):
       self._trace_all = args.trace_all
+    self._use_persistent_shell = args.use_persistent_shell
+    self._disable_test_server = args.disable_test_server
 
     devil_chromium.Initialize(
         output_directory=constants.GetOutDirectory(),
@@ -163,7 +176,8 @@ class LocalDeviceEnvironment(environment.Environment):
         enable_device_files_cache=self._enable_device_cache,
         default_retries=self._max_tries - 1,
         device_arg=device_arg,
-        abis=self._preferred_abis)
+        abis=self._preferred_abis,
+        persistent_shell=self._use_persistent_shell)
 
     if self._logcat_output_file:
       self._logcat_output_dir = tempfile.mkdtemp()
@@ -171,6 +185,12 @@ class LocalDeviceEnvironment(environment.Environment):
     @handle_shard_failures_with(on_failure=self.DenylistDevice)
     def prepare_device(d):
       d.WaitUntilFullyBooted()
+      if d.GetCurrentUser() != SYSTEM_USER_ID:
+        # Use system user to run tasks to avoid "/sdcard "accessing issue
+        # due to multiple-users. For details, see
+        # https://source.android.com/docs/devices/admin/multi-user-testing
+        logging.info('Switching to user with id %s', SYSTEM_USER_ID)
+        d.SwitchUser(SYSTEM_USER_ID)
 
       if self._enable_device_cache:
         cache_path = _DeviceCachePath(d)
@@ -186,8 +206,10 @@ class LocalDeviceEnvironment(environment.Environment):
             self._logcat_output_dir,
             '%s_%s' % (d.adb.GetDeviceSerial(),
                        datetime.datetime.utcnow().strftime('%Y%m%dT%H%M%S')))
-        monitor = logcat_monitor.LogcatMonitor(
-            d.adb, clear=True, output_file=logcat_file)
+        monitor = logcat_monitor.LogcatMonitor(d.adb,
+                                               clear=True,
+                                               output_file=logcat_file,
+                                               check_error=False)
         self._logcat_monitors.append(monitor)
         monitor.Start()
 
@@ -242,6 +264,10 @@ class LocalDeviceEnvironment(environment.Environment):
   @property
   def trace_output(self):
     return self._trace_output
+
+  @property
+  def disable_test_server(self):
+    return self._disable_test_server
 
   #override
   def TearDown(self):

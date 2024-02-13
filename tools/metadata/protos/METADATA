@@ -1,0 +1,13 @@
+name: "METADATA proto"
+description: "Proto schema file to validate METADADATA textprotos, from Android"
+    "open source project"
+
+third_party {
+    identifier: {
+        type: "Git"
+        # subdirectory at tools/protos
+        value: "https://android.googlesource.com/platform/build"
+        version: "427dacb"
+    }
+    version: "427dacb"
+}

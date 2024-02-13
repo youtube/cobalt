@@ -566,7 +566,7 @@ bool DhcpPacFileFetcherWin::GetCandidateAdapterNames(
 
   do {
     adapters.reset(
-        static_cast<IP_ADAPTER_ADDRESSES*>(SbMemoryAllocate(adapters_size)));
+        static_cast<IP_ADAPTER_ADDRESSES*>(malloc(adapters_size)));
     // Return only unicast addresses, and skip information we do not need.
     base::ScopedBlockingCall scoped_blocking_call(
         base::BlockingType::MAY_BLOCK);

@@ -5,13 +5,14 @@
 #ifndef CRYPTO_SYMMETRIC_KEY_H_
 #define CRYPTO_SYMMETRIC_KEY_H_
 
+#include <stddef.h>
+
 #include <memory>
 #include <string>
 
 #include "base/macros.h"
 #include "build/build_config.h"
 #include "crypto/crypto_export.h"
-#include "starboard/types.h"
 
 namespace crypto {
 

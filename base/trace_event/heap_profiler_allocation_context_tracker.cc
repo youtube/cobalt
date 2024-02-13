@@ -71,9 +71,9 @@ const char* GetAndLeakThreadName() {
 #endif  // defined(OS_LINUX) || defined(OS_ANDROID)
 
   // Use tid if we don't have a thread name.
-  SbStringFormatF(name, sizeof(name), "%lu",
+  snprintf(name, sizeof(name), "%lu",
                   static_cast<unsigned long>(PlatformThread::CurrentId()));
-  return SbStringDuplicate(name);
+  return strdup(name);
 }
 
 }  // namespace

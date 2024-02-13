@@ -12,7 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
 #include "starboard/memory.h"
+#else
+#include <stdlib.h>
+#include <string.h>
+#include "starboard/configuration.h"
+#include "starboard/configuration_constants.h"
+#endif  // SB_API_VERSION < 16
 
 #ifndef STARBOARD_COMMON_MEMORY_H_
 #define STARBOARD_COMMON_MEMORY_H_

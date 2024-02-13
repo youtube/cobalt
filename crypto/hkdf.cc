@@ -4,11 +4,13 @@
 
 #include "crypto/hkdf.h"
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <memory>
 
 #include "base/logging.h"
 #include "crypto/hmac.h"
-#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/digest.h"
 #include "third_party/boringssl/src/include/openssl/hkdf.h"
 

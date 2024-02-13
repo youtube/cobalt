@@ -17,6 +17,7 @@
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/interface_with_date.h"
 #include "starboard/client_porting/eztime/eztime.h"
+#include "starboard/common/time.h"
 #include "starboard/time_zone.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -77,7 +78,8 @@ TEST_F(DateBindingsTest, PosixEpoch) {
 
   EvaluateScript("Date.now();", &result);
   auto js_now_ms = std::stoll(result);
-  auto posix_now_ms = SbTimeToPosix(SbTimeGetNow()) / kSbTimeMillisecond;
+  auto posix_now_ms =
+      starboard::CurrentPosixTime() / base::Time::kMicrosecondsPerMillisecond;
   EXPECT_LT(std::abs(posix_now_ms - js_now_ms), 1000);
 }
 
@@ -104,15 +106,14 @@ TEST_F(DateBindingsTest, StarboardTimeZone) {
 }
 
 TEST_F(DateBindingsTest, TimezoneOffset) {
-  EzTimeExploded ez_exploded;
-
-  auto eztt = EzTimeTFromSbTime(SbTimeGetNow());
-  EzTimeTExplodeLocal(&eztt, &ez_exploded);
-  // ez_exploded is already local time, use UTC method to convert to
+  EzTimeT ezttnow = static_cast<EzTimeT>(starboard::CurrentPosixTime() /
+                                         base::Time::kMicrosecondsPerSecond);
+  EzTimeExploded ez_exploded_local;
+  EzTimeTExplodeLocal(&ezttnow, &ez_exploded_local);
+  // ez_exploded_local is already local time, use UTC method to convert to
   // EzTimeT.
-  EzTimeT local_time_minutes = EzTimeTImplodeUTC(&ez_exploded) / 60;
-  EzTimeT utc_minutes = EzTimeTFromSbTime(SbTimeGetNow()) / 60;
-  EzTimeT timezone_offset = utc_minutes - local_time_minutes;
+  EzTimeT local_time_minutes = EzTimeTImplodeUTC(&ez_exploded_local) / 60;
+  EzTimeT utc_minutes = ezttnow / 60;
 
   std::string result;
   EvaluateScript("new Date().getTimezoneOffset();", &result);

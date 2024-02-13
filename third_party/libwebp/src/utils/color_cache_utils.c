@@ -13,14 +13,11 @@
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
 #else
 #include <assert.h>
-#include <string.h>
 #endif
-
 #include <stdlib.h>
-
+#include <string.h>
 #include "src/utils/color_cache_utils.h"
 #include "src/utils/utils.h"
 

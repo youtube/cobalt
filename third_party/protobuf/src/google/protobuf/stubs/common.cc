@@ -48,7 +48,6 @@
 #include "starboard/system.h"
 #define abort SbSystemBreakIntoDebugger
 #define fflush(stderr) SbLogFlush()
-#define snprintf SbStringFormatF
 #else  // STARBOARD
 #include <errno.h>
 #include <stdio.h>

@@ -84,7 +84,7 @@ bool ParseMimeType(const std::string& mime_type, std::string* type,
   *type = tokens[0];
   codecs->clear();
   for (size_t i = 1; i < tokens.size(); ++i) {
-    if (base::strncasecmp(tokens[i].c_str(), kCodecs, strlen(kCodecs))) {
+    if (strncasecmp(tokens[i].c_str(), kCodecs, strlen(kCodecs))) {
       continue;
     }
     *codecs = tokens[i].substr(strlen(kCodecs));
@@ -1121,6 +1121,11 @@ base::TimeDelta ChunkDemuxer::GetWriteHead(const std::string& id) const {
   }
 
   return iter->second[0]->GetWriteHead();
+}
+
+bool ChunkDemuxer::GetIsEndOfStreamReceived() const {
+  base::AutoLock auto_lock(lock_);
+  return state_ >= ENDED;
 }
 
 void ChunkDemuxer::SetSourceBufferStreamMemoryLimit(const std::string& id,

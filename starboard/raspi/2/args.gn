@@ -15,4 +15,5 @@
 target_platform = "raspi-2"
 target_os = "linux"
 target_cpu = "arm"
-is_clang = false
+build_with_separate_cobalt_toolchain = true
+use_asan = false

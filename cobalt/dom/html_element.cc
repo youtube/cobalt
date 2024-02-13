@@ -65,6 +65,7 @@
 #include "cobalt/loader/resource_cache.h"
 #include "cobalt/math/clamp.h"
 #include "cobalt/web/csp_delegate.h"
+#include "starboard/common/time.h"
 #include "third_party/icu/source/common/unicode/uchar.h"
 #include "third_party/icu/source/common/unicode/utf8.h"
 
@@ -92,9 +93,9 @@ const char* kPerformanceResourceTimingInitiatorType = "img";
 
 void UiNavCallbackHelper(
     scoped_refptr<base::SingleThreadTaskRunner> task_runner,
-    base::Callback<void(SbTimeMonotonic)> callback) {
-  task_runner->PostTask(FROM_HERE,
-                        base::Bind(callback, SbTimeGetMonotonicNow()));
+    base::Callback<void(int64_t)> callback) {
+  task_runner->PostTask(
+      FROM_HERE, base::Bind(callback, starboard::CurrentMonotonicTime()));
 }
 
 struct NonTrivialStaticFields {
@@ -1229,25 +1230,25 @@ void HTMLElement::InvalidateLayoutBoxes() {
   directionality_ = base::nullopt;
 }
 
-void HTMLElement::OnUiNavBlur(SbTimeMonotonic time) {
+void HTMLElement::OnUiNavBlur(int64_t monotonic_time) {
   if (node_document() && node_document()->ui_nav_focus_element() == this) {
-    if (node_document()->TrySetUiNavFocusElement(nullptr, time)) {
+    if (node_document()->TrySetUiNavFocusElement(nullptr, monotonic_time)) {
       Blur();
     }
   }
 }
 
-void HTMLElement::OnUiNavFocus(SbTimeMonotonic time) {
+void HTMLElement::OnUiNavFocus(int64_t monotonic_time) {
   // Suppress the focus event if this is already focused -- i.e. the HTMLElement
   // initiated the focus change that resulted in this call to OnUiNavFocus.
   if (node_document() && node_document()->ui_nav_focus_element() != this) {
-    if (node_document()->TrySetUiNavFocusElement(this, time)) {
+    if (node_document()->TrySetUiNavFocusElement(this, monotonic_time)) {
       Focus();
     }
   }
 }
 
-void HTMLElement::OnUiNavScroll(SbTimeMonotonic /* time */) {
+void HTMLElement::OnUiNavScroll(int64_t /* monotonic_time */) {
   Document* document = node_document();
   if (document->hidden()) {
     return;
@@ -1498,8 +1499,8 @@ void HTMLElement::UpdateUiNavigationFocus() {
     // suppressing the Blur call for the previously focused HTMLElement and the
     // Focus call for this HTMLElement as a result of OnUiNavBlur / OnUiNavFocus
     // callbacks that result from initiating the UI navigation focus change.
-    if (node_document()->TrySetUiNavFocusElement(html_element,
-                                                 SbTimeGetMonotonicNow())) {
+    if (node_document()->TrySetUiNavFocusElement(
+            html_element, starboard::CurrentMonotonicTime())) {
       html_element->ui_nav_item_->Focus();
     }
     break;
@@ -2296,8 +2297,8 @@ void HTMLElement::ReleaseUiNavigationItem() {
       node_document()->RemoveUiNavigationElement(this);
       node_document()->set_ui_nav_needs_layout(true);
       if (node_document()->ui_nav_focus_element() == this) {
-        if (node_document()->TrySetUiNavFocusElement(nullptr,
-                                                     SbTimeGetMonotonicNow())) {
+        if (node_document()->TrySetUiNavFocusElement(
+                nullptr, starboard::CurrentMonotonicTime())) {
           ui_nav_item_->UnfocusAll();
         }
       }

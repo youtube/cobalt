@@ -108,6 +108,7 @@
    *
    */
 
+
 #if defined( STARBOARD )
 #include "starboard/string.h"
 #include "starboard/file.h"
@@ -123,7 +124,7 @@
 #define ft_fread(b, s, n, f) SbFileRead((f), (char *)(b), (s) * (n))
 #define ft_fseek(f, o, w) SbFileSeek((f), (w), (o))
 #define ft_ftell(f)    SbFileSeek((f), kSbFileFromCurrent, 0)
-#define ft_sprintf  SbStringFormatUnsafeF
+#define ft_sprintf  sprintf
 #else
 #include <stdio.h>
 
@@ -155,27 +156,11 @@
    *
    */
 
-#if defined( STARBOARD )
-#include "starboard/memory.h"
-static SB_C_INLINE void *ft_scalloc(size_t nelem, size_t elsize) {
-  size_t size = nelem * elsize;
-  void *memory = SbMemoryAllocate(size);
-  if (!memory) {
-    return NULL;
-  }
 
-  memset(memory, 0, size);
-  return memory;
-}
-#define ft_sfree     SbMemoryDeallocate
-#define ft_smalloc   SbMemoryAllocate
-#define ft_srealloc  SbMemoryReallocate
-#else
 #define ft_scalloc   calloc
 #define ft_sfree     free
 #define ft_smalloc   malloc
 #define ft_srealloc  realloc
-#endif /* defined( STARBOARD ) */
 
 
   /**************************************************************************
@@ -185,7 +170,6 @@ static SB_C_INLINE void *ft_scalloc(size_t nelem, size_t elsize) {
    */
 
 
-#include <stdlib.h>
 #define ft_strtol  strtol
 
 #if defined( STARBOARD )

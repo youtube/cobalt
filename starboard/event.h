@@ -92,7 +92,6 @@
 
 #include "starboard/configuration.h"
 #include "starboard/export.h"
-#include "starboard/time.h"
 #include "starboard/types.h"
 #include "starboard/window.h"
 
@@ -302,7 +301,7 @@ typedef enum SbEventType {
 // Structure representing a Starboard event and its data.
 typedef struct SbEvent {
   SbEventType type;
-  SbTimeMonotonic timestamp;
+  int64_t timestamp;  // Monotonic time in microseconds.
   void* data;
 } SbEvent;
 
@@ -377,7 +376,7 @@ SB_IMPORT void SbEventHandle(const SbEvent* event);
 // possible.
 SB_EXPORT SbEventId SbEventSchedule(SbEventCallback callback,
                                     void* context,
-                                    SbTime delay);
+                                    int64_t delay);
 
 // Cancels the specified |event_id|. Note that this function is a no-op
 // if the event already fired. This function can be safely called from any

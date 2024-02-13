@@ -18,9 +18,6 @@
 *   Swap collation binaries.
 */
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif  // defined(STARBOARD)
 #include "unicode/udata.h" /* UDataInfo */
 #include "utrie.h"
 #include "utrie2.h"

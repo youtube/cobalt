@@ -1,19 +1,19 @@
----
-layout: doc
-title: "Starboard Module Reference: key.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: `key.h`
 
 Defines the canonical set of Starboard key codes.
 
-## Enums ##
+## Enums
 
-### SbKey ###
+### SbKey
 
 A standard set of key codes, ordered by value, that represent each possible
 input key across all kinds of devices. Starboard uses the semi-standard Windows
 virtual key codes documented at: [https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731%28v=vs.85%29.aspx](https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731%28v=vs.85%29.aspx)
 
-#### Values ####
+#### Values
 
 *   `kSbKeyUnknown`
 *   `kSbKeyCancel`
@@ -274,11 +274,11 @@ virtual key codes documented at: [https://msdn.microsoft.com/en-us/library/windo
 *   `kSbKeyGamepadRightStickLeft`
 *   `kSbKeyGamepadRightStickRight`
 
-### SbKeyModifiers ###
+### SbKeyModifiers
 
 Bit-mask of key modifiers.
 
-#### Values ####
+#### Values
 
 *   `kSbKeyModifiersNone`
 *   `kSbKeyModifiersAlt`

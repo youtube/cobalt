@@ -23,10 +23,9 @@
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
 #include "starboard/shared/win32/video_decoder.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 #include "starboard/xb1/shared/internal_shims.h"
 #if defined(INTERNAL_BUILD)
-#include "internal/starboard/xb1/av1_video_decoder.h"
+#include "internal/starboard/xb1/dav1d_video_decoder.h"
 #include "internal/starboard/xb1/vpx_video_decoder.h"
 #include "third_party/internal/libvpx_xb1/libvpx/d3dx12.h"
 #endif  // defined(INTERNAL_BUILD)
@@ -41,12 +40,12 @@ using Microsoft::WRL::ComPtr;
 using ::starboard::shared::starboard::media::MimeSupportabilityCache;
 using Windows::Foundation::Metadata::ApiInformation;
 #if defined(INTERNAL_BUILD)
-using ::starboard::xb1::shared::Av1VideoDecoder;
+using ::starboard::xb1::shared::Dav1dVideoDecoder;
 using ::starboard::xb1::shared::GpuVideoDecoderBase;
 using ::starboard::xb1::shared::VpxVideoDecoder;
 #endif  // defined(INTERNAL_BUILD)
 
-const SbTime kReleaseTimeout = kSbTimeSecond;
+const int64_t kReleaseTimeoutUsec = 1'000'000;
 
 // kFrameBuffersPoolMemorySize is the size of gpu memory heap for common use
 // by vpx & av1 sw decoders.
@@ -68,8 +67,10 @@ const SbTime kReleaseTimeout = kSbTimeSecond;
 //
 // To make playback more smooth it is better to increase the output queue size
 // up to 30-50 frames, but it should not exceed memory budgetd.
-// So, the value of 440 Mb looks as compromise.
-const uint64_t kFrameBuffersPoolMemorySize = 440 * 1024 * 1024;
+// Compromise value was found out experimentally.
+// 400 Mb leaves enough memory for stable working of the rest system.
+// Just in case to be more sure we reduce this value down to 380 Mb.
+const uint64_t kFrameBuffersPoolMemorySize = 380 * 1024 * 1024;
 
 bool IsExtendedResourceModeRequired() {
   if (!::starboard::xb1::shared::CanAcquire()) {
@@ -115,9 +116,9 @@ void ExtendedResourcesManager::Run() {
 
   bool retrying_acquire = false;
   // Delay before retry acquiring to avoid pinning a core.
-  constexpr SbTime kRetryDelay = kSbTimeSecond / 10;
+  constexpr int64_t kRetryDelayUsec = 1'000'000 / 10;
   for (;;) {
-    switch (retrying_acquire ? event_queue_.GetTimed(kRetryDelay)
+    switch (retrying_acquire ? event_queue_.GetTimed(kRetryDelayUsec)
                              : event_queue_.Get()) {
       case kTimeout:
         SB_DCHECK(retrying_acquire);
@@ -324,7 +325,7 @@ bool ExtendedResourcesManager::AcquireExtendedResourcesInternal() {
           }
           semaphore.Put();
         });
-    if (semaphore.TakeWait(10 * kSbTimeSecond)) {
+    if (semaphore.TakeWait(10'000'000)) {
       acquisition_condition_.Signal();
       // If extended resource acquisition was not successful after the wait
       // time, signal a nonrecoverable failure, unless a release of
@@ -392,8 +393,7 @@ void ExtendedResourcesManager::CompileShadersAsynchronously() {
                          "shader compile.";
       return;
     }
-    if (Av1VideoDecoder::CompileShaders(d3d12device_, d3d12FrameBuffersHeap_,
-                                        d3d12queue_.Get())) {
+    if (Dav1dVideoDecoder::CompileShaders(d3d12device_)) {
       is_av1_shader_compiled_ = true;
       SB_LOG(INFO) << "Gpu based AV1 decoder finished compiling its shaders.";
     } else {
@@ -465,7 +465,7 @@ void ExtendedResourcesManager::ReleaseExtendedResourcesInternal() {
           SB_LOG(INFO) << "CreateEvent() failed with " << GetLastError();
         }
 #if defined(INTERNAL_BUILD)
-        Av1VideoDecoder::ReleaseShaders();
+        Dav1dVideoDecoder::ReleaseShaders();
         VpxVideoDecoder::ReleaseShaders();
 #endif  // #if defined(INTERNAL_BUILD)
         is_av1_shader_compiled_ = false;
@@ -540,7 +540,7 @@ void ExtendedResourcesManager::ReleaseExtendedResourcesInternal() {
         pending_extended_resources_release_.store(false);
         semaphore.Put();
       });
-  if (!semaphore.TakeWait(kReleaseTimeout)) {
+  if (!semaphore.TakeWait(kReleaseTimeoutUsec)) {
     acquisition_condition_.Signal();
     // If extended resources are still acquired or the release is still pending
     // after the wait time, signal a nonrecoverable failure.

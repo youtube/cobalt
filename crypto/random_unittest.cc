@@ -4,10 +4,11 @@
 
 #include "crypto/random.h"
 
+#include <stddef.h>
+
 #include <string>
 
 #include "base/strings/string_util.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // Basic functionality tests. Does NOT test the security of the random data.

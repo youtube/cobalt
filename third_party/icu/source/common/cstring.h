@@ -27,16 +27,11 @@
 #ifndef CSTRING_H
 #define CSTRING_H 1
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif  // defined(STARBOARD)
 #include "unicode/utypes.h"
 #include "cmemory.h"
-#if !defined(STARBOARD)
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
-#endif
 
 #define uprv_strcpy(dst, src) U_STANDARD_CPP_NAMESPACE  strcpy(dst, src)
 #define uprv_strlen(str) U_STANDARD_CPP_NAMESPACE strlen(str)

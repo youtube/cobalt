@@ -33,6 +33,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/event.h"
 #include "starboard/key.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
@@ -206,14 +207,14 @@ bool ApplicationAndroid::DestroyWindow(SbWindow window) {
   return true;
 }
 
-Event* ApplicationAndroid::WaitForSystemEventWithTimeout(SbTime time) {
+Event* ApplicationAndroid::WaitForSystemEventWithTimeout(int64_t time) {
   // Limit the polling time in case some non-system event is injected.
   const int kMaxPollingTimeMillisecond = 10;
 
   // Convert from microseconds to milliseconds, taking the ceiling value.
   // If we take the floor, or round, then we end up busy looping every time
   // the next event time is less than one millisecond.
-  int timeout_millis = (time + kSbTimeMillisecond - 1) / kSbTimeMillisecond;
+  int timeout_millis = (time + 1000 - 1) / 1000;
   int looper_events;
   int ident = ALooper_pollAll(
       std::min(std::max(timeout_millis, 0), kMaxPollingTimeMillisecond), NULL,
@@ -368,11 +369,11 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         if (state() == kStateUnstarted) {
           SetStartLink(deep_link);
           SB_LOG(INFO) << "ApplicationAndroid SetStartLink";
-          SbMemoryDeallocate(static_cast<void*>(deep_link));
+          free(static_cast<void*>(deep_link));
         } else {
           SB_LOG(INFO) << "ApplicationAndroid Inject: kSbEventTypeLink";
-          Inject(new Event(kSbEventTypeLink, SbTimeGetMonotonicNow(), deep_link,
-                           SbMemoryDeallocate));
+          Inject(new Event(kSbEventTypeLink, CurrentMonotonicTime(), deep_link,
+                           free));
         }
       }
       break;
@@ -433,6 +434,9 @@ void ApplicationAndroid::SendAndroidCommand(AndroidCommand::CommandType type,
 
 bool ApplicationAndroid::SendAndroidMotionEvent(
     const GameActivityMotionEvent* event) {
+  SB_LOG(INFO) << "Received Motion Event from Android OS."
+               << " source:" << event->source;
+
   bool result = false;
 
   ScopedLock lock(input_mutex_);
@@ -454,6 +458,13 @@ bool ApplicationAndroid::SendAndroidMotionEvent(
 
 bool ApplicationAndroid::SendAndroidKeyEvent(
     const GameActivityKeyEvent* event) {
+  // Find the value reference on
+  // https://developer.android.com/reference/android/view/KeyEvent
+  SB_LOG(INFO) << "Received Key Event from Android OS. "
+               << "keyCode:" << event->keyCode
+               << ", modifiers:" << event->modifiers
+               << ", source:" << event->source;
+
   bool result = false;
 
   ScopedLock lock(input_mutex_);
@@ -586,7 +597,7 @@ void DeleteSbInputDataWithText(void* ptr) {
 
 void ApplicationAndroid::SbWindowSendInputEvent(const char* input_text,
                                                 bool is_composing) {
-  char* text = SbStringDuplicate(input_text);
+  char* text = strdup(input_text);
   SbInputData* data = new SbInputData();
   memset(data, 0, sizeof(*data));
   data->window = window_;
@@ -622,7 +633,7 @@ void ApplicationAndroid::HandleDeepLink(const char* link_url) {
   if (link_url == NULL || link_url[0] == '\0') {
     return;
   }
-  char* deep_link = SbStringDuplicate(link_url);
+  char* deep_link = strdup(link_url);
   SB_DCHECK(deep_link);
 
   SendAndroidCommand(AndroidCommand::kDeepLink, deep_link);
@@ -667,7 +678,7 @@ void ApplicationAndroid::OsNetworkStatusChange(bool became_online) {
   }
 }
 
-SbTimeMonotonic ApplicationAndroid::GetAppStartTimestamp() {
+int64_t ApplicationAndroid::GetAppStartTimestamp() {
   JniEnvExt* env = JniEnvExt::Get();
   jlong app_start_timestamp =
       env->CallStarboardLongMethodOrAbort("getAppStartTimestamp", "()J");
@@ -675,11 +686,11 @@ SbTimeMonotonic ApplicationAndroid::GetAppStartTimestamp() {
 }
 
 extern "C" SB_EXPORT_PLATFORM jlong
-Java_dev_cobalt_coat_StarboardBridge_nativeSbTimeGetMonotonicNow(
+Java_dev_cobalt_coat_StarboardBridge_nativeCurrentMonotonicTime(
     JNIEnv* env,
     jobject jcaller,
     jboolean online) {
-  return SbTimeGetMonotonicNow();
+  return CurrentMonotonicTime();
 }
 
 void ApplicationAndroid::SendDateTimeConfigurationChangedEvent() {

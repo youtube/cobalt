@@ -54,7 +54,7 @@ void VideoFrameRateEstimator::Reset() {
 
 void VideoFrameRateEstimator::CalculateInitialFrameRate(
     const Frames& frames,
-    SbTime previous_frame_duration) {
+    int64_t previous_frame_duration) {
   SB_DCHECK(frame_rate_ == kInvalidFrameRate);
   SB_DCHECK(!frames.empty());
   SB_DCHECK(frames.size() >= 2 || previous_frame_duration > 0);
@@ -102,7 +102,7 @@ void VideoFrameRateEstimator::CalculateInitialFrameRate(
   }
   auto average_frame_duration =
       accumulated_frame_durations_ / number_of_frame_durations_accumulated_;
-  frame_rate_ = static_cast<double>(kSbTimeSecond) / average_frame_duration;
+  frame_rate_ = static_cast<double>(1'000'000) / average_frame_duration;
 
   // Snap the frame rate to the nearest integer, so 29.97 will become 30.
   if (frame_rate_ - std::floor(frame_rate_) < kFrameRateEpsilon) {

@@ -240,6 +240,7 @@ target(gtest_target_type, "cobalt_slot_management_test") {
     "//net:test_support",
     "//starboard/loader_app:app_key_files",
     "//starboard/loader_app:drain_file",
+    "//starboard/loader_app:drain_file_helper",
     "//starboard/loader_app:installation_manager",
     "//testing/gmock",
     "//testing/gtest",

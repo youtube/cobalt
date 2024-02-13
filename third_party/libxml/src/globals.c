@@ -14,9 +14,7 @@
 #define IN_LIBXML
 #include "libxml.h"
 
-#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
-#endif
 #include <string.h>
 
 #include <libxml/globals.h>
@@ -48,20 +46,6 @@ void xmlInitGlobals(void)
 {
     if (xmlThrDefMutex == NULL)
         xmlThrDefMutex = xmlNewMutex();
-}
-
-/**
- * xmlCleanupGlobals:
- *
- * Additional cleanup for multi-threading
- */
-void xmlCleanupGlobals(void)
-{
-    if (xmlThrDefMutex != NULL) {
-	xmlFreeMutex(xmlThrDefMutex);
-	xmlThrDefMutex = NULL;
-    }
-    __xmlGlobalInitMutexDestroy();
 }
 
 /************************************************************************
@@ -122,7 +106,7 @@ xmlMallocFunc xmlMallocAtomic = XML_MALLOC;
  *
  * Returns a pointer to the newly reallocated block or NULL in case of error
  */
-xmlReallocFunc xmlRealloc = SbMemoryReallocate;
+xmlReallocFunc xmlRealloc = XML_REALLOC;
 /**
  * xmlPosixStrdup
  * @cur:  the input char *
@@ -545,9 +529,9 @@ xmlInitializeGlobalState(xmlGlobalStatePtr gs)
     gs->xmlMemStrdup = (xmlStrdupFunc) xmlMemoryStrdup;
 #else
     gs->xmlFree = (xmlFreeFunc) XML_FREE;
-    gs->xmlMalloc = (xmlMallocFunc) SbMemoryAllocate;
-    gs->xmlMallocAtomic = (xmlMallocFunc) SbMemoryAllocate;
-    gs->xmlRealloc = (xmlReallocFunc) SbMemoryReallocate;
+    gs->xmlMalloc = (xmlMallocFunc) XML_MALLOC;
+    gs->xmlMallocAtomic = (xmlMallocFunc) XML_MALLOC;
+    gs->xmlRealloc = (xmlReallocFunc) XML_REALLOC;
     gs->xmlMemStrdup = (xmlStrdupFunc) xmlStrdup;
 #endif
     gs->xmlGetWarningsDefaultValue = xmlGetWarningsDefaultValueThrDef;
@@ -1122,5 +1106,19 @@ __xmlOutputBufferCreateFilenameValue(void) {
 	return (&xmlGetGlobalState()->xmlOutputBufferCreateFilenameValue);
 }
 
-#define bottom_globals
-#include "elfgcchack.h"
+/**
+ * xmlCleanupGlobals:
+ *
+ * Additional cleanup for multi-threading
+ */
+void xmlCleanupGlobals(void)
+{
+    xmlResetError(&xmlLastError);
+
+    if (xmlThrDefMutex != NULL) {
+	xmlFreeMutex(xmlThrDefMutex);
+	xmlThrDefMutex = NULL;
+    }
+    __xmlGlobalInitMutexDestroy();
+}
+

@@ -19,10 +19,10 @@
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/common/socket.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/once.h"
 #include "starboard/socket_waiter.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -246,8 +246,8 @@ scoped_ptr<Socket> CreateConnectingTcpSocketWrapped(
 }
 }  // namespace
 
-SbSocket AcceptBySpinning(SbSocket server_socket, SbTime timeout) {
-  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+SbSocket AcceptBySpinning(SbSocket server_socket, int64_t timeout) {
+  int64_t start = CurrentMonotonicTime();
   while (true) {
     SbSocket accepted_socket = SbSocketAccept(server_socket);
     if (SbSocketIsValid(accepted_socket)) {
@@ -258,7 +258,7 @@ SbSocket AcceptBySpinning(SbSocket server_socket, SbTime timeout) {
     EXPECT_EQ(kSbSocketPending, SbSocketGetLastError(server_socket));
 
     // Check if we have passed our timeout.
-    if (SbTimeGetMonotonicNow() - start >= timeout) {
+    if (CurrentMonotonicTime() - start >= timeout) {
       break;
     }
 
@@ -269,8 +269,8 @@ SbSocket AcceptBySpinning(SbSocket server_socket, SbTime timeout) {
   return kSbSocketInvalid;
 }
 
-scoped_ptr<Socket> AcceptBySpinning(Socket* server_socket, SbTime timeout) {
-  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+scoped_ptr<Socket> AcceptBySpinning(Socket* server_socket, int64_t timeout) {
+  int64_t start = CurrentMonotonicTime();
   while (true) {
     Socket* accepted_socket = server_socket->Accept();
     if (accepted_socket && accepted_socket->IsValid()) {
@@ -281,7 +281,7 @@ scoped_ptr<Socket> AcceptBySpinning(Socket* server_socket, SbTime timeout) {
     EXPECT_TRUE(server_socket->IsPending());
 
     // Check if we have passed our timeout.
-    if (SbTimeGetMonotonicNow() - start >= timeout) {
+    if (CurrentMonotonicTime() - start >= timeout) {
       break;
     }
 
@@ -295,8 +295,8 @@ scoped_ptr<Socket> AcceptBySpinning(Socket* server_socket, SbTime timeout) {
 bool WriteBySpinning(SbSocket socket,
                      const char* data,
                      int data_size,
-                     SbTime timeout) {
-  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+                     int64_t timeout) {
+  int64_t start = CurrentMonotonicTime();
   int total = 0;
   while (total < data_size) {
     int sent = SbSocketSendTo(socket, data + total, data_size - total, NULL);
@@ -309,7 +309,7 @@ bool WriteBySpinning(SbSocket socket,
       return false;
     }
 
-    if (SbTimeGetMonotonicNow() - start >= timeout) {
+    if (CurrentMonotonicTime() - start >= timeout) {
       return false;
     }
 
@@ -322,8 +322,8 @@ bool WriteBySpinning(SbSocket socket,
 bool WriteBySpinning(Socket* socket,
                      const char* data,
                      int data_size,
-                     SbTime timeout) {
-  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+                     int64_t timeout) {
+  int64_t start = CurrentMonotonicTime();
   int total = 0;
   while (total < data_size) {
     int sent = socket->SendTo(data + total, data_size - total, NULL);
@@ -336,7 +336,7 @@ bool WriteBySpinning(Socket* socket,
       return false;
     }
 
-    if (SbTimeGetMonotonicNow() - start >= timeout) {
+    if (CurrentMonotonicTime() - start >= timeout) {
       return false;
     }
 
@@ -349,8 +349,8 @@ bool WriteBySpinning(Socket* socket,
 bool ReadBySpinning(SbSocket socket,
                     char* out_data,
                     int data_size,
-                    SbTime timeout) {
-  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+                    int64_t timeout) {
+  int64_t start = CurrentMonotonicTime();
   int total = 0;
   while (total < data_size) {
     int received =
@@ -364,7 +364,7 @@ bool ReadBySpinning(SbSocket socket,
       return false;
     }
 
-    if (SbTimeGetMonotonicNow() - start >= timeout) {
+    if (CurrentMonotonicTime() - start >= timeout) {
       return false;
     }
 
@@ -377,8 +377,8 @@ bool ReadBySpinning(SbSocket socket,
 bool ReadBySpinning(Socket* socket,
                     char* out_data,
                     int data_size,
-                    SbTime timeout) {
-  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+                    int64_t timeout) {
+  int64_t start = CurrentMonotonicTime();
   int total = 0;
   while (total < data_size) {
     int received =
@@ -392,7 +392,7 @@ bool ReadBySpinning(Socket* socket,
       return false;
     }
 
-    if (SbTimeGetMonotonicNow() - start >= timeout) {
+    if (CurrentMonotonicTime() - start >= timeout) {
       return false;
     }
 
@@ -477,7 +477,7 @@ int Transfer(Socket* receive_socket,
 ConnectedTrio CreateAndConnect(SbSocketAddressType server_address_type,
                                SbSocketAddressType client_address_type,
                                int port,
-                               SbTime timeout) {
+                               int64_t timeout) {
   // Verify the listening socket.
   SbSocket listen_socket = CreateListeningTcpSocket(server_address_type, port);
   if (!SbSocketIsValid(listen_socket)) {
@@ -494,7 +494,7 @@ ConnectedTrio CreateAndConnect(SbSocketAddressType server_address_type,
   }
 
   // Spin until the accept happens (or we get impatient).
-  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+  int64_t start = CurrentMonotonicTime();
   SbSocket server_socket = AcceptBySpinning(listen_socket, timeout);
   if (!SbSocketIsValid(server_socket)) {
     ADD_FAILURE() << "Failed to accept within " << timeout;
@@ -510,7 +510,7 @@ scoped_ptr<ConnectedTrioWrapped> CreateAndConnectWrapped(
     SbSocketAddressType server_address_type,
     SbSocketAddressType client_address_type,
     int port,
-    SbTime timeout) {
+    int64_t timeout) {
   // Verify the listening socket.
   scoped_ptr<Socket> listen_socket =
       CreateListeningTcpSocketWrapped(server_address_type, port);
@@ -528,7 +528,7 @@ scoped_ptr<ConnectedTrioWrapped> CreateAndConnectWrapped(
   }
 
   // Spin until the accept happens (or we get impatient).
-  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+  int64_t start = CurrentMonotonicTime();
   scoped_ptr<Socket> server_socket =
       AcceptBySpinning(listen_socket.get(), timeout);
   if (!server_socket || !server_socket->IsValid()) {
@@ -540,17 +540,17 @@ scoped_ptr<ConnectedTrioWrapped> CreateAndConnectWrapped(
       listen_socket.Pass(), client_socket.Pass(), server_socket.Pass()));
 }
 
-SbTimeMonotonic TimedWait(SbSocketWaiter waiter) {
-  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+int64_t TimedWait(SbSocketWaiter waiter) {
+  int64_t start = CurrentMonotonicTime();
   SbSocketWaiterWait(waiter);
-  return SbTimeGetMonotonicNow() - start;
+  return CurrentMonotonicTime() - start;
 }
 
 // Waits on the given waiter, and returns the elapsed time.
-SbTimeMonotonic TimedWaitTimed(SbSocketWaiter waiter, SbTime timeout) {
-  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+int64_t TimedWaitTimed(SbSocketWaiter waiter, int64_t timeout) {
+  int64_t start = CurrentMonotonicTime();
   SbSocketWaiterWaitTimed(waiter, timeout);
-  return SbTimeGetMonotonicNow() - start;
+  return CurrentMonotonicTime() - start;
 }
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)

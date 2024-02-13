@@ -19,15 +19,16 @@
 
 #include "base/message_loop/message_loop.h"
 #include "base/run_loop.h"
+#include "base/time/time.h"
 #include "cobalt/bindings/testing/script_object_owner.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/testing/fake_script_value.h"
 #include "cobalt/script/wrappable.h"
+#include "starboard/common/time.h"
 #include "starboard/extension/media_session.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -72,7 +73,7 @@ class MockMediaSessionClient : public MediaSessionClient {
       if (current_change_count != session_change_count_) {
         break;
       }
-      SbThreadSleep(kSbTimeMillisecond);
+      SbThreadSleep(1 * base::Time::kMicrosecondsPerMillisecond);
     }
   }
   MediaSessionState GetMediaSessionState() const { return session_state_; }
@@ -90,7 +91,7 @@ class MockMediaSession : public MediaSession {
     return static_cast<MockMediaSessionClient*>(media_session_client());
   }
 
-  MOCK_CONST_METHOD0(GetMonotonicNow, SbTimeMonotonic());
+  MOCK_CONST_METHOD0(GetMonotonicNow, int64_t());
 };
 
 MATCHER_P(SeekTime, time, "") {
@@ -419,7 +420,7 @@ TEST(MediaSessionTest, PositionState) {
 
   MediaSessionState state;
 
-  SbTimeMonotonic start_time = 1111111111;
+  int64_t start_time = 1111111111;
 
   base::Optional<MediaPositionState> position_state;
   position_state.emplace();
@@ -433,8 +434,8 @@ TEST(MediaSessionTest, PositionState) {
 
   // Position state not yet reported
   state = session->mock_session_client()->GetMediaSessionState();
-  EXPECT_EQ(0,
-            state.GetCurrentPlaybackPosition(start_time + 999 * kSbTimeSecond));
+  EXPECT_EQ(0, state.GetCurrentPlaybackPosition(
+                   start_time + 999 * base::Time::kMicrosecondsPerSecond));
   EXPECT_EQ(0, state.duration());
   EXPECT_EQ(0.0, state.actual_playback_rate());
 
@@ -444,11 +445,13 @@ TEST(MediaSessionTest, PositionState) {
   session->SetPositionState(position_state);
   session->mock_session_client()->WaitForSessionStateChange();
   state = session->mock_session_client()->GetMediaSessionState();
-  EXPECT_EQ((10 + 50) * kSbTimeSecond,
-            state.GetCurrentPlaybackPosition(start_time + 50 * kSbTimeSecond));
-  EXPECT_EQ(100 * kSbTimeSecond,
-            state.GetCurrentPlaybackPosition(start_time + 150 * kSbTimeSecond));
-  EXPECT_EQ(100 * kSbTimeSecond, state.duration());
+  EXPECT_EQ((10 + 50) * base::Time::kMicrosecondsPerSecond,
+            state.GetCurrentPlaybackPosition(
+                start_time + 50 * base::Time::kMicrosecondsPerSecond));
+  EXPECT_EQ(100 * base::Time::kMicrosecondsPerSecond,
+            state.GetCurrentPlaybackPosition(
+                start_time + 150 * base::Time::kMicrosecondsPerSecond));
+  EXPECT_EQ(100 * base::Time::kMicrosecondsPerSecond, state.duration());
   EXPECT_EQ(1.0, state.actual_playback_rate());
 
   // Fast playback
@@ -457,11 +460,13 @@ TEST(MediaSessionTest, PositionState) {
   session->SetPositionState(position_state);
   session->mock_session_client()->WaitForSessionStateChange();
   state = session->mock_session_client()->GetMediaSessionState();
-  EXPECT_EQ((10 + 2 * 20) * kSbTimeSecond,
-            state.GetCurrentPlaybackPosition(start_time + 20 * kSbTimeSecond));
-  EXPECT_EQ(100 * kSbTimeSecond,
-            state.GetCurrentPlaybackPosition(start_time + 50 * kSbTimeSecond));
-  EXPECT_EQ(100 * kSbTimeSecond, state.duration());
+  EXPECT_EQ((10 + 2 * 20) * base::Time::kMicrosecondsPerSecond,
+            state.GetCurrentPlaybackPosition(
+                start_time + 20 * base::Time::kMicrosecondsPerSecond));
+  EXPECT_EQ(100 * base::Time::kMicrosecondsPerSecond,
+            state.GetCurrentPlaybackPosition(
+                start_time + 50 * base::Time::kMicrosecondsPerSecond));
+  EXPECT_EQ(100 * base::Time::kMicrosecondsPerSecond, state.duration());
   EXPECT_EQ(2.0, state.actual_playback_rate());
 
   // Reverse playback
@@ -470,11 +475,13 @@ TEST(MediaSessionTest, PositionState) {
   session->SetPositionState(position_state);
   session->mock_session_client()->WaitForSessionStateChange();
   state = session->mock_session_client()->GetMediaSessionState();
-  EXPECT_EQ(0 * kSbTimeSecond,
-            state.GetCurrentPlaybackPosition(start_time + 20 * kSbTimeSecond));
-  EXPECT_EQ((10 - 3) * kSbTimeSecond,
-            state.GetCurrentPlaybackPosition(start_time + 3 * kSbTimeSecond));
-  EXPECT_EQ(100 * kSbTimeSecond, state.duration());
+  EXPECT_EQ(0 * base::Time::kMicrosecondsPerSecond,
+            state.GetCurrentPlaybackPosition(
+                start_time + 20 * base::Time::kMicrosecondsPerSecond));
+  EXPECT_EQ((10 - 3) * base::Time::kMicrosecondsPerSecond,
+            state.GetCurrentPlaybackPosition(
+                start_time + 3 * base::Time::kMicrosecondsPerSecond));
+  EXPECT_EQ(100 * base::Time::kMicrosecondsPerSecond, state.duration());
   EXPECT_EQ(-1.0, state.actual_playback_rate());
 
   // Indefinite duration (live) playback
@@ -484,9 +491,11 @@ TEST(MediaSessionTest, PositionState) {
   session->SetPositionState(position_state);
   session->mock_session_client()->WaitForSessionStateChange();
   state = session->mock_session_client()->GetMediaSessionState();
-  EXPECT_EQ(10 * kSbTimeSecond + 1 * kSbTimeDay,
-            state.GetCurrentPlaybackPosition(start_time + 1 * kSbTimeDay));
-  EXPECT_EQ(kSbTimeMax, state.duration());
+  EXPECT_EQ(10 * base::Time::kMicrosecondsPerSecond +
+                1 * base::Time::kMicrosecondsPerDay,
+            state.GetCurrentPlaybackPosition(
+                start_time + 1 * base::Time::kMicrosecondsPerDay));
+  EXPECT_EQ(kSbInt64Max, state.duration());
   EXPECT_EQ(1.0, state.actual_playback_rate());
 
   // Paused playback
@@ -495,9 +504,10 @@ TEST(MediaSessionTest, PositionState) {
   session->set_playback_state(kMediaSessionPlaybackStatePaused);
   session->mock_session_client()->WaitForSessionStateChange();
   state = session->mock_session_client()->GetMediaSessionState();
-  EXPECT_EQ(10 * kSbTimeSecond,
-            state.GetCurrentPlaybackPosition(start_time + 999 * kSbTimeSecond));
-  EXPECT_EQ(kSbTimeMax, state.duration());
+  EXPECT_EQ(10 * base::Time::kMicrosecondsPerSecond,
+            state.GetCurrentPlaybackPosition(
+                start_time + 999 * base::Time::kMicrosecondsPerSecond));
+  EXPECT_EQ(kSbInt64Max, state.duration());
   EXPECT_EQ(0.0, state.actual_playback_rate());
   session->set_playback_state(kMediaSessionPlaybackStatePlaying);
 
@@ -506,8 +516,8 @@ TEST(MediaSessionTest, PositionState) {
   session->SetPositionState(base::nullopt);
   session->mock_session_client()->WaitForSessionStateChange();
   state = session->mock_session_client()->GetMediaSessionState();
-  EXPECT_EQ(0,
-            state.GetCurrentPlaybackPosition(start_time + 999 * kSbTimeSecond));
+  EXPECT_EQ(0, state.GetCurrentPlaybackPosition(
+                   start_time + 999 * base::Time::kMicrosecondsPerSecond));
   EXPECT_EQ(0, state.duration());
   EXPECT_EQ(0.0, state.actual_playback_rate());
 

@@ -534,17 +534,23 @@
                                         0 );
     }
 
-    if ( !face->var )
+    if ( !face->tt_var )
     {
       /* we want the metrics variations interface */
       /* from the `truetype' module only          */
       FT_Module  tt_module = FT_Get_Module( library, "truetype" );
 
 
-      face->var = ft_module_get_service( tt_module,
-                                         FT_SERVICE_ID_METRICS_VARIATIONS,
-                                         0 );
+      face->tt_var = ft_module_get_service( tt_module,
+                                            FT_SERVICE_ID_METRICS_VARIATIONS,
+                                            0 );
     }
+
+    if ( !face->face_var )
+      face->face_var = ft_module_get_service(
+                         &face->root.driver->root,
+                         FT_SERVICE_ID_METRICS_VARIATIONS,
+                         0 );
 #endif
 
     FT_TRACE2(( "SFNT driver\n" ));
@@ -1221,7 +1227,7 @@
 
         if ( count > 0 )
         {
-          FT_Memory        memory   = face->root.stream->memory;
+          FT_Memory        memory   = face->root.memory;
           FT_UShort        em_size  = face->header.Units_Per_EM;
           FT_Short         avgwidth = face->os2.xAvgCharWidth;
           FT_Size_Metrics  metrics;

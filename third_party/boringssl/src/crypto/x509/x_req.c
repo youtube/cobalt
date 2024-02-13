@@ -60,17 +60,16 @@
 #include <openssl/thread.h>
 #include <openssl/x509.h>
 
+#include "internal.h"
+
+
 /*
  * X509_REQ_INFO is handled in an unusual way to get round invalid encodings.
  * Some broken certificate requests don't encode the attributes field if it
  * is empty. This is in violation of PKCS#10 but we need to tolerate it. We
  * do this by making the attributes field OPTIONAL then using the callback to
  * initialise it to an empty STACK. This means that the field will be
- * correctly encoded unless we NULL out the field. As a result we no longer
- * need the req_kludge field because the information is now contained in the
- * attributes field: 1. If it is NULL then it's the invalid omission. 2. If
- * it is empty it is the correct encoding. 3. If it is not empty then some
- * attributes are present.
+ * correctly encoded unless we NULL out the field.
  */
 
 static int rinf_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
@@ -83,6 +82,9 @@ static int rinf_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
         if (!rinf->attributes)
             return 0;
     }
+
+    /* TODO(https://crbug.com/boringssl/467): Add an |ASN1_OP_D2I_POST| callback
+     * and check the version. */
     return 1;
 }
 
@@ -90,9 +92,7 @@ ASN1_SEQUENCE_enc(X509_REQ_INFO, enc, rinf_cb) = {
         ASN1_SIMPLE(X509_REQ_INFO, version, ASN1_INTEGER),
         ASN1_SIMPLE(X509_REQ_INFO, subject, X509_NAME),
         ASN1_SIMPLE(X509_REQ_INFO, pubkey, X509_PUBKEY),
-        /* This isn't really OPTIONAL but it gets round invalid
-         * encodings
-         */
+        /* This isn't really OPTIONAL but it gets around invalid encodings. */
         ASN1_IMP_SET_OF_OPT(X509_REQ_INFO, attributes, X509_ATTRIBUTE, 0)
 } ASN1_SEQUENCE_END_enc(X509_REQ_INFO, X509_REQ_INFO)
 

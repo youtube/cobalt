@@ -1,28 +1,33 @@
 #!/usr/bin/env python3
 #
-# Copyright 2018 The Chromium Authors. All rights reserved.
+# Copyright 2018 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 """Create an Android application bundle from one or more bundle modules."""
 
 import argparse
+import concurrent.futures
 import json
+import logging
 import os
+import posixpath
 import shutil
 import sys
+from xml.etree import ElementTree
 import zipfile
 
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir)))
 from pylib.utils import dexdump
 
+import bundletool
 from util import build_utils
 from util import manifest_utils
 from util import resource_utils
-from xml.etree import ElementTree
+import action_helpers  # build_utils adds //build to sys.path.
+import zip_helpers
 
-import bundletool
 
 # Location of language-based assets in bundle modules.
 _LOCALES_SUBDIR = 'assets/locales/'
@@ -60,6 +65,11 @@ _UNCOMPRESSED_FILE_EXTS = [
     'xmf'
 ]
 
+_COMPONENT_TYPES = ('activity', 'provider', 'receiver', 'service')
+_DEDUPE_ENTRY_TYPES = _COMPONENT_TYPES + ('activity-alias', 'meta-data')
+
+_ROTATION_METADATA_KEY = 'com.google.play.apps.signing/RotationConfig.textproto'
+
 
 def _ParseArgs(args):
   parser = argparse.ArgumentParser()
@@ -88,6 +98,9 @@ def _ParseArgs(args):
       '--compress-shared-libraries',
       action='store_true',
       help='Whether to store native libraries compressed.')
+  parser.add_argument('--compress-dex',
+                      action='store_true',
+                      help='Compress .dex files')
   parser.add_argument('--split-dimensions',
                       help="GN-list of split dimensions to support.")
   parser.add_argument(
@@ -100,6 +113,8 @@ def _ParseArgs(args):
       'listed there _and_ in --base-module-rtxt-path will '
       'be kept in the base bundle module, even if language'
       ' splitting is enabled.')
+  parser.add_argument('--rotation-config',
+                      help='Path to a RotationConfig.textproto')
   parser.add_argument('--warnings-as-errors',
                       action='store_true',
                       help='Treat all warnings as errors.')
@@ -110,30 +125,47 @@ def _ParseArgs(args):
       help='Check if services are in base module if isolatedSplits is enabled.')
 
   options = parser.parse_args(args)
-  options.module_zips = build_utils.ParseGnList(options.module_zips)
-  options.rtxt_in_paths = build_utils.ParseGnList(options.rtxt_in_paths)
-  options.pathmap_in_paths = build_utils.ParseGnList(options.pathmap_in_paths)
+  options.module_zips = action_helpers.parse_gn_list(options.module_zips)
 
   if len(options.module_zips) == 0:
-    raise Exception('The module zip list cannot be empty.')
+    parser.error('The module zip list cannot be empty.')
+  if len(options.module_zips) != len(options.module_names):
+    parser.error('# module zips != # names.')
+  if 'base' not in options.module_names:
+    parser.error('Missing base module.')
+
+  # Sort modules for more stable outputs.
+  per_module_values = list(
+      zip(options.module_names, options.module_zips,
+          options.uncompressed_assets, options.rtxt_in_paths,
+          options.pathmap_in_paths))
+  per_module_values.sort(key=lambda x: (x[0] != 'base', x[0]))
+  options.module_names = [x[0] for x in per_module_values]
+  options.module_zips = [x[1] for x in per_module_values]
+  options.uncompressed_assets = [x[2] for x in per_module_values]
+  options.rtxt_in_paths = [x[3] for x in per_module_values]
+  options.pathmap_in_paths = [x[4] for x in per_module_values]
+
+  options.rtxt_in_paths = action_helpers.parse_gn_list(options.rtxt_in_paths)
+  options.pathmap_in_paths = action_helpers.parse_gn_list(
+      options.pathmap_in_paths)
 
   # Merge all uncompressed assets into a set.
   uncompressed_list = []
-  if options.uncompressed_assets:
-    for l in options.uncompressed_assets:
-      for entry in build_utils.ParseGnList(l):
-        # Each entry has the following format: 'zipPath' or 'srcPath:zipPath'
-        pos = entry.find(':')
-        if pos >= 0:
-          uncompressed_list.append(entry[pos + 1:])
-        else:
-          uncompressed_list.append(entry)
+  for entry in action_helpers.parse_gn_list(options.uncompressed_assets):
+    # Each entry has the following format: 'zipPath' or 'srcPath:zipPath'
+    pos = entry.find(':')
+    if pos >= 0:
+      uncompressed_list.append(entry[pos + 1:])
+    else:
+      uncompressed_list.append(entry)
 
   options.uncompressed_assets = set(uncompressed_list)
 
   # Check that all split dimensions are valid
   if options.split_dimensions:
-    options.split_dimensions = build_utils.ParseGnList(options.split_dimensions)
+    options.split_dimensions = action_helpers.parse_gn_list(
+        options.split_dimensions)
     for dim in options.split_dimensions:
       if dim.upper() not in _ALL_SPLIT_DIMENSIONS:
         parser.error('Invalid split dimension "%s" (expected one of: %s)' % (
@@ -162,13 +194,15 @@ def _MakeSplitDimension(value, enabled):
   return {'value': value, 'negate': not enabled}
 
 
-def _GenerateBundleConfigJson(uncompressed_assets, compress_shared_libraries,
-                              split_dimensions, base_master_resource_ids):
+def _GenerateBundleConfigJson(uncompressed_assets, compress_dex,
+                              compress_shared_libraries, split_dimensions,
+                              base_master_resource_ids):
   """Generate a dictionary that can be written to a JSON BuildConfig.
 
   Args:
     uncompressed_assets: A list or set of file paths under assets/ that always
       be stored uncompressed.
+    compressed_dex: Boolean, whether to compress .dex.
     compress_shared_libraries: Boolean, whether to compress native libs.
     split_dimensions: list of split dimensions.
     base_master_resource_ids: Optional list of 32-bit resource IDs to keep
@@ -185,16 +219,22 @@ def _GenerateBundleConfigJson(uncompressed_assets, compress_shared_libraries,
   split_dimensions = [ _MakeSplitDimension(dim, dim in split_dimensions)
                        for dim in _ALL_SPLIT_DIMENSIONS ]
 
-  # Native libraries loaded by the crazy linker.
-  # Whether other .so files are compressed is controlled by
-  # "uncompressNativeLibraries".
-  uncompressed_globs = ['lib/*/crazy.*']
   # Locale-specific pak files stored in bundle splits need not be compressed.
+  uncompressed_globs = [
+      'assets/locales#lang_*/*.pak', 'assets/fallback-locales/*.pak'
+  ]
+  # normpath to allow for ../ prefix.
   uncompressed_globs.extend(
-      ['assets/locales#lang_*/*.pak', 'assets/fallback-locales/*.pak'])
-  uncompressed_globs.extend('assets/' + x for x in uncompressed_assets)
+      posixpath.normpath('assets/' + x) for x in uncompressed_assets)
   # NOTE: Use '**' instead of '*' to work through directories!
   uncompressed_globs.extend('**.' + ext for ext in _UNCOMPRESSED_FILE_EXTS)
+  if not compress_dex:
+    # Explicit glob required only when using bundletool to create .apks files.
+    # Play Store looks for and respects "uncompressDexFiles" set below.
+    # b/176198991
+    # This is added as a placeholder entry in order to have no effect unless
+    # processed with app_bundle_utils.GenerateBundleApks().
+    uncompressed_globs.append('classesX.dex')
 
   data = {
       'optimizations': {
@@ -298,11 +338,10 @@ def _SplitModuleForAssetTargeting(src_module_zip, tmp_dir, split_dimensions):
         if src_path in language_files:
           dst_path = _RewriteLanguageAssetPath(src_path)
 
-        build_utils.AddToZipHermetic(
-            dst_zip,
-            dst_path,
-            data=src_zip.read(src_path),
-            compress=is_compressed)
+        zip_helpers.add_to_zip_hermetic(dst_zip,
+                                        dst_path,
+                                        data=src_zip.read(src_path),
+                                        compress=is_compressed)
 
     return tmp_zip
 
@@ -382,10 +421,14 @@ def _WriteBundlePathmap(module_pathmap_paths, module_names,
 
 
 def _GetManifestForModule(bundle_path, module_name):
-  return ElementTree.fromstring(
-      bundletool.RunBundleTool([
-          'dump', 'manifest', '--bundle', bundle_path, '--module', module_name
-      ]))
+  data = bundletool.RunBundleTool(
+      ['dump', 'manifest', '--bundle', bundle_path, '--module', module_name])
+  try:
+    return ElementTree.fromstring(data)
+  except ElementTree.ParseError:
+    sys.stderr.write('Failed to parse:\n')
+    sys.stderr.write(data)
+    raise
 
 
 def _GetComponentNames(manifest, tag_name):
@@ -393,77 +436,89 @@ def _GetComponentNames(manifest, tag_name):
   return [s.attrib.get(android_name) for s in manifest.iter(tag_name)]
 
 
-def _MaybeCheckServicesAndProvidersPresentInBase(bundle_path, module_zips):
-  """Checks bundles with isolated splits define all services in the base module.
+def _ClassesFromZip(module_zip):
+  classes = set()
+  for package in dexdump.Dump(module_zip):
+    for java_package, package_dict in package.items():
+      java_package += '.' if java_package else ''
+      classes.update(java_package + c for c in package_dict['classes'])
+  return classes
 
-  Due to b/169196314, service classes are not found if they are not present in
-  the base module. Providers are also checked because they are loaded early in
-  startup, and keeping them in the base module gives more time for the chrome
-  split to load.
-  """
-  base_manifest = _GetManifestForModule(bundle_path, 'base')
-  isolated_splits = base_manifest.get('{%s}isolatedSplits' %
-                                      manifest_utils.ANDROID_NAMESPACE)
-  if isolated_splits != 'true':
-    return
+
+def _ValidateSplits(bundle_path, module_zips):
+  logging.info('Reading manifests and running dexdump')
+  base_zip = next(p for p in module_zips if os.path.basename(p) == 'base.zip')
+  module_names = sorted(os.path.basename(p)[:-len('.zip')] for p in module_zips)
+  # Using threads makes these step go from 7s -> 1s on my machine.
+  with concurrent.futures.ThreadPoolExecutor() as executor:
+    # Create list of classes from the base module's dex.
+    classes_future = executor.submit(_ClassesFromZip, base_zip)
+
+    # Create xmltrees of all module manifests.
+    manifest_futures = [
+        executor.submit(_GetManifestForModule, bundle_path, n)
+        for n in module_names
+    ]
+    manifests_by_name = dict(
+        zip(module_names, (f.result() for f in manifest_futures)))
+    base_classes = classes_future.result()
 
   # Collect service names from all split manifests.
-  base_zip = None
-  service_names = _GetComponentNames(base_manifest, 'service')
-  provider_names = _GetComponentNames(base_manifest, 'provider')
-  for module_zip in module_zips:
-    name = os.path.basename(module_zip)[:-len('.zip')]
-    if name == 'base':
-      base_zip = module_zip
-    else:
-      service_names.extend(
-          _GetComponentNames(_GetManifestForModule(bundle_path, name),
-                             'service'))
-      module_providers = _GetComponentNames(
-          _GetManifestForModule(bundle_path, name), 'provider')
-      if module_providers:
-        raise Exception("Providers should all be declared in the base manifest."
-                        " '%s' module declared: %s" % (name, module_providers))
+  logging.info('Performing checks')
+  errors = []
 
-  # Extract classes from the base module's dex.
-  classes = set()
-  base_package_name = manifest_utils.GetPackage(base_manifest)
-  for package in dexdump.Dump(base_zip):
-    for name, package_dict in package.items():
-      if not name:
-        name = base_package_name
-      classes.update('%s.%s' % (name, c)
-                     for c in package_dict['classes'].keys())
+  # Ensure there are no components defined in multiple splits.
+  splits_by_component = {}
+  for module_name, cur_manifest in manifests_by_name.items():
+    for kind in _DEDUPE_ENTRY_TYPES:
+      for component in _GetComponentNames(cur_manifest, kind):
+        owner_module_name = splits_by_component.setdefault((kind, component),
+                                                           module_name)
+        # Allow services that exist only to keep <meta-data> out of
+        # ApplicationInfo.
+        if (owner_module_name != module_name
+            and not component.endswith('HolderService')):
+          errors.append(f'The {kind} "{component}" appeared in both '
+                        f'{owner_module_name} and {module_name}.')
 
-  ignored_service_names = {
-      # Defined in the chime DFM manifest, but unused.
-      # org.chromium.chrome.browser.chime.ScheduledTaskService is used instead.
-      ("com.google.android.libraries.notifications.entrypoints.scheduled."
-       "ScheduledTaskService"),
+  # Ensure components defined in base manifest exist in base dex.
+  for (kind, component), module_name in splits_by_component.items():
+    if module_name == 'base' and kind in _COMPONENT_TYPES:
+      if component not in base_classes:
+        errors.append(f"{component} is defined in the base manfiest, "
+                      f"but the class does not exist in the base splits' dex")
 
-      # Defined in the chime DFM manifest, only used pre-O (where isolated
-      # splits are not supported).
-      ("com.google.android.libraries.notifications.executor.impl.basic."
-       "ChimeExecutorApiService"),
-  }
+  # Remaining checks apply only when isolatedSplits="true".
+  isolated_splits = manifests_by_name['base'].get(
+      f'{manifest_utils.ANDROID_NAMESPACE}isolatedSplits')
+  if isolated_splits != 'true':
+    return errors
 
-  # Ensure all services are present in base module.
-  for service_name in service_names:
-    if service_name not in classes:
-      if service_name in ignored_service_names:
-        continue
-      raise Exception("Service %s should be present in the base module's dex."
+  # Ensure all providers are present in base module. We enforce this because
+  # providers are loaded early in startup, and keeping them in the base module
+  # gives more time for the chrome split to load.
+  for module_name, cur_manifest in manifests_by_name.items():
+    if module_name == 'base':
+      continue
+    provider_names = _GetComponentNames(cur_manifest, 'provider')
+    if provider_names:
+      errors.append('Providers should all be declared in the base manifest.'
+                    ' "%s" module declared: %s' % (module_name, provider_names))
+
+  # Ensure all services are present in base module because service classes are
+  # not found if they are not present in the base module. b/169196314
+  # It is fine if they are defined in split manifests though.
+  for cur_manifest in manifests_by_name.values():
+    for service_name in _GetComponentNames(cur_manifest, 'service'):
+      if service_name not in base_classes:
+        errors.append("Service %s should be present in the base module's dex."
                       " See b/169196314 for more details." % service_name)
 
-  # Ensure all providers are present in base module.
-  for provider_name in provider_names:
-    if provider_name not in classes:
-      raise Exception(
-          "Provider %s should be present in the base module's dex." %
-          provider_name)
+  return errors
 
 
 def main(args):
+  build_utils.InitLogging('AAB_DEBUG')
   args = build_utils.ExpandFileArgs(args)
   options = _ParseArgs(args)
 
@@ -473,18 +528,23 @@ def main(args):
 
 
   with build_utils.TempDir() as tmp_dir:
+    logging.info('Splitting locale assets')
     module_zips = [
         _SplitModuleForAssetTargeting(module, tmp_dir, split_dimensions) \
         for module in options.module_zips]
 
     base_master_resource_ids = None
     if options.base_module_rtxt_path:
+      logging.info('Creating R.txt allowlist')
       base_master_resource_ids = _GenerateBaseResourcesAllowList(
           options.base_module_rtxt_path, options.base_allowlist_rtxt_path)
 
-    bundle_config = _GenerateBundleConfigJson(
-        options.uncompressed_assets, options.compress_shared_libraries,
-        split_dimensions, base_master_resource_ids)
+    logging.info('Creating BundleConfig.pb.json')
+    bundle_config = _GenerateBundleConfigJson(options.uncompressed_assets,
+                                              options.compress_dex,
+                                              options.compress_shared_libraries,
+                                              split_dimensions,
+                                              base_master_resource_ids)
 
     tmp_bundle = os.path.join(tmp_dir, 'tmp_bundle')
 
@@ -495,7 +555,8 @@ def main(args):
     with open(tmp_bundle_config, 'w') as f:
       f.write(bundle_config)
 
-    cmd_args = build_utils.JavaCmd(options.warnings_as_errors) + [
+    logging.info('Running bundletool')
+    cmd_args = build_utils.JavaCmd() + [
         '-jar',
         bundletool.BUNDLETOOL_JAR_PATH,
         'build-bundle',
@@ -503,6 +564,11 @@ def main(args):
         '--output=' + tmp_bundle,
         '--config=' + tmp_bundle_config,
     ]
+
+    if options.rotation_config:
+      cmd_args += [
+          f'--metadata-file={_ROTATION_METADATA_KEY}:{options.rotation_config}'
+      ]
 
     build_utils.CheckOutput(
         cmd_args,
@@ -516,8 +582,15 @@ def main(args):
       # isolated splits disabled and 2s for bundles with isolated splits
       # enabled.  Consider making this run in parallel or move into a separate
       # step before enabling isolated splits by default.
-      _MaybeCheckServicesAndProvidersPresentInBase(tmp_bundle, module_zips)
+      logging.info('Validating isolated split manifests')
+      errors = _ValidateSplits(tmp_bundle, module_zips)
+      if errors:
+        sys.stderr.write('Bundle failed sanity checks:\n  ')
+        sys.stderr.write('\n  '.join(errors))
+        sys.stderr.write('\n')
+        sys.exit(1)
 
+    logging.info('Writing final output artifacts')
     shutil.move(tmp_bundle, options.out_bundle)
 
   if options.rtxt_out_path:

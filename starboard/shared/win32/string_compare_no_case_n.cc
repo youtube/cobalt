@@ -16,8 +16,10 @@
 
 #include <string.h>
 
+#if SB_API_VERSION < 16
 int SbStringCompareNoCaseN(const char* string1,
                            const char* string2,
                            size_t count) {
   return _strnicmp(string1, string2, count);
 }
+#endif

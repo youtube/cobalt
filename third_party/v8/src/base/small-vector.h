@@ -34,7 +34,7 @@ class SmallVector {
   SmallVector(SmallVector&& other) V8_NOEXCEPT { *this = std::move(other); }
   SmallVector(std::initializer_list<T> init) {
     resize_no_init(init.size());
-    memcpy(begin_, init.begin(), sizeof(T) * init.size());
+    base::Memcpy(begin_, init.begin(), sizeof(T) * init.size());
   }
 
   ~SmallVector() {
@@ -50,7 +50,7 @@ class SmallVector {
       begin_ = reinterpret_cast<T*>(base::Malloc(sizeof(T) * other_size));
       end_of_storage_ = begin_ + other_size;
     }
-    memcpy(begin_, other.begin_, sizeof(T) * other_size);
+    base::Memcpy(begin_, other.begin_, sizeof(T) * other_size);
     end_ = begin_ + other_size;
     return *this;
   }
@@ -66,7 +66,7 @@ class SmallVector {
     } else {
       DCHECK_GE(capacity(), other.size());  // Sanity check.
       size_t other_size = other.size();
-      memcpy(begin_, other.begin_, sizeof(T) * other_size);
+      base::Memcpy(begin_, other.begin_, sizeof(T) * other_size);
       end_ = begin_ + other_size;
     }
     return *this;
@@ -154,7 +154,7 @@ class SmallVector {
         base::bits::RoundUpToPowerOfTwo(std::max(min_capacity, 2 * capacity()));
     T* new_storage =
         reinterpret_cast<T*>(base::Malloc(sizeof(T) * new_capacity));
-    memcpy(new_storage, begin_, sizeof(T) * in_use);
+    base::Memcpy(new_storage, begin_, sizeof(T) * in_use);
     if (is_big()) base::Free(begin_);
     begin_ = new_storage;
     end_ = new_storage + in_use;

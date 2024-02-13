@@ -56,7 +56,6 @@
 #include "cobalt/script/exception_state.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/event.h"
-#include "starboard/time.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -245,7 +244,7 @@ class Document : public Node,
 
   FontCache* font_cache() const { return font_cache_.get(); }
 
-  scoped_refptr<HTMLHtmlElement> html() const;
+  scoped_refptr<HTMLElement> html() const;
 
   // List of scripts that will execute in order as soon as possible.
   //   https://www.w3.org/TR/html50/scripting-1.html#list-of-scripts-that-will-execute-in-order-as-soon-as-possible
@@ -333,7 +332,8 @@ class Document : public Node,
 
   // Track UI navigation system's focus element.
   const void* ui_nav_focus_element() const { return ui_nav_focus_element_; }
-  bool TrySetUiNavFocusElement(const void* focus_element, SbTimeMonotonic time);
+  bool TrySetUiNavFocusElement(const void* focus_element,
+                               int64_t monotonic_time);
 
   // Track HTML elements that are UI navigation items. This facilitates updating
   // their layout information as needed.
@@ -635,9 +635,9 @@ class Document : public Node,
   // not meant to be dereferenced.
   const void* ui_nav_focus_element_ = nullptr;
 
-  // Since UI navigation involves multiple threads, use a timestamp to help
-  // filter out obsolete focus changes.
-  SbTimeMonotonic ui_nav_focus_element_update_time_ = 0;
+  // Since UI navigation involves multiple threads, use a monotonic timestamp to
+  // help filter out obsolete focus changes.
+  int64_t ui_nav_focus_element_update_time_ = 0;
 
   // Track all HTMLElements in this document which are UI navigation items.
   // These should be raw pointers to avoid affecting the elements' ref counts.

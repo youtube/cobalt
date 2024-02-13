@@ -22,8 +22,6 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "starboard/time.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -284,9 +282,9 @@ typedef struct CobaltExtensionDemuxerBuffer {
   // Number of elements in |side_data|.
   int64_t side_data_elements;
   // Playback time in microseconds.
-  SbTime pts;
+  int64_t pts;
   // Duration of this buffer in microseconds.
-  SbTime duration;
+  int64_t duration;
   // True if this buffer contains a keyframe.
   bool is_keyframe;
   // Signifies the end of the stream. If this is true, the other fields will be
@@ -310,15 +308,16 @@ typedef struct CobaltExtensionDemuxer {
   // fail.
   CobaltExtensionDemuxerStatus (*Initialize)(void* user_data);
 
-  CobaltExtensionDemuxerStatus (*Seek)(SbTime seek_time, void* user_data);
+  CobaltExtensionDemuxerStatus (*Seek)(int64_t seek_time, void* user_data);
 
-  // Returns the starting time for the media file; it is always positive.
-  SbTime (*GetStartTime)(void* user_data);
+  // Returns the starting time -- in microseconds since Windows epoch -- for the
+  // media file; it is always positive.
+  int64_t (*GetStartTime)(void* user_data);
 
   // Returns the time -- in microseconds since Windows epoch -- represented by
   // presentation timestamp 0. If the timestamps are not associated with a time,
   // returns 0.
-  SbTime (*GetTimelineOffset)(void* user_data);
+  int64_t (*GetTimelineOffset)(void* user_data);
 
   // Calls |read_cb| with a buffer of type |type| and the user data provided by
   // |read_cb_user_data|. |read_cb| is a synchronous function, so the data
@@ -346,7 +345,7 @@ typedef struct CobaltExtensionDemuxer {
                          void* user_data);
 
   // Returns the duration, in microseconds.
-  SbTime (*GetDuration)(void* user_data);
+  int64_t (*GetDuration)(void* user_data);
 
   // Will be passed to all functions.
   void* user_data;

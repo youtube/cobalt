@@ -38,7 +38,7 @@ TEST(SbThreadLocalValueTest, ThreadJoinWaitsForFunctionRun) {
   struct LocalStatic {
     static void* ThreadEntryPoint(void* input) {
       int* value = static_cast<int*>(input);
-      static const SbTime kSleepTime = 10 * kSbTimeMillisecond;  // 10 ms.
+      static const int64_t kSleepTime = 10'000;  // 10 ms.
       // Wait to write the value to increase likelihood of catching
       // a race condition.
       SbThreadSleep(kSleepTime);

@@ -17,6 +17,7 @@
 #include "include/private/SkTArray.h"
 #include "include/private/SkTo.h"
 #include "modules/skottie/include/SkottieProperty.h"
+#include "modules/skottie/src/Composition.h"
 #include "modules/skottie/src/SkottieAdapter.h"
 #include "modules/skottie/src/SkottieJson.h"
 #include "modules/skottie/src/SkottiePriv.h"
@@ -35,10 +36,6 @@
 #include <cmath>
 
 #include "stdlib.h"
-
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif
 
 namespace skottie {
 
@@ -293,7 +290,7 @@ std::unique_ptr<sksg::Scene> AnimationBuilder::parse(const skjson::ObjectValue& 
     this->parseFonts(jroot["fonts"], jroot["chars"]);
 
     AutoScope ascope(this);
-    auto root = this->attachComposition(jroot);
+    auto root = CompositionBuilder(*this, jroot).build(*this);
 
     auto animators = ascope.release();
     fStats->fAnimatorCount = animators.size();
@@ -407,19 +404,6 @@ void AnimationBuilder::AutoPropertyTracker::updateContext(PropertyObserver* obse
 }
 
 } // namespace internal
-
-sk_sp<SkData> ResourceProvider::load(const char[], const char[]) const {
-    return nullptr;
-}
-
-sk_sp<ImageAsset> ResourceProvider::loadImageAsset(const char path[], const char name[],
-                                                   const char id[]) const {
-    return nullptr;
-}
-
-sk_sp<SkData> ResourceProvider::loadFont(const char[], const char[]) const {
-    return nullptr;
-}
 
 void Logger::log(Level, const char[], const char*) {}
 
@@ -566,11 +550,7 @@ Animation::Animation(std::unique_ptr<sksg::Scene> scene, SkString version, const
     , fOutPoint(outPoint)
     , fDuration(duration)
     , fFPS(fps)
-    , fFlags(flags) {
-
-    // In case the client calls render before the first tick.
-    this->seek(0);
-}
+    , fFlags(flags) {}
 
 Animation::~Animation() = default;
 

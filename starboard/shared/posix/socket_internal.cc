@@ -16,10 +16,10 @@
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <string.h>
 #include <sys/socket.h>
 
 #include "starboard/common/log.h"
-#include "starboard/memory.h"
 
 namespace starboard {
 namespace shared {

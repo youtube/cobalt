@@ -12,9 +12,6 @@
 #include "net/dns/dns_util.h"
 #include "net/dns/record_rdata.h"
 
-#include "starboard/client_porting/poem/string_poem.h"
-#include "starboard/memory.h"
-
 namespace net {
 
 namespace {

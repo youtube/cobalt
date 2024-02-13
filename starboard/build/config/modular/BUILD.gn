@@ -13,6 +13,7 @@
 # limitations under the License.
 
 config("modular") {
+  ldflags = []
   cflags = [
     "-ffunction-sections",
     "-fdata-sections",
@@ -81,8 +82,8 @@ config("modular") {
     ]
     if (!cobalt_fastbuild) {
       cflags += [
-        # This flag causes an increase in binary size on certain platforms. Refer b/297357707
-        "-g",
+        # Use -gline-tables-only to ease the impact of increased size. Refer b/307760111
+        "-gline-tables-only",
       ]
     }
   } else {
@@ -169,6 +170,27 @@ config("modular") {
     ]
 
     defines += [ "THREAD_SANITIZER" ]
+  }
+
+  # Wrap underlying POSIX implementations to be cross-compatible with
+  # musl-based types that are used in modular builds. Evergreen builds use
+  # a different map-based wrapping of these POSIX APIs.
+  # Note that the corresponding implementations of these wrappers need to be
+  # compiled into the Starboard shared library, which is handled in
+  # //starboard/build/config/starboard_target_type.gni.
+  if (!sb_is_evergreen && current_toolchain == cobalt_toolchain) {
+    ldflags += [
+      "-Wl,--wrap=clock_gettime",
+      "-Wl,--wrap=gettimeofday",
+      "-Wl,--wrap=time",
+      "-Wl,--wrap=gmtime_r",
+      "-Wl,--wrap=mmap",
+      "-Wl,--wrap=pthread_mutex_destroy",
+      "-Wl,--wrap=pthread_mutex_init",
+      "-Wl,--wrap=pthread_mutex_lock",
+      "-Wl,--wrap=pthread_mutex_unlock",
+      "-Wl,--wrap=pthread_mutex_trylock",
+    ]
   }
 }
 

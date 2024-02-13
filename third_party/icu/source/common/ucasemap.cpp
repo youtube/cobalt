@@ -18,9 +18,6 @@
 *   Case mapping service object and functions using it.
 */
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif  // defined(STARBOARD)
 #include "unicode/utypes.h"
 #include "unicode/brkiter.h"
 #include "unicode/bytestream.h"

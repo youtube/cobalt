@@ -19,6 +19,8 @@ config("platform_configuration") {
   cflags_cc = [ "-std=gnu++17" ]
   ldflags = [ "-static-libstdc++" ]
 
+  libs = [ "pthread" ]
+
   if (is_debug) {
     cflags += [ "-O0" ]
     configs += [ "//build/config/compiler:rtti" ]

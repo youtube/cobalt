@@ -93,7 +93,7 @@
         'process/process_metrics_win.cc',
         'rand_util.cc',
         'rand_util.h',
-        'scoped_clear_errno.h',
+        'scoped_clear_last_error.h',
         'scoped_generic.h',
         'stl_util.h',
         'strings/string16.cc',

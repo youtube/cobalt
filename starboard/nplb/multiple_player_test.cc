@@ -100,7 +100,7 @@ void WriteSamples(const SbPlayerTestConfig& player_config,
     return;
   }
 
-  const SbTime kDurationToPlay = kSbTimeMillisecond * 200;
+  const int64_t kDurationToPlay = 200'000;  // 200ms
 
   GroupedSamples samples;
   if (player_fixture.HasAudio()) {

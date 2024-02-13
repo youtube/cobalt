@@ -163,9 +163,9 @@ bool GetFirmwareVersion(char* out_value, int value_length) {
   // the output parameter.
   std::vector<char> out_path_copy(kSbFileMaxPath + 1, 0);
   int len = std::min<int>(kSbFileMaxPath, value_length);
-  int return_value = SbStringFormatF(
-      out_path_copy.data(), len, "%u.%u.%u.%u", version.major_version,
-      version.minor_version, version.build_version, version.revision);
+  int return_value =
+      snprintf(out_path_copy.data(), len, "%u.%u.%u.%u", version.major_version,
+               version.minor_version, version.build_version, version.revision);
 
   const bool ok = ((return_value > 0) && (return_value < value_length));
   if (ok) {
@@ -235,8 +235,8 @@ bool GetPlatformName(char* out_value, int value_length) {
   os_version_buffer[0] = '\0';
 
   int return_value =
-      SbStringFormatF(os_version_buffer, value_length, "%u.%u",
-                      os_version.major_version, os_version.minor_version);
+      snprintf(os_version_buffer, value_length, "%u.%u",
+               os_version.major_version, os_version.minor_version);
   if ((return_value < 0) || (return_value >= value_length)) {
     return false;
   }

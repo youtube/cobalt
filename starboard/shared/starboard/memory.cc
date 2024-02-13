@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/memory.h"
 #include "starboard/atomic.h"
 #include "starboard/common/log.h"
@@ -124,3 +126,5 @@ inline void* SbMemoryReallocateImpl(void* memory, size_t size) {
 }
 
 }  // namespace
+
+#endif  // SB_API_VERSION < 16

@@ -30,9 +30,6 @@
 #endif
 // #define UCPTRIE_DEBUG
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif  // defined(STARBOARD)
 #include "unicode/utypes.h"
 #ifdef UCPTRIE_DEBUG
 #include "unicode/ucptrie.h"

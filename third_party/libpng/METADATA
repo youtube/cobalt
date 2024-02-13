@@ -4,11 +4,19 @@ description:
   "encoding and decoding PNG images."
 
 third_party {
-  url {
-    type: GIT
-    value: "https://chromium.googlesource.com/chromium/src"
+  identifier {
+    type: "ChromiumVersion"
+    value: "48.0.2564.116"  # from https://chromereleases.googleblog.com/2016/02/stable-channel-update_18.html
   }
-  version: "25.0.1364.173"
+  identifier {
+    type: "Git"
+    value: "https://chromium.googlesource.com/chromium/src.git"
+    version: "ba6eb95383b3c41f6b91ce448bdc2bd3e39e1b8b"
+  }
+  identifier {
+    type: "UpstreamSubdir"
+    value: "third_party/libpng"
+  }
   last_upgrade_date {
     year: 2011
     month: 7

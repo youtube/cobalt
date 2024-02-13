@@ -161,6 +161,8 @@ extern "C" {
 
 #ifdef STARBOARD
 #include "starboard/types.h"
+#include <stdlib.h>
+#include <string.h>
 #else
 #include "event-config.h"
 #ifdef _EVENT_HAVE_SYS_TYPES_H

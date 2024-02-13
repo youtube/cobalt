@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #if defined(USE_SYSTEM_ZLIB)
 #include <zlib.h>
 #else
@@ -44,11 +45,7 @@
 #endif
 
 #if defined(STARBOARD)
-#include "starboard/client_porting/poem/eztime_poem.h"
-#include "starboard/client_porting/poem/stdio_poem.h"
 #include "third_party/zlib/contrib/minizip/iostarboard.h"
-#else
-#include <time.h>
 #endif
 
 
@@ -537,8 +534,8 @@ local ZPOS64_T zip64local_SearchCentralDir(const zlib_filefunc64_32_def* pzlib_f
         break;
       }
 
-      if (uPosFound!=0)
-        break;
+    if (uPosFound!=0)
+      break;
   }
   TRYFREE(buf);
   return uPosFound;

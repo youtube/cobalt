@@ -25,9 +25,9 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-const std::string kManyFileSeparators = std::string(kSbFileSepString) +
-                                        kSbFileSepString + kSbFileSepString +
-                                        kSbFileSepString;
+const std::string kManyFileSeparators =  // NOLINT(runtime/string)
+    std::string(kSbFileSepString) + kSbFileSepString + kSbFileSepString +
+    kSbFileSepString;
 
 // NOTE: There is a test missing here, for creating a directory right off of the
 // root. But, this is likely to fail due to permissions, so we can't make a

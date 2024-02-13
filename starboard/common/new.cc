@@ -15,40 +15,41 @@
 // TODO: I believe this code will have to be linked into all DLLs on
 // Windows. I think Starboard can do this through GYP when the time comes.
 
+#include <stdlib.h>
 #include <new>
 
-#include "starboard/memory.h"
-
 void* operator new(size_t size) {
-  return SbMemoryAllocate(size);
+  return malloc(size);
 }
 
 void operator delete(void* pointer) noexcept {
-  SbMemoryDeallocate(pointer);
+  free(pointer);
 }
 
 void* operator new(size_t size, const std::nothrow_t& nothrow_tag) noexcept {
-  return SbMemoryAllocate(size);
+  return malloc(size);
 }
 
 void operator delete(void* pointer, const std::nothrow_t& nothrow_tag) {
-  SbMemoryDeallocate(pointer);
+  free(pointer);
 }
 
 void* operator new[](size_t size) {
-  return SbMemoryAllocate(size);
+  return malloc(size);
 }
 
 void operator delete[](void* pointer) noexcept {
-  SbMemoryDeallocate(pointer);
+  free(pointer);
 }
 
 #if __cpp_aligned_new
 void* operator new(size_t size, std::align_val_t align) {
-  return SbMemoryAllocateAligned(static_cast<size_t>(align), size);
+  void* p = nullptr;
+  posix_memalign(&p, static_cast<size_t>(align), size);
+  return p;
 }
 
 void operator delete(void* pointer, std::align_val_t align) {
-  SbMemoryDeallocateAligned(pointer);
+  free(pointer);
 }
 #endif

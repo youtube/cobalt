@@ -37,6 +37,7 @@ const char kCaptureModeIncludeCookiesAndCredentials[] =
 const char kCaptureModeIncludeSocketBytes[] = "IncludeSocketBytes";
 const char kDefaultNetLogName[] = "cobalt_netlog.json";
 #endif
+constexpr size_t kNetworkModuleStackSize = 512 * 1024;
 }  // namespace
 
 NetworkModule::NetworkModule(const Options& options) : options_(options) {
@@ -113,18 +114,6 @@ void NetworkModule::SetEnableQuicFromPersistentSettings() {
   }
 }
 
-void NetworkModule::SetEnableClientHintHeadersFlagsFromPersistentSettings() {
-  // Called on initialization and when the persistent setting is changed.
-  // If persistent setting is not set, will default to
-  // kCallTypeLoader | kCallTypeXHR.
-  if (options_.persistent_settings != nullptr) {
-    enable_client_hint_headers_flags_.store(
-        options_.persistent_settings->GetPersistentSettingAsInt(
-            kClientHintHeadersEnabledPersistentSettingsKey,
-            (kCallTypeLoader | kCallTypeXHR)));
-  }
-}
-
 void NetworkModule::EnsureStorageManagerStarted() {
   DCHECK(storage_manager_);
   storage_manager_->EnsureStarted();
@@ -143,8 +132,6 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
   http_user_agent_settings_.reset(new net::StaticHttpUserAgentSettings(
       options_.preferred_language, user_agent_string));
 
-  SetEnableClientHintHeadersFlagsFromPersistentSettings();
-
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
 
@@ -158,7 +145,7 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
   if (command_line->HasSwitch(switches::kMaxNetworkDelay)) {
     base::StringToInt64(
         command_line->GetSwitchValueASCII(switches::kMaxNetworkDelay),
-        &options_.max_network_delay);
+        &options_.max_network_delay_usec);
   }
 
 #if defined(ENABLE_NETWORK_LOGGING)
@@ -189,7 +176,10 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
   // Launch the IO thread.
   base::Thread::Options thread_options;
   thread_options.message_loop_type = base::MessageLoop::TYPE_IO;
-  thread_options.stack_size = 256 * 1024;
+  // Without setting a stack size here, the system default will be used
+  // which can be quite a bit larger (e.g. 4MB on Linux)
+  // Setting it manually keeps it managed.
+  thread_options.stack_size = kNetworkModuleStackSize;
   thread_options.priority = base::ThreadPriority::NORMAL;
   thread_->StartWithOptions(thread_options);
 
@@ -244,7 +234,7 @@ void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
 
 void NetworkModule::AddClientHintHeaders(
     net::URLFetcher& url_fetcher, ClientHintHeadersCallType call_type) const {
-  if (enable_client_hint_headers_flags_.load() & call_type) {
+  if (kEnabledClientHintHeaders & call_type) {
     for (const auto& header : client_hint_headers_) {
       url_fetcher.AddExtraRequestHeader(header);
     }

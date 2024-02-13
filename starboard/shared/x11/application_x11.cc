@@ -16,6 +16,7 @@
 
 #include <math.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #define XK_3270  // for XK_3270_BackTab
 #include <X11/XF86keysym.h>
@@ -33,14 +34,11 @@
 #include "starboard/event.h"
 #include "starboard/input.h"
 #include "starboard/key.h"
-#include "starboard/memory.h"
 #include "starboard/player.h"
 #include "starboard/shared/linux/system_network_status.h"
-#include "starboard/shared/posix/time_internal.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
 #include "starboard/shared/x11/window_internal.h"
-#include "starboard/time.h"
 
 namespace {
 const char kTouchscreenPointerSwitch[] = "touchscreen_pointer";
@@ -805,7 +803,7 @@ void ApplicationX11::Composite() {
     }
   }
   composite_event_id_ =
-      SbEventSchedule(&CompositeCallback, this, kSbTimeSecond / 60);
+      SbEventSchedule(&CompositeCallback, this, 1'000'000 / 60);
 }
 
 void ApplicationX11::AcceptFrame(SbPlayer player,
@@ -911,7 +909,7 @@ bool ApplicationX11::MayHaveSystemEvents() {
 }
 
 shared::starboard::Application::Event*
-ApplicationX11::WaitForSystemEventWithTimeout(SbTime time) {
+ApplicationX11::WaitForSystemEventWithTimeout(int64_t time) {
   SB_DCHECK(display_);
 
   shared::starboard::Application::Event* pending_event = GetPendingEvent();
@@ -1296,7 +1294,7 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
     case MotionNotify: {
       XMotionEvent* x_motion_event = reinterpret_cast<XMotionEvent*>(x_event);
       scoped_ptr<SbInputData> data(new SbInputData());
-      memset(data.get(), 0, sizeof(*data));
+      memset(reinterpret_cast<void*>(data.get()), 0, sizeof(*data));
       data->window = FindWindow(x_motion_event->window);
       SB_DCHECK(SbWindowIsValid(data->window));
       data->pressure = NAN;

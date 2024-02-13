@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Cobalt Platform Services"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Cobalt Platform Services
 
 _NOTE: The Cobalt Platform Services API replaces the deprecated Cobalt Custom Web API Extensions_

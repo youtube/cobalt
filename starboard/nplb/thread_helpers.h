@@ -20,7 +20,6 @@
 #include "starboard/common/semaphore.h"
 #include "starboard/configuration.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 #include "starboard/types.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
@@ -143,7 +142,7 @@ struct TakeThenSignalContext {
   TestSemaphore do_signal;
   SbMutex mutex;
   SbConditionVariable condition;
-  SbTime delay_after_signal;
+  int64_t delay_after_signal;
 };
 
 // AbstractTestThread that is a bare bones class wrapper around Starboard

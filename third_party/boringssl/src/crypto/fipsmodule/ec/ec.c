@@ -84,7 +84,7 @@
 static void ec_point_free(EC_POINT *point, int free_group);
 
 static const uint8_t kP224Params[6 * 28] = {
-    // p
+    // p = 2^224 - 2^96 + 1
     0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
     0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x01,
@@ -111,7 +111,7 @@ static const uint8_t kP224Params[6 * 28] = {
 };
 
 static const uint8_t kP256Params[6 * 32] = {
-    // p
+    // p = 2^256 - 2^224 + 2^192 + 2^96 - 1
     0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF,
     0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -138,7 +138,7 @@ static const uint8_t kP256Params[6 * 32] = {
 };
 
 static const uint8_t kP384Params[6 * 48] = {
-    // p
+    // p = 2^384 - 2^128 - 2^96 + 2^32 - 1
     0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
     0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
     0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -171,7 +171,7 @@ static const uint8_t kP384Params[6 * 48] = {
 };
 
 static const uint8_t kP521Params[6 * 66] = {
-    // p
+    // p = 2^521 - 1
     0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
     0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
     0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -301,40 +301,89 @@ EC_GROUP *ec_group_new(const EC_METHOD *meth) {
   return ret;
 }
 
-static void ec_group_set0_generator(EC_GROUP *group, EC_POINT *generator) {
+static int ec_group_set_generator(EC_GROUP *group, const EC_AFFINE *generator,
+                                  const BIGNUM *order) {
   assert(group->generator == NULL);
-  assert(group == generator->group);
+
+  if (!BN_copy(&group->order, order)) {
+    return 0;
+  }
+  // Store the order in minimal form, so it can be used with |BN_ULONG| arrays.
+  bn_set_minimal_width(&group->order);
+
+  BN_MONT_CTX_free(group->order_mont);
+  group->order_mont = BN_MONT_CTX_new_for_modulus(&group->order, NULL);
+  if (group->order_mont == NULL) {
+    return 0;
+  }
+
+  group->field_greater_than_order = BN_cmp(&group->field, order) > 0;
+  if (group->field_greater_than_order) {
+    BIGNUM tmp;
+    BN_init(&tmp);
+    int ok =
+        BN_sub(&tmp, &group->field, order) &&
+        bn_copy_words(group->field_minus_order.words, group->field.width, &tmp);
+    BN_free(&tmp);
+    if (!ok) {
+      return 0;
+    }
+  }
+
+  group->generator = EC_POINT_new(group);
+  if (group->generator == NULL) {
+    return 0;
+  }
+  ec_affine_to_jacobian(group, &group->generator->raw, generator);
+  assert(ec_felem_equal(group, &group->one, &group->generator->raw.Z));
 
   // Avoid a reference cycle. |group->generator| does not maintain an owning
   // pointer to |group|.
-  group->generator = generator;
   int is_zero = CRYPTO_refcount_dec_and_test_zero(&group->references);
 
   assert(!is_zero);
   (void)is_zero;
+  return 1;
 }
 
 EC_GROUP *EC_GROUP_new_curve_GFp(const BIGNUM *p, const BIGNUM *a,
                                  const BIGNUM *b, BN_CTX *ctx) {
-  if (BN_num_bytes(p) > EC_MAX_SCALAR_BYTES) {
+  if (BN_num_bytes(p) > EC_MAX_BYTES) {
     OPENSSL_PUT_ERROR(EC, EC_R_INVALID_FIELD);
     return NULL;
   }
 
-  EC_GROUP *ret = ec_group_new(EC_GFp_mont_method());
-  if (ret == NULL) {
-    return NULL;
+  BN_CTX *new_ctx = NULL;
+  if (ctx == NULL) {
+    ctx = new_ctx = BN_CTX_new();
+    if (ctx == NULL) {
+      return NULL;
+    }
   }
 
-  if (ret->meth->group_set_curve == NULL) {
-    OPENSSL_PUT_ERROR(EC, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
-    EC_GROUP_free(ret);
-    return NULL;
+  // Historically, |a| and |b| were not required to be fully reduced.
+  // TODO(davidben): Can this be removed?
+  EC_GROUP *ret = NULL;
+  BN_CTX_start(ctx);
+  BIGNUM *a_reduced = BN_CTX_get(ctx);
+  BIGNUM *b_reduced = BN_CTX_get(ctx);
+  if (a_reduced == NULL || b_reduced == NULL ||
+      !BN_nnmod(a_reduced, a, p, ctx) ||
+      !BN_nnmod(b_reduced, b, p, ctx)) {
+    goto err;
   }
-  if (!ret->meth->group_set_curve(ret, p, a, b, ctx)) {
+
+  ret = ec_group_new(EC_GFp_mont_method());
+  if (ret == NULL ||
+      !ret->meth->group_set_curve(ret, p, a_reduced, b_reduced, ctx)) {
     EC_GROUP_free(ret);
-    return NULL;
+    ret = NULL;
+    goto err;
   }
+
+err:
+  BN_CTX_end(ctx);
+  BN_CTX_free(new_ctx);
   return ret;
 }
 
@@ -344,14 +393,13 @@ int EC_GROUP_set_generator(EC_GROUP *group, const EC_POINT *generator,
       generator->group != group) {
     // |EC_GROUP_set_generator| may only be used with |EC_GROUP|s returned by
     // |EC_GROUP_new_curve_GFp| and may only used once on each group.
-    // Additionally, |generator| must been created from
-    // |EC_GROUP_new_curve_GFp|, not a copy, so that
-    // |generator->group->generator| is set correctly.
+    // |generator| must have been created from |EC_GROUP_new_curve_GFp|, not a
+    // copy, so that |generator->group->generator| is set correctly.
     OPENSSL_PUT_ERROR(EC, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
     return 0;
   }
 
-  if (BN_num_bytes(order) > EC_MAX_SCALAR_BYTES) {
+  if (BN_num_bytes(order) > EC_MAX_BYTES) {
     OPENSSL_PUT_ERROR(EC, EC_R_INVALID_GROUP_ORDER);
     return 0;
   }
@@ -367,43 +415,33 @@ int EC_GROUP_set_generator(EC_GROUP *group, const EC_POINT *generator,
   // Note any curve which did not satisfy this must have been invalid or use a
   // tiny prime (less than 17). See the proof in |field_element_to_scalar| in
   // the ECDSA implementation.
+  int ret = 0;
   BIGNUM *tmp = BN_new();
   if (tmp == NULL ||
       !BN_lshift1(tmp, order)) {
-    BN_free(tmp);
-    return 0;
+    goto err;
   }
-  int ok = BN_cmp(tmp, &group->field) > 0;
-  BN_free(tmp);
-  if (!ok) {
+  if (BN_cmp(tmp, &group->field) <= 0) {
     OPENSSL_PUT_ERROR(EC, EC_R_INVALID_GROUP_ORDER);
-    return 0;
+    goto err;
   }
 
-  EC_POINT *copy = EC_POINT_new(group);
-  if (copy == NULL ||
-      !EC_POINT_copy(copy, generator) ||
-      !BN_copy(&group->order, order)) {
-    EC_POINT_free(copy);
-    return 0;
-  }
-  // Store the order in minimal form, so it can be used with |BN_ULONG| arrays.
-  bn_set_minimal_width(&group->order);
-
-  BN_MONT_CTX_free(group->order_mont);
-  group->order_mont = BN_MONT_CTX_new_for_modulus(&group->order, NULL);
-  if (group->order_mont == NULL) {
-    return 0;
+  EC_AFFINE affine;
+  if (!ec_jacobian_to_affine(group, &affine, &generator->raw) ||
+      !ec_group_set_generator(group, &affine, order)) {
+    goto err;
   }
 
-  ec_group_set0_generator(group, copy);
-  return 1;
+  ret = 1;
+
+err:
+  BN_free(tmp);
+  return ret;
 }
 
 static EC_GROUP *ec_group_new_from_data(const struct built_in_curve *curve) {
   EC_GROUP *group = NULL;
-  EC_POINT *P = NULL;
-  BIGNUM *p = NULL, *a = NULL, *b = NULL, *x = NULL, *y = NULL;
+  BIGNUM *p = NULL, *a = NULL, *b = NULL, *order = NULL;
   int ok = 0;
 
   BN_CTX *ctx = BN_CTX_new();
@@ -417,7 +455,8 @@ static EC_GROUP *ec_group_new_from_data(const struct built_in_curve *curve) {
 
   if (!(p = BN_bin2bn(params + 0 * param_len, param_len, NULL)) ||
       !(a = BN_bin2bn(params + 1 * param_len, param_len, NULL)) ||
-      !(b = BN_bin2bn(params + 2 * param_len, param_len, NULL))) {
+      !(b = BN_bin2bn(params + 2 * param_len, param_len, NULL)) ||
+      !(order = BN_bin2bn(params + 5 * param_len, param_len, NULL))) {
     OPENSSL_PUT_ERROR(EC, ERR_R_BN_LIB);
     goto err;
   }
@@ -429,34 +468,18 @@ static EC_GROUP *ec_group_new_from_data(const struct built_in_curve *curve) {
     goto err;
   }
 
-  if ((P = EC_POINT_new(group)) == NULL) {
-    OPENSSL_PUT_ERROR(EC, ERR_R_EC_LIB);
+  EC_AFFINE G;
+  EC_FELEM x, y;
+  if (!ec_felem_from_bytes(group, &x, params + 3 * param_len, param_len) ||
+      !ec_felem_from_bytes(group, &y, params + 4 * param_len, param_len) ||
+      !ec_point_set_affine_coordinates(group, &G, &x, &y)) {
     goto err;
   }
 
-  if (!(x = BN_bin2bn(params + 3 * param_len, param_len, NULL)) ||
-      !(y = BN_bin2bn(params + 4 * param_len, param_len, NULL))) {
-    OPENSSL_PUT_ERROR(EC, ERR_R_BN_LIB);
+  if (!ec_group_set_generator(group, &G, order)) {
     goto err;
   }
 
-  if (!EC_POINT_set_affine_coordinates_GFp(group, P, x, y, ctx)) {
-    OPENSSL_PUT_ERROR(EC, ERR_R_EC_LIB);
-    goto err;
-  }
-  if (!BN_bin2bn(params + 5 * param_len, param_len, &group->order)) {
-    OPENSSL_PUT_ERROR(EC, ERR_R_BN_LIB);
-    goto err;
-  }
-
-  group->order_mont = BN_MONT_CTX_new_for_modulus(&group->order, ctx);
-  if (group->order_mont == NULL) {
-    OPENSSL_PUT_ERROR(EC, ERR_R_BN_LIB);
-    goto err;
-  }
-
-  ec_group_set0_generator(group, P);
-  P = NULL;
   ok = 1;
 
 err:
@@ -464,13 +487,11 @@ err:
     EC_GROUP_free(group);
     group = NULL;
   }
-  EC_POINT_free(P);
   BN_CTX_free(ctx);
   BN_free(p);
   BN_free(a);
   BN_free(b);
-  BN_free(x);
-  BN_free(y);
+  BN_free(order);
   return group;
 }
 
@@ -479,8 +500,8 @@ err:
 struct built_in_groups_st {
   EC_GROUP *groups[OPENSSL_NUM_BUILT_IN_CURVES];
 };
-DEFINE_BSS_GET(struct built_in_groups_st, built_in_groups);
-DEFINE_STATIC_MUTEX(built_in_groups_lock);
+DEFINE_BSS_GET(struct built_in_groups_st, built_in_groups)
+DEFINE_STATIC_MUTEX(built_in_groups_lock)
 
 EC_GROUP *EC_GROUP_new_by_curve_name(int nid) {
   struct built_in_groups_st *groups = built_in_groups_bss_get();
@@ -586,7 +607,7 @@ int EC_GROUP_cmp(const EC_GROUP *a, const EC_GROUP *b, BN_CTX *ignored) {
          BN_cmp(&a->field, &b->field) != 0 ||
          !ec_felem_equal(a, &a->a, &b->a) ||
          !ec_felem_equal(a, &a->b, &b->b) ||
-         ec_GFp_simple_cmp(a, &a->generator->raw, &b->generator->raw) != 0;
+         !ec_GFp_simple_points_equal(a, &a->generator->raw, &b->generator->raw);
 }
 
 const EC_POINT *EC_GROUP_get0_generator(const EC_GROUP *group) {
@@ -605,6 +626,10 @@ int EC_GROUP_get_order(const EC_GROUP *group, BIGNUM *order, BN_CTX *ctx) {
   return 1;
 }
 
+int EC_GROUP_order_bits(const EC_GROUP *group) {
+  return BN_num_bits(&group->order);
+}
+
 int EC_GROUP_get_cofactor(const EC_GROUP *group, BIGNUM *cofactor,
                           BN_CTX *ctx) {
   // All |EC_GROUP|s have cofactor 1.
@@ -619,7 +644,7 @@ int EC_GROUP_get_curve_GFp(const EC_GROUP *group, BIGNUM *out_p, BIGNUM *out_a,
 int EC_GROUP_get_curve_name(const EC_GROUP *group) { return group->curve_name; }
 
 unsigned EC_GROUP_get_degree(const EC_GROUP *group) {
-  return ec_GFp_simple_group_get_degree(group);
+  return BN_num_bits(&group->field);
 }
 
 const char *EC_curve_nid2nist(int nid) {
@@ -634,6 +659,22 @@ const char *EC_curve_nid2nist(int nid) {
       return "P-521";
   }
   return NULL;
+}
+
+int EC_curve_nist2nid(const char *name) {
+  if (strcmp(name, "P-224") == 0) {
+    return NID_secp224r1;
+  }
+  if (strcmp(name, "P-256") == 0) {
+    return NID_X9_62_prime256v1;
+  }
+  if (strcmp(name, "P-384") == 0) {
+    return NID_secp384r1;
+  }
+  if (strcmp(name, "P-521") == 0) {
+    return NID_secp521r1;
+  }
+  return NID_undef;
 }
 
 EC_POINT *EC_POINT_new(const EC_GROUP *group) {
@@ -729,7 +770,9 @@ int EC_POINT_cmp(const EC_GROUP *group, const EC_POINT *a, const EC_POINT *b,
     OPENSSL_PUT_ERROR(EC, EC_R_INCOMPATIBLE_OBJECTS);
     return -1;
   }
-  return ec_GFp_simple_cmp(group, &a->raw, &b->raw);
+
+  // Note |EC_POINT_cmp| returns zero for equality and non-zero for inequality.
+  return ec_GFp_simple_points_equal(group, &a->raw, &b->raw) ? 0 : 1;
 }
 
 int EC_POINT_get_affine_coordinates_GFp(const EC_GROUP *group,
@@ -743,7 +786,75 @@ int EC_POINT_get_affine_coordinates_GFp(const EC_GROUP *group,
     OPENSSL_PUT_ERROR(EC, EC_R_INCOMPATIBLE_OBJECTS);
     return 0;
   }
-  return group->meth->point_get_affine_coordinates(group, &point->raw, x, y);
+  EC_FELEM x_felem, y_felem;
+  if (!group->meth->point_get_affine_coordinates(group, &point->raw,
+                                                 x == NULL ? NULL : &x_felem,
+                                                 y == NULL ? NULL : &y_felem) ||
+      (x != NULL && !ec_felem_to_bignum(group, x, &x_felem)) ||
+      (y != NULL && !ec_felem_to_bignum(group, y, &y_felem))) {
+    return 0;
+  }
+  return 1;
+}
+
+int EC_POINT_get_affine_coordinates(const EC_GROUP *group,
+                                    const EC_POINT *point, BIGNUM *x, BIGNUM *y,
+                                    BN_CTX *ctx) {
+  return EC_POINT_get_affine_coordinates_GFp(group, point, x, y, ctx);
+}
+
+void ec_affine_to_jacobian(const EC_GROUP *group, EC_RAW_POINT *out,
+                           const EC_AFFINE *p) {
+  out->X = p->X;
+  out->Y = p->Y;
+  out->Z = group->one;
+}
+
+int ec_jacobian_to_affine(const EC_GROUP *group, EC_AFFINE *out,
+                          const EC_RAW_POINT *p) {
+  return group->meth->point_get_affine_coordinates(group, p, &out->X, &out->Y);
+}
+
+int ec_jacobian_to_affine_batch(const EC_GROUP *group, EC_AFFINE *out,
+                                const EC_RAW_POINT *in, size_t num) {
+  if (group->meth->jacobian_to_affine_batch == NULL) {
+    OPENSSL_PUT_ERROR(EC, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+    return 0;
+  }
+  return group->meth->jacobian_to_affine_batch(group, out, in, num);
+}
+
+int ec_point_set_affine_coordinates(const EC_GROUP *group, EC_AFFINE *out,
+                                    const EC_FELEM *x, const EC_FELEM *y) {
+  void (*const felem_mul)(const EC_GROUP *, EC_FELEM *r, const EC_FELEM *a,
+                          const EC_FELEM *b) = group->meth->felem_mul;
+  void (*const felem_sqr)(const EC_GROUP *, EC_FELEM *r, const EC_FELEM *a) =
+      group->meth->felem_sqr;
+
+  // Check if the point is on the curve.
+  EC_FELEM lhs, rhs;
+  felem_sqr(group, &lhs, y);                   // lhs = y^2
+  felem_sqr(group, &rhs, x);                   // rhs = x^2
+  ec_felem_add(group, &rhs, &rhs, &group->a);  // rhs = x^2 + a
+  felem_mul(group, &rhs, &rhs, x);             // rhs = x^3 + ax
+  ec_felem_add(group, &rhs, &rhs, &group->b);  // rhs = x^3 + ax + b
+  if (!ec_felem_equal(group, &lhs, &rhs)) {
+    OPENSSL_PUT_ERROR(EC, EC_R_POINT_IS_NOT_ON_CURVE);
+    // In the event of an error, defend against the caller not checking the
+    // return value by setting a known safe value. Note this may not be possible
+    // if the caller is in the process of constructing an arbitrary group and
+    // the generator is missing.
+    if (group->generator != NULL) {
+      assert(ec_felem_equal(group, &group->one, &group->generator->raw.Z));
+      out->X = group->generator->raw.X;
+      out->Y = group->generator->raw.Y;
+    }
+    return 0;
+  }
+
+  out->X = *x;
+  out->Y = *y;
+  return 1;
 }
 
 int EC_POINT_set_affine_coordinates_GFp(const EC_GROUP *group, EC_POINT *point,
@@ -753,25 +864,31 @@ int EC_POINT_set_affine_coordinates_GFp(const EC_GROUP *group, EC_POINT *point,
     OPENSSL_PUT_ERROR(EC, EC_R_INCOMPATIBLE_OBJECTS);
     return 0;
   }
-  if (!ec_GFp_simple_point_set_affine_coordinates(group, &point->raw, x, y)) {
+
+  if (x == NULL || y == NULL) {
+    OPENSSL_PUT_ERROR(EC, ERR_R_PASSED_NULL_PARAMETER);
     return 0;
   }
 
-  if (!EC_POINT_is_on_curve(group, point, ctx)) {
+  EC_FELEM x_felem, y_felem;
+  EC_AFFINE affine;
+  if (!ec_bignum_to_felem(group, &x_felem, x) ||
+      !ec_bignum_to_felem(group, &y_felem, y) ||
+      !ec_point_set_affine_coordinates(group, &affine, &x_felem, &y_felem)) {
     // In the event of an error, defend against the caller not checking the
-    // return value by setting a known safe value: the base point.
-    const EC_POINT *generator = EC_GROUP_get0_generator(group);
-    // The generator can be missing if the caller is in the process of
-    // constructing an arbitrary group. In this, we give up and hope they're
-    // checking the return value.
-    if (generator) {
-      ec_GFp_simple_point_copy(&point->raw, &generator->raw);
-    }
-    OPENSSL_PUT_ERROR(EC, EC_R_POINT_IS_NOT_ON_CURVE);
+    // return value by setting a known safe value.
+    ec_set_to_safe_point(group, &point->raw);
     return 0;
   }
 
+  ec_affine_to_jacobian(group, &point->raw, &affine);
   return 1;
+}
+
+int EC_POINT_set_affine_coordinates(const EC_GROUP *group, EC_POINT *point,
+                                    const BIGNUM *x, const BIGNUM *y,
+                                    BN_CTX *ctx) {
+  return EC_POINT_set_affine_coordinates_GFp(group, point, x, y, ctx);
 }
 
 int EC_POINT_add(const EC_GROUP *group, EC_POINT *r, const EC_POINT *a,
@@ -782,7 +899,7 @@ int EC_POINT_add(const EC_GROUP *group, EC_POINT *r, const EC_POINT *a,
     OPENSSL_PUT_ERROR(EC, EC_R_INCOMPATIBLE_OBJECTS);
     return 0;
   }
-  ec_GFp_simple_add(group, &r->raw, &a->raw, &b->raw);
+  group->meth->add(group, &r->raw, &a->raw, &b->raw);
   return 1;
 }
 
@@ -793,7 +910,7 @@ int EC_POINT_dbl(const EC_GROUP *group, EC_POINT *r, const EC_POINT *a,
     OPENSSL_PUT_ERROR(EC, EC_R_INCOMPATIBLE_OBJECTS);
     return 0;
   }
-  ec_GFp_simple_dbl(group, &r->raw, &a->raw);
+  group->meth->dbl(group, &r->raw, &a->raw);
   return 1;
 }
 
@@ -826,8 +943,9 @@ static int arbitrary_bignum_to_scalar(const EC_GROUP *group, EC_SCALAR *out,
   return ok;
 }
 
-int EC_POINT_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *g_scalar,
-                 const EC_POINT *p, const BIGNUM *p_scalar, BN_CTX *ctx) {
+int ec_point_mul_no_self_test(const EC_GROUP *group, EC_POINT *r,
+                              const BIGNUM *g_scalar, const EC_POINT *p,
+                              const BIGNUM *p_scalar, BN_CTX *ctx) {
   // Previously, this function set |r| to the point at infinity if there was
   // nothing to multiply. But, nobody should be calling this function with
   // nothing to multiply in the first place.
@@ -837,9 +955,13 @@ int EC_POINT_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *g_scalar,
     return 0;
   }
 
+  if (EC_GROUP_cmp(group, r->group, NULL) != 0 ||
+      (p != NULL && EC_GROUP_cmp(group, p->group, NULL) != 0)) {
+    OPENSSL_PUT_ERROR(EC, EC_R_INCOMPATIBLE_OBJECTS);
+    return 0;
+  }
+
   int ret = 0;
-  EC_SCALAR g_scalar_storage, p_scalar_storage;
-  EC_SCALAR *g_scalar_arg = NULL, *p_scalar_arg = NULL;
   BN_CTX *new_ctx = NULL;
   if (ctx == NULL) {
     new_ctx = BN_CTX_new();
@@ -849,69 +971,278 @@ int EC_POINT_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *g_scalar,
     ctx = new_ctx;
   }
 
+  // If both |g_scalar| and |p_scalar| are non-NULL,
+  // |ec_point_mul_scalar_public| would share the doublings between the two
+  // products, which would be more efficient. However, we conservatively assume
+  // the caller needs a constant-time operation. (ECDSA verification does not
+  // use this function.)
+  //
+  // Previously, the low-level constant-time multiplication function aligned
+  // with this function's calling convention, but this was misleading. Curves
+  // which combined the two multiplications did not avoid the doubling case
+  // in the incomplete addition formula and were not constant-time.
+
   if (g_scalar != NULL) {
-    if (!arbitrary_bignum_to_scalar(group, &g_scalar_storage, g_scalar, ctx)) {
+    EC_SCALAR scalar;
+    if (!arbitrary_bignum_to_scalar(group, &scalar, g_scalar, ctx) ||
+        !ec_point_mul_scalar_base(group, &r->raw, &scalar)) {
       goto err;
     }
-    g_scalar_arg = &g_scalar_storage;
   }
 
   if (p_scalar != NULL) {
-    if (!arbitrary_bignum_to_scalar(group, &p_scalar_storage, p_scalar, ctx)) {
+    EC_SCALAR scalar;
+    EC_RAW_POINT tmp;
+    if (!arbitrary_bignum_to_scalar(group, &scalar, p_scalar, ctx) ||
+        !ec_point_mul_scalar(group, &tmp, &p->raw, &scalar)) {
       goto err;
     }
-    p_scalar_arg = &p_scalar_storage;
+    if (g_scalar == NULL) {
+      OPENSSL_memcpy(&r->raw, &tmp, sizeof(EC_RAW_POINT));
+    } else {
+      group->meth->add(group, &r->raw, &r->raw, &tmp);
+    }
   }
 
-  ret = ec_point_mul_scalar(group, r, g_scalar_arg, p, p_scalar_arg, ctx);
+  ret = 1;
 
 err:
   BN_CTX_free(new_ctx);
-  OPENSSL_cleanse(&g_scalar_storage, sizeof(g_scalar_storage));
-  OPENSSL_cleanse(&p_scalar_storage, sizeof(p_scalar_storage));
   return ret;
 }
 
-int ec_point_mul_scalar_public(const EC_GROUP *group, EC_POINT *r,
-                               const EC_SCALAR *g_scalar, const EC_POINT *p,
-                               const EC_SCALAR *p_scalar, BN_CTX *ctx) {
-  if ((g_scalar == NULL && p_scalar == NULL) ||
-      (p == NULL) != (p_scalar == NULL))  {
+int EC_POINT_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *g_scalar,
+                 const EC_POINT *p, const BIGNUM *p_scalar, BN_CTX *ctx) {
+  boringssl_ensure_ecc_self_test();
+
+  return ec_point_mul_no_self_test(group, r, g_scalar, p, p_scalar, ctx);
+}
+
+int ec_point_mul_scalar_public(const EC_GROUP *group, EC_RAW_POINT *r,
+                               const EC_SCALAR *g_scalar, const EC_RAW_POINT *p,
+                               const EC_SCALAR *p_scalar) {
+  if (g_scalar == NULL || p_scalar == NULL || p == NULL) {
     OPENSSL_PUT_ERROR(EC, ERR_R_PASSED_NULL_PARAMETER);
     return 0;
   }
 
-  if (EC_GROUP_cmp(group, r->group, NULL) != 0 ||
-      (p != NULL && EC_GROUP_cmp(group, p->group, NULL) != 0)) {
-    OPENSSL_PUT_ERROR(EC, EC_R_INCOMPATIBLE_OBJECTS);
-    return 0;
+  if (group->meth->mul_public == NULL) {
+    return group->meth->mul_public_batch(group, r, g_scalar, p, p_scalar, 1);
   }
 
-  group->meth->mul_public(group, &r->raw, g_scalar, &p->raw, p_scalar);
+  group->meth->mul_public(group, r, g_scalar, p, p_scalar);
   return 1;
 }
 
-int ec_point_mul_scalar(const EC_GROUP *group, EC_POINT *r,
-                        const EC_SCALAR *g_scalar, const EC_POINT *p,
-                        const EC_SCALAR *p_scalar, BN_CTX *ctx) {
-  if ((g_scalar == NULL && p_scalar == NULL) ||
-      (p == NULL) != (p_scalar == NULL))  {
+int ec_point_mul_scalar_public_batch(const EC_GROUP *group, EC_RAW_POINT *r,
+                                     const EC_SCALAR *g_scalar,
+                                     const EC_RAW_POINT *points,
+                                     const EC_SCALAR *scalars, size_t num) {
+  if (group->meth->mul_public_batch == NULL) {
+    OPENSSL_PUT_ERROR(EC, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+    return 0;
+  }
+
+  return group->meth->mul_public_batch(group, r, g_scalar, points, scalars,
+                                       num);
+}
+
+int ec_point_mul_scalar(const EC_GROUP *group, EC_RAW_POINT *r,
+                        const EC_RAW_POINT *p, const EC_SCALAR *scalar) {
+  if (p == NULL || scalar == NULL) {
     OPENSSL_PUT_ERROR(EC, ERR_R_PASSED_NULL_PARAMETER);
     return 0;
   }
 
-  if (EC_GROUP_cmp(group, r->group, NULL) != 0 ||
-      (p != NULL && EC_GROUP_cmp(group, p->group, NULL) != 0)) {
-    OPENSSL_PUT_ERROR(EC, EC_R_INCOMPATIBLE_OBJECTS);
+  group->meth->mul(group, r, p, scalar);
+
+  // Check the result is on the curve to defend against fault attacks or bugs.
+  // This has negligible cost compared to the multiplication.
+  if (!ec_GFp_simple_is_on_curve(group, r)) {
+    OPENSSL_PUT_ERROR(EC, ERR_R_INTERNAL_ERROR);
     return 0;
   }
 
-  group->meth->mul(group, &r->raw, g_scalar, (p == NULL) ? NULL : &p->raw,
-                   p_scalar);
   return 1;
+}
+
+int ec_point_mul_scalar_base(const EC_GROUP *group, EC_RAW_POINT *r,
+                             const EC_SCALAR *scalar) {
+  if (scalar == NULL) {
+    OPENSSL_PUT_ERROR(EC, ERR_R_PASSED_NULL_PARAMETER);
+    return 0;
+  }
+
+  group->meth->mul_base(group, r, scalar);
+
+  // Check the result is on the curve to defend against fault attacks or bugs.
+  // This has negligible cost compared to the multiplication.
+  if (!ec_GFp_simple_is_on_curve(group, r)) {
+    OPENSSL_PUT_ERROR(EC, ERR_R_INTERNAL_ERROR);
+    return 0;
+  }
+
+  return 1;
+}
+
+int ec_point_mul_scalar_batch(const EC_GROUP *group, EC_RAW_POINT *r,
+                              const EC_RAW_POINT *p0, const EC_SCALAR *scalar0,
+                              const EC_RAW_POINT *p1, const EC_SCALAR *scalar1,
+                              const EC_RAW_POINT *p2,
+                              const EC_SCALAR *scalar2) {
+  if (group->meth->mul_batch == NULL) {
+    OPENSSL_PUT_ERROR(EC, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+    return 0;
+  }
+
+  group->meth->mul_batch(group, r, p0, scalar0, p1, scalar1, p2, scalar2);
+
+  // Check the result is on the curve to defend against fault attacks or bugs.
+  // This has negligible cost compared to the multiplication.
+  if (!ec_GFp_simple_is_on_curve(group, r)) {
+    OPENSSL_PUT_ERROR(EC, ERR_R_INTERNAL_ERROR);
+    return 0;
+  }
+
+  return 1;
+}
+
+int ec_init_precomp(const EC_GROUP *group, EC_PRECOMP *out,
+                    const EC_RAW_POINT *p) {
+  if (group->meth->init_precomp == NULL) {
+    OPENSSL_PUT_ERROR(EC, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+    return 0;
+  }
+
+  return group->meth->init_precomp(group, out, p);
+}
+
+int ec_point_mul_scalar_precomp(const EC_GROUP *group, EC_RAW_POINT *r,
+                                const EC_PRECOMP *p0, const EC_SCALAR *scalar0,
+                                const EC_PRECOMP *p1, const EC_SCALAR *scalar1,
+                                const EC_PRECOMP *p2,
+                                const EC_SCALAR *scalar2) {
+  if (group->meth->mul_precomp == NULL) {
+    OPENSSL_PUT_ERROR(EC, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+    return 0;
+  }
+
+  group->meth->mul_precomp(group, r, p0, scalar0, p1, scalar1, p2, scalar2);
+
+  // Check the result is on the curve to defend against fault attacks or bugs.
+  // This has negligible cost compared to the multiplication.
+  if (!ec_GFp_simple_is_on_curve(group, r)) {
+    OPENSSL_PUT_ERROR(EC, ERR_R_INTERNAL_ERROR);
+    return 0;
+  }
+
+  return 1;
+}
+
+void ec_point_select(const EC_GROUP *group, EC_RAW_POINT *out, BN_ULONG mask,
+                      const EC_RAW_POINT *a, const EC_RAW_POINT *b) {
+  ec_felem_select(group, &out->X, mask, &a->X, &b->X);
+  ec_felem_select(group, &out->Y, mask, &a->Y, &b->Y);
+  ec_felem_select(group, &out->Z, mask, &a->Z, &b->Z);
+}
+
+void ec_affine_select(const EC_GROUP *group, EC_AFFINE *out, BN_ULONG mask,
+                      const EC_AFFINE *a, const EC_AFFINE *b) {
+  ec_felem_select(group, &out->X, mask, &a->X, &b->X);
+  ec_felem_select(group, &out->Y, mask, &a->Y, &b->Y);
+}
+
+void ec_precomp_select(const EC_GROUP *group, EC_PRECOMP *out, BN_ULONG mask,
+                       const EC_PRECOMP *a, const EC_PRECOMP *b) {
+  OPENSSL_STATIC_ASSERT(sizeof(out->comb) == sizeof(*out),
+                        "out->comb does not span the entire structure");
+  for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(out->comb); i++) {
+    ec_affine_select(group, &out->comb[i], mask, &a->comb[i], &b->comb[i]);
+  }
+}
+
+int ec_cmp_x_coordinate(const EC_GROUP *group, const EC_RAW_POINT *p,
+                        const EC_SCALAR *r) {
+  return group->meth->cmp_x_coordinate(group, p, r);
+}
+
+int ec_get_x_coordinate_as_scalar(const EC_GROUP *group, EC_SCALAR *out,
+                                  const EC_RAW_POINT *p) {
+  uint8_t bytes[EC_MAX_BYTES];
+  size_t len;
+  if (!ec_get_x_coordinate_as_bytes(group, bytes, &len, sizeof(bytes), p)) {
+    return 0;
+  }
+
+  // For simplicity, in case of width mismatches between |group->field| and
+  // |group->order|, zero any untouched words in |out|.
+  OPENSSL_memset(out, 0, sizeof(EC_SCALAR));
+  for (size_t i = 0; i < len; i++) {
+    out->bytes[len - i - 1] = bytes[i];
+  }
+
+  // We must have p < 2×order, assuming p is not tiny (p >= 17). Thus rather we
+  // can reduce by performing at most one subtraction.
+  //
+  // Proof: We only work with prime order curves, so the number of points on
+  // the curve is the order. Thus Hasse's theorem gives:
+  //
+  //     |order - (p + 1)| <= 2×sqrt(p)
+  //         p + 1 - order <= 2×sqrt(p)
+  //     p + 1 - 2×sqrt(p) <= order
+  //       p + 1 - 2×(p/4)  < order       (p/4 > sqrt(p) for p >= 17)
+  //         p/2 < p/2 + 1  < order
+  //                     p  < 2×order
+  //
+  // Additionally, one can manually check this property for built-in curves. It
+  // is enforced for legacy custom curves in |EC_GROUP_set_generator|.
+
+  // The above does not guarantee |group->field| is not one word larger than
+  // |group->order|, so read one extra carry word.
+  BN_ULONG tmp[EC_MAX_WORDS];
+  BN_ULONG carry =
+      group->order.width < EC_MAX_WORDS ? out->words[group->order.width] : 0;
+  bn_reduce_once_in_place(out->words, carry, group->order.d, tmp,
+                          group->order.width);
+  return 1;
+}
+
+int ec_get_x_coordinate_as_bytes(const EC_GROUP *group, uint8_t *out,
+                                 size_t *out_len, size_t max_out,
+                                 const EC_RAW_POINT *p) {
+  size_t len = BN_num_bytes(&group->field);
+  assert(len <= EC_MAX_BYTES);
+  if (max_out < len) {
+    OPENSSL_PUT_ERROR(EC, EC_R_BUFFER_TOO_SMALL);
+    return 0;
+  }
+
+  EC_FELEM x;
+  if (!group->meth->point_get_affine_coordinates(group, p, &x, NULL)) {
+    return 0;
+  }
+
+  ec_felem_to_bytes(group, out, out_len, &x);
+  *out_len = len;
+  return 1;
+}
+
+void ec_set_to_safe_point(const EC_GROUP *group, EC_RAW_POINT *out) {
+  if (group->generator != NULL) {
+    ec_GFp_simple_point_copy(out, &group->generator->raw);
+  } else {
+    // The generator can be missing if the caller is in the process of
+    // constructing an arbitrary group. In this case, we give up and use the
+    // point at infinity.
+    ec_GFp_simple_point_set_to_infinity(group, out);
+  }
 }
 
 void EC_GROUP_set_asn1_flag(EC_GROUP *group, int flag) {}
+
+int EC_GROUP_get_asn1_flag(const EC_GROUP *group) {
+  return OPENSSL_EC_NAMED_CURVE;
+}
 
 const EC_METHOD *EC_GROUP_method_of(const EC_GROUP *group) {
   // This function exists purely to give callers a way to call
@@ -927,7 +1258,7 @@ int EC_METHOD_get_field_type(const EC_METHOD *meth) {
 void EC_GROUP_set_point_conversion_form(EC_GROUP *group,
                                         point_conversion_form_t form) {
   if (form != POINT_CONVERSION_UNCOMPRESSED) {
-    OPENSSL_port_abort();
+    abort();
   }
 }
 

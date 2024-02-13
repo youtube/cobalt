@@ -62,6 +62,7 @@ _API_LEAK_DETECTOR_TITLE = """    ___    ____  ____   __               __      _
 _DEFAULT_PLATFORM = 'evergreen-x64'
 _DEFAULT_CONFIG = 'gold'
 _DEFAULT_TARGET = 'cobalt'
+_DEFAULT_SB_VERSION = 16
 
 _RE_LIB = re.compile(r'lib.*\.a$')
 _RE_FILE = re.compile(r'\/\/.*\.[hcp]+$')
@@ -83,6 +84,25 @@ _MANIFEST_HEADER = ('# Manifest of Leaking Files\n\n' +
 # Values to stand in for unknown libraries and source files.
 _UNKNOWN_LIBRARIES = 'unknown_library(ies)'
 _UNKNOWN_SOURCE_FILES = 'unknown_source_file(s)'
+
+# Allowed POSIX symbols in Starboard 16
+_ALLOWED_SB16_POSIX_SYMBOLS = [
+    'calloc',
+    'clock_gettime',
+    'free',
+    'gettimeofday',
+    'gmtime_r',
+    'malloc',
+    'posix_memalign',
+    'realloc',
+    'strcasecmp',
+    'strncasecmp',
+    'time',
+    'mmap',
+    'munmap',
+    'mprotect',
+    'msync',
+]
 
 
 def DiffWithManifest(leaked_symbols, manifest_path):
@@ -299,6 +319,11 @@ def ParseArgs():
       '--relative-manifest-path',
       help='Path to the manifest to use, relative to api_leak_detector dir.',
       default=_DEFAULT_RELATIVE_MANIFEST_PATH)
+  parser.add_argument(
+      '--sb_api_version',
+      help='The Starboard version',
+      type=int,
+      default=_DEFAULT_SB_VERSION)
   return parser.parse_args()
 
 
@@ -363,7 +388,8 @@ def main():
       os.path.dirname(__file__), args.relative_manifest_path)
 
   print(_API_LEAK_DETECTOR_TITLE, file=sys.stderr)
-
+  print(
+      'Analyzing for Starboard version ', args.sb_api_version, file=sys.stderr)
   print('Loading allowed C99 symbols...', file=sys.stderr)
   allowed_c99_symbols = LoadAllowedC99Symbols()
 
@@ -395,9 +421,27 @@ def main():
   def IsSbSymbol(symbol):
     return symbol.startswith('Sb') or symbol.startswith('kSb')
 
+  def IsAllowedPosixSymbol(symbol, sb_api_version: int):
+    if sb_api_version == 16:
+      return symbol in _ALLOWED_SB16_POSIX_SYMBOLS
+    else:
+      return False
+
+  def IsAllowedSymbol(symbol):
+    if symbol in allowed_c99_symbols:
+      return True
+
+    if IsSbSymbol(symbol):
+      return True
+
+    if IsAllowedPosixSymbol(symbol, sb_api_version=args.sb_api_version):
+      return True
+
+    return False
+
   leaked_symbols = set(
       symbol for symbol in ProcessNmOutput(nm_output) \
-          if symbol not in allowed_c99_symbols and not IsSbSymbol(symbol)
+          if not IsAllowedSymbol(symbol)
   )
 
   if args.manifest:

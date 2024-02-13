@@ -40,6 +40,19 @@ config("platform_configuration") {
     # Conform with C99 spec.
     "_CRT_STDIO_ISO_WIDE_SPECIFIERS",
   ]
+
+  cflags = [
+    # Force include in every module
+    "/FI ../../starboard/shared/win32/posix_emu/include/posix_force_include.h",
+
+    # Add POSIX emulation headers
+    "/I../../starboard/shared/win32/posix_emu/include",
+  ]
+
+  ldflags = [
+    # Suppress import library warning caused by the win32/posix_emu
+    "/ignore:4286",
+  ]
 }
 
 config("no_pedantic_warnings") {

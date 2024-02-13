@@ -5,12 +5,13 @@
 #ifndef CRYPTO_NSS_UTIL_H_
 #define CRYPTO_NSS_UTIL_H_
 
+#include <stdint.h>
+
 #include <string>
 #include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/macros.h"
 #include "crypto/crypto_export.h"
-#include "starboard/types.h"
 
 namespace base {
 class Time;

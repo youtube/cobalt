@@ -60,11 +60,11 @@ class RawAllocator : public std::allocator<T> {
 
   pointer allocate(size_type n,
                    std::allocator<void>::const_pointer hint = NULL) {
-    void* ptr = SbMemoryAllocate(n * sizeof(value_type));
+    void* ptr = malloc(n * sizeof(value_type));
     return static_cast<pointer>(ptr);
   }
 
-  void deallocate(pointer p, size_type n) { SbMemoryDeallocate(p); }
+  void deallocate(pointer p, size_type n) { free(p); }
   template <typename U>
   struct rebind {
     typedef RawAllocator<U> other;
@@ -81,7 +81,7 @@ class ConcurrentThreadIdMap {
     map_vector_.resize(kNumBuckets);
 
     for (size_t i = 0; i < map_vector_.size(); ++i) {
-      void* memory_block = SbMemoryAllocate(sizeof(LockedMap));
+      void* memory_block = malloc(sizeof(LockedMap));
       map_vector_[i] = new (memory_block) LockedMap;
     }
   }
@@ -90,7 +90,7 @@ class ConcurrentThreadIdMap {
     for (size_t i = 0; i < map_vector_.size(); ++i) {
       LockedMap* obj = map_vector_[i];
       obj->~LockedMap();
-      SbMemoryDeallocate(obj);
+      free(obj);
     }
   }
 
@@ -182,8 +182,8 @@ struct TLSKeyManager::InternalData {
   typedef ConcurrentThreadIdMap ThreadIdMap;
 
   // Overrides new/delete for InternalData to bypass memory reporting.
-  static void* operator new(size_t n) { return SbMemoryAllocate(n); }
-  static void operator delete(void* p) { SbMemoryDeallocate(p); }
+  static void* operator new(size_t n) { return malloc(n); }
+  static void operator delete(void* p) { free(p); }
 
   // The key record tracks all key values among all threads, along with their
   // destructors, if specified.
@@ -212,7 +212,7 @@ TLSKeyManager::TLSKeyManager() {
 SbThreadLocalKey TLSKeyManager::CreateKey(SbThreadLocalDestructor destructor) {
   // Allocate key and bypass the the normal allocator. Otherwise there
   // could be a re-entrant loop that kills the process.
-  void* memory_block = SbMemoryAllocate(sizeof(SbThreadLocalKeyPrivate));
+  void* memory_block = malloc(sizeof(SbThreadLocalKeyPrivate));
   SbThreadLocalKey key = new (memory_block) SbThreadLocalKeyPrivate();
 
   ScopedLock lock(mutex_);
@@ -239,7 +239,7 @@ void TLSKeyManager::DestroyKey(SbThreadLocalKey key) {
   data_->key_table_[key->index].valid = false;
 
   key.~SbThreadLocalKey();
-  SbMemoryDeallocate(key);
+  free(key);
 }
 
 bool TLSKeyManager::SetLocalValue(SbThreadLocalKey key, void* value) {

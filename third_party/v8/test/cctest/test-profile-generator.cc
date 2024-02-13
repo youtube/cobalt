@@ -311,7 +311,8 @@ static inline i::Address ToAddress(int n) { return static_cast<i::Address>(n); }
 static inline void* ToPointer(int n) { return reinterpret_cast<void*>(n); }
 
 TEST(CodeMapAddCode) {
-  CodeMap code_map;
+  StringsStorage strings;
+  CodeMap code_map(strings);
   CodeEntry* entry1 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
   CodeEntry* entry2 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "bbb");
   CodeEntry* entry3 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "ccc");
@@ -340,7 +341,8 @@ TEST(CodeMapAddCode) {
 }
 
 TEST(CodeMapMoveAndDeleteCode) {
-  CodeMap code_map;
+  StringsStorage strings;
+  CodeMap code_map(strings);
   CodeEntry* entry1 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
   CodeEntry* entry2 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "bbb");
   code_map.AddCode(ToAddress(0x1500), entry1, 0x200);
@@ -357,7 +359,8 @@ TEST(CodeMapMoveAndDeleteCode) {
 }
 
 TEST(CodeMapClear) {
-  CodeMap code_map;
+  StringsStorage strings;
+  CodeMap code_map(strings);
   CodeEntry* entry1 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "aaa");
   CodeEntry* entry2 = new CodeEntry(i::CodeEventListener::FUNCTION_TAG, "bbb");
   code_map.AddCode(ToAddress(0x1500), entry1, 0x200);
@@ -392,7 +395,8 @@ class TestSetup {
 
 TEST(SymbolizeTickSample) {
   TestSetup test_setup;
-  CodeMap code_map;
+  StringsStorage strings;
+  CodeMap code_map(strings);
   Symbolizer symbolizer(&code_map);
   CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   CodeEntry* entry2 = new CodeEntry(i::Logger::FUNCTION_TAG, "bbb");
@@ -460,7 +464,8 @@ TEST(SampleIds) {
   CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
   profiles.StartProfiling("", {CpuProfilingMode::kLeafNodeLineNumbers});
-  CodeMap code_map;
+  StringsStorage strings;
+  CodeMap code_map(strings);
   Symbolizer symbolizer(&code_map);
   CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   CodeEntry* entry2 = new CodeEntry(i::Logger::FUNCTION_TAG, "bbb");
@@ -518,6 +523,117 @@ TEST(SampleIds) {
   }
 }
 
+namespace {
+class DiscardedSamplesDelegateImpl : public v8::DiscardedSamplesDelegate {
+ public:
+  DiscardedSamplesDelegateImpl() : DiscardedSamplesDelegate() {}
+  void Notify() override {}
+};
+
+class MockPlatform : public TestPlatform {
+ public:
+  MockPlatform()
+      : old_platform_(i::V8::GetCurrentPlatform()),
+        mock_task_runner_(new MockTaskRunner()) {
+    // Now that it's completely constructed, make this the current platform.
+    i::V8::SetPlatformForTesting(this);
+  }
+
+  // When done, explicitly revert to old_platform_.
+  ~MockPlatform() override { i::V8::SetPlatformForTesting(old_platform_); }
+
+  std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
+      v8::Isolate*) override {
+    return mock_task_runner_;
+  }
+
+  int posted_count() { return mock_task_runner_->posted_count(); }
+
+ private:
+  class MockTaskRunner : public v8::TaskRunner {
+   public:
+    void PostTask(std::unique_ptr<v8::Task> task) override {
+      task->Run();
+      posted_count_++;
+    }
+
+    void PostDelayedTask(std::unique_ptr<Task> task,
+                         double delay_in_seconds) override {
+      task_ = std::move(task);
+      delay_ = delay_in_seconds;
+    }
+
+    void PostIdleTask(std::unique_ptr<IdleTask> task) override {
+      UNREACHABLE();
+    }
+
+    bool IdleTasksEnabled() override { return false; }
+
+    int posted_count() { return posted_count_; }
+
+   private:
+    int posted_count_ = 0;
+    double delay_ = -1;
+    std::unique_ptr<Task> task_;
+  };
+
+  v8::Platform* old_platform_;
+  std::shared_ptr<MockTaskRunner> mock_task_runner_;
+};
+}  // namespace
+
+TEST(MaxSamplesCallback) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  CpuProfilesCollection profiles(isolate);
+  CpuProfiler profiler(isolate);
+  profiles.set_cpu_profiler(&profiler);
+  MockPlatform* mock_platform = new MockPlatform();
+  std::unique_ptr<DiscardedSamplesDelegateImpl> impl =
+      std::make_unique<DiscardedSamplesDelegateImpl>(
+          DiscardedSamplesDelegateImpl());
+  profiles.StartProfiling("",
+                          {v8::CpuProfilingMode::kLeafNodeLineNumbers, 1, 1,
+                           MaybeLocal<v8::Context>()},
+                          std::move(impl));
+
+  StringsStorage strings;
+  CodeMap code_map(strings);
+  Symbolizer symbolizer(&code_map);
+  TickSample sample1;
+  sample1.timestamp = v8::base::TimeTicks::HighResolutionNow();
+  sample1.pc = ToPointer(0x1600);
+  sample1.stack[0] = ToPointer(0x1510);
+  sample1.frames_count = 1;
+  auto symbolized = symbolizer.SymbolizeTickSample(sample1);
+  profiles.AddPathToCurrentProfiles(sample1.timestamp, symbolized.stack_trace,
+                                    symbolized.src_line, true,
+                                    base::TimeDelta());
+  CHECK_EQ(0, mock_platform->posted_count());
+  TickSample sample2;
+  sample2.timestamp = v8::base::TimeTicks::HighResolutionNow();
+  sample2.pc = ToPointer(0x1925);
+  sample2.stack[0] = ToPointer(0x1780);
+  sample2.frames_count = 2;
+  symbolized = symbolizer.SymbolizeTickSample(sample2);
+  profiles.AddPathToCurrentProfiles(sample2.timestamp, symbolized.stack_trace,
+                                    symbolized.src_line, true,
+                                    base::TimeDelta());
+  CHECK_EQ(1, mock_platform->posted_count());
+  TickSample sample3;
+  sample3.timestamp = v8::base::TimeTicks::HighResolutionNow();
+  sample3.pc = ToPointer(0x1510);
+  sample3.frames_count = 3;
+  symbolized = symbolizer.SymbolizeTickSample(sample3);
+  profiles.AddPathToCurrentProfiles(sample3.timestamp, symbolized.stack_trace,
+                                    symbolized.src_line, true,
+                                    base::TimeDelta());
+  CHECK_EQ(1, mock_platform->posted_count());
+
+  // Teardown
+  profiles.StopProfiling("");
+  delete mock_platform;
+}
+
 TEST(NoSamples) {
   TestSetup test_setup;
   i::Isolate* isolate = CcTest::i_isolate();
@@ -525,7 +641,8 @@ TEST(NoSamples) {
   CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
   profiles.StartProfiling("");
-  CodeMap code_map;
+  StringsStorage strings;
+  CodeMap code_map(strings);
   Symbolizer symbolizer(&code_map);
   CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   symbolizer.code_map()->AddCode(ToAddress(0x1500), entry1, 0x200);
@@ -697,13 +814,13 @@ static const char* line_number_test_source_profile_time_functions =
 "function lazy_func_at_6th_line() {}";
 
 int GetFunctionLineNumber(CpuProfiler* profiler, LocalContext* env,
-                          const char* name) {
+                          i::Isolate* isolate, const char* name) {
   CodeMap* code_map = profiler->symbolizer()->code_map();
   i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           (*env)->Global()->Get(env->local(), v8_str(name)).ToLocalChecked())));
   CodeEntry* func_entry =
-      code_map->FindEntry(func->abstract_code().InstructionStart());
+      code_map->FindEntry(func->abstract_code(isolate).InstructionStart());
   if (!func_entry) FATAL("%s", name);
   return func_entry->line_number();
 }
@@ -726,12 +843,14 @@ TEST(LineNumber) {
   profiler.processor()->StopSynchronously();
 
   bool is_lazy = i::FLAG_lazy;
-  CHECK_EQ(1, GetFunctionLineNumber(&profiler, &env, "foo_at_the_first_line"));
-  CHECK_EQ(is_lazy ? 0 : 4,
-           GetFunctionLineNumber(&profiler, &env, "lazy_func_at_forth_line"));
-  CHECK_EQ(2, GetFunctionLineNumber(&profiler, &env, "bar_at_the_second_line"));
-  CHECK_EQ(is_lazy ? 0 : 6,
-           GetFunctionLineNumber(&profiler, &env, "lazy_func_at_6th_line"));
+  CHECK_EQ(1, GetFunctionLineNumber(&profiler, &env, isolate,
+                                    "foo_at_the_first_line"));
+  CHECK_EQ(is_lazy ? 0 : 4, GetFunctionLineNumber(&profiler, &env, isolate,
+                                                  "lazy_func_at_forth_line"));
+  CHECK_EQ(2, GetFunctionLineNumber(&profiler, &env, isolate,
+                                    "bar_at_the_second_line"));
+  CHECK_EQ(is_lazy ? 0 : 6, GetFunctionLineNumber(&profiler, &env, isolate,
+                                                  "lazy_func_at_6th_line"));
 
   profiler.StopProfiling("LineNumber");
 }

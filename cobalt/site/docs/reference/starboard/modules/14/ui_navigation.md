@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: ui_navigation.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: `ui_navigation.h`
 
 API to allow applications to take advantage of the platform's native UI engine.
 This is mainly to drive the animation of visual elements and to signal which of
@@ -19,20 +19,20 @@ SbUiNavItem in case the native UI engine moves individual items in response to
 user interaction. If the navigation item is a container, then the content offset
 will also be queried to determine the placement of its content items.
 
-## Macros ##
+## Macros
 
-### kSbUiNavItemInvalid ###
+### kSbUiNavItemInvalid
 
 Well-defined value for an invalid navigation item.
 
-## Enums ##
+## Enums
 
-### SbUiNavItemType ###
+### SbUiNavItemType
 
 Navigation items may be one of the following types. This must be specified upon
 item creation and may not change during the item's lifespan.
 
-#### Values ####
+#### Values
 
 *   `kSbUiNavItemTypeFocus`
 
@@ -42,29 +42,29 @@ item creation and may not change during the item's lifespan.
     This is a container of navigation items which can also be containers
     themselves or focusable items. Containers themselves cannot be focused.
 
-## Typedefs ##
+## Typedefs
 
-### SbUiNavItem ###
+### SbUiNavItem
 
 An opaque handle to an implementation-private structure representing a
 navigation item.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef struct SbUiNavItemPrivate* SbUiNavItem
 ```
 
-## Structs ##
+## Structs
 
-### SbUiNavCallbacks ###
+### SbUiNavCallbacks
 
 This structure specifies all the callbacks which the platform UI engine should
 invoke for various interaction events on navigation items. These callbacks may
 be invoked from any thread at any frequency. The `callback_context` is the value
 that was passed on creation of the relevant SbUiNavItem.
 
-#### Members ####
+#### Members
 
 *   `void(*onblur)(SbUiNavItem item, void *callback_context)`
 
@@ -77,12 +77,12 @@ that was passed on creation of the relevant SbUiNavItem.
     Invoke when an item's content offset is changed. This is only used with
     container items.
 
-### SbUiNavInterface ###
+### SbUiNavInterface
 
 This structure declares the interface to the UI navigation implementation. All
 function pointers must be specified if the platform supports UI navigation.
 
-#### Members ####
+#### Members
 
 *   `SbUiNavItem(*create_item)(SbUiNavItemType type, const SbUiNavCallbacks
     *callbacks, void *callback_context)`
@@ -237,7 +237,7 @@ function pointers must be specified if the platform supports UI navigation.
     Call `update_function` with `context` to perform a series of UI navigation
     changes atomically before returning.
 
-### SbUiNavItemDir ###
+### SbUiNavItemDir
 
 Navigation items of type kSbUiNavItemTypeContainer have directionality. If
 directionality is not specified for a container, it should default to left-to-
@@ -270,12 +270,12 @@ right and top-to-bottom.
   Bottom-to-top is similar to right-to-left, but for the Y position.
 ```
 
-#### Members ####
+#### Members
 
 *   `bool is_left_to_right`
 *   `bool is_top_to_bottom`
 
-### SbUiNavMatrix2x3 ###
+### SbUiNavMatrix2x3
 
 This represents a 2x3 transform matrix in row-major order.
 
@@ -284,38 +284,38 @@ This represents a 2x3 transform matrix in row-major order.
 ///   | c d ty |
 ```
 
-#### Members ####
+#### Members
 
 *   `float m`
 
-### SbUiNavMatrix4 ###
+### SbUiNavMatrix4
 
 This represents a 4x4 transform matrix in row-major order.
 
-#### Members ####
+#### Members
 
 *   `float m`
 
-## Functions ##
+## Functions
 
-### SbUiNavGetInterface ###
+### SbUiNavGetInterface
 
 Retrieve the platform's UI navigation implementation. If the platform does not
 provide one, then return false without modifying `out_interface`. Otherwise,
 initialize all members of `out_interface` and return true. The `out_interface`
 pointer must not be NULL.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbUiNavGetInterface(SbUiNavInterface *out_interface)
 ```
 
-### SbUiNavItemIsValid ###
+### SbUiNavItemIsValid
 
 Returns whether the given navigation item handle is valid.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static bool SbUiNavItemIsValid(SbUiNavItem item)

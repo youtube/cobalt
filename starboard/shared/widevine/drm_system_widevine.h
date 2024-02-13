@@ -117,7 +117,9 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
                  ::widevine::Cdm::MessageType message_type,
                  const std::string& message) override;
   // There has been a change in the keys in the session or their status.
-  void onKeyStatusesChange(const std::string& wvcdm_session_id) override;
+  void onKeyStatusesChange(const std::string& wvcdm_session_id,
+                           bool has_new_usable_key) override;
+
   // A remove() operation has been completed.
   void onRemoveComplete(const std::string& wvcdm_session_id) override;
   // Called when a deferred action has completed.
@@ -190,7 +192,7 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   volatile bool quitting_ = false;
 
   Mutex unblock_key_retry_mutex_;
-  optional<SbTimeMonotonic> unblock_key_retry_start_time_;
+  optional<int64_t> unblock_key_retry_start_time_;
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   int number_of_session_updates_sent_ = 0;

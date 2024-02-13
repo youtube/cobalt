@@ -120,7 +120,7 @@ void MessagePumpUIStarboard::ScheduleDelayedWork(
     CancelDelayedLocked();
 
     outstanding_delayed_events_.insert(
-        SbEventSchedule(&CallMessagePumpDelayed, this, delay.ToSbTime()));
+        SbEventSchedule(&CallMessagePumpDelayed, this, delay.InMicroseconds()));
   }
 }
 

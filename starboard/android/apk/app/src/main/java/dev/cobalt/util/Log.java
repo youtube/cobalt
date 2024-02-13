@@ -90,15 +90,24 @@ public final class Log {
   }
 
   public static int v(String tag, String messageTemplate, Object... args) {
-    return logWithMethod(logV, tag, messageTemplate, args);
+    if (android.util.Log.isLoggable(TAG, android.util.Log.VERBOSE)) {
+      return logWithMethod(logV, tag, messageTemplate, args);
+    }
+    return 0;
   }
 
   public static int d(String tag, String messageTemplate, Object... args) {
-    return logWithMethod(logD, tag, messageTemplate, args);
+    if (android.util.Log.isLoggable(TAG, android.util.Log.DEBUG)) {
+      return logWithMethod(logD, tag, messageTemplate, args);
+    }
+    return 0;
   }
 
   public static int i(String tag, String messageTemplate, Object... args) {
-    return logWithMethod(logI, tag, messageTemplate, args);
+    if (android.util.Log.isLoggable(TAG, android.util.Log.INFO)) {
+      return logWithMethod(logI, tag, messageTemplate, args);
+    }
+    return 0;
   }
 
   public static int w(String tag, String messageTemplate, Object... args) {

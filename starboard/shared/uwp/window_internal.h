@@ -18,7 +18,6 @@
 #include <EGL/egl.h>
 
 #include "starboard/atomic.h"
-#include "starboard/time.h"
 #include "starboard/window.h"
 
 struct SbWindowPrivate {

@@ -2949,6 +2949,5 @@ xmlXPtrEvalRangePredicate(xmlXPathParserContextPtr ctxt) {
 }
 
 #define bottom_xpointer
-#include "third_party/libxml/src/elfgcchack.h"
 #endif
 

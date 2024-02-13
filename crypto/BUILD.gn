@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/crypto.gni")
+import("//build_overrides/crypto.gni")
 import("//testing/test.gni")
 
 component("crypto") {
@@ -231,8 +231,8 @@ config("platform_config") {
 # on the current SSL library should just depend on this.
 group("platform") {
   if (is_starboard) {
-    deps = [ "//starboard" ]
-    public_deps = [ "//third_party/boringssl:crypto" ]
+    deps = [ "//starboard:starboard_group", ]
+    public_deps = [ "//third_party/boringssl" ]
   } else {
   public_deps = [
     "//third_party/boringssl",

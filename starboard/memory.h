@@ -40,7 +40,6 @@
 #define STARBOARD_MEMORY_H_
 
 #include <string.h>
-
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/export.h"
@@ -51,8 +50,8 @@
 extern "C" {
 #endif
 
-#define SB_MEMORY_MAP_FAILED ((void*)-1)  // NOLINT(readability/casting)
-
+// TODO: Remove the definition once the memory_mapped_file.h extension
+// is deprecated.
 // The bitwise OR of these flags should be passed to SbMemoryMap to indicate
 // how the mapped memory can be used.
 typedef enum SbMemoryMapFlags {
@@ -67,6 +66,10 @@ typedef enum SbMemoryMapFlags {
   kSbMemoryMapProtectReadWrite =
       kSbMemoryMapProtectRead | kSbMemoryMapProtectWrite,
 } SbMemoryMapFlags;
+
+#if SB_API_VERSION < 16
+
+#define SB_MEMORY_MAP_FAILED ((void*)-1)  // NOLINT(readability/casting)
 
 static SB_C_FORCE_INLINE void SbAbortIfAllocationFailed(size_t requested_bytes,
                                                         void* address) {
@@ -217,6 +220,7 @@ SB_EXPORT bool SbMemoryProtect(void* virtual_address,
 // memory that has been written to and might be executed in the future.
 SB_EXPORT void SbMemoryFlush(void* virtual_address, int64_t size_bytes);
 #endif
+#endif  // SB_API_VERSION < 16
 
 #if SB_API_VERSION < 15
 
@@ -228,6 +232,7 @@ SB_EXPORT void SbMemoryGetStackBounds(void** out_high, void** out_low);
 
 #endif  // SB_API_VERSION < 15
 
+#if SB_API_VERSION < 16
 // A wrapper that implements a drop-in replacement for |calloc|, which is used
 // in some packages.
 static SB_C_INLINE void* SbMemoryCalloc(size_t count, size_t size) {
@@ -263,9 +268,9 @@ SB_DEPRECATED_EXTERNAL(SB_EXPORT void* SbMemoryReallocateChecked(void* memory,
 SB_DEPRECATED_EXTERNAL(
     SB_EXPORT void* SbMemoryAllocateAlignedChecked(size_t alignment,
                                                    size_t size));
+#endif  // SB_API_VERSION < 16
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
-
 #endif  // STARBOARD_MEMORY_H_

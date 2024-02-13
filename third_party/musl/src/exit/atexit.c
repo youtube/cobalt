@@ -11,7 +11,6 @@
 #endif  // STARBOARD
 
 #define malloc __libc_malloc
-#define calloc __libc_calloc
 #define realloc undef
 #define free undef
 

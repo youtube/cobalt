@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/player/filter/player_components.h"
 
 #include "starboard/common/scoped_ptr.h"
+#include "starboard/common/time.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
@@ -44,9 +45,7 @@ typedef MediaTimeProviderImpl::MonotonicSystemTimeProvider
     MonotonicSystemTimeProvider;
 
 class MonotonicSystemTimeProviderImpl : public MonotonicSystemTimeProvider {
-  SbTimeMonotonic GetMonotonicNow() const override {
-    return SbTimeGetMonotonicNow();
-  }
+  int64_t GetMonotonicNow() const override { return CurrentMonotonicTime(); }
 };
 
 class PlayerComponentsImpl : public PlayerComponents {
@@ -93,12 +92,14 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     const media::VideoStreamInfo& video_stream_info,
     SbPlayer player,
     SbPlayerOutputMode output_mode,
+    int max_video_input_size,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     SbDrmSystem drm_system)
     : video_stream_info_(video_stream_info),
       player_(player),
       output_mode_(output_mode),
+      max_video_input_size_(max_video_input_size),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       drm_system_(drm_system) {
@@ -112,6 +113,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     const media::VideoStreamInfo& video_stream_info,
     SbPlayer player,
     SbPlayerOutputMode output_mode,
+    int max_video_input_size,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     SbDrmSystem drm_system)
@@ -119,6 +121,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       video_stream_info_(video_stream_info),
       player_(player),
       output_mode_(output_mode),
+      max_video_input_size_(max_video_input_size),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       drm_system_(drm_system) {
@@ -132,6 +135,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
   this->video_stream_info_ = that.video_stream_info_;
   this->player_ = that.player_;
   this->output_mode_ = that.output_mode_;
+  this->max_video_input_size_ = that.max_video_input_size_;
   this->decode_target_graphics_context_provider_ =
       that.decode_target_graphics_context_provider_;
   this->drm_system_ = that.drm_system_;
@@ -252,7 +256,7 @@ void PlayerComponents::Factory::CreateStubVideoComponents(
     scoped_ptr<VideoDecoder>* video_decoder,
     scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
     scoped_refptr<VideoRendererSink>* video_renderer_sink) {
-  const SbTime kVideoSinkRenderInterval = 10 * kSbTimeMillisecond;
+  const int64_t kVideoSinkRenderIntervalUsec = 10'000;  // 10ms
 
   SB_DCHECK(video_decoder);
   SB_DCHECK(video_render_algorithm);
@@ -261,7 +265,7 @@ void PlayerComponents::Factory::CreateStubVideoComponents(
   video_decoder->reset(new StubVideoDecoder);
   video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
   *video_renderer_sink = new PunchoutVideoRendererSink(
-      creation_parameters.player(), kVideoSinkRenderInterval);
+      creation_parameters.player(), kVideoSinkRenderIntervalUsec);
 }
 
 void PlayerComponents::Factory::GetAudioRendererParams(

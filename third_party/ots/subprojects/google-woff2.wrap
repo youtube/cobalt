@@ -1,0 +1,12 @@
+[wrap-file]
+directory = woff2-a0d0ed7da27b708c0a4e96ad7a998bddc933c06e
+
+source_url = https://github.com/google/woff2/archive/a0d0ed7da27b708c0a4e96ad7a998bddc933c06e.tar.gz
+source_filename = a0d0ed7da27b708c0a4e96ad7a998bddc933c06e.tar.gz
+source_hash = 0be399be51907a9deb40b0b5b680df8151e99ee3aa9eb7d2505896ead13675d9
+
+patch_directory = woff2
+
+[provide]
+dependency_names = libwoff2common, libwoff2dec, libwoff2enc
+program_names = woff2_decompress, woff2_compress, woff2_info

@@ -18,18 +18,13 @@
 
 #include <openssl/poly1305.h>
 
-#if !defined(OPENSSL_SYS_STARBOARD)
 #include <string.h>
-#endif  // !defined(OPENSSL_SYS_STARBOARD)
-#include <openssl/mem.h>
-
-#include <openssl/cpu.h>
 
 #include "internal.h"
 #include "../internal.h"
 
 
-#if defined(OPENSSL_WINDOWS) || !defined(OPENSSL_X86_64)
+#if !defined(BORINGSSL_HAS_UINT128) || !defined(OPENSSL_X86_64)
 
 // We can assume little-endian.
 static uint32_t U8TO32_LE(const uint8_t *m) {
@@ -49,13 +44,17 @@ struct poly1305_state_st {
   uint32_t s1, s2, s3, s4;
   uint32_t h0, h1, h2, h3, h4;
   uint8_t buf[16];
-  unsigned int buf_used;
+  size_t buf_used;
   uint8_t key[16];
 };
 
+OPENSSL_STATIC_ASSERT(
+    sizeof(struct poly1305_state_st) + 63 <= sizeof(poly1305_state),
+    "poly1305_state isn't large enough to hold aligned poly1305_state_st");
+
 static inline struct poly1305_state_st *poly1305_aligned_state(
     poly1305_state *state) {
-  return (struct poly1305_state_st *)(((uintptr_t)state + 63) & ~63);
+  return align_pointer(state, 64);
 }
 
 // poly1305_blocks updates |state| given some amount of input data. This
@@ -203,8 +202,12 @@ void CRYPTO_poly1305_init(poly1305_state *statep, const uint8_t key[32]) {
 
 void CRYPTO_poly1305_update(poly1305_state *statep, const uint8_t *in,
                             size_t in_len) {
-  unsigned int i;
   struct poly1305_state_st *state = poly1305_aligned_state(statep);
+
+  // Work around a C language bug. See https://crbug.com/1019588.
+  if (in_len == 0) {
+    return;
+  }
 
 #if defined(OPENSSL_POLY1305_NEON)
   if (CRYPTO_is_NEON_capable()) {
@@ -214,11 +217,11 @@ void CRYPTO_poly1305_update(poly1305_state *statep, const uint8_t *in,
 #endif
 
   if (state->buf_used) {
-    unsigned todo = 16 - state->buf_used;
+    size_t todo = 16 - state->buf_used;
     if (todo > in_len) {
-      todo = (unsigned)in_len;
+      todo = in_len;
     }
-    for (i = 0; i < todo; i++) {
+    for (size_t i = 0; i < todo; i++) {
       state->buf[state->buf_used + i] = in[i];
     }
     state->buf_used += todo;
@@ -239,10 +242,10 @@ void CRYPTO_poly1305_update(poly1305_state *statep, const uint8_t *in,
   }
 
   if (in_len) {
-    for (i = 0; i < in_len; i++) {
+    for (size_t i = 0; i < in_len; i++) {
       state->buf[i] = in[i];
     }
-    state->buf_used = (unsigned)in_len;
+    state->buf_used = in_len;
   }
 }
 
@@ -318,4 +321,4 @@ void CRYPTO_poly1305_finish(poly1305_state *statep, uint8_t mac[16]) {
   U32TO8_LE(&mac[12], f3);
 }
 
-#endif  // OPENSSL_WINDOWS || !OPENSSL_X86_64
+#endif  // !BORINGSSL_HAS_UINT128 || !OPENSSL_X86_64

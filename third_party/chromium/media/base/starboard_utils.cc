@@ -88,9 +88,8 @@ SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec) {
       return kSbMediaAudioCodecPcm;
 #endif  // SB_API_VERSION >= 14
 #if SB_API_VERSION >= 15
-    // TODO(b/271301103): Enable this once IAMF is added to Chromium.
-    // case AudioCodec::kIAMF:
-    //  return kSbMediaAudioCodecPcm;
+    case AudioCodec::kIAMF:
+     return kSbMediaAudioCodecIamf;
 #endif  // SB_API_VERSION >= 15
     default:
       // Cobalt only supports a subset of audio codecs defined by Chromium.
@@ -418,7 +417,7 @@ std::string ExtractCodecs(const std::string& mime_type) {
   std::vector<std::string> tokens = ::base::SplitString(
       mime_type, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
   for (size_t i = 1; i < tokens.size(); ++i) {
-    if (base::strncasecmp(tokens[i].c_str(), kCodecs, strlen(kCodecs))) {
+    if (strncasecmp(tokens[i].c_str(), kCodecs, strlen(kCodecs))) {
       continue;
     }
     auto codec = tokens[i].substr(strlen(kCodecs));

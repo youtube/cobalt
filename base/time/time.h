@@ -64,7 +64,7 @@
 #include "build/build_config.h"
 
 #if defined(STARBOARD)
-#include "starboard/time.h"
+#include "starboard/common/time.h"
 #endif
 
 #if defined(OS_FUCHSIA)
@@ -181,10 +181,6 @@ class BASE_EXPORT TimeDelta {
   constexpr bool is_min() const {
     return delta_ == std::numeric_limits<int64_t>::min();
   }
-
-#if defined(STARBOARD)
-  SbTime ToSbTime() const;
-#endif
 
 #if defined(OS_POSIX) || defined(OS_FUCHSIA)
   struct timespec ToTimeSpec() const;
@@ -577,11 +573,6 @@ class BASE_EXPORT Time : public time_internal::TimeBase<Time> {
   // https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Date/getTime.
   static Time FromJsTime(double ms_since_epoch);
   double ToJsTime() const;
-
-#if defined(STARBOARD)
-  static Time FromSbTime(SbTime t);
-  SbTime ToSbTime() const;
-#endif
 
   // Converts to/from Java convention for times, a number of milliseconds since
   // the epoch. Because the Java format has less resolution, converting to Java
@@ -1038,7 +1029,7 @@ class BASE_EXPORT ThreadTicks : public time_internal::TimeBase<ThreadTicks> {
   // Returns true if ThreadTicks::Now() is supported on this system.
   static bool IsSupported() WARN_UNUSED_RESULT {
 #if defined(STARBOARD)
-    return SbTimeIsTimeThreadNowSupported();
+    return starboard::CurrentMonotonicThreadTime() != 0;
 #else
 #if (defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
     (defined(OS_MACOSX) && !defined(OS_IOS)) || defined(OS_ANDROID) ||  \

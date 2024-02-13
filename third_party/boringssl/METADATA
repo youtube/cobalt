@@ -1,0 +1,15 @@
+third_party {
+  identifier {
+    type: "ChromiumVersion"
+    value: "102.0.5005.193"  # from https://chromereleases.googleblog.com/2022/12/long-term-support-channel-update-for_14.html
+  }
+  identifier {
+    type: "Git"
+    value: "https://chromium.googlesource.com/chromium/src.git"
+    version: "1218c4f5fdcc00016ccd2531932e9f3dec0151e6"
+  }
+  identifier {
+    type: "UpstreamSubdir"
+    value: "third_party/boringssl"
+  }
+}

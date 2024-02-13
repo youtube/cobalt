@@ -133,6 +133,9 @@ OPENSSL_EXPORT const EC_POINT *EC_GROUP_get0_generator(const EC_GROUP *group);
 // |group| that specifies the order of the group.
 OPENSSL_EXPORT const BIGNUM *EC_GROUP_get0_order(const EC_GROUP *group);
 
+// EC_GROUP_order_bits returns the number of bits of the order of |group|.
+OPENSSL_EXPORT int EC_GROUP_order_bits(const EC_GROUP *group);
+
 // EC_GROUP_get_cofactor sets |*cofactor| to the cofactor of |group| using
 // |ctx|, if it's not NULL. It returns one on success and zero otherwise.
 OPENSSL_EXPORT int EC_GROUP_get_cofactor(const EC_GROUP *group,
@@ -158,6 +161,11 @@ OPENSSL_EXPORT unsigned EC_GROUP_get_degree(const EC_GROUP *group);
 // |nid|, or NULL if |nid| is not a NIST curve. For example, it returns "P-256"
 // for |NID_X9_62_prime256v1|.
 OPENSSL_EXPORT const char *EC_curve_nid2nist(int nid);
+
+// EC_curve_nist2nid returns the NID of the elliptic curve specified by the NIST
+// name |name|, or |NID_undef| if |name| is not a recognized name. For example,
+// it returns |NID_X9_62_prime256v1| for "P-256".
+OPENSSL_EXPORT int EC_curve_nist2nid(const char *name);
 
 
 // Points on elliptic curves.
@@ -213,15 +221,36 @@ OPENSSL_EXPORT int EC_POINT_get_affine_coordinates_GFp(const EC_GROUP *group,
                                                        BIGNUM *x, BIGNUM *y,
                                                        BN_CTX *ctx);
 
+// EC_POINT_get_affine_coordinates is an alias of
+// |EC_POINT_get_affine_coordinates_GFp|.
+OPENSSL_EXPORT int EC_POINT_get_affine_coordinates(const EC_GROUP *group,
+                                                   const EC_POINT *point,
+                                                   BIGNUM *x, BIGNUM *y,
+                                                   BN_CTX *ctx);
+
 // EC_POINT_set_affine_coordinates_GFp sets the value of |point| to be
 // (|x|, |y|). The |ctx| argument may be used if not NULL. It returns one
-// on success or zero on error. Note that, unlike with OpenSSL, it's
-// considered an error if the point is not on the curve.
+// on success or zero on error. It's considered an error if the point is not on
+// the curve.
+//
+// Note that the corresponding function in OpenSSL versions prior to 1.0.2s does
+// not check if the point is on the curve. This is a security-critical check, so
+// code additionally supporting OpenSSL should repeat the check with
+// |EC_POINT_is_on_curve| or check for older OpenSSL versions with
+// |OPENSSL_VERSION_NUMBER|.
 OPENSSL_EXPORT int EC_POINT_set_affine_coordinates_GFp(const EC_GROUP *group,
                                                        EC_POINT *point,
                                                        const BIGNUM *x,
                                                        const BIGNUM *y,
                                                        BN_CTX *ctx);
+
+// EC_POINT_set_affine_coordinates is an alias of
+// |EC_POINT_set_affine_coordinates_GFp|.
+OPENSSL_EXPORT int EC_POINT_set_affine_coordinates(const EC_GROUP *group,
+                                                   EC_POINT *point,
+                                                   const BIGNUM *x,
+                                                   const BIGNUM *y,
+                                                   BN_CTX *ctx);
 
 // EC_POINT_point2oct serialises |point| into the X9.62 form given by |form|
 // into, at most, |len| bytes at |buf|. It returns the number of bytes written
@@ -240,8 +269,9 @@ OPENSSL_EXPORT int EC_POINT_point2cbb(CBB *out, const EC_GROUP *group,
                                       BN_CTX *ctx);
 
 // EC_POINT_oct2point sets |point| from |len| bytes of X9.62 format
-// serialisation in |buf|. It returns one on success and zero otherwise. The
-// |ctx| argument may be used if not NULL.
+// serialisation in |buf|. It returns one on success and zero on error. The
+// |ctx| argument may be used if not NULL. It's considered an error if |buf|
+// does not represent a point on the curve.
 OPENSSL_EXPORT int EC_POINT_oct2point(const EC_GROUP *group, EC_POINT *point,
                                       const uint8_t *buf, size_t len,
                                       BN_CTX *ctx);
@@ -293,7 +323,15 @@ OPENSSL_EXPORT int EC_POINT_mul(const EC_GROUP *group, EC_POINT *r,
 // |EC_GROUP_cmp| (even to themselves). |EC_GROUP_get_curve_name| will always
 // return |NID_undef|.
 //
-// Avoid using arbitrary curves and use |EC_GROUP_new_by_curve_name| instead.
+// This function is provided for compatibility with some legacy applications
+// only. Avoid using arbitrary curves and use |EC_GROUP_new_by_curve_name|
+// instead. This ensures the result meets preconditions necessary for
+// elliptic curve algorithms to function correctly and securely.
+//
+// Given invalid parameters, this function may fail or it may return an
+// |EC_GROUP| which breaks these preconditions. Subsequent operations may then
+// return arbitrary, incorrect values. Callers should not pass
+// attacker-controlled values to this function.
 OPENSSL_EXPORT EC_GROUP *EC_GROUP_new_curve_GFp(const BIGNUM *p,
                                                 const BIGNUM *a,
                                                 const BIGNUM *b, BN_CTX *ctx);
@@ -313,10 +351,14 @@ OPENSSL_EXPORT int EC_GROUP_set_generator(EC_GROUP *group,
 OPENSSL_EXPORT int EC_GROUP_get_order(const EC_GROUP *group, BIGNUM *order,
                                       BN_CTX *ctx);
 
+#define OPENSSL_EC_EXPLICIT_CURVE 0
+#define OPENSSL_EC_NAMED_CURVE 1
+
 // EC_GROUP_set_asn1_flag does nothing.
 OPENSSL_EXPORT void EC_GROUP_set_asn1_flag(EC_GROUP *group, int flag);
 
-#define OPENSSL_EC_NAMED_CURVE 0
+// EC_GROUP_get_asn1_flag returns |OPENSSL_EC_NAMED_CURVE|.
+OPENSSL_EXPORT int EC_GROUP_get_asn1_flag(const EC_GROUP *group);
 
 typedef struct ec_method_st EC_METHOD;
 
@@ -348,21 +390,23 @@ OPENSSL_EXPORT size_t EC_get_builtin_curves(EC_builtin_curve *out_curves,
 // EC_POINT_clear_free calls |EC_POINT_free|.
 OPENSSL_EXPORT void EC_POINT_clear_free(EC_POINT *point);
 
-// Old code expects to get EC_KEY from ec.h.
-#include <openssl/ec_key.h>
-
 
 #if defined(__cplusplus)
 }  // extern C
+#endif
 
+// Old code expects to get EC_KEY from ec.h.
+#include <openssl/ec_key.h>
+
+#if defined(__cplusplus)
 extern "C++" {
 
-namespace bssl {
+BSSL_NAMESPACE_BEGIN
 
 BORINGSSL_MAKE_DELETER(EC_POINT, EC_POINT_free)
 BORINGSSL_MAKE_DELETER(EC_GROUP, EC_GROUP_free)
 
-}  // namespace bssl
+BSSL_NAMESPACE_END
 
 }  // extern C++
 

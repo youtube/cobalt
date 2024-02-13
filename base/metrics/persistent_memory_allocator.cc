@@ -995,7 +995,7 @@ LocalPersistentMemoryAllocator::AllocateLocalMemory(size_t size) {
   // achieve the same basic result but the acquired memory has to be
   // explicitly zeroed and thus realized immediately (i.e. all pages are
   // added to the process now istead of only when first accessed).
-  address = SbMemoryAllocate(size);
+  address = malloc(size);
   DPCHECK(address);
   memset(address, 0, size);
   return Memory(address, MEM_MALLOC);
@@ -1006,7 +1006,7 @@ void LocalPersistentMemoryAllocator::DeallocateLocalMemory(void* memory,
                                                            size_t size,
                                                            MemoryType type) {
   if (type == MEM_MALLOC) {
-    SbMemoryDeallocate(memory);
+    free(memory);
     return;
   }
 

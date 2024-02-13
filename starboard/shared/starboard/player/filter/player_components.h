@@ -66,6 +66,7 @@ class PlayerComponents {
       CreationParameters(const media::VideoStreamInfo& video_stream_info,
                          SbPlayer player,
                          SbPlayerOutputMode output_mode,
+                         int max_video_input_size,
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
                          SbDrmSystem drm_system = kSbDrmSystemInvalid);
@@ -73,6 +74,7 @@ class PlayerComponents {
                          const media::VideoStreamInfo& video_stream_info,
                          SbPlayer player,
                          SbPlayerOutputMode output_mode,
+                         int max_video_input_size,
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
                          SbDrmSystem drm_system = kSbDrmSystemInvalid);
@@ -117,6 +119,7 @@ class PlayerComponents {
 
       SbPlayer player() const { return player_; }
       SbPlayerOutputMode output_mode() const { return output_mode_; }
+      int max_video_input_size() const { return max_video_input_size_; }
       SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider() const {
         SB_DCHECK(video_stream_info_.codec != kSbMediaVideoCodecNone);
@@ -137,6 +140,7 @@ class PlayerComponents {
       media::VideoStreamInfo video_stream_info_;
       SbPlayer player_ = kSbPlayerInvalid;
       SbPlayerOutputMode output_mode_ = kSbPlayerOutputModeInvalid;
+      int max_video_input_size_ = 0;
       SbDecodeTargetGraphicsContextProvider*
           decode_target_graphics_context_provider_ = nullptr;
 

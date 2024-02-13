@@ -4,12 +4,13 @@
 
 #include "crypto/rsa_private_key.h"
 
+#include <stdint.h>
+
 #include <memory>
 #include <utility>
 
 #include "base/logging.h"
 #include "crypto/openssl_util.h"
-#include "starboard/types.h"
 #include "third_party/boringssl/src/include/openssl/bn.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"

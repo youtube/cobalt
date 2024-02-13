@@ -54,7 +54,7 @@ atomic_bool g_app_running;
 std::vector<std::string> GetArgs() {
   std::vector<std::string> args;
   // Fake program name as args[0]
-  args.push_back(SbStringDuplicate("android_main"));
+  args.push_back(strdup("android_main"));
 
   JniEnvExt* env = JniEnvExt::Get();
 

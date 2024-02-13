@@ -49,7 +49,7 @@ namespace cobalt {
 namespace network {
 
 // Used to differentiate type of network call for Client Hint Headers.
-// Values correspond to bit masks against |enable_client_hint_headers_flags_|.
+// Values correspond to bit masks against |kEnabledClientHintHeaders|.
 enum ClientHintHeadersCallType : int32_t {
   kCallTypeLoader = (1u << 0),
   kCallTypeMedia = (1u << 1),
@@ -59,11 +59,10 @@ enum ClientHintHeadersCallType : int32_t {
   kCallTypeXHR = (1u << 5),
 };
 
-const char kQuicEnabledPersistentSettingsKey[] = "QUICEnabled";
+// Determines which type of network calls should include Client Hint Headers.
+constexpr int32_t kEnabledClientHintHeaders = (kCallTypeLoader | kCallTypeXHR);
 
-// Holds bit mask flag, read into |enable_client_hint_headers_flags_|.
-const char kClientHintHeadersEnabledPersistentSettingsKey[] =
-    "clientHintHeadersEnabled";
+const char kQuicEnabledPersistentSettingsKey[] = "QUICEnabled";
 
 class NetworkSystem;
 // NetworkModule wraps various networking-related components such as
@@ -77,7 +76,7 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
           https_requirement(network::kHTTPSRequired),
           cors_policy(network::kCORSRequired),
           preferred_language("en-US"),
-          max_network_delay(0),
+          max_network_delay_usec(0),
           persistent_settings(nullptr) {}
     net::StaticCookiePolicy::Type cookie_policy;
     bool ignore_certificate_errors;
@@ -85,7 +84,7 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
     network::CORSPolicy cors_policy;
     std::string preferred_language;
     std::string custom_proxy;
-    SbTime max_network_delay;
+    int64_t max_network_delay_usec;
     persistent_storage::PersistentSettings* persistent_settings;
     storage::StorageManager::Options storage_manager_options;
   };
@@ -111,7 +110,9 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
   const std::string& preferred_language() const {
     return options_.preferred_language;
   }
-  SbTime max_network_delay() const { return options_.max_network_delay; }
+  int64_t max_network_delay_usec() const {
+    return options_.max_network_delay_usec;
+  }
   scoped_refptr<URLRequestContextGetter> url_request_context_getter() const {
     return url_request_context_getter_;
   }
@@ -132,9 +133,6 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
 
   void SetEnableQuicFromPersistentSettings();
 
-  // Checks persistent settings to determine if Client Hint Headers are enabled.
-  void SetEnableClientHintHeadersFlagsFromPersistentSettings();
-
   // Adds the Client Hint Headers to the provided URLFetcher if enabled.
   void AddClientHintHeaders(net::URLFetcher& url_fetcher,
                             ClientHintHeadersCallType call_type) const;
@@ -154,7 +152,6 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
   std::unique_ptr<network_bridge::NetPoster> CreateNetPoster();
 
   std::vector<std::string> client_hint_headers_;
-  starboard::atomic_int32_t enable_client_hint_headers_flags_;
   std::unique_ptr<storage::StorageManager> storage_manager_;
   std::unique_ptr<base::Thread> thread_;
   std::unique_ptr<URLRequestContext> url_request_context_;

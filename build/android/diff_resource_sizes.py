@@ -1,11 +1,10 @@
-#!/usr/bin/env python
-# Copyright 2017 The Chromium Authors. All rights reserved.
+#!/usr/bin/env python3
+# Copyright 2017 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 """Runs resource_sizes.py on two apks and outputs the diff."""
 
-from __future__ import print_function
 
 import argparse
 import json
@@ -49,8 +48,8 @@ def DiffResults(chartjson, base_results, diff_results):
     base_results: The chartjson-formatted size results of the base APK.
     diff_results: The chartjson-formatted size results of the diff APK.
   """
-  for graph_title, graph in base_results['charts'].iteritems():
-    for trace_title, trace in graph.iteritems():
+  for graph_title, graph in base_results['charts'].items():
+    for trace_title, trace in graph.items():
       perf_tests_results_helper.ReportPerfResult(
           chartjson, graph_title, trace_title,
           diff_results['charts'][graph_title][trace_title]['value']
@@ -67,8 +66,8 @@ def AddIntermediateResults(chartjson, base_results, diff_results):
     base_results: The chartjson-formatted size results of the base APK.
     diff_results: The chartjson-formatted size results of the diff APK.
   """
-  for graph_title, graph in base_results['charts'].iteritems():
-    for trace_title, trace in graph.iteritems():
+  for graph_title, graph in base_results['charts'].items():
+    for trace_title, trace in graph.items():
       perf_tests_results_helper.ReportPerfResult(
           chartjson, graph_title + '_base_apk', trace_title,
           trace['value'], trace['units'], trace['improvement_direction'],
@@ -76,8 +75,8 @@ def AddIntermediateResults(chartjson, base_results, diff_results):
 
   # Both base_results and diff_results should have the same charts/traces, but
   # loop over them separately in case they don't
-  for graph_title, graph in diff_results['charts'].iteritems():
-    for trace_title, trace in graph.iteritems():
+  for graph_title, graph in diff_results['charts'].items():
+    for trace_title, trace in graph.items():
       perf_tests_results_helper.ReportPerfResult(
           chartjson, graph_title + '_diff_apk', trace_title,
           trace['value'], trace['units'], trace['improvement_direction'],
@@ -194,6 +193,7 @@ def main():
         logging.critical('Dumping diff histograms to %s', histogram_path)
         with open(histogram_path, 'w') as json_file:
           json_file.write(histogram_result.stdout)
+  return 0
 
 
 if __name__ == '__main__':

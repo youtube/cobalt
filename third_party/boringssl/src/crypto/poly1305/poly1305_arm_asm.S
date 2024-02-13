@@ -1,4 +1,14 @@
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
+#define OPENSSL_NO_ASM
+#endif
+#endif
+
 #if defined(__arm__) && !defined(OPENSSL_NO_ASM) && !defined(__APPLE__)
+
+#if defined(BORINGSSL_PREFIX)
+#include <boringssl_prefix_symbols_asm.h>
+#endif
 
 # This implementation was taken from the public domain, neon2 version in
 # SUPERCOP by D. J. Bernstein and Peter Schwabe.
@@ -2013,3 +2023,7 @@ add sp,sp,#0
 bx lr
 
 #endif  /* __arm__ && !OPENSSL_NO_ASM && !__APPLE__ */
+
+#if defined(__ELF__)
+.section	.note.GNU-stack,"",%progbits
+#endif

@@ -140,9 +140,9 @@ TEST(ToolsSanityTest, MAYBE_AccessesToNewMemory) {
 }
 
 TEST(ToolsSanityTest, MAYBE_AccessesToMallocMemory) {
-  char* foo = reinterpret_cast<char*>(SbMemoryAllocate(10));
+  char* foo = reinterpret_cast<char*>(malloc(10));
   MakeSomeErrors(foo, 10);
-  SbMemoryDeallocate(foo);
+  free(foo);
   // Use after free.
   HARMFUL_ACCESS(foo[5] = 0, "heap-use-after-free");
 }

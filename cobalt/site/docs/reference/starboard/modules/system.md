@@ -1,21 +1,21 @@
----
-layout: doc
-title: "Starboard Module Reference: system.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: `system.h`
 
 Defines a broad set of APIs that allow the client application to query build and
 runtime properties of the enclosing system.
 
-## Enums ##
+## Enums
 
-### SbSystemCapabilityId ###
+### SbSystemCapabilityId
 
 Runtime capabilities are boolean properties of a platform that can't be
 determined at compile-time. They may vary from device to device, but they will
 not change over the course of a single execution. They often specify particular
 behavior of other APIs within the bounds of their operating range.
 
-#### Values ####
+#### Values
 
 *   `kSbSystemCapabilityReversedEnterAndBack`
 
@@ -26,11 +26,11 @@ behavior of other APIs within the bounds of their operating range.
     only if) a system has this capability will SbSystemGetTotalGPUMemory() and
     SbSystemGetUsedGPUMemory() be valid to call.
 
-### SbSystemPathId ###
+### SbSystemPathId
 
 Enumeration of special paths that the platform can define.
 
-#### Values ####
+#### Values
 
 *   `kSbSystemPathContentDirectory`
 
@@ -66,22 +66,22 @@ Enumeration of special paths that the platform can define.
     for storing the updates. See
     starboard/doc/evergreen/cobalt_evergreen_overview.md
 
-### SbSystemPlatformErrorResponse ###
+### SbSystemPlatformErrorResponse
 
 Possible responses for `SbSystemPlatformErrorCallback`.
 
-#### Values ####
+#### Values
 
 *   `kSbSystemPlatformErrorResponsePositive`
 *   `kSbSystemPlatformErrorResponseNegative`
 *   `kSbSystemPlatformErrorResponseCancel`
 
-### SbSystemPlatformErrorType ###
+### SbSystemPlatformErrorType
 
 Enumeration of possible values for the `type` parameter passed to the
 `SbSystemRaisePlatformError` function.
 
-#### Values ####
+#### Values
 
 *   `kSbSystemPlatformErrorTypeConnectionError`
 
@@ -90,12 +90,12 @@ Enumeration of possible values for the `type` parameter passed to the
     `kSbSystemPlatformErrorResponsePositive` then the request should be retried,
     otherwise the app should be stopped.
 
-### SbSystemPropertyId ###
+### SbSystemPropertyId
 
 System properties that can be queried for. Many of these are used in User-Agent
 string generation.
 
-#### Values ####
+#### Values
 
 *   `kSbSystemPropertyCertificationScope`
 
@@ -156,9 +156,9 @@ string generation.
     Type of the device, e.g. such as "TV", "STB", "OTT" Please see Youtube
     Technical requirements for a full list of allowed values
 
-## Typedefs ##
+## Typedefs
 
-### SbSystemComparator ###
+### SbSystemComparator
 
 Pointer to a function to compare two items. The return value uses standard
 `*cmp` semantics:
@@ -171,23 +171,23 @@ Pointer to a function to compare two items. The return value uses standard
 
 `a`: The first value to compare. `b`: The second value to compare.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef int(* SbSystemComparator) (const void *a, const void *b)
 ```
 
-### SbSystemError ###
+### SbSystemError
 
 A type that can represent a system error code across all Starboard platforms.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef int SbSystemError
 ```
 
-### SbSystemPlatformErrorCallback ###
+### SbSystemPlatformErrorCallback
 
 Type of callback function that may be called in response to an error
 notification from `SbSystemRaisePlatformError`. `response` is a code to indicate
@@ -195,36 +195,36 @@ the user's response, e.g. if the platform raised a dialog to notify the user of
 the error. `user_data` is the opaque pointer that was passed to the call to
 `SbSystemRaisePlatformError`.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef void(* SbSystemPlatformErrorCallback) (SbSystemPlatformErrorResponse response, void *user_data)
 ```
 
-## Functions ##
+## Functions
 
-### SbSystemBreakIntoDebugger ###
+### SbSystemBreakIntoDebugger
 
 Breaks the current program into the debugger, if a debugger is attached. If a
 debugger is not attached, this function aborts the program.
 
-#### Declaration ####
+#### Declaration
 
 ```
 SB_NORETURN void SbSystemBreakIntoDebugger()
 ```
 
-### SbSystemClearLastError ###
+### SbSystemClearLastError
 
 Clears the last error set by a Starboard call in the current thread.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbSystemClearLastError()
 ```
 
-### SbSystemGetErrorString ###
+### SbSystemGetErrorString
 
 Generates a human-readable string for an error. The return value specifies the
 total desired length of the string.
@@ -233,13 +233,13 @@ total desired length of the string.
 The generated string. This value may be null, and it is always terminated with a
 null byte. `string_length`: The maximum length of the error string.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int SbSystemGetErrorString(SbSystemError error, char *out_string, int string_length)
 ```
 
-### SbSystemGetExtension ###
+### SbSystemGetExtension
 
 Returns pointer to a constant global struct implementing the extension named
 `name`, if it is implemented. Otherwise return NULL. The `name` string must not
@@ -261,25 +261,25 @@ application may only get the extension once, meaning updated values would be
 ignored. As the version of extensions are incremented, fields may be added to
 the end of the struct, but never removed (only deprecated).
 
-#### Declaration ####
+#### Declaration
 
 ```
 const void* SbSystemGetExtension(const char *name)
 ```
 
-### SbSystemGetLastError ###
+### SbSystemGetLastError
 
 Gets the last platform-specific error code produced by any Starboard call in the
 current thread for diagnostic purposes. Semantic reactions to Starboard function
 call results should be modeled explicitly.
 
-#### Declaration ####
+#### Declaration
 
 ```
 SbSystemError SbSystemGetLastError()
 ```
 
-### SbSystemGetLocaleId ###
+### SbSystemGetLocaleId
 
 Gets the system's current POSIX-style Locale ID. The locale represents the
 location, language, and cultural conventions that the system wants to use, which
@@ -296,25 +296,25 @@ RFC 5646 describes BCP 47 language codes: [https://tools.ietf.org/html/bcp47](ht
 
 For more information than you probably want about POSIX locales, see: [http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap07.html](http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap07.html)
 
-#### Declaration ####
+#### Declaration
 
 ```
 const char* SbSystemGetLocaleId()
 ```
 
-### SbSystemGetNumberOfProcessors ###
+### SbSystemGetNumberOfProcessors
 
 Returns the number of processor cores available to this application. If the
 process is sandboxed to a subset of the physical cores, the function returns
 that sandboxed limit.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int SbSystemGetNumberOfProcessors()
 ```
 
-### SbSystemGetProperty ###
+### SbSystemGetProperty
 
 Retrieves the platform-defined system property specified by `property_id` and
 places its value as a zero-terminated string into the user-allocated `out_value`
@@ -335,13 +335,13 @@ returns `false` under any of the following conditions and, in any such case,
 defined system property specified by `property_id`. `value_length`: The length
 of the system property.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbSystemGetProperty(SbSystemPropertyId property_id, char *out_value, int value_length)
 ```
 
-### SbSystemGetRandomData ###
+### SbSystemGetRandomData
 
 A cryptographically secure random number generator that produces an arbitrary,
 non-negative number of `buffer_size` random, non-negative bytes. The generated
@@ -350,24 +350,24 @@ number is placed in `out_buffer`. This function does not require manual seeding.
 `out_buffer`: A pointer for the generated random number. This value must not be
 null. `buffer_size`: The size of the random number, in bytes.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbSystemGetRandomData(void *out_buffer, int buffer_size)
 ```
 
-### SbSystemGetRandomUInt64 ###
+### SbSystemGetRandomUInt64
 
 A cryptographically secure random number generator that gets 64 random bits and
 returns them as an `uint64_t`. This function does not require manual seeding.
 
-#### Declaration ####
+#### Declaration
 
 ```
 uint64_t SbSystemGetRandomUInt64()
 ```
 
-### SbSystemGetStack ###
+### SbSystemGetStack
 
 Places up to `stack_size` instruction pointer addresses of the current execution
 stack into `out_stack`. The return value specifies the number of entries added.
@@ -384,62 +384,62 @@ what it means to be async-signal-safe on POSIX: [http://pubs.opengroup.org/onlin
 `stack_size`: The maximum number of instruction pointer addresses to be placed
 into `out_stack` from the current execution stack.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int SbSystemGetStack(void **out_stack, int stack_size)
 ```
 
-### SbSystemGetTotalCPUMemory ###
+### SbSystemGetTotalCPUMemory
 
 Returns the total CPU memory (in bytes) potentially available to this
 application. If the process is sandboxed to a maximum allowable limit, the
 function returns the lesser of the physical and sandbox limits.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int64_t SbSystemGetTotalCPUMemory()
 ```
 
-### SbSystemGetTotalGPUMemory ###
+### SbSystemGetTotalGPUMemory
 
 Returns the total GPU memory (in bytes) available for use by this application.
 This function may only be called the return value for calls to
 SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats) is `true`.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int64_t SbSystemGetTotalGPUMemory()
 ```
 
-### SbSystemGetUsedCPUMemory ###
+### SbSystemGetUsedCPUMemory
 
 Returns the total physical CPU memory (in bytes) used by this application. This
 value should always be less than (or, in particularly exciting situations, equal
 to) SbSystemGetTotalCPUMemory().
 
-#### Declaration ####
+#### Declaration
 
 ```
 int64_t SbSystemGetUsedCPUMemory()
 ```
 
-### SbSystemGetUsedGPUMemory ###
+### SbSystemGetUsedGPUMemory
 
 Returns the current amount of GPU memory (in bytes) that is currently being used
 by this application. This function may only be called if the return value for
 calls to SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats) is
 `true`.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int64_t SbSystemGetUsedGPUMemory()
 ```
 
-### SbSystemHasCapability ###
+### SbSystemHasCapability
 
 Returns whether the platform has the runtime capability specified by
 `capability_id`. Returns false for any unknown capabilities. This implementation
@@ -447,48 +447,48 @@ must be thread-safe.
 
 `capability_id`: The runtime capability to check.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbSystemHasCapability(SbSystemCapabilityId capability_id)
 ```
 
-### SbSystemHideSplashScreen ###
+### SbSystemHideSplashScreen
 
 Hides the system splash screen on systems that support a splash screen that is
 displayed while the application is loading. This function may be called from any
 thread and must be idempotent.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbSystemHideSplashScreen()
 ```
 
-### SbSystemIsDebuggerAttached ###
+### SbSystemIsDebuggerAttached
 
 Attempts to determine whether the current program is running inside or attached
 to a debugger. The function returns `false` if neither of those cases is true.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbSystemIsDebuggerAttached()
 ```
 
-### SbSystemNetworkIsDisconnected ###
+### SbSystemNetworkIsDisconnected
 
 Returns if the device is disconnected from network. "Disconnected" is chosen
 over connected because disconnection can be determined with more certainty than
 connection usually.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbSystemNetworkIsDisconnected()
 ```
 
-### SbSystemRaisePlatformError ###
+### SbSystemRaisePlatformError
 
 Cobalt calls this function to notify the platform that an error has occurred in
 the application that the platform may need to handle. The platform is expected
@@ -510,13 +510,13 @@ caller know that the user has reacted to the error. `user_data`: An opaque
 pointer that the platform should pass as an argument to the callback function,
 if it is called.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbSystemRaisePlatformError(SbSystemPlatformErrorType type, SbSystemPlatformErrorCallback callback, void *user_data)
 ```
 
-### SbSystemRequestBlur ###
+### SbSystemRequestBlur
 
 Requests that the application move into the Blurred state at the next convenient
 point. This should roughly correspond to "unfocused application" in a
@@ -526,13 +526,13 @@ This function eventually causes a `kSbEventTypeBlur` event to be dispatched to
 the application. Before the `kSbEventTypeBlur` event is dispatched, some work
 may continue to be done, and unrelated system events may be dispatched.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbSystemRequestBlur()
 ```
 
-### SbSystemRequestConceal ###
+### SbSystemRequestConceal
 
 Requests that the application move into the Concealed state at the next
 convenient point. This should roughly correspond to "minimization" in a
@@ -547,13 +547,13 @@ In the Concealed state, the application will be invisible, but probably still be
 running background tasks. The expectation is that an external system event will
 bring the application out of the Concealed state.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbSystemRequestConceal()
 ```
 
-### SbSystemRequestFocus ###
+### SbSystemRequestFocus
 
 Requests that the application move into the Started state at the next convenient
 point. This should roughly correspond to a "focused application" in a
@@ -564,13 +564,13 @@ This function eventually causes a `kSbEventTypeFocus` event to be dispatched to
 the application. Before `kSbEventTypeFocus` is dispatched, some work may
 continue to be done, and unrelated system events may be dispatched.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbSystemRequestFocus()
 ```
 
-### SbSystemRequestFreeze ###
+### SbSystemRequestFreeze
 
 Requests that the application move into the Frozen state at the next convenient
 point.
@@ -583,13 +583,13 @@ In the Frozen state, the application will be resident, but probably not running.
 The expectation is that an external system event will bring the application out
 of the Frozen state.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbSystemRequestFreeze()
 ```
 
-### SbSystemRequestReveal ###
+### SbSystemRequestReveal
 
 Requests that the application move into the Blurred state at the next convenient
 point. This should roughly correspond to a "focused application" in a
@@ -600,13 +600,13 @@ This function eventually causes a `kSbEventTypeReveal` event to be dispatched to
 the application. Before the `kSbEventTypeReveal` event is dispatched, some work
 may continue to be done, and unrelated system events may be dispatched.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbSystemRequestReveal()
 ```
 
-### SbSystemRequestStop ###
+### SbSystemRequestStop
 
 Requests that the application be terminated gracefully at the next convenient
 point. In the meantime, some work may continue to be done, and unrelated system
@@ -617,13 +617,13 @@ it returns `error_level`, if that has any meaning on the current platform.
 `error_level`: An integer that serves as the return value for the process that
 is eventually terminated as a result of a call to this function.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbSystemRequestStop(int error_level)
 ```
 
-### SbSystemSignWithCertificationSecretKey ###
+### SbSystemSignWithCertificationSecretKey
 
 Computes a HMAC-SHA256 digest of `message` into `digest` using the application's
 certification secret. The `message` and the `digest` pointers must not be NULL.
@@ -633,13 +633,13 @@ greater), since 32-bytes will be written into it. Returns false in the case of
 an error, or if it is not implemented. In this case the contents of `digest`
 will be undefined.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbSystemSignWithCertificationSecretKey(const uint8_t *message, size_t message_size_in_bytes, uint8_t *digest, size_t digest_size_in_bytes)
 ```
 
-### SbSystemSupportsResume ###
+### SbSystemSupportsResume
 
 Returns false if the platform doesn't need resume after suspend support. In such
 case Cobalt will free up the resource it retains for resume after suspend. Note
@@ -647,13 +647,13 @@ that if this function returns false, the Starboard implementation cannot send
 kSbEventTypeResume to the event handler. The return value of this function
 cannot change over the life time of the application.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbSystemSupportsResume()
 ```
 
-### SbSystemSymbolize ###
+### SbSystemSymbolize
 
 Looks up `address` as an instruction pointer and places up to (`buffer_size -
 1`) characters of the symbol associated with it in `out_buffer`, which must not
@@ -665,7 +665,7 @@ The return value indicates whether the function found a reasonable match for
 This function is used in crash signal handlers and, therefore, it must be async-
 signal-safe on platforms that support signals.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbSystemSymbolize(const void *address, char *out_buffer, int buffer_size)

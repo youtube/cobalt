@@ -14,7 +14,7 @@ third_party {
   version: "71.0.3578.127"
   last_upgrade_date {
     year: 2018
-    month: 08
+    month: 8
     day: 01
   }
 }

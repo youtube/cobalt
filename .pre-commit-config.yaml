@@ -23,6 +23,7 @@ exclude: |
             extensions/buildflags|
             glimp/include|
             net|
+            internal/kokoro/third-party|
             internal/starboard/shared/playstation/glimp/shaders|
             testing|
             third_party|
@@ -36,6 +37,7 @@ exclude: |
         # Ignore everything under tools/metrics _except_ Cobalt files. We
         # need those validated to keep the telemetry/metrics pipeline working.
         tools/metrics/((?!cobalt\/).)*$|
+        .*_pb2\.py$ |
         .*\.pb\.cc$ |
         .*\.pb\.h$ |
         .*\.patch$ |
@@ -202,3 +204,11 @@ repos:
         entry: gn format
         language: system
         files: '.*\.gni?$'
+    -   id: meta-validate
+        name: Validate METADATA files
+        entry: python -m tools.metadata.validate
+        language: python
+        additional_dependencies:
+          - "protobuf"
+        always_run: true
+        pass_filenames: false

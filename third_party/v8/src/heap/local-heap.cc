@@ -6,60 +6,47 @@
 
 #include <memory>
 
+#include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
+#include "src/execution/isolate.h"
 #include "src/handles/local-handles.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/marking-barrier.h"
+#include "src/heap/parked-scope.h"
 #include "src/heap/safepoint.h"
 
-#if !defined(V8_OS_STARBOARD)
 namespace v8 {
 namespace internal {
 
+#if defined(V8_OS_STARBOARD)
+namespace {
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(base::Thread::LocalStorageKey, GetLocalHeapKey,
+                                base::Thread::CreateThreadLocalKey())
+}  // namespace
+
+LocalHeap* LocalHeap::Current() {
+  return reinterpret_cast<LocalHeap*>(
+      base::Thread::GetThreadLocal(*GetLocalHeapKey()));
+}
+#else
 namespace {
 thread_local LocalHeap* current_local_heap = nullptr;
 }  // namespace
 
 LocalHeap* LocalHeap::Current() { return current_local_heap; }
+#endif  // defined(V8_OS_STARBOARD)
 
-void SetCurrentLocalHeap(LocalHeap* new_local_heap) {
-  current_local_heap = new_local_heap;
-}
+#ifdef DEBUG
+void LocalHeap::VerifyCurrent() {
+  LocalHeap* current = LocalHeap::Current();
 
-#else
-#include "starboard/common/log.h"
-#include "starboard/once.h"
-#include "starboard/thread.h"
-
-namespace v8 {
-namespace internal {
-
-namespace {
-SbOnceControl s_once_flag = SB_ONCE_INITIALIZER;
-SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
-
-void InitThreadLocalKey() {
-  s_thread_local_key = SbThreadCreateLocalKey(NULL);
-  SB_DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
-  SbThreadSetLocalValue(s_thread_local_key, NULL);
-}
-
-void EnsureThreadLocalKeyInited() {
-  SbOnce(&s_once_flag, InitThreadLocalKey);
-  SB_DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
-}
-}  // namespace
-
-LocalHeap* LocalHeap::Current() {
-  return static_cast<LocalHeap*>(SbThreadGetLocalValue(s_thread_local_key));
-}
-
-void SetCurrentLocalHeap(LocalHeap* current_local_heap) {
-  EnsureThreadLocalKeyInited();
-  SbThreadSetLocalValue(s_thread_local_key, current_local_heap);
+  if (is_main_thread())
+    DCHECK_NULL(current);
+  else
+    DCHECK_EQ(current, this);
 }
 #endif
 
@@ -77,7 +64,7 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
       marking_barrier_(new MarkingBarrier(this)),
       old_space_allocator_(this, heap->old_space()) {
   heap_->safepoint()->AddLocalHeap(this, [this] {
-    if (FLAG_local_heaps) {
+    if (FLAG_local_heaps && !is_main_thread()) {
       WriteBarrier::SetForThread(marking_barrier_.get());
       if (heap_->incremental_marking()->IsMarking()) {
         marking_barrier_->Activate(
@@ -89,8 +76,13 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
   if (persistent_handles_) {
     persistent_handles_->Attach(this);
   }
-  DCHECK_NULL(Current());
-  SetCurrentLocalHeap(this);
+#if defined(V8_OS_STARBOARD)
+  DCHECK_NULL(LocalHeap::Current());
+  if (!is_main_thread()) base::Thread::SetThreadLocal(*GetLocalHeapKey(), this);
+#else
+  DCHECK_NULL(current_local_heap);
+  if (!is_main_thread()) current_local_heap = this;
+#endif  // defined(V8_OS_STARBOARD)
 }
 
 LocalHeap::~LocalHeap() {
@@ -100,14 +92,21 @@ LocalHeap::~LocalHeap() {
   heap_->safepoint()->RemoveLocalHeap(this, [this] {
     old_space_allocator_.FreeLinearAllocationArea();
 
-    if (FLAG_local_heaps) {
+    if (FLAG_local_heaps && !is_main_thread()) {
       marking_barrier_->Publish();
       WriteBarrier::ClearForThread(marking_barrier_.get());
     }
   });
 
-  DCHECK_EQ(Current(), this);
-  SetCurrentLocalHeap(NULL);
+  if (!is_main_thread()) {
+#if defined(V8_OS_STARBOARD)
+    DCHECK_EQ(LocalHeap::Current(), this);
+    base::Thread::SetThreadLocal(*GetLocalHeapKey(), this);
+#else
+    DCHECK_EQ(current_local_heap, this);
+    current_local_heap = nullptr;
+#endif  // defined(V8_OS_STARBOARD)
+  }
 }
 
 void LocalHeap::EnsurePersistentHandles() {
@@ -140,13 +139,17 @@ bool LocalHeap::ContainsLocalHandle(Address* location) {
 }
 
 bool LocalHeap::IsHandleDereferenceAllowed() {
-  DCHECK_EQ(LocalHeap::Current(), this);
+#ifdef DEBUG
+  VerifyCurrent();
+#endif
   return state_ == ThreadState::Running;
 }
 #endif
 
 bool LocalHeap::IsParked() {
-  DCHECK_EQ(LocalHeap::Current(), this);
+#ifdef DEBUG
+  VerifyCurrent();
+#endif
   return state_ == ThreadState::Parked;
 }
 

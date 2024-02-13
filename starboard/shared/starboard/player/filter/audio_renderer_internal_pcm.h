@@ -37,7 +37,6 @@
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
-#include "starboard/time.h"
 #include "starboard/types.h"
 
 // Uncomment the following statement to log the media time stats with deviation
@@ -91,11 +90,11 @@ class AudioRendererPcm : public AudioRenderer,
   void Play() override;
   void Pause() override;
   void SetPlaybackRate(double playback_rate) override;
-  void Seek(SbTime seek_to_time) override;
-  SbTime GetCurrentMediaTime(bool* is_playing,
-                             bool* is_eos_played,
-                             bool* is_underflow,
-                             double* playback_rate) override;
+  void Seek(int64_t seek_to_time) override;
+  int64_t GetCurrentMediaTime(bool* is_playing,
+                              bool* is_eos_played,
+                              bool* is_underflow,
+                              double* playback_rate) override;
 
  private:
   enum EOSState {
@@ -120,8 +119,8 @@ class AudioRendererPcm : public AudioRenderer,
   bool paused_ = true;
   bool consume_frames_called_ = false;
   bool seeking_ = false;
-  SbTime seeking_to_time_ = 0;
-  SbTime last_media_time_ = 0;
+  int64_t seeking_to_time_ = 0;  // microseconds
+  int64_t last_media_time_ = 0;  // microseconds
   AudioFrameTracker audio_frame_tracker_;
   bool ended_cb_called_ = false;
 
@@ -139,11 +138,12 @@ class AudioRendererPcm : public AudioRenderer,
                        int* offset_in_frames,
                        bool* is_playing,
                        bool* is_eos_reached) override;
-  void ConsumeFrames(int frames_consumed, SbTime frames_consumed_at) override;
+  void ConsumeFrames(int frames_consumed, int64_t frames_consumed_at) override;
   void OnError(bool capability_changed,
                const std::string& error_message) override;
 
-  void UpdateVariablesOnSinkThread_Locked(SbTime system_time_on_consume_frames);
+  void UpdateVariablesOnSinkThread_Locked(
+      int64_t system_time_on_consume_frames);
 
   void OnFirstOutput(const SbMediaAudioSampleType decoded_sample_type,
                      const SbMediaAudioFrameStorageType decoded_storage_type,
@@ -187,13 +187,13 @@ class AudioRendererPcm : public AudioRenderer,
   int64_t frames_in_buffer_on_sink_thread_ = 0;
   int64_t offset_in_frames_on_sink_thread_ = 0;
   int64_t frames_consumed_on_sink_thread_ = 0;
-  SbTime frames_consumed_set_at_on_sink_thread_ = 0;
+  int64_t frames_consumed_set_at_on_sink_thread_ = 0;  // microseconds
   int64_t silence_frames_written_after_eos_on_sink_thread_ = 0;
 
 #if SB_LOG_MEDIA_TIME_STATS
-  SbTime system_and_media_time_offset_ = -1;
-  SbTime min_drift_ = kSbTimeMax;
-  SbTime max_drift_ = 0;
+  int64_t system_and_media_time_offset_ = -1;  // microseconds
+  int64_t min_drift_ = kSbInt64Max;            // microseconds
+  int64_t max_drift_ = 0;                      // microseconds
   int64_t total_frames_consumed_ = 0;
 #endif  // SB_LOG_MEDIA_TIME_STATS
 
@@ -203,7 +203,7 @@ class AudioRendererPcm : public AudioRenderer,
 
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   static const int32_t kMaxSinkCallbacksBetweenCheck = 1024;
-  static const SbTime kCheckAudioSinkStatusInterval = kSbTimeSecond;
+  static const int64_t kCheckAudioSinkStatusInterval = 1'000'000;  // 1 second
   void CheckAudioSinkStatus();
 
   atomic_int32_t sink_callbacks_since_last_check_;

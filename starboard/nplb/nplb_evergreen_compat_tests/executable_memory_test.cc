@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/memory.h"
+#include <sys/mman.h>
+
 #include "starboard/nplb/nplb_evergreen_compat_tests/checks.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -35,12 +36,11 @@ class ExecutableMemoryTest : public ::testing::Test {
 
 TEST_F(ExecutableMemoryTest, VerifyMemoryProtection) {
   void* memory =
-      SbMemoryMap(kSize, kSbMemoryMapProtectWrite, "evergreen_buffer");
-  ASSERT_NE(SB_MEMORY_MAP_FAILED, memory);
+      mmap(nullptr, kSize, PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+  ASSERT_NE(MAP_FAILED, memory);
   memset(memory, 0, kSize);
-  ASSERT_TRUE(SbMemoryProtect(
-      memory, kSmallerSize, kSbMemoryMapProtectRead | kSbMemoryMapProtectExec));
-  SbMemoryUnmap(memory, kSize);
+  ASSERT_EQ(mprotect(memory, kSmallerSize, PROT_READ | PROT_WRITE), 0);
+  munmap(memory, kSize);
   EXPECT_TRUE(true);
 }
 

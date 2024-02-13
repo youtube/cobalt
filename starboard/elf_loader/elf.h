@@ -440,11 +440,11 @@ typedef Elf64_Sword Sword;
 #endif
 
 #define ELF32_R_SYM(val) ((val) >> 8)
-#define ELF32_R_TYPE(val) ((val)&0xff)
-#define ELF32_R_INFO(sym, type) (((sym) << 8) + ((type)&0xff))
+#define ELF32_R_TYPE(val) ((val) & 0xff)
+#define ELF32_R_INFO(sym, type) (((sym) << 8) + ((type) & 0xff))
 
 #define ELF64_R_SYM(i) ((i) >> 32)
-#define ELF64_R_TYPE(i) ((i)&0xffffffff)
+#define ELF64_R_TYPE(i) ((i) & 0xffffffff)
 #define ELF64_R_INFO(sym, type) ((((Elf64_Xword)(sym)) << 32) + (type))
 
 #define ELFMAG "\177ELF"
@@ -680,7 +680,7 @@ typedef enum RelocationTypes {
 #define PAGE_MASK (~(PAGE_SIZE - 1))
 #endif
 
-#define PAGE_START(x) ((x)&PAGE_MASK)
+#define PAGE_START(x) ((x) & PAGE_MASK)
 #define PAGE_OFFSET(x) ((x) & ~PAGE_MASK)
 #define PAGE_END(x) PAGE_START((x) + (PAGE_SIZE - 1))
 

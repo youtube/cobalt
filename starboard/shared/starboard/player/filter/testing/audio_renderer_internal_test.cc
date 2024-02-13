@@ -19,6 +19,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/scoped_ptr.h"
+#include "starboard/common/time.h"
 #include "starboard/media.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -128,14 +129,14 @@ class AudioRendererTest : public ::testing::Test {
   // until the renderer reaches its preroll threshold.
   // Once the renderer is "full", an EndOfStream is written.
   // Returns the number of frames written.
-  int FillRendererWithDecodedAudioAndWriteEOS(SbTime start_timestamp) {
+  int FillRendererWithDecodedAudioAndWriteEOS(int64_t start_timestamp) {
     const int kFramesPerBuffer = 1024;
 
     int frames_written = 0;
 
     while (!prerolled_) {
-      SbTime timestamp = start_timestamp + frames_written * kSbTimeSecond /
-                                               kDefaultSamplesPerSecond;
+      int64_t timestamp = start_timestamp + frames_written * 1'000'000LL /
+                                                kDefaultSamplesPerSecond;
       scoped_refptr<InputBuffer> input_buffer = CreateInputBuffer(timestamp);
       WriteSample(input_buffer);
       CallConsumedCB();
@@ -170,7 +171,7 @@ class AudioRendererTest : public ::testing::Test {
     audio_renderer_->WriteEndOfStream();
     job_queue_.RunUntilIdle();
   }
-  void Seek(SbTime seek_to_time) {
+  void Seek(int64_t seek_to_time) {
     EXPECT_TRUE(prerolled_);
     prerolled_ = false;
     audio_renderer_->Seek(seek_to_time);
@@ -195,10 +196,10 @@ class AudioRendererTest : public ::testing::Test {
     job_queue_.RunUntilIdle();
   }
 
-  scoped_refptr<InputBuffer> CreateInputBuffer(SbTime timestamp) {
+  scoped_refptr<InputBuffer> CreateInputBuffer(int64_t timestamp) {
     const int kInputBufferSize = 4;
     SbPlayerSampleInfo sample_info = {};
-    sample_info.buffer = SbMemoryAllocate(kInputBufferSize);
+    sample_info.buffer = malloc(kInputBufferSize);
     sample_info.buffer_size = kInputBufferSize;
     sample_info.timestamp = timestamp;
     sample_info.drm_info = NULL;
@@ -207,7 +208,8 @@ class AudioRendererTest : public ::testing::Test {
     return new InputBuffer(DeallocateSampleCB, NULL, this, sample_info);
   }
 
-  scoped_refptr<DecodedAudio> CreateDecodedAudio(SbTime timestamp, int frames) {
+  scoped_refptr<DecodedAudio> CreateDecodedAudio(int64_t timestamp,
+                                                 int frames) {
     scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
         kDefaultNumberOfChannels, sample_type_, storage_type_, timestamp,
         frames * kDefaultNumberOfChannels *
@@ -242,7 +244,7 @@ class AudioRendererTest : public ::testing::Test {
     ASSERT_TRUE(buffers_in_decoder_.find(sample_buffer) !=
                 buffers_in_decoder_.end());
     buffers_in_decoder_.erase(buffers_in_decoder_.find(sample_buffer));
-    SbMemoryDeallocate(const_cast<void*>(sample_buffer));
+    free(const_cast<void*>(sample_buffer));
   }
 
   static const media::AudioStreamInfo& GetDefaultAudioStreamInfo() {
@@ -336,7 +338,7 @@ TEST_F(AudioRendererTest, SunnyDay) {
 
   SendDecoderOutput(new DecodedAudio);
 
-  SbTime media_time = audio_renderer_->GetCurrentMediaTime(
+  int64_t media_time = audio_renderer_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
   EXPECT_TRUE(is_playing);
   EXPECT_FALSE(is_eos_played);
@@ -355,11 +357,11 @@ TEST_F(AudioRendererTest, SunnyDay) {
   // Consume frames in two batches, so we can test if |GetCurrentMediaTime()|
   // is incrementing in an expected manner.
   const int frames_to_consume = std::min(frames_written, frames_in_buffer) / 2;
-  SbTime new_media_time;
+  int64_t new_media_time;
 
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
 
-  renderer_callback_->ConsumeFrames(frames_to_consume, SbTimeGetMonotonicNow());
+  renderer_callback_->ConsumeFrames(frames_to_consume, CurrentMonotonicTime());
   new_media_time = audio_renderer_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
   EXPECT_TRUE(is_playing);
@@ -369,7 +371,7 @@ TEST_F(AudioRendererTest, SunnyDay) {
   media_time = new_media_time;
 
   const int remaining_frames = frames_in_buffer - frames_to_consume;
-  renderer_callback_->ConsumeFrames(remaining_frames, SbTimeGetMonotonicNow());
+  renderer_callback_->ConsumeFrames(remaining_frames, CurrentMonotonicTime());
   new_media_time = audio_renderer_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
   EXPECT_TRUE(is_playing);
@@ -427,7 +429,7 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
 
   SendDecoderOutput(new DecodedAudio);
 
-  SbTime media_time = audio_renderer_->GetCurrentMediaTime(
+  int64_t media_time = audio_renderer_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
 
   int frames_in_buffer;
@@ -445,18 +447,18 @@ TEST_F(AudioRendererTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
   // is incrementing in an expected manner.
   const int frames_to_consume =
       std::min(frames_written / kPlaybackRate, frames_in_buffer) / 2;
-  SbTime new_media_time;
+  int64_t new_media_time;
 
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
 
-  renderer_callback_->ConsumeFrames(frames_to_consume, SbTimeGetMonotonicNow());
+  renderer_callback_->ConsumeFrames(frames_to_consume, CurrentMonotonicTime());
   new_media_time = audio_renderer_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
   EXPECT_GT(new_media_time, media_time);
   media_time = new_media_time;
 
   const int remaining_frames = frames_in_buffer - frames_to_consume;
-  renderer_callback_->ConsumeFrames(remaining_frames, SbTimeGetMonotonicNow());
+  renderer_callback_->ConsumeFrames(remaining_frames, CurrentMonotonicTime());
   new_media_time = audio_renderer_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
   EXPECT_GT(new_media_time, media_time);
@@ -492,7 +494,7 @@ TEST_F(AudioRendererTest, StartPlayBeforePreroll) {
   bool is_eos_played = true;
   bool is_underflow = true;
   double playback_rate = -1.0;
-  SbTime media_time = audio_renderer_->GetCurrentMediaTime(
+  int64_t media_time = audio_renderer_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
 
   int frames_in_buffer;
@@ -508,11 +510,11 @@ TEST_F(AudioRendererTest, StartPlayBeforePreroll) {
   // Consume frames in two batches, so we can test if |GetCurrentMediaTime()|
   // is incrementing in an expected manner.
   const int frames_to_consume = std::min(frames_written, frames_in_buffer) / 2;
-  SbTime new_media_time;
+  int64_t new_media_time;
 
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
 
-  renderer_callback_->ConsumeFrames(frames_to_consume, SbTimeGetMonotonicNow());
+  renderer_callback_->ConsumeFrames(frames_to_consume, CurrentMonotonicTime());
   new_media_time = audio_renderer_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
   EXPECT_TRUE(is_playing);
@@ -522,7 +524,7 @@ TEST_F(AudioRendererTest, StartPlayBeforePreroll) {
   media_time = new_media_time;
 
   const int remaining_frames = frames_in_buffer - frames_to_consume;
-  renderer_callback_->ConsumeFrames(remaining_frames, SbTimeGetMonotonicNow());
+  renderer_callback_->ConsumeFrames(remaining_frames, CurrentMonotonicTime());
   new_media_time = audio_renderer_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
   EXPECT_TRUE(is_playing);
@@ -649,13 +651,12 @@ TEST_F(AudioRendererTest, MoreNumberOfOutputBuffersThanInputBuffers) {
   int frames_written = 0;
 
   while (!prerolled_) {
-    SbTime timestamp =
-        frames_written * kSbTimeSecond / kDefaultSamplesPerSecond;
+    int64_t timestamp = frames_written * 1'000'000LL / kDefaultSamplesPerSecond;
     WriteSample(CreateInputBuffer(timestamp));
     CallConsumedCB();
     SendDecoderOutput(CreateDecodedAudio(timestamp, kFramesPerBuffer / 2));
     frames_written += kFramesPerBuffer / 2;
-    timestamp = frames_written * kSbTimeSecond / kDefaultSamplesPerSecond;
+    timestamp = frames_written * 1'000'000LL / kDefaultSamplesPerSecond;
     SendDecoderOutput(CreateDecodedAudio(timestamp, kFramesPerBuffer / 2));
     frames_written += kFramesPerBuffer / 2;
   }
@@ -678,7 +679,7 @@ TEST_F(AudioRendererTest, MoreNumberOfOutputBuffersThanInputBuffers) {
 
   SendDecoderOutput(new DecodedAudio);
 
-  SbTime media_time = audio_renderer_->GetCurrentMediaTime(
+  int64_t media_time = audio_renderer_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
 
   int frames_in_buffer;
@@ -695,11 +696,11 @@ TEST_F(AudioRendererTest, MoreNumberOfOutputBuffersThanInputBuffers) {
   // Consume frames in two batches, so we can test if |GetCurrentMediaTime()|
   // is incrementing in an expected manner.
   const int frames_to_consume = std::min(frames_written, frames_in_buffer) / 2;
-  SbTime new_media_time;
+  int64_t new_media_time;
 
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
 
-  renderer_callback_->ConsumeFrames(frames_to_consume, SbTimeGetMonotonicNow());
+  renderer_callback_->ConsumeFrames(frames_to_consume, CurrentMonotonicTime());
   new_media_time = audio_renderer_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
   EXPECT_TRUE(is_playing);
@@ -709,7 +710,7 @@ TEST_F(AudioRendererTest, MoreNumberOfOutputBuffersThanInputBuffers) {
   media_time = new_media_time;
 
   const int remaining_frames = frames_in_buffer - frames_to_consume;
-  renderer_callback_->ConsumeFrames(remaining_frames, SbTimeGetMonotonicNow());
+  renderer_callback_->ConsumeFrames(remaining_frames, CurrentMonotonicTime());
   new_media_time = audio_renderer_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
   EXPECT_TRUE(is_playing);
@@ -747,13 +748,12 @@ TEST_F(AudioRendererTest, LessNumberOfOutputBuffersThanInputBuffers) {
   int frames_written = 0;
 
   while (!prerolled_) {
-    SbTime timestamp =
-        frames_written * kSbTimeSecond / kDefaultSamplesPerSecond;
-    SbTime output_time = timestamp;
+    int64_t timestamp = frames_written * 1'000'000LL / kDefaultSamplesPerSecond;
+    int64_t output_time = timestamp;
     WriteSample(CreateInputBuffer(timestamp));
     CallConsumedCB();
     frames_written += kFramesPerBuffer / 2;
-    timestamp = frames_written * kSbTimeSecond / kDefaultSamplesPerSecond;
+    timestamp = frames_written * 1'000'000LL / kDefaultSamplesPerSecond;
     WriteSample(CreateInputBuffer(timestamp));
     CallConsumedCB();
     frames_written += kFramesPerBuffer / 2;
@@ -775,7 +775,7 @@ TEST_F(AudioRendererTest, LessNumberOfOutputBuffersThanInputBuffers) {
 
   SendDecoderOutput(new DecodedAudio);
 
-  SbTime media_time = audio_renderer_->GetCurrentMediaTime(
+  int64_t media_time = audio_renderer_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
 
   int frames_in_buffer;
@@ -791,18 +791,18 @@ TEST_F(AudioRendererTest, LessNumberOfOutputBuffersThanInputBuffers) {
   // Consume frames in two batches, so we can test if |GetCurrentMediaTime()|
   // is incrementing in an expected manner.
   const int frames_to_consume = std::min(frames_written, frames_in_buffer) / 2;
-  SbTime new_media_time;
+  int64_t new_media_time;
 
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
 
-  renderer_callback_->ConsumeFrames(frames_to_consume, SbTimeGetMonotonicNow());
+  renderer_callback_->ConsumeFrames(frames_to_consume, CurrentMonotonicTime());
   new_media_time = audio_renderer_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
   EXPECT_GE(new_media_time, media_time);
   media_time = new_media_time;
 
   const int remaining_frames = frames_in_buffer - frames_to_consume;
-  renderer_callback_->ConsumeFrames(remaining_frames, SbTimeGetMonotonicNow());
+  renderer_callback_->ConsumeFrames(remaining_frames, CurrentMonotonicTime());
   new_media_time = audio_renderer_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
   EXPECT_GE(new_media_time, media_time);
@@ -816,7 +816,7 @@ TEST_F(AudioRendererTest, Seek) {
     return;
   }
 
-  const double kSeekTime = 0.5 * kSbTimeSecond;
+  const double kSeekTime = 0.5 * 1'000'000LL;
 
   {
     ::testing::InSequence seq;
@@ -850,7 +850,7 @@ TEST_F(AudioRendererTest, Seek) {
 
   SendDecoderOutput(new DecodedAudio);
 
-  SbTime media_time = audio_renderer_->GetCurrentMediaTime(
+  int64_t media_time = audio_renderer_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
 
   int frames_in_buffer;
@@ -866,11 +866,11 @@ TEST_F(AudioRendererTest, Seek) {
   // Consume frames in multiple batches, so we can test if
   // |GetCurrentMediaTime()| is incrementing in an expected manner.
   const int frames_to_consume = std::min(frames_written, frames_in_buffer) / 10;
-  SbTime new_media_time;
+  int64_t new_media_time;
 
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
 
-  renderer_callback_->ConsumeFrames(frames_to_consume, SbTimeGetMonotonicNow());
+  renderer_callback_->ConsumeFrames(frames_to_consume, CurrentMonotonicTime());
   new_media_time = audio_renderer_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
   EXPECT_GE(new_media_time, media_time);
@@ -892,7 +892,7 @@ TEST_F(AudioRendererTest, Seek) {
   EXPECT_GE(offset_in_frames, 0);
   EXPECT_TRUE(is_playing);
   EXPECT_TRUE(is_eos_reached);
-  renderer_callback_->ConsumeFrames(frames_in_buffer, SbTimeGetMonotonicNow());
+  renderer_callback_->ConsumeFrames(frames_in_buffer, CurrentMonotonicTime());
   new_media_time = audio_renderer_->GetCurrentMediaTime(
       &is_playing, &is_eos_played, &is_underflow, &playback_rate);
   EXPECT_GE(new_media_time, kSeekTime);

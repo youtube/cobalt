@@ -23,7 +23,7 @@
 #include "../crypto/internal.h"
 
 
-namespace bssl {
+BSSL_NAMESPACE_BEGIN
 
 bool ssl_protocol_version_from_wire(uint16_t *out, uint16_t version) {
   switch (version) {
@@ -32,11 +32,6 @@ bool ssl_protocol_version_from_wire(uint16_t *out, uint16_t version) {
     case TLS1_2_VERSION:
     case TLS1_3_VERSION:
       *out = version;
-      return true;
-
-    case TLS1_3_DRAFT23_VERSION:
-    case TLS1_3_DRAFT28_VERSION:
-      *out = TLS1_3_VERSION;
       return true;
 
     case DTLS1_VERSION:
@@ -58,8 +53,6 @@ bool ssl_protocol_version_from_wire(uint16_t *out, uint16_t version) {
 
 static const uint16_t kTLSVersions[] = {
     TLS1_3_VERSION,
-    TLS1_3_DRAFT28_VERSION,
-    TLS1_3_DRAFT23_VERSION,
     TLS1_2_VERSION,
     TLS1_1_VERSION,
     TLS1_VERSION,
@@ -70,24 +63,16 @@ static const uint16_t kDTLSVersions[] = {
     DTLS1_VERSION,
 };
 
-static void get_method_versions(const SSL_PROTOCOL_METHOD *method,
-                                const uint16_t **out, size_t *out_num) {
-  if (method->is_dtls) {
-    *out = kDTLSVersions;
-    *out_num = OPENSSL_ARRAY_SIZE(kDTLSVersions);
-  } else {
-    *out = kTLSVersions;
-    *out_num = OPENSSL_ARRAY_SIZE(kTLSVersions);
-  }
+static Span<const uint16_t> get_method_versions(
+    const SSL_PROTOCOL_METHOD *method) {
+  return method->is_dtls ? Span<const uint16_t>(kDTLSVersions)
+                         : Span<const uint16_t>(kTLSVersions);
 }
 
 bool ssl_method_supports_version(const SSL_PROTOCOL_METHOD *method,
                                  uint16_t version) {
-  const uint16_t *versions;
-  size_t num_versions;
-  get_method_versions(method, &versions, &num_versions);
-  for (size_t i = 0; i < num_versions; i++) {
-    if (versions[i] == version) {
+  for (uint16_t supported : get_method_versions(method)) {
+    if (supported == version) {
       return true;
     }
   }
@@ -95,14 +80,10 @@ bool ssl_method_supports_version(const SSL_PROTOCOL_METHOD *method,
 }
 
 // The following functions map between API versions and wire versions. The
-// public API works on wire versions, except that TLS 1.3 draft versions all
-// appear as TLS 1.3. This will get collapsed back down when TLS 1.3 is
-// finalized.
+// public API works on wire versions.
 
 static const char *ssl_version_to_string(uint16_t version) {
   switch (version) {
-    case TLS1_3_DRAFT23_VERSION:
-    case TLS1_3_DRAFT28_VERSION:
     case TLS1_3_VERSION:
       return "TLSv1.3";
 
@@ -127,26 +108,11 @@ static const char *ssl_version_to_string(uint16_t version) {
 }
 
 static uint16_t wire_version_to_api(uint16_t version) {
-  switch (version) {
-    // Report TLS 1.3 draft versions as TLS 1.3 in the public API.
-    case TLS1_3_DRAFT23_VERSION:
-    case TLS1_3_DRAFT28_VERSION:
-    case TLS1_3_VERSION:
-      return TLS1_3_VERSION;
-    default:
-      return version;
-  }
+  return version;
 }
 
-// api_version_to_wire maps |version| to some representative wire version. In
-// particular, it picks an arbitrary TLS 1.3 representative. This should only be
-// used in context where that does not matter.
+// api_version_to_wire maps |version| to some representative wire version.
 static bool api_version_to_wire(uint16_t *out, uint16_t version) {
-  if (version == TLS1_3_DRAFT23_VERSION ||
-      version == TLS1_3_DRAFT28_VERSION) {
-    return false;
-  }
-
   // Check it is a real protocol version.
   uint16_t unused;
   if (!ssl_protocol_version_from_wire(&unused, version)) {
@@ -160,12 +126,12 @@ static bool api_version_to_wire(uint16_t *out, uint16_t version) {
 static bool set_version_bound(const SSL_PROTOCOL_METHOD *method, uint16_t *out,
                               uint16_t version) {
   if (!api_version_to_wire(&version, version) ||
-      !ssl_method_supports_version(method, version) ||
-      !ssl_protocol_version_from_wire(out, version)) {
+      !ssl_method_supports_version(method, version)) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_UNKNOWN_SSL_VERSION);
     return false;
   }
 
+  *out = version;
   return true;
 }
 
@@ -173,8 +139,7 @@ static bool set_min_version(const SSL_PROTOCOL_METHOD *method, uint16_t *out,
                             uint16_t version) {
   // Zero is interpreted as the default minimum version.
   if (version == 0) {
-    // TLS 1.0 does not exist in DTLS.
-    *out = method->is_dtls ? TLS1_1_VERSION : TLS1_VERSION;
+    *out = method->is_dtls ? DTLS1_VERSION : TLS1_VERSION;
     return true;
   }
 
@@ -185,7 +150,7 @@ static bool set_max_version(const SSL_PROTOCOL_METHOD *method, uint16_t *out,
                             uint16_t version) {
   // Zero is interpreted as the default maximum version.
   if (version == 0) {
-    *out = TLS1_2_VERSION;
+    *out = method->is_dtls ? DTLS1_2_VERSION : TLS1_3_VERSION;
     return true;
   }
 
@@ -214,14 +179,25 @@ bool ssl_get_version_range(const SSL_HANDSHAKE *hs, uint16_t *out_min_version,
     }
   }
 
-  uint16_t min_version = hs->config->conf_min_version;
-  uint16_t max_version = hs->config->conf_max_version;
+  uint16_t min_version, max_version;
+  if (!ssl_protocol_version_from_wire(&min_version,
+                                      hs->config->conf_min_version) ||
+      !ssl_protocol_version_from_wire(&max_version,
+                                      hs->config->conf_max_version)) {
+    OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
+    return false;
+  }
 
-  // OpenSSL's API for controlling versions entails blacklisting individual
-  // protocols. This has two problems. First, on the client, the protocol can
-  // only express a contiguous range of versions. Second, a library consumer
-  // trying to set a maximum version cannot disable protocol versions that get
-  // added in a future version of the library.
+  // QUIC requires TLS 1.3.
+  if (hs->ssl->quic_method && min_version < TLS1_3_VERSION) {
+    min_version = TLS1_3_VERSION;
+  }
+
+  // The |SSL_OP_NO_*| flags disable individual protocols. This has two
+  // problems. First, prior to TLS 1.3, the protocol can only express a
+  // contiguous range of versions. Second, a library consumer trying to set a
+  // maximum version cannot disable protocol versions that get added in a future
+  // version of the library.
   //
   // To account for both of these, OpenSSL interprets the client-side bitmask
   // as a min/max range by picking the lowest contiguous non-empty range of
@@ -284,8 +260,8 @@ uint16_t ssl_protocol_version(const SSL *ssl) {
   return version;
 }
 
-bool ssl_supports_version(SSL_HANDSHAKE *hs, uint16_t version) {
-  SSL *const ssl = hs->ssl;
+bool ssl_supports_version(const SSL_HANDSHAKE *hs, uint16_t version) {
+  const SSL *const ssl = hs->ssl;
   uint16_t protocol_version;
   if (!ssl_method_supports_version(ssl->method, version) ||
       !ssl_protocol_version_from_wire(&protocol_version, version) ||
@@ -294,31 +270,17 @@ bool ssl_supports_version(SSL_HANDSHAKE *hs, uint16_t version) {
     return false;
   }
 
-  // If the TLS 1.3 variant is set to |tls13_default|, all variants are enabled,
-  // otherwise only the matching version is enabled.
-  if (protocol_version == TLS1_3_VERSION) {
-    switch (ssl->tls13_variant) {
-      case tls13_draft23:
-        return version == TLS1_3_DRAFT23_VERSION;
-      case tls13_draft28:
-        return version == TLS1_3_DRAFT28_VERSION;
-      case tls13_rfc:
-        return version == TLS1_3_VERSION;
-      case tls13_default:
-        return true;
-    }
-  }
-
   return true;
 }
 
-bool ssl_add_supported_versions(SSL_HANDSHAKE *hs, CBB *cbb) {
-  const uint16_t *versions;
-  size_t num_versions;
-  get_method_versions(hs->ssl->method, &versions, &num_versions);
-  for (size_t i = 0; i < num_versions; i++) {
-    if (ssl_supports_version(hs, versions[i]) &&
-        !CBB_add_u16(cbb, versions[i])) {
+bool ssl_add_supported_versions(const SSL_HANDSHAKE *hs, CBB *cbb,
+                                uint16_t extra_min_version) {
+  for (uint16_t version : get_method_versions(hs->ssl->method)) {
+    uint16_t protocol_version;
+    if (ssl_supports_version(hs, version) &&
+        ssl_protocol_version_from_wire(&protocol_version, version) &&
+        protocol_version >= extra_min_version &&  //
+        !CBB_add_u16(cbb, version)) {
       return false;
     }
   }
@@ -327,24 +289,33 @@ bool ssl_add_supported_versions(SSL_HANDSHAKE *hs, CBB *cbb) {
 
 bool ssl_negotiate_version(SSL_HANDSHAKE *hs, uint8_t *out_alert,
                            uint16_t *out_version, const CBS *peer_versions) {
-  const uint16_t *versions;
-  size_t num_versions;
-  get_method_versions(hs->ssl->method, &versions, &num_versions);
-  for (size_t i = 0; i < num_versions; i++) {
-    if (!ssl_supports_version(hs, versions[i])) {
+  for (uint16_t version : get_method_versions(hs->ssl->method)) {
+    if (!ssl_supports_version(hs, version)) {
+      continue;
+    }
+
+    // JDK 11, prior to 11.0.2, has a buggy TLS 1.3 implementation which fails
+    // to send SNI when offering 1.3 sessions. Disable TLS 1.3 for such
+    // clients. We apply this logic here rather than |ssl_supports_version| so
+    // the downgrade signal continues to query the true capabilities. (The
+    // workaround is a limitation of the peer's capabilities rather than our
+    // own.)
+    //
+    // See https://bugs.openjdk.java.net/browse/JDK-8211806.
+    if (version == TLS1_3_VERSION && hs->apply_jdk11_workaround) {
       continue;
     }
 
     CBS copy = *peer_versions;
     while (CBS_len(&copy) != 0) {
-      uint16_t version;
-      if (!CBS_get_u16(&copy, &version)) {
+      uint16_t peer_version;
+      if (!CBS_get_u16(&copy, &peer_version)) {
         OPENSSL_PUT_ERROR(SSL, SSL_R_DECODE_ERROR);
         *out_alert = SSL_AD_DECODE_ERROR;
         return false;
       }
 
-      if (version == versions[i]) {
+      if (peer_version == version) {
         *out_version = version;
         return true;
       }
@@ -356,11 +327,7 @@ bool ssl_negotiate_version(SSL_HANDSHAKE *hs, uint8_t *out_alert,
   return false;
 }
 
-bool ssl_is_draft28(uint16_t version) {
-  return version == TLS1_3_DRAFT28_VERSION || version == TLS1_3_VERSION;
-}
-
-}  // namespace bssl
+BSSL_NAMESPACE_END
 
 using namespace bssl;
 
@@ -370,6 +337,14 @@ int SSL_CTX_set_min_proto_version(SSL_CTX *ctx, uint16_t version) {
 
 int SSL_CTX_set_max_proto_version(SSL_CTX *ctx, uint16_t version) {
   return set_max_version(ctx->method, &ctx->conf_max_version, version);
+}
+
+uint16_t SSL_CTX_get_min_proto_version(const SSL_CTX *ctx) {
+  return ctx->conf_min_version;
+}
+
+uint16_t SSL_CTX_get_max_proto_version(const SSL_CTX *ctx) {
+  return ctx->conf_max_version;
 }
 
 int SSL_set_min_proto_version(SSL *ssl, uint16_t version) {
@@ -384,6 +359,20 @@ int SSL_set_max_proto_version(SSL *ssl, uint16_t version) {
     return 0;
   }
   return set_max_version(ssl->method, &ssl->config->conf_max_version, version);
+}
+
+uint16_t SSL_get_min_proto_version(const SSL *ssl) {
+  if (!ssl->config) {
+    return 0;
+  }
+  return ssl->config->conf_min_version;
+}
+
+uint16_t SSL_get_max_proto_version(const SSL *ssl) {
+  if (!ssl->config) {
+    return 0;
+  }
+  return ssl->config->conf_max_version;
 }
 
 int SSL_version(const SSL *ssl) {
@@ -406,4 +395,8 @@ int SSL_SESSION_set_protocol_version(SSL_SESSION *session, uint16_t version) {
   // This picks a representative TLS 1.3 version, but this API should only be
   // used on unit test sessions anyway.
   return api_version_to_wire(&session->ssl_version, version);
+}
+
+int SSL_CTX_set_record_protocol_version(SSL_CTX *ctx, int version) {
+  return version == 0;
 }

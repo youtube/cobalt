@@ -14,11 +14,12 @@
 
 #include "starboard/shared/starboard/player/file_cache_reader.h"
 
+#include <string.h>
 #include <algorithm>
 
 #include "starboard/common/log.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
-#include "starboard/memory.h"
 
 namespace starboard {
 namespace shared {

@@ -28,7 +28,6 @@
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 
 namespace cobalt {
 namespace watchdog {
@@ -52,7 +51,7 @@ typedef struct Client {
   int64_t time_registered_microseconds;
   // Monotonically increasing timestamp when client was registered. Used as the
   // start value for time wait calculations.
-  SbTimeMonotonic time_registered_monotonic_microseconds;
+  int64_t time_registered_monotonic_microseconds;
   // Epoch time when client was last pinged. Set by Ping() and Register() when
   // in PING replace mode or set initially by Register().
   int64_t time_last_pinged_microseconds;
@@ -62,7 +61,7 @@ typedef struct Client {
   // violation occurs. Prevents excessive violations as they must occur
   // time_interval_microseconds apart rather than on each monitor loop. Used as
   // the start value for time interval calculations.
-  SbTimeMonotonic time_last_updated_monotonic_microseconds;
+  int64_t time_last_updated_monotonic_microseconds;
 } Client;
 
 // Register behavior with previously registered clients of the same name.
@@ -123,12 +122,12 @@ class Watchdog : public Singleton<Watchdog> {
                                        int64_t time_interval_microseconds,
                                        int64_t time_wait_microseconds,
                                        int64_t current_time,
-                                       SbTimeMonotonic current_monotonic_time);
+                                       int64_t current_monotonic_time);
   static void* Monitor(void* context);
   static bool MonitorClient(void* context, Client* client,
-                            SbTimeMonotonic current_monotonic_time);
+                            int64_t current_monotonic_time);
   static void UpdateViolationsMap(void* context, Client* client,
-                                  SbTimeMonotonic time_delta);
+                                  int64_t time_delta);
   static void EvictWatchdogViolation(void* context);
   static void MaybeWriteWatchdogViolations(void* context);
   static void MaybeTriggerCrash(void* context);
@@ -155,7 +154,7 @@ class Watchdog : public Singleton<Watchdog> {
   bool pending_write_;
   // Monotonically increasing timestamp when Watchdog violations were last
   // written to persistent storage. 0 indicates that it has never been written.
-  SbTimeMonotonic time_last_written_microseconds_ = 0;
+  int64_t time_last_written_microseconds_ = 0;
   // Number of microseconds between writes.
   int64_t write_wait_time_microseconds_;
   // Dictionary of name registered Watchdog clients.
@@ -181,7 +180,7 @@ class Watchdog : public Singleton<Watchdog> {
   std::string delay_name_ = "";
   // Monotonically increasing timestamp when a delay was last injected. 0
   // indicates that it has never been injected.
-  SbTimeMonotonic time_last_delayed_microseconds_ = 0;
+  int64_t time_last_delayed_microseconds_ = 0;
   // Number of microseconds between delays.
   int64_t delay_wait_time_microseconds_ = 0;
   // Number of microseconds to delay.

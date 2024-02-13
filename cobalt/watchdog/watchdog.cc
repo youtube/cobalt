@@ -24,6 +24,7 @@
 #include "base/json/json_writer.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 
 #if defined(_DEBUG)
@@ -201,13 +202,13 @@ void Watchdog::WriteWatchdogViolations() {
   watchdog_file.WriteAll(watchdog_json.c_str(),
                          static_cast<int>(watchdog_json.size()));
   pending_write_ = false;
-  time_last_written_microseconds_ = SbTimeGetMonotonicNow();
+  time_last_written_microseconds_ = starboard::CurrentMonotonicTime();
 }
 
 void* Watchdog::Monitor(void* context) {
   starboard::ScopedLock scoped_lock(static_cast<Watchdog*>(context)->mutex_);
   while (1) {
-    SbTimeMonotonic current_monotonic_time = SbTimeGetMonotonicNow();
+    int64_t current_monotonic_time = starboard::CurrentMonotonicTime();
     bool watchdog_violation = false;
 
     // Iterates through client map to monitor all name registered clients.
@@ -241,7 +242,7 @@ void* Watchdog::Monitor(void* context) {
 }
 
 bool Watchdog::MonitorClient(void* context, Client* client,
-                             SbTimeMonotonic current_monotonic_time) {
+                             int64_t current_monotonic_time) {
   // Ignores and resets clients in idle states, clients whose monitor_state
   // is below the current application state. Resets time_wait_microseconds
   // and time_interval_microseconds start values.
@@ -251,9 +252,9 @@ bool Watchdog::MonitorClient(void* context, Client* client,
     return false;
   }
 
-  SbTimeMonotonic time_delta =
+  int64_t time_delta =
       current_monotonic_time - client->time_last_updated_monotonic_microseconds;
-  SbTimeMonotonic time_wait =
+  int64_t time_wait =
       current_monotonic_time - client->time_registered_monotonic_microseconds;
 
   // Watchdog violation
@@ -268,7 +269,7 @@ bool Watchdog::MonitorClient(void* context, Client* client,
 }
 
 void Watchdog::UpdateViolationsMap(void* context, Client* client,
-                                   SbTimeMonotonic time_delta) {
+                                   int64_t time_delta) {
   // Gets violation dictionary with key client name from violations map.
   base::Value* violation_dict =
       (static_cast<Watchdog*>(context)->GetViolationsMap())
@@ -310,9 +311,9 @@ void Watchdog::UpdateViolationsMap(void* context, Client* client,
     violation.SetKey("timestampLastPingedMilliseconds",
                      base::Value(std::to_string(
                          client->time_last_pinged_microseconds / 1000)));
-    violation.SetKey(
-        "timestampViolationMilliseconds",
-        base::Value(std::to_string(SbTimeToPosix(SbTimeGetNow()) / 1000)));
+    int64_t current_timestamp_millis = starboard::CurrentPosixTime() / 1000;
+    violation.SetKey("timestampViolationMilliseconds",
+                     base::Value(std::to_string(current_timestamp_millis)));
     violation.SetKey(
         "violationDurationMilliseconds",
         base::Value(std::to_string(
@@ -416,7 +417,7 @@ void Watchdog::EvictWatchdogViolation(void* context) {
 }
 
 void Watchdog::MaybeWriteWatchdogViolations(void* context) {
-  if (SbTimeGetMonotonicNow() >
+  if (starboard::CurrentMonotonicTime() >
       static_cast<Watchdog*>(context)->time_last_written_microseconds_ +
           static_cast<Watchdog*>(context)->write_wait_time_microseconds_) {
     static_cast<Watchdog*>(context)->WriteWatchdogViolations();
@@ -440,8 +441,8 @@ bool Watchdog::Register(std::string name, std::string description,
 
   starboard::ScopedLock scoped_lock(mutex_);
 
-  int64_t current_time = SbTimeToPosix(SbTimeGetNow());
-  SbTimeMonotonic current_monotonic_time = SbTimeGetMonotonicNow();
+  int64_t current_time = starboard::CurrentPosixTime();
+  int64_t current_monotonic_time = starboard::CurrentMonotonicTime();
 
   // If replace is PING or ALL, handles already registered cases.
   if (replace != NONE) {
@@ -484,8 +485,8 @@ std::shared_ptr<Client> Watchdog::RegisterByClient(
 
   starboard::ScopedLock scoped_lock(mutex_);
 
-  int64_t current_time = SbTimeToPosix(SbTimeGetNow());
-  SbTimeMonotonic current_monotonic_time = SbTimeGetMonotonicNow();
+  int64_t current_time = starboard::CurrentPosixTime();
+  int64_t current_monotonic_time = starboard::CurrentMonotonicTime();
 
   // Creates new client.
   std::shared_ptr<Client> client = CreateClient(
@@ -504,7 +505,7 @@ std::unique_ptr<Client> Watchdog::CreateClient(
     std::string name, std::string description,
     base::ApplicationState monitor_state, int64_t time_interval_microseconds,
     int64_t time_wait_microseconds, int64_t current_time,
-    SbTimeMonotonic current_monotonic_time) {
+    int64_t current_monotonic_time) {
   // Validates parameters.
   if (time_interval_microseconds < watchdog_monitor_frequency_ ||
       time_wait_microseconds < 0) {
@@ -620,8 +621,8 @@ bool Watchdog::PingHelper(Client* client, const std::string& name,
     return false;
   }
 
-  int64_t current_time = SbTimeToPosix(SbTimeGetNow());
-  SbTimeMonotonic current_monotonic_time = SbTimeGetMonotonicNow();
+  int64_t current_time = starboard::CurrentPosixTime();
+  int64_t current_monotonic_time = starboard::CurrentMonotonicTime();
 
   // Updates last ping.
   client->time_last_pinged_microseconds = current_time;
@@ -688,7 +689,7 @@ std::string Watchdog::GetWatchdogViolations(
 }
 
 void Watchdog::EvictOldWatchdogViolations() {
-  int64_t current_timestamp_millis = SbTimeToPosix(SbTimeGetNow()) / 1000;
+  int64_t current_timestamp_millis = starboard::CurrentPosixTime() / 1000;
   int64_t cutoff_timestamp_millis =
       current_timestamp_millis - kWatchdogMaxViolationsAge;
   std::vector<std::string> empty_violations;
@@ -772,10 +773,10 @@ void Watchdog::MaybeInjectDebugDelay(const std::string& name) {
 
   if (name != delay_name_) return;
 
-  if (SbTimeGetMonotonicNow() >
+  if (starboard::CurrentMonotonicTime() >
       time_last_delayed_microseconds_ + delay_wait_time_microseconds_) {
     SbThreadSleep(delay_sleep_time_microseconds_);
-    time_last_delayed_microseconds_ = SbTimeGetMonotonicNow();
+    time_last_delayed_microseconds_ = starboard::CurrentMonotonicTime();
   }
 }
 #endif  // defined(_DEBUG)

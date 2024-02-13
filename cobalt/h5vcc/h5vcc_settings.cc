@@ -50,7 +50,6 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
   const char kMediaPrefix[] = "Media.";
   const char kMediaCodecBlockList[] = "MediaCodecBlockList";
   const char kNavigatorUAData[] = "NavigatorUAData";
-  const char kClientHintHeaders[] = "ClientHintHeaders";
   const char kQUIC[] = "QUIC";
 
 #if SB_IS(EVERGREEN)
@@ -81,22 +80,6 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
     return true;
   }
 
-  if (name.compare(kClientHintHeaders) == 0 && value.IsType<int32>()) {
-    if (!persistent_settings_) {
-      return false;
-    } else {
-      persistent_settings_->SetPersistentSetting(
-          network::kClientHintHeadersEnabledPersistentSettingsKey,
-          std::make_unique<base::Value>(value.AsType<int32>()));
-      // Tell NetworkModule (if exists) to re-query persistent settings.
-      if (network_module_) {
-        network_module_
-            ->SetEnableClientHintHeadersFlagsFromPersistentSettings();
-      }
-      return true;
-    }
-  }
-
   if (name.compare(kQUIC) == 0 && value.IsType<int32>()) {
     if (!persistent_settings_) {
       return false;
@@ -119,6 +102,23 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
   }
 #endif
   return false;
+}
+
+void H5vccSettings::SetPersistentSettingAsInt(const std::string& key,
+                                              int value) const {
+  if (persistent_settings_) {
+    persistent_settings_->SetPersistentSetting(
+        key, std::make_unique<base::Value>(value));
+  }
+}
+
+int H5vccSettings::GetPersistentSettingAsInt(const std::string& key,
+                                             int default_setting) const {
+  if (persistent_settings_) {
+    return persistent_settings_->GetPersistentSettingAsInt(key,
+                                                           default_setting);
+  }
+  return default_setting;
 }
 
 }  // namespace h5vcc

@@ -52,9 +52,6 @@
 #include "base/strings/string_util.h"
 #include "net/base/net_errors.h"
 
-#include "starboard/client_porting/poem/string_poem.h"
-#include "starboard/memory.h"
-
 namespace net {
 
 // Absurdly long size to avoid imposing a constraint on chunked encoding

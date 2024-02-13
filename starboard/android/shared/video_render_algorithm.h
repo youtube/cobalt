@@ -28,13 +28,14 @@ namespace shared {
 class VideoRenderAlgorithm : public ::starboard::shared::starboard::player::
                                  filter::VideoRenderAlgorithm {
  public:
-  explicit VideoRenderAlgorithm(VideoDecoder* video_decoder);
+  VideoRenderAlgorithm(VideoDecoder* video_decoder,
+                       VideoFrameTracker* frame_tracker);
 
   void Render(MediaTimeProvider* media_time_provider,
               std::list<scoped_refptr<VideoFrame>>* frames,
               VideoRendererSink::DrawFrameCB draw_frame_cb) override;
-  void Seek(SbTime seek_to_time) override {}
-  int GetDroppedFrames() override { return dropped_frames_; }
+  void Seek(int64_t seek_to_time) override;
+  int GetDroppedFrames() override;
 
  private:
   class VideoFrameReleaseTimeHelper {
@@ -49,6 +50,7 @@ class VideoRenderAlgorithm : public ::starboard::shared::starboard::player::
   };
 
   VideoDecoder* video_decoder_ = nullptr;
+  VideoFrameTracker* frame_tracker_;
   double playback_rate_ = 1.0;
   VideoFrameReleaseTimeHelper video_frame_release_time_helper_;
   int dropped_frames_ = 0;

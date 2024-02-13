@@ -12,9 +12,6 @@
 #include "net/third_party/quic/platform/api/quic_string.h"
 #include "third_party/zlib/zlib.h"
 
-#include "starboard/client_porting/poem/string_poem.h"
-#include "starboard/memory.h"
-
 namespace quic {
 
 namespace {

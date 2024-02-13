@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: microphone.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: `microphone.h`
 
 Defines functions for microphone creation, control, audio data fetching, and
 destruction. This module supports multiple calls to `SbMicrophoneOpen` and
@@ -31,23 +31,23 @@ How to use this API:
 
 1.  Destroy the microphone with `SbMicrophoneDestroy`.
 
-## Macros ##
+## Macros
 
-### kSbMicrophoneIdInvalid ###
+### kSbMicrophoneIdInvalid
 
 Well-defined value for an invalid microphone ID handle.
 
-### kSbMicrophoneInvalid ###
+### kSbMicrophoneInvalid
 
 Well-defined value for an invalid microphone handle.
 
-## Enums ##
+## Enums
 
-### SbMicrophoneType ###
+### SbMicrophoneType
 
 All possible microphone types.
 
-#### Values ####
+#### Values
 
 *   `kSbMicrophoneCamera`
 
@@ -66,37 +66,37 @@ All possible microphone types.
     Unknown microphone type. The microphone could be different than the other
     enum descriptions or could fall under one of those descriptions.
 
-## Typedefs ##
+## Typedefs
 
-### SbMicrophone ###
+### SbMicrophone
 
 An opaque handle to an implementation-private structure that represents a
 microphone.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef struct SbMicrophonePrivate* SbMicrophone
 ```
 
-### SbMicrophoneId ###
+### SbMicrophoneId
 
 An opaque handle to an implementation-private structure that represents a
 microphone ID.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef struct SbMicrophoneIdPrivate* SbMicrophoneId
 ```
 
-## Structs ##
+## Structs
 
-### SbMicrophoneInfo ###
+### SbMicrophoneInfo
 
 Microphone information.
 
-#### Members ####
+#### Members
 
 *   `SbMicrophoneId id`
 
@@ -116,9 +116,9 @@ Microphone information.
     of the microphone type. For example, "Headset Microphone". The string must
     be null terminated.
 
-## Functions ##
+## Functions
 
-### SbMicrophoneClose ###
+### SbMicrophoneClose
 
 Closes the microphone port, stops recording audio on `microphone`, and clears
 the unread buffer if it is not empty. If the microphone has already been
@@ -127,13 +127,13 @@ is closed.
 
 `microphone`: The microphone to close.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbMicrophoneClose(SbMicrophone microphone)
 ```
 
-### SbMicrophoneCreate ###
+### SbMicrophoneCreate
 
 Creates a microphone with the specified ID, audio sample rate, and cached audio
 buffer size. Starboard only requires support for creating one microphone at a
@@ -153,25 +153,25 @@ from the audio buffer if it has been read, and new audio data can be read from
 this buffer in smaller chunks than this size. This parameter must be set to a
 value greater than zero and the ideal size is `2^n`.
 
-#### Declaration ####
+#### Declaration
 
 ```
 SbMicrophone SbMicrophoneCreate(SbMicrophoneId id, int sample_rate_in_hz, int buffer_size_bytes)
 ```
 
-### SbMicrophoneDestroy ###
+### SbMicrophoneDestroy
 
 Destroys a microphone. If the microphone is in started state, it is first
 stopped and then destroyed. Any data that has been recorded and not read is
 thrown away.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbMicrophoneDestroy(SbMicrophone microphone)
 ```
 
-### SbMicrophoneGetAvailable ###
+### SbMicrophoneGetAvailable
 
 Retrieves all currently available microphone information and stores it in
 `out_info_array`. The return value is the number of the available microphones.
@@ -184,43 +184,43 @@ indicates that an internal error occurred.
 placed into this output parameter. `info_array_size`: The size of
 `out_info_array`.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int SbMicrophoneGetAvailable(SbMicrophoneInfo *out_info_array, int info_array_size)
 ```
 
-### SbMicrophoneIdIsValid ###
+### SbMicrophoneIdIsValid
 
 Indicates whether the given microphone ID is valid.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static bool SbMicrophoneIdIsValid(SbMicrophoneId id)
 ```
 
-### SbMicrophoneIsSampleRateSupported ###
+### SbMicrophoneIsSampleRateSupported
 
 Indicates whether the microphone supports the sample rate.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbMicrophoneIsSampleRateSupported(SbMicrophoneId id, int sample_rate_in_hz)
 ```
 
-### SbMicrophoneIsValid ###
+### SbMicrophoneIsValid
 
 Indicates whether the given microphone is valid.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static bool SbMicrophoneIsValid(SbMicrophone microphone)
 ```
 
-### SbMicrophoneOpen ###
+### SbMicrophoneOpen
 
 Opens the microphone port and starts recording audio on `microphone`.
 
@@ -230,13 +230,13 @@ clears the unread buffer. The return value indicates whether the microphone is
 open. `microphone`: The microphone that will be opened and will start recording
 audio.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbMicrophoneOpen(SbMicrophone microphone)
 ```
 
-### SbMicrophoneRead ###
+### SbMicrophoneRead
 
 Retrieves the recorded audio data from the microphone and writes that data to
 `out_audio_data`.
@@ -255,7 +255,7 @@ audio data is thrown out. No audio data is read from a stopped microphone.
 smaller than `min_read_size` of `SbMicrophoneInfo`, the extra audio data that
 has already been read from the device is discarded.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int SbMicrophoneRead(SbMicrophone microphone, void *out_audio_data, int audio_data_size)

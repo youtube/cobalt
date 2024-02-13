@@ -4,13 +4,14 @@
 
 #include "crypto/ec_signature_creator.h"
 
+#include <stdint.h>
+
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "crypto/ec_private_key.h"
 #include "crypto/signature_verifier.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // TODO(rch): Add some exported keys from each to

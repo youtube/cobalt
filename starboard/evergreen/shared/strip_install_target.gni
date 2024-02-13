@@ -41,11 +41,20 @@ template("strip_install_target") {
 
     outputs = [ "$sb_install_output_dir/$install_subdir/$source_name" ]
 
-    args = [
-      strip_executable,
-      "-o",
-      rebase_path(outputs[0], root_out_dir),
-      rebase_path("$root_out_dir/$source_name", root_out_dir),
-    ]
+    # skip stripping to make sure we have some debug symbols. Refer b/307760111
+    if (is_devel) {
+      args = [
+        "cp",
+        rebase_path("$root_out_dir/$source_name", root_out_dir),
+        rebase_path(outputs[0], root_out_dir),
+      ]
+    } else {
+      args = [
+        strip_executable,
+        "-o",
+        rebase_path(outputs[0], root_out_dir),
+        rebase_path("$root_out_dir/$source_name", root_out_dir),
+      ]
+    }
   }
 }

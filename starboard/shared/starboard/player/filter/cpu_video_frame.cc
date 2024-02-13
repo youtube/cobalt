@@ -14,8 +14,11 @@
 
 #include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #include "starboard/common/log.h"
-#include "starboard/memory.h"
+#include "starboard/configuration_constants.h"
 
 namespace starboard {
 namespace shared {
@@ -182,7 +185,7 @@ scoped_refptr<CpuVideoFrame> CpuVideoFrame::CreateYV12Frame(
     int height,
     int source_y_pitch_in_bytes,
     int source_uv_pitch_in_bytes,
-    SbTime timestamp,
+    int64_t timestamp,
     const uint8_t* y,
     const uint8_t* u,
     const uint8_t* v) {

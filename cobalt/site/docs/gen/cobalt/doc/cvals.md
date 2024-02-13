@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Cobalt CVals"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Cobalt CVals
 
 ## Overview

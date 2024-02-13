@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/time.h"
 #include "starboard/nplb/drm_helpers.h"
 #include "starboard/nplb/player_creation_param_helpers.h"
 #include "starboard/nplb/player_test_fixture.h"
@@ -42,7 +43,7 @@ TEST_P(SbPlayerWriteSampleTest, SeekAndDestroy) {
   if (HasFatalFailure()) {
     return;
   }
-  ASSERT_NO_FATAL_FAILURE(player_fixture.Seek(kSbTimeSecond));
+  ASSERT_NO_FATAL_FAILURE(player_fixture.Seek(1'000'000));
 }
 
 TEST_P(SbPlayerWriteSampleTest, NoInput) {
@@ -135,17 +136,17 @@ TEST_P(SbPlayerWriteSampleTest, LimitedAudioInput) {
 
   // TODO: we simply set audio write duration to 0.5 second. Ideally, we should
   // set the audio write duration to 10 seconds if audio connectors are remote.
-  player_fixture.SetAudioWriteDuration(kSbTimeSecond / 2);
+  player_fixture.SetAudioWriteDuration(500'000);
 
   GroupedSamples samples;
   if (player_fixture.HasAudio()) {
     samples.AddAudioSamples(
-        0, player_fixture.ConvertDurationToAudioBufferCount(kSbTimeSecond));
+        0, player_fixture.ConvertDurationToAudioBufferCount(1'000'000));
     samples.AddAudioEOS();
   }
   if (player_fixture.HasVideo()) {
     samples.AddVideoSamples(
-        0, player_fixture.ConvertDurationToVideoBufferCount(kSbTimeSecond));
+        0, player_fixture.ConvertDurationToVideoBufferCount(1'000'000));
     samples.AddVideoEOS();
   }
 
@@ -172,8 +173,8 @@ TEST_P(SbPlayerWriteSampleTest, PartialAudio) {
     return;
   }
 
-  const SbTime kDurationToPlay = kSbTimeSecond;
-  const float kSegmentSize = 0.1f;
+  const int64_t kDurationToPlay = 1'000'000;  // 1 second
+  const float kSegmentSize = 0.3f;
 
   GroupedSamples samples;
   if (player_fixture.HasVideo()) {
@@ -185,11 +186,11 @@ TEST_P(SbPlayerWriteSampleTest, PartialAudio) {
   int total_buffers_to_write =
       player_fixture.ConvertDurationToAudioBufferCount(kDurationToPlay);
   for (int i = 0; i < total_buffers_to_write; i++) {
-    SbTime current_timestamp = player_fixture.GetAudioSampleTimestamp(i);
-    SbTime next_timestamp = player_fixture.GetAudioSampleTimestamp(i + 1);
-    SbTime buffer_duration = next_timestamp - current_timestamp;
-    SbTime segment_duration = buffer_duration * kSegmentSize;
-    SbTime written_duration = 0;
+    int64_t current_timestamp = player_fixture.GetAudioSampleTimestamp(i);
+    int64_t next_timestamp = player_fixture.GetAudioSampleTimestamp(i + 1);
+    int64_t buffer_duration = next_timestamp - current_timestamp;
+    int64_t segment_duration = buffer_duration * kSegmentSize;
+    int64_t written_duration = 0;
     while (written_duration < buffer_duration) {
       samples.AddAudioSamples(
           i, 1, written_duration, written_duration,
@@ -203,15 +204,15 @@ TEST_P(SbPlayerWriteSampleTest, PartialAudio) {
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerPresenting());
 
-  SbTime start_system_time = SbTimeGetMonotonicNow();
-  SbTime start_media_time = player_fixture.GetCurrentMediaTime();
+  int64_t start_system_time = CurrentMonotonicTime();
+  int64_t start_media_time = player_fixture.GetCurrentMediaTime();
 
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
 
-  SbTime end_system_time = SbTimeGetMonotonicNow();
-  SbTime end_media_time = player_fixture.GetCurrentMediaTime();
+  int64_t end_system_time = CurrentMonotonicTime();
+  int64_t end_media_time = player_fixture.GetCurrentMediaTime();
 
-  const SbTime kDurationDifferenceAllowance = 500 * kSbTimeMillisecond;
+  const int64_t kDurationDifferenceAllowance = 500'000;  // 500ms;
   EXPECT_NEAR(end_media_time, kDurationToPlay, kDurationDifferenceAllowance);
   EXPECT_NEAR(end_system_time - start_system_time + start_media_time,
               kDurationToPlay, kDurationDifferenceAllowance);
@@ -229,7 +230,7 @@ TEST_P(SbPlayerWriteSampleTest, PartialAudio) {
                 << ".";
 }
 
-TEST_P(SbPlayerWriteSampleTest, PartialAudioDiscardAll) {
+TEST_P(SbPlayerWriteSampleTest, DiscardAllAudio) {
   if (!IsPartialAudioSupported()) {
     // TODO: Use GTEST_SKIP when we have a newer version of gtest.
     SB_LOG(INFO)
@@ -248,9 +249,9 @@ TEST_P(SbPlayerWriteSampleTest, PartialAudioDiscardAll) {
     return;
   }
 
-  const SbTime kDurationToPlay = kSbTimeSecond;
-  const SbTime kDurationPerWrite = 100 * kSbTimeMillisecond;
-  const SbTime kNumberOfBuffersToDiscard = 20;
+  const int64_t kDurationToPlay = 1'000'000;  // 1 second
+  const int64_t kDurationPerWrite = 100'000;  // 100ms
+  const int64_t kNumberOfBuffersToDiscard = 20;
 
   GroupedSamples samples;
   if (player_fixture.HasVideo()) {
@@ -260,13 +261,13 @@ TEST_P(SbPlayerWriteSampleTest, PartialAudioDiscardAll) {
   }
 
   int written_buffer_index = 0;
-  SbTime current_time_offset = 0;
+  int64_t current_time_offset = 0;
   int num_of_buffers_per_write =
       player_fixture.ConvertDurationToAudioBufferCount(kDurationPerWrite);
   int count = 0;
   while (current_time_offset < kDurationToPlay) {
-    const SbTime kDurationToDiscard =
-        count % 2 == 0 ? kSbTimeSecond : kSbTimeMax;
+    const int64_t kDurationToDiscard =
+        count % 2 == 0 ? 1'000'000LL : kSbInt64Max;
     count++;
     // Discard from front.
     for (int i = 0; i < kNumberOfBuffersToDiscard; i++) {
@@ -289,16 +290,16 @@ TEST_P(SbPlayerWriteSampleTest, PartialAudioDiscardAll) {
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerPresenting());
 
-  SbTime start_system_time = SbTimeGetMonotonicNow();
-  SbTime start_media_time = player_fixture.GetCurrentMediaTime();
+  int64_t start_system_time = CurrentMonotonicTime();
+  int64_t start_media_time = player_fixture.GetCurrentMediaTime();
 
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
 
-  SbTime end_system_time = SbTimeGetMonotonicNow();
-  SbTime end_media_time = player_fixture.GetCurrentMediaTime();
+  int64_t end_system_time = CurrentMonotonicTime();
+  int64_t end_media_time = player_fixture.GetCurrentMediaTime();
 
-  const SbTime kDurationDifferenceAllowance = 500 * kSbTimeMillisecond;
-  SbTime total_written_duration =
+  const int64_t kDurationDifferenceAllowance = 500'000;  // 500ms
+  int64_t total_written_duration =
       player_fixture.GetAudioSampleTimestamp(written_buffer_index);
   EXPECT_NEAR(end_media_time, total_written_duration,
               kDurationDifferenceAllowance);
@@ -333,7 +334,7 @@ class SecondaryPlayerTestThread : public AbstractTestThread {
       return;
     }
 
-    const SbTime kDurationToPlay = kSbTimeMillisecond * 200;
+    const int64_t kDurationToPlay = 200'000;  // 200ms
 
     GroupedSamples samples;
     if (player_fixture.HasAudio()) {
