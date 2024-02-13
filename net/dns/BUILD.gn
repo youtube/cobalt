@@ -225,6 +225,11 @@ source_set("host_resolver") {
     "//services/network/*",
   ]
 
+  if (use_cobalt_customizations) {
+    visibility += [ "//cobalt/network" ]
+    friend += [ "//cobalt/network" ]
+  }
+
   sources = [
     "dns_config.h",
     "host_cache.h",
