@@ -15,7 +15,9 @@
 // Ensure that all starboard headers can be included inside extern "C".
 
 extern "C" {
+#if SB_API_VERSION < 16
 #include "starboard/accessibility.h"
+#endif  // SB_API_VERSION < 16
 #include "starboard/atomic.h"
 #include "starboard/audio_sink.h"
 #if SB_API_VERSION < 16

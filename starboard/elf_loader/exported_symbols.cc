@@ -22,7 +22,9 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#if SB_API_VERSION < 16
 #include "starboard/accessibility.h"
+#endif  // SB_API_VERSION < 16
 #include "starboard/audio_sink.h"
 #if SB_API_VERSION < 16
 #include "starboard/byte_swap.h"
@@ -110,11 +112,11 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(kSbPreferredRgbaByteOrder);
 #if SB_API_VERSION < 16
   REGISTER_SYMBOL(kSbUserMaxSignedIn);
-#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbAccessibilityGetCaptionSettings);
   REGISTER_SYMBOL(SbAccessibilityGetDisplaySettings);
   REGISTER_SYMBOL(SbAccessibilityGetTextToSpeechSettings);
   REGISTER_SYMBOL(SbAccessibilitySetCaptionsEnabled);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbAudioSinkCreate);
   REGISTER_SYMBOL(SbAudioSinkDestroy);
   REGISTER_SYMBOL(SbAudioSinkGetMaxChannels);

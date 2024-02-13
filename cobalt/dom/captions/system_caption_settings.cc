@@ -27,7 +27,11 @@
 #include "cobalt/dom/captions/caption_opacity_percentage.h"
 #include "cobalt/dom/captions/caption_state.h"
 #include "cobalt/web/event_target.h"
+#if SB_API_VERSION < 16
 #include "starboard/accessibility.h"
+#else  // SB_API_VERSION < 16
+#include "starboard/extension/accessibility.h"
+#endif  // SB_API_VERSION < 16
 #include "starboard/memory.h"
 
 namespace cobalt {
@@ -181,7 +185,7 @@ void SystemCaptionSettings::OnCaptionSettingsChanged() {
 base::Optional<std::string> SystemCaptionSettings::background_color() {
   SbAccessibilityCaptionSettings caption_settings;
   memset(&caption_settings, 0, sizeof(caption_settings));
-  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  bool success = GetCaptionSettings(&caption_settings);
 
   if (!success) {
     return base::nullopt;
@@ -201,7 +205,7 @@ base::Optional<std::string> SystemCaptionSettings::background_color() {
 CaptionState SystemCaptionSettings::background_color_state() {
   SbAccessibilityCaptionSettings caption_settings;
   memset(&caption_settings, 0, sizeof(caption_settings));
-  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  bool success = GetCaptionSettings(&caption_settings);
   if (success) {
     return ToCobaltCaptionState(caption_settings.background_color_state);
   } else {
@@ -212,7 +216,7 @@ CaptionState SystemCaptionSettings::background_color_state() {
 base::Optional<std::string> SystemCaptionSettings::background_opacity() {
   SbAccessibilityCaptionSettings caption_settings;
   memset(&caption_settings, 0, sizeof(caption_settings));
-  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  bool success = GetCaptionSettings(&caption_settings);
 
   if (!success) {
     return base::nullopt;
@@ -232,7 +236,7 @@ base::Optional<std::string> SystemCaptionSettings::background_opacity() {
 CaptionState SystemCaptionSettings::background_opacity_state() {
   SbAccessibilityCaptionSettings caption_settings;
   memset(&caption_settings, 0, sizeof(caption_settings));
-  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  bool success = GetCaptionSettings(&caption_settings);
   if (success) {
     return ToCobaltCaptionState(caption_settings.background_opacity_state);
   } else {
@@ -243,7 +247,7 @@ CaptionState SystemCaptionSettings::background_opacity_state() {
 base::Optional<std::string> SystemCaptionSettings::character_edge_style() {
   SbAccessibilityCaptionSettings caption_settings;
   memset(&caption_settings, 0, sizeof(caption_settings));
-  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  bool success = GetCaptionSettings(&caption_settings);
 
   if (!success) {
     return base::nullopt;
@@ -265,7 +269,7 @@ base::Optional<std::string> SystemCaptionSettings::character_edge_style() {
 CaptionState SystemCaptionSettings::character_edge_style_state() {
   SbAccessibilityCaptionSettings caption_settings;
   memset(&caption_settings, 0, sizeof(caption_settings));
-  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  bool success = GetCaptionSettings(&caption_settings);
   if (success) {
     return ToCobaltCaptionState(caption_settings.character_edge_style_state);
   } else {
@@ -276,7 +280,7 @@ CaptionState SystemCaptionSettings::character_edge_style_state() {
 base::Optional<std::string> SystemCaptionSettings::font_color() {
   SbAccessibilityCaptionSettings caption_settings;
   memset(&caption_settings, 0, sizeof(caption_settings));
-  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  bool success = GetCaptionSettings(&caption_settings);
 
   if (!success) {
     return base::nullopt;
@@ -296,7 +300,7 @@ base::Optional<std::string> SystemCaptionSettings::font_color() {
 CaptionState SystemCaptionSettings::font_color_state() {
   SbAccessibilityCaptionSettings caption_settings;
   memset(&caption_settings, 0, sizeof(caption_settings));
-  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  bool success = GetCaptionSettings(&caption_settings);
   if (success) {
     return ToCobaltCaptionState(caption_settings.font_color_state);
   } else {
@@ -307,7 +311,7 @@ CaptionState SystemCaptionSettings::font_color_state() {
 base::Optional<std::string> SystemCaptionSettings::font_family() {
   SbAccessibilityCaptionSettings caption_settings;
   memset(&caption_settings, 0, sizeof(caption_settings));
-  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  bool success = GetCaptionSettings(&caption_settings);
 
   if (!success) {
     return base::nullopt;
@@ -327,7 +331,7 @@ base::Optional<std::string> SystemCaptionSettings::font_family() {
 CaptionState SystemCaptionSettings::font_family_state() {
   SbAccessibilityCaptionSettings caption_settings;
   memset(&caption_settings, 0, sizeof(caption_settings));
-  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  bool success = GetCaptionSettings(&caption_settings);
   if (success) {
     return ToCobaltCaptionState(caption_settings.font_family_state);
   } else {
@@ -338,7 +342,7 @@ CaptionState SystemCaptionSettings::font_family_state() {
 base::Optional<std::string> SystemCaptionSettings::font_opacity() {
   SbAccessibilityCaptionSettings caption_settings;
   memset(&caption_settings, 0, sizeof(caption_settings));
-  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  bool success = GetCaptionSettings(&caption_settings);
 
   if (!success) {
     return base::nullopt;
@@ -358,7 +362,7 @@ base::Optional<std::string> SystemCaptionSettings::font_opacity() {
 CaptionState SystemCaptionSettings::font_opacity_state() {
   SbAccessibilityCaptionSettings caption_settings;
   memset(&caption_settings, 0, sizeof(caption_settings));
-  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  bool success = GetCaptionSettings(&caption_settings);
   if (success) {
     return ToCobaltCaptionState(caption_settings.font_opacity_state);
   } else {
@@ -369,7 +373,7 @@ CaptionState SystemCaptionSettings::font_opacity_state() {
 base::Optional<std::string> SystemCaptionSettings::font_size() {
   SbAccessibilityCaptionSettings caption_settings;
   memset(&caption_settings, 0, sizeof(caption_settings));
-  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  bool success = GetCaptionSettings(&caption_settings);
 
   if (!success) {
     return base::nullopt;
@@ -390,7 +394,7 @@ base::Optional<std::string> SystemCaptionSettings::font_size() {
 CaptionState SystemCaptionSettings::font_size_state() {
   SbAccessibilityCaptionSettings caption_settings;
   memset(&caption_settings, 0, sizeof(caption_settings));
-  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  bool success = GetCaptionSettings(&caption_settings);
   if (success) {
     return ToCobaltCaptionState(caption_settings.font_size_state);
   } else {
@@ -401,7 +405,7 @@ CaptionState SystemCaptionSettings::font_size_state() {
 base::Optional<std::string> SystemCaptionSettings::window_color() {
   SbAccessibilityCaptionSettings caption_settings;
   memset(&caption_settings, 0, sizeof(caption_settings));
-  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  bool success = GetCaptionSettings(&caption_settings);
 
   if (!success) {
     return base::nullopt;
@@ -421,7 +425,7 @@ base::Optional<std::string> SystemCaptionSettings::window_color() {
 CaptionState SystemCaptionSettings::window_color_state() {
   SbAccessibilityCaptionSettings caption_settings;
   memset(&caption_settings, 0, sizeof(caption_settings));
-  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  bool success = GetCaptionSettings(&caption_settings);
   if (success) {
     return ToCobaltCaptionState(caption_settings.window_color_state);
   } else {
@@ -432,7 +436,7 @@ CaptionState SystemCaptionSettings::window_color_state() {
 base::Optional<std::string> SystemCaptionSettings::window_opacity() {
   SbAccessibilityCaptionSettings caption_settings;
   memset(&caption_settings, 0, sizeof(caption_settings));
-  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  bool success = GetCaptionSettings(&caption_settings);
 
   if (!success) {
     return base::nullopt;
@@ -452,7 +456,7 @@ base::Optional<std::string> SystemCaptionSettings::window_opacity() {
 CaptionState SystemCaptionSettings::window_opacity_state() {
   SbAccessibilityCaptionSettings caption_settings;
   memset(&caption_settings, 0, sizeof(caption_settings));
-  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  bool success = GetCaptionSettings(&caption_settings);
   if (success) {
     return ToCobaltCaptionState(caption_settings.window_opacity_state);
   } else {
@@ -463,7 +467,7 @@ CaptionState SystemCaptionSettings::window_opacity_state() {
 bool SystemCaptionSettings::is_enabled() {
   SbAccessibilityCaptionSettings caption_settings;
   memset(&caption_settings, 0, sizeof(caption_settings));
-  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  bool success = GetCaptionSettings(&caption_settings);
   DCHECK(supports_is_enabled());
 
   return (success && caption_settings.supports_is_enabled)
@@ -473,13 +477,25 @@ bool SystemCaptionSettings::is_enabled() {
 
 void SystemCaptionSettings::set_is_enabled(bool active) {
   DCHECK(supports_set_enabled());
+#if SB_API_VERSION >= 16
+  auto accessibility_api =
+      static_cast<const StarboardExtensionAccessibilityApi*>(
+          SbSystemGetExtension(kStarboardExtensionAccessibilityName));
+  if (accessibility_api &&
+      strcmp(accessibility_api->name, kStarboardExtensionAccessibilityName) ==
+          0 &&
+      accessibility_api->version >= 1) {
+    accessibility_api->SetCaptionsEnabled(active);
+  }
+#else   // SB_API_VERSION >= 16
   SbAccessibilitySetCaptionsEnabled(active);
+#endif  // SB_API_VERSION >= 16
 }
 
 bool SystemCaptionSettings::supports_is_enabled() {
   SbAccessibilityCaptionSettings caption_settings;
   memset(&caption_settings, 0, sizeof(caption_settings));
-  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  bool success = GetCaptionSettings(&caption_settings);
 
   return (success) ? caption_settings.supports_is_enabled : false;
 }
@@ -487,7 +503,7 @@ bool SystemCaptionSettings::supports_is_enabled() {
 bool SystemCaptionSettings::supports_set_enabled() {
   SbAccessibilityCaptionSettings caption_settings;
   memset(&caption_settings, 0, sizeof(caption_settings));
-  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  bool success = GetCaptionSettings(&caption_settings);
 
   return (success) ? caption_settings.supports_set_enabled : false;
 }
@@ -495,7 +511,7 @@ bool SystemCaptionSettings::supports_set_enabled() {
 bool SystemCaptionSettings::supports_override() {
   SbAccessibilityCaptionSettings caption_settings;
   memset(&caption_settings, 0, sizeof(caption_settings));
-  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  bool success = GetCaptionSettings(&caption_settings);
 
   return (success) ? caption_settings.supports_override : false;
 }
@@ -627,6 +643,25 @@ const char* SystemCaptionSettings::CaptionOpacityPercentageToString(
       NOTREACHED() << "Invalid opacity";
       return nullptr;
   }
+}
+
+bool SystemCaptionSettings::GetCaptionSettings(
+    SbAccessibilityCaptionSettings* caption_settings) {
+#if SB_API_VERSION >= 16
+  auto accessibility_api =
+      static_cast<const StarboardExtensionAccessibilityApi*>(
+          SbSystemGetExtension(kStarboardExtensionAccessibilityName));
+  if (accessibility_api &&
+      strcmp(accessibility_api->name, kStarboardExtensionAccessibilityName) ==
+          0 &&
+      accessibility_api->version >= 1) {
+    return accessibility_api->GetCaptionSettings(caption_settings);
+  } else {
+    return false;
+  }
+#else   // SB_API_VERSION >= 16
+  return SbAccessibilityGetCaptionSettings(caption_settings);
+#endif  // SB_API_VERSION >= 16
 }
 
 }  // namespace captions
