@@ -23,7 +23,6 @@
 #define free sb_free
 
 #undef open
-#define open sb_open
 
 #include <time.h>  // For struct timespec
 
@@ -34,6 +33,9 @@ typedef int clockid_t;
 #define CLOCK_PROCESS_CPUTIME_ID 2
 #define CLOCK_THREAD_CPUTIME_ID 3
 
+// https://pubs.opengroup.org/onlinepubs/9699919799/functions/open.html
+int open(const char* path, int oflag, ...);
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -43,9 +45,6 @@ int clock_gettime(clockid_t clock_id, struct timespec* tp);
 
 // https://pubs.opengroup.org/onlinepubs/000095399/functions/gmtime_r.html
 struct tm* gmtime_r(const time_t* timer, struct tm* result);
-
-// https://pubs.opengroup.org/onlinepubs/9699919799/functions/open.html
-int sb_open(const char* path, int oflag, ...);
 
 int posix_memalign(void** res, size_t alignment, size_t size);
 

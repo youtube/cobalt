@@ -14,6 +14,6 @@
 
 #include <io.h>
 
-int sb_open(const char* path, int oflag, ...) {
+int open(const char* path, int oflag, ...) {
   return _open(path, oflag);
 }

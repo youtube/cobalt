@@ -14,10 +14,6 @@
 
 #include <io.h>
 
-int open(const char* path, int oflag, ...) {
-  return _open(path, oflag);
-}
-
 int close(int fd) {
   return _close(fd);
 }
