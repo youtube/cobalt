@@ -85,7 +85,7 @@ bool JSFinalizationRegistry::RemoveUnregisterToken(
   // This method is called from both FinalizationRegistry#unregister and for
   // removing weakly-held dead unregister tokens. The latter is during GC so
   // this function cannot GC.
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_gc;
   if (key_map().IsUndefined(isolate)) {
     return false;
   }

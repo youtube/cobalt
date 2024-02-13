@@ -51,7 +51,7 @@ class WasmImportWrapperCache {
   };
 
   // Helper class to modify the cache under a lock.
-  class V8_NODISCARD ModificationScope {
+  class ModificationScope {
    public:
     explicit ModificationScope(WasmImportWrapperCache* cache)
         : cache_(cache), guard_(&cache->mutex_) {}

@@ -14,7 +14,7 @@ namespace testing {
 
 class TestPlatform : public DefaultPlatform {
  public:
-  class V8_NODISCARD DisableBackgroundTasksScope {
+  class DisableBackgroundTasksScope {
    public:
     explicit DisableBackgroundTasksScope(TestPlatform*);
     ~DisableBackgroundTasksScope() V8_NOEXCEPT;
@@ -23,8 +23,7 @@ class TestPlatform : public DefaultPlatform {
     TestPlatform* platform_;
   };
 
-  TestPlatform(
-      std::unique_ptr<v8::TracingController> tracing_controller = nullptr);
+  TestPlatform();
 
   std::unique_ptr<cppgc::JobHandle> PostJob(
       cppgc::TaskPriority priority,

@@ -20,9 +20,11 @@ namespace internal {
 
 template <typename T>
 class Handle;
+class JSObject;
 template <typename T>
 class Vector;
 class WasmFrame;
+class WasmInstanceObject;
 
 namespace wasm {
 
@@ -134,6 +136,10 @@ class DebugSideTable {
   std::vector<Entry> entries_;
 };
 
+// Get the module scope for a given instance. This will contain the wasm memory
+// (if the instance has a memory) and the values of all globals.
+Handle<JSObject> GetModuleScopeObject(Handle<WasmInstanceObject>);
+
 // Debug info per NativeModule, created lazily on demand.
 // Implementation in {wasm-debug.cc} using PIMPL.
 class V8_EXPORT_PRIVATE DebugInfo {
@@ -154,15 +160,17 @@ class V8_EXPORT_PRIVATE DebugInfo {
   WasmValue GetStackValue(int index, Address pc, Address fp,
                           Address debug_break_fp);
 
+  Handle<JSObject> GetLocalScopeObject(Isolate*, Address pc, Address fp,
+                                       Address debug_break_fp);
+
+  Handle<JSObject> GetStackScopeObject(Isolate*, Address pc, Address fp,
+                                       Address debug_break_fp);
+
   WireBytesRef GetLocalName(int func_index, int local_index);
 
   void SetBreakpoint(int func_index, int offset, Isolate* current_isolate);
 
-  // Returns true if we stay inside the passed frame (or a called frame) after
-  // the step. False if the frame will return after the step.
-  bool PrepareStep(WasmFrame*);
-
-  void PrepareStepOutTo(WasmFrame*);
+  void PrepareStep(Isolate*, StackFrameId);
 
   void ClearStepping(Isolate*);
 

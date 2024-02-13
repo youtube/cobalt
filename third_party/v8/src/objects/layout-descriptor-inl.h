@@ -187,7 +187,7 @@ int LayoutDescriptor::CalculateCapacity(Map map, DescriptorArray descriptors,
 LayoutDescriptor LayoutDescriptor::Initialize(
     LayoutDescriptor layout_descriptor, Map map, DescriptorArray descriptors,
     int num_descriptors) {
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_allocation;
   int inobject_properties = map.GetInObjectProperties();
 
   for (InternalIndex i : InternalIndex::Range(num_descriptors)) {

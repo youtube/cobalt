@@ -28,7 +28,7 @@ inline void SwitchMemoryPermissionsToExecutable() {
 
 namespace wasm {
 
-class V8_NODISCARD CodeSpaceWriteScope {
+class CodeSpaceWriteScope {
  public:
   // TODO(jkummerow): Background threads could permanently stay in
   // writable mode; only the main thread has to switch back and forth.

@@ -31,6 +31,11 @@ import { Profile, JsonProfile } from "./profile.mjs";
 import { ViewBuilder } from "./profile_view.mjs";
 
 
+export function inherits(childCtor, parentCtor) {
+  childCtor.prototype.__proto__ = parentCtor.prototype;
+};
+
+
 class V8Profile extends Profile {
   static IC_RE =
       /^(LoadGlobalIC: )|(Handler: )|(?:CallIC|LoadIC|StoreIC)|(?:Builtin: (?:Keyed)?(?:Load|Store)IC_)/;
@@ -70,8 +75,20 @@ export function readFile(fileName) {
 }
 
 
-export class TickProcessor extends LogReader {
-  constructor( 
+/**
+ * Parser for dynamic code optimization state.
+ */
+function parseState(s) {
+  switch (s) {
+  case "": return Profile.CodeState.COMPILED;
+  case "~": return Profile.CodeState.OPTIMIZABLE;
+  case "*": return Profile.CodeState.OPTIMIZED;
+  }
+  throw new Error(`unknown code state: ${s}`);
+}
+
+
+export function TickProcessor(
     cppEntriesProvider,
     separateIc,
     separateBytecodes,
@@ -88,10 +105,8 @@ export class TickProcessor extends LogReader {
     onlySummary,
     runtimeTimerFilter,
     preprocessJson) {
-  super({},
-      timedRange,
-      pairwiseTimedRange);
-  this.dispatchTable_ = {
+  this.preprocessJson = preprocessJson;
+  LogReader.call(this, {
       'shared-library': { parsers: [parseString, parseInt, parseInt, parseInt],
           processor: this.processSharedLibrary },
       'code-creation': {
@@ -140,10 +155,10 @@ export class TickProcessor extends LogReader {
       // Obsolete row types.
       'code-allocate': null,
       'begin-code-region': null,
-      'end-code-region': null
-    };
+      'end-code-region': null },
+      timedRange,
+      pairwiseTimedRange);
 
-  this.preprocessJson = preprocessJson;
   this.cppEntriesProvider_ = cppEntriesProvider;
   this.callGraphSize_ = callGraphSize;
   this.ignoreUnknown_ = ignoreUnknown;
@@ -199,10 +214,11 @@ export class TickProcessor extends LogReader {
   this.generation_ = 1;
   this.currentProducerProfile_ = null;
   this.onlySummary_ = onlySummary;
-}
+};
+inherits(TickProcessor, LogReader);
 
 
-static VmStates = {
+TickProcessor.VmStates = {
   JS: 0,
   GC: 1,
   PARSER: 2,
@@ -214,7 +230,7 @@ static VmStates = {
 };
 
 
-static CodeTypes = {
+TickProcessor.CodeTypes = {
   CPP: 0,
   SHARED_LIB: 1
 };
@@ -222,56 +238,56 @@ static CodeTypes = {
 // codeTypes_ map because there can be zillions of them.
 
 
-static CALL_PROFILE_CUTOFF_PCT = 1.0;
+TickProcessor.CALL_PROFILE_CUTOFF_PCT = 1.0;
 
-static CALL_GRAPH_SIZE = 5;
+TickProcessor.CALL_GRAPH_SIZE = 5;
 
 /**
  * @override
  */
-printError(str) {
+TickProcessor.prototype.printError = function(str) {
   printErr(str);
-}
+};
 
 
-setCodeType(name, type) {
+TickProcessor.prototype.setCodeType = function(name, type) {
   this.codeTypes_[name] = TickProcessor.CodeTypes[type];
-}
+};
 
 
-isSharedLibrary(name) {
+TickProcessor.prototype.isSharedLibrary = function(name) {
   return this.codeTypes_[name] == TickProcessor.CodeTypes.SHARED_LIB;
-}
+};
 
 
-isCppCode(name) {
+TickProcessor.prototype.isCppCode = function(name) {
   return this.codeTypes_[name] == TickProcessor.CodeTypes.CPP;
-}
+};
 
 
-isJsCode(name) {
+TickProcessor.prototype.isJsCode = function(name) {
   return name !== "UNKNOWN" && !(name in this.codeTypes_);
-}
+};
 
 
-processLogFile(fileName) {
+TickProcessor.prototype.processLogFile = function(fileName) {
   this.lastLogFileName_ = fileName;
   let line;
   while (line = readline()) {
     this.processLogLine(line);
   }
-}
+};
 
 
-processLogFileInTest(fileName) {
+TickProcessor.prototype.processLogFileInTest = function(fileName) {
    // Hack file name to avoid dealing with platform specifics.
   this.lastLogFileName_ = 'v8.log';
   const contents = readFile(fileName);
   this.processLogChunk(contents);
-}
+};
 
 
-processSharedLibrary(
+TickProcessor.prototype.processSharedLibrary = function(
     name, startAddr, endAddr, aslrSlide) {
   const entry = this.profile_.addLibrary(name, startAddr, endAddr, aslrSlide);
   this.setCodeType(entry.getName(), 'SHARED_LIB');
@@ -282,67 +298,67 @@ processSharedLibrary(
     self.profile_.addStaticCode(fName, fStart, fEnd);
     self.setCodeType(fName, 'CPP');
   });
-}
+};
 
 
-processCodeCreation(
+TickProcessor.prototype.processCodeCreation = function(
     type, kind, timestamp, start, size, name, maybe_func) {
   if (maybe_func.length) {
     const funcAddr = parseInt(maybe_func[0]);
-    const state = Profile.parseState(maybe_func[1]);
+    const state = parseState(maybe_func[1]);
     this.profile_.addFuncCode(type, name, timestamp, start, size, funcAddr, state);
   } else {
     this.profile_.addCode(type, name, timestamp, start, size);
   }
-}
+};
 
 
-processCodeDeopt(
+TickProcessor.prototype.processCodeDeopt = function(
     timestamp, size, code, inliningId, scriptOffset, bailoutType,
     sourcePositionText, deoptReasonText) {
   this.profile_.deoptCode(timestamp, code, inliningId, scriptOffset,
       bailoutType, sourcePositionText, deoptReasonText);
-}
+};
 
 
-processCodeMove(from, to) {
+TickProcessor.prototype.processCodeMove = function(from, to) {
   this.profile_.moveCode(from, to);
-}
+};
 
-processCodeDelete(start) {
+TickProcessor.prototype.processCodeDelete = function(start) {
   this.profile_.deleteCode(start);
-}
+};
 
-processCodeSourceInfo(
+TickProcessor.prototype.processCodeSourceInfo = function(
     start, script, startPos, endPos, sourcePositions, inliningPositions,
     inlinedFunctions) {
   this.profile_.addSourcePositions(start, script, startPos,
     endPos, sourcePositions, inliningPositions, inlinedFunctions);
-}
+};
 
-processScriptSource(script, url, source) {
+TickProcessor.prototype.processScriptSource = function(script, url, source) {
   this.profile_.addScriptSource(script, url, source);
-}
+};
 
-processFunctionMove(from, to) {
+TickProcessor.prototype.processFunctionMove = function(from, to) {
   this.profile_.moveFunc(from, to);
-}
+};
 
 
-includeTick(vmState) {
+TickProcessor.prototype.includeTick = function(vmState) {
   if (this.stateFilter_ !== null) {
     return this.stateFilter_ == vmState;
   } else if (this.runtimeTimerFilter_ !== null) {
     return this.currentRuntimeTimer == this.runtimeTimerFilter_;
   }
   return true;
-}
+};
 
-processRuntimeTimerEvent(name) {
+TickProcessor.prototype.processRuntimeTimerEvent = function(name) {
   this.currentRuntimeTimer = name;
 }
 
-processTick(pc,
+TickProcessor.prototype.processTick = function(pc,
                                                ns_since_start,
                                                is_external_callback,
                                                tos_or_external_callback,
@@ -378,21 +394,21 @@ processTick(pc,
   this.profile_.recordTick(
       ns_since_start, vmState,
       this.processStack(pc, tos_or_external_callback, stack));
-}
+};
 
 
-advanceDistortion() {
+TickProcessor.prototype.advanceDistortion = function() {
   this.distortion += this.distortion_per_entry;
 }
 
 
-processHeapSampleBegin(space, state, ticks) {
+TickProcessor.prototype.processHeapSampleBegin = function(space, state, ticks) {
   if (space != 'Heap') return;
   this.currentProducerProfile_ = new CallTree();
-}
+};
 
 
-processHeapSampleEnd(space, state) {
+TickProcessor.prototype.processHeapSampleEnd = function(space, state) {
   if (space != 'Heap' || !this.currentProducerProfile_) return;
 
   print(`Generation ${this.generation_}:`);
@@ -407,10 +423,10 @@ processHeapSampleEnd(space, state) {
 
   this.currentProducerProfile_ = null;
   this.generation_++;
-}
+};
 
 
-printStatistics() {
+TickProcessor.prototype.printStatistics = function() {
   if (this.preprocessJson) {
     this.profile_.writeJson();
     return;
@@ -489,16 +505,29 @@ printStatistics() {
             (rec2.internalFuncName < rec1.internalFuncName ? -1 : 1) );
     this.printHeavyProfile(heavyView.head.children);
   }
-}
+};
 
 
-printHeader(headerTitle) {
+function padLeft(s, len) {
+  s = s.toString();
+  if (s.length < len) {
+    const padLength = len - s.length;
+    if (!(padLength in padLeft)) {
+      padLeft[padLength] = new Array(padLength + 1).join(' ');
+    }
+    s = padLeft[padLength] + s;
+  }
+  return s;
+};
+
+
+TickProcessor.prototype.printHeader = function(headerTitle) {
   print(`\n [${headerTitle}]:`);
   print('   ticks  total  nonlib   name');
-}
+};
 
 
-printLine(
+TickProcessor.prototype.printLine = function(
     entry, ticks, totalTicks, nonLibTicks) {
   const pct = ticks * 100 / totalTicks;
   const nonLibPct = nonLibTicks != null
@@ -510,7 +539,7 @@ printLine(
         entry);
 }
 
-printHeavyProfHeader() {
+TickProcessor.prototype.printHeavyProfHeader = function() {
   print('\n [Bottom up (heavy) profile]:');
   print('  Note: percentage shows a share of a particular caller in the ' +
         'total\n' +
@@ -519,10 +548,10 @@ printHeavyProfHeader() {
         TickProcessor.CALL_PROFILE_CUTOFF_PCT.toFixed(1) +
         '% are not shown.\n');
   print('   ticks parent  name');
-}
+};
 
 
-processProfile(
+TickProcessor.prototype.processProfile = function(
     profile, filterP, func) {
   for (let i = 0, n = profile.length; i < n; ++i) {
     const rec = profile[i];
@@ -533,7 +562,7 @@ processProfile(
   }
 };
 
-getLineAndColumn(name) {
+TickProcessor.prototype.getLineAndColumn = function(name) {
   const re = /:([0-9]+):([0-9]+)$/;
   const array = re.exec(name);
   if (!array) {
@@ -542,12 +571,12 @@ getLineAndColumn(name) {
   return {line: array[1], column: array[2]};
 }
 
-hasSourceMap() {
+TickProcessor.prototype.hasSourceMap = function() {
   return this.sourceMap != null;
-}
+};
 
 
-formatFunctionName(funcName) {
+TickProcessor.prototype.formatFunctionName = function(funcName) {
   if (!this.hasSourceMap()) {
     return funcName;
   }
@@ -564,9 +593,9 @@ formatFunctionName(funcName) {
   const sourceColumn = entry[4] + 1;
 
   return sourceFile + ':' + sourceLine + ':' + sourceColumn + ' -> ' + funcName;
-}
+};
 
-printEntries(
+TickProcessor.prototype.printEntries = function(
     profile, totalTicks, nonLibTicks, filterP, callback, printAllTicks) {
   const that = this;
   this.processProfile(profile, filterP, function (rec) {
@@ -577,9 +606,10 @@ printEntries(
       that.printLine(funcName, rec.selfTime, totalTicks, nonLibTicks);
     }
   });
-}
+};
 
-  printHeavyProfile(profile, opt_indent) {
+
+TickProcessor.prototype.printHeavyProfile = function(profile, opt_indent) {
   const self = this;
   const indent = opt_indent || 0;
   const indentStr = padLeft('', indent);
@@ -599,27 +629,14 @@ printEntries(
       print('');
     }
   });
-}
-}
-
-
-
-function padLeft(s, len) {
-  s = s.toString();
-  if (s.length < len) {
-    const padLength = len - s.length;
-    if (!(padLength in padLeft)) {
-      padLeft[padLength] = new Array(padLength + 1).join(' ');
-    }
-    s = padLeft[padLength] + s;
-  }
-  return s;
 };
 
 
-class CppEntriesProvider {
+function CppEntriesProvider() {
+};
 
-parseVmSymbols(
+
+CppEntriesProvider.prototype.parseVmSymbols = function(
     libName, libStart, libEnd, libASLRSlide, processorFunc) {
   this.loadSymbols(libName);
 
@@ -682,20 +699,17 @@ parseVmSymbols(
     addEntry(funcInfo);
   }
   addEntry({name: '', start: libEnd});
-}
+};
 
 
-loadSymbols(libName) {
-}
-
-parseNextLine() { return false }
-
-}
+CppEntriesProvider.prototype.loadSymbols = function(libName) {
+};
 
 
-export class UnixCppEntriesProvider extends CppEntriesProvider {
-  constructor(nmExec, objdumpExec, targetRootFS, apkEmbeddedLibrary) {
-    super();
+CppEntriesProvider.prototype.parseNextLine = () => false;
+
+
+export function UnixCppEntriesProvider(nmExec, objdumpExec, targetRootFS, apkEmbeddedLibrary) {
   this.symbols = [];
   // File offset of a symbol minus the virtual address of a symbol found in
   // the symbol table.
@@ -706,10 +720,11 @@ export class UnixCppEntriesProvider extends CppEntriesProvider {
   this.targetRootFS = targetRootFS;
   this.apkEmbeddedLibrary = apkEmbeddedLibrary;
   this.FUNC_RE = /^([0-9a-fA-F]{8,16}) ([0-9a-fA-F]{8,16} )?[tTwW] (.*)$/;
-}
+};
+inherits(UnixCppEntriesProvider, CppEntriesProvider);
 
 
-loadSymbols(libName) {
+UnixCppEntriesProvider.prototype.loadSymbols = function(libName) {
   this.parsePos = 0;
   if (this.apkEmbeddedLibrary && libName.endsWith('.apk')) {
     libName = this.apkEmbeddedLibrary;
@@ -735,10 +750,10 @@ loadSymbols(libName) {
     // If the library cannot be found on this system let's not panic.
     this.symbols = ['', ''];
   }
-}
+};
 
 
-parseNextLine() {
+UnixCppEntriesProvider.prototype.parseNextLine = function() {
   if (this.symbols.length == 0) {
     return false;
   }
@@ -760,18 +775,18 @@ parseNextLine() {
     }
   }
   return funcInfo;
-}
-}
+};
 
-export class MacCppEntriesProvider extends UnixCppEntriesProvider {
-  constructor(nmExec, objdumpExec, targetRootFS, apkEmbeddedLibrary) {
-  super(nmExec, objdumpExec, targetRootFS, apkEmbeddedLibrary);
+
+export function MacCppEntriesProvider(nmExec, objdumpExec, targetRootFS, apkEmbeddedLibrary) {
+  UnixCppEntriesProvider.call(this, nmExec, objdumpExec, targetRootFS, apkEmbeddedLibrary);
   // Note an empty group. It is required, as UnixCppEntriesProvider expects 3 groups.
   this.FUNC_RE = /^([0-9a-fA-F]{8,16})() (.*)$/;
-}
+};
+inherits(MacCppEntriesProvider, UnixCppEntriesProvider);
 
 
-loadSymbols(libName) {
+MacCppEntriesProvider.prototype.loadSymbols = function(libName) {
   this.parsePos = 0;
   libName = this.targetRootFS + libName;
 
@@ -783,36 +798,34 @@ loadSymbols(libName) {
     // If the library cannot be found on this system let's not panic.
     this.symbols = '';
   }
-}
-}
+};
 
 
-export class WindowsCppEntriesProvider extends CppEntriesProvider {
-  constructor(_ignored_nmExec, _ignored_objdumpExec, targetRootFS,
+export function WindowsCppEntriesProvider(_ignored_nmExec, _ignored_objdumpExec, targetRootFS,
                                    _ignored_apkEmbeddedLibrary) {
-  super();
   this.targetRootFS = targetRootFS;
   this.symbols = '';
   this.parsePos = 0;
 };
+inherits(WindowsCppEntriesProvider, CppEntriesProvider);
 
 
-static FILENAME_RE = /^(.*)\.([^.]+)$/;
+WindowsCppEntriesProvider.FILENAME_RE = /^(.*)\.([^.]+)$/;
 
 
-static FUNC_RE =
+WindowsCppEntriesProvider.FUNC_RE =
     /^\s+0001:[0-9a-fA-F]{8}\s+([_\?@$0-9a-zA-Z]+)\s+([0-9a-fA-F]{8}).*$/;
 
 
-static IMAGE_BASE_RE =
+WindowsCppEntriesProvider.IMAGE_BASE_RE =
     /^\s+0000:00000000\s+___ImageBase\s+([0-9a-fA-F]{8}).*$/;
 
 
 // This is almost a constant on Windows.
-static EXE_IMAGE_BASE = 0x00400000;
+WindowsCppEntriesProvider.EXE_IMAGE_BASE = 0x00400000;
 
 
-loadSymbols(libName) {
+WindowsCppEntriesProvider.prototype.loadSymbols = function(libName) {
   libName = this.targetRootFS + libName;
   const fileNameFields = libName.match(WindowsCppEntriesProvider.FILENAME_RE);
   if (!fileNameFields) return;
@@ -827,7 +840,7 @@ loadSymbols(libName) {
 };
 
 
-parseNextLine() {
+WindowsCppEntriesProvider.prototype.parseNextLine = function() {
   const lineEndPos = this.symbols.indexOf('\r\n', this.parsePos);
   if (lineEndPos == -1) {
     return false;
@@ -862,15 +875,14 @@ parseNextLine() {
  *
  *   ?LookupInDescriptor@JSObject@internal@v8@@...arguments info...
  */
-  unmangleName(name) {
+WindowsCppEntriesProvider.prototype.unmangleName = function(name) {
   // Empty or non-mangled name.
   if (name.length < 1 || name.charAt(0) != '?') return name;
   const nameEndPos = name.indexOf('@@');
   const components = name.substring(1, nameEndPos).split('@');
   components.reverse();
   return components.join('::');
-}
-}
+};
 
 
 export class ArgumentsProcessor extends BaseArgumentsProcessor {

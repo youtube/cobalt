@@ -15,7 +15,7 @@ namespace internal {
 
 namespace wasm {
 
-class V8_NODISCARD WasmFeatureScope {
+class WasmFeatureScope {
  public:
   explicit WasmFeatureScope(WasmFeatures* features, WasmFeature feature,
                             bool val = true)

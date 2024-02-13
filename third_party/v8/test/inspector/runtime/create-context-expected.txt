@@ -6,7 +6,6 @@ Checks createContext().
             id : 1
             name : 
             origin : 
-            uniqueId : <uniqueId>
         }
     }
 }
@@ -17,7 +16,6 @@ Checks createContext().
             id : 2
             name : 
             origin : 
-            uniqueId : <uniqueId>
         }
     }
 }
@@ -39,7 +37,6 @@ Reported script's execution id: 2
             id : 1
             name : 
             origin : 
-            uniqueId : <uniqueId>
         }
     }
 }
@@ -50,7 +47,6 @@ Reported script's execution id: 2
             id : 2
             name : 
             origin : 
-            uniqueId : <uniqueId>
         }
     }
 }

@@ -220,7 +220,6 @@ BUILTIN(DateTimeFormatPrototypeFormatRangeToParts) {
 }
 
 namespace {
-
 Handle<JSFunction> CreateBoundFunction(Isolate* isolate,
                                        Handle<JSObject> object,
                                        Builtins::Name builtin_id, int len) {
@@ -239,9 +238,11 @@ Handle<JSFunction> CreateBoundFunction(Isolate* isolate,
   info->set_internal_formal_parameter_count(len);
   info->set_length(len);
 
-  return Factory::JSFunctionBuilder{isolate, info, context}
-      .set_map(isolate->strict_function_without_prototype_map())
-      .Build();
+  Handle<Map> map = isolate->strict_function_without_prototype_map();
+
+  Handle<JSFunction> new_bound_function =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(map, info, context);
+  return new_bound_function;
 }
 
 /**
@@ -380,7 +381,6 @@ Object CallOrConstructConstructor(BuiltinArguments args, Isolate* isolate,
   RETURN_RESULT_OR_FAILURE(isolate,
                            T::New(isolate, map, locales, options, method));
 }
-
 }  // namespace
 
 // Intl.DisplayNames

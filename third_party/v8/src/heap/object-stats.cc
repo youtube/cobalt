@@ -355,8 +355,8 @@ int Log2ForSize(size_t size) {
 
 int ObjectStats::HistogramIndexFromSize(size_t size) {
   if (size == 0) return 0;
-  return std::min({std::max(Log2ForSize(size) + 1 - kFirstBucketShift, 0),
-                   kLastValueBucketIndex});
+  return Min(Max(Log2ForSize(size) + 1 - kFirstBucketShift, 0),
+             kLastValueBucketIndex);
 }
 
 void ObjectStats::RecordObjectStats(InstanceType type, size_t size,
@@ -581,7 +581,7 @@ void ObjectStatsCollectorImpl::RecordVirtualFunctionTemplateInfoDetails(
 void ObjectStatsCollectorImpl::RecordVirtualJSGlobalObjectDetails(
     JSGlobalObject object) {
   // Properties.
-  GlobalDictionary properties = object.global_dictionary(kAcquireLoad);
+  GlobalDictionary properties = object.global_dictionary();
   RecordHashTableVirtualObjectStats(object, properties,
                                     ObjectStats::GLOBAL_PROPERTIES_TYPE);
   // Elements.
@@ -1092,7 +1092,7 @@ class ObjectStatsVisitor {
             heap->mark_compact_collector()->non_atomic_marking_state()),
         phase_(phase) {}
 
-  void Visit(HeapObject obj) {
+  bool Visit(HeapObject obj, int size) {
     if (marking_state_->IsBlack(obj)) {
       live_collector_->CollectStatistics(
           obj, phase_, ObjectStatsCollectorImpl::CollectFieldStats::kYes);
@@ -1101,6 +1101,7 @@ class ObjectStatsVisitor {
       dead_collector_->CollectStatistics(
           obj, phase_, ObjectStatsCollectorImpl::CollectFieldStats::kNo);
     }
+    return true;
   }
 
  private:
@@ -1116,7 +1117,7 @@ void IterateHeap(Heap* heap, ObjectStatsVisitor* visitor) {
   CombinedHeapObjectIterator iterator(heap);
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    visitor->Visit(obj);
+    visitor->Visit(obj, obj.Size());
   }
 }
 

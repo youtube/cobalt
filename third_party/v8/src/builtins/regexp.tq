@@ -352,6 +352,9 @@ transitioning macro StoreLastIndex(implicit context: Context)(
   }
 }
 
+extern builtin
+StringIndexOf(implicit context: Context)(String, String, Smi): Smi;
+
 extern macro RegExpBuiltinsAssembler::AdvanceStringIndex(
     String, Number, bool, constexpr bool): Number;
 extern macro

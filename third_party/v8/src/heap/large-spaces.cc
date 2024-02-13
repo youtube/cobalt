@@ -97,8 +97,7 @@ LargeObjectSpace::LargeObjectSpace(Heap* heap, AllocationSpace id)
     : Space(heap, id, new NoFreeList()),
       size_(0),
       page_count_(0),
-      objects_size_(0),
-      pending_object_(0) {}
+      objects_size_(0) {}
 
 void LargeObjectSpace::TearDown() {
   while (!memory_chunk_list_.Empty()) {
@@ -141,7 +140,6 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size,
   if (page == nullptr) return AllocationResult::Retry(identity());
   page->SetOldGenerationPageFlags(heap()->incremental_marking()->IsMarking());
   HeapObject object = page->GetObject();
-  pending_object_.store(object.address(), std::memory_order_release);
   heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
       heap()->GCFlagsForIncrementalMarking(),
       kGCCallbackScheduleIdleGarbageCollection);
@@ -443,6 +441,7 @@ OldLargeObjectSpace::OldLargeObjectSpace(Heap* heap, AllocationSpace id)
 
 NewLargeObjectSpace::NewLargeObjectSpace(Heap* heap, size_t capacity)
     : LargeObjectSpace(heap, NEW_LO_SPACE),
+      pending_object_(0),
       capacity_(capacity) {}
 
 AllocationResult NewLargeObjectSpace::AllocateRaw(int object_size) {
@@ -461,12 +460,12 @@ AllocationResult NewLargeObjectSpace::AllocateRaw(int object_size) {
   if (page == nullptr) return AllocationResult::Retry(identity());
 
   // The size of the first object may exceed the capacity.
-  capacity_ = std::max(capacity_, SizeOfObjects());
+  capacity_ = Max(capacity_, SizeOfObjects());
 
   HeapObject result = page->GetObject();
   page->SetYoungGenerationPageFlags(heap()->incremental_marking()->IsMarking());
   page->SetFlag(MemoryChunk::TO_PAGE);
-  pending_object_.store(result.address(), std::memory_order_release);
+  pending_object_.store(result.address(), std::memory_order_relaxed);
 #ifdef ENABLE_MINOR_MC
   if (FLAG_minor_mc) {
     page->AllocateYoungGenerationBitmap();
@@ -524,7 +523,7 @@ void NewLargeObjectSpace::FreeDeadObjects(
 }
 
 void NewLargeObjectSpace::SetCapacity(size_t capacity) {
-  capacity_ = std::max(capacity, SizeOfObjects());
+  capacity_ = Max(capacity, SizeOfObjects());
 }
 
 CodeLargeObjectSpace::CodeLargeObjectSpace(Heap* heap)

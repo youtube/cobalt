@@ -25,12 +25,8 @@ namespace internal {
 
 ProfilerListener::ProfilerListener(Isolate* isolate,
                                    CodeEventObserver* observer,
-                                   StringsStorage& function_and_resource_names,
                                    CpuProfilingNamingMode naming_mode)
-    : isolate_(isolate),
-      observer_(observer),
-      function_and_resource_names_(function_and_resource_names),
-      naming_mode_(naming_mode) {}
+    : isolate_(isolate), observer_(observer), naming_mode_(naming_mode) {}
 
 ProfilerListener::~ProfilerListener() = default;
 
@@ -67,7 +63,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->InstructionStart();
-  rec->entry = new CodeEntry(tag, GetName(shared->DebugNameCStr().get()),
+  rec->entry = new CodeEntry(tag, GetName(shared->DebugName()),
                              GetName(InferScriptName(*script_name, *shared)),
                              CpuProfileNode::kNoLineNumberInfo,
                              CpuProfileNode::kNoColumnNumberInfo, nullptr);
@@ -82,12 +78,9 @@ namespace {
 CodeEntry* GetOrInsertCachedEntry(
     std::unordered_set<std::unique_ptr<CodeEntry>, CodeEntry::Hasher,
                        CodeEntry::Equals>* entries,
-    std::unique_ptr<CodeEntry> search_value, StringsStorage& strings) {
+    std::unique_ptr<CodeEntry> search_value) {
   auto it = entries->find(search_value);
-  if (it != entries->end()) {
-    search_value->ReleaseStrings(strings);
-    return it->get();
-  }
+  if (it != entries->end()) return it->get();
   CodeEntry* ret = search_value.get();
   entries->insert(std::move(search_value));
   return ret;
@@ -175,8 +168,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
           // Create a canonical CodeEntry for each inlined frame and then re-use
           // them for subsequent inline stacks to avoid a lot of duplication.
           CodeEntry* cached_entry = GetOrInsertCachedEntry(
-              &cached_inline_entries, std::move(inline_entry),
-              function_and_resource_names_);
+              &cached_inline_entries, std::move(inline_entry));
 
           inline_stack.push_back({cached_entry, line_number});
         }
@@ -201,17 +193,14 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
 
 void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
                                        const wasm::WasmCode* code,
-                                       wasm::WasmName name,
-                                       const char* source_url, int code_offset,
-                                       int script_id) {
-  DCHECK_NOT_NULL(source_url);
+                                       wasm::WasmName name) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->instruction_start();
-  rec->entry = new CodeEntry(tag, GetName(name), GetName(source_url), 1,
-                             code_offset + 1, nullptr, true);
-  rec->entry->set_script_id(script_id);
-  rec->entry->set_position(code_offset);
+  rec->entry =
+      new CodeEntry(tag, GetName(name), CodeEntry::kWasmResourceNamePrefix,
+                    CpuProfileNode::kNoLineNumberInfo,
+                    CpuProfileNode::kNoColumnNumberInfo, nullptr, true);
   rec->instruction_size = code->instructions().length();
   DispatchCodeEvent(evt_rec);
 }
@@ -261,7 +250,7 @@ void ProfilerListener::RegExpCodeCreateEvent(Handle<AbstractCode> code,
 }
 
 void ProfilerListener::CodeMoveEvent(AbstractCode from, AbstractCode to) {
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_gc;
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_MOVE);
   CodeMoveEventRecord* rec = &evt_rec.CodeMoveEventRecord_;
   rec->from_instruction_start = from.InstructionStart();
@@ -316,7 +305,7 @@ Name ProfilerListener::InferScriptName(Name name, SharedFunctionInfo info) {
 const char* ProfilerListener::GetFunctionName(SharedFunctionInfo shared) {
   switch (naming_mode_) {
     case kDebugNaming:
-      return GetName(shared.DebugNameCStr().get());
+      return GetName(shared.DebugName());
     case kStandardNaming:
       return GetName(shared.Name());
     default:

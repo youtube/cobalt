@@ -78,7 +78,7 @@ struct FormalParametersBase {
 };
 
 // Stack-allocated scope to collect source ranges from the parser.
-class V8_NODISCARD SourceRangeScope final {
+class SourceRangeScope final {
  public:
   SourceRangeScope(const Scanner* scanner, SourceRange* range)
       : scanner_(scanner), range_(range) {
@@ -463,7 +463,7 @@ class ParserBase {
       return contains_function_or_eval_;
     }
 
-    class V8_NODISCARD FunctionOrEvalRecordingScope {
+    class FunctionOrEvalRecordingScope {
      public:
       explicit FunctionOrEvalRecordingScope(FunctionState* state)
           : state_and_prev_value_(state, state->contains_function_or_eval_) {
@@ -481,7 +481,7 @@ class ParserBase {
       PointerWithPayload<FunctionState, bool, 1> state_and_prev_value_;
     };
 
-    class V8_NODISCARD LoopScope final {
+    class LoopScope final {
      public:
       explicit LoopScope(FunctionState* function_state)
           : function_state_(function_state) {
@@ -1207,7 +1207,7 @@ class ParserBase {
                                 bool name_is_strict_reserved,
                                 int class_token_pos);
   ExpressionT ParseTemplateLiteral(ExpressionT tag, int start, bool tagged);
-  ExpressionT ParseSuperExpression();
+  ExpressionT ParseSuperExpression(bool is_new);
   ExpressionT ParseImportExpressions();
   ExpressionT ParseNewTargetExpression();
 
@@ -1455,7 +1455,7 @@ class ParserBase {
            expression_scope_->has_possible_arrow_parameter_in_scope_chain();
   }
 
-  class V8_NODISCARD AcceptINScope final {
+  class AcceptINScope final {
    public:
     AcceptINScope(ParserBase* parser, bool accept_IN)
         : parser_(parser), previous_accept_IN_(parser->accept_IN_) {
@@ -1469,7 +1469,7 @@ class ParserBase {
     bool previous_accept_IN_;
   };
 
-  class V8_NODISCARD ParameterParsingScope {
+  class ParameterParsingScope {
    public:
     ParameterParsingScope(Impl* parser, FormalParametersT* parameters)
         : parser_(parser), parent_parameters_(parser_->parameters_) {
@@ -1483,7 +1483,7 @@ class ParserBase {
     FormalParametersT* parent_parameters_;
   };
 
-  class V8_NODISCARD FunctionParsingScope {
+  class FunctionParsingScope {
    public:
     explicit FunctionParsingScope(Impl* parser)
         : parser_(parser), expression_scope_(parser_->expression_scope_) {
@@ -1849,7 +1849,8 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       return ParseFunctionExpression();
 
     case Token::SUPER: {
-      return ParseSuperExpression();
+      const bool is_new = false;
+      return ParseSuperExpression(is_new);
     }
     case Token::IMPORT:
       return ParseImportExpressions();
@@ -2157,6 +2158,13 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
       if (V8_UNLIKELY(prop_info->position ==
                       PropertyPosition::kObjectLiteral)) {
         ReportUnexpectedToken(Token::PRIVATE_NAME);
+        prop_info->kind = ParsePropertyKind::kNotSet;
+        return impl()->FailureExpression();
+      }
+      if (V8_UNLIKELY(!flags().allow_harmony_private_methods() &&
+                      (IsAccessor(prop_info->kind) ||
+                       prop_info->kind == ParsePropertyKind::kMethod))) {
+        ReportUnexpectedToken(Next());
         prop_info->kind = ParsePropertyKind::kNotSet;
         return impl()->FailureExpression();
       }
@@ -2980,15 +2988,12 @@ ParserBase<Impl>::ParseCoalesceExpression(ExpressionT expression) {
   bool first_nullish = true;
   while (peek() == Token::NULLISH) {
     SourceRange right_range;
-    int pos;
-    ExpressionT y;
-    {
-      SourceRangeScope right_range_scope(scanner(), &right_range);
-      Consume(Token::NULLISH);
-      pos = peek_position();
-      // Parse BitwiseOR or higher.
-      y = ParseBinaryExpression(6);
-    }
+    SourceRangeScope right_range_scope(scanner(), &right_range);
+    Consume(Token::NULLISH);
+    int pos = peek_position();
+
+    // Parse BitwiseOR or higher.
+    ExpressionT y = ParseBinaryExpression(6);
     if (first_nullish) {
       expression =
           factory()->NewBinaryOperation(Token::NULLISH, expression, y, pos);
@@ -3167,15 +3172,6 @@ ParserBase<Impl>::ParseAwaitExpression() {
   CheckStackOverflow();
 
   ExpressionT value = ParseUnaryExpression();
-
-  // 'await' is a unary operator according to the spec, even though it's treated
-  // specially in the parser.
-  if (peek() == Token::EXP) {
-    impl()->ReportMessageAt(
-        Scanner::Location(await_pos, peek_end_position()),
-        MessageTemplate::kUnexpectedTokenUnaryExponentiation);
-    return impl()->FailureExpression();
-  }
 
   ExpressionT expr = factory()->NewAwait(value, await_pos);
   function_state_->AddSuspend();
@@ -3433,14 +3429,16 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression() {
   // new new foo means new (new foo)
   // new new foo() means new (new foo())
   // new new foo().bar().baz means (new (new foo()).bar()).baz
-  // new super.x means new (super.x)
   Consume(Token::NEW);
   int new_pos = position();
   ExpressionT result;
 
   CheckStackOverflow();
 
-  if (peek() == Token::IMPORT && PeekAhead() == Token::LPAREN) {
+  if (peek() == Token::SUPER) {
+    const bool is_new = true;
+    result = ParseSuperExpression(is_new);
+  } else if (peek() == Token::IMPORT && PeekAhead() == Token::LPAREN) {
     impl()->ReportMessageAt(scanner()->peek_location(),
                             MessageTemplate::kImportCallNotNewExpression);
     return impl()->FailureExpression();
@@ -3449,12 +3447,6 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression() {
     return ParseMemberExpressionContinuation(result);
   } else {
     result = ParseMemberExpression();
-    if (result->IsSuperCallReference()) {
-      // new super() is never allowed
-      impl()->ReportMessageAt(scanner()->location(),
-                              MessageTemplate::kUnexpectedSuper);
-      return impl()->FailureExpression();
-    }
   }
   if (peek() == Token::LPAREN) {
     // NewExpression with arguments.
@@ -3574,31 +3566,16 @@ ParserBase<Impl>::ParseImportExpressions() {
                             MessageTemplate::kImportMissingSpecifier);
     return impl()->FailureExpression();
   }
-
   AcceptINScope scope(this, true);
-  ExpressionT specifier = ParseAssignmentExpressionCoverGrammar();
-
-  if (FLAG_harmony_import_assertions && Check(Token::COMMA)) {
-    if (Check(Token::RPAREN)) {
-      // A trailing comma allowed after the specifier.
-      return factory()->NewImportCallExpression(specifier, pos);
-    } else {
-      ExpressionT import_assertions = ParseAssignmentExpressionCoverGrammar();
-      Check(Token::COMMA);  // A trailing comma is allowed after the import
-                            // assertions.
-      Expect(Token::RPAREN);
-      return factory()->NewImportCallExpression(specifier, import_assertions,
-                                                pos);
-    }
-  }
-
+  ExpressionT arg = ParseAssignmentExpressionCoverGrammar();
   Expect(Token::RPAREN);
-  return factory()->NewImportCallExpression(specifier, pos);
+
+  return factory()->NewImportCallExpression(arg, pos);
 }
 
 template <typename Impl>
-typename ParserBase<Impl>::ExpressionT
-ParserBase<Impl>::ParseSuperExpression() {
+typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseSuperExpression(
+    bool is_new) {
   Consume(Token::SUPER);
   int pos = position();
 
@@ -3623,10 +3600,9 @@ ParserBase<Impl>::ParseSuperExpression() {
       UseThis();
       return impl()->NewSuperPropertyReference(pos);
     }
-    // super() is only allowed in derived constructor. new super() is never
-    // allowed; it's reported as an error by
-    // ParseMemberWithPresentNewPrefixesExpression.
-    if (peek() == Token::LPAREN && IsDerivedConstructor(kind)) {
+    // new super() is never allowed.
+    // super() is only allowed in derived constructor
+    if (!is_new && peek() == Token::LPAREN && IsDerivedConstructor(kind)) {
       // TODO(rossberg): This might not be the correct FunctionState for the
       // method here.
       expression_scope()->RecordThisUse();

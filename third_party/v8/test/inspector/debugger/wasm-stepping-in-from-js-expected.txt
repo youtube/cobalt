@@ -1,6 +1,4 @@
 Tests stepping from javascript into wasm
-
-Running test: test
 Calling instantiate function.
 Waiting for wasm scripts to be parsed.
 Ignoring script with url v8://test/instantiate
@@ -30,3 +28,4 @@ paused
 Script wasm://wasm/7d022e0e byte offset 37: Wasm opcode 0x41 (kExprI32Const)
 Debugger.resume
 exports.main returned!
+Finished!

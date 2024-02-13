@@ -19,9 +19,7 @@ let codeKinds = [
     "BUILTIN",
     "REGEXP",
     "JSOPT",
-    "JSUNOPT",
-    "JSNCI",
-    "JSTURBOPROP"
+    "JSUNOPT"
 ];
 
 function resolveCodeKind(code) {
@@ -57,10 +55,6 @@ function resolveCodeKind(code) {
       return "JSOPT";
     } else if (code.kind === "Unopt") {
       return "JSUNOPT";
-    } else if (code.kind === "NCI") {
-      return "JSNCI";
-    } else if (code.kind === "Turboprop") {
-      return "JSTURBOPROP";
     }
   }
   console.log("Unknown code type '" + type + "'.");
@@ -270,8 +264,6 @@ function buildCategoryTreeAndLookup() {
     root.children.push(n);
   }
   addCategory("JS Optimized", [ "JSOPT" ]);
-  addCategory("JS NCI", [ "JSNCI" ]);
-  addCategory("JS Turboprop", [ "JSTURBOPROP" ]);
   addCategory("JS Unoptimized", [ "JSUNOPT", "BC" ]);
   addCategory("IC", [ "IC" ]);
   addCategory("RegExp", [ "REGEXP" ]);
@@ -534,15 +526,11 @@ function computeOptimizationStats(file,
 
   let functionCount = 0;
   let optimizedFunctionCount = 0;
-  let turbopropOptimizedFunctionCount = 0;
   let deoptimizedFunctionCount = 0;
   let optimizations = newCollection();
-  let turbopropOptimizations = newCollection();
   let eagerDeoptimizations = newCollection();
   let softDeoptimizations = newCollection();
   let lazyDeoptimizations = newCollection();
-  let softBailouts = newCollection();
-  let eagerBailouts = newCollection();
 
   for (let i = 0; i < file.functions.length; i++) {
     let f = file.functions[i];
@@ -553,7 +541,6 @@ function computeOptimizationStats(file,
 
     functionCount++;
     let optimized = false;
-    let turboprop_optimized = false;
     let deoptimized = false;
 
     for (let j = 0; j < f.codes.length; j++) {
@@ -565,32 +552,18 @@ function computeOptimizationStats(file,
           addToCollection(optimizations, code);
         }
       }
-      if (code.kind === "Turboprop") {
-        turboprop_optimized = true;
-        if (code.tm >= timeStart && code.tm <= timeEnd) {
-          addToCollection(turbopropOptimizations, code);
-        }
-      }
       if (code.deopt) {
-        if (code.deopt.bailoutType === "deopt-lazy" || code.deopt.bailoutType === "deopt-eager" || code.deopt.bailoutType === "deopt-lazy") {
-          deoptimized = true;
-        }
+        deoptimized = true;
         if (code.deopt.tm >= timeStart && code.deopt.tm <= timeEnd) {
           switch (code.deopt.bailoutType) {
-            case "deopt-lazy":
+            case "lazy":
               addToCollection(lazyDeoptimizations, code);
               break;
-            case "deopt-eager":
+            case "eager":
               addToCollection(eagerDeoptimizations, code);
               break;
-            case "deopt-soft":
+            case "soft":
               addToCollection(softDeoptimizations, code);
-              break;
-            case "bailout-soft":
-              addToCollection(softBailouts, code);
-              break;
-            case "bailout":
-              addToCollection(eagerBailouts, code);
               break;
           }
         }
@@ -598,9 +571,6 @@ function computeOptimizationStats(file,
     }
     if (optimized) {
       optimizedFunctionCount++;
-    }
-    if (turboprop_optimized) {
-      turbopropOptimizedFunctionCount++;
     }
     if (deoptimized) {
       deoptimizedFunctionCount++;
@@ -616,20 +586,15 @@ function computeOptimizationStats(file,
   sortCollection(lazyDeoptimizations);
   sortCollection(softDeoptimizations);
   sortCollection(optimizations);
-  sortCollection(turbopropOptimizations);
 
   return {
     functionCount,
     optimizedFunctionCount,
-    turbopropOptimizedFunctionCount,
     deoptimizedFunctionCount,
     optimizations,
-    turbopropOptimizations,
     eagerDeoptimizations,
     lazyDeoptimizations,
     softDeoptimizations,
-    softBailouts,
-    eagerBailouts,
   };
 }
 

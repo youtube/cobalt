@@ -129,8 +129,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
 
   Reduction ReduceJSLoadPropertyWithEnumeratedKey(Node* node);
 
-  base::Optional<const StringConstantBase*> CreateDelayedStringConstant(
-      Node* node);
+  const StringConstantBase* CreateDelayedStringConstant(Node* node);
 
   // A triple of nodes that represents a continuation.
   class ValueEffectControl final {
@@ -175,10 +174,9 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                                        PropertyAccessInfo const& access_info);
 
   // Helpers for accessor inlining.
-  Node* InlinePropertyGetterCall(Node* receiver,
-                                 ConvertReceiverMode receiver_mode,
-                                 Node* context, Node* frame_state,
-                                 Node** effect, Node** control,
+  Node* InlinePropertyGetterCall(Node* receiver, Node* context,
+                                 Node* frame_state, Node** effect,
+                                 Node** control,
                                  ZoneVector<Node*>* if_exceptions,
                                  PropertyAccessInfo const& access_info);
   void InlinePropertySetterCall(Node* receiver, Node* value, Node* context,
@@ -262,6 +260,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   CompilationDependencies* dependencies() const { return dependencies_; }
   Zone* zone() const { return zone_; }
   Zone* shared_zone() const { return shared_zone_; }
+  bool should_disallow_heap_access() const;
 
   JSGraph* const jsgraph_;
   JSHeapBroker* const broker_;

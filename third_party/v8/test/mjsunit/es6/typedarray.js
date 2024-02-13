@@ -974,7 +974,7 @@ assertThrows(function() { DataView(new ArrayBuffer()); }, TypeError);
 
 function TestNonConfigurableProperties(constructor) {
   var arr = new constructor([100])
-  assertTrue(Object.getOwnPropertyDescriptor(arr,"0").configurable)
+  assertFalse(Object.getOwnPropertyDescriptor(arr,"0").configurable)
   assertFalse(delete arr[0])
 }
 

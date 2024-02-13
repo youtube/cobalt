@@ -72,7 +72,7 @@ SamplingHeapProfiler::~SamplingHeapProfiler() {
 }
 
 void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_allocation;
 
   // Check if the area is iterable by confirming that it starts with a map.
   DCHECK((*ObjectSlot(soon_object)).IsMap());
@@ -190,7 +190,7 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
   // the first element in the list.
   for (auto it = stack.rbegin(); it != stack.rend(); ++it) {
     SharedFunctionInfo shared = *it;
-    const char* name = this->names()->GetCopy(shared.DebugNameCStr().get());
+    const char* name = this->names()->GetName(shared.DebugName());
     int script_id = v8::UnboundScript::kNoScriptId;
     if (shared.script().IsScript()) {
       Script script = Script::cast(shared.script());

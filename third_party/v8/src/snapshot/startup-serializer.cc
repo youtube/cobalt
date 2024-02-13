@@ -23,7 +23,7 @@ namespace {
 
 // The isolate roots may not point at context-specific objects during
 // serialization.
-class V8_NODISCARD SanitizeIsolateScope final {
+class SanitizeIsolateScope final {
  public:
   SanitizeIsolateScope(Isolate* isolate, bool allow_active_isolate_for_testing,
                        const DisallowGarbageCollection& no_gc)

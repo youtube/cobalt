@@ -112,16 +112,6 @@ class V8_EXPORT_PRIVATE LargeObjectSpace : public Space {
   void Print() override;
 #endif
 
-  // The last allocated object that is not guaranteed to be initialized when the
-  // concurrent marker visits it.
-  Address pending_object() {
-    return pending_object_.load(std::memory_order_acquire);
-  }
-
-  void ResetPendingObject() {
-    pending_object_.store(0, std::memory_order_release);
-  }
-
  protected:
   LargeObjectSpace(Heap* heap, AllocationSpace id);
 
@@ -133,7 +123,6 @@ class V8_EXPORT_PRIVATE LargeObjectSpace : public Space {
   int page_count_;       // number of chunks
   std::atomic<size_t> objects_size_;  // size of objects
   base::Mutex allocation_mutex_;
-  std::atomic<Address> pending_object_;
 
  private:
   friend class LargeObjectSpaceObjectIterator;
@@ -176,7 +165,16 @@ class NewLargeObjectSpace : public LargeObjectSpace {
 
   void SetCapacity(size_t capacity);
 
+  // The last allocated object that is not guaranteed to be initialized when the
+  // concurrent marker visits it.
+  Address pending_object() {
+    return pending_object_.load(std::memory_order_relaxed);
+  }
+
+  void ResetPendingObject() { pending_object_.store(0); }
+
  private:
+  std::atomic<Address> pending_object_;
   size_t capacity_;
 };
 

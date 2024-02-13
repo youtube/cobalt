@@ -231,7 +231,7 @@ bool TestAndClear(int* bitfield, int mask) {
   return result;
 }
 
-class V8_NODISCARD ShouldBeZeroOnReturnScope final {
+class ShouldBeZeroOnReturnScope final {
  public:
 #ifndef DEBUG
   explicit ShouldBeZeroOnReturnScope(int*) {}

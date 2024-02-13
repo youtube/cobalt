@@ -89,7 +89,7 @@ void MemoryAllocator::InitializeCodePageAllocator(
                 page_allocator->AllocatePageSize());
   VirtualMemory reservation(
       page_allocator, requested, reinterpret_cast<void*>(hint),
-      std::max(kMinExpectedOSPageSize, page_allocator->AllocatePageSize()));
+      Max(kMinExpectedOSPageSize, page_allocator->AllocatePageSize()));
   if (!reservation.IsReserved()) {
     V8::FatalProcessOutOfMemory(isolate_,
                                 "CodeRange setup: allocate virtual memory");
@@ -159,12 +159,9 @@ class MemoryAllocator::Unmapper::UnmapFreeMemoryJob : public JobTask {
   explicit UnmapFreeMemoryJob(Isolate* isolate, Unmapper* unmapper)
       : unmapper_(unmapper), tracer_(isolate->heap()->tracer()) {}
 
-  UnmapFreeMemoryJob(const UnmapFreeMemoryJob&) = delete;
-  UnmapFreeMemoryJob& operator=(const UnmapFreeMemoryJob&) = delete;
-
   void Run(JobDelegate* delegate) override {
-    TRACE_GC1(tracer_, GCTracer::Scope::BACKGROUND_UNMAPPER,
-              ThreadKind::kBackground);
+    TRACE_BACKGROUND_GC(tracer_,
+                        GCTracer::BackgroundScope::BACKGROUND_UNMAPPER);
     unmapper_->PerformFreeMemoryOnQueuedChunks<FreeMode::kUncommitPooled>(
         delegate);
     if (FLAG_trace_unmapper) {
@@ -184,6 +181,7 @@ class MemoryAllocator::Unmapper::UnmapFreeMemoryJob : public JobTask {
  private:
   Unmapper* const unmapper_;
   GCTracer* const tracer_;
+  DISALLOW_COPY_AND_ASSIGN(UnmapFreeMemoryJob);
 };
 
 void MemoryAllocator::Unmapper::FreeQueuedChunks() {

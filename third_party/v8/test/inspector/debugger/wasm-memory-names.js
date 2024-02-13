@@ -62,7 +62,7 @@ async function logMemoryName(msg, Protocol) {
                             })).result.result;
 
     for (let prop of moduleObjectProps) {
-      if (prop.name === 'instance' || prop.name === 'module') continue;
+      if (prop.name == 'instance') continue;
       InspectorTest.log(`name: ${prop.name}`);
     }
   }
@@ -102,11 +102,17 @@ contextGroup.addScript(`
   let instance;
   ${createInstance.toString()}`);
 
-InspectorTest.runAsyncTestSuite([
-  async function test() {
+(async function test() {
+  try {
     Protocol.Debugger.enable();
+
     await check(createModuleBytesUnnamedMemory());
     await check(createModuleBytesExportedMemory());
     await check(createModuleBytesImportedMemory());
+
+  } catch (exc) {
+    InspectorTest.log(`Failed with exception: ${exc}.`);
+  } finally {
+    InspectorTest.completeTest();
   }
-]);
+})();

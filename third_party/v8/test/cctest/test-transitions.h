@@ -13,7 +13,7 @@ namespace internal {
 class TestTransitionsAccessor : public TransitionsAccessor {
  public:
   TestTransitionsAccessor(Isolate* isolate, Map map,
-                          DisallowGarbageCollection* no_gc)
+                          DisallowHeapAllocation* no_gc)
       : TransitionsAccessor(isolate, map, no_gc) {}
   TestTransitionsAccessor(Isolate* isolate, Handle<Map> map)
       : TransitionsAccessor(isolate, map) {}

@@ -551,10 +551,7 @@ void CallPrinter::VisitTemplateLiteral(TemplateLiteral* node) {
 
 void CallPrinter::VisitImportCallExpression(ImportCallExpression* node) {
   Print("ImportCall(");
-  Find(node->specifier(), true);
-  if (node->import_assertions()) {
-    Find(node->import_assertions(), true);
-  }
+  Find(node->argument(), true);
   Print(")");
 }
 
@@ -724,7 +721,7 @@ void AstPrinter::PrintLiteral(const AstConsString* value, bool quote) {
 
 //-----------------------------------------------------------------------------
 
-class V8_NODISCARD IndentedScope {
+class IndentedScope {
  public:
   IndentedScope(AstPrinter* printer, const char* txt)
       : ast_printer_(printer) {
@@ -747,6 +744,7 @@ class V8_NODISCARD IndentedScope {
  private:
   AstPrinter* ast_printer_;
 };
+
 
 //-----------------------------------------------------------------------------
 
@@ -1437,10 +1435,7 @@ void AstPrinter::VisitTemplateLiteral(TemplateLiteral* node) {
 
 void AstPrinter::VisitImportCallExpression(ImportCallExpression* node) {
   IndentedScope indent(this, "IMPORT-CALL", node->position());
-  Visit(node->specifier());
-  if (node->import_assertions()) {
-    Visit(node->import_assertions());
-  }
+  Visit(node->argument());
 }
 
 void AstPrinter::VisitThisExpression(ThisExpression* node) {

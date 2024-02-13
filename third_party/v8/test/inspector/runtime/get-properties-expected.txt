@@ -102,16 +102,22 @@ Running test: testArrayBuffer
   0 own number 16843009
   1 own number 16843009
   __proto__ own object undefined
-[[ArrayBufferByteLength]]
-[[ArrayBufferData]]
+[[IsDetached]] false
 
 Running test: testDetachedArrayBuffer
+[[Int8Array]]
+  __proto__ own object undefined
+[[Uint8Array]]
+  __proto__ own object undefined
+[[Int16Array]]
+  __proto__ own object undefined
+[[Int32Array]]
+  __proto__ own object undefined
 [[IsDetached]] true
 
 Running test: testArrayBufferWithBrokenUintCtor
+  [[Int8Array]] own object undefined
+  [[Uint8Array]] own object undefined
   __proto__ own object undefined
 Internal properties
-  [[ArrayBufferByteLength]] number 7
-  [[ArrayBufferData]] string 0x...
-  [[Int8Array]] object undefined
-  [[Uint8Array]] object undefined
+  [[IsDetached]] boolean false

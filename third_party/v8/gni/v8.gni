@@ -3,7 +3,7 @@
 # found in the LICENSE file.
 
 if (!is_starboard) {
-  import("//build/config/gclient_args.gni")
+import("//build/config/gclient_args.gni")
 }
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build/config/v8_target_cpu.gni")
@@ -73,8 +73,6 @@ declare_args() {
   v8_enable_conservative_stack_scanning = false
 
   v8_enable_google_benchmark = !is_starboard && checkout_google_benchmark
-
-  cppgc_is_standalone = false
 }
 
 if (v8_use_external_startup_data == "") {
@@ -123,7 +121,7 @@ if (is_debug && !is_starboard && !v8_optimized_debug) {
   v8_add_configs += [ "//build/config/compiler:no_optimize" ]
 } else {
   if (!is_starboard) {
-    v8_remove_configs += [ "//build/config/compiler:default_optimization" ]
+  v8_remove_configs += [ "//build/config/compiler:default_optimization" ]
   }
 
   # TODO(crbug.com/621335) Rework this so that we don't have the confusion
