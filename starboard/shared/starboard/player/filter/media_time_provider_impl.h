@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_MEDIA_TIME_PROVIDER_IMPL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_MEDIA_TIME_PROVIDER_IMPL_H_
 
+#include <memory>
+
 #include "starboard/common/mutex.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/common/time.h"
@@ -40,7 +42,7 @@ class MediaTimeProviderImpl : public MediaTimeProvider,
   };
 
   explicit MediaTimeProviderImpl(
-      scoped_ptr<MonotonicSystemTimeProvider> system_time_provider);
+      std::unique_ptr<MonotonicSystemTimeProvider> system_time_provider);
 
   void Play() override;
   void Pause() override;
@@ -58,7 +60,7 @@ class MediaTimeProviderImpl : public MediaTimeProvider,
   // should handle this properly.
   int64_t GetCurrentMediaTime_Locked(int64_t* current_time = NULL);
 
-  scoped_ptr<MonotonicSystemTimeProvider> system_time_provider_;
+  std::unique_ptr<MonotonicSystemTimeProvider> system_time_provider_;
 
   Mutex mutex_;
 

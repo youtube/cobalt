@@ -110,8 +110,8 @@ class AudioDecoderHelper {
   size_t current_input_buffer_index_ = 0;
   bool end_of_stream_decoded_ = false;
 
-  scoped_ptr<AudioDecoder> audio_decoder_;
-  scoped_ptr<AudioRendererSink> audio_renderer_sink_;
+  unique_ptr_alias<AudioDecoder> audio_decoder_;
+  unique_ptr_alias<AudioRendererSink> audio_renderer_sink_;
 };
 
 }  // namespace

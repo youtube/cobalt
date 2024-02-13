@@ -30,7 +30,6 @@
 #include <memory>
 
 #include "starboard/common/log.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/memory.h"
 
 #if SB_IS(ARCH_X86) || SB_IS(ARCH_X64)
@@ -196,7 +195,7 @@ int DecimatedSearch(int decimation,
   int channels = search_segment->channels();
   int block_size = target_block->frames();
   int num_candidate_blocks = search_segment->frames() - (block_size - 1);
-  scoped_array<float> dot_prod(new float[channels]);
+  std::unique_ptr<float[]> dot_prod(new float[channels]);
   float similarity[3];  // Three elements for cubic interpolation.
 
   int n = 0;
@@ -275,7 +274,7 @@ int FullSearch(int low_limit,
                const float* energy_candidate_blocks) {
   int channels = search_block->channels();
   int block_size = target_block->frames();
-  scoped_array<float> dot_prod(new float[channels]);
+  std::unique_ptr<float[]> dot_prod(new float[channels]);
 
   float best_similarity = std::numeric_limits<float>::min();
   int optimal_index = 0;
@@ -321,8 +320,8 @@ int OptimalIndex(const scoped_refptr<DecodedAudio>& search_block,
   // heuristically based on experiments.
   const int kSearchDecimation = 5;
 
-  scoped_array<float> energy_target_block(new float[channels]);
-  scoped_array<float> energy_candidate_blocks(
+  std::unique_ptr<float[]> energy_target_block(new float[channels]);
+  std::unique_ptr<float[]> energy_candidate_blocks(
       new float[channels * num_candidate_blocks]);
 
   // Energy of all candid frames.

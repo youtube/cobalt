@@ -88,7 +88,7 @@ class JobThread {
   void RunLoop();
 
   SbThread thread_;
-  scoped_ptr<JobQueue> job_queue_;
+  std::unique_ptr<JobQueue> job_queue_;
 };
 
 }  // namespace player

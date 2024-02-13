@@ -16,6 +16,7 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_INTERNAL_IMPL_H_
 
 #include <list>
+#include <memory>
 
 #include "starboard/common/atomic.h"
 #include "starboard/common/log.h"
@@ -46,9 +47,9 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
  public:
   // All of the functions are called on the PlayerWorker thread unless marked
   // otherwise.
-  VideoRendererImpl(scoped_ptr<VideoDecoder> decoder,
+  VideoRendererImpl(unique_ptr_alias<VideoDecoder> decoder,
                     MediaTimeProvider* media_time_provider,
-                    scoped_ptr<VideoRenderAlgorithm> algorithm,
+                    unique_ptr_alias<VideoRenderAlgorithm> algorithm,
                     scoped_refptr<VideoRendererSink> sink);
   ~VideoRendererImpl() override;
 
@@ -84,9 +85,9 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   void OnSeekTimeout();
 
   MediaTimeProvider* const media_time_provider_;
-  scoped_ptr<VideoRenderAlgorithm> algorithm_;
+  unique_ptr_alias<VideoRenderAlgorithm> algorithm_;
   scoped_refptr<VideoRendererSink> sink_;
-  scoped_ptr<VideoDecoder> decoder_;
+  unique_ptr_alias<VideoDecoder> decoder_;
 
   PrerolledCB prerolled_cb_;
   EndedCB ended_cb_;

@@ -20,9 +20,11 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_INTERLEAVED_SINC_RESAMPLER_H_
 
 #include <math.h>
+#include <memory>
 #include <stdlib.h>
 #include <string.h>
 #include <queue>
+#include <utility>
 
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
@@ -73,8 +75,8 @@ class InterleavedSincResampler {
       data_.reset(new float[frames * channel_count]);
       memcpy(data_.get(), data, frames * channel_count * sizeof(float));
     }
-    Buffer(scoped_array<float> data, int frames)
-        : data_(data.Pass()), frames_(frames) {}
+    Buffer(std::unique_ptr<float[]> data, int frames)
+        : data_(std::move(data)), frames_(frames) {}
 
     const float* GetData() const { return data_.get(); }
 
@@ -84,7 +86,7 @@ class InterleavedSincResampler {
 
    private:
     friend class ::starboard::RefCountedThreadSafe<Buffer>;
-    scoped_array<float> data_;
+    std::unique_ptr<float[]> data_;
     int frames_ = 0;
 
     Buffer(const Buffer&) = delete;

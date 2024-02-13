@@ -123,8 +123,8 @@ class AudioDecoderTest
   enum Event { kConsumed, kOutput, kError };
 
   void CreateComponents(const media::AudioStreamInfo& audio_stream_info,
-                        scoped_ptr<AudioDecoder>* audio_decoder,
-                        scoped_ptr<AudioRendererSink>* audio_renderer_sink) {
+                        unique_ptr_alias<AudioDecoder>* audio_decoder,
+                        unique_ptr_alias<AudioRendererSink>* audio_renderer_sink) {
     if (CreateAudioComponents(using_stub_decoder_, audio_stream_info,
                               audio_decoder, audio_renderer_sink)) {
       SB_CHECK(*audio_decoder);
@@ -431,8 +431,8 @@ class AudioDecoderTest
 
   JobQueue job_queue_;
   VideoDmpReader dmp_reader_;
-  scoped_ptr<AudioDecoder> audio_decoder_;
-  scoped_ptr<AudioRendererSink> audio_renderer_sink_;
+  unique_ptr_alias<AudioDecoder> audio_decoder_;
+  unique_ptr_alias<AudioRendererSink> audio_renderer_sink_;
 
   bool can_accept_more_input_ = true;
   scoped_refptr<InputBuffer> last_input_buffer_;
@@ -464,8 +464,8 @@ TEST_P(AudioDecoderTest, MultiDecoders) {
   const int kDecodersToCreate = 100;
   const int kMinimumNumberOfExtraDecodersRequired = 3;
 
-  scoped_ptr<AudioDecoder> audio_decoders[kDecodersToCreate];
-  scoped_ptr<AudioRendererSink> audio_renderer_sinks[kDecodersToCreate];
+  unique_ptr_alias<AudioDecoder> audio_decoders[kDecodersToCreate];
+  unique_ptr_alias<AudioRendererSink> audio_renderer_sinks[kDecodersToCreate];
 
   for (int i = 0; i < kDecodersToCreate; ++i) {
     CreateComponents(dmp_reader_.audio_stream_info(), &audio_decoders[i],

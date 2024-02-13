@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_CHANNEL_LAYOUT_MIXER_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_CHANNEL_LAYOUT_MIXER_H_
 
+#include <memory>
 #include <vector>
 
 #include "starboard/common/ref_counted.h"
@@ -38,7 +39,7 @@ class AudioChannelLayoutMixer {
   virtual scoped_refptr<DecodedAudio> Mix(
       const scoped_refptr<DecodedAudio>& audio_data) = 0;
 
-  static scoped_ptr<AudioChannelLayoutMixer> Create(
+  static std::unique_ptr<AudioChannelLayoutMixer> Create(
       SbMediaAudioSampleType sample_type,
       SbMediaAudioFrameStorageType storage_type,
       int output_channels);
