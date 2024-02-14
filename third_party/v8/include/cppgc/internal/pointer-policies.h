@@ -28,7 +28,17 @@ struct DijkstraWriteBarrierPolicy {
     // barrier doesn't break the tri-color invariant.
   }
   static void AssigningBarrier(const void* slot, const void* value) {
-    WriteBarrier::MarkingBarrier(slot, value);
+    WriteBarrier::Params params;
+    switch (WriteBarrier::GetWriteBarrierType(slot, value, params)) {
+      case WriteBarrier::Type::kGenerational:
+        WriteBarrier::GenerationalBarrier(params, slot);
+        break;
+      case WriteBarrier::Type::kMarking:
+        WriteBarrier::DijkstraMarkingBarrier(params, value);
+        break;
+      case WriteBarrier::Type::kNone:
+        break;
+    }
   }
 };
 
@@ -141,7 +151,7 @@ struct SentinelPointer {
 
 }  // namespace internal
 
-constexpr internal::SentinelPointer kSentinelPointer;
+constexpr internal::SentinelPointer kSentinelPointer{};
 
 }  // namespace cppgc
 

@@ -61,6 +61,9 @@ _FILTERED_TESTS = {
         'HistogramTesterTest.TestGetTotalCountsForPrefix',
         'HistogramTesterTest.TestGetAllChangedHistograms',
     ],
+    'blackbox': [
+        'wasm_basic_test',  # b/312292233 (see also b/303845477)
+    ],
 }
 
 if os.getenv('MODULAR_BUILD', '0') == '1':

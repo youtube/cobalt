@@ -182,9 +182,11 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     // Exception handling opcodes.
     CASE_OP(Try, "try")
     CASE_OP(Catch, "catch")
+    CASE_OP(Delegate, "delegate")
     CASE_OP(Throw, "throw")
     CASE_OP(Rethrow, "rethrow")
-    CASE_OP(BrOnExn, "br_on_exn")
+    CASE_OP(CatchAll, "catch-all")
+    CASE_OP(Unwind, "unwind")
 
     // asm.js-only opcodes.
     CASE_F64_OP(Acos, "acos")
@@ -360,6 +362,9 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_SIGN_OP(I32x4, ExtAddPairwiseI16x8, "extadd_pairwise_i16x8")
     CASE_SIGN_OP(I16x8, ExtAddPairwiseI8x16, "extadd_pairwise_i8x6")
 
+    CASE_OP(PrefetchT, "prefetch_t")
+    CASE_OP(PrefetchNT, "prefetch_nt")
+
     // Atomic operations.
     CASE_OP(AtomicNotify, "atomic.notify")
     CASE_INT_OP(AtomicWait, "atomic.wait")
@@ -476,6 +481,8 @@ constexpr bool WasmOpcodes::IsUnconditionalJump(WasmOpcode opcode) {
     case kExprReturn:
     case kExprReturnCall:
     case kExprReturnCallIndirect:
+    case kExprThrow:
+    case kExprRethrow:
       return true;
     default:
       return false;
@@ -600,6 +607,7 @@ constexpr std::array<WasmOpcodeSig, 256> kNumericExprSigTable{};
 }  // namespace impl
 
 constexpr const FunctionSig* WasmOpcodes::Signature(WasmOpcode opcode) {
+  DCHECK(false);
   switch (opcode >> 8) {
     case 0:
       return impl::kCachedSigs[impl::kShortSigTable[opcode]];
@@ -619,6 +627,7 @@ constexpr const FunctionSig* WasmOpcodes::Signature(WasmOpcode opcode) {
 }
 
 constexpr const FunctionSig* WasmOpcodes::AsmjsSignature(WasmOpcode opcode) {
+  DCHECK(false);
   CONSTEXPR_DCHECK(opcode < impl::kSimpleAsmjsExprSigTable.size());
   return impl::kCachedSigs[impl::kSimpleAsmjsExprSigTable[opcode]];
 }

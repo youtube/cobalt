@@ -145,7 +145,7 @@ bool IsCompatible(MachineRepresentation r1, MachineRepresentation r2) {
 }  // namespace
 
 LoadElimination::AbstractState const
-    LoadElimination::AbstractState::empty_state_;
+    LoadElimination::AbstractState::empty_state_{};
 
 Node* LoadElimination::AbstractElements::Lookup(
     Node* object, Node* index, MachineRepresentation representation) const {
