@@ -15,12 +15,10 @@
 #ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_POSIX_FORCE_INCLUDE_H_
 #define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_POSIX_FORCE_INCLUDE_H_
 
+#if defined(STARBOARD)
+
 // MSVC deprecated strdup() in favor of _strdup()
 #define strdup _strdup
-#define strcasecmp _stricmp
-#define strncasecmp _strnicmp
-
-#if defined(STARBOARD)
 
 #define free sb_free
 
@@ -45,8 +43,14 @@ struct tm* gmtime_r(const time_t* timer, struct tm* result);
 
 int posix_memalign(void** res, size_t alignment, size_t size);
 
+// https://pubs.opengroup.org/onlinepubs/9699919799/functions/strcasecmp.html
+int strcasecmp(const char* s1, const char* s2);
+int strncasecmp(const char* s1, const char* s2, size_t n);
+
 #ifdef __cplusplus
 }
 #endif  // __cplusplus
+
 #endif  // defined(STARBOARD)
+
 #endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_POSIX_FORCE_INCLUDE_H_

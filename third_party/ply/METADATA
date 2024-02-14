@@ -4,11 +4,19 @@ description:
   "a dependency for Cobalt's IDL parser."
 
 third_party {
-  url {
-    type: GIT
-    value: "https://chromium.googlesource.com/chromium/src"
+  identifier {
+    type: "ChromiumVersion"
+    value: "74.0.3729.169"  # from https://chromereleases.googleblog.com/2019/05/stable-channel-update-for-desktop_21.html
   }
-  version: "74.0.3729.169"
+  identifier {
+    type: "Git"
+    value: "https://chromium.googlesource.com/chromium/src.git"
+    version: "84108231f6e6e0772fb9a4643679ce76aa771e67"
+  }
+  identifier {
+    type: "UpstreamSubdir"
+    value: "third_party/ply"
+  }
   last_upgrade_date {
     year: 2011
     month: 2

@@ -1,4 +1,4 @@
-// Copyright 2022 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/starboard_switches.h"
+#include <string.h>
 
-namespace starboard {
-namespace shared {
-namespace starboard {
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-const char kStartHandlerAtCrash[] = "start_handler_at_crash";
-const char kStartHandlerAtLaunch[] = "start_handler_at_launch";
+int strcasecmp(const char* s1, const char* s2) {
+  return _stricmp(s1, s2);
+}
 
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+int strncasecmp(const char* s1, const char* s2, size_t n) {
+  return _strnicmp(s1, s2, n);
+}
+
+#ifdef __cplusplus
+}
+#endif

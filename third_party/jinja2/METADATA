@@ -4,11 +4,19 @@ description:
   "IDL parser."
 
 third_party {
-  url {
-    type: GIT
-    value: "https://chromium.googlesource.com/chromium/src"
+  identifier {
+    type: "ChromiumVersion"
+    value: "54.0.2840.101"  # from https://chromereleases.googleblog.com/2016/11/stable-channel-update-for-chrome-os_16.html
   }
-  version: "54.0.2840.101"
+  identifier {
+    type: "Git"
+    value: "https://chromium.googlesource.com/chromium/src.git"
+    version: "80c41737f982b17b0c5e7c9cb05dfbfde366be15"
+  }
+  identifier {
+    type: "UpstreamSubdir"
+    value: "third_party/jinja2"
+  }
   last_upgrade_date {
     year: 2013
     month: 8
