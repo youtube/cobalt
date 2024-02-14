@@ -273,10 +273,13 @@ void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
   SB_DCHECK(error_cb);
   decoder_status_cb_ = decoder_status_cb;
   error_cb_ = error_cb;
+  SB_LOG(INFO) << "Video Codec is " << video_codec_;
   if (video_device_) {
+    SB_LOG(INFO) << "Video device is valid. Begin to initialize codec";
     InitializeCodec();
   }
   if (!decoder_) {
+    SB_LOG(INFO) << "Decoder is invalid, reporting error";
     error_cb_(kSbPlayerErrorDecode, "Cannot initialize codec.");
   }
 }
