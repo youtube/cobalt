@@ -82,11 +82,19 @@ class JsonString final {
     const int start_;
     const uint32_t index_;
   };
+#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
   const int length_;
   const bool needs_conversion_ : 1;
   const bool internalize_ : 1;
   const bool has_escape_ : 1;
   const bool is_index_ : 1;
+#else
+  int length_;
+  bool needs_conversion_ : 1;
+  bool internalize_ : 1;
+  bool has_escape_ : 1;
+  bool is_index_ : 1;
+#endif
 };
 
 struct JsonProperty {
@@ -231,13 +239,13 @@ class JsonParser final {
     STATIC_ASSERT(N > 2);
     size_t remaining = static_cast<size_t>(end_ - cursor_);
     if (V8_LIKELY(remaining >= N - 1 &&
-                  CompareChars(s + 1, cursor_ + 1, N - 2) == 0)) {
+                  CompareCharsEqual(s + 1, cursor_ + 1, N - 2))) {
       cursor_ += N - 1;
       return;
     }
 
     cursor_++;
-    for (size_t i = 0; i < Min(N - 2, remaining - 1); i++) {
+    for (size_t i = 0; i < std::min(N - 2, remaining - 1); i++) {
       if (*(s + 1 + i) != *cursor_) {
         ReportUnexpectedCharacter(*cursor_);
         return;
@@ -309,7 +317,7 @@ class JsonParser final {
   }
 
   void UpdatePointers() {
-    DisallowHeapAllocation no_gc;
+    DisallowGarbageCollection no_gc;
     const Char* chars = Handle<SeqString>::cast(source_)->GetChars(no_gc);
     if (chars_ != chars) {
       size_t position = cursor_ - chars_;
@@ -342,7 +350,7 @@ class JsonParser final {
   // Cached pointer to the raw chars in source. In case source is on-heap, we
   // register an UpdatePointers callback. For this reason, chars_, cursor_ and
   // end_ should never be locally cached across a possible allocation. The scope
-  // in which we cache chars has to be guarded by a DisallowHeapAllocation
+  // in which we cache chars has to be guarded by a DisallowGarbageCollection
   // scope.
   const Char* cursor_;
   const Char* end_;

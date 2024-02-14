@@ -12,12 +12,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "unicode/putil.h"
-#include "unicode/udata.h"
-
 #include "src/base/build_config.h"
 #include "src/base/file-utils.h"
 #include "src/base/platform/wrappers.h"
+#include "unicode/putil.h"
+#include "unicode/udata.h"
 
 #define ICU_UTIL_DATA_FILE 0
 #define ICU_UTIL_DATA_STATIC 1

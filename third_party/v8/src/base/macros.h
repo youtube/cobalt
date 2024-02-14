@@ -10,6 +10,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/base/logging.h"
+#include "src/base/platform/wrappers.h"
 
 // No-op macro which is used to work around MSVC's funky VA_ARGS support.
 #define EXPAND(x) x
@@ -104,7 +105,7 @@ V8_INLINE Dest bit_cast(Source const& source) {
   static_assert(sizeof(Dest) == sizeof(Source),
                 "source and dest must be same size");
   Dest dest;
-  memcpy(&dest, &source, sizeof(dest));
+  v8::base::Memcpy(&dest, &source, sizeof(dest));
   return dest;
 }
 
@@ -113,21 +114,13 @@ V8_INLINE Dest bit_cast(Source const& source) {
 // delete the assignment operator instead.
 #define DISALLOW_ASSIGN(TypeName) TypeName& operator=(const TypeName&) = delete
 
-// Explicitly declare the copy constructor and assignment operator as deleted.
-// This also deletes the implicit move constructor and implicit move assignment
-// operator, but still allows to manually define them.
-// Note: This macro is deprecated and will be removed soon. Please explicitly
-// delete the copy constructor and assignment operator instead.
-#define DISALLOW_COPY_AND_ASSIGN(TypeName) \
-  TypeName(const TypeName&) = delete;      \
-  DISALLOW_ASSIGN(TypeName)
-
 // Explicitly declare all implicit constructors as deleted, namely the
 // default constructor, copy constructor and operator= functions.
 // This is especially useful for classes containing only static methods.
 #define DISALLOW_IMPLICIT_CONSTRUCTORS(TypeName) \
   TypeName() = delete;                           \
-  DISALLOW_COPY_AND_ASSIGN(TypeName)
+  TypeName(const TypeName&) = delete;            \
+  DISALLOW_ASSIGN(TypeName)
 
 // Disallow copying a type, but provide default construction, move construction
 // and move assignment. Especially useful for move-only structs.
@@ -140,7 +133,8 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #define MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(TypeName)       \
   TypeName(TypeName&&) V8_NOEXCEPT = default;            \
   TypeName& operator=(TypeName&&) V8_NOEXCEPT = default; \
-  DISALLOW_COPY_AND_ASSIGN(TypeName)
+  TypeName(const TypeName&) = delete;                    \
+  DISALLOW_ASSIGN(TypeName)
 
 // A macro to disallow the dynamic allocation.
 // This should be used in the private: declarations for a class
@@ -337,7 +331,6 @@ inline uint64_t make_uint64(uint32_t high, uint32_t low) {
 // Return the largest multiple of m which is <= x.
 template <typename T>
 inline T RoundDown(T x, intptr_t m) {
-  STATIC_ASSERT(std::is_integral<T>::value);
   // m must be a power of two.
   DCHECK(m != 0 && ((m & (m - 1)) == 0));
   return x & static_cast<T>(-m);
@@ -353,7 +346,6 @@ constexpr inline T RoundDown(T x) {
 // Return the smallest multiple of m which is >= x.
 template <typename T>
 inline T RoundUp(T x, intptr_t m) {
-  STATIC_ASSERT(std::is_integral<T>::value);
   return RoundDown<T>(static_cast<T>(x + m - 1), m);
 }
 template <intptr_t m, typename T>

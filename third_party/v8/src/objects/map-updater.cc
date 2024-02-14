@@ -121,6 +121,41 @@ Handle<Map> MapUpdater::ReconfigureToDataField(InternalIndex descriptor,
   PropertyDetails old_details =
       old_descriptors_->GetDetails(modified_descriptor_);
 
+  // If the {descriptor} was "const" data field so far, we need to update the
+  // {old_map_} here, otherwise we could get the constants wrong, i.e.
+  //
+  //   o.x = 1;
+  //   change o.x's attributes to something else
+  //   delete o.x;
+  //   o.x = 2;
+  //
+  // could trick V8 into thinking that `o.x` is still 1 even after the second
+  // assignment.
+  // This situation is similar to what might happen with property deletion.
+  if (old_details.constness() == PropertyConstness::kConst &&
+      old_details.location() == kField &&
+      old_details.attributes() != new_attributes_) {
+    Handle<FieldType> field_type(
+        old_descriptors_->GetFieldType(modified_descriptor_), isolate_);
+    Map::GeneralizeField(isolate_, old_map_, descriptor,
+                         PropertyConstness::kMutable,
+                         old_details.representation(), field_type);
+    // The old_map_'s property must become mutable.
+    // Note, that the {old_map_} and {old_descriptors_} are not expected to be
+    // updated by the generalization if the map is already deprecated.
+    DCHECK_IMPLIES(
+        !old_map_->is_deprecated(),
+        PropertyConstness::kMutable ==
+            old_descriptors_->GetDetails(modified_descriptor_).constness());
+    // Although the property in the old map is marked as mutable we still
+    // treat it as constant when merging with the new path in transition tree.
+    // This is fine because up until this reconfiguration the field was
+    // known to be constant, so it's fair to proceed treating it as such
+    // during this reconfiguration session. The issue is that after the
+    // reconfiguration the original field might become mutable (see the delete
+    // example above).
+  }
+
   // If property kind is not reconfigured merge the result with
   // representation/field type from the old descriptor.
   if (old_details.kind() == new_kind_) {
@@ -217,6 +252,14 @@ MapUpdater::State MapUpdater::TryReconfigureToDataFieldInplace() {
 
   PropertyDetails old_details =
       old_descriptors_->GetDetails(modified_descriptor_);
+
+  if (old_details.attributes() != new_attributes_ ||
+      old_details.kind() != new_kind_ ||
+      old_details.location() != new_location_) {
+    // These changes can't be done in-place.
+    return state_;  // Not done yet.
+  }
+
   Representation old_representation = old_details.representation();
   if (!old_representation.CanBeInPlaceChangedTo(new_representation_)) {
     return state_;  // Not done yet.
@@ -667,7 +710,7 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
 }
 
 Handle<Map> MapUpdater::FindSplitMap(Handle<DescriptorArray> descriptors) {
-  DisallowHeapAllocation no_allocation;
+  DisallowGarbageCollection no_gc;
 
   int root_nof = root_map_->NumberOfOwnDescriptors();
   Map current = *root_map_;
@@ -675,7 +718,7 @@ Handle<Map> MapUpdater::FindSplitMap(Handle<DescriptorArray> descriptors) {
     Name name = descriptors->GetKey(i);
     PropertyDetails details = descriptors->GetDetails(i);
     Map next =
-        TransitionsAccessor(isolate_, current, &no_allocation)
+        TransitionsAccessor(isolate_, current, &no_gc)
             .SearchTransition(name, details.kind(), details.attributes());
     if (next.is_null()) break;
     DescriptorArray next_descriptors = next.instance_descriptors(kRelaxedLoad);

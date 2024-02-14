@@ -1281,6 +1281,9 @@ base::Optional<ParseResult> MakeEnumDeclaration(
     NamingConventionError("Type", name, "UpperCamelCase");
   }
 
+  if (constexpr_generates_opt && *constexpr_generates_opt == name) {
+    Lint("Unnecessary 'constexpr' clause for enum ", name);
+  }
   auto constexpr_generates =
       constexpr_generates_opt ? *constexpr_generates_opt : name;
   const bool generate_nonconstexpr = base_type_expression.has_value();
@@ -1939,9 +1942,11 @@ base::Optional<ParseResult> MakeAnnotation(ParseResultIterator* child_results) {
 }
 
 base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
-  AnnotationSet annotations(child_results, {ANNOTATION_NO_VERIFIER},
+  AnnotationSet annotations(child_results,
+                            {ANNOTATION_NO_VERIFIER, ANNOTATION_RELAXED_WRITE},
                             {ANNOTATION_IF, ANNOTATION_IFNOT});
   bool generate_verify = !annotations.Contains(ANNOTATION_NO_VERIFIER);
+  bool relaxed_write = annotations.Contains(ANNOTATION_RELAXED_WRITE);
   std::vector<ConditionalAnnotation> conditions;
   base::Optional<std::string> if_condition =
       annotations.GetStringParam(ANNOTATION_IF);
@@ -1964,7 +1969,8 @@ base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
                                           std::move(conditions),
                                           weak,
                                           const_qualified,
-                                          generate_verify}};
+                                          generate_verify,
+                                          relaxed_write}};
 }
 
 base::Optional<ParseResult> MakeStructField(
