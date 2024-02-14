@@ -71,15 +71,18 @@ void EphemeronHashTable::set_key(int index, Object value,
 }
 
 int HashTableBase::NumberOfElements() const {
-  return Smi::cast(get(kNumberOfElementsIndex)).value();
+  int offset = OffsetOfElementAt(kNumberOfElementsIndex);
+  return TaggedField<Smi>::load(*this, offset).value();
 }
 
 int HashTableBase::NumberOfDeletedElements() const {
-  return Smi::cast(get(kNumberOfDeletedElementsIndex)).value();
+  int offset = OffsetOfElementAt(kNumberOfDeletedElementsIndex);
+  return TaggedField<Smi>::load(*this, offset).value();
 }
 
 int HashTableBase::Capacity() const {
-  return Smi::cast(get(kCapacityIndex)).value();
+  int offset = OffsetOfElementAt(kCapacityIndex);
+  return TaggedField<Smi>::load(*this, offset).value();
 }
 
 InternalIndex::Range HashTableBase::IterateEntries() const {
@@ -142,7 +145,6 @@ template <typename Derived, typename Shape>
 InternalIndex HashTable<Derived, Shape>::FindEntry(IsolateRoot isolate,
                                                    ReadOnlyRoots roots, Key key,
                                                    int32_t hash) {
-  DisallowGarbageCollection no_gc;
   uint32_t capacity = Capacity();
   uint32_t count = 1;
   Object undefined = roots.undefined_value();

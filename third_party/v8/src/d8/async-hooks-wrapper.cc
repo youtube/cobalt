@@ -52,7 +52,7 @@ static AsyncHooksWrap* UnwrapHook(
     return nullptr;
   }
 
-  Local<External> wrap = hook->GetInternalField(0).As<External>();
+  Local<External> wrap = Local<External>::Cast(hook->GetInternalField(0));
   void* ptr = wrap->Value();
   return static_cast<AsyncHooksWrap*>(ptr);
 }

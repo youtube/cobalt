@@ -19,7 +19,6 @@
 #include "src/base/optional.h"
 #include "src/builtins/builtins-definitions.h"
 #include "src/handles/handles.h"
-#include "src/tasks/operations-barrier.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils/vector.h"
 #include "src/wasm/compilation-environment.h"
@@ -84,10 +83,7 @@ struct WasmModule;
   V(I32PairToBigInt)                     \
   V(I64ToBigInt)                         \
   V(RecordWrite)                         \
-  V(ToNumber)                            \
-  V(WasmAllocateArrayWithRtt)            \
-  V(WasmAllocateRtt)                     \
-  V(WasmAllocateStructWithRtt)
+  V(ToNumber)
 
 // Sorted, disjoint and non-overlapping memory regions. A region is of the
 // form [start, end). So there's no [start, end), [end, other_end),
@@ -203,7 +199,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
                    Address current_pc = kNullAddress) const;
 
   static bool ShouldBeLogged(Isolate* isolate);
-  void LogCode(Isolate* isolate, const char* source_url, int script_id) const;
+  void LogCode(Isolate* isolate) const;
 
   WasmCode(const WasmCode&) = delete;
   WasmCode& operator=(const WasmCode&) = delete;
@@ -509,7 +505,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   WasmCode* PublishCode(std::unique_ptr<WasmCode>);
   std::vector<WasmCode*> PublishCode(Vector<std::unique_ptr<WasmCode>>);
 
-  std::unique_ptr<WasmCode> AllocateDeserializedCode(
+  WasmCode* AddDeserializedCode(
       int index, Vector<const byte> instructions, int stack_slots,
       int tagged_parameter_slots, int safepoint_table_offset,
       int handler_table_offset, int constant_pool_offset,
@@ -583,7 +579,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // on the fly, and bypass the instance builder pipeline.
   void ReserveCodeTableForTesting(uint32_t max_functions);
 
-  void LogWasmCodes(Isolate*, Script);
+  void LogWasmCodes(Isolate* isolate);
 
   CompilationState* compilation_state() { return compilation_state_.get(); }
 
@@ -730,16 +726,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Hold the {allocation_mutex_} when calling {PublishCodeLocked}.
   WasmCode* PublishCodeLocked(std::unique_ptr<WasmCode>);
 
-  // -- Fields of {NativeModule} start here.
-
-  WasmEngine* const engine_;
-  // Keep the engine alive as long as this NativeModule is alive. In its
-  // destructor, the NativeModule still communicates with the WasmCodeManager,
-  // owned by the engine. This fields comes before other fields which also still
-  // access the engine (like the code allocator), so that it's destructor runs
-  // last.
-  OperationsBarrier::Token engine_scope_;
-
   // {WasmCodeAllocator} manages all code reservations and allocations for this
   // {NativeModule}.
   WasmCodeAllocator code_allocator_;
@@ -812,6 +798,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // End of fields protected by {allocation_mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
+  WasmEngine* const engine_;
   int modification_scope_depth_ = 0;
   UseTrapHandler use_trap_handler_ = kNoTrapHandler;
   bool lazy_compile_frozen_ = false;
@@ -908,7 +895,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
 //    and even if we did, the resulting set of pages may be fragmented.
 //    Currently, we try and keep the number of syscalls low.
 // -  similar argument for debug time.
-class V8_NODISCARD NativeModuleModificationScope final {
+class NativeModuleModificationScope final {
  public:
   explicit NativeModuleModificationScope(NativeModule* native_module);
   ~NativeModuleModificationScope();
@@ -920,7 +907,7 @@ class V8_NODISCARD NativeModuleModificationScope final {
 // {WasmCodeRefScope}s form a perfect stack. New {WasmCode} pointers generated
 // by e.g. creating new code or looking up code by its address are added to the
 // top-most {WasmCodeRefScope}.
-class V8_EXPORT_PRIVATE V8_NODISCARD WasmCodeRefScope {
+class V8_EXPORT_PRIVATE WasmCodeRefScope {
  public:
   WasmCodeRefScope();
   WasmCodeRefScope(const WasmCodeRefScope&) = delete;

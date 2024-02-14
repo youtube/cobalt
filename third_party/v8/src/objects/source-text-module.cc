@@ -7,7 +7,6 @@
 #include "src/api/api-inl.h"
 #include "src/ast/modules.h"
 #include "src/builtins/accessors.h"
-#include "src/common/assert-scope.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
@@ -19,7 +18,7 @@ namespace internal {
 
 struct StringHandleHash {
   V8_INLINE size_t operator()(Handle<String> string) const {
-    return string->EnsureHash();
+    return string->Hash();
   }
 };
 
@@ -78,26 +77,25 @@ class Module::ResolveSet
 };
 
 SharedFunctionInfo SourceTextModule::GetSharedFunctionInfo() const {
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_alloc;
   switch (status()) {
     case kUninstantiated:
     case kPreInstantiating:
+      DCHECK(code().IsSharedFunctionInfo());
       return SharedFunctionInfo::cast(code());
     case kInstantiating:
+      DCHECK(code().IsJSFunction());
       return JSFunction::cast(code()).shared();
     case kInstantiated:
     case kEvaluating:
     case kEvaluated:
+      DCHECK(code().IsJSGeneratorObject());
       return JSGeneratorObject::cast(code()).function().shared();
     case kErrored:
-      return SharedFunctionInfo::cast(code());
+      UNREACHABLE();
   }
-  UNREACHABLE();
-}
 
-Script SourceTextModule::GetScript() const {
-  DisallowGarbageCollection no_gc;
-  return Script::cast(GetSharedFunctionInfo().script());
+  UNREACHABLE();
 }
 
 int SourceTextModule::ExportIndex(int cell_index) {
@@ -139,7 +137,7 @@ void SourceTextModule::CreateExport(Isolate* isolate,
 }
 
 Cell SourceTextModule::GetCell(int cell_index) {
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_gc;
   Object cell;
   switch (SourceTextModuleDescriptor::GetCellIndexKind(cell_index)) {
     case SourceTextModuleDescriptor::kImport:
@@ -163,7 +161,7 @@ Handle<Object> SourceTextModule::LoadVariable(Isolate* isolate,
 
 void SourceTextModule::StoreVariable(Handle<SourceTextModule> module,
                                      int cell_index, Handle<Object> value) {
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_gc;
   DCHECK_EQ(SourceTextModuleDescriptor::GetCellIndexKind(cell_index),
             SourceTextModuleDescriptor::kExport);
   module->GetCell(cell_index).set_value(*value);
@@ -207,7 +205,7 @@ MaybeHandle<Cell> SourceTextModule::ResolveExport(
     Handle<SourceTextModuleInfoEntry> entry =
         Handle<SourceTextModuleInfoEntry>::cast(object);
     Handle<String> import_name(String::cast(entry->import_name()), isolate);
-    Handle<Script> script(module->GetScript(), isolate);
+    Handle<Script> script(module->script(), isolate);
     MessageLocation new_loc(script, entry->beg_pos(), entry->end_pos());
 
     Handle<Cell> cell;
@@ -271,7 +269,7 @@ MaybeHandle<Cell> SourceTextModule::ResolveExportUsingStarExports(
         continue;  // Indirect export.
       }
 
-      Handle<Script> script(module->GetScript(), isolate);
+      Handle<Script> script(module->script(), isolate);
       MessageLocation new_loc(script, entry->beg_pos(), entry->end_pos());
 
       Handle<Cell> cell;
@@ -312,9 +310,7 @@ MaybeHandle<Cell> SourceTextModule::ResolveExportUsingStarExports(
 
 bool SourceTextModule::PrepareInstantiate(
     Isolate* isolate, Handle<SourceTextModule> module,
-    v8::Local<v8::Context> context, v8::Module::ResolveModuleCallback callback,
-    Module::DeprecatedResolveCallback callback_without_import_assertions) {
-  DCHECK_EQ(callback != nullptr, callback_without_import_assertions == nullptr);
+    v8::Local<v8::Context> context, v8::Module::ResolveCallback callback) {
   // Obtain requested modules.
   Handle<SourceTextModuleInfo> module_info(module->info(), isolate);
   Handle<FixedArray> module_requests(module_info->module_requests(), isolate);
@@ -323,25 +319,13 @@ bool SourceTextModule::PrepareInstantiate(
     Handle<ModuleRequest> module_request(
         ModuleRequest::cast(module_requests->get(i)), isolate);
     Handle<String> specifier(module_request->specifier(), isolate);
+    // TODO(v8:10958) Pass import assertions to the callback
     v8::Local<v8::Module> api_requested_module;
-    if (callback) {
-      Handle<FixedArray> import_assertions(module_request->import_assertions(),
-                                           isolate);
-      if (!callback(context, v8::Utils::ToLocal(specifier),
-                    v8::Utils::FixedArrayToLocal(import_assertions),
-                    v8::Utils::ToLocal(Handle<Module>::cast(module)))
-               .ToLocal(&api_requested_module)) {
-        isolate->PromoteScheduledException();
-        return false;
-      }
-    } else {
-      if (!callback_without_import_assertions(
-               context, v8::Utils::ToLocal(specifier),
-               v8::Utils::ToLocal(Handle<Module>::cast(module)))
-               .ToLocal(&api_requested_module)) {
-        isolate->PromoteScheduledException();
-        return false;
-      }
+    if (!callback(context, v8::Utils::ToLocal(specifier),
+                  v8::Utils::ToLocal(Handle<Module>::cast(module)))
+             .ToLocal(&api_requested_module)) {
+      isolate->PromoteScheduledException();
+      return false;
     }
     Handle<Module> requested_module = Utils::OpenHandle(*api_requested_module);
     requested_modules->set(i, *requested_module);
@@ -352,8 +336,7 @@ bool SourceTextModule::PrepareInstantiate(
     Handle<Module> requested_module(Module::cast(requested_modules->get(i)),
                                     isolate);
     if (!Module::PrepareInstantiate(isolate, requested_module, context,
-                                    callback,
-                                    callback_without_import_assertions)) {
+                                    callback)) {
       return false;
     }
   }
@@ -421,7 +404,6 @@ bool SourceTextModule::MaybeTransitionComponent(
   DCHECK_LE(module->dfs_ancestor_index(), module->dfs_index());
   if (module->dfs_ancestor_index() == module->dfs_index()) {
     // This is the root of its strongly connected component.
-    Handle<SourceTextModule> cycle_root = module;
     Handle<SourceTextModule> ancestor;
     do {
       ancestor = stack->front();
@@ -431,9 +413,6 @@ bool SourceTextModule::MaybeTransitionComponent(
       if (new_status == kInstantiated) {
         if (!SourceTextModule::RunInitializationCode(isolate, ancestor))
           return false;
-      } else if (new_status == kEvaluated) {
-        DCHECK(ancestor->cycle_root().IsTheHole(isolate));
-        ancestor->set_cycle_root(*cycle_root);
       }
       ancestor->SetStatus(new_status);
     } while (*ancestor != *module);
@@ -450,8 +429,8 @@ bool SourceTextModule::FinishInstantiate(
   Handle<SharedFunctionInfo> shared(SharedFunctionInfo::cast(module->code()),
                                     isolate);
   Handle<JSFunction> function =
-      Factory::JSFunctionBuilder{isolate, shared, isolate->native_context()}
-          .Build();
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          shared, isolate->native_context());
   module->set_code(*function);
   module->SetStatus(kInstantiating);
   module->set_dfs_index(*dfs_index);
@@ -487,7 +466,7 @@ bool SourceTextModule::FinishInstantiate(
     }
   }
 
-  Handle<Script> script(module->GetScript(), isolate);
+  Handle<Script> script(module->script(), isolate);
   Handle<SourceTextModuleInfo> module_info(module->info(), isolate);
 
   // Resolve imports.
@@ -646,9 +625,9 @@ MaybeHandle<Object> SourceTextModule::EvaluateMaybeAsync(
   CHECK(module->status() == kInstantiated || module->status() == kEvaluated);
 
   // 3. If module.[[Status]] is "evaluated", set module to
-  //    module.[[CycleRoot]].
+  //    GetAsyncCycleRoot(module).
   if (module->status() == kEvaluated) {
-    module = module->GetCycleRoot(isolate);
+    module = GetAsyncCycleRoot(isolate, module);
   }
 
   // 4. If module.[[TopLevelCapability]] is not undefined, then
@@ -763,27 +742,37 @@ void SourceTextModule::AsyncModuleExecutionFulfilled(
   for (int i = 0; i < module->AsyncParentModuleCount(); i++) {
     Handle<SourceTextModule> m = module->GetAsyncParentModule(isolate, i);
 
-    //  a. Decrement m.[[PendingAsyncDependencies]] by 1.
+    //  a. If module.[[DFSIndex]] is not equal to module.[[DFSAncestorIndex]],
+    //     then
+    if (module->dfs_index() != module->dfs_ancestor_index()) {
+      //   i. Assert: m.[[DFSAncestorIndex]] is equal to
+      //      module.[[DFSAncestorIndex]].
+      DCHECK_LE(m->dfs_ancestor_index(), module->dfs_ancestor_index());
+    }
+    //  b. Decrement m.[[PendingAsyncDependencies]] by 1.
     m->DecrementPendingAsyncDependencies();
 
-    //  b. If m.[[PendingAsyncDependencies]] is 0 and m.[[EvaluationError]] is
+    //  c. If m.[[PendingAsyncDependencies]] is 0 and m.[[EvaluationError]] is
     //     undefined, then
     if (!m->HasPendingAsyncDependencies() && m->status() == kEvaluated) {
       //   i. Assert: m.[[AsyncEvaluating]] is true.
       DCHECK(m->async_evaluating());
 
-      // ii. If m.[[CycleRoot]].[[EvaluationError]] is not undefined,
+      //  ii. Let cycleRoot be ! GetAsyncCycleRoot(m).
+      auto cycle_root = GetAsyncCycleRoot(isolate, m);
+
+      // iii. If cycleRoot.[[EvaluationError]] is not undefined,
       //      return undefined.
-      if (m->GetCycleRoot(isolate)->status() == kErrored) {
+      if (cycle_root->status() == kErrored) {
         return;
       }
 
-      //  iii. If m.[[Async]] is true, then
+      //  iv. If m.[[Async]] is true, then
       if (m->async()) {
         //    1. Perform ! ExecuteAsyncModule(m).
         ExecuteAsyncModule(isolate, m);
       } else {
-        // iv. Otherwise,
+        // v. Otherwise,
         //    1. Let result be m.ExecuteModule().
         //    2. If result is a normal completion,
         Handle<Object> unused_result;
@@ -1063,8 +1052,8 @@ MaybeHandle<Object> SourceTextModule::InnerModuleEvaluation(
                      required_module->dfs_ancestor_index()));
       } else {
         //   iv. Otherwise,
-        //      1. Set requiredModule to requiredModule.[[CycleRoot]].
-        required_module = required_module->GetCycleRoot(isolate);
+        //      1. Set requiredModule to GetAsyncCycleRoot(requiredModule).
+        required_module = GetAsyncCycleRoot(isolate, required_module);
 
         //      2. Assert: requiredModule.[[Status]] is "evaluated".
         CHECK_GE(required_module->status(), kEvaluated);
@@ -1120,6 +1109,43 @@ MaybeHandle<Object> SourceTextModule::InnerModuleEvaluation(
 
   CHECK(MaybeTransitionComponent(isolate, module, stack, kEvaluated));
   return result;
+}
+
+Handle<SourceTextModule> SourceTextModule::GetAsyncCycleRoot(
+    Isolate* isolate, Handle<SourceTextModule> module) {
+  // 1. Assert: module.[[Status]] is "evaluated".
+  CHECK_GE(module->status(), kEvaluated);
+
+  // 2. If module.[[AsyncParentModules]] is an empty List, return module.
+  if (module->AsyncParentModuleCount() == 0) {
+    return module;
+  }
+
+  // 3. Repeat, while module.[[DFSIndex]] is greater than
+  //    module.[[DFSAncestorIndex]],
+  while (module->dfs_index() > module->dfs_ancestor_index()) {
+    //  a. Assert: module.[[AsyncParentModules]] is a non-empty List.
+    DCHECK_GT(module->AsyncParentModuleCount(), 0);
+
+    //  b. Let nextCycleModule be the first element of
+    //     module.[[AsyncParentModules]].
+    Handle<SourceTextModule> next_cycle_module =
+        module->GetAsyncParentModule(isolate, 0);
+
+    //  c. Assert: nextCycleModule.[[DFSAncestorIndex]] is less than or equal
+    //     to module.[[DFSAncestorIndex]].
+    DCHECK_LE(next_cycle_module->dfs_ancestor_index(),
+              module->dfs_ancestor_index());
+
+    //  d. Set module to nextCycleModule
+    module = next_cycle_module;
+  }
+
+  // 4. Assert: module.[[DFSIndex]] is equal to module.[[DFSAncestorIndex]].
+  DCHECK_EQ(module->dfs_index(), module->dfs_ancestor_index());
+
+  // 5. Return module.
+  return module;
 }
 
 void SourceTextModule::Reset(Isolate* isolate,

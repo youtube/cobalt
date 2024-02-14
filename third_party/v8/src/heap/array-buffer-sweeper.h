@@ -103,6 +103,7 @@ class ArrayBufferSweeper {
   void DecrementExternalMemoryCounters();
   void IncrementExternalMemoryCounters(size_t bytes);
   void IncrementFreedBytes(size_t bytes);
+  void IncrementFreedYoungBytes(size_t bytes);
 
   void RequestSweep(SweepingScope sweeping_task);
   void Prepare(SweepingScope sweeping_task);

@@ -171,6 +171,7 @@ TEST_F(TestWithNativeContext, EmptyFunctionScopeInfo) {
       isolate()->empty_function()->shared().scope_info(),
       function->GetIsolate());
 
+  EXPECT_EQ(scope_info->length(), empty_function_scope_info->length());
   EXPECT_EQ(scope_info->Flags(), empty_function_scope_info->Flags());
   EXPECT_EQ(scope_info->ParameterCount(),
             empty_function_scope_info->ParameterCount());
@@ -196,7 +197,7 @@ TEST_F(TestWithNativeContext, RecreateScopeInfoWithLocalsBlocklistWorks) {
   Handle<ScopeInfo> scope_info = ScopeInfo::RecreateWithBlockList(
       isolate(), original_scope_info, blocklist);
 
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_gc;
   EXPECT_TRUE(scope_info->HasLocalsBlockList());
   EXPECT_TRUE(scope_info->LocalsBlockList().Has(isolate(), foo_string));
   EXPECT_FALSE(scope_info->LocalsBlockList().Has(isolate(), bar_string));

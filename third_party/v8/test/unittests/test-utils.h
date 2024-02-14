@@ -230,7 +230,7 @@ using TestWithNativeContextAndZone =    //
                     WithIsolateMixin<   //
                         ::testing::Test>>>>>;
 
-class V8_NODISCARD SaveFlags {
+class SaveFlags {
  public:
   SaveFlags();
   ~SaveFlags();

@@ -127,10 +127,8 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
     Handle<Map> map = Map::AsLanguageMode(isolate, initial_map, shared_info);
 
     Handle<Context> context(function->context(), isolate);
-    function = Factory::JSFunctionBuilder{isolate, shared_info, context}
-                   .set_map(map)
-                   .set_allocation_type(AllocationType::kYoung)
-                   .Build();
+    function = isolate->factory()->NewFunctionFromSharedFunctionInfo(
+        map, shared_info, context, AllocationType::kYoung);
   }
   return function;
 }

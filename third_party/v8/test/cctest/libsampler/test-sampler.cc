@@ -97,10 +97,8 @@ static const char* sampler_test_source = "function start(count) {\n"
 
 static v8::Local<v8::Function> GetFunction(v8::Local<v8::Context> env,
                                            const char* name) {
-  return env->Global()
-      ->Get(env, v8_str(name))
-      .ToLocalChecked()
-      .As<v8::Function>();
+  return v8::Local<v8::Function>::Cast(
+      env->Global()->Get(env, v8_str(name)).ToLocalChecked());
 }
 
 

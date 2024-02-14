@@ -12,7 +12,7 @@ namespace {
 
 using APIExceptionTest = TestWithIsolate;
 
-class V8_NODISCARD ScopedExposeGc {
+class ScopedExposeGc {
  public:
   ScopedExposeGc() : was_exposed_(i::FLAG_expose_gc) {
     i::FLAG_expose_gc = true;

@@ -110,9 +110,9 @@ class ClassBoilerplate : public FixedArray {
   DECL_ACCESSORS(instance_elements_template, Object)
   DECL_ACCESSORS(instance_computed_properties, FixedArray)
 
-  template <typename LocalIsolate, typename Dictionary>
+  template <typename LocalIsolate>
   static void AddToPropertiesTemplate(LocalIsolate* isolate,
-                                      Handle<Dictionary> dictionary,
+                                      Handle<NameDictionary> dictionary,
                                       Handle<Name> name, int key_index,
                                       ValueKind value_kind, Smi value);
 

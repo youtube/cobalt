@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/pipeline-statistics.h"
-
 #include <memory>
 
 #include "src/codegen/optimized-compilation-info.h"
+#include "src/compiler/pipeline-statistics.h"
 #include "src/compiler/zone-stats.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
@@ -19,10 +18,10 @@ namespace compiler {
 namespace {
 
 // We log detailed phase information about the pipeline
-// in both the v8.turbofan and the v8.wasm.turbofan categories.
+// in both the v8.turbofan and the v8.wasm.detailed categories.
 constexpr const char kTraceCategory[] =           // --
     TRACE_DISABLED_BY_DEFAULT("v8.turbofan") ","  // --
-    TRACE_DISABLED_BY_DEFAULT("v8.wasm.turbofan");
+    TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed");
 
 }  // namespace
 
@@ -65,7 +64,8 @@ PipelineStatistics::PipelineStatistics(OptimizedCompilationInfo* info,
       phase_kind_name_(nullptr),
       phase_name_(nullptr) {
   if (info->has_shared_info()) {
-    function_name_.assign(info->shared_info()->DebugNameCStr().get());
+    std::unique_ptr<char[]> name = info->shared_info()->DebugName().ToCString();
+    function_name_ = name.get();
   }
   total_stats_.Begin(this);
 }

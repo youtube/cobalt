@@ -20,8 +20,6 @@ template <typename Record>
 class LockedQueue final {
  public:
   inline LockedQueue();
-  LockedQueue(const LockedQueue&) = delete;
-  LockedQueue& operator=(const LockedQueue&) = delete;
   inline ~LockedQueue();
   inline void Enqueue(Record record);
   inline bool Dequeue(Record* record);
@@ -35,6 +33,8 @@ class LockedQueue final {
   base::Mutex tail_mutex_;
   Node* head_;
   Node* tail_;
+
+  DISALLOW_COPY_AND_ASSIGN(LockedQueue);
 };
 
 }  // namespace internal

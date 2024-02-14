@@ -843,9 +843,9 @@ TNode<HeapObject> CollectionsBuiltinsAssembler::AllocateJSCollectionIterator(
 TNode<HeapObject> CollectionsBuiltinsAssembler::AllocateTable(
     Variant variant, TNode<IntPtrT> at_least_space_for) {
   if (variant == kMap || variant == kWeakMap) {
-    return AllocateOrderedHashMap();
+    return AllocateOrderedHashTable<OrderedHashMap>();
   } else {
-    return AllocateOrderedHashSet();
+    return AllocateOrderedHashTable<OrderedHashSet>();
   }
 }
 

@@ -101,9 +101,6 @@ class AsmValueType {
 
 class V8_EXPORT_PRIVATE AsmCallableType : public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  AsmCallableType(const AsmCallableType&) = delete;
-  AsmCallableType& operator=(const AsmCallableType&) = delete;
-
   virtual std::string Name() = 0;
 
   virtual bool CanBeInvokedWith(AsmType* return_type,
@@ -121,13 +118,12 @@ class V8_EXPORT_PRIVATE AsmCallableType : public NON_EXPORTED_BASE(ZoneObject) {
 
  private:
   friend class AsmType;
+
+  DISALLOW_COPY_AND_ASSIGN(AsmCallableType);
 };
 
 class V8_EXPORT_PRIVATE AsmFunctionType final : public AsmCallableType {
  public:
-  AsmFunctionType(const AsmFunctionType&) = delete;
-  AsmFunctionType& operator=(const AsmFunctionType&) = delete;
-
   AsmFunctionType* AsFunctionType() final { return this; }
 
   void AddArgument(AsmType* type) { args_.push_back(type); }
@@ -150,6 +146,8 @@ class V8_EXPORT_PRIVATE AsmFunctionType final : public AsmCallableType {
 
   AsmType* return_type_;
   ZoneVector<AsmType*> args_;
+
+  DISALLOW_COPY_AND_ASSIGN(AsmFunctionType);
 };
 
 class V8_EXPORT_PRIVATE AsmOverloadedFunctionType final

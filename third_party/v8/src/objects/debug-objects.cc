@@ -4,7 +4,6 @@
 
 #include "src/objects/debug-objects.h"
 
-#include "src/base/platform/mutex.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/debug-objects-inl.h"
@@ -30,6 +29,10 @@ void DebugInfo::SetDebugExecutionMode(ExecutionMode value) {
 
 void DebugInfo::ClearBreakInfo(Isolate* isolate) {
   if (HasInstrumentedBytecodeArray()) {
+    // Reset function's bytecode array field to point to the original bytecode
+    // array.
+    shared().SetDebugBytecodeArray(OriginalBytecodeArray());
+
     // If the function is currently running on the stack, we need to update the
     // bytecode pointers on the stack so they point to the original
     // BytecodeArray before releasing that BytecodeArray from this DebugInfo.
@@ -41,7 +44,8 @@ void DebugInfo::ClearBreakInfo(Isolate* isolate) {
       isolate->thread_manager()->IterateArchivedThreads(&redirect_visitor);
     }
 
-    SharedFunctionInfo::UninstallDebugBytecode(shared(), isolate);
+    set_original_bytecode_array(ReadOnlyRoots(isolate).undefined_value());
+    set_debug_bytecode_array(ReadOnlyRoots(isolate).undefined_value());
   }
   set_break_points(ReadOnlyRoots(isolate).empty_fixed_array());
 
@@ -393,7 +397,7 @@ void CoverageInfo::ResetBlockCount(int slot_index) {
 void CoverageInfo::CoverageInfoPrint(std::ostream& os,
                                      std::unique_ptr<char[]> function_name) {
   DCHECK(FLAG_trace_block_coverage);
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_gc;
 
   os << "Coverage info (";
   if (function_name == nullptr) {

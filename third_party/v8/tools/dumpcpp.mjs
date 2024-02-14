@@ -5,9 +5,10 @@
 import { LogReader, parseString } from "./logreader.mjs";
 import { CodeMap, CodeEntry } from "./codemap.mjs";
 export {
-    ArgumentsProcessor, UnixCppEntriesProvider,
+    ArgumentsProcessor, UnixCppEntriesProvider, 
     WindowsCppEntriesProvider, MacCppEntriesProvider,
   } from  "./tickprocessor.mjs";
+  import { inherits } from  "./tickprocessor.mjs";
 
 
 export class CppProcessor extends LogReader {
@@ -28,7 +29,7 @@ export class CppProcessor extends LogReader {
    */
   printError(str) {
     print(str);
-  }
+  };
 
   processLogFile(fileName) {
     this.lastLogFileName_ = fileName;
@@ -36,14 +37,14 @@ export class CppProcessor extends LogReader {
     while (line = readline()) {
       this.processLogLine(line);
     }
-  }
+  };
 
   processLogFileInTest(fileName) {
     // Hack file name to avoid dealing with platform specifics.
     this.lastLogFileName_ = 'v8.log';
     const contents = readFile(fileName);
     this.processLogChunk(contents);
-  }
+  };
 
   processSharedLibrary(name, startAddr, endAddr, aslrSlide) {
     const self = this;
@@ -52,7 +53,7 @@ export class CppProcessor extends LogReader {
       const entry = new CodeEntry(fEnd - fStart, fName, 'CPP');
       self.codeMap_.addStaticCode(fStart, entry);
     });
-  }
+  };
 
   dumpCppSymbols() {
     const staticEntries = this.codeMap_.getAllStaticEntriesWithAddresses();

@@ -141,13 +141,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Movd, movd)
   AVX_OP(Movq, movq)
   AVX_OP(Movaps, movaps)
+  AVX_OP(Movapd, movapd)
   AVX_OP(Movups, movups)
   AVX_OP(Movmskps, movmskps)
   AVX_OP(Movmskpd, movmskpd)
   AVX_OP(Pmovmskb, pmovmskb)
   AVX_OP(Movss, movss)
   AVX_OP(Movsd, movsd)
-  AVX_OP(Movhlps, movhlps)
+  AVX_OP(Movdqu, movdqu)
   AVX_OP(Movlps, movlps)
   AVX_OP(Movhps, movhps)
   AVX_OP(Pcmpeqb, pcmpeqb)
@@ -207,6 +208,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Psrlw, psrlw)
   AVX_OP(Psrld, psrld)
   AVX_OP(Psrlq, psrlq)
+  AVX_OP(Pmaddwd, pmaddwd)
   AVX_OP(Paddb, paddb)
   AVX_OP(Paddw, paddw)
   AVX_OP(Paddd, paddd)
@@ -252,7 +254,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Movlhps, movlhps)
   AVX_OP_SSE3(Haddps, haddps)
   AVX_OP_SSE3(Movddup, movddup)
-  AVX_OP_SSE3(Movshdup, movshdup)
   AVX_OP_SSSE3(Phaddd, phaddd)
   AVX_OP_SSSE3(Phaddw, phaddw)
   AVX_OP_SSSE3(Pshufb, pshufb)
@@ -353,12 +354,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                      Label* condition_met,
                      Label::Distance condition_met_distance = Label::kFar);
 
-  void Movapd(XMMRegister dst, XMMRegister src);
-  void Movdqa(XMMRegister dst, XMMRegister src);
-
-  template <typename Dst, typename Src>
-  void Movdqu(Dst dst, Src src);
-
   void Cvtss2sd(XMMRegister dst, XMMRegister src);
   void Cvtss2sd(XMMRegister dst, Operand src);
   void Cvtsd2ss(XMMRegister dst, XMMRegister src);
@@ -448,7 +443,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Move if the registers are not identical.
   void Move(Register target, Register source);
-  void Move(XMMRegister target, XMMRegister source);
 
   void Move(Register dst, Handle<HeapObject> source,
             RelocInfo::Mode rmode = RelocInfo::FULL_EMBEDDED_OBJECT);
@@ -522,18 +516,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void RetpolineJump(Register reg);
 
   void CallForDeoptimization(Builtins::Name target, int deopt_id, Label* exit,
-                             DeoptimizeKind kind, Label* ret,
+                             DeoptimizeKind kind,
                              Label* jump_deoptimization_entry_label);
 
   void Trap() override;
   void DebugBreak() override;
 
-  // Supports both AVX (dst != src1) and SSE (checks that dst == src1).
-  void Pmaddwd(XMMRegister dst, XMMRegister src1, XMMRegister src2);
-  void Pmaddubsw(XMMRegister dst, XMMRegister src1, XMMRegister src2);
-
-  // Shufps that will mov src1 into dst if AVX is not supported.
-  void Shufps(XMMRegister dst, XMMRegister src1, XMMRegister src2, byte imm8);
+  // Shufps that will mov src into dst if AVX is not supported.
+  void Shufps(XMMRegister dst, XMMRegister src, byte imm8);
 
   // Non-SSE2 instructions.
   void Pextrd(Register dst, XMMRegister src, uint8_t imm8);
@@ -556,9 +546,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Pslld(XMMRegister dst, byte imm8);
   void Psrld(XMMRegister dst, byte imm8);
 
-  // Supports both AVX (dst != src1) and SSE (checks that dst == src1).
-  void Psrld(XMMRegister dst, XMMRegister src, byte imm8);
-
   void Pblendvb(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                 XMMRegister mask);
   void Blendvps(XMMRegister dst, XMMRegister src1, XMMRegister src2,
@@ -568,30 +555,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Supports both SSE and AVX. Move src1 to dst if they are not equal on SSE.
   void Pshufb(XMMRegister dst, XMMRegister src1, XMMRegister src2);
-  void Pmulhrsw(XMMRegister dst, XMMRegister src1, XMMRegister src2);
-
-  // These Wasm SIMD ops do not have direct lowerings on x64. These
-  // helpers are optimized to produce the fastest and smallest codegen.
-  // Defined here to allow usage on both TurboFan and Liftoff.
-  void I16x8SConvertI8x16High(XMMRegister dst, XMMRegister src);
-  void I16x8UConvertI8x16High(XMMRegister dst, XMMRegister src);
-  void I32x4SConvertI16x8High(XMMRegister dst, XMMRegister src);
-  void I32x4UConvertI16x8High(XMMRegister dst, XMMRegister src);
-
-  // Requires dst == mask when AVX is not supported.
-  void S128Select(XMMRegister dst, XMMRegister mask, XMMRegister src1,
-                  XMMRegister src2);
-
-  void I64x2ExtMul(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                   bool low, bool is_signed);
-  // Requires that dst == src1 if AVX is not supported.
-  void I32x4ExtMul(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                   bool low, bool is_signed);
-  void I16x8ExtMul(XMMRegister dst, XMMRegister src1, XMMRegister src2,
-                   bool low, bool is_signed);
-
-  void Abspd(XMMRegister dst);
-  void Negpd(XMMRegister dst);
 
   void CompareRoot(Register with, RootIndex index);
   void CompareRoot(Operand with, RootIndex index);
@@ -760,7 +723,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void CallRecordWriteStub(Register object, Register address,
                            RememberedSetAction remembered_set_action,
-                           SaveFPRegsMode fp_mode, int builtin_index,
+                           SaveFPRegsMode fp_mode, Handle<Code> code_target,
                            Address wasm_target);
 };
 
@@ -969,6 +932,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // SIMD macros.
   void Absps(XMMRegister dst);
   void Negps(XMMRegister dst);
+  void Abspd(XMMRegister dst);
+  void Negpd(XMMRegister dst);
   // Generates a trampoline to jump to the off-heap instruction stream.
   void JumpToInstructionStream(Address entry);
 

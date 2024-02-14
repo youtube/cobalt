@@ -321,12 +321,6 @@ void JSFunction::InitializeFeedbackCell(Handle<JSFunction> function,
     return;
   }
 
-  if (function->has_closure_feedback_cell_array()) {
-    CHECK_EQ(
-        function->closure_feedback_cell_array().length(),
-        function->shared().feedback_metadata().create_closure_slot_count());
-  }
-
   const bool needs_feedback_vector =
       !FLAG_lazy_feedback_allocation || FLAG_always_opt ||
       function->shared().may_have_cached_code() ||
@@ -440,16 +434,15 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
 
 void JSFunction::SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
                                Handle<HeapObject> prototype) {
-  Isolate* isolate = function->GetIsolate();
   if (map->prototype() != *prototype) {
-    Map::SetPrototype(isolate, map, prototype);
+    Map::SetPrototype(function->GetIsolate(), map, prototype);
   }
   function->set_prototype_or_initial_map(*map);
   map->SetConstructor(*function);
   if (FLAG_trace_maps) {
-    LOG(isolate, MapEvent("InitialMap", Handle<Map>(), map, "",
-                          SharedFunctionInfo::DebugName(
-                              handle(function->shared(), isolate))));
+    LOG(function->GetIsolate(), MapEvent("InitialMap", Handle<Map>(), map, "",
+                                         handle(function->shared().DebugName(),
+                                                function->GetIsolate())));
   }
 }
 
@@ -510,7 +503,6 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
   switch (instance_type) {
     case JS_API_OBJECT_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
-    case JS_ARRAY_ITERATOR_PROTOTYPE_TYPE:
     case JS_ARRAY_TYPE:
     case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
@@ -518,15 +510,6 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_DATE_TYPE:
     case JS_FUNCTION_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
-    case JS_ITERATOR_PROTOTYPE_TYPE:
-    case JS_MAP_ITERATOR_PROTOTYPE_TYPE:
-    case JS_OBJECT_PROTOTYPE_TYPE:
-    case JS_PROMISE_PROTOTYPE_TYPE:
-    case JS_REG_EXP_PROTOTYPE_TYPE:
-    case JS_SET_ITERATOR_PROTOTYPE_TYPE:
-    case JS_SET_PROTOTYPE_TYPE:
-    case JS_STRING_ITERATOR_PROTOTYPE_TYPE:
-    case JS_TYPED_ARRAY_PROTOTYPE_TYPE:
 #ifdef V8_INTL_SUPPORT
     case JS_COLLATOR_TYPE:
     case JS_DATE_TIME_FORMAT_TYPE:
@@ -754,7 +737,8 @@ int JSFunction::ComputeInstanceSizeWithMinSlack(Isolate* isolate) {
 }
 
 void JSFunction::PrintName(FILE* out) {
-  PrintF(out, "%s", shared().DebugNameCStr().get());
+  std::unique_ptr<char[]> name = shared().DebugName().ToCString();
+  PrintF(out, "%s", name.get());
 }
 
 Handle<String> JSFunction::GetName(Handle<JSFunction> function) {
@@ -762,7 +746,7 @@ Handle<String> JSFunction::GetName(Handle<JSFunction> function) {
   Handle<Object> name =
       JSReceiver::GetDataProperty(function, isolate->factory()->name_string());
   if (name->IsString()) return Handle<String>::cast(name);
-  return SharedFunctionInfo::DebugName(handle(function->shared(), isolate));
+  return handle(function->shared().DebugName(), isolate);
 }
 
 Handle<String> JSFunction::GetDebugName(Handle<JSFunction> function) {

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --async-stack-traces
+// Flags: --allow-natives-syntax --async-stack-traces --harmony-promise-any
 
 // Basic test with Promise.any().
 (function() {

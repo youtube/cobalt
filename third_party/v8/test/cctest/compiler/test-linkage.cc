@@ -39,8 +39,8 @@ static Handle<JSFunction> Compile(const char* source) {
           v8::ScriptCompiler::kNoCompileOptions,
           ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE)
           .ToHandleChecked();
-  return Factory::JSFunctionBuilder{isolate, shared, isolate->native_context()}
-      .Build();
+  return isolate->factory()->NewFunctionFromSharedFunctionInfo(
+      shared, isolate->native_context());
 }
 
 

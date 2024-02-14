@@ -388,7 +388,7 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 };
 
 // Avoids emitting debug code during the lifetime of this scope object.
-class V8_NODISCARD DontEmitDebugCodeScope {
+class DontEmitDebugCodeScope {
  public:
   explicit DontEmitDebugCodeScope(AssemblerBase* assembler)
       : assembler_(assembler), old_value_(assembler->emit_debug_code()) {
@@ -402,7 +402,7 @@ class V8_NODISCARD DontEmitDebugCodeScope {
 };
 
 // Enable a specified feature within a scope.
-class V8_EXPORT_PRIVATE V8_NODISCARD CpuFeatureScope {
+class V8_EXPORT_PRIVATE CpuFeatureScope {
  public:
   enum CheckPolicy {
     kCheckSupported,

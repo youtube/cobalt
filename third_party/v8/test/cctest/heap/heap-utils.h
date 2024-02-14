@@ -12,7 +12,7 @@ namespace v8 {
 namespace internal {
 namespace heap {
 
-class V8_NODISCARD TemporaryEmbedderHeapTracerScope {
+class TemporaryEmbedderHeapTracerScope {
  public:
   TemporaryEmbedderHeapTracerScope(v8::Isolate* isolate,
                                    v8::EmbedderHeapTracer* tracer)

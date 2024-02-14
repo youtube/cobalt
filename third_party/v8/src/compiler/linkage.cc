@@ -119,12 +119,6 @@ int CallDescriptor::GetStackParameterDelta(
   return stack_param_delta;
 }
 
-int CallDescriptor::GetOffsetToReturns() const {
-  int offset = static_cast<int>(StackParameterCount());
-  if (ShouldPadArguments(offset)) offset++;
-  return offset;
-}
-
 int CallDescriptor::GetTaggedParameterSlots() const {
   int result = 0;
   for (size_t i = 0; i < InputCount(); ++i) {

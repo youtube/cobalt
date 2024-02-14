@@ -29,14 +29,11 @@ class BasicBlockProfilerData {
   V8_EXPORT_PRIVATE BasicBlockProfilerData(
       OnHeapBasicBlockProfilerData js_heap_data);
 
-  BasicBlockProfilerData(const BasicBlockProfilerData&) = delete;
-  BasicBlockProfilerData& operator=(const BasicBlockProfilerData&) = delete;
-
   size_t n_blocks() const {
     DCHECK_EQ(block_ids_.size(), counts_.size());
     return block_ids_.size();
   }
-  const double* counts() const { return &counts_[0]; }
+  const uint32_t* counts() const { return &counts_[0]; }
 
   void SetCode(const std::ostringstream& os);
   void SetFunctionName(std::unique_ptr<char[]> name);
@@ -58,15 +55,14 @@ class BasicBlockProfilerData {
 
   V8_EXPORT_PRIVATE void ResetCounts();
 
-  void CopyFromJSHeap(OnHeapBasicBlockProfilerData js_heap_data);
-
   // These vectors are indexed by reverse post-order block number.
   std::vector<int32_t> block_ids_;
-  std::vector<double> counts_;
+  std::vector<uint32_t> counts_;
   std::string function_name_;
   std::string schedule_;
   std::string code_;
-  int hash_ = 0;
+  int hash_;
+  DISALLOW_COPY_AND_ASSIGN(BasicBlockProfilerData);
 };
 
 class BasicBlockProfiler {
@@ -75,8 +71,6 @@ class BasicBlockProfiler {
 
   BasicBlockProfiler() = default;
   ~BasicBlockProfiler() = default;
-  BasicBlockProfiler(const BasicBlockProfiler&) = delete;
-  BasicBlockProfiler& operator=(const BasicBlockProfiler&) = delete;
 
   V8_EXPORT_PRIVATE static BasicBlockProfiler* Get();
   BasicBlockProfilerData* NewData(size_t n_blocks);
@@ -85,7 +79,7 @@ class BasicBlockProfiler {
   V8_EXPORT_PRIVATE void Print(std::ostream& os, Isolate* isolate);
 
   // Coverage bitmap in this context includes only on heap BasicBlockProfiler
-  // data. It is used to export coverage of builtins function loaded from
+  // data It is used to export coverage of builtins function loaded from
   // snapshot.
   V8_EXPORT_PRIVATE std::vector<bool> GetCoverageBitmap(Isolate* isolate);
 
@@ -94,6 +88,8 @@ class BasicBlockProfiler {
  private:
   DataList data_list_;
   base::Mutex data_list_mutex_;
+
+  DISALLOW_COPY_AND_ASSIGN(BasicBlockProfiler);
 };
 
 std::ostream& operator<<(std::ostream& os, const BasicBlockProfilerData& s);

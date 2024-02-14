@@ -25,9 +25,6 @@ class V8_PLATFORM_EXPORT TaskQueue {
   TaskQueue();
   ~TaskQueue();
 
-  TaskQueue(const TaskQueue&) = delete;
-  TaskQueue& operator=(const TaskQueue&) = delete;
-
   // Appends a task to the queue. The queue takes ownership of |task|.
   void Append(std::unique_ptr<Task> task);
 
@@ -47,6 +44,8 @@ class V8_PLATFORM_EXPORT TaskQueue {
   base::Mutex lock_;
   std::queue<std::unique_ptr<Task>> task_queue_;
   bool terminated_;
+
+  DISALLOW_COPY_AND_ASSIGN(TaskQueue);
 };
 
 }  // namespace platform

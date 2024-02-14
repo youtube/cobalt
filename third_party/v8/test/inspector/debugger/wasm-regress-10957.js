@@ -53,17 +53,18 @@ function instantiate(bytes, imports) {
   return new WebAssembly.Instance(module, imports);
 }
 
-InspectorTest.runAsyncTestSuite([
-  async function testRegress10957() {
-    await Protocol.Debugger.enable();
-    InspectorTest.log('Instantiate');
-    const code =
-        `let instance = (${instantiate})(${JSON.stringify(module_bytes)}, {'imports': {'pause': () => { %ScheduleBreak() } }});
-        instance.exports.main();
-    `;
-    Protocol.Runtime.evaluate({'expression': code}).then(message =>
-        InspectorTest.logMessage(message.result.result.value));
-    await Protocol.Debugger.oncePaused();
-    Protocol.Debugger.resume();
-  }
-]);
+(async function Regress10957() {
+  await Protocol.Debugger.enable();
+  InspectorTest.log('Instantiate');
+  const code =
+      `let instance = (${instantiate})(${JSON.stringify(module_bytes)}, {'imports': {'pause': () => { %ScheduleBreak() } }});
+      instance.exports.main();
+  `;
+  Protocol.Runtime.evaluate({'expression': code}).then(message =>
+      InspectorTest.logMessage(message.result.result.value));
+  await Protocol.Debugger.oncePaused();
+  Protocol.Debugger.resume();
+
+  InspectorTest.log('Finished!');
+  InspectorTest.completeTest();
+})();

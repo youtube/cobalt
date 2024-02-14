@@ -71,6 +71,7 @@ void SourcePositionTable::print() const {
   }
 }
 
+const char* const CodeEntry::kWasmResourceNamePrefix = "wasm ";
 const char* const CodeEntry::kEmptyResourceName = "";
 const char* const CodeEntry::kEmptyBailoutReason = "";
 const char* const CodeEntry::kNoDeoptReason = "";
@@ -219,25 +220,6 @@ CodeEntry::RareData* CodeEntry::EnsureRareData() {
     rare_data_.reset(new RareData());
   }
   return rare_data_.get();
-}
-
-void CodeEntry::ReleaseStrings(StringsStorage& strings) {
-  if (name_) {
-    strings.Release(name_);
-    name_ = nullptr;
-  }
-  if (resource_name_) {
-    strings.Release(resource_name_);
-    resource_name_ = nullptr;
-  }
-
-  if (rare_data_) {
-    // All inline entries are exclusively owned by the CodeEntry. They'll be
-    // deallocated when the CodeEntry is deallocated.
-    for (auto& entry : rare_data_->inline_entries_) {
-      entry->ReleaseStrings(strings);
-    }
-  }
 }
 
 void CodeEntry::print() const {
@@ -672,36 +654,30 @@ void CpuProfile::Print() const {
   ProfilerStats::Instance()->Clear();
 }
 
-CodeMap::CodeMap(StringsStorage& function_and_resource_names)
-    : function_and_resource_names_(function_and_resource_names) {}
+CodeMap::CodeMap() = default;
 
 CodeMap::~CodeMap() { Clear(); }
 
 void CodeMap::Clear() {
-  for (auto& slot : code_map_) {
-    if (CodeEntry* entry = slot.second.entry) {
-      entry->ReleaseStrings(function_and_resource_names_);
-      delete entry;
-    } else {
-      // We expect all entries in the code mapping to contain a CodeEntry.
-      UNREACHABLE();
-    }
+  // First clean the free list as it's otherwise impossible to tell
+  // the slot type.
+  unsigned free_slot = free_list_head_;
+  while (free_slot != kNoFreeSlot) {
+    unsigned next_slot = code_entries_[free_slot].next_free_slot;
+    code_entries_[free_slot].entry = nullptr;
+    free_slot = next_slot;
   }
+  for (auto slot : code_entries_) delete slot.entry;
 
-  // Free all CodeEntry objects that are no longer in the map, but in a profile.
-  // TODO(acomminos): Remove this deque after we refcount CodeEntry objects.
-  for (CodeEntry* entry : used_entries_) {
-    DCHECK(entry->used());
-    DeleteCodeEntry(entry);
-  }
-
+  code_entries_.clear();
   code_map_.clear();
-  used_entries_.clear();
+  free_list_head_ = kNoFreeSlot;
 }
 
 void CodeMap::AddCode(Address addr, CodeEntry* entry, unsigned size) {
   ClearCodesInRange(addr, addr + size);
-  code_map_.emplace(addr, CodeEntryMapInfo{entry, size});
+  unsigned index = AddCodeEntry(addr, entry);
+  code_map_.emplace(addr, CodeEntryMapInfo{index, size});
 }
 
 void CodeMap::ClearCodesInRange(Address start, Address end) {
@@ -712,10 +688,8 @@ void CodeMap::ClearCodesInRange(Address start, Address end) {
   }
   auto right = left;
   for (; right != code_map_.end() && right->first < end; ++right) {
-    if (!right->second.entry->used()) {
-      DeleteCodeEntry(right->second.entry);
-    } else {
-      used_entries_.push_back(right->second.entry);
+    if (!entry(right->second.index)->used()) {
+      DeleteCodeEntry(right->second.index);
     }
   }
   code_map_.erase(left, right);
@@ -727,7 +701,7 @@ CodeEntry* CodeMap::FindEntry(Address addr, Address* out_instruction_start) {
   --it;
   Address start_address = it->first;
   Address end_address = start_address + it->second.size;
-  CodeEntry* ret = addr < end_address ? it->second.entry : nullptr;
+  CodeEntry* ret = addr < end_address ? entry(it->second.index) : nullptr;
   DCHECK(!ret || (addr >= start_address && addr < end_address));
   if (ret && out_instruction_start) *out_instruction_start = start_address;
   return ret;
@@ -744,15 +718,27 @@ void CodeMap::MoveCode(Address from, Address to) {
   code_map_.emplace(to, info);
 }
 
-void CodeMap::DeleteCodeEntry(CodeEntry* entry) {
-  entry->ReleaseStrings(function_and_resource_names_);
-  delete entry;
+unsigned CodeMap::AddCodeEntry(Address start, CodeEntry* entry) {
+  if (free_list_head_ == kNoFreeSlot) {
+    code_entries_.push_back(CodeEntrySlotInfo{entry});
+    return static_cast<unsigned>(code_entries_.size()) - 1;
+  }
+  unsigned index = free_list_head_;
+  free_list_head_ = code_entries_[index].next_free_slot;
+  code_entries_[index].entry = entry;
+  return index;
+}
+
+void CodeMap::DeleteCodeEntry(unsigned index) {
+  delete code_entries_[index].entry;
+  code_entries_[index].next_free_slot = free_list_head_;
+  free_list_head_ = index;
 }
 
 void CodeMap::Print() {
   for (const auto& pair : code_map_) {
     base::OS::Print("%p %5d %s\n", reinterpret_cast<void*>(pair.first),
-                    pair.second.size, pair.second.entry->name());
+                    pair.second.size, entry(pair.second.index)->name());
   }
 }
 
@@ -777,6 +763,7 @@ CpuProfilingStatus CpuProfilesCollection::StartProfiling(
       return CpuProfilingStatus::kAlreadyStarted;
     }
   }
+
   current_profiles_.emplace_back(
       new CpuProfile(profiler_, title, options, std::move(delegate)));
   current_profiles_semaphore_.Signal();
