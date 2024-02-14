@@ -189,8 +189,7 @@ std::map<std::string, std::string> GetPlatformInfo() {
 
 }  // namespace
 
-void InstallCrashpadHandler(bool start_at_crash,
-                            const std::string& ca_certificates_path) {
+void InstallCrashpadHandler(const std::string& ca_certificates_path) {
   ::crashpad::CrashpadClient* client = GetCrashpadClient();
 
   const base::FilePath handler_path = GetPathToCrashpadHandlerBinary();
@@ -225,24 +224,13 @@ void InstallCrashpadHandler(bool start_at_crash,
 
   client->SetUnhandledSignals({});
 
-  if (start_at_crash)
-    client->StartHandlerAtCrash(handler_path,
-                                database_directory_path,
-                                default_metrics_dir,
-                                kUploadUrl,
-                                ca_certificates_path,
-                                default_annotations,
-                                default_arguments);
-  else
-    client->StartHandler(handler_path,
-                         database_directory_path,
-                         default_metrics_dir,
-                         kUploadUrl,
-                         ca_certificates_path,
-                         default_annotations,
-                         default_arguments,
-                         false,
-                         false);
+  client->StartHandlerAtCrash(handler_path,
+                              database_directory_path,
+                              default_metrics_dir,
+                              kUploadUrl,
+                              ca_certificates_path,
+                              default_annotations,
+                              default_arguments);
 
   ::crashpad::SanitizationInformation sanitization_info = {0, 0, 0, 1};
   client->SendSanitizationInformationToHandler(sanitization_info);

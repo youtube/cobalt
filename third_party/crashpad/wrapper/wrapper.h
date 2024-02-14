@@ -36,14 +36,12 @@ extern const char kCrashpadUserAgentStringKey[];
 extern const char kCrashpadCertScopeKey[];
 
 // Installs a signal handler to handle a crash. The signal handler will launch a
-// Crashpad handler process in response to a crash when |start_at_crash| is
-// true, otherwise a Crashpad handler process will be started immediately.
+// Crashpad handler process in response to a crash.
 // |ca_certificates_path| is the absolute path to a directory containing
 // Cobalt's trusted Certificate Authority (CA) root certificates, and must be
 // passed so that the certificates can be accessed by the handler process during
 // upload.
-void InstallCrashpadHandler(bool start_at_crash,
-                            const std::string& ca_certificates_path);
+void InstallCrashpadHandler(const std::string& ca_certificates_path);
 
 bool AddEvergreenInfoToCrashpad(EvergreenInfo evergreen_info);
 
