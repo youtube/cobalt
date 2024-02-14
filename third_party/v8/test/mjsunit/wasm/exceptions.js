@@ -48,11 +48,11 @@ load("test/mjsunit/wasm/exceptions-utils.js");
 (function TestCatchEmptyBlocks() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let except = builder.addException(kSig_v_v);
   builder.addFunction("catch_empty_try", kSig_v_v)
       .addBody([
         kExprTry, kWasmStmt,
-        kExprCatch, except,
+        kExprCatch,
+          kExprDrop,
         kExprEnd,
       ]).exportFunc();
   let instance = builder.instantiate();
@@ -74,7 +74,8 @@ load("test/mjsunit/wasm/exceptions-utils.js");
             kExprThrow, except,
           kExprEnd,
           kExprI32Const, 42,
-        kExprCatch, except,
+        kExprCatch,
+          kExprDrop,
           kExprI32Const, 23,
         kExprEnd
       ]).exportFunc();
@@ -91,20 +92,13 @@ load("test/mjsunit/wasm/exceptions-utils.js");
       .addBody([
         kExprTry, kWasmStmt,
           kExprUnreachable,
-        kExprCatchAll,
-        kExprEnd
-      ]).exportFunc();
-  builder.addFunction('unreachable_in_try_unwind', kSig_v_v)
-      .addBody([
-        kExprTry, kWasmStmt,
-          kExprUnreachable,
-        kExprUnwind,
+        kExprCatch,
+          kExprDrop,
         kExprEnd
       ]).exportFunc();
   let instance = builder.instantiate();
 
   assertTraps(kTrapUnreachable, () => instance.exports.unreachable_in_try());
-  assertTraps(kTrapUnreachable, () => instance.exports.unreachable_in_try_unwind());
 })();
 
 (function TestTrapInCalleeNotCaught() {
@@ -121,17 +115,8 @@ load("test/mjsunit/wasm/exceptions-utils.js");
           kExprLocalGet, 0,
           kExprLocalGet, 1,
           kExprCallFunction, func_div.index,
-        kExprCatchAll,
-          kExprI32Const, 11,
-        kExprEnd
-      ]).exportFunc();
-  builder.addFunction('trap_in_callee_unwind', kSig_i_ii)
-      .addBody([
-        kExprTry, kWasmI32,
-          kExprLocalGet, 0,
-          kExprLocalGet, 1,
-          kExprCallFunction, func_div.index,
-        kExprUnwind,
+        kExprCatch,
+          kExprDrop,
           kExprI32Const, 11,
         kExprEnd
       ]).exportFunc();
@@ -139,7 +124,6 @@ load("test/mjsunit/wasm/exceptions-utils.js");
 
   assertEquals(3, instance.exports.trap_in_callee(7, 2));
   assertTraps(kTrapDivByZero, () => instance.exports.trap_in_callee(1, 0));
-  assertTraps(kTrapDivByZero, () => instance.exports.trap_in_callee_unwind(1, 0));
 })();
 
 (function TestTrapViaJSNotCaught() {
@@ -156,15 +140,8 @@ load("test/mjsunit/wasm/exceptions-utils.js");
       .addBody([
         kExprTry, kWasmI32,
           kExprCallFunction, imp,
-        kExprCatchAll,
-          kExprI32Const, 11,
-        kExprEnd
-      ]).exportFunc();
-  builder.addFunction('call_import_unwind', kSig_i_v)
-      .addBody([
-        kExprTry, kWasmI32,
-          kExprCallFunction, imp,
-        kExprUnwind,
+        kExprCatch,
+          kExprDrop,
           kExprI32Const, 11,
         kExprEnd
       ]).exportFunc();
@@ -179,23 +156,10 @@ load("test/mjsunit/wasm/exceptions-utils.js");
     throw exception;
   }
   instance = builder.instantiate({imp: {ort: js_import}});
-
   let caught = undefined;
   try {
     let res = instance.exports.call_import();
     assertUnreachable('call_import should trap, but returned with ' + res);
-  } catch (e) {
-    caught = e;
-  }
-  assertSame(exception, caught);
-  assertInstanceof(exception, WebAssembly.RuntimeError);
-  assertEquals(exception.message, kTrapMsgs[kTrapDivByZero]);
-
-  // Same test with unwind instead of catch_all.
-  caught = undefined;
-  try {
-    let res = instance.exports.call_import_unwind();
-    assertUnreachable('call_import_unwind should trap, but returned with ' + res);
   } catch (e) {
     caught = e;
   }
@@ -212,15 +176,8 @@ load("test/mjsunit/wasm/exceptions-utils.js");
       .addBody([
         kExprTry, kWasmI32,
           kExprCallFunction, imp,
-        kExprCatchAll,
-          kExprI32Const, 11,
-        kExprEnd
-      ]).exportFunc();
-  builder.addFunction('call_import_unwind', kSig_i_v)
-      .addBody([
-        kExprTry, kWasmI32,
-          kExprCallFunction, imp,
-        kExprUnwind,
+        kExprCatch,
+          kExprDrop,
           kExprI32Const, 11,
         kExprEnd
       ]).exportFunc();
@@ -230,7 +187,6 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   let instance = builder.instantiate({imp: {ort: throw_exc}});
 
   assertEquals(11, instance.exports.call_import());
-  assertThrows(instance.exports.call_import_unwind, WebAssembly.RuntimeError, "My user text");
 })();
 
 (function TestExnWithWasmProtoNotCaught() {
@@ -246,13 +202,17 @@ load("test/mjsunit/wasm/exceptions-utils.js");
         // Calling "throw" directly should produce the expected exception.
         kExprTry, kWasmStmt,
           kExprCallFunction, throw_fn.index,
-        kExprCatch, except,
+        kExprCatch,
+          kExprBrOnExn, 0, except,
+          kExprRethrow,
         kExprEnd,
         // Calling through JS produces a wrapped exceptions which does not match
         // the br_on_exn.
         kExprTry, kWasmStmt,
           kExprCallFunction, imp,
-        kExprCatch, except,
+        kExprCatch,
+          kExprBrOnExn, 0, except,
+          kExprRethrow,
         kExprEnd
       ]).exportFunc();
   let instance;
@@ -279,7 +239,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
 })();
 
 // Test that we can distinguish which exception was thrown by using a cascaded
-// sequence of nested try blocks with a single catch block each.
+// sequence of nested try blocks with a single handler in each catch block.
 (function TestCatchComplex1() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
@@ -288,29 +248,39 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   let except3 = builder.addException(kSig_v_v);
   builder.addFunction("catch_complex", kSig_i_i)
       .addBody([
-        kExprTry, kWasmI32,
-          kExprTry, kWasmI32,
-            kExprLocalGet, 0,
-            kExprI32Eqz,
-            kExprIf, kWasmStmt,
-              kExprThrow, except1,
-            kExprElse,
-              kExprLocalGet, 0,
-              kExprI32Const, 1,
-              kExprI32Eq,
-              kExprIf, kWasmStmt,
-                kExprThrow, except2,
-              kExprElse,
-                kExprThrow, except3,
+        kExprBlock, kWasmStmt,
+          kExprBlock, kWasmStmt,
+            kExprTry, kWasmStmt,
+              kExprTry, kWasmStmt,
+                kExprLocalGet, 0,
+                kExprI32Eqz,
+                kExprIf, kWasmStmt,
+                  kExprThrow, except1,
+                kExprElse,
+                  kExprLocalGet, 0,
+                  kExprI32Const, 1,
+                  kExprI32Eq,
+                  kExprIf, kWasmStmt,
+                    kExprThrow, except2,
+                  kExprElse,
+                    kExprThrow, except3,
+                  kExprEnd,
+                kExprEnd,
+                kExprI32Const, 2,
+                kExprReturn,
+              kExprCatch,
+                kExprBrOnExn, 2, except1,
+                kExprRethrow,
               kExprEnd,
+            kExprCatch,
+              kExprBrOnExn, 2, except2,
+              kExprRethrow,
             kExprEnd,
-            kExprI32Const, 2,
-          kExprCatch, except1,
-            kExprI32Const, 3,
           kExprEnd,
-        kExprCatch, except2,
-          kExprI32Const, 4,
+          kExprI32Const, 3,
+          kExprReturn,
         kExprEnd,
+        kExprI32Const, 4,
       ]).exportFunc();
   let instance = builder.instantiate();
 
@@ -320,7 +290,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
 })();
 
 // Test that we can distinguish which exception was thrown by using a single
-// try block with multiple associated catch blocks in sequence.
+// try block with multiple handlers in the associated catch block.
 (function TestCatchComplex2() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
@@ -329,33 +299,73 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   let except3 = builder.addException(kSig_v_v);
   builder.addFunction("catch_complex", kSig_i_i)
       .addBody([
-        kExprTry, kWasmI32,
-          kExprLocalGet, 0,
-          kExprI32Eqz,
-          kExprIf, kWasmStmt,
-            kExprThrow, except1,
-          kExprElse,
-            kExprLocalGet, 0,
-            kExprI32Const, 1,
-            kExprI32Eq,
-            kExprIf, kWasmStmt,
-              kExprThrow, except2,
-            kExprElse,
-              kExprThrow, except3,
+        kExprBlock, kWasmStmt,
+          kExprBlock, kWasmStmt,
+            kExprTry, kWasmStmt,
+              kExprLocalGet, 0,
+              kExprI32Eqz,
+              kExprIf, kWasmStmt,
+                kExprThrow, except1,
+              kExprElse,
+                kExprLocalGet, 0,
+                kExprI32Const, 1,
+                kExprI32Eq,
+                kExprIf, kWasmStmt,
+                  kExprThrow, except2,
+                kExprElse,
+                  kExprThrow, except3,
+                kExprEnd,
+              kExprEnd,
+              kExprI32Const, 2,
+              kExprReturn,
+            kExprCatch,
+              kExprBrOnExn, 1, except1,
+              kExprBrOnExn, 2, except2,
+              kExprRethrow,
             kExprEnd,
           kExprEnd,
-          kExprI32Const, 2,
-        kExprCatch, except1,
           kExprI32Const, 3,
-        kExprCatch, except2,
-          kExprI32Const, 4,
+          kExprReturn,
         kExprEnd,
+        kExprI32Const, 4,
       ]).exportFunc();
   let instance = builder.instantiate();
 
   assertEquals(3, instance.exports.catch_complex(0));
   assertEquals(4, instance.exports.catch_complex(1));
   assertWasmThrows(instance, except3, [], () => instance.exports.catch_complex(2));
+})();
+
+// Test that br-on-exn also is allowed to consume values already present on the
+// operand stack, instead of solely values being pushed by the branch itself.
+(function TestCatchBranchWithValueOnStack() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except = builder.addException(kSig_v_v);
+  builder.addFunction("catch_complex", kSig_i_i)
+      .addLocals(kWasmExnRef, 1)
+      .addBody([
+        kExprBlock, kWasmI32,
+          kExprTry, kWasmStmt,
+            kExprLocalGet, 0,
+            kExprI32Eqz,
+            kExprIf, kWasmStmt,
+              kExprThrow, except,
+            kExprEnd,
+          kExprCatch,
+            kExprLocalSet, 1,
+            kExprI32Const, 23,
+            kExprLocalGet, 1,
+            kExprBrOnExn, 1, except,
+            kExprRethrow,
+          kExprEnd,
+          kExprI32Const, 42,
+        kExprEnd,
+      ]).exportFunc();
+  let instance = builder.instantiate();
+
+  assertEquals(23, instance.exports.catch_complex(0));
+  assertEquals(42, instance.exports.catch_complex(1));
 })();
 
 // Test throwing an exception with multiple values.
@@ -385,8 +395,9 @@ load("test/mjsunit/wasm/exceptions-utils.js");
           kExprLocalGet, 0,
           kExprThrow, except,
           kExprI32Const, 2,
-        kExprCatch, except,
-          kExprReturn,
+        kExprCatch,
+          kExprBrOnExn, 0, except,
+          kExprRethrow,
         kExprEnd,
       ]).exportFunc();
   let instance = builder.instantiate();
@@ -423,8 +434,9 @@ load("test/mjsunit/wasm/exceptions-utils.js");
           kExprLocalGet, 0,
           kExprThrow, except,
           kExprF32Const, 0, 0, 0, 0,
-        kExprCatch, except,
-          kExprReturn,
+        kExprCatch,
+          kExprBrOnExn, 0, except,
+          kExprRethrow,
         kExprEnd,
       ]).exportFunc();
   let instance = builder.instantiate();
@@ -455,24 +467,22 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   let builder = new WasmModuleBuilder();
   let except = builder.addException(kSig_v_l);
   builder.addFunction("throw_catch_param", kSig_i_i)
+      .addLocals(kWasmI64, 1)
       .addBody([
         kExprLocalGet, 0,
         kExprI64UConvertI32,
         kExprLocalSet, 1,
-        kExprTry, kWasmI32,
+        kExprTry, kWasmI64,
           kExprLocalGet, 1,
           kExprThrow, except,
-          kExprI32Const, 2,
-        kExprCatch, except,
-          kExprLocalGet, 1,
-          kExprI64Eq,
-          kExprIf, kWasmI32,
-            kExprI32Const, 1,
-          kExprElse,
-            kExprI32Const, 0,
-          kExprEnd,
+          kExprI64Const, 23,
+        kExprCatch,
+          kExprBrOnExn, 0, except,
+          kExprRethrow,
         kExprEnd,
-      ]).addLocals(kWasmI64, 1).exportFunc();
+        kExprLocalGet, 1,
+        kExprI64Eq,
+      ]).exportFunc();
   let instance = builder.instantiate();
 
   assertEquals(1, instance.exports.throw_catch_param(5));
@@ -513,8 +523,9 @@ load("test/mjsunit/wasm/exceptions-utils.js");
           kExprLocalGet, 0,
           kExprThrow, except,
           kExprF64Const, 0, 0, 0, 0, 0, 0, 0, 0,
-        kExprCatch, except,
-          kExprReturn,
+        kExprCatch,
+          kExprBrOnExn, 0, except,
+          kExprRethrow,
         kExprEnd,
       ]).exportFunc();
   let instance = builder.instantiate();
@@ -629,7 +640,9 @@ load("test/mjsunit/wasm/exceptions-utils.js");
           kExprUnreachable,
         kExprEnd,
         kExprI32Const, 63,
-      kExprCatch, except,
+      kExprCatch,
+        kExprBrOnExn, 0, except,
+        kExprRethrow,
       kExprEnd
     ])
     .exportFunc();
@@ -640,12 +653,15 @@ load("test/mjsunit/wasm/exceptions-utils.js");
           kExprLocalGet, 0,
           kExprThrow, except,
           kExprUnreachable,
-        kExprCatch, except,
+        kExprCatch,
+          kExprBrOnExn, 0, except,
+          kExprRethrow,
         kExprEnd,
     ])
     .exportFunc();
 
   builder.addFunction("same_scope_multiple", kSig_i_i)
+    .addLocals(kWasmI32, 1).addLocals(kWasmExnRef, 1)
     // path = 0;
     //
     // try {
@@ -691,7 +707,13 @@ load("test/mjsunit/wasm/exceptions-utils.js");
                 kExprUnreachable,
               kExprEnd,
               kExprI32Const, 2,
-            kExprCatch, except,
+            kExprCatch,
+              kExprLocalSet, 2,
+              kExprBlock, kWasmI32,
+                kExprLocalGet, 2,
+                kExprBrOnExn, 0, except,
+                kExprRethrow,
+              kExprEnd,
               kExprI32Const, 4,
               kExprI32Ior,
               kExprThrow, except,
@@ -710,7 +732,13 @@ load("test/mjsunit/wasm/exceptions-utils.js");
             kExprEnd,
             kExprI32Const, 16,
             kExprI32Ior,
-          kExprCatch, except,
+          kExprCatch,
+            kExprLocalSet, 2,
+            kExprBlock, kWasmI32,
+              kExprLocalGet, 2,
+              kExprBrOnExn, 0, except,
+              kExprRethrow,
+            kExprEnd,
             kExprI32Const, 32,
             kExprI32Ior,
             kExprThrow, except,
@@ -729,12 +757,17 @@ load("test/mjsunit/wasm/exceptions-utils.js");
           kExprEnd,
           kExprI32Const, /*128=*/ 128, 1,
           kExprI32Ior,
-        kExprCatch, except,
+        kExprCatch,
+          kExprLocalSet, 2,
+          kExprBlock, kWasmI32,
+            kExprLocalGet, 2,
+            kExprBrOnExn, 0, except,
+            kExprRethrow,
+          kExprEnd,
           kExprI32Const, /*256=*/ 128, 2,
           kExprI32Ior,
         kExprEnd,
     ])
-    .addLocals(kWasmI32, 1)
     .exportFunc();
 
   // Scenario 2: Catches an exception raised from the direct callee.
@@ -744,7 +777,9 @@ load("test/mjsunit/wasm/exceptions-utils.js");
         kExprLocalGet, 0,
         kExprCallFunction, kWasmThrowFunction,
         kExprUnreachable,
-      kExprCatch, except,
+      kExprCatch,
+        kExprBrOnExn, 0, except,
+        kExprRethrow,
       kExprEnd,
     ])
     .exportFunc();
@@ -759,7 +794,9 @@ load("test/mjsunit/wasm/exceptions-utils.js");
         kExprLocalGet, 1,
         kExprCallIndirect, sig_v_i, kTableZero,
         kExprUnreachable,
-      kExprCatch, except,
+      kExprCatch,
+        kExprBrOnExn, 0, except,
+        kExprRethrow,
       kExprEnd
     ])
     .exportFunc();
@@ -772,9 +809,11 @@ load("test/mjsunit/wasm/exceptions-utils.js");
         kExprLocalGet, 0,
         kExprCallFunction, kJSThrowI,
         kExprUnreachable,
-      kExprCatch, except,
-        kExprUnreachable,
+      kExprCatch,
+        kExprBrOnExn, 0, except,
+        kExprRethrow,
       kExprEnd,
+      kExprUnreachable,
     ])
     .exportFunc();
 
@@ -782,9 +821,11 @@ load("test/mjsunit/wasm/exceptions-utils.js");
     .addBody([
       kExprTry, kWasmStmt,
         kExprCallFunction, kJSThrowString,
-      kExprCatch, except,
-        kExprUnreachable,
+      kExprCatch,
+        kExprBrOnExn, 0, except,
+        kExprRethrow,
       kExprEnd,
+      kExprUnreachable,
     ])
     .exportFunc();
 
@@ -792,9 +833,11 @@ load("test/mjsunit/wasm/exceptions-utils.js");
     .addBody([
       kExprTry, kWasmStmt,
         kExprCallFunction, kJSThrowFP,
-      kExprCatch, except,
-        kExprUnreachable,
+      kExprCatch,
+        kExprBrOnExn, 0, except,
+        kExprRethrow,
       kExprEnd,
+      kExprUnreachable,
     ])
     .exportFunc();
 
@@ -802,9 +845,11 @@ load("test/mjsunit/wasm/exceptions-utils.js");
     .addBody([
       kExprTry, kWasmStmt,
         kExprCallFunction, kJSThrowLarge,
-      kExprCatch, except,
-        kExprUnreachable,
+      kExprCatch,
+        kExprBrOnExn, 0, except,
+        kExprRethrow,
       kExprEnd,
+      kExprUnreachable,
     ])
     .exportFunc();
 
@@ -812,9 +857,11 @@ load("test/mjsunit/wasm/exceptions-utils.js");
     .addBody([
       kExprTry, kWasmStmt,
         kExprCallFunction, kJSThrowUndefined,
-      kExprCatch, except,
-        kExprUnreachable,
+      kExprCatch,
+        kExprBrOnExn, 0, except,
+        kExprRethrow,
       kExprEnd,
+      kExprUnreachable,
     ])
     .exportFunc();
 
@@ -851,199 +898,4 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   assertThrowsEquals(instance.exports.fp_from_js, 10.5);
   assertThrowsEquals(instance.exports.large_from_js, 1e+28);
   assertThrowsEquals(instance.exports.undefined_from_js, undefined);
-})();
-
-// Delegate with a try block that never throws.
-(function TestDelegateNoThrow() {
-  print(arguments.callee.name);
-  let builder = new WasmModuleBuilder();
-  let except1 = builder.addException(kSig_v_v);
-  builder.addFunction('test', kSig_i_v)
-      .addBody([
-        kExprTry, kWasmI32,
-          kExprTry, kWasmI32,
-            kExprI32Const, 1,
-          kExprDelegate, 0,
-        kExprCatch, except1,
-          kExprI32Const, 2,
-        kExprEnd,
-      ]).exportFunc();
-  instance = builder.instantiate();
-  assertEquals(1, instance.exports.test());
-})();
-
-// Delegate exception handling to outer try/catch block.
-(function TestDelegateThrow() {
-  print(arguments.callee.name);
-  let builder = new WasmModuleBuilder();
-  let except = builder.addException(kSig_v_v);
-  let throw_if = builder.addFunction('throw', kSig_v_i)
-      .addBody([
-          kExprLocalGet, 0,
-          kExprIf, kWasmStmt,
-            kExprThrow, except,
-          kExprEnd]).exportFunc();
-  builder.addFunction('test', kSig_i_i)
-      .addBody([
-        kExprTry, kWasmI32,
-          kExprTry, kWasmI32,
-            kExprLocalGet, 0,
-            kExprCallFunction, throw_if.index,
-            kExprI32Const, 1,
-          kExprDelegate, 0,
-        kExprCatch, except,
-          kExprI32Const, 2,
-        kExprEnd,
-      ]).exportFunc();
-  instance = builder.instantiate();
-  assertEquals(1, instance.exports.test(0));
-  assertEquals(2, instance.exports.test(1));
-})();
-
-// No catch block matching the exception in the delegate target.
-(function TestDelegateThrowNoCatch() {
-  print(arguments.callee.name);
-  let builder = new WasmModuleBuilder();
-  let except1 = builder.addException(kSig_v_v);
-  let except2 = builder.addException(kSig_v_v);
-  let throw_fn = builder.addFunction('throw', kSig_v_v)
-                     .addBody([kExprThrow, except1])
-                     .exportFunc();
-  let throw_fn_2 = builder.addFunction('throw_2', kSig_v_v)
-                     .addBody([kExprThrow, except2])
-                     .exportFunc();
-  builder.addFunction('test', kSig_i_v)
-      .addBody([
-        kExprTry, kWasmI32,
-          kExprTry, kWasmI32,
-            kExprCallFunction, throw_fn.index,
-            kExprI32Const, 1,
-          kExprDelegate, 0,
-        kExprCatch, except2,
-          kExprI32Const, 2,
-        kExprEnd,
-      ]).exportFunc();
-  instance = builder.instantiate();
-  assertTraps(WebAssembly.RuntimeError, instance.exports.test);
-})();
-
-// Check that the exception is merged properly when both scopes can throw.
-(function TestDelegateMerge() {
-  print(arguments.callee.name);
-  let builder = new WasmModuleBuilder();
-  let except1 = builder.addException(kSig_v_v);
-  let except2 = builder.addException(kSig_v_v);
-  // throw_fn: 0 -> returns
-  //           1 -> throw except1
-  //           2 -> throw except2
-  let throw_fn = builder.addFunction('throw', kSig_v_i)
-      .addBody([
-          kExprBlock, kWasmStmt,
-            kExprBlock, kWasmStmt,
-              kExprBlock, kWasmStmt,
-                kExprLocalGet, 0,
-                kExprBrTable, 2, 0, 1, 2,
-              kExprEnd,
-              kExprReturn,
-            kExprEnd,
-            kExprThrow, except1,
-          kExprEnd,
-          kExprThrow, except2])
-      .exportFunc();
-  builder.addFunction('test', kSig_i_ii)
-      .addBody([
-        kExprTry, kWasmI32,
-          kExprLocalGet, 0,
-          kExprCallFunction, throw_fn.index,
-          kExprTry, kWasmI32,
-            kExprLocalGet, 1,
-            kExprCallFunction, throw_fn.index,
-            kExprI32Const, 1,
-          kExprDelegate, 0,
-        kExprCatch, except1,
-          kExprI32Const, 2,
-        kExprEnd,
-      ]).exportFunc();
-  instance = builder.instantiate();
-  assertEquals(2, instance.exports.test(1, 0));
-  assertTraps(WebAssembly.RuntimeError, () => instance.exports.test(2, 0));
-  assertEquals(2, instance.exports.test(0, 1));
-  assertTraps(WebAssembly.RuntimeError, () => instance.exports.test(0, 2));
-  assertEquals(1, instance.exports.test(0, 0));
-})();
-
-// Delegate to second enclosing try scope.
-(function TestDelegate1() {
-  print(arguments.callee.name);
-  let builder = new WasmModuleBuilder();
-  let except = builder.addException(kSig_v_v);
-  let throw_fn = builder.addFunction('throw', kSig_v_v)
-                     .addBody([kExprThrow, except])
-                     .exportFunc();
-  builder.addFunction('test', kSig_i_v)
-      .addBody([
-        kExprTry, kWasmI32,
-          kExprTry, kWasmI32,
-            kExprTry, kWasmI32,
-              kExprCallFunction, throw_fn.index,
-              kExprI32Const, 1,
-            kExprDelegate, 1,
-          kExprCatch, except,
-            kExprI32Const, 2,
-          kExprEnd,
-        kExprCatch, except,
-          kExprI32Const, 3,
-        kExprEnd,
-      ]).exportFunc();
-  instance = builder.instantiate();
-  assertEquals(3, instance.exports.test());
-})();
-
-(function TestDelegateUnreachable() {
-  print(arguments.callee.name);
-  let builder = new WasmModuleBuilder();
-  let except1 = builder.addException(kSig_v_v);
-  let except2 = builder.addException(kSig_v_v);
-  builder.addFunction('test', kSig_i_v)
-      .addBody([
-        kExprTry, kWasmI32,
-          kExprTry, kWasmStmt,
-            kExprThrow, except1,
-          kExprDelegate, 0,
-          kExprI32Const, 1,
-        kExprCatch, except1,
-          kExprI32Const, 2,
-        kExprCatch, except2,
-          kExprI32Const, 3,
-        kExprEnd,
-      ]).exportFunc();
-  instance = builder.instantiate();
-  assertEquals(2, instance.exports.test());
-})();
-
-(function TestDelegateToCaller() {
-  print(arguments.callee.name);
-  let builder = new WasmModuleBuilder();
-  let except = builder.addException(kSig_v_v);
-  builder.addFunction('test', kSig_v_v)
-      .addBody([
-        kExprTry, kWasmStmt,
-          kExprTry, kWasmStmt,
-            kExprThrow, except,
-          kExprDelegate, 1,
-        kExprCatchAll,
-        kExprEnd
-      ]).exportFunc();
-  builder.addFunction('test_unwind', kSig_v_v)
-      .addBody([
-        kExprTry, kWasmStmt,
-          kExprTry, kWasmStmt,
-            kExprThrow, except,
-          kExprDelegate, 1,
-        kExprUnwind,
-        kExprEnd
-      ]).exportFunc();
-  instance = builder.instantiate();
-  assertTraps(WebAssembly.RuntimeError, () => instance.exports.test());
-  assertTraps(WebAssembly.RuntimeError, () => instance.exports.test_unwind());
 })();

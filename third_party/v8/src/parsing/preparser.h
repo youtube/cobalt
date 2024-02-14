@@ -792,12 +792,6 @@ class PreParserFactory {
     return PreParserExpression::Default();
   }
 
-  PreParserExpression NewImportCallExpression(
-      const PreParserExpression& specifier,
-      const PreParserExpression& import_assertions, int pos) {
-    return PreParserExpression::Default();
-  }
-
  private:
   // For creating VariableProxy objects to track unresolved variables.
   AstNodeFactory ast_node_factory_;
@@ -829,9 +823,6 @@ class PreParserFormalParameters : public FormalParametersBase {
 class PreParserFuncNameInferrer {
  public:
   explicit PreParserFuncNameInferrer(AstValueFactory* avf) {}
-  PreParserFuncNameInferrer(const PreParserFuncNameInferrer&) = delete;
-  PreParserFuncNameInferrer& operator=(const PreParserFuncNameInferrer&) =
-      delete;
   void RemoveAsyncKeywordFromEnd() const {}
   void Infer() const {}
   void RemoveLastFunction() const {}
@@ -839,9 +830,13 @@ class PreParserFuncNameInferrer {
   class State {
    public:
     explicit State(PreParserFuncNameInferrer* fni) {}
-    State(const State&) = delete;
-    State& operator=(const State&) = delete;
+
+   private:
+    DISALLOW_COPY_AND_ASSIGN(State);
   };
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(PreParserFuncNameInferrer);
 };
 
 class PreParserSourceRange {

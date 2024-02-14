@@ -35,7 +35,7 @@ class ContextualVariable {
   // variable is restored to the state before the {Scope} was created. Scopes
   // have to follow a stack discipline:  A {Scope} has to be destructed before
   // any older scope is destructed.
-  class V8_NODISCARD Scope {
+  class Scope {
    public:
     template <class... Args>
     explicit Scope(Args&&... args)
@@ -47,8 +47,6 @@ class ContextualVariable {
       DCHECK_EQ(this, Top());
       Top() = previous_;
     }
-    Scope(const Scope&) = delete;
-    Scope& operator=(const Scope&) = delete;
 
     VarType& Value() { return value_; }
 
@@ -60,6 +58,7 @@ class ContextualVariable {
                   "Curiously Recurring Template Pattern");
 
     DISALLOW_NEW_AND_DELETE()
+    DISALLOW_COPY_AND_ASSIGN(Scope);
   };
 
   // Access the most recent active {Scope}. There has to be an active {Scope}

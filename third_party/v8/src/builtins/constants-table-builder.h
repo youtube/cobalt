@@ -24,10 +24,6 @@ class BuiltinsConstantsTableBuilder final {
  public:
   explicit BuiltinsConstantsTableBuilder(Isolate* isolate);
 
-  BuiltinsConstantsTableBuilder(const BuiltinsConstantsTableBuilder&) = delete;
-  BuiltinsConstantsTableBuilder& operator=(
-      const BuiltinsConstantsTableBuilder&) = delete;
-
   // Returns the index within the builtins constants table for the given
   // object, possibly adding the object to the table. Objects are deduplicated.
   uint32_t AddObject(Handle<Object> object);
@@ -53,6 +49,8 @@ class BuiltinsConstantsTableBuilder final {
   // Maps objects to corresponding indices within the constants list.
   using ConstantsMap = IdentityMap<uint32_t, FreeStoreAllocationPolicy>;
   ConstantsMap map_;
+
+  DISALLOW_COPY_AND_ASSIGN(BuiltinsConstantsTableBuilder);
 };
 
 }  // namespace internal

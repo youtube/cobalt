@@ -32,7 +32,9 @@ function NewExportedException() {
       .addBody([
         kExprTry, kWasmStmt,
           kExprCallFunction, fun,
-        kExprCatch, except,
+        kExprCatch,
+          kExprBrOnExn, 0, except,
+          kExprRethrow,
         kExprEnd,
       ]).exportFunc();
   let ex_obj = new Error("my exception");
@@ -64,7 +66,9 @@ function NewExportedException() {
       .addBody([
         kExprTry, kWasmStmt,
           kExprCallFunction, fun,
-        kExprCatch, except,
+        kExprCatch,
+          kExprBrOnExn, 0, except,
+          kExprRethrow,
         kExprEnd,
       ]).exportFunc();
   let ex_obj = new Error("my exception");
@@ -99,7 +103,9 @@ function NewExportedException() {
       .addBody([
         kExprTry, kWasmStmt,
           kExprCallFunction, fun,
-        kExprCatch, except1,
+        kExprCatch,
+          kExprBrOnExn, 0, except1,
+          kExprRethrow,
         kExprEnd,
       ]).exportFunc();
   let ex_obj = new Error("my exception");
@@ -138,7 +144,9 @@ function NewExportedException() {
       .addBody([
         kExprTry, kWasmStmt,
           kExprCallFunction, fun,
-        kExprCatch, except,
+        kExprCatch,
+          kExprBrOnExn, 0, except,
+          kExprRethrow,
         kExprEnd,
       ]).exportFunc();
   let ex_obj = new Error("my exception");

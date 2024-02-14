@@ -5,7 +5,6 @@
 #ifndef V8_AST_MODULES_H_
 #define V8_AST_MODULES_H_
 
-#include "src/parsing/import-assertions.h"
 #include "src/parsing/scanner.h"  // Only for Scanner::Location.
 #include "src/zone/zone-containers.h"
 
@@ -14,7 +13,6 @@ namespace internal {
 
 
 class AstRawString;
-class AstRawStringComparer;
 class ModuleRequest;
 class SourceTextModuleInfo;
 class SourceTextModuleInfoEntry;
@@ -28,6 +26,10 @@ class SourceTextModuleDescriptor : public ZoneObject {
         namespace_imports_(zone),
         regular_exports_(zone),
         regular_imports_(zone) {}
+
+  using ImportAssertions =
+      ZoneMap<const AstRawString*,
+              std::pair<const AstRawString*, Scanner::Location>>;
 
   // The following Add* methods are high-level convenience functions for use by
   // the parser.
@@ -124,13 +126,11 @@ class SourceTextModuleDescriptor : public ZoneObject {
 
   class AstModuleRequest : public ZoneObject {
    public:
+    // TODO(v8:10958): Consider storing module request location here
+    // instead of using separate ModuleRequestLocation struct.
     AstModuleRequest(const AstRawString* specifier,
-                     const ImportAssertions* import_assertions, int position,
-                     int index)
-        : specifier_(specifier),
-          import_assertions_(import_assertions),
-          position_(position),
-          index_(index) {}
+                     const ImportAssertions* import_assertions)
+        : specifier_(specifier), import_assertions_(import_assertions) {}
 
     template <typename LocalIsolate>
     Handle<v8::internal::ModuleRequest> Serialize(LocalIsolate* isolate) const;
@@ -140,25 +140,29 @@ class SourceTextModuleDescriptor : public ZoneObject {
       return import_assertions_;
     }
 
-    int position() const { return position_; }
-    int index() const { return index_; }
-
    private:
     const AstRawString* specifier_;
     const ImportAssertions* import_assertions_;
+  };
 
-    // The JS source code position of the request, used for reporting errors.
-    int position_;
-
+  struct ModuleRequestLocation {
     // The index at which we will place the request in SourceTextModuleInfo's
     // module_requests FixedArray.
-    int index_;
+    int index;
+
+    // The JS source code position of the request, used for reporting errors.
+    int position;
+
+    ModuleRequestLocation(int index, int position)
+        : index(index), position(position) {}
   };
 
   // Custom content-based comparer for the below maps, to keep them stable
   // across parses.
   struct V8_EXPORT_PRIVATE AstRawStringComparer {
     bool operator()(const AstRawString* lhs, const AstRawString* rhs) const;
+    static int ThreeWayCompare(const AstRawString* lhs,
+                               const AstRawString* rhs);
   };
 
   struct V8_EXPORT_PRIVATE ModuleRequestComparer {
@@ -167,7 +171,8 @@ class SourceTextModuleDescriptor : public ZoneObject {
   };
 
   using ModuleRequestMap =
-      ZoneSet<const AstModuleRequest*, ModuleRequestComparer>;
+      ZoneMap<const AstModuleRequest*, ModuleRequestLocation,
+              ModuleRequestComparer>;
   using RegularExportMap =
       ZoneMultimap<const AstRawString*, Entry*, AstRawStringComparer>;
   using RegularImportMap =
@@ -269,11 +274,12 @@ class SourceTextModuleDescriptor : public ZoneObject {
     DCHECK_NOT_NULL(specifier);
     int module_requests_count = static_cast<int>(module_requests_.size());
     auto it = module_requests_
-                  .insert(zone->New<AstModuleRequest>(
-                      specifier, import_assertions, specifier_loc.beg_pos,
-                      module_requests_count))
+                  .insert(std::make_pair(
+                      zone->New<AstModuleRequest>(specifier, import_assertions),
+                      ModuleRequestLocation(module_requests_count,
+                                            specifier_loc.beg_pos)))
                   .first;
-    return (*it)->index();
+    return it->second.index;
   }
 };
 

@@ -126,7 +126,7 @@ class VariableTracker {
   Node* Get(Variable var, Node* effect) { return table_.Get(effect).Get(var); }
   Zone* zone() { return zone_; }
 
-  class V8_NODISCARD Scope : public ReduceScope {
+  class Scope : public ReduceScope {
    public:
     Scope(VariableTracker* tracker, Node* node, Reduction* reduction);
     ~Scope();
@@ -174,7 +174,7 @@ class EscapeAnalysisTracker : public ZoneObject {
   EscapeAnalysisTracker(const EscapeAnalysisTracker&) = delete;
   EscapeAnalysisTracker& operator=(const EscapeAnalysisTracker&) = delete;
 
-  class V8_NODISCARD Scope : public VariableTracker::Scope {
+  class Scope : public VariableTracker::Scope {
    public:
     Scope(EffectGraphReducer* reducer, EscapeAnalysisTracker* tracker,
           Node* node, Reduction* reduction)

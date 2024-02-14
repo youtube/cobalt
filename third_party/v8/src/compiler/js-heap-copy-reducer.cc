@@ -152,9 +152,10 @@ Reduction JSHeapCopyReducer::Reduce(Node* node) {
     case IrOpcode::kJSGetTemplateObject: {
       GetTemplateObjectParameters const& p =
           GetTemplateObjectParametersOf(node->op());
-      SharedFunctionInfoRef(broker(), p.shared());
-      TemplateObjectDescriptionRef(broker(), p.description());
-      broker()->ProcessFeedbackForTemplateObject(p.feedback());
+      SharedFunctionInfoRef shared(broker(), p.shared());
+      TemplateObjectDescriptionRef description(broker(), p.description());
+      shared.GetTemplateObject(description, p.feedback(),
+                               SerializationPolicy::kSerializeIfNeeded);
       break;
     }
     case IrOpcode::kJSCreateWithContext: {

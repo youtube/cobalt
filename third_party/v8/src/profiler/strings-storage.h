@@ -9,7 +9,6 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/base/hashmap.h"
-#include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 
 namespace v8 {
@@ -23,8 +22,6 @@ class V8_EXPORT_PRIVATE StringsStorage {
  public:
   StringsStorage();
   ~StringsStorage();
-  StringsStorage(const StringsStorage&) = delete;
-  StringsStorage& operator=(const StringsStorage&) = delete;
 
   // Copies the given c-string and stores it, returning the stored copy, or just
   // returns the existing string in storage if it already exists.
@@ -39,15 +36,12 @@ class V8_EXPORT_PRIVATE StringsStorage {
   // result.
   const char* GetConsName(const char* prefix, Name name);
   // Reduces the refcount of the given string, freeing it if no other
-  // references are made to it. Returns true if the string was successfully
-  // unref'd, or false if the string was not present in the table.
+  // references are made to it.
+  // Returns true if the string was successfully unref'd.
   bool Release(const char* str);
 
   // Returns the number of strings in the store.
   size_t GetStringCountForTesting() const;
-
-  // Returns true if the strings table is empty.
-  bool empty() const { return names_.occupancy() == 0; }
 
  private:
   static bool StringsMatch(void* key1, void* key2);
@@ -59,7 +53,8 @@ class V8_EXPORT_PRIVATE StringsStorage {
   const char* GetVFormatted(const char* format, va_list args);
 
   base::CustomMatcherHashMap names_;
-  base::Mutex mutex_;
+
+  DISALLOW_COPY_AND_ASSIGN(StringsStorage);
 };
 
 }  // namespace internal

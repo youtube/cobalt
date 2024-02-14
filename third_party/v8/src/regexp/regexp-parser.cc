@@ -1789,7 +1789,7 @@ RegExpTree* RegExpParser::ParseCharacterClass(const RegExpBuilder* builder) {
 #undef CHECK_FAILED
 
 bool RegExpParser::Parse(RegExpCompileData* result,
-                         const DisallowGarbageCollection&) {
+                         const DisallowHeapAllocation&) {
   DCHECK(result != nullptr);
   RegExpTree* tree = ParsePattern();
   if (failed()) {
@@ -1820,7 +1820,7 @@ bool RegExpParser::ParseRegExp(Isolate* isolate, Zone* zone,
   RegExpParser parser(input, flags, isolate, zone);
   bool success;
   {
-    DisallowGarbageCollection no_gc;
+    DisallowHeapAllocation no_gc;
     success = parser.Parse(result, no_gc);
   }
   if (success) {

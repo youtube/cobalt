@@ -150,8 +150,7 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
         return state;
       } else if (event.type == kMarkCompact) {
         if (event.committed_memory <
-            std::max(
-                static_cast<size_t>(state.committed_memory_at_last_run *
+            Max(static_cast<size_t>(state.committed_memory_at_last_run *
                                     kCommittedMemoryFactor),
                 state.committed_memory_at_last_run + kCommittedMemoryDelta)) {
           return state;

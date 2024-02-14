@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/ast/prettyprinter.h"
-#include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/debug/debug.h"
 #include "src/execution/arguments-inl.h"
@@ -148,12 +147,12 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   // Zap the property to avoid keeping objects alive. Zapping is not necessary
   // for properties stored in the descriptor array.
   if (details.location() == kField) {
-    DisallowGarbageCollection no_gc;
+    DisallowHeapAllocation no_allocation;
 
     // Invalidate slots manually later in case we delete an in-object tagged
     // property. In this case we might later store an untagged value in the
     // recorded slot.
-    isolate->heap()->NotifyObjectLayoutChange(*receiver, no_gc,
+    isolate->heap()->NotifyObjectLayoutChange(*receiver, no_allocation,
                                               InvalidateRecordedSlots::kNo);
     FieldIndex index =
         FieldIndex::ForPropertyIndex(*receiver_map, details.field_index());
@@ -366,21 +365,11 @@ RUNTIME_FUNCTION(Runtime_AddDictionaryProperty) {
 
   DCHECK(name->IsUniqueName());
 
+  Handle<NameDictionary> dictionary(receiver->property_dictionary(), isolate);
   PropertyDetails property_details(kData, NONE, PropertyCellType::kNoCell);
-  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    Handle<OrderedNameDictionary> dictionary(
-        receiver->property_dictionary_ordered(), isolate);
-    dictionary = OrderedNameDictionary::Add(isolate, dictionary, name, value,
-                                            property_details)
-                     .ToHandleChecked();
-    receiver->SetProperties(*dictionary);
-  } else {
-    Handle<NameDictionary> dictionary(receiver->property_dictionary(), isolate);
-    dictionary =
-        NameDictionary::Add(isolate, dictionary, name, value, property_details);
-    receiver->SetProperties(*dictionary);
-  }
-
+  dictionary =
+      NameDictionary::Add(isolate, dictionary, name, value, property_details);
+  receiver->SetProperties(*dictionary);
   return *value;
 }
 
@@ -631,11 +620,11 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
       Handle<Name> key = Handle<Name>::cast(key_obj);
       key_obj = key = isolate->factory()->InternalizeName(key);
 
-      DisallowGarbageCollection no_gc;
+      DisallowHeapAllocation no_allocation;
       if (holder->IsJSGlobalObject()) {
         // Attempt dictionary lookup.
         GlobalDictionary dictionary =
-            JSGlobalObject::cast(*holder).global_dictionary(kAcquireLoad);
+            JSGlobalObject::cast(*holder).global_dictionary();
         InternalIndex entry = dictionary.FindEntry(isolate, key);
         if (entry.is_found()) {
           PropertyCell cell = dictionary.CellAt(entry);
@@ -647,21 +636,11 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
         }
       } else if (!holder->HasFastProperties()) {
         // Attempt dictionary lookup.
-        if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-          OrderedNameDictionary dictionary =
-              holder->property_dictionary_ordered();
-          InternalIndex entry = dictionary.FindEntry(isolate, *key);
-          if (entry.is_found() &&
-              (dictionary.DetailsAt(entry).kind() == kData)) {
-            return dictionary.ValueAt(entry);
-          }
-        } else {
-          NameDictionary dictionary = holder->property_dictionary();
-          InternalIndex entry = dictionary.FindEntry(isolate, key);
-          if ((entry.is_found()) &&
-              (dictionary.DetailsAt(entry).kind() == kData)) {
-            return dictionary.ValueAt(entry);
-          }
+        NameDictionary dictionary = holder->property_dictionary();
+        InternalIndex entry = dictionary.FindEntry(isolate, key);
+        if ((entry.is_found()) &&
+            (dictionary.DetailsAt(entry).kind() == kData)) {
+          return dictionary.ValueAt(entry);
         }
       }
     } else if (key_obj->IsSmi()) {
@@ -781,19 +760,10 @@ RUNTIME_FUNCTION(Runtime_ShrinkPropertyDictionary) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
-  if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-    Handle<OrderedNameDictionary> dictionary(
-        receiver->property_dictionary_ordered(), isolate);
-    Handle<OrderedNameDictionary> new_properties =
-        OrderedNameDictionary::Shrink(isolate, dictionary);
-    receiver->SetProperties(*new_properties);
-  } else {
-    Handle<NameDictionary> dictionary(receiver->property_dictionary(), isolate);
-    Handle<NameDictionary> new_properties =
-        NameDictionary::Shrink(isolate, dictionary);
-    receiver->SetProperties(*new_properties);
-  }
-
+  Handle<NameDictionary> dictionary(receiver->property_dictionary(), isolate);
+  Handle<NameDictionary> new_properties =
+      NameDictionary::Shrink(isolate, dictionary);
+  receiver->SetProperties(*new_properties);
   return Smi::zero();
 }
 
@@ -876,7 +846,7 @@ RUNTIME_FUNCTION(Runtime_GetDerivedMap) {
 }
 
 RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTrackingForMap) {
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_gc;
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
 
@@ -1069,9 +1039,7 @@ RUNTIME_FUNCTION(Runtime_SetDataProperties) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  MAYBE_RETURN(JSReceiver::SetOrCopyDataProperties(
-                   isolate, target, source,
-                   PropertiesEnumerationMode::kEnumerationOrder),
+  MAYBE_RETURN(JSReceiver::SetOrCopyDataProperties(isolate, target, source),
                ReadOnlyRoots(isolate).exception());
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -1087,11 +1055,9 @@ RUNTIME_FUNCTION(Runtime_CopyDataProperties) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  MAYBE_RETURN(
-      JSReceiver::SetOrCopyDataProperties(
-          isolate, target, source,
-          PropertiesEnumerationMode::kPropertyAdditionOrder, nullptr, false),
-      ReadOnlyRoots(isolate).exception());
+  MAYBE_RETURN(JSReceiver::SetOrCopyDataProperties(isolate, target, source,
+                                                   nullptr, false),
+               ReadOnlyRoots(isolate).exception());
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -1124,10 +1090,8 @@ RUNTIME_FUNCTION(Runtime_CopyDataPropertiesWithExcludedProperties) {
 
   Handle<JSObject> target =
       isolate->factory()->NewJSObject(isolate->object_function());
-  MAYBE_RETURN(JSReceiver::SetOrCopyDataProperties(
-                   isolate, target, source,
-                   PropertiesEnumerationMode::kPropertyAdditionOrder,
-                   &excluded_properties, false),
+  MAYBE_RETURN(JSReceiver::SetOrCopyDataProperties(isolate, target, source,
+                                                   &excluded_properties, false),
                ReadOnlyRoots(isolate).exception());
   return *target;
 }

@@ -25,7 +25,6 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/property-access-builder.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/compiler/state-values-utils.h"
 #include "src/compiler/type-cache.h"
 #include "src/ic/call-optimization.h"
 #include "src/logging/counters.h"
@@ -319,7 +318,7 @@ class JSCallReducerAssembler : public JSGraphAssembler {
   // custom catch logic within the reduction itself; or a catch handler in the
   // outside graph into which the reduction will be integrated (in this case
   // the scope is called 'outermost').
-  class V8_NODISCARD CatchScope {
+  class CatchScope {
    private:
     // Only used to partially construct the outermost scope.
     explicit CatchScope(Zone* zone) : if_exception_nodes_(zone) {}
@@ -2203,6 +2202,10 @@ TNode<Object> PromiseBuiltinReducerAssembler::ReducePromiseConstructor(
 
 #undef _
 
+bool JSCallReducer::should_disallow_heap_access() const {
+  return broker_->is_concurrent_inlining();
+}
+
 Reduction JSCallReducer::ReplaceWithSubgraph(JSCallReducerAssembler* gasm,
                                              Node* subgraph) {
   // TODO(jgruber): Consider a less fiddly way of integrating the new subgraph
@@ -2359,6 +2362,8 @@ Reduction JSCallReducer::ReduceMathMinMax(Node* node, const Operator* op,
 }
 
 Reduction JSCallReducer::Reduce(Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
+
   switch (node->opcode()) {
     case IrOpcode::kJSConstruct:
       return ReduceJSConstruct(node);
@@ -2398,6 +2403,8 @@ void JSCallReducer::Finalize() {
 
 // ES6 section 22.1.1 The Array Constructor
 Reduction JSCallReducer::ReduceArrayConstructor(Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
+
   JSCallNode n(node);
   Node* target = n.target();
   CallParameters const& p = n.Parameters();
@@ -2447,6 +2454,8 @@ Reduction JSCallReducer::ReduceObjectConstructor(Node* node) {
 
 // ES6 section 19.2.3.1 Function.prototype.apply ( thisArg, argArray )
 Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
+  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
+
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
   int arity = p.arity_without_implicit_args();
@@ -2568,6 +2577,8 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
 
 // ES section #sec-function.prototype.bind
 Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
+  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
+
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
@@ -2596,7 +2607,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
   MapRef first_receiver_map(broker(), receiver_maps[0]);
   bool const is_constructor = first_receiver_map.is_constructor();
 
-  if (first_receiver_map.ShouldHaveBeenSerialized() &&
+  if (should_disallow_heap_access() &&
       !first_receiver_map.serialized_prototype()) {
     TRACE_BROKER_MISSING(broker(),
                          "serialized prototype on map " << first_receiver_map);
@@ -2606,18 +2617,17 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
   for (Handle<Map> const map : receiver_maps) {
     MapRef receiver_map(broker(), map);
 
-    if (receiver_map.ShouldHaveBeenSerialized() &&
-        !receiver_map.serialized_prototype()) {
+    if (should_disallow_heap_access() && !receiver_map.serialized_prototype()) {
       TRACE_BROKER_MISSING(broker(),
                            "serialized prototype on map " << receiver_map);
       return inference.NoChange();
     }
 
     // Check for consistency among the {receiver_maps}.
+    STATIC_ASSERT(LAST_TYPE == LAST_FUNCTION_TYPE);
     if (!receiver_map.prototype().equals(prototype) ||
         receiver_map.is_constructor() != is_constructor ||
-        !InstanceTypeChecker::IsJSFunctionOrBoundFunction(
-            receiver_map.instance_type())) {
+        receiver_map.instance_type() < FIRST_FUNCTION_TYPE) {
       return inference.NoChange();
     }
 
@@ -2703,6 +2713,8 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
 
 // ES6 section 19.2.3.3 Function.prototype.call (thisArg, ...args)
 Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
+  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
+
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
   Node* target = n.target();
@@ -2715,7 +2727,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
   HeapObjectMatcher m(target);
   if (m.HasResolvedValue() && m.Ref(broker()).IsJSFunction()) {
     JSFunctionRef function = m.Ref(broker()).AsJSFunction();
-    if (function.ShouldHaveBeenSerialized() && !function.serialized()) {
+    if (should_disallow_heap_access() && !function.serialized()) {
       TRACE_BROKER_MISSING(broker(), "Serialize call on function " << function);
       return NoChange();
     }
@@ -2788,8 +2800,7 @@ Reduction JSCallReducer::ReduceObjectGetPrototype(Node* node, Node* object) {
   MapHandles const& object_maps = inference.GetMaps();
 
   MapRef candidate_map(broker(), object_maps[0]);
-  if (candidate_map.ShouldHaveBeenSerialized() &&
-      !candidate_map.serialized_prototype()) {
+  if (should_disallow_heap_access() && !candidate_map.serialized_prototype()) {
     TRACE_BROKER_MISSING(broker(), "prototype for map " << candidate_map);
     return inference.NoChange();
   }
@@ -2798,8 +2809,7 @@ Reduction JSCallReducer::ReduceObjectGetPrototype(Node* node, Node* object) {
   // Check if we can constant-fold the {candidate_prototype}.
   for (size_t i = 0; i < object_maps.size(); ++i) {
     MapRef object_map(broker(), object_maps[i]);
-    if (object_map.ShouldHaveBeenSerialized() &&
-        !object_map.serialized_prototype()) {
+    if (should_disallow_heap_access() && !object_map.serialized_prototype()) {
       TRACE_BROKER_MISSING(broker(), "prototype for map " << object_map);
       return inference.NoChange();
     }
@@ -2923,6 +2933,8 @@ Reduction JSCallReducer::ReduceObjectPrototypeHasOwnProperty(Node* node) {
 
 // ES #sec-object.prototype.isprototypeof
 Reduction JSCallReducer::ReduceObjectPrototypeIsPrototypeOf(Node* node) {
+  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
+
   JSCallNode n(node);
   Node* receiver = n.receiver();
   Node* value = n.ArgumentOrUndefined(0, jsgraph());
@@ -3272,6 +3284,7 @@ class IteratingArrayBuiltinHelper {
 
 Reduction JSCallReducer::ReduceArrayForEach(
     Node* node, const SharedFunctionInfoRef& shared) {
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
 
@@ -3284,6 +3297,7 @@ Reduction JSCallReducer::ReduceArrayForEach(
 
 Reduction JSCallReducer::ReduceArrayReduce(
     Node* node, const SharedFunctionInfoRef& shared) {
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
 
@@ -3297,6 +3311,7 @@ Reduction JSCallReducer::ReduceArrayReduce(
 
 Reduction JSCallReducer::ReduceArrayReduceRight(
     Node* node, const SharedFunctionInfoRef& shared) {
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
 
@@ -3310,6 +3325,7 @@ Reduction JSCallReducer::ReduceArrayReduceRight(
 
 Reduction JSCallReducer::ReduceArrayMap(Node* node,
                                         const SharedFunctionInfoRef& shared) {
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
 
@@ -3329,6 +3345,7 @@ Reduction JSCallReducer::ReduceArrayMap(Node* node,
 
 Reduction JSCallReducer::ReduceArrayFilter(
     Node* node, const SharedFunctionInfoRef& shared) {
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
 
@@ -3348,6 +3365,7 @@ Reduction JSCallReducer::ReduceArrayFilter(
 
 Reduction JSCallReducer::ReduceArrayFind(Node* node,
                                          const SharedFunctionInfoRef& shared) {
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
 
@@ -3362,6 +3380,7 @@ Reduction JSCallReducer::ReduceArrayFind(Node* node,
 
 Reduction JSCallReducer::ReduceArrayFindIndex(
     Node* node, const SharedFunctionInfoRef& shared) {
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
 
@@ -3376,6 +3395,7 @@ Reduction JSCallReducer::ReduceArrayFindIndex(
 
 Reduction JSCallReducer::ReduceArrayEvery(Node* node,
                                           const SharedFunctionInfoRef& shared) {
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
 
@@ -3391,6 +3411,7 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
 // ES7 Array.prototype.inludes(searchElement[, fromIndex])
 // #sec-array.prototype.includes
 Reduction JSCallReducer::ReduceArrayIncludes(Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
 
@@ -3405,6 +3426,7 @@ Reduction JSCallReducer::ReduceArrayIncludes(Node* node) {
 // ES6 Array.prototype.indexOf(searchElement[, fromIndex])
 // #sec-array.prototype.indexof
 Reduction JSCallReducer::ReduceArrayIndexOf(Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
 
@@ -3418,6 +3440,7 @@ Reduction JSCallReducer::ReduceArrayIndexOf(Node* node) {
 
 Reduction JSCallReducer::ReduceArraySome(Node* node,
                                          const SharedFunctionInfoRef& shared) {
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
   IteratingArrayBuiltinHelper h(node, broker(), jsgraph(), dependencies());
   if (!h.can_reduce()) return h.inference()->NoChange();
 
@@ -3480,6 +3503,8 @@ bool CanOptimizeFastCall(
 
 Reduction JSCallReducer::ReduceCallApiFunction(
     Node* node, const SharedFunctionInfoRef& shared) {
+  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
+
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
   int const argc = p.arity_without_implicit_args();
@@ -3805,14 +3830,13 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   // some other function (and same for the {arguments_list}).
   CreateArgumentsType const type = CreateArgumentsTypeOf(arguments_list->op());
   Node* frame_state = NodeProperties::GetFrameStateInput(arguments_list);
+  FrameStateInfo state_info = FrameStateInfoOf(frame_state->op());
   int start_index = 0;
 
   int formal_parameter_count;
   {
     Handle<SharedFunctionInfo> shared;
-    if (!FrameStateInfoOf(frame_state->op()).shared_info().ToHandle(&shared)) {
-      return NoChange();
-    }
+    if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
     formal_parameter_count = SharedFunctionInfoRef(broker(), shared)
                                  .internal_formal_parameter_count();
   }
@@ -3876,31 +3900,11 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
     frame_state = outer_state;
   }
   // Add the actual parameters to the {node}, skipping the receiver.
-  const int argument_count =
-      FrameStateInfoOf(frame_state->op()).parameter_count() -
-      1;  // Minus receiver.
-  if (start_index < argument_count) {
-    Node* const parameters = frame_state->InputAt(kFrameStateParametersInput);
-    StateValuesAccess parameters_access(parameters);
-    auto parameters_it = ++parameters_access.begin();  // Skip the receiver.
-    for (int i = 0; i < start_index; i++) {
-      // A non-zero start_index implies that there are rest arguments. Skip
-      // them.
-      ++parameters_it;
-    }
-    for (int i = start_index; i < argument_count; ++i, ++parameters_it) {
-      Node* parameter_node = parameters_it.node();
-      DCHECK_NOT_NULL(parameter_node);
-      node->InsertInput(graph()->zone(),
-                        JSCallOrConstructNode::ArgumentIndex(argc++),
-                        parameter_node);
-    }
-    // TODO(jgruber): Currently, each use-site does the awkward dance above,
-    // iterating based on the FrameStateInfo's parameter count minus one, and
-    // manually advancing the iterator past the receiver. Consider wrapping all
-    // this in an understandable iterator s.t. one only needs to iterate from
-    // the beginning until done().
-    DCHECK(parameters_it.done());
+  Node* const parameters = frame_state->InputAt(kFrameStateParametersInput);
+  for (int i = start_index + 1; i < parameters->InputCount(); ++i) {
+    node->InsertInput(graph()->zone(),
+                      JSCallOrConstructNode::ArgumentIndex(argc++),
+                      parameters->InputAt(i));
   }
 
   if (IsCallWithArrayLikeOrSpread(node)) {
@@ -3997,7 +4001,7 @@ bool ShouldUseCallICFeedback(Node* node) {
 }  // namespace
 
 bool JSCallReducer::IsBuiltinOrApiFunction(JSFunctionRef function) const {
-  if (function.ShouldHaveBeenSerialized() && !function.serialized()) {
+  if (should_disallow_heap_access() && !function.serialized()) {
     TRACE_BROKER_MISSING(broker(), "data for function " << function);
     return false;
   }
@@ -4025,7 +4029,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     ObjectRef target_ref = m.Ref(broker());
     if (target_ref.IsJSFunction()) {
       JSFunctionRef function = target_ref.AsJSFunction();
-      if (function.ShouldHaveBeenSerialized() && !function.serialized()) {
+      if (should_disallow_heap_access() && !function.serialized()) {
         TRACE_BROKER_MISSING(broker(), "data for function " << function);
         return NoChange();
       }
@@ -4038,7 +4042,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
       return ReduceJSCall(node, function.shared());
     } else if (target_ref.IsJSBoundFunction()) {
       JSBoundFunctionRef function = target_ref.AsJSBoundFunction();
-      if (function.ShouldHaveBeenSerialized() && !function.serialized()) {
+      if (should_disallow_heap_access() && !function.serialized()) {
         TRACE_BROKER_MISSING(broker(), "data for function " << function);
         return NoChange();
       }
@@ -4659,7 +4663,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
 
     if (target_ref.IsJSFunction()) {
       JSFunctionRef function = target_ref.AsJSFunction();
-      if (function.ShouldHaveBeenSerialized() && !function.serialized()) {
+      if (should_disallow_heap_access() && !function.serialized()) {
         TRACE_BROKER_MISSING(broker(),
                              "function, not serialized: " << function);
         return NoChange();
@@ -4722,7 +4726,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       }
     } else if (target_ref.IsJSBoundFunction()) {
       JSBoundFunctionRef function = target_ref.AsJSBoundFunction();
-      if (function.ShouldHaveBeenSerialized() && !function.serialized()) {
+      if (should_disallow_heap_access() && !function.serialized()) {
         TRACE_BROKER_MISSING(broker(),
                              "function, not serialized: " << function);
         return NoChange();
@@ -5075,6 +5079,8 @@ void JSCallReducer::CheckIfElementsKind(Node* receiver_elements_kind,
 
 // ES6 section 22.1.3.18 Array.prototype.push ( )
 Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
+
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
@@ -5211,6 +5217,8 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
 
 // ES6 section 22.1.3.17 Array.prototype.pop ( )
 Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
+
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
@@ -5346,6 +5354,8 @@ Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
 
 // ES6 section 22.1.3.22 Array.prototype.shift ( )
 Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
+
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
@@ -5564,6 +5574,8 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
 
 // ES6 section 22.1.3.23 Array.prototype.slice ( )
 Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
+
   if (!FLAG_turbo_inline_array_builtins) return NoChange();
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -5636,6 +5648,8 @@ Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
 
 // ES6 section 22.1.2.2 Array.isArray ( arg )
 Reduction JSCallReducer::ReduceArrayIsArray(Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
+
   // We certainly know that undefined is not an array.
   JSCallNode n(node);
   if (n.ArgumentCount() < 1) {
@@ -5662,6 +5676,8 @@ Reduction JSCallReducer::ReduceArrayIsArray(Node* node) {
 Reduction JSCallReducer::ReduceArrayIterator(Node* node,
                                              ArrayIteratorKind array_kind,
                                              IterationKind iteration_kind) {
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
+
   JSCallNode n(node);
   Node* receiver = n.receiver();
   Node* context = n.context();
@@ -5721,6 +5737,8 @@ Reduction JSCallReducer::ReduceArrayIterator(Node* node,
 
 // ES #sec-%arrayiteratorprototype%.next
 Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
+
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
   Node* iterator = n.receiver();
@@ -6031,7 +6049,7 @@ Reduction JSCallReducer::ReduceStringPrototypeStartsWith(Node* node) {
     ObjectRef target_ref = m.Ref(broker());
     if (target_ref.IsString()) {
       StringRef str = target_ref.AsString();
-      if (str.length().has_value() && str.length().value() == 1) {
+      if (str.length() == 1) {
         receiver = effect = graph()->NewNode(
             simplified()->CheckString(p.feedback()), receiver, effect, control);
 
@@ -6062,7 +6080,7 @@ Reduction JSCallReducer::ReduceStringPrototypeStartsWith(Node* node) {
               graph()->NewNode(simplified()->StringCharCodeAt(), receiver,
                                masked_position, etrue, if_true);
 
-          Node* search_first = jsgraph()->Constant(str.GetFirstChar().value());
+          Node* search_first = jsgraph()->Constant(str.GetFirstChar());
           vtrue = graph()->NewNode(simplified()->NumberEqual(), string_first,
                                    search_first);
         }
@@ -6348,6 +6366,7 @@ Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
   // lowering.
   if (broker()->is_native_context_independent()) return NoChange();
 
+  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
   PromiseBuiltinReducerAssembler a(this, node, broker());
 
   // We only inline when we have the executor.
@@ -6369,8 +6388,7 @@ bool JSCallReducer::DoPromiseChecks(MapInference* inference) {
   for (Handle<Map> map : receiver_maps) {
     MapRef receiver_map(broker(), map);
     if (!receiver_map.IsJSPromiseMap()) return false;
-    if (receiver_map.ShouldHaveBeenSerialized() &&
-        !receiver_map.serialized_prototype()) {
+    if (should_disallow_heap_access() && !receiver_map.serialized_prototype()) {
       TRACE_BROKER_MISSING(broker(), "prototype for map " << receiver_map);
       return false;
     }
@@ -6436,6 +6454,8 @@ Node* JSCallReducer::CreateClosureFromBuiltinSharedFunctionInfo(
 
 // ES section #sec-promise.prototype.finally
 Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
+  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
+
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
   int arity = p.arity_without_implicit_args();
@@ -6554,6 +6574,8 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
 }
 
 Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
+  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
+
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
@@ -6618,6 +6640,8 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
 
 // ES section #sec-promise.resolve
 Reduction JSCallReducer::ReducePromiseResolveTrampoline(Node* node) {
+  DisallowHeapAccessIf no_heap_access(should_disallow_heap_access());
+
   JSCallNode n(node);
   Node* receiver = n.receiver();
   Node* value = n.ArgumentOrUndefined(0, jsgraph());
@@ -7241,6 +7265,8 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
 }
 
 Reduction JSCallReducer::ReduceArrayBufferIsView(Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
+
   JSCallNode n(node);
   Node* value = n.ArgumentOrUndefined(0, jsgraph());
   RelaxEffectsAndControls(node);
@@ -7252,6 +7278,8 @@ Reduction JSCallReducer::ReduceArrayBufferIsView(Node* node) {
 
 Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
     Node* node, InstanceType instance_type, FieldAccess const& access) {
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
+
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -7553,6 +7581,8 @@ Reduction JSCallReducer::ReduceNumberParseInt(Node* node) {
 }
 
 Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
+  DisallowHeapAccessIf disallow_heap_access(should_disallow_heap_access());
+
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
   if (FLAG_force_slow_path) return NoChange();
@@ -7579,7 +7609,7 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
   ZoneVector<PropertyAccessInfo> access_infos(graph()->zone());
   AccessInfoFactory access_info_factory(broker(), dependencies(),
                                         graph()->zone());
-  if (broker()->is_concurrent_inlining()) {
+  if (should_disallow_heap_access()) {
     // Obtain precomputed access infos from the broker.
     for (auto map : regexp_maps) {
       MapRef map_ref(broker(), map);

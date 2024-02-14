@@ -123,43 +123,24 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
   // If feedback cell isn't initialized, compile function
   GotoIf(IsUndefined(feedback_cell_value), &compile_function);
 
-  Label maybe_use_sfi_code(this);
+  Label use_sfi_code(this);
   // If there is no feedback, don't check for optimized code.
   GotoIf(HasInstanceType(feedback_cell_value, CLOSURE_FEEDBACK_CELL_ARRAY_TYPE),
-         &maybe_use_sfi_code);
+         &use_sfi_code);
 
   // If it isn't undefined or fixed array it must be a feedback vector.
   CSA_ASSERT(this, IsFeedbackVector(feedback_cell_value));
 
   // Is there an optimization marker or optimized code in the feedback vector?
   MaybeTailCallOptimizedCodeSlot(function, CAST(feedback_cell_value));
-  Goto(&maybe_use_sfi_code);
+  Goto(&use_sfi_code);
 
-  // At this point we have a candidate Code object. It's *not* a cached
-  // optimized Code object (we'd have tail-called it above). A usual case would
-  // be the InterpreterEntryTrampoline to start executing existing bytecode.
-  BIND(&maybe_use_sfi_code);
+  BIND(&use_sfi_code);
+  // If not, install the SFI's code entry and jump to that.
   CSA_ASSERT(this, TaggedNotEqual(sfi_code, HeapConstant(BUILTIN_CODE(
                                                 isolate(), CompileLazy))));
   StoreObjectField(function, JSFunction::kCodeOffset, sfi_code);
-
-  // Finally, check for presence of an NCI cached Code object - if an entry
-  // possibly exists, call into runtime to query the cache.
-  TNode<Uint8T> flags2 =
-      LoadObjectField<Uint8T>(shared, SharedFunctionInfo::kFlags2Offset);
-  TNode<BoolT> may_have_cached_code =
-      IsSetWord32<SharedFunctionInfo::MayHaveCachedCodeBit>(flags2);
-  TNode<Code> code = Select<Code>(
-      may_have_cached_code,
-      [=]() {
-        return CAST(CallRuntime(Runtime::kTryInstallNCICode,
-                                Parameter<Context>(Descriptor::kContext),
-                                function));
-      },
-      [=]() { return sfi_code; });
-
-  // Jump to the selected code entry.
-  GenerateTailCallToJSCode(code, function);
+  GenerateTailCallToJSCode(sfi_code, function);
 
   BIND(&compile_function);
   GenerateTailCallToReturnedCode(Runtime::kCompileLazy, function);

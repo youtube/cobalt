@@ -56,7 +56,7 @@ class SyntheticModule
 
   static V8_WARN_UNUSED_RESULT bool PrepareInstantiate(
       Isolate* isolate, Handle<SyntheticModule> module,
-      v8::Local<v8::Context> context);
+      v8::Local<v8::Context> context, v8::Module::ResolveCallback callback);
   static V8_WARN_UNUSED_RESULT bool FinishInstantiate(
       Isolate* isolate, Handle<SyntheticModule> module);
 

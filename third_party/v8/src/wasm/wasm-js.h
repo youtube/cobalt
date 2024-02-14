@@ -9,6 +9,7 @@
 
 namespace v8 {
 namespace internal {
+class JSProxy;
 class WasmFrame;
 
 namespace wasm {
@@ -20,6 +21,8 @@ class WasmJs {
  public:
   V8_EXPORT_PRIVATE static void Install(Isolate* isolate,
                                         bool exposed_on_global_object);
+
+  V8_EXPORT_PRIVATE static Handle<JSProxy> GetJSDebugProxy(WasmFrame* frame);
 };
 
 }  // namespace internal

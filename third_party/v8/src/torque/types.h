@@ -139,7 +139,6 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
   std::string GetConstexprGeneratedTypeName() const;
   base::Optional<const ClassType*> ClassSupertype() const;
   base::Optional<const StructType*> StructSupertype() const;
-  base::Optional<const AggregateType*> AggregateSupertype() const;
   virtual std::vector<TypeChecker> GetTypeCheckers() const { return {}; }
   virtual std::string GetRuntimeType() const;
   static const Type* CommonSupertype(const Type* a, const Type* b);
@@ -228,7 +227,6 @@ struct Field {
   bool is_weak;
   bool const_qualified;
   bool generate_verify;
-  bool relaxed_write;
 };
 
 std::ostream& operator<<(std::ostream& os, const Field& name_and_type);
@@ -670,8 +668,8 @@ class ClassType final : public AggregateType {
                            (!HasUndefinedLayout() && !IsShape()));
   }
   bool ShouldGenerateBodyDescriptor() const {
-    return flags_ & ClassFlag::kGenerateBodyDescriptor ||
-           (!IsAbstract() && !IsExtern());
+    if (IsAbstract()) return false;
+    return flags_ & ClassFlag::kGenerateBodyDescriptor || !IsExtern();
   }
   bool DoNotGenerateCast() const {
     return flags_ & ClassFlag::kDoNotGenerateCast;

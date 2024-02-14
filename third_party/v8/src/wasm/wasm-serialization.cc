@@ -4,7 +4,6 @@
 
 #include "src/wasm/wasm-serialization.h"
 
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/external-reference-table.h"
 #include "src/objects/objects-inl.h"
@@ -58,7 +57,7 @@ class Writer {
   void WriteVector(const Vector<const byte> v) {
     DCHECK_GE(current_size(), v.size());
     if (v.size() > 0) {
-      base::Memcpy(current_location(), v.begin(), v.size());
+      memcpy(current_location(), v.begin(), v.size());
       pos_ += v.size();
     }
     if (FLAG_trace_wasm_serialization) {
@@ -382,7 +381,7 @@ bool NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
     code_start = aligned_buffer.get();
   }
 #endif
-  base::Memcpy(code_start, code->instructions().begin(), code_size);
+  memcpy(code_start, code->instructions().begin(), code_size);
   // Relocate the code.
   int mask = RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
              RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL) |
@@ -429,7 +428,7 @@ bool NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   }
   // If we copied to an aligned buffer, copy code into serialized buffer.
   if (code_start != serialized_code_start) {
-    base::Memcpy(serialized_code_start, code_start, code_size);
+    memcpy(serialized_code_start, code_start, code_size);
   }
   return true;
 }
@@ -468,42 +467,6 @@ bool WasmSerializer::SerializeNativeModule(Vector<byte> buffer) const {
   return true;
 }
 
-struct DeserializationUnit {
-  Vector<const byte> src_code_buffer;
-  std::unique_ptr<WasmCode> code;
-};
-
-class DeserializationQueue {
- public:
-  void Add(std::unique_ptr<std::vector<DeserializationUnit>> batch) {
-    base::MutexGuard guard(&mutex_);
-    queue_.push(std::move(batch));
-    cv_.NotifyOne();
-  }
-
-  std::unique_ptr<std::vector<DeserializationUnit>> Pop() {
-    base::MutexGuard guard(&mutex_);
-    while (queue_.empty()) {
-      cv_.Wait(&mutex_);
-    }
-    auto batch = std::move(queue_.front());
-    if (batch) queue_.pop();
-    return batch;
-  }
-
-  std::unique_ptr<std::vector<DeserializationUnit>> UnlockedPop() {
-    DCHECK(!queue_.empty());
-    auto batch = std::move(queue_.front());
-    queue_.pop();
-    return batch;
-  }
-
- private:
-  base::Mutex mutex_;
-  base::ConditionVariable cv_;
-  std::queue<std::unique_ptr<std::vector<DeserializationUnit>>> queue_;
-};
-
 class V8_EXPORT_PRIVATE NativeModuleDeserializer {
  public:
   explicit NativeModuleDeserializer(NativeModule*);
@@ -513,72 +476,11 @@ class V8_EXPORT_PRIVATE NativeModuleDeserializer {
   bool Read(Reader* reader);
 
  private:
-  friend class CopyAndRelocTask;
-  friend class PublishTask;
-
   bool ReadHeader(Reader* reader);
-  DeserializationUnit ReadCodeAndAlloc(int fn_index, Reader* reader);
-  void CopyAndRelocate(const DeserializationUnit& unit);
-  void Publish(std::unique_ptr<std::vector<DeserializationUnit>> batch);
+  void ReadCode(int fn_index, Reader* reader);
 
   NativeModule* const native_module_;
   bool read_called_;
-#ifdef DEBUG
-  std::atomic<int> total_published_{0};
-#endif
-};
-
-class CopyAndRelocTask : public CancelableTask {
- public:
-  CopyAndRelocTask(NativeModuleDeserializer* deserializer,
-                   DeserializationQueue& from_queue,
-                   DeserializationQueue& to_queue,
-                   CancelableTaskManager* task_manager)
-      : CancelableTask(task_manager),
-        deserializer_(deserializer),
-        from_queue_(from_queue),
-        to_queue_(to_queue) {}
-
-  void RunInternal() override {
-    CODE_SPACE_WRITE_SCOPE
-    for (;;) {
-      auto batch = from_queue_.Pop();
-      if (!batch) break;
-      for (auto& unit : *batch) {
-        deserializer_->CopyAndRelocate(unit);
-      }
-      to_queue_.Add(std::move(batch));
-    }
-    to_queue_.Add(nullptr);
-  }
-
- private:
-  NativeModuleDeserializer* deserializer_;
-  DeserializationQueue& from_queue_;
-  DeserializationQueue& to_queue_;
-};
-
-class PublishTask : public CancelableTask {
- public:
-  PublishTask(NativeModuleDeserializer* deserializer,
-              DeserializationQueue& from_queue,
-              CancelableTaskManager* task_manager)
-      : CancelableTask(task_manager),
-        deserializer_(deserializer),
-        from_queue_(from_queue) {}
-
-  void RunInternal() override {
-    WasmCodeRefScope code_scope;
-    for (;;) {
-      auto batch = from_queue_.Pop();
-      if (!batch) break;
-      deserializer_->Publish(std::move(batch));
-    }
-  }
-
- private:
-  NativeModuleDeserializer* deserializer_;
-  DeserializationQueue& from_queue_;
 };
 
 NativeModuleDeserializer::NativeModuleDeserializer(NativeModule* native_module)
@@ -592,75 +494,9 @@ bool NativeModuleDeserializer::Read(Reader* reader) {
   uint32_t total_fns = native_module_->num_functions();
   uint32_t first_wasm_fn = native_module_->num_imported_functions();
   WasmCodeRefScope wasm_code_ref_scope;
-
-  DeserializationQueue reloc_queue;
-  DeserializationQueue publish_queue;
-
-  CancelableTaskManager cancelable_task_manager;
-
-  auto copy_task = std::make_unique<CopyAndRelocTask>(
-      this, reloc_queue, publish_queue, &cancelable_task_manager);
-  V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(copy_task));
-
-  auto publish_task = std::make_unique<PublishTask>(this, publish_queue,
-                                                    &cancelable_task_manager);
-  V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(publish_task));
-
-  auto batch = std::make_unique<std::vector<DeserializationUnit>>();
-  int num_batches = 0;
-  const byte* batch_start = reader->current_location();
   for (uint32_t i = first_wasm_fn; i < total_fns; ++i) {
-    DeserializationUnit unit = ReadCodeAndAlloc(i, reader);
-    if (unit.code) {
-      batch->push_back(std::move(unit));
-    }
-    uint64_t batch_size_in_bytes = reader->current_location() - batch_start;
-    constexpr int kMinBatchSizeInBytes = 100000;
-    if (batch_size_in_bytes >= kMinBatchSizeInBytes) {
-      reloc_queue.Add(std::move(batch));
-      num_batches++;
-      batch = std::make_unique<std::vector<DeserializationUnit>>();
-      batch_start = reader->current_location();
-    }
+    ReadCode(i, reader);
   }
-
-  if (!batch->empty()) {
-    reloc_queue.Add(std::move(batch));
-    num_batches++;
-  }
-  reloc_queue.Add(nullptr);
-
-  // Participate to deserialization in the main thread to ensure progress even
-  // if background tasks are not scheduled.
-  int published = 0;
-  {
-    CODE_SPACE_WRITE_SCOPE
-    for (;;) {
-      auto batch = reloc_queue.Pop();
-      if (!batch) break;
-      for (auto& unit : *batch) {
-        CopyAndRelocate(unit);
-      }
-      Publish(std::move(batch));
-      ++published;
-    }
-  }
-
-  if (published == num_batches) {
-    // {CopyAndRelocTask} did not take any work from the reloc queue, probably
-    // because it was not scheduled yet. Ensure that the end marker gets added
-    // to the queue in this case.
-    publish_queue.Add(nullptr);
-  }
-  cancelable_task_manager.CancelAndWait();
-
-  // Process the publish queue now in case {PublishTask} was canceled.
-  for (;;) {
-    auto batch = publish_queue.UnlockedPop();
-    if (!batch) break;
-    Publish(std::move(batch));
-  }
-  DCHECK_EQ(total_published_.load(), num_batches);
   return reader->current_size() == 0;
 }
 
@@ -671,14 +507,13 @@ bool NativeModuleDeserializer::ReadHeader(Reader* reader) {
          imports == native_module_->num_imported_functions();
 }
 
-DeserializationUnit NativeModuleDeserializer::ReadCodeAndAlloc(int fn_index,
-                                                               Reader* reader) {
+void NativeModuleDeserializer::ReadCode(int fn_index, Reader* reader) {
   bool has_code = reader->Read<bool>();
   if (!has_code) {
     DCHECK(FLAG_wasm_lazy_compilation ||
            native_module_->enabled_features().has_compilation_hints());
     native_module_->UseLazyStub(fn_index);
-    return {{}, nullptr};
+    return;
   }
   int constant_pool_offset = reader->Read<int>();
   int safepoint_table_offset = reader->Read<int>();
@@ -694,24 +529,18 @@ DeserializationUnit NativeModuleDeserializer::ReadCodeAndAlloc(int fn_index,
   WasmCode::Kind kind = reader->Read<WasmCode::Kind>();
   ExecutionTier tier = reader->Read<ExecutionTier>();
 
-  DeserializationUnit unit;
-  unit.src_code_buffer = reader->ReadVector<byte>(code_size);
+  auto code_buffer = reader->ReadVector<byte>(code_size);
   auto reloc_info = reader->ReadVector<byte>(reloc_size);
   auto source_pos = reader->ReadVector<byte>(source_position_size);
   auto protected_instructions =
       reader->ReadVector<byte>(protected_instructions_size);
-  unit.code = native_module_->AllocateDeserializedCode(
-      fn_index, unit.src_code_buffer, stack_slot_count, tagged_parameter_slots,
+
+  CODE_SPACE_WRITE_SCOPE
+  WasmCode* code = native_module_->AddDeserializedCode(
+      fn_index, code_buffer, stack_slot_count, tagged_parameter_slots,
       safepoint_table_offset, handler_table_offset, constant_pool_offset,
       code_comment_offset, unpadded_binary_size, protected_instructions,
-      reloc_info, source_pos, kind, tier);
-  return unit;
-}
-
-void NativeModuleDeserializer::CopyAndRelocate(
-    const DeserializationUnit& unit) {
-  base::Memcpy(unit.code->instructions().begin(), unit.src_code_buffer.begin(),
-               unit.src_code_buffer.size());
+      std::move(reloc_info), std::move(source_pos), kind, tier);
 
   // Relocate the code.
   int mask = RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
@@ -720,9 +549,9 @@ void NativeModuleDeserializer::CopyAndRelocate(
              RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
              RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
   auto jump_tables_ref = native_module_->FindJumpTablesForRegion(
-      base::AddressRegionOf(unit.code->instructions()));
-  for (RelocIterator iter(unit.code->instructions(), unit.code->reloc_info(),
-                          unit.code->constant_pool(), mask);
+      base::AddressRegionOf(code->instructions()));
+  for (RelocIterator iter(code->instructions(), code->reloc_info(),
+                          code->constant_pool(), mask);
        !iter.done(); iter.next()) {
     RelocInfo::Mode mode = iter.rinfo()->rmode();
     switch (mode) {
@@ -750,7 +579,7 @@ void NativeModuleDeserializer::CopyAndRelocate(
       case RelocInfo::INTERNAL_REFERENCE:
       case RelocInfo::INTERNAL_REFERENCE_ENCODED: {
         Address offset = iter.rinfo()->target_internal_reference();
-        Address target = unit.code->instruction_start() + offset;
+        Address target = code->instruction_start() + offset;
         Assembler::deserialization_set_target_internal_reference_at(
             iter.rinfo()->pc(), target, mode);
         break;
@@ -760,26 +589,12 @@ void NativeModuleDeserializer::CopyAndRelocate(
     }
   }
 
-  // Finally, flush the icache for that code.
-  FlushInstructionCache(unit.code->instructions().begin(),
-                        unit.code->instructions().size());
-}
+  code->MaybePrint();
+  code->Validate();
 
-void NativeModuleDeserializer::Publish(
-    std::unique_ptr<std::vector<DeserializationUnit>> batch) {
-  DCHECK_NOT_NULL(batch);
-  std::vector<std::unique_ptr<WasmCode>> codes;
-  for (auto& unit : *batch) {
-    codes.push_back(std::move(unit).code);
-  }
-  auto published_codes = native_module_->PublishCode(VectorOf(codes));
-  for (auto* wasm_code : published_codes) {
-    wasm_code->MaybePrint();
-    wasm_code->Validate();
-  }
-#ifdef DEBUG
-  total_published_.fetch_add(1);
-#endif
+  // Finally, flush the icache for that code.
+  FlushInstructionCache(code->instructions().begin(),
+                        code->instructions().size());
 }
 
 bool IsSupportedVersion(Vector<const byte> header) {
@@ -830,6 +645,9 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
     if (error) return {};
   }
 
+  // Log the code within the generated module for profiling.
+  shared_native_module->LogWasmCodes(isolate);
+
   Handle<FixedArray> export_wrappers;
   CompileJsToWasmWrappers(isolate, shared_native_module->module(),
                           &export_wrappers);
@@ -837,14 +655,10 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   Handle<Script> script =
       wasm_engine->GetOrCreateScript(isolate, shared_native_module, source_url);
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate, shared_native_module, script, export_wrappers);
+      isolate, std::move(shared_native_module), script, export_wrappers);
 
   // Finish the Wasm script now and make it public to the debugger.
   isolate->debug()->OnAfterCompile(script);
-
-  // Log the code within the generated module for profiling.
-  shared_native_module->LogWasmCodes(isolate, *script);
-
   return module_object;
 }
 

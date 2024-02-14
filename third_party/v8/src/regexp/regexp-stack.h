@@ -19,7 +19,7 @@ class RegExpStack;
 // Since there is only one stack area, the Irregexp implementation is not
 // re-entrant. I.e., no regular expressions may be executed in the same thread
 // during a preempted Irregexp execution.
-class V8_NODISCARD RegExpStackScope {
+class RegExpStackScope {
  public:
   // Create and delete an instance to control the life-time of a growing stack.
 
@@ -34,6 +34,7 @@ class V8_NODISCARD RegExpStackScope {
  private:
   RegExpStack* regexp_stack_;
 };
+
 
 class RegExpStack {
  public:

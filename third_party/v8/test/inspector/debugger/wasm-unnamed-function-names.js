@@ -43,15 +43,16 @@ function testFunction(bytes) {
 
 contextGroup.addScript(testFunction.toString());
 
-InspectorTest.runAsyncTestSuite([
-  async function test() {
-    await Protocol.Debugger.enable();
-    Protocol.Debugger.onPaused(handleDebuggerPaused);
-    InspectorTest.log('Running testFunction with generated wasm bytes...');
-    await Protocol.Runtime.evaluate(
-        {'expression': 'testFunction(' + JSON.stringify(module_bytes) + ')'});
-  }
-]);
+(async function test() {
+  await Protocol.Debugger.enable();
+  Protocol.Debugger.onPaused(handleDebuggerPaused);
+  InspectorTest.log('Running testFunction with generated wasm bytes...');
+  await Protocol.Runtime.evaluate(
+      {'expression': 'testFunction(' + JSON.stringify(module_bytes) + ')'});
+
+  InspectorTest.log('Finished!');
+  InspectorTest.completeTest();
+})();
 
 function logStackTrace(messageObject) {
   var frames = messageObject.params.callFrames;

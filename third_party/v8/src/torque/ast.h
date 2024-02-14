@@ -931,7 +931,6 @@ struct ClassFieldExpression {
   bool weak;
   bool const_qualified;
   bool generate_verify;
-  bool relaxed_write;
 };
 
 struct LabelAndTypes {

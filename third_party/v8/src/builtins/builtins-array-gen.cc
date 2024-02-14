@@ -15,8 +15,6 @@
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/property-cell.h"
-#include "src/objects/torque-defined-classes.h"
-#include "src/objects/torque-defined-classes-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -101,8 +99,9 @@ void ArrayBuiltinsAssembler::ReturnFromBuiltin(TNode<Object> value) {
   if (argc_ == nullptr) {
     Return(value);
   } else {
-    CodeStubArguments args(this, argc());
-    PopAndReturn(args.GetLengthWithReceiver(), value);
+    // argc_ doesn't include the receiver, so it has to be added back in
+    // manually.
+    PopAndReturn(IntPtrAdd(argc_, IntPtrConstant(1)), value);
   }
 }
 
@@ -622,9 +621,7 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant,
     Label is_smi(this), is_nonsmi(this), done(this);
 
     // If no fromIndex was passed, default to 0.
-    GotoIf(
-        IntPtrLessThanOrEqual(args.GetLength(), IntPtrConstant(kFromIndexArg)),
-        &done);
+    GotoIf(IntPtrLessThanOrEqual(argc, IntPtrConstant(kFromIndexArg)), &done);
 
     TNode<Object> start_from = args.AtIndex(kFromIndexArg);
     // Handle Smis and undefined here and everything else in runtime.
@@ -1632,9 +1629,9 @@ TF_BUILTIN(ArrayConstructor, ArrayBuiltinsAssembler) {
       SelectConstant<Object>(IsUndefined(new_target), function, new_target);
 
   // Run the native code for the Array function called as a normal function.
-  TNode<Oddball> no_gc_site = UndefinedConstant();
+  TNode<Oddball> no_allocation_site = UndefinedConstant();
   TailCallBuiltin(Builtins::kArrayConstructorImpl, context, function,
-                  new_target, argc, no_gc_site);
+                  new_target, argc, no_allocation_site);
 }
 
 void ArrayBuiltinsAssembler::TailCallArrayConstructorStub(
@@ -1772,13 +1769,12 @@ void ArrayBuiltinsAssembler::GenerateDispatchToArrayStub(
     TNode<Context> context, TNode<JSFunction> target, TNode<Int32T> argc,
     AllocationSiteOverrideMode mode,
     base::Optional<TNode<AllocationSite>> allocation_site) {
-  CodeStubArguments args(this, argc);
   Label check_one_case(this), fallthrough(this);
-  GotoIfNot(IntPtrEqual(args.GetLength(), IntPtrConstant(0)), &check_one_case);
+  GotoIfNot(Word32Equal(argc, Int32Constant(0)), &check_one_case);
   CreateArrayDispatchNoArgument(context, target, argc, mode, allocation_site);
 
   BIND(&check_one_case);
-  GotoIfNot(IntPtrEqual(args.GetLength(), IntPtrConstant(1)), &fallthrough);
+  GotoIfNot(Word32Equal(argc, Int32Constant(1)), &fallthrough);
   CreateArrayDispatchSingleArgument(context, target, argc, mode,
                                     allocation_site);
 
@@ -1924,10 +1920,9 @@ void ArrayBuiltinsAssembler::GenerateArrayNArgumentsConstructor(
   CodeStubArguments args(this, argc);
   args.SetReceiver(target);
 
-  // Adjust arguments count for the runtime call:
-  // +2 for new_target and maybe_allocation_site.
-  argc = Int32Add(TruncateIntPtrToInt32(args.GetLengthWithReceiver()),
-                  Int32Constant(2));
+  // Adjust arguments count for the runtime call: +1 for implicit receiver
+  // and +2 for new_target and maybe_allocation_site.
+  argc = Int32Add(argc, Int32Constant(3));
   TailCallRuntime(Runtime::kNewArray, argc, context, new_target,
                   maybe_allocation_site);
 }

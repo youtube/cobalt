@@ -18,7 +18,6 @@
 #include "include/v8-platform.h"
 #include "src/base/atomicops.h"
 #include "src/base/macros.h"
-#include "src/base/platform/wrappers.h"
 
 // This header file defines implementation details of how the trace macros in
 // trace_event_common.h collect and store trace events. Anything not
@@ -435,7 +434,7 @@ SetTraceValue(T arg, unsigned char* type, uint64_t* value) {
     *type = value_type_id;                                                  \
     *value = 0;                                                             \
     STATIC_ASSERT(sizeof(arg) <= sizeof(*value));                           \
-    base::Memcpy(value, &arg, sizeof(arg));                                 \
+    memcpy(value, &arg, sizeof(arg));                                       \
   }
 INTERNAL_DECLARE_SET_TRACE_VALUE(double, TRACE_VALUE_TYPE_DOUBLE)
 INTERNAL_DECLARE_SET_TRACE_VALUE(const void*, TRACE_VALUE_TYPE_POINTER)

@@ -9,8 +9,8 @@ third_party {
     type: GIT
     value: "https://chromium.googlesource.com/v8/v8"
   }
-  version: "a2d8eca22ad478a95ca67bb2421a9a2535113925"
-  # from https://chromium.googlesource.com/chromium/src/+/89.0.4389.130/DEPS#207
+  version: "f7f4327516912dfca0d7401044e890ca0ce885ad"
+  # from https://chromium.googlesource.com/chromium/src/+/88.0.4324.186/DEPS#205
   last_upgrade_date {
     year: 2023
     month: 6

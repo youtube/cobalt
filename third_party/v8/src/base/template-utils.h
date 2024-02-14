@@ -63,12 +63,13 @@ struct has_output_operator<T, decltype(void(std::declval<std::ostream&>()
 // Fold all arguments from left to right with a given function.
 template <typename Func, typename T>
 constexpr auto fold(Func func, T&& t) {
-  return std::move(t);
+  return std::forward<T>(t);
 }
 
 template <typename Func, typename T1, typename T2, typename... Ts>
 constexpr auto fold(Func func, T1&& first, T2&& second, Ts&&... more) {
-  return fold(std::move(func), std::move(func(std::forward<T1>(first), std::forward<T2>(second))),
+  auto&& folded = func(std::forward<T1>(first), std::forward<T2>(second));
+  return fold(std::move(func), std::forward<decltype(folded)>(folded),
               std::forward<Ts>(more)...);
 }
 

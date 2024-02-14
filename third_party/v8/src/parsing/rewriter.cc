@@ -69,7 +69,7 @@ class Processor final : public AstVisitor<Processor> {
   // [replacement_].  In many cases this will just be the original node.
   Statement* replacement_;
 
-  class V8_NODISCARD BreakableScope final {
+  class BreakableScope final {
    public:
     explicit BreakableScope(Processor* processor, bool breakable = true)
         : processor_(processor), previous_(processor->breakable_) {
@@ -400,7 +400,7 @@ bool Rewriter::Rewrite(ParseInfo* info) {
 
 base::Optional<VariableProxy*> Rewriter::RewriteBody(
     ParseInfo* info, Scope* scope, ZonePtrList<Statement>* body) {
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_allocation;
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
 

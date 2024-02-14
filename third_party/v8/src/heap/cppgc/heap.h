@@ -44,19 +44,16 @@ class V8_EXPORT_PRIVATE Heap final : public HeapBase,
   void StartGarbageCollection(Config);
   void FinalizeGarbageCollection(Config::StackState);
 
-  void FinalizeIncrementalGarbageCollectionIfNeeded(Config::StackState) final;
-
-  void PostGarbageCollection() final;
-
-  bool IsMarking() const;
+  void FinalizeIncrementalGarbageCollectionIfNeeded(
+      Config::StackState stack_state) final {
+    FinalizeGarbageCollection(stack_state);
+  }
 
   Config config_;
   GCInvoker gc_invoker_;
   HeapGrowing growing_;
 
-  const MarkingType marking_support_;
-  const SweepingType sweeping_support_;
-
+  bool gc_in_progress_ = false;
   size_t epoch_ = 0;
 };
 

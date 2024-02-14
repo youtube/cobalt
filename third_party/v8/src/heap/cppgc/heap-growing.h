@@ -34,8 +34,7 @@ class V8_EXPORT_PRIVATE HeapGrowing final {
       kPageSize * RawHeap::kNumberOfRegularSpaces;
 
   HeapGrowing(GarbageCollector*, StatsCollector*,
-              cppgc::Heap::ResourceConstraints, cppgc::Heap::MarkingType,
-              cppgc::Heap::SweepingType);
+              cppgc::Heap::ResourceConstraints);
   ~HeapGrowing();
 
   HeapGrowing(const HeapGrowing&) = delete;
