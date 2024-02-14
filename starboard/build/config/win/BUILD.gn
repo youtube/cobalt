@@ -135,6 +135,9 @@ config("common") {
     # that destructor is not public.
     "/wd4265",
 
+    # conversion from 'size_t' to 'int', possible loss of data
+    "/wd4267",
+
     # Inconsistent DLL linkage
     "/wd4273",
 

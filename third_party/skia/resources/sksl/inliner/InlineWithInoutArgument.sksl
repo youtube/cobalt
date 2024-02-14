@@ -1,0 +1,12 @@
+uniform half4 colorGreen;
+
+// We don't inline functions with out parameters. (skia:11326)
+inline void outParameter(inout half4 x) {
+    x *= x;
+}
+
+half4 main(float2 coords) {
+    half4 c = colorGreen;
+    outParameter(c);
+    return c;
+}

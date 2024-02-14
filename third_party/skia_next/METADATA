@@ -1,0 +1,23 @@
+name: "skia"
+description:
+  "Skia is an open-source graphics library for drawing, geometries, and "
+  "images, with both hardware and software support. Cobalt most recently "
+  "updated its version of Skia from m79 to m97."
+
+third_party {
+  url {
+    type: GIT
+    value: "https://skia.googlesource.com/skia"
+  }
+  version: "b4d28b2f35396ae4dd69338254415066629dfd25"
+  last_upgrade_date {
+    year: 2023
+    month: 10
+    day: 12
+  }
+  license_type: NOTICE
+  local_modifications:
+    "The current nested third_party/skia_next/third_party/skia is used to "
+    "support existing include paths without significant modification and is a "
+    "temporary measure during migration."
+}

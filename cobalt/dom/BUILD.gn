@@ -310,10 +310,6 @@ static_library("dom") {
     "xml_serializer.h",
   ]
 
-  if (use_skia_next) {
-    defines = [ "USE_SKIA_NEXT" ]
-  }
-
   public_deps = [
     ":media_settings",
     "//cobalt/browser:generated_types",

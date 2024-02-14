@@ -5,12 +5,14 @@
  * found in the LICENSE file.
  */
 
+#include "include/core/SkBitmap.h"
 #include "src/core/SkDraw.h"
 #include "src/core/SkFontPriv.h"
+#include "src/core/SkMatrixProvider.h"
 #include "src/core/SkPaintPriv.h"
 #include "src/core/SkRasterClip.h"
+#include "src/core/SkScalerCache.h"
 #include "src/core/SkScalerContext.h"
-#include "src/core/SkStrike.h"
 #include "src/core/SkUtils.h"
 #include <climits>
 
@@ -37,11 +39,13 @@ void SkDraw::paintMasks(SkDrawableGlyphBuffer* drawables, const SkPaint& paint) 
 
     // The size used for a typical blitter.
     SkSTArenaAlloc<3308> alloc;
-    SkBlitter* blitter = SkBlitter::Choose(fDst, *fMatrix, paint, &alloc, false);
+    SkBlitter* blitter =
+            SkBlitter::Choose(fDst, *fMatrixProvider, paint, &alloc, false, fRC->clipShader());
     if (fCoverage) {
         blitter = alloc.make<SkPairBlitter>(
                 blitter,
-                SkBlitter::Choose(*fCoverage, *fMatrix, SkPaint(), &alloc, true));
+                SkBlitter::Choose(
+                        *fCoverage, *fMatrixProvider, SkPaint(), &alloc, true, fRC->clipShader()));
     }
 
     SkAAClipBlitterWrapper wrapper{*fRC, blitter};
@@ -109,16 +113,19 @@ void SkDraw::paintMasks(SkDrawableGlyphBuffer* drawables, const SkPaint& paint) 
 
 void SkDraw::paintPaths(SkDrawableGlyphBuffer* drawables,
                         SkScalar scale,
+                        SkPoint origin,
                         const SkPaint& paint) const {
     for (auto [variant, pos] : drawables->drawable()) {
         const SkPath* path = variant.path();
         SkMatrix m;
-        m.setScaleTranslate(scale, scale, pos.x(), pos.y());
+        SkPoint translate = origin + pos;
+        m.setScaleTranslate(scale, scale, translate.x(), translate.y());
         this->drawPath(*path, paint, &m, false);
     }
 }
 
 void SkDraw::drawGlyphRunList(const SkGlyphRunList& glyphRunList,
+                              const SkPaint& paint,
                               SkGlyphRunListPainter* glyphPainter) const {
 
     SkDEBUGCODE(this->validate();)
@@ -127,7 +134,7 @@ void SkDraw::drawGlyphRunList(const SkGlyphRunList& glyphRunList,
         return;
     }
 
-    glyphPainter->drawForBitmapDevice(glyphRunList, *fMatrix, this);
+    glyphPainter->drawForBitmapDevice(glyphRunList, paint, fMatrixProvider->localToDevice(), this);
 }
 
 #if defined _WIN32

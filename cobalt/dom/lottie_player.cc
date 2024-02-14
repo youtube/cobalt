@@ -126,12 +126,8 @@ std::string LottiePlayer::preserve_aspect_ratio() const {
 }
 
 std::string LottiePlayer::renderer() const {
-// Cobalt uses a custom compiled-in renderer.
-#if defined(USE_SKIA_NEXT)
+  // Cobalt uses a custom compiled-in renderer.
   return "skottie-m97";
-#else
-  return "skottie-m79";
-#endif
 }
 
 void LottiePlayer::Load(std::string src) {

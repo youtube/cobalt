@@ -1,0 +1,12 @@
+InterfaceBlock {
+    layout(set=0) $mat g;
+};
+
+struct S {
+    $bvec bv;
+};
+
+void param_private($ivec iv) {}
+void vardecl_private()       { $genType g; }
+void ctor_mat_private()      { $mat(0); }
+void ctor_literal_private()  { $floatLiteral(0); }

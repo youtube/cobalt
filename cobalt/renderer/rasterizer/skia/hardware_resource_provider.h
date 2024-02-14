@@ -26,11 +26,7 @@
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
 #include "cobalt/renderer/rasterizer/skia/text_shaper.h"
 #include "third_party/skia/include/core/SkFontMgr.h"
-#ifdef USE_SKIA_NEXT
 #include "third_party/skia/include/gpu/GrDirectContext.h"
-#else
-#include "third_party/skia/include/gpu/GrContext.h"
-#endif
 
 namespace cobalt {
 namespace renderer {

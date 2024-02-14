@@ -11,12 +11,11 @@ third_party {
     type: GIT
     value: "https://chromium.googlesource.com/skia"
   }
-  version: "a91f9f612e5eeb93cf40a3c0ce7d7c6ddf838feb"
-  # from https://chromium.googlesource.com/chromium/src/+/80.0.3987.162/DEPS#176
+  version: "b4d28b2f35396ae4dd69338254415066629dfd25"
   last_upgrade_date {
-    year: 2019
-    month: 10
-    day: 28
+    year: 2023
+    month: 12
+    day: 18
   }
   license_type: NOTICE
 }
