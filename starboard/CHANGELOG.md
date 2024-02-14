@@ -9,6 +9,11 @@ since the version previous to it.
 
 ## Version 16
 
+### Changed InstallCrashpadHandler API
+This API doesn't support the option to start the crashpad handler at the
+same time as the app launches anymore. Instead, the crashpad handler is
+started when a crash happens. See details in starboard/doc/crash_handlers.md.
+
 ### Convert SbUiNavGetInterface Starboard API into an extension
 The `SbUiNavGetInterface` API is deprecated and replaced with a Starboard
 extension named `SbUiNavInterface`.
