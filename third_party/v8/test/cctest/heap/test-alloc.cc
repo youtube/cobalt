@@ -137,12 +137,10 @@ TEST(StressJS) {
   v8::Local<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
 
-  Handle<NativeContext> context(isolate->native_context());
-  Handle<SharedFunctionInfo> info = factory->NewSharedFunctionInfoForBuiltin(
-      factory->function_string(), Builtins::kEmptyFunction);
-  info->set_language_mode(LanguageMode::kStrict);
-  Handle<JSFunction> function =
-      Factory::JSFunctionBuilder{isolate, info, context}.Build();
+  NewFunctionArgs args = NewFunctionArgs::ForBuiltin(
+      factory->function_string(), isolate->sloppy_function_map(),
+      Builtins::kEmptyFunction);
+  Handle<JSFunction> function = factory->NewFunction(args);
   CHECK(!function->shared().construct_as_builtin());
 
   // Force the creation of an initial map.

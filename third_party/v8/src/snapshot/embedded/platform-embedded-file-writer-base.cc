@@ -6,7 +6,6 @@
 
 #include <string>
 
-#include "src/base/platform/wrappers.h"
 #include "src/common/globals.h"
 #include "src/snapshot/embedded/platform-embedded-file-writer-aix.h"
 #include "src/snapshot/embedded/platform-embedded-file-writer-generic.h"
@@ -60,11 +59,11 @@ int PlatformEmbeddedFileWriterBase::WriteByteChunk(const uint8_t* data) {
       break;
     case 16:
 #ifdef V8_TARGET_BIG_ENDIAN
-      base::Memcpy(&high, data, kHalfSize);
-      base::Memcpy(&low, data + kHalfSize, kHalfSize);
+      memcpy(&high, data, kHalfSize);
+      memcpy(&low, data + kHalfSize, kHalfSize);
 #else
-      base::Memcpy(&high, data + kHalfSize, kHalfSize);
-      base::Memcpy(&low, data, kHalfSize);
+      memcpy(&high, data + kHalfSize, kHalfSize);
+      memcpy(&low, data, kHalfSize);
 #endif  // V8_TARGET_BIG_ENDIAN
       break;
     default:

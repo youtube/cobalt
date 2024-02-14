@@ -11,7 +11,6 @@
 #include "src/ast/scopes.h"
 #include "src/base/hashmap.h"
 #include "src/base/logging.h"
-#include "src/base/platform/wrappers.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins.h"
 #include "src/common/assert-scope.h"
@@ -267,7 +266,7 @@ std::unique_ptr<char[]> FunctionLiteral::GetDebugName() const {
     }
   }
   std::unique_ptr<char[]> result(new char[result_vec.size() + 1]);
-  base::Memcpy(result.get(), result_vec.data(), result_vec.size());
+  memcpy(result.get(), result_vec.data(), result_vec.size());
   result[result_vec.size()] = '\0';
   return result;
 }
@@ -655,7 +654,7 @@ void ArrayLiteral::BuildBoilerplateDescription(LocalIsolate* isolate) {
 
       Object boilerplate_value = *GetBoilerplateValue(element, isolate);
       // We shouldn't allocate after creating the boilerplate value.
-      DisallowGarbageCollection no_gc;
+      DisallowHeapAllocation no_gc;
 
       if (boilerplate_value.IsTheHole(isolate)) {
         DCHECK(IsHoleyElementsKind(kind));

@@ -269,17 +269,10 @@ struct Flag {
           break;
         case SetBy::kCommandLine:
           if (new_set_by == SetBy::kImplication && check_command_line_flags) {
-            if (is_bool_flag) {
-              FATAL(
-                  "Flag --%s: value implied by --%s conflicts with explicit "
-                  "specification\n%s",
-                  name(), implied_by, hint);
-            } else {
-              FATAL(
-                  "Flag --%s is implied by --%s but also specified "
-                  "explicitly.\n%s",
-                  name(), implied_by, hint);
-            }
+            FATAL(
+                "Flag --%s is implied by --%s but also specified "
+                "explicitly.\n%s",
+                name(), implied_by, hint);
           } else if (new_set_by == SetBy::kCommandLine &&
                      check_command_line_flags) {
             if (is_bool_flag) {

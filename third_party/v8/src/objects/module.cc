@@ -10,14 +10,12 @@
 #include "src/api/api-inl.h"
 #include "src/ast/modules.h"
 #include "src/builtins/accessors.h"
-#include "src/common/assert-scope.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/source-text-module.h"
 #include "src/objects/synthetic-module-inl.h"
 #include "src/utils/ostreams.h"
 
@@ -28,7 +26,7 @@ namespace {
 #ifdef DEBUG
 void PrintModuleName(Module module, std::ostream& os) {
   if (module.IsSourceTextModule()) {
-    SourceTextModule::cast(module).GetScript().GetNameOrSourceURL().Print(os);
+    SourceTextModule::cast(module).script().GetNameOrSourceURL().Print(os);
   } else {
     SyntheticModule::cast(module).name().Print(os);
   }
@@ -54,7 +52,7 @@ void PrintStatusMessage(Module module, const char* message) {
 #endif  // DEBUG
 
 void SetStatusInternal(Module module, Module::Status new_status) {
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_alloc;
 #ifdef DEBUG
   PrintStatusTransition(module, new_status);
 #endif  // DEBUG
@@ -64,7 +62,7 @@ void SetStatusInternal(Module module, Module::Status new_status) {
 }  // end namespace
 
 void Module::SetStatus(Status new_status) {
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_alloc;
   DCHECK_LE(status(), new_status);
   DCHECK_NE(new_status, Module::kErrored);
   SetStatusInternal(*this, new_status);
@@ -80,14 +78,11 @@ void Module::RecordErrorUsingPendingException(Isolate* isolate,
 // static
 void Module::RecordError(Isolate* isolate, Handle<Module> module,
                          Handle<Object> error) {
-  DisallowGarbageCollection no_gc;
   DCHECK(module->exception().IsTheHole(isolate));
   DCHECK(!error->IsTheHole(isolate));
   if (module->IsSourceTextModule()) {
-    // Revert to minmal SFI in case we have already been instantiating or
-    // evaluating.
-    auto self = SourceTextModule::cast(*module);
-    self.set_code(self.GetSharedFunctionInfo());
+    Handle<SourceTextModule> self(SourceTextModule::cast(*module), isolate);
+    self->set_code(self->info());
   }
   SetStatusInternal(*module, Module::kErrored);
   if (isolate->is_catchable_by_javascript(*error)) {
@@ -149,7 +144,7 @@ void Module::Reset(Isolate* isolate, Handle<Module> module) {
 }
 
 Object Module::GetException() {
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_gc;
   DCHECK_EQ(status(), Module::kErrored);
   DCHECK(!exception().IsTheHole());
   return exception();
@@ -174,16 +169,14 @@ MaybeHandle<Cell> Module::ResolveExport(Isolate* isolate, Handle<Module> module,
   }
 }
 
-bool Module::Instantiate(
-    Isolate* isolate, Handle<Module> module, v8::Local<v8::Context> context,
-    v8::Module::ResolveModuleCallback callback,
-    DeprecatedResolveCallback callback_without_import_assertions) {
+bool Module::Instantiate(Isolate* isolate, Handle<Module> module,
+                         v8::Local<v8::Context> context,
+                         v8::Module::ResolveCallback callback) {
 #ifdef DEBUG
   PrintStatusMessage(*module, "Instantiating module ");
 #endif  // DEBUG
 
-  if (!PrepareInstantiate(isolate, module, context, callback,
-                          callback_without_import_assertions)) {
+  if (!PrepareInstantiate(isolate, module, context, callback)) {
     ResetGraph(isolate, module);
     DCHECK_EQ(module->status(), kUninstantiated);
     return false;
@@ -202,10 +195,9 @@ bool Module::Instantiate(
   return true;
 }
 
-bool Module::PrepareInstantiate(
-    Isolate* isolate, Handle<Module> module, v8::Local<v8::Context> context,
-    v8::Module::ResolveModuleCallback callback,
-    DeprecatedResolveCallback callback_without_import_assertions) {
+bool Module::PrepareInstantiate(Isolate* isolate, Handle<Module> module,
+                                v8::Local<v8::Context> context,
+                                v8::Module::ResolveCallback callback) {
   DCHECK_NE(module->status(), kEvaluating);
   DCHECK_NE(module->status(), kInstantiating);
   if (module->status() >= kPreInstantiating) return true;
@@ -214,11 +206,10 @@ bool Module::PrepareInstantiate(
 
   if (module->IsSourceTextModule()) {
     return SourceTextModule::PrepareInstantiate(
-        isolate, Handle<SourceTextModule>::cast(module), context, callback,
-        callback_without_import_assertions);
+        isolate, Handle<SourceTextModule>::cast(module), context, callback);
   } else {
     return SyntheticModule::PrepareInstantiate(
-        isolate, Handle<SyntheticModule>::cast(module), context);
+        isolate, Handle<SyntheticModule>::cast(module), context, callback);
   }
 }
 

@@ -16,7 +16,6 @@ namespace internal {
 class Isolate;
 class JSArrayBuffer;
 class JSReceiver;
-class WasmInitExpr;
 class WasmModuleObject;
 class WasmInstanceObject;
 
@@ -37,9 +36,6 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
 bool LoadElemSegment(Isolate* isolate, Handle<WasmInstanceObject> instance,
                      uint32_t table_index, uint32_t segment_index, uint32_t dst,
                      uint32_t src, uint32_t count) V8_WARN_UNUSED_RESULT;
-
-uint32_t EvalUint32InitExpr(Handle<WasmInstanceObject> instance,
-                            const WasmInitExpr& expr);
 
 }  // namespace wasm
 }  // namespace internal

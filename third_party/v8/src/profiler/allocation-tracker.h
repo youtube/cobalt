@@ -28,8 +28,6 @@ class AllocationTraceNode {
   AllocationTraceNode(AllocationTraceTree* tree,
                       unsigned function_info_index);
   ~AllocationTraceNode();
-  AllocationTraceNode(const AllocationTraceNode&) = delete;
-  AllocationTraceNode& operator=(const AllocationTraceNode&) = delete;
   AllocationTraceNode* FindChild(unsigned function_info_index);
   AllocationTraceNode* FindOrAddChild(unsigned function_info_index);
   void AddAllocation(unsigned size);
@@ -51,6 +49,8 @@ class AllocationTraceNode {
   unsigned allocation_count_;
   unsigned id_;
   std::vector<AllocationTraceNode*> children_;
+
+  DISALLOW_COPY_AND_ASSIGN(AllocationTraceNode);
 };
 
 
@@ -58,8 +58,6 @@ class AllocationTraceTree {
  public:
   AllocationTraceTree();
   ~AllocationTraceTree() = default;
-  AllocationTraceTree(const AllocationTraceTree&) = delete;
-  AllocationTraceTree& operator=(const AllocationTraceTree&) = delete;
   AllocationTraceNode* AddPathFromEnd(const Vector<unsigned>& path);
   AllocationTraceNode* root() { return &root_; }
   unsigned next_node_id() { return next_node_id_++; }
@@ -68,6 +66,8 @@ class AllocationTraceTree {
  private:
   unsigned next_node_id_;
   AllocationTraceNode root_;
+
+  DISALLOW_COPY_AND_ASSIGN(AllocationTraceTree);
 };
 
 class V8_EXPORT_PRIVATE AddressToTraceMap {
@@ -108,8 +108,6 @@ class AllocationTracker {
 
   AllocationTracker(HeapObjectsMap* ids, StringsStorage* names);
   ~AllocationTracker();
-  AllocationTracker(const AllocationTracker&) = delete;
-  AllocationTracker& operator=(const AllocationTracker&) = delete;
 
   V8_EXPORT_PRIVATE void PrepareForSerialization();
   void AllocationEvent(Address addr, int size);
@@ -148,6 +146,8 @@ class AllocationTracker {
   std::vector<UnresolvedLocation*> unresolved_locations_;
   unsigned info_index_for_other_state_;
   AddressToTraceMap address_to_trace_;
+
+  DISALLOW_COPY_AND_ASSIGN(AllocationTracker);
 };
 
 }  // namespace internal

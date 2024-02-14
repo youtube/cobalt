@@ -212,7 +212,6 @@ const StructType* TypeVisitor::ComputeType(
             offset.SingleValue(),
             false,
             field.const_qualified,
-            false,
             false};
     auto optional_size = SizeOf(f.name_and_type.type);
     struct_type->RegisterField(f);
@@ -300,12 +299,7 @@ const ClassType* TypeVisitor::ComputeType(
   if (flags & ClassFlag::kExtern) {
     if (decl->generates) {
       bool enforce_tnode_type = true;
-      std::string explicit_generates =
-          ComputeGeneratesType(decl->generates, enforce_tnode_type);
-      if (explicit_generates == generates) {
-        Lint("Unnecessary 'generates' clause for class ", decl->name->value);
-      }
-      generates = explicit_generates;
+      generates = ComputeGeneratesType(decl->generates, enforce_tnode_type);
     }
     if (flags & ClassFlag::kExport) {
       Error("cannot export a class that is marked extern");
@@ -319,7 +313,8 @@ const ClassType* TypeVisitor::ComputeType(
         Error("non-external classes must have defined layouts");
       }
     }
-    flags = flags | ClassFlag::kGeneratePrint | ClassFlag::kGenerateVerify;
+    flags = flags | ClassFlag::kGeneratePrint | ClassFlag::kGenerateVerify |
+            ClassFlag::kGenerateBodyDescriptor;
   }
   if (!(flags & ClassFlag::kExtern) &&
       (flags & ClassFlag::kHasSameInstanceTypeAsParent)) {
@@ -433,8 +428,7 @@ void TypeVisitor::VisitClassFieldsAndMethods(
          class_offset.SingleValue(),
          field_expression.weak,
          field_expression.const_qualified,
-         field_expression.generate_verify,
-         field_expression.relaxed_write});
+         field_expression.generate_verify});
     ResidueClass field_size = std::get<0>(field.GetFieldSizeInformation());
     if (field.index) {
       // Validate that a value at any index in a packed array is aligned

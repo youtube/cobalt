@@ -28,8 +28,6 @@ class HeapProfiler : public HeapObjectAllocationTracker {
  public:
   explicit HeapProfiler(Heap* heap);
   ~HeapProfiler() override;
-  HeapProfiler(const HeapProfiler&) = delete;
-  HeapProfiler& operator=(const HeapProfiler&) = delete;
 
   HeapSnapshot* TakeSnapshot(v8::ActivityControl* control,
                              v8::HeapProfiler::ObjectNameResolver* resolver,
@@ -111,6 +109,8 @@ class HeapProfiler : public HeapObjectAllocationTracker {
       build_embedder_graph_callbacks_;
   std::pair<v8::HeapProfiler::GetDetachednessCallback, void*>
       get_detachedness_callback_;
+
+  DISALLOW_COPY_AND_ASSIGN(HeapProfiler);
 };
 
 }  // namespace internal

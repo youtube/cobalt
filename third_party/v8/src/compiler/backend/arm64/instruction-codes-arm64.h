@@ -93,7 +93,6 @@ namespace compiler {
   V(Arm64Poke)                              \
   V(Arm64PokePair)                          \
   V(Arm64Peek)                              \
-  V(Arm64Prfm)                              \
   V(Arm64Float32Cmp)                        \
   V(Arm64Float32Add)                        \
   V(Arm64Float32Sub)                        \
@@ -234,7 +233,6 @@ namespace compiler {
   V(Arm64I64x2Mul)                          \
   V(Arm64I64x2Eq)                           \
   V(Arm64I64x2ShrU)                         \
-  V(Arm64I64x2BitMask)                      \
   V(Arm64I32x4Splat)                        \
   V(Arm64I32x4ExtractLane)                  \
   V(Arm64I32x4ReplaceLane)                  \
@@ -329,7 +327,6 @@ namespace compiler {
   V(Arm64I8x16RoundingAverageU)             \
   V(Arm64I8x16Abs)                          \
   V(Arm64I8x16BitMask)                      \
-  V(Arm64SignSelect)                        \
   V(Arm64S128Const)                         \
   V(Arm64S128Zero)                          \
   V(Arm64S128Dup)                           \
@@ -372,8 +369,6 @@ namespace compiler {
   V(Arm64V16x8AllTrue)                      \
   V(Arm64V8x16AllTrue)                      \
   V(Arm64LoadSplat)                         \
-  V(Arm64LoadLane)                          \
-  V(Arm64StoreLane)                         \
   V(Arm64S128Load8x8S)                      \
   V(Arm64S128Load8x8U)                      \
   V(Arm64S128Load16x4S)                     \

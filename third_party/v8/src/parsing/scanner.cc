@@ -11,7 +11,6 @@
 #include <cmath>
 
 #include "src/ast/ast-value-factory.h"
-#include "src/base/platform/wrappers.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/bigint.h"
 #include "src/parsing/parse-info.h"
@@ -254,6 +253,11 @@ void Scanner::TryToParseSourceURLComment() {
     Advance();
   }
   while (c0_ != kEndOfInput && !unibrow::IsLineTerminator(c0_)) {
+    // Disallowed characters.
+    if (c0_ == '"' || c0_ == '\'') {
+      value->Start();
+      return;
+    }
     if (IsWhiteSpace(c0_)) {
       break;
     }
@@ -1046,7 +1050,7 @@ const char* Scanner::CurrentLiteralAsCString(Zone* zone) const {
   Vector<const uint8_t> vector = literal_one_byte_string();
   int length = vector.length();
   char* buffer = zone->NewArray<char>(length + 1);
-  base::Memcpy(buffer, vector.begin(), length);
+  memcpy(buffer, vector.begin(), length);
   buffer[length] = '\0';
   return buffer;
 }

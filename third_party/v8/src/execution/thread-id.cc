@@ -11,13 +11,8 @@ namespace internal {
 
 namespace {
 
-#if defined(V8_OS_STARBOARD)
-static_assert(sizeof(int) <= sizeof(void*), "int won't fit in void*");
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(base::Thread::LocalStorageKey, GetThreadIdKey,
                                 base::Thread::CreateThreadLocalKey())
-#else
-thread_local int thread_id = 0;
-#endif  // defined(V8_OS_STARBOARD)
 
 std::atomic<int> next_thread_id{1};
 
@@ -25,27 +20,18 @@ std::atomic<int> next_thread_id{1};
 
 // static
 ThreadId ThreadId::TryGetCurrent() {
-#if defined(V8_OS_STARBOARD)
-  int thread_id = static_cast<int>(reinterpret_cast<intptr_t>(
-      base::Thread::GetThreadLocal(*GetThreadIdKey())));
-#endif  // defined(V8_OS_STARBOARD)
+  int thread_id = base::Thread::GetThreadLocalInt(*GetThreadIdKey());
   return thread_id == 0 ? Invalid() : ThreadId(thread_id);
 }
 
 // static
 int ThreadId::GetCurrentThreadId() {
-#if defined(V8_OS_STARBOARD)
   auto key = *GetThreadIdKey();
-  int thread_id = static_cast<int>(reinterpret_cast<intptr_t>(
-      base::Thread::GetThreadLocal(*GetThreadIdKey())));
-#endif  // defined(V8_OS_STARBOARD)
+  int thread_id = base::Thread::GetThreadLocalInt(key);
   if (thread_id == 0) {
     thread_id = next_thread_id.fetch_add(1);
     CHECK_LE(1, thread_id);
-#if defined(V8_OS_STARBOARD)
-    base::Thread::SetThreadLocal(
-        key, reinterpret_cast<void*>(static_cast<intptr_t>(thread_id)));
-#endif  // defined(V8_OS_STARBOARD)
+    base::Thread::SetThreadLocalInt(key, thread_id);
   }
   return thread_id;
 }

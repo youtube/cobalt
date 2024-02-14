@@ -44,21 +44,20 @@
 namespace v8 {
 namespace internal {
 
-static bool IsAddressWithinFuncCode(JSFunction function, Isolate* isolate,
-                                    void* addr) {
-  i::AbstractCode code = function.abstract_code(isolate);
+static bool IsAddressWithinFuncCode(JSFunction function, void* addr) {
+  i::AbstractCode code = function.abstract_code();
   return code.contains(reinterpret_cast<Address>(addr));
 }
 
 static bool IsAddressWithinFuncCode(v8::Local<v8::Context> context,
-                                    Isolate* isolate, const char* func_name,
-                                    void* addr) {
+                                    const char* func_name, void* addr) {
   v8::Local<v8::Value> func =
       context->Global()->Get(context, v8_str(func_name)).ToLocalChecked();
   CHECK(func->IsFunction());
   JSFunction js_func = JSFunction::cast(*v8::Utils::OpenHandle(*func));
-  return IsAddressWithinFuncCode(js_func, isolate, addr);
+  return IsAddressWithinFuncCode(js_func, addr);
 }
+
 
 // This C++ function is called as a constructor, to grab the frame pointer
 // from the calling function.  When this function runs, the stack contains
@@ -178,10 +177,9 @@ TEST(CFromJSStackTrace) {
   unsigned base = 0;
   CHECK_GT(sample.frames_count, base + 1);
 
-  CHECK(IsAddressWithinFuncCode(context, CcTest::i_isolate(), "JSFuncDoTrace",
-                                sample.stack[base + 0]));
-  CHECK(IsAddressWithinFuncCode(context, CcTest::i_isolate(), "JSTrace",
-                                sample.stack[base + 1]));
+  CHECK(IsAddressWithinFuncCode(
+      context, "JSFuncDoTrace", sample.stack[base + 0]));
+  CHECK(IsAddressWithinFuncCode(context, "JSTrace", sample.stack[base + 1]));
 }
 
 
@@ -232,10 +230,9 @@ TEST(PureJSStackTrace) {
   // Stack sampling will start from the caller of JSFuncDoTrace, i.e. "JSTrace"
   unsigned base = 0;
   CHECK_GT(sample.frames_count, base + 1);
-  CHECK(IsAddressWithinFuncCode(context, CcTest::i_isolate(), "JSTrace",
-                                sample.stack[base + 0]));
-  CHECK(IsAddressWithinFuncCode(context, CcTest::i_isolate(), "OuterJSTrace",
-                                sample.stack[base + 1]));
+  CHECK(IsAddressWithinFuncCode(context, "JSTrace", sample.stack[base + 0]));
+  CHECK(IsAddressWithinFuncCode(
+      context, "OuterJSTrace", sample.stack[base + 1]));
 }
 
 static void CFuncDoTrace(byte dummy_param) {

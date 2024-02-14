@@ -454,8 +454,6 @@ static_library("starboard_platform") {
     sources += [
       "//starboard/shared/starboard/crash_handler.cc",
       "//starboard/shared/starboard/crash_handler.h",
-      "//starboard/shared/starboard/starboard_switches.cc",
-      "//starboard/shared/starboard/starboard_switches.h",
     ]
 
     public_deps += [

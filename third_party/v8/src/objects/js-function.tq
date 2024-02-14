@@ -4,6 +4,7 @@
 
 @abstract
 @generateCppClass
+@highestInstanceTypeWithinParentClassRange
 extern class JSFunctionOrBoundFunction extends JSObject {
 }
 

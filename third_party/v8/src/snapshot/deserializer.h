@@ -269,16 +269,16 @@ class StringTableInsertionKey final : public StringTableKey {
  public:
   explicit StringTableInsertionKey(Handle<String> string);
 
-  bool IsMatch(Isolate* isolate, String string);
+  bool IsMatch(String string) override;
 
   V8_WARN_UNUSED_RESULT Handle<String> AsHandle(Isolate* isolate);
   V8_WARN_UNUSED_RESULT Handle<String> AsHandle(LocalIsolate* isolate);
 
  private:
-  uint32_t ComputeRawHashField(String string);
+  uint32_t ComputeHashField(String string);
 
   Handle<String> string_;
-  DISALLOW_GARBAGE_COLLECTION(no_gc)
+  DISALLOW_HEAP_ALLOCATION(no_gc)
 };
 
 }  // namespace internal

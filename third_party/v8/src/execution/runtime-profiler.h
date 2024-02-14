@@ -35,9 +35,6 @@ class RuntimeProfiler {
                                  int nesting_levels = 1);
 
  private:
-  // Helper function called from MarkCandidatesForOptimization*
-  void MarkCandidatesForOptimization(JavaScriptFrame* frame);
-
   // Make the decision whether to optimize the given function, and mark it for
   // optimization if the decision was 'yes'.
   void MaybeOptimizeFrame(JSFunction function, JavaScriptFrame* frame,
@@ -52,7 +49,7 @@ class RuntimeProfiler {
                 CodeKind code_kind);
   void Baseline(JSFunction function, OptimizationReason reason);
 
-  class V8_NODISCARD MarkCandidatesForOptimizationScope final {
+  class MarkCandidatesForOptimizationScope final {
    public:
     explicit MarkCandidatesForOptimizationScope(RuntimeProfiler* profiler);
     ~MarkCandidatesForOptimizationScope();
@@ -60,7 +57,7 @@ class RuntimeProfiler {
    private:
     HandleScope handle_scope_;
     RuntimeProfiler* const profiler_;
-    DisallowGarbageCollection no_gc;
+    DisallowHeapAllocation no_gc;
   };
 
   Isolate* isolate_;

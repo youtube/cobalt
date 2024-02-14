@@ -19,40 +19,13 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <winsock2.h>
+#undef NO_ERROR  // http://b/302733082#comment15
+//  TODO: b/324981660 undefine the caller of this GetCurrentTime in
+//  <winsock2.h>
+#undef GetCurrentTime
 
 #include "starboard/configuration.h"
-
-inline uint32_t htonl(uint32_t in) {
-#if SB_IS(BIG_ENDIAN)
-  return in;
-#else
-  return _byteswap_ulong(in);
-#endif
-}
-
-inline uint16_t htons(uint16_t in) {
-#if SB_IS(BIG_ENDIAN)
-  return in;
-#else
-  return _byteswap_ushort(in);
-#endif
-}
-
-inline uint32_t ntohl(uint32_t in) {
-#if SB_IS(BIG_ENDIAN)
-  return in;
-#else
-  return _byteswap_ulong(in);
-#endif
-}
-
-inline uint16_t ntohs(uint16_t in) {
-#if SB_IS(BIG_ENDIAN)
-  return in;
-#else
-  return _byteswap_ushort(in);
-#endif
-}
 
 #endif  // defined(STARBOARD) && defined(_MSC_VER)
 

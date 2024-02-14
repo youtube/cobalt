@@ -166,14 +166,13 @@ Handle<BytecodeArray> OptimizedBytecodeSourcePositionTester::MakeBytecode(
   SetOptimizationFlags(optimization_bitmap);
   CompileRun(script.c_str());
 
-  Local<Function> api_function =
+  Local<Function> api_function = Local<Function>::Cast(
       CcTest::global()
           ->Get(CcTest::isolate()->GetCurrentContext(), v8_str("test_function"))
-          .ToLocalChecked()
-          .As<Function>();
+          .ToLocalChecked());
   Handle<JSFunction> function =
       Handle<JSFunction>::cast(v8::Utils::OpenHandle(*api_function));
-  return handle(function->shared().GetBytecodeArray(isolate_), isolate_);
+  return handle(function->shared().GetBytecodeArray(), isolate_);
 }
 
 void OptimizedBytecodeSourcePositionTester::SetOptimizationFlags(

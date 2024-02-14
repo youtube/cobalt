@@ -2848,7 +2848,8 @@ TEST(PauseInScript) {
   const char* src = "(function (evt) {})";
   const char* script_name = "StepInHandlerTest";
 
-  v8::ScriptOrigin origin(v8_str(env->GetIsolate(), script_name));
+  v8::ScriptOrigin origin(v8_str(env->GetIsolate(), script_name),
+                          v8::Integer::New(env->GetIsolate(), 0));
   v8::Local<v8::Script> script =
       v8::Script::Compile(context, v8_str(env->GetIsolate(), src), &origin)
           .ToLocalChecked();
@@ -4526,10 +4527,11 @@ UNINITIALIZED_TEST(LoadedAtStartupScripts) {
     LocalContext context(isolate);
 
     std::vector<i::Handle<i::Script>> scripts;
-    CompileWithOrigin(v8_str("function foo(){}"), v8_str("normal.js"), false);
+    CompileWithOrigin(v8_str("function foo(){}"), v8_str("normal.js"),
+                      v8_bool(false));
     std::unordered_map<int, int> count_by_type;
     {
-      i::DisallowGarbageCollection no_gc;
+      i::DisallowHeapAllocation no_gc;
       i::Script::Iterator iterator(i_isolate);
       for (i::Script script = iterator.Next(); !script.is_null();
            script = iterator.Next()) {
@@ -4857,6 +4859,7 @@ TEST(GetPrivateFields) {
 }
 
 TEST(GetPrivateMethodsAndAccessors) {
+  i::FLAG_harmony_private_methods = true;
   LocalContext env;
   v8::Isolate* v8_isolate = CcTest::isolate();
   v8::HandleScope scope(v8_isolate);
@@ -4993,6 +4996,7 @@ TEST(GetPrivateMethodsAndAccessors) {
 }
 
 TEST(GetPrivateStaticMethodsAndAccessors) {
+  i::FLAG_harmony_private_methods = true;
   LocalContext env;
   v8::Isolate* v8_isolate = CcTest::isolate();
   v8::HandleScope scope(v8_isolate);
@@ -5043,6 +5047,7 @@ TEST(GetPrivateStaticMethodsAndAccessors) {
 }
 
 TEST(GetPrivateStaticAndInstanceMethodsAndAccessors) {
+  i::FLAG_harmony_private_methods = true;
   LocalContext env;
   v8::Isolate* v8_isolate = CcTest::isolate();
   v8::HandleScope scope(v8_isolate);

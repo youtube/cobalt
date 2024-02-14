@@ -101,12 +101,14 @@ class GlobalSafepoint {
 
   int active_safepoint_scopes_;
 
+  LocalHeap* local_heap_of_this_thread_;
+
   friend class SafepointScope;
   friend class LocalHeap;
   friend class PersistentHandles;
 };
 
-class V8_NODISCARD SafepointScope {
+class SafepointScope {
  public:
   V8_EXPORT_PRIVATE explicit SafepointScope(Heap* heap);
   V8_EXPORT_PRIVATE ~SafepointScope();

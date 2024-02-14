@@ -381,10 +381,10 @@ JsonStringifier::Result JsonStringifier::StackPush(Handle<Object> object,
   }
 
   {
-    DisallowGarbageCollection no_gc;
+    DisallowHeapAllocation no_allocation;
     for (size_t i = 0; i < stack_.size(); ++i) {
       if (*stack_[i].second == *object) {
-        AllowGarbageCollection allow_to_return_error;
+        AllowHeapAllocation allow_to_return_error;
         Handle<String> circle_description =
             ConstructCircularStructureErrorMessage(key, i);
         Handle<Object> error = factory()->NewTypeError(
@@ -936,7 +936,7 @@ void JsonStringifier::SerializeString_(Handle<String> string) {
   // We might be able to fit the whole escaped string in the current string
   // part, or we might need to allocate.
   if (int worst_case_length = builder_.EscapedLengthIfCurrentPartFits(length)) {
-    DisallowGarbageCollection no_gc;
+    DisallowHeapAllocation no_gc;
     Vector<const SrcChar> vector = string->GetCharVector<SrcChar>(no_gc);
     IncrementalStringBuilder::NoExtendBuilder<DestChar> no_extend(
         &builder_, worst_case_length, no_gc);

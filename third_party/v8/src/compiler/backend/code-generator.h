@@ -247,9 +247,6 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
 
   CodeGenResult AssembleDeoptimizerCall(DeoptimizationExit* exit);
 
-  void AssembleDeoptImmediateArgs(
-      const ZoneVector<ImmediateOperand*>* immediate_args, Label* deopt_exit);
-
   // ===========================================================================
   // ============= Architecture-specific code generation methods. ==============
   // ===========================================================================
@@ -394,7 +391,6 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
                                                     size_t frame_state_offset);
   DeoptimizationExit* BuildTranslation(Instruction* instr, int pc_offset,
                                        size_t frame_state_offset,
-                                       size_t immediate_args_count,
                                        OutputFrameStateCombine state_combine);
   void BuildTranslationForFrameStateDescriptor(
       FrameStateDescriptor* descriptor, InstructionOperandIterator* iter,
@@ -412,8 +408,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
 
   void PrepareForDeoptimizationExits(ZoneDeque<DeoptimizationExit*>* exits);
   DeoptimizationExit* AddDeoptimizationExit(Instruction* instr,
-                                            size_t frame_state_offset,
-                                            size_t immediate_args_count);
+                                            size_t frame_state_offset);
 
   // ===========================================================================
 
@@ -443,8 +438,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   ZoneVector<HandlerInfo> handlers_;
   int next_deoptimization_id_ = 0;
   int deopt_exit_start_offset_ = 0;
-  int eager_soft_and_bailout_deopt_count_ = 0;
-  int lazy_deopt_count_ = 0;
+  int non_lazy_deopt_count_ = 0;
   ZoneDeque<DeoptimizationExit*> deoptimization_exits_;
   ZoneDeque<DeoptimizationLiteral> deoptimization_literals_;
   size_t inlined_function_count_ = 0;
