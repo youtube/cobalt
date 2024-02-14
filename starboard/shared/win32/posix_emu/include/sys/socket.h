@@ -12,21 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_ARPA_INET_H_
-#define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_ARPA_INET_H_
+#ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_SOCKET_H_
+#define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_SOCKET_H_
 
-#if defined(STARBOARD) && defined(_MSC_VER)
-
-#include <stdint.h>
-#include <stdlib.h>
 #include <winsock2.h>
 #undef NO_ERROR  // http://b/302733082#comment15
-//  TODO: b/324981660 undefine the caller of this GetCurrentTime in
-//  <winsock2.h>
-#undef GetCurrentTime
 
-#include "starboard/configuration.h"
+#include "starboard/common/log.h"
+#include "starboard/types.h"
 
-#endif  // defined(STARBOARD) && defined(_MSC_VER)
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_ARPA_INET_H_
+int sb_socket(int domain, int type, int protocol);
+#define socket sb_socket
+
+#ifdef __cplusplus
+}
+#endif
+#endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_SOCKET_H_
