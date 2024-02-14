@@ -235,6 +235,9 @@ class MEDIA_EXPORT DecoderBuffer
     is_key_frame_ = is_key_frame;
   }
 
+  // Returns total memory used for bookkeeping and buffered data.
+  virtual size_t total_memory_usage() const;
+
   // Returns true if all fields in |buffer| matches this buffer
   // including |data_| and |side_data_|.
   bool MatchesForTesting(const DecoderBuffer& buffer) const;

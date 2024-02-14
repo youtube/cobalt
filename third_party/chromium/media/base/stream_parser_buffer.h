@@ -165,6 +165,8 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
     is_duration_estimated_ = is_estimated;
   }
 
+  size_t total_memory_usage() const override;
+
  private:
   StreamParserBuffer(const uint8_t* data,
                      int data_size,

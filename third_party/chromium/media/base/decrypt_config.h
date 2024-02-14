@@ -64,6 +64,12 @@ class MEDIA_EXPORT DecryptConfig {
     return encryption_pattern_;
   }
 
+  // Returns total memory used for bookkeeping and config data.
+  size_t total_memory_usage() const {
+    return sizeof(DecryptConfig) + key_id_.capacity() + iv_.capacity() +
+           sizeof(SubsampleEntry) * subsamples_.capacity();
+  }
+
   std::unique_ptr<DecryptConfig> Clone() const;
 
   // Makes a new config which has the same configuration options (mode, pattern)

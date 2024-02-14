@@ -181,6 +181,11 @@ scoped_refptr<DecoderBuffer> DecoderBuffer::CreateEOSBuffer() {
   return base::WrapRefCounted(new DecoderBuffer(NULL, 0, NULL, 0));
 }
 
+size_t DecoderBuffer::total_memory_usage() const {
+  return sizeof(DecoderBuffer) + side_data_size_ + size_ +
+         (decrypt_config_ ? decrypt_config_->total_memory_usage() : 0);
+}
+
 bool DecoderBuffer::MatchesForTesting(const DecoderBuffer& buffer) const {
   if (end_of_stream() != buffer.end_of_stream())
     return false;

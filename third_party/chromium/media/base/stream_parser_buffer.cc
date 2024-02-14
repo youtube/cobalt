@@ -119,4 +119,10 @@ void StreamParserBuffer::set_timestamp(base::TimeDelta timestamp) {
     preroll_buffer_->set_timestamp(timestamp);
 }
 
+size_t StreamParserBuffer::total_memory_usage() const {
+  return DecoderBuffer::total_memory_usage() - sizeof(DecoderBuffer) +
+    sizeof(StreamParserBuffer) + 
+    (preroll_buffer_ ? preroll_buffer_->total_memory_usage() : 0);
+}
+
 }  // namespace media
