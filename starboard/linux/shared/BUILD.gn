@@ -380,7 +380,6 @@ static_library("starboard_platform_sources") {
     "//starboard:starboard_headers_only",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]
-  deps = [ "//third_party/boringssl" ]
 
   if (is_internal_build) {
     sources += [
