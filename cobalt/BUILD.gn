@@ -67,7 +67,6 @@ group("default") {
   ]
 
   if (sb_is_modular) {
-    deps += [ "//base/util/values:values_util" ]
     if (sb_is_evergreen) {
       deps += [
         # TODO(b/294247612): Remove unnecessary dependencies.
