@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: decode_target.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: `decode_target.h`
 
 A target for decoding image and video data into. This corresponds roughly to an
 EGLImage, but that extension may not be fully supported on all GL platforms.
@@ -12,7 +12,7 @@ data. This allows the application to allocate fast graphics memory, and have
 decoding done directly into this memory, avoiding unnecessary memory copies, and
 also avoiding pushing data between CPU and GPU memory unnecessarily.
 
-## SbDecodeTargetFormat ##
+## SbDecodeTargetFormat
 
 SbDecodeTargets support several different formats that can be used to decode
 into and render from. Some formats may be easier to decode into, and others may
@@ -21,7 +21,7 @@ the SbDecodeTargetFormat passed into it, or the decode will produce an error.
 Each decoder provides a way to check if a given SbDecodeTargetFormat is
 supported by that decoder.
 
-## SbDecodeTargetGraphicsContextProvider ##
+## SbDecodeTargetGraphicsContextProvider
 
 Some components may need to acquire SbDecodeTargets compatible with a certain
 rendering context, which may need to be created on a particular thread. The
@@ -33,10 +33,9 @@ to run arbitrary code on the application's renderer thread with the renderer's
 EGLContext held current. This may be useful if your SbDecodeTarget creation code
 needs to execute GLES commands like, for example, glGenTextures().
 
-The primary usage is likely to be the the SbPlayer implementation on some
-platforms.
+The primary usage is likely to be the SbPlayer implementation on some platforms.
 
-## SbDecodeTarget Example ##
+## SbDecodeTarget Example
 
 Let's say that we are an application and we would like to use the interface
 defined in starboard/image.h to decode an imaginary "image/foo" image type.
@@ -79,15 +78,15 @@ GLuint texture =
     info.planes[kSbDecodeTargetPlaneRGBA].texture;
 ```
 
-## Macros ##
+## Macros
 
-### kSbDecodeTargetInvalid ###
+### kSbDecodeTargetInvalid
 
 Well-defined value for an invalid decode target handle.
 
-## Enums ##
+## Enums
 
-### SbDecodeTargetFormat ###
+### SbDecodeTargetFormat
 
 The list of all possible decoder target formats. An SbDecodeTarget consists of
 one or more planes of data, each plane corresponding with a surface. For some
@@ -96,7 +95,7 @@ formats, different planes will be different sizes for the same dimensions.
 NOTE: For enumeration entries with an alpha component, the alpha will always be
 premultiplied unless otherwise explicitly specified.
 
-#### Values ####
+#### Values
 
 *   `kSbDecodeTargetFormat1PlaneRGBA`
 
@@ -137,11 +136,11 @@ premultiplied unless otherwise explicitly specified.
 
     An invalid decode target format.
 
-### SbDecodeTargetPlane ###
+### SbDecodeTargetPlane
 
 All the planes supported by SbDecodeTarget.
 
-#### Values ####
+#### Values
 
 *   `kSbDecodeTargetPlaneRGBA`
 
@@ -162,45 +161,45 @@ All the planes supported by SbDecodeTarget.
 
     The V plane for 3-plane YUV formats.
 
-## Typedefs ##
+## Typedefs
 
-### SbDecodeTarget ###
+### SbDecodeTarget
 
 A handle to a target for image data decoding.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef SbDecodeTargetPrivate* SbDecodeTarget
 ```
 
-### SbDecodeTargetGlesContextRunner ###
+### SbDecodeTargetGlesContextRunner
 
 Signature for a function provided by the application to the Starboard
 implementation that will let the Starboard implementation run arbitrary code on
 the application's renderer thread with the application's EGLContext held
 current.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef void(* SbDecodeTargetGlesContextRunner) (struct SbDecodeTargetGraphicsContextProvider *graphics_context_provider, SbDecodeTargetGlesContextRunnerTarget target_function, void *target_function_context)
 ```
 
-### SbDecodeTargetGlesContextRunnerTarget ###
+### SbDecodeTargetGlesContextRunnerTarget
 
 Signature for a Starboard implementation function that is to be run by a
 SbDecodeTargetGlesContextRunner callback.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef void(* SbDecodeTargetGlesContextRunnerTarget) (void *gles_context_runner_target_context)
 ```
 
-## Structs ##
+## Structs
 
-### SbDecodeTargetGraphicsContextProvider ###
+### SbDecodeTargetGraphicsContextProvider
 
 In general, the SbDecodeTargetGraphicsContextProvider structure provides
 information about the graphics context that will be used to render
@@ -210,7 +209,7 @@ References to SbDecodeTargetGraphicsContextProvider objects should be provided
 to all Starboard functions that might create SbDecodeTargets (e.g.
 SbImageDecode()).
 
-#### Members ####
+#### Members
 
 *   `void * egl_display`
 
@@ -233,12 +232,12 @@ SbImageDecode()).
     Context data that is to be passed in to `gles_context_runner` when it is
     invoked.
 
-### SbDecodeTargetInfo ###
+### SbDecodeTargetInfo
 
 Contains all information about a decode target, including all of its planes.
 This can be queried via calls to SbDecodeTargetGetInfo().
 
-#### Members ####
+#### Members
 
 *   `SbDecodeTargetFormat format`
 
@@ -267,11 +266,11 @@ This can be queried via calls to SbDecodeTargetGetInfo().
     kSbDecodeTargetPlaneU, kSbDecodeTargetPlaneV} associated with this decode
     target.
 
-### SbDecodeTargetInfoContentRegion ###
+### SbDecodeTargetInfoContentRegion
 
 Defines a rectangular content region within a SbDecodeTargetInfoPlane structure.
 
-#### Members ####
+#### Members
 
 *   `float left`
 
@@ -283,11 +282,11 @@ Defines a rectangular content region within a SbDecodeTargetInfoPlane structure.
 *   `float right`
 *   `float bottom`
 
-### SbDecodeTargetInfoPlane ###
+### SbDecodeTargetInfoPlane
 
 Defines an image plane within a SbDecodeTargetInfo object.
 
-#### Members ####
+#### Members
 
 *   `uint32_t texture`
 
@@ -317,53 +316,53 @@ Defines an image plane within a SbDecodeTargetInfo object.
     these parameters are number of pixels. The range for left/right is [0,
     width], and for top/bottom it is [0, height].
 
-## Functions ##
+## Functions
 
-### PrivateDecodeTargetReleaser ###
+### PrivateDecodeTargetReleaser
 
 This function is just an implementation detail of
 SbDecodeTargetReleaseInGlesContext() and should not be called directly.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static void PrivateDecodeTargetReleaser(void *context)
 ```
 
-### SbDecodeTargetGetInfo ###
+### SbDecodeTargetGetInfo
 
 Writes all information about `decode_target` into `out_info`. The
 `decode_target` must not be kSbDecodeTargetInvalid. The `out_info` pointer must
 not be NULL. Returns false if the provided `out_info` structure is not zero
 initialized.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbDecodeTargetGetInfo(SbDecodeTarget decode_target, SbDecodeTargetInfo *out_info)
 ```
 
-### SbDecodeTargetIsFormatValid ###
+### SbDecodeTargetIsFormatValid
 
 Returns whether a given format is valid.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static bool SbDecodeTargetIsFormatValid(SbDecodeTargetFormat format)
 ```
 
-### SbDecodeTargetIsValid ###
+### SbDecodeTargetIsValid
 
 Returns whether the given file handle is valid.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static bool SbDecodeTargetIsValid(SbDecodeTarget handle)
 ```
 
-### SbDecodeTargetRelease ###
+### SbDecodeTargetRelease
 
 Returns ownership of `decode_target` to the Starboard implementation. This
 function will likely result in the destruction of the SbDecodeTarget and all its
@@ -371,31 +370,31 @@ associated surfaces, though in some cases, platforms may simply adjust a
 reference count. In the case where SB_HAS(GLES2), this function must be called
 on a thread with the context
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbDecodeTargetRelease(SbDecodeTarget decode_target)
 ```
 
-### SbDecodeTargetReleaseInGlesContext ###
+### SbDecodeTargetReleaseInGlesContext
 
 Helper function that is possibly useful to Starboard implementations that will
 release a decode target on the thread with the GLES context current.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static void SbDecodeTargetReleaseInGlesContext(SbDecodeTargetGraphicsContextProvider *provider, SbDecodeTarget decode_target)
 ```
 
-### SbDecodeTargetRunInGlesContext ###
+### SbDecodeTargetRunInGlesContext
 
 Inline convenience function to run an arbitrary
 SbDecodeTargetGlesContextRunnerTarget function through a
 SbDecodeTargetGraphicsContextProvider . This is intended to be called by
 Starboard implementations, if it is necessary.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static void SbDecodeTargetRunInGlesContext(SbDecodeTargetGraphicsContextProvider *provider, SbDecodeTargetGlesContextRunnerTarget target, void *target_context)

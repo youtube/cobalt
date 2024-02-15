@@ -39,6 +39,7 @@ config("target") {
     # The warning "Padding was added at the end of a structure" happens
     # in the library third_party/internal/libav1_xb1.
     "/wd4324",
+    "/Zc:__cplusplus",  # enable preprocessor macro for language support
   ]
 
   if (is_debug || is_devel) {

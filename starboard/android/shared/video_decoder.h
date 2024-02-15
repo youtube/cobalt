@@ -71,6 +71,8 @@ class VideoDecoder
                bool force_reset_surface_under_tunnel_mode,
                bool force_big_endian_hdr_metadata,
                bool force_improved_support_check,
+               bool use_mediacodec_callback_thread,
+               int max_input_size,
                std::string* error_message);
   ~VideoDecoder() override;
 
@@ -116,7 +118,8 @@ class VideoDecoder
   void OnFlushing() override;
 
   void TryToSignalPrerollForTunnelMode();
-  void OnTunnelModeFrameRendered(SbTime frame_timestamp);
+  bool IsFrameRenderedCallbackEnabled();
+  void OnFrameRendered(SbTime frame_timestamp);
   void OnTunnelModePrerollTimeout();
   void OnTunnelModeCheckForNeedMoreInput();
 
@@ -151,6 +154,9 @@ class VideoDecoder
 
   const int tunnel_mode_audio_session_id_ = -1;
 
+  // Set the maximum size in bytes of an input buffer for video.
+  const int max_video_input_size_;
+
   // Force resetting the video surface after tunnel mode playback, which
   // prevents video distortion on some devices.
   const bool force_reset_surface_under_tunnel_mode_;
@@ -158,7 +164,10 @@ class VideoDecoder
   // we create a dummy drm system to force the video playing in secure pipeline
   // to enable tunnel mode.
   scoped_ptr<DrmSystem> drm_system_to_enforce_tunnel_mode_;
+
+  const bool is_video_frame_tracker_enabled_;
   scoped_ptr<VideoFrameTracker> video_frame_tracker_;
+
   // Preroll in tunnel mode is handled in this class instead of in the renderer.
   atomic_bool tunnel_mode_prerolling_{true};
   atomic_bool tunnel_mode_frame_rendered_;
@@ -214,6 +223,10 @@ class VideoDecoder
   bool first_output_format_changed_ = false;
   optional<VideoOutputFormat> output_format_;
   size_t number_of_preroll_frames_;
+
+  // Set mediacodec callback with a handler on another thread to avoid running
+  // callbacks on the main thread and being blocked by other main thread tasks.
+  const bool use_mediacodec_callback_thread_;
 };
 
 }  // namespace shared

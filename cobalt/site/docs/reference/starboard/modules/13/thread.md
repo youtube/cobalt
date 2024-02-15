@@ -1,35 +1,35 @@
----
-layout: doc
-title: "Starboard Module Reference: thread.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: `thread.h`
 
 Defines functionality related to thread creation and cleanup.
 
-## Macros ##
+## Macros
 
-### kSbThreadContextInvalid ###
+### kSbThreadContextInvalid
 
 Well-defined value for an invalid thread context.
 
-### kSbThreadInvalidId ###
+### kSbThreadInvalidId
 
 Well-defined constant value to mean "no thread ID."
 
-### kSbThreadLocalKeyInvalid ###
+### kSbThreadLocalKeyInvalid
 
 Well-defined constant value to mean "no thread local key."
 
-### kSbThreadNoAffinity ###
+### kSbThreadNoAffinity
 
 Well-defined constant value to mean "no affinity."
 
-### kSbThreadSamplerInvalid ###
+### kSbThreadSamplerInvalid
 
 Well-defined value for an invalid thread sampler.
 
-## Enums ##
+## Enums
 
-### SbThreadPriority ###
+### SbThreadPriority
 
 A spectrum of thread priorities. Platforms map them appropriately to their own
 priority system. Note that scheduling is platform-specific, and what these
@@ -39,7 +39,7 @@ In particular, several of these priority values can map to the same priority on
 a given platform. The only guarantee is that each lower priority should be
 treated less-than-or-equal-to a higher priority.
 
-#### Values ####
+#### Values
 
 *   `kSbThreadPriorityLowest`
 
@@ -79,116 +79,116 @@ treated less-than-or-equal-to a higher priority.
     inherit the priority of the spawning thread, or it may mean a specific
     default priority, or it may mean something else, depending on the platform.
 
-## Typedefs ##
+## Typedefs
 
-### SbThread ###
+### SbThread
 
 An opaque handle to a thread type.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef void* SbThread
 ```
 
-### SbThreadAffinity ###
+### SbThreadAffinity
 
 Type for thread core affinity. This generally will be a single cpu (or core or
 hyperthread) identifier. Some platforms may not support affinity, and some may
 have specific rules about how it must be used.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef int32_t SbThreadAffinity
 ```
 
-### SbThreadContext ###
+### SbThreadContext
 
 A handle to the context of a frozen thread.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef SbThreadContextPrivate* SbThreadContext
 ```
 
-### SbThreadEntryPoint ###
+### SbThreadEntryPoint
 
 Function pointer type for SbThreadCreate. `context` is a pointer-sized bit of
 data passed in from the calling thread.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef void*(* SbThreadEntryPoint) (void *context)
 ```
 
-### SbThreadId ###
+### SbThreadId
 
 An ID type that is unique per thread.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef int32_t SbThreadId
 ```
 
-### SbThreadLocalDestructor ###
+### SbThreadLocalDestructor
 
 Function pointer type for Thread-Local destructors.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef void(* SbThreadLocalDestructor) (void *value)
 ```
 
-### SbThreadLocalKey ###
+### SbThreadLocalKey
 
 A handle to a thread-local key.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef SbThreadLocalKeyPrivate* SbThreadLocalKey
 ```
 
-### SbThreadSampler ###
+### SbThreadSampler
 
 A handle to a thread sampler.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef SbThreadSamplerPrivate* SbThreadSampler
 ```
 
-## Functions ##
+## Functions
 
-### SbThreadContextGetPointer ###
+### SbThreadContextGetPointer
 
 Gets the specified pointer-type `property` from the specified `context`. Returns
 `true` if successful and `out_value` has been modified, otherwise returns
 `false` and `out_value` is not modified.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbThreadContextGetPointer(SbThreadContext context, SbThreadContextProperty property, void **out_value)
 ```
 
-### SbThreadContextIsValid ###
+### SbThreadContextIsValid
 
 Returns whether the given thread context is valid.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static bool SbThreadContextIsValid(SbThreadContext context)
 ```
 
-### SbThreadCreate ###
+### SbThreadCreate
 
 Creates a new thread, which starts immediately.
 
@@ -214,13 +214,13 @@ used in production builds. `entry_point`: A pointer to a function that will be
 executed on the newly created thread. `context`: This value will be passed to
 the `entry_point` function.
 
-#### Declaration ####
+#### Declaration
 
 ```
 SbThread SbThreadCreate(int64_t stack_size, SbThreadPriority priority, SbThreadAffinity affinity, bool joinable, const char *name, SbThreadEntryPoint entry_point, void *context)
 ```
 
-### SbThreadCreateLocalKey ###
+### SbThreadCreateLocalKey
 
 Creates and returns a new, unique key for thread local data. If the function
 does not succeed, the function returns `kSbThreadLocalKeyInvalid`.
@@ -233,13 +233,13 @@ value is not NULL.
 `destructor`: A pointer to a function. The value may be NULL if no clean up is
 needed.
 
-#### Declaration ####
+#### Declaration
 
 ```
 SbThreadLocalKey SbThreadCreateLocalKey(SbThreadLocalDestructor destructor)
 ```
 
-### SbThreadDestroyLocalKey ###
+### SbThreadDestroyLocalKey
 
 Destroys thread local data for the specified key. The function is a no-op if the
 key is invalid (kSbThreadLocalKeyInvalid`) or has already been destroyed. This
@@ -247,13 +247,13 @@ function does NOT call the destructor on any stored values.
 
 `key`: The key for which to destroy thread local data.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbThreadDestroyLocalKey(SbThreadLocalKey key)
 ```
 
-### SbThreadDetach ###
+### SbThreadDetach
 
 Detaches `thread`, which prevents it from being joined. This is sort of like a
 non-blocking join. This function is a no-op if the thread is already detached or
@@ -261,33 +261,33 @@ if the thread is already being joined by another thread.
 
 `thread`: The thread to be detached.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbThreadDetach(SbThread thread)
 ```
 
-### SbThreadGetCurrent ###
+### SbThreadGetCurrent
 
 Returns the handle of the currently executing thread.
 
-#### Declaration ####
+#### Declaration
 
 ```
 SbThread SbThreadGetCurrent()
 ```
 
-### SbThreadGetId ###
+### SbThreadGetId
 
 Returns the Thread ID of the currently executing thread.
 
-#### Declaration ####
+#### Declaration
 
 ```
 SbThreadId SbThreadGetId()
 ```
 
-### SbThreadGetLocalValue ###
+### SbThreadGetLocalValue
 
 Returns the pointer-sized value for `key` in the currently executing thread's
 local storage. Returns `NULL` if key is `kSbThreadLocalKeyInvalid` or if the key
@@ -295,97 +295,97 @@ has already been destroyed.
 
 `key`: The key for which to return the value.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void* SbThreadGetLocalValue(SbThreadLocalKey key)
 ```
 
-### SbThreadGetName ###
+### SbThreadGetName
 
 Returns the debug name of the currently executing thread.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbThreadGetName(char *buffer, int buffer_size)
 ```
 
-### SbThreadIsCurrent ###
+### SbThreadIsCurrent
 
 Returns whether `thread` is the current thread.
 
 `thread`: The thread to check.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static bool SbThreadIsCurrent(SbThread thread)
 ```
 
-### SbThreadIsEqual ###
+### SbThreadIsEqual
 
 Indicates whether `thread1` and `thread2` refer to the same thread.
 
 `thread1`: The first thread to compare. `thread2`: The second thread to compare.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbThreadIsEqual(SbThread thread1, SbThread thread2)
 ```
 
-### SbThreadIsValid ###
+### SbThreadIsValid
 
 Returns whether the given thread handle is valid.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static bool SbThreadIsValid(SbThread thread)
 ```
 
-### SbThreadIsValidAffinity ###
+### SbThreadIsValidAffinity
 
 Returns whether the given thread affinity is valid.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static bool SbThreadIsValidAffinity(SbThreadAffinity affinity)
 ```
 
-### SbThreadIsValidId ###
+### SbThreadIsValidId
 
 Returns whether the given thread ID is valid.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static bool SbThreadIsValidId(SbThreadId id)
 ```
 
-### SbThreadIsValidLocalKey ###
+### SbThreadIsValidLocalKey
 
 Returns whether the given thread local variable key is valid.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static bool SbThreadIsValidLocalKey(SbThreadLocalKey key)
 ```
 
-### SbThreadIsValidPriority ###
+### SbThreadIsValidPriority
 
 Returns whether the given thread priority is valid.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static bool SbThreadIsValidPriority(SbThreadPriority priority)
 ```
 
-### SbThreadJoin ###
+### SbThreadJoin
 
 Joins the thread on which this function is called with joinable `thread`. This
 function blocks the caller until the designated thread exits, and then cleans up
@@ -403,36 +403,36 @@ must have been created with SbThreadCreate. `out_return`: If this is not `NULL`,
 then the SbThreadJoin function populates it with the return value of the
 thread's `main` function.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbThreadJoin(SbThread thread, void **out_return)
 ```
 
-### SbThreadSamplerCreate ###
+### SbThreadSamplerCreate
 
 Creates a new thread sampler for the specified `thread`.
 
 If successful, this function returns the newly created handle. If unsuccessful,
 this function returns `kSbThreadSamplerInvalid`.
 
-#### Declaration ####
+#### Declaration
 
 ```
 SbThreadSampler SbThreadSamplerCreate(SbThread thread)
 ```
 
-### SbThreadSamplerDestroy ###
+### SbThreadSamplerDestroy
 
 Destroys the `sampler` and frees whatever resources it was using.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbThreadSamplerDestroy(SbThreadSampler sampler)
 ```
 
-### SbThreadSamplerFreeze ###
+### SbThreadSamplerFreeze
 
 Suspends execution of the thread that `sampler` was created for.
 
@@ -440,47 +440,47 @@ If successful, this function returns a `SbThreadContext` for the frozen thread,
 from which properties may be read while the thread remains frozen. If
 unsuccessful, this function returns `kSbThreadContextInvalid`.
 
-#### Declaration ####
+#### Declaration
 
 ```
 SbThreadContext SbThreadSamplerFreeze(SbThreadSampler sampler)
 ```
 
-### SbThreadSamplerIsSupported ###
+### SbThreadSamplerIsSupported
 
 Whether the current platform supports thread sampling. The result of this
 function must not change over the course of the program, which means that the
 results of this function may be cached indefinitely. If this returns false,
 `SbThreadSamplerCreate` will return an invalid sampler.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbThreadSamplerIsSupported()
 ```
 
-### SbThreadSamplerIsValid ###
+### SbThreadSamplerIsValid
 
 Returns whether the given thread sampler is valid.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static bool SbThreadSamplerIsValid(SbThreadSampler sampler)
 ```
 
-### SbThreadSamplerThaw ###
+### SbThreadSamplerThaw
 
 Resumes execution of the thread that `sampler` was created for. This invalidates
 the context returned from `SbThreadSamplerFreeze`.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbThreadSamplerThaw(SbThreadSampler sampler)
 ```
 
-### SbThreadSetLocalValue ###
+### SbThreadSetLocalValue
 
 Sets the pointer-sized value for `key` in the currently executing thread's local
 storage. The return value indicates whether `key` is valid and has not already
@@ -489,26 +489,26 @@ been destroyed.
 `key`: The key for which to set the key value. `value`: The new pointer-sized
 key value.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbThreadSetLocalValue(SbThreadLocalKey key, void *value)
 ```
 
-### SbThreadSetName ###
+### SbThreadSetName
 
 Sets the debug name of the currently executing thread by copying the specified
 name string.
 
 `name`: The name to assign to the thread.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbThreadSetName(const char *name)
 ```
 
-### SbThreadSleep ###
+### SbThreadSleep
 
 Sleeps the currently executing thread.
 
@@ -516,17 +516,17 @@ Sleeps the currently executing thread.
 executing thread should sleep. The function is a no-op if this value is negative
 or `0`.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbThreadSleep(SbTime duration)
 ```
 
-### SbThreadYield ###
+### SbThreadYield
 
 Yields the currently executing thread, so another thread has a chance to run.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbThreadYield()

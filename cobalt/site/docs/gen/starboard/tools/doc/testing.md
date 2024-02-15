@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Test Runner Documentation"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Test Runner Documentation
 
 The scripts in this folder comprise a cross-platform unit test runner. The

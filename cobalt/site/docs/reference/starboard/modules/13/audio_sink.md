@@ -1,53 +1,53 @@
----
-layout: doc
-title: "Starboard Module Reference: audio_sink.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: `audio_sink.h`
 
 Provides an interface to output raw audio data.
 
-## Macros ##
+## Macros
 
-### kSbAudioSinkInvalid ###
+### kSbAudioSinkInvalid
 
 Well-defined value for an invalid audio sink.
 
-## Typedefs ##
+## Typedefs
 
-### SbAudioSink ###
+### SbAudioSink
 
 An opaque handle to an implementation-private structure representing an audio
 sink.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef struct SbAudioSinkPrivate* SbAudioSink
 ```
 
-### SbAudioSinkConsumeFramesFunc ###
+### SbAudioSinkConsumeFramesFunc
 
 Callback used to report frames consumed. The consumed frames will be removed
 from the source frame buffer to free space for new audio frames.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef void(* SbAudioSinkConsumeFramesFunc) (int frames_consumed, void *context)
 ```
 
-### SbAudioSinkFrameBuffers ###
+### SbAudioSinkFrameBuffers
 
 An array of frame buffers. For interleaved audio streams, there will be only one
 element in the array. For planar audio streams, the number of elements in the
 array equal to the number of channels.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef void** SbAudioSinkFrameBuffers
 ```
 
-### SbAudioSinkUpdateSourceStatusFunc ###
+### SbAudioSinkUpdateSourceStatusFunc
 
 Callback being called periodically to retrieve the status of the audio source.
 The first two output parameters indicating the filling level of the audio frame
@@ -64,15 +64,15 @@ usually this is caused by a seek. All parameters except `context` cannot be
 NULL. Note that this function only reports the status of the source, it doesn't
 remove audio data from the source frame buffer.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef void(* SbAudioSinkUpdateSourceStatusFunc) (int *frames_in_buffer, int *offset_in_frames, bool *is_playing, bool *is_eos_reached, void *context)
 ```
 
-## Functions ##
+## Functions
 
-### SbAudioSinkCreate ###
+### SbAudioSinkCreate
 
 Creates an audio sink for the specified `channels` and `sampling_frequency_hz`,
 acquires all resources needed to operate the audio sink, and returns an opaque
@@ -113,13 +113,13 @@ to sample data.
     value that is passed back to all callbacks and is generally used to point at
     a class or struct that contains state associated with the audio sink.
 
-#### Declaration ####
+#### Declaration
 
 ```
 SbAudioSink SbAudioSinkCreate(int channels, int sampling_frequency_hz, SbMediaAudioSampleType audio_sample_type, SbMediaAudioFrameStorageType audio_frame_storage_type, SbAudioSinkFrameBuffers frame_buffers, int frames_per_channel, SbAudioSinkUpdateSourceStatusFunc update_source_status_func, SbAudioSinkConsumeFramesFunc consume_frames_func, void *context)
 ```
 
-### SbAudioSinkDestroy ###
+### SbAudioSinkDestroy
 
 Destroys `audio_sink`, freeing all associated resources. Before returning, the
 function waits until all callbacks that are in progress have finished. After the
@@ -132,24 +132,24 @@ any of the callbacks passed into SbAudioSinkCreate.
 
 `audio_sink`: The audio sink to destroy.
 
-#### Declaration ####
+#### Declaration
 
 ```
 void SbAudioSinkDestroy(SbAudioSink audio_sink)
 ```
 
-### SbAudioSinkGetMaxChannels ###
+### SbAudioSinkGetMaxChannels
 
 Returns the maximum number of channels supported on the platform. For example,
 the number would be `2` if the platform only supports stereo.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int SbAudioSinkGetMaxChannels()
 ```
 
-### SbAudioSinkGetMinBufferSizeInFrames ###
+### SbAudioSinkGetMinBufferSizeInFrames
 
 Returns the minimum frames required by audio sink to play without underflows.
 Returns -1, if `channels`, `sample_type` or `sampling_frequency_hz` is not
@@ -162,52 +162,52 @@ stereo audio. `audio_sample_type`: The type of each sample of the audio data –
 audio data being streamed. For example, 22,000 Hz means 22,000 sample elements
 represents one second of audio data.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int SbAudioSinkGetMinBufferSizeInFrames(int channels, SbMediaAudioSampleType sample_type, int sampling_frequency_hz)
 ```
 
-### SbAudioSinkGetNearestSupportedSampleFrequency ###
+### SbAudioSinkGetNearestSupportedSampleFrequency
 
 Returns the supported sample rate closest to `sampling_frequency_hz`. On
 platforms that don't support all sample rates, it is the caller's responsibility
 to resample the audio frames into the supported sample rate returned by this
 function.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int SbAudioSinkGetNearestSupportedSampleFrequency(int sampling_frequency_hz)
 ```
 
-### SbAudioSinkIsAudioFrameStorageTypeSupported ###
+### SbAudioSinkIsAudioFrameStorageTypeSupported
 
 Indicates whether `audio_frame_storage_type` is supported on this platform.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbAudioSinkIsAudioFrameStorageTypeSupported(SbMediaAudioFrameStorageType audio_frame_storage_type)
 ```
 
-### SbAudioSinkIsAudioSampleTypeSupported ###
+### SbAudioSinkIsAudioSampleTypeSupported
 
 Indicates whether `audio_sample_type` is supported on this platform.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbAudioSinkIsAudioSampleTypeSupported(SbMediaAudioSampleType audio_sample_type)
 ```
 
-### SbAudioSinkIsValid ###
+### SbAudioSinkIsValid
 
 Indicates whether the given audio sink handle is valid.
 
 `audio_sink`: The audio sink handle to check.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbAudioSinkIsValid(SbAudioSink audio_sink)

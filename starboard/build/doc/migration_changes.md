@@ -42,7 +42,7 @@ variables.
 ## Notes:
 
 *   *Starboard Implementation:* If your platform defined
-    `STARBOARD_IMPLENTATION` in its implementation, you would now add the above
+    `STARBOARD_IMPLEMENTATION` in its implementation, you would now add the above
     config with `configs +=
     ["//starboard/build/config:starboard_implementation"]`.
 

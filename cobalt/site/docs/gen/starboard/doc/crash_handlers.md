@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Installing Crash Handlers in Cobalt"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Installing Crash Handlers in Cobalt
 
 Partners can install Crashpad's crash handlers to create crash reports in the

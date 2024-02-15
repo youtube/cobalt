@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: gles.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: `gles.h`
 
 The GLES API provides an interface with accompanying type declarations and
 defines that together provide a single consistent method of GLES usage across
@@ -11,37 +11,37 @@ This API is designed to abstract the differences between GLES implementations
 and versions on different systems, and to remove the requirement for any other
 code to directly pull in and use these system libraries.
 
-## GLES Version ##
+## GLES Version
 
 This API has the ability to support GLES 3.0, however platforms are not required
 to support anything beyond GLES 2.0. The caller is responsible for ensuring that
 the functions from GLES 3.0 they are calling from the interface are valid.
 
-## Macros ##
+## Macros
 
-### SB_GL_DEPTH_BUFFER_BIT ###
+### SB_GL_DEPTH_BUFFER_BIT
 
 Previously defined in [https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h](https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h)
 
-### SB_GL_READ_BUFFER ###
+### SB_GL_READ_BUFFER
 
 Previously defined in [https://www.khronos.org/registry/OpenGL/api/GLES3/gl3.h](https://www.khronos.org/registry/OpenGL/api/GLES3/gl3.h)
 .
 
-## Typedefs ##
+## Typedefs
 
-### SbGlBoolean ###
+### SbGlBoolean
 
 The following type definitions were adapted from the types declared in [https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h](https://www.khronos.org/registry/OpenGL/api/GLES2/gl2.h)
 .
 
-#### Definition ####
+#### Definition
 
 ```
 typedef uint8_t SbGlBoolean
 ```
 
-### SbGlIntPtr ###
+### SbGlIntPtr
 
 Some compilers will transform the intptr_t to an int transparently behind the
 scenes, which is not equivalent to a long int, or long long int, as far as the
@@ -49,17 +49,17 @@ compiler is concerned. We check the Starboard configuration and set the types to
 those exact types used by OpenGL ES 2.0 ( [https://www.khronos.org/registry/OpenGL/api/GLES2/gl2ext.h](https://www.khronos.org/registry/OpenGL/api/GLES2/gl2ext.h)
 ).
 
-#### Definition ####
+#### Definition
 
 ```
 typedef long int SbGlIntPtr
 ```
 
-## Structs ##
+## Structs
 
-### SbGlesInterface ###
+### SbGlesInterface
 
-#### Members ####
+#### Members
 
 *   `void(*glActiveTexture)(SbGlEnum texture)`
 

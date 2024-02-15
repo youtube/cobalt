@@ -1,57 +1,57 @@
----
-layout: doc
-title: "Starboard Module Reference: memory_reporter.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: `memory_reporter.h`
 
 Provides an interface for memory reporting.
 
-## Typedefs ##
+## Typedefs
 
-### SbMemoryReporterOnAlloc ###
+### SbMemoryReporterOnAlloc
 
 A function to report a memory allocation from SbMemoryAllocate(). Note that
 operator new calls SbMemoryAllocate which will delegate to this callback.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef void(* SbMemoryReporterOnAlloc) (void *context, const void *memory, size_t size)
 ```
 
-### SbMemoryReporterOnDealloc ###
+### SbMemoryReporterOnDealloc
 
 A function to report a memory deallocation from SbMemoryDeallcoate(). Note that
 operator delete calls SbMemoryDeallocate which will delegate to this callback.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef void(* SbMemoryReporterOnDealloc) (void *context, const void *memory)
 ```
 
-### SbMemoryReporterOnMapMemory ###
+### SbMemoryReporterOnMapMemory
 
 A function to report a memory mapping from SbMemoryMap().
 
-#### Definition ####
+#### Definition
 
 ```
 typedef void(* SbMemoryReporterOnMapMemory) (void *context, const void *memory, size_t size)
 ```
 
-### SbMemoryReporterOnUnMapMemory ###
+### SbMemoryReporterOnUnMapMemory
 
 A function to report a memory unmapping from SbMemoryUnmap().
 
-#### Definition ####
+#### Definition
 
 ```
 typedef void(* SbMemoryReporterOnUnMapMemory) (void *context, const void *memory, size_t size)
 ```
 
-## Structs ##
+## Structs
 
-### SbMemoryReporter ###
+### SbMemoryReporter
 
 SbMemoryReporter allows memory reporting via user-supplied functions. The void*
 context is passed to every call back. It's strongly recommended that C-Style
@@ -59,7 +59,7 @@ struct initialization is used so that the arguments can be typed check by the
 compiler. For example, SbMemoryReporter mem_reporter = { MallocCallback, ....
 context };
 
-#### Members ####
+#### Members
 
 *   `SbMemoryReporterOnAlloc on_alloc_cb`
 
@@ -77,9 +77,9 @@ context };
 
     Optional, is passed to callbacks as first argument.
 
-## Functions ##
+## Functions
 
-### SbMemorySetReporter ###
+### SbMemorySetReporter
 
 Sets the MemoryReporter. Any previous memory reporter is unset. No lifetime
 management is done internally on input pointer.
@@ -96,7 +96,7 @@ SbMemoryReporter* mem_reporter = new ...; SbMemorySetReporter(&mem_reporter);
 SbMemoryReporter* mem_reporter = new ...; SbMemorySetReporter(&mem_reporter);
 ... SbMemorySetReporter(NULL); delete mem_reporter; // May crash.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbMemorySetReporter(struct SbMemoryReporter *tracker)

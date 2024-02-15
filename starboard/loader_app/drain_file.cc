@@ -98,7 +98,8 @@ void Rank(const char* dir, char* app_key, size_t len) {
 
   std::vector<std::string> filenames = FindAllWithPrefix(dir, kDrainFilePrefix);
 
-  std::remove_if(filenames.begin(), filenames.end(), IsExpired);
+  filenames.erase(std::remove_if(filenames.begin(), filenames.end(), IsExpired),
+                  filenames.end());
 
   if (filenames.empty())
     return;

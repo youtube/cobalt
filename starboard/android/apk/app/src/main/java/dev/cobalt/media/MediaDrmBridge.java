@@ -38,6 +38,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 /** A wrapper of the android MediaDrm class. */
@@ -460,7 +461,7 @@ public class MediaDrmBridge {
         },
         null);
 
-    mMediaDrm.setPropertyString("privacyMode", "enable");
+    mMediaDrm.setPropertyString("privacyMode", "disable");
     mMediaDrm.setPropertyString("sessionSharing", "enable");
     if (keySystem.equals("com.youtube.widevine.l3")
         && mMediaDrm.getPropertyString("securityLevel") != "L3") {
@@ -772,7 +773,7 @@ public class MediaDrmBridge {
         Log.i(TAG, "MediaDrm HDCP Level is HDCP_LEVEL_UNKNOWN.");
         break;
       default:
-        Log.i(TAG, String.format("Unknown MediaDrm HDCP level %d.", hdcpLevel));
+        Log.i(TAG, String.format(Locale.US, "Unknown MediaDrm HDCP level %d.", hdcpLevel));
         break;
     }
   }

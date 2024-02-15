@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Cobalt Docker builds"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Cobalt Docker builds
 
 Cobalt includes [Docker image][docker.com](https://www.docker.com/)

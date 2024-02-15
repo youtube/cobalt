@@ -1,13 +1,13 @@
----
-layout: doc
-title: "Starboard Module Reference: cpu_features.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
 
-## Structs ##
+# Starboard Module Reference: `cpu_features.h`
 
-### SbCPUFeatures ###
+## Structs
 
-#### Members ####
+### SbCPUFeatures
+
+#### Members
 
 *   `SbCPUFeaturesArchitecture architecture`
 
@@ -54,9 +54,9 @@ title: "Starboard Module Reference: cpu_features.h"
     defined as a macro.
 *   `SbCPUFeaturesX86 x86`
 
-### SbCPUFeaturesARM ###
+### SbCPUFeaturesARM
 
-#### Members ####
+#### Members
 
 *   `int16_t implementer`
 
@@ -98,7 +98,7 @@ title: "Starboard Module Reference: cpu_features.h"
     SDIV and UDIV hardware division in ARM mode.
 *   `bool has_aes`
 
-    ###### Arm 64 feature flags  ######
+    ###### Arm 64 feature flags
 
     AES instructions.
 *   `bool has_crc32`
@@ -114,17 +114,17 @@ title: "Starboard Module Reference: cpu_features.h"
 
     64-bit PMULL and PMULL2 instructions.
 
-### SbCPUFeaturesMIPS ###
+### SbCPUFeaturesMIPS
 
-#### Members ####
+#### Members
 
 *   `bool has_msa`
 
     MIPS SIMD Architecture (MSA).
 
-### SbCPUFeaturesX86 ###
+### SbCPUFeaturesX86
 
-#### Members ####
+#### Members
 
 *   `const char * vendor`
 
@@ -244,9 +244,9 @@ title: "Starboard Module Reference: cpu_features.h"
 
     SAHF in long mode.
 
-## Functions ##
+## Functions
 
-### SbCPUFeaturesGet ###
+### SbCPUFeaturesGet
 
 Retrieve the underlying CPU features and place it in `features`, which must not
 be NULL.
@@ -254,9 +254,8 @@ be NULL.
 If this function returns false, it means the CPU architecture is unknown and all
 fields in `features` are invalid.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbCPUFeaturesGet(SbCPUFeatures *features)
 ```
-

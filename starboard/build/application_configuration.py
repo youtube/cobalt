@@ -71,3 +71,11 @@ class ApplicationConfiguration(object):
       A list of strings of test target names.
     """
     return []
+
+  def GetTestBlackBoxTargets(self):
+    """Gets all tests to be run in black box test run.
+
+    Returns:
+      A list of strings of black box test target names.
+    """
+    return []

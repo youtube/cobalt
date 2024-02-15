@@ -555,11 +555,14 @@ int GpuVideoDecoderBase::OnOutputRetrieved(
   {
     ScopedLock input_queue_lock(written_inputs_mutex_);
     const auto iter = FindByTimestamp(written_inputs_, timestamp);
-    SB_DCHECK(iter != written_inputs_.cend());
-    if (is_hdr_video_) {
-      image->AttachColorMetadata((*iter)->video_stream_info().color_metadata);
+    // Reset might be called too early, cause clearing of written_inputs_ and
+    // absence of requested timestamp.
+    if (iter != written_inputs_.cend()) {
+      if (is_hdr_video_) {
+        image->AttachColorMetadata((*iter)->video_stream_info().color_metadata);
+      }
+      written_inputs_.erase(iter);
     }
-    written_inputs_.erase(iter);
   }
   scoped_refptr<VideoFrameImpl> frame(new VideoFrameImpl(
       timestamp, std::bind(&GpuVideoDecoderBase::DeleteVideoFrame, this,

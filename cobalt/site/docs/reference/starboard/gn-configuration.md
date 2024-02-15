@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard: configuration.gni Reference Guide"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard: configuration.gni Reference Guide
 
 | Variables |
 | :--- |
@@ -25,7 +25,7 @@ title: "Starboard: configuration.gni Reference Guide"
 | **`path_to_nasm`**<br><br> Where yasm can be found on the host device.<br><br>The default value is `"nasm"`. |
 | **`platform_tests_path`**<br><br> Set to the starboard_platform_tests target if the platform implements them.<br><br>The default value is `""`. |
 | **`sabi_path`**<br><br> Where the Starboard ABI file for this platform can be found.<br><br>The default value is `"starboard/sabi/default/sabi.json"`. |
-| **`sb_api_version`**<br><br> The Starboard API version of the current build configuration. The default value is meant to be overridden by a Starboard ABI file.<br><br>The default value is `16`. |
+| **`sb_api_version`**<br><br> The Starboard API version of the current build configuration. The default value is meant to be overridden by a Starboard ABI file.<br><br>The default value is `15`. |
 | **`sb_enable_benchmark`**<br><br> Used to enable benchmarks.<br><br>The default value is `false`. |
 | **`sb_enable_cpp17_audit`**<br><br> Enables an NPLB audit of C++17 support.<br><br>The default value is `true`. |
 | **`sb_enable_lib`**<br><br> Enables embedding Cobalt as a shared library within another app. This requires a 'lib' starboard implementation for the corresponding platform.<br><br>The default value is `false`. |
@@ -33,6 +33,7 @@ title: "Starboard: configuration.gni Reference Guide"
 | **`sb_evergreen_compatible_package`**<br><br> Whether to generate the whole package containing both Loader app and Cobalt core on the Evergreen compatible platform.<br><br>The default value is `false`. |
 | **`sb_evergreen_compatible_use_libunwind`**<br><br> Whether to use the libunwind library on Evergreen compatible platform.<br><br>The default value is `false`. |
 | **`sb_filter_based_player`**<br><br> Used to indicate that the player is filter based.<br><br>The default value is `true`. |
+| **`sb_has_unused_symbol_issue`**<br><br> Set this to true if the modular toolchain linker doesn't strip all unused symbols and nplb fails to link.<br><br>The default value is `false`. |
 | **`sb_is_evergreen`**<br><br> Whether this is an Evergreen build.<br><br>The default value is `false`. |
 | **`sb_is_evergreen_compatible`**<br><br> Whether this is an Evergreen compatible platform. A compatible platform can run the elf_loader and launch the Evergreen build.<br><br>The default value is `false`. |
 | **`sb_libevent_method`**<br><br> The event polling mechanism available on this platform to support libevent. Platforms may redefine to 'poll' if necessary. Other mechanisms, e.g. devpoll, kqueue, select, are not yet supported.<br><br>The default value is `"epoll"`. |

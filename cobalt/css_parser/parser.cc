@@ -23,7 +23,6 @@
 #include <string>
 
 #include "base/bind.h"
-#include "base/command_line.h"
 #include "base/containers/hash_tables.h"
 #include "base/lazy_instance.h"
 #include "base/optional.h"
@@ -40,7 +39,6 @@
 #include "cobalt/css_parser/ref_counted_util.h"
 #include "cobalt/css_parser/scanner.h"
 #include "cobalt/css_parser/string_pool.h"
-#include "cobalt/css_parser/switches.h"
 #include "cobalt/css_parser/trivial_string_piece.h"
 #include "cobalt/css_parser/trivial_type_pairs.h"
 #include "cobalt/cssom/active_pseudo_class.h"
@@ -90,6 +88,10 @@
 #include "cobalt/cssom/unicode_range_value.h"
 #include "cobalt/cssom/universal_selector.h"
 #include "cobalt/cssom/url_value.h"
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+#include "base/command_line.h"
+#include "cobalt/css_parser/switches.h"
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
 namespace cobalt {
 namespace css_parser {
@@ -541,19 +543,23 @@ namespace {
 void LogWarningCallback(const ::base::DebuggerHooks* debugger_hooks,
                         const std::string& message) {
   CLOG(WARNING, *debugger_hooks) << message;
+#if !defined(COBALT_BUILD_TYPE_GOLD)
   ::base::CommandLine* command_line = ::base::CommandLine::ForCurrentProcess();
   if (command_line->GetSwitchValueASCII(switches::kOnCssWarning) == "crash") {
     IMMEDIATE_CRASH() << message;
   }
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 }
 
 void LogErrorCallback(const ::base::DebuggerHooks* debugger_hooks,
                       const std::string& message) {
   CLOG(ERROR, *debugger_hooks) << message;
+#if !defined(COBALT_BUILD_TYPE_GOLD)
   ::base::CommandLine* command_line = ::base::CommandLine::ForCurrentProcess();
   if (command_line->GetSwitchValueASCII(switches::kOnCssError) == "crash") {
     IMMEDIATE_CRASH() << message;
   }
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 }
 
 }  // namespace

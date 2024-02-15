@@ -19,6 +19,7 @@
 
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/loader_app/drain_file_helper.h"
@@ -40,6 +41,11 @@ class DrainFileTest : public ::testing::Test {
     temp_dir_.resize(kSbFileMaxPath);
     ASSERT_TRUE(SbSystemGetPath(kSbSystemPathTempDirectory, temp_dir_.data(),
                                 temp_dir_.size()));
+
+    // Use dedicated dir for testing to avoid meddling with other files.
+    starboard::strlcat(temp_dir_.data(), kSbFileSepString, kSbFileMaxPath);
+    starboard::strlcat(temp_dir_.data(), "df", kSbFileMaxPath);
+    ASSERT_TRUE(SbDirectoryCreate(temp_dir_.data()));
   }
 
   void TearDown() override { DrainFileClearForApp(GetTempDir(), ""); }
@@ -166,6 +172,29 @@ TEST_F(DrainFileTest, SunnyDayRankCorrectlyRanksFiles) {
 
   EXPECT_TRUE(DrainFileRankAndCheck(GetTempDir(), "b"));
   EXPECT_TRUE(SbFileDelete(later_and_greatest.path().c_str()));
+}
+
+// Ranking drain files should ignore expired files.
+TEST_F(DrainFileTest, SunnyDayRankCorrectlyIgnoresExpired) {
+  const SbTime timestamp = SbTimeGetNow();
+
+  ScopedDrainFile early_and_expired(GetTempDir(), "a",
+                                    timestamp - kDrainFileMaximumAge);
+  ScopedDrainFile later_and_least(GetTempDir(), "c", timestamp);
+  ScopedDrainFile later_and_greatest(GetTempDir(), "b",
+                                     timestamp + kDrainFileAgeUnit);
+
+  std::vector<char> result(kSbFileMaxName);
+
+  EXPECT_TRUE(DrainFileRankAndCheck(GetTempDir(), "c"));
+  EXPECT_TRUE(SbFileDelete(later_and_least.path().c_str()));
+
+  EXPECT_TRUE(DrainFileRankAndCheck(GetTempDir(), "b"));
+  EXPECT_TRUE(SbFileDelete(later_and_greatest.path().c_str()));
+
+  // Even though "a" is still there Rank should find nothing since it's expired.
+  EXPECT_TRUE(DrainFileRankAndCheck(GetTempDir(), ""));
+  EXPECT_TRUE(SbFileDelete(early_and_expired.path().c_str()));
 }
 
 // All files in the directory should be cleared except for drain files with an

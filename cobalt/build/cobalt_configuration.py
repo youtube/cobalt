@@ -143,6 +143,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'persistent_settings_test',
         'png_utils_test',
         'poem_unittests',
+        'js_profiler_test',
         'renderer_test',
         'render_tree_test',
         'scroll_engine_tests',
@@ -157,4 +158,9 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'worker_test',
         'xhr_test',
         'zip_unittests',
+    ]
+
+  def GetTestBlackBoxTargets(self):
+    return [
+        'blackbox',
     ]

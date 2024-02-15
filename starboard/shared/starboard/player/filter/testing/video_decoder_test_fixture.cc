@@ -84,10 +84,13 @@ void VideoDecoderTestFixture::Initialize() {
   SbPlayerOutputMode output_mode = output_mode_;
   ASSERT_TRUE(PlayerComponents::Factory::OutputModeSupported(
       output_mode, dmp_reader_.video_codec(), kSbDrmSystemInvalid));
+  int max_video_input_size = 0;
 
   PlayerComponents::Factory::CreationParameters creation_parameters(
       GetVideoInputBuffer(0)->video_stream_info(), &player_, output_mode,
+      max_video_input_size,
       fake_graphics_context_provider_->decoder_target_provider(), nullptr);
+  ASSERT_EQ(creation_parameters.max_video_input_size(), max_video_input_size);
 
   scoped_ptr<PlayerComponents::Factory> factory;
   if (using_stub_decoder_) {

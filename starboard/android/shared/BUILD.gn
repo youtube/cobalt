@@ -21,11 +21,14 @@ import("//starboard/shared/starboard/player/player_tests.gni")
 # Configuration to extract GameActivity native files.
 ##########################################################
 
-game_activity_aar_file = "//starboard/android/apk/app/src/main/java/dev/cobalt/libraries/game_activity/games-activity-1.2.2.aar"
+game_activity_aar_file = "//starboard/android/apk/app/src/main/java/dev/cobalt/libraries/game_activity/games-activity-2.0.2.aar"
 
 game_activity_source_files = [
   "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivity.cpp",
   "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivity.h",
+  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivityEvents.cpp",
+  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivityEvents.h",
+  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivityLog.h",
   "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-text-input/gamecommon.h",
   "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-text-input/gametextinput.cpp",
   "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-text-input/gametextinput.h",
@@ -316,6 +319,8 @@ static_library("starboard_platform") {
     "get_home_directory.cc",
     "graphics.cc",
     "graphics.h",
+    "h5vcc_config.cc",
+    "h5vcc_config.h",
     "input_events_generator.cc",
     "input_events_generator.h",
     "jni_env_ext.cc",
@@ -358,6 +363,8 @@ static_library("starboard_platform") {
     "player_destroy.cc",
     "player_get_preferred_output_mode.cc",
     "player_set_bounds.cc",
+    "player_set_max_video_input_size.cc",
+    "player_set_max_video_input_size.h",
     "player_set_playback_rate.cc",
     "sanitizer_options.cc",
     "socket_get_interface_address.cc",
@@ -387,6 +394,8 @@ static_library("starboard_platform") {
     "video_decoder.h",
     "video_frame_tracker.cc",
     "video_frame_tracker.h",
+    "video_max_video_input_size.cc",
+    "video_max_video_input_size.h",
     "video_render_algorithm.cc",
     "video_render_algorithm.h",
     "video_window.cc",
@@ -486,7 +495,7 @@ target(gtest_target_type, "starboard_platform_tests") {
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
   deps = [
-    "//starboard",
+    "//starboard:starboard_group",
     "//starboard/shared/starboard/player/filter/testing:test_util",
     "//testing/gmock",
     "//testing/gtest",

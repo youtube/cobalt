@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Porting Cobalt to your Platform with Starboard"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Porting Cobalt to your Platform with Starboard
 
 This document provides step-by-step instructions for porting Cobalt to run
 on your platform. To do so, you'll use Starboard, which is Cobalt's porting
@@ -26,9 +26,8 @@ $ git clone https://cobalt.googlesource.com/cobalt
 ```
 
 If you prefer, you can instead complete the instructions for
-[setting up a Cobalt development environment on Linux](
-/cobalt/development/setup-linux.html). Checking out the Cobalt source
-code is one step in that process.
+[setting up a Cobalt development environment on Linux](../development/setup-linux.md).
+Checking out the Cobalt source code is one step in that process.
 
 ## Porting steps
 

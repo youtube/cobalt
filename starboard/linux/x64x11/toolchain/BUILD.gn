@@ -21,9 +21,7 @@ overridable_clang_toolchain("starboard") {
 }
 
 cobalt_clang_toolchain("cobalt") {
-  variables = {
-    native_linker_path = "$clang_base_path/bin/clang++"
-  }
+  native_linker_path = "$clang_base_path/bin/clang++"
 }
 
 overridable_clang_toolchain("target") {

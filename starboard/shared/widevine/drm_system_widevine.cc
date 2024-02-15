@@ -238,7 +238,7 @@ DrmSystemWidevine::DrmSystemWidevine(
 
   static WidevineStorage s_storage(GetWidevineStoragePath());
   EnsureWidevineCdmIsInitialized(company_name, model_name, &s_storage);
-  const bool kEnablePrivacyMode = true;
+  const bool kEnablePrivacyMode = false;
   cdm_.reset(wv3cdm::create(this, &s_storage, kEnablePrivacyMode));
   SB_DCHECK(cdm_);
 
@@ -633,8 +633,8 @@ void DrmSystemWidevine::onMessage(const std::string& wvcdm_session_id,
   }
 }
 
-void DrmSystemWidevine::onKeyStatusesChange(
-    const std::string& wvcdm_session_id) {
+void DrmSystemWidevine::onKeyStatusesChange(const std::string& wvcdm_session_id,
+                                            bool has_new_usable_key) {
   wv3cdm::KeyStatusMap key_statuses;
   wv3cdm::Status status = cdm_->getKeyStatuses(wvcdm_session_id, &key_statuses);
 

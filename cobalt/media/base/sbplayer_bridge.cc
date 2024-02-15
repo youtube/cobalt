@@ -30,6 +30,7 @@
 #include "starboard/common/player.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
+#include "starboard/extension/player_set_max_video_input_size.h"
 #include "starboard/memory.h"
 #include "starboard/once.h"
 #include "third_party/chromium/media/base/starboard_utils.h"
@@ -226,7 +227,8 @@ SbPlayerBridge::SbPlayerBridge(
     SbPlayerSetBoundsHelper* set_bounds_helper, bool allow_resume_after_suspend,
     SbPlayerOutputMode default_output_mode,
     DecodeTargetProvider* const decode_target_provider,
-    const std::string& max_video_capabilities, std::string pipeline_identifier)
+    const std::string& max_video_capabilities, int max_video_input_size,
+    std::string pipeline_identifier)
     : sbplayer_interface_(interface),
       task_runner_(task_runner),
       get_decode_target_graphics_context_provider_func_(
@@ -242,6 +244,7 @@ SbPlayerBridge::SbPlayerBridge(
       video_config_(video_config),
       decode_target_provider_(decode_target_provider),
       max_video_capabilities_(max_video_capabilities),
+      max_video_input_size_(max_video_input_size),
       cval_stats_(&interface->cval_stats_),
       pipeline_identifier_(pipeline_identifier)
 #if SB_HAS(PLAYER_WITH_URL)
@@ -731,6 +734,14 @@ void SbPlayerBridge::CreatePlayer() {
 
   is_creating_player_ = true;
 
+  if (output_mode_ == kSbPlayerOutputModeInvalid) {
+    PlayerErrorCB(kSbPlayerInvalid, this, kSbPlayerErrorDecode,
+                  "Invalid output mode returned by "
+                  "SbPlayerBridge::ComputeSbPlayerOutputMode()");
+    is_creating_player_ = false;
+    return;
+  }
+
   if (max_video_capabilities_.empty()) {
     FormatSupportQueryMetrics::PrintAndResetMetrics();
   }
@@ -760,6 +771,18 @@ void SbPlayerBridge::CreatePlayer() {
   DCHECK_EQ(sbplayer_interface_->GetPreferredOutputMode(&creation_param),
             output_mode_);
   cval_stats_->StartTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
+  const StarboardExtensionPlayerSetMaxVideoInputSizeApi*
+      player_set_max_video_input_size_extension =
+          static_cast<const StarboardExtensionPlayerSetMaxVideoInputSizeApi*>(
+              SbSystemGetExtension(
+                  kStarboardExtensionPlayerSetMaxVideoInputSizeName));
+  if (player_set_max_video_input_size_extension &&
+      strcmp(player_set_max_video_input_size_extension->name,
+             kStarboardExtensionPlayerSetMaxVideoInputSizeName) == 0 &&
+      player_set_max_video_input_size_extension->version >= 1) {
+    player_set_max_video_input_size_extension
+        ->SetMaxVideoInputSizeForCurrentThread(max_video_input_size_);
+  }
   player_ = sbplayer_interface_->Create(
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
       &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,
@@ -1268,7 +1291,6 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
 
   LOG(INFO) << "Output mode is set to " << GetPlayerOutputModeName(output_mode);
 
-  CHECK_NE(kSbPlayerOutputModeInvalid, output_mode);
   return output_mode;
 }
 

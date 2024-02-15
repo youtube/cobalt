@@ -351,8 +351,9 @@ class CpuProfile {
     int line;
   };
 
-  V8_EXPORT_PRIVATE CpuProfile(CpuProfiler* profiler, const char* title,
-                               CpuProfilingOptions options);
+  V8_EXPORT_PRIVATE CpuProfile(
+      CpuProfiler* profiler, const char* title, CpuProfilingOptions options,
+      std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
 
   // Checks whether or not the given TickSample should be (sub)sampled, given
   // the sampling interval of the profiler that recorded it (in microseconds).
@@ -386,6 +387,7 @@ class CpuProfile {
 
   const char* title_;
   const CpuProfilingOptions options_;
+  std::unique_ptr<DiscardedSamplesDelegate> delegate_;
   base::TimeTicks start_time_;
   base::TimeTicks end_time_;
   std::deque<SampleInfo> samples_;
@@ -400,6 +402,18 @@ class CpuProfile {
   static std::atomic<uint32_t> last_id_;
 
   DISALLOW_COPY_AND_ASSIGN(CpuProfile);
+};
+
+class CpuProfileMaxSamplesCallbackTask : public v8::Task {
+ public:
+  CpuProfileMaxSamplesCallbackTask(
+      std::unique_ptr<DiscardedSamplesDelegate> delegate)
+      : delegate_(std::move(delegate)) {}
+
+  void Run() override { delegate_->Notify(); }
+
+ private:
+  std::unique_ptr<DiscardedSamplesDelegate> delegate_;
 };
 
 class V8_EXPORT_PRIVATE CodeMap {
@@ -446,8 +460,9 @@ class V8_EXPORT_PRIVATE CpuProfilesCollection {
   explicit CpuProfilesCollection(Isolate* isolate);
 
   void set_cpu_profiler(CpuProfiler* profiler) { profiler_ = profiler; }
-  CpuProfilingStatus StartProfiling(const char* title,
-                                    CpuProfilingOptions options = {});
+  CpuProfilingStatus StartProfiling(
+      const char* title, CpuProfilingOptions options = {},
+      std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
 
   CpuProfile* StopProfiling(const char* title);
   std::vector<std::unique_ptr<CpuProfile>>* profiles() {

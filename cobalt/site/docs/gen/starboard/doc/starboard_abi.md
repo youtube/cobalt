@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Starboard ABI"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Starboard ABI
 
 The Starboard ABI was introduced to provide a single, consistent method for

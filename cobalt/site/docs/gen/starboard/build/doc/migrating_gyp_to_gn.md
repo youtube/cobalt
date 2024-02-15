@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Migrating GYP to GN"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Migrating GYP to GN
 
 Cobalt is currently in the process of migrating from our current build system
@@ -205,7 +204,7 @@ them.
 ### Validating a Target
 
 If you're migrating a single target, it's simple to check: just configure the
-build using the the necessary arguments then build that target with `ninja`,
+build using the necessary arguments then build that target with `ninja`,
 i.e.:
 
 ```
@@ -267,8 +266,8 @@ This [document](./gn_migrate_stub_to_platform.md) outlines a step by step
 process for converting the stub platform's GN files to GN files that will be
 able to be built for your platform.
 
-[cobalt_porting_guide]: https://cobalt.dev/starboard/porting.html
-[dev_setup_linux]: https://cobalt.dev/development/setup-linux.html
+[cobalt_porting_guide]: https://developers.google.com/youtube/cobalt/docs/starboard/porting
+[dev_setup_linux]: https://developers.google.com/youtube/cobalt/docs/development/setup-linux
 [gn_check_tool]: https://cobalt.googlesource.com/third_party/gn/+/refs/heads/main/docs/reference.md#cmd_check
 [gn_doc_home]: https://cobalt.googlesource.com/third_party/gn/+/refs/heads/main/docs
 [gn_format_tool]: https://cobalt.googlesource.com/third_party/gn/+/refs/heads/main/docs/reference.md#cmd_format

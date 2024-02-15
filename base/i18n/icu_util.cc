@@ -52,7 +52,7 @@ namespace i18n {
 #if defined(STARBOARD)
 
 bool InitializeICU() {
-  SbIcuInit();
+  IcuInit();
   return true;
 }
 
