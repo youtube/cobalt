@@ -352,7 +352,7 @@ inline SkPmcolor GetSkPmcolor() {
 }
 #endif
 
-#if defined SK_DEBUG && defined SK_BUILD_FOR_WIN
+#if defined SK_DEBUG && defined SK_BUILD_FOR_WIN && !defined(STARBOARD)
     #ifdef free
         #undef free
     #endif
