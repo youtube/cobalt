@@ -165,10 +165,40 @@ public class AudioTrackBridge {
       }
       audioTrackBufferSize /= 2;
     }
+
+    String sampleTypeString = "ENCODING_INVALID";
+    if (isAudioTrackValid()) {
+      // If the AudioTrack encoding indicates compressed data,
+      // e.g. AudioFormat.ENCODING_AC3, then the frame count returned
+      // is the size of the AudioTrack buffer in bytes.
+      // In such cases, audioTrackBufferSize does not have to be
+      // multiplied with bytes per sample and channel count below.
+      audioTrackBufferSize = audioTrack.getBufferSizeInFrames();
+      switch (sampleType) {
+        case AudioFormat.ENCODING_PCM_16BIT:
+          sampleTypeString = "ENCODING_PCM_16BIT";
+          audioTrackBufferSize *= getBytesPerSample(sampleType) * channelCount;
+          break;
+        case AudioFormat.ENCODING_PCM_FLOAT:
+          sampleTypeString = "ENCODING_PCM_FLOAT";
+          audioTrackBufferSize *= getBytesPerSample(sampleType) * channelCount;
+          break;
+        case AudioFormat.ENCODING_AC3:
+          sampleTypeString = "ENCODING_AC3";
+          break;
+        case AudioFormat.ENCODING_E_AC3:
+          sampleTypeString = "ENCODING_E_AC3";
+          break;
+        default:
+          Log.i(TAG, String.format("Unknown AudioFormat %d.", sampleType));
+          break;
+      }
+    }
     Log.i(
         TAG,
-        "AudioTrack created with buffer size %d (preferred: %d).  The minimum buffer size is"
-            + " %d.",
+        "AudioTrack created with AudioFormat %s and buffer size %d (preferred: %d)."
+            + " The minimum buffer size is %d.",
+        sampleTypeString,
         audioTrackBufferSize,
         preferredBufferSizeInBytes,
         AudioTrack.getMinBufferSize(sampleRate, channelConfig, sampleType));
