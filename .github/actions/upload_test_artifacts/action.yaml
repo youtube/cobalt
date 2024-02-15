@@ -29,8 +29,14 @@ runs:
 
         if [ "${{ inputs.type }}" == 'ondevice' ]
         then
-          echo "ARCHIVE_FILE=artifacts.tar" >> $GITHUB_ENV
-          echo "ARCHIVE_PATH=$GITHUB_WORKSPACE/artifacts.tar" >> $GITHUB_ENV
+          if [ "${{ inputs.os }}" == 'linux' ]
+          then
+            echo "ARCHIVE_FILE=artifacts.tar" >> $GITHUB_ENV
+          elif [ "${{ inputs.os }}" == 'windows' ]
+          then
+            echo "ARCHIVE_FILE=artifacts.tgz" >> $GITHUB_ENV
+          fi
+          echo "ARCHIVE_PATH=${GITHUB_WORKSPACE}/${ARCHIVE_FILE}" >> $GITHUB_ENV
           echo "DESTINATION=${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/" >> $GITHUB_ENV
         elif [ "${{ inputs.type }}" == 'onhost' ]
         then
@@ -56,11 +62,18 @@ runs:
         if [ "${{ inputs.type }}" == 'ondevice' ]
         then
           outdir="$GITHUB_WORKSPACE/out/${{matrix.target_platform}}_${{matrix.config}}"
-          if [ -n "${COBALT_BOOTLOADER}" ]
+          if [ "${{ inputs.os }}" == 'linux' ]
           then
-            outdir="${outdir} $GITHUB_WORKSPACE/out/${COBALT_BOOTLOADER}_${{matrix.config}}"
+            PATTERN_ARG="--test_infra"
+            if [ -n "${COBALT_BOOTLOADER}" ]
+            then
+              outdir="${outdir} $GITHUB_WORKSPACE/out/${COBALT_BOOTLOADER}_${{matrix.config}}"
+            fi
+          elif [ "${{ inputs.os }}" == 'windows' ]
+          then
+            PATTERN_ARG="--patterns appx/ app_launcher/"
           fi
-          python3 $GITHUB_WORKSPACE/tools/create_archive.py --test_infra -d ${{env.ARCHIVE_FILE}} -s ${outdir}
+          python3 $GITHUB_WORKSPACE/tools/create_archive.py ${PATTERN_ARG} -d ${{env.ARCHIVE_FILE}} -s ${outdir}
         elif [ "${{ inputs.type }}" == 'onhost' ]
         then
           parallel=
