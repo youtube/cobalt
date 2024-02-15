@@ -10,7 +10,7 @@
       "name":"modular",
       "platform":"linux-x64x11-modular",
       "target_platform":"linux-x64x11",
-      "extra_gn_arguments":"build_with_separate_cobalt_toolchain=true use_contrib_cast=true concurrent_links=1"
+      "extra_gn_arguments":"build_with_separate_cobalt_toolchain=true use_contrib_cast=true"
     }
   ]
 }
