@@ -3202,6 +3202,7 @@ test("base_unittests") {
 
     # "files/file_path_watcher_unittest.cc",
     "files/file_proxy_unittest.cc",
+
     # "files/file_unittest.cc",
     # "files/file_util_unittest.cc",
     "files/important_file_writer_cleaner_unittest.cc",
@@ -3246,8 +3247,7 @@ test("base_unittests") {
     "json/json_parser_unittest.cc",
     "json/json_reader_unittest.cc",
     "json/json_value_converter_unittest.cc",
-
-    # "json/json_value_serializer_unittest.cc",
+    "json/json_value_serializer_unittest.cc",
     "json/json_writer_unittest.cc",
     "json/string_escape_unittest.cc",
     "json/values_util_unittest.cc",
@@ -3298,9 +3298,8 @@ test("base_unittests") {
     "metrics/sample_map_unittest.cc",
     "metrics/sample_vector_unittest.cc",
     "metrics/single_sample_metrics_unittest.cc",
-
     "metrics/sparse_histogram_unittest.cc",
-    # "metrics/statistics_recorder_unittest.cc",
+    "metrics/statistics_recorder_unittest.cc",
     "native_library_unittest.cc",
     "no_destructor_unittest.cc",
     "observer_list_threadsafe_unittest.cc",
@@ -3369,11 +3368,9 @@ test("base_unittests") {
     "supports_user_data_unittest.cc",
     "sync_socket_unittest.cc",
     "synchronization/atomic_flag_unittest.cc",
-
     "synchronization/condition_variable_unittest.cc",
     "synchronization/lock_unittest.cc",
     "synchronization/waitable_event_unittest.cc",
-
     "synchronization/waitable_event_watcher_unittest.cc",
     "sys_byteorder_unittest.cc",
     "system/sys_info_unittest.cc",
@@ -3442,7 +3439,6 @@ test("base_unittests") {
     "test/launcher/test_results_tracker_unittest.cc",
     "test/memory/dangling_ptr_instrumentation.cc",
     "test/memory/dangling_ptr_instrumentation.h",
-
     "test/metrics/histogram_enum_reader_unittest.cc",
     "test/metrics/histogram_tester_unittest.cc",
     "test/metrics/user_action_tester_unittest.cc",
@@ -3548,6 +3544,19 @@ test("base_unittests") {
 
       # WaitableEventWatcher is not implemented by Starboard.
       "synchronization/waitable_event_watcher_unittest.cc",
+
+      # b/316403199 Chrome's base::to_address implemented in
+      # base/cxx20_to_address.h is not compatible with libstdc++
+      # debug mode
+      "containers/span_unittest.cc",
+      "containers/stack_container_unittest.cc",
+      "json/json_value_converter_unittest.cc",
+      "json/json_value_serializer_unittest.cc",
+      "json/json_writer_unittest.cc",
+      "metrics/statistics_recorder_unittest.cc",
+      "task/sequence_manager/sequence_manager_impl_unittest.cc",
+      "test/task_environment_unittest.cc",
+      "values_unittest.cc",
     ]
 
     if (is_clang) {
