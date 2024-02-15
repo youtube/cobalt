@@ -10,6 +10,9 @@ since the version previous to it.
 ## Version 16
 
 ### Added standard POSIX socket/close APIs.
+The standard API bind can be used from <sys/socket.h>.
+
+### Added standard POSIX socket/close APIs.
 The standard API socket can be used from <sys/socket.h> and
 close can be called to close the socket by including <unistd.h>.
 

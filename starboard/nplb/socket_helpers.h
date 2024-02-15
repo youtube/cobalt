@@ -218,6 +218,18 @@ std::string GetSbSocketAddressTypeProtocolPairName(
         info);
 #endif  // #if !defined(COBALT_BUILD_TYPE_GOLD)
 
+#if defined(SOMAXCONN)
+const int kMaxConn = SOMAXCONN;
+#else
+// Some posix platforms such as FreeBSD do not define SOMAXCONN.
+// In this case, set the value to an arbitrary number large enough to
+// satisfy most use-cases and tests, empirically we have found that 128
+// is sufficient.  All implementations of listen() specify that a backlog
+// parameter larger than the system max will be silently truncated to the
+// system's max.
+const int kMaxConn = 128;
+#endif
+
 }  // namespace nplb
 }  // namespace starboard
 
