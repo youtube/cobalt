@@ -16,12 +16,7 @@ config("compiler_flags") {
   cflags = []
   cflags_c = []
   cflags_cc = []
-  defines = [
-    "WARN_UNUSED_RESULT=",
-    "ALLOW_UNUSED_TYPE=",
-    "BASE_HASH_NAMESPACE=std",
-    "BASE_HASH_USE_HASH_STRUCT",
-  ]
+  defines = []
   ldflags = [ "-Wl,--error-limit=0" ]
 
   if (is_debug) {
@@ -235,56 +230,4 @@ config("no_pedantic_warnings") {
     "-Wno-bitfield-width",
     "-Wno-undefined-var-template",
   ]
-  extra_should_be_removed = [
-    "-Wno-invalid-noreturn",
-    "-Wno-sign-compare",
-    "-Wno-unused-function",
-    "-Wno-unreachable-code-break",
-    "-Wno-tautological-unsigned-zero-compare",
-    "-Wno-c++98-compat-extra-semi",
-    "-Wno-extra-semi",
-    "-Wno-array-parameter",
-    "-Wno-unused-variable",
-    "-Wno-implicit-fallthrough",
-    "-Wno-unused-private-field",
-    "-Wno-deprecated-copy",
-    "-Wno-macro-redefined",
-    "-Wno-unreachable-code-return",
-    "-Wno-reorder-ctor",
-    "-Wno-unused-local-typedef",
-    "-Wno-missing-braces",
-    "-Wno-error=missing-braces",
-    "-Wno-error=unused-local-typedef",
-    "-Wno-error=reorder-ctor",
-    "-Wno-error=unreachable-code-return",
-    "-Wno-error=sign-compare",
-    "-Wno-error=c++98-compat-extra-semi",
-    "-Wno-error=shadow",
-    "-Wno-error=implicit-fallthrough",
-    "-Wno-error=unused-variable",
-    "-Wno-error=unused-private-field",
-    "-Wno-error=unreachable-code-break",
-    "-Wno-error=unused-label",
-    "-Wno-error=extra-semi",
-    "-Wno-error=unused-but-set-variable",
-    "-Wno-error=array-parameter",
-    "-Wno-error=unused-but-set-variable",
-    "-Wno-error=deprecated-copy",
-    "-Wno-error=unused-function",
-    "-Wno-mismatched-tags",
-    "-Wno-bitwise-instead-of-logical",
-    "-Wno-unused-but-set-parameter",
-    "-Wno-self-assign-overloaded",
-    "-Wno-pessimizing-move",
-    "-Wno-ignored-qualifiers",
-    "-Wno-unreachable-code-loop-increment",
-    "-Wno-c++20-extensions",
-    "-Wno-unreachable-code",
-    "-Wno-null-pointer-subtraction",
-    "-Wno-self-assign",
-    "-Wno-shadow",
-    "-Wno-sometimes-uninitialized",
-    "-Wno-delete-non-abstract-non-virtual-dtor",
-  ]
-  cflags += extra_should_be_removed
 }
