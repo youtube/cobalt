@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,18 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// #if SB_API_VERSION < 16
+#if SB_API_VERSION >= 16
 
-#include "starboard/shared/posix/file_internal.h"
+// close is partially tested in posix_file_open_test.cc.
 
-#include "starboard/shared/posix/impl/file_open.h"
+#include <unistd.h>
 
-SbFile SbFileOpen(const char* path,
-                  int flags,
-                  bool* out_created,
-                  SbFileError* out_error) {
-  return ::starboard::shared::posix::impl::FileOpen(path, flags, out_created,
-                                                    out_error);
+#include "testing/gtest/include/gtest/gtest.h"
+
+namespace starboard {
+namespace nplb {
+namespace {
+
+TEST(PosixFileCloseTest, CloseInvalidFails) {
+  int fd = -1;
+  EXPECT_FALSE(close(fd) == 0);
 }
 
-// #endif // SB_API_VERSION < 16
+}  // namespace
+}  // namespace nplb
+}  // namespace starboard
+
+#endif  // SB_API_VERSION >= 16

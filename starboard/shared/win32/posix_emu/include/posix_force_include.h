@@ -22,6 +22,8 @@
 
 #define free sb_free
 
+#undef open
+
 #include <time.h>  // For struct timespec
 
 // https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/time.h.html
@@ -30,6 +32,9 @@ typedef int clockid_t;
 #define CLOCK_MONOTONIC 1
 #define CLOCK_PROCESS_CPUTIME_ID 2
 #define CLOCK_THREAD_CPUTIME_ID 3
+
+// https://pubs.opengroup.org/onlinepubs/9699919799/functions/open.html
+int open(const char* path, int oflag, ...);
 
 #ifdef __cplusplus
 extern "C" {
