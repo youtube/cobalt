@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""Tests the get_build_id module."""
+"""Tests the build_info module."""
 
 import os
 import subprocess
@@ -22,7 +22,6 @@ import tempfile
 import unittest
 
 from cobalt.build import build_info
-from cobalt.build import get_build_id
 
 _TEST_BUILD_NUMBER = 1234 + build_info.COMMIT_COUNT_BUILD_ID_OFFSET
 
@@ -95,14 +94,14 @@ class GetBuildIdTest(unittest.TestCase):
     self.make_commit()
     self.make_commit_with_build_number()
     self.make_commit()
-    build_number = get_build_id.main(cwd=self.test_dir.name)
+    build_number = build_info.get_build_id(cwd=self.test_dir.name)
     self.assertEqual(int(build_number), _TEST_BUILD_NUMBER)
 
   def testFallbackToCommitCount(self):
     num_commits = 5
     for _ in range(num_commits):
       self.make_commit()
-    build_number = get_build_id.main(cwd=self.test_dir.name)
+    build_number = build_info.get_build_id(cwd=self.test_dir.name)
     self.assertEqual(
         int(build_number),
         num_commits + build_info.COMMIT_COUNT_BUILD_ID_OFFSET)
