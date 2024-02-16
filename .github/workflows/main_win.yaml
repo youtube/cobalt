@@ -211,7 +211,7 @@ jobs:
     # Run ODT when on_device label is applied on PR.
     # Also, run ODT on push and schedule if not explicitly disabled via repo vars.
     if: |
-      fromJSON(needs.initialize.outputs.on_device_test) == true && ((
+      fromJSON(needs.initialize.outputs.on_device_test).enabled == true && ((
         github.event_name == 'pull_request' &&
         contains(github.event.pull_request.labels.*.name, 'on_device') ) || ((
             inputs.nightly == 'true' || github.event_name == 'schedule') &&
