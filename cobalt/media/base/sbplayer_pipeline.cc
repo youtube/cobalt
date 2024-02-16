@@ -1239,16 +1239,12 @@ void SbPlayerPipeline::OnPlayerError(SbPlayerError error,
       CallErrorCB(::media::PIPELINE_ERROR_DECODE, message);
       break;
     case kSbPlayerErrorCapabilityChanged:
-#if SB_API_VERSION < 16
-      CallErrorCB(::media::PLAYBACK_CAPABILITY_CHANGED, message);
-#else
       CallErrorCB(::media::PIPELINE_ERROR_DECODE,
                   message.empty()
                       ? kSbPlayerCapabilityChangedErrorMessage
                       : ::starboard::FormatString(
                             "%s: %s", kSbPlayerCapabilityChangedErrorMessage,
                             message.c_str()));
-#endif  // SB_API_VERSION < 16
       break;
     case kSbPlayerErrorMax:
       NOTREACHED();

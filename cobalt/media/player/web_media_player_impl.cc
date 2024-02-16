@@ -759,13 +759,6 @@ void WebMediaPlayerImpl::OnPipelineError(::media::PipelineStatus error,
       SetNetworkError(WebMediaPlayer::kNetworkStateDecodeError,
                       message.empty() ? "Hardware context reset." : message);
       break;
-
-#if SB_API_VERSION < 16
-    case ::media::PLAYBACK_CAPABILITY_CHANGED:
-      SetNetworkError(WebMediaPlayer::kNetworkStateCapabilityChangedError,
-                      message.empty() ? "Capability changed." : message);
-      break;
-#endif  // SB_API_VERSION < 16
     default:
       NOTREACHED();
       break;

@@ -51,9 +51,6 @@ class WebMediaPlayer {
     kNetworkStateFormatError,
     kNetworkStateNetworkError,
     kNetworkStateDecodeError,
-#if SB_API_VERSION < 16
-    kNetworkStateCapabilityChangedError,
-#endif  // SB_API_VERSION < 16
   };
 
   enum ReadyState {
