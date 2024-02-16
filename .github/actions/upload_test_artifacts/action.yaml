@@ -31,11 +31,12 @@ runs:
         then
           if [ "${{ inputs.os }}" == 'linux' ]
           then
-            echo "ARCHIVE_FILE=artifacts.tar" >> $GITHUB_ENV
+            ARCHIVE_FILE="artifacts.tar"
           elif [ "${{ inputs.os }}" == 'windows' ]
           then
-            echo "ARCHIVE_FILE=artifacts.tgz" >> $GITHUB_ENV
+            ARCHIVE_FILE="artifacts.tgz"
           fi
+          echo "ARCHIVE_FILE=${ARCHIVE_FILE}" >> $GITHUB_ENV
           echo "ARCHIVE_PATH=${GITHUB_WORKSPACE}/${ARCHIVE_FILE}" >> $GITHUB_ENV
           echo "DESTINATION=${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}_${{matrix.config}}/" >> $GITHUB_ENV
         elif [ "${{ inputs.type }}" == 'onhost' ]
