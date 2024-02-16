@@ -12,16 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <string.h>
+#ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_STRING_H_
+#define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_STRING_H_
+
+#include <../ucrt/string.h>  // The Visual Studio version of this same file
+#undef strdup                // Remove the MSVC one since we're defining our own
+#include <strings.h>         // For historical reasons, glibc included these too
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-char* strdup(const char* s1) {
-  return _strdup(s1);
-}
+// https://pubs.opengroup.org/onlinepubs/009604599/functions/strdup.html
+char* strdup(const char* s1);
 
 #ifdef __cplusplus
 }
-#endif
+#endif  // __cplusplus
+
+#endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_STRING_H_
