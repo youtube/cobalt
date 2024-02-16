@@ -97,12 +97,12 @@ _ALLOWED_SB16_POSIX_SYMBOLS = [
     'realloc',
     'strcasecmp',
     'strncasecmp',
+    'socket',
     'time',
     'mmap',
     'munmap',
     'mprotect',
     'msync',
-    'mkdir',
 ]
 
 

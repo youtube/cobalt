@@ -9,13 +9,10 @@
 
 #include <stdarg.h>
 #include <stdlib.h>
-
 #include <cmath>
 
 #include "src/base/bits.h"
 #include "src/base/once.h"
-#include "src/base/platform/platform.h"
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register-configuration.h"
@@ -1564,7 +1561,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   size_t stack_size = MB;  // allocate 1MB for stack
 #endif
   stack_size += 2 * stack_protection_size_;
-  stack_ = reinterpret_cast<char*>(base::Malloc(stack_size));
+  stack_ = reinterpret_cast<char*>(malloc(stack_size));
   pc_modified_ = false;
   icount_ = 0;
   break_pc_ = nullptr;
@@ -1599,7 +1596,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   last_debugger_input_ = nullptr;
 }
 
-Simulator::~Simulator() { base::Free(stack_); }
+Simulator::~Simulator() { free(stack_); }
 
 // Get the active Simulator for the current thread.
 Simulator* Simulator::current(Isolate* isolate) {
@@ -1815,7 +1812,7 @@ float Simulator::ReadFloat(intptr_t addr) {
 uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
   // The simulator uses a separate JS stack. If we have exhausted the C stack,
   // we also drop down the JS limit to reflect the exhaustion on the JS stack.
-  if (base::Stack::GetCurrentStackPosition() < c_limit) {
+  if (GetCurrentStackPosition() < c_limit) {
     return reinterpret_cast<uintptr_t>(get_sp());
   }
 
@@ -2144,7 +2141,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
             set_register(r3, y);
           } else {
             memcpy(reinterpret_cast<void*>(result_buffer), &result,
-                         sizeof(ObjectPair));
+                   sizeof(ObjectPair));
             set_register(r2, result_buffer);
           }
         } else {
@@ -2574,7 +2571,7 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
   intptr_t* stack_argument =
       reinterpret_cast<intptr_t*>(entry_stack + kCalleeRegisterSaveAreaSize);
   memcpy(stack_argument, arguments + reg_arg_count,
-               stack_arg_count * sizeof(*arguments));
+         stack_arg_count * sizeof(*arguments));
   set_register(sp, entry_stack);
 
 // Prepare to execute the code at entry
@@ -3262,8 +3259,8 @@ void VectorSum(void* dst, void* src1, void* src2) {
     value += *(reinterpret_cast<S*>(src1) + i);
     if ((i + 1) % (sizeof(D) / sizeof(S)) == 0) {
       value += *(reinterpret_cast<S*>(src2) + i);
-      memcpy(reinterpret_cast<D*>(dst) + i / (sizeof(D) / sizeof(S)),
-                   &value, sizeof(D));
+      memcpy(reinterpret_cast<D*>(dst) + i / (sizeof(D) / sizeof(S)), &value,
+             sizeof(D));
       value = 0;
     }
   }

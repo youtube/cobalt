@@ -96,7 +96,6 @@
 #include "src/heap/conservative-stack-visitor.h"
 #endif
 
-#include "src/base/platform/wrappers.h"
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
@@ -6679,7 +6678,7 @@ void Heap::IncrementObjectCounters() {
 // heap as a strong root array, saves that entry in StrongRootsEntry*, and
 // returns a pointer to Address 1.
 Address* StrongRootBlockAllocator::allocate(size_t n) {
-  void* block = base::Malloc(sizeof(StrongRootsEntry*) + n * sizeof(Address));
+  void* block = malloc(sizeof(StrongRootsEntry*) + n * sizeof(Address));
 
   StrongRootsEntry** header = reinterpret_cast<StrongRootsEntry**>(block);
   Address* ret = reinterpret_cast<Address*>(reinterpret_cast<char*>(block) +
@@ -6700,7 +6699,7 @@ void StrongRootBlockAllocator::deallocate(Address* p, size_t n) noexcept {
 
   heap_->UnregisterStrongRoots(*header);
 
-  base::Free(block);
+  free(block);
 }
 
 }  // namespace internal

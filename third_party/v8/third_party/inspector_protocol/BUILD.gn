@@ -53,41 +53,41 @@ v8_source_set("crdtp_platform") {
 }
 
 if (!is_starboard) {
-  # These tests are linked into test/unittests.
-  v8_source_set("crdtp_test") {
-    sources = [
-      "crdtp/cbor_test.cc",
-      "crdtp/dispatch_test.cc",
-      "crdtp/error_support_test.cc",
-      "crdtp/find_by_first_test.cc",
-      "crdtp/glue_test.cc",
-      "crdtp/json_test.cc",
-      "crdtp/serializable_test.cc",
-      "crdtp/serializer_traits_test.cc",
-      "crdtp/span_test.cc",
-      "crdtp/status_test.cc",
-      "crdtp/status_test_support.cc",
-      "crdtp/status_test_support.h",
-    ]
-    configs = [ ":crdtp_config" ]
-    deps = [ ":crdtp_test_platform" ]
-    testonly = true
-  }
+# These tests are linked into test/unittests.
+v8_source_set("crdtp_test") {
+  sources = [
+    "crdtp/cbor_test.cc",
+    "crdtp/dispatch_test.cc",
+    "crdtp/error_support_test.cc",
+    "crdtp/find_by_first_test.cc",
+    "crdtp/glue_test.cc",
+    "crdtp/json_test.cc",
+    "crdtp/serializable_test.cc",
+    "crdtp/serializer_traits_test.cc",
+    "crdtp/span_test.cc",
+    "crdtp/status_test.cc",
+    "crdtp/status_test_support.cc",
+    "crdtp/status_test_support.h",
+  ]
+  configs = [ ":crdtp_config" ]
+  deps = [ ":crdtp_test_platform" ]
+  testonly = true
+}
 
-  # A small adapter library which only :crdtp_test may depend on.
-  v8_source_set("crdtp_test_platform") {
-    sources = [
-      "crdtp/test_platform.h",
-      "crdtp/test_platform_v8.cc",
-    ]
-    configs = [ ":crdtp_config" ]
-    public_deps = [
-      ":crdtp",
-      "../..:v8_libbase",
-      "../../src/inspector:inspector_string_conversions",
-      "//testing/gmock",
-      "//testing/gtest",
-    ]
-    testonly = true
-  }
+# A small adapter library which only :crdtp_test may depend on.
+v8_source_set("crdtp_test_platform") {
+  sources = [
+    "crdtp/test_platform.h",
+    "crdtp/test_platform_v8.cc",
+  ]
+  configs = [ ":crdtp_config" ]
+  public_deps = [
+    ":crdtp",
+    "../..:v8_libbase",
+    "../../src/inspector:inspector_string_conversions",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+  testonly = true
+}
 }

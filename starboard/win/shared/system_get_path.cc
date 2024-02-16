@@ -18,7 +18,6 @@
 // pathcch.h must come after windows.h.
 #include <pathcch.h>
 
-#include <sys/stat.h>
 #include <codecvt>
 #include <cstring>
 #include <locale>
@@ -140,8 +139,7 @@ bool CreateAndGetTempPath(char* out_path, int path_size) {
       path_size) {
     return false;
   }
-
-  mkdir(out_path, 0700);
+  SbDirectoryCreate(out_path);
 
   size_t length = strlen(out_path);
   if (length < 1 || length > path_size) {

@@ -5,10 +5,18 @@ description:
   "client apps to perform device authentication."
 
 third_party {
-  url {
-    type: GIT
-    value: "https://chromium.googlesource.com/chromium/src"
+  identifier {
+    type: "ChromiumVersion"
+    value: "87.0.4280.142"  # from https://chromereleases.googleblog.com/2021/01/stable-channel-update-for-chrome-os.html
   }
-  version: "87.0.4280.142"
+  identifier {
+    type: "Git"
+    value: "https://chromium.googlesource.com/chromium/src.git"
+    version: "f73da6d3eaeb33e9d4bcb497bf13c655143a82f9"
+  }
+  identifier {
+    type: "UpstreamSubdir"
+    value: "third_party/modp_b64"
+  }
   license_type: NOTICE
 }

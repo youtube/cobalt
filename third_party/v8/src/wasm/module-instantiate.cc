@@ -1676,7 +1676,7 @@ void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
                             ? sizeof(double)
                             : sizeof(int32_t);
           memcpy(raw_buffer_ptr(untagged_globals_, new_offset),
-                       raw_buffer_ptr(untagged_globals_, old_offset), size);
+                 raw_buffer_ptr(untagged_globals_, old_offset), size);
         }
         break;
       }

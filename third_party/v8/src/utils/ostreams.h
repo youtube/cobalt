@@ -166,7 +166,9 @@ struct PrintIteratorRange {
 // Print any collection which can be iterated via std::begin and std::end.
 // {Iterator} is the common type of {std::begin} and {std::end} called on a
 // {const T&}. This function is only instantiable if that type exists.
-template <typename T, typename Iterator = decltype(std::begin(std::declval<const T&>()))>
+template <typename T, typename Iterator = typename std::common_type<
+                          decltype(std::begin(std::declval<const T&>())),
+                          decltype(std::end(std::declval<const T&>()))>::type>
 PrintIteratorRange<Iterator> PrintCollection(const T& collection) {
   return {std::begin(collection), std::end(collection)};
 }

@@ -5,7 +5,6 @@
 #ifndef V8_BASE_MACROS_H_
 #define V8_BASE_MACROS_H_
 
-#include <cstdint>
 #include <limits>
 #include <type_traits>
 
@@ -338,6 +337,7 @@ inline uint64_t make_uint64(uint32_t high, uint32_t low) {
 // Return the largest multiple of m which is <= x.
 template <typename T>
 inline T RoundDown(T x, intptr_t m) {
+  STATIC_ASSERT(std::is_integral<T>::value);
   // m must be a power of two.
   DCHECK(m != 0 && ((m & (m - 1)) == 0));
   return x & static_cast<T>(-m);
@@ -353,6 +353,7 @@ constexpr inline T RoundDown(T x) {
 // Return the smallest multiple of m which is >= x.
 template <typename T>
 inline T RoundUp(T x, intptr_t m) {
+  STATIC_ASSERT(std::is_integral<T>::value);
   return RoundDown<T>(static_cast<T>(x + m - 1), m);
 }
 template <intptr_t m, typename T>

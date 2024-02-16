@@ -341,6 +341,9 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
       TimeDelta::FromMicroseconds(100);
   // Timestamp for the last written audio.
   TimeDelta timestamp_of_last_written_audio_;
+  // Indicates if video end of stream has been written into the underlying
+  // player.
+  bool is_video_eos_written_ = false;
 
   // Last media time reported by GetMediaTime().
   base::CVal<TimeDelta> last_media_time_;

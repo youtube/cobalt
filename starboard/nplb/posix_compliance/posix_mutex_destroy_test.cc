@@ -1,4 +1,4 @@
-// Copyright 2022 The Cobalt Authors. All Rights Reserved.
+// Copyright 2015 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/starboard_switches.h"
+#include <pthread.h>
+
+#include "starboard/configuration.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
-namespace shared {
-namespace starboard {
+namespace nplb {
+namespace {
 
-const char kStartHandlerAtCrash[] = "start_handler_at_crash";
-const char kStartHandlerAtLaunch[] = "start_handler_at_launch";
+TEST(PosixMutexDestroyTest, SunnyDayAutoInit) {
+  pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+  EXPECT_EQ(pthread_mutex_destroy(&mutex), 0);
+}
 
-}  // namespace starboard
-}  // namespace shared
+}  // namespace
+}  // namespace nplb
 }  // namespace starboard

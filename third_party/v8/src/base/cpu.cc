@@ -41,7 +41,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include <algorithm>
 
 #include "src/base/logging.h"

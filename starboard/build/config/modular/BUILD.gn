@@ -185,6 +185,11 @@ config("modular") {
       "-Wl,--wrap=time",
       "-Wl,--wrap=gmtime_r",
       "-Wl,--wrap=mmap",
+      "-Wl,--wrap=pthread_mutex_destroy",
+      "-Wl,--wrap=pthread_mutex_init",
+      "-Wl,--wrap=pthread_mutex_lock",
+      "-Wl,--wrap=pthread_mutex_unlock",
+      "-Wl,--wrap=pthread_mutex_trylock",
     ]
   }
 }

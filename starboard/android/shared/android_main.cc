@@ -11,7 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#include <sys/stat.h>
 
 #include "game-activity/GameActivity.h"
 #include "starboard/android/shared/application_android.h"
@@ -29,7 +28,6 @@
 #include "starboard/event.h"
 #include "starboard/log.h"
 #include "starboard/shared/starboard/command_line.h"
-#include "starboard/shared/starboard/starboard_switches.h"
 #include "starboard/thread.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "third_party/crashpad/wrapper/wrapper.h"  // nogncheck
@@ -182,8 +180,7 @@ std::string ExtractCertificatesToFileSystem() {
 
   std::string file_system_path(file_system_path_buffer.data());
   file_system_path.append(std::string(kSbFileSepString) + "certs");
-  if (mkdir(file_system_path.c_str(), 0700) != 0 ||
-      !SbDirectoryCanOpen(file_system_path.c_str())) {
+  if (!SbDirectoryCreate(file_system_path.c_str())) {
     SB_LOG(WARNING) << "Failed to create new dir for CA certificates";
     return "";
   }
@@ -197,15 +194,6 @@ std::string ExtractCertificatesToFileSystem() {
 }
 
 void InstallCrashpadHandler(const CommandLine& command_line) {
-  if (command_line.HasSwitch(
-          starboard::shared::starboard::kStartHandlerAtLaunch)) {
-    SB_LOG(WARNING) << "--"
-                    << starboard::shared::starboard::kStartHandlerAtLaunch
-                    << " not supported for AOSP Evergreen, not installing "
-                    << "Crashpad handler";
-    return;
-  }
-
   std::string extracted_ca_certificates_path =
       ExtractCertificatesToFileSystem();
   if (extracted_ca_certificates_path.empty()) {
@@ -215,7 +203,7 @@ void InstallCrashpadHandler(const CommandLine& command_line) {
   }
 
   third_party::crashpad::wrapper::InstallCrashpadHandler(
-      /*start_at_crash=*/true, extracted_ca_certificates_path);
+      extracted_ca_certificates_path);
 }
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
 

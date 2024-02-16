@@ -4,7 +4,6 @@
 
 #include "src/wasm/wasm-serialization.h"
 
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/external-reference-table.h"
 #include "src/objects/objects-inl.h"

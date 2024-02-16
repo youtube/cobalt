@@ -15,17 +15,12 @@
 #ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_POSIX_FORCE_INCLUDE_H_
 #define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_POSIX_FORCE_INCLUDE_H_
 
-// MSVC deprecated strdup() in favor of _strdup()
-#define strdup _strdup
-#define strcasecmp _stricmp
-#define strncasecmp _strnicmp
-
 #if defined(STARBOARD)
 
-#define free sb_free
+// MSVC deprecated strdup() in favor of _strdup()
+#define strdup _strdup
 
-#undef mkdir
-#define mkdir sb_mkdir
+#define free sb_free
 
 #include <time.h>  // For struct timespec
 
@@ -35,9 +30,6 @@ typedef int clockid_t;
 #define CLOCK_MONOTONIC 1
 #define CLOCK_PROCESS_CPUTIME_ID 2
 #define CLOCK_THREAD_CPUTIME_ID 3
-
-typedef unsigned int mode_t;
-int sb_mkdir(const char* path, mode_t mode);
 
 #ifdef __cplusplus
 extern "C" {
@@ -51,8 +43,14 @@ struct tm* gmtime_r(const time_t* timer, struct tm* result);
 
 int posix_memalign(void** res, size_t alignment, size_t size);
 
+// https://pubs.opengroup.org/onlinepubs/9699919799/functions/strcasecmp.html
+int strcasecmp(const char* s1, const char* s2);
+int strncasecmp(const char* s1, const char* s2, size_t n);
+
 #ifdef __cplusplus
 }
 #endif  // __cplusplus
+
 #endif  // defined(STARBOARD)
+
 #endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_POSIX_FORCE_INCLUDE_H_

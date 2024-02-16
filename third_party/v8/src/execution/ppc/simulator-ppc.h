@@ -18,14 +18,14 @@
 #if defined(USE_SIMULATOR)
 // Running with a simulator.
 
-#include "src/base/hashmap.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/mutex.h"
-#include "src/base/platform/wrappers.h"
+#include "src/utils/allocation.h"
+
+#include "src/base/hashmap.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/ppc/constants-ppc.h"
 #include "src/execution/simulator-base.h"
-#include "src/utils/allocation.h"
 
 namespace v8 {
 namespace internal {

@@ -9,6 +9,15 @@ since the version previous to it.
 
 ## Version 16
 
+### Added standard POSIX socket/close APIs.
+The standard API socket can be used from <sys/socket.h> and
+close can be called to close the socket by including <unistd.h>.
+
+### Changed InstallCrashpadHandler API
+This API doesn't support the option to start the crashpad handler at the
+same time as the app launches anymore. Instead, the crashpad handler is
+started when a crash happens. See details in starboard/doc/crash_handlers.md.
+
 ### Convert SbUiNavGetInterface Starboard API into an extension
 The `SbUiNavGetInterface` API is deprecated and replaced with a Starboard
 extension named `SbUiNavInterface`.
@@ -57,16 +66,8 @@ deprecated.
 The APIs defined in `starboard/image.h` are no longer used and have been
 deprecated.
 
-### Add a new enum `kIamfConfigObus` to `SbPlayerSampleSideDataType` in `starboard/player.h`
-This value allows IAMF samples to be written to Starboard along with IAMF
-Config OBUs as side data.
-
 ### Deprecated SbStringScan and SbStringScanF
 The APIs defined in `starboard/string.h` are deprecated and the standard API `vsscanf` and `sscanf` are used instead.
-
-### Decrecated SbDirectory APIs and migrated to POSIX directory APIs
-The directory API `SbDirectoryCreate` is deprecated and the standard APIs
-`mkdir` from `<sys/stat.h>` should be used instead.
 
 ## Version 15
 

@@ -16,7 +16,6 @@
 
 #include <map>
 #include <vector>
-#include <sys/stat.h>
 
 #include "base/files/file_path.h"
 #include "base/logging.h"
@@ -87,7 +86,7 @@ base::FilePath GetDatabasePath() {
   std::string crashpad_directory_path(cache_directory_path.data());
   crashpad_directory_path.push_back(kSbFileSepChar);
   crashpad_directory_path.append("crashpad_database");
-  if (mkdir(crashpad_directory_path.c_str(), 0700) != 0 && !SbDirectoryCanOpen(crashpad_directory_path.c_str())) {
+  if (!SbDirectoryCreate(crashpad_directory_path.c_str())) {
     LOG(ERROR) << "Couldn't create directory for crashpad database";
     return base::FilePath("");
   }
@@ -185,8 +184,7 @@ std::map<std::string, std::string> GetPlatformInfo() {
 
 }  // namespace
 
-void InstallCrashpadHandler(bool start_at_crash,
-                            const std::string& ca_certificates_path) {
+void InstallCrashpadHandler(const std::string& ca_certificates_path) {
   ::crashpad::CrashpadClient* client = GetCrashpadClient();
 
   const base::FilePath handler_path = GetPathToCrashpadHandlerBinary();
@@ -211,24 +209,13 @@ void InstallCrashpadHandler(bool start_at_crash,
   InitializeCrashpadDatabase(database_directory_path);
   client->SetUnhandledSignals({});
 
-  if (start_at_crash)
-    client->StartHandlerAtCrash(handler_path,
-                                database_directory_path,
-                                default_metrics_dir,
-                                kUploadUrl,
-                                ca_certificates_path,
-                                default_annotations,
-                                default_arguments);
-  else
-    client->StartHandler(handler_path,
-                         database_directory_path,
-                         default_metrics_dir,
-                         kUploadUrl,
-                         ca_certificates_path,
-                         default_annotations,
-                         default_arguments,
-                         false,
-                         false);
+  client->StartHandlerAtCrash(handler_path,
+                              database_directory_path,
+                              default_metrics_dir,
+                              kUploadUrl,
+                              ca_certificates_path,
+                              default_annotations,
+                              default_arguments);
 
   ::crashpad::SanitizationInformation sanitization_info = {0, 0, 0, 1};
   client->SendSanitizationInformationToHandler(sanitization_info);

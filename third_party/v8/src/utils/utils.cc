@@ -6,7 +6,6 @@
 
 #include <stdarg.h>
 #include <sys/stat.h>
-
 #include <vector>
 
 #include "src/base/functional.h"

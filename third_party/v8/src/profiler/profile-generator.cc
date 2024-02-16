@@ -519,9 +519,8 @@ void CpuProfile::AddPath(base::TimeTicks timestamp,
       (options_.max_samples() == CpuProfilingOptions::kNoSampleLimit ||
        samples_.size() < options_.max_samples());
 
-  if (should_record_sample) {
+  if (should_record_sample)
     samples_.push_back({top_frame_node, timestamp, src_line});
-  }
 
   if (!should_record_sample && delegate_ != nullptr) {
     const auto task_runner = V8::GetCurrentPlatform()->GetForegroundTaskRunner(

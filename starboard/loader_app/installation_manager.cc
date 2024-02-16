@@ -14,7 +14,6 @@
 
 #include "starboard/loader_app/installation_manager.h"
 
-#include <sys/stat.h>
 #include <set>
 #include <string>
 #include <vector>
@@ -707,7 +706,8 @@ bool InstallationManager::CreateInstallationDirs() {
     if (!GetInstallationPathInternal(i, path.data(), kSbFileMaxPath)) {
       return false;
     }
-    if (!SbDirectoryCanOpen(path.data()) && mkdir(path.data(), 0700) != 0) {
+
+    if (!SbDirectoryCreate(path.data())) {
       return false;
     }
   }
