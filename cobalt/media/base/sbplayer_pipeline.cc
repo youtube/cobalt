@@ -1239,7 +1239,12 @@ void SbPlayerPipeline::OnPlayerError(SbPlayerError error,
       CallErrorCB(::media::PIPELINE_ERROR_DECODE, message);
       break;
     case kSbPlayerErrorCapabilityChanged:
-      CallErrorCB(::media::PLAYBACK_CAPABILITY_CHANGED, message);
+      CallErrorCB(::media::PIPELINE_ERROR_DECODE,
+                  message.empty()
+                      ? kSbPlayerCapabilityChangedErrorMessage
+                      : ::starboard::FormatString(
+                            "%s: %s", kSbPlayerCapabilityChangedErrorMessage,
+                            message.c_str()));
       break;
     case kSbPlayerErrorMax:
       NOTREACHED();
