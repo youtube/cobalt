@@ -12,20 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_SOCKET_H_
-#define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_SOCKET_H_
+#ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_FCNTL_H_
+#define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_FCNTL_H_
 
-#include <winsock2.h>
-#undef NO_ERROR  // http://b/302733082#comment15
+#include <../ucrt/fcntl.h>  // The Visual Studio version of this same file
+#include <io.h>             // Needed for `open`, which is in fcntl.h on POSIX
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#undef close  // in unistd.h on POSIX, and handles both files and sockets
 
-int sb_socket(int domain, int type, int protocol);
-#define socket sb_socket
-
-#ifdef __cplusplus
-}
-#endif
-#endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_SOCKET_H_
+#endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_FCNTL_H_

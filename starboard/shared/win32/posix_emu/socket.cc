@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <io.h>
-#include <time.h>
+// We specifically do not include <sys/socket.h> since the define causes a loop
+#include <io.h>      // Needed for file-specific `_close`.
+#include <unistd.h>  // Our version that declares generic `close`.
 #include <winsock2.h>
 #undef NO_ERROR  // http://b/302733082#comment15
 #include <map>
@@ -94,5 +95,6 @@ extern "C" int close(int fd) {
     return closesocket(socket_handle);
   }
 
+  // This is then a file handle, so use Windows `_close` API.
   return _close(fd);
 }

@@ -15,8 +15,6 @@
 #ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_ARPA_INET_H_
 #define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_ARPA_INET_H_
 
-#if defined(STARBOARD) && defined(_MSC_VER)
-
 #include <stdint.h>
 #include <stdlib.h>
 #include <winsock2.h>
@@ -24,9 +22,5 @@
 //  TODO: b/324981660 undefine the caller of this GetCurrentTime in
 //  <winsock2.h>
 #undef GetCurrentTime
-
-#include "starboard/configuration.h"
-
-#endif  // defined(STARBOARD) && defined(_MSC_VER)
 
 #endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_ARPA_INET_H_

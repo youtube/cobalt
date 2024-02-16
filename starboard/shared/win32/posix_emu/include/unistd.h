@@ -15,17 +15,16 @@
 #ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_UNISTD_H_
 #define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_UNISTD_H_
 
-#if defined(STARBOARD)
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+// This function will handle both files and sockets. The implementation is
+// located in socket.cc.
 int close(int fd);
 
 #ifdef __cplusplus
 }
 #endif  // __cplusplus
 
-#endif  // defined(STARBOARD)
 #endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_UNISTD_H_

@@ -33,10 +33,7 @@ config("platform_configuration") {
     "windowsapp.lib",
   ]
 
-  include_dirs = [
-    "$wdk_include_path",
-    "$msvc_path/atlmfc/include",
-  ]
+  include_dirs = []
 
   ldflags += [
     "/DYNAMICBASE",
