@@ -20,7 +20,9 @@
 
 #include "cobalt/cssom/computed_style.h"
 #include "cobalt/cssom/keyword_value.h"
+#include "cobalt/cssom/property_value_visitor.h"
 #include "cobalt/layout/anonymous_block_box.h"
+#include "cobalt/layout/block_formatting_block_container_box.h"
 #include "cobalt/layout/text_box.h"
 #include "cobalt/layout/used_style.h"
 
@@ -398,11 +400,109 @@ bool FlexContainerBox::TryAddChild(const scoped_refptr<Box>& child_box) {
   return true;
 }
 
+namespace {
+class ComputedLengthIsDefiniteProvider
+    : public cssom::DefaultingPropertyValueVisitor {
+ public:
+  ComputedLengthIsDefiniteProvider() : computed_length_is_definite_(false) {}
+
+  void VisitLength(cssom::LengthValue* length_value) override {
+    computed_length_is_definite_ = true;
+  }
+
+  void VisitDefault(cssom::PropertyValue* property_value) override {}
+
+  bool computed_length_is_definite() { return computed_length_is_definite_; }
+
+ private:
+  bool computed_length_is_definite_;
+};
+
+bool LengthIsDefinite(cssom::PropertyValue* length) {
+  ComputedLengthIsDefiniteProvider computed_length_is_definite_provider;
+  length->Accept(&computed_length_is_definite_provider);
+  return computed_length_is_definite_provider.computed_length_is_definite();
+}
+}  // namespace
+
+void FlexContainerBox::PushBackBloxBoxAndChild(
+    const scoped_refptr<Box>& child_box) {
+  // Special handling of a box that is both a flex item and a flex container:
+  // . Add a Block container with the child's style.
+  // . Add a Flex container with:
+  //   . 100% width, and
+  //   . 100% height if the child's height is definite, and
+  //   . with any style from the child that applies to flex containers, and
+  //   . add the grandchildren.
+
+  // Add a Block container.
+  scoped_refptr<cssom::CSSComputedStyleDeclaration> block_style_declaration =
+      new cssom::CSSComputedStyleDeclaration();
+  scoped_refptr<cssom::MutableCSSComputedStyleData> block_style =
+      new cssom::MutableCSSComputedStyleData();
+
+  // Add the child's style.
+  block_style->AssignFrom(*child_box->computed_style());
+  block_style_declaration->SetData(block_style);
+  block_style_declaration->set_animations(new web_animations::AnimationSet());
+
+  scoped_refptr<BlockLevelBlockContainerBox> new_block_container(
+      new BlockLevelBlockContainerBox(block_style_declaration, base_direction(),
+                                      used_style_provider(),
+                                      layout_stat_tracker()));
+
+  // Add a Flex container.
+  scoped_refptr<cssom::CSSComputedStyleDeclaration> flex_style_declaration =
+      new cssom::CSSComputedStyleDeclaration();
+  scoped_refptr<cssom::MutableCSSComputedStyleData> flex_style =
+      new cssom::MutableCSSComputedStyleData();
+
+  // Size the container width at 100% of the block box width.
+  flex_style->set_width(new cssom::PercentageValue(1.0f));
+  // Size the container height at 100% of the block box height if that is
+  // definite.
+  if (LengthIsDefinite(block_style->height().get())) {
+    flex_style->set_height(new cssom::PercentageValue(1.0f));
+  }
+
+  // Add all style that apply to flex containers from the child box.
+  cssom::PropertyKey flex_properties[] = {
+      cssom::kFlexDirectionProperty, cssom::kFlexWrapProperty,
+      cssom::kJustifyContentProperty, cssom::kAlignItemsProperty,
+      cssom::kAlignContentProperty};
+  for (const auto& key : flex_properties) {
+    if (child_box->computed_style()->IsDeclared(key)) {
+      flex_style->SetPropertyValue(
+          key, child_box->computed_style()->GetPropertyValue(key));
+    }
+  }
+  flex_style_declaration->SetData(flex_style);
+  flex_style_declaration->set_animations(new web_animations::AnimationSet());
+
+  scoped_refptr<BlockLevelFlexContainerBox> new_flex_container(
+      new BlockLevelFlexContainerBox(flex_style_declaration, base_direction(),
+                                     used_style_provider(),
+                                     layout_stat_tracker()));
+
+  // Add the grandchildren.
+  for (const auto& box : child_box->AsContainerBox()->child_boxes()) {
+    new_flex_container->PushBackDirectChild(box);
+  }
+
+  new_block_container->PushBackDirectChild(new_flex_container);
+  PushBackDirectChild(new_block_container);
+}
+
 void FlexContainerBox::AddChild(const scoped_refptr<Box>& child_box) {
   TextBox* text_box = child_box->AsTextBox();
   switch (child_box->GetLevel()) {
     case kBlockLevel:
-      PushBackDirectChild(child_box);
+      if (child_box->computed_style()->display() ==
+          cssom::KeywordValue::GetFlex()) {
+        PushBackBloxBoxAndChild(child_box);
+      } else {
+        PushBackDirectChild(child_box);
+      }
       break;
     case kInlineLevel:
       if (text_box && !text_box->HasNonCollapsibleText()) {
