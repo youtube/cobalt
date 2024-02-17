@@ -14,14 +14,10 @@
 
 #include <string.h>
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 char* strdup(const char* s1) {
   return _strdup(s1);
 }
 
-#ifdef __cplusplus
-}
-#endif
+}  // extern "C"
