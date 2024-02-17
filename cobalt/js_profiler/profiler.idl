@@ -20,9 +20,13 @@
   ConstructorCallWith=EnvironmentSettings,
   RaisesException = Constructor,
 ]
-interface Profiler : EventTarget {
+interface Profiler {
   readonly attribute DOMHighResTimeStamp sampleInterval;
   readonly attribute boolean stopped;
 
+  void addEventListener(DOMString token, SampleBufferFullCallback listener);
+
   [CallWith=EnvironmentSettings] Promise<ProfilerTraceWrapper> stop();
 };
+
+callback SampleBufferFullCallback = void();

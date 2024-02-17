@@ -28,13 +28,17 @@
 #include "cobalt/web/environment_settings_helper.h"
 #include "starboard/common/log.h"
 
+namespace {
+void OnGetArgument() {}
+}  // namespace
+
 namespace cobalt {
 namespace js_profiler {
 
 Profiler::Profiler(script::EnvironmentSettings* settings,
                    ProfilerInitOptions options,
                    script::ExceptionState* exception_state)
-    : cobalt::web::EventTarget(settings),
+    : ALLOW_THIS_IN_INITIALIZER_LIST(listeners_(this)),
       stopped_(false),
       time_origin_{base::TimeTicks::Now()} {
   profiler_group_ = ProfilerGroup::From(web::get_isolate(settings));
@@ -61,12 +65,8 @@ Profiler::Profiler(script::EnvironmentSettings* settings,
   sample_interval_ = effective_sample_interval_ms;
 
   SB_LOG(INFO) << "[PROFILER] START " + profiler_id_;
-  auto global_env =
-      base::polymorphic_downcast<web::EnvironmentSettings*>(settings)
-          ->context()
-          ->global_environment();
   auto status = profiler_group_->ProfilerStart(
-      this, global_env,
+      this, settings,
       v8::CpuProfilingOptions(v8::kLeafNodeLineNumbers,
                               options.max_buffer_size(), sample_interval_us));
 
@@ -83,8 +83,22 @@ Profiler::~Profiler() {
   SB_LOG(INFO) << "[PROFILER] DECONSTRUCTOR " + profiler_id_;
 }
 
+void Profiler::AddEventListener(
+    const std::string& name,
+    const Profiler::SampleBufferFullCallbackHolder& callback_holder) {
+  if (name != base::Tokens::samplebufferfull()) {
+    return;
+  }
+  listeners_.AddListener(callback_holder);
+}
+
+void Profiler::DispatchSampleBufferFullEvent() {
+  listeners_.DispatchEvent(base::Bind(OnGetArgument));
+}
+
 Profiler::ProfilerTracePromise Profiler::Stop(
     script::EnvironmentSettings* environment_settings) {
+  SB_LOG(INFO) << "[PROFILER] STOPPING " + profiler_id_;
   script::HandlePromiseWrappable promise =
       web::get_script_value_factory(environment_settings)
           ->CreateInterfacePromise<scoped_refptr<ProfilerTraceWrapper>>();
@@ -108,25 +122,11 @@ Profiler::ProfilerTracePromise Profiler::Stop(
   return promise;
 }
 
-void Profiler::PreventGarbageCollection(
-    script::GlobalEnvironment* global_environment) {
-  SB_LOG(INFO) << "[PROFILER] PREFREEZE GC " + profiler_id_;
-  // THIS LINE ALWAYS CRASHES!!!
-  prevent_gc_until_complete_.reset(
-      new script::GlobalEnvironment::ScopedPreventGarbageCollection(
-          global_environment, this));
-  SB_LOG(INFO) << "[PROFILER] FROZE GC " + profiler_id_;
-}
-
-void Profiler::AllowGarbageCollection() {
-  SB_LOG(INFO) << "[PROFILER] ALLOW GC " + profiler_id_;
-  prevent_gc_until_complete_.reset();
-}
-
 void Profiler::PerformStop(
     ProfilerGroup* profiler_group,
     std::unique_ptr<script::ValuePromiseWrappable::Reference> promise_reference,
     base::TimeTicks time_origin, std::string profiler_id) {
+  SB_LOG(INFO) << "[PROFILER] STOPPED " + profiler_id_;
   auto profile = profiler_group->ProfilerStop(this);
   auto trace = ProfilerTraceBuilder::FromProfile(profile, time_origin_);
   scoped_refptr<ProfilerTraceWrapper> result(new ProfilerTraceWrapper(trace));

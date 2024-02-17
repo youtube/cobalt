@@ -15,6 +15,8 @@
 
 #include "cobalt/js_profiler/profiler_group.h"
 
+#include "cobalt/base/token.h"
+#include "cobalt/base/tokens.h"
 
 namespace {
 v8::Local<v8::String> toV8String(v8::Isolate* isolate,
@@ -52,8 +54,8 @@ ProfilerGroup* ProfilerGroup::From(v8::Isolate* isolate) {
 }
 
 v8::CpuProfilingStatus ProfilerGroup::ProfilerStart(
-    Profiler* profiler, script::GlobalEnvironment* global_env,
-    v8::CpuProfilingOptions options) {
+    const scoped_refptr<Profiler>& profiler,
+    script::EnvironmentSettings* settings, v8::CpuProfilingOptions options) {
   if (!cpu_profiler_) {
     cpu_profiler_ = v8::CpuProfiler::New(isolate_);
     cpu_profiler_->SetSamplingInterval(
@@ -62,7 +64,6 @@ v8::CpuProfilingStatus ProfilerGroup::ProfilerStart(
   }
   profilers_.push_back(profiler);
   num_active_profilers_++;
-  profiler->PreventGarbageCollection(global_env);
   return cpu_profiler_->StartProfiling(
       toV8String(isolate_, profiler->ProfilerId()), options,
       std::make_unique<ProfilerMaxSamplesDelegate>(this,
@@ -72,7 +73,6 @@ v8::CpuProfilingStatus ProfilerGroup::ProfilerStart(
 v8::CpuProfile* ProfilerGroup::ProfilerStop(Profiler* profiler) {
   auto profile = cpu_profiler_->StopProfiling(
       toV8String(isolate_, profiler->ProfilerId()));
-  profiler->AllowGarbageCollection();
   this->PopProfiler(profiler->ProfilerId());
   return profile;
 }
@@ -85,20 +85,26 @@ std::string ProfilerGroup::NextProfilerId() {
 
 void ProfilerGroup::DispatchSampleBufferFullEvent(std::string profiler_id) {
   auto profiler = GetProfiler(profiler_id);
+
   if (profiler) {
-    profiler->DispatchEvent(new web::Event("samplebufferfull"));
+    SB_LOG(INFO) << "[PROFILER] VALID LOOP " + profiler->ProfilerId();
+    SB_LOG(INFO) << "[PROFILER] DISPATCHING FULL " + profiler->ProfilerId();
+
+    profiler->DispatchSampleBufferFullEvent();
   }
+  SB_LOG(INFO) << "[PROFILER] DISPATCHED FULL " + profiler->ProfilerId();
 }
 
 Profiler* ProfilerGroup::GetProfiler(std::string profiler_id) {
-  auto profiler = std::find_if(profilers_.begin(), profilers_.end(),
-                               [&profiler_id](const Profiler* profiler) {
-                                 return profiler->ProfilerId() == profiler_id;
-                               });
+  auto profiler =
+      std::find_if(profilers_.begin(), profilers_.end(),
+                   [&profiler_id](const scoped_refptr<Profiler>& profiler) {
+                     return profiler->ProfilerId() == profiler_id;
+                   });
   if (profiler == profilers_.end()) {
     return nullptr;
   }
-  return *profiler;
+  return profiler->get();
 }
 
 void ProfilerGroup::PopProfiler(std::string profiler_id) {

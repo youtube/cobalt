@@ -20,10 +20,13 @@
 #include <string>
 
 #include "cobalt/dom/performance_high_resolution_time.h"
+#include "cobalt/h5vcc/h5vcc_event_listener_container.h"
 #include "cobalt/js_profiler/profiler_group.h"
 #include "cobalt/js_profiler/profiler_init_options.h"
 #include "cobalt/js_profiler/profiler_trace.h"
+#include "cobalt/script/callback_function.h"
 #include "cobalt/script/promise.h"
+#include "cobalt/script/script_value.h"
 #include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/web/event_target.h"
@@ -35,14 +38,22 @@ namespace js_profiler {
 // Forward declaration of ProfilerGroup
 class ProfilerGroup;
 
-class Profiler : public cobalt::web::EventTarget {
+class Profiler : public script::Wrappable {
  public:
   static const int kBaseSampleIntervalMs = 10;
-  using ProfilerTracePromise = script::HandlePromiseWrappable;
+  typedef script::HandlePromiseWrappable ProfilerTracePromise;
+  typedef script::CallbackFunction<void()> SampleBufferFullCallback;
+  typedef script::ScriptValue<SampleBufferFullCallback>
+      SampleBufferFullCallbackHolder;
 
   Profiler(script::EnvironmentSettings* settings, ProfilerInitOptions options,
            script::ExceptionState* exception_state);
   ~Profiler();
+
+  void AddEventListener(const std::string& name,
+                        const SampleBufferFullCallbackHolder& listener);
+
+  void DispatchSampleBufferFullEvent();
 
   ProfilerTracePromise Stop(script::EnvironmentSettings* environment_settings);
 
@@ -50,9 +61,6 @@ class Profiler : public cobalt::web::EventTarget {
 
   dom::DOMHighResTimeStamp sample_interval() const { return sample_interval_; }
   std::string ProfilerId() const { return profiler_id_; }
-
-  void PreventGarbageCollection(script::GlobalEnvironment* global_environment);
-  void AllowGarbageCollection();
 
   DEFINE_WRAPPABLE_TYPE(Profiler);
 
@@ -67,8 +75,11 @@ class Profiler : public cobalt::web::EventTarget {
   base::TimeTicks time_origin_;
   std::string profiler_id_;
   ProfilerGroup* profiler_group_;
-  std::unique_ptr<script::GlobalEnvironment::ScopedPreventGarbageCollection>
-      prevent_gc_until_complete_;
+  // All samplebufferfull listeners. Prevents GC on callbacks owned by this
+  // object, unlike inheriting from EventTarget.
+  h5vcc::H5vccEventListenerContainer<void, SampleBufferFullCallback> listeners_;
+
+  DISALLOW_COPY_AND_ASSIGN(Profiler);
 };
 
 }  // namespace js_profiler

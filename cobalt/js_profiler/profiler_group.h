@@ -43,8 +43,8 @@ class ProfilerGroup {
  public:
   explicit ProfilerGroup(v8::Isolate* isolate) : isolate_(isolate) {}
 
-  v8::CpuProfilingStatus ProfilerStart(Profiler* profiler,
-                                       script::GlobalEnvironment* global_env,
+  v8::CpuProfilingStatus ProfilerStart(const scoped_refptr<Profiler>& profiler,
+                                       script::EnvironmentSettings* settings,
                                        v8::CpuProfilingOptions options);
 
   v8::CpuProfile* ProfilerStop(Profiler* profiler);
@@ -62,9 +62,9 @@ class ProfilerGroup {
 
   v8::Isolate* isolate_;
   v8::CpuProfiler* cpu_profiler_ = nullptr;
-  std::vector<Profiler*> profilers_;
+  std::vector<scoped_refptr<Profiler>> profilers_;
   int num_active_profilers_;
-  int next_profiler_id_;
+  int next_profiler_id_ = 0;
 };
 
 // A ProfilerGroupFactory represents a singleton that maps one Isolate to
