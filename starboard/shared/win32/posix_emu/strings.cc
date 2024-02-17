@@ -12,14 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <string.h>
+#include <string.h>  // For _stricmp, _strnicmp
+#include <strings.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-char* strdup(const char* s1) {
-  return _strdup(s1);
+int strcasecmp(const char* s1, const char* s2) {
+  return _stricmp(s1, s2);
+}
+
+int strncasecmp(const char* s1, const char* s2, size_t n) {
+  return _strnicmp(s1, s2, n);
 }
 
 #ifdef __cplusplus
