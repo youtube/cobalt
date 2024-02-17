@@ -11,16 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Generate a Cobalt build ID header."""
+"""Generates a Cobalt build ID header."""
 
 import sys
+
+from cobalt.build import build_info
 
 BUILD_ID_HEADER_TEMPLATE = """
 #ifndef _COBALT_BUILD_ID_H_
 #define _COBALT_BUILD_ID_H_
 
 #ifndef COBALT_BUILD_VERSION_NUMBER
-#define COBALT_BUILD_VERSION_NUMBER "{version_number}"
+#define COBALT_BUILD_VERSION_NUMBER "{cobalt_build_version_number}"
 #endif  // COBALT_BUILD_VERSION_NUMBER
 
 
@@ -28,18 +30,19 @@ BUILD_ID_HEADER_TEMPLATE = """
 """
 
 
-def BuildId(output_path, version_number):
-  """Write a Cobalt build_id header file version info.
+def BuildId(output_path):
+  """Writes a cobalt_build_id header file.
 
   Args:
-    output_path: Location of the build id header to write.
-    version_number: Build version number, generated when gn gen is run.
+    output_path: Location to write Cobalt build ID header to.
   Returns:
     0 on success.
   """
   with open(output_path, 'w', encoding='utf-8') as f:
-    f.write(BUILD_ID_HEADER_TEMPLATE.format(version_number=version_number))
+    f.write(
+        BUILD_ID_HEADER_TEMPLATE.format(
+            cobalt_build_version_number=build_info.get_build_id()))
 
 
 if __name__ == '__main__':
-  BuildId(sys.argv[1], sys.argv[2])
+  BuildId(sys.argv[1])

@@ -60,8 +60,6 @@ class ConcurrentMarkingState final
 class SlotSnapshot {
  public:
   SlotSnapshot() : number_of_slots_(0) {}
-  SlotSnapshot(const SlotSnapshot&) = delete;
-  SlotSnapshot& operator=(const SlotSnapshot&) = delete;
   int number_of_slots() const { return number_of_slots_; }
   ObjectSlot slot(int i) const { return snapshot_[i].first; }
   Object value(int i) const { return snapshot_[i].second; }
@@ -74,6 +72,7 @@ class SlotSnapshot {
   static const int kMaxSnapshotSize = JSObject::kMaxInstanceSize / kTaggedSize;
   int number_of_slots_;
   std::pair<ObjectSlot, Object> snapshot_[kMaxSnapshotSize];
+  DISALLOW_COPY_AND_ASSIGN(SlotSnapshot);
 };
 
 class ConcurrentMarkingVisitor final
@@ -358,20 +357,16 @@ StrongDescriptorArray ConcurrentMarkingVisitor::Cast(HeapObject object) {
 class ConcurrentMarking::JobTask : public v8::JobTask {
  public:
   JobTask(ConcurrentMarking* concurrent_marking, unsigned mark_compact_epoch,
-          BytecodeFlushMode bytecode_flush_mode, bool is_forced_gc)
+          bool is_forced_gc)
       : concurrent_marking_(concurrent_marking),
         mark_compact_epoch_(mark_compact_epoch),
-        bytecode_flush_mode_(bytecode_flush_mode),
         is_forced_gc_(is_forced_gc) {}
 
   ~JobTask() override = default;
-  JobTask(const JobTask&) = delete;
-  JobTask& operator=(const JobTask&) = delete;
 
   // v8::JobTask overrides.
   void Run(JobDelegate* delegate) override {
-    concurrent_marking_->Run(delegate, bytecode_flush_mode_,
-                             mark_compact_epoch_, is_forced_gc_);
+    concurrent_marking_->Run(delegate, mark_compact_epoch_, is_forced_gc_);
   }
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
@@ -381,8 +376,8 @@ class ConcurrentMarking::JobTask : public v8::JobTask {
  private:
   ConcurrentMarking* concurrent_marking_;
   const unsigned mark_compact_epoch_;
-  BytecodeFlushMode bytecode_flush_mode_;
   const bool is_forced_gc_;
+  DISALLOW_COPY_AND_ASSIGN(JobTask);
 };
 
 ConcurrentMarking::ConcurrentMarking(Heap* heap,
@@ -401,11 +396,10 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap,
 #endif
 }
 
-void ConcurrentMarking::Run(JobDelegate* delegate,
-                            BytecodeFlushMode bytecode_flush_mode,
-                            unsigned mark_compact_epoch, bool is_forced_gc) {
-  TRACE_GC_EPOCH(heap_->tracer(), GCTracer::Scope::MC_BACKGROUND_MARKING,
-                 ThreadKind::kBackground);
+void ConcurrentMarking::Run(JobDelegate* delegate, unsigned mark_compact_epoch,
+                            bool is_forced_gc) {
+  TRACE_BACKGROUND_GC(heap_->tracer(),
+                      GCTracer::BackgroundScope::MC_BACKGROUND_MARKING);
   size_t kBytesUntilInterruptCheck = 64 * KB;
   int kObjectsUntilInterrupCheck = 1000;
   uint8_t task_id = delegate->GetTaskId() + 1;
@@ -413,7 +407,7 @@ void ConcurrentMarking::Run(JobDelegate* delegate,
   MarkingWorklists::Local local_marking_worklists(marking_worklists_);
   ConcurrentMarkingVisitor visitor(
       task_id, &local_marking_worklists, weak_objects_, heap_,
-      mark_compact_epoch, bytecode_flush_mode,
+      mark_compact_epoch, Heap::GetBytecodeFlushMode(),
       heap_->local_embedder_heap_tracer()->InUse(), is_forced_gc,
       &task_state->memory_chunk_data);
   NativeContextInferrer& native_context_inferrer =
@@ -541,10 +535,9 @@ void ConcurrentMarking::ScheduleJob(TaskPriority priority) {
   DCHECK(!job_handle_ || !job_handle_->IsValid());
 
   job_handle_ = V8::GetCurrentPlatform()->PostJob(
-      priority, std::make_unique<JobTask>(
-                    this, heap_->mark_compact_collector()->epoch(),
-                    heap_->mark_compact_collector()->bytecode_flush_mode(),
-                    heap_->is_current_gc_forced()));
+      priority,
+      std::make_unique<JobTask>(this, heap_->mark_compact_collector()->epoch(),
+                                heap_->is_current_gc_forced()));
   DCHECK(job_handle_->IsValid());
 }
 

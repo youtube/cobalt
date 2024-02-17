@@ -23,7 +23,6 @@
 *~
 .#*
 .*.sw?
-.cache
 .ccls-cache
 .clangd
 .cpplint-cache
@@ -62,6 +61,7 @@
 /test/wasm-spec-tests/tests.tar.gz
 /third_party/*
 !/third_party/antlr4
+!/third_party/binutils
 !/third_party/inspector_protocol
 !/third_party/jsoncpp
 /third_party/jsoncpp/source
@@ -72,7 +72,6 @@
 !/third_party/v8
 !/third_party/wasm-api
 /tools/clang
-/tools/gcmole/bootstrap
 /tools/gcmole/gcmole-tools
 /tools/gcmole/gcmole-tools.tar.gz
 /tools/jsfunfuzz/jsfunfuzz

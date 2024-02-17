@@ -54,8 +54,7 @@ TEST(Create) {
     CHECK(symbols[i]->IsName());
     CHECK(symbols[i]->IsSymbol());
     CHECK(symbols[i]->HasHashCode());
-    CHECK(symbols[i]->IsUniqueName());
-    CHECK_GT(symbols[i]->hash(), 0u);
+    CHECK_GT(symbols[i]->Hash(), 0u);
     os << Brief(*symbols[i]) << "\n";
 #if OBJECT_PRINT
     symbols[i]->Print(os);

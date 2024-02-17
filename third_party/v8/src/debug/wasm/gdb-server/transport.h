@@ -146,8 +146,6 @@ class SocketTransport : public Transport {
  public:
   explicit SocketTransport(SocketHandle s);
   ~SocketTransport() override;
-  SocketTransport(const SocketTransport&) = delete;
-  SocketTransport& operator=(const SocketTransport&) = delete;
 
   // TransportBase
   bool AcceptConnection() override;
@@ -160,6 +158,8 @@ class SocketTransport : public Transport {
 
   HANDLE socket_event_;
   HANDLE faulted_thread_event_;
+
+  DISALLOW_COPY_AND_ASSIGN(SocketTransport);
 };
 
 #else  // _WIN32
@@ -168,8 +168,6 @@ class SocketTransport : public Transport {
  public:
   explicit SocketTransport(SocketHandle s);
   ~SocketTransport() override;
-  SocketTransport(const SocketTransport&) = delete;
-  SocketTransport& operator=(const SocketTransport&) = delete;
 
   // TransportBase
   bool AcceptConnection() override;
@@ -181,6 +179,8 @@ class SocketTransport : public Transport {
 
   int faulted_thread_fd_read_;
   int faulted_thread_fd_write_;
+
+  DISALLOW_COPY_AND_ASSIGN(SocketTransport);
 };
 
 #endif  // _WIN32

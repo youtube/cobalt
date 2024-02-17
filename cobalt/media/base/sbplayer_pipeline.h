@@ -362,6 +362,12 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   Time set_drm_system_ready_cb_time_;
 
+  // Message to signal a capability changed error.
+  // "MEDIA_ERR_CAPABILITY_CHANGED" must be in the error message to be
+  // understood as a capability changed error. Do not change this message.
+  static inline constexpr const char* kSbPlayerCapabilityChangedErrorMessage =
+      "MEDIA_ERR_CAPABILITY_CHANGED";
+
   DISALLOW_COPY_AND_ASSIGN(SbPlayerPipeline);
 };
 

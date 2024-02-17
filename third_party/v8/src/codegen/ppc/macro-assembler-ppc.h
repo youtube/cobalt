@@ -18,8 +18,6 @@
 namespace v8 {
 namespace internal {
 
-enum class StackLimitKind { kInterruptStackLimit, kRealStackLimit };
-
 // ----------------------------------------------------------------------------
 // Static helper functions
 
@@ -444,7 +442,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void CallBuiltinByIndex(Register builtin_index) override;
   void CallForDeoptimization(Builtins::Name target, int deopt_id, Label* exit,
-                             DeoptimizeKind kind, Label* ret,
+                             DeoptimizeKind kind,
                              Label* jump_deoptimization_entry_label);
 
   // Emit code to discard a non-negative number of pointer-sized elements
@@ -600,8 +598,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void JumpIfEqual(Register x, int32_t y, Label* dest);
   void JumpIfLessThan(Register x, int32_t y, Label* dest);
 
-  void LoadMap(Register destination, Register object);
-
 #if V8_TARGET_ARCH_PPC64
   inline void TestIfInt32(Register value, Register scratch,
                           CRegister cr = cr7) {
@@ -719,7 +715,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                            bool has_function_descriptor);
   void CallRecordWriteStub(Register object, Register address,
                            RememberedSetAction remembered_set_action,
-                           SaveFPRegsMode fp_mode, int builtin_index,
+                           SaveFPRegsMode fp_mode, Handle<Code> code_target,
                            Address wasm_target);
 };
 
@@ -774,6 +770,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // remove in a register (or no_reg, if there is nothing to remove).
   void LeaveExitFrame(bool save_doubles, Register argument_count,
                       bool argument_count_is_length = false);
+
+  void LoadMap(Register destination, Register object);
 
   // Load the global proxy from the current context.
   void LoadGlobalProxy(Register dst) {
@@ -948,13 +946,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                         Register scratch2);
   void DecrementCounter(StatsCounter* counter, int value, Register scratch1,
                         Register scratch2);
-
-  // ---------------------------------------------------------------------------
-  // Stack limit utilities
-
-  void StackOverflowCheck(Register num_args, Register scratch,
-                          Label* stack_overflow);
-  void LoadStackLimit(Register destination, StackLimitKind kind);
 
   // ---------------------------------------------------------------------------
   // Smi utilities

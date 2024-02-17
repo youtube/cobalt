@@ -30,9 +30,6 @@ class V8_PLATFORM_EXPORT DelayedTaskQueue {
   explicit DelayedTaskQueue(TimeFunction time_function);
   ~DelayedTaskQueue();
 
-  DelayedTaskQueue(const DelayedTaskQueue&) = delete;
-  DelayedTaskQueue& operator=(const DelayedTaskQueue&) = delete;
-
   double MonotonicallyIncreasingTime();
 
   // Appends an immediate task to the queue. The queue takes ownership of
@@ -62,6 +59,8 @@ class V8_PLATFORM_EXPORT DelayedTaskQueue {
   std::multimap<double, std::unique_ptr<Task>> delayed_task_queue_;
   bool terminated_ = false;
   TimeFunction time_function_;
+
+  DISALLOW_COPY_AND_ASSIGN(DelayedTaskQueue);
 };
 
 }  // namespace platform

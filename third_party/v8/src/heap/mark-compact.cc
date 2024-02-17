@@ -9,7 +9,6 @@
 #include "src/base/optional.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/compilation-cache.h"
-#include "src/common/globals.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
@@ -414,6 +413,7 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
       black_allocation_(false),
       have_code_to_deoptimize_(false),
       sweeper_(new Sweeper(heap, non_atomic_marking_state())) {
+  old_to_new_slots_ = -1;
 }
 
 MarkCompactCollector::~MarkCompactCollector() { delete sweeper_; }
@@ -434,7 +434,6 @@ void MarkCompactCollector::TearDown() {
     // Marking barriers of LocalHeaps will be published in their destructors.
     marking_worklists()->Clear();
   }
-  sweeper()->TearDown();
 }
 
 void MarkCompactCollector::AddEvacuationCandidate(Page* p) {
@@ -494,13 +493,12 @@ void MarkCompactCollector::StartMarking() {
       contexts.push_back(context->ptr());
     }
   }
-  bytecode_flush_mode_ = Heap::GetBytecodeFlushMode(isolate());
   marking_worklists()->CreateContextWorklists(contexts);
   local_marking_worklists_ =
       std::make_unique<MarkingWorklists::Local>(marking_worklists());
   marking_visitor_ = std::make_unique<MarkingVisitor>(
       marking_state(), local_marking_worklists(), weak_objects(), heap_,
-      epoch(), bytecode_flush_mode(),
+      epoch(), Heap::GetBytecodeFlushMode(),
       heap_->local_embedder_heap_tracer()->InUse(),
       heap_->is_current_gc_forced());
 // Marking bits are cleared by the sweeper.
@@ -838,7 +836,19 @@ void MarkCompactCollector::Prepare() {
 #endif
 
   DCHECK(!FLAG_never_compact || !FLAG_always_compact);
-  DCHECK(!sweeping_in_progress());
+
+  // Instead of waiting we could also abort the sweeper threads here.
+  EnsureSweepingCompleted();
+
+  {
+    TRACE_GC(heap()->tracer(),
+             GCTracer::Scope::MC_COMPLETE_SWEEP_ARRAY_BUFFERS);
+    heap_->array_buffer_sweeper()->EnsureFinished();
+  }
+
+  if (heap()->incremental_marking()->IsSweeping()) {
+    heap()->incremental_marking()->Stop();
+  }
 
   if (!was_marked_incrementally_) {
     {
@@ -2120,7 +2130,7 @@ void MarkCompactCollector::ClearPotentialSimpleMapTransition(Map dead_target) {
   Object potential_parent = dead_target.constructor_or_backpointer();
   if (potential_parent.IsMap()) {
     Map parent = Map::cast(potential_parent);
-    DisallowGarbageCollection no_gc_obviously;
+    DisallowHeapAllocation no_gc_obviously;
     if (non_atomic_marking_state()->IsBlackOrGrey(parent) &&
         TransitionsAccessor(isolate(), parent, &no_gc_obviously)
             .HasSimpleTransitionTo(dead_target)) {
@@ -2164,7 +2174,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
                 UncompiledDataWithoutPreparseData::kSize);
 
   // Replace bytecode array with an uncompiled data array.
-  HeapObject compiled_data = shared_info.GetBytecodeArray(isolate());
+  HeapObject compiled_data = shared_info.GetBytecodeArray();
   Address compiled_data_start = compiled_data.address();
   int compiled_data_size = compiled_data.Size();
   MemoryChunk* chunk = MemoryChunk::FromAddress(compiled_data_start);
@@ -2220,7 +2230,7 @@ void MarkCompactCollector::ClearOldBytecodeCandidates() {
     // If the BytecodeArray is dead, flush it, which will replace the field with
     // an uncompiled data object.
     if (!non_atomic_marking_state()->IsBlackOrGrey(
-            flushing_candidate.GetBytecodeArray(isolate()))) {
+            flushing_candidate.GetBytecodeArray())) {
       FlushBytecodeFromSFI(flushing_candidate);
     }
 
@@ -2278,45 +2288,11 @@ void MarkCompactCollector::ClearFullMapTransitions() {
   }
 }
 
-// Returns false if no maps have died, or if the transition array is
-// still being deserialized.
-bool MarkCompactCollector::TransitionArrayNeedsCompaction(
-    TransitionArray transitions, int num_transitions) {
-  for (int i = 0; i < num_transitions; ++i) {
-    MaybeObject raw_target = transitions.GetRawTarget(i);
-    if (raw_target.IsSmi()) {
-      // This target is still being deserialized,
-      DCHECK(isolate()->has_active_deserializer());
-      DCHECK_EQ(raw_target.ToSmi(), Deserializer::uninitialized_field_value());
-#ifdef DEBUG
-      // Targets can only be dead iff this array is fully deserialized.
-      for (int i = 0; i < num_transitions; ++i) {
-        DCHECK(!non_atomic_marking_state()->IsWhite(transitions.GetTarget(i)));
-      }
-#endif
-      return false;
-    } else if (non_atomic_marking_state()->IsWhite(
-                   TransitionsAccessor::GetTargetFromRaw(raw_target))) {
-#ifdef DEBUG
-      // Targets can only be dead iff this array is fully deserialized.
-      for (int i = 0; i < num_transitions; ++i) {
-        DCHECK(!transitions.GetRawTarget(i).IsSmi());
-      }
-#endif
-      return true;
-    }
-  }
-  return false;
-}
-
 bool MarkCompactCollector::CompactTransitionArray(Map map,
                                                   TransitionArray transitions,
                                                   DescriptorArray descriptors) {
   DCHECK(!map.is_prototype_map());
   int num_transitions = transitions.number_of_entries();
-  if (!TransitionArrayNeedsCompaction(transitions, num_transitions)) {
-    return false;
-  }
   bool descriptors_owner_died = false;
   int transition_index = 0;
   // Compact all live transitions to the left.
@@ -2958,7 +2934,7 @@ class Evacuator : public Malloced {
   // to be called from the main thread.
   virtual void Finalize();
 
-  virtual GCTracer::Scope::ScopeId GetBackgroundTracingScope() = 0;
+  virtual GCTracer::BackgroundScope::ScopeId GetBackgroundTracingScope() = 0;
   virtual GCTracer::Scope::ScopeId GetTracingScope() = 0;
 
  protected:
@@ -3047,8 +3023,8 @@ class FullEvacuator : public Evacuator {
         local_allocator_(heap_, LocalSpaceKind::kCompactionSpaceForMarkCompact),
         collector_(collector) {}
 
-  GCTracer::Scope::ScopeId GetBackgroundTracingScope() override {
-    return GCTracer::Scope::MC_BACKGROUND_EVACUATE_COPY;
+  GCTracer::BackgroundScope::ScopeId GetBackgroundTracingScope() override {
+    return GCTracer::BackgroundScope::MC_BACKGROUND_EVACUATE_COPY;
   }
 
   GCTracer::Scope::ScopeId GetTracingScope() override {
@@ -3141,8 +3117,7 @@ class PageEvacuationJob : public v8::JobTask {
       TRACE_GC(tracer_, evacuator->GetTracingScope());
       ProcessItems(delegate, evacuator);
     } else {
-      TRACE_GC_EPOCH(tracer_, evacuator->GetBackgroundTracingScope(),
-                     ThreadKind::kBackground);
+      TRACE_BACKGROUND_GC(tracer_, evacuator->GetBackgroundTracingScope());
       ProcessItems(delegate, evacuator);
     }
   }
@@ -3500,9 +3475,9 @@ class PointersUpdatingJob : public v8::JobTask {
  public:
   explicit PointersUpdatingJob(
       Isolate* isolate,
-      std::vector<std::unique_ptr<UpdatingItem>> updating_items,
-      base::Optional<size_t> slots, GCTracer::Scope::ScopeId scope,
-      GCTracer::Scope::ScopeId background_scope)
+      std::vector<std::unique_ptr<UpdatingItem>> updating_items, int slots,
+      GCTracer::Scope::ScopeId scope,
+      GCTracer::BackgroundScope::ScopeId background_scope)
       : updating_items_(std::move(updating_items)),
         remaining_updating_items_(updating_items_.size()),
         generator_(updating_items_.size()),
@@ -3516,7 +3491,7 @@ class PointersUpdatingJob : public v8::JobTask {
       TRACE_GC(tracer_, scope_);
       UpdatePointers(delegate);
     } else {
-      TRACE_GC_EPOCH(tracer_, background_scope_, ThreadKind::kBackground);
+      TRACE_BACKGROUND_GC(tracer_, background_scope_);
       UpdatePointers(delegate);
     }
   }
@@ -3545,26 +3520,23 @@ class PointersUpdatingJob : public v8::JobTask {
     size_t wanted_tasks = items;
     // Limit the number of update tasks as task creation often dominates the
     // actual work that is being done.
-    if (slots_ && *slots_ > 0) {
+    if (slots_ >= 0) {
       // Round up to ensure enough workers for all items.
-      wanted_tasks = std::min<size_t>(
-          items, (*slots_ + kSlotsPerTask - 1) / kSlotsPerTask);
+      wanted_tasks =
+          std::min<size_t>(items, (slots_ + kSlotsPerTask - 1) / kSlotsPerTask);
     }
-    size_t max_concurrency =
-        std::min<size_t>(kMaxPointerUpdateTasks, wanted_tasks);
-    DCHECK_IMPLIES(items > 0, max_concurrency > 0);
-    return max_concurrency;
+    return std::min<size_t>(kMaxPointerUpdateTasks, wanted_tasks);
   }
 
  private:
   std::vector<std::unique_ptr<UpdatingItem>> updating_items_;
   std::atomic<size_t> remaining_updating_items_{0};
   IndexGenerator generator_;
-  const base::Optional<size_t> slots_;
+  const int slots_;
 
   GCTracer* tracer_;
   GCTracer::Scope::ScopeId scope_;
-  GCTracer::Scope::ScopeId background_scope_;
+  GCTracer::BackgroundScope::ScopeId background_scope_;
 };
 
 template <typename MarkingState>
@@ -3960,7 +3932,8 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
                   std::make_unique<PointersUpdatingJob>(
                       isolate(), std::move(updating_items), old_to_new_slots_,
                       GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_PARALLEL,
-                      GCTracer::Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS))
+                      GCTracer::BackgroundScope::
+                          MC_BACKGROUND_EVACUATE_UPDATE_POINTERS))
         ->Join();
   }
 
@@ -3977,12 +3950,12 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
                                       RememberedSetUpdatingMode::ALL);
     if (!updating_items.empty()) {
       V8::GetCurrentPlatform()
-          ->PostJob(
-              v8::TaskPriority::kUserBlocking,
-              std::make_unique<PointersUpdatingJob>(
-                  isolate(), std::move(updating_items), old_to_new_slots_,
-                  GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_PARALLEL,
-                  GCTracer::Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS))
+          ->PostJob(v8::TaskPriority::kUserBlocking,
+                    std::make_unique<PointersUpdatingJob>(
+                        isolate(), std::move(updating_items), old_to_new_slots_,
+                        GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_PARALLEL,
+                        GCTracer::BackgroundScope::
+                            MC_BACKGROUND_EVACUATE_UPDATE_POINTERS))
           ->Join();
     }
   }
@@ -4124,18 +4097,18 @@ void MarkCompactCollector::StartSweepSpaces() {
 
   {
     {
-      GCTracer::Scope sweep_scope(
-          heap()->tracer(), GCTracer::Scope::MC_SWEEP_OLD, ThreadKind::kMain);
+      GCTracer::Scope sweep_scope(heap()->tracer(),
+                                  GCTracer::Scope::MC_SWEEP_OLD);
       StartSweepSpace(heap()->old_space());
     }
     {
-      GCTracer::Scope sweep_scope(
-          heap()->tracer(), GCTracer::Scope::MC_SWEEP_CODE, ThreadKind::kMain);
+      GCTracer::Scope sweep_scope(heap()->tracer(),
+                                  GCTracer::Scope::MC_SWEEP_CODE);
       StartSweepSpace(heap()->code_space());
     }
     {
-      GCTracer::Scope sweep_scope(
-          heap()->tracer(), GCTracer::Scope::MC_SWEEP_MAP, ThreadKind::kMain);
+      GCTracer::Scope sweep_scope(heap()->tracer(),
+                                  GCTracer::Scope::MC_SWEEP_MAP);
       StartSweepSpace(heap()->map_space());
     }
     sweeper()->StartSweeping();
@@ -4481,7 +4454,8 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
             std::make_unique<PointersUpdatingJob>(
                 isolate(), std::move(updating_items), old_to_new_slots_,
                 GCTracer::Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_PARALLEL,
-                GCTracer::Scope::MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS))
+                GCTracer::BackgroundScope::
+                    MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS))
         ->Join();
   }
 
@@ -4892,9 +4866,9 @@ class YoungGenerationMarkingJob : public v8::JobTask {
                GCTracer::Scope::MINOR_MC_MARK_PARALLEL);
       ProcessItems(delegate);
     } else {
-      TRACE_GC_EPOCH(collector_->heap()->tracer(),
-                     GCTracer::Scope::MINOR_MC_BACKGROUND_MARKING,
-                     ThreadKind::kBackground);
+      TRACE_BACKGROUND_GC(
+          collector_->heap()->tracer(),
+          GCTracer::BackgroundScope::MINOR_MC_BACKGROUND_MARKING);
       ProcessItems(delegate);
     }
   }
@@ -5151,8 +5125,8 @@ class YoungGenerationEvacuator : public Evacuator {
                          LocalSpaceKind::kCompactionSpaceForMinorMarkCompact),
         collector_(collector) {}
 
-  GCTracer::Scope::ScopeId GetBackgroundTracingScope() override {
-    return GCTracer::Scope::MINOR_MC_BACKGROUND_EVACUATE_COPY;
+  GCTracer::BackgroundScope::ScopeId GetBackgroundTracingScope() override {
+    return GCTracer::BackgroundScope::MINOR_MC_BACKGROUND_EVACUATE_COPY;
   }
 
   GCTracer::Scope::ScopeId GetTracingScope() override {

@@ -48,12 +48,7 @@ class Isolate;
 
 class AstRawString final : public ZoneObject {
  public:
-  static bool Equal(const AstRawString* lhs, const AstRawString* rhs);
-
-  // Returns 0 if lhs is equal to rhs.
-  // Returns <0 if lhs is less than rhs in code point order.
-  // Returns >0 if lhs is greater than than rhs in code point order.
-  static int Compare(const AstRawString* lhs, const AstRawString* rhs);
+  static bool Compare(const AstRawString* a, const AstRawString* b);
 
   bool IsEmpty() const { return literal_bytes_.length() == 0; }
   int length() const {
@@ -76,12 +71,8 @@ class AstRawString final : public ZoneObject {
   bool IsPrivateName() const { return length() > 0 && FirstCharacter() == '#'; }
 
   // For storing AstRawStrings in a hash map.
-  uint32_t raw_hash_field() const { return raw_hash_field_; }
-  uint32_t Hash() const {
-    // Hash field must be computed.
-    DCHECK_EQ(raw_hash_field_ & Name::kHashNotComputedMask, 0);
-    return raw_hash_field_ >> Name::kHashShift;
-  }
+  uint32_t hash_field() const { return hash_field_; }
+  uint32_t Hash() const { return hash_field_ >> Name::kHashShift; }
 
   // This function can be called after internalizing.
   V8_INLINE Handle<String> string() const {
@@ -97,10 +88,10 @@ class AstRawString final : public ZoneObject {
 
   // Members accessed only by the AstValueFactory & related classes:
   AstRawString(bool is_one_byte, const Vector<const byte>& literal_bytes,
-               uint32_t raw_hash_field)
+               uint32_t hash_field)
       : next_(nullptr),
         literal_bytes_(literal_bytes),
-        raw_hash_field_(raw_hash_field),
+        hash_field_(hash_field),
         is_one_byte_(is_one_byte) {}
   AstRawString* next() {
     DCHECK(!has_string_);
@@ -126,7 +117,7 @@ class AstRawString final : public ZoneObject {
   };
 
   Vector<const byte> literal_bytes_;  // Memory owned by Zone.
-  uint32_t raw_hash_field_;
+  uint32_t hash_field_;
   bool is_one_byte_;
 #ifdef DEBUG
   // (Debug-only:) Verify the object life-cylce: Some functions may only be
@@ -219,7 +210,7 @@ struct AstRawStringMapMatcher {
   bool operator()(uint32_t hash1, uint32_t hash2,
                   const AstRawString* lookup_key,
                   const AstRawString* entry_key) const {
-    return hash1 == hash2 && AstRawString::Equal(lookup_key, entry_key);
+    return hash1 == hash2 && AstRawString::Compare(lookup_key, entry_key);
   }
 };
 
@@ -286,8 +277,6 @@ using AstRawStringMap =
 class AstStringConstants final {
  public:
   AstStringConstants(Isolate* isolate, uint64_t hash_seed);
-  AstStringConstants(const AstStringConstants&) = delete;
-  AstStringConstants& operator=(const AstStringConstants&) = delete;
 
 #define F(name, str) \
   const AstRawString* name##_string() const { return name##_string_; }
@@ -305,6 +294,8 @@ class AstStringConstants final {
 #define F(name, str) AstRawString* name##_string_;
   AST_STRING_CONSTANTS(F)
 #undef F
+
+  DISALLOW_COPY_AND_ASSIGN(AstStringConstants);
 };
 
 class AstValueFactory {
@@ -378,7 +369,7 @@ class AstValueFactory {
   V8_EXPORT_PRIVATE const AstRawString* GetOneByteStringInternal(
       Vector<const uint8_t> literal);
   const AstRawString* GetTwoByteStringInternal(Vector<const uint16_t> literal);
-  const AstRawString* GetString(uint32_t raw_hash_field, bool is_one_byte,
+  const AstRawString* GetString(uint32_t hash, bool is_one_byte,
                                 Vector<const byte> literal_bytes);
 
   // All strings are copied here.

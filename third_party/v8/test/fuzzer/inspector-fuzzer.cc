@@ -40,12 +40,9 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
     v8::Local<v8::ObjectTemplate> utils = v8::ObjectTemplate::New(isolate);
     auto Set = [isolate](v8::Local<v8::ObjectTemplate> tmpl, const char* str,
                          v8::Local<v8::Data> value) {
-      // Do not set {ReadOnly}, because fuzzer inputs might overwrite individual
-      // methods, or the whole "utils" global. See the
-      // `testing/libfuzzer/fuzzers/generate_v8_inspector_fuzzer_corpus.py` file
-      // in chromium.
       tmpl->Set(ToV8String(isolate, str), value,
                 static_cast<v8::PropertyAttribute>(
+                    v8::PropertyAttribute::ReadOnly |
                     v8::PropertyAttribute::DontDelete));
     };
     Set(utils, "quit",
@@ -91,9 +88,8 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
 
   static void CompileAndRunWithOrigin(
       const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 6 || !args[0]->IsInt32() || !args[1]->IsString() ||
-        !args[2]->IsString() || !args[3]->IsInt32() || !args[4]->IsInt32() ||
-        !args[5]->IsBoolean()) {
+    if (args.Length() != 5 || !args[0]->IsInt32() || !args[1]->IsString() ||
+        !args[2]->IsString() || !args[3]->IsInt32() || !args[4]->IsInt32()) {
       return;
     }
 
@@ -101,7 +97,7 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
         args.GetIsolate(), args[0].As<v8::Int32>()->Value(),
         ToVector(args.GetIsolate(), args[1].As<v8::String>()),
         args[2].As<v8::String>(), args[3].As<v8::Int32>(),
-        args[4].As<v8::Int32>(), args[5].As<v8::Boolean>()));
+        args[4].As<v8::Int32>(), v8::Boolean::New(args.GetIsolate(), false)));
   }
 
   static void SchedulePauseOnNextStatement(
@@ -572,8 +568,8 @@ void FuzzInspector(const uint8_t* data, size_t size) {
   IsolateData::SetupGlobalTasks frontend_extensions;
   frontend_extensions.emplace_back(new UtilsExtension());
   TaskRunner frontend_runner(std::move(frontend_extensions),
-                             kSuppressUncaughtExceptions, &ready_semaphore,
-                             nullptr, kNoInspector);
+                             kDontCatchExceptions, &ready_semaphore, nullptr,
+                             kNoInspector);
   ready_semaphore.Wait();
 
   int frontend_context_group_id = 0;
@@ -585,9 +581,8 @@ void FuzzInspector(const uint8_t* data, size_t size) {
   IsolateData::SetupGlobalTasks backend_extensions;
   backend_extensions.emplace_back(new SetTimeoutExtension());
   backend_extensions.emplace_back(new InspectorExtension());
-  TaskRunner backend_runner(std::move(backend_extensions),
-                            kSuppressUncaughtExceptions, &ready_semaphore,
-                            nullptr, kWithInspector);
+  TaskRunner backend_runner(std::move(backend_extensions), kDontCatchExceptions,
+                            &ready_semaphore, nullptr, kWithInspector);
   ready_semaphore.Wait();
   UtilsExtension::set_backend_task_runner(&backend_runner);
 

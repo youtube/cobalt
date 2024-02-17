@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/ast/ast.h"
-#include "src/common/globals.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/logging/counters.h"
@@ -134,30 +133,15 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         }
       }
     } else {
-      if (V8_DICT_MODE_PROTOTYPES_BOOL) {
-        Handle<OrderedNameDictionary> dict(
-            copy->property_dictionary_ordered(isolate), isolate);
-        for (InternalIndex i : dict->IterateEntries()) {
-          Object raw = dict->ValueAt(i);
-          if (!raw.IsJSObject(isolate)) continue;
-          DCHECK(dict->KeyAt(i).IsName());
-          Handle<JSObject> value(JSObject::cast(raw), isolate);
-          ASSIGN_RETURN_ON_EXCEPTION(
-              isolate, value, VisitElementOrProperty(copy, value), JSObject);
-          if (copying) dict->ValueAtPut(i, *value);
-        }
-      } else {
-        Handle<NameDictionary> dict(copy->property_dictionary(isolate),
-                                    isolate);
-        for (InternalIndex i : dict->IterateEntries()) {
-          Object raw = dict->ValueAt(isolate, i);
-          if (!raw.IsJSObject(isolate)) continue;
-          DCHECK(dict->KeyAt(isolate, i).IsName());
-          Handle<JSObject> value(JSObject::cast(raw), isolate);
-          ASSIGN_RETURN_ON_EXCEPTION(
-              isolate, value, VisitElementOrProperty(copy, value), JSObject);
-          if (copying) dict->ValueAtPut(i, *value);
-        }
+      Handle<NameDictionary> dict(copy->property_dictionary(isolate), isolate);
+      for (InternalIndex i : dict->IterateEntries()) {
+        Object raw = dict->ValueAt(isolate, i);
+        if (!raw.IsJSObject(isolate)) continue;
+        DCHECK(dict->KeyAt(isolate, i).IsName());
+        Handle<JSObject> value(JSObject::cast(raw), isolate);
+        ASSIGN_RETURN_ON_EXCEPTION(
+            isolate, value, VisitElementOrProperty(copy, value), JSObject);
+        if (copying) dict->ValueAtPut(i, *value);
       }
     }
 

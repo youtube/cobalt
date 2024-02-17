@@ -58,7 +58,6 @@ namespace internal {
   V(ConstructWithSpread_WithFeedback)    \
   V(ContextOnly)                         \
   V(CppBuiltinAdaptor)                   \
-  V(DynamicCheckMaps)                    \
   V(EphemeronKeyBarrier)                 \
   V(FastNewObject)                       \
   V(FrameDropperTrampoline)              \
@@ -132,10 +131,6 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
   using Flags = base::Flags<Flag>;
 
   CallInterfaceDescriptorData() = default;
-
-  CallInterfaceDescriptorData(const CallInterfaceDescriptorData&) = delete;
-  CallInterfaceDescriptorData& operator=(const CallInterfaceDescriptorData&) =
-      delete;
 
   // A copy of the passed in registers and param_representations is made
   // and owned by the CallInterfaceDescriptorData.
@@ -227,6 +222,8 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
   // runtime static initializers which we don't want.
   Register* register_params_ = nullptr;
   MachineType* machine_types_ = nullptr;
+
+  DISALLOW_COPY_AND_ASSIGN(CallInterfaceDescriptorData);
 };
 
 class V8_EXPORT_PRIVATE CallDescriptors : public AllStatic {
@@ -296,7 +293,6 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
   }
 
   Register GetRegisterParameter(int index) const {
-    DCHECK_LT(index, data()->register_param_count());
     return data()->register_param(index);
   }
 
@@ -875,17 +871,6 @@ class LoadGlobalWithVectorDescriptor : public LoadGlobalDescriptor {
     return LoadWithVectorDescriptor::VectorRegister();
   }
 #endif
-};
-
-class DynamicCheckMapsDescriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kMap, kSlot, kHandler)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Int32(),          // return val
-                                    MachineType::TaggedPointer(),  // kMap
-                                    MachineType::IntPtr(),         // kSlot
-                                    MachineType::TaggedSigned())   // kHandler
-
-  DECLARE_DESCRIPTOR(DynamicCheckMapsDescriptor, CallInterfaceDescriptor)
 };
 
 class FastNewObjectDescriptor : public CallInterfaceDescriptor {

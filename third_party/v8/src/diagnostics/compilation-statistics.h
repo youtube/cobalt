@@ -25,8 +25,6 @@ struct AsPrintableStatistics {
 class CompilationStatistics final : public Malloced {
  public:
   CompilationStatistics() = default;
-  CompilationStatistics(const CompilationStatistics&) = delete;
-  CompilationStatistics& operator=(const CompilationStatistics&) = delete;
 
   class BasicStats {
    public:
@@ -83,6 +81,8 @@ class CompilationStatistics final : public Malloced {
   PhaseKindMap phase_kind_map_;
   PhaseMap phase_map_;
   base::Mutex record_mutex_;
+
+  DISALLOW_COPY_AND_ASSIGN(CompilationStatistics);
 };
 
 std::ostream& operator<<(std::ostream& os, const AsPrintableStatistics& s);

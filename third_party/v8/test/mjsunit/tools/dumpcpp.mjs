@@ -31,25 +31,19 @@ import {
                [288,{size:1,
                      name:'v8::internal::Runtime_DebugGetPropertyDetails(v8::internal::Arguments)',
                      type:'CPP',
-                     nameUpdated_:false,
-                     source: undefined,
-                }
+                     nameUpdated_:false}
                ]);
   assertEquals(staticEntries[1],
                [272,{size:1,
                      name:'v8::internal::Runtime::GetElementOrCharAt(v8::internal::Handle<v8::internal::Object>, unsigned int)',
                      type:'CPP',
-                     nameUpdated_:false,
-                     source: undefined,
-                }
+                     nameUpdated_:false}
                ]);
   assertEquals(staticEntries[2],
               [256,{size:1,
                     name:'v8::internal::Runtime_StringReplaceRegExpWithString(v8::internal::Arguments)',
                     type:'CPP',
-                    nameUpdated_:false,
-                    source: undefined,
-                }
+                    nameUpdated_:false}
               ]);
 
   UnixCppEntriesProvider.prototype.loadSymbols = oldLoadSymbols;

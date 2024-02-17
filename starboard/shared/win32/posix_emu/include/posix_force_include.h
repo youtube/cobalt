@@ -17,35 +17,13 @@
 
 #if defined(STARBOARD)
 
-// MSVC deprecated strdup() in favor of _strdup()
-#define strdup _strdup
-
 #define free sb_free
-
-#include <time.h>  // For struct timespec
-
-// https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/time.h.html
-typedef int clockid_t;
-#define CLOCK_REALTIME 0
-#define CLOCK_MONOTONIC 1
-#define CLOCK_PROCESS_CPUTIME_ID 2
-#define CLOCK_THREAD_CPUTIME_ID 3
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// https://pubs.opengroup.org/onlinepubs/9699919799/functions/clock_gettime.html
-int clock_gettime(clockid_t clock_id, struct timespec* tp);
-
-// https://pubs.opengroup.org/onlinepubs/000095399/functions/gmtime_r.html
-struct tm* gmtime_r(const time_t* timer, struct tm* result);
-
 int posix_memalign(void** res, size_t alignment, size_t size);
-
-// https://pubs.opengroup.org/onlinepubs/9699919799/functions/strcasecmp.html
-int strcasecmp(const char* s1, const char* s2);
-int strncasecmp(const char* s1, const char* s2, size_t n);
 
 #ifdef __cplusplus
 }

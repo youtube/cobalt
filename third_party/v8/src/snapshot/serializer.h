@@ -151,7 +151,7 @@ class ObjectCacheIndexMap {
   }
 
  private:
-  DISALLOW_GARBAGE_COLLECTION(no_gc_)
+  DisallowHeapAllocation no_allocation_;
 
   IdentityMap<int, base::DefaultAllocationPolicy> map_;
   int next_index_;
@@ -178,7 +178,7 @@ class Serializer : public SerializerDeserializer {
   using PendingObjectReferences = std::vector<int>*;
 
   class ObjectSerializer;
-  class V8_NODISCARD RecursionScope {
+  class RecursionScope {
    public:
     explicit RecursionScope(Serializer* serializer) : serializer_(serializer) {
       serializer_->recursion_depth_++;
@@ -332,7 +332,7 @@ class Serializer : public SerializerDeserializer {
 
   // Disallow GC during serialization.
   // TODO(leszeks, v8:10815): Remove this constraint.
-  DISALLOW_GARBAGE_COLLECTION(no_gc)
+  DISALLOW_HEAP_ALLOCATION(no_gc)
 
   Isolate* isolate_;
   HotObjectsList hot_objects_;

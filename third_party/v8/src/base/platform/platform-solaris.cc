@@ -66,7 +66,7 @@ void OS::SignalCodeMovingGC() {}
 void OS::AdjustSchedulingParams() {}
 
 // static
-Stack::StackSlot Stack::GetStackStart() {
+void* Stack::GetStackStart() {
   pthread_attr_t attr;
   int error;
   pthread_attr_init(&attr);

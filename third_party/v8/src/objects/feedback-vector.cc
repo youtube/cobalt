@@ -390,10 +390,11 @@ void FeedbackVector::SetOptimizedCode(Handle<FeedbackVector> vector,
          (vector->optimized_code().kind() == CodeKind::TURBOPROP &&
           code->kind() == CodeKind::TURBOFAN));
   // TODO(mythria): We could see a CompileOptimized marker here either from
-  // tests that use %OptimizeFunctionOnNextCall, --always-opt or because we
-  // re-mark the function for non-concurrent optimization after an OSR. We
-  // should avoid these cases and also check that marker isn't
-  // kCompileOptimized or kCompileOptimizedConcurrent.
+  // tests that use %OptimizeFunctionOnNextCall or because we re-mark the
+  // function for non-concurrent optimization after an OSR. We should avoid
+  // these cases and also check that marker isn't kCompileOptimized.
+  DCHECK(vector->optimization_marker() !=
+         OptimizationMarker::kCompileOptimizedConcurrent);
   vector->set_maybe_optimized_code(HeapObjectReference::Weak(*code));
   int32_t state = vector->flags();
   state = OptimizationTierBits::update(state, GetTierForCodeKind(code->kind()));
@@ -502,11 +503,16 @@ void NexusConfig::SetFeedbackPair(FeedbackVector vector,
 
 std::pair<MaybeObject, MaybeObject> NexusConfig::GetFeedbackPair(
     FeedbackVector vector, FeedbackSlot slot) const {
-  base::SharedMutexGuardIf<base::kShared> scope(
-      isolate()->feedback_vector_access(), mode() == BackgroundThread);
+  if (mode() == BackgroundThread) {
+    isolate()->feedback_vector_access()->LockShared();
+  }
   MaybeObject feedback = vector.Get(slot);
   MaybeObject feedback_extra = vector.Get(slot.WithOffset(1));
-  return std::make_pair(feedback, feedback_extra);
+  auto return_value = std::make_pair(feedback, feedback_extra);
+  if (mode() == BackgroundThread) {
+    isolate()->feedback_vector_access()->UnlockShared();
+  }
+  return return_value;
 }
 
 FeedbackNexus::FeedbackNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
@@ -630,7 +636,7 @@ bool FeedbackNexus::Clear() {
 }
 
 bool FeedbackNexus::ConfigureMegamorphic() {
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_gc;
   Isolate* isolate = GetIsolate();
   MaybeObject sentinel = MegamorphicSentinel();
   if (GetFeedback() != sentinel) {
@@ -643,7 +649,7 @@ bool FeedbackNexus::ConfigureMegamorphic() {
 }
 
 bool FeedbackNexus::ConfigureMegamorphic(IcCheckType property_type) {
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_gc;
   MaybeObject sentinel = MegamorphicSentinel();
   MaybeObject maybe_extra =
       MaybeObject::FromSmi(Smi::FromInt(static_cast<int>(property_type)));
@@ -1019,7 +1025,7 @@ void FeedbackNexus::ConfigurePolymorphic(
 }
 
 int FeedbackNexus::ExtractMaps(MapHandles* maps) const {
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_gc;
   int found = 0;
   for (FeedbackIterator it(this); !it.done(); it.Advance()) {
     maps->push_back(config()->NewHandle(it.map()));
@@ -1031,7 +1037,7 @@ int FeedbackNexus::ExtractMaps(MapHandles* maps) const {
 
 int FeedbackNexus::ExtractMapsAndFeedback(
     std::vector<MapAndFeedback>* maps_and_feedback) const {
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_gc;
   int found = 0;
 
   for (FeedbackIterator it(this); !it.done(); it.Advance()) {
@@ -1053,7 +1059,7 @@ int FeedbackNexus::ExtractMapsAndHandlers(
     std::vector<MapAndHandler>* maps_and_handlers,
     TryUpdateHandler map_handler) const {
   DCHECK(!IsStoreDataPropertyInLiteralKind(kind()));
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_gc;
   int found = 0;
 
   for (FeedbackIterator it(this); !it.done(); it.Advance()) {
@@ -1433,7 +1439,7 @@ FeedbackIterator::FeedbackIterator(const FeedbackNexus* nexus)
          IsStoreInArrayLiteralICKind(nexus->kind()) ||
          IsKeyedHasICKind(nexus->kind()));
 
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_gc;
   auto pair = nexus->GetFeedbackPair();
   MaybeObject feedback = pair.first;
   bool is_named_feedback = IsPropertyNameFeedback(feedback);

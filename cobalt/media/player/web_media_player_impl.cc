@@ -759,11 +759,6 @@ void WebMediaPlayerImpl::OnPipelineError(::media::PipelineStatus error,
       SetNetworkError(WebMediaPlayer::kNetworkStateDecodeError,
                       message.empty() ? "Hardware context reset." : message);
       break;
-
-    case ::media::PLAYBACK_CAPABILITY_CHANGED:
-      SetNetworkError(WebMediaPlayer::kNetworkStateCapabilityChangedError,
-                      message.empty() ? "Capability changed." : message);
-      break;
     default:
       NOTREACHED();
       break;

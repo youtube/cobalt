@@ -14,7 +14,6 @@
 #include "src/base/bits.h"
 #include "src/base/hashmap-entry.h"
 #include "src/base/logging.h"
-#include "src/base/platform/wrappers.h"
 
 namespace v8 {
 namespace base {
@@ -23,11 +22,11 @@ class DefaultAllocationPolicy {
  public:
   template <typename T, typename TypeTag = T[]>
   V8_INLINE T* NewArray(size_t length) {
-    return static_cast<T*>(base::Malloc(length * sizeof(T)));
+    return static_cast<T*>(malloc(length * sizeof(T)));
   }
   template <typename T, typename TypeTag = T[]>
   V8_INLINE void DeleteArray(T* p, size_t length) {
-    base::Free(p);
+    free(p);
   }
 };
 
@@ -198,7 +197,7 @@ TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::
   impl_.capacity_ = original->capacity();
   impl_.occupancy_ = original->occupancy();
   impl_.map_ = impl_.allocator().template NewArray<Entry>(capacity());
-  base::Memcpy(impl_.map_, original->impl_.map_, capacity() * sizeof(Entry));
+  memcpy(impl_.map_, original->impl_.map_, capacity() * sizeof(Entry));
 }
 
 template <typename Key, typename Value, typename MatchFun,

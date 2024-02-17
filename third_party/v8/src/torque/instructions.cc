@@ -595,9 +595,7 @@ DefinitionLocation UnsafeCastInstruction::GetValueDefinition() const {
 void LoadReferenceInstruction::TypeInstruction(Stack<const Type*>* stack,
                                                ControlFlowGraph* cfg) const {
   ExpectType(TypeOracle::GetIntPtrType(), stack->Pop());
-  ExpectSubtype(stack->Pop(), TypeOracle::GetUnionType(
-                                  TypeOracle::GetHeapObjectType(),
-                                  TypeOracle::GetTaggedZeroPatternType()));
+  ExpectSubtype(stack->Pop(), TypeOracle::GetHeapObjectType());
   DCHECK_EQ(std::vector<const Type*>{type}, LowerType(type));
   stack->Push(type);
 }
@@ -617,9 +615,7 @@ void StoreReferenceInstruction::TypeInstruction(Stack<const Type*>* stack,
                                                 ControlFlowGraph* cfg) const {
   ExpectSubtype(stack->Pop(), type);
   ExpectType(TypeOracle::GetIntPtrType(), stack->Pop());
-  ExpectSubtype(stack->Pop(), TypeOracle::GetUnionType(
-                                  TypeOracle::GetHeapObjectType(),
-                                  TypeOracle::GetTaggedZeroPatternType()));
+  ExpectSubtype(stack->Pop(), TypeOracle::GetHeapObjectType());
 }
 
 void StoreReferenceInstruction::RecomputeDefinitionLocations(

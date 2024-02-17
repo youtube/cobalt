@@ -154,7 +154,8 @@ DEF_GETTER(HeapObject, IsUniqueName, bool) {
 }
 
 DEF_GETTER(HeapObject, IsFunction, bool) {
-  return IsJSFunctionOrBoundFunction();
+  STATIC_ASSERT(LAST_FUNCTION_TYPE == LAST_TYPE);
+  return map(isolate).instance_type() >= FIRST_FUNCTION_TYPE;
 }
 
 DEF_GETTER(HeapObject, IsCallable, bool) { return map(isolate).is_callable(); }
@@ -899,7 +900,7 @@ void RegExpMatchInfo::SetCapture(int i, int value) {
 }
 
 WriteBarrierMode HeapObject::GetWriteBarrierMode(
-    const DisallowGarbageCollection& promise) {
+    const DisallowHeapAllocation& promise) {
   return GetWriteBarrierModeForObject(*this, &promise);
 }
 
@@ -1023,7 +1024,7 @@ MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> receiver,
 
 // static
 Object Object::GetSimpleHash(Object object) {
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_gc;
   if (object.IsSmi()) {
     uint32_t hash = ComputeUnseededHash(Smi::ToInt(object));
     return Smi::FromInt(hash & Smi::kMaxValue);
@@ -1043,11 +1044,11 @@ Object Object::GetSimpleHash(Object object) {
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
   if (object.IsName()) {
-    uint32_t hash = Name::cast(object).EnsureHash();
+    uint32_t hash = Name::cast(object).Hash();
     return Smi::FromInt(hash);
   }
   if (object.IsOddball()) {
-    uint32_t hash = Oddball::cast(object).to_string().EnsureHash();
+    uint32_t hash = Oddball::cast(object).to_string().Hash();
     return Smi::FromInt(hash);
   }
   if (object.IsBigInt()) {
@@ -1063,7 +1064,7 @@ Object Object::GetSimpleHash(Object object) {
 }
 
 Object Object::GetHash() {
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_gc;
   Object hash = GetSimpleHash(*this);
   if (hash.IsSmi()) return hash;
 
@@ -1128,8 +1129,11 @@ bool ScopeInfo::HasSimpleParameters() const {
 #define FIELD_ACCESSORS(name)                                                 \
   void ScopeInfo::Set##name(int value) { set(k##name, Smi::FromInt(value)); } \
   int ScopeInfo::name() const {                                               \
-    DCHECK_GE(length(), kVariablePartIndex);                                  \
-    return Smi::ToInt(get(k##name));                                          \
+    if (length() > 0) {                                                       \
+      return Smi::ToInt(get(k##name));                                        \
+    } else {                                                                  \
+      return 0;                                                               \
+    }                                                                         \
   }
 FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(FIELD_ACCESSORS)
 #undef FIELD_ACCESSORS

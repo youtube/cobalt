@@ -250,7 +250,6 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
                  RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET) |
                  RelocInfo::ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT) |
                  RelocInfo::ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
-                 RelocInfo::ModeMask(RelocInfo::DATA_EMBEDDED_OBJECT) |
                  RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
@@ -306,7 +305,6 @@ bool Code::IsNativeContextIndependent(Isolate* isolate) {
                  RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET) |
                  RelocInfo::ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT) |
                  RelocInfo::ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
-                 RelocInfo::ModeMask(RelocInfo::DATA_EMBEDDED_OBJECT) |
                  RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
                  RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL)));
 
@@ -349,7 +347,7 @@ bool Code::IsNativeContextIndependent(Isolate* isolate) {
 bool Code::Inlines(SharedFunctionInfo sfi) {
   // We can only check for inlining for optimized code.
   DCHECK(is_optimized_code());
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_gc;
   DeoptimizationData const data =
       DeoptimizationData::cast(deoptimization_data());
   if (data.length() == 0) return false;
@@ -498,7 +496,7 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
           int return_value_count = iterator.Next();
           Object shared_info = LiteralArray().get(shared_info_id);
           os << "{bytecode_offset=" << bytecode_offset << ", function="
-             << SharedFunctionInfo::cast(shared_info).DebugNameCStr().get()
+             << Brief(SharedFunctionInfo::cast(shared_info).DebugName())
              << ", height=" << height << ", retval=@" << return_value_offset
              << "(#" << return_value_count << ")}";
           break;
@@ -510,7 +508,7 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
           Object shared_info = LiteralArray().get(shared_info_id);
           unsigned height = iterator.Next();
           os << "{bailout_id=" << bailout_id << ", function="
-             << SharedFunctionInfo::cast(shared_info).DebugNameCStr().get()
+             << Brief(SharedFunctionInfo::cast(shared_info).DebugName())
              << ", height=" << height << "}";
           break;
         }
@@ -523,7 +521,7 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
           Object shared_info = LiteralArray().get(shared_info_id);
           unsigned height = iterator.Next();
           os << "{bailout_id=" << bailout_id << ", function="
-             << SharedFunctionInfo::cast(shared_info).DebugNameCStr().get()
+             << Brief(SharedFunctionInfo::cast(shared_info).DebugName())
              << ", height=" << height << "}";
           break;
         }
@@ -533,7 +531,7 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
           Object shared_info = LiteralArray().get(shared_info_id);
           unsigned height = iterator.Next();
           os << "{function="
-             << SharedFunctionInfo::cast(shared_info).DebugNameCStr().get()
+             << Brief(SharedFunctionInfo::cast(shared_info).DebugName())
              << ", height=" << height << "}";
           break;
         }
@@ -672,7 +670,7 @@ inline void DisassembleCodeRange(Isolate* isolate, std::ostream& os, Code code,
                                  Address current_pc) {
   Address end = begin + size;
   AllowHandleAllocation allow_handles;
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_gc;
   HandleScope handle_scope(isolate);
   Disassembler::Decode(isolate, &os, reinterpret_cast<byte*>(begin),
                        reinterpret_cast<byte*>(end),
@@ -814,7 +812,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
 #endif  // ENABLE_DISASSEMBLER
 
 void BytecodeArray::Disassemble(std::ostream& os) {
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_gc;
 
   os << "Parameter count " << parameter_count() << "\n";
   os << "Register count " << register_count() << "\n";
@@ -1044,7 +1042,7 @@ bool DependentCode::MarkCodeForDeoptimization(
     return next_link().MarkCodeForDeoptimization(group);
   }
   DCHECK_EQ(group, this->group());
-  DisallowGarbageCollection no_gc_scope;
+  DisallowHeapAllocation no_allocation_scope;
   // Mark all the code that needs to be deoptimized.
   bool marked = false;
   int count = this->count();
@@ -1066,7 +1064,7 @@ bool DependentCode::MarkCodeForDeoptimization(
 
 void DependentCode::DeoptimizeDependentCodeGroup(
     DependentCode::DependencyGroup group) {
-  DisallowGarbageCollection no_gc_scope;
+  DisallowHeapAllocation no_allocation_scope;
   bool marked = MarkCodeForDeoptimization(group);
   if (marked) {
     DCHECK(AllowCodeDependencyChange::IsAllowed());

@@ -116,9 +116,6 @@ Handle<Object> LoadHandler::LoadFromPrototype(
     Isolate* isolate, Handle<Map> lookup_start_object_map,
     Handle<JSReceiver> holder, Handle<Smi> smi_handler,
     MaybeObjectHandle maybe_data1, MaybeObjectHandle maybe_data2) {
-  // TODO(v8:11167) remove DCHECK once OrderedNameDictionary supported.
-  DCHECK_IMPLIES(V8_DICT_MODE_PROTOTYPES_BOOL,
-                 GetHandlerKind(*smi_handler) != Kind::kNormal);
   MaybeObjectHandle data1;
   if (maybe_data1.is_null()) {
     data1 = MaybeObjectHandle::Weak(holder);
@@ -171,7 +168,7 @@ Handle<Object> LoadHandler::LoadFullChain(Isolate* isolate,
 
 // static
 KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(MaybeObject handler) {
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_gc;
   if (handler->IsSmi()) {
     int const raw_handler = handler.ToSmi().value();
     Kind const kind = KindBits::decode(raw_handler);
@@ -186,7 +183,7 @@ KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(MaybeObject handler) {
 // static
 KeyedAccessStoreMode StoreHandler::GetKeyedAccessStoreMode(
     MaybeObject handler) {
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_gc;
   if (handler->IsSmi()) {
     int const raw_handler = handler.ToSmi().value();
     Kind const kind = KindBits::decode(raw_handler);
@@ -274,10 +271,6 @@ Handle<Object> StoreHandler::StoreThroughPrototype(
     Isolate* isolate, Handle<Map> receiver_map, Handle<JSReceiver> holder,
     Handle<Smi> smi_handler, MaybeObjectHandle maybe_data1,
     MaybeObjectHandle maybe_data2) {
-  // TODO(v8:11167) remove DCHECK once OrderedNameDictionary supported.
-  DCHECK_IMPLIES(V8_DICT_MODE_PROTOTYPES_BOOL,
-                 KindBits::decode(smi_handler->value()) != Kind::kNormal);
-
   MaybeObjectHandle data1;
   if (maybe_data1.is_null()) {
     data1 = MaybeObjectHandle::Weak(holder);
@@ -342,15 +335,22 @@ void PrintSmiLoadHandler(int raw_handler, std::ostream& os) {
       os << "kGlobal";
       break;
     case LoadHandler::Kind::kField: {
+      CompactElementsKind compact_elements_kind =
+          LoadHandler::CompactElementsKindBits::decode(raw_handler);
       os << "kField, is in object = "
          << LoadHandler::IsInobjectBits::decode(raw_handler)
          << ", is double = " << LoadHandler::IsDoubleBits::decode(raw_handler)
          << ", field index = "
-         << LoadHandler::FieldIndexBits::decode(raw_handler);
+         << LoadHandler::FieldIndexBits::decode(raw_handler)
+         << ", elements kind = "
+         << CompactElementsKindToString(compact_elements_kind);
       break;
     }
     case LoadHandler::Kind::kConstantFromPrototype: {
-      os << "kConstantFromPrototype ";
+      CompactElementsKind compact_elements_kind =
+          LoadHandler::CompactElementsKindBits::decode(raw_handler);
+      os << "kConstantFromPrototype, elements kind = "
+         << CompactElementsKindToString(compact_elements_kind);
       break;
     }
     case LoadHandler::Kind::kAccessor:
@@ -465,7 +465,7 @@ void PrintSmiStoreHandler(int raw_handler, std::ostream& os) {
 
 // static
 void LoadHandler::PrintHandler(Object handler, std::ostream& os) {
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_gc;
   if (handler.IsSmi()) {
     int raw_handler = handler.ToSmi().value();
     os << "LoadHandler(Smi)(";
@@ -497,7 +497,7 @@ void LoadHandler::PrintHandler(Object handler, std::ostream& os) {
 }
 
 void StoreHandler::PrintHandler(Object handler, std::ostream& os) {
-  DisallowGarbageCollection no_gc;
+  DisallowHeapAllocation no_gc;
   if (handler.IsSmi()) {
     int raw_handler = handler.ToSmi().value();
     os << "StoreHandler(Smi)(";

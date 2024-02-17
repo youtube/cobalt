@@ -225,24 +225,22 @@ class JobHandle {
   virtual void CancelAndDetach() { Cancel(); }
 
   /**
-   * Returns true if there's any work pending or any worker running.
+   * Returns true if there's currently no work pending and no worker running.
+   * TODO(etiennep): Deprecate IsCompleted in favor of IsActive once implemented
+   * by all embedders.
    */
-  virtual bool IsActive() = 0;
-
-  // TODO(etiennep): Clean up once all overrides are removed.
-  V8_DEPRECATED("Use !IsActive() instead.")
-  virtual bool IsCompleted() { return !IsActive(); }
+  virtual bool IsCompleted() = 0;
+  virtual bool IsActive() { return !IsCompleted(); }
 
   /**
    * Returns true if associated with a Job and other methods may be called.
    * Returns false after Join() or Cancel() was called. This may return true
    * even if no workers are running and IsCompleted() returns true
+   * TODO(etiennep): Deprecate IsRunning in favor of IsValid once implemented by
+   * all embedders.
    */
-  virtual bool IsValid() = 0;
-
-  // TODO(etiennep): Clean up once all overrides are removed.
-  V8_DEPRECATED("Use IsValid() instead.")
-  virtual bool IsRunning() { return IsValid(); }
+  virtual bool IsRunning() = 0;
+  virtual bool IsValid() { return IsRunning(); }
 
   /**
    * Returns true if job priority can be changed.

@@ -12,8 +12,8 @@
 namespace v8 {
 namespace internal {
 
-Handle<Code> AssembleCodeImpl(Isolate* isolate,
-                              std::function<void(MacroAssembler&)> assemble) {
+Handle<Code> AssembleCodeImpl(std::function<void(MacroAssembler&)> assemble) {
+  Isolate* isolate = CcTest::i_isolate();
   MacroAssembler assm(isolate, CodeObjectRequired::kYes);
 
   assemble(assm);

@@ -6,16 +6,13 @@
 
 #include <memory>
 
-#include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
-#include "src/execution/isolate.h"
 #include "src/handles/local-handles.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/marking-barrier.h"
-#include "src/heap/parked-scope.h"
 #include "src/heap/safepoint.h"
 
 namespace v8 {
@@ -39,17 +36,6 @@ thread_local LocalHeap* current_local_heap = nullptr;
 LocalHeap* LocalHeap::Current() { return current_local_heap; }
 #endif  // defined(V8_OS_STARBOARD)
 
-#ifdef DEBUG
-void LocalHeap::VerifyCurrent() {
-  LocalHeap* current = LocalHeap::Current();
-
-  if (is_main_thread())
-    DCHECK_NULL(current);
-  else
-    DCHECK_EQ(current, this);
-}
-#endif
-
 LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
                      std::unique_ptr<PersistentHandles> persistent_handles)
     : heap_(heap),
@@ -64,7 +50,7 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
       marking_barrier_(new MarkingBarrier(this)),
       old_space_allocator_(this, heap->old_space()) {
   heap_->safepoint()->AddLocalHeap(this, [this] {
-    if (FLAG_local_heaps && !is_main_thread()) {
+    if (FLAG_local_heaps) {
       WriteBarrier::SetForThread(marking_barrier_.get());
       if (heap_->incremental_marking()->IsMarking()) {
         marking_barrier_->Activate(
@@ -81,7 +67,7 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
   if (!is_main_thread()) base::Thread::SetThreadLocal(*GetLocalHeapKey(), this);
 #else
   DCHECK_NULL(current_local_heap);
-  if (!is_main_thread()) current_local_heap = this;
+  current_local_heap = this;
 #endif  // defined(V8_OS_STARBOARD)
 }
 
@@ -92,21 +78,19 @@ LocalHeap::~LocalHeap() {
   heap_->safepoint()->RemoveLocalHeap(this, [this] {
     old_space_allocator_.FreeLinearAllocationArea();
 
-    if (FLAG_local_heaps && !is_main_thread()) {
+    if (FLAG_local_heaps) {
       marking_barrier_->Publish();
       WriteBarrier::ClearForThread(marking_barrier_.get());
     }
   });
 
-  if (!is_main_thread()) {
 #if defined(V8_OS_STARBOARD)
     DCHECK_EQ(LocalHeap::Current(), this);
     base::Thread::SetThreadLocal(*GetLocalHeapKey(), this);
 #else
-    DCHECK_EQ(current_local_heap, this);
-    current_local_heap = nullptr;
+  DCHECK_EQ(current_local_heap, this);
+  current_local_heap = nullptr;
 #endif  // defined(V8_OS_STARBOARD)
-  }
 }
 
 void LocalHeap::EnsurePersistentHandles() {
@@ -139,17 +123,13 @@ bool LocalHeap::ContainsLocalHandle(Address* location) {
 }
 
 bool LocalHeap::IsHandleDereferenceAllowed() {
-#ifdef DEBUG
-  VerifyCurrent();
-#endif
+  DCHECK_EQ(LocalHeap::Current(), this);
   return state_ == ThreadState::Running;
 }
 #endif
 
 bool LocalHeap::IsParked() {
-#ifdef DEBUG
-  VerifyCurrent();
-#endif
+  DCHECK_EQ(LocalHeap::Current(), this);
   return state_ == ThreadState::Parked;
 }
 

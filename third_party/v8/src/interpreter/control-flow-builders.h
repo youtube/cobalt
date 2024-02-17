@@ -21,8 +21,6 @@ class V8_EXPORT_PRIVATE ControlFlowBuilder {
  public:
   explicit ControlFlowBuilder(BytecodeArrayBuilder* builder)
       : builder_(builder) {}
-  ControlFlowBuilder(const ControlFlowBuilder&) = delete;
-  ControlFlowBuilder& operator=(const ControlFlowBuilder&) = delete;
   virtual ~ControlFlowBuilder() = default;
 
  protected:
@@ -30,6 +28,8 @@ class V8_EXPORT_PRIVATE ControlFlowBuilder {
 
  private:
   BytecodeArrayBuilder* builder_;
+
+  DISALLOW_COPY_AND_ASSIGN(ControlFlowBuilder);
 };
 
 class V8_EXPORT_PRIVATE BreakableControlFlowBuilder

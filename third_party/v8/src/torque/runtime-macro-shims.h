@@ -8,13 +8,10 @@
 #ifndef V8_TORQUE_RUNTIME_MACRO_SHIMS_H_
 #define V8_TORQUE_RUNTIME_MACRO_SHIMS_H_
 
-#include <cstdint>
+#include "src/objects/smi.h"
 
 namespace v8 {
 namespace internal {
-
-class Isolate;
-
 namespace TorqueRuntimeMacroShims {
 namespace CodeStubAssembler {
 
@@ -29,10 +26,7 @@ inline intptr_t IntPtrMul(Isolate* isolate, intptr_t a, intptr_t b) {
 inline intptr_t Signed(Isolate* isolate, uintptr_t u) {
   return static_cast<intptr_t>(u);
 }
-template <typename Smi>
-inline int32_t SmiUntag(Isolate* isolate, Smi s) {
-  return s.value();
-}
+inline int32_t SmiUntag(Isolate* isolate, Smi s) { return s.value(); }
 
 }  // namespace CodeStubAssembler
 }  // namespace TorqueRuntimeMacroShims
