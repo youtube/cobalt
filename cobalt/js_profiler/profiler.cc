@@ -41,7 +41,7 @@ Profiler::Profiler(script::EnvironmentSettings* settings,
     : ALLOW_THIS_IN_INITIALIZER_LIST(listeners_(this)),
       stopped_(false),
       time_origin_{base::TimeTicks::Now()} {
-  profiler_group_ = ProfilerGroup::From(web::get_isolate(settings));
+  profiler_group_ = ProfilerGroup::From(settings);
   profiler_id_ = profiler_group_->NextProfilerId();
 
   const base::TimeDelta sample_interval =
@@ -77,10 +77,6 @@ Profiler::Profiler(script::EnvironmentSettings* settings,
     web::DOMException::Raise(web::DOMException::kInvalidStateErr,
                              "Too Many Profilers", exception_state);
   }
-}
-
-Profiler::~Profiler() {
-  SB_LOG(INFO) << "[PROFILER] DECONSTRUCTOR " + profiler_id_;
 }
 
 void Profiler::AddEventListener(
@@ -134,6 +130,14 @@ void Profiler::PerformStop(
   if (profile) {
     profile->Delete();
   }
+}
+
+void Profiler::Cancel() {
+  if (!stopped_) {
+    auto profile = profiler_group_->ProfilerStop(this);
+    profile->Delete();
+  }
+  profiler_group_ = nullptr;
 }
 
 }  // namespace js_profiler

@@ -97,6 +97,9 @@ class Impl : public Context {
   script::ScriptRunner* script_runner() const final {
     return script_runner_.get();
   }
+  js_profiler::ProfilerGroup* profiler_group() const final {
+    return profiler_group_;
+  }
   Blob::Registry* blob_registry() const final { return blob_registry_.get(); }
   web::WebSettings* web_settings() const final { return web_settings_; }
   network::NetworkModule* network_module() const final {
@@ -173,6 +176,9 @@ class Impl : public Context {
     return active_service_worker_;
   }
 
+  void set_profiler_group(js_profiler::ProfilerGroup* profiler_group) final {
+    profiler_group_ = profiler_group;
+  }
 
  private:
   // Injects a list of attributes into the Web Context's global object.
@@ -217,6 +223,9 @@ class Impl : public Context {
 
   // Environment Settings object
   std::unique_ptr<EnvironmentSettings> environment_settings_;
+
+  // A ProfilerGroup contains all window.Profiler objects on the isolate.
+  js_profiler::ProfilerGroup* profiler_group_ = nullptr;
 
   // The service worker registration object map.
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#environment-settings-object-service-worker-registration-object-map

@@ -48,7 +48,7 @@ class Profiler : public script::Wrappable {
 
   Profiler(script::EnvironmentSettings* settings, ProfilerInitOptions options,
            script::ExceptionState* exception_state);
-  ~Profiler();
+  ~Profiler() override = default;
 
   void AddEventListener(const std::string& name,
                         const SampleBufferFullCallbackHolder& listener);
@@ -56,6 +56,7 @@ class Profiler : public script::Wrappable {
   void DispatchSampleBufferFullEvent();
 
   ProfilerTracePromise Stop(script::EnvironmentSettings* environment_settings);
+  void Cancel();
 
   bool stopped() const { return stopped_; }
 

@@ -21,7 +21,6 @@
 #include <string>
 #include <vector>
 
-#include "base/memory/singleton.h"
 #include "cobalt/js_profiler/profiler.h"
 #include "cobalt/script/global_environment.h"
 #include "third_party/v8/include/v8-profiler.h"
@@ -36,12 +35,13 @@ namespace js_profiler {
 // Forward Declaration of Profiler Class.
 class Profiler;
 
-
-// A ProfilerGroup represents a set of profilers sharing an underlying
-// v8::CpuProfiler attached to a common isolate.
-class ProfilerGroup {
+// A ProfilerGroup represents a set of window.Profiler JS objects sharing an
+// underlying v8::CpuProfiler attached to a common isolate.
+class ProfilerGroup : public base::MessageLoop::DestructionObserver {
  public:
   explicit ProfilerGroup(v8::Isolate* isolate) : isolate_(isolate) {}
+
+  ~ProfilerGroup() = default;
 
   v8::CpuProfilingStatus ProfilerStart(const scoped_refptr<Profiler>& profiler,
                                        script::EnvironmentSettings* settings,
@@ -49,12 +49,18 @@ class ProfilerGroup {
 
   v8::CpuProfile* ProfilerStop(Profiler* profiler);
 
+  void ProfilerCancel(Profiler* profiler);
+
   void DispatchSampleBufferFullEvent(std::string profiler_id);
 
-  static ProfilerGroup* From(v8::Isolate* isolate);
+  static ProfilerGroup* From(script::EnvironmentSettings* environment_settings);
 
   // Generates an unused string identifier to use for a new profiling session.
   std::string NextProfilerId();
+
+  // From base::MessageLoop::DestructionObserver.
+  // All active profiling threads must be stopped before discarding this object.
+  void WillDestroyCurrentMessageLoop() override;
 
  private:
   Profiler* GetProfiler(std::string profiler_id);
@@ -62,33 +68,12 @@ class ProfilerGroup {
 
   v8::Isolate* isolate_;
   v8::CpuProfiler* cpu_profiler_ = nullptr;
-  std::vector<scoped_refptr<Profiler>> profilers_;
+
   int num_active_profilers_;
   int next_profiler_id_ = 0;
-};
 
-// A ProfilerGroupFactory represents a singleton that maps one Isolate to
-// one ProfilerGroup.
-class ProfilerGroupFactory {
- public:
-  friend struct base::StaticMemorySingletonTraits<ProfilerGroupFactory>;
-
-  // Fetches or creates the Singleton.
-  static ProfilerGroupFactory* GetInstance();
-
-  // Fetches or creates the ProfilerGroup associated with the given isolate.
-  ProfilerGroup* getOrCreateProfilerGroup(v8::Isolate* isolate);
-
- private:
-  // Class can only be instanced via the singleton
-  ProfilerGroupFactory() {}
-  ~ProfilerGroupFactory() {}
-
-  // V8 Per Isolate data. One Isolate to One ProfilerGroup mapping type.
-  typedef std::map<v8::Isolate*, ProfilerGroup*> ProfilerGroupMap;
-
-  // V8 Per Isolate data. One Isolate to One ProfilerGroup mapping.
-  ProfilerGroupMap profiler_group_per_isolate_map_;
+  // All active profilers, retained from GC.
+  std::vector<scoped_refptr<Profiler>> profilers_;
 };
 
 // ProfilerMaxSamplesDelegate has a notify function that is called when the

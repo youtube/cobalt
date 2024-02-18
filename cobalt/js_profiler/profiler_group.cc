@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #include "cobalt/js_profiler/profiler_group.h"
 
-#include "cobalt/base/token.h"
-#include "cobalt/base/tokens.h"
+#include "cobalt/web/context.h"
+#include "cobalt/web/environment_settings_helper.h"
 
 namespace {
 v8::Local<v8::String> toV8String(v8::Isolate* isolate,
@@ -31,26 +30,15 @@ v8::Local<v8::String> toV8String(v8::Isolate* isolate,
 namespace cobalt {
 namespace js_profiler {
 
-ProfilerGroupFactory* ProfilerGroupFactory::GetInstance() {
-  return base::Singleton<
-      ProfilerGroupFactory,
-      base::StaticMemorySingletonTraits<ProfilerGroupFactory> >::get();
-}
-
-ProfilerGroup* ProfilerGroupFactory::getOrCreateProfilerGroup(
-    v8::Isolate* isolate) {
-  auto it = profiler_group_per_isolate_map_.find(isolate);
-  if (it != profiler_group_per_isolate_map_.end()) {
-    return it->second;
+ProfilerGroup* ProfilerGroup::From(
+    script::EnvironmentSettings* environment_settings) {
+  web::Context* context = web::get_context(environment_settings);
+  if (!context->profiler_group()) {
+    script::GlobalEnvironment* global_env =
+        web::get_global_environment(environment_settings);
+    context->set_profiler_group(new ProfilerGroup(global_env->isolate()));
   }
-  auto profiler_group = new ProfilerGroup(isolate);
-  profiler_group_per_isolate_map_[isolate] = profiler_group;
-  return profiler_group;
-}
-
-ProfilerGroup* ProfilerGroup::From(v8::Isolate* isolate) {
-  auto factory = ProfilerGroupFactory::GetInstance();
-  return factory->getOrCreateProfilerGroup(isolate);
+  return context->profiler_group();
 }
 
 v8::CpuProfilingStatus ProfilerGroup::ProfilerStart(
@@ -74,6 +62,10 @@ v8::CpuProfile* ProfilerGroup::ProfilerStop(Profiler* profiler) {
   auto profile = cpu_profiler_->StopProfiling(
       toV8String(isolate_, profiler->ProfilerId()));
   this->PopProfiler(profiler->ProfilerId());
+  if (cpu_profiler_ && num_active_profilers_ == 0) {
+    cpu_profiler_->Dispose();
+    cpu_profiler_ = nullptr;
+  }
   return profile;
 }
 
@@ -87,12 +79,10 @@ void ProfilerGroup::DispatchSampleBufferFullEvent(std::string profiler_id) {
   auto profiler = GetProfiler(profiler_id);
 
   if (profiler) {
-    SB_LOG(INFO) << "[PROFILER] VALID LOOP " + profiler->ProfilerId();
     SB_LOG(INFO) << "[PROFILER] DISPATCHING FULL " + profiler->ProfilerId();
-
     profiler->DispatchSampleBufferFullEvent();
+    SB_LOG(INFO) << "[PROFILER] DISPATCHED FULL " + profiler->ProfilerId();
   }
-  SB_LOG(INFO) << "[PROFILER] DISPATCHED FULL " + profiler->ProfilerId();
 }
 
 Profiler* ProfilerGroup::GetProfiler(std::string profiler_id) {
@@ -116,6 +106,21 @@ void ProfilerGroup::PopProfiler(std::string profiler_id) {
     profilers_.erase(profiler);
   }
   num_active_profilers_--;
+}
+
+void ProfilerGroup::WillDestroyCurrentMessageLoop() {
+  while (!profilers_.empty()) {
+    Profiler* profiler = profilers_[0];
+    DCHECK(profiler);
+    profiler->Cancel();
+    DCHECK(profiler->stopped());
+  }
+
+  DCHECK_EQ(num_active_profilers_, 0);
+  if (cpu_profiler_) {
+    cpu_profiler_->Dispose();
+    cpu_profiler_ = nullptr;
+  }
 }
 
 void ProfilerMaxSamplesDelegate::Notify() {

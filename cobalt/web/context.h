@@ -39,6 +39,9 @@ class ServiceWorker;
 class ServiceWorkerContext;
 class ServiceWorkerObject;
 }  // namespace worker
+namespace js_profiler {
+class ProfilerGroup;
+}  // namespace js_profiler
 namespace web {
 class WindowOrWorkerGlobalScope;
 
@@ -66,6 +69,7 @@ class Context {
   virtual web::WebSettings* web_settings() const = 0;
   virtual network::NetworkModule* network_module() const = 0;
   virtual worker::ServiceWorkerContext* service_worker_context() const = 0;
+  virtual js_profiler::ProfilerGroup* profiler_group() const = 0;
 
   virtual const std::string& name() const = 0;
   virtual void SetupEnvironmentSettings(EnvironmentSettings* settings) = 0;
@@ -110,6 +114,10 @@ class Context {
   active_service_worker() = 0;
   virtual const scoped_refptr<worker::ServiceWorkerObject>&
   active_service_worker() const = 0;
+
+  // https://wicg.github.io/js-self-profiling/
+  virtual void set_profiler_group(
+      js_profiler::ProfilerGroup* profiler_group) = 0;
 };
 
 }  // namespace web
