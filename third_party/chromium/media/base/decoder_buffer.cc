@@ -47,7 +47,6 @@ void DecoderBuffer::Allocator::Set(Allocator* allocator) {
 
 DecoderBuffer::DecoderBuffer(size_t size)
     : size_(size), side_data_size_(0), is_key_frame_(false) {
-  LOG(INFO) << "YO THOR - DECODER BUFFER SIMPLE SIZE CTOR";
   Initialize();
 }
 
@@ -56,8 +55,7 @@ DecoderBuffer::DecoderBuffer(const uint8_t* data,
                              const uint8_t* side_data,
                              size_t side_data_size)
     : size_(size), side_data_size_(side_data_size), is_key_frame_(false) {
-  PrintProcessMemoryInfo();
-  LOG(INFO) << "YO THOR - DECODER BUFFER *DATA CTOR";
+  //PrintProcessMemoryInfo();
   if (!data) {
     CHECK_EQ(size_, 0u);
     CHECK(!side_data);
@@ -87,7 +85,6 @@ DecoderBuffer::DecoderBuffer(std::unique_ptr<uint8_t[]> data, size_t size)
       size_(size),
       side_data_size_(0),
       is_key_frame_(false) {
-  LOG(INFO) << "YO THOR - DECODER BUFFER UNIQUE PTR ARRAY CTOR";
       }
 
 
@@ -108,7 +105,6 @@ DecoderBuffer::DecoderBuffer(
 #endif  // !defined(STARBOARD)
 
 DecoderBuffer::~DecoderBuffer() {
-  LOG(INFO) << "YO THOR - DECODER BUFFER DTOR";
 #if defined(STARBOARD)
   DCHECK(s_allocator);
   s_allocator->Free(data_, allocated_size_);

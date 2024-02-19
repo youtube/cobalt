@@ -16,6 +16,7 @@
 #include "base/macros.h"
 #include "media/base/media_export.h"
 #include "media/base/stream_parser.h"
+#include "media/base/stream_parser_buffer_pool.h"
 #include "media/formats/common/offset_byte_queue.h"
 #include "media/formats/mp4/parse_result.h"
 #include "media/formats/mp4/track_run_iterator.h"
@@ -161,6 +162,8 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
 
   // Tracks the number of MEDIA_LOGS for video keyframe MP4<->frame mismatch.
   int num_video_keyframe_mismatches_;
+
+  StreamParserBufferPool buffer_pool_;
 };
 
 }  // namespace mp4

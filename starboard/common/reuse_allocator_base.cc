@@ -108,7 +108,6 @@ void ReuseAllocatorBase::MemoryBlock::Allocate(std::size_t request_size,
 }
 
 void* ReuseAllocatorBase::Allocate(std::size_t size) {
-  SB_LOG(INFO) << "YO THOR - RE USE ALLOCA BASE ALLOCATE - size:" << size;
   return Allocate(size, 1);
 }
 
