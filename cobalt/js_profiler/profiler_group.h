@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "cobalt/js_profiler/profiler.h"
+#include "cobalt/js_profiler/profiler_trace.h"
 #include "cobalt/script/global_environment.h"
 #include "third_party/v8/include/v8-profiler.h"
 #include "v8/include/cppgc/member.h"
@@ -47,7 +48,7 @@ class ProfilerGroup : public base::MessageLoop::DestructionObserver {
                                        script::EnvironmentSettings* settings,
                                        v8::CpuProfilingOptions options);
 
-  v8::CpuProfile* ProfilerStop(Profiler* profiler);
+  ProfilerTrace ProfilerStop(Profiler* profiler);
 
   void ProfilerCancel(Profiler* profiler);
 
@@ -62,6 +63,10 @@ class ProfilerGroup : public base::MessageLoop::DestructionObserver {
   // All active profiling threads must be stopped before discarding this object.
   void WillDestroyCurrentMessageLoop() override;
 
+  int num_active_profilers() const { return num_active_profilers_; }
+
+  bool active() const { return !!cpu_profiler_; }
+
  private:
   Profiler* GetProfiler(std::string profiler_id);
   void PopProfiler(std::string profiler_id);
@@ -69,7 +74,7 @@ class ProfilerGroup : public base::MessageLoop::DestructionObserver {
   v8::Isolate* isolate_;
   v8::CpuProfiler* cpu_profiler_ = nullptr;
 
-  int num_active_profilers_;
+  int num_active_profilers_ = 0;
   int next_profiler_id_ = 0;
 
   // All active profilers, retained from GC.

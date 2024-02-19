@@ -20,7 +20,6 @@
 #include <string>
 #include <utility>
 
-#include "cobalt/js_profiler/profiler_trace_builder.h"
 #include "cobalt/js_profiler/profiler_trace_wrapper.h"
 #include "cobalt/web/cache_utils.h"
 #include "cobalt/web/context.h"
@@ -123,19 +122,14 @@ void Profiler::PerformStop(
     std::unique_ptr<script::ValuePromiseWrappable::Reference> promise_reference,
     base::TimeTicks time_origin, std::string profiler_id) {
   SB_LOG(INFO) << "[PROFILER] STOPPED " + profiler_id_;
-  auto profile = profiler_group->ProfilerStop(this);
-  auto trace = ProfilerTraceBuilder::FromProfile(profile, time_origin_);
+  auto trace = profiler_group->ProfilerStop(this);
   scoped_refptr<ProfilerTraceWrapper> result(new ProfilerTraceWrapper(trace));
   promise_reference->value().Resolve(result);
-  if (profile) {
-    profile->Delete();
-  }
 }
 
 void Profiler::Cancel() {
   if (!stopped_) {
-    auto profile = profiler_group_->ProfilerStop(this);
-    profile->Delete();
+    profiler_group_->ProfilerStop(this);
   }
   profiler_group_ = nullptr;
 }

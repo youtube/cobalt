@@ -62,6 +62,7 @@ class Profiler : public script::Wrappable {
 
   dom::DOMHighResTimeStamp sample_interval() const { return sample_interval_; }
   std::string ProfilerId() const { return profiler_id_; }
+  base::TimeTicks time_origin() const { return time_origin_; }
 
   DEFINE_WRAPPABLE_TYPE(Profiler);
 

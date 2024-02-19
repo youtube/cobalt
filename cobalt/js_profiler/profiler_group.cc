@@ -14,6 +14,7 @@
 
 #include "cobalt/js_profiler/profiler_group.h"
 
+#include "cobalt/js_profiler/profiler_trace_builder.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings_helper.h"
 
@@ -59,15 +60,20 @@ v8::CpuProfilingStatus ProfilerGroup::ProfilerStart(
                                                    profiler->ProfilerId()));
 }
 
-v8::CpuProfile* ProfilerGroup::ProfilerStop(Profiler* profiler) {
+ProfilerTrace ProfilerGroup::ProfilerStop(Profiler* profiler) {
   auto profile = cpu_profiler_->StopProfiling(
       toV8String(isolate_, profiler->ProfilerId()));
   this->PopProfiler(profiler->ProfilerId());
+  auto trace =
+      ProfilerTraceBuilder::FromProfile(profile, profiler->time_origin());
+  if (profile) {
+    profile->Delete();
+  }
   if (cpu_profiler_ && num_active_profilers_ == 0) {
     cpu_profiler_->Dispose();
     cpu_profiler_ = nullptr;
   }
-  return profile;
+  return trace;
 }
 
 std::string ProfilerGroup::NextProfilerId() {

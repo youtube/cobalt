@@ -111,5 +111,29 @@ TEST_F(ProfilerTest, ProfilerJSCode) {
   EXPECT_TRUE(EvaluateScript("Profiler", &result));
   EXPECT_EQ(result, "function Profiler() { [native code] }");
 }
+
+TEST_F(ProfilerTest, ProfilerGroupDisposesOfCpuProfiler) {
+  v8::HandleScope scope(web::get_isolate(window_.environment_settings()));
+  ProfilerInitOptions init_options;
+  init_options.set_sample_interval(10);
+  init_options.set_max_buffer_size(1);
+
+  auto profiler_group = ProfilerGroup::From(window_.environment_settings());
+  EXPECT_FALSE(profiler_group->active());
+  EXPECT_EQ(profiler_group->num_active_profilers(), 0);
+
+  scoped_refptr<Profiler> profiler_(new Profiler(
+      window_.environment_settings(), init_options, &exception_state_));
+  EXPECT_EQ(profiler_group->num_active_profilers(), 1);
+  EXPECT_TRUE(profiler_group->active());
+
+  auto promise = profiler_->Stop(window_.environment_settings());
+  EXPECT_EQ(profiler_->stopped(), true);
+  base::RunLoop().RunUntilIdle();
+
+  EXPECT_EQ(profiler_group->num_active_profilers(), 0);
+  EXPECT_FALSE(profiler_group->active());
+}
+
 }  // namespace js_profiler
 }  // namespace cobalt
