@@ -37,9 +37,6 @@ namespace cobalt {
 namespace worker {
 class ServiceWorkerContext;
 }
-namespace js_profiler {
-class ProfilerGroup;
-}  // namespace js_profiler
 namespace web {
 
 class Agent : public base::MessageLoop::DestructionObserver {

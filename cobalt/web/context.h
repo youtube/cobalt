@@ -15,6 +15,7 @@
 #ifndef COBALT_WEB_CONTEXT_H_
 #define COBALT_WEB_CONTEXT_H_
 
+#include <memory>
 #include <string>
 
 #include "cobalt/loader/fetcher_factory.h"
@@ -117,7 +118,7 @@ class Context {
 
   // https://wicg.github.io/js-self-profiling/
   virtual void set_profiler_group(
-      js_profiler::ProfilerGroup* profiler_group) = 0;
+      std::unique_ptr<js_profiler::ProfilerGroup> profiler_group) = 0;
 };
 
 }  // namespace web

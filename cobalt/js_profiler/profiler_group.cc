@@ -36,7 +36,8 @@ ProfilerGroup* ProfilerGroup::From(
   if (!context->profiler_group()) {
     script::GlobalEnvironment* global_env =
         web::get_global_environment(environment_settings);
-    context->set_profiler_group(new ProfilerGroup(global_env->isolate()));
+    context->set_profiler_group(
+        std::make_unique<ProfilerGroup>(global_env->isolate()));
   }
   return context->profiler_group();
 }
