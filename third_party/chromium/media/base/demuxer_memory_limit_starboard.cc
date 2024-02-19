@@ -23,15 +23,17 @@ namespace media {
 
 size_t GetDemuxerStreamAudioMemoryLimit(
     const AudioDecoderConfig* /*audio_config*/) {
-  return DecoderBuffer::Allocator::GetInstance()->GetAudioBufferBudget();
+  return 100 * 1024 * 1024;
+  //return DecoderBuffer::Allocator::GetInstance()->GetAudioBufferBudget();
 }
 
 size_t GetDemuxerStreamVideoMemoryLimit(
     Demuxer::DemuxerTypes /*demuxer_type*/,
     const VideoDecoderConfig* video_config,
     const std::string& mime_type) {
-  return static_cast<size_t>(
-      GetSbMediaVideoBufferBudget(video_config, mime_type));
+  return 300 * 1024 * 1024;
+  //return static_cast<size_t>(
+  //    GetSbMediaVideoBufferBudget(video_config, mime_type));
 }
 
 size_t GetDemuxerMemoryLimit(Demuxer::DemuxerTypes demuxer_type) {

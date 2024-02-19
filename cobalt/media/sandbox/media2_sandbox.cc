@@ -25,7 +25,7 @@
 #include "base/path_service.h"
 #include "base/task/task_scheduler/task_scheduler.h"
 #include "cobalt/base/wrap_main.h"
-#include "cobalt/media/decoder_buffer_allocator.h"
+// #include "cobalt/media/decoder_buffer_allocator.h"
 #include "starboard/common/string.h"
 #include "starboard/event.h"
 #include "third_party/chromium/media/base/media_log.h"
@@ -114,7 +114,7 @@ int SandboxMain(int argc, char** argv) {
     return 1;
   }
 
-  DecoderBufferAllocator decoder_buffer_allocator;
+  // DecoderBufferAllocator decoder_buffer_allocator;
   ::media::MediaLog media_log;
   base::MessageLoop message_loop;
   // A one-per-process task scheduler is needed for usage of APIs in

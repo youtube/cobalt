@@ -57,8 +57,9 @@ component("media") {
     "base/sbplayer_set_bounds_helper.h",
     "bidirectional_fit_reuse_allocator.cc",
     "bidirectional_fit_reuse_allocator.h",
-    "decoder_buffer_allocator.cc",
-    "decoder_buffer_allocator.h",
+
+    # "decoder_buffer_allocator.cc",
+    # "decoder_buffer_allocator.h",
     "decoder_buffer_memory_info.h",
     "file_data_source.cc",
     "file_data_source.h",
@@ -121,11 +122,13 @@ target(gtest_target_type, "media_test") {
 
   sources = [
     "base/cval_stats_test.cc",
-    "base/decoder_buffer_cache_test.cc",
+
+    # "base/decoder_buffer_cache_test.cc",
     "bidirectional_fit_reuse_allocator_test.cc",
     "file_data_source_test.cc",
     "media_module_test.cc",
-    "progressive/demuxer_extension_wrapper_test.cc",
+
+    # "progressive/demuxer_extension_wrapper_test.cc",
     "progressive/mock_data_source_reader.h",
     "progressive/mp4_map_unittest.cc",
     "progressive/rbsp_stream_unittest.cc",

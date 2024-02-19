@@ -845,17 +845,17 @@ bool SourceBufferStream::GarbageCollectIfNeeded(base::TimeDelta media_time,
     }
   }
 
-#if defined(STARBOARD)
-  // Address duration based GC.
-  base::TimeDelta duration = GetBufferedDurationForGarbageCollection();
-  base::TimeDelta duration_gc_threadold =
-      DecoderBuffer::Allocator::GetInstance()
-          ->GetBufferGarbageCollectionDurationThreshold();
-  if (duration > duration_gc_threadold) {
-    effective_memory_limit = ranges_size * duration_gc_threadold.InMicroseconds() /
-                             duration.InMicroseconds();
-  }
-#endif  // defined(STARBOARD)
+// #if defined(STARBOARD)
+//   // Address duration based GC.
+//   base::TimeDelta duration = GetBufferedDurationForGarbageCollection();
+//   base::TimeDelta duration_gc_threadold =
+//       DecoderBuffer::Allocator::GetInstance()
+//           ->GetBufferGarbageCollectionDurationThreshold();
+//   if (duration > duration_gc_threadold) {
+//     effective_memory_limit = ranges_size * duration_gc_threadold.InMicroseconds() /
+//                              duration.InMicroseconds();
+//   }
+// #endif  // defined(STARBOARD)
 
   // Return if we're under or at the memory limit.
   if (ranges_size + newDataSize <= effective_memory_limit)

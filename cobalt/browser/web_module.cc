@@ -65,7 +65,7 @@
 #include "cobalt/loader/image/animated_image_tracker.h"
 #include "cobalt/loader/loader_factory.h"
 #include "cobalt/loader/switches.h"
-#include "cobalt/media/decoder_buffer_allocator.h"
+// #include "cobalt/media/decoder_buffer_allocator.h"
 #include "cobalt/media/media_module.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "cobalt/storage/storage_manager.h"
@@ -590,7 +590,7 @@ WebModule::Impl::Impl(web::Context* web_context, const ConstructionData& data)
   const media::DecoderBufferMemoryInfo* memory_info = nullptr;
 
   if (data.media_module) {
-    memory_info = data.media_module->GetDecoderBufferAllocator();
+    // memory_info = data.media_module->GetDecoderBufferAllocator();
   } else {
     stub_decoder_buffer_memory_info_.reset(
         new media::StubDecoderBufferMemoryInfo);
@@ -1082,12 +1082,12 @@ void WebModule::Impl::UpdateCamera3D(
 void WebModule::Impl::SetMediaModule(media::MediaModule* media_module) {
   SB_DCHECK(media_module);
 
-  dom::DOMSettings* dom_settings =
-      base::polymorphic_downcast<dom::DOMSettings*>(
-          web_context_->environment_settings());
+  // dom::DOMSettings* dom_settings =
+  //     base::polymorphic_downcast<dom::DOMSettings*>(
+  //         web_context_->environment_settings());
 
-  dom_settings->set_decoder_buffer_memory_info(
-      media_module->GetDecoderBufferAllocator());
+  // dom_settings->set_decoder_buffer_memory_info(
+  //     media_module->GetDecoderBufferAllocator());
   window_->set_web_media_player_factory(media_module);
 }
 
