@@ -104,6 +104,10 @@ DecoderBuffer::DecoderBuffer(
       is_key_frame_(false) {}
 #endif  // !defined(STARBOARD)
 
+DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
+    : size_(external_memory->span().size()),
+      external_memory_(std::move(external_memory)) {}
+
 DecoderBuffer::~DecoderBuffer() {
 //#if defined(STARBOARD)
 //  DCHECK(s_allocator);
@@ -195,6 +199,15 @@ scoped_refptr<DecoderBuffer> DecoderBuffer::FromSharedMemoryRegion(
 }
 
 #endif  // !defined(STARBOARD)
+
+// static
+scoped_refptr<DecoderBuffer> DecoderBuffer::FromExternalMemory(
+    std::unique_ptr<ExternalMemory> external_memory) {
+  DCHECK(external_memory);
+  if (external_memory->span().empty())
+    return nullptr;
+  return base::WrapRefCounted(new DecoderBuffer(std::move(external_memory)));
+}
 
 // static
 scoped_refptr<DecoderBuffer> DecoderBuffer::CreateEOSBuffer() {

@@ -13,6 +13,7 @@
 #include <utility>
 
 #include "base/check.h"
+#include "base/containers/span.h"
 #include "base/macros.h"
 #include "base/memory/read_only_shared_memory_region.h"
 #include "base/memory/ref_counted.h"
@@ -46,6 +47,22 @@ class MEDIA_EXPORT DecoderBuffer
 #endif
   };
 
+  // ExternalMemory wraps a class owning a buffer and expose the data interface
+  // through |span|. This class is derived by a class that owns the class owning
+  // the buffer owner class. It is generally better to add the buffer class to
+  // DecoderBuffer. ExternalMemory is for a class that cannot be added; for
+  // instance, rtc::scoped_refptr<webrtc::EncodedImageBufferInterface>, webrtc
+  // class cannot be included in //media/base.
+  struct MEDIA_EXPORT ExternalMemory {
+   public:
+    explicit ExternalMemory(base::span<const uint8_t> span) : span_(span) {}
+    virtual ~ExternalMemory() = default;
+    const base::span<const uint8_t>& span() const { return span_; }
+
+   protected:
+    ExternalMemory() = default;
+    base::span<const uint8_t> span_;
+  };
 //#if defined(STARBOARD)
 //  class Allocator {
 //   public:
@@ -124,6 +141,12 @@ class MEDIA_EXPORT DecoderBuffer
       size_t size);
 #endif  // !defined(STARBOARD)
 
+  // Creates a DecoderBuffer with ExternalMemory. The buffer accessed through
+  // the created DecoderBuffer is |span| of |external_memory||.
+  // |external_memory| is owned by DecoderBuffer until it is destroyed.
+  static scoped_refptr<DecoderBuffer> FromExternalMemory(
+      std::unique_ptr<ExternalMemory> external_memory);
+
   // Create a DecoderBuffer indicating we've reached end of stream.
   //
   // Calling any method other than end_of_stream() on the resulting buffer
@@ -157,6 +180,8 @@ class MEDIA_EXPORT DecoderBuffer
 
 #if defined(STARBOARD)
 //    return data_;
+    if (external_memory_)
+      return external_memory_->span().data();
     return data_.get();
 #else  // defined(STARBOARD)
     if (shared_mem_mapping_ && shared_mem_mapping_->IsValid())
@@ -173,6 +198,7 @@ class MEDIA_EXPORT DecoderBuffer
 
 #if defined(STARBOARD)
 //    return data_;
+    DCHECK(!external_memory_);
     return data_.get();
 #else  // defined(STARBOARD)
     DCHECK(!shm_);
@@ -221,10 +247,10 @@ class MEDIA_EXPORT DecoderBuffer
 
   // If there's no data in this buffer, it represents end of stream.
 #if defined(STARBOARD)
-  bool end_of_stream() const { return !data_; }
+  bool end_of_stream() const { return  !external_memory_ && !data_; }
   void shrink_to(size_t size) { DCHECK_LE(size, size_); size_ = size; }
 #else  // defined(STARBOARD)
-  bool end_of_stream() const { return !shared_mem_mapping_ && !shm_ && !data_; }
+  bool end_of_stream() const { return !shared_mem_mapping_ && !shm_ &&  !external_memory_ && !data_; }
 #endif  // defined(STARBOARD)
 
   bool is_key_frame() const {
@@ -267,6 +293,8 @@ class MEDIA_EXPORT DecoderBuffer
                 size_t size);
 #endif  // !defined(STARBOARD)
 
+  explicit DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory);
+
   virtual ~DecoderBuffer();
 
 //#if defined(STARBOARD)
@@ -298,6 +326,8 @@ class MEDIA_EXPORT DecoderBuffer
   // Encoded data, if it is stored in SHM.
   std::unique_ptr<UnalignedSharedMemory> shm_;
 #endif  // !defined(STARBOARD)
+
+  std::unique_ptr<ExternalMemory> external_memory_;
 
   // Encryption parameters for the encoded data.
   std::unique_ptr<DecryptConfig> decrypt_config_;
