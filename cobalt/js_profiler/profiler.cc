@@ -27,19 +27,13 @@
 #include "cobalt/web/environment_settings_helper.h"
 #include "starboard/common/log.h"
 
-namespace {
-void OnGetArgument() {}
-}  // namespace
-
 namespace cobalt {
 namespace js_profiler {
 
 Profiler::Profiler(script::EnvironmentSettings* settings,
                    ProfilerInitOptions options,
                    script::ExceptionState* exception_state)
-    : ALLOW_THIS_IN_INITIALIZER_LIST(listeners_(this)),
-      stopped_(false),
-      time_origin_{base::TimeTicks::Now()} {
+    : stopped_(false), time_origin_{base::TimeTicks::Now()} {
   profiler_group_ = ProfilerGroup::From(settings);
   profiler_id_ = profiler_group_->NextProfilerId();
 
@@ -79,16 +73,22 @@ Profiler::Profiler(script::EnvironmentSettings* settings,
 }
 
 void Profiler::AddEventListener(
-    const std::string& name,
-    const Profiler::SampleBufferFullCallbackHolder& callback_holder) {
+    script::EnvironmentSettings* environment_settings, const std::string& name,
+    const Profiler::SampleBufferFullCallbackHolder& holder) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (name != base::Tokens::samplebufferfull()) {
     return;
   }
-  listeners_.AddListener(callback_holder);
+  auto* global_wrappable = web::get_global_wrappable(environment_settings);
+  SampleBufferFullCallbackReference* token_callback =
+      new SampleBufferFullCallbackReference(global_wrappable, holder);
+  listener_.reset(token_callback);
 }
 
 void Profiler::DispatchSampleBufferFullEvent() {
-  listeners_.DispatchEvent(base::Bind(OnGetArgument));
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  listener_->value().Run();
+  listener_.reset();
 }
 
 Profiler::ProfilerTracePromise Profiler::Stop(

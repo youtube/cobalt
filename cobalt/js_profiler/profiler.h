@@ -19,6 +19,7 @@
 #include <memory>
 #include <string>
 
+#include "base/threading/thread_checker.h"
 #include "cobalt/dom/performance_high_resolution_time.h"
 #include "cobalt/h5vcc/h5vcc_event_listener_container.h"
 #include "cobalt/js_profiler/profiler_group.h"
@@ -45,12 +46,16 @@ class Profiler : public script::Wrappable {
   typedef script::CallbackFunction<void()> SampleBufferFullCallback;
   typedef script::ScriptValue<SampleBufferFullCallback>
       SampleBufferFullCallbackHolder;
+  typedef SampleBufferFullCallbackHolder::Reference
+      SampleBufferFullCallbackReference;
 
   Profiler(script::EnvironmentSettings* settings, ProfilerInitOptions options,
            script::ExceptionState* exception_state);
-  ~Profiler() override = default;
+  //   ~Profiler() override = default;
+  ~Profiler() { SB_LOG(INFO) << "[PROFILER] DESTRUCT " + profiler_id_; }
 
-  void AddEventListener(const std::string& name,
+  void AddEventListener(script::EnvironmentSettings* environment_settings,
+                        const std::string& name,
                         const SampleBufferFullCallbackHolder& listener);
 
   void DispatchSampleBufferFullEvent();
@@ -78,8 +83,11 @@ class Profiler : public script::Wrappable {
   std::string profiler_id_;
   ProfilerGroup* profiler_group_;
   // All samplebufferfull listeners. Prevents GC on callbacks owned by this
-  // object, unlike inheriting from EventTarget.
-  h5vcc::H5vccEventListenerContainer<void, SampleBufferFullCallback> listeners_;
+  // object, by binding to global-wrappable.
+  std::unique_ptr<SampleBufferFullCallbackReference> listener_;
+
+  // Thread checker for the thread that creates this instance.
+  THREAD_CHECKER(thread_checker_);
 
   DISALLOW_COPY_AND_ASSIGN(Profiler);
 };

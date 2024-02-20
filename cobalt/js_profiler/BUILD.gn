@@ -28,7 +28,6 @@ static_library("js_profiler") {
     "//cobalt/browser:generated_bindings",
     "//cobalt/browser:generated_types",
     "//cobalt/dom",
-    "//cobalt/h5vcc:h5vcc_event_listener_container",
     "//cobalt/script",
     "//cobalt/script/v8c:engine",
     "//cobalt/web",

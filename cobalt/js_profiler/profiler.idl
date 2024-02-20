@@ -24,7 +24,7 @@ interface Profiler {
   readonly attribute DOMHighResTimeStamp sampleInterval;
   readonly attribute boolean stopped;
 
-  void addEventListener(DOMString token, SampleBufferFullCallback listener);
+  [CallWith=EnvironmentSettings] void addEventListener(DOMString token, SampleBufferFullCallback listener);
 
   [CallWith=EnvironmentSettings] Promise<ProfilerTraceWrapper> stop();
 };

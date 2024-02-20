@@ -35,6 +35,10 @@ class ProfilerTest : public dom::testing::TestWithJavaScript {
  public:
   ProfilerTest() {}
 
+  void CollectGarbage() {
+    window_.web_context()->javascript_engine()->CollectGarbage();
+  }
+
  protected:
   dom::testing::StubWindow window_;
   StrictMock<script::testing::MockExceptionState> exception_state_;

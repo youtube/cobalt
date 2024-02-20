@@ -40,6 +40,7 @@ static_library("h5vcc") {
     "h5vcc_crash_log.h",
     "h5vcc_deep_link_event_target.cc",
     "h5vcc_deep_link_event_target.h",
+    "h5vcc_event_listener_container.h",
     "h5vcc_metrics.cc",
     "h5vcc_metrics.h",
     "h5vcc_net_log.cc",
@@ -131,15 +132,6 @@ source_set("metric_event_handler_wrapper") {
   deps = [
     ":script_callback_wrapper",
     "//cobalt/browser:generated_types",
-    "//cobalt/script",
-  ]
-}
-
-static_library("h5vcc_event_listener_container") {
-  sources = [ "h5vcc_event_listener_container.h" ]
-
-  deps = [
-    "//cobalt/base",
     "//cobalt/script",
   ]
 }
