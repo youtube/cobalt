@@ -224,6 +224,7 @@ template("target_with_platform_configs") {
     if (!has_pedantic_warnings) {
       configs += [ "//starboard/build/config:no_pedantic_warnings" ]
     }
+    configs += [ "//starboard/build/config:hacky_wnos" ]
   }
 }
 
