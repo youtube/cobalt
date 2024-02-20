@@ -372,6 +372,7 @@ template("evergreen_loader") {
       "//starboard/elf_loader:elf_loader",
       "//starboard/elf_loader:evergreen_info",
       "//starboard/elf_loader:sabi_string",
+      "//starboard/loader_app:copy_crashpad_handler_named_as_so",
       "//starboard/loader_app:copy_loader_app_content",
     ]
 
@@ -385,7 +386,7 @@ template("evergreen_loader") {
         "copy_loader_app_lib${original_target_name}_bundle_content") {
       forward_variables_from(invoker, [ "testonly" ])
 
-      bundle_name = target_name
+      bundle_name = "${original_target_name}_evergreen_loader"
       bundle_deps = shared_data_deps
     }
   }
