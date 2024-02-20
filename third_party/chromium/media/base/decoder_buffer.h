@@ -34,6 +34,8 @@ class MEDIA_EXPORT DecoderBufferAllocator {
  public:
   virtual void* Allocate(size_t size, size_t alignment) = 0;
   virtual void Free(void* p, size_t size) = 0;
+  virtual int GetBufferAlignment() const = 0;
+  virtual int GetBufferPadding() const  = 0;
 };
 
 // A specialized buffer for interfacing with audio / video decoders.
@@ -69,35 +71,6 @@ class MEDIA_EXPORT DecoderBuffer
     ExternalMemory() = default;
     base::span<const uint8_t> span_;
   };
-//#if defined(STARBOARD)
-//  class Allocator {
-//   public:
-//    static Allocator* GetInstance();
-//
-//    // The function should never return nullptr.  It may terminate the app on
-//    // allocation failure.
-//    virtual void* Allocate(size_t size, size_t alignment) = 0;
-//    virtual void Free(void* p, size_t size) = 0;
-//
-//    virtual int GetAudioBufferBudget() const = 0;
-//    virtual int GetBufferAlignment() const = 0;
-//    virtual int GetBufferPadding() const = 0;
-//    virtual base::TimeDelta GetBufferGarbageCollectionDurationThreshold() const = 0;
-//    virtual int GetProgressiveBufferBudget(SbMediaVideoCodec codec,
-//                                           int resolution_width,
-//                                           int resolution_height,
-//                                           int bits_per_pixel) const = 0;
-//    virtual int GetVideoBufferBudget(SbMediaVideoCodec codec,
-//                                     int resolution_width,
-//                                     int resolution_height,
-//                                     int bits_per_pixel) const = 0;
-//
-//   protected:
-//    ~Allocator() {}
-//
-//    static void Set(Allocator* allocator);
-//  };
-//#endif  // defined(STARBOARD)
 
   // Allocates buffer with |size| >= 0. |is_key_frame_| will default to false.
   explicit DecoderBuffer(size_t size);
@@ -185,7 +158,6 @@ class MEDIA_EXPORT DecoderBuffer
     DCHECK(!end_of_stream());
 
 #if defined(STARBOARD)
-//    return data_;
     if (external_memory_)
       return external_memory_->span().data();
     return data_.get();
@@ -203,7 +175,6 @@ class MEDIA_EXPORT DecoderBuffer
     DCHECK(!end_of_stream());
 
 #if defined(STARBOARD)
-//    return data_;
     DCHECK(!external_memory_);
     return data_.get();
 #else  // defined(STARBOARD)
@@ -303,14 +274,8 @@ class MEDIA_EXPORT DecoderBuffer
 
   virtual ~DecoderBuffer();
 
-//#if defined(STARBOARD)
-//  // Encoded data, allocated from DecoderBuffer::Allocator.
-//  uint8_t* data_ = nullptr;
-//  size_t allocated_size_ = 0;
-//#else  // defined(STARBOARD)
   // Encoded data, if it is stored on the heap.
   std::unique_ptr<uint8_t[]> data_;
-//#endif  // defined(STARBOARD)
 
  private:
   // Presentation time of the frame.

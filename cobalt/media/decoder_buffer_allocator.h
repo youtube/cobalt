@@ -31,7 +31,7 @@
 namespace cobalt {
 namespace media {
 
-class DecoderBufferAllocator : public ::media::DecoderBuffer::Allocator,
+class DecoderBufferAllocator : public ::media::DecoderBufferAllocator,
                                public DecoderBufferMemoryInfo {
  public:
   DecoderBufferAllocator();
@@ -44,16 +44,16 @@ class DecoderBufferAllocator : public ::media::DecoderBuffer::Allocator,
   void* Allocate(size_t size, size_t alignment) override;
   void Free(void* p, size_t size) override;
 
-  int GetAudioBufferBudget() const override;
   int GetBufferAlignment() const override;
   int GetBufferPadding() const override;
-  base::TimeDelta GetBufferGarbageCollectionDurationThreshold() const override;
+
+  int GetAudioBufferBudget() const;
+  base::TimeDelta GetBufferGarbageCollectionDurationThreshold() const;
   int GetProgressiveBufferBudget(SbMediaVideoCodec codec, int resolution_width,
                                  int resolution_height,
-                                 int bits_per_pixel) const override;
+                                 int bits_per_pixel) const;
   int GetVideoBufferBudget(SbMediaVideoCodec codec, int resolution_width,
-                           int resolution_height,
-                           int bits_per_pixel) const override;
+                           int resolution_height, int bits_per_pixel) const;
 
   // DecoderBufferMemoryInfo methods.
   size_t GetAllocatedMemory() const override;

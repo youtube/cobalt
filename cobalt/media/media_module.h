@@ -28,7 +28,7 @@
 #include "cobalt/math/size.h"
 #include "cobalt/media/base/sbplayer_interface.h"
 #include "cobalt/media/can_play_type_handler.h"
-// #include "cobalt/media/decoder_buffer_allocator.h"
+#include "cobalt/media/decoder_buffer_allocator.h"
 #include "cobalt/media/player/web_media_player_delegate.h"
 #include "cobalt/media/player/web_media_player_impl.h"
 #include "cobalt/media/web_media_player_factory.h"
@@ -70,9 +70,9 @@ class MediaModule : public WebMediaPlayerFactory,
   // invalid or not set to the expected value.
   bool SetConfiguration(const std::string& name, int32 value);
 
-  // const DecoderBufferAllocator* GetDecoderBufferAllocator() const {
-  //   return &decoder_buffer_allocator_;
-  // }
+  const DecoderBufferAllocator* GetDecoderBufferAllocator() const {
+    return &decoder_buffer_allocator_;
+  }
 
   // WebMediaPlayerFactory methods
   std::unique_ptr<WebMediaPlayer> CreateWebMediaPlayer(
@@ -145,7 +145,7 @@ class MediaModule : public WebMediaPlayerFactory,
   base::TimeDelta demuxer_underflow_threshold_ =
       base::TimeDelta::FromMicroseconds(kDefaultDemuxerUnderflowThreshold);
 
-  // DecoderBufferAllocator decoder_buffer_allocator_;
+  DecoderBufferAllocator decoder_buffer_allocator_;
 };
 
 }  // namespace media

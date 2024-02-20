@@ -5,12 +5,9 @@
 #include "media/base/stream_parser_buffer_pool.h"
 
 #include "base/containers/circular_deque.h"
-// #include "base/functional/bind.h"
 #include "base/logging.h"
-// #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
-// #include "base/thread_annotations.h"
 #include "base/time/default_tick_clock.h"
 #include "base/time/time.h"
 
@@ -97,7 +94,6 @@ scoped_refptr<StreamParserBuffer> StreamParserBufferPool::PoolImpl::CopyFrom(con
   base::AutoLock auto_lock(lock_);
   DCHECK(!is_shutdown_);
 
-  LOG(INFO) << "YO THOR - STREAM PARSER BUFFER POOL IMPL COPY FROM - 5";
   if (alloc_) {
    auto data = static_cast<uint8_t*>(alloc_->Allocate(1024 * 1024, 32));
    auto external_memory = std::make_unique<StreamParserBuffer::ExternalMemory>(
@@ -122,7 +118,6 @@ scoped_refptr<StreamParserBuffer> StreamParserBufferPool::PoolImpl::CopyFrom(con
   base::AutoLock auto_lock(lock_);
   DCHECK(!is_shutdown_);
 
-  LOG(INFO) << "YO THOR - STREAM PARSER BUFFER POOL IMPL COPY FROM - 7";
   if (alloc_) {
    auto data = static_cast<uint8_t*>(alloc_->Allocate(1024 * 1024, 32));
    auto external_memory = std::make_unique<StreamParserBuffer::ExternalMemory>(

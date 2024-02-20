@@ -13,38 +13,6 @@
 
 namespace media {
 
-//#if defined(STARBOARD)
-//
-//namespace {
-//DecoderBuffer::Allocator* s_allocator = nullptr;
-//void PrintProcessMemoryInfo() {
-//    std::ifstream procFile("/proc/self/status");
-//    std::string line;
-//
-//    while (std::getline(procFile, line)) {
-//        if (line.find("VmRSS:") == 0) {
-//            // VmRSS represents Resident Set Size
-//            //std::cout << line << std::endl;
-//            LOG(INFO) << "YO THOR VMRRRRSSSSS " << line << std::endl;
-//            break;
-//        }
-//    }
-//}
-//
-//}  // namespace
-//
-//// static
-//DecoderBuffer::Allocator* DecoderBuffer::Allocator::GetInstance() {
-//  DCHECK(s_allocator);
-//  return s_allocator;
-//}
-//
-//// static
-//void DecoderBuffer::Allocator::Set(Allocator* allocator) {
-//  s_allocator = allocator;
-//}
-//#endif  // defined(STARBOARD)
-
 DecoderBuffer::DecoderBuffer(size_t size)
     : size_(size), side_data_size_(0), is_key_frame_(false) {
   Initialize();
@@ -55,7 +23,6 @@ DecoderBuffer::DecoderBuffer(const uint8_t* data,
                              const uint8_t* side_data,
                              size_t side_data_size)
     : size_(size), side_data_size_(side_data_size), is_key_frame_(false) {
-  //PrintProcessMemoryInfo();
   if (!data) {
     CHECK_EQ(size_, 0u);
     CHECK(!side_data);
@@ -64,11 +31,7 @@ DecoderBuffer::DecoderBuffer(const uint8_t* data,
 
   Initialize();
 
-//#if defined(STARBOARD)
-//  memcpy(data_, data, size_);
-//#else  // defined(STARBOARD)
   memcpy(data_.get(), data, size_);
-//#endif  // defined(STARBOARD)
 
   if (!side_data) {
     CHECK_EQ(side_data_size, 0u);
@@ -109,29 +72,12 @@ DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
       external_memory_(std::move(external_memory)) {}
 
 DecoderBuffer::~DecoderBuffer() {
-//#if defined(STARBOARD)
-//  DCHECK(s_allocator);
-//  s_allocator->Free(data_, allocated_size_);
-//#else  // defined(STARBOARD)
   data_.reset();
-//#endif  // defined(STARBOARD)
   side_data_.reset();
 }
 
 void DecoderBuffer::Initialize() {
-//#if defined(STARBOARD)
-//  DCHECK(s_allocator);
-//  DCHECK(!data_);
-//
-//  int alignment = s_allocator->GetBufferAlignment();
-//  int padding = s_allocator->GetBufferPadding();
-//  allocated_size_ = size_ + padding;
-//  data_ = static_cast<uint8_t*>(s_allocator->Allocate(allocated_size_,
-//                                                      alignment));
-//  memset(data_ + size_, 0, padding);
-//#else  // defined(STARBOARD)
   data_.reset(new uint8_t[size_]);
-//#endif  // defined(STARBOARD)
   if (side_data_size_ > 0)
     side_data_.reset(new uint8_t[side_data_size_]);
 }

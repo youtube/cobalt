@@ -15,7 +15,7 @@
 #ifndef COBALT_DOM_MEMORY_INFO_H_
 #define COBALT_DOM_MEMORY_INFO_H_
 
-// #include "cobalt/media/decoder_buffer_allocator.h"
+#include "cobalt/media/decoder_buffer_allocator.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/wrappable.h"
 

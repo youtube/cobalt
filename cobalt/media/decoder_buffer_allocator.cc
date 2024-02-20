@@ -48,24 +48,23 @@ DecoderBufferAllocator::DecoderBufferAllocator()
       allocation_unit_(SbMediaGetBufferAllocationUnit()) {
   if (!using_memory_pool_) {
     DLOG(INFO) << "Allocated media buffer memory using malloc* functions.";
-    Allocator::Set(this);
+    // Allocator::Set(this);
     return;
   }
 
   if (is_memory_pool_allocated_on_demand_) {
     DLOG(INFO) << "Allocated media buffer pool on demand.";
-    Allocator::Set(this);
+    // Allocator::Set(this);
     return;
   }
 
   ScopedLock scoped_lock(mutex_);
   EnsureReuseAllocatorIsCreated();
-  Allocator::Set(this);
+  // Allocator::Set(this);
 }
 
 DecoderBufferAllocator::~DecoderBufferAllocator() {
-  LOG(INFO) << "YO THOR - DECODER BUFFER ALLOCATOR DTOR";
-  Allocator::Set(nullptr);
+  // Allocator::Set(nullptr);
 
   if (!using_memory_pool_) {
     return;
@@ -118,9 +117,8 @@ void* DecoderBufferAllocator::Allocate(size_t size, size_t alignment) {
   void* p = reuse_allocator_->Allocate(size, alignment);
   CHECK(p);
 
-  // reuse_allocator_->PrintAllocations();
-  LOG_IF(INFO, kEnableAllocationLog) << "Media Allocation :: ALLOCATE Log " << p
-                                     << " " << size << " " << alignment << " ";
+  LOG_IF(INFO, kEnableAllocationLog)
+      << "Media Allocation Log " << p << " " << size << " " << alignment << " ";
   return p;
 }
 

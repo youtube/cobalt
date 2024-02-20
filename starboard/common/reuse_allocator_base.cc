@@ -200,12 +200,12 @@ void ReuseAllocatorBase::PrintAllocations() const {
        iter != sizes_histogram.end(); ++iter) {
     if (lines == kMaxAllocationLinesToPrint - 1 &&
         sizes_histogram.size() > kMaxAllocationLinesToPrint) {
-      SB_LOG(INFO) << "\t FREEEEEEEE" << iter->first << ".."
+      SB_LOG(INFO) << "\t" << iter->first << ".."
                    << sizes_histogram.rbegin()->first << " : "
                    << allocated_blocks_.size() - accumulated_blocks;
       break;
     }
-    SB_LOG(INFO) << "\t FRRREEE: " << iter->first << " : " << iter->second;
+    SB_LOG(INFO) << "\t" << iter->first << " : " << iter->second;
     ++lines;
     accumulated_blocks += iter->second;
   }
