@@ -9,9 +9,9 @@ since the version previous to it.
 
 ## Version 16
 
-### Added standard POSIX socket/close APIs.
-The standard API socket can be used from <sys/socket.h> and
-close can be called to close the socket by including <unistd.h>.
+### Added standard POSIX socket/close/setsockopt APIs.
+The standard API `socket`, `setsockopt` can be used from <sys/socket.h> and
+`close` can be called to close the socket by including <unistd.h>.
 
 ### Changed InstallCrashpadHandler API
 This API doesn't support the option to start the crashpad handler at the

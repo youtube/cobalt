@@ -98,3 +98,21 @@ extern "C" int close(int fd) {
   // This is then a file handle, so use Windows `_close` API.
   return _close(fd);
 }
+
+extern "C" int sb_setsockopt(int socket,
+                             int level,
+                             int option_name,
+                             const void* option_value,
+                             int option_len) {
+  int result =
+      setsockopt(socket, level, option_name,
+                 reinterpret_cast<const char*>(option_value), option_len);
+  // TODO(b/321999529): Windows returns SOCKET_ERROR on failure. The specific
+  // error code can be retrieved by calling WSAGetLastError(), and Posix returns
+  // -1 on failure and sets errno to the error’s value.
+  if (result == SOCKET_ERROR) {
+    return -1;
+  } else {
+    return 0;
+  }
+}
