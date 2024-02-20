@@ -86,9 +86,7 @@ void ProfilerGroup::DispatchSampleBufferFullEvent(std::string profiler_id) {
   auto profiler = GetProfiler(profiler_id);
 
   if (profiler) {
-    SB_LOG(INFO) << "[PROFILER] DISPATCHING FULL " + profiler->ProfilerId();
     profiler->DispatchSampleBufferFullEvent();
-    SB_LOG(INFO) << "[PROFILER] DISPATCHED FULL " + profiler->ProfilerId();
   }
 }
 

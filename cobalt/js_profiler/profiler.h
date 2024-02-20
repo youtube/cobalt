@@ -51,8 +51,7 @@ class Profiler : public script::Wrappable {
 
   Profiler(script::EnvironmentSettings* settings, ProfilerInitOptions options,
            script::ExceptionState* exception_state);
-  //   ~Profiler() override = default;
-  ~Profiler() { SB_LOG(INFO) << "[PROFILER] DESTRUCT " + profiler_id_; }
+  ~Profiler() override = default;
 
   void AddEventListener(script::EnvironmentSettings* environment_settings,
                         const std::string& name,
