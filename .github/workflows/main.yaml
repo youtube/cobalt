@@ -63,6 +63,7 @@ jobs:
       GITHUB_EVENT_NUMBER: ${{ github.event.number }}
     if: |
       github.event.action != 'labeled' ||
+      github.event.pull_request.merged == false &&
       (
         github.event.action == 'labeled' &&
         github.event.label.name == 'runtest' ||
