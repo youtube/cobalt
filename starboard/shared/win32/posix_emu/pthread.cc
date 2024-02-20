@@ -15,6 +15,8 @@
 #include <errno.h>
 #include <pthread.h>
 
+extern "C" {
+
 int pthread_mutex_destroy(pthread_mutex_t* mutex) {
   return 0;
 }
@@ -51,3 +53,5 @@ int pthread_mutex_trylock(pthread_mutex_t* mutex) {
   bool result = TryAcquireSRWLockExclusive(mutex);
   return result ? 0 : EBUSY;
 }
+
+}  // extern "C"

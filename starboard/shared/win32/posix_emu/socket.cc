@@ -21,7 +21,7 @@
 #include "starboard/common/log.h"
 #include "starboard/types.h"
 
-int gen_fd() {
+static int gen_fd() {
   static int fd = 100;
   fd++;
   if (fd == 0x7FFFFFFF) {
@@ -38,7 +38,7 @@ struct CriticalSection {
 static std::map<int, SOCKET>* g_map_addr = nullptr;
 static CriticalSection g_critical_section;
 
-int handle_db_put(SOCKET socket_handle) {
+static int handle_db_put(SOCKET socket_handle) {
   EnterCriticalSection(&g_critical_section.critical_section_);
   if (g_map_addr == nullptr) {
     g_map_addr = new std::map<int, SOCKET>();
@@ -56,7 +56,7 @@ int handle_db_put(SOCKET socket_handle) {
   return fd;
 }
 
-SOCKET handle_db_get(int fd, bool erase) {
+static SOCKET handle_db_get(int fd, bool erase) {
   EnterCriticalSection(&g_critical_section.critical_section_);
   if (g_map_addr == nullptr) {
     g_map_addr = new std::map<int, SOCKET>();
@@ -76,7 +76,13 @@ SOCKET handle_db_get(int fd, bool erase) {
   return socket_handle;
 }
 
-extern "C" int sb_socket(int domain, int type, int protocol) {
+///////////////////////////////////////////////////////////////////////////////
+// Implementations below exposed externally in pure C for emulation.
+///////////////////////////////////////////////////////////////////////////////
+
+extern "C" {
+
+int sb_socket(int domain, int type, int protocol) {
   // Sockets on Windows do not use *nix-style file descriptors
   // socket() returns a handle to a kernel object instead
   SOCKET socket_handle = socket(domain, type, protocol);
@@ -88,7 +94,7 @@ extern "C" int sb_socket(int domain, int type, int protocol) {
   return handle_db_put(socket_handle);
 }
 
-extern "C" int close(int fd) {
+int close(int fd) {
   SOCKET socket_handle = handle_db_get(fd, true);
 
   if (socket_handle != INVALID_SOCKET) {
@@ -98,3 +104,5 @@ extern "C" int close(int fd) {
   // This is then a file handle, so use Windows `_close` API.
   return _close(fd);
 }
+
+}  // extern "C"

@@ -12,17 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <string.h>  // For _stricmp, _strnicmp
-#include <strings.h>
+#ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_STDLIB_H_
+#define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_STDLIB_H_
 
+#include <../ucrt/stdlib.h>  // The Visual Studio version of this same file
+
+#ifdef __cplusplus
 extern "C" {
+#endif
 
-int strcasecmp(const char* s1, const char* s2) {
-  return _stricmp(s1, s2);
+// https://pubs.opengroup.org/onlinepubs/9699919799/functions/posix_memalign.html
+int posix_memalign(void** res, size_t alignment, size_t size);
+
+// https://pubs.opengroup.org/onlinepubs/9699919799/functions/free.html
+void sb_free(void* ptr);
+#undef free
+#define free sb_free
+
+#ifdef __cplusplus
 }
+#endif  // __cplusplus
 
-int strncasecmp(const char* s1, const char* s2, size_t n) {
-  return _strnicmp(s1, s2, n);
-}
-
-}  // extern "C"
+#endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_STDLIB_H_

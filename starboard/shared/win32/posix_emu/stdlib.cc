@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#undef free
+#include <stdlib.h>
 
 #include <errno.h>
-#include <malloc.h>
+
+// Undef alias to `free` and pull in the system-level header so we can use it
+#undef free
+#include <../ucrt/malloc.h>
 
 // clang-format off
 // The windows.h must be included before the synchapi.h
@@ -69,7 +72,13 @@ static void* take_aligned_pointer(void* p) {
   return take_or_store(true /* take */, p);
 }
 
-extern "C" int posix_memalign(void** res, size_t alignment, size_t size) {
+///////////////////////////////////////////////////////////////////////////////
+// Implementations below exposed externally in pure C for emulation.
+///////////////////////////////////////////////////////////////////////////////
+
+extern "C" {
+
+int posix_memalign(void** res, size_t alignment, size_t size) {
   *res = _aligned_malloc(size, alignment);
   store_aligned_pointer(*res);
   if (*res != nullptr) {
@@ -78,7 +87,7 @@ extern "C" int posix_memalign(void** res, size_t alignment, size_t size) {
   return ENOMEM;
 }
 
-extern "C" void sb_free(void* p) {
+void sb_free(void* p) {
   if (!p) {
     return;
   }
@@ -86,6 +95,8 @@ extern "C" void sb_free(void* p) {
   if (res == p) {
     _aligned_free(p);
   } else {
-    free(p);
+    free(p);  // This is using the system-level implementation.
   }
 }
+
+}  // extern "C"

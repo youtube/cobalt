@@ -1,4 +1,4 @@
-// Copyright 2023 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,23 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_POSIX_FORCE_INCLUDE_H_
-#define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_POSIX_FORCE_INCLUDE_H_
+#ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_MALLOC_H_
+#define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_MALLOC_H_
 
-#if defined(STARBOARD)
-
-#define free sb_free
+#include <../ucrt/malloc.h>  // The Visual Studio version of this same file
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-int posix_memalign(void** res, size_t alignment, size_t size);
+// https://pubs.opengroup.org/onlinepubs/9699919799/functions/free.html
+// NOTE: Also declared in stdlib.h and implementation in stdlib.cc.
+void sb_free(void* ptr);
+#undef free
+#define free sb_free
 
 #ifdef __cplusplus
 }
 #endif  // __cplusplus
 
-#endif  // defined(STARBOARD)
-
-#endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_POSIX_FORCE_INCLUDE_H_
+#endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_MALLOC_H_
