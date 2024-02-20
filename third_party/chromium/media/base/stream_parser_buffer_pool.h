@@ -41,14 +41,7 @@ class MEDIA_EXPORT StreamParserBufferPool {
                                              Type type,
                                              TrackId track_id);
 
- protected:
-  friend class StreamParserBufferPoolTest;
-
-  // Returns the number of frames in the pool for testing purposes.
-  size_t GetPoolSizeForTesting() const;
-
-  // Allows injection of a base::SimpleTestClock for testing.
-  void SetTickClockForTesting(const base::TickClock* tick_clock);
+  void SetAllocator(DecoderBufferAllocator* alloc);
 
  private:
   class PoolImpl;

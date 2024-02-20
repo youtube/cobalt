@@ -37,6 +37,10 @@ class StreamParserBufferPool::PoolImpl
                                                Type type,
                                                TrackId track_id);
 
+  void SetAllocator(DecoderBufferAllocator* alloc) {
+    alloc_ = alloc;
+  }
+
   // Shuts down the buffer pool and releases all buffers in |buffers_|.
   // Once this is called buffers will no longer be inserted back into
   // |buffers_|.
@@ -72,6 +76,8 @@ class StreamParserBufferPool::PoolImpl
 
   base::circular_deque<BufferEntry> buffers_ GUARDED_BY(lock_);
 
+  DecoderBufferAllocator *alloc_ {nullptr};
+
   // |tick_clock_| is always a DefaultTickClock outside of testing.
   //raw_ptr<const base::TickClock> tick_clock_;
 };
@@ -92,23 +98,17 @@ scoped_refptr<StreamParserBuffer> StreamParserBufferPool::PoolImpl::CopyFrom(con
   DCHECK(!is_shutdown_);
 
   LOG(INFO) << "YO THOR - STREAM PARSER BUFFER POOL IMPL COPY FROM - 5";
-  // // get memory from allocator
-  //  int alignment = s_allocator->GetBufferAlignment();
-  // int padding = s_allocator->GetBufferPadding();
-  // allocated_size_ = size + padding;
-  // data_ = static_cast<uint8_t*>(s_allocator->Allocate(allocated_size_,
-  //                                                     alignment));
-  // // use for creating StreamParser ExternalMemory
-  //  constexpr uint8_t kData[] = "hello";
-  // constexpr size_t kDataSize = std::size(kData);
-  // auto external_memory = std::make_unique<StreamParser::ExternalMemory>(
-  //     base::make_span(kData, kDataSize));
-  // auto buffer = StreamParser::FromExternalMemory(std::move(external_memory));
-
-  return StreamParserBuffer::CopyFrom(data, data_size,
-                                               is_key_frame,
-                                               type,
-                                               track_id);
+  if (alloc_) {
+   auto data = static_cast<uint8_t*>(alloc_->Allocate(1024 * 1024, 32));
+   auto external_memory = std::make_unique<StreamParserBuffer::ExternalMemory>(
+       base::make_span(data, 1024 * 1024));
+   return StreamParserBuffer::FromExternalMemory(std::move(external_memory), is_key_frame, type, track_id);
+  } else {
+    return StreamParserBuffer::CopyFrom(data, data_size,
+                                                 is_key_frame,
+                                                 type,
+                                                 track_id);
+  }
 
 }
 
@@ -123,24 +123,18 @@ scoped_refptr<StreamParserBuffer> StreamParserBufferPool::PoolImpl::CopyFrom(con
   DCHECK(!is_shutdown_);
 
   LOG(INFO) << "YO THOR - STREAM PARSER BUFFER POOL IMPL COPY FROM - 7";
-  // // get memory from allocator
-  //  int alignment = s_allocator->GetBufferAlignment();
-  // int padding = s_allocator->GetBufferPadding();
-  // allocated_size_ = size + padding;
-  // data_ = static_cast<uint8_t*>(s_allocator->Allocate(allocated_size_,
-  //                                                     alignment));
-  // // use for creating StreamParser ExternalMemory
-  //  constexpr uint8_t kData[] = "hello";
-  // constexpr size_t kDataSize = std::size(kData);
-  // auto external_memory = std::make_unique<StreamParser::ExternalMemory>(
-  //     base::make_span(kData, kDataSize));
-  // auto buffer = StreamParser::FromExternalMemory(std::move(external_memory));
-
-  return StreamParserBuffer::CopyFrom(data, data_size,
-                                       side_data, side_data_size,
-                                               is_key_frame,
-                                               type,
-                                               track_id);
+  if (alloc_) {
+   auto data = static_cast<uint8_t*>(alloc_->Allocate(1024 * 1024, 32));
+   auto external_memory = std::make_unique<StreamParserBuffer::ExternalMemory>(
+       base::make_span(data, 1024 * 1024));
+   return StreamParserBuffer::FromExternalMemory(std::move(external_memory), is_key_frame, type, track_id);
+  } else {
+    return StreamParserBuffer::CopyFrom(data, data_size,
+                                         side_data, side_data_size,
+                                                 is_key_frame,
+                                                 type,
+                                                 track_id);
+  }
 
 }
 
@@ -156,6 +150,10 @@ StreamParserBufferPool::~StreamParserBufferPool() {
   pool_->Shutdown();
 }
 
+void StreamParserBufferPool::SetAllocator(DecoderBufferAllocator* alloc) {
+  pool_->SetAllocator(alloc);
+}
+
 scoped_refptr<StreamParserBuffer> StreamParserBufferPool::CopyFrom(const uint8_t* data,
                                                size_t data_size,
                                                bool is_key_frame,
@@ -163,14 +161,6 @@ scoped_refptr<StreamParserBuffer> StreamParserBufferPool::CopyFrom(const uint8_t
                                                TrackId track_id) {
   return pool_->CopyFrom(data, data_size, is_key_frame, type, track_id);
 }
-//  scoped_refptr<StreamParserBuffer> CopyFrom(const uint8_t* data,
-//                                             int data_size,
-//                                             const uint8_t* side_data,
-//                                             int side_data_size,
-//                                             bool is_key_frame,
-//                                             Type type,
-//                                             TrackId track_id);
-
 scoped_refptr<StreamParserBuffer> StreamParserBufferPool::CopyFrom(const uint8_t* data,
                                                size_t data_size,
                                                const uint8_t* side_data,
@@ -180,12 +170,5 @@ scoped_refptr<StreamParserBuffer> StreamParserBufferPool::CopyFrom(const uint8_t
                                                TrackId track_id) {
   return pool_->CopyFrom(data, data_size, side_data, side_data_size, is_key_frame, type, track_id);
 }
-size_t StreamParserBufferPool::GetPoolSizeForTesting() const {
-  return pool_->get_pool_size_for_testing();
-}
-
-//  void StreamParserBufferPool::SetTickClockForTesting(const base::TickClock* tick_clock) {
-//    pool_->set_tick_clock_for_testing(tick_clock);
-//  }
 
 }  // namespace media

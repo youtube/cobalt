@@ -26,6 +26,10 @@ class DecoderBufferPool::PoolImpl
   scoped_refptr<DecoderBuffer> CopyFrom(const uint8_t* data,
                                                size_t size);
 
+  void SetAllocator(DecoderBufferAllocator* alloc) {
+    alloc_ = alloc;
+  }
+
   // Shuts down the buffer pool and releases all buffers in |buffers_|.
   // Once this is called buffers will no longer be inserted back into
   // |buffers_|.
@@ -61,9 +65,9 @@ class DecoderBufferPool::PoolImpl
 
   base::circular_deque<BufferEntry> buffers_ GUARDED_BY(lock_);
 
-  // |tick_clock_| is always a DefaultTickClock outside of testing.
-  //raw_ptr<const base::TickClock> tick_clock_;
+  DecoderBufferAllocator *alloc_ {nullptr};
 };
+
 
 DecoderBufferPool::PoolImpl::PoolImpl() {}
 //    : tick_clock_(base::DefaultTickClock::GetInstance()) {}
@@ -77,20 +81,14 @@ scoped_refptr<DecoderBuffer> DecoderBufferPool::PoolImpl::CopyFrom(const uint8_t
   base::AutoLock auto_lock(lock_);
   DCHECK(!is_shutdown_);
 
-  // // get memory from allocator
-  //  int alignment = s_allocator->GetBufferAlignment();
-  // int padding = s_allocator->GetBufferPadding();
-  // allocated_size_ = size + padding;
-  // data_ = static_cast<uint8_t*>(s_allocator->Allocate(allocated_size_,
-  //                                                     alignment));
-  // // use for creating DecoderBuffer ExternalMemory
-  //  constexpr uint8_t kData[] = "hello";
-  // constexpr size_t kDataSize = std::size(kData);
-  // auto external_memory = std::make_unique<DecoderBuffer::ExternalMemory>(
-  //     base::make_span(kData, kDataSize));
-  // auto buffer = DecoderBuffer::FromExternalMemory(std::move(external_memory));
-
-  return DecoderBuffer::CopyFrom(data, size);
+  if (alloc_)  {
+    auto data = static_cast<uint8_t*>(alloc_->Allocate(1024 * 1024, 32));
+    auto external_memory = std::make_unique<DecoderBuffer::ExternalMemory>(
+        base::make_span(data, 1024 * 1024));
+    return DecoderBuffer::FromExternalMemory(std::move(external_memory));
+  } else {
+    return DecoderBuffer::CopyFrom(data, size);
+  }
 
 }
 
@@ -106,17 +104,13 @@ DecoderBufferPool::~DecoderBufferPool() {
   pool_->Shutdown();
 }
 
+void DecoderBufferPool::SetAllocator(DecoderBufferAllocator* alloc) {
+  pool_->SetAllocator(alloc);
+}
+
 scoped_refptr<DecoderBuffer> DecoderBufferPool::CopyFrom(const uint8_t* data,
                                                size_t size) {
   return pool_->CopyFrom(data, size);
 }
-
-size_t DecoderBufferPool::GetPoolSizeForTesting() const {
-  return pool_->get_pool_size_for_testing();
-}
-
-//  void DecoderBufferPool::SetTickClockForTesting(const base::TickClock* tick_clock) {
-//    pool_->set_tick_clock_for_testing(tick_clock);
-//  }
 
 }  // namespace media
