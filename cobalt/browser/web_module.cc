@@ -25,6 +25,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop/message_loop.h"
 #include "base/optional.h"
+#include "base/stl_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread_checker.h"
@@ -1334,8 +1335,8 @@ void WebModule::Run(
     for (Options::InjectedGlobalObjectAttributes::const_iterator iter =
              options.injected_global_object_attributes.begin();
          iter != options.injected_global_object_attributes.end(); ++iter) {
-      DCHECK(!ContainsKey(web_options.injected_global_object_attributes,
-                          iter->first));
+      DCHECK(!base::ContainsKey(web_options.injected_global_object_attributes,
+                                iter->first));
       // Trampoline to the given callback, adding a pointer to this WebModule.
       web_options.injected_global_object_attributes[iter->first] =
           base::Bind(iter->second, base::Unretained(this));

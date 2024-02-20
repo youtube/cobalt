@@ -21,7 +21,9 @@
 
 #include "base/logging.h"
 #include "base/message_loop/message_loop_current.h"
+#include "base/strings/stringprintf.h"
 #include "base/threading/thread.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/loader/net_fetcher.h"
 #include "cobalt/loader/origin.h"
