@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "base/message_loop/message_loop.h"
 #include "cobalt/js_profiler/profiler.h"
 #include "cobalt/js_profiler/profiler_trace.h"
 #include "cobalt/script/global_environment.h"

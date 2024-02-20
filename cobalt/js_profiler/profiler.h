@@ -21,7 +21,6 @@
 
 #include "base/threading/thread_checker.h"
 #include "cobalt/dom/performance_high_resolution_time.h"
-#include "cobalt/h5vcc/h5vcc_event_listener_container.h"
 #include "cobalt/js_profiler/profiler_group.h"
 #include "cobalt/js_profiler/profiler_init_options.h"
 #include "cobalt/js_profiler/profiler_trace.h"

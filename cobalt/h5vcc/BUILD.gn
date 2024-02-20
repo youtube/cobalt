@@ -65,7 +65,6 @@ static_library("h5vcc") {
   configs += [ ":h5vcc_internal_config" ]
   public_configs = [ ":h5vcc_external_config" ]
   deps = [
-    ":h5vcc_event_listener_container",
     ":metric_event_handler_wrapper",
     ":script_callback_wrapper",
     "//cobalt/base",
