@@ -76,8 +76,7 @@ const char* GetDecoderName(SbMediaType media_type) {
 
 MediaDecoder::MediaDecoder(Host* host,
                            const AudioStreamInfo& audio_stream_info,
-                           SbDrmSystem drm_system,
-                           bool use_mediacodec_callback_thread)
+                           SbDrmSystem drm_system)
     : media_type_(kSbMediaTypeAudio),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
@@ -88,7 +87,7 @@ MediaDecoder::MediaDecoder(Host* host,
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
   media_codec_bridge_ = MediaCodecBridge::CreateAudioMediaCodecBridge(
-      audio_stream_info, this, j_media_crypto, use_mediacodec_callback_thread);
+      audio_stream_info, this, j_media_crypto);
   if (!media_codec_bridge_) {
     SB_LOG(ERROR) << "Failed to create audio media codec bridge.";
     return;
@@ -119,7 +118,6 @@ MediaDecoder::MediaDecoder(Host* host,
                            const FrameRenderedCB& frame_rendered_cb,
                            int tunnel_mode_audio_session_id,
                            bool force_big_endian_hdr_metadata,
-                           bool use_mediacodec_callback_thread,
                            int max_video_input_size,
                            std::string* error_message)
     : media_type_(kSbMediaTypeVideo),
@@ -138,8 +136,7 @@ MediaDecoder::MediaDecoder(Host* host,
       video_codec, width_hint, height_hint, fps, max_width, max_height, this,
       j_output_surface, j_media_crypto, color_metadata, require_secured_decoder,
       require_software_codec, tunnel_mode_audio_session_id,
-      force_big_endian_hdr_metadata, use_mediacodec_callback_thread,
-      max_video_input_size, error_message);
+      force_big_endian_hdr_metadata, max_video_input_size, error_message);
   if (!media_codec_bridge_) {
     SB_LOG(ERROR) << "Failed to create video media codec bridge with error: "
                   << *error_message;

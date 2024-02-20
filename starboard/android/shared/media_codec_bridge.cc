@@ -158,8 +158,7 @@ Java_dev_cobalt_media_MediaCodecBridge_nativeOnMediaCodecOutputFormatChanged(
 scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
     const AudioStreamInfo& audio_stream_info,
     Handler* handler,
-    jobject j_media_crypto,
-    bool use_callback_thread) {
+    jobject j_media_crypto) {
   bool is_passthrough = false;
   const char* mime =
       SupportedAudioCodecToMimeType(audio_stream_info.codec, &is_passthrough);
@@ -194,11 +193,11 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
       new MediaCodecBridge(handler));
   jobject j_media_codec_bridge = env->CallStaticObjectMethodOrAbort(
       "dev/cobalt/media/MediaCodecBridge", "createAudioMediaCodecBridge",
-      "(JLjava/lang/String;Ljava/lang/String;IILandroid/media/MediaCrypto;Z"
+      "(JLjava/lang/String;Ljava/lang/String;IILandroid/media/MediaCrypto;"
       "[B)Ldev/cobalt/media/MediaCodecBridge;",
       reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime.Get(),
       j_decoder_name.Get(), audio_stream_info.samples_per_second,
-      audio_stream_info.number_of_channels, j_media_crypto, use_callback_thread,
+      audio_stream_info.number_of_channels, j_media_crypto,
       configuration_data.Get());
 
   if (!j_media_codec_bridge) {
@@ -228,7 +227,6 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     bool require_software_codec,
     int tunnel_mode_audio_session_id,
     bool force_big_endian_hdr_metadata,
-    bool use_callback_thread,
     int max_video_input_size,
     std::string* error_message) {
   SB_DCHECK(error_message);
@@ -319,15 +317,14 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
       "(JLjava/lang/String;Ljava/lang/String;IIIIILandroid/view/Surface;"
       "Landroid/media/MediaCrypto;"
       "Ldev/cobalt/media/MediaCodecBridge$ColorInfo;"
-      "IZI"
+      "II"
       "Ldev/cobalt/media/MediaCodecBridge$CreateMediaCodecBridgeResult;)"
       "V",
       reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime.Get(),
       j_decoder_name.Get(), width_hint, height_hint, fps,
       max_width.value_or(-1), max_height.value_or(-1), j_surface,
       j_media_crypto, j_color_info.Get(), tunnel_mode_audio_session_id,
-      use_callback_thread, max_video_input_size,
-      j_create_media_codec_bridge_result.Get());
+      max_video_input_size, j_create_media_codec_bridge_result.Get());
 
   jobject j_media_codec_bridge = env->CallObjectMethodOrAbort(
       j_create_media_codec_bridge_result.Get(), "mediaCodecBridge",
