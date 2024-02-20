@@ -99,9 +99,11 @@ def main():
   if args.files:
     _ = [validate_file(file) for file in args.files if filter_files(file)]
   else:  # Run all
-    for root, _, files in os.walk(os.getcwd()):
-      for file in [f for f in files if filter_files(os.path.join(root, f))]:
-        validate_file(os.path.join(root, file))
+    args = ['git', 'ls-files']
+    p = subprocess.run(args, capture_output=True, text=True, check=True)
+    for f in p.stdout.splitlines():
+      if filter_files(f):
+        validate_file(f)
 
 
 if __name__ == '__main__':

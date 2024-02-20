@@ -21,7 +21,7 @@
 #include "starboard/common/log.h"
 #include "starboard/types.h"
 
-int gen_fd() {
+static int gen_fd() {
   static int fd = 100;
   fd++;
   if (fd == 0x7FFFFFFF) {
@@ -38,7 +38,7 @@ struct CriticalSection {
 static std::map<int, SOCKET>* g_map_addr = nullptr;
 static CriticalSection g_critical_section;
 
-int handle_db_put(SOCKET socket_handle) {
+static int handle_db_put(SOCKET socket_handle) {
   EnterCriticalSection(&g_critical_section.critical_section_);
   if (g_map_addr == nullptr) {
     g_map_addr = new std::map<int, SOCKET>();
@@ -56,7 +56,7 @@ int handle_db_put(SOCKET socket_handle) {
   return fd;
 }
 
-SOCKET handle_db_get(int fd, bool erase) {
+static SOCKET handle_db_get(int fd, bool erase) {
   EnterCriticalSection(&g_critical_section.critical_section_);
   if (g_map_addr == nullptr) {
     g_map_addr = new std::map<int, SOCKET>();
@@ -76,34 +76,57 @@ SOCKET handle_db_get(int fd, bool erase) {
   return socket_handle;
 }
 
-extern "C" int sb_socket(int domain, int type, int protocol) {
+///////////////////////////////////////////////////////////////////////////////
+// Implementations below exposed externally in pure C for emulation.
+///////////////////////////////////////////////////////////////////////////////
+
+extern "C" {
+
+int sb_socket(int domain, int type, int protocol) {
+  // On Windows, we must call WSAStartup() before using any other socket
+  // functions, such as setsockopt, and call WSACleanup() when we are done using
+  // the Winsock library before exiting. Other platforms don't have similar
+  // functions to initialize/cleanup their socket libraries.
+  WSAData wsaData;
+  int init_result = WSAStartup(MAKEWORD(2, 2), &wsaData);
+  if (init_result != 0) {
+    SB_DLOG(ERROR) << "Failed to initialize WinSock, error = " << init_result;
+    WSACleanup();
+    return -1;
+  }
+
   // Sockets on Windows do not use *nix-style file descriptors
   // socket() returns a handle to a kernel object instead
   SOCKET socket_handle = socket(domain, type, protocol);
   if (socket_handle == INVALID_SOCKET) {
     // TODO: update errno with file operation error
+    int last_error = WSAGetLastError();
+    SB_DLOG(ERROR) << "Failed to create socket, last_error = " << last_error;
+    WSACleanup();
     return -1;
   }
 
   return handle_db_put(socket_handle);
 }
 
-extern "C" int close(int fd) {
+int close(int fd) {
   SOCKET socket_handle = handle_db_get(fd, true);
 
   if (socket_handle != INVALID_SOCKET) {
+    WSACleanup();
     return closesocket(socket_handle);
   }
 
   // This is then a file handle, so use Windows `_close` API.
+  WSACleanup();
   return _close(fd);
 }
 
-extern "C" int sb_setsockopt(int socket,
-                             int level,
-                             int option_name,
-                             const void* option_value,
-                             int option_len) {
+int sb_setsockopt(int socket,
+                  int level,
+                  int option_name,
+                  const void* option_value,
+                  int option_len) {
   int result =
       setsockopt(socket, level, option_name,
                  reinterpret_cast<const char*>(option_value), option_len);
@@ -111,8 +134,12 @@ extern "C" int sb_setsockopt(int socket,
   // error code can be retrieved by calling WSAGetLastError(), and Posix returns
   // -1 on failure and sets errno to the error’s value.
   if (result == SOCKET_ERROR) {
+    int last_error = WSAGetLastError();
+    SB_DLOG(ERROR) << "Failed to set " << option_name << " on socket " << socket
+                   << ", last_error = " << last_error;
     return -1;
   } else {
     return 0;
   }
 }
+}  // extern "C"

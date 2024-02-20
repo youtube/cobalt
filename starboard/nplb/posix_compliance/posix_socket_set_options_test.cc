@@ -50,12 +50,16 @@ TEST_P(PosixSocketSetOptionsTest, TryThemAllTCP) {
                        sizeof(true_val)),
             0);
 #if defined(__APPLE__)
+  // In tvOS, TCP_KEEPIDLE and SOL_TCP are not available.
   // For reference:
-  // https://stackoverflow.com/questions/15860127/how-to-configure-tcp-keepalive-under-mac-os-
+  // https://stackoverflow.com/questions/15860127/how-to-configure-tcp-keepalive-under-mac-os-x
   EXPECT_EQ(setsockopt(socket_fd, IPPROTO_TCP, TCP_KEEPALIVE, &period_seconds,
                        sizeof(period_seconds)),
             0);
-#else
+#elif !defined(_WIN32)
+  // In Windows, the SOL_TCP and TCP_KEEPIDLE options are not available.
+  // For reference:
+  // https://stackoverflow.com/questions/8176821/how-to-set-the-keep-alive-interval-for-winsock
   EXPECT_EQ(setsockopt(socket_fd, SOL_TCP, TCP_KEEPIDLE, &period_seconds,
                        sizeof(period_seconds)),
             0);
