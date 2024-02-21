@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//build/config/win/visual_studio_version.gni")
+import("//starboard/build/config/win/visual_studio_version.gni")
 
 # TODO(andrewsavage): No way host builds need all these flags
 config("host") {

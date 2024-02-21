@@ -93,6 +93,7 @@ template("crashpad_executable") {
     if (defined(invoker.remove_configs)) {
       configs -= invoker.remove_configs
     }
+    configs -= [ "//build/config/compiler:default_include_dirs" ]
 
     if (defined(invoker.configs)) {
       configs += invoker.configs
@@ -103,6 +104,25 @@ template("crashpad_executable") {
       if (configs + fdio_config - fdio_config == configs) {
         configs += fdio_config
       }
+    }
+  }
+}
+
+template("crashpad_static_library") {
+  static_library(target_name) {
+    forward_variables_from(invoker,
+                           "*",
+                           [
+                             "configs",
+                             "remove_configs",
+                           ])
+    if (defined(invoker.remove_configs)) {
+      configs -= invoker.remove_configs
+    }
+    configs -= [ "//build/config/compiler:default_include_dirs" ]
+
+    if (defined(invoker.configs)) {
+      configs += invoker.configs
     }
   }
 }

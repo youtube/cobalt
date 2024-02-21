@@ -18,6 +18,7 @@
 #include <set>
 #include <string>
 
+#include "base/base_wrapper.h"
 #include "base/macros.h"
 #include "base/synchronization/lock.h"
 #include "util/file/file_io.h"

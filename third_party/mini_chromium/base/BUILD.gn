@@ -5,8 +5,10 @@
 import("../build/platform.gni")
 
 config("base_public_config") {
-  include_dirs = [ ".." ]
-  if (use_cobalt_customizations) {
+  include_dirs = [ "..", "//", root_gen_dir ]
+  if (mini_chromium_is_win) {
+    defines = [ "OS_WIN" ]
+  } else if (use_cobalt_customizations) {
     cflags = [ "-isystem" + rebase_path("../../..", root_build_dir) ]
   }
 }

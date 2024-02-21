@@ -1,4 +1,4 @@
-# Copyright 2023 The Cobalt Authors. All Rights Reserved.
+# Copyright 2024 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,10 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//build/config/win/visual_studio_version.gni")
-import("//starboard/build/config/win/visual_studio_version.gni")
-
-tool_base_path = "$msvc_path/bin/HostX64/x64"
-common_libpaths =
-    "/LIBPATH:\"$wdk_lib_path/ucrt/x64\" /LIBPATH:\"$wdk_lib_path/um/x64\""
-sys_libpaths = "/LIBPATH:\"$msvc_path/lib/x64\" " + common_libpaths
+if (!is_starboard) {
+  vs_toolchain_data =
+      exec_script("../../vs_toolchain.py", [ "get_toolchain_dir" ], "scope")
+  vs_path = vs_toolchain_data.vs_path
+  sdk_version = vs_toolchain_data.sdk_version
+  sdk_path = vs_toolchain_data.sdk_path
+  declare_args() {
+    msvc_path = "$vs_path/VC/Tools/MSVC/${vs_toolchain_data.vc_version}"
+    wdk_include_path = "$sdk_path/include/$sdk_version"
+    wdk_lib_path = "$sdk_path/lib/$sdk_version"
+  }
+}

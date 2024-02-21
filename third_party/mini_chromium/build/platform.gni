@@ -13,7 +13,7 @@ if (current_os == "mac") {
   mini_chromium_is_mac = true
 } else if (current_os == "ios") {
   mini_chromium_is_ios = true
-} else if (current_os == "win") {
+} else if (current_os == "win" || current_os == "winuwp") {
   mini_chromium_is_win = true
 } else if (current_os == "android") {
   mini_chromium_is_android = true

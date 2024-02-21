@@ -141,7 +141,7 @@ if (crashpad_is_mac || crashpad_is_ios) {
   }
 }
 
-static_library("util") {
+crashpad_static_library("util") {
   sources = [
     "file/delimited_file_reader.cc",
     "file/delimited_file_reader.h",
@@ -602,10 +602,11 @@ static_library("util") {
     deps += [ "../third_party/lss" ]
   }
 
+  configs = []
+
   if (crashpad_is_in_starboard) {
     public_deps += [ "//starboard:starboard_headers_only" ]
     configs += [ ":crashpad_starboard_config" ]
-    configs -= [ "//build/config/compiler:default_include_dirs" ]
   }
 
   configs += [ "..:disable_ubsan" ]
@@ -889,6 +890,5 @@ if (crashpad_is_win) {
 if (crashpad_is_in_starboard) {
   config("crashpad_starboard_config") {
     include_dirs = [ "//third_party/mini_chromium" ]
-    cflags = [ "-isystem" + rebase_path("../../..", root_build_dir) ]
   }
 }

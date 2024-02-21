@@ -178,10 +178,8 @@ if (!crashpad_is_ios) {
         remove_configs = [ "//build/config/win:console" ]
         configs = [ "//build/config/win:windowed" ]
       } else {
-        remove_configs =
-            [ "//third_party/mini_chromium/mini_chromium/build:win_console" ]
         configs =
-            [ "//third_party/mini_chromium/mini_chromium/build:win_windowed" ]
+            [ "//third_party/mini_chromium/build:win_windowed" ]
       }
     }
 
