@@ -18,7 +18,7 @@
 #include "media/base/media_export.h"
 #include "media/base/media_log.h"
 #include "media/base/stream_parser.h"
-#include "media/base/stream_parser_buffer_pool.h"
+#include "media/base/stream_parser_buffer_factory.h"
 #include "media/formats/webm/webm_parser.h"
 #include "media/formats/webm/webm_tracks_parser.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -334,7 +334,7 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
 
   MediaLog* media_log_;
 
-  StreamParserBufferPool buffer_pool_;
+  StreamParserBufferFactory buffer_factory_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(WebMClusterParser);
 };

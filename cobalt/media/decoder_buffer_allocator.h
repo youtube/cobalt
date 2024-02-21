@@ -25,13 +25,13 @@
 #include "starboard/common/atomic.h"
 #include "starboard/common/mutex.h"
 #include "starboard/media.h"
-#include "third_party/chromium/media/base/decoder_buffer_pool.h"
+#include "third_party/chromium/media/base/decoder_buffer_factory.h"
 #include "third_party/chromium/media/base/video_decoder_config.h"
 
 namespace cobalt {
 namespace media {
 
-class DecoderBufferAllocator : public ::media::DecoderBufferPool::Allocator,
+class DecoderBufferAllocator : public ::media::DecoderBufferFactory::Allocator,
                                public DecoderBufferMemoryInfo {
  public:
   DecoderBufferAllocator();
@@ -40,7 +40,7 @@ class DecoderBufferAllocator : public ::media::DecoderBufferPool::Allocator,
   void Suspend();
   void Resume();
 
-  // DecoderBufferPool::Allocator methods.
+  // DecoderBufferFactory::Allocator methods.
   void* Allocate(size_t size, size_t alignment) override;
   void Free(void* p, size_t size) override;
 

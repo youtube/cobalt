@@ -2,30 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_BASE_STREAM_PARSER_BUFFER_POOL_H_
-#define MEDIA_BASE_STREAM_PARSER_BUFFER_POOL_H_
-
-#include <stddef.h>
+#ifndef MEDIA_BASE_STREAM_PARSER_BUFFER_FACTORY_H_
+#define MEDIA_BASE_STREAM_PARSER_BUFFER_FACTORY_H_
 
 #include "media/base/media_export.h"
 #include "media/base/stream_parser_buffer.h"
-#include "media/base/decoder_buffer_pool.h"
-
-namespace base {
-class TickClock;
-}
+#include "media/base/decoder_buffer_factory.h"
 
 namespace media {
 
 typedef DemuxerStream::Type Type;
 typedef StreamParser::TrackId TrackId;
 
-class MEDIA_EXPORT StreamParserBufferPool : protected DecoderBufferPool {
+class MEDIA_EXPORT StreamParserBufferFactory : protected DecoderBufferFactory {
  public:
-  StreamParserBufferPool();
-  StreamParserBufferPool(const StreamParserBufferPool&) = delete;
-  StreamParserBufferPool& operator=(const StreamParserBufferPool&) = delete;
-  ~StreamParserBufferPool();
+  StreamParserBufferFactory();
+  StreamParserBufferFactory(const StreamParserBufferFactory&) = delete;
+  StreamParserBufferFactory& operator=(const StreamParserBufferFactory&) = delete;
+  ~StreamParserBufferFactory();
 
   scoped_refptr<StreamParserBuffer> CopyFrom(const uint8_t* data,
                                              size_t data_size,
@@ -41,11 +35,11 @@ class MEDIA_EXPORT StreamParserBufferPool : protected DecoderBufferPool {
                                              Type type,
                                              TrackId track_id);
  private:
-  class PoolImpl;
-  scoped_refptr<PoolImpl> pool_;
+  class FactoryImpl;
+  scoped_refptr<FactoryImpl> factory_;
 
 };
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_STREAM_PARSER_BUFFER_POOL_H_
+#endif  // MEDIA_BASE_STREAM_PARSER_BUFFER_FACTORY_H_

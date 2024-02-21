@@ -964,7 +964,7 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
       DemuxerStream::VIDEO;
 
   scoped_refptr<StreamParserBuffer> stream_buf =
-      buffer_pool_.CopyFrom(&frame_buf[0], frame_buf.size(), is_keyframe,
+      buffer_factory_.CopyFrom(&frame_buf[0], frame_buf.size(), is_keyframe,
                                    buffer_type, runs_->track_id());
 
   if (decrypt_config)

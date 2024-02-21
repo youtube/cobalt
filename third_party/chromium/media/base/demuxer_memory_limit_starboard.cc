@@ -32,8 +32,8 @@ size_t GetDemuxerStreamVideoMemoryLimit(
     const VideoDecoderConfig* video_config,
     const std::string& mime_type) {
   return 300 * 1024 * 1024;
-  //return static_cast<size_t>(
-  //    GetSbMediaVideoBufferBudget(video_config, mime_type));
+  // return static_cast<size_t>(
+  //     GetSbMediaVideoBufferBudget(video_config, mime_type));
 }
 
 size_t GetDemuxerMemoryLimit(Demuxer::DemuxerTypes demuxer_type) {

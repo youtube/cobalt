@@ -4,9 +4,6 @@
 
 #include "media/base/decoder_buffer.h"
 
-#include <iostream>
-#include <fstream>
-#include <string>
 #include <sstream>
 
 #include "base/debug/alias.h"
@@ -47,8 +44,7 @@ DecoderBuffer::DecoderBuffer(std::unique_ptr<uint8_t[]> data, size_t size)
     : data_(std::move(data)),
       size_(size),
       side_data_size_(0),
-      is_key_frame_(false) {
-      }
+      is_key_frame_(false) {}
 
 
 DecoderBuffer::DecoderBuffer(std::unique_ptr<UnalignedSharedMemory> shm,
