@@ -13,6 +13,24 @@
 
 namespace media {
 
+namespace {
+struct AllocatedExternalMemory
+    : public media::DecoderBuffer::ExternalMemory {
+ public:
+  AllocatedExternalMemory(uint8_t* data, size_t data_size, DecoderBufferPool::Allocator *alloc)
+      : ExternalMemory(base::make_span(data, data_size)),  alloc_{alloc}, data_{data}, data_size_{data_size} {}
+  ~AllocatedExternalMemory() override {
+    LOG(INFO) << "DELETEING";
+    alloc_->Free(data_, data_size_);
+  }
+ private:
+  DecoderBufferPool::Allocator *alloc_;
+  uint8_t * data_;
+  size_t data_size_;
+};
+
+}
+
 class StreamParserBufferPool::PoolImpl
     : public base::RefCountedThreadSafe<StreamParserBufferPool::PoolImpl> {
  public:
@@ -91,8 +109,7 @@ scoped_refptr<StreamParserBuffer> StreamParserBufferPool::PoolImpl::CopyFrom(con
     auto data = static_cast<uint8_t*>(alloc->Allocate(allocated_size,
                                                         alignment));
     memset(data, 0, allocated_size);
-    auto external_memory = std::make_unique<DecoderBuffer::ExternalMemory>(
-        base::make_span(data, allocated_size));
+    auto external_memory = std::make_unique<AllocatedExternalMemory>(data, allocated_size, alloc);
     return StreamParserBuffer::FromExternalMemory(std::move(external_memory), is_key_frame, type, track_id);
   } else {
     return StreamParserBuffer::CopyFrom(data, data_size,
