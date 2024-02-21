@@ -83,18 +83,6 @@ static SOCKET handle_db_get(int fd, bool erase) {
 extern "C" {
 
 int sb_socket(int domain, int type, int protocol) {
-  // On Windows, we must call WSAStartup() before using any other socket
-  // functions, such as setsockopt, and call WSACleanup() when we are done using
-  // the Winsock library before exiting. Other platforms don't have similar
-  // functions to initialize/cleanup their socket libraries.
-  WSAData wsaData;
-  int init_result = WSAStartup(MAKEWORD(2, 2), &wsaData);
-  if (init_result != 0) {
-    SB_DLOG(ERROR) << "Failed to initialize WinSock, error = " << init_result;
-    WSACleanup();
-    return -1;
-  }
-
   // Sockets on Windows do not use *nix-style file descriptors
   // socket() returns a handle to a kernel object instead
   SOCKET socket_handle = socket(domain, type, protocol);
@@ -102,7 +90,6 @@ int sb_socket(int domain, int type, int protocol) {
     // TODO: update errno with file operation error
     int last_error = WSAGetLastError();
     SB_DLOG(ERROR) << "Failed to create socket, last_error = " << last_error;
-    WSACleanup();
     return -1;
   }
 
@@ -113,12 +100,10 @@ int close(int fd) {
   SOCKET socket_handle = handle_db_get(fd, true);
 
   if (socket_handle != INVALID_SOCKET) {
-    WSACleanup();
     return closesocket(socket_handle);
   }
 
   // This is then a file handle, so use Windows `_close` API.
-  WSACleanup();
   return _close(fd);
 }
 
@@ -127,8 +112,14 @@ int sb_setsockopt(int socket,
                   int option_name,
                   const void* option_value,
                   int option_len) {
+  SOCKET socket_handle = handle_db_get(socket, false);
+
+  if (socket_handle == INVALID_SOCKET) {
+    return -1;
+  }
+
   int result =
-      setsockopt(socket, level, option_name,
+      setsockopt(socket_handle, level, option_name,
                  reinterpret_cast<const char*>(option_value), option_len);
   // TODO(b/321999529): Windows returns SOCKET_ERROR on failure. The specific
   // error code can be retrieved by calling WSAGetLastError(), and Posix returns
@@ -138,8 +129,7 @@ int sb_setsockopt(int socket,
     SB_DLOG(ERROR) << "Failed to set " << option_name << " on socket " << socket
                    << ", last_error = " << last_error;
     return -1;
-  } else {
-    return 0;
   }
+  return 0;
 }
 }  // extern "C"

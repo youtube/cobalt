@@ -76,7 +76,7 @@ TEST_P(PosixSocketSetOptionsTest, TryThemAllTCP) {
 }
 
 TEST_P(PosixSocketSetOptionsTest, TryThemAllUDP) {
-  int socket_fd = socket(GetSocketDomain(), SOCK_STREAM, IPPROTO_TCP);
+  int socket_fd = socket(GetSocketDomain(), SOCK_DGRAM, IPPROTO_UDP);
 
   int true_val = 1;
   EXPECT_EQ(setsockopt(socket_fd, SOL_SOCKET, SO_BROADCAST, &true_val,

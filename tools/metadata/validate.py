@@ -50,6 +50,17 @@ def validate_content(textproto_content,
   if warn_deprecations and len(third_party.url) > 0:
     log.warning('"url" field is deprecated, please use "identifier" instead')
 
+  git_id = next((id for id in third_party.identifier if id.type == 'Git'), None)
+  if git_id:
+    subtree_dir = os.path.dirname(metadata_file_path).replace(os.sep, '/')
+    pattern = f'^git-subtree-dir: {subtree_dir}/*$'
+    log_format = '%(trailers:key=git-subtree-split,valueonly)'
+    args = ['git', 'log', '-1', f'--grep={pattern}', f'--pretty={log_format}']
+    p = subprocess.run(args, capture_output=True, text=True, check=True)
+    split = p.stdout.strip()
+    if split and git_id.version != split:
+      raise RuntimeError(f'{git_id.version} does not match {split}')
+
 
 def validate_file(metadata_file_path, warn_deprecations=False):
   logging.info('Validating %s', metadata_file_path)
