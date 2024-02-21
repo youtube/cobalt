@@ -9,6 +9,7 @@
 
 #include "media/base/media_export.h"
 #include "media/base/stream_parser_buffer.h"
+#include "media/base/decoder_buffer_pool.h"
 
 namespace base {
 class TickClock;
@@ -16,11 +17,10 @@ class TickClock;
 
 namespace media {
 
-
 typedef DemuxerStream::Type Type;
 typedef StreamParser::TrackId TrackId;
 
-class MEDIA_EXPORT StreamParserBufferPool {
+class MEDIA_EXPORT StreamParserBufferPool : protected DecoderBufferPool {
  public:
   StreamParserBufferPool();
   StreamParserBufferPool(const StreamParserBufferPool&) = delete;
@@ -40,12 +40,10 @@ class MEDIA_EXPORT StreamParserBufferPool {
                                              bool is_key_frame,
                                              Type type,
                                              TrackId track_id);
-
-  void SetAllocator(DecoderBufferAllocator* alloc);
-
  private:
   class PoolImpl;
   scoped_refptr<PoolImpl> pool_;
+
 };
 
 }  // namespace media

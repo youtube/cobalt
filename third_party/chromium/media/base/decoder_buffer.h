@@ -30,14 +30,6 @@
 
 namespace media {
 
-class MEDIA_EXPORT DecoderBufferAllocator {
- public:
-  virtual void* Allocate(size_t size, size_t alignment) = 0;
-  virtual void Free(void* p, size_t size) = 0;
-  virtual int GetBufferAlignment() const = 0;
-  virtual int GetBufferPadding() const  = 0;
-};
-
 // A specialized buffer for interfacing with audio / video decoders.
 //
 // Also includes decoder specific functionality for decryption.

@@ -31,7 +31,7 @@ namespace {
 
 using starboard::ScopedLock;
 
-const bool kEnableAllocationLog = false;
+const bool kEnableAllocationLog = true;
 
 const size_t kAllocationRecordGranularity = 512 * 1024;
 // Used to determine if the memory allocated is large. The underlying logic can
@@ -48,23 +48,23 @@ DecoderBufferAllocator::DecoderBufferAllocator()
       allocation_unit_(SbMediaGetBufferAllocationUnit()) {
   if (!using_memory_pool_) {
     DLOG(INFO) << "Allocated media buffer memory using malloc* functions.";
-    // Allocator::Set(this);
+    Allocator::Set(this);
     return;
   }
 
   if (is_memory_pool_allocated_on_demand_) {
     DLOG(INFO) << "Allocated media buffer pool on demand.";
-    // Allocator::Set(this);
+    Allocator::Set(this);
     return;
   }
 
   ScopedLock scoped_lock(mutex_);
   EnsureReuseAllocatorIsCreated();
-  // Allocator::Set(this);
+  Allocator::Set(this);
 }
 
 DecoderBufferAllocator::~DecoderBufferAllocator() {
-  // Allocator::Set(nullptr);
+  Allocator::Set(nullptr);
 
   if (!using_memory_pool_) {
     return;
@@ -117,8 +117,8 @@ void* DecoderBufferAllocator::Allocate(size_t size, size_t alignment) {
   void* p = reuse_allocator_->Allocate(size, alignment);
   CHECK(p);
 
-  LOG_IF(INFO, kEnableAllocationLog)
-      << "Media Allocation Log " << p << " " << size << " " << alignment << " ";
+  LOG_IF(INFO, kEnableAllocationLog) << "Media Allocation Log - Allocate:" << p
+                                     << " " << size << " " << alignment << " ";
   return p;
 }
 
@@ -138,7 +138,7 @@ void DecoderBufferAllocator::Free(void* p, size_t size) {
 
   DCHECK(reuse_allocator_);
 
-  LOG_IF(INFO, kEnableAllocationLog) << "Media Allocation Log " << p;
+  LOG_IF(INFO, kEnableAllocationLog) << "Media Allocation Log - Free:" << p;
 
   reuse_allocator_->Free(p);
   if (is_memory_pool_allocated_on_demand_) {

@@ -26,7 +26,22 @@ class MEDIA_EXPORT DecoderBufferPool {
   scoped_refptr<DecoderBuffer> CopyFrom(const uint8_t* data,
                                                size_t size);
 
-  void SetAllocator(DecoderBufferAllocator* alloc);
+  class Allocator {
+   public:
+    static Allocator* GetInstance();
+
+    virtual void* Allocate(size_t size, size_t alignment) = 0;
+    virtual void Free(void* p, size_t size) = 0;
+    virtual int GetBufferAlignment() const = 0;
+    virtual int GetBufferPadding() const  = 0;
+
+    protected:
+     ~Allocator() {}
+
+     static void Set(Allocator* allocator);
+  };
+
+  static bool HasAllocator();
 
  private:
   class PoolImpl;

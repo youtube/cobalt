@@ -16,6 +16,27 @@
 
 namespace media {
 
+namespace {
+DecoderBufferPool::Allocator* s_allocator = nullptr;
+}  // namespace
+
+// static
+DecoderBufferPool::Allocator* DecoderBufferPool::Allocator::GetInstance() {
+  DCHECK(s_allocator);
+  return s_allocator;
+}
+
+// static
+void DecoderBufferPool::Allocator::Set(Allocator* allocator) {
+  s_allocator = allocator;
+}
+
+// static
+bool DecoderBufferPool::HasAllocator() {
+  if (s_allocator) return true;
+  return false;
+}
+
 class DecoderBufferPool::PoolImpl
     : public base::RefCountedThreadSafe<DecoderBufferPool::PoolImpl> {
  public:
@@ -25,10 +46,6 @@ class DecoderBufferPool::PoolImpl
 
   scoped_refptr<DecoderBuffer> CopyFrom(const uint8_t* data,
                                                size_t size);
-
-  void SetAllocator(DecoderBufferAllocator* alloc) {
-    alloc_ = alloc;
-  }
 
   // Shuts down the buffer pool and releases all buffers in |buffers_|.
   // Once this is called buffers will no longer be inserted back into
@@ -65,7 +82,6 @@ class DecoderBufferPool::PoolImpl
 
   base::circular_deque<BufferEntry> buffers_ GUARDED_BY(lock_);
 
-  DecoderBufferAllocator *alloc_ {nullptr};
 };
 
 
@@ -81,10 +97,15 @@ scoped_refptr<DecoderBuffer> DecoderBufferPool::PoolImpl::CopyFrom(const uint8_t
   base::AutoLock auto_lock(lock_);
   DCHECK(!is_shutdown_);
 
-  if (alloc_)  {
-    auto data = static_cast<uint8_t*>(alloc_->Allocate(1024 * 1024, 32));
+  if (s_allocator)  {
+    int alignment = s_allocator->GetBufferAlignment();
+    int padding = s_allocator->GetBufferPadding();
+    size_t allocated_size = size + padding;
+    auto data = static_cast<uint8_t*>(s_allocator->Allocate(allocated_size,
+                                                        alignment));
+    memset(data, 0, allocated_size);
     auto external_memory = std::make_unique<DecoderBuffer::ExternalMemory>(
-        base::make_span(data, 1024 * 1024));
+        base::make_span(data, allocated_size));
     return DecoderBuffer::FromExternalMemory(std::move(external_memory));
   } else {
     return DecoderBuffer::CopyFrom(data, size);
@@ -102,10 +123,6 @@ DecoderBufferPool::DecoderBufferPool() : pool_(new PoolImpl()) {}
 
 DecoderBufferPool::~DecoderBufferPool() {
   pool_->Shutdown();
-}
-
-void DecoderBufferPool::SetAllocator(DecoderBufferAllocator* alloc) {
-  pool_->SetAllocator(alloc);
 }
 
 scoped_refptr<DecoderBuffer> DecoderBufferPool::CopyFrom(const uint8_t* data,

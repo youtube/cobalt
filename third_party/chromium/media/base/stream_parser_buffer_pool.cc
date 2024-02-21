@@ -34,10 +34,6 @@ class StreamParserBufferPool::PoolImpl
                                                Type type,
                                                TrackId track_id);
 
-  void SetAllocator(DecoderBufferAllocator* alloc) {
-    alloc_ = alloc;
-  }
-
   // Shuts down the buffer pool and releases all buffers in |buffers_|.
   // Once this is called buffers will no longer be inserted back into
   // |buffers_|.
@@ -47,10 +43,6 @@ class StreamParserBufferPool::PoolImpl
     base::AutoLock auto_lock(lock_);
     return buffers_.size();
   }
-
-  //void set_tick_clock_for_testing(const base::TickClock* tick_clock) {
-  //  tick_clock_ = tick_clock;
-  //}
 
  private:
   friend class base::RefCountedThreadSafe<StreamParserBufferPool::PoolImpl>;
@@ -73,14 +65,9 @@ class StreamParserBufferPool::PoolImpl
 
   base::circular_deque<BufferEntry> buffers_ GUARDED_BY(lock_);
 
-  DecoderBufferAllocator *alloc_ {nullptr};
-
-  // |tick_clock_| is always a DefaultTickClock outside of testing.
-  //raw_ptr<const base::TickClock> tick_clock_;
 };
 
 StreamParserBufferPool::PoolImpl::PoolImpl() {}
-//    : tick_clock_(base::DefaultTickClock::GetInstance()) {}
 
 StreamParserBufferPool::PoolImpl::~PoolImpl() {
   DCHECK(is_shutdown_);
@@ -94,11 +81,19 @@ scoped_refptr<StreamParserBuffer> StreamParserBufferPool::PoolImpl::CopyFrom(con
   base::AutoLock auto_lock(lock_);
   DCHECK(!is_shutdown_);
 
-  if (alloc_) {
-   auto data = static_cast<uint8_t*>(alloc_->Allocate(1024 * 1024, 32));
-   auto external_memory = std::make_unique<StreamParserBuffer::ExternalMemory>(
-       base::make_span(data, 1024 * 1024));
-   return StreamParserBuffer::FromExternalMemory(std::move(external_memory), is_key_frame, type, track_id);
+  LOG(INFO) << "THOR TEST - STREAM PARSER POOL _ COPY FROM5..";
+
+  if (DecoderBufferPool::HasAllocator())  {
+    auto alloc = DecoderBufferPool::Allocator::GetInstance();
+    int alignment = alloc->GetBufferAlignment();
+    int padding = alloc->GetBufferPadding();
+    size_t allocated_size = data_size + padding;
+    auto data = static_cast<uint8_t*>(alloc->Allocate(allocated_size,
+                                                        alignment));
+    memset(data, 0, allocated_size);
+    auto external_memory = std::make_unique<DecoderBuffer::ExternalMemory>(
+        base::make_span(data, allocated_size));
+    return StreamParserBuffer::FromExternalMemory(std::move(external_memory), is_key_frame, type, track_id);
   } else {
     return StreamParserBuffer::CopyFrom(data, data_size,
                                                  is_key_frame,
@@ -118,18 +113,19 @@ scoped_refptr<StreamParserBuffer> StreamParserBufferPool::PoolImpl::CopyFrom(con
   base::AutoLock auto_lock(lock_);
   DCHECK(!is_shutdown_);
 
-  if (alloc_) {
-   auto data = static_cast<uint8_t*>(alloc_->Allocate(1024 * 1024, 32));
-   auto external_memory = std::make_unique<StreamParserBuffer::ExternalMemory>(
-       base::make_span(data, 1024 * 1024));
-   return StreamParserBuffer::FromExternalMemory(std::move(external_memory), is_key_frame, type, track_id);
-  } else {
+  LOG(INFO) << "THOR TEST - STREAM PARSER POOL _ COPY FROM7..";
+  //if (alloc_) {
+  // auto data = static_cast<uint8_t*>(alloc_->Allocate(1024 * 1024, 32));
+  // auto external_memory = std::make_unique<StreamParserBuffer::ExternalMemory>(
+  //     base::make_span(data, 1024 * 1024));
+  // return StreamParserBuffer::FromExternalMemory(std::move(external_memory), is_key_frame, type, track_id);
+  //} else {
     return StreamParserBuffer::CopyFrom(data, data_size,
                                          side_data, side_data_size,
                                                  is_key_frame,
                                                  type,
                                                  track_id);
-  }
+  //}
 
 }
 
@@ -143,10 +139,6 @@ StreamParserBufferPool::StreamParserBufferPool() : pool_(new PoolImpl()) {}
 
 StreamParserBufferPool::~StreamParserBufferPool() {
   pool_->Shutdown();
-}
-
-void StreamParserBufferPool::SetAllocator(DecoderBufferAllocator* alloc) {
-  pool_->SetAllocator(alloc);
 }
 
 scoped_refptr<StreamParserBuffer> StreamParserBufferPool::CopyFrom(const uint8_t* data,
