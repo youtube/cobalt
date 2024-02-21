@@ -20,7 +20,6 @@ _Unwind_Resume
 _Unwind_Resume_or_Rethrow
 _Unwind_SetGR
 _Unwind_SetIP
-__assert_fail
 __ctype_b_loc
 __ctype_get_mb_cur_max
 __ctype_toupper_loc
@@ -31,8 +30,6 @@ __errno_location
 __freelocale
 __fxstat64
 __gmon_start__
-__isinf
-__isnan
 __isoc99_sscanf
 __iswctype_l
 __libc_start_main
@@ -59,14 +56,13 @@ bcmp
 bind_textdomain_codeset
 bindtextdomain
 btowc
-clock_gettime
+close
 dgettext
 exit
 fclose
 fdopen
 fflush
 fileno
-fopen
 fopen64
 fprintf
 fputc
@@ -79,6 +75,9 @@ fwrite
 getc
 gettext
 getwc
+iconv
+iconv_close
+iconv_open
 ioctl
 isalpha
 isprint
@@ -90,6 +89,7 @@ mbrtowc
 mbsnrtowcs
 mbsrtowcs
 memrchr
+open
 poll
 printf
 pthread_cond_broadcast
