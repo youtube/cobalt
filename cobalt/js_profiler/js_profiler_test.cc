@@ -139,5 +139,18 @@ TEST_F(ProfilerTest, ProfilerGroupDisposesOfCpuProfiler) {
   EXPECT_FALSE(profiler_group->active());
 }
 
+TEST_F(ProfilerTest, ProfilerCanBeCancelled) {
+  v8::HandleScope scope(web::get_isolate(window_.environment_settings()));
+  ProfilerInitOptions init_options;
+  init_options.set_sample_interval(10);
+  init_options.set_max_buffer_size(1000);
+
+  scoped_refptr<Profiler> profiler_(new Profiler(
+      window_.environment_settings(), init_options, &exception_state_));
+
+  profiler_->Cancel();
+  EXPECT_EQ(profiler_->stopped(), true);
+}
+
 }  // namespace js_profiler
 }  // namespace cobalt

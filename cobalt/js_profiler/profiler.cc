@@ -128,6 +128,7 @@ void Profiler::PerformStop(
 
 void Profiler::Cancel() {
   if (!stopped_) {
+    stopped_ = true;
     profiler_group_->ProfilerStop(this);
   }
   profiler_group_ = nullptr;
