@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #ifndef COBALT_JS_PROFILER_PROFILER_H_
 #define COBALT_JS_PROFILER_PROFILER_H_
 
