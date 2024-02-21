@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 
 #include <memory>
+#include <utility>
 // limitations under the License.
 #include "base/values.h"
 #include "cobalt/version.h"
@@ -120,7 +121,7 @@ class CapabilityWriter {
 std::unique_ptr<base::Value> Capabilities::ToValue(
     const Capabilities& capabilities) {
   base::Value ret(base::Value::Type::DICT);
-  base::Value::Dict* capabilities_value = ret->GetIfDict();
+  base::Value::Dict* capabilities_value = ret.GetIfDict();
 
   CapabilityWriter writer(capabilities, capabilities_value);
   // Write all the capabilities that have been set.

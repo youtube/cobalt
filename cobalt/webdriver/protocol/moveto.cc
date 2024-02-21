@@ -29,7 +29,7 @@ const char kYoffsetKey[] = "yoffset";
 
 std::unique_ptr<base::Value> Moveto::ToValue(const Moveto& moveto) {
   base::Value ret(base::Value::Type::DICT);
-  base::Value::Dict* moveto_object = ret->GetIfDict();
+  base::Value::Dict* moveto_object = ret.GetIfDict();
   if (moveto.element_) {
     moveto_object->Set(kElementKey,
                        ElementId::ToValue(*moveto.element_)->Clone());

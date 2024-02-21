@@ -14,6 +14,8 @@
 
 #include "cobalt/debug/json_object.h"
 
+#include <utility>
+
 #include "base/logging.h"
 
 namespace cobalt {
@@ -25,7 +27,7 @@ JSONObject JSONParse(const std::string& json, int* parse_error) {
   if (result.has_value()) {
     DCHECK(result.value().is_dict());
     return JSONObject(std::make_unique<base::Value::Dict>(
-        std::move(result.value()->GetDict())));
+        std::move(result.value().GetDict())));
   } else if (parse_error) {
 #ifdef USE_HACKY_COBALT_CHANGES
     *parse_error = 0;
