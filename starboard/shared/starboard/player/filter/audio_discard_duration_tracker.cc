@@ -14,8 +14,6 @@
 
 #include "starboard/shared/starboard/player/filter/audio_discard_duration_tracker.h"
 
-#include <algorithm>
-
 #include "starboard/common/log.h"
 
 namespace starboard {
@@ -42,13 +40,15 @@ int64_t AudioDiscardDurationTracker::AdjustTimeForTotalDiscardDuration(
       << ". AudioDiscardDurationTracker::AdjustTimeForTotalDiscardDuration() "
          "requires monotonically increasing timestamps.";
   last_received_timestamp_us_ = timestamp_us;
+  int64_t adjusted_timestamp_us = timestamp_us - total_discard_duration_us_;
 
   // As a lot of time may have passed since the last call to
   // AdjustTimeForTotalDiscardDuration(), remove all AudioDiscardInfos that
   // have already been passed by the |timestamp|.
-  while (discard_infos_.size() > 0 &&
-         timestamp_us >= discard_infos_.front().discard_start_timestamp_us +
-                             discard_infos_.front().discard_duration_us) {
+  while (!discard_infos_.empty() &&
+         adjusted_timestamp_us >=
+             discard_infos_.front().discard_start_timestamp_us +
+                 discard_infos_.front().discard_duration_us) {
     total_discard_duration_us_ += discard_infos_.front().discard_duration_us;
     discard_infos_.pop();
   }
@@ -56,18 +56,13 @@ int64_t AudioDiscardDurationTracker::AdjustTimeForTotalDiscardDuration(
   if (discard_infos_.size() > 0) {
     int64_t discard_start_timestamp_us =
         discard_infos_.front().discard_start_timestamp_us;
-    int64_t discard_end_timestamp_us =
-        discard_start_timestamp_us + discard_infos_.front().discard_duration_us;
-    if (timestamp_us >= discard_start_timestamp_us &&
-        timestamp_us < discard_end_timestamp_us) {
-      // "Freeze" the timestamp at |discard_start_timestamp| if |timestamp|
-      // falls within the discard period.
-      return std::max(int64_t(0),
-                      discard_start_timestamp_us - total_discard_duration_us_);
+    if (adjusted_timestamp_us >= discard_start_timestamp_us) {
+      // "Freeze" the timestamp at |discard_start_timestamp|.
+      return discard_start_timestamp_us;
     }
   }
 
-  return std::max(int64_t(0), timestamp_us - total_discard_duration_us_);
+  return adjusted_timestamp_us;
 }
 
 void AudioDiscardDurationTracker::CacheDiscardDuration(
