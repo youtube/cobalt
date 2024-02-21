@@ -19,12 +19,12 @@
 #include <string>
 #include <utility>
 
+#include "base/logging.h"
 #include "cobalt/js_profiler/profiler_trace_wrapper.h"
 #include "cobalt/web/cache_utils.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/dom_exception.h"
 #include "cobalt/web/environment_settings_helper.h"
-#include "starboard/common/log.h"
 
 namespace cobalt {
 namespace js_profiler {
