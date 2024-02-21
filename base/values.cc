@@ -876,7 +876,36 @@ bool Value::List::empty() const {
 size_t Value::List::size() const {
   return storage_.size();
 }
+#if defined(STARBOARD)
+Value::List::iterator Value::List::begin() {
+  return iterator(storage_.data(), storage_.data() + storage_.size());
+}
 
+Value::List::const_iterator Value::List::begin() const {
+  return const_iterator(storage_.data(), storage_.data() + storage_.size());
+}
+
+Value::List::const_iterator Value::List::cbegin() const {
+  return const_iterator(storage_.data(), storage_.data() + storage_.size());
+}
+
+Value::List::iterator Value::List::end() {
+    return iterator(storage_.data(), storage_.data() + storage_.size(), storage_.data() + storage_.size());
+
+}
+
+Value::List::const_iterator Value::List::end() const {
+  return const_iterator(storage_.data(),
+                        storage_.data() + storage_.size(),
+                        storage_.data() + storage_.size());
+}
+
+Value::List::const_iterator Value::List::cend() const {
+  return const_iterator(storage_.data(),
+                        storage_.data() + storage_.size(),
+                        storage_.data() + storage_.size());
+}
+#else
 Value::List::iterator Value::List::begin() {
   return iterator(base::to_address(storage_.begin()),
                   base::to_address(storage_.end()));
@@ -909,6 +938,7 @@ Value::List::const_iterator Value::List::cend() const {
                         base::to_address(storage_.cend()),
                         base::to_address(storage_.cend()));
 }
+#endif
 
 const Value& Value::List::front() const {
   CHECK(!storage_.empty());
@@ -948,6 +978,38 @@ void Value::List::clear() {
   storage_.clear();
 }
 
+#if defined(STARBOARD)
+Value::List::iterator Value::List::erase(iterator pos) {
+  auto next_it = storage_.erase(storage_.begin() + (pos - begin()));
+  return iterator(storage_.data(),
+                  storage_.data() + (next_it - storage_.begin()),
+                  storage_.data() + storage_.size());
+}
+
+Value::List::const_iterator Value::List::erase(const_iterator pos) {
+  auto next_it = storage_.erase(storage_.begin() + (pos - begin()));
+  return const_iterator(storage_.data(),
+                  storage_.data() + (next_it - storage_.begin()),
+                  storage_.data() + storage_.size());
+}
+
+Value::List::iterator Value::List::erase(iterator first, iterator last) {
+  auto next_it = storage_.erase(storage_.begin() + (first - begin()),
+                                storage_.begin() + (last - begin()));
+  return iterator(storage_.data(),
+                  storage_.data() + (next_it - storage_.begin()),
+                  storage_.data() + storage_.size());
+}
+
+Value::List::const_iterator Value::List::erase(const_iterator first,
+                                               const_iterator last) {
+  auto next_it = storage_.erase(storage_.begin() + (first - begin()),
+                                storage_.begin() + (last - begin()));
+  return const_iterator(storage_.data(),
+                  storage_.data() + (next_it - storage_.begin()),
+                  storage_.data() + storage_.size());
+}
+#else
 Value::List::iterator Value::List::erase(iterator pos) {
   auto next_it = storage_.erase(storage_.begin() + (pos - begin()));
   return iterator(base::to_address(storage_.begin()), base::to_address(next_it),
@@ -976,6 +1038,7 @@ Value::List::const_iterator Value::List::erase(const_iterator first,
                         base::to_address(next_it),
                         base::to_address(storage_.end()));
 }
+#endif
 
 Value::List Value::List::Clone() const {
   return List(storage_);
@@ -1089,6 +1152,15 @@ Value::List&& Value::List::Append(List&& value) && {
   return std::move(*this);
 }
 
+#if defined(STARBOARD)
+Value::List::iterator Value::List::Insert(const_iterator pos, Value&& value) {
+  auto inserted_it =
+      storage_.insert(storage_.begin() + (pos - begin()), std::move(value));
+  return iterator(storage_.data(),
+                  storage_.data() + (inserted_it - storage_.begin()),
+                  storage_.data() + storage_.size());
+}
+#else
 Value::List::iterator Value::List::Insert(const_iterator pos, Value&& value) {
   auto inserted_it =
       storage_.insert(storage_.begin() + (pos - begin()), std::move(value));
@@ -1096,6 +1168,7 @@ Value::List::iterator Value::List::Insert(const_iterator pos, Value&& value) {
                   base::to_address(inserted_it),
                   base::to_address(storage_.end()));
 }
+#endif
 
 size_t Value::List::EraseValue(const Value& value) {
   return Erase(storage_, value);
