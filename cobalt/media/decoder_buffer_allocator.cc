@@ -31,7 +31,7 @@ namespace {
 
 using starboard::ScopedLock;
 
-const bool kEnableAllocationLog = true;
+const bool kEnableAllocationLog = false;
 
 const size_t kAllocationRecordGranularity = 512 * 1024;
 // Used to determine if the memory allocated is large. The underlying logic can
@@ -117,8 +117,8 @@ void* DecoderBufferAllocator::Allocate(size_t size, size_t alignment) {
   void* p = reuse_allocator_->Allocate(size, alignment);
   CHECK(p);
 
-  LOG_IF(INFO, kEnableAllocationLog) << "Media Allocation Log - Allocate:" << p
-                                     << " " << size << " " << alignment << " ";
+  LOG_IF(INFO, kEnableAllocationLog)
+      << "Media Allocation Log " << p << " " << size << " " << alignment << " ";
   return p;
 }
 
@@ -138,7 +138,7 @@ void DecoderBufferAllocator::Free(void* p, size_t size) {
 
   DCHECK(reuse_allocator_);
 
-  LOG_IF(INFO, kEnableAllocationLog) << "Media Allocation Log - Free:" << p;
+  LOG_IF(INFO, kEnableAllocationLog) << "Media Allocation Log " << p;
 
   reuse_allocator_->Free(p);
   if (is_memory_pool_allocated_on_demand_) {
