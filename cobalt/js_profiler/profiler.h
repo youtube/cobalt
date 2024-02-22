@@ -37,6 +37,7 @@ namespace js_profiler {
 // Forward declaration of ProfilerGroup
 class ProfilerGroup;
 
+// TODO(b/326337485): Profiler should be a subclass of EventTarget.
 class Profiler : public script::Wrappable {
  public:
   static const int kBaseSampleIntervalMs = 10;
