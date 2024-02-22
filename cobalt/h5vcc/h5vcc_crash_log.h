@@ -24,6 +24,8 @@
 #include "cobalt/h5vcc/watchdog_state.h"
 #include "cobalt/script/wrappable.h"
 #include "cobalt/watchdog/watchdog.h"
+#include "cobalt/web/environment_settings.h"
+#include "cobalt/web/environment_settings_helper.h"
 
 namespace cobalt {
 namespace h5vcc {
@@ -58,6 +60,13 @@ class H5vccCrashLog : public script::Wrappable {
   bool GetPersistentSettingWatchdogCrash();
 
   void SetPersistentSettingWatchdogCrash(bool can_trigger_crash);
+
+  void ForceGarbageCollection(
+      script::EnvironmentSettings* environment_settings) {
+    web::get_context(environment_settings)
+        ->javascript_engine()
+        ->CollectGarbage();
+  }
 
   DEFINE_WRAPPABLE_TYPE(H5vccCrashLog);
 

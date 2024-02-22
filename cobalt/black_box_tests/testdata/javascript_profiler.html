@@ -3,10 +3,7 @@
 <head>
   <title>JavaScript Profiler Test</title>
   <script async src='black_box_js_test_utils.js'></script>
-</head>
-
-<body>
-  <script type="application/javascript">
+  <script>
     // Function to check if a number is prime
     const isPrime = (num) => {
       if (num <= 1) return false;
@@ -26,29 +23,30 @@
       const profiler = new Profiler({ sampleInterval: 10 /**ms**/, maxBufferSize: 10000 /**number of samples*/ });
       const start = performance.now();
 
-      for (let i = 0; i < 1000; i++) {
+      for (let i = 0; i < 100000; i++) {
         isPrime(i);
       }
 
       const duration = performance.now() - start;
       const trace = await profiler.stop();
-      const traceJson = JSON.stringify({
-        duration,
-        trace,
-      });
+      assertTrue(trace.length > 0, 'expected some stack traces');
     };
 
     const testSampleBufferFullProfiler = async () => {
-      const profiler = new Profiler({ sampleInterval: 10 /**ms**/, maxBufferSize: 100 /**number of samples*/ });
-      let running = true;
-      profiler.addEventListener('samplebufferfull', () => {
-        running = false;
-        profiler.stop();
+      const promise = new Promise((resolve, reject) => {
+        window.profiler = new Profiler({ maxBufferSize: 100, sampleInterval: 10 });
+        window.profiler.addEventListener('samplebufferfull', () => {
+          resolve(true);
+        });
+      });
+      const timeoutPromise = new Promise((resolve) => {
+        setTimeout(() => {
+          resolve(false);
+        }, 10000);
       });
 
-      for (let i = 0; i < 10000000 && running; i++) {
-        isPrime(i);
-      }
+      const result = await Promise.race([timeoutPromise, promise]);
+      assertTrue(result, 'expected sample buffer to be full');
     };
 
     /**
@@ -57,33 +55,38 @@
     */
     const testAbruptGarbageCollection = async () => {
       const promise = new Promise((resolve, reject) => {
-        const profiler = new Profiler({ maxBufferSize: 100, sampleInterval: 10 });
-        profiler.addEventListener('samplebufferfull', () => {
-          resolve();
+        window.profiler = new Profiler({ maxBufferSize: 100, sampleInterval: 10 });
+        window.profiler.addEventListener('samplebufferfull', () => {
+          resolve(true);
         });
-        // Force garbage collection.
-        delete profiler;
+      });
+
+      // force GC. Profiler callback should still be executed even though it
+      // is out of JS scope.
+      h5vcc.crashLog.forceGarbageCollection();
+
+      const timeoutPromise = new Promise((resolve) => {
         setTimeout(() => {
-          reject('SampleBufferFull event was not fired');
-        }, 1000 /*ms*/);
+          resolve(false);
+        }, 10000);
       });
 
-      await promise.then(() => {
-
-      }).catch(() => {
-      });
+      const result = await Promise.race([timeoutPromise, promise]);
+      assertTrue(result, 'expected cobalt to not segfault if GC activates');
     };
 
     window.addEventListener('load', async () => {
       setupFinished();
       // Test Case 1: Prime Profiler
-      // await testPrimeProfiler();
+      await testPrimeProfiler();
       // Test Case 2: SampleBufferFull Profiler
-      // await testSampleBufferFullProfiler();
+      await testSampleBufferFullProfiler();
       // Test Case 3:
-      //await testAbruptGarbageCollection();
-      assertTrue(true, "Ayyy")
+      await testAbruptGarbageCollection();
       onEndTest();
     });
   </script>
+</head>
+
+<body>
 </body>
