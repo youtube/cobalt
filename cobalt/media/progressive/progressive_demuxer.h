@@ -15,7 +15,6 @@
 #ifndef COBALT_MEDIA_PROGRESSIVE_PROGRESSIVE_DEMUXER_H_
 #define COBALT_MEDIA_PROGRESSIVE_PROGRESSIVE_DEMUXER_H_
 
-#include <atomic>
 #include <deque>
 #include <memory>
 #include <string>
@@ -166,10 +165,6 @@ class MEDIA_EXPORT ProgressiveDemuxer : public ::media::Demuxer {
   // Provide access to ProgressiveDemuxerStream.
   bool MessageLoopBelongsToCurrentThread() const;
 
-  bool GetIsEndOfStreamReceived() const override {
-    return audio_reached_eos_ || video_reached_eos_;
-  }
-
  private:
   void ParseConfigDone(PipelineStatusCallback status_cb, PipelineStatus status);
   bool HasStopCalled();
@@ -200,8 +195,8 @@ class MEDIA_EXPORT ProgressiveDemuxer : public ::media::Demuxer {
   scoped_refptr<ProgressiveParser> parser_;
 
   scoped_refptr<AvcAccessUnit> requested_au_;
-  std::atomic_bool audio_reached_eos_;
-  std::atomic_bool video_reached_eos_;
+  bool audio_reached_eos_;
+  bool video_reached_eos_;
 };
 
 }  // namespace media

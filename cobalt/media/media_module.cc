@@ -225,12 +225,8 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
               << audio_write_duration_remote_;
     return true;
 #endif  // SB_API_VERSION >= 15
-  } else if (name == "DemuxerUnderflowThreshold" && value >= 0) {
-    demuxer_underflow_threshold_ = base::TimeDelta::FromMicroseconds(value);
-    LOG(INFO) << "Set DemuxerUnderflowThreshold to "
-              << demuxer_underflow_threshold_;
-    return true;
   }
+
   return false;
 }
 
@@ -250,7 +246,7 @@ std::unique_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(
 #if SB_API_VERSION >= 15
       audio_write_duration_local_, audio_write_duration_remote_,
 #endif  // SB_API_VERSION >= 15
-      demuxer_underflow_threshold_, &media_log_));
+      &media_log_));
 }
 
 void MediaModule::Suspend() {
