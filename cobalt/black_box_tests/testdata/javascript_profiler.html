@@ -23,20 +23,20 @@
       const profiler = new Profiler({ sampleInterval: 10 /**ms**/, maxBufferSize: 10000 /**number of samples*/ });
       const start = performance.now();
 
-      for (let i = 0; i < 100000; i++) {
+      for (let i = 0; i < 1000000; i++) {
         isPrime(i);
       }
 
       const duration = performance.now() - start;
       const trace = await profiler.stop();
-      assertTrue(trace.length > 0, 'expected some stack traces');
+      assertTrue(trace.samples.length > 0, 'expected some stack traces');
     };
 
     const testSampleBufferFullProfiler = async () => {
       const promise = new Promise((resolve, reject) => {
-        window.profiler = new Profiler({ maxBufferSize: 100, sampleInterval: 10 });
-        window.profiler.addEventListener('samplebufferfull', () => {
-          resolve(true);
+        const profiler = new Profiler({ maxBufferSize: 100, sampleInterval: 10 });
+        profiler.addEventListener('samplebufferfull', () => {
+          profiler.stop().then(() => { resolve(true); });
         });
       });
       const timeoutPromise = new Promise((resolve) => {
@@ -55,9 +55,9 @@
     */
     const testAbruptGarbageCollection = async () => {
       const promise = new Promise((resolve, reject) => {
-        window.profiler = new Profiler({ maxBufferSize: 100, sampleInterval: 10 });
-        window.profiler.addEventListener('samplebufferfull', () => {
-          resolve(true);
+        const profiler = new Profiler({ maxBufferSize: 100, sampleInterval: 10 });
+        profiler.addEventListener('samplebufferfull', () => {
+          profiler.stop().then(() => resolve(true));
         });
       });
 
@@ -78,11 +78,15 @@
     window.addEventListener('load', async () => {
       setupFinished();
       // Test Case 1: Prime Profiler
+      console.log("testPrimeProfiler");
       await testPrimeProfiler();
       // Test Case 2: SampleBufferFull Profiler
+      console.log("testSampleBufferFullProfiler");
       await testSampleBufferFullProfiler();
       // Test Case 3:
+      console.log("testAbruptGarbageCollection");
       await testAbruptGarbageCollection();
+      console.log("DONE");
       onEndTest();
     });
   </script>
