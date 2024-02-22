@@ -75,16 +75,15 @@ int ParseAc3SyncframeAudioSampleCount(const uint8_t* buffer, int size) {
 AudioRendererPassthrough::AudioRendererPassthrough(
     const AudioStreamInfo& audio_stream_info,
     SbDrmSystem drm_system,
-    bool enable_audio_device_callback,
-    bool use_mediacodec_callback_thread)
+    bool enable_audio_device_callback)
     : audio_stream_info_(audio_stream_info),
       enable_audio_device_callback_(enable_audio_device_callback) {
   SB_DCHECK(audio_stream_info_.codec == kSbMediaAudioCodecAc3 ||
             audio_stream_info_.codec == kSbMediaAudioCodecEac3);
   if (SbDrmSystemIsValid(drm_system)) {
     SB_LOG(INFO) << "Creating AudioDecoder as decryptor.";
-    scoped_ptr<AudioDecoder> audio_decoder(new AudioDecoder(
-        audio_stream_info, drm_system, use_mediacodec_callback_thread));
+    scoped_ptr<AudioDecoder> audio_decoder(
+        new AudioDecoder(audio_stream_info, drm_system));
     if (audio_decoder->is_valid()) {
       decoder_.reset(audio_decoder.release());
     }

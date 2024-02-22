@@ -79,8 +79,7 @@ class MediaDecoder
 
   MediaDecoder(Host* host,
                const AudioStreamInfo& audio_stream_info,
-               SbDrmSystem drm_system,
-               bool use_mediacodec_callback_thread);
+               SbDrmSystem drm_system);
   MediaDecoder(Host* host,
                SbMediaVideoCodec video_codec,
                // `width_hint` and `height_hint` are used to create the Android
@@ -99,7 +98,6 @@ class MediaDecoder
                int tunnel_mode_audio_session_id,
                bool force_big_endian_hdr_metadata,
                bool force_improved_support_check,
-               bool use_mediacodec_callback_thread,
                int max_video_input_size,
                std::string* error_message);
   ~MediaDecoder();

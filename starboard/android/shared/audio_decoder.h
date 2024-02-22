@@ -45,8 +45,7 @@ class AudioDecoder
       AudioStreamInfo;
 
   AudioDecoder(const AudioStreamInfo& audio_stream_info,
-               SbDrmSystem drm_system,
-               bool use_mediacodec_callback_thread);
+               SbDrmSystem drm_system);
   ~AudioDecoder() override;
 
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
@@ -83,10 +82,6 @@ class AudioDecoder
   jint output_channel_count_;
 
   DrmSystem* drm_system_;
-
-  // Set mediacodec callback with a handler on another thread to avoid running
-  // callbacks on the main thread and being blocked by other main thread tasks.
-  const bool use_mediacodec_callback_thread_;
 
   OutputCB output_cb_;
   ErrorCB error_cb_;

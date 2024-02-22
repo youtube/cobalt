@@ -55,8 +55,7 @@ class AudioRendererPassthrough
 
   AudioRendererPassthrough(const AudioStreamInfo& audio_stream_info,
                            SbDrmSystem drm_system,
-                           bool enable_audio_device_callback,
-                           bool use_mediacodec_callback_thread);
+                           bool enable_audio_device_callback);
   ~AudioRendererPassthrough() override;
 
   bool is_valid() const { return decoder_ != nullptr; }
