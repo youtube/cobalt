@@ -1,21 +1,26 @@
 name: "libcxxabi"
 description:
-  "Filtered subtree at third_party/llvm-project/libcxxabi."
+  "Subdirectory subtree of llvm-project."
 
 third_party {
-  url {
-    type: LOCAL_SOURCE
-    value: "https://cobalt.googlesource.com/third_party/llvm-project/libcxxabi_filtered_mirror"
+  identifier {
+    type: "ChromiumVersion"
+    value: "114.0.5735.351"
   }
-  url {
-    type: GIT
-    value: "https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxx.git"
+  identifier {
+    type: "Git"
+    value: "https://chromium.googlesource.com/external/github.com/llvm/llvm-project"
+    version: "27f27d15f6c90b026eca23b8ee238fdbf772fd80"
+    # from https://chromium.googlesource.com/chromium/src/+/refs/tags/114.0.5735.351/tools/clang/scripts/update.py#38
+    closest_version: "llvmorg-17-init-8029-g27f27d15"
   }
-  version: "1127c78cf90cf253be614a1e1d3645da57edbeb4"
-  # from https://chromium.googlesource.com/chromium/src/+/111.0.5563.150/DEPS#486
+  identifier {
+    type: "UpstreamSubdir"
+    value: "libcxxabi"
+  }
   last_upgrade_date {
-    year: 2023
-    month: 1
-    day: 17
+    year: 2024
+    month: 2
+    day: 21
   }
 }

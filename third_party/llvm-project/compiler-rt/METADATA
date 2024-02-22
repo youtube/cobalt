@@ -1,21 +1,26 @@
 name: "compiler-rt"
 description:
-  "Filtered subtree at third_party/llvm-project/compiler-rt."
+  "Subdirectory subtree of llvm-project."
 
 third_party {
-  url {
-    type: LOCAL_SOURCE
-    value: "https://cobalt.googlesource.com/third_party/llvm-project/compiler-rt_filtered_mirror"
+  identifier {
+    type: "ChromiumVersion"
+    value: "114.0.5735.351"
   }
-  url {
-    type: GIT
-    value: "https://github.com/llvm/llvm-project.git"
+  identifier {
+    type: "Git"
+    value: "https://chromium.googlesource.com/external/github.com/llvm/llvm-project"
+    version: "27f27d15f6c90b026eca23b8ee238fdbf772fd80"
+    # from https://chromium.googlesource.com/chromium/src/+/refs/tags/114.0.5735.351/tools/clang/scripts/update.py#38
+    closest_version: "llvmorg-17-init-8029-g27f27d15"
   }
-  # Closest commit hash to llvm-project's 39da55e8f548a11f7dadefa73ea73d809a5f1729.
-  version: "1066968d931196d4ab5e1dfb54d4fd53f3cc024f"
+  identifier {
+    type: "UpstreamSubdir"
+    value: "compiler-rt"
+  }
   last_upgrade_date {
-    year: 2023
-    month: 1
-    day: 17
+    year: 2024
+    month: 2
+    day: 21
   }
 }
