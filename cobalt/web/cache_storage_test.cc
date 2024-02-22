@@ -119,7 +119,7 @@ TEST_F(CacheStorageTest, Work) {
   EXPECT_EQ(200, cache_utils::Get(match_result_options, "status")->GetInt());
   EXPECT_EQ("OK",
             cache_utils::Get(match_result_options, "statusText")->GetString());
-  EXPECT_EQ(1, match_result_options.FindKey("headers")->GetList().size());
+  EXPECT_EQ(1, (*match_result_options.GetDict().FindList("headers")).size());
   EXPECT_EQ("a",
             cache_utils::Get(match_result_options, "headers.0.0")->GetString());
   EXPECT_EQ("1",

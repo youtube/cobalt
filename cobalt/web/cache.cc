@@ -176,12 +176,15 @@ script::HandlePromiseAny Cache::Match(
                 cache::Cache::GetInstance()->Metadata(kResourceType, key);
             script::v8c::EntryScope entry_scope(isolate);
             auto resolver = traced_resolver.Get(isolate);
-            if (!cached || !metadata || !metadata->FindKey("options")) {
+            if (!cached || !metadata ||
+                !(*metadata).GetDict().FindDict("options")) {
               cache_utils::Resolve(resolver);
               return;
             }
-            auto response = cache_utils::CreateResponse(
-                isolate, *cached, *(metadata->FindKey("options")));
+            base::Value value(
+                (*metadata->GetDict().FindDict("options")).Clone());
+            auto response =
+                cache_utils::CreateResponse(isolate, *cached, value);
             if (!response) {
               cache_utils::Reject(resolver);
               return;
@@ -382,12 +385,12 @@ script::HandlePromiseAny Cache::Keys(
               if (!metadata) {
                 continue;
               }
-              auto url = metadata->FindKey("url");
+              auto url = metadata->GetDict().FindString("url");
               if (!url) {
                 continue;
               }
               base::Optional<v8::Local<v8::Value>> request =
-                  cache_utils::CreateRequest(isolate, url->GetString());
+                  cache_utils::CreateRequest(isolate, *url);
               if (request) {
                 requests.push_back(std::move(request.value()));
               }

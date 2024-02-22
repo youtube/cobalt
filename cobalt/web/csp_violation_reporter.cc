@@ -160,21 +160,21 @@ void CspViolationReporter::Report(const csp::ViolationInfo& violation_info) {
   // harmless information.
 
   base::Value::Dict csp_report;
-  csp_report->Set(kDocumentUri, violation_data.document_uri);
-  csp_report->Set(kReferrer, violation_data.referrer);
-  csp_report->Set(kViolatedDirective, violation_data.violated_directive);
-  csp_report->Set(kEffectiveDirective, violation_data.effective_directive);
-  csp_report->Set(kOriginalPolicy, violation_data.original_policy);
-  csp_report->Set(kBlockedUri, violation_data.blocked_uri);
+  csp_report.Set(kDocumentUri, violation_data.document_uri);
+  csp_report.Set(kReferrer, violation_data.referrer);
+  csp_report.Set(kViolatedDirective, violation_data.violated_directive);
+  csp_report.Set(kEffectiveDirective, violation_data.effective_directive);
+  csp_report.Set(kOriginalPolicy, violation_data.original_policy);
+  csp_report.Set(kBlockedUri, violation_data.blocked_uri);
   if (!violation_data.source_file.empty() && violation_data.line_number != 0) {
-    csp_report->Set(kSourceFile, violation_data.source_file);
-    csp_report->Set(kLineNumber, violation_data.line_number);
-    csp_report->Set(kColumnNumber, violation_data.column_number);
+    csp_report.Set(kSourceFile, violation_data.source_file);
+    csp_report.Set(kLineNumber, violation_data.line_number);
+    csp_report.Set(kColumnNumber, violation_data.column_number);
   }
-  csp_report->Set(kStatusCode, violation_data.status_code);
+  csp_report.Set(kStatusCode, violation_data.status_code);
 
   base::Value::Dict report_object;
-  report_object->Set(kCspReport, std::move(csp_report));
+  report_object.Set(kCspReport, std::move(csp_report));
 
   std::string json_string;
   base::JSONWriter::Write(report_object, &json_string);

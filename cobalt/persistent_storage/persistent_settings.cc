@@ -113,37 +113,32 @@ bool PersistentSettings::GetPersistentSettingAsBool(const std::string& key,
                                                     bool default_setting) {
   base::AutoLock auto_lock(pref_store_lock_);
   auto persistent_settings = pref_store_->GetValues();
-  const base::Value* result = persistent_settings->FindKey(key);
-  if (result && result->is_bool()) return result->GetBool();
-  return default_setting;
+  absl::optional<bool> result = persistent_settings.FindBool(key);
+  return result.value_or(default_setting);
 }
 
 int PersistentSettings::GetPersistentSettingAsInt(const std::string& key,
                                                   int default_setting) {
   base::AutoLock auto_lock(pref_store_lock_);
   auto persistent_settings = pref_store_->GetValues();
-  const base::Value* result = persistent_settings->FindKey(key);
-  if (result && result->is_int()) return result->GetInt();
-  return default_setting;
+  absl::optional<int> result = persistent_settings.FindInt(key);
+  return result.value_or(default_setting);
 }
 
 double PersistentSettings::GetPersistentSettingAsDouble(
     const std::string& key, double default_setting) {
   base::AutoLock auto_lock(pref_store_lock_);
   auto persistent_settings = pref_store_->GetValues();
-  const base::Value* result = persistent_settings->FindKey(key);
-  if (result && result->is_double()) {
-    return result->GetDouble();
-  }
-  return default_setting;
+  absl::optional<double> result = persistent_settings.FindDouble(key);
+  return result.value_or(default_setting);
 }
 
 std::string PersistentSettings::GetPersistentSettingAsString(
     const std::string& key, const std::string& default_setting) {
   base::AutoLock auto_lock(pref_store_lock_);
   auto persistent_settings = pref_store_->GetValues();
-  const base::Value* result = persistent_settings->FindKey(key);
-  if (result && result->is_string()) return result->GetString();
+  const std::string* result = persistent_settings.FindString(key);
+  if (result) return *result;
   return default_setting;
 }
 
@@ -151,31 +146,30 @@ std::vector<base::Value> PersistentSettings::GetPersistentSettingAsList(
     const std::string& key) {
   base::AutoLock auto_lock(pref_store_lock_);
   auto persistent_settings = pref_store_->GetValues();
-  base::Value* result = persistent_settings.Find(key);
-  if (result && result->is_list()) {
-#ifndef USE_HACKY_COBALT_CHANGES
-    return std::move(result).TakeList();
-#endif
+  const base::Value::List* result = persistent_settings.FindList(key);
+  std::vector<base::Value> values;
+  if (result) {
+    for (const auto& value : *result) {
+      values.emplace_back(value.Clone());
+    }
   }
-  return std::vector<base::Value>();
+  return values;
 }
 
 base::flat_map<std::string, std::unique_ptr<base::Value>>
 PersistentSettings::GetPersistentSettingAsDictionary(const std::string& key) {
   base::AutoLock auto_lock(pref_store_lock_);
   auto persistent_settings = pref_store_->GetValues();
-  base::Value* result = persistent_settings->FindKey(key);
+  base::Value::Dict* result = persistent_settings.FindDict(key);
   base::flat_map<std::string, std::unique_ptr<base::Value>> dict;
-#ifndef USE_HACKY_COBALT_CHANGES
-  if (result && result->is_dict()) {
-    for (const auto& key_value : result->DictItems()) {
+  if (result) {
+    for (base::Value::Dict::iterator it = result->begin();
+         it != result->end(); ++it) {
       dict.insert(std::make_pair(
-          key_value.first,
-          std::make_unique<base::Value>(std::move(key_value.second))));
+          it->first, base::Value::ToUniquePtrValue(std::move(it->second))));
     }
     return dict;
   }
-#endif
   return dict;
 }
 

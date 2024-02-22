@@ -69,16 +69,17 @@ void CheckForNewPrefChangesInPrefStore(
   if (!pref_store)
     return;
   auto values = pref_store->GetValues();
-  for (const auto& item : values->DictItems()) {
+  for (base::Value::Dict::iterator it = values.begin(); it != values.end();
+       ++it) {
     // If the key already presents, skip it as a store with higher precedence
     // already sets the entry.
-    if (pref_changed_map->find(item.first) != pref_changed_map->end())
+    if (pref_changed_map->find(it->first) != pref_changed_map->end())
       continue;
     const PrefService::Preference* pref =
-        pref_service->FindPreference(item.first);
+        pref_service->FindPreference(it->first);
     if (!pref)
       continue;
-    pref_changed_map->emplace(item.first, *(pref->GetValue()) != item.second);
+    pref_changed_map->emplace(it->first, *(pref->GetValue()) != it->second);
   }
 }
 
