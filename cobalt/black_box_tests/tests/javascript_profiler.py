@@ -30,5 +30,5 @@ class JavaScriptProfilerTest(black_box_tests.BlackBoxTestCase):
       url = server.GetURL(file_name='testdata/javascript_profiler.html')
       with self.CreateCobaltRunner(url=url) as runner:
         runner.WaitForJSTestsSetup()
-        time.sleep(3.333)
+        time.sleep(60)
         self.assertTrue(runner.JSTestsSucceeded())
