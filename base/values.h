@@ -200,12 +200,6 @@ class BASE_EXPORT GSL_OWNER Value {
   static Value FromUniquePtrValue(std::unique_ptr<Value> val);
   static std::unique_ptr<Value> ToUniquePtrValue(Value val);
 
-  Value* operator->() { return this; }
-  bool GetAsBoolean(bool* t) const { return false; }
-  bool GetAsInteger(int* t) const { return false; }
-  bool GetAsDouble(double* t) const { return false; }
-  bool GetAsString(std::string* t) const { return false; }
-
   Value() noexcept;
 
   Value(Value&&) noexcept;

@@ -316,7 +316,7 @@ TEST_F(PersistentSettingTest, GetSetList) {
       persistent_settings.get(), &test_done_);
 
   base::Value list(base::Value::Type::LIST);
-  list->GetList().Append("hello");
+  list.GetList().Append("hello");
   persistent_settings->SetPersistentSetting(
       "key", base::Value::ToUniquePtrValue(std::move(list)), std::move(closure),
       true);
@@ -337,7 +337,7 @@ TEST_F(PersistentSettingTest, GetSetList) {
       },
       persistent_settings.get(), &test_done_);
 
-  list->GetList().Append("there");
+  list.GetList().Append("there");
   persistent_settings->SetPersistentSetting(
       "key", base::Value::ToUniquePtrValue(std::move(list)), std::move(closure),
       true);

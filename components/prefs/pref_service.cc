@@ -164,9 +164,7 @@ bool PrefService::GetBoolean(const std::string& path) const {
   const base::Value* value = GetPreferenceValueChecked(path);
   if (!value)
     return result;
-  bool rv = value->GetAsBoolean(&result);
-  DCHECK(rv);
-  return result;
+  return (*value).GetBool();
 }
 
 int PrefService::GetInteger(const std::string& path) const {
@@ -177,9 +175,7 @@ int PrefService::GetInteger(const std::string& path) const {
   const base::Value* value = GetPreferenceValueChecked(path);
   if (!value)
     return result;
-  bool rv = value->GetAsInteger(&result);
-  DCHECK(rv);
-  return result;
+  return (*value).GetInt();
 }
 
 double PrefService::GetDouble(const std::string& path) const {
@@ -190,9 +186,7 @@ double PrefService::GetDouble(const std::string& path) const {
   const base::Value* value = GetPreferenceValueChecked(path);
   if (!value)
     return result;
-  bool rv = value->GetAsDouble(&result);
-  DCHECK(rv);
-  return result;
+  return (*value).GetDouble();
 }
 
 std::string PrefService::GetString(const std::string& path) const {
@@ -203,9 +197,7 @@ std::string PrefService::GetString(const std::string& path) const {
   const base::Value* value = GetPreferenceValueChecked(path);
   if (!value)
     return result;
-  bool rv = value->GetAsString(&result);
-  DCHECK(rv);
-  return result;
+  return (*value).GetString();
 }
 
 base::FilePath PrefService::GetFilePath(const std::string& path) const {
@@ -216,9 +208,9 @@ base::FilePath PrefService::GetFilePath(const std::string& path) const {
   const base::Value* value = GetPreferenceValueChecked(path);
   if (!value)
     return base::FilePath(result);
-  bool rv = base::GetValueAsFilePath(*value, &result);
+  absl::optional<base::FilePath> rv = base::ValueToFilePath(value);
   DCHECK(rv);
-  return result;
+  return *rv;
 }
 
 bool PrefService::HasPrefPath(const std::string& path) const {
@@ -500,8 +492,7 @@ void PrefService::SetString(const std::string& path, const std::string& value) {
 
 void PrefService::SetFilePath(const std::string& path,
                               const base::FilePath& value) {
-  SetUserPrefValue(
-      path, base::Value(base::CreateFilePathValue(value)));
+  SetUserPrefValue(path, base::FilePathToValue(value));
 }
 
 void PrefService::SetInt64(const std::string& path, int64_t value) {
@@ -528,8 +519,8 @@ uint64_t PrefService::GetUint64(const std::string& path) const {
   if (!value)
     return 0;
   std::string result("0");
-  bool rv = value->GetAsString(&result);
-  DCHECK(rv);
+  if (!(*value).is_string())
+    return 0;
 
   uint64_t val;
   base::StringToUint64(result, &val);
@@ -626,10 +617,10 @@ void PrefService::SetUserPrefValue(const std::string& path,
     NOTREACHED() << "Trying to write an unregistered pref: " << path;
     return;
   }
-  if (pref->GetType() != new_value->type()) {
+  if (pref->GetType() != new_value.type()) {
     NOTREACHED() << "Trying to set pref " << path << " of type "
                  << pref->GetType() << " to value of type "
-                 << new_value->type();
+                 << new_value.type();
     return;
   }
 

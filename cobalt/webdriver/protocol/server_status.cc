@@ -69,7 +69,7 @@ std::unique_ptr<base::Value> ServerStatus::ToValue(const ServerStatus& status) {
   }
 
   base::Value ret(base::Value::Type::DICT);
-  base::Value::Dict* status_value = ret->GetIfDict();
+  base::Value::Dict* status_value = ret.GetIfDict();
   status_value->Set("os", std::move(os_value));
   status_value->Set("build", std::move(build_value));
 

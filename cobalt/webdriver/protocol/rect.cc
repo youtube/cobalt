@@ -14,6 +14,8 @@
 
 #include "cobalt/webdriver/protocol/rect.h"
 
+#include <utility>
+
 namespace cobalt {
 namespace webdriver {
 namespace protocol {
@@ -26,7 +28,7 @@ const char kHeightKey[] = "height";
 
 std::unique_ptr<base::Value> Rect::ToValue(const Rect& rect) {
   base::Value ret(base::Value::Type::DICT);
-  base::Value::Dict* rect_value = ret->GetIfDict();
+  base::Value::Dict* rect_value = ret.GetIfDict();
   rect_value->Set(kXKey, rect.x_);
   rect_value->Set(kYKey, rect.y_);
   rect_value->Set(kWidthKey, rect.width_);

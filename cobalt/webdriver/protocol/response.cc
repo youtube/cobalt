@@ -24,7 +24,7 @@ namespace protocol {
 std::unique_ptr<base::Value> Response::CreateErrorResponse(
     const std::string& message) {
   base::Value ret(base::Value::Type::DICT);
-  base::Value::Dict* error_value = ret->GetIfDict();
+  base::Value::Dict* error_value = ret.GetIfDict();
   error_value->Set("message", message);
   return base::Value::ToUniquePtrValue(std::move(ret));
 }
@@ -34,7 +34,7 @@ std::unique_ptr<base::Value> Response::CreateResponse(
     StatusCode status_code,
     std::unique_ptr<base::Value> webdriver_response_value) {
   base::Value ret(base::Value::Type::DICT);
-  base::Value::Dict* http_response_value = ret->GetIfDict();
+  base::Value::Dict* http_response_value = ret.GetIfDict();
   if (session_id) {
     http_response_value->Set(
         "sessionId", protocol::SessionId::ToValue(session_id.value())->Clone());
