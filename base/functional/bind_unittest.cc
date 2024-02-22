@@ -9,11 +9,13 @@
 #include <utility>
 #include <vector>
 
+#if !defined(USE_HACKY_COBALT_CHANGES)
 #include "base/allocator/partition_alloc_features.h"
 #include "base/allocator/partition_alloc_support.h"
 #include "base/allocator/partition_allocator/dangling_raw_ptr_checks.h"
 #include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
 #include "base/allocator/partition_allocator/partition_alloc_for_testing.h"  // nogncheck
+#endif
 #include "base/functional/callback.h"
 #include "base/functional/disallow_unretained.h"
 #include "base/memory/ptr_util.h"

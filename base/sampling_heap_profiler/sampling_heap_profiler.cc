@@ -7,9 +7,14 @@
 #include <algorithm>
 #include <cmath>
 #include <utility>
+#if defined(USE_HACKY_COBALT_CHANGES)
+#include <string.h>
+#endif
 
+#if !defined(USE_HACKY_COBALT_CHANGES)
 #include "base/allocator/partition_allocator/partition_alloc.h"
 #include "base/allocator/partition_allocator/shim/allocator_shim.h"
+#endif
 #include "base/compiler_specific.h"
 #include "base/debug/stack_trace.h"
 #include "base/feature_list.h"
@@ -28,7 +33,8 @@
 #include <pthread.h>
 #endif
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID) || \
+    defined(USE_HACKY_COBALT_CHANGES)
 #include <sys/prctl.h>
 #endif
 
@@ -61,7 +67,8 @@ const char* GetAndLeakThreadName() {
   // 64 on macOS, see PlatformThread::SetName in platform_thread_mac.mm.
   constexpr size_t kBufferLen = 64;
   char name[kBufferLen];
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID) || \
+    defined(USE_HACKY_COBALT_CHANGES)
   // If the thread name is not set, try to get it from prctl. Thread name might
   // not be set in cases where the thread started before heap profiling was
   // enabled.

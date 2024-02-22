@@ -7,7 +7,7 @@
 #include "base/logging.h"
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_POSIX)
+#if BUILDFLAG(IS_POSIX) || defined(USE_HACKY_COBALT_CHANGES)
 #include <unistd.h>
 #endif
 

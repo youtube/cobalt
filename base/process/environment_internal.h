@@ -8,6 +8,8 @@
 #ifndef BASE_PROCESS_ENVIRONMENT_INTERNAL_H_
 #define BASE_PROCESS_ENVIRONMENT_INTERNAL_H_
 
+#if !defined(STARBOARD)
+
 #include <memory>
 
 #include "base/base_export.h"
@@ -49,5 +51,7 @@ AlterEnvironment(const wchar_t* env, const EnvironmentMap& changes);
 
 }  // namespace internal
 }  // namespace base
+
+#endif  // !defined(STARBOARD)
 
 #endif  // BASE_PROCESS_ENVIRONMENT_INTERNAL_H_

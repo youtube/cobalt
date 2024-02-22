@@ -353,7 +353,9 @@ class BASE_EXPORT File {
   bool DeleteOnClose(bool delete_on_close);
 #endif
 
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+  static Error OSErrorToFileError(SbSystemError sb_error);
+#elif BUILDFLAG(IS_WIN)
   static Error OSErrorToFileError(DWORD last_error);
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   static Error OSErrorToFileError(int saved_errno);

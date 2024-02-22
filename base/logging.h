@@ -195,7 +195,7 @@ namespace logging {
 // TODO(avi): do we want to do a unification of character types here?
 #if BUILDFLAG(IS_WIN)
 typedef wchar_t PathChar;
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
 typedef char PathChar;
 #endif
 
