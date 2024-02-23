@@ -22,15 +22,15 @@
 // disk_cache.cc.
 namespace disk_cache {
 
-net::Error CreateCacheBackend(net::CacheType type,
+disk_cache::BackendResult CreateCacheBackend(net::CacheType type,
                               net::BackendType backend_type,
+                              scoped_refptr<BackendFileOperationsFactory> file_operations,
                               const base::FilePath& path,
                               int64_t max_bytes,
-                              bool force,
+                              ResetHandling reset_handling,
                               net::NetLog* net_log,
-                              std::unique_ptr<Backend>* backend,
-                              net::CompletionOnceCallback callback) {
-  return CreateCacheBackend(type, backend_type, path, max_bytes, force, net_log, backend, base::OnceClosure(), std::move(callback));
+                              BackendResultCallback callback) {
+  return CreateCacheBackend(type, backend_type, std::move(file_operations), path, max_bytes, reset_handling, net_log, base::OnceClosure(), std::move(callback));
 }
 
 #if defined(OS_ANDROID)
@@ -50,11 +50,11 @@ NET_EXPORT net::Error CreateCacheBackend(
 
 net::Error CreateCacheBackend(net::CacheType type,
                               net::BackendType backend_type,
+                              scoped_refptr<BackendFileOperationsFactory> file_operations,
                               const base::FilePath& path,
                               int64_t max_bytes,
-                              bool force,
+                              ResetHandling reset_handling,
                               net::NetLog* net_log,
-                              std::unique_ptr<Backend>* backend,
                               base::OnceClosure post_cleanup_callback,
                               net::CompletionOnceCallback callback) {
   DCHECK(!callback.is_null());
@@ -65,11 +65,10 @@ net::Error CreateCacheBackend(net::CacheType type,
     if (mem_backend_impl) {
       mem_backend_impl->SetPostCleanupCallback(
           std::move(post_cleanup_callback));
-      *backend = std::move(mem_backend_impl);
       return net::OK;
     } else {
       if (!post_cleanup_callback.is_null())
-        base::SequencedTaskRunnerHandle::Get()->PostTask(
+        base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
             FROM_HERE, std::move(post_cleanup_callback));
       return net::ERR_FAILED;
     }
@@ -79,8 +78,10 @@ net::Error CreateCacheBackend(net::CacheType type,
 
 void FlushCacheThreadForTesting() {
   // For simple backend.
+#ifndef USE_HACKY_COBALT_CHANGES
   SimpleBackendImpl::FlushWorkerPoolForTesting();
   base::TaskScheduler::GetInstance()->FlushForTesting();
+#endif
 
   // Block backend.
   // BackendImpl::FlushForTesting();

@@ -38,7 +38,9 @@ CobaltNetLog::~CobaltNetLog() {
 void CobaltNetLog::StartObserving() {
   if (!is_observing_) {
     is_observing_ = true;
+#ifndef USE_HACKY_COBALT_CHANGES
     net_log_logger_->StartObserving(this, capture_mode_);
+#endif
   } else {
     DLOG(WARNING) << "Already observing NetLog.";
   }

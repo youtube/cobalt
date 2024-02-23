@@ -152,7 +152,7 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
   base::FilePath result;
   base::PathService::Get(cobalt::paths::DIR_COBALT_DEBUG_OUT, &result);
   net_log_path_ = result.Append(kDefaultNetLogName);
-  net::NetLogCaptureMode capture_mode;
+  net::NetLogCaptureMode capture_mode = net::NetLogCaptureMode::kDefault;
   if (command_line->HasSwitch(switches::kNetLog)) {
     net_log_path_ = command_line->GetSwitchValuePath(switches::kNetLog);
     if (command_line->HasSwitch(switches::kNetLogCaptureMode)) {

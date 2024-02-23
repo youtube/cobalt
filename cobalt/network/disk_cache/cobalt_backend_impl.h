@@ -53,16 +53,16 @@ class NET_EXPORT_PRIVATE CobaltBackendImpl final
   void UpdateSizes(ResourceType type, uint32_t bytes);
 
   // Backend interface.
-  net::CacheType GetCacheType() const override;
   int32_t GetEntryCount() const override;
-  net::Error OpenEntry(const std::string& key,
-                       net::RequestPriority request_priority,
-                       ::disk_cache::Entry** entry,
-                       CompletionOnceCallback callback) override;
-  net::Error CreateEntry(const std::string& key,
-                         net::RequestPriority request_priority,
-                         ::disk_cache::Entry** entry,
-                         CompletionOnceCallback callback) override;
+  EntryResult OpenOrCreateEntry(const std::string& key,
+                                net::RequestPriority priority,
+                                EntryResultCallback callback) override;
+  EntryResult OpenEntry(const std::string& key,
+                        net::RequestPriority request_priority,
+                        EntryResultCallback callback) override;
+  EntryResult CreateEntry(const std::string& key,
+                          net::RequestPriority request_priority,
+                          EntryResultCallback callback) override;
   net::Error DoomEntry(const std::string& key, net::RequestPriority priority,
                        CompletionOnceCallback callback) override;
   net::Error DoomAllEntries(CompletionOnceCallback callback) override;
@@ -78,13 +78,14 @@ class NET_EXPORT_PRIVATE CobaltBackendImpl final
   std::unique_ptr<Iterator> CreateIterator() override;
   void GetStats(base::StringPairs* stats) override {}
   void OnExternalCacheHit(const std::string& key) override;
-  size_t DumpMemoryStats(
-      base::trace_event::ProcessMemoryDump* pmd,
-      const std::string& parent_absolute_name) const override;
+  //   size_t DumpMemoryStats(
+  //       base::trace_event::ProcessMemoryDump* pmd,
+  //       const std::string& parent_absolute_name) const override;
   net::Error DoomAllEntriesOfType(disk_cache::ResourceType type,
                                   CompletionOnceCallback callback);
   uint8_t GetEntryInMemoryData(const std::string& key) override { return 0; }
   void SetEntryInMemoryData(const std::string& key, uint8_t data) override {}
+  int64_t MaxFileSize() const override { return 0; }
 
   // A refcounted class that runs a CompletionOnceCallback once it's destroyed.
   class RefCountedRunner : public base::RefCounted<RefCountedRunner> {

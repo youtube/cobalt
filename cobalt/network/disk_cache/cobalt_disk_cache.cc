@@ -17,6 +17,7 @@
 #include <string>
 #include <utility>
 
+#include "base/bind.h"
 #include "base/files/file_path.h"
 #include "base/metrics/field_trial.h"
 #include "base/task/task_scheduler/task_scheduler.h"
@@ -109,12 +110,7 @@ void CacheCreator::OnIOComplete(int result) {
   // delete all the files, and try again.
   retry_ = true;
   created_cache_.reset();
-  if (!disk_cache::DelayedCacheCleanup(path_)) return DoCallback(result);
-
-  // The worker thread will start deleting files soon, but the original folder
-  // is not there anymore... let's create a new set of files.
-  int rv = Run();
-  DCHECK_EQ(net::ERR_IO_PENDING, rv);
+  return DoCallback(result);
 }
 
 }  // namespace

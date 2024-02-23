@@ -20,7 +20,6 @@
 
 #include "base/bind.h"
 #include "base/message_loop/message_loop.h"
-#include "base/threading/sequenced_task_runner_handle.h"
 #include "base/values.h"
 #include "net/disk_cache/backend_cleanup_tracker.h"
 
@@ -65,7 +64,9 @@ CobaltBackendImpl::CobaltBackendImpl(
     scoped_refptr<::disk_cache::BackendCleanupTracker> cleanup_tracker,
     int64_t max_bytes, net::NetLog* net_log,
     cobalt::network::URLRequestContext* url_request_context)
-    : weak_factory_(this), url_request_context_(url_request_context) {
+    : weak_factory_(this),
+      url_request_context_(url_request_context),
+      Backend(net::CacheType::DISK_CACHE) {
   int64_t total_size = 0;
   for (int i = 0; i < kTypeCount; i++) {
     ResourceType resource_type = (ResourceType)i;
@@ -78,7 +79,8 @@ CobaltBackendImpl::CobaltBackendImpl(
     total_size += bucket_size;
     ::disk_cache::SimpleBackendImpl* simple_backend =
         new ::disk_cache::SimpleBackendImpl(
-            dir, cleanup_tracker, /*file_tracker=*/nullptr, bucket_size,
+            /*file_operations_factory=*/nullptr, dir, cleanup_tracker,
+            /*file_tracker=*/nullptr, bucket_size,
             /*cache_type=*/net::DISK_CACHE, net_log);
     simple_backend_map_[resource_type] = simple_backend;
   }
@@ -115,10 +117,6 @@ net::Error CobaltBackendImpl::Init(CompletionOnceCallback completion_callback) {
   return net::ERR_IO_PENDING;
 }
 
-net::CacheType CobaltBackendImpl::GetCacheType() const {
-  return net::DISK_CACHE;
-}
-
 int32_t CobaltBackendImpl::GetEntryCount() const {
   // Return total number of entries both on disk and in memory.
   int32_t count = 0;
@@ -128,30 +126,35 @@ int32_t CobaltBackendImpl::GetEntryCount() const {
   return count;
 }
 
-net::Error CobaltBackendImpl::OpenEntry(const std::string& key,
-                                        net::RequestPriority request_priority,
-                                        ::disk_cache::Entry** entry,
-                                        CompletionOnceCallback callback) {
+#ifdef USE_HACKY_COBALT_CHANGES
+CobaltBackendImpl::EntryResult CobaltBackendImpl::OpenOrCreateEntry(
+    const std::string& key, net::RequestPriority request_priority,
+    EntryResultCallback callback) {
+  return EntryResult::MakeError(net::Error::ERR_BLOCKED_BY_CLIENT);
+}
+#endif
+
+CobaltBackendImpl::EntryResult CobaltBackendImpl::OpenEntry(
+    const std::string& key, net::RequestPriority request_priority,
+    EntryResultCallback callback) {
   if (simple_backend_map_.count(GetType(key)) == 0) {
-    return net::Error::ERR_BLOCKED_BY_CLIENT;
+    return EntryResult::MakeError(net::Error::ERR_BLOCKED_BY_CLIENT);
   }
   ::disk_cache::SimpleBackendImpl* simple_backend =
       simple_backend_map_[GetType(key)];
-  return simple_backend->OpenEntry(key, request_priority, entry,
-                                   std::move(callback));
+  return simple_backend->OpenEntry(key, request_priority, std::move(callback));
 }
 
-net::Error CobaltBackendImpl::CreateEntry(const std::string& key,
-                                          net::RequestPriority request_priority,
-                                          ::disk_cache::Entry** entry,
-                                          CompletionOnceCallback callback) {
+CobaltBackendImpl::EntryResult CobaltBackendImpl::CreateEntry(
+    const std::string& key, net::RequestPriority request_priority,
+    EntryResultCallback callback) {
   ResourceType type = GetType(key);
   auto quota = disk_cache::settings::GetQuota(type);
   if (quota == 0 || simple_backend_map_.count(type) == 0) {
-    return net::Error::ERR_BLOCKED_BY_CLIENT;
+    return EntryResult::MakeError(net::Error::ERR_BLOCKED_BY_CLIENT);
   }
   ::disk_cache::SimpleBackendImpl* simple_backend = simple_backend_map_[type];
-  return simple_backend->CreateEntry(key, request_priority, entry,
+  return simple_backend->CreateEntry(key, request_priority,
                                      std::move(callback));
 }
 
@@ -220,10 +223,9 @@ class CobaltBackendImpl::CobaltIterator final : public Backend::Iterator {
   explicit CobaltIterator(base::WeakPtr<CobaltBackendImpl> backend)
       : backend_(backend) {}
 
-  net::Error OpenNextEntry(::disk_cache::Entry** next_entry,
-                           CompletionOnceCallback callback) override {
+  EntryResult OpenNextEntry(EntryResultCallback callback) override {
     // TODO: Implement
-    return net::ERR_FAILED;
+    return EntryResult::MakeError(net::ERR_FAILED);
   }
 
  private:
@@ -243,18 +245,6 @@ void CobaltBackendImpl::OnExternalCacheHit(const std::string& key) {
   ::disk_cache::SimpleBackendImpl* simple_backend =
       simple_backend_map_[GetType(key)];
   simple_backend->OnExternalCacheHit(key);
-}
-
-size_t CobaltBackendImpl::DumpMemoryStats(
-    base::trace_event::ProcessMemoryDump* pmd,
-    const std::string& parent_absolute_name) const {
-  // Dump memory stats for all backends.
-  std::string name = parent_absolute_name + "/cobalt_backend";
-  size_t size = 0;
-  for (auto const& backend : simple_backend_map_) {
-    size += backend.second->DumpMemoryStats(pmd, name);
-  }
-  return size;
 }
 
 net::Error CobaltBackendImpl::DoomAllEntriesOfType(
