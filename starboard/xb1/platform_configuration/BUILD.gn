@@ -72,6 +72,7 @@ config("target") {
     "iso_stdio_wide_specifiers.lib",
     "mfplat.lib",
     "mfuuid.lib",
+    "oldnames.lib",
     "windowsapp.lib",
   ]
   ldflags += [
