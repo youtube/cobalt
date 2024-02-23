@@ -69,6 +69,7 @@ config("hacky_wnos") {
       "-Wno-unused-private-field",
       "-Wno-deprecated-declarations",
       "-Wno-inconsistent-missing-override",
+      "-Wno-return-type",
     ]
   }
 }
