@@ -180,6 +180,10 @@ OPENSSL_EXPORT const EVP_AEAD *EVP_aead_aes_128_ccm_bluetooth(void);
 // v1.0.
 OPENSSL_EXPORT const EVP_AEAD *EVP_aead_aes_128_ccm_bluetooth_8(void);
 
+// EVP_aead_aes_128_ccm_matter is AES-128-CCM with M=16 and L=2 (16-byte tags
+// and 13-byte nonces), as used in the Matter specification.
+OPENSSL_EXPORT const EVP_AEAD *EVP_aead_aes_128_ccm_matter(void);
+
 // EVP_has_aes_hardware returns one if we enable hardware support for fast and
 // constant-time AES-GCM.
 OPENSSL_EXPORT int EVP_has_aes_hardware(void);
@@ -212,15 +216,15 @@ union evp_aead_ctx_st_state {
   uint64_t alignment;
 };
 
-// An EVP_AEAD_CTX represents an AEAD algorithm configured with a specific key
-// and message-independent IV.
-typedef struct evp_aead_ctx_st {
+// An evp_aead_ctx_st (typedefed as |EVP_AEAD_CTX| in base.h) represents an AEAD
+// algorithm configured with a specific key and message-independent IV.
+struct evp_aead_ctx_st {
   const EVP_AEAD *aead;
   union evp_aead_ctx_st_state state;
   // tag_len may contain the actual length of the authentication tag if it is
   // known at initialization time.
   uint8_t tag_len;
-} EVP_AEAD_CTX;
+};
 
 // EVP_AEAD_MAX_KEY_LENGTH contains the maximum key length used by
 // any AEAD defined in this header.

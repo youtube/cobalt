@@ -3546,6 +3546,31 @@ read alert 1 0
 			},
 			flags: []string{"-async"},
 		},
+		{
+			// DTLS 1.2 allows up to a 255-byte HelloVerifyRequest cookie, which
+			// is the largest encodable value.
+			protocol: dtls,
+			name:     "DTLS-HelloVerifyRequest-255",
+			config: Config{
+				MaxVersion: VersionTLS12,
+				Bugs: ProtocolBugs{
+					HelloVerifyRequestCookieLength: 255,
+				},
+			},
+		},
+		{
+			// DTLS 1.2 allows up to a 0-byte HelloVerifyRequest cookie, which
+			// was probably a mistake in the spec but test that it works
+			// nonetheless.
+			protocol: dtls,
+			name:     "DTLS-HelloVerifyRequest-0",
+			config: Config{
+				MaxVersion: VersionTLS12,
+				Bugs: ProtocolBugs{
+					EmptyHelloVerifyRequestCookie: true,
+				},
+			},
+		},
 	}
 	testCases = append(testCases, basicTests...)
 
@@ -15588,9 +15613,6 @@ func addRSAKeyUsageTests() {
 			},
 			shouldFail:    true,
 			expectedError: ":KEY_USAGE_BIT_INCORRECT:",
-			flags: []string{
-				"-enforce-rsa-key-usage",
-			},
 		})
 
 		testCases = append(testCases, testCase{
@@ -15601,9 +15623,6 @@ func addRSAKeyUsageTests() {
 				MaxVersion:   ver.version,
 				Certificates: []Certificate{dsCert},
 				CipherSuites: dsSuites,
-			},
-			flags: []string{
-				"-enforce-rsa-key-usage",
 			},
 		})
 
@@ -15618,9 +15637,6 @@ func addRSAKeyUsageTests() {
 					Certificates: []Certificate{encCert},
 					CipherSuites: encSuites,
 				},
-				flags: []string{
-					"-enforce-rsa-key-usage",
-				},
 			})
 
 			testCases = append(testCases, testCase{
@@ -15634,9 +15650,6 @@ func addRSAKeyUsageTests() {
 				},
 				shouldFail:    true,
 				expectedError: ":KEY_USAGE_BIT_INCORRECT:",
-				flags: []string{
-					"-enforce-rsa-key-usage",
-				},
 			})
 
 			// In 1.2 and below, we should not enforce without the enforce-rsa-key-usage flag.
@@ -15649,6 +15662,7 @@ func addRSAKeyUsageTests() {
 					Certificates: []Certificate{dsCert},
 					CipherSuites: encSuites,
 				},
+				flags: []string{"-no-enforce-rsa-key-usage"},
 			})
 
 			testCases = append(testCases, testCase{
@@ -15660,20 +15674,22 @@ func addRSAKeyUsageTests() {
 					Certificates: []Certificate{encCert},
 					CipherSuites: dsSuites,
 				},
+				flags: []string{"-no-enforce-rsa-key-usage"},
 			})
 		}
 
 		if ver.version >= VersionTLS13 {
-			// In 1.3 and above, we enforce keyUsage even without the flag.
+			// In 1.3 and above, we enforce keyUsage even when disabled.
 			testCases = append(testCases, testCase{
 				testType: clientTest,
-				name:     "RSAKeyUsage-Client-WantSignature-GotEncipherment-Enforced" + ver.name,
+				name:     "RSAKeyUsage-Client-WantSignature-GotEncipherment-AlwaysEnforced" + ver.name,
 				config: Config{
 					MinVersion:   ver.version,
 					MaxVersion:   ver.version,
 					Certificates: []Certificate{encCert},
 					CipherSuites: dsSuites,
 				},
+				flags:         []string{"-no-enforce-rsa-key-usage"},
 				shouldFail:    true,
 				expectedError: ":KEY_USAGE_BIT_INCORRECT:",
 			})
@@ -18770,6 +18786,27 @@ func addHintMismatchTests() {
 				curveID: CurveX25519,
 			},
 		})
+		if protocol != quic {
+			testCases = append(testCases, testCase{
+				name:               protocol.String() + "-HintMismatch-ECDHE-Group",
+				testType:           serverTest,
+				protocol:           protocol,
+				skipSplitHandshake: true,
+				config: Config{
+					MinVersion:    VersionTLS12,
+					MaxVersion:    VersionTLS12,
+					DefaultCurves: []CurveID{CurveX25519, CurveP256},
+				},
+				flags: []string{
+					"-allow-hint-mismatch",
+					"-on-shim-curves", strconv.Itoa(int(CurveX25519)),
+					"-on-handshaker-curves", strconv.Itoa(int(CurveP256)),
+				},
+				expectations: connectionExpectations{
+					curveID: CurveX25519,
+				},
+			})
+		}
 
 		// If the handshaker does HelloRetryRequest, it will omit most hints.
 		// The shim should still work.
@@ -18818,7 +18855,7 @@ func addHintMismatchTests() {
 		// The shim and handshaker may have different signature algorithm
 		// preferences.
 		testCases = append(testCases, testCase{
-			name:               protocol.String() + "-HintMismatch-SignatureAlgorithm",
+			name:               protocol.String() + "-HintMismatch-SignatureAlgorithm-TLS13",
 			testType:           serverTest,
 			protocol:           protocol,
 			skipSplitHandshake: true,
@@ -18841,12 +18878,38 @@ func addHintMismatchTests() {
 				peerSignatureAlgorithm: signatureRSAPSSWithSHA256,
 			},
 		})
+		if protocol != quic {
+			testCases = append(testCases, testCase{
+				name:               protocol.String() + "-HintMismatch-SignatureAlgorithm-TLS12",
+				testType:           serverTest,
+				protocol:           protocol,
+				skipSplitHandshake: true,
+				config: Config{
+					MinVersion: VersionTLS12,
+					MaxVersion: VersionTLS12,
+					VerifySignatureAlgorithms: []signatureAlgorithm{
+						signatureRSAPSSWithSHA256,
+						signatureRSAPSSWithSHA384,
+					},
+				},
+				flags: []string{
+					"-allow-hint-mismatch",
+					"-cert-file", path.Join(*resourceDir, rsaCertificateFile),
+					"-key-file", path.Join(*resourceDir, rsaKeyFile),
+					"-on-shim-signing-prefs", strconv.Itoa(int(signatureRSAPSSWithSHA256)),
+					"-on-handshaker-signing-prefs", strconv.Itoa(int(signatureRSAPSSWithSHA384)),
+				},
+				expectations: connectionExpectations{
+					peerSignatureAlgorithm: signatureRSAPSSWithSHA256,
+				},
+			})
+		}
 
 		// The shim and handshaker may disagree on whether resumption is allowed.
 		// We run the first connection with tickets enabled, so the client is
 		// issued a ticket, then disable tickets on the second connection.
 		testCases = append(testCases, testCase{
-			name:               protocol.String() + "-HintMismatch-NoTickets1",
+			name:               protocol.String() + "-HintMismatch-NoTickets1-TLS13",
 			testType:           serverTest,
 			protocol:           protocol,
 			skipSplitHandshake: true,
@@ -18862,7 +18925,7 @@ func addHintMismatchTests() {
 			expectResumeRejected: true,
 		})
 		testCases = append(testCases, testCase{
-			name:               protocol.String() + "-HintMismatch-NoTickets2",
+			name:               protocol.String() + "-HintMismatch-NoTickets2-TLS13",
 			testType:           serverTest,
 			protocol:           protocol,
 			skipSplitHandshake: true,
@@ -18876,6 +18939,39 @@ func addHintMismatchTests() {
 			},
 			resumeSession: true,
 		})
+		if protocol != quic {
+			testCases = append(testCases, testCase{
+				name:               protocol.String() + "-HintMismatch-NoTickets1-TLS12",
+				testType:           serverTest,
+				protocol:           protocol,
+				skipSplitHandshake: true,
+				config: Config{
+					MinVersion: VersionTLS12,
+					MaxVersion: VersionTLS12,
+				},
+				flags: []string{
+					"-on-resume-allow-hint-mismatch",
+					"-on-shim-on-resume-no-ticket",
+				},
+				resumeSession:        true,
+				expectResumeRejected: true,
+			})
+			testCases = append(testCases, testCase{
+				name:               protocol.String() + "-HintMismatch-NoTickets2-TLS12",
+				testType:           serverTest,
+				protocol:           protocol,
+				skipSplitHandshake: true,
+				config: Config{
+					MinVersion: VersionTLS12,
+					MaxVersion: VersionTLS12,
+				},
+				flags: []string{
+					"-on-resume-allow-hint-mismatch",
+					"-on-handshaker-on-resume-no-ticket",
+				},
+				resumeSession: true,
+			})
+		}
 
 		// The shim and handshaker may disagree on whether to request a client
 		// certificate.
@@ -19029,6 +19125,242 @@ func addHintMismatchTests() {
 				ocspResponse: testOCSPResponse,
 			},
 		})
+
+		// The shim and handshaker may disagree on cipher suite, to the point
+		// that one selects RSA key exchange (no applicable hint) and the other
+		// selects ECDHE_RSA (hints are useful).
+		if protocol != quic {
+			testCases = append(testCases, testCase{
+				testType:           serverTest,
+				name:               protocol.String() + "-HintMismatch-CipherMismatch1",
+				protocol:           protocol,
+				skipSplitHandshake: true,
+				config: Config{
+					MinVersion: VersionTLS12,
+					MaxVersion: VersionTLS12,
+				},
+				flags: []string{
+					"-allow-hint-mismatch",
+					"-on-shim-cipher", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+					"-on-handshaker-cipher", "TLS_RSA_WITH_AES_128_GCM_SHA256",
+				},
+				expectations: connectionExpectations{
+					cipher: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+				},
+			})
+			testCases = append(testCases, testCase{
+				testType:           serverTest,
+				name:               protocol.String() + "-HintMismatch-CipherMismatch2",
+				protocol:           protocol,
+				skipSplitHandshake: true,
+				config: Config{
+					MinVersion: VersionTLS12,
+					MaxVersion: VersionTLS12,
+				},
+				flags: []string{
+					// There is no need to pass -allow-hint-mismatch. The
+					// handshaker will unnecessarily generate a signature hints.
+					// This is not reported as a mismatch because hints would
+					// not have helped the shim anyway.
+					"-on-shim-cipher", "TLS_RSA_WITH_AES_128_GCM_SHA256",
+					"-on-handshaker-cipher", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+				},
+				expectations: connectionExpectations{
+					cipher: TLS_RSA_WITH_AES_128_GCM_SHA256,
+				},
+			})
+		}
+	}
+}
+
+func addCompliancePolicyTests() {
+	for _, protocol := range []protocol{tls, quic} {
+		for _, suite := range testCipherSuites {
+			var isFIPSCipherSuite bool
+			switch suite.id {
+			case TLS_AES_128_GCM_SHA256,
+				TLS_AES_256_GCM_SHA384,
+				TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+				TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+				TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+				TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:
+				isFIPSCipherSuite = true
+			}
+
+			var certFile string
+			var keyFile string
+			var certs []Certificate
+			if hasComponent(suite.name, "ECDSA") {
+				certFile = ecdsaP256CertificateFile
+				keyFile = ecdsaP256KeyFile
+				certs = []Certificate{ecdsaP256Certificate}
+			} else {
+				certFile = rsaCertificateFile
+				keyFile = rsaKeyFile
+				certs = []Certificate{rsaCertificate}
+			}
+
+			maxVersion := uint16(VersionTLS13)
+			if !isTLS13Suite(suite.name) {
+				if protocol == quic {
+					continue
+				}
+				maxVersion = VersionTLS12
+			}
+
+			testCases = append(testCases, testCase{
+				testType: serverTest,
+				protocol: protocol,
+				name:     "Compliance-fips202205-" + protocol.String() + "-Server-" + suite.name,
+				config: Config{
+					MinVersion:   VersionTLS12,
+					MaxVersion:   maxVersion,
+					CipherSuites: []uint16{suite.id},
+				},
+				certFile: certFile,
+				keyFile:  keyFile,
+				flags: []string{
+					"-fips-202205",
+				},
+				shouldFail: !isFIPSCipherSuite,
+			})
+
+			testCases = append(testCases, testCase{
+				testType: clientTest,
+				protocol: protocol,
+				name:     "Compliance-fips202205-" + protocol.String() + "-Client-" + suite.name,
+				config: Config{
+					MinVersion:   VersionTLS12,
+					MaxVersion:   maxVersion,
+					CipherSuites: []uint16{suite.id},
+					Certificates: certs,
+				},
+				flags: []string{
+					"-fips-202205",
+				},
+				shouldFail: !isFIPSCipherSuite,
+			})
+		}
+
+		// Check that a TLS 1.3 client won't accept ChaCha20 even if the server
+		// picks it without it being in the client's cipher list.
+		testCases = append(testCases, testCase{
+			testType: clientTest,
+			protocol: protocol,
+			name:     "Compliance-fips202205-" + protocol.String() + "-Client-ReallyWontAcceptChaCha",
+			config: Config{
+				MinVersion: VersionTLS12,
+				MaxVersion: maxVersion,
+				Bugs: ProtocolBugs{
+					SendCipherSuite: TLS_CHACHA20_POLY1305_SHA256,
+				},
+			},
+			flags: []string{
+				"-fips-202205",
+			},
+			shouldFail:    true,
+			expectedError: ":WRONG_CIPHER_RETURNED:",
+		})
+
+		for _, curve := range testCurves {
+			var isFIPSCurve bool
+			switch curve.id {
+			case CurveP256, CurveP384:
+				isFIPSCurve = true
+			}
+
+			testCases = append(testCases, testCase{
+				testType: serverTest,
+				protocol: protocol,
+				name:     "Compliance-fips202205-" + protocol.String() + "-Server-" + curve.name,
+				config: Config{
+					MinVersion:       VersionTLS12,
+					MaxVersion:       VersionTLS13,
+					CurvePreferences: []CurveID{curve.id},
+				},
+				flags: []string{
+					"-fips-202205",
+				},
+				shouldFail: !isFIPSCurve,
+			})
+
+			testCases = append(testCases, testCase{
+				testType: clientTest,
+				protocol: protocol,
+				name:     "Compliance-fips202205-" + protocol.String() + "-Client-" + curve.name,
+				config: Config{
+					MinVersion:       VersionTLS12,
+					MaxVersion:       VersionTLS13,
+					CurvePreferences: []CurveID{curve.id},
+				},
+				flags: []string{
+					"-fips-202205",
+				},
+				shouldFail: !isFIPSCurve,
+			})
+		}
+
+		for _, sigalg := range testSignatureAlgorithms {
+			var isFIPSSigAlg bool
+			switch sigalg.id {
+			case signatureRSAPKCS1WithSHA256,
+				signatureRSAPKCS1WithSHA384,
+				signatureRSAPKCS1WithSHA512,
+				signatureECDSAWithP256AndSHA256,
+				signatureECDSAWithP384AndSHA384,
+				signatureRSAPSSWithSHA256,
+				signatureRSAPSSWithSHA384,
+				signatureRSAPSSWithSHA512:
+				isFIPSSigAlg = true
+			}
+
+			if sigalg.cert == testCertECDSAP224 {
+				// This can work in TLS 1.2, but not with TLS 1.3.
+				// For consistency it's not permitted in FIPS mode.
+				isFIPSSigAlg = false
+			}
+
+			maxVersion := uint16(VersionTLS13)
+			if hasComponent(sigalg.name, "PKCS1") {
+				if protocol == quic {
+					continue
+				}
+				maxVersion = VersionTLS12
+			}
+
+			testCases = append(testCases, testCase{
+				testType: serverTest,
+				protocol: protocol,
+				name:     "Compliance-fips202205-" + protocol.String() + "-Server-" + sigalg.name,
+				config: Config{
+					MinVersion:                VersionTLS12,
+					MaxVersion:                maxVersion,
+					VerifySignatureAlgorithms: []signatureAlgorithm{sigalg.id},
+				},
+				flags: []string{
+					"-fips-202205",
+					"-cert-file", path.Join(*resourceDir, getShimCertificate(sigalg.cert)),
+					"-key-file", path.Join(*resourceDir, getShimKey(sigalg.cert)),
+				},
+				shouldFail: !isFIPSSigAlg,
+			})
+
+			testCases = append(testCases, testCase{
+				testType: clientTest,
+				protocol: protocol,
+				name:     "Compliance-fips202205-" + protocol.String() + "-Client-" + sigalg.name,
+				config: Config{
+					MinVersion:              VersionTLS12,
+					MaxVersion:              maxVersion,
+					SignSignatureAlgorithms: []signatureAlgorithm{sigalg.id},
+					Certificates:            []Certificate{getRunnerCertificate(sigalg.cert)},
+				},
+				flags: []string{
+					"-fips-202205",
+				},
+				shouldFail: !isFIPSSigAlg,
+			})
+		}
 	}
 }
 
@@ -19274,6 +19606,7 @@ func main() {
 	addDelegatedCredentialTests()
 	addEncryptedClientHelloTests()
 	addHintMismatchTests()
+	addCompliancePolicyTests()
 
 	toAppend, err := convertToSplitHandshakeTests(testCases)
 	if err != nil {
