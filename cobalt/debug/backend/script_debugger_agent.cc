@@ -122,7 +122,7 @@ void ScriptDebuggerAgent::SendEvent(const std::string& json_event) {
 
   JSONObject params;
   base::Value value(base::Value::Type::DICT);
-  base::Value::Dict* dict_value = value->GetIfDict();
+  base::Value::Dict* dict_value = value.GetIfDict();
   if (event->Find(kParams)->is_dict()) {
     dict_value = event->FindDict(kParams);
     params.reset(base::Value::ToUniquePtrValue(std::move(value))->GetIfDict());

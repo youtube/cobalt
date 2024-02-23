@@ -217,12 +217,12 @@ BASE_EXPORT bool DirectoryExists(const FilePath& path);
 BASE_EXPORT bool ContentsEqual(const FilePath& filename1,
                                const FilePath& filename2);
 
-#if defined(STARBOARD)
+#if defined(USE_HACKY_COBALT_CHANGES)
 // Returns true if the contents of the two text files given are equal, false
 // otherwise.  This routine treats "\r\n" and "\n" as equivalent.
 BASE_EXPORT bool TextContentsEqual(const FilePath& filename1,
                                    const FilePath& filename2);
-#endif  // !defined(STARBOARD)
+#endif  // !defined(USE_HACKY_COBALT_CHANGES)
 
 // Reads the file at |path| and returns a vector of bytes on success, and
 // nullopt on error. For security reasons, a |path| containing path traversal
@@ -519,11 +519,11 @@ BASE_EXPORT FILE* FileToFILE(File file, const char* mode);
 // Returns a new handle to the file underlying |file_stream|.
 BASE_EXPORT File FILEToFile(FILE* file_stream);
 
-#if !defined(STARBOARD)
+#if !defined(USE_HACKY_COBALT_CHANGES)
 // Truncates an open file to end at the location of the current file pointer.
 // This is a cross-platform analog to Windows' SetEndOfFile() function.
 BASE_EXPORT bool TruncateFile(FILE* file);
-#endif  // !defined(STARBOARD)
+#endif  // !defined(USE_HACKY_COBALT_CHANGES)
 
 // Reads at most the given number of bytes from the file into the buffer.
 // Returns the number of read bytes, or -1 on error.
@@ -704,7 +704,7 @@ BASE_EXPORT bool CopyAndDeleteDirectory(const FilePath& from_path,
                                         const FilePath& to_path);
 #endif  // BUILDFLAG(IS_WIN)
 
-#if defined(STARBOARD)
+#if defined(USE_HACKY_COBALT_CHANGES)
 #elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 // CopyFileContentsWithSendfile will use the sendfile(2) syscall to perform a
 // file copy without moving the data between kernel and userspace. This is much

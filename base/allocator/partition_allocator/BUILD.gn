@@ -363,6 +363,7 @@ component("partition_alloc") {
 
   # Need to include |component("partition_alloc")| for gn check.
   if (is_starboard) {
+    # TODO: b/326459868 - Try using |check_includes = false|.
     sources = []
   }
 }

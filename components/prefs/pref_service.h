@@ -91,7 +91,7 @@ class COMPONENTS_PREFS_EXPORT PrefService {
     base::Value::Type GetType() const { return type_; }
 
     // Returns the value of the Preference, falling back to the registered
-    // default value if no other has been .
+    // default value if no other has been set.
     const base::Value* GetValue() const;
 
     // Returns the value recommended by the admin, if any.

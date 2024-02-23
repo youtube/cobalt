@@ -1813,6 +1813,7 @@ config("chromium_code") {
       ]
     }
 
+    # TODO: check if this is still needed with updated //net.
     # Suppress warning in old //net.
     if (is_starboard) {
       cflags += [

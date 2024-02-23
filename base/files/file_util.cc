@@ -70,7 +70,7 @@ bool ReadStreamToSpanWithMaxSize(
   constexpr size_t kDefaultChunkSize = 1 << 16;
   size_t chunk_size = kDefaultChunkSize - 1;
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
-#if defined(STARBOARD)
+#if defined(USE_HACKY_COBALT_CHANGES)
 #elif BUILDFLAG(IS_WIN)
   BY_HANDLE_FILE_INFORMATION file_info = {};
   if (::GetFileInformationByHandle(
@@ -173,7 +173,7 @@ bool Move(const FilePath& from_path, const FilePath& to_path) {
 }
 
 bool CopyFileContents(File& infile, File& outfile) {
-#if defined(STARBOARD)
+#if defined(USE_HACKY_COBALT_CHANGES)
 #elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   bool retry_slow = false;
   bool res =
@@ -219,7 +219,7 @@ bool ContentsEqual(const FilePath& filename1, const FilePath& filename2) {
   // We open the file in binary format even if they are text files because
   // we are just comparing that bytes are exactly same in both files and not
   // doing anything smart with text formatting.
-#ifdef STARBOARD
+#ifdef USE_HACKY_COBALT_CHANGES
   // std::ifstream doesn't work on all our platforms.
   base::File file1(filename1, base::File::FLAG_OPEN | base::File::FLAG_READ);
   base::File file2(filename2, base::File::FLAG_OPEN | base::File::FLAG_READ);
@@ -273,7 +273,7 @@ bool ContentsEqual(const FilePath& filename1, const FilePath& filename2) {
 #endif
 }
 
-#if !defined(STARBOARD)
+#if !defined(USE_HACKY_COBALT_CHANGES)
 bool TextContentsEqual(const FilePath& filename1, const FilePath& filename2) {
 #if BUILDFLAG(IS_WIN)
   std::ifstream file1(filename1.value().c_str(), std::ios::in);
@@ -318,7 +318,7 @@ bool TextContentsEqual(const FilePath& filename1, const FilePath& filename2) {
 
   return true;
 }
-#endif  // !defined(STARBOARD)
+#endif  // !defined(USE_HACKY_COBALT_CHANGES)
 
 bool ReadStreamToString(FILE* stream, std::string* contents) {
   return ReadStreamToStringWithMaxSize(
@@ -489,7 +489,7 @@ bool CloseFile(FILE* file) {
   return fclose(file) == 0;
 }
 
-#if !defined(STARBOARD)
+#if !defined(USE_HACKY_COBALT_CHANGES)
 bool TruncateFile(FILE* file) {
   if (file == nullptr)
     return false;
@@ -507,7 +507,7 @@ bool TruncateFile(FILE* file) {
 #endif
   return true;
 }
-#endif  // !defined(STARBOARD)
+#endif  // !defined(USE_HACKY_COBALT_CHANGES)
 
 bool WriteFile(const FilePath& filename, span<const uint8_t> data) {
   int size = checked_cast<int>(data.size());

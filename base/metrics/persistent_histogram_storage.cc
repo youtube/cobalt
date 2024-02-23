@@ -30,7 +30,7 @@ constexpr size_t kAllocSize = 1 << 20;  // 1 MiB
 void* AllocateLocalMemory(size_t size) {
   void* address;
 
-#if defined(STARBOARD)
+#if defined(USE_HACKY_COBALT_CHANGES)
 #elif BUILDFLAG(IS_WIN)
   address =
       ::VirtualAlloc(nullptr, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);

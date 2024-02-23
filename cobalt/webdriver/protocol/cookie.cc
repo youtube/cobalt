@@ -15,6 +15,7 @@
 #include "cobalt/webdriver/protocol/cookie.h"
 
 #include <memory>
+#include <utility>
 
 #include "base/logging.h"
 #include "base/strings/string_split.h"
@@ -39,7 +40,7 @@ const char kExpiryKey[] = "expiry";
 
 std::unique_ptr<base::Value> Cookie::ToValue(const Cookie& cookie) {
   base::Value ret(base::Value::Type::DICT);
-  base::Value::Dict* cookie_value = ret->GetIfDict();
+  base::Value::Dict* cookie_value = ret.GetIfDict();
   cookie_value->Set(kNameKey, cookie.name_);
   cookie_value->Set(kValueKey, cookie.value_);
   return base::Value::ToUniquePtrValue(std::move(ret));
