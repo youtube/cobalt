@@ -46,7 +46,7 @@ absl_source_set("synchronization") {
   # in Chromium code.
   # TODO: b/326500064 - These files need to be starboardized or removed again.
   #                     Right now we link it in because it's used.
-  if (!use_cobalt_customizations || true) {
+  if (!use_cobalt_customizations || !sb_is_modular) {
   sources = [
     "barrier.cc",
     "blocking_counter.cc",

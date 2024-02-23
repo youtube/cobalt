@@ -1074,6 +1074,10 @@ component("net") {
     sources += [
       "base/file_stream_context_starboard.cc",
     ]
+    if (sb_is_modular) {
+      # TODO: Either always build or don't build with this.
+      sources -= [ "disk_cache/disk_cache.cc" ]
+    }
   }
 
   if (is_posix || is_fuchsia) {
