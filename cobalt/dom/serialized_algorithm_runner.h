@@ -26,9 +26,10 @@
 #include "base/message_loop/message_loop.h"
 #include "base/single_thread_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
+#include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "starboard/common/mutex.h"
-#include "starboard/time.h"
+#include "starboard/common/time.h"
 
 namespace cobalt {
 namespace dom {
@@ -90,20 +91,24 @@ class SerializedAlgorithmRunner {
           // Crash if we are trying to re-acquire again on the same thread.
           CHECK_NE(acquired_thread_id_, SbThreadGetId());
 
-          SbTime start = SbTimeGetMonotonicNow();
-          SbTime wait_interval = kSbTimeMillisecond;
-          constexpr SbTime kMaxWaitInterval = kSbTimeMillisecond * 16;
+          int64_t start_usec = starboard::CurrentMonotonicTime();
+          int64_t wait_interval_usec =
+              1 * base::Time::kMicrosecondsPerMillisecond;
+          constexpr int64_t kMaxWaitIntervalUsec =
+              16 * base::Time::kMicrosecondsPerMillisecond;  // 16ms.
 
           for (;;) {
             if (mutex_.AcquireTry()) {
               break;
             }
-            SbThreadSleep(wait_interval);
+            SbThreadSleep(wait_interval_usec);
             // Double the wait interval upon every failure, but cap it at
-            // kMaxWaitInterval.
-            wait_interval = std::min(wait_interval * 2, kMaxWaitInterval);
-            // Crash if we've been waiting for too long.
-            CHECK_LT(SbTimeGetMonotonicNow() - start, kSbTimeSecond);
+            // kMaxWaitIntervalUsec.
+            wait_interval_usec =
+                std::min(wait_interval_usec * 2, kMaxWaitIntervalUsec);
+            // Crash if we've been waiting for too long (1 second).
+            CHECK_LT(starboard::CurrentMonotonicTime() - start_usec,
+                     1 * base::Time::kMicrosecondsPerSecond);
           }
           acquired_thread_id_ = SbThreadGetId();
         }

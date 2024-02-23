@@ -36,7 +36,7 @@ class JsonPrefStoreLossyWriteTest;
 class SequencedTaskRunner;
 class WriteCallbacksObserver;
 class Value;
-}  // namespace base
+}
 
 // A writable PrefStore implementation that is used for user preferences.
 class COMPONENTS_PREFS_EXPORT JsonPrefStore

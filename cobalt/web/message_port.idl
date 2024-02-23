@@ -28,4 +28,12 @@
   // event handlers
   attribute EventHandler onmessage;
   attribute EventHandler onmessageerror;
+
+  // From EventTarget.
+  void addEventListener(DOMString type, EventListener? listener,
+                        optional boolean useCapture = false);
+  void removeEventListener(DOMString type, EventListener? listener,
+                           optional boolean useCapture = false);
+
+  [RaisesException] boolean dispatchEvent(Event event);
 };

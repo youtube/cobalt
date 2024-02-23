@@ -96,6 +96,11 @@ struct evp_pkey_asn1_method_st {
   // |out|. It returns one on success and zero on error.
   int (*priv_encode)(CBB *out, const EVP_PKEY *key);
 
+  int (*set_priv_raw)(EVP_PKEY *pkey, const uint8_t *in, size_t len);
+  int (*set_pub_raw)(EVP_PKEY *pkey, const uint8_t *in, size_t len);
+  int (*get_priv_raw)(const EVP_PKEY *pkey, uint8_t *out, size_t *out_len);
+  int (*get_pub_raw)(const EVP_PKEY *pkey, uint8_t *out, size_t *out_len);
+
   // pkey_opaque returns 1 if the |pk| is opaque. Opaque keys are backed by
   // custom implementations which do not expose key material and parameters.
   int (*pkey_opaque)(const EVP_PKEY *pk);
@@ -119,6 +124,7 @@ struct evp_pkey_asn1_method_st {
 #define EVP_PKEY_OP_ENCRYPT (1 << 6)
 #define EVP_PKEY_OP_DECRYPT (1 << 7)
 #define EVP_PKEY_OP_DERIVE (1 << 8)
+#define EVP_PKEY_OP_PARAMGEN (1 << 9)
 
 #define EVP_PKEY_OP_TYPE_SIG \
   (EVP_PKEY_OP_SIGN | EVP_PKEY_OP_VERIFY | EVP_PKEY_OP_VERIFYRECOVER)
@@ -128,7 +134,7 @@ struct evp_pkey_asn1_method_st {
 #define EVP_PKEY_OP_TYPE_NOGEN \
   (EVP_PKEY_OP_SIG | EVP_PKEY_OP_CRYPT | EVP_PKEY_OP_DERIVE)
 
-#define EVP_PKEY_OP_TYPE_GEN EVP_PKEY_OP_KEYGEN
+#define EVP_PKEY_OP_TYPE_GEN (EVP_PKEY_OP_KEYGEN | EVP_PKEY_OP_PARAMGEN)
 
 // EVP_PKEY_CTX_ctrl performs |cmd| on |ctx|. The |keytype| and |optype|
 // arguments can be -1 to specify that any type and operation are acceptable,
@@ -225,6 +231,8 @@ struct evp_pkey_method_st {
 
   int (*derive)(EVP_PKEY_CTX *ctx, uint8_t *key, size_t *keylen);
 
+  int (*paramgen)(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey);
+
   int (*ctrl)(EVP_PKEY_CTX *ctx, int type, int p1, void *p2);
 } /* EVP_PKEY_METHOD */;
 
@@ -241,14 +249,22 @@ typedef struct {
   char has_private;
 } ED25519_KEY;
 
+typedef struct {
+  uint8_t pub[32];
+  uint8_t priv[32];
+  char has_private;
+} X25519_KEY;
+
 extern const EVP_PKEY_ASN1_METHOD dsa_asn1_meth;
 extern const EVP_PKEY_ASN1_METHOD ec_asn1_meth;
 extern const EVP_PKEY_ASN1_METHOD rsa_asn1_meth;
 extern const EVP_PKEY_ASN1_METHOD ed25519_asn1_meth;
+extern const EVP_PKEY_ASN1_METHOD x25519_asn1_meth;
 
 extern const EVP_PKEY_METHOD rsa_pkey_meth;
 extern const EVP_PKEY_METHOD ec_pkey_meth;
 extern const EVP_PKEY_METHOD ed25519_pkey_meth;
+extern const EVP_PKEY_METHOD x25519_pkey_meth;
 
 
 #if defined(__cplusplus)

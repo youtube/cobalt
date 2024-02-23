@@ -151,6 +151,19 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.MediaDevices.MicCreationSucceeded" enum="Boolean"
+    expires_after="never">
+<!-- expires-never: Needed for long-term tracking of device mic support. -->
+
+  <owner>loganmann@google.com</owner>
+  <owner>yt-magma-eng@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    A boolean representing the success or failure of an attempted mic creation
+    event via mediaDevices.getUserMedia().
+  </summary>
+</histogram>
+
 </histograms>
 
 </histogram-configuration>

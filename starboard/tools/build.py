@@ -15,8 +15,9 @@
 #
 """Build related constants and helper functions."""
 
-import imp  # pylint: disable=deprecated-module
 import importlib
+import importlib.machinery
+import importlib.util
 import logging
 import os
 import sys
@@ -94,7 +95,12 @@ def _LoadPlatformModule(platform_name, file_name, function_name):
                                    PLATFORMS[platform_name])
       module_path = os.path.join(platform_path, file_name)
       if not _ModuleLoaded('platform_module', module_path):
-        platform_module = imp.load_source('platform_module', module_path)
+        loader = importlib.machinery.SourceFileLoader('platform_module',
+                                                      module_path)
+        spec = importlib.util.spec_from_file_location(
+            'platform_module', module_path, loader=loader)
+        platform_module = importlib.util.module_from_spec(spec)
+        loader.exec_module(platform_module)
       else:
         platform_module = sys.modules['platform_module']
     else:

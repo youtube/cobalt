@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Set up your environment - Raspberry Pi"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Set up your environment - Raspberry Pi
 
 These instructions explain how to set up Cobalt for your workstation and your
 Raspberry Pi device. They have been tested with Ubuntu:20.04 and a Raspberry Pi
@@ -40,7 +40,7 @@ default pi login, and run `sudo raspi-config`. You'll find wifi settings under
 
 <aside class="note">
 <b>Note:</b> Before proceeding further, refer to the documentation for
-<a href="setup-linux.html">"Set up your environment - Linux"</a>. Complete the
+<a href="setup-linux.md">"Set up your environment - Linux"</a>. Complete the
 sections <b>Set up your workstation</b> and <b>Set up developer tools</b>, then
 return and complete the following steps.
 </aside>

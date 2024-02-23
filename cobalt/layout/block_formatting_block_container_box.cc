@@ -138,13 +138,11 @@ BlockLevelBlockContainerBox::~BlockLevelBlockContainerBox() {}
 
 Box::Level BlockLevelBlockContainerBox::GetLevel() const { return kBlockLevel; }
 
-#ifdef COBALT_BOX_DUMP_ENABLED
-
+#ifdef ENABLE_DEBUGGER
 void BlockLevelBlockContainerBox::DumpClassName(std::ostream* stream) const {
   *stream << "BlockLevelBlockContainerBox ";
 }
-
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
 InlineLevelBlockContainerBox::InlineLevelBlockContainerBox(
     const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
@@ -244,8 +242,7 @@ bool InlineLevelBlockContainerBox::IsHiddenByEllipsis() const {
   return is_hidden_by_ellipsis_;
 }
 
-#ifdef COBALT_BOX_DUMP_ENABLED
-
+#ifdef ENABLE_DEBUGGER
 void InlineLevelBlockContainerBox::DumpClassName(std::ostream* stream) const {
   *stream << "InlineLevelBlockContainerBox ";
 }
@@ -256,8 +253,7 @@ void InlineLevelBlockContainerBox::DumpProperties(std::ostream* stream) const {
   *stream << "text_position=" << text_position_ << " "
           << "bidi_level=" << paragraph_->GetBidiLevel(text_position_) << " ";
 }
-
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
 void InlineLevelBlockContainerBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
     BaseDirection base_direction, LayoutUnit desired_offset,

@@ -22,7 +22,6 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace shared {
@@ -47,9 +46,9 @@ class AudioFrameDiscarder {
 
  private:
   struct InputBufferInfo {
-    SbTime timestamp;
-    SbTime discarded_duration_from_front;
-    SbTime discarded_duration_from_back;
+    int64_t timestamp;                      // microseconds
+    int64_t discarded_duration_from_front;  // microseconds
+    int64_t discarded_duration_from_back;   // microseconds
   };
 
   static constexpr size_t kMaxNumberOfPendingInputBufferInfos = 128;

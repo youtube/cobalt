@@ -26,7 +26,6 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/player_worker.h"
-#include "starboard/time.h"
 #include "starboard/window.h"
 
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
@@ -48,7 +47,7 @@ struct SbPlayerPrivate {
       void* context,
       starboard::scoped_ptr<PlayerWorker::Handler> player_worker_handler);
 
-  void Seek(SbTime seek_to_time, int ticket);
+  void Seek(int64_t seek_to_time, int ticket);
   template <typename PlayerSampleInfo>
   void WriteSamples(const PlayerSampleInfo* sample_infos,
                     int number_of_sample_infos);
@@ -89,7 +88,7 @@ struct SbPlayerPrivate {
   SbPlayerPrivate(const SbPlayerPrivate&) = delete;
   SbPlayerPrivate& operator=(const SbPlayerPrivate&) = delete;
 
-  void UpdateMediaInfo(SbTime media_time,
+  void UpdateMediaInfo(int64_t media_time,
                        int dropped_video_frames,
                        int ticket,
                        bool is_progressing);
@@ -99,8 +98,8 @@ struct SbPlayerPrivate {
 
   starboard::Mutex mutex_;
   int ticket_ = SB_PLAYER_INITIAL_TICKET;
-  SbTime media_time_ = 0;
-  SbTimeMonotonic media_time_updated_at_;
+  int64_t media_time_ = 0;         // microseconds
+  int64_t media_time_updated_at_;  // microseconds
   int frame_width_ = 0;
   int frame_height_ = 0;
   bool is_paused_ = false;

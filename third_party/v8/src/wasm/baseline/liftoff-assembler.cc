@@ -7,7 +7,6 @@
 #include <sstream>
 
 #include "src/base/optional.h"
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/compiler/linkage.h"
@@ -539,7 +538,7 @@ LiftoffAssembler::LiftoffAssembler(std::unique_ptr<AssemblerBuffer> buffer)
 
 LiftoffAssembler::~LiftoffAssembler() {
   if (num_locals_ > kInlineLocalTypes) {
-    base::Free(more_local_types_);
+    free(more_local_types_);
   }
 }
 
@@ -1124,8 +1123,8 @@ void LiftoffAssembler::set_num_locals(uint32_t num_locals) {
   DCHECK_EQ(0, num_locals_);  // only call this once.
   num_locals_ = num_locals;
   if (num_locals > kInlineLocalTypes) {
-    more_local_types_ = reinterpret_cast<ValueType*>(
-        base::Malloc(num_locals * sizeof(ValueType)));
+    more_local_types_ =
+        reinterpret_cast<ValueType*>(malloc(num_locals * sizeof(ValueType)));
     DCHECK_NOT_NULL(more_local_types_);
   }
 }

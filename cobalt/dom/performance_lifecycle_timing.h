@@ -51,29 +51,27 @@ class PerformanceLifecycleTiming : public PerformanceEntry {
     return PerformanceEntry::kLifecycle;
   }
 
-  void SetApplicationState(base::ApplicationState state,
-                           SbTimeMonotonic timestamp);
+  void SetApplicationState(base::ApplicationState state, int64_t timestamp);
   void SetApplicationStartOrPreloadTimestamp(bool is_preload,
-                                             SbTimeMonotonic timestamp);
-  void SetDeepLinkTimestamp(SbTimeMonotonic timestamp);
+                                             int64_t timestamp);
+  void SetDeepLinkTimestamp(int64_t timestamp);
 
   DEFINE_WRAPPABLE_TYPE(PerformanceLifecycleTiming);
 
  private:
   void SetLifecycleTimingInfoState(base::ApplicationState state);
-  DOMHighResTimeStamp ReportDOMHighResTimeStamp(
-      SbTimeMonotonic timestamp) const;
+  DOMHighResTimeStamp ReportDOMHighResTimeStamp(int64_t timestamp) const;
   base::ApplicationState GetCurrentState() const;
   struct LifecycleTimingInfo {
-    SbTimeMonotonic app_preload = 0;
-    SbTimeMonotonic app_start = 0;
-    SbTimeMonotonic app_blur = 0;
-    SbTimeMonotonic app_conceal = 0;
-    SbTimeMonotonic app_focus = 0;
-    SbTimeMonotonic app_reveal = 0;
-    SbTimeMonotonic app_freeze = 0;
-    SbTimeMonotonic app_unfreeze = 0;
-    SbTimeMonotonic app_deeplink = 0;
+    int64_t app_preload = 0;
+    int64_t app_start = 0;
+    int64_t app_blur = 0;
+    int64_t app_conceal = 0;
+    int64_t app_focus = 0;
+    int64_t app_reveal = 0;
+    int64_t app_freeze = 0;
+    int64_t app_unfreeze = 0;
+    int64_t app_deeplink = 0;
 
     base::ApplicationState current_state = base::kApplicationStateStopped;
     base::ApplicationState last_state = base::kApplicationStateStopped;

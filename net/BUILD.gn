@@ -508,6 +508,7 @@ component("net") {
     "disk_cache/cache_util.h",
     "disk_cache/disk_cache.cc",
     "disk_cache/disk_cache.h",
+    "disk_cache/disk_cache_backend.cc",
     "disk_cache/memory/mem_backend_impl.cc",
     "disk_cache/memory/mem_backend_impl.h",
     "disk_cache/memory/mem_entry_impl.cc",
@@ -1164,7 +1165,7 @@ component("net") {
       "socket/udp_socket_starboard_tmp.cc",
       "socket/udp_socket_starboard_tmp.h",
     ]
-    deps += [ "//starboard" ]
+    deps += [ "//starboard:starboard_group" ]
   }
 
   if (is_android) {
@@ -2077,6 +2078,8 @@ static_library("test_support") {
     "//net/traffic_annotation:test_support",
     "//testing/gmock",
     "//testing/gtest",
+    "//third_party/boringssl",
+    "//third_party/zlib",
     "//url",
   ]
 

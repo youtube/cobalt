@@ -27,7 +27,6 @@
  */
 
 #include "FLAC/ordinals.h"
-
 #ifdef STARBOARD
 #include "starboard/types.h"
 #endif  // STARBOARD

@@ -11,11 +11,22 @@ config("libpng_config") {
   ]
 
   if (is_starboard) {
+    defines += [ "CHROME_PNG_READ_PACK_SUPPORT" ]  # Required by freetype.
     defines += [ "PNG_SKIP_SETJMP_CHECK" ]
   }
 
-  if (is_win && is_component_build) {
-    defines += [ "PNG_USE_DLL" ]
+  if (is_android) {
+    #'toolsets': ['target', 'host'],
+    defines += [ "CHROME_PNG_READ_PACK_SUPPORT" ]  # Required by freetype.
+  }
+
+  if (is_win) {
+    if (is_component_build) {
+      defines += [
+        "PNG_USE_DLL",
+        "PNG_NO_MODULEDEF",
+      ]
+    }
   }
 }
 
@@ -23,12 +34,8 @@ config("libpng_config") {
 # appear after this, and turn it back on).
 config("clang_warnings") {
   if (is_clang) {
-    cflags = [
-      # libpng checks that the width is not greater than PNG_SIZE_MAX.
-      # On platforms where size_t is 64-bits, this comparison will always
-      # be false.
-      "-Wno-tautological-compare",
-    ]
+    # Upstream uses self-assignment to avoid warnings.
+    cflags = [ "-Wno-self-assign" ]
   }
 }
 
@@ -38,72 +45,57 @@ source_set("libpng_sources") {
     "png.h",
     "pngconf.h",
     "pngerror.c",
+    "pnggccrd.c",
     "pngget.c",
-    "pnginfo.h",
-    "pnglibconf.h",
     "pngmem.c",
     "pngpread.c",
-    "pngprefix.h",
-    "pngpriv.h",
     "pngread.c",
     "pngrio.c",
     "pngrtran.c",
     "pngrutil.c",
     "pngset.c",
-    "pngstruct.h",
     "pngtrans.c",
+    "pngusr.h",
+    "pngvcrd.c",
     "pngwio.c",
     "pngwrite.c",
     "pngwtran.c",
     "pngwutil.c",
   ]
 
-  if (is_starboard) {
-    sources -= [
-      "pnginfo.h",
-      "pnglibconf.h",
-      "pngprefix.h",
-      "pngpriv.h",
-      "pngstruct.h",
-    ]
-    sources += [
-      "pnggccrd.c",
-      "pngusr.h",
-      "pngvcrd.c",
-    ]
-  }
+if (!is_starboard) {
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+}
 
-  if (!is_win) {
-    output_name = "png"
-  }
-
-  defines = []
   if (is_win && is_component_build) {
-    defines += [
-      "PNG_BUILD_DLL",
-      "PNG_NO_MODULEDEF",
-    ]
+    defines = [ "PNG_BUILD_DLL" ]
   }
-
-  configs += [ ":clang_warnings" ]
 
   if (is_starboard) {
     configs -= [ "//starboard/build/config:size" ]
     configs += [ "//starboard/build/config:speed" ]
-    deps = [ "//starboard:starboard_headers_only" ]
   }
 
-  public_deps = [ "//third_party/zlib" ]
-
   public_configs = [ ":libpng_config" ]
+
+  public_deps = [
+    "//third_party/zlib",
+  ]
+
+  configs += [ ":clang_warnings" ]
 }
 
 if (is_win) {
   component("libpng") {
-    public_deps = [ ":libpng_sources" ]
+    public_deps = [
+      ":libpng_sources",
+    ]
   }
 } else {
   group("libpng") {
-    public_deps = [ ":libpng_sources" ]
+    public_deps = [
+      ":libpng_sources",
+    ]
   }
 }

@@ -7,11 +7,10 @@
   await TestRunner.loadModule('axe_core_test_runner');
   await TestRunner.showPanel('security');
 
-  const pageVisibleSecurityState = new Security.PageVisibleSecurityState(
-    Protocol.Security.SecurityState.Secure, /* certificateSecurityState= */ null,
-    /* safetyTipsInfo= */ null, /* securityStateIssueIds= */ []);
+  const pageSecurityState = new Security.PageSecurityState(Protocol.Security.SecurityState.Secure, /* explanations= */ [], null);
+
   TestRunner.mainTarget.model(Security.SecurityModel).dispatchEventToListeners(
-    Security.SecurityModel.Events.VisibleSecurityStateChanged, pageVisibleSecurityState);
+    Security.SecurityModel.Events.SecurityStateChanged, pageSecurityState);
   const request = new SDK.NetworkRequest(0, 'http://foo.test', 'https://foo.test', 0, 0, null);
   request.setBlockedReason(Protocol.Network.BlockedReason.MixedContent);
   request.mixedContentType = 'blockable';

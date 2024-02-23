@@ -10,13 +10,10 @@
 #include <limits.h>
 #include <stdarg.h>
 #include <stdlib.h>
-
 #include <cmath>
 
 #include "src/base/bits.h"
 #include "src/base/lazy-instance.h"
-#include "src/base/platform/platform.h"
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/mips/constants-mips.h"
@@ -859,7 +856,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   // Set up simulator support first. Some of this information is needed to
   // setup the architecture state.
   stack_size_ = FLAG_sim_stack_size * KB;
-  stack_ = reinterpret_cast<char*>(base::Malloc(stack_size_));
+  stack_ = reinterpret_cast<char*>(malloc(stack_size_));
   pc_modified_ = false;
   icount_ = 0;
   break_count_ = 0;
@@ -896,7 +893,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
 
 Simulator::~Simulator() {
   GlobalMonitor::Get()->RemoveLinkedAddress(&global_monitor_thread_);
-  base::Free(stack_);
+  free(stack_);
 }
 
 // Get the active Simulator for the current thread.
@@ -2138,7 +2135,7 @@ void Simulator::WriteMem(int32_t addr, T value, Instruction* instr) {
 uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
   // The simulator uses a separate JS stack. If we have exhausted the C stack,
   // we also drop down the JS limit to reflect the exhaustion on the JS stack.
-  if (base::Stack::GetCurrentStackPosition() < c_limit) {
+  if (GetCurrentStackPosition() < c_limit) {
     return reinterpret_cast<uintptr_t>(get_sp());
   }
 
@@ -7032,7 +7029,7 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
   // Store remaining arguments on stack, from low to high memory.
   intptr_t* stack_argument = reinterpret_cast<intptr_t*>(entry_stack);
   memcpy(stack_argument + kCArgSlotCount, arguments + reg_arg_count,
-               (argument_count - reg_arg_count) * sizeof(*arguments));
+         (argument_count - reg_arg_count) * sizeof(*arguments));
   set_register(sp, entry_stack);
 
   CallInternal(entry);

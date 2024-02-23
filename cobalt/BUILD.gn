@@ -46,6 +46,7 @@ group("gn_all") {
     "//cobalt/websocket:websocket_test",
     "//cobalt/worker:worker_test",
     "//cobalt/xhr:xhr_test",
+    "//third_party/abseil-cpp:absl",
   ]
 
   if (sb_is_evergreen) {

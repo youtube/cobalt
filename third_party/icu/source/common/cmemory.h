@@ -29,12 +29,10 @@
 #include "unicode/utypes.h"
 
 #if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
 #include "starboard/client_porting/poem/assert_poem.h"
-#else
+#endif
 #include <stddef.h>
 #include <string.h>
-#endif
 #include "unicode/localpointer.h"
 
 #if U_DEBUG && defined(UPRV_MALLOC_COUNT)

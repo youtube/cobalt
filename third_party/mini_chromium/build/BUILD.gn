@@ -552,6 +552,11 @@ toolchain("gcc_like_toolchain") {
     command = "touch {{output}}"
     description = "STAMP {{output}}"
   }
+
+  tool("copy") {
+    command = "ln -f {{source}} {{output}} 2>/dev/null || (rm -rf {{output}} && cp -af {{source}} {{output}})"
+    description = "COPY {{source}} {{output}}"
+  }
 }
 
 if (mini_chromium_is_win) {

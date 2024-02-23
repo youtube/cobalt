@@ -302,6 +302,7 @@ set(files
   __filesystem/u8path.h
   __format/buffer.h
   __format/concepts.h
+  __format/container_adaptor.h
   __format/enable_insertable.h
   __format/escaped_output_table.h
   __format/extended_grapheme_cluster_table.h
@@ -327,6 +328,7 @@ set(files
   __format/formatter_tuple.h
   __format/parser_std_format_spec.h
   __format/range_default_formatter.h
+  __format/range_formatter.h
   __format/unicode.h
   __functional/binary_function.h
   __functional/binary_negate.h
@@ -390,6 +392,7 @@ set(files
   __iterator/iter_swap.h
   __iterator/iterator.h
   __iterator/iterator_traits.h
+  __iterator/iterator_with_data.h
   __iterator/mergeable.h
   __iterator/move_iterator.h
   __iterator/move_sentinel.h
@@ -402,6 +405,7 @@ set(files
   __iterator/readable_traits.h
   __iterator/reverse_access.h
   __iterator/reverse_iterator.h
+  __iterator/segmented_iterator.h
   __iterator/size.h
   __iterator/sortable.h
   __iterator/unreachable_sentinel.h
@@ -496,6 +500,7 @@ set(files
   __random/weibull_distribution.h
   __ranges/access.h
   __ranges/all.h
+  __ranges/as_rvalue_view.h
   __ranges/common_view.h
   __ranges/concepts.h
   __ranges/copyable_box.h
@@ -523,6 +528,7 @@ set(files
   __ranges/reverse_view.h
   __ranges/single_view.h
   __ranges/size.h
+  __ranges/split_view.h
   __ranges/subrange.h
   __ranges/take_view.h
   __ranges/take_while_view.h
@@ -700,6 +706,7 @@ set(files
   __utility/cmp.h
   __utility/convert_to_integral.h
   __utility/declval.h
+  __utility/exception_guard.h
   __utility/exchange.h
   __utility/forward.h
   __utility/forward_like.h
@@ -712,7 +719,6 @@ set(files
   __utility/rel_ops.h
   __utility/swap.h
   __utility/to_underlying.h
-  __utility/transaction.h
   __utility/unreachable.h
   __variant/monostate.h
   __verbose_abort
@@ -904,10 +910,15 @@ if (LIBCXX_INSTALL_HEADERS)
     )
   endforeach()
 
-  # Install the generated __config_site and the generated modulemap file.
+  # Install the generated __config_site file to the per-target include dir.
   install(FILES "${LIBCXX_GENERATED_INCLUDE_TARGET_DIR}/__config_site"
-                "${LIBCXX_GENERATED_INCLUDE_DIR}/module.modulemap"
     DESTINATION "${LIBCXX_INSTALL_INCLUDE_TARGET_DIR}"
+    PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
+    COMPONENT cxx-headers)
+
+  # Install the generated modulemap file to the generic include dir.
+  install(FILES "${LIBCXX_GENERATED_INCLUDE_DIR}/module.modulemap"
+    DESTINATION "${LIBCXX_INSTALL_INCLUDE_DIR}"
     PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
     COMPONENT cxx-headers)
 

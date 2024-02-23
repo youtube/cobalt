@@ -85,11 +85,8 @@ struct conf_value_st {
   char *value;
 };
 
-struct conf_st {
-  LHASH_OF(CONF_VALUE) *data;
-};
-
 DEFINE_STACK_OF(CONF_VALUE)
+DECLARE_LHASH_OF(CONF_VALUE)
 
 
 // NCONF_new returns a fresh, empty |CONF|, or NULL on error. The |method|
@@ -103,22 +100,25 @@ OPENSSL_EXPORT void NCONF_free(CONF *conf);
 // |conf|. It returns one on success and zero on error. In the event of an
 // error, if |out_error_line| is not NULL, |*out_error_line| is set to the
 // number of the line that contained the error.
-int NCONF_load(CONF *conf, const char *filename, long *out_error_line);
+OPENSSL_EXPORT int NCONF_load(CONF *conf, const char *filename,
+                              long *out_error_line);
 
 // NCONF_load_bio acts like |NCONF_load| but reads from |bio| rather than from
 // a named file.
-int NCONF_load_bio(CONF *conf, BIO *bio, long *out_error_line);
+OPENSSL_EXPORT int NCONF_load_bio(CONF *conf, BIO *bio, long *out_error_line);
 
 // NCONF_get_section returns a stack of values for a given section in |conf|.
 // If |section| is NULL, the default section is returned. It returns NULL on
 // error.
-STACK_OF(CONF_VALUE) *NCONF_get_section(const CONF *conf, const char *section);
+OPENSSL_EXPORT STACK_OF(CONF_VALUE) *NCONF_get_section(const CONF *conf,
+                                                       const char *section);
 
 // NCONF_get_string returns the value of the key |name|, in section |section|.
 // The |section| argument may be NULL to indicate the default section. It
 // returns the value or NULL on error.
-const char *NCONF_get_string(const CONF *conf, const char *section,
-                             const char *name);
+OPENSSL_EXPORT const char *NCONF_get_string(const CONF *conf,
+                                            const char *section,
+                                            const char *name);
 
 
 // Utility functions
@@ -162,11 +162,11 @@ OPENSSL_EXPORT void OPENSSL_no_config(void);
 
 extern "C++" {
 
-namespace bssl {
+BSSL_NAMESPACE_BEGIN
 
 BORINGSSL_MAKE_DELETER(CONF, NCONF_free)
 
-}  // namespace bssl
+BSSL_NAMESPACE_END
 
 }  // extern C++
 

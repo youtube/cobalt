@@ -8,6 +8,7 @@
 
 #include <woff2/decode.h>
 
+#include <stdlib.h>
 #include <algorithm>
 #include <complex>
 #include <cstring>
@@ -16,7 +17,6 @@
 #include <vector>
 #include <map>
 #include <memory>
-#include <stdlib.h>
 #include <utility>
 
 #include <brotli/decode.h>
@@ -256,7 +256,7 @@ bool StorePoints(unsigned int n_points, const Point* points,
     if (dx == 0) {
       // pass
     } else if (dx > -256 && dx < 256) {
-      dst[x_offset++] = abs(dx);
+      dst[x_offset++] = std::abs(dx);
     } else {
       // will always fit for valid input, but overflow is harmless
       x_offset = Store16(dst, x_offset, dx);
@@ -266,7 +266,7 @@ bool StorePoints(unsigned int n_points, const Point* points,
     if (dy == 0) {
       // pass
     } else if (dy > -256 && dy < 256) {
-      dst[y_offset++] = abs(dy);
+      dst[y_offset++] = std::abs(dy);
     } else {
       y_offset = Store16(dst, y_offset, dy);
     }

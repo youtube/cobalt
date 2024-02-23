@@ -42,9 +42,11 @@ struct JsonPrefStore::ReadResult {
 };
 
 JsonPrefStore::ReadResult::ReadResult()
-    : error(PersistentPrefStore::PREF_READ_ERROR_NONE), no_dir(false) {}
+    : error(PersistentPrefStore::PREF_READ_ERROR_NONE), no_dir(false) {
+}
 
-JsonPrefStore::ReadResult::~ReadResult() {}
+JsonPrefStore::ReadResult::~ReadResult() {
+}
 
 namespace {
 
@@ -432,16 +434,15 @@ void JsonPrefStore::OnFileRead(std::unique_ptr<ReadResult> read_result) {
         unfiltered_prefs = std::move(*read_result->value).TakeDict();
         break;
       case PREF_READ_ERROR_NO_FILE:
-
-      // If the file just doesn't exist, maybe this is first run.  In any case
-      // there's no harm in writing out default prefs in this case.
+        // If the file just doesn't exist, maybe this is first run.  In any case
+        // there's no harm in writing out default prefs in this case.
       case PREF_READ_ERROR_JSON_PARSE:
       case PREF_READ_ERROR_JSON_REPEAT:
         break;
       case PREF_READ_ERROR_ASYNCHRONOUS_TASK_INCOMPLETE:
-      // This is a special error code to be returned by ReadPrefs when it
-      // can't complete synchronously, it should never be returned by the read
-      // operation itself.
+        // This is a special error code to be returned by ReadPrefs when it
+        // can't complete synchronously, it should never be returned by the read
+        // operation itself.
       case PREF_READ_ERROR_MAX_ENUM:
         NOTREACHED();
         break;
@@ -451,8 +452,9 @@ void JsonPrefStore::OnFileRead(std::unique_ptr<ReadResult> read_result) {
   if (pref_filter_) {
     filtering_in_progress_ = true;
     const PrefFilter::PostFilterOnLoadCallback post_filter_on_load_callback(
-        base::Bind(&JsonPrefStore::FinalizeFileRead, AsWeakPtr(),
-                   initialization_successful));
+        base::Bind(
+            &JsonPrefStore::FinalizeFileRead, AsWeakPtr(),
+            initialization_successful));
     pref_filter_->FilterOnLoad(post_filter_on_load_callback,
                                std::move(unfiltered_prefs));
   } else {

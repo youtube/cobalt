@@ -376,7 +376,7 @@ void H5vccStorage::EnableCache() {
       network::disk_cache::kCacheEnabledPersistentSettingsKey,
       std::make_unique<base::Value>(true));
 
-  cobalt::cache::Cache::GetInstance()->set_enabled(true);
+  network::disk_cache::settings::SetCacheEnabled(true);
 
   if (http_cache_) {
     http_cache_->set_mode(net::HttpCache::Mode::NORMAL);
@@ -388,7 +388,7 @@ void H5vccStorage::DisableCache() {
       network::disk_cache::kCacheEnabledPersistentSettingsKey,
       std::make_unique<base::Value>(false));
 
-  cobalt::cache::Cache::GetInstance()->set_enabled(false);
+  network::disk_cache::settings::SetCacheEnabled(false);
 
   if (http_cache_) {
     http_cache_->set_mode(net::HttpCache::Mode::DISABLE);

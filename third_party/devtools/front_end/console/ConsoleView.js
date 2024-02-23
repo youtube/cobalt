@@ -179,7 +179,6 @@ export default class ConsoleView extends UI.VBox {
     this._messagesElement.addEventListener('click', this._messagesClicked.bind(this), false);
     this._messagesElement.addEventListener('paste', this._messagesPasted.bind(this), true);
     this._messagesElement.addEventListener('clipboard-paste', this._messagesPasted.bind(this), true);
-    UI.ARIAUtils.markAsGroup(this._messagesElement);
 
     this._viewportThrottler = new Common.Throttler(50);
     this._pendingBatchResize = false;
@@ -738,7 +737,7 @@ export default class ConsoleView extends UI.VBox {
 
   async _saveConsole() {
     const url = SDK.targetManager.mainTarget().inspectedURL();
-    const parsedURL = Common.ParsedURL.fromString(url);
+    const parsedURL = url.asParsedURL();
     const filename = String.sprintf('%s-%d.log', parsedURL ? parsedURL.host : 'console', Date.now());
     const stream = new Bindings.FileOutputStream();
 

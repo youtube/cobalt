@@ -71,7 +71,6 @@
 #include "cobalt/web/web_settings.h"
 #include "cobalt/webdriver/session_driver.h"
 #include "starboard/configuration.h"
-#include "starboard/time.h"
 #include "starboard/window.h"
 #include "url/gurl.h"
 
@@ -152,6 +151,10 @@ class BrowserModule {
   void AddURLHandler(const URLHandler::URLHandlerCallback& callback);
   void RemoveURLHandler(const URLHandler::URLHandlerCallback& callback);
 
+  // Start the ScreenShotWriter if it's not already running.
+  void EnsureScreenShotWriter();
+
+#if defined(ENABLE_WEBDRIVER) || defined(ENABLE_DEBUGGER)
   // Request a screenshot to be written to the specified path. Callback will
   // be fired after the screenshot has been written to disk.
   void RequestScreenshotToFile(
@@ -165,6 +168,13 @@ class BrowserModule {
       loader::image::EncodedStaticImage::ImageFormat image_format,
       const base::Optional<math::Rect>& clip_rect,
       const ScreenShotWriter::ImageEncodeCompleteCallback& screenshot_ready);
+#endif  // defined(ENABLE_WEBDRIVER) || defined(ENABLE_DEBUGGER)
+
+  // Request a screenshot to memory without compressing the image.
+  void RequestScreenshotToMemoryUnencoded(
+      const scoped_refptr<render_tree::Node>& render_tree_root,
+      const base::Optional<math::Rect>& clip_rect,
+      const renderer::Pipeline::RasterizationCompleteCallback& callback);
 
 #if defined(ENABLE_WEBDRIVER)
   std::unique_ptr<webdriver::SessionDriver> CreateSessionDriver(
@@ -182,12 +192,12 @@ class BrowserModule {
   void SetProxy(const std::string& proxy_rules);
 
   // LifecycleObserver-similar interface.
-  void Blur(SbTimeMonotonic timestamp);
-  void Conceal(SbTimeMonotonic timestamp);
-  void Freeze(SbTimeMonotonic timestamp);
-  void Unfreeze(SbTimeMonotonic timestamp);
-  void Reveal(SbTimeMonotonic timestamp);
-  void Focus(SbTimeMonotonic timestamp);
+  void Blur(int64_t timestamp);
+  void Conceal(int64_t timestamp);
+  void Freeze(int64_t timestamp);
+  void Unfreeze(int64_t timestamp);
+  void Reveal(int64_t timestamp);
+  void Focus(int64_t timestamp);
 
   // Gets current application state.
   base::ApplicationState GetApplicationState();
@@ -231,18 +241,13 @@ class BrowserModule {
                           std::map<std::string, std::string>& map);
 
   // Pass the deeplink timestamp from Starboard.
-  void SetDeepLinkTimestamp(SbTimeMonotonic timestamp);
+  void SetDeepLinkTimestamp(int64_t timestamp);
+
+#if defined(ENABLE_DEBUGGER)
+  std::string OnBoxDumpMessage(const std::string& message);
+#endif  // ENABLE_DEBUGGER
 
  private:
-#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-  static void CoreDumpHandler(void* browser_module_as_void);
-  int on_error_triggered_count_;
-#if defined(COBALT_CHECK_RENDER_TIMEOUT)
-  int recovery_mechanism_triggered_count_;
-  int timeout_response_trigger_count_;
-#endif  // defined(COBALT_CHECK_RENDER_TIMEOUT)
-#endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-
   // Called when the WebModule's Window.onload event is fired.
   void OnLoad();
 
@@ -364,6 +369,8 @@ class BrowserModule {
   // Destroys the splash screen, if currently displayed.
   void DestroySplashScreen(base::TimeDelta close_time = base::TimeDelta());
 
+  void DestroyScrollEngine();
+
   // Called when web module has received window.close().
   void OnWindowClose(base::TimeDelta close_time);
 
@@ -445,19 +452,19 @@ class BrowserModule {
 
   // Does all the steps for half of a Conceal that happen prior to
   // the app state update.
-  void ConcealInternal(SbTimeMonotonic timestamp);
+  void ConcealInternal(int64_t timestamp);
 
   // Does all the steps for half of a Freeze that happen prior to
   // the app state update.
-  void FreezeInternal(SbTimeMonotonic timestamp);
+  void FreezeInternal(int64_t timestamp);
 
   // Does all the steps for half of a Reveal that happen prior to
   // the app state update.
-  void RevealInternal(SbTimeMonotonic timestamp);
+  void RevealInternal(int64_t timestamp);
 
   // Does all the steps for half of a Unfreeze that happen prior to
   // the app state update.
-  void UnfreezeInternal(SbTimeMonotonic timestamp);
+  void UnfreezeInternal(int64_t timestamp);
 
   // Check debug console, splash screen and web module if they are
   // ready to freeze at Concealed state. If so, call SystemRequestFreeze
@@ -645,6 +652,11 @@ class BrowserModule {
   // Command handler object for toggling the input fuzzer on/off.
   debug::console::ConsoleCommandManager::CommandHandler
       fuzzer_toggle_command_handler_;
+#if defined(ENABLE_DEBUGGER)
+  // Command handler object for boxdump command from the debug console.
+  debug::console::ConsoleCommandManager::CommandHandler
+      boxdump_command_handler_;
+#endif
 
   // Command handler object for screenshot command from the debug console.
   debug::console::ConsoleCommandManager::CommandHandler

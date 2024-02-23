@@ -6,7 +6,7 @@ Starboard required to run Cast.
 ### Customizations
 
 As of Starboard 15, there are public methods required for Cast that are not
-already exposed by `libstarboard_platform_group.so`. As a result, the dedicated
+already exposed by `libstarboard.so`. As a result, the dedicated
 header `cast_starboard_api.h` is omitted from this release, though it may
 return in the future.
 

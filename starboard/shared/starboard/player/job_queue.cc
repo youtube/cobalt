@@ -75,13 +75,12 @@ JobQueue::~JobQueue() {
 }
 
 JobQueue::JobToken JobQueue::Schedule(const Job& job,
-                                      SbTimeMonotonic delay /*= 0*/) {
-  return Schedule(job, NULL, delay);
+                                      int64_t delay_usec /*= 0*/) {
+  return Schedule(job, NULL, delay_usec);
 }
 
-JobQueue::JobToken JobQueue::Schedule(Job&& job,
-                                      SbTimeMonotonic delay /*= 0*/) {
-  return Schedule(std::move(job), NULL, delay);
+JobQueue::JobToken JobQueue::Schedule(Job&& job, int64_t delay_usec /*= 0*/) {
+  return Schedule(std::move(job), NULL, delay_usec);
 }
 
 void JobQueue::ScheduleAndWait(const Job& job) {
@@ -167,15 +166,15 @@ JobQueue* JobQueue::current() {
 
 JobQueue::JobToken JobQueue::Schedule(const Job& job,
                                       JobOwner* owner,
-                                      SbTimeMonotonic delay) {
-  return Schedule(Job(job), owner, delay);
+                                      int64_t delay_usec) {
+  return Schedule(Job(job), owner, delay_usec);
 }
 
 JobQueue::JobToken JobQueue::Schedule(Job&& job,
                                       JobOwner* owner,
-                                      SbTimeMonotonic delay) {
+                                      int64_t delay_usec) {
   SB_DCHECK(job);
-  SB_DCHECK(delay >= 0) << delay;
+  SB_DCHECK(delay_usec >= 0) << delay_usec;
 
   ScopedLock scoped_lock(mutex_);
   if (stopped_) {
@@ -193,7 +192,7 @@ JobQueue::JobToken JobQueue::Schedule(Job&& job,
   }
 #endif  // ENABLE_JOB_QUEUE_PROFILING
 
-  SbTimeMonotonic time_to_run_job = SbTimeGetMonotonicNow() + delay;
+  int64_t time_to_run_job = CurrentMonotonicTime() + delay_usec;
   bool is_first_job = time_to_job_record_map_.empty() ||
                       time_to_run_job < time_to_job_record_map_.begin()->first;
 
@@ -230,8 +229,7 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
       return false;
     }
     if (time_to_job_record_map_.empty() && wait_for_next_job) {
-      // |kSbTimeMax| makes more sense here, but |kSbTimeDay| is much safer.
-      condition_.WaitTimed(kSbTimeDay);
+      condition_.WaitTimed(kSbInt64Max);
 #if ENABLE_JOB_QUEUE_PROFILING
       ++wait_times_;
 #endif  // ENABLE_JOB_QUEUE_PROFILING
@@ -241,10 +239,10 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
     }
     TimeToJobRecordMap::iterator first_delayed_job =
         time_to_job_record_map_.begin();
-    SbTimeMonotonic delay = first_delayed_job->first - SbTimeGetMonotonicNow();
-    if (delay > 0) {
+    int64_t delay_usec = first_delayed_job->first - CurrentMonotonicTime();
+    if (delay_usec > 0) {
       if (wait_for_next_job) {
-        condition_.WaitTimed(delay);
+        condition_.WaitTimed(delay_usec);
 #if ENABLE_JOB_QUEUE_PROFILING
         ++wait_times_;
 #endif  // ENABLE_JOB_QUEUE_PROFILING
@@ -258,8 +256,8 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
     // Try to retrieve the job again as the job map can be altered during the
     // wait.
     first_delayed_job = time_to_job_record_map_.begin();
-    delay = first_delayed_job->first - SbTimeGetMonotonicNow();
-    if (delay > 0) {
+    delay_usec = first_delayed_job->first - CurrentMonotonicTime();
+    if (delay_usec > 0) {
       return false;
     }
     job_record = std::move(first_delayed_job->second);
@@ -269,7 +267,7 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
   SB_DCHECK(job_record.job);
 
 #if ENABLE_JOB_QUEUE_PROFILING
-  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+  int64_t start = CurrentMonotonicTime();
 #endif  // ENABLE_JOB_QUEUE_PROFILING
 
   job_record.job();
@@ -277,13 +275,13 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
 #if ENABLE_JOB_QUEUE_PROFILING
   ++jobs_processed_;
 
-  auto now = SbTimeGetMonotonicNow();
+  auto now = CurrentMonotonicTime();
   auto elapsed = now - start;
   if (elapsed > max_job_interval_) {
     job_record_with_max_interval_ = job_record;
     max_job_interval_ = elapsed;
   }
-  if (now - last_reset_time_ > kProfileResetInterval) {
+  if (now - last_reset_time_ > kProfileResetIntervalUsec) {
     SB_LOG(INFO) << "================ " << jobs_processed_
                  << " jobs processed, and waited for " << wait_times_
                  << " times since last reset on 0x" << this

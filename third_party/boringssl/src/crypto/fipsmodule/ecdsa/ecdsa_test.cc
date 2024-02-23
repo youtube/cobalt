@@ -66,7 +66,47 @@
 
 #include "../ec/internal.h"
 #include "../../test/file_test.h"
+#include "../../test/test_util.h"
 
+
+static bssl::UniquePtr<BIGNUM> HexToBIGNUM(const char *hex) {
+  BIGNUM *bn = nullptr;
+  BN_hex2bn(&bn, hex);
+  return bssl::UniquePtr<BIGNUM>(bn);
+}
+
+// Though we do not support secp160r1, it is reachable from the deprecated
+// custom curve APIs and has some unique properties (n is larger than p with the
+// difference crossing a word boundary on 32-bit), so test it explicitly.
+static bssl::UniquePtr<EC_GROUP> NewSecp160r1Group() {
+  static const char kP[] = "ffffffffffffffffffffffffffffffff7fffffff";
+  static const char kA[] = "ffffffffffffffffffffffffffffffff7ffffffc";
+  static const char kB[] = "1c97befc54bd7a8b65acf89f81d4d4adc565fa45";
+  static const char kX[] = "4a96b5688ef573284664698968c38bb913cbfc82";
+  static const char kY[] = "23a628553168947d59dcc912042351377ac5fb32";
+  static const char kN[] = "0100000000000000000001f4c8f927aed3ca752257";
+
+  bssl::UniquePtr<BIGNUM> p = HexToBIGNUM(kP), a = HexToBIGNUM(kA),
+                          b = HexToBIGNUM(kB), x = HexToBIGNUM(kX),
+                          y = HexToBIGNUM(kY), n = HexToBIGNUM(kN);
+  if (!p || !a || !b || !x || !y || !n) {
+    return nullptr;
+  }
+
+  bssl::UniquePtr<EC_GROUP> group(
+      EC_GROUP_new_curve_GFp(p.get(), a.get(), b.get(), nullptr));
+  if (!group) {
+    return nullptr;
+  }
+  bssl::UniquePtr<EC_POINT> g(EC_POINT_new(group.get()));
+  if (!g ||
+      !EC_POINT_set_affine_coordinates_GFp(group.get(), g.get(), x.get(),
+                                           y.get(), nullptr) ||
+      !EC_GROUP_set_generator(group.get(), g.get(), n.get(), BN_value_one())) {
+    return nullptr;
+  }
+  return group;
+}
 
 enum API {
   kEncodedAPI,
@@ -151,13 +191,18 @@ TEST(ECDSATest, BuiltinCurves) {
       { NID_X9_62_prime256v1, "secp256r1" },
       { NID_secp384r1, "secp384r1" },
       { NID_secp521r1, "secp521r1" },
+      { NID_secp160r1, "secp160r1" },
   };
 
   for (const auto &curve : kCurves) {
     SCOPED_TRACE(curve.name);
 
-    int nid = curve.nid;
-    bssl::UniquePtr<EC_GROUP> group(EC_GROUP_new_by_curve_name(nid));
+    bssl::UniquePtr<EC_GROUP> group;
+    if (curve.nid == NID_secp160r1) {
+      group = NewSecp160r1Group();
+    } else {
+      group.reset(EC_GROUP_new_by_curve_name(curve.nid));
+    }
     ASSERT_TRUE(group);
     const BIGNUM *order = EC_GROUP_get0_order(group.get());
 
@@ -183,6 +228,15 @@ TEST(ECDSATest, BuiltinCurves) {
     ASSERT_TRUE(
         ECDSA_sign(0, digest, 20, signature.data(), &sig_len, eckey.get()));
     signature.resize(sig_len);
+
+    // ECDSA signing should be non-deterministic. This does not verify k is
+    // generated securely but at least checks it was randomized at all.
+    sig_len = ECDSA_size(eckey.get());
+    std::vector<uint8_t> signature2(sig_len);
+    ASSERT_TRUE(
+        ECDSA_sign(0, digest, 20, signature2.data(), &sig_len, eckey.get()));
+    signature2.resize(sig_len);
+    EXPECT_NE(Bytes(signature), Bytes(signature2));
 
     // Verify the signature.
     EXPECT_TRUE(ECDSA_verify(0, digest, 20, signature.data(), signature.size(),
@@ -277,6 +331,9 @@ static bssl::UniquePtr<EC_GROUP> GetCurve(FileTest *t, const char *key) {
   }
   if (curve_name == "P-521") {
     return bssl::UniquePtr<EC_GROUP>(EC_GROUP_new_by_curve_name(NID_secp521r1));
+  }
+  if (curve_name == "secp160r1") {
+    return NewSecp160r1Group();
   }
 
   ADD_FAILURE() << "Unknown curve: " << curve_name;
@@ -377,8 +434,8 @@ TEST(ECDSATest, SignTestVectors) {
       ASSERT_TRUE(x);
       bssl::UniquePtr<BIGNUM> y = GetBIGNUM(t, "Y");
       ASSERT_TRUE(y);
-      bssl::UniquePtr<BIGNUM> k = GetBIGNUM(t, "K");
-      ASSERT_TRUE(k);
+      std::vector<uint8_t> k;
+      ASSERT_TRUE(t->GetBytes(&k, "K"));
       bssl::UniquePtr<BIGNUM> r = GetBIGNUM(t, "R");
       ASSERT_TRUE(r);
       bssl::UniquePtr<BIGNUM> s = GetBIGNUM(t, "S");
@@ -397,10 +454,9 @@ TEST(ECDSATest, SignTestVectors) {
       ASSERT_TRUE(EC_KEY_set_public_key(key.get(), pub_key.get()));
       ASSERT_TRUE(EC_KEY_check_key(key.get()));
 
-      // Set the fixed k for testing purposes.
-      key->fixed_k = k.release();
       bssl::UniquePtr<ECDSA_SIG> sig(
-          ECDSA_do_sign(digest.data(), digest.size(), key.get()));
+          ECDSA_sign_with_nonce_and_leak_private_key_for_testing(
+              digest.data(), digest.size(), key.get(), k.data(), k.size()));
       ASSERT_TRUE(sig);
 
       EXPECT_EQ(0, BN_cmp(r.get(), sig->r));

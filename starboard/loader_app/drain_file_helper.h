@@ -17,8 +17,6 @@
 
 #include <string>
 
-#include "starboard/time.h"
-
 namespace starboard {
 namespace loader_app {
 
@@ -27,11 +25,12 @@ namespace loader_app {
 // convenient way of bundling the information and state of the file. This class
 // is very similar in concept to the starboard::nplb::ScopedRandomFile, except
 // that it allows you to choose where to create the file.
+// |timestamp| is microseconds from Windows epoch UTC.
 class ScopedDrainFile {
  public:
   ScopedDrainFile(const std::string& dir,
                   const std::string& app_key,
-                  SbTime timestamp);
+                  int64_t timestamp);
   ~ScopedDrainFile();
 
   // Whether or not the created file still exists.

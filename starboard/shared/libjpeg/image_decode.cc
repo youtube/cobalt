@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/image.h"
 
 #include "starboard/shared/libjpeg/jpeg_image_decoder.h"
@@ -28,3 +30,5 @@ SbDecodeTarget SbImageDecode(SbDecodeTargetGraphicsContextProvider* provider,
   return starboard::shared::libjpeg::Decode(
       provider, format, static_cast<const uint8_t*>(data), data_size);
 }
+
+#endif  // SB_API_VERSION < 16

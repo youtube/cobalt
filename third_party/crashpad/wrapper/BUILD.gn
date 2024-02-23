@@ -16,7 +16,7 @@
 # depend on this common target, and not any of the specific "starboard_platform"
 # targets.
 
-if (sb_is_evergreen_compatible) {
+if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
   static_library("wrapper") {
     check_includes = false
 

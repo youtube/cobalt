@@ -42,11 +42,11 @@
 #include "starboard/client_porting/eztime/eztime.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/system.h"
-#include "starboard/time.h"
 typedef SbFile FileHandle;
 typedef SbMutex MutexHandle;
 #else
@@ -489,9 +489,15 @@ SbLogPriority LogLevelToStarboardLogPriority(int level) {
     case LOG_ERROR:
       return kSbLogPriorityError;
     case LOG_FATAL:
-    case LOG_VERBOSE:
       return kSbLogPriorityFatal;
+    case LOG_VERBOSE:
     default:
+      if (level <= LOG_VERBOSE) {
+        // Verbose level can be any negative integer, sanity check its range to
+        // filter out potential errors.
+        DCHECK_GE(level, -256);
+        return kSbLogPriorityInfo;
+      }
       NOTREACHED() << "Unrecognized log level.";
       return kSbLogPriorityInfo;
   }

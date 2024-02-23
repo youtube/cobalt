@@ -100,8 +100,7 @@ class CobaltRunner(object):
                success_message=None,
                log_handler=None,
                poll_until_wait_seconds=POLL_UNTIL_WAIT_SECONDS,
-               web_server_port=None,
-               **kwargs):
+               web_server_port=None):
     """CobaltRunner constructor.
 
     Args:
@@ -113,9 +112,8 @@ class CobaltRunner(object):
         with.
       success_message:  Optional success message to be printed on successful
         exit.
-      pull_until_wait_seconds:  Seconds to wait while polling for an event.
+      poll_until_wait_seconds:  Seconds to wait while polling for an event.
       web_server_port:  The port to host testdata server before Cobalt starts.
-      **kwargs:  Additional parameters to be passed to the launcher.
     """
 
     # Tracks if test execution started successfully
@@ -137,7 +135,6 @@ class CobaltRunner(object):
     self.launcher_params = launcher_params
     self.log_handler = log_handler
     self.poll_until_wait_seconds = poll_until_wait_seconds
-    self.kwargs = kwargs
 
     if log_file:
       self.log_file = open(log_file, encoding='utf-8')  # pylint: disable=consider-using-with
@@ -290,8 +287,7 @@ class CobaltRunner(object):
         loader_platform=self.launcher_params.loader_platform,
         loader_config=self.launcher_params.loader_config,
         loader_out_directory=self.launcher_params.loader_out_directory,
-        launcher_args=launcher_args,
-        **self.kwargs)
+        launcher_args=launcher_args)
     # Start the Device->Host tunnel now in case Cobalt connects the host.
     if self.web_server_port:
       self.CreateDeviceToHostTunnel(self.web_server_port, self.web_server_port)
@@ -364,9 +360,13 @@ class CobaltRunner(object):
   def _StartWebdriver(self, port):
     host, webdriver_port = self.launcher.GetHostAndPortGivenPort(port)
     self.webdriver_url = f'http://{host}:{webdriver_port}/'
+
+    # Create remote and set a timeout before making the connection
+    rc = self.selenium_webdriver_module.remote.remote_connection
+    executor = rc.RemoteConnection(self.webdriver_url)
+    executor.set_timeout(WEBDRIVER_HTTP_TIMEOUT_SECONDS)
     self.webdriver = self.selenium_webdriver_module.Remote(
-        self.webdriver_url, COBALT_WEBDRIVER_CAPABILITIES)
-    self.webdriver.command_executor.set_timeout(WEBDRIVER_HTTP_TIMEOUT_SECONDS)
+        executor, COBALT_WEBDRIVER_CAPABILITIES)
     logging.info('Selenium Connected')
     self.test_script_started.set()
     with self.start_condition:
@@ -377,11 +377,12 @@ class CobaltRunner(object):
     if self.webdriver:
       self.webdriver.quit()
     if self.webdriver_url:
+      rc = self.selenium_webdriver_module.remote.remote_connection
+      executor = rc.RemoteConnection(self.webdriver_url)
+      executor.set_timeout(WEBDRIVER_HTTP_TIMEOUT_SECONDS)
       self.webdriver = self.selenium_webdriver_module.Remote(
-          self.webdriver_url, COBALT_WEBDRIVER_CAPABILITIES)
+          executor, COBALT_WEBDRIVER_CAPABILITIES)
     if self.webdriver:
-      self.webdriver.command_executor.set_timeout(
-          WEBDRIVER_HTTP_TIMEOUT_SECONDS)
       logging.info('Selenium Reconnected')
 
   def WaitForStart(self):

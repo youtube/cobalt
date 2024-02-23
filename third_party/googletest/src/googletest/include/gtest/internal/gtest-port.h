@@ -267,6 +267,9 @@
 #include <sys/types.h>
 #endif  // !_WIN32_WCE
 #else  // !defined(STARBOARD)
+
+#include <stdlib.h>
+
 #include "starboard/common/log.h"
 #include "starboard/common/spin_lock.h"
 #include "starboard/common/string.h"
@@ -299,6 +302,7 @@
 #include <type_traits>
 #include <vector>
 
+#include <stdio.h>
 
 #include "gtest/internal/custom/gtest-port.h"
 #include "gtest/internal/gtest-port-arch.h"
@@ -2081,10 +2085,13 @@ inline int IsATTY(FILE* /*file*/) { return SbLogIsTty() ? 1 : 0; }
 inline int Stat(const char* path, StatStruct* buf) {
   return SbFileGetPathInfo(path, buf) ? 0 : -1;
 }
+#if SB_API_VERSION < 16
 inline int StrCaseCmp(const char* s1, const char* s2) {
   return SbStringCompareNoCase(s1, s2);
 }
-inline char* StrDup(const char* src) { return SbStringDuplicate(src); }
+#endif //SB_API_VERSION < 16
+inline char* StrDup(const char* src) { return strdup(src); }
+
 inline int RmDir(const char* dir) { return SbFileDelete(dir); }
 inline bool IsDir(const StatStruct& st) { return st.is_directory; }
 
@@ -2102,7 +2109,7 @@ inline void Abort() { SbSystemBreakIntoDebugger(); }
 
 inline int VSNPrintF(char* out_buffer, size_t size, const char* format,
                       va_list args) {
-  return SbStringFormat(out_buffer, size, format, args);
+  return vsnprintf(out_buffer, size, format, args);
 }
 
 inline size_t StrLen(const char *str) {

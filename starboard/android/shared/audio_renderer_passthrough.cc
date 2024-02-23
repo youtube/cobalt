@@ -21,6 +21,7 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/memory.h"
 
 namespace starboard {
@@ -32,7 +33,7 @@ namespace {
 // pushing data when there are enough decoded audio buffers.
 constexpr int kMaxDecodedAudios = 64;
 
-constexpr SbTime kAudioTrackUpdateInternal = kSbTimeMillisecond * 5;
+constexpr int64_t kAudioTrackUpdateInternal = 5'000;  // 5ms
 
 constexpr int kPreferredBufferSizeInBytes = 16 * 1024;
 // TODO: Enable passthrough with tunnel mode.
@@ -74,14 +75,15 @@ int ParseAc3SyncframeAudioSampleCount(const uint8_t* buffer, int size) {
 
 AudioRendererPassthrough::AudioRendererPassthrough(
     const AudioStreamInfo& audio_stream_info,
-    SbDrmSystem drm_system)
+    SbDrmSystem drm_system,
+    bool use_mediacodec_callback_thread)
     : audio_stream_info_(audio_stream_info) {
   SB_DCHECK(audio_stream_info_.codec == kSbMediaAudioCodecAc3 ||
             audio_stream_info_.codec == kSbMediaAudioCodecEac3);
   if (SbDrmSystemIsValid(drm_system)) {
     SB_LOG(INFO) << "Creating AudioDecoder as decryptor.";
-    scoped_ptr<AudioDecoder> audio_decoder(
-        new AudioDecoder(audio_stream_info, drm_system));
+    scoped_ptr<AudioDecoder> audio_decoder(new AudioDecoder(
+        audio_stream_info, drm_system, use_mediacodec_callback_thread));
     if (audio_decoder->is_valid()) {
       decoder_.reset(audio_decoder.release());
     }
@@ -247,7 +249,7 @@ void AudioRendererPassthrough::SetPlaybackRate(double playback_rate) {
   playback_rate_ = playback_rate;
 }
 
-void AudioRendererPassthrough::Seek(SbTime seek_to_time) {
+void AudioRendererPassthrough::Seek(int64_t seek_to_time) {
   SB_DCHECK(BelongsToCurrentThread());
 
   SB_LOG(INFO) << "Seek to " << seek_to_time;
@@ -292,10 +294,10 @@ void AudioRendererPassthrough::Seek(SbTime seek_to_time) {
 }
 
 // This function can be called from *any* threads.
-SbTime AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
-                                                     bool* is_eos_played,
-                                                     bool* is_underflow,
-                                                     double* playback_rate) {
+int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
+                                                      bool* is_eos_played,
+                                                      bool* is_underflow,
+                                                      double* playback_rate) {
   SB_DCHECK(is_playing);
   SB_DCHECK(is_eos_played);
   SB_DCHECK(is_underflow);
@@ -311,33 +313,33 @@ SbTime AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
     return seek_to_time_;
   }
 
-  SbTime audio_start_time;
+  int64_t audio_start_time;
   if (first_audio_timestamp_ > -1) {
     audio_start_time = first_audio_timestamp_;
   } else {
     audio_start_time = seek_to_time_;
   }
 
-  SbTime playback_time;
+  int64_t playback_time;
   if (stop_called_) {
     // When AudioTrackBridge::Stop() is called, the playback will continue until
     // all the frames written are played, as the AudioTrack is created in
     // MODE_STREAM.
-    auto now = SbTimeGetMonotonicNow();
+    auto now = CurrentMonotonicTime();
     SB_DCHECK(now >= stopped_at_);
     auto time_elapsed = now - stopped_at_;
     int64_t frames_played =
-        time_elapsed * audio_stream_info_.samples_per_second / kSbTimeSecond;
+        time_elapsed * audio_stream_info_.samples_per_second / 1'000'000LL;
     int64_t total_frames_played =
         frames_played + playback_head_position_when_stopped_;
     total_frames_played = std::min(total_frames_played, total_frames_written_);
     playback_time =
-        audio_start_time + total_frames_played * kSbTimeSecond /
+        audio_start_time + total_frames_played * 1'000'000LL /
                                audio_stream_info_.samples_per_second;
     return std::max(playback_time, seek_to_time_);
   }
 
-  SbTime updated_at;
+  int64_t updated_at;
   auto playback_head_position =
       audio_track_bridge_->GetAudioTimestamp(&updated_at);
   if (playback_head_position <= 0) {
@@ -348,7 +350,7 @@ SbTime AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
 
   // TODO: This may cause time regression, because the unadjusted time will be
   //       returned on pause, after an adjusted time has been returned.
-  playback_time = audio_start_time + playback_head_position * kSbTimeSecond /
+  playback_time = audio_start_time + playback_head_position * 1'000'000LL /
                                          audio_stream_info_.samples_per_second;
 
   // When underlying AudioTrack is paused, we use returned playback time
@@ -364,15 +366,15 @@ SbTime AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
   }
 
   // TODO: Cap this to the maximum frames written to the AudioTrack.
-  auto now = SbTimeGetMonotonicNow();
+  auto now = CurrentMonotonicTime();
   SB_LOG_IF(WARNING, now < updated_at)
       << "now (" << now << ") is not greater than updated_at (" << updated_at
       << ").";
-  SB_LOG_IF(WARNING, now - updated_at > kSbTimeSecond)
+  SB_LOG_IF(WARNING, now - updated_at > 1'000'000LL)
       << "Elapsed time (" << now - updated_at
       << ") is greater than 1s. (playback_time " << playback_time << ")";
 
-  playback_time += std::max<SbTime>(now - updated_at, 0);
+  playback_time += std::max<int64_t>(now - updated_at, 0);
 
   return std::max(playback_time, seek_to_time_);
 }
@@ -399,8 +401,7 @@ void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
       optional<SbMediaAudioSampleType>(),  // Not required in passthrough mode
       audio_stream_info_.number_of_channels,
       audio_stream_info_.samples_per_second, kPreferredBufferSizeInBytes,
-      false /* enable_pcm_content_type_movie */, kTunnelModeAudioSessionId,
-      false /* is_web_audio */));
+      kTunnelModeAudioSessionId, false /* is_web_audio */));
 
   if (!audio_track_bridge->is_valid()) {
     error_cb_(kSbPlayerErrorDecode, "Error creating AudioTrackBridge");
@@ -420,7 +421,7 @@ void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
 }
 
 void AudioRendererPassthrough::FlushAudioTrackAndStopProcessing(
-    SbTime seek_to_time) {
+    int64_t seek_to_time) {
   SB_DCHECK(audio_track_thread_);
   SB_DCHECK(audio_track_thread_->BelongsToCurrentThread());
 
@@ -574,9 +575,9 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
   // EOS is handled on this thread instead of in GetCurrentMediaTime(), because
   // GetCurrentMediaTime() is not guaranteed to be called.
   if (stop_called_ && !end_of_stream_played_.load()) {
-    auto time_elapsed = SbTimeGetMonotonicNow() - stopped_at_;
+    auto time_elapsed = CurrentMonotonicTime() - stopped_at_;
     auto frames_played =
-        time_elapsed * audio_stream_info_.samples_per_second / kSbTimeSecond;
+        time_elapsed * audio_stream_info_.samples_per_second / 1'000'000LL;
     if (frames_played + playback_head_position_when_stopped_ >=
         total_frames_written_on_audio_track_thread_) {
       end_of_stream_played_.store(true);

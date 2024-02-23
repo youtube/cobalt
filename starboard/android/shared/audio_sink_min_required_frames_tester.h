@@ -84,7 +84,7 @@ class MinRequiredFramesTester {
                                      bool* is_eos_reached,
                                      void* context);
   static void ConsumeFramesFunc(int frames_consumed,
-                                SbTime frames_consumed_at,
+                                int64_t frames_consumed_at,
                                 void* context);
   static void ErrorFunc(bool capability_changed,
                         const std::string& error_message,
@@ -107,6 +107,7 @@ class MinRequiredFramesTester {
   std::vector<const TestTask> test_tasks_;
   AudioTrackAudioSink* audio_sink_ = nullptr;
   int min_required_frames_;
+  std::atomic_bool has_error_;
 
   // Used only by audio sink thread.
   int total_consumed_frames_;

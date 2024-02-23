@@ -679,6 +679,12 @@ bool InputEventsGenerator::CreateInputEventsFromGameActivityEvent(
     PushKeyEvent(key, type, window_, android_event, events);
   }
 
+  // Cobalt does not handle the kSbKeyUnknown event, return false,
+  // so the key event can be handled by the next receiver.
+  if (key == kSbKeyUnknown) {
+    return false;
+  }
+
   return true;
 }
 

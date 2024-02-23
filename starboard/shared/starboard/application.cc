@@ -23,7 +23,6 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/event.h"
-#include "starboard/memory.h"
 
 #include "starboard/shared/starboard/command_line.h"
 
@@ -101,7 +100,7 @@ Application::~Application() {
           reinterpret_cast<SbAtomicPtr>(reinterpret_cast<void*>(NULL))));
   SB_DCHECK(old_instance);
   SB_DCHECK(old_instance == this);
-  SbMemoryDeallocate(start_link_);
+  free(start_link_);
 }
 
 int Application::Run(CommandLine command_line, const char* link_data) {
@@ -175,8 +174,7 @@ void Application::Stop(int error_level) {
 
 void Application::Link(const char* link_data) {
   SB_DCHECK(link_data) << "You must call Link with link_data.";
-  Inject(new Event(kSbEventTypeLink, SbStringDuplicate(link_data),
-                   SbMemoryDeallocate));
+  Inject(new Event(kSbEventTypeLink, strdup(link_data), free));
 }
 
 void Application::InjectLowMemoryEvent() {
@@ -198,7 +196,7 @@ void Application::WindowSizeChanged(void* context,
 
 SbEventId Application::Schedule(SbEventCallback callback,
                                 void* context,
-                                SbTimeMonotonic delay) {
+                                int64_t delay) {
   SbEventId id = SbAtomicNoBarrier_Increment(&g_next_event_id, 1);
   InjectTimedEvent(new TimedEvent(id, callback, context, delay));
   return id;
@@ -220,21 +218,21 @@ void Application::HandleFrame(SbPlayer player,
 
 void Application::SetStartLink(const char* start_link) {
   SB_DCHECK(IsCurrentThread());
-  SbMemoryDeallocate(start_link_);
+  free(start_link_);
   if (start_link) {
-    start_link_ = SbStringDuplicate(start_link);
+    start_link_ = strdup(start_link);
   } else {
     start_link_ = NULL;
   }
 }
 
-void Application::DispatchStart(SbTimeMonotonic timestamp) {
+void Application::DispatchStart(int64_t timestamp) {
   SB_DCHECK(IsCurrentThread());
   SB_DCHECK(state_ == kStateUnstarted);
   DispatchAndDelete(CreateInitialEvent(kSbEventTypeStart, timestamp));
 }
 
-void Application::DispatchPreload(SbTimeMonotonic timestamp) {
+void Application::DispatchPreload(int64_t timestamp) {
   SB_DCHECK(IsCurrentThread());
   SB_DCHECK(state_ == kStateUnstarted);
   DispatchAndDelete(CreateInitialEvent(kSbEventTypePreload, timestamp));
@@ -258,7 +256,7 @@ bool Application::DispatchAndDelete(Application::Event* event) {
   // HandleEventAndUpdateState() rather than Inject() for the intermediate
   // events because there may already be other lifecycle events in the queue.
 
-  SbTimeMonotonic timestamp = scoped_event->event->timestamp;
+  int64_t timestamp = scoped_event->event->timestamp;
   switch (scoped_event->event->type) {
     case kSbEventTypePreload:
       if (state() != kStateUnstarted) {
@@ -481,7 +479,7 @@ void Application::CallTeardownCallbacks() {
 }
 
 Application::Event* Application::CreateInitialEvent(SbEventType type,
-                                                    SbTimeMonotonic timestamp) {
+                                                    int64_t timestamp) {
   SB_DCHECK(type == kSbEventTypePreload || type == kSbEventTypeStart);
   SbEventStartData* start_data = new SbEventStartData();
   memset(start_data, 0, sizeof(SbEventStartData));
@@ -501,9 +499,9 @@ Application::Event* Application::CreateInitialEvent(SbEventType type,
 int Application::RunLoop() {
   SB_DCHECK(command_line_);
   if (IsPreloadImmediate()) {
-    DispatchPreload(SbTimeGetMonotonicNow());
+    DispatchPreload(CurrentMonotonicTime());
   } else if (IsStartImmediate()) {
-    DispatchStart(SbTimeGetMonotonicNow());
+    DispatchStart(CurrentMonotonicTime());
   }
 
   for (;;) {

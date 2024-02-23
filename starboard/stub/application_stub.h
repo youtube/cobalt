@@ -47,7 +47,7 @@ class ApplicationStub : public shared::starboard::QueueApplication {
   // --- QueueApplication overrides ---
   bool MayHaveSystemEvents() override;
   Event* PollNextSystemEvent() override;
-  Event* WaitForSystemEventWithTimeout(SbTime time) override;
+  Event* WaitForSystemEventWithTimeout(int64_t time) override;
   void WakeSystemEventWait() override;
 };
 

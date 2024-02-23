@@ -47,7 +47,7 @@ DecoderBufferAllocator::DecoderBufferAllocator()
       initial_capacity_(SbMediaGetInitialBufferCapacity()),
       allocation_unit_(SbMediaGetBufferAllocationUnit()) {
   if (!using_memory_pool_) {
-    DLOG(INFO) << "Allocated media buffer memory using SbMemory* functions.";
+    DLOG(INFO) << "Allocated media buffer memory using malloc* functions.";
     Allocator::Set(this);
     return;
   }
@@ -104,7 +104,8 @@ void DecoderBufferAllocator::Resume() {
 void* DecoderBufferAllocator::Allocate(size_t size, size_t alignment) {
   if (!using_memory_pool_) {
     sbmemory_bytes_used_.fetch_add(size);
-    auto p = SbMemoryAllocateAligned(alignment, size);
+    void* p = nullptr;
+    posix_memalign(&p, alignment, size);
     CHECK(p);
     return p;
   }
@@ -129,7 +130,7 @@ void DecoderBufferAllocator::Free(void* p, size_t size) {
 
   if (!using_memory_pool_) {
     sbmemory_bytes_used_.fetch_sub(size);
-    SbMemoryDeallocateAligned(p);
+    free(p);
     return;
   }
 
@@ -154,12 +155,16 @@ int DecoderBufferAllocator::GetAudioBufferBudget() const {
 }
 
 int DecoderBufferAllocator::GetBufferAlignment() const {
+#if SB_API_VERSION < 16
 #if SB_API_VERSION >= 14
   return SbMediaGetBufferAlignment();
 #else   // SB_API_VERSION >= 14
   return std::max(SbMediaGetBufferAlignment(kSbMediaTypeAudio),
                   SbMediaGetBufferAlignment(kSbMediaTypeVideo));
 #endif  // SB_API_VERSION >= 14
+#else
+  return sizeof(void*);
+#endif  // SB_API_VERSION < 16
 }
 
 int DecoderBufferAllocator::GetBufferPadding() const {
@@ -171,9 +176,10 @@ int DecoderBufferAllocator::GetBufferPadding() const {
 #endif  // SB_API_VERSION >= 14
 }
 
-SbTime DecoderBufferAllocator::GetBufferGarbageCollectionDurationThreshold()
-    const {
-  return SbMediaGetBufferGarbageCollectionDurationThreshold();
+base::TimeDelta
+DecoderBufferAllocator::GetBufferGarbageCollectionDurationThreshold() const {
+  return base::TimeDelta::FromMicroseconds(
+      SbMediaGetBufferGarbageCollectionDurationThreshold());
 }
 
 int DecoderBufferAllocator::GetProgressiveBufferBudget(

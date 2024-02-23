@@ -5,7 +5,7 @@
  */
 
 :host {
-    user-select: none;
+    -webkit-user-select: none;
     padding: 4px 12px 12px 12px;
 }
 

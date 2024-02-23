@@ -4,8 +4,6 @@
 
 #include "net/filter/gzip_header.h"
 
-#include <string.h>
-
 #include <algorithm>
 
 #include "base/check_op.h"

@@ -21,11 +21,14 @@ import("//starboard/shared/starboard/player/player_tests.gni")
 # Configuration to extract GameActivity native files.
 ##########################################################
 
-game_activity_aar_file = "//starboard/android/apk/app/src/main/java/dev/cobalt/libraries/game_activity/games-activity-1.2.2.aar"
+game_activity_aar_file = "//starboard/android/apk/app/src/main/java/dev/cobalt/libraries/game_activity/games-activity-2.0.2.aar"
 
 game_activity_source_files = [
   "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivity.cpp",
   "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivity.h",
+  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivityEvents.cpp",
+  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivityEvents.h",
+  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivityLog.h",
   "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-text-input/gamecommon.h",
   "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-text-input/gametextinput.cpp",
   "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-text-input/gametextinput.h",
@@ -52,6 +55,7 @@ action("game_activity_sources") {
 
 static_library("starboard_platform") {
   sources = [
+    "//starboard/shared/egl/system_egl.cc",
     "//starboard/shared/gcc/atomic_gcc_public.h",
     "//starboard/shared/gles/gl_call.h",
     "//starboard/shared/gles/system_gles2.cc",
@@ -315,6 +319,8 @@ static_library("starboard_platform") {
     "get_home_directory.cc",
     "graphics.cc",
     "graphics.h",
+    "h5vcc_config.cc",
+    "h5vcc_config.h",
     "input_events_generator.cc",
     "input_events_generator.h",
     "jni_env_ext.cc",
@@ -357,6 +363,8 @@ static_library("starboard_platform") {
     "player_destroy.cc",
     "player_get_preferred_output_mode.cc",
     "player_set_bounds.cc",
+    "player_set_max_video_input_size.cc",
+    "player_set_max_video_input_size.h",
     "player_set_playback_rate.cc",
     "sanitizer_options.cc",
     "socket_get_interface_address.cc",
@@ -364,7 +372,6 @@ static_library("starboard_platform") {
     "speech_synthesis_internal.cc",
     "speech_synthesis_is_supported.cc",
     "speech_synthesis_speak.cc",
-    "system_egl.cc",
     "system_get_connection_type.cc",
     "system_get_device_type.cc",
     "system_get_extensions.cc",
@@ -387,6 +394,8 @@ static_library("starboard_platform") {
     "video_decoder.h",
     "video_frame_tracker.cc",
     "video_frame_tracker.h",
+    "video_max_video_input_size.cc",
+    "video_max_video_input_size.h",
     "video_render_algorithm.cc",
     "video_render_algorithm.h",
     "video_window.cc",
@@ -437,7 +446,7 @@ static_library("starboard_platform") {
     "//third_party/opus",
   ]
 
-  if (sb_is_evergreen_compatible) {
+  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
     sources -= [
       "crash_handler.cc",
       "crash_handler.h",
@@ -445,8 +454,6 @@ static_library("starboard_platform") {
     sources += [
       "//starboard/shared/starboard/crash_handler.cc",
       "//starboard/shared/starboard/crash_handler.h",
-      "//starboard/shared/starboard/starboard_switches.cc",
-      "//starboard/shared/starboard/starboard_switches.h",
     ]
 
     public_deps += [
@@ -486,7 +493,7 @@ target(gtest_target_type, "starboard_platform_tests") {
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
   deps = [
-    "//starboard",
+    "//starboard:starboard_group",
     "//starboard/shared/starboard/player/filter/testing:test_util",
     "//testing/gmock",
     "//testing/gtest",

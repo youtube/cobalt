@@ -538,10 +538,6 @@ export class ToolbarButton extends ToolbarItem {
     this.element.style.backgroundImage = 'url(' + iconURL + ')';
   }
 
-  setSecondary() {
-    this.element.classList.add('toolbar-button-secondary');
-  }
-
   setDarkText() {
     this.element.classList.add('dark-text');
   }

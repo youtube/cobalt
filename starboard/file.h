@@ -20,7 +20,6 @@
 #define STARBOARD_FILE_H_
 
 #include "starboard/export.h"
-#include "starboard/time.h"
 #include "starboard/types.h"
 
 #ifdef __cplusplus
@@ -110,14 +109,14 @@ typedef struct SbFileInfo {
   // Whether the file corresponds to a symbolic link.
   bool is_symbolic_link;
 
-  // The last modified time of a file.
-  SbTime last_modified;
+  // The last modified time of a file - microseconds since Windows epoch UTC.
+  int64_t last_modified;
 
-  // The last accessed time of a file.
-  SbTime last_accessed;
+  // The last accessed time of a file - microseconds since Windows epoch UTC.
+  int64_t last_accessed;
 
-  // The creation time of a file.
-  SbTime creation_time;
+  // The creation time of a file - microseconds since Windows epoch UTC.
+  int64_t creation_time;
 } SbFileInfo;
 
 // Well-defined value for an invalid file handle.

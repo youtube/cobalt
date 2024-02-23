@@ -83,8 +83,8 @@ inline void MemCopy(void* dest, const void* src, size_t size) {
   // fixed sizes to a sequence of move instructions. This avoids the overhead of
   // the general {memcpy} function.
   switch (size) {
-#define CASE(N)                 \
-  case N:                       \
+#define CASE(N)           \
+  case N:                 \
     memcpy(dest, src, N); \
     return;
     CASE(1)

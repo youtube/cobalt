@@ -58,7 +58,6 @@ bcmp
 bind_textdomain_codeset
 bindtextdomain
 btowc
-clock_gettime
 dgettext
 exit
 fclose
@@ -71,7 +70,6 @@ fprintf
 fputc
 fputs
 fread
-free
 fseeko64
 ftello64
 fwrite
@@ -84,7 +82,6 @@ isprint
 iswspace
 longjmp
 lseek64
-malloc
 mbrtowc
 mbsnrtowcs
 mbsrtowcs
@@ -105,11 +102,8 @@ pthread_setspecific
 putc
 putwc
 read
-realloc
 setlocale
 setvbuf
-snprintf
-sprintf
 stderr
 stdin
 stdout
@@ -119,7 +113,6 @@ strtold_l
 syscall
 ungetc
 ungetwc
-vsnprintf
 vsprintf
 wcrtomb
 wcscmp

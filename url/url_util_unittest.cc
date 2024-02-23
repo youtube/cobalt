@@ -15,6 +15,7 @@
 #include "url/url_canon.h"
 #include "url/url_canon_stdstring.h"
 #include "url/url_test_utils.h"
+#include "url/url_util.h"
 
 namespace url {
 

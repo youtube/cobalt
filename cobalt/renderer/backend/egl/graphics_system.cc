@@ -39,7 +39,6 @@
 #else
 #include "cobalt/renderer/backend/egl/texture_data_cpu.h"
 #endif
-#include "starboard/common/optional.h"
 #include "starboard/configuration.h"
 
 namespace cobalt {

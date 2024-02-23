@@ -68,7 +68,7 @@
 #include "internal.h"
 
 
-namespace bssl {
+BSSL_NAMESPACE_BEGIN
 
 // DTLS1_MTU_TIMEOUTS is the maximum number of timeouts to expire
 // before starting to decrease the MTU.
@@ -86,12 +86,12 @@ DTLS1_STATE::DTLS1_STATE()
 DTLS1_STATE::~DTLS1_STATE() {}
 
 bool dtls1_new(SSL *ssl) {
-  if (!ssl3_new(ssl)) {
+  if (!tls_new(ssl)) {
     return false;
   }
   UniquePtr<DTLS1_STATE> d1 = MakeUnique<DTLS1_STATE>();
   if (!d1) {
-    ssl3_free(ssl);
+    tls_free(ssl);
     return false;
   }
 
@@ -107,7 +107,7 @@ bool dtls1_new(SSL *ssl) {
 }
 
 void dtls1_free(SSL *ssl) {
-  ssl3_free(ssl);
+  tls_free(ssl);
 
   if (ssl == NULL) {
     return;
@@ -187,7 +187,7 @@ bool dtls1_check_timeout_num(SSL *ssl) {
   return true;
 }
 
-}  // namespace bssl
+BSSL_NAMESPACE_END
 
 using namespace bssl;
 

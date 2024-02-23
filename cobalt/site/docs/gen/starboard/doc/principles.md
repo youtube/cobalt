@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Starboard Design Principles"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Starboard Design Principles
 
 An overview of the goals and design principles of Starboard with the perspective

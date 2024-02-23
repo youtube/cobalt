@@ -14,6 +14,7 @@
 
 #include "starboard/common/socket.h"
 
+#include <stdlib.h>
 #include <winsock2.h>
 
 #include <ifdef.h>
@@ -22,7 +23,6 @@
 #include <algorithm>
 #include <memory>
 
-#include "starboard/common/byte_swap.h"
 #include "starboard/common/log.h"
 #include "starboard/memory.h"
 #include "starboard/shared/win32/adapter_utils.h"
@@ -67,8 +67,7 @@ void GenerateNetMaskFromPrefixLength(UINT8 prefix_length,
     UINT8 ones_in_this_dword = std::min<UINT8>(kBitsInOneDWORD, ones_left);
     UINT64 mask_value =
         kSbUInt64Max - ((1ULL << (kBitsInOneDWORD - ones_in_this_dword)) - 1);
-    *iterator =
-        SB_HOST_TO_NET_U32(static_cast<UINT32>(mask_value & kSbUInt64Max));
+    *iterator = _byteswap_ulong(static_cast<UINT32>(mask_value & kSbUInt64Max));
     ones_left -= ones_in_this_dword;
   }
 }

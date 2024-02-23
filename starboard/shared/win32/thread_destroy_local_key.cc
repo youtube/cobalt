@@ -39,5 +39,5 @@ void SbThreadDestroyLocalKey(SbThreadLocalKey key) {
   SbMutexRelease(&singleton->mutex_);
 
   TlsInternalFree(tls_index);
-  SbMemoryDeallocate(key);
+  free(key);
 }

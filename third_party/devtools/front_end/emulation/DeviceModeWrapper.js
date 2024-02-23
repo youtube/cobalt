@@ -4,7 +4,7 @@
 /**
  * @unrestricted
  */
-export default class DeviceModeWrapper extends UI.VBox {
+Emulation.DeviceModeWrapper = class extends UI.VBox {
   /**
    * @param {!Emulation.InspectedPagePlaceholder} inspectedPagePlaceholder
    */
@@ -83,7 +83,7 @@ export default class DeviceModeWrapper extends UI.VBox {
       this._inspectedPagePlaceholder.show(this.element);
     }
   }
-}
+};
 
 /** @type {!Emulation.DeviceModeWrapper} */
 Emulation.DeviceModeView._wrapperInstance;
@@ -92,7 +92,7 @@ Emulation.DeviceModeView._wrapperInstance;
  * @implements {UI.ActionDelegate}
  * @unrestricted
  */
-export class ActionDelegate {
+Emulation.DeviceModeWrapper.ActionDelegate = class {
   /**
    * @override
    * @param {!UI.Context} context
@@ -147,20 +147,4 @@ export class ActionDelegate {
     }
     return false;
   }
-}
-
-/* Legacy exported object */
-self.Emulation = self.Emulation || {};
-
-/* Legacy exported object */
-Emulation = Emulation || {};
-
-/**
- * @constructor
- */
-Emulation.DeviceModeWrapper = DeviceModeWrapper;
-
-/**
- * @constructor
- */
-Emulation.DeviceModeWrapper.ActionDelegate = ActionDelegate;
+};

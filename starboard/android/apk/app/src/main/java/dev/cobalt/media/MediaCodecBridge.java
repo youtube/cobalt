@@ -31,6 +31,8 @@ import android.media.MediaCrypto;
 import android.media.MediaFormat;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.view.Surface;
 import androidx.annotation.Nullable;
 import dev.cobalt.util.Log;
@@ -86,12 +88,15 @@ class MediaCodecBridge {
   private double mPlaybackRate = 1.0;
   private int mFps = 30;
 
-  private MediaCodec.OnFrameRenderedListener mTunnelModeFrameRendererListener;
+  private MediaCodec.OnFrameRenderedListener mFrameRendererListener;
 
   // Functions that require this will be called frequently in a tight loop.
   // Only create one of these and reuse it to avoid excessive allocations,
   // which would cause GC cycles long enough to impact playback.
   private final MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
+
+  private Handler mHandler = null;
+  private HandlerThread mCallbackThread = null;
 
   // Type of bitrate adjustment for video encoder.
   public enum BitrateAdjustmentTypes {
@@ -279,15 +284,15 @@ class MediaCodecBridge {
     }
 
     private boolean formatHasCropValues() {
-      if (!mFormatHasCropValues.isPresent()) {
+      if (!mFormatHasCropValues.isPresent() && mFormat != null) {
         boolean hasCropValues =
             mFormat.containsKey(KEY_CROP_RIGHT)
                 && mFormat.containsKey(KEY_CROP_LEFT)
                 && mFormat.containsKey(KEY_CROP_BOTTOM)
                 && mFormat.containsKey(KEY_CROP_TOP);
-        mFormatHasCropValues = Optional.of(hasCropValues);
+        mFormatHasCropValues = Optional.ofNullable(hasCropValues);
       }
-      return mFormatHasCropValues.get();
+      return mFormatHasCropValues.orElse(false);
     }
 
     @SuppressWarnings("unused")
@@ -299,13 +304,17 @@ class MediaCodecBridge {
     @SuppressWarnings("unused")
     @UsedByNative
     private int textureWidth() {
-      return mFormat.getInteger(MediaFormat.KEY_WIDTH);
+      return (mFormat != null && mFormat.containsKey(MediaFormat.KEY_WIDTH))
+          ? mFormat.getInteger(MediaFormat.KEY_WIDTH)
+          : 0;
     }
 
     @SuppressWarnings("unused")
     @UsedByNative
     private int textureHeight() {
-      return mFormat.getInteger(MediaFormat.KEY_HEIGHT);
+      return (mFormat != null && mFormat.containsKey(MediaFormat.KEY_HEIGHT))
+          ? mFormat.getInteger(MediaFormat.KEY_HEIGHT)
+          : 0;
     }
 
     @SuppressWarnings("unused")
@@ -447,7 +456,8 @@ class MediaCodecBridge {
       MediaCodec mediaCodec,
       String mime,
       BitrateAdjustmentTypes bitrateAdjustmentType,
-      int tunnelModeAudioSessionId) {
+      int tunnelModeAudioSessionId,
+      boolean useCallbackThread) {
     if (mediaCodec == null) {
       throw new IllegalArgumentException();
     }
@@ -457,6 +467,11 @@ class MediaCodecBridge {
     mLastPresentationTimeUs = 0;
     mFlushed = true;
     mBitrateAdjustmentType = bitrateAdjustmentType;
+    if (useCallbackThread) {
+      mCallbackThread = new HandlerThread("MediaCodec:Callback:Handler");
+      mCallbackThread.start();
+      mHandler = new Handler(mCallbackThread.getLooper());
+    }
     mCallback =
         new MediaCodec.Callback() {
           @Override
@@ -521,11 +536,10 @@ class MediaCodecBridge {
             }
           }
         };
-    mMediaCodec.setCallback(mCallback);
+    mMediaCodec.setCallback(mCallback, mHandler);
 
-    // TODO: support OnFrameRenderedListener for non tunnel mode
-    if (tunnelModeAudioSessionId != -1) {
-      mTunnelModeFrameRendererListener =
+    if (isFrameRenderedCallbackEnabled() || tunnelModeAudioSessionId != -1) {
+      mFrameRendererListener =
           new MediaCodec.OnFrameRenderedListener() {
             @Override
             public void onFrameRendered(MediaCodec codec, long presentationTimeUs, long nanoTime) {
@@ -538,8 +552,15 @@ class MediaCodecBridge {
               }
             }
           };
-      mMediaCodec.setOnFrameRenderedListener(mTunnelModeFrameRendererListener, null);
+      mMediaCodec.setOnFrameRenderedListener(mFrameRendererListener, null);
     }
+  }
+
+  @UsedByNative
+  public static boolean isFrameRenderedCallbackEnabled() {
+    // Starting with Android 14, onFrameRendered should be called accurately for each rendered
+    // frame.
+    return Build.VERSION.SDK_INT >= 34;
   }
 
   @SuppressWarnings("unused")
@@ -551,6 +572,7 @@ class MediaCodecBridge {
       int sampleRate,
       int channelCount,
       MediaCrypto crypto,
+      boolean useCallbackThread,
       @Nullable byte[] configurationData) {
     if (decoderName.equals("")) {
       Log.e(TAG, "Invalid decoder name.");
@@ -569,7 +591,12 @@ class MediaCodecBridge {
     }
     MediaCodecBridge bridge =
         new MediaCodecBridge(
-            nativeMediaCodecBridge, mediaCodec, mime, BitrateAdjustmentTypes.NO_ADJUSTMENT, -1);
+            nativeMediaCodecBridge,
+            mediaCodec,
+            mime,
+            BitrateAdjustmentTypes.NO_ADJUSTMENT,
+            -1,
+            useCallbackThread);
 
     MediaFormat mediaFormat = createAudioFormat(mime, sampleRate, channelCount);
 
@@ -614,6 +641,8 @@ class MediaCodecBridge {
       MediaCrypto crypto,
       ColorInfo colorInfo,
       int tunnelModeAudioSessionId,
+      boolean useCallbackThread,
+      int maxVideoInputSize,
       CreateMediaCodecBridgeResult outCreateMediaCodecBridgeResult) {
     MediaCodec mediaCodec = null;
     outCreateMediaCodecBridgeResult.mMediaCodecBridge = null;
@@ -667,7 +696,8 @@ class MediaCodecBridge {
             mediaCodec,
             mime,
             BitrateAdjustmentTypes.NO_ADJUSTMENT,
-            tunnelModeAudioSessionId);
+            tunnelModeAudioSessionId,
+            useCallbackThread);
     MediaFormat mediaFormat =
         createVideoDecoderFormat(mime, widthHint, heightHint, videoCapabilities);
 
@@ -772,6 +802,20 @@ class MediaCodecBridge {
       }
     }
 
+    if (maxVideoInputSize > 0) {
+      mediaFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, maxVideoInputSize);
+      try {
+        Log.i(
+            TAG,
+            "Set KEY_MAX_INPUT_SIZE to "
+                + maxVideoInputSize
+                + " (actual: "
+                + mediaFormat.getInteger(android.media.MediaFormat.KEY_MAX_INPUT_SIZE)
+                + ").");
+      } catch (Exception e) {
+        Log.e(TAG, "MediaFormat.getInteger(KEY_MAX_INPUT_SIZE) failed with exception: ", e);
+      }
+    }
     if (!bridge.configureVideo(
         mediaFormat, surface, crypto, 0, maxWidth, maxHeight, outCreateMediaCodecBridgeResult)) {
       Log.e(TAG, "Failed to configure video codec.");
@@ -802,6 +846,11 @@ class MediaCodecBridge {
       Log.e(TAG, "Cannot release media codec", e);
     }
     mMediaCodec = null;
+    if (mCallbackThread != null) {
+      mCallbackThread.quitSafely();
+      mCallbackThread = null;
+      mHandler = null;
+    }
   }
 
   @SuppressWarnings("unused")
@@ -1078,7 +1127,7 @@ class MediaCodecBridge {
         format.setInteger(MediaFormat.KEY_MAX_HEIGHT, Math.min(2160, maxSupportedHeight));
       }
 
-      maybeSetMaxInputSize(format);
+      maybeSetMaxVideoInputSize(format);
       mMediaCodec.configure(format, surface, crypto, flags);
       mFrameRateEstimator = new FrameRateEstimator();
       return true;
@@ -1122,7 +1171,7 @@ class MediaCodecBridge {
   // Use some heuristics to set KEY_MAX_INPUT_SIZE (the size of the input buffers).
   // Taken from ExoPlayer:
   // https://github.com/google/ExoPlayer/blob/8595c65678a181296cdf673eacb93d8135479340/library/src/main/java/com/google/android/exoplayer/MediaCodecVideoTrackRenderer.java
-  private void maybeSetMaxInputSize(MediaFormat format) {
+  private void maybeSetMaxVideoInputSize(MediaFormat format) {
     if (format.containsKey(android.media.MediaFormat.KEY_MAX_INPUT_SIZE)) {
       try {
         Log.i(
@@ -1131,7 +1180,7 @@ class MediaCodecBridge {
                 + format.getInteger(android.media.MediaFormat.KEY_MAX_INPUT_SIZE)
                 + '.');
       } catch (Exception e) {
-        Log.w(TAG, "MediaFormat.getInteger(KEY_MAX_INPUT_SIZE) failed with exception: ", e);
+        Log.e(TAG, "MediaFormat.getInteger(KEY_MAX_INPUT_SIZE) failed with exception: ", e);
       }
       // Already set. The source of the format may know better, so do nothing.
       return;
@@ -1173,18 +1222,18 @@ class MediaCodecBridge {
         return;
     }
     // Estimate the maximum input size assuming three channel 4:2:0 subsampled input frames.
-    int maxInputSize = (maxPixels * 3) / (2 * minCompressionRatio);
-    format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, maxInputSize);
+    int maxVideoInputSize = (maxPixels * 3) / (2 * minCompressionRatio);
+    format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, maxVideoInputSize);
     try {
       Log.i(
           TAG,
-          "KEY_MAX_INPUT_SIZE is "
+          "Set KEY_MAX_INPUT_SIZE to "
+              + maxVideoInputSize
+              + " (actual: "
               + format.getInteger(android.media.MediaFormat.KEY_MAX_INPUT_SIZE)
-              + " after setting it to "
-              + maxInputSize
-              + '.');
+              + ").");
     } catch (Exception e) {
-      Log.w(TAG, "MediaFormat.getInteger(KEY_MAX_INPUT_SIZE) failed with exception: ", e);
+      Log.e(TAG, "MediaFormat.getInteger(KEY_MAX_INPUT_SIZE) failed with exception: ", e);
     }
   }
 

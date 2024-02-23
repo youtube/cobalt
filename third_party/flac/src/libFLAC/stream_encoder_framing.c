@@ -33,13 +33,8 @@
 #  include <config.h>
 #endif
 
-#ifndef STARBOARD
 #include <stdio.h>
 #include <string.h> /* for strlen() */
-#endif  // STARBOARD
-
-#include "starboard/client_porting/poem/string_poem.h"
-
 #include "private/stream_encoder_framing.h"
 #include "private/crc.h"
 #include "FLAC/assert.h"
@@ -184,15 +179,15 @@ FLAC__bool FLAC__add_metadata_block(const FLAC__StreamMetadata *metadata, FLAC__
 			break;
 		case FLAC__METADATA_TYPE_PICTURE:
 			{
-				size_t len;
+				unsigned len;
 				if(!FLAC__bitwriter_write_raw_uint32(bw, metadata->data.picture.type, FLAC__STREAM_METADATA_PICTURE_TYPE_LEN))
 					return false;
-				len = strlen(metadata->data.picture.mime_type);
+				len = (unsigned)strlen(metadata->data.picture.mime_type);
 				if(!FLAC__bitwriter_write_raw_uint32(bw, len, FLAC__STREAM_METADATA_PICTURE_MIME_TYPE_LENGTH_LEN))
 					return false;
 				if(!FLAC__bitwriter_write_byte_block(bw, (const FLAC__byte*)metadata->data.picture.mime_type, len))
 					return false;
-				len = strlen((const char *)metadata->data.picture.description);
+				len = (unsigned)strlen((const char *)metadata->data.picture.description);
 				if(!FLAC__bitwriter_write_raw_uint32(bw, len, FLAC__STREAM_METADATA_PICTURE_DESCRIPTION_LENGTH_LEN))
 					return false;
 				if(!FLAC__bitwriter_write_byte_block(bw, metadata->data.picture.description, len))

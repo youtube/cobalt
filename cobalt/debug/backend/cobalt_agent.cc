@@ -76,11 +76,13 @@ void CobaltAgent::SendConsoleCommand(Command command) {
   if (params) {
     std::string* console_command = params->FindString("command");
     if (console_command) {
+      JSONObject response(new base::Value::Dict());
       std::string* message = params->FindString("message");
       console::ConsoleCommandManager* console_command_manager =
           console::ConsoleCommandManager::GetInstance();
       DCHECK(console_command_manager);
       console_command_manager->HandleCommand(*console_command, *message);
+      response->Set("result", std::move(response_string));
       command.SendResponse();
       return;
     }

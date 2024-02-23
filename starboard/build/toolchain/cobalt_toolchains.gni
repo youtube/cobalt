@@ -17,12 +17,15 @@ import("//build/toolchain/gcc_toolchain.gni")
 
 template("cobalt_clang_toolchain") {
   gcc_toolchain(target_name) {
-    forward_variables_from(invoker.variables,
+    forward_variables_from(invoker,
                            [
                              "native_linker_path",
                              "executable_extension",
-                             "shlib_extension",
+                             "tail_lib_dependencies",
                            ])
+    if (defined(invoker.shlib_extension)) {
+      shlib_extension = invoker.shlib_extension
+    }
     assert(defined(native_linker_path),
            "native_linker_path has to be defined by the platform")
     if (!is_host_win) {

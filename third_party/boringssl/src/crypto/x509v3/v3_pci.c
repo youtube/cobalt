@@ -44,6 +44,7 @@
 #include <openssl/x509v3.h>
 
 #include "../internal.h"
+#include "internal.h"
 
 
 static int i2r_pci(X509V3_EXT_METHOD *method, PROXY_CERT_INFO_EXTENSION *ext,
@@ -74,7 +75,8 @@ static int i2r_pci(X509V3_EXT_METHOD *method, PROXY_CERT_INFO_EXTENSION *pci,
     i2a_ASN1_OBJECT(out, pci->proxyPolicy->policyLanguage);
     BIO_puts(out, "\n");
     if (pci->proxyPolicy->policy && pci->proxyPolicy->policy->data)
-        BIO_printf(out, "%*sPolicy Text: %s\n", indent, "",
+        BIO_printf(out, "%*sPolicy Text: %.*s\n", indent, "",
+                   pci->proxyPolicy->policy->length,
                    pci->proxyPolicy->policy->data);
     return 1;
 }
@@ -123,7 +125,7 @@ static int process_pci_value(CONF_VALUE *val,
         }
         if (strncmp(val->value, "hex:", 4) == 0) {
             unsigned char *tmp_data2 =
-                string_to_hex(val->value + 4, &val_len);
+                x509v3_hex_to_bytes(val->value + 4, &val_len);
 
             if (!tmp_data2) {
                 OPENSSL_PUT_ERROR(X509V3, X509V3_R_ILLEGAL_HEX_DIGIT);

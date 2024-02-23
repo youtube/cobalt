@@ -25,6 +25,7 @@
 #include "base/message_loop/message_loop.h"
 #include "base/path_service.h"
 #include "base/threading/platform_thread.h"
+#include "base/time/time.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/media/sandbox/format_guesstimator.h"
 #include "cobalt/media/sandbox/media_sandbox.h"
@@ -196,8 +197,8 @@ class Application {
     media_sandbox_.RegisterFrameCB(
         base::Bind(&Application::FrameCB, base::Unretained(this)));
 
-    timer_event_id_ =
-        SbEventSchedule(Application::OnTimer, this, kSbTimeSecond / 10);
+    timer_event_id_ = SbEventSchedule(Application::OnTimer, this,
+                                      base::Time::kMicrosecondsPerSecond / 10);
   }
 
   void InitializeAdaptivePlayback(
@@ -266,8 +267,8 @@ class Application {
     media_sandbox_.RegisterFrameCB(
         base::Bind(&Application::FrameCB, base::Unretained(this)));
 
-    timer_event_id_ =
-        SbEventSchedule(Application::OnTimer, this, kSbTimeSecond / 10);
+    timer_event_id_ = SbEventSchedule(Application::OnTimer, this,
+                                      base::Time::kMicrosecondsPerSecond / 10);
   }
 
   void InitializeProgressivePlayback(const FormatGuesstimator& guesstimator) {
@@ -283,8 +284,8 @@ class Application {
     media_sandbox_.RegisterFrameCB(
         base::Bind(&Application::FrameCB, base::Unretained(this)));
 
-    timer_event_id_ =
-        SbEventSchedule(Application::OnTimer, this, kSbTimeSecond / 10);
+    timer_event_id_ = SbEventSchedule(Application::OnTimer, this,
+                                      base::Time::kMicrosecondsPerSecond / 10);
   }
 
   static void OnTimer(void* context) {
@@ -317,8 +318,8 @@ class Application {
     }
 
     base::RunLoop().RunUntilIdle();
-    timer_event_id_ =
-        SbEventSchedule(Application::OnTimer, this, kSbTimeSecond / 10);
+    timer_event_id_ = SbEventSchedule(Application::OnTimer, this,
+                                      base::Time::kMicrosecondsPerSecond / 10);
   }
 
   void OnChunkDemuxerOpened(ChunkDemuxer* chunk_demuxer) {
@@ -329,21 +330,21 @@ class Application {
   }
 
   void AppendData(const std::string& id, ScopedFile* file, int64* offset) {
-    const float kLowWaterMarkInSeconds = 5.f;
+    const double kLowWaterMarkInSeconds = 5.0;
     const int64 kMaxBytesToAppend = 1024 * 1024;
     std::vector<uint8_t> buffer(kMaxBytesToAppend);
 
     while (*offset < file->GetSize()) {
       ::media::Ranges<TimeDelta> ranges = chunk_demuxer_->GetBufferedRanges(id);
-      float end_of_buffer =
-          ranges.size() == 0 ? 0.f : ranges.end(ranges.size() - 1).InSecondsF();
+      const double end_of_buffer =
+          ranges.size() == 0 ? 0.0 : ranges.end(ranges.size() - 1).InSecondsF();
       if (end_of_buffer - player_->GetCurrentTime() > kLowWaterMarkInSeconds) {
         break;
       }
       int64 bytes_to_append =
           std::min(kMaxBytesToAppend, file->GetSize() - *offset);
 
-      auto current_time = player_ ? player_->GetCurrentTime() : 0;
+      const double current_time = player_ ? player_->GetCurrentTime() : 0.0;
       auto evicted = chunk_demuxer_->EvictCodedFrames(
           id, base::TimeDelta::FromSecondsD(current_time), bytes_to_append);
       SB_DCHECK(evicted);

@@ -29,7 +29,11 @@
     const unregisterAll = () => navigator.serviceWorker.getRegistrations().then(registrations =>
         Promise.all(registrations.map(r => r.unregister())));
     const fail = msg => {
-      if (msg) {
+      if (msg instanceof DOMException) {
+        console.error(`[DOMException (code=${msg.code})] ${msg.name}: ${msg.message}`);
+      } else if (msg instanceof Error) {
+        console.error(`[Error] ${msg.name}: ${msg.message}`);
+      } else if (msg) {
         console.error(msg);
       }
       unregisterAll().then(notReached);

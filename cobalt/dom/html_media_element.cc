@@ -131,6 +131,7 @@ bool OriginIsSafe(loader::RequestMode request_mode, const GURL& resource_url,
 HTMLMediaElement::HTMLMediaElement(Document* document,
                                    base_token::Token tag_name)
     : HTMLElement(document, tag_name),
+      max_video_input_size_(0),
       load_state_(kWaitingForSource),
       ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
       playback_rate_(1.f),
@@ -139,7 +140,7 @@ HTMLMediaElement::HTMLMediaElement(Document* document,
       ready_state_(WebMediaPlayer::kReadyStateHaveNothing),
       ready_state_maximum_(WebMediaPlayer::kReadyStateHaveNothing),
       volume_(1.0f),
-      last_seek_time_(0),
+      last_seek_time_(0.0),
       previous_progress_time_(std::numeric_limits<double>::max()),
       duration_(std::numeric_limits<double>::quiet_NaN()),
       playing_(false),
@@ -150,7 +151,7 @@ HTMLMediaElement::HTMLMediaElement(Document* document,
       resume_frozen_flag_(false),
       seeking_(false),
       controls_(false),
-      last_time_update_event_movie_time_(std::numeric_limits<float>::max()),
+      last_time_update_event_movie_time_(std::numeric_limits<double>::max()),
       processing_media_player_callback_(0),
       media_source_url_(std::string(kMediaSourceUrlProtocol) + ':' +
                         base::GenerateGUID()),
@@ -223,7 +224,7 @@ scoped_refptr<TimeRanges> HTMLMediaElement::buffered() const {
   }
 
   player_->UpdateBufferedTimeRanges(
-      [&](float start, float end) { buffered->Add(start, end); });
+      [&](double start, double end) { buffered->Add(start, end); });
   return buffered;
 }
 
@@ -345,11 +346,11 @@ bool HTMLMediaElement::seeking() const {
   return seeking_;
 }
 
-float HTMLMediaElement::current_time(
+double HTMLMediaElement::current_time(
     script::ExceptionState* exception_state) const {
   if (!player_) {
     LOG(INFO) << 0 << " (because player is NULL)";
-    return 0;
+    return 0.0;
   }
 
   if (seeking_) {
@@ -357,15 +358,14 @@ float HTMLMediaElement::current_time(
     return last_seek_time_;
   }
 
-  float time = player_->GetCurrentTime();
+  const double time = player_->GetCurrentTime();
   MLOG() << time << " (from player)";
   return time;
 }
 
 void HTMLMediaElement::set_current_time(
-    float time, script::ExceptionState* exception_state) {
+    double time, script::ExceptionState* exception_state) {
   // 4.8.9.9 Seeking
-
   // 1 - If the media element's readyState is
   // WebMediaPlayer::kReadyStateHaveNothing, then raise an INVALID_STATE_ERR
   // exception.
@@ -378,14 +378,13 @@ void HTMLMediaElement::set_current_time(
   Seek(time);
 }
 
-float HTMLMediaElement::duration() const {
+double HTMLMediaElement::duration() const {
   MLOG() << duration_;
-  // TODO: Turn duration into double.
-  return static_cast<float>(duration_);
+  return duration_;
 }
 
 base::Time HTMLMediaElement::GetStartDate() const {
-  MLOG() << start_date_.ToSbTime();
+  MLOG() << start_date_.ToDeltaSinceWindowsEpoch().InMicroseconds();
   return start_date_;
 }
 
@@ -434,7 +433,7 @@ void HTMLMediaElement::set_playback_rate(float rate) {
 const scoped_refptr<TimeRanges>& HTMLMediaElement::played() {
   MLOG();
   if (playing_) {
-    float time = current_time(NULL);
+    const double time = current_time(NULL);
     if (time > last_seek_time_) {
       AddPlayedRange(last_seek_time_, time);
     }
@@ -448,8 +447,8 @@ const scoped_refptr<TimeRanges>& HTMLMediaElement::played() {
 }
 
 scoped_refptr<TimeRanges> HTMLMediaElement::seekable() const {
-  if (player_ && player_->GetMaxTimeSeekable() != 0) {
-    double max_time_seekable = player_->GetMaxTimeSeekable();
+  if (player_ && player_->GetMaxTimeSeekable() != 0.0) {
+    const double max_time_seekable = player_->GetMaxTimeSeekable();
     MLOG() << "(0, " << max_time_seekable << ")";
     return new TimeRanges(0, max_time_seekable);
   }
@@ -633,7 +632,7 @@ void HTMLMediaElement::DurationChanged(double duration, bool request_seek) {
   ScheduleOwnEvent(base::Tokens::durationchange());
 
   if (request_seek) {
-    Seek(static_cast<float>(duration));
+    Seek(duration);
   }
 }
 
@@ -776,7 +775,7 @@ void HTMLMediaElement::PrepareForLoad() {
 
   // 2 - Asynchronously await a stable state.
   played_time_ranges_ = new TimeRanges;
-  last_seek_time_ = 0;
+  last_seek_time_ = 0.0;
 
   ConfigureMediaControls();
 }
@@ -985,11 +984,6 @@ void HTMLMediaElement::MediaLoadingFailed(WebMediaPlayer::NetworkState error,
     MediaEngineError(new MediaError(
         MediaError::kMediaErrDecode,
         message.empty() ? "Media loading failed with decode error." : message));
-  } else if (error == WebMediaPlayer::kNetworkStateCapabilityChangedError) {
-    MediaEngineError(new MediaError(
-        MediaError::kMediaErrCapabilityChanged,
-        message.empty() ? "Media loading failed with capability changed error."
-                        : message));
   } else if ((error == WebMediaPlayer::kNetworkStateFormatError ||
               error == WebMediaPlayer::kNetworkStateNetworkError) &&
              load_state_ == kLoadingFromSrcAttr) {
@@ -1020,8 +1014,8 @@ void HTMLMediaElement::OnProgressEventTimer() {
     return;
   }
 
-  double time = base::Time::Now().ToDoubleT();
-  double time_delta = time - previous_progress_time_;
+  const double time = base::Time::Now().ToDoubleT();
+  const double time_delta = time - previous_progress_time_;
 
   if (player_->DidLoadingProgress()) {
     ScheduleOwnEvent(base::Tokens::progress());
@@ -1083,7 +1077,7 @@ void HTMLMediaElement::StopPeriodicTimers() {
 void HTMLMediaElement::ScheduleTimeupdateEvent(bool periodic_event) {
   // Some media engines make multiple "time changed" callbacks at the same time,
   // but we only want one event at a given time so filter here
-  float movie_time = current_time(NULL);
+  const double movie_time = current_time(NULL);
   if (movie_time != last_time_update_event_movie_time_) {
     if (!periodic_event && playback_progress_timer_.IsRunning()) {
       playback_progress_timer_.Reset();
@@ -1233,7 +1227,6 @@ void HTMLMediaElement::SetNetworkState(WebMediaPlayer::NetworkState state) {
     case WebMediaPlayer::kNetworkStateFormatError:
     case WebMediaPlayer::kNetworkStateNetworkError:
     case WebMediaPlayer::kNetworkStateDecodeError:
-    case WebMediaPlayer::kNetworkStateCapabilityChangedError:
       NOTREACHED() << "Passed SetNetworkState an error state";
       break;
   }
@@ -1247,7 +1240,6 @@ void HTMLMediaElement::SetNetworkError(WebMediaPlayer::NetworkState state,
     case WebMediaPlayer::kNetworkStateFormatError:
     case WebMediaPlayer::kNetworkStateNetworkError:
     case WebMediaPlayer::kNetworkStateDecodeError:
-    case WebMediaPlayer::kNetworkStateCapabilityChangedError:
       MediaLoadingFailed(state, message);
       break;
     case WebMediaPlayer::kNetworkStateEmpty:
@@ -1269,7 +1261,7 @@ void HTMLMediaElement::ChangeNetworkStateFromLoadingToIdle() {
   network_state_ = kNetworkIdle;
 }
 
-void HTMLMediaElement::Seek(float time) {
+void HTMLMediaElement::Seek(double time) {
   LOG(INFO) << "Seek to " << time << ".";
   // 4.8.9.9 Seeking - continued from set_current_time().
 
@@ -1280,7 +1272,7 @@ void HTMLMediaElement::Seek(float time) {
 
   // Get the current time before setting seeking_, last_seek_time_ is returned
   // once it is set.
-  float now = current_time(NULL);
+  const double now = current_time(NULL);
 
   // 2 - If the element's seeking IDL attribute is true, then another instance
   // of this algorithm is already running. Abort that other instance of the
@@ -1298,7 +1290,7 @@ void HTMLMediaElement::Seek(float time) {
 
   // 6 - If the new playback position is less than the earliest possible
   // position, let it be that position instead.
-  time = std::max(time, 0.f);
+  time = std::max(time, 0.0);
 
   // 7 - If the (possibly now changed) new playback position is not in one of
   // the ranges given in the seekable attribute, then let it be the position in
@@ -1330,7 +1322,7 @@ void HTMLMediaElement::Seek(float time) {
     seeking_ = false;
     return;
   }
-  time = static_cast<float>(seekable_ranges->Nearest(time));
+  time = seekable_ranges->Nearest(time);
 
   if (playing_) {
     if (last_seek_time_ < now) {
@@ -1362,7 +1354,7 @@ void HTMLMediaElement::FinishSeek() {
   ScheduleOwnEvent(base::Tokens::seeked());
 }
 
-void HTMLMediaElement::AddPlayedRange(float start, float end) {
+void HTMLMediaElement::AddPlayedRange(double start, double end) {
   if (!played_time_ranges_) {
     played_time_ranges_ = new TimeRanges;
   }
@@ -1412,7 +1404,7 @@ void HTMLMediaElement::UpdatePlayState() {
 
     playback_progress_timer_.Stop();
     playing_ = false;
-    float time = current_time(NULL);
+    const double time = current_time(NULL);
     if (time > last_seek_time_) {
       AddPlayedRange(last_seek_time_, time);
     }
@@ -1432,7 +1424,7 @@ bool HTMLMediaElement::PotentiallyPlaying() const {
 }
 
 bool HTMLMediaElement::EndedPlayback() const {
-  float dur = duration();
+  const double dur = duration();
   if (!player_ || std::isnan(dur)) {
     return false;
   }
@@ -1449,15 +1441,15 @@ bool HTMLMediaElement::EndedPlayback() const {
   // direction of playback is forwards, Either the media element does not have a
   // loop attribute specified, or the media element has a current media
   // controller.
-  float now = current_time(NULL);
-  if (playback_rate_ > 0) {
-    return dur > 0 && now >= dur && !loop();
+  const double now = current_time(NULL);
+  if (playback_rate_ > 0.f) {
+    return dur > 0.0 && now >= dur && !loop();
   }
 
   // or the current playback position is the earliest possible position and the
   // direction of playback is backwards
-  if (playback_rate_ < 0) {
-    return now <= 0;
+  if (playback_rate_ < 0.f) {
+    return now <= 0.0;
   }
 
   return false;
@@ -1558,14 +1550,14 @@ void HTMLMediaElement::TimeChanged(bool eos_played) {
   // already posted one at the current movie time.
   ScheduleTimeupdateEvent(false);
 
-  float now = current_time(NULL);
-  float dur = duration();
+  const double now = current_time(NULL);
+  const double dur = duration();
 
   // When the current playback position reaches the end of the media resource
   // when the direction of playback is forwards, then the user agent must follow
   // these steps:
   eos_played |=
-      !std::isnan(dur) && (0.0f != dur) && now >= dur && playback_rate_ > 0;
+      !std::isnan(dur) && (0.0 != dur) && now >= dur && playback_rate_ > 0.f;
   if (eos_played) {
     LOG(INFO) << "End of stream is played.";
     // If the media element has a loop attribute specified and does not have a
@@ -1574,7 +1566,7 @@ void HTMLMediaElement::TimeChanged(bool eos_played) {
       sent_end_event_ = false;
       // then seek to the earliest possible position of the media resource and
       // abort these steps.
-      Seek(0);
+      Seek(0.0);
     } else {
       // If the media element does not have a current media controller, and the
       // media element has still ended playback, and the direction of playback
@@ -1604,7 +1596,7 @@ void HTMLMediaElement::DurationChanged() {
 
   ScheduleOwnEvent(base::Tokens::durationchange());
 
-  double now = current_time(NULL);
+  const double now = current_time(NULL);
   // Reset and update |duration_|.
   duration_ = std::numeric_limits<double>::quiet_NaN();
   if (player_ && ready_state_ >= WebMediaPlayer::kReadyStateHaveMetadata) {
@@ -1612,7 +1604,7 @@ void HTMLMediaElement::DurationChanged() {
   }
 
   if (now > duration_) {
-    Seek(static_cast<float>(duration_));
+    Seek(duration_);
   }
 
   EndProcessingMediaPlayerCallback();
@@ -1666,6 +1658,10 @@ std::string HTMLMediaElement::SourceURL() const {
 
 std::string HTMLMediaElement::MaxVideoCapabilities() const {
   return max_video_capabilities_;
+}
+
+int HTMLMediaElement::MaxVideoInputSize() const {
+  return max_video_input_size_;
 }
 
 bool HTMLMediaElement::PreferDecodeToTexture() {
@@ -1756,7 +1752,26 @@ void HTMLMediaElement::SetMaxVideoCapabilities(
                              exception_state);
     return;
   }
+
+  LOG(INFO) << "max video capabilities is changed from \""
+            << max_video_capabilities_ << "\" to \"" << max_video_capabilities
+            << "\"";
   max_video_capabilities_ = max_video_capabilities;
+}
+
+void HTMLMediaElement::SetMaxVideoInputSize(
+    unsigned int max_video_input_size,
+    script::ExceptionState* exception_state) {
+  if (GetAttribute("src").value_or("").length() > 0) {
+    LOG(WARNING) << "Cannot set max_video_input_size after src is defined.";
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
+    return;
+  }
+
+  LOG(INFO) << "max_video_input_size is changed from " << max_video_input_size_
+            << " to " << max_video_input_size;
+  max_video_input_size_ = static_cast<int>(max_video_input_size);
 }
 
 }  // namespace dom

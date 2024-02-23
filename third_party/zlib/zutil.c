@@ -293,23 +293,6 @@ void ZLIB_INTERNAL zcfree (voidpf opaque, voidpf ptr)
 
 #endif /* SYS16BIT */
 
-#ifdef STARBOARD  /* Starboard platform abstraction */
-#  define MY_ZCALLOC
-#  include "starboard/memory.h"
-
-voidpf ZLIB_INTERNAL zcalloc (voidpf opaque, uInt items, uInt size)
-{
-    return (voidpf)SbMemoryAllocate(items * size);
-}
-
-void ZLIB_INTERNAL zcfree (voidpf opaque, voidpf ptr)
-{
-    SbMemoryDeallocate(ptr);
-}
-
-#endif /* STARBOARD */
-
-
 #ifndef MY_ZCALLOC /* Any system without a special alloc function */
 
 #ifndef STDC

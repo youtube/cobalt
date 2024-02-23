@@ -13,11 +13,9 @@
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
-#else
-#include <string.h>
 #endif
 
+#include <string.h>
 #include <math.h>
 
 #include "src/enc/cost_enc.h"

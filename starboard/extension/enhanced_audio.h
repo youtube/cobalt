@@ -19,7 +19,6 @@
 #include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
-#include "starboard/time.h"
 #include "starboard/types.h"
 
 #ifdef __cplusplus
@@ -48,8 +47,8 @@ typedef struct CobaltExtensionEnhancedAudioMediaAudioStreamInfo {
 // comment of `SbMediaAudioSampleInfo` in `media.h` for more details.
 typedef struct CobaltExtensionEnhancedAudioMediaAudioSampleInfo {
   CobaltExtensionEnhancedAudioMediaAudioStreamInfo stream_info;
-  SbTime discarded_duration_from_front;
-  SbTime discarded_duration_from_back;
+  int64_t discarded_duration_from_front;  // in microseconds.
+  int64_t discarded_duration_from_back;   // in microseconds.
 } CobaltExtensionEnhancedAudioMediaAudioSampleInfo;
 
 // The structure has the same binary layout as `SbMediaVideoStreamInfo` in the
@@ -82,7 +81,7 @@ typedef struct CobaltExtensionEnhancedAudioPlayerSampleInfo {
   SbMediaType type;
   const void* buffer;
   int buffer_size;
-  SbTime timestamp;
+  int64_t timestamp;  // Microseconds since Windows epoch UTC.
   SbPlayerSampleSideData* side_data;
   int side_data_count;
   union {

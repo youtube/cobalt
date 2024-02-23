@@ -11,7 +11,6 @@
 // Currently disabled due to no-usage and API leaks.
 #if !defined(DISABLE_GRAPHS_STARBOARD)
 
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/source-position.h"
 #include "src/compiler/all-nodes.h"

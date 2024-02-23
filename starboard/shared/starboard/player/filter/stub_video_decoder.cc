@@ -37,8 +37,8 @@ size_t StubVideoDecoder::GetPrerollFrameCount() const {
   return 1;
 }
 
-SbTime StubVideoDecoder::GetPrerollTimeout() const {
-  return kSbTimeMax;
+int64_t StubVideoDecoder::GetPrerollTimeout() const {
+  return kSbInt64Max;
 }
 
 size_t StubVideoDecoder::GetMaxNumberOfCachedFrames() const {
@@ -132,7 +132,7 @@ void StubVideoDecoder::DecodeEndOfStream() {
 }
 
 scoped_refptr<VideoFrame> StubVideoDecoder::CreateOutputFrame(
-    SbTime timestamp) const {
+    int64_t timestamp) const {
   int bits_per_channel = video_stream_info_.color_metadata.bits_per_channel;
   if (bits_per_channel == 0) {
     // Assume 8 bits when |bits_per_channel| is unknown (0).

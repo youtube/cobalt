@@ -1,25 +1,15 @@
-// Copyright 2019 The Cobalt Authors. All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2019 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "cobalt/updater/unzipper.h"
 
 #include <string>
 #include <utility>
-
 #include "base/callback.h"
 #include "base/files/file_path.h"
-#include "starboard/time.h"
+#include "base/time/time.h"
+#include "starboard/common/time.h"
 #include "third_party/zlib/google/zip.h"
 
 namespace cobalt {
@@ -33,26 +23,28 @@ class UnzipperImpl : public update_client::Unzipper {
 
   void Unzip(const base::FilePath& zip_path, const base::FilePath& output_path,
              UnzipCompleteCallback callback) override {
-    SbTimeMonotonic time_before_unzip = SbTimeGetMonotonicNow();
+    int64_t time_before_unzip = starboard::CurrentMonotonicTime();
     std::move(callback).Run(zip::Unzip(zip_path, output_path));
-    SbTimeMonotonic time_unzip_took =
-        SbTimeGetMonotonicNow() - time_before_unzip;
+    int64_t time_unzip_took_usec =
+        starboard::CurrentMonotonicTime() - time_before_unzip;
     LOG(INFO) << "Unzip file path = " << zip_path;
     LOG(INFO) << "output_path = " << output_path;
-    LOG(INFO) << "Unzip took " << time_unzip_took / kSbTimeMillisecond
+    LOG(INFO) << "Unzip took "
+              << time_unzip_took_usec / base::Time::kMicrosecondsPerMillisecond
               << " milliseconds.";
   }
 
 #if defined(IN_MEMORY_UPDATES)
   void Unzip(const std::string& zip_str, const base::FilePath& output_path,
              UnzipCompleteCallback callback) override {
-    SbTimeMonotonic time_before_unzip = SbTimeGetMonotonicNow();
+    int64_t time_before_unzip = starboard::CurrentMonotonicTime();
     std::move(callback).Run(zip::Unzip(zip_str, output_path));
-    SbTimeMonotonic time_unzip_took =
-        SbTimeGetMonotonicNow() - time_before_unzip;
+    int64_t time_unzip_took_usec =
+        starboard::CurrentMonotonicTime() - time_before_unzip;
     LOG(INFO) << "Unzip from string";
     LOG(INFO) << "output_path = " << output_path;
-    LOG(INFO) << "Unzip took " << time_unzip_took / kSbTimeMillisecond
+    LOG(INFO) << "Unzip took "
+              << time_unzip_took_usec / base::Time::kMicrosecondsPerMillisecond
               << " milliseconds.";
   }
 #endif

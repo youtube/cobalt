@@ -1,12 +1,10 @@
 // Copyright (c) 2015 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import {ElementsPanel} from './ElementsPanel.js';
-
 /**
  * @unrestricted
  */
-export class ClassesPaneWidget extends UI.Widget {
+export default class ClassesPaneWidget extends UI.Widget {
   constructor() {
     super(true);
     this.registerRequiredCSS('elements/classesPaneWidget.css');
@@ -263,7 +261,7 @@ export class ButtonProvider {
   }
 
   _clicked() {
-    ElementsPanel.instance().showToolbarPane(!this._view.isShowing() ? this._view : null, this._button);
+    Elements.ElementsPanel.instance().showToolbarPane(!this._view.isShowing() ? this._view : null, this._button);
   }
 
   /**
@@ -348,3 +346,18 @@ export class ClassNamePrompt extends UI.TextPrompt {
     });
   }
 }
+
+/* Legacy exported object */
+self.Elements = self.Elements || {};
+
+/* Legacy exported object */
+Elements = Elements || {};
+
+/** @constructor */
+Elements.ClassesPaneWidget = ClassesPaneWidget;
+
+/** @constructor */
+Elements.ClassesPaneWidget.ButtonProvider = ButtonProvider;
+
+/** @constructor */
+Elements.ClassesPaneWidget.ClassNamePrompt = ClassNamePrompt;

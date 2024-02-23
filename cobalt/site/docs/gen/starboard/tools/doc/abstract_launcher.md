@@ -1,7 +1,6 @@
----
-layout: doc
-title: "App Launchers"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # App Launchers
 
 The app launcher framework is used to run an executable on a given platform,

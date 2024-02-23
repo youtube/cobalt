@@ -32,6 +32,7 @@
 #include "cobalt/dom/window.h"
 #include "cobalt/network/disk_cache/resource_type.h"
 #include "cobalt/web/csp_delegate.h"
+#include "starboard/common/time.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -318,11 +319,11 @@ void HTMLLinkElement::OnSplashscreenLoaded(Document* document,
 
 void HTMLLinkElement::OnStylesheetLoaded(Document* document,
                                          const std::string& content) {
-  auto before_parse_micros = SbTimeGetMonotonicNow();
+  auto before_parse_micros = starboard::CurrentMonotonicTime();
   scoped_refptr<cssom::CSSStyleSheet> css_style_sheet =
       document->html_element_context()->css_parser()->ParseStyleSheet(
           content, base::SourceLocation(href(), 1, 1));
-  auto after_parse_micros = SbTimeGetMonotonicNow();
+  auto after_parse_micros = starboard::CurrentMonotonicTime();
   auto css_kb = content.length() / 1000;
   // Only measure non-trivial CSS sizes and ignore non-HTTP schemes (e.g.,
   // file://), which are primarily used for debug purposes.

@@ -22,16 +22,14 @@
 #include "starboard/system.h"
 #include "starboard/common/log.h"
 
-#define hb_malloc_impl SbMemoryAllocate
-#define hb_realloc_impl SbMemoryReallocate
-#define hb_calloc_impl SbMemoryCalloc
-#define hb_free_impl SbMemoryDeallocate
+#define hb_malloc_impl malloc
+#define hb_realloc_impl realloc
+#define hb_calloc_impl calloc
+#define hb_free_impl free
 
 // Micro Posix Emulation
 #undef assert
 #define assert SB_DCHECK
 #define getenv(x) NULL
-#define snprintf SbStringFormatF
-#define strdup SbStringDuplicate
 
 #endif  // HB_STARBOARD_HH

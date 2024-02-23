@@ -12,38 +12,46 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/build/config/base_configuration.gni")
+if (current_toolchain == default_toolchain &&
+    build_with_separate_cobalt_toolchain) {
+  import("//starboard/evergreen/x64/platform_configuration/configuration.gni")
+  platform_tests_path =
+      "//starboard/linux/shared:starboard_platform_tests($starboard_toolchain)"
+  cobalt_font_package = "standard"
 
-nasm_exists = true
+  sb_has_unused_symbol_issue = true
+} else {
+  import("//starboard/build/config/base_configuration.gni")
 
-sb_static_contents_output_data_dir = "$root_out_dir/content"
+  nasm_exists = true
 
-sb_enable_benchmark = true
+  sb_static_contents_output_data_dir = "$root_out_dir/content"
 
-install_target_path = "//starboard/build/install/install_target.gni"
+  sb_enable_benchmark = true
 
-sb_enable_opus_sse = false
+  install_target_path = "//starboard/build/install/install_target.gni"
 
-speed_config_path = "//starboard/linux/shared/platform_configuration:speed"
-size_config_path = "//starboard/linux/shared/platform_configuration:size"
+  sb_enable_opus_sse = false
 
-pedantic_warnings_config_path =
-    "//starboard/linux/shared/platform_configuration:pedantic_warnings"
-no_pedantic_warnings_config_path = "//starboard/linux/x64x11/clang/3.9/platform_configuration:no_pedantic_warnings"
+  speed_config_path = "//starboard/linux/shared/platform_configuration:speed"
+  size_config_path = "//starboard/linux/shared/platform_configuration:size"
 
-sb_widevine_platform = "linux"
+  pedantic_warnings_config_path =
+      "//starboard/linux/shared/platform_configuration:pedantic_warnings"
+  no_pedantic_warnings_config_path = "//starboard/linux/x64x11/clang/3.9/platform_configuration:no_pedantic_warnings"
 
-platform_tests_path = "//starboard/linux/shared:starboard_platform_tests"
+  sb_widevine_platform = "linux"
 
-enable_in_app_dial = true
+  platform_tests_path = "//starboard/linux/shared:starboard_platform_tests"
 
-sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
+  enable_in_app_dial = true
 
-gl_type = "angle"
-sb_angle_enable_gl = true
+  sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
 
-cobalt_v8_emit_builtins_as_inline_asm = true
+  gl_type = "angle"
+  sb_angle_enable_gl = true
 
-sb_enable_cpp17_audit = false
+  cobalt_v8_emit_builtins_as_inline_asm = true
 
-v8_enable_webassembly = false
+  v8_enable_webassembly = false
+}

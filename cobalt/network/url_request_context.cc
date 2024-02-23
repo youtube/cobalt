@@ -15,6 +15,7 @@
 #include "cobalt/network/url_request_context.h"
 
 #include <algorithm>
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -24,6 +25,7 @@
 #include "base/command_line.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/configuration/configuration.h"
+#include "cobalt/network/disk_cache/cobalt_backend_factory.h"
 #include "cobalt/network/disk_cache/cobalt_backend_impl.h"
 #include "cobalt/network/disk_cache/resource_type.h"
 #include "cobalt/network/job_factory_config.h"
@@ -48,54 +50,59 @@
 #include "net/proxy_resolution/proxy_resolution_service.h"
 #include "net/ssl/ssl_config_service.h"
 #include "net/ssl/ssl_config_service_defaults.h"
-namespace {
-
-const char kPersistentSettingsJson[] = "cache_settings.json";
-
-
-void ReadDiskCacheSize(cobalt::persistent_storage::PersistentSettings* settings,
-                       int64_t max_bytes) {
-#ifndef USE_HACKY_COBALT_CHANGES
-  auto total_size = 0;
-  cobalt::network::disk_cache::ResourceTypeMetadata
-      kTypeMetadataNew[cobalt::network::disk_cache::kTypeCount];
-
-  for (int i = 0; i < disk_cache::kTypeCount; i++) {
-    auto metadata = cobalt::network::disk_cache::kTypeMetadata[i];
-    uint32_t bucket_size =
-        static_cast<uint32_t>(settings->GetPersistentSettingAsDouble(
-            metadata.directory, metadata.max_size_bytes));
-    kTypeMetadataNew[i] = {metadata.directory, bucket_size};
-
-    total_size += bucket_size;
-  }
-
-  // Check if PersistentSettings values are valid and can replace the
-  // disk_cache::kTypeMetadata.
-  if (total_size <= max_bytes) {
-    std::copy(std::begin(kTypeMetadataNew), std::end(kTypeMetadataNew),
-              std::begin(disk_cache::kTypeMetadata));
-    return;
-  }
-
-  // PersistentSettings values are invalid and will be replaced by the
-  default
-      // values in disk_cache::kTypeMetadata.
-      for (int i = 0; i < disk_cache::kTypeCount; i++) {
-    auto metadata = disk_cache::kTypeMetadata[i];
-    settings->SetPersistentSetting(
-        metadata.directory, std::make_unique<base::Value>(
-                                static_cast<double>(metadata.max_size_bytes)));
-  }
-}
-#else
-}
-#endif
-}  // namespace
+#include "net/third_party/quic/platform/api/quic_flags.h"
+#include "net/url_request/data_protocol_handler.h"
+#include "net/url_request/url_request_job_factory_impl.h"
+#include "starboard/common/murmurhash2.h"
+#include "starboard/configuration_constants.h"
 
 namespace cobalt {
 namespace network {
 namespace {
+
+const char kPersistentSettingsJson[] = "cache_settings.json";
+
+void LoadDiskCacheQuotaSettings(
+    cobalt::persistent_storage::PersistentSettings* settings,
+    int64_t max_bytes) {
+  auto total_size = 0;
+  std::map<disk_cache::ResourceType, uint32_t> quotas;
+  for (int i = 0; i < disk_cache::kTypeCount; i++) {
+    disk_cache::ResourceType resource_type = (disk_cache::ResourceType)i;
+    std::string directory =
+        disk_cache::defaults::GetSubdirectory(resource_type);
+    uint32_t bucket_size =
+        static_cast<uint32_t>(settings->GetPersistentSettingAsDouble(
+            directory, disk_cache::defaults::GetQuota(resource_type)));
+    quotas[resource_type] = bucket_size;
+    total_size += bucket_size;
+  }
+
+  if (total_size <= max_bytes) {
+    for (int i = 0; i < disk_cache::kTypeCount; i++) {
+      disk_cache::ResourceType resource_type = (disk_cache::ResourceType)i;
+      disk_cache::settings::SetQuota(resource_type, quotas[resource_type]);
+    }
+    return;
+  }
+
+  // Sum of quotas exceeds |max_bytes|. Set quotas to default values.
+  for (int i = 0; i < disk_cache::kTypeCount; i++) {
+    disk_cache::ResourceType resource_type = (disk_cache::ResourceType)i;
+    uint32_t default_quota = disk_cache::defaults::GetQuota(resource_type);
+    disk_cache::settings::SetQuota(resource_type, default_quota);
+    std::string directory =
+        disk_cache::defaults::GetSubdirectory(resource_type);
+    settings->SetPersistentSetting(
+        directory,
+        std::make_unique<base::Value>(static_cast<double>(default_quota)));
+  }
+}
+
+uint32_t GetKey(const std::string& s) {
+  return starboard::MurmurHash2_32(s.c_str(), s.size());
+}
+
 net::ProxyConfig CreateCustomProxyConfig(const std::string& proxy_rules) {
   net::ProxyConfig proxy_config = net::ProxyConfig::CreateDirect();
   proxy_config.proxy_rules().ParseFromString(proxy_rules);
@@ -250,19 +257,19 @@ URLRequestContext::URLRequestContext(
     cache_persistent_settings_ =
         std::make_unique<cobalt::persistent_storage::PersistentSettings>(
             kPersistentSettingsJson);
-    ReadDiskCacheSize(cache_persistent_settings_.get(), max_cache_bytes);
+    LoadDiskCacheQuotaSettings(cache_persistent_settings_.get(),
+                               max_cache_bytes);
 
     auto http_cache = std::make_unique<net::HttpCache>(
-        http_network_session(),
-        std::make_unique<net::HttpCache::DefaultBackend>(
-            net::DISK_CACHE, net::CACHE_BACKEND_DEFAULT, nullptr,
+        storage_.http_network_session(),
+        std::make_unique<disk_cache::CobaltBackendFactory>(
             base::FilePath(std::string(path.data())),
-            /* max_bytes */ max_cache_bytes, false),
+            /* max_bytes */ max_cache_bytes, this),
         true);
     if (persistent_settings != nullptr) {
       auto cache_enabled = persistent_settings->GetPersistentSettingAsBool(
           disk_cache::kCacheEnabledPersistentSettingsKey, true);
-
+      disk_cache::settings::SetCacheEnabled(cache_enabled);
       if (!cache_enabled) {
         http_cache->set_mode(net::HttpCache::Mode::DISABLE);
       }
@@ -323,7 +330,7 @@ void URLRequestContext::UpdateCacheSizeSetting(disk_cache::ResourceType type,
 #ifndef USE_HACKY_COBALT_CHANGES
   CHECK(cache_persistent_settings_);
   cache_persistent_settings_->SetPersistentSetting(
-      disk_cache::kTypeMetadata[type].directory,
+      disk_cache::defaults::GetSubdirectory(type),
       std::make_unique<base::Value>(static_cast<double>(bytes)));
 #endif
 }
@@ -332,6 +339,19 @@ void URLRequestContext::ValidateCachePersistentSettings() {
 #ifndef USE_HACKY_COBALT_CHANGES
   cache_persistent_settings_->ValidatePersistentSettings();
 #endif
+}
+
+void URLRequestContext::AssociateKeyWithResourceType(
+    const std::string& key, disk_cache::ResourceType resource_type) {
+  url_resource_type_map_[GetKey(key)] = resource_type;
+}
+
+disk_cache::ResourceType URLRequestContext::GetType(const std::string& key) {
+  uint32_t uint_key = GetKey(key);
+  if (url_resource_type_map_.count(uint_key) == 0) {
+    return disk_cache::kOther;
+  }
+  return url_resource_type_map_[uint_key];
 }
 
 }  // namespace network

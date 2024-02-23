@@ -15,6 +15,7 @@
 #include "internal.h"
 
 #include <chrono>
+#include <vector>
 #include <thread>
 
 #include <gtest/gtest.h>
@@ -25,7 +26,7 @@
 #include "test/test_util.h"
 
 
-#if !defined(OPENSSL_NO_THREADS)
+#if defined(OPENSSL_THREADS)
 
 static unsigned g_once_init_called = 0;
 
@@ -130,4 +131,32 @@ TEST(ThreadTest, RandState) {
   thread.join();
 }
 
-#endif  // !OPENSSL_NO_THREADS
+TEST(ThreadTest, InitThreads) {
+  constexpr size_t kNumThreads = 10;
+
+  // |CRYPTO_library_init| is safe to call across threads.
+  std::vector<std::thread> threads;
+  threads.reserve(kNumThreads);
+  for (size_t i = 0; i < kNumThreads; i++) {
+    threads.emplace_back(&CRYPTO_library_init);
+  }
+  for (auto &thread : threads) {
+    thread.join();
+  }
+}
+
+TEST(ThreadTest, PreSandboxInitThreads) {
+  constexpr size_t kNumThreads = 10;
+
+  // |CRYPTO_pre_sandbox_init| is safe to call across threads.
+  std::vector<std::thread> threads;
+  threads.reserve(kNumThreads);
+  for (size_t i = 0; i < kNumThreads; i++) {
+    threads.emplace_back(&CRYPTO_pre_sandbox_init);
+  }
+  for (auto &thread : threads) {
+    thread.join();
+  }
+}
+
+#endif  // OPENSSL_THREADS

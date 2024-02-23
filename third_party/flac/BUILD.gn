@@ -7,6 +7,7 @@ config("flac_config") {
     "FLAC__NO_DLL",
   ]
 }
+
 source_set("flac") {
   sources = [
     "include/FLAC/all.h",
@@ -55,24 +56,19 @@ source_set("flac") {
     "src/libFLAC/include/protected/stream_encoder.h",
   ]
 
-  if (is_starboard) {
-    deps = [
-      "//starboard:starboard_headers_only",
-      "//starboard/common",
-    ]
-  }
-
-  if (is_starboard) {
-    public_configs = [ ":flac_config" ]
-  } else {
-    configs -= [ "//build/config/compiler:chromium_code" ]
-    direct_dependent_configs = [ ":flac_config" ]
-  }
-
+if (is_starboard) {
+  deps = [
+    "//starboard:starboard_headers_only",
+    "//starboard/common",
+  ]
+} else {
+  configs -= [ "//build/config/compiler:chromium_code" ]
+}
   configs += [
     ":flac_config",
     "//build/config/compiler:no_chromium_code",
   ]
+  public_configs = [ ":flac_config" ]
 
   include_dirs = [
     "include",
@@ -92,4 +88,3 @@ source_set("flac") {
     ]
   }
 }
-

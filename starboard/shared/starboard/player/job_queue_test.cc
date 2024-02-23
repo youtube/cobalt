@@ -31,7 +31,7 @@ namespace {
 using ::testing::ElementsAre;
 
 // Require at least millisecond-level precision.
-const SbTime kPrecision = kSbTimeMillisecond;
+const int64_t kPrecisionUsec = 1000;
 
 class JobQueueTest
     : public ::testing::Test,
@@ -50,14 +50,14 @@ TEST_F(JobQueueTest, OwnedScheduledJobsAreExecutedInOrder) {
   Schedule([&]() { values.push_back(1); });
   Schedule([&]() { values.push_back(2); });
   Schedule([&]() { values.push_back(3); });
-  Schedule([&]() { values.push_back(4); }, 1 * kPrecision);
-  Schedule([&]() { values.push_back(5); }, 1 * kPrecision);
-  Schedule([&]() { values.push_back(6); }, 1 * kPrecision);
-  Schedule([&]() { values.push_back(7); }, 2 * kPrecision);
-  Schedule([&]() { values.push_back(8); }, 3 * kPrecision);
+  Schedule([&]() { values.push_back(4); }, 1 * kPrecisionUsec);
+  Schedule([&]() { values.push_back(5); }, 1 * kPrecisionUsec);
+  Schedule([&]() { values.push_back(6); }, 1 * kPrecisionUsec);
+  Schedule([&]() { values.push_back(7); }, 2 * kPrecisionUsec);
+  Schedule([&]() { values.push_back(8); }, 3 * kPrecisionUsec);
 
   // Sleep past the last scheduled job.
-  SbThreadSleep(4 * kPrecision);
+  SbThreadSleep(4 * kPrecisionUsec);
   job_queue_.RunUntilIdle();
 
   EXPECT_THAT(values, ElementsAre(1, 2, 3, 4, 5, 6, 7, 8));
@@ -119,12 +119,12 @@ TEST_F(JobQueueTest, RemovedJobsAreRemoved) {
 }
 
 TEST_F(JobQueueTest, RunUntilStoppedExecutesAllRemainingJobs) {
-  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+  int64_t start = CurrentMonotonicTime();
   std::atomic_bool job_1 = {false}, job_2 = {false}, job_3 = {false};
   job_queue_.Schedule([&job_1]() { job_1 = true; });
-  job_queue_.Schedule([&job_2]() { job_2 = true; }, 1 * kPrecision);
-  job_queue_.Schedule([&job_3]() { job_3 = true; }, 2 * kPrecision);
-  job_queue_.Schedule([&]() { job_queue_.StopSoon(); }, 3 * kPrecision);
+  job_queue_.Schedule([&job_2]() { job_2 = true; }, 1 * kPrecisionUsec);
+  job_queue_.Schedule([&job_3]() { job_3 = true; }, 2 * kPrecisionUsec);
+  job_queue_.Schedule([&]() { job_queue_.StopSoon(); }, 3 * kPrecisionUsec);
 
   job_queue_.RunUntilIdle();
   // Job 1 should have been executed.
@@ -137,7 +137,7 @@ TEST_F(JobQueueTest, RunUntilStoppedExecutesAllRemainingJobs) {
   EXPECT_TRUE(job_3);
 
   // Time passed should at least be as long as the delay of the last job.
-  EXPECT_GE(SbTimeGetMonotonicNow() - start, 3 * kPrecision);
+  EXPECT_GE(CurrentMonotonicTime() - start, 3 * kPrecisionUsec);
 }
 
 TEST_F(JobQueueTest, JobsAreMovedAndNotCopied) {

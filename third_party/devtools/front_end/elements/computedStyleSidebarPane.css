@@ -5,7 +5,7 @@
  */
 
 .computed-properties {
-    user-select: text;
+    -webkit-user-select: text;
     flex-shrink: 0;
 }
 

@@ -13,9 +13,6 @@
 
 #if !UCONFIG_NO_FORMATTING
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif  // defined(STARBOARD)
 #include "unicode/rbtz.h"
 #include "unicode/gregocal.h"
 #include "uvector.h"

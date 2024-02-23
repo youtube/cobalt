@@ -121,14 +121,25 @@ all_devtools_files = [
   "front_end/elements_test_runner/SetOuterHTMLTestRunner.js",
   "front_end/elements_test_runner/StylesUpdateLinksTestRunner.js",
   "front_end/emulated_devices/module.json",
+  "front_end/emulation/AdvancedApp.js",
+  "front_end/emulation/DeviceModeModel.js",
   "front_end/emulation/deviceModeToolbar.css",
+  "front_end/emulation/DeviceModeToolbar.js",
   "front_end/emulation/deviceModeView.css",
+  "front_end/emulation/DeviceModeView.js",
+  "front_end/emulation/DeviceModeWrapper.js",
   "front_end/emulation/devicesSettingsTab.css",
+  "front_end/emulation/DevicesSettingsTab.js",
+  "front_end/emulation/EmulatedDevices.js",
   "front_end/emulation/geolocationsSettingsTab.css",
+  "front_end/emulation/GeolocationsSettingsTab.js",
   "front_end/emulation/inspectedPagePlaceholder.css",
+  "front_end/emulation/InspectedPagePlaceholder.js",
   "front_end/emulation/mediaQueryInspector.css",
+  "front_end/emulation/MediaQueryInspector.js",
   "front_end/emulation/module.json",
   "front_end/emulation/sensors.css",
+  "front_end/emulation/SensorsView.js",
   "front_end/event_listeners/eventListenersView.css",
   "front_end/event_listeners/module.json",
   "front_end/extensions/module.json",
@@ -174,7 +185,10 @@ all_devtools_files = [
   "front_end/layers/module.json",
   "front_end/layers_test_runner/LayersTestRunner.js",
   "front_end/layers_test_runner/module.json",
+  "front_end/main/ExecutionContextSelector.js",
+  "front_end/main/Main.js",
   "front_end/main/module.json",
+  "front_end/main/SimpleApp.js",
   "front_end/protocol_monitor/protocolMonitor.css",
   "front_end/protocol_monitor/module.json",
   "front_end/mobile_throttling/module.json",
@@ -192,21 +206,46 @@ all_devtools_files = [
   "front_end/ndb_app.json",
   "front_end/network/binaryResourceView.css",
   "front_end/network/blockedURLsPane.css",
+  "front_end/network/BinaryResourceView.js",
+  "front_end/network/BlockedURLsPane.js",
   "front_end/network/eventSourceMessagesView.css",
+  "front_end/network/EventSourceMessagesView.js",
+  "front_end/network/HARWriter.js",
   "front_end/network/module.json",
   "front_end/network/networkConfigView.css",
+  "front_end/network/NetworkConfigView.js",
+  "front_end/network/NetworkDataGridNode.js",
+  "front_end/network/NetworkItemView.js",
   "front_end/network/networkLogView.css",
+  "front_end/network/NetworkLogView.js",
+  "front_end/network/NetworkLogViewColumns.js",
+  "front_end/network/NetworkFrameGrouper.js",
   "front_end/network/networkManageCustomHeadersView.css",
+  "front_end/network/NetworkManageCustomHeadersView.js",
+  "front_end/network/NetworkOverview.js",
   "front_end/network/networkPanel.css",
+  "front_end/network/NetworkPanel.js",
+  "front_end/network/NetworkSearchScope.js",
+  "front_end/network/NetworkTimeCalculator.js",
   "front_end/network/networkTimingTable.css",
   "front_end/network/networkWaterfallColumn.css",
+  "front_end/network/NetworkWaterfallColumn.js",
   "front_end/network/requestCookiesView.css",
+  "front_end/network/RequestCookiesView.js",
   "front_end/network/requestHeadersTree.css",
   "front_end/network/requestHeadersView.css",
+  "front_end/network/RequestHeadersView.js",
   "front_end/network/requestHTMLView.css",
+  "front_end/network/RequestHTMLView.js",
   "front_end/network/requestInitiatorView.css",
+  "front_end/network/RequestInitiatorView.js",
+  "front_end/network/RequestPreviewView.js",
+  "front_end/network/RequestResponseView.js",
+  "front_end/network/RequestTimingView.js",
+  "front_end/network/ResourceWebSocketFrameView.js",
   "front_end/network/signedExchangeInfoTree.css",
   "front_end/network/signedExchangeInfoView.css",
+  "front_end/network/SignedExchangeInfoView.js",
   "front_end/network/webSocketFrameView.css",
   "front_end/network_test_runner/module.json",
   "front_end/network_test_runner/NetworkTestRunner.js",
@@ -343,7 +382,6 @@ all_devtools_files = [
   "front_end/sources/CallStackSidebarPane.js",
   "front_end/sources/CSSPlugin.js",
   "front_end/sources/DebuggerPlugin.js",
-  "front_end/sources/CoveragePlugin.js",
   "front_end/sources/dialog.css",
   "front_end/sources/debuggerPausedMessage.css",
   "front_end/sources/DebuggerPausedMessage.js",
@@ -391,6 +429,7 @@ all_devtools_files = [
   "front_end/sources_test_runner/SourcesTestRunner.js",
   "front_end/sources_test_runner/module.json",
   "front_end/test_runner/module.json",
+  "front_end/test_runner/TestRunner.js",
   "front_end/text_editor/autocompleteTooltip.css",
   "front_end/text_editor/cmdevtools.css",
   "front_end/text_editor/module.json",
@@ -539,46 +578,6 @@ lighthouse_locale_files = [
 all_devtools_files += lighthouse_locale_files
 
 all_devtools_modules = [
-  "front_end/network/network.js",
-  "front_end/network/SignedExchangeInfoView.js",
-  "front_end/network/ResourceWebSocketFrameView.js",
-  "front_end/network/RequestTimingView.js",
-  "front_end/network/RequestResponseView.js",
-  "front_end/network/RequestPreviewView.js",
-  "front_end/network/RequestInitiatorView.js",
-  "front_end/network/RequestHeadersView.js",
-  "front_end/network/RequestHTMLView.js",
-  "front_end/network/RequestCookiesView.js",
-  "front_end/network/NetworkWaterfallColumn.js",
-  "front_end/network/NetworkTimeCalculator.js",
-  "front_end/network/NetworkSearchScope.js",
-  "front_end/network/NetworkPanel.js",
-  "front_end/network/NetworkOverview.js",
-  "front_end/network/NetworkManageCustomHeadersView.js",
-  "front_end/network/NetworkLogViewColumns.js",
-  "front_end/network/NetworkLogView.js",
-  "front_end/network/NetworkItemView.js",
-  "front_end/network/NetworkFrameGrouper.js",
-  "front_end/network/NetworkDataGridNode.js",
-  "front_end/network/NetworkConfigView.js",
-  "front_end/network/HARWriter.js",
-  "front_end/network/EventSourceMessagesView.js",
-  "front_end/network/BlockedURLsPane.js",
-  "front_end/network/BinaryResourceView.js",
-  "front_end/test_runner/test_runner.js",
-  "front_end/test_runner/TestRunner.js",
-  "front_end/emulation/emulation.js",
-  "front_end/emulation/SensorsView.js",
-  "front_end/emulation/MediaQueryInspector.js",
-  "front_end/emulation/InspectedPagePlaceholder.js",
-  "front_end/emulation/GeolocationsSettingsTab.js",
-  "front_end/emulation/EmulatedDevices.js",
-  "front_end/emulation/DevicesSettingsTab.js",
-  "front_end/emulation/DeviceModeWrapper.js",
-  "front_end/emulation/DeviceModeView.js",
-  "front_end/emulation/DeviceModeToolbar.js",
-  "front_end/emulation/DeviceModeModel.js",
-  "front_end/emulation/AdvancedApp.js",
   "front_end/inspector_main/inspector_main.js",
   "front_end/inspector_main/RenderingOptions.js",
   "front_end/inspector_main/InspectorMain.js",
@@ -594,10 +593,6 @@ all_devtools_modules = [
   "front_end/screencast/InputModel.js",
   "front_end/performance_monitor/performance_monitor.js",
   "front_end/performance_monitor/PerformanceMonitor.js",
-  "front_end/main/main.js",
-  "front_end/main/SimpleApp.js",
-  "front_end/main/MainImpl.js",
-  "front_end/main/ExecutionContextSelector.js",
   "front_end/snippets/snippets.js",
   "front_end/snippets/SnippetsQuickOpen.js",
   "front_end/snippets/ScriptSnippetFileSystem.js",
@@ -655,7 +650,6 @@ all_devtools_modules = [
   "front_end/quick_open/FilteredListWidget.js",
   "front_end/quick_open/CommandMenu.js",
   "front_end/elements/elements.js",
-  "front_end/elements/elements-legacy.js",
   "front_end/elements/StylesSidebarPane.js",
   "front_end/elements/StylePropertyTreeElement.js",
   "front_end/elements/StylePropertyHighlighter.js",
@@ -1191,6 +1185,7 @@ devtools_test_files = [
   "front_end/sources_test_runner/SearchTestRunner.js",
   "front_end/sources_test_runner/SourcesTestRunner.js",
   "front_end/test_runner/module.json",
+  "front_end/test_runner/TestRunner.js",
 ]
 
 if (is_starboard) {
@@ -1336,7 +1331,7 @@ if (is_starboard) {
 if (is_starboard) {
   resources_out_dir ="$sb_static_contents_output_data_dir/web/debug_remote/devtools"
 } else {
-  resources_out_dir = "$root_out_dir/resources/inspector"
+resources_out_dir = "$root_out_dir/resources/inspector"
 }
 
 generated_scripts = [
@@ -1359,46 +1354,6 @@ application_templates = [
 ]
 
 copied_devtools_modules = [
-  "$resources_out_dir/network/network.js",
-  "$resources_out_dir/network/SignedExchangeInfoView.js",
-  "$resources_out_dir/network/ResourceWebSocketFrameView.js",
-  "$resources_out_dir/network/RequestTimingView.js",
-  "$resources_out_dir/network/RequestResponseView.js",
-  "$resources_out_dir/network/RequestPreviewView.js",
-  "$resources_out_dir/network/RequestInitiatorView.js",
-  "$resources_out_dir/network/RequestHeadersView.js",
-  "$resources_out_dir/network/RequestHTMLView.js",
-  "$resources_out_dir/network/RequestCookiesView.js",
-  "$resources_out_dir/network/NetworkWaterfallColumn.js",
-  "$resources_out_dir/network/NetworkTimeCalculator.js",
-  "$resources_out_dir/network/NetworkSearchScope.js",
-  "$resources_out_dir/network/NetworkPanel.js",
-  "$resources_out_dir/network/NetworkOverview.js",
-  "$resources_out_dir/network/NetworkManageCustomHeadersView.js",
-  "$resources_out_dir/network/NetworkLogViewColumns.js",
-  "$resources_out_dir/network/NetworkLogView.js",
-  "$resources_out_dir/network/NetworkItemView.js",
-  "$resources_out_dir/network/NetworkFrameGrouper.js",
-  "$resources_out_dir/network/NetworkDataGridNode.js",
-  "$resources_out_dir/network/NetworkConfigView.js",
-  "$resources_out_dir/network/HARWriter.js",
-  "$resources_out_dir/network/EventSourceMessagesView.js",
-  "$resources_out_dir/network/BlockedURLsPane.js",
-  "$resources_out_dir/network/BinaryResourceView.js",
-  "$resources_out_dir/test_runner/test_runner.js",
-  "$resources_out_dir/test_runner/TestRunner.js",
-  "$resources_out_dir/emulation/emulation.js",
-  "$resources_out_dir/emulation/SensorsView.js",
-  "$resources_out_dir/emulation/MediaQueryInspector.js",
-  "$resources_out_dir/emulation/InspectedPagePlaceholder.js",
-  "$resources_out_dir/emulation/GeolocationsSettingsTab.js",
-  "$resources_out_dir/emulation/EmulatedDevices.js",
-  "$resources_out_dir/emulation/DevicesSettingsTab.js",
-  "$resources_out_dir/emulation/DeviceModeWrapper.js",
-  "$resources_out_dir/emulation/DeviceModeView.js",
-  "$resources_out_dir/emulation/DeviceModeToolbar.js",
-  "$resources_out_dir/emulation/DeviceModeModel.js",
-  "$resources_out_dir/emulation/AdvancedApp.js",
   "$resources_out_dir/inspector_main/inspector_main.js",
   "$resources_out_dir/inspector_main/RenderingOptions.js",
   "$resources_out_dir/inspector_main/InspectorMain.js",
@@ -1414,10 +1369,6 @@ copied_devtools_modules = [
   "$resources_out_dir/screencast/InputModel.js",
   "$resources_out_dir/performance_monitor/performance_monitor.js",
   "$resources_out_dir/performance_monitor/PerformanceMonitor.js",
-  "$resources_out_dir/main/main.js",
-  "$resources_out_dir/main/SimpleApp.js",
-  "$resources_out_dir/main/MainImpl.js",
-  "$resources_out_dir/main/ExecutionContextSelector.js",
   "$resources_out_dir/snippets/snippets.js",
   "$resources_out_dir/snippets/SnippetsQuickOpen.js",
   "$resources_out_dir/snippets/ScriptSnippetFileSystem.js",
@@ -1440,7 +1391,6 @@ copied_devtools_modules = [
   "$resources_out_dir/web_audio/AudioContextSelector.js",
   "$resources_out_dir/web_audio/AudioContextContentBuilder.js",
   "$resources_out_dir/elements/elements.js",
-  "$resources_out_dir/elements/elements-legacy.js",
   "$resources_out_dir/elements/StylesSidebarPane.js",
   "$resources_out_dir/elements/StylePropertyTreeElement.js",
   "$resources_out_dir/elements/StylePropertyHighlighter.js",
@@ -2212,42 +2162,42 @@ copy("copy_wasm_deps") {
 }
 
 if (!is_starboard) {
-  action("generate_devtools_grd") {
-    script = "scripts/build/generate_devtools_grd.py"
+action("generate_devtools_grd") {
+  script = "scripts/build/generate_devtools_grd.py"
 
-    deps = [
-      ":devtools_frontend_resources",
-    ]
+  deps = [
+    ":devtools_frontend_resources",
+  ]
 
-    grd_files =
-        copied_devtools_modules + generated_applications +
-        generated_non_autostart_non_remote_modules + devtools_embedder_scripts +
-        generated_scripts + generated_worker_bundles +
-        [
-          "$resources_out_dir/devtools_extension_api.js",
-          "$resources_out_dir/sdk/wasm_source_map/pkg/wasm_source_map_bg.wasm",
-        ]
+  grd_files =
+      copied_devtools_modules + generated_applications +
+      generated_non_autostart_non_remote_modules + devtools_embedder_scripts +
+      generated_scripts + generated_worker_bundles +
+      [
+        "$resources_out_dir/devtools_extension_api.js",
+        "$resources_out_dir/sdk/wasm_source_map/pkg/wasm_source_map_bg.wasm",
+      ]
 
-    inputs = grd_files + devtools_image_files
-    outfile = "$root_gen_dir/devtools/devtools_resources.grd"
-    outputs = [
-      outfile,
-    ]
+  inputs = grd_files + devtools_image_files
+  outfile = "$root_gen_dir/devtools/devtools_resources.grd"
+  outputs = [
+    outfile,
+  ]
 
-    relative_path_dirs = [
-      resources_out_dir,
-      "front_end",
-    ]
+  relative_path_dirs = [
+    resources_out_dir,
+    "front_end",
+  ]
 
-    args = rebase_path(grd_files, root_build_dir) + [ "--relative_path_dirs" ] +
-          rebase_path(relative_path_dirs, root_build_dir) +
-          [
-            "--images",
-            rebase_path("front_end/Images", root_build_dir),
-            "--output",
-            rebase_path(outfile, root_build_dir),
-          ]
-  }
+  args = rebase_path(grd_files, root_build_dir) + [ "--relative_path_dirs" ] +
+         rebase_path(relative_path_dirs, root_build_dir) +
+         [
+           "--images",
+           rebase_path("front_end/Images", root_build_dir),
+           "--output",
+           rebase_path(outfile, root_build_dir),
+         ]
+}
 }
 
 action("devtools_extension_api") {
@@ -2275,9 +2225,9 @@ action("supported_css_properties") {
       "blink/properties/CSSProperties.json5",
     ]
   } else {
-    inputs = [
-      "//third_party/blink/renderer/core/css/css_properties.json5",
-    ]
+  inputs = [
+    "//third_party/blink/renderer/core/css/css_properties.json5",
+  ]
   }
 
   outputs = [
@@ -2296,9 +2246,9 @@ action("aria_properties") {
       "blink/properties/aria_properties.json5",
     ]
   } else {
-    inputs = [
-      "//third_party/blink/renderer/core/html/aria_properties.json5",
-    ]
+  inputs = [
+    "//third_party/blink/renderer/core/html/aria_properties.json5",
+  ]
   }
 
   outputs = [
@@ -2320,9 +2270,9 @@ action("frontend_protocol_sources") {
       "third_party/blink/public/devtools_protocol:protocol_version",
     ]
   } else {
-    deps = [
-      "//third_party/blink/public/devtools_protocol:protocol_version",
-    ]
+  deps = [
+    "//third_party/blink/public/devtools_protocol:protocol_version",
+  ]
   }
   inputs = [
     "$root_gen_dir/third_party/blink/public/devtools_protocol/protocol.json",
@@ -2360,9 +2310,8 @@ action("build_release_devtools") {
   ]
 
   inputs =
-      helper_scripts + all_devtools_files +
-      devtools_test_files + generated_scripts + generated_aria_properties +
-      application_templates +
+      helper_scripts + all_devtools_files + devtools_test_files +
+      generated_scripts + generated_aria_properties + application_templates +
       # In `build_release_applications` we sometimes include
       # the content of Runtime.js into the build output.
       [ "front_end/Runtime.js" ]

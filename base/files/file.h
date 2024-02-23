@@ -420,8 +420,8 @@ class BASE_EXPORT File {
   bool async_ = false;
 
 #if defined(STARBOARD)
-  bool append_;
   std::string file_name_;
+  bool append_ = false;
 #endif
 };
 

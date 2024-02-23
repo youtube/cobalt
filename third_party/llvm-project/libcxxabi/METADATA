@@ -9,10 +9,10 @@ third_party {
   }
   url {
     type: GIT
-    value: "https://github.com/llvm/llvm-project.git"
+    value: "https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxx.git"
   }
-  # Closest commit hash to llvm-project's 39da55e8f548a11f7dadefa73ea73d809a5f1729.
-  version: "ae56bdc07c05dc3920476eef7adad00fd2548782"
+  version: "1127c78cf90cf253be614a1e1d3645da57edbeb4"
+  # from https://chromium.googlesource.com/chromium/src/+/111.0.5563.150/DEPS#486
   last_upgrade_date {
     year: 2023
     month: 1

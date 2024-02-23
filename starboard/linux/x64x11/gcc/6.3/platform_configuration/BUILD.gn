@@ -16,7 +16,11 @@ config("compiler_flags") {
   cflags = []
   cflags_c = []
   cflags_cc = []
-  ldflags = []
+
+  ldflags = [
+    # Cleanup unused sections
+    "-Wl,-gc-sections",
+  ]
 
   # from common_compiler_flags
   cflags += [
@@ -69,11 +73,7 @@ config("compiler_flags") {
 
   ldflags += [ "-Wl,-rpath=/usr/lib/gcc/x86_64-linux-gnu/6" ]
 
-  cflags_c += [
-    # Limit to C99. This allows Linux to be a canary build for any
-    # C11 features that are not supported on some platforms' compilers.
-    "-std=c99",
-  ]
+  cflags_c += [ "-std=c11" ]
 
   cflags_cc += [
     "-std=gnu++14",
@@ -99,10 +99,15 @@ config("compiler_flags") {
 }
 
 config("platform_configuration") {
-  configs = [
-    "//starboard/linux/shared/platform_configuration",
-    "//starboard/linux/x64x11/shared/platform_configuration:libraries",
-    "//starboard/build/config/sabi",
-    ":compiler_flags",
-  ]
+  if (current_toolchain == default_toolchain &&
+      build_with_separate_cobalt_toolchain) {
+    configs = [ "//starboard/evergreen/x64/platform_configuration" ]
+  } else {
+    configs = [
+      "//starboard/linux/shared/platform_configuration",
+      "//starboard/linux/x64x11/shared/platform_configuration:libraries",
+      "//starboard/build/config/sabi",
+      ":compiler_flags",
+    ]
+  }
 }

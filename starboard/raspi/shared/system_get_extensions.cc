@@ -18,11 +18,13 @@
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/extension/graphics.h"
+#include "starboard/extension/time_zone.h"
 #include "starboard/shared/starboard/crash_handler.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "starboard/elf_loader/evergreen_config.h"
 #endif
 
+#include "starboard/linux/shared/time_zone.h"
 #include "starboard/raspi/shared/configuration.h"
 #include "starboard/raspi/shared/graphics.h"
 
@@ -47,6 +49,9 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
     return starboard::common::GetCrashHandlerApi();
+  }
+  if (strcmp(name, kStarboardExtensionTimeZoneName) == 0) {
+    return starboard::shared::GetTimeZoneApi();
   }
   return NULL;
 }

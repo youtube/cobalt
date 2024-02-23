@@ -70,7 +70,7 @@ config("platform_configuration") {
     defines += [ "THREAD_SANITIZER" ]
   }
 
-  cflags_cc = [ "-std=c++14" ]
+  cflags_cc = [ "-std=c++17" ]
   cflags += [
     # libwebp uses the cpufeatures library to detect ARM NEON support
     "-I${android_ndk_path}/sources/android/cpufeatures",

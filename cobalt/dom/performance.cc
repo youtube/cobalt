@@ -617,17 +617,17 @@ void Performance::CreatePerformanceResourceTiming(
 }
 
 void Performance::SetApplicationState(base::ApplicationState state,
-                                      SbTimeMonotonic timestamp) {
+                                      int64_t timestamp) {
   lifecycle_timing_->SetApplicationState(state, timestamp);
 }
 
-void Performance::SetApplicationStartOrPreloadTimestamp(
-    bool is_preload, SbTimeMonotonic timestamp) {
+void Performance::SetApplicationStartOrPreloadTimestamp(bool is_preload,
+                                                        int64_t timestamp) {
   lifecycle_timing_->SetApplicationStartOrPreloadTimestamp(is_preload,
                                                            timestamp);
 }
 
-void Performance::SetDeepLinkTimestamp(SbTimeMonotonic timestamp) {
+void Performance::SetDeepLinkTimestamp(int64_t timestamp) {
   lifecycle_timing_->SetDeepLinkTimestamp(timestamp);
 }
 

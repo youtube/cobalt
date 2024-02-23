@@ -62,14 +62,10 @@ config("compiler_flags") {
 
       # Do not warn about unused function params.
       "-Wno-unused-parameter",
-    ]
-    if (sb_is_modular && !sb_is_evergreen) {
-      # If we're building with cobalt toolchain and native linker, we need visibility.
-      cflags += [ "-fvisibility=default" ]
-    } else {
+
       # Default visibility to hidden, to enable dead stripping.
-      cflags += [ "-fvisibility=hidden" ]
-    }
+      "-fvisibility=hidden",
+    ]
 
     if (is_gold) {
       cflags += [
@@ -101,12 +97,8 @@ config("compiler_flags") {
     # nasty macros (|Status|, for example) that conflict with Chromium base.
     "MESA_EGL_NO_X11_HEADERS",
   ]
-  cflags_c += [
-    # Limit to C99. This allows Linux to be a canary build for any
-    # C11 features that are not supported on some platforms' compilers.
-    "-std=c99",
-  ]
-  cflags_cc = [ "-std=c++17" ]
+  cflags_c += [ "-std=c11" ]
+  cflags_cc = [ "-std=gnu++17" ]
 
   if (use_asan) {
     cflags += [

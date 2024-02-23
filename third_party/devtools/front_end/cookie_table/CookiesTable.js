@@ -513,7 +513,7 @@ export class CookiesTable extends UI.VBox {
     if (!domain) {
       return true;
     }
-    const parsedURL = Common.ParsedURL.fromString('http://' + domain);
+    const parsedURL = ('http://' + domain).asParsedURL();
     return !!parsedURL && parsedURL.domain() === domain;
   }
 
@@ -522,7 +522,7 @@ export class CookiesTable extends UI.VBox {
    * @returns {boolean}
    */
   _isValidPath(path) {
-    const parsedURL = Common.ParsedURL.fromString('http://example.com' + path);
+    const parsedURL = ('http://example.com' + path).asParsedURL();
     return !!parsedURL && parsedURL.path === path;
   }
 

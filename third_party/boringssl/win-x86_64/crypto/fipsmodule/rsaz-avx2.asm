@@ -1,7 +1,14 @@
+; This file is generated from a similarly-named Perl script in the BoringSSL
+; source tree. Do not edit by hand.
+
 default	rel
 %define XMMWORD
 %define YMMWORD
 %define ZMMWORD
+
+%ifdef BORINGSSL_PREFIX
+%include "boringssl_prefix_symbols_nasm.inc"
+%endif
 section	.text code align=64
 
 
@@ -1290,6 +1297,7 @@ global	rsaz_1024_red2norm_avx2
 
 ALIGN	32
 rsaz_1024_red2norm_avx2:
+
 	sub	rdx,-128
 	xor	rax,rax
 	mov	r8,QWORD[((-128))+rdx]
@@ -1483,10 +1491,12 @@ rsaz_1024_red2norm_avx2:
 	DB	0F3h,0C3h		;repret
 
 
+
 global	rsaz_1024_norm2red_avx2
 
 ALIGN	32
 rsaz_1024_norm2red_avx2:
+
 	sub	rcx,-128
 	mov	r8,QWORD[rdx]
 	mov	eax,0x1fffffff
@@ -1640,10 +1650,12 @@ rsaz_1024_norm2red_avx2:
 	mov	QWORD[184+rcx],r8
 	DB	0F3h,0C3h		;repret
 
+
 global	rsaz_1024_scatter5_avx2
 
 ALIGN	32
 rsaz_1024_scatter5_avx2:
+
 	vzeroupper
 	vmovdqu	ymm5,YMMWORD[$L$scatter_permd]
 	shl	r8d,4
@@ -1663,6 +1675,7 @@ $L$oop_scatter_1024:
 
 	vzeroupper
 	DB	0F3h,0C3h		;repret
+
 
 
 global	rsaz_1024_gather5_avx2
@@ -1809,23 +1822,6 @@ $L$oop_gather_1024:
 	DB	0F3h,0C3h		;repret
 
 $L$SEH_end_rsaz_1024_gather5:
-
-EXTERN	OPENSSL_ia32cap_P
-global	rsaz_avx2_eligible
-
-ALIGN	32
-rsaz_avx2_eligible:
-	lea	rax,[OPENSSL_ia32cap_P]
-	mov	eax,DWORD[8+rax]
-	mov	ecx,524544
-	mov	edx,0
-	and	ecx,eax
-	cmp	ecx,524544
-	cmove	eax,edx
-	and	eax,32
-	shr	eax,5
-	DB	0F3h,0C3h		;repret
-
 
 ALIGN	64
 $L$and_mask:

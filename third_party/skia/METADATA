@@ -11,7 +11,8 @@ third_party {
     type: GIT
     value: "https://chromium.googlesource.com/skia"
   }
-  version: "2542bdfcd686c7bfa9f687d80627f8ef468b2838"
+  version: "a91f9f612e5eeb93cf40a3c0ce7d7c6ddf838feb"
+  # from https://chromium.googlesource.com/chromium/src/+/80.0.3987.162/DEPS#176
   last_upgrade_date {
     year: 2019
     month: 10

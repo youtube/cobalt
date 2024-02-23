@@ -19,6 +19,9 @@
 #include <string>
 #include <utility>
 
+#include "base/task/post_task.h"
+#include "base/task_runner_util.h"
+#include "base/time/time.h"
 #include "starboard/extension/demuxer.h"
 #include "starboard/system.h"
 #include "third_party/chromium/media/base/audio_codecs.h"
@@ -623,11 +626,11 @@ base::TimeDelta DemuxerExtensionWrapper::GetStartTime() const {
 }
 
 base::Time DemuxerExtensionWrapper::GetTimelineOffset() const {
-  const SbTime reported_time = impl_->GetTimelineOffset(impl_->user_data);
-  return reported_time == 0
+  const base::TimeDelta reported_time = base::TimeDelta::FromMicroseconds(
+      impl_->GetTimelineOffset(impl_->user_data));
+  return reported_time.is_zero()
              ? base::Time()
-             : base::Time::FromDeltaSinceWindowsEpoch(
-                   base::TimeDelta::FromMicroseconds(reported_time));
+             : base::Time::FromDeltaSinceWindowsEpoch(reported_time);
 }
 
 int64_t DemuxerExtensionWrapper::GetMemoryUsage() const {
@@ -741,13 +744,15 @@ void DemuxerExtensionWrapper::Request(DemuxerStream::Type type) {
     return;
   }
 
-  auto& stream =
-      (type == DemuxerStream::AUDIO) ? *audio_stream_ : *video_stream_;
-  bool& eos_status =
-      (type == DemuxerStream::AUDIO) ? audio_reached_eos_ : video_reached_eos_;
+  bool eos_status = decoder_buffer->end_of_stream();
+  if (type == DemuxerStream::AUDIO) {
+    audio_reached_eos_ = eos_status;
+    audio_stream_->EnqueueBuffer(std::move(decoder_buffer));
+  } else {
+    video_reached_eos_ = eos_status;
+    video_stream_->EnqueueBuffer(std::move(decoder_buffer));
+  }
 
-  eos_status = decoder_buffer->end_of_stream();
-  stream.EnqueueBuffer(std::move(decoder_buffer));
   if (!eos_status) {
     host_->OnBufferedTimeRangesChanged(GetBufferedRanges());
   }

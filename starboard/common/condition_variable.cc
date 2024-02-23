@@ -31,7 +31,7 @@ void ConditionVariable::Wait() const {
   mutex_->debugSetAcquired();
 }
 
-bool ConditionVariable::WaitTimed(SbTime duration) const {
+bool ConditionVariable::WaitTimed(int64_t duration) const {
   mutex_->debugSetReleased();
   bool was_signaled = SbConditionVariableIsSignaled(
       SbConditionVariableWaitTimed(&condition_, mutex_->mutex(), duration));

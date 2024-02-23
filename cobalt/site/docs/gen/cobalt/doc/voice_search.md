@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Enabling voice search in Cobalt"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Enabling voice search in Cobalt
 
 Cobalt enables voice search through a subset of the

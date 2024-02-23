@@ -17,6 +17,7 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/log_internal.h"
+#include "starboard/common/atomic.h"
 #include "starboard/common/file.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/common/string.h"
@@ -27,7 +28,6 @@
 #include "starboard/event.h"
 #include "starboard/log.h"
 #include "starboard/shared/starboard/command_line.h"
-#include "starboard/shared/starboard/starboard_switches.h"
 #include "starboard/thread.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "third_party/crashpad/wrapper/wrapper.h"  // nogncheck
@@ -48,12 +48,12 @@ Semaphore* g_app_created_semaphore = nullptr;
 // Safeguard to avoid sending AndroidCommands either when there is no instance
 // of the Starboard application, or after the run loop has exited and the
 // ALooper receiving the commands is no longer being polled.
-bool g_app_running = false;
+atomic_bool g_app_running;
 
 std::vector<std::string> GetArgs() {
   std::vector<std::string> args;
   // Fake program name as args[0]
-  args.push_back(SbStringDuplicate("android_main"));
+  args.push_back(strdup("android_main"));
 
   JniEnvExt* env = JniEnvExt::Get();
 
@@ -194,15 +194,6 @@ std::string ExtractCertificatesToFileSystem() {
 }
 
 void InstallCrashpadHandler(const CommandLine& command_line) {
-  if (command_line.HasSwitch(
-          starboard::shared::starboard::kStartHandlerAtLaunch)) {
-    SB_LOG(WARNING) << "--"
-                    << starboard::shared::starboard::kStartHandlerAtLaunch
-                    << " not supported for AOSP Evergreen, not installing "
-                    << "Crashpad handler";
-    return;
-  }
-
   std::string extracted_ca_certificates_path =
       ExtractCertificatesToFileSystem();
   if (extracted_ca_certificates_path.empty()) {
@@ -212,7 +203,7 @@ void InstallCrashpadHandler(const CommandLine& command_line) {
   }
 
   third_party::crashpad::wrapper::InstallCrashpadHandler(
-      /*start_at_crash=*/true, extracted_ca_certificates_path);
+      extracted_ca_certificates_path);
 }
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
 
@@ -235,7 +226,7 @@ void* ThreadEntryPoint(void* context) {
 
   // Mark the app running before signaling app created so there's no race to
   // allow sending the first AndroidCommand after onCreate() returns.
-  g_app_running = true;
+  g_app_running.store(true);
 
   // Signal GameActivity_onCreate() that it may proceed.
   g_app_created_semaphore->Put();
@@ -243,12 +234,12 @@ void* ThreadEntryPoint(void* context) {
   // Enter the Starboard run loop until stopped.
   int error_level =
       app.Run(std::move(command_line), GetStartDeepLink().c_str());
-#endif  // SB_API_VERSION >= 15
 
   // Mark the app not running before informing StarboardBridge that the app is
   // stopped so that we won't send any more AndroidCommands as a result of
   // shutting down the Activity.
-  g_app_running = false;
+  g_app_running.store(false);
+#endif  // SB_API_VERSION >= 15
 
   // Our launcher.py looks for this to know when the app (test) is done.
   SB_LOG(INFO) << "***Application Stopped*** " << error_level;
@@ -262,13 +253,13 @@ void* ThreadEntryPoint(void* context) {
 }
 
 void OnStart(GameActivity* activity) {
-  if (g_app_running) {
+  if (g_app_running.load()) {
     ApplicationAndroid::Get()->SendAndroidCommand(AndroidCommand::kStart);
   }
 }
 
 void OnResume(GameActivity* activity) {
-  if (g_app_running) {
+  if (g_app_running.load()) {
     // Stop the MediaPlaybackService if activity state transits from background
     // to foreground. Note that the MediaPlaybackService may already have
     // been stopped before Cobalt's lifecycle state transits from Concealed
@@ -279,7 +270,7 @@ void OnResume(GameActivity* activity) {
 }
 
 void OnPause(GameActivity* activity) {
-  if (g_app_running) {
+  if (g_app_running.load()) {
     // Start the MediaPlaybackService before activity state transits from
     // foreground to background.
     ApplicationAndroid::Get()->StartMediaPlaybackService();
@@ -288,28 +279,28 @@ void OnPause(GameActivity* activity) {
 }
 
 void OnStop(GameActivity* activity) {
-  if (g_app_running) {
+  if (g_app_running.load()) {
     ApplicationAndroid::Get()->SendAndroidCommand(AndroidCommand::kStop);
   }
 }
 
 bool OnTouchEvent(GameActivity* activity,
                   const GameActivityMotionEvent* event) {
-  if (g_app_running) {
+  if (g_app_running.load()) {
     return ApplicationAndroid::Get()->SendAndroidMotionEvent(event);
   }
   return false;
 }
 
 bool OnKey(GameActivity* activity, const GameActivityKeyEvent* event) {
-  if (g_app_running) {
+  if (g_app_running.load()) {
     return ApplicationAndroid::Get()->SendAndroidKeyEvent(event);
   }
   return false;
 }
 
 void OnWindowFocusChanged(GameActivity* activity, bool focused) {
-  if (g_app_running) {
+  if (g_app_running.load()) {
     ApplicationAndroid::Get()->SendAndroidCommand(
         focused ? AndroidCommand::kWindowFocusGained
                 : AndroidCommand::kWindowFocusLost);
@@ -317,14 +308,14 @@ void OnWindowFocusChanged(GameActivity* activity, bool focused) {
 }
 
 void OnNativeWindowCreated(GameActivity* activity, ANativeWindow* window) {
-  if (g_app_running) {
+  if (g_app_running.load()) {
     ApplicationAndroid::Get()->SendAndroidCommand(
         AndroidCommand::kNativeWindowCreated, window);
   }
 }
 
 void OnNativeWindowDestroyed(GameActivity* activity, ANativeWindow* window) {
-  if (g_app_running) {
+  if (g_app_running.load()) {
     ApplicationAndroid::Get()->SendAndroidCommand(
         AndroidCommand::kNativeWindowDestroyed);
   }
@@ -380,7 +371,7 @@ extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_coat_VolumeStateReceiver_nativeVolumeChanged(JNIEnv* env,
                                                              jobject jcaller,
                                                              jint volumeDelta) {
-  if (g_app_running) {
+  if (g_app_running.load()) {
     SbKey key =
         volumeDelta > 0 ? SbKey::kSbKeyVolumeUp : SbKey::kSbKeyVolumeDown;
     ApplicationAndroid::Get()->SendKeyboardInject(key);
@@ -390,7 +381,7 @@ Java_dev_cobalt_coat_VolumeStateReceiver_nativeVolumeChanged(JNIEnv* env,
 extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_coat_VolumeStateReceiver_nativeMuteChanged(JNIEnv* env,
                                                            jobject jcaller) {
-  if (g_app_running) {
+  if (g_app_running.load()) {
     ApplicationAndroid::Get()->SendKeyboardInject(SbKey::kSbKeyVolumeMute);
   }
 }
@@ -407,9 +398,13 @@ extern "C" int SbRunStarboardMain(int argc,
   CommandLine command_line(GetArgs());
   LogInit(command_line);
 
+#if SB_IS(EVERGREEN_COMPATIBLE)
+  InstallCrashpadHandler(command_line);
+#endif  // SB_IS(EVERGREEN_COMPATIBLE)
+
   // Mark the app running before signaling app created so there's no race to
   // allow sending the first AndroidCommand after onCreate() returns.
-  g_app_running = true;
+  g_app_running.store(true);
 
   // Signal GameActivity_onCreate() that it may proceed.
   g_app_created_semaphore->Put();
@@ -417,6 +412,12 @@ extern "C" int SbRunStarboardMain(int argc,
   // Enter the Starboard run loop until stopped.
   int error_level =
       app.Run(std::move(command_line), GetStartDeepLink().c_str());
+
+  // Mark the app not running before informing StarboardBridge that the app is
+  // stopped so that we won't send any more AndroidCommands as a result of
+  // shutting down the Activity.
+  g_app_running.store(false);
+
   return error_level;
 }
 #endif  // SB_API_VERSION >= 15

@@ -15,6 +15,7 @@
 #ifndef STARBOARD_NPLB_PERFORMANCE_HELPERS_H_
 #define STARBOARD_NPLB_PERFORMANCE_HELPERS_H_
 
+#include "starboard/common/time.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -24,28 +25,32 @@ namespace nplb {
 // Default for parameter |count_calls| of TestPerformanceOfFunction.
 constexpr int kDefaultTestPerformanceCountCalls = 1000;
 // Default for parameter |max_time_per_call| of TestPerformanceOfFunction.
-constexpr SbTimeMonotonic kDefaultTestPerformanceMaxTimePerCall =
-    kSbTimeMillisecond / 2;
+constexpr int64_t kDefaultTestPerformanceMaxTimePerCall = 500;  // 0.5ms
 
 // Helper function for testing function call time performance.
 template <const size_t count_calls,
-          const SbTimeMonotonic max_time_per_call,
+          const int64_t max_time_per_call,
           typename R,
           typename... Args>
 void TestPerformanceOfFunction(const char* const name_of_f,
                                R (*const f)(Args...),
                                Args... args) {
   // Measure time pre calls to |f|.
-  const SbTimeMonotonic time_start = SbTimeGetMonotonicNow();
+  const int64_t time_start = CurrentMonotonicTime();
+
+  SbLogPriority initial_log_level = starboard::logging::GetMinLogLevel();
+  starboard::logging::SetMinLogLevel(kSbLogPriorityFatal);
 
   // Call |f| |count_calls| times.
   for (int i = 0; i < count_calls; ++i) {
     f(args...);
   }
 
+  starboard::logging::SetMinLogLevel(initial_log_level);
+
   // Measure time post calls to |f|.
-  const SbTimeMonotonic time_last = SbTimeGetMonotonicNow();
-  const SbTimeMonotonic time_delta = time_last - time_start;
+  const int64_t time_last = CurrentMonotonicTime();
+  const int64_t time_delta = time_last - time_start;
   const double time_per_call = static_cast<double>(time_delta) / count_calls;
 
   // Pretty printing.
@@ -57,7 +62,7 @@ void TestPerformanceOfFunction(const char* const name_of_f,
 
   // Compare |time_delta| to |max_time_delta|.
   // Using the aggregate time avoids loss of precision at the us range.
-  const SbTimeMonotonic max_time_delta = max_time_per_call * count_calls;
+  const int64_t max_time_delta = max_time_per_call * count_calls;
   EXPECT_LT(time_delta, max_time_delta);
 }
 

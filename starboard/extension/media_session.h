@@ -16,7 +16,7 @@
 #define STARBOARD_EXTENSION_MEDIA_SESSION_H_
 
 #include "starboard/configuration.h"
-#include "starboard/time.h"
+#include "starboard/types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -84,12 +84,12 @@ typedef void (*CobaltExtensionMediaSessionInvokeActionCallback)(
 // valid within the scope of that function. Any data inside must be copied if it
 // will be referenced later.
 typedef struct CobaltExtensionMediaSessionState {
-  SbTimeMonotonic duration;
+  int64_t duration;  // Monotonic time in microseconds.
   CobaltExtensionMediaSessionPlaybackState actual_playback_state;
   bool available_actions[kCobaltExtensionMediaSessionActionNumActions];
   CobaltExtensionMediaMetadata* metadata;
   double actual_playback_rate;
-  SbTimeMonotonic current_playback_position;
+  int64_t current_playback_position;  // Monotonic time in microseconds.
   bool has_position_state;
 } CobaltExtensionMediaSessionState;
 

@@ -127,30 +127,30 @@ if ((is_mac || is_ios) && !use_cobalt_customizations) {
 }
 
 if (!use_cobalt_customizations) {
-  source_set("unit_tests") {
-    testonly = true
-    sources = [
-      "crash_key_unittest.cc",
-      "crash_keys_unittest.cc",
-    ]
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "crash_key_unittest.cc",
+    "crash_keys_unittest.cc",
+  ]
 
-    deps = [
-      ":common",
-      "//base",
-      "//testing/gtest",
-    ]
+  deps = [
+    ":common",
+    "//base",
+    "//testing/gtest",
+  ]
 
-    if (is_mac || is_ios) {
-      sources += [ "objc_zombie_unittest.mm" ]
-    }
-
-    if (!is_mac && !is_win && !is_fuchsia) {
-      include_dirs = [ "//third_party/breakpad/breakpad/src/" ]
-      sources += [ "crash_key_breakpad_unittest.cc" ]
-    }
-
-    if (is_fuchsia) {
-      sources -= [ "crash_key_unittest.cc" ]
-    }
+  if (is_mac || is_ios) {
+    sources += [ "objc_zombie_unittest.mm" ]
   }
+
+  if (!is_mac && !is_win && !is_fuchsia) {
+    include_dirs = [ "//third_party/breakpad/breakpad/src/" ]
+    sources += [ "crash_key_breakpad_unittest.cc" ]
+  }
+
+  if (is_fuchsia) {
+    sources -= [ "crash_key_unittest.cc" ]
+  }
+}
 }

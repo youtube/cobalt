@@ -15,6 +15,7 @@
 #ifndef COBALT_NETWORK_URL_REQUEST_CONTEXT_H_
 #define COBALT_NETWORK_URL_REQUEST_CONTEXT_H_
 
+#include <map>
 #include <memory>
 #include <string>
 
@@ -58,6 +59,10 @@ class URLRequestContext : public net::CobaltURLRequestContext {
   void UpdateCacheSizeSetting(disk_cache::ResourceType type, uint32_t bytes);
   void ValidateCachePersistentSettings();
 
+  void AssociateKeyWithResourceType(const std::string& key,
+                                    disk_cache::ResourceType resource_type);
+  disk_cache::ResourceType GetType(const std::string& key);
+
  private:
   SEQUENCE_CHECKER(sequence_checker_);
   scoped_refptr<net::CookieMonster::PersistentCookieStore>
@@ -79,6 +84,7 @@ class URLRequestContext : public net::CobaltURLRequestContext {
   std::unique_ptr<cobalt::persistent_storage::PersistentSettings>
       cache_persistent_settings_;
 #endif
+  std::map<uint32_t, disk_cache::ResourceType> url_resource_type_map_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestContext);
 };

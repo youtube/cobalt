@@ -16,7 +16,6 @@ package dev.cobalt.media;
 
 import static dev.cobalt.media.Log.TAG;
 
-import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaCodecInfo.CodecCapabilities;
 import android.media.MediaCodecInfo.VideoCapabilities;
@@ -148,55 +147,38 @@ public class MediaCodecCapabilitiesLogger {
           return codecCapabilities.isFeatureSupported(
               MediaCodecInfo.CodecCapabilities.FEATURE_AdaptivePlayback);
         });
-    featureMap.put(
-        "FrameParsing",
-        (name, codecCapabilities) -> {
-          return codecCapabilities.isFeatureSupported(
-              MediaCodecInfo.CodecCapabilities.FEATURE_FrameParsing);
-        });
-    featureMap.put(
-        "LowLatency",
-        (name, codecCapabilities) -> {
-          return codecCapabilities.isFeatureSupported(
-              MediaCodecInfo.CodecCapabilities.FEATURE_LowLatency);
-        });
-    featureMap.put(
-        "MultipleFrames",
-        (name, codecCapabilities) -> {
-          return codecCapabilities.isFeatureSupported(
-              MediaCodecInfo.CodecCapabilities.FEATURE_MultipleFrames);
-        });
-    featureMap.put(
-        "PartialFrame",
-        (name, codecCapabilities) -> {
-          return codecCapabilities.isFeatureSupported(
-              MediaCodecInfo.CodecCapabilities.FEATURE_PartialFrame);
-        });
-    featureMap.put(
-        "LinearBlockCopyFree",
-        (name, codecCapabilities) -> {
-          if (Build.VERSION.SDK_INT < 30) {
-            // MediaCodec.LinearBlock is introduced in api level 30.
-            return false;
-          }
-          VideoCapabilities videoCapabilities = codecCapabilities.getVideoCapabilities();
-          if (videoCapabilities == null) {
-            return false;
-          }
-          try {
-            String canonicalName = MediaCodec.createByCodecName(name).getName();
-            String[] codecNames = new String[] {canonicalName};
-            return MediaCodec.LinearBlock.isCodecCopyFreeCompatible(codecNames);
-          } catch (Exception e) {
-            Log.e(
-                TAG,
-                "Failed to create MediaCodec or call isCodecCopyFreeCompatible() on codec name"
-                    + " \"%s\" with error %s",
-                name,
-                e);
-            return false;
-          }
-        });
+    if (Build.VERSION.SDK_INT >= 29) {
+      featureMap.put(
+          "FrameParsing",
+          (name, codecCapabilities) -> {
+            return codecCapabilities.isFeatureSupported(
+                MediaCodecInfo.CodecCapabilities.FEATURE_FrameParsing);
+          });
+    }
+    if (Build.VERSION.SDK_INT >= 30) {
+      featureMap.put(
+          "LowLatency",
+          (name, codecCapabilities) -> {
+            return codecCapabilities.isFeatureSupported(
+                MediaCodecInfo.CodecCapabilities.FEATURE_LowLatency);
+          });
+    }
+    if (Build.VERSION.SDK_INT >= 29) {
+      featureMap.put(
+          "MultipleFrames",
+          (name, codecCapabilities) -> {
+            return codecCapabilities.isFeatureSupported(
+                MediaCodecInfo.CodecCapabilities.FEATURE_MultipleFrames);
+          });
+    }
+    if (Build.VERSION.SDK_INT >= 26) {
+      featureMap.put(
+          "PartialFrame",
+          (name, codecCapabilities) -> {
+            return codecCapabilities.isFeatureSupported(
+                MediaCodecInfo.CodecCapabilities.FEATURE_PartialFrame);
+          });
+    }
     featureMap.put(
         "SecurePlayback",
         (name, codecCapabilities) -> {
@@ -242,15 +224,20 @@ public class MediaCodecCapabilitiesLogger {
       if (info.isEncoder()) {
         continue;
       }
+      String isHardwareAccelerated = "unknown";
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        isHardwareAccelerated = info.isHardwareAccelerated() ? "true" : "false";
+      }
       for (String supportedType : info.getSupportedTypes()) {
         String name = info.getName();
         decoderDumpString.append(
             String.format(
                 Locale.US,
-                "name: %s (%s, %s):",
+                "name: %s (%s, %s, Hardware accelerated: %s):",
                 name,
                 supportedType,
-                MediaCodecUtil.isCodecDenyListed(name) ? "denylisted" : "not denylisted"));
+                MediaCodecUtil.isCodecDenyListed(name) ? "denylisted" : "not denylisted",
+                isHardwareAccelerated));
         CodecCapabilities codecCapabilities = info.getCapabilitiesForType(supportedType);
         VideoCapabilities videoCapabilities = codecCapabilities.getVideoCapabilities();
         String resultName =

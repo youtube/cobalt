@@ -23,9 +23,9 @@
 #include "base/callback.h"
 #include "base/strings/string16.h"
 #include "base/time/time.h"
+#include "cobalt/base/event_dispatcher.h"
 #include "cobalt/browser/metrics/cobalt_enabled_state_provider.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
-#include "cobalt/browser/metrics/cobalt_metrics_uploader_callback.h"
 #include "components/metrics/metrics_log_uploader.h"
 #include "components/metrics/metrics_reporting_default_state.h"
 #include "components/metrics/metrics_service.h"
@@ -48,15 +48,8 @@ class CobaltMetricsServiceClient : public ::metrics::MetricsServiceClient {
  public:
   ~CobaltMetricsServiceClient() override{};
 
-  // Sets the uploader handler to be called when metrics are ready for
-  // upload.
-  void SetOnUploadHandler(
-      const CobaltMetricsUploaderCallback* uploader_callback);
-
-  // Remove reference to the passed uploader callback, if it's the current
-  // reference. Otherwise, does nothing.
-  void RemoveOnUploadHandler(
-      const CobaltMetricsUploaderCallback* uploader_callback);
+  // Set event dispatcher to be used to publish any metrics events (eg upload).
+  void SetEventDispatcher(const base::EventDispatcher* event_dispatcher);
 
   // Returns the MetricsService instance that this client is associated with.
   // With the exception of testing contexts, the returned instance must be valid
@@ -170,9 +163,9 @@ class CobaltMetricsServiceClient : public ::metrics::MetricsServiceClient {
 
   CobaltMetricsLogUploader* log_uploader_ = nullptr;
 
-  const CobaltMetricsUploaderCallback* upload_handler_ = nullptr;
-
   uint32_t custom_upload_interval_ = UINT32_MAX;
+
+  const base::EventDispatcher* event_dispatcher_ = nullptr;
 
   DISALLOW_COPY_AND_ASSIGN(CobaltMetricsServiceClient);
 };

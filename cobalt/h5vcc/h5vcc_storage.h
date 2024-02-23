@@ -52,10 +52,10 @@ class H5vccStorage : public script::Wrappable {
   H5vccStorageVerifyTestResponse VerifyTest(uint32 test_size,
                                             std::string test_string);
 
-  // Get Quota bytes per disk_cache::ResourceType.
+  // Get Quota bytes per network::disk_cache::ResourceType.
   H5vccStorageResourceTypeQuotaBytesDictionary GetQuota();
 
-  // Set Quota bytes per disk_cache::ResourceType.
+  // Set Quota bytes per network::disk_cache::ResourceType.
   H5vccStorageSetQuotaResponse SetQuota(
       H5vccStorageResourceTypeQuotaBytesDictionary quota);
   void SetAndSaveQuotaForBackend(network::disk_cache::ResourceType type,

@@ -77,7 +77,7 @@ UpdateQueryParamsDelegate* g_delegate = nullptr;
 // static
 std::string UpdateQueryParams::Get(ProdId prod) {
   return base::StringPrintf(
-      "os=%s&arch=%s&os_arch=%s&nacl_arch=%s&prod=%s%s&acceptformat=crx2,crx3",
+      "os=%s&arch=%s&os_arch=%s&nacl_arch=%s&prod=%s%s&acceptformat=crx3",
       kOs, kArch,
 #if !defined(STARBOARD)
       base::SysInfo().OperatingSystemArchitecture().c_str(),
@@ -147,7 +147,6 @@ const char* UpdateQueryParams::GetNaclArch() {
 // static
 std::string UpdateQueryParams::GetProdVersion() {
   // TODO: fill in prod versoin number
-  // return version_info::GetVersionNumber();
   return "0.0.1";
 }
 

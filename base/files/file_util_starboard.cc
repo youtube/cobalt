@@ -402,9 +402,12 @@ bool GetFileInfo(const FilePath &file_path, File::Info *results) {
 
   results->is_directory = info.is_directory;
   results->size = info.size;
-  results->last_modified = base::Time::FromSbTime(info.last_modified);
-  results->last_accessed = base::Time::FromSbTime(info.last_accessed);
-  results->creation_time = base::Time::FromSbTime(info.creation_time);
+  results->last_modified = base::Time::FromDeltaSinceWindowsEpoch(
+      base::TimeDelta::FromMicroseconds(info.last_modified));
+  results->last_accessed = base::Time::FromDeltaSinceWindowsEpoch(
+      base::TimeDelta::FromMicroseconds(info.last_accessed));
+  results->creation_time = base::Time::FromDeltaSinceWindowsEpoch(
+      base::TimeDelta::FromMicroseconds(info.creation_time));
   return true;
 }
 

@@ -179,13 +179,15 @@ bool PrefValueStore::PrefValueFromDefaultStore(const std::string& name) const {
 
 bool PrefValueStore::PrefValueUserModifiable(const std::string& name) const {
   PrefStoreType effective_store = ControllingPrefStoreForPref(name);
-  return effective_store >= USER_STORE || effective_store == INVALID_STORE;
+  return effective_store >= USER_STORE ||
+         effective_store == INVALID_STORE;
 }
 
 bool PrefValueStore::PrefValueExtensionModifiable(
     const std::string& name) const {
   PrefStoreType effective_store = ControllingPrefStoreForPref(name);
-  return effective_store >= EXTENSION_STORE || effective_store == INVALID_STORE;
+  return effective_store >= EXTENSION_STORE ||
+         effective_store == INVALID_STORE;
 }
 
 void PrefValueStore::UpdateCommandLinePrefStore(PrefStore* command_line_prefs) {
@@ -281,8 +283,7 @@ void PrefValueStore::OnPrefValueChanged(PrefValueStore::PrefStoreType type,
 }
 
 void PrefValueStore::OnInitializationCompleted(
-    PrefValueStore::PrefStoreType type,
-    bool succeeded) {
+    PrefValueStore::PrefStoreType type, bool succeeded) {
   if (initialization_failed_)
     return;
   if (!succeeded) {

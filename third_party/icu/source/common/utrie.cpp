@@ -21,13 +21,8 @@
 */
 
 #ifdef UTRIE_DEBUG
-#if !defined(STARBOARD)
 #   include <stdio.h>
 #endif
-#endif
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif  // defined(STARBOARD)
 
 #include "unicode/utypes.h"
 #include "cmemory.h"

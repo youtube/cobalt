@@ -3,16 +3,19 @@ description:
   "Filtered subtree at components/crash/core/common."
 
 third_party {
-  url {
-    type: LOCAL_SOURCE
-    value: "https://cobalt.googlesource.com/components/crash/core/common_filtered_mirror"
+  identifier {
+    type: "ChromiumVersion"
+    value: "71.0.3578.127"  # from https://chromereleases.googleblog.com/2019/01/stable-channel-update-for-chrome-os.html
   }
-  url {
-    type: GIT
-    value: "https://github.com/chromium/chromium"
+  identifier {
+    type: "Git"
+    value: "https://chromium.googlesource.com/chromium/src.git"
+    version: "3dd5e6c44af445fe7b7ef0f2fd70aadb7e406515"
   }
-  # Closest commit hash to m70.
-  version: "15915dc41b2c3f0ff00a744d60a6f6cf25f74a8c"
+  identifier {
+    type: "UpstreamSubdir"
+    value: "components/crash/core/common"
+  }
   last_upgrade_date {
     year: 2018
     month: 03

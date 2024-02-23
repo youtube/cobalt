@@ -26,13 +26,13 @@
 #include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
 #include "base/macros.h"
+#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/values.h"
 #include "cobalt/cache/memory_capped_directory.h"
 #include "cobalt/network/disk_cache/resource_type.h"
-#include "cobalt/persistent_storage/persistent_settings.h"
 
 namespace base {
 template <typename T>
@@ -67,14 +67,9 @@ class Cache {
   base::Optional<uint32_t> GetMaxCacheStorageInBytes(
       network::disk_cache::ResourceType resource_type);
 
-  void set_enabled(bool enabled);
-
-  void set_persistent_settings(
-      persistent_storage::PersistentSettings* persistent_settings);
-
  private:
   friend struct base::DefaultSingletonTraits<Cache>;
-  Cache() {}
+  Cache() = default;
 
   MemoryCappedDirectory* GetMemoryCappedDirectory(
       network::disk_cache::ResourceType resource_type);
@@ -93,9 +88,6 @@ class Cache {
   std::map<network::disk_cache::ResourceType,
            std::map<uint32_t, std::vector<base::WaitableEvent*>>>
       pending_;
-  bool enabled_ = true;
-
-  persistent_storage::PersistentSettings* persistent_settings_ = nullptr;
 
   DISALLOW_COPY_AND_ASSIGN(Cache);
 };  // class Cache

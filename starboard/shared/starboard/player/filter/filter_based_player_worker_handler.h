@@ -32,7 +32,6 @@
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/player_worker.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace shared {
@@ -48,19 +47,20 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
       SbDecodeTargetGraphicsContextProvider* provider);
 
  private:
-  bool Init(SbPlayer player,
-            UpdateMediaInfoCB update_media_info_cb,
-            GetPlayerStateCB get_player_state_cb,
-            UpdatePlayerStateCB update_player_state_cb,
-            UpdatePlayerErrorCB update_player_error_cb) override;
-  bool Seek(SbTime seek_to_time, int ticket) override;
-  bool WriteSamples(const InputBuffers& input_buffers,
-                    int* samples_written) override;
-  bool WriteEndOfStream(SbMediaType sample_type) override;
-  bool SetPause(bool pause) override;
-  bool SetPlaybackRate(double playback_rate) override;
+  HandlerResult Init(SbPlayer player,
+                     UpdateMediaInfoCB update_media_info_cb,
+                     GetPlayerStateCB get_player_state_cb,
+                     UpdatePlayerStateCB update_player_state_cb,
+                     UpdatePlayerErrorCB update_player_error_cb) override;
+  HandlerResult Seek(int64_t seek_to_time, int ticket) override;
+  HandlerResult WriteSamples(const InputBuffers& input_buffers,
+                             int* samples_written) override;
+  HandlerResult WriteEndOfStream(SbMediaType sample_type) override;
+  HandlerResult SetPause(bool pause) override;
+  HandlerResult SetPlaybackRate(double playback_rate) override;
   void SetVolume(double volume) override;
-  bool SetBounds(const Bounds& bounds) override;
+  HandlerResult SetBounds(const Bounds& bounds) override;
+  void SetMaxVideoInputSize(int max_video_input_size) override;
   void Stop() override;
 
   void Update();
@@ -111,6 +111,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   bool video_ended_ = false;
 
   SbPlayerOutputMode output_mode_;
+  int max_video_input_size_;
   SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider_;
   const media::VideoStreamInfo video_stream_info_;

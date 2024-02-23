@@ -478,7 +478,7 @@ void Window::InjectEvent(const scoped_refptr<web::Event>& event) {
 }
 
 void Window::SetApplicationState(base::ApplicationState state,
-                                 SbTimeMonotonic timestamp) {
+                                 int64_t timestamp) {
   html_element_context()->application_lifecycle_state()->SetApplicationState(
       state);
   if (timestamp == 0) return;

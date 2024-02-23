@@ -17,13 +17,11 @@
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
 #else
 #include <assert.h>
-#include <string.h>
 #endif
-
 #include <emmintrin.h>
+#include <string.h>
 #include "src/dsp/yuv.h"
 
 #ifdef FANCY_UPSAMPLING

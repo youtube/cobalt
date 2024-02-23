@@ -5,13 +5,13 @@
 /**
  * @implements {Network.GroupLookupInterface}
  */
-export default class NetworkFrameGrouper {
+Network.NetworkFrameGrouper = class {
   /**
    * @param {!Network.NetworkLogView} parentView
    */
   constructor(parentView) {
     this._parentView = parentView;
-    /** @type {!Map<!SDK.ResourceTreeFrame, !FrameGroupNode>} */
+    /** @type {!Map<!SDK.ResourceTreeFrame, !Network.FrameGroupNode>} */
     this._activeGroups = new Map();
   }
 
@@ -29,7 +29,7 @@ export default class NetworkFrameGrouper {
     if (groupNode) {
       return groupNode;
     }
-    groupNode = new FrameGroupNode(this._parentView, frame);
+    groupNode = new Network.FrameGroupNode(this._parentView, frame);
     this._activeGroups.set(frame, groupNode);
     return groupNode;
   }
@@ -40,9 +40,9 @@ export default class NetworkFrameGrouper {
   reset() {
     this._activeGroups.clear();
   }
-}
+};
 
-export class FrameGroupNode extends Network.NetworkGroupNode {
+Network.FrameGroupNode = class extends Network.NetworkGroupNode {
   /**
    * @param {!Network.NetworkLogView} parentView
    * @param {!SDK.ResourceTreeFrame} frame
@@ -74,20 +74,4 @@ export class FrameGroupNode extends Network.NetworkGroupNode {
       cell.title = name;
     }
   }
-}
-
-/* Legacy exported object */
-self.Network = self.Network || {};
-
-/* Legacy exported object */
-Network = Network || {};
-
-/**
- * @constructor
- */
-Network.NetworkFrameGrouper = NetworkFrameGrouper;
-
-/**
- * @constructor
- */
-Network.FrameGroupNode = FrameGroupNode;
+};

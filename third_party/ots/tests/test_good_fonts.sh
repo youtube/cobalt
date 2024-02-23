@@ -10,11 +10,11 @@ test "x$top_builddir" = x && top_builddir=.
 # Usage: ./test_good_fonts.sh [ttf_or_otf_file_name]
 
 BASE_DIR=$top_srcdir/tests/fonts/good/
-BLACKLIST=$top_srcdir/tests/BLACKLIST.txt
+BLOCKLIST=$top_srcdir/tests/BLOCKLIST.txt
 CHECKER=$top_builddir/ots-idempotent$EXEEXT
 
-if [ ! -r "$BLACKLIST" ] ; then
-  echo "$BLACKLIST is not found."
+if [ ! -r "$BLOCKLIST" ] ; then
+  echo "$BLOCKLIST is not found."
   exit 1
 fi
 
@@ -27,21 +27,24 @@ if [ $# -eq 0 ] ; then
   # No font file is specified. Apply this script to all TT/OT files we can find
   # on the system.
 
-  if [ ! -d $BASE_DIR ] ; then
+  if [ ! -d "$BASE_DIR" ] ; then
     echo "$BASE_DIR does not exist."
     exit 1
   fi
 
-  if $(command fc-list &>/dev/null);
+  if [ x"$FONTS" = x ];
   then
-    CFF=$(fc-list --format="%{file}\n" :fontformat=CFF)
-    TTF=$(fc-list --format="%{file}\n" :fontformat=TrueType)
-    FONTS="$CFF"$'\n'"$TTF"
-  else
     # Mac OS X
-    # TODO: Support Cygwin.
-    OSX_BASE_DIR="/Library/Fonts/ /System/Library/Fonts/"
-    FONTS=$(find $OSX_BASE_DIR -type f -name '*tf' -o -name '*tc')
+    FONTS=$"$FONTS"$'\n'"$(find /System/Library/Fonts/ -type f -name '*tf' -o -name '*tc')"
+  fi
+
+
+  if [ x"$FONTS" = x ] && $(command fc-list &>/dev/null);
+  then
+  echo $FONTS
+    CFF=$(fc-list --format="%{file}\n" :fontformat=CFF | sort -u)
+    TTF=$(fc-list --format="%{file}\n" :fontformat=TrueType | sort -u)
+    FONTS="$FONTS"$'\n'"$CFF"$'\n'"$TTF"
   fi
 
   FONTS="$FONTS"$'\n'"$(find $BASE_DIR -type f)"
@@ -71,7 +74,7 @@ fi
 
 # Check the font file using idempotent if the font is not blacklisted.
 BASE=`basename "$1"`
-SKIP=`egrep -i -e "^$BASE" "$BLACKLIST"`
+SKIP=`egrep -i -e "^$BASE" "$BLOCKLIST"`
 
 if [ "x$SKIP" = "x" ]; then
   $CHECKER "$1"

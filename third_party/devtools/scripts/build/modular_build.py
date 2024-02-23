@@ -7,8 +7,6 @@
 Utilities for the modular DevTools build.
 """
 
-# pylint: skip-file
-
 import collections
 from os import path
 import os

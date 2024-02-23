@@ -31,7 +31,9 @@
 #include "starboard/export.h"
 #include "starboard/file.h"
 #include "starboard/gles.h"
+#if SB_API_VERSION < 16
 #include "starboard/image.h"
+#endif  // SB_API_VERSION < 16
 #include "starboard/input.h"
 #include "starboard/key.h"
 #include "starboard/log.h"
@@ -49,11 +51,13 @@
 #include "starboard/string.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"
+#if SB_API_VERSION < 16
 #include "starboard/time.h"
+#endif  // SB_API_VERSION < 16
 #include "starboard/time_zone.h"
 #include "starboard/types.h"
-#include "starboard/ui_navigation.h"
 #if SB_API_VERSION < 16
+#include "starboard/ui_navigation.h"
 #include "starboard/user.h"
 #endif  // SB_API_VERSION < 16
 #include "starboard/window.h"

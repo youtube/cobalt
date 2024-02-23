@@ -27,9 +27,6 @@
  * 08/23/01     george      Convert to C
  */
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif  // defined(STARBOARD)
 #include "locmap.h"
 #include "bytesinkutil.h"
 #include "charstr.h"

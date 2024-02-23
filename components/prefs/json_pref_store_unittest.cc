@@ -54,9 +54,9 @@ const char kInvalidJson[] = "!@#$%^&";
 // Expected output for tests using RunBasicJsonPrefStoreTest().
 const char kWriteGolden[] =
     "{\"homepage\":\"http://www.cnn.com\","
-    "\"long_int\":{\"pref\":\"214748364842\"},"
-    "\"some_directory\":\"/usr/sbin/\","
-    "\"tabs\":{\"max_tabs\":10,\"new_windows_in_tabs\":false}}";
+     "\"long_int\":{\"pref\":\"214748364842\"},"
+     "\"some_directory\":\"/usr/sbin/\","
+     "\"tabs\":{\"max_tabs\":10,\"new_windows_in_tabs\":false}}";
 
 // A PrefFilter that will intercept all calls to FilterOnLoad() and hold on
 // to the |prefs| until explicitly asked to release them.
@@ -115,8 +115,8 @@ void InterceptingPrefFilter::ReleasePrefs() {
 
 class MockPrefStoreObserver : public PrefStore::Observer {
  public:
-  MOCK_METHOD1(OnPrefValueChanged, void(const std::string&));
-  MOCK_METHOD1(OnInitializationCompleted, void(bool));
+  MOCK_METHOD1(OnPrefValueChanged, void (const std::string&));
+  MOCK_METHOD1(OnInitializationCompleted, void (bool));
 };
 
 class MockReadErrorDelegate : public PersistentPrefStore::ReadErrorDelegate {
@@ -147,9 +147,8 @@ base::test::ScopedTaskEnvironment::ThreadPoolExecutionMode GetExecutionMode(
   }
 }
 
-void CommitPendingWrite(
-    JsonPrefStore* pref_store,
-    CommitPendingWriteMode commit_pending_write_mode,
+void CommitPendingWrite(JsonPrefStore* pref_store,
+                        CommitPendingWriteMode commit_pending_write_mode,
     base::test::ScopedTaskEnvironment* scoped_task_environment) {
   switch (commit_pending_write_mode) {
     case CommitPendingWriteMode::WITHOUT_CALLBACK: {
@@ -178,10 +177,12 @@ class JsonPrefStoreTest
   JsonPrefStoreTest()
       : scoped_task_environment_(
             base::test::ScopedTaskEnvironment::MainThreadType::DEFAULT,
-            GetExecutionMode(GetParam())) {}
+                          GetExecutionMode(GetParam())) {}
 
  protected:
-  void SetUp() override { ASSERT_TRUE(temp_dir_.CreateUniqueTempDir()); }
+  void SetUp() override {
+    ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
+  }
 
   base::test::ScopedTaskEnvironment scoped_task_environment_;
 
@@ -227,10 +228,9 @@ TEST_P(JsonPrefStoreTest, InvalidFile) {
 // This function is used to avoid code duplication while testing synchronous
 // and asynchronous version of the JsonPrefStore loading. It validates that the
 // given output file's contents matches kWriteGolden.
-void RunBasicJsonPrefStoreTest(
-    JsonPrefStore* pref_store,
-    const base::FilePath& output_file,
-    CommitPendingWriteMode commit_pending_write_mode,
+void RunBasicJsonPrefStoreTest(JsonPrefStore* pref_store,
+                               const base::FilePath& output_file,
+                               CommitPendingWriteMode commit_pending_write_mode,
     base::test::ScopedTaskEnvironment* scoped_task_environment) {
   const char kNewWindowsInTabs[] = "tabs.new_windows_in_tabs";
   const char kMaxTabs[] = "tabs.max_tabs";
@@ -292,7 +292,6 @@ void RunBasicJsonPrefStoreTest(
   EXPECT_EQ(214748364842LL, value);
 
   // Serialize and compare to expected output.
-
   CommitPendingWrite(pref_store, commit_pending_write_mode,
                      scoped_task_environment);
 
@@ -345,8 +344,7 @@ TEST_P(JsonPrefStoreTest, BasicAsync) {
 
     EXPECT_CALL(mock_observer, OnInitializationCompleted(true)).Times(1);
     EXPECT_CALL(*mock_error_delegate,
-                OnError(PersistentPrefStore::PREF_READ_ERROR_NONE))
-        .Times(0);
+                OnError(PersistentPrefStore::PREF_READ_ERROR_NONE)).Times(0);
     scoped_task_environment_.RunUntilIdle();
     pref_store->RemoveObserver(&mock_observer);
 
@@ -423,13 +421,12 @@ TEST_P(JsonPrefStoreTest, AsyncNonExistingFile) {
   MockPrefStoreObserver mock_observer;
   pref_store->AddObserver(&mock_observer);
 
-  MockReadErrorDelegate* mock_error_delegate = new MockReadErrorDelegate;
+  MockReadErrorDelegate *mock_error_delegate = new MockReadErrorDelegate;
   pref_store->ReadPrefsAsync(mock_error_delegate);
 
   EXPECT_CALL(mock_observer, OnInitializationCompleted(true)).Times(1);
   EXPECT_CALL(*mock_error_delegate,
-              OnError(PersistentPrefStore::PREF_READ_ERROR_NO_FILE))
-      .Times(1);
+              OnError(PersistentPrefStore::PREF_READ_ERROR_NO_FILE)).Times(1);
   scoped_task_environment_.RunUntilIdle();
   pref_store->RemoveObserver(&mock_observer);
 

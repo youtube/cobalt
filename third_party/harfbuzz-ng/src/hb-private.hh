@@ -71,7 +71,11 @@ extern "C" void  hb_free_impl(void *ptr);
 #define malloc hb_malloc_impl
 #define calloc hb_calloc_impl
 #define realloc hb_realloc_impl
+
+#if !defined(STARBOARD)
 #define free hb_free_impl
+#endif
+
 #endif
 
 

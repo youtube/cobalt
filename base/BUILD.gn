@@ -1092,7 +1092,7 @@ component("base") {
   }
 
   if (is_starboard && current_toolchain != host_toolchain) {
-    deps += [ "//starboard" ]
+    deps += [ "//starboard:starboard_group" ]
   }
 
   # `raw_ptr` cannot be made a component due to CRT symbol issues.
@@ -2684,7 +2684,7 @@ static_library("base_static") {
   deps = [ "//build:chromeos_buildflags" ]
 
   if (is_starboard && current_toolchain != host_toolchain) {
-    deps += [ "//starboard" ]
+    deps += [ "//starboard:starboard_group" ]
   }
 
   if (is_win) {

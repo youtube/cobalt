@@ -124,13 +124,13 @@ script::Handle<script::ArrayBuffer> H5vccPlatformService::Send(
     web::DOMException::Raise(web::DOMException::kInvalidStateErr,
                              "Service unable to accept data currently.",
                              exception_state);
-    SbMemoryDeallocate(output_data);
+    free(output_data);
     return script::ArrayBuffer::New(environment_, 0);
   }
   auto output_buffer =
       script::ArrayBuffer::New(environment_, output_data, output_length);
   // Deallocate |output_data| which has been copied into the ArrayBuffer.
-  SbMemoryDeallocate(output_data);
+  free(output_data);
   return output_buffer;
 }
 

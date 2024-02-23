@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <stdlib.h>
 #include <cmath>
 #include <random>
 #include <vector>
@@ -114,8 +115,12 @@ std::vector<void*> TryToAllocateMemory(int size,
     int allocation_increment = allocation_unit != 0
                                    ? allocation_unit
                                    : (std::rand() % 500 + 100) * 1024;
-    void* allocated_memory =
-        SbMemoryAllocateAligned(alignment, allocation_increment);
+    void* allocated_memory = NULL;
+#if SB_API_VERSION < 16
+    allocated_memory = SbMemoryAllocateAligned(alignment, allocation_increment);
+#else
+    posix_memalign(&allocated_memory, alignment, allocation_increment);
+#endif
     EXPECT_NE(allocated_memory, nullptr);
     if (!allocated_memory) {
       return allocated_ptrs;
@@ -159,6 +164,7 @@ TEST(SbMediaBufferTest, MediaTypes) {
   }
 }
 
+#if SB_API_VERSION < 16
 TEST(SbMediaBufferTest, Alignment) {
   for (auto type : kMediaTypes) {
 #if SB_API_VERSION >= 14
@@ -173,6 +179,7 @@ TEST(SbMediaBufferTest, Alignment) {
         << "Alignment must always be a power of 2";
   }
 }
+#endif  // SB_API_VERSION < 16
 
 TEST(SbMediaBufferTest, AllocationUnit) {
   EXPECT_GE(SbMediaGetBufferAllocationUnit(), 0);
@@ -185,10 +192,10 @@ TEST(SbMediaBufferTest, AllocationUnit) {
   std::vector<void*> allocated_ptrs;
   int initial_buffer_capacity = SbMediaGetInitialBufferCapacity();
   if (initial_buffer_capacity > 0) {
-    allocated_ptrs =
-        TryToAllocateMemory(initial_buffer_capacity, allocation_unit, 1);
+    allocated_ptrs = TryToAllocateMemory(initial_buffer_capacity,
+                                         allocation_unit, sizeof(void*));
   }
-
+#if SB_API_VERSION < 16
   if (!HasNonfatalFailure()) {
     for (SbMediaType type : kMediaTypes) {
 #if SB_API_VERSION >= 14
@@ -198,6 +205,7 @@ TEST(SbMediaBufferTest, AllocationUnit) {
 #else   // SB_API_VERSION >= 14
       int alignment = SbMediaGetBufferAlignment(type);
 #endif  // SB_API_VERSION >= 14
+      SB_LOG(INFO) << "alignment=" << alignment;
       EXPECT_EQ(alignment & (alignment - 1), 0)
           << "Alignment must always be a power of 2";
       if (HasNonfatalFailure()) {
@@ -216,9 +224,10 @@ TEST(SbMediaBufferTest, AllocationUnit) {
       }
     }
   }
+#endif  // SB_API_VERSION < 16
 
   for (void* ptr : allocated_ptrs) {
-    SbMemoryDeallocateAligned(ptr);
+    free(ptr);
   }
 }
 
@@ -227,8 +236,8 @@ TEST(SbMediaBufferTest, AudioBudget) {
 }
 
 TEST(SbMediaBufferTest, GarbageCollectionDurationThreshold) {
-  int kMinGarbageCollectionDurationThreshold = 30 * kSbTimeSecond;
-  int kMaxGarbageCollectionDurationThreshold = 240 * kSbTimeSecond;
+  int kMinGarbageCollectionDurationThreshold = 30'000'000LL;   // 30 seconds
+  int kMaxGarbageCollectionDurationThreshold = 240'000'000LL;  // 240 seconds
   int threshold = SbMediaGetBufferGarbageCollectionDurationThreshold();
   EXPECT_GE(threshold, kMinGarbageCollectionDurationThreshold);
   EXPECT_LE(threshold, kMaxGarbageCollectionDurationThreshold);
@@ -330,6 +339,7 @@ TEST(SbMediaBufferTest, ValidatePerformance) {
   TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaGetBufferStorageType);
   TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaIsBufferUsingMemoryPool);
 
+#if SB_API_VERSION < 16
 #if SB_API_VERSION >= 14
   for (auto type : kMediaTypes) {
     TEST_PERF_FUNCNOARGS_DEFAULT(SbMediaGetBufferAlignment);
@@ -341,6 +351,7 @@ TEST(SbMediaBufferTest, ValidatePerformance) {
     TEST_PERF_FUNCWITHARGS_DEFAULT(SbMediaGetBufferPadding, type);
   }
 #endif  // SB_API_VERSION >= 14
+#endif  // SB_API_VERSION < 16
 
   for (auto resolution : kVideoResolutions) {
     for (auto bits_per_pixel : kBitsPerPixelValues) {

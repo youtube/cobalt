@@ -14,8 +14,6 @@
 
 #include "starboard/raspi/shared/open_max/video_decoder.h"
 
-#include "starboard/time.h"
-
 namespace starboard {
 namespace raspi {
 namespace shared {
@@ -27,7 +25,7 @@ using std::placeholders::_1;
 
 const size_t kResourcePoolSize = 26;
 // TODO: Make this configurable inside SbPlayerCreate().
-const SbTimeMonotonic kUpdateInterval = 5 * kSbTimeMillisecond;
+const int64_t kUpdateIntervalUsec = 5'000;
 
 }  // namespace
 
@@ -38,7 +36,7 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec)
       request_thread_termination_(false) {
   SB_DCHECK(video_codec == kSbMediaVideoCodecH264);
   update_job_ = std::bind(&VideoDecoder::Update, this);
-  update_job_token_ = Schedule(update_job_, kUpdateInterval);
+  update_job_token_ = Schedule(update_job_, kUpdateIntervalUsec);
 }
 
 VideoDecoder::~VideoDecoder() {
@@ -79,7 +77,7 @@ void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   const auto& input_buffer = input_buffers[0];
   queue_.Put(new Event(input_buffer));
   if (!TryToDeliverOneFrame()) {
-    SbThreadSleep(kSbTimeMillisecond);
+    SbThreadSleep(1000);
     // Call the callback with NULL frame to ensure that the host knows that
     // more data is expected.
     decoder_status_cb_(kNeedMoreInput, NULL);
@@ -108,7 +106,7 @@ void VideoDecoder::Update() {
   if (eos_written_) {
     TryToDeliverOneFrame();
   }
-  update_job_token_ = Schedule(update_job_, kUpdateInterval);
+  update_job_token_ = Schedule(update_job_, kUpdateIntervalUsec);
 }
 
 bool VideoDecoder::TryToDeliverOneFrame() {
@@ -187,7 +185,7 @@ void VideoDecoder::RunLoop() {
         current_buffer = NULL;
         offset = 0;
       } else {
-        SbThreadSleep(kSbTimeMillisecond);
+        SbThreadSleep(1000);
         continue;
       }
     }
@@ -196,7 +194,7 @@ void VideoDecoder::RunLoop() {
       eos_written = component.WriteEOS();
     }
 
-    Event* event = queue_.GetTimed(kSbTimeMillisecond);
+    Event* event = queue_.GetTimed(1000);
     if (event == NULL) {
       continue;
     }
@@ -268,8 +266,8 @@ scoped_refptr<VideoDecoder::VideoFrame> VideoDecoder::CreateFrame(
 
     resource->WriteData(buffer->pBuffer);
 
-    SbTime timestamp = ((buffer->nTimeStamp.nHighPart * 0x100000000ull) +
-                        buffer->nTimeStamp.nLowPart);
+    int64_t timestamp = ((buffer->nTimeStamp.nHighPart * 0x100000000ull) +
+                         buffer->nTimeStamp.nLowPart);
 
     resource_pool_->AddRef();
     frame = new DispmanxVideoFrame(

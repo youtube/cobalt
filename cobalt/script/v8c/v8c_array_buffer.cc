@@ -23,13 +23,13 @@ namespace cobalt {
 namespace script {
 
 PreallocatedArrayBufferData::PreallocatedArrayBufferData(size_t byte_length) {
-  data_ = static_cast<uint8_t*>(SbMemoryAllocate(byte_length));
+  data_ = static_cast<uint8_t*>(malloc(byte_length));
   byte_length_ = byte_length;
 }
 
 PreallocatedArrayBufferData::~PreallocatedArrayBufferData() {
   if (data_) {
-    SbMemoryDeallocate(data_);
+    free(data_);
     data_ = nullptr;
     byte_length_ = 0;
   }
@@ -43,10 +43,10 @@ void PreallocatedArrayBufferData::Resize(size_t new_byte_length) {
   // on many platforms, since it may return nullptr while also not deallocating
   // the previously allocated memory.
   if (data_ != nullptr && new_byte_length == 0) {
-    SbMemoryDeallocate(data_);
+    free(data_);
     data_ = nullptr;
   } else {
-    data_ = static_cast<uint8_t*>(SbMemoryReallocate(data_, new_byte_length));
+    data_ = static_cast<uint8_t*>(realloc(data_, new_byte_length));
   }
   byte_length_ = new_byte_length;
 }

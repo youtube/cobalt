@@ -8,7 +8,6 @@
 #include "third_party/zlib/google/compression_utils_portable.h"
 
 #include <stddef.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -33,6 +32,7 @@ uLongf GzipExpectedCompressedSize(uLongf input_size) {
   return kGzipZlibHeaderDifferenceBytes + compressBound(input_size);
 }
 
+// The expected decompressed size is stored in the last
 // 4 bytes of |input| in LE. See https://tools.ietf.org/html/rfc1952#page-5
 uint32_t GetGzipUncompressedSize(const Bytef* compressed_data, size_t length) {
   uint32_t size;
@@ -59,9 +59,6 @@ inline int ZlibStreamWrapperType(WrapperType type) {
   return 0;
 }
 
-// This code is taken almost verbatim from third_party/zlib/compress.c. The only
-// difference is deflateInit2() is called which sets the window bits to be > 16.
-// That causes a gzip header to be emitted rather than a zlib header.
 int GzipCompressHelper(Bytef* dest,
                        uLongf* dest_length,
                        const Bytef* source,
@@ -160,7 +157,7 @@ int GzipUncompressHelper(Bytef* dest,
                          uLongf* dest_length,
                          const Bytef* source,
                          uLong source_length) {
-    return UncompressHelper(GZIP, dest, dest_length, source, source_length);
+  return UncompressHelper(GZIP, dest, dest_length, source, source_length);
 }
 
 // This code is taken almost verbatim from third_party/zlib/uncompr.c. The only

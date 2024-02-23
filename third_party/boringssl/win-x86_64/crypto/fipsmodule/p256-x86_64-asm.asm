@@ -1,7 +1,14 @@
+; This file is generated from a similarly-named Perl script in the BoringSSL
+; source tree. Do not edit by hand.
+
 default	rel
 %define XMMWORD
 %define YMMWORD
 %define ZMMWORD
+
+%ifdef BORINGSSL_PREFIX
+%include "boringssl_prefix_symbols_nasm.inc"
+%endif
 section	.text code align=64
 
 EXTERN	OPENSSL_ia32cap_P
@@ -1289,6 +1296,7 @@ ALIGN	32
 __ecp_nistz256_mul_montq:
 
 
+
 	mov	rbp,rax
 	mul	r9
 	mov	r14,QWORD[(($L$poly+8))]
@@ -1507,6 +1515,7 @@ __ecp_nistz256_mul_montq:
 
 
 
+
 global	ecp_nistz256_sqr_mont
 
 ALIGN	32
@@ -1580,6 +1589,7 @@ $L$SEH_end_ecp_nistz256_sqr_mont:
 
 ALIGN	32
 __ecp_nistz256_sqr_montq:
+
 	mov	r13,rax
 	mul	r14
 	mov	r9,rax
@@ -1739,8 +1749,10 @@ __ecp_nistz256_sqr_montq:
 	DB	0F3h,0C3h		;repret
 
 
+
 ALIGN	32
 __ecp_nistz256_mul_montx:
+
 
 
 	mulx	r9,r8,r9
@@ -1906,8 +1918,10 @@ __ecp_nistz256_mul_montx:
 
 
 
+
 ALIGN	32
 __ecp_nistz256_sqr_montx:
+
 	mulx	r10,r9,r14
 	mulx	r11,rcx,r15
 	xor	eax,eax
@@ -2034,10 +2048,12 @@ DB	0x67,0x67
 
 
 
+
 global	ecp_nistz256_select_w5
 
 ALIGN	32
 ecp_nistz256_select_w5:
+
 	lea	rax,[OPENSSL_ia32cap_P]
 	mov	rax,QWORD[8+rax]
 	test	eax,32
@@ -2117,6 +2133,7 @@ $L$select_loop_sse_w5:
 	movaps	xmm15,XMMWORD[144+rsp]
 	lea	rsp,[168+rsp]
 	DB	0F3h,0C3h		;repret
+
 $L$SEH_end_ecp_nistz256_select_w5:
 
 
@@ -2126,6 +2143,7 @@ global	ecp_nistz256_select_w7
 
 ALIGN	32
 ecp_nistz256_select_w7:
+
 	lea	rax,[OPENSSL_ia32cap_P]
 	mov	rax,QWORD[8+rax]
 	test	eax,32
@@ -2194,6 +2212,7 @@ $L$select_loop_sse_w7:
 	movaps	xmm15,XMMWORD[144+rsp]
 	lea	rsp,[168+rsp]
 	DB	0F3h,0C3h		;repret
+
 $L$SEH_end_ecp_nistz256_select_w7:
 
 
@@ -2201,6 +2220,7 @@ $L$SEH_end_ecp_nistz256_select_w7:
 
 ALIGN	32
 ecp_nistz256_avx2_select_w5:
+
 $L$avx2_select_w5:
 	vzeroupper
 	lea	rax,[((-136))+rsp]
@@ -2280,6 +2300,7 @@ $L$select_loop_avx2_w5:
 	movaps	xmm15,XMMWORD[144+rsp]
 	lea	rsp,[r11]
 	DB	0F3h,0C3h		;repret
+
 $L$SEH_end_ecp_nistz256_avx2_select_w5:
 
 
@@ -2289,6 +2310,7 @@ global	ecp_nistz256_avx2_select_w7
 
 ALIGN	32
 ecp_nistz256_avx2_select_w7:
+
 $L$avx2_select_w7:
 	vzeroupper
 	mov	r11,rsp
@@ -2383,11 +2405,13 @@ $L$select_loop_avx2_w7:
 	movaps	xmm15,XMMWORD[144+rsp]
 	lea	rsp,[r11]
 	DB	0F3h,0C3h		;repret
+
 $L$SEH_end_ecp_nistz256_avx2_select_w7:
 
 
 ALIGN	32
 __ecp_nistz256_add_toq:
+
 	xor	r11,r11
 	add	r12,QWORD[rbx]
 	adc	r13,QWORD[8+rbx]
@@ -2418,8 +2442,10 @@ __ecp_nistz256_add_toq:
 
 
 
+
 ALIGN	32
 __ecp_nistz256_sub_fromq:
+
 	sub	r12,QWORD[rbx]
 	sbb	r13,QWORD[8+rbx]
 	mov	rax,r12
@@ -2449,8 +2475,10 @@ __ecp_nistz256_sub_fromq:
 
 
 
+
 ALIGN	32
 __ecp_nistz256_subq:
+
 	sub	rax,r12
 	sbb	rbp,r13
 	mov	r12,rax
@@ -2476,8 +2504,10 @@ __ecp_nistz256_subq:
 
 
 
+
 ALIGN	32
 __ecp_nistz256_mul_by_2q:
+
 	xor	r11,r11
 	add	r12,r12
 	adc	r13,r13
@@ -2505,6 +2535,7 @@ __ecp_nistz256_mul_by_2q:
 	mov	QWORD[24+rdi],r9
 
 	DB	0F3h,0C3h		;repret
+
 
 global	ecp_nistz256_point_double
 
@@ -2922,14 +2953,21 @@ DB	102,73,15,110,220
 	or	r12,r8
 	or	r12,r9
 
-DB	0x3e
-	jnz	NEAR $L$add_proceedq
 DB	102,73,15,126,208
 DB	102,73,15,126,217
-	test	r8,r8
+	or	r12,r8
+DB	0x3e
 	jnz	NEAR $L$add_proceedq
+
+
+
 	test	r9,r9
 	jz	NEAR $L$add_doubleq
+
+
+
+
+
 
 DB	102,72,15,126,199
 	pxor	xmm0,xmm0
@@ -2946,7 +2984,9 @@ $L$add_doubleq:
 DB	102,72,15,126,206
 DB	102,72,15,126,199
 	add	rsp,416
+
 	jmp	NEAR $L$point_double_shortcutq
+
 
 ALIGN	32
 $L$add_proceedq:
@@ -3516,6 +3556,7 @@ $L$SEH_end_ecp_nistz256_point_add_affine:
 
 ALIGN	32
 __ecp_nistz256_add_tox:
+
 	xor	r11,r11
 	adc	r12,QWORD[rbx]
 	adc	r13,QWORD[8+rbx]
@@ -3547,8 +3588,10 @@ __ecp_nistz256_add_tox:
 
 
 
+
 ALIGN	32
 __ecp_nistz256_sub_fromx:
+
 	xor	r11,r11
 	sbb	r12,QWORD[rbx]
 	sbb	r13,QWORD[8+rbx]
@@ -3580,8 +3623,10 @@ __ecp_nistz256_sub_fromx:
 
 
 
+
 ALIGN	32
 __ecp_nistz256_subx:
+
 	xor	r11,r11
 	sbb	rax,r12
 	sbb	rbp,r13
@@ -3609,8 +3654,10 @@ __ecp_nistz256_subx:
 
 
 
+
 ALIGN	32
 __ecp_nistz256_mul_by_2x:
+
 	xor	r11,r11
 	adc	r12,r12
 	adc	r13,r13
@@ -3639,6 +3686,7 @@ __ecp_nistz256_mul_by_2x:
 	mov	QWORD[24+rdi],r9
 
 	DB	0F3h,0C3h		;repret
+
 
 
 ALIGN	32
@@ -4046,14 +4094,21 @@ DB	102,73,15,110,220
 	or	r12,r8
 	or	r12,r9
 
-DB	0x3e
-	jnz	NEAR $L$add_proceedx
 DB	102,73,15,126,208
 DB	102,73,15,126,217
-	test	r8,r8
+	or	r12,r8
+DB	0x3e
 	jnz	NEAR $L$add_proceedx
+
+
+
 	test	r9,r9
 	jz	NEAR $L$add_doublex
+
+
+
+
+
 
 DB	102,72,15,126,199
 	pxor	xmm0,xmm0
@@ -4070,7 +4125,9 @@ $L$add_doublex:
 DB	102,72,15,126,206
 DB	102,72,15,126,199
 	add	rsp,416
+
 	jmp	NEAR $L$point_double_shortcutx
+
 
 ALIGN	32
 $L$add_proceedx:

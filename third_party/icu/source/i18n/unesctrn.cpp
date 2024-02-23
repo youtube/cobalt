@@ -14,9 +14,6 @@
 
 #if !UCONFIG_NO_TRANSLITERATION
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif  // defined(STARBOARD)
 #include "unicode/uchar.h"
 #include "unicode/utf16.h"
 #include "unesctrn.h"

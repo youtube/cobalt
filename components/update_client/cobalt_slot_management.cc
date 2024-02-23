@@ -299,8 +299,8 @@ bool CobaltQuickUpdate(
   base::Version slot_candidate_version("1.0.1");
   int slot_candidate = -1;
 
-  // Iterate over all writeable slots - index >= 1.
-  for (int i = 1; i < max_slots; i++) {
+  // Iterate over all slots - index >= 0.
+  for (int i = 0; i < max_slots; i++) {
     LOG(INFO) << "CobaltQuickInstallation: iterating slot=" << i;
     // Get the path to new installation.
     std::vector<char> installation_path(kSbFileMaxPath);
@@ -329,13 +329,15 @@ bool CobaltQuickUpdate(
       continue;
     } else if (slot_candidate_version < installed_version &&
                current_version < installed_version &&
-               !DrainFileIsAnotherAppDraining(installation_dir.value().c_str(),
-                                              app_key) &&
-               !CheckBadFileExists(installation_dir.value().c_str(), app_key) &&
-               !SbFileExists(good_app_key_file_path.c_str()) &&
-               starboard::loader_app::AnyGoodAppKeyFile(
-                   installation_dir.value().c_str())) {
-      // Found a slot with newer version than the current version that's not
+               (i == 0 || !DrainFileIsAnotherAppDraining(
+                              installation_dir.value().c_str(), app_key) &&
+                              !CheckBadFileExists(
+                                  installation_dir.value().c_str(), app_key) &&
+                              !SbFileExists(good_app_key_file_path.c_str()) &&
+                              starboard::loader_app::AnyGoodAppKeyFile(
+                                  installation_dir.value().c_str()))) {
+      // Found a slot with newer version than the current version. It's either
+      // the system image slot, or a writeable installation slot that's not
       // draining, and no bad file of current app exists, and a good file
       // exists from a another app, but not from the current app.
       // The final candidate is the newest version of the valid

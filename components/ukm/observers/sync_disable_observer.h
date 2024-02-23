@@ -32,8 +32,7 @@ class SyncDisableObserver
 
   // Starts observing a service for sync disables.
   void ObserveServiceForSyncDisables(syncer::SyncService* sync_service,
-                                     PrefService* pref_service,
-                                     bool is_unified_consent_enabled);
+                                     PrefService* pref_service);
 
   // Returns true iff all sync states alllow UKM to be enabled. This means that
   // for all profiles:

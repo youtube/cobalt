@@ -21,22 +21,21 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace android {
 namespace shared {
 namespace {
 
-const SbTime kMaxAllowedSkew = 5000;
+const int64_t kMaxAllowedSkew = 5'000;  // 5ms
 
 }  // namespace
 
-SbTime VideoFrameTracker::seek_to_time() const {
+int64_t VideoFrameTracker::seek_to_time() const {
   return seek_to_time_;
 }
 
-void VideoFrameTracker::OnInputBuffer(SbTime timestamp) {
+void VideoFrameTracker::OnInputBuffer(int64_t timestamp) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
   if (frames_to_be_rendered_.empty()) {
@@ -72,7 +71,7 @@ void VideoFrameTracker::OnFrameRendered(int64_t frame_timestamp) {
   rendered_frames_on_decoder_thread_.push_back(frame_timestamp);
 }
 
-void VideoFrameTracker::Seek(SbTime seek_to_time) {
+void VideoFrameTracker::Seek(int64_t seek_to_time) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
   // Ensure that all dropped frames before seeking are captured.

@@ -36,7 +36,6 @@ static_library("common") {
     "//starboard/shared/media_session/playback_state.h",
     "allocator.cc",
     "allocator.h",
-    "byte_swap.h",
     "common.cc",
     "condition_variable.cc",
     "condition_variable.h",
@@ -97,6 +96,8 @@ static_library("common") {
     "thread.h",
     "thread_collision_warner.cc",
     "thread_collision_warner.h",
+    "time.cc",
+    "time.h",
   ]
 }
 

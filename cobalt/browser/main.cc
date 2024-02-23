@@ -57,8 +57,7 @@ bool CheckForAndExecuteStartupSwitches() {
 }
 
 void PreloadApplication(int argc, char** argv, const char* link,
-                        const base::Closure& quit_closure,
-                        SbTimeMonotonic timestamp) {
+                        const base::Closure& quit_closure, int64_t timestamp) {
   if (CheckForAndExecuteStartupSwitches()) {
     SbSystemRequestStop(0);
     return;
@@ -71,8 +70,7 @@ void PreloadApplication(int argc, char** argv, const char* link,
 }
 
 void StartApplication(int argc, char** argv, const char* link,
-                      const base::Closure& quit_closure,
-                      SbTimeMonotonic timestamp) {
+                      const base::Closure& quit_closure, int64_t timestamp) {
   if (CheckForAndExecuteStartupSwitches()) {
     SbSystemRequestStop(0);
     return;

@@ -16,10 +16,7 @@
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
 #endif
-
-#include <stdlib.h>
 
 #include "src/dsp/lossless.h"
 #include "src/dsp/lossless_common.h"

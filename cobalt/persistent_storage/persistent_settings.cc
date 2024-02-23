@@ -132,7 +132,9 @@ double PersistentSettings::GetPersistentSettingAsDouble(
   base::AutoLock auto_lock(pref_store_lock_);
   auto persistent_settings = pref_store_->GetValues();
   const base::Value* result = persistent_settings->FindKey(key);
-  if (result && result->is_double()) return result->GetDouble();
+  if (result && result->is_double()) {
+    return result->GetDouble();
+  }
   return default_setting;
 }
 

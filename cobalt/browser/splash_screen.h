@@ -57,22 +57,21 @@ class SplashScreen : public LifecycleObserver {
   }
 
   // LifecycleObserver implementation.
-  // LifecycleObserver implementation.
-  void Blur(SbTimeMonotonic timestamp) override { web_module_->Blur(0); }
+  void Blur(int64_t timestamp) override { web_module_->Blur(0); }
   void Conceal(render_tree::ResourceProvider* resource_provider,
-               SbTimeMonotonic timestamp) override {
+               int64_t timestamp) override {
     web_module_->Conceal(resource_provider, 0);
   }
-  void Freeze(SbTimeMonotonic timestamp) override { web_module_->Freeze(0); }
+  void Freeze(int64_t timestamp) override { web_module_->Freeze(0); }
   void Unfreeze(render_tree::ResourceProvider* resource_provider,
-                SbTimeMonotonic timestamp) override {
+                int64_t timestamp) override {
     web_module_->Unfreeze(resource_provider, 0);
   }
   void Reveal(render_tree::ResourceProvider* resource_provider,
-              SbTimeMonotonic timestamp) override {
+              int64_t timestamp) override {
     web_module_->Reveal(resource_provider, 0);
   }
-  void Focus(SbTimeMonotonic timestamp) override { web_module_->Focus(0); }
+  void Focus(int64_t timestamp) override { web_module_->Focus(0); }
 
   void ReduceMemory() { web_module_->ReduceMemory(); }
 

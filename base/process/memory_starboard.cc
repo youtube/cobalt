@@ -14,6 +14,8 @@
 
 #include "base/process/memory.h"
 
+#include <cstdlib>
+
 #include "starboard/memory.h"
 
 namespace base {
@@ -27,7 +29,7 @@ void EnableTerminationOnHeapCorruption() {
 }
 
 bool UncheckedMalloc(size_t size, void** result) {
-  *result = SbMemoryAllocate(size);
+  *result = malloc(size);
   return *result != nullptr;
 }
 

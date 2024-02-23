@@ -22,8 +22,8 @@ static_library("crypto_impl") {
 
   deps = [
     "//base",
-    "//starboard",
-    "//third_party/boringssl:crypto",
+    "//starboard:starboard_group",
+    "//third_party/boringssl",
   ]
 }
 

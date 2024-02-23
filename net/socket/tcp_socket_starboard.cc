@@ -163,8 +163,8 @@ int TCPSocketStarboard::SetDefaultOptionsForServer() {
 void TCPSocketStarboard::SetDefaultOptionsForClient() {
   SbSocketSetTcpNoDelay(socket_, true);
 
-  const SbTime kTCPKeepAliveDuration = 45 * kSbTimeSecond;
-  SbSocketSetTcpKeepAlive(socket_, true, kTCPKeepAliveDuration);
+  const int64_t kTCPKeepAliveDurationUsec = 45 * base::Time::kMicrosecondsPerSecond;
+  SbSocketSetTcpKeepAlive(socket_, true, kTCPKeepAliveDurationUsec);
 
   SbSocketSetTcpWindowScaling(socket_, true);
 

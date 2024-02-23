@@ -83,7 +83,6 @@
 #include "starboard/extension/crash_handler.h"
 #include "starboard/extension/installation_manager.h"
 #include "starboard/system.h"
-#include "starboard/time.h"
 #include "url/gurl.h"
 
 #if SB_IS(EVERGREEN)
@@ -458,7 +457,12 @@ std::string GetMinLogLevelString() {
 }
 
 int StringToLogLevel(const std::string& log_level) {
-  if (log_level == "info") {
+  if (log_level == "verbose") {
+    // The lower the verbose level is, the more messages are logged.  Set it to
+    // a lower enough value to ensure that all known verbose messages are
+    // logged.
+    return logging::LOG_VERBOSE - 15;
+  } else if (log_level == "info") {
     return logging::LOG_INFO;
   } else if (log_level == "warning") {
     return logging::LOG_WARNING;
@@ -610,9 +614,8 @@ void AddCrashLogApplicationState(base::ApplicationState state) {
     return;
   }
 
-  // Crash handler is not supported, fallback to crash log dictionary.
-  h5vcc::CrashLogDictionary::GetInstance()->SetString("application_state",
-                                                      application_state);
+  LOG(ERROR) << "Crash handler extension not implemented, at least not at the "
+             << "required version, so not sending application state.";
 }
 
 }  // namespace
@@ -622,7 +625,7 @@ ssize_t Application::available_memory_ = 0;
 int64 Application::lifetime_in_ms_ = 0;
 
 Application::Application(const base::Closure& quit_closure, bool should_preload,
-                         SbTimeMonotonic timestamp)
+                         int64_t timestamp)
     : message_loop_(base::MessageLoop::current()), quit_closure_(quit_closure) {
   DCHECK(!quit_closure_.is_null());
   if (should_preload) {
@@ -696,9 +699,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
     watchdog->Register(kWatchdogName, kWatchdogName,
                        base::kApplicationStateStarted, kWatchdogTimeInterval,
                        kWatchdogTimeWait, watchdog::NONE);
-
-  cobalt::cache::Cache::GetInstance()->set_persistent_settings(
-      persistent_settings_.get());
 
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   base::Optional<cssom::ViewportSize> requested_viewport_size =
@@ -1022,6 +1022,8 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
         base::TimeDelta::FromSeconds(duration_in_seconds));
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
+
+  AddCrashLogApplicationState(base::kApplicationStateStarted);
 }
 
 Application::~Application() {
@@ -1063,7 +1065,7 @@ Application::~Application() {
   network_module_.reset();
 }
 
-void Application::Start(SbTimeMonotonic timestamp) {
+void Application::Start(int64_t timestamp) {
   if (base::MessageLoop::current() != message_loop_) {
     message_loop_->task_runner()->PostTask(
         FROM_HERE,
@@ -1179,7 +1181,7 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
 }
 
 void Application::OnApplicationEvent(SbEventType event_type,
-                                     SbTimeMonotonic timestamp) {
+                                     int64_t timestamp) {
   TRACE_EVENT0("cobalt::browser", "Application::OnApplicationEvent()");
   DCHECK_CALLED_ON_VALID_THREAD(application_event_thread_checker_);
 
@@ -1459,8 +1461,7 @@ void Application::OnDeepLinkConsumedCallback(const std::string& link) {
   }
 }
 
-void Application::DispatchDeepLink(const char* link,
-                                   SbTimeMonotonic timestamp) {
+void Application::DispatchDeepLink(const char* link, int64_t timestamp) {
   if (!link || *link == 0) {
     return;
   }
@@ -1488,7 +1489,7 @@ void Application::DispatchDeepLink(const char* link,
 
 void Application::DispatchDeepLinkIfNotConsumed() {
   std::string deep_link;
-  SbTimeMonotonic timestamp;
+  int64_t timestamp;
   // This block exists to ensure that the lock is held while accessing
   // unconsumed_deep_link_.
   {
@@ -1521,6 +1522,7 @@ void Application::InitMetrics() {
       metrics::kMetricEnabledSettingName, false);
   auto metric_event_interval = persistent_settings_->GetPersistentSettingAsInt(
       metrics::kMetricEventIntervalSettingName, 300);
+  metrics_services_manager_->SetEventDispatcher(&event_dispatcher_);
   metrics_services_manager_->SetUploadInterval(metric_event_interval);
   metrics_services_manager_->ToggleMetricsEnabled(is_metrics_enabled);
   // Metric recording state initialization _must_ happen before we bootstrap

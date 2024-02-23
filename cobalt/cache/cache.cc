@@ -26,20 +26,20 @@
 #include "base/values.h"
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/network/disk_cache/cobalt_backend_impl.h"
-#include "cobalt/network/disk_cache/resource_type.h"
-#include "cobalt/persistent_storage/persistent_settings.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/extension/javascript_cache.h"
 #include "starboard/system.h"
 
+namespace cobalt {
+namespace cache {
 namespace {
 
 base::Optional<uint32_t> GetMinSizeToCacheInBytes(
-    cobalt::network::disk_cache::ResourceType resource_type) {
+    network::disk_cache::ResourceType resource_type) {
   switch (resource_type) {
-    case cobalt::network::disk_cache::ResourceType::kCompiledScript:
+    case network::disk_cache::ResourceType::kCompiledScript:
       return 4096u;
-    case cobalt::network::disk_cache::ResourceType::kServiceWorkerScript:
+    case network::disk_cache::ResourceType::kServiceWorkerScript:
       return 1u;
     default:
       return base::nullopt;
@@ -47,13 +47,13 @@ base::Optional<uint32_t> GetMinSizeToCacheInBytes(
 }
 
 base::Optional<std::string> GetSubdirectory(
-    cobalt::network::disk_cache::ResourceType resource_type) {
+    network::disk_cache::ResourceType resource_type) {
   switch (resource_type) {
-    case cobalt::network::disk_cache::ResourceType::kCacheApi:
+    case network::disk_cache::ResourceType::kCacheApi:
       return "cache_api";
-    case cobalt::network::disk_cache::ResourceType::kCompiledScript:
+    case network::disk_cache::ResourceType::kCompiledScript:
       return "compiled_js";
-    case cobalt::network::disk_cache::ResourceType::kServiceWorkerScript:
+    case network::disk_cache::ResourceType::kServiceWorkerScript:
       return "service_worker_js";
     default:
       return base::nullopt;
@@ -61,7 +61,7 @@ base::Optional<std::string> GetSubdirectory(
 }
 
 base::Optional<base::FilePath> GetCacheDirectory(
-    cobalt::network::disk_cache::ResourceType resource_type) {
+    network::disk_cache::ResourceType resource_type) {
   auto subdirectory = GetSubdirectory(resource_type);
   if (!subdirectory) {
     return base::nullopt;
@@ -89,15 +89,12 @@ const CobaltExtensionJavaScriptCacheApi* GetJavaScriptCacheExtension() {
 
 }  // namespace
 
-namespace cobalt {
-namespace cache {
-
 // static
 Cache* Cache::GetInstance() {
   return base::Singleton<Cache, base::LeakySingletonTraits<Cache>>::get();
 }
 
-bool Cache::Delete(cobalt::network::disk_cache::ResourceType resource_type,
+bool Cache::Delete(network::disk_cache::ResourceType resource_type,
                    uint32_t key) {
   auto* memory_capped_directory = GetMemoryCappedDirectory(resource_type);
   if (memory_capped_directory) {
@@ -106,7 +103,7 @@ bool Cache::Delete(cobalt::network::disk_cache::ResourceType resource_type,
   return false;
 }
 
-void Cache::Delete(cobalt::network::disk_cache::ResourceType resource_type) {
+void Cache::Delete(network::disk_cache::ResourceType resource_type) {
   auto* memory_capped_directory = GetMemoryCappedDirectory(resource_type);
   if (memory_capped_directory) {
     memory_capped_directory->DeleteAll();
@@ -114,13 +111,13 @@ void Cache::Delete(cobalt::network::disk_cache::ResourceType resource_type) {
 }
 
 void Cache::DeleteAll() {
-  Delete(cobalt::network::disk_cache::ResourceType::kServiceWorkerScript);
-  Delete(cobalt::network::disk_cache::ResourceType::kCompiledScript);
-  Delete(cobalt::network::disk_cache::ResourceType::kCacheApi);
+  Delete(network::disk_cache::ResourceType::kServiceWorkerScript);
+  Delete(network::disk_cache::ResourceType::kCompiledScript);
+  Delete(network::disk_cache::ResourceType::kCacheApi);
 }
 
 std::vector<uint32_t> Cache::KeysWithMetadata(
-    cobalt::network::disk_cache::ResourceType resource_type) {
+    network::disk_cache::ResourceType resource_type) {
   auto* memory_capped_directory = GetMemoryCappedDirectory(resource_type);
   if (memory_capped_directory) {
     return memory_capped_directory->KeysWithMetadata();
@@ -129,7 +126,7 @@ std::vector<uint32_t> Cache::KeysWithMetadata(
 }
 
 base::Optional<base::Value> Cache::Metadata(
-    cobalt::network::disk_cache::ResourceType resource_type, uint32_t key) {
+    network::disk_cache::ResourceType resource_type, uint32_t key) {
   auto* memory_capped_directory = GetMemoryCappedDirectory(resource_type);
   if (memory_capped_directory) {
     return memory_capped_directory->Metadata(key);
@@ -138,7 +135,7 @@ base::Optional<base::Value> Cache::Metadata(
 }
 
 std::unique_ptr<std::vector<uint8_t>> Cache::Retrieve(
-    cobalt::network::disk_cache::ResourceType resource_type, uint32_t key,
+    network::disk_cache::ResourceType resource_type, uint32_t key,
     std::function<std::pair<std::unique_ptr<std::vector<uint8_t>>,
                             base::Optional<base::Value>>()>
         generate) {
@@ -150,8 +147,7 @@ std::unique_ptr<std::vector<uint8_t>> Cache::Retrieve(
     delete e;
   }
 
-  if (resource_type ==
-      cobalt::network::disk_cache::ResourceType::kCompiledScript) {
+  if (resource_type == network::disk_cache::ResourceType::kCompiledScript) {
     const CobaltExtensionJavaScriptCacheApi* javascript_cache_extension =
         GetJavaScriptCacheExtension();
     if (javascript_cache_extension) {
@@ -188,7 +184,7 @@ std::unique_ptr<std::vector<uint8_t>> Cache::Retrieve(
 }
 
 std::unique_ptr<std::vector<uint8_t>> Cache::Retrieve(
-    cobalt::network::disk_cache::ResourceType resource_type, uint32_t key) {
+    network::disk_cache::ResourceType resource_type, uint32_t key) {
   base::ScopedClosureRunner notifier(base::BindOnce(
       &Cache::Notify, base::Unretained(this), resource_type, key));
   auto* e = GetWaitableEvent(resource_type, key);
@@ -204,38 +200,13 @@ std::unique_ptr<std::vector<uint8_t>> Cache::Retrieve(
   return nullptr;
 }
 
-void Cache::set_enabled(bool enabled) { enabled_ = enabled; }
-
-void Cache::set_persistent_settings(
-    persistent_storage::PersistentSettings* persistent_settings) {
-  persistent_settings_ = persistent_settings;
-
-  // Guaranteed to be called before any calls to Retrieve()
-  // since set_persistent_settings() is called from the Application()
-  // constructor before the NetworkModule is initialized.
-  set_enabled(persistent_settings_->GetPersistentSettingAsBool(
-      cobalt::network::disk_cache::kCacheEnabledPersistentSettingsKey, true));
-}
-
 MemoryCappedDirectory* Cache::GetMemoryCappedDirectory(
-    cobalt::network::disk_cache::ResourceType resource_type) {
+    network::disk_cache::ResourceType resource_type) {
   base::AutoLock auto_lock(lock_);
   auto it = memory_capped_directories_.find(resource_type);
   if (it != memory_capped_directories_.end()) {
     return it->second.get();
   }
-
-#ifndef USE_HACKY_COBALT_CHANGES
-  // Read in size from persistent storage.
-  auto metadata = cobalt::network::disk_cache::kTypeMetadata[resource_type];
-  if (persistent_settings_) {
-    uint32_t bucket_size = static_cast<uint32_t>(
-        persistent_settings_->GetPersistentSettingAsDouble(
-            metadata.directory, metadata.max_size_bytes));
-    disk_cache::kTypeMetadata[resource_type] = {metadata.directory,
-                                                bucket_size};
-  }
-#endif
 
   auto cache_directory = GetCacheDirectory(resource_type);
   auto max_size = GetMaxCacheStorageInBytes(resource_type);
@@ -250,25 +221,14 @@ MemoryCappedDirectory* Cache::GetMemoryCappedDirectory(
   return memory_capped_directories_[resource_type].get();
 }
 
-void Cache::Resize(cobalt::network::disk_cache::ResourceType resource_type,
+void Cache::Resize(network::disk_cache::ResourceType resource_type,
                    uint32_t bytes) {
-  if (resource_type != cobalt::network::disk_cache::ResourceType::kCacheApi &&
+  if (resource_type != network::disk_cache::ResourceType::kCacheApi &&
+      resource_type != network::disk_cache::ResourceType::kCompiledScript &&
       resource_type !=
-          cobalt::network::disk_cache::ResourceType::kCompiledScript &&
-      resource_type !=
-          cobalt::network::disk_cache::ResourceType::kServiceWorkerScript)
+          network::disk_cache::ResourceType::kServiceWorkerScript) {
     return;
-#ifndef USE_HACKY_COBALT_CHANGES
-  if (bytes == disk_cache::?kTypeMetadata[resource_type].max_size_bytes)
-    return;
-
-  if (persistent_settings_) {
-    persistent_settings_->SetPersistentSetting(
-        disk_cache::kTypeMetadata[resource_type].directory,
-        std::make_unique<base::Value>(static_cast<double>(bytes)));
   }
-  disk_cache::kTypeMetadata[resource_type].max_size_bytes = bytes;
-#endif
   auto* memory_capped_directory = GetMemoryCappedDirectory(resource_type);
   if (memory_capped_directory) {
     memory_capped_directory->Resize(bytes);
@@ -279,19 +239,19 @@ void Cache::Resize(cobalt::network::disk_cache::ResourceType resource_type,
 }
 
 base::Optional<uint32_t> Cache::GetMaxCacheStorageInBytes(
-    cobalt::network::disk_cache::ResourceType resource_type) {
+    network::disk_cache::ResourceType resource_type) {
   switch (resource_type) {
-    case cobalt::network::disk_cache::ResourceType::kCacheApi:
-    case cobalt::network::disk_cache::ResourceType::kCompiledScript:
-    case cobalt::network::disk_cache::ResourceType::kServiceWorkerScript:
-      return 0;
+    case network::disk_cache::ResourceType::kCacheApi:
+    case network::disk_cache::ResourceType::kCompiledScript:
+    case network::disk_cache::ResourceType::kServiceWorkerScript:
+      return network::disk_cache::settings::GetQuota(resource_type);
     default:
       return base::nullopt;
   }
 }
 
 base::WaitableEvent* Cache::GetWaitableEvent(
-    cobalt::network::disk_cache::ResourceType resource_type, uint32_t key) {
+    network::disk_cache::ResourceType resource_type, uint32_t key) {
   base::AutoLock auto_lock(lock_);
   if (pending_.find(resource_type) == pending_.end()) {
     pending_[resource_type] =
@@ -306,7 +266,7 @@ base::WaitableEvent* Cache::GetWaitableEvent(
   return e;
 }
 
-void Cache::Notify(cobalt::network::disk_cache::ResourceType resource_type,
+void Cache::Notify(network::disk_cache::ResourceType resource_type,
                    uint32_t key) {
   base::AutoLock auto_lock(lock_);
   if (pending_.find(resource_type) == pending_.end()) {
@@ -322,8 +282,8 @@ void Cache::Notify(cobalt::network::disk_cache::ResourceType resource_type,
   pending_[resource_type].erase(key);
 }
 
-void Cache::Store(cobalt::network::disk_cache::ResourceType resource_type,
-                  uint32_t key, const std::vector<uint8_t>& data,
+void Cache::Store(network::disk_cache::ResourceType resource_type, uint32_t key,
+                  const std::vector<uint8_t>& data,
                   const base::Optional<base::Value>& metadata) {
   if (!CanCache(resource_type, data.size())) {
     return;
@@ -334,7 +294,7 @@ void Cache::Store(cobalt::network::disk_cache::ResourceType resource_type,
   }
 }
 
-bool Cache::CanCache(cobalt::network::disk_cache::ResourceType resource_type,
+bool Cache::CanCache(network::disk_cache::ResourceType resource_type,
                      uint32_t data_size) {
   bool size_okay = data_size > 0u &&
                    data_size >= GetMinSizeToCacheInBytes(resource_type) &&
@@ -343,16 +303,15 @@ bool Cache::CanCache(cobalt::network::disk_cache::ResourceType resource_type,
     return false;
   }
   if (resource_type ==
-          cobalt::network::disk_cache::ResourceType::kServiceWorkerScript ||
-      resource_type == cobalt::network::disk_cache::ResourceType::kCacheApi) {
+          network::disk_cache::ResourceType::kServiceWorkerScript ||
+      resource_type == network::disk_cache::ResourceType::kCacheApi) {
     return true;
   }
-  if (!enabled_) {
+  if (!network::disk_cache::settings::GetCacheEnabled()) {
     return false;
   }
-  if (resource_type ==
-      cobalt::network::disk_cache::ResourceType::kCompiledScript) {
-    return cobalt::configuration::Configuration::GetInstance()
+  if (resource_type == network::disk_cache::ResourceType::kCompiledScript) {
+    return configuration::Configuration::GetInstance()
         ->CobaltCanStoreCompiledJavascript();
   }
   return true;

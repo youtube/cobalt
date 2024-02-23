@@ -16,6 +16,7 @@
 #include "cobalt/dom/performance_lifecycle_timing.h"
 
 #include "cobalt/dom/performance.h"
+#include "starboard/common/time.h"
 
 namespace cobalt {
 namespace dom {
@@ -40,10 +41,14 @@ std::string TranslateApplicationStateToString(base::ApplicationState state) {
   return "INVALID_APPLICATION_STATE";
 }
 
-DOMHighResTimeStamp ConvertSbTimeMonotonicToDOMHiResTimeStamp(
-    const DOMHighResTimeStamp time_origin, SbTimeMonotonic monotonic_time) {
-  SbTimeMonotonic time_delta = SbTimeGetNow() - SbTimeGetMonotonicNow();
-  base::Time base_time = base::Time::FromSbTime(time_delta + monotonic_time);
+DOMHighResTimeStamp ConvertMonotonicTimestampToDOMHiResTimeStamp(
+    const DOMHighResTimeStamp time_origin, int64_t monotonic_time) {
+  // Current delta from Windows epoch.
+  int64_t time_delta =
+      starboard::PosixTimeToWindowsTime(starboard::CurrentPosixTime()) -
+      starboard::CurrentMonotonicTime();
+  base::Time base_time = base::Time::FromDeltaSinceWindowsEpoch(
+      base::TimeDelta::FromMicroseconds(time_delta + monotonic_time));
   return ClampTimeStampMinimumResolution(
       base_time.ToJsTime() - time_origin,
       Performance::kPerformanceTimerMinResolutionInMicroseconds);
@@ -101,7 +106,7 @@ std::string PerformanceLifecycleTiming::last_state() const {
 }
 
 void PerformanceLifecycleTiming::SetApplicationState(
-    base::ApplicationState state, SbTimeMonotonic timestamp) {
+    base::ApplicationState state, int64_t timestamp) {
   switch (state) {
     case base::kApplicationStateBlurred:
       if (GetCurrentState() == base::kApplicationStateStarted ||
@@ -155,7 +160,7 @@ void PerformanceLifecycleTiming::SetApplicationState(
 }
 
 void PerformanceLifecycleTiming::SetApplicationStartOrPreloadTimestamp(
-    bool is_preload, SbTimeMonotonic timestamp) {
+    bool is_preload, int64_t timestamp) {
   if (is_preload) {
     lifecycle_timing_info_.app_preload = timestamp;
     SetLifecycleTimingInfoState(base::kApplicationStateConcealed);
@@ -165,8 +170,7 @@ void PerformanceLifecycleTiming::SetApplicationStartOrPreloadTimestamp(
   }
 }
 
-void PerformanceLifecycleTiming::SetDeepLinkTimestamp(
-    SbTimeMonotonic timestamp) {
+void PerformanceLifecycleTiming::SetDeepLinkTimestamp(int64_t timestamp) {
   lifecycle_timing_info_.app_deeplink = timestamp;
 }
 
@@ -181,9 +185,10 @@ void PerformanceLifecycleTiming::SetLifecycleTimingInfoState(
 }
 
 DOMHighResTimeStamp PerformanceLifecycleTiming::ReportDOMHighResTimeStamp(
-    SbTimeMonotonic timestamp) const {
+    int64_t timestamp) const {
   if (timestamp != 0) {
-    return ConvertSbTimeMonotonicToDOMHiResTimeStamp(time_origin_, timestamp);
+    return ConvertMonotonicTimestampToDOMHiResTimeStamp(time_origin_,
+                                                        timestamp);
   }
   return PerformanceEntry::start_time();
 }

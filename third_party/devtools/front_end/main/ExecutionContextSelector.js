@@ -5,7 +5,7 @@
  * @implements {SDK.SDKModelObserver<!SDK.RuntimeModel>}
  * @unrestricted
  */
-export default class ExecutionContextSelector {
+Main.ExecutionContextSelector = class {
   /**
    * @param {!SDK.TargetManager} targetManager
    * @param {!UI.Context} context
@@ -218,15 +218,4 @@ export default class ExecutionContextSelector {
     this._context.setFlavor(SDK.ExecutionContext, newContext);
     this._ignoreContextChanged = false;
   }
-}
-
-/* Legacy exported object */
-self.Main = self.Main || {};
-
-/* Legacy exported object */
-Main = Main || {};
-
-/**
- * @constructor
- */
-Main.ExecutionContextSelector = ExecutionContextSelector;
+};

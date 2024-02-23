@@ -46,7 +46,7 @@ scoped_ptr<VideoDmpReader> s_video_dmp_reader;
 scoped_ptr<PlayerComponents> s_player_components;
 int s_audio_sample_index;
 scoped_ptr<JobThread> s_job_thread;
-SbTime s_duration;
+int64_t s_duration;
 
 static void DeallocateSampleFunc(SbPlayer player,
                                  void* context,
@@ -60,7 +60,7 @@ starboard::scoped_refptr<InputBuffer> GetAudioInputBuffer(size_t index) {
 
 void OnTimer() {
   if (!s_player_components->GetAudioRenderer()->CanAcceptMoreData()) {
-    s_job_thread->job_queue()->Schedule(std::bind(OnTimer), kSbTimeMillisecond);
+    s_job_thread->job_queue()->Schedule(std::bind(OnTimer), 1000);
     return;
   }
 

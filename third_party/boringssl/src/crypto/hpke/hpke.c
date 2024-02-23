@@ -22,7 +22,7 @@
 #include <openssl/curve25519.h>
 #include <openssl/digest.h>
 #include <openssl/err.h>
-#include <openssl/evp.h>
+#include <openssl/evp_errors.h>
 #include <openssl/hkdf.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
@@ -250,6 +250,7 @@ void EVP_HPKE_KEY_cleanup(EVP_HPKE_KEY *key) {
 EVP_HPKE_KEY *EVP_HPKE_KEY_new(void) {
   EVP_HPKE_KEY *key = OPENSSL_malloc(sizeof(EVP_HPKE_KEY));
   if (key == NULL) {
+    OPENSSL_PUT_ERROR(EVP, ERR_R_MALLOC_FAILURE);
     return NULL;
   }
   EVP_HPKE_KEY_zero(key);
@@ -365,11 +366,13 @@ const EVP_AEAD *EVP_HPKE_AEAD_aead(const EVP_HPKE_AEAD *aead) {
 static int hpke_build_suite_id(const EVP_HPKE_CTX *ctx,
                                uint8_t out[HPKE_SUITE_ID_LEN]) {
   CBB cbb;
-  CBB_init_fixed(&cbb, out, HPKE_SUITE_ID_LEN);
-  return add_label_string(&cbb, "HPKE") &&   //
-         CBB_add_u16(&cbb, ctx->kem->id) &&  //
-         CBB_add_u16(&cbb, ctx->kdf->id) &&  //
-         CBB_add_u16(&cbb, ctx->aead->id);
+  int ret = CBB_init_fixed(&cbb, out, HPKE_SUITE_ID_LEN) &&
+            add_label_string(&cbb, "HPKE") &&
+            CBB_add_u16(&cbb, EVP_HPKE_DHKEM_X25519_HKDF_SHA256) &&
+            CBB_add_u16(&cbb, ctx->kdf->id) &&
+            CBB_add_u16(&cbb, ctx->aead->id);
+  CBB_cleanup(&cbb);
+  return ret;
 }
 
 #define HPKE_MODE_BASE 0
@@ -406,8 +409,8 @@ static int hpke_key_schedule(EVP_HPKE_CTX *ctx, const uint8_t *shared_secret,
   uint8_t context[sizeof(uint8_t) + 2 * EVP_MAX_MD_SIZE];
   size_t context_len;
   CBB context_cbb;
-  CBB_init_fixed(&context_cbb, context, sizeof(context));
-  if (!CBB_add_u8(&context_cbb, HPKE_MODE_BASE) ||
+  if (!CBB_init_fixed(&context_cbb, context, sizeof(context)) ||
+      !CBB_add_u8(&context_cbb, HPKE_MODE_BASE) ||
       !CBB_add_bytes(&context_cbb, psk_id_hash, psk_id_hash_len) ||
       !CBB_add_bytes(&context_cbb, info_hash, info_hash_len) ||
       !CBB_finish(&context_cbb, NULL, &context_len)) {
@@ -464,6 +467,7 @@ void EVP_HPKE_CTX_cleanup(EVP_HPKE_CTX *ctx) {
 EVP_HPKE_CTX *EVP_HPKE_CTX_new(void) {
   EVP_HPKE_CTX *ctx = OPENSSL_malloc(sizeof(EVP_HPKE_CTX));
   if (ctx == NULL) {
+    OPENSSL_PUT_ERROR(EVP, ERR_R_MALLOC_FAILURE);
     return NULL;
   }
   EVP_HPKE_CTX_zero(ctx);
@@ -499,7 +503,6 @@ int EVP_HPKE_CTX_setup_sender_with_seed_for_testing(
     size_t seed_len) {
   EVP_HPKE_CTX_zero(ctx);
   ctx->is_sender = 1;
-  ctx->kem = kem;
   ctx->kdf = kdf;
   ctx->aead = aead;
   uint8_t shared_secret[MAX_SHARED_SECRET_LEN];
@@ -522,13 +525,12 @@ int EVP_HPKE_CTX_setup_recipient(EVP_HPKE_CTX *ctx, const EVP_HPKE_KEY *key,
                                  size_t info_len) {
   EVP_HPKE_CTX_zero(ctx);
   ctx->is_sender = 0;
-  ctx->kem = key->kem;
   ctx->kdf = kdf;
   ctx->aead = aead;
   uint8_t shared_secret[MAX_SHARED_SECRET_LEN];
   size_t shared_secret_len;
   if (!key->kem->decap(key, shared_secret, &shared_secret_len, enc, enc_len) ||
-      !hpke_key_schedule(ctx, shared_secret, shared_secret_len, info,
+      !hpke_key_schedule(ctx, shared_secret, sizeof(shared_secret), info,
                          info_len)) {
     EVP_HPKE_CTX_cleanup(ctx);
     return 0;

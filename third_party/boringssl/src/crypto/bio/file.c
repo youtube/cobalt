@@ -87,7 +87,6 @@
 #endif  // !defined(OPENSSL_SYS_STARBOARD)
 #include <string.h>
 
-#include <openssl/buf.h>
 #include <openssl/err.h>
 #include <openssl/mem.h>
 
@@ -224,25 +223,26 @@ BIO *BIO_new_file(const char *filename, const char *mode) {
 #endif  // NATIVE_TARGET_BUILD
   }
 
-  if ((ret = BIO_new(BIO_s_file())) == NULL) {
+  ret = BIO_new_fp(file, BIO_CLOSE);
+  if (ret == NULL) {
     fclose(file);
-    return (NULL);
+    return NULL;
   }
 
   BIO_clear_flags(ret, BIO_FLAGS_UPLINK); /* we did fopen -> we disengage
                                            * UPLINK */
 
-  BIO_set_fp(ret, file, BIO_CLOSE);
 #endif  // defined(OPENSSL_SYS_STARBOARD)
   return ret;
 }
 
 #if !defined(OPENSSL_NO_FP_API)
 BIO *BIO_new_fp(FILE *stream, int close_flag) {
-  BIO *ret;
+  BIO *ret = BIO_new(BIO_s_file());
 
-  if ((ret = BIO_new(BIO_s_file())) == NULL)
-    return (NULL);
+  if (ret == NULL) {
+    return NULL;
+  }
 
   BIO_set_flags(ret, BIO_FLAGS_UPLINK); /* redundant, left for
                                          * documentation puposes */
@@ -288,7 +288,7 @@ static int MS_CALLBACK file_free(BIO *a) {
     a->init = 0;
   }
 
-  return (1);
+  return 1;
 }
 
 static int MS_CALLBACK file_read(BIO *b, char *out, int outl) {
@@ -327,7 +327,8 @@ static int MS_CALLBACK file_read(BIO *b, char *out, int outl) {
 #endif  // defined(OPENSSL_SYS_STARBOARD)
   }
 
-  return (ret);
+  // fread reads at most |outl| bytes, so |ret| fits in an int.
+  return (int)ret;
 }
 
 static int MS_CALLBACK file_write(BIO *b, const char *in, int inl) {
@@ -477,16 +478,16 @@ static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr) {
       b->shutdown = (int)num & BIO_CLOSE;
       if (num & BIO_FP_APPEND) {
         if (num & BIO_FP_READ) {
-          BUF_strlcpy(p, "a+", sizeof(p));
+          OPENSSL_strlcpy(p, "a+", sizeof(p));
         } else {
-          BUF_strlcpy(p, "a", sizeof(p));
+          OPENSSL_strlcpy(p, "a", sizeof(p));
         }
       } else if ((num & BIO_FP_READ) && (num & BIO_FP_WRITE)) {
-        BUF_strlcpy(p, "r+", sizeof(p));
+        OPENSSL_strlcpy(p, "r+", sizeof(p));
       } else if (num & BIO_FP_WRITE) {
-        BUF_strlcpy(p, "w", sizeof(p));
+        OPENSSL_strlcpy(p, "w", sizeof(p));
       } else if (num & BIO_FP_READ) {
-        BUF_strlcpy(p, "r", sizeof(p));
+        OPENSSL_strlcpy(p, "r", sizeof(p));
       } else {
         OPENSSL_PUT_ERROR(BIO, BIO_R_BAD_FOPEN_MODE);
         ret = 0;
@@ -550,7 +551,7 @@ static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr) {
         *fpp = (SbFile)b->ptr;
       }
 #else   // defined(OPENSSL_SYS_STARBOARD)
-      /* the ptr parameter is actually a FILE ** in this case. */
+      // the ptr parameter is actually a FILE ** in this case.
       if (ptr != NULL) {
         fpp = (FILE **)ptr;
         *fpp = (FILE *)b->ptr;
@@ -679,4 +680,11 @@ int BIO_rw_filename(BIO *bio, const char *filename) {
   return BIO_ctrl(bio, BIO_C_SET_FILENAME,
                   BIO_CLOSE | BIO_FP_READ | BIO_FP_WRITE, (char *)filename);
 }
+
+long BIO_tell(BIO *bio) { return BIO_ctrl(bio, BIO_C_FILE_TELL, 0, NULL); }
+
+long BIO_seek(BIO *bio, long offset) {
+  return BIO_ctrl(bio, BIO_C_FILE_SEEK, offset, NULL);
+}
+
 #endif  // NATIVE_TARGET_BUILD

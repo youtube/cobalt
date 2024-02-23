@@ -24,12 +24,12 @@
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 #include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace shared {
@@ -362,7 +362,7 @@ void XAudioAudioSink::Process() {
   SB_DCHECK(consumed_frames <= std::numeric_limits<int>::max());
   int consumed_frames_int = static_cast<int>(consumed_frames);
 
-  consume_frames_func_(consumed_frames_int, SbTimeGetMonotonicNow(), context_);
+  consume_frames_func_(consumed_frames_int, CurrentMonotonicTime(), context_);
   submitted_frames_ -= consumed_frames_int;
   samples_played_ = voice_state.SamplesPlayed;
   queued_buffers_ = voice_state.BuffersQueued;

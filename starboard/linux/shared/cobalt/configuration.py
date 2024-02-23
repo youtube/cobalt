@@ -63,10 +63,18 @@ _FILTERED_TESTS = {
     ],
 }
 
-# Tracked by b/294070803
 if os.getenv('MODULAR_BUILD', '0') == '1':
+  # Tracked by b/294070803
   _FILTERED_TESTS['layout_tests'] = [
       'CobaltSpecificLayoutTests/Layout.Test/platform_object_user_properties_survive_gc',  # pylint: disable=line-too-long
+  ]
+  # TODO: b/303260272 Re-enable these tests.
+  _FILTERED_TESTS['blackbox'] = [
+      'cancel_sync_loads_when_suspended',
+      'preload_font',
+      'preload_launch_parameter',
+      'preload_visibility',
+      'suspend_visibility',
   ]
 
 

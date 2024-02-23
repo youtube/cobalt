@@ -65,11 +65,19 @@
 #include <stdio.h>
 #endif
 
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
+
 // Include a BoringSSL-only header so consumers including this header without
 // setting up include paths do not accidentally pick up the system
 // opensslconf.h.
 #include <openssl/is_boringssl.h>
 #include <openssl/opensslconf.h>
+
+#if defined(BORINGSSL_PREFIX)
+#include <boringssl_prefix_symbols.h>
+#endif
 
 #if defined(__cplusplus)
 extern "C" {
@@ -82,21 +90,25 @@ extern "C" {
 #elif defined(__x86) || defined(__i386) || defined(__i386__) || defined(_M_IX86)
 #define OPENSSL_32_BIT
 #define OPENSSL_X86
-#elif defined(__aarch64__)
+#elif defined(__AARCH64EL__) || defined(_M_ARM64)
 #define OPENSSL_64_BIT
 #define OPENSSL_AARCH64
-#elif defined(__arm) || defined(__arm__) || defined(_M_ARM)
+#elif defined(__ARMEL__) || defined(_M_ARM)
 #define OPENSSL_32_BIT
 #define OPENSSL_ARM
 #elif (defined(__PPC64__) || defined(__powerpc64__)) && defined(_LITTLE_ENDIAN)
 #define OPENSSL_64_BIT
 #define OPENSSL_PPC64LE
-#elif defined(__mips__) && !defined(__LP64__)
+#elif defined(__MIPSEL__) && !defined(__LP64__)
 #define OPENSSL_32_BIT
 #define OPENSSL_MIPS
-#elif defined(__mips__) && defined(__LP64__)
+#elif defined(__MIPSEL__) && defined(__LP64__)
 #define OPENSSL_64_BIT
 #define OPENSSL_MIPS64
+#elif defined(__riscv) && __SIZEOF_POINTER__ == 8
+#define OPENSSL_64_BIT
+#elif defined(__riscv) && __SIZEOF_POINTER__ == 4
+#define OPENSSL_32_BIT
 #elif defined(__pnacl__)
 #define OPENSSL_32_BIT
 #define OPENSSL_PNACL
@@ -116,13 +128,24 @@ extern "C" {
 
 #if defined(__APPLE__)
 #define OPENSSL_APPLE
+// Note |TARGET_OS_MAC| is set for all Apple OS variants. |TARGET_OS_OSX|
+// targets macOS specifically.
+#if defined(TARGET_OS_OSX) && TARGET_OS_OSX
+#define OPENSSL_MACOS
+#endif
+#if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+#define OPENSSL_IOS
+#endif
 #endif
 
 #if defined(_WIN32)
 #define OPENSSL_WINDOWS
 #endif
 
-#if defined(__linux__)
+// Trusty isn't Linux but currently defines __linux__. As a workaround, we
+// exclude it here.
+// TODO(b/169780122): Remove this workaround once Trusty no longer defines it.
+#if defined(__linux__) && !defined(__TRUSTY__)
 #define OPENSSL_LINUX
 #endif
 
@@ -130,21 +153,38 @@ extern "C" {
 #define OPENSSL_FUCHSIA
 #endif
 
-#if defined(TRUSTY)
+#if defined(__TRUSTY__)
 #define OPENSSL_TRUSTY
-#define OPENSSL_NO_THREADS
+#define OPENSSL_NO_THREADS_CORRUPT_MEMORY_AND_LEAK_SECRETS_IF_THREADED
 #endif
 
 #if defined(__ANDROID_API__)
 #define OPENSSL_ANDROID
 #endif
 
-#if !defined(OPENSSL_NO_THREADS)
+#if defined(__FreeBSD__)
+#define OPENSSL_FREEBSD
+#endif
+
+// BoringSSL requires platform's locking APIs to make internal global state
+// thread-safe, including the PRNG. On some single-threaded embedded platforms,
+// locking APIs may not exist, so this dependency may be disabled with the
+// following build flag.
+//
+// IMPORTANT: Doing so means the consumer promises the library will never be
+// used in any multi-threaded context. It causes BoringSSL to be globally
+// thread-unsafe. Setting it inappropriately will subtly and unpredictably
+// corrupt memory and leak secret keys.
+//
+// Do not set this flag on any platform where threads are possible. BoringSSL
+// maintainers will not provide support for any consumers that do so. Changes
+// which break such unsupported configurations will not be reverted.
+#if !defined(OPENSSL_NO_THREADS_CORRUPT_MEMORY_AND_LEAK_SECRETS_IF_THREADED)
 #define OPENSSL_THREADS
 #endif
 
 #define OPENSSL_IS_BORINGSSL
-#define OPENSSL_VERSION_NUMBER 0x1010007f
+#define OPENSSL_VERSION_NUMBER 0x1010107f
 #define SSLEAY_VERSION_NUMBER OPENSSL_VERSION_NUMBER
 
 // BORINGSSL_API_VERSION is a positive integer that increments as BoringSSL
@@ -155,7 +195,7 @@ extern "C" {
 // A consumer may use this symbol in the preprocessor to temporarily build
 // against multiple revisions of BoringSSL at the same time. It is not
 // recommended to do so for longer than is necessary.
-#define BORINGSSL_API_VERSION 9
+#define BORINGSSL_API_VERSION 17
 
 #if defined(BORINGSSL_SHARED_LIBRARY)
 
@@ -213,6 +253,35 @@ extern "C" {
 #define OPENSSL_UNUSED
 #endif
 
+// C and C++ handle inline functions differently. In C++, an inline function is
+// defined in just the header file, potentially emitted in multiple compilation
+// units (in cases the compiler did not inline), but each copy must be identical
+// to satsify ODR. In C, a non-static inline must be manually emitted in exactly
+// one compilation unit with a separate extern inline declaration.
+//
+// In both languages, exported inline functions referencing file-local symbols
+// are problematic. C forbids this altogether (though GCC and Clang seem not to
+// enforce it). It works in C++, but ODR requires the definitions be identical,
+// including all names in the definitions resolving to the "same entity". In
+// practice, this is unlikely to be a problem, but an inline function that
+// returns a pointer to a file-local symbol
+// could compile oddly.
+//
+// Historically, we used static inline in headers. However, to satisfy ODR, use
+// plain inline in C++, to allow inline consumer functions to call our header
+// functions. Plain inline would also work better with C99 inline, but that is
+// not used much in practice, extern inline is tedious, and there are conflicts
+// with the old gnu89 model:
+// https://stackoverflow.com/questions/216510/extern-inline
+#if defined(__cplusplus)
+#define OPENSSL_INLINE inline
+#else
+// Add OPENSSL_UNUSED so that, should an inline function be emitted via macro
+// (e.g. a |STACK_OF(T)| implementation) in a source file without tripping
+// clang's -Wunused-function.
+#define OPENSSL_INLINE static inline OPENSSL_UNUSED
+#endif
+
 #if defined(BORINGSSL_UNSAFE_FUZZER_MODE) && \
     !defined(BORINGSSL_UNSAFE_DETERMINISTIC_MODE)
 #define BORINGSSL_UNSAFE_DETERMINISTIC_MODE
@@ -227,8 +296,16 @@ extern "C" {
 #endif
 #if __has_feature(memory_sanitizer)
 #define OPENSSL_MSAN
+#define OPENSSL_ASM_INCOMPATIBLE
 #endif
 #endif
+
+#if defined(OPENSSL_ASM_INCOMPATIBLE)
+#undef OPENSSL_ASM_INCOMPATIBLE
+#if !defined(OPENSSL_NO_ASM)
+#define OPENSSL_NO_ASM
+#endif
+#endif  // OPENSSL_ASM_INCOMPATIBLE
 
 #if defined(__cplusplus)
 // enums can be predeclared, but only in C++ and only if given an explicit type.
@@ -253,8 +330,11 @@ typedef uint32_t CBS_ASN1_TAG;
 // CRYPTO_THREADID is a dummy value.
 typedef int CRYPTO_THREADID;
 
+// An |ASN1_NULL| is an opaque type. asn1.h represents the ASN.1 NULL value as
+// an opaque, non-NULL |ASN1_NULL*| pointer.
+typedef struct asn1_null_st ASN1_NULL;
+
 typedef int ASN1_BOOLEAN;
-typedef int ASN1_NULL;
 typedef struct ASN1_ITEM_st ASN1_ITEM;
 typedef struct asn1_object_st ASN1_OBJECT;
 typedef struct asn1_pctx_st ASN1_PCTX;
@@ -290,21 +370,19 @@ typedef struct X509_POLICY_NODE_st X509_POLICY_NODE;
 typedef struct X509_POLICY_TREE_st X509_POLICY_TREE;
 typedef struct X509_VERIFY_PARAM_st X509_VERIFY_PARAM;
 typedef struct X509_algor_st X509_ALGOR;
-typedef struct X509_crl_info_st X509_CRL_INFO;
 typedef struct X509_crl_st X509_CRL;
 typedef struct X509_extension_st X509_EXTENSION;
 typedef struct X509_info_st X509_INFO;
 typedef struct X509_name_entry_st X509_NAME_ENTRY;
 typedef struct X509_name_st X509_NAME;
 typedef struct X509_pubkey_st X509_PUBKEY;
-typedef struct X509_req_info_st X509_REQ_INFO;
 typedef struct X509_req_st X509_REQ;
 typedef struct X509_sig_st X509_SIG;
-typedef struct X509_val_st X509_VAL;
 typedef struct bignum_ctx BN_CTX;
 typedef struct bignum_st BIGNUM;
 typedef struct bio_method_st BIO_METHOD;
 typedef struct bio_st BIO;
+typedef struct blake2b_state_st BLAKE2B_CTX;
 typedef struct bn_gencb_st BN_GENCB;
 typedef struct bn_mont_ctx_st BN_MONT_CTX;
 typedef struct buf_mem_st BUF_MEM;
@@ -348,6 +426,7 @@ typedef struct private_key_st X509_PKEY;
 typedef struct rand_meth_st RAND_METHOD;
 typedef struct rc4_key_st RC4_KEY;
 typedef struct rsa_meth_st RSA_METHOD;
+typedef struct rsa_pss_params_st RSA_PSS_PARAMS;
 typedef struct rsa_st RSA;
 typedef struct sha256_state_st SHA256_CTX;
 typedef struct sha512_state_st SHA512_CTX;
@@ -365,12 +444,16 @@ typedef struct ssl_session_st SSL_SESSION;
 typedef struct ssl_st SSL;
 typedef struct ssl_ticket_aead_method_st SSL_TICKET_AEAD_METHOD;
 typedef struct st_ERR_FNS ERR_FNS;
+typedef struct trust_token_st TRUST_TOKEN;
+typedef struct trust_token_client_st TRUST_TOKEN_CLIENT;
+typedef struct trust_token_issuer_st TRUST_TOKEN_ISSUER;
+typedef struct trust_token_method_st TRUST_TOKEN_METHOD;
 typedef struct v3_ext_ctx X509V3_CTX;
 typedef struct x509_attributes_st X509_ATTRIBUTE;
-typedef struct x509_cert_aux_st X509_CERT_AUX;
-typedef struct x509_cinf_st X509_CINF;
 typedef struct x509_crl_method_st X509_CRL_METHOD;
 typedef struct x509_lookup_st X509_LOOKUP;
+typedef struct x509_lookup_method_st X509_LOOKUP_METHOD;
+typedef struct x509_object_st X509_OBJECT;
 typedef struct x509_revoked_st X509_REVOKED;
 typedef struct x509_st X509;
 typedef struct x509_store_ctx_st X509_STORE_CTX;
@@ -406,6 +489,7 @@ typedef void *OPENSSL_BLOCK;
 #endif
 
 #if !defined(BORINGSSL_NO_CXX)
+
 extern "C++" {
 
 #include <memory>
@@ -427,7 +511,7 @@ extern "C++" {
 
 extern "C++" {
 
-namespace bssl {
+BSSL_NAMESPACE_BEGIN
 
 namespace internal {
 
@@ -458,8 +542,39 @@ class StackAllocated {
   StackAllocated() { init(&ctx_); }
   ~StackAllocated() { cleanup(&ctx_); }
 
-  StackAllocated(const StackAllocated<T, CleanupRet, init, cleanup> &) = delete;
-  T& operator=(const StackAllocated<T, CleanupRet, init, cleanup> &) = delete;
+  StackAllocated(const StackAllocated &) = delete;
+  StackAllocated& operator=(const StackAllocated &) = delete;
+
+  T *get() { return &ctx_; }
+  const T *get() const { return &ctx_; }
+
+  T *operator->() { return &ctx_; }
+  const T *operator->() const { return &ctx_; }
+
+  void Reset() {
+    cleanup(&ctx_);
+    init(&ctx_);
+  }
+
+ private:
+  T ctx_;
+};
+
+template <typename T, typename CleanupRet, void (*init)(T *),
+          CleanupRet (*cleanup)(T *), void (*move)(T *, T *)>
+class StackAllocatedMovable {
+ public:
+  StackAllocatedMovable() { init(&ctx_); }
+  ~StackAllocatedMovable() { cleanup(&ctx_); }
+
+  StackAllocatedMovable(StackAllocatedMovable &&other) {
+    init(&ctx_);
+    move(&ctx_, &other.ctx_);
+  }
+  StackAllocatedMovable &operator=(StackAllocatedMovable &&other) {
+    move(&ctx_, &other.ctx_);
+    return *this;
+  }
 
   T *get() { return &ctx_; }
   const T *get() const { return &ctx_; }
@@ -492,19 +607,19 @@ class StackAllocated {
 template <typename T>
 using UniquePtr = std::unique_ptr<T, internal::Deleter<T>>;
 
-#define BORINGSSL_MAKE_UP_REF(type, up_ref_func)                    \
-  static inline UniquePtr<type> UpRef(type *v) {                    \
-    if (v != nullptr) {                                             \
-      up_ref_func(v);                                               \
-    }                                                               \
-    return UniquePtr<type>(v);                                      \
-  }                                                                 \
-                                                                    \
-  static inline UniquePtr<type> UpRef(const UniquePtr<type> &ptr) { \
-    return UpRef(ptr.get());                                        \
+#define BORINGSSL_MAKE_UP_REF(type, up_ref_func)             \
+  inline UniquePtr<type> UpRef(type *v) {                    \
+    if (v != nullptr) {                                      \
+      up_ref_func(v);                                        \
+    }                                                        \
+    return UniquePtr<type>(v);                               \
+  }                                                          \
+                                                             \
+  inline UniquePtr<type> UpRef(const UniquePtr<type> &ptr) { \
+    return UpRef(ptr.get());                                 \
   }
 
-}  // namespace bssl
+BSSL_NAMESPACE_END
 
 }  // extern C++
 

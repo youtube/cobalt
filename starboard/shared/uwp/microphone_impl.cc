@@ -33,12 +33,12 @@
 #include "starboard/common/semaphore.h"
 #include "starboard/common/string.h"
 #include "starboard/common/thread.h"
+#include "starboard/common/time.h"
 #include "starboard/shared/uwp/app_accessors.h"
 #include "starboard/shared/uwp/application_uwp.h"
 #include "starboard/shared/uwp/async_utils.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/wchar_utils.h"
-#include "starboard/time.h"
 
 using concurrency::task_continuation_context;
 using Microsoft::WRL::ComPtr;
@@ -87,7 +87,7 @@ const int kMicGain = 1;
 // before it signals a read error. Without this trigger, the app
 // will continuously wait for audio data. This happens with the Kinect
 // device, which when disconnected will still record 0-value samples.
-const SbTime kTimeMutedThreshold = 3 * kSbTimeSecond;
+const int64_t kTimeMutedThresholdUsec = 3'000'000;  // 3 seconds.
 
 // Maps [-1.0f, 1.0f] -> [-32768, 32767]
 // Values outside of [-1.0f, 1.0] are clamped.
@@ -185,7 +185,7 @@ AudioGraph ^
             AudioGraph ^ graph) {
   std::vector<AudioDeviceInputNode ^> output;
 
-  SbTime start_time = SbTimeGetMonotonicNow();
+  int64_t start_time = starboard::CurrentMonotonicTime();
 
   bool had_permissions_error = false;
   for (DeviceInformation ^ mic : microphone_devices) {
@@ -215,8 +215,8 @@ AudioGraph ^
     output.push_back(input_node);
   }
 
-  SbTime delta_time = SbTimeGetMonotonicNow() - start_time;
-  const bool had_ui_interaction = delta_time > (kSbTimeMillisecond * 250);
+  int64_t delta_time = starboard::CurrentMonotonicTime() - start_time;
+  const bool had_ui_interaction = delta_time > 250'000;
 
   // We only care to retry permissions if there were
   // 1. No microphones that could be opened.
@@ -274,23 +274,23 @@ class MutedTrigger {
       return;
     }
     state_ = kIsMuted;
-    time_start_ = SbTimeGetMonotonicNow();
+    time_start_ = starboard::CurrentMonotonicTime();
   }
 
   void SignalSound() { state_ = kFoundSound; }
 
-  bool IsMuted(SbTimeMonotonic duration_threshold) const {
+  bool IsMuted(int64_t duration_threshold) const {
     if (state_ != kIsMuted) {
       return false;
     }
-    SbTimeMonotonic duration = SbTimeGetMonotonicNow() - time_start_;
+    int64_t duration = starboard::CurrentMonotonicTime() - time_start_;
     return duration > duration_threshold;
   }
 
  private:
   enum State { kInitialized, kIsMuted, kFoundSound };
   State state_ = kInitialized;
-  SbTimeMonotonic time_start_ = 0;
+  int64_t time_start_ = 0;
 };
 
 // MicrophoneProcessor encapsulates Microsoft's audio api. All available
@@ -334,7 +334,7 @@ class MicrophoneProcessor : public starboard::Thread {
   // was a read error.
   int Read(int16_t* out_audio_data, size_t out_audio_count) {
     ScopedLock lock(mutex_);
-    if (muted_timer_.IsMuted(kTimeMutedThreshold)) {
+    if (muted_timer_.IsMuted(kTimeMutedThresholdUsec)) {
       return -1;
     }
 

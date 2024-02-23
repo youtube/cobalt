@@ -3,23 +3,23 @@ description:
   "Subtree at third_party/brotli."
 
 third_party {
-  url {
-    type: LOCAL_SOURCE
-    value: "/third_party/brotli_mirror"
+  identifier {
+    type: "ChromiumVersion"
+    value: "102.0.5005.193"  # from https://chromereleases.googleblog.com/2022/12/long-term-support-channel-update-for_14.html
   }
-  url {
-    type: GIT
-    value: "https://github.com/google/brotli.git"
+  identifier {
+    type: "Git"
+    value: "https://chromium.googlesource.com/chromium/src.git"
+    version: "1218c4f5fdcc00016ccd2531932e9f3dec0151e6"
   }
-  version: "e61745a6b7add50d380cfd7d3883dd6c62fc2c71"
+  identifier {
+    type: "UpstreamSubdir"
+    value: "third_party/brotli"
+  }
   last_upgrade_date {
     year: 2020
     month: 8
     day: 27
   }
   license_type: NOTICE
-  local_modifications:
-    '11/3/21 - Added BUILD.gn as part of GN migration.'
-    'Contents taken from https://chromium.googlesource.com/chromium/src/+/771ce89fc8532b9782271e52318eb42bd062ce53/third_party/brotli/BUILD.gn'
-    'and modified for Cobalt.'
 }

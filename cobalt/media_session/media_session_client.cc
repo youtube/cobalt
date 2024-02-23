@@ -22,7 +22,7 @@
 #include "base/logging.h"
 #include "cobalt/media_session/media_image.h"
 #include "cobalt/script/sequence.h"
-#include "starboard/time.h"
+#include "starboard/common/time.h"
 
 namespace cobalt {
 namespace media_session {
@@ -58,21 +58,21 @@ void GuessMediaPositionState(MediaSessionState* session_state,
     *guess_player = current_player;
 
     MediaPositionState position_state;
-    float duration = (*guess_player)->GetDuration();
+    const double duration = (*guess_player)->GetDuration();
     if (std::isfinite(duration)) {
       position_state.set_duration(duration);
     } else if (std::isinf(duration)) {
-      position_state.set_duration(kSbTimeMax);
+      position_state.set_duration(kSbInt64Max);
     } else {
       position_state.set_duration(0.0);
     }
     position_state.set_playback_rate((*guess_player)->GetPlaybackRate());
     position_state.set_position((*guess_player)->GetCurrentTime());
 
-    *session_state = MediaSessionState(session_state->metadata(),
-                                       SbTimeGetMonotonicNow(), position_state,
-                                       session_state->actual_playback_state(),
-                                       session_state->available_actions());
+    *session_state = MediaSessionState(
+        session_state->metadata(), starboard::CurrentMonotonicTime(),
+        position_state, session_state->actual_playback_state(),
+        session_state->available_actions());
   }
 }
 }  // namespace

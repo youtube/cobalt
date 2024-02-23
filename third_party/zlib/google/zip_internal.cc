@@ -7,6 +7,7 @@
 #include <stddef.h>
 
 #include <algorithm>
+#include <cstring>
 
 #include "base/logging.h"
 #include "base/strings/utf_string_conversions.h"
@@ -26,11 +27,6 @@
 #include "third_party/zlib/contrib/minizip/iostarboard.h"
 #endif  // defined(OS_POSIX)
 #endif  // defined(USE_SYSTEM_MINIZIP)
-
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/stdio_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
-#endif
 
 namespace {
 

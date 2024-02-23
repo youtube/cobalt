@@ -61,7 +61,7 @@ void ConditionVariable::TimedWait(const TimeDelta& max_time) {
       scoped_blocking_call;
   if (waiting_is_blocking_)
     scoped_blocking_call.emplace(FROM_HERE, BlockingType::MAY_BLOCK);
-  SbTime duration = max_time.ToSbTime();
+  int64_t duration = max_time.InMicroseconds();
 
 #if DCHECK_IS_ON()
   user_lock_->CheckHeldAndUnmark();

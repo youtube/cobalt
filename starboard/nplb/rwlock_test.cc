@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "starboard/common/rwlock.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/nplb/thread_helpers.h"
 #include "starboard/thread.h"
@@ -100,8 +101,8 @@ TEST(RWLock, ReadAcquisitionTwoThreads) {
 class ThreadHoldsWriteLockForTime : public AbstractTestThread {
  public:
   struct SharedData {
-    explicit SharedData(SbTime time_hold) : time_to_hold(time_hold) {}
-    SbTime time_to_hold;
+    explicit SharedData(int64_t time_hold) : time_to_hold(time_hold) {}
+    int64_t time_to_hold;
     Semaphore signal_write_lock;
     RWLock rw_lock;
   };
@@ -118,21 +119,21 @@ class ThreadHoldsWriteLockForTime : public AbstractTestThread {
   SharedData* shared_data_;
 };
 TEST(RWLock, FLAKY_HoldsLockForTime) {
-  const SbTime kTimeToHold = kSbTimeMillisecond * 5;
-  const SbTime kAllowedError = kSbTimeMillisecond * 10;
+  const int64_t kTimeToHold = 5'000;     // 5ms
+  const int64_t kAllowedError = 10'000;  // 10ms
 
   ThreadHoldsWriteLockForTime::SharedData shared_data(kTimeToHold);
   ThreadHoldsWriteLockForTime thread(&shared_data);
 
   thread.Start();
   shared_data.signal_write_lock.Take();  // write lock was taken, start timer.
-  const SbTime start_time = SbTimeGetMonotonicNow();
+  const int64_t start_time = CurrentMonotonicTime();
   shared_data.rw_lock.AcquireReadLock();  // Blocked by thread for kTimeToHold.
   shared_data.rw_lock.ReleaseReadLock();
-  const SbTime delta_time = SbTimeGetMonotonicNow() - start_time;
+  const int64_t delta_time = CurrentMonotonicTime() - start_time;
   thread.Join();
 
-  SbTime time_diff = delta_time - kTimeToHold;
+  int64_t time_diff = delta_time - kTimeToHold;
   if (time_diff < 0) {
     time_diff = -time_diff;
   }

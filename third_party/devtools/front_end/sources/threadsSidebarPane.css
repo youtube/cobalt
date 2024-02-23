@@ -21,10 +21,6 @@
     background-color: #eee;
 }
 
-.thread-item[data-keyboard-focus="true"] {
-    background-color: var(--focus-bg-color);
-}
-
 .thread-item-title,
 .thread-item-paused-state {
     text-overflow: ellipsis;
@@ -48,3 +44,4 @@
 .thread-item.selected .selected-thread-icon {
     display: block;
 }
+

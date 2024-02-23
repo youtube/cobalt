@@ -32,7 +32,7 @@ struct SbAudioSinkPrivate {
                             void* context);
 
   typedef std::function<
-      void(int frames_consumed, SbTime frames_consumed_at, void* context)>
+      void(int frames_consumed, int64_t frames_consumed_at, void* context)>
       ConsumeFramesFunc;
 
   class Type {

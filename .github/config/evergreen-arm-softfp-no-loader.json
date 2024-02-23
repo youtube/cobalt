@@ -1,0 +1,16 @@
+{
+  "docker_service": "build-evergreen",
+  "platforms": [
+    "evergreen-arm-softfp-sbversion-13"
+  ],
+  "includes": [
+    {
+      "name":"sbversion-13",
+      "platform":"evergreen-arm-softfp-sbversion-13",
+      "target_platform":"evergreen-arm-softfp",
+      "target_cpu":"target_cpu=\\\"arm\\\"",
+      "extra_gn_arguments":"use_asan=false",
+      "sb_api_version":"13"
+    }
+  ]
+}

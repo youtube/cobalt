@@ -62,8 +62,7 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
               1 + length_bytes.length() + payload_length)),
           payload_offset_(1 + length_bytes.length()) {
       bytes_.start()[0] = id;
-      memcpy(bytes_.start() + 1, &length_bytes.first(),
-                   length_bytes.length());
+      memcpy(bytes_.start() + 1, &length_bytes.first(), length_bytes.length());
     }
 
     SectionCode section_code() const {

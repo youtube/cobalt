@@ -1517,7 +1517,6 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
     }
     wasm::WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
         isolate->wasm_engine(), &env, kind, sig, false, expected_arity);
-    // std::move(uint8_t[]) issue
     std::unique_ptr<wasm::WasmCode> wasm_code = native_module->AddCode(
         result.func_index, result.code_desc, result.frame_slot_count,
         result.tagged_parameter_slots,

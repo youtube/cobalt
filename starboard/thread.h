@@ -21,7 +21,6 @@
 
 #include "starboard/configuration.h"
 #include "starboard/export.h"
-#include "starboard/time.h"
 #include "starboard/types.h"
 
 #ifdef __cplusplus
@@ -199,7 +198,7 @@ SB_EXPORT void SbThreadYield();
 // |duration|: The minimum amount of time, in microseconds, that the currently
 //   executing thread should sleep. The function is a no-op if this value is
 //   negative or |0|.
-SB_EXPORT void SbThreadSleep(SbTime duration);
+SB_EXPORT void SbThreadSleep(int64_t duration);
 
 // Returns the handle of the currently executing thread.
 SB_EXPORT SbThread SbThreadGetCurrent();

@@ -69,7 +69,7 @@ class AuditController extends Common.Object {
       return false;
     }
 
-    const inspectedURL = Common.ParsedURL.fromString(mainTarget.inspectedURL());
+    const inspectedURL = mainTarget.inspectedURL().asParsedURL();
     const inspectedOrigin = inspectedURL && inspectedURL.securityOrigin();
     for (const registration of this._manager.registrations().values()) {
       if (registration.securityOrigin !== inspectedOrigin) {
