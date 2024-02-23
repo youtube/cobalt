@@ -116,7 +116,6 @@ strtold_l
 syscall
 ungetc
 ungetwc
-vsprintf
 wcrtomb
 wcscmp
 wcsnrtombs

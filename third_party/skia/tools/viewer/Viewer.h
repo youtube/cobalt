@@ -11,8 +11,9 @@
 #include "gm/gm.h"
 #include "include/core/SkExecutor.h"
 #include "include/core/SkFont.h"
+#include "include/gpu/GrContextOptions.h"
+#include "include/private/SkSLString.h"
 #include "src/core/SkScan.h"
-#include "src/sksl/SkSLString.h"
 #include "src/sksl/ir/SkSLProgram.h"
 #include "tools/gpu/MemoryCache.h"
 #include "tools/sk_app/Application.h"
@@ -45,7 +46,24 @@ public:
     bool onPinch(skui::InputState state, float scale, float x, float y) override;
     bool onFling(skui::InputState state) override;
 
+    static GrContextOptions::ShaderErrorHandler* ShaderErrorHandler();
+
     struct SkFontFields {
+        bool overridesSomething() const {
+            return fTypeface ||
+                   fSize ||
+                   fScaleX ||
+                   fSkewX ||
+                   fHinting ||
+                   fEdging ||
+                   fSubpixel ||
+                   fForceAutoHinting ||
+                   fEmbeddedBitmaps ||
+                   fLinearMetrics ||
+                   fEmbolden ||
+                   fBaselineSnap;
+        }
+
         bool fTypeface = false;
         bool fSize = false;
         SkScalar fSizeRange[2] = { 0, 20 };
@@ -61,20 +79,38 @@ public:
         bool fBaselineSnap = false;
     };
     struct SkPaintFields {
+        bool overridesSomething() const {
+            return fPathEffect ||
+                   fShader ||
+                   fMaskFilter ||
+                   fColorFilter ||
+                   fImageFilter ||
+                   fColor ||
+                   fStrokeWidth ||
+                   fMiterLimit ||
+                   fBlendMode ||
+                   fAntiAlias ||
+                   fDither ||
+                   fForceRuntimeBlend ||
+                   fCapType ||
+                   fJoinType ||
+                   fStyle;
+        }
+
         bool fPathEffect = false;
         bool fShader = false;
         bool fMaskFilter = false;
         bool fColorFilter = false;
-        bool fDrawLooper = false;
         bool fImageFilter = false;
 
         bool fColor = false;
-        bool fWidth = false;
+        bool fStrokeWidth = false;
         bool fMiterLimit = false;
         bool fBlendMode = false;
 
         bool fAntiAlias = false;
         bool fDither = false;
+        bool fForceRuntimeBlend = false;
         enum class AntiAliasState {
             Alias,
             Normal,
@@ -87,7 +123,18 @@ public:
         bool fCapType = false;
         bool fJoinType = false;
         bool fStyle = false;
-        bool fFilterQuality = false;
+    };
+    struct SkSurfacePropsFields {
+        bool fFlags = false;
+        bool fPixelGeometry = false;
+    };
+    struct DisplayFields {
+        bool fColorType = false;
+        bool fColorSpace = false;
+        bool fMSAASampleCount = false;
+        bool fGrContextOptions = false;
+        SkSurfacePropsFields fSurfaceProps;
+        bool fDisableVsync = false;
     };
 private:
     enum class ColorMode {
@@ -105,6 +152,7 @@ private:
     void setCurrentSlide(int);
     void setupCurrentSlide();
     void listNames() const;
+    void dumpShadersToResources();
 
     void updateUIState();
 
@@ -154,6 +202,7 @@ private:
     skcms_TransferFunction fColorSpaceTransferFn;
 
     // transform data
+    bool                   fApplyBackingScale;
     SkScalar               fZoomLevel;
     SkScalar               fRotation;
     SkVector               fOffset;
@@ -175,6 +224,7 @@ private:
     bool                   fTiled;
     bool                   fDrawTileBoundaries;
     SkSize                 fTileScale;
+    bool                   fDrawViaSerialize = false;
 
     enum PerspectiveMode {
         kPerspective_Off,
@@ -184,19 +234,27 @@ private:
     PerspectiveMode        fPerspectiveMode;
     SkPoint                fPerspectivePoints[4];
 
-    SkTArray<std::function<void(void)>> fDeferredActions;
+    SkTArray<std::function<void()>> fDeferredActions;
 
+    // fPaint contains override values, fPaintOverrides controls if overrides are applied.
     SkPaint fPaint;
     SkPaintFields fPaintOverrides;
+
+    // fFont contains override values, fFontOverrides controls if overrides are applied.
     SkFont fFont;
     SkFontFields fFontOverrides;
-    bool fPixelGeometryOverrides = false;
 
-    struct CachedGLSL {
+    // fDisplay contains default values (fWindow.fRequestedDisplayParams contains the overrides),
+    // fDisplayOverrides controls if overrides are applied.
+    sk_app::DisplayParams fDisplay;
+    DisplayFields fDisplayOverrides;
+
+    struct CachedShader {
         bool                fHovered = false;
 
         sk_sp<const SkData> fKey;
         SkString            fKeyString;
+        SkString            fKeyDescription;
 
         SkFourByteTag         fShaderType;
         SkSL::String          fShader[kGrShaderTypeCount];
@@ -204,7 +262,15 @@ private:
     };
 
     sk_gpu_test::MemoryCache fPersistentCache;
-    SkTArray<CachedGLSL>     fCachedGLSL;
+    SkTArray<CachedShader>   fCachedShaders;
+
+    enum ShaderOptLevel : int {
+        kShaderOptLevel_Source,
+        kShaderOptLevel_Compile,
+        kShaderOptLevel_Optimize,
+        kShaderOptLevel_Inline,
+    };
+    ShaderOptLevel fOptLevel = kShaderOptLevel_Source;
 };
 
 #endif

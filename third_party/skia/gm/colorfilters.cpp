@@ -91,11 +91,9 @@ protected:
 
     void onOnceBeforeDraw() override {
         sk_sp<SkImage> mandrill = GetResourceAsImage("images/mandrill_256.png");
-        const auto lm = SkMatrix::MakeRectToRect(SkRect::MakeWH(mandrill->width(),
-                                                                mandrill->height()),
-                                                 SkRect::MakeWH(kWheelSize, kWheelSize),
-                                                 SkMatrix::kFill_ScaleToFit);
-        fShaders.push_back(mandrill->makeShader(&lm));
+        const auto lm = SkMatrix::RectToRect(SkRect::MakeWH(mandrill->width(), mandrill->height()),
+                                             SkRect::MakeWH(kWheelSize, kWheelSize));
+        fShaders.push_back(mandrill->makeShader(SkSamplingOptions(), &lm));
 
         static constexpr SkColor gGrads[][4] = {
             { 0xffff0000, 0xff00ff00, 0xff0000ff, 0xffff0000 },
@@ -157,8 +155,8 @@ protected:
     }
 
 private:
-    static constexpr SkScalar kWheelSize  = 100;
-    static constexpr size_t   kSteps = 7;
+    inline static constexpr SkScalar kWheelSize  = 100;
+    inline static constexpr size_t   kSteps = 7;
 
     static sk_sp<SkColorFilter> make_filter(float h, float s, float l) {
         // These are roughly AE semantics.

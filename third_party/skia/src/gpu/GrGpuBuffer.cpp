@@ -21,6 +21,7 @@ void* GrGpuBuffer::map() {
     if (this->wasDestroyed()) {
         return nullptr;
     }
+    SkASSERT(!fHasWrittenToBuffer || fAccessPattern == kDynamic_GrAccessPattern);
     if (!fMapPtr) {
         this->onMap();
     }
@@ -34,26 +35,33 @@ void GrGpuBuffer::unmap() {
     SkASSERT(fMapPtr);
     this->onUnmap();
     fMapPtr = nullptr;
+#ifdef SK_DEBUG
+    fHasWrittenToBuffer = true;
+#endif
 }
 
 bool GrGpuBuffer::isMapped() const { return SkToBool(fMapPtr); }
 
 bool GrGpuBuffer::updateData(const void* src, size_t srcSizeInBytes) {
+    SkASSERT(!fHasWrittenToBuffer || fAccessPattern == kDynamic_GrAccessPattern);
     SkASSERT(!this->isMapped());
     SkASSERT(srcSizeInBytes <= fSizeInBytes);
     if (this->intendedType() == GrGpuBufferType::kXferGpuToCpu) {
         return false;
     }
-    return this->onUpdateData(src, srcSizeInBytes);
+    bool result = this->onUpdateData(src, srcSizeInBytes);
+#ifdef SK_DEBUG
+    if (result) {
+        fHasWrittenToBuffer = true;
+    }
+#endif
+    return result;
 }
 
-void GrGpuBuffer::ComputeScratchKeyForDynamicVBO(size_t size, GrGpuBufferType intendedType,
+void GrGpuBuffer::ComputeScratchKeyForDynamicBuffer(size_t size, GrGpuBufferType intendedType,
                                                  GrScratchKey* key) {
     static const GrScratchKey::ResourceType kType = GrScratchKey::GenerateResourceType();
     GrScratchKey::Builder builder(key, kType, 1 + (sizeof(size_t) + 3) / 4);
-    // TODO: There's not always reason to cache a buffer by type. In some (all?) APIs it's just
-    // a chunk of memory we can use/reuse for any type of data. We really only need to
-    // differentiate between the "read" types (e.g. kGpuToCpu_BufferType) and "draw" types.
     builder[0] = SkToU32(intendedType);
     builder[1] = (uint32_t)size;
     if (sizeof(size_t) > 4) {
@@ -63,6 +71,6 @@ void GrGpuBuffer::ComputeScratchKeyForDynamicVBO(size_t size, GrGpuBufferType in
 
 void GrGpuBuffer::computeScratchKey(GrScratchKey* key) const {
     if (SkIsPow2(fSizeInBytes) && kDynamic_GrAccessPattern == fAccessPattern) {
-        ComputeScratchKeyForDynamicVBO(fSizeInBytes, fIntendedType, key);
+        ComputeScratchKeyForDynamicBuffer(fSizeInBytes, fIntendedType, key);
     }
 }

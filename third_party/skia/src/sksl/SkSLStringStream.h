@@ -8,8 +8,8 @@
 #ifndef SKSL_STRINGSTREAM
 #define SKSL_STRINGSTREAM
 
+#include "include/private/SkSLString.h"
 #include "src/sksl/SkSLOutputStream.h"
-#include "src/sksl/SkSLString.h"
 
 #ifdef SKSL_STANDALONE
 
@@ -27,6 +27,10 @@ public:
 
     void write(const void* s, size_t size) override {
         fBuffer.append((const char*) s, size);
+    }
+
+    size_t bytesWritten() const {
+        return fBuffer.size();
     }
 
     const String& str() const {
@@ -62,6 +66,10 @@ public:
         fStream.write(s, size);
     }
 
+    size_t bytesWritten() const {
+        return fStream.bytesWritten();
+    }
+
     const String& str() const {
         if (!fString.size()) {
             sk_sp<SkData> data = fStream.detachAsData();
@@ -82,6 +90,6 @@ private:
 
 #endif // SKSL_STANDALONE
 
-} // namespace
+}  // namespace SkSL
 
 #endif

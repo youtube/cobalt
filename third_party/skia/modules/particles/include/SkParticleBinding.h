@@ -10,38 +10,42 @@
 
 #include "include/core/SkString.h"
 #include "modules/particles/include/SkReflected.h"
-#include "src/sksl/SkSLExternalValue.h"
+#include "src/sksl/ir/SkSLExternalFunction.h"
 
 #include <memory>
 
+class SkArenaAlloc;
 class SkParticleEffect;
 class SkParticleEffectParams;
-class SkRandom;
 
 namespace skresources {
     class ResourceProvider;
-}
+}  // namespace skresources
 
 namespace SkSL {
     class Compiler;
-}
+}  // namespace SkSL
 
-class SkParticleExternalValue : public SkSL::ExternalValue {
+namespace skvm {
+    struct Uniforms;
+}  // namespace skvm
+
+class SkParticleExternalFunction : public SkSL::ExternalFunction {
 public:
-    SkParticleExternalValue(const char* name, SkSL::Compiler& compiler, const SkSL::Type& type)
-        : SkSL::ExternalValue(name, type)
-        , fCompiler(compiler)
-        , fRandom(nullptr)
-        , fEffect(nullptr) {}
-
-    void setRandom(SkRandom* random) { fRandom = random; }
-    void setEffect(SkParticleEffect* effect) { fEffect = effect; }
+    SkParticleExternalFunction(const char* name,
+                               SkSL::Compiler& compiler,
+                               const SkSL::Type& type,
+                               skvm::Uniforms* uniforms,
+                               SkArenaAlloc* alloc)
+            : SkSL::ExternalFunction(name, type)
+            , fCompiler(compiler)
+            , fUniforms(uniforms)
+            , fAlloc(alloc) {}
 
 protected:
-    SkSL::Compiler&   fCompiler;
-
-    SkRandom*         fRandom;
-    SkParticleEffect* fEffect;
+    SkSL::Compiler& fCompiler;
+    skvm::Uniforms* fUniforms;
+    SkArenaAlloc*   fAlloc;
 };
 
 class SkParticleBinding : public SkReflected {
@@ -52,7 +56,9 @@ public:
 
     void visitFields(SkFieldVisitor* v) override;
 
-    virtual std::unique_ptr<SkParticleExternalValue> toValue(SkSL::Compiler&) = 0;
+    virtual std::unique_ptr<SkParticleExternalFunction> toFunction(SkSL::Compiler&,
+                                                                   skvm::Uniforms*,
+                                                                   SkArenaAlloc*) = 0;
     virtual void prepare(const skresources::ResourceProvider*) = 0;
 
     static void RegisterBindingTypes();
@@ -63,11 +69,6 @@ public:
      * Each binding is a callable object, so the SkSL name behaves like a function. The behavior of
      * each kind of binding is described below.
      */
-
-    // void name(loop) -- Creates an effect instance. Effect will loop if 'loop' is true, otherwise
-    // it's a one-shot. The new effect inherits all properties from the calling effect or particle.
-    static sk_sp<SkParticleBinding> MakeEffect(const char* name,
-                                               sk_sp<SkParticleEffectParams> effect);
 
     // float4 name(xy) -- Fetches RGBA data from an image. 'xy' are normalized image coordinates.
     static sk_sp<SkParticleBinding> MakeImage(const char* name,

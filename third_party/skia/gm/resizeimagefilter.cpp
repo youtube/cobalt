@@ -8,7 +8,6 @@
 #include "gm/gm.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkColor.h"
-#include "include/core/SkFilterQuality.h"
 #include "include/core/SkImage.h"
 #include "include/core/SkImageFilter.h"
 #include "include/core/SkMatrix.h"
@@ -39,10 +38,10 @@ protected:
     void draw(SkCanvas* canvas,
               const SkRect& rect,
               const SkSize& deviceSize,
-              SkFilterQuality filterQuality,
+              const SkSamplingOptions& sampling,
               sk_sp<SkImageFilter> input) {
         SkRect dstRect;
-        canvas->getTotalMatrix().mapRect(&dstRect, rect);
+        canvas->getLocalToDeviceAs3x3().mapRect(&dstRect, rect);
         canvas->save();
         SkScalar deviceScaleX = deviceSize.width() / dstRect.width();
         SkScalar deviceScaleY = deviceSize.height() / dstRect.height();
@@ -52,7 +51,7 @@ protected:
         SkMatrix matrix;
         matrix.setScale(SkScalarInvert(deviceScaleX), SkScalarInvert(deviceScaleY));
         sk_sp<SkImageFilter> filter(SkImageFilters::MatrixTransform(matrix,
-                                                                    filterQuality,
+                                                                    sampling,
                                                                     std::move(input)));
         SkPaint filteredPaint;
         filteredPaint.setImageFilter(std::move(filter));
@@ -73,19 +72,25 @@ protected:
     void onDraw(SkCanvas* canvas) override {
         canvas->clear(SK_ColorBLACK);
 
+        const SkSamplingOptions samplings[] = {
+            SkSamplingOptions(),
+            SkSamplingOptions(SkFilterMode::kLinear),
+            SkSamplingOptions(SkFilterMode::kLinear, SkMipmapMode::kLinear),
+            SkSamplingOptions(SkCubicResampler::Mitchell()),
+        };
         const SkRect srcRect = SkRect::MakeWH(96, 96);
         const SkSize deviceSize = SkSize::Make(16, 16);
 
-        this->draw(canvas, srcRect, deviceSize, kNone_SkFilterQuality, nullptr);
+        this->draw(canvas, srcRect, deviceSize, samplings[0], nullptr);
 
         canvas->translate(srcRect.width() + SkIntToScalar(10), 0);
-        this->draw(canvas, srcRect, deviceSize, kLow_SkFilterQuality, nullptr);
+        this->draw(canvas, srcRect, deviceSize, samplings[1], nullptr);
 
         canvas->translate(srcRect.width() + SkIntToScalar(10), 0);
-        this->draw(canvas, srcRect, deviceSize, kMedium_SkFilterQuality, nullptr);
+        this->draw(canvas, srcRect, deviceSize, samplings[2], nullptr);
 
         canvas->translate(srcRect.width() + SkIntToScalar(10), 0);
-        this->draw(canvas, srcRect, deviceSize, kHigh_SkFilterQuality, nullptr);
+        this->draw(canvas, srcRect, deviceSize, samplings[3], nullptr);
 
         {
             sk_sp<SkSurface> surface(SkSurface::MakeRasterN32Premul(16, 16));
@@ -102,18 +107,19 @@ protected:
             SkRect inRect = SkRect::MakeXYWH(-4, -4, 20, 20);
             SkRect outRect = SkRect::MakeXYWH(-24, -24, 120, 120);
             sk_sp<SkImageFilter> source(
-                SkImageFilters::Image(std::move(image), inRect, outRect, kHigh_SkFilterQuality));
+                SkImageFilters::Image(std::move(image), inRect, outRect,
+                                      SkSamplingOptions({1/3.0f, 1/3.0f})));
             canvas->translate(srcRect.width() + SkIntToScalar(10), 0);
-            this->draw(canvas, srcRect, deviceSize, kHigh_SkFilterQuality, std::move(source));
+            this->draw(canvas, srcRect, deviceSize, samplings[3], std::move(source));
         }
     }
 
 private:
-    typedef GM INHERITED;
+    using INHERITED = GM;
 };
 
 //////////////////////////////////////////////////////////////////////////////
 
 DEF_GM(return new ResizeGM; )
 
-}
+}  // namespace skiagm

@@ -6,21 +6,21 @@
  */
 
 #include "include/core/SkPromiseImageTexture.h"
-#include "src/core/SkMessageBus.h"
 
 #if SK_SUPPORT_GPU
+#include "src/core/SkMessageBus.h"
 
 std::atomic<uint32_t> SkPromiseImageTexture::gUniqueID{1};
 
 SkPromiseImageTexture::SkPromiseImageTexture(const GrBackendTexture& backendTexture) {
     SkASSERT(backendTexture.isValid());
     fBackendTexture = backendTexture;
-    fUniqueID = gUniqueID++;
+    fUniqueID = gUniqueID.fetch_add(1, std::memory_order_relaxed);
 }
 
 SkPromiseImageTexture::~SkPromiseImageTexture() {
     for (const auto& msg : fMessages) {
-        SkMessageBus<GrUniqueKeyInvalidatedMessage>::Post(msg);
+        SkMessageBus<GrUniqueKeyInvalidatedMessage, uint32_t>::Post(msg);
     }
 }
 
@@ -32,7 +32,7 @@ void SkPromiseImageTexture::addKeyToInvalidate(uint32_t contextID, const GrUniqu
             return;
         }
     }
-    fMessages.emplace_back(key, contextID);
+    fMessages.emplace_back(key, contextID, /* inThreadSafeCache */ false);
 }
 
 #if GR_TEST_UTILS
@@ -43,6 +43,6 @@ SkTArray<GrUniqueKey> SkPromiseImageTexture::testingOnly_uniqueKeysToInvalidate(
     }
     return results;
 }
-#endif
+#endif // GR_TEST_UTILS
 
-#endif
+#endif // SK_SUPPORT_GPU

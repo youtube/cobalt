@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+PYTHON_VERSION_COMPATIBILITY = "PY3"
 
 DEPS = [
   'builder_name_schema',
@@ -10,8 +11,8 @@ DEPS = [
 
 def RunSteps(api):
   names = [
-    'Build-Debian9-Clang-x64-Release-Android',
-    'Upload-Test-Debian9-Clang-GCE-CPU-AVX2-x86_64-Debug-Shard_12-Coverage',
+    'Build-Debian10-Clang-x64-Release-Android',
+    'Upload-Test-Debian10-Clang-GCE-CPU-AVX2-x86_64-Debug-Shard_12-Coverage',
   ]
   for name in names:
     d = api.builder_name_schema.DictForBuilderName(name)
@@ -37,7 +38,7 @@ def RunSteps(api):
   try:
     api.builder_name_schema.MakeBuilderName(
         role='Build',
-        os='Debian9',
+        os='Debian10',
         compiler='Clang',
         target_arch='x64',
         configuration='Release',
@@ -52,13 +53,13 @@ def RunSteps(api):
 
   try:
     api.builder_name_schema.DictForBuilderName(
-        'Build-Debian9-Clang-x64-Release-Android-Bogus')
+        'Build-Debian10-Clang-x64-Release-Android-Bogus')
   except ValueError:
     pass
 
   try:
     api.builder_name_schema.DictForBuilderName(
-        'Bogus-Debian9-Clang-x64-Release-Android')
+        'Bogus-Debian10-Clang-x64-Release-Android')
   except ValueError:
     pass
 
@@ -79,7 +80,7 @@ def RunSteps(api):
   try:
     api.builder_name_schema.MakeBuilderName(
         role='Build',
-        os='Debian9',
+        os='Debian10',
         compiler='Clang',
         target_arch='x64',
         configuration='Release',

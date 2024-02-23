@@ -6,6 +6,7 @@
 """Writes a Perf-formated json file with stats about the given web file."""
 
 
+from __future__ import print_function
 import json
 import os
 import subprocess
@@ -17,6 +18,8 @@ def main():
   out_dir = sys.argv[2]
   keystr = sys.argv[3]
   propstr = sys.argv[4]
+  total_size_bytes_key = sys.argv[5]
+  magic_seperator = sys.argv[6]
 
   results = {
     'key': { },
@@ -32,7 +35,7 @@ def main():
     results['key'][keys[i]] = keys[i+1]
 
   r = {
-    'total_size_bytes': os.path.getsize(input_file)
+    total_size_bytes_key: os.path.getsize(input_file)
   }
 
   # Make a copy to avoid destroying the hardlinked file.
@@ -45,6 +48,7 @@ def main():
 
   name = os.path.basename(input_file)
 
+  print(magic_seperator)
   results['results'][name] = {
     # We need this top level layer 'config'/slice
     # Other analysis methods (e.g. libskia) might have
@@ -53,7 +57,7 @@ def main():
   }
 
   # Make debugging easier
-  print json.dumps(results, indent=2)
+  print(json.dumps(results, indent=2))
 
   with open(os.path.join(out_dir, name+'.json'), 'w') as output:
     output.write(json.dumps(results, indent=2))

@@ -50,7 +50,7 @@ static inline unsigned SkB16ToB32(unsigned b) {
 
 //////////////////////////////////////////////////////////////////////////////
 
-#define SkASSERT_IS_BYTE(x)     SkASSERT(0 == ((x) & ~0xFF))
+#define SkASSERT_IS_BYTE(x)     SkASSERT(0 == ((x) & ~0xFFu))
 
 // Reverse the bytes coorsponding to RED and BLUE in a packed pixels. Note the
 // pair of them are in the same 2 slots in both RGBA and BGRA, thus there is
@@ -82,11 +82,27 @@ static inline uint32_t SkPackARGB_as_BGRA(U8CPU a, U8CPU r, U8CPU g, U8CPU b) {
 }
 
 static inline SkPMColor SkSwizzle_RGBA_to_PMColor(uint32_t c) {
+#if defined(STARBOARD)
     return (GetSkPmcolor() == SkPmcolorIsRgba) ? c : SkSwizzle_RB(c);
+#else
+#ifdef SK_PMCOLOR_IS_RGBA
+    return c;
+#else
+    return SkSwizzle_RB(c);
+#endif
+#endif
 }
 
 static inline SkPMColor SkSwizzle_BGRA_to_PMColor(uint32_t c) {
+#if defined(STARBOARD)
     return (GetSkPmcolor() == SkPmcolorIsBgra) ? c : SkSwizzle_RB(c);
+#else
+#ifdef SK_PMCOLOR_IS_BGRA
+    return c;
+#else
+    return SkSwizzle_RB(c);
+#endif
+#endif
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -150,14 +166,13 @@ static inline uint16_t SkPackRGB16(unsigned r, unsigned g, unsigned b) {
  * utility functions. Third parameter controls blending of the first two:
  *   (src, dst, 0) returns dst
  *   (src, dst, 0xFF) returns src
- *   srcWeight is [0..256], unlike SkFourByteInterp which takes [0..255]
+ *   scale is [0..256], unlike SkFourByteInterp which takes [0..255]
  */
-static inline SkPMColor SkFourByteInterp256(SkPMColor src, SkPMColor dst,
-                                         unsigned scale) {
-    unsigned a = SkAlphaBlend(SkGetPackedA32(src), SkGetPackedA32(dst), scale);
-    unsigned r = SkAlphaBlend(SkGetPackedR32(src), SkGetPackedR32(dst), scale);
-    unsigned g = SkAlphaBlend(SkGetPackedG32(src), SkGetPackedG32(dst), scale);
-    unsigned b = SkAlphaBlend(SkGetPackedB32(src), SkGetPackedB32(dst), scale);
+static inline SkPMColor SkFourByteInterp256(SkPMColor src, SkPMColor dst, int scale) {
+    unsigned a = SkTo<uint8_t>(SkAlphaBlend(SkGetPackedA32(src), SkGetPackedA32(dst), scale));
+    unsigned r = SkTo<uint8_t>(SkAlphaBlend(SkGetPackedR32(src), SkGetPackedR32(dst), scale));
+    unsigned g = SkTo<uint8_t>(SkAlphaBlend(SkGetPackedG32(src), SkGetPackedG32(dst), scale));
+    unsigned b = SkTo<uint8_t>(SkAlphaBlend(SkGetPackedB32(src), SkGetPackedB32(dst), scale));
 
     return SkPackARGB32(a, r, g, b);
 }
@@ -168,9 +183,8 @@ static inline SkPMColor SkFourByteInterp256(SkPMColor src, SkPMColor dst,
  *   (src, dst, 0) returns dst
  *   (src, dst, 0xFF) returns src
  */
-static inline SkPMColor SkFourByteInterp(SkPMColor src, SkPMColor dst,
-                                         U8CPU srcWeight) {
-    unsigned scale = SkAlpha255To256(srcWeight);
+static inline SkPMColor SkFourByteInterp(SkPMColor src, SkPMColor dst, U8CPU srcWeight) {
+    int scale = (int)SkAlpha255To256(srcWeight);
     return SkFourByteInterp256(src, dst, scale);
 }
 
@@ -252,9 +266,7 @@ static inline SkPMColor SkFastFourByteInterp256(SkPMColor src, SkPMColor dst, un
  * Nearly the same as SkFourByteInterp, but faster and a touch more accurate, due to better
  * srcWeight scaling to [0, 256].
  */
-static inline SkPMColor SkFastFourByteInterp(SkPMColor src,
-                                             SkPMColor dst,
-                                             U8CPU srcWeight) {
+static inline SkPMColor SkFastFourByteInterp(SkPMColor src, SkPMColor dst, U8CPU srcWeight) {
     SkASSERT(srcWeight <= 255);
     // scale = srcWeight + (srcWeight >> 7) is more accurate than
     // scale = srcWeight + 1, but 7% slower
@@ -396,7 +408,15 @@ static inline Sk4f swizzle_rb(const Sk4f& x) {
 }
 
 static inline Sk4f swizzle_rb_if_bgra(const Sk4f& x) {
+#if defined(STARBOARD)
     return (GetSkPmcolor() == SkPmcolorIsBgra) ? swizzle_rb(x) : x;
+#else
+#ifdef SK_PMCOLOR_IS_BGRA
+    return swizzle_rb(x);
+#else
+    return x;
+#endif
+#endif
 }
 
 static inline Sk4f Sk4f_fromL32(uint32_t px) {
@@ -423,6 +443,7 @@ static inline uint32_t Sk4f_toL32(const Sk4f& px) {
 using SkPMColor4f = SkRGBA4f<kPremul_SkAlphaType>;
 
 constexpr SkPMColor4f SK_PMColor4fTRANSPARENT = { 0, 0, 0, 0 };
+constexpr SkPMColor4f SK_PMColor4fBLACK = { 0, 0, 0, 1 };
 constexpr SkPMColor4f SK_PMColor4fWHITE = { 1, 1, 1, 1 };
 constexpr SkPMColor4f SK_PMColor4fILLEGAL = { SK_FloatNegativeInfinity,
                                               SK_FloatNegativeInfinity,

@@ -1,64 +1,98 @@
-// Copyright 2019 Google LLC.
-// Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
+/*
+ * Copyright 2012 Google Inc.
+ *
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file.
+ */
 
 #include "bench/Benchmark.h"
-
-#if !defined(SK_BUILD_FOR_ANDROID_FRAMEWORK) && !defined(SK_BUILD_FOR_GOOGLE3)
-
-#include "modules/skparagraph/include/FontCollection.h"
-#include "modules/skparagraph/include/Paragraph.h"
-#include "modules/skparagraph/src/ParagraphBuilderImpl.h"
-#include "modules/skparagraph/src/ParagraphImpl.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkFontMgr.h"
+#include "include/core/SkPaint.h"
+#include "include/core/SkString.h"
 #include "tools/Resources.h"
 
-#include <cfloat>
-#include "include/core/SkPictureRecorder.h"
-#include "modules/skparagraph/utils/TestFontCollection.h"
+#if defined(SK_ENABLE_PARAGRAPH)
 
-using namespace skia::textlayout;
-namespace {
-struct ParagraphBench : public Benchmark {
-    ParagraphBench(SkScalar width, const char* r, const char* n)
-            : fResource(r), fName(n), fWidth(width) {}
-    sk_sp<SkData> fData;
-    const char* fResource;
-    const char* fName;
-    SkScalar fWidth;
-    const char* onGetName() override { return fName; }
-    bool isSuitableFor(Backend backend) override { return backend == kNonRendering_Backend; }
-    void onDelayedSetup() override { fData = GetResourceAsData(fResource); }
-    void onDraw(int loops, SkCanvas*) override {
-        if (!fData) {
+#include "modules/skparagraph/include/FontCollection.h"
+#include "modules/skparagraph/include/ParagraphBuilder.h"
+#include "modules/skparagraph/include/ParagraphStyle.h"
+
+class ParagraphBench final : public Benchmark {
+    SkString fName;
+    sk_sp<skia::textlayout::FontCollection> fFontCollection;
+    skia::textlayout::TextStyle fTStyle;
+    std::unique_ptr<skia::textlayout::Paragraph> fParagraph;
+
+public:
+    ParagraphBench() {
+        fName.printf("skparagraph");
+    }
+
+protected:
+    const char* onGetName() override {
+        return fName.c_str();
+    }
+
+    bool isSuitableFor(Backend backend) override {
+        // fParagraph might have failed to be created in onDelayedSetup()
+        return backend == kNonRendering_Backend && !!fParagraph;
+    }
+
+    void onDelayedSetup() override {
+        fFontCollection = sk_make_sp<skia::textlayout::FontCollection>();
+        fFontCollection->setDefaultFontManager(SkFontMgr::RefDefault());
+
+        fTStyle.setFontFamilies({SkString("Roboto")});
+        fTStyle.setColor(SK_ColorBLACK);
+
+        const char* text =
+            "This is a very long sentence to test if the text will properly wrap "
+            "around and go to the next line. Sometimes, short sentence. Longer "
+            "sentences are okay too because they are necessary. Very short. "
+            "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod "
+            "tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim "
+            "veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea "
+            "commodo consequat. Duis aute irure dolor in reprehenderit in voluptate "
+            "velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint "
+            "occaecat cupidatat non proident, sunt in culpa qui officia deserunt "
+            "mollit anim id est laborum. "
+            "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod "
+            "tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim "
+            "veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea "
+            "commodo consequat. Duis aute irure dolor in reprehenderit in voluptate "
+            "velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint "
+            "occaecat cupidatat non proident, sunt in culpa qui officia deserunt "
+            "mollit anim id est laborum.";
+        skia::textlayout::ParagraphStyle paragraph_style;
+        auto builder =
+            skia::textlayout::ParagraphBuilder::make(paragraph_style, fFontCollection);
+        if (!builder) {
             return;
         }
 
-        const char* text = (const char*)fData->data();
+        builder->pushStyle(fTStyle);
+        builder->addText(text);
+        builder->pop();
+        fParagraph = builder->Build();
 
-        auto fontCollection = sk_make_sp<FontCollection>();
-        fontCollection->setDefaultFontManager(SkFontMgr::RefDefault());
-        ParagraphStyle paragraph_style;
-        paragraph_style.turnHintingOff();
-        ParagraphBuilderImpl builder(paragraph_style, fontCollection);
-        builder.addText(text);
-        auto paragraph = builder.Build();
+        // Call onDraw once to warm up the glyph cache otherwise nanobench will mis-calculate the
+        // loop count.
+        SkCanvas canvas;
+        this->onDraw(1, &canvas);
+    }
 
-        SkPictureRecorder rec;
-        SkCanvas* canvas = rec.beginRecording({0,0, 2000,3000});
-        while (loops-- > 0) {
-            paragraph->layout(fWidth);
-            auto impl = static_cast<ParagraphImpl*>(paragraph.get());
-            paragraph->paint(canvas, 0, 0);
-            paragraph->markDirty();
-            impl->resetCache();
+    void onDraw(int loops, SkCanvas* canvas) override {
+        for (int i = 0; i < loops; ++i) {
+            fParagraph->markDirty();
+            fParagraph->layout(300);
         }
     }
+
+private:
+    using INHERITED = Benchmark;
 };
-}  // namespace
 
-#define PARAGRAPH_BENCH(X) DEF_BENCH(return new ParagraphBench(50000, "text/" #X ".txt", "paragraph_" #X);)
-//PARAGRAPH_BENCH(arabic)
-//PARAGRAPH_BENCH(emoji)
-PARAGRAPH_BENCH(english)
-#undef PARAGRAPH_BENCH
+DEF_BENCH( return new ParagraphBench; )
 
-#endif  // !defined(SK_BUILD_FOR_ANDROID_FRAMEWORK) && !defined(SK_BUILD_FOR_GOOGLE3)
+#endif // SK_ENABLE_PARAGRAPH

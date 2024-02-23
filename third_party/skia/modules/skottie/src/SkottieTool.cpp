@@ -11,9 +11,10 @@
 #include "include/core/SkStream.h"
 #include "include/core/SkSurface.h"
 #include "include/encode/SkPngEncoder.h"
+#include "include/private/SkTPin.h"
 #include "modules/skottie/include/Skottie.h"
+#include "modules/skottie/utils/SkottieUtils.h"
 #include "modules/skresources/include/SkResources.h"
-#include "src/core/SkMakeUnique.h"
 #include "src/core/SkOSFile.h"
 #include "src/core/SkTaskGroup.h"
 #include "src/utils/SkOSPath.h"
@@ -46,9 +47,11 @@ static DEFINE_int(threads,  0, "Number of worker threads (0 -> cores count).");
 
 namespace {
 
+static constexpr SkColor kClearColor = SK_ColorWHITE;
+
 std::unique_ptr<SkFILEWStream> MakeFrameStream(size_t idx, const char* ext) {
-    const auto frame_file = SkStringPrintf("0%06d.%s", idx, ext);
-    auto stream = skstd::make_unique<SkFILEWStream>(SkOSPath::Join(FLAGS_writePath[0],
+    const auto frame_file = SkStringPrintf("0%06zu.%s", idx, ext);
+    auto stream = std::make_unique<SkFILEWStream>(SkOSPath::Join(FLAGS_writePath[0],
                                                                    frame_file.c_str()).c_str());
     if (!stream->isValid()) {
         return nullptr;
@@ -88,7 +91,7 @@ private:
 
     SkCanvas* beginFrame(size_t) override {
         auto* canvas = fSurface->getCanvas();
-        canvas->clear(SK_ColorTRANSPARENT);
+        canvas->clear(kClearColor);
         return canvas;
     }
 
@@ -162,7 +165,7 @@ private:
 
     SkCanvas* beginFrame(size_t) override {
         auto* canvas = fSurface->getCanvas();
-        canvas->clear(SK_ColorTRANSPARENT);
+        canvas->clear(kClearColor);
         return canvas;
     }
 
@@ -183,7 +186,7 @@ struct MP4Sink final : public Sink {
 
     SkCanvas* beginFrame(size_t) override {
         SkCanvas* canvas = fSurface->getCanvas();
-        canvas->clear(SK_ColorTRANSPARENT);
+        canvas->clear(kClearColor);
         return canvas;
     }
 
@@ -211,7 +214,7 @@ public:
     }
 
     void report() const {
-        SkDebugf("Animation loaded with %lu error%s, %lu warning%s.\n",
+        SkDebugf("Animation loaded with %zu error%s, %zu warning%s.\n",
                  fErrors.size(), fErrors.size() == 1 ? "" : "s",
                  fWarnings.size(), fWarnings.size() == 1 ? "" : "s");
 
@@ -235,7 +238,7 @@ std::unique_ptr<Sink> MakeSink(const char* fmt, const SkMatrix& scale_matrix) {
     if (0 == strcmp(fmt,  "png")) return  PNGSink::Make(scale_matrix);
     if (0 == strcmp(fmt,  "skp")) return  SKPSink::Make(scale_matrix);
     if (0 == strcmp(fmt, "null")) return NullSink::Make(scale_matrix);
-    if (0 == strcmp(fmt,  "mp4")) return skstd::make_unique<MP4Sink>(scale_matrix);
+    if (0 == strcmp(fmt,  "mp4")) return std::make_unique<MP4Sink>(scale_matrix);
 
     SkDebugf("Unknown format: %s\n", FLAGS_format[0]);
     return nullptr;
@@ -266,6 +269,8 @@ int main(int argc, char** argv) {
                                                                 /*predecode=*/true),
                       /*predecode=*/true));
     auto data   = SkData::MakeFromFileName(FLAGS_input[0]);
+    auto precomp_interceptor =
+            sk_make_sp<skottie_utils::ExternalAnimationPrecompInterceptor>(rp, "__");
 
     if (!data) {
         SkDebugf("Could not load %s.\n", FLAGS_input[0]);
@@ -284,9 +289,9 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    const auto scale_matrix = SkMatrix::MakeRectToRect(SkRect::MakeSize(anim->size()),
-                                                       SkRect::MakeIWH(FLAGS_width, FLAGS_height),
-                                                       SkMatrix::kCenter_ScaleToFit);
+    const auto scale_matrix = SkMatrix::RectToRect(SkRect::MakeSize(anim->size()),
+                                                   SkRect::MakeIWH(FLAGS_width, FLAGS_height),
+                                                   SkMatrix::kCenter_ScaleToFit);
     logger->report();
 
     const auto t0 = SkTPin(FLAGS_t0, 0.0, 1.0),
@@ -331,20 +336,13 @@ int main(int argc, char** argv) {
         i = frame_count - 1 - i;
 
         const auto start = std::chrono::steady_clock::now();
-#if defined(SK_BUILD_FOR_IOS)
-        // iOS doesn't support thread_local on versions less than 9.0.
-        auto anim = skottie::Animation::Builder()
-                            .setResourceProvider(rp)
-                            .make(static_cast<const char*>(data->data()), data->size());
-        auto sink = MakeSink(FLAGS_format[0], scale_matrix);
-#else
         thread_local static auto* anim =
                 skottie::Animation::Builder()
                     .setResourceProvider(rp)
+                    .setPrecompInterceptor(precomp_interceptor)
                     .make(static_cast<const char*>(data->data()), data->size())
                     .release();
         thread_local static auto* sink = MakeSink(FLAGS_format[0], scale_matrix).release();
-#endif
 
         if (sink && anim) {
             anim->seekFrame(frame0 + i * fps_scale);

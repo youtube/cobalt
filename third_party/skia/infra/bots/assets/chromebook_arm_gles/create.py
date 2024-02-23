@@ -9,12 +9,25 @@
 """Create the asset."""
 
 
+from __future__ import print_function
 import argparse
 import glob
 import os
 import shutil
 import subprocess
 import sys
+
+
+ENV_VAR = 'CHROMEBOOK_ARM_GLES_LIB_PATH'
+
+
+def getenv(key):
+  val = os.environ.get(key)
+  if not val:
+    print(('Environment variable %s not set; you should run this via '
+           'create_and_upload.py.' % key), file=sys.stderr)
+    sys.exit(1)
+  return val
 
 
 def create_asset(target_dir, gl_path):
@@ -25,10 +38,6 @@ def create_asset(target_dir, gl_path):
     'libgles2-mesa-dev',
     'libegl1-mesa-dev'
   ]
-  print 'About to run:'
-  print ' '.join(cmd)
-  print 'Press Enter to Continue'
-  raw_input()
   subprocess.check_call(cmd)
 
 
@@ -51,13 +60,17 @@ def create_asset(target_dir, gl_path):
 
 def main():
   if 'linux' not in sys.platform:
-    print >> sys.stderr, 'This script only runs on Linux.'
+    print('This script only runs on Linux.', file=sys.stderr)
     sys.exit(1)
   parser = argparse.ArgumentParser()
   parser.add_argument('--target_dir', '-t', required=True)
-  parser.add_argument('--lib_path', '-l', required=True)
   args = parser.parse_args()
-  create_asset(args.target_dir, args.lib_path)
+
+  # Obtain lib_path from create_and_upload via an environment variable, since
+  # this script is called via `sk` and not directly.
+  lib_path = getenv(ENV_VAR)
+
+  create_asset(args.target_dir, lib_path)
 
 
 if __name__ == '__main__':

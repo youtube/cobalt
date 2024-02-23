@@ -15,12 +15,9 @@
 #include "include/core/SkShader.h"
 #include "include/core/SkTime.h"
 #include "include/core/SkTypeface.h"
-#include "include/effects/SkBlurMaskFilter.h"
 #include "include/effects/SkGradientShader.h"
 #include "include/utils/SkCamera.h"
-#include "include/utils/SkInterpolator.h"
 #include "samplecode/Sample.h"
-#include "src/core/SkClipOpPriv.h"
 #include "src/utils/SkUTF.h"
 
 static void make_paint(SkPaint* paint, const SkMatrix& localMatrix) {
@@ -36,9 +33,6 @@ static void test_fade(SkCanvas* canvas) {
     SkAutoCanvasRestore ar(canvas, true);
 
     SkRect r;
-
-    SkPaint p;
-    p.setAlpha(0x88);
 
     SkAutoCanvasRestore ar2(canvas, false);
 
@@ -164,7 +158,7 @@ protected:
     }
 
 private:
-    typedef Sample INHERITED;
+    using INHERITED = Sample;
 };
 DEF_SAMPLE( return new LayersView; )
 
@@ -191,7 +185,7 @@ protected:
     SkString name() override { return SkString("Backdrop"); }
 
     void onDrawContent(SkCanvas* canvas) override {
-        canvas->drawImage(fImage.get(), 0, 0, nullptr);
+        canvas->drawImage(fImage.get(), 0, 0);
 
         const SkScalar w = 250;
         const SkScalar h = 150;
@@ -202,12 +196,12 @@ protected:
         m.postTranslate(fCenter.x(), fCenter.y());
         path.transform(m);
 
-        canvas->clipPath(path, kIntersect_SkClipOp, true);
+        canvas->clipPath(path, SkClipOp::kIntersect, true);
         const SkRect bounds = path.getBounds();
 
         SkPaint paint;
         paint.setAlpha(0xCC);
-        canvas->saveLayer({ &bounds, &paint, fFilter.get(), nullptr, nullptr, 0 });
+        canvas->saveLayer(SkCanvas::SaveLayerRec(&bounds, &paint, fFilter.get(), 0));
 
         canvas->restore();
     }
@@ -227,6 +221,6 @@ protected:
     }
 
 private:
-    typedef Sample INHERITED;
+    using INHERITED = Sample;
 };
 DEF_SAMPLE( return new BackdropView; )

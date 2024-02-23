@@ -8,7 +8,7 @@
 
 """Create the asset."""
 
-
+import common # fixes python import path
 import argparse
 
 

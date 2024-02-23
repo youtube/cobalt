@@ -37,7 +37,7 @@ static bool are_equal(skiatest::Reporter* reporter,
                       const SkMatrix& a,
                       const SkMatrix& b) {
     bool equal = a == b;
-    bool cheapEqual = a.cheapEqualTo(b);
+    bool cheapEqual = SkMatrixPriv::CheapEqual(a, b);
     if (equal != cheapEqual) {
         if (equal) {
             bool foundZeroSignDiff = false;
@@ -93,6 +93,16 @@ static void assert9(skiatest::Reporter* reporter, const SkMatrix& m,
     REPORTER_ASSERT(reporter, buffer[6] == g);
     REPORTER_ASSERT(reporter, buffer[7] == h);
     REPORTER_ASSERT(reporter, buffer[8] == i);
+
+    REPORTER_ASSERT(reporter, m.rc(0, 0) == a);
+    REPORTER_ASSERT(reporter, m.rc(0, 1) == b);
+    REPORTER_ASSERT(reporter, m.rc(0, 2) == c);
+    REPORTER_ASSERT(reporter, m.rc(1, 0) == d);
+    REPORTER_ASSERT(reporter, m.rc(1, 1) == e);
+    REPORTER_ASSERT(reporter, m.rc(1, 2) == f);
+    REPORTER_ASSERT(reporter, m.rc(2, 0) == g);
+    REPORTER_ASSERT(reporter, m.rc(2, 1) == h);
+    REPORTER_ASSERT(reporter, m.rc(2, 2) == i);
 }
 
 static void test_set9(skiatest::Reporter* reporter) {
@@ -123,24 +133,24 @@ static void test_matrix_recttorect(skiatest::Reporter* reporter) {
 
     src.setLTRB(0, 0, 10, 10);
     dst = src;
-    matrix.setRectToRect(src, dst, SkMatrix::kFill_ScaleToFit);
+    matrix = SkMatrix::RectToRect(src, dst);
     REPORTER_ASSERT(reporter, SkMatrix::kIdentity_Mask == matrix.getType());
     REPORTER_ASSERT(reporter, matrix.rectStaysRect());
 
     dst.offset(1, 1);
-    matrix.setRectToRect(src, dst, SkMatrix::kFill_ScaleToFit);
+    matrix = SkMatrix::RectToRect(src, dst);
     REPORTER_ASSERT(reporter, SkMatrix::kTranslate_Mask == matrix.getType());
     REPORTER_ASSERT(reporter, matrix.rectStaysRect());
 
     dst.fRight += 1;
-    matrix.setRectToRect(src, dst, SkMatrix::kFill_ScaleToFit);
+    matrix = SkMatrix::RectToRect(src, dst);
     REPORTER_ASSERT(reporter,
                     (SkMatrix::kTranslate_Mask | SkMatrix::kScale_Mask) == matrix.getType());
     REPORTER_ASSERT(reporter, matrix.rectStaysRect());
 
     dst = src;
     dst.fRight = src.fRight * 2;
-    matrix.setRectToRect(src, dst, SkMatrix::kFill_ScaleToFit);
+    matrix = SkMatrix::RectToRect(src, dst);
     REPORTER_ASSERT(reporter, SkMatrix::kScale_Mask == matrix.getType());
     REPORTER_ASSERT(reporter, matrix.rectStaysRect());
 }
@@ -260,8 +270,7 @@ static void test_matrix_min_max_scale(skiatest::Reporter* reporter) {
         REPORTER_ASSERT(reporter, (minScale < 0) == (maxScale < 0));
         REPORTER_ASSERT(reporter, (maxScale < 0) == mat.hasPerspective());
 
-        SkScalar scales[2];
-        bool success = mat.getMinMaxScales(scales);
+        success = mat.getMinMaxScales(scales);
         REPORTER_ASSERT(reporter, success == !mat.hasPerspective());
         REPORTER_ASSERT(reporter, !success || (scales[0] == minScale && scales[1] == maxScale));
 
@@ -699,7 +708,7 @@ static void test_matrix_homogeneous(skiatest::Reporter* reporter) {
 
     // doesn't crash with null dst, src, count == 0
     {
-    mats[0].mapHomogeneousPoints(nullptr, nullptr, 0);
+    mats[0].mapHomogeneousPoints(nullptr, (const SkPoint3*)nullptr, 0);
     }
 
     // uniform scale of point
@@ -794,7 +803,7 @@ static bool check_decompScale(const SkMatrix& original) {
     original.mapPoints(v1, testPts, kNumPoints);
 
     SkPoint v2[kNumPoints];
-    SkMatrix scaleMat = SkMatrix::MakeScale(scale.width(), scale.height());
+    SkMatrix scaleMat = SkMatrix::Scale(scale.width(), scale.height());
 
     // Note, we intend the decomposition to be applied in the order scale and then remainder but,
     // due to skbug.com/7211, the order is reversed!
@@ -1004,7 +1013,7 @@ DEF_TEST(Matrix_maprects, r) {
     // We should report nonfinite-ness after a mapping
     {
         // We have special-cases in mapRect for different matrix types
-        SkMatrix m0 = SkMatrix::MakeScale(1e20f, 1e20f);
+        SkMatrix m0 = SkMatrix::Scale(1e20f, 1e20f);
         SkMatrix m1; m1.setRotate(30); m1.postScale(1e20f, 1e20f);
 
         for (const auto& m : { m0, m1 }) {
@@ -1014,6 +1023,20 @@ DEF_TEST(Matrix_maprects, r) {
             REPORTER_ASSERT(r, !rect.isFinite());
         }
     }
+}
+
+DEF_TEST(Matrix_mapRect_skbug12335, r) {
+    // Stripped down test case from skbug.com/12335. Essentially, the corners of this rect would
+    // map to homogoneous coords with very small w's (below the old value of kW0PlaneDistance) and
+    // so they would be clipped "behind" the plane, resulting in an empty mapped rect. Coordinates
+    // with positive that wouldn't overflow when divided by w should still be included in the mapped
+    // rectangle.
+    SkRect rect = SkRect::MakeLTRB(0, 0, 319, 620);
+    SkMatrix m = SkMatrix::MakeAll( 0.000152695269f, 0.00000000f,     -6.53848401e-05f,
+                                   -1.75697533e-05f, 0.000157153074f, -1.10847975e-06f,
+                                   -6.00415362e-08f, 0.00000000f,      0.000169880834f);
+    SkRect out = m.mapRect(rect);
+    REPORTER_ASSERT(r, !out.isEmpty());
 }
 
 DEF_TEST(Matrix_Ctor, r) {
