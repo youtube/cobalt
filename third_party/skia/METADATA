@@ -7,11 +7,11 @@ description:
   "easier to update the Skia porting layer again in the future."
 
 third_party {
-  url {
-    type: GIT
+  identifier {
+    type: "Git"
     value: "https://chromium.googlesource.com/skia"
+    version: "b4d28b2f35396ae4dd69338254415066629dfd25"
   }
-  version: "b4d28b2f35396ae4dd69338254415066629dfd25"
   last_upgrade_date {
     year: 2024
     month: 2
