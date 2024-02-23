@@ -81,7 +81,8 @@ void CobaltAgent::SendConsoleCommand(Command command) {
       console::ConsoleCommandManager* console_command_manager =
           console::ConsoleCommandManager::GetInstance();
       DCHECK(console_command_manager);
-      console_command_manager->HandleCommand(*console_command, *message);
+      std::string response_string =
+          console_command_manager->HandleCommand(*console_command, *message);
       response->Set("result", std::move(response_string));
       command.SendResponse();
       return;

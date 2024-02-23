@@ -44,7 +44,9 @@ absl_test("kernel_timeout_internal_test") {
 absl_source_set("synchronization") {
   # Synchronization is not Starboardized since at this time it's banned for use
   # in Chromium code.
-  if (!use_cobalt_customizations) {
+  # TODO: b/326500064 - These files need to be starboardized or removed again.
+  #                     Right now we link it in because it's used.
+  if (!use_cobalt_customizations || true) {
   sources = [
     "barrier.cc",
     "blocking_counter.cc",

@@ -236,14 +236,14 @@ base::TimeDelta ChunkDemuxerStream::GetWriteHead() const {
 }
 
 size_t ChunkDemuxerStream::GetStreamMemoryLimit() {
-  DCHECK(stream_);
   base::AutoLock auto_lock(lock_);
+  DCHECK(stream_);
   return stream_->memory_limit();
 }
 
 void ChunkDemuxerStream::SetStreamMemoryLimitOverride(size_t memory_limit) {
-  DCHECK(stream_);
   base::AutoLock auto_lock(lock_);
+  DCHECK(stream_);
   stream_->set_memory_limit_override(memory_limit);
 }
 

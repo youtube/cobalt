@@ -29,7 +29,8 @@ namespace base {
 
 namespace subtle {
 Time TimeNowIgnoringOverride() {
-  return Time() + Microseconds(SbTimeGetNow());
+  return Time() + Microseconds(
+      starboard::PosixTimeToWindowsTime(starboard::CurrentPosixTime()));
 }
 
 Time TimeNowFromSystemTimeIgnoringOverride() {
@@ -42,7 +43,8 @@ Time TimeNowFromSystemTimeIgnoringOverride() {
 
 namespace subtle {
 TimeTicks TimeTicksNowIgnoringOverride() {
-  return TimeTicks() + Microseconds(SbTimeGetMonotonicNow());
+  return TimeTicks() + Microseconds(
+      starboard::CurrentMonotonicTime());
 }
 }  // namespace subtle
 

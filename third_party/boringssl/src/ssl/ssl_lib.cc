@@ -935,33 +935,6 @@ int SSL_process_quic_post_handshake(SSL *ssl) {
   return 1;
 }
 
-int SSL_process_quic_post_handshake(SSL *ssl) {
-  ssl_reset_error_state(ssl);
-
-  if (SSL_in_init(ssl)) {
-    OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
-    return 0;
-  }
-
-  // Replay post-handshake message errors.
-  if (!check_read_error(ssl)) {
-    return 0;
-  }
-
-  // Process any buffered post-handshake messages.
-  SSLMessage msg;
-  while (ssl->method->get_message(ssl, &msg)) {
-    // Handle the post-handshake message and try again.
-    if (!ssl_do_post_handshake(ssl, msg)) {
-      ssl_set_read_error(ssl);
-      return 0;
-    }
-    ssl->method->next_message(ssl);
-  }
-
-  return 1;
-}
-
 static int ssl_read_impl(SSL *ssl) {
   ssl_reset_error_state(ssl);
 
@@ -1226,9 +1199,6 @@ int SSL_set_quic_early_data_context(SSL *ssl, const uint8_t *context,
                                     size_t context_len) {
   return ssl->config && ssl->config->quic_early_data_context.CopyFrom(
                             MakeConstSpan(context, context_len));
-}
-int SSL_set_handshake_hints(SSL *ssl, const uint8_t *hints, size_t hints_len) {
-  return 0;
 }
 
 void SSL_CTX_set_early_data_enabled(SSL_CTX *ctx, int enabled) {
@@ -2024,13 +1994,6 @@ const char *SSL_get_cipher_list(const SSL *ssl, int n) {
   }
 
   return c->name;
-}
-
-uint16_t SSL_CIPHER_get_protocol_id(const SSL_CIPHER *cipher) {
-  // All OpenSSL cipher IDs are prefaced with 0x03. Historically this referred
-  // to SSLv2 vs SSLv3.
-  assert((cipher->id & 0xff000000) == 0x03000000);
-  return static_cast<uint16_t>(cipher->id);
 }
 
 int SSL_CTX_set_cipher_list(SSL_CTX *ctx, const char *str) {
@@ -3110,49 +3073,6 @@ int SSL_CTX_set_tlsext_status_arg(SSL_CTX *ctx, void *arg) {
   return 1;
 }
 
-int SSL_CTX_set1_ech_keys(SSL_CTX *ctx, SSL_ECH_KEYS *keys) {
-  return 0;
-}
-
-void SSL_set_enable_ech_grease(SSL *ssl, int enable) {
-  return;
-}
-
-int SSL_set1_ech_config_list(SSL *ssl, const uint8_t *ech_config_list,
-                             size_t ech_config_list_len) {
-  return 0;
-}
-
-void SSL_get0_ech_retry_configs(
-    const SSL *ssl, const uint8_t **out_retry_configs,
-    size_t *out_retry_configs_len) {
-  return;
-}
-
-SSL_ECH_KEYS *SSL_ECH_KEYS_new() { return New<SSL_ECH_KEYS>(); }
-
-void SSL_ECH_KEYS_up_ref(SSL_ECH_KEYS *keys) {
-  CRYPTO_refcount_inc(&keys->references);
-}
-
-void SSL_ECH_KEYS_free(SSL_ECH_KEYS *keys) {
-  if (keys == nullptr ||
-      !CRYPTO_refcount_dec_and_test_zero(&keys->references)) {
-    return;
-  }
-
-  keys->~ssl_ech_keys_st();
-  OPENSSL_free(keys);
-}
-
-int SSL_ech_accepted(const SSL *ssl) {
-  return 0;
-  // if (SSL_in_early_data(ssl) && !ssl->server) {
-  //   // In the client early data state, we report properties as if the server
-  //   // accepted early data. The server can only accept early data with
-  //   // ClientHelloInner.
-  //   return ssl->s3->hs->selected_ech_config != nullptr;
-  // }
-
-  // return ssl->s3->ech_status == ssl_ech_accepted;
+SSL_SESSION *SSL_SESSION_copy_without_early_data(SSL_SESSION *session) {
+  return nullptr;
 }

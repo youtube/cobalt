@@ -3021,7 +3021,10 @@ struct SSL_CONFIG {
 
   // Contains the context used to decide whether to accept early data in QUIC.
   Array<uint8_t> quic_early_data_context;
+
+  // verify_sigalgs, if not empty, is the set of signature algorithms
   // accepted from the peer in decreasing order of preference.
+  Array<uint16_t> verify_sigalgs;
 
   // srtp_profiles is the list of configured SRTP protection profiles for
   // DTLS-SRTP.

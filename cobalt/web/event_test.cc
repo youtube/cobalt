@@ -105,7 +105,7 @@ TEST_F(EventTest, InitEvent) {
 }
 
 TEST_F(EventTest, InitEventIgnoredWhenBeingDispatched) {
-  scoped_refptr<Event> event = new Event(base::Token("event"));
+  scoped_refptr<Event> event = new Event(base_token::Token("event"));
   EXPECT_EQ("event", event->type());
   EXPECT_FALSE(event->bubbles());
   EXPECT_FALSE(event->cancelable());

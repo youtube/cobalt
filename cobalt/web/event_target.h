@@ -549,10 +549,11 @@ class EventTarget : public script::Wrappable,
   // given type.
   void AddEventListenerRegistrationCallback(void* object, const char* type,
                                             base::OnceClosure callback) {
-    AddEventListenerRegistrationCallback(object, base::Token(type),
+    AddEventListenerRegistrationCallback(object, base_token::Token(type),
                                          std::move(callback));
   }
-  void AddEventListenerRegistrationCallback(void* object, base::Token type,
+  void AddEventListenerRegistrationCallback(void* object,
+                                            base_token::Token type,
                                             base::OnceClosure callback);
   void RemoveEventListenerRegistrationCallbacks(void* object);
 
@@ -579,7 +580,7 @@ class EventTarget : public script::Wrappable,
   bool unpack_onerror_events_;
 
   base::Lock event_listener_registration_mutex_;
-  std::map<base::Token, std::map<void*, base::OnceClosure>>
+  std::map<base_token::Token, std::map<void*, base::OnceClosure>>
       event_listener_registration_callbacks_;
 
   // Thread checker ensures all calls to the EventTarget are made from the

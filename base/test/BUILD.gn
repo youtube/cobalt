@@ -498,9 +498,11 @@ if (is_ios) {
 
 # Trivial executable which outputs space-delimited argv to stdout,
 # used for testing.
+if (!use_cobalt_customizations) {
 executable("test_child_process") {
   testonly = true
   sources = [ "test_child_process.cc" ]
+}
 }
 
 if (enable_base_tracing) {

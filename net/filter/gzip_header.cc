@@ -5,6 +5,7 @@
 #include "net/filter/gzip_header.h"
 
 #include <algorithm>
+#include <cstring>
 
 #include "base/check_op.h"
 #include "third_party/zlib/zlib.h"

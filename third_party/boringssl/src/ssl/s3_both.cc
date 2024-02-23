@@ -564,9 +564,86 @@ ssl_open_record_t ssl3_open_handshake(SSL *ssl, size_t *out_consumed,
   // Re-create the handshake buffer if needed.
   if (!ssl->s3->hs_buf) {
     ssl->s3->hs_buf.reset(BUF_MEM_new());
+    if (!ssl->s3->hs_buf) {
+      *out_alert = SSL_AD_INTERNAL_ERROR;
+      return ssl_open_record_error;
+    }
   }
-  return ssl->s3->hs_buf &&
-         BUF_MEM_append(ssl->s3->hs_buf.get(), data.data(), data.size());
+
+  // Bypass the record layer for the first message to handle V2ClientHello.
+  if (ssl->server && !ssl->s3->v2_hello_done) {
+    // Ask for the first 5 bytes, the size of the TLS record header. This is
+    // sufficient to detect a V2ClientHello and ensures that we never read
+    // beyond the first record.
+    if (in.size() < SSL3_RT_HEADER_LENGTH) {
+      *out_consumed = SSL3_RT_HEADER_LENGTH;
+      return ssl_open_record_partial;
+    }
+
+    // Some dedicated error codes for protocol mixups should the application
+    // wish to interpret them differently. (These do not overlap with
+    // ClientHello or V2ClientHello.)
+    const char *str = reinterpret_cast<const char*>(in.data());
+    if (strncmp("GET ", str, 4) == 0 ||
+        strncmp("POST ", str, 5) == 0 ||
+        strncmp("HEAD ", str, 5) == 0 ||
+        strncmp("PUT ", str, 4) == 0) {
+      OPENSSL_PUT_ERROR(SSL, SSL_R_HTTP_REQUEST);
+      *out_alert = 0;
+      return ssl_open_record_error;
+    }
+    if (strncmp("CONNE", str, 5) == 0) {
+      OPENSSL_PUT_ERROR(SSL, SSL_R_HTTPS_PROXY_REQUEST);
+      *out_alert = 0;
+      return ssl_open_record_error;
+    }
+
+    // Check for a V2ClientHello.
+    if ((in[0] & 0x80) != 0 && in[2] == SSL2_MT_CLIENT_HELLO &&
+        in[3] == SSL3_VERSION_MAJOR) {
+      auto ret = read_v2_client_hello(ssl, out_consumed, in);
+      if (ret == ssl_open_record_error) {
+        *out_alert = 0;
+      } else if (ret == ssl_open_record_success) {
+        ssl->s3->v2_hello_done = true;
+      }
+      return ret;
+    }
+
+    ssl->s3->v2_hello_done = true;
+  }
+
+  uint8_t type;
+  Span<uint8_t> body;
+  auto ret = tls_open_record(ssl, &type, &body, out_consumed, out_alert, in);
+  if (ret != ssl_open_record_success) {
+    return ret;
+  }
+
+  // WatchGuard's TLS 1.3 interference bug is very distinctive: they drop the
+  // ServerHello and send the remaining encrypted application data records
+  // as-is. This manifests as an application data record when we expect
+  // handshake. Report a dedicated error code for this case.
+  if (!ssl->server && type == SSL3_RT_APPLICATION_DATA &&
+      ssl->s3->aead_read_ctx->is_null_cipher()) {
+    OPENSSL_PUT_ERROR(SSL, SSL_R_APPLICATION_DATA_INSTEAD_OF_HANDSHAKE);
+    *out_alert = SSL_AD_UNEXPECTED_MESSAGE;
+    return ssl_open_record_error;
+  }
+
+  if (type != SSL3_RT_HANDSHAKE) {
+    OPENSSL_PUT_ERROR(SSL, SSL_R_UNEXPECTED_RECORD);
+    *out_alert = SSL_AD_UNEXPECTED_MESSAGE;
+    return ssl_open_record_error;
+  }
+
+  // Append the entire handshake record to the buffer.
+  if (!BUF_MEM_append(ssl->s3->hs_buf.get(), body.data(), body.size())) {
+    *out_alert = SSL_AD_INTERNAL_ERROR;
+    return ssl_open_record_error;
+  }
+
+  return ssl_open_record_success;
 }
 
 ssl_open_record_t tls_open_handshake(SSL *ssl, size_t *out_consumed,

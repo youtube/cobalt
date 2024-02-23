@@ -280,7 +280,7 @@ void EventTarget::TraceMembers(script::Tracer* tracer) {
 }
 
 void EventTarget::AddEventListenerRegistrationCallback(
-    void* object, base::Token token, base::OnceClosure callback) {
+    void* object, base_token::Token token, base::OnceClosure callback) {
   base::AutoLock lock(event_listener_registration_mutex_);
   event_listener_registration_callbacks_[token][object] = std::move(callback);
 }
@@ -325,7 +325,7 @@ void EventTarget::AddEventListenerInternal(
       listener_info->task(), listener_info->type().c_str(),
       base::DebuggerHooks::AsyncTaskFrequency::kRecurring);
 
-  base::Token type = listener_info->type();
+  base_token::Token type = listener_info->type();
   event_listener_infos_.push_back(std::move(listener_info));
 
   {

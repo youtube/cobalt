@@ -85,7 +85,7 @@ bool IsNearTheEndOfStream(const WebMediaPlayerImpl* wmpi, double position) {
 #endif  // defined(COBALT_SKIP_SEEK_REQUEST_NEAR_END)
 
 base::TimeDelta ConvertSecondsToTimestamp(double seconds) {
-  return base::TimeDelta::FromMicrosecondsD(std::round(
+  return base::TimeDelta::FromMicroseconds(std::round(
       seconds * static_cast<double>(base::Time::kMicrosecondsPerSecond)));
 }
 

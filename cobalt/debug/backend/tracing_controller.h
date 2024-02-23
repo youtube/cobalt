@@ -24,17 +24,22 @@
 #include "base/memory/ref_counted_memory.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
-#include "base/trace_event/trace_buffer.h"
-#include "base/trace_event/tracing_agent.h"
+#include "base/tracing_buildflags.h"
 #include "cobalt/debug/backend/command_map.h"
 #include "cobalt/debug/backend/debug_dispatcher.h"
 #include "cobalt/debug/command.h"
 #include "cobalt/script/script_debugger.h"
 
+#if BUILDFLAG(ENABLE_BASE_TRACING)
+#include "base/trace_event/trace_buffer.h"
+#include "base/trace_event/tracing_agent.h"
+#endif
+
 namespace cobalt {
 namespace debug {
 namespace backend {
 
+#if BUILDFLAG(ENABLE_BASE_TRACING)
 
 using base::trace_event::TraceConfig;
 using base::trace_event::TracingAgent;
@@ -133,7 +138,7 @@ class TracingController {
 
  private:
   DebugDispatcher* dispatcher_;
-  std::vector<std::unique_ptr<TracingAgent>> agents_;
+  std::vector<std::unique_ptr<TracingAgent> > agents_;
   std::atomic_int agents_responded_{0};
 
   bool tracing_started_;
@@ -145,6 +150,46 @@ class TracingController {
   // Map of member functions implementing commands.
   CommandMap commands_;
 };
+
+#else
+
+// There aren't enable/disable commands in the Tracing domain, so the
+// TracingController doesn't use AgentBase.
+//
+// https://chromedevtools.github.io/devtools-protocol/tot/Tracing
+class TracingController : public script::ScriptDebugger::TraceDelegate {
+ public:
+  explicit TracingController(DebugDispatcher* dispatcher,
+                             script::ScriptDebugger* script_debugger);
+
+  void Thaw(JSONObject agent_state);
+  JSONObject Freeze();
+
+  // TraceDelegate
+  void AppendTraceEvent(const std::string& trace_event_json) override;
+  void FlushTraceEvents() override;
+
+ private:
+  void End(Command command);
+  void Start(Command command);
+
+  void SendDataCollectedEvent();
+
+  DebugDispatcher* dispatcher_;
+  script::ScriptDebugger* script_debugger_;
+
+  THREAD_CHECKER(thread_checker_);
+
+  bool tracing_started_;
+  std::vector<std::string> categories_;
+  size_t collected_size_;
+  JSONList collected_events_;
+
+  // Map of member functions implementing commands.
+  CommandMap commands_;
+};
+
+#endif
 
 }  // namespace backend
 }  // namespace debug

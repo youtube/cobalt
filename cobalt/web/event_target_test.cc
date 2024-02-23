@@ -64,7 +64,7 @@ class EventTargetTest : public ::testing::Test {
 TEST_F(EventTargetTest, HasEventListener) {
   scoped_refptr<EventTarget> event_target =
       new EventTarget(&environment_settings_);
-  scoped_refptr<Event> event = new Event(base::Token("fired"));
+  scoped_refptr<Event> event = new Event(base_token::Token("fired"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
   event_listener->ExpectNoHandleEventCall();
@@ -130,7 +130,7 @@ TEST_F(EventTargetTest, HasOneOrMoreAttributeEventListener) {
 
   scoped_refptr<EventTarget> event_target =
       new EventTarget(&environment_settings_);
-  scoped_refptr<Event> event = new Event(base::Token("fired"));
+  scoped_refptr<Event> event = new Event(base_token::Token("fired"));
   std::unique_ptr<MockEventListener> event_listener =
       MockEventListener::Create();
   event_listener->ExpectNoHandleEventCall();
@@ -251,9 +251,9 @@ TEST_F(EventTargetTest, MultipleEventListeners) {
   // Check event_listener_event_types.
   const auto& types = event_target->event_listener_event_types();
   EXPECT_EQ(types.size(), 2U);
-  EXPECT_NE(types.end(), types.find(base::Token("fired")));
-  EXPECT_NE(types.end(), types.find(base::Token("notfired")));
-  EXPECT_EQ(types.end(), types.find(base::Token("foo")));
+  EXPECT_NE(types.end(), types.find(base_token::Token("fired")));
+  EXPECT_NE(types.end(), types.find(base_token::Token("notfired")));
+  EXPECT_EQ(types.end(), types.find(base_token::Token("foo")));
 
   EXPECT_CALL(debugger_hooks_, AsyncTaskStarted(async_task_1));
   event_listenerfired_1->ExpectHandleEventCall(event, event_target);
@@ -660,7 +660,7 @@ TEST_F(EventTargetTest, DispatchingDispatchedEventRaisesException) {
   event_target->AddEventListener(
       "fired", FakeScriptValue<EventListener>(event_listener.get()), false);
   scoped_refptr<Event> event = new Event(
-      base::Token("fired"), Event::kNotBubbles, Event::kNotCancelable);
+      base_token::Token("fired"), Event::kNotBubbles, Event::kNotCancelable);
 
   event->set_event_phase(Event::kAtTarget);
   EXPECT_FALSE(event->target());

@@ -98,6 +98,7 @@ NetFetcher::NetFetcher(const GURL& url, bool main_resource,
     url_fetcher_->AddExtraRequestHeader("Origin:" + origin.SerializedOrigin());
   }
 
+#ifndef USE_HACKY_COBALT_CHANGES
   if (url.SchemeIsHTTPOrHTTPS()) {
     auto url_request_context = network_module->url_request_context();
     std::string key = net::HttpUtil::SpecForRequest(url);
@@ -114,6 +115,7 @@ NetFetcher::NetFetcher(const GURL& url, bool main_resource,
     url_fetcher_->SetLoadFlags(kDisableCookiesLoadFlags);
   }
 #endif
+
   network_module->AddClientHintHeaders(*url_fetcher_, network::kCallTypeLoader);
 
   // Delay the actual start until this function is complete. Otherwise we might

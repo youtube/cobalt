@@ -15,6 +15,9 @@
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 // For ssize_t
 #include <unistd.h>
+#elif defined(STARBOARD)
+#include "starboard/common/string.h"
+#include "starboard/types.h"
 #endif
 
 #include "base/base_export.h"

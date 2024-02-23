@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build_overrides/build.gni")
+
 static_library("debug") {
   has_pedantic_warnings = true
   sources = [
@@ -80,6 +82,11 @@ static_library("debug") {
     "//starboard:starboard_group",
     "//third_party/devtools:devtools_frontend_resources",
   ]
+
+  if (!enable_base_tracing) {
+    sources -= [ "backend/tracing_controller.cc" ]
+    sources += [ "backend/tracing_controller_stub.cc" ]
+  }
 }
 
 # Anything that implements a console command can depend on this without

@@ -291,7 +291,7 @@ LogMessageHandlerFunction g_log_message_handler = nullptr;
 
 uint64_t TickCount() {
 #if defined(STARBOARD)
-  return static_cast<uint64_t>(SbTimeGetMonotonicNow());
+  return starboard::CurrentMonotonicTime();
 #elif BUILDFLAG(IS_WIN)
   return GetTickCount();
 #elif BUILDFLAG(IS_FUCHSIA)

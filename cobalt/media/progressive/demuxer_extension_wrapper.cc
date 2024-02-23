@@ -19,8 +19,6 @@
 #include <string>
 #include <utility>
 
-#include "base/task/post_task.h"
-#include "base/task_runner_util.h"
 #include "base/time/time.h"
 #include "starboard/extension/demuxer.h"
 #include "starboard/system.h"

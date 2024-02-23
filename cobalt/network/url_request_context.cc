@@ -50,9 +50,6 @@
 #include "net/proxy_resolution/proxy_resolution_service.h"
 #include "net/ssl/ssl_config_service.h"
 #include "net/ssl/ssl_config_service_defaults.h"
-#include "net/third_party/quic/platform/api/quic_flags.h"
-#include "net/url_request/data_protocol_handler.h"
-#include "net/url_request/url_request_job_factory_impl.h"
 #include "starboard/common/murmurhash2.h"
 #include "starboard/configuration_constants.h"
 
