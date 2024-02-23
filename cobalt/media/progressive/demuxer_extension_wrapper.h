@@ -18,7 +18,6 @@
 #ifndef COBALT_MEDIA_PROGRESSIVE_DEMUXER_EXTENSION_WRAPPER_H_
 #define COBALT_MEDIA_PROGRESSIVE_DEMUXER_EXTENSION_WRAPPER_H_
 
-#include <atomic>
 #include <deque>
 #include <memory>
 #include <string>
@@ -190,10 +189,6 @@ class DemuxerExtensionWrapper : public ::media::Demuxer {
     return absl::nullopt;
   }
 
-  bool GetIsEndOfStreamReceived() const override {
-    return audio_reached_eos_ || video_reached_eos_;
-  }
-
  private:
   // Only a forward declaration here, since the specifics of this class are an
   // implementation detail.
@@ -229,8 +224,8 @@ class DemuxerExtensionWrapper : public ::media::Demuxer {
   mutable base::Lock lock_for_stopped_;
   // Indicates whether Stop has been called.
   bool stopped_ = false;
-  std::atomic_bool video_reached_eos_ = {false};
-  std::atomic_bool audio_reached_eos_ = {false};
+  bool video_reached_eos_ = false;
+  bool audio_reached_eos_ = false;
   bool flushing_ = false;
 
   base::Optional<DemuxerExtensionStream> video_stream_;
