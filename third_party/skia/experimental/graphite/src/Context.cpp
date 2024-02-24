@@ -7,13 +7,16 @@
 
 #include "experimental/graphite/include/Context.h"
 
+#include "experimental/graphite/include/BackendTexture.h"
+#include "experimental/graphite/include/Recorder.h"
+#include "experimental/graphite/include/Recording.h"
+#include "experimental/graphite/include/TextureInfo.h"
 #include "experimental/graphite/src/Caps.h"
 #include "experimental/graphite/src/CommandBuffer.h"
 #include "experimental/graphite/src/ContextUtils.h"
 #include "experimental/graphite/src/Gpu.h"
-#include "experimental/graphite/src/ProgramCache.h"
-#include "experimental/graphite/src/Recorder.h"
-#include "experimental/graphite/src/Recording.h"
+#include "experimental/graphite/src/GraphicsPipelineDesc.h"
+#include "experimental/graphite/src/Renderer.h"
 
 #ifdef SK_METAL
 #include "experimental/graphite/src/mtl/MtlTrampoline.h"
@@ -21,7 +24,7 @@
 
 namespace skgpu {
 
-Context::Context(sk_sp<Gpu> gpu) : fGpu(std::move(gpu)) {}
+Context::Context(sk_sp<Gpu> gpu, BackendApi backend) : fGpu(std::move(gpu)), fBackend(backend) {}
 Context::~Context() {}
 
 #ifdef SK_METAL
@@ -31,12 +34,12 @@ sk_sp<Context> Context::MakeMetal(const mtl::BackendContext& backendContext) {
         return nullptr;
     }
 
-    return sk_sp<Context>(new Context(std::move(gpu)));
+    return sk_sp<Context>(new Context(std::move(gpu), BackendApi::kMetal));
 }
 #endif
 
 sk_sp<Recorder> Context::createRecorder() {
-    return sk_make_sp<Recorder>(sk_ref_sp(this));
+    return sk_sp<Recorder>(new Recorder(sk_ref_sp(this)));
 }
 
 void Context::insertRecording(std::unique_ptr<Recording> recording) {
@@ -55,25 +58,41 @@ void Context::submit(SyncToCpu syncToCpu) {
 }
 
 void Context::preCompile(const PaintCombo& paintCombo) {
-    ProgramCache cache;
-
     for (auto bm: paintCombo.fBlendModes) {
         for (auto& shaderCombo: paintCombo.fShaders) {
             for (auto shaderType: shaderCombo.fTypes) {
                 for (auto tm: shaderCombo.fTileModes) {
                     Combination c {shaderType, tm, bm};
 
-                    sk_sp<ProgramCache::ProgramInfo> pi = cache.findOrCreateProgram(c);
-                    // TODO: this should be getSkSL
-                    // TODO: it should also return the uniform information
-                    std::string msl = pi->getMSL();
-                    // TODO: compile the MSL and store the result back into the ProgramInfo
-                    // To do this we will need the path rendering options from Chris and
-                    // a stock set of RenderPasses.
+                    GraphicsPipelineDesc desc;
+
+                    for (const Renderer* r : {&Renderer::StencilAndFillPath()}) {
+                        for (auto&& s : r->steps()) {
+                            desc.setProgram(s, c);
+                            // TODO: Combine with renderpass description set to generate full
+                            // GraphicsPipeline and MSL program. Cache that compiled pipeline on
+                            // the resource provider in a map from desc -> pipeline so that any
+                            // later desc created from equivalent RenderStep + Combination get it.
+                        }
+                    }
                 }
             }
         }
     }
+}
+
+BackendTexture Context::createBackendTexture(SkISize dimensions, const TextureInfo& info) {
+    if (!info.isValid() || info.backend() != this->backend()) {
+        return {};
+    }
+    return fGpu->createBackendTexture(dimensions, info);
+}
+
+void Context::deleteBackendTexture(BackendTexture& texture) {
+    if (!texture.isValid() || texture.backend() != this->backend()) {
+        return;
+    }
+    fGpu->deleteBackendTexture(texture);
 }
 
 } // namespace skgpu

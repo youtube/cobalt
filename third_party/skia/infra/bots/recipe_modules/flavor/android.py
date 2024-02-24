@@ -88,7 +88,19 @@ class AndroidFlavor(default.DefaultFlavor):
 
     def wait_for_device(attempt):
       self.m.run(self.m.step,
-                 'kill adb server after failure of \'%s\' (attempt %d)' % (
+                 'adb reconnect after failure of \'%s\' (attempt %d)' % (
+                     title, attempt),
+                 cmd=[self.ADB_BINARY, 'reconnect'],
+                 infra_step=True, timeout=30, abort_on_failure=False,
+                 fail_build_on_failure=False)
+      self.m.run(self.m.step,
+                 'wait for device after failure of \'%s\' (attempt %d)' % (
+                     title, attempt),
+                 cmd=[self.ADB_BINARY, 'wait-for-device'], infra_step=True,
+                 timeout=180, abort_on_failure=False,
+                 fail_build_on_failure=False)
+      self.m.run(self.m.step,
+                 'adb reconnect device after failure of \'%s\' (attempt %d)' % (
                      title, attempt),
                  cmd=[self.ADB_BINARY, 'reconnect', 'device'],
                  infra_step=True, timeout=30, abort_on_failure=False,
@@ -547,7 +559,7 @@ time.sleep(60)
                                       host, '*',
                                       test_data=['foo.png', 'bar.jpg'])
     args = contents + [device]
-    self._adb('push %s/* %s' % (host, device), 'push', *args)
+    self._adb('push --sync %s/* %s' % (host, device), 'push', *args)
 
   def copy_directory_contents_to_host(self, device, host):
     # TODO(borenet): When all of our devices are on Android 6.0 and up, we can

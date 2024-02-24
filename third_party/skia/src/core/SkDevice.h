@@ -8,6 +8,7 @@
 #ifndef SkDevice_DEFINED
 #define SkDevice_DEFINED
 
+#include "include/core/SkBlender.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkColor.h"
 #include "include/core/SkRefCnt.h"
@@ -27,7 +28,6 @@ class SkGlyphRunList;
 class SkImageFilter;
 class SkImageFilterCache;
 struct SkIRect;
-class SkMarkerStack;
 class SkRasterHandleAllocator;
 class SkSpecialImage;
 
@@ -139,13 +139,6 @@ public:
     SkMatrix getRelativeTransform(const SkBaseDevice&) const;
 
     virtual void* getRasterHandle() const { return nullptr; }
-
-    SkMarkerStack* markerStack() const { return fMarkerStack; }
-    void setMarkerStack(SkMarkerStack* ms) { fMarkerStack = ms; }
-
-    // SkMatrixProvider interface:
-    bool getLocalToMarker(uint32_t, SkM44* localToMarker) const override;
-    bool localToDeviceHitsPixelCenters() const override { return true; }
 
     const SkMatrixProvider& asMatrixProvider() const { return *this; }
 
@@ -270,16 +263,16 @@ protected:
     virtual void drawImageLattice(const SkImage*, const SkCanvas::Lattice&,
                                   const SkRect& dst, SkFilterMode, const SkPaint&);
 
-    virtual void drawVertices(const SkVertices*, SkBlendMode, const SkPaint&) = 0;
+    virtual void drawVertices(const SkVertices*, sk_sp<SkBlender>, const SkPaint&) = 0;
     virtual void drawShadow(const SkPath&, const SkDrawShadowRec&);
 
     // default implementation calls drawVertices
     virtual void drawPatch(const SkPoint cubics[12], const SkColor colors[4],
-                           const SkPoint texCoords[4], SkBlendMode, const SkPaint& paint);
+                           const SkPoint texCoords[4], sk_sp<SkBlender>, const SkPaint& paint);
 
     // default implementation calls drawVertices
     virtual void drawAtlas(const SkRSXform[], const SkRect[], const SkColor[], int count,
-                           SkBlendMode, const SkPaint&);
+                           sk_sp<SkBlender>, const SkPaint&);
 
     virtual void drawAnnotation(const SkRect&, const char[], SkData*) {}
 
@@ -300,6 +293,14 @@ protected:
 
     // Only called with glyphRunLists that do not contain RSXForm.
     virtual void onDrawGlyphRunList(const SkGlyphRunList& glyphRunList, const SkPaint& paint) = 0;
+
+    // GrSlug handling routines.
+#if SK_SUPPORT_GPU
+    virtual sk_sp<GrSlug> convertGlyphRunListToSlug(
+            const SkGlyphRunList& glyphRunList,
+            const SkPaint& paint) const;
+    virtual void drawSlug(GrSlug* slug);
+#endif
 
     /**
      * The SkDevice passed will be an SkDevice which was returned by a call to
@@ -370,19 +371,16 @@ protected:
         CreateInfo(const SkImageInfo& info,
                    SkPixelGeometry geo,
                    TileUsage tileUsage,
-                   bool trackCoverage,
                    SkRasterHandleAllocator* allocator)
             : fInfo(info)
             , fTileUsage(tileUsage)
             , fPixelGeometry(geo)
-            , fTrackCoverage(trackCoverage)
             , fAllocator(allocator)
         {}
 
         const SkImageInfo       fInfo;
         const TileUsage         fTileUsage;
         const SkPixelGeometry   fPixelGeometry;
-        const bool              fTrackCoverage = false;
         SkRasterHandleAllocator* fAllocator = nullptr;
     };
 
@@ -449,8 +447,6 @@ private:
     void privateResize(int w, int h) {
         *const_cast<SkImageInfo*>(&fInfo) = fInfo.makeWH(w, h);
     }
-
-    SkMarkerStack* fMarkerStack = nullptr;  // does not own this, set in setMarkerStack()
 
     const SkImageInfo    fInfo;
     const SkSurfaceProps fSurfaceProps;
@@ -519,7 +515,7 @@ protected:
     void drawRRect(const SkRRect&, const SkPaint&) override {}
     void drawPath(const SkPath&, const SkPaint&, bool) override {}
     void drawDevice(SkBaseDevice*, const SkSamplingOptions&, const SkPaint&) override {}
-    void drawVertices(const SkVertices*, SkBlendMode, const SkPaint&) override {}
+    void drawVertices(const SkVertices*, sk_sp<SkBlender>, const SkPaint&) override {}
 
     void drawFilteredImage(const skif::Mapping&, SkSpecialImage* src, const SkImageFilter*,
                            const SkSamplingOptions&, const SkPaint&) override {}

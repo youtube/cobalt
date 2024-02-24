@@ -92,7 +92,8 @@ public:
                          const SkPaint& drawPaint,
                          const GrSDFTControl& control,
                          SkGlyphRunPainterInterface* process,
-                         const char* tag = nullptr);
+                         const char* tag = nullptr,
+                         uint64_t blobID = SK_InvalidUniqueID);
 #endif  // SK_SUPPORT_GPU
 
 private:
@@ -140,18 +141,19 @@ public:
     virtual ~SkGlyphRunPainterInterface() = default;
 
     virtual void processDeviceMasks(const SkZip<SkGlyphVariant, SkPoint>& drawables,
-                                    const SkStrikeSpec& strikeSpec) = 0;
+                                    sk_sp<SkStrike>&& strike) = 0;
 
     virtual void processSourceMasks(const SkZip<SkGlyphVariant, SkPoint>& drawables,
-                                    const SkStrikeSpec& strikeSpec) = 0;
+                                    sk_sp<SkStrike>&& strike,
+                                    SkScalar strikeToSourceScale) = 0;
 
     virtual void processSourcePaths(const SkZip<SkGlyphVariant, SkPoint>& drawables,
                                     const SkFont& runFont,
-                                    const SkStrikeSpec& strikeSpec,
                                     SkScalar strikeToSourceScale) = 0;
 
     virtual void processSourceSDFT(const SkZip<SkGlyphVariant, SkPoint>& drawables,
-                                   const SkStrikeSpec& strikeSpec,
+                                   sk_sp<SkStrike>&& strike,
+                                   SkScalar strikeToSourceScale,
                                    const SkFont& runFont,
                                    SkScalar minScale,
                                    SkScalar maxScale) = 0;

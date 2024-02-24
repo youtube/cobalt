@@ -64,9 +64,9 @@ public:
     void    drawGlyphRunList(const SkGlyphRunList& glyphRunList,
                              const SkPaint& paint,
                              SkGlyphRunListPainter* glyphPainter) const;
-    void    drawVertices(const SkVertices*, SkBlendMode, const SkPaint&) const;
+    void    drawVertices(const SkVertices*, sk_sp<SkBlender>, const SkPaint&) const;
     void  drawAtlas(const SkRSXform[], const SkRect[], const SkColor[], int count,
-                    SkBlendMode, const SkPaint&);
+                    sk_sp<SkBlender>, const SkPaint&);
 
     /**
      *  Overwrite the target with the path's coverage (i.e. its mask).
@@ -102,8 +102,6 @@ public:
                            SkMask* mask, SkMask::CreateMode mode,
                            SkStrokeRec::InitStyle style);
 
-    void drawDevMask(const SkMask& mask, const SkPaint&) const;
-
     enum RectType {
         kHair_RectType,
         kFill_RectType,
@@ -123,9 +121,8 @@ public:
                                     SkPoint* strokeSize);
 
 private:
-    void drawBitmapAsMask(const SkBitmap&, const SkSamplingOptions&, const SkPaint&) const;
     void drawFixedVertices(const SkVertices* vertices,
-                           SkBlendMode blendMode,
+                           sk_sp<SkBlender> blender,
                            const SkPaint& paint,
                            const SkMatrix& ctmInverse,
                            const SkPoint* dev2,
@@ -160,9 +157,6 @@ public:
     SkPixmap                fDst;
     const SkMatrixProvider* fMatrixProvider{nullptr};  // required
     const SkRasterClip*     fRC{nullptr};              // required
-
-    // optional, will be same dimensions as fDst if present
-    const SkPixmap* fCoverage{nullptr};
 
 #ifdef SK_DEBUG
     void validate() const;

@@ -8,9 +8,14 @@ description:
 
 third_party {
   identifier {
+    type: "ChromiumVersion"
+    value: "98.0.4758.141"  # from https://chromereleases.googleblog.com/2022/03/extended-stable-channel-update-for_25.html
+  }
+  identifier {
     type: "Git"
-    value: "https://chromium.googlesource.com/skia"
-    version: "b4d28b2f35396ae4dd69338254415066629dfd25"
+    value: "https://chromium.googlesource.com/skia.git"
+    version: "615322e97b5d9cac54aae62a0f4f73475ce7bef6"
+    # from https://chromium.googlesource.com/chromium/src/+/98.0.4758.141/DEPS#242
   }
   last_upgrade_date {
     year: 2024

@@ -417,6 +417,12 @@ public:
         return fBindTexture0WhenChangingTextureFBOMultisampleCount;
     }
 
+    // After using glCheckFramebufferStatus() bind 0 to the color attachment and then rebind the
+    // original color attachment.
+    bool rebindColorAttachmentAfterCheckFramebufferStatus() const {
+        return fRebindColorAttachmentAfterCheckFramebufferStatus;
+    }
+
     // Returns the observed maximum number of instances the driver can handle in a single draw call
     // without crashing, or 'pendingInstanceCount' if this workaround is not necessary.
     // NOTE: the return value may be larger than pendingInstanceCount.
@@ -463,6 +469,8 @@ public:
 
     /** Skip checks for GL errors, shader compilation success, program link success. */
     bool skipErrorChecks() const { return fSkipErrorChecks; }
+
+    bool supportsProtected() const { return fSupportsProtected; }
 
     bool clientCanDisableMultisample() const { return fClientCanDisableMultisample; }
 
@@ -577,6 +585,7 @@ private:
     bool fSRGBWriteControl : 1;
     bool fSkipErrorChecks : 1;
     bool fClientCanDisableMultisample : 1;
+    bool fSupportsProtected : 1;
 
     // Driver workarounds
     bool fDoManualMipmapping : 1;
@@ -592,6 +601,7 @@ private:
     bool fDisallowDynamicMSAA : 1;
     bool fMustResetBlendFuncBetweenDualSourceAndDisable : 1;
     bool fBindTexture0WhenChangingTextureFBOMultisampleCount : 1;
+    bool fRebindColorAttachmentAfterCheckFramebufferStatus : 1;
     int fMaxInstancesPerDrawWithoutCrashing = 0;
 
     uint32_t fBlitFramebufferFlags = kNoSupport_BlitFramebufferFlag;

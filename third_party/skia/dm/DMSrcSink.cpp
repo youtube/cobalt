@@ -81,9 +81,9 @@
 
 #ifdef SK_GRAPHITE_ENABLED
 #include "experimental/graphite/include/Context.h"
+#include "experimental/graphite/include/Recorder.h"
+#include "experimental/graphite/include/Recording.h"
 #include "experimental/graphite/include/SkStuff.h"
-#include "experimental/graphite/src/Recorder.h"
-#include "experimental/graphite/src/Recording.h"
 #include "tools/graphite/ContextFactory.h"
 #include "tools/graphite/GraphiteTestContext.h"
 #endif
@@ -392,11 +392,11 @@ static bool get_decode_info(SkImageInfo* decodeInfo, SkColorType canvasColorType
                     || kRGBA_F16_SkColorType == canvasColorType) {
                 return false;
             }
-            if (GetSkPmcolor() == SkPmcolorIsRgba) {
-                *decodeInfo = decodeInfo->makeColorType(kBGRA_8888_SkColorType);
-            } else {
-                *decodeInfo = decodeInfo->makeColorType(kRGBA_8888_SkColorType);
-            }
+#ifdef SK_PMCOLOR_IS_RGBA
+            *decodeInfo = decodeInfo->makeColorType(kBGRA_8888_SkColorType);
+#else
+            *decodeInfo = decodeInfo->makeColorType(kRGBA_8888_SkColorType);
+#endif
             break;
         default:
             if (kRGB_565_SkColorType == canvasColorType &&
@@ -2129,7 +2129,7 @@ namespace {
 void precompile(skgpu::Context* context) {
     using ShaderType = skgpu::ShaderCombo::ShaderType;
 
-    skgpu::PaintCombo c1 { { skgpu::ShaderCombo({ ShaderType::kNone },
+    skgpu::PaintCombo c1 { { skgpu::ShaderCombo({ ShaderType::kSolidColor },
                                                 { SkTileMode::kRepeat }) },
                            { SkBlendMode::kSrcOver, SkBlendMode::kSrc } };
     context->preCompile(c1);

@@ -7,7 +7,11 @@
 
 #include "experimental/graphite/src/Renderer.h"
 
+#include "experimental/graphite/src/ContextUtils.h"
+#include "experimental/graphite/src/DrawWriter.h"
+#include "experimental/graphite/src/UniformManager.h"
 #include "experimental/graphite/src/geom/Shape.h"
+#include "experimental/graphite/src/geom/Transform_graphite.h"
 #include "src/gpu/BufferWriter.h"
 
 namespace skgpu {
@@ -52,34 +56,57 @@ private:
 
 // TODO: Hand off to csmartdalton, this should roughly correspond to the fCoverBBoxProgram stage
 // of skgpu::v1::PathStencilCoverOp.
-class FillBoundsRenderStep : public RenderStep {
+class FillBoundsRenderStep final : public RenderStep {
 public:
-    FillBoundsRenderStep() {}
+    // TODO: Will need to add kRequiresStencil when we support specifying stencil settings and
+    // the Renderer includes the stenciling step first.
+    FillBoundsRenderStep()
+            : RenderStep(Flags::kPerformsShading,
+                         /*uniforms=*/{{"localToDevice", SLType::kFloat4x4}},
+                         PrimitiveType::kTriangleStrip,
+                         DepthStencilSettings(),
+                         /*vertexAttrs=*/{{"position", VertexAttribType::kFloat2, SLType::kFloat2}},
+                         /*instanceAttrs=*/{}) {}
 
     ~FillBoundsRenderStep() override {}
 
-    const char* name()            const override { return "fill-bounds"; }
-    // TODO: true when combined with a stencil step
-    bool        requiresStencil() const override { return false; }
-    bool        requiresMSAA()    const override { return false; }
-    bool        performsShading() const override { return true;  }
+    const char* name() const override { return "fill-bounds"; }
 
-    size_t requiredVertexSpace(const Shape&) const override {
-        return 8 * sizeof(float);
+    const char* vertexSkSL() const override {
+        // TODO: RenderSteps should not worry about RTAdjust, but currently the mtl pipeline does
+        // account for it, so this geometry won't be in the right coordinate system yet.
+        return "     float4 devPosition = localToDevice * float4(position, 0.0, 1.0);\n";
     }
 
-    size_t requiredIndexSpace(const Shape&) const override {
-        return 0;
+    void writeVertices(DrawWriter* writer, const Transform&, const Shape& shape) const override {
+        // TODO: For now the transform is handled as a uniform so writeVertices ignores it, but
+        // for something as simple as the bounding box, CPU transformation might be best.
+        writer->appendVertices(4)
+               .writeQuad(VertexWriter::TriStripFromRect(shape.bounds().asSkRect()));
+        // Since we upload 4 dynamic verts as a triangle strip, we need to actually draw them
+        // otherwise the next writeVertices() call would get connected to our verts.
+        // TODO: Primitive restart? Just use indexed drawing? Just write 6 verts?
+        writer->flush();
     }
 
-    void writeVertices(VertexWriter vertexWriter,
-                       IndexWriter indexWriter,
-                       const Shape& shape) const override {
-        vertexWriter.writeQuad(VertexWriter::TriStripFromRect(shape.bounds().asSkRect()));
+    sk_sp<UniformData> writeUniforms(Layout layout,
+                                     const Transform& localToDevice,
+                                     const Shape&) const override {
+        // TODO: Given that a RenderStep has its own uniform binding slot, these offsets never
+        // change so we could cache them per layout.
+        UniformManager mgr(layout);
+        size_t dataSize = mgr.writeUniforms(this->uniforms(), nullptr, nullptr, nullptr);
+        sk_sp<UniformData> transformData = UniformData::Make((int) this->numUniforms(),
+                                                             this->uniforms().data(),
+                                                             dataSize);
+
+        const void* transform[1] = {&localToDevice.matrix()};
+        mgr.writeUniforms(this->uniforms(),
+                          transform,
+                          transformData->offsets(),
+                          transformData->data());
+        return transformData;
     }
-
-
-private:
 };
 
 } // anonymous namespace

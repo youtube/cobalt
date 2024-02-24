@@ -8,6 +8,7 @@
 #ifndef SkGr_DEFINED
 #define SkGr_DEFINED
 
+#include "include/core/SkBlender.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkColor.h"
 #include "include/core/SkImageInfo.h"
@@ -89,9 +90,9 @@ bool SkPaintToGrPaint(GrRecordingContext*,
                       const SkMatrixProvider& matrixProvider,
                       GrPaint* grPaint);
 
-/** Replaces the SkShader (if any) on skPaint with the passed in GrFragmentProcessor. The processor
-    should expect an unpremul input color and produce a premultiplied output color. There is
-    no primitive color. */
+/** Replaces the SkShader (if any) on skPaint with the passed in GrFragmentProcessor, if not null.
+    If null then it is assumed that the geometry processor is implementing a shader replacement.
+    The processor should expect an unpremul input color and produce a premultiplied output color. */
 bool SkPaintToGrPaintReplaceShader(GrRecordingContext*,
                                    const GrColorInfo& dstColorInfo,
                                    const SkPaint& skPaint,
@@ -101,25 +102,12 @@ bool SkPaintToGrPaintReplaceShader(GrRecordingContext*,
 
 /** Blends the SkPaint's shader (or color if no shader) with the color which specified via a
     GrOp's GrPrimitiveProcesssor. */
-bool SkPaintToGrPaintWithBlend(GrRecordingContext*,
+bool SkPaintToGrPaintWithBlend(GrRecordingContext* context,
                                const GrColorInfo& dstColorInfo,
                                const SkPaint& skPaint,
                                const SkMatrixProvider& matrixProvider,
-                               SkBlendMode primColorMode,
+                               SkBlender* primColorBlender,
                                GrPaint* grPaint);
-
-/** This is used when there is a primitive color, but the shader should be ignored. Currently,
-    the expectation is that the primitive color will be premultiplied, though it really should be
-    unpremultiplied so that interpolation is done in unpremul space. The paint's alpha will be
-    applied to the primitive color after interpolation. */
-inline bool SkPaintToGrPaintWithPrimitiveColor(GrRecordingContext* context,
-                                               const GrColorInfo& dstColorInfo,
-                                               const SkPaint& skPaint,
-                                               const SkMatrixProvider& matrixProvider,
-                                               GrPaint* grPaint) {
-    return SkPaintToGrPaintWithBlend(context, dstColorInfo, skPaint, matrixProvider,
-                                     SkBlendMode::kDst, grPaint);
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Misc Sk to Gr type conversions

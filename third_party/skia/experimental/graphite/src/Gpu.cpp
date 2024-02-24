@@ -7,10 +7,13 @@
 
 #include "experimental/graphite/src/Gpu.h"
 
+#include "experimental/graphite/include/BackendTexture.h"
+#include "experimental/graphite/include/TextureInfo.h"
 #include "experimental/graphite/src/Caps.h"
 #include "experimental/graphite/src/CommandBuffer.h"
 #include "experimental/graphite/src/GpuWorkSubmission.h"
 #include "experimental/graphite/src/ResourceProvider.h"
+#include "src/sksl/SkSLCompiler.h"
 
 namespace skgpu {
 
@@ -36,6 +39,10 @@ Gpu::~Gpu() {
     fResourceProvider.reset();
 }
 
+void Gpu::initCompiler() {
+    fCompiler = std::make_unique<SkSL::Compiler>(fCaps->shaderCaps());
+}
+
 sk_sp<const Caps> Gpu::refCaps() const {
     return fCaps;
 }
@@ -45,9 +52,7 @@ bool Gpu::submit(sk_sp<CommandBuffer> commandBuffer) {
         return false;
     }
 
-    if (!commandBuffer->hasWork()) {
-        return true;
-    }
+    SkDEBUGCODE(if (!commandBuffer->hasWork()) SkDebugf("Submitting empty command buffer!\n");)
 
     return this->onSubmit(std::move(commandBuffer));
 }
@@ -77,5 +82,21 @@ void Gpu::checkForFinishedWork(SyncToCpu sync) {
     }
     SkASSERT(sync == SyncToCpu::kNo || fOutstandingSubmissions.empty());
 }
+
+BackendTexture Gpu::createBackendTexture(SkISize dimensions, const TextureInfo& info) {
+    if (dimensions.isEmpty() || dimensions.width()  > this->caps()->maxTextureSize() ||
+                                dimensions.height() > this->caps()->maxTextureSize()) {
+        return {};
+    }
+
+    return this->onCreateBackendTexture(dimensions, info);
+}
+
+void Gpu::deleteBackendTexture(BackendTexture& texture) {
+    this->onDeleteBackendTexture(texture);
+    // Invalidate the texture;
+    texture = BackendTexture();
+}
+
 
 } // namespace skgpu

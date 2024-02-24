@@ -8,7 +8,7 @@
 #ifndef skgpu_UniformManager_DEFINED
 #define skgpu_UniformManager_DEFINED
 
-#include "experimental/graphite/include/private/GraphiteTypesPriv.h"
+#include "experimental/graphite/src/DrawTypes.h"
 #include "experimental/graphite/src/Uniform.h"
 #include "include/core/SkSpan.h"
 
@@ -34,7 +34,7 @@ public:
      *   writeUniforms(definitions, src, offsets, dst);
      */
     uint32_t writeUniforms(SkSpan<const Uniform> definitions,
-                           void** srcs,
+                           const void** srcs,
                            uint32_t* offsets,
                            void *dst);
 

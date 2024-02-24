@@ -268,6 +268,18 @@ export interface CanvasKit {
     MakeRenderTarget(ctx: GrDirectContext, info: ImageInfo): Surface | null;
 
     /**
+     * Returns a texture-backed image based on the content in src. It assumes the image is
+     * RGBA_8888, unpremul and SRGB. This image can be re-used across multiple surfaces.
+     *
+     * Not available for software-backed surfaces.
+     * @param src - CanvasKit will take ownership of the TextureSource and clean it up when
+     *              the image is destroyed.
+     * @param info - If provided, will be used to determine the width/height/format of the
+     *               source image. If not, sensible defaults will be used.
+     */
+    MakeLazyImageFromTextureSource(src: TextureSource, info?: ImageInfo | PartialImageInfo): Image;
+
+    /**
      * Deletes the associated WebGLContext. Function not available on the CPU version.
      * @param ctx
      */
@@ -291,6 +303,9 @@ export interface CanvasKit {
     /**
      * Decodes the given bytes into an animated image. Returns null if the bytes were invalid.
      * The passed in bytes will be copied into the WASM heap, so the caller can dispose of them.
+     *
+     * The returned AnimatedImage will be "pointing to" the first frame, i.e. currentFrameDuration
+     * and makeImageAtCurrentFrame will be referring to the first frame.
      * @param bytes
      */
     MakeAnimatedImageFromEncoded(bytes: Uint8Array | ArrayBuffer): AnimatedImage | null;
@@ -1003,7 +1018,12 @@ export interface SkSLUniform {
  */
 export interface AnimatedImage extends EmbindObject<AnimatedImage> {
     /**
-     * Decodes the next frame. Returns -1 when the animation is on the last frame.
+     * Returns the length of the current frame in ms.
+     */
+    currentFrameDuration(): number;
+    /**
+     * Decodes the next frame. Returns the length of that new frame in ms.
+     * Returns -1 when the animation is on the last frame.
      */
     decodeNextFrame(): number;
 
@@ -1404,13 +1424,6 @@ export interface Canvas extends EmbindObject<Canvas> {
     drawVertices(verts: Vertices, mode: BlendMode, paint: Paint): void;
 
     /**
-     * Returns the 4x4 matrix matching the given marker or null if there was none.
-     * See also markCTM.
-     * @param marker
-     */
-    findMarkedCTM(marker: string): Matrix4x4 | null;
-
-    /**
      * Returns the current transform from local coordinates to the 'device', which for most
      * purposes means pixels.
      */
@@ -1435,15 +1448,6 @@ export interface Canvas extends EmbindObject<Canvas> {
      * @param info
      */
     makeSurface(info: ImageInfo): Surface | null;
-
-    /**
-     * Record a marker (provided by caller) for the current CTM. This does not change anything
-     * about the ctm or clip, but does "name" this matrix value, so it can be referenced by
-     * custom effects (who access it by specifying the same name).
-     * See also findMarkedCTM.
-     * @param marker
-     */
-    markCTM(marker: string): void;
 
     /**
      * Returns a TypedArray containing the pixels reading starting at (srcX, srcY) and does not
@@ -2620,14 +2624,18 @@ export interface Surface extends EmbindObject<Surface> {
      * Returns a texture-backed image based on the content in src. It uses RGBA_8888, unpremul
      * and SRGB - for more control, use makeImageFromTexture.
      *
+     * The underlying texture for this image will be created immediately from src, so
+     * it can be disposed of after this call. This image will *only* be usable for this
+     * surface (because WebGL textures are not transferable to other WebGL contexts).
+     * For an image that can be used across multiple surfaces, at the cost of being lazily
+     * loaded, see MakeLazyImageFromTextureSource.
+     *
      * Not available for software-backed surfaces.
      * @param src
-     * @param width - If provided, will be used as the width of src. Otherwise, the natural
-     *                width of src (if available) will be used.
-     * @param height - If provided, will be used as the height of src. Otherwise, the natural
-     *                height of src (if available) will be used.
+     * @param info - If provided, will be used to determine the width/height/format of the
+     *               source image. If not, sensible defaults will be used.
      */
-    makeImageFromTextureSource(src: TextureSource, width?: number, height?: number): Image | null;
+    makeImageFromTextureSource(src: TextureSource, info?: ImageInfo | PartialImageInfo): Image | null;
 
     /**
      * Returns current contents of the surface as an Image. This image will be optimized to be
@@ -3775,6 +3783,7 @@ export type InputFlattenedRSXFormArray = MallocObj | Float32Array | number[];
 export type InputVector3 = MallocObj | Vector3 | Float32Array;
 /**
  * These are the types that webGL's texImage2D supports as a way to get data from as a texture.
+ * Not listed, but also supported are https://developer.mozilla.org/en-US/docs/Web/API/VideoFrame
  */
 export type TextureSource = TypedArray | HTMLImageElement | HTMLVideoElement | ImageData | ImageBitmap;
 

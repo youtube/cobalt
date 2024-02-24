@@ -269,11 +269,22 @@ DSLType Struct(skstd::string_view name, SkSpan<DSLField> fields, PositionInfo po
             ThreadContext::ReportError("modifier '" + desc + "' is not permitted on a struct field",
                     field.fPosition);
         }
+        if (field.fModifiers.fModifiers.fLayout.fFlags & Layout::kBinding_Flag) {
+            ThreadContext::ReportError(
+                    "layout qualifier 'binding' is not permitted on a struct field",
+                    field.fPosition);
+        }
+        if (field.fModifiers.fModifiers.fLayout.fFlags & Layout::kSet_Flag) {
+            ThreadContext::ReportError("layout qualifier 'set' is not permitted on a struct field",
+                                       field.fPosition);
+        }
 
         const SkSL::Type& type = field.fType.skslType();
-        if (type.isOpaque()) {
+        if (type.isVoid()) {
+            ThreadContext::ReportError("type 'void' is not permitted in a struct", field.fPosition);
+        } else if (type.isOpaque()) {
             ThreadContext::ReportError("opaque type '" + type.displayName() +
-                    "' is not permitted in a struct", field.fPosition);
+                                       "' is not permitted in a struct", field.fPosition);
         }
         skslFields.emplace_back(field.fModifiers.fModifiers, field.fName, &type);
     }

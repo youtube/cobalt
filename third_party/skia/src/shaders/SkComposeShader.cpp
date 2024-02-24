@@ -62,13 +62,21 @@ sk_sp<SkShader> SkShaders::Blend(sk_sp<SkBlender> blender, sk_sp<SkShader> dst, 
     if (!blender) {
         return SkShaders::Blend(SkBlendMode::kSrcOver, std::move(dst), std::move(src));
     }
-    if (auto bm = as_BB(blender)->asBlendMode()) {
-        return SkShaders::Blend(bm.value(), std::move(dst), std::move(src));
-    }
     return sk_sp<SkShader>(new SkShader_Blend(std::move(blender), std::move(dst), std::move(src)));
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+
+SkShader_Blend::SkShader_Blend(sk_sp<SkBlender> blender, sk_sp<SkShader> dst, sk_sp<SkShader> src)
+        : fDst(std::move(dst))
+        , fSrc(std::move(src))
+        , fBlender(std::move(blender))
+        , fMode((SkBlendMode)kCustom_SkBlendMode) {
+    if (skstd::optional<SkBlendMode> bm = as_BB(fBlender)->asBlendMode(); bm.has_value()) {
+        fMode = *bm;
+        fBlender.reset();
+    }
+}
 
 sk_sp<SkFlattenable> SkShader_Blend::CreateProc(SkReadBuffer& buffer) {
     sk_sp<SkShader> dst(buffer.readShader());
@@ -166,7 +174,6 @@ skvm::Color SkShader_Blend::onProgram(skvm::Builder* p,
 std::unique_ptr<GrFragmentProcessor> SkShader_Blend::asFragmentProcessor(
         const GrFPArgs& orig_args) const {
     GrFPArgs::WithPreLocalMatrix args(orig_args, this->getLocalMatrix());
-    args.fInputColorIsOpaque = true;  // See use of MakeInputOpaqueAndPostApplyAlpha below
     auto fpA = as_SB(fDst)->asFragmentProcessor(args);
     auto fpB = as_SB(fSrc)->asFragmentProcessor(args);
     if (!fpA || !fpB) {
@@ -176,8 +183,7 @@ std::unique_ptr<GrFragmentProcessor> SkShader_Blend::asFragmentProcessor(
     if (fBlender) {
         return as_BB(fBlender)->asFragmentProcessor(std::move(fpB), std::move(fpA), orig_args);
     } else {
-        auto blend = GrBlendFragmentProcessor::Make(std::move(fpB), std::move(fpA), fMode);
-        return GrFragmentProcessor::MakeInputOpaqueAndPostApplyAlpha(std::move(blend));
+        return GrBlendFragmentProcessor::Make(std::move(fpB), std::move(fpA), fMode);
     }
 }
 #endif

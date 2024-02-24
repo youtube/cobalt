@@ -9,6 +9,7 @@
 #define BufferWriter_DEFINED
 
 #include "include/core/SkRect.h"
+#include "include/private/SkColorData.h"
 #include "include/private/SkNx.h"
 #include "include/private/SkTemplates.h"
 #include <type_traits>
@@ -81,18 +82,25 @@ struct VertexWriter : public BufferWriter {
     template <typename T>
     struct Skip {};
 
-    template <typename T>
-    void writeArray(const T* array, int count) {
-        static_assert(std::is_pod<T>::value, "");
-        memcpy(fPtr, array, count * sizeof(T));
-        fPtr = SkTAddOffset<void>(fPtr, count * sizeof(T));
-    }
+    template<typename T>
+    struct ArrayDesc {
+        const T* fArray;
+        int fCount;
+    };
 
     template <typename T>
-    void fill(const T& val, int repeatCount) {
-        for (int i = 0; i < repeatCount; ++i) {
-            *this << val;
-        }
+    static ArrayDesc<T> Array(const T* array, int count) {
+        return {array, count};
+    }
+
+    template<int kCount, typename T>
+    struct RepeatDesc {
+        const T& fVal;
+    };
+
+    template <int kCount, typename T>
+    static RepeatDesc<kCount, T> Repeat(const T& val) {
+        return {val};
     }
 
     /**
@@ -183,7 +191,11 @@ private:
     template <int kCornerIdx>
     void writeQuadVertex() {}
 
-    template <typename T> friend VertexWriter& operator<<(VertexWriter& w, const T& val);
+    template <typename T>
+    friend VertexWriter& operator<<(VertexWriter&, const T&);
+
+    template <typename T>
+    friend VertexWriter& operator<<(VertexWriter&, const ArrayDesc<T>&);
 };
 
 template <typename T>
@@ -209,6 +221,22 @@ inline VertexWriter& operator<<(VertexWriter& w, const VertexWriter::Skip<T>& va
     return w;
 }
 
+template <typename T>
+inline VertexWriter& operator<<(VertexWriter& w, const VertexWriter::ArrayDesc<T>& array) {
+    static_assert(std::is_pod<T>::value, "");
+    memcpy(w.fPtr, array.fArray, array.fCount * sizeof(T));
+    w = w.makeOffset(sizeof(T) * array.fCount);
+    return w;
+}
+
+template <int kCount, typename T>
+inline VertexWriter& operator<<(VertexWriter& w, const VertexWriter::RepeatDesc<kCount,T>& repeat) {
+    for (int i = 0; i < kCount; ++i) {
+        w << repeat.fVal;
+    }
+    return w;
+}
+
 template <>
 SK_MAYBE_UNUSED inline VertexWriter& operator<<(VertexWriter& w, const Sk4f& vector) {
     vector.store(w.fPtr);
@@ -221,6 +249,49 @@ struct VertexWriter::is_quad<VertexWriter::TriStrip<T>> : std::true_type {};
 
 template <typename T>
 struct VertexWriter::is_quad<VertexWriter::TriFan<T>> : std::true_type {};
+
+/**
+ * VertexColor is a helper for writing colors to a vertex buffer. It outputs either four bytes or
+ * or four float32 channels, depending on the wideColor parameter. Note that the GP needs to have
+ * been constructed with the correct attribute type for colors, to match the usage here.
+ */
+class VertexColor {
+public:
+    VertexColor() = default;
+
+    explicit VertexColor(const SkPMColor4f& color, bool wideColor) {
+        this->set(color, wideColor);
+    }
+
+    void set(const SkPMColor4f& color, bool wideColor) {
+        if (wideColor) {
+            memcpy(fColor, color.vec(), sizeof(fColor));
+        } else {
+            fColor[0] = color.toBytes_RGBA();
+        }
+        fWideColor = wideColor;
+    }
+
+    size_t size() const { return fWideColor ? 16 : 4; }
+
+private:
+    template <typename T>
+    friend VertexWriter& operator<<(VertexWriter&, const T&);
+
+    uint32_t fColor[4];
+    bool     fWideColor;
+};
+
+template <>
+SK_MAYBE_UNUSED inline VertexWriter& operator<<(VertexWriter& w, const VertexColor& color) {
+    w << color.fColor[0];
+    if (color.fWideColor) {
+        w << color.fColor[1]
+          << color.fColor[2]
+          << color.fColor[3];
+    }
+    return w;
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -253,6 +324,8 @@ inline IndexWriter& operator<<(IndexWriter& w, uint16_t val) {
     w = w.makeAdvance(1);
     return w;
 }
+
+inline IndexWriter& operator<<(IndexWriter& w, int val) { return (w << SkTo<uint16_t>(val)); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 

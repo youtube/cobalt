@@ -10,10 +10,30 @@
 #include "experimental/graphite/src/mtl/MtlGpu.h"
 #include "include/private/SkSLString.h"
 #include "src/core/SkTraceEvent.h"
+#include "src/sksl/SkSLCompiler.h"
 
 namespace skgpu::mtl {
 
 bool FormatIsDepthOrStencil(MTLPixelFormat format) {
+    switch (format) {
+        case MTLPixelFormatStencil8: // fallthrough
+        case MTLPixelFormatDepth32Float_Stencil8:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool FormatIsDepth(MTLPixelFormat format) {
+    switch (format) {
+        case MTLPixelFormatDepth32Float_Stencil8:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool FormatIsStencil(MTLPixelFormat format) {
     switch (format) {
         case MTLPixelFormatStencil8: // fallthrough
         case MTLPixelFormatDepth32Float_Stencil8:
@@ -37,19 +57,68 @@ MTLPixelFormat SkColorTypeToFormat(SkColorType colorType) {
     }
 }
 
-MTLPixelFormat DepthStencilTypeToFormat(DepthStencilType type) {
+MTLPixelFormat DepthStencilFlagsToFormat(Mask<DepthStencilFlags> mask) {
     // TODO: Decide if we want to change this to always return a combined depth and stencil format
     // to allow more sharing of depth stencil allocations.
-    switch (type) {
-        case DepthStencilType::kDepthOnly:
-            // MTLPixelFormatDepth16Unorm is also a universally supported option here
-            return MTLPixelFormatDepth32Float;
-        case DepthStencilType::kStencilOnly:
-            return MTLPixelFormatStencil8;
-        case DepthStencilType::kDepthStencil:
-            // MTLPixelFormatDepth24Unorm_Stencil8 is supported on Mac family GPUs.
-            return MTLPixelFormatDepth32Float_Stencil8;
+    if (mask == DepthStencilFlags::kDepth) {
+        // MTLPixelFormatDepth16Unorm is also a universally supported option here
+        return MTLPixelFormatDepth32Float;
+    } else if (mask == DepthStencilFlags::kStencil) {
+        return MTLPixelFormatStencil8;
+    } else if (mask == DepthStencilFlags::kDepthStencil) {
+        // MTLPixelFormatDepth24Unorm_Stencil8 is supported on Mac family GPUs.
+        return MTLPixelFormatDepth32Float_Stencil8;
     }
+    SkASSERT(false);
+    return MTLPixelFormatInvalid;
+}
+
+// Print the source code for all shaders generated.
+static const bool gPrintSKSL = false;
+static const bool gPrintMSL = false;
+
+// TODO: add errorHandler support
+static void compile_error(const char* shaderSource, const char* errorText) {
+    SkDebugf("Shader compilation error\n"
+             "------------------------\n");
+    SkDebugf("%s", shaderSource);
+    SkDebugf("Errors:\n%s", errorText);
+}
+
+bool SkSLToMSL(const Gpu* gpu,
+               const SkSL::String& sksl,
+               SkSL::ProgramKind programKind,
+               const SkSL::Program::Settings& settings,
+               SkSL::String* msl,
+               SkSL::Program::Inputs* outInputs) {
+    const SkSL::String& src = sksl;
+    SkSL::Compiler* compiler = gpu->shaderCompiler();
+    std::unique_ptr<SkSL::Program> program =
+            gpu->shaderCompiler()->convertProgram(programKind,
+                                                  src,
+                                                  settings);
+    if (!program || !compiler->toMetal(*program, msl)) {
+        compile_error(src.c_str(), compiler->errorText().c_str());
+        return false;
+    }
+
+    if (gPrintSKSL || gPrintMSL) {
+        // TODO: add GrShaderUtils support
+        SkDebugf("------- Shader --------\n");
+        if (gPrintSKSL) {
+            SkDebugf("SKSL:\n");
+            // TODO: add GrShaderUtils support
+            SkDebugf("%s\n", sksl.c_str());
+        }
+        if (gPrintMSL) {
+            SkDebugf("MSL:\n");
+            // TODO: add GrShaderUtils support
+            SkDebugf("%s\n", msl->c_str());
+        }
+    }
+
+    *outInputs = program->fInputs;
+    return true;
 }
 
 sk_cfp<id<MTLLibrary>> CompileShaderLibrary(const Gpu* gpu,
@@ -76,11 +145,7 @@ sk_cfp<id<MTLLibrary>> CompileShaderLibrary(const Gpu* gpu,
                                                                        options:options
                                                                          error:&error]);
     if (!compiledLibrary) {
-        SkDebugf("Shader compilation error\n"
-                 "------------------------\n");
-        SkDebugf("%s", msl.c_str());
-        SkDebugf("Errors:\n%s", error.debugDescription.UTF8String);
-
+        compile_error(msl.c_str(), error.debugDescription.UTF8String);
         return nil;
     }
 

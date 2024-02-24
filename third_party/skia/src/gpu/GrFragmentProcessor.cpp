@@ -200,24 +200,12 @@ std::unique_ptr<GrFragmentProcessor> GrFragmentProcessor::MakeColor(SkPMColor4f 
                           "color", color);
 }
 
-std::unique_ptr<GrFragmentProcessor> GrFragmentProcessor::MulChildByInputAlpha(
-        std::unique_ptr<GrFragmentProcessor> fp) {
-    if (!fp) {
-        return nullptr;
-    }
-    return GrBlendFragmentProcessor::Make(/*src=*/nullptr,
-                                          OverrideInput(std::move(fp), SK_PMColor4fWHITE),
-                                          SkBlendMode::kDstIn);
-}
-
 std::unique_ptr<GrFragmentProcessor> GrFragmentProcessor::MulInputByChildAlpha(
         std::unique_ptr<GrFragmentProcessor> fp) {
     if (!fp) {
         return nullptr;
     }
-    return GrBlendFragmentProcessor::Make(/*src=*/nullptr,
-                                          OverrideInput(std::move(fp), SK_PMColor4fWHITE),
-                                          SkBlendMode::kSrcIn);
+    return GrBlendFragmentProcessor::Make(/*src=*/nullptr, std::move(fp), SkBlendMode::kSrcIn);
 }
 
 std::unique_ptr<GrFragmentProcessor> GrFragmentProcessor::ApplyPaintAlpha(
@@ -230,16 +218,9 @@ std::unique_ptr<GrFragmentProcessor> GrFragmentProcessor::ApplyPaintAlpha(
         }
     )");
     return GrSkSLFP::Make(effect, "ApplyPaintAlpha", /*inputFP=*/nullptr,
-                          GrSkSLFP::OptFlags::kPreservesOpaqueInput,
+                          GrSkSLFP::OptFlags::kPreservesOpaqueInput |
+                          GrSkSLFP::OptFlags::kCompatibleWithCoverageAsAlpha,
                           "fp", std::move(child));
-}
-
-std::unique_ptr<GrFragmentProcessor> GrFragmentProcessor::ModulateAlpha(
-        std::unique_ptr<GrFragmentProcessor> inputFP, const SkPMColor4f& color) {
-    auto colorFP = MakeColor(color);
-    return GrBlendFragmentProcessor::Make(std::move(colorFP),
-                                          std::move(inputFP),
-                                          SkBlendMode::kSrcIn);
 }
 
 std::unique_ptr<GrFragmentProcessor> GrFragmentProcessor::ModulateRGBA(
@@ -261,20 +242,6 @@ std::unique_ptr<GrFragmentProcessor> GrFragmentProcessor::ClampOutput(
     SkASSERT(SkRuntimeEffectPriv::SupportsConstantOutputForConstantInput(effect));
     return GrSkSLFP::Make(
             effect, "Clamp", std::move(fp), GrSkSLFP::OptFlags::kPreservesOpaqueInput);
-}
-
-std::unique_ptr<GrFragmentProcessor> GrFragmentProcessor::ClampPremulOutput(
-        std::unique_ptr<GrFragmentProcessor> fp) {
-    SkASSERT(fp);
-    static auto effect = SkMakeRuntimeEffect(SkRuntimeEffect::MakeForColorFilter, R"(
-        half4 main(half4 inColor) {
-            half alpha = saturate(inColor.a);
-            return half4(clamp(inColor.rgb, 0, alpha), alpha);
-        }
-    )");
-    SkASSERT(SkRuntimeEffectPriv::SupportsConstantOutputForConstantInput(effect));
-    return GrSkSLFP::Make(
-            effect, "ClampPremul", std::move(fp), GrSkSLFP::OptFlags::kPreservesOpaqueInput);
 }
 
 std::unique_ptr<GrFragmentProcessor> GrFragmentProcessor::SwizzleOutput(
@@ -344,76 +311,10 @@ std::unique_ptr<GrFragmentProcessor> GrFragmentProcessor::SwizzleOutput(
     return SwizzleFragmentProcessor::Make(std::move(fp), swizzle);
 }
 
-std::unique_ptr<GrFragmentProcessor> GrFragmentProcessor::MakeInputPremulAndMulByOutput(
-        std::unique_ptr<GrFragmentProcessor> fp) {
-    class PremulFragmentProcessor : public GrFragmentProcessor {
-    public:
-        static std::unique_ptr<GrFragmentProcessor> Make(
-                std::unique_ptr<GrFragmentProcessor> processor) {
-            return std::unique_ptr<GrFragmentProcessor>(
-                    new PremulFragmentProcessor(std::move(processor)));
-        }
-
-        const char* name() const override { return "Premultiply"; }
-
-        std::unique_ptr<GrFragmentProcessor> clone() const override {
-            return Make(this->childProcessor(0)->clone());
-        }
-
-    private:
-        PremulFragmentProcessor(std::unique_ptr<GrFragmentProcessor> processor)
-                : INHERITED(kPremulFragmentProcessor_ClassID, OptFlags(processor.get())) {
-            this->registerChild(std::move(processor));
-        }
-
-        std::unique_ptr<ProgramImpl> onMakeProgramImpl() const override {
-            class Impl : public ProgramImpl {
-            public:
-                void emitCode(EmitArgs& args) override {
-                    GrGLSLFPFragmentBuilder* fragBuilder = args.fFragBuilder;
-                    SkString temp = this->invokeChild(/*childIndex=*/0, "half4(1)", args);
-                    fragBuilder->codeAppendf("half4 color = %s;", temp.c_str());
-                    fragBuilder->codeAppendf("color.rgb *= %s.rgb;", args.fInputColor);
-                    fragBuilder->codeAppendf("return color * %s.a;", args.fInputColor);
-                }
-            };
-            return std::make_unique<Impl>();
-        }
-
-        void onAddToKey(const GrShaderCaps&, GrProcessorKeyBuilder*) const override {}
-
-        bool onIsEqual(const GrFragmentProcessor&) const override { return true; }
-
-        static OptimizationFlags OptFlags(const GrFragmentProcessor* inner) {
-            OptimizationFlags flags = kNone_OptimizationFlags;
-            if (inner->preservesOpaqueInput()) {
-                flags |= kPreservesOpaqueInput_OptimizationFlag;
-            }
-            if (inner->hasConstantOutputForConstantInput()) {
-                flags |= kConstantOutputForConstantInput_OptimizationFlag;
-            }
-            return flags;
-        }
-
-        SkPMColor4f constantOutputForConstantInput(const SkPMColor4f& input) const override {
-            SkPMColor4f childColor = ConstantOutputForConstantInput(this->childProcessor(0),
-                                                                    SK_PMColor4fWHITE);
-            SkPMColor4f premulInput = SkColor4f{ input.fR, input.fG, input.fB, input.fA }.premul();
-            return premulInput * childColor;
-        }
-
-        using INHERITED = GrFragmentProcessor;
-    };
-    if (!fp) {
-        return nullptr;
-    }
-    return PremulFragmentProcessor::Make(std::move(fp));
-}
-
 //////////////////////////////////////////////////////////////////////////////
 
 std::unique_ptr<GrFragmentProcessor> GrFragmentProcessor::OverrideInput(
-        std::unique_ptr<GrFragmentProcessor> fp, const SkPMColor4f& color, bool useUniform) {
+        std::unique_ptr<GrFragmentProcessor> fp, const SkPMColor4f& color) {
     if (!fp) {
         return nullptr;
     }
@@ -429,7 +330,22 @@ std::unique_ptr<GrFragmentProcessor> GrFragmentProcessor::OverrideInput(
                           color.isOpaque() ? GrSkSLFP::OptFlags::kPreservesOpaqueInput
                                            : GrSkSLFP::OptFlags::kNone,
                           "fp", std::move(fp),
-                          "color", GrSkSLFP::SpecializeIf(!useUniform, color));
+                          "color", color);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+std::unique_ptr<GrFragmentProcessor> GrFragmentProcessor::DisableCoverageAsAlpha(
+        std::unique_ptr<GrFragmentProcessor> fp) {
+    if (!fp || !fp->compatibleWithCoverageAsAlpha()) {
+        return fp;
+    }
+    static auto effect = SkMakeRuntimeEffect(SkRuntimeEffect::MakeForColorFilter, R"(
+        half4 main(half4 inColor) { return inColor; }
+    )");
+    SkASSERT(SkRuntimeEffectPriv::SupportsConstantOutputForConstantInput(effect));
+    return GrSkSLFP::Make(effect, "DisableCoverageAsAlpha", std::move(fp),
+                          GrSkSLFP::OptFlags::kPreservesOpaqueInput);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -444,26 +360,6 @@ std::unique_ptr<GrFragmentProcessor> GrFragmentProcessor::UseDestColorAsInput(
     )");
     return GrSkSLFP::Make(effect, "UseDestColorAsInput", /*inputFP=*/nullptr,
                           GrSkSLFP::OptFlags::kNone, "fp", std::move(fp));
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-std::unique_ptr<GrFragmentProcessor> GrFragmentProcessor::MakeInputOpaqueAndPostApplyAlpha(
-        std::unique_ptr<GrFragmentProcessor> fp) {
-    if (!fp) {
-        return nullptr;
-    }
-    static auto effect = SkMakeRuntimeEffect(SkRuntimeEffect::MakeForColorFilter, R"(
-        uniform colorFilter fp;  // Declared as colorFilter so we can pass a color
-        half4 main(half4 inColor) {
-            return inColor.a * fp.eval(unpremul(inColor).rgb1);
-        }
-    )");
-    return GrSkSLFP::Make(effect,
-                          "MakeInputOpaque",
-                          /*inputFP=*/nullptr,
-                          GrSkSLFP::OptFlags::kPreservesOpaqueInput,
-                          "fp", std::move(fp));
 }
 
 //////////////////////////////////////////////////////////////////////////////

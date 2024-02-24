@@ -297,6 +297,8 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
+#include <stdio.h>
+
 /** A stream that wraps a C FILE* file stream. */
 class SK_API SkFILEStream : public SkStreamAsset {
 public:

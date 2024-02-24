@@ -7,9 +7,18 @@
 
 #include "experimental/graphite/src/DrawContext.h"
 
+#include "include/private/SkColorData.h"
+
+#include "experimental/graphite/include/Context.h"
+#include "experimental/graphite/include/Recorder.h"
+#include "experimental/graphite/src/Caps.h"
+#include "experimental/graphite/src/CommandBuffer.h"
+#include "experimental/graphite/src/ContextPriv.h"
 #include "experimental/graphite/src/DrawList.h"
 #include "experimental/graphite/src/DrawPass.h"
+#include "experimental/graphite/src/Gpu.h"
 #include "experimental/graphite/src/RenderPassTask.h"
+#include "experimental/graphite/src/ResourceTypes.h"
 #include "experimental/graphite/src/TextureProxy.h"
 #include "experimental/graphite/src/geom/BoundsManager.h"
 #include "experimental/graphite/src/geom/Shape.h"
@@ -37,15 +46,13 @@ DrawContext::DrawContext(sk_sp<TextureProxy> target, const SkImageInfo& ii)
         , fImageInfo(ii)
         , fPendingDraws(std::make_unique<DrawList>()) {
     // TBD - Will probably want DrawLists (and its internal commands) to come from an arena
-    // that the SDC manages.
+    // that the DC manages.
 }
 
 DrawContext::~DrawContext() {
-    // If the SDC is destroyed and there are pending commands, they won't be drawn. Maybe that's ok
-    // but for now consider it a bug for not calling snapDrawTask() and snapRenderPassTask()
-    // TODO: determine why these asserts are firing on the GMs and re-enable
-//    SkASSERT(fPendingDraws->drawCount() == 0);
-//    SkASSERT(fDrawPasses.empty());
+    // If the DC is destroyed and there are pending commands, they won't be drawn.
+    fPendingDraws.reset();
+    fDrawPasses.clear();
 }
 
 void DrawContext::stencilAndFillPath(const Transform& localToDevice,
@@ -76,14 +83,29 @@ void DrawContext::strokePath(const Transform& localToDevice,
     fPendingDraws->strokePath(localToDevice, shape, stroke, clip, order, paint);
 }
 
+void DrawContext::clear(const SkColor4f& clearColor) {
+    fPendingLoadOp = LoadOp::kClear;
+    SkPMColor4f pmColor = clearColor.premul();
+    fPendingClearColor = pmColor.array();
+
+    // a fullscreen clear will overwrite anything that came before, so start a new DrawList
+    // and clear any drawpasses that haven't been snapped yet
+    fPendingDraws = std::make_unique<DrawList>();
+    fDrawPasses.clear();
+}
+
 void DrawContext::snapDrawPass(Recorder* recorder, const BoundsManager* occlusionCuller) {
     if (fPendingDraws->drawCount() == 0) {
         return;
     }
 
-    auto pass = DrawPass::Make(recorder, std::move(fPendingDraws), fTarget, occlusionCuller);
+    auto pass = DrawPass::Make(recorder, std::move(fPendingDraws), fTarget,
+                               std::make_pair(fPendingLoadOp, fPendingStoreOp), fPendingClearColor,
+                               occlusionCuller);
     fDrawPasses.push_back(std::move(pass));
     fPendingDraws = std::make_unique<DrawList>();
+    fPendingLoadOp = LoadOp::kLoad;
+    fPendingStoreOp = StoreOp::kStore;
 }
 
 sk_sp<Task> DrawContext::snapRenderPassTask(Recorder* recorder,
@@ -93,7 +115,29 @@ sk_sp<Task> DrawContext::snapRenderPassTask(Recorder* recorder,
         return nullptr;
     }
 
-    return RenderPassTask::Make(std::move(fDrawPasses));
+    // TODO: At this point we would determine all the targets used by the drawPasses,
+    // build up the union of them and store them in the RenderPassDesc. However, for
+    // the moment we should have only one drawPass.
+    SkASSERT(fDrawPasses.size() == 1);
+    RenderPassDesc desc;
+    auto& drawPass = fDrawPasses[0];
+    desc.fColorAttachment.fTextureInfo = drawPass->target()->textureInfo();
+    std::tie(desc.fColorAttachment.fLoadOp, desc.fColorAttachment.fStoreOp) = drawPass->ops();
+    desc.fClearColor = drawPass->clearColor();
+
+    if (drawPass->depthStencilFlags() != DepthStencilFlags::kNone) {
+        const Caps* caps = recorder->context()->priv().gpu()->caps();
+        desc.fDepthStencilAttachment.fTextureInfo =
+                caps->getDefaultDepthStencilTextureInfo(drawPass->depthStencilFlags(),
+                                                        1 /*sampleCount*/, // TODO: MSAA
+                                                        Protected::kNo);
+        // TODO: handle clears
+        desc.fDepthStencilAttachment.fLoadOp = LoadOp::kDiscard;
+        desc.fDepthStencilAttachment.fStoreOp = StoreOp::kDiscard;
+    }
+
+    sk_sp<TextureProxy> targetProxy = sk_ref_sp(fDrawPasses[0]->target());
+    return RenderPassTask::Make(std::move(fDrawPasses), desc, std::move(targetProxy));
 }
 
 } // namespace skgpu

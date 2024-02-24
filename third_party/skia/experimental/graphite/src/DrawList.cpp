@@ -18,21 +18,16 @@ PaintParams::PaintParams(const SkColor4f& color,
                          sk_sp<SkShader> shader)
         : fColor(color)
         , fBlendMode(blendMode)
-        , fShader(std::move(shader)) {
-}
-PaintParams::PaintParams(const PaintParams& other)
-        : fColor(other.fColor)
-        , fBlendMode(other.fBlendMode)
-        , fShader(other.fShader) {
-}
-PaintParams::~PaintParams() {}
+        , fShader(std::move(shader)) {}
 
-PaintParams& PaintParams::operator=(const PaintParams& other) {
-    fColor = other.fColor;
-    fBlendMode = other.fBlendMode;
-    fShader = other.fShader;
-    return *this;
-}
+PaintParams::PaintParams(const SkPaint& paint)
+        : fColor(paint.getColor4f())
+        , fBlendMode(paint.getBlendMode_or(SkBlendMode::kSrcOver))
+        , fShader(paint.refShader()) {}
+
+PaintParams::PaintParams(const PaintParams& other) = default;
+PaintParams::~PaintParams() = default;
+PaintParams& PaintParams::operator=(const PaintParams& other) = default;
 
 sk_sp<SkShader> PaintParams::refShader() const { return fShader; }
 
@@ -87,25 +82,6 @@ void DrawList::strokePath(const Transform& localToDevice,
     //                   this->deduplicateTransform(localToDevice),
     //                   shape, clip, ordering, paint, stroke});
     // fRenderStepCount += Renderer::StrokePath().numRenderSteps();
-}
-
-size_t DrawList::Draw::requiredVertexSpace(int renderStep) const {
-    SkASSERT(renderStep < fRenderer.numRenderSteps());
-    return fRenderer.steps()[renderStep]->requiredVertexSpace(fShape);
-}
-
-size_t DrawList::Draw::requiredIndexSpace(int renderStep) const {
-    SkASSERT(renderStep < fRenderer.numRenderSteps());
-    return fRenderer.steps()[renderStep]->requiredIndexSpace(fShape);
-}
-
-void DrawList::Draw::writeVertices(VertexWriter vertexWriter,
-                                   IndexWriter indexWriter,
-                                   int renderStep) const {
-    SkASSERT(renderStep < fRenderer.numRenderSteps());
-    fRenderer.steps()[renderStep]->writeVertices(std::move(vertexWriter),
-                                                 std::move(indexWriter),
-                                                 fShape);
 }
 
 } // namespace skgpu

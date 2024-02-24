@@ -138,7 +138,7 @@ void SkParticleEffectParams::prepare(const skresources::ResourceProvider* resour
     }
 
     auto buildProgram = [this](const SkSL::String& code) -> std::unique_ptr<SkParticleProgram> {
-        SkSL::ShaderCapsPointer caps = SkSL::ShaderCapsFactory::Standalone();
+        std::unique_ptr<SkSL::ShaderCaps> caps = SkSL::ShaderCapsFactory::Standalone();
         SkSL::Compiler compiler(caps.get());
 
         // We use two separate blocks of uniforms (ie two args of stride 0). The first is for skvm
@@ -186,7 +186,8 @@ void SkParticleEffectParams::prepare(const skresources::ResourceProvider* resour
             for (int i = 0; i < uniformInfo->fUniformSlotCount; ++i) {
                 uniformIDs.push_back(b.uniform32(skslUniformPtr, i * sizeof(int)).id);
             }
-            if (!SkSL::ProgramToSkVM(*program, *fn, &b, SkMakeSpan(uniformIDs))) {
+            if (!SkSL::ProgramToSkVM(*program, *fn, &b, /*debugTrace=*/nullptr,
+                                     SkMakeSpan(uniformIDs))) {
                 return skvm::Program{};
             }
             return b.done();
