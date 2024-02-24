@@ -247,70 +247,7 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kNone:
       // Leave |replaced_box_| NULL.
       break;
-    case cssom::KeywordValue::kAbsolute:
-    case cssom::KeywordValue::kAlternate:
-    case cssom::KeywordValue::kAlternateReverse:
-    case cssom::KeywordValue::kAuto:
-    case cssom::KeywordValue::kBackwards:
-    case cssom::KeywordValue::kBaseline:
-    case cssom::KeywordValue::kBoth:
-    case cssom::KeywordValue::kBottom:
-    case cssom::KeywordValue::kBreakWord:
-    case cssom::KeywordValue::kCenter:
-    case cssom::KeywordValue::kClip:
-    case cssom::KeywordValue::kCollapse:
-    case cssom::KeywordValue::kColumn:
-    case cssom::KeywordValue::kColumnReverse:
-    case cssom::KeywordValue::kContain:
-    case cssom::KeywordValue::kContent:
-    case cssom::KeywordValue::kCover:
-    case cssom::KeywordValue::kCurrentColor:
-    case cssom::KeywordValue::kCursive:
-    case cssom::KeywordValue::kEllipsis:
-    case cssom::KeywordValue::kEnd:
-    case cssom::KeywordValue::kEquirectangular:
-    case cssom::KeywordValue::kFantasy:
-    case cssom::KeywordValue::kFixed:
-    case cssom::KeywordValue::kFlexEnd:
-    case cssom::KeywordValue::kFlexStart:
-    case cssom::KeywordValue::kForwards:
-    case cssom::KeywordValue::kHidden:
-    case cssom::KeywordValue::kInfinite:
-    case cssom::KeywordValue::kInherit:
-    case cssom::KeywordValue::kInitial:
-    case cssom::KeywordValue::kLeft:
-    case cssom::KeywordValue::kLineThrough:
-    case cssom::KeywordValue::kMiddle:
-    case cssom::KeywordValue::kMonoscopic:
-    case cssom::KeywordValue::kMonospace:
-    case cssom::KeywordValue::kNoRepeat:
-    case cssom::KeywordValue::kNormal:
-    case cssom::KeywordValue::kNowrap:
-    case cssom::KeywordValue::kPre:
-    case cssom::KeywordValue::kPreLine:
-    case cssom::KeywordValue::kPreWrap:
-    case cssom::KeywordValue::kRelative:
-    case cssom::KeywordValue::kRepeat:
-    case cssom::KeywordValue::kReverse:
-    case cssom::KeywordValue::kRight:
-    case cssom::KeywordValue::kRow:
-    case cssom::KeywordValue::kRowReverse:
-    case cssom::KeywordValue::kSansSerif:
-    case cssom::KeywordValue::kScroll:
-    case cssom::KeywordValue::kSerif:
-    case cssom::KeywordValue::kSolid:
-    case cssom::KeywordValue::kSpaceAround:
-    case cssom::KeywordValue::kSpaceBetween:
-    case cssom::KeywordValue::kStart:
-    case cssom::KeywordValue::kStatic:
-    case cssom::KeywordValue::kStereoscopicLeftRight:
-    case cssom::KeywordValue::kStereoscopicTopBottom:
-    case cssom::KeywordValue::kStretch:
-    case cssom::KeywordValue::kTop:
-    case cssom::KeywordValue::kUppercase:
-    case cssom::KeywordValue::kVisible:
-    case cssom::KeywordValue::kWrap:
-    case cssom::KeywordValue::kWrapReverse:
+    default:
       NOTREACHED();
       break;
   }
@@ -381,9 +318,9 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
     return;
   }
 
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
   replaced_box->SetGeneratingNode(video_element);
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
   replaced_box->SetUiNavItem(video_element->GetUiNavItem());
   boxes_.push_back(replaced_box);
@@ -422,9 +359,9 @@ void BoxGenerator::VisitBrElement(dom::HTMLBRElement* br_element) {
   // the line breaking and bidirectional algorithms.
   (*paragraph_)->AppendCodePoint(Paragraph::kLineFeedCodePoint);
 
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
   br_text_box->SetGeneratingNode(br_element);
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
   br_text_box->SetUiNavItem(br_element->GetUiNavItem());
   boxes_.push_back(br_text_box);
@@ -466,9 +403,9 @@ void BoxGenerator::VisitLottiePlayer(dom::LottiePlayer* lottie_player) {
     return;
   }
 
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
   replaced_box->SetGeneratingNode(lottie_player);
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
   replaced_box->SetUiNavItem(lottie_player->GetUiNavItem());
   boxes_.push_back(replaced_box);
@@ -664,70 +601,7 @@ void ContainerBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
     case cssom::KeywordValue::kNone:
       // Leave |container_box_| NULL.
       break;
-    case cssom::KeywordValue::kAbsolute:
-    case cssom::KeywordValue::kAlternate:
-    case cssom::KeywordValue::kAlternateReverse:
-    case cssom::KeywordValue::kAuto:
-    case cssom::KeywordValue::kBackwards:
-    case cssom::KeywordValue::kBaseline:
-    case cssom::KeywordValue::kBoth:
-    case cssom::KeywordValue::kBottom:
-    case cssom::KeywordValue::kBreakWord:
-    case cssom::KeywordValue::kCenter:
-    case cssom::KeywordValue::kClip:
-    case cssom::KeywordValue::kCollapse:
-    case cssom::KeywordValue::kColumn:
-    case cssom::KeywordValue::kColumnReverse:
-    case cssom::KeywordValue::kContain:
-    case cssom::KeywordValue::kContent:
-    case cssom::KeywordValue::kCover:
-    case cssom::KeywordValue::kCurrentColor:
-    case cssom::KeywordValue::kCursive:
-    case cssom::KeywordValue::kEllipsis:
-    case cssom::KeywordValue::kEnd:
-    case cssom::KeywordValue::kEquirectangular:
-    case cssom::KeywordValue::kFantasy:
-    case cssom::KeywordValue::kFixed:
-    case cssom::KeywordValue::kFlexEnd:
-    case cssom::KeywordValue::kFlexStart:
-    case cssom::KeywordValue::kForwards:
-    case cssom::KeywordValue::kHidden:
-    case cssom::KeywordValue::kInfinite:
-    case cssom::KeywordValue::kInherit:
-    case cssom::KeywordValue::kInitial:
-    case cssom::KeywordValue::kLeft:
-    case cssom::KeywordValue::kLineThrough:
-    case cssom::KeywordValue::kMiddle:
-    case cssom::KeywordValue::kMonoscopic:
-    case cssom::KeywordValue::kMonospace:
-    case cssom::KeywordValue::kNoRepeat:
-    case cssom::KeywordValue::kNormal:
-    case cssom::KeywordValue::kNowrap:
-    case cssom::KeywordValue::kPre:
-    case cssom::KeywordValue::kPreLine:
-    case cssom::KeywordValue::kPreWrap:
-    case cssom::KeywordValue::kRelative:
-    case cssom::KeywordValue::kRepeat:
-    case cssom::KeywordValue::kReverse:
-    case cssom::KeywordValue::kRight:
-    case cssom::KeywordValue::kRow:
-    case cssom::KeywordValue::kRowReverse:
-    case cssom::KeywordValue::kSansSerif:
-    case cssom::KeywordValue::kScroll:
-    case cssom::KeywordValue::kSerif:
-    case cssom::KeywordValue::kSolid:
-    case cssom::KeywordValue::kSpaceAround:
-    case cssom::KeywordValue::kSpaceBetween:
-    case cssom::KeywordValue::kStart:
-    case cssom::KeywordValue::kStatic:
-    case cssom::KeywordValue::kStereoscopicLeftRight:
-    case cssom::KeywordValue::kStereoscopicTopBottom:
-    case cssom::KeywordValue::kStretch:
-    case cssom::KeywordValue::kTop:
-    case cssom::KeywordValue::kUppercase:
-    case cssom::KeywordValue::kVisible:
-    case cssom::KeywordValue::kWrap:
-    case cssom::KeywordValue::kWrapReverse:
+    default:
       NOTREACHED();
       break;
   }
@@ -825,74 +699,7 @@ class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
         //   https://www.w3.org/TR/CSS21/generate.html#propdef-content
         is_element_generated_ = false;
         break;
-      case cssom::KeywordValue::kAbsolute:
-      case cssom::KeywordValue::kAlternate:
-      case cssom::KeywordValue::kAlternateReverse:
-      case cssom::KeywordValue::kAuto:
-      case cssom::KeywordValue::kBackwards:
-      case cssom::KeywordValue::kBaseline:
-      case cssom::KeywordValue::kBlock:
-      case cssom::KeywordValue::kBoth:
-      case cssom::KeywordValue::kBottom:
-      case cssom::KeywordValue::kBreakWord:
-      case cssom::KeywordValue::kCenter:
-      case cssom::KeywordValue::kClip:
-      case cssom::KeywordValue::kCollapse:
-      case cssom::KeywordValue::kColumn:
-      case cssom::KeywordValue::kColumnReverse:
-      case cssom::KeywordValue::kContain:
-      case cssom::KeywordValue::kContent:
-      case cssom::KeywordValue::kCover:
-      case cssom::KeywordValue::kCurrentColor:
-      case cssom::KeywordValue::kCursive:
-      case cssom::KeywordValue::kEllipsis:
-      case cssom::KeywordValue::kEnd:
-      case cssom::KeywordValue::kEquirectangular:
-      case cssom::KeywordValue::kFantasy:
-      case cssom::KeywordValue::kFixed:
-      case cssom::KeywordValue::kFlex:
-      case cssom::KeywordValue::kFlexEnd:
-      case cssom::KeywordValue::kFlexStart:
-      case cssom::KeywordValue::kForwards:
-      case cssom::KeywordValue::kHidden:
-      case cssom::KeywordValue::kInfinite:
-      case cssom::KeywordValue::kInherit:
-      case cssom::KeywordValue::kInitial:
-      case cssom::KeywordValue::kInline:
-      case cssom::KeywordValue::kInlineBlock:
-      case cssom::KeywordValue::kInlineFlex:
-      case cssom::KeywordValue::kLeft:
-      case cssom::KeywordValue::kLineThrough:
-      case cssom::KeywordValue::kMiddle:
-      case cssom::KeywordValue::kMonoscopic:
-      case cssom::KeywordValue::kMonospace:
-      case cssom::KeywordValue::kNoRepeat:
-      case cssom::KeywordValue::kNowrap:
-      case cssom::KeywordValue::kPre:
-      case cssom::KeywordValue::kPreLine:
-      case cssom::KeywordValue::kPreWrap:
-      case cssom::KeywordValue::kRelative:
-      case cssom::KeywordValue::kRepeat:
-      case cssom::KeywordValue::kReverse:
-      case cssom::KeywordValue::kRight:
-      case cssom::KeywordValue::kRow:
-      case cssom::KeywordValue::kRowReverse:
-      case cssom::KeywordValue::kSansSerif:
-      case cssom::KeywordValue::kScroll:
-      case cssom::KeywordValue::kSerif:
-      case cssom::KeywordValue::kSolid:
-      case cssom::KeywordValue::kSpaceAround:
-      case cssom::KeywordValue::kSpaceBetween:
-      case cssom::KeywordValue::kStart:
-      case cssom::KeywordValue::kStatic:
-      case cssom::KeywordValue::kStereoscopicLeftRight:
-      case cssom::KeywordValue::kStereoscopicTopBottom:
-      case cssom::KeywordValue::kStretch:
-      case cssom::KeywordValue::kTop:
-      case cssom::KeywordValue::kUppercase:
-      case cssom::KeywordValue::kVisible:
-      case cssom::KeywordValue::kWrap:
-      case cssom::KeywordValue::kWrapReverse:
+      default:
         NOTREACHED();
     }
   }
@@ -1054,9 +861,9 @@ void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
     return;
   }
 
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
   container_box_before_split->SetGeneratingNode(html_element);
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
   container_box_before_split->SetUiNavItem(html_element->GetUiNavItem());
   boxes_.push_back(container_box_before_split);

@@ -17,10 +17,12 @@
 #include "base/bind.h"
 #include "base/command_line.h"
 #include "base/logging.h"
+#include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
+#include "cobalt/base/cobalt_paths.h"
 #include "cobalt/network/network_system.h"
 #include "cobalt/network/switches.h"
 #include "net/url_request/static_http_user_agent_settings.h"
@@ -33,7 +35,9 @@ namespace {
 const char kCaptureModeIncludeCookiesAndCredentials[] =
     "IncludeCookiesAndCredentials";
 const char kCaptureModeIncludeSocketBytes[] = "IncludeSocketBytes";
+const char kDefaultNetLogName[] = "cobalt_netlog.json";
 #endif
+constexpr size_t kNetworkModuleStackSize = 512 * 1024;
 }  // namespace
 
 NetworkModule::NetworkModule(const Options& options) : options_(options) {
@@ -110,15 +114,6 @@ void NetworkModule::SetEnableQuicFromPersistentSettings() {
   }
 }
 
-void NetworkModule::SetEnableClientHintHeadersFlagsFromPersistentSettings() {
-  // Called on initialization and when the persistent setting is changed.
-  if (options_.persistent_settings != nullptr) {
-    enable_client_hint_headers_flags_.store(
-        options_.persistent_settings->GetPersistentSettingAsInt(
-            kClientHintHeadersEnabledPersistentSettingsKey, 0));
-  }
-}
-
 void NetworkModule::EnsureStorageManagerStarted() {
   DCHECK(storage_manager_);
   storage_manager_->EnsureStarted();
@@ -137,8 +132,6 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
   http_user_agent_settings_.reset(new net::StaticHttpUserAgentSettings(
       options_.preferred_language, user_agent_string));
 
-  SetEnableClientHintHeadersFlagsFromPersistentSettings();
-
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
 
@@ -152,15 +145,16 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
   if (command_line->HasSwitch(switches::kMaxNetworkDelay)) {
     base::StringToInt64(
         command_line->GetSwitchValueASCII(switches::kMaxNetworkDelay),
-        &options_.max_network_delay);
+        &options_.max_network_delay_usec);
   }
 
 #if defined(ENABLE_NETWORK_LOGGING)
+  base::FilePath result;
+  base::PathService::Get(cobalt::paths::DIR_COBALT_DEBUG_OUT, &result);
+  net_log_path_ = result.Append(kDefaultNetLogName);
+  net::NetLogCaptureMode capture_mode = net::NetLogCaptureMode::kDefault;
   if (command_line->HasSwitch(switches::kNetLog)) {
-    // If this is not a valid path, net logs will be sent to VLOG(1).
-    base::FilePath net_log_path =
-        command_line->GetSwitchValuePath(switches::kNetLog);
-    net::NetLogCaptureMode capture_mode;
+    net_log_path_ = command_line->GetSwitchValuePath(switches::kNetLog);
     if (command_line->HasSwitch(switches::kNetLogCaptureMode)) {
       std::string capture_mode_string =
           command_line->GetSwitchValueASCII(switches::kNetLogCaptureMode);
@@ -170,7 +164,10 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
         capture_mode = net::NetLogCaptureMode::kEverything;
       }
     }
-    net_log_.reset(new CobaltNetLog(net_log_path, capture_mode));
+    net_log_.reset(new CobaltNetLog(net_log_path_, capture_mode));
+    net_log_->StartObserving();
+  } else {
+    net_log_.reset(new CobaltNetLog(net_log_path_, capture_mode));
   }
 #endif
 
@@ -180,7 +177,10 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
 #ifndef USE_HACKY_COBALT_CHANGES
   base::Thread::Options thread_options;
   thread_options.message_loop_type = base::MessageLoop::TYPE_IO;
-  thread_options.stack_size = 256 * 1024;
+  // Without setting a stack size here, the system default will be used
+  // which can be quite a bit larger (e.g. 4MB on Linux)
+  // Setting it manually keeps it managed.
+  thread_options.stack_size = kNetworkModuleStackSize;
   thread_options.priority = base::ThreadPriority::NORMAL;
   thread_->StartWithOptions(thread_options);
 #else
@@ -243,11 +243,26 @@ void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
 
 void NetworkModule::AddClientHintHeaders(
     net::URLFetcher& url_fetcher, ClientHintHeadersCallType call_type) const {
-  if (enable_client_hint_headers_flags_.load() & call_type) {
+  if (kEnabledClientHintHeaders & call_type) {
     for (const auto& header : client_hint_headers_) {
       url_fetcher.AddExtraRequestHeader(header);
     }
   }
+}
+
+void NetworkModule::StartNetLog() {
+#if defined(ENABLE_NETWORK_LOGGING)
+  LOG(INFO) << "Starting NetLog capture";
+  net_log_->StartObserving();
+#endif
+}
+
+base::FilePath NetworkModule::StopNetLog() {
+#if defined(ENABLE_NETWORK_LOGGING)
+  LOG(INFO) << "Stopping NetLog capture";
+  net_log_->StopObserving();
+#endif
+  return net_log_path_;
 }
 
 }  // namespace network

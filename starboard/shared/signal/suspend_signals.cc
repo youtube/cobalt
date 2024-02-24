@@ -117,7 +117,7 @@ class SignalHandlerThread : public ::starboard::Thread {
 
   void Run() override {
     SignalMask(kAllSignals, SIG_UNBLOCK);
-    while (!WaitForJoin(kSbTimeMax)) {
+    while (!WaitForJoin(kSbInt64Max)) {
     }
   }
 };

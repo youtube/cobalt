@@ -52,6 +52,10 @@
 #include "deflate.h"
 #include "x86.h"
 
+#if defined(CRC32_SIMD_SSE42_PCLMUL)
+#include <smmintrin.h>
+#endif
+
 #if (defined(__ARM_NEON__) || defined(__ARM_NEON)) || defined(STARBOARD)
 #include "contrib/optimizations/slide_hash_neon.h"
 #endif
@@ -127,8 +131,31 @@ extern void ZLIB_INTERNAL copy_with_crc(z_streamp strm, Bytef *dst, long size);
 #define INLINE inline
 #endif
 
-/* Inline optimisation */
-local INLINE Pos insert_string_sse(deflate_state *const s, const Pos str);
+/* Intel optimized insert_string. */
+#if defined(CRC32_SIMD_SSE42_PCLMUL)
+
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((target("sse4.2")))
+#endif
+local INLINE Pos insert_string_sse(deflate_state *const s, const Pos str)
+{
+    Pos ret;
+    unsigned *ip, val, h = 0;
+
+    ip = (unsigned *)&s->window[str];
+    val = *ip;
+
+    if (s->level >= 6)
+        val &= 0xFFFFFF;
+
+    h = _mm_crc32_u32(h, val);
+
+    ret = s->head[h & s->hash_mask];
+    s->head[h & s->hash_mask] = str;
+    s->prev[str & s->w_mask] = ret;
+    return ret;
+}
+#endif
 
 /* ===========================================================================
  * Local data
@@ -232,9 +259,10 @@ local INLINE Pos insert_string(deflate_state *const s, const Pos str)
 #if defined(CRC32_ARMV8_CRC32)
     if (arm_cpu_enable_crc32)
         return insert_string_arm(s, str);
-#endif
+#elif defined(CRC32_SIMD_SSE42_PCLMUL)
     if (x86_cpu_enable_simd)
         return insert_string_sse(s, str);
+#endif
 #endif
     return insert_string_c(s, str);
 }
@@ -319,7 +347,15 @@ int ZEXPORT deflateInit2_(strm, level, method, windowBits, memLevel, strategy,
     int wrap = 1;
     static const char my_version[] = ZLIB_VERSION;
 
+    // Needed to activate optimized insert_string() that helps compression
+    // for all wrapper formats (e.g. RAW, ZLIB, GZIP).
+    // Feature detection is not triggered while using RAW mode (i.e. we never
+    // call crc32() with a NULL buffer).
+#if defined(CRC32_ARMV8_CRC32)
+    arm_check_features();
+#elif defined(CRC32_SIMD_SSE42_PCLMUL)
     x86_check_features();
+#endif
 
     if (version == Z_NULL || version[0] != my_version[0] ||
         stream_size != sizeof(z_stream)) {
@@ -2279,38 +2315,4 @@ local block_state deflate_huff(s, flush)
     if (s->sym_next)
         FLUSH_BLOCK(s, 0);
     return block_done;
-}
-
-/* Safe to inline this as GCC/clang will use inline asm and Visual Studio will
- * use intrinsic without extra params
- */
-local INLINE Pos insert_string_sse(deflate_state *const s, const Pos str)
-{
-    Pos ret;
-    unsigned *ip, val, h = 0;
-
-    ip = (unsigned *)&s->window[str];
-    val = *ip;
-
-    if (s->level >= 6)
-        val &= 0xFFFFFF;
-
-/* Windows clang should use inline asm */
-#if defined(_MSC_VER) && !defined(__clang__) && (defined(_M_IX86) || defined(_M_X64))
-    h = _mm_crc32_u32(h, val);
-#elif defined(__i386__) || defined(__amd64__)
-    __asm__ __volatile__ (
-        "crc32 %1,%0\n\t"
-    : "+r" (h)
-    : "r" (val)
-    );
-#else
-    /* This should never happen */
-    assert(0);
-#endif
-
-    ret = s->head[h & s->hash_mask];
-    s->head[h & s->hash_mask] = str;
-    s->prev[str & s->w_mask] = ret;
-    return ret;
 }

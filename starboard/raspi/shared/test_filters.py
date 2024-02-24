@@ -13,21 +13,9 @@
 # limitations under the License.
 """Starboard Raspberry Pi Platform Test Filters."""
 
-import os
 from starboard.tools.testing import test_filter
 
 # pylint: disable=line-too-long
-_MODULAR_BUILD_FILTERED_TESTS = {
-    'nplb': [
-        'SbSystemGetStackTest.SunnyDayStackDirection',
-        'SbSystemGetStackTest.SunnyDay',
-        'SbSystemGetStackTest.SunnyDayShortStack',
-        'SbSystemSymbolizeTest.SunnyDay'
-        'MemoryReportingTest.CapturesOperatorDeleteNothrow',
-        'SbAudioSinkTest.*', 'SbDrmTest.AnySupportedKeySystems'
-    ],
-    'player_filter_tests': [test_filter.FILTER_ALL],
-}
 
 _FILTERED_TESTS = {
     'nplb': [
@@ -62,8 +50,6 @@ _FILTERED_TESTS = {
         'PlayerComponentsTests/PlayerComponentsTest.*',
     ],
 }
-if os.getenv('MODULAR_BUILD', '0') == '1':
-  _FILTERED_TESTS = _MODULAR_BUILD_FILTERED_TESTS
 
 
 class TestFilters(object):

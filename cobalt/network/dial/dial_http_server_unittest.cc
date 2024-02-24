@@ -231,7 +231,7 @@ class DialHttpServerTest : public testing::Test {
     scoped_refptr<net::IOBuffer> buffer(
         new net::IOBuffer(static_cast<size_t>(content_length)));
     TestCompletionCallback callback;
-    int rv = client_->Read(buffer.get(), static_cast<int>(content_length),
+    int rv = client_->Read(buffer, static_cast<int>(content_length),
                            callback.callback());
     if (rv == ERR_IO_PENDING) {
       rv = callback.WaitForResult();
@@ -265,7 +265,7 @@ TEST_F(DialHttpServerTest, SendManifest) {
   scoped_refptr<net::IOBuffer> buffer(
       new net::IOBuffer(static_cast<size_t>(content_length)));
   TestCompletionCallback callback;
-  int rv = client_->Read(buffer.get(), static_cast<int>(content_length),
+  int rv = client_->Read(buffer, static_cast<int>(content_length),
                          callback.callback());
   if (rv == ERR_IO_PENDING) {
     rv = callback.WaitForResult();

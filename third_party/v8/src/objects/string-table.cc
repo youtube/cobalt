@@ -334,11 +334,7 @@ StringTable::StringTable(Isolate* isolate)
 #endif
 {
 }
-StringTable::~StringTable() {
-  Data* data = data_.load(std::memory_order_relaxed);
-  delete data;
-}
-
+StringTable::~StringTable() { delete data_; }
 
 int StringTable::Capacity() const {
   return data_.load(std::memory_order_acquire)->capacity();

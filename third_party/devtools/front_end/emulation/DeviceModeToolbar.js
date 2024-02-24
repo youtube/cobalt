@@ -4,7 +4,7 @@
 /**
  * @unrestricted
  */
-export default class DeviceModeToolbar {
+Emulation.DeviceModeToolbar = class {
   /**
    * @param {!Emulation.DeviceModeModel} model
    * @param {!Common.Setting} showMediaInspectorSetting
@@ -619,15 +619,4 @@ export default class DeviceModeToolbar {
 
     this._model.emulate(Emulation.DeviceModeModel.Type.Responsive, null, null);
   }
-}
-
-/* Legacy exported object */
-self.Emulation = self.Emulation || {};
-
-/* Legacy exported object */
-Emulation = Emulation || {};
-
-/**
- * @constructor
- */
-Emulation.DeviceModeToolbar = DeviceModeToolbar;
+};

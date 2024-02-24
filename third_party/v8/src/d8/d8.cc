@@ -3838,12 +3838,12 @@ class Serializer : public ValueSerializer::Delegate {
     current_memory_usage_ += size;
     if (current_memory_usage_ > kMaxSerializerMemoryUsage) return nullptr;
 
-    void* result = base::Realloc(old_buffer, size);
+    void* result = realloc(old_buffer, size);
     *actual_size = result ? size : 0;
     return result;
   }
 
-  void FreeBufferMemory(void* buffer) override { base::Free(buffer); }
+  void FreeBufferMemory(void* buffer) override { free(buffer); }
 
  private:
   Maybe<bool> PrepareTransfer(Local<Context> context, Local<Value> transfer) {

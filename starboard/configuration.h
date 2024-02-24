@@ -35,10 +35,10 @@
 
 // The minimum API version allowed by this version of the Starboard headers,
 // inclusive.
-#define SB_MINIMUM_API_VERSION 12
+#define SB_MINIMUM_API_VERSION 13
 
 // The maximum API version allowed by this version of the Starboard headers,
-// inclusive.
+// inclusive. The API version is not stable and is open for changes.
 #define SB_MAXIMUM_API_VERSION 16
 
 // --- Common Detected Features ----------------------------------------------

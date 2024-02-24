@@ -21,9 +21,6 @@
 *   code also builds UnicodeSets from patterns and needs uniset_props.
 */
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif  // defined(STARBOARD)
 #include "unicode/brkiter.h"
 #include "unicode/locid.h"
 #include "unicode/parsepos.h"

@@ -69,28 +69,28 @@
 #include "../crypto/internal.h"
 
 
-namespace bssl {
+BSSL_NAMESPACE_BEGIN
 
-int ssl_is_key_type_supported(int key_type) {
+bool ssl_is_key_type_supported(int key_type) {
   return key_type == EVP_PKEY_RSA || key_type == EVP_PKEY_EC ||
          key_type == EVP_PKEY_ED25519;
 }
 
-static int ssl_set_pkey(CERT *cert, EVP_PKEY *pkey) {
+static bool ssl_set_pkey(CERT *cert, EVP_PKEY *pkey) {
   if (!ssl_is_key_type_supported(pkey->type)) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_UNKNOWN_CERTIFICATE_TYPE);
-    return 0;
+    return false;
   }
 
   if (cert->chain != nullptr &&
       sk_CRYPTO_BUFFER_value(cert->chain.get(), 0) != nullptr &&
       // Sanity-check that the private key and the certificate match.
       !ssl_cert_check_private_key(cert, pkey)) {
-    return 0;
+    return false;
   }
 
   cert->privatekey = UpRef(pkey);
-  return 1;
+  return true;
 }
 
 typedef struct {
@@ -98,29 +98,30 @@ typedef struct {
   int pkey_type;
   int curve;
   const EVP_MD *(*digest_func)(void);
-  char is_rsa_pss;
+  bool is_rsa_pss;
 } SSL_SIGNATURE_ALGORITHM;
 
 static const SSL_SIGNATURE_ALGORITHM kSignatureAlgorithms[] = {
-    {SSL_SIGN_RSA_PKCS1_MD5_SHA1, EVP_PKEY_RSA, NID_undef, &EVP_md5_sha1, 0},
-    {SSL_SIGN_RSA_PKCS1_SHA1, EVP_PKEY_RSA, NID_undef, &EVP_sha1, 0},
-    {SSL_SIGN_RSA_PKCS1_SHA256, EVP_PKEY_RSA, NID_undef, &EVP_sha256, 0},
-    {SSL_SIGN_RSA_PKCS1_SHA384, EVP_PKEY_RSA, NID_undef, &EVP_sha384, 0},
-    {SSL_SIGN_RSA_PKCS1_SHA512, EVP_PKEY_RSA, NID_undef, &EVP_sha512, 0},
+    {SSL_SIGN_RSA_PKCS1_MD5_SHA1, EVP_PKEY_RSA, NID_undef, &EVP_md5_sha1,
+     false},
+    {SSL_SIGN_RSA_PKCS1_SHA1, EVP_PKEY_RSA, NID_undef, &EVP_sha1, false},
+    {SSL_SIGN_RSA_PKCS1_SHA256, EVP_PKEY_RSA, NID_undef, &EVP_sha256, false},
+    {SSL_SIGN_RSA_PKCS1_SHA384, EVP_PKEY_RSA, NID_undef, &EVP_sha384, false},
+    {SSL_SIGN_RSA_PKCS1_SHA512, EVP_PKEY_RSA, NID_undef, &EVP_sha512, false},
 
-    {SSL_SIGN_RSA_PSS_RSAE_SHA256, EVP_PKEY_RSA, NID_undef, &EVP_sha256, 1},
-    {SSL_SIGN_RSA_PSS_RSAE_SHA384, EVP_PKEY_RSA, NID_undef, &EVP_sha384, 1},
-    {SSL_SIGN_RSA_PSS_RSAE_SHA512, EVP_PKEY_RSA, NID_undef, &EVP_sha512, 1},
+    {SSL_SIGN_RSA_PSS_RSAE_SHA256, EVP_PKEY_RSA, NID_undef, &EVP_sha256, true},
+    {SSL_SIGN_RSA_PSS_RSAE_SHA384, EVP_PKEY_RSA, NID_undef, &EVP_sha384, true},
+    {SSL_SIGN_RSA_PSS_RSAE_SHA512, EVP_PKEY_RSA, NID_undef, &EVP_sha512, true},
 
-    {SSL_SIGN_ECDSA_SHA1, EVP_PKEY_EC, NID_undef, &EVP_sha1, 0},
+    {SSL_SIGN_ECDSA_SHA1, EVP_PKEY_EC, NID_undef, &EVP_sha1, false},
     {SSL_SIGN_ECDSA_SECP256R1_SHA256, EVP_PKEY_EC, NID_X9_62_prime256v1,
-     &EVP_sha256, 0},
+     &EVP_sha256, false},
     {SSL_SIGN_ECDSA_SECP384R1_SHA384, EVP_PKEY_EC, NID_secp384r1, &EVP_sha384,
-     0},
+     false},
     {SSL_SIGN_ECDSA_SECP521R1_SHA512, EVP_PKEY_EC, NID_secp521r1, &EVP_sha512,
-     0},
+     false},
 
-    {SSL_SIGN_ED25519, EVP_PKEY_ED25519, NID_undef, NULL, 0},
+    {SSL_SIGN_ED25519, EVP_PKEY_ED25519, NID_undef, nullptr, false},
 };
 
 static const SSL_SIGNATURE_ALGORITHM *get_signature_algorithm(uint16_t sigalg) {
@@ -132,22 +133,28 @@ static const SSL_SIGNATURE_ALGORITHM *get_signature_algorithm(uint16_t sigalg) {
   return NULL;
 }
 
-int ssl_has_private_key(const SSL_CONFIG *cfg) {
-  return cfg->cert->privatekey != nullptr || cfg->cert->key_method != nullptr;
+bool ssl_has_private_key(const SSL_HANDSHAKE *hs) {
+  if (hs->config->cert->privatekey != nullptr ||
+      hs->config->cert->key_method != nullptr ||
+      ssl_signing_with_dc(hs)) {
+    return true;
+  }
+
+  return false;
 }
 
-static int pkey_supports_algorithm(const SSL *ssl, EVP_PKEY *pkey,
-                                   uint16_t sigalg) {
+static bool pkey_supports_algorithm(const SSL *ssl, EVP_PKEY *pkey,
+                                    uint16_t sigalg) {
   const SSL_SIGNATURE_ALGORITHM *alg = get_signature_algorithm(sigalg);
   if (alg == NULL ||
       EVP_PKEY_id(pkey) != alg->pkey_type) {
-    return 0;
+    return false;
   }
 
   if (ssl_protocol_version(ssl) >= TLS1_3_VERSION) {
     // RSA keys may only be used with RSA-PSS.
     if (alg->pkey_type == EVP_PKEY_RSA && !alg->is_rsa_pss) {
-      return 0;
+      return false;
     }
 
     // EC keys have a curve requirement.
@@ -155,18 +162,18 @@ static int pkey_supports_algorithm(const SSL *ssl, EVP_PKEY *pkey,
         (alg->curve == NID_undef ||
          EC_GROUP_get_curve_name(
              EC_KEY_get0_group(EVP_PKEY_get0_EC_KEY(pkey))) != alg->curve)) {
-      return 0;
+      return false;
     }
   }
 
-  return 1;
+  return true;
 }
 
-static int setup_ctx(SSL *ssl, EVP_MD_CTX *ctx, EVP_PKEY *pkey, uint16_t sigalg,
-                     int is_verify) {
+static bool setup_ctx(SSL *ssl, EVP_MD_CTX *ctx, EVP_PKEY *pkey,
+                      uint16_t sigalg, bool is_verify) {
   if (!pkey_supports_algorithm(ssl, pkey, sigalg)) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_WRONG_SIGNATURE_TYPE);
-    return 0;
+    return false;
   }
 
   const SSL_SIGNATURE_ALGORITHM *alg = get_signature_algorithm(sigalg);
@@ -174,33 +181,41 @@ static int setup_ctx(SSL *ssl, EVP_MD_CTX *ctx, EVP_PKEY *pkey, uint16_t sigalg,
   EVP_PKEY_CTX *pctx;
   if (is_verify) {
     if (!EVP_DigestVerifyInit(ctx, &pctx, digest, NULL, pkey)) {
-      return 0;
+      return false;
     }
   } else if (!EVP_DigestSignInit(ctx, &pctx, digest, NULL, pkey)) {
-    return 0;
+    return false;
   }
 
   if (alg->is_rsa_pss) {
     if (!EVP_PKEY_CTX_set_rsa_padding(pctx, RSA_PKCS1_PSS_PADDING) ||
         !EVP_PKEY_CTX_set_rsa_pss_saltlen(pctx, -1 /* salt len = hash len */)) {
-      return 0;
+      return false;
     }
   }
 
-  return 1;
+  return true;
 }
 
 enum ssl_private_key_result_t ssl_private_key_sign(
     SSL_HANDSHAKE *hs, uint8_t *out, size_t *out_len, size_t max_out,
     uint16_t sigalg, Span<const uint8_t> in) {
   SSL *const ssl = hs->ssl;
-  if (hs->config->cert->key_method != NULL) {
+  const SSL_PRIVATE_KEY_METHOD *key_method = hs->config->cert->key_method;
+  EVP_PKEY *privatekey = hs->config->cert->privatekey.get();
+  assert(!hs->can_release_private_key);
+  if (ssl_signing_with_dc(hs)) {
+    key_method = hs->config->cert->dc_key_method;
+    privatekey = hs->config->cert->dc_privatekey.get();
+  }
+
+  if (key_method != NULL) {
     enum ssl_private_key_result_t ret;
     if (hs->pending_private_key_op) {
-      ret = hs->config->cert->key_method->complete(ssl, out, out_len, max_out);
+      ret = key_method->complete(ssl, out, out_len, max_out);
     } else {
-      ret = hs->config->cert->key_method->sign(ssl, out, out_len, max_out,
-                                               sigalg, in.data(), in.size());
+      ret = key_method->sign(ssl, out, out_len, max_out,
+                             sigalg, in.data(), in.size());
     }
     if (ret == ssl_private_key_failure) {
       OPENSSL_PUT_ERROR(SSL, SSL_R_PRIVATE_KEY_OPERATION_FAILED);
@@ -211,8 +226,7 @@ enum ssl_private_key_result_t ssl_private_key_sign(
 
   *out_len = max_out;
   ScopedEVP_MD_CTX ctx;
-  if (!setup_ctx(ssl, ctx.get(), hs->config->cert->privatekey.get(), sigalg,
-                 0 /* sign */) ||
+  if (!setup_ctx(ssl, ctx.get(), privatekey, sigalg, false /* sign */) ||
       !EVP_DigestSign(ctx.get(), out, out_len, in.data(), in.size())) {
     return ssl_private_key_failure;
   }
@@ -223,9 +237,16 @@ bool ssl_public_key_verify(SSL *ssl, Span<const uint8_t> signature,
                            uint16_t sigalg, EVP_PKEY *pkey,
                            Span<const uint8_t> in) {
   ScopedEVP_MD_CTX ctx;
-  return setup_ctx(ssl, ctx.get(), pkey, sigalg, 1 /* verify */) &&
-         EVP_DigestVerify(ctx.get(), signature.data(), signature.size(),
-                          in.data(), in.size());
+  if (!setup_ctx(ssl, ctx.get(), pkey, sigalg, true /* verify */)) {
+    return false;
+  }
+  bool ok = EVP_DigestVerify(ctx.get(), signature.data(), signature.size(),
+                             in.data(), in.size());
+#if defined(BORINGSSL_UNSAFE_FUZZER_MODE)
+  ok = true;
+  ERR_clear_error();
+#endif
+  return ok;
 }
 
 enum ssl_private_key_result_t ssl_private_key_decrypt(SSL_HANDSHAKE *hs,
@@ -234,6 +255,7 @@ enum ssl_private_key_result_t ssl_private_key_decrypt(SSL_HANDSHAKE *hs,
                                                       size_t max_out,
                                                       Span<const uint8_t> in) {
   SSL *const ssl = hs->ssl;
+  assert(!hs->can_release_private_key);
   if (hs->config->cert->key_method != NULL) {
     enum ssl_private_key_result_t ret;
     if (hs->pending_private_key_op) {
@@ -287,7 +309,7 @@ bool ssl_private_key_supports_signature_algorithm(SSL_HANDSHAKE *hs,
   return true;
 }
 
-}  // namespace bssl
+BSSL_NAMESPACE_END
 
 using namespace bssl;
 
@@ -551,6 +573,10 @@ static int compare_uint16_t(const void *p1, const void *p2) {
 }
 
 static bool sigalgs_unique(Span<const uint16_t> in_sigalgs) {
+  if (in_sigalgs.size() < 2) {
+    return true;
+  }
+
   Array<uint16_t> sigalgs;
   if (!sigalgs.CopyFrom(in_sigalgs)) {
     return false;
@@ -637,7 +663,7 @@ static bool parse_sigalgs_list(Array<uint16_t> *out, const char *str) {
 
   // Note that the loop runs to len+1, i.e. it'll process the terminating NUL.
   for (size_t offset = 0; offset < len+1; offset++) {
-    const char c = str[offset];
+    const unsigned char c = str[offset];
 
     switch (c) {
       case '+':
@@ -767,7 +793,8 @@ int SSL_CTX_set1_sigalgs_list(SSL_CTX *ctx, const char *str) {
 
   if (!SSL_CTX_set_signing_algorithm_prefs(ctx, sigalgs.data(),
                                            sigalgs.size()) ||
-      !ctx->verify_sigalgs.CopyFrom(sigalgs)) {
+      !SSL_CTX_set_verify_algorithm_prefs(ctx, sigalgs.data(),
+                                          sigalgs.size())) {
     return 0;
   }
 
@@ -787,7 +814,7 @@ int SSL_set1_sigalgs_list(SSL *ssl, const char *str) {
   }
 
   if (!SSL_set_signing_algorithm_prefs(ssl, sigalgs.data(), sigalgs.size()) ||
-      !ssl->config->verify_sigalgs.CopyFrom(sigalgs)) {
+      !SSL_set_verify_algorithm_prefs(ssl, sigalgs.data(), sigalgs.size())) {
     return 0;
   }
 
@@ -797,4 +824,14 @@ int SSL_set1_sigalgs_list(SSL *ssl, const char *str) {
 int SSL_CTX_set_verify_algorithm_prefs(SSL_CTX *ctx, const uint16_t *prefs,
                                        size_t num_prefs) {
   return ctx->verify_sigalgs.CopyFrom(MakeConstSpan(prefs, num_prefs));
+}
+
+int SSL_set_verify_algorithm_prefs(SSL *ssl, const uint16_t *prefs,
+                                   size_t num_prefs) {
+  if (!ssl->config) {
+    OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+    return 0;
+  }
+
+  return ssl->config->verify_sigalgs.CopyFrom(MakeConstSpan(prefs, num_prefs));
 }

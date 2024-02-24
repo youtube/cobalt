@@ -2,16 +2,7 @@
   "docker_service": "build-linux-evergreen",
   "on_host_test": true,
   "bootloader": "linux-x64x11",
-  "on_host_test_shards": [
-    "0",
-    "1",
-    "2",
-    "3",
-    "blackbox",
-    "wpt",
-    "evergreen",
-    "evergreen-as-blackbox"
-  ],
+  "on_host_test_shards": ["0", "1", "2", "3", "blackbox", "wpt", "evergreen"],
   "platforms": [
     "evergreen-x64",
     "evergreen-x64-sbversion-15",
@@ -32,7 +23,7 @@
       "target_platform":"evergreen-x64",
       "target_cpu":"target_cpu=\\\"x64\\\"",
       "extra_gn_arguments":"use_asan=false",
-      "sb_api_version":"sb_api_version=15"
+      "sb_api_version":"15"
     },
     {
       "name":"sbversion-14",
@@ -40,7 +31,7 @@
       "target_platform":"evergreen-x64",
       "target_cpu":"target_cpu=\\\"x64\\\"",
       "extra_gn_arguments":"use_asan=false",
-      "sb_api_version":"sb_api_version=14"
+      "sb_api_version":"14"
     },
     {
       "name":"sbversion-13",
@@ -48,7 +39,7 @@
       "target_platform":"evergreen-x64",
       "target_cpu":"target_cpu=\\\"x64\\\"",
       "extra_gn_arguments":"use_asan=false",
-      "sb_api_version":"sb_api_version=13"
+      "sb_api_version":"13"
     }
   ]
 }

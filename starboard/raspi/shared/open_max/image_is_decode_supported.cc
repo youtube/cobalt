@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/image.h"
 
 #include "starboard/raspi/shared/open_max/open_max_image_decode_component.h"
@@ -39,3 +41,5 @@ bool SbImageIsDecodeSupported(const char* mime_type,
       open_max::OpenMaxImageDecodeComponent::GetCompressionFormat(mime_type);
   return type_supported && format == kSbDecodeTargetFormat1PlaneRGBA;
 }
+
+#endif  // SB_API_VERSION < 16

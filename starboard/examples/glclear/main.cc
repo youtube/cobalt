@@ -121,8 +121,8 @@ Application::Application() {
   SB_CHECK(0 != num_configs);
 
   // Allocate space to receive the matching configs and retrieve them.
-  SbEglConfig* configs = reinterpret_cast<SbEglConfig*>(
-      SbMemoryAllocate(num_configs * sizeof(SbEglConfig)));
+  SbEglConfig* configs =
+      reinterpret_cast<SbEglConfig*>(malloc(num_configs * sizeof(SbEglConfig)));
   EGL_CALL(eglChooseConfig(display_, kAttributeList, configs, num_configs,
                            &num_configs));
 
@@ -141,7 +141,7 @@ Application::Application() {
   }
   SB_DCHECK(surface_ != SB_EGL_NO_SURFACE);
 
-  SbMemoryDeallocate(configs);
+  free(configs);
 
   EGL_CALL(
       eglQuerySurface(display_, surface_, SB_EGL_WIDTH, &egl_surface_width_));

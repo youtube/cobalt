@@ -1,4 +1,4 @@
-# Memory Tuning #
+# Memory Tuning
 
 Cobalt is designed to choose sensible parameters for memory-related options and
 parameters through a system called "AutoMem".
@@ -16,7 +16,7 @@ Read on for more information.
 *Setting `--max_cobalt_cpu_usage` and `--max_cobalt_gpu_usage` on the
 command line is a beta feature.*
 
-### Memory Settings Table ###
+### Memory Settings Table
 
 A table similar to the one below, will be printed on startup.
 
@@ -79,7 +79,7 @@ be set from a specific place or automatically generated from Cobalt.
       * This value was AutoSet to a default value, but then was reduced in
       response to `max_cobalt_cpu_usage` or `max_cobalt_gpu_usage being` set too low.
 
-### Maximum Memory Table ###
+### Maximum Memory Table
 
 This second table is also printed at startup and details the sum of memory and
 maximum memory limits as reported by cobalt.
@@ -128,13 +128,13 @@ consumed by the settings, then any settings that are AutoSet AND adjustable
 will reduce their memory consumption. When this happens, look for the string
 *`AutoSet (Constrained)`* in the first table.
 
-## Setting Maximum Memory Values ##
+## Setting Maximum Memory Values
 
 The max cpu and gpu memory of the system can be set by command line:
   * `--max_cobalt_cpu_usage=160MB`
   * `--max_cobalt_gpu_usage=160MB`
 
-### Memory Scaling ###
+### Memory Scaling
 
 There are two primary ways in which the memory consumption settings will scale down.
 One is by specifying `--max_cobalt_cpu_usage` (or `max_cobalt_gpu_usage`) to a
@@ -152,7 +152,7 @@ flexible via the command line by setting the value to "autoset". For example,
  `--image_cache_size_in_bytes=auto` will allow `image_cache_size_in_bytes` to be
 flexible by disabling the value being set by a build setting.
 
-### Memory Warnings ###
+### Memory Warnings
 
 Cobalt will periodically check to see if the memory consumed by the application
 is less than the `--max_cobalt_cpu_usage` and `--max_cobalt_gpu_usage` amount.
@@ -160,7 +160,7 @@ If the cpu/gpu exceeds this maximum value then an error message will be logged
 once to stdout for cpu and/or gpu memory systems.
 
 
-### Example 1 - Configuring for a memory restricted platform ###
+### Example 1 - Configuring for a memory restricted platform
 
 Let's say that we are configuring platform called "XXX":
 
@@ -186,7 +186,7 @@ We will configure XXX such that:
 
   * `cobalt --max_cobalt_cpu_usage=160MB`
 
-### Example 2 - Configuring for a memory-plentiful platform ###
+### Example 2 - Configuring for a memory-plentiful platform
 
 The following command line will give a lot of memory to image cache and give
 500MB to `max_cobalt_cpu_usage` and `max_cobalt_gpu_usage`.
@@ -196,9 +196,9 @@ cobalt --max_cobalt_cpu_usage=500MB --max_cobalt_gpu_usage=500MB
 --image_cache_size_in_bytes=80MB
 ~~~
 
-## API Reference ##
+## API Reference
 
-#### Memory System API ####
+#### Memory System API
 
   * `max_cobalt_cpu_usage`
     * This setting will set the maximum cpu memory that the app will consume.
@@ -218,7 +218,7 @@ cobalt --max_cobalt_cpu_usage=500MB --max_cobalt_gpu_usage=500MB
       for `max_cobalt_gpu_usage` in commandline/starboard settings then no
       GPU memory checking is performed.
 
-#### Memory Setting API ####
+#### Memory Setting API
 
   * `image_cache_size_in_bytes`
     * See documentation *Image cache capacity* in `performance_tuning.md` for what
@@ -252,7 +252,7 @@ cobalt --max_cobalt_cpu_usage=500MB --max_cobalt_gpu_usage=500MB
       for what this setting does.
     * Set via command line, or else Cobalt extension, or else automatically by Cobalt.
 
-#### Units for Command Line Settings ####
+#### Units for Command Line Settings
 
 Memory values passed into Cobalt via command line arguments support units such
 kb, mb, and gb for kilo-byte, megabyte, gigabytes. These units are case insensitive.

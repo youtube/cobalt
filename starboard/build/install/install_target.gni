@@ -13,8 +13,11 @@
 # limitations under the License.
 
 import("//starboard/build/config/install.gni")
+import("//starboard/build/config/starboard_target_type.gni")
 
 template("install_target") {
+  not_needed(invoker, [ "shared_library_target_name" ])
+
   installable_target_name = invoker.installable_target_name
   installable_target_dep = invoker.installable_target_dep
 
@@ -23,7 +26,13 @@ template("install_target") {
     source_name = installable_target_name
   } else if (invoker.type == "shared_library") {
     install_subdir = "lib"
-    source_name = "lib${installable_target_name}.so"
+    if (installable_target_name == "starboard" ||
+        installable_target_name == "cast_starboard_api") {
+      source_name =
+          "lib${installable_target_name}.${starboard_shared_library_extension}"
+    } else {
+      source_name = "lib${installable_target_name}.so"
+    }
   } else {
     assert(false, "You can only install an executable or shared library.")
   }

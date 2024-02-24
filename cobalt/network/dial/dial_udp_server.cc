@@ -14,11 +14,8 @@
 
 #include "cobalt/network/dial/dial_udp_server.h"
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/inet_poem.h"
-#else
 #include <arpa/inet.h>
-#endif
+
 #include <memory>
 #include <utility>
 #include <vector>
@@ -193,10 +190,12 @@ void DialUdpServer::WriteComplete(scoped_refptr<net::WrappedIOBuffer>,
 // Parse a request to make sure it is a M-Search.
 bool DialUdpServer::ParseSearchRequest(const std::string& request) {
   net::HttpServerRequestInfo info;
-  // if (!net::HttpServer::ParseHeaders(request, &info)) {
-  //   DVLOG(1) << "Failed parsing SSDP headers: " << request;
-  //   return false;
-  // }
+#ifndef USE_HACKY_COBALT_CHANGES
+  if (!net::HttpServer::ParseHeaders(request, &info)) {
+    DVLOG(1) << "Failed parsing SSDP headers: " << request;
+    return false;
+  }
+#endif
 
   if (!IsValidMSearchRequest(info)) {
     return false;

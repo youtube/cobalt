@@ -18,6 +18,7 @@
 #include <utility>
 
 #include "starboard/common/log.h"
+#include "starboard/common/time.h"
 
 namespace starboard {
 namespace shared {
@@ -37,7 +38,7 @@ void SocketTracker::OnCreate(SbSocket socket,
   record.thread_id = SbThreadGetId();
   record.address_type = address_type;
   record.protocol = protocol;
-  record.last_activity = SbTimeGetMonotonicNow();
+  record.last_activity = CurrentMonotonicTime();
   record.state = kCreated;
 
   ScopedLock scoped_lock(mutex_);
@@ -77,7 +78,7 @@ void SocketTracker::OnAccept(SbSocket listening_socket,
   auto iter = sockets_.find(listening_socket);
   SB_DCHECK(iter != sockets_.end());
 
-  iter->second.last_activity = SbTimeGetMonotonicNow();
+  iter->second.last_activity = CurrentMonotonicTime();
 
   SocketRecord record;
   record.thread_id = SbThreadGetId();
@@ -96,7 +97,7 @@ void SocketTracker::OnReceiveFrom(SbSocket socket,
   auto iter = sockets_.find(socket);
   SB_DCHECK(iter != sockets_.end());
 
-  iter->second.last_activity = SbTimeGetMonotonicNow();
+  iter->second.last_activity = CurrentMonotonicTime();
   if (source) {
     iter->second.remote_address = *source;
   }
@@ -108,7 +109,7 @@ void SocketTracker::OnSendTo(SbSocket socket,
   auto iter = sockets_.find(socket);
   SB_DCHECK(iter != sockets_.end());
 
-  iter->second.last_activity = SbTimeGetMonotonicNow();
+  iter->second.last_activity = CurrentMonotonicTime();
   if (destination) {
     iter->second.remote_address = *destination;
   }
@@ -141,7 +142,7 @@ void SocketTracker::OnListen(SbSocket socket) {
   auto iter = sockets_.find(socket);
   SB_DCHECK(iter != sockets_.end());
 
-  iter->second.last_activity = SbTimeGetMonotonicNow();
+  iter->second.last_activity = CurrentMonotonicTime();
   SB_DCHECK(iter->second.state == kCreated);
   iter->second.state = kListened;
 }
@@ -158,7 +159,7 @@ void SocketTracker::OnAddWaiter(SbSocket socket, SbSocketWaiter waiter) {
   auto iter = sockets_.find(socket);
   SB_DCHECK(iter != sockets_.end());
 
-  iter->second.last_activity = SbTimeGetMonotonicNow();
+  iter->second.last_activity = CurrentMonotonicTime();
   SB_DCHECK(!SbSocketWaiterIsValid(iter->second.waiter));
   SB_DCHECK(SbSocketWaiterIsValid(waiter));
   iter->second.waiter = waiter;
@@ -169,7 +170,7 @@ void SocketTracker::OnRemoveWaiter(SbSocket socket, SbSocketWaiter waiter) {
   auto iter = sockets_.find(socket);
   SB_DCHECK(iter != sockets_.end());
 
-  iter->second.last_activity = SbTimeGetMonotonicNow();
+  iter->second.last_activity = CurrentMonotonicTime();
   SB_DCHECK(waiter == iter->second.waiter);
   SB_DCHECK(SbSocketWaiterIsValid(waiter));
   iter->second.waiter = kSbSocketWaiterInvalid;
@@ -198,14 +199,14 @@ std::string SocketTracker::ConvertToString_Locked(
   return ss.str();
 }
 
-std::multimap<SbTimeMonotonic, SbSocket>
+std::multimap<int64_t, SbSocket>
 SocketTracker::ComputeIdleTimePerSocketForThreadId(SbThreadId thread_id) {
-  std::multimap<SbTimeMonotonic, SbSocket> idle_times_to_sockets;
+  std::multimap<int64_t, SbSocket> idle_times_to_sockets;
   for (auto it = sockets_.begin(); it != sockets_.end(); ++it) {
     if (it->second.thread_id != thread_id || it->second.state == kListened) {
       continue;
     }
-    SbTimeMonotonic time_idle = ComputeTimeIdle(it->second);
+    int64_t time_idle = ComputeTimeIdle(it->second);
     idle_times_to_sockets.insert(std::make_pair(time_idle, it->first));
   }
   return idle_times_to_sockets;
@@ -235,14 +236,14 @@ std::string SocketTracker::ConvertToString_Locked(
       ss << ", listen called,";
       break;
   }
-  ss << " has been idle for " << ComputeTimeIdle(record) * 1.0f / kSbTimeSecond
+  ss << " has been idle for " << ComputeTimeIdle(record) * 1.0f / 1'000'000LL
      << " seconds";
   return ss.str();
 }
 
 // static
-SbTimeMonotonic SocketTracker::ComputeTimeIdle(const SocketRecord& record) {
-  return SbTimeGetMonotonicNow() - record.last_activity;
+int64_t SocketTracker::ComputeTimeIdle(const SocketRecord& record) {
+  return CurrentMonotonicTime() - record.last_activity;
 }
 
 }  // namespace socket

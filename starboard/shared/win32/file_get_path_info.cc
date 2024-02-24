@@ -87,14 +87,14 @@ bool SbFileGetPathInfo(const char* path, SbFileInfo* out_info) {
                    attribute_data.nFileSizeLow;
   SB_DCHECK(out_info->size >= 0);
 
-  using starboard::shared::win32::ConvertFileTimeToSbTime;
+  using starboard::shared::win32::ConvertFileTimeToUsec;
 
   out_info->creation_time =
-      ConvertFileTimeToSbTime(attribute_data.ftCreationTime);
+      ConvertFileTimeToUsec(attribute_data.ftCreationTime);
   out_info->last_accessed =
-      ConvertFileTimeToSbTime(attribute_data.ftLastAccessTime);
+      ConvertFileTimeToUsec(attribute_data.ftLastAccessTime);
   out_info->last_modified =
-      ConvertFileTimeToSbTime(attribute_data.ftLastWriteTime);
+      ConvertFileTimeToUsec(attribute_data.ftLastWriteTime);
 
   out_info->is_symbolic_link = false;
   out_info->is_directory =

@@ -11,6 +11,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/icu/source/common/unicode/ucnv.h"
 #include "url/url_canon.h"
+#include "url/url_canon_icu.h"
 #include "url/url_canon_stdstring.h"
 #include "url/url_test_utils.h"
 

@@ -61,8 +61,7 @@ extern "C" {
 #endif
 
 extern const X509V3_EXT_METHOD v3_bcons, v3_nscert, v3_key_usage, v3_ext_ku;
-extern const X509V3_EXT_METHOD v3_pkey_usage_period, v3_sxnet, v3_info,
-    v3_sinfo;
+extern const X509V3_EXT_METHOD v3_info, v3_sinfo;
 extern const X509V3_EXT_METHOD v3_ns_ia5_list[], v3_alt[], v3_skey_id,
     v3_akey_id;
 extern const X509V3_EXT_METHOD v3_crl_num, v3_crl_reason, v3_crl_invdate;
@@ -98,7 +97,6 @@ static const X509V3_EXT_METHOD *const standard_exts[] = {
     &v3_ns_ia5_list[6],
     &v3_skey_id,
     &v3_key_usage,
-    &v3_pkey_usage_period,
     &v3_alt[0],
     &v3_alt[1],
     &v3_bcons,
@@ -110,7 +108,6 @@ static const X509V3_EXT_METHOD *const standard_exts[] = {
     &v3_delta_crl,
     &v3_crl_reason,
     &v3_crl_invdate,
-    &v3_sxnet,
     &v3_info,
 #ifndef OPENSSL_NO_OCSP
     &v3_ocsp_nonce,

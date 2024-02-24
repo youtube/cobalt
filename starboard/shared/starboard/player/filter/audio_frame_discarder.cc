@@ -43,8 +43,12 @@ void AudioFrameDiscarder::OnInputBuffers(const InputBuffers& input_buffers) {
 void AudioFrameDiscarder::AdjustForDiscardedDurations(
     int sample_rate,
     scoped_refptr<DecodedAudio>* decoded_audio) {
-  SB_DCHECK(decoded_audio);
-  SB_DCHECK(*decoded_audio);
+  if (!decoded_audio || !*decoded_audio) {
+    SB_LOG(ERROR) << "No input buffer to adjust.";
+    SB_DCHECK(decoded_audio);
+    SB_DCHECK(*decoded_audio);
+    return;
+  }
 
   InputBufferInfo input_info;
   {
@@ -65,9 +69,9 @@ void AudioFrameDiscarder::AdjustForDiscardedDurations(
   // We accept a small offset due to the precision of computation. If the
   // outputs have different timestamps than inputs, discarded durations will be
   // ignored.
-  const SbTimeMonotonic kTimestampOffset = 10;
+  const int64_t kTimestampOffsetUsec = 10;
   if (std::abs(input_info.timestamp - (*decoded_audio)->timestamp()) >
-      kTimestampOffset) {
+      kTimestampOffsetUsec) {
     SB_LOG(WARNING) << "Inconsistent timestamps between InputBuffer (@"
                     << input_info.timestamp << ") and DecodedAudio (@"
                     << (*decoded_audio)->timestamp() << ").";

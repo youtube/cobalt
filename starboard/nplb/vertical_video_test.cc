@@ -23,7 +23,6 @@
 #include "starboard/player.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
-#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -130,10 +129,10 @@ TEST_P(VerticalVideoTest, WriteSamples) {
   SB_DCHECK(player_fixture.HasVideo());
   SB_DCHECK(player_fixture.HasAudio());
 
-  int audio_samples_to_write = player_fixture.ConvertDurationToAudioBufferCount(
-      200 * kSbTimeMillisecond);
-  int video_samples_to_write = player_fixture.ConvertDurationToVideoBufferCount(
-      200 * kSbTimeMillisecond);
+  int audio_samples_to_write =
+      player_fixture.ConvertDurationToAudioBufferCount(200'000);
+  int video_samples_to_write =
+      player_fixture.ConvertDurationToVideoBufferCount(200'000);
 
   GroupedSamples samples;
   samples.AddVideoSamples(0, audio_samples_to_write);

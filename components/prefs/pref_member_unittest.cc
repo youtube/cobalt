@@ -43,7 +43,9 @@ class GetPrefValueHelper
     pref_.MoveToSequence(task_runner_);
   }
 
-  void Destroy() { pref_.Destroy(); }
+  void Destroy() {
+    pref_.Destroy();
+  }
 
   void FetchValue() {
     base::WaitableEvent event(base::WaitableEvent::ResetPolicy::MANUAL,

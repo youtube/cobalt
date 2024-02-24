@@ -113,6 +113,7 @@ void MinRequiredFramesTester::TesterThreadFunc() {
     frame_buffers[0] = silence_buffer.data();
 
     // Set default values.
+    has_error_ = false;
     min_required_frames_ = task.default_required_frames;
     total_consumed_frames_ = 0;
     last_underrun_count_ = -1;
@@ -125,10 +126,10 @@ void MinRequiredFramesTester::TesterThreadFunc() {
             GetSampleSize(task.sample_type),
         &MinRequiredFramesTester::UpdateSourceStatusFunc,
         &MinRequiredFramesTester::ConsumeFramesFunc,
-        &MinRequiredFramesTester::ErrorFunc, 0, -1, false, false, this);
+        &MinRequiredFramesTester::ErrorFunc, 0, -1, false, this);
     {
       ScopedLock scoped_lock(mutex_);
-      wait_timeout = !condition_variable_.WaitTimed(kSbTimeSecond * 5);
+      wait_timeout = !condition_variable_.WaitTimed(5'000'000);
     }
 
     // Get start threshold before release the audio sink.
@@ -145,6 +146,13 @@ void MinRequiredFramesTester::TesterThreadFunc() {
     if (wait_timeout) {
       SB_LOG(ERROR) << "Audio sink min required frames tester timeout.";
       // Overwrite |min_required_frames_| if failed to get a stable result.
+      min_required_frames_ = max_required_frames_;
+    }
+
+    if (has_error_) {
+      SB_LOG(ERROR) << "There's an error while running the test. Fallback to "
+                       "max required frames "
+                    << max_required_frames_ << ".";
       min_required_frames_ = max_required_frames_;
     }
 
@@ -183,7 +191,7 @@ void MinRequiredFramesTester::UpdateSourceStatusFunc(int* frames_in_buffer,
 
 // static
 void MinRequiredFramesTester::ConsumeFramesFunc(int frames_consumed,
-                                                SbTime frames_consumed_at,
+                                                int64_t frames_consumed_at,
                                                 void* context) {
   MinRequiredFramesTester* tester =
       static_cast<MinRequiredFramesTester*>(context);
@@ -197,9 +205,10 @@ void MinRequiredFramesTester::ErrorFunc(bool capability_changed,
                                         const std::string& error_message,
                                         void* context) {
   SB_LOG(ERROR) << "Error occurred while writing frames: " << error_message;
-  // TODO: Handle errors during minimum frames test, maybe by terminating the
-  //       test earlier.
-  SB_NOTREACHED();
+
+  MinRequiredFramesTester* tester =
+      static_cast<MinRequiredFramesTester*>(context);
+  tester->has_error_ = true;
 }
 
 void MinRequiredFramesTester::UpdateSourceStatus(int* frames_in_buffer,

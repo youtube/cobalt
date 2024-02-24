@@ -15,6 +15,8 @@
 #ifndef STARBOARD_NPLB_TIME_CONSTANTS_H_
 #define STARBOARD_NPLB_TIME_CONSTANTS_H_
 
+#if SB_API_VERSION < 16
+
 #include "starboard/time.h"
 
 namespace starboard {
@@ -59,5 +61,7 @@ static const SbTime kTestTimePastWritten =
 
 }  // namespace nplb
 }  // namespace starboard
+
+#endif  // SB_API_VERSION < 16
 
 #endif  // STARBOARD_NPLB_TIME_CONSTANTS_H_

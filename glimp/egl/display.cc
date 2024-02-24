@@ -28,7 +28,7 @@
 namespace glimp {
 namespace egl {
 
-const SbTime kSubmitDoneDelay = kSbTimeSecond / 60;
+const int64_t kSubmitDoneDelay = 1000000 / 60;  // 1/60 seconds, in microseconds
 
 // Don't repeat the submitDone callback during suspension
 // until specified by eglTerminate.

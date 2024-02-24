@@ -164,15 +164,14 @@ void ResolveGetClientPromise(
 
 ServiceWorkerContext::ServiceWorkerContext(
     web::WebSettings* web_settings, network::NetworkModule* network_module,
-    web::UserAgentPlatformInfo* platform_info, base::MessageLoop* message_loop,
-    const GURL& url)
+    web::UserAgentPlatformInfo* platform_info, base::MessageLoop* message_loop)
     : message_loop_(message_loop) {
   DCHECK_EQ(message_loop_, base::MessageLoop::current());
   jobs_ =
       std::make_unique<ServiceWorkerJobs>(this, network_module, message_loop);
 
   ServiceWorkerPersistentSettings::Options options(web_settings, network_module,
-                                                   platform_info, this, url);
+                                                   platform_info, this);
   scope_to_registration_map_.reset(new ServiceWorkerRegistrationMap(options));
   DCHECK(scope_to_registration_map_);
 }

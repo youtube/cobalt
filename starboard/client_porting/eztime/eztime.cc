@@ -18,9 +18,9 @@
 
 #include "starboard/client_porting/icu_init/icu_init.h"
 #include "starboard/common/log.h"
+#include "starboard/common/time.h"
 #include "starboard/once.h"
 #include "starboard/system.h"
-#include "starboard/time.h"
 
 #include "third_party/icu/source/common/unicode/udata.h"
 #include "third_party/icu/source/common/unicode/uloc.h"
@@ -37,7 +37,7 @@ const int kMaxTimeZoneSize = 32;
 UChar g_timezones[kEzTimeZoneCount][kMaxTimeZoneSize];
 
 // Once control for initializing eztime static data.
-SbOnceControl g_initialization_once = SB_ONCE_INITIALIZER;
+SbOnceControl g_eztime_initialization_once = SB_ONCE_INITIALIZER;
 
 // The timezone names in ASCII (UTF8-compatible) literals. This must match the
 // order of the EzTimeZone enum.
@@ -68,7 +68,7 @@ void InitializeTimeZone(EzTimeZone timezone) {
 // Initializes ICU and TimeZones so the rest of the functions will work. Should
 // only be called once.
 void Initialize() {
-  SbIcuInit();
+  IcuInit();
 
   // Initialize |g_timezones| table.
   for (int timezone = 0; timezone < kEzTimeZoneCount; ++timezone) {
@@ -78,20 +78,22 @@ void Initialize() {
 
 // Converts from an SbTime to an ICU UDate (non-fractional milliseconds since
 // POSIX epoch, as a double).
-SbTime UDateToSbTime(UDate udate) {
-  return SbTimeFromPosix(static_cast<int64_t>(udate * kSbTimeMillisecond));
+int64_t UDateToSbTime(UDate udate) {
+  return starboard::PosixTimeToWindowsTime(
+      static_cast<int64_t>(udate * 1000LL));
 }
 
 // Converts from an ICU UDate to an SbTime. NOTE: This is LOSSY.
-UDate SbTimeToUDate(SbTime sb_time) {
-  return static_cast<UDate>(
-      SbTimeNarrow(SbTimeToPosix(sb_time), kSbTimeMillisecond));
+UDate SbTimeToUDate(int64_t sb_time) {
+  int64_t posix_time = sb_time - 11644473600000000ULL;
+  return static_cast<UDate>(posix_time >= 0 ? posix_time / 1000
+                                            : (posix_time - 1000 + 1) / 1000);
 }
 
 // Gets the cached TimeZone ID from |g_timezones| for the given EzTimeZone
 // |timezone|.
 const UChar* GetTimeZoneId(EzTimeZone timezone) {
-  SbOnce(&g_initialization_once, &Initialize);
+  SbOnce(&g_eztime_initialization_once, &Initialize);
   const UChar* timezone_id = g_timezones[timezone];
   if (timezone_id[0] == 0) {
     return NULL;
@@ -132,7 +134,7 @@ bool EzTimeValueExplode(const EzTimeValue* SB_RESTRICT value,
     return false;
   }
 
-  SbTime sb_time = EzTimeValueToSbTime(value);
+  int64_t sb_time = EzTimeValueToSbTime(value);
   UDate udate = SbTimeToUDate(sb_time);
   ucal_setMillis(calendar, udate, &status);
   out_exploded->tm_year = ucal_get(calendar, UCAL_YEAR, &status) - 1900;
@@ -207,12 +209,14 @@ EzTimeValue EzTimeValueImplode(EzTimeExploded* SB_RESTRICT exploded,
 int EzTimeValueGetNow(EzTimeValue* out_tp, void* tzp) {
   SB_DCHECK(tzp == NULL);
   SB_DCHECK(out_tp != NULL);
-  *out_tp = EzTimeValueFromSbTime(SbTimeGetNow());
+  *out_tp = EzTimeValueFromSbTime(
+      starboard::PosixTimeToWindowsTime(starboard::CurrentPosixTime()));
   return 0;
 }
 
 EzTimeT EzTimeTGetNow(EzTimeT* out_now) {
-  EzTimeT result = EzTimeTFromSbTime(SbTimeGetNow());
+  EzTimeT result = EzTimeTFromSbTime(
+      starboard::PosixTimeToWindowsTime(starboard::CurrentPosixTime()));
   if (out_now) {
     *out_now = result;
   }

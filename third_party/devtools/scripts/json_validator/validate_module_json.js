@@ -15,10 +15,9 @@ for (let dir of fs.readdirSync(FRONTEND_PATH)) {
 }
 
 const Ajv = require('ajv');
-const ajv = new Ajv({schemaId: 'id'});
+const ajv = new Ajv();
 // This seems to be the most widely supported version of the schema.
 ajv.addMetaSchema(require('ajv/lib/refs/json-schema-draft-04.json'));
-
 const schema = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'module.schema.json')));
 const validate = ajv.compile(schema);
 

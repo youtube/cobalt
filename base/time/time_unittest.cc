@@ -25,7 +25,11 @@
 #include "third_party/icu/source/common/unicode/utypes.h"
 #include "third_party/icu/source/i18n/unicode/timezone.h"
 
-#if BUILDFLAG(IS_ANDROID)
+#if defined(STARBOARD)
+#include "starboard/common/time.h"
+#include "starboard/types.h"
+#include "base/test/time_helpers.h"
+#elif BUILDFLAG(IS_ANDROID)
 #include "base/android/jni_android.h"
 #elif BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_CHROMEOS)
 #include "base/test/icu_test_util.h"
@@ -1443,6 +1447,11 @@ ThreadTicks ThreadTicksOverride::now_ticks_;
 #define MAYBE_NowOverride NowOverride
 #endif
 TEST(ThreadTicks, MAYBE_NowOverride) {
+  if (starboard::CurrentMonotonicThreadTime() == 0) {
+    SB_LOG(INFO) << "Time thread now not supported. Test skipped.";
+    return;
+  }
+
   ThreadTicksOverride::now_ticks_ = ThreadTicks::Min();
 
   // Override is not active. All Now() methods should return a sensible value.

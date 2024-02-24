@@ -19,6 +19,8 @@
 #ifndef STARBOARD_TIME_H_
 #define STARBOARD_TIME_H_
 
+#if SB_API_VERSION < 16
+
 #include "starboard/export.h"
 #include "starboard/types.h"
 
@@ -104,5 +106,11 @@ SB_EXPORT SbTimeMonotonic SbTimeGetMonotonicThreadNow();
 #ifdef __cplusplus
 }  // extern "C"
 #endif
+
+#else  // SB_API_VERSION < 16
+
+#error This file is deprecated with SB_API_VERSION 16.
+
+#endif  // SB_API_VERSION < 16
 
 #endif  // STARBOARD_TIME_H_

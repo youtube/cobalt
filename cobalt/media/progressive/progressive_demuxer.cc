@@ -383,11 +383,12 @@ void ProgressiveDemuxer::AllocateBuffer() {
         MediaVideoCodecToSbMediaVideoCodec(VideoConfig().codec()),
         VideoConfig().visible_rect().size().width(),
         VideoConfig().visible_rect().size().height(), kBitDepth);
-    int progressive_duration_cap_in_seconds =
-        SbMediaGetBufferGarbageCollectionDurationThreshold() / kSbTimeSecond;
+    base::TimeDelta progressive_duration_cap =
+        base::TimeDelta::FromMicroseconds(
+            SbMediaGetBufferGarbageCollectionDurationThreshold());
     const int kEstimatedBufferCountPerSeconds = 70;
     int progressive_buffer_count_cap =
-        progressive_duration_cap_in_seconds * kEstimatedBufferCountPerSeconds;
+        progressive_duration_cap.InSeconds() * kEstimatedBufferCountPerSeconds;
     if (total_buffer_size >= progressive_budget ||
         total_buffer_count > progressive_buffer_count_cap) {
       // Retry after 100 milliseconds.

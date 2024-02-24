@@ -33,7 +33,6 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
-
 #include <memory>
 
 #include "src/base/platform/wrappers.h"

@@ -22,7 +22,6 @@
 
 #include "starboard/drm.h"
 #include "starboard/export.h"
-#include "starboard/time.h"
 #include "starboard/types.h"
 
 #ifdef __cplusplus
@@ -526,7 +525,7 @@ typedef struct SbMediaAudioConfiguration {
 
   // The expected latency of audio over this output, in microseconds, or |0| if
   // this device cannot provide this information.
-  SbTime latency;
+  int64_t latency;
 
   // The type of audio coding used over this connection.
   SbMediaAudioCodingType coding_type;
@@ -572,8 +571,8 @@ typedef struct SbMediaAudioStreamInfo {
 typedef struct SbMediaAudioSampleInfo {
   // The set of information of the video stream associated with this sample.
   SbMediaAudioStreamInfo stream_info;
-  SbTime discarded_duration_from_front;
-  SbTime discarded_duration_from_back;
+  int64_t discarded_duration_from_front;  // in microseconds.
+  int64_t discarded_duration_from_back;   // in microseconds.
 } SbMediaAudioSampleInfo;
 
 #else  // SB_API_VERSION >= 15
@@ -606,7 +605,7 @@ typedef struct SbMediaAudioSampleInfo {
   // The number of bytes per second expected with this format.
   uint32_t average_bytes_per_second;
 
-  // Byte block alignment, e.g, 4.
+  // Byte block alignment, e.g., 4.
   uint16_t block_alignment;
 
   // The bit depth for the stream this represents, e.g. |8| or |16|.
@@ -707,19 +706,21 @@ typedef enum SbMediaBufferStorageType {
 // The media buffer will be allocated using the returned alignment.  Set this to
 // a larger value may increase the memory consumption of media buffers.
 //
+#if SB_API_VERSION < 16
 #if SB_API_VERSION >= 14
 SB_EXPORT int SbMediaGetBufferAlignment();
 #else   // SB_API_VERSION >= 14
 // |type|: the media type of the stream (audio or video).
 SB_EXPORT int SbMediaGetBufferAlignment(SbMediaType type);
 #endif  // SB_API_VERSION >= 14
+#endif  // SB_API_VERSION < 16
 
 // When the media stack needs more memory to store media buffers, it will
 // allocate extra memory in units returned by SbMediaGetBufferAllocationUnit.
 // This can return 0, in which case the media stack will allocate extra memory
 // on demand.  When SbMediaGetInitialBufferCapacity and this function both
 // return 0, the media stack will allocate individual buffers directly using
-// SbMemory functions.
+// malloc functions.
 SB_EXPORT int SbMediaGetBufferAllocationUnit();
 
 // Specifies the maximum amount of memory used by audio buffers of media source
@@ -729,15 +730,16 @@ SB_EXPORT int SbMediaGetBufferAllocationUnit();
 // difficulty if this value is too low.
 SB_EXPORT int SbMediaGetAudioBufferBudget();
 
-// Specifies the duration threshold of media source garbage collection.  When
-// the accumulated duration in a source buffer exceeds this value, the media
-// source implementation will try to eject existing buffers from the cache. This
-// is usually triggered when the video being played has a simple content and the
-// encoded data is small.  In such case this can limit how much is allocated for
-// the book keeping data of the media buffers and avoid OOM of system heap. This
-// should return 170 seconds for most of the platforms.  But it can be further
-// reduced on systems with extremely low memory.
-SB_EXPORT SbTime SbMediaGetBufferGarbageCollectionDurationThreshold();
+// Specifies the duration threshold of media source garbage collection in
+// microseconds.  When the accumulated duration in a source buffer exceeds this
+// value, the media source implementation will try to eject existing buffers
+// from the cache. This is usually triggered when the video being played has a
+// simple content and the encoded data is small.  In such case this can limit
+// how much is allocated for the book keeping data of the media buffers and
+// avoid OOM of system heap. This should return 170 seconds for most of the
+// platforms.  But it can be further reduced on systems with extremely low
+// memory.
+SB_EXPORT int64_t SbMediaGetBufferGarbageCollectionDurationThreshold();
 
 // The amount of memory that will be used to store media buffers allocated
 // during system startup.  To allocate a large chunk at startup helps with
@@ -801,15 +803,15 @@ SB_EXPORT int SbMediaGetProgressiveBufferBudget(SbMediaVideoCodec codec,
 
 // Returns SbMediaBufferStorageType of type |SbMediaStorageTypeMemory| or
 // |SbMediaStorageTypeFile|. For memory storage, the media buffers will be
-// stored in main memory allocated by SbMemory functions.  For file storage, the
+// stored in main memory allocated by malloc functions.  For file storage, the
 // media buffers will be stored in a temporary file in the system cache folder
 // acquired by calling SbSystemGetPath() with "kSbSystemPathCacheDirectory".
 // Note that when its value is "file" the media stack will still allocate memory
-// to cache the the buffers in use.
+// to cache the buffers in use.
 SB_EXPORT SbMediaBufferStorageType SbMediaGetBufferStorageType();
 
 // If SbMediaGetBufferUsingMemoryPool returns true, it indicates that media
-// buffer pools should be allocated on demand, as opposed to using SbMemory*
+// buffer pools should be allocated on demand, as opposed to using malloc
 // functions.
 SB_EXPORT bool SbMediaIsBufferUsingMemoryPool();
 
@@ -832,14 +834,14 @@ SB_EXPORT int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
 // Communicate to the platform how far past |current_playback_position| the app
 // will write audio samples. The app will write all samples between
 // |current_playback_position| and |current_playback_position| + |duration|, as
-// soon as they are available. The app may sometimes write more samples than
-// that, but the app only guarantees to write |duration| past
-// |current_playback_position| in general. The platform is responsible for
+// soon as they are available (during is in microseconds). The app may sometimes
+// write more samples than that, but the app only guarantees to write |duration|
+// past |current_playback_position| in general. The platform is responsible for
 // guaranteeing that when only |duration| audio samples are written at a time,
 // no playback issues occur (such as transient or indefinite hanging). The
 // platform may assume |duration| >= 0.5 seconds.
 #if SB_API_VERSION < 15
-SB_EXPORT void SbMediaSetAudioWriteDuration(SbTime duration);
+SB_EXPORT void SbMediaSetAudioWriteDuration(int64_t duration);
 #endif  // SB_API_VERSION < 15
 
 #ifdef __cplusplus

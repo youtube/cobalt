@@ -54,6 +54,7 @@ class WebMediaPlayerHelper::WebMediaPlayerClientStub
   }
   std::string SourceURL() const override { return ""; }
   std::string MaxVideoCapabilities() const override { return std::string(); };
+  int MaxVideoInputSize() const override { return 0; };
 
   void EncryptedMediaInitDataEncountered(const char*, const unsigned char*,
                                          unsigned) override {}
@@ -116,7 +117,7 @@ bool WebMediaPlayerHelper::IsPlaybackFinished() const {
   // Use a small epsilon to ensure that the video can finish properly even when
   // the audio and video streams are shorter than the duration specified in the
   // container.
-  return player_->GetCurrentTime() >= player_->GetDuration() - 0.1f;
+  return player_->GetCurrentTime() >= player_->GetDuration() - 0.1;
 }
 
 }  // namespace sandbox

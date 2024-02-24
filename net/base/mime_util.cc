@@ -22,6 +22,7 @@
 #include "net/base/mime_util.h"
 #include "net/base/platform_mime_util.h"
 #include "net/http/http_util.h"
+#include "starboard/common/string.h"
 
 using std::string;
 

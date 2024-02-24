@@ -129,9 +129,10 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
       SB_DCHECK(decoded_data_size == kEac3BufferSize);
     }
 
-    DecodedAudioPtr data_ptr(new DecodedAudio(
-        number_of_channels_, sample_type_, audio_frame_fmt_,
-        ConvertToSbTime(win32_timestamp), static_cast<int>(decoded_data_size)));
+    DecodedAudioPtr data_ptr(
+        new DecodedAudio(number_of_channels_, sample_type_, audio_frame_fmt_,
+                         ConvertWin32TimeToUsec(win32_timestamp),
+                         static_cast<int>(decoded_data_size)));
 
     std::copy(data, data + data_size, data_ptr->data());
     std::memset(data_ptr->data() + data_size, 0, decoded_data_size - data_size);

@@ -511,15 +511,19 @@ TEST(CHECKTest, TestCheckInMethod) {
   v.MethodWithCheck(1);
 }
 
-// TEST(CHECKDeathTest, TestUserDefinedStreaming) {
-//   ComparableType v1{1};
-//   ComparableType v2{2};
+// TODO(b/320478127): EXPECT_DEATH_IF_SUPPORTED() doesn't work with HasSubstr()
+// (yet) for googletest in Cobalt.
+#if !defined(STARBOARD)
+TEST(CHECKDeathTest, TestUserDefinedStreaming) {
+  ComparableType v1{1};
+  ComparableType v2{2};
 
-//   EXPECT_DEATH(
-//       ABSL_TEST_CHECK_EQ(v1, v2),
-//       HasSubstr(
-//           "Check failed: v1 == v2 (ComparableType{1} vs. ComparableType{2})"));
-// }
+  EXPECT_DEATH(
+      ABSL_TEST_CHECK_EQ(v1, v2),
+      HasSubstr(
+          "Check failed: v1 == v2 (ComparableType{1} vs. ComparableType{2})"));
+}
+#endif
 
 }  // namespace absl_log_internal
 

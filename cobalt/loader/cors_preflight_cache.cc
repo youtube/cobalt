@@ -127,7 +127,7 @@ bool CORSPreflightCache::HaveEntry(
   if (entry_ptr->allow_all_headers_except_non_wildcard) {
     bool has_auth_header = false;
     for (const auto& header : unsafe_headernames) {
-      if (SbStringCompareNoCase(header.c_str(), kAuthorization)) {
+      if (strcasecmp(header.c_str(), kAuthorization)) {
         has_auth_header = true;
         break;
       }

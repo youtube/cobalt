@@ -25,8 +25,14 @@
 #include <utility>
 #include <vector>
 
+#include <openssl/mem.h>
+
 #include <gtest/gtest.h>
 
+#include "internal.h"
+
+
+DEFINE_LHASH_OF(char)
 
 static std::unique_ptr<char[]> RandString(void) {
   unsigned len = 1 + (rand() % 3);
@@ -40,8 +46,8 @@ static std::unique_ptr<char[]> RandString(void) {
   return ret;
 }
 
-struct FreeLHASH {
-  void operator()(_LHASH *lh) { lh_free(lh); }
+struct FreeLHASH_OF_char {
+  void operator()(LHASH_OF(char) *lh) { lh_char_free(lh); }
 };
 
 static const char *Lookup(
@@ -55,8 +61,8 @@ static const char *Lookup(
 }
 
 TEST(LHashTest, Basic) {
-  std::unique_ptr<_LHASH, FreeLHASH> lh(
-      lh_new((lhash_hash_func)lh_strhash, (lhash_cmp_func)strcmp));
+  std::unique_ptr<LHASH_OF(char), FreeLHASH_OF_char> lh(
+      lh_char_new(OPENSSL_strhash, strcmp));
   ASSERT_TRUE(lh);
 
   // lh is expected to store a canonical instance of each string. dummy_lh
@@ -65,12 +71,12 @@ TEST(LHashTest, Basic) {
   std::map<std::string, std::unique_ptr<char[]>> dummy_lh;
 
   for (unsigned i = 0; i < 100000; i++) {
-    EXPECT_EQ(dummy_lh.size(), lh_num_items(lh.get()));
+    EXPECT_EQ(dummy_lh.size(), lh_char_num_items(lh.get()));
 
-    // Check the entire contents and test |lh_doall_arg|. This takes O(N) time,
-    // so only do it every few iterations.
+    // Check the entire contents and test |lh_*_doall_arg|. This takes O(N)
+    // time, so only do it every few iterations.
     //
-    // TODO(davidben): |lh_doall_arg| also supports modifying the hash in the
+    // TODO(davidben): |lh_*_doall_arg| also supports modifying the hash in the
     // callback. Test this.
     if (i % 1000 == 0) {
       using ValueList = std::vector<const char *>;
@@ -80,14 +86,13 @@ TEST(LHashTest, Basic) {
       }
       std::sort(expected.begin(), expected.end());
 
-      lh_doall_arg(lh.get(),
-                   [](void *ptr, void *arg) {
-                     ValueList *out = reinterpret_cast<ValueList *>(arg);
-                     out->push_back(reinterpret_cast<char *>(ptr));
-                   },
-                   &actual);
+      lh_char_doall_arg(lh.get(),
+                        [](char *ptr, void *arg) {
+                          ValueList *out = reinterpret_cast<ValueList *>(arg);
+                          out->push_back(ptr);
+                        },
+                        &actual);
       std::sort(actual.begin(), actual.end());
-
       EXPECT_EQ(expected, actual);
     }
 
@@ -101,17 +106,17 @@ TEST(LHashTest, Basic) {
     switch (action) {
       case kRetrieve: {
         std::unique_ptr<char[]> key = RandString();
-        void *value = lh_retrieve(lh.get(), key.get());
+        char *value = lh_char_retrieve(lh.get(), key.get());
         EXPECT_EQ(Lookup(&dummy_lh, key.get()), value);
 
-        // Do the same lookup with |lh_retrieve_key|.
-        value = lh_retrieve_key(
-            lh.get(), &key, lh_strhash(key.get()),
-            [](const void *key_ptr, const void *data) -> int {
+        // Do the same lookup with |lh_char_retrieve_key|.
+        value = lh_char_retrieve_key(
+            lh.get(), &key, OPENSSL_strhash(key.get()),
+            [](const void *key_ptr, const char *data) -> int {
               const char *key_data =
                   reinterpret_cast<const std::unique_ptr<char[]> *>(key_ptr)
                       ->get();
-              return strcmp(key_data, reinterpret_cast<const char *>(data));
+              return strcmp(key_data, data);
             });
         EXPECT_EQ(Lookup(&dummy_lh, key.get()), value);
         break;
@@ -119,8 +124,8 @@ TEST(LHashTest, Basic) {
 
       case kInsert: {
         std::unique_ptr<char[]> key = RandString();
-        void *previous;
-        ASSERT_TRUE(lh_insert(lh.get(), &previous, key.get()));
+        char *previous;
+        ASSERT_TRUE(lh_char_insert(lh.get(), &previous, key.get()));
         EXPECT_EQ(Lookup(&dummy_lh, key.get()), previous);
         dummy_lh[key.get()] = std::move(key);
         break;
@@ -128,7 +133,7 @@ TEST(LHashTest, Basic) {
 
       case kDelete: {
         std::unique_ptr<char[]> key = RandString();
-        void *value = lh_delete(lh.get(), key.get());
+        char *value = lh_char_delete(lh.get(), key.get());
         EXPECT_EQ(Lookup(&dummy_lh, key.get()), value);
         dummy_lh.erase(key.get());
         break;

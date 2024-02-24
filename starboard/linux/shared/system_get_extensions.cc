@@ -20,9 +20,13 @@
 #include "starboard/extension/demuxer.h"
 #include "starboard/extension/enhanced_audio.h"
 #include "starboard/extension/free_space.h"
+#include "starboard/extension/ifa.h"
 #include "starboard/extension/memory_mapped_file.h"
 #include "starboard/extension/platform_service.h"
+#include "starboard/extension/time_zone.h"
+#include "starboard/linux/shared/ifa.h"
 #include "starboard/linux/shared/soft_mic_platform_service.h"
+#include "starboard/linux/shared/time_zone.h"
 #include "starboard/shared/enhanced_audio/enhanced_audio.h"
 #include "starboard/shared/ffmpeg/ffmpeg_demuxer.h"
 #include "starboard/shared/posix/free_space.h"
@@ -74,5 +78,13 @@ const void* SbSystemGetExtension(const char* name) {
     return use_ffmpeg_demuxer ? starboard::shared::ffmpeg::GetFFmpegDemuxerApi()
                               : NULL;
   }
+  if (strcmp(name, kStarboardExtensionTimeZoneName) == 0) {
+    return starboard::shared::GetTimeZoneApi();
+  }
+#if SB_API_VERSION < 14
+  if (strcmp(name, kStarboardExtensionIfaName) == 0) {
+    return starboard::shared::GetIfaApi();
+  }
+#endif  // SB_API_VERSION < 14
   return NULL;
 }

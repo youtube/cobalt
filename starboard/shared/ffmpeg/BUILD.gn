@@ -108,7 +108,7 @@ if (!use_cobalt_customizations) {
       ":ffmpeg_dispatch_sources",
 
       # "//cobalt/test:run_all_unittests",
-      "//starboard",
+      "//starboard:starboard_group",
       "//starboard/common",
       "//testing/gmock",
       "//testing/gtest",

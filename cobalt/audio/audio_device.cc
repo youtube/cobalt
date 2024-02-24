@@ -30,6 +30,11 @@ typedef media::AudioBus AudioBus;
 namespace {
 const int kRenderBufferSizeFrames = 1024;
 const int kDefaultFramesPerChannel = 8 * kRenderBufferSizeFrames;
+
+int AlignUp(int value, int alignment) {
+  int decremented_value = value - 1;
+  return decremented_value + alignment - (decremented_value % alignment);
+}
 }  // namespace
 
 class AudioDevice::Impl {
@@ -83,11 +88,13 @@ AudioDevice::Impl::Impl(int number_of_channels, RenderCallback* callback)
     : number_of_channels_(number_of_channels),
       output_sample_type_(GetPreferredOutputStarboardSampleType()),
       render_callback_(callback),
-      frames_per_channel_(std::max(SbAudioSinkGetMinBufferSizeInFrames(
-                                       number_of_channels, output_sample_type_,
-                                       kStandardOutputSampleRate) +
-                                       kRenderBufferSizeFrames * 2,
-                                   kDefaultFramesPerChannel)),
+      frames_per_channel_(
+          std::max(AlignUp(SbAudioSinkGetMinBufferSizeInFrames(
+                               number_of_channels, output_sample_type_,
+                               kStandardOutputSampleRate) +
+                               kRenderBufferSizeFrames * 2,
+                           kRenderBufferSizeFrames),
+                   kDefaultFramesPerChannel)),
       input_audio_bus_(static_cast<size_t>(number_of_channels),
                        static_cast<size_t>(kRenderBufferSizeFrames),
                        GetPreferredOutputSampleType(), AudioBus::kPlanar),
@@ -97,6 +104,7 @@ AudioDevice::Impl::Impl(int number_of_channels, RenderCallback* callback)
   DCHECK(number_of_channels_ == 1 || number_of_channels_ == 2)
       << "Invalid number of channels: " << number_of_channels_;
   DCHECK(render_callback_);
+  DCHECK(frames_per_channel_ % kRenderBufferSizeFrames == 0);
   DCHECK(SbAudioSinkIsAudioFrameStorageTypeSupported(
       kSbMediaAudioFrameStorageTypeInterleaved))
       << "Only interleaved frame storage is supported.";

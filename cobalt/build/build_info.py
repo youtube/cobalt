@@ -21,15 +21,32 @@ import re
 import subprocess
 import sys
 
-FILE_DIR = os.path.dirname(__file__)
 COMMIT_COUNT_BUILD_ID_OFFSET = 1000000
 
-_BUILD_ID_PATTERN = '^BUILD_NUMBER=([1-9][0-9]{6,})$'
+_FILE_DIR = os.path.dirname(__file__)
+
+_BUILD_ID_PATTERN = '^(Build-Id: |BUILD_NUMBER=)([1-9][0-9]{6,})$'
 _GIT_REV_PATTERN = '^GitOrigin-RevId: ([0-9a-f]{40})$'
 _COBALT_VERSION_PATTERN = '^#define COBALT_VERSION "(.*)"$'
 
 
+def get_build_id(cwd=_FILE_DIR):
+  build_id, _ = _get_build_id_and_git_rev(cwd=cwd, build_rev=None)
+  return build_id
+
+
+def _get_build_id_and_git_rev(cwd, build_rev):
+  # Internal repository
+  build_id, git_rev = get_build_id_and_git_rev_from_commits(cwd=cwd)
+  if build_id is None:
+    # Git repository
+    build_id = get_build_id_from_commit_count(cwd=cwd)
+    git_rev = build_rev
+  return build_id, git_rev
+
+
 def get_build_id_and_git_rev_from_commits(cwd):
+  # Only used with internal repository.
   # Build id and git rev must come from the same commit.
   output = subprocess.check_output(
       ['git', 'log', '--grep', _BUILD_ID_PATTERN, '-1', '-E', '--pretty=%b'],
@@ -40,7 +57,7 @@ def get_build_id_and_git_rev_from_commits(cwd):
   match_build_id = compiled_build_id_pattern.search(output)
   if not match_build_id:
     return None, None
-  build_id = match_build_id.group(1)
+  build_id = match_build_id.group(2)
 
   # Gets git rev.
   compiled_git_rev_pattern = re.compile(_GIT_REV_PATTERN, flags=re.MULTILINE)
@@ -53,7 +70,8 @@ def get_build_id_and_git_rev_from_commits(cwd):
   return build_id, git_rev
 
 
-def get_build_id_from_commit_count(cwd):
+def get_build_id_from_commit_count(cwd=_FILE_DIR):
+  # Only used with git repository.
   output = subprocess.check_output(['git', 'rev-list', '--count', 'HEAD'],
                                    cwd=cwd)
   build_id = int(output.strip().decode()) + COMMIT_COUNT_BUILD_ID_OFFSET
@@ -79,7 +97,7 @@ def _get_subject_from_last_commit(cwd):
 
 
 def _get_cobalt_version():
-  version_header_path = os.path.join(os.path.dirname(FILE_DIR), 'version.h')
+  version_header_path = os.path.join(os.path.dirname(_FILE_DIR), 'version.h')
   contents = ''
   with open(version_header_path, 'r', encoding='utf-8') as f:
     contents = f.read()
@@ -88,13 +106,10 @@ def _get_cobalt_version():
   return compiled_cobalt_version_pattern.search(contents).group(1)
 
 
-def main(output_path, cwd=FILE_DIR):
+def main(output_path, cwd=_FILE_DIR):
   """Writes a Cobalt build_info json file."""
   build_rev = _get_hash_from_last_commit(cwd=cwd)
-  build_id, git_rev = get_build_id_and_git_rev_from_commits(cwd=cwd)
-  if build_id is None:
-    build_id = get_build_id_from_commit_count(cwd=cwd)
-    git_rev = build_rev
+  build_id, git_rev = _get_build_id_and_git_rev(cwd=cwd, build_rev=build_rev)
   cobalt_version = _get_cobalt_version()
   build_time = datetime.datetime.now().ctime()
   author = _get_author_from_last_commit(cwd=cwd)

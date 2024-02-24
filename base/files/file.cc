@@ -70,7 +70,13 @@ File::File(File&& other)
       tracing_path_(other.tracing_path_),
       error_details_(other.error_details()),
       created_(other.created()),
-      async_(other.async_) {}
+      async_(other.async_)
+#if defined(STARBOARD)
+      ,
+      append_(other.append_)
+#endif
+{
+}
 
 File::~File() {
   // Go through the AssertIOAllowed logic.
@@ -86,6 +92,7 @@ File& File::operator=(File&& other) {
   async_ = other.async_;
 #if defined(STARBOARD)
   file_name_ = other.file_name_;
+  append_ = other.append_;
 #endif
   return *this;
 }

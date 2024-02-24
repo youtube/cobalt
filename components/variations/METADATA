@@ -3,19 +3,22 @@ description:
   "Filtered subtree at components/variations."
 
 third_party {
-  url {
-    type: LOCAL_SOURCE
-    value: "https://cobalt.googlesource.com/components/variations_filtered_mirror"
+  identifier {
+    type: "ChromiumVersion"
+    value: "70.0.3538.110"  # from https://chromereleases.googleblog.com/2018/11/stable-channel-update-for-desktop_19.html
   }
-  url {
-    type: GIT
-    value: "https://github.com/chromium/chromium"
+  identifier {
+    type: "Git"
+    value: "https://chromium.googlesource.com/chromium/src.git"
+    version: "ec3092c8d21e20e39698f5272c8a7f71c3ee88a2"
   }
-  # Closest commit hash to m70.
-  version: "00dc8f7e427f0f9db220aebffe77b4181cb68cf3"
+  identifier {
+    type: "UpstreamSubdir"
+    value: "components/variations"
+  }
   last_upgrade_date {
     year: 2018
-    month: 08
+    month: 8
     day: 30
   }
 }

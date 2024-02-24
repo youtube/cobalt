@@ -60,9 +60,8 @@ void PrefMemberBase::MoveToSequence(
 void PrefMemberBase::OnPreferenceChanged(PrefService* service,
                                          const std::string& pref_name) {
   VerifyValuePrefName();
-  UpdateValueFromPref((!setting_value_ && !observer_.is_null())
-                          ? base::Bind(observer_, pref_name)
-                          : base::Closure());
+  UpdateValueFromPref((!setting_value_ && !observer_.is_null()) ?
+      base::Bind(observer_, pref_name) : base::Closure());
 }
 
 void PrefMemberBase::UpdateValueFromPref(const base::Closure& callback) const {
@@ -71,8 +70,15 @@ void PrefMemberBase::UpdateValueFromPref(const base::Closure& callback) const {
   DCHECK(pref);
   if (!internal())
     CreateInternal();
+#ifdef USE_HACKY_COBALT_CHANGES
   internal()->UpdateValue(nullptr, pref->IsManaged(),
                           pref->IsUserModifiable(), callback);
+#else
+  internal()->UpdateValue(pref->GetValue()->DeepCopy(),
+                          pref->IsManaged(),
+                          pref->IsUserModifiable(),
+                          callback);
+#endif
 }
 
 void PrefMemberBase::VerifyPref() const {
@@ -90,8 +96,7 @@ PrefMemberBase::Internal::Internal()
     : owning_task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       is_managed_(false),
       is_user_modifiable_(false) {}
-
-PrefMemberBase::Internal::~Internal() {}
+PrefMemberBase::Internal::~Internal() { }
 
 bool PrefMemberBase::Internal::IsOnCorrectSequence() const {
   return owning_task_runner_->RunsTasksInCurrentSequence();

@@ -447,7 +447,7 @@ typedef uLong FAR uLongf;
 
 #if !defined(Z_U4) && !defined(Z_SOLO) && defined(STDC)
 #  if !defined(STARBOARD)
-#    include <limits.h>
+#  include <limits.h>
 #  endif
 #  if (UINT_MAX == 0xffffffffUL)
 #    define Z_U4 unsigned

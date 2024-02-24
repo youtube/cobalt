@@ -13,7 +13,8 @@
 # limitations under the License.
 """Base platform build configuration."""
 
-import imp  # pylint: disable=deprecated-module
+import importlib.machinery
+import importlib.util
 import inspect
 import logging
 import os
@@ -32,8 +33,14 @@ def _GetApplicationConfigurationClass(application_path):
   if not os.path.isfile(application_configuration_path):
     return None
 
-  application_configuration = imp.load_source('application_configuration',
-                                              application_configuration_path)
+  loader = importlib.machinery.SourceFileLoader('application_configuration',
+                                                application_configuration_path)
+  spec = importlib.util.spec_from_file_location(
+      'application_configuration',
+      application_configuration_path,
+      loader=loader)
+  application_configuration = importlib.util.module_from_spec(spec)
+  loader.exec_module(application_configuration)
   for name, cls in inspect.getmembers(application_configuration):
     if not inspect.isclass(cls):
       continue
@@ -137,7 +144,12 @@ class PlatformConfiguration(object):
     module_path = os.path.abspath(
         os.path.join(self.GetLauncherPath(), 'launcher.py'))
     try:
-      return imp.load_source('launcher', module_path)
+      loader = importlib.machinery.SourceFileLoader('launcher', module_path)
+      spec = importlib.util.spec_from_file_location(
+          'launcher', module_path, loader=loader)
+      launcher = importlib.util.module_from_spec(spec)
+      loader.exec_module(launcher)
+      return launcher
     except (IOError, ImportError, RuntimeError) as error:
       logging.error('Unable to load launcher module from %s.', module_path)
       logging.error(error)
@@ -169,6 +181,7 @@ class PlatformConfiguration(object):
     return [
         'app_key_files_test',
         'app_key_test',
+        'base_unittests',
         'common_test',
         'cwrappers_test',
         'drain_file_test',

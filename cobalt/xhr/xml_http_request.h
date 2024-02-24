@@ -330,7 +330,7 @@ class XMLHttpRequestImpl
   virtual web::CspDelegate* csp_delegate() const;
 
   // The following method starts "url_fetcher_" with a possible pre-delay.
-  void StartURLFetcher(const SbTime max_artificial_delay,
+  void StartURLFetcher(const int64_t max_artificial_delay_usec,
                        const int url_fetcher_generation);
 
   // Protected members for visibility in derived class.

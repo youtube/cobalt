@@ -7,7 +7,8 @@ third_party {
     type: GIT
     value: "https://chromium.googlesource.com/devtools/devtools-frontend"
   }
-  version: "757e0e1e1ffc4a0d36d005d120de5f73c1b910e0"
+  version: "0d4095e47ca0e972e04efecf7772a8d12b60c665"
+  # from https://chromium.googlesource.com/chromium/src/+/80.0.3987.162/DEPS#247
   last_upgrade_date {
     year: 2019
     month: 12

@@ -117,7 +117,7 @@ source_set("gtest") {
   ]
 
   # Some files include "src/gtest-internal-inl.h".
-  include_dirs = [ "src/googletest", "." ]
+  include_dirs = [ "src/googletest" ]
 
   public_configs = [ ":gtest_config" ]
 
@@ -126,6 +126,7 @@ source_set("gtest") {
 
   defines = []
   deps = []
+  public_deps = []
   if (is_nacl || !build_with_chromium) {
     defines += [ "GTEST_DISABLE_PRINT_STACK_TRACE" ]
     # sources -= [
@@ -156,7 +157,7 @@ source_set("gtest") {
   # line, so it happens to work in this case.
   all_dependent_configs = [ "//build/config/compiler:rtti" ]
 
-  public_deps = [  "//starboard"  ]
+  public_deps = [  "//starboard:starboard_group",  ]
 }
 
 # Do NOT depend on this directly. Use //testing/gtest:gtest_main instead.

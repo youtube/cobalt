@@ -36,7 +36,7 @@ const jint kNoSize = 0;
 const jint kNoBufferFlags = 0;
 
 // Delay to use after a retryable error has been encountered.
-const SbTime kErrorRetryDelay = 50 * kSbTimeMillisecond;
+const int64_t kErrorRetryDelay = 50'000;  // 50ms
 
 const char* GetNameForMediaCodecStatus(jint status) {
   switch (status) {
@@ -76,7 +76,8 @@ const char* GetDecoderName(SbMediaType media_type) {
 
 MediaDecoder::MediaDecoder(Host* host,
                            const AudioStreamInfo& audio_stream_info,
-                           SbDrmSystem drm_system)
+                           SbDrmSystem drm_system,
+                           bool use_mediacodec_callback_thread)
     : media_type_(kSbMediaTypeAudio),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
@@ -87,7 +88,7 @@ MediaDecoder::MediaDecoder(Host* host,
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
   media_codec_bridge_ = MediaCodecBridge::CreateAudioMediaCodecBridge(
-      audio_stream_info, this, j_media_crypto);
+      audio_stream_info, this, j_media_crypto, use_mediacodec_callback_thread);
   if (!media_codec_bridge_) {
     SB_LOG(ERROR) << "Failed to create audio media codec bridge.";
     return;
@@ -118,7 +119,8 @@ MediaDecoder::MediaDecoder(Host* host,
                            const FrameRenderedCB& frame_rendered_cb,
                            int tunnel_mode_audio_session_id,
                            bool force_big_endian_hdr_metadata,
-                           bool force_improved_support_check,
+                           bool use_mediacodec_callback_thread,
+                           int max_video_input_size,
                            std::string* error_message)
     : media_type_(kSbMediaTypeVideo),
       host_(host),
@@ -136,8 +138,8 @@ MediaDecoder::MediaDecoder(Host* host,
       video_codec, width_hint, height_hint, fps, max_width, max_height, this,
       j_output_surface, j_media_crypto, color_metadata, require_secured_decoder,
       require_software_codec, tunnel_mode_audio_session_id,
-      force_big_endian_hdr_metadata, force_improved_support_check,
-      error_message);
+      force_big_endian_hdr_metadata, use_mediacodec_callback_thread,
+      max_video_input_size, error_message);
   if (!media_codec_bridge_) {
     SB_LOG(ERROR) << "Failed to create video media codec bridge with error: "
                   << *error_message;
@@ -146,9 +148,11 @@ MediaDecoder::MediaDecoder(Host* host,
 
 MediaDecoder::~MediaDecoder() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-
   destroying_.store(true);
-  condition_variable_.Signal();
+  {
+    ScopedLock scoped_lock(mutex_);
+    condition_variable_.Signal();
+  }
 
   if (SbThreadIsValid(decoder_thread_)) {
     SbThreadJoin(decoder_thread_, NULL);
@@ -184,9 +188,13 @@ void MediaDecoder::Initialize(const ErrorCB& error_cb) {
 
 void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-  SB_DCHECK(!input_buffers.empty());
   if (stream_ended_.load()) {
     SB_LOG(ERROR) << "Decode() is called after WriteEndOfStream() is called.";
+    return;
+  }
+  if (input_buffers.empty()) {
+    SB_LOG(ERROR) << "No input buffer to decode.";
+    SB_DCHECK(!input_buffers.empty());
     return;
   }
 
@@ -254,7 +262,7 @@ void MediaDecoder::DecoderThreadFunc() {
         bool can_process_input =
             pending_queue_input_buffer_task_ || (has_input && has_input_buffer);
         if (dequeue_output_results_.empty() && !can_process_input) {
-          if (!condition_variable_.WaitTimed(5 * kSbTimeSecond)) {
+          if (!condition_variable_.WaitTimed(5'000'000LL)) {
             SB_LOG_IF(ERROR, !stream_ended_.load())
                 << GetDecoderName(media_type_) << ": Wait() hits timeout.";
           }
@@ -313,18 +321,18 @@ void MediaDecoder::DecoderThreadFunc() {
                                   &dequeue_output_results);
       }
 
-      if (!tunnel_mode_enabled_) {
-        // Output is only processed when tunnel mode is disabled.
-        if (!dequeue_output_results.empty()) {
-          auto& dequeue_output_result = dequeue_output_results.front();
-          if (dequeue_output_result.index < 0) {
-            host_->RefreshOutputFormat(media_codec_bridge_.get());
-          } else {
-            host_->ProcessOutputBuffer(media_codec_bridge_.get(),
-                                       dequeue_output_result);
-          }
-          dequeue_output_results.erase(dequeue_output_results.begin());
+      if (!dequeue_output_results.empty()) {
+        auto& dequeue_output_result = dequeue_output_results.front();
+        if (dequeue_output_result.index < 0) {
+          host_->RefreshOutputFormat(media_codec_bridge_.get());
+        } else {
+          SB_DCHECK(!tunnel_mode_enabled_);
+          host_->ProcessOutputBuffer(media_codec_bridge_.get(),
+                                     dequeue_output_result);
         }
+        dequeue_output_results.erase(dequeue_output_results.begin());
+      }
+      if (!tunnel_mode_enabled_) {
         host_->Tick(media_codec_bridge_.get());
       }
 
@@ -351,7 +359,7 @@ void MediaDecoder::DecoderThreadFunc() {
         can_process_input =
             !pending_tasks.empty() && !input_buffer_indices.empty();
         if (!can_process_input && dequeue_output_results.empty()) {
-          condition_variable_.WaitTimed(kSbTimeMillisecond);
+          condition_variable_.WaitTimed(1000);
         }
       }
     }
@@ -463,24 +471,20 @@ bool MediaDecoder::ProcessOneInputBuffer(
   }
 
   jint status;
-  if (event.type == Event::kWriteCodecConfig) {
-    if (!drm_system_ || (drm_system_ && drm_system_->IsReady())) {
-      status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
-                                                     kNoOffset, size, kNoPts,
-                                                     BUFFER_FLAG_CODEC_CONFIG);
-    } else {
-      status = MEDIA_CODEC_NO_KEY;
-    }
+  if (drm_system_ && !drm_system_->IsReady()) {
+    // Drm system initialization is asynchronous. If there's a drm system, we
+    // should wait until it's initialized to avoid errors.
+    status = MEDIA_CODEC_NO_KEY;
+  } else if (event.type == Event::kWriteCodecConfig) {
+    status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
+                                                   kNoOffset, size, kNoPts,
+                                                   BUFFER_FLAG_CODEC_CONFIG);
   } else if (event.type == Event::kWriteInputBuffer) {
     jlong pts_us = input_buffer->timestamp();
     if (drm_system_ && input_buffer->drm_info()) {
-      if (drm_system_->IsReady()) {
-        status = media_codec_bridge_->QueueSecureInputBuffer(
-            dequeue_input_result.index, kNoOffset, *input_buffer->drm_info(),
-            pts_us);
-      } else {
-        status = MEDIA_CODEC_NO_KEY;
-      }
+      status = media_codec_bridge_->QueueSecureInputBuffer(
+          dequeue_input_result.index, kNoOffset, *input_buffer->drm_info(),
+          pts_us);
     } else {
       status = media_codec_bridge_->QueueInputBuffer(
           dequeue_input_result.index, kNoOffset, size, pts_us, kNoBufferFlags);
@@ -639,8 +643,7 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
   condition_variable_.Signal();
 }
 
-void MediaDecoder::OnMediaCodecFrameRendered(SbTime frame_timestamp) {
-  SB_DCHECK(tunnel_mode_enabled_);
+void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
   frame_rendered_cb_(frame_timestamp);
 }
 

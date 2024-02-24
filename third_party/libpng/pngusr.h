@@ -44,11 +44,12 @@
 #define PNG_NO_READ_DITHER
 #define PNG_NO_READ_INVERT
 #define PNG_NO_READ_SHIFT
-#if !defined(COBALT)
-// This is required for Skia PNG encoder support.
+#if defined(CHROME_PNG_READ_PACK_SUPPORT)
+#undef PNG_NO_READ_PACK  // Required by freetype to support png glyphs.
+#else
 #define PNG_NO_READ_PACK
-#define PNG_NO_READ_PACKSWAP
 #endif
+#define PNG_NO_READ_PACKSWAP
 #undef PNG_NO_READ_FILLER
 #define PNG_NO_READ_SWAP
 #define PNG_NO_READ_SWAP_ALPHA
@@ -68,11 +69,8 @@
 #undef PNG_NO_READ_sRGB
 #define PNG_NO_READ_TEXT
 #define PNG_NO_READ_tIME
-#if !defined(COBALT)
-// This is required for Skia PNG encoder support.
 #define PNG_NO_READ_UNKNOWN_CHUNKS
 #define PNG_NO_READ_USER_CHUNKS
-#endif
 #define PNG_NO_READ_EMPTY_PLTE
 #define PNG_NO_READ_OPT_PLTE
 
@@ -81,11 +79,8 @@
 #define PNG_NO_WRITE_DITHER
 #define PNG_NO_WRITE_INVERT
 #define PNG_NO_WRITE_SHIFT
-#if !defined(COBALT)
-// This is required for Skia PNG encoder support.
 #define PNG_NO_WRITE_PACK
 #define PNG_NO_WRITE_PACKSWAP
-#endif
 #undef PNG_NO_WRITE_FILLER
 #define PNG_NO_WRITE_SWAP
 #define PNG_NO_WRITE_SWAP_ALPHA
@@ -100,18 +95,12 @@
 #define PNG_NO_WRITE_oFFs
 #define PNG_NO_WRITE_pCAL
 #define PNG_NO_WRITE_pHYs
-#if !defined(COBALT)
-// This is required for Skia PNG encoder support.
 #define PNG_NO_WRITE_sBIT
-#endif
 #define PNG_NO_WRITE_sCAL
 #define PNG_NO_WRITE_sPLT
 #define PNG_NO_WRITE_sRGB
 #define PNG_NO_WRITE_tIME
-#if !defined(COBALT)
-// This is required for Skia PNG encoder support.
 #define PNG_NO_WRITE_UNKNOWN_CHUNKS
-#endif
 #define PNG_NO_WRITE_USER_CHUNKS
 #define PNG_NO_WRITE_EMPTY_PLTE
 #define PNG_NO_WRITE_OPT_PLTE
@@ -119,17 +108,10 @@
 #define PNG_NO_WRITE_SUPPORTED
 #endif
 
-#if defined(COBALT_BUILD_TYPE_GOLD)
-// LB_SHELL needs to be able to specify custom allocators to libpng for
-// debugging.
 #define PNG_NO_USER_MEM
-#endif
 #define PNG_NO_FIXED_POINT_SUPPORTED
 #define PNG_NO_MNG_FEATURES
-#if !defined(COBALT)
-// This is required for Skia PNG encoder support.
 #define PNG_NO_HANDLE_AS_UNKNOWN
-#endif
 #define PNG_NO_CONSOLE_IO
 #define PNG_NO_ZALLOC_ZERO
 #define PNG_NO_ERROR_NUMBERS
@@ -143,7 +125,6 @@
 
 #if defined(STARBOARD)
 #define PNG_NO_STDIO
-#define PNG_NO_CONVERT_tIME
 #endif
 
 /* Mangle names of exported libpng functions so different libpng versions

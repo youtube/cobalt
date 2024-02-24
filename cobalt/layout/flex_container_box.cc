@@ -531,6 +531,21 @@ FlexContainerBox::UpdateRectOfInFlowChildBoxes(
   return std::unique_ptr<FormattingContext>(flex_formatting_context.release());
 }
 
+#ifdef ENABLE_DEBUGGER
+void FlexContainerBox::DumpProperties(std::ostream* stream) const {
+  BlockContainerBox::DumpProperties(stream);
+
+  *stream << "base_direction=" << base_direction_
+          << " main_space=" << main_space_.value_or(LayoutUnit())
+          << " cross_space=" << cross_space_.value_or(LayoutUnit())
+          << " min_main_space=" << min_main_space_.value_or(LayoutUnit())
+          << " max_main_space=" << max_main_space_.value_or(LayoutUnit())
+          << " min_cross_space=" << min_cross_space_.value_or(LayoutUnit())
+          << " max_cross_space=" << max_cross_space_.value_or(LayoutUnit())
+          << " baseline=" << baseline_ << " ";
+}
+#endif  // ENABLE_DEBUGGER
+
 BlockLevelFlexContainerBox::BlockLevelFlexContainerBox(
     const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
         css_computed_style_declaration,
@@ -547,11 +562,11 @@ base::Optional<int> BlockLevelFlexContainerBox::GetBidiLevel() const {
   return base::Optional<int>();
 }
 
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
 void BlockLevelFlexContainerBox::DumpClassName(std::ostream* stream) const {
   *stream << "BlockLevelFlexContainerBox ";
 }
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
 InlineLevelFlexContainerBox::InlineLevelFlexContainerBox(
     const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
@@ -574,11 +589,16 @@ base::Optional<int> InlineLevelFlexContainerBox::GetBidiLevel() const {
   return paragraph_->GetBidiLevel(text_position_);
 }
 
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
 void InlineLevelFlexContainerBox::DumpClassName(std::ostream* stream) const {
   *stream << "InlineLevelFlexContainerBox ";
 }
-#endif  // COBALT_BOX_DUMP_ENABLED
+void InlineLevelFlexContainerBox::DumpProperties(std::ostream* stream) const {
+  FlexContainerBox::DumpProperties(stream);
+
+  *stream << "paragraph=" << paragraph_ << " text_position=" << text_position_;
+}
+#endif  // ENABLE_DEBUGGER
 
 }  // namespace layout
 }  // namespace cobalt

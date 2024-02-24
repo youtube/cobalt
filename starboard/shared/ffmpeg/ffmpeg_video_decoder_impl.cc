@@ -17,9 +17,10 @@
 
 #include "starboard/shared/ffmpeg/ffmpeg_video_decoder_impl.h"
 
+#include <stdlib.h>
+
 #include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"
-#include "starboard/memory.h"
 #include "starboard/thread.h"
 
 namespace starboard {
@@ -46,7 +47,7 @@ size_t GetYV12SizeInBytes(int32_t width, int32_t height) {
 #if LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
 
 void ReleaseBuffer(void* opaque, uint8_t* data) {
-  SbMemoryDeallocateAligned(data);
+  free(data);
 }
 
 int AllocateBufferCallback(AVCodecContext* codec_context,
@@ -66,7 +67,7 @@ int AllocateBufferCallback(AVCodecContext* codec_context, AVFrame* frame) {
 }
 
 void ReleaseBuffer(AVCodecContext*, AVFrame* frame) {
-  SbMemoryDeallocateAligned(frame->opaque);
+  free(frame->opaque);
   frame->opaque = NULL;
 
   // The FFmpeg API expects us to zero the data pointers in this callback.
@@ -459,8 +460,9 @@ int VideoDecoderImpl<FFMPEG>::AllocateBuffer(AVCodecContext* codec_context,
   size_t uv_stride = y_stride / 2;
   size_t aligned_height = codec_aligned_height;
 
-  uint8_t* frame_buffer = reinterpret_cast<uint8_t*>(SbMemoryAllocateAligned(
-      kAlignment, GetYV12SizeInBytes(y_stride, aligned_height)));
+  uint8_t* frame_buffer = nullptr;
+  posix_memalign(reinterpret_cast<void**>(&frame_buffer), kAlignment,
+                 GetYV12SizeInBytes(y_stride, aligned_height));
 
   frame->data[0] = frame_buffer;
   frame->linesize[0] = y_stride;
@@ -512,8 +514,9 @@ int VideoDecoderImpl<FFMPEG>::AllocateBuffer(AVCodecContext* codec_context,
   size_t y_stride = AlignUp(codec_context->width, codec_linesize_align[0] * 2);
   size_t uv_stride = y_stride / 2;
   size_t aligned_height = codec_aligned_height;
-  uint8_t* frame_buffer = reinterpret_cast<uint8_t*>(SbMemoryAllocateAligned(
-      kAlignment, GetYV12SizeInBytes(y_stride, aligned_height)));
+  uint8_t* frame_buffer = nullptr;
+  posix_memalign(reinterpret_cast<void**>(&frame_buffer), kAlignment,
+                 GetYV12SizeInBytes(y_stride, aligned_height));
 
   // y plane
   frame->base[0] = frame_buffer;

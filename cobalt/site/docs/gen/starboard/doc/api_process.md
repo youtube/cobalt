@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Starboard API Review Process"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Starboard API Review Process
 
 ## Why do we need a process?

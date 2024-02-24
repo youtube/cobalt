@@ -12,10 +12,6 @@
 #include <limits>
 #include <vector>
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif
-
 namespace angle
 {
 // dirtyPointer is a special value that will make the comparison with any valid pointer fail and

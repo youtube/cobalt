@@ -19,7 +19,7 @@ namespace metrics {
 class MetricsService;
 class MetricsServiceClient;
 class MetricsStateManager;
-}  // namespace metrics
+}
 
 #if !defined(STARBOARD)
 namespace rappor {

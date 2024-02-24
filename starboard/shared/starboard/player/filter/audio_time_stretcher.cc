@@ -271,8 +271,7 @@ bool AudioTimeStretcher::CanPerformWsola() const {
 }
 
 int AudioTimeStretcher::ConvertMillisecondsToFrames(int ms) const {
-  const double kMillisecondsPerSeconds =
-      static_cast<double>(kSbTimeSecond / kSbTimeMillisecond);
+  const double kMillisecondsPerSeconds = 1000;
   return static_cast<int>(ms * (samples_per_second_ / kMillisecondsPerSeconds));
 }
 

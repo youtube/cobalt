@@ -974,8 +974,7 @@ component("base") {
       "process/memory_starboard.cc",
       "process/process_starboard.cc",
       "profiler/module_cache_starboard.cc",
-
-      # "profiler/native_stack_sampler_starboard.cc",
+      "profiler/stack_sampler_starboard.cc",
       "rand_util_starboard.cc",
       "strings/string_util_starboard.h",
       "strings/sys_string_conversions_starboard.cc",
@@ -1092,7 +1091,7 @@ component("base") {
   }
 
   if (is_starboard && current_toolchain != host_toolchain) {
-    deps += [ "//starboard" ]
+    deps += [ "//starboard:starboard_group" ]
   }
 
   # `raw_ptr` cannot be made a component due to CRT symbol issues.
@@ -2374,8 +2373,10 @@ component("base") {
     }
   }
 
+  if (!is_starboard) {
   if ((is_posix && !is_apple && !is_android) || is_fuchsia) {
     sources += [ "profiler/stack_sampler_posix.cc" ]
+  }
   }
 
   if ((is_posix && !is_apple && !is_android && !is_chromeos) || is_fuchsia) {
@@ -2697,7 +2698,7 @@ static_library("base_static") {
   deps = [ "//build:chromeos_buildflags" ]
 
   if (is_starboard && current_toolchain != host_toolchain) {
-    deps += [ "//starboard" ]
+    deps += [ "//starboard:starboard_group" ]
   }
 
   if (is_win) {

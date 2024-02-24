@@ -16,7 +16,11 @@
 #define BASE_STRING_UTIL_STARBOARD_H_
 
 #include <stdarg.h>
+#if SB_API_VERSION >= 16
+#include <stdio.h>
+#endif
 
+#include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/strings/string_util.h"
 #include "starboard/common/string.h"
@@ -25,31 +29,30 @@
 
 namespace base {
 
-inline char* strdup(const char* str) {
-  return SbStringDuplicate(str);
-}
-
-inline int strcasecmp(const char* string1, const char* string2) {
-  return SbStringCompareNoCase(string1, string2);
-}
-
-inline int strncasecmp(const char* string1, const char* string2, size_t count) {
-  return SbStringCompareNoCaseN(string1, string2, count);
-}
-
-#if defined(vsnprintf)
-#undef vsnprintf
-#endif
-
 inline int vsnprintf(char* buffer, size_t size,
                      const char* format, va_list arguments) {
-  return SbStringFormat(buffer, size, format, arguments);
+  return ::vsnprintf(buffer, size, format, arguments);
 }
 
-inline int vswprintf(wchar_t* buffer, size_t size,
-                     const wchar_t* format, va_list arguments) {
-  DCHECK(base::IsWprintfFormatPortable(format));
-  return SbStringFormatWide(buffer, size, format, arguments);
+inline int c16SbMemoryCompare(const char16* s1, const char16* s2, size_t n) {
+  // We cannot call memcmp because that changes the semantics.
+  while (n-- > 0) {
+    if (*s1 != *s2) {
+      // We cannot use (*s1 - *s2) because char16 is unsigned.
+      return ((*s1 < *s2) ? -1 : 1);
+    }
+    ++s1;
+    ++s2;
+  }
+  return 0;
+}
+
+inline int strncmp16(const char16* s1, const char16* s2, size_t count) {
+#if defined(WCHAR_T_IS_UTF16)
+  return wcsncmp(s1, s2, count);
+#elif defined(WCHAR_T_IS_UTF32)
+  return c16SbMemoryCompare(s1, s2, count);
+#endif
 }
 
 }  // namespace base

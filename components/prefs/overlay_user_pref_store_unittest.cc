@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "components/prefs/overlay_user_pref_store.h"
+
 #include <memory>
 
 #include "base/test/scoped_task_environment.h"

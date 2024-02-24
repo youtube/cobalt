@@ -30,19 +30,19 @@
       "name":"sbversion-13",
       "platform":"linux-x64x11-sbversion-13",
       "target_platform":"linux-x64x11",
-      "sb_api_version":"sb_api_version=13"
+      "sb_api_version":"13"
     },
     {
       "name":"sbversion-14",
       "platform":"linux-x64x11-sbversion-14",
       "target_platform":"linux-x64x11",
-      "sb_api_version":"sb_api_version=14"
+      "sb_api_version":"14"
     },
     {
       "name":"sbversion-15",
       "platform":"linux-x64x11-sbversion-15",
       "target_platform":"linux-x64x11",
-      "sb_api_version":"sb_api_version=15"
+      "sb_api_version":"15"
     }
   ]
 }

@@ -32,7 +32,7 @@ TEST(UpdateClientUtils, VerifyFileHash256) {
   EXPECT_TRUE(VerifyFileHash256(
       MakeTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"),
       std::string(
-          "6fc4b93fd11134de1300c2c0bb88c12b644a4ec0fd7c9b12cb7cc067667bde87")));
+          "7ab32f071cd9b5ef8e0d7913be161f532d98b3e9fa284a7cd8059c3409ce0498")));
 
   EXPECT_FALSE(VerifyFileHash256(
       MakeTestFilePath("jebgalgnebhfojomionfpkfelancnnkf.crx"),

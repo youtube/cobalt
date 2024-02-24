@@ -330,6 +330,7 @@ void MetricsLog::TruncateEvents() {
         internal::kUserActionEventLimit,
         uma_proto_.user_action_event_size() - internal::kUserActionEventLimit);
   }
+
 // Omnibox proto removed for binary size reasons: b/290819695.
 #if !defined(USE_COBALT_CUSTOMIZATIONS)
   if (uma_proto_.omnibox_event_size() > internal::kOmniboxEventLimit) {

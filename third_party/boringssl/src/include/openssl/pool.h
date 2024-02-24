@@ -60,7 +60,13 @@ OPENSSL_EXPORT CRYPTO_BUFFER *CRYPTO_BUFFER_alloc(uint8_t **out_data,
 
 // CRYPTO_BUFFER_new_from_CBS acts the same as |CRYPTO_BUFFER_new|.
 OPENSSL_EXPORT CRYPTO_BUFFER *CRYPTO_BUFFER_new_from_CBS(
-    CBS *cbs, CRYPTO_BUFFER_POOL *pool);
+    const CBS *cbs, CRYPTO_BUFFER_POOL *pool);
+
+// CRYPTO_BUFFER_new_from_static_data_unsafe behaves like |CRYPTO_BUFFER_new|
+// but does not copy |data|. |data| must be immutable and last for the lifetime
+// of the address space.
+OPENSSL_EXPORT CRYPTO_BUFFER *CRYPTO_BUFFER_new_from_static_data_unsafe(
+    const uint8_t *data, size_t len, CRYPTO_BUFFER_POOL *pool);
 
 // CRYPTO_BUFFER_new_from_static_data_unsafe behaves like |CRYPTO_BUFFER_new|
 // but does not copy |data|. |data| must be immutable and last for the lifetime
@@ -93,13 +99,13 @@ OPENSSL_EXPORT void CRYPTO_BUFFER_init_CBS(const CRYPTO_BUFFER *buf, CBS *out);
 
 extern "C++" {
 
-namespace bssl {
+BSSL_NAMESPACE_BEGIN
 
 BORINGSSL_MAKE_DELETER(CRYPTO_BUFFER_POOL, CRYPTO_BUFFER_POOL_free)
 BORINGSSL_MAKE_DELETER(CRYPTO_BUFFER, CRYPTO_BUFFER_free)
 BORINGSSL_MAKE_UP_REF(CRYPTO_BUFFER, CRYPTO_BUFFER_up_ref)
 
-}  // namespace bssl
+BSSL_NAMESPACE_END
 
 }  // extern C++
 

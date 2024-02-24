@@ -26,79 +26,12 @@
 #include "cobalt/dom/text.h"
 #if defined(STARBOARD)
 #include "starboard/configuration.h"
-#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-#define HANDLE_CORE_DUMP
-#include "base/lazy_instance.h"
-#include STARBOARD_CORE_DUMP_HANDLER_INCLUDE
-#endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
 #endif  // defined(STARBOARD)
 #include "third_party/libxml/src/include/libxml/xmlerror.h"
 
 namespace cobalt {
 namespace dom_parser {
 namespace {
-
-#if defined(HANDLE_CORE_DUMP)
-
-class LibxmlParserWrapperLog {
- public:
-  LibxmlParserWrapperLog()
-      : total_parsed_bytes_(0),
-        total_warning_count_(0),
-        total_error_count_(0),
-        total_fatal_count_(0) {
-    SbCoreDumpRegisterHandler(CoreDumpHandler, this);
-  }
-  ~LibxmlParserWrapperLog() {
-    SbCoreDumpUnregisterHandler(CoreDumpHandler, this);
-  }
-
-  static void CoreDumpHandler(void* context) {
-    SbCoreDumpLogInteger(
-        "LibxmlParserWrapper total parsed bytes",
-        static_cast<LibxmlParserWrapperLog*>(context)->total_parsed_bytes_);
-    SbCoreDumpLogInteger(
-        "LibxmlParserWrapper total warning count",
-        static_cast<LibxmlParserWrapperLog*>(context)->total_warning_count_);
-    SbCoreDumpLogInteger(
-        "LibxmlParserWrapper total error count",
-        static_cast<LibxmlParserWrapperLog*>(context)->total_error_count_);
-    SbCoreDumpLogInteger(
-        "LibxmlParserWrapper total fatal error count",
-        static_cast<LibxmlParserWrapperLog*>(context)->total_fatal_count_);
-    SbCoreDumpLogString("LibxmlParserWrapper last fatal error",
-                        static_cast<LibxmlParserWrapperLog*>(context)
-                            ->last_fatal_message_.c_str());
-  }
-
-  void IncrementParsedBytes(int length) { total_parsed_bytes_ += length; }
-  void LogParsingIssue(LibxmlParserWrapper::IssueSeverity severity,
-                       const std::string& message) {
-    if (severity == LibxmlParserWrapper::kWarning) {
-      total_warning_count_++;
-    } else if (severity == LibxmlParserWrapper::kError) {
-      total_error_count_++;
-    } else if (severity == LibxmlParserWrapper::kFatal) {
-      total_fatal_count_++;
-      last_fatal_message_ = message;
-    } else {
-      NOTREACHED();
-    }
-  }
-
- private:
-  int total_parsed_bytes_;
-  int total_warning_count_;
-  int total_error_count_;
-  int total_fatal_count_;
-  std::string last_fatal_message_;
-  DISALLOW_COPY_AND_ASSIGN(LibxmlParserWrapperLog);
-};
-
-base::LazyInstance<LibxmlParserWrapperLog>::DestructorAtExit
-    libxml_parser_wrapper_log = LAZY_INSTANCE_INITIALIZER;
-
-#endif  // defined(HANDLE_CORE_DUMP)
 
 /////////////////////////////////////////////////////////////////////////////
 // Helpers
@@ -320,10 +253,6 @@ void LibxmlParserWrapper::OnParsingIssue(IssueSeverity severity,
   } else {
     NOTREACHED();
   }
-
-#if defined(HANDLE_CORE_DUMP)
-  libxml_parser_wrapper_log.Get().LogParsingIssue(severity, message);
-#endif
 }
 
 void LibxmlParserWrapper::OnCDATABlock(const std::string& value) {
@@ -352,10 +281,6 @@ void LibxmlParserWrapper::PreprocessChunk(const char* data, size_t size,
     OnParsingIssue(kFatal, kMessageInputNotUTF8);
     return;
   }
-
-#if defined(HANDLE_CORE_DUMP)
-  libxml_parser_wrapper_log.Get().IncrementParsedBytes(static_cast<int>(size));
-#endif
 }
 
 }  // namespace dom_parser

@@ -24,11 +24,11 @@ static_library("metrics") {
     "cobalt_metrics_services_manager.h",
     "cobalt_metrics_services_manager_client.cc",
     "cobalt_metrics_services_manager_client.h",
-    "cobalt_metrics_uploader_callback.h",
   ]
 
   deps = [
     "//base",
+    "//cobalt/base",
     "//cobalt/browser:generated_types",
     "//cobalt/h5vcc:metric_event_handler_wrapper",
     "//components/metrics",
@@ -51,8 +51,9 @@ target(gtest_target_type, "metrics_test") {
   deps = [
     ":metrics",
     "//base",
-    "//cobalt//browser:test_dependencies_on_browser",
+    "//cobalt/base",
     "//cobalt/browser:generated_types",
+    "//cobalt/browser:test_dependencies_on_browser",
     "//cobalt/h5vcc",
     "//cobalt/h5vcc:metric_event_handler_wrapper",
     "//cobalt/test:run_all_unittests",

@@ -21,7 +21,7 @@ namespace media_session {
 
 MediaSessionState::MediaSessionState(
     base::Optional<MediaMetadataInit> metadata,
-    SbTimeMonotonic last_position_updated_time,
+    int64_t last_position_updated_time,
     const base::Optional<MediaPositionState>& media_position_state,
     MediaSessionPlaybackState actual_playback_state,
     AvailableActionsSet available_actions)
@@ -30,38 +30,39 @@ MediaSessionState::MediaSessionState(
       actual_playback_state_(actual_playback_state),
       available_actions_(available_actions) {
   if (media_position_state) {
-    double duration = media_position_state->duration();
-    duration_ = (duration >= static_cast<double>(kSbTimeMax))
-                    ? kSbTimeMax
-                    : static_cast<SbTimeMonotonic>(duration * kSbTimeSecond);
+    double duration = media_position_state->duration();  // represents seconds
+    duration_usec_ = (duration >= static_cast<double>(kSbInt64Max))
+                         ? kSbInt64Max
+                         : static_cast<int64_t>(
+                               duration * base::Time::kMicrosecondsPerSecond);
 
     actual_playback_rate_ =
         (actual_playback_state_ == kMediaSessionPlaybackStatePaused)
             ? 0.0
             : media_position_state->playback_rate();
 
-    last_position_ = static_cast<SbTimeMonotonic>(
-        media_position_state->position() * kSbTimeSecond);
+    last_position_usec_ = static_cast<int64_t>(
+        media_position_state->position() * base::Time::kMicrosecondsPerSecond);
   }
 }
 
-SbTimeMonotonic MediaSessionState::GetCurrentPlaybackPosition(
-    SbTimeMonotonic monotonic_now) const {
-  SbTimeMonotonic time_elapsed = monotonic_now - last_position_updated_time_;
-  time_elapsed = static_cast<SbTimeMonotonic>(
-      static_cast<double>(time_elapsed) * actual_playback_rate_);
-  SbTimeMonotonic position = time_elapsed + last_position_;
-  return std::max(static_cast<SbTimeMonotonic>(0),
-                  std::min(duration(), position));
+int64_t MediaSessionState::GetCurrentPlaybackPosition(
+    int64_t monotonic_now) const {
+  int64_t time_elapsed = monotonic_now - last_position_updated_time_;
+  time_elapsed = static_cast<int64_t>(static_cast<double>(time_elapsed) *
+                                      actual_playback_rate_);
+  int64_t position_usec = time_elapsed + last_position_usec_;
+  return std::max(int64_t(), std::min(duration(), position_usec));
 }
 
 bool MediaSessionState::operator==(const MediaSessionState& other) const {
   return other.last_position_updated_time_ == last_position_updated_time_ &&
          other.actual_playback_state_ == actual_playback_state_ &&
          other.available_actions_ == available_actions_ &&
-         other.duration_ == duration_ &&
+         other.duration_usec_ == duration_usec_ &&
          other.actual_playback_rate_ == actual_playback_rate_ &&
-         other.last_position_ == last_position_ && other.metadata_ == metadata_;
+         other.last_position_usec_ == last_position_usec_ &&
+         other.metadata_ == metadata_;
 }
 bool MediaSessionState::operator!=(const MediaSessionState& other) const {
   return !(*this == other);

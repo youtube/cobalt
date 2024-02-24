@@ -1,7 +1,6 @@
----
-layout: doc
-title: "Cobalt Clients Performance Guide"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
 # Cobalt Clients Performance Guide
 
 This document contains a list of hints and tricks for using web technologies

@@ -7,6 +7,11 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/third_party/mozilla/url_parse.h"
 
+#if defined(STARBOARD)
+#include "starboard/common/string.h"
+#include "starboard/types.h"
+#endif
+
 // Interesting IE file:isms...
 //
 //  file:/foo/bar              file:///foo/bar

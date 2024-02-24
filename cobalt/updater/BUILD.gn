@@ -72,28 +72,32 @@ target(final_executable_type, "updater_sandbox") {
     "//components/crx_file",
     "//components/prefs",
     "//components/update_client",
-    "//starboard",
+    "//starboard:starboard_group",
   ]
 }
 
 target(final_executable_type, "crash_sandbox") {
   sources = [ "crash_sandbox.cc" ]
-  deps = [ "//starboard" ]
+  deps = [ "//starboard:starboard_group", ]
 }
 
 target(final_executable_type, "noop_sandbox") {
   sources = [ "noop_sandbox.cc" ]
-  deps = [ "//starboard" ]
+  deps = [
+    "//base",
+    "//starboard:starboard_group",
+  ]
 }
 
 target(final_executable_type, "one_app_only_sandbox") {
   sources = [ "one_app_only_sandbox.cc" ]
   deps = [
+    "//base",
     "//cobalt/base",
     "//cobalt/browser",
     "//cobalt/browser:browser_switches",
     "//net",
-    "//starboard",
+    "//starboard:starboard_group",
     "//starboard/loader_app:app_key",
   ]
 }

@@ -38,7 +38,7 @@ env:
   STARBOARD_TOOLCHAINS_DIR: /root/starboard-toolchains
 
 concurrency:
-  group: '${{ github.workflow }}-${{ github.event_name }}-${{ inputs.platform }} @ ${{ github.event.label.name || github.event.pull_request.number || github.sha }}'
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ inputs.platform }} @ ${{ github.event.label.name || github.event.pull_request.number || github.sha }} @ ${{ github.event.label.name && github.event.pull_request.number || github.event.action }}
   cancel-in-progress: true
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
@@ -55,6 +55,7 @@ jobs:
     # All triggers except draft PRs, unless PR is labeled with runtest
     if: |
       github.event.action != 'labeled' ||
+      github.event.pull_request.merged == false &&
       (
         github.event.action == 'labeled' &&
         github.event.label.name == 'runtest' ||
@@ -78,19 +79,45 @@ jobs:
             ${GITHUB_PR_REPO_URL}/issues/${GITHUB_EVENT_NUMBER}/labels/runtest
         shell: bash
       - id: set-platforms
-        run: echo "platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')" >> $GITHUB_ENV
+        shell: bash
+        run: |
+          platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')
+          echo "platforms=${platforms}" >> $GITHUB_ENV
       - id: set-includes
-        run: echo "includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')" >> $GITHUB_ENV
+        shell: bash
+        run: |
+          includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')
+          echo "includes=${includes}" >> $GITHUB_ENV
       - id: set-on-device-test
-        run: echo "on_device_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test.enabled')" >> $GITHUB_ENV
+        shell: bash
+        run: |
+          on_device_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test.enabled')
+          echo "on_device_test=${on_device_test}" >> $GITHUB_ENV
       - id: set-on-host-test
-        run: echo "on_host_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test')" >> $GITHUB_ENV
+        shell: bash
+        run: |
+          on_host_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test')
+          echo "on_host_test=${on_host_test}" >> $GITHUB_ENV
       - id: set-on-host-test-shards
-        run: echo "on_host_test_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.on_host_test_shards')" >> $GITHUB_ENV
+        shell: bash
+        run: |
+          on_host_test_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.on_host_test_shards')
+          echo "on_host_test_shards=${on_host_test_shards}" >> $GITHUB_ENV
       - id: set-docker-service
-        run: echo "docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.docker_service')" >> $GITHUB_ENV
+        shell: bash
+        run: |
+          docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.docker_service')
+          echo "docker_service=${docker_service}" >> $GITHUB_ENV
       - id: set-docker-runner-service
-        run: echo "docker_runner_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.docker_runner_service')" >> $GITHUB_ENV
+        shell: bash
+        run: |
+          docker_runner_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.docker_runner_service')
+          echo "docker_runner_service=${docker_runner_service}" >> $GITHUB_ENV
+      - id: set-runner-tag
+        shell: bash
+        run: |
+          runner_tag=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.runner_tag')
+          echo "runner_tag=${runner_tag}" >> $GITHUB_ENV
     outputs:
       platforms: ${{ env.platforms }}
       includes: ${{ env.includes }}
@@ -99,6 +126,7 @@ jobs:
       on_host_test_shards: ${{ env.on_host_test_shards }}
       docker_service: ${{ env.docker_service }}
       docker_runner_service: ${{ env.docker_runner_service }}
+      runner_tag: ${{ env.runner_tag }}
   # Build windows docker images.
   build-docker-image:
     needs: [initialize]
@@ -109,7 +137,7 @@ jobs:
       - name: Checkout files
         uses: kaidokert/checkout@v3.5.999
         with:
-          fetch-depth: 2
+          fetch-depth: 0
           persist-credentials: false
       - name: Login to Docker Registry ${{env.REGISTRY}}
         uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
@@ -131,7 +159,7 @@ jobs:
   build:
     needs: [initialize]
     permissions: {}
-    runs-on: [self-hosted, win32]
+    runs-on: [self-hosted, "${{ needs.initialize.outputs.runner_tag }}"]
     name: ${{matrix.name}}_${{matrix.config}}
     strategy:
       fail-fast: false
@@ -165,7 +193,7 @@ jobs:
     needs: [initialize, build]
     permissions: {}
     if: needs.initialize.outputs.on_host_test == 'true'
-    runs-on: [self-hosted, win32]
+    runs-on: [self-hosted, "${{ needs.initialize.outputs.runner_tag }}"]
     name: ${{matrix.name}}_${{matrix.shard}}_test
     strategy:
       fail-fast: false

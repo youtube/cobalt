@@ -151,7 +151,6 @@
 #include <assert.h>
 #include <string.h>
 
-#include <openssl/buf.h>
 #include <openssl/digest.h>
 #include <openssl/err.h>
 #include <openssl/md5.h>
@@ -162,7 +161,7 @@
 #include "internal.h"
 
 
-namespace bssl {
+BSSL_NAMESPACE_BEGIN
 
 SSL3_STATE::SSL3_STATE()
     : skip_early_data(false),
@@ -172,17 +171,19 @@ SSL3_STATE::SSL3_STATE()
       has_message(false),
       initial_handshake_complete(false),
       session_reused(false),
+      delegated_credential_used(false),
       send_connection_binding(false),
       channel_id_valid(false),
       key_update_pending(false),
       wpend_pending(false),
       early_data_accepted(false),
-      tls13_downgrade(false),
-      token_binding_negotiated(false) {}
+      alert_dispatch(false),
+      renegotiate_pending(false),
+      used_hello_retry_request(false) {}
 
 SSL3_STATE::~SSL3_STATE() {}
 
-bool ssl3_new(SSL *ssl) {
+bool tls_new(SSL *ssl) {
   UniquePtr<SSL3_STATE> s3 = MakeUnique<SSL3_STATE>();
   if (!s3) {
     return false;
@@ -206,7 +207,7 @@ bool ssl3_new(SSL *ssl) {
   return true;
 }
 
-void ssl3_free(SSL *ssl) {
+void tls_free(SSL *ssl) {
   if (ssl == NULL || ssl->s3 == NULL) {
     return;
   }
@@ -215,4 +216,4 @@ void ssl3_free(SSL *ssl) {
   ssl->s3 = NULL;
 }
 
-}  // namespace bssl
+BSSL_NAMESPACE_END

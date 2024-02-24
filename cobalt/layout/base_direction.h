@@ -15,6 +15,8 @@
 #ifndef COBALT_LAYOUT_BASE_DIRECTION_H_
 #define COBALT_LAYOUT_BASE_DIRECTION_H_
 
+#include <string>
+
 namespace cobalt {
 namespace layout {
 
@@ -28,6 +30,15 @@ enum BaseDirection {
   kRightToLeftBaseDirection,
   kLeftToRightBaseDirection,
 };
+
+#ifdef ENABLE_DEBUGGER
+inline std::ostream& operator<<(std::ostream& os,
+                                BaseDirection base_direction) {
+  std::string str = base_direction == kRightToLeftBaseDirection ? "RTL" : "LTR";
+  os << str;
+  return os;
+}
+#endif
 
 }  // namespace layout
 }  // namespace cobalt

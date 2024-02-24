@@ -139,9 +139,11 @@ export default class CoverageListView extends UI.VBox {
     if (!sourceCode) {
       return;
     }
-
-    sourceCode = await sourceCode.getFormatted();
-
+    const content = (await sourceCode.requestContent()).content || '';
+    if (TextUtils.isMinified(content)) {
+      const formatData = await Sources.sourceFormatter.format(sourceCode);
+      sourceCode = formatData.formattedSourceCode;
+    }
     if (this._dataGrid.selectedNode !== node) {
       return;
     }

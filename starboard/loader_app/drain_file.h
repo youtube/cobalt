@@ -15,18 +15,17 @@
 #ifndef STARBOARD_LOADER_APP_DRAIN_FILE_H_
 #define STARBOARD_LOADER_APP_DRAIN_FILE_H_
 
-#include "starboard/time.h"
 #include "starboard/types.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// The units of time that the drain file age is represented in.
-extern const SbTime kDrainFileAgeUnit;
+// The units of time that the drain file age is represented in, in microseconds.
+extern const int64_t kDrainFileAgeUnitUsec;
 
-// The amount of time of which a drain file is valid.
-extern const SbTime kDrainFileMaximumAge;
+// The amount of time of which a drain file is valid, in microseconds.
+extern const int64_t kDrainFileMaximumAgeUsec;
 
 // The prefix that all drain file names will have.
 extern const char kDrainFilePrefix[];
@@ -37,9 +36,10 @@ extern const char kDrainFilePrefix[];
 // otherwise |false|.
 bool DrainFileTryDrain(const char* dir, const char* app_key);
 
-// Ranks the drain files in |dir| using DrainFileRank(), and compares the
-// provided |app_key| with the best ranked app key. Returns |true| if they
-// match, otherwise |false|.
+// Ranks the non-expired drain files in |dir| in non-descending order by drain
+// file creation time, breaking ties by a C string comparison of the app keys
+// of the drain files, and compares the provided |app_key| with the app key of
+// the first ranked drain file. Returns |true| if they match, otherwise |false|.
 bool DrainFileRankAndCheck(const char* dir, const char* app_key);
 
 // Clears all expired drain files in |dir| for all apps.

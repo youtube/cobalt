@@ -26,7 +26,6 @@
 #include "starboard/memory.h"
 #include "starboard/socket_waiter.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 
 // TODO: Move this to starboard/socket.h.
 inline bool operator<(const SbSocketAddress& left,
@@ -84,7 +83,7 @@ class SocketTracker {
   State GetState(SbSocket socket);
 
   void LogTrackedSockets();
-  std::multimap<SbTimeMonotonic, SbSocket> ComputeIdleTimePerSocketForThreadId(
+  std::multimap<int64_t, SbSocket> ComputeIdleTimePerSocketForThreadId(
       SbThreadId thread_id);
 
  private:
@@ -93,7 +92,7 @@ class SocketTracker {
     SbSocketProtocol protocol;
     optional<SbSocketAddress> local_address;
     optional<SbSocketAddress> remote_address;
-    SbTime last_activity;
+    int64_t last_activity;
     SbSocketWaiter waiter = kSbSocketWaiterInvalid;
     SbThreadId thread_id;
     State state;
@@ -101,7 +100,7 @@ class SocketTracker {
 
   std::string ConvertToString_Locked(SbSocketAddress address) const;
   std::string ConvertToString_Locked(const SocketRecord& record) const;
-  static SbTimeMonotonic ComputeTimeIdle(const SocketRecord& record);
+  static int64_t ComputeTimeIdle(const SocketRecord& record);
 
   Mutex mutex_;
   std::map<SbSocket, SocketRecord> sockets_;

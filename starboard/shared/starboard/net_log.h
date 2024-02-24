@@ -36,7 +36,6 @@
 
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/common/socket.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace shared {
@@ -47,8 +46,9 @@ namespace starboard {
 extern const char kNetLogCommandSwitchWait[];
 
 // Optional - Pauses execution of the current thread until a client has
-// connected. A timeout value of < 0 will signal infinite timeout.
-void NetLogWaitForClientConnected(SbTime timeout);
+// connected. Timeout is in microseconds. A timeout value of < 0 will signal
+// infinite timeout.
+void NetLogWaitForClientConnected(int64_t timeout);
 
 // Writes to the netlog buffer socket stream.
 // Note that the NetLog is completely disabled for official

@@ -37,7 +37,8 @@ class MockPrefInitObserver {
 class TestingPrefNotifierImpl : public PrefNotifierImpl {
  public:
   explicit TestingPrefNotifierImpl(PrefService* service)
-      : PrefNotifierImpl(service) {}
+      : PrefNotifierImpl(service) {
+  }
 
   // Make public for tests.
   using PrefNotifierImpl::OnPreferenceChanged;

@@ -30,7 +30,7 @@ constexpr char kDomAgent[] = "DomAgent";
 constexpr char kCssAgent[] = "CssAgent";
 constexpr char kOverlayAgent[] = "OverlayAgent";
 constexpr char kPageAgent[] = "PageAgent";
-constexpr char kTracingAgent[] = "TracingAgent";
+constexpr char kTracingController[] = "TracingController";
 
 // Move the state for a particular agent out of the dictionary holding the
 // state for all agents. Returns a NULL JSONObject if either |agents_state| is
@@ -167,8 +167,8 @@ void DebugModule::BuildInternal(const ConstructionData& data) {
                                     std::move(page_render_layer),
                                     data.resource_provider));
   }
-  tracing_agent_.reset(
-      new TracingAgent(debug_dispatcher_.get(), script_debugger_.get()));
+  tracing_controller_.reset(
+      new TracingController(debug_dispatcher_.get(), script_debugger_.get()));
 
   // Hook up hybrid agent JavaScript to the DebugBackend.
   debug_backend_->BindAgents(css_agent_);
@@ -197,7 +197,7 @@ void DebugModule::BuildInternal(const ConstructionData& data) {
     overlay_agent_->Thaw(RemoveAgentState(kOverlayAgent, agents_state));
   if (page_agent_)
     page_agent_->Thaw(RemoveAgentState(kPageAgent, agents_state));
-  tracing_agent_->Thaw(RemoveAgentState(kTracingAgent, agents_state));
+  tracing_controller_->Thaw(RemoveAgentState(kTracingController, agents_state));
 #endif
 
   is_frozen_ = false;
@@ -222,7 +222,8 @@ std::unique_ptr<DebuggerState> DebugModule::Freeze() {
     StoreAgentState(agents_state, kOverlayAgent, overlay_agent_->Freeze());
   if (page_agent_)
     StoreAgentState(agents_state, kPageAgent, page_agent_->Freeze());
-  StoreAgentState(agents_state, kTracingAgent, tracing_agent_->Freeze());
+  StoreAgentState(agents_state, kTracingController,
+                  tracing_controller_->Freeze());
 
   // Take the clients from the dispatcher last so they still get events that
   the

@@ -287,7 +287,7 @@
     overflow: auto;
     position: relative;
     background-color: var(--toolbar-bg-color);
-    user-select: text;
+    -webkit-user-select: text;
 }
 
 .timeline-details-view-body > div {
@@ -351,7 +351,7 @@
 }
 
 .timeline-details-view-row-value {
-    user-select: text;
+    -webkit-user-select: text;
     white-space: nowrap;
     text-overflow: ellipsis;
     overflow: hidden;

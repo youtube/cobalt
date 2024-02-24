@@ -7,7 +7,8 @@
 #include "base/bind.h"
 
 MockPrefChangeCallback::MockPrefChangeCallback(PrefService* prefs)
-    : prefs_(prefs) {}
+    : prefs_(prefs) {
+}
 
 MockPrefChangeCallback::~MockPrefChangeCallback() {}
 

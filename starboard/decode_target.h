@@ -46,46 +46,8 @@
 // SbDecodeTarget creation code needs to execute GLES commands like, for
 // example, glGenTextures().
 //
-// The primary usage is likely to be the the SbPlayer implementation on some
+// The primary usage is likely to be the SbPlayer implementation on some
 // platforms.
-//
-// # SbDecodeTarget Example
-//
-// Let's say that we are an application and we would like to use the interface
-// defined in starboard/image.h to decode an imaginary "image/foo" image type.
-//
-// First, the application should enumerate which SbDecodeTargetFormats are
-// supported by that decoder.
-//
-//     SbDecodeTargetFormat kPreferredFormats[] = {
-//         kSbDecodeTargetFormat3PlaneYUVI420,
-//         kSbDecodeTargetFormat1PlaneRGBA,
-//         kSbDecodeTargetFormat1PlaneBGRA,
-//     };
-//
-//     SbDecodeTargetFormat format = kSbDecodeTargetFormatInvalid;
-//     for (int i = 0; i < SB_ARRAY_SIZE_INT(kPreferredFormats); ++i) {
-//       if (SbImageIsDecodeSupported("image/foo", kPreferredFormats[i])) {
-//         format = kPreferredFormats[i];
-//         break;
-//       }
-//     }
-//
-// Now that the application has a format, it can create a decode target that it
-// will use to decode the .foo file into. Let's assume format is
-// kSbDecodeTargetFormat1PlaneRGBA, that we are on an EGL/GLES2 platform.
-// Also, we won't do any error checking, to keep things even simpler.
-//
-//     SbDecodeTarget target = SbImageDecode(
-//         context_provider, encoded_foo_data, encoded_foo_data_size,
-//         "image/foo", format);
-//
-//     // If the decode works, you can get the texture out and render it.
-//     SbDecodeTargetInfo info;
-//     memset(&info, 0, sizeof(info));
-//     SbDecodeTargetGetInfo(target, &info);
-//     GLuint texture =
-//         info.planes[kSbDecodeTargetPlaneRGBA].texture;
 
 #ifndef STARBOARD_DECODE_TARGET_H_
 #define STARBOARD_DECODE_TARGET_H_
@@ -199,7 +161,7 @@ typedef void (*SbDecodeTargetGlesContextRunner)(
 // to some graphics objects when creating/destroying resources used by
 // SbDecodeTarget.  References to SbDecodeTargetGraphicsContextProvider objects
 // should be provided to all Starboard functions that might create
-// SbDecodeTargets (e.g. SbImageDecode()).
+// SbDecodeTargets.
 typedef struct SbDecodeTargetGraphicsContextProvider {
   // A reference to the EGLDisplay object that hosts the EGLContext that will
   // be used to render any produced SbDecodeTargets.  Note that it has the

@@ -32,7 +32,25 @@ CobaltNetLog::CobaltNetLog(const base::FilePath& log_path,
 
 CobaltNetLog::~CobaltNetLog() {
   // Remove the observers we own before we're destroyed.
-  net_log_logger_->StopObserving(nullptr, base::OnceClosure());
+  StopObserving();
+}
+
+void CobaltNetLog::StartObserving() {
+  if (!is_observing_) {
+    is_observing_ = true;
+#ifndef USE_HACKY_COBALT_CHANGES
+    net_log_logger_->StartObserving(this, capture_mode_);
+#endif
+  } else {
+    DLOG(WARNING) << "Already observing NetLog.";
+  }
+}
+
+void CobaltNetLog::StopObserving() {
+  if (is_observing_) {
+    is_observing_ = false;
+    net_log_logger_->StopObserving(nullptr, base::OnceClosure());
+  }
 }
 
 }  // namespace network

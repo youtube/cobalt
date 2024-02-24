@@ -153,7 +153,7 @@ const int kMaxVersionedLibraryNameLength = 32;
 
 std::string GetVersionedLibraryName(const char* name, const int version) {
   char s[kMaxVersionedLibraryNameLength];
-  SbStringFormatF(s, kMaxVersionedLibraryNameLength, "%s.%d", name, version);
+  snprintf(s, kMaxVersionedLibraryNameLength, "%s.%d", name, version);
   return std::string(s);
 }
 

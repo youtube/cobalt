@@ -17,7 +17,6 @@
 #include "starboard/common/log.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/player/player_internal.h"
-#include "starboard/time.h"
 
 #if SB_API_VERSION >= 15
 

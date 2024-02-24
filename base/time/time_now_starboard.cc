@@ -19,9 +19,8 @@
 #include "base/time/time_override.h"
 #include "build/build_config.h"
 
-#include "starboard/client_porting/poem/eztime_poem.h"
 #include "starboard/common/log.h"
-#include "starboard/time.h"
+#include "starboard/common/time.h"
 #include "starboard/types.h"
 
 namespace base {
@@ -30,7 +29,8 @@ namespace base {
 
 namespace subtle {
 Time TimeNowIgnoringOverride() {
-  return Time() + Microseconds(SbTimeGetNow());
+  return Time() + Microseconds(
+      starboard::PosixTimeToWindowsTime(starboard::CurrentPosixTime()));
 }
 
 Time TimeNowFromSystemTimeIgnoringOverride() {
@@ -43,7 +43,8 @@ Time TimeNowFromSystemTimeIgnoringOverride() {
 
 namespace subtle {
 TimeTicks TimeTicksNowIgnoringOverride() {
-  return TimeTicks() + Microseconds(SbTimeGetMonotonicNow());
+  return TimeTicks() + Microseconds(
+      starboard::CurrentMonotonicTime());
 }
 }  // namespace subtle
 
@@ -62,10 +63,8 @@ bool TimeTicks::IsConsistentAcrossProcesses() {
 
 namespace subtle {
 ThreadTicks ThreadTicksNowIgnoringOverride() {
-  if (SbTimeIsTimeThreadNowSupported())
-    return ThreadTicks() +
-           Microseconds(SbTimeGetMonotonicThreadNow());
-  return ThreadTicks();
+  return ThreadTicks() + Microseconds(
+      starboard::CurrentMonotonicThreadTime());
 }
 }  // namespace subtle
 

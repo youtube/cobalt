@@ -72,7 +72,7 @@ class ApplicationUwp : public shared::starboard::Application,
 
   bool DestroyWindow(SbWindow window);
 
-  void DispatchStart(SbTimeMonotonic timestamp) {
+  void DispatchStart(int64_t timestamp) {
     shared::starboard::Application::DispatchStart(timestamp);
   }
 
@@ -177,7 +177,7 @@ class ApplicationUwp : public shared::starboard::Application,
   void InjectTimedEvent(TimedEvent* timed_event) override;
   void CancelTimedEvent(SbEventId event_id) override;
   TimedEvent* GetNextDueTimedEvent() override;
-  SbTimeMonotonic GetNextTimedEventTargetTime() override;
+  int64_t GetNextTimedEventTargetTime() override;
 
   int device_id() const { return device_id_; }
   void OnJoystickUpdate(SbKey key, SbInputVector value) override;

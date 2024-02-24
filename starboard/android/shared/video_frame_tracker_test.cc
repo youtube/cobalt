@@ -15,7 +15,6 @@
 #include <string>
 
 #include "starboard/android/shared/video_frame_tracker.h"
-#include "starboard/time.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -114,7 +113,7 @@ TEST(VideoFrameTrackerTest, RenderQueueIsClearedOnSeek) {
   video_frame_tracker.OnFrameRendered(30000);
   // Frames 40000, 50000, 60000 were never rendered.
 
-  const SbTime kSeekToTime = 90000;
+  const int64_t kSeekToTime = 90'000;  // 90ms
   video_frame_tracker.Seek(kSeekToTime);
   ASSERT_EQ(kSeekToTime, video_frame_tracker.seek_to_time());
 

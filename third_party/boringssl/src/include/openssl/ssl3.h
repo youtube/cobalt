@@ -251,9 +251,9 @@ extern "C" {
 #define SSL3_RT_SEND_MAX_ENCRYPTED_OVERHEAD \
     (EVP_AEAD_MAX_OVERHEAD + EVP_AEAD_MAX_NONCE_LENGTH)
 
-OPENSSL_COMPILE_ASSERT(
-    SSL3_RT_MAX_ENCRYPTED_OVERHEAD >= SSL3_RT_SEND_MAX_ENCRYPTED_OVERHEAD,
-    max_overheads_are_consistent);
+OPENSSL_STATIC_ASSERT(SSL3_RT_MAX_ENCRYPTED_OVERHEAD >=
+                          SSL3_RT_SEND_MAX_ENCRYPTED_OVERHEAD,
+                      "max overheads are inconsistent");
 
 // SSL3_RT_MAX_COMPRESSED_LENGTH is an alias for
 // |SSL3_RT_MAX_PLAIN_LENGTH|. Compression is gone, so don't include the
@@ -275,6 +275,7 @@ OPENSSL_COMPILE_ASSERT(
 
 // Pseudo content type for SSL/TLS header info
 #define SSL3_RT_HEADER 0x100
+#define SSL3_RT_CLIENT_HELLO_INNER 0x101
 
 #define SSL3_AL_WARNING 1
 #define SSL3_AL_FATAL 2

@@ -889,7 +889,7 @@ Timeline.AggregatedTimelineTreeView = class extends Timeline.TimelineTreeView {
     if (Timeline.AggregatedTimelineTreeView._isV8NativeURL(url)) {
       return Timeline.AggregatedTimelineTreeView._v8NativePrefix;
     }
-    const parsedURL = Common.ParsedURL.fromString(url);
+    const parsedURL = url.asParsedURL();
     if (!parsedURL) {
       return '';
     }

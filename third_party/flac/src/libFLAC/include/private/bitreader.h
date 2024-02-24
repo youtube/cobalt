@@ -37,7 +37,6 @@
 #endif  // COBALT
 #include "FLAC/ordinals.h"
 #include "cpu.h"
-
 #ifdef STARBOARD
 #include "starboard/types.h"
 #endif  // STARBOARD

@@ -1,8 +1,8 @@
 
 /* pngrutil.c - utilities to read a PNG file
  *
- * Last changed in libpng 1.2.45 [July 7, 2011]
- * Copyright (c) 1998-2011 Glenn Randers-Pehrson
+ * Last changed in libpng 1.2.51 [February 6, 2014]
+ * Copyright (c) 1998-2014 Glenn Randers-Pehrson
  * (Version 0.96 Copyright (c) 1996, 1997 Andreas Dilger)
  * (Version 0.88 Copyright (c) 1995, 1996 Guy Eric Schalnat, Group 42, Inc.)
  *
@@ -339,15 +339,13 @@ png_decompress_chunk(png_structp png_ptr, int comp_type,
       /* Now check the limits on this chunk - if the limit fails the
        * compressed data will be removed, the prefix will remain.
        */
-#ifdef PNG_SET_CHUNK_MALLOC_LIMIT_SUPPORTED
-      if (png_ptr->user_chunk_malloc_max &&
-          (prefix_size + expanded_size >= png_ptr->user_chunk_malloc_max - 1))
-#else
-#  ifdef PNG_USER_CHUNK_MALLOC_MAX
-      if ((PNG_USER_CHUNK_MALLOC_MAX > 0) &&
+      if (prefix_size >= (~(png_size_t)0) - 1 ||
+         expanded_size >= (~(png_size_t)0) - 1 - prefix_size
+#ifdef PNG_USER_CHUNK_MALLOC_MAX
+         || ((PNG_USER_CHUNK_MALLOC_MAX > 0) &&
           prefix_size + expanded_size >= PNG_USER_CHUNK_MALLOC_MAX - 1)
-#  endif
 #endif
+          )
          png_warning(png_ptr, "Exceeded size limit while expanding chunk");
 
       /* If the size is zero either there was an error and a message
@@ -355,23 +353,13 @@ png_decompress_chunk(png_structp png_ptr, int comp_type,
        * and we have nothing to do - the code will exit through the
        * error case below.
        */
-#if defined(PNG_SET_CHUNK_MALLOC_LIMIT_SUPPORTED) || \
-    defined(PNG_USER_CHUNK_MALLOC_MAX)
-      else
-#endif
-      if (expanded_size > 0)
+      else if (expanded_size > 0)
       {
          /* Success (maybe) - really uncompress the chunk. */
          png_size_t new_size = 0;
-         png_charp text = NULL;
-         /* Need to check for both truncation (64-bit platforms) and integer
-          * overflow.
-          */
-         if (prefix_size + expanded_size > prefix_size &&
-             prefix_size + expanded_size < 0xffffffffU)
-         {
-            text = png_malloc_warn(png_ptr, prefix_size + expanded_size + 1);
-         }
+
+         png_charp text = png_malloc_warn(png_ptr,
+             prefix_size + expanded_size + 1);
 
          if (text != NULL)
          {
@@ -671,7 +659,7 @@ png_handle_IEND(png_structp png_ptr, png_infop info_ptr, png_uint_32 length)
    }
    png_crc_finish(png_ptr, length);
 
-   info_ptr = info_ptr; /* Quiet compiler warnings about unused info_ptr */
+   PNG_UNUSED(info_ptr) /* Quiet compiler warnings about unused info_ptr */
 }
 
 #ifdef PNG_READ_gAMA_SUPPORTED
@@ -1542,14 +1530,15 @@ png_handle_hIST(png_structp png_ptr, png_infop info_ptr, png_uint_32 length)
       return;
    }
 
-   num = length / 2 ;
-   if (num != (unsigned int) png_ptr->num_palette || num >
-      (unsigned int) PNG_MAX_PALETTE_LENGTH)
+   if (length > 2*PNG_MAX_PALETTE_LENGTH ||
+       length != (unsigned int) (2*png_ptr->num_palette))
    {
       png_warning(png_ptr, "Incorrect hIST chunk length");
       png_crc_finish(png_ptr, length);
       return;
    }
+
+   num = length / 2 ;
 
    for (i = 0; i < num; i++)
    {
@@ -1869,11 +1858,11 @@ png_handle_sCAL(png_structp png_ptr, png_infop info_ptr, png_uint_32 length)
       png_ptr->chunkdata = NULL;
       return;
    }
-   png_memcpy(swidth, ep, (png_size_t)png_strlen(ep));
+   png_memcpy(swidth, ep, (png_size_t)png_strlen(ep) + 1);
 #endif
 #endif
 
-   for (ep = png_ptr->chunkdata; *ep; ep++)
+   for (ep = png_ptr->chunkdata + 1; *ep; ep++)
       /* Empty loop */ ;
    ep++;
 
@@ -1913,7 +1902,7 @@ png_handle_sCAL(png_structp png_ptr, png_infop info_ptr, png_uint_32 length)
 #endif
       return;
    }
-   png_memcpy(sheight, ep, (png_size_t)png_strlen(ep));
+   png_memcpy(sheight, ep, (png_size_t)png_strlen(ep) + 1);
 #endif
 #endif
 
@@ -2476,7 +2465,7 @@ png_handle_unknown(png_structp png_ptr, png_infop info_ptr, png_uint_32 length)
    png_crc_finish(png_ptr, skip);
 
 #ifndef PNG_READ_USER_CHUNKS_SUPPORTED
-   info_ptr = info_ptr; /* Quiet compiler warnings about unused info_ptr */
+   PNG_UNUSED(info_ptr) /* Quiet compiler warnings about unused info_ptr */
 #endif
 }
 
@@ -2932,7 +2921,7 @@ png_do_read_interlace(png_structp png_ptr)
       row_info->rowbytes = PNG_ROWBYTES(row_info->pixel_depth, final_width);
    }
 #ifndef PNG_READ_PACKSWAP_SUPPORTED
-   transformations = transformations; /* Silence compiler warning */
+   PNG_UNUSED(transformations) /* Silence compiler warning */
 #endif
 }
 #endif /* PNG_READ_INTERLACING_SUPPORTED */

@@ -27,14 +27,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-import {canGetJSPath, cssPath, jsPath, xPath} from './DOMPath.js';
-import {MappedCharToEntity, UpdateRecord} from './ElementsTreeOutline.js';  // eslint-disable-line no-unused-vars
-import {MarkerDecorator} from './MarkerDecorator.js';
 
 /**
  * @unrestricted
  */
-export class ElementsTreeElement extends UI.TreeElement {
+export default class ElementsTreeElement extends UI.TreeElement {
   /**
    * @param {!SDK.DOMNode} node
    * @param {boolean=} elementCloseTag
@@ -562,7 +559,8 @@ export class ElementsTreeElement extends UI.TreeElement {
     }
     if (this._node.nodeType() === Node.ELEMENT_NODE) {
       section.appendItem(Common.UIString('Copy selector'), this._copyCSSPath.bind(this));
-      section.appendItem(Common.UIString('Copy JS path'), this._copyJSPath.bind(this), !canGetJSPath(this._node));
+      section.appendItem(
+          Common.UIString('Copy JS path'), this._copyJSPath.bind(this), !Elements.DOMPath.canGetJSPath(this._node));
       section.appendItem(ls`Copy styles`, this._copyStyles.bind(this));
     }
     if (!isShadowRoot) {
@@ -710,7 +708,7 @@ export class ElementsTreeElement extends UI.TreeElement {
       return '';
     }
 
-    if (!Common.ParsedURL.fromString(attributeValueElement.textContent)) {
+    if (!attributeValueElement.textContent.asParsedURL()) {
       config.setPostKeydownFinishHandler(postKeyDownFinishHandler);
     }
 
@@ -1123,7 +1121,7 @@ export class ElementsTreeElement extends UI.TreeElement {
   }
 
   /**
-   * @param {?UpdateRecord=} updateRecord
+   * @param {?Elements.ElementsTreeOutline.UpdateRecord=} updateRecord
    * @param {boolean=} onlySearchQueryChanged
    */
   updateTitle(updateRecord, onlySearchQueryChanged) {
@@ -1210,7 +1208,7 @@ export class ElementsTreeElement extends UI.TreeElement {
     const node = this._node;
 
     if (!this.treeOutline._decoratorExtensions) {
-      this.treeOutline._decoratorExtensions = self.runtime.extensions(MarkerDecorator);
+      this.treeOutline._decoratorExtensions = self.runtime.extensions(Elements.MarkerDecorator);
     }
 
     const markerToExtension = new Map();
@@ -1238,7 +1236,7 @@ export class ElementsTreeElement extends UI.TreeElement {
 
     /**
      * @param {!SDK.DOMNode} n
-     * @param {!MarkerDecorator} decorator
+     * @param {!Elements.MarkerDecorator} decorator
      */
     function collectDecoration(n, decorator) {
       const decoration = decorator.decorate(n);
@@ -1317,7 +1315,7 @@ export class ElementsTreeElement extends UI.TreeElement {
    * @param {!Node} parentElement
    * @param {string} name
    * @param {string} value
-   * @param {?UpdateRecord} updateRecord
+   * @param {?Elements.ElementsTreeOutline.UpdateRecord} updateRecord
    * @param {boolean=} forceValue
    * @param {!SDK.DOMNode=} node
    */
@@ -1483,7 +1481,7 @@ export class ElementsTreeElement extends UI.TreeElement {
    * @param {string} tagName
    * @param {boolean} isClosingTag
    * @param {boolean} isDistinctTreeElement
-   * @param {?UpdateRecord} updateRecord
+   * @param {?Elements.ElementsTreeOutline.UpdateRecord} updateRecord
    */
   _buildTagDOM(parentElement, tagName, isClosingTag, isDistinctTreeElement, updateRecord) {
     const node = this._node;
@@ -1526,7 +1524,7 @@ export class ElementsTreeElement extends UI.TreeElement {
     let result = '';
     let lastIndexAfterEntity = 0;
     const entityRanges = [];
-    const charToEntity = MappedCharToEntity;
+    const charToEntity = Elements.ElementsTreeOutline.MappedCharToEntity;
     for (let i = 0, size = text.length; i < size; ++i) {
       const char = text.charAt(i);
       if (charToEntity[char]) {
@@ -1544,7 +1542,7 @@ export class ElementsTreeElement extends UI.TreeElement {
   }
 
   /**
-   * @param {?UpdateRecord} updateRecord
+   * @param {?Elements.ElementsTreeOutline.UpdateRecord} updateRecord
    * @return {!DocumentFragment} result
    */
   _nodeTitleInfo(updateRecord) {
@@ -1738,19 +1736,19 @@ export class ElementsTreeElement extends UI.TreeElement {
   }
 
   _copyCSSPath() {
-    Host.InspectorFrontendHost.copyText(cssPath(this._node, true));
+    Host.InspectorFrontendHost.copyText(Elements.DOMPath.cssPath(this._node, true));
   }
 
   _copyJSPath() {
-    Host.InspectorFrontendHost.copyText(jsPath(this._node, true));
+    Host.InspectorFrontendHost.copyText(Elements.DOMPath.jsPath(this._node, true));
   }
 
   _copyXPath() {
-    Host.InspectorFrontendHost.copyText(xPath(this._node, true));
+    Host.InspectorFrontendHost.copyText(Elements.DOMPath.xPath(this._node, true));
   }
 
   _copyFullXPath() {
-    Host.InspectorFrontendHost.copyText(xPath(this._node, false));
+    Host.InspectorFrontendHost.copyText(Elements.DOMPath.xPath(this._node, false));
   }
 
   async _copyStyles() {
@@ -1825,3 +1823,20 @@ export const ForbiddenClosingTagElements = new Set([
 
 // These tags we do not allow editing their tag name.
 export const EditTagBlacklist = new Set(['html', 'head', 'body']);
+
+/* Legacy exported object */
+self.Elements = self.Elements || {};
+
+/* Legacy exported object */
+Elements = Elements || {};
+
+/** @constructor */
+Elements.ElementsTreeElement = ElementsTreeElement;
+
+Elements.ElementsTreeElement.HrefSymbol = HrefSymbol;
+Elements.ElementsTreeElement.InitialChildrenLimit = InitialChildrenLimit;
+Elements.ElementsTreeElement.ForbiddenClosingTagElements = ForbiddenClosingTagElements;
+Elements.ElementsTreeElement.EditTagBlacklist = EditTagBlacklist;
+
+/** @typedef {{cancel: function(), commit: function(), resize: function(), editor:!UI.TextEditor}} */
+Elements.MultilineEditorController;

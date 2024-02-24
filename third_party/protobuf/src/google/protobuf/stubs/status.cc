@@ -29,11 +29,11 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <google/protobuf/stubs/status.h>
 
+#include <ostream>
 #ifndef STARBOARD
 #include <stdio.h>
 #endif  // STARBOARD
 
-#include <ostream>
 #include <string>
 #include <utility>
 

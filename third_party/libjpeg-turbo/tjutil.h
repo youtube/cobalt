@@ -26,11 +26,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifdef STARBOARD
-#include "starboard/client_porting/poem/stdio_poem.h"
-#include "starboard/client_porting/poem/strings_poem.h"
-#define SNPRINTF snprintf
-#else
 #ifdef _WIN32
 #ifndef strcasecmp
 #define strcasecmp  stricmp
@@ -45,7 +40,6 @@
   _snprintf_s(str, n, _TRUNCATE, format, ##__VA_ARGS__)
 #else
 #define SNPRINTF  snprintf
-#endif
 #endif
 
 #ifndef min

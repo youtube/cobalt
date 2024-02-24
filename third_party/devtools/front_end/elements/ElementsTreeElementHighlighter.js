@@ -1,21 +1,20 @@
 // Copyright (c) 2015 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-import {ElementsTreeOutline} from './ElementsTreeOutline.js';
 
 /**
  * @unrestricted
  */
-export class ElementsTreeElementHighlighter {
+export default class ElementsTreeElementHighlighter {
   /**
-   * @param {!ElementsTreeOutline} treeOutline
+   * @param {!Elements.ElementsTreeOutline} treeOutline
    */
   constructor(treeOutline) {
     this._throttler = new Common.Throttler(100);
     this._treeOutline = treeOutline;
     this._treeOutline.addEventListener(UI.TreeOutline.Events.ElementExpanded, this._clearState, this);
     this._treeOutline.addEventListener(UI.TreeOutline.Events.ElementCollapsed, this._clearState, this);
-    this._treeOutline.addEventListener(ElementsTreeOutline.Events.SelectedNodeChanged, this._clearState, this);
+    this._treeOutline.addEventListener(Elements.ElementsTreeOutline.Events.SelectedNodeChanged, this._clearState, this);
     SDK.targetManager.addModelListener(
         SDK.OverlayModel, SDK.OverlayModel.Events.HighlightNodeRequested, this._highlightNode, this);
     SDK.targetManager.addModelListener(
@@ -34,7 +33,7 @@ export class ElementsTreeElementHighlighter {
 
     this._throttler.schedule(callback.bind(this));
     this._pendingHighlightNode =
-        this._treeOutline === ElementsTreeOutline.forDOMModel(domNode.domModel()) ? domNode : null;
+        this._treeOutline === Elements.ElementsTreeOutline.forDOMModel(domNode.domModel()) ? domNode : null;
 
     /**
      * @this {ElementsTreeElementHighlighter}
@@ -98,3 +97,12 @@ export class ElementsTreeElementHighlighter {
     delete this._pendingHighlightNode;
   }
 }
+
+/* Legacy exported object */
+self.Elements = self.Elements || {};
+
+/* Legacy exported object */
+Elements = Elements || {};
+
+/** @constructor */
+Elements.ElementsTreeElementHighlighter = ElementsTreeElementHighlighter;

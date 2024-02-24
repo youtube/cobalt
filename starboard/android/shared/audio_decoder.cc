@@ -70,12 +70,14 @@ void* IncrementPointerByBytes(void* pointer, int offset) {
 }  // namespace
 
 AudioDecoder::AudioDecoder(const AudioStreamInfo& audio_stream_info,
-                           SbDrmSystem drm_system)
+                           SbDrmSystem drm_system,
+                           bool use_mediacodec_callback_thread)
     : audio_stream_info_(audio_stream_info),
       sample_type_(GetSupportedSampleType()),
       output_sample_rate_(audio_stream_info.samples_per_second),
       output_channel_count_(audio_stream_info.number_of_channels),
-      drm_system_(static_cast<DrmSystem*>(drm_system)) {
+      drm_system_(static_cast<DrmSystem*>(drm_system)),
+      use_mediacodec_callback_thread_(use_mediacodec_callback_thread) {
   if (!InitializeCodec()) {
     SB_LOG(ERROR) << "Failed to initialize audio decoder.";
   }
@@ -94,9 +96,10 @@ void AudioDecoder::Initialize(const OutputCB& output_cb,
 
   output_cb_ = output_cb;
   error_cb_ = error_cb;
-
-  media_decoder_->Initialize(
-      std::bind(&AudioDecoder::ReportError, this, _1, _2));
+  if (media_decoder_) {
+    media_decoder_->Initialize(
+        std::bind(&AudioDecoder::ReportError, this, _1, _2));
+  }
 }
 
 void AudioDecoder::Decode(const InputBuffers& input_buffers,
@@ -108,15 +111,20 @@ void AudioDecoder::Decode(const InputBuffers& input_buffers,
 
   audio_frame_discarder_.OnInputBuffers(input_buffers);
 
+#if STARBOARD_ANDROID_SHARED_AUDIO_DECODER_VERBOSE
   for (const auto& input_buffer : input_buffers) {
     VERBOSE_MEDIA_LOG() << "T1: timestamp " << input_buffer->timestamp();
   }
+#endif
 
-  media_decoder_->WriteInputBuffers(input_buffers);
+  if (media_decoder_) {
+    media_decoder_->WriteInputBuffers(input_buffers);
+  }
 
   ScopedLock lock(decoded_audios_mutex_);
-  if (media_decoder_->GetNumberOfPendingTasks() + decoded_audios_.size() <=
-      kMaxPendingWorkSize) {
+  if (media_decoder_ &&
+      (media_decoder_->GetNumberOfPendingTasks() + decoded_audios_.size() <=
+       kMaxPendingWorkSize)) {
     Schedule(consumed_cb);
   } else {
     consumed_cb_ = consumed_cb;
@@ -128,7 +136,9 @@ void AudioDecoder::WriteEndOfStream() {
   SB_DCHECK(output_cb_);
   SB_DCHECK(media_decoder_);
 
-  media_decoder_->WriteEndOfStream();
+  if (media_decoder_) {
+    media_decoder_->WriteEndOfStream();
+  }
 }
 
 scoped_refptr<AudioDecoder::DecodedAudio> AudioDecoder::Read(
@@ -178,7 +188,8 @@ void AudioDecoder::Reset() {
 
 bool AudioDecoder::InitializeCodec() {
   SB_DCHECK(!media_decoder_);
-  media_decoder_.reset(new MediaDecoder(this, audio_stream_info_, drm_system_));
+  media_decoder_.reset(new MediaDecoder(this, audio_stream_info_, drm_system_,
+                                        use_mediacodec_callback_thread_));
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
       media_decoder_->Initialize(

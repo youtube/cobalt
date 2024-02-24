@@ -25,9 +25,11 @@ import subprocess
 import sys
 import threading
 import traceback
+import warnings
 
 from six.moves import cStringIO as StringIO
 from starboard.tools import abstract_launcher
+from starboard.tools.abstract_launcher import TargetStatus
 from starboard.tools import build
 from starboard.tools import command_line
 from starboard.tools import paths
@@ -40,11 +42,11 @@ from starboard.tools.util import SetupDefaultLoggingConfig
 # pylint: disable=consider-using-f-string
 
 _FLAKY_RETRY_LIMIT = 4
-_TOTAL_TESTS_REGEX = re.compile(r"^\[==========\] (.*) tests? from .*"
+_TOTAL_TESTS_REGEX = re.compile(r"\[==========\] (.*) tests? from .*"
                                 r"test suites? ran. \(.* ms total\)")
-_TESTS_PASSED_REGEX = re.compile(r"^\[  PASSED  \] (.*) tests?")
-_TESTS_FAILED_REGEX = re.compile(r"^\[  FAILED  \] (.*) tests?, listed below:")
-_SINGLE_TEST_FAILED_REGEX = re.compile(r"^\[  FAILED  \] (.*)")
+_TESTS_PASSED_REGEX = re.compile(r"\[  PASSED  \] (.*) tests?")
+_TESTS_FAILED_REGEX = re.compile(r"\[  FAILED  \] (.*) tests?, listed below:")
+_SINGLE_TEST_FAILED_REGEX = re.compile(r"\[  FAILED  \] (.*)")
 
 _NATIVE_CRASHPAD_TARGET = "native_target/crashpad_handler"
 _LOADER_TARGET = "elf_loader_sandbox"
@@ -52,7 +54,7 @@ _LOADER_TARGET = "elf_loader_sandbox"
 
 def _EnsureBuildDirectoryExists(path):
   if not os.path.exists(path):
-    raise ValueError(f"'{path}' does not exist.")
+    warnings.warn(f"'{path}' does not exist.")
 
 
 def _FilterTests(target_list, filters, config_name):
@@ -161,14 +163,33 @@ class TestLauncher(object):
   communicate, and for the main thread to shut them down.
   """
 
-  def __init__(self, launcher):
+  def __init__(self, launcher, skip_init):
     self.launcher = launcher
-    self.runner_thread = threading.Thread(target=self._Run)
 
     self.return_code_lock = threading.Lock()
     self.return_code = 1
+    self.run_test = None
+    self.skip_init = skip_init
 
   def Start(self):
+    if self.launcher.HasExtendedInterface():
+      if not self.skip_init:
+        if hasattr(self.launcher, "InitDevice"):
+          self.launcher.InitDevice()
+        if hasattr(self.launcher, "Deploy"):
+          assert hasattr(self.launcher, "CheckPackageIsDeployed")
+          if abstract_launcher.ARG_NOINSTALL not in self.launcher.launcher_args:
+            self.launcher.Deploy()
+          if not self.launcher.CheckPackageIsDeployed():
+            raise IOError(
+                "The target application is not installed on the device.")
+
+      self.run_test = self.launcher.Run2
+
+    else:
+      self.run_test = lambda: (TargetStatus.OK, self.launcher.Run())
+
+    self.runner_thread = threading.Thread(target=self._Run)
     self.runner_thread.start()
 
   def Kill(self):
@@ -184,12 +205,12 @@ class TestLauncher(object):
   def Join(self):
     self.runner_thread.join()
 
-  def _Run(self):
-    """Runs the launcher, and assigns a return code."""
-    return_code = 1
+  def _Run(self) -> None:
+    """Runs the launcher, and assigns a status and a return code."""
+    return_code = TargetStatus.NOT_STARTED, 0
     try:
       logging.info("Running launcher")
-      return_code = self.launcher.Run()
+      return_code = self.run_test()
       logging.info("Finished running launcher")
     except Exception:  # pylint: disable=broad-except
       sys.stderr.write(f"Error while running {self.launcher.target_name}:\n")
@@ -261,6 +282,7 @@ class TestRunner(object):
     self.xml_output_dir = xml_output_dir
     self.log_xml_results = log_xml_results
     self.threads = []
+    self.is_initialized = False
 
     _EnsureBuildDirectoryExists(self.out_directory)
     _VerifyConfig(self._platform_config,
@@ -275,6 +297,7 @@ class TestRunner(object):
 
     # If a particular test binary has been provided, configure only that one.
     logging.info("Getting test targets")
+
     if specified_targets:
       self.test_targets = self._GetSpecifiedTestTargets(specified_targets)
     else:
@@ -394,11 +417,11 @@ class TestRunner(object):
         env_variables[test] = test_env
     return env_variables
 
-  def _RunTest(self,
-               target_name,
-               test_name=None,
-               shard_index=None,
-               shard_count=None):
+  def RunTest(self,
+              target_name,
+              test_name=None,
+              shard_index=None,
+              shard_count=None):
     """Runs a specific target or test and collects the output.
 
     Args:
@@ -508,7 +531,7 @@ class TestRunner(object):
     logging.info("Launcher initialized")
 
     test_reader = TestLineReader(read_pipe)
-    test_launcher = TestLauncher(launcher)
+    test_launcher = TestLauncher(launcher, self.is_initialized)
 
     self.threads.append(test_launcher)
     self.threads.append(test_reader)
@@ -535,6 +558,7 @@ class TestRunner(object):
     # Wait for the launcher to exit then close the write pipe, which will
     # cause the reader to exit.
     test_launcher.Join()
+    self.is_initialized = True
     write_pipe.close()
 
     # Only after closing the write pipe, wait for the reader to exit.
@@ -544,10 +568,10 @@ class TestRunner(object):
     output = test_reader.GetLines()
 
     self.threads = []
-    return self._CollectTestResults(output, target_name,
-                                    test_launcher.GetReturnCode())
+    return (target_name, *self._CollectTestResults(output),
+            *test_launcher.GetReturnCode())
 
-  def _CollectTestResults(self, results, target_name, return_code):
+  def _CollectTestResults(self, results):
     """Collects passing and failing tests for one test binary.
 
     Args:
@@ -581,8 +605,7 @@ class TestRunner(object):
         # Descriptions of all failed tests appear after this line
         failed_tests = self._CollectFailedTests(results[idx + 1:])
 
-    return (target_name, total_count, passed_count, failed_count, failed_tests,
-            return_code)
+    return (total_count, passed_count, failed_count, failed_tests)
 
   def _CollectFailedTests(self, lines):
     """Collects the names of all failed tests.
@@ -641,7 +664,8 @@ class TestRunner(object):
       passed_count = result_set[2]
       failed_count = result_set[3]
       failed_tests = result_set[4]
-      return_code = result_set[5]
+      return_code_status = result_set[5]
+      return_code = result_set[6]
       actual_failed_tests = []
       flaky_failed_tests = []
       filtered_tests = self._GetFilteredTestList(target_name)
@@ -671,7 +695,7 @@ class TestRunner(object):
           for retry in range(_FLAKY_RETRY_LIMIT):
             # Sometimes the returned test "name" includes information about the
             # parameter that was passed to it. This needs to be stripped off.
-            retry_result = self._RunTest(target_name, test_case.split(",")[0])
+            retry_result = self.RunTest(target_name, test_case.split(",")[0])
             print()  # Explicit print for empty formatting line.
             if retry_result[2] == 1:
               flaky_passed_tests.append(test_case)
@@ -687,24 +711,26 @@ class TestRunner(object):
       else:
         logging.info("")  # formatting newline.
 
-      test_status = "SUCCEEDED"
+      test_status = TargetStatus.ToString(return_code_status)
 
       all_flaky_tests_succeeded = initial_flaky_failed_count == len(
           flaky_passed_tests) and initial_flaky_failed_count != 0
 
       # Always mark as FAILED if we have a non-zero return code, or failing
       # test.
-      if ((return_code != 0 and not all_flaky_tests_succeeded) or
-          actual_failed_count > 0 or flaky_failed_count > 0):
+      if ((return_code_status == TargetStatus.OK and return_code != 0 and
+           not all_flaky_tests_succeeded) or actual_failed_count > 0 or
+          flaky_failed_count > 0):
         error = True
-        test_status = "FAILED"
         failed_test_groups.append(target_name)
         # Be specific about the cause of failure if it was caused due to crash
         # upon exit. Normal Gtest failures have return_code = 1; test crashes
         # yield different return codes (e.g. segfault has return_code = 11).
         if (return_code != 1 and actual_failed_count == 0 and
             flaky_failed_count == 0):
-          test_status = "FAILED (CRASHED)"
+          test_status = "FAILED (ISSUE)"
+        else:
+          test_status = "FAILED"
 
       logging.info("%s: %s.", target_name, test_status)
       if return_code != 0 and run_count == 0 and filtered_count == 0:
@@ -819,12 +845,12 @@ class TestRunner(object):
         if run_action == ShardingTestConfig.RUN_FULL_TEST:
           logging.info("SHARD %d RUNS TEST %s (full)", self.shard_index,
                        test_target)
-          results.append(self._RunTest(test_target))
+          results.append(self.RunTest(test_target))
         elif run_action == ShardingTestConfig.RUN_PARTIAL_TEST:
           logging.info("SHARD %d RUNS TEST %s (%d of %d)", self.shard_index,
                        test_target, sub_shard_index + 1, sub_shard_count)
           results.append(
-              self._RunTest(
+              self.RunTest(
                   test_target,
                   shard_index=sub_shard_index,
                   shard_count=sub_shard_count))
@@ -833,7 +859,7 @@ class TestRunner(object):
           logging.info("SHARD %d SKIP TEST %s", self.shard_index, test_target)
       else:
         # Run all tests and cases serially. No sharding enabled.
-        results.append(self._RunTest(test_target))
+        results.append(self.RunTest(test_target))
     return self._ProcessAllTestResults(results)
 
 
@@ -939,6 +965,7 @@ def main():
     coverage_directory = os.path.abspath(args.coverage_dir)
 
   logging.info("Initializing test runner")
+
   runner = TestRunner(args.platform, args.config, args.loader_platform,
                       args.loader_config, args.device_id, args.target_name,
                       target_params, args.out_directory,
@@ -974,7 +1001,16 @@ def main():
       return 1
 
   if args.run:
-    run_success = runner.RunAllTests()
+    if isinstance(args.target_name, list) and len(args.target_name) == 1:
+      r = runner.RunTest(args.target_name[0])
+      if r[5] == TargetStatus.OK:
+        return r[6]
+      elif r[5] == TargetStatus.NA:
+        return 0
+      else:
+        return 1
+    else:
+      run_success = runner.RunAllTests()
 
   if args.coverage_report and coverage_directory:
     if run_success:

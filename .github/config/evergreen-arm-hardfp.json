@@ -9,8 +9,7 @@
       "1",
       "2",
       "3"
-    ],
-    "test_attempts": 2
+    ]
   },
   "platforms": [
     "evergreen-arm-hardfp",
@@ -35,7 +34,7 @@
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
       "bootloader_extra_gn_arguments":"use_asan=false is_clang=false",
-      "sb_api_version": "sb_api_version=15",
+      "sb_api_version": "15",
       "dimension": "release_version=regex:10.*"
     },
     {
@@ -45,7 +44,7 @@
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
       "bootloader_extra_gn_arguments":"use_asan=false is_clang=false",
-      "sb_api_version": "sb_api_version=14",
+      "sb_api_version": "14",
       "dimension": "release_version=regex:10.*"
     },
     {
@@ -55,7 +54,7 @@
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
       "bootloader_extra_gn_arguments":"use_asan=false is_clang=false",
-      "sb_api_version": "sb_api_version=13",
+      "sb_api_version": "13",
       "dimension": "release_version=regex:10.*"
     }
   ]

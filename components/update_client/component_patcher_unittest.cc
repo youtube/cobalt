@@ -73,7 +73,8 @@ ComponentPatcherOperationTest::ComponentPatcherOperationTest()
       base::MakeRefCounted<ReadOnlyTestInstaller>(installed_dir_.GetPath());
 }
 
-ComponentPatcherOperationTest::~ComponentPatcherOperationTest() {}
+ComponentPatcherOperationTest::~ComponentPatcherOperationTest() {
+}
 
 // Verify that a 'create' delta update operation works correctly.
 TEST_F(ComponentPatcherOperationTest, CheckCreateOperation) {

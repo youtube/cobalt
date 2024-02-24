@@ -224,6 +224,11 @@ absl_source_set("randen_hwaes") {
     ":randen_hwaes_impl",
     "//third_party/abseil-cpp/absl/base:config",
   ]
+  if (is_starboard) {
+    sources -= [ "randen_detect.cc" ]
+    sources += [ "randen_detect_starboard.cc" ]
+    deps += [ "//starboard:starboard_headers_only" ]
+  }
   visibility = ["//third_party/abseil-cpp/absl/random/*"]
 }
 

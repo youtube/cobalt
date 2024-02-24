@@ -22,12 +22,8 @@
 /* context structures.                                                */
 /* ------------------------------------------------------------------ */
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#else
 #include <string.h>           /* for strcmp  */
 #include <stdio.h>            /* for printf if DECCHECK  */
-#endif  // defined(STARBOARD)
 #include "decContext.h"       /* context and base types  */
 #include "decNumberLocal.h"   /* decNumber local types, etc.  */
 

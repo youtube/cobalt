@@ -449,19 +449,12 @@ v8_source_set("unittests_sources") {
     "../..:v8_for_testing",
     "../..:v8_libbase",
     "../..:v8_libplatform",
-    "../..:v8_wrappers",
     "../..:wasm_test_common",
     "../../third_party/inspector_protocol:crdtp_test",
     "//build/win:default_exe_manifest",
     "//testing/gmock",
     "//testing/gtest",
   ]
-
-  if (is_starboard) {
-    deps -= [
-      "../../third_party/inspector_protocol:crdtp_test"
-    ]
-  }
 
   if (is_win) {
     # This warning is benignly triggered by the U16 and U32 macros in

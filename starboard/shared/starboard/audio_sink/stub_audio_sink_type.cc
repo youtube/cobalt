@@ -17,10 +17,10 @@
 #include <algorithm>
 
 #include "starboard/common/mutex.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 
 namespace starboard {
 namespace shared {
@@ -113,12 +113,11 @@ void StubAudioSink::AudioThreadFunc() {
       int frames_to_consume =
           std::min(kMaxFramesToConsumePerRequest, frames_in_buffer);
 
-      SbThreadSleep(frames_to_consume * kSbTimeSecond / sampling_frequency_hz_);
-      consume_frames_func_(frames_to_consume, SbTimeGetMonotonicNow(),
-                           context_);
+      SbThreadSleep(frames_to_consume * 1'000'000LL / sampling_frequency_hz_);
+      consume_frames_func_(frames_to_consume, CurrentMonotonicTime(), context_);
     } else {
       // Wait for five millisecond if we are paused.
-      SbThreadSleep(kSbTimeMillisecond * 5);
+      SbThreadSleep(5'000);
     }
   }
 }

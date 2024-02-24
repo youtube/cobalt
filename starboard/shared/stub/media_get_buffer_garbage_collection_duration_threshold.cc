@@ -14,6 +14,6 @@
 
 #include "starboard/media.h"
 
-SbTime SbMediaGetBufferGarbageCollectionDurationThreshold() {
+int64_t SbMediaGetBufferGarbageCollectionDurationThreshold() {
   return 0;
 }

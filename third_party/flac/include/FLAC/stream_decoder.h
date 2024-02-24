@@ -35,7 +35,6 @@
 #ifndef COBALT
 #include <stdio.h> /* for FILE */
 #endif  // COBALT
-
 #include "export.h"
 #include "format.h"
 

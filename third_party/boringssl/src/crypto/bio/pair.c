@@ -55,7 +55,6 @@
 #include <assert.h>
 #include <string.h>
 
-#include <openssl/buf.h>
 #include <openssl/err.h>
 #include <openssl/mem.h>
 
@@ -128,12 +127,7 @@ static void bio_destroy_pair(BIO *bio) {
 }
 
 static int bio_free(BIO *bio) {
-  struct bio_bio_st *b;
-
-  if (bio == NULL) {
-    return 0;
-  }
-  b = bio->ptr;
+  struct bio_bio_st *b = bio->ptr;
 
   assert(b != NULL);
 

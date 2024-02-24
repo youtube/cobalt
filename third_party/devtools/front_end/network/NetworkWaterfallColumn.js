@@ -1,7 +1,7 @@
 // Copyright 2016 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-export class NetworkWaterfallColumn extends UI.VBox {
+Network.NetworkWaterfallColumn = class extends UI.VBox {
   /**
    * @param {!Network.NetworkTimeCalculator} calculator
    */
@@ -56,23 +56,23 @@ export class NetworkWaterfallColumn extends UI.VBox {
     this.element.addEventListener('mouseleave', event => this._setHoveredNode(null, false), true);
     this.element.addEventListener('click', this._onClick.bind(this), true);
 
-    this._styleForTimeRangeName = NetworkWaterfallColumn._buildRequestTimeRangeStyle();
+    this._styleForTimeRangeName = Network.NetworkWaterfallColumn._buildRequestTimeRangeStyle();
 
-    const resourceStyleTuple = NetworkWaterfallColumn._buildResourceTypeStyle();
-    /** @type {!Map<!Common.ResourceType, !NetworkWaterfallColumn._LayerStyle>} */
+    const resourceStyleTuple = Network.NetworkWaterfallColumn._buildResourceTypeStyle();
+    /** @type {!Map<!Common.ResourceType, !Network.NetworkWaterfallColumn._LayerStyle>} */
     this._styleForWaitingResourceType = resourceStyleTuple[0];
-    /** @type {!Map<!Common.ResourceType, !NetworkWaterfallColumn._LayerStyle>} */
+    /** @type {!Map<!Common.ResourceType, !Network.NetworkWaterfallColumn._LayerStyle>} */
     this._styleForDownloadingResourceType = resourceStyleTuple[1];
 
     const baseLineColor = UI.themeSupport.patchColorText('#a5a5a5', UI.ThemeSupport.ColorUsage.Foreground);
-    /** @type {!NetworkWaterfallColumn._LayerStyle} */
+    /** @type {!Network.NetworkWaterfallColumn._LayerStyle} */
     this._wiskerStyle = {borderColor: baseLineColor, lineWidth: 1};
-    /** @type {!NetworkWaterfallColumn._LayerStyle} */
+    /** @type {!Network.NetworkWaterfallColumn._LayerStyle} */
     this._hoverDetailsStyle = {fillStyle: baseLineColor, lineWidth: 1, borderColor: baseLineColor};
 
-    /** @type {!Map<!NetworkWaterfallColumn._LayerStyle, !Path2D>} */
+    /** @type {!Map<!Network.NetworkWaterfallColumn._LayerStyle, !Path2D>} */
     this._pathForStyle = new Map();
-    /** @type {!Array<!NetworkWaterfallColumn._TextLayer>} */
+    /** @type {!Array<!Network.NetworkWaterfallColumn._TextLayer>} */
     this._textLayers = [];
 
     /** @type {?CSSStyleDeclaration} */
@@ -80,7 +80,7 @@ export class NetworkWaterfallColumn extends UI.VBox {
   }
 
   /**
-   * @return {!Map<!Network.RequestTimeRangeNames, !NetworkWaterfallColumn._LayerStyle>}
+   * @return {!Map<!Network.RequestTimeRangeNames, !Network.NetworkWaterfallColumn._LayerStyle>}
    */
   static _buildRequestTimeRangeStyle() {
     const types = Network.RequestTimeRangeNames;
@@ -102,7 +102,7 @@ export class NetworkWaterfallColumn extends UI.VBox {
   }
 
   /**
-   * @return {!Array<!Map<!Common.ResourceType, !NetworkWaterfallColumn._LayerStyle>>}
+   * @return {!Array<!Map<!Common.ResourceType, !Network.NetworkWaterfallColumn._LayerStyle>>}
    */
   static _buildResourceTypeStyle() {
     const baseResourceTypeColors = new Map([
@@ -462,7 +462,7 @@ export class NetworkWaterfallColumn extends UI.VBox {
    */
   _drawLayers(context) {
     for (const entry of this._pathForStyle) {
-      const style = /** @type {!NetworkWaterfallColumn._LayerStyle} */ (entry[0]);
+      const style = /** @type {!Network.NetworkWaterfallColumn._LayerStyle} */ (entry[0]);
       const path = /** @type {!Path2D} */ (entry[1]);
       context.save();
       context.beginPath();
@@ -663,18 +663,7 @@ export class NetworkWaterfallColumn extends UI.VBox {
     context.fill();
     context.restore();
   }
-}
-
-/* Legacy exported object */
-self.Network = self.Network || {};
-
-/* Legacy exported object */
-Network = Network || {};
-
-/**
- * @constructor
- */
-Network.NetworkWaterfallColumn = NetworkWaterfallColumn;
+};
 
 /** @typedef {!{fillStyle: (string|undefined), lineWidth: (number|undefined), borderColor: (string|undefined)}} */
 Network.NetworkWaterfallColumn._LayerStyle;

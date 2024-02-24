@@ -43,14 +43,13 @@ bool SbFileGetInfo(SbFile file, SbFileInfo* out_info) {
   out_info->size = standard_info.EndOfFile.QuadPart;
   SB_DCHECK(out_info->size >= 0);
 
-  using starboard::shared::win32::ConvertFileTimeTicksToSbTime;
+  using starboard::shared::win32::ConvertFileTimeTicksToUsec;
 
-  out_info->creation_time =
-      ConvertFileTimeTicksToSbTime(basic_info.CreationTime);
+  out_info->creation_time = ConvertFileTimeTicksToUsec(basic_info.CreationTime);
   out_info->last_accessed =
-      ConvertFileTimeTicksToSbTime(basic_info.LastAccessTime);
+      ConvertFileTimeTicksToUsec(basic_info.LastAccessTime);
   out_info->last_modified =
-      ConvertFileTimeTicksToSbTime(basic_info.LastWriteTime);
+      ConvertFileTimeTicksToUsec(basic_info.LastWriteTime);
 
   out_info->is_symbolic_link = false;
   out_info->is_directory = standard_info.Directory;

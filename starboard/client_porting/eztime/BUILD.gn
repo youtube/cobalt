@@ -37,7 +37,7 @@ target(gtest_target_type, "eztime_test") {
 
   deps = [
     ":eztime",
-    "//starboard",
+    "//starboard:starboard_group",
     "//testing/gmock",
     "//testing/gtest",
   ]

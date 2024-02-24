@@ -75,4 +75,4 @@ function updateUkmData() {
   });
 }
 
-updateUkmData();
+document.addEventListener('DOMContentLoaded', updateUkmData);

@@ -14,7 +14,6 @@
 """Tests for scroll containers."""
 
 import logging
-import traceback
 
 from cobalt.black_box_tests import black_box_tests
 from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer
@@ -34,31 +33,22 @@ class PointerTest(black_box_tests.BlackBoxTestCase):
   """Tests pointer and mouse event."""
 
   def test_pointer_events(self):
-    try:
-      with ThreadedWebServer(
-          binding_address=self.GetBindingAddress()) as server:
-        url = server.GetURL(file_name='testdata/scroll.html')
+    with ThreadedWebServer(binding_address=self.GetBindingAddress()) as server:
+      url = server.GetURL(file_name='testdata/scroll.html')
 
-        with self.CreateCobaltRunner(url=url) as runner:
-          logging.info('JS Test Setup WaitForJSTestsSetup')
-          runner.WaitForJSTestsSetup()
-          logging.info('JS Test Setup')
-          self.assertTrue(runner.webdriver)
+      with self.CreateCobaltRunner(url=url) as runner:
+        logging.info('JS Test Setup WaitForJSTestsSetup')
+        runner.WaitForJSTestsSetup()
+        logging.info('JS Test Setup')
+        self.assertTrue(runner.webdriver)
 
-          row = find_element_by_id(runner, 'row')
+        row = find_element_by_id(runner, 'row')
 
-          # Perform mouse actions with ActionChains.
-          #   https://www.selenium.dev/selenium/docs/api/py/webdriver/selenium.webdriver.common.action_chains.html#module-selenium.webdriver.common.action_chains  # pylint: disable=line-too-long
-          actions = ActionChains(runner.webdriver)
-          actions.click_and_hold(row).pause(_SLEEP_AFTER_MOVE_TIME)
-          actions.move_by_offset(-100, 0)
-          actions.release()
-          actions.perform()
-          runner.SendKeys(keys.Keys.NUMPAD0)
-          self.assertTrue(runner.JSTestsSucceeded())
-    except:  # pylint: disable=bare-except
-      traceback.print_exc()
-      # Consider an exception being thrown as a test failure.
-      self.fail('Test failure')
-    finally:
-      logging.info('Cleaning up.')
+        actions = ActionChains(runner.webdriver)
+        actions.move_to_element(row).pause(_SLEEP_AFTER_MOVE_TIME)
+        actions.click_and_hold(row).pause(_SLEEP_AFTER_MOVE_TIME)
+        actions.move_by_offset(-500, 0).pause(_SLEEP_AFTER_MOVE_TIME)
+        actions.release()
+        actions.perform()
+        runner.SendKeys(keys.Keys.NUMPAD0)
+        self.assertTrue(runner.JSTestsSucceeded())

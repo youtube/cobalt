@@ -195,7 +195,7 @@ void VideoDecoder::DecodeOneBuffer(
 
   SB_DCHECK(context_);
 
-  SbTime timestamp = input_buffer->timestamp();
+  int64_t timestamp = input_buffer->timestamp();
   aom_codec_err_t status = aom_codec_decode(
       context_.get(), input_buffer->data(), input_buffer->size(), &timestamp);
   if (status != AOM_CODEC_OK) {

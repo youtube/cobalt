@@ -15,6 +15,7 @@
 #include "starboard/common/socket.h"
 
 #include <errno.h>
+#include <string.h>
 #include <sys/socket.h>
 
 #include "starboard/common/log.h"

@@ -5,7 +5,7 @@
 /**
  * @implements {Search.SearchScope}
  */
-export default class NetworkSearchScope {
+Network.NetworkSearchScope = class {
   /**
    * @override
    * @param {!Common.Progress} progress
@@ -48,7 +48,7 @@ export default class NetworkSearchScope {
    * @param {!Search.SearchConfig} searchConfig
    * @param {!SDK.NetworkRequest} request
    * @param {!Common.Progress} progress
-   * @return {!Promise<?NetworkSearchResult>}
+   * @return {!Promise<?Network.NetworkSearchResult>}
    */
   async _searchRequest(searchConfig, request, progress) {
     let bodyMatches = [];
@@ -61,23 +61,23 @@ export default class NetworkSearchScope {
     }
     const locations = [];
     if (stringMatchesQuery(request.url())) {
-      locations.push(UIRequestLocation.urlMatch(request));
+      locations.push(Network.UIRequestLocation.urlMatch(request));
     }
     for (const header of request.requestHeaders()) {
       if (headerMatchesQuery(header)) {
-        locations.push(UIRequestLocation.requestHeaderMatch(request, header));
+        locations.push(Network.UIRequestLocation.requestHeaderMatch(request, header));
       }
     }
     for (const header of request.responseHeaders) {
       if (headerMatchesQuery(header)) {
-        locations.push(UIRequestLocation.responseHeaderMatch(request, header));
+        locations.push(Network.UIRequestLocation.responseHeaderMatch(request, header));
       }
     }
     for (const match of bodyMatches) {
-      locations.push(UIRequestLocation.bodyMatch(request, match));
+      locations.push(Network.UIRequestLocation.bodyMatch(request, match));
     }
     progress.worked();
-    return new NetworkSearchResult(request, locations);
+    return new Network.NetworkSearchResult(request, locations);
 
     /**
      * @param {!SDK.NetworkRequest.NameValue} header
@@ -111,9 +111,9 @@ export default class NetworkSearchScope {
    */
   stopSearch() {
   }
-}
+};
 
-export class UIRequestLocation {
+Network.UIRequestLocation = class {
   /**
    * @param {!SDK.NetworkRequest} request
    * @param {?SDK.NetworkRequest.NameValue} requestHeader
@@ -134,7 +134,7 @@ export class UIRequestLocation {
    * @param {?SDK.NetworkRequest.NameValue} header
    */
   static requestHeaderMatch(request, header) {
-    return new UIRequestLocation(request, header, null, null, false);
+    return new Network.UIRequestLocation(request, header, null, null, false);
   }
 
   /**
@@ -142,7 +142,7 @@ export class UIRequestLocation {
    * @param {?SDK.NetworkRequest.NameValue} header
    */
   static responseHeaderMatch(request, header) {
-    return new UIRequestLocation(request, null, header, null, false);
+    return new Network.UIRequestLocation(request, null, header, null, false);
   }
 
   /**
@@ -150,24 +150,24 @@ export class UIRequestLocation {
    * @param {?Common.ContentProvider.SearchMatch} searchMatch
    */
   static bodyMatch(request, searchMatch) {
-    return new UIRequestLocation(request, null, null, searchMatch, false);
+    return new Network.UIRequestLocation(request, null, null, searchMatch, false);
   }
 
   /**
    * @param {!SDK.NetworkRequest} request
    */
   static urlMatch(request) {
-    return new UIRequestLocation(request, null, null, null, true);
+    return new Network.UIRequestLocation(request, null, null, null, true);
   }
-}
+};
 
 /**
  * @implements Search.SearchResult
  */
-export class NetworkSearchResult {
+Network.NetworkSearchResult = class {
   /**
    * @param {!SDK.NetworkRequest} request
-   * @param {!Array<!UIRequestLocation>} locations
+   * @param {!Array<!Network.UIRequestLocation>} locations
    */
   constructor(request, locations) {
     this._request = request;
@@ -244,25 +244,4 @@ export class NetworkSearchResult {
     }
     return location.searchMatch.lineNumber + 1;
   }
-}
-
-/* Legacy exported object */
-self.Network = self.Network || {};
-
-/* Legacy exported object */
-Network = Network || {};
-
-/**
- * @constructor
- */
-Network.NetworkSearchScope = NetworkSearchScope;
-
-/**
- * @constructor
- */
-Network.UIRequestLocation = UIRequestLocation;
-
-/**
- * @constructor
- */
-Network.NetworkSearchResult = NetworkSearchResult;
+};

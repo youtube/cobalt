@@ -105,9 +105,9 @@ class HTMLMediaElement : public HTMLElement,
   bool seeking() const;
 
   // Playback state
-  float current_time(script::ExceptionState* exception_state) const;
-  void set_current_time(float time, script::ExceptionState* exception_state);
-  float duration() const;
+  double current_time(script::ExceptionState* exception_state) const;
+  void set_current_time(double time, script::ExceptionState* exception_state);
+  double duration() const;
   base::Time GetStartDate() const;
   bool paused() const;
   bool resume_frozen_flag() const;
@@ -158,6 +158,10 @@ class HTMLMediaElement : public HTMLElement,
   bool HasMaxVideoCapabilities() const {
     return !max_video_capabilities_.empty();
   }
+
+  // Set max video input size.
+  void SetMaxVideoInputSize(unsigned int max_video_input_size,
+                            script::ExceptionState* exception_state);
 
   DEFINE_WRAPPABLE_TYPE(HTMLMediaElement);
   void TraceMembers(script::Tracer* tracer) override;
@@ -210,10 +214,10 @@ class HTMLMediaElement : public HTMLElement,
   void ChangeNetworkStateFromLoadingToIdle();
 
   // Playback
-  void Seek(float time);
+  void Seek(double time);
   void FinishSeek();
 
-  void AddPlayedRange(float start, float end);
+  void AddPlayedRange(double start, double end);
 
   void UpdateVolume();
   void UpdatePlayState();
@@ -240,6 +244,7 @@ class HTMLMediaElement : public HTMLElement,
   void SourceOpened(ChunkDemuxer* chunk_demuxer) override;
   std::string SourceURL() const override;
   std::string MaxVideoCapabilities() const override;
+  int MaxVideoInputSize() const override;
   bool PreferDecodeToTexture() override;
   void EncryptedMediaInitDataEncountered(
       const char* init_data_type, const unsigned char* init_data,
@@ -251,6 +256,8 @@ class HTMLMediaElement : public HTMLElement,
   std::string current_src_;
 
   std::string max_video_capabilities_;
+
+  int max_video_input_size_;
 
   // Loading state.
   enum LoadState { kWaitingForSource, kLoadingFromSrcAttr };
@@ -269,7 +276,7 @@ class HTMLMediaElement : public HTMLElement,
   WebMediaPlayer::ReadyState ready_state_maximum_;
 
   float volume_;
-  float last_seek_time_;
+  double last_seek_time_;
   double previous_progress_time_;
 
   double duration_;

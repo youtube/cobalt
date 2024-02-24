@@ -82,19 +82,11 @@ class JsonString final {
     const int start_;
     const uint32_t index_;
   };
-#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
   const int length_;
   const bool needs_conversion_ : 1;
   const bool internalize_ : 1;
   const bool has_escape_ : 1;
   const bool is_index_ : 1;
-#else
-  int length_;
-  bool needs_conversion_ : 1;
-  bool internalize_ : 1;
-  bool has_escape_ : 1;
-  bool is_index_ : 1;
-#endif
 };
 
 struct JsonProperty {

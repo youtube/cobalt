@@ -8,15 +8,12 @@
 
 #include <stdarg.h>
 #include <stdlib.h>
-
 #include <cmath>
 
 #include "src/base/bits.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/memory.h"
 #include "src/base/overflowing-math.h"
-#include "src/base/platform/platform.h"
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/arm/constants-arm.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
@@ -643,7 +640,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   // Set up simulator support first. Some of this information is needed to
   // setup the architecture state.
   size_t stack_size = 1 * 1024 * 1024;  // allocate 1MB for stack
-  stack_ = reinterpret_cast<char*>(base::Malloc(stack_size));
+  stack_ = reinterpret_cast<char*>(malloc(stack_size));
   pc_modified_ = false;
   icount_ = 0;
   break_pc_ = nullptr;
@@ -693,7 +690,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
 
 Simulator::~Simulator() {
   GlobalMonitor::Get()->RemoveProcessor(&global_monitor_processor_);
-  base::Free(stack_);
+  free(stack_);
 }
 
 // Get the active Simulator for the current thread.
@@ -1100,7 +1097,7 @@ int Simulator::WriteExDW(int32_t addr, int32_t value1, int32_t value2) {
 uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
   // The simulator uses a separate JS stack. If we have exhausted the C stack,
   // we also drop down the JS limit to reflect the exhaustion on the JS stack.
-  if (base::Stack::GetCurrentStackPosition() < c_limit) {
+  if (GetCurrentStackPosition() < c_limit) {
     return reinterpret_cast<uintptr_t>(get_sp());
   }
 
@@ -6119,9 +6116,8 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
     entry_stack &= -base::OS::ActivationFrameAlignment();
   }
   // Store remaining arguments on stack, from low to high memory.
-  memcpy(reinterpret_cast<intptr_t*>(entry_stack),
-               arguments + reg_arg_count,
-               (argument_count - reg_arg_count) * sizeof(*arguments));
+  memcpy(reinterpret_cast<intptr_t*>(entry_stack), arguments + reg_arg_count,
+         (argument_count - reg_arg_count) * sizeof(*arguments));
   set_register(sp, entry_stack);
 
   CallInternal(entry);

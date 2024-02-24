@@ -31,13 +31,13 @@ namespace filter {
 class VideoFrame : public RefCountedThreadSafe<VideoFrame> {
  public:
   // An invalid media timestamp to indicate end of stream.
-  static const SbTime kMediaTimeEndOfStream = -1;
+  static const int64_t kMediaTimeEndOfStream = -1;
 
-  explicit VideoFrame(SbTime timestamp) : timestamp_(timestamp) {}
+  explicit VideoFrame(int64_t timestamp) : timestamp_(timestamp) {}
   virtual ~VideoFrame() {}
 
   bool is_end_of_stream() const { return timestamp_ == kMediaTimeEndOfStream; }
-  SbTime timestamp() const {
+  int64_t timestamp() const {
     SB_DCHECK(!is_end_of_stream());
     return timestamp_;
   }
@@ -47,7 +47,7 @@ class VideoFrame : public RefCountedThreadSafe<VideoFrame> {
   }
 
  private:
-  SbTime timestamp_;
+  int64_t timestamp_;  // microseconds
 
   VideoFrame(const VideoFrame&) = delete;
   void operator=(const VideoFrame&) = delete;

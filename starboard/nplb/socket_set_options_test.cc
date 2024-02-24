@@ -14,7 +14,6 @@
 
 #include "starboard/common/socket.h"
 #include "starboard/nplb/socket_helpers.h"
-#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -33,7 +32,7 @@ TEST_P(SbSocketSetOptionsTest, TryThemAllTCP) {
   EXPECT_TRUE(SbSocketSetReuseAddress(socket, true));
   EXPECT_TRUE(SbSocketSetReceiveBufferSize(socket, 16 * 1024));
   EXPECT_TRUE(SbSocketSetSendBufferSize(socket, 16 * 1024));
-  EXPECT_TRUE(SbSocketSetTcpKeepAlive(socket, true, 30 * kSbTimeSecond));
+  EXPECT_TRUE(SbSocketSetTcpKeepAlive(socket, true, 30'000'000));
   EXPECT_TRUE(SbSocketSetTcpNoDelay(socket, true));
 
   // Returns false on unsupported platforms, so we can't check the return value
@@ -58,8 +57,7 @@ TEST_P(SbSocketSetOptionsTest, RainyDayInvalidSocket) {
   EXPECT_FALSE(SbSocketSetReuseAddress(kSbSocketInvalid, true));
   EXPECT_FALSE(SbSocketSetReceiveBufferSize(kSbSocketInvalid, 16 * 1024));
   EXPECT_FALSE(SbSocketSetSendBufferSize(kSbSocketInvalid, 16 * 1024));
-  EXPECT_FALSE(
-      SbSocketSetTcpKeepAlive(kSbSocketInvalid, true, 30 * kSbTimeSecond));
+  EXPECT_FALSE(SbSocketSetTcpKeepAlive(kSbSocketInvalid, true, 30'000'000));
   EXPECT_FALSE(SbSocketSetTcpNoDelay(kSbSocketInvalid, true));
   EXPECT_FALSE(SbSocketSetTcpWindowScaling(kSbSocketInvalid, true));
 }

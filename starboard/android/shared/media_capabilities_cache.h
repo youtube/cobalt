@@ -96,8 +96,7 @@ class VideoCodecCapability : public CodecCapability {
   // VideoCapabilities.areSizeAndRateSupported() or
   // VideoCapabilities.isSizeSupported() will be used to check the
   // supportability.
-  bool AreResolutionAndRateSupported(bool force_improved_support_check,
-                                     int frame_width,
+  bool AreResolutionAndRateSupported(int frame_width,
                                      int frame_height,
                                      int fps);
 
@@ -125,32 +124,27 @@ class MediaCapabilitiesCache {
 
   bool IsPassthroughSupported(SbMediaAudioCodec codec);
 
-  int GetMaxAudioOutputChannels();
+  bool GetAudioConfiguration(int index,
+                             SbMediaAudioConfiguration* configuration);
 
-  bool HasAudioDecoderFor(const std::string& mime_type,
-                          int bitrate,
-                          bool must_support_tunnel_mode);
+  bool HasAudioDecoderFor(const std::string& mime_type, int bitrate);
 
   bool HasVideoDecoderFor(const std::string& mime_type,
                           bool must_support_secure,
                           bool must_support_hdr,
                           bool must_support_tunnel_mode,
-                          bool force_improved_support_check,
                           int frame_width,
                           int frame_height,
                           int bitrate,
                           int fps);
 
-  std::string FindAudioDecoder(const std::string& mime_type,
-                               int bitrate,
-                               bool must_support_tunnel_mode);
+  std::string FindAudioDecoder(const std::string& mime_type, int bitrate);
 
   std::string FindVideoDecoder(const std::string& mime_type,
                                bool must_support_secure,
                                bool must_support_hdr,
                                bool require_software_codec,
                                bool must_support_tunnel_mode,
-                               bool force_improved_support_check,
                                int frame_width,
                                int frame_height,
                                int bitrate,
@@ -158,11 +152,7 @@ class MediaCapabilitiesCache {
 
   bool IsEnabled() const { return is_enabled_; }
   void SetCacheEnabled(bool enabled) { is_enabled_ = enabled; }
-  void ClearCache();
-
-  void Initialize();
-  void ClearSupportedHdrTypes() { supported_hdr_types_is_dirty_ = true; }
-  void ClearAudioOutputChannels() { audio_output_channels_is_dirty_ = true; }
+  void ClearCache() { capabilities_is_dirty_ = true; }
 
  private:
   MediaCapabilitiesCache();
@@ -172,6 +162,7 @@ class MediaCapabilitiesCache {
   MediaCapabilitiesCache& operator=(const MediaCapabilitiesCache&) = delete;
 
   void UpdateMediaCapabilities_Locked();
+  void LoadAudioConfigurations_Locked();
   void LoadCodecInfos_Locked();
 
   Mutex mutex_;
@@ -186,14 +177,12 @@ class MediaCapabilitiesCache {
 
   std::map<std::string, AudioCodecCapabilities> audio_codec_capabilities_map_;
   std::map<std::string, VideoCodecCapabilities> video_codec_capabilities_map_;
-
-  std::atomic_bool is_enabled_{true};
-  std::atomic_bool supported_hdr_types_is_dirty_{true};
-  std::atomic_bool audio_output_channels_is_dirty_{true};
-  bool is_initialized_ = false;
+  std::vector<SbMediaAudioConfiguration> audio_configurations_;
   bool is_widevine_supported_ = false;
   bool is_cbcs_supported_ = false;
-  int max_audio_output_channels_ = -1;
+
+  std::atomic_bool is_enabled_{true};
+  std::atomic_bool capabilities_is_dirty_{true};
 };
 
 }  // namespace shared

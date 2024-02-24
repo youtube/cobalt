@@ -14,6 +14,7 @@
 
 #include "starboard/shared/starboard/media/mime_type.h"
 
+#include <strings.h>
 #include <algorithm>
 #include <iosfwd>
 #include <locale>
@@ -50,8 +51,7 @@ void ParseParamTypeAndValue(const std::string& name,
 
   int count;
   int i;
-  if (SbStringScanF(value.c_str(), "%d%n", &i, &count) == 1 &&
-      count == value.size()) {
+  if (sscanf(value.c_str(), "%d%n", &i, &count) == 1 && count == value.size()) {
     param->type = MimeType::kParamTypeInteger;
     param->int_value = i;
     return;
@@ -196,7 +196,7 @@ const std::string& MimeType::GetParamName(int index) const {
 
 int MimeType::GetParamIndexByName(const char* name) const {
   for (size_t i = 0; i < params_.size(); ++i) {
-    if (SbStringCompareNoCase(params_[i].name.c_str(), name) == 0) {
+    if (strcasecmp(params_[i].name.c_str(), name) == 0) {
       return static_cast<int>(i);
     }
   }

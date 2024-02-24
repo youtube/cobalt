@@ -42,6 +42,11 @@ absl_test("kernel_timeout_internal_test") {
 }
 
 absl_source_set("synchronization") {
+  # Synchronization is not Starboardized since at this time it's banned for use
+  # in Chromium code.
+  # TODO: b/326500064 - These files need to be starboardized or removed again.
+  #                     Right now we link it in because it's used.
+  if (!use_cobalt_customizations || !sb_is_modular) {
   sources = [
     "barrier.cc",
     "blocking_counter.cc",
@@ -87,9 +92,13 @@ absl_source_set("synchronization") {
     "//third_party/abseil-cpp/absl/debugging:symbolize",
     "//third_party/abseil-cpp/absl/time",
   ]
+  }
 }
 
 absl_test("waiter_test") {
+  # Synchronization is not Starboardized since at this time it's banned for use
+  # in Chromium code.
+  if (!use_cobalt_customizations) {
   sources = [ "internal/waiter_test.cc" ]
   deps = [
     ":kernel_timeout_internal",
@@ -99,6 +108,9 @@ absl_test("waiter_test") {
     "//third_party/abseil-cpp/absl/random",
     "//third_party/abseil-cpp/absl/time",
   ]
+  } else {
+    deps = []
+  }
 }
 
 absl_source_set("thread_pool") {

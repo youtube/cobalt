@@ -224,12 +224,9 @@ export class TextSourceMap {
    */
   static async load(sourceMapURL, compiledURL) {
     let content = await new Promise((resolve, reject) => {
-      SDK.multitargetNetworkManager.loadResource(sourceMapURL, (statusCode, _headers, content, netError) => {
+      SDK.multitargetNetworkManager.loadResource(sourceMapURL, (statusCode, _headers, content) => {
         if (!content || statusCode >= 400) {
-          const showInternalError = Root.Runtime.experiments.isEnabled('reportInternalNetErrorOnSourceMapLoadFail');
-          const internalError =
-              showInternalError ? ls` (HTTP status code: ${statusCode}, net error code ${netError})` : ``;
-          const error = new Error(ls`Could not load content for ${sourceMapURL}${internalError}`);
+          const error = new Error(ls`Could not load content for ${sourceMapURL} : HTTP status code: ${statusCode}`);
           reject(error);
         } else {
           resolve(content);
@@ -241,12 +238,8 @@ export class TextSourceMap {
       content = content.substring(content.indexOf('\n'));
     }
 
-    try {
-      const payload = /** @type {!SourceMapV3} */ (JSON.parse(content));
-      return new TextSourceMap(compiledURL, sourceMapURL, payload);
-    } catch (error) {
-      throw new Error(ls`Could not parse content for ${sourceMapURL}: ${error.message}`);
-    }
+    const payload = /** @type {!SourceMapV3} */ (JSON.parse(content));
+    return new TextSourceMap(compiledURL, sourceMapURL, payload);
   }
 
   /**

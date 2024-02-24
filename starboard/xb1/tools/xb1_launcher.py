@@ -80,6 +80,7 @@ import time
 
 from starboard.shared.win32 import mini_dump_printer
 from starboard.tools import abstract_launcher
+from starboard.tools.abstract_launcher import TargetStatus
 from starboard.tools import net_args
 from starboard.tools import net_log
 from starboard.xb1.tools import packager
@@ -88,12 +89,28 @@ from starboard.xb1.tools import xb1_network_api
 _ARGS_DIRECTORY = 'content/data/arguments'
 _STARBOARD_ARGUMENTS_FILE = 'starboard_arguments.txt'
 _DEFAULT_PACKAGE_NAME = 'GoogleInc.YouTube'
+_STUB_PACKAGE_NAME = 'Microsoft.Title.StubApp'
+_DEBUG_VC_LIBS_PACKAGE_NAME = 'Microsoft.VCLibs.140.00.Debug'
 _DEFAULT_APPX_NAME = 'cobalt.appx'
 _DEFAULT_STAGING_APP_NAME = 'appx'
+_EXTENSION_SDK_DIR = os.path.realpath(
+    os.path.expandvars('%ProgramFiles(x86)%\\Microsoft SDKs'
+                       '\\Windows Kits\\10\\ExtensionSDKs'))
+_DEBUG_VC_LIBS_PATH = os.path.join(_EXTENSION_SDK_DIR, 'Microsoft.VCLibs',
+                                   '14.0', 'Appx', 'Debug', 'x64',
+                                   'Microsoft.VCLibs.x64.Debug.14.00.appx')
 _XB1_LOG_FILE_PARAM = 'xb1_log_file'
 _XB1_PORT = 11443
 _XB1_NET_LOG_PORT = 49353
 _XB1_NET_ARG_PORT = 49355
+
+# Number of times a test will try or retry.
+_TEST_MAX_TRIES = 4
+# Seconds to wait between retries (scales with backoff factor).
+_TEST_RETRY_WAIT = 8
+# Amount to multiply retry time with each failed attempt (i.e. 2 doubles the
+# amount of time to wait between retries).
+_TEST_RETRY_BACKOFF_FACTOR = 2
 
 _PROCESS_TIMEOUT = 60 * 5.0
 _PROCESS_KILL_TIMEOUT_SECONDS = 5.0
@@ -363,10 +380,12 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self._network_api.SetXboxLiveSignedInUserState(users[0]['EmailAddress'],
                                                    True)
 
-  def WinAppDeployCmd(self, command):
+  def WinAppDeployCmd(self, command: str):
     try:
-      out = subprocess.check_output('WinAppDeployCmd ' + command + ' -ip ' +
-                                    self.GetDeviceIp()).decode()
+      exe_path = os.path.join(packager.GetWinToolsPath(), 'WinAppDeployCmd.exe')
+      command_str = f'{exe_path} {command} -ip {self.GetDeviceIp()}'
+      self._LogLn('Running: ' + command_str)
+      out = subprocess.check_output(command_str).decode()
     except subprocess.CalledProcessError as e:
       self._LogLn(e.output)
       raise e
@@ -392,7 +411,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
     for package in packages:
       try:
         package_full_name = package['PackageFullName']
-        if package_full_name.find(_DEFAULT_PACKAGE_NAME) != -1:
+        if package_full_name.find(
+            _DEFAULT_PACKAGE_NAME) != -1 or package_full_name.find(
+                _STUB_PACKAGE_NAME) != -1:
           if package_full_name not in uninstalled_packages:
             self._LogLn('Existing YouTube app found on device. Uninstalling: ' +
                         package_full_name)
@@ -403,6 +424,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
         pass
       except subprocess.CalledProcessError as err:
         self._LogLn(err.output)
+
+  def DeleteLooseApps(self):
+    self._network_api.ClearLooseAppFiles()
 
   def Deploy(self):
     # starboard_arguments.txt is packaged with the appx. It instructs the app
@@ -415,36 +439,71 @@ class Launcher(abstract_launcher.AbstractLauncher):
       raise IOError('Packaged appx not found in package directory. Perhaps '
                     'package_cobalt script did not complete successfully.')
 
-    existing_package = self.CheckPackageIsDeployed()
+    existing_package = self.CheckPackageIsDeployed(_DEFAULT_PACKAGE_NAME)
     if existing_package:
       self._LogLn('Existing YouTube app found on device. Uninstalling.')
       self.WinAppDeployCmd('uninstall -package ' + existing_package)
+
+    if not self.CheckPackageIsDeployed(_DEBUG_VC_LIBS_PACKAGE_NAME):
+      self._LogLn('Required dependency missing. Attempting to install.')
+      self.WinAppDeployCmd(f'install -file "{_DEBUG_VC_LIBS_PATH}"')
 
     self._LogLn('Deleting temporary files')
     self._network_api.ClearTempFiles()
 
     try:
-      self._LogLn('Installing appx file ' + appx_package_file)
-      self.WinAppDeployCmd('install -file ' + appx_package_file)
+      self.WinAppDeployCmd(f'install -file {appx_package_file}')
     except subprocess.CalledProcessError:
       # Install exited with non-zero status code, clear everything out, restart,
       # and attempt another install.
       self._LogLn('Error installing appx. Attempting a clean install...')
       self.UninstallSubPackages()
+      self.DeleteLooseApps()
       self.RestartDevkit()
-      self.WinAppDeployCmd('install -file ' + appx_package_file)
+      self.WinAppDeployCmd(f'install -file {appx_package_file}')
 
     # Cleanup starboard arguments file.
     self.InstallStarboardArgument(None)
 
   # Validate that app was installed correctly by checking to make sure
   # that the full package name can now be found.
-  def CheckPackageIsDeployed(self):
+  def CheckPackageIsDeployed(self, package_name=_DEFAULT_PACKAGE_NAME):
     package_list = self.WinAppDeployCmd('list')
-    package_index = package_list.find(_DEFAULT_PACKAGE_NAME)
+    package_index = package_list.find(package_name)
     if package_index == -1:
       return False
     return package_list[package_index:].split('\n')[0].strip()
+
+  def RunTest(self, appx_name: str):
+    self.net_args_thread = None
+    attempt_num = 0
+    retry_wait_s = _TEST_RETRY_WAIT
+    while attempt_num < _TEST_MAX_TRIES:
+      if not self.net_args_thread or not self.net_args_thread.is_alive():
+        # This thread must start before the app executes or else it is possible
+        # the app will hang at _network_api.ExecuteBinary()
+        self.net_args_thread = net_args.NetArgsThread(self.device_id,
+                                                      _XB1_NET_ARG_PORT,
+                                                      self._target_args)
+      if self._network_api.ExecuteBinary(_DEFAULT_PACKAGE_NAME, appx_name):
+        break
+
+      if not self.net_args_thread.ArgsSent():
+        self._LogLn(
+            'Net Args were not sent to the test! This will likely cause '
+            'the test to fail!')
+      attempt_num += 1
+      self._LogLn(f'Retry attempt {attempt_num}.')
+      time.sleep(retry_wait_s)
+      retry_wait_s *= _TEST_RETRY_BACKOFF_FACTOR
+      if hasattr(self, 'net_args_thread'):
+        self.net_args_thread.join()
+
+  def InitDevice(self):
+    if not self._network_api.IsInDevMode():
+      raise IOError('\n\n**** Please set the XBOX at ' + self._device_id +
+                    ' to dev mode!!!! ****\n')
+    self.SignIn()
 
   def Run(self):
     # Only upload and install Appx on the first run.
@@ -452,16 +511,13 @@ class Launcher(abstract_launcher.AbstractLauncher):
       if self._do_restart:
         self.RestartDevkit()
 
-      if not self._network_api.IsInDevMode():
-        raise IOError('\n\n**** Please set the XBOX at ' + self._device_id +
-                      ' to dev mode!!!! ****\n')
-      self.SignIn()
+      self.InitDevice()
       if self._do_deploy:
         self.Deploy()
       else:
         self._LogLn('Skipping deploy step.')
 
-      if not self.CheckPackageIsDeployed():
+      if not self.CheckPackageIsDeployed(_DEFAULT_PACKAGE_NAME):
         raise IOError('Could not resolve ' + _DEFAULT_PACKAGE_NAME + ' to\n' +
                       'it\'s full package name after install! This means that' +
                       '\n the package is not deployed correctly!\n\n')
@@ -470,14 +526,15 @@ class Launcher(abstract_launcher.AbstractLauncher):
       self._LogLn('Skipping running step.')
       return 0
 
+    status, _ = self.Run2()
+    if status == TargetStatus.CRASH:
+      return 1
+    else:
+      return 0
+
+  def Run2(self):
     try:
       self.Kill()  # Kill existing running app.
-
-      # These threads must start before the app executes or else it is possible
-      # the app will hang at _network_api.ExecuteBinary()
-      self.net_args_thread = net_args.NetArgsThread(self.device_id,
-                                                    _XB1_NET_ARG_PORT,
-                                                    self._target_args)
       # While binary is running, extract the net log and stream it to
       # the output.
       self.net_log_thread = net_log.NetLogThread(self.device_id,
@@ -485,7 +542,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
       appx_name = ToAppxFriendlyName(self.target_name)
 
-      self._network_api.ExecuteBinary(_DEFAULT_PACKAGE_NAME, appx_name)
+      self.RunTest(appx_name)
 
       while self._network_api.IsBinaryRunning(self.target_name):
         self._Log(self.net_log_thread.GetLog())
@@ -511,8 +568,10 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     self.Kill()
     self._LogLn('Finished running...')
-    crashed = self._DetectAndHandleAnyCrashes(self.target_name)
-    return crashed
+    if self._DetectAndHandleAnyCrashes(self.target_name):
+      return TargetStatus.CRASH, 0
+    else:
+      return TargetStatus.NA, 0
 
   def _DetectAndHandleAnyCrashes(self, target_name):
     crashes_detected = False

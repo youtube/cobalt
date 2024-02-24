@@ -12,15 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM cobalt-build-base
+ARG FROM_IMAGE
+FROM ${FROM_IMAGE:-cobalt-build-base}
 
-RUN apt update -qqy \
-    && apt install -qqy --no-install-recommends \
+# TODO: b/309157124 - add --no-install-recommends.
+RUN apt update -qqy
+RUN apt install -qqy \
+        curl \
         libxml2-dev \
-        default-jdk \
         binutils-arm-linux-gnueabi \
         g++-multilib \
     && /opt/clean-after-apt.sh
+
+# Jdk17, verify SHA256 of the installation file, then install it.
+ARG JDK17_DOWNLOAD_URL="https://download.oracle.com/java/17/latest/jdk-17_linux-x64_bin.deb"
+ARG JDK17_TMP_FILE="/tmp/jdk-17_linux-x64_bin.deb"
+ARG JDK17_SHA256SUM="0871ec2276b3440ab03e4bb1e77a9d7645f82eb9d6c449d743a585845c370269  ${JDK17_TMP_FILE}"
+
+RUN curl --location --silent --output ${JDK17_TMP_FILE} ${JDK17_DOWNLOAD_URL} \
+    && echo ${JDK17_SHA256SUM} | sha256sum --check \
+    && apt install -qqy ${JDK17_TMP_FILE} \
+    && rm ${JDK17_TMP_FILE}
 
 RUN mkdir -p /root/.android
 
@@ -53,7 +65,6 @@ RUN cd /tmp \
     "extras;android;m2repository" \
     "extras;google;m2repository" \
     "ndk;25.2.9519653" \
-    "patcher;v4" \
     "platforms;android-30" \
     "platforms;android-31" \
     "platform-tools" \

@@ -58,6 +58,32 @@ export default class CobaltPanel extends UI.VBox {
                 });
             }));
         });
+
+        const netLogContainer = this.element.createChild('div', 'netlog-container');
+        netLogContainer.appendChild(UI.createTextButton(Common.UIString('Start NetLog'), event => {
+            console.log("Start NetLog");
+            this.run(`(function() { window.h5vcc.netLog.start();})()`);
+            console.log("Started NetLog");
+        }));
+        netLogContainer.appendChild(UI.createTextButton(Common.UIString('Stop NetLog'), event => {
+            console.log("Stop NetLog");
+            this.run(`(function() { window.h5vcc.netLog.stop();})()`);
+            console.log("Stopped NetLog");
+        }));
+        netLogContainer.appendChild(UI.createTextButton(Common.UIString('Download NetLog'), event => {
+            console.log("Download Trace");
+            this.run(`(function() { return window.h5vcc.netLog.stopAndRead();})()`).then(function (result) {
+                const netlog_file = 'net_log.json';
+                download_element.setAttribute('href', 'data:text/plain;charset=utf-8,' +
+                    encodeURIComponent(result.result.value));
+                download_element.setAttribute('download', netlog_file);
+                console.log("Downloaded NetLog");
+                download_element.click();
+                download_element.setAttribute('href', undefined);
+            });
+        }));
+
+
         const debugLogContainer = this.element.createChild('div', 'debug-log-container');
         debugLogContainer.appendChild(UI.createTextButton(Common.UIString('DebugLog On'), event => {
             this._cobaltAgent.invoke_sendConsoleCommand({
@@ -69,6 +95,7 @@ export default class CobaltPanel extends UI.VBox {
                 command: 'debug_log', message: 'off'
             });
         }));
+
         const lifecycleContainer = this.element.createChild('div', 'lifecycle-container');
         lifecycleContainer.appendChild(UI.createTextButton(Common.UIString('Blur'), event => {
             this._cobaltAgent.invoke_sendConsoleCommand({ command: 'blur' });
@@ -88,28 +115,48 @@ export default class CobaltPanel extends UI.VBox {
         lifecycleContainer.appendChild(UI.createTextButton(Common.UIString('Quit'), event => {
             this._cobaltAgent.invoke_sendConsoleCommand({ command: 'quit' });
         }));
+
         const consoleContainer = this.element.createChild('div', 'console-container');
-        consoleContainer.appendChild(UI.createTextButton(Common.UIString('DebugCommand'), event => {
-            const outputElement = document.getElementsByClassName('console-output')[0];
-            const command = document.getElementsByClassName('debug-command')[0].value;
-            if (command.length == 0) {
-                const result = this._cobaltAgent.invoke_getConsoleCommands().then(result => {
-                    outputElement.innerHTML = JSON.stringify(result.commands, undefined, 2);
-                });
-            } else {
-                const result = this._cobaltAgent.invoke_sendConsoleCommand({
-                    command: command,
-                    message: document.getElementsByClassName('debug-message')[0].value
-                }).then(result => {
-                    outputElement.innerHTML = JSON.stringify(result, undefined, 2);
-                });
+        consoleContainer.appendChild(UI.createLabel('Debug Command:'));
+        var commandInput = consoleContainer.appendChild(UI.createInput('debug-command', 'text'));
+        commandInput.addEventListener("keypress", event => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                const consoleResponse = document.getElementsByClassName('console-response')[0];
+                const command = document.getElementsByClassName('debug-command')[0].value;
+                if (command.length == 0) {
+                    const result = this._cobaltAgent.invoke_getConsoleCommands().then(result => {
+                        consoleResponse.innerHTML = JSON.stringify(result.commands, undefined, 2);
+                    });
+                } else {
+                    const result = this._cobaltAgent.invoke_sendConsoleCommand({
+                        command: command,
+                        message: document.getElementsByClassName('debug-message')[0].value
+                    }).then(result => {
+                        consoleResponse.innerHTML = result;
+                    });
+                }
             }
-        }));
-        consoleContainer.appendChild(UI.createLabel('Command:'));
-        consoleContainer.appendChild(UI.createInput('debug-command', 'text'));
+        });
         consoleContainer.appendChild(UI.createLabel('Message:'));
         consoleContainer.appendChild(UI.createInput('debug-message', 'text'));
-        consoleContainer.createChild('pre', 'console-output');
+        consoleContainer.appendChild(UI.createTextButton(Common.UIString('Download Response'), event => {
+            const command = document.getElementsByClassName('debug-command')[0].value;
+            const filename = "commmand_" + command + '.txt';
+            download_element.setAttribute('href', 'data:text/plain;charset=utf-8,' +
+                encodeURIComponent(document.getElementsByClassName("console-response")[0].value));
+            download_element.setAttribute('download', filename);
+            download_element.click();
+            download_element.setAttribute('href', undefined);
+        }));
+        const textAreaContainer = consoleContainer.createChild('div');
+        textAreaContainer.setAttribute("style", "display: flex; flex-direction:column;");
+        textAreaContainer.setAttribute("width", "100%");
+        textAreaContainer.setAttribute("height", "100%");
+        const consoleResponse = textAreaContainer.createChild('textarea', 'console-response');
+        consoleResponse.setAttribute("style", "margin: 0;");
+        consoleResponse.setAttribute("rows", "25");
+        consoleResponse.setAttribute("wrap", "off");
     }
 
     async run(expression) {

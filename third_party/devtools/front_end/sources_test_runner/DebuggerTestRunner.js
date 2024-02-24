@@ -718,7 +718,8 @@ SourcesTestRunner.waitForExecutionContextInTarget = function(target, callback) {
 };
 
 SourcesTestRunner.selectThread = function(target) {
-  UI.context.setFlavor(SDK.Target, target);
+  const threadsPane = self.runtime.sharedInstance(Sources.ThreadsSidebarPane);
+  threadsPane._list.selectItem(target.model(SDK.DebuggerModel));
 };
 
 SourcesTestRunner.evaluateOnCurrentCallFrame = function(code) {

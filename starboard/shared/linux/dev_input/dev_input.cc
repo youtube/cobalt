@@ -41,7 +41,6 @@
 #include "starboard/memory.h"
 #include "starboard/once.h"
 #include "starboard/shared/posix/handle_eintr.h"
-#include "starboard/shared/posix/time_internal.h"
 
 namespace starboard {
 namespace shared {
@@ -224,7 +223,7 @@ class DevInputImpl : public DevInput {
   void InitDevInputImpl(SbWindow window);
 
   Event* PollNextSystemEvent() override;
-  Event* WaitForSystemEventWithTimeout(SbTime time) override;
+  Event* WaitForSystemEventWithTimeout(int64_t time) override;
   void WakeSystemEventWait() override;
 
  private:
@@ -964,7 +963,7 @@ DevInput::Event* DevInputImpl::PollNextSystemEvent() {
   return NULL;
 }
 
-DevInput::Event* DevInputImpl::WaitForSystemEventWithTimeout(SbTime duration) {
+DevInput::Event* DevInputImpl::WaitForSystemEventWithTimeout(int64_t duration) {
   Event* event = PollNextSystemEvent();
   if (event) {
     return event;
@@ -981,9 +980,10 @@ DevInput::Event* DevInputImpl::WaitForSystemEventWithTimeout(SbTime duration) {
   }
   read_set.Set(wakeup_read_fd_);
 
+  int64_t clamped_duration_usec = std::max<int64_t>(duration, 0LL);
   struct timeval tv;
-  SbTime clamped_duration = std::max(duration, (SbTime)0);
-  ToTimevalDuration(clamped_duration, &tv);
+  tv.tv_sec = clamped_duration_usec / 1'000'000;
+  tv.tv_usec = clamped_duration_usec % 1'000'000;
   if (select(read_set.max_fd() + 1, read_set.set(), NULL, NULL, &tv) == 0) {
     // This is the timeout case.
     return NULL;

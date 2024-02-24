@@ -15,9 +15,6 @@
 
 #if defined(WEBP_USE_SSE41)
 #include <smmintrin.h>
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif
 
 #include <stdlib.h>  // for abs()
 

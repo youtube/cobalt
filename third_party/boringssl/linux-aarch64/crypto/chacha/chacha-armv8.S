@@ -1,47 +1,60 @@
+// This file is generated from a similarly-named Perl script in the BoringSSL
+// source tree. Do not edit by hand.
+
+#if !defined(__has_feature)
+#define __has_feature(x) 0
+#endif
+#if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
+#define OPENSSL_NO_ASM
+#endif
+
+#if !defined(OPENSSL_NO_ASM)
 #if defined(__aarch64__)
+#if defined(BORINGSSL_PREFIX)
+#include <boringssl_prefix_symbols_asm.h>
+#endif
 #include <openssl/arm_arch.h>
 
-.text
 
+.hidden	OPENSSL_armcap_P
 
+.section	.rodata
 
 .align	5
 .Lsigma:
 .quad	0x3320646e61707865,0x6b20657479622d32		// endian-neutral
 .Lone:
 .long	1,0,0,0
-.LOPENSSL_armcap_P:
-#ifdef	__ILP32__
-.long	OPENSSL_armcap_P-.
-#else
-.quad	OPENSSL_armcap_P-.
-#endif
 .byte	67,104,97,67,104,97,50,48,32,102,111,114,32,65,82,77,118,56,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	2
+
+.text
 
 .globl	ChaCha20_ctr32
 .hidden	ChaCha20_ctr32
 .type	ChaCha20_ctr32,%function
 .align	5
 ChaCha20_ctr32:
+	AARCH64_VALID_CALL_TARGET
 	cbz	x2,.Labort
-	adr	x5,.LOPENSSL_armcap_P
+#if __has_feature(hwaddress_sanitizer) && __clang_major__ >= 10
+	adrp	x5,:pg_hi21_nc:OPENSSL_armcap_P
+#else
+	adrp	x5,OPENSSL_armcap_P
+#endif
 	cmp	x2,#192
 	b.lo	.Lshort
-#ifdef	__ILP32__
-	ldrsw	x6,[x5]
-#else
-	ldr	x6,[x5]
-#endif
-	ldr	w17,[x6,x5]
+	ldr	w17,[x5,:lo12:OPENSSL_armcap_P]
 	tst	w17,#ARMV7_NEON
 	b.ne	ChaCha20_neon
 
 .Lshort:
+	AARCH64_SIGN_LINK_REGISTER
 	stp	x29,x30,[sp,#-96]!
 	add	x29,sp,#0
 
-	adr	x5,.Lsigma
+	adrp	x5,.Lsigma
+	add	x5,x5,:lo12:.Lsigma
 	stp	x19,x20,[sp,#16]
 	stp	x21,x22,[sp,#32]
 	stp	x23,x24,[sp,#48]
@@ -53,7 +66,7 @@ ChaCha20_ctr32:
 	ldp	x24,x25,[x3]		// load key
 	ldp	x26,x27,[x3,#16]
 	ldp	x28,x30,[x4]		// load counter
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	ror	x24,x24,#32
 	ror	x25,x25,#32
 	ror	x26,x26,#32
@@ -214,7 +227,7 @@ ChaCha20_ctr32:
 	add	x20,x20,x21,lsl#32
 	ldp	x19,x21,[x1,#48]
 	add	x1,x1,#64
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	rev	x5,x5
 	rev	x7,x7
 	rev	x9,x9
@@ -249,6 +262,7 @@ ChaCha20_ctr32:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#96
+	AARCH64_VALIDATE_LINK_REGISTER
 .Labort:
 	ret
 
@@ -270,7 +284,7 @@ ChaCha20_ctr32:
 	add	x15,x15,x16,lsl#32
 	add	x17,x17,x19,lsl#32
 	add	x20,x20,x21,lsl#32
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	rev	x5,x5
 	rev	x7,x7
 	rev	x9,x9
@@ -305,16 +319,19 @@ ChaCha20_ctr32:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#96
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 .size	ChaCha20_ctr32,.-ChaCha20_ctr32
 
 .type	ChaCha20_neon,%function
 .align	5
 ChaCha20_neon:
+	AARCH64_SIGN_LINK_REGISTER
 	stp	x29,x30,[sp,#-96]!
 	add	x29,sp,#0
 
-	adr	x5,.Lsigma
+	adrp	x5,.Lsigma
+	add	x5,x5,:lo12:.Lsigma
 	stp	x19,x20,[sp,#16]
 	stp	x21,x22,[sp,#32]
 	stp	x23,x24,[sp,#48]
@@ -333,7 +350,7 @@ ChaCha20_neon:
 	ldp	x28,x30,[x4]		// load counter
 	ld1	{v27.4s},[x4]
 	ld1	{v31.4s},[x5]
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	rev64	v24.4s,v24.4s
 	ror	x24,x24,#32
 	ror	x25,x25,#32
@@ -631,7 +648,7 @@ ChaCha20_neon:
 	add	x20,x20,x21,lsl#32
 	ldp	x19,x21,[x1,#48]
 	add	x1,x1,#64
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	rev	x5,x5
 	rev	x7,x7
 	rev	x9,x9
@@ -690,6 +707,7 @@ ChaCha20_neon:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#96
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 
 .Ltail_neon:
@@ -710,7 +728,7 @@ ChaCha20_neon:
 	add	x20,x20,x21,lsl#32
 	ldp	x19,x21,[x1,#48]
 	add	x1,x1,#64
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	rev	x5,x5
 	rev	x7,x7
 	rev	x9,x9
@@ -799,15 +817,18 @@ ChaCha20_neon:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#96
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 .size	ChaCha20_neon,.-ChaCha20_neon
 .type	ChaCha20_512_neon,%function
 .align	5
 ChaCha20_512_neon:
+	AARCH64_SIGN_LINK_REGISTER
 	stp	x29,x30,[sp,#-96]!
 	add	x29,sp,#0
 
-	adr	x5,.Lsigma
+	adrp	x5,.Lsigma
+	add	x5,x5,:lo12:.Lsigma
 	stp	x19,x20,[sp,#16]
 	stp	x21,x22,[sp,#32]
 	stp	x23,x24,[sp,#48]
@@ -825,7 +846,7 @@ ChaCha20_512_neon:
 	ldp	x28,x30,[x4]		// load counter
 	ld1	{v27.4s},[x4]
 	ld1	{v31.4s},[x5]
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	rev64	v24.4s,v24.4s
 	ror	x24,x24,#32
 	ror	x25,x25,#32
@@ -1338,7 +1359,7 @@ ChaCha20_512_neon:
 	add	x20,x20,x21,lsl#32
 	ldp	x19,x21,[x1,#48]
 	add	x1,x1,#64
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	rev	x5,x5
 	rev	x7,x7
 	rev	x9,x9
@@ -1852,7 +1873,7 @@ ChaCha20_512_neon:
 	add	x1,x1,#64
 	add	v21.4s,v21.4s,v25.4s
 
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	rev	x5,x5
 	rev	x7,x7
 	rev	x9,x9
@@ -1966,6 +1987,9 @@ ChaCha20_512_neon:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#96
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 .size	ChaCha20_512_neon,.-ChaCha20_512_neon
 #endif
+#endif  // !OPENSSL_NO_ASM
+.section	.note.GNU-stack,"",%progbits

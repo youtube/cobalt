@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: egl.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: `egl.h`
 
 The EGL API provides an interface with accompanying type declarations and
 defines that together provide a single consistent method of EGL usage across
@@ -11,67 +11,67 @@ This API is designed to abstract the differences between EGL implementations and
 versions on different systems, and to remove the requirement for any other code
 to directly pull in and use these system libraries.
 
-## EGL Version ##
+## EGL Version
 
 This API has the ability to support EGL 1.5, however it is not required to
 support anything beyond EGL 1.4. The user is responsible for ensuring that the
 functions from EGL 1.5 they are calling from the interface are valid.
 
-## Macros ##
+## Macros
 
-### SB_EGL_ALPHA_FORMAT ###
+### SB_EGL_ALPHA_FORMAT
 
 EGL_VERSION_1_2
 
-### SB_EGL_ALPHA_SIZE ###
+### SB_EGL_ALPHA_SIZE
 
 EGL_VERSION_1_0
 
-### SB_EGL_BACK_BUFFER ###
+### SB_EGL_BACK_BUFFER
 
 EGL_VERSION_1_1
 
-### SB_EGL_CONFORMANT ###
+### SB_EGL_CONFORMANT
 
 EGL_VERSION_1_3
 
-### SB_EGL_CONTEXT_MAJOR_VERSION ###
+### SB_EGL_CONTEXT_MAJOR_VERSION
 
 EGL_VERSION_1_5
 
-### SB_EGL_DEFAULT_DISPLAY ###
+### SB_EGL_DEFAULT_DISPLAY
 
 EGL_VERSION_1_4
 
-## Typedefs ##
+## Typedefs
 
-### SbEglCastsToProperFunctionPointerType ###
+### SbEglCastsToProperFunctionPointerType
 
 The following type definitions were adapted from the types declared in [https://www.khronos.org/registry/EGL/api/EGL/egl.h](https://www.khronos.org/registry/EGL/api/EGL/egl.h)
 .
 
-#### Definition ####
+#### Definition
 
 ```
 typedef void(* SbEglCastsToProperFunctionPointerType) (void)
 ```
 
-### SbEglInt32 ###
+### SbEglInt32
 
 The following type definitions were adapted from the types declared in [https://www.khronos.org/registry/EGL/api/EGL/eglplatform.h](https://www.khronos.org/registry/EGL/api/EGL/eglplatform.h)
 .
 
-#### Definition ####
+#### Definition
 
 ```
 typedef int32_t SbEglInt32
 ```
 
-## Structs ##
+## Structs
 
-### SbEglInterface ###
+### SbEglInterface
 
-#### Members ####
+#### Members
 
 *   `SbEglBoolean(*eglChooseConfig)(SbEglDisplay dpy, const SbEglInt32
     *attrib_list, SbEglConfig *configs, SbEglInt32 config_size, SbEglInt32

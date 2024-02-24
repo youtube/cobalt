@@ -88,7 +88,7 @@ TEST(SbMicrophoneReadTest, SunnyDayOpenSleepCloseAndOpenRead) {
 
     EXPECT_TRUE(SbMicrophoneOpen(microphone));
 
-    SbThreadSleep(50 * kSbTimeMillisecond);
+    SbThreadSleep(50'000);
 
     EXPECT_TRUE(SbMicrophoneClose(microphone));
     EXPECT_TRUE(SbMicrophoneOpen(microphone));

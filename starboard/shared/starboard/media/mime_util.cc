@@ -37,23 +37,19 @@ namespace {
 // Use SbMediaGetAudioConfiguration() to check if the platform can support
 // |channels|.
 bool IsAudioOutputSupported(SbMediaAudioCodingType coding_type, int channels) {
-  // TODO(b/284140486, b/297426689): Consider removing the call to
-  // `SbMediaGetAudioOutputCount()` completely as the loop will be terminated
-  // once `SbMediaGetAudioConfiguration()` returns false.
-  int count = SbMediaGetAudioOutputCount();
-
-  for (int output_index = 0; output_index < count; ++output_index) {
-    SbMediaAudioConfiguration configuration;
-    if (!SbMediaGetAudioConfiguration(output_index, &configuration)) {
-      break;
-    }
-
+  // SbPlayerBridge::GetAudioConfigurations() reads up to 32 configurations. The
+  // limit here is to avoid infinite loop and also match
+  // SbPlayerBridge::GetAudioConfigurations().
+  const int kMaxAudioConfigurations = 32;
+  int output_index = 0;
+  SbMediaAudioConfiguration configuration;
+  while (output_index < kMaxAudioConfigurations &&
+         SbMediaGetAudioConfiguration(output_index++, &configuration)) {
     if (configuration.coding_type == coding_type &&
         configuration.number_of_channels >= channels) {
       return true;
     }
   }
-
   return false;
 }
 

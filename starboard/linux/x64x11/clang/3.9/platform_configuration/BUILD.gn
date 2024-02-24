@@ -16,9 +16,12 @@ config("compiler_flags") {
   cflags = []
   cflags_c = []
   cflags_cc = []
-  ldflags = []
   defines = []
 
+  ldflags = [
+    # Cleanup unused sections
+    "-Wl,-gc-sections",
+  ]
   cflags += [
     "-Werror",
     "-fcolor-diagnostics",
@@ -94,13 +97,12 @@ config("compiler_flags") {
 
     # Suppress warnings in libjpeg
     "-Wno-shift-negative-value",
+
+    # Let older Clangs ignore newer Clangs' warnings.
+    "-Wno-unknown-warning-option",
   ]
 
-  cflags_c += [
-    # Limit to C99. This allows Linux to be a canary build for any
-    # C11 features that are not supported on some platforms' compilers.
-    "-std=c99",
-  ]
+  cflags_c += [ "-std=c11" ]
 
   cflags_cc += [ "-std=c++14" ]
 
@@ -180,10 +182,15 @@ config("no_pedantic_warnings") {
 }
 
 config("platform_configuration") {
-  configs = [
-    "//starboard/linux/shared/platform_configuration",
-    "//starboard/linux/x64x11/shared/platform_configuration:libraries",
-    "//starboard/build/config/sabi",
-    ":compiler_flags",
-  ]
+  if (current_toolchain == default_toolchain &&
+      build_with_separate_cobalt_toolchain) {
+    configs = [ "//starboard/evergreen/x64/platform_configuration" ]
+  } else {
+    configs = [
+      "//starboard/linux/shared/platform_configuration",
+      "//starboard/linux/x64x11/shared/platform_configuration:libraries",
+      "//starboard/build/config/sabi",
+      ":compiler_flags",
+    ]
+  }
 }

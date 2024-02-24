@@ -13,11 +13,17 @@
 # limitations under the License.
 
 import("//build/config/clang/clang.gni")
+import("//build/toolchain/gcc_toolchain.gni")
+import("//starboard/build/toolchain/cobalt_toolchains.gni")
 import("//starboard/shared/toolchain/overridable_gcc_toolchain.gni")
 
 _target_llvm_3_9_bin_dir = "/usr/lib/llvm-3.9/bin"
 
-overridable_gcc_toolchain("target") {
+cobalt_clang_toolchain("cobalt") {
+  native_linker_path = "${_target_llvm_3_9_bin_dir}/clang++"
+}
+
+overridable_gcc_toolchain("starboard") {
   cc = "${_target_llvm_3_9_bin_dir}/clang"
   cxx = "${_target_llvm_3_9_bin_dir}/clang++"
   ld = cxx

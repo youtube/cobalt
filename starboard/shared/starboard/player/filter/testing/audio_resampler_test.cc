@@ -100,7 +100,7 @@ class AudioResamplerTest
       int audio_size = kSamplesPerInput * channels_ * sample_size;
       scoped_refptr<DecodedAudio> input = new DecodedAudio(
           channels_, source_sample_type_, source_storage_type_,
-          kSbTimeSecond * total_frames / source_sample_rate_, audio_size);
+          1'000'000LL * total_frames / source_sample_rate_, audio_size);
       total_frames += kSamplesPerInput;
       inputs_.push_back(input);
     }

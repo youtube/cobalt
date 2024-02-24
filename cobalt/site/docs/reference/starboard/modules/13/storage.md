@@ -1,7 +1,7 @@
----
-layout: doc
-title: "Starboard Module Reference: storage.h"
----
+Project: /youtube/cobalt/_project.yaml
+Book: /youtube/cobalt/_book.yaml
+
+# Starboard Module Reference: `storage.h`
 
 Defines a Storage API. This is a simple, all-at-once BLOB storage and retrieval
 API that is intended for robust long-term storage. Some platforms have different
@@ -15,27 +15,27 @@ undefined behavior.
 These APIs are NOT expected to be thread-safe, so either call them from a single
 thread, or perform proper synchronization around all calls.
 
-## Macros ##
+## Macros
 
-### kSbStorageInvalidRecord ###
+### kSbStorageInvalidRecord
 
 Well-defined value for an invalid storage record handle.
 
-## Typedefs ##
+## Typedefs
 
-### SbStorageRecord ###
+### SbStorageRecord
 
 A handle to an open storage record.
 
-#### Definition ####
+#### Definition
 
 ```
 typedef SbStorageRecordPrivate* SbStorageRecord
 ```
 
-## Functions ##
+## Functions
 
-### SbStorageCloseRecord ###
+### SbStorageCloseRecord
 
 Closes `record`, synchronously ensuring that all written data is flushed. This
 function performs blocking I/O on the calling thread.
@@ -47,13 +47,13 @@ deleted (or, even better, untouched).
 `record`: The storage record to close. `record` is invalid after this point, and
 subsequent calls referring to `record` will fail.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbStorageCloseRecord(SbStorageRecord record)
 ```
 
-### SbStorageDeleteRecord ###
+### SbStorageDeleteRecord
 
 Deletes the `SbStorageRecord` for `user` named `name`. The return value
 indicates whether the record existed and was successfully deleted. If the record
@@ -68,36 +68,36 @@ function performs blocking I/O on the calling thread.
 `user`: The user for whom the record will be deleted. `name`: The filesystem-
 safe name of the record to open.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbStorageDeleteRecord(SbUser user, const char *name)
 ```
 
-### SbStorageGetRecordSize ###
+### SbStorageGetRecordSize
 
 Returns the size of `record`, or `-1` if there is an error. This function
 performs blocking I/O on the calling thread.
 
 `record`: The record to retrieve the size of.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int64_t SbStorageGetRecordSize(SbStorageRecord record)
 ```
 
-### SbStorageIsValidRecord ###
+### SbStorageIsValidRecord
 
 Returns whether the given storage record handle is valid.
 
-#### Declaration ####
+#### Declaration
 
 ```
 static bool SbStorageIsValidRecord(SbStorageRecord record)
 ```
 
-### SbStorageOpenRecord ###
+### SbStorageOpenRecord
 
 Opens and returns the SbStorageRecord for `user` named `name`, blocking I/O on
 the calling thread until the open is completed. If `user` is not a valid
@@ -111,13 +111,13 @@ would have been saved with the previous version of SbStorageOpenRecord.
 `user`: The user for which the storage record will be opened. `name`: The
 filesystem-safe name of the record to open.
 
-#### Declaration ####
+#### Declaration
 
 ```
 SbStorageRecord SbStorageOpenRecord(SbUser user, const char *name)
 ```
 
-### SbStorageReadRecord ###
+### SbStorageReadRecord
 
 Reads up to `data_size` bytes from `record`, starting at the beginning of the
 record. The function returns the actual number of bytes read, which must be <=
@@ -128,13 +128,13 @@ the calling thread until the entire record is read or an error is encountered.
 `record`: The record to be read. `out_data`: The data read from the record.
 `data_size`: The amount of data, in bytes, to read.
 
-#### Declaration ####
+#### Declaration
 
 ```
 int64_t SbStorageReadRecord(SbStorageRecord record, char *out_data, int64_t data_size)
 ```
 
-### SbStorageWriteRecord ###
+### SbStorageWriteRecord
 
 Replaces the data in `record` with `data_size` bytes from `data`. This function
 always deletes any previous data in that record. The return value indicates
@@ -151,7 +151,7 @@ after a short time, even if there is an unexpected process termination before
 `record`: The record to be written to. `data`: The data to write to the record.
 `data_size`: The amount of `data`, in bytes, to write to the record.
 
-#### Declaration ####
+#### Declaration
 
 ```
 bool SbStorageWriteRecord(SbStorageRecord record, const char *data, int64_t data_size)

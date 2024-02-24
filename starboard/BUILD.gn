@@ -25,7 +25,6 @@ group("gn_all") {
     "//starboard/client_porting/eztime",
     "//starboard/client_porting/eztime:eztime_test",
     "//starboard/client_porting/icu_init",
-    "//starboard/client_porting/poem:poem_unittests",
     "//starboard/examples/hello_world:starboard_hello_world_example",
     "//starboard/examples/window:starboard_window_example",
 
@@ -73,23 +72,31 @@ group("gn_all") {
     deps += [ "//third_party/lz4_lib:lz4" ]
 
     if (sb_is_evergreen_compatible) {
-      deps += [ "//third_party/crashpad/client" ]
-      data_deps = [
-        # "//starboard/loader_app($starboard_toolchain)",
-        "//third_party/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)",
+      deps += [
+        "//starboard/elf_loader:elf_loader_test_install($starboard_toolchain)",
+        "//starboard/loader_app:slot_management_test_install($starboard_toolchain)",
       ]
+
+      if (current_toolchain == starboard_toolchain) {
+        deps += [ "//third_party/crashpad/client" ]
+        data_deps = [
+          "//starboard/loader_app($starboard_toolchain)",
+          "//third_party/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)",
+          "//third_party/crashpad/tools:crashpad_database_util(//$starboard_path/toolchain:native_target)",
+        ]
+      }
     }
   }
 }
 
 group("default") {
   deps = [
-    ":starboard",
+    ":starboard_group",
     "//starboard/tools:build_app_launcher_zip",
   ]
 }
 
-group("starboard") {
+group("starboard_group") {
   public_deps = [
     ":starboard_headers_only",
     "//starboard/client_porting/cwrappers",
@@ -106,7 +113,7 @@ group("starboard") {
     if (sb_is_evergreen) {
       # public_deps += [ "//starboard/elf_loader:sabi_string" ]
     } else {
-      data_deps = [ ":starboard_platform_group($starboard_toolchain)" ]
+      data_deps = [ ":starboard($starboard_toolchain)" ]
     }
 
     # TODO: b/295702296 Fix libunwind for modular builds.
@@ -115,12 +122,13 @@ group("starboard") {
     }
   } else {
     public_deps += [
-      ":starboard_platform_group_static($starboard_toolchain)",
+      ":starboard_static($starboard_toolchain)",
       "//starboard/common",
     ]
 
     if (!sb_is_modular || sb_is_evergreen) {
-      if (sb_is_evergreen_compatible) {
+      if (sb_is_evergreen_compatible &&
+          current_toolchain == starboard_toolchain) {
         public_deps += [ "//third_party/crashpad/wrapper" ]
       } else {
         public_deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
@@ -187,10 +195,10 @@ source_set("starboard_headers_only") {
 
 if (current_toolchain == starboard_toolchain) {
   # This is the default 'starboard_platform_target'; use default properties
-  starboard_platform_target("starboard_platform_group") {
+  starboard_platform_target("starboard") {
   }
 
-  starboard_platform_target("starboard_platform_group_static") {
+  starboard_platform_target("starboard_static") {
     target_type = "group"
   }
 
@@ -211,7 +219,7 @@ if (current_toolchain == starboard_toolchain) {
   }
 
   group("starboard_with_main") {
-    public_deps = [ ":starboard" ]
+    public_deps = [ ":starboard_group" ]
     if (sb_is_modular && !sb_is_evergreen) {
       public_deps += [ "//$starboard_path:starboard_platform_with_main" ]
     }

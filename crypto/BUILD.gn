@@ -6,6 +6,7 @@ import("//build/buildflag_header.gni")
 import("//build/config/chromeos/ui_mode.gni")
 # import("//components/nacl/toolchain.gni")
 import("//crypto/features.gni")
+import("//build_overrides/crypto.gni")
 import("//testing/test.gni")
 
 buildflag_header("buildflags") {
@@ -219,4 +220,33 @@ static_library("test_support") {
     ":crypto",
     "//base",
   ]
+}
+
+config("platform_config") {
+  if (use_nss_certs && is_clang) {
+    # There is a broken header guard in /usr/include/nss/secmod.h:
+    # https://bugzilla.mozilla.org/show_bug.cgi?id=884072
+    cflags = [ "-Wno-header-guard" ]
+  }
+}
+
+# This is a meta-target that forwards to NSS's SSL library or OpenSSL,
+# according to the state of the crypto flags. A target just wanting to depend
+# on the current SSL library should just depend on this.
+group("platform") {
+  if (is_starboard) {
+    deps = [ "//starboard:starboard_group", ]
+    public_deps = [ "//third_party/boringssl" ]
+  } else {
+  public_deps = [
+    "//third_party/boringssl",
+  ]
+
+  # Link in NSS if it is used for the platform certificate library
+  # (use_nss_certs).
+  if (use_nss_certs) {
+    public_configs = [ ":platform_config" ]
+    public_configs += [ "//build/config/linux/nss:system_nss_no_ssl_config" ]
+  }
+  }
 }

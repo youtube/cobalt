@@ -45,7 +45,6 @@
 #include "cobalt/dom/pseudo_element.h"
 #include "cobalt/loader/image/image_cache.h"
 #include "cobalt/ui_navigation/nav_item.h"
-#include "starboard/time.h"
 
 namespace cobalt {
 namespace dom {
@@ -459,9 +458,9 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   void InvalidateLayoutBoxes();
 
   // Handle UI navigation events.
-  void OnUiNavBlur(SbTimeMonotonic time);
-  void OnUiNavFocus(SbTimeMonotonic time);
-  void OnUiNavScroll(SbTimeMonotonic time);
+  void OnUiNavBlur(int64_t monotonic_time);
+  void OnUiNavFocus(int64_t monotonic_time);
+  void OnUiNavScroll(int64_t monotonic_time);
 
   bool locked_for_focus_;
 

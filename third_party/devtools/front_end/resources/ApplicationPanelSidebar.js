@@ -386,7 +386,7 @@ Resources.ApplicationPanelSidebar = class extends UI.VBox {
    * @param {!SDK.ResourceTreeFrame} frame
    */
   _addCookieDocument(frame) {
-    const parsedURL = Common.ParsedURL.fromString(frame.url);
+    const parsedURL = frame.url.asParsedURL();
     if (!parsedURL || (parsedURL.scheme !== 'http' && parsedURL.scheme !== 'https' && parsedURL.scheme !== 'file')) {
       return;
     }

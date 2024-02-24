@@ -1,8 +1,8 @@
 
 /* pngconf.h - machine configurable file for libpng
  *
- * libpng version 1.2.45 - July 7, 2011
- * Copyright (c) 1998-2011 Glenn Randers-Pehrson
+ * libpng version 1.2.52 - November 20, 2014
+ * Copyright (c) 1998-2013 Glenn Randers-Pehrson
  * (Version 0.96 Copyright (c) 1996, 1997 Andreas Dilger)
  * (Version 0.88 Copyright (c) 1995, 1996 Guy Eric Schalnat, Group 42, Inc.)
  *
@@ -85,6 +85,18 @@
 #  define PNG_WARN_UNINITIALIZED_ROW 1
 #endif
 /* End of material added at libpng-1.2.19/1.2.21 */
+
+/* Added at libpng-1.2.51 (ported from 1.4.6) */
+#ifndef PNG_UNUSED
+/* Unused formal parameter warnings are silenced using the following macro
+ * which is expected to have no bad effects on performance (optimizing
+ * compilers will probably remove it entirely).  Note that if you replace
+ * it with something other than whitespace, you must include the terminating
+ * semicolon.
+ */
+#  define PNG_UNUSED(param) (void)param;
+#endif
+/* End of material added to libpng-1.4.6 */
 
 /* This is the size of the compression buffer, and thus the size of
  * an IDAT chunk.  Make this whatever size you feel is best for your
@@ -339,8 +351,7 @@
 #endif
 
 /* enough people need this for various reasons to include it here */
-#if !defined(MACOS) && !defined(RISCOS) && !defined(_WIN32_WCE) && \
-    !defined(STARBOARD)
+#if !defined(MACOS) && !defined(RISCOS) && !defined(_WIN32_WCE)
 #  include <sys/types.h>
 #endif
 
@@ -397,9 +408,7 @@
 /* Other defines for things like memory and the like can go here.  */
 #ifdef PNG_INTERNAL
 
-#if !defined(STARBOARD)
 #include <stdlib.h>
-#endif
 
 /* The functions exported by PNG_EXTERN are PNG_INTERNAL functions, which
  * aren't usually used outside the library (as far as I know), so it is
@@ -423,7 +432,7 @@
 #    if !defined(__MATH_H__) && !defined(__MATH_H) && !defined(__cmath__)
 #      include <fp.h>
 #    endif
-#  elif !defined(STARBOARD)
+#  else
 #    include <math.h>
 #  endif
 #  if defined(_AMIGA) && defined(__SASC) && defined(_M68881)
@@ -446,11 +455,9 @@
 #endif
 
 /* I have no idea why is this necessary... */
-#if !defined(STARBOARD)
-#  if defined(_MSC_VER) && (defined(WIN32) || defined(_Windows) || \
-      defined(_WINDOWS) || defined(_WIN32) || defined(__WIN32__))
-#    include <malloc.h>
-#  endif
+#if defined(_MSC_VER) && (defined(WIN32) || defined(_Windows) || \
+    defined(_WINDOWS) || defined(_WIN32) || defined(__WIN32__))
+#  include <malloc.h>
 #endif
 
 /* This controls how fine the dithering gets.  As this allocates
@@ -873,7 +880,7 @@
  * how large, set these two limits to 0.
  */
 #ifndef PNG_USER_CHUNK_CACHE_MAX
-#  define PNG_USER_CHUNK_CACHE_MAX 0
+#  define PNG_USER_CHUNK_CACHE_MAX 32765
 #endif
 
 /* Added at libpng-1.2.43 */

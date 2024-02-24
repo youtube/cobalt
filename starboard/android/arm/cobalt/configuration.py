@@ -39,6 +39,7 @@ _FILTERED_TESTS = {
         'service_worker_persist_test',
         'deep_links',
         'web_platform_tests',
+        'persistent_cookie',
     ],
 }
 

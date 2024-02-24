@@ -102,9 +102,6 @@ bool EventTarget::DispatchEvent(const scoped_refptr<Event>& event,
 }
 
 bool EventTarget::DispatchEvent(const scoped_refptr<Event>& event) {
-  DCHECK(event);
-  DCHECK(!event->IsBeingDispatched());
-  DCHECK(event->initialized_flag());
   TRACE_EVENT2("cobalt::dom", "EventTarget::DispatchEvent", "name",
                GetDebugName(), "event", TRACE_STR_COPY(event->type().c_str()));
   if (!event || event->IsBeingDispatched() || !event->initialized_flag()) {
@@ -282,9 +279,22 @@ void EventTarget::TraceMembers(script::Tracer* tracer) {
   // instead.
 }
 
+void EventTarget::AddEventListenerRegistrationCallback(
+    void* object, base_token::Token token, base::OnceClosure callback) {
+  base::AutoLock lock(event_listener_registration_mutex_);
+  event_listener_registration_callbacks_[token][object] = std::move(callback);
+}
+
+void EventTarget::RemoveEventListenerRegistrationCallbacks(void* object) {
+  base::AutoLock lock(event_listener_registration_mutex_);
+  for (auto& token : event_listener_registration_callbacks_)
+    token.second.erase(object);
+}
+
 void EventTarget::AddEventListenerInternal(
     std::unique_ptr<EventTargetListenerInfo> listener_info) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(listener_info);
 
   // Remove existing attribute listener of the same type.
   if (listener_info->is_attribute()) {
@@ -314,7 +324,21 @@ void EventTarget::AddEventListenerInternal(
   debugger_hooks().AsyncTaskScheduled(
       listener_info->task(), listener_info->type().c_str(),
       base::DebuggerHooks::AsyncTaskFrequency::kRecurring);
+
+  base_token::Token type = listener_info->type();
   event_listener_infos_.push_back(std::move(listener_info));
+
+  {
+    // Call the event listener registration callback.
+    base::AutoLock lock(event_listener_registration_mutex_);
+    auto callbacks = event_listener_registration_callbacks_.find(type);
+    if (callbacks != event_listener_registration_callbacks_.end()) {
+      for (auto& object : callbacks->second) {
+        std::move(object.second).Run();
+      }
+      event_listener_registration_callbacks_.erase(type);
+    }
+  }
 }
 
 bool EventTarget::HasEventListener(base_token::Token type) {

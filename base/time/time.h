@@ -78,7 +78,7 @@
 #include "build/chromeos_buildflags.h"
 
 #if defined(STARBOARD)
-#include "starboard/time.h"
+#include "starboard/common/time.h"
 #else
 #if BUILDFLAG(IS_APPLE)
 #include "base/time/buildflags/buildflags.h"
@@ -278,9 +278,6 @@ class BASE_EXPORT TimeDelta {
   constexpr bool is_min() const { return *this == Min(); }
   constexpr bool is_inf() const { return is_min() || is_max(); }
 
-#if defined(STARBOARD)
-  SbTime ToSbTime() const;
-#else
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   struct timespec ToTimeSpec() const;
 #endif
@@ -290,7 +287,6 @@ class BASE_EXPORT TimeDelta {
 #if BUILDFLAG(IS_WIN)
   ABI::Windows::Foundation::DateTime ToWinrtDateTime() const;
   ABI::Windows::Foundation::TimeSpan ToWinrtTimeSpan() const;
-#endif
 #endif
 
   // Returns the frequency in Hertz (cycles per second) that has a period of
@@ -770,10 +766,6 @@ class BASE_EXPORT Time : public time_internal::TimeBase<Time> {
   static Time FromJavaTime(int64_t ms_since_epoch);
   int64_t ToJavaTime() const;
 
-#if defined(STARBOARD)
-  static Time FromSbTime(SbTime t);
-  SbTime ToSbTime() const;
-#else
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   static Time FromTimeVal(struct timeval t);
   struct timeval ToTimeVal() const;
@@ -790,7 +782,6 @@ class BASE_EXPORT Time : public time_internal::TimeBase<Time> {
 #if defined(__OBJC__)
   static Time FromNSDate(NSDate* date);
   NSDate* ToNSDate() const;
-#endif
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -1253,7 +1244,7 @@ class BASE_EXPORT ThreadTicks : public time_internal::TimeBase<ThreadTicks> {
   // Returns true if ThreadTicks::Now() is supported on this system.
   [[nodiscard]] static bool IsSupported() {
 #if defined(STARBOARD)
-    return SbTimeIsTimeThreadNowSupported();
+    return starboard::CurrentMonotonicThreadTime() != 0;
 #elif (defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
     BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA)
     return true;

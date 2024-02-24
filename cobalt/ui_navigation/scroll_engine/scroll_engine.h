@@ -23,6 +23,7 @@
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "cobalt/base/token.h"
+#include "cobalt/browser/lifecycle_observer.h"
 #include "cobalt/dom/pointer_event.h"
 #include "cobalt/dom/pointer_event_init.h"
 #include "cobalt/math/vector2d_f.h"
@@ -50,7 +51,7 @@ struct EventPositionWithTimeStamp {
   base::Time time_stamp;
 };
 
-class ScrollEngine {
+class ScrollEngine : public browser::LifecycleObserver {
  public:
   ScrollEngine();
   ~ScrollEngine();
@@ -73,6 +74,17 @@ class ScrollEngine {
   void MaybeFreeScrollActiveNavItem();
 
   base::Thread* thread() { return &scroll_engine_; }
+
+  // LifecycleObserver implementation.
+  void Blur(int64_t timestamp) override {}
+  void Conceal(render_tree::ResourceProvider* resource_provider,
+               int64_t timestamp) override;
+  void Freeze(int64_t timestamp) override;
+  void Unfreeze(render_tree::ResourceProvider* resource_provider,
+                int64_t timestamp) override {}
+  void Reveal(render_tree::ResourceProvider* resource_provider,
+              int64_t timestamp) override {}
+  void Focus(int64_t timestamp) override {}
 
  private:
   base::Thread scroll_engine_{"ScrollEngineThread"};

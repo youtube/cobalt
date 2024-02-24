@@ -33,7 +33,7 @@ namespace filter {
 class AudioRendererSinkImpl : public AudioRendererSink {
  public:
   typedef std::function<SbAudioSink(
-      SbTime media_start_time,
+      int64_t media_start_time,
       int channels,
       int sampling_frequency_hz,
       SbMediaAudioSampleType audio_sample_type,
@@ -60,7 +60,7 @@ class AudioRendererSinkImpl : public AudioRendererSink {
       int sampling_frequency_hz) const override;
 
   bool HasStarted() const override;
-  void Start(SbTime media_start_time,
+  void Start(int64_t media_start_time,
              int channels,
              int sampling_frequency_hz,
              SbMediaAudioSampleType audio_sample_type,
@@ -80,7 +80,7 @@ class AudioRendererSinkImpl : public AudioRendererSink {
                                      bool* is_eos_reached,
                                      void* context);
   static void ConsumeFramesFunc(int frames_consumed,
-                                SbTime frames_consumed_at,
+                                int64_t frames_consumed_at,
                                 void* context);
   static void ErrorFunc(bool capability_changed,
                         const std::string& error_message,

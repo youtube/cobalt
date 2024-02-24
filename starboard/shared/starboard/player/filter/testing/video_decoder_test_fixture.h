@@ -37,7 +37,6 @@
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // This has to be defined in the global namespace as its instance will be used
@@ -53,8 +52,7 @@ namespace testing {
 
 class VideoDecoderTestFixture {
  public:
-  static const SbTimeMonotonic kDefaultWaitForNextEventTimeOut =
-      5 * kSbTimeSecond;
+  static const int64_t kDefaultWaitForNextEventTimeOut = 5'000'000;  // 5sec
 
   enum Status {
     kNeedMoreInput = VideoDecoder::kNeedMoreInput,
@@ -105,9 +103,8 @@ class VideoDecoderTestFixture {
   void AssertInvalidDecodeTarget();
 #endif  // SB_HAS(GLES2)
 
-  void WaitForNextEvent(
-      Event* event,
-      SbTimeMonotonic timeout = kDefaultWaitForNextEventTimeOut);
+  void WaitForNextEvent(Event* event,
+                        int64_t timeout = kDefaultWaitForNextEventTimeOut);
 
   bool HasPendingEvents();
 
@@ -165,7 +162,7 @@ class VideoDecoderTestFixture {
   scoped_ptr<VideoDecoder> video_decoder_;
 
   bool need_more_input_ = true;
-  std::set<SbTime> outstanding_inputs_;
+  std::set<int64_t> outstanding_inputs_;
   std::deque<scoped_refptr<VideoFrame>> decoded_frames_;
 
   SbPlayerPrivate player_;

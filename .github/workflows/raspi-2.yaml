@@ -38,12 +38,3 @@ jobs:
     with:
       platform: raspi-2-skia
       nightly: ${{ github.event.inputs.nightly }}
-  raspi-2-modular:
-    uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
-    with:
-      platform: raspi-2-modular
-      nightly: ${{ github.event.inputs.nightly }}
-      modular: true

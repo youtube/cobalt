@@ -84,7 +84,7 @@ class OpenTypeSILF : public Table {
     struct SILPass : public TablePart<OpenTypeSILF> {
       explicit SILPass(OpenTypeSILF* parent)
           : TablePart<OpenTypeSILF>(parent) { }
-      bool ParsePart(Buffer& table) { return false; }
+      bool ParsePart(Buffer& table OTS_UNUSED) { return false; }
       bool ParsePart(Buffer& table, const size_t SILSub_init_offset,
                                     const size_t next_pass_offset);
       bool SerializePart(OTSStream* out) const;
@@ -161,7 +161,7 @@ class OpenTypeSILF : public Table {
     uint8_t numUserDefn;
     uint8_t maxCompPerLig;
     uint8_t direction;
-    uint8_t attCollisions;  // reserved3 before v5
+    uint8_t attrCollisions;  // reserved3 before v4.1
     uint8_t reserved4;
     uint8_t reserved5;
     uint8_t reserved6;

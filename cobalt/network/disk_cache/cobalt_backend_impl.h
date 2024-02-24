@@ -49,14 +49,14 @@ class NET_EXPORT_PRIVATE CobaltBackendImpl final
   CobaltBackendImpl& operator=(const CobaltBackendImpl&) = delete;
   ~CobaltBackendImpl() override;
 
-  net::Error Init(CompletionOnceCallback completion_callback) {
-    return net::OK;
-  }
-  void UpdateSizes(ResourceType type, uint32_t bytes) {}
+  net::Error Init(CompletionOnceCallback completion_callback);
+  void UpdateSizes(ResourceType type, uint32_t bytes);
 
   // Backend interface.
-  net::CacheType GetCacheType() const;
   int32_t GetEntryCount() const override;
+  EntryResult OpenOrCreateEntry(const std::string& key,
+                                net::RequestPriority priority,
+                                EntryResultCallback callback) override;
   EntryResult OpenEntry(const std::string& key,
                         net::RequestPriority request_priority,
                         EntryResultCallback callback) override;
@@ -64,46 +64,28 @@ class NET_EXPORT_PRIVATE CobaltBackendImpl final
                           net::RequestPriority request_priority,
                           EntryResultCallback callback) override;
   net::Error DoomEntry(const std::string& key, net::RequestPriority priority,
-                       CompletionOnceCallback callback) override {
-    return net::OK;
-  }
-  net::Error DoomAllEntries(CompletionOnceCallback callback) override {
-    return net::OK;
-  }
+                       CompletionOnceCallback callback) override;
+  net::Error DoomAllEntries(CompletionOnceCallback callback) override;
   net::Error DoomEntriesBetween(base::Time initial_time, base::Time end_time,
-                                CompletionOnceCallback callback) override {
-    return net::OK;
-  }
+                                CompletionOnceCallback callback) override;
   net::Error DoomEntriesSince(base::Time initial_time,
-                              CompletionOnceCallback callback) override {
-    return net::OK;
-  }
+                              CompletionOnceCallback callback) override;
   int64_t CalculateSizeOfAllEntries(
-      Int64CompletionOnceCallback callback) override {
-    return 0;
-  }
+      Int64CompletionOnceCallback callback) override;
   int64_t CalculateSizeOfEntriesBetween(
       base::Time initial_time, base::Time end_time,
-      Int64CompletionOnceCallback callback) override {
-    return 0;
-  }
+      Int64CompletionOnceCallback callback) override;
   std::unique_ptr<Iterator> CreateIterator() override;
   void GetStats(base::StringPairs* stats) override {}
-  void OnExternalCacheHit(const std::string& key) override {}
+  void OnExternalCacheHit(const std::string& key) override;
   //   size_t DumpMemoryStats(
   //       base::trace_event::ProcessMemoryDump* pmd,
   //       const std::string& parent_absolute_name) const override;
   net::Error DoomAllEntriesOfType(disk_cache::ResourceType type,
-                                  CompletionOnceCallback callback) {
-    return net::OK;
-  }
+                                  CompletionOnceCallback callback);
   uint8_t GetEntryInMemoryData(const std::string& key) override { return 0; }
   void SetEntryInMemoryData(const std::string& key, uint8_t data) override {}
-
-  EntryResult OpenOrCreateEntry(const std::string& key,
-                                net::RequestPriority priority,
-                                EntryResultCallback callback) override;
-  int64_t MaxFileSize() const override;
+  int64_t MaxFileSize() const override { return 0; }
 
   // A refcounted class that runs a CompletionOnceCallback once it's destroyed.
   class RefCountedRunner : public base::RefCounted<RefCountedRunner> {

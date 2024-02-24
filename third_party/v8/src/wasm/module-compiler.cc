@@ -1637,9 +1637,7 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
                                                           uses_liftoff);
   native_module = isolate->wasm_engine()->NewNativeModule(
       isolate, enabled, module, code_size_estimate);
-  // std::move(uint8_t[] issue)
   native_module->SetWireBytes(std::move(wire_bytes_copy));
-
   // Sync compilation is user blocking, so we increase the priority.
   native_module->compilation_state()->SetHighPriority();
 

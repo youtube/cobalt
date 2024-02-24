@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("//build/config/compiler/compiler.gni")
+
 if (current_cpu == "arm" || current_cpu == "arm64") {
   import("//build/config/arm.gni")
 }
@@ -54,6 +55,7 @@ source_set("zlib_adler32_simd") {
       "adler32_simd.c",
       "adler32_simd.h",
     ]
+
     if (!is_win || is_clang) {
       cflags = [ "-mssse3" ]
     }
@@ -64,11 +66,10 @@ source_set("zlib_adler32_simd") {
       "adler32_simd.c",
       "adler32_simd.h",
     ]
-
     if (!is_debug) {
       # Use optimize_speed (-O3) to output the _smallest_ code.
       if(!use_cobalt_customizations) {
-        configs -= [ "//build/config/compiler:default_optimization" ]
+      configs -= [ "//build/config/compiler:default_optimization" ]
       }
       configs += [ "//build/config/compiler:optimize_speed" ]
     }
@@ -146,7 +147,7 @@ if (use_arm_neon_optimizations) {
 
       if (!is_debug) {
         if(!use_cobalt_customizations) {
-          configs -= [ "//build/config/compiler:default_optimization" ]
+        configs -= [ "//build/config/compiler:default_optimization" ]
         }
         configs += [ "//build/config/compiler:optimize_speed" ]
       }
@@ -219,14 +220,14 @@ source_set("zlib_inflate_chunk_simd") {
       # Here we trade better performance on newer/bigger ARMv8 cores
       # for less perf on ARMv7, per crbug.com/772870#c40
       if(!use_cobalt_customizations) {
-        configs -= [ "//build/config/compiler:default_optimization" ]
+      configs -= [ "//build/config/compiler:default_optimization" ]
       }
       configs += [ "//build/config/compiler:optimize_speed" ]
     }
   }
 
   if (!use_cobalt_customizations) {
-    configs -= [ "//build/config/compiler:chromium_code" ]
+  configs -= [ "//build/config/compiler:chromium_code" ]
   }
   configs += [
     ":zlib_internal_config",
@@ -295,7 +296,7 @@ source_set("zlib_x86_simd") {
   }
 
   if (!use_cobalt_customizations) {
-    configs -= [ "//build/config/compiler:chromium_code" ]
+  configs -= [ "//build/config/compiler:chromium_code" ]
   }
   configs += [
     ":zlib_internal_config",
@@ -480,7 +481,7 @@ static_library("minizip") {
     ]
     deps += [ "//starboard:starboard_headers_only" ]
   } else if (!is_native_target_build) {
-    configs -= [ "//build/config/compiler:chromium_code" ]
+  configs -= [ "//build/config/compiler:chromium_code" ]
   }
   configs += [
     "//build/config/compiler:no_chromium_code",
@@ -493,29 +494,29 @@ static_library("minizip") {
 }
 
 if (!is_starboard) {
-  executable("zlib_bench") {
-    include_dirs = [ "." ]
+executable("zlib_bench") {
+  include_dirs = [ "." ]
 
-    sources = [
-      "contrib/bench/zlib_bench.cc",
-    ]
+  sources = [
+    "contrib/bench/zlib_bench.cc",
+  ]
 
-    if (!is_debug) {
+  if (!is_debug) {
       if (!is_native_target_build) {
-        configs -= [ "//build/config/compiler:default_optimization" ]
+    configs -= [ "//build/config/compiler:default_optimization" ]
       }
-      configs += [ "//build/config/compiler:optimize_speed" ]
-    }
+    configs += [ "//build/config/compiler:optimize_speed" ]
+  }
 
     if (!use_cobalt_customizations) {
-      configs -= [ "//build/config/compiler:chromium_code" ]
+  configs -= [ "//build/config/compiler:chromium_code" ]
     }
-    configs += [ "//build/config/compiler:no_chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
 
-    deps = [
-      ":zlib",
-    ]
-  }
+  deps = [
+    ":zlib",
+  ]
+}
 }
 
 if (!use_cobalt_customizations) {

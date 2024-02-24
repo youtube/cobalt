@@ -8,25 +8,12 @@
 #include "libxml.h"
 
 #include <string.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <time.h>
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
-#endif
-
-#ifdef HAVE_TIME_H
-#include <time.h>
-#endif
-
-#ifdef HAVE_STDLIB_H
-#include <stdlib.h>
-#else
-#ifdef HAVE_MALLOC_H
-#include <malloc.h>
-#endif
-#endif
-
-#ifdef HAVE_CTYPE_H
-#include <ctype.h>
 #endif
 
 /* #define DEBUG_MEMORY */
@@ -78,7 +65,7 @@ void xmlMallocBreakpoint(void);
  * Each of the blocks allocated begin with a header containing information
  */
 
-#define MEMTAG 0x5aa5
+#define MEMTAG 0x5aa5U
 
 #define MALLOC_TYPE 1
 #define REALLOC_TYPE 2
@@ -760,11 +747,9 @@ xmlMemDisplay(FILE *fp)
     MEMHDR *p;
     unsigned idx;
     int     nb = 0;
-#if defined(HAVE_LOCALTIME) && defined(HAVE_STRFTIME)
     time_t currentTime;
     char buf[500];
     struct tm * tstruct;
-#endif
 #endif
     FILE *old_fp = fp;
 
@@ -775,12 +760,10 @@ xmlMemDisplay(FILE *fp)
     }
 
 #ifdef MEM_LIST
-#if defined(HAVE_LOCALTIME) && defined(HAVE_STRFTIME)
     currentTime = time(NULL);
     tstruct = localtime(&currentTime);
     strftime(buf, sizeof(buf) - 1, "%I:%M:%S %p", tstruct);
     fprintf(fp,"      %s\n\n", buf);
-#endif
 
 
     fprintf(fp,"      MEMORY ALLOCATED : %lu, MAX was %lu\n",
@@ -967,9 +950,7 @@ xmlMemoryDump(void)
 int
 xmlInitMemory(void)
 {
-#ifdef HAVE_STDLIB_H
      char *breakpoint;
-#endif
 #ifdef DEBUG_MEMORY
      xmlGenericError(xmlGenericErrorContext,
 	     "xmlInitMemory()\n");
@@ -1163,5 +1144,3 @@ xmlGcMemGet(xmlFreeFunc *freeFunc, xmlMallocFunc *mallocFunc,
     return(0);
 }
 
-#define bottom_xmlmemory
-#include "elfgcchack.h"

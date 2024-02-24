@@ -15,53 +15,26 @@
 #include "src/heap/marking-barrier.h"
 #include "src/heap/safepoint.h"
 
-#if !defined(V8_OS_STARBOARD)
 namespace v8 {
 namespace internal {
 
+#if defined(V8_OS_STARBOARD)
+namespace {
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(base::Thread::LocalStorageKey, GetLocalHeapKey,
+                                base::Thread::CreateThreadLocalKey())
+}  // namespace
+
+LocalHeap* LocalHeap::Current() {
+  return reinterpret_cast<LocalHeap*>(
+      base::Thread::GetThreadLocal(*GetLocalHeapKey()));
+}
+#else
 namespace {
 thread_local LocalHeap* current_local_heap = nullptr;
 }  // namespace
 
 LocalHeap* LocalHeap::Current() { return current_local_heap; }
-
-void SetCurrentLocalHeap(LocalHeap* new_local_heap) {
-  current_local_heap = new_local_heap;
-}
-
-#else
-#include "starboard/common/log.h"
-#include "starboard/once.h"
-#include "starboard/thread.h"
-
-namespace v8 {
-namespace internal {
-
-namespace {
-SbOnceControl s_once_flag = SB_ONCE_INITIALIZER;
-SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
-
-void InitThreadLocalKey() {
-  s_thread_local_key = SbThreadCreateLocalKey(NULL);
-  SB_DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
-  SbThreadSetLocalValue(s_thread_local_key, NULL);
-}
-
-void EnsureThreadLocalKeyInited() {
-  SbOnce(&s_once_flag, InitThreadLocalKey);
-  SB_DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
-}
-}  // namespace
-
-LocalHeap* LocalHeap::Current() {
-  return static_cast<LocalHeap*>(SbThreadGetLocalValue(s_thread_local_key));
-}
-
-void SetCurrentLocalHeap(LocalHeap* current_local_heap) {
-  EnsureThreadLocalKeyInited();
-  SbThreadSetLocalValue(s_thread_local_key, current_local_heap);
-}
-#endif
+#endif  // defined(V8_OS_STARBOARD)
 
 LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
                      std::unique_ptr<PersistentHandles> persistent_handles)
@@ -89,8 +62,13 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
   if (persistent_handles_) {
     persistent_handles_->Attach(this);
   }
-  DCHECK_NULL(Current());
-  SetCurrentLocalHeap(this);
+#if defined(V8_OS_STARBOARD)
+  DCHECK_NULL(LocalHeap::Current());
+  if (!is_main_thread()) base::Thread::SetThreadLocal(*GetLocalHeapKey(), this);
+#else
+  DCHECK_NULL(current_local_heap);
+  current_local_heap = this;
+#endif  // defined(V8_OS_STARBOARD)
 }
 
 LocalHeap::~LocalHeap() {
@@ -106,8 +84,13 @@ LocalHeap::~LocalHeap() {
     }
   });
 
-  DCHECK_EQ(Current(), this);
-  SetCurrentLocalHeap(NULL);
+#if defined(V8_OS_STARBOARD)
+    DCHECK_EQ(LocalHeap::Current(), this);
+    base::Thread::SetThreadLocal(*GetLocalHeapKey(), this);
+#else
+  DCHECK_EQ(current_local_heap, this);
+  current_local_heap = nullptr;
+#endif  // defined(V8_OS_STARBOARD)
 }
 
 void LocalHeap::EnsurePersistentHandles() {

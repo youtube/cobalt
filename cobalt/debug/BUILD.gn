@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build_overrides/build.gni")
+
 static_library("debug") {
   has_pedantic_warnings = true
   sources = [
@@ -46,8 +48,8 @@ static_library("debug") {
     "backend/render_overlay.h",
     "backend/script_debugger_agent.cc",
     "backend/script_debugger_agent.h",
-    "backend/tracing_agent.cc",
-    "backend/tracing_agent.h",
+    "backend/tracing_controller.cc",
+    "backend/tracing_controller.h",
     "command.h",
     "console/debug_hub.cc",
     "console/debug_hub.h",
@@ -77,9 +79,14 @@ static_library("debug") {
     "//cobalt/web",
     "//net",
     "//net/server:http_server",
-    "//starboard",
+    "//starboard:starboard_group",
     "//third_party/devtools:devtools_frontend_resources",
   ]
+
+  if (!enable_base_tracing) {
+    sources -= [ "backend/tracing_controller.cc" ]
+    sources += [ "backend/tracing_controller_stub.cc" ]
+  }
 }
 
 # Anything that implements a console command can depend on this without

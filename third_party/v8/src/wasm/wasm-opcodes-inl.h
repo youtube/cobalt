@@ -600,7 +600,6 @@ constexpr std::array<WasmOpcodeSig, 256> kNumericExprSigTable{};
 }  // namespace impl
 
 constexpr const FunctionSig* WasmOpcodes::Signature(WasmOpcode opcode) {
-  DCHECK(false);
   switch (opcode >> 8) {
     case 0:
       return impl::kCachedSigs[impl::kShortSigTable[opcode]];
@@ -620,7 +619,6 @@ constexpr const FunctionSig* WasmOpcodes::Signature(WasmOpcode opcode) {
 }
 
 constexpr const FunctionSig* WasmOpcodes::AsmjsSignature(WasmOpcode opcode) {
-  DCHECK(false);
   CONSTEXPR_DCHECK(opcode < impl::kSimpleAsmjsExprSigTable.size());
   return impl::kCachedSigs[impl::kSimpleAsmjsExprSigTable[opcode]];
 }

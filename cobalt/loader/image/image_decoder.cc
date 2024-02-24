@@ -22,7 +22,6 @@
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/loader/image/dummy_gif_image_decoder.h"
 #include "cobalt/loader/image/failure_image_decoder.h"
-#include "cobalt/loader/image/image_decoder_starboard.h"
 #include "cobalt/loader/image/jpeg_image_decoder.h"
 #include "cobalt/loader/image/lottie_animation_decoder.h"
 #include "cobalt/loader/image/png_image_decoder.h"
@@ -34,7 +33,6 @@
 #include "net/http/http_status_code.h"
 #include "starboard/configuration.h"
 #include "starboard/gles.h"
-#include "starboard/image.h"
 
 namespace cobalt {
 namespace loader {
@@ -310,49 +308,6 @@ const char* GetMimeTypeFromImageType(ImageDecoder::ImageType image_type) {
   return NULL;
 }
 
-// If |mime_type| is empty, |image_type| will be used to deduce the mime type.
-std::unique_ptr<ImageDataDecoder> MaybeCreateStarboardDecoder(
-    const std::string& mime_type, ImageDecoder::ImageType image_type,
-    render_tree::ResourceProvider* resource_provider,
-    const base::DebuggerHooks& debugger_hooks) {
-  // clang-format off
-  const SbDecodeTargetFormat kPreferredFormats[] = {
-      kSbDecodeTargetFormat1PlaneRGBA,
-      kSbDecodeTargetFormat1PlaneBGRA,
-  };
-  // clang-format on
-
-  const char* mime_type_c_string = NULL;
-
-  // If we weren't explicitly given a mime type (this might happen if the
-  // resource did not get fetched via HTTP), then deduce it from the image's
-  // header, if we were able to deduce that.
-  if (mime_type.empty()) {
-    mime_type_c_string = GetMimeTypeFromImageType(image_type);
-  } else {
-    mime_type_c_string = mime_type.c_str();
-  }
-
-  if (mime_type_c_string) {
-    // Find out if any of our preferred formats are supported for this mime
-    // type.
-    SbDecodeTargetFormat format = kSbDecodeTargetFormatInvalid;
-    for (size_t i = 0; i < SB_ARRAY_SIZE(kPreferredFormats); ++i) {
-      if (SbImageIsDecodeSupported(mime_type_c_string, kPreferredFormats[i])) {
-        format = kPreferredFormats[i];
-        break;
-      }
-    }
-
-    if (SbDecodeTargetIsFormatValid(format) &&
-        resource_provider->SupportsSbDecodeTarget()) {
-      return std::unique_ptr<ImageDataDecoder>(new ImageDecoderStarboard(
-          resource_provider, debugger_hooks, mime_type_c_string, format));
-    }
-  }
-  return std::unique_ptr<ImageDataDecoder>();
-}
-
 std::unique_ptr<ImageDataDecoder> CreateImageDecoderFromImageType(
     ImageDecoder::ImageType image_type,
     render_tree::ResourceProvider* resource_provider,
@@ -405,14 +360,9 @@ bool ImageDecoder::InitializeInternalDecoder(const uint8* input_bytes,
     image_type_ = DetermineImageType(signature_cache_.data);
   }
 
-  decoder_ = MaybeCreateStarboardDecoder(mime_type_, image_type_,
-                                         resource_provider_, debugger_hooks_);
-
-  if (!decoder_) {
-    decoder_ = CreateImageDecoderFromImageType(image_type_, resource_provider_,
-                                               debugger_hooks_,
-                                               use_failure_image_decoder_);
-  }
+  decoder_ = CreateImageDecoderFromImageType(image_type_, resource_provider_,
+                                             debugger_hooks_,
+                                             use_failure_image_decoder_);
 
   if (!decoder_) {
     state_ = kUnsupportedImageFormat;

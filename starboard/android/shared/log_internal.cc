@@ -21,7 +21,7 @@
 
 namespace {
 const char kLogSleepTimeSwitch[] = "android_log_sleep_time";
-SbTime g_log_sleep_time = 0;
+int64_t g_log_sleep_time = 0;  // microseconds
 }  // namespace
 
 namespace starboard {
@@ -36,7 +36,7 @@ void LogInit(const starboard::shared::starboard::CommandLine& command_line) {
   }
 }
 
-SbTime GetLogSleepTime() {
+int64_t GetLogSleepTime() {
   return g_log_sleep_time;
 }
 

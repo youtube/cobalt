@@ -22,5 +22,5 @@ static_library("qr_code_generator") {
     "cpp/QrSegment.hpp",
   ]
   include_dirs = [ "." ]
-  deps = [ "//starboard" ]
+  deps = [ "//starboard:starboard_group", ]
 }

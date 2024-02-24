@@ -848,12 +848,12 @@ bool SourceBufferStream::GarbageCollectIfNeeded(base::TimeDelta media_time,
 #if defined(STARBOARD)
   // Address duration based GC.
   base::TimeDelta duration = GetBufferedDurationForGarbageCollection();
-  const SbTime duration_gc_threadold =
+  base::TimeDelta duration_gc_threadold =
       DecoderBuffer::Allocator::GetInstance()
           ->GetBufferGarbageCollectionDurationThreshold();
-  if (duration.ToSbTime() > duration_gc_threadold) {
-    effective_memory_limit = ranges_size * duration_gc_threadold /
-                             duration.ToSbTime();
+  if (duration > duration_gc_threadold) {
+    effective_memory_limit = ranges_size * duration_gc_threadold.InMicroseconds() /
+                             duration.InMicroseconds();
   }
 #endif  // defined(STARBOARD)
 
@@ -1900,11 +1900,14 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config,
   video_configs_[append_config_index_] = config;
 
 #if defined(STARBOARD)
-  // Dynamically increase |memory_limit_| when video resolution goes up.
-  memory_limit_ = std::max(
-      memory_limit_,
-      GetDemuxerStreamVideoMemoryLimit(Demuxer::DemuxerTypes::kChunkDemuxer,
-                                       &config, mime_type_));
+  // Dynamically increase |memory_limit_| when video resolution goes up as long
+  // as we haven't set a manual override.
+  if (!memory_override_) {
+    memory_limit_ = std::max(
+        memory_limit_,
+        GetDemuxerStreamVideoMemoryLimit(Demuxer::DemuxerTypes::kChunkDemuxer,
+                                         &config, mime_type_));
+  }
 #endif  // defined(STARBOARD)
   return true;
 }

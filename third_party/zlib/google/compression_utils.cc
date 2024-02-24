@@ -12,10 +12,6 @@
 
 #include "third_party/zlib/google/compression_utils_portable.h"
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/stdio_poem.h"
-#endif
-
 namespace compression {
 
 bool GzipCompress(base::StringPiece input,
@@ -113,14 +109,8 @@ bool GzipUncompress(base::StringPiece input, std::string* output) {
 }
 
 uint32_t GetUncompressedSize(base::StringPiece compressed_data) {
-  // The uncompressed size is stored in the last 4 bytes of |input| in LE.
-  uint32_t size;
-  if (compressed_data.length() < sizeof(size))
-    return 0;
-  memcpy(&size,
-         &compressed_data.data()[compressed_data.length() - sizeof(size)],
-         sizeof(size));
-  return base::ByteSwapToLE32(size);
+  return zlib_internal::GetGzipUncompressedSize(
+      base::bit_cast<Bytef*>(compressed_data.data()), compressed_data.length());
 }
 
 }  // namespace compression

@@ -178,14 +178,14 @@ std::unique_ptr<const byte[]> WasmCode::ConcatenateBytes(
   size_t total_size = 0;
   for (auto& vec : vectors) total_size += vec.size();
   // Use default-initialization (== no initialization).
-  byte* result = new byte[total_size];
-  byte* ptr = result;
+  std::unique_ptr<byte[]> result{new byte[total_size]};
+  byte* ptr = result.get();
   for (auto& vec : vectors) {
     if (vec.empty()) continue;  // Avoid nullptr in {memcpy}.
     memcpy(ptr, vec.begin(), vec.size());
     ptr += vec.size();
   }
-  return std::unique_ptr<const byte[]>(result);
+  return result;
 }
 
 void WasmCode::RegisterTrapHandlerData() {
@@ -837,7 +837,7 @@ void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
   auto new_table = std::make_unique<WasmCode*[]>(max_functions);
   if (module_->num_declared_functions > 0) {
     memcpy(new_table.get(), code_table_.get(),
-                 module_->num_declared_functions * sizeof(WasmCode*));
+           module_->num_declared_functions * sizeof(WasmCode*));
   }
   code_table_ = std::move(new_table);
 
@@ -914,8 +914,7 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
 
   Vector<uint8_t> dst_code_bytes =
       code_allocator_.AllocateForCode(this, instructions.size());
-  memcpy(dst_code_bytes.begin(), instructions.begin(),
-               instructions.size());
+  memcpy(dst_code_bytes.begin(), instructions.begin(), instructions.size());
 
   // Apply the relocation delta by iterating over the RelocInfo.
   intptr_t delta = reinterpret_cast<Address>(dst_code_bytes.begin()) -
@@ -1041,7 +1040,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
 
   CODE_SPACE_WRITE_SCOPE
   memcpy(dst_code_bytes.begin(), desc.buffer,
-               static_cast<size_t>(desc.instr_size));
+         static_cast<size_t>(desc.instr_size));
 
   // Apply the relocation delta by iterating over the RelocInfo.
   intptr_t delta = dst_code_bytes.begin() - desc.buffer;
@@ -1123,6 +1122,10 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
   // The caller must hold the {allocation_mutex_}, thus we fail to lock it here.
   DCHECK(!allocation_mutex_.TryLock());
 
+  // Add the code to the surrounding code ref scope, so the returned pointer is
+  // guaranteed to be valid.
+  WasmCodeRefScope::AddRef(code.get());
+
   if (!code->IsAnonymous() &&
       code->index() >= module_->num_imported_functions) {
     DCHECK_LT(code->index(), num_functions());
@@ -1159,17 +1162,21 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
         WasmCodeRefScope::AddRef(prior_code);
         // The code is added to the current {WasmCodeRefScope}, hence the ref
         // count cannot drop to zero here.
-        CHECK(!prior_code->DecRef());
+        prior_code->DecRefOnLiveCode();
       }
 
       PatchJumpTablesLocked(slot_idx, code->instruction_start());
+    } else {
+      // The code tables does not hold a reference to the code, hence decrement
+      // the initial ref count of 1. The code was added to the
+      // {WasmCodeRefScope} though, so it cannot die here.
+      code->DecRefOnLiveCode();
     }
     if (!code->for_debugging() && tiering_state_ == kTieredDown &&
         code->tier() == ExecutionTier::kTurbofan) {
       liftoff_bailout_count_.fetch_add(1);
     }
   }
-  WasmCodeRefScope::AddRef(code.get());
   WasmCode* result = code.get();
   owned_code_.emplace(result->instruction_start(), std::move(code));
   return result;
@@ -1187,8 +1194,7 @@ WasmCode* NativeModule::AddDeserializedCode(
   Vector<uint8_t> dst_code_bytes =
       code_allocator_.AllocateForCode(this, instructions.size());
   UpdateCodeSize(dst_code_bytes.size(), tier, kNoDebugging);
-  memcpy(dst_code_bytes.begin(), instructions.begin(),
-               instructions.size());
+  memcpy(dst_code_bytes.begin(), instructions.begin(), instructions.size());
 
   std::unique_ptr<WasmCode> code{new WasmCode{
       this, index, dst_code_bytes, stack_slots, tagged_parameter_slots,

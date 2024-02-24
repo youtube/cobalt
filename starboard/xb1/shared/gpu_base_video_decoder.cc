@@ -54,7 +54,7 @@ using Windows::Graphics::Display::Core::HdmiDisplayInformation;
 // Limit the number of pending buffers.
 constexpr int kMaxNumberOfPendingBuffers = 8;
 // Limit the cached presenting images.
-constexpr int kNumberOfCachedPresentingImage = 2;
+constexpr int kNumberOfCachedPresentingImage = 3;
 // The number of frame buffers in decoder
 constexpr int kNumOutputFrameBuffers = 7;
 
@@ -117,6 +117,8 @@ class GpuFrameBufferPool {
     }
     return true;
   }
+
+  void Clear() { frame_buffers_.clear(); }
 
  private:
   std::vector<scoped_refptr<GpuVideoDecoderBase::GpuFrameBuffer>>
@@ -207,7 +209,7 @@ class GpuVideoDecoderBase::GPUDecodeTargetPrivate
     }
   }
 
-  SbTime timestamp() { return image_->timestamp(); }
+  int64_t timestamp() { return image_->timestamp(); }
 
   void ReleaseImage() {
     // Release the codec resource, while the D3D textures are still safe to use.
@@ -474,7 +476,6 @@ void GpuVideoDecoderBase::Reset() {
     decoder_thread_->job_queue()->Schedule(
         std::bind(&GpuVideoDecoderBase::DrainDecoder, this));
     decoder_thread_.reset();
-    SB_DCHECK(decoder_behavior_.load() == kDecodingStopped);
   }
   pending_inputs_.clear();
   {
@@ -550,15 +551,18 @@ int GpuVideoDecoderBase::OnOutputRetrieved(
     return 0;
   }
 
-  SbTime timestamp = image->timestamp();
+  int64_t timestamp = image->timestamp();
   {
     ScopedLock input_queue_lock(written_inputs_mutex_);
     const auto iter = FindByTimestamp(written_inputs_, timestamp);
-    SB_DCHECK(iter != written_inputs_.cend());
-    if (is_hdr_video_) {
-      image->AttachColorMetadata((*iter)->video_stream_info().color_metadata);
+    // Reset might be called too early, cause clearing of written_inputs_ and
+    // absence of requested timestamp.
+    if (iter != written_inputs_.cend()) {
+      if (is_hdr_video_) {
+        image->AttachColorMetadata((*iter)->video_stream_info().color_metadata);
+      }
+      written_inputs_.erase(iter);
     }
-    written_inputs_.erase(iter);
   }
   scoped_refptr<VideoFrameImpl> frame(new VideoFrameImpl(
       timestamp, std::bind(&GpuVideoDecoderBase::DeleteVideoFrame, this,
@@ -591,9 +595,6 @@ void GpuVideoDecoderBase::OnDecoderDrained() {
             decoder_behavior_.load() == kResettingDecoder);
 
   is_waiting_frame_after_drain_ = true;
-  if (decoder_behavior_.load() == kResettingDecoder || error_occured_) {
-    return;
-  }
 
   if (!BelongsToDecoderThread()) {
     decoder_thread_->job_queue()->Schedule(
@@ -601,7 +602,6 @@ void GpuVideoDecoderBase::OnDecoderDrained() {
     return;
   }
 
-  SB_DCHECK(written_inputs_.empty());
   if (decoder_behavior_.load() == kEndingStream) {
     decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
   }
@@ -669,8 +669,7 @@ void GpuVideoDecoderBase::DecodeEndOfStream() {
     ScopedLock pending_inputs_lock(pending_inputs_mutex_);
     if (!pending_inputs_.empty()) {
       decoder_thread_->job_queue()->Schedule(
-          std::bind(&GpuVideoDecoderBase::DecodeEndOfStream, this),
-          kSbTimeMillisecond);
+          std::bind(&GpuVideoDecoderBase::DecodeEndOfStream, this), 1000);
       return;
     }
   }
@@ -686,6 +685,9 @@ void GpuVideoDecoderBase::DrainDecoder() {
   if (!is_drain_decoder_called_) {
     is_drain_decoder_called_ = true;
     DrainDecoderInternal();
+    // DrainDecoderInternal is sync command, after it finished, we can be sure
+    // that drain really completed.
+    OnDecoderDrained();
   }
 }
 
@@ -754,6 +756,10 @@ void GpuVideoDecoderBase::ReleaseFrameBuffer(GpuFrameBuffer* frame_buffer) {
   frame_buffers_condition_.Signal();
 }
 
+void GpuVideoDecoderBase::ClearFrameBuffersPool() {
+  GetGpuFrameBufferPool()->Clear();
+}
+
 GpuVideoDecoderBase::GpuFrameBuffer*
 GpuVideoDecoderBase::GetAvailableFrameBuffer(uint16_t width, uint16_t height) {
   if (decoder_behavior_.load() == kResettingDecoder) {
@@ -777,7 +783,7 @@ GpuVideoDecoderBase::GetAvailableFrameBuffer(uint16_t width, uint16_t height) {
         return nullptr;
       }
       is_resetting = decoder_behavior_.load() == kResettingDecoder;
-      frame_buffers_condition_.WaitTimed(50 * kSbTimeMillisecond);
+      frame_buffers_condition_.WaitTimed(50'000);  // 50ms
       continue;
     }
   }

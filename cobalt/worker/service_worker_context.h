@@ -51,7 +51,7 @@ class ServiceWorkerContext {
   ServiceWorkerContext(web::WebSettings* web_settings,
                        network::NetworkModule* network_module,
                        web::UserAgentPlatformInfo* platform_info,
-                       base::MessageLoop* message_loop, const GURL& url);
+                       base::MessageLoop* message_loop);
   ~ServiceWorkerContext();
 
   base::MessageLoop* message_loop() { return message_loop_; }

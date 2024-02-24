@@ -59,7 +59,16 @@ template("bundle_content") {
       "--output_dir",
       rebase_path(bundle_content_dir, root_build_dir),
       "--base_dir",
-      rebase_path(sb_static_contents_output_data_dir, root_build_dir),
+
+      # |root_out_dir| changes based on the toolchain:
+      #   * for cobalt/host/default toolchains, this equals |root_build_dir|
+      #   * for starboard toolchain, this equals |root_build_dir/starboard|
+      # By rebasing the path against root_out_dir, we ensure that the output
+      # folder structure for copied files mirrors the original tree.
+      #
+      # See reference for further details:
+      # https://gn.googlesource.com/gn/+/main/docs/reference.md#var_root_out_dir
+      rebase_path(sb_static_contents_output_data_dir, root_out_dir),
       "--files_list",
       rebase_path(bundle_content_rsp_file, root_build_dir),
       "--output",

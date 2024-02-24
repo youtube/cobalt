@@ -33,30 +33,28 @@
 #ifdef STARBOARD
 #include "libevent-starboard.h"
 
-#include <assert.h>
-#include <sys/types.h>
-#include <sys/event.h>
 #include <sys/socket.h>
 
 // Use libevent's local compatibility  versions of these.
 #include "third_party/libevent/compat/sys/queue.h"
 #include "third_party/libevent/compat/sys/_libevent_time.h"
-
-// Include Starboard poems after all system headers.
-#include "starboard/client_porting/poem/stdio_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
 #else  // STARBOARD
 #define _GNU_SOURCE 1
+#endif  // STARBOARD
 
 #include <sys/types.h>
+#ifndef STARBOARD
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #else
 #include <sys/_libevent_time.h>
 #endif
 #include <sys/queue.h>
+#endif  // STARBOARD
 #include <sys/event.h>
+#ifndef STARBOARD
 #include <signal.h>
+#endif  // STARBOARD
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -66,7 +64,6 @@
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
 #endif
-#endif  // STARBOARD
 
 /* Some platforms apparently define the udata field of struct kevent as
  * intptr_t, whereas others define it as void*.  There doesn't seem to be an

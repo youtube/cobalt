@@ -3,15 +3,19 @@ description:
   "Subtree at third_party/woff2."
 
 third_party {
-  url {
-    type: LOCAL_SOURCE
-    value: "/third_party/woff2_mirror"
+  identifier {
+    type: "ChromiumVersion"
+    value: "87.0.4280.142"  # from https://chromereleases.googleblog.com/2021/01/stable-channel-update-for-chrome-os.html
   }
-  url {
-    type: GIT
-    value: "https://github.com/google/woff2.git"
+  identifier {
+    type: "Git"
+    value: "https://chromium.googlesource.com/chromium/src.git"
+    version: "f73da6d3eaeb33e9d4bcb497bf13c655143a82f9"
   }
-  version: "1bccf208bca986e53a647dfe4811322adb06ecf8"
+  identifier {
+    type: "UpstreamSubdir"
+    value: "third_party/woff2"
+  }
   last_upgrade_date {
     year: 2017
     month: 11

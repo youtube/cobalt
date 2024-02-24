@@ -60,6 +60,7 @@ class Event : public script::Wrappable {
   explicit Event(UninitializedFlag uninitialized_flag);
 
   // Creates an event that cannot be bubbled and cancelled.
+  explicit Event(const char* type);
   explicit Event(const std::string& type);
   explicit Event(base_token::Token type);
   Event(const std::string& type, const EventInit& init_dict);
@@ -131,7 +132,7 @@ class Event : public script::Wrappable {
   // real time. However, the old spec specifies time since 1970. To facilitate
   // the transition to the new spec, use this function to calculate an event's
   // time stamp.
-  static uint64 GetEventTime(SbTimeMonotonic monotonic_time);
+  static uint64 GetEventTime(int64_t monotonic_time);
 
   DEFINE_WRAPPABLE_TYPE(Event);
   void TraceMembers(script::Tracer* tracer) override;

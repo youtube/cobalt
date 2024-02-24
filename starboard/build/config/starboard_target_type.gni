@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/build/config/os_definitions.gni")
 declare_args() {
   starboard_target_type = ""
+  starboard_shared_library_extension = "so.${sb_api_version}"
 }
 
 if (starboard_target_type == "") {
@@ -37,6 +39,9 @@ template("starboard_platform_target") {
     }
     if (target_type == "shared_library") {
       build_loader = false
+      if (!is_host_win) {
+        output_extension = starboard_shared_library_extension
+      }
     }
     public_deps = [
       "//starboard/client_porting/cwrappers",
@@ -44,13 +49,19 @@ template("starboard_platform_target") {
       "//starboard/common",
       "//starboard/egl_and_gles",
     ]
-    if (sb_is_evergreen_compatible) {
+    if (sb_is_evergreen_compatible &&
+        current_toolchain == starboard_toolchain) {
       public_deps += [ "//third_party/crashpad/wrapper" ]
     } else {
       public_deps += [ "//third_party/crashpad/wrapper:wrapper_stub" ]
     }
     if (!sb_is_evergreen) {
       public_deps += [ "//$starboard_path:starboard_platform" ]
+    }
+    if (sb_is_modular) {
+      # For modular builds (including Evergreen), include POSIX wrappers that
+      # handle cross-compatibility with musl-based Cobalt code.
+      public_deps += [ "//starboard/shared/modular:posix_wrappers" ]
     }
   }
 }

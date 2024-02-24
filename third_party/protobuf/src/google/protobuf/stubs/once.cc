@@ -45,7 +45,7 @@
 #include <windows.h>
 #else
 #include <sched.h>
-#endif  // defined(STARBOARD)
+#endif
 
 #include <google/protobuf/stubs/atomicops.h>
 

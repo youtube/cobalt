@@ -104,6 +104,22 @@ TEST_F(EventTest, InitEvent) {
   EXPECT_FALSE(event->cancelable());
 }
 
+TEST_F(EventTest, InitEventIgnoredWhenBeingDispatched) {
+  scoped_refptr<Event> event = new Event(base_token::Token("event"));
+  EXPECT_EQ("event", event->type());
+  EXPECT_FALSE(event->bubbles());
+  EXPECT_FALSE(event->cancelable());
+
+  event->set_event_phase(Event::kCapturingPhase);
+  EXPECT_EQ(Event::kCapturingPhase, event->event_phase());
+  EXPECT_TRUE(event->IsBeingDispatched());
+
+  event->InitEvent("foo", true, true);
+  EXPECT_EQ("event", event->type());
+  EXPECT_FALSE(event->bubbles());
+  EXPECT_FALSE(event->cancelable());
+}
+
 TEST_F(EventTest, StopPropagation) {
   scoped_refptr<Event> event = new Event(base_token::Token("event"));
   event->StopPropagation();

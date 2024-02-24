@@ -25,13 +25,13 @@
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
+#include "starboard/common/time.h"
 #include "starboard/event.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/thread.h"
-#include "starboard/time.h"
 #include "starboard/types.h"
 #include "starboard/window.h"
 
@@ -86,20 +86,17 @@ class Application {
   // Structure to keep track of scheduled events, also used as the data argument
   // for kSbEventTypeScheduled Events.
   struct TimedEvent {
-    TimedEvent(SbEventId eid,
-               SbEventCallback func,
-               void* data,
-               SbTimeMonotonic delay)
+    TimedEvent(SbEventId eid, SbEventCallback func, void* data, int64_t delay)
         : id(eid),
           callback(func),
           context(data),
-          target_time(delay + SbTimeGetMonotonicNow()),
+          target_time(delay + CurrentMonotonicTime()),
           canceled(false) {}
 
     SbEventId id;
     SbEventCallback callback;
     void* context;
-    SbTimeMonotonic target_time;
+    int64_t target_time;
     bool canceled;
   };
 
@@ -121,7 +118,7 @@ class Application {
   // deleted.
   struct Event {
     Event(SbEventType type,
-          SbTimeMonotonic timestamp,
+          int64_t timestamp,
           void* data,
           SbEventDataDestructor destructor)
         : event(new SbEvent()), destructor(destructor), error_level(0) {
@@ -133,7 +130,7 @@ class Application {
     Event(SbEventType type, void* data, SbEventDataDestructor destructor)
         : event(new SbEvent()), destructor(destructor), error_level(0) {
       event->type = type;
-      event->timestamp = SbTimeGetMonotonicNow();
+      event->timestamp = CurrentMonotonicTime();
       event->data = data;
     }
 
@@ -142,7 +139,7 @@ class Application {
           destructor(&DeleteDestructor<TimedEvent>),
           error_level(0) {
       event->type = kSbEventTypeScheduled;
-      event->timestamp = SbTimeGetMonotonicNow();
+      event->timestamp = CurrentMonotonicTime();
       event->data = data;
     }
     ~Event() {
@@ -279,9 +276,7 @@ class Application {
 
   // Schedules an event into the event queue.  May be called from an external
   // thread.
-  SbEventId Schedule(SbEventCallback callback,
-                     void* context,
-                     SbTimeMonotonic delay);
+  SbEventId Schedule(SbEventCallback callback, void* context, int64_t delay);
 
   // Cancels an event that was previously scheduled.  May be called from an
   // external thread.
@@ -363,10 +358,10 @@ class Application {
   // NULL if there are no due TimedEvents queued. Passes ownership to caller.
   virtual TimedEvent* GetNextDueTimedEvent() = 0;
 
-  // Gets the next time that a TimedEvent is due. Returns
-  // SbTimeGetMonotonicNow() if the next TimedEvent is past due. Returns
-  // kSbTimeMax if there are no queued TimedEvents.
-  virtual SbTimeMonotonic GetNextTimedEventTargetTime() = 0;
+  // Gets the next time in microseconds that a TimedEvent is due. Returns
+  // CurrentMonotonicTime() if the next TimedEvent is past due. Returns
+  // kSbInt64Max if there are no queued TimedEvents.
+  virtual int64_t GetNextTimedEventTargetTime() = 0;
 
   // Sets the command-line parameters for the application. Used to support
   // system message pump-based implementations, which don't call |Run()|.
@@ -397,7 +392,7 @@ class Application {
 
   // Synchronously dispatches a Start event to the system event handler. Must be
   // called on the main dispatch thread.
-  void DispatchStart(SbTimeMonotonic timestamp);
+  void DispatchStart(int64_t timestamp);
 
   // Returns whether the Preload event should be sent in |Run| before entering
   // the event loop. Derived classes that return true must call |Unpause| or
@@ -408,7 +403,7 @@ class Application {
 
   // Synchronously dispatches a Preload event to the system event handler. Must
   // be called on the main dispatch thread.
-  void DispatchPreload(SbTimeMonotonic timestamp);
+  void DispatchPreload(int64_t timestamp);
 
   // Returns whether the '--preload' command-line argument is specified.
   bool HasPreloadSwitch();
@@ -426,7 +421,7 @@ class Application {
  private:
   // Creates an initial event type of either Start or Preload with the original
   // command line and deep link.
-  Event* CreateInitialEvent(SbEventType type, SbTimeMonotonic timestamp);
+  Event* CreateInitialEvent(SbEventType type, int64_t timestamp);
 
   // Internal workhorse of the main run loop.
   int RunLoop();

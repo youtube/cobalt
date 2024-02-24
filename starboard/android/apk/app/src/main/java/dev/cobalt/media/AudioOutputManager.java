@@ -60,7 +60,6 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
       int sampleRate,
       int channelCount,
       int preferredBufferSizeInBytes,
-      boolean enablePcmContentTypeMovie,
       int tunnelModeAudioSessionId,
       boolean isWebAudio) {
     AudioTrackBridge audioTrackBridge =
@@ -69,7 +68,6 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
             sampleRate,
             channelCount,
             preferredBufferSizeInBytes,
-            enablePcmContentTypeMovie,
             tunnelModeAudioSessionId,
             isWebAudio);
     if (!audioTrackBridge.isAudioTrackValid()) {
@@ -141,39 +139,6 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
     audioTrackBridgeList.remove(audioTrackBridge);
   }
 
-  /** Returns the maximum number of HDMI channels. */
-  @SuppressWarnings("unused")
-  @UsedByNative
-  int getMaxChannels() {
-    // The aac audio decoder on this platform will switch its output from 5.1
-    // to stereo right before providing the first output buffer when
-    // attempting to decode 5.1 input.  Since this heavily violates invariants
-    // of the shared starboard player framework, disable 5.1 on this platform.
-    // It is expected that we will be able to resolve this issue with Xiaomi
-    // by Android P, so only do this workaround for SDK versions < 27.
-    if (android.os.Build.MODEL.equals("MIBOX3") && android.os.Build.VERSION.SDK_INT < 27) {
-      return 2;
-    }
-
-    AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-    AudioDeviceInfo[] deviceInfos = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
-    int maxChannels = 2;
-    for (AudioDeviceInfo info : deviceInfos) {
-      int type = info.getType();
-      if (type == AudioDeviceInfo.TYPE_HDMI || type == AudioDeviceInfo.TYPE_HDMI_ARC) {
-        int[] channelCounts = info.getChannelCounts();
-        if (channelCounts.length == 0) {
-          // An empty array indicates that the device supports arbitrary channel masks.
-          return 8;
-        }
-        for (int count : channelCounts) {
-          maxChannels = Math.max(maxChannels, count);
-        }
-      }
-    }
-    return maxChannels;
-  }
-
   /** Stores info from AudioDeviceInfo to be passed to the native app. */
   @SuppressWarnings("unused")
   @UsedByNative
@@ -207,8 +172,19 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
       outDeviceInfo.type = deviceInfos[index].getType();
       outDeviceInfo.channels = 2;
 
+      // The aac audio decoder on this platform will switch its output from 5.1
+      // to stereo right before providing the first output buffer when
+      // attempting to decode 5.1 input.  Since this heavily violates invariants
+      // of the shared starboard player framework, disable 5.1 on this platform.
+      // It is expected that we will be able to resolve this issue with Xiaomi
+      // by Android P, so only do this workaround for SDK versions < 27.
+      if (android.os.Build.MODEL.equals("MIBOX3") && android.os.Build.VERSION.SDK_INT < 27) {
+        return true;
+      }
+
       int[] channelCounts = deviceInfos[index].getChannelCounts();
       if (channelCounts.length == 0) {
+        // An empty array indicates that the device supports arbitrary channel masks.
         outDeviceInfo.channels = 8;
       } else {
         for (int count : channelCounts) {

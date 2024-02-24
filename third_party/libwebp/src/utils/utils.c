@@ -13,11 +13,9 @@
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/assert_poem.h"
-#include "starboard/client_porting/poem/stdio_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
-#else
-#include <string.h>  // for memcpy()
 #endif
+#include <stdlib.h>
+#include <string.h>  // for memcpy()
 #include "src/webp/decode.h"
 #include "src/webp/encode.h"
 #include "src/webp/format_constants.h"  // for MAX_PALETTE_SIZE
