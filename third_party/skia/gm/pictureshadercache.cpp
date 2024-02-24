@@ -52,7 +52,7 @@ public:
 
     void onOnceBeforeDraw() override {
         SkPictureRecorder recorder;
-        SkCanvas* pictureCanvas = recorder.beginRecording(fTileSize, fTileSize, nullptr, 0);
+        SkCanvas* pictureCanvas = recorder.beginRecording(fTileSize, fTileSize);
         this->drawTile(pictureCanvas);
         fPicture = recorder.finishRecordingAsPicture();
     }
@@ -67,7 +67,8 @@ public:
 
     void onDraw(SkCanvas* canvas) override {
         SkPaint paint;
-        paint.setShader(fPicture->makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat));
+        paint.setShader(fPicture->makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat,
+                                             SkFilterMode::kNearest));
 
         {
             // Render in a funny color space that converts green to yellow.
@@ -93,7 +94,7 @@ private:
     sk_sp<SkPicture> fPicture;
     SkBitmap         fBitmap;
 
-    typedef GM INHERITED;
+    using INHERITED = GM;
 };
 
 DEF_GM(return new PictureShaderCacheGM(100);)

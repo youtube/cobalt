@@ -70,7 +70,6 @@ class VideoDecoder
                bool force_secure_pipeline_under_tunnel_mode,
                bool force_reset_surface_under_tunnel_mode,
                bool force_big_endian_hdr_metadata,
-               bool use_mediacodec_callback_thread,
                int max_input_size,
                std::string* error_message);
   ~VideoDecoder() override;
@@ -218,10 +217,6 @@ class VideoDecoder
   bool first_output_format_changed_ = false;
   optional<VideoOutputFormat> output_format_;
   size_t number_of_preroll_frames_;
-
-  // Set mediacodec callback with a handler on another thread to avoid running
-  // callbacks on the main thread and being blocked by other main thread tasks.
-  const bool use_mediacodec_callback_thread_;
 };
 
 }  // namespace shared

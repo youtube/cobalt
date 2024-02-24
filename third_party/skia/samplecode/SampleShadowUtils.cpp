@@ -9,7 +9,6 @@
 #include "include/core/SkColorFilter.h"
 #include "include/core/SkPath.h"
 #include "include/core/SkPoint3.h"
-#include "include/effects/SkBlurMaskFilter.h"
 #include "include/pathops/SkPathOps.h"
 #include "include/utils/SkCamera.h"
 #include "include/utils/SkShadowUtils.h"
@@ -172,13 +171,11 @@ protected:
         SkScalar dy = 0;
         SkTDArray<SkMatrix> matrices;
         matrices.push()->reset();
-        SkMatrix* m = matrices.push();
-        m->setRotate(33.f, 25.f, 25.f);
-        m->postScale(1.2f, 0.8f, 25.f, 25.f);
-        SkPaint paint;
-        paint.setColor(SK_ColorGREEN);
-        paint.setAntiAlias(true);
-        SkPoint3 zPlaneParams = SkPoint3::Make(0, 0, SkTMax(1.0f, kHeight + fZDelta));
+        matrices.push()->setRotate(33.f, 25.f, 25.f).postScale(1.2f, 0.8f, 25.f, 25.f);
+        SkPaint greenPaint;
+        greenPaint.setColor(SK_ColorGREEN);
+        greenPaint.setAntiAlias(true);
+        SkPoint3 zPlaneParams = SkPoint3::Make(0, 0, std::max(1.0f, kHeight + fZDelta));
 
         // convex paths
         for (auto& m : matrices) {
@@ -198,13 +195,13 @@ protected:
 
                     canvas->save();
                     canvas->concat(m);
-                    this->drawShadowedPath(canvas, path, zPlaneParams, paint, kAmbientAlpha,
+                    this->drawShadowedPath(canvas, path, zPlaneParams, greenPaint, kAmbientAlpha,
                                            lightPos, kLightR, kSpotAlpha, flags);
                     canvas->restore();
 
                     canvas->translate(dx, 0);
                     x += dx;
-                    dy = SkTMax(dy, postMBounds.height() + kPad + kHeight);
+                    dy = std::max(dy, postMBounds.height() + kPad + kHeight);
                 }
             }
         }
@@ -224,13 +221,13 @@ protected:
 
                 canvas->save();
                 canvas->concat(m);
-                this->drawShadowedPath(canvas, path, zPlaneParams, paint, kAmbientAlpha, lightPos,
-                                       kLightR, kSpotAlpha, kNone_ShadowFlag);
+                this->drawShadowedPath(canvas, path, zPlaneParams, greenPaint, kAmbientAlpha,
+                                       lightPos, kLightR, kSpotAlpha, kNone_ShadowFlag);
                 canvas->restore();
 
                 canvas->translate(dx, 0);
                 x += dx;
-                dy = SkTMax(dy, postMBounds.height() + kPad + kHeight);
+                dy = std::max(dy, postMBounds.height() + kPad + kHeight);
             }
         }
 
@@ -239,16 +236,16 @@ protected:
         if (invCanvasM.invert(&invCanvasM)) {
             canvas->save();
             canvas->concat(invCanvasM);
-            SkPaint paint;
-            paint.setColor(SK_ColorBLACK);
-            paint.setAntiAlias(true);
-            canvas->drawCircle(lightPos.fX, lightPos.fY, kLightR / 10.f, paint);
+            SkPaint blackPaint;
+            blackPaint.setColor(SK_ColorBLACK);
+            blackPaint.setAntiAlias(true);
+            canvas->drawCircle(lightPos.fX, lightPos.fY, kLightR / 10.f, blackPaint);
             canvas->restore();
         }
     }
 
 private:
-    typedef Sample INHERITED;
+    using INHERITED = Sample;
 };
 
 //////////////////////////////////////////////////////////////////////////////

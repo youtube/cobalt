@@ -367,9 +367,9 @@ static int hpke_build_suite_id(const EVP_HPKE_CTX *ctx,
                                uint8_t out[HPKE_SUITE_ID_LEN]) {
   CBB cbb;
   int ret = CBB_init_fixed(&cbb, out, HPKE_SUITE_ID_LEN) &&
-            add_label_string(&cbb, "HPKE") &&
-            CBB_add_u16(&cbb, EVP_HPKE_DHKEM_X25519_HKDF_SHA256) &&
-            CBB_add_u16(&cbb, ctx->kdf->id) &&
+            add_label_string(&cbb, "HPKE") &&   //
+            CBB_add_u16(&cbb, ctx->kem->id) &&  //
+            CBB_add_u16(&cbb, ctx->kdf->id) &&  //
             CBB_add_u16(&cbb, ctx->aead->id);
   CBB_cleanup(&cbb);
   return ret;
@@ -503,6 +503,7 @@ int EVP_HPKE_CTX_setup_sender_with_seed_for_testing(
     size_t seed_len) {
   EVP_HPKE_CTX_zero(ctx);
   ctx->is_sender = 1;
+  ctx->kem = kem;
   ctx->kdf = kdf;
   ctx->aead = aead;
   uint8_t shared_secret[MAX_SHARED_SECRET_LEN];
@@ -525,12 +526,13 @@ int EVP_HPKE_CTX_setup_recipient(EVP_HPKE_CTX *ctx, const EVP_HPKE_KEY *key,
                                  size_t info_len) {
   EVP_HPKE_CTX_zero(ctx);
   ctx->is_sender = 0;
+  ctx->kem = key->kem;
   ctx->kdf = kdf;
   ctx->aead = aead;
   uint8_t shared_secret[MAX_SHARED_SECRET_LEN];
   size_t shared_secret_len;
   if (!key->kem->decap(key, shared_secret, &shared_secret_len, enc, enc_len) ||
-      !hpke_key_schedule(ctx, shared_secret, sizeof(shared_secret), info,
+      !hpke_key_schedule(ctx, shared_secret, shared_secret_len, info,
                          info_len)) {
     EVP_HPKE_CTX_cleanup(ctx);
     return 0;

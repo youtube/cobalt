@@ -2283,6 +2283,17 @@ OPENSSL_EXPORT void SSL_CTX_set_ticket_aead_method(
 OPENSSL_EXPORT SSL_SESSION *SSL_process_tls13_new_session_ticket(
     SSL *ssl, const uint8_t *buf, size_t buf_len);
 
+// SSL_CTX_set_num_tickets configures |ctx| to send |num_tickets| immediately
+// after a successful TLS 1.3 handshake as a server. It returns one. Large
+// values of |num_tickets| will be capped within the library.
+//
+// By default, BoringSSL sends two tickets.
+OPENSSL_EXPORT int SSL_CTX_set_num_tickets(SSL_CTX *ctx, size_t num_tickets);
+
+// SSL_CTX_get_num_tickets returns the number of tickets |ctx| will send
+// immediately after a successful TLS 1.3 handshake as a server.
+OPENSSL_EXPORT size_t SSL_CTX_get_num_tickets(const SSL_CTX *ctx);
+
 
 // Elliptic curve Diffie-Hellman.
 //
@@ -2342,6 +2353,20 @@ OPENSSL_EXPORT uint16_t SSL_get_curve_id(const SSL *ssl);
 // SSL_get_curve_name returns a human-readable name for the curve specified by
 // the given TLS curve id, or NULL if the curve is unknown.
 OPENSSL_EXPORT const char *SSL_get_curve_name(uint16_t curve_id);
+
+// SSL_CTX_set1_groups calls |SSL_CTX_set1_curves|.
+OPENSSL_EXPORT int SSL_CTX_set1_groups(SSL_CTX *ctx, const int *groups,
+                                       size_t groups_len);
+
+// SSL_set1_groups calls |SSL_set1_curves|.
+OPENSSL_EXPORT int SSL_set1_groups(SSL *ssl, const int *groups,
+                                   size_t groups_len);
+
+// SSL_CTX_set1_groups_list calls |SSL_CTX_set1_curves_list|.
+OPENSSL_EXPORT int SSL_CTX_set1_groups_list(SSL_CTX *ctx, const char *groups);
+
+// SSL_set1_groups_list calls |SSL_set1_curves_list|.
+OPENSSL_EXPORT int SSL_set1_groups_list(SSL *ssl, const char *groups);
 
 
 // Certificate verification.
@@ -2713,7 +2738,7 @@ OPENSSL_EXPORT int SSL_CTX_add_client_CA(SSL_CTX *ctx, X509 *x509);
 
 // SSL_load_client_CA_file opens |file| and reads PEM-encoded certificates from
 // it. It returns a newly-allocated stack of the certificate subjects or NULL
-// on error.
+// on error. Duplicates in |file| are ignored.
 OPENSSL_EXPORT STACK_OF(X509_NAME) *SSL_load_client_CA_file(const char *file);
 
 // SSL_dup_CA_list makes a deep copy of |list|. It returns the new list on
@@ -2725,6 +2750,11 @@ OPENSSL_EXPORT STACK_OF(X509_NAME) *SSL_dup_CA_list(STACK_OF(X509_NAME) *list);
 // error.
 OPENSSL_EXPORT int SSL_add_file_cert_subjects_to_stack(STACK_OF(X509_NAME) *out,
                                                        const char *file);
+
+// SSL_add_bio_cert_subjects_to_stack behaves like
+// |SSL_add_file_cert_subjects_to_stack| but reads from |bio|.
+OPENSSL_EXPORT int SSL_add_bio_cert_subjects_to_stack(STACK_OF(X509_NAME) *out,
+                                                      BIO *bio);
 
 
 // Server name indication.
@@ -4068,8 +4098,9 @@ OPENSSL_EXPORT int SSL_CTX_set_record_protocol_version(SSL_CTX *ctx,
 // those cases, BoringSSL will not predict a signature as there is no benefit.
 // Callers must allow for handshakes to complete without a predicted signature.
 //
-// For now, only TLS 1.3 is hinted. TLS 1.2 will work, but the hints will be
-// empty.
+// Handshake hints are supported for TLS 1.3 and partially supported for
+// TLS 1.2. TLS 1.2 resumption handshakes are not yet fully hinted. They will
+// still work, but may not be as efficient.
 
 // SSL_serialize_capabilities writes an opaque byte string to |out| describing
 // some of |ssl|'s capabilities. It returns one on success and zero on error.
@@ -4225,6 +4256,13 @@ enum ssl_renegotiate_mode_t BORINGSSL_ENUM_INT {
 // renegotiation attempts by a server. If |ssl| is a server, peer-initiated
 // renegotiations are *always* rejected and this function does nothing.
 //
+// WARNING: Renegotiation is error-prone, complicates TLS's security properties,
+// and increases its attack surface. When enabled, many common assumptions about
+// BoringSSL's behavior no longer hold, and the calling application must handle
+// more cases. Renegotiation is also incompatible with many application
+// protocols, e.g. section 9.2.1 of RFC 7540. Many functions behave in ambiguous
+// or undefined ways during a renegotiation.
+//
 // The renegotiation mode defaults to |ssl_renegotiate_never|, but may be set
 // at any point in a connection's lifetime. Set it to |ssl_renegotiate_once| to
 // allow one renegotiation, |ssl_renegotiate_freely| to allow all
@@ -4245,6 +4283,20 @@ enum ssl_renegotiate_mode_t BORINGSSL_ENUM_INT {
 // enabling it on a given connection. Callers that condition renegotiation on,
 // e.g., ALPN must enable renegotiation before the handshake and conditionally
 // disable it afterwards.
+//
+// When enabled, renegotiation can cause properties of |ssl|, such as the cipher
+// suite, to change during the lifetime of the connection. More over, during a
+// renegotiation, not all properties of the new handshake are available or fully
+// established. In BoringSSL, most functions, such as |SSL_get_current_cipher|,
+// report information from the most recently completed handshake, not the
+// pending one. However, renegotiation may rerun handshake callbacks, such as
+// |SSL_CTX_set_cert_cb|. Such callbacks must ensure they are acting on the
+// desired versions of each property.
+//
+// BoringSSL does not reverify peer certificates on renegotiation and instead
+// requires they match between handshakes, so certificate verification callbacks
+// (see |SSL_CTX_set_custom_verify|) may assume |ssl| is in the initial
+// handshake and use |SSL_get0_peer_certificates|, etc.
 //
 // There is no support in BoringSSL for initiating renegotiations as a client
 // or server.
@@ -5204,6 +5256,44 @@ OPENSSL_EXPORT int SSL_CTX_set_tlsext_status_arg(SSL_CTX *ctx, void *arg);
 OPENSSL_EXPORT uint16_t SSL_CIPHER_get_value(const SSL_CIPHER *cipher);
 
 
+// Compliance policy configurations
+//
+// A TLS connection has a large number of different parameters. Some are well
+// known, like cipher suites, but many are obscure and configuration functions
+// for them may not exist. These policy controls allow broad configuration
+// goals to be specified so that they can flow down to all the different
+// parameters of a TLS connection.
+
+enum ssl_compliance_policy_t BORINGSSL_ENUM_INT {
+  // ssl_policy_fips_202205 configures a TLS connection to use:
+  //   * TLS 1.2 or 1.3
+  //   * For TLS 1.2, only ECDHE_[RSA|ECDSA]_WITH_AES_*_GCM_SHA*.
+  //   * For TLS 1.3, only AES-GCM
+  //   * P-256 or P-384 for key agreement.
+  //   * For server signatures, only PKCS#1/PSS with SHA256/384/512, or ECDSA
+  //     with P-256 or P-384.
+  //
+  // Note: this policy can be configured even if BoringSSL has not been built in
+  // FIPS mode. Call |FIPS_mode| to check that.
+  //
+  // Note: this setting aids with compliance with NIST requirements but does not
+  // guarantee it. Careful reading of SP 800-52r2 is recommended.
+  ssl_compliance_policy_fips_202205,
+};
+
+// SSL_CTX_set_compliance_policy configures various aspects of |ctx| based on
+// the given policy requirements. Subsequently calling other functions that
+// configure |ctx| may override |policy|, or may not. This should be the final
+// configuration function called in order to have defined behaviour.
+OPENSSL_EXPORT int SSL_CTX_set_compliance_policy(
+    SSL_CTX *ctx, enum ssl_compliance_policy_t policy);
+
+// SSL_set_compliance_policy acts the same as |SSL_CTX_set_compliance_policy|,
+// but only configures a single |SSL*|.
+OPENSSL_EXPORT int SSL_set_compliance_policy(
+    SSL *ssl, enum ssl_compliance_policy_t policy);
+
+
 // Nodejs compatibility section (hidden).
 //
 // These defines exist for node.js, with the hope that we can eliminate the
@@ -5369,62 +5459,6 @@ BORINGSSL_MAKE_DELETER(SSL_ECH_KEYS, SSL_ECH_KEYS_free)
 BORINGSSL_MAKE_UP_REF(SSL_ECH_KEYS, SSL_ECH_KEYS_up_ref)
 BORINGSSL_MAKE_DELETER(SSL_SESSION, SSL_SESSION_free)
 BORINGSSL_MAKE_UP_REF(SSL_SESSION, SSL_SESSION_up_ref)
-
-enum class OpenRecordResult {
-  kOK,
-  kDiscard,
-  kIncompleteRecord,
-  kAlertCloseNotify,
-  kError,
-};
-
-//  *** EXPERIMENTAL -- DO NOT USE ***
-//
-// OpenRecord decrypts the first complete SSL record from |in| in-place, sets
-// |out| to the decrypted application data, and |out_record_len| to the length
-// of the encrypted record. Returns:
-// - kOK if an application-data record was successfully decrypted and verified.
-// - kDiscard if a record was sucessfully processed, but should be discarded.
-// - kIncompleteRecord if |in| did not contain a complete record.
-// - kAlertCloseNotify if a record was successfully processed but is a
-//   close_notify alert.
-// - kError if an error occurred or the record is invalid. |*out_alert| will be
-//   set to an alert to emit, or zero if no alert should be emitted.
-OPENSSL_EXPORT OpenRecordResult OpenRecord(SSL *ssl, Span<uint8_t> *out,
-                                           size_t *out_record_len,
-                                           uint8_t *out_alert,
-                                           Span<uint8_t> in);
-
-OPENSSL_EXPORT size_t SealRecordPrefixLen(const SSL *ssl, size_t plaintext_len);
-
-// SealRecordSuffixLen returns the length of the suffix written by |SealRecord|.
-//
-// |plaintext_len| must be equal to the size of the plaintext passed to
-// |SealRecord|.
-//
-// |plaintext_len| must not exceed |SSL3_RT_MAX_PLAINTEXT_LENGTH|. The returned
-// suffix length will not exceed |SSL3_RT_MAX_ENCRYPTED_OVERHEAD|.
-OPENSSL_EXPORT size_t SealRecordSuffixLen(const SSL *ssl, size_t plaintext_len);
-
-//  *** EXPERIMENTAL -- DO NOT USE ***
-//
-// SealRecord encrypts the cleartext of |in| and scatters the resulting TLS
-// application data record between |out_prefix|, |out|, and |out_suffix|. It
-// returns true on success or false if an error occurred.
-//
-// The length of |out_prefix| must equal |SealRecordPrefixLen|. The length of
-// |out| must equal the length of |in|, which must not exceed
-// |SSL3_RT_MAX_PLAINTEXT_LENGTH|. The length of |out_suffix| must equal
-// |SealRecordSuffixLen|.
-//
-// If enabled, |SealRecord| may perform TLS 1.0 CBC 1/n-1 record splitting.
-// |SealRecordPrefixLen| accounts for the required overhead if that is the case.
-//
-// |out| may equal |in| to encrypt in-place but may not otherwise alias.
-// |out_prefix| and |out_suffix| may not alias anything.
-OPENSSL_EXPORT bool SealRecord(SSL *ssl, Span<uint8_t> out_prefix,
-                               Span<uint8_t> out, Span<uint8_t> out_suffix,
-                               Span<const uint8_t> in);
 
 
 // *** EXPERIMENTAL — DO NOT USE WITHOUT CHECKING ***

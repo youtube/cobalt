@@ -5,10 +5,11 @@
  * found in the LICENSE file.
  */
 
+#include "include/core/SkBitmap.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkSurface.h"
-#include "include/gpu/GrContext.h"
-#include "src/gpu/GrContextPriv.h"
+#include "include/gpu/GrDirectContext.h"
+#include "src/gpu/GrDirectContextPriv.h"
 #include "src/gpu/GrGpu.h"
 #include "tests/Test.h"
 
@@ -25,8 +26,8 @@ static bool check_read(skiatest::Reporter* reporter, const SkBitmap& bitmap) {
     return result;
 }
 
-DEF_GPUTEST_FOR_RENDERING_CONTEXTS(GrOpsTaskFlushCount, reporter, ctxInfo) {
-    GrContext* context = ctxInfo.grContext();
+DEF_GPUTEST_FOR_RENDERING_CONTEXTS(OpsTaskFlushCount, reporter, ctxInfo) {
+    auto context = ctxInfo.directContext();
     GrGpu* gpu = context->priv().getGpu();
 
     SkImageInfo imageInfo = SkImageInfo::Make(1000, 1, kRGBA_8888_SkColorType, kPremul_SkAlphaType);
@@ -46,7 +47,7 @@ DEF_GPUTEST_FOR_RENDERING_CONTEXTS(GrOpsTaskFlushCount, reporter, ctxInfo) {
     canvas1->clear(SK_ColorRED);
     canvas2->clear(SK_ColorRED);
 
-    SkIRect srcRect = SkIRect::MakeWH(1, 1);
+    SkRect srcRect = SkRect::MakeWH(1, 1);
     SkRect dstRect = SkRect::MakeWH(1, 1);
     SkPaint paint;
     paint.setColor(SK_ColorGREEN);
@@ -57,20 +58,22 @@ DEF_GPUTEST_FOR_RENDERING_CONTEXTS(GrOpsTaskFlushCount, reporter, ctxInfo) {
         srcRect.fRight = srcRect.fLeft + 1;
 
         sk_sp<SkImage> image = surface1->makeImageSnapshot();
-        canvas2->drawImageRect(image.get(), srcRect, dstRect, nullptr);
+        canvas2->drawImageRect(image.get(), srcRect, dstRect, SkSamplingOptions(), nullptr,
+                               SkCanvas::kStrict_SrcRectConstraint);
         if (i != 999) {
             dstRect.fLeft = i+1;
             dstRect.fRight = dstRect.fLeft + 1;
             image = surface2->makeImageSnapshot();
-            canvas1->drawImageRect(image.get(), srcRect, dstRect, nullptr);
+            canvas1->drawImageRect(image.get(), srcRect, dstRect, SkSamplingOptions(), nullptr,
+                                   SkCanvas::kStrict_SrcRectConstraint);
         }
     }
-    context->flush();
+    context->flushAndSubmit();
 
     // In total we make 2000 oplists. Our current limit on max oplists between flushes is 100, so we
     // should do 20 flushes while executing oplists. Additionaly we always do 1 flush at the end of
     // executing all oplists. So in total we should see 21 flushes here.
-    REPORTER_ASSERT(reporter, gpu->stats()->numFinishFlushes() == 21);
+    REPORTER_ASSERT(reporter, gpu->stats()->numSubmitToGpus() == 21);
 
     SkBitmap readbackBitmap;
     readbackBitmap.allocN32Pixels(1000, 1);

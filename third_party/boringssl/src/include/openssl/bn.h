@@ -205,6 +205,10 @@ OPENSSL_EXPORT unsigned BN_num_bits(const BIGNUM *bn);
 
 // BN_num_bytes returns the minimum number of bytes needed to represent the
 // absolute value of |bn|.
+//
+// While |size_t| is the preferred type for byte counts, callers can assume that
+// |BIGNUM|s are bounded such that this value, and its corresponding bit count,
+// will always fit in |int|.
 OPENSSL_EXPORT unsigned BN_num_bytes(const BIGNUM *bn);
 
 // BN_zero sets |bn| to zero.
@@ -681,6 +685,9 @@ OPENSSL_EXPORT void BN_GENCB_set(BN_GENCB *callback,
 // the callback, or 1 if |callback| is NULL.
 OPENSSL_EXPORT int BN_GENCB_call(BN_GENCB *callback, int event, int n);
 
+// BN_GENCB_get_arg returns |callback->arg|.
+OPENSSL_EXPORT void *BN_GENCB_get_arg(const BN_GENCB *callback);
+
 // BN_generate_prime_ex sets |ret| to a prime number of |bits| length. If safe
 // is non-zero then the prime will be such that (ret-1)/2 is also a prime.
 // (This is needed for Diffie-Hellman groups to ensure that the only subgroups
@@ -963,6 +970,9 @@ OPENSSL_EXPORT int BN_bn2binpad(const BIGNUM *in, uint8_t *out, int len);
 // instead. (This defaults to the |_for_validation| value in order to be
 // conservative.)
 #define BN_prime_checks BN_prime_checks_for_validation
+
+// BN_secure_new calls |BN_new|.
+OPENSSL_EXPORT BIGNUM *BN_secure_new(void);
 
 
 // Private functions

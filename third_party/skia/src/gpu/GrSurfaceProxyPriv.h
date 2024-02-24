@@ -10,14 +10,16 @@
 
 #include "src/gpu/GrSurfaceProxy.h"
 
-#include "src/gpu/GrResourceProvider.h"
+class GrResourceProvider;
 
 /** Class that adds methods to GrSurfaceProxy that are only intended for use internal to Skia.
     This class is purely a privileged window into GrSurfaceProxy. It should never have additional
     data members or virtual methods. */
 class GrSurfaceProxyPriv {
 public:
-    void computeScratchKey(GrScratchKey* key) const { return fProxy->computeScratchKey(key); }
+    void computeScratchKey(const GrCaps& caps, GrScratchKey* key) const {
+        return fProxy->computeScratchKey(caps, key);
+    }
 
     // Create a GrSurface-derived class that meets the requirements (i.e, desc, renderability)
     // of the GrSurfaceProxy.
@@ -38,10 +40,15 @@ public:
 
     bool doLazyInstantiation(GrResourceProvider*);
 
+    void setIsDDLTarget() { fProxy->fIsDDLTarget = true; }
+
+    void setIsPromiseProxy() { fProxy->fIsPromiseProxy = true; }
+
 private:
     explicit GrSurfaceProxyPriv(GrSurfaceProxy* proxy) : fProxy(proxy) {}
-    GrSurfaceProxyPriv(const GrSurfaceProxyPriv&) {} // unimpl
-    GrSurfaceProxyPriv& operator=(const GrSurfaceProxyPriv&); // unimpl
+    // Required until C++17 copy elision
+    GrSurfaceProxyPriv(const GrSurfaceProxyPriv&) = default;
+    GrSurfaceProxyPriv& operator=(const GrSurfaceProxyPriv&) = delete;
 
     // No taking addresses of this type.
     const GrSurfaceProxyPriv* operator&() const;
@@ -54,7 +61,7 @@ private:
 
 inline GrSurfaceProxyPriv GrSurfaceProxy::priv() { return GrSurfaceProxyPriv(this); }
 
-inline const GrSurfaceProxyPriv GrSurfaceProxy::priv () const {
+inline const GrSurfaceProxyPriv GrSurfaceProxy::priv () const {  // NOLINT(readability-const-return-type)
     return GrSurfaceProxyPriv(const_cast<GrSurfaceProxy*>(this));
 }
 

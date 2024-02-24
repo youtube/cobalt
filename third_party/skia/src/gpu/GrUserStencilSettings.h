@@ -13,12 +13,12 @@
 
 /**
  * Gr uses the stencil buffer to implement complex clipping inside the
- * GrOpsTask class. The GrOpsTask makes a subset of the stencil buffer
+ * OpsTask class. The OpsTask makes a subset of the stencil buffer
  * bits available for other uses by external code (user bits). Client code can
- * modify these bits. GrOpsTask will ignore ref, mask, and writemask bits
+ * modify these bits. OpsTask will ignore ref, mask, and writemask bits
  * provided by clients that fall outside the user range.
  *
- * When code outside the GrOpsTask class uses the stencil buffer the contract
+ * When code outside the OpsTask class uses the stencil buffer the contract
  * is as follows:
  *
  * > Normal stencil funcs allow the client to pass / fail regardless of the
@@ -32,7 +32,7 @@
  *   clip).
  */
 
-enum GrStencilFlags {
+enum GrStencilFlags : int {
     kDisabled_StencilFlag         = (1 << 0),
     kTestAlwaysPasses_StencilFlag = (1 << 1),
     kNoModifyStencil_StencilFlag  = (1 << 2),
@@ -213,11 +213,11 @@ struct GrUserStencilSettings {
 template<GrUserStencilTest Test, GrUserStencilOp PassOp, GrUserStencilOp FailOp>
 struct GrUserStencilSettings::Attrs {
     // Ensure an op that only modifies user bits isn't paired with one that modifies clip bits.
-    GR_STATIC_ASSERT(GrUserStencilOp::kKeep == PassOp || GrUserStencilOp::kKeep == FailOp ||
-                     (PassOp <= kLastUserOnlyStencilOp) == (FailOp <= kLastUserOnlyStencilOp));
+    static_assert(GrUserStencilOp::kKeep == PassOp || GrUserStencilOp::kKeep == FailOp ||
+                  (PassOp <= kLastUserOnlyStencilOp) == (FailOp <= kLastUserOnlyStencilOp));
     // Ensure an op that only modifies clip bits isn't paired with one that modifies clip and user.
-    GR_STATIC_ASSERT(GrUserStencilOp::kKeep == PassOp || GrUserStencilOp::kKeep == FailOp ||
-                     (PassOp <= kLastClipOnlyStencilOp) == (FailOp <= kLastClipOnlyStencilOp));
+    static_assert(GrUserStencilOp::kKeep == PassOp || GrUserStencilOp::kKeep == FailOp ||
+                  (PassOp <= kLastClipOnlyStencilOp) == (FailOp <= kLastClipOnlyStencilOp));
 
     constexpr static bool TestAlwaysPasses(bool hasStencilClip) {
         return (!hasStencilClip && GrUserStencilTest::kAlwaysIfInClip == Test) ||

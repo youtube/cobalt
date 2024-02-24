@@ -51,9 +51,6 @@ __argparse.add_argument('-d', '--duration',
   type=int, help="number of milliseconds to run each benchmark")
 __argparse.add_argument('-l', '--sample-ms',
   type=int, help="duration of a sample (minimum)")
-__argparse.add_argument('--force',
-  action='store_true',
-  help="perform benchmarking on unrecognized Android devices")
 __argparse.add_argument('--gpu',
   action='store_true',
   help="perform timing on the gpu clock instead of cpu (gpu work only)")
@@ -61,32 +58,46 @@ __argparse.add_argument('--fps',
   action='store_true', help="use fps instead of ms")
 __argparse.add_argument('--pr',
   help="comma- or space-separated list of GPU path renderers, including: "
-       "[[~]all [~]default [~]dashline [~]nvpr [~]msaa [~]aaconvex "
+       "[[~]all [~]default [~]dashline [~]msaa [~]aaconvex "
        "[~]aalinearizing [~]small [~]tess]")
 __argparse.add_argument('--cc',
   action='store_true', help="allow coverage counting shortcuts to render paths")
 __argparse.add_argument('--nocache',
   action='store_true', help="disable caching of path mask textures")
+__argparse.add_argument('--allPathsVolatile',
+  action='store_true',
+  help="Causes all GPU paths to be processed as if 'setIsVolatile' had been called.")
 __argparse.add_argument('-c', '--config',
   default='gl', help="comma- or space-separated list of GPU configs")
 __argparse.add_argument('-a', '--resultsfile',
   help="optional file to append results into")
 __argparse.add_argument('--ddl',
   action='store_true', help="record the skp into DDLs before rendering")
-__argparse.add_argument('--ddlNumAdditionalThreads',
+__argparse.add_argument('--lock-clocks',
+  action='store_true', help="Put device in benchmarking mode (locked clocks, no other processes)")
+__argparse.add_argument('--clock-speed',
+  type=float, default=66.0, help="A number between 0 and 100 indicating how fast to lock the CPU and GPU clock."
+  "Valid speeds are chosen from their respective available frequencies list.")
+__argparse.add_argument('--ddlNumRecordingThreads',
   type=int, default=0,
-  help="number of DDL recording threads in addition to main one")
+  help="number of DDL recording threads (0=num_cores)")
 __argparse.add_argument('--ddlTilingWidthHeight',
   type=int, default=0, help="number of tiles along one edge when in DDL mode")
-__argparse.add_argument('--ddlRecordTime',
-  action='store_true', help="report just the cpu time spent recording DDLs")
+__argparse.add_argument('--dontReduceOpsTaskSplitting',
+  action='store_true', help="don't reorder GPU tasks to reduce render target swaps")
 __argparse.add_argument('--gpuThreads',
   type=int, default=-1,
   help="Create this many extra threads to assist with GPU work, including"
        " software path rendering. Defaults to two.")
+__argparse.add_argument('--internalSamples',
+  type=int, default=-1,
+  help="Number of samples for internal draws that use MSAA.")
 __argparse.add_argument('srcs',
   nargs='+',
   help=".skp files or directories to expand for .skp files, and/or .svg files")
+__argparse.add_argument('--gpuResourceCacheLimit',
+  type=int, default=-1,
+  help="Maximum number of bytes to use for budgeted GPU resources.")
 
 FLAGS = __argparse.parse_args()
 if FLAGS.adb:
@@ -140,19 +151,27 @@ class SKPBench:
     ARGV.extend(['--cc', 'true'])
   if FLAGS.nocache:
     ARGV.extend(['--cachePathMasks', 'false'])
+  if FLAGS.allPathsVolatile:
+    ARGV.extend(['--allPathsVolatile', 'true'])
   if FLAGS.gpuThreads != -1:
     ARGV.extend(['--gpuThreads', str(FLAGS.gpuThreads)])
+  if FLAGS.internalSamples != -1:
+    ARGV.extend(['--internalSamples', str(FLAGS.internalSamples)])
 
   # DDL parameters
   if FLAGS.ddl:
     ARGV.extend(['--ddl', 'true'])
-  if FLAGS.ddlNumAdditionalThreads:
-    ARGV.extend(['--ddlNumAdditionalThreads',
-                 str(FLAGS.ddlNumAdditionalThreads)])
+  if FLAGS.ddlNumRecordingThreads:
+    ARGV.extend(['--ddlNumRecordingThreads',
+                 str(FLAGS.ddlNumRecordingThreads)])
   if FLAGS.ddlTilingWidthHeight:
     ARGV.extend(['--ddlTilingWidthHeight', str(FLAGS.ddlTilingWidthHeight)])
-  if FLAGS.ddlRecordTime:
-    ARGV.extend(['--ddlRecordTime', 'true'])
+
+  if FLAGS.dontReduceOpsTaskSplitting:
+    ARGV.extend(['--dontReduceOpsTaskSplitting'])
+
+  if FLAGS.gpuResourceCacheLimit:
+    ARGV.extend(['--gpuResourceCacheLimit', str(FLAGS.gpuResourceCacheLimit)])
 
   if FLAGS.adb:
     if FLAGS.device_serial is None:
@@ -332,14 +351,17 @@ def main():
   srcs = _path.find_skps(FLAGS.srcs)
   assert srcs
 
+
   if FLAGS.adb:
     adb = Adb(FLAGS.device_serial, FLAGS.adb_binary,
               echo=(FLAGS.verbosity >= 5))
+    from _hardware_android import HardwareAndroid
+
     model = adb.check('getprop ro.product.model').strip()
     if model == 'Pixel C':
       from _hardware_pixel_c import HardwarePixelC
       hardware = HardwarePixelC(adb)
-    elif model == 'Pixel':
+    elif model == 'Pixel' or model == "Pixel XL":
       from _hardware_pixel import HardwarePixel
       hardware = HardwarePixel(adb)
     elif model == 'Pixel 2':
@@ -348,14 +370,18 @@ def main():
     elif model == 'Nexus 6P':
       from _hardware_nexus_6p import HardwareNexus6P
       hardware = HardwareNexus6P(adb)
-    elif FLAGS.force:
-      from _hardware_android import HardwareAndroid
+    else:
       print("WARNING: %s: don't know how to monitor this hardware; results "
             "may be unreliable." % model, file=sys.stderr)
       hardware = HardwareAndroid(adb)
-    else:
-      raise Exception("%s: don't know how to monitor this hardware. "
-                      "Use --force to bypass this warning." % model)
+
+    if FLAGS.lock_clocks:
+      hardware.__enter__()
+      print("Entered benchmarking mode, not running benchmarks. Reboot to restore.");
+      return;
+
+    if FLAGS.clock_speed:
+      hardware.setDesiredClock(FLAGS.clock_speed)
   else:
     hardware = Hardware()
 

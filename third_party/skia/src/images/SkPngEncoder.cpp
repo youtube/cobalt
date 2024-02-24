@@ -7,7 +7,7 @@
 
 #include "src/images/SkImageEncoderPriv.h"
 
-#ifdef SK_HAS_PNG_LIBRARY
+#ifdef SK_ENCODE_PNG
 
 #include "include/core/SkStream.h"
 #include "include/core/SkString.h"
@@ -198,7 +198,7 @@ bool SkPngEncoderMgr::setHeader(const SkImageInfo& srcInfo, const SkPngEncoder::
     SkASSERT(filters == (int)options.fFilterFlags);
     png_set_filter(fPngPtr, PNG_FILTER_TYPE_BASE, filters);
 
-    int zlibLevel = SkTMin(SkTMax(0, options.fZLibLevel), 9);
+    int zlibLevel = std::min(std::max(0, options.fZLibLevel), 9);
     SkASSERT(zlibLevel == options.fZLibLevel);
     png_set_compression_level(fPngPtr, zlibLevel);
 
@@ -236,6 +236,11 @@ static transform_scanline_proc choose_proc(const SkImageInfo& info) {
     switch (info.colorType()) {
         case kUnknown_SkColorType:
             break;
+
+        // TODO: I don't think this can just use kRGBA's procs.
+        // kPremul is especially tricky here, since it's presumably TF⁻¹(rgb * a),
+        // so to get at unpremul rgb we'd need to undo the transfer function first.
+        case kSRGBA_8888_SkColorType: return nullptr;
 
         case kRGBA_8888_SkColorType:
             switch (info.alphaType()) {
@@ -312,8 +317,20 @@ static transform_scanline_proc choose_proc(const SkImageInfo& info) {
                     SkASSERT(false);
                     return nullptr;
             }
-        case kRGB_101010x_SkColorType:
-            return transform_scanline_101010x;
+        case kBGRA_1010102_SkColorType:
+            switch (info.alphaType()) {
+                case kOpaque_SkAlphaType:
+                case kUnpremul_SkAlphaType:
+                    return transform_scanline_bgra_1010102;
+                case kPremul_SkAlphaType:
+                    return transform_scanline_bgra_1010102_premul;
+                default:
+                    SkASSERT(false);
+                    return nullptr;
+            }
+        case kRGB_101010x_SkColorType: return transform_scanline_101010x;
+        case kBGR_101010x_SkColorType: return transform_scanline_bgr_101010x;
+
         case kAlpha_8_SkColorType:
             return transform_scanline_A8_to_GrayAlpha;
         case kR8G8_unorm_SkColorType:

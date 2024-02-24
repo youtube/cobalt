@@ -9,7 +9,7 @@
 #include "include/core/SkCanvas.h"
 #include "include/core/SkColor.h"
 #include "include/core/SkPaint.h"
-#include "include/core/SkPath.h"
+#include "include/core/SkPathBuilder.h"
 #include "include/core/SkPoint.h"
 #include "include/core/SkScalar.h"
 #include "include/core/SkSize.h"
@@ -74,13 +74,15 @@ protected:
 
         SkASSERT(SK_ARRAY_COUNT(pgs) == kNumPolygons);
         for (size_t pgIndex = 0; pgIndex < SK_ARRAY_COUNT(pgs); ++pgIndex) {
-            fPolygons.push_back().moveTo(pgs[pgIndex].fPoints[0].fX,
-                                         pgs[pgIndex].fPoints[0].fY);
+            SkPathBuilder b;
+            b.moveTo(pgs[pgIndex].fPoints[0].fX,
+                     pgs[pgIndex].fPoints[0].fY);
             for (size_t ptIndex = 1; ptIndex < pgs[pgIndex].fPointNum; ++ptIndex) {
-                fPolygons.back().lineTo(pgs[pgIndex].fPoints[ptIndex].fX,
-                                        pgs[pgIndex].fPoints[ptIndex].fY);
+                b.lineTo(pgs[pgIndex].fPoints[ptIndex].fX,
+                         pgs[pgIndex].fPoints[ptIndex].fY);
             }
-            fPolygons.back().close();
+            b.close();
+            fPolygons.push_back(b.detach());
         }
     }
 
@@ -158,18 +160,35 @@ protected:
     }
 
 private:
-    static constexpr int kNumPolygons = 8;
-    static constexpr int kCellSize = 100;
-    static constexpr int kNumExtraStyles = 2;
-    static constexpr int kNumStrokeWidths = 3;
-    static constexpr int kNumJoins = 3;
+    inline static constexpr int kNumPolygons = 8;
+    inline static constexpr int kCellSize = 100;
+    inline static constexpr int kNumExtraStyles = 2;
+    inline static constexpr int kNumStrokeWidths = 3;
+    inline static constexpr int kNumJoins = 3;
 
     SkTArray<SkPath> fPolygons;
-    typedef GM INHERITED;
+    using INHERITED = GM;
 };
 
 //////////////////////////////////////////////////////////////////////////////
 
 DEF_GM(return new PolygonsGM;)
 
+// see crbug.com/1197461
+DEF_SIMPLE_GM(conjoined_polygons, canvas, 400, 400) {
+    SkPathBuilder b;
+    b.moveTo(0.f, 120.f);
+    b.lineTo(0.f, 0.f);
+    b.lineTo(50.f, 330.f);
+    b.lineTo(90.f, 0.f);
+    b.lineTo(340.f, 0.f);
+    b.lineTo(90.f, 330.f);
+    b.lineTo(50.f, 330.f);
+    b.close();
+
+    SkPaint paint;
+    paint.setAntiAlias(true);
+    canvas->drawPath(b.detach(), paint);
 }
+
+}  // namespace skiagm

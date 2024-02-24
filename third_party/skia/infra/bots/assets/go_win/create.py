@@ -10,14 +10,18 @@
 
 
 import argparse
-import common  # pylint: disable=unused-import
 import os
 import subprocess
+import sys
+
+FILE_DIR = os.path.dirname(os.path.abspath(__file__))
+INFRA_BOTS_DIR = os.path.realpath(os.path.join(FILE_DIR, os.pardir, os.pardir))
+sys.path.insert(0, INFRA_BOTS_DIR)
 import utils
 
 
 # Remember to also update the go asset when this is updated.
-GO_URL = "https://dl.google.com/go/go1.12.4.windows-amd64.zip"
+GO_URL = "https://golang.org/dl/go1.16.3.windows-amd64.zip"
 
 
 def create_asset(target_dir):

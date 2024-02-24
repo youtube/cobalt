@@ -71,9 +71,9 @@ protected:
         canvas->saveLayer(nullptr, nullptr);
 
         SkPaint p;
-        canvas->drawBitmap(fCompositeDst, 0, 0, &p);
+        canvas->drawImage(fCompositeDst.asImage(), 0, 0, SkSamplingOptions(), &p);
         p.setBlendMode(mode);
-        canvas->drawBitmap(fCompositeSrc, 0, 0, &p);
+        canvas->drawImage(fCompositeSrc.asImage(), 0, 0, SkSamplingOptions(), &p);
     }
 
     void onDraw(SkCanvas* canvas) override {
@@ -127,10 +127,10 @@ private:
     SkBitmap fCompositeSrc;
     SkBitmap fCompositeDst;
 
-    typedef GM INHERITED;
+    using INHERITED = GM;
 };
 
 //////////////////////////////////////////////////////////////////////////////
 
 DEF_GM(return new AndroidBlendModesGM;)
-}
+}  // namespace skiagm

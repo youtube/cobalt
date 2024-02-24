@@ -14,9 +14,19 @@
 #include "include/utils/SkRandom.h"
 #include "tools/Resources.h"
 
+// Just want to trigger perspective handling, not dramatically change size
+static void tiny_persp_effect(SkCanvas* canvas) {
+    SkMatrix m;
+    m.reset();
+    m[7] = 0.000001f;
+    canvas->concat(m);
+}
+
 enum VertFlags {
     kColors_VertFlag  = 1 << 0,
     kTexture_VertFlag = 1 << 1,
+    kPersp_VertFlag   = 1 << 2,
+    kBilerp_VertFlag  = 1 << 3,
 };
 
 class VertBench : public Benchmark {
@@ -31,7 +41,7 @@ class VertBench : public Benchmark {
     };
 
     sk_sp<SkShader> fShader;
-    SkPoint fPts[PTS];
+    SkPoint fPts[PTS], fTex[PTS];
     SkColor fColors[PTS];
     uint16_t fIdx[IDX];
     unsigned fFlags;
@@ -43,9 +53,13 @@ class VertBench : public Benchmark {
     }
 
     void onDelayedSetup() override {
-        auto img = GetResourceAsImage("images/mandrill_256.png");
-        if (img) {
-            fShader = img->makeShader();
+        if (fFlags & kTexture_VertFlag) {
+            auto img = GetResourceAsImage("images/mandrill_256.png");
+            if (img) {
+                SkFilterMode fm = (fFlags & kBilerp_VertFlag) ? SkFilterMode::kLinear
+                                                              : SkFilterMode::kNearest;
+                fShader = img->makeShader(SkSamplingOptions(fm));
+            }
         }
     }
 
@@ -78,6 +92,11 @@ public:
         SkASSERT(PTS == pts - fPts);
         SkASSERT(IDX == idx - fIdx);
 
+        // We want to store texs in a separate array, so the blitters don't "cheat" and
+        // skip the (normal) step of computing the new local-matrix. This is the common case
+        // we think in the wild (where the texture coordinates are different from the positions.
+        memcpy(fTex, fPts, sizeof(fPts));
+
         SkRandom rand;
         for (int i = 0; i < PTS; ++i) {
             fColors[i] = rand.nextU() | (0xFF << 24);
@@ -90,6 +109,12 @@ public:
         if (fFlags & kColors_VertFlag) {
             fName.append("_colors");
         }
+        if (fFlags & kPersp_VertFlag) {
+            fName.append("_persp");
+        }
+        if (fFlags & kBilerp_VertFlag) {
+            fName.append("_bilerp");
+        }
     }
 
 protected:
@@ -99,7 +124,11 @@ protected:
         this->setupPaint(&paint);
         paint.setShader(fShader);
 
-        const SkPoint* texs = (fFlags & kTexture_VertFlag) ? fPts    : nullptr;
+        if (fFlags & kPersp_VertFlag) {
+            tiny_persp_effect(canvas);
+        }
+
+        const SkPoint* texs = (fFlags & kTexture_VertFlag) ? fTex    : nullptr;
         const SkColor* cols = (fFlags & kColors_VertFlag)  ? fColors : nullptr;
         auto verts = SkVertices::MakeCopy(SkVertices::kTriangles_VertexMode, PTS,
                                           fPts, texs, cols, IDX, fIdx);
@@ -108,11 +137,16 @@ protected:
         }
     }
 private:
-    typedef Benchmark INHERITED;
+    using INHERITED = Benchmark;
 };
+DEF_BENCH(return new VertBench(kTexture_VertFlag | kPersp_VertFlag);)
+DEF_BENCH(return new VertBench(kTexture_VertFlag | kPersp_VertFlag | kBilerp_VertFlag);)
+DEF_BENCH(return new VertBench(kColors_VertFlag  | kPersp_VertFlag);)
 DEF_BENCH(return new VertBench(kTexture_VertFlag);)
+DEF_BENCH(return new VertBench(kTexture_VertFlag | kBilerp_VertFlag);)
 DEF_BENCH(return new VertBench(kColors_VertFlag);)
 DEF_BENCH(return new VertBench(kColors_VertFlag | kTexture_VertFlag);)
+DEF_BENCH(return new VertBench(kColors_VertFlag | kTexture_VertFlag | kBilerp_VertFlag);)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -123,6 +157,7 @@ DEF_BENCH(return new VertBench(kColors_VertFlag | kTexture_VertFlag);)
 enum AtlasFlags {
     kColors_Flag = 1 << 0,
     kRotate_Flag = 1 << 1,
+    kPersp_Flag  = 1 << 2,
 };
 
 class AtlasBench : public Benchmark {
@@ -147,6 +182,9 @@ public:
         }
         if (flags & kRotate_Flag) {
             fName.append("_rotated");
+        }
+        if (flags & kPersp_Flag) {
+            fName.append("_persp");
         }
     }
     ~AtlasBench() override {}
@@ -183,18 +221,22 @@ protected:
         if (fFlags & kColors_Flag) {
             colors = fColors;
         }
+        if (fFlags & kPersp_Flag) {
+            tiny_persp_effect(canvas);
+        }
         for (int i = 0; i < loops; i++) {
-            canvas->drawAtlas(fAtlas, fXforms, fRects, colors, N, SkBlendMode::kModulate,
-                              cullRect, paintPtr);
+            canvas->drawAtlas(fAtlas.get(), fXforms, fRects, colors, N, SkBlendMode::kModulate,
+                              SkSamplingOptions(), cullRect, paintPtr);
         }
     }
 private:
-    typedef Benchmark INHERITED;
+    using INHERITED = Benchmark;
 };
 //DEF_BENCH(return new AtlasBench(0);)
 //DEF_BENCH(return new AtlasBench(kColors_Flag);)
 DEF_BENCH(return new AtlasBench(0);)
 DEF_BENCH(return new AtlasBench(kRotate_Flag);)
+DEF_BENCH(return new AtlasBench(kPersp_Flag);)
 DEF_BENCH(return new AtlasBench(kColors_Flag);)
 DEF_BENCH(return new AtlasBench(kColors_Flag | kRotate_Flag);)
 

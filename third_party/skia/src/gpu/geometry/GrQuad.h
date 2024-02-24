@@ -12,6 +12,9 @@
 #include "include/core/SkPoint.h"
 #include "include/core/SkPoint3.h"
 #include "include/private/SkVx.h"
+#include "src/gpu/BufferWriter.h"
+
+enum class GrQuadAAFlags;
 
 /**
  * GrQuad is a collection of 4 points which can be used to represent an arbitrary quadrilateral. The
@@ -39,6 +42,7 @@ public:
 
     // This enforces W == 1 for non-perspective quads, but does not initialize X or Y.
     GrQuad() = default;
+    GrQuad(const GrQuad&) = default;
 
     explicit GrQuad(const SkRect& rect)
             : fX{rect.fLeft, rect.fLeft, rect.fRight, rect.fRight}
@@ -63,16 +67,22 @@ public:
         }
     }
 
-    SkRect bounds() const {
-        auto x = this->x4f();
-        auto y = this->y4f();
-        if (fType == Type::kPerspective) {
-            auto iw = this->iw4f();
-            x *= iw;
-            y *= iw;
-        }
+    void writeVertex(int cornerIdx, skgpu::VertexWriter& w) const {
+        w << this->point(cornerIdx);
+    }
 
-        return {min(x), min(y), max(x), max(y)};
+    SkRect bounds() const {
+        if (fType == GrQuad::Type::kPerspective) {
+            return this->projectedBounds();
+        }
+        // Calculate min/max directly on the 4 floats, instead of loading/unloading into SIMD. Since
+        // there's no horizontal min/max, it's not worth it. Defining non-perspective case in header
+        // also leads to substantial performance boost due to inlining.
+        auto min = [](const float c[4]) { return std::min(std::min(c[0], c[1]),
+                                                          std::min(c[2], c[3]));};
+        auto max = [](const float c[4]) { return std::max(std::max(c[0], c[1]),
+                                                          std::max(c[2], c[3]));};
+        return { min(fX), min(fY), max(fX), max(fY) };
     }
 
     bool isFinite() const {
@@ -149,11 +159,24 @@ private:
         ws.store(fW);
     }
 
+    // Defined in GrQuadUtils.cpp to share the coord clipping code
+    SkRect projectedBounds() const;
+
     float fX[4];
     float fY[4];
     float fW[4] = {1.f, 1.f, 1.f, 1.f};
 
     Type fType = Type::kAxisAligned;
+};
+
+template<> struct skgpu::VertexWriter::is_quad<GrQuad> : std::true_type {};
+
+// A simple struct representing the common work unit of a pair of device and local coordinates, as
+// well as the edge flags controlling anti-aliasing for the quadrilateral when drawn.
+struct DrawQuad {
+    GrQuad        fDevice;
+    GrQuad        fLocal;
+    GrQuadAAFlags fEdgeFlags;
 };
 
 #endif

@@ -16,10 +16,10 @@ Jobs are collections of related tasks which help define sub-sections of the DAG,
 for example, to be used as try jobs. Each job is defined as an entry point into
 the DAG.
 
-The tasks.json file in this directory is the master list of tasks and jobs for
+The tasks.json file in this directory is the list of tasks and jobs for
 the repo. Note that tasks.json is NEVER edited by hand but generated via
 gen_task.go and the input files enumerated below. The
-[Task Scheduler](https://skia.googlesource.com/buildbot/+/master/task_scheduler/README.md)
+[Task Scheduler](https://skia.googlesource.com/buildbot/+/main/task_scheduler/README.md)
 reads the tasks.json file at each commit to determine which jobs to run. For
 convenience, gen_tasks.go is provided to generate tasks.json and also to test it
 for correct syntax and detecting cycles and orphaned tasks. Always edit
@@ -27,7 +27,7 @@ gen_tasks.go or one of the following input JSON files, rather than tasks.json
 itself:
 
   * cfg.json - Basic configuration information for gen_tasks.go.
-  * jobs.json - The master list of all jobs to run. Edit this to add or remove
+  * jobs.json - The list of all jobs to run. Edit this to add or remove
       bots.
 
 Whenever gen_tasks.go, any of the above JSON files, or assets are changed, you
@@ -39,7 +39,7 @@ Or:
 
 	$ cd infra/bots; make train
 
-There is also a test mode which performs sanity-checks and verifies that
+There is also a test mode which performs consistency checks and verifies that
 tasks.json is unchanged:
 
 	$ go run infra/bots/gen_tasks.go --test
@@ -69,7 +69,7 @@ Isolate Files
 
 These files determine which parts of the repository are transferred to the bot
 when a Swarming task is triggered. The
-[Isolate tool](https://github.com/luci/luci-py/tree/master/appengine/isolate/doc)
+[Isolate tool](https://github.com/luci/luci-py/tree/main/appengine/isolate/doc)
 hashes each file and will upload any new/changed files. Bots maintain a cache so
 that they can efficiently download only the files they don't have.
 

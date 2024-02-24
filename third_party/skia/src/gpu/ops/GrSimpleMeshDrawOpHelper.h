@@ -8,12 +8,13 @@
 #ifndef GrSimpleMeshDrawOpHelper_DEFINED
 #define GrSimpleMeshDrawOpHelper_DEFINED
 
-#include "include/private/GrRecordingContext.h"
+#include "include/gpu/GrRecordingContext.h"
 #include "src/gpu/GrMemoryPool.h"
 #include "src/gpu/GrOpFlushState.h"
 #include "src/gpu/GrPipeline.h"
 #include "src/gpu/GrRecordingContextPriv.h"
 #include "src/gpu/ops/GrMeshDrawOp.h"
+#include "src/gpu/ops/GrOp.h"
 #include <new>
 
 struct SkRect;
@@ -26,26 +27,24 @@ struct SkRect;
  */
 class GrSimpleMeshDrawOpHelper {
 public:
-    struct MakeArgs;
-
     /**
      * This can be used by a Op class to perform allocation and initialization such that a
      * GrProcessorSet (if required) is allocated as part of the the same allocation that as
      * the Op instance. It requires that Op implements a constructor of the form:
-     *      Op(MakeArgs, GrColor, OpArgs...)
-     * which is public or made accessible via 'friend'.
+     *      Op(ProcessorSet*, GrColor, OpArgs...).
      */
     template <typename Op, typename... OpArgs>
-    static std::unique_ptr<GrDrawOp> FactoryHelper(GrRecordingContext*, GrPaint&&, OpArgs...);
+    static GrOp::Owner FactoryHelper(GrRecordingContext*, GrPaint&&, OpArgs&&...);
 
     // Here we allow callers to specify a subset of the GrPipeline::InputFlags upon creation.
     enum class InputFlags : uint8_t {
         kNone = 0,
         kSnapVerticesToPixelCenters = (uint8_t)GrPipeline::InputFlags::kSnapVerticesToPixelCenters,
+        kConservativeRaster = (uint8_t)GrPipeline::InputFlags::kConservativeRaster,
     };
     GR_DECL_BITFIELD_CLASS_OPS_FRIENDS(InputFlags);
 
-    GrSimpleMeshDrawOpHelper(const MakeArgs&, GrAAType, InputFlags = InputFlags::kNone);
+    GrSimpleMeshDrawOpHelper(GrProcessorSet*, GrAAType, InputFlags = InputFlags::kNone);
     ~GrSimpleMeshDrawOpHelper();
 
     GrSimpleMeshDrawOpHelper() = delete;
@@ -68,13 +67,12 @@ public:
      *                      this may be set to a known color in which case the op must output this
      *                      color from its geometry processor instead.
      */
-    GrProcessorSet::Analysis finalizeProcessors(
-            const GrCaps& caps, const GrAppliedClip* clip, bool hasMixedSampledCoverage,
-            GrClampType clampType, GrProcessorAnalysisCoverage geometryCoverage,
-            GrProcessorAnalysisColor* geometryColor) {
-        return this->finalizeProcessors(
-                caps, clip, &GrUserStencilSettings::kUnused, hasMixedSampledCoverage, clampType,
-                geometryCoverage, geometryColor);
+    GrProcessorSet::Analysis finalizeProcessors(const GrCaps& caps, const GrAppliedClip* clip,
+                                                GrClampType clampType,
+                                                GrProcessorAnalysisCoverage geometryCoverage,
+                                                GrProcessorAnalysisColor* geometryColor) {
+        return this->finalizeProcessors(caps, clip, &GrUserStencilSettings::kUnused, clampType,
+                                        geometryCoverage, geometryColor);
     }
 
     /**
@@ -82,10 +80,9 @@ public:
      * output. The op passes this color as 'geometryColor' and after return if 'geometryColor' has
      * changed the op must override its geometry processor color output with the new color.
      */
-    GrProcessorSet::Analysis finalizeProcessors(
-            const GrCaps&, const GrAppliedClip*, bool hasMixedSampledCoverage, GrClampType,
-            GrProcessorAnalysisCoverage geometryCoverage, SkPMColor4f* geometryColor,
-            bool* wideColor);
+    GrProcessorSet::Analysis finalizeProcessors(const GrCaps&, const GrAppliedClip*, GrClampType,
+                                                GrProcessorAnalysisCoverage geometryCoverage,
+                                                SkPMColor4f* geometryColor, bool* wideColor);
 
     bool isTrivial() const {
       return fProcessors == nullptr;
@@ -98,22 +95,13 @@ public:
 
     bool compatibleWithCoverageAsAlpha() const { return fCompatibleWithCoverageAsAlpha; }
 
-    struct MakeArgs {
-    private:
-        MakeArgs() = default;
-
-        GrProcessorSet* fProcessorSet;
-
-        friend class GrSimpleMeshDrawOpHelper;
-    };
-
-    void visitProxies(const GrOp::VisitProxyFunc& func) const {
+    void visitProxies(const GrVisitProxyFunc& func) const {
         if (fProcessors) {
             fProcessors->visitProxies(func);
         }
     }
 
-#ifdef SK_DEBUG
+#if GR_TEST_UTILS
     SkString dumpInfo() const;
 #endif
     GrAAType aaType() const { return static_cast<GrAAType>(fAAType); }
@@ -122,15 +110,80 @@ public:
         fAAType = static_cast<unsigned>(aaType);
     }
 
-    void executeDrawsAndUploads(const GrOp*, GrOpFlushState*, const SkRect& chainBounds);
+    static const GrPipeline* CreatePipeline(
+                                const GrCaps*,
+                                SkArenaAlloc*,
+                                GrSwizzle writeViewSwizzle,
+                                GrAppliedClip&&,
+                                const GrDstProxyView&,
+                                GrProcessorSet&&,
+                                GrPipeline::InputFlags pipelineFlags);
+    static const GrPipeline* CreatePipeline(
+                                GrOpFlushState*,
+                                GrProcessorSet&&,
+                                GrPipeline::InputFlags pipelineFlags);
 
-protected:
+    const GrPipeline* createPipeline(GrOpFlushState* flushState);
+
+    const GrPipeline* createPipeline(const GrCaps*,
+                                     SkArenaAlloc*,
+                                     GrSwizzle writeViewSwizzle,
+                                     GrAppliedClip&&,
+                                     const GrDstProxyView&);
+
+    static GrProgramInfo* CreateProgramInfo(const GrCaps*,
+                                            SkArenaAlloc*,
+                                            const GrPipeline*,
+                                            const GrSurfaceProxyView& writeView,
+                                            bool usesMSAASurface,
+                                            GrGeometryProcessor*,
+                                            GrPrimitiveType,
+                                            GrXferBarrierFlags renderPassXferBarriers,
+                                            GrLoadOp colorLoadOp,
+                                            const GrUserStencilSettings*
+                                                                = &GrUserStencilSettings::kUnused);
+
+    // Create a programInfo with the following properties:
+    //     its primitive processor uses no textures
+    //     it has no dynamic state besides the scissor clip
+    static GrProgramInfo* CreateProgramInfo(const GrCaps*,
+                                            SkArenaAlloc*,
+                                            const GrSurfaceProxyView& writeView,
+                                            bool usesMSAASurface,
+                                            GrAppliedClip&&,
+                                            const GrDstProxyView&,
+                                            GrGeometryProcessor*,
+                                            GrProcessorSet&&,
+                                            GrPrimitiveType,
+                                            GrXferBarrierFlags renderPassXferBarriers,
+                                            GrLoadOp colorLoadOp,
+                                            GrPipeline::InputFlags pipelineFlags
+                                                                = GrPipeline::InputFlags::kNone,
+                                            const GrUserStencilSettings*
+                                                                = &GrUserStencilSettings::kUnused);
+
+    GrProgramInfo* createProgramInfo(const GrCaps*,
+                                     SkArenaAlloc*,
+                                     const GrSurfaceProxyView& writeView,
+                                     bool usesMSAASurface,
+                                     GrAppliedClip&&,
+                                     const GrDstProxyView&,
+                                     GrGeometryProcessor*,
+                                     GrPrimitiveType,
+                                     GrXferBarrierFlags renderPassXferBarriers,
+                                     GrLoadOp colorLoadOp);
+
+    GrProcessorSet detachProcessorSet() {
+        return fProcessors ? std::move(*fProcessors) : GrProcessorSet::MakeEmptySet();
+    }
+
     GrPipeline::InputFlags pipelineFlags() const { return fPipelineFlags; }
 
-    GrProcessorSet::Analysis finalizeProcessors(
-            const GrCaps& caps, const GrAppliedClip*, const GrUserStencilSettings*,
-            bool hasMixedSampledCoverage, GrClampType, GrProcessorAnalysisCoverage geometryCoverage,
-            GrProcessorAnalysisColor* geometryColor);
+protected:
+    GrProcessorSet::Analysis finalizeProcessors(const GrCaps& caps, const GrAppliedClip*,
+                                                const GrUserStencilSettings*, GrClampType,
+                                                GrProcessorAnalysisCoverage geometryCoverage,
+                                                GrProcessorAnalysisColor* geometryColor);
 
     GrProcessorSet* fProcessors;
     GrPipeline::InputFlags fPipelineFlags;
@@ -141,84 +194,26 @@ protected:
     SkDEBUGCODE(unsigned fDidAnalysis : 1;)
 };
 
-/**
- * This class extends GrSimpleMeshDrawOpHelper to support an optional GrUserStencilSettings. This
- * uses private inheritance because it non-virtually overrides methods in the base class and should
- * never be used with a GrSimpleMeshDrawOpHelper pointer or reference.
- */
-class GrSimpleMeshDrawOpHelperWithStencil : private GrSimpleMeshDrawOpHelper {
-public:
-    using MakeArgs = GrSimpleMeshDrawOpHelper::MakeArgs;
-    using InputFlags = GrSimpleMeshDrawOpHelper::InputFlags;
-
-    using GrSimpleMeshDrawOpHelper::visitProxies;
-
-    // using declarations can't be templated, so this is a pass through function instead.
-    template <typename Op, typename... OpArgs>
-    static std::unique_ptr<GrDrawOp> FactoryHelper(GrRecordingContext* context, GrPaint&& paint,
-                                                   OpArgs... opArgs) {
-        return GrSimpleMeshDrawOpHelper::FactoryHelper<Op, OpArgs...>(
-                context, std::move(paint), std::forward<OpArgs>(opArgs)...);
-    }
-
-    GrSimpleMeshDrawOpHelperWithStencil(const MakeArgs&, GrAAType, const GrUserStencilSettings*,
-                                        InputFlags = InputFlags::kNone);
-
-    GrDrawOp::FixedFunctionFlags fixedFunctionFlags() const;
-
-    GrProcessorSet::Analysis finalizeProcessors(
-            const GrCaps& caps, const GrAppliedClip* clip, bool hasMixedSampledCoverage,
-            GrClampType clampType, GrProcessorAnalysisCoverage geometryCoverage,
-            GrProcessorAnalysisColor* geometryColor) {
-        return this->INHERITED::finalizeProcessors(
-                caps, clip, fStencilSettings, hasMixedSampledCoverage, clampType, geometryCoverage,
-                geometryColor);
-    }
-
-    GrProcessorSet::Analysis finalizeProcessors(
-            const GrCaps&, const GrAppliedClip*, bool hasMixedSampledCoverage, GrClampType,
-            GrProcessorAnalysisCoverage geometryCoverage, SkPMColor4f* geometryColor, bool*
-            wideColor);
-
-    using GrSimpleMeshDrawOpHelper::aaType;
-    using GrSimpleMeshDrawOpHelper::setAAType;
-    using GrSimpleMeshDrawOpHelper::isTrivial;
-    using GrSimpleMeshDrawOpHelper::usesLocalCoords;
-    using GrSimpleMeshDrawOpHelper::compatibleWithCoverageAsAlpha;
-
-    bool isCompatible(const GrSimpleMeshDrawOpHelperWithStencil& that, const GrCaps&,
-                      const SkRect& thisBounds, const SkRect& thatBounds,
-                      bool ignoreAAType = false) const;
-
-    void executeDrawsAndUploads(const GrOp*, GrOpFlushState*, const SkRect& chainBounds);
-
-#ifdef SK_DEBUG
-    SkString dumpInfo() const;
-#endif
-
-private:
-    const GrUserStencilSettings* fStencilSettings;
-    typedef GrSimpleMeshDrawOpHelper INHERITED;
-};
+template<typename Op, typename... Args>
+GrOp::Owner GrOp::MakeWithProcessorSet(
+        GrRecordingContext* context, const SkPMColor4f& color,
+        GrPaint&& paint, Args&&... args) {
+    char* bytes = (char*)::operator new(sizeof(Op) + sizeof(GrProcessorSet));
+    char* setMem = bytes + sizeof(Op);
+    GrProcessorSet* processorSet = new (setMem)  GrProcessorSet{std::move(paint)};
+    return Owner{new (bytes) Op(processorSet, color, std::forward<Args>(args)...)};
+}
 
 template <typename Op, typename... OpArgs>
-std::unique_ptr<GrDrawOp> GrSimpleMeshDrawOpHelper::FactoryHelper(GrRecordingContext* context,
-                                                                  GrPaint&& paint,
-                                                                  OpArgs... opArgs) {
-    GrOpMemoryPool* pool = context->priv().opMemoryPool();
-
-    MakeArgs makeArgs;
-
+GrOp::Owner GrSimpleMeshDrawOpHelper::FactoryHelper(GrRecordingContext* context,
+                                                    GrPaint&& paint,
+                                                    OpArgs&& ... opArgs) {
+    auto color = paint.getColor4f();
     if (paint.isTrivial()) {
-        makeArgs.fProcessorSet = nullptr;
-        return pool->allocate<Op>(makeArgs, paint.getColor4f(), std::forward<OpArgs>(opArgs)...);
+        return GrOp::Make<Op>(context, nullptr, color, std::forward<OpArgs>(opArgs)...);
     } else {
-        char* mem = (char*) pool->allocate(sizeof(Op) + sizeof(GrProcessorSet));
-        char* setMem = mem + sizeof(Op);
-        auto color = paint.getColor4f();
-        makeArgs.fProcessorSet = new (setMem) GrProcessorSet(std::move(paint));
-        return std::unique_ptr<GrDrawOp>(new (mem) Op(makeArgs, color,
-                                                      std::forward<OpArgs>(opArgs)...));
+        return GrOp::MakeWithProcessorSet<Op>(
+                context, color, std::move(paint), std::forward<OpArgs>(opArgs)...);
     }
 }
 

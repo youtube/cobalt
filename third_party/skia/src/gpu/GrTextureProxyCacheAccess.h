@@ -24,8 +24,9 @@ private:
     }
 
     explicit CacheAccess(GrTextureProxy* textureProxy) : fTextureProxy(textureProxy) {}
-    CacheAccess(const CacheAccess&) {} // unimpl
-    CacheAccess& operator=(const CacheAccess&); // unimpl
+    // Required until C++17 copy elision
+    CacheAccess(const CacheAccess&) = default;
+    CacheAccess& operator=(const CacheAccess&) = delete;
 
     // No taking addresses of this type.
     const CacheAccess* operator&() const;
@@ -39,7 +40,7 @@ private:
 
 inline GrTextureProxy::CacheAccess GrTextureProxy::cacheAccess() { return CacheAccess(this); }
 
-inline const GrTextureProxy::CacheAccess GrTextureProxy::cacheAccess() const {
+inline const GrTextureProxy::CacheAccess GrTextureProxy::cacheAccess() const {  // NOLINT(readability-const-return-type)
     return CacheAccess(const_cast<GrTextureProxy*>(this));
 }
 
