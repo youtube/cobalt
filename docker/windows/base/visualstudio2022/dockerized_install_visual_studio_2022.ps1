@@ -9,7 +9,7 @@ Write-Host ('Installing vs_buildtools.exe');
 Start-Process C:\TEMP\vs_buildtools.exe -Wait -NoNewWindow -ArgumentList @(
   "--quiet", "--wait", "--norestart", "--nocache", "--installPath",
   "C:\BuildTools", "--add", "Microsoft.VisualStudio.Component.VC.Llvm.Clang",
-  "--add", "Microsoft.VisualStudio.Component.VC.14.34.17.4.x86.x64",
+  "--add", "Microsoft.VisualStudio.Component.VC.14.39.17.9.x86.x64",
   "--add", "Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset",
   "--add", "Microsoft.VisualStudio.Component.Windows10SDK.18362");
 
