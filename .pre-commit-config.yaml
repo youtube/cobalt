@@ -207,7 +207,7 @@ repos:
         files: '.*\.gni?$'
     -   id: meta-validate
         name: Validate METADATA files
-        entry: python -m tools.metadata.validate
+        entry: python -m cobalt.tools.metadata.validate
         language: python
         additional_dependencies:
           - "protobuf"

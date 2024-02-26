@@ -15,7 +15,7 @@
 """ Cobalt Metadata tests."""
 import unittest
 import os
-from tools.metadata.validate import validate_content, validate_file
+from cobalt.tools.metadata.validate import validate_content, validate_file
 
 
 class TestMetadata(unittest.TestCase):
