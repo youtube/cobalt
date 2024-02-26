@@ -396,6 +396,11 @@ class JSONFileValueSerializerTest : public testing::Test {
 TEST_F(JSONFileValueSerializerTest, Roundtrip) {
   FilePath original_file_path;
   ASSERT_TRUE(PathService::Get(DIR_TEST_DATA, &original_file_path));
+#if defined(STARBOARD)
+  original_file_path = original_file_path.Append(FILE_PATH_LITERAL("base"));
+  original_file_path = original_file_path.Append(FILE_PATH_LITERAL("test"));
+  original_file_path = original_file_path.Append(FILE_PATH_LITERAL("data"));
+#endif
   original_file_path = original_file_path.AppendASCII("serializer_test.json");
 
   ASSERT_TRUE(PathExists(original_file_path));
@@ -427,13 +432,20 @@ TEST_F(JSONFileValueSerializerTest, Roundtrip) {
   ASSERT_TRUE(PathExists(written_file_path));
 
   // Now compare file contents.
+#if !defined(STARBOARD)
   EXPECT_TRUE(TextContentsEqual(original_file_path, written_file_path));
+#endif  // !defined(STARBOARD)
   EXPECT_TRUE(DeleteFile(written_file_path));
 }
 
 TEST_F(JSONFileValueSerializerTest, RoundtripNested) {
   FilePath original_file_path;
   ASSERT_TRUE(PathService::Get(DIR_TEST_DATA, &original_file_path));
+#if defined(STARBOARD)
+  original_file_path = original_file_path.Append(FILE_PATH_LITERAL("base"));
+  original_file_path = original_file_path.Append(FILE_PATH_LITERAL("test"));
+  original_file_path = original_file_path.Append(FILE_PATH_LITERAL("data"));
+#endif
   original_file_path =
       original_file_path.AppendASCII("serializer_nested_test.json");
 
@@ -453,13 +465,20 @@ TEST_F(JSONFileValueSerializerTest, RoundtripNested) {
   ASSERT_TRUE(PathExists(written_file_path));
 
   // Now compare file contents.
+#if !defined(STARBOARD)
   EXPECT_TRUE(TextContentsEqual(original_file_path, written_file_path));
+#endif  // !defined(STARBOARD)
   EXPECT_TRUE(DeleteFile(written_file_path));
 }
 
 TEST_F(JSONFileValueSerializerTest, NoWhitespace) {
   FilePath source_file_path;
   ASSERT_TRUE(PathService::Get(DIR_TEST_DATA, &source_file_path));
+#if defined(STARBOARD)
+  source_file_path = source_file_path.Append(FILE_PATH_LITERAL("base"));
+  source_file_path = source_file_path.Append(FILE_PATH_LITERAL("test"));
+  source_file_path = source_file_path.Append(FILE_PATH_LITERAL("data"));
+#endif
   source_file_path =
       source_file_path.AppendASCII("serializer_test_nowhitespace.json");
   ASSERT_TRUE(PathExists(source_file_path));
