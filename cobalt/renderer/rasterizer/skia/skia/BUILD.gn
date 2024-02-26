@@ -57,6 +57,10 @@ skia_common("skia_library_no_asan") {
   # need to rework the configuration framework to be able to remove this
   # flag -fsanitize=address, as it's mostly added in the
   # platform_configuration config.
+  deps = [
+    "//base:debugging_buildflags",
+    "//base:logging_buildflags",
+  ]
 }
 
 # Skia's core code from the Skia repository.
