@@ -10,20 +10,20 @@
 
 #include "include/gpu/GrContextOptions.h"
 #include "include/private/SkImageInfoPriv.h"
-#include "src/core/SkScalerContext.h"
 #include "src/gpu/GrGpuBuffer.h"
 #include "src/gpu/GrResourceCache.h"
 
+class GrAttachment;
 class GrBackendRenderTarget;
 class GrBackendSemaphore;
 class GrBackendTexture;
 class GrGpu;
+class GrMSAAAttachment;
 class GrPath;
 class GrRenderTarget;
 class GrResourceProviderPriv;
 class GrSemaphore;
 class GrSingleOwner;
-class GrStencilAttachment;
 class GrTexture;
 struct GrVkDrawableInfo;
 
@@ -31,6 +31,8 @@ class GrStyle;
 class SkDescriptor;
 class SkPath;
 class SkTypeface;
+
+namespace skgpu { struct VertexWriter; }
 
 /**
  * A factory for arbitrary resource types.
@@ -59,18 +61,20 @@ public:
      * GrRenderTarget. The texture's format and sample count will always match the request.
      * The contents of the texture are undefined.
      */
-    sk_sp<GrTexture> createApproxTexture(const GrSurfaceDesc& desc,
+    sk_sp<GrTexture> createApproxTexture(SkISize dimensions,
                                          const GrBackendFormat& format,
+                                         GrTextureType textureType,
                                          GrRenderable renderable,
                                          int renderTargetSampleCnt,
                                          GrProtected isProtected);
 
     /** Create an exact fit texture with no initial data to upload. */
-    sk_sp<GrTexture> createTexture(const GrSurfaceDesc& desc,
+    sk_sp<GrTexture> createTexture(SkISize dimensions,
                                    const GrBackendFormat& format,
+                                   GrTextureType textureType,
                                    GrRenderable renderable,
                                    int renderTargetSampleCnt,
-                                   GrMipMapped mipMapped,
+                                   GrMipmapped mipMapped,
                                    SkBudgeted budgeted,
                                    GrProtected isProtected);
 
@@ -79,37 +83,56 @@ public:
      * for the format and also describe the texel data. This will ensure any conversions that
      * need to get applied to the data before upload are applied.
      */
-    sk_sp<GrTexture> createTexture(const GrSurfaceDesc& desc,
+    sk_sp<GrTexture> createTexture(SkISize dimensions,
                                    const GrBackendFormat& format,
+                                   GrTextureType textureType,
                                    GrColorType colorType,
                                    GrRenderable renderable,
                                    int renderTargetSampleCnt,
                                    SkBudgeted budgeted,
+                                   GrMipMapped mipMapped,
                                    GrProtected isProtected,
-                                   const GrMipLevel texels[],
-                                   int mipLevelCount);
+                                   const GrMipLevel texels[]);
 
     /**
      * Create a potentially loose fit texture with the provided data. The color type must be valid
      * for the format and also describe the texel data. This will ensure any conversions that
      * need to get applied to the data before upload are applied.
      */
-    sk_sp<GrTexture> createTexture(const GrSurfaceDesc& desc,
-                                   const GrBackendFormat& format,
+    sk_sp<GrTexture> createTexture(SkISize dimensions,
+                                   const GrBackendFormat&,
+                                   GrTextureType textureType,
                                    GrColorType srcColorType,
-                                   GrRenderable renderable,
+                                   GrRenderable,
                                    int renderTargetSampleCnt,
-                                   SkBudgeted budgeted,
-                                   SkBackingFit fit,
-                                   GrProtected isProtected,
+                                   SkBudgeted,
+                                   SkBackingFit,
+                                   GrProtected,
                                    const GrMipLevel& mipLevel);
 
     /**
-     * Creates a compressed texture. The GrGpu must support the SkImageImage::Compression type.
-     * This does not currently support MIP maps. It will not be renderable.
+     * Search the cache for a scratch texture matching the provided arguments. Failing that
+     * it returns null. If non-null, the resulting texture is always budgeted.
      */
-    sk_sp<GrTexture> createCompressedTexture(int width, int height, const GrBackendFormat&,
-                                             SkImage::CompressionType, SkBudgeted, SkData* data);
+    sk_sp<GrTexture> findAndRefScratchTexture(const GrScratchKey&);
+    sk_sp<GrTexture> findAndRefScratchTexture(SkISize dimensions,
+                                              const GrBackendFormat&,
+                                              GrTextureType textureType,
+                                              GrRenderable,
+                                              int renderTargetSampleCnt,
+                                              GrMipmapped,
+                                              GrProtected);
+
+    /**
+     * Creates a compressed texture. The GrGpu must support the SkImageImage::Compression type.
+     * It will not be renderable.
+     */
+    sk_sp<GrTexture> createCompressedTexture(SkISize dimensions,
+                                             const GrBackendFormat&,
+                                             SkBudgeted,
+                                             GrMipmapped,
+                                             GrProtected,
+                                             SkData* data);
 
     ///////////////////////////////////////////////////////////////////////////
     // Wrapped Backend Surfaces
@@ -125,8 +148,14 @@ public:
      *
      * @return GrTexture object or NULL on failure.
      */
-    sk_sp<GrTexture> wrapBackendTexture(const GrBackendTexture& tex, GrColorType, GrWrapOwnership,
-                                        GrWrapCacheable, GrIOType);
+    sk_sp<GrTexture> wrapBackendTexture(const GrBackendTexture& tex,
+                                        GrWrapOwnership,
+                                        GrWrapCacheable,
+                                        GrIOType);
+
+    sk_sp<GrTexture> wrapCompressedBackendTexture(const GrBackendTexture& tex,
+                                                  GrWrapOwnership,
+                                                  GrWrapCacheable);
 
     /**
      * This makes the backend texture be renderable. If sampleCnt is > 1 and the underlying API
@@ -135,7 +164,6 @@ public:
      */
     sk_sp<GrTexture> wrapRenderableBackendTexture(const GrBackendTexture& tex,
                                                   int sampleCnt,
-                                                  GrColorType,
                                                   GrWrapOwnership,
                                                   GrWrapCacheable);
 
@@ -148,13 +176,27 @@ public:
      *
      * @return GrRenderTarget object or NULL on failure.
      */
-    sk_sp<GrRenderTarget> wrapBackendRenderTarget(const GrBackendRenderTarget&,
-                                                  GrColorType colorType);
+    sk_sp<GrRenderTarget> wrapBackendRenderTarget(const GrBackendRenderTarget&);
 
     sk_sp<GrRenderTarget> wrapVulkanSecondaryCBAsRenderTarget(const SkImageInfo&,
                                                               const GrVkDrawableInfo&);
 
     static const int kMinScratchTextureSize;
+
+    /**
+     * Either finds and refs a buffer with the given unique key, or creates a new new, fills its
+     * contents with the InitializeBufferDataFn() callback, and assigns it the unique key.
+     *
+     * @param intendedType        hint to the graphics subsystem about how the buffer will be used.
+     * @param size                minimum size of buffer to return.
+     * @param key                 Key to be assigned to the buffer.
+     * @param InitializeBufferFn  callback with which to initialize the buffer.
+     *
+     * @return The buffer if successful, otherwise nullptr.
+     */
+    using InitializeBufferFn = void(*)(skgpu::VertexWriter, size_t bufferSize);
+    sk_sp<const GrGpuBuffer> findOrMakeStaticBuffer(GrGpuBufferType intendedType, size_t size,
+                                                    const GrUniqueKey& key, InitializeBufferFn);
 
     /**
      * Either finds and refs, or creates a static buffer with the given parameters and contents.
@@ -167,7 +209,7 @@ public:
      * @return The buffer if successful, otherwise nullptr.
      */
     sk_sp<const GrGpuBuffer> findOrMakeStaticBuffer(GrGpuBufferType intendedType, size_t size,
-                                                    const void* data, const GrUniqueKey& key);
+                                                    const void* staticData, const GrUniqueKey& key);
 
     /**
      * Either finds and refs, or creates an index buffer with a repeating pattern for drawing
@@ -230,12 +272,6 @@ public:
     static int NumIndicesPerAAQuad();
 
     /**
-     * Factories for GrPath objects. It's an error to call these if path rendering
-     * is not supported.
-     */
-    sk_sp<GrPath> createPath(const SkPath&, const GrStyle&);
-
-    /**
      * Returns a buffer.
      *
      * @param size            minimum size of buffer to return.
@@ -246,27 +282,34 @@ public:
      *
      * @return the buffer if successful, otherwise nullptr.
      */
-    sk_sp<GrGpuBuffer> createBuffer(size_t size, GrGpuBufferType intendedType, GrAccessPattern,
+    sk_sp<GrGpuBuffer> createBuffer(size_t size,
+                                    GrGpuBufferType intendedType,
+                                    GrAccessPattern,
                                     const void* data = nullptr);
 
     /**
-     * If passed in render target already has a stencil buffer with at least "numSamples" samples,
-     * return true. Otherwise attempt to attach one and return true on success.
+     * If passed in render target already has a stencil buffer on the specified surface, return
+     * true. Otherwise attempt to attach one and return true on success.
      */
-    bool attachStencilAttachment(GrRenderTarget* rt, int numStencilSamples);
+    bool attachStencilAttachment(GrRenderTarget* rt, bool useMSAASurface);
 
-     /**
-      * Wraps an existing texture with a GrRenderTarget object. This is useful when the provided
-      * texture has a format that cannot be textured from by Skia, but we want to raster to it.
-      *
-      * The texture is wrapped as borrowed. The texture object will not be freed once the
-      * render target is destroyed.
-      *
-      * @return GrRenderTarget object or NULL on failure.
-      */
-     sk_sp<GrRenderTarget> wrapBackendTextureAsRenderTarget(const GrBackendTexture&,
-                                                            int sampleCnt,
-                                                            GrColorType);
+    sk_sp<GrAttachment> makeMSAAAttachment(SkISize dimensions,
+                                           const GrBackendFormat& format,
+                                           int sampleCnt,
+                                           GrProtected isProtected,
+                                           GrMemoryless isMemoryless);
+
+    /**
+     * Gets a GrAttachment that can be used for MSAA rendering. This attachment may be shared by
+     * other users. Thus any renderpass that uses the attachment should not assume any specific
+     * data at the start and should not try to save written data at the end. Ideally the render pass
+     * should discard the data at the end.
+     */
+    sk_sp<GrAttachment> getDiscardableMSAAAttachment(SkISize dimensions,
+                                                     const GrBackendFormat& format,
+                                                     int sampleCnt,
+                                                     GrProtected isProtected,
+                                                     GrMemoryless memoryless);
 
     /**
      * Assigns a unique key to a resource. If the key is associated with another resource that
@@ -276,13 +319,8 @@ public:
 
     std::unique_ptr<GrSemaphore> SK_WARN_UNUSED_RESULT makeSemaphore(bool isOwned = true);
 
-    enum class SemaphoreWrapType {
-        kWillSignal,
-        kWillWait,
-    };
-
     std::unique_ptr<GrSemaphore> wrapBackendSemaphore(const GrBackendSemaphore&,
-                                                      SemaphoreWrapType wrapType,
+                                                      GrSemaphoreWrapType,
                                                       GrWrapOwnership = kBorrow_GrWrapOwnership);
 
     void abandon() {
@@ -297,39 +335,39 @@ public:
     static SkISize MakeApprox(SkISize);
 
     inline GrResourceProviderPriv priv();
-    inline const GrResourceProviderPriv priv() const;
+    inline const GrResourceProviderPriv priv() const;  // NOLINT(readability-const-return-type)
 
 private:
     sk_sp<GrGpuResource> findResourceByUniqueKey(const GrUniqueKey&);
-
-    // Attempts to find a resource in the cache that exactly matches the GrSurfaceDesc. Failing that
-    // it returns null. If non-null, the resulting texture is always budgeted.
-    sk_sp<GrTexture> refScratchTexture(const GrSurfaceDesc&,
-                                       const GrBackendFormat&,
-                                       GrRenderable,
-                                       int renderTargetSampleCnt,
-                                       GrMipMapped,
-                                       GrProtected);
 
     /*
      * Try to find an existing scratch texture that exactly matches 'desc'. If successful
      * update the budgeting accordingly.
      */
-    sk_sp<GrTexture> getExactScratch(const GrSurfaceDesc&,
+    sk_sp<GrTexture> getExactScratch(SkISize dimensions,
                                      const GrBackendFormat&,
+                                     GrTextureType,
                                      GrRenderable,
                                      int renderTargetSampleCnt,
                                      SkBudgeted,
-                                     GrMipMapped,
+                                     GrMipmapped,
                                      GrProtected);
+
+    // Attempts to find a resource in the cache that exactly matches the SkISize. Failing that
+    // it returns null. If non-null, the resulting msaa attachment is always budgeted.
+    sk_sp<GrAttachment> refScratchMSAAAttachment(SkISize dimensions,
+                                                 const GrBackendFormat&,
+                                                 int sampleCnt,
+                                                 GrProtected,
+                                                 GrMemoryless memoryless);
 
     // Used to perform any conversions necessary to texel data before creating a texture with
     // existing data or uploading to a scratch texture.
-    using TempLevels = SkAutoSTMalloc<14, GrMipLevel>;
+    using TempLevels = SkAutoSTArray<14, GrMipLevel>;
     using TempLevelDatas = SkAutoSTArray<14, std::unique_ptr<char[]>>;
     GrColorType prepareLevels(const GrBackendFormat& format,
                               GrColorType,
-                              const SkISize& baseSize,
+                              SkISize baseSize,
                               const GrMipLevel texels[],
                               int mipLevelCount,
                               TempLevels*,
@@ -342,7 +380,7 @@ private:
     // on failure.
     sk_sp<GrTexture> writePixels(sk_sp<GrTexture> texture,
                                  GrColorType colorType,
-                                 const SkISize& baseSize,
+                                 SkISize baseSize,
                                  const GrMipLevel texels[],
                                  int mipLevelCount) const;
 

@@ -521,7 +521,7 @@ SB_EXPORT void SbPlayerSeek2(SbPlayer player,
 //   SbPlayerWriteSamples(), so it must be copied if its content will be used
 //   after SbPlayerWriteSamples() returns.
 // |number_of_sample_infos|: Specify the number of samples contained inside
-//   |sample_infos|.  It has to be at least one, and less than the return value
+//   |sample_infos|.  It has to be at least one, and at most the return value
 //   of SbPlayerGetMaximumNumberOfSamplesPerWrite().
 #if SB_API_VERSION >= 15
 SB_EXPORT void SbPlayerWriteSamples(SbPlayer player,
@@ -532,13 +532,8 @@ SB_EXPORT void SbPlayerWriteSample2(SbPlayer player,
                                     const SbPlayerSampleInfo* sample_infos,
                                     int number_of_sample_infos);
 
-// Writes a single sample of the given media type to |player|'s input stream.
-// Its data may be passed in via more than one buffers.  The lifetime of
-// |sample_buffers|, |sample_buffer_sizes|, |video_sample_info|, and
-// |sample_drm_info| (as well as member |subsample_mapping| contained inside it)
-// are not guaranteed past the call to SbPlayerWriteSample. That means that
-// before returning, the implementation must synchronously copy any information
-// it wants to retain from those structures.
+// Returns the maximum number of samples that can be written in a single call
+// to SbPlayerWriteSamples().
 //
 // |player|: The player for which the number is retrieved.
 // |sample_type|: The type of sample for which the number is retrieved. See the

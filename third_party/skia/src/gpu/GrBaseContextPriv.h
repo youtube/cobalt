@@ -15,39 +15,44 @@
     additional data members or virtual methods. */
 class GrBaseContextPriv {
 public:
-    // from GrContext_Base
-    uint32_t contextID() const { return fContext->contextID(); }
+    GrContext_Base* context() { return fContext; }
+    const GrContext_Base* context() const { return fContext; }
 
-    bool matches(GrContext_Base* candidate) const { return fContext->matches(candidate); }
+    uint32_t contextID() const { return this->context()->contextID(); }
 
-    const GrContextOptions& options() const { return fContext->options(); }
+    bool matches(GrContext_Base* candidate) const { return this->context()->matches(candidate); }
 
-    const GrCaps* caps() const { return fContext->caps(); }
+    const GrContextOptions& options() const { return this->context()->options(); }
+
+    const GrCaps* caps() const { return this->context()->caps(); }
     sk_sp<const GrCaps> refCaps() const;
 
-    sk_sp<GrSkSLFPFactoryCache> fpFactoryCache();
+    GrImageContext* asImageContext() { return this->context()->asImageContext(); }
+    GrRecordingContext* asRecordingContext() { return this->context()->asRecordingContext(); }
+    GrDirectContext* asDirectContext() { return this->context()->asDirectContext(); }
 
-    GrImageContext* asImageContext() { return fContext->asImageContext(); }
-    GrRecordingContext* asRecordingContext() { return fContext->asRecordingContext(); }
-    GrContext* asDirectContext() { return fContext->asDirectContext(); }
+    GrContextOptions::ShaderErrorHandler* getShaderErrorHandler() const;
+
+protected:
+    // Required until C++17 copy elision
+    GrBaseContextPriv(const GrBaseContextPriv&) = default;
+    explicit GrBaseContextPriv(GrContext_Base* context) : fContext(context) {}
+
+    GrContext_Base* fContext;
 
 private:
-    explicit GrBaseContextPriv(GrContext_Base* context) : fContext(context) {}
-    GrBaseContextPriv(const GrBaseContextPriv&); // unimpl
-    GrBaseContextPriv& operator=(const GrBaseContextPriv&); // unimpl
+    GrBaseContextPriv& operator=(const GrBaseContextPriv&) = delete;
 
     // No taking addresses of this type.
     const GrBaseContextPriv* operator&() const;
     GrBaseContextPriv* operator&();
-
-    GrContext_Base* fContext;
 
     friend class GrContext_Base; // to construct/copy this type.
 };
 
 inline GrBaseContextPriv GrContext_Base::priv() { return GrBaseContextPriv(this); }
 
-inline const GrBaseContextPriv GrContext_Base::priv () const {
+inline const GrBaseContextPriv GrContext_Base::priv () const {  // NOLINT(readability-const-return-type)
     return GrBaseContextPriv(const_cast<GrContext_Base*>(this));
 }
 

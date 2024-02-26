@@ -7,6 +7,7 @@
 
 #include "src/pdf/SkPDFUtils.h"
 
+#include "include/core/SkBitmap.h"
 #include "include/core/SkData.h"
 #include "include/core/SkStream.h"
 #include "include/core/SkString.h"
@@ -102,7 +103,7 @@ static void append_quad(const SkPoint quad[], SkWStream* content) {
 
 void SkPDFUtils::AppendRectangle(const SkRect& rect, SkWStream* content) {
     // Skia has 0,0 at top left, pdf at bottom left.  Do the right thing.
-    SkScalar bottom = SkMinScalar(rect.fBottom, rect.fTop);
+    SkScalar bottom = std::min(rect.fBottom, rect.fTop);
 
     SkPDFUtils::AppendScalar(rect.fLeft, content);
     content->writeText(" ");
@@ -132,7 +133,7 @@ void SkPDFUtils::EmitPath(const SkPath& path, SkPaint::Style paintStyle,
     if (path.isRect(&rect, &isClosed, &direction) &&
         isClosed &&
         (SkPathDirection::kCW == direction ||
-         SkPathFillType::kEvenOdd == path.getNewFillType()))
+         SkPathFillType::kEvenOdd == path.getFillType()))
     {
         SkPDFUtils::AppendRectangle(rect, content);
         return;
@@ -334,7 +335,8 @@ bool SkPDFUtils::ToBitmap(const SkImage* img, SkBitmap* dst) {
     SkASSERT(img);
     SkASSERT(dst);
     SkBitmap bitmap;
-    if(as_IB(img)->getROPixels(&bitmap)) {
+    // TODO: support GPU images
+    if(as_IB(img)->getROPixels(nullptr, &bitmap)) {
         SkASSERT(bitmap.dimensions() == img->dimensions());
         SkASSERT(!bitmap.drawsNothing());
         *dst = std::move(bitmap);

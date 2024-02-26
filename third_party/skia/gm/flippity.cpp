@@ -23,9 +23,12 @@
 #include "include/core/SkSurface.h"
 #include "include/core/SkTypeface.h"
 #include "include/core/SkTypes.h"
-#include "include/gpu/GrContext.h"
+#include "include/gpu/GrDirectContext.h"
+#include "include/gpu/GrRecordingContext.h"
 #include "include/gpu/GrTypes.h"
 #include "include/private/SkTArray.h"
+#include "src/gpu/GrDirectContextPriv.h"
+#include "src/gpu/GrPixmap.h"
 #include "src/image/SkImage_Base.h"
 #include "src/image/SkImage_Gpu.h"
 #include "tools/ToolUtils.h"
@@ -33,8 +36,6 @@
 
 #include <string.h>
 #include <utility>
-
-class GrRenderTargetContext;
 
 static const int kNumMatrices = 6;
 static const int kImageSize = 128;
@@ -79,7 +80,7 @@ static const SkMatrix kUVMatrices[kNumMatrices] = {
 
 
 // Create a fixed size text label like "LL" or "LR".
-static sk_sp<SkImage> make_text_image(GrContext* context, const char* text, SkColor color) {
+static sk_sp<SkImage> make_text_image(GrDirectContext* dContext, const char* text, SkColor color) {
     SkPaint paint;
     paint.setAntiAlias(true);
     paint.setColor(color);
@@ -91,8 +92,7 @@ static sk_sp<SkImage> make_text_image(GrContext* context, const char* text, SkCo
 
     SkRect bounds;
     font.measureText(text, strlen(text), SkTextEncoding::kUTF8, &bounds);
-    const SkMatrix mat = SkMatrix::MakeRectToRect(bounds, SkRect::MakeWH(kLabelSize, kLabelSize),
-                                                  SkMatrix::kFill_ScaleToFit);
+    const SkMatrix mat = SkMatrix::RectToRect(bounds, SkRect::MakeWH(kLabelSize, kLabelSize));
 
     const SkImageInfo ii = SkImageInfo::MakeN32Premul(kLabelSize, kLabelSize);
     sk_sp<SkSurface> surf = SkSurface::MakeRaster(ii);
@@ -105,12 +105,12 @@ static sk_sp<SkImage> make_text_image(GrContext* context, const char* text, SkCo
 
     sk_sp<SkImage> image = surf->makeImageSnapshot();
 
-    return image->makeTextureImage(context);
+    return image->makeTextureImage(dContext);
 }
 
 // Create an image with each corner marked w/ "LL", "LR", etc., with the origin either bottom-left
 // or top-left.
-static sk_sp<SkImage> make_reference_image(GrContext* context,
+static sk_sp<SkImage> make_reference_image(GrDirectContext* dContext,
                                            const SkTArray<sk_sp<SkImage>>& labels,
                                            bool bottomLeftOrigin) {
     SkASSERT(kNumLabels == labels.count());
@@ -130,14 +130,16 @@ static sk_sp<SkImage> make_reference_image(GrContext* context,
 
     auto origin = bottomLeftOrigin ? kBottomLeft_GrSurfaceOrigin : kTopLeft_GrSurfaceOrigin;
 
-    auto proxy = sk_gpu_test::MakeTextureProxyFromData(context, GrRenderable::kNo, origin,
-                                                       bm.info(), bm.getPixels(), bm.rowBytes());
-    if (!proxy) {
+    auto view = sk_gpu_test::MakeTextureProxyViewFromData(dContext, GrRenderable::kNo, origin,
+                                                          bm.pixmap());
+    if (!view) {
         return nullptr;
     }
 
-    return sk_make_sp<SkImage_Gpu>(sk_ref_sp(context), kNeedNewImageUniqueID, kOpaque_SkAlphaType,
-                                   std::move(proxy), nullptr);
+    return sk_make_sp<SkImage_Gpu>(sk_ref_sp(dContext),
+                                   kNeedNewImageUniqueID,
+                                   std::move(view),
+                                   ii.colorInfo());
 }
 
 // Here we're converting from a matrix that is intended for UVs to a matrix that is intended
@@ -160,7 +162,7 @@ static bool UVMatToGeomMatForImage(SkMatrix* geomMat, const SkMatrix& uvMat) {
 
 // This GM exercises drawImage with a set of matrices that use an unusual amount of flips and
 // rotates.
-class FlippityGM : public skiagm::GpuGM {
+class FlippityGM : public skiagm::GM {
 public:
     FlippityGM() {
         this->setBGColor(0xFFCCCCCC);
@@ -198,7 +200,8 @@ private:
                 canvas->drawImageRect(image, kSubsets[matIndex],
                                       drawScaled ? SkRect::MakeWH(kImageSize, kImageSize)
                                                  : kSubsets[matIndex],
-                                      nullptr, SkCanvas::kFast_SrcRectConstraint);
+                                      SkSamplingOptions(), nullptr,
+                                      SkCanvas::kFast_SrcRectConstraint);
             } else {
                 canvas->drawImage(image, 0, 0);
             }
@@ -212,23 +215,20 @@ private:
         canvas->restore();
     }
 
-    void drawRow(GrContext* context, SkCanvas* canvas,
-                 bool bottomLeftImage, bool drawSubset, bool drawScaled) {
-
-        sk_sp<SkImage> referenceImage = make_reference_image(context, fLabels, bottomLeftImage);
+    void drawRow(SkCanvas* canvas, bool bottomLeftImage, bool drawSubset, bool drawScaled) {
 
         canvas->save();
             canvas->translate(kLabelSize, kLabelSize);
 
             for (int i = 0; i < kNumMatrices; ++i) {
-                this->drawImageWithMatrixAndLabels(canvas, referenceImage.get(), i,
-                                                   drawSubset, drawScaled);
+                this->drawImageWithMatrixAndLabels(canvas, fReferenceImages[bottomLeftImage].get(),
+                                                   i, drawSubset, drawScaled);
                 canvas->translate(kCellSize, 0);
             }
         canvas->restore();
     }
 
-    void makeLabels(GrContext* context) {
+    void makeLabels(GrDirectContext* dContext) {
         if (fLabels.count()) {
             return;
         }
@@ -243,33 +243,55 @@ private:
         };
 
         for (int i = 0; i < kNumLabels; ++i) {
-            fLabels.push_back(make_text_image(context, kLabelText[i], kLabelColors[i]));
+            fLabels.push_back(make_text_image(dContext, kLabelText[i], kLabelColors[i]));
         }
         SkASSERT(kNumLabels == fLabels.count());
     }
 
-    void onDraw(GrContext* context, GrRenderTargetContext*, SkCanvas* canvas) override {
-        this->makeLabels(context);
+    DrawResult onGpuSetup(GrDirectContext* dContext, SkString* errorMsg) override {
+        if (!dContext || dContext->abandoned()) {
+            *errorMsg = "DirectContext required to create reference images";
+            return DrawResult::kSkip;
+        }
+
+        this->makeLabels(dContext);
+        fReferenceImages[0] = make_reference_image(dContext, fLabels, false);
+        fReferenceImages[1] = make_reference_image(dContext, fLabels, true);
+        if (!fReferenceImages[0] || !fReferenceImages[1]) {
+            *errorMsg = "Failed to create reference images.";
+            return DrawResult::kFail;
+        }
+
+        return DrawResult::kOk;
+    }
+
+    void onGpuTeardown() override {
+        fLabels.reset();
+        fReferenceImages[0] = fReferenceImages[1] = nullptr;
+    }
+
+    void onDraw(SkCanvas* canvas) override {
+        SkASSERT(fReferenceImages[0] && fReferenceImages[1]);
 
         canvas->save();
 
         // Top row gets TL image
-        this->drawRow(context, canvas, false, false, false);
+        this->drawRow(canvas, false, false, false);
 
         canvas->translate(0, kCellSize);
 
         // Bottom row gets BL image
-        this->drawRow(context, canvas, true, false, false);
+        this->drawRow(canvas, true, false, false);
 
         canvas->translate(0, kCellSize);
 
         // Third row gets subsets of BL images
-        this->drawRow(context, canvas, true, true, false);
+        this->drawRow(canvas, true, true, false);
 
         canvas->translate(0, kCellSize);
 
         // Fourth row gets scaled subsets of BL images
-        this->drawRow(context, canvas, true, true, true);
+        this->drawRow(canvas, true, true, true);
 
         canvas->restore();
 
@@ -284,8 +306,9 @@ private:
 
 private:
     SkTArray<sk_sp<SkImage>> fLabels;
+    sk_sp<SkImage> fReferenceImages[2];
 
-    typedef GM INHERITED;
+    using INHERITED = GM;
 };
 
 DEF_GM(return new FlippityGM;)

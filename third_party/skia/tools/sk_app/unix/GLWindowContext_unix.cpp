@@ -45,7 +45,7 @@ private:
     XVisualInfo* fVisualInfo;
     GLXContext   fGLContext;
 
-    typedef GLWindowContext INHERITED;
+    using INHERITED = GLWindowContext;
 };
 
 GLWindowContext_xlib::GLWindowContext_xlib(const XlibWindowInfo& winInfo, const DisplayParams& params)
@@ -79,10 +79,9 @@ sk_sp<const GrGLInterface> GLWindowContext_xlib::onInitializeContext() {
         // Specifying 3.2 allows an arbitrarily high context version (so long as no 3.2 features
         // have been removed).
         for (int minor = 2; minor >= 0 && !fGLContext; --minor) {
-            // Ganesh prefers a compatibility profile for possible NVPR support. However, RenderDoc
-            // requires a core profile. Edit this code to use RenderDoc.
-            for (int profile : {GLX_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
-                                GLX_CONTEXT_CORE_PROFILE_BIT_ARB}) {
+            // Ganesh prefers a core profile which incidentally allows RenderDoc to work correctly.
+            for (int profile : {GLX_CONTEXT_CORE_PROFILE_BIT_ARB,
+                                GLX_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB}) {
                 gCtxErrorOccurred = false;
                 int attribs[] = {
                         GLX_CONTEXT_MAJOR_VERSION_ARB, 3, GLX_CONTEXT_MINOR_VERSION_ARB, minor,
@@ -145,7 +144,7 @@ sk_sp<const GrGLInterface> GLWindowContext_xlib::onInitializeContext() {
 
     glXGetConfig(fDisplay, fVisualInfo, GLX_STENCIL_SIZE, &fStencilBits);
     glXGetConfig(fDisplay, fVisualInfo, GLX_SAMPLES_ARB, &fSampleCount);
-    fSampleCount = SkTMax(fSampleCount, 1);
+    fSampleCount = std::max(fSampleCount, 1);
 
     XWindow root;
     int x, y;

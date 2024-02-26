@@ -8,27 +8,38 @@
 #ifndef GrGLSLVertexGeoBuilder_DEFINED
 #define GrGLSLVertexGeoBuilder_DEFINED
 
+#include "src/gpu/GrGeometryProcessor.h"
 #include "src/gpu/glsl/GrGLSLShaderBuilder.h"
 
 /**
- * Base class for vertex and geometry shader builders. This is the stage that computes input
- * geometry for the rasterizer.
+ * Base class for vertex shader builder. This is the stage that computes input geometry for the
+ * rasterizer.
  */
 class GrGLSLVertexGeoBuilder : public GrGLSLShaderBuilder {
+public:
+    // Copies the given text verbatim to the function definitions section. Does not mangle the name.
+    // 'functionDefinition' should be a fully valid SkSL function, complete with return type, name,
+    // arguments, braces, and a body.
+    void insertFunction(const char* functionDefinition) {
+        this->functions().append(functionDefinition);
+    }
+    using GrGLSLShaderBuilder::functions;
+    using GrGLSLShaderBuilder::code;
+
 protected:
     GrGLSLVertexGeoBuilder(GrGLSLProgramBuilder* program) : INHERITED(program) {}
 
-    void emitNormalizedSkPosition(const char* devPos, const char* rtAdjustName,
+    void emitNormalizedSkPosition(const char* devPos,
                                   GrSLType devPosType = GrSLType::kFloat2_GrSLType) {
-        this->emitNormalizedSkPosition(&this->code(), devPos, rtAdjustName, devPosType);
+        this->emitNormalizedSkPosition(&this->code(), devPos, devPosType);
     }
 
-    void emitNormalizedSkPosition(SkString* out, const char* devPos, const char* rtAdjustName,
+    void emitNormalizedSkPosition(SkString* out, const char* devPos,
                                   GrSLType devPosType = GrSLType::kFloat2_GrSLType);
 
-    friend class GrGLSLGeometryProcessor;
+    friend class GrGeometryProcessor::ProgramImpl;
 
-    typedef GrGLSLShaderBuilder INHERITED;
+    using INHERITED = GrGLSLShaderBuilder;
 };
 
 
@@ -41,46 +52,7 @@ private:
 
     friend class GrGLProgramBuilder;
 
-    typedef GrGLSLVertexGeoBuilder INHERITED;
-};
-
-
-class GrGLSLGeometryBuilder : public GrGLSLVertexGeoBuilder {
-public:
-    GrGLSLGeometryBuilder(GrGLSLProgramBuilder* program) : INHERITED(program) {}
-
-    enum class InputType {
-        kPoints,
-        kLines,
-        kTriangles,
-    };
-
-    enum class OutputType {
-        kPoints,
-        kLineStrip,
-        kTriangleStrip
-    };
-
-    void configure(InputType, OutputType, int maxVertices, int numInvocations = 1);
-    bool isConfigured() const { return fNumInvocations; }
-
-    void emitVertex(const char* devPos, const char* rtAdjustName,
-                    GrSLType devPosType = GrSLType::kFloat2_GrSLType) {
-        this->emitVertex(&this->code(), devPos, rtAdjustName, devPosType);
-    }
-    void emitVertex(SkString* out, const char* devPos, const char* rtAdjustName,
-                    GrSLType devPosType = GrSLType::kFloat2_GrSLType);
-
-    void endPrimitive();
-
-private:
-    void onFinalize() override;
-
-    int fNumInvocations = 0;
-
-    friend class GrGLProgramBuilder;
-
-    typedef GrGLSLVertexGeoBuilder INHERITED;
+    using INHERITED = GrGLSLVertexGeoBuilder;
 };
 
 #endif

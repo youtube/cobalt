@@ -113,7 +113,7 @@ protected:
         const SkScalar h = SkIntToScalar(H);
         SkMatrix m;
         m.setScale(SkIntToScalar(6), SkIntToScalar(6));
-        auto s = fBG.makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat, &m);
+        auto s = fBG.makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat, SkSamplingOptions(), m);
 
         SkFont labelFont(ToolUtils::create_portable_typeface());
 
@@ -121,7 +121,7 @@ protected:
         textP.setAntiAlias(true);
         SkFont textFont(fColorType, 70);
 
-        const int W = 5;
+        const int kWrap = 5;
 
         SkScalar x0 = 0;
         SkScalar y0 = 0;
@@ -156,7 +156,7 @@ protected:
                                     labelFont, SkPaint(), SkTextUtils::kCenter_Align);
 #endif
             x += w + SkIntToScalar(10);
-            if ((i % W) == W - 1) {
+            if ((i % kWrap) == kWrap - 1) {
                 x = x0;
                 y += h + SkIntToScalar(30);
             }
@@ -167,7 +167,7 @@ private:
     SkBitmap            fBG;
     sk_sp<SkTypeface>   fColorType;
 
-    typedef GM INHERITED;
+    using INHERITED = GM;
 };
 }  // namespace
 

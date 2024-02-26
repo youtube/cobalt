@@ -32,12 +32,12 @@ void GrGLTextureParameters::SamplerOverriddenState::invalidate() {
 
 GrGLTextureParameters::NonsamplerState::NonsamplerState()
         // These are the OpenGL defaults.
-        : fSwizzleKey(GrSwizzle::RGBA().asKey()), fBaseMipMapLevel(0), fMaxMipMapLevel(1000) {}
+        : fBaseMipMapLevel(0), fMaxMipmapLevel(1000), fSwizzleIsRGBA(true) {}
 
 void GrGLTextureParameters::NonsamplerState::invalidate() {
-    fSwizzleKey = ~0U;
+    fSwizzleIsRGBA = false;
     fBaseMipMapLevel = ~0;
-    fMaxMipMapLevel = ~0;
+    fMaxMipmapLevel = ~0;
 }
 
 void GrGLTextureParameters::invalidate() {
@@ -65,3 +65,20 @@ void GrGLBackendTextureInfo::assign(const GrGLBackendTextureInfo& that, bool thi
 }
 
 void GrGLBackendTextureInfo::cleanup() { SkSafeUnref(fParams); }
+
+GrGLSurfaceInfo GrGLTextureSpecToSurfaceInfo(const GrGLTextureSpec& glSpec,
+                                             uint32_t sampleCount,
+                                             uint32_t levelCount,
+                                             GrProtected isProtected) {
+    GrGLSurfaceInfo info;
+    // Shared info
+    info.fSampleCount = sampleCount;
+    info.fLevelCount = levelCount;
+    info.fProtected = isProtected;
+
+    // GL info
+    info.fTarget = glSpec.fTarget;
+    info.fFormat = glSpec.fFormat;
+
+    return info;
+}

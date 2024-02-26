@@ -47,8 +47,8 @@ static void draw_image(SkCanvas* canvas, const sk_sp<SkImage> image, sk_sp<SkIma
     paint.setImageFilter(std::move(filter));
 
     canvas->translate(SkIntToScalar(30), 0);
-    canvas->clipRect(SkRect::MakeIWH(image->width(),image->height()));
-    canvas->drawImage(image, 0, 0, &paint);
+    canvas->clipIRect(image->bounds());
+    canvas->drawImage(image, 0, 0, SkSamplingOptions(), &paint);
 }
 
 namespace skiagm {
@@ -105,10 +105,10 @@ protected:
     }
 
 private:
-    typedef GM INHERITED;
+    using INHERITED = GM;
 };
 
 //////////////////////////////////////////////////////////////////////////////
 
 DEF_GM(return new ImageBlurClampModeGM;)
-}
+}  // namespace skiagm

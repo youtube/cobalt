@@ -35,34 +35,34 @@ std::unique_ptr<GrVkSemaphore> GrVkSemaphore::Make(GrVkGpu* gpu, bool isOwned) {
 
 std::unique_ptr<GrVkSemaphore> GrVkSemaphore::MakeWrapped(GrVkGpu* gpu,
                                                           VkSemaphore semaphore,
-                                                          WrapType wrapType,
+                                                          GrSemaphoreWrapType wrapType,
                                                           GrWrapOwnership ownership) {
     if (VK_NULL_HANDLE == semaphore) {
+        SkDEBUGFAIL("Trying to wrap an invalid VkSemaphore");
         return nullptr;
     }
-    bool prohibitSignal = WrapType::kWillWait == wrapType;
-    bool prohibitWait = WrapType::kWillSignal == wrapType;
+    bool prohibitSignal = GrSemaphoreWrapType::kWillWait == wrapType;
+    bool prohibitWait = GrSemaphoreWrapType::kWillSignal == wrapType;
     return std::unique_ptr<GrVkSemaphore>(new GrVkSemaphore(gpu, semaphore, prohibitSignal,
                                                             prohibitWait,
                                                             kBorrow_GrWrapOwnership != ownership));
 }
 
 GrVkSemaphore::GrVkSemaphore(GrVkGpu* gpu, VkSemaphore semaphore, bool prohibitSignal,
-                             bool prohibitWait, bool isOwned)
-        : fGpu(gpu) {
-    fResource = new Resource(semaphore, prohibitSignal, prohibitWait, isOwned);
+                             bool prohibitWait, bool isOwned) {
+    fResource = new Resource(gpu, semaphore, prohibitSignal, prohibitWait, isOwned);
 }
 
 GrVkSemaphore::~GrVkSemaphore() {
     if (fResource) {
-        fResource->unref(fGpu);
+        fResource->unref();
     }
 }
 
-void GrVkSemaphore::Resource::freeGPUData(GrVkGpu* gpu) const {
+void GrVkSemaphore::Resource::freeGPUData() const {
     if (fIsOwned) {
-        GR_VK_CALL(gpu->vkInterface(),
-                   DestroySemaphore(gpu->device(), fSemaphore, nullptr));
+        GR_VK_CALL(fGpu->vkInterface(),
+                   DestroySemaphore(fGpu->device(), fSemaphore, nullptr));
     }
 }
 

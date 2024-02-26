@@ -8,22 +8,16 @@
 #include "src/core/SkGlyph.h"
 
 #include "src/core/SkArenaAlloc.h"
-#include "src/core/SkMakeUnique.h"
 #include "src/core/SkScalerContext.h"
 #include "src/pathops/SkPathOpsCubic.h"
 #include "src/pathops/SkPathOpsQuad.h"
 
-constexpr SkIPoint SkPackedGlyphID::kXYFieldMask;
-
 SkMask SkGlyph::mask() const {
-    // getMetrics had to be called.
-    SkASSERT(fMaskFormat != MASK_FORMAT_UNKNOWN);
-
     SkMask mask;
     mask.fImage = (uint8_t*)fImage;
     mask.fBounds.setXYWH(fLeft, fTop, fWidth, fHeight);
     mask.fRowBytes = this->rowBytes();
-    mask.fFormat = static_cast<SkMask::Format>(fMaskFormat);
+    mask.fFormat = fMaskFormat;
     return mask;
 }
 
@@ -69,18 +63,6 @@ static size_t format_rowbytes(int width, SkMask::Format format) {
                                         : width * format_alignment(format);
 }
 
-SkGlyph::SkGlyph(const SkGlyphPrototype& p)
-    : fWidth{p.width}
-    , fHeight{p.height}
-    , fTop{p.top}
-    , fLeft{p.left}
-    , fAdvanceX{p.advanceX}
-    , fAdvanceY{p.advanceY}
-    , fMaskFormat{(uint8_t)p.maskFormat}
-    , fForceBW{p.forceBW}
-    , fID{p.id}
-    {}
-
 size_t SkGlyph::formatAlignment() const {
     return format_alignment(this->maskFormat());
 }
@@ -115,7 +97,12 @@ bool SkGlyph::setImage(SkArenaAlloc* alloc, const void* image) {
     return false;
 }
 
-bool SkGlyph::setMetricsAndImage(SkArenaAlloc* alloc, const SkGlyph& from) {
+size_t SkGlyph::setMetricsAndImage(SkArenaAlloc* alloc, const SkGlyph& from) {
+    // Since the code no longer tries to find replacement glyphs, the image should always be
+    // nullptr.
+    SkASSERT(fImage == nullptr);
+
+    // TODO(herb): remove "if" when we are sure there are no colliding glyphs.
     if (fImage == nullptr) {
         fAdvanceX = from.fAdvanceX;
         fAdvanceY = from.fAdvanceY;
@@ -127,13 +114,19 @@ bool SkGlyph::setMetricsAndImage(SkArenaAlloc* alloc, const SkGlyph& from) {
         fMaskFormat = from.fMaskFormat;
 
         // From glyph may not have an image because the glyph is too large.
-        return from.fImage != nullptr && this->setImage(alloc, from.image());
+        if (from.fImage != nullptr && this->setImage(alloc, from.image())) {
+            return this->imageSize();
+        }
+
+        SkDEBUGCODE(
+            fAdvancesBoundsFormatAndInitialPathDone = from.fAdvancesBoundsFormatAndInitialPathDone;
+        )
     }
-    return false;
+    return 0;
 }
 
 size_t SkGlyph::rowBytes() const {
-    return format_rowbytes(fWidth, (SkMask::Format)fMaskFormat);
+    return format_rowbytes(fWidth, fMaskFormat);
 }
 
 size_t SkGlyph::rowBytesUsingFormat(SkMask::Format format) const {
@@ -152,7 +145,7 @@ size_t SkGlyph::imageSize() const {
     return size;
 }
 
-void SkGlyph::installPath(SkArenaAlloc* alloc, const SkPath* path) {
+void SkGlyph::installPath(SkArenaAlloc* alloc, const SkPath* path, bool hairline) {
     SkASSERT(fPathData == nullptr);
     SkASSERT(!this->setPathHasBeenCalled());
     fPathData = alloc->make<SkGlyph::PathData>();
@@ -161,26 +154,23 @@ void SkGlyph::installPath(SkArenaAlloc* alloc, const SkPath* path) {
         fPathData->fPath.updateBoundsCache();
         fPathData->fPath.getGenerationID();
         fPathData->fHasPath = true;
+        fPathData->fHairline = hairline;
     }
 }
 
 bool SkGlyph::setPath(SkArenaAlloc* alloc, SkScalerContext* scalerContext) {
     if (!this->setPathHasBeenCalled()) {
-        SkPath path;
-        if (scalerContext->getPath(this->getPackedID(), &path)) {
-            this->installPath(alloc, &path);
-        } else {
-            this->installPath(alloc, nullptr);
-        }
+        scalerContext->getPath(*this, alloc);
+        SkASSERT(this->setPathHasBeenCalled());
         return this->path() != nullptr;
     }
 
     return false;
 }
 
-bool SkGlyph::setPath(SkArenaAlloc* alloc, const SkPath* path) {
+bool SkGlyph::setPath(SkArenaAlloc* alloc, const SkPath* path, bool hairline) {
     if (!this->setPathHasBeenCalled()) {
-        this->installPath(alloc, path);
+        this->installPath(alloc, path, hairline);
         return this->path() != nullptr;
     }
     return false;
@@ -195,6 +185,12 @@ const SkPath* SkGlyph::path() const {
     return nullptr;
 }
 
+bool SkGlyph::pathIsHairline() const {
+    // setPath must have been called previously.
+    SkASSERT(this->setPathHasBeenCalled());
+    return fPathData->fHairline;
+}
+
 static std::tuple<SkScalar, SkScalar> calculate_path_gap(
         SkScalar topOffset, SkScalar bottomOffset, const SkPath& path) {
 
@@ -202,8 +198,8 @@ static std::tuple<SkScalar, SkScalar> calculate_path_gap(
     SkScalar left  = SK_ScalarMax,
              right = SK_ScalarMin;
     auto expandGap = [&left, &right](SkScalar v) {
-        left  = SkTMin(left, v);
-        right = SkTMax(right, v);
+        left  = std::min(left, v);
+        right = std::max(right, v);
     };
 
     // Handle all the different verbs for the path.
@@ -258,9 +254,9 @@ static std::tuple<SkScalar, SkScalar> calculate_path_gap(
                 break;
             }
             case SkPath::kQuad_Verb: {
-                SkScalar quadTop = SkTMin(SkTMin(pts[0].fY, pts[1].fY), pts[2].fY);
+                SkScalar quadTop = std::min(std::min(pts[0].fY, pts[1].fY), pts[2].fY);
                 if (bottomOffset < quadTop) { break; }
-                SkScalar quadBottom = SkTMax(SkTMax(pts[0].fY, pts[1].fY), pts[2].fY);
+                SkScalar quadBottom = std::max(std::max(pts[0].fY, pts[1].fY), pts[2].fY);
                 if (topOffset > quadBottom) { break; }
                 addQuad(topOffset);
                 addQuad(bottomOffset);
@@ -273,10 +269,10 @@ static std::tuple<SkScalar, SkScalar> calculate_path_gap(
             }
             case SkPath::kCubic_Verb: {
                 SkScalar quadTop =
-                        SkTMin(SkTMin(SkTMin(pts[0].fY, pts[1].fY), pts[2].fY), pts[3].fY);
+                        std::min(std::min(std::min(pts[0].fY, pts[1].fY), pts[2].fY), pts[3].fY);
                 if (bottomOffset < quadTop) { break; }
                 SkScalar quadBottom =
-                        SkTMax(SkTMax(SkTMax(pts[0].fY, pts[1].fY), pts[2].fY), pts[3].fY);
+                        std::max(std::max(std::max(pts[0].fY, pts[1].fY), pts[2].fY), pts[3].fY);
                 if (topOffset > quadBottom) { break; }
                 addCubic(topOffset);
                 addCubic(bottomOffset);

@@ -40,15 +40,8 @@
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/gpu/GrBackendSurface.h"
-#ifdef USE_SKIA_NEXT
-#include "third_party/skia/include/gpu/GrDirectContext.h"
-#else
-#include "third_party/skia/include/gpu/GrContext.h"
-#endif
 #include "third_party/skia/include/gpu/GrContextOptions.h"
-#ifndef USE_SKIA_NEXT
-#include "third_party/skia/include/gpu/GrTexture.h"
-#endif
+#include "third_party/skia/include/gpu/GrDirectContext.h"
 #include "third_party/skia/include/gpu/gl/GrGLInterface.h"
 #include "third_party/skia/src/gpu/GrRenderTarget.h"
 #include "third_party/skia/src/gpu/GrResourceProvider.h"
@@ -158,11 +151,7 @@ namespace {
 
 SkSurfaceProps GetRenderTargetSurfaceProps(bool force_deterministic_rendering) {
   uint32_t flags = 0;
-#ifdef USE_SKIA_NEXT
   return SkSurfaceProps(flags, kUnknown_SkPixelGeometry);
-#else
-  return SkSurfaceProps(flags, SkSurfaceProps::kLegacyFontHost_InitType);
-#endif
 }
 
 // Takes meta-data from a Cobalt RenderTarget object and uses it to fill out
@@ -524,17 +513,10 @@ void HardwareRasterizer::Impl::RenderTextureEGL(
                                         model_view_projection_matrix);
   }
 
-// Let Skia know that we've modified GL state.
-#ifdef USE_SKIA_NEXT
+  // Let Skia know that we've modified GL state.
   uint32_t untouched_states =
       kMSAAEnable_GrGLBackendState | kStencil_GrGLBackendState |
       kPixelStore_GrGLBackendState | kFixedFunction_GrGLBackendState;
-#else
-  uint32_t untouched_states =
-      kMSAAEnable_GrGLBackendState | kStencil_GrGLBackendState |
-      kPixelStore_GrGLBackendState | kFixedFunction_GrGLBackendState |
-      kPathRendering_GrGLBackendState;
-#endif
   gr_context_->resetContext(~untouched_states & kAll_GrBackendState);
 }
 

@@ -7,12 +7,13 @@
 
 #include "include/core/SkTypes.h"
 
-#ifdef SK_XML
+#if defined(SK_ENABLE_SVG)
 
-#include "experimental/svg/model/SkSVGDOM.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkRect.h"
 #include "include/core/SkStream.h"
+#include "modules/svg/include/SkSVGDOM.h"
+#include "modules/svg/include/SkSVGNode.h"
 #include "samplecode/Sample.h"
 #include "src/core/SkOSFile.h"
 #include "src/utils/SkOSPath.h"
@@ -21,7 +22,7 @@
 
 namespace {
 class AnimatedSVGSample : public Sample {
-    static constexpr auto kAnimationIterations = 5;
+    inline static constexpr auto kAnimationIterations = 5;
     enum State {
         kZoomIn,
         kScroll,
@@ -47,13 +48,7 @@ private:
         }
         SkMemoryStream svgStream(std::move(data));
 
-        SkDOM xmlDom;
-        if (!xmlDom.build(svgStream)) {
-            SkDebugf("XML parsing failed: \"%s\"\n", fResource);
-            return;
-        }
-
-        fDom = SkSVGDOM::MakeFromDOM(xmlDom);
+        fDom = SkSVGDOM::MakeFromStream(svgStream);
         if (fDom) {
             fDom->setContainerSize(SkSize::Make(this->width(), this->height()));
         }
@@ -61,12 +56,12 @@ private:
 
     void onDrawContent(SkCanvas* canvas) override {
         if (fDom) {
-            canvas->setMatrix(SkMatrix::MakeScale(3));
+            canvas->setMatrix(SkMatrix::Scale(3, 3));
             canvas->clipRect(SkRect::MakeLTRB(0, 0, 400, 400));
             switch (fState) {
                 case kZoomIn:
                     fDelta += 0.2f;
-                    canvas->concat(SkMatrix::MakeScale(fDelta));
+                    canvas->scale(fDelta, fDelta);
                     break;
                 case kScroll:
                     if (fAnimationLoop > kAnimationIterations/2) {
@@ -74,12 +69,12 @@ private:
                     } else {
                         fDelta -= 80.f;
                     }
-                    canvas->concat(SkMatrix::MakeScale(fDelta));
+                    canvas->scale(fDelta, fDelta);
                     canvas->translate(fDelta, 0);
                     break;
                 case kZoomOut:
                     fDelta += 0.2f;
-                    canvas->concat(SkMatrix::MakeScale(fDelta));
+                    canvas->scale(fDelta, fDelta);
                     break;
             }
 
@@ -125,4 +120,4 @@ private:
 
 DEF_SAMPLE( return new AnimatedSVGSample("Cowboy.svg", "SampleCowboy"); )
 
-#endif  // SK_XML
+#endif  // defined(SK_ENABLE_SVG)

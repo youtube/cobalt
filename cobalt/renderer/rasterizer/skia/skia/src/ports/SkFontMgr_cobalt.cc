@@ -267,12 +267,10 @@ sk_sp<SkTypeface> SkFontMgr_Cobalt::onMakeFromData(sk_sp<SkData> data,
                         face_index);
 }
 
-#ifdef USE_SKIA_NEXT
 sk_sp<SkTypeface> SkFontMgr_Cobalt::onMakeFromStreamArgs(
     std::unique_ptr<SkStreamAsset> stream, const SkFontArguments& args) const {
   return this->makeFromStream(std::move(stream), args.getCollectionIndex());
 }
-#endif
 
 sk_sp<SkTypeface> SkFontMgr_Cobalt::onMakeFromStreamIndex(
     std::unique_ptr<SkStreamAsset> stream, int face_index) const {

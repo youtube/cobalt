@@ -20,21 +20,33 @@ class GrColorInfo {
 public:
     GrColorInfo() = default;
     GrColorInfo(const GrColorInfo&);
+    GrColorInfo& operator=(const GrColorInfo&);
     GrColorInfo(GrColorType, SkAlphaType, sk_sp<SkColorSpace>);
     /* implicit */ GrColorInfo(const SkColorInfo&);
+
+    bool operator==(const GrColorInfo& that) const {
+        return  fColorType == that.fColorType &&
+                fAlphaType == that.fAlphaType &&
+                SkColorSpace::Equals(fColorSpace.get(), that.fColorSpace.get());
+    }
+    bool operator!=(const GrColorInfo& that) const { return !(*this == that); }
+
+    GrColorInfo makeColorType(GrColorType ct) const {
+        return GrColorInfo(ct, fAlphaType, this->refColorSpace());
+    }
 
     bool isLinearlyBlended() const { return fColorSpace && fColorSpace->gammaIsLinear(); }
 
     SkColorSpace* colorSpace() const { return fColorSpace.get(); }
     sk_sp<SkColorSpace> refColorSpace() const { return fColorSpace; }
 
-    GrColorSpaceXform* colorSpaceXformFromSRGB() const;
-    sk_sp<GrColorSpaceXform> refColorSpaceXformFromSRGB() const {
-        return sk_ref_sp(this->colorSpaceXformFromSRGB());
-    }
+    GrColorSpaceXform* colorSpaceXformFromSRGB() const { return fColorXformFromSRGB.get(); }
+    sk_sp<GrColorSpaceXform> refColorSpaceXformFromSRGB() const { return fColorXformFromSRGB; }
 
     GrColorType colorType() const { return fColorType; }
     SkAlphaType alphaType() const { return fAlphaType; }
+
+    bool isAlphaOnly() const { return GrColorTypeIsAlphaOnly(fColorType); }
 
     bool isValid() const {
         return fColorType != GrColorType::kUnknown && fAlphaType != kUnknown_SkAlphaType;
@@ -42,10 +54,9 @@ public:
 
 private:
     sk_sp<SkColorSpace> fColorSpace;
-    mutable sk_sp<GrColorSpaceXform> fColorXformFromSRGB;
+    sk_sp<GrColorSpaceXform> fColorXformFromSRGB;
     GrColorType fColorType = GrColorType::kUnknown;
     SkAlphaType fAlphaType = kUnknown_SkAlphaType;
-    mutable bool fInitializedColorSpaceXformFromSRGB = false;
 };
 
 #endif

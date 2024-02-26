@@ -15,16 +15,14 @@
 #include "include/core/SkString.h"
 #include "include/core/SkTextBlob.h"
 #include "include/core/SkTypeface.h"
-#include "include/gpu/GrContext.h"
+#include "include/gpu/GrDirectContext.h"
 #include "tools/ToolUtils.h"
 
 #include <string.h>
 
-class GrRenderTargetContext;
-
 // This tests that we correctly regenerate textblobs after freeing all gpu resources crbug/491350
 namespace skiagm {
-class TextBlobUseAfterGpuFree : public GpuGM {
+class TextBlobUseAfterGpuFree : public GM {
 public:
     TextBlobUseAfterGpuFree() { }
 
@@ -37,7 +35,9 @@ protected:
         return SkISize::Make(kWidth, kHeight);
     }
 
-    void onDraw(GrContext* context, GrRenderTargetContext*, SkCanvas* canvas) override {
+    void onDraw(SkCanvas* canvas) override {
+        auto dContext = GrAsDirectContext(canvas->recordingContext());
+
         const char text[] = "Hamburgefons";
 
         SkFont font(ToolUtils::create_portable_typeface(), 20);
@@ -51,18 +51,20 @@ protected:
         canvas->drawTextBlob(blob, 20, 60, SkPaint());
 
         // This text should look fine
-        context->freeGpuResources();
+        if (dContext) {
+            dContext->freeGpuResources();
+        }
         canvas->drawTextBlob(blob, 20, 160, SkPaint());
     }
 
 private:
-    static constexpr int kWidth = 200;
-    static constexpr int kHeight = 200;
+    inline static constexpr int kWidth = 200;
+    inline static constexpr int kHeight = 200;
 
-    typedef GM INHERITED;
+    using INHERITED = GM;
 };
 
 //////////////////////////////////////////////////////////////////////////////
 
 DEF_GM(return new TextBlobUseAfterGpuFree;)
-}
+}  // namespace skiagm

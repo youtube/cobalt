@@ -140,6 +140,8 @@
 
 #include <openssl/ssl.h>
 
+#include <algorithm>
+
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
@@ -163,6 +165,10 @@
 
 
 BSSL_NAMESPACE_BEGIN
+
+static_assert(SSL3_RT_MAX_ENCRYPTED_OVERHEAD >=
+                  SSL3_RT_SEND_MAX_ENCRYPTED_OVERHEAD,
+              "max overheads are inconsistent");
 
 // |SSL_R_UNKNOWN_PROTOCOL| is no longer emitted, but continue to define it
 // to avoid downstream churn.
@@ -517,7 +523,8 @@ ssl_ctx_st::ssl_ctx_st(const SSL_METHOD *ssl_method)
       allow_unknown_alpn_protos(false),
       false_start_allowed_without_alpn(false),
       handoff(false),
-      enable_early_data(false) {
+      enable_early_data(false),
+      only_fips_cipher_suites_in_tls13(false) {
   CRYPTO_MUTEX_init(&lock);
   CRYPTO_new_ex_data(&ex_data);
 }
@@ -637,6 +644,8 @@ SSL *SSL_new(SSL_CTX *ctx) {
   ssl->config->retain_only_sha256_of_client_certs =
       ctx->retain_only_sha256_of_client_certs;
   ssl->config->permute_extensions = ctx->permute_extensions;
+  ssl->config->only_fips_cipher_suites_in_tls13 =
+      ctx->only_fips_cipher_suites_in_tls13;
 
   if (!ssl->config->supported_group_list.CopyFrom(ctx->supported_group_list) ||
       !ssl->config->alpn_client_proto_list.CopyFrom(
@@ -678,7 +687,7 @@ SSL_CONFIG::SSL_CONFIG(SSL *ssl_arg)
       signed_cert_timestamps_enabled(false),
       ocsp_stapling_enabled(false),
       channel_id_enabled(false),
-      enforce_rsa_key_usage(false),
+      enforce_rsa_key_usage(true),
       retain_only_sha256_of_client_certs(false),
       handoff(false),
       shed_handshake_config(false),
@@ -1053,6 +1062,7 @@ int SSL_write(SSL *ssl, const void *buf, int num) {
   }
 
   int ret = 0;
+  size_t bytes_written = 0;
   bool needs_handshake = false;
   do {
     // If necessary, complete the handshake implicitly.
@@ -1067,10 +1077,16 @@ int SSL_write(SSL *ssl, const void *buf, int num) {
       }
     }
 
-    ret = ssl->method->write_app_data(ssl, &needs_handshake,
-                                      (const uint8_t *)buf, num);
+    if (num < 0) {
+      OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_LENGTH);
+      return -1;
+    }
+    ret = ssl->method->write_app_data(
+        ssl, &needs_handshake, &bytes_written,
+        MakeConstSpan(static_cast<const uint8_t *>(buf),
+                      static_cast<size_t>(num)));
   } while (needs_handshake);
-  return ret;
+  return ret <= 0 ? ret : static_cast<int>(bytes_written);
 }
 
 int SSL_key_update(SSL *ssl, int request_type) {
@@ -1234,7 +1250,7 @@ void SSL_reset_early_data_reject(SSL *ssl) {
   // Discard any unfinished writes from the perspective of |SSL_write|'s
   // retry. The handshake will transparently flush out the pending record
   // (discarded by the server) to keep the framing correct.
-  ssl->s3->wpend_pending = false;
+  ssl->s3->pending_write = {};
 }
 
 enum ssl_early_data_reason_t SSL_get_early_data_reason(const SSL *ssl) {
@@ -1303,7 +1319,7 @@ int SSL_get_error(const SSL *ssl, int ret_code) {
   }
 
   if (ret_code == 0) {
-    if (ssl->s3->read_shutdown == ssl_shutdown_close_notify) {
+    if (ssl->s3->rwstate == SSL_ERROR_ZERO_RETURN) {
       return SSL_ERROR_ZERO_RETURN;
     }
     // An EOF was observed which violates the protocol, and the underlying
@@ -1935,9 +1951,23 @@ int SSL_set1_curves_list(SSL *ssl, const char *curves) {
   return tls1_set_curves_list(&ssl->config->supported_group_list, curves);
 }
 
+int SSL_CTX_set1_groups(SSL_CTX *ctx, const int *groups, size_t groups_len) {
+  return SSL_CTX_set1_curves(ctx, groups, groups_len);
+}
+
+int SSL_set1_groups(SSL *ssl, const int *groups, size_t groups_len) {
+  return SSL_set1_curves(ssl, groups, groups_len);
+}
+
+int SSL_CTX_set1_groups_list(SSL_CTX *ctx, const char *groups) {
+  return SSL_CTX_set1_curves_list(ctx, groups);
+}
+
+int SSL_set1_groups_list(SSL *ssl, const char *groups) {
+  return SSL_set1_curves_list(ssl, groups);
+}
+
 uint16_t SSL_get_curve_id(const SSL *ssl) {
-  // TODO(davidben): This checks the wrong session if there is a renegotiation
-  // in progress.
   SSL_SESSION *session = SSL_get_session(ssl);
   if (session == NULL) {
     return 0;
@@ -2564,7 +2594,13 @@ void *SSL_CTX_get_ex_data(const SSL_CTX *ctx, int idx) {
   return CRYPTO_get_ex_data(&ctx->ex_data, idx);
 }
 
-int SSL_want(const SSL *ssl) { return ssl->s3->rwstate; }
+int SSL_want(const SSL *ssl) {
+  // Historically, OpenSSL did not track |SSL_ERROR_ZERO_RETURN| as an |rwstate|
+  // value. We do, but map it back to |SSL_ERROR_NONE| to preserve the original
+  // behavior.
+  return ssl->s3->rwstate == SSL_ERROR_ZERO_RETURN ? SSL_ERROR_NONE
+                                                   : ssl->s3->rwstate;
+}
 
 void SSL_CTX_set_tmp_rsa_callback(SSL_CTX *ctx,
                                   RSA *(*cb)(SSL *ssl, int is_export,
@@ -2788,35 +2824,25 @@ int SSL_get_ivs(const SSL *ssl, const uint8_t **out_read_iv,
   return 1;
 }
 
-static uint64_t be_to_u64(const uint8_t in[8]) {
-  return (((uint64_t)in[0]) << 56) | (((uint64_t)in[1]) << 48) |
-         (((uint64_t)in[2]) << 40) | (((uint64_t)in[3]) << 32) |
-         (((uint64_t)in[4]) << 24) | (((uint64_t)in[5]) << 16) |
-         (((uint64_t)in[6]) << 8) | ((uint64_t)in[7]);
-}
-
 uint64_t SSL_get_read_sequence(const SSL *ssl) {
-  // TODO(davidben): Internally represent sequence numbers as uint64_t.
   if (SSL_is_dtls(ssl)) {
     // max_seq_num already includes the epoch.
     assert(ssl->d1->r_epoch == (ssl->d1->bitmap.max_seq_num >> 48));
     return ssl->d1->bitmap.max_seq_num;
   }
-  return be_to_u64(ssl->s3->read_sequence);
+  return ssl->s3->read_sequence;
 }
 
 uint64_t SSL_get_write_sequence(const SSL *ssl) {
-  uint64_t ret = be_to_u64(ssl->s3->write_sequence);
+  uint64_t ret = ssl->s3->write_sequence;
   if (SSL_is_dtls(ssl)) {
     assert((ret >> 48) == 0);
-    ret |= ((uint64_t)ssl->d1->w_epoch) << 48;
+    ret |= uint64_t{ssl->d1->w_epoch} << 48;
   }
   return ret;
 }
 
 uint16_t SSL_get_peer_signature_algorithm(const SSL *ssl) {
-  // TODO(davidben): This checks the wrong session if there is a renegotiation
-  // in progress.
   SSL_SESSION *session = SSL_get_session(ssl);
   if (session == NULL) {
     return 0;
@@ -3027,6 +3053,15 @@ SSL_SESSION *SSL_process_tls13_new_session_ticket(SSL *ssl, const uint8_t *buf,
   return session.release();
 }
 
+int SSL_CTX_set_num_tickets(SSL_CTX *ctx, size_t num_tickets) {
+  num_tickets = std::min(num_tickets, kMaxTickets);
+  static_assert(kMaxTickets <= 0xff, "Too many tickets.");
+  ctx->num_tickets = static_cast<uint8_t>(num_tickets);
+  return 1;
+}
+
+size_t SSL_CTX_get_num_tickets(const SSL_CTX *ctx) { return ctx->num_tickets; }
+
 int SSL_set_tlsext_status_type(SSL *ssl, int type) {
   if (!ssl->config) {
     return 0;
@@ -3075,4 +3110,94 @@ int SSL_CTX_set_tlsext_status_arg(SSL_CTX *ctx, void *arg) {
 
 SSL_SESSION *SSL_SESSION_copy_without_early_data(SSL_SESSION *session) {
   return nullptr;
+}
+
+namespace fips202205 {
+
+// (References are to SP 800-52r2):
+
+// Section 3.4.2.2
+// "at least one of the NIST-approved curves, P-256 (secp256r1) and P384
+// (secp384r1), shall be supported as described in RFC 8422."
+//
+// Section 3.3.1
+// "The server shall be configured to only use cipher suites that are
+// composed entirely of NIST approved algorithms"
+static const int kCurves[] = {NID_X9_62_prime256v1, NID_secp384r1};
+
+static const uint16_t kSigAlgs[] = {
+    SSL_SIGN_RSA_PKCS1_SHA256,
+    SSL_SIGN_RSA_PKCS1_SHA384,
+    SSL_SIGN_RSA_PKCS1_SHA512,
+    // Table 4.1:
+    // "The curve should be P-256 or P-384"
+    SSL_SIGN_ECDSA_SECP256R1_SHA256,
+    SSL_SIGN_ECDSA_SECP384R1_SHA384,
+    SSL_SIGN_RSA_PSS_RSAE_SHA256,
+    SSL_SIGN_RSA_PSS_RSAE_SHA384,
+    SSL_SIGN_RSA_PSS_RSAE_SHA512,
+};
+
+static const char kTLS12Ciphers[] =
+    "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:"
+    "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:"
+    "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:"
+    "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384";
+
+static int Configure(SSL_CTX *ctx) {
+  ctx->only_fips_cipher_suites_in_tls13 = true;
+
+  return
+      // Section 3.1:
+      // "Servers that support government-only applications shall be
+      // configured to use TLS 1.2 and should be configured to use TLS 1.3
+      // as well. These servers should not be configured to use TLS 1.1 and
+      // shall not use TLS 1.0, SSL 3.0, or SSL 2.0.
+      SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION) &&
+      SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION) &&
+      // Sections 3.3.1.1.1 and 3.3.1.1.2 are ambiguous about whether
+      // HMAC-SHA-1 cipher suites are permitted with TLS 1.2. However, later the
+      // Encrypt-then-MAC extension is required for all CBC cipher suites and so
+      // it's easier to drop them.
+      SSL_CTX_set_strict_cipher_list(ctx, kTLS12Ciphers) &&
+      SSL_CTX_set1_curves(ctx, kCurves, OPENSSL_ARRAY_SIZE(kCurves)) &&
+      SSL_CTX_set_signing_algorithm_prefs(ctx, kSigAlgs,
+                                          OPENSSL_ARRAY_SIZE(kSigAlgs)) &&
+      SSL_CTX_set_verify_algorithm_prefs(ctx, kSigAlgs,
+                                         OPENSSL_ARRAY_SIZE(kSigAlgs));
+}
+
+static int Configure(SSL *ssl) {
+  ssl->config->only_fips_cipher_suites_in_tls13 = true;
+
+  // See |Configure(SSL_CTX)|, above, for reasoning.
+  return SSL_set_min_proto_version(ssl, TLS1_2_VERSION) &&
+         SSL_set_max_proto_version(ssl, TLS1_3_VERSION) &&
+         SSL_set_strict_cipher_list(ssl, kTLS12Ciphers) &&
+         SSL_set1_curves(ssl, kCurves, OPENSSL_ARRAY_SIZE(kCurves)) &&
+         SSL_set_signing_algorithm_prefs(ssl, kSigAlgs,
+                                         OPENSSL_ARRAY_SIZE(kSigAlgs)) &&
+         SSL_set_verify_algorithm_prefs(ssl, kSigAlgs,
+                                        OPENSSL_ARRAY_SIZE(kSigAlgs));
+}
+
+}  // namespace fips202205
+
+int SSL_CTX_set_compliance_policy(SSL_CTX *ctx,
+                                  enum ssl_compliance_policy_t policy) {
+  switch (policy) {
+    case ssl_compliance_policy_fips_202205:
+      return fips202205::Configure(ctx);
+    default:
+      return 0;
+  }
+}
+
+int SSL_set_compliance_policy(SSL *ssl, enum ssl_compliance_policy_t policy) {
+  switch (policy) {
+    case ssl_compliance_policy_fips_202205:
+      return fips202205::Configure(ssl);
+    default:
+      return 0;
+  }
 }

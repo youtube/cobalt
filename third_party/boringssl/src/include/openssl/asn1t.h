@@ -509,19 +509,8 @@ const char *sname;		/* Structure name */
 
 #define ASN1_ITYPE_MSTRING		0x5
 
-/* Cache for ASN1 tag and length, so we
- * don't keep re-reading it for things
- * like CHOICE
- */
-
-struct ASN1_TLC_st{
-	char valid;	/* Values below are valid */
-	int ret;	/* return value */
-	long plen;	/* length */
-	int ptag;	/* class value */
-	int pclass;	/* class value */
-	int hdrlen;	/* header length */
-};
+/* Deprecated tag and length cache */
+struct ASN1_TLC_st;
 
 /* Typedefs for ASN1 function pointers */
 
@@ -688,13 +677,17 @@ typedef struct ASN1_AUX_st {
 	int i2d_##fname(const stname *a, unsigned char **out) \
 	{ \
 		return ASN1_item_i2d((ASN1_VALUE *)a, out, ASN1_ITEM_rptr(itname));\
-	} 
+	}
 
-#define IMPLEMENT_ASN1_DUP_FUNCTION(stname) \
-	stname * stname##_dup(stname *x) \
-        { \
-        return ASN1_item_dup(ASN1_ITEM_rptr(stname), x); \
-        }
+#define IMPLEMENT_ASN1_DUP_FUNCTION(stname)          \
+  stname *stname##_dup(stname *x) {                  \
+    return ASN1_item_dup(ASN1_ITEM_rptr(stname), x); \
+  }
+
+#define IMPLEMENT_ASN1_DUP_FUNCTION_const(stname)            \
+  stname *stname##_dup(const stname *x) {                    \
+    return ASN1_item_dup(ASN1_ITEM_rptr(stname), (void *)x); \
+  }
 
 #define IMPLEMENT_ASN1_FUNCTIONS_const(name) \
 		IMPLEMENT_ASN1_FUNCTIONS_const_fname(name, name, name)

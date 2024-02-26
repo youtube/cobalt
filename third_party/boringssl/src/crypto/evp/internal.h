@@ -71,6 +71,8 @@ struct evp_pkey_asn1_method_st {
   uint8_t oid[9];
   uint8_t oid_len;
 
+  const EVP_PKEY_METHOD *pkey_method;
+
   // pub_decode decodes |params| and |key| as a SubjectPublicKeyInfo
   // and writes the result into |out|. It returns one on success and zero on
   // error. |params| is the AlgorithmIdentifier after the OBJECT IDENTIFIER
@@ -237,17 +239,15 @@ struct evp_pkey_method_st {
 } /* EVP_PKEY_METHOD */;
 
 typedef struct {
-  union {
-    uint8_t priv[64];
-    struct {
-      // Shift the location of the public key to align with where it is in the
-      // private key representation.
-      uint8_t pad[32];
-      uint8_t value[32];
-    } pub;
-  } key;
+  // key is the concatenation of the private seed and public key. It is stored
+  // as a single 64-bit array to allow passing to |ED25519_sign|. If
+  // |has_private| is false, the first 32 bytes are uninitialized and the public
+  // key is in the last 32 bytes.
+  uint8_t key[64];
   char has_private;
 } ED25519_KEY;
+
+#define ED25519_PUBLIC_KEY_OFFSET 32
 
 typedef struct {
   uint8_t pub[32];
@@ -265,6 +265,7 @@ extern const EVP_PKEY_METHOD rsa_pkey_meth;
 extern const EVP_PKEY_METHOD ec_pkey_meth;
 extern const EVP_PKEY_METHOD ed25519_pkey_meth;
 extern const EVP_PKEY_METHOD x25519_pkey_meth;
+extern const EVP_PKEY_METHOD hkdf_pkey_meth;
 
 
 #if defined(__cplusplus)
