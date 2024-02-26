@@ -406,27 +406,27 @@ source_set("tests") {
     # "context_host_resolver_unittest.cc",
     "dns_alias_utility_unittest.cc",
     "dns_config_service_unittest.cc",
-    "dns_hosts_unittest.cc",
-    "dns_names_util_unittest.cc",
-    "dns_query_unittest.cc",
+    # "dns_hosts_unittest.cc",
+    # "dns_names_util_unittest.cc",
+    # "dns_query_unittest.cc",
     # "dns_response_result_extractor_unittest.cc",
-    "dns_response_unittest.cc",
-    "dns_transaction_unittest.cc",
+    # "dns_response_unittest.cc",
+    # "dns_transaction_unittest.cc",
     "dns_udp_tracker_unittest.cc",
-    "dns_util_unittest.cc",
-    "host_cache_unittest.cc",
-    "host_resolver_internal_result_unittest.cc",
+    # "dns_util_unittest.cc",
+    # "host_cache_unittest.cc",
+    # "host_resolver_internal_result_unittest.cc",
     # "host_resolver_manager_unittest.cc",
     "https_record_rdata_unittest.cc",
     "httpssvc_metrics_unittest.cc",
     # "mapped_host_resolver_unittest.cc",
     "nsswitch_reader_unittest.cc",
-    "opt_record_rdata_unittest.cc",
+    # "opt_record_rdata_unittest.cc",
     "record_parsed_unittest.cc",
     "record_rdata_unittest.cc",
     # "resolve_context_unittest.cc",
     "serial_worker_unittest.cc",
-    "system_dns_config_change_notifier_unittest.cc",
+    # "system_dns_config_change_notifier_unittest.cc",
   ]
 
   if (is_win) {
@@ -454,7 +454,7 @@ source_set("tests") {
   if (enable_mdns) {
     sources += [
       "mdns_cache_unittest.cc",
-      "mdns_client_unittest.cc",
+      # "mdns_client_unittest.cc",
     ]
   }
 

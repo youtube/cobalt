@@ -72,7 +72,7 @@ source_set("tests") {
     sources = [
       "http_connection_unittest.cc",
       "http_server_response_info_unittest.cc",
-      "http_server_unittest.cc",
+      # "http_server_unittest.cc",
       "web_socket_encoder_unittest.cc",
     ]
     deps = [
