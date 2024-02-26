@@ -18,10 +18,13 @@
 #include "experimental/graphite/src/DrawContext.h"
 #include "experimental/graphite/src/DrawList.h"
 #include "experimental/graphite/src/Gpu.h"
+#include "experimental/graphite/src/Log.h"
+#include "experimental/graphite/src/RecorderPriv.h"
 #include "experimental/graphite/src/ResourceProvider.h"
 #include "experimental/graphite/src/Texture.h"
 #include "experimental/graphite/src/TextureProxy.h"
 #include "experimental/graphite/src/geom/BoundsManager.h"
+#include "experimental/graphite/src/geom/IntersectionTree.h"
 #include "experimental/graphite/src/geom/Shape.h"
 #include "experimental/graphite/src/geom/Transform_graphite.h"
 
@@ -34,47 +37,145 @@
 #include "src/core/SkPaintPriv.h"
 #include "src/core/SkSpecialImage.h"
 
+#include <unordered_map>
+#include <vector>
+
 namespace skgpu {
 
 namespace {
 
 static const SkStrokeRec kFillStyle(SkStrokeRec::kFill_InitStyle);
 
-bool is_opaque(const PaintParams& paint) {
-    // TODO: implement this
-    return false;
+bool paint_depends_on_dst(const PaintParams& paintParams) {
+    std::optional<SkBlendMode> bm = paintParams.asBlendMode();
+    if (!bm.has_value()) {
+        return true;
+    }
+
+    if (bm.value() == SkBlendMode::kSrc || bm.value() == SkBlendMode::kClear) {
+        // src and clear blending never depends on dst
+        return false;
+    } else if (bm.value() == SkBlendMode::kSrcOver) {
+        // src-over does not depend on dst if src is opaque (a = 1)
+        // TODO: This will get more complicated when PaintParams has color filters and blenders
+        return !paintParams.color().isOpaque() ||
+               (paintParams.shader() && !paintParams.shader()->isOpaque());
+    } else {
+        // TODO: Are their other modes that don't depend on dst that can be trivially detected?
+        return true;
+    }
 }
 
 } // anonymous namespace
 
-sk_sp<Device> Device::Make(sk_sp<Recorder> recorder, const SkImageInfo& ii) {
-    const Gpu* gpu = recorder->context()->priv().gpu();
-    auto textureInfo = gpu->caps()->getDefaultSampledTextureInfo(ii.colorType(), /*levelCount=*/1,
-                                                                 Protected::kNo, Renderable::kYes);
-    auto target = sk_sp<TextureProxy>(new TextureProxy(ii.dimensions(), textureInfo));
-    sk_sp<DrawContext> dc = DrawContext::Make(target,
-                                              ii.refColorSpace(),
-                                              ii.colorType(),
-                                              ii.alphaType());
+/**
+ * IntersectionTreeSet controls multiple IntersectionTrees to organize all add rectangles into
+ * disjoint sets. For a given CompressedPaintersOrder and bounds, it returns the smallest
+ * DisjointStencilIndex that guarantees the bounds are disjoint from all other draws that use the
+ * same painters order and stencil index.
+ */
+class Device::IntersectionTreeSet {
+public:
+    IntersectionTreeSet() = default;
+
+    DisjointStencilIndex add(CompressedPaintersOrder drawOrder, Rect rect) {
+        auto& trees = fTrees[drawOrder];
+        DisjointStencilIndex stencil = DrawOrder::kUnassigned.next();
+        for (auto&& tree : trees) {
+            if (tree->add(rect)) {
+                return stencil;
+            }
+            stencil = stencil.next(); // advance to the next tree's index
+        }
+
+        // If here, no existing intersection tree can hold the rect so add a new one
+        IntersectionTree* newTree = this->makeTree();
+        SkAssertResult(newTree->add(rect));
+        trees.push_back(newTree);
+        return stencil;
+    }
+
+    void reset() {
+        fTrees.clear();
+        fTreeStore.reset();
+    }
+
+private:
+    struct Hash {
+        size_t operator()(const CompressedPaintersOrder& o) const noexcept { return o.bits(); }
+    };
+
+    IntersectionTree* makeTree() {
+        return fTreeStore.make<IntersectionTree>();
+    }
+
+    // Each compressed painters order defines a barrier around draws so each order's set of draws
+    // are independent, even if they may intersect. Within each order, the list of trees holds the
+    // IntersectionTrees representing each disjoint set.
+    // TODO: This organization of trees is logically convenient but may need to be optimized based
+    // on real world data (e.g. how sparse is the map, how long is each vector of trees,...)
+    std::unordered_map<CompressedPaintersOrder, std::vector<IntersectionTree*>, Hash> fTrees;
+    SkSTArenaAllocWithReset<4 * sizeof(IntersectionTree)> fTreeStore;
+};
+
+sk_sp<Device> Device::Make(Recorder* recorder, const SkImageInfo& ii) {
+    if (!recorder) {
+        return nullptr;
+    }
+    auto textureInfo = recorder->priv().caps()->getDefaultSampledTextureInfo(ii.colorType(),
+                                                                             /*levelCount=*/1,
+                                                                             Protected::kNo,
+                                                                             Renderable::kYes);
+    sk_sp<TextureProxy> target(new TextureProxy(ii.dimensions(), textureInfo));
+    return Make(recorder,
+                std::move(target),
+                ii.refColorSpace(),
+                ii.colorType(),
+                ii.alphaType());
+}
+
+sk_sp<Device> Device::Make(Recorder* recorder,
+                           sk_sp<TextureProxy> target,
+                           sk_sp<SkColorSpace> colorSpace,
+                           SkColorType colorType,
+                           SkAlphaType alphaType) {
+    if (!recorder) {
+        return nullptr;
+    }
+
+    sk_sp<DrawContext> dc = DrawContext::Make(std::move(target),
+                                              std::move(colorSpace),
+                                              colorType,
+                                              alphaType);
     if (!dc) {
         return nullptr;
     }
 
-    return sk_sp<Device>(new Device(std::move(recorder), std::move(dc)));
+    return sk_sp<Device>(new Device(recorder, std::move(dc)));
 }
 
-Device::Device(sk_sp<Recorder> recorder, sk_sp<DrawContext> dc)
+Device::Device(Recorder* recorder, sk_sp<DrawContext> dc)
         : SkBaseDevice(dc->imageInfo(), SkSurfaceProps())
-        , fRecorder(std::move(recorder))
+        , fRecorder(recorder)
         , fDC(std::move(dc))
         , fColorDepthBoundsManager(std::make_unique<NaiveBoundsManager>())
+        , fDisjointStencilSet(std::make_unique<IntersectionTreeSet>())
         , fCurrentDepth(DrawOrder::kClearDepth)
-        , fMaxStencilIndex(DrawOrder::kUnassigned)
         , fDrawsOverlap(false) {
     SkASSERT(SkToBool(fDC) && SkToBool(fRecorder));
+    fRecorder->registerDevice(this);
 }
 
-Device::~Device() = default;
+Device::~Device() {
+    if (fRecorder) {
+        this->flushPendingWorkToRecorder();
+        fRecorder->deregisterDevice(this);
+    }
+}
+
+void Device::abandonRecorder() {
+    fRecorder = nullptr;
+}
 
 SkBaseDevice* Device::onCreateDevice(const CreateInfo& info, const SkPaint*) {
     // TODO: Inspect the paint and create info to determine if there's anything that has to be
@@ -88,16 +189,24 @@ sk_sp<SkSurface> Device::makeSurface(const SkImageInfo& ii, const SkSurfaceProps
 }
 
 bool Device::onReadPixels(const SkPixmap& pm, int x, int y) {
+    // We have no access to a context to do a read pixels here.
+    return false;
+}
+
+bool Device::readPixels(Context* context,
+                        Recorder* recorder,
+                        const SkPixmap& pm,
+                        int x,
+                        int y) {
     // TODO: Support more formats that we can read back into
     if (pm.colorType() != kRGBA_8888_SkColorType) {
         return false;
     }
 
-    auto context = fRecorder->context();
-    auto resourceProvider = context->priv().resourceProvider();
+    ResourceProvider* resourceProvider = recorder->priv().resourceProvider();
 
     TextureProxy* srcProxy = fDC->target();
-    if(!srcProxy->instantiate(resourceProvider)) {
+    if (!srcProxy->instantiate(resourceProvider)) {
         return false;
     }
     sk_sp<Texture> srcTexture = srcProxy->refTexture();
@@ -124,7 +233,7 @@ bool Device::onReadPixels(const SkPixmap& pm, int x, int y) {
     }
 
     this->flushPendingWorkToRecorder();
-    fRecorder->add(std::move(task));
+    fRecorder->priv().add(std::move(task));
 
     // TODO: Can snapping ever fail?
     context->insertRecording(fRecorder->snap());
@@ -135,6 +244,12 @@ bool Device::onReadPixels(const SkPixmap& pm, int x, int y) {
     memcpy(pm.writable_addr(), mappedMemory, size);
 
     return true;
+}
+
+bool Device::onWritePixels(const SkPixmap& pm, int x, int y) {
+    this->flushPendingWorkToRecorder();
+
+    return fDC->writePixels(fRecorder, pm, {x, y});
 }
 
 SkIRect Device::onDevClipBounds() const {
@@ -221,8 +336,7 @@ void Device::drawShape(const Shape& shape,
     Transform localToDevice(this->localToDevice44());
     if (!localToDevice.valid()) {
         // If the transform is not invertible or not finite then drawing isn't well defined.
-        // TBD: This warning should go through the general purpose graphite logging system
-        SkDebugf("[graphite] WARNING - Skipping draw with non-invertible/non-finite transform.\n");
+        SKGPU_LOG_W("Skipping draw with non-invertible/non-finite transform.");
         return;
     }
 
@@ -241,8 +355,7 @@ void Device::drawShape(const Shape& shape,
             this->drawShape(Shape(dst), paint, newStyle, flags | DrawFlags::kIgnorePathEffect);
             return;
         } else {
-            // TBD: This warning should go through the general purpose graphite logging system
-            SkDebugf("[graphite] WARNING - Path effect failed to apply, drawing original path.\n");
+            SKGPU_LOG_W("Path effect failed to apply, drawing original path.");
             this->drawShape(shape, paint, style, flags | DrawFlags::kIgnorePathEffect);
             return;
         }
@@ -282,12 +395,15 @@ void Device::drawShape(const Shape& shape,
     // order to blend correctly. We always query the most recent draw (even when opaque) because it
     // also lets Device easily track whether or not there are any overlapping draws.
     PaintParams shading{paint};
-    const bool opaque = is_opaque(shading);
+    const bool dependsOnDst = paint_depends_on_dst(shading);
     CompressedPaintersOrder prevDraw =
             fColorDepthBoundsManager->getMostRecentDraw(clip.drawBounds());
-    if (!opaque) {
+    if (dependsOnDst) {
         order.dependsOnPaintersOrder(prevDraw);
     }
+    // TODO: if the chosen Renderer for a draw uses coverage AA, then it cannot be considered opaque
+    // regardless of what the PaintParams would do, but we won't know that until after the Renderer
+    // has been selected for the draw.
 
     if (styleType == SkStrokeRec::kStroke_Style ||
         styleType == SkStrokeRec::kHairline_Style ||
@@ -305,13 +421,16 @@ void Device::drawShape(const Shape& shape,
         // if (shape.convex()) {
         //     fDC->fillConvexPath(localToDevice, shape, clip, order, &shading);
         // } else {
-            order.dependsOnStencil(fMaxStencilIndex.next());
+            DisjointStencilIndex setIndex = fDisjointStencilSet->add(order.paintOrder(),
+                                                                     clip.drawBounds());
+            order.dependsOnStencil(setIndex);
             fDC->stencilAndFillPath(localToDevice, shape, clip, order, &shading);
         // }
     }
 
     // Record the painters order and depth used for this draw
-    const bool fullyOpaque = opaque && shape.isRect() &&
+    const bool fullyOpaque = !dependsOnDst &&
+                             shape.isRect() &&
                              localToDevice.type() <= Transform::Type::kRectStaysRect;
     fColorDepthBoundsManager->recordDraw(shape.bounds(),
                                          order.paintOrder(),
@@ -319,9 +438,6 @@ void Device::drawShape(const Shape& shape,
                                          fullyOpaque);
 
     fCurrentDepth = order.depth();
-    if (order.stencilIndex() != DrawOrder::kUnassigned) {
-        fMaxStencilIndex = std::max(fMaxStencilIndex, order.stencilIndex());
-    }
     fDrawsOverlap |= (prevDraw != DrawOrder::kNoIntersection);
 }
 
@@ -354,15 +470,30 @@ std::pair<Clip, CompressedPaintersOrder> Device::applyClipToDraw(const Transform
 }
 
 void Device::flushPendingWorkToRecorder() {
+    SkASSERT(fRecorder);
+
     // TODO: we may need to further split this function up since device->device drawList and
     // DrawPass stealing will need to share some of the same logic w/o becoming a Task.
 
+    auto uploadTask = fDC->snapUploadTask(fRecorder);
+    if (uploadTask) {
+        fRecorder->priv().add(std::move(uploadTask));
+    }
+
     // TODO: iterate the clip stack and issue a depth-only draw for every clip element that has
     // a non-empty usage bounds, using that bounds as the scissor.
-    auto drawTask = fDC->snapRenderPassTask(fRecorder.get(), fColorDepthBoundsManager.get());
+    auto drawTask = fDC->snapRenderPassTask(fRecorder, fColorDepthBoundsManager.get());
     if (drawTask) {
-        fRecorder->add(std::move(drawTask));
+        fRecorder->priv().add(std::move(drawTask));
     }
+
+    // Reset accumulated state tracking since everything that it referred to has been moved into
+    // an immutable DrawPass.
+    fColorDepthBoundsManager->reset();
+    fDisjointStencilSet->reset();
+    fCurrentDepth = DrawOrder::kClearDepth;
+    // NOTE: fDrawsOverlap is not reset here because that is a persistent property of everything
+    // drawn into the Device, and not just the currently accumulating pass.
 }
 
 bool Device::needsFlushBeforeDraw(int numNewDraws) const {

@@ -22,155 +22,55 @@ namespace skgpu {
 
 namespace {
 
-constexpr static float kMaxParametricSegments_pow4 =
-        StrokeFixedCountTessellator::kMaxParametricSegments_pow4;
-
 // Writes out strokes to the given instance chunk array, chopping if necessary so that all instances
 // require 32 parametric segments or less. (We don't consider radial segments here. The tessellator
 // will just add enough additional segments to handle a worst-case 180 degree stroke.)
 class InstanceWriter {
+    using VectorXform = wangs_formula::VectorXform;
 public:
     InstanceWriter(PatchWriter& patchWriter, float matrixMaxScale)
             : fPatchWriter(patchWriter)
             , fParametricPrecision(StrokeTolerances::CalcParametricPrecision(matrixMaxScale)) {
+        SkASSERT(fPatchWriter.attribs() & PatchAttribs::kJoinControlPoint);
     }
 
     float parametricPrecision() const { return fParametricPrecision; }
 
-    // maxParametricSegments^4, or the number of parametric segments, raised to the 4th power,
-    // that are required by the single instance we've written that requires the most segments.
-    float maxParametricSegments_pow4() const { return fMaxParametricSegments_pow4; }
-
     SK_ALWAYS_INLINE void lineTo(SkPoint start, SkPoint end) {
-        SkPoint cubic[] = {start, start, end, end};
-        SkPoint endControlPoint = start;
-        this->writeStroke(cubic, endControlPoint, kCubicCurveType);
+        fPatchWriter.writeLine(start, end);
     }
 
     SK_ALWAYS_INLINE void quadraticTo(const SkPoint p[3]) {
-        float numParametricSegments_pow4 = wangs_formula::quadratic_pow4(fParametricPrecision, p);
-        if (numParametricSegments_pow4 > kMaxParametricSegments_pow4) {
-            this->chopQuadraticTo(p);
-            return;
-        }
-        SkPoint cubic[4];
-        VertexWriter(cubic) << QuadToCubic(p);
-        SkPoint endControlPoint = cubic[2];
-        this->writeStroke(cubic, endControlPoint, kCubicCurveType);
-        fMaxParametricSegments_pow4 = std::max(numParametricSegments_pow4,
-                                               fMaxParametricSegments_pow4);
+        fPatchWriter.writeQuadratic(p, VectorXform(), fParametricPrecision);
     }
 
     SK_ALWAYS_INLINE void conicTo(const SkPoint p[3], float w) {
-        float n = wangs_formula::conic_pow2(fParametricPrecision, p, w);
-        float numParametricSegments_pow4 = n*n;
-        if (numParametricSegments_pow4 > kMaxParametricSegments_pow4) {
-            this->chopConicTo({p, w});
-            return;
-        }
-        SkPoint conic[4] = {p[0], p[1], p[2], {w, std::numeric_limits<float>::infinity()}};
-        SkPoint endControlPoint = conic[1];
-        this->writeStroke(conic, endControlPoint, kConicCurveType);
-        fMaxParametricSegments_pow4 = std::max(numParametricSegments_pow4,
-                                               fMaxParametricSegments_pow4);
+        fPatchWriter.writeConic(p, w, VectorXform(), fParametricPrecision);
     }
 
     SK_ALWAYS_INLINE void cubicConvex180To(const SkPoint p[4]) {
-        float numParametricSegments_pow4 = wangs_formula::cubic_pow4(fParametricPrecision, p);
-        if (numParametricSegments_pow4 > kMaxParametricSegments_pow4) {
-            this->chopCubicConvex180To(p);
-            return;
-        }
-        SkPoint endControlPoint = (p[3] != p[2]) ? p[2] : (p[2] != p[1]) ? p[1] : p[0];
-        this->writeStroke(p, endControlPoint, kCubicCurveType);
-        fMaxParametricSegments_pow4 = std::max(numParametricSegments_pow4,
-                                               fMaxParametricSegments_pow4);
+        fPatchWriter.writeCubic(p, VectorXform(), fParametricPrecision);
     }
 
     // Called when we encounter the verb "kMoveWithinContour". Moves invalidate the previous control
     // point. The stroke iterator tells us the new value to use for the previous control point.
     void setLastControlPoint(SkPoint newLastControlPoint) {
-        fLastControlPoint = newLastControlPoint;
-        fHasLastControlPoint = true;
+        fPatchWriter.updateJoinControlPointAttrib(newLastControlPoint);
     }
 
     // Draws a circle whose diameter is equal to the stroke width. We emit circles at cusp points
     // round caps, and empty strokes that are specified to be drawn as circles.
     void writeCircle(SkPoint location) {
-        // The shader interprets an empty stroke + empty join as a special case that denotes a
-        // circle, or 180-degree point stroke.
-        PatchWriter::CubicPatch(fPatchWriter) << VertexWriter::Repeat<5>(location);
+        fPatchWriter.writeCircle(location);
     }
 
     void finishContour() {
-        if (fHasDeferredFirstStroke) {
-            // We deferred the first stroke because we didn't know the previous control point to use
-            // for its join. We write it out now.
-            SkASSERT(fHasLastControlPoint);
-            this->writeStroke(fDeferredFirstStroke, SkPoint(),
-                              fDeferredCurveTypeIfUnsupportedInfinity);
-            fHasDeferredFirstStroke = false;
-        }
-        fHasLastControlPoint = false;
+        fPatchWriter.writeDeferredStrokePatch();
     }
 
 private:
-    void chopQuadraticTo(const SkPoint p[3]) {
-        SkPoint chops[5];
-        SkChopQuadAtHalf(p, chops);
-        this->quadraticTo(chops);
-        this->quadraticTo(chops + 2);
-    }
-
-    void chopConicTo(const SkConic& conic) {
-        SkConic chops[2];
-        if (!conic.chopAt(.5f, chops)) {
-            return;
-        }
-        this->conicTo(chops[0].fPts, chops[0].fW);
-        this->conicTo(chops[1].fPts, chops[1].fW);
-    }
-
-    void chopCubicConvex180To(const SkPoint p[4]) {
-        SkPoint chops[7];
-        SkChopCubicAtHalf(p, chops);
-        this->cubicConvex180To(chops);
-        this->cubicConvex180To(chops + 3);
-    }
-
-    SK_ALWAYS_INLINE void writeStroke(const SkPoint p[4], SkPoint endControlPoint,
-                                      float curveTypeIfUnsupportedInfinity) {
-        if (fHasLastControlPoint) {
-            PatchWriter::Patch(fPatchWriter, curveTypeIfUnsupportedInfinity)
-                    << VertexWriter::Array(p, 4) << fLastControlPoint;
-        } else {
-            // We don't know the previous control point yet to use for the join. Defer writing out
-            // this stroke until the end.
-            memcpy(fDeferredFirstStroke, p, sizeof(fDeferredFirstStroke));
-            fDeferredCurveTypeIfUnsupportedInfinity = curveTypeIfUnsupportedInfinity;
-            fHasDeferredFirstStroke = true;
-            fHasLastControlPoint = true;
-        }
-        fLastControlPoint = endControlPoint;
-    }
-
-    void discardStroke(const SkPoint p[], int numPts) {
-        // Set fLastControlPoint to the next stroke's p0 (which will be equal to the final point of
-        // this stroke). This has the effect of disabling the next stroke's join.
-        fLastControlPoint = p[numPts - 1];
-        fHasLastControlPoint = true;
-    }
-
     PatchWriter& fPatchWriter;
     const float fParametricPrecision;
-    float fMaxParametricSegments_pow4 = 1;
-
-    // We can't write out the first stroke until we know the previous control point for its join.
-    SkPoint fDeferredFirstStroke[4];
-    float fDeferredCurveTypeIfUnsupportedInfinity;
-    SkPoint fLastControlPoint;  // Used to configure the joins in the instance data.
-    bool fHasDeferredFirstStroke = false;
-    bool fHasLastControlPoint = false;
 };
 
 // Returns the worst-case number of edges we will need in order to draw a join of the given type.
@@ -238,10 +138,10 @@ int StrokeFixedCountTessellator::writePatches(PatchWriter& patchWriter,
         }
         StrokeIterator strokeIter(pathStroke->fPath, &pathStroke->fStroke, &shaderMatrix);
         while (strokeIter.next()) {
+            using Verb = StrokeIterator::Verb;
             const SkPoint* p = strokeIter.pts();
+            int numChops;
             switch (strokeIter.verb()) {
-                using Verb = StrokeIterator::Verb;
-                int numChops;
                 case Verb::kContourFinished:
                     instanceWriter.finishContour();
                     break;
@@ -323,9 +223,8 @@ int StrokeFixedCountTessellator::writePatches(PatchWriter& patchWriter,
     int maxRadialSegmentsInStroke =
             std::max(SkScalarCeilToInt(maxRadialSegmentsPerRadian * SK_ScalarPI), 1);
 
-    int maxParametricSegmentsInStroke = SkScalarCeilToInt(sqrtf(sqrtf(
-            instanceWriter.maxParametricSegments_pow4())));
-    SkASSERT(maxParametricSegmentsInStroke >= 1);  // maxParametricSegments_pow4 is always >= 1.
+    int maxParametricSegmentsInStroke = patchWriter.requiredFixedSegments();
+    SkASSERT(maxParametricSegmentsInStroke >= 1);
 
     // Now calculate the maximum number of edges we will need in the stroke portion of the instance.
     // The first and last edges in a stroke are shared by both the parametric and radial sets of
@@ -362,14 +261,18 @@ void StrokeFixedCountTessellator::InitializeVertexIDFallbackBuffer(VertexWriter 
 
 #if SK_GPU_V1
 
-GR_DECLARE_STATIC_UNIQUE_KEY(gVertexIDFallbackBufferKey);
+SKGPU_DECLARE_STATIC_UNIQUE_KEY(gVertexIDFallbackBufferKey);
 
 int StrokeFixedCountTessellator::prepare(GrMeshDrawTarget* target,
                                          const SkMatrix& shaderMatrix,
                                          std::array<float,2> matrixMinMaxScales,
                                          PathStrokeList* pathStrokeList,
                                          int totalCombinedStrokeVerbCnt) {
-    PatchWriter patchWriter(target, this, this->patchPreallocCount(totalCombinedStrokeVerbCnt));
+    // NOTE: For now InstanceWriter manually chops curves that exceed kMaxParametricSegments_pow4,
+    // so passing in kMaxParametricSegments to PatchWriter avoids its auto-chopping while still
+    // correctly accumulating the min required segment count.
+    PatchWriter patchWriter(target, this, kMaxParametricSegments,
+                            this->patchPreallocCount(totalCombinedStrokeVerbCnt));
 
     fFixedEdgeCount = this->writePatches(patchWriter,
                                          shaderMatrix,
@@ -387,7 +290,7 @@ int StrokeFixedCountTessellator::prepare(GrMeshDrawTarget* target,
         constexpr static int kMaxVerticesInFallbackBuffer = 2048;
         fFixedEdgeCount = std::min(fFixedEdgeCount, kMaxVerticesInFallbackBuffer/2);
 
-        GR_DEFINE_STATIC_UNIQUE_KEY(gVertexIDFallbackBufferKey);
+        SKGPU_DEFINE_STATIC_UNIQUE_KEY(gVertexIDFallbackBufferKey);
 
         fVertexBufferIfNoIDSupport = target->resourceProvider()->findOrMakeStaticBuffer(
                 GrGpuBufferType::kVertex,

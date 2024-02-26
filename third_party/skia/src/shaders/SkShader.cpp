@@ -12,6 +12,7 @@
 #include "src/core/SkArenaAlloc.h"
 #include "src/core/SkColorSpacePriv.h"
 #include "src/core/SkColorSpaceXformSteps.h"
+#include "src/core/SkKeyHelpers.h"
 #include "src/core/SkMatrixProvider.h"
 #include "src/core/SkRasterPipeline.h"
 #include "src/core/SkReadBuffer.h"
@@ -146,6 +147,14 @@ SkUpdatableShader* SkShaderBase::updatableShader(SkArenaAlloc* alloc) const {
 
 SkUpdatableShader* SkShaderBase::onUpdatableShader(SkArenaAlloc* alloc) const {
     return nullptr;
+}
+
+// TODO: add implementations for derived classes
+void SkShaderBase::addToKey(SkShaderCodeDictionary* dict,
+                            SkBackend backend,
+                            SkPaintParamsKeyBuilder* builder,
+                            SkUniformBlock* uniformBlock) const {
+    SolidColorShaderBlock::AddToKey(dict, backend, builder, uniformBlock, SkColors::kRed);
 }
 
 sk_sp<SkShader> SkShaders::Empty() { return sk_make_sp<SkEmptyShader>(); }

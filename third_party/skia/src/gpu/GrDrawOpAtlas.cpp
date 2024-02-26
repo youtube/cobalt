@@ -136,7 +136,8 @@ bool GrDrawOpAtlas::Plot::addSubImage(
     dataPtr += fBytesPerPixel * fWidth * rect.fTop;
     dataPtr += fBytesPerPixel * rect.fLeft;
     // copy into the data buffer, swizzling as we go if this is ARGB data
-    if (4 == fBytesPerPixel && kN32_SkColorType == kBGRA_8888_SkColorType) {
+    constexpr bool kBGRAIsNative = kN32_SkColorType == kBGRA_8888_SkColorType;
+    if (4 == fBytesPerPixel && kBGRAIsNative) {
         for (int i = 0; i < height; ++i) {
             SkOpts::RGBA_to_BGRA((uint32_t*)dataPtr, (const uint32_t*)imagePtr, width);
             dataPtr += fBytesPerPixel * fWidth;
@@ -564,9 +565,9 @@ bool GrDrawOpAtlas::createPages(
     int numPlotsY = fTextureHeight/fPlotHeight;
 
     for (uint32_t i = 0; i < this->maxPages(); ++i) {
-        GrSwizzle swizzle = proxyProvider->caps()->getReadSwizzle(fFormat, fColorType);
+        skgpu::Swizzle swizzle = proxyProvider->caps()->getReadSwizzle(fFormat, fColorType);
         if (GrColorTypeIsAlphaOnly(fColorType)) {
-            swizzle = GrSwizzle::Concat(swizzle, GrSwizzle("aaaa"));
+            swizzle = skgpu::Swizzle::Concat(swizzle, skgpu::Swizzle("aaaa"));
         }
         sk_sp<GrSurfaceProxy> proxy = proxyProvider->createProxy(
                 fFormat, dims, GrRenderable::kNo, 1, GrMipmapped::kNo, SkBackingFit::kExact,

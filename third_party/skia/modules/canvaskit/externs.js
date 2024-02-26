@@ -154,6 +154,7 @@ var CanvasKit = {
     addText: function() {},
     build: function() {},
     pop: function() {},
+    reset: function() {},
 
     prototype: {
       pushStyle: function() {},
@@ -501,9 +502,14 @@ var CanvasKit = {
     MakeCorner: function() {},
     MakeDash: function() {},
     MakeDiscrete: function() {},
+    MakePath1D: function() {},
+    MakeLine2D: function() {},
+    MakePath2D: function() {},
 
     // Private C++ API
     _MakeDash: function() {},
+    _MakeLine2D: function() {},
+    _MakePath2D: function() {},
   },
 
   ParticleEffect: {
@@ -627,6 +633,10 @@ var CanvasKit = {
 
   Picture: {
     serialize: function() {},
+    prototype: {
+      makeShader: function() {},
+    },
+    _makeShader: function() {},
   },
 
   PictureRecorder: {
@@ -674,6 +684,7 @@ var CanvasKit = {
       /** @return {CanvasKit.Image} */
       makeImageSnapshot: function() {},
       makeSurface: function() {},
+      updateTextureFromSource: function() {},
     },
 
     // private API
@@ -683,6 +694,7 @@ var CanvasKit = {
     _makeImageSnapshot: function() {},
     _makeSurface: function() {},
     _makeRasterDirect: function() {},
+    _resetContext: function() {},
     delete: function() {},
   },
 

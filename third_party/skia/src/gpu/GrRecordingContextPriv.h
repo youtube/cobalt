@@ -15,11 +15,11 @@
 #include "src/gpu/text/GrSDFTControl.h"
 
 class GrImageInfo;
-class GrSwizzle;
 class SkDeferredDisplayList;
 namespace skgpu {
     class SurfaceContext;
     class SurfaceFillContext;
+    class Swizzle;
 }
 
 /** Class that exposes methods on GrRecordingContext that are only intended for use internal to
@@ -53,7 +53,9 @@ public:
         this->context()->detachProgramData(dst);
     }
 
-    GrTextBlobCache* getTextBlobCache() { return this->context()->getTextBlobCache(); }
+    GrTextBlobRedrawCoordinator* getTextBlobCache() {
+        return this->context()->getTextBlobRedrawCoordinator();
+    }
 
     GrThreadSafeCache* threadSafeCache() { return this->context()->threadSafeCache(); }
 
@@ -171,8 +173,8 @@ public:
                                                        int sampleCount,
                                                        GrMipmapped,
                                                        GrProtected,
-                                                       GrSwizzle readSwizzle,
-                                                       GrSwizzle writeSwizzle,
+                                                       skgpu::Swizzle readSwizzle,
+                                                       skgpu::Swizzle writeSwizzle,
                                                        GrSurfaceOrigin,
                                                        SkBudgeted);
 
@@ -203,10 +205,9 @@ public:
 
 protected:
     explicit GrRecordingContextPriv(GrRecordingContext* rContext) : GrImageContextPriv(rContext) {}
-    // Required until C++17 copy elision
-    GrRecordingContextPriv(const GrRecordingContextPriv&) = default;
 
 private:
+    GrRecordingContextPriv(const GrRecordingContextPriv&) = delete;
     GrRecordingContextPriv& operator=(const GrRecordingContextPriv&) = delete;
 
     // No taking addresses of this type.

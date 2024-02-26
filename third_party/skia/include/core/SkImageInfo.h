@@ -92,8 +92,9 @@ enum SkColorType : int {
                                      //   and alpha
 
     kSRGBA_8888_SkColorType,
+    kR8_unorm_SkColorType,
 
-    kLastEnum_SkColorType     = kSRGBA_8888_SkColorType, //!< last valid value
+    kLastEnum_SkColorType     = kR8_unorm_SkColorType, //!< last valid value
 
 #if !defined(STARBOARD)
 #if SK_PMCOLOR_BYTE_ORDER(B,G,R,A)

@@ -8,6 +8,7 @@ It is based off of https://github.com/bazelbuild/examples/tree/main/rules/starla
 
 _bool_flags = [
     "//bazel/common_config_settings:use_icu",
+    "//bazel/common_config_settings:is_skia_dev_build",
 ]
 
 _string_flags = [
@@ -113,20 +114,17 @@ transition_rule = rule(
     executable = True,
 )
 
-def cc_binary_with_flags(name, cc_binary_name = "", set_flags = {}, **kwargs):
+def cc_binary_with_flags(name, set_flags = {}, **kwargs):
     """Builds a cc_binary as if set_flags were set on the CLI.
 
     Args:
         name: string, the name for the rule that is the binary, but with the flags changed via
             a transition. Any dependents should use this name.
-        cc_binary_name: string, the name of the binary created (not the name of the transition
-            rule). The default is the name with "_native_binary" as a suffix.
         set_flags: dictionary of string to list of strings. The keys should be the name of the
             flag, and the values should be the desired valid settings for that flag.
         **kwargs: Any flags that a cc_binary normally takes.
     """
-    if not cc_binary_name:
-        cc_binary_name = name + "_native_binary"
+    cc_binary_name = name + "_native_binary"
     transition_rule(
         name = name,
         actual_binary = ":%s" % cc_binary_name,

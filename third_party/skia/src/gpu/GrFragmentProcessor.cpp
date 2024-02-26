@@ -11,6 +11,7 @@
 #include "src/gpu/GrPipeline.h"
 #include "src/gpu/GrProcessorAnalysis.h"
 #include "src/gpu/GrShaderCaps.h"
+#include "src/gpu/KeyBuilder.h"
 #include "src/gpu/effects/GrBlendFragmentProcessor.h"
 #include "src/gpu/effects/GrSkSLFP.h"
 #include "src/gpu/effects/GrTextureEffect.h"
@@ -245,11 +246,11 @@ std::unique_ptr<GrFragmentProcessor> GrFragmentProcessor::ClampOutput(
 }
 
 std::unique_ptr<GrFragmentProcessor> GrFragmentProcessor::SwizzleOutput(
-        std::unique_ptr<GrFragmentProcessor> fp, const GrSwizzle& swizzle) {
+        std::unique_ptr<GrFragmentProcessor> fp, const skgpu::Swizzle& swizzle) {
     class SwizzleFragmentProcessor : public GrFragmentProcessor {
     public:
         static std::unique_ptr<GrFragmentProcessor> Make(std::unique_ptr<GrFragmentProcessor> fp,
-                                                         const GrSwizzle& swizzle) {
+                                                         const skgpu::Swizzle& swizzle) {
             return std::unique_ptr<GrFragmentProcessor>(
                     new SwizzleFragmentProcessor(std::move(fp), swizzle));
         }
@@ -261,7 +262,8 @@ std::unique_ptr<GrFragmentProcessor> GrFragmentProcessor::SwizzleOutput(
         }
 
     private:
-        SwizzleFragmentProcessor(std::unique_ptr<GrFragmentProcessor> fp, const GrSwizzle& swizzle)
+        SwizzleFragmentProcessor(std::unique_ptr<GrFragmentProcessor> fp,
+                                 const skgpu::Swizzle& swizzle)
                 : INHERITED(kSwizzleFragmentProcessor_ClassID, ProcessorOptimizationFlags(fp.get()))
                 , fSwizzle(swizzle) {
             this->registerChild(std::move(fp));
@@ -274,7 +276,7 @@ std::unique_ptr<GrFragmentProcessor> GrFragmentProcessor::SwizzleOutput(
                     SkString childColor = this->invokeChild(0, args);
 
                     const SwizzleFragmentProcessor& sfp = args.fFp.cast<SwizzleFragmentProcessor>();
-                    const GrSwizzle& swizzle = sfp.fSwizzle;
+                    const skgpu::Swizzle& swizzle = sfp.fSwizzle;
                     GrGLSLFPFragmentBuilder* fragBuilder = args.fFragBuilder;
 
                     fragBuilder->codeAppendf("return %s.%s;",
@@ -284,7 +286,7 @@ std::unique_ptr<GrFragmentProcessor> GrFragmentProcessor::SwizzleOutput(
             return std::make_unique<Impl>();
         }
 
-        void onAddToKey(const GrShaderCaps&, GrProcessorKeyBuilder* b) const override {
+        void onAddToKey(const GrShaderCaps&, skgpu::KeyBuilder* b) const override {
             b->add32(fSwizzle.asKey());
         }
 
@@ -297,7 +299,7 @@ std::unique_ptr<GrFragmentProcessor> GrFragmentProcessor::SwizzleOutput(
             return fSwizzle.applyTo(ConstantOutputForConstantInput(this->childProcessor(0), input));
         }
 
-        GrSwizzle fSwizzle;
+        skgpu::Swizzle fSwizzle;
 
         using INHERITED = GrFragmentProcessor;
     };
@@ -305,7 +307,7 @@ std::unique_ptr<GrFragmentProcessor> GrFragmentProcessor::SwizzleOutput(
     if (!fp) {
         return nullptr;
     }
-    if (GrSwizzle::RGBA() == swizzle) {
+    if (skgpu::Swizzle::RGBA() == swizzle) {
         return fp;
     }
     return SwizzleFragmentProcessor::Make(std::move(fp), swizzle);
@@ -403,7 +405,7 @@ std::unique_ptr<GrFragmentProcessor> GrFragmentProcessor::Compose(
 
         ComposeProcessor(const ComposeProcessor& that) : INHERITED(that) {}
 
-        void onAddToKey(const GrShaderCaps&, GrProcessorKeyBuilder*) const override {}
+        void onAddToKey(const GrShaderCaps&, skgpu::KeyBuilder*) const override {}
 
         bool onIsEqual(const GrFragmentProcessor&) const override { return true; }
 
@@ -527,7 +529,7 @@ std::unique_ptr<GrFragmentProcessor> GrFragmentProcessor::SurfaceColor() {
             this->setWillReadDstColor();
         }
 
-        void onAddToKey(const GrShaderCaps&, GrProcessorKeyBuilder*) const override {}
+        void onAddToKey(const GrShaderCaps&, skgpu::KeyBuilder*) const override {}
 
         bool onIsEqual(const GrFragmentProcessor&) const override { return true; }
 
@@ -579,7 +581,7 @@ std::unique_ptr<GrFragmentProcessor> GrFragmentProcessor::DeviceSpace(
             return std::make_unique<Impl>();
         }
 
-        void onAddToKey(const GrShaderCaps&, GrProcessorKeyBuilder*) const override {}
+        void onAddToKey(const GrShaderCaps&, skgpu::KeyBuilder*) const override {}
 
         bool onIsEqual(const GrFragmentProcessor& processor) const override { return true; }
 
@@ -825,7 +827,7 @@ std::unique_ptr<GrFragmentProcessor> GrFragmentProcessor::HighPrecision(
             return std::make_unique<Impl>();
         }
 
-        void onAddToKey(const GrShaderCaps&, GrProcessorKeyBuilder*) const override {}
+        void onAddToKey(const GrShaderCaps&, skgpu::KeyBuilder*) const override {}
         bool onIsEqual(const GrFragmentProcessor& other) const override { return true; }
 
         SkPMColor4f constantOutputForConstantInput(const SkPMColor4f& input) const override {
@@ -851,7 +853,7 @@ SkString ProgramImpl::invokeChild(int childIndex,
                                   const char* inputColor,
                                   const char* destColor,
                                   EmitArgs& args,
-                                  SkSL::String skslCoords) {
+                                  std::string_view skslCoords) {
     SkASSERT(childIndex >= 0);
 
     if (!inputColor) {
@@ -881,7 +883,11 @@ SkString ProgramImpl::invokeChild(int childIndex,
     if (args.fFragBuilder->getProgramBuilder()->fragmentProcessorHasCoordsParam(childProc)) {
         SkASSERT(!childProc->sampleUsage().isFragCoord() || skslCoords == "sk_FragCoord.xy");
         // The child's function takes a half4 color and a float2 coordinate
-        invocation.appendf(", %s", skslCoords.empty() ? args.fSampleCoord : skslCoords.c_str());
+        if (!skslCoords.empty()) {
+            invocation.appendf(", %.*s", (int)skslCoords.size(), skslCoords.data());
+        } else {
+            invocation.appendf(", %s", args.fSampleCoord);
+        }
     }
 
     invocation.append(")");
@@ -909,7 +915,7 @@ SkString ProgramImpl::invokeChildWithMatrix(int childIndex,
     // Every uniform matrix has the same (initial) name. Resolve that into the mangled name:
     GrShaderVar uniform = args.fUniformHandler->getUniformMapping(
             args.fFp, SkString(SkSL::SampleUsage::MatrixUniformName()));
-    SkASSERT(uniform.getType() == kFloat3x3_GrSLType);
+    SkASSERT(uniform.getType() == SkSLType::kFloat3x3);
     const SkString& matrixName(uniform.getName());
 
     auto invocation = SkStringPrintf("%s(%s", this->childProcessor(childIndex)->functionName(),

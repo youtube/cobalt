@@ -6,7 +6,7 @@
  */
 
 #include "include/core/SkStream.h"
-#include "src/sksl/codegen/SkVMDebugTrace.h"
+#include "src/sksl/tracing/SkVMDebugTrace.h"
 #include "tests/Test.h"
 
 DEF_TEST(SkVMDebugTraceSetSource, r) {
@@ -41,8 +41,8 @@ DEF_TEST(SkVMDebugTraceWrite, r) {
         "//\\\\//\\\\ third line",
     };
     i.fSlotInfo = {
-        {"SkVM_DebugTrace", 1, 2, 3, (SkSL::Type::NumberKind)4, 5},
-        {"Unit_Test",       6, 7, 8, (SkSL::Type::NumberKind)9, 10},
+        {"SkVM_DebugTrace", 1, 2, 3, 4, (SkSL::Type::NumberKind)5,  6, -1},
+        {"Unit_Test",       6, 7, 8, 8, (SkSL::Type::NumberKind)10, 11, 12},
     };
     i.fFuncInfo = {
         {"void testFunc();"},
@@ -58,13 +58,13 @@ DEF_TEST(SkVMDebugTraceWrite, r) {
     sk_sp<SkData> trace = wstream.detachAsData();
 
     static constexpr char kExpected[] =
-            R"({"source":["\t// first line","// \"second line\"","//\\\\//\\\\ third line"],"s)"
-            R"(lots":[{"slot":0,"name":"SkVM_DebugTrace","columns":1,"rows":2,"index":3,"kind")"
-            R"(:4,"line":5},{"slot":1,"name":"Unit_Test","columns":6,"rows":7,"index":8,"kind")"
-            R"(:9,"line":10}],"functions":[{"slot":0,"name":"void testFunc();"}],"trace":[[2],)"
-            R"([0,5],[1,10,15],[3,20]]})";
+            R"({"version":"20220209","source":["\t// first line","// \"second line\"","//\\\\//\\)"
+            R"(\\ third line"],"slots":[{"name":"SkVM_DebugTrace","columns":1,"rows":2,"index":3,)"
+            R"("groupIdx":4,"kind":5,"line":6},{"name":"Unit_Test","columns":6,"rows":7,"index":8)"
+            R"(,"kind":10,"line":11,"retval":12}],"functions":[{"name":"void testFunc();"}],"trac)"
+            R"(e":[[2],[0,5],[1,10,15],[3,20]]})";
 
-    skstd::string_view actual{reinterpret_cast<const char*>(trace->bytes()), trace->size()};
+    std::string_view actual{reinterpret_cast<const char*>(trace->bytes()), trace->size()};
 
     REPORTER_ASSERT(r, actual == kExpected,
                     "Expected:\n    %s\n\n  Actual:\n    %.*s\n",
@@ -72,12 +72,12 @@ DEF_TEST(SkVMDebugTraceWrite, r) {
 }
 
 DEF_TEST(SkVMDebugTraceRead, r) {
-    const skstd::string_view kJSONTrace =
-            R"({"source":["\t// first line","// \"second line\"","//\\\\//\\\\ third line"],"s)"
-            R"(lots":[{"slot":0,"name":"SkVM_DebugTrace","columns":1,"rows":2,"index":3,"kind")"
-            R"(:4,"line":5},{"slot":1,"name":"Unit_Test","columns":6,"rows":7,"index":8,"kind")"
-            R"(:9,"line":10}],"functions":[{"slot":0,"name":"void testFunc();"}],"trace":[[2],)"
-            R"([0,5],[1,10,15],[3,20]]})";
+    const std::string_view kJSONTrace =
+            R"({"version":"20220209","source":["\t// first line","// \"second line\"","//\\\\//\\)"
+            R"(\\ third line"],"slots":[{"name":"SkVM_DebugTrace","columns":1,"rows":2,"index":3,)"
+            R"("groupIdx":4,"kind":5,"line":6},{"name":"Unit_Test","columns":6,"rows":7,"index":8)"
+            R"(,"kind":10,"line":11,"retval":12}],"functions":[{"name":"void testFunc();"}],"trac)"
+            R"(e":[[2],[0,5],[1,10,15],[3,20]]})";
 
     SkMemoryStream stream(kJSONTrace.data(), kJSONTrace.size(), /*copyData=*/false);
     SkSL::SkVMDebugTrace i;
@@ -96,15 +96,19 @@ DEF_TEST(SkVMDebugTraceRead, r) {
     REPORTER_ASSERT(r, i.fSlotInfo[0].columns == 1);
     REPORTER_ASSERT(r, i.fSlotInfo[0].rows == 2);
     REPORTER_ASSERT(r, i.fSlotInfo[0].componentIndex == 3);
-    REPORTER_ASSERT(r, i.fSlotInfo[0].numberKind == (SkSL::Type::NumberKind)4);
-    REPORTER_ASSERT(r, i.fSlotInfo[0].line == 5);
+    REPORTER_ASSERT(r, i.fSlotInfo[0].groupIndex == 4);
+    REPORTER_ASSERT(r, i.fSlotInfo[0].numberKind == (SkSL::Type::NumberKind)5);
+    REPORTER_ASSERT(r, i.fSlotInfo[0].line == 6);
+    REPORTER_ASSERT(r, i.fSlotInfo[0].fnReturnValue == -1);
 
     REPORTER_ASSERT(r, i.fSlotInfo[1].name == "Unit_Test");
     REPORTER_ASSERT(r, i.fSlotInfo[1].columns == 6);
     REPORTER_ASSERT(r, i.fSlotInfo[1].rows == 7);
     REPORTER_ASSERT(r, i.fSlotInfo[1].componentIndex == 8);
-    REPORTER_ASSERT(r, i.fSlotInfo[1].numberKind == (SkSL::Type::NumberKind)9);
-    REPORTER_ASSERT(r, i.fSlotInfo[1].line == 10);
+    REPORTER_ASSERT(r, i.fSlotInfo[1].groupIndex == 8);
+    REPORTER_ASSERT(r, i.fSlotInfo[1].numberKind == (SkSL::Type::NumberKind)10);
+    REPORTER_ASSERT(r, i.fSlotInfo[1].line == 11);
+    REPORTER_ASSERT(r, i.fSlotInfo[1].fnReturnValue == 12);
 
     REPORTER_ASSERT(r, i.fFuncInfo[0].name == "void testFunc();");
 
@@ -123,4 +127,50 @@ DEF_TEST(SkVMDebugTraceRead, r) {
     REPORTER_ASSERT(r, i.fTraceInfo[3].op == SkSL::SkVMTraceInfo::Op::kExit);
     REPORTER_ASSERT(r, i.fTraceInfo[3].data[0] == 20);
     REPORTER_ASSERT(r, i.fTraceInfo[3].data[1] == 0);
+}
+
+DEF_TEST(SkVMDebugTraceGetSlotComponentSuffix, r) {
+    // SkVMSlotInfo fields:
+    // - name
+    // - columns
+    // - rows
+    // - componentIndex
+    // - numberKind
+    // - line
+    // - fnReturnValue
+
+    SkSL::SkVMDebugTrace i;
+    i.fSlotInfo = {{"s", 1, 1, 0,  0,  SkSL::Type::NumberKind::kFloat, 0, -1},
+                   {"v", 4, 1, 0,  0,  SkSL::Type::NumberKind::kFloat, 0, -1},
+                   {"v", 4, 1, 1,  1,  SkSL::Type::NumberKind::kFloat, 0, -1},
+                   {"v", 4, 1, 2,  2,  SkSL::Type::NumberKind::kFloat, 0, -1},
+                   {"v", 4, 1, 3,  3,  SkSL::Type::NumberKind::kFloat, 0, -1},
+                   {"m", 4, 4, 0,  0,  SkSL::Type::NumberKind::kFloat, 0, -1},
+                   {"m", 4, 4, 1,  1,  SkSL::Type::NumberKind::kFloat, 0, -1},
+                   {"m", 4, 4, 2,  2,  SkSL::Type::NumberKind::kFloat, 0, -1},
+                   {"m", 4, 4, 3,  3,  SkSL::Type::NumberKind::kFloat, 0, -1},
+                   {"m", 4, 4, 4,  4,  SkSL::Type::NumberKind::kFloat, 0, -1},
+                   {"m", 4, 4, 5,  5,  SkSL::Type::NumberKind::kFloat, 0, -1},
+                   {"m", 4, 4, 6,  6,  SkSL::Type::NumberKind::kFloat, 0, -1},
+                   {"m", 4, 4, 7,  7,  SkSL::Type::NumberKind::kFloat, 0, -1},
+                   {"m", 4, 4, 8,  8,  SkSL::Type::NumberKind::kFloat, 0, -1},
+                   {"m", 4, 4, 9,  9,  SkSL::Type::NumberKind::kFloat, 0, -1},
+                   {"m", 4, 4, 10, 10, SkSL::Type::NumberKind::kFloat, 0, -1},
+                   {"m", 4, 4, 11, 11, SkSL::Type::NumberKind::kFloat, 0, -1},
+                   {"m", 4, 4, 12, 12, SkSL::Type::NumberKind::kFloat, 0, -1},
+                   {"m", 4, 4, 13, 13, SkSL::Type::NumberKind::kFloat, 0, -1},
+                   {"m", 4, 4, 14, 14, SkSL::Type::NumberKind::kFloat, 0, -1},
+                   {"m", 4, 4, 15, 15, SkSL::Type::NumberKind::kFloat, 0, -1}};
+
+    const std::string kExpected[] = {"",
+                                     ".x",     ".y",     ".z",     ".w",
+                                     "[0][0]", "[0][1]", "[0][2]", "[0][3]",
+                                     "[1][0]", "[1][1]", "[1][2]", "[1][3]",
+                                     "[2][0]", "[2][1]", "[2][2]", "[2][3]",
+                                     "[3][0]", "[3][1]", "[3][2]", "[3][3]"};
+
+    REPORTER_ASSERT(r, i.fSlotInfo.size() == SK_ARRAY_COUNT(kExpected));
+    for (size_t index = 0; index < SK_ARRAY_COUNT(kExpected); ++index) {
+        REPORTER_ASSERT(r, kExpected[index] == i.getSlotComponentSuffix(index));
+    }
 }

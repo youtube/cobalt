@@ -15,7 +15,7 @@
 #include "src/gpu/GrDirectContextPriv.h"
 #include "src/gpu/GrPersistentCacheUtils.h"
 #include "src/gpu/GrRenderTarget.h"
-#include "src/gpu/GrShaderUtils.h"
+#include "src/utils/SkShaderUtils.h"
 
 #include "src/gpu/mtl/GrMtlGpu.h"
 #include "src/gpu/mtl/GrMtlPipelineState.h"
@@ -69,7 +69,7 @@ void GrMtlPipelineStateBuilder::finalizeFragmentSecondaryColor(GrShaderVar& outp
 static constexpr SkFourByteTag kMSL_Tag = SkSetFourByteTag('M', 'S', 'L', ' ');
 static constexpr SkFourByteTag kSKSL_Tag = SkSetFourByteTag('S', 'K', 'S', 'L');
 
-void GrMtlPipelineStateBuilder::storeShadersInCache(const SkSL::String shaders[],
+void GrMtlPipelineStateBuilder::storeShadersInCache(const std::string shaders[],
                                                     const SkSL::Program::Inputs inputs[],
                                                     SkSL::Program::Settings* settings,
                                                     sk_sp<SkData> pipelineData,
@@ -88,7 +88,7 @@ void GrMtlPipelineStateBuilder::storeShadersInCache(const SkSL::String shaders[]
 }
 
 id<MTLLibrary> GrMtlPipelineStateBuilder::compileMtlShaderLibrary(
-        const SkSL::String& shader, SkSL::Program::Inputs inputs,
+        const std::string& shader, SkSL::Program::Inputs inputs,
         GrContextOptions::ShaderErrorHandler* errorHandler) {
     id<MTLLibrary> shaderLibrary = GrCompileMtlShaderLibrary(fGpu, shader, errorHandler);
     if (shaderLibrary != nil && inputs.fUseFlipRTUniform) {
@@ -199,33 +199,30 @@ static MTLVertexDescriptor* create_vertex_descriptor(const GrGeometryProcessor& 
     if (writer) {
         writer->writeInt(vertexAttributeCount);
     }
-    size_t vertexAttributeOffset = 0;
-    for (const auto& attribute : geomProc.vertexAttributes()) {
+    for (auto attribute : geomProc.vertexAttributes()) {
         MTLVertexAttributeDescriptor* mtlAttribute = vertexDescriptor.attributes[attributeIndex];
         MTLVertexFormat format = attribute_type_to_mtlformat(attribute.cpuType());
         SkASSERT(MTLVertexFormatInvalid != format);
         mtlAttribute.format = format;
-        mtlAttribute.offset = vertexAttributeOffset;
+        mtlAttribute.offset = *attribute.offset();
         mtlAttribute.bufferIndex = vertexBinding;
         if (writer) {
             writer->writeInt(format);
-            writer->writeUInt(vertexAttributeOffset);
+            writer->writeUInt(*attribute.offset());
             writer->writeUInt(vertexBinding);
         }
 
-        vertexAttributeOffset += attribute.sizeAlign4();
         attributeIndex++;
     }
-    SkASSERT(vertexAttributeOffset == geomProc.vertexStride());
 
     if (vertexAttributeCount) {
         MTLVertexBufferLayoutDescriptor* vertexBufferLayout =
                 vertexDescriptor.layouts[vertexBinding];
         vertexBufferLayout.stepFunction = MTLVertexStepFunctionPerVertex;
         vertexBufferLayout.stepRate = 1;
-        vertexBufferLayout.stride = vertexAttributeOffset;
+        vertexBufferLayout.stride = geomProc.vertexStride();
         if (writer) {
-            writer->writeUInt(vertexAttributeOffset);
+            writer->writeUInt(geomProc.vertexStride());
         }
     }
 
@@ -233,33 +230,30 @@ static MTLVertexDescriptor* create_vertex_descriptor(const GrGeometryProcessor& 
     if (writer) {
         writer->writeInt(instanceAttributeCount);
     }
-    size_t instanceAttributeOffset = 0;
-    for (const auto& attribute : geomProc.instanceAttributes()) {
+    for (auto attribute : geomProc.instanceAttributes()) {
         MTLVertexAttributeDescriptor* mtlAttribute = vertexDescriptor.attributes[attributeIndex];
         MTLVertexFormat format = attribute_type_to_mtlformat(attribute.cpuType());
         SkASSERT(MTLVertexFormatInvalid != format);
         mtlAttribute.format = format;
-        mtlAttribute.offset = instanceAttributeOffset;
+        mtlAttribute.offset = *attribute.offset();
         mtlAttribute.bufferIndex = instanceBinding;
         if (writer) {
             writer->writeInt(format);
-            writer->writeUInt(instanceAttributeOffset);
+            writer->writeUInt(*attribute.offset());
             writer->writeUInt(instanceBinding);
         }
 
-        instanceAttributeOffset += attribute.sizeAlign4();
         attributeIndex++;
     }
-    SkASSERT(instanceAttributeOffset == geomProc.instanceStride());
 
     if (instanceAttributeCount) {
         MTLVertexBufferLayoutDescriptor* instanceBufferLayout =
                 vertexDescriptor.layouts[instanceBinding];
         instanceBufferLayout.stepFunction = MTLVertexStepFunctionPerInstance;
         instanceBufferLayout.stepRate = 1;
-        instanceBufferLayout.stride = instanceAttributeOffset;
+        instanceBufferLayout.stride = geomProc.instanceStride();
         if (writer) {
-            writer->writeUInt(instanceAttributeOffset);
+            writer->writeUInt(geomProc.instanceStride());
         }
     }
     return vertexDescriptor;
@@ -560,7 +554,7 @@ GrMtlPipelineState* GrMtlPipelineStateBuilder::finalize(
         }
 
         auto errorHandler = fGpu->getContext()->priv().getShaderErrorHandler();
-        SkSL::String msl[kGrShaderTypeCount];
+        std::string msl[kGrShaderTypeCount];
         SkSL::Program::Inputs inputs[kGrShaderTypeCount];
 
         // Unpack any stored shaders from the persistent cache
@@ -573,7 +567,7 @@ GrMtlPipelineState* GrMtlPipelineStateBuilder::finalize(
                 }
 
                 case kSKSL_Tag: {
-                    SkSL::String cached_sksl[kGrShaderTypeCount];
+                    std::string cached_sksl[kGrShaderTypeCount];
                     if (GrPersistentCacheUtils::UnpackCachedShaders(&reader, cached_sksl, inputs,
                                                                     kGrShaderTypeCount)) {
                         bool success = GrSkSLToMSL(fGpu,
@@ -632,9 +626,9 @@ GrMtlPipelineState* GrMtlPipelineStateBuilder::finalize(
                 sk_sp<SkData> pipelineData = writer->snapshotAsData();
                 if (fGpu->getContext()->priv().options().fShaderCacheStrategy ==
                         GrContextOptions::ShaderCacheStrategy::kSkSL) {
-                    SkSL::String sksl[kGrShaderTypeCount];
-                    sksl[kVertex_GrShaderType] = GrShaderUtils::PrettyPrint(fVS.fCompilerString);
-                    sksl[kFragment_GrShaderType] = GrShaderUtils::PrettyPrint(fFS.fCompilerString);
+                    std::string sksl[kGrShaderTypeCount];
+                    sksl[kVertex_GrShaderType] = SkShaderUtils::PrettyPrint(fVS.fCompilerString);
+                    sksl[kFragment_GrShaderType] = SkShaderUtils::PrettyPrint(fFS.fCompilerString);
                     this->storeShadersInCache(sksl, inputs, &settings,
                                               std::move(pipelineData), true);
                 } else {
@@ -749,7 +743,7 @@ bool GrMtlPipelineStateBuilder::PrecompileShaders(GrMtlGpu* gpu, const SkData& c
     GrPersistentCacheUtils::ShaderMetadata meta;
     meta.fSettings = &settings;
 
-    SkSL::String shaders[kGrShaderTypeCount];
+    std::string shaders[kGrShaderTypeCount];
     SkSL::Program::Inputs inputs[kGrShaderTypeCount];
     if (!GrPersistentCacheUtils::UnpackCachedShaders(&reader, shaders, inputs, kGrShaderTypeCount,
                                                      &meta)) {
@@ -773,7 +767,7 @@ bool GrMtlPipelineStateBuilder::PrecompileShaders(GrMtlGpu* gpu, const SkData& c
         }
 
         case kSKSL_Tag: {
-            SkSL::String msl[kGrShaderTypeCount];
+            std::string msl[kGrShaderTypeCount];
             if (!GrSkSLToMSL(gpu,
                            shaders[kVertex_GrShaderType],
                            SkSL::ProgramKind::kVertex,

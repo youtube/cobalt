@@ -7,19 +7,23 @@
 
 #include "experimental/graphite/src/DrawContext.h"
 
+#include "include/core/SkPixmap.h"
 #include "include/private/SkColorData.h"
 
 #include "experimental/graphite/include/Context.h"
 #include "experimental/graphite/include/Recorder.h"
+#include "experimental/graphite/src/Buffer.h"
 #include "experimental/graphite/src/Caps.h"
 #include "experimental/graphite/src/CommandBuffer.h"
 #include "experimental/graphite/src/ContextPriv.h"
 #include "experimental/graphite/src/DrawList.h"
 #include "experimental/graphite/src/DrawPass.h"
 #include "experimental/graphite/src/Gpu.h"
+#include "experimental/graphite/src/RecorderPriv.h"
 #include "experimental/graphite/src/RenderPassTask.h"
 #include "experimental/graphite/src/ResourceTypes.h"
 #include "experimental/graphite/src/TextureProxy.h"
+#include "experimental/graphite/src/UploadTask.h"
 #include "experimental/graphite/src/geom/BoundsManager.h"
 #include "experimental/graphite/src/geom/Shape.h"
 
@@ -44,7 +48,8 @@ sk_sp<DrawContext> DrawContext::Make(sk_sp<TextureProxy> target,
 DrawContext::DrawContext(sk_sp<TextureProxy> target, const SkImageInfo& ii)
         : fTarget(std::move(target))
         , fImageInfo(ii)
-        , fPendingDraws(std::make_unique<DrawList>()) {
+        , fPendingDraws(std::make_unique<DrawList>())
+        , fPendingUploads(std::make_unique<UploadList>()) {
     // TBD - Will probably want DrawLists (and its internal commands) to come from an arena
     // that the DC manages.
 }
@@ -94,6 +99,52 @@ void DrawContext::clear(const SkColor4f& clearColor) {
     fDrawPasses.clear();
 }
 
+//
+// TODO: The other draw-recording APIs in DrawContext are relatively simple, just storing state
+// from the caller's decision making. If possible we should consider moving the more complex logic
+// somewhere above DrawContext and have this be much simpler.
+bool DrawContext::writePixels(Recorder* recorder, const SkPixmap& src, SkIPoint dstPoint) {
+    // TODO: add mipmap support for createBackendTexture
+
+    // Our caller should have clipped to the bounds of the surface already.
+    SkASSERT(SkIRect::MakeSize(fTarget->dimensions()).contains(
+            SkIRect::MakePtSize(dstPoint, src.dimensions())));
+
+    if (!recorder) {
+        return false;
+    }
+
+    if (src.colorType() == kUnknown_SkColorType) {
+        return false;
+    }
+
+    // TODO: check for readOnly or framebufferOnly target and return false if so
+
+    const Caps* caps = recorder->priv().caps();
+
+    // TODO: canvas2DFastPath?
+    // TODO: check that surface supports writePixels
+    // TODO: handle writePixels as draw if needed (e.g., canvas2DFastPath || !supportsWritePixels)
+
+    // TODO: check for flips and conversions and either handle here or pass info to appendUpload
+
+    // for now, until conversions are supported
+    if (!caps->areColorTypeAndTextureInfoCompatible(src.colorType(),
+                                                    fTarget->textureInfo())) {
+        return false;
+    }
+
+    std::vector<MipLevel> levels;
+    levels.push_back({src.addr(), src.rowBytes()});
+
+    SkIRect dstRect = SkIRect::MakePtSize(dstPoint, src.dimensions());
+    return fPendingUploads->appendUpload(recorder,
+                                         fTarget,
+                                         src.colorType(),
+                                         levels,
+                                         dstRect);
+}
+
 void DrawContext::snapDrawPass(Recorder* recorder, const BoundsManager* occlusionCuller) {
     if (fPendingDraws->drawCount() == 0) {
         return;
@@ -126,18 +177,33 @@ sk_sp<Task> DrawContext::snapRenderPassTask(Recorder* recorder,
     desc.fClearColor = drawPass->clearColor();
 
     if (drawPass->depthStencilFlags() != DepthStencilFlags::kNone) {
-        const Caps* caps = recorder->context()->priv().gpu()->caps();
+        const Caps* caps = recorder->priv().caps();
         desc.fDepthStencilAttachment.fTextureInfo =
                 caps->getDefaultDepthStencilTextureInfo(drawPass->depthStencilFlags(),
                                                         1 /*sampleCount*/, // TODO: MSAA
                                                         Protected::kNo);
-        // TODO: handle clears
-        desc.fDepthStencilAttachment.fLoadOp = LoadOp::kDiscard;
+        // Always clear the depth and stencil to 0 at the start of a DrawPass, but discard at the
+        // end since their contents do not affect the next frame.
+        desc.fDepthStencilAttachment.fLoadOp = LoadOp::kClear;
+        desc.fClearDepth = 0.f;
+        desc.fClearStencil = 0;
         desc.fDepthStencilAttachment.fStoreOp = StoreOp::kDiscard;
     }
 
     sk_sp<TextureProxy> targetProxy = sk_ref_sp(fDrawPasses[0]->target());
     return RenderPassTask::Make(std::move(fDrawPasses), desc, std::move(targetProxy));
+}
+
+sk_sp<Task> DrawContext::snapUploadTask(Recorder* recorder) {
+    if (!fPendingUploads) {
+        return nullptr;
+    }
+
+    sk_sp<Task> uploadTask = UploadTask::Make(fPendingUploads.get());
+
+    fPendingUploads = std::make_unique<UploadList>();
+
+    return uploadTask;
 }
 
 } // namespace skgpu

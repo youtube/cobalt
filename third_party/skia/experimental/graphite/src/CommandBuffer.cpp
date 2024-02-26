@@ -11,6 +11,7 @@
 #include "src/core/SkTraceEvent.h"
 
 #include "experimental/graphite/src/Buffer.h"
+#include "experimental/graphite/src/Sampler.h"
 #include "experimental/graphite/src/Texture.h"
 #include "experimental/graphite/src/TextureProxy.h"
 
@@ -18,18 +19,28 @@ namespace skgpu {
 
 CommandBuffer::CommandBuffer() {}
 
+CommandBuffer::~CommandBuffer() {
+    this->releaseResources();
+}
+
 void CommandBuffer::releaseResources() {
     TRACE_EVENT0("skia.gpu", TRACE_FUNC);
 
     fTrackedResources.reset();
 }
 
-void CommandBuffer::beginRenderPass(const RenderPassDesc& renderPassDesc,
+void CommandBuffer::trackResource(sk_sp<Resource> resource) {
+    fTrackedResources.push_back(std::move(resource));
+}
+
+bool CommandBuffer::beginRenderPass(const RenderPassDesc& renderPassDesc,
                                     sk_sp<Texture> colorTexture,
                                     sk_sp<Texture> resolveTexture,
                                     sk_sp<Texture> depthStencilTexture) {
-    this->onBeginRenderPass(renderPassDesc, colorTexture.get(), resolveTexture.get(),
-                            depthStencilTexture.get());
+    if (!this->onBeginRenderPass(renderPassDesc, colorTexture.get(), resolveTexture.get(),
+                                 depthStencilTexture.get())) {
+        return false;
+    }
 
     if (colorTexture) {
         this->trackResource(std::move(colorTexture));
@@ -47,6 +58,8 @@ void CommandBuffer::beginRenderPass(const RenderPassDesc& renderPassDesc,
         fHasWork = true;
     }
 #endif
+
+    return true;
 }
 
 void CommandBuffer::bindGraphicsPipeline(sk_sp<GraphicsPipeline> graphicsPipeline) {
@@ -88,29 +101,61 @@ void CommandBuffer::bindDrawBuffers(BindBufferInfo vertices,
     this->bindIndexBuffer(sk_ref_sp(indices.fBuffer), indices.fOffset);
 }
 
-static bool check_max_blit_width(int widthInPixels) {
-    if (widthInPixels > 32767) {
-        SkASSERT(false); // surfaces should not be this wide anyway
-        return false;
+void CommandBuffer::bindTextures(const TextureBindEntry* entries, int count) {
+    this->onBindTextures(entries, count);
+    for (int i = 0; i < count; ++i) {
+        SkASSERT(entries[i].fTexture);
+        this->trackResource(entries[i].fTexture);
     }
-    return true;
 }
 
-void CommandBuffer::copyTextureToBuffer(sk_sp<skgpu::Texture> texture,
+void CommandBuffer::bindSamplers(const SamplerBindEntry* entries, int count) {
+    this->onBindSamplers(entries, count);
+    for (int i = 0; i < count; ++i) {
+        SkASSERT(entries[i].fSampler);
+        this->trackResource(entries[i].fSampler);
+    }
+}
+
+bool CommandBuffer::copyTextureToBuffer(sk_sp<skgpu::Texture> texture,
                                         SkIRect srcRect,
                                         sk_sp<skgpu::Buffer> buffer,
                                         size_t bufferOffset,
                                         size_t bufferRowBytes) {
-    if (!check_max_blit_width(srcRect.width())) {
-        return;
-    }
+    SkASSERT(texture);
+    SkASSERT(buffer);
 
-    this->onCopyTextureToBuffer(texture.get(), srcRect, buffer.get(), bufferOffset, bufferRowBytes);
+    if (!this->onCopyTextureToBuffer(texture.get(), srcRect, buffer.get(), bufferOffset,
+                                     bufferRowBytes)) {
+        return false;
+    }
 
     this->trackResource(std::move(texture));
     this->trackResource(std::move(buffer));
 
     SkDEBUGCODE(fHasWork = true;)
+
+    return true;
+}
+
+bool CommandBuffer::copyBufferToTexture(sk_sp<skgpu::Buffer> buffer,
+                                        sk_sp<skgpu::Texture> texture,
+                                        const BufferTextureCopyData* copyData,
+                                        int count) {
+    SkASSERT(buffer);
+    SkASSERT(texture);
+    SkASSERT(count > 0 && copyData);
+
+    if (!this->onCopyBufferToTexture(buffer.get(), texture.get(), copyData, count)) {
+        return false;
+    }
+
+    this->trackResource(std::move(buffer));
+    this->trackResource(std::move(texture));
+
+    SkDEBUGCODE(fHasWork = true;)
+
+    return true;
 }
 
 } // namespace skgpu

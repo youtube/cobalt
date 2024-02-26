@@ -54,7 +54,7 @@ class GrAppliedClip;
 namespace {
 
 static constexpr GrGeometryProcessor::Attribute gVertex =
-        {"bboxcoord", kFloat2_GrVertexAttribType, kFloat2_GrSLType};
+        {"bboxcoord", kFloat2_GrVertexAttribType, SkSLType::kFloat2};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // SkSL code.
@@ -69,7 +69,7 @@ public:
 
     const char* name() const override { return "FwidthSquircleTestProcessor"; }
 
-    void addToKey(const GrShaderCaps&, GrProcessorKeyBuilder*) const final {}
+    void addToKey(const GrShaderCaps&, skgpu::KeyBuilder*) const final {}
 
     std::unique_ptr<ProgramImpl> makeProgramImpl(const GrShaderCaps&) const final;
 
@@ -77,7 +77,7 @@ private:
     FwidthSquircleTestProcessor(const SkMatrix& viewMatrix)
             : GrGeometryProcessor(kFwidthSquircleTestProcessor_ClassID)
             , fViewMatrix(viewMatrix) {
-        this->setVertexAttributes(&gVertex, 1);
+        this->setVertexAttributesWithImplicitOffsets(&gVertex, 1);
     }
 
     const SkMatrix fViewMatrix;
@@ -103,13 +103,13 @@ std::unique_ptr<GrGeometryProcessor::ProgramImpl> FwidthSquircleTestProcessor::m
             auto* uniforms = args.fUniformHandler;
             fViewMatrixHandle = uniforms->addUniform(nullptr,
                                                      kVertex_GrShaderFlag,
-                                                     kFloat3x3_GrSLType,
+                                                     SkSLType::kFloat3x3,
                                                      "viewmatrix");
 
             auto* varyings = args.fVaryingHandler;
             varyings->emitAttributes(proc);
 
-            GrGLSLVarying squircleCoord(kFloat2_GrSLType);
+            GrGLSLVarying squircleCoord(SkSLType::kFloat2);
             varyings->addVarying("bboxcoord", &squircleCoord);
 
             auto* v = args.fVertBuilder;
@@ -119,7 +119,7 @@ std::unique_ptr<GrGeometryProcessor::ProgramImpl> FwidthSquircleTestProcessor::m
             v->codeAppendf("float3 vertexpos = float3(bboxcoord * 100 * R + 100, 1);");
             v->codeAppendf("vertexpos = %s * vertexpos;",
                            uniforms->getUniformCStr(fViewMatrixHandle));
-            gpArgs->fPositionVar.set(kFloat3_GrSLType, "vertexpos");
+            gpArgs->fPositionVar.set(SkSLType::kFloat3, "vertexpos");
 
             auto* f = args.fFragBuilder;
             f->codeAppendf("float golden_ratio = 1.61803398875;");

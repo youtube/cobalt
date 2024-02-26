@@ -18,7 +18,7 @@ std::unique_ptr<Expression> ConstructorMatrixResize::Make(const Context& context
                                                           std::unique_ptr<Expression> arg) {
     SkASSERT(type.isMatrix());
     SkASSERT(type.isAllowedInES2(context));
-    SkASSERT(arg->type().componentType() == type.componentType());
+    SkASSERT(arg->type().componentType().matches(type.componentType()));
 
     // If the matrix isn't actually changing size, return it as-is.
     if (type.rows() == arg->type().rows() && type.columns() == arg->type().columns()) {
@@ -28,7 +28,7 @@ std::unique_ptr<Expression> ConstructorMatrixResize::Make(const Context& context
     return std::make_unique<ConstructorMatrixResize>(line, type, std::move(arg));
 }
 
-skstd::optional<double> ConstructorMatrixResize::getConstantValue(int n) const {
+std::optional<double> ConstructorMatrixResize::getConstantValue(int n) const {
     int rows = this->type().rows();
     int row = n % rows;
     int col = n / rows;

@@ -15,8 +15,11 @@
 #endif
 
 using sk_gpu_test::GrContextFactory;
-using sk_gpu_test::GLTestContext;
 using sk_gpu_test::ContextInfo;
+
+#ifdef SK_GL
+using sk_gpu_test::GLTestContext;
+#endif
 
 namespace skiatest {
 
@@ -94,7 +97,7 @@ void RunWithGraphiteTestContexts(GraphiteTestFn* test, Reporter* reporter) {
         return;
     }
 
-    (*test)(reporter, context.get());
+    (*test)(reporter, context);
 }
 
 } // namespace graphite

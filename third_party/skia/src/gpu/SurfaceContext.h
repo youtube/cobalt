@@ -24,7 +24,6 @@
 class GrDrawingManager;
 class GrRecordingContext;
 class GrRenderTargetProxy;
-class GrSingleOwner;
 class GrSurface;
 class GrSurfaceProxy;
 class GrTextureProxy;
@@ -32,7 +31,7 @@ struct SkIPoint;
 struct SkIRect;
 
 namespace skgpu {
-
+class SingleOwner;
 class SurfaceFillContext;
 
 /**
@@ -63,7 +62,7 @@ public:
     GrImageInfo imageInfo() const { return {fColorInfo, fReadView.proxy()->dimensions()}; }
 
     GrSurfaceOrigin origin() const { return fReadView.origin(); }
-    GrSwizzle readSwizzle() const { return fReadView.swizzle(); }
+    skgpu::Swizzle readSwizzle() const { return fReadView.swizzle(); }
     // TODO: See if it makes sense for this to return a const& instead and require the callers to
     // make a copy (which refs the proxy) if needed.
     GrSurfaceProxyView readSurfaceView() { return fReadView; }
@@ -189,7 +188,7 @@ protected:
 
     SkDEBUGCODE(void validate() const;)
 
-    SkDEBUGCODE(GrSingleOwner* singleOwner() const;)
+    SkDEBUGCODE(skgpu::SingleOwner* singleOwner() const;)
 
     GrRecordingContext* fContext;
 

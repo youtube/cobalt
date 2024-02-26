@@ -20,7 +20,6 @@
 #include "include/core/SkPaint.h"
 #include "include/core/SkSize.h"
 #include "include/core/SkString.h"
-#include "include/core/SkStringView.h"
 #include "include/core/SkSurface.h"
 #include "include/effects/SkGradientShader.h"
 #include "include/effects/SkImageFilters.h"
@@ -34,6 +33,8 @@
 #include "tests/Test.h"
 #include "tools/Resources.h"
 #include "tools/ToolUtils.h"
+
+#include <string_view>
 
 static void test_expect_fail(skiatest::Reporter* r, const char* testFile) {
     SkRuntimeEffect::Options options{};
@@ -68,7 +69,7 @@ static void test_expect_pass(skiatest::Reporter* r, SkSurface* surface, const ch
     }
 
     SkRuntimeShaderBuilder builder(result.effect);
-    sk_sp<SkShader> shader = builder.makeShader(/*localMatrix=*/nullptr, /*isOpaque=*/true);
+    sk_sp<SkShader> shader = builder.makeShader();
     if (!shader) {
         ERRORF(r, "%s: Unable to build shader", testFile);
         return;

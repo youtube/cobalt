@@ -11,6 +11,7 @@
 #include "src/core/SkArenaAlloc.h"
 #include "src/core/SkBlendModePriv.h"
 #include "src/core/SkBlenderBase.h"
+#include "src/core/SkKeyHelpers.h"
 #include "src/core/SkRasterPipeline.h"
 #include "src/core/SkReadBuffer.h"
 #include "src/core/SkRuntimeEffectPriv.h"
@@ -72,7 +73,7 @@ SkShader_Blend::SkShader_Blend(sk_sp<SkBlender> blender, sk_sp<SkShader> dst, sk
         , fSrc(std::move(src))
         , fBlender(std::move(blender))
         , fMode((SkBlendMode)kCustom_SkBlendMode) {
-    if (skstd::optional<SkBlendMode> bm = as_BB(fBlender)->asBlendMode(); bm.has_value()) {
+    if (std::optional<SkBlendMode> bm = as_BB(fBlender)->asBlendMode(); bm.has_value()) {
         fMode = *bm;
         fBlender.reset();
     }
@@ -187,3 +188,14 @@ std::unique_ptr<GrFragmentProcessor> SkShader_Blend::asFragmentProcessor(
     }
 }
 #endif
+
+void SkShader_Blend::addToKey(SkShaderCodeDictionary* dict,
+                              SkBackend backend,
+                              SkPaintParamsKeyBuilder* builder,
+                              SkUniformBlock* uniformBlock) const {
+    // TODO: add blender support
+    SkASSERT(!fBlender);
+
+    BlendShaderBlock::AddToKey(dict, backend, builder, uniformBlock,
+                               { fDst.get(), fSrc.get(), fMode });
+}

@@ -7,6 +7,7 @@
 
 #include "src/gpu/gl/GrGLCaps.h"
 
+#include <algorithm>
 #include <memory>
 
 #include "include/gpu/GrContextOptions.h"
@@ -792,7 +793,13 @@ void GrGLCaps::init(const GrContextOptions& contextOptions,
     if (fProgramBinarySupport) {
         GrGLint count;
         GR_GL_GetIntegerv(gli, GR_GL_NUM_PROGRAM_BINARY_FORMATS, &count);
-        fProgramBinarySupport = count > 0;
+        if (count > 0) {
+            fProgramBinaryFormats.resize_back(count);
+            GR_GL_GetIntegerv(gli, GR_GL_PROGRAM_BINARY_FORMATS,
+                              reinterpret_cast<GrGLint*>(fProgramBinaryFormats.data()));
+        } else {
+            fProgramBinarySupport = false;
+        }
     }
     if (GR_IS_GR_GL(standard)) {
         fSamplerObjectSupport =
@@ -1049,11 +1056,16 @@ void GrGLCaps::initGLSL(const GrGLContextInfo& ctxInfo, const GrGLInterface* gli
         shaderCaps->fVertexIDSupport = ctxInfo.glslGeneration() >= SkSL::GLSLGeneration::k330;
     }
 
+    // isinf() exists in GLSL 1.3 and above, but hardware without proper IEEE support is allowed to
+    // always return false, so it's potentially meaningless. In GLSL 3.3 and GLSL ES3+, isinf() is
+    // required to actually identify infinite values. (GPUs are not required to _produce_ infinite
+    // values via operations like `num / 0.0` until GLSL 4.1.)
+    shaderCaps->fInfinitySupport = (ctxInfo.glslGeneration() >= SkSL::GLSLGeneration::k330);
+
     if (GR_IS_GR_GL(standard)) {
-        shaderCaps->fInfinitySupport = shaderCaps->fNonconstantArrayIndexSupport = true;
+        shaderCaps->fNonconstantArrayIndexSupport = true;
     } else if (GR_IS_GR_GL_ES(standard) || GR_IS_GR_WEBGL(standard)) {
-        // Desktop GLSL 3.30 == ES GLSL 3.00.
-        shaderCaps->fInfinitySupport = shaderCaps->fNonconstantArrayIndexSupport =
+        shaderCaps->fNonconstantArrayIndexSupport =
                 (ctxInfo.glslGeneration() >= SkSL::GLSLGeneration::k330);
     }
 
@@ -1078,11 +1090,6 @@ void GrGLCaps::initGLSL(const GrGLContextInfo& ctxInfo, const GrGLInterface* gli
     }
 
     shaderCaps->fBuiltinDeterminantSupport = ctxInfo.glslGeneration() >= SkSL::GLSLGeneration::k150;
-
-    if (GR_IS_GR_WEBGL(standard)) {
-      // WebGL 1.0 doesn't support do-while loops.
-      shaderCaps->fCanUseDoLoops = version >= GR_GL_VER(2, 0);
-    }
 }
 
 void GrGLCaps::initFSAASupport(const GrContextOptions& contextOptions,
@@ -1554,7 +1561,7 @@ void GrGLCaps::initFormatTable(const GrGLContextInfo& ctxInfo, const GrGLInterfa
             auto& ctInfo = info.fColorTypeInfos[ctIdx++];
             ctInfo.fColorType = GrColorType::kRGB_888x;
             ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag;
-            ctInfo.fReadSwizzle = GrSwizzle::RGB1();
+            ctInfo.fReadSwizzle = skgpu::Swizzle::RGB1();
 
             // External IO ColorTypes:
             ctInfo.fExternalIOFormatCount = 1;
@@ -1612,16 +1619,49 @@ void GrGLCaps::initFormatTable(const GrGLContextInfo& ctxInfo, const GrGLInterfa
         }
 
         if (r8Support) {
-            info.fColorTypeInfoCount = 2;
+            info.fColorTypeInfoCount = 3;
             info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
             int ctIdx = 0;
+            // Format: R8, Surface: kR_8
+            {
+                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
+                ctInfo.fColorType = GrColorType::kR_8;
+                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
+                this->setColorTypeFormat(GrColorType::kR_8, GrGLFormat::kR8);
+
+                // External IO ColorTypes:
+                ctInfo.fExternalIOFormatCount = 2;
+                ctInfo.fExternalIOFormats = std::make_unique<ColorTypeInfo::ExternalIOFormats[]>(
+                        ctInfo.fExternalIOFormatCount);
+                int ioIdx = 0;
+                // Format: R8, Surface: kR_8, Data: kR_8
+                {
+                    auto& ioFormat = ctInfo.fExternalIOFormats[ioIdx++];
+                    ioFormat.fColorType = GrColorType::kR_8;
+                    ioFormat.fExternalType = GR_GL_UNSIGNED_BYTE;
+                    ioFormat.fExternalTexImageFormat = GR_GL_RED;
+                    ioFormat.fExternalReadFormat = GR_GL_RED;
+                    // Not guaranteed by ES/WebGL.
+                    ioFormat.fRequiresImplementationReadQuery = !GR_IS_GR_GL(standard);
+                }
+
+                // Format: R8, Surface: kR_8, Data: kR_8xxx
+                {
+                    auto& ioFormat = ctInfo.fExternalIOFormats[ioIdx++];
+                    ioFormat.fColorType = GrColorType::kR_8xxx;
+                    ioFormat.fExternalType = GR_GL_UNSIGNED_BYTE;
+                    ioFormat.fExternalTexImageFormat = 0;
+                    ioFormat.fExternalReadFormat = GR_GL_RGBA;
+                }
+            }
+
             // Format: R8, Surface: kAlpha_8
             {
                 auto& ctInfo = info.fColorTypeInfos[ctIdx++];
                 ctInfo.fColorType = GrColorType::kAlpha_8;
                 ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-                ctInfo.fReadSwizzle = GrSwizzle("000r");
-                ctInfo.fWriteSwizzle = GrSwizzle("a000");
+                ctInfo.fReadSwizzle = skgpu::Swizzle("000r");
+                ctInfo.fWriteSwizzle = skgpu::Swizzle("a000");
                 this->setColorTypeFormat(GrColorType::kAlpha_8, GrGLFormat::kR8);
 
                 // External IO ColorTypes:
@@ -1655,7 +1695,7 @@ void GrGLCaps::initFormatTable(const GrGLContextInfo& ctxInfo, const GrGLInterfa
                 auto& ctInfo = info.fColorTypeInfos[ctIdx++];
                 ctInfo.fColorType = GrColorType::kGray_8;
                 ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag;
-                ctInfo.fReadSwizzle = GrSwizzle("rrr1");
+                ctInfo.fReadSwizzle = skgpu::Swizzle("rrr1");
                 this->setColorTypeFormat(GrColorType::kGray_8, GrGLFormat::kR8);
 
                 // External IO ColorTypes:
@@ -2337,8 +2377,8 @@ void GrGLCaps::initFormatTable(const GrGLContextInfo& ctxInfo, const GrGLInterfa
                 auto& ctInfo = info.fColorTypeInfos[ctIdx++];
                 ctInfo.fColorType = GrColorType::kAlpha_F16;
                 ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-                ctInfo.fReadSwizzle = GrSwizzle("000r");
-                ctInfo.fWriteSwizzle = GrSwizzle("a000");
+                ctInfo.fReadSwizzle = skgpu::Swizzle("000r");
+                ctInfo.fWriteSwizzle = skgpu::Swizzle("a000");
                 this->setColorTypeFormat(GrColorType::kAlpha_F16, GrGLFormat::kR16F);
 
                 // External IO ColorTypes:
@@ -2420,8 +2460,8 @@ void GrGLCaps::initFormatTable(const GrGLContextInfo& ctxInfo, const GrGLInterfa
                 auto& ctInfo = info.fColorTypeInfos[ctIdx++];
                 ctInfo.fColorType = GrColorType::kAlpha_F16;
                 ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag;
-                ctInfo.fReadSwizzle = GrSwizzle("000r");
-                ctInfo.fWriteSwizzle = GrSwizzle("aaa0");
+                ctInfo.fReadSwizzle = skgpu::Swizzle("000r");
+                ctInfo.fWriteSwizzle = skgpu::Swizzle("aaa0");
 
                 int idx = static_cast<int>(GrColorType::kAlpha_F16);
                 if (fColorTypeToFormatTable[idx] == GrGLFormat::kUnknown) {
@@ -2447,6 +2487,62 @@ void GrGLCaps::initFormatTable(const GrGLContextInfo& ctxInfo, const GrGLInterfa
                     auto& ioFormat = ctInfo.fExternalIOFormats[ioIdx++];
                     ioFormat.fColorType = GrColorType::kRGBA_F32;
                     ioFormat.fExternalType = GR_GL_FLOAT;
+                    ioFormat.fExternalTexImageFormat = 0;
+                    ioFormat.fExternalReadFormat = GR_GL_RGBA;
+                }
+            }
+        }
+    }
+
+    // Format: RGBx8
+    {
+        FormatInfo& info = this->getFormatInfo(GrGLFormat::kRGBX8);
+        info.fFormatType = FormatType::kNormalizedFixedPoint;
+        info.fInternalFormatForRenderbuffer = GR_GL_RGBX8;
+        info.fDefaultExternalFormat = GR_GL_RGB;
+        info.fDefaultExternalType = GR_GL_UNSIGNED_BYTE;
+        info.fDefaultColorType = GrColorType::kRGB_888x;
+
+        bool supportsRGBXTexStorage = false;
+
+        if (GR_IS_GR_GL_ES(standard) && ctxInfo.hasExtension("GL_ANGLE_rgbx_internal_format")) {
+            info.fFlags =
+                    FormatInfo::kTexturable_Flag | FormatInfo::kTransfers_Flag | msaaRenderFlags;
+            supportsRGBXTexStorage = true;
+        }
+
+        if (texStorageSupported && supportsRGBXTexStorage) {
+            info.fFlags |= FormatInfo::kUseTexStorage_Flag;
+            info.fInternalFormatForTexImageOrStorage = GR_GL_RGBX8;
+            info.fColorTypeInfoCount = 1;
+            info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
+            int ctIdx = 0;
+            // Format: RGBX8, Surface: kRGB_888x
+            {
+                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
+                ctInfo.fColorType = GrColorType::kRGB_888x;
+                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
+                this->setColorTypeFormat(GrColorType::kRGB_888x, GrGLFormat::kRGBX8);
+
+                // External IO ColorTypes:
+                ctInfo.fExternalIOFormatCount = 2;
+                ctInfo.fExternalIOFormats = std::make_unique<ColorTypeInfo::ExternalIOFormats[]>(
+                        ctInfo.fExternalIOFormatCount);
+                int ioIdx = 0;
+                // Format: RGBX8, Surface: kRGB_888x, Data: kRGB_888x
+                {
+                    auto& ioFormat = ctInfo.fExternalIOFormats[ioIdx++];
+                    ioFormat.fColorType = GrColorType::kRGB_888x;
+                    ioFormat.fExternalType = GR_GL_UNSIGNED_BYTE;
+                    ioFormat.fExternalTexImageFormat = GR_GL_RGB;
+                    ioFormat.fExternalReadFormat = 0;
+                }
+
+                // Format: RGBX8, Surface: kRGB_888x, Data: kRGBA_8888
+                {
+                    auto& ioFormat = ctInfo.fExternalIOFormats[ioIdx++];
+                    ioFormat.fColorType = GrColorType::kRGBA_8888;
+                    ioFormat.fExternalType = GR_GL_UNSIGNED_BYTE;
                     ioFormat.fExternalTexImageFormat = 0;
                     ioFormat.fExternalReadFormat = GR_GL_RGBA;
                 }
@@ -2495,7 +2591,11 @@ void GrGLCaps::initFormatTable(const GrGLContextInfo& ctxInfo, const GrGLInterfa
             auto& ctInfo = info.fColorTypeInfos[ctIdx++];
             ctInfo.fColorType = GrColorType::kRGB_888x;
             ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-            this->setColorTypeFormat(GrColorType::kRGB_888x, GrGLFormat::kRGB8);
+
+            int idx = static_cast<int>(GrColorType::kRGB_888x);
+            if (fColorTypeToFormatTable[idx] == GrGLFormat::kUnknown) {
+                this->setColorTypeFormat(GrColorType::kRGB_888x, GrGLFormat::kRGB8);
+            }
 
             // External IO ColorTypes:
             ctInfo.fExternalIOFormatCount = 2;
@@ -2971,8 +3071,8 @@ void GrGLCaps::initFormatTable(const GrGLContextInfo& ctxInfo, const GrGLInterfa
                 auto& ctInfo = info.fColorTypeInfos[ctIdx++];
                 ctInfo.fColorType = GrColorType::kAlpha_16;
                 ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-                ctInfo.fReadSwizzle = GrSwizzle("000r");
-                ctInfo.fWriteSwizzle = GrSwizzle("a000");
+                ctInfo.fReadSwizzle = skgpu::Swizzle("000r");
+                ctInfo.fWriteSwizzle = skgpu::Swizzle("a000");
                 this->setColorTypeFormat(GrColorType::kAlpha_16, GrGLFormat::kR16);
 
                 // External IO ColorTypes:
@@ -3901,10 +4001,6 @@ void GrGLCaps::applyDriverCorrectnessWorkarounds(const GrGLContextInfo& ctxInfo,
         // Tegra3 fract() seems to trigger undefined behavior for negative values, so we
         // must avoid this condition.
         shaderCaps->fCanUseFractForNegativeValues = false;
-
-        // Seeing crashes on Tegra3 with inlined functions that have early returns. Looks like the
-        // do { ... break; } while (false); construct is causing a crash in the driver.
-        shaderCaps->fCanUseDoLoops = false;
     }
 
     // On Intel GPU there is an issue where it reads the second argument to atan "- %s.x" as an int
@@ -4269,14 +4365,11 @@ void GrGLCaps::applyDriverCorrectnessWorkarounds(const GrGLContextInfo& ctxInfo,
     // We disable MSAA for all Intel GPUs. Before Gen9, performance was very bad. Even with Gen9,
     // we've seen driver crashes in the wild. We don't have data on Gen11 yet.
     // (crbug.com/527565, crbug.com/983926)
-    if (ctxInfo.vendor() == GrGLVendor::kIntel ||
-        ctxInfo.angleVendor() == GrGLVendor::kIntel) {
-        fMSFBOType = kNone_MSFBOType;
-    }
-
-    // ANGLE doesn't support do-while loops.
-    if (ctxInfo.angleBackend() != GrGLANGLEBackend::kUnknown) {
-        shaderCaps->fCanUseDoLoops = false;
+    if ((ctxInfo.vendor() == GrGLVendor::kIntel ||
+         ctxInfo.angleVendor() == GrGLVendor::kIntel) &&
+         (ctxInfo.renderer() < GrGLRenderer::kIntelIceLake ||
+          !contextOptions.fAllowMSAAOnNewIntel)) {
+         fMSFBOType = kNone_MSFBOType;
     }
 
     // ANGLE's D3D9 backend + AMD GPUs are flaky with program binary caching (skbug.com/10395)
@@ -4555,6 +4648,11 @@ GrCaps::SupportedWrite GrGLCaps::supportedWritePixelsColorType(GrColorType surfa
     return {fallbackCT, transferOffsetAlignment};
 }
 
+bool GrGLCaps::programBinaryFormatIsValid(GrGLenum binaryFormat) const {
+    return std::find(fProgramBinaryFormats.begin(), fProgramBinaryFormats.end(), binaryFormat) !=
+           fProgramBinaryFormats.end();
+}
+
 bool GrGLCaps::onIsWindowRectanglesSupportedForRT(const GrBackendRenderTarget& backendRT) const {
     GrGLFramebufferInfo fbInfo;
     SkAssertResult(backendRT.getGLFramebufferInfo(&fbInfo));
@@ -4751,7 +4849,8 @@ GrBackendFormat GrGLCaps::getBackendFormatFromCompressionType(
     SkUNREACHABLE;
 }
 
-GrSwizzle GrGLCaps::onGetReadSwizzle(const GrBackendFormat& format, GrColorType colorType) const {
+skgpu::Swizzle GrGLCaps::onGetReadSwizzle(const GrBackendFormat& format,
+                                          GrColorType colorType) const {
     GrGLFormat glFormat = format.asGLFormat();
     const auto& info = this->getFormatInfo(glFormat);
     for (int i = 0; i < info.fColorTypeInfoCount; ++i) {
@@ -4765,7 +4864,8 @@ GrSwizzle GrGLCaps::onGetReadSwizzle(const GrBackendFormat& format, GrColorType 
     return {};
 }
 
-GrSwizzle GrGLCaps::getWriteSwizzle(const GrBackendFormat& format, GrColorType colorType) const {
+skgpu::Swizzle GrGLCaps::getWriteSwizzle(const GrBackendFormat& format,
+                                         GrColorType colorType) const {
     const auto& info = this->getFormatInfo(format.asGLFormat());
     for (int i = 0; i < info.fColorTypeInfoCount; ++i) {
         const auto& ctInfo = info.fColorTypeInfos[i];

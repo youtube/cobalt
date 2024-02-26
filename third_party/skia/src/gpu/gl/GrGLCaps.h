@@ -15,7 +15,7 @@
 #include "include/private/SkTArray.h"
 #include "include/private/SkTHash.h"
 #include "src/gpu/GrCaps.h"
-#include "src/gpu/GrSwizzle.h"
+#include "src/gpu/Swizzle.h"
 #include "src/gpu/gl/GrGLAttachment.h"
 #include "src/gpu/gl/GrGLUtil.h"
 
@@ -448,6 +448,7 @@ public:
 
     bool programBinarySupport() const { return fProgramBinarySupport; }
     bool programParameterSupport() const { return fProgramParameterSupport; }
+    bool programBinaryFormatIsValid(GrGLenum binaryFormat) const;
 
     /** Are sampler objects available in this GL? */
     bool samplerObjectSupport() const { return fSamplerObjectSupport; }
@@ -476,7 +477,7 @@ public:
 
     GrBackendFormat getBackendFormatFromCompressionType(SkImage::CompressionType) const override;
 
-    GrSwizzle getWriteSwizzle(const GrBackendFormat&, GrColorType) const override;
+    skgpu::Swizzle getWriteSwizzle(const GrBackendFormat&, GrColorType) const override;
 
     uint64_t computeFormatKey(const GrBackendFormat&) const override;
 
@@ -540,7 +541,7 @@ private:
     SupportedRead onSupportedReadPixelsColorType(GrColorType, const GrBackendFormat&,
                                                  GrColorType) const override;
 
-    GrSwizzle onGetReadSwizzle(const GrBackendFormat&, GrColorType) const override;
+    skgpu::Swizzle onGetReadSwizzle(const GrBackendFormat&, GrColorType) const override;
 
     GrDstSampleFlags onGetDstSampleFlagsForProxy(const GrRenderTargetProxy*) const override;
 
@@ -549,6 +550,7 @@ private:
     GrGLStandard fStandard = kNone_GrGLStandard;
 
     SkTArray<GrGLFormat, true> fStencilFormats;
+    SkTArray<GrGLenum, true> fProgramBinaryFormats;
 
     int fMaxFragmentUniformVectors = 0;
 
@@ -630,8 +632,8 @@ private:
         };
         uint32_t fFlags = 0;
 
-        GrSwizzle fReadSwizzle;
-        GrSwizzle fWriteSwizzle;
+        skgpu::Swizzle fReadSwizzle;
+        skgpu::Swizzle fWriteSwizzle;
 
         struct ExternalIOFormats {
             GrColorType fColorType = GrColorType::kUnknown;

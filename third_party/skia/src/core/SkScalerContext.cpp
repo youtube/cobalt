@@ -8,6 +8,7 @@
 #include "include/core/SkPaint.h"
 #include "src/core/SkScalerContext.h"
 
+#include "include/core/SkDrawable.h"
 #include "include/core/SkFontMetrics.h"
 #include "include/core/SkMaskFilter.h"
 #include "include/core/SkPathEffect.h"
@@ -695,6 +696,14 @@ void SkScalerContext::getPath(SkGlyph& glyph, SkArenaAlloc* alloc) {
     this->internalGetPath(glyph, alloc);
 }
 
+sk_sp<SkDrawable> SkScalerContext::getDrawable(SkGlyph& glyph) {
+    return this->generateDrawable(glyph);
+}
+//TODO: make pure virtual
+sk_sp<SkDrawable> SkScalerContext::generateDrawable(const SkGlyph&) {
+    return nullptr;
+}
+
 void SkScalerContext::getFontMetrics(SkFontMetrics* fm) {
     SkASSERT(fm);
     this->generateFontMetrics(fm);
@@ -1004,7 +1013,7 @@ void SkScalerContext::MakeRecAndEffects(const SkFont& font, const SkPaint& paint
 
     SkTypeface* typeface = font.getTypefaceOrDefault();
 
-    rec->fFontID = typeface->uniqueID();
+    rec->fTypefaceID = typeface->uniqueID();
     rec->fTextSize = font.getSize();
     rec->fPreScaleX = font.getScaleX();
     rec->fPreSkewX  = font.getSkewX();

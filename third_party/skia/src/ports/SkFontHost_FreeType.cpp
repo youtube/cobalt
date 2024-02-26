@@ -8,6 +8,7 @@
 #include "include/core/SkBitmap.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkData.h"
+#include "include/core/SkDrawable.h"
 #include "include/core/SkFontMetrics.h"
 #include "include/core/SkPath.h"
 #include "include/core/SkStream.h"
@@ -33,6 +34,7 @@
 #include "src/utils/SkMatrix22.h"
 
 #include <memory>
+#include <optional>
 #include <tuple>
 
 #include <ft2build.h>
@@ -186,6 +188,8 @@ public:
     SkUniqueFTFace fFace;
     FT_StreamRec fFTStream;
     std::unique_ptr<SkStreamAsset> fSkStream;
+    FT_UShort fFTPaletteEntryCount = 0;
+    std::unique_ptr<SkColor[]> fSkPalette;
 
     static std::unique_ptr<FaceRec> Make(const SkTypeface_FreeType* typeface);
     ~FaceRec();
@@ -193,6 +197,7 @@ public:
 private:
     FaceRec(std::unique_ptr<SkStreamAsset> stream);
     void setupAxes(const SkFontData& data);
+    void setupPalette(const SkFontData& data);
 
     // Private to ref_ft_library and unref_ft_library
     static int gFTCount;
@@ -301,6 +306,44 @@ void SkTypeface_FreeType::FaceRec::setupAxes(const SkFontData& data) {
     }
 }
 
+void SkTypeface_FreeType::FaceRec::setupPalette(const SkFontData& data) {
+#ifdef FT_COLOR_H
+    FT_Palette_Data paletteData;
+    if (FT_Palette_Data_Get(fFace.get(), &paletteData)) {
+        return;
+    }
+    if (paletteData.num_palettes < data.getPaletteIndex() ) {
+        return;
+    }
+    FT_Color* ftPalette = nullptr;
+    if (FT_Palette_Select(fFace.get(), data.getPaletteIndex(), &ftPalette)) {
+        return;
+    }
+    fFTPaletteEntryCount = paletteData.num_palette_entries;
+
+    for (int i = 0; i < data.getPaletteOverrideCount(); ++i) {
+        const SkFontArguments::Palette::Override& paletteOverride = data.getPaletteOverrides()[i];
+        if (paletteOverride.index < 0 || fFTPaletteEntryCount <= paletteOverride.index) {
+            continue;
+        }
+        const SkColor& skColor = paletteOverride.color;
+        FT_Color& ftColor = ftPalette[paletteOverride.index];
+        ftColor.blue  = SkColorGetB(skColor);
+        ftColor.green = SkColorGetG(skColor);
+        ftColor.red   = SkColorGetR(skColor);
+        ftColor.alpha = SkColorGetA(skColor);
+    }
+
+    fSkPalette.reset(new SkColor[fFTPaletteEntryCount]);
+    for (int i = 0; i < fFTPaletteEntryCount; ++i) {
+        fSkPalette[i] = SkColorSetARGB(ftPalette[i].alpha,
+                                       ftPalette[i].red,
+                                       ftPalette[i].green,
+                                       ftPalette[i].blue);
+    }
+#endif
+}
+
 // Will return nullptr on failure
 // Caller must lock f_t_mutex() before calling this function.
 std::unique_ptr<SkTypeface_FreeType::FaceRec>
@@ -338,6 +381,7 @@ SkTypeface_FreeType::FaceRec::Make(const SkTypeface_FreeType* typeface) {
     SkASSERT(rec->fFace);
 
     rec->setupAxes(*data);
+    rec->setupPalette(*data);
 
     // FreeType will set the charmap to the "most unicode" cmap if it exists.
     // If there are no unicode cmaps, the charmap is set to nullptr.
@@ -387,6 +431,7 @@ protected:
     void generateMetrics(SkGlyph* glyph, SkArenaAlloc*) override;
     void generateImage(const SkGlyph& glyph) override;
     bool generatePath(const SkGlyph& glyph, SkPath* path) override;
+    sk_sp<SkDrawable> generateDrawable(const SkGlyph&) override;
     void generateFontMetrics(SkFontMetrics*) override;
 
 private:
@@ -660,9 +705,17 @@ std::unique_ptr<SkFontData> SkTypeface_FreeType::cloneFontData(const SkFontArgum
     SkAutoSTMalloc<4, SkFixed> axisValues(axisCount);
     Scanner::computeAxisValues(axisDefinitions, args.getVariationDesignPosition(), axisValues, name,
                                currentAxisCount == axisCount ? currentPosition.get() : nullptr);
+
     int ttcIndex;
     std::unique_ptr<SkStreamAsset> stream = this->openStream(&ttcIndex);
-    return std::make_unique<SkFontData>(std::move(stream), ttcIndex, axisValues.get(), axisCount);
+
+    return std::make_unique<SkFontData>(std::move(stream),
+                                        ttcIndex,
+                                        args.getPalette().index,
+                                        axisValues.get(),
+                                        axisCount,
+                                        args.getPalette().overrides,
+                                        args.getPalette().overrideCount);
 }
 
 void SkTypeface_FreeType::onFilterRec(SkScalerContextRec* rec) const {
@@ -942,10 +995,6 @@ SkScalerContext_FreeType::SkScalerContext_FreeType(sk_sp<SkTypeface_FreeType> ty
     fMatrix22.yx = SkScalarToFixed(-fMatrix22Scalar.getSkewY());
     fMatrix22.yy = SkScalarToFixed(fMatrix22Scalar.getScaleY());
 
-#ifdef FT_COLOR_H
-    FT_Palette_Select(fFaceRec->fFace.get(), 0, nullptr);
-#endif
-
     fFTSize = ftSize.release();
     fFace = fFaceRec->fFace.get();
     fDoLinearMetrics = linearMetrics;
@@ -1204,9 +1253,7 @@ void SkScalerContext_FreeType::generateMetrics(SkGlyph* glyph, SkArenaAlloc* all
 
         if (haveLayers) {
             glyph->fMaskFormat = SkMask::kARGB32_Format;
-#ifndef SK_IGNORE_GLYPH_HAS_PATH_FIX
             glyph->setPath(alloc, nullptr, false);
-#endif
             if (!(bounds.xMin < bounds.xMax && bounds.yMin < bounds.yMax)) {
                 bounds = { 0, 0, 0, 0 };
             }
@@ -1332,9 +1379,38 @@ void SkScalerContext_FreeType::generateImage(const SkGlyph& glyph) {
                                            SkFixedToScalar(glyph.getSubYFixed()));
         bitmapMatrix = &subpixelBitmapMatrix;
     }
-    generateGlyphImage(fFace, glyph, *bitmapMatrix);
+
+    SkSpan<SkColor> palette(fFaceRec->fSkPalette.get(), fFaceRec->fFTPaletteEntryCount);
+    generateGlyphImage(fFace, glyph, fLoadGlyphFlags, palette, *bitmapMatrix);
 }
 
+sk_sp<SkDrawable> SkScalerContext_FreeType::generateDrawable(const SkGlyph& glyph) {
+    // Because FreeType's FT_Face is stateful (not thread safe) and the current design of this
+    // SkTypeface and SkScalerContext does not work around this, it is necessary lock at least the
+    // FT_Face when using it (this implementation currently locks the whole FT_Library).
+    // It should be possible to draw the drawable straight out of the FT_Face. However, this would
+    // mean locking each time any such drawable is drawn. To avoid locking, this implementation
+    // creates drawables backed as pictures so that they can be played back later without locking.
+    SkAutoMutexExclusive  ac(f_t_mutex());
+
+    if (this->setupSize()) {
+        sk_bzero(glyph.fImage, glyph.imageSize());
+        return nullptr;
+    }
+
+    FT_Error err = FT_Load_Glyph(fFace, glyph.getGlyphID(), fLoadGlyphFlags);
+    if (err != 0) {
+        SK_TRACEFTR(err, "SkScalerContext_FreeType::generateDrawable: FT_Load_Glyph(glyph:%d "
+                     "width:%d height:%d rb:%zu flags:%d) failed.",
+                     glyph.getGlyphID(), glyph.width(), glyph.height(), glyph.rowBytes(),
+                     fLoadGlyphFlags);
+        return nullptr;
+    }
+
+    emboldenIfNeeded(fFace, fFace->glyph, glyph.getGlyphID());
+    SkSpan<SkColor> palette(fFaceRec->fSkPalette.get(), fFaceRec->fFTPaletteEntryCount);
+    return generateGlyphDrawable(fFace, glyph, fLoadGlyphFlags, palette);
+}
 
 bool SkScalerContext_FreeType::generatePath(const SkGlyph& glyph, SkPath* path) {
     SkASSERT(path);
@@ -1795,6 +1871,16 @@ std::unique_ptr<SkFontData> SkTypeface_FreeType::makeFontData() const {
     return this->onMakeFontData();
 }
 
+void SkTypeface_FreeType::FontDataPaletteToDescriptorPalette(const SkFontData& fontData,
+                                                             SkFontDescriptor* desc) {
+    desc->setPaleteIndex(fontData.getPaletteIndex());
+    int paletteOverrideCount = fontData.getPaletteOverrideCount();
+    auto overrides = desc->setPaletteEntryOverrides(paletteOverrideCount);
+    for (int i = 0; i < paletteOverrideCount; ++i) {
+        overrides[i] = fontData.getPaletteOverrides()[i];
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -1880,9 +1966,13 @@ bool SkTypeface_FreeType::Scanner::scanFont(
         slant = SkFontStyle::kItalic_Slant;
     }
 
-    PS_FontInfoRec psFontInfo;
+    bool hasAxes = face->face_flags & FT_FACE_FLAG_MULTIPLE_MASTERS;
     TT_OS2* os2 = static_cast<TT_OS2*>(FT_Get_Sfnt_Table(face.get(), ft_sfnt_os2));
-    if (os2 && os2->version != 0xffff) {
+    bool hasOs2 = os2 && os2->version != 0xffff;
+
+    PS_FontInfoRec psFontInfo;
+
+    if (hasOs2) {
         weight = os2->usWeightClass;
         width = os2->usWidthClass;
 
@@ -1890,7 +1980,69 @@ bool SkTypeface_FreeType::Scanner::scanFont(
         if (SkToBool(os2->fsSelection & (1u << 9))) {
             slant = SkFontStyle::kOblique_Slant;
         }
-    } else if (0 == FT_Get_PS_Font_Info(face.get(), &psFontInfo) && psFontInfo.weight) {
+    }
+
+    // Let variable axes override properties from the OS/2 table.
+    if (hasAxes) {
+      AxisDefinitions axisDefinitions;
+      if (GetAxes(face.get(), &axisDefinitions)) {
+        size_t numAxes = axisDefinitions.size();
+        static constexpr SkFourByteTag wghtTag = SkSetFourByteTag('w', 'g', 'h', 't');
+        static constexpr SkFourByteTag wdthTag = SkSetFourByteTag('w', 'd', 't', 'h');
+        static constexpr SkFourByteTag slntTag = SkSetFourByteTag('s', 'l', 'n', 't');
+        std::optional<size_t> wghtIndex;
+        std::optional<size_t> wdthIndex;
+        std::optional<size_t> slntIndex;
+        for(size_t i = 0; i < numAxes; ++i) {
+          if (axisDefinitions[i].fTag == wghtTag) {
+              // Rough validity check, is there sufficient spread and are ranges
+              // within 0-1000.
+              int wghtRange = SkFixedToScalar(axisDefinitions[i].fMaximum) -
+                              SkFixedToScalar(axisDefinitions[i].fMinimum);
+              if (wghtRange > 5 && wghtRange <= 1000 &&
+                  SkFixedToScalar(axisDefinitions[i].fMaximum) <= 1000) {
+                  wghtIndex = i;
+              }
+          }
+          if (axisDefinitions[i].fTag == wdthTag) {
+              // Rough validity check, is there a spread and are ranges within
+              // 0-500.
+              int widthRange = SkFixedToScalar(axisDefinitions[i].fMaximum) -
+                               SkFixedToScalar(axisDefinitions[i].fMinimum);
+              if (widthRange > 0 && widthRange <= 500 &&
+                  SkFixedToScalar(axisDefinitions[i].fMaximum) <= 500)
+                  wdthIndex = i;
+          }
+          if (axisDefinitions[i].fTag == slntTag)
+            slntIndex = i;
+        }
+        SkAutoSTMalloc<4, FT_Fixed> coords(numAxes);
+        if ((wghtIndex || wdthIndex || slntIndex) &&
+            !FT_Get_Var_Design_Coordinates(face.get(), numAxes, coords.get())) {
+            if (wghtIndex) {
+                SkASSERT(*wghtIndex < numAxes);
+                weight = SkScalarRoundToInt(SkFixedToScalar(coords[*wghtIndex]));
+            }
+            if (wdthIndex) {
+                SkASSERT(*wdthIndex < numAxes);
+                SkScalar wdthValue = SkFixedToScalar(coords[*wdthIndex]);
+                width = SkFontDescriptor::SkFontStyleWidthForWidthAxisValue(wdthValue);
+            }
+            if (slntIndex) {
+                SkASSERT(*slntIndex < numAxes);
+                // https://docs.microsoft.com/en-us/typography/opentype/spec/dvaraxistag_slnt
+                // "Scale interpretation: Values can be interpreted as the angle,
+                // in counter-clockwise degrees, of oblique slant from whatever
+                // the designer considers to be upright for that font design."
+                if (SkFixedToScalar(coords[*slntIndex]) < 0) {
+                    slant = SkFontStyle::kOblique_Slant;
+                }
+            }
+        }
+      }
+    }
+
+    if (!hasOs2 && !hasAxes && 0 == FT_Get_PS_Font_Info(face.get(), &psFontInfo) && psFontInfo.weight) {
         static const struct {
             char const * const name;
             int const weight;

@@ -1146,6 +1146,10 @@ void SkXPSDevice::drawVertices(const SkVertices*, sk_sp<SkBlender>, const SkPain
     //TODO
 }
 
+void SkXPSDevice::drawCustomMesh(SkCustomMesh, sk_sp<SkBlender>, const SkPaint&) {
+    // TODO
+}
+
 void SkXPSDevice::drawPaint(const SkPaint& origPaint) {
     const SkRect r = SkRect::MakeSize(this->fCurrentCanvasSize);
 
@@ -1586,7 +1590,7 @@ void SkXPSDevice::drawPath(const SkPath& platonicPath,
         SkMask rasteredMask;
         if (SkDraw::DrawToMask(
                         *pixelPath,
-                        &clipIRect,
+                        clipIRect,
                         filter,  //just to compute how much to draw.
                         &matrix,
                         &rasteredMask,
@@ -1730,7 +1734,7 @@ HRESULT SkXPSDevice::CreateTypefaceUse(const SkFont& font,
     SkTypeface* typeface = font.getTypefaceOrDefault();
 
     //Check cache.
-    const SkFontID typefaceID = typeface->uniqueID();
+    const SkTypefaceID typefaceID = typeface->uniqueID();
     for (TypefaceUse& current : *this->fTopTypefaces) {
         if (current.typefaceId == typefaceID) {
             *typefaceUse = &current;
@@ -1892,7 +1896,9 @@ static bool text_must_be_pathed(const SkPaint& paint, const SkMatrix& matrix) {
     ;
 }
 
-void SkXPSDevice::onDrawGlyphRunList(const SkGlyphRunList& glyphRunList, const SkPaint& paint) {
+void SkXPSDevice::onDrawGlyphRunList(SkCanvas*,
+                                     const SkGlyphRunList& glyphRunList,
+                                     const SkPaint& paint) {
     SkASSERT(!glyphRunList.hasRSXForm());
 
     for (const auto& run : glyphRunList) {

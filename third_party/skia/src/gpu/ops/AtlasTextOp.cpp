@@ -32,6 +32,9 @@
 
 namespace skgpu::v1 {
 
+inline static constexpr int kVerticesPerGlyph = 4;
+inline static constexpr int kIndicesPerGlyph = 6;
+
 // If we have thread local, then cache memory for a single AtlasTextOp.
 #if !defined(STARBOARD)
 static thread_local void* gCache = nullptr;
@@ -513,14 +516,14 @@ GrOp::Owner AtlasTextOp::CreateOpTestingOnly(SurfaceDrawContext* sdc,
             rContext->priv().getSDFTControl(sdc->surfaceProps().isUseDeviceIndependentFonts());
 
     SkGlyphRunListPainter* painter = sdc->glyphRunPainter();
-    sk_sp<GrTextBlob> blob = GrTextBlob::Make(glyphRunList, skPaint, drawMatrix, control, painter);
+    sk_sp<GrTextBlob> blob = GrTextBlob::Make(
+            glyphRunList, skPaint, drawMatrix, false, control, painter);
 
-    if (blob->subRunList().isEmpty()) {
+    const GrAtlasSubRun* subRun = blob->testingOnlyFirstSubRun();
+    if (!subRun) {
         return nullptr;
     }
 
-    GrAtlasSubRun* subRun = blob->subRunList().front().testingOnly_atlasSubRun();
-    SkASSERT(subRun);
     GrOp::Owner op;
     std::tie(std::ignore, op) = subRun->makeAtlasTextOp(
             nullptr, mtxProvider, glyphRunList.origin(), skPaint, sdc, nullptr);

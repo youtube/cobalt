@@ -68,11 +68,10 @@ public:
     class ProgramImpl;
 
     /**
-     * Adds a key on the GrProcessorKeyBuilder calls onAddToKey(...) to get the specific subclass's
-     * key.
+     * Adds a key on the skgpu::KeyBuilder calls onAddToKey(...) to get the specific subclass's key.
      */
     void addToKey(const GrShaderCaps&,
-                  GrProcessorKeyBuilder*,
+                  skgpu::KeyBuilder*,
                   const GrSurfaceOrigin* originIfDstTexture,
                   bool usesInputAttachmentForDstRead) const;
 
@@ -145,10 +144,10 @@ protected:
 
 private:
     /**
-     * Adds a key on the GrProcessorKeyBuilder that reflects any variety in the code that may be
-     * emitted by the xfer processor subclass.
+     * Adds a key on the skgpu::KeyBuilder that reflects any variety in the code that may be emitted
+     * by the xfer processor subclass.
      */
-    virtual void onAddToKey(const GrShaderCaps&, GrProcessorKeyBuilder*) const = 0;
+    virtual void onAddToKey(const GrShaderCaps&, skgpu::KeyBuilder*) const = 0;
 
     /**
      * If we are not performing a dst read, returns whether the subclass will set a secondary
@@ -296,7 +295,7 @@ public:
                  const char* outputSecondary,
                  const SamplerHandle dstTextureSamplerHandle,
                  GrSurfaceOrigin dstTextureOrigin,
-                 const GrSwizzle& writeSwizzle)
+                 const skgpu::Swizzle& writeSwizzle)
                 : fXPFragBuilder(fragBuilder)
                 , fUniformHandler(uniformHandler)
                 , fShaderCaps(caps)
@@ -318,7 +317,7 @@ public:
         const char* fOutputSecondary;
         const SamplerHandle fDstTextureSamplerHandle;
         GrSurfaceOrigin fDstTextureOrigin;
-        GrSwizzle fWriteSwizzle;
+        skgpu::Swizzle fWriteSwizzle;
     };
     /**
      * This is similar to emitCode() in the base class, except it takes a full shader builder.
@@ -372,7 +371,7 @@ private:
     }
 
     virtual void emitWriteSwizzle(GrGLSLXPFragmentBuilder*,
-                                  const GrSwizzle&,
+                                  const skgpu::Swizzle&,
                                   const char* outColor,
                                   const char* outColorSecondary) const;
 

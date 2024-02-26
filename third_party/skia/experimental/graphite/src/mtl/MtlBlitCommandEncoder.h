@@ -8,6 +8,7 @@
 #ifndef skgpu_MtlBlitCommandEncoder_DEFINED
 #define skgpu_MtlBlitCommandEncoder_DEFINED
 
+#include "experimental/graphite/src/Resource.h"
 #include "include/core/SkRect.h"
 #include "include/core/SkRefCnt.h"
 #include "include/ports/SkCFObject.h"
@@ -19,13 +20,14 @@ namespace skgpu::mtl {
 /**
  * Wraps a MTLBlitCommandEncoder object
  */
-class BlitCommandEncoder : public SkRefCnt {
+class BlitCommandEncoder : public Resource {
 public:
-    static sk_sp<BlitCommandEncoder> Make(id<MTLCommandBuffer> commandBuffer) {
+    static sk_sp<BlitCommandEncoder> Make(const skgpu::Gpu* gpu,
+                                          id<MTLCommandBuffer> commandBuffer) {
         // Adding a retain here to keep our own ref separate from the autorelease pool
         sk_cfp<id<MTLBlitCommandEncoder>> encoder =
                 sk_ret_cfp<id<MTLBlitCommandEncoder>>([commandBuffer blitCommandEncoder]);
-        return sk_sp<BlitCommandEncoder>(new BlitCommandEncoder(std::move(encoder)));
+        return sk_sp<BlitCommandEncoder>(new BlitCommandEncoder(gpu, std::move(encoder)));
     }
 
     void pushDebugGroup(NSString* string) {
@@ -56,13 +58,34 @@ public:
                    destinationBytesPerImage: bufferRowBytes * srcRect.height()];
     }
 
+    void copyFromBuffer(id<MTLBuffer> buffer,
+                        size_t bufferOffset,
+                        size_t bufferRowBytes,
+                        id<MTLTexture> texture,
+                        SkIRect dstRect,
+                        unsigned int dstLevel) {
+        [(*fCommandEncoder) copyFromBuffer: buffer
+                              sourceOffset: bufferOffset
+                         sourceBytesPerRow: bufferRowBytes
+                       sourceBytesPerImage: bufferRowBytes * dstRect.height()
+                                sourceSize: MTLSizeMake(dstRect.width(), dstRect.height(), 1)
+                                 toTexture: texture
+                          destinationSlice: 0
+                          destinationLevel: dstLevel
+                         destinationOrigin: MTLOriginMake(dstRect.left(), dstRect.top(), 0)];
+    }
+
     void endEncoding() {
         [(*fCommandEncoder) endEncoding];
     }
 
 private:
-    BlitCommandEncoder(sk_cfp<id<MTLBlitCommandEncoder>> encoder)
-        : fCommandEncoder(std::move(encoder)) {}
+    BlitCommandEncoder(const skgpu::Gpu* gpu, sk_cfp<id<MTLBlitCommandEncoder>> encoder)
+        : Resource(gpu), fCommandEncoder(std::move(encoder)) {}
+
+    void onFreeGpuData() override {
+        fCommandEncoder.reset();
+    }
 
     sk_cfp<id<MTLBlitCommandEncoder>> fCommandEncoder;
 };

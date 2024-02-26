@@ -911,6 +911,12 @@ CanvasKit.onRuntimeInitialized = function() {
     return ta.slice(0, 2);
   };
 
+  CanvasKit.Picture.prototype.makeShader = function(tmx, tmy, mode, matr, rect) {
+    var mPtr = copy3x3MatrixToWasm(matr);
+    var rPtr = copyRectToWasm(rect);
+    return this._makeShader(tmx, tmy, mode, mPtr, rPtr);
+  };
+
   CanvasKit.PictureRecorder.prototype.beginRecording = function(bounds) {
     var bPtr = copyRectToWasm(bounds);
     return this._beginRecording(bPtr);
@@ -977,6 +983,16 @@ CanvasKit.onRuntimeInitialized = function() {
     var dpe = CanvasKit.PathEffect._MakeDash(ptr, intervals.length, phase);
     freeArraysThatAreNotMallocedByUsers(ptr, intervals);
     return dpe;
+  };
+
+  CanvasKit.PathEffect.MakeLine2D = function(width, matrix) {
+    var matrixPtr = copy3x3MatrixToWasm(matrix);
+    return CanvasKit.PathEffect._MakeLine2D(width, matrixPtr);
+  };
+
+  CanvasKit.PathEffect.MakePath2D = function(matrix, path) {
+    var matrixPtr = copy3x3MatrixToWasm(matrix);
+    return CanvasKit.PathEffect._MakePath2D(matrixPtr, path);
   };
 
   CanvasKit.Shader.MakeColor = function(color4f, colorSpace) {
@@ -1185,7 +1201,7 @@ CanvasKit.MakeImageFromCanvasImageSource = function(canvasImageSource) {
   memoizedCanvas2dElement.width = width;
   memoizedCanvas2dElement.height = height;
 
-  var ctx2d = memoizedCanvas2dElement.getContext('2d');
+  var ctx2d = memoizedCanvas2dElement.getContext('2d', {willReadFrequently: true});
   ctx2d.drawImage(canvasImageSource, 0, 0);
 
   var imageData = ctx2d.getImageData(0, 0, width, height);

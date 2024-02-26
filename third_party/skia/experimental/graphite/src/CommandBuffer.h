@@ -22,6 +22,8 @@ namespace skgpu {
 class Buffer;
 class Gpu;
 class GraphicsPipeline;
+class Resource;
+class Sampler;
 class Texture;
 class TextureProxy;
 
@@ -55,21 +57,25 @@ struct RenderPassDesc {
     // * input attachments
 };
 
+// specifies a single region for copying, either from buffer to texture, or vice versa
+struct BufferTextureCopyData {
+    size_t fBufferOffset;
+    size_t fBufferRowBytes;
+    SkIRect fRect;
+    unsigned int fMipLevel;
+};
+
 class CommandBuffer : public SkRefCnt, private DrawDispatcher {
 public:
-    ~CommandBuffer() override {
-        this->releaseResources();
-    }
+    ~CommandBuffer() override;
 
 #ifdef SK_DEBUG
     bool hasWork() { return fHasWork; }
 #endif
 
-    void trackResource(sk_sp<SkRefCnt> resource) {
-        fTrackedResources.push_back(std::move(resource));
-    }
+    void trackResource(sk_sp<Resource> resource);
 
-    void beginRenderPass(const RenderPassDesc&,
+    bool beginRenderPass(const RenderPassDesc&,
                          sk_sp<Texture> colorTexture,
                          sk_sp<Texture> resolveTexture,
                          sk_sp<Texture> depthStencilTexture);
@@ -84,6 +90,18 @@ public:
     void bindDrawBuffers(BindBufferInfo vertices,
                          BindBufferInfo instances,
                          BindBufferInfo indices) final;
+
+    struct TextureBindEntry {
+        sk_sp<Texture> fTexture;
+        unsigned int   fBindIndex;
+    };
+    void bindTextures(const TextureBindEntry* entries, int count);
+
+    struct SamplerBindEntry {
+        sk_sp<Sampler> fSampler;
+        unsigned int   fBindIndex;
+    };
+    void bindSamplers(const SamplerBindEntry* entries, int count);
 
     // TODO: do we want to handle multiple scissor rects and viewports?
     void setScissor(unsigned int left, unsigned int top, unsigned int width, unsigned int height) {
@@ -129,11 +147,15 @@ public:
     //---------------------------------------------------------------
     // Can only be used outside renderpasses
     //---------------------------------------------------------------
-    void copyTextureToBuffer(sk_sp<Texture>,
+    bool copyTextureToBuffer(sk_sp<Texture>,
                              SkIRect srcRect,
                              sk_sp<Buffer>,
                              size_t bufferOffset,
                              size_t bufferRowBytes);
+    bool copyBufferToTexture(sk_sp<Buffer>,
+                             sk_sp<Texture>,
+                             const BufferTextureCopyData*,
+                             int count);
 
 protected:
     CommandBuffer();
@@ -148,7 +170,7 @@ private:
                            sk_sp<Buffer> instanceBuffer, size_t instanceOffset);
     void bindIndexBuffer(sk_sp<Buffer> indexBuffer, size_t bufferOffset);
 
-    virtual void onBeginRenderPass(const RenderPassDesc&,
+    virtual bool onBeginRenderPass(const RenderPassDesc&,
                                    const Texture* colorTexture,
                                    const Texture* resolveTexture,
                                    const Texture* depthStencilTexture) = 0;
@@ -158,6 +180,9 @@ private:
     virtual void onBindVertexBuffers(const Buffer* vertexBuffer, size_t vertexOffset,
                                      const Buffer* instanceBuffer, size_t instanceOffset) = 0;
     virtual void onBindIndexBuffer(const Buffer* indexBuffer, size_t bufferOffset) = 0;
+
+    virtual void onBindTextures(const TextureBindEntry* entries, int count) = 0;
+    virtual void onBindSamplers(const SamplerBindEntry* entries, int count) = 0;
 
     virtual void onSetScissor(unsigned int left, unsigned int top,
                               unsigned int width, unsigned int height) = 0;
@@ -175,18 +200,22 @@ private:
                                         unsigned int indexCount, unsigned int baseVertex,
                                         unsigned int baseInstance, unsigned int instanceCount) = 0;
 
-    virtual void onCopyTextureToBuffer(const Texture*,
+    virtual bool onCopyTextureToBuffer(const Texture*,
                                        SkIRect srcRect,
                                        const Buffer*,
                                        size_t bufferOffset,
                                        size_t bufferRowBytes) = 0;
+    virtual bool onCopyBufferToTexture(const Buffer*,
+                                       const Texture*,
+                                       const BufferTextureCopyData*,
+                                       int count) = 0;
 
 #ifdef SK_DEBUG
     bool fHasWork = false;
 #endif
 
     inline static constexpr int kInitialTrackedResourcesCount = 32;
-    SkSTArray<kInitialTrackedResourcesCount, sk_sp<SkRefCnt>> fTrackedResources;
+    SkSTArray<kInitialTrackedResourcesCount, sk_sp<Resource>> fTrackedResources;
 };
 
 } // namespace skgpu

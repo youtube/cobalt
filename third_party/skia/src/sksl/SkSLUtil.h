@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "include/private/SkSLDefines.h"
+#include "src/core/SkSLTypeShared.h"
 #include "src/sksl/SkSLGLSL.h"
 #include "src/sksl/SkSLLexer.h"
 
@@ -162,10 +163,6 @@ struct ShaderCaps {
     // Rewrites matrix equality comparisons to avoid an Adreno driver bug. (skia:11308)
     bool rewriteMatrixComparisons() const { return fRewriteMatrixComparisons; }
 
-    // ANGLE disallows do loops altogether, and we're seeing crashes on Tegra3 with do loops in at
-    // least some cases.
-    bool canUseDoLoops() const { return fCanUseDoLoops; }
-
     // By default, SkSL pools IR nodes per-program. To debug memory corruption, it is sometimes
     // helpful to disable that feature.
     bool useNodePools() const { return fUseNodePools; }
@@ -233,7 +230,6 @@ struct ShaderCaps {
     bool fNoDefaultPrecisionForExternalSamplers = false;
     bool fRewriteMatrixVectorMultiply = false;
     bool fRewriteMatrixComparisons = false;
-    bool fCanUseDoLoops = true;
 
     // This controls behavior of the SkSL compiler, not the code we generate
     bool fUseNodePools = true;
@@ -256,7 +252,6 @@ public:
         result->fVersionDeclString = "#version 400";
         result->fShaderDerivativeSupport = true;
         result->fBuiltinDeterminantSupport = true;
-        result->fCanUseDoLoops = true;
         return result;
     }
 
@@ -416,7 +411,7 @@ private:
 };
 
 #if !defined(SKSL_STANDALONE) && SK_SUPPORT_GPU
-bool type_to_grsltype(const Context& context, const Type& type, GrSLType* outType);
+bool type_to_sksltype(const Context& context, const Type& type, SkSLType* outType);
 #endif
 
 void write_stringstream(const StringStream& d, OutputStream& out);

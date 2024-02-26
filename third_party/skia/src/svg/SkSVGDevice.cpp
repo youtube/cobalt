@@ -1071,7 +1071,9 @@ private:
              fHasConstY             = true;
 };
 
-void SkSVGDevice::onDrawGlyphRunList(const SkGlyphRunList& glyphRunList, const SkPaint& paint)  {
+void SkSVGDevice::onDrawGlyphRunList(SkCanvas* canvas,
+                                     const SkGlyphRunList& glyphRunList,
+                                     const SkPaint& paint)  {
     SkASSERT(!glyphRunList.hasRSXForm());
     const auto draw_as_path = (fFlags & SkSVGCanvas::kConvertTextToPaths_Flag) ||
                                paint.getPathEffect();
@@ -1101,5 +1103,9 @@ void SkSVGDevice::onDrawGlyphRunList(const SkGlyphRunList& glyphRunList, const S
 }
 
 void SkSVGDevice::drawVertices(const SkVertices*, sk_sp<SkBlender>, const SkPaint&) {
+    // todo
+}
+
+void SkSVGDevice::drawCustomMesh(SkCustomMesh, sk_sp<SkBlender>, const SkPaint&) {
     // todo
 }

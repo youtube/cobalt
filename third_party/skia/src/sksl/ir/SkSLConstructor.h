@@ -33,8 +33,8 @@ public:
         return false;
     }
 
-    String description() const override {
-        String result = this->type().description() + "(";
+    std::string description() const override {
+        std::string result = this->type().description() + "(";
         const char* separator = "";
         for (const std::unique_ptr<Expression>& arg : this->argumentSpan()) {
             result += separator;
@@ -68,13 +68,11 @@ public:
     }
 
     bool supportsConstantValues() const override { return true; }
-    skstd::optional<double> getConstantValue(int n) const override;
+    std::optional<double> getConstantValue(int n) const override;
 
     ComparisonResult compareConstant(const Expression& other) const override;
 
 private:
-    std::unique_ptr<Expression> fArgument;
-
     using INHERITED = Expression;
 };
 
@@ -125,15 +123,6 @@ public:
 
     const ExpressionArray& arguments() const {
         return fArguments;
-    }
-
-    ExpressionArray cloneArguments() const {
-        ExpressionArray clonedArgs;
-        clonedArgs.reserve_back(this->arguments().size());
-        for (const std::unique_ptr<Expression>& arg: this->arguments()) {
-            clonedArgs.push_back(arg->clone());
-        }
-        return clonedArgs;
     }
 
     SkSpan<std::unique_ptr<Expression>> argumentSpan() final {

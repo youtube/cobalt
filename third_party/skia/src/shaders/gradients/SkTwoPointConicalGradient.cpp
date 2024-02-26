@@ -5,11 +5,13 @@
  * found in the LICENSE file.
  */
 
+#include "src/shaders/gradients/SkTwoPointConicalGradient.h"
+
 #include "include/private/SkFloatingPoint.h"
+#include "src/core/SkKeyHelpers.h"
 #include "src/core/SkRasterPipeline.h"
 #include "src/core/SkReadBuffer.h"
 #include "src/core/SkWriteBuffer.h"
-#include "src/shaders/gradients/SkTwoPointConicalGradient.h"
 
 #include <utility>
 
@@ -229,7 +231,7 @@ skvm::F32 SkTwoPointConicalGradient::transformT(skvm::Builder* p, skvm::Uniforms
 
     if (fType == Type::kStrip) {
         float r = fRadius1 / this->getCenterX1();
-        skvm::F32 t = x + sqrt(p->splat(r*r) - y*y);
+        skvm::F32 t = x + sqrt(p->uniformF(uniforms->pushF(r*r)) - y*y);
 
         *mask = (t == t);   // t != NaN
         return t;
@@ -274,3 +276,18 @@ std::unique_ptr<GrFragmentProcessor> SkTwoPointConicalGradient::asFragmentProces
 }
 
 #endif
+
+void SkTwoPointConicalGradient::addToKey(SkShaderCodeDictionary* dict,
+                                         SkBackend backend,
+                                         SkPaintParamsKeyBuilder* builder,
+                                         SkUniformBlock* uniformBlock) const {
+    GradientShaderBlocks::GradientData data(kConical_GradientType,
+                                            fCenter1, fCenter2,
+                                            fRadius1, fRadius2,
+                                            fTileMode,
+                                            fColorCount,
+                                            fOrigColors4f,
+                                            fOrigPos);
+
+    GradientShaderBlocks::AddToKey(dict, backend, builder, uniformBlock, data);
+}

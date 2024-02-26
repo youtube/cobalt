@@ -6,15 +6,17 @@
  */
 
 #include "src/sksl/SkSLMangler.h"
+
+#include "include/private/SkStringView.h"
 #include "src/sksl/ir/SkSLSymbolTable.h"
 
 namespace SkSL {
 
-String Mangler::uniqueName(skstd::string_view baseName, SymbolTable* symbolTable) {
+std::string Mangler::uniqueName(std::string_view baseName, SymbolTable* symbolTable) {
     SkASSERT(symbolTable);
     // The inliner runs more than once, so the base name might already have been mangled and have a
     // prefix like "_123_x". Let's strip that prefix off to make the generated code easier to read.
-    if (baseName.starts_with("_")) {
+    if (skstd::starts_with(baseName, '_')) {
         // Determine if we have a string of digits.
         int offset = 1;
         while (isdigit(baseName[offset])) {
@@ -35,9 +37,10 @@ String Mangler::uniqueName(skstd::string_view baseName, SymbolTable* symbolTable
     // Append a unique numeric prefix to avoid name overlap. Check the symbol table to make sure
     // we're not reusing an existing name. (Note that within a single compilation pass, this check
     // isn't fully comprehensive, as code isn't always generated in top-to-bottom order.)
-    String uniqueName;
+    std::string uniqueName;
     for (;;) {
-        uniqueName = String::printf("_%d_%.*s", fCounter++, (int)baseName.size(), baseName.data());
+        uniqueName = SkSL::String::printf("_%d_%.*s", fCounter++,
+                                          (int)baseName.size(), baseName.data());
         if ((*symbolTable)[uniqueName] == nullptr) {
             break;
         }

@@ -9,7 +9,9 @@
 #include "include/core/SkBitmap.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkColor.h"
+#include "include/core/SkDrawable.h"
 #include "include/core/SkPath.h"
+#include "include/core/SkPictureRecorder.h"
 #include "include/effects/SkGradientShader.h"
 #include "include/private/SkColorData.h"
 #include "include/private/SkTo.h"
@@ -811,7 +813,7 @@ void colrv1_draw_glyph_with_path(SkCanvas* canvas, const SkSpan<SkColor>& palett
 void colrv1_transform(FT_Face face,
                       FT_COLR_Paint colrv1_paint,
                       SkCanvas* canvas,
-                      SkMatrix* out_transform = 0) {
+                      SkMatrix* out_transform = nullptr) {
     SkMatrix transform;
 
     SkASSERT(canvas || out_transform);
@@ -1235,10 +1237,56 @@ bool colrv1_start_glyph_bounds(SkMatrix *ctm,
 
 }  // namespace
 
-void SkScalerContext_FreeType_Base::generateGlyphImage(
-    FT_Face face,
-    const SkGlyph& glyph,
-    const SkMatrix& bitmapTransform)
+#ifdef FT_COLOR_H
+bool SkScalerContext_FreeType_Base::drawColorGlyph(FT_Face face,
+                                                   const SkGlyph& glyph,
+                                                   uint32_t loadGlyphFlags,
+                                                   SkSpan<SkColor> palette,
+                                                   SkCanvas* canvas) {
+    SkPaint paint;
+    paint.setAntiAlias(true);
+
+    // Only attempt to draw a COLRv1 glyph if FreeType is new enough to have the COLRv1 support.
+#ifdef TT_SUPPORT_COLRV1
+    VisitedSet visited_set;
+    if (colrv1_start_glyph(canvas, palette,
+                           fRec.fForegroundColor,
+                           face, glyph.getGlyphID(),
+                           FT_COLOR_INCLUDE_ROOT_TRANSFORM,
+                           &visited_set))
+    {
+        return true;
+    }
+#endif  // TT_SUPPORT_COLRV1
+
+    // If we didn't have colr v1 layers, try v0 layers.
+    bool haveLayers = false;
+    FT_LayerIterator layerIterator;
+    layerIterator.p = nullptr;
+    FT_UInt layerGlyphIndex = 0;
+    FT_UInt layerColorIndex = 0;
+    while (FT_Get_Color_Glyph_Layer(face, glyph.getGlyphID(), &layerGlyphIndex,
+                                    &layerColorIndex, &layerIterator)) {
+        haveLayers = true;
+        if (layerColorIndex == 0xFFFF) {
+            paint.setColor(fRec.fForegroundColor);
+        } else {
+            paint.setColor(palette[layerColorIndex]);
+        }
+        SkPath path;
+        if (this->generateFacePath(face, layerGlyphIndex, loadGlyphFlags, &path)) {
+            canvas->drawPath(path, paint);
+        }
+    }
+    return haveLayers;
+}
+#endif  // FT_COLOR_H
+
+void SkScalerContext_FreeType_Base::generateGlyphImage(FT_Face face,
+                                                       const SkGlyph& glyph,
+                                                       uint32_t loadGlyphFlags,
+                                                       SkSpan<SkColor> customPalette,
+                                                       const SkMatrix& bitmapTransform)
 {
     const bool doBGR = SkToBool(fRec.fFlags & SkScalerContext::kLCD_BGROrder_Flag);
     const bool doVert = SkToBool(fRec.fFlags & SkScalerContext::kLCD_Vertical_Flag);
@@ -1281,76 +1329,12 @@ void SkScalerContext_FreeType_Base::generateGlyphImage(
                                      SkFixedToScalar(glyph.getSubYFixed()));
                 }
 
-                SkPaint paint;
-                paint.setAntiAlias(true);
-
-                FT_Palette_Data palette_data;
-                FT_Error err = FT_Palette_Data_Get(face, &palette_data);
-                if (err) {
-                    SK_TRACEFTR(err, "Could not get palette data from %s fontFace.",
-                                face->family_name);
-                    return;
-                }
-
-                SkAutoTArray<SkColor> originalPalette;
-
-                FT_Color* ftPalette;
-                err = FT_Palette_Select(face, 0, &ftPalette);
-                if (err) {
-                    SK_TRACEFTR(err, "Could not get palette colors from %s fontFace.",
-                                face->family_name);
-                    return;
-                }
-                originalPalette.reset(palette_data.num_palette_entries);
-                for (int i = 0; i < palette_data.num_palette_entries; ++i) {
-                    originalPalette[i] = SkColorSetARGB(ftPalette[i].alpha,
-                                                        ftPalette[i].red,
-                                                        ftPalette[i].green,
-                                                        ftPalette[i].blue);
-                }
-                SkSpan<SkColor> paletteSpan(originalPalette.data(),
-                                            palette_data.num_palette_entries);
-
-                FT_Bool haveLayers = false;
-
-#ifdef TT_SUPPORT_COLRV1
-                // Only attempt to draw COLRv1 glyph is FreeType is new enough
-                // to have the COLRv1 additions, as indicated by the
-                // TT_SUPPORT_COLRV1 flag defined by the FreeType headers in
-                // that case.
-                VisitedSet visited_set;
-                haveLayers = colrv1_start_glyph(&canvas, paletteSpan,
-                                                fRec.fForegroundColor,
-                                                face, glyph.getGlyphID(),
-                                                FT_COLOR_INCLUDE_ROOT_TRANSFORM,
-                                                &visited_set);
-#else
-                haveLayers = false;
-#endif
-                if (!haveLayers) {
-                    // If we didn't have colr v1 layers, try v0 layers.
-                    FT_LayerIterator layerIterator;
-                    layerIterator.p = NULL;
-                    FT_UInt layerGlyphIndex = 0;
-                    FT_UInt layerColorIndex = 0;
-                    while (FT_Get_Color_Glyph_Layer(face, glyph.getGlyphID(), &layerGlyphIndex,
-                                                    &layerColorIndex, &layerIterator)) {
-                        haveLayers = true;
-                        if (layerColorIndex == 0xFFFF) {
-                            paint.setColor(fRec.fForegroundColor);
-                        } else {
-                            paint.setColor(paletteSpan[layerColorIndex]);
-                        }
-                        SkPath path;
-                        if (this->generateFacePath(face, layerGlyphIndex, &path)) {
-                            canvas.drawPath(path, paint);
-                        }
-                    }
-                }
+                bool haveLayers = this->drawColorGlyph(face, glyph, loadGlyphFlags,
+                                                       customPalette, &canvas);
 
                 if (!haveLayers) {
-                    SK_TRACEFTR(err, "Could not get layers (neither v0, nor v1) from %s fontFace.",
-                                face->family_name);
+                    SkDebugf("Could not get layers (neither v0, nor v1) from %s fontFace.",
+                             face->family_name);
                     return;
                 }
             } else
@@ -1664,12 +1648,14 @@ bool generateGlyphPathStatic(FT_Face face, SkPath* path) {
     return true;
 }
 
-bool generateFacePathStatic(FT_Face face, SkGlyphID glyphID, SkPath* path) {
-    uint32_t flags = 0; //fLoadGlyphFlags;
-    flags |= FT_LOAD_NO_BITMAP; // ignore embedded bitmaps so we're sure to get the outline
-    flags &= ~FT_LOAD_RENDER;   // don't scan convert (we just want the outline)
+bool generateFacePathStatic(FT_Face face, SkGlyphID glyphID, uint32_t loadGlyphFlags, SkPath* path){
+#ifdef SK_IGNORE_FREETYPE_COLRV0_LOAD_FLAGS_FIX
+    loadGlyphFlags = 0;
+#endif
+    loadGlyphFlags |= FT_LOAD_NO_BITMAP; // ignore embedded bitmaps so we're sure to get the outline
+    loadGlyphFlags &= ~FT_LOAD_RENDER;   // don't scan convert (we just want the outline)
 
-    FT_Error err = FT_Load_Glyph(face, glyphID, flags);
+    FT_Error err = FT_Load_Glyph(face, glyphID, loadGlyphFlags);
     if (err != 0) {
         path->reset();
         return false;
@@ -1687,16 +1673,17 @@ bool generateFacePathCOLRv1(FT_Face face, SkGlyphID glyphID, SkPath* path) {
     uint32_t flags = 0;
     flags |= FT_LOAD_NO_BITMAP; // ignore embedded bitmaps so we're sure to get the outline
     flags &= ~FT_LOAD_RENDER;   // don't scan convert (we just want the outline)
-
+    flags |= FT_LOAD_NO_HINTING;
+    flags |= FT_LOAD_NO_AUTOHINT;
     flags |= FT_LOAD_IGNORE_TRANSFORM;
-
 
     using DoneFTSize = SkFunctionWrapper<decltype(FT_Done_Size), FT_Done_Size>;
     std::unique_ptr<std::remove_pointer_t<FT_Size>, DoneFTSize> unscaledFtSize([face]() -> FT_Size {
         FT_Size size;
         FT_Error err = FT_New_Size(face, &size);
         if (err != 0) {
-            SK_TRACEFTR(err, "FT_New_Size(%s) failed in generateFacePathStaticCOLRv1.", face->family_name);
+            SK_TRACEFTR(err, "FT_New_Size(%s) failed in generateFacePathStaticCOLRv1.",
+                        face->family_name);
             return nullptr;
         }
         return size;
@@ -1752,8 +1739,9 @@ bool SkScalerContext_FreeType_Base::generateGlyphPath(FT_Face face, SkPath* path
 
 bool SkScalerContext_FreeType_Base::generateFacePath(FT_Face face,
                                                      SkGlyphID glyphID,
+                                                     uint32_t loadGlyphFlags,
                                                      SkPath* path) {
-    return generateFacePathStatic(face, glyphID, path);
+    return generateFacePathStatic(face, glyphID, loadGlyphFlags, path);
 }
 
 bool SkScalerContext_FreeType_Base::computeColrV1GlyphBoundingBox(FT_Face face,
@@ -1780,4 +1768,19 @@ bool SkScalerContext_FreeType_Base::computeColrV1GlyphBoundingBox(FT_Face face,
     SkASSERT(false);
     return false;
 #endif
+}
+
+sk_sp<SkDrawable> SkScalerContext_FreeType_Base::generateGlyphDrawable(
+        FT_Face face, const SkGlyph& glyph, uint32_t loadGlyphFlags, SkSpan<SkColor> palette) {
+#ifdef FT_COLOR_H
+    if (face->glyph->format == FT_GLYPH_FORMAT_OUTLINE && glyph.isColor()) {
+        SkPictureRecorder recorder;
+        SkCanvas* recordingCanvas = recorder.beginRecording(SkRect::Make(glyph.mask().fBounds));
+        if (!this->drawColorGlyph(face, glyph, loadGlyphFlags, palette, recordingCanvas)) {
+            return nullptr;
+        }
+        return recorder.finishRecordingAsDrawable();
+    }
+#endif  // FT_COLOR_H
+    return nullptr;
 }

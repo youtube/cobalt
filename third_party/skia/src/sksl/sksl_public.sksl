@@ -99,6 +99,8 @@ $genHType smoothstep($genHType edge0, $genHType edge1, $genHType x);
 $genHType smoothstep(half      edge0, half      edge1, $genHType x);
 
 // 8.3 : Common Functions (GLSL ES 3.0)
+$es3 $genIType abs($genIType x);
+$es3 $genIType sign($genIType x);
 $es3 $genIType floatBitsToInt ($genType  value);
 $es3 $genUType floatBitsToUint($genType  value);
 $es3 $genType  intBitsToFloat ($genIType value);
@@ -231,6 +233,10 @@ $es3 $genHType fwidth($genHType p);
 // The max() guards against division by zero when the incoming color is transparent black
 half4  unpremul(half4  color) { return half4 (color.rgb / max(color.a, 0.0001), color.a); }
 float4 unpremul(float4 color) { return float4(color.rgb / max(color.a, 0.0001), color.a); }
+
+// Color space transformation, between the working (destination) space and fixed (known) spaces:
+half3 toLinearSrgb(half3 color);
+half3 fromLinearSrgb(half3 color);
 
 // SkSL intrinsics that reflect Skia's C++ object model:
 half4 $eval(float2 coords, shader s);

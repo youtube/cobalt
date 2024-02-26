@@ -38,7 +38,7 @@ public:
     }
 
     GrSurfaceProxy* proxy() const { return fAtlasProxy.get(); }
-    const GrSwizzle& atlasSwizzle() const { return fAtlasSwizzle; }
+    const skgpu::Swizzle& atlasSwizzle() const { return fAtlasSwizzle; }
 
     // Returns whether the two helpers can be batched together in a single draw.
     bool isCompatible(const AtlasInstancedHelper& helper) {
@@ -49,9 +49,7 @@ public:
     }
 
     // Adds bits to the shader key that uniquely identify this specific helper's shader code.
-    void getKeyBits(GrProcessorKeyBuilder* b) const {
-        b->addBits(kNumShaderFlags, (int)fShaderFlags, "atlasFlags");
-    }
+    void getKeyBits(KeyBuilder* b) const;
 
     // Appends the instanced input attribs to the back of the array that we will need in order to
     // locate our path in the atlas.
@@ -91,7 +89,7 @@ public:
 
 private:
     const sk_sp<GrSurfaceProxy> fAtlasProxy;
-    const GrSwizzle fAtlasSwizzle;
+    const skgpu::Swizzle fAtlasSwizzle;
     const ShaderFlags fShaderFlags;
 };
 

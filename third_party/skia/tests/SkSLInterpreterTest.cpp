@@ -8,8 +8,8 @@
 #include "include/core/SkM44.h"
 #include "src/sksl/SkSLCompiler.h"
 #include "src/sksl/codegen/SkSLVMCodeGenerator.h"
-#include "src/sksl/codegen/SkVMDebugTrace.h"
 #include "src/sksl/ir/SkSLExternalFunction.h"
+#include "src/sksl/tracing/SkVMDebugTrace.h"
 #include "src/utils/SkJSON.h"
 
 #include "tests/Test.h"
@@ -24,14 +24,14 @@ struct ProgramBuilder {
         // For convenience, so we can test functions other than (and not called by) main.
         settings.fRemoveDeadFunctions = false;
 
-        fProgram = fCompiler.convertProgram(SkSL::ProgramKind::kGeneric, SkSL::String(src),
+        fProgram = fCompiler.convertProgram(SkSL::ProgramKind::kGeneric, std::string(src),
                                             settings);
         if (!fProgram) {
             ERRORF(r, "Program failed to compile:\n%s\n%s\n", src, fCompiler.errorText().c_str());
         }
     }
 
-    operator bool() const { return fProgram != nullptr; }
+    explicit operator bool() const { return fProgram != nullptr; }
     SkSL::Program& operator*() { return *fProgram; }
 
     SkSL::ShaderCaps fCaps;
@@ -628,7 +628,7 @@ static void expect_failure(skiatest::Reporter* r, const char* src) {
     SkSL::Compiler compiler(&caps);
     SkSL::Program::Settings settings;
     auto program = compiler.convertProgram(SkSL::ProgramKind::kGeneric,
-                                           SkSL::String(src), settings);
+                                           std::string(src), settings);
     REPORTER_ASSERT(r, !program);
 }
 
@@ -900,7 +900,7 @@ DEF_TEST(SkSLInterpreterExternalFunction, r) {
     externalFunctions.push_back(std::make_unique<ExternalSqrt>("externalSqrt", compiler));
     settings.fExternalFunctions = &externalFunctions;
     std::unique_ptr<SkSL::Program> program = compiler.convertProgram(
-            SkSL::ProgramKind::kGeneric, SkSL::String(src), settings);
+            SkSL::ProgramKind::kGeneric, std::string(src), settings);
     REPORTER_ASSERT(r, program);
 
     const SkSL::FunctionDefinition* main = SkSL::Program_GetFunction(*program, "main");
@@ -959,7 +959,7 @@ DEF_TEST(SkSLInterpreterExternalTable, r) {
     externalFunctions.push_back(std::make_unique<ExternalTable>("table", compiler, &u));
     settings.fExternalFunctions = &externalFunctions;
     std::unique_ptr<SkSL::Program> program = compiler.convertProgram(
-            SkSL::ProgramKind::kGeneric, SkSL::String(src), settings);
+            SkSL::ProgramKind::kGeneric, std::string(src), settings);
     REPORTER_ASSERT(r, program);
 
     const SkSL::FunctionDefinition* main = SkSL::Program_GetFunction(*program, "main");
@@ -1004,7 +1004,7 @@ int main() {
 )";
     skvm::Builder b;
     std::unique_ptr<SkSL::Program> program = compiler.convertProgram(SkSL::ProgramKind::kGeneric,
-                                                                     SkSL::String(kSrc), settings);
+                                                                     std::string(kSrc), settings);
     REPORTER_ASSERT(r, program);
 
     const SkSL::FunctionDefinition* main = SkSL::Program_GetFunction(*program, "main");
@@ -1020,7 +1020,7 @@ int main() {
     debugTrace.dump(&streamDump);
 
     sk_sp<SkData> dataDump = streamDump.detachAsData();
-    skstd::string_view trace{static_cast<const char*>(dataDump->data()), dataDump->size()};
+    std::string_view trace{static_cast<const char*>(dataDump->data()), dataDump->size()};
 
     REPORTER_ASSERT(r, result == 40);
     REPORTER_ASSERT(r, trace ==
@@ -1047,101 +1047,123 @@ F0 = int main()
 F1 = bool less_than(float left, int right)
 
 enter int main()
-  line 11
-  a[0].x = 0
-  a[0].y = 0
-  a[1].x = 0
-  a[1].y = 0
-  line 12
-  loop = 10
-  line 13
-  v.x = 10
-  v.y = 11
-  v.z = 12
-  v.w = 13
-  line 14
-  m[0][0] = 10
-  m[0][1] = 11
-  m[1][0] = 12
-  m[1][1] = 13
-  line 15
-  a[0].x = 10
-  a[0].y = 11
-  line 15
-  a[1].x = 12
-  a[1].y = 13
-  line 16
-  enter bool less_than(float left, int right)
-    left = 10
-    right = 20
-    line 2
-    comparison = true
-    line 3
-    line 4
-  exit bool less_than(float left, int right)
-  [less_than].result = true
-  function_result = true
-  line 12
-  loop = 20
-  line 13
-  v.x = 20
-  v.y = 21
-  v.z = 22
-  v.w = 23
-  line 14
-  m[0][0] = 20
-  m[0][1] = 21
-  m[1][0] = 22
-  m[1][1] = 23
-  line 15
-  a[0].x = 20
-  a[0].y = 21
-  line 15
-  a[1].x = 22
-  a[1].y = 23
-  line 16
-  enter bool less_than(float left, int right)
-    left = 20
-    right = 20
-    line 2
-    comparison = false
-    line 3
-    line 6
-  exit bool less_than(float left, int right)
-  [less_than].result = false
-  function_result = false
-  line 12
-  loop = 30
-  line 13
-  v.x = 30
-  v.y = 31
-  v.z = 32
-  v.w = 33
-  line 14
-  m[0][0] = 30
-  m[0][1] = 31
-  m[1][0] = 32
-  m[1][1] = 33
-  line 15
-  a[0].x = 30
-  a[0].y = 31
-  line 15
-  a[1].x = 32
-  a[1].y = 33
-  line 16
-  enter bool less_than(float left, int right)
-    left = 30
-    right = 20
-    line 2
-    comparison = false
-    line 3
-    line 6
-  exit bool less_than(float left, int right)
-  [less_than].result = false
-  function_result = false
-  line 12
-  line 18
+  scope +1
+   line 11
+   a[0].x = 0
+   a[0].y = 0
+   a[1].x = 0
+   a[1].y = 0
+   line 12
+   scope +1
+    loop = 10
+    scope +1
+     line 13
+     v.x = 10
+     v.y = 11
+     v.z = 12
+     v.w = 13
+     line 14
+     m[0][0] = 10
+     m[0][1] = 11
+     m[1][0] = 12
+     m[1][1] = 13
+     line 15
+     a[0].x = 10
+     a[0].y = 11
+     line 15
+     a[1].x = 12
+     a[1].y = 13
+     line 16
+     enter bool less_than(float left, int right)
+       left = 10
+       right = 20
+       scope +1
+        line 2
+        comparison = true
+        line 3
+        scope +1
+         line 4
+         [less_than].result = true
+        scope -1
+       scope -1
+     exit bool less_than(float left, int right)
+     function_result = true
+    scope -1
+    line 12
+    loop = 20
+    scope +1
+     line 13
+     v.x = 20
+     v.y = 21
+     v.z = 22
+     v.w = 23
+     line 14
+     m[0][0] = 20
+     m[0][1] = 21
+     m[1][0] = 22
+     m[1][1] = 23
+     line 15
+     a[0].x = 20
+     a[0].y = 21
+     line 15
+     a[1].x = 22
+     a[1].y = 23
+     line 16
+     enter bool less_than(float left, int right)
+       left = 20
+       right = 20
+       scope +1
+        line 2
+        comparison = false
+        line 3
+        scope +1
+         line 6
+         [less_than].result = false
+        scope -1
+       scope -1
+     exit bool less_than(float left, int right)
+     function_result = false
+    scope -1
+    line 12
+    loop = 30
+    scope +1
+     line 13
+     v.x = 30
+     v.y = 31
+     v.z = 32
+     v.w = 33
+     line 14
+     m[0][0] = 30
+     m[0][1] = 31
+     m[1][0] = 32
+     m[1][1] = 33
+     line 15
+     a[0].x = 30
+     a[0].y = 31
+     line 15
+     a[1].x = 32
+     a[1].y = 33
+     line 16
+     enter bool less_than(float left, int right)
+       left = 30
+       right = 20
+       scope +1
+        line 2
+        comparison = false
+        line 3
+        scope +1
+         line 6
+         [less_than].result = false
+        scope -1
+       scope -1
+     exit bool less_than(float left, int right)
+     function_result = false
+    scope -1
+    line 12
+   scope -1
+   line 18
+   [main].result = 40
+  scope -1
 exit int main()
-[main].result = 40
 )", "Trace output does not match expectation:\n%.*s\n", (int)trace.size(), trace.data());
 }

@@ -6,6 +6,7 @@
  */
 
 #include "include/core/SkTypes.h"
+#include "include/private/SkStringView.h"
 #include "src/sksl/SkSLContext.h"
 #include "src/sksl/SkSLOperators.h"
 #include "src/sksl/SkSLProgramSettings.h"
@@ -95,44 +96,55 @@ bool Operator::isOperator() const {
 
 const char* Operator::operatorName() const {
     switch (this->kind()) {
-        case Kind::TK_PLUS:         return "+";
-        case Kind::TK_MINUS:        return "-";
-        case Kind::TK_STAR:         return "*";
-        case Kind::TK_SLASH:        return "/";
-        case Kind::TK_PERCENT:      return "%";
-        case Kind::TK_SHL:          return "<<";
-        case Kind::TK_SHR:          return ">>";
+        case Kind::TK_PLUS:         return " + ";
+        case Kind::TK_MINUS:        return " - ";
+        case Kind::TK_STAR:         return " * ";
+        case Kind::TK_SLASH:        return " / ";
+        case Kind::TK_PERCENT:      return " % ";
+        case Kind::TK_SHL:          return " << ";
+        case Kind::TK_SHR:          return " >> ";
         case Kind::TK_LOGICALNOT:   return "!";
-        case Kind::TK_LOGICALAND:   return "&&";
-        case Kind::TK_LOGICALOR:    return "||";
-        case Kind::TK_LOGICALXOR:   return "^^";
+        case Kind::TK_LOGICALAND:   return " && ";
+        case Kind::TK_LOGICALOR:    return " || ";
+        case Kind::TK_LOGICALXOR:   return " ^^ ";
         case Kind::TK_BITWISENOT:   return "~";
-        case Kind::TK_BITWISEAND:   return "&";
-        case Kind::TK_BITWISEOR:    return "|";
-        case Kind::TK_BITWISEXOR:   return "^";
-        case Kind::TK_EQ:           return "=";
-        case Kind::TK_EQEQ:         return "==";
-        case Kind::TK_NEQ:          return "!=";
-        case Kind::TK_LT:           return "<";
-        case Kind::TK_GT:           return ">";
-        case Kind::TK_LTEQ:         return "<=";
-        case Kind::TK_GTEQ:         return ">=";
-        case Kind::TK_PLUSEQ:       return "+=";
-        case Kind::TK_MINUSEQ:      return "-=";
-        case Kind::TK_STAREQ:       return "*=";
-        case Kind::TK_SLASHEQ:      return "/=";
-        case Kind::TK_PERCENTEQ:    return "%=";
-        case Kind::TK_SHLEQ:        return "<<=";
-        case Kind::TK_SHREQ:        return ">>=";
-        case Kind::TK_BITWISEANDEQ: return "&=";
-        case Kind::TK_BITWISEOREQ:  return "|=";
-        case Kind::TK_BITWISEXOREQ: return "^=";
+        case Kind::TK_BITWISEAND:   return " & ";
+        case Kind::TK_BITWISEOR:    return " | ";
+        case Kind::TK_BITWISEXOR:   return " ^ ";
+        case Kind::TK_EQ:           return " = ";
+        case Kind::TK_EQEQ:         return " == ";
+        case Kind::TK_NEQ:          return " != ";
+        case Kind::TK_LT:           return " < ";
+        case Kind::TK_GT:           return " > ";
+        case Kind::TK_LTEQ:         return " <= ";
+        case Kind::TK_GTEQ:         return " >= ";
+        case Kind::TK_PLUSEQ:       return " += ";
+        case Kind::TK_MINUSEQ:      return " -= ";
+        case Kind::TK_STAREQ:       return " *= ";
+        case Kind::TK_SLASHEQ:      return " /= ";
+        case Kind::TK_PERCENTEQ:    return " %= ";
+        case Kind::TK_SHLEQ:        return " <<= ";
+        case Kind::TK_SHREQ:        return " >>= ";
+        case Kind::TK_BITWISEANDEQ: return " &= ";
+        case Kind::TK_BITWISEOREQ:  return " |= ";
+        case Kind::TK_BITWISEXOREQ: return " ^= ";
         case Kind::TK_PLUSPLUS:     return "++";
         case Kind::TK_MINUSMINUS:   return "--";
-        case Kind::TK_COMMA:        return ",";
+        case Kind::TK_COMMA:        return ", ";
         default:
             SK_ABORT("unsupported operator: %d\n", (int) fKind);
     }
+}
+
+std::string_view Operator::tightOperatorName() const {
+    std::string_view name = this->operatorName();
+    if (skstd::starts_with(name, ' ')) {
+        name.remove_prefix(1);
+    }
+    if (skstd::ends_with(name, ' ')) {
+        name.remove_suffix(1);
+    }
+    return name;
 }
 
 bool Operator::isAssignment() const {
@@ -230,7 +242,7 @@ bool Operator::isValidForMatrixOrVector() const {
     }
 }
 
-bool Operator::isMatrixMultiply(const Type& left, const Type& right) {
+bool Operator::isMatrixMultiply(const Type& left, const Type& right) const {
     if (this->kind() != Token::Kind::TK_STAR && this->kind() != Token::Kind::TK_STAREQ) {
         return false;
     }
@@ -249,7 +261,7 @@ bool Operator::determineBinaryType(const Context& context,
                                    const Type& right,
                                    const Type** outLeftType,
                                    const Type** outRightType,
-                                   const Type** outResultType) {
+                                   const Type** outResultType) const {
     const bool allowNarrowing = context.fConfig->fSettings.fAllowNarrowingConversions;
     switch (this->kind()) {
         case Token::Kind::TK_EQ:  // left = right

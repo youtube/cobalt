@@ -19,10 +19,7 @@
 #include <string.h>
 #include <atomic>
 #include <string>
-
-namespace skstd {
-    class string_view;
-}
+#include <string_view>
 
 /*  Some helper functions for C strings */
 static inline bool SkStrStartsWith(const char string[], const char prefixStr[]) {
@@ -126,7 +123,7 @@ public:
                 SkString(const SkString&);
                 SkString(SkString&&);
     explicit    SkString(const std::string&);
-    explicit    SkString(skstd::string_view);
+    explicit    SkString(std::string_view);
                 ~SkString();
 
     bool        isEmpty() const { return 0 == fRec->fLength; }
@@ -220,11 +217,11 @@ public:
     void prependScalar(SkScalar value) { this->insertScalar((size_t)-1, value); }
 
     void printf(const char format[], ...) SK_PRINTF_LIKE(2, 3);
-    void printVAList(const char format[], va_list);
+    void printVAList(const char format[], va_list) SK_PRINTF_LIKE(2, 0);
     void appendf(const char format[], ...) SK_PRINTF_LIKE(2, 3);
-    void appendVAList(const char format[], va_list);
+    void appendVAList(const char format[], va_list) SK_PRINTF_LIKE(2, 0);
     void prependf(const char format[], ...) SK_PRINTF_LIKE(2, 3);
-    void prependVAList(const char format[], va_list);
+    void prependVAList(const char format[], va_list) SK_PRINTF_LIKE(2, 0);
 
     void remove(size_t offset, size_t length);
 

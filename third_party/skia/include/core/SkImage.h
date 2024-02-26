@@ -10,7 +10,6 @@
 
 #include "include/core/SkImageEncoder.h"
 #include "include/core/SkImageInfo.h"
-#include "include/core/SkM44.h"
 #include "include/core/SkRefCnt.h"
 #include "include/core/SkSamplingOptions.h"
 #include "include/core/SkScalar.h"
@@ -185,7 +184,7 @@ public:
         example: https://fiddle.skia.org/c/@Image_MakeFromEncoded
     */
     static sk_sp<SkImage> MakeFromEncoded(sk_sp<SkData> encoded,
-                                          skstd::optional<SkAlphaType> alphaType = skstd::nullopt);
+                                          std::optional<SkAlphaType> alphaType = std::nullopt);
 
     /*
      * Experimental:

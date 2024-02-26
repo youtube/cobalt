@@ -17,7 +17,7 @@ class GrResourceProvider;
     data members or virtual methods. */
 class GrSurfaceProxyPriv {
 public:
-    void computeScratchKey(const GrCaps& caps, GrScratchKey* key) const {
+    void computeScratchKey(const GrCaps& caps, skgpu::ScratchKey* key) const {
         return fProxy->computeScratchKey(caps, key);
     }
 
@@ -46,8 +46,6 @@ public:
 
 private:
     explicit GrSurfaceProxyPriv(GrSurfaceProxy* proxy) : fProxy(proxy) {}
-    // Required until C++17 copy elision
-    GrSurfaceProxyPriv(const GrSurfaceProxyPriv&) = default;
     GrSurfaceProxyPriv& operator=(const GrSurfaceProxyPriv&) = delete;
 
     // No taking addresses of this type.

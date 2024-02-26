@@ -31,16 +31,18 @@ public:
     VarDeclaration(const Variable* var,
                    const Type* baseType,
                    int arraySize,
-                   std::unique_ptr<Expression> value)
+                   std::unique_ptr<Expression> value,
+                   bool isClone = false)
             : INHERITED(var->fLine, kStatementKind)
             , fVar(var)
             , fBaseType(*baseType)
             , fArraySize(arraySize)
-            , fValue(std::move(value)) {}
+            , fValue(std::move(value))
+            , fIsClone(isClone) {}
 
     ~VarDeclaration() override {
         // Unhook this VarDeclaration from its associated Variable, since we're being deleted.
-        if (fVar) {
+        if (fVar && !fIsClone) {
             fVar->detachDeadVarDeclaration();
         }
     }
@@ -89,7 +91,7 @@ public:
 
     std::unique_ptr<Statement> clone() const override;
 
-    String description() const override;
+    std::string description() const override;
 
 private:
     static bool ErrorCheckAndCoerce(const Context& context, const Variable& var,
@@ -99,6 +101,8 @@ private:
     const Type& fBaseType;
     int fArraySize;  // zero means "not an array"
     std::unique_ptr<Expression> fValue;
+    // if this VarDeclaration is a clone, it doesn't actually own the associated variable
+    bool fIsClone;
 
     friend class IRGenerator;
 
@@ -131,7 +135,7 @@ public:
         return std::make_unique<GlobalVarDeclaration>(this->declaration()->clone());
     }
 
-    String description() const override {
+    std::string description() const override {
         return this->declaration()->description();
     }
 

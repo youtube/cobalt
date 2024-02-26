@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "include/core/SkDrawable.h"
 #include "include/private/SkSpinlock.h"
 #include "include/private/SkTemplates.h"
 #include "src/core/SkDescriptor.h"
@@ -61,6 +62,12 @@ public:
         return glyphPath;
     }
 
+    const SkDrawable* mergeDrawable(SkGlyph* glyph, sk_sp<SkDrawable> drawable) {
+        auto [glyphDrawable, increase] = fScalerCache.mergeDrawable(glyph, std::move(drawable));
+        this->updateDelta(increase);
+        return glyphDrawable;
+    }
+
     // [[deprecated]]
     SkScalerContext* getScalerContext() const {
         return fScalerCache.getScalerContext();
@@ -96,8 +103,8 @@ public:
         return glyphs;
     }
 
-    void prepareForDrawingMasksCPU(SkDrawableGlyphBuffer* drawables) {
-        size_t increase = fScalerCache.prepareForDrawingMasksCPU(drawables);
+    void prepareForDrawingMasksCPU(SkDrawableGlyphBuffer* accepted) {
+        size_t increase = fScalerCache.prepareForDrawingMasksCPU(accepted);
         this->updateDelta(increase);
     }
 
@@ -118,20 +125,26 @@ public:
 #endif
 
     void prepareForMaskDrawing(
-            SkDrawableGlyphBuffer* drawbles, SkSourceGlyphBuffer* rejects) override {
-        size_t increase = fScalerCache.prepareForMaskDrawing(drawbles, rejects);
+            SkDrawableGlyphBuffer* accepted, SkSourceGlyphBuffer* rejected) override {
+        size_t increase = fScalerCache.prepareForMaskDrawing(accepted, rejected);
         this->updateDelta(increase);
     }
 
     void prepareForSDFTDrawing(
-            SkDrawableGlyphBuffer* drawbles, SkSourceGlyphBuffer* rejects) override {
-        size_t increase = fScalerCache.prepareForSDFTDrawing(drawbles, rejects);
+            SkDrawableGlyphBuffer* accepted, SkSourceGlyphBuffer* rejected) override {
+        size_t increase = fScalerCache.prepareForSDFTDrawing(accepted, rejected);
         this->updateDelta(increase);
     }
 
     void prepareForPathDrawing(
-            SkDrawableGlyphBuffer* drawbles, SkSourceGlyphBuffer* rejects) override {
-        size_t increase = fScalerCache.prepareForPathDrawing(drawbles, rejects);
+            SkDrawableGlyphBuffer* accepted, SkSourceGlyphBuffer* rejected) override {
+        size_t increase = fScalerCache.prepareForPathDrawing(accepted, rejected);
+        this->updateDelta(increase);
+    }
+
+    void prepareForDrawableDrawing(
+            SkDrawableGlyphBuffer* accepted, SkSourceGlyphBuffer* rejected) override {
+        size_t increase = fScalerCache.prepareForDrawableDrawing(accepted, rejected);
         this->updateDelta(increase);
     }
 

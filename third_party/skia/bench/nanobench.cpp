@@ -30,16 +30,15 @@
 #include "include/core/SkString.h"
 #include "include/core/SkSurface.h"
 #include "include/core/SkTime.h"
-#include "include/private/SkTOptional.h"
 #include "src/core/SkAutoMalloc.h"
 #include "src/core/SkColorSpacePriv.h"
 #include "src/core/SkLeanWindows.h"
 #include "src/core/SkOSFile.h"
 #include "src/core/SkTaskGroup.h"
 #include "src/core/SkTraceEvent.h"
-#include "src/gpu/GrShaderUtils.h"
 #include "src/utils/SkJSONWriter.h"
 #include "src/utils/SkOSPath.h"
+#include "src/utils/SkShaderUtils.h"
 #include "tools/AutoreleasePool.h"
 #include "tools/CrashHandler.h"
 #include "tools/MSKPPlayer.h"
@@ -62,8 +61,9 @@
 #endif
 
 #include <cinttypes>
-#include <stdlib.h>
 #include <memory>
+#include <optional>
+#include <stdlib.h>
 #include <thread>
 
 extern bool gSkForceRasterPipelineBlitter;
@@ -445,11 +445,11 @@ static int setup_gpu_bench(Target* target, Benchmark* bench, int maxGpuFrameLag)
 #define kBogusContextType GrContextFactory::kGL_ContextType
 #define kBogusContextOverrides GrContextFactory::ContextOverrides::kNone
 
-static skstd::optional<Config> create_config(const SkCommandLineConfig* config) {
+static std::optional<Config> create_config(const SkCommandLineConfig* config) {
     if (const auto* gpuConfig = config->asConfigGpu()) {
         if (!FLAGS_gpu) {
             SkDebugf("Skipping config '%s' as requested.\n", config->getTag().c_str());
-            return skstd::nullopt;
+            return std::nullopt;
         }
 
         const auto ctxType = gpuConfig->getContextType();
@@ -458,7 +458,7 @@ static skstd::optional<Config> create_config(const SkCommandLineConfig* config) 
         const auto colorType = gpuConfig->getColorType();
         if (gpuConfig->getSurfType() != SkCommandLineConfigGpu::SurfType::kDefault) {
             SkDebugf("This tool only supports the default surface type.");
-            return skstd::nullopt;
+            return std::nullopt;
         }
 
         GrContextFactory factory(grContextOpts);
@@ -470,11 +470,11 @@ static skstd::optional<Config> create_config(const SkCommandLineConfig* config) 
                 SkDebugf("Configuration '%s' sample count %d is not a supported sample count.\n",
                          config->getTag().c_str(),
                          sampleCount);
-                return skstd::nullopt;
+                return std::nullopt;
             }
         } else {
             SkDebugf("No context was available matching config '%s'.\n", config->getTag().c_str());
-            return skstd::nullopt;
+            return std::nullopt;
         }
 
         return Config{gpuConfig->getTag(),
@@ -492,7 +492,7 @@ static skstd::optional<Config> create_config(const SkCommandLineConfig* config) 
     if (config->getBackend().equals(name)) {                                            \
         if (!FLAGS_cpu) {                                                               \
             SkDebugf("Skipping config '%s' as requested.\n", config->getTag().c_str()); \
-            return skstd::nullopt;                                                      \
+            return std::nullopt;                                                      \
         }                                                                               \
         return Config{SkString(name),                                                   \
                       Benchmark::backend,                                               \
@@ -518,7 +518,7 @@ static skstd::optional<Config> create_config(const SkCommandLineConfig* config) 
 #undef CPU_CONFIG
 
     SkDebugf("Unknown config '%s'.\n", config->getTag().c_str());
-    return skstd::nullopt;
+    return std::nullopt;
 }
 
 // Append all configs that are enabled and supported.
@@ -526,7 +526,7 @@ void create_configs(SkTArray<Config>* configs) {
     SkCommandLineConfigArray array;
     ParseConfigs(FLAGS_config, &array);
     for (int i = 0; i < array.count(); ++i) {
-        if (skstd::optional<Config> config = create_config(array[i].get())) {
+        if (std::optional<Config> config = create_config(array[i].get())) {
             configs->push_back(*config);
         }
     }
@@ -1161,7 +1161,7 @@ class NanobenchShaderErrorHandler : public GrContextOptions::ShaderErrorHandler 
     void compileError(const char* shader, const char* errors) override {
         // Nanobench should abort if any shader can't compile. Failure is much better than
         // reporting meaningless performance metrics.
-        SkSL::String message = GrShaderUtils::BuildShaderErrorMessage(shader, errors);
+        std::string message = SkShaderUtils::BuildShaderErrorMessage(shader, errors);
         SK_ABORT("\n%s", message.c_str());
     }
 };
@@ -1229,7 +1229,9 @@ int main(int argc, char** argv) {
     }
 
     const double overhead = estimate_timer_overhead();
-    SkDebugf("Timer overhead: %s\n", HUMANIZE(overhead));
+    if (!FLAGS_quiet && !FLAGS_csv) {
+        SkDebugf("Timer overhead: %s\n", HUMANIZE(overhead));
+    }
 
     SkTArray<double> samples;
 
@@ -1238,6 +1240,8 @@ int main(int argc, char** argv) {
     } else if (FLAGS_quiet) {
         SkDebugf("! -> high variance, ? -> moderate variance\n");
         SkDebugf("    micros   \tbench\n");
+    } else if (FLAGS_csv) {
+        SkDebugf("min,median,mean,max,stddev,config,bench\n");
     } else if (FLAGS_ms) {
         SkDebugf("curr/maxrss\tloops\tmin\tmedian\tmean\tmax\tstddev\tsamples\tconfig\tbench\n");
     } else {
@@ -1437,10 +1441,9 @@ int main(int argc, char** argv) {
                          , bench->getUniqueName()
                          );
             } else {
-                const char* format = "%4d/%-4dMB\t%d\t%s\t%s\t%s\t%s\t%.0f%%\t%s\t%s\t%s\n";
                 const double stddev_percent =
                     sk_ieee_double_divide(100 * sqrt(stats.var), stats.mean);
-                SkDebugf(format
+                SkDebugf("%4d/%-4dMB\t%d\t%s\t%s\t%s\t%s\t%.0f%%\t%s\t%s\t%s\n"
                         , sk_tools::getCurrResidentSetSizeMB()
                         , sk_tools::getMaxResidentSetSizeMB()
                         , loops

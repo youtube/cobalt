@@ -359,6 +359,10 @@ void SkDraw::drawPoints(SkCanvas::PointMode mode, size_t count,
         return;
     }
 
+    if (!SkScalarsAreFinite(&pts[0].fX, count * 2)) {
+        return;
+    }
+
     SkMatrix ctm = fMatrixProvider->localToDevice();
     PtProcRec rec;
     if (!device && rec.init(mode, paint, &ctm, fRC)) {
@@ -816,9 +820,6 @@ void SkDraw::drawDevPath(const SkPath& devPath, const SkPaint& paint, bool drawC
                 case SkPaint::kRound_Cap:
                     proc = SkScan::AntiHairRoundPath;
                     break;
-                default:
-                    proc SK_INIT_TO_AVOID_WARNING;
-                    SkDEBUGFAIL("unknown paint cap type");
             }
         } else {
             switch (paint.getStrokeCap()) {
@@ -831,9 +832,6 @@ void SkDraw::drawDevPath(const SkPath& devPath, const SkPaint& paint, bool drawC
                 case SkPaint::kRound_Cap:
                     proc = SkScan::HairRoundPath;
                     break;
-                default:
-                    proc SK_INIT_TO_AVOID_WARNING;
-                    SkDEBUGFAIL("unknown paint cap type");
             }
         }
     }
@@ -1084,7 +1082,7 @@ void SkDraw::validate() const {
 #include "src/core/SkBlitter.h"
 #include "src/core/SkDraw.h"
 
-bool SkDraw::ComputeMaskBounds(const SkRect& devPathBounds, const SkIRect* clipBounds,
+bool SkDraw::ComputeMaskBounds(const SkRect& devPathBounds, const SkIRect& clipBounds,
                                const SkMaskFilter* filter, const SkMatrix* filterMatrix,
                                SkIRect* bounds) {
     //  init our bounds from the path
@@ -1103,20 +1101,17 @@ bool SkDraw::ComputeMaskBounds(const SkRect& devPathBounds, const SkIRect* clipB
         }
     }
 
-    // (possibly) trim the bounds to reflect the clip
-    // (plus whatever slop the filter needs)
-    if (clipBounds) {
-        // Ugh. Guard against gigantic margins from wacky filters. Without this
-        // check we can request arbitrary amounts of slop beyond our visible
-        // clip, and bring down the renderer (at least on finite RAM machines
-        // like handsets, etc.). Need to balance this invented value between
-        // quality of large filters like blurs, and the corresponding memory
-        // requests.
-        static const int MAX_MARGIN = 128;
-        if (!bounds->intersect(clipBounds->makeOutset(std::min(margin.fX, MAX_MARGIN),
-                                                      std::min(margin.fY, MAX_MARGIN)))) {
-            return false;
-        }
+    // trim the bounds to reflect the clip (plus whatever slop the filter needs)
+    // Ugh. Guard against gigantic margins from wacky filters. Without this
+    // check we can request arbitrary amounts of slop beyond our visible
+    // clip, and bring down the renderer (at least on finite RAM machines
+    // like handsets, etc.). Need to balance this invented value between
+    // quality of large filters like blurs, and the corresponding memory
+    // requests.
+    static constexpr int kMaxMargin = 128;
+    if (!bounds->intersect(clipBounds.makeOutset(std::min(margin.fX, kMaxMargin),
+                                                 std::min(margin.fY, kMaxMargin)))) {
+        return false;
     }
 
     return true;
@@ -1154,7 +1149,7 @@ static void draw_into_mask(const SkMask& mask, const SkPath& devPath,
     draw.drawPath(devPath, paint);
 }
 
-bool SkDraw::DrawToMask(const SkPath& devPath, const SkIRect* clipBounds,
+bool SkDraw::DrawToMask(const SkPath& devPath, const SkIRect& clipBounds,
                         const SkMaskFilter* filter, const SkMatrix* filterMatrix,
                         SkMask* mask, SkMask::CreateMode mode,
                         SkStrokeRec::InitStyle style) {
@@ -1163,7 +1158,13 @@ bool SkDraw::DrawToMask(const SkPath& devPath, const SkIRect* clipBounds,
     }
 
     if (SkMask::kJustRenderImage_CreateMode != mode) {
-        if (!ComputeMaskBounds(devPath.getBounds(), clipBounds, filter,
+        // By using infinite bounds for inverse fills, ComputeMaskBounds is able to clip it to
+        // 'clipBounds' outset by whatever extra margin the mask filter requires.
+        static const SkRect kInverseBounds = { SK_ScalarNegativeInfinity, SK_ScalarNegativeInfinity,
+                                               SK_ScalarInfinity, SK_ScalarInfinity};
+        SkRect pathBounds = devPath.isInverseFillType() ? kInverseBounds
+                                                        : devPath.getBounds();
+        if (!ComputeMaskBounds(pathBounds, clipBounds, filter,
                                filterMatrix, &mask->fBounds))
             return false;
     }

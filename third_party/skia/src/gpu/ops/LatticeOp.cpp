@@ -18,6 +18,7 @@
 #include "src/gpu/GrProgramInfo.h"
 #include "src/gpu/GrResourceProvider.h"
 #include "src/gpu/GrResourceProviderPriv.h"
+#include "src/gpu/KeyBuilder.h"
 #include "src/gpu/SkGr.h"
 #include "src/gpu/glsl/GrGLSLColorSpaceXformHelper.h"
 #include "src/gpu/glsl/GrGLSLFragmentShaderBuilder.h"
@@ -43,7 +44,7 @@ public:
 
     const char* name() const override { return "LatticeGP"; }
 
-    void addToKey(const GrShaderCaps&, GrProcessorKeyBuilder* b) const override {
+    void addToKey(const GrShaderCaps&, KeyBuilder* b) const override {
         b->add32(GrColorSpaceXform::XformKey(fColorSpaceXform.get()));
     }
 
@@ -107,11 +108,11 @@ private:
         fSampler.reset(GrSamplerState(GrSamplerState::WrapMode::kClamp, filter),
                        view.proxy()->backendFormat(), view.swizzle());
         this->setTextureSamplerCnt(1);
-        fInPosition = {"position", kFloat2_GrVertexAttribType, kFloat2_GrSLType};
-        fInTextureCoords = {"textureCoords", kFloat2_GrVertexAttribType, kFloat2_GrSLType};
-        fInTextureDomain = {"textureDomain", kFloat4_GrVertexAttribType, kFloat4_GrSLType};
+        fInPosition = {"position", kFloat2_GrVertexAttribType, SkSLType::kFloat2};
+        fInTextureCoords = {"textureCoords", kFloat2_GrVertexAttribType, SkSLType::kFloat2};
+        fInTextureDomain = {"textureDomain", kFloat4_GrVertexAttribType, SkSLType::kFloat4};
         fInColor = MakeColorAttribute("color", wideColor);
-        this->setVertexAttributes(&fInPosition, 4);
+        this->setVertexAttributesWithImplicitOffsets(&fInPosition, 4);
     }
 
     const TextureSampler& onTextureSampler(int) const override { return fSampler; }

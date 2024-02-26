@@ -97,7 +97,7 @@ std::unique_ptr<Expression> BinaryExpression::Convert(const Context& context,
     const Type* resultType;
     if (!op.determineBinaryType(context, *rawLeftType, *rawRightType,
                                 &leftType, &rightType, &resultType)) {
-        context.fErrors->error(line, String("type mismatch: '") + op.operatorName() +
+        context.fErrors->error(line, "type mismatch: '" + std::string(op.tightOperatorName()) +
                                      "' cannot operate on '" + left->type().displayName() +
                                      "', '" + right->type().displayName() + "'");
         return nullptr;
@@ -110,7 +110,7 @@ std::unique_ptr<Expression> BinaryExpression::Convert(const Context& context,
     }
     if (context.fConfig->strictES2Mode()) {
         if (!op.isAllowedInStrictES2Mode()) {
-            context.fErrors->error(line, String("operator '") + op.operatorName() +
+            context.fErrors->error(line, "operator '" + std::string(op.tightOperatorName()) +
                                          "' is not allowed");
             return nullptr;
         }
@@ -118,8 +118,9 @@ std::unique_ptr<Expression> BinaryExpression::Convert(const Context& context,
             // Most operators are already rejected on arrays, but GLSL ES 1.0 is very explicit that
             // the *only* operator allowed on arrays is subscripting (and the rules against
             // assignment, comparison, and even sequence apply to structs containing arrays as well)
-            context.fErrors->error(line, String("operator '") + op.operatorName() + "' can not "
-                                         "operate on arrays (or structs containing arrays)");
+            context.fErrors->error(line,
+                                   "operator '" + std::string(op.tightOperatorName()) +
+                                   "' can not operate on arrays (or structs containing arrays)");
             return nullptr;
         }
     }
@@ -241,10 +242,10 @@ std::unique_ptr<Expression> BinaryExpression::clone() const {
                                               &this->type());
 }
 
-String BinaryExpression::description() const {
+std::string BinaryExpression::description() const {
     return "(" + this->left()->description() +
-           " " + this->getOperator().operatorName() +
-           " " + this->right()->description() + ")";
+                 this->getOperator().operatorName() +
+                 this->right()->description() + ")";
 }
 
 }  // namespace SkSL

@@ -81,6 +81,9 @@ struct ProgramSettings {
     bool fDSLUseMemoryPool = true;
     // If true, DSL objects assert that they were used prior to destruction
     bool fAssertDSLObjectsReleased = true;
+    // If true, VarDeclaration can be cloned for testing purposes. See VarDeclaration::clone for
+    // more information.
+    bool fAllowVarDeclarationCloneForTesting = false;
     // External functions available for use in runtime effects. These values are registered in the
     // symbol table of the Program, but ownership is *not* transferred. It is up to the caller to
     // keep them alive.
@@ -104,7 +107,9 @@ struct ProgramConfig {
     static bool IsRuntimeEffect(ProgramKind kind) {
         return (kind == ProgramKind::kRuntimeColorFilter ||
                 kind == ProgramKind::kRuntimeShader ||
-                kind == ProgramKind::kRuntimeBlender);
+                kind == ProgramKind::kRuntimeBlender ||
+                kind == ProgramKind::kCustomMeshVertex ||
+                kind == ProgramKind::kCustomMeshFragment);
     }
 };
 

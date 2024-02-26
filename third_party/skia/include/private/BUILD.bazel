@@ -45,7 +45,7 @@ generated_cc_atom(
     visibility = ["//:__subpackages__"],
     deps = [
         ":GrContext_Base_hdr",
-        ":GrSingleOwner_hdr",
+        ":SingleOwner_hdr",
     ],
 )
 
@@ -63,31 +63,6 @@ generated_cc_atom(
     deps = [
         "//include/gpu:GrTypes_hdr",
         "//include/gpu/mtl:GrMtlTypes_hdr",
-    ],
-)
-
-generated_cc_atom(
-    name = "GrResourceKey_hdr",
-    hdrs = ["GrResourceKey.h"],
-    visibility = ["//:__subpackages__"],
-    deps = [
-        ":SkOnce_hdr",
-        ":SkTemplates_hdr",
-        ":SkTo_hdr",
-        "//include/core:SkData_hdr",
-        "//include/core:SkString_hdr",
-        "//include/gpu:GrTypes_hdr",
-    ],
-)
-
-generated_cc_atom(
-    name = "GrSingleOwner_hdr",
-    hdrs = ["GrSingleOwner.h"],
-    visibility = ["//:__subpackages__"],
-    deps = [
-        ":SkMutex_hdr",
-        ":SkThreadID_hdr",
-        "//include/core:SkTypes_hdr",
     ],
 )
 
@@ -394,7 +369,6 @@ generated_cc_atom(
     visibility = ["//:__subpackages__"],
     deps = [
         ":SkSLDefines_hdr",
-        "//include/core:SkStringView_hdr",
         "//include/core:SkString_hdr",
     ],
 )
@@ -503,7 +477,6 @@ generated_cc_atom(
     name = "SkTOptional_hdr",
     hdrs = ["SkTOptional.h"],
     visibility = ["//:__subpackages__"],
-    deps = ["//include/core:SkTypes_hdr"],
 )
 
 generated_cc_atom(
@@ -557,4 +530,28 @@ generated_cc_atom(
     hdrs = ["SkWeakRefCnt.h"],
     visibility = ["//:__subpackages__"],
     deps = ["//include/core:SkRefCnt_hdr"],
+)
+
+generated_cc_atom(
+    name = "SkUniquePaintParamsID_hdr",
+    hdrs = ["SkUniquePaintParamsID.h"],
+    visibility = ["//:__subpackages__"],
+    deps = ["//include/core:SkTypes_hdr"],
+)
+
+generated_cc_atom(
+    name = "SingleOwner_hdr",
+    hdrs = ["SingleOwner.h"],
+    visibility = ["//:__subpackages__"],
+    deps = [
+        ":SkMutex_hdr",
+        ":SkThreadID_hdr",
+        "//include/core:SkTypes_hdr",
+    ],
+)
+
+generated_cc_atom(
+    name = "SkStringView_hdr",
+    hdrs = ["SkStringView.h"],
+    visibility = ["//:__subpackages__"],
 )

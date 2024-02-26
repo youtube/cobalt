@@ -7,6 +7,7 @@ import("gn/flutter_defines.gni")
 import("gn/fuchsia_defines.gni")
 import("gn/shared_sources.gni")
 import("gn/skia.gni")
+import("gn/toolchain/wasm.gni")
 
 if (is_fuchsia) {
   import("//build/fuchsia/sdk.gni")
@@ -47,6 +48,9 @@ config("skia_public") {
   if (is_fuchsia) {
     defines += fuchsia_defines
   }
+  if (is_wasm) {
+    defines += wasm_defines
+  }
   if (skia_gl_standard == "gles") {
     defines += [ "SK_ASSUME_GL_ES=1" ]
   } else if (skia_gl_standard == "gl") {
@@ -84,7 +88,7 @@ config("skia_private") {
       "SK_GAMMA_CONTRAST=0.0",
     ]
   }
-  if (is_skia_dev_build) {
+  if (is_skia_dev_build && !is_wasm) {
     defines += [
       "SK_ALLOW_STATIC_GLOBAL_INITIALIZERS=1",
       "GR_TEST_UTILS=1",
@@ -643,30 +647,33 @@ if (skia_compile_sksl_tests) {
       "src/core/SkStream.cpp",
       "src/core/SkString.cpp",
       "src/core/SkStringUtils.cpp",
-      "src/core/SkStringView.cpp",
       "src/core/SkThreadID.cpp",
       "src/core/SkUtils.cpp",
       "src/core/SkVM.cpp",
       "src/gpu/GrMemoryPool.cpp",
-      "src/gpu/GrShaderUtils.cpp",
       "src/ports/SkMemory_malloc.cpp",
       "src/ports/SkOSFile_stdio.cpp",
       "src/sksl/SkSLMain.cpp",
       "src/utils/SkJSON.cpp",
       "src/utils/SkJSONWriter.cpp",
       "src/utils/SkParse.cpp",
+      "src/utils/SkShaderUtils.cpp",
       "src/utils/SkUTF.cpp",
+      "src/utils/SkVMVisualizer.cpp",
     ]
+    libs = []
     if (is_win) {
       sources += [ "src/ports/SkOSFile_win.cpp" ]
     } else {
       sources += [ "src/ports/SkOSFile_posix.cpp" ]
+      libs += [ "dl" ]
     }
     sources += skia_sksl_sources
     sources += skia_sksl_gpu_sources
     include_dirs = [ "." ]
     deps = [
       ":run_sksllex",
+      ":skvm_jit",
       "//third_party/externals/spirv-tools:spvtools",
       "//third_party/externals/spirv-tools:spvtools_val",
       "//third_party/spirv-cross:spirv_cross",
@@ -1051,6 +1058,14 @@ optional("jpeg_encode") {
   ]
 }
 
+optional("jpegxl_decode") {
+  enabled = skia_use_libjxl_decode
+  public_defines = [ "SK_CODEC_DECODES_JPEGXL" ]
+
+  deps = [ "//third_party/libjxl" ]
+  sources = [ "src/codec/SkJpegxlCodec.cpp" ]
+}
+
 optional("ndk_images") {
   enabled = skia_use_ndk_images
   public_defines = [ "SK_ENABLE_NDK_IMAGES" ]
@@ -1079,6 +1094,9 @@ optional("graphite") {
     }
     frameworks += [ "Metal.framework" ]
     frameworks += [ "Foundation.framework" ]
+    if (is_ios) {
+      frameworks += [ "UIKit.framework" ]
+    }
   }
 }
 
@@ -1279,6 +1297,7 @@ skia_component("skia") {
     ":hsw",
     ":jpeg_decode",
     ":jpeg_encode",
+    ":jpegxl_decode",
     ":ndk_images",
     ":none",
     ":png_decode",
@@ -1527,6 +1546,10 @@ group("modules") {
     "modules/skshaper",
     "modules/svg",
   ]
+
+  if (is_wasm) {
+    deps += [ "modules/canvaskit" ]
+  }
 }
 
 group("experimental") {
@@ -1612,11 +1635,11 @@ if (skia_enable_tools) {
     }
   }
 
-  config("cpp14") {
+  config("cpp17") {
     if (is_win) {
-      cflags_cc = [ "/std:c++14" ]
+      cflags_cc = [ "/std:c++17" ]
     } else {
-      cflags_cc = [ "-std=c++14" ]
+      cflags_cc = [ "-std=c++17" ]
     }
   }
 
@@ -1624,7 +1647,7 @@ if (skia_enable_tools) {
     sources = [ "tools/public_headers_warnings_check.cpp" ]
     configs = [
       ":our_vulkan_headers",
-      ":cpp14",
+      ":cpp17",
     ]
     if (defined(skia_header_target_default_configs)) {
       configs += skia_header_target_default_configs
@@ -1788,9 +1811,7 @@ if (skia_enable_tools) {
       }
     }
 
-    # We need the GLTestContext on Vulkan-only builds for the persistent GL context workaround in
-    # in GrContextFactory. This only matters for OSes that can run Vulkan.
-    if ((skia_use_gl || skia_use_vulkan) && target_cpu != "wasm") {
+    if (skia_use_gl && target_cpu != "wasm") {
       if (is_android || skia_use_egl) {
         sources += [ "tools/gpu/gl/egl/CreatePlatformGLTestContext_egl.cpp" ]
         libs += [ "EGL" ]
@@ -2093,15 +2114,6 @@ if (skia_enable_tools) {
     ]
   }
 
-  test_lib("experimental_xform") {
-    sources = [
-      "experimental/xform/SkShape.cpp",
-      "experimental/xform/SkXform.cpp",
-      "experimental/xform/XContext.cpp",
-    ]
-    deps = [ ":skia" ]
-  }
-
   if (is_linux || is_mac) {
     if (skia_enable_skottie) {
       test_app("skottie_tool") {
@@ -2111,11 +2123,6 @@ if (skia_enable_tools) {
     test_app("svg_tool") {
       deps = [ "modules/svg:tool" ]
     }
-  }
-
-  test_app("make_skqp_model") {
-    sources = [ "tools/skqp/make_skqp_model.cpp" ]
-    deps = [ ":skia" ]
   }
 
   import("gn/samples.gni")
@@ -2432,19 +2439,6 @@ if (skia_enable_tools) {
     ]
   }
 
-  test_app("pathops_unittest") {
-    sources = pathops_tests_sources + [
-                rebase_path("tests/skia_test.cpp"),
-                rebase_path("tests/Test.cpp"),
-              ]
-    deps = [
-      ":flags",
-      ":gpu_tool_utils",
-      ":skia",
-      ":tool_utils",
-    ]
-  }
-
   test_app("dump_record") {
     sources = [ "tools/dump_record.cpp" ]
     deps = [
@@ -2479,12 +2473,9 @@ if (skia_enable_tools) {
       check_includes = false
       testonly = true
       public_configs = [ ":skia_private" ]
-      defines =
-          [ "SK_SKQP_GLOBAL_ERROR_TOLERANCE=$skia_skqp_global_error_tolerance" ]
       sources = [
         "dm/DMGpuTestProcs.cpp",
         "tools/skqp/src/skqp.cpp",
-        "tools/skqp/src/skqp_model.cpp",
       ]
       deps = [
         ":gm",
@@ -2498,14 +2489,6 @@ if (skia_enable_tools) {
       include_dirs = [ "//" ]
       lib_dirs = []
       deps = [ ":skqp_lib" ]
-    }
-    test_app("jitter_gms") {
-      sources = [ "tools/skqp/jitter_gms.cpp" ]
-      deps = [
-        ":gm",
-        ":skia",
-        ":skqp_lib",
-      ]
     }
   }
   if (is_fuchsia) {
@@ -2810,6 +2793,8 @@ if (skia_enable_tools) {
         "tools/viewer/SampleSlide.h",
         "tools/viewer/SkRiveSlide.cpp",
         "tools/viewer/SkRiveSlide.h",
+        "tools/viewer/SkSLDebuggerSlide.cpp",
+        "tools/viewer/SkSLDebuggerSlide.h",
         "tools/viewer/SkSLSlide.cpp",
         "tools/viewer/SkSLSlide.h",
         "tools/viewer/SkottieSlide.cpp",
@@ -2849,10 +2834,6 @@ if (skia_enable_tools) {
         "modules/svg",
         "//third_party/imgui",
       ]
-      if (skia_use_experimental_xform) {
-        deps += [ ":experimental_xform" ]
-        sources += [ "gm/xform.cpp" ]
-      }
       if (skia_use_vulkan) {
         deps += [
           "//third_party/externals/spirv-tools:spvtools",
@@ -2974,7 +2955,7 @@ if (skia_enable_tools) {
   group("modules_testonly") {
     testonly = true
     deps = []
-    if (target_cpu == "wasm") {
+    if (is_wasm) {
       deps += [ "modules/canvaskit:viewer_wasm" ]
     }
   }
@@ -3184,7 +3165,7 @@ if (skia_enable_tools) {
       deps = []
     }
 
-    if (skia_use_gl) {
+    if (skia_enable_gpu) {
       libfuzzer_app("api_mock_gpu_canvas") {
         include_dirs = [
           "tools",

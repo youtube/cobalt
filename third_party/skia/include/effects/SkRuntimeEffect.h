@@ -32,9 +32,11 @@ class SkRuntimeImageFilter;
 
 namespace SkSL {
 class DebugTrace;
+class ErrorReporter;
 class FunctionDefinition;
 struct Program;
 enum class ProgramKind : int8_t;
+struct ProgramSettings;
 }  // namespace SkSL
 
 namespace skvm {
@@ -167,6 +169,9 @@ public:
 
     static Result MakeForShader(std::unique_ptr<SkSL::Program> program, const Options&);
     static Result MakeForShader(std::unique_ptr<SkSL::Program> program);
+    static sk_sp<SkRuntimeEffect> MakeForShader(std::unique_ptr<SkSL::Program> program,
+                                                const Options&, SkSL::ErrorReporter* errors);
+
 
     static Result MakeForBlender(std::unique_ptr<SkSL::Program> program, const Options&);
     static Result MakeForBlender(std::unique_ptr<SkSL::Program> program);
@@ -179,7 +184,7 @@ public:
         ChildPtr(sk_sp<SkColorFilter> cf) : fChild(std::move(cf)) {}
         ChildPtr(sk_sp<SkBlender> b) : fChild(std::move(b)) {}
 
-        skstd::optional<ChildType> type() const;
+        std::optional<ChildType> type() const;
 
         SkShader* shader() const;
         SkColorFilter* colorFilter() const;
@@ -193,12 +198,10 @@ public:
     sk_sp<SkShader> makeShader(sk_sp<SkData> uniforms,
                                sk_sp<SkShader> children[],
                                size_t childCount,
-                               const SkMatrix* localMatrix,
-                               bool isOpaque) const;
+                               const SkMatrix* localMatrix = nullptr) const;
     sk_sp<SkShader> makeShader(sk_sp<SkData> uniforms,
                                SkSpan<ChildPtr> children,
-                               const SkMatrix* localMatrix,
-                               bool isOpaque) const;
+                               const SkMatrix* localMatrix = nullptr) const;
 
     sk_sp<SkImage> makeImage(GrRecordingContext*,
                              sk_sp<SkData> uniforms,
@@ -255,11 +258,13 @@ public:
 
 private:
     enum Flags {
-        kUsesSampleCoords_Flag   = 0x1,
-        kAllowColorFilter_Flag   = 0x2,
-        kAllowShader_Flag        = 0x4,
-        kAllowBlender_Flag       = 0x8,
+        kUsesSampleCoords_Flag   = 0x01,
+        kAllowColorFilter_Flag   = 0x02,
+        kAllowShader_Flag        = 0x04,
+        kAllowBlender_Flag       = 0x08,
         kSamplesOutsideMain_Flag = 0x10,
+        kUsesColorTransform_Flag = 0x20,
+        kAlwaysOpaque_Flag       = 0x40,
     };
 
     SkRuntimeEffect(std::unique_ptr<SkSL::Program> baseProgram,
@@ -270,22 +275,33 @@ private:
                     std::vector<SkSL::SampleUsage>&& sampleUsages,
                     uint32_t flags);
 
+    sk_sp<SkRuntimeEffect> makeUnoptimizedClone();
+
     static Result MakeFromSource(SkString sksl, const Options& options, SkSL::ProgramKind kind);
 
     static Result MakeFromDSL(std::unique_ptr<SkSL::Program> program,
                               const Options& options,
                               SkSL::ProgramKind kind);
 
+    static sk_sp<SkRuntimeEffect> MakeFromDSL(std::unique_ptr<SkSL::Program> program,
+                                              const Options& options,
+                                              SkSL::ProgramKind kind,
+                                              SkSL::ErrorReporter* errors);
+
     static Result MakeInternal(std::unique_ptr<SkSL::Program> program,
                                const Options& options,
                                SkSL::ProgramKind kind);
 
+    static SkSL::ProgramSettings MakeSettings(const Options& options, bool optimize);
+
     uint32_t hash() const { return fHash; }
-    bool usesSampleCoords()   const { return (fFlags & kUsesSampleCoords_Flag); }
-    bool allowShader()        const { return (fFlags & kAllowShader_Flag);      }
-    bool allowColorFilter()   const { return (fFlags & kAllowColorFilter_Flag); }
-    bool allowBlender()       const { return (fFlags & kAllowBlender_Flag);     }
+    bool usesSampleCoords()   const { return (fFlags & kUsesSampleCoords_Flag);   }
+    bool allowShader()        const { return (fFlags & kAllowShader_Flag);        }
+    bool allowColorFilter()   const { return (fFlags & kAllowColorFilter_Flag);   }
+    bool allowBlender()       const { return (fFlags & kAllowBlender_Flag);       }
     bool samplesOutsideMain() const { return (fFlags & kSamplesOutsideMain_Flag); }
+    bool usesColorTransform() const { return (fFlags & kUsesColorTransform_Flag); }
+    bool alwaysOpaque()       const { return (fFlags & kAlwaysOpaque_Flag);       }
 
     const SkFilterColorProgram* getFilterColorProgram();
 
@@ -465,7 +481,7 @@ public:
     SkRuntimeShaderBuilder(const SkRuntimeShaderBuilder&) = default;
     ~SkRuntimeShaderBuilder();
 
-    sk_sp<SkShader> makeShader(const SkMatrix* localMatrix, bool isOpaque);
+    sk_sp<SkShader> makeShader(const SkMatrix* localMatrix = nullptr);
     sk_sp<SkImage> makeImage(GrRecordingContext*,
                              const SkMatrix* localMatrix,
                              SkImageInfo resultInfo,

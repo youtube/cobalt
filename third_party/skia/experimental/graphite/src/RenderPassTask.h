@@ -16,6 +16,7 @@
 namespace skgpu {
 
 class CommandBuffer;
+class Context;
 class DrawPass;
 class ResourceProvider;
 

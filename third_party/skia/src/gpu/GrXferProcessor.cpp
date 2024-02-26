@@ -9,6 +9,7 @@
 
 #include "src/gpu/GrCaps.h"
 #include "src/gpu/GrPipeline.h"
+#include "src/gpu/KeyBuilder.h"
 #include "src/gpu/glsl/GrGLSLFragmentShaderBuilder.h"
 #include "src/gpu/glsl/GrGLSLProgramDataManager.h"
 
@@ -31,7 +32,7 @@ bool GrXferProcessor::hasSecondaryOutput() const {
 }
 
 void GrXferProcessor::addToKey(const GrShaderCaps& caps,
-                               GrProcessorKeyBuilder* b,
+                               skgpu::KeyBuilder* b,
                                const GrSurfaceOrigin* originIfDstTexture,
                                bool usesInputAttachmentForDstRead) const {
     uint32_t key = this->willReadDstColor() ? 0x1 : 0x0;
@@ -265,10 +266,10 @@ void ProgramImpl::emitCode(const EmitArgs& args) {
 }
 
 void ProgramImpl::emitWriteSwizzle(GrGLSLXPFragmentBuilder* x,
-                                   const GrSwizzle& swizzle,
+                                   const skgpu::Swizzle& swizzle,
                                    const char* outColor,
                                    const char* outColorSecondary) const {
-    if (GrSwizzle::RGBA() != swizzle) {
+    if (skgpu::Swizzle::RGBA() != swizzle) {
         x->codeAppendf("%s = %s.%s;", outColor, outColor, swizzle.asString().c_str());
         if (outColorSecondary) {
             x->codeAppendf("%s = %s.%s;",

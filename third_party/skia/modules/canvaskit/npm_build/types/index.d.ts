@@ -407,7 +407,7 @@ export interface CanvasKit {
     readonly PictureRecorder: DefaultConstructor<PictureRecorder>;
     readonly TextStyle: TextStyleConstructor;
 
-    // Factories, i.e. things made with CanvasKit.Foo.MakeTurboEncapsulator()
+    // Factories, i.e. things made with CanvasKit.Foo.MakeTurboEncabulator()
     readonly ParagraphBuilder: ParagraphBuilderFactory;
     readonly ColorFilter: ColorFilterFactory;
     readonly FontMgr: FontMgrFactory;
@@ -440,6 +440,7 @@ export interface CanvasKit {
     readonly ImageFormat: ImageFormatEnumValues;
     readonly MipmapMode: MipmapModeEnumValues;
     readonly PaintStyle: PaintStyleEnumValues;
+    readonly Path1DEffect: Path1DEffectStyleEnumValues;
     readonly PathOp: PathOpEnumValues;
     readonly PointMode: PointModeEnumValues;
     readonly ColorSpace: ColorSpaceEnumValues;
@@ -921,6 +922,12 @@ export interface ParagraphBuilder extends EmbindObject<ParagraphBuilder> {
      * @param bg
      */
     pushPaintStyle(textStyle: TextStyle, fg: Paint, bg: Paint): void;
+
+    /**
+     * Resets this builder to its initial state, discarding any text, styles, placeholders that have
+     * been added, but keeping the initial ParagraphStyle.
+     */
+    reset(): void;
 }
 
 export interface ParagraphStyle {
@@ -2500,6 +2507,22 @@ export type PathEffect = EmbindObject<PathEffect>;
  */
 export interface SkPicture extends EmbindObject<SkPicture> {
     /**
+     *  Returns a new shader that will draw with this picture.
+     *
+     *  @param tmx  The tiling mode to use when sampling in the x-direction.
+     *  @param tmy  The tiling mode to use when sampling in the y-direction.
+     *  @param mode How to filter the tiles
+     *  @param localMatrix Optional matrix used when sampling
+     *  @param tileRect The tile rectangle in picture coordinates: this represents the subset
+     *              (or superset) of the picture used when building a tile. It is not
+     *              affected by localMatrix and does not imply scaling (only translation
+     *              and cropping). If null, the tile rect is considered equal to the picture
+     *              bounds.
+     */
+    makeShader(tmx: TileMode, tmy: TileMode, mode: FilterMode,
+               localMatrix?: InputMatrix, tileRect?: InputRect): Shader;
+
+    /**
      * Returns the serialized format of this SkPicture. The format may change at anytime and
      * no promises are made for backwards or forward compatibility.
      */
@@ -2527,20 +2550,18 @@ export interface RuntimeEffect extends EmbindObject<RuntimeEffect> {
     /**
      * Returns a shader executed using the given uniform data.
      * @param uniforms
-     * @param isOpaque
      * @param localMatrix
      */
-    makeShader(uniforms: Float32Array | number[], isOpaque?: boolean,
+    makeShader(uniforms: Float32Array | number[],
                localMatrix?: InputMatrix): Shader;
 
     /**
      * Returns a shader executed using the given uniform data and the children as inputs.
      * @param uniforms
-     * @param isOpaque
      * @param children
      * @param localMatrix
      */
-    makeShaderWithChildren(uniforms: Float32Array | number[], isOpaque?: boolean,
+    makeShaderWithChildren(uniforms: Float32Array | number[],
                            children?: Shader[], localMatrix?: InputMatrix): Shader;
 
     /**
@@ -2673,6 +2694,19 @@ export interface Surface extends EmbindObject<Surface> {
      * If this surface is GPU-backed, return the sample count of the surface.
      */
     sampleCnt(): number;
+
+    /**
+     * Updates the underlying GPU texture of the image to be the contents of the provided
+     * TextureSource. Has no effect on CPU backend or if img was not created with either
+     * makeImageFromTextureSource or makeImageFromTexture.
+     * If the provided TextureSource is of different dimensions than the Image, the contents
+     * will be deformed (e.g. squished). The ColorType, AlphaType, and ColorSpace of src should
+     * match the original settings used to create the Image or it may draw strange.
+     *
+     * @param img - A texture-backed Image.
+     * @param src - A valid texture source of any dimensions.
+     */
+    updateTextureFromSource(img: Image, src: TextureSource): void;
 
     /**
      * Returns the width of this surface in pixels.
@@ -3327,11 +3361,50 @@ export interface PathEffectFactory {
      * @param seedAssist - modifies the randomness. See SkDiscretePathEffect.h for more.
      */
     MakeDiscrete(segLength: number, dev: number, seedAssist: number): PathEffect;
+
+    /**
+     * Returns a PathEffect that will fill the drawing path with a pattern made by applying
+     * the given matrix to a repeating set of infinitely long lines of the given width.
+     * For example, the scale of the provided matrix will determine how far apart the lines
+     * should be drawn its rotation affects the lines' orientation.
+     * @param width - must be >= 0
+     * @param matrix
+     */
+    MakeLine2D(width: number, matrix: InputMatrix): PathEffect | null;
+
+    /**
+     * Returns a PathEffect which implements dashing by replicating the specified path.
+     *   @param path The path to replicate (dash)
+     *   @param advance The space between instances of path
+     *   @param phase distance (mod advance) along path for its initial position
+     *   @param style how to transform path at each point (based on the current
+     *                position and tangent)
+     */
+    MakePath1D(path: Path, advance: number, phase: number, style: Path1DEffectStyle):
+        PathEffect | null;
+
+    /**
+     * Returns a PathEffect that will fill the drawing path with a pattern by repeating the
+     * given path according to the provided matrix. For example, the scale of the matrix
+     * determines how far apart the path instances should be drawn.
+     * @param matrix
+     * @param path
+     */
+    MakePath2D(matrix: InputMatrix, path: Path): PathEffect | null;
 }
 
 /**
  * See RuntimeEffect.h for more details.
  */
+export interface DebugTrace extends EmbindObject<DebugTrace> {
+    writeTrace(): string;
+}
+
+export interface TracedShader {
+    shader: Shader;
+    debugTrace: DebugTrace;
+}
+
 export interface RuntimeEffectFactory {
     /**
      * Compiles a RuntimeEffect from the given shader code.
@@ -3340,6 +3413,14 @@ export interface RuntimeEffectFactory {
      *                   be printed to console.log().
      */
     Make(sksl: string, callback?: (err: string) => void): RuntimeEffect | null;
+
+    /**
+     * Adds debug tracing to an existing RuntimeEffect.
+     * @param shader - An already-assembled shader, created with RuntimeEffect.makeShader.
+     * @param traceCoordX - the X coordinate of the device-space pixel to trace
+     * @param traceCoordY - the Y coordinate of the device-space pixel to trace
+     */
+    MakeTraced(shader: Shader, traceCoordX: number, traceCoordY: number): TracedShader;
 }
 
 /**
@@ -3800,6 +3881,7 @@ export type FontEdging = EmbindEnumEntity;
 export type FontHinting = EmbindEnumEntity;
 export type MipmapMode = EmbindEnumEntity;
 export type PaintStyle = EmbindEnumEntity;
+export type Path1DEffectStyle = EmbindEnumEntity;
 export type PathOp = EmbindEnumEntity;
 export type PointMode = EmbindEnumEntity;
 export type StrokeCap = EmbindEnumEntity;
@@ -3991,6 +4073,15 @@ export interface MipmapModeEnumValues extends EmbindEnum {
 export interface PaintStyleEnumValues extends EmbindEnum {
     Fill: PaintStyle;
     Stroke: PaintStyle;
+}
+
+export interface Path1DEffectStyleEnumValues extends EmbindEnum {
+    // Translate the shape to each position
+    Translate: Path1DEffectStyle;
+    // Rotate the shape about its center
+    Rotate: Path1DEffectStyle;
+    // Transform each point and turn lines into curves
+    Morph: Path1DEffectStyle;
 }
 
 export interface PathOpEnumValues extends EmbindEnum {

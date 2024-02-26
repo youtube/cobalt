@@ -11,7 +11,7 @@
 #include "include/core/SkCanvas.h"
 #include "include/core/SkGraphics.h"
 #include "include/core/SkTypeface.h"
-#include "src/core/SkRemoteGlyphCache.h"
+#include "include/private/chromium/SkChromeRemoteGlyphCache.h"
 #include "src/core/SkStrikeSpec.h"
 #include "src/core/SkTLazy.h"
 #include "src/core/SkTaskGroup.h"
@@ -147,7 +147,7 @@ public:
         return id <= fLastDeletedHandleId;
     }
 
-    void notifyCacheMiss(SkStrikeClient::CacheMissType type) override {
+    void notifyCacheMiss(SkStrikeClient::CacheMissType type, int fontSize) override {
         SkAutoMutexExclusive l(fMutex);
 
         fCacheMissCount[type]++;

@@ -52,18 +52,13 @@ public:
     }
 
     std::unique_ptr<Expression> clone() const override {
-        ExpressionArray cloned;
-        cloned.reserve_back(this->arguments().size());
-        for (const auto& arg : this->arguments()) {
-            cloned.push_back(arg->clone());
-        }
         return std::make_unique<ExternalFunctionCall>(fLine, &this->function(),
-                                                      std::move(cloned));
+                                                      this->arguments().clone());
     }
 
-    String description() const override {
-        String result = String(this->function().name()) + "(";
-        String separator;
+    std::string description() const override {
+        std::string result = std::string(this->function().name()) + "(";
+        std::string separator;
         for (const std::unique_ptr<Expression>& arg : this->arguments()) {
             result += separator;
             result += arg->description();

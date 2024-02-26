@@ -90,7 +90,7 @@ GrSurfaceProxyView make_deferred_mask_texture_view(GrRecordingContext* rContext,
     const GrBackendFormat format = caps->getDefaultBackendFormat(GrColorType::kAlpha_8,
                                                                  GrRenderable::kNo);
 
-    GrSwizzle swizzle = caps->getReadSwizzle(format, GrColorType::kAlpha_8);
+    skgpu::Swizzle swizzle = caps->getReadSwizzle(format, GrColorType::kAlpha_8);
 
     auto proxy =
             proxyProvider->createProxy(format, dimensions, GrRenderable::kNo, 1, GrMipmapped::kNo,
@@ -208,7 +208,7 @@ void SoftwarePathRenderer::DrawToTargetWithShapeMask(
         return;
     }
 
-    view.concatSwizzle(GrSwizzle("aaaa"));
+    view.concatSwizzle(skgpu::Swizzle("aaaa"));
 
     SkRect dstRect = SkRect::Make(deviceSpaceRectToDraw);
 
@@ -278,15 +278,15 @@ bool SoftwarePathRenderer::onDrawPath(const DrawPathArgs& args) {
         }
     }
 
-    GrUniqueKey maskKey;
+    skgpu::UniqueKey maskKey;
     if (useCache) {
         // We require the upper left 2x2 of the matrix to match exactly for a cache hit.
         SkScalar sx = args.fViewMatrix->get(SkMatrix::kMScaleX);
         SkScalar sy = args.fViewMatrix->get(SkMatrix::kMScaleY);
         SkScalar kx = args.fViewMatrix->get(SkMatrix::kMSkewX);
         SkScalar ky = args.fViewMatrix->get(SkMatrix::kMSkewY);
-        static const GrUniqueKey::Domain kDomain = GrUniqueKey::GenerateDomain();
-        GrUniqueKey::Builder builder(&maskKey, kDomain, 7 + args.fShape->unstyledKeySize(),
+        static const skgpu::UniqueKey::Domain kDomain = skgpu::UniqueKey::GenerateDomain();
+        skgpu::UniqueKey::Builder builder(&maskKey, kDomain, 7 + args.fShape->unstyledKeySize(),
                                      "SW Path Mask");
         builder[0] = boundsForMask->width();
         builder[1] = boundsForMask->height();
@@ -322,7 +322,7 @@ bool SoftwarePathRenderer::onDrawPath(const DrawPathArgs& args) {
     if (useCache) {
         sk_sp<GrTextureProxy> proxy = fProxyProvider->findOrCreateProxyByUniqueKey(maskKey);
         if (proxy) {
-            GrSwizzle swizzle = args.fSurfaceDrawContext->caps()->getReadSwizzle(
+            skgpu::Swizzle swizzle = args.fSurfaceDrawContext->caps()->getReadSwizzle(
                     proxy->backendFormat(), GrColorType::kAlpha_8);
             view = {std::move(proxy), kTopLeft_GrSurfaceOrigin, swizzle};
             args.fContext->priv().stats()->incNumPathMasksCacheHits();

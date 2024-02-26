@@ -76,7 +76,7 @@ public:
         return fColorTypeToFormatTable[idx];
     }
 
-    GrSwizzle getWriteSwizzle(const GrBackendFormat&, GrColorType) const override;
+    skgpu::Swizzle getWriteSwizzle(const GrBackendFormat&, GrColorType) const override;
 
     uint64_t computeFormatKey(const GrBackendFormat&) const override;
 
@@ -93,12 +93,6 @@ public:
     // if true, MTLStoreActionStoreAndMultiplesampleResolve is available
     bool storeAndMultisampleResolveSupport() const { return fStoreAndMultisampleResolveSupport; }
 
-    // If true when doing MSAA draws, we will prefer to discard the MSAA attachment on load
-    // and stores. The use of this feature for specific draws depends on the render target having a
-    // resolve attachment, and if we need to load previous data the resolve attachment must
-    // be readable in a shader. Otherwise we will just write out and store the MSAA attachment
-    // like normal.
-    bool preferDiscardableMSAAAttachment() const { return fPreferDiscardableMSAAAttachment; }
     bool renderTargetSupportsDiscardableMSAA(const GrMtlRenderTarget*) const;
 
 #if GR_TEST_UTILS
@@ -127,7 +121,7 @@ private:
     SupportedRead onSupportedReadPixelsColorType(GrColorType, const GrBackendFormat&,
                                                  GrColorType) const override;
 
-    GrSwizzle onGetReadSwizzle(const GrBackendFormat&, GrColorType) const override;
+    skgpu::Swizzle onGetReadSwizzle(const GrBackendFormat&, GrColorType) const override;
 
     // ColorTypeInfo for a specific format
     struct ColorTypeInfo {
@@ -140,8 +134,8 @@ private:
         };
         uint32_t fFlags = 0;
 
-        GrSwizzle fReadSwizzle;
-        GrSwizzle fWriteSwizzle;
+        skgpu::Swizzle fReadSwizzle;
+        skgpu::Swizzle fWriteSwizzle;
     };
 
     struct FormatInfo {
@@ -200,7 +194,6 @@ private:
     MTLPixelFormat fPreferredStencilFormat;
 
     bool fStoreAndMultisampleResolveSupport : 1;
-    bool fPreferDiscardableMSAAAttachment : 1;
 
     using INHERITED = GrCaps;
 };
