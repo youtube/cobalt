@@ -8,15 +8,21 @@
 #ifndef GrGLSLShaderBuilder_DEFINED
 #define GrGLSLShaderBuilder_DEFINED
 
+#include "include/core/SkSpan.h"
+#include "include/private/SkSLStatement.h"
+#include "include/private/SkSLString.h"
 #include "include/private/SkTDArray.h"
-#include "src/gpu/GrAllocator.h"
+#include "src/core/SkTBlockList.h"
 #include "src/gpu/GrShaderVar.h"
 #include "src/gpu/glsl/GrGLSLUniformHandler.h"
-#include "src/sksl/SkSLString.h"
 
 #include <stdarg.h>
 
 class GrGLSLColorSpaceXformHelper;
+
+namespace SkSL {
+    class ThreadContext;
+}
 
 /**
   base class for all shaders builders
@@ -28,32 +34,28 @@ public:
 
     using SamplerHandle      = GrGLSLUniformHandler::SamplerHandle;
 
-    /** Appends a 2D texture sample with projection if necessary. coordType must either be Vec2f or
-        Vec3f. The latter is interpreted as projective texture coords. The vec length and swizzle
+    /** Appends a 2D texture sample with projection if necessary. The vec length and swizzle
         order of the result depends on the GrProcessor::TextureSampler associated with the
         SamplerHandle.
         */
-    void appendTextureLookup(SkString* out,
-                             SamplerHandle,
-                             const char* coordName,
-                             GrSLType coordType = kHalf2_GrSLType) const;
+    void appendTextureLookup(SkString* out, SamplerHandle, const char* coordName) const;
 
     /** Version of above that appends the result to the shader code instead.*/
     void appendTextureLookup(SamplerHandle,
                              const char* coordName,
-                             GrSLType coordType = kHalf2_GrSLType,
                              GrGLSLColorSpaceXformHelper* colorXformHelper = nullptr);
 
+    /** Does the work of appendTextureLookup and blends the result by dst, treating the texture
+        lookup as the src input to the blend. The dst is assumed to be half4 and the result is
+        always a half4. If dst is nullptr we use half4(1) as the blend dst. */
+    void appendTextureLookupAndBlend(const char* dst,
+                                     SkBlendMode,
+                                     SamplerHandle,
+                                     const char* coordName,
+                                     GrGLSLColorSpaceXformHelper* colorXformHelper = nullptr);
 
-    /** Does the work of appendTextureLookup and modulates the result by modulation. The result is
-        always a half4. modulation and the swizzle specified by SamplerHandle must both be
-        half4 or half. If modulation is "" or nullptr it this function acts as though
-        appendTextureLookup were called. */
-    void appendTextureLookupAndModulate(const char* modulation,
-                                        SamplerHandle,
-                                        const char* coordName,
-                                        GrSLType coordType = kHalf2_GrSLType,
-                                        GrGLSLColorSpaceXformHelper* colorXformHelper = nullptr);
+    /** Appends a load of an input attachment into the shader code. */
+    void appendInputLoad(SamplerHandle);
 
     /** Adds a helper function to facilitate color gamut transformation, and produces code that
         returns the srcColor transformed into a new gamut (via multiplication by the xform from
@@ -89,11 +91,20 @@ public:
        this->definitions().append(";\n");
     }
 
+    void definitionAppend(const char* str) { this->definitions().append(str); }
+
     void declareGlobal(const GrShaderVar&);
 
+    // Generates a unique variable name for holding the result of a temporary expression when it's
+    // not reasonable to just add a new block for scoping. Does not declare anything.
+    SkString newTmpVarName(const char* suffix) {
+        int tmpIdx = fTmpVariableCounter++;
+        return SkStringPrintf("_tmp_%d_%s", tmpIdx, suffix);
+    }
+
     /**
-    * Called by GrGLSLProcessors to add code to one of the shaders.
-    */
+     * Called by GrGLSLProcessors to add code to one of the shaders.
+     */
     void codeAppendf(const char format[], ...) SK_PRINTF_LIKE(2, 3) {
        va_list args;
        va_start(args, format);
@@ -104,6 +115,8 @@ public:
     void codeAppend(const char* str) { this->code().append(str); }
 
     void codeAppend(const char* str, size_t length) { this->code().append(str, length); }
+
+    void codeAppend(std::unique_ptr<SkSL::Statement> stmt);
 
     void codePrependf(const char format[], ...) SK_PRINTF_LIKE(2, 3) {
        va_list args;
@@ -117,21 +130,34 @@ public:
      */
     void declAppend(const GrShaderVar& var);
 
+    /**
+     * Generates a mangled name for a helper function in the fragment shader. Will give consistent
+     * results if called more than once.
+     */
+    SkString getMangledFunctionName(const char* baseName);
+
+    /** Emits a prototype for a helper function outside of main() in the fragment shader. */
+    void emitFunctionPrototype(GrSLType returnType,
+                               const char* mangledName,
+                               SkSpan<const GrShaderVar> args);
+
+    void emitFunctionPrototype(const char* declaration);
+
     /** Emits a helper function outside of main() in the fragment shader. */
     void emitFunction(GrSLType returnType,
-                      const char* name,
-                      int argCnt,
-                      const GrShaderVar* args,
-                      const char* body,
-                      SkString* outName);
+                      const char* mangledName,
+                      SkSpan<const GrShaderVar> args,
+                      const char* body);
 
-    /*
+    void emitFunction(const char* declaration, const char* body);
+
+    /**
      * Combines the various parts of the shader to create a single finalized shader string.
      */
     void finalize(uint32_t visibility);
 
-    /*
-     * Get parent builder for adding uniforms
+    /**
+     * Get parent builder for adding uniforms.
      */
     GrGLSLProgramBuilder* getProgramBuilder() { return fProgramBuilder; }
 
@@ -153,8 +179,12 @@ public:
     };
 
 protected:
-    typedef GrTAllocator<GrShaderVar> VarArray;
+    typedef SkTBlockList<GrShaderVar> VarArray;
     void appendDecls(const VarArray& vars, SkString* out) const;
+
+    void appendFunctionDecl(GrSLType returnType,
+                            const char* mangledName,
+                            SkSpan<const GrShaderVar> args);
 
     /**
      * Features that should only be enabled internally by the builders.
@@ -237,6 +267,8 @@ protected:
     SkString fCode;
     SkString fFunctions;
     SkString fExtensions;
+    // Hangs onto Declarations so we don't destroy them prior to the variables that refer to them.
+    SkSL::StatementArray fDeclarations;
 
     VarArray fInputs;
     VarArray fOutputs;
@@ -245,13 +277,17 @@ protected:
     int fCodeIndex;
     bool fFinalized;
 
-    friend class GrCCCoverageProcessor; // to access code().
+    // Counter for generating unique scratch variable names in a shader.
+    int fTmpVariableCounter;
+
     friend class GrGLSLProgramBuilder;
     friend class GrGLProgramBuilder;
+    friend class GrD3DPipelineStateBuilder;
     friend class GrDawnProgramBuilder;
     friend class GrGLSLVaryingHandler; // to access noperspective interpolation feature.
     friend class GrGLPathProgramBuilder; // to access fInputs.
     friend class GrVkPipelineStateBuilder;
     friend class GrMtlPipelineStateBuilder;
+    friend class SkSL::ThreadContext;
 };
 #endif

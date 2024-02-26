@@ -9,7 +9,6 @@
 #include "include/core/SkBitmap.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkColor.h"
-#include "include/core/SkFilterQuality.h"
 #include "include/core/SkImage.h"
 #include "include/core/SkImageFilter.h"
 #include "include/core/SkMatrix.h"
@@ -65,14 +64,11 @@ static void draw_drrect(SkCanvas* canvas, const SkRect& r, const SkPaint& p) {
 }
 
 static void draw_path(SkCanvas* canvas, const SkRect& r, const SkPaint& p) {
-    SkPath path;
-
-    path.moveTo(r.fLeft, r.fTop);
-    path.lineTo(r.fLeft, r.fBottom);
-    path.lineTo(r.fRight, r.fBottom);
-    path.close();
-
-    canvas->drawPath(path, p);
+    canvas->drawPath(SkPath::Polygon({
+        {r.fLeft, r.fTop},
+        {r.fLeft, r.fBottom},
+        {r.fRight, r.fBottom},
+    }, true), p);
 }
 
 static void draw_points(SkCanvas* canvas, const SkRect& r, const SkPaint& p) {
@@ -90,7 +86,7 @@ static void draw_bitmap(SkCanvas* canvas, const SkRect& r, const SkPaint& p) {
     SkCanvas temp(bm);
     temp.clear(SK_ColorMAGENTA);
 
-    canvas->drawBitmapRect(bm, r, &p);
+    canvas->drawImageRect(bm.asImage(), r, SkSamplingOptions(), &p);
 }
 
 constexpr drawMth gDrawMthds[] = {
@@ -110,7 +106,8 @@ static void create_paints(SkTArray<SkPaint>* paints, sk_sp<SkImageFilter> source
         scale.setScale(2.0f, 2.0f);
 
         sk_sp<SkImageFilter> scaleMIF(
-            SkImageFilters::MatrixTransform(scale, kLow_SkFilterQuality, source));
+            SkImageFilters::MatrixTransform(scale, SkSamplingOptions(SkFilterMode::kLinear),
+                                            source));
 
         add_paint(paints, std::move(scaleMIF));
     }
@@ -120,7 +117,7 @@ static void create_paints(SkTArray<SkPaint>* paints, sk_sp<SkImageFilter> source
         rot.setRotate(-33.3f);
 
         sk_sp<SkImageFilter> rotMIF(
-            SkImageFilters::MatrixTransform(rot, kLow_SkFilterQuality, source));
+            SkImageFilters::MatrixTransform(rot, SkSamplingOptions(SkFilterMode::kLinear), source));
 
         add_paint(paints, std::move(rotMIF));
     }
@@ -160,10 +157,10 @@ public:
     }
 
 protected:
-    static constexpr int kTileWidth = 100;
-    static constexpr int kTileHeight = 100;
-    static constexpr int kNumVertTiles = 7;
-    static constexpr int kNumXtraCols = 2;
+    inline static constexpr int kTileWidth = 100;
+    inline static constexpr int kTileHeight = 100;
+    inline static constexpr int kNumVertTiles = 7;
+    inline static constexpr int kNumXtraCols = 2;
 
     SkString onShortName() override { return SkString("filterfastbounds"); }
 
@@ -319,10 +316,10 @@ protected:
     }
 
 private:
-    typedef GM INHERITED;
+    using INHERITED = GM;
 };
 
 //////////////////////////////////////////////////////////////////////////////
 
 DEF_GM(return new ImageFilterFastBoundGM;)
-}
+}  // namespace skiagm

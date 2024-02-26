@@ -22,11 +22,7 @@
 #include "cobalt/renderer/backend/render_target.h"
 #include "cobalt/renderer/rasterizer/rasterizer.h"
 
-#ifdef USE_SKIA_NEXT
 class GrDirectContext;
-#else
-class GrContext;
-#endif
 class SkCanvas;
 
 namespace cobalt {
@@ -80,11 +76,7 @@ class HardwareRasterizer : public Rasterizer {
       const scoped_refptr<backend::RenderTarget>& render_target);
 
   render_tree::ResourceProvider* GetResourceProvider() override;
-#ifdef USE_SKIA_NEXT
   GrDirectContext* GetGrContext();
-#else
-  GrContext* GetGrContext();
-#endif
 
   void MakeCurrent() override;
   void ReleaseContext() override;

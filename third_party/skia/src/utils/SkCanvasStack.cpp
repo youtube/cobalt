@@ -4,6 +4,8 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
+
+#include "include/core/SkShader.h"
 #include "src/utils/SkCanvasStack.h"
 
 SkCanvasStack::SkCanvasStack(int width, int height)
@@ -65,16 +67,13 @@ void SkCanvasStack::clipToZOrderedBounds() {
  * canvas unlike all other matrix operations (i.e. translate, scale, etc) which
  * just pre-concatenate with the existing matrix.
  */
-void SkCanvasStack::didSetMatrix(const SkMatrix& matrix) {
+void SkCanvasStack::didSetM44(const SkM44& mx) {
     SkASSERT(fList.count() == fCanvasData.count());
     for (int i = 0; i < fList.count(); ++i) {
-
-        SkMatrix tempMatrix = matrix;
-        tempMatrix.postTranslate(SkIntToScalar(-fCanvasData[i].origin.x()),
-                                 SkIntToScalar(-fCanvasData[i].origin.y()));
-        fList[i]->setMatrix(tempMatrix);
+        fList[i]->setMatrix(SkM44::Translate(SkIntToScalar(-fCanvasData[i].origin.x()),
+                                             SkIntToScalar(-fCanvasData[i].origin.y())) * mx);
     }
-    this->SkCanvas::didSetMatrix(matrix);
+    this->SkCanvas::didSetM44(mx);
 }
 
 void SkCanvasStack::onClipRect(const SkRect& r, SkClipOp op, ClipEdgeStyle edgeStyle) {
@@ -90,6 +89,11 @@ void SkCanvasStack::onClipRRect(const SkRRect& rr, SkClipOp op, ClipEdgeStyle ed
 void SkCanvasStack::onClipPath(const SkPath& p, SkClipOp op, ClipEdgeStyle edgeStyle) {
     this->INHERITED::onClipPath(p, op, edgeStyle);
     this->clipToZOrderedBounds();
+}
+
+void SkCanvasStack::onClipShader(sk_sp<SkShader> cs, SkClipOp op) {
+    this->INHERITED::onClipShader(std::move(cs), op);
+    // we don't change the "bounds" of the clip, so we don't need to update zorder
 }
 
 void SkCanvasStack::onClipRegion(const SkRegion& deviceRgn, SkClipOp op) {

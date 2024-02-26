@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+PYTHON_VERSION_COMPATIBILITY = "PY3"
 
 DEPS = [
   'recipe_engine/path',
@@ -23,10 +24,8 @@ def RunSteps(api):
   s = api.step('show', cmd=None)
   for p in [
       'build_dir',
-      'builder_cfg',
       'builder_name',
       'cache_dir',
-      'default_env',
       'extra_tokens',
       'internal_hardware_label',
       'is_internal_bot',
@@ -36,7 +35,7 @@ def RunSteps(api):
       'patch_storage',
       'patchset',
       'role',
-      'slave_dir',
+      'workdir',
       'swarming_out_dir',
       'tmp_dir',
       ]:
@@ -44,7 +43,7 @@ def RunSteps(api):
 
 
 TEST_BUILDERS = [
-  'Build-Debian9-Clang-x86_64-Release-SKNX_NO_SIMD',
+  'Build-Debian10-Clang-x86_64-Release-SKNX_NO_SIMD',
   'Housekeeper-Weekly-RecreateSKPs',
 ]
 
@@ -77,7 +76,7 @@ def GenTests(api):
       )
   )
 
-  buildername = 'Upload-Test-Debian9-Clang-GCE-CPU-AVX2-x86_64-Debug-All-ASAN_Vulkan'
+  buildername = 'Upload-Test-Debian10-Clang-GCE-CPU-AVX2-x86_64-Debug-All-ASAN_Vulkan'
   yield (
       api.test('integer_issue') +
       api.properties(buildername=buildername,

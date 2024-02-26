@@ -413,7 +413,7 @@ const size_t gSimpleSizes[] = {
 };
 static_assert(SK_ARRAY_COUNT(gSimpleSizes) == SK_ARRAY_COUNT(gSimplePoints), "array_mismatch");
 
-}
+}  // namespace PolygonOffsetData
 
 namespace skiagm {
 
@@ -443,7 +443,7 @@ protected:
         if (index < (int)SK_ARRAY_COUNT(PolygonOffsetData::gConvexPoints)) {
             // manually specified
             *numPts = (int)PolygonOffsetData::gConvexSizes[index];
-            data->reset(new SkPoint[*numPts]);
+            *data = std::make_unique<SkPoint[]>(*numPts);
             if (SkPathDirection::kCW == dir) {
                 for (int i = 0; i < *numPts; ++i) {
                     (*data)[i] = PolygonOffsetData::gConvexPoints[index][i];
@@ -467,7 +467,7 @@ protected:
                 width = kMaxPathHeight / 5;
             }
 
-            data->reset(new SkPoint[*numPts]);
+            *data = std::make_unique<SkPoint[]>(*numPts);
 
             create_ngon(*numPts, data->get(), width, height, dir);
         }
@@ -478,7 +478,7 @@ protected:
         if (index < (int)SK_ARRAY_COUNT(PolygonOffsetData::gSimplePoints)) {
             // manually specified
             *numPts = (int)PolygonOffsetData::gSimpleSizes[index];
-            data->reset(new SkPoint[*numPts]);
+            *data = std::make_unique<SkPoint[]>(*numPts);
             if (SkPathDirection::kCW == dir) {
                 for (int i = 0; i < *numPts; ++i) {
                     (*data)[i] = PolygonOffsetData::gSimplePoints[index][i];
@@ -495,22 +495,21 @@ protected:
             int numPtsArray[] = { 5, 7, 8, 20, 100 };
 
             size_t arrayIndex = index - SK_ARRAY_COUNT(PolygonOffsetData::gSimplePoints);
-            arrayIndex = SkTMin(arrayIndex, SK_ARRAY_COUNT(numPtsArray) - 1);
+            arrayIndex = std::min(arrayIndex, SK_ARRAY_COUNT(numPtsArray) - 1);
             SkASSERT(arrayIndex < SK_ARRAY_COUNT(numPtsArray));
             *numPts = numPtsArray[arrayIndex];
             // squash horizontally
             width = kMaxPathHeight / 5;
 
-            data->reset(new SkPoint[*numPts]);
+            *data = std::make_unique<SkPoint[]>(*numPts);
 
             create_ngon(*numPts, data->get(), width, height, dir);
         }
     }
     // Draw a single polygon with insets and potentially outsets
-    void drawPolygon(SkCanvas* canvas, int index, SkPoint* offset) {
+    void drawPolygon(SkCanvas* canvas, int index, SkPoint* position) {
 
         SkPoint center;
-        SkRect bounds;
         {
             std::unique_ptr<SkPoint[]> data(nullptr);
             int numPts;
@@ -519,16 +518,17 @@ protected:
             } else {
                 GetSimplePolygon(index, SkPathDirection::kCW, &data, &numPts);
             }
+            SkRect bounds;
             bounds.setBounds(data.get(), numPts);
             if (!fConvexOnly) {
                 bounds.outset(kMaxOutset, kMaxOutset);
             }
-            if (offset->fX + bounds.width() > kGMWidth) {
-                offset->fX = 0;
-                offset->fY += kMaxPathHeight;
+            if (position->fX + bounds.width() > kGMWidth) {
+                position->fX = 0;
+                position->fY += kMaxPathHeight;
             }
-            center = { offset->fX + SkScalarHalf(bounds.width()), offset->fY };
-            offset->fX += bounds.width();
+            center = { position->fX + SkScalarHalf(bounds.width()), position->fY };
+            position->fX += bounds.width();
         }
 
         const SkPathDirection dirs[2] = { SkPathDirection::kCW, SkPathDirection::kCCW };
@@ -581,8 +581,8 @@ protected:
             if (result) {
                 SkPath path;
                 path.moveTo(offsetPoly[0]);
-                for (int i = 1; i < offsetPoly.count(); ++i) {
-                    path.lineTo(offsetPoly[i]);
+                for (int j = 1; j < offsetPoly.count(); ++j) {
+                    path.lineTo(offsetPoly[j]);
                 }
                 path.close();
 
@@ -608,19 +608,19 @@ protected:
     }
 
 private:
-    static constexpr int kNumPaths = 20;
-    static constexpr int kMaxPathHeight = 100;
-    static constexpr int kMaxOutset = 16;
-    static constexpr int kGMWidth = 512;
-    static constexpr int kGMHeight = 512;
+    inline static constexpr int kNumPaths = 20;
+    inline static constexpr int kMaxPathHeight = 100;
+    inline static constexpr int kMaxOutset = 16;
+    inline static constexpr int kGMWidth = 512;
+    inline static constexpr int kGMHeight = 512;
 
     bool fConvexOnly;
 
-    typedef GM INHERITED;
+    using INHERITED = GM;
 };
 
 //////////////////////////////////////////////////////////////////////////////
 
 DEF_GM(return new PolygonOffsetGM(true);)
 DEF_GM(return new PolygonOffsetGM(false);)
-}
+}  // namespace skiagm

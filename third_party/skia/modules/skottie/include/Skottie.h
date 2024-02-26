@@ -13,9 +13,12 @@
 #include "include/core/SkSize.h"
 #include "include/core/SkString.h"
 #include "include/core/SkTypes.h"
+#include "modules/skottie/include/ExternalLayer.h"
+#include "modules/skottie/include/SkottieProperty.h"
 #include "modules/skresources/include/SkResources.h"
 
 #include <memory>
+#include <vector>
 
 class SkCanvas;
 struct SkRect;
@@ -32,10 +35,10 @@ class Scene;
 
 namespace skottie {
 
+namespace internal { class Animator; }
+
 using ImageAsset = skresources::ImageAsset;
 using ResourceProvider = skresources::ResourceProvider;
-
-class PropertyObserver;
 
 /**
  * A Logger subclass can be used to receive Animation::Builder parsing errors and warnings.
@@ -50,6 +53,29 @@ public:
     virtual void log(Level, const char message[], const char* json = nullptr);
 };
 
+// Evaluates AE expressions.
+template <class T>
+class SK_API ExpressionEvaluator : public SkRefCnt {
+public:
+    // Evaluate the expression at the current time.
+    virtual T evaluate(float t) = 0;
+};
+
+/**
+ * Creates ExpressionEvaluators to evaluate AE expressions and return the results.
+ */
+class SK_API ExpressionManager : public SkRefCnt {
+public:
+    virtual sk_sp<ExpressionEvaluator<float>> createNumberExpressionEvaluator(
+        const char expression[]) = 0;
+
+    virtual sk_sp<ExpressionEvaluator<SkString>> createStringExpressionEvaluator(
+        const char expression[]) = 0;
+
+    virtual sk_sp<ExpressionEvaluator<std::vector<float>>> createArrayExpressionEvaluator(
+        const char expression[]) = 0;
+};
+
 /**
  * Interface for receiving AE composition markers at Animation build time.
  */
@@ -61,10 +87,17 @@ public:
 
 class SK_API Animation : public SkNVRefCnt<Animation> {
 public:
-
-    class Builder final {
+    class SK_API Builder final {
     public:
-        Builder();
+        enum Flags : uint32_t {
+            kDeferImageLoading   = 0x01, // Normally, all static image frames are resolved at
+                                         // load time via ImageAsset::getFrame(0).  With this flag,
+                                         // frames are only resolved when needed, at seek() time.
+            kPreferEmbeddedFonts = 0x02, // Attempt to use the embedded fonts (glyph paths,
+                                         // normally used as fallback) over native Skia typefaces.
+        };
+
+        explicit Builder(uint32_t flags = 0);
         ~Builder();
 
         struct Stats {
@@ -111,6 +144,18 @@ public:
         Builder& setMarkerObserver(sk_sp<MarkerObserver>);
 
         /**
+         * Register a precomp layer interceptor.
+         * This allows substituting precomp layers with custom/externally managed content.
+         */
+        Builder& setPrecompInterceptor(sk_sp<PrecompInterceptor>);
+
+        /**
+         * Registers an ExpressionManager to evaluate AE expressions.
+         * If unspecified, expressions in the animation JSON will be ignored.
+         */
+        Builder& setExpressionManager(sk_sp<ExpressionManager>);
+
+        /**
          * Animation factories.
          */
         sk_sp<Animation> make(SkStream*);
@@ -118,12 +163,16 @@ public:
         sk_sp<Animation> makeFromFile(const char path[]);
 
     private:
-        sk_sp<ResourceProvider> fResourceProvider;
-        sk_sp<SkFontMgr>        fFontMgr;
-        sk_sp<PropertyObserver> fPropertyObserver;
-        sk_sp<Logger>           fLogger;
-        sk_sp<MarkerObserver>   fMarkerObserver;
-        Stats                   fStats;
+        const uint32_t          fFlags;
+
+        sk_sp<ResourceProvider>   fResourceProvider;
+        sk_sp<SkFontMgr>          fFontMgr;
+        sk_sp<PropertyObserver>   fPropertyObserver;
+        sk_sp<Logger>             fLogger;
+        sk_sp<MarkerObserver  >   fMarkerObserver;
+        sk_sp<PrecompInterceptor> fPrecompInterceptor;
+        sk_sp<ExpressionManager>  fExpressionManager;
+        Stats                     fStats;
     };
 
     /**
@@ -141,7 +190,11 @@ public:
         // When rendering into a known transparent buffer, clients can pass
         // this flag to avoid some unnecessary compositing overhead for
         // animations using layer blend modes.
-        kSkipTopLevelIsolation = 0x01,
+        kSkipTopLevelIsolation   = 0x01,
+        // By default, content is clipped to the intrinsic animation
+        // bounds (as determined by its size).  If this flag is set,
+        // then the animation can draw outside of the bounds.
+        kDisableTopLevelClipping = 0x02,
     };
     using RenderFlags = uint32_t;
 
@@ -198,6 +251,16 @@ public:
      */
     double fps() const { return fFPS; }
 
+    /**
+     * Animation in point, in frame index units.
+     */
+    double inPoint()  const { return fInPoint;  }
+
+    /**
+     * Animation out point, in frame index units.
+     */
+    double outPoint() const { return fOutPoint; }
+
     const SkString& version() const { return fVersion; }
     const SkSize&      size() const { return fSize;    }
 
@@ -206,19 +269,22 @@ private:
         kRequiresTopLevelIsolation = 1 << 0, // Needs to draw into a layer due to layer blending.
     };
 
-    Animation(std::unique_ptr<sksg::Scene>, SkString ver, const SkSize& size,
+    Animation(std::unique_ptr<sksg::Scene>,
+              std::vector<sk_sp<internal::Animator>>&&,
+              SkString ver, const SkSize& size,
               double inPoint, double outPoint, double duration, double fps, uint32_t flags);
 
-    std::unique_ptr<sksg::Scene> fScene;
-    const SkString               fVersion;
-    const SkSize                 fSize;
-    const double                 fInPoint,
-                                 fOutPoint,
-                                 fDuration,
-                                 fFPS;
-    const uint32_t               fFlags;
+    const std::unique_ptr<sksg::Scene>           fScene;
+    const std::vector<sk_sp<internal::Animator>> fAnimators;
+    const SkString                               fVersion;
+    const SkSize                                 fSize;
+    const double                                 fInPoint,
+                                                 fOutPoint,
+                                                 fDuration,
+                                                 fFPS;
+    const uint32_t                               fFlags;
 
-    typedef SkNVRefCnt<Animation> INHERITED;
+    using INHERITED = SkNVRefCnt<Animation>;
 };
 
 } // namespace skottie

@@ -8,7 +8,7 @@
 #ifndef SKSL_BLOCK
 #define SKSL_BLOCK
 
-#include "src/sksl/ir/SkSLStatement.h"
+#include "include/private/SkSLStatement.h"
 #include "src/sksl/ir/SkSLSymbolTable.h"
 
 namespace SkSL {
@@ -16,48 +16,72 @@ namespace SkSL {
 /**
  * A block of multiple statements functioning as a single statement.
  */
-struct Block : public Statement {
-    Block(int offset, std::vector<std::unique_ptr<Statement>> statements,
-          const std::shared_ptr<SymbolTable> symbols = nullptr)
-    : INHERITED(offset, kBlock_Kind)
-    , fSymbols(std::move(symbols))
-    , fStatements(std::move(statements)) {}
+class Block final : public Statement {
+public:
+    inline static constexpr Kind kStatementKind = Kind::kBlock;
+
+    Block(int line, StatementArray statements,
+          const std::shared_ptr<SymbolTable> symbols = nullptr, bool isScope = true)
+    : INHERITED(line, kStatementKind)
+    , fChildren(std::move(statements))
+    , fSymbolTable(std::move(symbols))
+    , fIsScope(isScope) {}
+
+    // Make always makes a real Block object. This is important because many callers rely on Blocks
+    // specifically; e.g. a function body must be a scoped Block, nothing else will do.
+    static std::unique_ptr<Block> Make(int line,
+                                       StatementArray statements,
+                                       std::shared_ptr<SymbolTable> symbols = nullptr,
+                                       bool isScope = true);
+
+    // An unscoped Block is just a collection of Statements. For a single-statement Block,
+    // MakeUnscoped will return the Statement as-is. For an empty Block, MakeUnscoped returns Nop.
+    static std::unique_ptr<Statement> MakeUnscoped(int line, StatementArray statements);
+
+    const StatementArray& children() const {
+        return fChildren;
+    }
+
+    StatementArray& children() {
+        return fChildren;
+    }
+
+    bool isScope() const {
+        return fIsScope;
+    }
+
+    void setIsScope(bool isScope) {
+        fIsScope = isScope;
+    }
+
+    std::shared_ptr<SymbolTable> symbolTable() const {
+        return fSymbolTable;
+    }
 
     bool isEmpty() const override {
-        for (const auto& s : fStatements) {
-            if (!s->isEmpty()) {
+        for (const std::unique_ptr<Statement>& stmt : this->children()) {
+            if (!stmt->isEmpty()) {
                 return false;
             }
         }
         return true;
     }
 
-    std::unique_ptr<Statement> clone() const override {
-        std::vector<std::unique_ptr<Statement>> cloned;
-        for (const auto& s : fStatements) {
-            cloned.push_back(s->clone());
-        }
-        return std::unique_ptr<Statement>(new Block(fOffset, std::move(cloned), fSymbols));
-    }
+    std::unique_ptr<Statement> clone() const override;
 
-    String description() const override {
-        String result("{");
-        for (size_t i = 0; i < fStatements.size(); i++) {
-            result += "\n";
-            result += fStatements[i]->description();
-        }
-        result += "\n}\n";
-        return result;
-    }
+    String description() const override;
 
-    // it's important to keep fStatements defined after (and thus destroyed before) fSymbols,
-    // because destroying statements can modify reference counts in symbols
-    const std::shared_ptr<SymbolTable> fSymbols;
-    std::vector<std::unique_ptr<Statement>> fStatements;
+private:
+    StatementArray fChildren;
+    std::shared_ptr<SymbolTable> fSymbolTable;
+    // If isScope is false, this is just a group of statements rather than an actual language-level
+    // block. This allows us to pass around multiple statements as if they were a single unit, with
+    // no semantic impact.
+    bool fIsScope;
 
-    typedef Statement INHERITED;
+    using INHERITED = Statement;
 };
 
-} // namespace
+}  // namespace SkSL
 
 #endif

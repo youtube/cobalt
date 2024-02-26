@@ -7,13 +7,15 @@
       "--json-output",
       "/path/to/tmp/json",
       "copy",
-      "[HOME]/ssh_machine.json",
+      "/tmp/ssh_machine.json",
       "/path/to/tmp/"
     ],
     "infra_step": true,
     "name": "read ssh_machine.json",
     "~followup_annotations": [
-      "@@@STEP_LOG_LINE@ssh_machine.json@{\"user_ip\": \"foo@127.0.0.1\"}@@@",
+      "@@@STEP_LOG_LINE@ssh_machine.json@{@@@",
+      "@@@STEP_LOG_LINE@ssh_machine.json@  \"user_ip\": \"foo@127.0.0.1\"@@@",
+      "@@@STEP_LOG_LINE@ssh_machine.json@}@@@",
       "@@@STEP_LOG_END@ssh_machine.json@@@"
     ]
   },
@@ -192,6 +194,38 @@
   },
   {
     "cmd": [
+      "scp",
+      "[START_DIR]/build/dm",
+      "foo@127.0.0.1:/home/chronos/user/bin/dm"
+    ],
+    "env": {
+      "CHROME_HEADLESS": "1",
+      "PATH": "<PATH>:RECIPE_REPO[depot_tools]"
+    },
+    "infra_step": true,
+    "name": "scp [START_DIR]/build/dm foo@127.0.0.1:/home/chronos/user/bin/dm"
+  },
+  {
+    "cmd": [
+      "ssh",
+      "-oConnectTimeout=15",
+      "-oBatchMode=yes",
+      "-t",
+      "-t",
+      "foo@127.0.0.1",
+      "chmod",
+      "+x",
+      "/home/chronos/user/bin/dm"
+    ],
+    "env": {
+      "CHROME_HEADLESS": "1",
+      "PATH": "<PATH>:RECIPE_REPO[depot_tools]"
+    },
+    "infra_step": true,
+    "name": "make dm executable"
+  },
+  {
+    "cmd": [
       "ssh",
       "-oConnectTimeout=15",
       "-oBatchMode=yes",
@@ -216,7 +250,7 @@
     "cmd": [
       "python",
       "-u",
-      "\nimport subprocess\nimport sys\nsrc = sys.argv[1] + '/*'\ndest   = sys.argv[2]\nprint subprocess.check_output('scp -r %s %s' % (src, dest), shell=True)\n",
+      "\nimport subprocess\nimport sys\nsrc = sys.argv[1] + '/*'\ndest   = sys.argv[2]\nprint(subprocess.check_output(\n    'scp -r %s %s' % (src, dest), shell=True).decode('utf-8'))\n",
       "[START_DIR]/skia/resources",
       "foo@127.0.0.1:/home/chronos/user/resources"
     ],
@@ -228,7 +262,8 @@
       "@@@STEP_LOG_LINE@python.inline@import sys@@@",
       "@@@STEP_LOG_LINE@python.inline@src = sys.argv[1] + '/*'@@@",
       "@@@STEP_LOG_LINE@python.inline@dest   = sys.argv[2]@@@",
-      "@@@STEP_LOG_LINE@python.inline@print subprocess.check_output('scp -r %s %s' % (src, dest), shell=True)@@@",
+      "@@@STEP_LOG_LINE@python.inline@print(subprocess.check_output(@@@",
+      "@@@STEP_LOG_LINE@python.inline@    'scp -r %s %s' % (src, dest), shell=True).decode('utf-8'))@@@",
       "@@@STEP_LOG_END@python.inline@@@"
     ]
   },
@@ -347,7 +382,7 @@
     "cmd": [
       "python",
       "-u",
-      "\nimport subprocess\nimport sys\nsrc = sys.argv[1] + '/*'\ndest   = sys.argv[2]\nprint subprocess.check_output('scp -r %s %s' % (src, dest), shell=True)\n",
+      "\nimport subprocess\nimport sys\nsrc = sys.argv[1] + '/*'\ndest   = sys.argv[2]\nprint(subprocess.check_output(\n    'scp -r %s %s' % (src, dest), shell=True).decode('utf-8'))\n",
       "[START_DIR]/skp",
       "foo@127.0.0.1:/home/chronos/user/skps"
     ],
@@ -359,7 +394,8 @@
       "@@@STEP_LOG_LINE@python.inline@import sys@@@",
       "@@@STEP_LOG_LINE@python.inline@src = sys.argv[1] + '/*'@@@",
       "@@@STEP_LOG_LINE@python.inline@dest   = sys.argv[2]@@@",
-      "@@@STEP_LOG_LINE@python.inline@print subprocess.check_output('scp -r %s %s' % (src, dest), shell=True)@@@",
+      "@@@STEP_LOG_LINE@python.inline@print(subprocess.check_output(@@@",
+      "@@@STEP_LOG_LINE@python.inline@    'scp -r %s %s' % (src, dest), shell=True).decode('utf-8'))@@@",
       "@@@STEP_LOG_END@python.inline@@@"
     ]
   },
@@ -491,7 +527,7 @@
     "cmd": [
       "python",
       "-u",
-      "\nimport subprocess\nimport sys\nsrc = sys.argv[1] + '/*'\ndest   = sys.argv[2]\nprint subprocess.check_output('scp -r %s %s' % (src, dest), shell=True)\n",
+      "\nimport subprocess\nimport sys\nsrc = sys.argv[1] + '/*'\ndest   = sys.argv[2]\nprint(subprocess.check_output(\n    'scp -r %s %s' % (src, dest), shell=True).decode('utf-8'))\n",
       "[START_DIR]/skimage",
       "foo@127.0.0.1:/home/chronos/user/images"
     ],
@@ -503,7 +539,8 @@
       "@@@STEP_LOG_LINE@python.inline@import sys@@@",
       "@@@STEP_LOG_LINE@python.inline@src = sys.argv[1] + '/*'@@@",
       "@@@STEP_LOG_LINE@python.inline@dest   = sys.argv[2]@@@",
-      "@@@STEP_LOG_LINE@python.inline@print subprocess.check_output('scp -r %s %s' % (src, dest), shell=True)@@@",
+      "@@@STEP_LOG_LINE@python.inline@print(subprocess.check_output(@@@",
+      "@@@STEP_LOG_LINE@python.inline@    'scp -r %s %s' % (src, dest), shell=True).decode('utf-8'))@@@",
       "@@@STEP_LOG_END@python.inline@@@"
     ]
   },
@@ -635,7 +672,7 @@
     "cmd": [
       "python",
       "-u",
-      "\nimport subprocess\nimport sys\nsrc = sys.argv[1] + '/*'\ndest   = sys.argv[2]\nprint subprocess.check_output('scp -r %s %s' % (src, dest), shell=True)\n",
+      "\nimport subprocess\nimport sys\nsrc = sys.argv[1] + '/*'\ndest   = sys.argv[2]\nprint(subprocess.check_output(\n    'scp -r %s %s' % (src, dest), shell=True).decode('utf-8'))\n",
       "[START_DIR]/svg",
       "foo@127.0.0.1:/home/chronos/user/svgs"
     ],
@@ -647,7 +684,8 @@
       "@@@STEP_LOG_LINE@python.inline@import sys@@@",
       "@@@STEP_LOG_LINE@python.inline@src = sys.argv[1] + '/*'@@@",
       "@@@STEP_LOG_LINE@python.inline@dest   = sys.argv[2]@@@",
-      "@@@STEP_LOG_LINE@python.inline@print subprocess.check_output('scp -r %s %s' % (src, dest), shell=True)@@@",
+      "@@@STEP_LOG_LINE@python.inline@print(subprocess.check_output(@@@",
+      "@@@STEP_LOG_LINE@python.inline@    'scp -r %s %s' % (src, dest), shell=True).decode('utf-8'))@@@",
       "@@@STEP_LOG_END@python.inline@@@"
     ]
   },
@@ -663,38 +701,6 @@
     },
     "infra_step": true,
     "name": "scp [START_DIR]/tmp/SVG_VERSION foo@127.0.0.1:/home/chronos/user/SVG_VERSION"
-  },
-  {
-    "cmd": [
-      "scp",
-      "[START_DIR]/build/dm",
-      "foo@127.0.0.1:/home/chronos/user/bin/dm"
-    ],
-    "env": {
-      "CHROME_HEADLESS": "1",
-      "PATH": "<PATH>:RECIPE_REPO[depot_tools]"
-    },
-    "infra_step": true,
-    "name": "scp [START_DIR]/build/dm foo@127.0.0.1:/home/chronos/user/bin/dm"
-  },
-  {
-    "cmd": [
-      "ssh",
-      "-oConnectTimeout=15",
-      "-oBatchMode=yes",
-      "-t",
-      "-t",
-      "foo@127.0.0.1",
-      "chmod",
-      "+x",
-      "/home/chronos/user/bin/dm"
-    ],
-    "env": {
-      "CHROME_HEADLESS": "1",
-      "PATH": "<PATH>:RECIPE_REPO[depot_tools]"
-    },
-    "infra_step": true,
-    "name": "make dm executable"
   },
   {
     "cmd": [
@@ -718,7 +724,7 @@
     "cmd": [
       "python",
       "-u",
-      "\nimport subprocess\nimport sys\nsrc = sys.argv[1] + '/*'\ndest   = sys.argv[2]\nprint subprocess.check_output('scp -r %s %s' % (src, dest), shell=True)\n",
+      "\nimport subprocess\nimport sys\nsrc = sys.argv[1] + '/*'\ndest   = sys.argv[2]\nprint(subprocess.check_output(\n    'scp -r %s %s' % (src, dest), shell=True).decode('utf-8'))\n",
       "foo@127.0.0.1:/home/chronos/user/dm_out",
       "[START_DIR]/[SWARM_OUT_DIR]"
     ],
@@ -730,7 +736,8 @@
       "@@@STEP_LOG_LINE@python.inline@import sys@@@",
       "@@@STEP_LOG_LINE@python.inline@src = sys.argv[1] + '/*'@@@",
       "@@@STEP_LOG_LINE@python.inline@dest   = sys.argv[2]@@@",
-      "@@@STEP_LOG_LINE@python.inline@print subprocess.check_output('scp -r %s %s' % (src, dest), shell=True)@@@",
+      "@@@STEP_LOG_LINE@python.inline@print(subprocess.check_output(@@@",
+      "@@@STEP_LOG_LINE@python.inline@    'scp -r %s %s' % (src, dest), shell=True).decode('utf-8'))@@@",
       "@@@STEP_LOG_END@python.inline@@@"
     ]
   },

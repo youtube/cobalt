@@ -8,12 +8,12 @@
 #ifndef GrGpuResourceCacheAccess_DEFINED
 #define GrGpuResourceCacheAccess_DEFINED
 
-#include "include/gpu/GrGpuResource.h"
+#include "src/gpu/GrGpuResource.h"
 #include "src/gpu/GrGpuResourcePriv.h"
 
 namespace skiatest {
     class Reporter;
-}
+}  // namespace skiatest
 
 /**
  * This class allows GrResourceCache increased privileged access to GrGpuResource objects.
@@ -32,12 +32,16 @@ private:
                GrBudgetedType::kBudgeted == fResource->resourcePriv().budgetedType();
     }
 
+    bool isUsableAsScratch() const {
+        return this->isScratch() && !fResource->internalHasRef();
+    }
+
     /**
      * Called by the cache to delete the resource under normal circumstances.
      */
     void release() {
         fResource->release();
-        if (!fResource->hasRef()) {
+        if (!fResource->hasRef() && fResource->hasNoCommandBufferUsages()) {
             delete fResource;
         }
     }
@@ -47,7 +51,7 @@ private:
      */
     void abandon() {
         fResource->abandon();
-        if (!fResource->hasRef()) {
+        if (!fResource->hasRef() && fResource->hasNoCommandBufferUsages()) {
             delete fResource;
         }
     }
@@ -57,6 +61,9 @@ private:
 
     /** Is the resource ref'ed */
     bool hasRef() const { return fResource->hasRef(); }
+    bool hasRefOrCommandBufferUsage() const {
+        return this->hasRef() || !fResource->hasNoCommandBufferUsages();
+    }
 
     /** Called by the cache to make the unique key invalid. */
     void removeUniqueKey() { fResource->fUniqueKey.reset(); }
@@ -81,7 +88,7 @@ private:
 
     CacheAccess(GrGpuResource* resource) : fResource(resource) {}
     CacheAccess(const CacheAccess& that) : fResource(that.fResource) {}
-    CacheAccess& operator=(const CacheAccess&); // unimpl
+    CacheAccess& operator=(const CacheAccess&) = delete;
 
     // No taking addresses of this type.
     const CacheAccess* operator&() const = delete;
@@ -96,7 +103,7 @@ private:
 
 inline GrGpuResource::CacheAccess GrGpuResource::cacheAccess() { return CacheAccess(this); }
 
-inline const GrGpuResource::CacheAccess GrGpuResource::cacheAccess() const {
+inline const GrGpuResource::CacheAccess GrGpuResource::cacheAccess() const {  // NOLINT(readability-const-return-type)
     return CacheAccess(const_cast<GrGpuResource*>(this));
 }
 

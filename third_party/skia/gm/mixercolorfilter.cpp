@@ -59,8 +59,7 @@ static sk_sp<SkColorFilter> MakeTintColorFilter(SkColor lo, SkColor hi) {
         0, 0, 0, (a_hi - a_lo) / 255.0f, SkIntToScalar(a_lo) / 255.0f,
     };
 
-    return SkColorFilters::Matrix(tint_matrix)
-    ->makeComposed(SkLumaColorFilter::Make());
+    return SkColorFilters::Matrix(tint_matrix)->makeComposed(SkLumaColorFilter::Make());
 }
 
 namespace {
@@ -104,12 +103,22 @@ private:
 
     void mixRow(SkCanvas* canvas, SkPaint& paint,
                 sk_sp<SkColorFilter> cf0, sk_sp<SkColorFilter> cf1) {
+        // We cycle through paint colors on each row, to test how the paint color flows through
+        // the color-filter network
+        const SkColor4f paintColors[] = {
+            { 1.0f, 1.0f, 1.0f, 1.0f },  // Opaque white
+            { 1.0f, 1.0f, 1.0f, 0.5f },  // Translucent white
+            { 0.5f, 0.5f, 1.0f, 1.0f },  // Opaque pale blue
+            { 0.5f, 0.5f, 1.0f, 0.5f },  // Translucent pale blue
+        };
+
         canvas->translate(0, fTileSize.height() * 0.1f);
         {
             SkAutoCanvasRestore arc(canvas, true);
             for (size_t i = 0; i < fTileCount; ++i) {
-                paint.setColorFilter(
-                    SkColorFilters::Lerp(static_cast<float>(i) / (fTileCount - 1), cf0, cf1));
+                paint.setColor4f(paintColors[i % SK_ARRAY_COUNT(paintColors)]);
+                float t = static_cast<float>(i) / (fTileCount - 1);
+                paint.setColorFilter(SkColorFilters::Lerp(t, cf0, cf1));
                 canvas->translate(fTileSize.width() * 0.1f, 0);
                 canvas->drawRect(SkRect::MakeWH(fTileSize.width(), fTileSize.height()), paint);
                 canvas->translate(fTileSize.width() * 1.1f, 0);
@@ -122,85 +131,5 @@ private:
 };
 
 } // namespace
+
 DEF_GM( return new MixerCFGM(SkSize::Make(200, 250), 5); )
-
-static sk_sp<SkShader> make_resource_shader(const char path[], int size) {
-    auto img = GetResourceAsImage(path);
-    if (!img) {
-        return nullptr;
-    }
-    SkRect src = SkRect::MakeIWH(img->width(), img->height());
-    SkRect dst = SkRect::MakeIWH(size, size);
-    SkMatrix m;
-    m.setRectToRect(src, dst, SkMatrix::kFill_ScaleToFit);
-    return img->makeShader(&m);
-}
-
-static sk_sp<SkShader> make_grad(int size, float t) {
-    SkASSERT(t >= 0 && t <= 1);
-    unsigned r = SkScalarRoundToInt(t * 255);
-    SkColor c = SkColorSetARGB(r, r, 0, 0);
-
-    SkColor colors[] = { 0, c, SK_ColorRED };
-    SkPoint pts[] = {{0, 0}, {size*1.0f, size*1.0f}};
-    SkScalar pos[] = {0, 1 - t, 1.0f};
-    return SkGradientShader::MakeLinear(pts, colors, pos, SK_ARRAY_COUNT(colors),
-                                        SkTileMode::kClamp);
-}
-
-class ShaderMixerGM final : public skiagm::GM {
-    enum { SIZE = 256 };
-    float fPos = 0.5f;
-    sk_sp<SkShader> fS0, fS1;
-
-public:
-    ShaderMixerGM() {}
-
-protected:
-    SkString onShortName() override {
-        return SkString("mixershader_shadermixer");
-    }
-
-    void onOnceBeforeDraw() override {
-        fS0 = make_resource_shader("images/mandrill_256.png", SIZE);
-        fS1 = make_resource_shader("images/baby_tux.png", SIZE);
-    }
-
-    SkISize onISize() override { return {542, 542}; }
-
-    void onDraw(SkCanvas* canvas) override {
-        SkRect r = SkRect::MakeIWH(SIZE, SIZE);
-
-        SkPaint paint;
-
-        canvas->translate(10, 10);
-
-        canvas->save();
-        paint.setShader(fS0);
-        canvas->drawRect(r, paint);
-        canvas->translate(SIZE + 10.0f, 0);
-        paint.setShader(fS1);
-        canvas->drawRect(r, paint);
-        canvas->restore();
-
-        auto sh2 = make_grad(SIZE, fPos);
-
-        canvas->translate(0, SIZE + 10.0f);
-        paint.setShader(sh2);
-        canvas->drawRect(r, paint);
-
-        auto sh = SkShaders::Lerp(sh2, fS0, fS1);
-        canvas->translate(SIZE + 10.0f, 0);
-        paint.setShader(sh);
-        canvas->drawRect(r, paint);
-    }
-
-    bool onAnimate(double nanos) override {
-        fPos = (sin(1e-9 * nanos) + 1) * 0.5f;
-        return true;
-    }
-
-private:
-    using INHERITED = skiagm::GM;
-};
-DEF_GM( return new ShaderMixerGM; )

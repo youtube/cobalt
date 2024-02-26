@@ -70,14 +70,12 @@ void* IncrementPointerByBytes(void* pointer, int offset) {
 }  // namespace
 
 AudioDecoder::AudioDecoder(const AudioStreamInfo& audio_stream_info,
-                           SbDrmSystem drm_system,
-                           bool use_mediacodec_callback_thread)
+                           SbDrmSystem drm_system)
     : audio_stream_info_(audio_stream_info),
       sample_type_(GetSupportedSampleType()),
       output_sample_rate_(audio_stream_info.samples_per_second),
       output_channel_count_(audio_stream_info.number_of_channels),
-      drm_system_(static_cast<DrmSystem*>(drm_system)),
-      use_mediacodec_callback_thread_(use_mediacodec_callback_thread) {
+      drm_system_(static_cast<DrmSystem*>(drm_system)) {
   if (!InitializeCodec()) {
     SB_LOG(ERROR) << "Failed to initialize audio decoder.";
   }
@@ -188,8 +186,7 @@ void AudioDecoder::Reset() {
 
 bool AudioDecoder::InitializeCodec() {
   SB_DCHECK(!media_decoder_);
-  media_decoder_.reset(new MediaDecoder(this, audio_stream_info_, drm_system_,
-                                        use_mediacodec_callback_thread_));
+  media_decoder_.reset(new MediaDecoder(this, audio_stream_info_, drm_system_));
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
       media_decoder_->Initialize(

@@ -24,31 +24,7 @@
  */
 #define SK_MACRO_APPEND_LINE(name)  SK_MACRO_CONCAT(name, __LINE__)
 
-/**
- * For some classes, it's almost always an error to instantiate one without a name, e.g.
- *   {
- *       SkAutoMutexAcquire(&mutex);
- *       <some code>
- *   }
- * In this case, the writer meant to hold mutex while the rest of the code in the block runs,
- * but instead the mutex is acquired and then immediately released.  The correct usage is
- *   {
- *       SkAutoMutexAcquire lock(&mutex);
- *       <some code>
- *   }
- *
- * To prevent callers from instantiating your class without a name, use SK_REQUIRE_LOCAL_VAR
- * like this:
- *   class classname {
- *       <your class>
- *   };
- *   #define classname(...) SK_REQUIRE_LOCAL_VAR(classname)
- *
- * This won't work with templates, and you must inline the class' constructors and destructors.
- * Take a look at SkAutoFree and SkAutoMalloc in this file for examples.
- */
-#define SK_REQUIRE_LOCAL_VAR(classname) \
-    static_assert(false, "missing name for " #classname)
+#define SK_MACRO_APPEND_COUNTER(name) SK_MACRO_CONCAT(name, __COUNTER__)
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -63,5 +39,46 @@
 #endif
 
 #define SK_INIT_TO_AVOID_WARNING    = 0
+
+////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Defines overloaded bitwise operators to make it easier to use an enum as a
+ * bitfield.
+ */
+#define SK_MAKE_BITFIELD_OPS(X) \
+    inline X operator |(X a, X b) { \
+        return (X) (+a | +b); \
+    } \
+    inline X& operator |=(X& a, X b) { \
+        return (a = a | b); \
+    } \
+    inline X operator &(X a, X b) { \
+        return (X) (+a & +b); \
+    } \
+    inline X& operator &=(X& a, X b) { \
+        return (a = a & b); \
+    } \
+    template <typename T> \
+    inline X operator &(T a, X b) { \
+        return (X) (+a & +b); \
+    } \
+    template <typename T> \
+    inline X operator &(X a, T b) { \
+        return (X) (+a & +b); \
+    } \
+
+#define SK_DECL_BITFIELD_OPS_FRIENDS(X) \
+    friend X operator |(X a, X b); \
+    friend X& operator |=(X& a, X b); \
+    \
+    friend X operator &(X a, X b); \
+    friend X& operator &=(X& a, X b); \
+    \
+    template <typename T> \
+    friend X operator &(T a, X b); \
+    \
+    template <typename T> \
+    friend X operator &(X a, T b); \
 
 #endif  // SkMacros_DEFINED

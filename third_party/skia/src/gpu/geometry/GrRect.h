@@ -60,6 +60,13 @@ struct GrIRect16 {
         fRight  = SkToS16(r.fRight);
         fBottom = SkToS16(r.fBottom);
     }
+
+    void offset(int16_t dx, int16_t dy) {
+        fLeft   += dx;
+        fTop    += dy;
+        fRight  += dx;
+        fBottom += dy;
+    }
 };
 
 /** Returns true if the rectangles have a nonzero area of overlap. It assumed that rects can be
@@ -86,8 +93,7 @@ static inline bool GrRectsTouchOrOverlap(const SkRect& a, const SkRect& b) {
  */
 static inline void GrMapRectPoints(const SkRect& inRect, const SkRect& outRect,
                                    const SkPoint inPts[], SkPoint outPts[], int ptCount) {
-    SkMatrix rectTransform = SkMatrix::MakeRectToRect(inRect, outRect, SkMatrix::kFill_ScaleToFit);
-    rectTransform.mapPoints(outPts, inPts, ptCount);
+    SkMatrix::RectToRect(inRect, outRect).mapPoints(outPts, inPts, ptCount);
 }
 
 /**

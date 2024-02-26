@@ -26,23 +26,16 @@
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/backend/egl/texture_data.h"
 #include "cobalt/renderer/rasterizer/skia/image.h"
-#ifdef USE_SKIA_NEXT
 #include "third_party/skia/include/gpu/GrDirectContext.h"
 #include "third_party/skia/include/gpu/GrTypes.h"  // included for GrMipMapped
                                                    // alias
-#else
-#include "third_party/skia/include/gpu/GrContext.h"
-#include "third_party/skia/include/gpu/GrTexture.h"
-#endif
 
 namespace cobalt {
 namespace renderer {
 namespace rasterizer {
 namespace skia {
 
-#ifdef USE_SKIA_NEXT
 using GrContext = GrDirectContext;
-#endif
 
 // We use GL RGBA formats to indicate that a texture has 4 channels, but those
 // 4 channels may not always strictly mean red, green, blue and alpha.  This
@@ -56,14 +49,6 @@ typedef base::Callback<void(
     const scoped_refptr<render_tree::Node>& render_tree,
     const scoped_refptr<backend::RenderTarget>& render_target)>
     SubmitOffscreenCallback;
-
-#ifndef USE_SKIA_NEXT
-// Wraps a Cobalt backend::TextureEGL with a Skia GrTexture, and returns the
-// Skia ref-counted GrTexture object (that takes ownership of the cobalt
-// texture).
-GrTexture* CobaltTextureToSkiaTexture(
-    GrContext* gr_context, std::unique_ptr<backend::TextureEGL> cobalt_texture);
-#endif
 
 // Forwards ImageData methods on to TextureData methods.
 class HardwareImageData : public render_tree::ImageData {

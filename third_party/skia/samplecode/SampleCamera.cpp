@@ -6,6 +6,7 @@
  */
 
 #include "include/core/SkCanvas.h"
+#include "include/core/SkImage.h"
 #include "include/core/SkShader.h"
 #include "include/core/SkString.h"
 #include "include/utils/SkCamera.h"
@@ -35,9 +36,8 @@ class CameraView : public Sample {
             if (GetResourceAsBitmap(resource, &bm)) {
                 SkRect src = { 0, 0, SkIntToScalar(bm.width()), SkIntToScalar(bm.height()) };
                 SkRect dst = { -150, -150, 150, 150 };
-                SkMatrix matrix;
-                matrix.setRectToRect(src, dst, SkMatrix::kFill_ScaleToFit);
-                fShaders.push_back(bm.makeShader(&matrix));
+                fShaders.push_back(bm.makeShader(SkSamplingOptions(SkFilterMode::kLinear),
+                                                 SkMatrix::RectToRect(src, dst)));
             }
         }
         this->setBGColor(0xFFDDDDDD);
@@ -61,7 +61,6 @@ class CameraView : public Sample {
             SkPaint paint;
             paint.setAntiAlias(true);
             paint.setShader(fShaders[fShaderIndex]);
-            paint.setFilterQuality(kLow_SkFilterQuality);
             SkRect r = { -150, -150, 150, 150 };
             canvas->drawRoundRect(r, 30, 30, paint);
         }

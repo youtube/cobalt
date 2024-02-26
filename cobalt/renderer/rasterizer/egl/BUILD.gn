@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//cobalt/renderer/rasterizer/skia/skia/skia_next.gni")
-
 static_library("software_rasterizer") {
   sources = [
     "software_rasterizer.cc",
@@ -24,10 +22,6 @@ static_library("software_rasterizer") {
 
   configs -= [ "//starboard/build/config:size" ]
   configs += [ "//starboard/build/config:speed" ]
-
-  if (use_skia_next) {
-    include_dirs = [ skia_include_dir ]
-  }
 
   deps = [
     "//base",
@@ -92,10 +86,6 @@ static_library("hardware_rasterizer") {
 
   configs -= [ "//starboard/build/config:size" ]
   configs += [ "//starboard/build/config:speed" ]
-
-  if (use_skia_next) {
-    include_dirs = [ skia_include_dir ]
-  }
 
   deps = [
     ":software_rasterizer",

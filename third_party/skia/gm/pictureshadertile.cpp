@@ -135,7 +135,7 @@ protected:
             }
 
             fShaders[i] = pictureRef->makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat,
-                                                 &localMatrix, tilePtr);
+                                                 SkFilterMode::kNearest, &localMatrix, tilePtr);
         }
     }
 
@@ -159,7 +159,7 @@ protected:
 private:
     sk_sp<SkShader> fShaders[SK_ARRAY_COUNT(tiles)];
 
-    typedef GM INHERITED;
+    using INHERITED = GM;
 };
 
 DEF_GM(return new PictureShaderTileGM;)

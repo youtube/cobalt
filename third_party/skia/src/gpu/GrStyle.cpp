@@ -9,7 +9,7 @@
 #include "src/utils/SkDashPathPriv.h"
 
 int GrStyle::KeySize(const GrStyle &style, Apply apply, uint32_t flags) {
-    GR_STATIC_ASSERT(sizeof(uint32_t) == sizeof(SkScalar));
+    static_assert(sizeof(uint32_t) == sizeof(SkScalar));
     int size = 0;
     if (style.isDashed()) {
         // One scalar for scale, one for dash phase, and one for each dash value.
@@ -34,7 +34,7 @@ void GrStyle::WriteKey(uint32_t *key, const GrStyle &style, Apply apply, SkScala
                        uint32_t flags) {
     SkASSERT(key);
     SkASSERT(KeySize(style, apply) >= 0);
-    GR_STATIC_ASSERT(sizeof(uint32_t) == sizeof(SkScalar));
+    static_assert(sizeof(uint32_t) == sizeof(SkScalar));
 
     int i = 0;
     // The scale can influence both the path effect and stroking. We want to preserve the
@@ -44,7 +44,7 @@ void GrStyle::WriteKey(uint32_t *key, const GrStyle &style, Apply apply, SkScala
     //    from SkStrokeRec output by the the path effect (and no additional path effect).
     // Since the scale can affect both parts of 2 we write it into the key twice.
     if (style.isDashed()) {
-        GR_STATIC_ASSERT(sizeof(style.dashPhase()) == sizeof(uint32_t));
+        static_assert(sizeof(style.dashPhase()) == sizeof(uint32_t));
         SkScalar phase = style.dashPhase();
         memcpy(&key[i++], &scale, sizeof(SkScalar));
         memcpy(&key[i++], &phase, sizeof(SkScalar));
@@ -70,9 +70,9 @@ void GrStyle::WriteKey(uint32_t *key, const GrStyle &style, Apply apply, SkScala
             kJoinShift = kStyleBits,
             kCapShift = kJoinShift + kJoinBits,
         };
-        GR_STATIC_ASSERT(SkStrokeRec::kStyleCount <= (1 << kStyleBits));
-        GR_STATIC_ASSERT(SkPaint::kJoinCount <= (1 << kJoinBits));
-        GR_STATIC_ASSERT(SkPaint::kCapCount <= (1 << kCapBits));
+        static_assert(SkStrokeRec::kStyleCount <= (1 << kStyleBits));
+        static_assert(SkPaint::kJoinCount <= (1 << kJoinBits));
+        static_assert(SkPaint::kCapCount <= (1 << kCapBits));
         // The cap type only matters for unclosed shapes. However, a path effect could unclose
         // the shape before it is stroked.
         SkPaint::Cap cap = SkPaint::kDefault_Cap;
@@ -130,10 +130,15 @@ bool GrStyle::applyPathEffect(SkPath* dst, SkStrokeRec* strokeRec, const SkPath&
     if (!fPathEffect) {
         return false;
     }
+
+    // TODO: [skbug.com/11957] Plumb CTM callers and pass it to filterPath().
+    SkASSERT(!fPathEffect->needsCTM());
+
     if (SkPathEffect::kDash_DashType == fDashInfo.fType) {
         // We apply the dash ourselves here rather than using the path effect. This is so that
         // we can control whether the dasher applies the strokeRec for special cases. Our keying
         // depends on the strokeRec being applied separately.
+        SkASSERT(!fPathEffect->needsCTM());  // Make sure specified PE doesn't need CTM
         SkScalar phase = fDashInfo.fPhase;
         const SkScalar* intervals = fDashInfo.fIntervals.get();
         int intervalCnt = fDashInfo.fIntervals.count();

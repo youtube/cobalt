@@ -45,7 +45,7 @@ public:
     }
 
     void reject(size_t index, int rejectedMaxDimension) {
-        fRejectedMaxDimension = SkTMax(fRejectedMaxDimension, rejectedMaxDimension);
+        fRejectedMaxDimension = std::max(fRejectedMaxDimension, rejectedMaxDimension);
         this->reject(index);
     }
 
@@ -143,20 +143,42 @@ class SkDrawableGlyphBuffer {
 public:
     void ensureSize(size_t size);
 
-    // Load the buffer with SkPackedGlyphIDs and positions in source space.
-    void startSource(const SkZip<const SkGlyphID, const SkPoint>& source, SkPoint origin);
+    // Load the buffer with SkPackedGlyphIDs and positions at (0, 0) ready to finish positioning
+    // during drawing.
+    void startSource(const SkZip<const SkGlyphID, const SkPoint>& source);
 
     // Load the buffer with SkPackedGlyphIDs and positions using the device transform.
-    void startDevice(
+    void startBitmapDevice(
             const SkZip<const SkGlyphID, const SkPoint>& source,
             SkPoint origin, const SkMatrix& viewMatrix,
             const SkGlyphPositionRoundingSpec& roundingSpec);
+
+    // Load the buffer with SkPackedGlyphIDs, calculating positions so they can be constant.
+    //
+    // The positions are calculated integer positions in devices space, and the mapping of the
+    // the source origin through the initial matrix is returned. It is given that these positions
+    // are only reused when the blob is translated by an integral amount. Thus the shifted
+    // positions are given by the following equation where (ix, iy) is the integer positions of
+    // the glyph, initialMappedOrigin is (0,0) in source mapped to the device using the initial
+    // matrix, and newMappedOrigin is (0,0) in source mapped to the device using the current
+    // drawing matrix.
+    //
+    //    (ix', iy') = (ix, iy) + round(newMappedOrigin - initialMappedOrigin)
+    //
+    // In theory, newMappedOrigin - initialMappedOrigin should be integer, but the vagaries of
+    // floating point don't guarantee that, so force it to integer.
+    void startGPUDevice(
+            const SkZip<const SkGlyphID, const SkPoint>& source,
+            const SkMatrix& drawMatrix,
+            const SkGlyphPositionRoundingSpec& roundingSpec);
+
+    SkString dumpInput() const;
 
     // The input of SkPackedGlyphIDs
     SkZip<SkGlyphVariant, SkPoint> input() {
         SkASSERT(fPhase == kInput);
         SkDEBUGCODE(fPhase = kProcess);
-        return SkZip<SkGlyphVariant, SkPoint>{fInputSize, fMultiBuffer, fPositions};
+        return SkZip<SkGlyphVariant, SkPoint>{fInputSize, fMultiBuffer.get(), fPositions};
     }
 
     // Store the glyph in the next drawable slot, using the position information located at index
@@ -183,7 +205,12 @@ public:
     SkZip<SkGlyphVariant, SkPoint> drawable() {
         SkASSERT(fPhase == kProcess);
         SkDEBUGCODE(fPhase = kDraw);
-        return SkZip<SkGlyphVariant, SkPoint>{fDrawableSize, fMultiBuffer, fPositions};
+        return SkZip<SkGlyphVariant, SkPoint>{fDrawableSize, fMultiBuffer.get(), fPositions};
+    }
+
+    bool drawableIsEmpty() const {
+        SkASSERT(fPhase == kProcess || fPhase == kDraw);
+        return fDrawableSize == 0;
     }
 
     void reset();
@@ -199,7 +226,7 @@ private:
     size_t fMaxSize{0};
     size_t fInputSize{0};
     size_t fDrawableSize{0};
-    SkAutoTMalloc<SkGlyphVariant> fMultiBuffer;
+    SkAutoTArray<SkGlyphVariant> fMultiBuffer;
     SkAutoTMalloc<SkPoint> fPositions;
 
 #ifdef SK_DEBUG

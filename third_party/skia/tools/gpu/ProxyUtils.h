@@ -13,29 +13,37 @@
 #include "src/gpu/GrPipeline.h"
 #include "src/gpu/GrTextureProxy.h"
 
+class GrDirectContext;
 class GrProgramInfo;
+class GrCPixmap;
 
 namespace sk_gpu_test {
 
-/** Makes a texture proxy containing the passed in color data. */
-sk_sp<GrTextureProxy> MakeTextureProxyFromData(GrContext*,
-                                               GrRenderable,
-                                               GrSurfaceOrigin,
-                                               const GrImageInfo&,
-                                               const void* data,
-                                               size_t rowBytes);
+/** Returns the proxy backing an image if it is texture backed, otherwise nullptr. */
+GrTextureProxy* GetTextureImageProxy(SkImage*, GrRecordingContext*);
 
+/** Makes a texture proxy containing the passed in color data. */
+GrSurfaceProxyView MakeTextureProxyViewFromData(GrDirectContext*,
+                                                GrRenderable,
+                                                GrSurfaceOrigin,
+                                                GrCPixmap pixmap);
+
+#if SK_GPU_V1
 GrProgramInfo* CreateProgramInfo(const GrCaps*,
                                  SkArenaAlloc*,
-                                 const GrSurfaceProxyView* dstView,
+                                 const GrSurfaceProxyView& writeView,
+                                 bool usesMSAASurface,
                                  GrAppliedClip&&,
-                                 const GrXferProcessor::DstProxyView& dstProxyView,
-                                 GrGeometryProcessor*, SkBlendMode,
+                                 const GrDstProxyView&,
+                                 GrGeometryProcessor*,
+                                 SkBlendMode,
                                  GrPrimitiveType,
+                                 GrXferBarrierFlags renderPassXferBarriers,
+                                 GrLoadOp colorLoadOp,
                                  GrPipeline::InputFlags flags = GrPipeline::InputFlags::kNone,
                                  const GrUserStencilSettings* stencil =
                                                                 &GrUserStencilSettings::kUnused);
-
+#endif
 
 }  // namespace sk_gpu_test
 
