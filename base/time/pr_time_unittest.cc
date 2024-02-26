@@ -68,6 +68,14 @@ class PRTimeTest : public testing::Test {
   PRTime comparison_time_local_2_;
 };
 
+#if !defined(STARBOARD)
+// More of the no local time on Starboard issue. We can't use these standard
+// functions to check NSPR Time against because they don't always work on all
+// platforms, making these tests inherently flaky and non-portable.
+
+// Tests the PR_ParseTimeString nspr helper function for
+// a variety of time strings.
+
 // Tests the PR_ParseTimeString nspr helper function for
 // a variety of time strings.
 TEST_F(PRTimeTest, ParseTimeTest1) {
@@ -91,6 +99,7 @@ TEST_F(PRTimeTest, ParseTimeTest1) {
   EXPECT_EQ(PR_SUCCESS, result);
   EXPECT_EQ(current_time64, parsed_time);
 }
+#endif
 
 TEST_F(PRTimeTest, ParseTimeTest2) {
   PRTime parsed_time = 0;

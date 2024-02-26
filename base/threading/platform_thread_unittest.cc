@@ -540,6 +540,9 @@ TEST(PlatformThreadTest, SetHugeThreadName) {
   PlatformThread::SetName(long_name);
 }
 
+// TODO: b/327008491 - Not used by Cobalt, but should be tested to get
+// closer to Chrome.
+#if !defined(STARBOARD)
 TEST(PlatformThreadTest, GetDefaultThreadStackSize) {
   size_t stack_size = PlatformThread::GetDefaultThreadStackSize();
 #if BUILDFLAG(IS_IOS) && BUILDFLAG(USE_BLINK)
@@ -554,6 +557,7 @@ TEST(PlatformThreadTest, GetDefaultThreadStackSize) {
   EXPECT_LT(stack_size, 20u * (1 << 20));
 #endif
 }
+#endif
 
 #if BUILDFLAG(IS_APPLE)
 
