@@ -3568,11 +3568,16 @@ test("base_unittests") {
       # moduleCache is not implemented in Starboard.
       "profiler/module_cache_unittest.cc",
 
-      # Not used by cobalt.
+      # TODO: b/327008491 - Not used by Cobalt, but should be tested to get
+      # closer to Chrome.
+      "feature_list_unittest.cc",
+      "metrics/field_trial_params_unittest.cc",
       "native_library_unittest.cc",
       "test/launcher/test_launcher_unittest.cc",
       "test/launcher/test_results_tracker_unittest.cc",
       "test/metrics/histogram_enum_reader_unittest.cc",
+      "test/scoped_feature_list_unittest.cc",
+      "threading/hang_watcher_unittest.cc",
 
       # SyncSocket is not implemented in Starboard.
       "sync_socket_unittest.cc",
