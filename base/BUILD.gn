@@ -3583,15 +3583,9 @@ test("base_unittests") {
       # b/316403199 Chrome's base::to_address implemented in
       # base/cxx20_to_address.h is not compatible with libstdc++
       # debug mode
-      "containers/span_unittest.cc",
       "containers/stack_container_unittest.cc",
-      "json/json_value_converter_unittest.cc",
       "json/json_value_serializer_unittest.cc",
-      "json/json_writer_unittest.cc",
-      "metrics/statistics_recorder_unittest.cc",
-      "task/sequence_manager/sequence_manager_impl_unittest.cc",
       "test/task_environment_unittest.cc",
-      "values_unittest.cc",
 
       # Depends on USE_PARTITION_ALLOC.
       "allocator/partition_allocator/pointers/raw_ptr_test_support.h",
