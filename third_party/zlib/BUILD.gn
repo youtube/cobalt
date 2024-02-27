@@ -519,7 +519,6 @@ executable("zlib_bench") {
 }
 }
 
-if (!use_cobalt_customizations) {
 static_library("zip") {
   sources = [
     "google/zip.cc",
@@ -569,5 +568,4 @@ target(gtest_target_type, "zip_unittests") {
 
     data_deps = [ "//third_party/zlib/google/test:zip_unittest_files" ]
   }
-}
 }

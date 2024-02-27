@@ -15,6 +15,7 @@
 #include "base/callback.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
+#include "base/logging.h"
 #include "base/stl_util.h"
 #include "base/strings/string_number_conversions.h"
 #include "components/crx_file/crx3.pb.h"
@@ -108,8 +109,7 @@ bool ReadHashAndVerifyArchive(base::File* file,
                               const VerifierCollection& verifiers) {
   uint8_t buffer[1 << 12] = {};
   size_t len = 0;
-  while ((len = ReadAndHashBuffer(buffer, base::size(buffer), file, hash)) >
-         0) {
+  while ((len = ReadAndHashBuffer(buffer, std::size(buffer), file, hash)) > 0) {
     for (auto& verifier : verifiers)
       verifier->VerifyUpdate(base::make_span(buffer, len));
   }
@@ -129,8 +129,8 @@ bool ReadHashAndVerifyArchiveFromString(const std::string& crx_str,
 
   uint8_t buffer[1 << 12] = {};
   while (remaining_bytes > 0) {
-    size_t len = remaining_bytes >= base::size(buffer) ? base::size(buffer)
-                                                       : remaining_bytes;
+    size_t len = remaining_bytes >= std::size(buffer) ? std::size(buffer)
+                                                      : remaining_bytes;
 
     ReadAndHashBufferFromString(buffer, len, it, hash);
     remaining_bytes -= len;
@@ -211,7 +211,7 @@ VerifierResult VerifyCrx3(
 
   std::vector<uint8_t> publisher_key(std::begin(kPublisherKeyHash),
                                      std::end(kPublisherKeyHash));
-  base::Optional<std::vector<uint8_t>> publisher_test_key;
+  absl::optional<std::vector<uint8_t>> publisher_test_key;
   if (accept_publisher_test_key) {
     publisher_test_key.emplace(std::begin(kPublisherTestKeyHash),
                                std::end(kPublisherTestKeyHash));
@@ -333,7 +333,7 @@ VerifierResult VerifyCrx3FromString(
 
   std::vector<uint8_t> publisher_key(std::begin(kPublisherKeyHash),
                                      std::end(kPublisherKeyHash));
-  base::Optional<std::vector<uint8_t>> publisher_test_key;
+  absl::optional<std::vector<uint8_t>> publisher_test_key;
   if (accept_publisher_test_key) {
     publisher_test_key.emplace(std::begin(kPublisherTestKeyHash),
                                std::end(kPublisherTestKeyHash));
