@@ -17,6 +17,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "base/threading/thread_checker.h"
 #include "cobalt/dom/performance_high_resolution_time.h"
@@ -82,7 +83,7 @@ class Profiler : public script::Wrappable {
   ProfilerGroup* profiler_group_;
   // All samplebufferfull listeners. Prevents GC on callbacks owned by this
   // object, by binding to global-wrappable.
-  std::unique_ptr<SampleBufferFullCallbackReference> listener_;
+  std::vector<std::unique_ptr<SampleBufferFullCallbackReference>> listeners_;
 
   // Thread checker for the thread that creates this instance.
   THREAD_CHECKER(thread_checker_);

@@ -81,13 +81,16 @@ void Profiler::AddEventListener(
   auto* global_wrappable = web::get_global_wrappable(environment_settings);
   SampleBufferFullCallbackReference* token_callback =
       new SampleBufferFullCallbackReference(global_wrappable, holder);
-  listener_.reset(token_callback);
+  listeners_.push_back(
+      new std::unique_ptr<SampleBufferFullCallbackReference>(token_callback));
 }
 
 void Profiler::DispatchSampleBufferFullEvent() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  listener_->value().Run();
-  listener_.reset();
+  for (auto it = listeners_.begin(); it != listeners_.end(); ++it) {
+    (*it)->value().Run();
+  }
+  listeners_.clear();
 }
 
 Profiler::ProfilerTracePromise Profiler::Stop(
