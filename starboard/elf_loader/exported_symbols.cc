@@ -422,6 +422,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(munmap);
   REGISTER_SYMBOL(posix_memalign);
   REGISTER_SYMBOL(realloc);
+  REGISTER_SYMBOL(setsockopt);
   REGISTER_SYMBOL(socket);
   REGISTER_SYMBOL(snprintf);
   REGISTER_SYMBOL(sprintf);

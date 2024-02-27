@@ -98,6 +98,7 @@ _ALLOWED_SB16_POSIX_SYMBOLS = [
     'strcasecmp',
     'strncasecmp',
     'socket',
+    'setsockopt',
     'time',
     'mmap',
     'munmap',
