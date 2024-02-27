@@ -23,7 +23,7 @@
     !defined(SK_BUILD_FOR_UNIX) && !defined(SK_BUILD_FOR_MAC)
 
     #ifdef __APPLE__
-        #include "TargetConditionals.h"
+        #include <TargetConditionals.h>
     #endif
 
     #if defined(_WIN32) || defined(__SYMBIAN32__)
@@ -270,9 +270,9 @@
 #endif
 
 #ifndef SK_ABORT
-#ifdef SK_BUILD_FOR_WIN
-    // This style lets Visual Studio follow errors back to the source file.
-#define SK_DUMP_LINE_FORMAT "%s(%d)"
+#  ifdef SK_BUILD_FOR_WIN
+     // This style lets Visual Studio follow errors back to the source file.
+#    define SK_DUMP_LINE_FORMAT "%s(%d)"
 #define SK_ABORT(...)                                           \
         do {                                                        \
             SkDebugf(SK_DUMP_LINE_FORMAT ": fatal error: \"%s\"\n", \
@@ -282,17 +282,15 @@
             SK_DUMP_GOOGLE3_STACK();                                \
             sk_abort_no_print();                                    \
         } while (false)
-#else
-#define SK_DUMP_LINE_FORMAT "%s:%d"
-#define SK_ABORT(message, ...)                                           \
-        do {                                                                 \
-            SkDebugf(SK_DUMP_LINE_FORMAT ": fatal error: \"" message "\"\n", \
-                     __FILE__,                                               \
-                     __LINE__,                                               \
-                     ##__VA_ARGS__);                                         \
-            SK_DUMP_GOOGLE3_STACK();                                         \
-            sk_abort_no_print();                                             \
-        } while (false)
+#  else
+#    define SK_DUMP_LINE_FORMAT "%s:%d"
+#  define SK_ABORT(message, ...) \
+    do { \
+        SkDebugf(SK_DUMP_LINE_FORMAT ": fatal error: \"" message "\"\n", \
+                 __FILE__, __LINE__, ##__VA_ARGS__); \
+        SK_DUMP_GOOGLE3_STACK(); \
+        sk_abort_no_print(); \
+    } while (false)
 #endif
 #endif
 
@@ -428,10 +426,6 @@ inline SkPmcolor GetSkPmcolor() {
 
 #ifndef GR_TEST_UTILS
 #  define GR_TEST_UTILS 0
-#endif
-
-#ifndef SK_GPU_V2
-#  define SK_GPU_V2 0
 #endif
 
 #ifndef SK_GPU_V1

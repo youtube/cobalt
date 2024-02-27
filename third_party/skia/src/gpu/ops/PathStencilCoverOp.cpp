@@ -16,10 +16,10 @@
 #include "src/gpu/glsl/GrGLSLVarying.h"
 #include "src/gpu/glsl/GrGLSLVertexGeoBuilder.h"
 #include "src/gpu/ops/GrSimpleMeshDrawOpHelper.h"
+#include "src/gpu/tessellate/AffineMatrix.h"
 #include "src/gpu/tessellate/MiddleOutPolygonTriangulator.h"
 #include "src/gpu/tessellate/PathCurveTessellator.h"
 #include "src/gpu/tessellate/PathWedgeTessellator.h"
-#include "src/gpu/tessellate/PathXform.h"
 #include "src/gpu/tessellate/Tessellation.h"
 #include "src/gpu/tessellate/shaders/GrPathTessellationShader.h"
 
@@ -158,22 +158,20 @@ void PathStencilCoverOp::prePreparePrograms(const GrTessellationShader::ProgramA
                                                                stencilPipeline,
                                                                stencilSettings);
         fTessellator = PathCurveTessellator::Make(args.fArena,
-                                                  shaderMatrix,
-                                                  SK_PMColor4fTRANSPARENT,
-                                                  PathCurveTessellator::DrawInnerFan::kNo,
-                                                  fTotalCombinedPathVerbCnt,
-                                                  *stencilPipeline,
-                                                  *args.fCaps);
+                                                  args.fCaps->shaderCaps()->infinitySupport());
     } else {
         fTessellator = PathWedgeTessellator::Make(args.fArena,
-                                                  shaderMatrix,
-                                                  SK_PMColor4fTRANSPARENT,
-                                                  fTotalCombinedPathVerbCnt,
-                                                  *stencilPipeline,
-                                                  *args.fCaps);
+                                                  args.fCaps->shaderCaps()->infinitySupport());
     }
+    auto* tessShader = GrPathTessellationShader::Make(args.fArena,
+                                                      shaderMatrix,
+                                                      SK_PMColor4fTRANSPARENT,
+                                                      fTotalCombinedPathVerbCnt,
+                                                      *stencilPipeline,
+                                                      fTessellator->patchAttribs(),
+                                                      *args.fCaps);
     fStencilPathProgram = GrTessellationShader::MakeProgram(args,
-                                                            fTessellator->shader(),
+                                                            tessShader,
                                                             stencilPipeline,
                                                             stencilSettings);
 
@@ -244,14 +242,15 @@ void PathStencilCoverOp::onPrepare(GrOpFlushState* flushState) {
         // A single n-sided polygon is fanned by n-2 triangles. Multiple polygons with a combined
         // edge count of n are fanned by strictly fewer triangles.
         int maxTrianglesInFans = std::max(maxCombinedFanEdges - 2, 0);
-        VertexWriter triangleVertexWriter = vertexAlloc.lock<SkPoint>(maxTrianglesInFans * 3);
         int fanTriangleCount = 0;
-        for (auto [pathMatrix, path] : *fPathDrawList) {
-            PathXform m(pathMatrix);
-            for (PathMiddleOutFanIter it(path); !it.done();) {
-                for (auto [p0, p1, p2] : it.nextStack()) {
-                    triangleVertexWriter << m.map2Points(p0, p1) << m.mapPoint(p2);
-                    ++fanTriangleCount;
+        if (VertexWriter triangleVertexWriter = vertexAlloc.lock<SkPoint>(maxTrianglesInFans * 3)) {
+            for (auto [pathMatrix, path, color] : *fPathDrawList) {
+                AffineMatrix m(pathMatrix);
+                for (PathMiddleOutFanIter it(path); !it.done();) {
+                    for (auto [p0, p1, p2] : it.nextStack()) {
+                        triangleVertexWriter << m.map2Points(p0, p1) << m.mapPoint(p2);
+                        ++fanTriangleCount;
+                    }
                 }
             }
         }
@@ -260,7 +259,13 @@ void PathStencilCoverOp::onPrepare(GrOpFlushState* flushState) {
         vertexAlloc.unlock(fFanVertexCount);
     }
 
-    fTessellator->prepare(flushState, *fPathDrawList, fTotalCombinedPathVerbCnt);
+    auto tessShader = &fStencilPathProgram->geomProc().cast<GrPathTessellationShader>();
+    fTessellator->prepare(flushState,
+                          tessShader->maxTessellationSegments(*flushState->caps().shaderCaps()),
+                          tessShader->viewMatrix(),
+                          *fPathDrawList,
+                          fTotalCombinedPathVerbCnt,
+                          tessShader->willUseTessellationShaders());
 
     if (fCoverBBoxProgram) {
         size_t instanceStride = fCoverBBoxProgram->geomProc().instanceStride();
@@ -269,7 +274,7 @@ void PathStencilCoverOp::onPrepare(GrOpFlushState* flushState) {
                                                                 &fBBoxBuffer,
                                                                 &fBBoxBaseInstance);
         SkDEBUGCODE(int pathCount = 0;)
-        for (auto [pathMatrix, path] : *fPathDrawList) {
+        for (auto [pathMatrix, path, color] : *fPathDrawList) {
             SkDEBUGCODE(auto end = vertexWriter.makeOffset(instanceStride));
             vertexWriter << pathMatrix.getScaleX()
                          << pathMatrix.getSkewY()
@@ -313,6 +318,12 @@ void PathStencilCoverOp::onExecute(GrOpFlushState* flushState, const SkRect& cha
         return;
     }
 
+    if (fCoverBBoxProgram &&
+        fCoverBBoxProgram->geomProc().hasVertexAttributes() &&
+        !fBBoxVertexBufferIfNoIDSupport) {
+        return;
+    }
+
     // Stencil the inner fan, if any.
     if (fFanVertexCount > 0) {
         SkASSERT(fStencilFanProgram);
@@ -325,7 +336,7 @@ void PathStencilCoverOp::onExecute(GrOpFlushState* flushState, const SkRect& cha
     // Stencil the rest of the path.
     SkASSERT(fStencilPathProgram);
     flushState->bindPipelineAndScissorClip(*fStencilPathProgram, this->bounds());
-    fTessellator->draw(flushState);
+    fTessellator->draw(flushState, fStencilPathProgram->geomProc().willUseTessellationShaders());
     if (flushState->caps().requiresManualFBBarrierAfterTessellatedStencilDraw()) {
         flushState->gpu()->insertManualFramebufferBarrier();  // http://skbug.com/9739
     }

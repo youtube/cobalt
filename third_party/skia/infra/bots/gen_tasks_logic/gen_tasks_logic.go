@@ -759,7 +759,7 @@ func (b *taskBuilder) defaultSwarmDimensions() {
 			"Mac11":      "Mac-11.4",
 			"Ubuntu18":   "Ubuntu-18.04",
 			"Win":        DEFAULT_OS_WIN,
-			"Win10":      "Windows-10-19041",
+			"Win10":      "Windows-10-19044",
 			"Win2019":    DEFAULT_OS_WIN,
 			"Win7":       "Windows-7-SP1",
 			"Win8":       "Windows-8.1-SP0",
@@ -845,7 +845,7 @@ func (b *taskBuilder) defaultSwarmDimensions() {
 					"MacMini9.1": "arm64-64-Apple_M1",
 				},
 				"AVX": {
-					"VMware7.1": "x86-64-E5-2697_v2",
+					"VMware7.1": "x86-64",
 				},
 				"AVX2": {
 					"GCE":            "x86-64-Haswell_GCE",
@@ -1081,8 +1081,7 @@ func (b *jobBuilder) createDockerImage(wasm bool) string {
 			"--swarm_out_dir", specs.PLACEHOLDER_ISOLATED_OUTDIR,
 		)
 		b.dep(b.buildTaskDrivers("linux", "amd64"))
-		// TODO(borenet): Does this task need go/go/bin in PATH?
-		b.addToPATH("cipd_bin_packages", "cipd_bin_packages/bin", "go/go/bin")
+		b.addToPATH("cipd_bin_packages", "cipd_bin_packages/bin")
 		b.cas(CAS_EMPTY)
 		b.serviceAccount(b.cfg.ServiceAccountCompile)
 		b.linuxGceDimensions(MACHINE_TYPE_MEDIUM)
@@ -1093,7 +1092,7 @@ func (b *jobBuilder) createDockerImage(wasm bool) string {
 }
 
 // createPushAppsFromSkiaDockerImage creates and pushes docker images of some apps
-// (eg: fiddler, debugger, api) using the skia-release docker image.
+// (eg: fiddler, api) using the skia-release docker image.
 func (b *jobBuilder) createPushAppsFromSkiaDockerImage() {
 	b.addTask(b.Name, func(b *taskBuilder) {
 		// TODO(borenet): Make this task not use Git.
@@ -1104,8 +1103,6 @@ func (b *jobBuilder) createPushAppsFromSkiaDockerImage() {
 			"--task_id", specs.PLACEHOLDER_TASK_ID,
 			"--task_name", b.Name,
 			"--workdir", ".",
-			"--gerrit_project", "buildbot",
-			"--gerrit_url", "https://skia-review.googlesource.com",
 			"--repo", specs.PLACEHOLDER_REPO,
 			"--revision", specs.PLACEHOLDER_REVISION,
 			"--patch_issue", specs.PLACEHOLDER_ISSUE,
@@ -1114,8 +1111,7 @@ func (b *jobBuilder) createPushAppsFromSkiaDockerImage() {
 		)
 		b.dep(b.buildTaskDrivers("linux", "amd64"))
 		b.dep(b.createDockerImage(false))
-		// TODO(borenet): Does this task need go/go/bin in PATH?
-		b.addToPATH("cipd_bin_packages", "cipd_bin_packages/bin", "go/go/bin")
+		b.addToPATH("cipd_bin_packages", "cipd_bin_packages/bin")
 		b.cas(CAS_EMPTY)
 		b.serviceAccount(b.cfg.ServiceAccountCompile)
 		b.linuxGceDimensions(MACHINE_TYPE_MEDIUM)
@@ -1136,8 +1132,6 @@ func (b *jobBuilder) createPushAppsFromWASMDockerImage() {
 			"--task_id", specs.PLACEHOLDER_TASK_ID,
 			"--task_name", b.Name,
 			"--workdir", ".",
-			"--gerrit_project", "buildbot",
-			"--gerrit_url", "https://skia-review.googlesource.com",
 			"--repo", specs.PLACEHOLDER_REPO,
 			"--revision", specs.PLACEHOLDER_REVISION,
 			"--patch_issue", specs.PLACEHOLDER_ISSUE,
@@ -1146,9 +1140,35 @@ func (b *jobBuilder) createPushAppsFromWASMDockerImage() {
 		)
 		b.dep(b.buildTaskDrivers("linux", "amd64"))
 		b.dep(b.createDockerImage(true))
-		// TODO(borenet): Does this task need go/go/bin in PATH?
-		b.addToPATH("cipd_bin_packages", "cipd_bin_packages/bin", "go/go/bin")
+		b.addToPATH("cipd_bin_packages", "cipd_bin_packages/bin")
 		b.cas(CAS_EMPTY)
+		b.serviceAccount(b.cfg.ServiceAccountCompile)
+		b.linuxGceDimensions(MACHINE_TYPE_MEDIUM)
+		b.usesDocker()
+		b.cache(CACHES_DOCKER...)
+	})
+}
+
+// createPushBazelAppsFromWASMDockerImage pushes those infra apps that have been ported to Bazel
+// and require assets built in the WASM docker image.
+// TODO(kjlubick) The inputs to this job should not be the docker build, but a Bazel build.
+func (b *jobBuilder) createPushBazelAppsFromWASMDockerImage() {
+	b.addTask(b.Name, func(b *taskBuilder) {
+		// TODO(borenet): Make this task not use Git.
+		b.usesGit()
+		b.cmd(
+			"./push_bazel_apps_from_wasm_image",
+			"--project_id", "skia-swarming-bots",
+			"--task_id", specs.PLACEHOLDER_TASK_ID,
+			"--task_name", b.Name,
+			"--workdir", ".",
+			"--skia_revision", specs.PLACEHOLDER_REVISION,
+		)
+		b.dep(b.buildTaskDrivers("linux", "amd64"))
+		b.dep(b.createDockerImage(true))
+		b.addToPATH("cipd_bin_packages", "cipd_bin_packages/bin", "bazelisk")
+		b.cas(CAS_EMPTY)
+		b.cipd(b.MustGetCipdPackageFromAsset("bazelisk"))
 		b.serviceAccount(b.cfg.ServiceAccountCompile)
 		b.linuxGceDimensions(MACHINE_TYPE_MEDIUM)
 		b.usesDocker()
@@ -1288,6 +1308,7 @@ func (b *jobBuilder) recreateSKPs() {
 		"--patch_ref", specs.PLACEHOLDER_PATCH_REF,
 		"--git_cache", "cache/git",
 		"--checkout_root", "cache/work",
+		"--dm_path", "build/dm",
 	}
 	if b.matchExtraConfig("DryRun") {
 		cmd = append(cmd, "--dry_run")
@@ -1295,6 +1316,7 @@ func (b *jobBuilder) recreateSKPs() {
 	b.addTask(b.Name, func(b *taskBuilder) {
 		b.cas(CAS_RECREATE_SKPS)
 		b.dep(b.buildTaskDrivers("linux", "amd64"))
+		b.dep("Build-Debian10-Clang-x86_64-Release") // To get DM.
 		b.cmd(cmd...)
 		b.cipd(CIPD_PKG_LUCI_AUTH)
 		b.serviceAccount(b.cfg.ServiceAccountRecreateSKPs)
@@ -1658,7 +1680,7 @@ func (b *jobBuilder) fm() {
 
 // canary generates a task that uses TaskDrivers to trigger canary manual rolls on autorollers.
 // Canary-G3 does not use this path because it is very different from other autorollers.
-func (b *jobBuilder) canary(rollerName string) {
+func (b *jobBuilder) canary(rollerName, canaryCQKeyword, targetProjectBaseURL string) {
 	b.addTask(b.Name, func(b *taskBuilder) {
 		b.cas(CAS_EMPTY)
 		b.dep(b.buildTaskDrivers("linux", "amd64"))
@@ -1668,6 +1690,8 @@ func (b *jobBuilder) canary(rollerName string) {
 			"--task_id", specs.PLACEHOLDER_TASK_ID,
 			"--task_name", b.Name,
 			"--roller_name", rollerName,
+			"--cq_keyword", canaryCQKeyword,
+			"--target_project_base_url", targetProjectBaseURL,
 			"--repo", specs.PLACEHOLDER_REPO,
 			"--revision", specs.PLACEHOLDER_REVISION,
 			"--patch_issue", specs.PLACEHOLDER_ISSUE,

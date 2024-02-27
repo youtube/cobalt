@@ -118,9 +118,7 @@ size_t SkGlyph::setMetricsAndImage(SkArenaAlloc* alloc, const SkGlyph& from) {
             return this->imageSize();
         }
 
-        SkDEBUGCODE(
-            fAdvancesBoundsFormatAndInitialPathDone = from.fAdvancesBoundsFormatAndInitialPathDone;
-        )
+        SkDEBUGCODE(fAdvancesBoundsFormatAndInitialPathDone = from.fAdvancesBoundsFormatAndInitialPathDone;)
     }
     return 0;
 }

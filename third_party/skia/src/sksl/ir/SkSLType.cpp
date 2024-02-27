@@ -14,12 +14,9 @@
 #include "src/sksl/ir/SkSLConstructorArrayCast.h"
 #include "src/sksl/ir/SkSLConstructorCompoundCast.h"
 #include "src/sksl/ir/SkSLConstructorScalarCast.h"
-#include "src/sksl/ir/SkSLExternalFunctionReference.h"
-#include "src/sksl/ir/SkSLFunctionReference.h"
 #include "src/sksl/ir/SkSLProgram.h"
 #include "src/sksl/ir/SkSLSymbolTable.h"
 #include "src/sksl/ir/SkSLType.h"
-#include "src/sksl/ir/SkSLTypeReference.h"
 
 namespace SkSL {
 
@@ -332,9 +329,10 @@ class StructType final : public Type {
 public:
     inline static constexpr TypeKind kTypeKind = TypeKind::kStruct;
 
-    StructType(int line, skstd::string_view name, std::vector<Field> fields)
+    StructType(int line, skstd::string_view name, std::vector<Field> fields, bool interfaceBlock)
         : INHERITED(std::move(name), "S", kTypeKind, line)
-        , fFields(std::move(fields)) {}
+        , fFields(std::move(fields))
+        , fInterfaceBlock(interfaceBlock) {}
 
     const std::vector<Field>& fields() const override {
         return fFields;
@@ -342,6 +340,10 @@ public:
 
     bool isStruct() const override {
         return true;
+    }
+
+    bool isInterfaceBlock() const override {
+        return fInterfaceBlock;
     }
 
     bool isPrivate() const override {
@@ -368,6 +370,7 @@ private:
     using INHERITED = Type;
 
     std::vector<Field> fFields;
+    bool fInterfaceBlock;
 };
 
 class VectorType final : public Type {
@@ -459,8 +462,8 @@ std::unique_ptr<Type> Type::MakeScalarType(skstd::string_view name, const char* 
 }
 
 std::unique_ptr<Type> Type::MakeStructType(int line, skstd::string_view name,
-                                           std::vector<Field> fields) {
-    return std::make_unique<StructType>(line, name, std::move(fields));
+                                           std::vector<Field> fields, bool interfaceBlock) {
+    return std::make_unique<StructType>(line, name, std::move(fields), interfaceBlock);
 }
 
 std::unique_ptr<Type> Type::MakeTextureType(const char* name, SpvDim_ dimensions, bool isDepth,
@@ -738,7 +741,8 @@ const Type* Type::clone(SymbolTable* symbolTable) const {
         }
         case TypeKind::kStruct: {
             const String* name = symbolTable->takeOwnershipOfString(String(this->name()));
-            return symbolTable->add(Type::MakeStructType(this->fLine, *name, this->fields()));
+            return symbolTable->add(Type::MakeStructType(
+                    this->fLine, *name, this->fields(), this->isInterfaceBlock()));
         }
         default:
             SkDEBUGFAILF("don't know how to clone type '%s'", this->description().c_str());
@@ -748,22 +752,14 @@ const Type* Type::clone(SymbolTable* symbolTable) const {
 
 std::unique_ptr<Expression> Type::coerceExpression(std::unique_ptr<Expression> expr,
                                                    const Context& context) const {
-    if (!expr) {
-        return nullptr;
-    }
-    const int line = expr->fLine;
-    if (expr->is<FunctionReference>() || expr->is<ExternalFunctionReference>()) {
-        context.fErrors->error(line, "expected '(' to begin function call");
-        return nullptr;
-    }
-    if (expr->is<TypeReference>()) {
-        context.fErrors->error(line, "expected '(' to begin constructor invocation");
+    if (!expr || expr->isIncomplete(context)) {
         return nullptr;
     }
     if (expr->type() == *this) {
         return expr;
     }
 
+    const int line = expr->fLine;
     const Program::Settings& settings = context.fConfig->fSettings;
     if (!expr->coercionCost(*this).isPossible(settings.fAllowNarrowingConversions)) {
         context.fErrors->error(line, "expected '" + this->displayName() + "', but found '" +
@@ -827,16 +823,14 @@ bool Type::checkForOutOfRangeLiteral(const Context& context, const Expression& e
     if (baseType.isInteger()) {
         // Replace constant expressions with their corresponding values.
         const Expression* valueExpr = ConstantFolder::GetConstantValueForVariable(expr);
-        if (valueExpr->allowsConstantSubexpressions()) {
+        if (valueExpr->supportsConstantValues()) {
             // Iterate over every constant subexpression in the value.
             int numSlots = valueExpr->type().slotCount();
             for (int slot = 0; slot < numSlots; ++slot) {
-                const Expression* subexpr = valueExpr->getConstantSubexpression(slot);
+                skstd::optional<double> slotVal = valueExpr->getConstantValue(slot);
                 // Check for Literal values that are out of range for the base type.
-                if (subexpr &&
-                    subexpr->is<Literal>() &&
-                    baseType.checkForOutOfRangeLiteral(context, subexpr->as<Literal>().value(),
-                                                       subexpr->fLine)) {
+                if (slotVal.has_value() &&
+                    baseType.checkForOutOfRangeLiteral(context, *slotVal, valueExpr->fLine)) {
                     foundError = true;
                 }
             }

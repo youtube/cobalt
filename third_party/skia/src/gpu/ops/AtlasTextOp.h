@@ -40,25 +40,25 @@ public:
                  const SkMatrix& drawMatrix,
                  SkPoint drawOrigin,
                  SkIRect clipRect,
-                 sk_sp<GrTextBlob> blob,
+                 sk_sp<SkRefCnt> supportData,
                  GrAtlasSubRunOwner subRunOwner,
                  const SkPMColor4f& color)
             : fSubRun{subRun}
-            , fBlob{std::move(blob)}
+            , fSupportDataKeepAlive{std::move(supportData)}
             , fSubRunDtor{std::move(subRunOwner)}
             , fDrawMatrix{drawMatrix}
             , fDrawOrigin{drawOrigin}
             , fClipRect{clipRect}
             , fColor{color} {
-                SkASSERT(fBlob != nullptr || fSubRunDtor != nullptr);
-                SkASSERT(SkToBool(fSubRunDtor) != SkToBool(fBlob));
+                SkASSERT(fSupportDataKeepAlive != nullptr || fSubRunDtor != nullptr);
+                SkASSERT(SkToBool(fSubRunDtor) != SkToBool(fSupportDataKeepAlive));
         }
 
         static Geometry* MakeForBlob(const GrAtlasSubRun& subRun,
                                      const SkMatrix& drawMatrix,
                                      SkPoint drawOrigin,
                                      SkIRect clipRect,
-                                     sk_sp<GrTextBlob> blob,
+                                     sk_sp<SkRefCnt> supportData,
                                      const SkPMColor4f& color,
                                      SkArenaAlloc* alloc);
 
@@ -66,10 +66,10 @@ public:
 
         const GrAtlasSubRun& fSubRun;
 
-        // Either this Geometry holds a ref to the GrTextBlob in the case of a text blob based
+        // Either this Geometry holds a ref to the support data in the case of a blob based
         // SubRun (WithCaching case), or it holds a unique_ptr to a SubRun allocated on the
         // GrTextBlobAllocator in the NoCache case. It must hold one, and can't hold both.
-        sk_sp<GrTextBlob> fBlob;  // mutable to make unref call in Op dtor.
+        sk_sp<SkRefCnt> fSupportDataKeepAlive;
         GrAtlasSubRunOwner fSubRunDtor;
 
         const SkMatrix fDrawMatrix;

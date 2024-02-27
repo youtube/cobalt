@@ -141,8 +141,10 @@ public:
                                                  Type::TypeKind typeKind);
 
     /** Creates a struct type with the given fields. */
-    static std::unique_ptr<Type> MakeStructType(int line, skstd::string_view name,
-                                                std::vector<Field> fields);
+    static std::unique_ptr<Type> MakeStructType(int line,
+                                                skstd::string_view name,
+                                                std::vector<Field> fields,
+                                                bool interfaceBlock = false);
 
     /** Create a texture type. */
     static std::unique_ptr<Type> MakeTextureType(const char* name, SpvDim_ dimensions,
@@ -290,18 +292,16 @@ public:
 
     /**
      * Returns true if this is an "opaque type" (an external object which the shader references in
-     * some fashion), or void. https://www.khronos.org/opengl/wiki/Data_Type_(GLSL)#Opaque_types
+     * some fashion). https://www.khronos.org/opengl/wiki/Data_Type_(GLSL)#Opaque_types
      */
     bool isOpaque() const {
         switch (fTypeKind) {
             case TypeKind::kBlender:
             case TypeKind::kColorFilter:
-            case TypeKind::kOther:
             case TypeKind::kSampler:
             case TypeKind::kSeparateSampler:
             case TypeKind::kShader:
             case TypeKind::kTexture:
-            case TypeKind::kVoid:
                 return true;
             default:
                 return false;
@@ -446,6 +446,10 @@ public:
     }
 
     virtual bool isStruct() const {
+        return false;
+    }
+
+    virtual bool isInterfaceBlock() const {
         return false;
     }
 

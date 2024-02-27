@@ -45,6 +45,8 @@ private:
                                                            sk_sp<sksg::RenderNode>) const;
     sk_sp<sksg::RenderNode> attachBrightnessContrastEffect(const skjson::ArrayValue&,
                                                            sk_sp<sksg::RenderNode>) const;
+    sk_sp<sksg::RenderNode> attachBulgeEffect            (const skjson::ArrayValue&,
+                                                           sk_sp<sksg::RenderNode>) const;
     sk_sp<sksg::RenderNode> attachCornerPinEffect         (const skjson::ArrayValue&,
                                                             sk_sp<sksg::RenderNode>) const;
     sk_sp<sksg::RenderNode> attachCCTonerEffect           (const skjson::ArrayValue&,
@@ -79,7 +81,9 @@ private:
                                                            sk_sp<sksg::RenderNode>) const;
     sk_sp<sksg::RenderNode> attachShiftChannelsEffect     (const skjson::ArrayValue&,
                                                            sk_sp<sksg::RenderNode>) const;
-    sk_sp<sksg::RenderNode> attachSkSLEffect              (const skjson::ArrayValue&,
+    sk_sp<sksg::RenderNode> attachSkSLColorFilter         (const skjson::ArrayValue&,
+                                                           sk_sp<sksg::RenderNode>) const;
+    sk_sp<sksg::RenderNode> attachSkSLShader              (const skjson::ArrayValue&,
                                                            sk_sp<sksg::RenderNode>) const;
     sk_sp<sksg::RenderNode> attachSphereEffect            (const skjson::ArrayValue&,
                                                            sk_sp<sksg::RenderNode>) const;

@@ -201,9 +201,9 @@ private:
 
     std::vector<SpvId> getAccessChain(const Expression& expr, OutputStream& out);
 
-    void writeLayout(const Layout& layout, SpvId target);
+    void writeLayout(const Layout& layout, SpvId target, int line);
 
-    void writeLayout(const Layout& layout, SpvId target, int member);
+    void writeFieldLayout(const Layout& layout, SpvId target, int member);
 
     void writeStruct(const Type& type, const MemoryLayout& layout, SpvId resultId);
 
@@ -385,6 +385,8 @@ private:
     SpvId writePostfixExpression(const PostfixExpression& p, OutputStream& out);
 
     SpvId writeLiteral(const Literal& f);
+
+    SpvId writeLiteral(double value, const Type& type);
 
     void writeStatement(const Statement& s, OutputStream& out);
 

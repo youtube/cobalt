@@ -7,13 +7,29 @@
 
 #include "experimental/graphite/src/mtl/MtlGpu.h"
 
+#include "experimental/graphite/include/BackendTexture.h"
+#include "experimental/graphite/include/TextureInfo.h"
 #include "experimental/graphite/src/Caps.h"
 #include "experimental/graphite/src/mtl/MtlCommandBuffer.h"
 #include "experimental/graphite/src/mtl/MtlResourceProvider.h"
+#include "experimental/graphite/src/mtl/MtlTexture.h"
 
 namespace skgpu::mtl {
 
 sk_sp<skgpu::Gpu> Gpu::Make(const BackendContext& context) {
+    // TODO: This was taken from GrMtlGpu.mm's Make, does graphite deserve a higher version?
+    if (@available(macOS 10.14, iOS 11.0, *)) {
+        // no warning needed
+    } else {
+        SkDebugf("*** Error ***: Skia's Graphite backend no longer supports this OS version.\n");
+#ifdef SK_BUILD_FOR_IOS
+        SkDebugf("Minimum supported version is iOS 11.0.\n");
+#else
+        SkDebugf("Minimum supported version is MacOS 10.14.\n");
+#endif
+        return nullptr;
+    }
+
     sk_cfp<id<MTLDevice>> device = sk_ret_cfp((id<MTLDevice>)(context.fDevice.get()));
     sk_cfp<id<MTLCommandQueue>> queue = sk_ret_cfp((id<MTLCommandQueue>)(context.fQueue.get()));
 
@@ -26,6 +42,7 @@ Gpu::Gpu(sk_cfp<id<MTLDevice>> device, sk_cfp<id<MTLCommandQueue>> queue, sk_sp<
     : skgpu::Gpu(std::move(caps))
     , fDevice(std::move(device))
     , fQueue(std::move(queue)) {
+    this->initCompiler();
     fResourceProvider.reset(new ResourceProvider(this));
 }
 
@@ -60,6 +77,20 @@ bool Gpu::onSubmit(sk_sp<skgpu::CommandBuffer> commandBuffer) {
     new (fOutstandingSubmissions.push_back()) OutstandingSubmission(std::move(submission));
 
     return true;
+}
+
+BackendTexture Gpu::onCreateBackendTexture(SkISize dimensions, const skgpu::TextureInfo& info) {
+    sk_cfp<id<MTLTexture>> texture = Texture::MakeMtlTexture(this, dimensions, info);
+    if (!texture) {
+        return {};
+    }
+    return BackendTexture(dimensions, (Handle)texture.release());
+}
+
+void Gpu::onDeleteBackendTexture(BackendTexture& texture) {
+    SkASSERT(texture.backend() == BackendApi::kMetal);
+    Handle texHandle = texture.getMtlTexture();
+    SkCFSafeRelease(texHandle);
 }
 
 #if GRAPHITE_TEST_UTILS

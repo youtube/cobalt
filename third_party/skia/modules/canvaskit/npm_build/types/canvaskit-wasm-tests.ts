@@ -65,6 +65,7 @@ function animatedImageTests(CK: CanvasKit) {
     const r = img.getRepetitionCount(); // $ExpectType number
     const h = img.height(); // $ExpectType number
     const still = img.makeImageAtCurrentFrame(); // $ExpectType Image | null
+    const ms = img.currentFrameDuration(); // $ExpectType number
     img.reset();
     const w = img.width(); // $ExpectType number
 }
@@ -147,12 +148,10 @@ function canvasTests(CK: CanvasKit, canvas?: Canvas, paint?: Paint, path?: Path,
     canvas.drawText('foo', 1, 2, paint, font);
     canvas.drawTextBlob(textBlob, 10, 20, paint);
     canvas.drawVertices(verts, CK.BlendMode.DstOut, paint);
-    const matrOne = canvas.findMarkedCTM('thing'); // $ExpectType Float32Array | null
     const matrTwo = canvas.getLocalToDevice(); // $ExpectType Float32Array
     const sc = canvas.getSaveCount(); // $ExpectType number
     const matrThree = canvas.getTotalMatrix(); // $ExpectType number[]
     const surface = canvas.makeSurface(imageInfo); // $ExpectType Surface | null
-    canvas.markCTM('more ctm');
     const pixels = canvas.readPixels(85, 1000, {// $Uint8Array | Float32Array | null
         width: 79,
         height: 205,
@@ -260,6 +259,13 @@ function imageTests(CK: CanvasKit, imgElement?: HTMLImageElement) {
       colorType: CK.ColorType.RGBA_8888,
       colorSpace: CK.ColorSpace.SRGB
     }, Uint8Array.of(255, 0, 0, 250), 4);
+    const img4 = CK.MakeLazyImageFromTextureSource(imgElement); // $ExpectType Image
+    const img5 = CK.MakeLazyImageFromTextureSource(imgElement, {
+      width: 1,
+      height: 1,
+      alphaType: CK.AlphaType.Premul,
+      colorType: CK.ColorType.RGBA_8888,
+    });
     if (!img) return;
     const dOne = img.encodeToBytes(); // $ExpectType Uint8Array | null
     const dTwo = img.encodeToBytes(CK.ImageFormat.JPEG, 97);
@@ -859,7 +865,12 @@ function surfaceTests(CK: CanvasKit, gl?: WebGLRenderingContext) {
     });
     const img4 = surfaceFour.makeImageFromTextureSource(new Image()); // $ExpectType Image | null
     const videoEle = document.createElement('video');
-    const img5 = surfaceFour.makeImageFromTextureSource(videoEle, 30, 10); // $ExpectType Image | null
+    const img5 = surfaceFour.makeImageFromTextureSource(videoEle, {
+      height: 40,
+      width: 80,
+      colorType: CK.ColorType.RGBA_8888,
+      alphaType: CK.AlphaType.Unpremul,
+    });
     const img6 = surfaceFour.makeImageFromTextureSource(new ImageData(40, 80)); // $ExpectType Image | null
 
     surfaceSeven.delete();

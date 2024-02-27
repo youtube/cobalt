@@ -16,6 +16,7 @@
 #include "include/core/SkScalar.h"
 #include "include/core/SkShader.h"
 #include "include/core/SkTileMode.h"
+#include "include/private/SkTOptional.h"
 #if SK_SUPPORT_GPU
 #include "include/gpu/GrTypes.h"
 #endif
@@ -167,23 +168,24 @@ public:
      *  CPU or on the GPU, depending on where the image is drawn. If memory is low, the cache may
      *  be purged, causing the next draw of the image to have to re-decode.
      *
-     *  The subset parameter specifies a area within the decoded image to create the image from.
-     *  If subset is null, then the entire image is returned.
+     *  If alphaType is nullopt, the image's alpha type will be chosen automatically based on the
+     *  image format. Transparent images will default to kPremul_SkAlphaType. If alphaType contains
+     *  kPremul_SkAlphaType or kUnpremul_SkAlphaType, that alpha type will be used. Forcing opaque
+     *  (passing kOpaque_SkAlphaType) is not allowed, and will return nullptr.
      *
      *  This is similar to DecodeTo[Raster,Texture], but this method will attempt to defer the
      *  actual decode, while the DecodeTo... method explicitly decode and allocate the backend
      *  when the call is made.
      *
-     *  If the encoded format is not supported, or subset is outside of the bounds of the decoded
-     *  image, nullptr is returned.
+     *  If the encoded format is not supported, nullptr is returned.
      *
      *  @param encoded  the encoded data
-     *  @param length   the number of bytes of encoded data
      *  @return         created SkImage, or nullptr
 
         example: https://fiddle.skia.org/c/@Image_MakeFromEncoded
     */
-    static sk_sp<SkImage> MakeFromEncoded(sk_sp<SkData> encoded);
+    static sk_sp<SkImage> MakeFromEncoded(sk_sp<SkData> encoded,
+                                          skstd::optional<SkAlphaType> alphaType = skstd::nullopt);
 
     /*
      * Experimental:
@@ -678,6 +680,34 @@ public:
     sk_sp<SkShader> makeShader(const SkSamplingOptions& sampling,
                                const SkMatrix* lm = nullptr) const {
         return this->makeShader(SkTileMode::kClamp, SkTileMode::kClamp, sampling, lm);
+    }
+
+    /**
+     *  makeRawShader functions like makeShader, but for images that contain non-color data.
+     *  This includes images encoding things like normals, material properties (eg, roughness),
+     *  heightmaps, or any other purely mathematical data that happens to be stored in an image.
+     *  These types of images are useful with some programmable shaders (see: SkRuntimeEffect).
+     *
+     *  Raw image shaders work like regular image shaders (including filtering and tiling), with
+     *  a few major differences:
+     *    - No color space transformation is ever applied (the color space of the image is ignored).
+     *    - Images with an alpha type of kUnpremul are *not* automatically premultiplied.
+     *    - Bicubic filtering is not supported. If SkSamplingOptions::useCubic is true, these
+     *      factories will return nullptr.
+     */
+    sk_sp<SkShader> makeRawShader(SkTileMode tmx, SkTileMode tmy, const SkSamplingOptions&,
+                                  const SkMatrix* localMatrix = nullptr) const;
+
+    sk_sp<SkShader> makeRawShader(SkTileMode tmx, SkTileMode tmy, const SkSamplingOptions& sampling,
+                                  const SkMatrix& lm) const {
+        return this->makeRawShader(tmx, tmy, sampling, &lm);
+    }
+    sk_sp<SkShader> makeRawShader(const SkSamplingOptions& sampling, const SkMatrix& lm) const {
+        return this->makeRawShader(SkTileMode::kClamp, SkTileMode::kClamp, sampling, &lm);
+    }
+    sk_sp<SkShader> makeRawShader(const SkSamplingOptions& sampling,
+                                  const SkMatrix* lm = nullptr) const {
+        return this->makeRawShader(SkTileMode::kClamp, SkTileMode::kClamp, sampling, lm);
     }
 
     using CubicResampler = SkCubicResampler;

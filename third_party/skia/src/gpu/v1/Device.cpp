@@ -18,6 +18,7 @@
 #include "include/gpu/GrRecordingContext.h"
 #include "include/private/SkShadowFlags.h"
 #include "include/private/SkTo.h"
+#include "include/private/chromium/GrSlug.h"
 #include "src/core/SkCanvasPriv.h"
 #include "src/core/SkClipStack.h"
 #include "src/core/SkDraw.h"
@@ -46,6 +47,9 @@
 #include "src/image/SkReadPixelsRec.h"
 #include "src/image/SkSurface_Gpu.h"
 #include "src/utils/SkUTF.h"
+
+// Define this for testing text blob draw using a slug.
+// #define SK_EXPERIMENTAL_SIMULATE_DRAWGLYPHRUNLIST_WITH_SLUG
 
 #define ASSERT_SINGLE_OWNER GR_ASSERT_SINGLE_OWNER(fContext->priv().singleOwner())
 
@@ -88,17 +92,15 @@ bool init_vertices_paint(GrRecordingContext* rContext,
                          const GrColorInfo& colorInfo,
                          const SkPaint& skPaint,
                          const SkMatrixProvider& matrixProvider,
-                         SkBlendMode bmode,
+                         sk_sp<SkBlender> blender,
                          bool hasColors,
                          GrPaint* grPaint) {
     if (hasColors) {
-        // When there are colors and a shader, the shader and colors are combined using bmode.
-        // With no shader, we just use the colors (kDst).
         return SkPaintToGrPaintWithBlend(rContext,
                                          colorInfo,
                                          skPaint,
                                          matrixProvider,
-                                         skPaint.getShader() ? bmode : SkBlendMode::kDst,
+                                         blender.get(),
                                          grPaint);
     } else {
         return SkPaintToGrPaint(rContext, colorInfo, skPaint, matrixProvider, grPaint);
@@ -773,9 +775,13 @@ void Device::drawViewLattice(GrSurfaceProxyView view,
         paint.writable()->setColor(SkColorSetARGB(origPaint.getAlpha(), 0xFF, 0xFF, 0xFF));
     }
     GrPaint grPaint;
-    if (!SkPaintToGrPaintWithPrimitiveColor(this->recordingContext(),
-                                            fSurfaceDrawContext->colorInfo(), *paint,
-                                            this->asMatrixProvider(), &grPaint)) {
+    // Passing null as shaderFP indicates that the GP will provide the shader.
+    if (!SkPaintToGrPaintReplaceShader(this->recordingContext(),
+                                       fSurfaceDrawContext->colorInfo(),
+                                       *paint,
+                                       this->asMatrixProvider(),
+                                       /*shaderFP=*/nullptr,
+                                       &grPaint)) {
         return;
     }
 
@@ -809,24 +815,36 @@ void Device::drawImageLattice(const SkImage* image,
     }
 }
 
-void Device::drawVertices(const SkVertices* vertices, SkBlendMode mode, const SkPaint& paint) {
+void Device::drawVertices(const SkVertices* vertices,
+                          sk_sp<SkBlender> blender,
+                          const SkPaint& paint) {
     ASSERT_SINGLE_OWNER
     GR_CREATE_TRACE_MARKER_CONTEXT("skgpu::v1::Device", "drawVertices", fContext.get());
     SkASSERT(vertices);
 
+#ifdef SK_LEGACY_IGNORE_DRAW_VERTICES_BLEND_WITH_NO_SHADER
+    if (!paint.getShader()) {
+        blender = SkBlender::Mode(SkBlendMode::kDst);
+    }
+#endif
+
     SkVerticesPriv info(vertices->priv());
 
-    const SkRuntimeEffect* effect =
-            paint.getShader() ? as_SB(paint.getShader())->asRuntimeEffect() : nullptr;
-
     GrPaint grPaint;
-    if (!init_vertices_paint(fContext.get(), fSurfaceDrawContext->colorInfo(), paint,
-                             this->asMatrixProvider(), mode, info.hasColors(), &grPaint)) {
+    if (!init_vertices_paint(fContext.get(),
+                             fSurfaceDrawContext->colorInfo(),
+                             paint,
+                             this->asMatrixProvider(),
+                             std::move(blender),
+                             info.hasColors(),
+                             &grPaint)) {
         return;
     }
-    fSurfaceDrawContext->drawVertices(this->clip(), std::move(grPaint), this->asMatrixProvider(),
-                                      sk_ref_sp(const_cast<SkVertices*>(vertices)), nullptr,
-                                      effect);
+    fSurfaceDrawContext->drawVertices(this->clip(),
+                                      std::move(grPaint),
+                                      this->asMatrixProvider(),
+                                      sk_ref_sp(const_cast<SkVertices*>(vertices)),
+                                      nullptr);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -853,15 +871,19 @@ void Device::drawAtlas(const SkRSXform xform[],
                        const SkRect texRect[],
                        const SkColor colors[],
                        int count,
-                       SkBlendMode mode,
+                       sk_sp<SkBlender> blender,
                        const SkPaint& paint) {
     ASSERT_SINGLE_OWNER
     GR_CREATE_TRACE_MARKER_CONTEXT("skgpu::v1::Device", "drawAtlas", fContext.get());
 
     GrPaint grPaint;
     if (colors) {
-        if (!SkPaintToGrPaintWithBlend(this->recordingContext(), fSurfaceDrawContext->colorInfo(),
-                                       paint, this->asMatrixProvider(), mode, &grPaint)) {
+        if (!SkPaintToGrPaintWithBlend(this->recordingContext(),
+                                       fSurfaceDrawContext->colorInfo(),
+                                       paint,
+                                       this->asMatrixProvider(),
+                                       blender.get(),
+                                       &grPaint)) {
             return;
         }
     } else {
@@ -881,6 +903,14 @@ void Device::onDrawGlyphRunList(const SkGlyphRunList& glyphRunList, const SkPain
     ASSERT_SINGLE_OWNER
     GR_CREATE_TRACE_MARKER_CONTEXT("skgpu::v1::Device", "drawGlyphRunList", fContext.get());
     SkASSERT(!glyphRunList.hasRSXForm());
+
+    #if defined(SK_EXPERIMENTAL_SIMULATE_DRAWGLYPHRUNLIST_WITH_SLUG)
+        auto slug = this->convertGlyphRunListToSlug(glyphRunList, paint);
+        if (slug != nullptr) {
+            this->drawSlug(slug.get());
+        }
+        return;
+    #endif
 
     fSurfaceDrawContext->drawGlyphRunList(
         this->clip(), this->asMatrixProvider(), glyphRunList, paint);

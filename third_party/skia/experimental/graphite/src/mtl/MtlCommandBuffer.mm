@@ -7,12 +7,15 @@
 
 #include "experimental/graphite/src/mtl/MtlCommandBuffer.h"
 
+#include "experimental/graphite/src/TextureProxy.h"
 #include "experimental/graphite/src/mtl/MtlBlitCommandEncoder.h"
 #include "experimental/graphite/src/mtl/MtlBuffer.h"
+#include "experimental/graphite/src/mtl/MtlCaps.h"
 #include "experimental/graphite/src/mtl/MtlGpu.h"
+#include "experimental/graphite/src/mtl/MtlGraphicsPipeline.h"
 #include "experimental/graphite/src/mtl/MtlRenderCommandEncoder.h"
-#include "experimental/graphite/src/mtl/MtlRenderPipeline.h"
 #include "experimental/graphite/src/mtl/MtlTexture.h"
+#include "experimental/graphite/src/mtl/MtlUtils.h"
 
 namespace skgpu::mtl {
 
@@ -62,11 +65,12 @@ bool CommandBuffer::commit() {
     return ((*fCommandBuffer).status != MTLCommandBufferStatusError);
 }
 
-void CommandBuffer::onBeginRenderPass(const RenderPassDesc& renderPassDesc) {
+void CommandBuffer::onBeginRenderPass(const RenderPassDesc& renderPassDesc,
+                                      const skgpu::Texture* colorTexture,
+                                      const skgpu::Texture* resolveTexture,
+                                      const skgpu::Texture* depthStencilTexture) {
     SkASSERT(!fActiveRenderCommandEncoder);
     this->endBlitCommandEncoder();
-
-    auto& colorInfo = renderPassDesc.fColorAttachment;
 
     const static MTLLoadAction mtlLoadAction[] {
         MTLLoadActionLoad,
@@ -88,18 +92,64 @@ void CommandBuffer::onBeginRenderPass(const RenderPassDesc& renderPassDesc) {
 
     sk_cfp<MTLRenderPassDescriptor*> descriptor([[MTLRenderPassDescriptor alloc] init]);
     // Set up color attachment.
-    auto colorAttachment = (*descriptor).colorAttachments[0];
-    Texture* colorTexture = (Texture*)colorInfo.fTexture.get();
-    colorAttachment.texture = colorTexture->mtlTexture();
-    const std::array<float, 4>& clearColor = renderPassDesc.fClearColor;
-    colorAttachment.clearColor =
-            MTLClearColorMake(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
-    colorAttachment.loadAction = mtlLoadAction[static_cast<int>(colorInfo.fLoadOp)];
-    colorAttachment.storeAction = mtlStoreAction[static_cast<int>(colorInfo.fStoreOp)];
+    auto& colorInfo = renderPassDesc.fColorAttachment;
+    if (colorTexture) {
+        // TODO: check Texture matches RenderPassDesc
+        auto colorAttachment = (*descriptor).colorAttachments[0];
+        colorAttachment.texture = ((Texture*)colorTexture)->mtlTexture();
+        const std::array<float, 4>& clearColor = renderPassDesc.fClearColor;
+        colorAttachment.clearColor =
+                MTLClearColorMake(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
+        colorAttachment.loadAction = mtlLoadAction[static_cast<int>(colorInfo.fLoadOp)];
+        colorAttachment.storeAction = mtlStoreAction[static_cast<int>(colorInfo.fStoreOp)];
+        // Set up resolve attachment
+        if (resolveTexture) {
+            SkASSERT(renderPassDesc.fColorResolveAttachment.fStoreOp == StoreOp::kStore);
+            // TODO: check Texture matches RenderPassDesc
+            colorAttachment.resolveTexture = ((Texture*)resolveTexture)->mtlTexture();
+            // Inclusion of a resolve texture implies the client wants to finish the
+            // renderpass with a resolve.
+            if (@available(macOS 10.12, iOS 10.0, *)) {
+                if (colorAttachment.storeAction == MTLStoreActionStore) {
+                    colorAttachment.storeAction = MTLStoreActionStoreAndMultisampleResolve;
+                } else {
+                    SkASSERT(colorAttachment.storeAction == MTLStoreActionDontCare);
+                    colorAttachment.storeAction = MTLStoreActionMultisampleResolve;
+                }
+            } else {
+                // We expect at least Metal 2
+                // TODO: Add error output
+                SkASSERT(false);
+            }
+        }
+    }
 
-    // TODO:
-    // * setup resolve
-    // * set up stencil and depth
+    // Set up stencil/depth attachment
+    auto& depthStencilInfo = renderPassDesc.fDepthStencilAttachment;
+    if (depthStencilTexture) {
+        // TODO: check Texture matches RenderPassDesc
+        id<MTLTexture> mtlTexture = ((Texture*)depthStencilTexture)->mtlTexture();
+        if (FormatIsDepth(mtlTexture.pixelFormat)) {
+            auto depthAttachment = (*descriptor).depthAttachment;
+            depthAttachment.texture = mtlTexture;
+            depthAttachment.clearDepth = renderPassDesc.fClearDepth;
+            depthAttachment.loadAction =
+                     mtlLoadAction[static_cast<int>(depthStencilInfo.fLoadOp)];
+            depthAttachment.storeAction =
+                     mtlStoreAction[static_cast<int>(depthStencilInfo.fStoreOp)];
+        }
+        if (FormatIsStencil(mtlTexture.pixelFormat)) {
+            auto stencilAttachment = (*descriptor).stencilAttachment;
+            stencilAttachment.texture = mtlTexture;
+            stencilAttachment.clearStencil = renderPassDesc.fClearStencil;
+            stencilAttachment.loadAction =
+                     mtlLoadAction[static_cast<int>(depthStencilInfo.fLoadOp)];
+            stencilAttachment.storeAction =
+                     mtlStoreAction[static_cast<int>(depthStencilInfo.fStoreOp)];
+        }
+    } else {
+        SkASSERT(!depthStencilInfo.fTextureInfo.isValid());
+    }
 
     fActiveRenderCommandEncoder = RenderCommandEncoder::Make(fCommandBuffer.get(),
                                                              descriptor.get());
@@ -137,41 +187,60 @@ void CommandBuffer::endBlitCommandEncoder() {
     }
 }
 
-void CommandBuffer::onBindRenderPipeline(const skgpu::RenderPipeline* renderPipeline) {
+void CommandBuffer::onBindGraphicsPipeline(const skgpu::GraphicsPipeline* graphicsPipeline) {
     SkASSERT(fActiveRenderCommandEncoder);
 
-    auto mtlRenderPipeline = static_cast<const RenderPipeline*>(renderPipeline);
-    auto pipelineState = mtlRenderPipeline->mtlPipelineState();
+    auto mtlPipeline = static_cast<const GraphicsPipeline*>(graphicsPipeline);
+    auto pipelineState = mtlPipeline->mtlPipelineState();
     fActiveRenderCommandEncoder->setRenderPipelineState(pipelineState);
-    fCurrentVertexStride = mtlRenderPipeline->vertexStride();
-    fCurrentInstanceStride = mtlRenderPipeline->instanceStride();
+    auto depthStencilState = mtlPipeline->mtlDepthStencilState();
+    fActiveRenderCommandEncoder->setDepthStencilState(depthStencilState);
+    uint32_t stencilRefValue = mtlPipeline->stencilReferenceValue();
+    fActiveRenderCommandEncoder->setStencilReferenceValue(stencilRefValue);
+
+    fCurrentVertexStride = mtlPipeline->vertexStride();
+    fCurrentInstanceStride = mtlPipeline->instanceStride();
 }
 
-void CommandBuffer::onBindUniformBuffer(const skgpu::Buffer* uniformBuffer,
+void CommandBuffer::onBindUniformBuffer(UniformSlot slot,
+                                        const skgpu::Buffer* uniformBuffer,
                                         size_t uniformOffset) {
     SkASSERT(fActiveRenderCommandEncoder);
 
-    id<MTLBuffer> mtlBuffer = static_cast<const Buffer*>(uniformBuffer)->mtlBuffer();
+    id<MTLBuffer> mtlBuffer = uniformBuffer ? static_cast<const Buffer*>(uniformBuffer)->mtlBuffer()
+                                            : nullptr;
 
-    fActiveRenderCommandEncoder->setVertexBuffer(mtlBuffer, uniformOffset,
-                                                 RenderPipeline::kUniformBufferIndex);
-    fActiveRenderCommandEncoder->setFragmentBuffer(mtlBuffer, uniformOffset,
-                                                   RenderPipeline::kUniformBufferIndex);
+    unsigned int bufferIndex;
+    switch(slot) {
+        case UniformSlot::kRenderStep:
+            bufferIndex = GraphicsPipeline::kRenderStepUniformBufferIndex;
+            break;
+        case UniformSlot::kPaint:
+            bufferIndex = GraphicsPipeline::kPaintUniformBufferIndex;
+            break;
+    }
+
+    fActiveRenderCommandEncoder->setVertexBuffer(mtlBuffer, uniformOffset, bufferIndex);
+    fActiveRenderCommandEncoder->setFragmentBuffer(mtlBuffer, uniformOffset, bufferIndex);
 }
 
 void CommandBuffer::onBindVertexBuffers(const skgpu::Buffer* vertexBuffer,
-                                        const skgpu::Buffer* instanceBuffer) {
+                                        size_t vertexOffset,
+                                        const skgpu::Buffer* instanceBuffer,
+                                        size_t instanceOffset) {
     SkASSERT(fActiveRenderCommandEncoder);
 
     if (vertexBuffer) {
         id<MTLBuffer> mtlBuffer = static_cast<const Buffer*>(vertexBuffer)->mtlBuffer();
-        fActiveRenderCommandEncoder->setVertexBuffer(mtlBuffer, 0,
-                                                     RenderPipeline::kVertexBufferIndex);
+        SkASSERT((vertexOffset & 0xF) == 0);
+        fActiveRenderCommandEncoder->setVertexBuffer(mtlBuffer, vertexOffset,
+                                                     GraphicsPipeline::kVertexBufferIndex);
     }
     if (instanceBuffer) {
         id<MTLBuffer> mtlBuffer = static_cast<const Buffer*>(instanceBuffer)->mtlBuffer();
-        fActiveRenderCommandEncoder->setVertexBuffer(mtlBuffer, 0,
-                                                     RenderPipeline::kInstanceBufferIndex);
+        SkASSERT((instanceOffset & 0xF) == 0);
+        fActiveRenderCommandEncoder->setVertexBuffer(mtlBuffer, instanceOffset,
+                                                     GraphicsPipeline::kInstanceBufferIndex);
     }
 }
 
@@ -183,6 +252,35 @@ void CommandBuffer::onBindIndexBuffer(const skgpu::Buffer* indexBuffer, size_t o
         fCurrentIndexBuffer = nil;
         fCurrentIndexBufferOffset = 0;
     }
+}
+
+void CommandBuffer::onSetScissor(unsigned int left, unsigned int top,
+                                 unsigned int width, unsigned int height) {
+    SkASSERT(fActiveRenderCommandEncoder);
+    MTLScissorRect scissorRect = { left, top, width, height };
+    fActiveRenderCommandEncoder->setScissorRect(scissorRect);
+}
+
+void CommandBuffer::onSetViewport(float x, float y, float width, float height,
+                                  float minDepth, float maxDepth) {
+    SkASSERT(fActiveRenderCommandEncoder);
+    MTLViewport viewport = { x, y, width, height, minDepth, maxDepth };
+    fActiveRenderCommandEncoder->setViewport(viewport);
+
+    float invTwoW = 2.f / width;
+    float invTwoH = 2.f / height;
+    // Metal's framebuffer space has (0, 0) at the top left. This agrees with Skia's device coords.
+    // However, in NDC (-1, -1) is the bottom left. So we flip the origin here (assuming all
+    // surfaces we have are TopLeft origin).
+    float rtAdjust[4] = {invTwoW, -invTwoH, -1.f - x * invTwoW, 1.f + y * invTwoH};
+    fActiveRenderCommandEncoder->setVertexBytes(rtAdjust, 4 * sizeof(float),
+                                                GraphicsPipeline::kIntrinsicUniformBufferIndex);
+}
+
+void CommandBuffer::onSetBlendConstants(std::array<float, 4> blendConstants) {
+    SkASSERT(fActiveRenderCommandEncoder);
+
+    fActiveRenderCommandEncoder->setBlendColor(blendConstants.data());
 }
 
 static MTLPrimitiveType graphite_to_mtl_primitive(PrimitiveType primitiveType) {
@@ -211,14 +309,19 @@ void CommandBuffer::onDrawIndexed(PrimitiveType type, unsigned int baseIndex,
                                   unsigned int indexCount, unsigned int baseVertex) {
     SkASSERT(fActiveRenderCommandEncoder);
 
-    auto mtlPrimitiveType = graphite_to_mtl_primitive(type);
+    if (@available(macOS 10.11, iOS 9.0, *)) {
+        auto mtlPrimitiveType = graphite_to_mtl_primitive(type);
+        size_t indexOffset =  fCurrentIndexBufferOffset + sizeof(uint16_t )* baseIndex;
+        // Use the "instance" variant witha count of 1 so that we can pass in a base vertex
+        // instead of rebinding a vertex buffer offset.
+        fActiveRenderCommandEncoder->drawIndexedPrimitives(mtlPrimitiveType, indexCount,
+                                                           MTLIndexTypeUInt16, fCurrentIndexBuffer,
+                                                           indexOffset, 1, baseVertex, 0);
 
-    fActiveRenderCommandEncoder->setVertexBufferOffset(baseVertex * fCurrentVertexStride,
-                                                       RenderPipeline::kVertexBufferIndex);
-    size_t indexOffset =  fCurrentIndexBufferOffset + sizeof(uint16_t )* baseIndex;
-    fActiveRenderCommandEncoder->drawIndexedPrimitives(mtlPrimitiveType, indexCount,
-                                                       MTLIndexTypeUInt16, fCurrentIndexBuffer,
-                                                       indexOffset);
+    } else {
+        // TODO: Do nothing, fatal failure, or just the regular graphite error reporting overhaul?
+        SkDebugf("[graphite] WARNING - Skipping unsupported draw call.\n");
+    }
 }
 
 void CommandBuffer::onDrawInstanced(PrimitiveType type, unsigned int baseVertex,
@@ -238,17 +341,17 @@ void CommandBuffer::onDrawIndexedInstanced(PrimitiveType type, unsigned int base
                                            unsigned int baseInstance, unsigned int instanceCount) {
     SkASSERT(fActiveRenderCommandEncoder);
 
-    auto mtlPrimitiveType = graphite_to_mtl_primitive(type);
-
-    fActiveRenderCommandEncoder->setVertexBufferOffset(baseVertex * fCurrentVertexStride,
-                                                       RenderPipeline::kVertexBufferIndex);
-    fActiveRenderCommandEncoder->setVertexBufferOffset(baseInstance * fCurrentInstanceStride,
-                                                       RenderPipeline::kInstanceBufferIndex);
-    size_t indexOffset =  fCurrentIndexBufferOffset + sizeof(uint16_t) * baseIndex;
-    fActiveRenderCommandEncoder->drawIndexedPrimitives(mtlPrimitiveType, indexCount,
-                                                       MTLIndexTypeUInt16, fCurrentIndexBuffer,
-                                                       indexOffset, instanceCount,
-                                                       baseVertex, baseInstance);
+    if (@available(macOS 10.11, iOS 9.0, *)) {
+        auto mtlPrimitiveType = graphite_to_mtl_primitive(type);
+        size_t indexOffset =  fCurrentIndexBufferOffset + sizeof(uint16_t) * baseIndex;
+        fActiveRenderCommandEncoder->drawIndexedPrimitives(mtlPrimitiveType, indexCount,
+                                                           MTLIndexTypeUInt16, fCurrentIndexBuffer,
+                                                           indexOffset, instanceCount,
+                                                           baseVertex, baseInstance);
+    } else {
+        // TODO: Do nothing, fatal failure, or just the regular graphite error reporting overhaul?
+        SkDebugf("[graphite] WARNING - Skipping unsupported draw call.\n");
+    }
 }
 
 void CommandBuffer::onCopyTextureToBuffer(const skgpu::Texture* texture,

@@ -49,8 +49,9 @@ namespace SkVMInterpreterTypes {
 
     inline void interpret_skvm(const skvm::InterpreterInstruction insts[], const int ninsts,
                                const int nregs, const int loop,
-                               const int strides[], const int nargs,
-                               int n, void* args[]) {
+                               const int strides[],
+                               skvm::TraceHook* traceHooks[], const int nTraceHooks,
+                               const int nargs, int n, void* args[]) {
         using namespace skvm;
 
         using SkVMInterpreterTypes::K;
@@ -83,6 +84,9 @@ namespace SkVMInterpreterTypes {
             r = (Slot*)addr;
         }
 
+        const auto should_trace = [&](int immA, Reg x, Reg y) -> bool {
+            return immA >= 0 && immA < nTraceHooks && any(r[x].i32 & r[y].i32);
+        };
 
         // Step each argument pointer ahead by its stride a number of times.
         auto step_args = [&](int times) {
@@ -216,6 +220,35 @@ namespace SkVMInterpreterTypes {
                         }
                     #endif
                     break;
+
+                    CASE(Op::trace_line):
+                        if (should_trace(immA, x, y)) {
+                            traceHooks[immA]->line(immB);
+                        }
+                        break;
+
+                    CASE(Op::trace_var):
+                        if (should_trace(immA, x, y)) {
+                            for (int i = 0; i < K; ++i) {
+                                if (r[x].i32[i] & r[y].i32[i]) {
+                                    traceHooks[immA]->var(immB, r[z].i32[i]);
+                                    break;
+                                }
+                            }
+                        }
+                        break;
+
+                    CASE(Op::trace_enter):
+                        if (should_trace(immA, x, y)) {
+                            traceHooks[immA]->enter(immB);
+                        }
+                        break;
+
+                    CASE(Op::trace_exit):
+                        if (should_trace(immA, x, y)) {
+                            traceHooks[immA]->exit(immB);
+                        }
+                        break;
 
                     CASE(Op::index): {
                         const int iota[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,

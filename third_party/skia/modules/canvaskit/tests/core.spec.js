@@ -172,6 +172,7 @@ describe('Core canvas behavior', () => {
         expect(aImg.width()).toEqual(320);
         expect(aImg.height()).toEqual(240);
         expect(aImg.getFrameCount()).toEqual(60);
+        expect(aImg.currentFrameDuration()).toEqual(60);
 
         const drawCurrentFrame = function(x, y) {
             let img = aImg.makeImageAtCurrentFrame();
@@ -369,7 +370,7 @@ describe('Core canvas behavior', () => {
          const texs = [0,0, 16,0, 16,16, 0,16];
 
          const params = [
-             [  0,   0, colors, null, null,   null],
+             [  0,   0, colors, null, null,   CanvasKit.BlendMode.Dst],
              [256,   0, null,   texs, shader, null],
              [  0, 256, colors, texs, shader, null],
              [256, 256, colors, texs, shader, CanvasKit.BlendMode.Screen],
@@ -1290,7 +1291,7 @@ describe('Core canvas behavior', () => {
         if (!CanvasKit.gpu) {
             return;
         }
-        // This creates and draws an Image that is 1 pixel wide, 4 pixels tall with
+        // This creates and draws an Unpremul Image that is 1 pixel wide, 4 pixels tall with
         // the colors listed below.
         const pixels = Uint8Array.from([
             255,   0,   0, 255, // opaque red
@@ -1298,7 +1299,12 @@ describe('Core canvas behavior', () => {
               0,   0, 255, 255, // opaque blue
             255,   0, 255, 100, // transparent purple
         ]);
-        const img = surface.makeImageFromTextureSource(pixels, 1, 4);
+        const img = surface.makeImageFromTextureSource(pixels, {
+              'width': 1,
+              'height': 4,
+              'alphaType': CanvasKit.AlphaType.Unpremul,
+              'colorType': CanvasKit.ColorType.RGBA_8888,
+            });
         canvas.drawImage(img, 1, 1, null);
 
         const info = img.getImageInfo();
@@ -1312,6 +1318,36 @@ describe('Core canvas behavior', () => {
         expect(CanvasKit.ColorSpace.Equals(cs, CanvasKit.ColorSpace.SRGB)).toBeTruthy();
 
         cs.delete();
+        img.delete();
+    });
+
+    gm('makeImageFromTextureSource_PremulTypedArray', (canvas, _, surface) => {
+        if (!CanvasKit.gpu) {
+            return;
+        }
+        // This creates and draws an Unpremul Image that is 1 pixel wide, 4 pixels tall with
+        // the colors listed below.
+        const pixels = Uint8Array.from([
+            255,   0,   0, 255, // opaque red
+              0, 255,   0, 255, // opaque green
+              0,   0, 255, 255, // opaque blue
+            100,   0, 100, 100, // transparent purple
+        ]);
+        const img = surface.makeImageFromTextureSource(pixels, {
+              'width': 1,
+              'height': 4,
+              'alphaType': CanvasKit.AlphaType.Premul,
+              'colorType': CanvasKit.ColorType.RGBA_8888,
+            });
+        canvas.drawImage(img, 1, 1, null);
+
+        const info = img.getImageInfo();
+        expect(info).toEqual({
+          'width': 1,
+          'height': 4,
+          'alphaType': CanvasKit.AlphaType.Premul,
+          'colorType': CanvasKit.ColorType.RGBA_8888,
+        });
         img.delete();
     });
 
@@ -1336,6 +1372,54 @@ describe('Core canvas behavior', () => {
               'alphaType': CanvasKit.AlphaType.Unpremul,
               'colorType': CanvasKit.ColorType.RGBA_8888,
             });
+            img.delete();
+        });
+    });
+
+    gm('MakeLazyImageFromTextureSource_imgElement', (canvas) => {
+        if (!CanvasKit.gpu) {
+            return;
+        }
+        // This makes an offscreen <img> with the provided source.
+        const imageEle = new Image();
+        imageEle.src = '/assets/mandrill_512.png';
+
+        // We need to wait until the image is loaded before the texture can use it. For good
+        // measure, we also wait for it to be decoded.
+        return imageEle.decode().then(() => {
+            const img = CanvasKit.MakeLazyImageFromTextureSource(imageEle);
+            canvas.drawImage(img, 5, 5, null);
+
+            const info = img.getImageInfo();
+            expect(info).toEqual({
+              'width': 512, // width and height should be derived from the image.
+              'height': 512,
+              'alphaType': CanvasKit.AlphaType.Unpremul,
+              'colorType': CanvasKit.ColorType.RGBA_8888,
+            });
+            img.delete();
+        });
+    });
+
+    gm('MakeLazyImageFromTextureSource_imageInfo', (canvas) => {
+        if (!CanvasKit.gpu) {
+            return;
+        }
+        // This makes an offscreen <img> with the provided source.
+        const imageEle = new Image();
+        imageEle.src = '/assets/mandrill_512.png';
+
+        // We need to wait until the image is loaded before the texture can use it. For good
+        // measure, we also wait for it to be decoded.
+        return imageEle.decode().then(() => {
+            const img = CanvasKit.MakeLazyImageFromTextureSource(imageEle, {
+              'width': 400,
+              'height': 400,
+              'alphaType': CanvasKit.AlphaType.Premul,
+              'colorType': CanvasKit.ColorType.RGBA_8888,
+            });
+            canvas.drawImage(img, 20, 20, null);
+
             img.delete();
         });
     });

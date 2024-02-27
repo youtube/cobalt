@@ -13,6 +13,7 @@
 #include "include/core/SkStrokeRec.h"
 #include "src/gpu/GrVx.h"
 #include "src/gpu/glsl/GrGLSLVarying.h"
+#include "src/gpu/tessellate/Tessellation.h"
 
 // Tessellates a batch of stroke patches directly to the canvas. Tessellated stroking works by
 // creating stroke-width, orthogonal edges at set locations along the curve and then connecting them
@@ -22,6 +23,8 @@
 // edges and sorts them into a single quad strip. With this combined set of edges we can stroke any
 // curve, regardless of curvature.
 class GrStrokeTessellationShader : public GrTessellationShader {
+    using PatchAttribs = skgpu::PatchAttribs;
+
 public:
     // Are we using hardware tessellation or indirect draws?
     enum class Mode : int8_t {
@@ -30,79 +33,15 @@ public:
         kFixedCount
     };
 
-    enum class ShaderFlags : uint8_t {
-        kNone          = 0,
-        kWideColor     = 1 << 0,
-        kDynamicStroke = 1 << 1,  // Each patch or instance has its own stroke width and join type.
-        kDynamicColor  = 1 << 2,  // Each patch or instance has its own color.
-    };
-
-    GR_DECL_BITFIELD_CLASS_OPS_FRIENDS(ShaderFlags);
-
-    // Returns the fixed number of edges that are always emitted with the given join type. If the
-    // join is round, the caller needs to account for the additional radial edges on their own.
-    // Specifically, each join always emits:
-    //
-    //   * Two colocated edges at the beginning (a full-width edge to seam with the preceding stroke
-    //     and a half-width edge to begin the join).
-    //
-    //   * An extra edge in the middle for miter joins, or else a variable number of radial edges
-    //     for round joins (the caller is responsible for counting radial edges from round joins).
-    //
-    //   * A half-width edge at the end of the join that will be colocated with the first
-    //     (full-width) edge of the stroke.
-    //
-    constexpr static int NumFixedEdgesInJoin(SkPaint::Join joinType) {
-        switch (joinType) {
-            case SkPaint::kMiter_Join:
-                return 4;
-            case SkPaint::kRound_Join:
-                // The caller is responsible for counting the variable number of middle, radial
-                // segments on round joins.
-                [[fallthrough]];
-            case SkPaint::kBevel_Join:
-                return 3;
-        }
-        SkUNREACHABLE;
-    }
-
-    // We encode all of a join's information in a single float value:
-    //
-    //     Negative => Round Join
-    //     Zero     => Bevel Join
-    //     Positive => Miter join, and the value is also the miter limit
-    //
-    static float GetJoinType(const SkStrokeRec& stroke) {
-        switch (stroke.getJoin()) {
-            case SkPaint::kRound_Join: return -1;
-            case SkPaint::kBevel_Join: return 0;
-            case SkPaint::kMiter_Join: SkASSERT(stroke.getMiter() >= 0); return stroke.getMiter();
-        }
-        SkUNREACHABLE;
-    }
-
-    // This struct gets written out to each patch or instance if kDynamicStroke is enabled.
-    struct DynamicStroke {
-        static bool StrokesHaveEqualDynamicState(const SkStrokeRec& a, const SkStrokeRec& b) {
-            return a.getWidth() == b.getWidth() && a.getJoin() == b.getJoin() &&
-                   (a.getJoin() != SkPaint::kMiter_Join || a.getMiter() == b.getMiter());
-        }
-        void set(const SkStrokeRec& stroke) {
-            fRadius = stroke.getWidth() * .5f;
-            fJoinType = GetJoinType(stroke);
-        }
-        float fRadius;
-        float fJoinType;  // See GetJoinType().
-    };
-
     // 'viewMatrix' is applied to the geometry post tessellation. It cannot have perspective.
-    GrStrokeTessellationShader(const GrShaderCaps&, Mode, ShaderFlags, const SkMatrix& viewMatrix,
+    GrStrokeTessellationShader(const GrShaderCaps&, Mode, PatchAttribs, const SkMatrix& viewMatrix,
                                const SkStrokeRec&, SkPMColor4f, int8_t maxParametricSegments_log2);
 
     Mode mode() const { return fMode; }
-    ShaderFlags flags() const { return fShaderFlags; }
-    bool hasDynamicStroke() const { return fShaderFlags & ShaderFlags::kDynamicStroke; }
-    bool hasDynamicColor() const { return fShaderFlags & ShaderFlags::kDynamicColor; }
+    PatchAttribs attribs() const { return fPatchAttribs; }
+    bool hasDynamicStroke() const { return fPatchAttribs & PatchAttribs::kStrokeParams; }
+    bool hasDynamicColor() const { return fPatchAttribs & PatchAttribs::kColor; }
+    bool hasExplicitCurveType() const { return fPatchAttribs & PatchAttribs::kExplicitCurveType; }
     const SkStrokeRec& stroke() const { return fStroke;}
     int8_t maxParametricSegments_log2() const { return fMaxParametricSegments_log2; }
     float fixedCountNumTotalEdges() const { return fFixedCountNumTotalEdges;}
@@ -113,13 +52,6 @@ public:
         SkASSERT(fMode == Mode::kFixedCount);
         fFixedCountNumTotalEdges = value;
     }
-
-    // Initializes the fallback vertex buffer that should be bound when drawing in Mode::kFixedCount
-    // and sk_VertexID is not supported. Each vertex is a single float and each edge is composed of
-    // two vertices, so the desired edge count in the buffer is presumed to be
-    // "bufferSize / (sizeof(float) * 2)". The caller cannot draw more vertices than edgeCount * 2.
-    static void InitializeVertexIDFallbackBuffer(skgpu::VertexWriter vertexWriter,
-                                                 size_t bufferSize);
 
 private:
     const char* name() const override {
@@ -136,7 +68,7 @@ private:
     std::unique_ptr<ProgramImpl> makeProgramImpl(const GrShaderCaps&) const final;
 
     const Mode fMode;
-    const ShaderFlags fShaderFlags;
+    const PatchAttribs fPatchAttribs;
     const SkStrokeRec fStroke;
     const int8_t fMaxParametricSegments_log2;
 
@@ -151,8 +83,6 @@ private:
     class HardwareImpl;
     class InstancedImpl;
 };
-
-GR_MAKE_BITFIELD_CLASS_OPS(GrStrokeTessellationShader::ShaderFlags)
 
 // This common base class emits shader code for our parametric/radial stroke tessellation algorithm
 // described above. The subclass emits its own specific setup code before calling into

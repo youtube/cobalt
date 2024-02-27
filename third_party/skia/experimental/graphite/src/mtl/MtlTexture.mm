@@ -9,21 +9,32 @@
 
 #include "experimental/graphite/include/mtl/MtlTypes.h"
 #include "experimental/graphite/include/private/MtlTypesPriv.h"
+#include "experimental/graphite/src/mtl/MtlCaps.h"
 #include "experimental/graphite/src/mtl/MtlGpu.h"
 #include "experimental/graphite/src/mtl/MtlUtils.h"
 
 namespace skgpu::mtl {
 
-Texture::Texture(SkISize dimensions,
-                 const skgpu::TextureInfo& info,
-                 sk_cfp<id<MTLTexture>> texture)
-        : skgpu::Texture(dimensions, info)
-        , fTexture(std::move(texture)) {}
+sk_cfp<id<MTLTexture>> Texture::MakeMtlTexture(const Gpu* gpu,
+                                               SkISize dimensions,
+                                               const skgpu::TextureInfo& info) {
+    const skgpu::Caps* caps = gpu->caps();
+    if (dimensions.width() > caps->maxTextureSize() ||
+        dimensions.height() > caps->maxTextureSize()) {
+        return nullptr;
+    }
 
-sk_sp<Texture> Texture::Make(const Gpu* gpu,
-                             SkISize dimensions,
-                             const skgpu::TextureInfo& info) {
     const TextureSpec& mtlSpec = info.mtlTextureSpec();
+    SkASSERT(!mtlSpec.fFramebufferOnly);
+
+    if (mtlSpec.fUsage & MTLTextureUsageShaderRead && !caps->isTexturable(info)) {
+        return nullptr;
+    }
+
+    if (mtlSpec.fUsage & MTLTextureUsageRenderTarget &&
+        !(caps->isRenderable(info) || FormatIsDepthOrStencil((MTLPixelFormat)mtlSpec.fFormat))) {
+        return nullptr;
+    }
 
     sk_cfp<MTLTextureDescriptor*> desc([[MTLTextureDescriptor alloc] init]);
     (*desc).textureType = (info.numSamples() > 1) ? MTLTextureType2DMultisample : MTLTextureType2D;
@@ -63,7 +74,30 @@ sk_sp<Texture> Texture::Make(const Gpu* gpu,
     }
 #endif
 
-    return sk_sp<Texture>(new Texture(dimensions, info, std::move(texture)));
+    return texture;
+}
+
+Texture::Texture(SkISize dimensions,
+                 const skgpu::TextureInfo& info,
+                 sk_cfp<id<MTLTexture>> texture,
+                 Ownership ownership)
+        : skgpu::Texture(dimensions, info, ownership)
+        , fTexture(std::move(texture)) {}
+
+sk_sp<Texture> Texture::Make(const Gpu* gpu,
+                             SkISize dimensions,
+                             const skgpu::TextureInfo& info) {
+    sk_cfp<id<MTLTexture>> texture = MakeMtlTexture(gpu, dimensions, info);
+    if (!texture) {
+        return nullptr;
+    }
+    return sk_sp<Texture>(new Texture(dimensions, info, std::move(texture), Ownership::kOwned));
+}
+
+sk_sp<Texture> Texture::MakeWrapped(SkISize dimensions,
+                                    const skgpu::TextureInfo& info,
+                                    sk_cfp<id<MTLTexture>> texture) {
+    return sk_sp<Texture>(new Texture(dimensions, info, std::move(texture), Ownership::kWrapped));
 }
 
 } // namespace skgpu::mtl

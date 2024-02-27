@@ -135,7 +135,7 @@ public:
     Context* fContext;
 };
 
-Compiler::Compiler(const ShaderCapsClass* caps)
+Compiler::Compiler(const ShaderCaps* caps)
         : fErrorReporter(this)
         , fContext(std::make_shared<Context>(fErrorReporter, *caps, fMangler))
         , fInliner(fContext.get()) {
@@ -518,6 +518,7 @@ bool Compiler::optimize(LoadedModule& module) {
     config.fIsBuiltinCode = true;
     config.fKind = module.fKind;
     AutoProgramConfig autoConfig(fContext, &config);
+    AutoModifiersPool autoPool(fContext, &fCoreModifiers);
 
     // Reset the Inliner.
     fInliner.reset();
@@ -682,13 +683,28 @@ bool Compiler::toGLSL(Program& program, String* out) {
     return result;
 }
 
+bool Compiler::toHLSL(Program& program, OutputStream& out) {
+    TRACE_EVENT0("skia.shaders", "SkSL::Compiler::toHLSL");
+    String hlsl;
+    if (!this->toHLSL(program, &hlsl)) {
+        return false;
+    }
+    out.writeString(hlsl);
+    return true;
+}
+
 bool Compiler::toHLSL(Program& program, String* out) {
     String spirv;
     if (!this->toSPIRV(program, &spirv)) {
         return false;
     }
 
-    return SPIRVtoHLSL(spirv, out);
+    if (!SPIRVtoHLSL(spirv, out)) {
+        fErrorText += "HLSL cross-compilation not enabled";
+        return false;
+    }
+
+    return true;
 }
 
 bool Compiler::toMetal(Program& program, OutputStream& out) {

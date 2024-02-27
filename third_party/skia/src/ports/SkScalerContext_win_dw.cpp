@@ -746,13 +746,17 @@ void SkScalerContext_DW::generateMetrics(SkGlyph* glyph, SkArenaAlloc* alloc) {
 
     if (fIsColorFont && isColorGlyph(*glyph) && generateColorMetrics(glyph)) {
         glyph->fMaskFormat = SkMask::kARGB32_Format;
+#ifndef SK_IGNORE_GLYPH_HAS_PATH_FIX
         glyph->setPath(alloc, nullptr, false);
+#endif
         return;
     }
 
     if (fIsColorFont && isPngGlyph(*glyph) && generatePngMetrics(glyph)) {
         glyph->fMaskFormat = SkMask::kARGB32_Format;
+#ifndef SK_IGNORE_GLYPH_HAS_PATH_FIX
         glyph->setPath(alloc, nullptr, false);
+#endif
         return;
     }
 
@@ -1073,7 +1077,7 @@ void SkScalerContext_DW::generateColorGlyphImage(const SkGlyph& glyph) {
     draw.fDst = SkPixmap(SkImageInfo::MakeN32(glyph.width(), glyph.height(), kPremul_SkAlphaType),
                          glyph.fImage,
                          glyph.rowBytesUsingFormat(SkMask::Format::kARGB32_Format));
-    SkSimpleMatrixProvider matrixProvider(matrix);
+    SkMatrixProvider matrixProvider(matrix);
     draw.fMatrixProvider = &matrixProvider;
     draw.fRC = &rc;
 
