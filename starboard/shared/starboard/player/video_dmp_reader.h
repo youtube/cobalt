@@ -133,6 +133,10 @@ class VideoDmpReader {
   }
 
   SbPlayerSampleInfo GetPlayerSampleInfo(SbMediaType type, size_t index);
+  SbPlayerSampleInfo GetPlayerSampleInfo(SbMediaType type,
+                                         size_t index,
+                                         int64_t discarded_duration_from_front,
+                                         int64_t discarded_duration_from_back);
   const media::AudioSampleInfo& GetAudioSampleInfo(size_t index);
 
  private:
@@ -182,6 +186,10 @@ class VideoDmpReader {
 
   std::vector<AudioAccessUnit> audio_access_units_;
   std::vector<VideoAccessUnit> video_access_units_;
+
+  // Used only for audio access units to adjust timestamps for the total
+  // discarded duration.
+  int64_t total_discarded_duration_;
 };
 
 }  // namespace video_dmp

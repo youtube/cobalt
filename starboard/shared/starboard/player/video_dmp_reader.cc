@@ -110,7 +110,8 @@ VideoDmpReader::VideoDmpReader(
     ReadOnDemandOptions read_on_demand_options /*= kDisableReadOnDemand*/)
     : file_reader_(filename, 1024 * 1024),
       read_cb_(std::bind(&FileCacheReader::Read, &file_reader_, _1, _2)),
-      allow_read_on_demand_(read_on_demand_options == kEnableReadOnDemand) {
+      allow_read_on_demand_(read_on_demand_options == kEnableReadOnDemand),
+      total_discarded_duration_(0) {
   bool already_cached =
       GetRegistry()->GetDmpInfo(file_reader_.GetAbsolutePathName(), &dmp_info_);
 
@@ -205,6 +206,24 @@ SbPlayerSampleInfo VideoDmpReader::GetPlayerSampleInfo(SbMediaType type,
   }
   SB_NOTREACHED() << "Unhandled SbMediaType";
   return SbPlayerSampleInfo();
+}
+
+SbPlayerSampleInfo VideoDmpReader::GetPlayerSampleInfo(
+    SbMediaType type,
+    size_t index,
+    int64_t discarded_duration_from_front,
+    int64_t discarded_duration_from_back) {
+  SB_DCHECK(type == kSbMediaTypeAudio);
+
+  SbPlayerSampleInfo sample_info = GetPlayerSampleInfo(type, index);
+  if (discarded_duration_from_front || discarded_duration_from_back) {
+    sample_info.timestamp =
+        std::max(int64_t(0), sample_info.timestamp - total_discarded_duration_);
+    total_discarded_duration_ +=
+        discarded_duration_from_front + discarded_duration_from_back;
+  }
+
+  return sample_info;
 }
 
 const media::AudioSampleInfo& VideoDmpReader::GetAudioSampleInfo(size_t index) {
