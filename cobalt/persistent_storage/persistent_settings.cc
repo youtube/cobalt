@@ -100,10 +100,8 @@ void PersistentSettings::ValidatePersistentSettingsHelper() {
   DCHECK_EQ(base::MessageLoop::current(), message_loop());
   if (!validated_initial_settings_) {
     base::AutoLock auto_lock(pref_store_lock_);
-#ifndef USE_HACKY_COBALT_CHANGES
-    pref_store_->SetValue(kValidated, std::make_unique<base::Value>(true),
+    pref_store_->SetValue(kValidated, base::Value(true),
                           WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
-#endif
     CommitPendingWrite(false);
     validated_initial_settings_ = true;
   }
@@ -163,8 +161,8 @@ PersistentSettings::GetPersistentSettingAsDictionary(const std::string& key) {
   base::Value::Dict* result = persistent_settings.FindDict(key);
   base::flat_map<std::string, std::unique_ptr<base::Value>> dict;
   if (result) {
-    for (base::Value::Dict::iterator it = result->begin();
-         it != result->end(); ++it) {
+    for (base::Value::Dict::iterator it = result->begin(); it != result->end();
+         ++it) {
       dict.insert(std::make_pair(
           it->first, base::Value::ToUniquePtrValue(std::move(it->second))));
     }
@@ -192,12 +190,11 @@ void PersistentSettings::SetPersistentSettingHelper(
   DCHECK_EQ(base::MessageLoop::current(), message_loop());
   if (validated_initial_settings_) {
     base::AutoLock auto_lock(pref_store_lock_);
-#ifndef USE_HACKY_COBALT_CHANGES
-    pref_store_->SetValue(kValidated, std::make_unique<base::Value>(false),
+    pref_store_->SetValue(kValidated, base::Value(false),
                           WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
-    pref_store_->SetValue(key, std::move(value),
+    pref_store_->SetValue(key,
+                          base::Value::FromUniquePtrValue(std::move(value)),
                           WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
-#endif
     CommitPendingWrite(blocking);
   } else {
     LOG(ERROR) << "Cannot set persistent setting while unvalidated: " << key;
@@ -220,11 +217,9 @@ void PersistentSettings::RemovePersistentSettingHelper(
   DCHECK_EQ(base::MessageLoop::current(), message_loop());
   if (validated_initial_settings_) {
     base::AutoLock auto_lock(pref_store_lock_);
-#ifndef USE_HACKY_COBALT_CHANGES
-    pref_store_->SetValue(kValidated, std::make_unique<base::Value>(false),
+    pref_store_->SetValue(kValidated, base::Value(false),
                           WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
     pref_store_->RemoveValue(key, WriteablePrefStore::DEFAULT_PREF_WRITE_FLAGS);
-#endif
     CommitPendingWrite(blocking);
   } else {
     LOG(ERROR) << "Cannot remove persistent setting while unvalidated: " << key;

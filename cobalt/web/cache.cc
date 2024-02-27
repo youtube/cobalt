@@ -177,12 +177,11 @@ script::HandlePromiseAny Cache::Match(
             script::v8c::EntryScope entry_scope(isolate);
             auto resolver = traced_resolver.Get(isolate);
             if (!cached || !metadata ||
-                !(*metadata).GetDict().FindDict("options")) {
+                !metadata->GetDict().FindDict("options")) {
               cache_utils::Resolve(resolver);
               return;
             }
-            base::Value value(
-                (*metadata->GetDict().FindDict("options")).Clone());
+            base::Value value(metadata->GetDict().FindDict("options")->Clone());
             auto response =
                 cache_utils::CreateResponse(isolate, *cached, value);
             if (!response) {
