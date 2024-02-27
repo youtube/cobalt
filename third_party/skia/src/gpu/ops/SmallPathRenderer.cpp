@@ -310,7 +310,7 @@ private:
             auto uploadTarget = target->deferredUploadTarget();
             atlasMgr->setUseToken(shapeData, uploadTarget->tokenTracker()->nextDrawToken());
 
-            this->writePathVertices(vertices, GrVertexColor(args.fColor, fWideColor),
+            this->writePathVertices(vertices, VertexColor(args.fColor, fWideColor),
                                     args.fViewMatrix, shapeData);
             flushInfo.fInstancesToFlush++;
         }
@@ -419,7 +419,7 @@ private:
             SkRasterClip rasterClip;
             rasterClip.setRect(devPathBounds);
             draw.fRC = &rasterClip;
-            SkSimpleMatrixProvider matrixProvider(drawMatrix);
+            SkMatrixProvider matrixProvider(drawMatrix);
             draw.fMatrixProvider = &matrixProvider;
             draw.fDst = dst;
 
@@ -499,7 +499,7 @@ private:
         rasterClip.setRect(devPathBounds);
         draw.fRC = &rasterClip;
         drawMatrix.postTranslate(translateX, translateY);
-        SkSimpleMatrixProvider matrixProvider(drawMatrix);
+        SkMatrixProvider matrixProvider(drawMatrix);
         draw.fMatrixProvider = &matrixProvider;
         draw.fDst = dst;
 
@@ -513,7 +513,7 @@ private:
     }
 
     void writePathVertices(VertexWriter& vertices,
-                           const GrVertexColor& color,
+                           const VertexColor& color,
                            const SkMatrix& ctm,
                            const skgpu::v1::SmallPathShapeData* shapeData) const {
         SkRect translatedBounds(shapeData->fBounds);

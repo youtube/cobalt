@@ -16,6 +16,8 @@
 #include "src/gpu/tessellate/PathCurveTessellator.h"
 #include "src/gpu/tessellate/shaders/GrPathTessellationShader.h"
 
+namespace skgpu::v1 {
+
 namespace {
 
 // Fills an array of convex hulls surrounding 4-point cubic or conic instances. This shader is used
@@ -24,7 +26,8 @@ class HullShader : public GrPathTessellationShader {
 public:
     HullShader(const SkMatrix& viewMatrix, SkPMColor4f color, const GrShaderCaps& shaderCaps)
             : GrPathTessellationShader(kTessellate_HullShader_ClassID,
-                                       GrPrimitiveType::kTriangleStrip, 0, viewMatrix, color) {
+                                       GrPrimitiveType::kTriangleStrip, 0, viewMatrix, color,
+                                       skgpu::PatchAttribs::kNone) {
         fInstanceAttribs.emplace_back("p01", kFloat4_GrVertexAttribType, kFloat4_GrSLType);
         fInstanceAttribs.emplace_back("p23", kFloat4_GrVertexAttribType, kFloat4_GrSLType);
         if (!shaderCaps.infinitySupport()) {
@@ -43,6 +46,8 @@ public:
         }
     }
 
+    int maxTessellationSegments(const GrShaderCaps&) const override { SkUNREACHABLE; }
+
 private:
     const char* name() const final { return "tessellate_HullShader"; }
     void addToKey(const GrShaderCaps&, GrProcessorKeyBuilder*) const final {}
@@ -55,8 +60,11 @@ private:
 std::unique_ptr<GrGeometryProcessor::ProgramImpl> HullShader::makeProgramImpl(
         const GrShaderCaps&) const {
     class Impl : public GrPathTessellationShader::Impl {
-        void emitVertexCode(const GrShaderCaps& shaderCaps, const GrPathTessellationShader&,
-                            GrGLSLVertexBuilder* v, GrGPArgs* gpArgs) override {
+        void emitVertexCode(const GrShaderCaps& shaderCaps,
+                            const GrPathTessellationShader&,
+                            GrGLSLVertexBuilder* v,
+                            GrGLSLVaryingHandler*,
+                            GrGPArgs* gpArgs) override {
             if (shaderCaps.infinitySupport()) {
                 v->insertFunction(R"(
                 bool is_conic_curve() { return isinf(p23.w); }
@@ -158,8 +166,6 @@ std::unique_ptr<GrGeometryProcessor::ProgramImpl> HullShader::makeProgramImpl(
 
 }  // anonymous namespace
 
-namespace skgpu::v1 {
-
 void PathInnerTriangulateOp::visitProxies(const GrVisitProxyFunc& func) const {
     if (fPipelineForFills) {
         fPipelineForFills->visitProxies(func);
@@ -245,15 +251,18 @@ void PathInnerTriangulateOp::prePreparePrograms(const GrTessellationShader::Prog
     // Pass 1: Tessellate the outer curves into the stencil buffer.
     if (!isLinear) {
         fTessellator = PathCurveTessellator::Make(args.fArena,
-                                                  fViewMatrix,
-                                                  SK_PMColor4fTRANSPARENT,
-                                                  PathCurveTessellator::DrawInnerFan::kNo,
-                                                  fPath.countVerbs(),
-                                                  *pipelineForStencils,
-                                                  *args.fCaps);
+                                                  args.fCaps->shaderCaps()->infinitySupport());
+        auto* tessShader = GrPathTessellationShader::Make(args.fArena,
+                                                          fViewMatrix,
+                                                          SK_PMColor4fTRANSPARENT,
+                                                          fPath.countVerbs(),
+                                                          *pipelineForStencils,
+                                                          fTessellator->patchAttribs(),
+                                                          *args.fCaps);
         const GrUserStencilSettings* stencilPathSettings =
                 GrPathTessellationShader::StencilPathSettings(GrFillRuleForSkPath(fPath));
-        fStencilCurvesProgram = GrTessellationShader::MakeProgram(args, fTessellator->shader(),
+        fStencilCurvesProgram = GrTessellationShader::MakeProgram(args,
+                                                                  tessShader,
                                                                   pipelineForStencils,
                                                                   stencilPathSettings);
     }
@@ -391,11 +400,13 @@ void PathInnerTriangulateOp::onPrePrepare(GrRecordingContext* context,
 GR_DECLARE_STATIC_UNIQUE_KEY(gHullVertexBufferKey);
 
 void PathInnerTriangulateOp::onPrepare(GrOpFlushState* flushState) {
+    const GrCaps& caps = flushState->caps();
+
     if (!fFanTriangulator) {
         this->prePreparePrograms({flushState->allocator(), flushState->writeView(),
                                  flushState->usesMSAASurface(), &flushState->dstProxyView(),
                                  flushState->renderPassBarriers(), flushState->colorLoadOp(),
-                                 &flushState->caps()}, flushState->detachAppliedClip());
+                                 &caps}, flushState->detachAppliedClip());
         if (!fFanTriangulator) {
             return;
         }
@@ -407,14 +418,45 @@ void PathInnerTriangulateOp::onPrepare(GrOpFlushState* flushState) {
     }
 
     if (fTessellator) {
-        // Must be called after polysToTriangles() in order for fFanBreadcrumbs to be complete.
-        fTessellator->prepare(flushState,
-                              {SkMatrix::I(), fPath},
-                              fPath.countVerbs(),
-                              &fFanBreadcrumbs);
+        int patchPreallocCount = fFanBreadcrumbs.count() +
+                                 fTessellator->patchPreallocCount(fPath.countVerbs());
+        SkASSERT(patchPreallocCount);  // Otherwise fTessellator should be null.
+
+        PatchWriter patchWriter(flushState, fTessellator, patchPreallocCount);
+
+        // Write out breadcrumb triangles. This must be called after polysToTriangles() in order for
+        // fFanBreadcrumbs to be complete.
+        SkDEBUGCODE(int breadcrumbCount = 0;)
+        for (const auto* tri = fFanBreadcrumbs.head(); tri; tri = tri->fNext) {
+            SkDEBUGCODE(++breadcrumbCount;)
+            auto p0 = float2::Load(tri->fPts);
+            auto p1 = float2::Load(tri->fPts + 1);
+            auto p2 = float2::Load(tri->fPts + 2);
+            if (skvx::any((p0 == p1) & (p1 == p2))) {
+                // Cull completely horizontal or vertical triangles. GrTriangulator can't always
+                // get these breadcrumb edges right when they run parallel to the sweep
+                // direction because their winding is undefined by its current definition.
+                // FIXME(skia:12060): This seemed safe, but if there is a view matrix it will
+                // introduce T-junctions.
+                continue;
+            }
+            PatchWriter::TrianglePatch(patchWriter) << p0 << p1 << p2;
+        }
+        SkASSERT(breadcrumbCount == fFanBreadcrumbs.count());
+
+        // Write out the curves.
+        auto tessShader = &fStencilCurvesProgram->geomProc().cast<GrPathTessellationShader>();
+        fTessellator->writePatches(patchWriter,
+                                   tessShader->maxTessellationSegments(*caps.shaderCaps()),
+                                   tessShader->viewMatrix(),
+                                   {SkMatrix::I(), fPath, SK_PMColor4fTRANSPARENT});
+
+        if (!tessShader->willUseTessellationShaders()) {
+            fTessellator->prepareFixedCountBuffers(flushState);
+        }
     }
 
-    if (!flushState->caps().shaderCaps()->vertexIDSupport()) {
+    if (!caps.shaderCaps()->vertexIDSupport()) {
         constexpr static float kStripOrderIDs[4] = {0, 1, 3, 2};
 
         GR_DEFINE_STATIC_UNIQUE_KEY(gHullVertexBufferKey);
@@ -426,21 +468,30 @@ void PathInnerTriangulateOp::onPrepare(GrOpFlushState* flushState) {
 }
 
 void PathInnerTriangulateOp::onExecute(GrOpFlushState* flushState, const SkRect& chainBounds) {
+    if (fCoverHullsProgram &&
+        fCoverHullsProgram->geomProc().hasVertexAttributes() &&
+        !fHullVertexBufferIfNoIDSupport) {
+        return;
+    }
+
     if (fStencilCurvesProgram) {
         SkASSERT(fTessellator);
         flushState->bindPipelineAndScissorClip(*fStencilCurvesProgram, this->bounds());
-        fTessellator->draw(flushState);
+        fTessellator->draw(flushState,
+                           fStencilCurvesProgram->geomProc().willUseTessellationShaders());
         if (flushState->caps().requiresManualFBBarrierAfterTessellatedStencilDraw()) {
             flushState->gpu()->insertManualFramebufferBarrier();  // http://skbug.com/9739
         }
     }
 
-    for (const GrProgramInfo* fanProgram : fFanPrograms) {
-        SkASSERT(fFanBuffer);
-        flushState->bindPipelineAndScissorClip(*fanProgram, this->bounds());
-        flushState->bindTextures(fanProgram->geomProc(), nullptr, fanProgram->pipeline());
-        flushState->bindBuffers(nullptr, nullptr, fFanBuffer);
-        flushState->draw(fFanVertexCount, fBaseFanVertex);
+    // Allocation of the fan vertex buffer may have failed but we already pushed back fan programs.
+    if (fFanBuffer) {
+        for (const GrProgramInfo* fanProgram : fFanPrograms) {
+            flushState->bindPipelineAndScissorClip(*fanProgram, this->bounds());
+            flushState->bindTextures(fanProgram->geomProc(), nullptr, fanProgram->pipeline());
+            flushState->bindBuffers(nullptr, nullptr, fFanBuffer);
+            flushState->draw(fFanVertexCount, fBaseFanVertex);
+        }
     }
 
     if (fCoverHullsProgram) {

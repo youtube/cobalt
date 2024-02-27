@@ -165,12 +165,13 @@ DEF_GPUTEST_FOR_MOCK_CONTEXT(DSLFlags, r, ctxInfo) {
     }
 
     {
-        SkSL::ProgramSettings settings;
-        settings.fOptimize = false;
+        SkSL::ProgramSettings settings = default_settings();
+        settings.fAllowNarrowingConversions = true;
         AutoDSLContext context(ctxInfo.directContext()->priv().getGpu(), settings,
                                SkSL::ProgramKind::kFragment);
-        EXPECT_EQUAL(All(GreaterThan(Float4(1), Float4(0))),
-                     "all(greaterThan(float4(1.0), float4(0.0)))");
+        Var x(kHalf_Type, "x");
+        Var y(kFloat_Type, "y");
+        EXPECT_EQUAL(x = y, "(x = half(y))");
     }
 
     {
@@ -1879,10 +1880,10 @@ DEF_GPUTEST_FOR_MOCK_CONTEXT(DSLModifiers, r, ctxInfo) {
 
 DEF_GPUTEST_FOR_MOCK_CONTEXT(DSLLayout, r, ctxInfo) {
     AutoDSLContext context(ctxInfo.directContext()->priv().getGpu(), no_mark_vars_declared());
-    Var v1(DSLModifiers(DSLLayout().location(1).set(2).binding(3).offset(4).index(5).builtin(6)
+    Var v1(DSLModifiers(DSLLayout().location(1).offset(4).index(5).builtin(6)
                                    .inputAttachmentIndex(7),
                         kConst_Modifier), kInt_Type, "v1", 0);
-    EXPECT_EQUAL(Declare(v1), "layout (location = 1, offset = 4, binding = 3, index = 5, set = 2, "
+    EXPECT_EQUAL(Declare(v1), "layout (location = 1, offset = 4, index = 5, "
                               "builtin = 6, input_attachment_index = 7) const int v1 = 0;");
 
     Var v2(DSLLayout().originUpperLeft(), kFloat2_Type, "v2");
@@ -1895,9 +1896,8 @@ DEF_GPUTEST_FOR_MOCK_CONTEXT(DSLLayout, r, ctxInfo) {
     EXPECT_EQUAL(Declare(v5), "layout (blend_support_all_equations) half4 v5;");
 
     {
-        ExpectError error(r, "'srgb_unpremul' is only permitted in runtime effects");
-        DSLGlobalVar v(DSLModifiers(DSLLayout().srgbUnpremul(), kUniform_Modifier), kHalf4_Type,
-                       "v");
+        ExpectError error(r, "'layout(color)' is only permitted in runtime effects");
+        DSLGlobalVar v(DSLModifiers(DSLLayout().color(), kUniform_Modifier), kHalf4_Type, "v");
         Declare(v);
     }
 
@@ -1953,8 +1953,8 @@ DEF_GPUTEST_FOR_MOCK_CONTEXT(DSLLayout, r, ctxInfo) {
     }
 
     {
-        ExpectError error(r, "layout qualifier 'srgb_unpremul' appears more than once");
-        DSLLayout().srgbUnpremul().srgbUnpremul();
+        ExpectError error(r, "layout qualifier 'color' appears more than once");
+        DSLLayout().color().color();
     }
 }
 

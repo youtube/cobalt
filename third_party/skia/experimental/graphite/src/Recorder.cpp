@@ -5,35 +5,32 @@
  * found in the LICENSE file.
  */
 
-#include "experimental/graphite/src/Recorder.h"
+#include "experimental/graphite/include/Recorder.h"
 
 #include "experimental/graphite/include/Context.h"
+#include "experimental/graphite/include/Recording.h"
+#include "experimental/graphite/src/Caps.h"
 #include "experimental/graphite/src/CommandBuffer.h"
 #include "experimental/graphite/src/ContextPriv.h"
 #include "experimental/graphite/src/DrawBufferManager.h"
 #include "experimental/graphite/src/Gpu.h"
-#include "experimental/graphite/src/ProgramCache.h"
-#include "experimental/graphite/src/Recording.h"
+#include "experimental/graphite/src/ResourceProvider.h"
 #include "experimental/graphite/src/UniformCache.h"
 
 namespace skgpu {
 
 Recorder::Recorder(sk_sp<Context> context)
-    : fContext(std::move(context))
-    , fProgramCache(new ProgramCache)
-    , fUniformCache(new UniformCache)
-    // TODO: Is '4' the correct initial alignment?
-    , fDrawBufferManager(new DrawBufferManager(fContext->priv().gpu()->resourceProvider(), 4)) {
+        : fContext(std::move(context))
+        , fUniformCache(new UniformCache)
+        , fDrawBufferManager(new DrawBufferManager(
+                fContext->priv().gpu()->resourceProvider(),
+                fContext->priv().gpu()->caps()->requiredUniformBufferAlignment())) {
 }
 
 Recorder::~Recorder() {}
 
 Context* Recorder::context() const {
     return fContext.get();
-}
-
-ProgramCache* Recorder::programCache() {
-    return fProgramCache.get();
 }
 
 UniformCache* Recorder::uniformCache() {
@@ -49,10 +46,14 @@ void Recorder::add(sk_sp<Task> task) {
 }
 
 std::unique_ptr<Recording> Recorder::snap() {
-    // TODO: need to create a CommandBuffer from the Tasks and then we need to call
-    // fDrawBufferManager::transferBuffers() to pass the buffers to the command buffer.
+    auto gpu = fContext->priv().gpu();
+    auto commandBuffer = gpu->resourceProvider()->createCommandBuffer();
+
+    fGraph.addCommands(gpu->resourceProvider(), commandBuffer.get());
+    fDrawBufferManager->transferToCommandBuffer(commandBuffer.get());
+
     fGraph.reset();
-    return std::unique_ptr<Recording>(new Recording(nullptr));
+    return std::unique_ptr<Recording>(new Recording(std::move(commandBuffer)));
 }
 
 } // namespace skgpu

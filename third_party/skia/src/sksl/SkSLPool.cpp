@@ -130,6 +130,7 @@ void Pool::FreeMemory(void* ptr) {
         memPool->release(ptr);
         return;
     }
+
 #ifndef STARBOARD
     // There's no pool attached. Free it using the system allocator.
     VLOG("FREE   Pool:__________________  0x%016llX\n", (uint64_t)ptr);

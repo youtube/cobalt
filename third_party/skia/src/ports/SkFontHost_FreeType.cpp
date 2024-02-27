@@ -67,6 +67,21 @@
 #  include <dlfcn.h>
 #endif
 
+#ifdef TT_SUPPORT_COLRV1
+// FT_ClipBox and FT_Get_Color_Glyph_ClipBox introduced VER-2-11-0-18-g47cf8ebf4
+// FT_COLR_COMPOSITE_PLUS and renumbering introduced VER-2-11-0-21-ge40ae7569
+// FT_SIZEOF_LONG_LONG introduced VER-2-11-0-31-gffdac8d67
+// FT_PaintRadialGradient changed size and layout at VER-2-11-0-147-gd3d3ff76d
+// FT_STATIC_CAST introduced VER-2-11-0-172-g9079c5d91
+// So undefine TT_SUPPORT_COLRV1 before 2.11.1 but not if FT_STATIC_CAST is defined.
+#if (((FREETYPE_MAJOR)  < 2) || \
+     ((FREETYPE_MAJOR) == 2 && (FREETYPE_MINOR)  < 11) || \
+     ((FREETYPE_MAJOR) == 2 && (FREETYPE_MINOR) == 11 && (FREETYPE_PATCH) < 1)) && \
+    !defined(FT_STATIC_CAST)
+#    undef TT_SUPPORT_COLRV1
+#endif
+#endif
+
 //#define ENABLE_GLYPH_SPEW     // for tracing calls
 //#define DUMP_STRIKE_CREATION
 //#define SK_FONTHOST_FREETYPE_RUNTIME_VERSION
@@ -1189,7 +1204,9 @@ void SkScalerContext_FreeType::generateMetrics(SkGlyph* glyph, SkArenaAlloc* all
 
         if (haveLayers) {
             glyph->fMaskFormat = SkMask::kARGB32_Format;
+#ifndef SK_IGNORE_GLYPH_HAS_PATH_FIX
             glyph->setPath(alloc, nullptr, false);
+#endif
             if (!(bounds.xMin < bounds.xMax && bounds.yMin < bounds.yMax)) {
                 bounds = { 0, 0, 0, 0 };
             }
@@ -1628,7 +1645,11 @@ SkTypeface::LocalizedStrings* SkTypeface_FreeType::onCreateFamilyNameIterator() 
 }
 
 bool SkTypeface_FreeType::onGlyphMaskNeedsCurrentColor() const {
-    return this->getTableSize(SkSetFourByteTag('C', 'O', 'L', 'R')) > 0;
+    fGlyphMasksMayNeedCurrentColorOnce([this]{
+        static constexpr SkFourByteTag COLRTag = SkSetFourByteTag('C', 'O', 'L', 'R');
+        fGlyphMasksMayNeedCurrentColor = this->getTableSize(COLRTag) > 0;
+    });
+    return fGlyphMasksMayNeedCurrentColor;
 }
 
 int SkTypeface_FreeType::onGetVariationDesignPosition(

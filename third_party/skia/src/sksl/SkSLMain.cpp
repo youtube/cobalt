@@ -18,6 +18,7 @@
 #include "src/sksl/SkSLUtil.h"
 #include "src/sksl/codegen/SkSLPipelineStageCodeGenerator.h"
 #include "src/sksl/codegen/SkSLVMCodeGenerator.h"
+#include "src/sksl/codegen/SkVMDebugTrace.h"
 #include "src/sksl/ir/SkSLUnresolvedFunction.h"
 #include "src/sksl/ir/SkSLVarDeclarations.h"
 
@@ -92,7 +93,8 @@ static SkSL::String base_name(const SkSL::String& fpPath, const char* prefix, co
 // The passed-in Settings object will be updated accordingly. Any number of options can be provided.
 static bool detect_shader_settings(const SkSL::String& text,
                                    SkSL::Program::Settings* settings,
-                                   const SkSL::ShaderCapsClass** caps) {
+                                   const SkSL::ShaderCaps** caps,
+                                   std::unique_ptr<SkSL::SkVMDebugTrace>* debugTrace) {
     using Factory = SkSL::ShaderCapsFactory;
 
     // Find a matching comment and isolate the name portion.
@@ -209,11 +211,18 @@ static bool detect_shader_settings(const SkSL::String& text,
                 if (settingsText.consumeSuffix(" NoInline")) {
                     settings->fInlineThreshold = 0;
                 }
+                if (settingsText.consumeSuffix(" NoTraceVarInSkVMDebugTrace")) {
+                    settings->fAllowTraceVarInSkVMDebugTrace = false;
+                }
                 if (settingsText.consumeSuffix(" InlineThresholdMax")) {
                     settings->fInlineThreshold = INT_MAX;
                 }
                 if (settingsText.consumeSuffix(" Sharpen")) {
                     settings->fSharpenTextures = true;
+                }
+                if (settingsText.consumeSuffix(" SkVMDebugTrace")) {
+                    settings->fOptimize = false;
+                    *debugTrace = std::make_unique<SkSL::SkVMDebugTrace>();
                 }
 
                 if (settingsText.empty()) {
@@ -291,10 +300,11 @@ ResultCode processCommand(std::vector<SkSL::String>& args) {
     }
 
     SkSL::Program::Settings settings;
-    SkSL::StandaloneShaderCaps standaloneCaps;
-    const SkSL::ShaderCapsClass* caps = &standaloneCaps;
+    auto standaloneCaps = SkSL::ShaderCapsFactory::Standalone();
+    const SkSL::ShaderCaps* caps = standaloneCaps.get();
+    std::unique_ptr<SkSL::SkVMDebugTrace> debugTrace;
     if (honorSettings) {
-        if (!detect_shader_settings(text, &settings, &caps)) {
+        if (!detect_shader_settings(text, &settings, &caps, &debugTrace)) {
             return ResultCode::kInputError;
         }
     }
@@ -337,6 +347,18 @@ ResultCode processCommand(std::vector<SkSL::String>& args) {
         return ResultCode::kSuccess;
     };
 
+    auto compileProgramForSkVM = [&](const auto& writeFn) -> ResultCode {
+        if (kind == SkSL::ProgramKind::kVertex) {
+            printf("%s: SkVM does not support vertex programs\n", outputPath.c_str());
+            return ResultCode::kOutputError;
+        }
+        if (kind == SkSL::ProgramKind::kFragment) {
+            // Handle .sksl and .frag programs as runtime shaders.
+            kind = SkSL::ProgramKind::kRuntimeShader;
+        }
+        return compileProgram(writeFn);
+    };
+
     if (outputPath.ends_with(".spirv")) {
         return compileProgram(
                 [](SkSL::Compiler& compiler, SkSL::Program& program, SkSL::OutputStream& out) {
@@ -372,15 +394,24 @@ ResultCode processCommand(std::vector<SkSL::String>& args) {
                 [](SkSL::Compiler& compiler, SkSL::Program& program, SkSL::OutputStream& out) {
                     return compiler.toMetal(program, out);
                 });
-    } else if (outputPath.ends_with(".skvm")) {
+    } else if (outputPath.ends_with(".hlsl")) {
         return compileProgram(
-                [](SkSL::Compiler&, SkSL::Program& program, SkSL::OutputStream& out) {
+                [](SkSL::Compiler& compiler, SkSL::Program& program, SkSL::OutputStream& out) {
+                    return compiler.toHLSL(program, out);
+                });
+    } else if (outputPath.ends_with(".skvm")) {
+        return compileProgramForSkVM(
+                [&](SkSL::Compiler&, SkSL::Program& program, SkSL::OutputStream& out) {
                     skvm::Builder builder{skvm::Features{}};
-                    if (!SkSL::testingOnly_ProgramToSkVMShader(program, &builder)) {
+                    if (!SkSL::testingOnly_ProgramToSkVMShader(program, &builder,
+                                                               debugTrace.get())) {
                         return false;
                     }
 
                     std::unique_ptr<SkWStream> redirect = as_SkWStream(out);
+                    if (debugTrace) {
+                        debugTrace->dump(redirect.get());
+                    }
                     builder.done().dump(redirect.get());
                     return true;
                 });
@@ -479,8 +510,8 @@ ResultCode processCommand(std::vector<SkSL::String>& args) {
             return ResultCode::kOutputError;
         }
     } else {
-        printf("expected output path to end with one of: .glsl, .metal, .spirv, .asm.frag, .skvm, "
-               ".stage, .asm.vert (got '%s')\n", outputPath.c_str());
+        printf("expected output path to end with one of: .glsl, .metal, .hlsl, .spirv, .asm.frag, "
+               ".skvm, .stage, .asm.vert, .dehydrated.sksl (got '%s')\n", outputPath.c_str());
         return ResultCode::kConfigurationError;
     }
     return ResultCode::kSuccess;

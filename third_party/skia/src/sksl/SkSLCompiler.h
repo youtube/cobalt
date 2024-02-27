@@ -48,6 +48,7 @@ namespace dsl {
 class ExternalFunction;
 class FunctionDeclaration;
 class ProgramUsage;
+struct ShaderCaps;
 
 struct LoadedModule {
     ProgramKind                                  fKind;
@@ -56,10 +57,9 @@ struct LoadedModule {
 };
 
 /**
- * Main compiler entry point. This is a traditional compiler design which first parses the .sksl
- * file into an abstract syntax tree (a tree of ASTNodes), then performs semantic analysis to
- * produce a Program (a tree of IRNodes), then feeds the Program into a CodeGenerator to produce
- * compiled output.
+ * Main compiler entry point. The compiler parses the SkSL text directly into a tree of IRNodes,
+ * while performing basic optimizations such as constant-folding and dead-code elimination. Then the
+ * Program is passed into a CodeGenerator to produce compiled output.
  *
  * See the README for information about SkSL.
  */
@@ -113,7 +113,7 @@ public:
         StatementArray fOwnedStatements;
     };
 
-    Compiler(const ShaderCapsClass* caps);
+    Compiler(const ShaderCaps* caps);
 
     ~Compiler();
 
@@ -151,6 +151,8 @@ public:
     bool toGLSL(Program& program, OutputStream& out);
 
     bool toGLSL(Program& program, String* out);
+
+    bool toHLSL(Program& program, OutputStream& out);
 
     bool toHLSL(Program& program, String* out);
 

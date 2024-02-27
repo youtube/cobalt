@@ -14,7 +14,7 @@ if (is_fuchsia) {
 }
 
 if (skia_use_dawn) {
-  import("third_party/externals/dawn/scripts/dawn_features.gni")
+  import("//third_party/externals/dawn/scripts/dawn_features.gni")
 }
 
 if (defined(skia_settings)) {
@@ -56,9 +56,6 @@ config("skia_public") {
       "SK_ASSUME_WEBGL=1",
       "SK_USE_WEBGL",
     ]
-  }
-  if (skia_enable_skgpu_v2) {
-    defines += [ "SK_GPU_V2=1" ]
   }
   if (!skia_enable_skgpu_v1) {
     defines += [ "SK_GPU_V1=0" ]
@@ -630,9 +627,11 @@ if (skia_compile_sksl_tests) {
     defines = [
       "SKSL_STANDALONE",
       "SK_DISABLE_TRACING",
+      "SK_ENABLE_SPIRV_CROSS",
       "SK_ENABLE_SPIRV_VALIDATION",
     ]
     sources = [
+      "src/core/SkArenaAlloc.cpp",
       "src/core/SkBlockAllocator.cpp",
       "src/core/SkCpu.cpp",
       "src/core/SkData.cpp",
@@ -653,6 +652,9 @@ if (skia_compile_sksl_tests) {
       "src/ports/SkMemory_malloc.cpp",
       "src/ports/SkOSFile_stdio.cpp",
       "src/sksl/SkSLMain.cpp",
+      "src/utils/SkJSON.cpp",
+      "src/utils/SkJSONWriter.cpp",
+      "src/utils/SkParse.cpp",
       "src/utils/SkUTF.cpp",
     ]
     if (is_win) {
@@ -667,6 +669,7 @@ if (skia_compile_sksl_tests) {
       ":run_sksllex",
       "//third_party/externals/spirv-tools:spvtools",
       "//third_party/externals/spirv-tools:spvtools_val",
+      "//third_party/spirv-cross:spirv_cross",
     ]
   }
 
@@ -853,9 +856,6 @@ optional("gpu") {
   public_deps = []
 
   sources = skia_gpu_sources + skia_sksl_gpu_sources
-  if (skia_enable_skgpu_v2) {
-    sources += skia_skgpu_v2_sources
-  }
   if (!skia_enable_skgpu_v1) {
     sources -= skia_skgpu_v1_sources
   }
@@ -936,8 +936,11 @@ optional("gpu") {
     deps += [
       "//third_party/externals/dawn/src/dawn:dawn_proc",
       "//third_party/externals/dawn/src/dawn:dawncpp",
-      "//third_party/externals/dawn/src/dawn_native",
     ]
+    if (dawn_enable_d3d12 || dawn_enable_desktop_gl || dawn_enable_metal ||
+        dawn_enable_opengles || dawn_enable_vulkan) {
+      deps += [ "//third_party/externals/dawn/src/dawn_native" ]
+    }
     if (dawn_enable_d3d12) {
       libs += [
         "d3d12.lib",
@@ -950,7 +953,10 @@ optional("gpu") {
   }
 
   if (skia_use_direct3d) {
-    public_defines += [ "SK_DIRECT3D" ]
+    public_defines += [
+      "SK_DIRECT3D",
+      "SK_ENABLE_SPIRV_CROSS",
+    ]
     deps += [
       "//third_party/d3d12allocator",
       "//third_party/spirv-cross:spirv_cross",
@@ -1010,6 +1016,12 @@ optional("heif") {
   enabled = skia_use_libheif
   public_defines = [ "SK_HAS_HEIF_LIBRARY" ]
 
+  # This HEIF decoding functionality is a part of the Android Framework.
+  # https://android.googlesource.com/platform/frameworks/av/+/master/media/libheif/include/HeifDecoderAPI.h
+  # There isn't a way to compile that library outside of it, so we just link against
+  # the library. This feature is not supported on other platforms (and we haven't
+  # yet tried something like https://github.com/strukturag/libheif/tree/master/libheif).
+  # The dependency for Android is set in gn_to_bp.py.
   deps = []
 
   sources = [ "src/codec/SkHeifCodec.cpp" ]
@@ -1637,6 +1649,7 @@ if (skia_enable_tools) {
     }
     skia_source_set(target_name) {
       forward_variables_from(invoker, "*", [])
+      check_includes = false
       public_configs = [
         ":" + target_name + "_config",
         ":skia_private",
@@ -2032,6 +2045,9 @@ if (skia_enable_tools) {
     }
     if (skia_enable_graphite) {
       sources += graphite_tests_sources
+      if (skia_use_metal) {
+        sources += graphite_metal_tests_sources
+      }
     }
     if (!skia_enable_skgpu_v1) {
       sources -= skgpu_v1_tests_sources

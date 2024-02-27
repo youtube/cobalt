@@ -167,7 +167,7 @@ String to_string(double value) {
 #endif
 }
 
-bool stod(const skstd::string_view& s, SKSL_FLOAT* value) {
+bool stod(skstd::string_view s, SKSL_FLOAT* value) {
     std::string str(s.data(), s.size());
     std::stringstream buffer(str);
     buffer.imbue(std::locale::classic());
@@ -175,7 +175,14 @@ bool stod(const skstd::string_view& s, SKSL_FLOAT* value) {
     return !buffer.fail();
 }
 
-bool stoi(const skstd::string_view& s, SKSL_INT* value) {
+bool stoi(skstd::string_view s, SKSL_INT* value) {
+    if (s.empty()) {
+        return false;
+    }
+    char suffix = s.back();
+    if (suffix == 'u' || suffix == 'U') {
+        s.remove_suffix(1);
+    }
     char* p;
     errno = 0;
     unsigned long long result = strtoull(s.begin(), &p, /*base=*/0);

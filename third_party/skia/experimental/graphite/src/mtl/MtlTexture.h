@@ -18,9 +18,17 @@ class Gpu;
 
 class Texture : public skgpu::Texture {
 public:
+    static sk_cfp<id<MTLTexture>> MakeMtlTexture(const Gpu*,
+                                                 SkISize dimensions,
+                                                 const skgpu::TextureInfo&);
+
     static sk_sp<Texture> Make(const Gpu* gpu,
                                SkISize dimensions,
                                const skgpu::TextureInfo&);
+
+    static sk_sp<Texture> MakeWrapped(SkISize dimensions,
+                                      const skgpu::TextureInfo&,
+                                      sk_cfp<id<MTLTexture>>);
 
     ~Texture() override {}
 
@@ -29,7 +37,8 @@ public:
 private:
     Texture(SkISize dimensions,
             const skgpu::TextureInfo& info,
-            sk_cfp<id<MTLTexture>> texture);
+            sk_cfp<id<MTLTexture>>,
+            Ownership);
 
     sk_cfp<id<MTLTexture>> fTexture;
 };

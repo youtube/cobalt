@@ -6,9 +6,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking
+ - `Canvas.drawVertices` and `Canvas.drawPatch` treat the default blend mode differently.
+   See https://bugs.chromium.org/p/skia/issues/detail?id=12662.
+ - `Canvas.markCTM` and `Canvas.findMarkedCTM` have been removed. They were effectively no-ops.
+
+### Added
+ - Rough implementation of `measureText` to Canvas2D emulation layer. For accurate numbers, clients
+   should use a real shaping library, like SkParagraph.
+ - `AnimatedImage.currentFrameDuration` has been added, as well as some clarifying documentation.
+
+## [0.31.0] - 2021-11-16
+
+### Added
+ - `CanvasKit.MakeLazyImageFromTextureSource`, which is similar to
+   `Surface.makeImageFromTextureSource`, but can be re-used across different WebGL contexts.
+
+### Breaking
+ - `Surface.makeImageFromTextureSource` now takes an optional ImageInfo or PartialImageInfo
+   instead of optional width and height. Sensible defaults will be used if not supplied.
+
+### Fixed
+ - Some `Surface` methods would not properly switch to the right WebGL context.
+ - Warnings about `INVALID_ENUM: enable: invalid capability` should be reduced/eliminated.
+
 ### Removed
  - `FontMgr.MakeTypefaceFromData` and `FontMgr.RefDefault` have been removed in favor of
    `Typeface.MakeFreeTypeFaceFromData`
+
+### Changed
+ - `make release`, `make debug`, and variants put the output in a different location (./build).
+ - Example .html files load CanvasKit from the new location (./build).
 
 ### Type Changes (index.d.ts)
  - `Surface.requestAnimationFrame` and `Surface.drawOnce` are properly documented.

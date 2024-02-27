@@ -36,10 +36,17 @@ String VarDeclaration::description() const {
     return result;
 }
 
-void VarDeclaration::ErrorCheck(const Context& context, int line, const Modifiers& modifiers,
-        const Type* baseType, Variable::Storage storage) {
+void VarDeclaration::ErrorCheck(const Context& context,
+                                int line,
+                                const Modifiers& modifiers,
+                                const Type* baseType,
+                                Variable::Storage storage) {
     if (*baseType == *context.fTypes.fInvalid) {
         context.fErrors->error(line, "invalid type");
+        return;
+    }
+    if (baseType->isVoid()) {
+        context.fErrors->error(line, "variables of type 'void' are not allowed");
         return;
     }
     if (context.fConfig->strictES2Mode() && baseType->isArray()) {
@@ -65,13 +72,13 @@ void VarDeclaration::ErrorCheck(const Context& context, int line, const Modifier
         context.fErrors->error(line,
                 "variables of type '" + baseType->displayName() + "' must be uniform");
     }
-    if (modifiers.fLayout.fFlags & Layout::kSRGBUnpremul_Flag) {
+    if (modifiers.fLayout.fFlags & Layout::kColor_Flag) {
         if (!ProgramConfig::IsRuntimeEffect(context.fConfig->fKind)) {
-            context.fErrors->error(line, "'srgb_unpremul' is only permitted in runtime effects");
+            context.fErrors->error(line, "'layout(color)' is only permitted in runtime effects");
         }
         if (!(modifiers.fFlags & Modifiers::kUniform_Flag)) {
             context.fErrors->error(line,
-                    "'srgb_unpremul' is only permitted on 'uniform' variables");
+                                   "'layout(color)' is only permitted on 'uniform' variables");
         }
         auto validColorXformType = [](const Type& t) {
             return t.isVector() && t.componentType().isFloat() &&
@@ -79,8 +86,9 @@ void VarDeclaration::ErrorCheck(const Context& context, int line, const Modifier
         };
         if (!validColorXformType(*baseType) && !(baseType->isArray() &&
                                                  validColorXformType(baseType->componentType()))) {
-            context.fErrors->error(line, "'srgb_unpremul' is only permitted on half3, half4, "
-                    "float3, or float4 variables");
+            context.fErrors->error(line,
+                                   "'layout(color)' is not permitted on variables of type '" +
+                                           baseType->displayName() + "'");
         }
     }
     int permitted = Modifiers::kConst_Flag | Modifiers::kHighp_Flag | Modifiers::kMediump_Flag |
@@ -90,7 +98,21 @@ void VarDeclaration::ErrorCheck(const Context& context, int line, const Modifier
                      Modifiers::kFlat_Flag | Modifiers::kNoPerspective_Flag;
     }
     // TODO(skbug.com/11301): Migrate above checks into building a mask of permitted layout flags
-    modifiers.checkPermitted(context, line, permitted, /*permittedLayoutFlags=*/~0);
+
+    int permittedLayoutFlags = ~0;
+    // We don't allow 'binding' or 'set' on normal uniform variables, only on textures, samplers,
+    // and interface blocks (holding uniform variables). They're also only allowed at global scope,
+    // not on interface block fields (or locals/parameters).
+    bool permitBindingAndSet = baseType->typeKind() == Type::TypeKind::kSampler ||
+                               baseType->typeKind() == Type::TypeKind::kSeparateSampler ||
+                               baseType->typeKind() == Type::TypeKind::kTexture ||
+                               baseType->isInterfaceBlock();
+    if (storage != Variable::Storage::kGlobal ||
+        ((modifiers.fFlags & Modifiers::kUniform_Flag) && !permitBindingAndSet)) {
+        permittedLayoutFlags &= ~Layout::kBinding_Flag;
+        permittedLayoutFlags &= ~Layout::kSet_Flag;
+    }
+    modifiers.checkPermitted(context, line, permitted, permittedLayoutFlags);
 }
 
 bool VarDeclaration::ErrorCheckAndCoerce(const Context& context, const Variable& var,

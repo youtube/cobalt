@@ -35,6 +35,7 @@
 #include "src/core/SkStrikeSpec.h"
 #include "src/core/SkTraceEvent.h"
 
+#include <cinttypes>
 #include <climits>
 
 // -- SkGlyphRunListPainter ------------------------------------------------------------------------
@@ -229,14 +230,21 @@ void SkGlyphRunListPainter::processGlyphRun(const SkGlyphRun& glyphRun,
                                             const SkPaint& runPaint,
                                             const GrSDFTControl& control,
                                             SkGlyphRunPainterInterface* process,
-                                            const char* tag) {
+                                            const char* tag,
+                                            uint64_t uniqueID) {
     #if defined(SK_TRACE_GLYPH_RUN_PROCESS)
         SkString msg;
         msg.appendf("\nStart glyph run processing");
         if (tag != nullptr) {
             msg.appendf(" for %s ", tag);
+            if (uniqueID != SK_InvalidUniqueID) {
+                msg.appendf(" uniqueID: %" PRIu64, uniqueID);
+            }
         }
-        msg.appendf("\n");
+        msg.appendf("\n   matrix\n");
+        msg.appendf("   %7.3g %7.3g %7.3g\n   %7.3g %7.3g %7.3g\n",
+                    drawMatrix[0], drawMatrix[1], drawMatrix[2],
+                    drawMatrix[3], drawMatrix[4], drawMatrix[5]);
     #endif
     ScopedBuffers _ = this->ensureBuffers(glyphRun);
     fRejects.setSource(glyphRun.source());
@@ -246,14 +254,14 @@ void SkGlyphRunListPainter::processGlyphRun(const SkGlyphRun& glyphRun,
 
     if (drawingType == GrSDFTControl::kSDFT) {
         // Process SDFT - This should be the .009% case.
-        const auto& [strikeSpec, minScale, maxScale] =
+        const auto& [strikeSpec, strikeToSourceScale, minScale, maxScale] =
                 SkStrikeSpec::MakeSDFT(runFont, runPaint, fDeviceProps, drawMatrix, control);
 
         #if defined(SK_TRACE_GLYPH_RUN_PROCESS)
             msg.appendf("  SDFT case:\n%s", strikeSpec.dump().c_str());
         #endif
 
-        if (!strikeSpec.isEmpty()) {
+        if (!SkScalarNearlyZero(strikeToSourceScale)) {
             SkScopedStrikeForGPU strike = strikeSpec.findOrCreateScopedStrike(fStrikeCache);
 
             fDrawable.startSource(fRejects.source());
@@ -266,8 +274,11 @@ void SkGlyphRunListPainter::processGlyphRun(const SkGlyphRun& glyphRun,
             if (process && !fDrawable.drawableIsEmpty()) {
                 // processSourceSDFT must be called even if there are no glyphs to make sure
                 // runs are set correctly.
-                process->processSourceSDFT(
-                        fDrawable.drawable(), strikeSpec, runFont, minScale, maxScale);
+                process->processSourceSDFT(fDrawable.drawable(),
+                                           strike->getUnderlyingStrike(),
+                                           strikeToSourceScale,
+                                           runFont,
+                                           minScale, maxScale);
             }
         }
     }
@@ -294,7 +305,7 @@ void SkGlyphRunListPainter::processGlyphRun(const SkGlyphRun& glyphRun,
         if (process && !fDrawable.drawableIsEmpty()) {
             // processDeviceMasks must be called even if there are no glyphs to make sure runs
             // are set correctly.
-            process->processDeviceMasks(fDrawable.drawable(), strikeSpec);
+            process->processDeviceMasks(fDrawable.drawable(), strike->getUnderlyingStrike());
         }
     }
 
@@ -312,7 +323,7 @@ void SkGlyphRunListPainter::processGlyphRun(const SkGlyphRun& glyphRun,
             msg.appendf("  Path case:\n%s", strikeSpec.dump().c_str());
         #endif
 
-        if (!strikeSpec.isEmpty()) {
+        if (!SkScalarNearlyZero(strikeToSourceScale)) {
             SkScopedStrikeForGPU strike = strikeSpec.findOrCreateScopedStrike(fStrikeCache);
 
             fDrawable.startSource(fRejects.source());
@@ -327,14 +338,14 @@ void SkGlyphRunListPainter::processGlyphRun(const SkGlyphRun& glyphRun,
                 // processSourcePaths must be called even if there are no glyphs to make sure
                 // runs are set correctly.
                 process->processSourcePaths(
-                        fDrawable.drawable(), runFont, strikeSpec, strikeToSourceScale);
+                        fDrawable.drawable(), runFont, strikeToSourceScale);
             }
         }
     }
 
     if (!fRejects.source().empty() && maxDimensionInSourceSpace != 0) {
         // Draw of last resort. Scale the bitmap to the screen.
-        SkStrikeSpec strikeSpec = SkStrikeSpec::MakeSourceFallback(
+        auto [strikeSpec, strikeToSourceScale] = SkStrikeSpec::MakeSourceFallback(
                 runFont, runPaint, fDeviceProps,
                 fScalerContextFlags, maxDimensionInSourceSpace);
 
@@ -342,7 +353,7 @@ void SkGlyphRunListPainter::processGlyphRun(const SkGlyphRun& glyphRun,
             msg.appendf("Transformed case:\n%s", strikeSpec.dump().c_str());
         #endif
 
-        if (!strikeSpec.isEmpty()) {
+        if (!SkScalarNearlyZero(strikeToSourceScale)) {
             SkScopedStrikeForGPU strike = strikeSpec.findOrCreateScopedStrike(fStrikeCache);
 
             fDrawable.startSource(fRejects.source());
@@ -354,7 +365,8 @@ void SkGlyphRunListPainter::processGlyphRun(const SkGlyphRun& glyphRun,
             SkASSERT(fRejects.source().empty());
 
             if (process && !fDrawable.drawableIsEmpty()) {
-                process->processSourceMasks(fDrawable.drawable(), strikeSpec);
+                process->processSourceMasks(
+                        fDrawable.drawable(), strike->getUnderlyingStrike(), strikeToSourceScale);
             }
         }
     }

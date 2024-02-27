@@ -15,6 +15,7 @@
 #include "src/core/SkCpu.h"
 #include "src/core/SkEnumerate.h"
 #include "src/core/SkOpts.h"
+#include "src/core/SkStreamPriv.h"
 #include "src/core/SkVM.h"
 #include <algorithm>
 #include <atomic>
@@ -158,6 +159,7 @@ namespace skvm {
         int regs = 0;
         int loop = 0;
         std::vector<int> strides;
+        std::vector<TraceHook*> traceHooks;
 
         std::atomic<void*> jit_entry{nullptr};   // TODO: minimal std::memory_orders
         size_t jit_size = 0;
@@ -173,25 +175,18 @@ namespace skvm {
     // Debugging tools, mostly for printing various data structures out to a stream.
 
     namespace {
-        class SkDebugfStream final : public SkWStream {
-            size_t fBytesWritten = 0;
-
-            bool write(const void* buffer, size_t size) override {
-                SkDebugf("%.*s", (int)size, (const char*)buffer);
-                fBytesWritten += size;
-                return true;
-            }
-
-            size_t bytesWritten() const override {
-                return fBytesWritten;
-            }
-        };
-
         struct V { Val id; };
         struct R { Reg id; };
-        struct Shift { int bits; };
-        struct Splat { int bits; };
-        struct Hex   { int bits; };
+        struct Shift       { int bits; };
+        struct Splat       { int bits; };
+        struct Hex         { int bits; };
+        struct TraceHookID { int bits; };
+        // For op `trace_line`
+        struct Line  { int bits; };
+        // For op `trace_var`
+        struct VarSlot { int bits; };
+        // For op `trace_enter`/`trace_exit`
+        struct FnIdx { int bits; };
 
         static void write(SkWStream* o, const char* s) {
             o->writeText(s);
@@ -235,7 +230,21 @@ namespace skvm {
         static void write(SkWStream* o, Hex h) {
             o->writeHexAsText(h.bits);
         }
-
+        static void write(SkWStream* o, TraceHookID h) {
+            o->writeDecAsText(h.bits);
+        }
+        static void write(SkWStream* o, Line d) {
+            write(o, "L");
+            o->writeDecAsText(d.bits);
+        }
+        static void write(SkWStream* o, VarSlot s) {
+            write(o, "$");
+            o->writeDecAsText(s.bits);
+        }
+        static void write(SkWStream* o, FnIdx s) {
+            write(o, "F");
+            o->writeDecAsText(s.bits);
+        }
         template <typename T, typename... Ts>
         static void write(SkWStream* o, T first, Ts... rest) {
             write(o, first);
@@ -255,6 +264,12 @@ namespace skvm {
             immC = inst.immC;
         switch (op) {
             case Op::assert_true: write(o, op, V{x}, V{y}); break;
+
+            case Op::trace_line:  write(o, op, TraceHookID{immA}, V{x}, V{y}, Line{immB}); break;
+            case Op::trace_var:   write(o, op, TraceHookID{immA}, V{x}, V{y},
+                                                                  VarSlot{immB}, "=", V{z}); break;
+            case Op::trace_enter: write(o, op, TraceHookID{immA}, V{x}, V{y}, FnIdx{immB}); break;
+            case Op::trace_exit:  write(o, op, TraceHookID{immA}, V{x}, V{y}, FnIdx{immB}); break;
 
             case Op::store8:   write(o, op, Ptr{immA}, V{x}               ); break;
             case Op::store16:  write(o, op, Ptr{immA}, V{x}               ); break;
@@ -371,6 +386,15 @@ namespace skvm {
             switch (op) {
                 case Op::assert_true: write(o, op, R{x}, R{y}); break;
 
+                case Op::trace_line:  write(o, op, TraceHookID{immA},
+                                                   R{x}, R{y}, Line{immB}); break;
+                case Op::trace_var:   write(o, op, TraceHookID{immA}, R{x}, R{y},
+                                                   VarSlot{immB}, "=", R{z}); break;
+                case Op::trace_enter: write(o, op, TraceHookID{immA},
+                                                   R{x}, R{y}, FnIdx{immB}); break;
+                case Op::trace_exit:  write(o, op, TraceHookID{immA},
+                                                   R{x}, R{y}, FnIdx{immB}); break;
+
                 case Op::store8:   write(o, op, Ptr{immA}, R{x}                  ); break;
                 case Op::store16:  write(o, op, Ptr{immA}, R{x}                  ); break;
                 case Op::store32:  write(o, op, Ptr{immA}, R{x}                  ); break;
@@ -471,6 +495,8 @@ namespace skvm {
                 new_id[id] = next++;
             }
         }
+
+        // Eliminate any non-live ops.
         auto it = std::remove_if(program.begin(), program.end(), [&](const Instruction& inst) {
             Val id = (Val)(&inst - program.data());
             return !live[id];
@@ -501,7 +527,7 @@ namespace skvm {
         // Mark which values don't depend on the loop and can be hoisted.
         for (OptimizedInstruction& inst : optimized) {
             // Varying loads (and gathers) and stores cannot be hoisted out of the loop.
-            if (is_always_varying(inst.op)) {
+            if (is_always_varying(inst.op) || is_trace(inst.op)) {
                 inst.can_hoist = false;
             }
 
@@ -540,7 +566,7 @@ namespace skvm {
             debug_name = buf;
         }
 
-        return {this->optimize(), fStrides, debug_name, allow_jit};
+        return {this->optimize(), fStrides, fTraceHooks, debug_name, allow_jit};
     }
 
     uint64_t Builder::hash() const {
@@ -576,7 +602,7 @@ namespace skvm {
         // But we never dedup loads or stores: an intervening store could change that memory.
         // Uniforms and gathers touch only uniform memory, so they're fine to dedup,
         // and index is varying but doesn't touch memory, so it's fine to dedup too.
-        if (!touches_varying_memory(inst.op)) {
+        if (!touches_varying_memory(inst.op) && !is_trace(inst.op)) {
             if (Val* id = fIndex.find(inst)) {
                 return *id;
             }
@@ -599,6 +625,49 @@ namespace skvm {
         if (this->allImm(cond.id,&imm)) { SkASSERT(imm); return; }
         (void)push(Op::assert_true, cond.id, debug.id);
     #endif
+    }
+
+    int Builder::attachTraceHook(TraceHook* hook) {
+        int traceHookID = (int)fTraceHooks.size();
+        fTraceHooks.push_back(hook);
+        return traceHookID;
+    }
+
+    void Builder::trace_line(int traceHookID, I32 mask, I32 traceMask, int line) {
+        SkASSERT(traceHookID >= 0);
+        SkASSERT(traceHookID < (int)fTraceHooks.size());
+        if (this->isImm(mask.id,      0)) { return; }
+        if (this->isImm(traceMask.id, 0)) { return; }
+        if (this->isImm(mask.id,     ~0)) { mask = traceMask; }
+        if (this->isImm(traceMask.id,~0)) { traceMask = mask; }
+        (void)push(Op::trace_line, mask.id,traceMask.id,NA,NA, traceHookID, line);
+    }
+    void Builder::trace_var(int traceHookID, I32 mask, I32 traceMask, int slot, I32 val) {
+        SkASSERT(traceHookID >= 0);
+        SkASSERT(traceHookID < (int)fTraceHooks.size());
+        if (this->isImm(mask.id,      0)) { return; }
+        if (this->isImm(traceMask.id, 0)) { return; }
+        if (this->isImm(mask.id,     ~0)) { mask = traceMask; }
+        if (this->isImm(traceMask.id,~0)) { traceMask = mask; }
+        (void)push(Op::trace_var, mask.id,traceMask.id,val.id,NA, traceHookID, slot);
+    }
+    void Builder::trace_enter(int traceHookID, I32 mask, I32 traceMask, int fnIdx) {
+        SkASSERT(traceHookID >= 0);
+        SkASSERT(traceHookID < (int)fTraceHooks.size());
+        if (this->isImm(mask.id,      0)) { return; }
+        if (this->isImm(traceMask.id, 0)) { return; }
+        if (this->isImm(mask.id,     ~0)) { mask = traceMask; }
+        if (this->isImm(traceMask.id,~0)) { traceMask = mask; }
+        (void)push(Op::trace_enter, mask.id,traceMask.id,NA,NA, traceHookID, fnIdx);
+    }
+    void Builder::trace_exit(int traceHookID, I32 mask, I32 traceMask, int fnIdx) {
+        SkASSERT(traceHookID >= 0);
+        SkASSERT(traceHookID < (int)fTraceHooks.size());
+        if (this->isImm(mask.id,      0)) { return; }
+        if (this->isImm(traceMask.id, 0)) { return; }
+        if (this->isImm(mask.id,     ~0)) { mask = traceMask; }
+        if (this->isImm(traceMask.id,~0)) { traceMask = mask; }
+        (void)push(Op::trace_exit, mask.id,traceMask.id,NA,NA, traceHookID, fnIdx);
     }
 
     void Builder::store8 (Ptr ptr, I32 val) { (void)push(Op::store8 , val.id,NA,NA,NA, ptr.ix); }
@@ -672,7 +741,7 @@ namespace skvm {
                 return {this, this->push(Op::fma_f32, fProgram[y.id].x, fProgram[y.id].y, x.id)};
             }
         }
-        return {this, this->push(Op::add_f32, x.id, y.id)};
+        return {this, this->push(Op::add_f32, std::min(x.id, y.id), std::max(x.id, y.id))};
     }
 
     F32 Builder::sub(F32 x, F32 y) {
@@ -693,7 +762,7 @@ namespace skvm {
         if (float X,Y; this->allImm(x.id,&X, y.id,&Y)) { return splat(X*Y); }
         if (this->isImm(y.id, 1.0f)) { return x; }  // x*1 == x
         if (this->isImm(x.id, 1.0f)) { return y; }  // 1*y == y
-        return {this, this->push(Op::mul_f32, x.id, y.id)};
+        return {this, this->push(Op::mul_f32, std::min(x.id, y.id), std::max(x.id, y.id))};
     }
 
     F32 Builder::fast_mul(F32 x, F32 y) {
@@ -884,7 +953,7 @@ namespace skvm {
         if (int X,Y; this->allImm(x.id,&X, y.id,&Y)) { return splat(X+Y); }
         if (this->isImm(x.id, 0)) { return y; }
         if (this->isImm(y.id, 0)) { return x; }
-        return {this, this->push(Op::add_i32, x.id, y.id)};
+        return {this, this->push(Op::add_i32, std::min(x.id, y.id), std::max(x.id, y.id))};
     }
     SK_ATTRIBUTE(no_sanitize("signed-integer-overflow"))
     I32 Builder::sub(I32 x, I32 y) {
@@ -899,7 +968,7 @@ namespace skvm {
         if (this->isImm(y.id, 0)) { return splat(0); }
         if (this->isImm(x.id, 1)) { return y; }
         if (this->isImm(y.id, 1)) { return x; }
-        return {this, this->push(Op::mul_i32, x.id, y.id)};
+        return {this, this->push(Op::mul_i32, std::min(x.id, y.id), std::max(x.id, y.id))};
     }
 
     SK_ATTRIBUTE(no_sanitize("shift"))
@@ -921,11 +990,11 @@ namespace skvm {
 
     I32 Builder:: eq(F32 x, F32 y) {
         if (float X,Y; this->allImm(x.id,&X, y.id,&Y)) { return splat(X==Y ? ~0 : 0); }
-        return {this, this->push(Op::eq_f32, x.id, y.id)};
+        return {this, this->push(Op::eq_f32, std::min(x.id, y.id), std::max(x.id, y.id))};
     }
     I32 Builder::neq(F32 x, F32 y) {
         if (float X,Y; this->allImm(x.id,&X, y.id,&Y)) { return splat(X!=Y ? ~0 : 0); }
-        return {this, this->push(Op::neq_f32, x.id, y.id)};
+        return {this, this->push(Op::neq_f32, std::min(x.id, y.id), std::max(x.id, y.id))};
     }
     I32 Builder::lt(F32 x, F32 y) {
         if (float X,Y; this->allImm(x.id,&X, y.id,&Y)) { return splat(Y> X ? ~0 : 0); }
@@ -947,7 +1016,7 @@ namespace skvm {
     I32 Builder:: eq(I32 x, I32 y) {
         if (x.id == y.id) { return splat(~0); }
         if (int X,Y; this->allImm(x.id,&X, y.id,&Y)) { return splat(X==Y ? ~0 : 0); }
-        return {this, this->push(Op:: eq_i32, x.id, y.id)};
+        return {this, this->push(Op:: eq_i32, std::min(x.id, y.id), std::max(x.id, y.id))};
     }
     I32 Builder::neq(I32 x, I32 y) {
         if (int X,Y; this->allImm(x.id,&X, y.id,&Y)) { return splat(X!=Y ? ~0 : 0); }
@@ -972,7 +1041,7 @@ namespace skvm {
         if (this->isImm(x.id, 0)) { return splat(0); }   // (false & y) == false
         if (this->isImm(y.id,~0)) { return x; }          // (x & true) == x
         if (this->isImm(x.id,~0)) { return y; }          // (true & y) == y
-        return {this, this->push(Op::bit_and, x.id, y.id)};
+        return {this, this->push(Op::bit_and, std::min(x.id, y.id), std::max(x.id, y.id))};
     }
     I32 Builder::bit_or(I32 x, I32 y) {
         if (x.id == y.id) { return x; }
@@ -981,14 +1050,14 @@ namespace skvm {
         if (this->isImm(x.id, 0)) { return y; }           // (false | y) == y
         if (this->isImm(y.id,~0)) { return splat(~0); }   // (x | true) == true
         if (this->isImm(x.id,~0)) { return splat(~0); }   // (true | y) == true
-        return {this, this->push(Op::bit_or, x.id, y.id)};
+        return {this, this->push(Op::bit_or, std::min(x.id, y.id), std::max(x.id, y.id))};
     }
     I32 Builder::bit_xor(I32 x, I32 y) {
         if (x.id == y.id) { return splat(0); }
         if (int X,Y; this->allImm(x.id,&X, y.id,&Y)) { return splat(X^Y); }
         if (this->isImm(y.id, 0)) { return x; }   // (x ^ false) == x
         if (this->isImm(x.id, 0)) { return y; }   // (false ^ y) == y
-        return {this, this->push(Op::bit_xor, x.id, y.id)};
+        return {this, this->push(Op::bit_xor, std::min(x.id, y.id), std::max(x.id, y.id))};
     }
 
     I32 Builder::bit_clear(I32 x, I32 y) {
@@ -2510,8 +2579,9 @@ namespace skvm {
 
         // So we'll sometimes use the interpreter here even if later calls will use the JIT.
         SkOpts::interpret_skvm(fImpl->instructions.data(), (int)fImpl->instructions.size(),
-                               this->nregs(), this->loop(), fImpl->strides.data(), this->nargs(),
-                               n, args);
+                               this->nregs(), this->loop(), fImpl->strides.data(),
+                               fImpl->traceHooks.data(), fImpl->traceHooks.size(),
+                               this->nargs(), n, args);
     }
 
     #if defined(SKVM_LLVM)
@@ -2582,6 +2652,13 @@ namespace skvm {
                     return false;
 
                 case Op::assert_true: /*TODO*/ break;
+
+                case Op::trace_line:
+                case Op::trace_var:
+                case Op::trace_enter:
+                case Op::trace_exit:
+                    /* Force this program to run in the interpreter. */
+                    return false;
 
                 case Op::index:
                     if (I32->isVectorTy()) {
@@ -2931,6 +3008,11 @@ namespace skvm {
     #endif
     }
 
+    bool Program::hasTraceHooks() const {
+        // Identifies a program which has been instrumented for debugging.
+        return !fImpl->traceHooks.empty();
+    }
+
     bool Program::hasJIT() const {
         // Program::hasJIT() is really just a debugging / test aid,
         // so we don't mind adding a sync point here to wait for compilation.
@@ -2977,8 +3059,10 @@ namespace skvm {
 
     Program::Program(const std::vector<OptimizedInstruction>& instructions,
                      const std::vector<int>& strides,
+                     const std::vector<TraceHook*>& traceHooks,
                      const char* debug_name, bool allow_jit) : Program() {
         fImpl->strides = strides;
+        fImpl->traceHooks = traceHooks;
         if (gSkVMAllowJIT && allow_jit) {
         #if 1 && defined(SKVM_LLVM)
             this->setupLLVM(instructions, debug_name);
@@ -3507,6 +3591,13 @@ namespace skvm {
                     a->label(&all_true);
                 } break;
 
+                case Op::trace_line:
+                case Op::trace_var:
+                case Op::trace_enter:
+                case Op::trace_exit:
+                    /* Force this program to run in the interpreter. */
+                    return false;
+
                 case Op::store8:
                     if (scalar) {
                         a->vpextrb(A::Mem{arg[immA]}, (A::Xmm)r(x), 0);
@@ -3870,6 +3961,13 @@ namespace skvm {
                     a->brk(0);
                     a->label(&all_true);
                 } break;
+
+                case Op::trace_line:
+                case Op::trace_var:
+                case Op::trace_enter:
+                case Op::trace_exit:
+                    /* Force this program to run in the interpreter. */
+                    return false;
 
                 case Op::index: {
                     A::V tmp = alloc_tmp();
@@ -4297,6 +4395,57 @@ namespace skvm {
         }
     #endif
     }
+
+    void Program::disassemble(SkWStream* o) const {
+    #if !defined(SK_BUILD_FOR_WIN)
+        SkDebugfStream debug;
+        if (!o) { o = &debug; }
+
+        const void* jit_entry = fImpl->jit_entry.load();
+        size_t jit_size = fImpl->jit_size;
+
+        if (!jit_entry) {
+            o->writeText("Program not JIT'd. Did you pass --jit?\n");
+            return;
+        }
+
+        char path[] = "/tmp/skvm-jit.XXXXXX";
+        int fd = mkstemp(path);
+        ::write(fd, jit_entry, jit_size);
+        close(fd);
+
+        // Convert it in-place to a dynamic library with a single symbol "skvm_jit":
+        SkString cmd = SkStringPrintf(
+                "echo '.global _skvm_jit\n_skvm_jit: .incbin \"%s\"'"
+                " | clang -x assembler -shared - -o %s",
+                path, path);
+        system(cmd.c_str());
+
+        // Now objdump to disassemble our function:
+        // TODO: We could trim this down to just our code using '--disassemble=<symbol name>`,
+        // but the symbol name varies with OS, and that option may be missing from objdump on some
+        // machines? There also apears to be quite a bit of junk after the end of the JIT'd code.
+        // Trimming that would let us pass '--visualize-jumps' and get the loop annotated.
+        // With the junk, we tend to end up with a bunch of stray jumps that pollute the ASCII art.
+        cmd = SkStringPrintf("objdump -D %s", path);
+    #if defined(SK_BUILD_FOR_UNIX)
+        cmd.append(" --section=.text");
+    #endif
+        FILE* fp = popen(cmd.c_str(), "r");
+        if (!fp) {
+            o->writeText("objdump failed\n");
+            return;
+        }
+
+        char line[1024];
+        while (fgets(line, sizeof(line), fp)) {
+            o->writeText(line);
+        }
+
+        pclose(fp);
+    #endif
+    }
+
 #endif
 
 }  // namespace skvm

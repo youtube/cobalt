@@ -17,6 +17,7 @@
 #include "include/core/SkEncodedImageFormat.h"
 #include "include/core/SkImage.h"
 #include "include/core/SkImageFilter.h"
+#include "include/core/SkImageGenerator.h"
 #include "include/core/SkImageInfo.h"
 #include "include/core/SkM44.h"
 #include "include/core/SkMaskFilter.h"
@@ -48,7 +49,6 @@
 #include "include/private/SkShadowFlags.h"
 #include "include/utils/SkParsePath.h"
 #include "include/utils/SkShadowUtils.h"
-#include "modules/skparagraph/include/Paragraph.h"
 #include "src/core/SkPathPriv.h"
 #include "src/core/SkResourceCache.h"
 #include "src/image/SkImage_Base.h"
@@ -57,15 +57,18 @@
 #include "modules/canvaskit/WasmCommon.h"
 #include <emscripten.h>
 #include <emscripten/bind.h>
+#include <emscripten/html5.h>
 
 #ifdef SK_GL
 #include "include/gpu/GrBackendSurface.h"
 #include "include/gpu/GrDirectContext.h"
 #include "include/gpu/gl/GrGLInterface.h"
 #include "include/gpu/gl/GrGLTypes.h"
+#include "src/gpu/GrProxyProvider.h"
+#include "src/gpu/GrRecordingContextPriv.h"
 #include "src/gpu/gl/GrGLDefines.h"
 
-#include "webgl/webgl1.h"
+#include <webgl/webgl1.h>
 #endif
 
 #ifndef SK_NO_FONTS
@@ -73,7 +76,10 @@
 #include "include/core/SkFontMetrics.h"
 #include "include/core/SkFontMgr.h"
 #include "include/core/SkFontTypes.h"
-#endif
+#ifdef SK_INCLUDE_PARAGRAPH
+#include "modules/skparagraph/include/Paragraph.h"
+#endif // SK_INCLUDE_PARAGRAPH
+#endif // SK_NO_FONTS
 
 #ifdef SK_INCLUDE_PATHOPS
 #include "include/pathops/SkPathOps.h"
@@ -665,23 +671,23 @@ void castUniforms(void* data, size_t dataLen, const SkRuntimeEffect& effect) {
 namespace emscripten {
     namespace internal {
         template<typename ClassType>
-        void raw_destructor(ClassType *);
+        void raw_destructor(ClassType*);
 
         template<>
-        void raw_destructor<SkContourMeasure>(SkContourMeasure *ptr) {
+        void raw_destructor<SkContourMeasure>(SkContourMeasure* ptr) {
         }
 
         template<>
-        void raw_destructor<SkVertices>(SkVertices *ptr) {
+        void raw_destructor<SkVertices>(SkVertices* ptr) {
         }
 
 #ifndef SK_NO_FONTS
         template<>
-        void raw_destructor<SkTextBlob>(SkTextBlob *ptr) {
+        void raw_destructor<SkTextBlob>(SkTextBlob* ptr) {
         }
 
         template<>
-        void raw_destructor<SkTypeface>(SkTypeface *ptr) {
+        void raw_destructor<SkTypeface>(SkTypeface* ptr) {
         }
 #endif
     }
@@ -697,13 +703,17 @@ Uint8Array toBytes(sk_sp<SkData> data) {
     ).call<Uint8Array>("slice"); // slice with no args makes a copy of the memory view.
 }
 
+#ifdef SK_GL
 // We need to call into the JS side of things to free webGL contexts. This object will be called
 // with _setTextureCleanup after CanvasKit loads. The object will have one attribute,
 // a function called deleteTexture that takes two ints.
 JSObject textureCleanup = emscripten::val::null();
 
 struct TextureReleaseContext {
+    // This refers to which webgl context, i.e. which surface, owns the texture. We need this
+    // to route the deleteTexture to the right context.
     uint32_t webglHandle;
+    // This refers to the index of the texture in the complete list of textures.
     uint32_t texHandle;
 };
 
@@ -712,6 +722,76 @@ void deleteJSTexture(SkImage::ReleaseContext rc) {
     textureCleanup.call<void>("deleteTexture", ctx->webglHandle, ctx->texHandle);
     delete ctx;
 }
+
+class WebGLTextureImageGenerator : public SkImageGenerator {
+public:
+    WebGLTextureImageGenerator(SkImageInfo ii, JSObject callbackObj):
+            SkImageGenerator(ii),
+            fCallback(callbackObj) {}
+
+    ~WebGLTextureImageGenerator() {
+        // This cleans up the associated TextureSource that is used to make the texture
+        // (i.e. "makeTexture" below). We expect this destructor to be called when the
+        // SkImage that this Generator belongs to is destroyed.
+        fCallback.call<void>("freeSrc");
+    }
+
+protected:
+    GrSurfaceProxyView onGenerateTexture(GrRecordingContext* ctx,
+                                         const SkImageInfo& info,
+                                         const SkIPoint& origin,
+                                         GrMipmapped mipMapped,
+                                         GrImageTexGenPolicy texGenPolicy) {
+        if (ctx->backend() != GrBackendApi::kOpenGL) {
+            return {};
+        }
+
+        GrGLTextureInfo glInfo;
+        glInfo.fID     = fCallback.call<uint32_t>("makeTexture");
+        // The format and target should match how we make the texture on the JS side
+        // See the implementation of the makeTexture function.
+        glInfo.fFormat = GR_GL_RGBA8;
+        glInfo.fTarget = GR_GL_TEXTURE_2D;
+
+        static constexpr auto kMipmapped = GrMipmapped::kNo;
+        GrBackendTexture backendTexture(info.width(), info.height(), kMipmapped, glInfo);
+
+        const GrBackendFormat& format    = backendTexture.getBackendFormat();
+        const GrColorType      colorType = SkColorTypeToGrColorType(info.colorType());
+        if (!ctx->priv().caps()->areColorTypeAndFormatCompatible(colorType, format)) {
+            return {};
+        }
+
+        uint32_t webGLCtx = emscripten_webgl_get_current_context();
+        auto releaseCtx = new TextureReleaseContext{webGLCtx, glInfo.fID};
+        auto cleanupCallback = GrRefCntedCallback::Make(deleteJSTexture, releaseCtx);
+
+        sk_sp<GrSurfaceProxy> proxy = ctx->priv().proxyProvider()->wrapBackendTexture(
+                backendTexture,
+                kBorrow_GrWrapOwnership,
+                GrWrapCacheable::kYes,
+                kRead_GrIOType,
+                std::move(cleanupCallback));
+        if (!proxy) {
+            return {};
+        }
+        static constexpr auto kOrigin = kTopLeft_GrSurfaceOrigin;
+        GrSwizzle swizzle = ctx->priv().caps()->getReadSwizzle(format, colorType);
+        return GrSurfaceProxyView(std::move(proxy), kOrigin, swizzle);
+    }
+
+private:
+    JSObject fCallback;
+};
+
+// callbackObj has two functions in it, one to create a texture "makeTexture" and one to clean up
+// the underlying texture source "freeSrc". This way, we can create WebGL textures for each
+// surface/WebGLContext that the image is used on (we cannot share WebGLTextures across contexts).
+sk_sp<SkImage> MakeImageFromGenerator(SimpleImageInfo ii, JSObject callbackObj) {
+    auto gen = std::make_unique<WebGLTextureImageGenerator>(toSkImageInfo(ii), callbackObj);
+    return SkImage::MakeFromGenerator(std::move(gen));
+}
+#endif // SK_GL
 
 EMSCRIPTEN_BINDINGS(Skia) {
 #ifdef SK_GL
@@ -816,6 +896,7 @@ EMSCRIPTEN_BINDINGS(Skia) {
 
     class_<SkAnimatedImage>("AnimatedImage")
         .smart_ptr<sk_sp<SkAnimatedImage>>("sk_sp<AnimatedImage>")
+        .function("currentFrameDuration", &SkAnimatedImage::currentFrameDuration)
         .function("decodeNextFrame", &SkAnimatedImage::decodeNextFrame)
         .function("getFrameCount", &SkAnimatedImage::getFrameCount)
         .function("getRepetitionCount", &SkAnimatedImage::getRepetitionCount)
@@ -1037,18 +1118,6 @@ EMSCRIPTEN_BINDINGS(Skia) {
         .function("_drawTextBlob", select_overload<void (const sk_sp<SkTextBlob>&, SkScalar, SkScalar, const SkPaint&)>(&SkCanvas::drawTextBlob))
 #endif
         .function("_drawVertices", select_overload<void (const sk_sp<SkVertices>&, SkBlendMode, const SkPaint&)>(&SkCanvas::drawVertices))
-        .function("_findMarkedCTM", optional_override([](SkCanvas& self, std::string marker, WASMPointerF32 mPtr) -> bool {
-            SkScalar* sixteenMatrixValues = reinterpret_cast<SkScalar*>(mPtr);
-            if (!sixteenMatrixValues) {
-                return false; // matrix cannot be null
-            }
-            SkM44 m;
-            if (self.findMarkedCTM(marker.c_str(), &m)) {
-                m.getRowMajor(sixteenMatrixValues);
-                return true;
-            }
-            return false;
-        }))
         // 4x4 matrix functions
         // Just like with getTotalMatrix, we allocate the buffer for the 16 floats to go in from
         // interface.js, so it can also free them when its done.
@@ -1075,9 +1144,6 @@ EMSCRIPTEN_BINDINGS(Skia) {
         .function("_makeSurface", optional_override([](SkCanvas& self, SimpleImageInfo sii)->sk_sp<SkSurface> {
             return self.makeSurface(toSkImageInfo(sii), nullptr);
         }), allow_raw_pointers())
-        .function("markCTM", optional_override([](SkCanvas& self, std::string marker) {
-            self.markCTM(marker.c_str());
-        }))
 
         .function("_readPixels", optional_override([](SkCanvas& self, SimpleImageInfo di,
                                                       WASMPointerU8 pPtr,
@@ -1269,6 +1335,9 @@ EMSCRIPTEN_BINDINGS(Skia) {
 
     class_<SkImage>("Image")
         .smart_ptr<sk_sp<SkImage>>("sk_sp<Image>")
+#if SK_GL
+        .class_function("_makeFromGenerator", &MakeImageFromGenerator)
+#endif
         // Note that this needs to be cleaned up with delete().
         .function("getColorSpace", optional_override([](sk_sp<SkImage> self)->sk_sp<SkColorSpace> {
             return self->imageInfo().refColorSpace();
@@ -1734,7 +1803,7 @@ EMSCRIPTEN_BINDINGS(Skia) {
             return s;
         }))
         .function("getUniformCount", optional_override([](SkRuntimeEffect& self)->int {
-            return self.uniforms().count();
+            return self.uniforms().size();
         }))
         .function("getUniformFloatCount", optional_override([](SkRuntimeEffect& self)->int {
             return self.uniformSize() / sizeof(float);
@@ -2068,5 +2137,7 @@ EMSCRIPTEN_BINDINGS(Skia) {
     constant("ShadowGeometricOnly", (int)SkShadowFlags::kGeometricOnly_ShadowFlag);
     constant("ShadowDirectionalLight", (int)SkShadowFlags::kDirectionalLight_ShadowFlag);
 
+#ifdef SK_INCLUDE_PARAGRAPH
     constant("_GlyphRunFlags_isWhiteSpace", (int)skia::textlayout::Paragraph::kWhiteSpace_VisitorFlag);
+#endif
 }

@@ -214,6 +214,7 @@ if (skia_use_system_harfbuzz) {
       "$_src/hb-ot-tag-table.hh",
       "$_src/hb-ot-tag.cc",
       "$_src/hb-ot-var-avar-table.hh",
+      "$_src/hb-ot-var-common.hh",
       "$_src/hb-ot-var-fvar-table.hh",
       "$_src/hb-ot-var-gvar-table.hh",
       "$_src/hb-ot-var-hvar-table.hh",
@@ -260,7 +261,7 @@ if (skia_use_system_harfbuzz) {
       "config-override.h",
     ]
 
-    # The following sources are explictly not used.
+    # The following sources are explicitly not used.
     # They are referenced to aid in detecting previously uncategorized files.
     unused_sources = [
       "$_src/hb-coretext.cc",

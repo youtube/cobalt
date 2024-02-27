@@ -25,8 +25,46 @@ void PathTessellateOp::visitProxies(const GrVisitProxyFunc& func) const {
 GrProcessorSet::Analysis PathTessellateOp::finalize(const GrCaps& caps,
                                                     const GrAppliedClip* clip,
                                                     GrClampType clampType) {
-    return fProcessors.finalize(fColor, GrProcessorAnalysisCoverage::kNone, clip, nullptr, caps,
-                                clampType, &fColor);
+    auto analysis = fProcessors.finalize(this->headDraw().fColor,
+                                         GrProcessorAnalysisCoverage::kNone,
+                                         clip,
+                                         nullptr,
+                                         caps,
+                                         clampType,
+                                         &this->headDraw().fColor);
+    if (!analysis.usesLocalCoords()) {
+        // Since we don't need local coords, we can transform on CPU instead of in the shader. This
+        // gives us better batching potential.
+        this->headDraw().fPathMatrix = fShaderMatrix;
+        fShaderMatrix = SkMatrix::I();
+    }
+    return analysis;
+}
+
+GrDrawOp::CombineResult PathTessellateOp::onCombineIfPossible(GrOp* grOp,
+                                                              SkArenaAlloc*,
+                                                              const GrCaps&) {
+    auto* op = grOp->cast<PathTessellateOp>();
+    bool canMerge = fAAType == op->fAAType &&
+                    fStencil == op->fStencil &&
+                    fProcessors == op->fProcessors &&
+                    fShaderMatrix == op->fShaderMatrix;
+    if (canMerge) {
+        fTotalCombinedPathVerbCnt += op->fTotalCombinedPathVerbCnt;
+        fPatchAttribs |= op->fPatchAttribs;
+
+        if (!(fPatchAttribs & PatchAttribs::kColor) &&
+            this->headDraw().fColor != op->headDraw().fColor) {
+            // Color is no longer uniform. Move it into patch attribs.
+            fPatchAttribs |= PatchAttribs::kColor;
+        }
+
+        *fPathDrawTail = op->fPathDrawList;
+        fPathDrawTail = op->fPathDrawTail;
+        return CombineResult::kMerged;
+    }
+
+    return CombineResult::kCannotCombine;
 }
 
 void PathTessellateOp::prepareTessellator(const GrTessellationShader::ProgramArgs& args,
@@ -35,10 +73,17 @@ void PathTessellateOp::prepareTessellator(const GrTessellationShader::ProgramArg
     SkASSERT(!fTessellationProgram);
     auto* pipeline = GrTessellationShader::MakePipeline(args, fAAType, std::move(appliedClip),
                                                         std::move(fProcessors));
-    fTessellator = PathWedgeTessellator::Make(args.fArena, fViewMatrix, fColor, fPath.countVerbs(),
-                                              *pipeline, *args.fCaps);
-    fTessellationProgram = GrTessellationShader::MakeProgram(args, fTessellator->shader(), pipeline,
-                                                             fStencil);
+    fTessellator = PathWedgeTessellator::Make(args.fArena,
+                                              args.fCaps->shaderCaps()->infinitySupport(),
+                                              fPatchAttribs);
+    auto* tessShader = GrPathTessellationShader::Make(args.fArena,
+                                                      fShaderMatrix,
+                                                      this->headDraw().fColor,
+                                                      fTotalCombinedPathVerbCnt,
+                                                      *pipeline,
+                                                      fTessellator->patchAttribs(),
+                                                      *args.fCaps);
+    fTessellationProgram = GrTessellationShader::MakeProgram(args, tessShader, pipeline, fStencil);
 }
 
 void PathTessellateOp::onPrePrepare(GrRecordingContext* context,
@@ -64,7 +109,13 @@ void PathTessellateOp::onPrepare(GrOpFlushState* flushState) {
                                  &flushState->caps()}, flushState->detachAppliedClip());
         SkASSERT(fTessellator);
     }
-    fTessellator->prepare(flushState, {SkMatrix::I(), fPath}, fPath.countVerbs());
+    auto tessShader = &fTessellationProgram->geomProc().cast<GrPathTessellationShader>();
+    fTessellator->prepare(flushState,
+                          tessShader->maxTessellationSegments(*flushState->caps().shaderCaps()),
+                          fShaderMatrix,
+                          *fPathDrawList,
+                          fTotalCombinedPathVerbCnt,
+                          tessShader->willUseTessellationShaders());
 }
 
 void PathTessellateOp::onExecute(GrOpFlushState* flushState, const SkRect& chainBounds) {
@@ -73,8 +124,7 @@ void PathTessellateOp::onExecute(GrOpFlushState* flushState, const SkRect& chain
     flushState->bindPipelineAndScissorClip(*fTessellationProgram, this->bounds());
     flushState->bindTextures(fTessellationProgram->geomProc(), nullptr,
                              fTessellationProgram->pipeline());
-
-    fTessellator->draw(flushState);
+    fTessellator->draw(flushState, fTessellationProgram->geomProc().willUseTessellationShaders());
 }
 
 } // namespace skgpu::v1

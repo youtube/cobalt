@@ -103,13 +103,13 @@ if [[ $@ == *no_skottie* ]]; then
   SKOTTIE_BINDINGS=""
 fi
 
-GN_VIEWER="skia_use_expat=false skia_enable_skgpu_v2=false"
+GN_VIEWER="skia_use_expat=false"
 VIEWER_BINDINGS=""
 VIEWER_LIB=""
 
 if [[ $@ == *viewer* ]]; then
   echo "Including viewer"
-  GN_VIEWER="skia_use_expat=true skia_enable_skgpu_v2=false"
+  GN_VIEWER="skia_use_expat=true"
   VIEWER_BINDINGS="$BASE_DIR/viewer_bindings.cpp"
   VIEWER_LIB="$BUILD_DIR/libviewer_wasm.a"
   IS_OFFICIAL_BUILD="false"
@@ -165,6 +165,7 @@ HTML_CANVAS_API="--pre-js $BASE_DIR/htmlcanvas/preamble.js \
 --pre-js $BASE_DIR/htmlcanvas/font.js \
 --pre-js $BASE_DIR/htmlcanvas/canvas2dcontext.js \
 --pre-js $BASE_DIR/htmlcanvas/htmlcanvas.js \
+--pre-js $BASE_DIR/htmlcanvas/htmlimage.js \
 --pre-js $BASE_DIR/htmlcanvas/imagedata.js \
 --pre-js $BASE_DIR/htmlcanvas/lineargradient.js \
 --pre-js $BASE_DIR/htmlcanvas/path2d.js \

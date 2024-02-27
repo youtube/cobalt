@@ -51,14 +51,14 @@
 <h2> Interactive drawPatch</h2>
 <canvas id=interdrawpatch width=512 height=512></canvas>
 
-<script type="text/javascript" src="/node_modules/canvaskit/bin/canvaskit.js"></script>
+<script type="text/javascript" src="/build/canvaskit.js"></script>
 
 <script type="text/javascript" charset="utf-8">
 
   var CanvasKit = null;
   var cdn = 'https://storage.googleapis.com/skia-cdn/misc/';
 
-  const ckLoaded = CanvasKitInit({locateFile: (file) => '/node_modules/canvaskit/bin/'+file});
+  const ckLoaded = CanvasKitInit({locateFile: (file) => '/build/'+file});
 
   const loadRoboto = fetch(cdn + 'Roboto-Regular.ttf').then((response) => response.arrayBuffer());
   const loadNotoSerif = fetch(cdn + 'NotoSerif-Regular.ttf').then((response) => response.arrayBuffer());
@@ -75,14 +75,18 @@
     TextOnPathAPI1(CanvasKit);
     DrawGlyphsAPI1(CanvasKit);
     SurfaceAPI1(CanvasKit);
-    CanvasAPI1(CanvasKit);
-    CanvasAPI2(CanvasKit);
-    CanvasAPI3(CanvasKit);
-    CanvasAPI4(CanvasKit);
-    CanvasAPI5(CanvasKit);
-    CanvasAPI6(CanvasKit);
-    CanvasAPI7(CanvasKit);
-    CanvasAPI8(CanvasKit);
+    if (CanvasKit.MakeCanvas){
+      CanvasAPI1(CanvasKit);
+      CanvasAPI2(CanvasKit);
+      CanvasAPI3(CanvasKit);
+      CanvasAPI4(CanvasKit);
+      CanvasAPI5(CanvasKit);
+      CanvasAPI6(CanvasKit);
+      CanvasAPI7(CanvasKit);
+      CanvasAPI8(CanvasKit);
+    } else {
+      console.log("Skipping CanvasAPI1 because it's not compiled in");
+    }
     InteractivePatch(CanvasKit);
   });
 
@@ -212,7 +216,7 @@
          const cubics = patch_to_cubics(patch);
 
          canvas.drawColor(CanvasKit.WHITE);
-         canvas.drawPatch(cubics, colors, null, null, paint);
+         canvas.drawPatch(cubics, colors, null, CanvasKit.BlendMode.Dst, paint);
          if (live_corner) {
              canvas.drawPoints(CanvasKit.PointMode.Polygon, live_corner, line_paint);
          }
@@ -487,8 +491,9 @@
         ctx.fillStyle = 'black';
         ctx.font = '26px Bungee';
         ctx.rotate(.1);
+        let text = ctx.measureText('Awesome');
         ctx.fillText('Awesome ', 25, 100);
-        ctx.strokeText('Groovy!', 200, 100);
+        ctx.strokeText('Groovy!', 35 + text.width, 100);
 
         // Draw line under Awesome
         ctx.strokeStyle = 'rgba(125,0,0,0.5)';
@@ -987,7 +992,7 @@
                                             points, null, colors,
                                             false /*isVolatile*/);
 
-    canvas.drawVertices(vertices, CanvasKit.BlendMode.Src, paint);
+    canvas.drawVertices(vertices, CanvasKit.BlendMode.Dst, paint);
 
     vertices.delete();
 

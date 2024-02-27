@@ -1,64 +1,63 @@
 clean:
-	rm -rf ../../out/canvaskit_wasm
-	rm -rf ./npm_build/bin
+	- rm -rf ../../out/canvaskit_wasm
+	- rm -rf ./npm_build/bin
+	- rm -rf ./build/
 	$(MAKE) release
 
 release:
 	# Does an incremental build where possible.
 	./compile.sh
-	mkdir -p ./npm_build/bin
-	cp ../../out/canvaskit_wasm/canvaskit.js   ./npm_build/bin
-	cp ../../out/canvaskit_wasm/canvaskit.wasm ./npm_build/bin
+	- rm -rf build/
+	mkdir build
+	cp ../../out/canvaskit_wasm/canvaskit.js   ./build/
+	cp ../../out/canvaskit_wasm/canvaskit.wasm ./build/
 
 release_cpu:
 	# Does an incremental build where possible.
 	./compile.sh cpu_only
-	mkdir -p ./npm_build/bin
-	cp ../../out/canvaskit_wasm/canvaskit.js   ./npm_build/bin
-	cp ../../out/canvaskit_wasm/canvaskit.wasm ./npm_build/bin
+	- rm -rf build/
+	mkdir build
+	cp ../../out/canvaskit_wasm/canvaskit.js   ./build/
+	cp ../../out/canvaskit_wasm/canvaskit.wasm ./build/
 
 release_viewer:
 	# Does an incremental build where possible.
 	./compile.sh viewer
-	mkdir -p ./npm_build/bin
-	cp ../../out/canvaskit_wasm/canvaskit.js   ./npm_build/bin
-	cp ../../out/canvaskit_wasm/canvaskit.wasm ./npm_build/bin
+	- rm -rf build/
+	mkdir build
+	cp ../../out/canvaskit_wasm/canvaskit.js   ./build/
+	cp ../../out/canvaskit_wasm/canvaskit.wasm ./build/
 
 debug:
 	# Does an incremental build where possible.
 	./compile.sh debug
-	mkdir -p ./npm_build/bin
-	cp ../../out/canvaskit_wasm_debug/canvaskit.js   ./npm_build/bin
-	cp ../../out/canvaskit_wasm_debug/canvaskit.wasm ./npm_build/bin
-	#cp ../../out/canvaskit_wasm_debug/canvaskit.wasm.map ./npm_build/bin
+	- rm -rf build/
+	mkdir build
+	cp ../../out/canvaskit_wasm_debug/canvaskit.js   ./build/
+	cp ../../out/canvaskit_wasm_debug/canvaskit.wasm ./build/
 
 debug_cpu:
 	# Does an incremental build where possible.
 	./compile.sh debug cpu_only
-	mkdir -p ./npm_build/bin
-	cp ../../out/canvaskit_wasm_debug/canvaskit.js   ./npm_build/bin
-	cp ../../out/canvaskit_wasm_debug/canvaskit.wasm ./npm_build/bin
-	#cp ../../out/canvaskit_wasm_debug/canvaskit.wasm.map ./npm_build/bin
-
-experimental_simd:
-	# Does an incremental build where possible.
-	./compile.sh simd
-	mkdir -p ./npm_build/bin
-	cp ../../out/canvaskit_wasm_experimental_simd/canvaskit.js   ./npm_build/bin
-	cp ../../out/canvaskit_wasm_experimental_simd/canvaskit.wasm ./npm_build/bin
+	- rm -rf build/
+	mkdir build
+	cp ../../out/canvaskit_wasm_debug/canvaskit.js   ./build/
+	cp ../../out/canvaskit_wasm_debug/canvaskit.wasm ./build/
 
 debug_viewer:
 	# Does an incremental build where possible.
 	./compile.sh debug viewer
-	mkdir -p ./npm_build/bin
-	cp ../../out/canvaskit_wasm_debug/canvaskit.js   ./npm_build/bin
-	cp ../../out/canvaskit_wasm_debug/canvaskit.wasm ./npm_build/bin
+	- rm -rf build/
+	mkdir build
+	cp ../../out/canvaskit_wasm_debug/canvaskit.js   ./build/
+	cp ../../out/canvaskit_wasm_debug/canvaskit.wasm ./build/
 
 profile:
 	./compile.sh profiling
-	mkdir -p ./npm_build/bin
-	cp ../../out/canvaskit_wasm_profile/canvaskit.js       ./npm_build/bin
-	cp ../../out/canvaskit_wasm_profile/canvaskit.wasm     ./npm_build/bin
+	- rm -rf build/
+	mkdir build
+	cp ../../out/canvaskit_wasm_profile/canvaskit.js   ./build/
+	cp ../../out/canvaskit_wasm_profile/canvaskit.wasm ./build/
 
 npm:
 	rm -rf ./npm_build/bin
@@ -121,3 +120,42 @@ docker-compile:
 typecheck:
 	echo "Make sure you've run cd npm_build && npm ci recently"
 	cd npm_build && npm run dtslint
+
+bazel_gms_release:
+	# We use spawn_strategy=local for "everyday" builds because emscripten assumes there
+	# is a cache in the home directory that it needs to fill with compiled versions of libc etc.
+	# https://emscripten.org/docs/tools_reference/emcc.html
+	# By setting spawn_strategy=local, we can avoid recompiling all of this for every compilation
+	# unit, by letting the cache be used (and not dropped from the sandbox), which gets expensive.
+	# Local testing showed using the local strategy sped up a clean build from 9.5 minutes
+	# to 1 minute. https://docs.bazel.build/versions/main/user-manual.html#strategy-options
+	bazelisk build :gm_bindings_wasm --compilation_mode opt --spawn_strategy=local
+	- rm -rf build/
+	mkdir build
+	cp ../../bazel-bin/modules/canvaskit/gm_bindings_wasm/gm_bindings.js build/gm_bindings.js
+	cp ../../bazel-bin/modules/canvaskit/gm_bindings_wasm/gm_bindings.wasm build/gm_bindings.wasm
+
+bazel_gms_debug:
+	# See above note about spawn_strategy
+	bazelisk build :gm_bindings_wasm --compilation_mode dbg --spawn_strategy=local
+	- rm -rf build/
+	mkdir build
+	cp ../../bazel-bin/modules/canvaskit/gm_bindings_wasm/gm_bindings.js build/gm_bindings.js
+	cp ../../bazel-bin/modules/canvaskit/gm_bindings_wasm/gm_bindings.wasm build/gm_bindings.wasm
+
+bazel_canvaskit_debug:
+	# See above note about spawn_strategy
+	bazelisk build :canvaskit_wasm --compilation_mode dbg --spawn_strategy=local
+	- rm -rf build/
+	mkdir build
+	cp ../../bazel-bin/modules/canvaskit/canvaskit_wasm/canvaskit.js build/canvaskit.js
+	cp ../../bazel-bin/modules/canvaskit/canvaskit_wasm/canvaskit.wasm build/canvaskit.wasm
+
+bazel_canvaskit_release:
+	# See above note about spawn_strategy
+	bazelisk build :canvaskit_wasm --compilation_mode opt --spawn_strategy=local
+	- rm -rf build/
+	mkdir build
+	cp ../../bazel-bin/modules/canvaskit/canvaskit_wasm/canvaskit.js build/canvaskit.js
+	cp ../../bazel-bin/modules/canvaskit/canvaskit_wasm/canvaskit.wasm build/canvaskit.wasm
+	ls -l build

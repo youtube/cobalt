@@ -146,11 +146,11 @@ static void test_permutations(skiatest::Reporter* r,
     test_one_permutation(r, surface, testFile, " (NoInline)", options);
 }
 
-static void test_cpu(skiatest::Reporter* r, const char* testFile) {
+static void test_cpu(skiatest::Reporter* r, const char* testFile, bool worksInES2) {
     const SkImageInfo info = SkImageInfo::MakeN32Premul(kWidth, kHeight);
     sk_sp<SkSurface> surface(SkSurface::MakeRaster(info));
 
-    test_permutations(r, surface.get(), testFile, /*worksInES2=*/true);
+    test_permutations(r, surface.get(), testFile, worksInES2);
 }
 
 static void test_gpu(skiatest::Reporter* r, GrDirectContext* ctx, const char* testFile) {
@@ -173,7 +173,13 @@ static void test_es3(skiatest::Reporter* r, GrDirectContext* ctx, const char* te
 
 #define SKSL_TEST_CPU(name, path)                                   \
     DEF_TEST(name ## _CPU, r) {                                     \
-        test_cpu(r, path);                                          \
+        test_cpu(r, path, true);                                    \
+    }
+// The CPU backend lacks support for MANY ES3 features. However, if you know a test uses a subset
+// of ES3 that is supported, you can force it to run there:
+#define SKSL_TEST_CPU_ES3(name, path)                               \
+    DEF_TEST(name ## _CPU, r) {                                     \
+        test_cpu(r, path, false);                                   \
     }
 #define SKSL_TEST_GPU(name, path)                                   \
     DEF_GPUTEST_FOR_RENDERING_CONTEXTS(name ## _GPU, r, ctxInfo) {  \
@@ -183,6 +189,7 @@ static void test_es3(skiatest::Reporter* r, GrDirectContext* ctx, const char* te
     DEF_GPUTEST_FOR_RENDERING_CONTEXTS(name ## _GPU, r, ctxInfo) {  \
         test_es3(r, ctxInfo.directContext(), path);                 \
     }
+
 #define SKSL_TEST(name, path) SKSL_TEST_CPU(name, path) SKSL_TEST_GPU(name, path)
 
 SKSL_TEST(SkSLArraySizeFolding,                "folding/ArraySizeFolding.sksl")
@@ -256,6 +263,8 @@ SKSL_TEST_ES3(SkSLIntrinsicFloatBitsToUint,    "intrinsics/FloatBitsToUint.sksl"
 SKSL_TEST_ES3(SkSLIntrinsicFwidth,             "intrinsics/Fwidth.sksl")
 SKSL_TEST_ES3(SkSLIntrinsicIntBitsToFloat,     "intrinsics/IntBitsToFloat.sksl")
 SKSL_TEST_ES3(SkSLIntrinsicIsInf,              "intrinsics/IsInf.sksl")
+SKSL_TEST_ES3(SkSLIntrinsicClampInt,           "intrinsics/ClampInt.sksl")
+SKSL_TEST_ES3(SkSLIntrinsicClampUInt,          "intrinsics/ClampUInt.sksl")
 // Fails on Adreno 6xx + Vulkan
 SKSL_TEST_CPU(SkSLIntrinsicClampFloat,         "intrinsics/ClampFloat.sksl")
 SKSL_TEST(SkSLIntrinsicMatrixCompMultES2,      "intrinsics/MatrixCompMultES2.sksl")
@@ -277,10 +286,14 @@ SKSL_TEST_ES3(SkSLIntrinsicTranspose,          "intrinsics/Transpose.sksl")
 SKSL_TEST_ES3(SkSLIntrinsicUintBitsToFloat,    "intrinsics/UintBitsToFloat.sksl")
 
 SKSL_TEST_ES3(SkSLArrayNarrowingConversions,   "runtime/ArrayNarrowingConversions.rts")
-SKSL_TEST_ES3(SkSLLoopFloat,                   "runtime/LoopFloat.rts")
-SKSL_TEST_ES3(SkSLLoopInt,                     "runtime/LoopInt.rts")
+SKSL_TEST(SkSLLoopFloat,                       "runtime/LoopFloat.rts")
+SKSL_TEST(SkSLLoopInt,                         "runtime/LoopInt.rts")
 SKSL_TEST(SkSLQualifierOrder,                  "runtime/QualifierOrder.rts")
 SKSL_TEST(SkSLPrecisionQualifiers,             "runtime/PrecisionQualifiers.rts")
+SKSL_TEST_CPU_ES3(SkSLRecursiveComparison_Arrays,  "runtime/RecursiveComparison_Arrays.rts")
+SKSL_TEST_CPU(SkSLRecursiveComparison_Structs,     "runtime/RecursiveComparison_Structs.rts")
+SKSL_TEST_CPU_ES3(SkSLRecursiveComparison_Types,   "runtime/RecursiveComparison_Types.rts")
+SKSL_TEST_CPU(SkSLRecursiveComparison_Vectors,     "runtime/RecursiveComparison_Vectors.rts")
 
 SKSL_TEST_ES3(SkSLArrayComparison,             "shared/ArrayComparison.sksl")
 SKSL_TEST_ES3(SkSLArrayConstructors,           "shared/ArrayConstructors.sksl")
@@ -317,8 +330,10 @@ SKSL_TEST(SkSLHex,                             "shared/Hex.sksl")
 SKSL_TEST_ES3(SkSLHexUnsigned,                 "shared/HexUnsigned.sksl")
 SKSL_TEST(SkSLMatrices,                        "shared/Matrices.sksl")
 SKSL_TEST_ES3(SkSLMatricesNonsquare,           "shared/MatricesNonsquare.sksl")
-SKSL_TEST(SkSLMatrixConstructorsES2,           "shared/MatrixConstructorsES2.sksl")
-SKSL_TEST_ES3(SkSLMatrixConstructorsES3,       "shared/MatrixConstructorsES3.sksl")
+// TODO(skia:12443) These tests actually don't work on MANY devices. The GLSL conformance suite
+// does a terrible job of enforcing this rule. We still test them on CPU.
+SKSL_TEST_CPU(SkSLMatrixConstructorsES2,       "shared/MatrixConstructorsES2.sksl")
+SKSL_TEST_CPU_ES3(SkSLMatrixConstructorsES3,   "shared/MatrixConstructorsES3.sksl")
 SKSL_TEST(SkSLMatrixEquality,                  "shared/MatrixEquality.sksl")
 SKSL_TEST(SkSLMatrixScalarSplat,               "shared/MatrixScalarSplat.sksl")
 SKSL_TEST(SkSLMatrixToVectorCast,              "shared/MatrixToVectorCast.sksl")
@@ -375,7 +390,6 @@ SKSL_TEST_ES3(SkSLWhileLoopControlFlow,        "shared/WhileLoopControlFlow.sksl
 TODO(skia:11209): enable these tests when Runtime Effects have support for ES3
 
 SKSL_TEST(SkSLIntrinsicAbsInt,                 "intrinsics/AbsInt.sksl")
-SKSL_TEST(SkSLIntrinsicClampInt,               "intrinsics/ClampInt.sksl")
 SKSL_TEST(SkSLIntrinsicMaxInt,                 "intrinsics/MaxInt.sksl")
 SKSL_TEST(SkSLIntrinsicMinInt,                 "intrinsics/MinInt.sksl")
 SKSL_TEST(SkSLIntrinsicMixBool,                "intrinsics/MixBool.sksl")
