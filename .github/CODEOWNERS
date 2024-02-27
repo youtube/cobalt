@@ -5,16 +5,18 @@
 # For the full docs on CODEOWNERS, see:
 # https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 
+# Disable everything on working feature branch.
+
 # Metrics owners
-/cobalt/browser/metrics/ @joeltine
-/components/metrics/ @joeltine
-/tools/metrics/ @joeltine
+# /cobalt/browser/metrics/ @joeltine
+# /components/metrics/ @joeltine
+# /tools/metrics/ @joeltine
 
 # Temporary monitoring for merges to Chromium upstreams
-/base/ @andrewsavage1 @youtube/cobalt-3p-repository-owners
-/build/ @andrewsavage1 @youtube/cobalt-3p-repository-owners
-/crypto/ @andrewsavage1 @youtube/cobalt-3p-repository-owners
-/net/ @andrewsavage1 @youtube/cobalt-3p-repository-owners
-/third_party/abseil-cpp/ @andrewsavage1 @youtube/cobalt-3p-repository-owners
-/third_party/modp_b64/ @andrewsavage1 @youtube/cobalt-3p-repository-owners
-/url/ @andrewsavage1 @youtube/cobalt-3p-repository-owners
+# /base/ @andrewsavage1 @youtube/cobalt-3p-repository-owners
+# /build/ @andrewsavage1 @youtube/cobalt-3p-repository-owners
+# /crypto/ @andrewsavage1 @youtube/cobalt-3p-repository-owners
+# /net/ @andrewsavage1 @youtube/cobalt-3p-repository-owners
+# /third_party/abseil-cpp/ @andrewsavage1 @youtube/cobalt-3p-repository-owners
+# /third_party/modp_b64/ @andrewsavage1 @youtube/cobalt-3p-repository-owners
+# /url/ @andrewsavage1 @youtube/cobalt-3p-repository-owners
