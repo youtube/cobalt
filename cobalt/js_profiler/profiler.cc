@@ -82,7 +82,7 @@ void Profiler::AddEventListener(
   SampleBufferFullCallbackReference* token_callback =
       new SampleBufferFullCallbackReference(global_wrappable, holder);
   listeners_.push_back(
-      new std::unique_ptr<SampleBufferFullCallbackReference>(token_callback));
+      std::unique_ptr<SampleBufferFullCallbackReference>(token_callback));
 }
 
 void Profiler::DispatchSampleBufferFullEvent() {
