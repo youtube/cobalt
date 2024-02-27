@@ -237,6 +237,7 @@ static_library("starboard_platform") {
     "//starboard/shared/win32/posix_emu/mman.cc",
     "//starboard/shared/win32/posix_emu/pthread.cc",
     "//starboard/shared/win32/posix_emu/socket.cc",
+    "//starboard/shared/win32/posix_emu/stat.cc",
     "//starboard/shared/win32/posix_emu/stdlib.cc",
     "//starboard/shared/win32/posix_emu/string.cc",
     "//starboard/shared/win32/posix_emu/strings.cc",

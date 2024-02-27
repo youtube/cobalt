@@ -18,11 +18,11 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 typedef unsigned int mode_t;
 
-bool _S_ISTYPE(mode_t mode, int mask);
-
 bool S_ISDIR(mode_t mode);
+
 bool S_ISLNK(mode_t mode);
 
 #ifdef __cplusplus

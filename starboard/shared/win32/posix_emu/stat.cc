@@ -12,16 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sys/stat.h>
 #include <stat.h>
 
 extern "C" {
 
-bool _S_ISTYPE(mode_t mode, int mask) {
-  return (((mode)&_S_IFMT) == (mask));
-}
-
 bool S_ISDIR(mode_t mode) {
-  return (_S_ISTYPE(mode, _S_IFDIR))
+  return ((mode)&_S_IFMT) == (_S_IFDIR);
 }
 
 // Windows doesn't support symbolic links
