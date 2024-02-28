@@ -956,7 +956,6 @@ component("base") {
 
   if (use_cobalt_customizations && current_toolchain == default_toolchain) {
     sources += [
-      "files/file_path_watcher_stub.cc",
       "base_paths_starboard.cc",
       "base_paths_starboard.h",
       "debug/debugger_starboard.cc",
@@ -3233,7 +3232,7 @@ test("base_unittests") {
     "files/file_path_unittest.cc",
 
     "files/file_path_watcher_unittest.cc",
-    # "files/file_proxy_unittest.cc",
+    "files/file_proxy_unittest.cc",
     "files/file_unittest.cc",
     "files/file_util_unittest.cc",
     "files/important_file_writer_cleaner_unittest.cc",
