@@ -70,15 +70,9 @@ void PrefMemberBase::UpdateValueFromPref(const base::Closure& callback) const {
   DCHECK(pref);
   if (!internal())
     CreateInternal();
-#ifdef USE_HACKY_COBALT_CHANGES
-  internal()->UpdateValue(nullptr, pref->IsManaged(),
-                          pref->IsUserModifiable(), callback);
-#else
-  internal()->UpdateValue(pref->GetValue()->DeepCopy(),
-                          pref->IsManaged(),
-                          pref->IsUserModifiable(),
-                          callback);
-#endif
+  internal()->UpdateValue(
+      base::Value::ToUniquePtrValue(pref->GetValue()->Clone()).release(),
+      pref->IsManaged(), pref->IsUserModifiable(), callback);
 }
 
 void PrefMemberBase::VerifyPref() const {

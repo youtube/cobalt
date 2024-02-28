@@ -15,6 +15,7 @@
 #include "cobalt/debug/remote/debug_web_server.h"
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/bind.h"
@@ -223,11 +224,9 @@ void DebugWebServer::OnWebSocketMessage(int connection_id, std::string json) {
   const base::Value* params_value = json_object->Find(kParamsField);
   std::string json_params;
   if (json_object->Remove(kParamsField) && params_value->is_dict()) {
-#ifndef USE_HACKY_COBALT_CHANGES
-    JSONObject params(base::Value::ToUniquePtrValue(*params_value));
+    JSONObject params(std::make_unique<base::Value::Dict>());
     DCHECK(params);
     json_params = JSONStringify(params);
-#endif
   }
 
   if (!debug_client_ || !debug_client_->IsAttached()) {
@@ -243,23 +242,19 @@ void DebugWebServer::OnWebSocketMessage(int connection_id, std::string json) {
 void DebugWebServer::SendErrorResponseOverWebSocket(
     int id, const std::string& message) {
   DCHECK_GE(websocket_id_, 0);
-#ifndef USE_HACKY_COBALT_CHANGES
-  JSONObject response(new base::DictionaryValue());
-  response->SetInteger(kIdField, id);
-  response->SetString(kErrorField, message);
-#endif
-  server_->SendOverWebSocket(websocket_id_, JSONStringify(nullptr),
+  JSONObject response(std::make_unique<base::Value::Dict>());
+  response->Set(kIdField, id);
+  response->Set(kErrorField, message);
+  server_->SendOverWebSocket(websocket_id_, JSONStringify(response),
                              kNetworkTrafficAnnotation);
 }
 
 void DebugWebServer::OnDebuggerResponse(
     int id, const base::Optional<std::string>& response) {
-#ifndef USE_HACKY_COBALT_CHANGES
   JSONObject response_object = JSONParse(response.value());
   DCHECK(response_object);
-  response_object->SetInteger(kIdField, id);
-#endif
-  server_->SendOverWebSocket(websocket_id_, JSONStringify(nullptr),
+  response_object->Set(kIdField, id);
+  server_->SendOverWebSocket(websocket_id_, JSONStringify(response_object),
                              kNetworkTrafficAnnotation);
 }
 
@@ -279,12 +274,10 @@ void DebugWebServer::OnDebugClientEvent(const std::string& method,
     return;
   }
 
-#ifndef USE_HACKY_COBALT_CHANGES
-  JSONObject event(new base::DictionaryValue());
-  event->SetString(kMethodField, method);
-  event->Set(kParamsField, JSONParse(json_params));
-#endif
-  server_->SendOverWebSocket(websocket_id_, JSONStringify(nullptr),
+  JSONObject event(std::make_unique<base::Value::Dict>());
+  event->Set(kMethodField, method);
+  event->Set(kParamsField, std::move(*JSONParse(json_params)));
+  server_->SendOverWebSocket(websocket_id_, JSONStringify(event),
                              kNetworkTrafficAnnotation);
 }
 
@@ -299,10 +292,10 @@ void DebugWebServer::OnDebugClientDetach(const std::string& reason) {
   }
 
   DLOG(INFO) << "Got detach event: " << reason;
-  // JSONObject event(new base::DictionaryValue());
-  // event->SetString(kMethodField, kDetached);
-  // event->SetString(kDetachReasonField, reason);
-  server_->SendOverWebSocket(websocket_id_, JSONStringify(nullptr),
+  JSONObject event(std::make_unique<base::Value::Dict>());
+  event->Set(kMethodField, kDetached);
+  event->Set(kDetachReasonField, reason);
+  server_->SendOverWebSocket(websocket_id_, JSONStringify(event),
                              kNetworkTrafficAnnotation);
 }
 

@@ -34,15 +34,15 @@ using render_tree::ColorRGBA;
 
 namespace {
 // Returns the float value of a param, or 0.0 if undefined or non-numeric.
-float GetFloatParam(const Value* params, base::StringPiece key) {
-  if (!params || !params->is_dict()) return 0.0f;
-  const Value* v = params->GetIfDict()->Find(key);
+float GetFloatParam(const Value::Dict* params, base::StringPiece key) {
+  if (!params) return 0.0f;
+  const Value* v = params->Find(key);
   if (!v || !(v->is_double() || v->is_int())) return 0.0f;
   return static_cast<float>(v->GetDouble());
 }
 
 // Returns an RGBA color defined by a param, or transparent if undefined.
-ColorRGBA RenderColor(const Value* params) {
+ColorRGBA RenderColor(const Value::Dict* params) {
   float r = GetFloatParam(params, "r") / 255.0f;
   float g = GetFloatParam(params, "g") / 255.0f;
   float b = GetFloatParam(params, "b") / 255.0f;
@@ -54,13 +54,14 @@ ColorRGBA RenderColor(const Value* params) {
 // Returns a rectangle to render according to the params for the DevTools
 // "Overlay.highlightRect" command.
 // https://chromedevtools.github.io/devtools-protocol/tot/Overlay#method-highlightRect
-scoped_refptr<render_tree::RectNode> RenderHighlightRect(const Value* params) {
+scoped_refptr<render_tree::RectNode> RenderHighlightRect(
+    const Value::Dict* params) {
   float x = GetFloatParam(params, "x");
   float y = GetFloatParam(params, "y");
   float width = GetFloatParam(params, "width");
   float height = GetFloatParam(params, "height");
-  ColorRGBA color(RenderColor(params->GetIfDict()->Find("color")));
-  const Value* outline_param = params->GetIfDict()->Find("outlineColor");
+  ColorRGBA color(RenderColor(params->FindDict("color")));
+  const Value::Dict* outline_param = params->FindDict("outlineColor");
   ColorRGBA outline_color(RenderColor(outline_param));
   float outline_width = outline_param ? 1.0f : 0.0f;
   return base::MakeRefCounted<render_tree::RectNode>(
@@ -106,7 +107,7 @@ void OverlayAgent::HighlightNode(Command command) {
   // Render all the highlight rects as children of a CompositionNode.
   render_tree::CompositionNode::Builder builder;
   for (const Value& rect_params : highlight_rects->GetList()) {
-    builder.AddChild(RenderHighlightRect(&rect_params));
+    builder.AddChild(RenderHighlightRect(&rect_params.GetDict()));
   }
   render_layer_->SetFrontLayer(
       base::MakeRefCounted<render_tree::CompositionNode>(builder));
@@ -118,9 +119,7 @@ void OverlayAgent::HighlightRect(Command command) {
   if (!EnsureEnabled(&command)) return;
 
   JSONObject params = JSONParse(command.GetParams());
-#ifndef USE_HACKY_COBALT_CHANGES
   render_layer_->SetFrontLayer(RenderHighlightRect(params.get()));
-#endif
   command.SendResponse();
 }
 
