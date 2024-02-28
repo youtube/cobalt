@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <sys/stat.h>
+#include <../ucrt/sys/stat.h>
 
 extern "C" {
+
+typedef unsigned int mode_t;
 
 bool S_ISDIR(mode_t mode) {
   return ((mode)&_S_IFMT) == (_S_IFDIR);

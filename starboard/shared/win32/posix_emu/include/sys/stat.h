@@ -19,8 +19,6 @@ extern "C" {
 #endif
 
 typedef unsigned int mode_t;
-#define stat _stat
-// int stat(const char *path, struct stat *buffer);
 
 bool S_ISDIR(mode_t mode);
 
