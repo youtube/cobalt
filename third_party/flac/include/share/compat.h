@@ -63,7 +63,9 @@
 #endif
 
 #if HAVE_INTTYPES_H
+#if !defined(STARBOARD)  // __STDC_FORMAT_MACROS defined in platform configuration
 #define __STDC_FORMAT_MACROS
+#endif  // !defined(STARBOARD)
 #include <inttypes.h>
 #endif
 
