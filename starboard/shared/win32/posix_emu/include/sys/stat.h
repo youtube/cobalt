@@ -11,17 +11,16 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-#ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_STAT_H_
-#define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_STAT_H_
-
-#include <sys/stat.h>
+#ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_STAT_H_
+#define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_STAT_H_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 typedef unsigned int mode_t;
+#define stat _stat
+// int stat(const char *path, struct stat *buffer);
 
 bool S_ISDIR(mode_t mode);
 
@@ -31,4 +30,4 @@ bool S_ISLNK(mode_t mode);
 }
 #endif  // __cplusplus
 
-#endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_STAT_H_
+#endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_STAT_H_
