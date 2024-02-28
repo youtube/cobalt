@@ -47,9 +47,7 @@ goog.require('jspb.BinaryWriter');
  * @param {function()} func This function should throw an error when run.
  */
 function assertFails(func) {
-  var e = assertThrows(func);
-  console.log(e);
-  //assertNotNull(e.toString().match(/Error/));
+  assertThrows(func);
 }
 
 
@@ -119,5 +117,17 @@ describe('binaryWriterTest', function() {
 
     var buffer = writer.getResultBuffer();
     assertEquals(expected, goog.crypt.byteArrayToHex(buffer));
+  });
+
+
+  /**
+   * Tests websafe encodings for base64 strings.
+   */
+  it('testWebSafeOption', function() {
+    var writer = new jspb.BinaryWriter();
+    writer.writeBytes(1, new Uint8Array([127]));
+    assertEquals('CgF/', writer.getResultBase64String());
+    assertEquals('CgF/', writer.getResultBase64String(false));
+    assertEquals('CgF_', writer.getResultBase64String(true));
   });
 });

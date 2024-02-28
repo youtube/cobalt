@@ -1,14 +1,8 @@
 #!/bin/bash
 #
-# Build and runs tests for the protobuf project.  The tests as written here are
-# used by both Jenkins and Travis, though some specialized logic is required to
-# handle the differences between them.
-
-on_travis() {
-  if [ "$TRAVIS" == "true" ]; then
-    "$@"
-  fi
-}
+# Build and runs tests for the protobuf project. We use this script to run
+# tests on kokoro (Ubuntu and MacOS). It can run locally as well but you
+# will need to make sure the required compilers/tools are available.
 
 # For when some other test needs the C++ main build, including protoc and
 # libprotobuf.
@@ -18,56 +12,141 @@ internal_build_cpp() {
     return
   fi
 
-  if [[ $(uname -s) == "Linux" && "$TRAVIS" == "true" ]]; then
-    # Install GCC 4.8 to replace the default GCC 4.6. We need 4.8 for more
-    # decent C++ 11 support in order to compile conformance tests.
-    sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
-    sudo apt-get update -qq
-    sudo apt-get install -qq g++-4.8
-    export CXX="g++-4.8" CC="gcc-4.8"
-  fi
+  # Initialize any submodules.
+  git submodule update --init --recursive
 
   ./autogen.sh
-  ./configure
-  make -j2
+  ./configure CXXFLAGS="-fPIC -std=c++11"  # -fPIC is needed for python cpp test.
+                                           # See python/setup.py for more details
+  make -j$(nproc)
 }
 
 build_cpp() {
   internal_build_cpp
-  make check -j2
+  make check -j$(nproc) || (cat src/test-suite.log; false)
   cd conformance && make test_cpp && cd ..
 
-  # Verify benchmarking code can build successfully.
-  cd benchmarks && make && ./generate-datasets && cd ..
+  # The benchmark code depends on cmake, so test if it is installed before
+  # trying to do the build.
+  if [[ $(type cmake 2>/dev/null) ]]; then
+    # Verify benchmarking code can build successfully.
+    cd benchmarks && make cpp-benchmark && cd ..
+  else
+    echo ""
+    echo "WARNING: Skipping validation of the bench marking code, cmake isn't installed."
+    echo ""
+  fi
+}
+
+build_cpp_tcmalloc() {
+  internal_build_cpp
+  ./configure LIBS=-ltcmalloc && make clean && make \
+      PTHREAD_CFLAGS='-pthread -DGOOGLE_PROTOBUF_HEAP_CHECK_DRACONIAN' \
+      check
+  cd src
+  PPROF_PATH=/usr/bin/google-pprof HEAPCHECK=strict ./protobuf-test
 }
 
 build_cpp_distcheck() {
+  grep -q -- "-Og" src/Makefile.am &&
+    echo "The -Og flag is incompatible with Clang versions older than 4.0." &&
+    exit 1
+
+  # Initialize any submodules.
+  git submodule update --init --recursive
   ./autogen.sh
   ./configure
-  make distcheck -j2
+  make dist
+
+  # List all files that should be included in the distribution package.
+  git ls-files | grep "^\(java\|python\|objectivec\|csharp\|js\|ruby\|php\|cmake\|examples\|src/google/protobuf/.*\.proto\)" |\
+    grep -v ".gitignore" | grep -v "java/compatibility_tests" |\
+    grep -v "python/compatibility_tests" | grep -v "csharp/compatibility_tests" > dist.lst
+  # Unzip the dist tar file.
+  DIST=`ls *.tar.gz`
+  tar -xf $DIST
+  cd ${DIST//.tar.gz}
+  # Check if every file exists in the dist tar file.
+  FILES_MISSING=""
+  for FILE in $(<../dist.lst); do
+    [ -f "$FILE" ] || {
+      echo "$FILE is not found!"
+      FILES_MISSING="$FILE $FILES_MISSING"
+    }
+  done
+  cd ..
+  if [ ! -z "$FILES_MISSING" ]; then
+    echo "Missing files in EXTRA_DIST: $FILES_MISSING"
+    exit 1
+  fi
+
+  # Do the regular dist-check for C++.
+  make distcheck -j$(nproc)
+}
+
+build_dist_install() {
+  # Initialize any submodules.
+  git submodule update --init --recursive
+  ./autogen.sh
+  ./configure
+  make dist
+
+  # Unzip the dist tar file and install it.
+  DIST=`ls *.tar.gz`
+  tar -xf $DIST
+  pushd ${DIST//.tar.gz}
+  ./configure && make check -j4 && make install
+
+  export LD_LIBRARY_PATH=/usr/local/lib
+
+  # Try to install Java
+  pushd java
+  use_java jdk7
+  $MVN install
+  popd
+
+  # Try to install Python
+  virtualenv --no-site-packages venv
+  source venv/bin/activate
+  pushd python
+  python setup.py clean build sdist
+  pip install dist/protobuf-*.tar.gz
+  popd
+  deactivate
+  rm -rf python/venv
 }
 
 build_csharp() {
-  # Just for the conformance tests. We don't currently
-  # need to really build protoc, but it's simplest to keep with the
-  # conventions of the other builds.
+  # Required for conformance tests and to regenerate protos.
   internal_build_cpp
   NUGET=/usr/local/bin/nuget.exe
 
-  if [ "$TRAVIS" == "true" ]; then
-    # Install latest version of Mono
-    sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF
-    echo "deb http://download.mono-project.com/repo/debian wheezy main" | sudo tee /etc/apt/sources.list.d/mono-xamarin.list
-    echo "deb http://download.mono-project.com/repo/debian wheezy-libtiff-compat main" | sudo tee -a /etc/apt/sources.list.d/mono-xamarin.list
-    sudo apt-get update -qq
-    sudo apt-get install -qq mono-devel referenceassemblies-pcl nunit
-    wget www.nuget.org/NuGet.exe -O nuget.exe
-    NUGET=../../nuget.exe
-  fi
+  # Disable some unwanted dotnet options
+  export DOTNET_SKIP_FIRST_TIME_EXPERIENCE=true
+  export DOTNET_CLI_TELEMETRY_OPTOUT=true
 
-  (cd csharp/src; mono $NUGET restore)
+  # TODO(jtattermusch): is this still needed with "first time experience"
+  # disabled?
+  # Perform "dotnet new" once to get the setup preprocessing out of the
+  # way. That spews a lot of output (including backspaces) into logs
+  # otherwise, and can cause problems. It doesn't matter if this step
+  # is performed multiple times; it's cheap after the first time anyway.
+  # (It also doesn't matter if it's unnecessary, which it will be on some
+  # systems. It's necessary on Jenkins in order to avoid unprintable
+  # characters appearing in the JUnit output.)
+  mkdir dotnettmp
+  (cd dotnettmp; dotnet new > /dev/null)
+  rm -rf dotnettmp
+
+  # Check that the protos haven't broken C# codegen.
+  # TODO(jonskeet): Fail if regenerating creates any changes.
+  csharp/generate_protos.sh
+
   csharp/buildall.sh
   cd conformance && make test_csharp && cd ..
+
+  # Run csharp compatibility test between 3.0.0 and the current version.
+  csharp/compatibility_tests/v3.0.0/test.sh 3.0.0
 }
 
 build_golang() {
@@ -76,48 +155,35 @@ build_golang() {
   # Add protoc to the path so that the examples build finds it.
   export PATH="`pwd`/src:$PATH"
 
-  # Install Go and the Go protobuf compiler plugin.
-  sudo apt-get update -qq
-  sudo apt-get install -qq golang
   export GOPATH="$HOME/gocode"
-  mkdir -p "$GOPATH/src/github.com/google"
-  ln -s "`pwd`" "$GOPATH/src/github.com/google/protobuf"
+  mkdir -p "$GOPATH/src/github.com/protocolbuffers"
+  rm -f "$GOPATH/src/github.com/protocolbuffers/protobuf"
+  ln -s "`pwd`" "$GOPATH/src/github.com/protocolbuffers/protobuf"
   export PATH="$GOPATH/bin:$PATH"
   go get github.com/golang/protobuf/protoc-gen-go
 
-  cd examples && make gotest && cd ..
+  cd examples && PROTO_PATH="-I../src -I." make gotest && cd ..
 }
 
 use_java() {
   version=$1
   case "$version" in
-    jdk6)
-      on_travis sudo apt-get install openjdk-6-jdk
-      export PATH=/usr/lib/jvm/java-6-openjdk-amd64/bin:$PATH
-      ;;
     jdk7)
-      on_travis sudo apt-get install openjdk-7-jdk
       export PATH=/usr/lib/jvm/java-7-openjdk-amd64/bin:$PATH
+      export JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64
       ;;
     oracle7)
-      if [ "$TRAVIS" == "true" ]; then
-        sudo apt-get install python-software-properties # for apt-add-repository
-        echo "oracle-java7-installer shared/accepted-oracle-license-v1-1 select true" | \
-          sudo debconf-set-selections
-        yes | sudo apt-add-repository ppa:webupd8team/java
-        yes | sudo apt-get install oracle-java7-installer
-      fi;
       export PATH=/usr/lib/jvm/java-7-oracle/bin:$PATH
+      export JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64
       ;;
   esac
 
-  if [ "$TRAVIS" != "true" ]; then
-    MAVEN_LOCAL_REPOSITORY=/var/maven_local_repository
-    MVN="$MVN -e -X --offline -Dmaven.repo.local=$MAVEN_LOCAL_REPOSITORY"
-  fi;
+  MAVEN_LOCAL_REPOSITORY=/var/maven_local_repository
+  MVN="$MVN -e -X -Dhttps.protocols=TLSv1.2 -Dmaven.repo.local=$MAVEN_LOCAL_REPOSITORY"
 
   which java
   java -version
+  $MVN -version
 }
 
 # --batch-mode supresses download progress output that spams the logs.
@@ -144,16 +210,6 @@ build_java_with_conformance_tests() {
   cd conformance && make test_java && cd ..
 }
 
-build_javanano() {
-  # Java build needs `protoc`.
-  internal_build_cpp
-  cd javanano && $MVN test && cd ..
-}
-
-build_java_jdk6() {
-  use_java jdk6
-  build_java jdk6
-}
 build_java_jdk7() {
   use_java jdk7
   build_java_with_conformance_tests
@@ -162,103 +218,65 @@ build_java_oracle7() {
   use_java oracle7
   build_java oracle7
 }
-
-build_javanano_jdk6() {
-  use_java jdk6
-  build_javanano
-}
-build_javanano_jdk7() {
+build_java_compatibility() {
   use_java jdk7
-  build_javanano
-}
-build_javanano_oracle7() {
-  use_java oracle7
-  build_javanano
-}
-
-internal_install_python_deps() {
-  if [ "$TRAVIS" != "true" ]; then
-    return;
-  fi
-  # Install tox (OS X doesn't have pip).
-  if [ $(uname -s) == "Darwin" ]; then
-    sudo easy_install tox
-  else
-    sudo pip install tox
-  fi
-  # Only install Python2.6/3.x on Linux.
-  if [ $(uname -s) == "Linux" ]; then
-    sudo apt-get install -y python-software-properties # for apt-add-repository
-    sudo apt-add-repository -y ppa:fkrull/deadsnakes
-    sudo apt-get update -qq
-    sudo apt-get install -y python2.6 python2.6-dev
-    sudo apt-get install -y python3.3 python3.3-dev
-    sudo apt-get install -y python3.4 python3.4-dev
-  fi
-}
-
-internal_objectivec_common () {
-  # Make sure xctool is up to date. Adapted from
-  #  http://docs.travis-ci.com/user/osx-ci-environment/
-  # We don't use a before_install because we test multiple OSes.
-  brew update
-  brew outdated xctool || brew upgrade xctool
-  # Reused the build script that takes care of configuring and ensuring things
-  # are up to date. Xcode and conformance tests will be directly invoked.
-  objectivec/DevTools/full_mac_build.sh \
-      --core-only --skip-xcode --skip-objc-conformance
-}
-
-internal_xctool_debug_and_release() {
-  # Always use -reporter plain to avoid escape codes in output (makes travis
-  # logs easier to read).
-  xctool -reporter plain -configuration Debug "$@"
-  xctool -reporter plain -configuration Release "$@"
+  internal_build_cpp
+  # Use the unit-tests extraced from 2.5.0 to test the compatibilty between
+  # 3.0.0-beta-4 and the current version.
+  cd java/compatibility_tests/v2.5.0
+  ./test.sh 3.0.0-beta-4
 }
 
 build_objectivec_ios() {
-  internal_objectivec_common
-  # https://github.com/facebook/xctool/issues/509 - unlike xcodebuild, xctool
-  # doesn't support >1 destination, so we have to build first and then run the
-  # tests one destination at a time.
-  internal_xctool_debug_and_release \
-    -project objectivec/ProtocolBuffers_iOS.xcodeproj \
-    -scheme ProtocolBuffers \
-    -sdk iphonesimulator \
-    build-tests
-  IOS_DESTINATIONS=(
-    "platform=iOS Simulator,name=iPhone 4s,OS=8.1" # 32bit
-    "platform=iOS Simulator,name=iPhone 6,OS=9.2" # 64bit
-    "platform=iOS Simulator,name=iPad 2,OS=8.1" # 32bit
-    "platform=iOS Simulator,name=iPad Air,OS=9.2" # 64bit
-  )
-  for i in "${IOS_DESTINATIONS[@]}" ; do
-    internal_xctool_debug_and_release \
-      -project objectivec/ProtocolBuffers_iOS.xcodeproj \
-      -scheme ProtocolBuffers \
-      -sdk iphonesimulator \
-      -destination "${i}" \
-      run-tests
-  done
+  # Reused the build script that takes care of configuring and ensuring things
+  # are up to date.  The OS X test runs the objc conformance test, so skip it
+  # here.
+  objectivec/DevTools/full_mac_build.sh \
+      --core-only --skip-xcode-osx --skip-xcode-tvos --skip-objc-conformance "$@"
+}
+
+build_objectivec_ios_debug() {
+  build_objectivec_ios --skip-xcode-release
+}
+
+build_objectivec_ios_release() {
+  build_objectivec_ios --skip-xcode-debug
 }
 
 build_objectivec_osx() {
-  internal_objectivec_common
-  internal_xctool_debug_and_release \
-    -project objectivec/ProtocolBuffers_OSX.xcodeproj \
-    -scheme ProtocolBuffers \
-    -destination "platform=OS X,arch=x86_64" \
-    test
-  cd conformance && make test_objc && cd ..
+  # Reused the build script that takes care of configuring and ensuring things
+  # are up to date.
+  objectivec/DevTools/full_mac_build.sh \
+      --core-only --skip-xcode-ios --skip-xcode-tvos
+}
+
+build_objectivec_tvos() {
+  # Reused the build script that takes care of configuring and ensuring things
+  # are up to date.  The OS X test runs the objc conformance test, so skip it
+  # here.
+  objectivec/DevTools/full_mac_build.sh \
+      --core-only --skip-xcode-ios --skip-xcode-osx --skip-objc-conformance "$@"
+}
+
+build_objectivec_tvos_debug() {
+  build_objectivec_tvos --skip-xcode-release
+}
+
+build_objectivec_tvos_release() {
+  build_objectivec_tvos --skip-xcode-debug
+}
+
+build_objectivec_cocoapods_integration() {
+  # Update pod to the latest version.
+  gem install cocoapods --no_document
+  objectivec/Tests/CocoaPods/run_tests.sh
 }
 
 build_python() {
   internal_build_cpp
-  internal_install_python_deps
   cd python
-  # Only test Python 2.6/3.x on Linux
   if [ $(uname -s) == "Linux" ]; then
-    envlist=py\{26,27,33,34\}-python
+    envlist=py\{27,33,34,35,36\}-python
   else
     envlist=py27-python
   fi
@@ -266,16 +284,45 @@ build_python() {
   cd ..
 }
 
+build_python_version() {
+  internal_build_cpp
+  cd python
+  envlist=$1
+  tox -e $envlist
+  cd ..
+}
+
+build_python27() {
+  build_python_version py27-python
+}
+
+build_python33() {
+  build_python_version py33-python
+}
+
+build_python34() {
+  build_python_version py34-python
+}
+
+build_python35() {
+  build_python_version py35-python
+}
+
+build_python36() {
+  build_python_version py36-python
+}
+
+build_python37() {
+  build_python_version py37-python
+}
+
 build_python_cpp() {
   internal_build_cpp
-  internal_install_python_deps
   export LD_LIBRARY_PATH=../src/.libs # for Linux
   export DYLD_LIBRARY_PATH=../src/.libs # for OS X
   cd python
-  # Only test Python 2.6/3.x on Linux
   if [ $(uname -s) == "Linux" ]; then
-    # py26 is currently disabled due to json_format
-    envlist=py\{27,33,34\}-cpp
+    envlist=py\{27,33,34,35,36\}-cpp
   else
     envlist=py27-cpp
   fi
@@ -283,65 +330,422 @@ build_python_cpp() {
   cd ..
 }
 
-build_ruby19() {
-  internal_build_cpp  # For conformance tests.
-  cd ruby && bash travis-test.sh ruby-1.9 && cd ..
+build_python_cpp_version() {
+  internal_build_cpp
+  export LD_LIBRARY_PATH=../src/.libs # for Linux
+  export DYLD_LIBRARY_PATH=../src/.libs # for OS X
+  cd python
+  envlist=$1
+  tox -e $envlist
+  cd ..
 }
-build_ruby20() {
-  internal_build_cpp  # For conformance tests.
-  cd ruby && bash travis-test.sh ruby-2.0 && cd ..
+
+build_python27_cpp() {
+  build_python_cpp_version py27-cpp
 }
-build_ruby21() {
-  internal_build_cpp  # For conformance tests.
-  cd ruby && bash travis-test.sh ruby-2.1 && cd ..
+
+build_python33_cpp() {
+  build_python_cpp_version py33-cpp
 }
-build_ruby22() {
-  internal_build_cpp  # For conformance tests.
-  cd ruby && bash travis-test.sh ruby-2.2 && cd ..
+
+build_python34_cpp() {
+  build_python_cpp_version py34-cpp
 }
-build_jruby() {
+
+build_python35_cpp() {
+  build_python_cpp_version py35-cpp
+}
+
+build_python36_cpp() {
+  build_python_cpp_version py36-cpp
+}
+
+build_python37_cpp() {
+  build_python_cpp_version py37-cpp
+}
+
+build_python_compatibility() {
+  internal_build_cpp
+  # Use the unit-tests extraced from 2.5.0 to test the compatibilty.
+  cd python/compatibility_tests/v2.5.0
+  # Test between 2.5.0 and the current version.
+  ./test.sh 2.5.0
+  # Test between 3.0.0-beta-1 and the current version.
+  ./test.sh 3.0.0-beta-1
+}
+
+build_ruby23() {
   internal_build_cpp  # For conformance tests.
-  cd ruby && bash travis-test.sh jruby && cd ..
+  cd ruby && bash travis-test.sh ruby-2.3.8 && cd ..
+}
+build_ruby24() {
+  internal_build_cpp  # For conformance tests.
+  cd ruby && bash travis-test.sh ruby-2.4 && cd ..
+}
+build_ruby25() {
+  internal_build_cpp  # For conformance tests.
+  cd ruby && bash travis-test.sh ruby-2.5.1 && cd ..
+}
+build_ruby26() {
+  internal_build_cpp  # For conformance tests.
+  cd ruby && bash travis-test.sh ruby-2.6.0 && cd ..
 }
 
 build_javascript() {
   internal_build_cpp
   cd js && npm install && npm test && cd ..
+  cd conformance && make test_nodejs && cd ..
 }
 
-# Note: travis currently does not support testing more than one language so the
-# .travis.yml cheats and claims to only be cpp.  If they add multiple language
-# support, this should probably get updated to install steps and/or
-# rvm/gemfile/jdk/etc. entries rather than manually doing the work.
+generate_php_test_proto() {
+  internal_build_cpp
+  pushd php/tests
+  # Generate test file
+  rm -rf generated
+  mkdir generated
+  ../../src/protoc --php_out=generated         \
+    -I../../src -I.                            \
+    proto/empty/echo.proto                     \
+    proto/test.proto                           \
+    proto/test_include.proto                   \
+    proto/test_no_namespace.proto              \
+    proto/test_prefix.proto                    \
+    proto/test_php_namespace.proto             \
+    proto/test_empty_php_namespace.proto       \
+    proto/test_reserved_enum_lower.proto       \
+    proto/test_reserved_enum_upper.proto       \
+    proto/test_reserved_enum_value_lower.proto \
+    proto/test_reserved_enum_value_upper.proto \
+    proto/test_reserved_message_lower.proto    \
+    proto/test_reserved_message_upper.proto    \
+    proto/test_service.proto                   \
+    proto/test_service_namespace.proto         \
+    proto/test_wrapper_type_setters.proto      \
+    proto/test_descriptors.proto
+  pushd ../../src
+  ./protoc --php_out=../php/tests/generated -I../php/tests -I. \
+    ../php/tests/proto/test_import_descriptor_proto.proto
+  popd
+  popd
+}
 
-# .travis.yml uses matrix.exclude to block the cases where app-get can't be
-# use to install things.
+use_php() {
+  VERSION=$1
+  export PATH=/usr/local/php-${VERSION}/bin:$PATH
+  export CPLUS_INCLUDE_PATH=/usr/local/php-${VERSION}/include/php/main:/usr/local/php-${VERSION}/include/php/:$CPLUS_INCLUDE_PATH
+  export C_INCLUDE_PATH=/usr/local/php-${VERSION}/include/php/main:/usr/local/php-${VERSION}/include/php/:$C_INCLUDE_PATH
+  generate_php_test_proto
+}
+
+use_php_zts() {
+  VERSION=$1
+  export PATH=/usr/local/php-${VERSION}-zts/bin:$PATH
+  export CPLUS_INCLUDE_PATH=/usr/local/php-${VERSION}-zts/include/php/main:/usr/local/php-${VERSION}-zts/include/php/:$CPLUS_INCLUDE_PATH
+  export C_INCLUDE_PATH=/usr/local/php-${VERSION}-zts/include/php/main:/usr/local/php-${VERSION}-zts/include/php/:$C_INCLUDE_PATH
+  generate_php_test_proto
+}
+
+use_php_bc() {
+  VERSION=$1
+  export PATH=/usr/local/php-${VERSION}-bc/bin:$PATH
+  export CPLUS_INCLUDE_PATH=/usr/local/php-${VERSION}-bc/include/php/main:/usr/local/php-${VERSION}-bc/include/php/:$CPLUS_INCLUDE_PATH
+  export C_INCLUDE_PATH=/usr/local/php-${VERSION}-bc/include/php/main:/usr/local/php-${VERSION}-bc/include/php/:$C_INCLUDE_PATH
+  generate_php_test_proto
+}
+
+build_php5.5() {
+  use_php 5.5
+
+  pushd php
+  rm -rf vendor
+  composer update
+  ./vendor/bin/phpunit
+  popd
+  pushd conformance
+  make test_php
+  popd
+}
+
+build_php5.5_c() {
+  use_php 5.5
+  pushd php/tests
+  /bin/bash ./test.sh 5.5
+  popd
+  # TODO(teboring): Add it back
+  # pushd conformance
+  # make test_php_c
+  # popd
+}
+
+build_php5.5_mixed() {
+  use_php 5.5
+  pushd php
+  rm -rf vendor
+  composer update
+  /bin/bash ./tests/compile_extension.sh ./ext/google/protobuf
+  php -dextension=./ext/google/protobuf/modules/protobuf.so ./vendor/bin/phpunit
+  popd
+}
+
+build_php5.5_zts_c() {
+  use_php_zts 5.5
+  cd php/tests && /bin/bash ./test.sh 5.5-zts && cd ../..
+  # TODO(teboring): Add it back
+  # pushd conformance
+  # make test_php_zts_c
+  # popd
+}
+
+build_php5.6() {
+  use_php 5.6
+  pushd php
+  rm -rf vendor
+  composer update
+  ./vendor/bin/phpunit
+  popd
+  pushd conformance
+  make test_php
+  popd
+}
+
+build_php5.6_c() {
+  use_php 5.6
+  cd php/tests && /bin/bash ./test.sh 5.6 && cd ../..
+  # TODO(teboring): Add it back
+  # pushd conformance
+  # make test_php_c
+  # popd
+}
+
+build_php5.6_mixed() {
+  use_php 5.6
+  pushd php
+  rm -rf vendor
+  composer update
+  /bin/bash ./tests/compile_extension.sh ./ext/google/protobuf
+  php -dextension=./ext/google/protobuf/modules/protobuf.so ./vendor/bin/phpunit
+  popd
+}
+
+build_php5.6_zts_c() {
+  use_php_zts 5.6
+  cd php/tests && /bin/bash ./test.sh 5.6-zts && cd ../..
+  # TODO(teboring): Add it back
+  # pushd conformance
+  # make test_php_zts_c
+  # popd
+}
+
+build_php5.6_mac() {
+  generate_php_test_proto
+  # Install PHP
+  curl -s https://php-osx.liip.ch/install.sh | bash -s 5.6
+  PHP_FOLDER=`find /usr/local -type d -name "php5-5.6*"`  # The folder name may change upon time
+  export PATH="$PHP_FOLDER/bin:$PATH"
+
+  # Install phpunit
+  curl https://phar.phpunit.de/phpunit-5.6.8.phar -L -o phpunit.phar
+  chmod +x phpunit.phar
+  sudo mv phpunit.phar /usr/local/bin/phpunit
+
+  # Install valgrind
+  echo "#! /bin/bash" > valgrind
+  chmod ug+x valgrind
+  sudo mv valgrind /usr/local/bin/valgrind
+
+  # Test
+  cd php/tests && /bin/bash ./test.sh && cd ../..
+  # TODO(teboring): Add it back
+  # pushd conformance
+  # make test_php_c
+  # popd
+}
+
+build_php7.0() {
+  use_php 7.0
+  pushd php
+  rm -rf vendor
+  composer update
+  ./vendor/bin/phpunit
+  popd
+  pushd conformance
+  make test_php
+  popd
+}
+
+build_php7.0_c() {
+  use_php 7.0
+  cd php/tests && /bin/bash ./test.sh 7.0 && cd ../..
+  # TODO(teboring): Add it back
+  # pushd conformance
+  # make test_php_c
+  # popd
+}
+
+build_php7.0_mixed() {
+  use_php 7.0
+  pushd php
+  rm -rf vendor
+  composer update
+  /bin/bash ./tests/compile_extension.sh ./ext/google/protobuf
+  php -dextension=./ext/google/protobuf/modules/protobuf.so ./vendor/bin/phpunit
+  popd
+}
+
+build_php7.0_zts_c() {
+  use_php_zts 7.0
+  cd php/tests && /bin/bash ./test.sh 7.0-zts && cd ../..
+  # TODO(teboring): Add it back.
+  # pushd conformance
+  # make test_php_zts_c
+  # popd
+}
+
+build_php7.0_mac() {
+  generate_php_test_proto
+  # Install PHP
+  curl -s https://php-osx.liip.ch/install.sh | bash -s 7.0
+  PHP_FOLDER=`find /usr/local -type d -name "php7-7.0*"`  # The folder name may change upon time
+  export PATH="$PHP_FOLDER/bin:$PATH"
+
+  # Install phpunit
+  curl https://phar.phpunit.de/phpunit-5.6.0.phar -L -o phpunit.phar
+  chmod +x phpunit.phar
+  sudo mv phpunit.phar /usr/local/bin/phpunit
+
+  # Install valgrind
+  echo "#! /bin/bash" > valgrind
+  chmod ug+x valgrind
+  sudo mv valgrind /usr/local/bin/valgrind
+
+  # Test
+  cd php/tests && /bin/bash ./test.sh && cd ../..
+  # TODO(teboring): Add it back
+  # pushd conformance
+  # make test_php_c
+  # popd
+}
+
+build_php_compatibility() {
+  internal_build_cpp
+  php/tests/compatibility_test.sh
+}
+
+build_php7.1() {
+  use_php 7.1
+  pushd php
+  rm -rf vendor
+  composer update
+  ./vendor/bin/phpunit
+  popd
+  pushd conformance
+  make test_php
+  popd
+}
+
+build_php7.1_c() {
+  ENABLE_CONFORMANCE_TEST=$1
+  use_php 7.1
+  cd php/tests && /bin/bash ./test.sh 7.1 && cd ../..
+  if [ "$ENABLE_CONFORMANCE_TEST" = "true" ]
+  then
+    pushd conformance
+    make test_php_c
+    popd
+  fi
+}
+
+build_php7.1_mixed() {
+  use_php 7.1
+  pushd php
+  rm -rf vendor
+  composer update
+  /bin/bash ./tests/compile_extension.sh ./ext/google/protobuf
+  php -dextension=./ext/google/protobuf/modules/protobuf.so ./vendor/bin/phpunit
+  popd
+}
+
+build_php7.1_zts_c() {
+  use_php_zts 7.1
+  cd php/tests && /bin/bash ./test.sh 7.1-zts && cd ../..
+  pushd conformance
+  # make test_php_c
+  popd
+}
+
+build_php_all_32() {
+  build_php5.5
+  build_php5.6
+  build_php7.0
+  build_php7.1
+  build_php5.5_c
+  build_php5.6_c
+  build_php7.0_c
+  build_php7.1_c $1
+  build_php5.5_mixed
+  build_php5.6_mixed
+  build_php7.0_mixed
+  build_php7.1_mixed
+  build_php5.5_zts_c
+  build_php5.6_zts_c
+  build_php7.0_zts_c
+  build_php7.1_zts_c
+}
+
+build_php_all() {
+  build_php_all_32 true
+  build_php_compatibility
+}
+
+build_benchmark() {
+  use_php 7.2
+  cd kokoro/linux/benchmark && ./run.sh
+}
 
 # -------- main --------
 
 if [ "$#" -ne 1 ]; then
   echo "
 Usage: $0 { cpp |
+            cpp_distcheck |
             csharp |
-            java_jdk6 |
             java_jdk7 |
             java_oracle7 |
-            javanano_jdk6 |
-            javanano_jdk7 |
-            javanano_oracle7 |
+            java_compatibility |
             objectivec_ios |
+            objectivec_ios_debug |
+            objectivec_ios_release |
             objectivec_osx |
+            objectivec_tvos |
+            objectivec_tvos_debug |
+            objectivec_tvos_release |
+            objectivec_cocoapods_integration |
             python |
             python_cpp |
-            ruby19 |
-            ruby20 |
-            ruby21 |
-            ruby22 |
-            jruby }
+            python_compatibility |
+            ruby23 |
+            ruby24 |
+            ruby25 |
+            ruby26 |
+            jruby |
+            ruby_all |
+            php5.5   |
+            php5.5_c |
+            php5.6   |
+            php5.6_c |
+            php7.0   |
+            php7.0_c |
+            php_compatibility |
+            php7.1   |
+            php7.1_c |
+            php_all |
+            dist_install |
+            benchmark)
 "
   exit 1
 fi
 
 set -e  # exit immediately on error
 set -x  # display all commands
+cd $(dirname $0)
 eval "build_$1"

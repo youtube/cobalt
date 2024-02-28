@@ -35,15 +35,13 @@ import protobuf_unittest.UnittestProto.SparseEnumMessage;
 import protobuf_unittest.UnittestProto.TestAllTypes;
 import protobuf_unittest.UnittestProto.TestPackedTypes;
 import protobuf_unittest.UnittestProto.TestSparseEnum;
-
-import junit.framework.TestCase;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import junit.framework.TestCase;
 
 /**
  * Unit test for {@link CodedOutputStream}.
@@ -151,16 +149,21 @@ public class CodedOutputStreamTest extends TestCase {
     private final int initialPosition;
     private final CodedOutputStream stream;
     private final ByteBuffer buffer;
+    private final boolean unsafe;
 
-    NioDirectCoder(int size) {
-      this(size, 0);
+    NioDirectCoder(int size, boolean unsafe) {
+      this(size, 0, unsafe);
     }
 
-    NioDirectCoder(int size, int initialPosition) {
+    NioDirectCoder(int size, int initialPosition, boolean unsafe) {
+      this.unsafe = unsafe;
       this.initialPosition = initialPosition;
       buffer = ByteBuffer.allocateDirect(size);
       buffer.position(initialPosition);
-      stream = CodedOutputStream.newInstance(buffer);
+      stream =
+          unsafe
+              ? CodedOutputStream.newUnsafeInstance(buffer)
+              : CodedOutputStream.newSafeInstance(buffer);
     }
 
     @Override
@@ -181,7 +184,7 @@ public class CodedOutputStreamTest extends TestCase {
 
     @Override
     public OutputType getOutputType() {
-      return OutputType.NIO_DIRECT;
+      return unsafe ? OutputType.NIO_DIRECT_SAFE : OutputType.NIO_DIRECT_UNSAFE;
     }
   }
 
@@ -198,10 +201,16 @@ public class CodedOutputStreamTest extends TestCase {
         return new NioHeapCoder(size);
       }
     },
-    NIO_DIRECT() {
+    NIO_DIRECT_SAFE() {
       @Override
       Coder newCoder(int size) {
-        return new NioDirectCoder(size);
+        return new NioDirectCoder(size, false);
+      }
+    },
+    NIO_DIRECT_UNSAFE() {
+      @Override
+      Coder newCoder(int size) {
+        return new NioDirectCoder(size, true);
       }
     },
     STREAM() {
@@ -248,13 +257,27 @@ public class CodedOutputStreamTest extends TestCase {
     // 41256202580718336
     assertWriteVarint(
         bytes(0x80, 0xe6, 0xeb, 0x9c, 0xc3, 0xc9, 0xa4, 0x49),
-        (0x00 << 0) | (0x66 << 7) | (0x6b << 14) | (0x1c << 21) | (0x43L << 28) | (0x49L << 35)
-        | (0x24L << 42) | (0x49L << 49));
+        (0x00 << 0)
+            | (0x66 << 7)
+            | (0x6b << 14)
+            | (0x1c << 21)
+            | (0x43L << 28)
+            | (0x49L << 35)
+            | (0x24L << 42)
+            | (0x49L << 49));
     // 11964378330978735131
     assertWriteVarint(
         bytes(0x9b, 0xa8, 0xf9, 0xc2, 0xbb, 0xd6, 0x80, 0x85, 0xa6, 0x01),
-        (0x1b << 0) | (0x28 << 7) | (0x79 << 14) | (0x42 << 21) | (0x3bL << 28) | (0x56L << 35)
-        | (0x00L << 42) | (0x05L << 49) | (0x26L << 56) | (0x01L << 63));
+        (0x1b << 0)
+            | (0x28 << 7)
+            | (0x79 << 14)
+            | (0x42 << 21)
+            | (0x3bL << 28)
+            | (0x56L << 35)
+            | (0x00L << 42)
+            | (0x05L << 49)
+            | (0x26L << 56)
+            | (0x01L << 63));
   }
 
   /** Tests writeRawLittleEndian32() and writeRawLittleEndian64(). */
@@ -335,8 +358,8 @@ public class CodedOutputStreamTest extends TestCase {
   }
 
   /**
-   * Tests writing a whole message with every packed field type. Ensures the
-   * wire format of packed fields is compatible with C++.
+   * Tests writing a whole message with every packed field type. Ensures the wire format of packed
+   * fields is compatible with C++.
    */
   public void testWriteWholePackedFieldsMessage() throws Exception {
     byte[] expectedBytes = TestUtil.getGoldenPackedFieldsMessage().toByteArray();
@@ -352,8 +375,8 @@ public class CodedOutputStreamTest extends TestCase {
   }
 
   /**
-   * Test writing a message containing a negative enum value. This used to
-   * fail because the size was not properly computed as a sign-extended varint.
+   * Test writing a message containing a negative enum value. This used to fail because the size was
+   * not properly computed as a sign-extended varint.
    */
   public void testWriteMessageWithNegativeEnumValue() throws Exception {
     SparseEnumMessage message =
@@ -385,10 +408,12 @@ public class CodedOutputStreamTest extends TestCase {
     String string =
         "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz";
     // Ensure we take the slower fast path.
-    assertTrue(CodedOutputStream.computeUInt32SizeNoTag(string.length())
-        != CodedOutputStream.computeUInt32SizeNoTag(string.length() * Utf8.MAX_BYTES_PER_CHAR));
+    assertTrue(
+        CodedOutputStream.computeUInt32SizeNoTag(string.length())
+            != CodedOutputStream.computeUInt32SizeNoTag(string.length() * Utf8.MAX_BYTES_PER_CHAR));
 
     coder.stream().writeStringNoTag(string);
+    coder.stream().flush();
     int stringSize = CodedOutputStream.computeStringSizeNoTag(string);
 
     // Verify that the total bytes written is correct
@@ -428,9 +453,7 @@ public class CodedOutputStreamTest extends TestCase {
     }
     final int length2 = 8 * 1024;
     byte[] data = new byte[length2];
-    for (int i = 0; i < length2; i++) {
-      data[i] = (byte) 2;
-    }
+    Arrays.fill(data, 0, length2, (byte) 2);
     codedStream.writeRawBytes(data);
     final int length3 = bufferSize - length1 - length2;
     for (int i = 0; i < length3; i++) {
@@ -478,11 +501,12 @@ public class CodedOutputStreamTest extends TestCase {
 
   public void testWriteByteArrayWithOffsets() throws Exception {
     byte[] fullArray = bytes(0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88);
-    byte[] destination = new byte[4];
-    CodedOutputStream codedStream = CodedOutputStream.newInstance(destination);
-    codedStream.writeByteArrayNoTag(fullArray, 2, 2);
-    assertEqualBytes(OutputType.ARRAY, bytes(0x02, 0x33, 0x44, 0x00), destination);
-    assertEquals(3, codedStream.getTotalBytesWritten());
+    for (OutputType type : new OutputType[] {OutputType.ARRAY}) {
+      Coder coder = type.newCoder(4);
+      coder.stream().writeByteArrayNoTag(fullArray, 2, 2);
+      assertEqualBytes(type, bytes(0x02, 0x33, 0x44), coder.toByteArray());
+      assertEquals(3, coder.stream().getTotalBytesWritten());
+    }
   }
 
   public void testSerializeUtf8_MultipleSmallWrites() throws Exception {
@@ -510,10 +534,14 @@ public class CodedOutputStreamTest extends TestCase {
   }
 
   public void testSerializeInvalidUtf8() throws Exception {
-    String[] invalidStrings = new String[] {newString(Character.MIN_HIGH_SURROGATE),
-        "foobar" + newString(Character.MIN_HIGH_SURROGATE), newString(Character.MIN_LOW_SURROGATE),
-        "foobar" + newString(Character.MIN_LOW_SURROGATE),
-        newString(Character.MIN_HIGH_SURROGATE, Character.MIN_HIGH_SURROGATE)};
+    String[] invalidStrings =
+        new String[] {
+          newString(Character.MIN_HIGH_SURROGATE),
+          "foobar" + newString(Character.MIN_HIGH_SURROGATE),
+          newString(Character.MIN_LOW_SURROGATE),
+          "foobar" + newString(Character.MIN_LOW_SURROGATE),
+          newString(Character.MIN_HIGH_SURROGATE, Character.MIN_HIGH_SURROGATE)
+        };
 
     CodedOutputStream outputWithStream = CodedOutputStream.newInstance(new ByteArrayOutputStream());
     CodedOutputStream outputWithArray = CodedOutputStream.newInstance(new byte[10000]);
@@ -551,7 +579,7 @@ public class CodedOutputStreamTest extends TestCase {
     }
   }
 
-  /** Regression test for https://github.com/google/protobuf/issues/292 */
+  /** Regression test for https://github.com/protocolbuffers/protobuf/issues/292 */
   public void testCorrectExceptionThrowWhenEncodingStringsWithoutEnoughSpace() throws Exception {
     String testCase = "Foooooooo";
     assertEquals(
@@ -561,7 +589,12 @@ public class CodedOutputStreamTest extends TestCase {
     // Tag is one byte, varint describing string length is 1 byte, string length is 9 bytes.
     // An array of size 1 will cause a failure when trying to write the varint.
     for (OutputType outputType :
-        new OutputType[] {OutputType.ARRAY, OutputType.NIO_HEAP, OutputType.NIO_DIRECT}) {
+        new OutputType[] {
+          OutputType.ARRAY,
+          OutputType.NIO_HEAP,
+          OutputType.NIO_DIRECT_SAFE,
+          OutputType.NIO_DIRECT_UNSAFE
+        }) {
       for (int i = 0; i < 11; i++) {
         Coder coder = outputType.newCoder(i);
         try {
@@ -578,16 +611,17 @@ public class CodedOutputStreamTest extends TestCase {
     // with ASCII and Unicode characters requiring different UTF-8 byte counts per
     // char, hence causing the length delimiter varint to sometimes require more
     // bytes for the Unicode strings than the ASCII string of the same length.
-    int[] lengths = new int[] {
-        0,
-        1,
-        (1 << 4) - 1, // 1 byte for ASCII and Unicode
-        (1 << 7) - 1, // 1 byte for ASCII, 2 bytes for Unicode
-        (1 << 11) - 1, // 2 bytes for ASCII and Unicode
-        (1 << 14) - 1, // 2 bytes for ASCII, 3 bytes for Unicode
-        (1 << 17) - 1,
-        // 3 bytes for ASCII and Unicode
-    };
+    int[] lengths =
+        new int[] {
+          0,
+          1,
+          (1 << 4) - 1, // 1 byte for ASCII and Unicode
+          (1 << 7) - 1, // 1 byte for ASCII, 2 bytes for Unicode
+          (1 << 11) - 1, // 2 bytes for ASCII and Unicode
+          (1 << 14) - 1, // 2 bytes for ASCII, 3 bytes for Unicode
+          (1 << 17) - 1,
+          // 3 bytes for ASCII and Unicode
+        };
     for (OutputType outputType : OutputType.values()) {
       for (int i : lengths) {
         testEncodingOfString(outputType, 'q', i); // 1 byte per char
@@ -599,16 +633,19 @@ public class CodedOutputStreamTest extends TestCase {
 
   public void testNioEncodersWithInitialOffsets() throws Exception {
     String value = "abc";
-    for (Coder coder : new Coder[] {new NioHeapCoder(10, 2), new NioDirectCoder(10, 2)}) {
+    for (Coder coder :
+        new Coder[] {
+          new NioHeapCoder(10, 2), new NioDirectCoder(10, 2, false), new NioDirectCoder(10, 2, true)
+        }) {
       coder.stream().writeStringNoTag(value);
       coder.stream().flush();
-      assertEqualBytes(coder.getOutputType(), new byte[]{3, 'a', 'b', 'c'}, coder.toByteArray());
+      assertEqualBytes(coder.getOutputType(), new byte[] {3, 'a', 'b', 'c'}, coder.toByteArray());
     }
   }
 
   /**
-   * Parses the given bytes using writeRawLittleEndian32() and checks
-   * that the result matches the given value.
+   * Parses the given bytes using writeRawLittleEndian32() and checks that the result matches the
+   * given value.
    */
   private static void assertWriteLittleEndian32(byte[] data, int value) throws Exception {
     for (OutputType outputType : OutputType.values()) {
@@ -628,8 +665,8 @@ public class CodedOutputStreamTest extends TestCase {
   }
 
   /**
-   * Parses the given bytes using writeRawLittleEndian64() and checks
-   * that the result matches the given value.
+   * Parses the given bytes using writeRawLittleEndian64() and checks that the result matches the
+   * given value.
    */
   private static void assertWriteLittleEndian64(byte[] data, long value) throws Exception {
     for (OutputType outputType : OutputType.values()) {
@@ -672,9 +709,8 @@ public class CodedOutputStreamTest extends TestCase {
   }
 
   /**
-   * Helper to construct a byte array from a bunch of bytes.  The inputs are
-   * actually ints so that I can use hex notation and not get stupid errors
-   * about precision.
+   * Helper to construct a byte array from a bunch of bytes. The inputs are actually ints so that I
+   * can use hex notation and not get stupid errors about precision.
    */
   private static byte[] bytes(int... bytesAsInts) {
     byte[] bytes = new byte[bytesAsInts.length];
@@ -684,7 +720,7 @@ public class CodedOutputStreamTest extends TestCase {
     return bytes;
   }
 
-  /** Arrays.asList() does not work with arrays of primitives.  :( */
+  /** Arrays.asList() does not work with arrays of primitives. :( */
   private static List<Byte> toList(byte[] bytes) {
     List<Byte> result = new ArrayList<Byte>();
     for (byte b : bytes) {
@@ -698,8 +734,8 @@ public class CodedOutputStreamTest extends TestCase {
   }
 
   /**
-   * Writes the given value using writeRawVarint32() and writeRawVarint64() and
-   * checks that the result matches the given bytes.
+   * Writes the given value using writeRawVarint32() and writeRawVarint64() and checks that the
+   * result matches the given bytes.
    */
   private static void assertWriteVarint(byte[] data, long value) throws Exception {
     for (OutputType outputType : OutputType.values()) {

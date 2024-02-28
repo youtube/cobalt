@@ -30,12 +30,15 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endregion
 
+using Google.Protobuf.Collections;
+using System;
+
 namespace Google.Protobuf.Reflection
 {
     /// <summary>
     /// Descriptor for a single enum value within an enum in a .proto file.
     /// </summary>
-    public sealed class EnumValueDescriptor : DescriptorBase                                            
+    public sealed class EnumValueDescriptor : DescriptorBase
     {
         private readonly EnumDescriptor enumDescriptor;
         private readonly EnumValueDescriptorProto proto;
@@ -66,5 +69,31 @@ namespace Google.Protobuf.Reflection
         /// Returns the enum descriptor that this value is part of.
         /// </summary>
         public EnumDescriptor EnumDescriptor { get { return enumDescriptor; } }
+
+        /// <summary>
+        /// The (possibly empty) set of custom options for this enum value.
+        /// </summary>
+        //[Obsolete("CustomOptions are obsolete. Use GetOption")]
+        public CustomOptions CustomOptions => new CustomOptions(Proto.Options._extensions?.ValuesByNumber);
+
+        /* // uncomment this in the full proto2 support PR
+        /// <summary>
+        /// Gets a single value enum option for this descriptor
+        /// </summary>
+        public T GetOption<T>(Extension<EnumValueOptions, T> extension)
+        {
+            var value = Proto.Options.GetExtension(extension);
+            return value is IDeepCloneable<T> clonable ? clonable.Clone() : value;
+        }
+
+        /// <summary>
+        /// Gets a repeated value enum option for this descriptor
+        /// </summary>
+        public RepeatedField<T> GetOption<T>(RepeatedExtension<EnumValueOptions, T> extension)
+        {
+            return Proto.Options.GetExtension(extension).Clone();
+        }
+        */
     }
 }
+ 

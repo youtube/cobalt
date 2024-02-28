@@ -31,17 +31,17 @@
 package com.google.protobuf;
 
 import com.google.protobuf.Descriptors.Descriptor;
+import com.google.protobuf.Descriptors.EnumDescriptor;
+import com.google.protobuf.Descriptors.EnumValueDescriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.FieldPresenceTestProto.TestAllTypes;
 import com.google.protobuf.FieldPresenceTestProto.TestOptionalFieldsOnly;
 import com.google.protobuf.FieldPresenceTestProto.TestRepeatedFieldsOnly;
 import protobuf_unittest.UnittestProto;
-
 import junit.framework.TestCase;
 
 /**
- * Unit tests for protos that doesn't support field presence test for optional
- * non-message fields.
+ * Unit tests for protos that doesn't support field presence test for optional non-message fields.
  */
 public class FieldPresenceTest extends TestCase {
   private static boolean hasMethod(Class<?> clazz, String name) {
@@ -57,9 +57,7 @@ public class FieldPresenceTest extends TestCase {
   }
 
   private static void assertHasMethodRemoved(
-      Class<?> classWithFieldPresence,
-      Class<?> classWithoutFieldPresence,
-      String camelName) {
+      Class<?> classWithFieldPresence, Class<?> classWithoutFieldPresence, String camelName) {
     assertTrue(hasMethod(classWithFieldPresence, "get" + camelName));
     assertTrue(hasMethod(classWithFieldPresence, "has" + camelName));
     assertTrue(hasMethod(classWithoutFieldPresence, "get" + camelName));
@@ -68,78 +66,38 @@ public class FieldPresenceTest extends TestCase {
 
   public void testHasMethod() {
     // Optional non-message fields don't have a hasFoo() method generated.
+    assertHasMethodRemoved(UnittestProto.TestAllTypes.class, TestAllTypes.class, "OptionalInt32");
+    assertHasMethodRemoved(UnittestProto.TestAllTypes.class, TestAllTypes.class, "OptionalString");
+    assertHasMethodRemoved(UnittestProto.TestAllTypes.class, TestAllTypes.class, "OptionalBytes");
     assertHasMethodRemoved(
-        UnittestProto.TestAllTypes.class,
-        TestAllTypes.class,
-        "OptionalInt32");
-    assertHasMethodRemoved(
-        UnittestProto.TestAllTypes.class,
-        TestAllTypes.class,
-        "OptionalString");
-    assertHasMethodRemoved(
-        UnittestProto.TestAllTypes.class,
-        TestAllTypes.class,
-        "OptionalBytes");
-    assertHasMethodRemoved(
-        UnittestProto.TestAllTypes.class,
-        TestAllTypes.class,
-        "OptionalNestedEnum");
+        UnittestProto.TestAllTypes.class, TestAllTypes.class, "OptionalNestedEnum");
 
     assertHasMethodRemoved(
-        UnittestProto.TestAllTypes.Builder.class,
-        TestAllTypes.Builder.class,
-        "OptionalInt32");
+        UnittestProto.TestAllTypes.Builder.class, TestAllTypes.Builder.class, "OptionalInt32");
     assertHasMethodRemoved(
-        UnittestProto.TestAllTypes.Builder.class,
-        TestAllTypes.Builder.class,
-        "OptionalString");
+        UnittestProto.TestAllTypes.Builder.class, TestAllTypes.Builder.class, "OptionalString");
     assertHasMethodRemoved(
-        UnittestProto.TestAllTypes.Builder.class,
-        TestAllTypes.Builder.class,
-        "OptionalBytes");
+        UnittestProto.TestAllTypes.Builder.class, TestAllTypes.Builder.class, "OptionalBytes");
     assertHasMethodRemoved(
-        UnittestProto.TestAllTypes.Builder.class,
-        TestAllTypes.Builder.class,
-        "OptionalNestedEnum");
+        UnittestProto.TestAllTypes.Builder.class, TestAllTypes.Builder.class, "OptionalNestedEnum");
 
     // message fields still have the hasFoo() method generated.
-    assertFalse(TestAllTypes.newBuilder().build().hasOptionalNestedMessage());
+    assertFalse(TestAllTypes.getDefaultInstance().hasOptionalNestedMessage());
     assertFalse(TestAllTypes.newBuilder().hasOptionalNestedMessage());
 
-    // oneof fields don't have hasFoo() methods (even for message types).
-    assertHasMethodRemoved(
-        UnittestProto.TestAllTypes.class,
-        TestAllTypes.class,
-        "OneofUint32");
-    assertHasMethodRemoved(
-        UnittestProto.TestAllTypes.class,
-        TestAllTypes.class,
-        "OneofString");
-    assertHasMethodRemoved(
-        UnittestProto.TestAllTypes.class,
-        TestAllTypes.class,
-        "OneofBytes");
-    assertHasMethodRemoved(
-        UnittestProto.TestAllTypes.class,
-        TestAllTypes.class,
-        "OneofNestedMessage");
+    // oneof fields don't have hasFoo() methods for non-message types.
+    assertHasMethodRemoved(UnittestProto.TestAllTypes.class, TestAllTypes.class, "OneofUint32");
+    assertHasMethodRemoved(UnittestProto.TestAllTypes.class, TestAllTypes.class, "OneofString");
+    assertHasMethodRemoved(UnittestProto.TestAllTypes.class, TestAllTypes.class, "OneofBytes");
+    assertFalse(TestAllTypes.getDefaultInstance().hasOneofNestedMessage());
+    assertFalse(TestAllTypes.newBuilder().hasOneofNestedMessage());
 
     assertHasMethodRemoved(
-        UnittestProto.TestAllTypes.Builder.class,
-        TestAllTypes.Builder.class,
-        "OneofUint32");
+        UnittestProto.TestAllTypes.Builder.class, TestAllTypes.Builder.class, "OneofUint32");
     assertHasMethodRemoved(
-        UnittestProto.TestAllTypes.Builder.class,
-        TestAllTypes.Builder.class,
-        "OneofString");
+        UnittestProto.TestAllTypes.Builder.class, TestAllTypes.Builder.class, "OneofString");
     assertHasMethodRemoved(
-        UnittestProto.TestAllTypes.Builder.class,
-        TestAllTypes.Builder.class,
-        "OneofBytes");
-    assertHasMethodRemoved(
-        UnittestProto.TestAllTypes.Builder.class,
-        TestAllTypes.Builder.class,
-        "OneofNestedMessage");
+        UnittestProto.TestAllTypes.Builder.class, TestAllTypes.Builder.class, "OneofBytes");
   }
 
   public void testOneofEquals() throws Exception {
@@ -150,6 +108,26 @@ public class FieldPresenceTest extends TestCase {
     builder.setOneofUint32(0);
     TestAllTypes message2 = builder.build();
     assertFalse(message1.equals(message2));
+  }
+
+  public void testLazyField() throws Exception {
+    // Test default constructed message.
+    TestAllTypes.Builder builder = TestAllTypes.newBuilder();
+    TestAllTypes message = builder.build();
+    assertFalse(message.hasOptionalLazyMessage());
+    assertEquals(0, message.getSerializedSize());
+    assertEquals(ByteString.EMPTY, message.toByteString());
+
+    // Set default instance to the field.
+    builder.setOptionalLazyMessage(TestAllTypes.NestedMessage.getDefaultInstance());
+    message = builder.build();
+    assertTrue(message.hasOptionalLazyMessage());
+    assertEquals(2, message.getSerializedSize());
+
+    // Test parse zero-length from wire sets the presence.
+    TestAllTypes parsed = TestAllTypes.parseFrom(message.toByteString());
+    assertTrue(parsed.hasOptionalLazyMessage());
+    assertEquals(message.getOptionalLazyMessage(), parsed.getOptionalLazyMessage());
   }
 
   public void testFieldPresence() {
@@ -184,10 +162,10 @@ public class FieldPresenceTest extends TestCase {
     assertEquals(TestAllTypes.NestedEnum.BAR, message.getOptionalNestedEnum());
 
     // equals()/hashCode() should produce the same results.
-    TestAllTypes empty = TestAllTypes.newBuilder().build();
+    TestAllTypes empty = TestAllTypes.getDefaultInstance();
     message = builder.build();
-    assertTrue(empty.equals(message));
-    assertTrue(message.equals(empty));
+    assertEquals(message, empty);
+    assertEquals(empty, message);
     assertEquals(empty.hashCode(), message.hashCode());
   }
 
@@ -199,7 +177,7 @@ public class FieldPresenceTest extends TestCase {
     FieldDescriptor optionalNestedEnumField = descriptor.findFieldByName("optional_nested_enum");
 
     // Field not present.
-    TestAllTypes message = TestAllTypes.newBuilder().build();
+    TestAllTypes message = TestAllTypes.getDefaultInstance();
     assertFalse(message.hasField(optionalInt32Field));
     assertFalse(message.hasField(optionalStringField));
     assertFalse(message.hasField(optionalBytesField));
@@ -207,12 +185,13 @@ public class FieldPresenceTest extends TestCase {
     assertEquals(0, message.getAllFields().size());
 
     // Field set to default value is seen as not present.
-    message = TestAllTypes.newBuilder()
-        .setOptionalInt32(0)
-        .setOptionalString("")
-        .setOptionalBytes(ByteString.EMPTY)
-        .setOptionalNestedEnum(TestAllTypes.NestedEnum.FOO)
-        .build();
+    message =
+        TestAllTypes.newBuilder()
+            .setOptionalInt32(0)
+            .setOptionalString("")
+            .setOptionalBytes(ByteString.EMPTY)
+            .setOptionalNestedEnum(TestAllTypes.NestedEnum.FOO)
+            .build();
     assertFalse(message.hasField(optionalInt32Field));
     assertFalse(message.hasField(optionalStringField));
     assertFalse(message.hasField(optionalBytesField));
@@ -220,12 +199,13 @@ public class FieldPresenceTest extends TestCase {
     assertEquals(0, message.getAllFields().size());
 
     // Field set to non-default value is seen as present.
-    message = TestAllTypes.newBuilder()
-        .setOptionalInt32(1)
-        .setOptionalString("x")
-        .setOptionalBytes(ByteString.copyFromUtf8("y"))
-        .setOptionalNestedEnum(TestAllTypes.NestedEnum.BAR)
-        .build();
+    message =
+        TestAllTypes.newBuilder()
+            .setOptionalInt32(1)
+            .setOptionalString("x")
+            .setOptionalBytes(ByteString.copyFromUtf8("y"))
+            .setOptionalNestedEnum(TestAllTypes.NestedEnum.BAR)
+            .build();
     assertTrue(message.hasField(optionalInt32Field));
     assertTrue(message.hasField(optionalStringField));
     assertTrue(message.hasField(optionalBytesField));
@@ -233,13 +213,62 @@ public class FieldPresenceTest extends TestCase {
     assertEquals(4, message.getAllFields().size());
   }
 
+  public void testFieldPresenceDynamicMessage() {
+    Descriptor descriptor = TestAllTypes.getDescriptor();
+    FieldDescriptor optionalInt32Field = descriptor.findFieldByName("optional_int32");
+    FieldDescriptor optionalStringField = descriptor.findFieldByName("optional_string");
+    FieldDescriptor optionalBytesField = descriptor.findFieldByName("optional_bytes");
+    FieldDescriptor optionalNestedEnumField = descriptor.findFieldByName("optional_nested_enum");
+    EnumDescriptor enumDescriptor = optionalNestedEnumField.getEnumType();
+    EnumValueDescriptor defaultEnumValueDescriptor = enumDescriptor.getValues().get(0);
+    EnumValueDescriptor nonDefaultEnumValueDescriptor = enumDescriptor.getValues().get(1);
+
+    DynamicMessage defaultInstance = DynamicMessage.getDefaultInstance(descriptor);
+    // Field not present.
+    DynamicMessage message = defaultInstance.newBuilderForType().build();
+    assertFalse(message.hasField(optionalInt32Field));
+    assertFalse(message.hasField(optionalStringField));
+    assertFalse(message.hasField(optionalBytesField));
+    assertFalse(message.hasField(optionalNestedEnumField));
+    assertEquals(0, message.getAllFields().size());
+
+    // Field set to non-default value is seen as present.
+    message =
+        defaultInstance
+            .newBuilderForType()
+            .setField(optionalInt32Field, 1)
+            .setField(optionalStringField, "x")
+            .setField(optionalBytesField, ByteString.copyFromUtf8("y"))
+            .setField(optionalNestedEnumField, nonDefaultEnumValueDescriptor)
+            .build();
+    assertTrue(message.hasField(optionalInt32Field));
+    assertTrue(message.hasField(optionalStringField));
+    assertTrue(message.hasField(optionalBytesField));
+    assertTrue(message.hasField(optionalNestedEnumField));
+    assertEquals(4, message.getAllFields().size());
+
+    // Field set to default value is seen as not present.
+    message =
+        message
+            .toBuilder()
+            .setField(optionalInt32Field, 0)
+            .setField(optionalStringField, "")
+            .setField(optionalBytesField, ByteString.EMPTY)
+            .setField(optionalNestedEnumField, defaultEnumValueDescriptor)
+            .build();
+    assertFalse(message.hasField(optionalInt32Field));
+    assertFalse(message.hasField(optionalStringField));
+    assertFalse(message.hasField(optionalBytesField));
+    assertFalse(message.hasField(optionalNestedEnumField));
+    assertEquals(0, message.getAllFields().size());
+  }
+
   public void testMessageField() {
     TestAllTypes.Builder builder = TestAllTypes.newBuilder();
     assertFalse(builder.hasOptionalNestedMessage());
     assertFalse(builder.build().hasOptionalNestedMessage());
 
-    TestAllTypes.NestedMessage.Builder nestedBuilder =
-        builder.getOptionalNestedMessageBuilder();
+    TestAllTypes.NestedMessage.Builder nestedBuilder = builder.getOptionalNestedMessageBuilder();
     assertTrue(builder.hasOptionalNestedMessage());
     assertTrue(builder.build().hasOptionalNestedMessage());
 
@@ -277,8 +306,7 @@ public class FieldPresenceTest extends TestCase {
     assertTrue(message.hasOptionalNestedMessage());
     assertEquals(0, message.getOptionalNestedMessage().getValue());
     // The oneof field set to its default value is also present.
-    assertEquals(
-        TestAllTypes.OneofFieldCase.ONEOF_INT32, message.getOneofFieldCase());
+    assertEquals(TestAllTypes.OneofFieldCase.ONEOF_INT32, message.getOneofFieldCase());
   }
 
   // Regression test for b/16173397
@@ -312,8 +340,7 @@ public class FieldPresenceTest extends TestCase {
     TestAllTypes.Builder builder = TestAllTypes.newBuilder();
 
     // Test optional proto2 message fields.
-    UnittestProto.TestRequired.Builder proto2Builder =
-        builder.getOptionalProto2MessageBuilder();
+    UnittestProto.TestRequired.Builder proto2Builder = builder.getOptionalProto2MessageBuilder();
     assertFalse(builder.isInitialized());
     assertFalse(builder.buildPartial().isInitialized());
 
@@ -340,34 +367,4 @@ public class FieldPresenceTest extends TestCase {
     assertTrue(builder.buildPartial().isInitialized());
   }
 
-
-  // Test that unknown fields are dropped.
-  public void testUnknownFields() throws Exception {
-    TestAllTypes.Builder builder = TestAllTypes.newBuilder();
-    builder.setOptionalInt32(1234);
-    builder.addRepeatedInt32(5678);
-    TestAllTypes message = builder.build();
-    ByteString data = message.toByteString();
-
-    TestOptionalFieldsOnly optionalOnlyMessage =
-        TestOptionalFieldsOnly.parseFrom(data);
-    // UnknownFieldSet should be empty.
-    assertEquals(
-        0, optionalOnlyMessage.getUnknownFields().toByteString().size());
-    assertEquals(1234, optionalOnlyMessage.getOptionalInt32());
-    message = TestAllTypes.parseFrom(optionalOnlyMessage.toByteString());
-    assertEquals(1234, message.getOptionalInt32());
-    // The repeated field is discarded because it's unknown to the optional-only
-    // message.
-    assertEquals(0, message.getRepeatedInt32Count());
-
-    DynamicMessage dynamicOptionalOnlyMessage =
-        DynamicMessage.getDefaultInstance(
-            TestOptionalFieldsOnly.getDescriptor())
-        .getParserForType().parseFrom(data);
-    assertEquals(
-        0, dynamicOptionalOnlyMessage.getUnknownFields().toByteString().size());
-    assertEquals(optionalOnlyMessage.toByteString(),
-        dynamicOptionalOnlyMessage.toByteString());
-  }
 }
