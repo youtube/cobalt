@@ -95,7 +95,7 @@ crashpad_static_library("client") {
   if (crashpad_is_in_starboard) {
     public_deps += [ "//starboard/elf_loader:evergreen_info" ]
   }
-  if (crashpad_is_in_starboard || crashpad_is_in_native_target_build) {
+  if (target_os != "win" && target_os != "winuwp" && (crashpad_is_in_starboard || crashpad_is_in_native_target_build)) {
     deps += [ "../wrapper/proto:crashpad_annotations_proto" ]
   }
 

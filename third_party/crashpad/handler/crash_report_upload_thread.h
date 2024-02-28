@@ -66,14 +66,14 @@ class CrashReportUploadThread : public WorkerThread::Delegate,
   //!
   //! \param[in] database The database to upload crash reports from.
   //! \param[in] url The URL of the server to upload crash reports to.
-#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
+#if (defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)) && (defined(OS_LINUX) || defined(OS_ANDROID))
   //! \param[in] ca_certificates_path The absolute path to a directory
   //!   containing CA root certificates.
 #endif  // defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
   //! \param[in] options Options for the report uploads.
   CrashReportUploadThread(CrashReportDatabase* database,
                           const std::string& url,
-#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
+#if (defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)) && (defined(OS_LINUX) || defined(OS_ANDROID))
                           const std::string& ca_certificates_path,
 #endif  // defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
                           const Options& options);
@@ -176,7 +176,7 @@ class CrashReportUploadThread : public WorkerThread::Delegate,
 
   const Options options_;
   const std::string url_;
-#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
+#if (defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)) && (defined(OS_LINUX) || defined(OS_ANDROID))
   const std::string ca_certificates_path_;
 #endif  // defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
   WorkerThread thread_;

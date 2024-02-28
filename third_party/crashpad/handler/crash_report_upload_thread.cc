@@ -47,13 +47,13 @@ namespace crashpad {
 
 CrashReportUploadThread::CrashReportUploadThread(CrashReportDatabase* database,
                                                  const std::string& url,
-#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
+#if (defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)) && (defined(OS_LINUX) || defined(OS_ANDROID))
     const std::string& ca_certificates_path,
 #endif  // defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
                                                  const Options& options)
     : options_(options),
       url_(url),
-#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
+#if (defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)) && (defined(OS_LINUX) || defined(OS_ANDROID))
       ca_certificates_path_(ca_certificates_path),
 #endif  // defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
       // When watching for pending reports, check every 15 minutes, even in the
@@ -335,7 +335,7 @@ CrashReportUploadThread::UploadResult CrashReportUploadThread::UploadReport(
     }
   }
   http_transport->SetURL(url);
-#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
+#if (defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)) && (defined(OS_LINUX) || defined(OS_ANDROID))
   http_transport->SetRootCACertificatesDirectoryPath(ca_certificates_path_);
 #endif  // defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
 

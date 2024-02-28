@@ -14,7 +14,7 @@
 
 import("../build/crashpad_buildconfig.gni")
 
-static_library("handler") {
+crashpad_static_library("handler") {
   sources = [
     "crash_report_upload_thread.cc",
     "crash_report_upload_thread.h",
@@ -79,7 +79,7 @@ static_library("handler") {
     "../tools:tool_support",
   ]
 
-  if (crashpad_is_in_starboard || crashpad_is_in_native_target_build) {
+  if (target_os != "win" && target_os != "winuwp" && (crashpad_is_in_starboard || crashpad_is_in_native_target_build)) {
     sources += [ "../util/net/http_transport_socket.cc" ]
     defines = [ "CRASHPAD_USE_BORINGSSL" ]
     deps += [ "//third_party/boringssl" ]
@@ -192,6 +192,10 @@ if (!crashpad_is_ios) {
       configs += [ "../build:native_target_executable_config" ]
     }
   }
+
+  group("native_crashpad_handler") {
+    public_deps = [ ":crashpad_handler($native_target_toolchain)" ]
+  }
 }
 
 # There is not any normal way to package native executables in an Android APK.
@@ -243,29 +247,6 @@ if (!crashpad_is_ios && !crashpad_is_in_starboard &&
 }
 
 if (crashpad_is_win) {
-  crashpad_executable("crashpad_handler_com") {
-    sources = [ "main.cc" ]
-
-    # Avoid .exp, .ilk, and .lib file collisions with crashpad_handler.exe by
-    # having this target produce crashpad_handler_com.com. Don’t use this target
-    # directly. Instead, use crashpad_handler_console.
-    output_extension = "com"
-
-    deps = [
-      ":handler",
-      "../build:default_exe_manifest_win",
-      "../compat",
-      "../third_party/mini_chromium:base",
-      "../tools:tool_support",
-    ]
-  }
-
-  copy("crashpad_handler_console") {
-    deps = [ ":crashpad_handler_com" ]
-    sources = [ "$root_out_dir/crashpad_handler_com.com" ]
-    outputs = [ "$root_out_dir/crashpad_handler.com" ]
-  }
-
   crashpad_executable("crash_other_program") {
     testonly = true
 
@@ -288,6 +269,15 @@ if (crashpad_is_win) {
       "../client",
       "../third_party/mini_chromium:base",
     ]
+  }
+
+  if (crashpad_is_in_starboard) {
+    copy("copy_crashpad_handler") {
+      install_content = true
+      sources = [ "$root_out_dir/native_target/crashpad_handler.exe" ]
+      deps = [ ":native_crashpad_handler" ]
+      outputs = [ "$sb_static_contents_output_data_dir/crashpad_handler.exe" ]
+    }
   }
 
   crashpad_executable("crashy_signal") {

@@ -18,8 +18,9 @@
 // after including any MSVC headers that may define macros that collide with
 // Cobalt code. When undefining a macro here, provide a comment of which
 // specific Windows header file defined it for future reference.
-#undef NO_ERROR         // winerror.h; b/302733082#comment15
-#undef CreateDirectory  // fileapi.h
-#undef DeleteFile       // fileapi.h
-#undef GetCurrentTime   // winbase.h; b/324981660
-#undef PostMessage      // winuser.h
+#undef NO_ERROR  // winerror.h; b/302733082#comment15
+// Used in third_party/crashpad/util/file/filesystem_win.cc
+// #undef CreateDirectory  // fileapi.h
+// #undef DeleteFile       // fileapi.h
+#undef GetCurrentTime  // winbase.h; b/324981660
+#undef PostMessage     // winuser.h

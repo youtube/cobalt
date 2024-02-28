@@ -312,6 +312,8 @@ if (!use_cobalt_customizations) {
       } else {
         assert(false, "Unsupported Linux or Android arch for native build")
       }
+    } else if (is_win || is_winuwp) {
+      print("BoringSSL: Need support for UWP.")
     } else {
         assert(false, "Unsupported OS for native build")
     }
