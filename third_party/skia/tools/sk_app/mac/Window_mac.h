@@ -33,6 +33,8 @@ public:
 
     void onInval() override {}
 
+    float scaleFactor() const override;
+
     static void PaintWindows();
 
     static const NSInteger& GetKey(const Window_mac& w) {
@@ -52,7 +54,7 @@ private:
 
     static SkTDynamicHash<Window_mac, NSInteger> gWindowMap;
 
-    typedef Window INHERITED;
+    using INHERITED = Window;
 };
 
 }   // namespace sk_app

@@ -59,7 +59,7 @@ public:
 private:
     bool fUseSrcOver;
 
-    typedef SkSpriteBlitter INHERITED;
+    using INHERITED = SkSpriteBlitter;
 };
 
 SkSpriteBlitter* SkSpriteBlitter::ChooseL565(const SkPixmap& source, const SkPaint& paint,
@@ -78,11 +78,12 @@ SkSpriteBlitter* SkSpriteBlitter::ChooseL565(const SkPixmap& source, const SkPai
         return nullptr;
     }
 
-    if (source.colorType() == kN32_SkColorType) {
-        switch (paint.getBlendMode()) {
+    const auto bm = paint.asBlendMode();
+    if ((source.colorType() == kN32_SkColorType) && bm) {
+        switch (bm.value()) {
             case SkBlendMode::kSrc:
             case SkBlendMode::kSrcOver:
-                return allocator->make<Sprite_D16_S32>(source, paint.getBlendMode());
+                return allocator->make<Sprite_D16_S32>(source, bm.value());
             default:
                 break;
         }
@@ -147,7 +148,7 @@ public:
 private:
     bool fUseSrcOver;
 
-    typedef SkSpriteBlitter INHERITED;
+    using INHERITED = SkSpriteBlitter;
 };
 
 SkSpriteBlitter* SkSpriteBlitter::ChooseLA8(const SkPixmap& source, const SkPaint& paint,
@@ -166,11 +167,12 @@ SkSpriteBlitter* SkSpriteBlitter::ChooseLA8(const SkPixmap& source, const SkPain
         return nullptr;
     }
 
-    if (source.colorType() == kN32_SkColorType) {
-        switch (paint.getBlendMode()) {
+    const auto bm = paint.asBlendMode();
+    if ((source.colorType() == kN32_SkColorType) && bm) {
+        switch (bm.value()) {
             case SkBlendMode::kSrc:
             case SkBlendMode::kSrcOver:
-                return allocator->make<Sprite_D8_S32>(source, paint.getBlendMode());
+                return allocator->make<Sprite_D8_S32>(source, bm.value());
             default:
                 break;
         }

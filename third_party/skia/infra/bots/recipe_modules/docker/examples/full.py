@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+PYTHON_VERSION_COMPATIBILITY = "PY3"
 
 DEPS = [
   'docker',
@@ -22,13 +23,13 @@ def RunSteps(api):
       script='./do-stuff.sh',
       args=['--src', api.docker.mount_src(), '--out', api.docker.mount_out()],
       docker_args=['--cpus', '2'],
-      copies={'/copy-src/myfile': '/copy-dst/myfile'},
+      copies=[{'src': '/copy-src/myfile', 'dst': '/copy-dst/myfile'}],
       recursive_read=['/host-src'],
   )
 
 def GenTests(api):
   yield (api.test('test') +
-         api.properties(buildername='Test-Debian9-EMCC-GCE-GPU-WEBGL1-wasm-Debug-All-CanvasKit',
+         api.properties(buildername='Test-Debian10-EMCC-GCE-GPU-WEBGL1-wasm-Debug-All-CanvasKit',
                         buildbucket_build_id='123454321',
                         revision='abc123',
                         path_config='kitchen',

@@ -24,9 +24,9 @@
 #include <openssl/crypto.h>
 #include <openssl/span.h>
 
-#include "internal.h"
 #include "../internal.h"
 #include "../test/test_util.h"
+#include "internal.h"
 
 
 TEST(CBSTest, Skip) {
@@ -699,7 +699,6 @@ struct BERTest {
 
 static const BERTest kBERTests[] = {
     // Trivial cases, also valid DER.
-    {"0000", true, false, false, 0},
     {"0100", true, false, false, 1},
     {"020101", true, false, false, 2},
 
@@ -725,6 +724,12 @@ static const BERTest kBERTests[] = {
     {"1f4000", true, false, false, 0x40},
     // Non-minimal tags are invalid, even in BER.
     {"1f804000", false, false, false, 0},
+
+    // EOCs and other forms of tag [UNIVERSAL 0] are rejected as elements.
+    {"0000", false, false, false, 0},
+    {"000100", false, false, false, 0},
+    {"00800000", false, false, false, 0},
+    {"2000", false, false, false, 0},
 };
 
 TEST(CBSTest, BERElementTest) {
@@ -857,12 +862,28 @@ TEST(CBSTest, ASN1Uint64) {
     EXPECT_EQ(0, is_negative);
     EXPECT_TRUE(CBS_is_unsigned_asn1_integer(&child));
 
-    bssl::ScopedCBB cbb;
-    ASSERT_TRUE(CBB_init(cbb.get(), 0));
-    ASSERT_TRUE(CBB_add_asn1_uint64(cbb.get(), test.value));
-    ASSERT_TRUE(CBB_finish(cbb.get(), &out, &len));
-    bssl::UniquePtr<uint8_t> scoper(out);
-    EXPECT_EQ(Bytes(test.encoding, test.encoding_len), Bytes(out, len));
+    {
+      bssl::ScopedCBB cbb;
+      ASSERT_TRUE(CBB_init(cbb.get(), 0));
+      ASSERT_TRUE(CBB_add_asn1_uint64(cbb.get(), test.value));
+      ASSERT_TRUE(CBB_finish(cbb.get(), &out, &len));
+      bssl::UniquePtr<uint8_t> scoper(out);
+      EXPECT_EQ(Bytes(test.encoding, test.encoding_len), Bytes(out, len));
+    }
+
+    {
+      // Overwrite the tag.
+      bssl::ScopedCBB cbb;
+      ASSERT_TRUE(CBB_init(cbb.get(), 0));
+      ASSERT_TRUE(CBB_add_asn1_uint64_with_tag(cbb.get(), test.value,
+                                               CBS_ASN1_CONTEXT_SPECIFIC | 1));
+      ASSERT_TRUE(CBB_finish(cbb.get(), &out, &len));
+      bssl::UniquePtr<uint8_t> scoper(out);
+      std::vector<uint8_t> expected(test.encoding,
+                                    test.encoding + test.encoding_len);
+      expected[0] = 0x81;
+      EXPECT_EQ(Bytes(expected), Bytes(out, len));
+    }
   }
 
   for (const ASN1InvalidUint64Test &test : kASN1InvalidUint64Tests) {
@@ -947,12 +968,28 @@ TEST(CBSTest, ASN1Int64) {
     EXPECT_EQ(test.value < 0, !!is_negative);
     EXPECT_EQ(test.value >= 0, !!CBS_is_unsigned_asn1_integer(&child));
 
-    bssl::ScopedCBB cbb;
-    ASSERT_TRUE(CBB_init(cbb.get(), 0));
-    ASSERT_TRUE(CBB_add_asn1_int64(cbb.get(), test.value));
-    ASSERT_TRUE(CBB_finish(cbb.get(), &out, &len));
-    bssl::UniquePtr<uint8_t> scoper(out);
-    EXPECT_EQ(Bytes(test.encoding, test.encoding_len), Bytes(out, len));
+    {
+      bssl::ScopedCBB cbb;
+      ASSERT_TRUE(CBB_init(cbb.get(), 0));
+      ASSERT_TRUE(CBB_add_asn1_int64(cbb.get(), test.value));
+      ASSERT_TRUE(CBB_finish(cbb.get(), &out, &len));
+      bssl::UniquePtr<uint8_t> scoper(out);
+      EXPECT_EQ(Bytes(test.encoding, test.encoding_len), Bytes(out, len));
+    }
+
+    {
+      // Overwrite the tag.
+      bssl::ScopedCBB cbb;
+      ASSERT_TRUE(CBB_init(cbb.get(), 0));
+      ASSERT_TRUE(CBB_add_asn1_int64_with_tag(cbb.get(), test.value,
+                                              CBS_ASN1_CONTEXT_SPECIFIC | 1));
+      ASSERT_TRUE(CBB_finish(cbb.get(), &out, &len));
+      bssl::UniquePtr<uint8_t> scoper(out);
+      std::vector<uint8_t> expected(test.encoding,
+                                    test.encoding + test.encoding_len);
+      expected[0] = 0x81;
+      EXPECT_EQ(Bytes(expected), Bytes(out, len));
+    }
   }
 
   for (const ASN1InvalidInt64Test &test : kASN1InvalidInt64Tests) {
@@ -1487,4 +1524,128 @@ TEST(CBBTest, Unicode) {
   EXPECT_EQ(3u, cbb_get_utf8_len(0xffff));
   EXPECT_EQ(4u, cbb_get_utf8_len(0x10000));
   EXPECT_EQ(4u, cbb_get_utf8_len(0x10ffff));
+}
+
+TEST(CBSTest, BogusTime) {
+  static const struct {
+    const char *timestring;
+  } kBogusTimeTests[] = {
+      {""},
+      {"invalidtimesZ"},
+      {"Z"},
+      {"0000"},
+      {"9999Z"},
+      {"00000000000000000000000000000Z"},
+      {"19491231235959"},
+      {"500101000000.001Z"},
+      {"500101000000+6"},
+      {"-1970010100000Z"},
+      {"7a0101000000Z"},
+      {"20500101000000-6"},
+      {"20500101000000.001"},
+      {"20500229000000Z"},
+      {"220229000000Z"},
+      {"20500132000000Z"},
+      {"220132000000Z"},
+      {"20500332000000Z"},
+      {"220332000000Z"},
+      {"20500532000000Z"},
+      {"220532000000Z"},
+      {"20500732000000Z"},
+      {"220732000000Z"},
+      {"20500832000000Z"},
+      {"220832000000Z"},
+      {"20501032000000Z"},
+      {"221032000000Z"},
+      {"20501232000000Z"},
+      {"221232000000Z"},
+      {"20500431000000Z"},
+      {"220431000000Z"},
+      {"20500631000000Z"},
+      {"220631000000Z"},
+      {"20500931000000Z"},
+      {"220931000000Z"},
+      {"20501131000000Z"},
+      {"221131000000Z"},
+      {"20501100000000Z"},
+      {"221100000000Z"},
+      {"19500101000000+0600"},
+  };
+  for (const auto &t : kBogusTimeTests) {
+    SCOPED_TRACE(t.timestring);
+    CBS cbs;
+    CBS_init(&cbs, (const uint8_t *)t.timestring, strlen(t.timestring));
+    EXPECT_FALSE(CBS_parse_generalized_time(&cbs, NULL,
+                                            /*allow_timezone_offset=*/0));
+    EXPECT_FALSE(CBS_parse_utc_time(&cbs, NULL, /*allow_timezone_offset=*/1));
+  }
+  static const struct {
+    const char *timestring;
+  } kUTCTZTests[] = {
+      {"480711220333-0700"},
+      {"140704000000-0700"},
+      {"480222202332-0500"},
+      {"480726113216-0000"},
+      {"480726113216-2359"},
+  };
+  for (const auto &t : kUTCTZTests) {
+    SCOPED_TRACE(t.timestring);
+    CBS cbs;
+    CBS_init(&cbs, (const uint8_t *)t.timestring, strlen(t.timestring));
+    EXPECT_FALSE(CBS_parse_generalized_time(&cbs, NULL,
+                                            /*allow_timezone_offset=*/0));
+    EXPECT_FALSE(CBS_parse_generalized_time(&cbs, NULL,
+                                            /*allow_timezone_offset=*/1));
+    EXPECT_TRUE(CBS_parse_utc_time(&cbs, NULL, /*allow_timezone_offset=*/1));
+    EXPECT_FALSE(CBS_parse_utc_time(&cbs, NULL, /*allow_timezone_offset=*/0));
+  }
+  static const struct {
+    const char *timestring;
+  } kBogusUTCTZTests[] = {
+      {"480711220333-0160"},
+      {"140704000000-9999"},
+      {"480222202332-2400"},
+  };
+  for (const auto &t : kBogusUTCTZTests) {
+    SCOPED_TRACE(t.timestring);
+    CBS cbs;
+    CBS_init(&cbs, (const uint8_t *)t.timestring, strlen(t.timestring));
+    EXPECT_FALSE(CBS_parse_generalized_time(&cbs, NULL,
+                                            /*allow_timezone_offset=*/0));
+    EXPECT_FALSE(CBS_parse_utc_time(&cbs, NULL, /*allow_timezone_offset=*/1));
+  }
+  static const struct {
+    const char *timestring;
+  } kGenTZTests[] = {
+      {"20480711220333-0000"},
+      {"20140704000000-0100"},
+      {"20460311174630-0300"},
+      {"20140704000000-2359"},
+  };
+  for (const auto &t : kGenTZTests) {
+    SCOPED_TRACE(t.timestring);
+    CBS cbs;
+    CBS_init(&cbs, (const uint8_t *)t.timestring, strlen(t.timestring));
+    EXPECT_FALSE(CBS_parse_generalized_time(&cbs, NULL,
+                                            /*allow_timezone_offset=*/0));
+    EXPECT_TRUE(CBS_parse_generalized_time(&cbs, NULL,
+                                           /*allow_timezone_offset=*/1));
+    EXPECT_FALSE(CBS_parse_utc_time(&cbs, NULL, /*allow_timezone_offset=*/1));
+    EXPECT_FALSE(CBS_parse_utc_time(&cbs, NULL, /*allow_timezone_offset=*/0));
+  }
+  static const struct {
+    const char *timestring;
+  } kBogusGenTZTests[] = {
+      {"20480222202332-2400"},
+      {"20140704000000-9999"},
+      {"20480726113216-0160"},
+  };
+  for (const auto &t : kBogusGenTZTests) {
+    SCOPED_TRACE(t.timestring);
+    CBS cbs;
+    CBS_init(&cbs, (const uint8_t *)t.timestring, strlen(t.timestring));
+    EXPECT_FALSE(CBS_parse_generalized_time(&cbs, NULL,
+                                            /*allow_timezone_offset=*/0));
+    EXPECT_FALSE(CBS_parse_utc_time(&cbs, NULL, /*allow_timezone_offset=*/1));
+  }
 }

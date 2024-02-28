@@ -20,6 +20,7 @@
 #include <openssl/aead.h>
 #include <openssl/aes.h>
 #include <openssl/bn.h>
+#include <openssl/ctrdrbg.h>
 #include <openssl/dh.h>
 #include <openssl/digest.h>
 #include <openssl/ec.h>
@@ -36,6 +37,7 @@
 #include "../ecdsa/internal.h"
 #include "../rand/internal.h"
 #include "../rsa/internal.h"
+#include "../service_indicator/internal.h"
 #include "../tls/internal.h"
 
 #if defined(STARBOARD)
@@ -623,9 +625,11 @@ err:
 #if defined(BORINGSSL_FIPS)
 
 static void run_self_test_rsa(void) {
+  FIPS_service_indicator_lock_state();
   if (!boringssl_self_test_rsa()) {
     BORINGSSL_FIPS_abort();
   }
+  FIPS_service_indicator_unlock_state();
 }
 
 DEFINE_STATIC_ONCE(g_self_test_once_rsa);
@@ -635,9 +639,11 @@ void boringssl_ensure_rsa_self_test(void) {
 }
 
 static void run_self_test_ecc(void) {
+  FIPS_service_indicator_lock_state();
   if (!boringssl_self_test_ecc()) {
     BORINGSSL_FIPS_abort();
   }
+  FIPS_service_indicator_unlock_state();
 }
 
 DEFINE_STATIC_ONCE(g_self_test_once_ecc);
@@ -647,9 +653,11 @@ void boringssl_ensure_ecc_self_test(void) {
 }
 
 static void run_self_test_ffdh(void) {
+  FIPS_service_indicator_lock_state();
   if (!boringssl_self_test_ffdh()) {
     BORINGSSL_FIPS_abort();
   }
+  FIPS_service_indicator_unlock_state();
 }
 
 DEFINE_STATIC_ONCE(g_self_test_once_ffdh);

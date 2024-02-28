@@ -3,12 +3,16 @@ description:
   "Font engine, used for decoding and loading fonts. Required by Skia font parsing."
 
 third_party {
-  url {
-    type: GIT
-    value: "https://chromium.googlesource.com/chromium/src/third_party/freetype2"
+  identifier {
+    type: "ChromiumVersion"
+    value: "112.0.5615.134"  # from https://chromereleases.googleblog.com/2023/04/stable-channel-update-for-chromeos_19.html
   }
-  version: "e78e2d29a95baf6053e30cc9422aa20319259803"
-  # from https://chromium.googlesource.com/chromium/src/+/112.0.5615.134/DEPS#353
+  identifier {
+    type: "Git"
+    value: "https://chromium.googlesource.com/chromium/src/third_party/freetype2.git"
+    version: "e78e2d29a95baf6053e30cc9422aa20319259803"
+    # from https://chromium.googlesource.com/chromium/src/+/112.0.5615.134/DEPS#353
+  }
   last_upgrade_date {
     year: 2023
     month: 05

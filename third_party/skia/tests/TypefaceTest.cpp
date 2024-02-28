@@ -16,7 +16,6 @@
 #include "src/core/SkFontDescriptor.h"
 #include "src/core/SkFontMgrPriv.h"
 #include "src/core/SkFontPriv.h"
-#include "src/core/SkMakeUnique.h"
 #include "src/core/SkTypefaceCache.h"
 #include "src/sfnt/SkOTTable_OS_2.h"
 #include "src/sfnt/SkSFNTHeader.h"
@@ -101,6 +100,22 @@ DEF_TEST(TypefaceStyle, reporter) {
     }
 }
 
+DEF_TEST(TypefacePostScriptName, reporter) {
+    sk_sp<SkTypeface> typeface(MakeResourceAsTypeface("fonts/Em.ttf"));
+    if (!typeface) {
+        // Not all SkFontMgr can MakeFromStream().
+        return;
+    }
+
+    SkString postScriptName;
+    bool hasName = typeface->getPostScriptName(&postScriptName);
+    bool hasName2 = typeface->getPostScriptName(nullptr);
+    REPORTER_ASSERT(reporter, hasName == hasName2);
+    if (hasName) {
+        REPORTER_ASSERT(reporter, postScriptName == SkString("Em"));
+    }
+}
+
 DEF_TEST(TypefaceRoundTrip, reporter) {
     sk_sp<SkTypeface> typeface(MakeResourceAsTypeface("fonts/7630.otf"));
     if (!typeface) {
@@ -118,69 +133,157 @@ DEF_TEST(TypefaceRoundTrip, reporter) {
 
 DEF_TEST(FontDescriptorNegativeVariationSerialize, reporter) {
     SkFontDescriptor desc;
-    SkFixed axis = -SK_Fixed1;
-    auto font = skstd::make_unique<SkMemoryStream>("a", 1, false);
-    desc.setFontData(skstd::make_unique<SkFontData>(std::move(font), 0, &axis, 1));
+    SkFontStyle style(2, 9, SkFontStyle::kOblique_Slant);
+    desc.setStyle(style);
+    const char postscriptName[] = "postscript";
+    desc.setPostscriptName(postscriptName);
+    SkFontArguments::VariationPosition::Coordinate* variation = desc.setVariationCoordinates(1);
+    variation[0] = { 0, -1.0f };
 
     SkDynamicMemoryWStream stream;
     desc.serialize(&stream);
     SkFontDescriptor descD;
     SkFontDescriptor::Deserialize(stream.detachAsStream().get(), &descD);
-    std::unique_ptr<SkFontData> fontData = descD.detachFontData();
-    if (!fontData) {
-        REPORT_FAILURE(reporter, "fontData", SkString());
+
+    REPORTER_ASSERT(reporter, descD.getStyle() == style);
+    REPORTER_ASSERT(reporter, 0 == strcmp(desc.getPostscriptName(), postscriptName));
+    if (descD.getVariationCoordinateCount() != 1) {
+        REPORT_FAILURE(reporter, "descD.getVariationCoordinateCount() != 1", SkString());
         return;
     }
 
-    if (fontData->getAxisCount() != 1) {
-        REPORT_FAILURE(reporter, "fontData->getAxisCount() != 1", SkString());
-        return;
-    }
-
-    REPORTER_ASSERT(reporter, fontData->getAxis()[0] == -SK_Fixed1);
+    REPORTER_ASSERT(reporter, descD.getVariation()[0].value == -1.0f);
 };
 
 DEF_TEST(TypefaceAxes, reporter) {
-    std::unique_ptr<SkStreamAsset> distortable(GetResourceAsStream("fonts/Distortable.ttf"));
-    if (!distortable) {
-        REPORT_FAILURE(reporter, "distortable", SkString());
-        return;
-    }
-    constexpr int numberOfAxesInDistortable = 1;
+    using Variation = SkFontArguments::VariationPosition;
+    // In DWrite in at least up to 1901 18363.1198 IDWriteFontFace5::GetFontAxisValues and
+    // GetFontAxisValueCount along with IDWriteFontResource::GetFontAxisAttributes and
+    // GetFontAxisCount (and related) seem to incorrectly collapse multiple axes with the same tag.
+    // Since this is a limitation of the underlying implementation, for now allow the test to pass
+    // with the axis tag count (as opposed to the axis count). Eventually all implementations should
+    // pass this test without 'alsoAcceptedAxisTagCount'.
+    auto test = [&](SkTypeface* typeface, const Variation& expected, int alsoAcceptedAxisTagCount) {
+        if (!typeface) {
+            return;  // Not all SkFontMgr can makeFromStream().
+        }
+
+        int actualCount = typeface->getVariationDesignPosition(nullptr, 0);
+        if (actualCount == -1) {
+            return;  // The number of axes is unknown.
+        }
+        REPORTER_ASSERT(reporter, actualCount == expected.coordinateCount ||
+                                  actualCount == alsoAcceptedAxisTagCount);
+
+        // Variable font conservative bounds don't vary, so ensure they aren't reported.
+        REPORTER_ASSERT(reporter, typeface->getBounds().isEmpty());
+
+        std::unique_ptr<Variation::Coordinate[]> actual(new Variation::Coordinate[actualCount]);
+        actualCount = typeface->getVariationDesignPosition(actual.get(), actualCount);
+        if (actualCount == -1) {
+            return;  // The position cannot be determined.
+        }
+        REPORTER_ASSERT(reporter, actualCount == expected.coordinateCount ||
+                                  actualCount == alsoAcceptedAxisTagCount);
+
+        // Every actual must be expected.
+        std::unique_ptr<bool[]> expectedUsed(new bool[expected.coordinateCount]());
+        for (int actualIdx = 0; actualIdx < actualCount; ++actualIdx) {
+            bool actualFound = false;
+            for (int expectedIdx = 0; expectedIdx < expected.coordinateCount; ++expectedIdx) {
+                if (expectedUsed[expectedIdx]) {
+                    continue;
+                }
+
+                if (actual[actualIdx].axis != expected.coordinates[expectedIdx].axis) {
+                    continue;
+                }
+
+                // Convert to fixed for "almost equal".
+                SkFixed fixedRead = SkScalarToFixed(actual[actualIdx].value);
+                SkFixed fixedOriginal = SkScalarToFixed(expected.coordinates[expectedIdx].value);
+                if (!(SkTAbs(fixedRead - fixedOriginal) < 2)) {
+                    continue;
+                }
+
+                // This actual matched an unused expected.
+                actualFound = true;
+                expectedUsed[expectedIdx] = true;
+                break;
+            }
+            REPORTER_ASSERT(reporter, actualFound,
+                "Actual axis '%c%c%c%c' with value '%f' not expected",
+                (actual[actualIdx].axis >> 24) & 0xFF,
+                (actual[actualIdx].axis >> 16) & 0xFF,
+                (actual[actualIdx].axis >>  8) & 0xFF,
+                (actual[actualIdx].axis      ) & 0xFF,
+                SkScalarToDouble(actual[actualIdx].value));
+        }
+    };
 
     sk_sp<SkFontMgr> fm = SkFontMgr::RefDefault();
-    // The position may be over specified. If there are multiple values for a given axis,
-    // ensure the last one since that's what css-fonts-4 requires.
-    const SkFontArguments::VariationPosition::Coordinate position[] = {
-        { SkSetFourByteTag('w','g','h','t'), 1.618033988749895f },
-        { SkSetFourByteTag('w','g','h','t'), SK_ScalarSqrt2 },
-    };
-    SkFontArguments params;
-    params.setVariationDesignPosition({position, SK_ARRAY_COUNT(position)});
-    // TODO: if axes are set and the back-end doesn't support them, should we create the typeface?
-    sk_sp<SkTypeface> typeface = fm->makeFromStream(std::move(distortable), params);
 
-    if (!typeface) {
-        // Not all SkFontMgr can makeFromStream().
-        return;
+    // Not specifying a position should produce the default.
+    {
+        std::unique_ptr<SkStreamAsset> variable(GetResourceAsStream("fonts/Variable.ttf"));
+        if (!variable) {
+            REPORT_FAILURE(reporter, "variable", SkString());
+            return;
+        }
+        const Variation::Coordinate defaultPosition[] = {
+            { SkSetFourByteTag('w','g','h','t'), 400.0f },
+            { SkSetFourByteTag('w','d','t','h'), 100.0f },
+        };
+        sk_sp<SkTypeface> typeface = fm->makeFromStream(std::move(variable), 0);
+        test(typeface.get(), Variation{&defaultPosition[0], 2}, -1);
     }
 
-    int count = typeface->getVariationDesignPosition(nullptr, 0);
-    if (count == -1) {
-        return;
+    // Multiple axes with the same tag (and min, max, default) works.
+    {
+        std::unique_ptr<SkStreamAsset> dupTags(GetResourceAsStream("fonts/VaryAlongQuads.ttf"));
+        if (!dupTags) {
+            REPORT_FAILURE(reporter, "dupTags", SkString());
+            return;
+        }
+
+        // The position may be over specified. If there are multiple values for a given axis,
+        // ensure the last one since that's what css-fonts-4 requires.
+        const Variation::Coordinate position[] = {
+            { SkSetFourByteTag('w','g','h','t'), 700.0f },
+            { SkSetFourByteTag('w','g','h','t'), 600.0f },
+            { SkSetFourByteTag('w','g','h','t'), 600.0f },
+        };
+        SkFontArguments params;
+        params.setVariationDesignPosition({position, SK_ARRAY_COUNT(position)});
+        sk_sp<SkTypeface> typeface = fm->makeFromStream(std::move(dupTags), params);
+        test(typeface.get(), Variation{&position[1], 2}, 1);
     }
-    REPORTER_ASSERT(reporter, count == numberOfAxesInDistortable);
 
-    SkFontArguments::VariationPosition::Coordinate positionRead[numberOfAxesInDistortable];
-    count = typeface->getVariationDesignPosition(positionRead, SK_ARRAY_COUNT(positionRead));
-    REPORTER_ASSERT(reporter, count == SK_ARRAY_COUNT(positionRead));
+    // Overspecifying an axis tag value applies the last one in the list.
+    {
+        std::unique_ptr<SkStreamAsset> distortable(GetResourceAsStream("fonts/Distortable.ttf"));
+        if (!distortable) {
+            REPORT_FAILURE(reporter, "distortable", SkString());
+            return;
+        }
 
-    REPORTER_ASSERT(reporter, positionRead[0].axis == position[1].axis);
+        // The position may be over specified. If there are multiple values for a given axis,
+        // ensure the last one since that's what css-fonts-4 requires.
+        const Variation::Coordinate position[] = {
+            { SkSetFourByteTag('w','g','h','t'), 1.618033988749895f },
+            { SkSetFourByteTag('w','g','h','t'), SK_ScalarSqrt2 },
+        };
+        SkFontArguments params;
+        params.setVariationDesignPosition({position, SK_ARRAY_COUNT(position)});
+        sk_sp<SkTypeface> typeface = fm->makeFromStream(std::move(distortable), params);
+        test(typeface.get(), Variation{&position[1], 1}, -1);
 
-    // Convert to fixed for "almost equal".
-    SkFixed fixedRead = SkScalarToFixed(positionRead[0].value);
-    SkFixed fixedOriginal = SkScalarToFixed(position[1].value);
-    REPORTER_ASSERT(reporter, SkTAbs(fixedRead - fixedOriginal) < 2);
+        if (typeface) {
+            // Cloning without specifying any parameters should produce an equivalent variation.
+            sk_sp<SkTypeface> clone = typeface->makeClone(SkFontArguments());
+            test(clone.get(), Variation{&position[1], 1}, -1);
+        }
+    }
 }
 
 DEF_TEST(TypefaceVariationIndex, reporter) {
@@ -233,40 +336,142 @@ DEF_TEST(Typeface, reporter) {
 }
 
 DEF_TEST(TypefaceAxesParameters, reporter) {
-    std::unique_ptr<SkStreamAsset> distortable(GetResourceAsStream("fonts/Distortable.ttf"));
-    if (!distortable) {
-        REPORT_FAILURE(reporter, "distortable", SkString());
-        return;
-    }
-    constexpr int numberOfAxesInDistortable = 1;
-    constexpr SkScalar minAxisInDistortable = 0.5;
-    constexpr SkScalar defAxisInDistortable = 1;
-    constexpr SkScalar maxAxisInDistortable = 2;
-    constexpr bool axisIsHiddenInDistortable = false;
+    using Axis = SkFontParameters::Variation::Axis;
+
+    // In DWrite in at least up to 1901 18363.1198 IDWriteFontFace5::GetFontAxisValues and
+    // GetFontAxisValueCount along with IDWriteFontResource::GetFontAxisAttributes and
+    // GetFontAxisCount (and related) seem to incorrectly collapse multiple axes with the same tag.
+    // Since this is a limitation of the underlying implementation, for now allow the test to pass
+    // with the axis tag count (as opposed to the axis count). Eventually all implementations should
+    // pass this test without 'alsoAcceptedAxisTagCount'.
+    auto test = [&](SkTypeface* typeface, const Axis* expected, int expectedCount,
+                    int alsoAcceptedAxisTagCount)
+    {
+        if (!typeface) {
+            return;  // Not all SkFontMgr can makeFromStream().
+        }
+
+        int actualCount = typeface->getVariationDesignParameters(nullptr, 0);
+        if (actualCount == -1) {
+            return;  // The number of axes is unknown.
+        }
+        REPORTER_ASSERT(reporter, actualCount == expectedCount ||
+                                  actualCount == alsoAcceptedAxisTagCount);
+
+        std::unique_ptr<Axis[]> actual(new Axis[actualCount]);
+        actualCount = typeface->getVariationDesignParameters(actual.get(), actualCount);
+        if (actualCount == -1) {
+            return;  // The position cannot be determined.
+        }
+        REPORTER_ASSERT(reporter, actualCount == expectedCount ||
+                                  actualCount == alsoAcceptedAxisTagCount);
+
+        // Every actual must be expected.
+        std::unique_ptr<bool[]> expectedUsed(new bool[expectedCount]());
+        for (int actualIdx = 0; actualIdx < actualCount; ++actualIdx) {
+            bool actualFound = false;
+            for (int expectedIdx = 0; expectedIdx < expectedCount; ++expectedIdx) {
+                if (expectedUsed[expectedIdx]) {
+                    continue;
+                }
+
+                if (actual[actualIdx].tag != expected[expectedIdx].tag) {
+                    continue;
+                }
+
+                // Convert to fixed for "almost equal".
+                SkFixed fixedActualMin = SkScalarToFixed(actual[actualIdx].min);
+                SkFixed fixedExpectedMin = SkScalarToFixed(expected[expectedIdx].min);
+                if (!(SkTAbs(fixedActualMin - fixedExpectedMin) < 2)) {
+                    continue;
+                }
+
+                SkFixed fixedActualMax = SkScalarToFixed(actual[actualIdx].max);
+                SkFixed fixedExpectedMax = SkScalarToFixed(expected[expectedIdx].max);
+                if (!(SkTAbs(fixedActualMax - fixedExpectedMax) < 2)) {
+                    continue;
+                }
+
+                SkFixed fixedActualDefault = SkScalarToFixed(actual[actualIdx].def);
+                SkFixed fixedExpectedDefault = SkScalarToFixed(expected[expectedIdx].def);
+                if (!(SkTAbs(fixedActualDefault - fixedExpectedDefault) < 2)) {
+                    continue;
+                }
+
+                // This seems silly, but allows MSAN to ensure that isHidden is initialized.
+                // In GDI or before macOS 10.12, Win10, or FreeType 2.8.1 API for hidden is missing.
+                if (actual[actualIdx].isHidden() &&
+                    actual[actualIdx].isHidden() != expected[expectedIdx].isHidden())
+                {
+                    continue;
+                }
+
+                // This actual matched an unused expected.
+                actualFound = true;
+                expectedUsed[expectedIdx] = true;
+                break;
+            }
+            REPORTER_ASSERT(reporter, actualFound,
+                "Actual axis '%c%c%c%c' with min %f max %f default %f hidden %s not expected",
+                (actual[actualIdx].tag >> 24) & 0xFF,
+                (actual[actualIdx].tag >> 16) & 0xFF,
+                (actual[actualIdx].tag >>  8) & 0xFF,
+                (actual[actualIdx].tag      ) & 0xFF,
+                actual[actualIdx].min,
+                actual[actualIdx].def,
+                actual[actualIdx].max,
+                actual[actualIdx].isHidden() ? "true" : "false");
+        }
+    };
 
     sk_sp<SkFontMgr> fm = SkFontMgr::RefDefault();
 
-    SkFontArguments params;
-    sk_sp<SkTypeface> typeface = fm->makeFromStream(std::move(distortable), params);
-
-    if (!typeface) {
-        // Not all SkFontMgr can makeFromStream().
-        return;
+    // Two axis OpenType variable font.
+    {
+        std::unique_ptr<SkStreamAsset> variable(GetResourceAsStream("fonts/Variable.ttf"));
+        if (!variable) {
+            REPORT_FAILURE(reporter, "variable", SkString());
+            return;
+        }
+        constexpr Axis expected[] = {
+            Axis(SkSetFourByteTag('w','g','h','t'), 100.0f, 400.0f, 900.0f, true ),
+            Axis(SkSetFourByteTag('w','d','t','h'),  50.0f, 100.0f, 200.0f, false),
+        };
+        sk_sp<SkTypeface> typeface = fm->makeFromStream(std::move(variable), 0);
+        test(typeface.get(), &expected[0], SK_ARRAY_COUNT(expected), -1);
     }
 
-    SkFontParameters::Variation::Axis parameter[numberOfAxesInDistortable];
-    int count = typeface->getVariationDesignParameters(parameter, SK_ARRAY_COUNT(parameter));
-    if (count == -1) {
-        return;
+    // Multiple axes with the same tag (and min, max, default) works.
+    {
+        std::unique_ptr<SkStreamAsset> dupTags(GetResourceAsStream("fonts/VaryAlongQuads.ttf"));
+        if (!dupTags) {
+            REPORT_FAILURE(reporter, "dupTags", SkString());
+            return;
+        }
+
+        // The position may be over specified. If there are multiple values for a given axis,
+        // ensure the last one since that's what css-fonts-4 requires.
+        constexpr Axis expected[] = {
+            Axis(SkSetFourByteTag('w','g','h','t'), 100.0f, 400.0f, 900.0f, false),
+            Axis(SkSetFourByteTag('w','g','h','t'), 100.0f, 400.0f, 900.0f, false),
+        };
+        sk_sp<SkTypeface> typeface = fm->makeFromStream(std::move(dupTags), 0);
+        test(typeface.get(), &expected[0], SK_ARRAY_COUNT(expected), 1);
     }
 
-    REPORTER_ASSERT(reporter, count == SK_ARRAY_COUNT(parameter));
-    REPORTER_ASSERT(reporter, parameter[0].min == minAxisInDistortable);
-    REPORTER_ASSERT(reporter, parameter[0].def == defAxisInDistortable);
-    REPORTER_ASSERT(reporter, parameter[0].max == maxAxisInDistortable);
-    REPORTER_ASSERT(reporter, parameter[0].tag == SkSetFourByteTag('w','g','h','t'));
-    REPORTER_ASSERT(reporter, parameter[0].isHidden() == axisIsHiddenInDistortable);
-
+    // Simple single axis GX variable font.
+    {
+        std::unique_ptr<SkStreamAsset> distortable(GetResourceAsStream("fonts/Distortable.ttf"));
+        if (!distortable) {
+            REPORT_FAILURE(reporter, "distortable", SkString());
+            return;
+        }
+        constexpr Axis expected[] = {
+            Axis(SkSetFourByteTag('w','g','h','t'), 0.5f, 1.0f, 2.0f, true),
+        };
+        sk_sp<SkTypeface> typeface = fm->makeFromStream(std::move(distortable), 0);
+        test(typeface.get(), &expected[0], SK_ARRAY_COUNT(expected), -1);
+    }
 }
 
 static bool count_proc(SkTypeface* face, void* ctx) {
@@ -359,7 +564,7 @@ DEF_TEST(Typeface_glyph_to_char, reporter) {
         // If two codepoints map to the same glyph then this assert is not valid.
         // However, the emoji test font should never have multiple characters map to the same glyph.
         REPORTER_ASSERT(reporter, originalCodepoints[i] == newCodepoints[i],
-                        "name:%s i:%d original:%d new:%d glyph:%d", familyName.c_str(), i,
+                        "name:%s i:%zu original:%d new:%d glyph:%d", familyName.c_str(), i,
                         originalCodepoints[i], newCodepoints[i], glyphs[i]);
     }
 }

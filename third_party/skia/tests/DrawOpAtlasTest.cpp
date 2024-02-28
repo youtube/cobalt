@@ -17,24 +17,23 @@
 #include "include/core/SkSize.h"
 #include "include/core/SkTypes.h"
 #include "include/gpu/GrBackendSurface.h"
-#include "include/gpu/GrContext.h"
+#include "include/gpu/GrDirectContext.h"
 #include "include/private/GrTypesPriv.h"
 #include "src/core/SkIPoint16.h"
 #include "src/gpu/GrCaps.h"
-#include "src/gpu/GrContextPriv.h"
 #include "src/gpu/GrDeferredUpload.h"
+#include "src/gpu/GrDirectContextPriv.h"
 #include "src/gpu/GrDrawOpAtlas.h"
 #include "src/gpu/GrDrawingManager.h"
 #include "src/gpu/GrMemoryPool.h"
 #include "src/gpu/GrOnFlushResourceProvider.h"
 #include "src/gpu/GrOpFlushState.h"
-#include "src/gpu/GrRenderTargetContext.h"
 #include "src/gpu/GrTextureProxy.h"
 #include "src/gpu/GrXferProcessor.h"
+#include "src/gpu/ops/AtlasTextOp.h"
 #include "src/gpu/ops/GrDrawOp.h"
 #include "src/gpu/ops/GrOp.h"
 #include "src/gpu/text/GrAtlasManager.h"
-#include "src/gpu/text/GrTextContext.h"
 #include "tests/Test.h"
 #include "tools/gpu/GrContextFactory.h"
 
@@ -50,7 +49,7 @@ static const int kAtlasSize = kNumPlots * kPlotSize;
 int GrDrawOpAtlas::numAllocated_TestingOnly() const {
     int count = 0;
     for (uint32_t i = 0; i < this->maxPages(); ++i) {
-        if (fProxies[i]->isInstantiated()) {
+        if (fViews[i].proxy()->isInstantiated()) {
             ++count;
         }
     }
@@ -72,9 +71,12 @@ void GrDrawOpAtlas::setMaxPages_TestingOnly(uint32_t maxPages) {
     fMaxPages = maxPages;
 }
 
-void EvictionFunc(GrDrawOpAtlas::AtlasID atlasID, void*) {
-    SkASSERT(0); // The unit test shouldn't exercise this code path
-}
+class AssertOnEvict : public GrDrawOpAtlas::EvictionCallback {
+public:
+    void evict(GrDrawOpAtlas::PlotLocator) override {
+        SkASSERT(0); // The unit test shouldn't exercise this code path
+    }
+};
 
 static void check(skiatest::Reporter* r, GrDrawOpAtlas* atlas,
                   uint32_t expectedActive, uint32_t expectedMax, int expectedAlloced) {
@@ -95,7 +97,7 @@ public:
         return fTokenTracker.nextDrawToken();
     }
 
-    virtual GrDeferredUploadToken addASAPUpload(GrDeferredTextureUploadFn&& upload) final {
+    GrDeferredUploadToken addASAPUpload(GrDeferredTextureUploadFn&& upload) final {
         return fTokenTracker.nextTokenToFlush();
     }
 
@@ -105,13 +107,13 @@ public:
 private:
     GrTokenTracker fTokenTracker;
 
-    typedef GrDeferredUploadTarget INHERITED;
+    using INHERITED = GrDeferredUploadTarget;
 };
 
 static bool fill_plot(GrDrawOpAtlas* atlas,
                       GrResourceProvider* resourceProvider,
                       GrDeferredUploadTarget* target,
-                      GrDrawOpAtlas::AtlasID* atlasID,
+                      GrDrawOpAtlas::AtlasLocator* atlasLocator,
                       int alpha) {
     SkImageInfo ii = SkImageInfo::MakeA8(kPlotSize, kPlotSize);
 
@@ -119,10 +121,9 @@ static bool fill_plot(GrDrawOpAtlas* atlas,
     data.allocPixels(ii);
     data.eraseARGB(alpha, 0, 0, 0);
 
-    SkIPoint16 loc;
     GrDrawOpAtlas::ErrorCode code;
-    code = atlas->addToAtlas(resourceProvider, atlasID, target, kPlotSize, kPlotSize,
-                              data.getAddr(0, 0), &loc);
+    code = atlas->addToAtlas(resourceProvider, target, kPlotSize, kPlotSize,
+                             data.getAddr(0, 0), atlasLocator);
     return GrDrawOpAtlas::ErrorCode::kSucceeded == code;
 }
 
@@ -130,7 +131,7 @@ static bool fill_plot(GrDrawOpAtlas* atlas,
 // This is a basic DrawOpAtlas test. It simply verifies that multitexture atlases correctly
 // add and remove pages. Note that this is simulating flush-time behavior.
 DEF_GPUTEST_FOR_RENDERING_CONTEXTS(BasicDrawOpAtlas, reporter, ctxInfo) {
-    auto context = ctxInfo.grContext();
+    auto context = ctxInfo.directContext();
     auto proxyProvider = context->priv().proxyProvider();
     auto resourceProvider = context->priv().resourceProvider();
     auto drawingManager = context->priv().drawingManager();
@@ -142,20 +143,25 @@ DEF_GPUTEST_FOR_RENDERING_CONTEXTS(BasicDrawOpAtlas, reporter, ctxInfo) {
     GrBackendFormat format = caps->getDefaultBackendFormat(GrColorType::kAlpha_8,
                                                            GrRenderable::kNo);
 
+    AssertOnEvict evictor;
+    GrDrawOpAtlas::GenerationCounter counter;
+
     std::unique_ptr<GrDrawOpAtlas> atlas = GrDrawOpAtlas::Make(
                                                 proxyProvider,
                                                 format,
                                                 GrColorType::kAlpha_8,
                                                 kAtlasSize, kAtlasSize,
                                                 kAtlasSize/kNumPlots, kAtlasSize/kNumPlots,
+                                                &counter,
                                                 GrDrawOpAtlas::AllowMultitexturing::kYes,
-                                                EvictionFunc, nullptr);
+                                                &evictor);
     check(reporter, atlas.get(), 0, 4, 0);
 
     // Fill up the first level
-    GrDrawOpAtlas::AtlasID atlasIDs[kNumPlots * kNumPlots];
+    GrDrawOpAtlas::AtlasLocator atlasLocators[kNumPlots * kNumPlots];
     for (int i = 0; i < kNumPlots * kNumPlots; ++i) {
-        bool result = fill_plot(atlas.get(), resourceProvider, &uploadTarget, &atlasIDs[i], i*32);
+        bool result = fill_plot(
+                atlas.get(), resourceProvider, &uploadTarget, &atlasLocators[i], i * 32);
         REPORTER_ASSERT(reporter, result);
         check(reporter, atlas.get(), 1, 4, 1);
     }
@@ -164,14 +170,14 @@ DEF_GPUTEST_FOR_RENDERING_CONTEXTS(BasicDrawOpAtlas, reporter, ctxInfo) {
     check(reporter, atlas.get(), 1, 4, 1);
 
     // Force allocation of a second level
-    GrDrawOpAtlas::AtlasID atlasID;
-    bool result = fill_plot(atlas.get(), resourceProvider, &uploadTarget, &atlasID, 4*32);
+    GrDrawOpAtlas::AtlasLocator atlasLocator;
+    bool result = fill_plot(atlas.get(), resourceProvider, &uploadTarget, &atlasLocator, 4 * 32);
     REPORTER_ASSERT(reporter, result);
     check(reporter, atlas.get(), 2, 4, 2);
 
     // Simulate a lot of draws using only the first plot. The last texture should be compacted.
     for (int i = 0; i < 512; ++i) {
-        atlas->setLastUseToken(atlasIDs[0], uploadTarget.tokenTracker()->nextDrawToken());
+        atlas->setLastUseToken(atlasLocators[0], uploadTarget.tokenTracker()->nextDrawToken());
         uploadTarget.issueDrawToken();
         uploadTarget.flushToken();
         atlas->compact(uploadTarget.tokenTracker()->nextTokenToFlush());
@@ -180,20 +186,21 @@ DEF_GPUTEST_FOR_RENDERING_CONTEXTS(BasicDrawOpAtlas, reporter, ctxInfo) {
     check(reporter, atlas.get(), 1, 4, 1);
 }
 
-// This test verifies that the GrAtlasTextOp::onPrepare method correctly handles a failure
+#if SK_GPU_V1
+#include "src/gpu/v1/SurfaceDrawContext_v1.h"
+
+// This test verifies that the AtlasTextOp::onPrepare method correctly handles a failure
 // when allocating an atlas page.
 DEF_GPUTEST_FOR_RENDERING_CONTEXTS(GrAtlasTextOpPreparation, reporter, ctxInfo) {
 
-    auto context = ctxInfo.grContext();
+    auto dContext = ctxInfo.directContext();
 
-    auto gpu = context->priv().getGpu();
-    auto resourceProvider = context->priv().resourceProvider();
-    auto drawingManager = context->priv().drawingManager();
-    auto textContext = drawingManager->getTextContext();
-    auto opMemoryPool = context->priv().opMemoryPool();
+    auto gpu = dContext->priv().getGpu();
+    auto resourceProvider = dContext->priv().resourceProvider();
 
-    auto rtc = context->priv().makeDeferredRenderTargetContext(SkBackingFit::kApprox, 32, 32,
-                                                               GrColorType::kRGBA_8888, nullptr);
+    auto sdc = skgpu::v1::SurfaceDrawContext::Make(dContext, GrColorType::kRGBA_8888, nullptr,
+                                                   SkBackingFit::kApprox, {32, 32},
+                                                   SkSurfaceProps());
 
     SkPaint paint;
     paint.setColor(SK_ColorRED);
@@ -202,35 +209,43 @@ DEF_GPUTEST_FOR_RENDERING_CONTEXTS(GrAtlasTextOpPreparation, reporter, ctxInfo) 
     font.setEdging(SkFont::Edging::kAlias);
 
     const char* text = "a";
+    SkMatrixProvider matrixProvider(SkMatrix::I());
 
-    std::unique_ptr<GrDrawOp> op = textContext->createOp_TestingOnly(
-            context, textContext, rtc.get(), paint, font, SkMatrix::I(), text, 16, 16);
-    bool hasMixedSampledCoverage = false;
-    op->finalize(*context->priv().caps(), nullptr, hasMixedSampledCoverage, GrClampType::kAuto);
+    GrOp::Owner op = skgpu::v1::AtlasTextOp::CreateOpTestingOnly(sdc.get(), paint,
+                                                                 font, matrixProvider,
+                                                                 text, 16, 16);
+    if (!op) {
+        return;
+    }
+
+    auto atlasTextOp = (skgpu::v1::AtlasTextOp*)op.get();
+    atlasTextOp->finalize(*dContext->priv().caps(), nullptr, GrClampType::kAuto);
 
     TestingUploadTarget uploadTarget;
 
     GrOpFlushState flushState(gpu, resourceProvider, uploadTarget.writeableTokenTracker());
 
-    GrSurfaceProxyView surfaceView = rtc->outputSurfaceView();
+    GrSurfaceProxyView surfaceView = sdc->writeSurfaceView();
     GrOpFlushState::OpArgs opArgs(op.get(),
-                                  &surfaceView,
+                                  surfaceView,
+                                  false /*usesMSAASurface*/,
                                   nullptr,
-                                  GrXferProcessor::DstProxyView(GrSurfaceProxyView(),
-                                                                SkIPoint::Make(0, 0)));
+                                  GrDstProxyView(),
+                                  GrXferBarrierFlags::kNone,
+                                  GrLoadOp::kLoad);
 
-    // Cripple the atlas manager so it can't allocate any pages. This will force a failure
+    // Modify the atlas manager so it can't allocate any pages. This will force a failure
     // in the preparation of the text op
-    auto atlasManager = context->priv().getAtlasManager();
+    auto atlasManager = dContext->priv().getAtlasManager();
     unsigned int numProxies;
-    atlasManager->getProxies(kA8_GrMaskFormat, &numProxies);
+    atlasManager->getViews(kA8_GrMaskFormat, &numProxies);
     atlasManager->setMaxPages_TestingOnly(0);
 
     flushState.setOpArgs(&opArgs);
     op->prepare(&flushState);
     flushState.setOpArgs(nullptr);
-    opMemoryPool->release(std::move(op));
 }
+#endif // SK_GPU_V1
 
 void test_atlas_config(skiatest::Reporter* reporter, int maxTextureSize, size_t maxBytes,
                        GrMaskFormat maskFormat, SkISize expectedDimensions,

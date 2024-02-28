@@ -37,8 +37,9 @@
 #include "include/private/SkTemplates.h"
 #include "include/utils/SkNWayCanvas.h"
 #include "include/utils/SkPaintFilterCanvas.h"
-#include "src/core/SkClipOpPriv.h"
+#include "src/core/SkBigPicture.h"
 #include "src/core/SkImageFilter_Base.h"
+#include "src/core/SkRecord.h"
 #include "src/core/SkSpecialImage.h"
 #include "src/utils/SkCanvasStack.h"
 #include "tests/Test.h"
@@ -52,6 +53,42 @@
 #include <utility>
 
 class SkReadBuffer;
+
+struct ClipRectVisitor {
+    skiatest::Reporter* r;
+
+    template <typename T>
+    SkRect operator()(const T&) {
+        REPORTER_ASSERT(r, false, "unexpected record");
+        return {1,1,0,0};
+    }
+
+    SkRect operator()(const SkRecords::ClipRect& op) {
+        return op.rect;
+    }
+};
+
+DEF_TEST(canvas_unsorted_clip, r) {
+    // Test that sorted and unsorted clip rects are forwarded
+    // to picture subclasses and/or devices sorted.
+    //
+    // We can't just test this with an SkCanvas on stack and
+    // SkCanvas::getLocalClipBounds(), as that only tests the raster device,
+    // which sorts these rects itself.
+    for (SkRect clip : {SkRect{0,0,5,5}, SkRect{5,5,0,0}}) {
+        SkPictureRecorder rec;
+        rec.beginRecording({0,0,10,10})
+            ->clipRect(clip);
+        sk_sp<SkPicture> pic = rec.finishRecordingAsPicture();
+
+        auto bp = (const SkBigPicture*)pic.get();
+        const SkRecord* record = bp->record();
+
+        REPORTER_ASSERT(r, record->count() == 1);
+        REPORTER_ASSERT(r, record->visit(0, ClipRectVisitor{r})
+                                .isSorted());
+    }
+}
 
 DEF_TEST(canvas_clipbounds, reporter) {
     SkCanvas canvas(10, 10);
@@ -114,26 +151,6 @@ static void test_restriction(skiatest::Reporter* reporter, SkCanvas* canvas) {
     const SkIRect clipR = { 4, 4, 6, 6 };
     canvas->clipRect(SkRect::Make(clipR), SkClipOp::kIntersect);
     REPORTER_ASSERT(reporter, canvas->getDeviceClipBounds() == clipR);
-
-#ifdef SK_SUPPORT_DEPRECATED_CLIPOPS
-    // now test that expanding clipops can't exceed the restriction
-    const SkClipOp expanders[] = {
-        SkClipOp::kUnion_deprecated,
-        SkClipOp::kXOR_deprecated,
-        SkClipOp::kReverseDifference_deprecated,
-        SkClipOp::kReplace_deprecated,
-    };
-
-    const SkRect expandR = { 0, 0, 5, 9 };
-    SkASSERT(!SkRect::Make(restrictionR).contains(expandR));
-
-    for (SkClipOp op : expanders) {
-        canvas->save();
-        canvas->clipRect(expandR, op);
-        REPORTER_ASSERT(reporter, gBaseRestrictedR.contains(canvas->getDeviceClipBounds()));
-        canvas->restore();
-    }
-#endif
 }
 
 /**
@@ -181,6 +198,10 @@ DEF_TEST(CanvasNewRasterTest, reporter) {
         }
         addr = (const SkPMColor*)((const char*)addr + pmap.rowBytes());
     }
+
+    // unaligned rowBytes
+    REPORTER_ASSERT(reporter, nullptr == SkCanvas::MakeRasterDirect(info, baseAddr,
+                                                                    minRowBytes + 1));
 
     // now try a deliberately bad info
     info = info.makeWH(-1, info.height());
@@ -241,10 +262,10 @@ static CanvasTest kCanvasTests[] = {
         c->skew(SkIntToScalar(1), SkIntToScalar(2));
     },
     [](SkCanvas* c, skiatest::Reporter* r) {
-        c->concat(SkMatrix::MakeScale(2, 3));
+        c->concat(SkMatrix::Scale(2, 3));
     },
     [](SkCanvas* c, skiatest::Reporter* r) {
-        c->setMatrix(SkMatrix::MakeScale(2, 3));
+        c->setMatrix(SkMatrix::Scale(2, 3));
     },
     [](SkCanvas* c, skiatest::Reporter* r) {
         c->clipRect(kRect);
@@ -253,7 +274,7 @@ static CanvasTest kCanvasTests[] = {
         c->clipPath(make_path_from_rect(SkRect{0, 0, 2, 1}));
     },
     [](SkCanvas* c, skiatest::Reporter* r) {
-        c->clipRegion(make_region_from_irect(SkIRect{0, 0, 2, 1}), kReplace_SkClipOp);
+        c->clipRegion(make_region_from_irect(SkIRect{0, 0, 2, 1}));
     },
     [](SkCanvas* c, skiatest::Reporter* r) {
         c->clear(kColor);
@@ -311,8 +332,8 @@ static CanvasTest kCanvasTests[] = {
     },
     [](SkCanvas* c, skiatest::Reporter* r) {
         SkPictureRecorder recorder;
-        SkCanvas* testCanvas = recorder.beginRecording(
-                SkIntToScalar(kWidth), SkIntToScalar(kHeight), nullptr, 0);
+        SkCanvas* testCanvas = recorder.beginRecording(SkIntToScalar(kWidth),
+                                                       SkIntToScalar(kHeight));
         testCanvas->scale(SkIntToScalar(2), SkIntToScalar(1));
         testCanvas->clipRect(kRect);
         testCanvas->drawRect(kRect, SkPaint());
@@ -374,7 +395,7 @@ static CanvasTest kCanvasTests[] = {
         pts[3].set(0, SkIntToScalar(kHeight));
         SkPaint paint;
         SkBitmap bitmap(make_n32_bitmap(kWidth, kHeight, 0x05060708));
-        paint.setShader(bitmap.makeShader());
+        paint.setShader(bitmap.makeShader(SkSamplingOptions()));
         c->drawVertices(
             SkVertices::MakeCopy(SkVertices::kTriangleFan_VertexMode, 4, pts, pts, nullptr),
             SkBlendMode::kModulate, paint);
@@ -445,7 +466,7 @@ protected:
     bool onFilter(SkPaint&) const override { return true; }
 
 private:
-    typedef SkPaintFilterCanvas INHERITED;
+    using INHERITED = SkPaintFilterCanvas;
 };
 
 } // anonymous namespace
@@ -478,12 +499,12 @@ public:
     LifeLineCanvas(int w, int h, bool* lifeline) : SkCanvas(w, h), fLifeLine(lifeline) {
         *fLifeLine = true;
     }
-    ~LifeLineCanvas() {
+    ~LifeLineCanvas() override {
         *fLifeLine = false;
     }
 };
 
-}
+}  // namespace
 
 // Check that NWayCanvas does NOT try to manage the lifetime of its sub-canvases
 DEF_TEST(NWayCanvas, r) {
@@ -613,7 +634,7 @@ private:
 
     ZeroBoundsImageFilter() : INHERITED(nullptr, 0, nullptr) {}
 
-    typedef SkImageFilter_Base INHERITED;
+    using INHERITED = SkImageFilter_Base;
 };
 
 sk_sp<SkFlattenable> ZeroBoundsImageFilter::CreateProc(SkReadBuffer& buffer) {
@@ -639,7 +660,7 @@ DEF_TEST(Canvas_degenerate_dimension, reporter) {
     // Need a paint that will sneak us past the quickReject in SkCanvas, so we can test the
     // raster code further downstream.
     SkPaint paint;
-    paint.setImageFilter(SkImageFilters::Paint(SkPaint(), nullptr));
+    paint.setImageFilter(SkImageFilters::Shader(SkShaders::Color(SK_ColorBLACK), nullptr));
     REPORTER_ASSERT(reporter, !paint.canComputeFastBounds());
 
     const int big = 100 * 1024; // big enough to definitely trigger tiling
@@ -676,3 +697,60 @@ DEF_TEST(Canvas_ClippedOutImageFilter, reporter) {
     REPORTER_ASSERT(reporter, preCTM == postCTM);
 }
 
+DEF_TEST(canvas_savelayer_destructor, reporter) {
+    // What should happen in our destructor if we have unbalanced saveLayers?
+
+    SkPMColor pixels[16];
+    const SkImageInfo info = SkImageInfo::MakeN32Premul(4, 4);
+    SkPixmap pm(info, pixels, 4 * sizeof(SkPMColor));
+
+    // check all of the pixel values in pm
+    auto check_pixels = [&](SkColor expected) {
+        const SkPMColor pmc = SkPreMultiplyColor(expected);
+        for (int y = 0; y < pm.info().height(); ++y) {
+            for (int x = 0; x < pm.info().width(); ++x) {
+                if (*pm.addr32(x, y) != pmc) {
+                    ERRORF(reporter, "check_pixels_failed");
+                    return;
+                }
+            }
+        }
+    };
+
+    auto do_test = [&](int saveCount, int restoreCount) {
+        SkASSERT(restoreCount <= saveCount);
+
+        auto surf = SkSurface::MakeRasterDirect(pm);
+        auto canvas = surf->getCanvas();
+
+        canvas->clear(SK_ColorRED);
+        check_pixels(SK_ColorRED);
+
+        for (int i = 0; i < saveCount; ++i) {
+            canvas->saveLayer(nullptr, nullptr);
+        }
+
+        canvas->clear(SK_ColorBLUE);
+        // so far, we still expect to see the red, since the blue was drawn in a layer
+        check_pixels(SK_ColorRED);
+
+        for (int i = 0; i < restoreCount; ++i) {
+            canvas->restore();
+        }
+        // by returning, we are implicitly deleting the surface, and its associated canvas
+    };
+
+    do_test(1, 1);
+    // since we called restore, we expect to see now see blue
+    check_pixels(SK_ColorBLUE);
+
+    // Now repeat that, but delete the canvas before we restore it
+    do_test(1, 0);
+    // We don't blit the unbalanced saveLayers, so we expect to see red (not the layer's blue)
+    check_pixels(SK_ColorRED);
+
+    // Finally, test with multiple unbalanced saveLayers. This led to a crash in an earlier
+    // implementation (crbug.com/1238731)
+    do_test(2, 0);
+    check_pixels(SK_ColorRED);
+}

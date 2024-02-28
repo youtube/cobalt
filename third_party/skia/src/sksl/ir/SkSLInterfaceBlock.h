@@ -8,7 +8,10 @@
 #ifndef SKSL_INTERFACEBLOCK
 #define SKSL_INTERFACEBLOCK
 
-#include "src/sksl/ir/SkSLProgramElement.h"
+#include <memory>
+
+#include "include/core/SkStringView.h"
+#include "include/private/SkSLProgramElement.h"
 #include "src/sksl/ir/SkSLSymbolTable.h"
 #include "src/sksl/ir/SkSLVarDeclarations.h"
 
@@ -24,60 +27,82 @@ namespace SkSL {
  *
  * At the IR level, this is represented by a single variable of struct type.
  */
-struct InterfaceBlock : public ProgramElement {
-    InterfaceBlock(int offset, const Variable* var, String typeName, String instanceName,
-                   std::vector<std::unique_ptr<Expression>> sizes,
+class InterfaceBlock final : public ProgramElement {
+public:
+    inline static constexpr Kind kProgramElementKind = Kind::kInterfaceBlock;
+
+    InterfaceBlock(int line,
+                   const Variable& var,
+                   skstd::string_view typeName,
+                   skstd::string_view instanceName,
+                   int arraySize,
                    std::shared_ptr<SymbolTable> typeOwner)
-    : INHERITED(offset, kInterfaceBlock_Kind)
-    , fVariable(*var)
-    , fTypeName(std::move(typeName))
-    , fInstanceName(std::move(instanceName))
-    , fSizes(std::move(sizes))
-    , fTypeOwner(typeOwner) {}
+            : INHERITED(line, kProgramElementKind)
+            , fVariable(var)
+            , fTypeName(typeName)
+            , fInstanceName(instanceName)
+            , fArraySize(arraySize)
+            , fTypeOwner(std::move(typeOwner)) {
+        SkASSERT(fVariable.type().isInterfaceBlock() ||
+                 (fVariable.type().isArray() &&
+                  fVariable.type().componentType().isInterfaceBlock()));
+    }
+
+    const Variable& variable() const {
+        return fVariable;
+    }
+
+    skstd::string_view typeName() const {
+        return fTypeName;
+    }
+
+    skstd::string_view instanceName() const {
+        return fInstanceName;
+    }
+
+    const std::shared_ptr<SymbolTable>& typeOwner() const {
+        return fTypeOwner;
+    }
+
+    int arraySize() const {
+        return fArraySize;
+    }
 
     std::unique_ptr<ProgramElement> clone() const override {
-        std::vector<std::unique_ptr<Expression>> sizesClone;
-        for (const auto& s : fSizes) {
-            sizesClone.push_back(s->clone());
-        }
-        return std::unique_ptr<ProgramElement>(new InterfaceBlock(fOffset, &fVariable, fTypeName,
-                                                                  fInstanceName,
-                                                                  std::move(sizesClone),
-                                                                  fTypeOwner));
+        return std::make_unique<InterfaceBlock>(fLine, this->variable(), this->typeName(),
+                                                this->instanceName(), this->arraySize(),
+                                                SymbolTable::WrapIfBuiltin(this->typeOwner()));
     }
 
     String description() const override {
-        String result = fVariable.fModifiers.description() + fTypeName + " {\n";
-        const Type* structType = &fVariable.fType;
-        while (structType->kind() == Type::kArray_Kind) {
+        String result = this->variable().modifiers().description() + this->typeName() + " {\n";
+        const Type* structType = &this->variable().type();
+        if (structType->isArray()) {
             structType = &structType->componentType();
         }
         for (const auto& f : structType->fields()) {
             result += f.description() + "\n";
         }
         result += "}";
-        if (fInstanceName.size()) {
-            result += " " + fInstanceName;
-            for (const auto& size : fSizes) {
-                result += "[";
-                if (size) {
-                    result += size->description();
-                }
-                result += "]";
+        if (!this->instanceName().empty()) {
+            result += " " + this->instanceName();
+            if (this->arraySize() > 0) {
+                result.appendf("[%d]", this->arraySize());
             }
         }
         return result + ";";
     }
 
+private:
     const Variable& fVariable;
-    const String fTypeName;
-    const String fInstanceName;
-    std::vector<std::unique_ptr<Expression>> fSizes;
-    const std::shared_ptr<SymbolTable> fTypeOwner;
+    skstd::string_view fTypeName;
+    skstd::string_view fInstanceName;
+    int fArraySize;
+    std::shared_ptr<SymbolTable> fTypeOwner;
 
-    typedef ProgramElement INHERITED;
+    using INHERITED = ProgramElement;
 };
 
-} // namespace
+}  // namespace SkSL
 
 #endif

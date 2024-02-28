@@ -55,6 +55,7 @@ jobs:
     # All triggers except draft PRs, unless PR is labeled with runtest
     if: |
       github.event.action != 'labeled' ||
+      github.event.pull_request.merged == false &&
       (
         github.event.action == 'labeled' &&
         github.event.label.name == 'runtest' ||

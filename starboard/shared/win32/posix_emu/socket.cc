@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <io.h>
-#include <time.h>
+// We specifically do not include <sys/socket.h> since the define causes a loop
+#include <io.h>      // Needed for file-specific `_close`.
+#include <unistd.h>  // Our version that declares generic `close`.
 #include <winsock2.h>
 #undef NO_ERROR  // http://b/302733082#comment15
 #include <ws2tcpip.h>
 #include <map>
 #include "starboard/types.h"
 
-int gen_fd() {
+static int gen_fd() {
   static int fd = 100;
   fd++;
   if (fd == 0x7FFFFFFF) {
@@ -103,6 +104,7 @@ int close(int fd) {
     return closesocket(socket_handle);
   }
 
+  // This is then a file handle, so use Windows `_close` API.
   return _close(fd);
 }
 
@@ -155,15 +157,22 @@ int sb_setsockopt(int socket,
                   int level,
                   int option_name,
                   const void* option_value,
-                  socklen_t option_len) {
+                  int option_len) {
   SOCKET socket_handle = handle_db_get(socket, false);
+
   if (socket_handle == INVALID_SOCKET) {
-    // TODO: update errno with file operation error
     return -1;
   }
-  return setsockopt(socket_handle, level, option_name,
-                    reinterpret_cast<const char*>(option_value),
-                    static_cast<int>(option_len));
-}
 
+  int result =
+      setsockopt(socket_handle, level, option_name,
+                 reinterpret_cast<const char*>(option_value), option_len);
+  // TODO(b/321999529): Windows returns SOCKET_ERROR on failure. The specific
+  // error code can be retrieved by calling WSAGetLastError(), and Posix returns
+  // -1 on failure and sets errno to the error’s value.
+  if (result == SOCKET_ERROR) {
+    return -1;
+  }
+  return 0;
+}
 }  // extern "C"

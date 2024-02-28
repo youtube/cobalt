@@ -12,6 +12,8 @@
 #include "include/core/SkScalar.h"
 #include "include/core/SkTypeface.h"
 
+#include <vector>
+
 class SkMatrix;
 class SkPaint;
 class SkPath;
@@ -164,30 +166,20 @@ public:
     void setBaselineSnap(bool baselineSnap);
 
     /** Whether edge pixels draw opaque or with partial transparency.
-
-        @return  one of: Edging::kAlias, Edging::kAntiAlias, Edging::kSubpixelAntiAlias
     */
     Edging getEdging() const { return (Edging)fEdging; }
 
     /** Requests, but does not require, that edge pixels draw opaque or with
         partial transparency.
-
-        @param edging  one of: Edging::kAlias, Edging::kAntiAlias, Edging::kSubpixelAntiAlias
     */
     void setEdging(Edging edging);
 
     /** Sets level of glyph outline adjustment.
         Does not check for valid values of hintingLevel.
-
-        @param hintingLevel  one of: SkFontHinting::kNone, SkFontHinting::kSlight,
-                                     SkFontHinting::kNormal, SkFontHinting::kFull
     */
     void setHinting(SkFontHinting hintingLevel);
 
     /** Returns level of glyph outline adjustment.
-
-        @return  one of: SkFontHinting::kNone, SkFontHinting::kSlight, SkFontHinting::kNormal,
-                         SkFontHinting::kFull
      */
     SkFontHinting getHinting() const { return (SkFontHinting)fHinting; }
 
@@ -300,8 +292,6 @@ public:
 
         @param text          character storage encoded with SkTextEncoding
         @param byteLength    length of character storage in bytes
-        @param encoding      one of: SkTextEncoding::kUTF8, SkTextEncoding::kUTF16,
-                             SkTextEncoding::kUTF32, SkTextEncoding::kGlyphID
         @param glyphs        storage for glyph indices; may be nullptr
         @param maxGlyphCount storage capacity
         @return              number of glyphs represented by text of length byteLength
@@ -328,8 +318,6 @@ public:
 
         @param text          character storage encoded with SkTextEncoding
         @param byteLength    length of character storage in bytes
-        @param encoding      one of: SkTextEncoding::kUTF8, SkTextEncoding::kUTF16,
-                             SkTextEncoding::kUTF32, SkTextEncoding::kGlyphID
         @return              number of glyphs represented by text of length byteLength
     */
     int countText(const void* text, size_t byteLength, SkTextEncoding encoding) const {
@@ -342,8 +330,6 @@ public:
 
         @param text        character storage encoded with SkTextEncoding
         @param byteLength  length of character storage in bytes
-        @param encoding    one of: SkTextEncoding::kUTF8, SkTextEncoding::kUTF16,
-                           SkTextEncoding::kUTF32, SkTextEncoding::kGlyphID
         @param bounds      returns bounding box relative to (0, 0) if not nullptr
         @return            number of glyphs represented by text of length byteLength
     */
@@ -354,13 +340,11 @@ public:
 
     /** Returns the advance width of text.
         The advance is the normal distance to move before drawing additional text.
-        Returns the bounding box of text if bounds is not nullptr. paint
-        stroke width or SkPathEffect may modify the advance with.
+        Returns the bounding box of text if bounds is not nullptr. The paint
+        stroke settings, mask filter, or path effect may modify the bounds.
 
         @param text        character storage encoded with SkTextEncoding
         @param byteLength  length of character storage in bytes
-        @param encoding    one of: SkTextEncoding::kUTF8, SkTextEncoding::kUTF16,
-                           SkTextEncoding::kUTF32, SkTextEncoding::kGlyphID
         @param bounds      returns bounding box relative to (0, 0) if not nullptr
         @param paint       optional; may be nullptr
         @return            number of glyphs represented by text of length byteLength
@@ -450,9 +434,23 @@ public:
      */
     void getXPos(const SkGlyphID glyphs[], int count, SkScalar xpos[], SkScalar origin = 0) const;
 
-    /** Returns path corresponding to glyph outline.
-        If glyph has an outline, copies outline to path and returns true.
-        path returned may be empty.
+    /** Returns intervals [start, end] describing lines parallel to the advance that intersect
+     *  with the glyphs.
+     *
+     *  @param glyphs   the glyphs to intersect
+     *  @param count    the number of glyphs and positions
+     *  @param pos      the position of each glyph
+     *  @param top      the top of the line intersecting
+     *  @param bottom   the bottom of the line intersecting
+        @return         array of pairs of x values [start, end]. May be empty.
+     */
+    std::vector<SkScalar> getIntercepts(const SkGlyphID glyphs[], int count, const SkPoint pos[],
+                                        SkScalar top, SkScalar bottom,
+                                        const SkPaint* = nullptr) const;
+
+    /** Modifies path to be the outline of the glyph.
+        If the glyph has an outline, modifies path to be the glyph's outline and returns true.
+        The glyph outline may be empty. Degenerate contours in the glyph outline will be skipped.
         If glyph is described by a bitmap, returns false and ignores path parameter.
 
         @param glyphID  index of glyph
@@ -528,10 +526,8 @@ private:
     SkScalar setupForAsPaths(SkPaint*);
     bool hasSomeAntiAliasing() const;
 
-    friend class GrTextBlob;
     friend class SkFontPriv;
     friend class SkGlyphRunListPainter;
-    friend class SkTextBlobCacheDiffCanvas;
     friend class SkStrikeSpec;
 };
 

@@ -9,16 +9,20 @@
 #define SkComposeShader_DEFINED
 
 #include "include/core/SkBlendMode.h"
+#include "src/core/SkBlendModePriv.h"
+#include "src/core/SkBlenderBase.h"
 #include "src/shaders/SkShaderBase.h"
 
 class SkShader_Blend final : public SkShaderBase {
 public:
-    SkShader_Blend(SkBlendMode mode, sk_sp<SkShader> dst, sk_sp<SkShader> src, const SkMatrix* lm)
-        : INHERITED(lm)
-        , fDst(std::move(dst))
+    SkShader_Blend(SkBlendMode mode, sk_sp<SkShader> dst, sk_sp<SkShader> src)
+        : fDst(std::move(dst))
         , fSrc(std::move(src))
+        , fBlender(nullptr)
         , fMode(mode)
     {}
+
+    SkShader_Blend(sk_sp<SkBlender> blender, sk_sp<SkShader> dst, sk_sp<SkShader> src);
 
 #if SK_SUPPORT_GPU
     std::unique_ptr<GrFragmentProcessor> asFragmentProcessor(const GrFPArgs&) const override;
@@ -28,74 +32,19 @@ protected:
     SkShader_Blend(SkReadBuffer&);
     void flatten(SkWriteBuffer&) const override;
     bool onAppendStages(const SkStageRec&) const override;
+    skvm::Color onProgram(skvm::Builder*, skvm::Coord device, skvm::Coord local, skvm::Color paint,
+                          const SkMatrixProvider&, const SkMatrix* localM, const SkColorInfo& dst,
+                          skvm::Uniforms*, SkArenaAlloc*) const override;
 
 private:
     SK_FLATTENABLE_HOOKS(SkShader_Blend)
 
     sk_sp<SkShader>     fDst;
     sk_sp<SkShader>     fSrc;
-    const SkBlendMode   fMode;
+    sk_sp<SkBlender>    fBlender;   // if null, use fMode
+    SkBlendMode         fMode;      // only use if fBlender is null
 
-    typedef SkShaderBase INHERITED;
-};
-
-class SkShader_Lerp final : public SkShaderBase {
-public:
-    SkShader_Lerp(float weight, sk_sp<SkShader> dst, sk_sp<SkShader> src, const SkMatrix* lm)
-        : INHERITED(lm)
-        , fDst(std::move(dst))
-        , fSrc(std::move(src))
-        , fWeight(weight)
-    {
-        SkASSERT(weight >= 0 && weight <= 1);
-    }
-
-#if SK_SUPPORT_GPU
-    std::unique_ptr<GrFragmentProcessor> asFragmentProcessor(const GrFPArgs&) const override;
-#endif
-
-protected:
-    SkShader_Lerp(SkReadBuffer&);
-    void flatten(SkWriteBuffer&) const override;
-    bool onAppendStages(const SkStageRec&) const override;
-
-private:
-    SK_FLATTENABLE_HOOKS(SkShader_Lerp)
-
-    sk_sp<SkShader> fDst;
-    sk_sp<SkShader> fSrc;
-    const float     fWeight;
-
-    typedef SkShaderBase INHERITED;
-};
-
-class SkShader_LerpRed final : public SkShaderBase {
-public:
-    SkShader_LerpRed(sk_sp<SkShader> red, sk_sp<SkShader> dst, sk_sp<SkShader> src,
-                     const SkMatrix* lm)
-        : INHERITED(lm)
-        , fDst(std::move(dst))
-        , fSrc(std::move(src))
-        , fRed(std::move(red))
-    {}
-
-#if SK_SUPPORT_GPU
-    std::unique_ptr<GrFragmentProcessor> asFragmentProcessor(const GrFPArgs&) const override;
-#endif
-
-protected:
-    SkShader_LerpRed(SkReadBuffer&);
-    void flatten(SkWriteBuffer&) const override;
-    bool onAppendStages(const SkStageRec&) const override;
-
-private:
-    SK_FLATTENABLE_HOOKS(SkShader_LerpRed)
-
-    sk_sp<SkShader> fDst;
-    sk_sp<SkShader> fSrc;
-    sk_sp<SkShader> fRed;
-
-    typedef SkShaderBase INHERITED;
+    using INHERITED = SkShaderBase;
 };
 
 #endif

@@ -5,6 +5,7 @@
  * found in the LICENSE file.
  */
 
+#include "include/core/SkBitmap.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkString.h"
 #include "include/effects/SkShaderMaskFilter.h"
@@ -43,7 +44,7 @@ private:
 
     friend class SkShaderMaskFilter;
 
-    typedef SkMaskFilter INHERITED;
+    using INHERITED = SkMaskFilter;
 };
 
 sk_sp<SkFlattenable> SkShaderMF::CreateProc(SkReadBuffer& buffer) {
@@ -98,7 +99,6 @@ bool SkShaderMF::filterMask(SkMask* dst, const SkMask& src, const SkMatrix& ctm,
 
     SkPaint paint;
     paint.setShader(fShader);
-    paint.setFilterQuality(SkFilterQuality::kLow_SkFilterQuality);
     // this blendmode is the trick: we only draw the shader where the mask is
     paint.setBlendMode(SkBlendMode::kSrcIn);
 

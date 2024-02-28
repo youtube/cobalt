@@ -17,6 +17,7 @@ Amazon, Inc <*@amazon.com>
 Anthony Catel <paraboul@gmail.com>
 ARM <*@arm.com>
 Bharat Ahuja <ahujabharat93@gmail.com>
+Casey Banner <kcbanner@gmail.com>
 Dawson Coleman <dawsonmcoleman@gmail.com>
 Deepak Mohan <hop2deep@gmail.com>
 Ehsan Akhgari <ehsan.akhgari@gmail.com>
@@ -29,6 +30,7 @@ Igalia <*@igalia.com>
 Intel <*@intel.com>
 Ion Rosca <rosca@adobe.com>
 Jacek Caban <cjacek@gmail.com>
+James Clarke <james@clarkezone.io>
 Jeff Muizelaar <jmuizelaar@mozilla.com>
 Jongdeok Kim <jongdeok.kim@navercorp.com>
 Lee Salzman <lsalzman@mozilla.com>
@@ -36,10 +38,15 @@ Marcin Kazmierczak <mar.kazmierczak@gmail.com>
 Matthew Leibowitz <mattleibow@live.com>
 Microsoft <*@microsoft.com>
 MIPS <*@imgtec.com>
+Nils André-Chang <nils@nilsand.re>
+Ning Liu <ningliu@invisionapp.com>
+Noah Lavine <noah.b.lavine@gmail.com>
 NVIDIA <*@nvidia.com>
 Opera Software ASA <*@opera.com>
 Pavel Krajcevski <pavel@cs.unc.edu>
+Petar Kirov <petar.p.kirov@gmail.com>
 Raul Tambre <raul@tambre.ee>
+Safa Sofuoglu <safasofuoglu@gmail.com>
 Samsung <*@samsung.com>
 Samsung Open Source Group <*@osg.samsung.com>
 Sergey Melnikov <Melnikov.Sergey.V@gmail.com>
@@ -47,6 +54,7 @@ Shachar Langbeheim <nihohit@gmail.com>
 Skia <*@skia.org>
 Skia Buildbots <skia.buildbots@gmail.com>
 Sony Mobile Communications Inc. <*@sonymobile.com>
+Stephan Hartmann <stha09@googlemail.com>
 Steve Singer <steve@ssinger.info>
 Sylvestre Ledru <sylvestre.ledru@gmail.com>
 The Chromium Authors <*@chromium.org>
@@ -62,3 +70,12 @@ Yong-Hwan Baek <meisterdevhwan@gmail.com>
 Alexander Khovansky <alx.khovansky@gmail.com>
 Zhuo Qingliang <zhuo.dev@gmail.com>
 Mainframe North <*@mainframe.co.uk>
+JetBrains <*@jetbrains.com>
+Vibe Inc <*@vibe.us>
+Scene Group Ltd. <*@scenegroup.co>
+LG Electronics <*@lge.com>
+
+# Trusted service accounts.
+Recipe roller SA <recipe-mega-autoroller@chops-service-accounts.iam.gserviceaccount.com>
+Recreate SKPs Bot SA <skia-recreate-skps@skia-swarming-bots.iam.gserviceaccount.com>
+Skia Autorollers SA <skia-autoroll@skia-public.iam.gserviceaccount.com>

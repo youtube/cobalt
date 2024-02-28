@@ -120,15 +120,13 @@ int SkGraphics::GetFontCacheCountUsed() {
     return SkStrikeCache::GlobalStrikeCache()->getCacheCountUsed();
 }
 
-int SkGraphics::GetFontCachePointSizeLimit() {
-    return SkStrikeCache::GlobalStrikeCache()->getCachePointSizeLimit();
-}
-
-int SkGraphics::SetFontCachePointSizeLimit(int limit) {
-    return SkStrikeCache::GlobalStrikeCache()->setCachePointSizeLimit(limit);
-}
-
 void SkGraphics::PurgeFontCache() {
     SkStrikeCache::GlobalStrikeCache()->purgeAll();
     SkTypefaceCache::PurgeAll();
+}
+
+extern bool gSkVMAllowJIT;
+
+void SkGraphics::AllowJIT() {
+    gSkVMAllowJIT = true;
 }

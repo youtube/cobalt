@@ -17,9 +17,7 @@
 
 #include "starboard/configuration.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 void* mmap(void* addr, size_t len, int prot, int flags, int fd, off_t off) {
   if (addr != NULL) {
@@ -104,6 +102,4 @@ int mprotect(void* addr, size_t len, int prot) {
   return -1;
 }
 
-#ifdef __cplusplus
-}
-#endif
+}  // extern "C"

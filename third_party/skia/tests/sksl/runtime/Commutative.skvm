@@ -1,0 +1,101 @@
+$0 = colorGreen (float4 : slot 1/4, L4)
+$1 = colorGreen (float4 : slot 2/4, L4)
+$2 = colorGreen (float4 : slot 3/4, L4)
+$3 = colorGreen (float4 : slot 4/4, L4)
+$4 = colorRed (float4 : slot 1/4, L4)
+$5 = colorRed (float4 : slot 2/4, L4)
+$6 = colorRed (float4 : slot 3/4, L4)
+$7 = colorRed (float4 : slot 4/4, L4)
+$8 = a (int, L5)
+$9 = b (int, L5)
+$10 = c (float, L6)
+$11 = d (float, L6)
+$12 = [main].result (float4 : slot 1/4, L8)
+$13 = [main].result (float4 : slot 2/4, L8)
+$14 = [main].result (float4 : slot 3/4, L8)
+$15 = [main].result (float4 : slot 4/4, L8)
+$16 = xy (float2 : slot 1/2, L8)
+$17 = xy (float2 : slot 2/2, L8)
+$18 = ok (bool, L9)
+$19 = a_and_b (int, L11)
+$20 = b_and_a (int, L12)
+$21 = a_or_b (int, L15)
+$22 = b_or_a (int, L16)
+$23 = a_xor_b (int, L19)
+$24 = b_xor_a (int, L20)
+$25 = a_eq_b (bool, L23)
+$26 = b_eq_a (bool, L24)
+$27 = a_neq_b (bool, L27)
+$28 = b_neq_a (bool, L28)
+$29 = a_add_b (int, L31)
+$30 = b_add_a (int, L32)
+$31 = c_add_d (float, L35)
+$32 = d_add_c (float, L36)
+$33 = a_mul_b (int, L39)
+$34 = b_mul_a (int, L40)
+$35 = c_mul_d (float, L43)
+$36 = d_mul_c (float, L44)
+F0 = half4 main(float2 xy)
+
+13 registers, 60 instructions:
+0	r0 = uniform32 ptr0 0
+1	r1 = uniform32 ptr0 4
+2	r2 = uniform32 ptr0 8
+3	r3 = uniform32 ptr0 C
+4	r4 = uniform32 ptr0 10
+5	r5 = uniform32 ptr0 14
+6	r6 = uniform32 ptr0 18
+7	r7 = uniform32 ptr0 1C
+8	r8 = uniform32 ptr0 20
+9	r9 = uniform32 ptr0 2C
+10	r10 = uniform32 ptr0 30
+11	r11 = splat 3F000000 (0.5)
+12	r0 = eq_f32 r0 r11
+13	r12 = add_f32 r9 r10
+14	r12 = eq_f32 r12 r12
+15	r10 = mul_f32 r9 r10
+16	r10 = eq_f32 r10 r10
+17	r10 = bit_and r12 r10
+18	r5 = select r10 r1 r5
+19	r6 = select r10 r2 r6
+20	r7 = select r10 r3 r7
+21	r8 = select r10 r4 r8
+loop:
+22	    r4 = index
+23	    r4 = eq_f32 r4 r11
+24	    r4 = bit_and r4 r0
+25	    trace_enter 0 r4 r4 F0
+26	    trace_line 0 r4 r4 L9
+27	    trace_line 0 r4 r4 L11
+28	    trace_line 0 r4 r4 L12
+29	    trace_line 0 r4 r4 L13
+30	    trace_line 0 r4 r4 L15
+31	    trace_line 0 r4 r4 L16
+32	    trace_line 0 r4 r4 L17
+33	    trace_line 0 r4 r4 L19
+34	    trace_line 0 r4 r4 L20
+35	    trace_line 0 r4 r4 L21
+36	    trace_line 0 r4 r4 L23
+37	    trace_line 0 r4 r4 L24
+38	    trace_line 0 r4 r4 L25
+39	    trace_line 0 r4 r4 L27
+40	    trace_line 0 r4 r4 L28
+41	    trace_line 0 r4 r4 L29
+42	    trace_line 0 r4 r4 L31
+43	    trace_line 0 r4 r4 L32
+44	    trace_line 0 r4 r4 L33
+45	    trace_line 0 r4 r4 L35
+46	    trace_line 0 r4 r4 L36
+47	    trace_line 0 r4 r4 L37
+48	    trace_line 0 r4 r4 L39
+49	    trace_line 0 r4 r4 L40
+50	    trace_line 0 r4 r4 L41
+51	    trace_line 0 r4 r4 L43
+52	    trace_line 0 r4 r4 L44
+53	    trace_line 0 r4 r4 L45
+54	    trace_line 0 r4 r4 L47
+55	    trace_exit 0 r4 r4 F0
+56	    store32 ptr1 r5
+57	    store32 ptr2 r6
+58	    store32 ptr3 r7
+59	    store32 ptr4 r8

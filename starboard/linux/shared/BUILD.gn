@@ -88,8 +88,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/alsa/alsa_audio_sink_type.h",
     "//starboard/shared/alsa/alsa_util.cc",
     "//starboard/shared/alsa/alsa_util.h",
-    "//starboard/shared/deviceauth/deviceauth_internal.cc",
-    "//starboard/shared/deviceauth/deviceauth_internal.h",
     "//starboard/shared/egl/system_egl.cc",
     "//starboard/shared/gcc/atomic_gcc_public.h",
     "//starboard/shared/gles/system_gles2.cc",
@@ -378,12 +376,13 @@ static_library("starboard_platform_sources") {
     "//starboard:starboard_headers_only",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]
-  deps = [ "//third_party/boringssl" ]
-
+  deps = []
   if (is_internal_build) {
     sources += [
       "//internal/starboard/linux/shared/internal/oemcrypto_engine_device_properties_linux.cc",
       "//starboard/linux/shared/drm_create_system.cc",
+      "//starboard/shared/deviceauth/deviceauth_internal.cc",
+      "//starboard/shared/deviceauth/deviceauth_internal.h",
       "//starboard/shared/starboard/drm/drm_close_session.cc",
       "//starboard/shared/starboard/drm/drm_destroy_system.cc",
       "//starboard/shared/starboard/drm/drm_generate_session_update_request.cc",
@@ -402,6 +401,7 @@ static_library("starboard_platform_sources") {
     ]
     deps += [
       "//starboard/shared/widevine:oemcrypto",
+      "//third_party/boringssl",
       "//third_party/internal/ce_cdm/cdm:widevine_ce_cdm_static",
     ]
   } else {

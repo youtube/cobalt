@@ -8,22 +8,25 @@
 #include "include/core/SkData.h"
 #include "include/core/SkStream.h"
 #include "src/core/SkFontDescriptor.h"
-#include "src/core/SkMakeUnique.h"
 
 enum {
     kInvalid        = 0x00,
 
-    // these must match the sfnt 'name' enums
-    kFontFamilyName = 0x01,
-    kFullName       = 0x04,
-    kPostscriptName = 0x06,
+    // Related to a font request.
+    kFontFamilyName = 0x01, // int length, data[length]
+    kFullName       = 0x04, // int length, data[length]
+    kPostscriptName = 0x06, // int length, data[length]
+    kWeight         = 0x10, // scalar (1 - 1000)
+    kWidth          = 0x11, // scalar (percentage, 100 is 'normal')
+    kSlant          = 0x12, // scalar (cw angle, 14 is a normal right leaning oblique)
+    kItalic         = 0x13, // scalar (0 is Roman, 1 is fully Italic)
 
-    // These count backwards from 0xFF, so as not to collide with the SFNT
-    // defines for names in its 'name' table.
-    kFontAxes       = 0xFB,
-    kFontAxes_bad   = 0xFC, // Broken negative axes, remove when MIN_PICTURE_VERSION > 62.
-    kFontIndex      = 0xFD,
-    kSentinel       = 0xFF,
+    // Related to font data. Can also be used with a requested font.
+    kFontVariation  = 0xFA, // int count, (u32, scalar)[count]
+
+    // Related to font data.
+    kFontIndex      = 0xFD, // int
+    kSentinel       = 0xFF, // no data
 };
 
 SkFontDescriptor::SkFontDescriptor() { }
@@ -50,22 +53,45 @@ static bool write_uint(SkWStream* stream, size_t n, uint32_t id) {
            stream->writePackedUInt(n);
 }
 
+static bool write_scalar(SkWStream* stream, SkScalar n, uint32_t id) {
+    return stream->writePackedUInt(id) &&
+           stream->writeScalar(n);
+}
+
 static size_t SK_WARN_UNUSED_RESULT read_id(SkStream* stream) {
     size_t i;
     if (!stream->readPackedUInt(&i)) { return kInvalid; }
     return i;
 }
 
+static constexpr SkScalar usWidths[9] {
+    1, 2, 3, 4, 5, 6, 7, 8, 9
+};
+static constexpr SkScalar width_for_usWidth[0x10] = {
+    50,
+    50, 62.5, 75, 87.5, 100, 112.5, 125, 150, 200,
+    200, 200, 200, 200, 200, 200
+};
+
 bool SkFontDescriptor::Deserialize(SkStream* stream, SkFontDescriptor* result) {
+    size_t coordinateCount;
+    using CoordinateCountType = decltype(result->fCoordinateCount);
+
+    size_t index;
+    using CollectionIndexType = decltype(result->fCollectionIndex);
+
+    SkScalar weight = SkFontStyle::kNormal_Weight;
+    SkScalar width = SkFontStyle::kNormal_Width;
+    SkScalar slant = 0;
+    SkScalar italic = 0;
+
     size_t styleBits;
     if (!stream->readPackedUInt(&styleBits)) { return false; }
-    result->fStyle = SkFontStyle((styleBits >> 16) & 0xFFFF,
-                                 (styleBits >> 8 ) & 0xFF,
-                                 static_cast<SkFontStyle::Slant>(styleBits & 0xFF));
+    weight = ((styleBits >> 16) & 0xFFFF);
+    width  = ((styleBits >>  8) & 0x000F)[width_for_usWidth];
+    slant  = ((styleBits >>  0) & 0x000F) != SkFontStyle::kUpright_Slant ? 14 : 0;
+    italic = ((styleBits >>  0) & 0x000F) == SkFontStyle::kItalic_Slant ? 1 : 0;
 
-    SkAutoSTMalloc<4, SkFixed> axis;
-    size_t axisCount = 0;
-    size_t index = 0;
     for (size_t id; (id = read_id(stream)) != kSentinel;) {
         switch (id) {
             case kFontFamilyName:
@@ -77,30 +103,45 @@ bool SkFontDescriptor::Deserialize(SkStream* stream, SkFontDescriptor* result) {
             case kPostscriptName:
                 if (!read_string(stream, &result->fPostscriptName)) { return false; }
                 break;
-            case kFontAxes:
-                if (!stream->readPackedUInt(&axisCount)) { return false; }
-                axis.reset(axisCount);
-                for (size_t i = 0; i < axisCount; ++i) {
-                    if (!stream->readS32(&axis[i])) { return false; }
-                }
+            case kWeight:
+                if (!stream->readScalar(&weight)) { return false; }
                 break;
-            case kFontAxes_bad:
-                if (!stream->readPackedUInt(&axisCount)) { return false; }
-                axis.reset(axisCount);
-                for (size_t i = 0; i < axisCount; ++i) {
-                    size_t packedAxis;
-                    if (!stream->readPackedUInt(&packedAxis)) { return false; }
-                    axis[i] = packedAxis;
+            case kWidth:
+                if (!stream->readScalar(&width)) { return false; }
+                break;
+            case kSlant:
+                if (!stream->readScalar(&slant)) { return false; }
+                break;
+            case kItalic:
+                if (!stream->readScalar(&italic)) { return false; }
+                break;
+            case kFontVariation:
+                if (!stream->readPackedUInt(&coordinateCount)) { return false; }
+                if (!SkTFitsIn<CoordinateCountType>(coordinateCount)) { return false; }
+                result->fCoordinateCount = SkTo<CoordinateCountType>(coordinateCount);
+
+                result->fVariation.reset(coordinateCount);
+                for (size_t i = 0; i < coordinateCount; ++i) {
+                    if (!stream->readU32(&result->fVariation[i].axis)) { return false; }
+                    if (!stream->readScalar(&result->fVariation[i].value)) { return false; }
                 }
                 break;
             case kFontIndex:
                 if (!stream->readPackedUInt(&index)) { return false; }
+                if (!SkTFitsIn<CollectionIndexType>(index)) { return false; }
+                result->fCollectionIndex = SkTo<CollectionIndexType>(index);
                 break;
             default:
                 SkDEBUGFAIL("Unknown id used by a font descriptor");
                 return false;
         }
     }
+
+    SkFontStyle::Slant slantEnum = SkFontStyle::kUpright_Slant;
+    if (slant != 0) { slantEnum = SkFontStyle::kOblique_Slant; }
+    if (0 < italic) { slantEnum = SkFontStyle::kItalic_Slant; }
+    int usWidth = SkScalarRoundToInt(SkScalarInterpFunc(width, &width_for_usWidth[1], usWidths, 9));
+    result->fStyle = SkFontStyle(SkScalarRoundToInt(weight), usWidth, slantEnum);
 
     size_t length;
     if (!stream->readPackedUInt(&length)) { return false; }
@@ -110,8 +151,7 @@ bool SkFontDescriptor::Deserialize(SkStream* stream, SkFontDescriptor* result) {
             SkDEBUGFAIL("Could not read font data");
             return false;
         }
-        result->fFontData = skstd::make_unique<SkFontData>(
-            SkMemoryStream::Make(std::move(data)), index, axis, axisCount);
+        result->fStream = SkMemoryStream::Make(std::move(data));
     }
     return true;
 }
@@ -123,22 +163,27 @@ void SkFontDescriptor::serialize(SkWStream* stream) const {
     write_string(stream, fFamilyName, kFontFamilyName);
     write_string(stream, fFullName, kFullName);
     write_string(stream, fPostscriptName, kPostscriptName);
-    if (fFontData.get()) {
-        if (fFontData->getIndex()) {
-            write_uint(stream, fFontData->getIndex(), kFontIndex);
-        }
-        if (fFontData->getAxisCount()) {
-            write_uint(stream, fFontData->getAxisCount(), kFontAxes);
-            for (int i = 0; i < fFontData->getAxisCount(); ++i) {
-                stream->write32(fFontData->getAxis()[i]);
-            }
+
+    write_scalar(stream, fStyle.weight(), kWeight);
+    write_scalar(stream, fStyle.width()[width_for_usWidth], kWidth);
+    write_scalar(stream, fStyle.slant() == SkFontStyle::kUpright_Slant ? 0 : 14, kSlant);
+    write_scalar(stream, fStyle.slant() == SkFontStyle::kItalic_Slant ? 1 : 0, kItalic);
+
+    if (fCollectionIndex) {
+        write_uint(stream, fCollectionIndex, kFontIndex);
+    }
+    if (fCoordinateCount) {
+        write_uint(stream, fCoordinateCount, kFontVariation);
+        for (int i = 0; i < fCoordinateCount; ++i) {
+            stream->write32(fVariation[i].axis);
+            stream->writeScalar(fVariation[i].value);
         }
     }
 
     stream->writePackedUInt(kSentinel);
 
-    if (fFontData.get() && fFontData->hasStream()) {
-        std::unique_ptr<SkStreamAsset> fontStream = fFontData->detachStream();
+    if (fStream) {
+        std::unique_ptr<SkStreamAsset> fontStream = fStream->duplicate();
         size_t length = fontStream->getLength();
         stream->writePackedUInt(length);
         stream->writeStream(fontStream.get(), length);

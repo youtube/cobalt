@@ -983,11 +983,6 @@ void HTMLMediaElement::MediaLoadingFailed(WebMediaPlayer::NetworkState error,
     MediaEngineError(new MediaError(
         MediaError::kMediaErrDecode,
         message.empty() ? "Media loading failed with decode error." : message));
-  } else if (error == WebMediaPlayer::kNetworkStateCapabilityChangedError) {
-    MediaEngineError(new MediaError(
-        MediaError::kMediaErrCapabilityChanged,
-        message.empty() ? "Media loading failed with capability changed error."
-                        : message));
   } else if ((error == WebMediaPlayer::kNetworkStateFormatError ||
               error == WebMediaPlayer::kNetworkStateNetworkError) &&
              load_state_ == kLoadingFromSrcAttr) {
@@ -1231,7 +1226,6 @@ void HTMLMediaElement::SetNetworkState(WebMediaPlayer::NetworkState state) {
     case WebMediaPlayer::kNetworkStateFormatError:
     case WebMediaPlayer::kNetworkStateNetworkError:
     case WebMediaPlayer::kNetworkStateDecodeError:
-    case WebMediaPlayer::kNetworkStateCapabilityChangedError:
       NOTREACHED() << "Passed SetNetworkState an error state";
       break;
   }
@@ -1245,7 +1239,6 @@ void HTMLMediaElement::SetNetworkError(WebMediaPlayer::NetworkState state,
     case WebMediaPlayer::kNetworkStateFormatError:
     case WebMediaPlayer::kNetworkStateNetworkError:
     case WebMediaPlayer::kNetworkStateDecodeError:
-    case WebMediaPlayer::kNetworkStateCapabilityChangedError:
       MediaLoadingFailed(state, message);
       break;
     case WebMediaPlayer::kNetworkStateEmpty:

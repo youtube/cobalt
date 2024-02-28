@@ -42,7 +42,7 @@ int sb_setsockopt(int socket,
                   int level,
                   int option_name,
                   const void* option_value,
-                  socklen_t option_len);
+                  int option_len);
 #define setsockopt sb_setsockopt
 
 #ifdef __cplusplus

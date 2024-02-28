@@ -58,6 +58,7 @@
 
 #include "internal.h"
 #include "../../internal.h"
+#include "../service_indicator/internal.h"
 
 
 // tls1_P_hash computes the TLS P_<hash> function as described in RFC 5246,
@@ -90,7 +91,7 @@ static int tls1_P_hash(uint8_t *out, size_t out_len,
   }
 
   for (;;) {
-    unsigned len;
+    unsigned len_u;
     uint8_t hmac[EVP_MAX_MD_SIZE];
     if (!HMAC_CTX_copy_ex(&ctx, &ctx_init) ||
         !HMAC_Update(&ctx, A1, A1_len) ||
@@ -99,16 +100,17 @@ static int tls1_P_hash(uint8_t *out, size_t out_len,
         !HMAC_Update(&ctx, (const uint8_t *) label, label_len) ||
         !HMAC_Update(&ctx, seed1, seed1_len) ||
         !HMAC_Update(&ctx, seed2, seed2_len) ||
-        !HMAC_Final(&ctx, hmac, &len)) {
+        !HMAC_Final(&ctx, hmac, &len_u)) {
       goto err;
     }
+    size_t len = len_u;
     assert(len == chunk);
 
     // XOR the result into |out|.
     if (len > out_len) {
       len = out_len;
     }
-    for (unsigned i = 0; i < len; i++) {
+    for (size_t i = 0; i < len; i++) {
       out[i] ^= hmac[i];
     }
     out += len;
@@ -146,12 +148,16 @@ int CRYPTO_tls1_prf(const EVP_MD *digest,
 
   OPENSSL_memset(out, 0, out_len);
 
+  const EVP_MD *const original_digest = digest;
+  FIPS_service_indicator_lock_state();
+  int ret = 0;
+
   if (digest == EVP_md5_sha1()) {
     // If using the MD5/SHA1 PRF, |secret| is partitioned between MD5 and SHA-1.
     size_t secret_half = secret_len - (secret_len / 2);
     if (!tls1_P_hash(out, out_len, EVP_md5(), secret, secret_half, label,
                      label_len, seed1, seed1_len, seed2, seed2_len)) {
-      return 0;
+      goto end;
     }
 
     // Note that, if |secret_len| is odd, the two halves share a byte.
@@ -160,6 +166,13 @@ int CRYPTO_tls1_prf(const EVP_MD *digest,
     digest = EVP_sha1();
   }
 
-  return tls1_P_hash(out, out_len, digest, secret, secret_len, label, label_len,
-                     seed1, seed1_len, seed2, seed2_len);
+  ret = tls1_P_hash(out, out_len, digest, secret, secret_len, label, label_len,
+                    seed1, seed1_len, seed2, seed2_len);
+
+end:
+  FIPS_service_indicator_unlock_state();
+  if (ret) {
+    TLSKDF_verify_service_indicator(original_digest);
+  }
+  return ret;
 }

@@ -63,11 +63,15 @@ using U8  = V<uint8_t>;
     #pragma clang diagnostic ignored "-Wvector-conversion"
 #endif
 
-// GCC warns us about returning U64 on x86 because it's larger than a register.
+// GCC & Clang (but not clang-cl) warn returning U64 on x86 is larger than a register.
 // You'd see warnings like, "using AVX even though AVX is not enabled".
-// We stifle these warnings... our helpers that return U64 are always inlined.
-#if defined(__SSE__) && defined(__GNUC__) && !defined(__clang__)
-    #pragma GCC diagnostic ignored "-Wpsabi"
+// We stifle these warnings; our helpers that return U64 are always inlined.
+#if defined(__SSE__) && defined(__GNUC__)
+    #if !defined(__has_warning)
+        #pragma GCC diagnostic ignored "-Wpsabi"
+    #elif __has_warning("-Wpsabi")
+        #pragma GCC diagnostic ignored "-Wpsabi"
+    #endif
 #endif
 
 #if defined(__clang__)
@@ -287,9 +291,11 @@ SI F approx_exp2(F x) {
 #else
     F fract = x - floor_(x);
 
-    I32 bits = cast<I32>((1.0f * (1<<23)) * (x + 121.274057500f
-                                               -   1.490129070f*fract
-                                               +  27.728023300f/(4.84252568f - fract)));
+    F fbits = (1.0f * (1<<23)) * (x + 121.274057500f
+                                    -   1.490129070f*fract
+                                    +  27.728023300f/(4.84252568f - fract));
+    I32 bits = cast<I32>(max_(fbits, F0));
+
     return bit_pun<F>(bits);
 #endif
 }
@@ -350,7 +356,8 @@ SI F apply_hlg(const skcms_TransferFunction* tf, F x) {
     return x;
 #else
     const float R = tf->a, G = tf->b,
-                a = tf->c, b = tf->d, c = tf->e;
+                a = tf->c, b = tf->d, c = tf->e,
+                K = tf->f + 1;
     U32 bits = bit_pun<U32>(x),
         sign = bits & 0x80000000;
     x = bit_pun<F>(bits ^ sign);
@@ -358,7 +365,7 @@ SI F apply_hlg(const skcms_TransferFunction* tf, F x) {
     F v = if_then_else(x*R <= 1, approx_pow(x*R, G)
                                , approx_exp((x-c)*a) + b);
 
-    return bit_pun<F>(sign | bit_pun<U32>(v));
+    return K*bit_pun<F>(sign | bit_pun<U32>(v));
 #endif
 }
 
@@ -369,10 +376,12 @@ SI F apply_hlginv(const skcms_TransferFunction* tf, F x) {
     return x;
 #else
     const float R = tf->a, G = tf->b,
-                a = tf->c, b = tf->d, c = tf->e;
+                a = tf->c, b = tf->d, c = tf->e,
+                K = tf->f + 1;
     U32 bits = bit_pun<U32>(x),
         sign = bits & 0x80000000;
     x = bit_pun<F>(bits ^ sign);
+    x /= K;
 
     F v = if_then_else(x <= 1, R * approx_pow(x, G)
                              , a * approx_log(x - b) + c);
@@ -656,24 +665,34 @@ SI F table(const skcms_Curve* curve, F v) {
     return l + (h-l)*t;
 }
 
-SI void sample_clut_8(const skcms_A2B* a2b, I32 ix, F* r, F* g, F* b) {
-    U32 rgb = gather_24(a2b->grid_8, ix);
+SI void sample_clut_8(const uint8_t* grid_8, I32 ix, F* r, F* g, F* b) {
+    U32 rgb = gather_24(grid_8, ix);
 
     *r = cast<F>((rgb >>  0) & 0xff) * (1/255.0f);
     *g = cast<F>((rgb >>  8) & 0xff) * (1/255.0f);
     *b = cast<F>((rgb >> 16) & 0xff) * (1/255.0f);
 }
 
-SI void sample_clut_16(const skcms_A2B* a2b, I32 ix, F* r, F* g, F* b) {
+SI void sample_clut_8(const uint8_t* grid_8, I32 ix, F* r, F* g, F* b, F* a) {
+    // TODO: don't forget to optimize gather_32().
+    U32 rgba = gather_32(grid_8, ix);
+
+    *r = cast<F>((rgba >>  0) & 0xff) * (1/255.0f);
+    *g = cast<F>((rgba >>  8) & 0xff) * (1/255.0f);
+    *b = cast<F>((rgba >> 16) & 0xff) * (1/255.0f);
+    *a = cast<F>((rgba >> 24) & 0xff) * (1/255.0f);
+}
+
+SI void sample_clut_16(const uint8_t* grid_16, I32 ix, F* r, F* g, F* b) {
 #if defined(__arm__)
     // This is up to 2x faster on 32-bit ARM than the #else-case fast path.
-    *r = F_from_U16_BE(gather_16(a2b->grid_16, 3*ix+0));
-    *g = F_from_U16_BE(gather_16(a2b->grid_16, 3*ix+1));
-    *b = F_from_U16_BE(gather_16(a2b->grid_16, 3*ix+2));
+    *r = F_from_U16_BE(gather_16(grid_16, 3*ix+0));
+    *g = F_from_U16_BE(gather_16(grid_16, 3*ix+1));
+    *b = F_from_U16_BE(gather_16(grid_16, 3*ix+2));
 #else
     // This strategy is much faster for 64-bit builds, and fine for 32-bit x86 too.
     U64 rgb;
-    gather_48(a2b->grid_16, ix, &rgb);
+    gather_48(grid_16, ix, &rgb);
     rgb = swap_endian_16x4(rgb);
 
     *r = cast<F>((rgb >>  0) & 0xffff) * (1/65535.0f);
@@ -682,29 +701,32 @@ SI void sample_clut_16(const skcms_A2B* a2b, I32 ix, F* r, F* g, F* b) {
 #endif
 }
 
-// GCC 7.2.0 hits an internal compiler error with -finline-functions (or -O3)
-// when targeting MIPS 64, i386, or s390x,  I think attempting to inline clut() into exec_ops().
-#if 1 && defined(__GNUC__) && !defined(__clang__) \
-      && (defined(__mips64) || defined(__i386) || defined(__s390x__))
-    #define MAYBE_NOINLINE __attribute__((noinline))
-#else
-    #define MAYBE_NOINLINE
-#endif
+SI void sample_clut_16(const uint8_t* grid_16, I32 ix, F* r, F* g, F* b, F* a) {
+    // TODO: gather_64()-based fast path?
+    *r = F_from_U16_BE(gather_16(grid_16, 4*ix+0));
+    *g = F_from_U16_BE(gather_16(grid_16, 4*ix+1));
+    *b = F_from_U16_BE(gather_16(grid_16, 4*ix+2));
+    *a = F_from_U16_BE(gather_16(grid_16, 4*ix+3));
+}
 
-MAYBE_NOINLINE
-static void clut(const skcms_A2B* a2b, F* r, F* g, F* b, F a) {
-    const int dim = (int)a2b->input_channels;
+static void clut(uint32_t input_channels, uint32_t output_channels,
+                 const uint8_t grid_points[4], const uint8_t* grid_8, const uint8_t* grid_16,
+                 F* r, F* g, F* b, F* a) {
+
+    const int dim = (int)input_channels;
     assert (0 < dim && dim <= 4);
+    assert (output_channels == 3 ||
+            output_channels == 4);
 
     // For each of these arrays, think foo[2*dim], but we use foo[8] since we know dim <= 4.
     I32 index [8];  // Index contribution by dimension, first low from 0, then high from 4.
     F   weight[8];  // Weight for each contribution, again first low, then high.
 
     // O(dim) work first: calculate index,weight from r,g,b,a.
-    const F inputs[] = { *r,*g,*b,a };
+    const F inputs[] = { *r,*g,*b,*a };
     for (int i = dim-1, stride = 1; i >= 0; i--) {
         // x is where we logically want to sample the grid in the i-th dimension.
-        F x = inputs[i] * (float)(a2b->grid_points[i] - 1);
+        F x = inputs[i] * (float)(grid_points[i] - 1);
 
         // But we can't index at floats.  lo and hi are the two integer grid points surrounding x.
         I32 lo = cast<I32>(            x      ),   // i.e. trunc(x) == floor(x) here.
@@ -712,7 +734,7 @@ static void clut(const skcms_A2B* a2b, F* r, F* g, F* b, F a) {
         // Notice how we fold in the accumulated stride across previous dimensions here.
         index[i+0] = lo * stride;
         index[i+4] = hi * stride;
-        stride *= a2b->grid_points[i];
+        stride *= grid_points[i];
 
         // We'll interpolate between those two integer grid points by t.
         F t = x - cast<F>(lo);  // i.e. fract(x)
@@ -721,6 +743,9 @@ static void clut(const skcms_A2B* a2b, F* r, F* g, F* b, F a) {
     }
 
     *r = *g = *b = F0;
+    if (output_channels == 4) {
+        *a = F0;
+    }
 
     // We'll sample 2^dim == 1<<dim table entries per pixel,
     // in all combinations of low and high in each dimension.
@@ -750,17 +775,30 @@ static void clut(const skcms_A2B* a2b, F* r, F* g, F* b, F a) {
                     w  *= weight[1 + (combo&2)*2];
         }
 
-        F R,G,B;
-        if (a2b->grid_8) {
-            sample_clut_8 (a2b,ix, &R,&G,&B);
+        F R,G,B,A=F0;
+        if (output_channels == 3) {
+            if (grid_8) { sample_clut_8 (grid_8 ,ix, &R,&G,&B); }
+            else        { sample_clut_16(grid_16,ix, &R,&G,&B); }
         } else {
-            sample_clut_16(a2b,ix, &R,&G,&B);
+            if (grid_8) { sample_clut_8 (grid_8 ,ix, &R,&G,&B,&A); }
+            else        { sample_clut_16(grid_16,ix, &R,&G,&B,&A); }
         }
-
         *r += w*R;
         *g += w*G;
         *b += w*B;
+        *a += w*A;
     }
+}
+
+static void clut(const skcms_A2B* a2b, F* r, F* g, F* b, F a) {
+    clut(a2b->input_channels, a2b->output_channels,
+         a2b->grid_points, a2b->grid_8, a2b->grid_16,
+         r,g,b,&a);
+}
+static void clut(const skcms_B2A* b2a, F* r, F* g, F* b, F* a) {
+    clut(b2a->input_channels, b2a->output_channels,
+         b2a->grid_points, b2a->grid_8, b2a->grid_16,
+         r,g,b,a);
 }
 
 static void exec_ops(const Op* ops, const void** args,
@@ -1145,6 +1183,25 @@ static void exec_ops(const Op* ops, const void** args,
                 b = Z * 0.8249f;
             } break;
 
+            // As above, in reverse.
+            case Op_xyz_to_lab:{
+                F X = r * (1/0.9642f),
+                  Y = g,
+                  Z = b * (1/0.8249f);
+
+                X = if_then_else(X > 0.008856f, approx_pow(X, 1/3.0f), X*7.787f + (16/116.0f));
+                Y = if_then_else(Y > 0.008856f, approx_pow(Y, 1/3.0f), Y*7.787f + (16/116.0f));
+                Z = if_then_else(Z > 0.008856f, approx_pow(Z, 1/3.0f), Z*7.787f + (16/116.0f));
+
+                F L = Y*116.0f - 16.0f,
+                  A = (X-Y)*500.0f,
+                  B = (Y-Z)*200.0f;
+
+                r = L * (1/100.f);
+                g = (A + 128.0f) * (1/255.0f);
+                b = (B + 128.0f) * (1/255.0f);
+            } break;
+
             case Op_tf_r:{ r = apply_tf((const skcms_TransferFunction*)*args++, r); } break;
             case Op_tf_g:{ g = apply_tf((const skcms_TransferFunction*)*args++, g); } break;
             case Op_tf_b:{ b = apply_tf((const skcms_TransferFunction*)*args++, b); } break;
@@ -1170,7 +1227,7 @@ static void exec_ops(const Op* ops, const void** args,
             case Op_table_b: { b = table((const skcms_Curve*)*args++, b); } break;
             case Op_table_a: { a = table((const skcms_Curve*)*args++, a); } break;
 
-            case Op_clut: {
+            case Op_clut_A2B: {
                 const skcms_A2B* a2b = (const skcms_A2B*) *args++;
                 clut(a2b, &r,&g,&b,a);
 
@@ -1178,6 +1235,11 @@ static void exec_ops(const Op* ops, const void** args,
                     // CMYK is opaque.
                     a = F1;
                 }
+            } break;
+
+            case Op_clut_B2A: {
+                const skcms_B2A* b2a = (const skcms_B2A*) *args++;
+                clut(b2a, &r,&g,&b,&a);
             } break;
 
     // Notice, from here on down the store_ ops all return, ending the loop.

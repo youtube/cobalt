@@ -1,7 +1,13 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.8)
 
 # Defer enabling C and CXX languages.
 project(BoringSSL NONE)
+
+# Don't install BoringSSL to system directories by default; it has no stable
+# ABI. Instead, default to an "install" directory under the source.
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+  set(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCE_DIR}/install CACHE PATH "" FORCE)
+endif()
 
 if(WIN32)
   # On Windows, prefer cl over gcc if both are available. By default most of
@@ -13,6 +19,8 @@ include(sources.cmake)
 
 enable_language(C)
 enable_language(CXX)
+
+include(GNUInstallDirs)
 
 # This is a dummy target which all other targets depend on (manually - see other
 # CMakeLists.txt files). This gives us a hook to add any targets which need to
@@ -114,6 +122,13 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
   set(EMSCRIPTEN 1)
 endif()
 
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+if(MSVC AND NOT CLANG)
+  set(CMAKE_C_STANDARD 11)
+  set(CMAKE_C_STANDARD_REQUIRED ON)
+endif()
+
 if(CMAKE_COMPILER_IS_GNUCXX OR CLANG)
   # Note clang-cl is odd and sets both CLANG and MSVC. We base our configuration
   # primarily on our normal Clang one.
@@ -145,7 +160,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CLANG)
     set(C_CXX_FLAGS "${C_CXX_FLAGS} -Wno-free-nonheap-object")
   endif()
 
-  if(CLANG OR NOT "7.0.0" VERSION_GREATER CMAKE_C_COMPILER_VERSION)
+  if(CLANG OR CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "7.0.0")
     set(C_CXX_FLAGS "${C_CXX_FLAGS} -Wimplicit-fallthrough")
   endif()
 
@@ -156,14 +171,8 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CLANG)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${C_CXX_FLAGS} -Wmissing-prototypes -Wold-style-definition -Wstrict-prototypes")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${C_CXX_FLAGS} -Wmissing-declarations")
 
-  if(NOT MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-    if(APPLE)
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
-    endif()
-    if(NOT BORINGSSL_ALLOW_CXX_RUNTIME)
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
-    endif()
+  if(NOT MSVC AND NOT BORINGSSL_ALLOW_CXX_RUNTIME)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
   endif()
 
   # In GCC, -Wmissing-declarations is the C++ spelling of -Wmissing-prototypes
@@ -251,10 +260,6 @@ if(WIN32)
   # A bug in CMake < 3.13.0 may cause the space in this value to
   # cause issues when building with NASM. In that case, update CMake.
   add_definitions("-D_STL_EXTRA_DISABLED_WARNINGS=4774 4987")
-endif()
-
-if(CMAKE_COMPILER_IS_GNUCXX)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11")
 endif()
 
 # pthread_rwlock_t on Linux requires a feature flag. We limit this to Linux
@@ -401,10 +406,13 @@ endif()
 
 function(go_executable dest package)
   set(godeps "${CMAKE_SOURCE_DIR}/util/godeps.go")
-  if(CMAKE_VERSION VERSION_LESS "3.7" OR NOT CMAKE_GENERATOR STREQUAL "Ninja")
-    # The DEPFILE parameter to add_custom_command is new as of CMake 3.7 and
-    # only works with Ninja. Query the sources at configure time. Additionally,
-    # everything depends on go.mod. That affects what external packages to use.
+  if(NOT CMAKE_GENERATOR STREQUAL "Ninja")
+    # The DEPFILE parameter to add_custom_command only works with Ninja. Query
+    # the sources at configure time. Additionally, everything depends on go.mod.
+    # That affects what external packages to use.
+    #
+    # TODO(davidben): Starting CMake 3.20, it also works with Make. Starting
+    # 3.21, it works with Visual Studio and Xcode too.
     execute_process(COMMAND ${GO_EXECUTABLE} run ${godeps} -format cmake
                             -pkg ${package}
                     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
@@ -489,6 +497,8 @@ elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "mips")
   set(ARCH "generic")
 elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "ppc64le")
   set(ARCH "ppc64le")
+elseif (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "riscv64")
+  set(ARCH "riscv64")
 else()
   message(FATAL_ERROR "Unknown processor:" ${CMAKE_SYSTEM_PROCESSOR})
 endif()
@@ -541,6 +551,7 @@ if(USE_CUSTOM_LIBCXX)
   set_target_properties(libcxxabi PROPERTIES COMPILE_FLAGS "-Wno-missing-prototypes -Wno-implicit-fallthrough")
   # libc++abi depends on libc++ internal headers.
   set_property(TARGET libcxxabi APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/util/bot/libcxx/src")
+  install(TARGETS libcxxabi EXPORT OpenSSLTargets)
 
   add_library(libcxx ${LIBCXX_SOURCES})
   if(ASAN OR MSAN OR TSAN)
@@ -556,6 +567,7 @@ if(USE_CUSTOM_LIBCXX)
     -DLIBCXX_BUILDING_LIBCXXABI
   )
   target_link_libraries(libcxx libcxxabi)
+  install(TARGETS libcxx EXPORT OpenSSLTargets DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 
 # Add minimal googletest targets. The provided one has many side-effects, and
@@ -656,3 +668,12 @@ add_custom_target(
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     DEPENDS all_tests bssl_shim handshaker fips_specific_tests_if_any
     USES_TERMINAL)
+
+install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+install(EXPORT OpenSSLTargets
+  FILE OpenSSLTargets.cmake
+  NAMESPACE OpenSSL::
+  DESTINATION lib/cmake/OpenSSL
+)
+install(FILES OpenSSLConfig.cmake DESTINATION lib/cmake/OpenSSL)

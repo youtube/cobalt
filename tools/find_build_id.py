@@ -18,7 +18,7 @@ import argparse
 import subprocess
 from typing import List, Tuple
 
-from cobalt.build import get_build_id
+from cobalt.build import build_info
 
 _BUILD_ID_QUERY_URL = (
     'https://carbon-airlock-95823.appspot.com/build_version/search')
@@ -35,7 +35,7 @@ def parse_args():
 
 
 def get_git_hashes_locally(build_id: int, branch: str) -> List[Tuple[str]]:
-  current_build_number = get_build_id.get_build_number_from_commit_count()
+  current_build_number = build_info.get_build_id_from_commit_count()
   skip_count = current_build_number - build_id
   output = subprocess.check_output([
       'git', 'log', f'origin/{branch}', '--pretty=%H', f'--skip={skip_count}',
@@ -51,7 +51,7 @@ def print_hashes(hashes: List[Tuple[str]]):
 
 
 def main(build_id: int, branch: str):
-  if build_id < get_build_id.COMMIT_COUNT_BUILD_NUMBER_OFFSET:
+  if build_id < build_info.COMMIT_COUNT_BUILD_ID_OFFSET:
     print('Use go/cobalt-build-id to identify the git hash.')
     return
   else:

@@ -1,0 +1,149 @@
+load(":defs.bzl", "bool_flag", "string_flag_with_values")
+
+# @platforms is found at https://github.com/bazelbuild/platforms
+package(default_visibility = ["//:__subpackages__"])
+
+config_setting(
+    name = "linux_x64",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+)
+
+config_setting(
+    name = "windows_x64",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:windows",
+    ],
+)
+
+config_setting(
+    name = "linux_arm64",
+    constraint_values = [
+        "@platforms//cpu:arm64",
+        "@platforms//os:linux",
+    ],
+)
+
+config_setting(
+    name = "debug_build",
+    values = {"compilation_mode": "dbg"},
+)
+
+config_setting(
+    name = "release_build",
+    values = {"compilation_mode": "opt"},
+)
+
+constraint_value(
+    name = "fuchsia",
+    constraint_setting = "@platforms//os:os",
+)
+
+config_setting(
+    name = "fuchsia_arm64",
+    constraint_values = [
+        "@platforms//cpu:arm64",
+        ":fuchsia",
+    ],
+)
+
+# We define this here because the emscripten toolchain calls the cpu wasm, whereas the
+# bazelbuild/platforms call it wasm32. https://github.com/emscripten-core/emsdk/issues/919
+config_setting(
+    name = "cpu_wasm",
+    values = {
+        "cpu": "wasm",
+    },
+)
+
+# =============================================================================
+#                     Configurable Skia Features
+# =============================================================================
+# These are flags that we can specify when invoking bazel build to turn on and
+# off certain features, such as GPU backend, or codec support.
+# https://docs.bazel.build/versions/4.2.1/skylark/config.html#using-build-settings-on-the-command-line
+# For example, to use the GL backend with the WebGL flavor, one would run
+# bazel build //:skia-core --//bazel/common_config_settings:gpu_backend=gl_backend \
+#             --//bazel/common_config_settings:with_gl_standard=webgl_standard
+# This is a bit wordy, so we define aliases in the //.bazelrc file that condense this to
+# bazel build //:skia-core --gpu_backend=gl_backend --with_gl_standard=webgl_standard
+#
+# Developers can specify their own short-hands by making a .bazelrc file in their home
+# directory. https://docs.bazel.build/versions/main/guide.html#where-are-the-bazelrc-files
+#
+
+string_flag_with_values(
+    flag_name = "gpu_backend",
+    multiple = True,
+    values = [
+        "gl_backend",
+        "vulkan_backend",
+    ],
+)
+
+string_flag_with_values(
+    flag_name = "with_gl_standard",
+    values = [
+        "gles_standard",
+        "gl_standard",
+        "webgl_standard",
+    ],
+)
+
+string_flag_with_values(
+    default = "empty_fontmgr_factory",
+    flag_name = "fontmgr_factory",
+    values = [
+        "empty_fontmgr_factory",
+        "custom_embedded_fontmgr_factory",
+    ],
+)
+
+string_flag_with_values(
+    flag_name = "include_fontmgr",
+    multiple = True,
+    values = [
+        "custom_directory_fontmgr",
+        "custom_embedded_fontmgr",
+        "custom_empty_fontmgr",
+    ],
+)
+
+string_flag_with_values(
+    flag_name = "include_decoder",
+    multiple = True,
+    values = [
+        "gif_decode_codec",
+        "jpeg_decode_codec",
+        "png_decode_codec",
+        "raw_decode_codec",
+        "webp_decode_codec",
+    ],
+)
+
+string_flag_with_values(
+    flag_name = "include_encoder",
+    multiple = True,
+    values = [
+        "jpeg_encode_codec",
+        "png_encode_codec",
+        "webp_encode_codec",
+    ],
+)
+
+string_flag_with_values(
+    flag_name = "shaper_backend",
+    multiple = True,
+    values = [
+        "harfbuzz_shaper",
+        "coretext_shaper",
+    ],
+)
+
+bool_flag(
+    default = False,
+    flag_name = "use_icu",
+)

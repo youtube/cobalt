@@ -15,10 +15,14 @@
 
 std::unique_ptr<SkDescriptor> SkDescriptor::Alloc(size_t length) {
     SkASSERT(SkAlign4(length) == length);
-    return std::unique_ptr<SkDescriptor>(static_cast<SkDescriptor*>(::operator new (length)));
+    void* allocation = ::operator new (length);
+    return std::unique_ptr<SkDescriptor>(new (allocation) SkDescriptor{});
 }
 
 void SkDescriptor::operator delete(void* p) { ::operator delete(p); }
+void* SkDescriptor::operator new(size_t) {
+    SK_ABORT("Descriptors are created with placement new.");
+}
 
 void* SkDescriptor::addEntry(uint32_t tag, size_t length, const void* data) {
     SkASSERT(tag);
@@ -79,6 +83,18 @@ bool SkDescriptor::operator==(const SkDescriptor& other) const {
     return true;
 }
 
+SkString SkDescriptor::dumpRec() const {
+    const SkScalerContextRec* rec = static_cast<const SkScalerContextRec*>(
+            this->findEntry(kRec_SkDescriptorTag, nullptr));
+
+    SkString result;
+    result.appendf("    Checksum: %x\n", fChecksum);
+    if (rec != nullptr) {
+        result.append(rec->dump());
+    }
+    return result;
+}
+
 uint32_t SkDescriptor::ComputeChecksum(const SkDescriptor* desc) {
     const uint32_t* ptr = (const uint32_t*)desc + 1; // skip the checksum field
     size_t len = desc->fLength - sizeof(uint32_t);
@@ -121,11 +137,29 @@ bool SkDescriptor::isValid() const {
 SkAutoDescriptor::SkAutoDescriptor() = default;
 SkAutoDescriptor::SkAutoDescriptor(size_t size) { this->reset(size); }
 SkAutoDescriptor::SkAutoDescriptor(const SkDescriptor& desc) { this->reset(desc); }
-SkAutoDescriptor::SkAutoDescriptor(const SkAutoDescriptor& ad) {
-    this->reset(*ad.getDesc());
+SkAutoDescriptor::SkAutoDescriptor(const SkAutoDescriptor& that) {
+    this->reset(*that.getDesc());
 }
-SkAutoDescriptor& SkAutoDescriptor::operator=(const SkAutoDescriptor& ad) {
-    this->reset(*ad.getDesc());
+SkAutoDescriptor& SkAutoDescriptor::operator=(const SkAutoDescriptor& that) {
+    this->reset(*that.getDesc());
+    return *this;
+}
+SkAutoDescriptor::SkAutoDescriptor(SkAutoDescriptor&& that) {
+    if (that.fDesc == (SkDescriptor*)&that.fStorage) {
+        this->reset(*that.getDesc());
+    } else {
+        fDesc = that.fDesc;
+        that.fDesc = nullptr;
+    }
+}
+SkAutoDescriptor& SkAutoDescriptor::operator=(SkAutoDescriptor&& that) {
+    if (that.fDesc == (SkDescriptor*)&that.fStorage) {
+        this->reset(*that.getDesc());
+    } else {
+        this->free();
+        fDesc = that.fDesc;
+        that.fDesc = nullptr;
+    }
     return *this;
 }
 
@@ -134,7 +168,7 @@ SkAutoDescriptor::~SkAutoDescriptor() { this->free(); }
 void SkAutoDescriptor::reset(size_t size) {
     this->free();
     if (size <= sizeof(fStorage)) {
-        fDesc = reinterpret_cast<SkDescriptor*>(&fStorage);
+        fDesc = new (&fStorage) SkDescriptor{};
     } else {
         fDesc = SkDescriptor::Alloc(size).release();
     }
@@ -147,7 +181,9 @@ void SkAutoDescriptor::reset(const SkDescriptor& desc) {
 }
 
 void SkAutoDescriptor::free() {
-    if (fDesc != (SkDescriptor*)&fStorage) {
+    if (fDesc == (SkDescriptor*)&fStorage) {
+        fDesc->~SkDescriptor();
+    } else {
         delete fDesc;
     }
 }

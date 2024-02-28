@@ -8,7 +8,6 @@
 #include "gm/gm.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkColor.h"
-#include "include/core/SkFilterQuality.h"
 #include "include/core/SkImage.h"
 #include "include/core/SkPaint.h"
 #include "include/core/SkPath.h"
@@ -25,7 +24,7 @@ namespace skiagm {
 constexpr SkRect kSrcImageClip{75, 75, 275, 275};
 
 /*
- * The purpose of this test is to exercise all three codepaths in GrRenderTargetContext
+ * The purpose of this test is to exercise all three codepaths in skgpu::v1::SurfaceDrawContext
  * (drawFilledRect, fillRectToRect, fillRectWithLocalMatrix) that pre-crop filled rects based on the
  * clip.
  *
@@ -35,7 +34,7 @@ constexpr SkRect kSrcImageClip{75, 75, 275, 275};
  */
 class CroppedRectsGM : public GM {
 private:
-    SkString onShortName() override final { return SkString("croppedrects"); }
+    SkString onShortName() final { return SkString("croppedrects"); }
     SkISize onISize() override { return SkISize::Make(500, 500); }
 
     void onOnceBeforeDraw() override {
@@ -56,47 +55,44 @@ private:
         srcCanvas->drawRect(kSrcImageClip.makeInset(kStrokeWidth / 2, kStrokeWidth / 2), stroke);
 
         fSrcImage = srcSurface->makeImageSnapshot();
-        fSrcImageShader = fSrcImage->makeShader();
+        fSrcImageShader = fSrcImage->makeShader(SkSamplingOptions());
     }
 
     void onDraw(SkCanvas* canvas) override {
         canvas->clear(SK_ColorWHITE);
 
         {
-            // GrRenderTargetContext::drawFilledRect.
+            // skgpu::v1::SurfaceDrawContext::drawFilledRect.
             SkAutoCanvasRestore acr(canvas, true);
             SkPaint paint;
             paint.setShader(fSrcImageShader);
-            paint.setFilterQuality(kNone_SkFilterQuality);
             canvas->clipRect(kSrcImageClip);
             canvas->drawPaint(paint);
         }
 
         {
-            // GrRenderTargetContext::fillRectToRect.
+            // skgpu::v1::SurfaceDrawContext::fillRectToRect.
             SkAutoCanvasRestore acr(canvas, true);
-            SkPaint paint;
-            paint.setFilterQuality(kNone_SkFilterQuality);
             SkRect drawRect = SkRect::MakeXYWH(350, 100, 100, 300);
             canvas->clipRect(drawRect);
             canvas->drawImageRect(fSrcImage.get(),
                                   kSrcImageClip.makeOutset(0.5f * kSrcImageClip.width(),
                                                            kSrcImageClip.height()),
                                   drawRect.makeOutset(0.5f * drawRect.width(), drawRect.height()),
-                                  &paint);
+                                  SkSamplingOptions(), nullptr,
+                                  SkCanvas::kStrict_SrcRectConstraint);
         }
 
         {
-            // GrRenderTargetContext::fillRectWithLocalMatrix.
+            // skgpu::v1::SurfaceDrawContext::fillRectWithLocalMatrix.
             SkAutoCanvasRestore acr(canvas, true);
-            SkPath path;
-            path.moveTo(kSrcImageClip.fLeft - kSrcImageClip.width(), kSrcImageClip.centerY());
-            path.lineTo(kSrcImageClip.fRight + 3 * kSrcImageClip.width(), kSrcImageClip.centerY());
+            SkPath path = SkPath::Line(
+                   {kSrcImageClip.fLeft - kSrcImageClip.width(), kSrcImageClip.centerY()},
+                   {kSrcImageClip.fRight + 3 * kSrcImageClip.width(), kSrcImageClip.centerY()});
             SkPaint paint;
             paint.setStyle(SkPaint::kStroke_Style);
             paint.setStrokeWidth(2 * kSrcImageClip.height());
             paint.setShader(fSrcImageShader);
-            paint.setFilterQuality(kNone_SkFilterQuality);
             canvas->translate(23, 301);
             canvas->scale(300 / kSrcImageClip.width(), 100 / kSrcImageClip.height());
             canvas->translate(-kSrcImageClip.left(), -kSrcImageClip.top());
@@ -110,9 +106,9 @@ private:
     sk_sp<SkImage> fSrcImage;
     sk_sp<SkShader> fSrcImageShader;
 
-    typedef GM INHERITED;
+    using INHERITED = GM;
 };
 
 DEF_GM( return new CroppedRectsGM(); )
 
-}
+}  // namespace skiagm

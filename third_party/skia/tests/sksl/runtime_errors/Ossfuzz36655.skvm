@@ -1,0 +1,12 @@
+### Compilation failed:
+
+error: 2: expected '(' to begin constructor invocation
+error: 2: expected a declaration, but found ';'
+error: 2: expected a declaration, but found ';'
+error: 2: expected a declaration, but found ';'
+error: 2: expected a declaration, but found ';'
+error: 2: expected a declaration, but found ';'
+error: 2: expected a declaration, but found ';'
+error: 2: expected a declaration, but found ';'
+error: 3: expected a type, but found '}'
+9 errors

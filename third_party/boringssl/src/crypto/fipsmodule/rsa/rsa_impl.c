@@ -64,13 +64,13 @@
 #include <openssl/err.h>
 #include <openssl/mem.h>
 #include <openssl/thread.h>
-#include <openssl/type_check.h>
 
-#include "internal.h"
-#include "../bn/internal.h"
 #include "../../internal.h"
+#include "../bn/internal.h"
 #include "../delocate.h"
 #include "../rand/fork_detect.h"
+#include "../service_indicator/internal.h"
+#include "internal.h"
 
 
 int rsa_check_public_key(const RSA *rsa) {
@@ -405,8 +405,8 @@ static BN_BLINDING *rsa_blinding_get(RSA *rsa, unsigned *index_used,
   }
 
   // Double the length of the cache.
-  OPENSSL_STATIC_ASSERT(MAX_BLINDINGS_PER_RSA < UINT_MAX / 2,
-                        "MAX_BLINDINGS_PER_RSA too large");
+  static_assert(MAX_BLINDINGS_PER_RSA < UINT_MAX / 2,
+                "MAX_BLINDINGS_PER_RSA too large");
   unsigned new_num_blindings = rsa->num_blindings * 2;
   if (new_num_blindings == 0) {
     new_num_blindings = 1;
@@ -416,9 +416,8 @@ static BN_BLINDING *rsa_blinding_get(RSA *rsa, unsigned *index_used,
   }
   assert(new_num_blindings > rsa->num_blindings);
 
-  OPENSSL_STATIC_ASSERT(
-      MAX_BLINDINGS_PER_RSA < UINT_MAX / sizeof(BN_BLINDING *),
-      "MAX_BLINDINGS_PER_RSA too large");
+  static_assert(MAX_BLINDINGS_PER_RSA < UINT_MAX / sizeof(BN_BLINDING *),
+                "MAX_BLINDINGS_PER_RSA too large");
   BN_BLINDING **new_blindings =
       OPENSSL_malloc(sizeof(BN_BLINDING *) * new_num_blindings);
   uint8_t *new_blindings_inuse = OPENSSL_malloc(new_num_blindings);
@@ -1419,6 +1418,10 @@ int RSA_generate_key_fips(RSA *rsa, int bits, BN_GENCB *cb) {
             BN_set_word(e, RSA_F4) &&
             RSA_generate_key_ex_maybe_fips(rsa, bits, e, cb, /*check_fips=*/1);
   BN_free(e);
+
+  if (ret) {
+    FIPS_service_indicator_update_state();
+  }
   return ret;
 }
 

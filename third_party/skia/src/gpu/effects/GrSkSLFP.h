@@ -9,194 +9,410 @@
 #define GrSkSLFP_DEFINED
 
 #include "include/core/SkRefCnt.h"
-#include "src/gpu/GrCaps.h"
-#include "src/gpu/GrCoordTransform.h"
+#include "include/effects/SkRuntimeEffect.h"
+#include "include/gpu/GrContextOptions.h"
+#include "include/private/SkVx.h"
 #include "src/gpu/GrFragmentProcessor.h"
-#include "src/gpu/GrShaderCaps.h"
-#include "src/gpu/GrSkSLFPFactoryCache.h"
-#include "src/sksl/SkSLCompiler.h"
-#include "src/sksl/SkSLPipelineStageCodeGenerator.h"
+
 #include <atomic>
+#include <utility>
+#include <vector>
 
-#if GR_TEST_UTILS
-#define GR_FP_SRC_STRING const char*
-#else
-#define GR_FP_SRC_STRING static const char*
+struct GrShaderCaps;
+class SkData;
+class SkRuntimeEffect;
+
+#ifdef SK_DEBUG
+// UNIFORM_TYPE allows C++ types to be mapped onto SkRuntimeEffect::Uniform::Type
+template <typename T> struct GrFPUniformType {
+    template <typename U> struct add_a_UNIFORM_TYPE_specialization_for {};
+    static constexpr add_a_UNIFORM_TYPE_specialization_for<T> value = {};
+};
+#define UNIFORM_TYPE(E, ...)                                                                       \
+    template <> struct GrFPUniformType<__VA_ARGS__> {                                              \
+        static constexpr SkRuntimeEffect::Uniform::Type value = SkRuntimeEffect::Uniform::Type::E; \
+    };                                                                                             \
+    template <> struct GrFPUniformType<SkSpan<__VA_ARGS__>> {                                      \
+        static constexpr SkRuntimeEffect::Uniform::Type value = SkRuntimeEffect::Uniform::Type::E; \
+    }
+
+UNIFORM_TYPE(kFloat,    float);
+UNIFORM_TYPE(kFloat2,   SkV2);
+UNIFORM_TYPE(kFloat4,   SkPMColor4f);
+UNIFORM_TYPE(kFloat4,   SkRect);
+UNIFORM_TYPE(kFloat4,   SkV4);
+UNIFORM_TYPE(kFloat4,   skvx::Vec<4, float>);
+UNIFORM_TYPE(kFloat4x4, SkM44);
+UNIFORM_TYPE(kInt,      int);
+
+#undef UNIFORM_TYPE
 #endif
-
-class GrContext_Base;
-class GrSkSLFPFactory;
 
 class GrSkSLFP : public GrFragmentProcessor {
 public:
-    /**
-     * Returns a new unique identifier. Each different SkSL fragment processor should call
-     * NewIndex once, statically, and use this index for all calls to Make.
-     */
-    static int NewIndex() {
-        static std::atomic<int> nextIndex{0};
-        return nextIndex++;
+    template <typename T> struct GrSpecializedUniform {
+        bool specialize;
+        T value;
+    };
+    template <typename T>
+    static GrSpecializedUniform<T> Specialize(const T& value) {
+        return {true, value};
+    }
+    template <typename T>
+    static GrSpecializedUniform<T> SpecializeIf(bool condition, const T& value) {
+        return {condition, value};
     }
 
+    template <typename T> struct GrOptionalUniform {
+        bool enabled;
+        T value;
+    };
+    template <typename T>
+    static GrOptionalUniform<T> When(bool condition, const T& value) {
+        return {condition, value};
+    }
+
+    struct GrIgnoreOptFlags {
+        std::unique_ptr<GrFragmentProcessor> child;
+    };
+    static GrIgnoreOptFlags IgnoreOptFlags(std::unique_ptr<GrFragmentProcessor> child) {
+        return {std::move(child)};
+    }
+
+    enum class OptFlags : uint32_t {
+        kNone                          = kNone_OptimizationFlags,
+        kCompatibleWithCoverageAsAlpha = kCompatibleWithCoverageAsAlpha_OptimizationFlag,
+        kPreservesOpaqueInput          = kPreservesOpaqueInput_OptimizationFlag,
+        kAll                           = kCompatibleWithCoverageAsAlpha | kPreservesOpaqueInput,
+    };
+
     /**
-     * Creates a new fragment processor from an SkSL source string and a struct of inputs to the
-     * program. The input struct's type is derived from the 'in' and 'uniform' variables in the SkSL
-     * source, so e.g. the shader:
-     *
-     *    in bool dither;
-     *    uniform float x;
-     *    uniform float y;
-     *    ....
-     *
-     * would expect a pointer to a struct set up like:
-     *
-     * struct {
-     *     bool dither;
-     *     float x;
-     *     float y;
-     * };
-     *
-     * While both 'in' and 'uniform' variables go into this struct, the difference between them is
-     * that 'in' variables are statically "baked in" to the generated code, becoming literals,
-     * whereas uniform variables may be changed from invocation to invocation without having to
-     * recompile the shader.
-     *
-     * As the decision of whether to create a new shader or just upload new uniforms all happens
-     * behind the scenes, the difference between the two from an end-user perspective is primarily
-     * in performance: on the one hand, changing the value of an 'in' variable is very expensive
-     * (requiring the compiler to regenerate the code, upload a new shader to the GPU, and so
-     * forth), but on the other hand the compiler can optimize around its value because it is known
-     * at compile time. 'in' variables are therefore suitable for things like flags, where there are
-     * only a few possible values and a known-in-advance value can cause entire chunks of code to
-     * become dead (think static @ifs), while 'uniform's are used for continuous values like colors
-     * and coordinates, where it would be silly to create a separate shader for each possible set of
-     * values. Other than the (significant) performance implications, the only difference between
-     * the two is that 'in' variables can be used in static @if / @switch tests. When in doubt, use
-     * 'uniform'.
-     *
-     * As turning SkSL into GLSL / SPIR-V / etc. is fairly expensive, and the output may differ
-     * based on the inputs, internally the process is divided into two steps: we first parse and
-     * semantically analyze the SkSL into an internal representation, and then "specialize" this
-     * internal representation based on the inputs. The unspecialized internal representation of
-     * the program is cached, so further specializations of the same code are much faster than the
-     * first call.
-     *
-     * This caching is based on the 'index' parameter, which should be derived by statically calling
-     * 'NewIndex()'. Each given SkSL string should have a single, statically defined index
-     * associated with it.
+     * Both factories support a single 'input' FP, as well as a collection of other 'child' FPs.
+     * The 'child' FPs correspond to the children declared in the effect's SkSL. The inputFP is
+     * optional, and intended for instances that have color filter semantics. This is an implicit
+     * child - if present, it's evaluated to produce the input color fed to the SkSL. Otherwise,
+     * the SkSL receives this FP's input color directly.
      */
-    static std::unique_ptr<GrSkSLFP> Make(
-                   GrContext_Base* context,
-                   int index,
-                   const char* name,
-                   const char* sksl,
-                   const void* inputs,
-                   size_t inputSize,
-                   SkSL::Program::Kind kind = SkSL::Program::kPipelineStage_Kind,
-                   const SkMatrix* matrix = nullptr);
 
-    static std::unique_ptr<GrSkSLFP> Make(
-                   GrContext_Base* context,
-                   int index,
-                   const char* name,
-                   SkString sksl,
-                   const void* inputs,
-                   size_t inputSize,
-                   SkSL::Program::Kind kind = SkSL::Program::kPipelineStage_Kind,
-                   const SkMatrix* matrix = nullptr);
+    /**
+     * Creates a new fragment processor from an SkRuntimeEffect and a data blob containing values
+     * for all of the 'uniform' variables in the SkSL source. The layout of the uniforms blob is
+     * dictated by the SkRuntimeEffect.
+     */
+    static std::unique_ptr<GrSkSLFP> MakeWithData(
+            sk_sp<SkRuntimeEffect> effect,
+            const char* name,
+            std::unique_ptr<GrFragmentProcessor> inputFP,
+            std::unique_ptr<GrFragmentProcessor> destColorFP,
+            sk_sp<SkData> uniforms,
+            SkSpan<std::unique_ptr<GrFragmentProcessor>> childFPs);
 
-    const char* name() const override;
+    /*
+     * Constructs a GrSkSLFP from a series of name-value pairs, corresponding to the children and
+     * uniform data members of the effect's SkSL.
+     * The variable length args... must contain all of the children and uniforms expected.
+     * Each individual argument must be preceded by a name that matches the SkSL name of the value
+     * being set. For children, the next argument must be a std::unique_ptr<GrFragmentProcessor>.
+     * For uniforms, the next argument must be data of the correct size and type.
+     *
+     * For example, given:
+     *   uniform shader child;
+     *   uniform float scale;
+     *   uniform half2 pt;
+     *   half4 main() { ... }
+     *
+     * A call to GrSkSLFP would be formatted like:
+     *   std::unique_ptr<GrFragmentProcessor> child = ...;
+     *   float scaleVal = ...;
+     *   SkV2 ptVal = ...;
+     *   auto fp = GrSkSLFP::Make(effect, "my_effect", nullptr, GrSkSLFP::OptFlags::...,
+     *                            "child", std::move(child),
+     *                            "scale", scaleVal,
+     *                            "pt", ptVal);
+     *
+     * The uniforms must appear in the correct order, as must the children. Technically, the two
+     * lists can be interleaved. In debug builds, the number, names, and sizes of all arguments are
+     * checked with assertions. In release builds, all checks are elided. In either case, the
+     * uniform data is directly copied into the footer allocated after the FP.
+     */
+    template <typename... Args>
+    static std::unique_ptr<GrSkSLFP> Make(sk_sp<SkRuntimeEffect> effect,
+                                          const char* name,
+                                          std::unique_ptr<GrFragmentProcessor> inputFP,
+                                          OptFlags optFlags,
+                                          Args&&... args) {
+#ifdef SK_DEBUG
+        checkArgs(effect->fUniforms.begin(),
+                  effect->fUniforms.end(),
+                  effect->fChildren.begin(),
+                  effect->fChildren.end(),
+                  std::forward<Args>(args)...);
+#endif
 
-    void addChild(std::unique_ptr<GrFragmentProcessor> child);
+        size_t uniformPayloadSize = UniformPayloadSize(effect.get());
+        std::unique_ptr<GrSkSLFP> fp(new (uniformPayloadSize)
+                                             GrSkSLFP(std::move(effect), name, optFlags));
+        fp->appendArgs(fp->uniformData(), fp->uniformFlags(), std::forward<Args>(args)...);
+        if (inputFP) {
+            fp->setInput(std::move(inputFP));
+        }
+        return fp;
+    }
 
+    const char* name() const override { return fName; }
     std::unique_ptr<GrFragmentProcessor> clone() const override;
 
 private:
-    GrSkSLFP(sk_sp<GrSkSLFPFactoryCache> factoryCache, const GrShaderCaps* shaderCaps,
-             SkSL::Program::Kind kind, int fIndex, const char* name, const char* sksl,
-             SkString skslString, const void* inputs, size_t inputSize, const SkMatrix* matrix);
+    class Impl;
 
+    GrSkSLFP(sk_sp<SkRuntimeEffect> effect, const char* name, OptFlags optFlags);
     GrSkSLFP(const GrSkSLFP& other);
 
-    GrGLSLFragmentProcessor* onCreateGLSLInstance() const override;
+    void addChild(std::unique_ptr<GrFragmentProcessor> child, bool mergeOptFlags);
+    void setInput(std::unique_ptr<GrFragmentProcessor> input);
+    void setDestColorFP(std::unique_ptr<GrFragmentProcessor> destColorFP);
 
-    void onGetGLSLProcessorKey(const GrShaderCaps&, GrProcessorKeyBuilder*) const override;
+    std::unique_ptr<ProgramImpl> onMakeProgramImpl() const override;
+
+    void onAddToKey(const GrShaderCaps&, GrProcessorKeyBuilder*) const override;
 
     bool onIsEqual(const GrFragmentProcessor&) const override;
 
-    void createFactory() const;
+    SkPMColor4f constantOutputForConstantInput(const SkPMColor4f&) const override;
 
-    sk_sp<GrSkSLFPFactoryCache> fFactoryCache;
+    // An instance of GrSkSLFP is always allocated with a payload immediately following the FP.
+    // First the values of all the uniforms, and then a set of flags (one per uniform).
+    static size_t UniformPayloadSize(const SkRuntimeEffect* effect) {
+        return effect->uniformSize() + effect->uniforms().size() * sizeof(UniformFlags);
+    }
 
-    const sk_sp<GrShaderCaps> fShaderCaps;
+    const uint8_t* uniformData() const { return reinterpret_cast<const uint8_t*>(this + 1); }
+          uint8_t* uniformData()       { return reinterpret_cast<      uint8_t*>(this + 1); }
 
-    mutable sk_sp<GrSkSLFPFactory> fFactory;
+    enum UniformFlags : uint8_t {
+        kSpecialize_Flag = 0x1,
+    };
 
-    SkSL::Program::Kind fKind;
+    const UniformFlags* uniformFlags() const {
+        return reinterpret_cast<const UniformFlags*>(this->uniformData() + fUniformSize);
+    }
+    UniformFlags* uniformFlags() {
+        return reinterpret_cast<UniformFlags*>(this->uniformData() + fUniformSize);
+    }
 
-    int fIndex;
+    // Helpers to attach variadic template args to a newly constructed FP:
 
-    const char* fName;
+    void appendArgs(uint8_t* uniformDataPtr, UniformFlags* uniformFlagsPtr) {
+        // Base case -- no more args to append, so we're done
+    }
+    template <typename... Args>
+    void appendArgs(uint8_t* uniformDataPtr,
+                    UniformFlags* uniformFlagsPtr,
+                    const char* name,
+                    std::unique_ptr<GrFragmentProcessor>&& child,
+                    Args&&... remainder) {
+        // Child FP case -- register the child, then continue processing the remaining arguments.
+        // Children aren't "uniforms" here, so the data & flags pointers don't advance.
+        this->addChild(std::move(child), /*mergeOptFlags=*/true);
+        this->appendArgs(uniformDataPtr, uniformFlagsPtr, std::forward<Args>(remainder)...);
+    }
+    // As above, but we don't merge in the child's optimization flags
+    template <typename... Args>
+    void appendArgs(uint8_t* uniformDataPtr,
+                    UniformFlags* uniformFlagsPtr,
+                    const char* name,
+                    GrIgnoreOptFlags&& child,
+                    Args&&... remainder) {
+        // Child FP case -- register the child, then continue processing the remaining arguments.
+        // Children aren't "uniforms" here, so the data & flags pointers don't advance.
+        this->addChild(std::move(child.child), /*mergeOptFlags=*/false);
+        this->appendArgs(uniformDataPtr, uniformFlagsPtr, std::forward<Args>(remainder)...);
+    }
+    template <typename T, typename... Args>
+    void appendArgs(uint8_t* uniformDataPtr,
+                    UniformFlags* uniformFlagsPtr,
+                    const char* name,
+                    const GrSpecializedUniform<T>& val,
+                    Args&&... remainder) {
+        // Specialized uniform case -- This just handles the specialization logic. If we want to
+        // specialize on this particular value, set the flag. Then, continue processing the actual
+        // value (by just peeling off the wrapper). This lets our generic `const T&` case (below)
+        // handle copying the data into our uniform block, and advancing the per-value uniform
+        // data and flags pointers.
+        if (val.specialize) {
+            *uniformFlagsPtr = static_cast<UniformFlags>(*uniformFlagsPtr | kSpecialize_Flag);
+        }
+        this->appendArgs(
+                uniformDataPtr, uniformFlagsPtr, name, val.value, std::forward<Args>(remainder)...);
+    }
+    template <typename T, typename... Args>
+    void appendArgs(uint8_t* uniformDataPtr,
+                    UniformFlags* uniformFlagsPtr,
+                    const char* name,
+                    const GrOptionalUniform<T>& val,
+                    Args&&... remainder) {
+        // Optional uniform case. Copy the data and advance pointers, but only if the uniform is
+        // enabled. Then proceed as normal.
+        if (val.enabled) {
+            memcpy(uniformDataPtr, &val.value, sizeof(val.value));
+            uniformDataPtr += sizeof(val.value);
+            uniformFlagsPtr++;
+        }
 
-    // For object lifetime purposes, we have fields for the SkSL as both a const char* and a
-    // SkString. The const char* is the one we actually use, but it may point to the SkString's
-    // bytes. Since GrSkSLFPs are frequently created from constant strings, this allows us to
-    // generally avoid the overhead of copying the bytes into an SkString (in which case fSkSLString
-    // is the empty string), while still allowing the GrSkSLFP to manage the string's lifetime when
-    // needed.
-    SkString fSkSLString;
+        this->appendArgs(uniformDataPtr, uniformFlagsPtr, std::forward<Args>(remainder)...);
+    }
+    template <typename T, typename... Args>
+    void appendArgs(uint8_t* uniformDataPtr,
+                    UniformFlags* uniformFlagsPtr,
+                    const char* name,
+                    SkSpan<T> val,
+                    Args&&... remainder) {
+        // Uniform array case -- We copy the supplied values into our uniform data area,
+        // then advance our uniform data and flags pointers.
+        memcpy(uniformDataPtr, val.data(), val.size_bytes());
+        uniformDataPtr += val.size_bytes();
+        uniformFlagsPtr++;
+        this->appendArgs(uniformDataPtr, uniformFlagsPtr, std::forward<Args>(remainder)...);
+    }
+    template <typename T, typename... Args>
+    void appendArgs(uint8_t* uniformDataPtr,
+                    UniformFlags* uniformFlagsPtr,
+                    const char* name,
+                    const T& val,
+                    Args&&... remainder) {
+        // Raw uniform value case -- We copy the supplied value into our uniform data area,
+        // then advance our uniform data and flags pointers.
+        memcpy(uniformDataPtr, &val, sizeof(val));
+        uniformDataPtr += sizeof(val);
+        uniformFlagsPtr++;
+        this->appendArgs(uniformDataPtr, uniformFlagsPtr, std::forward<Args>(remainder)...);
+    }
 
-    const char* fSkSL;
+#ifdef SK_DEBUG
+    using child_iterator = std::vector<SkRuntimeEffect::Child>::const_iterator;
+    using uniform_iterator = std::vector<SkRuntimeEffect::Uniform>::const_iterator;
 
-    const std::unique_ptr<int8_t[]> fInputs;
+    // Validates that all args passed to the template factory have the right names, sizes, and types
+    static void checkArgs(uniform_iterator uIter,
+                          uniform_iterator uEnd,
+                          child_iterator cIter,
+                          child_iterator cEnd) {
+        SkASSERTF(uIter == uEnd, "Expected more uniforms, starting with '%s'", uIter->name.c_str());
+        SkASSERTF(cIter == cEnd, "Expected more children, starting with '%s'", cIter->name.c_str());
+    }
+    static void checkOneChild(child_iterator cIter, child_iterator cEnd, const char* name) {
+        SkASSERTF(cIter != cEnd, "Too many children, wasn't expecting '%s'", name);
+        SkASSERTF(cIter->name.equals(name),
+                  "Expected child '%s', got '%s' instead",
+                  cIter->name.c_str(), name);
+    }
+    template <typename... Args>
+    static void checkArgs(uniform_iterator uIter,
+                          uniform_iterator uEnd,
+                          child_iterator cIter,
+                          child_iterator cEnd,
+                          const char* name,
+                          std::unique_ptr<GrFragmentProcessor>&& child,
+                          Args&&... remainder) {
+        // NOTE: This function (necessarily) gets an rvalue reference to child, but deliberately
+        // does not use it. We leave it intact, and our caller (Make) will pass another rvalue
+        // reference to appendArgs, which will then move it to call addChild.
+        checkOneChild(cIter, cEnd, name);
+        checkArgs(uIter, uEnd, ++cIter, cEnd, std::forward<Args>(remainder)...);
+    }
+    template <typename... Args>
+    static void checkArgs(uniform_iterator uIter,
+                          uniform_iterator uEnd,
+                          child_iterator cIter,
+                          child_iterator cEnd,
+                          const char* name,
+                          GrIgnoreOptFlags&& child,
+                          Args&&... remainder) {
+        // NOTE: This function (necessarily) gets an rvalue reference to child, but deliberately
+        // does not use it. We leave it intact, and our caller (Make) will pass another rvalue
+        // reference to appendArgs, which will then move it to call addChild.
+        checkOneChild(cIter, cEnd, name);
+        checkArgs(uIter, uEnd, ++cIter, cEnd, std::forward<Args>(remainder)...);
+    }
+    template <typename T, typename... Args>
+    static void checkArgs(uniform_iterator uIter,
+                          uniform_iterator uEnd,
+                          child_iterator cIter,
+                          child_iterator cEnd,
+                          const char* name,
+                          const GrSpecializedUniform<T>& val,
+                          Args&&... remainder) {
+        static_assert(!std::is_array<T>::value);  // No specializing arrays
+        checkArgs(uIter, uEnd, cIter, cEnd, name, val.value, std::forward<Args>(remainder)...);
+    }
+    template <typename T, typename... Args>
+    static void checkArgs(uniform_iterator uIter,
+                          uniform_iterator uEnd,
+                          child_iterator cIter,
+                          child_iterator cEnd,
+                          const char* name,
+                          const GrOptionalUniform<T>& val,
+                          Args&&... remainder) {
+        if (val.enabled) {
+            checkArgs(uIter, uEnd, cIter, cEnd, name, val.value, std::forward<Args>(remainder)...);
+        } else {
+            checkArgs(uIter, uEnd, cIter, cEnd, std::forward<Args>(remainder)...);
+        }
+    }
+    template <typename T>
+    static void checkOneUniform(uniform_iterator uIter,
+                                uniform_iterator uEnd,
+                                const char* name,
+                                const T* /*val*/,
+                                size_t valSize) {
+        SkASSERTF(uIter != uEnd, "Too many uniforms, wasn't expecting '%s'", name);
+        SkASSERTF(uIter->name.equals(name),
+                  "Expected uniform '%s', got '%s' instead",
+                  uIter->name.c_str(), name);
+        SkASSERTF(uIter->sizeInBytes() == valSize,
+                  "Expected uniform '%s' to be %zu bytes, got %zu instead",
+                  name, uIter->sizeInBytes(), valSize);
+        SkASSERTF(GrFPUniformType<T>::value == uIter->type,
+                  "Wrong type for uniform '%s'",
+                  name);
+    }
+    template <typename T, typename... Args>
+    static void checkArgs(uniform_iterator uIter,
+                          uniform_iterator uEnd,
+                          child_iterator cIter,
+                          child_iterator cEnd,
+                          const char* name,
+                          SkSpan<T> val,
+                          Args&&... remainder) {
+        checkOneUniform(uIter, uEnd, name, val.data(), val.size_bytes());
+        checkArgs(++uIter, uEnd, cIter, cEnd, std::forward<Args>(remainder)...);
+    }
+    template <typename T, typename... Args>
+    static void checkArgs(uniform_iterator uIter,
+                          uniform_iterator uEnd,
+                          child_iterator cIter,
+                          child_iterator cEnd,
+                          const char* name,
+                          const T& val,
+                          Args&&... remainder) {
+        checkOneUniform(uIter, uEnd, name, &val, sizeof(val));
+        checkArgs(++uIter, uEnd, cIter, cEnd, std::forward<Args>(remainder)...);
+    }
+#endif
 
-    size_t fInputSize;
-
-    GrCoordTransform fCoordTransform;
-
-    mutable SkSL::String fKey;
+    sk_sp<SkRuntimeEffect> fEffect;
+    const char*            fName;
+    uint32_t               fUniformSize;
+    int                    fInputChildIndex = -1;
+    int                    fDestColorChildIndex = -1;
 
     GR_DECLARE_FRAGMENT_PROCESSOR_TEST
 
-    typedef GrFragmentProcessor INHERITED;
-
-    friend class GrGLSLSkSLFP;
+    using INHERITED = GrFragmentProcessor;
 
     friend class GrSkSLFPFactory;
 };
 
-/**
- * Produces GrFragmentProcessors from SkSL code. As the shader code produced from the SkSL depends
- * upon the inputs to the SkSL (static if's, etc.) we first create a factory for a given SkSL
- * string, then use that to create the actual GrFragmentProcessor.
- */
-class GrSkSLFPFactory : public SkNVRefCnt<GrSkSLFPFactory> {
-public:
-    /**
-     * Constructs a GrSkSLFPFactory for a given SkSL source string. Creating a factory will
-     * preprocess the SkSL and determine which of its inputs are declared "key" (meaning they cause
-     * the produced shaders to differ), so it is important to reuse the same factory instance for
-     * the same shader in order to avoid repeatedly re-parsing the SkSL.
-     */
-    GrSkSLFPFactory(const char* name, const GrShaderCaps* shaderCaps, const char* sksl,
-                    SkSL::Program::Kind kind = SkSL::Program::kPipelineStage_Kind);
-
-    const SkSL::Program* getSpecialization(const SkSL::String& key, const void* inputs,
-                                           size_t inputSize);
-
-    SkSL::Program::Kind fKind;
-
-    const char* fName;
-
-    SkSL::Compiler fCompiler;
-
-    std::shared_ptr<SkSL::Program> fBaseProgram;
-
-    std::vector<const SkSL::Variable*> fInAndUniformVars;
-
-    std::unordered_map<SkSL::String, std::unique_ptr<const SkSL::Program>> fSpecializations;
-
-    friend class GrSkSLFP;
-};
+GR_MAKE_BITFIELD_CLASS_OPS(GrSkSLFP::OptFlags)
 
 #endif

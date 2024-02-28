@@ -8,68 +8,141 @@
 #ifndef SkImage_Gpu_DEFINED
 #define SkImage_Gpu_DEFINED
 
-#include "include/gpu/GrContext.h"
+#include "include/private/SkSpinlock.h"
 #include "src/core/SkImagePriv.h"
 #include "src/gpu/GrGpuResourcePriv.h"
 #include "src/gpu/GrSurfaceProxyPriv.h"
-#include "src/gpu/SkGr.h"
+#include "src/gpu/GrSurfaceProxyView.h"
 #include "src/image/SkImage_GpuBase.h"
 
+class GrDirectContext;
+class GrRecordingContext;
 class GrTexture;
 
 class SkBitmap;
-struct SkYUVAIndex;
 
-class SkImage_Gpu : public SkImage_GpuBase {
+class SkImage_Gpu final : public SkImage_GpuBase {
 public:
-    SkImage_Gpu(sk_sp<GrContext>, uint32_t uniqueID, SkAlphaType, sk_sp<GrTextureProxy>,
-                sk_sp<SkColorSpace>);
+    SkImage_Gpu(sk_sp<GrImageContext> context,
+                uint32_t uniqueID,
+                GrSurfaceProxyView view,
+                SkColorInfo info);
+
+    static sk_sp<SkImage> MakeWithVolatileSrc(sk_sp<GrRecordingContext> rContext,
+                                              GrSurfaceProxyView volatileSrc,
+                                              SkColorInfo colorInfo);
+
     ~SkImage_Gpu() override;
 
-    GrSemaphoresSubmitted onFlush(GrContext*, const GrFlushInfo&) override;
+    // If this is image is a cached SkSurface snapshot then this method is called by the SkSurface
+    // before a write to check if the surface must make a copy to avoid modifying the image's
+    // contents.
+    bool surfaceMustCopyOnWrite(GrSurfaceProxy* surfaceProxy) const;
 
-    GrTextureProxy* peekProxy() const override {
-        return fProxy.get();
-    }
-    sk_sp<GrTextureProxy> asTextureProxyRef(GrRecordingContext*) const override {
-        return fProxy;
-    }
+    bool onHasMipmaps() const override;
 
-    bool onIsTextureBacked() const override { return SkToBool(fProxy.get()); }
+    GrSemaphoresSubmitted onFlush(GrDirectContext*, const GrFlushInfo&) const override;
 
-    sk_sp<SkImage> onMakeColorTypeAndColorSpace(GrRecordingContext*,
-                                                SkColorType, sk_sp<SkColorSpace>) const final;
+    GrBackendTexture onGetBackendTexture(bool flushPendingGrContextIO,
+                                         GrSurfaceOrigin* origin) const final;
+
+    bool onIsTextureBacked() const override { return true; }
+
+    size_t onTextureSize() const override;
+
+    sk_sp<SkImage> onMakeColorTypeAndColorSpace(SkColorType, sk_sp<SkColorSpace>,
+                                                GrDirectContext*) const final;
 
     sk_sp<SkImage> onReinterpretColorSpace(sk_sp<SkColorSpace>) const final;
 
-    /**
-     * This is the implementation of SkDeferredDisplayListRecorder::makePromiseImage.
-     */
-    static sk_sp<SkImage> MakePromiseTexture(GrContext* context,
-                                             const GrBackendFormat& backendFormat,
-                                             int width,
-                                             int height,
-                                             GrMipMapped mipMapped,
-                                             GrSurfaceOrigin origin,
-                                             SkColorType colorType,
-                                             SkAlphaType alphaType,
-                                             sk_sp<SkColorSpace> colorSpace,
-                                             PromiseImageTextureFulfillProc textureFulfillProc,
-                                             PromiseImageTextureReleaseProc textureReleaseProc,
-                                             PromiseImageTextureDoneProc textureDoneProc,
-                                             PromiseImageTextureContext textureContext,
-                                             PromiseImageApiVersion);
+    void onAsyncRescaleAndReadPixels(const SkImageInfo&,
+                                     const SkIRect& srcRect,
+                                     RescaleGamma,
+                                     RescaleMode,
+                                     ReadPixelsCallback,
+                                     ReadPixelsContext) const override;
 
-    static sk_sp<SkImage> ConvertYUVATexturesToRGB(GrContext*, SkYUVColorSpace yuvColorSpace,
-                                                   const GrBackendTexture yuvaTextures[],
-                                                   const SkYUVAIndex yuvaIndices[4],
-                                                   SkISize imageSize, GrSurfaceOrigin imageOrigin,
-                                                   GrRenderTargetContext*);
+    void onAsyncRescaleAndReadPixelsYUV420(SkYUVColorSpace,
+                                           sk_sp<SkColorSpace>,
+                                           const SkIRect& srcRect,
+                                           const SkISize& dstSize,
+                                           RescaleGamma,
+                                           RescaleMode,
+                                           ReadPixelsCallback,
+                                           ReadPixelsContext) const override;
+
+    void generatingSurfaceIsDeleted() override;
 
 private:
-    sk_sp<GrTextureProxy> fProxy;
+    SkImage_Gpu(sk_sp<GrDirectContext>,
+                GrSurfaceProxyView volatileSrc,
+                sk_sp<GrSurfaceProxy> stableCopy,
+                sk_sp<GrRenderTask> copyTask,
+                int volatileSrcTargetCount,
+                SkColorInfo);
 
-    typedef SkImage_GpuBase INHERITED;
+    std::tuple<GrSurfaceProxyView, GrColorType> onAsView(GrRecordingContext*,
+                                                         GrMipmapped,
+                                                         GrImageTexGenPolicy) const override;
+
+    std::unique_ptr<GrFragmentProcessor> onAsFragmentProcessor(GrRecordingContext*,
+                                                               SkSamplingOptions,
+                                                               const SkTileMode[],
+                                                               const SkMatrix&,
+                                                               const SkRect*,
+                                                               const SkRect*) const override;
+
+    GrSurfaceProxyView makeView(GrRecordingContext*) const;
+
+    // Thread-safe wrapper around the proxies backing this image. Handles dynamically switching
+    // from a "volatile" proxy that may be overwritten (by an SkSurface that this image was snapped
+    // from) to a "stable" proxy that is a copy of the volatile proxy. It allows the image to cancel
+    // the copy if the stable proxy is never required because the contents of the volatile proxy
+    // were never mutated by the SkSurface during the image lifetime.
+    class ProxyChooser {
+    public:
+        ProxyChooser(sk_sp<GrSurfaceProxy> stableProxy,
+                     sk_sp<GrSurfaceProxy> volatileProxy,
+                     sk_sp<GrRenderTask> copyTask,
+                     int volatileProxyTargetCount);
+
+        ProxyChooser(sk_sp<GrSurfaceProxy> stableProxy);
+
+        ~ProxyChooser();
+
+        // Checks if there is a volatile proxy that is safe to use. If so returns it, otherwise
+        // returns the stable proxy (and drops the volatile one if it exists).
+        sk_sp<GrSurfaceProxy> chooseProxy(GrRecordingContext* context) SK_EXCLUDES(fLock);
+        // Call when it is known copy is necessary.
+        sk_sp<GrSurfaceProxy> switchToStableProxy() SK_EXCLUDES(fLock);
+        // Call when it is known for sure copy won't be necessary.
+        sk_sp<GrSurfaceProxy> makeVolatileProxyStable() SK_EXCLUDES(fLock);
+
+        bool surfaceMustCopyOnWrite(GrSurfaceProxy* surfaceProxy) const SK_EXCLUDES(fLock);
+
+        // Queries that should be independent of which proxy is in use.
+        size_t gpuMemorySize() const SK_EXCLUDES(fLock);
+        GrMipmapped mipmapped() const SK_EXCLUDES(fLock);
+#ifdef SK_DEBUG
+        GrBackendFormat backendFormat() SK_EXCLUDES(fLock);
+#endif
+
+    private:
+        mutable SkSpinlock fLock;
+        sk_sp<GrSurfaceProxy> fStableProxy SK_GUARDED_BY(fLock);
+        sk_sp<GrSurfaceProxy> fVolatileProxy SK_GUARDED_BY(fLock);
+        sk_sp<GrRenderTask> fVolatileToStableCopyTask;
+        // The number of GrRenderTasks targeting the volatile proxy at creation time. If the
+        // proxy's target count increases it indicates additional writes and we must switch
+        // to using the stable copy.
+        const int fVolatileProxyTargetCount = 0;
+    };
+
+    mutable ProxyChooser fChooser;
+    GrSwizzle fSwizzle;
+    GrSurfaceOrigin fOrigin;
+
+    using INHERITED = SkImage_GpuBase;
 };
 
 #endif

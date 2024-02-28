@@ -119,7 +119,7 @@ protected:
     }
 
 private:
-    static constexpr int kNumBlurs = 2;
+    inline static constexpr int kNumBlurs = 2;
 
     static const struct BlurFlags {
         bool fRespectCTM;
@@ -134,7 +134,7 @@ private:
     DrawType fDrawType;
     sk_sp<SkMaskFilter> fBlurFilters[kNumBlurs];
 
-    typedef         skiagm::GM INHERITED;
+    using INHERITED =         skiagm::GM;
 };
 
 const BlurIgnoreXformGM::BlurFlags BlurIgnoreXformGM::kBlurFlags[] = {
