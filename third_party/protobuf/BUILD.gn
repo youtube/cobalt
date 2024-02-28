@@ -1,6 +1,7 @@
 # Copyright 2014 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
+import("//build/config/sanitizers/sanitizers.gni")
 
 config("protobuf_config") {
   include_dirs = [ "src" ]
@@ -10,21 +11,6 @@ config("protobuf_config") {
   ]
   if (!is_win) {
     defines += [ "HAVE_PTHREAD" ]
-  }
-
-  if (is_starboard) {
-    if (is_clang) {
-      cflags = [
-        # protobuf-3 contains a few functions that are unused.
-        "-Wno-unused-function",
-        # protobuf-3 mixes generated enum types.
-        "-Wno-enum-compare-switch",
-        # Used by older version of clang.
-        "-Wno-enum-compare",
-        # Older version of clang don't have -Wno-enum-compare-switch
-        "-Wno-unknown-warning-option",
-      ]
-    }
   }
 }
 
@@ -52,19 +38,35 @@ config("using_proto") {
 }
 
 protobuf_lite_sources = [
+  "src/google/protobuf/any_lite.cc",
   "src/google/protobuf/arena.cc",
   "src/google/protobuf/arena.h",
+  "src/google/protobuf/arena_impl.h",
   "src/google/protobuf/arenastring.cc",
   "src/google/protobuf/arenastring.h",
   "src/google/protobuf/extension_set.cc",
   "src/google/protobuf/extension_set.h",
+  "src/google/protobuf/generated_enum_util.cc",
+  "src/google/protobuf/generated_enum_util.h",
+  "src/google/protobuf/generated_message_table_driven_lite.cc",
+  "src/google/protobuf/generated_message_table_driven_lite.h",
   "src/google/protobuf/generated_message_util.cc",
   "src/google/protobuf/generated_message_util.h",
+  "src/google/protobuf/has_bits.h",
+  "src/google/protobuf/implicit_weak_message.cc",
+  "src/google/protobuf/implicit_weak_message.h",
+  "src/google/protobuf/inlined_string_field.h",
   "src/google/protobuf/io/coded_stream.cc",
   "src/google/protobuf/io/coded_stream.h",
   "src/google/protobuf/io/coded_stream_inl.h",
+  "src/google/protobuf/io/io_win32.cc",
+  "src/google/protobuf/io/io_win32.h",
+  "src/google/protobuf/io/strtod.cc",
+  "src/google/protobuf/io/strtod.h",
   "src/google/protobuf/io/zero_copy_stream.cc",
   "src/google/protobuf/io/zero_copy_stream.h",
+  "src/google/protobuf/io/zero_copy_stream_impl.cc",
+  "src/google/protobuf/io/zero_copy_stream_impl.h",
   "src/google/protobuf/io/zero_copy_stream_impl_lite.cc",
   "src/google/protobuf/io/zero_copy_stream_impl_lite.h",
   "src/google/protobuf/map.h",
@@ -75,24 +77,6 @@ protobuf_lite_sources = [
   "src/google/protobuf/message_lite.h",
   "src/google/protobuf/repeated_field.cc",
   "src/google/protobuf/repeated_field.h",
-  "src/google/protobuf/stubs/atomicops.h",
-  "src/google/protobuf/stubs/atomicops_internals_arm64_gcc.h",
-  "src/google/protobuf/stubs/atomicops_internals_arm_gcc.h",
-  "src/google/protobuf/stubs/atomicops_internals_arm_qnx.h",
-  "src/google/protobuf/stubs/atomicops_internals_atomicword_compat.h",
-  "src/google/protobuf/stubs/atomicops_internals_generic_gcc.h",
-  "src/google/protobuf/stubs/atomicops_internals_macosx.h",
-  "src/google/protobuf/stubs/atomicops_internals_mips_gcc.h",
-  "src/google/protobuf/stubs/atomicops_internals_pnacl.h",
-  "src/google/protobuf/stubs/atomicops_internals_power.h",
-  "src/google/protobuf/stubs/atomicops_internals_ppc_gcc.h",
-  "src/google/protobuf/stubs/atomicops_internals_solaris.h",
-  "src/google/protobuf/stubs/atomicops_internals_tsan.h",
-  "src/google/protobuf/stubs/atomicops_internals_x86_gcc.cc",
-  "src/google/protobuf/stubs/atomicops_internals_x86_gcc.h",
-  "src/google/protobuf/stubs/atomicops_internals_x86_msvc.cc",
-  "src/google/protobuf/stubs/atomicops_internals_x86_msvc.h",
-  "src/google/protobuf/stubs/atomic_sequence_num.h",
   "src/google/protobuf/stubs/bytestream.cc",
   "src/google/protobuf/stubs/bytestream.h",
   "src/google/protobuf/stubs/callback.h",
@@ -107,12 +91,9 @@ protobuf_lite_sources = [
   "src/google/protobuf/stubs/macros.h",
   "src/google/protobuf/stubs/map_util.h",
   "src/google/protobuf/stubs/mutex.h",
-  "src/google/protobuf/stubs/once.cc",
   "src/google/protobuf/stubs/once.h",
   "src/google/protobuf/stubs/platform_macros.h",
   "src/google/protobuf/stubs/port.h",
-  "src/google/protobuf/stubs/scoped_ptr.h",
-  "src/google/protobuf/stubs/shared_ptr.h",
   "src/google/protobuf/stubs/status.cc",
   "src/google/protobuf/stubs/status.h",
   "src/google/protobuf/stubs/status_macros.h",
@@ -127,12 +108,10 @@ protobuf_lite_sources = [
   "src/google/protobuf/stubs/strutil.cc",
   "src/google/protobuf/stubs/strutil.h",
   "src/google/protobuf/stubs/template_util.h",
-  "src/google/protobuf/stubs/type_traits.h",
   "src/google/protobuf/stubs/time.cc",
   "src/google/protobuf/stubs/time.h",
   "src/google/protobuf/wire_format_lite.cc",
   "src/google/protobuf/wire_format_lite.h",
-  "src/google/protobuf/wire_format_lite_inl.h",
 ]
 
 protobuf_lite_cflags = []
@@ -151,14 +130,31 @@ if (is_win) {
   ]
 }
 
+# Do not allow libprotobuf_lite to be dynamically linked on Linux.  Later
+# versions of Ubuntu like Xenial and Yakkety link in the system
+# libprotobuf_lite by the following dependency chain: chrome -> gtk ->
+# libmirclient -> libmirprotobuf -> libprotobuf-lite.  Trying to load
+# the system libprotobuf-lite after already having loaded the libprotobuf_lite
+# component will result in an immediate crash. (crbug.com/700120)
+if (is_component_build && is_desktop_linux) {
+  shared_library("mirclient") {
+    inputs = [
+      "mirclient.map",
+    ]
+    sources = [
+      "mirclient.cc",
+    ]
+    ldflags =
+        [ "-Wl,--version-script=" +
+          rebase_path("//third_party/protobuf/mirclient.map", root_build_dir) ]
+    output_extension = "so.9"
+  }
+}
+
 component("protobuf_lite") {
   sources = protobuf_lite_sources
 
-  if (is_starboard) {
-    deps = [ "//starboard/common" ]
-  } else if (!is_native_target_build) {
   configs -= [ "//build/config/compiler:chromium_code" ]
-  }
   configs += [
     "//build/config/compiler:no_chromium_code",
 
@@ -166,6 +162,12 @@ component("protobuf_lite") {
     # correctly.
     ":protobuf_warnings",
   ]
+
+  # Remove Sanitizers and coverage for a performance boost when fuzzing. This is
+  # OK because the only fuzzers that use protobuf are libprotobuf-mutator based
+  # fuzzers, and they don't actually target the protobuf code, they just use it.
+  configs -= not_fuzzed_remove_configs
+  configs += [ "//build/config/sanitizers:not_fuzzed" ]
 
   if (is_win) {
     configs -= [ "//build/config/win:lean_and_mean" ]
@@ -175,19 +177,25 @@ component("protobuf_lite") {
     ":protobuf_config",
 
     # TODO(jschuh): crbug.com/167187 fix size_t to int truncations.
-    # "//build/config/compiler:no_size_t_to_int_warning",
+    "//build/config/compiler:no_size_t_to_int_warning",
   ]
 
   if (use_cobalt_customizations) {
     public_configs -= [ ":protobuf_config" ]
     all_dependent_configs = [ ":protobuf_config" ]
-  } else {
-  deps = [
-    "//build/config/sanitizers:deps",
-  ]
+  }
+
+  if (is_android) {
+    libs = [ "log" ]  # Used by src/google/protobuf/stubs/common.cc
   }
 
   cflags = protobuf_lite_cflags
+
+  if (is_component_build && is_desktop_linux) {
+    deps = [
+      ":mirclient",
+    ]
+  }
 
   # Required for component builds. See http://crbug.com/172800.
   if (is_component_build) {
@@ -196,155 +204,168 @@ component("protobuf_lite") {
   }
 }
 
-# Only compile the compiler for the host architecture.
-if (current_toolchain == host_toolchain) {
 # This is the full, heavy protobuf lib that's needed for c++ .protos that don't
 # specify the LITE_RUNTIME option. The protocol compiler itself (protoc) falls
 # into that category. Do not use in Chrome code.
 static_library("protobuf_full") {
   # Prevent people from depending on this outside our file.
-  visibility = [ ":*" ]
+  visibility = [
+    ":*",
 
-  if (use_cobalt_customizations) {
-    visibility += [ "//third_party/perfetto/gn:protobuf_full" ]
-  }
+    # requires descriptors & reflection; testonly.
+    "//third_party/libprotobuf-mutator:*",
 
-  sources = protobuf_lite_sources
-  sources += [
-    "src/google/protobuf/any.cc",
-    "src/google/protobuf/any.h",
-    "src/google/protobuf/any.pb.cc",
-    "src/google/protobuf/any.pb.h",
-    "src/google/protobuf/api.pb.cc",
-    "src/google/protobuf/api.pb.h",
-    "src/google/protobuf/compiler/importer.cc",
-    "src/google/protobuf/compiler/importer.h",
-    "src/google/protobuf/compiler/parser.cc",
-    "src/google/protobuf/compiler/parser.h",
-    "src/google/protobuf/descriptor.cc",
-    "src/google/protobuf/descriptor.h",
-    "src/google/protobuf/descriptor.pb.cc",
-    "src/google/protobuf/descriptor.pb.h",
-    "src/google/protobuf/descriptor_database.cc",
-    "src/google/protobuf/descriptor_database.h",
-    "src/google/protobuf/duration.pb.cc",
-    "src/google/protobuf/duration.pb.h",
-    "src/google/protobuf/dynamic_message.cc",
-    "src/google/protobuf/dynamic_message.h",
-    "src/google/protobuf/empty.pb.cc",
-    "src/google/protobuf/empty.pb.h",
-    "src/google/protobuf/extension_set_heavy.cc",
-    "src/google/protobuf/field_mask.pb.cc",
-    "src/google/protobuf/field_mask.pb.h",
-    "src/google/protobuf/generated_enum_reflection.h",
-    "src/google/protobuf/generated_enum_util.h",
-    "src/google/protobuf/generated_message_reflection.cc",
-    "src/google/protobuf/generated_message_reflection.h",
+    # The traffic_annotation tool is not part of Chrome itself, and needs to
+    # parse human-readable protobufs.
+    "//tools/traffic_annotation/*",
 
-    # gzip_stream.cc pulls in zlib, but it's not actually used by protoc, just
-    # by test code, so instead of compiling zlib for the host, let's just
-    # exclude this.
-    # "src/google/protobuf/io/gzip_stream.cc",
-    # "src/google/protobuf/io/gzip_stream.h",
+    # Chromecast requires descriptors and reflection.
+    "//chromecast/*",
 
-    "src/google/protobuf/io/printer.cc",
-    "src/google/protobuf/io/printer.h",
-    "src/google/protobuf/io/strtod.cc",
-    "src/google/protobuf/io/strtod.h",
-    "src/google/protobuf/io/tokenizer.cc",
-    "src/google/protobuf/io/tokenizer.h",
-    "src/google/protobuf/io/zero_copy_stream_impl.cc",
-    "src/google/protobuf/io/zero_copy_stream_impl.h",
-    "src/google/protobuf/map_entry.h",
-    "src/google/protobuf/map_field.cc",
-    "src/google/protobuf/map_field.h",
-    "src/google/protobuf/map_field_inl.h",
-    "src/google/protobuf/message.cc",
-    "src/google/protobuf/message.h",
-    "src/google/protobuf/metadata.h",
-    "src/google/protobuf/reflection.h",
-    "src/google/protobuf/reflection_internal.h",
-    "src/google/protobuf/reflection_ops.cc",
-    "src/google/protobuf/reflection_ops.h",
-    "src/google/protobuf/service.cc",
-    "src/google/protobuf/service.h",
-    "src/google/protobuf/source_context.pb.cc",
-    "src/google/protobuf/source_context.pb.h",
-    "src/google/protobuf/struct.pb.cc",
-    "src/google/protobuf/struct.pb.h",
-    "src/google/protobuf/stubs/mathlimits.cc",
-    "src/google/protobuf/stubs/mathlimits.h",
-    "src/google/protobuf/stubs/mathutil.h",
-    "src/google/protobuf/stubs/singleton.h",
-    "src/google/protobuf/stubs/substitute.cc",
-    "src/google/protobuf/stubs/substitute.h",
-    "src/google/protobuf/text_format.cc",
-    "src/google/protobuf/text_format.h",
-    "src/google/protobuf/timestamp.pb.cc",
-    "src/google/protobuf/timestamp.pb.h",
-    "src/google/protobuf/type.pb.cc",
-    "src/google/protobuf/type.pb.h",
-    "src/google/protobuf/unknown_field_set.cc",
-    "src/google/protobuf/unknown_field_set.h",
-    "src/google/protobuf/util/field_comparator.cc",
-    "src/google/protobuf/util/field_comparator.h",
-    "src/google/protobuf/util/field_mask_util.cc",
-    "src/google/protobuf/util/field_mask_util.h",
-    "src/google/protobuf/util/internal/constants.h",
-    "src/google/protobuf/util/internal/datapiece.cc",
-    "src/google/protobuf/util/internal/datapiece.h",
-    "src/google/protobuf/util/internal/default_value_objectwriter.cc",
-    "src/google/protobuf/util/internal/default_value_objectwriter.h",
-    "src/google/protobuf/util/internal/error_listener.cc",
-    "src/google/protobuf/util/internal/error_listener.h",
-    "src/google/protobuf/util/internal/field_mask_utility.cc",
-    "src/google/protobuf/util/internal/field_mask_utility.h",
-    "src/google/protobuf/util/internal/json_escaping.cc",
-    "src/google/protobuf/util/internal/json_escaping.h",
-    "src/google/protobuf/util/internal/json_objectwriter.cc",
-    "src/google/protobuf/util/internal/json_objectwriter.h",
-    "src/google/protobuf/util/internal/json_stream_parser.cc",
-    "src/google/protobuf/util/internal/json_stream_parser.h",
-    "src/google/protobuf/util/internal/location_tracker.h",
-    "src/google/protobuf/util/internal/object_location_tracker.h",
-    "src/google/protobuf/util/internal/object_source.h",
-    "src/google/protobuf/util/internal/object_writer.cc",
-    "src/google/protobuf/util/internal/object_writer.h",
-    "src/google/protobuf/util/internal/proto_writer.cc",
-    "src/google/protobuf/util/internal/proto_writer.h",
-    "src/google/protobuf/util/internal/protostream_objectsource.cc",
-    "src/google/protobuf/util/internal/protostream_objectsource.h",
-    "src/google/protobuf/util/internal/protostream_objectwriter.cc",
-    "src/google/protobuf/util/internal/protostream_objectwriter.h",
-    "src/google/protobuf/util/internal/structured_objectwriter.h",
-    "src/google/protobuf/util/internal/type_info.cc",
-    "src/google/protobuf/util/internal/type_info.h",
-    "src/google/protobuf/util/internal/type_info_test_helper.cc",
-    "src/google/protobuf/util/internal/type_info_test_helper.h",
-    "src/google/protobuf/util/internal/utility.cc",
-    "src/google/protobuf/util/internal/utility.h",
-    "src/google/protobuf/util/json_util.cc",
-    "src/google/protobuf/util/json_util.h",
-    "src/google/protobuf/util/message_differencer.cc",
-    "src/google/protobuf/util/message_differencer.h",
-    "src/google/protobuf/util/time_util.cc",
-    "src/google/protobuf/util/time_util.h",
-    "src/google/protobuf/util/type_resolver.h",
-    "src/google/protobuf/util/type_resolver_util.cc",
-    "src/google/protobuf/util/type_resolver_util.h",
-    "src/google/protobuf/wire_format.cc",
-    "src/google/protobuf/wire_format.h",
-    "src/google/protobuf/wrappers.pb.cc",
-    "src/google/protobuf/wrappers.pb.h",
+    # libassistant requires descriptors and reflection for testing.
+    "//libassistant/*",
+
+    # Perfetto uses the full library for testing.
+    "//third_party/perfetto/gn:protobuf_full",
+
+    # Some tests inside ChromeOS need reflection to parse golden files.
+    # Not included in production code.
+    "//chrome/test:usage_time_limit_unittests",
+
+    # The protobuf-based SQLite and GPU fuzzers need protobuf_full and are not
+    # included in Chrome.
+    "//third_party/sqlite:sqlite3_lpm_corpus_gen",
+    "//gpu:gl_lpm_fuzzer_proto",
+    "//gpu:gl_lpm_fuzzer_proto_gen",
+    "//gpu:gl_lpm_shader_to_string_unittest",
   ]
 
-  if (!is_starboard) {
+  sources = protobuf_lite_sources + [
+              "src/google/protobuf/any.cc",
+              "src/google/protobuf/any.h",
+              "src/google/protobuf/any.pb.cc",
+              "src/google/protobuf/any.pb.h",
+              "src/google/protobuf/api.pb.cc",
+              "src/google/protobuf/api.pb.h",
+              "src/google/protobuf/compiler/importer.cc",
+              "src/google/protobuf/compiler/importer.h",
+              "src/google/protobuf/compiler/parser.cc",
+              "src/google/protobuf/compiler/parser.h",
+              "src/google/protobuf/descriptor.cc",
+              "src/google/protobuf/descriptor.h",
+              "src/google/protobuf/descriptor.pb.cc",
+              "src/google/protobuf/descriptor.pb.h",
+              "src/google/protobuf/descriptor_database.cc",
+              "src/google/protobuf/descriptor_database.h",
+              "src/google/protobuf/duration.pb.cc",
+              "src/google/protobuf/duration.pb.h",
+              "src/google/protobuf/dynamic_message.cc",
+              "src/google/protobuf/dynamic_message.h",
+              "src/google/protobuf/empty.pb.cc",
+              "src/google/protobuf/empty.pb.h",
+              "src/google/protobuf/extension_set_heavy.cc",
+              "src/google/protobuf/field_mask.pb.cc",
+              "src/google/protobuf/field_mask.pb.h",
+              "src/google/protobuf/generated_enum_reflection.h",
+              "src/google/protobuf/generated_message_reflection.cc",
+              "src/google/protobuf/generated_message_reflection.h",
+              "src/google/protobuf/io/gzip_stream.cc",
+              "src/google/protobuf/io/gzip_stream.h",
+              "src/google/protobuf/io/printer.cc",
+              "src/google/protobuf/io/printer.h",
+              "src/google/protobuf/io/tokenizer.cc",
+              "src/google/protobuf/io/tokenizer.h",
+              "src/google/protobuf/map_entry.h",
+              "src/google/protobuf/map_field.cc",
+              "src/google/protobuf/map_field.h",
+              "src/google/protobuf/map_field_inl.h",
+              "src/google/protobuf/message.cc",
+              "src/google/protobuf/message.h",
+              "src/google/protobuf/metadata.h",
+              "src/google/protobuf/reflection.h",
+              "src/google/protobuf/reflection_internal.h",
+              "src/google/protobuf/reflection_ops.cc",
+              "src/google/protobuf/reflection_ops.h",
+              "src/google/protobuf/service.cc",
+              "src/google/protobuf/service.h",
+              "src/google/protobuf/source_context.pb.cc",
+              "src/google/protobuf/source_context.pb.h",
+              "src/google/protobuf/struct.pb.cc",
+              "src/google/protobuf/struct.pb.h",
+              "src/google/protobuf/stubs/mathlimits.cc",
+              "src/google/protobuf/stubs/mathlimits.h",
+              "src/google/protobuf/stubs/mathutil.h",
+              "src/google/protobuf/stubs/substitute.cc",
+              "src/google/protobuf/stubs/substitute.h",
+              "src/google/protobuf/text_format.cc",
+              "src/google/protobuf/text_format.h",
+              "src/google/protobuf/timestamp.pb.cc",
+              "src/google/protobuf/timestamp.pb.h",
+              "src/google/protobuf/type.pb.cc",
+              "src/google/protobuf/type.pb.h",
+              "src/google/protobuf/unknown_field_set.cc",
+              "src/google/protobuf/unknown_field_set.h",
+              "src/google/protobuf/util/field_comparator.cc",
+              "src/google/protobuf/util/field_comparator.h",
+              "src/google/protobuf/util/field_mask_util.cc",
+              "src/google/protobuf/util/field_mask_util.h",
+              "src/google/protobuf/util/internal/constants.h",
+              "src/google/protobuf/util/internal/datapiece.cc",
+              "src/google/protobuf/util/internal/datapiece.h",
+              "src/google/protobuf/util/internal/default_value_objectwriter.cc",
+              "src/google/protobuf/util/internal/default_value_objectwriter.h",
+              "src/google/protobuf/util/internal/error_listener.cc",
+              "src/google/protobuf/util/internal/error_listener.h",
+              "src/google/protobuf/util/internal/field_mask_utility.cc",
+              "src/google/protobuf/util/internal/field_mask_utility.h",
+              "src/google/protobuf/util/internal/json_escaping.cc",
+              "src/google/protobuf/util/internal/json_escaping.h",
+              "src/google/protobuf/util/internal/json_objectwriter.cc",
+              "src/google/protobuf/util/internal/json_objectwriter.h",
+              "src/google/protobuf/util/internal/json_stream_parser.cc",
+              "src/google/protobuf/util/internal/json_stream_parser.h",
+              "src/google/protobuf/util/internal/location_tracker.h",
+              "src/google/protobuf/util/internal/object_location_tracker.h",
+              "src/google/protobuf/util/internal/object_source.h",
+              "src/google/protobuf/util/internal/object_writer.cc",
+              "src/google/protobuf/util/internal/object_writer.h",
+              "src/google/protobuf/util/internal/proto_writer.cc",
+              "src/google/protobuf/util/internal/proto_writer.h",
+              "src/google/protobuf/util/internal/protostream_objectsource.cc",
+              "src/google/protobuf/util/internal/protostream_objectsource.h",
+              "src/google/protobuf/util/internal/protostream_objectwriter.cc",
+              "src/google/protobuf/util/internal/protostream_objectwriter.h",
+              "src/google/protobuf/util/internal/structured_objectwriter.h",
+              "src/google/protobuf/util/internal/type_info.cc",
+              "src/google/protobuf/util/internal/type_info.h",
+              "src/google/protobuf/util/internal/type_info_test_helper.cc",
+              "src/google/protobuf/util/internal/type_info_test_helper.h",
+              "src/google/protobuf/util/internal/utility.cc",
+              "src/google/protobuf/util/internal/utility.h",
+              "src/google/protobuf/util/json_util.cc",
+              "src/google/protobuf/util/json_util.h",
+              "src/google/protobuf/util/message_differencer.cc",
+              "src/google/protobuf/util/message_differencer.h",
+              "src/google/protobuf/util/time_util.cc",
+              "src/google/protobuf/util/time_util.h",
+              "src/google/protobuf/util/type_resolver.h",
+              "src/google/protobuf/util/type_resolver_util.cc",
+              "src/google/protobuf/util/type_resolver_util.h",
+              "src/google/protobuf/wire_format.cc",
+              "src/google/protobuf/wire_format.h",
+              "src/google/protobuf/wrappers.pb.cc",
+              "src/google/protobuf/wrappers.pb.h",
+            ]
+
   deps = [
-    "//build/config/sanitizers:deps",
+    "//third_party/zlib",
   ]
+
+  if (is_android) {
+    libs = [ "log" ]  # Used by src/google/protobuf/stubs/common.cc
+  }
 
   configs -= [ "//build/config/compiler:chromium_code" ]
-  }
   configs += [
     "//build/config/compiler:no_chromium_code",
 
@@ -352,6 +373,13 @@ static_library("protobuf_full") {
     # correctly.
     ":protobuf_warnings",
   ]
+
+  # Remove coverage and Sanitizers other than ASan for a performance boost when
+  # fuzzing. ASan can't be removed here because of a bug preventing unsanitized
+  # code from using libc++, which protobuf_full uses.
+  configs -= not_fuzzed_remove_nonasan_configs
+  configs += [ "//build/config/sanitizers:not_fuzzed" ]
+
   if (is_win) {
     configs -= [ "//build/config/win:lean_and_mean" ]
   }
@@ -363,8 +391,12 @@ static_library("protobuf_full") {
   ]
 
   cflags = protobuf_lite_cflags
+
+  defines = [ "HAVE_ZLIB" ]
 }
 
+# Only compile the compiler for the host architecture.
+if (current_toolchain == host_toolchain) {
   # protoc compiler is separated into protoc library and executable targets to
   # support protoc plugins that need to link libprotoc, but not the main()
   # itself. See src/google/protobuf/compiler/plugin.h
@@ -394,7 +426,10 @@ static_library("protobuf_full") {
       "src/google/protobuf/compiler/cpp/cpp_message.h",
       "src/google/protobuf/compiler/cpp/cpp_message_field.cc",
       "src/google/protobuf/compiler/cpp/cpp_message_field.h",
+      "src/google/protobuf/compiler/cpp/cpp_message_layout_helper.h",
       "src/google/protobuf/compiler/cpp/cpp_options.h",
+      "src/google/protobuf/compiler/cpp/cpp_padding_optimizer.cc",
+      "src/google/protobuf/compiler/cpp/cpp_padding_optimizer.h",
       "src/google/protobuf/compiler/cpp/cpp_primitive_field.cc",
       "src/google/protobuf/compiler/cpp/cpp_primitive_field.h",
       "src/google/protobuf/compiler/cpp/cpp_service.cc",
@@ -460,10 +495,6 @@ static_library("protobuf_full") {
       "src/google/protobuf/compiler/java/java_generator_factory.h",
       "src/google/protobuf/compiler/java/java_helpers.cc",
       "src/google/protobuf/compiler/java/java_helpers.h",
-      "src/google/protobuf/compiler/java/java_lazy_message_field.cc",
-      "src/google/protobuf/compiler/java/java_lazy_message_field.h",
-      "src/google/protobuf/compiler/java/java_lazy_message_field_lite.cc",
-      "src/google/protobuf/compiler/java/java_lazy_message_field_lite.h",
       "src/google/protobuf/compiler/java/java_map_field.cc",
       "src/google/protobuf/compiler/java/java_map_field.h",
       "src/google/protobuf/compiler/java/java_map_field_lite.cc",
@@ -482,6 +513,7 @@ static_library("protobuf_full") {
       "src/google/protobuf/compiler/java/java_message_lite.h",
       "src/google/protobuf/compiler/java/java_name_resolver.cc",
       "src/google/protobuf/compiler/java/java_name_resolver.h",
+      "src/google/protobuf/compiler/java/java_options.h",
       "src/google/protobuf/compiler/java/java_primitive_field.cc",
       "src/google/protobuf/compiler/java/java_primitive_field.h",
       "src/google/protobuf/compiler/java/java_primitive_field_lite.cc",
@@ -494,30 +526,10 @@ static_library("protobuf_full") {
       "src/google/protobuf/compiler/java/java_string_field.h",
       "src/google/protobuf/compiler/java/java_string_field_lite.cc",
       "src/google/protobuf/compiler/java/java_string_field_lite.h",
-      "src/google/protobuf/compiler/javanano/javanano_enum.cc",
-      "src/google/protobuf/compiler/javanano/javanano_enum.h",
-      "src/google/protobuf/compiler/javanano/javanano_enum_field.cc",
-      "src/google/protobuf/compiler/javanano/javanano_enum_field.h",
-      "src/google/protobuf/compiler/javanano/javanano_extension.cc",
-      "src/google/protobuf/compiler/javanano/javanano_extension.h",
-      "src/google/protobuf/compiler/javanano/javanano_field.cc",
-      "src/google/protobuf/compiler/javanano/javanano_field.h",
-      "src/google/protobuf/compiler/javanano/javanano_file.cc",
-      "src/google/protobuf/compiler/javanano/javanano_file.h",
-      "src/google/protobuf/compiler/javanano/javanano_generator.cc",
-      "src/google/protobuf/compiler/javanano/javanano_generator.h",
-      "src/google/protobuf/compiler/javanano/javanano_helpers.cc",
-      "src/google/protobuf/compiler/javanano/javanano_helpers.h",
-      "src/google/protobuf/compiler/javanano/javanano_map_field.cc",
-      "src/google/protobuf/compiler/javanano/javanano_map_field.h",
-      "src/google/protobuf/compiler/javanano/javanano_message.cc",
-      "src/google/protobuf/compiler/javanano/javanano_message.h",
-      "src/google/protobuf/compiler/javanano/javanano_message_field.cc",
-      "src/google/protobuf/compiler/javanano/javanano_message_field.h",
-      "src/google/protobuf/compiler/javanano/javanano_primitive_field.cc",
-      "src/google/protobuf/compiler/javanano/javanano_primitive_field.h",
       "src/google/protobuf/compiler/js/js_generator.cc",
       "src/google/protobuf/compiler/js/js_generator.h",
+      "src/google/protobuf/compiler/js/well_known_types_embed.cc",
+      "src/google/protobuf/compiler/js/well_known_types_embed.h",
       "src/google/protobuf/compiler/objectivec/objectivec_enum.cc",
       "src/google/protobuf/compiler/objectivec/objectivec_enum.h",
       "src/google/protobuf/compiler/objectivec/objectivec_enum_field.cc",
@@ -542,6 +554,8 @@ static_library("protobuf_full") {
       "src/google/protobuf/compiler/objectivec/objectivec_oneof.h",
       "src/google/protobuf/compiler/objectivec/objectivec_primitive_field.cc",
       "src/google/protobuf/compiler/objectivec/objectivec_primitive_field.h",
+      "src/google/protobuf/compiler/php/php_generator.cc",
+      "src/google/protobuf/compiler/php/php_generator.h",
       "src/google/protobuf/compiler/plugin.cc",
       "src/google/protobuf/compiler/plugin.h",
       "src/google/protobuf/compiler/plugin.pb.cc",
@@ -556,9 +570,7 @@ static_library("protobuf_full") {
       "src/google/protobuf/compiler/zip_writer.h",
     ]
 
-    if (!is_starboard) {
     configs -= [ "//build/config/compiler:chromium_code" ]
-    }
     configs += [
       "//build/config/compiler:no_chromium_code",
 
@@ -585,9 +597,7 @@ static_library("protobuf_full") {
       "src/google/protobuf/compiler/main.cc",
     ]
 
-    if (!is_starboard) {
     configs -= [ "//build/config/compiler:chromium_code" ]
-    }
     configs += [ "//build/config/compiler:no_chromium_code" ]
 
     cflags = protobuf_lite_cflags
@@ -601,7 +611,6 @@ static_library("protobuf_full") {
   }
 }
 
-if (!is_starboard) {
 google_python_dir = "$root_out_dir/pyproto/google"
 
 copy("copy_google") {
@@ -660,6 +669,7 @@ copy("copy_google_protobuf_internal") {
     "python/google/protobuf/internal/decoder.py",
     "python/google/protobuf/internal/encoder.py",
     "python/google/protobuf/internal/enum_type_wrapper.py",
+    "python/google/protobuf/internal/extension_dict.py",
     "python/google/protobuf/internal/message_listener.py",
     "python/google/protobuf/internal/python_message.py",
     "python/google/protobuf/internal/type_checkers.py",
@@ -671,6 +681,7 @@ copy("copy_google_protobuf_internal") {
   ]
 }
 
+# Build time dependency for action rules.
 group("py_proto") {
   public_deps = [
     ":copy_google",
@@ -678,11 +689,17 @@ group("py_proto") {
     ":copy_google_protobuf_internal",
     ":copy_six",
   ]
+}
+
+# Runtime dependency if the target needs the python scripts.
+group("py_proto_runtime") {
+  deps = [
+    ":py_proto",
+  ]
 
   # Targets that depend on this should depend on the copied data files.
   data = get_target_outputs(":copy_google")
   data += get_target_outputs(":copy_six")
   data += get_target_outputs(":copy_google_protobuf")
   data += get_target_outputs(":copy_google_protobuf_internal")
-}
 }
