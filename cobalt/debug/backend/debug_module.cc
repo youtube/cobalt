@@ -37,37 +37,30 @@ constexpr char kTracingController[] = "TracingController";
 // NULL or it doesn't hold a state for the agent.
 JSONObject RemoveAgentState(const std::string& agent_name,
                             base::Value::Dict* state_dict) {
-#ifndef USE_HACKY_COBALT_CHANGES
   if (state_dict == nullptr) {
     return JSONObject();
   }
 
-  std::unique_ptr<base::Value> value;
-  if (!state_dict->Remove(agent_name, &value)) {
+  absl::optional<base::Value> value = state_dict->Extract(agent_name);
+  if (!value) {
     return JSONObject();
   }
 
-  std::unique_ptr<base::DictionaryValue> dictionary_value =
-      base::DictionaryValue::From(std::move(value));
+  std::unique_ptr<base::Value::Dict> dictionary_value =
+      std::make_unique<base::Value::Dict>(std::move(value->GetDict()));
   if (!dictionary_value) {
     DLOG(ERROR) << "Unexpected state type for " << agent_name;
     return JSONObject();
   }
 
   return dictionary_value;
-#else
-  return nullptr;
-#endif
 }
 
 void StoreAgentState(base::Value::Dict* state_dict,
                      const std::string& agent_name, JSONObject agent_state) {
-#ifndef USE_HACKY_COBALT_CHANGES
   if (agent_state) {
-    state_dict->Set(agent_name,
-                    std::unique_ptr<base::Value>(agent_state.release()));
+    state_dict->Set(agent_name, std::move(*agent_state.release()));
   }
-#endif
 }
 
 }  // namespace
@@ -183,8 +176,7 @@ void DebugModule::BuildInternal(const ConstructionData& data) {
   // Restore the agents with their state from before navigation. Do this
   // unconditionally to give the agents a place to initialize themselves whether
   // or not state is being restored.
-#ifndef USE_HACKY_COBALT_CHANGES
-  base::DictionaryValue* agents_state =
+  base::Value::Dict* agents_state =
       data.debugger_state == nullptr ? nullptr
                                      : data.debugger_state->agents_state.get();
   cobalt_agent_->Thaw(RemoveAgentState(kCobaltAgent, agents_state));
@@ -198,20 +190,18 @@ void DebugModule::BuildInternal(const ConstructionData& data) {
   if (page_agent_)
     page_agent_->Thaw(RemoveAgentState(kPageAgent, agents_state));
   tracing_controller_->Thaw(RemoveAgentState(kTracingController, agents_state));
-#endif
 
   is_frozen_ = false;
 }
 
 std::unique_ptr<DebuggerState> DebugModule::Freeze() {
-#ifndef USE_HACKY_COBALT_CHANGES
   DCHECK(!is_frozen_);
   is_frozen_ = true;
 
   std::unique_ptr<DebuggerState> debugger_state(new DebuggerState());
 
-  debugger_state->agents_state.reset(new base::DictionaryValue());
-  base::DictionaryValue* agents_state = debugger_state->agents_state.get();
+  debugger_state->agents_state.reset(new base::Value::Dict());
+  base::Value::Dict* agents_state = debugger_state->agents_state.get();
   StoreAgentState(agents_state, kCobaltAgent, cobalt_agent_->Freeze());
   StoreAgentState(agents_state, kScriptDebuggerAgent,
                   script_debugger_agent_->Freeze());
@@ -225,15 +215,11 @@ std::unique_ptr<DebuggerState> DebugModule::Freeze() {
   StoreAgentState(agents_state, kTracingController,
                   tracing_controller_->Freeze());
 
-  // Take the clients from the dispatcher last so they still get events that
-  the
-      // agents might send as part of being frozen.
-      debugger_state->attached_clients = debug_dispatcher_->ReleaseClients();
+  // Take the clients from the dispatcher last so they still get events that the
+  // agents might send as part of being frozen.
+  debugger_state->attached_clients = debug_dispatcher_->ReleaseClients();
 
   return debugger_state;
-#else
-  return nullptr;
-#endif
 }
 
 void DebugModule::SendEvent(const std::string& method,

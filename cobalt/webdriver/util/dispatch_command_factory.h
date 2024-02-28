@@ -62,11 +62,12 @@ struct ForwardType<std::unique_ptr<T>> {
 // response object.
 template <typename T>
 std::unique_ptr<base::Value> ToValue(const T& value) {
-#ifndef USE_HACKY_COBALT_CHANGES
-  return T::ToValue(value);
-#else
-  return nullptr;
-#endif
+  auto value_ptr = T::ToValue(value);
+  if (value_ptr) {
+    return base::Value::ToUniquePtrValue(
+        std::move(base::Value(std::move(*value_ptr))));
+  }
+  return std::make_unique<base::Value>();
 }
 
 template <typename T>
@@ -74,9 +75,7 @@ std::unique_ptr<base::Value> ToValue(const std::vector<T>& value) {
   base::Value ret(base::Value::Type::LIST);
   base::Value::List* list_value = ret.GetIfList();
   for (int i = 0; i < value.size(); ++i) {
-#ifndef USE_HACKY_COBALT_CHANGES
-    list_value->Append(*std::move(ToValue<T>(value[i])));
-#endif
+    list_value->Append(std::move(*ToValue<T>(value[i])));
   }
   return base::Value::ToUniquePtrValue(std::move(ret));
 }

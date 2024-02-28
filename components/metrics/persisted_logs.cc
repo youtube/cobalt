@@ -135,10 +135,8 @@ void PersistedLogs::DiscardStagedLog() {
 }
 
 void PersistedLogs::PersistUnsentLogs() const {
-#ifndef USE_HACKY_COBALT_CHANGES
-  ListPrefUpdate update(local_state_, pref_name_);
-  WriteLogsToPrefList(update.Get());
-#endif
+  ScopedListPrefUpdate update(local_state_, pref_name_);
+  WriteLogsToPrefList(&update.Get());
 }
 
 void PersistedLogs::LoadPersistedUnsentLogs() {

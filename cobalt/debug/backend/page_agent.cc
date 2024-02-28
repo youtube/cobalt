@@ -65,21 +65,16 @@ void PageAgent::Reload(Command command) {
 void PageAgent::GetResourceTree(Command command) {
   if (!EnsureEnabled(&command)) return;
 
-#ifndef USE_HACKY_COBALT_CHANGES
-  JSONObject response(new base::DictionaryValue());
-  JSONObject frame(new base::DictionaryValue());
-  frame->SetString("id", "Cobalt");
-  frame->SetString("loaderId", "Cobalt");
-  frame->SetString("mimeType", "text/html");
-  frame->SetString("securityOrigin", window_->document()->url());
-  frame->SetString("url", window_->document()->url());
+  JSONObject response(std::make_unique<base::Value::Dict>());
+  base::Value::Dict frame;
+  frame.Set("id", "Cobalt");
+  frame.Set("loaderId", "Cobalt");
+  frame.Set("mimeType", "text/html");
+  frame.Set("securityOrigin", window_->document()->url());
+  frame.Set("url", window_->document()->url());
   response->Set("result.frameTree.frame", std::move(frame));
-  response->Set("result.frameTree.resources",
-                std::make_unique<base::ListValue>());
+  response->Set("result.frameTree.resources", base::Value::List());
   command.SendResponse(response);
-#else
-  command.SendResponse(JSONObject(nullptr));
-#endif
 }
 
 void PageAgent::SetOverlayMessage(Command command) {
@@ -89,9 +84,11 @@ void PageAgent::SetOverlayMessage(Command command) {
   JSONObject params = JSONParse(command.GetParams());
   bool got_message = false;
   if (params) {
-#ifndef USE_HACKY_COBALT_CHANGES
-    got_message = params->GetString("message", &message);
-#endif
+    std::string* message_ptr = params->FindString("message");
+    if (message_ptr) {
+      message = *message_ptr;
+      got_message = true;
+    }
   }
 
   if (got_message) {

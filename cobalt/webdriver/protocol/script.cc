@@ -15,6 +15,7 @@
 #include "cobalt/webdriver/protocol/script.h"
 
 #include <memory>
+#include <utility>
 
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
@@ -59,11 +60,13 @@ base::Optional<Script> Script::FromValue(const base::Value* value) {
 
 std::unique_ptr<base::Value> ScriptResult::ToValue(
     const ScriptResult& script_result) {
-#ifndef USE_HACKY_COBALT_CHANGES
-  return base::JSONReader::Read(script_result.result_string_);
-#else
-  return nullptr;
-#endif
+  absl::optional<base::Value> script_result_string =
+      base::JSONReader::Read(script_result.result_string_);
+  if (script_result_string.has_value()) {
+    return base::Value::ToUniquePtrValue(
+        std::move(script_result_string.value()));
+  }
+  return std::unique_ptr<base::Value>();
 }
 
 }  // namespace protocol

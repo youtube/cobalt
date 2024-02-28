@@ -91,18 +91,14 @@ void DataUseTracker::UpdateUsagePref(const std::string& pref_name,
                                      int message_size) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-#ifndef USE_HACKY_COBALT_CHANGES
-  DictionaryPrefUpdate pref_updater(local_state_, pref_name);
-#endif
+  ScopedDictPrefUpdate pref_updater(local_state_, pref_name);
   int todays_traffic = 0;
   std::string todays_key = GetCurrentMeasurementDateAsString();
 
   const base::Value::Dict* user_pref_dict =
       local_state_->GetDictionary(pref_name);
-  todays_traffic = user_pref_dict->FindInt(todays_key).value();
-#ifndef USE_HACKY_COBALT_CHANGES
+  todays_traffic = user_pref_dict->FindInt(todays_key).value_or(0);
   pref_updater->Set(todays_key, todays_traffic + message_size);
-#endif
 }
 
 void DataUseTracker::RemoveExpiredEntries() {

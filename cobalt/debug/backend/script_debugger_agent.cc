@@ -73,9 +73,7 @@ absl::optional<Command> ScriptDebuggerAgent::RunCommand(Command command) {
   message->Set(kMethod, command.GetMethod());
   JSONObject params = JSONParse(command.GetParams());
   if (params) {
-#ifndef USE_HACKY_COBALT_CHANGES
-    message->Set(kParams, std::move(params));
-#endif
+    message->Set(kParams, std::move(*params));
   }
 
   // Store the pending command before dispatching it so that we can find it if

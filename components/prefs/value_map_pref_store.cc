@@ -36,9 +36,6 @@ bool ValueMapPrefStore::HasObservers() const {
 void ValueMapPrefStore::SetValue(const std::string& key,
                                  base::Value value,
                                  uint32_t flags) {
-#ifndef USE_HACKY_COBALT_CHANGES
-  DCHECK(value);
-#endif
   if (prefs_.SetValue(key, std::move(value))) {
     for (Observer& observer : observers_)
       observer.OnPrefValueChanged(key);
@@ -66,9 +63,6 @@ void ValueMapPrefStore::ReportValueChanged(const std::string& key,
 void ValueMapPrefStore::SetValueSilently(const std::string& key,
                                          base::Value value,
                                          uint32_t flags) {
-#ifndef USE_HACKY_COBALT_CHANGES
-  DCHECK(value);
-#endif
   prefs_.SetValue(key, std::move(value));
 }
 
