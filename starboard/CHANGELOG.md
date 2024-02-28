@@ -9,6 +9,10 @@ since the version previous to it.
 
 ## Version 16
 
+### Added standard POSIX socket bind/listen/connect/accept APIs.
+The standard API `bind`, `listen`, `connect`, `accept` can be used from
+<sys/socket.h> and `getifaddrs`, `freeifaddrs` can be used from <ifaddrs.h>.
+
 ### Added standard POSIX socket/close/setsockopt APIs.
 The standard API `socket`, `setsockopt` can be used from <sys/socket.h> and
 `close` can be called to close the socket by including <unistd.h>.

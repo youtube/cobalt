@@ -14,6 +14,7 @@
 
 #include "starboard/elf_loader/exported_symbols.h"
 
+#include <ifaddrs.h>
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
@@ -413,9 +414,16 @@ ExportedSymbols::ExportedSymbols() {
 
 #if SB_API_VERSION >= 16
   // POSIX APIs
+  REGISTER_SYMBOL(accept);
+  REGISTER_SYMBOL(bind);
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(close);
+  REGISTER_SYMBOL(connect);
   REGISTER_SYMBOL(free);
+  REGISTER_SYMBOL(freeifaddrs);
+  REGISTER_SYMBOL(getifaddrs);
+  REGISTER_SYMBOL(getsockname);
+  REGISTER_SYMBOL(listen);
   REGISTER_SYMBOL(malloc);
   REGISTER_SYMBOL(mprotect);
   REGISTER_SYMBOL(msync);

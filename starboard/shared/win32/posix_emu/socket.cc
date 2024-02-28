@@ -17,8 +17,8 @@
 #include <unistd.h>  // Our version that declares generic `close`.
 #include <winsock2.h>
 #undef NO_ERROR  // http://b/302733082#comment15
+#include <ws2tcpip.h>
 #include <map>
-#include "starboard/common/log.h"
 #include "starboard/types.h"
 
 static int gen_fd() {
@@ -57,6 +57,9 @@ static int handle_db_put(SOCKET socket_handle) {
 }
 
 static SOCKET handle_db_get(int fd, bool erase) {
+  if (fd < 0) {
+    return INVALID_SOCKET;
+  }
   EnterCriticalSection(&g_critical_section.critical_section_);
   if (g_map_addr == nullptr) {
     g_map_addr = new std::map<int, SOCKET>();
@@ -88,8 +91,6 @@ int sb_socket(int domain, int type, int protocol) {
   SOCKET socket_handle = socket(domain, type, protocol);
   if (socket_handle == INVALID_SOCKET) {
     // TODO: update errno with file operation error
-    int last_error = WSAGetLastError();
-    SB_DLOG(ERROR) << "Failed to create socket, last_error = " << last_error;
     return -1;
   }
 
@@ -105,6 +106,51 @@ int close(int fd) {
 
   // This is then a file handle, so use Windows `_close` API.
   return _close(fd);
+}
+
+int sb_bind(int socket, const struct sockaddr* address, socklen_t address_len) {
+  SOCKET socket_handle = handle_db_get(socket, false);
+  if (socket_handle == INVALID_SOCKET) {
+    // TODO: update errno with file operation error
+    return -1;
+  }
+
+  return bind(socket_handle, address, address_len);
+}
+
+int sb_listen(int socket, int backlog) {
+  SOCKET socket_handle = handle_db_get(socket, false);
+  if (socket_handle == INVALID_SOCKET) {
+    // TODO: update errno with file operation error
+    return -1;
+  }
+
+  return listen(socket_handle, backlog);
+}
+
+int sb_accept(int socket, sockaddr* addr, int* addrlen) {
+  SOCKET socket_handle = handle_db_get(socket, false);
+  if (socket_handle == INVALID_SOCKET) {
+    // TODO: update errno with file operation error
+    return -1;
+  }
+
+  SOCKET accept_handle = accept(socket_handle, addr, addrlen);
+  if (accept_handle == INVALID_SOCKET) {
+    // TODO: update errno with file operation error
+    return -1;
+  }
+  return handle_db_put(accept_handle);
+}
+
+int sb_connect(int socket, sockaddr* name, int namelen) {
+  SOCKET socket_handle = handle_db_get(socket, false);
+  if (socket_handle == INVALID_SOCKET) {
+    // TODO: update errno with file operation error
+    return -1;
+  }
+
+  return connect(socket_handle, name, namelen);
 }
 
 int sb_setsockopt(int socket,
@@ -125,9 +171,6 @@ int sb_setsockopt(int socket,
   // error code can be retrieved by calling WSAGetLastError(), and Posix returns
   // -1 on failure and sets errno to the error’s value.
   if (result == SOCKET_ERROR) {
-    int last_error = WSAGetLastError();
-    SB_DLOG(ERROR) << "Failed to set " << option_name << " on socket " << socket
-                   << ", last_error = " << last_error;
     return -1;
   }
   return 0;
