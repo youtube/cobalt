@@ -1,0 +1,12 @@
+third_party {
+  identifier {
+    type: "ChromiumVersion"
+    value: "96.0.4664.219"  # from https://chromereleases.googleblog.com/2022/08/long-term-support-channel-update-for_31.html
+  }
+  identifier {
+    type: "Git"
+    value: "https://chromium.googlesource.com/webm/libwebm.git"
+    version: "e4fbea0c9751ae8aa86629b197a28d8276a2b0da"
+    # from https://chromium.googlesource.com/chromium/src/+/96.0.4664.219/DEPS#1308
+  }
+}
