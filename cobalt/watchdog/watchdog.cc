@@ -143,15 +143,14 @@ std::shared_ptr<base::Value> Watchdog::GetViolationsMap() {
   if (violations_map_ == nullptr) {
     starboard::ScopedFile read_file(GetWatchdogFilePath().c_str(),
                                     kSbFileOpenOnly | kSbFileRead);
-#ifndef USE_HACKY_COBALT_CHANGES
-//     // if (read_file.IsValid()) {
-//     //   int64_t kFileSize = read_file.GetSize();
-//     //   std::vector<char> buffer(kFileSize + 1, 0);
-//     //   read_file.ReadAll(buffer.data(), kFileSize);
-//     //   violations_map_ =
-//     base::JSONReader::Read(std::string(buffer.data()));
-//     // }
-#endif
+    if (read_file.IsValid()) {
+      int64_t kFileSize = read_file.GetSize();
+      std::vector<char> buffer(kFileSize + 1, 0);
+      read_file.ReadAll(buffer.data(), kFileSize);
+      violations_map_ = base::Value::ToUniquePtrValue(
+          base::JSONReader::Read(std::string(buffer.data()))
+              .value_or(base::Value(base::Value::Type::DICT)));
+    }
 
     if (violations_map_ == nullptr) {
       SB_LOG(INFO) << "[Watchdog] No previous violations JSON.";
@@ -181,8 +180,10 @@ std::vector<std::string> Watchdog::GetWatchdogViolationClientNames() {
   if (is_disabled_) return names;
 
   starboard::ScopedLock scoped_lock(mutex_);
-  for (const auto& it : GetViolationsMap()->DictItems()) {
-    names.push_back(it.first);
+  auto violation_map = GetViolationsMap()->GetDict().Clone();
+  for (base::Value::Dict::iterator it = violation_map.begin();
+       it != violation_map.end(); ++it) {
+    names.push_back(it->first);
   }
   return names;
 }
@@ -273,9 +274,9 @@ bool Watchdog::MonitorClient(void* context, Client* client,
 void Watchdog::UpdateViolationsMap(void* context, Client* client,
                                    int64_t time_delta) {
   // Gets violation dictionary with key client name from violations map.
-  base::Value* violation_dict =
-      (static_cast<Watchdog*>(context)->GetViolationsMap())
-          ->FindKey(client->name);
+  auto violation_dict = (static_cast<Watchdog*>(context)->GetViolationsMap())
+                            ->GetDict()
+                            .FindDict(client->name);
 
   // Checks if new unique violation.
   bool new_violation = false;
@@ -283,15 +284,17 @@ void Watchdog::UpdateViolationsMap(void* context, Client* client,
     new_violation = true;
   } else {
     // Compares against last_pinged_timestamp_microsecond of last violation.
-    base::Value* violations = violation_dict->FindKey("violations");
-    int last_index = violations->GetList().size() - 1;
-    std::string timestamp_last_pinged_milliseconds =
-        violations->GetList()[last_index]
-            .FindKey("timestampLastPingedMilliseconds")
-            ->GetString();
-    if (timestamp_last_pinged_milliseconds !=
-        std::to_string(client->time_last_pinged_microseconds / 1000))
-      new_violation = true;
+    base::Value::List* violations = violation_dict->FindList("violations");
+    if (violations) {
+      int last_index = violations->size() - 1;
+      std::string* timestamp_last_pinged_milliseconds =
+          (*violations)[last_index].GetDict().FindString(
+              "timestampLastPingedMilliseconds");
+      if (timestamp_last_pinged_milliseconds &&
+          *timestamp_last_pinged_milliseconds !=
+              std::to_string(client->time_last_pinged_microseconds / 1000))
+        new_violation = true;
+    }
   }
 
   if (new_violation) {
@@ -339,29 +342,42 @@ void Watchdog::UpdateViolationsMap(void* context, Client* client,
       (static_cast<Watchdog*>(context)->GetViolationsMap())
           ->SetKey(client->name, dict.Clone());
     } else {
-      base::Value* violations = violation_dict->FindKey("violations");
-      violations->GetList().Append(violation.Clone());
+      base::Value::List* violations = violation_dict->FindList("violations");
+      if (violations) {
+        violations->Append(violation.Clone());
+      }
     }
   } else {
     // Consecutive non-unique violation, updates violation in violations map.
-    base::Value* violations = violation_dict->FindKey("violations");
-    int last_index = violations->GetList().size() - 1;
-    int64_t violation_duration =
-        std::stoll(violations->GetList()[last_index]
-                       .FindKey("violationDurationMilliseconds")
-                       ->GetString());
-    violations->GetList()[last_index].SetKey(
-        "violationDurationMilliseconds",
-        base::Value(std::to_string(violation_duration + (time_delta / 1000))));
+    base::Value::List* violations = violation_dict->FindList("violations");
+    if (violations) {
+      int last_index = violations->size() - 1;
+      std::string* timestamp_duration_milliseconds =
+          (*violations)[last_index].GetDict().FindString(
+              "violationDurationMilliseconds");
+      if (timestamp_duration_milliseconds) {
+        int64_t violation_duration =
+            std::stoll(*timestamp_duration_milliseconds);
+        (*violations)[last_index].SetKey(
+            "violationDurationMilliseconds",
+            base::Value(
+                std::to_string(violation_duration + (time_delta / 1000))));
+      }
+    }
   }
   static_cast<Watchdog*>(context)->pending_write_ = true;
 
   int violations_count = 0;
-  for (auto& it :
-       (static_cast<Watchdog*>(context)->GetViolationsMap())->DictItems()) {
-    base::Value& violation_dict = it.second;
-    base::Value* violations = violation_dict.FindKey("violations");
-    violations_count += violations->GetList().size();
+  auto violation_map =
+      (static_cast<Watchdog*>(context)->GetViolationsMap())->GetDict().Clone();
+  for (base::Value::Dict::iterator it = violation_map.begin();
+       it != violation_map.end(); ++it) {
+    base::Value& violation_dict = it->second;
+    base::Value::List* violations =
+        violation_dict.GetDict().FindList("violations");
+    if (violations) {
+      violations_count += violations->size();
+    }
   }
   if (violations_count > kWatchdogMaxViolations) {
     EvictWatchdogViolation(context);
@@ -375,45 +391,56 @@ void Watchdog::EvictWatchdogViolation(void* context) {
   std::string evicted_name = "";
   int evicted_count = 0;
   int64_t evicted_timestamp_millis = 0;
+  auto violation_map =
+      (static_cast<Watchdog*>(context)->GetViolationsMap())->GetDict().Clone();
+  for (base::Value::Dict::iterator it = violation_map.begin();
+       it != violation_map.end(); ++it) {
+    std::string name = it->first;
+    base::Value& violation_dict = it->second;
+    base::Value::List* violations =
+        violation_dict.GetDict().FindList("violations");
+    if (violations) {
+      int count = violations->size();
+      std::string* timestamp_duration_milliseconds =
+          (*violations)[0].GetDict().FindString(
+              "violationDurationMilliseconds");
+      if (timestamp_duration_milliseconds) {
+        int64_t violation_timestamp_millis =
+            std::stoll(*timestamp_duration_milliseconds);
 
-  for (auto& it :
-       (static_cast<Watchdog*>(context)->GetViolationsMap())->DictItems()) {
-    std::string name = it.first;
-    base::Value& violation_dict = it.second;
-    base::Value* violations = violation_dict.FindKey("violations");
-    int count = violations->GetList().size();
-    int64_t violation_timestamp_millis =
-        std::stoll(violations->GetList()[0]
-                       .FindKey("timestampViolationMilliseconds")
-                       ->GetString());
-
-    if ((evicted_name == "") || (count > evicted_count) ||
-        ((count == evicted_count) &&
-         (violation_timestamp_millis < evicted_timestamp_millis))) {
-      evicted_name = name;
-      evicted_count = count;
-      evicted_timestamp_millis = violation_timestamp_millis;
+        if ((evicted_name == "") || (count > evicted_count) ||
+            ((count == evicted_count) &&
+             (violation_timestamp_millis < evicted_timestamp_millis))) {
+          evicted_name = name;
+          evicted_count = count;
+          evicted_timestamp_millis = violation_timestamp_millis;
+        }
+      }
     }
   }
 
-  base::Value* violation_dict =
-      (static_cast<Watchdog*>(context)->GetViolationsMap())
-          ->FindKey(evicted_name);
+  auto violation_dict = (static_cast<Watchdog*>(context)->GetViolationsMap())
+                            ->GetDict()
+                            .FindDict(evicted_name);
 
   if (violation_dict != nullptr) {
-    base::Value* violations = violation_dict->FindKey("violations");
-    violations->GetList().erase(violations->GetList().begin());
-    static_cast<Watchdog*>(context)->pending_write_ = true;
+    base::Value::List* violations = violation_dict->FindList("violations");
+    if (violations) {
+      violations->erase(violations->begin());
+      static_cast<Watchdog*>(context)->pending_write_ = true;
 
-    // Removes empty violations.
-    if (violations->GetList().empty()) {
-      (static_cast<Watchdog*>(context)->GetViolationsMap())
-          ->RemoveKey(evicted_name);
-    }
-    if (static_cast<Watchdog*>(context)->GetViolationsMap()->DictSize() == 0) {
-      starboard::SbFileDeleteRecursive(
-          static_cast<Watchdog*>(context)->GetWatchdogFilePath().c_str(), true);
-      static_cast<Watchdog*>(context)->pending_write_ = false;
+      // Removes empty violations.
+      if (violations->empty()) {
+        (static_cast<Watchdog*>(context)->GetViolationsMap())
+            ->RemoveKey(evicted_name);
+      }
+      if (static_cast<Watchdog*>(context)->GetViolationsMap()->DictSize() ==
+          0) {
+        starboard::SbFileDeleteRecursive(
+            static_cast<Watchdog*>(context)->GetWatchdogFilePath().c_str(),
+            true);
+        static_cast<Watchdog*>(context)->pending_write_ = false;
+      }
     }
   }
 }
@@ -659,23 +686,23 @@ std::string Watchdog::GetWatchdogViolations(
       // Gets all Watchdog violations if no clients are given.
       base::JSONWriter::Write(*GetViolationsMap(), &fetched_violations_json);
       if (clear) {
-        GetViolationsMap()->GetDict()->clear();
+        GetViolationsMap()->GetDict().clear();
         starboard::SbFileDeleteRecursive(GetWatchdogFilePath().c_str(), true);
       }
     } else {
       // Gets all Watchdog violations of the given clients.
-      base::Value fetched_violations(base::Value::Type::DICT);
+      base::Value::Dict fetched_violations;
       for (std::string name : clients) {
-        base::Value* violation_dict = GetViolationsMap()->FindKey(name);
+        auto violation_dict = GetViolationsMap()->GetDict().FindDict(name);
         if (violation_dict != nullptr) {
-          fetched_violations.SetKey(name, (*violation_dict).Clone());
+          fetched_violations.Set(name, (*violation_dict).Clone());
           if (clear) {
             GetViolationsMap()->RemoveKey(name);
             pending_write_ = true;
           }
         }
       }
-      if (fetched_violations.DictSize() != 0) {
+      if (fetched_violations.size() != 0) {
         base::JSONWriter::Write(fetched_violations, &fetched_violations_json);
       }
       if (clear) {
@@ -697,24 +724,28 @@ void Watchdog::EvictOldWatchdogViolations() {
   std::vector<std::string> empty_violations;
 
   // Iterates through map removing old violations.
-  for (auto& map_it : GetViolationsMap()->DictItems()) {
-    std::string name = map_it.first;
-    base::Value& violation_dict = map_it.second;
-    base::Value* violations = violation_dict.FindKey("violations");
-    for (auto list_it = violations->GetList().begin();
-         list_it != violations->GetList().end();) {
-      int64_t violation_timestamp_millis = std::stoll(
-          list_it->FindKey("timestampViolationMilliseconds")->GetString());
+  auto violation_map = GetViolationsMap()->GetDict().Clone();
+  for (base::Value::Dict::iterator map_it = violation_map.begin();
+       map_it != violation_map.end(); ++map_it) {
+    std::string name = map_it->first;
+    base::Value& violation_dict = map_it->second;
+    base::Value::List* violations =
+        violation_dict.GetDict().FindList("violations");
+    if (violations) {
+      for (auto list_it = violations->begin(); list_it != violations->end();) {
+        int64_t violation_timestamp_millis = std::stoll(
+            *list_it->GetDict().FindString("timestampViolationMilliseconds"));
 
-      if (violation_timestamp_millis < cutoff_timestamp_millis) {
-        list_it = violations->GetList().erase(list_it);
-        pending_write_ = true;
-      } else {
-        list_it++;
+        if (violation_timestamp_millis < cutoff_timestamp_millis) {
+          list_it = violations->erase(list_it);
+          pending_write_ = true;
+        } else {
+          list_it++;
+        }
       }
-    }
-    if (violations->GetList().empty()) {
-      empty_violations.push_back(name);
+      if (violations->empty()) {
+        empty_violations.push_back(name);
+      }
     }
   }
 

@@ -159,10 +159,13 @@ void TracingController::Thaw(JSONObject agent_state) {
 
   // Restore state
   categories_.clear();
-  for (const auto& category : agent_state->FindKey(kCategories)->GetList()) {
-    categories_.emplace_back(category.GetString());
+  const base::Value::List* categories = agent_state->FindList(kCategories);
+  if (categories) {
+    for (const auto& category : *categories) {
+      categories_.emplace_back(category.GetString());
+    }
   }
-  tracing_started_ = agent_state->FindKey(kStarted)->GetBool();
+  tracing_started_ = agent_state->FindBool(kStarted).value_or(false);
   if (tracing_started_) {
     agents_responded_ = 0;
     auto config = base::trace_event::TraceConfig();

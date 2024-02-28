@@ -316,7 +316,6 @@ class BASE_EXPORT GSL_OWNER Value {
   std::string TakeString() &&;
   Dict TakeDict() &&;
   List TakeList() &&;
-  std::vector<std::pair<const std::string, Value>> DictItems() { return std::vector<std::pair<const std::string, Value>>(); }
 
   // Represents a dictionary of string keys to Values.
   class BASE_EXPORT GSL_OWNER Dict {
@@ -328,9 +327,6 @@ class BASE_EXPORT GSL_OWNER Value {
 
     Dict(Dict&&) noexcept;
     Dict& operator=(Dict&&) noexcept;
-
-    Dict* operator->() { return this; }
-    std::vector<std::pair<const std::string, Value>> DictItems() { return std::vector<std::pair<const std::string, Value>>(); }
 
     // Deleted to prevent accidental copying.
     Dict(const Dict&) = delete;
@@ -406,7 +402,6 @@ class BASE_EXPORT GSL_OWNER Value {
     // nullptr if there is no such entry.
     const Value* Find(StringPiece key) const;
     Value* Find(StringPiece key);
-    Value* FindKey(StringPiece key) { return Find(key); }
 
     // Similar to `Find()` above, but returns `absl::nullopt`/`nullptr` if the
     // type of the entry does not match. `bool`, `int`, and `double` are
@@ -661,7 +656,7 @@ class BASE_EXPORT GSL_OWNER Value {
     const_iterator erase(const_iterator pos);
 
     // Remove the values in the range [`first`, `last`). Returns iterator to the
-    // first value following the removed range, which is `lasTakeListt`. If `first` ==
+    // first value following the removed range, which is `last`. If `first` ==
     // `last`, removes nothing and returns `last`.
     iterator erase(iterator first, iterator last);
     const_iterator erase(const_iterator first, const_iterator last);
@@ -777,7 +772,6 @@ class BASE_EXPORT GSL_OWNER Value {
   // DEPRECATED: prefer `Value::Dict::FindList()`.
   const Value* FindListKey(StringPiece key) const;
   Value* FindListKey(StringPiece key);
-  Value* FindKey(StringPiece key) { return nullptr; }
 
   // `SetKey` looks up `key` in the underlying dictionary and sets the mapped
   // value to `value`. If `key` could not be found, a new element is inserted.
