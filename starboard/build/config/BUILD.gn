@@ -18,59 +18,62 @@ import("//build/config/compiler/compiler.gni")
 #                     of upstream libraries being updated in Cobalt. Use it as
 #                     a way to show where we should be eventually using
 #                     upstream code as is.
-config("hacky_build_config") {
-  defines = [ "USE_HACKY_COBALT_CHANGES" ]
 
-  defines += [
-    "WARN_UNUSED_RESULT=",
-    "ALLOW_UNUSED_TYPE=",
-    "BASE_HASH_NAMESPACE=std",
-    "BASE_HASH_USE_HASH_STRUCT",
-  ]
-}
+if (use_hacky_cobalt_changes) {
+  config("hacky_build_config") {
+    defines = [ "USE_HACKY_COBALT_CHANGES" ]
 
-config("hacky_wnos") {
-  if (is_clang) {
-    cflags = [
-      "-Wno-array-parameter",
-      "-Wno-bitwise-instead-of-logical",
-      "-Wno-c++20-extensions",
-      "-Wno-c++98-compat-extra-semi",
-      "-Wno-delete-non-abstract-non-virtual-dtor",
-      "-Wno-deprecated-copy",
-      "-Wno-extra-semi",
-      "-Wno-ignored-qualifiers",
-      "-Wno-implicit-fallthrough",
-      "-Wno-invalid-noreturn",
-      "-Wno-macro-redefined",
-      "-Wno-mismatched-tags",
-      "-Wno-missing-braces",
-      "-Wno-null-pointer-subtraction",
-      "-Wno-pessimizing-move",
-      "-Wno-reorder-ctor",
-      "-Wno-self-assign-overloaded",
-      "-Wno-self-assign",
-      "-Wno-shadow",
-      "-Wno-sign-compare",
-      "-Wno-sometimes-uninitialized",
-      "-Wno-tautological-unsigned-zero-compare",
-      "-Wno-unreachable-code-break",
-      "-Wno-unreachable-code-loop-increment",
-      "-Wno-unreachable-code-return",
-      "-Wno-unreachable-code",
-      "-Wno-unused-but-set-parameter",
-      "-Wno-unused-but-set-variable",
-      "-Wno-unused-function",
-      "-Wno-unused-label",
-      "-Wno-unused-local-typedef",
-      "-Wno-unused-private-field",
-      "-Wno-unused-variable",
-      "-Wno-unused-command-line-argument",
-      "-Wno-unused-private-field",
-      "-Wno-deprecated-declarations",
-      "-Wno-inconsistent-missing-override",
-      "-Wno-return-type",
+    defines += [
+      "WARN_UNUSED_RESULT=",
+      "ALLOW_UNUSED_TYPE=",
+      "BASE_HASH_NAMESPACE=std",
+      "BASE_HASH_USE_HASH_STRUCT",
     ]
+  }
+
+  config("hacky_wnos") {
+    if (is_clang) {
+      cflags = [
+        "-Wno-array-parameter",
+        "-Wno-bitwise-instead-of-logical",
+        "-Wno-c++20-extensions",
+        "-Wno-c++98-compat-extra-semi",
+        "-Wno-delete-non-abstract-non-virtual-dtor",
+        "-Wno-deprecated-copy",
+        "-Wno-extra-semi",
+        "-Wno-ignored-qualifiers",
+        "-Wno-implicit-fallthrough",
+        "-Wno-invalid-noreturn",
+        "-Wno-macro-redefined",
+        "-Wno-mismatched-tags",
+        "-Wno-missing-braces",
+        "-Wno-null-pointer-subtraction",
+        "-Wno-pessimizing-move",
+        "-Wno-reorder-ctor",
+        "-Wno-self-assign-overloaded",
+        "-Wno-self-assign",
+        "-Wno-shadow",
+        "-Wno-sign-compare",
+        "-Wno-sometimes-uninitialized",
+        "-Wno-tautological-unsigned-zero-compare",
+        "-Wno-unreachable-code-break",
+        "-Wno-unreachable-code-loop-increment",
+        "-Wno-unreachable-code-return",
+        "-Wno-unreachable-code",
+        "-Wno-unused-but-set-parameter",
+        "-Wno-unused-but-set-variable",
+        "-Wno-unused-function",
+        "-Wno-unused-label",
+        "-Wno-unused-local-typedef",
+        "-Wno-unused-private-field",
+        "-Wno-unused-variable",
+        "-Wno-unused-command-line-argument",
+        "-Wno-unused-private-field",
+        "-Wno-deprecated-declarations",
+        "-Wno-inconsistent-missing-override",
+        "-Wno-return-type",
+      ]
+    }
   }
 }
 
