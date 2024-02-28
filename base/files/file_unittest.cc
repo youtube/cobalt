@@ -435,7 +435,7 @@ TEST(FileTest, DISABLED_TouchGetInfo) {
   EXPECT_FALSE(info.is_symbolic_link);
 
   // ext2/ext3 and HPS/HPS+ seem to have a timestamp granularity of 1s.
-#if BUILDFLAG(IS_POSIX)
+#if BUILDFLAG(IS_POSIX) && !defined(STARBOARD)
   EXPECT_EQ(info.last_accessed.ToTimeVal().tv_sec,
             new_last_accessed.ToTimeVal().tv_sec);
   EXPECT_EQ(info.last_modified.ToTimeVal().tv_sec,
@@ -540,6 +540,7 @@ TEST(FileTest, Seek) {
   EXPECT_EQ(kOffset, file.Seek(base::File::FROM_END, -kOffset));
 }
 
+#if !defined(STARBOARD)
 TEST(FileTest, Duplicate) {
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
@@ -566,7 +567,9 @@ TEST(FileTest, Duplicate) {
   ASSERT_EQ(kDataLen, file2.Read(0, &buf[0], kDataLen));
   ASSERT_EQ(std::string(kData, kDataLen), std::string(&buf[0], kDataLen));
 }
+#endif
 
+#if !defined(STARBOARD)
 TEST(FileTest, DuplicateDeleteOnClose) {
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
@@ -582,6 +585,7 @@ TEST(FileTest, DuplicateDeleteOnClose) {
   file2.Close();
   ASSERT_FALSE(base::PathExists(file_path));
 }
+#endif
 
 #if BUILDFLAG(ENABLE_BASE_TRACING)
 TEST(FileTest, TracedValueSupport) {

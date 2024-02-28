@@ -111,8 +111,10 @@ FileEnumerator::~FileEnumerator() = default;
 std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
     const FilePath& source) {
   internal::AssertBlockingAllowed();
-  SbDirectory dir = SbDirectoryOpen(source.value().c_str(), NULL);
+  SbFileError error;
+  SbDirectory dir = SbDirectoryOpen(source.value().c_str(), &error);
   if (!SbDirectoryIsValid(dir)) {
+    error_ = static_cast<File::Error>(error);
     return std::vector<FileEnumerator::FileInfo>();
   }
 
@@ -189,7 +191,8 @@ FilePath FileEnumerator::Next() {
       }
 
       if ((file_info.sb_info_.is_directory && (file_type_ & DIRECTORIES)) ||
-          (!file_info.sb_info_.is_directory && (file_type_ & FILES))) {
+          (!file_info.sb_info_.is_directory && (file_type_ & FILES)) ||
+          (file_type_ & NAMES_ONLY)) {
         directory_entries_.push_back(file_info);
       }
     }
@@ -200,6 +203,7 @@ FilePath FileEnumerator::Next() {
 }
 
 FileEnumerator::FileInfo FileEnumerator::GetInfo() const {
+  DCHECK(!(file_type_ & FileType::NAMES_ONLY));
   return directory_entries_[current_directory_entry_];
 }
 

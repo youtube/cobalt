@@ -261,6 +261,11 @@ bool PathExists(const FilePath &path) {
   return SbFileExists(path.value().c_str());
 }
 
+bool PathIsReadable(const FilePath &path) {
+  internal::AssertBlockingAllowed();
+  return SbFileCanOpen(path.value().c_str(), kSbFileOpenAlways | kSbFileRead);
+}
+
 bool PathIsWritable(const FilePath &path) {
   internal::AssertBlockingAllowed();
   return SbFileCanOpen(path.value().c_str(), kSbFileOpenAlways | kSbFileWrite);
@@ -380,6 +385,16 @@ bool CreateDirectoryAndGetError(const FilePath &full_path, File::Error* error) {
   return true;
 }
 
+bool NormalizeFilePath(const FilePath& path, FilePath* normalized_path) {
+  internal::AssertBlockingAllowed();
+  // Only absolute paths are supported in Starboard.
+  if (!path.IsAbsolute()) {
+    return false;
+  }
+  *normalized_path = path;
+  return true;
+}
+
 bool IsLink(const FilePath &file_path) {
   internal::AssertBlockingAllowed();
   SbFileInfo info;
@@ -453,6 +468,10 @@ bool AppendToFile(const FilePath &filename, const char *data, int size) {
   }
 
   return file.WriteAtCurrentPos(data, size) == size;
+}
+
+bool AppendToFile(const FilePath& filename, StringPiece data) {
+  return AppendToFile(filename, data.data(), data.size());
 }
 
 bool HasFileBeenModifiedSince(const FileEnumerator::FileInfo &file_info,
