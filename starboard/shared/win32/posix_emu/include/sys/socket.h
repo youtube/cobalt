@@ -17,6 +17,7 @@
 
 #include <winsock2.h>
 #undef NO_ERROR  // http://b/302733082#comment15
+#include <BaseTsd.h>
 #include <ws2tcpip.h>
 
 #ifdef __cplusplus
@@ -37,6 +38,12 @@ int sb_accept(int socket, sockaddr* addr, int* addrlen);
 
 int sb_connect(int socket, sockaddr* name, int namelen);
 #define connect sb_connect
+
+int sb_send(int sockfd, const void* buf, size_t len, int flags);
+#define send sb_send
+
+int sb_recv(int sockfd, void* buf, size_t len, int flags);
+#define recv sb_recv
 
 int sb_setsockopt(int socket,
                   int level,

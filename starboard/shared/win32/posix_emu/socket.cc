@@ -13,6 +13,7 @@
 // limitations under the License.
 
 // We specifically do not include <sys/socket.h> since the define causes a loop
+#include <fcntl.h>
 #include <io.h>      // Needed for file-specific `_close`.
 #include <unistd.h>  // Our version that declares generic `close`.
 #include <winsock2.h>
@@ -91,6 +92,7 @@ int sb_socket(int domain, int type, int protocol) {
   SOCKET socket_handle = socket(domain, type, protocol);
   if (socket_handle == INVALID_SOCKET) {
     // TODO: update errno with file operation error
+    errno = WSAGetLastError();
     return -1;
   }
 
@@ -101,7 +103,9 @@ int close(int fd) {
   SOCKET socket_handle = handle_db_get(fd, true);
 
   if (socket_handle != INVALID_SOCKET) {
-    return closesocket(socket_handle);
+    int result = closesocket(socket_handle);
+    errno = WSAGetLastError();
+    return result;
   }
 
   // This is then a file handle, so use Windows `_close` API.
@@ -115,7 +119,9 @@ int sb_bind(int socket, const struct sockaddr* address, socklen_t address_len) {
     return -1;
   }
 
-  return bind(socket_handle, address, address_len);
+  int result = bind(socket_handle, address, address_len);
+  errno = WSAGetLastError();
+  return result;
 }
 
 int sb_listen(int socket, int backlog) {
@@ -125,7 +131,9 @@ int sb_listen(int socket, int backlog) {
     return -1;
   }
 
-  return listen(socket_handle, backlog);
+  int result = listen(socket_handle, backlog);
+  errno = WSAGetLastError();
+  return result;
 }
 
 int sb_accept(int socket, sockaddr* addr, int* addrlen) {
@@ -140,7 +148,9 @@ int sb_accept(int socket, sockaddr* addr, int* addrlen) {
     // TODO: update errno with file operation error
     return -1;
   }
-  return handle_db_put(accept_handle);
+  int result = handle_db_put(accept_handle);
+  errno = WSAGetLastError();
+  return result;
 }
 
 int sb_connect(int socket, sockaddr* name, int namelen) {
@@ -150,7 +160,32 @@ int sb_connect(int socket, sockaddr* name, int namelen) {
     return -1;
   }
 
-  return connect(socket_handle, name, namelen);
+  int result = connect(socket_handle, name, namelen);
+  errno = WSAGetLastError();
+  return result;
+}
+
+int sb_send(int sockfd, const void* buf, size_t len, int flags) {
+  SOCKET socket_handle = handle_db_get(sockfd, false).socket;
+  if (socket_handle == INVALID_SOCKET) {
+    // TODO: update errno with file operation error
+    return -1;
+  }
+  int result =
+      send(socket_handle, reinterpret_cast<const char*>(buf), len, flags);
+  errno = WSAGetLastError();
+  return result;
+}
+
+int sb_recv(int sockfd, void* buf, size_t len, int flags) {
+  SOCKET socket_handle = handle_db_get(sockfd, false).socket;
+  if (socket_handle == INVALID_SOCKET) {
+    // TODO: update errno with file operation error
+    return -1;
+  }
+  int result = recv(socket_handle, reinterpret_cast<char*>(buf), len, flags);
+  errno = WSAGetLastError();
+  return result;
 }
 
 int sb_setsockopt(int socket,
@@ -171,8 +206,30 @@ int sb_setsockopt(int socket,
   // error code can be retrieved by calling WSAGetLastError(), and Posix returns
   // -1 on failure and sets errno to the error’s value.
   if (result == SOCKET_ERROR) {
+    errno = WSAGetLastError();
     return -1;
   }
   return 0;
 }
+
+int sb_fcntl(int fd, int cmd, ... /*arg*/) {
+  SOCKET socket_handle = handle_db_get(fd, false).socket;
+  if (socket_handle == INVALID_SOCKET) {
+    return -1;
+  }
+
+  if (cmd == F_SETFL) {
+    va_list ap;
+    int arg;
+    va_start(ap, cmd);
+    arg = va_arg(ap, int);
+    va_end(ap);
+    if ((arg & O_NONBLOCK) == O_NONBLOCK) {
+      int opt = 1;
+      ioctlsocket(socket_handle, FIONBIO, reinterpret_cast<u_long*>(&opt));
+    }
+  }
+  return 0;
+}
+
 }  // extern "C"

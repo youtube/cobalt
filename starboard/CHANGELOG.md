@@ -9,6 +9,10 @@ since the version previous to it.
 
 ## Version 16
 
+### Added standard POSIX socket send/recv APIs.
+The standard API `send`, `recv`, can be used from <sys/socket.h> and
+`fcntl` can be used from <fcntl.h>, to set socket to non-blocking.
+
 ### Added standard POSIX socket bind/listen/connect/accept APIs.
 The standard API `bind`, `listen`, `connect`, `accept` can be used from
 <sys/socket.h> and `getifaddrs`, `freeifaddrs` can be used from <ifaddrs.h>.

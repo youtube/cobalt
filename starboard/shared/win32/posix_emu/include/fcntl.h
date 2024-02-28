@@ -20,4 +20,22 @@
 
 #undef close  // in unistd.h on POSIX, and handles both files and sockets
 
+#define F_GETFL 3 /* get file->f_flags */
+#define F_SETFL 4 /* set file->f_flags */
+
+#ifndef O_NONBLOCK
+#define O_NONBLOCK 00004000
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+int sb_fcntl(int fd, int cmd, ... /*arg*/);
+#define fcntl sb_fcntl
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_FCNTL_H_
