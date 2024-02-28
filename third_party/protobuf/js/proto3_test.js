@@ -30,13 +30,17 @@
 
 goog.require('goog.crypt.base64');
 goog.require('goog.testing.asserts');
-
 // CommonJS-LoadFromFile: testbinary_pb proto.jspb.test
 goog.require('proto.jspb.test.ForeignMessage');
-
 // CommonJS-LoadFromFile: proto3_test_pb proto.jspb.test
 goog.require('proto.jspb.test.Proto3Enum');
 goog.require('proto.jspb.test.TestProto3');
+// CommonJS-LoadFromFile: google/protobuf/any_pb proto.google.protobuf
+goog.require('proto.google.protobuf.Any');
+// CommonJS-LoadFromFile: google/protobuf/timestamp_pb proto.google.protobuf
+goog.require('proto.google.protobuf.Timestamp');
+// CommonJS-LoadFromFile: google/protobuf/struct_pb proto.google.protobuf
+goog.require('proto.google.protobuf.Struct');
 
 
 var BYTES = new Uint8Array([1, 2, 8, 9]);
@@ -66,6 +70,37 @@ function bytesCompare(arr, expected) {
 
 
 describe('proto3Test', function() {
+
+  /**
+   * Test default values don't affect equality test.
+   */
+  it('testEqualsProto3', function() {
+    var msg1 = new proto.jspb.test.TestProto3();
+    var msg2 = new proto.jspb.test.TestProto3();
+    msg2.setOptionalString('');
+
+    assertTrue(jspb.Message.equals(msg1, msg2));
+  });
+
+
+  /**
+   * Test setting when a field has default semantics.
+   */
+  it('testSetProto3ToValueAndBackToDefault', function() {
+    var msg = new proto.jspb.test.TestProto3();
+
+    // Setting should work normally.
+    msg.setOptionalString('optionalString');
+    assertEquals(msg.getOptionalString(), 'optionalString');
+
+    // Clearing should work too ...
+    msg.setOptionalString('');
+    assertEquals(msg.getOptionalString(), '');
+
+    // ... and shouldn't affect the equality with a brand new message.
+    assertTrue(jspb.Message.equals(msg, new proto.jspb.test.TestProto3()));
+  });
+
   /**
    * Test defaults for proto3 message fields.
    */
@@ -219,39 +254,67 @@ describe('proto3Test', function() {
    * Test that oneofs continue to have a notion of field presence.
    */
   it('testOneofs', function() {
+    // Default instance.
     var msg = new proto.jspb.test.TestProto3();
-
-    assertEquals(msg.getOneofUint32(), undefined);
+    assertEquals(msg.getOneofUint32(), 0);
     assertEquals(msg.getOneofForeignMessage(), undefined);
-    assertEquals(msg.getOneofString(), undefined);
-    assertEquals(msg.getOneofBytes(), undefined);
+    assertEquals(msg.getOneofString(), '');
+    assertEquals(msg.getOneofBytes(), '');
 
+    assertFalse(msg.hasOneofUint32());
+    assertFalse(msg.hasOneofForeignMessage());
+    assertFalse(msg.hasOneofString());
+    assertFalse(msg.hasOneofBytes());
+
+    // Integer field.
     msg.setOneofUint32(42);
     assertEquals(msg.getOneofUint32(), 42);
     assertEquals(msg.getOneofForeignMessage(), undefined);
-    assertEquals(msg.getOneofString(), undefined);
-    assertEquals(msg.getOneofBytes(), undefined);
+    assertEquals(msg.getOneofString(), '');
+    assertEquals(msg.getOneofBytes(), '');
 
+    assertTrue(msg.hasOneofUint32());
+    assertFalse(msg.hasOneofForeignMessage());
+    assertFalse(msg.hasOneofString());
+    assertFalse(msg.hasOneofBytes());
 
+    // Sub-message field.
     var submsg = new proto.jspb.test.ForeignMessage();
     msg.setOneofForeignMessage(submsg);
-    assertEquals(msg.getOneofUint32(), undefined);
+    assertEquals(msg.getOneofUint32(), 0);
     assertEquals(msg.getOneofForeignMessage(), submsg);
-    assertEquals(msg.getOneofString(), undefined);
-    assertEquals(msg.getOneofBytes(), undefined);
+    assertEquals(msg.getOneofString(), '');
+    assertEquals(msg.getOneofBytes(), '');
 
+    assertFalse(msg.hasOneofUint32());
+    assertTrue(msg.hasOneofForeignMessage());
+    assertFalse(msg.hasOneofString());
+    assertFalse(msg.hasOneofBytes());
+
+    // String field.
     msg.setOneofString('hello');
-    assertEquals(msg.getOneofUint32(), undefined);
+    assertEquals(msg.getOneofUint32(), 0);
     assertEquals(msg.getOneofForeignMessage(), undefined);
     assertEquals(msg.getOneofString(), 'hello');
-    assertEquals(msg.getOneofBytes(), undefined);
+    assertEquals(msg.getOneofBytes(), '');
 
+    assertFalse(msg.hasOneofUint32());
+    assertFalse(msg.hasOneofForeignMessage());
+    assertTrue(msg.hasOneofString());
+    assertFalse(msg.hasOneofBytes());
+
+    // Bytes field.
     msg.setOneofBytes(goog.crypt.base64.encodeString('\u00FF\u00FF'));
-    assertEquals(msg.getOneofUint32(), undefined);
+    assertEquals(msg.getOneofUint32(), 0);
     assertEquals(msg.getOneofForeignMessage(), undefined);
-    assertEquals(msg.getOneofString(), undefined);
+    assertEquals(msg.getOneofString(), '');
     assertEquals(msg.getOneofBytes_asB64(),
         goog.crypt.base64.encodeString('\u00FF\u00FF'));
+
+    assertFalse(msg.hasOneofUint32());
+    assertFalse(msg.hasOneofForeignMessage());
+    assertFalse(msg.hasOneofString());
+    assertTrue(msg.hasOneofBytes());
   });
 
 
@@ -279,7 +342,7 @@ describe('proto3Test', function() {
     msg.setOptionalForeignEnum(proto.jspb.test.Proto3Enum.PROTO3_BAR);
     msg.setOptionalForeignEnum(proto.jspb.test.Proto3Enum.PROTO3_FOO);
     msg.setOneofUint32(32);
-    msg.setOneofUint32(null);
+    msg.clearOneofUint32();
 
 
     var serialized = msg.serializeBinary();
@@ -310,5 +373,41 @@ describe('proto3Test', function() {
     assertTrue(bytesCompare(msg.getOptionalBytes_asB64(), BYTES));
     assertTrue(bytesCompare(msg.getOptionalBytes(), BYTES));
 
+  });
+
+
+  it('testTimestampWellKnownType', function() {
+    var msg = new proto.google.protobuf.Timestamp();
+    msg.fromDate(new Date(123456789));
+    assertEquals(123456, msg.getSeconds());
+    assertEquals(789000000, msg.getNanos());
+    var date = msg.toDate();
+    assertEquals(123456789, date.getTime());
+    var anotherMsg = proto.google.protobuf.Timestamp.fromDate(date);
+    assertEquals(msg.getSeconds(), anotherMsg.getSeconds());
+    assertEquals(msg.getNanos(), anotherMsg.getNanos());
+  });
+
+  it('testStructWellKnownType', function() {
+    var jsObj = {
+      abc: "def",
+      number: 12345.678,
+      nullKey: null,
+      boolKey: true,
+      listKey: [1, null, true, false, "abc"],
+      structKey: {foo: "bar", somenum: 123},
+      complicatedKey: [{xyz: {abc: [3, 4, null, false]}}, "zzz"]
+    };
+
+    var struct = proto.google.protobuf.Struct.fromJavaScript(jsObj);
+    var jsObj2 = struct.toJavaScript();
+
+    assertEquals("def", jsObj2.abc);
+    assertEquals(12345.678, jsObj2.number);
+    assertEquals(null, jsObj2.nullKey);
+    assertEquals(true, jsObj2.boolKey);
+    assertEquals("abc", jsObj2.listKey[4]);
+    assertEquals("bar", jsObj2.structKey.foo);
+    assertEquals(4, jsObj2.complicatedKey[0].xyz.abc[1]);
   });
 });

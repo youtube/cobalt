@@ -178,7 +178,7 @@ VALUE RepeatedField_index_set(VALUE _self, VALUE _index, VALUE val) {
   }
 
   memory = RepeatedField_memoryat(self, index, element_size);
-  native_slot_set(field_type, field_type_class, memory, val);
+  native_slot_set("", field_type, field_type_class, memory, val);
   return Qnil;
 }
 
@@ -217,12 +217,18 @@ VALUE RepeatedField_push(VALUE _self, VALUE val) {
 
   RepeatedField_reserve(self, self->size + 1);
   memory = (void *) (((uint8_t *)self->elements) + self->size * element_size);
-  native_slot_set(field_type, self->field_type_class, memory, val);
+  native_slot_set("", field_type, self->field_type_class, memory, val);
   // native_slot_set may raise an error; bump size only after set.
   self->size++;
   return _self;
 }
 
+VALUE RepeatedField_push_vararg(VALUE _self, VALUE args) {
+  for (int i = 0; i < RARRAY_LEN(args); i++) {
+    RepeatedField_push(_self, rb_ary_entry(args, i));
+  }
+  return _self;
+}
 
 // Used by parsing handlers.
 void RepeatedField_push_native(VALUE _self, void* data) {
@@ -242,6 +248,11 @@ void* RepeatedField_index_native(VALUE _self, int index) {
   upb_fieldtype_t field_type = self->field_type;
   int element_size = native_slot_size(field_type);
   return RepeatedField_memoryat(self, index, element_size);
+}
+
+int RepeatedField_size(VALUE _self) {
+  RepeatedField* self = ruby_to_RepeatedField(_self);
+  return self->size;
 }
 
 /*
@@ -442,9 +453,8 @@ VALUE RepeatedField_eq(VALUE _self, VALUE _other) {
  */
 VALUE RepeatedField_hash(VALUE _self) {
   RepeatedField* self = ruby_to_RepeatedField(_self);
-
-  VALUE hash = LL2NUM(0);
-
+  st_index_t h = rb_hash_start(0);
+  VALUE hash_sym = rb_intern("hash");
   upb_fieldtype_t field_type = self->field_type;
   VALUE field_type_class = self->field_type_class;
   size_t elem_size = native_slot_size(field_type);
@@ -452,12 +462,11 @@ VALUE RepeatedField_hash(VALUE _self) {
   for (int i = 0; i < self->size; i++, off += elem_size) {
     void* mem = ((uint8_t *)self->elements) + off;
     VALUE elem = native_slot_get(field_type, field_type_class, mem);
-    hash = rb_funcall(hash, rb_intern("<<"), 1, INT2NUM(2));
-    hash = rb_funcall(hash, rb_intern("^"), 1,
-                      rb_funcall(elem, rb_intern("hash"), 0));
+    h = rb_hash_uint(h, NUM2LONG(rb_funcall(elem, hash_sym, 0)));
   }
+  h = rb_hash_end(h);
 
-  return hash;
+  return INT2FIX(h);
 }
 
 /*
@@ -623,8 +632,8 @@ void RepeatedField_register(VALUE module) {
   VALUE klass = rb_define_class_under(
       module, "RepeatedField", rb_cObject);
   rb_define_alloc_func(klass, RepeatedField_alloc);
-  cRepeatedField = klass;
   rb_gc_register_address(&cRepeatedField);
+  cRepeatedField = klass;
 
   rb_define_method(klass, "initialize",
                    RepeatedField_init, -1);
@@ -632,7 +641,7 @@ void RepeatedField_register(VALUE module) {
   rb_define_method(klass, "[]", RepeatedField_index, -1);
   rb_define_method(klass, "at", RepeatedField_index, -1);
   rb_define_method(klass, "[]=", RepeatedField_index_set, 2);
-  rb_define_method(klass, "push", RepeatedField_push, 1);
+  rb_define_method(klass, "push", RepeatedField_push_vararg, -2);
   rb_define_method(klass, "<<", RepeatedField_push, 1);
   rb_define_private_method(klass, "pop_one", RepeatedField_pop_one, 0);
   rb_define_method(klass, "replace", RepeatedField_replace, 1);

@@ -32,13 +32,16 @@ syntax = "proto3";
 
 package proto3;
 
-
+import "google/protobuf/any.proto";
 import "google/protobuf/duration.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
-import "google/protobuf/struct.proto";
-import "google/protobuf/any.proto";
-import "google/protobuf/field_mask.proto";
+import "google/protobuf/unittest.proto";
+
+option java_package = "com.google.protobuf.util";
+option java_outer_classname = "JsonFormatProto3";
 
 enum EnumType {
   FOO = 0;
@@ -173,4 +176,14 @@ message TestBoolValue {
 
 message TestCustomJsonName {
   int32 value = 1 [json_name = "@value"];
+}
+
+message TestExtensions {
+  .protobuf_unittest.TestAllExtensions extensions = 1;
+}
+
+message TestEnumValue {
+  EnumType enum_value1 = 1;
+  EnumType enum_value2 = 2;
+  EnumType enum_value3 = 3;
 }

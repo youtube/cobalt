@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 # Run this script to regenerate descriptor.pb.{h,cc} after the protocol
 # compiler changes.  Since these files are compiled into the protocol compiler
@@ -18,14 +18,6 @@ __EOF__
   exit 1
 fi
 
-if test ! -e src/Makefile; then
-  cat >&2 << __EOF__
-Could not find src/Makefile.  You must run ./configure (and perhaps
-./autogen.sh) first.
-__EOF__
-  exit 1
-fi
-
 cd src
 
 declare -a RUNTIME_PROTO_FILES=(\
@@ -41,8 +33,24 @@ declare -a RUNTIME_PROTO_FILES=(\
   google/protobuf/type.proto \
   google/protobuf/wrappers.proto)
 
+declare -a COMPILER_PROTO_FILES=(\
+  google/protobuf/compiler/plugin.proto)
+
 CORE_PROTO_IS_CORRECT=0
 PROCESS_ROUND=1
+BOOTSTRAP_PROTOC=""
+while [ $# -gt 0 ]; do
+  case $1 in
+    --bootstrap_protoc)
+      BOOTSTRAP_PROTOC=$2
+      shift 2
+      ;;
+    *)
+      break
+      ;;
+  esac
+  shift
+done
 TMP=$(mktemp -d)
 echo "Updating descriptor protos..."
 while [ $CORE_PROTO_IS_CORRECT -ne 1 ]
@@ -50,16 +58,22 @@ do
   echo "Round $PROCESS_ROUND"
   CORE_PROTO_IS_CORRECT=1
 
-  make $@ protoc
-  if test $? -ne 0; then
-    echo "Failed to build protoc."
-    exit 1
+  if [ "$BOOTSTRAP_PROTOC" != "" ]; then
+    PROTOC=$BOOTSTRAP_PROTOC
+    BOOTSTRAP_PROTOC=""
+  else
+    make $@ protoc
+    if test $? -ne 0; then
+      echo "Failed to build protoc."
+      exit 1
+    fi
+    PROTOC="./protoc"
   fi
 
-  ./protoc --cpp_out=dllexport_decl=LIBPROTOBUF_EXPORT:$TMP ${RUNTIME_PROTO_FILES[@]} && \
-  ./protoc --cpp_out=dllexport_decl=LIBPROTOC_EXPORT:$TMP google/protobuf/compiler/plugin.proto
+  $PROTOC --cpp_out=dllexport_decl=PROTOBUF_EXPORT:$TMP ${RUNTIME_PROTO_FILES[@]} && \
+  $PROTOC --cpp_out=dllexport_decl=PROTOC_EXPORT:$TMP ${COMPILER_PROTO_FILES[@]}
 
-  for PROTO_FILE in ${RUNTIME_PROTO_FILES[@]}; do
+  for PROTO_FILE in ${RUNTIME_PROTO_FILES[@]} ${COMPILER_PROTO_FILES[@]}; do
     BASE_NAME=${PROTO_FILE%.*}
     diff ${BASE_NAME}.pb.h $TMP/${BASE_NAME}.pb.h > /dev/null
     if test $? -ne 0; then
@@ -71,24 +85,14 @@ do
     fi
   done
 
-  diff google/protobuf/compiler/plugin.pb.h $TMP/google/protobuf/compiler/plugin.pb.h > /dev/null
-  if test $? -ne 0; then
-    CORE_PROTO_IS_CORRECT=0
-  fi
-  diff google/protobuf/compiler/plugin.pb.cc $TMP/google/protobuf/compiler/plugin.pb.cc > /dev/null
-  if test $? -ne 0; then
-    CORE_PROTO_IS_CORRECT=0
-  fi
-
   # Only override the output if the files are different to avoid re-compilation
   # of the protoc.
   if [ $CORE_PROTO_IS_CORRECT -ne 1 ]; then
-    for PROTO_FILE in ${RUNTIME_PROTO_FILES[@]}; do
+    for PROTO_FILE in ${RUNTIME_PROTO_FILES[@]} ${COMPILER_PROTO_FILES[@]}; do
       BASE_NAME=${PROTO_FILE%.*}
       mv $TMP/${BASE_NAME}.pb.h ${BASE_NAME}.pb.h
       mv $TMP/${BASE_NAME}.pb.cc ${BASE_NAME}.pb.cc
     done
-    mv $TMP/google/protobuf/compiler/plugin.pb.* google/protobuf/compiler/
   fi
 
   PROCESS_ROUND=$((PROCESS_ROUND + 1))
@@ -103,4 +107,9 @@ fi
 if test -x csharp/generate_protos.sh; then
   echo "Generating messages for C#."
   csharp/generate_protos.sh $@
+fi
+
+if test -x php/generate_descriptor_protos.sh; then
+  echo "Generating messages for PHP."
+  php/generate_descriptor_protos.sh $@
 fi

@@ -37,6 +37,7 @@ module Google
   module Protobuf
     class Error < StandardError; end
     class ParseError < Error; end
+    class TypeError < ::TypeError; end
   end
 end
 
@@ -45,7 +46,7 @@ if RUBY_PLATFORM == "java"
   require 'google/protobuf_java'
 else
   begin
-    require "google/#{RUBY_VERSION.sub(/\.\d$/, '')}/protobuf_c"
+    require "google/#{RUBY_VERSION.sub(/\.\d+$/, '')}/protobuf_c"
   rescue LoadError
     require 'google/protobuf_c'
   end
@@ -60,16 +61,16 @@ module Google
       msg.to_proto
     end
 
-    def self.encode_json(msg)
-      msg.to_json
+    def self.encode_json(msg, options = {})
+      msg.to_json(options)
     end
 
     def self.decode(klass, proto)
       klass.decode(proto)
     end
 
-    def self.decode_json(klass, json)
-      klass.decode_json(json)
+    def self.decode_json(klass, json, options = {})
+      klass.decode_json(json, options)
     end
 
   end
