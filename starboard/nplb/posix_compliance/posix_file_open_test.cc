@@ -53,8 +53,6 @@ void BasicTest(bool existing,
   int fd = open(filename.c_str(), open_flags);
   if (!expected_success) {
     EXPECT_FALSE(fd >= 0) << SB_FILE_OPEN_TEST_CONTEXT;
-    // EXPECT_EQ(expected_created, created) << SB_FILE_OPEN_TEST_CONTEXT;
-    // EXPECT_NE(kSbFileOk, error) << SB_FILE_OPEN_TEST_CONTEXT;
 
     // Try to clean up in case test fails.
     if (!(fd < 0)) {
@@ -62,8 +60,6 @@ void BasicTest(bool existing,
     }
   } else {
     EXPECT_TRUE(fd >= 0);
-    // EXPECT_EQ(expected_created, created) << SB_FILE_OPEN_TEST_CONTEXT;
-    // EXPECT_EQ(kSbFileOk, error) << SB_FILE_OPEN_TEST_CONTEXT;
     if (fd >= 0) {
       int result = close(fd);
       EXPECT_TRUE(result == 0) << SB_FILE_OPEN_TEST_CONTEXT;
@@ -73,54 +69,42 @@ void BasicTest(bool existing,
 }
 
 TEST(PosixFileOpenTest, OpenOnlyOpensExistingFile) {
-  // BasicTest(true, kSbFileOpenOnly | kSbFileRead, false, true, __LINE__);
   BasicTest(true, O_RDONLY, false, true, __LINE__);
 }
 
 TEST(PosixFileOpenTest, OpenOnlyDoesNotOpenNonExistingFile) {
-  // BasicTest(false, kSbFileOpenOnly | kSbFileRead, false, false, __LINE__);
   BasicTest(false, O_RDONLY, false, false, __LINE__);
 }
 
 TEST(PosixFileOpenTest, CreateOnlyDoesNotCreateExistingFile) {
-  // BasicTest(true, kSbFileCreateOnly | kSbFileWrite, false, false, __LINE__);
   BasicTest(true, O_CREAT | O_EXCL | O_WRONLY, false, false, __LINE__);
 }
 
 TEST(PosixFileOpenTest, CreateOnlyCreatesNonExistingFile) {
-  // BasicTest(false, kSbFileCreateOnly | kSbFileWrite, true, true, __LINE__);
   BasicTest(false, O_CREAT | O_EXCL | O_WRONLY, true, true, __LINE__);
 }
 
 TEST(PosixFileOpenTest, OpenAlwaysOpensExistingFile) {
-  // BasicTest(true, kSbFileOpenAlways | kSbFileWrite, false, true, __LINE__);
   BasicTest(true, O_CREAT | O_WRONLY, false, true, __LINE__);
 }
 
 TEST(PosixFileOpenTest, OpenAlwaysCreatesNonExistingFile) {
-  BasicTest(false, kSbFileOpenAlways | kSbFileWrite, true, true, __LINE__);
   BasicTest(false, O_CREAT | O_WRONLY, true, true, __LINE__);
 }
 
 TEST(PosixFileOpenTest, CreateAlwaysTruncatesExistingFile) {
-  // BasicTest(true, kSbFileCreateAlways | kSbFileWrite, true, true, __LINE__);
   BasicTest(true, O_CREAT | O_TRUNC | O_WRONLY, true, true, __LINE__);
 }
 
 TEST(PosixFileOpenTest, CreateAlwaysCreatesNonExistingFile) {
-  // BasicTest(false, kSbFileCreateAlways | kSbFileWrite, true, true, __LINE__);
   BasicTest(false, O_CREAT | O_TRUNC | O_WRONLY, true, true, __LINE__);
 }
 
 TEST(PosixFileOpenTest, OpenTruncatedTruncatesExistingFile) {
-  // BasicTest(true, kSbFileOpenTruncated | kSbFileWrite, false, true,
-  // __LINE__);
   BasicTest(true, O_TRUNC | O_WRONLY, false, true, __LINE__);
 }
 
 TEST(PosixFileOpenTest, OpenTruncatedDoesNotCreateNonExistingFile) {
-  // BasicTest(false, kSbFileOpenTruncated | kSbFileWrite, false, false,
-  // __LINE__);
   BasicTest(false, O_TRUNC | O_WRONLY, false, false, __LINE__);
 }
 

@@ -18,6 +18,9 @@
 #include <../ucrt/fcntl.h>  // The Visual Studio version of this same file
 #include <io.h>             // Needed for `open`, which is in fcntl.h on POSIX
 
+#undef open
 #undef close  // in unistd.h on POSIX, and handles both files and sockets
+
+int open(const char* path, int oflag, ...);
 
 #endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_FCNTL_H_
