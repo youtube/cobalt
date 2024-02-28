@@ -35,8 +35,11 @@ void RecordSendAlgorithmTestResult(uint64_t random_seed,
 void CompareSendAlgorithmTestResult(int64_t actual_simulated_duration_micros) {
   SendAlgorithmTestResult expected;
   ASSERT_TRUE(LoadSendAlgorithmTestResult(&expected));
+#ifndef USE_COBALT_CUSTOMIZATIONS
+// Cobalt's protobuf is too old to support ShortDebugString().
   QUIC_LOG(INFO) << "Loaded expected test result: "
                  << expected.ShortDebugString();
+#endif
 
   EXPECT_GE(expected.simulated_duration_micros(),
             actual_simulated_duration_micros);
