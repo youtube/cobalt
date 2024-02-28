@@ -76,7 +76,7 @@ source_set("tests") {
       "web_socket_encoder_unittest.cc",
     ]
 
-    if (use_cobalt_customizations) {
+    if (use_hacky_cobalt_changes) {
       # TODO: b/327218234 - Reenable unittests with used functionality.
       # TODO: b/327008491 - Reenable unittests with unused functionality.
       sources -= [ "http_server_unittest.cc" ]

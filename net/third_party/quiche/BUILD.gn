@@ -1196,7 +1196,7 @@ static_library("quiche_test_support") {
     "//third_party/quic_trace:quic_trace_proto",
   ]
 
-  if (use_cobalt_customizations) {
+  if (use_hacky_cobalt_changes) {
     sources -= [
       "src/quiche/quic/core/quic_trace_visitor.cc",
       "src/quiche/quic/core/quic_trace_visitor.h",
@@ -1700,7 +1700,7 @@ source_set("quiche_tests") {
     ]
   }
 
-  if (use_cobalt_customizations) {
+  if (use_hacky_cobalt_changes) {
     # TODO: b/327218234 - Reenable unittests with used functionality.
     # TODO: b/327008491 - Reenable unittests with unused functionality.
     sources -= [
