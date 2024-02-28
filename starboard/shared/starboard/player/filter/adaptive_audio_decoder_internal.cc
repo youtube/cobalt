@@ -146,7 +146,7 @@ void AdaptiveAudioDecoder::Reset() {
   SB_DCHECK(BelongsToCurrentThread());
 
   if (audio_decoder_) {
-    TeardownAudioDecoder();
+    audio_decoder_->Reset();
   }
   CancelPendingJobs();
   while (!decoded_audios_.empty()) {
