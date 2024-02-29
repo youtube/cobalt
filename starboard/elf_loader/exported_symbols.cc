@@ -14,6 +14,7 @@
 
 #include "starboard/elf_loader/exported_symbols.h"
 
+#include <fcntl.h>
 #include <ifaddrs.h>
 #include <stdlib.h>
 #include <sys/mman.h>
@@ -428,6 +429,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(mprotect);
   REGISTER_SYMBOL(msync);
   REGISTER_SYMBOL(munmap);
+  REGISTER_SYMBOL(open);
   REGISTER_SYMBOL(posix_memalign);
   REGISTER_SYMBOL(realloc);
   REGISTER_SYMBOL(setsockopt);

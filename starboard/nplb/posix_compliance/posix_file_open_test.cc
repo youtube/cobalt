@@ -20,7 +20,6 @@
 
 #include "starboard/file.h"
 #include "starboard/nplb/posix_compliance/posix_file_helpers.h"
-#include "starboard/shared/posix/file_internal.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -50,7 +49,9 @@ void BasicTest(bool existing,
   }
 
   bool created = !expected_created;
-  int fd = open(filename.c_str(), open_flags);
+  mode_t mode = S_IRUSR | S_IWUSR;
+  int fd = (open_flags & O_CREAT) ? open(filename.c_str(), open_flags, mode)
+                                  : open(filename.c_str(), open_flags);
   if (!expected_success) {
     EXPECT_FALSE(fd >= 0) << SB_FILE_OPEN_TEST_CONTEXT;
 

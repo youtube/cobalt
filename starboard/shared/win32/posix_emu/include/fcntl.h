@@ -17,9 +17,17 @@
 
 #include <../ucrt/fcntl.h>  // The Visual Studio version of this same file
 #include <io.h>             // Needed for `open`, which is in fcntl.h on POSIX
+#include <sys/stat.h>
 
 #undef open
 #undef close  // in unistd.h on POSIX, and handles both files and sockets
+
+typedef int mode_t;
+
+static const mode_t S_IRUSR = (mode_t)_S_IREAD;
+static const mode_t S_IWUSR = (mode_t)_S_IWRITE;
+
+static const mode_t MS_MODE_MASK = 0x0000ffff;
 
 int open(const char* path, int oflag, ...);
 

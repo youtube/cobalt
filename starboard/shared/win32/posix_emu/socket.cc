@@ -13,7 +13,8 @@
 // limitations under the License.
 
 // We specifically do not include <sys/socket.h> since the define causes a loop
-// #include <file_socket_helper.h>   // Needed for FileOrSocket type.
+
+#include <fcntl.h>
 #include <io.h>      // Needed for file-specific `_close`.
 #include <unistd.h>  // Our version that declares generic `close`.
 #include <winsock2.h>
@@ -110,8 +111,14 @@ int sb_socket(int domain, int type, int protocol) {
 int open(const char* path, int oflag, ...) {
   va_list args;
   va_start(args, oflag);
-  int mode = va_arg(args, int);
-  int fd = _open(path, oflag, mode);
+  int fd;
+  mode_t mode;
+  if (oflag & O_CREAT) {
+    mode = va_arg(args, mode_t);
+    fd = _open(path, oflag, mode & MS_MODE_MASK);
+  } else {
+    fd = _open(path, oflag);
+  }
   va_end(args);
 
   if (fd < 0) {
