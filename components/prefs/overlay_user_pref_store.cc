@@ -92,7 +92,7 @@ base::Value::Dict OverlayUserPrefStore::GetValues() const {
   // overwritten by the content of |persistent_user_pref_store_| (the persistent
   // store).
   for (const auto& key : persistent_names_set_) {
-    absl::optional<base::Value> out_value = persistent_values->Extract(key);
+    absl::optional<base::Value> out_value = persistent_values.Extract(key);
     if (out_value) {
       values.Set(key, std::move(*out_value));
     }
