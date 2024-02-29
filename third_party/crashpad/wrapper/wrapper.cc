@@ -17,7 +17,6 @@
 #include <sys/stat.h>
 #include <map>
 #include <vector>
-#include <sys/stat.h>
 
 #include "base/files/file_path.h"
 #include "base/logging.h"
