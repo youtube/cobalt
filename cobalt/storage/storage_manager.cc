@@ -22,6 +22,7 @@
 #include "base/bind.h"
 #include "base/strings/stringprintf.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/base/task_runner_util.h"
 #include "cobalt/storage/savegame_thread.h"
 
 namespace cobalt {
@@ -65,7 +66,7 @@ void StorageManager::EnsureStarted() {
 void StorageManager::InitializeTaskInThread() {
   DCHECK(storage_task_runner_);
   DCHECK(storage_task_runner_->RunsTasksInCurrentSequence());
-  base::MessageLoopCurrent::Get()->AddDestructionObserver(this);
+  base::CurrentThread::Get()->AddDestructionObserver(this);
 
   memory_store_.reset(new MemoryStore());
   savegame_thread_.reset(new SavegameThread(options_.savegame_options));
@@ -85,7 +86,7 @@ StorageManager::~StorageManager() {
   if (storage_thread_) {
     // Wait for all previously posted tasks to finish.
     DCHECK(storage_task_runner_);
-    storage_task_runner_->WaitForFence();
+    base::task_runner_util::WaitForFence(storage_task_runner_, FROM_HERE);
     // This will trigger a call to WillDestroyCurrentMessageLoop in the thread
     // and wait for it to finish.
     storage_thread_.reset();
@@ -220,7 +221,7 @@ void StorageManager::OnFlushOnChangeTimerFired() {
 
 void StorageManager::OnFlushIOCompletedCallback() {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
-  // Make sure this runs on the SQL message loop.
+  // Make sure this runs on the SQL task runner.
   EnsureStarted();
   if (!storage_task_runner_->RunsTasksInCurrentSequence()) {
     storage_task_runner_->PostTask(
@@ -311,13 +312,13 @@ void StorageManager::FinishIO() {
   // communication.  This method exists to wait for that communication to
   // finish and for all pending flushes to complete.
 
-  // Start by finishing all commands currently in the sql message loop queue.
+  // Start by finishing all commands currently in the sql task runner queue.
   // This method is called by the destructor, so the only new tasks posted
   // after this one will be generated internally.  We need to do this because
   // it is possible that there are no flushes pending at this instant, but there
   // are tasks queued on |storage_task_runner_| that will begin a flush, and so
   // we make sure that these are executed first.
-  storage_task_runner_->WaitForFence();
+  base::task_runner_util::WaitForFence(storage_task_runner_, FROM_HERE);
 
   // Now wait for all pending flushes to wrap themselves up.  This may involve
   // the savegame I/O thread and the SQL thread posting tasks to each other.

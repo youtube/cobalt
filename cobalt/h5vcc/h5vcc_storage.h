@@ -17,8 +17,8 @@
 
 #include <string>
 
-#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/h5vcc/h5vcc_storage_resource_type_quota_bytes_dictionary.h"
 #include "cobalt/h5vcc/h5vcc_storage_set_quota_response.h"
 #include "cobalt/h5vcc/h5vcc_storage_verify_test_response.h"

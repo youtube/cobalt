@@ -23,9 +23,10 @@
 #include "base/bind_helpers.h"
 #include "base/containers/flat_map.h"
 #include "base/functional/callback_forward.h"
-#include "base/message_loop/message_loop.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/current_thread.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread.h"
 #include "base/values.h"
 #include "components/prefs/persistent_pref_store.h"
@@ -39,15 +40,17 @@ namespace persistent_storage {
 // PersistentSettings uses JsonPrefStore for most of its functionality.
 // JsonPrefStore maintains thread safety by requiring that all access occurs on
 // the Sequence that created it.
-class PersistentSettings : public base::MessageLoop::DestructionObserver {
+class PersistentSettings : public base::CurrentThread::DestructionObserver {
  public:
   explicit PersistentSettings(const std::string& file_name);
   ~PersistentSettings();
 
-  // The message loop this object is running on.
-  base::MessageLoop* message_loop() const { return thread_.message_loop(); }
+  // The task runner this object is running on.
+  base::SequencedTaskRunner* task_runner() const {
+    return thread_.task_runner();
+  }
 
-  // From base::MessageLoop::DestructionObserver.
+  // From base::CurrentThread::DestructionObserver.
   void WillDestroyCurrentMessageLoop() override;
 
   // Validates persistent settings by restoring the file on successful start up.
@@ -121,7 +124,7 @@ class PersistentSettings : public base::MessageLoop::DestructionObserver {
       base::WaitableEvent::InitialState::NOT_SIGNALED};
 
   // This event is used to signal when the destruction observers have been
-  // added to the message loop. This is then used in Stop() to ensure that
+  // added to the task runner. This is then used in Stop() to ensure that
   // processing doesn't continue until the thread is cleanly shutdown.
   base::WaitableEvent destruction_observer_added_ = {
       base::WaitableEvent::ResetPolicy::MANUAL,

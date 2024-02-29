@@ -21,7 +21,7 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/loader/decoder.h"
 #include "cobalt/loader/image/image.h"
 #include "cobalt/loader/image/image_data_decoder.h"
@@ -48,11 +48,11 @@ class ThreadedImageDecoderProxy : public Decoder {
       render_tree::ResourceProvider* resource_provider,
       const base::DebuggerHooks* debugger_hooks,
       const ImageAvailableCallback& image_available_callback,
-      base::MessageLoop* load_message_loop_,
+      base::SequencedTaskRunner* load_task_runner_,
       const loader::Decoder::OnCompleteFunction& load_complete_callback) {
     return std::unique_ptr<Decoder>(new ThreadedImageDecoderProxy(
         resource_provider, debugger_hooks, image_available_callback,
-        load_message_loop_, load_complete_callback));
+        load_task_runner_, load_complete_callback));
   }
 
   // From the Decoder interface.
@@ -70,18 +70,17 @@ class ThreadedImageDecoderProxy : public Decoder {
       render_tree::ResourceProvider* resource_provider,
       const base::DebuggerHooks* debugger_hooks,
       const ImageAvailableCallback& image_available_callback,
-      base::MessageLoop* load_message_loop_,
+      base::SequencedTaskRunner* load_task_runner_,
       const loader::Decoder::OnCompleteFunction& load_complete_callback);
 
   base::WeakPtrFactory<ThreadedImageDecoderProxy> weak_ptr_factory_;
   base::WeakPtr<ThreadedImageDecoderProxy> weak_this_;
 
-  // The message loop that |image_decoder_| should run on.
-  base::MessageLoop* load_message_loop_;
+  // The task runner that |image_decoder_| should run on.
+  base::SequencedTaskRunner* load_task_runner_;
 
-  // The message loop that the original callbacks passed into us should run
-  // on.
-  base::MessageLoop* result_message_loop_;
+  // The task runner that the original callbacks passed into us should run on.
+  base::SequencedTaskRunner* result_task_runner_;
 
   // The actual image decoder.
   std::unique_ptr<ImageDecoder> image_decoder_;

@@ -101,7 +101,7 @@ TimeDelta AdjustWriteDurationForPlaybackRate(TimeDelta write_duration,
 
 SbPlayerPipeline::SbPlayerPipeline(
     SbPlayerInterface* interface, PipelineWindow window,
-    const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+    const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     const GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
     bool allow_resume_after_suspend, bool allow_batched_sample_write,
@@ -179,7 +179,7 @@ SbPlayerPipeline::SbPlayerPipeline(
 SbPlayerPipeline::~SbPlayerPipeline() { DCHECK(!player_bridge_); }
 
 void SbPlayerPipeline::Suspend() {
-  DCHECK(!task_runner_->BelongsToCurrentThread());
+  DCHECK(!task_runner_->RunsTasksInCurrentSequence());
 
   base::WaitableEvent waitable_event(
       base::WaitableEvent::ResetPolicy::MANUAL,
@@ -191,7 +191,7 @@ void SbPlayerPipeline::Suspend() {
 }
 
 void SbPlayerPipeline::Resume(PipelineWindow window) {
-  DCHECK(!task_runner_->BelongsToCurrentThread());
+  DCHECK(!task_runner_->RunsTasksInCurrentSequence());
 
   base::WaitableEvent waitable_event(
       base::WaitableEvent::ResetPolicy::MANUAL,
@@ -312,7 +312,7 @@ void SbPlayerPipeline::Start(const SetDrmSystemReadyCB& set_drm_system_ready_cb,
 void SbPlayerPipeline::Stop(const base::Closure& stop_cb) {
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::Stop");
 
-  if (!task_runner_->BelongsToCurrentThread()) {
+  if (!task_runner_->RunsTasksInCurrentSequence()) {
     task_runner_->PostTask(FROM_HERE,
                            base::Bind(&SbPlayerPipeline::Stop, this, stop_cb));
     return;
@@ -349,7 +349,7 @@ void SbPlayerPipeline::Stop(const base::Closure& stop_cb) {
 }
 
 void SbPlayerPipeline::Seek(TimeDelta time, const SeekCB& seek_cb) {
-  if (!task_runner_->BelongsToCurrentThread()) {
+  if (!task_runner_->RunsTasksInCurrentSequence()) {
     task_runner_->PostTask(
         FROM_HERE, base::Bind(&SbPlayerPipeline::Seek, this, time, seek_cb));
     return;
@@ -607,7 +607,7 @@ void SbPlayerPipeline::SetPreferredOutputModeToDecodeToTexture() {
   TRACE_EVENT0("cobalt::media",
                "SbPlayerPipeline::SetPreferredOutputModeToDecodeToTexture");
 
-  if (!task_runner_->BelongsToCurrentThread()) {
+  if (!task_runner_->RunsTasksInCurrentSequence()) {
     task_runner_->PostTask(
         FROM_HERE,
         base::Bind(&SbPlayerPipeline::SetPreferredOutputModeToDecodeToTexture,
@@ -625,7 +625,7 @@ void SbPlayerPipeline::SetPreferredOutputModeToDecodeToTexture() {
 void SbPlayerPipeline::StartTask(StartTaskParameters parameters) {
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::StartTask");
 
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   DCHECK(!demuxer_);
 
@@ -658,7 +658,7 @@ void SbPlayerPipeline::StartTask(StartTaskParameters parameters) {
 }
 
 void SbPlayerPipeline::SetVolumeTask(float volume) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (player_bridge_) {
     player_bridge_->SetVolume(volume_);
@@ -666,7 +666,7 @@ void SbPlayerPipeline::SetVolumeTask(float volume) {
 }
 
 void SbPlayerPipeline::SetPlaybackRateTask(float volume) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (player_bridge_) {
     player_bridge_->SetPlaybackRate(playback_rate_);
@@ -674,7 +674,7 @@ void SbPlayerPipeline::SetPlaybackRateTask(float volume) {
 }
 
 void SbPlayerPipeline::SetDurationTask(TimeDelta duration) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   if (!duration_change_cb_.is_null()) {
     duration_change_cb_.Run();
   }
@@ -699,7 +699,7 @@ void SbPlayerPipeline::SetDuration(TimeDelta duration) {
 }
 
 void SbPlayerPipeline::OnDemuxerError(PipelineStatus error) {
-  if (!task_runner_->BelongsToCurrentThread()) {
+  if (!task_runner_->RunsTasksInCurrentSequence()) {
     task_runner_->PostTask(
         FROM_HERE, base::Bind(&SbPlayerPipeline::OnDemuxerError, this, error));
     return;
@@ -713,7 +713,7 @@ void SbPlayerPipeline::OnDemuxerError(PipelineStatus error) {
 #if SB_HAS(PLAYER_WITH_URL)
 void SbPlayerPipeline::CreateUrlPlayer(const std::string& source_url) {
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::CreateUrlPlayer");
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (stopped_) {
     return;
@@ -793,7 +793,7 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
 #endif  // SB_HAS(PLAYER_WITH_URL
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::CreatePlayer");
 
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(audio_stream_ || video_stream_);
 
   if (stopped_) {
@@ -902,7 +902,7 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
 #endif  // SB_HAS(PLAYER_WITH_URL)
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::OnDemuxerInitialized");
 
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (stopped_) {
     return;
@@ -979,7 +979,7 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
 }
 
 void SbPlayerPipeline::OnDemuxerSeeked(PipelineStatus status) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (status == ::media::PIPELINE_OK && player_bridge_) {
     player_bridge_->Seek(seek_time_);
@@ -989,7 +989,7 @@ void SbPlayerPipeline::OnDemuxerSeeked(PipelineStatus status) {
 void SbPlayerPipeline::OnDemuxerStopped() {
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::OnDemuxerStopped");
 
-  if (!task_runner_->BelongsToCurrentThread()) {
+  if (!task_runner_->RunsTasksInCurrentSequence()) {
     task_runner_->PostTask(
         FROM_HERE, base::Bind(&SbPlayerPipeline::OnDemuxerStopped, this));
     return;
@@ -1008,7 +1008,7 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
   DCHECK(type == DemuxerStream::AUDIO || type == DemuxerStream::VIDEO)
       << "Unsupported DemuxerStream::Type " << type;
 
-  if (!task_runner_->BelongsToCurrentThread()) {
+  if (!task_runner_->RunsTasksInCurrentSequence()) {
     task_runner_->PostTask(
         FROM_HERE,
         base::BindOnce(&SbPlayerPipeline::OnDemuxerStreamRead, this, type,
@@ -1073,7 +1073,7 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type,
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   // In case if Stop() has been called.
   if (!player_bridge_) {
@@ -1139,7 +1139,7 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type,
 }
 
 void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   // In case if Stop() has been called.
   if (!player_bridge_) {
@@ -1212,7 +1212,7 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
 
 void SbPlayerPipeline::OnPlayerError(SbPlayerError error,
                                      const std::string& message) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   // In case if Stop() has been called.
   if (!player_bridge_) {
@@ -1253,14 +1253,14 @@ void SbPlayerPipeline::OnPlayerError(SbPlayerError error,
 }
 
 void SbPlayerPipeline::DelayedNeedData(int max_number_of_buffers_to_write) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   if (audio_read_delayed_) {
     OnNeedData(DemuxerStream::AUDIO, max_number_of_buffers_to_write);
   }
 }
 
 void SbPlayerPipeline::UpdateDecoderConfig(DemuxerStream* stream) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (!player_bridge_) {
     return;
@@ -1320,7 +1320,7 @@ void SbPlayerPipeline::CallErrorCB(PipelineStatus status,
 }
 
 void SbPlayerPipeline::SuspendTask(base::WaitableEvent* done_event) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(done_event);
   DCHECK(!suspended_);
 
@@ -1343,7 +1343,7 @@ void SbPlayerPipeline::SuspendTask(base::WaitableEvent* done_event) {
 
 void SbPlayerPipeline::ResumeTask(PipelineWindow window,
                                   base::WaitableEvent* done_event) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(done_event);
   DCHECK(suspended_);
 
@@ -1393,7 +1393,7 @@ void SbPlayerPipeline::ResumeTask(PipelineWindow window,
 
 std::string SbPlayerPipeline::AppendStatisticsString(
     const std::string& message) const {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (nullptr == video_stream_) {
     return message + ", playback statistics: n/a.";

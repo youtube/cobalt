@@ -24,7 +24,7 @@
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/message_loop/message_loop_current.h"
+#include "base/task/current_thread.h"
 #include "cobalt/web/agent.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/web_settings.h"
@@ -53,7 +53,7 @@ class ServiceWorkerRegistrationObject;
 class ServiceWorkerObject
     : public base::RefCountedThreadSafe<ServiceWorkerObject>,
       public base::SupportsWeakPtr<ServiceWorkerObject>,
-      public base::MessageLoop::DestructionObserver {
+      public base::CurrentThread::DestructionObserver {
  public:
   // Worker Options needed at thread run time.
   struct Options {
@@ -134,7 +134,7 @@ class ServiceWorkerObject
     return worker_global_scope_;
   }
 
-  // From base::MessageLoop::DestructionObserver.
+  // From base::CurrentThread::DestructionObserver.
   void WillDestroyCurrentMessageLoop() override;
 
   void store_start_failed(bool value) { start_failed_.store(value); }
@@ -158,9 +158,9 @@ class ServiceWorkerObject
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#run-service-worker-algorithm
   void Initialize(web::Context* context);
 
-  // The message loop this object is running on.
-  base::MessageLoop* message_loop() const {
-    return web_agent_ ? web_agent_->message_loop() : nullptr;
+  // The task runner this object is running on.
+  base::SequencedTaskRunner* task_runner() const {
+    return web_agent_ ? web_agent_->task_runner() : nullptr;
   }
 
 #if defined(ENABLE_DEBUGGER)

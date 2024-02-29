@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/script_loader_factory.h"
 #include "cobalt/network/network_module.h"
@@ -54,7 +55,7 @@ class Context {
     virtual ~EnvironmentSettingsChangeObserver() = default;
   };
 
-  virtual base::MessageLoop* message_loop() const = 0;
+  virtual base::SequencedTaskRunner* task_runner() const = 0;
   virtual void ShutDownJavaScriptEngine() = 0;
   virtual loader::FetcherFactory* fetcher_factory() const = 0;
   virtual loader::ScriptLoaderFactory* script_loader_factory() const = 0;

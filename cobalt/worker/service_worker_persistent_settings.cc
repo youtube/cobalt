@@ -166,7 +166,7 @@ void ServiceWorkerPersistentSettings::ReadServiceWorkerRegistrationMapSettings(
     registration_map.insert(std::make_pair(key, registration));
     registration->set_is_persisted(true);
 
-    options_.service_worker_context->message_loop()->task_runner()->PostTask(
+    options_.service_worker_context->task_runner()->PostTask(
         FROM_HERE,
         base::BindOnce(&ServiceWorkerContext::Activate,
                        base::Unretained(options_.service_worker_context),
@@ -175,7 +175,7 @@ void ServiceWorkerPersistentSettings::ReadServiceWorkerRegistrationMapSettings(
     auto job = options_.service_worker_context->jobs()->CreateJobWithoutPromise(
         ServiceWorkerJobs::JobType::kUpdate, storage_key, scope,
         registration->waiting_worker()->script_url());
-    options_.service_worker_context->message_loop()->task_runner()->PostTask(
+    options_.service_worker_context->task_runner()->PostTask(
         FROM_HERE, base::BindOnce(&ServiceWorkerJobs::ScheduleJob,
                                   base::Unretained(
                                       options_.service_worker_context->jobs()),

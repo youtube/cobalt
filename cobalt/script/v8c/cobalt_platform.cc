@@ -17,6 +17,7 @@
 #include <memory>
 
 #include "base/bind.h"
+#include "base/check.h"
 #include "base/logging.h"
 #include "cobalt/base/polymorphic_downcast.h"
 
@@ -47,7 +48,7 @@ void CobaltPlatform::CobaltV8TaskRunner::PostDelayedTask(
   }
 }
 
-// Since we put these v8 tasks directly on the message loop, all the tasks are
+// Since we put these v8 tasks directly on the task runner, all the tasks are
 // "NonNestable".
 void CobaltPlatform::CobaltV8TaskRunner::PostNonNestableTask(
     std::unique_ptr<v8::Task> task) {
@@ -59,7 +60,7 @@ void CobaltPlatform::CobaltV8TaskRunner::PostNonNestableDelayedTask(
 }
 
 void CobaltPlatform::CobaltV8TaskRunner::SetTaskRunner(
-    base::SingleThreadTaskRunner* task_runner) {
+    base::SequencedTaskRunner* task_runner) {
   base::AutoLock auto_lock(lock_);
   task_runner_ = task_runner;
   DCHECK(task_runner);
@@ -97,9 +98,7 @@ std::shared_ptr<v8::TaskRunner> CobaltPlatform::GetForegroundTaskRunner(
   return task_runner;
 }
 
-void CobaltPlatform::RegisterIsolateOnThread(v8::Isolate* isolate,
-                                             base::MessageLoop* message_loop) {
-  DCHECK(message_loop);
+void CobaltPlatform::RegisterIsolateOnThread(v8::Isolate* isolate) {
   auto task_runner = GetForegroundTaskRunner(isolate);
   CobaltPlatform::CobaltV8TaskRunner* cobalt_v8_task_runner =
       base::polymorphic_downcast<CobaltPlatform::CobaltV8TaskRunner*>(

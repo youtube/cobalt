@@ -111,9 +111,6 @@ class AudioNodeInputOutputTest : public ::testing::Test {
     return web_context_->environment_settings();
   }
 
- protected:
-  base::MessageLoop message_loop_;
-
  private:
   // The Web Instance includes the Script Realm.
   std::unique_ptr<web::Context> web_context_;

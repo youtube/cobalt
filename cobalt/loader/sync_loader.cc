@@ -148,24 +148,25 @@ void LoaderOnThread::End() {
 //////////////////////////////////////////////////////////////////
 
 void LoadSynchronously(
-    base::MessageLoop* message_loop, base::WaitableEvent* interrupt_trigger,
+    base::SequencedTaskRunner* task_runner,
+    base::WaitableEvent* interrupt_trigger,
     base::Callback<std::unique_ptr<Fetcher>(Fetcher::Handler*)> fetcher_creator,
     base::Callback<std::unique_ptr<Decoder>()> decoder_creator,
     base::Callback<void(const base::Optional<std::string>&)>
         load_complete_callback) {
   TRACE_EVENT0("cobalt::loader", "LoadSynchronously()");
-  DCHECK(message_loop);
+  DCHECK(task_runner);
   DCHECK(!load_complete_callback.is_null());
 
   LoaderOnThread loader_on_thread(load_complete_callback);
 
-  message_loop->task_runner()->PostTask(
+  task_runner->PostTask(
       FROM_HERE,
       base::Bind(&LoaderOnThread::Start, base::Unretained(&loader_on_thread),
                  fetcher_creator, decoder_creator));
   loader_on_thread.WaitForLoad(interrupt_trigger);
 
-  message_loop->task_runner()->PostTask(
+  task_runner->PostTask(
       FROM_HERE,
       base::Bind(&LoaderOnThread::End, base::Unretained(&loader_on_thread)));
 

@@ -18,8 +18,8 @@
 #include <utility>
 
 #include "base/logging.h"
-#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/dom/dom_settings.h"
@@ -80,7 +80,7 @@ script::HandlePromiseWrappable ServiceWorkerContainer::ready() {
     //    3.1. Let client by this's service worker client.
     web::Context* client = environment_settings()->context();
     ServiceWorkerContext* worker_context = client->service_worker_context();
-    worker_context->message_loop()->task_runner()->PostTask(
+    worker_context->task_runner()->PostTask(
         FROM_HERE,
         base::BindOnce(&ServiceWorkerContext::MaybeResolveReadyPromiseSubSteps,
                        base::Unretained(worker_context), client));
@@ -97,8 +97,8 @@ void ServiceWorkerContainer::MaybeResolveReadyPromise(
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#navigator-service-worker-ready
   TRACE_EVENT0("cobalt::worker",
                "ServiceWorkerContainer::MaybeResolveReadyPromise()");
-  DCHECK_EQ(base::MessageLoop::current(),
-            environment_settings()->context()->message_loop());
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(),
+            environment_settings()->context()->task_runner());
   if (!registration || !registration->active_worker()) return;
   if (!promise_reference_) return;
   if (ready_promise_->State() != script::PromiseState::kPending) return;
@@ -122,8 +122,8 @@ script::HandlePromiseWrappable ServiceWorkerContainer::Register(
 script::HandlePromiseWrappable ServiceWorkerContainer::Register(
     const std::string& url, const RegistrationOptions& options) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerContainer::Register()");
-  DCHECK_EQ(base::MessageLoop::current(),
-            environment_settings()->context()->message_loop());
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(),
+            environment_settings()->context()->task_runner());
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#navigator-service-worker-register
   // 1. Let p be a promise.
   script::HandlePromiseWrappable promise =
@@ -152,7 +152,7 @@ script::HandlePromiseWrappable ServiceWorkerContainer::Register(
   }
   // 6. Invoke Start Register with scopeURL, scriptURL, p, client, client’s
   //    creation URL, options["type"], and options["updateViaCache"].
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(&ServiceWorkerContext::StartRegister,
                      base::Unretained(client->service_worker_context()),
@@ -165,8 +165,8 @@ script::HandlePromiseWrappable ServiceWorkerContainer::Register(
 script::HandlePromiseWrappable ServiceWorkerContainer::GetRegistration(
     const std::string& url) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerContainer::GetRegistration()");
-  DCHECK_EQ(base::MessageLoop::current(),
-            environment_settings()->context()->message_loop());
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(),
+            environment_settings()->context()->task_runner());
   // Algorithm for 'ServiceWorkerContainer.getRegistration()':
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#navigator-service-worker-getRegistration
   // Let promise be a new promise.
@@ -182,7 +182,7 @@ script::HandlePromiseWrappable ServiceWorkerContainer::GetRegistration(
       new script::ValuePromiseWrappable::Reference(
           environment_settings()->context()->GetWindowOrWorkerGlobalScope(),
           promise));
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&ServiceWorkerContainer::GetRegistrationTask,
                                 base::Unretained(this), url,
                                 std::move(promise_reference)));
@@ -196,8 +196,8 @@ void ServiceWorkerContainer::GetRegistrationTask(
         promise_reference) {
   TRACE_EVENT0("cobalt::worker",
                "ServiceWorkerContainer::GetRegistrationTask()");
-  DCHECK_EQ(base::MessageLoop::current(),
-            environment_settings()->context()->message_loop());
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(),
+            environment_settings()->context()->task_runner());
   // Algorithm for 'ServiceWorkerContainer.getRegistration()':
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#navigator-service-worker-getRegistration
   // 1. Let client be this's service worker client.
@@ -239,7 +239,7 @@ void ServiceWorkerContainer::GetRegistrationTask(
   // 8. Run the following substeps in parallel:
   ServiceWorkerContext* worker_context = client->service_worker_context();
   DCHECK(worker_context);
-  worker_context->message_loop()->task_runner()->PostTask(
+  worker_context->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(&ServiceWorkerContext::GetRegistrationSubSteps,
                      base::Unretained(worker_context), storage_key, client_url,
@@ -257,7 +257,7 @@ ServiceWorkerContainer::GetRegistrations() {
       promise_reference(new script::ValuePromiseSequenceWrappable::Reference(
           environment_settings()->context()->GetWindowOrWorkerGlobalScope(),
           promise));
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(&ServiceWorkerContainer::GetRegistrationsTask,
                      base::Unretained(this), std::move(promise_reference)));
@@ -272,7 +272,7 @@ void ServiceWorkerContainer::GetRegistrationsTask(
   ServiceWorkerContext* worker_context =
       environment_settings()->context()->service_worker_context();
   url::Origin storage_key = environment_settings()->ObtainStorageKey();
-  worker_context->message_loop()->task_runner()->PostTask(
+  worker_context->task_runner()->PostTask(
       FROM_HERE, base::BindOnce(&ServiceWorkerContext::GetRegistrationsSubSteps,
                                 base::Unretained(worker_context), storage_key,
                                 client, std::move(promise_reference)));

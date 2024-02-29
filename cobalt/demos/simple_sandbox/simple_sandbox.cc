@@ -14,7 +14,7 @@
 
 #include "base/bind.h"
 #include "base/memory/singleton.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/task/task_runner.h"
 #include "base/threading/thread.h"
 #include "cobalt/base/wrap_main.h"
@@ -51,11 +51,11 @@ void SimpleSandbox::StartApplication(int argc, char** argv, const char* link,
 
   SimpleSandbox::GetInstance()
       ->thread()
-      ->message_loop()
+      ->task_runner()
       ->task_runner()
       ->PostDelayedTask(FROM_HERE,
                         base::BindOnce(
-                            [](base::MessageLoop* main_loop,
+                            [](base::SequencedTaskRunner* main_loop,
                                const base::Closure& quit_closure) {
                               LOG(INFO) << "Lambda Function in the thread.";
 
@@ -64,7 +64,8 @@ void SimpleSandbox::StartApplication(int argc, char** argv, const char* link,
                                   FROM_HERE, quit_closure,
                                   base::TimeDelta::FromSeconds(2));
                             },
-                            base::MessageLoop::current(), quit_closure),
+                            base::SequencedTaskRunner::GetCurrentDefault(),
+                            quit_closure),
                         base::TimeDelta(base::TimeDelta::FromSeconds(1)));
 }
 

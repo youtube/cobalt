@@ -24,7 +24,7 @@ namespace cobalt {
 namespace h5vcc {
 H5vccRuntime::H5vccRuntime(base::EventDispatcher* event_dispatcher)
     : event_dispatcher_(event_dispatcher),
-      task_runner_(base::ThreadTaskRunnerHandle::Get()) {
+      task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {
   DCHECK(task_runner_);
   on_deep_link_ = new H5vccDeepLinkEventTarget(
       base::Bind(&H5vccRuntime::GetUnconsumedDeepLink, base::Unretained(this)));

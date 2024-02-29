@@ -19,8 +19,9 @@
 
 #include "base/bind.h"
 #include "base/logging.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/base/task_runner_util.h"
 
 // An arbitrary max size for the save game file so that, eg, a
 // corrupt filesystem cannot cause us to allocate a fatally large
@@ -38,7 +39,7 @@ SavegameThread::SavegameThread(const Savegame::Options& options)
       num_consecutive_flush_failures_(0) {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
   thread_->Start();
-  thread_->message_loop()->task_runner()->PostTask(
+  thread_->task_runner()->PostTask(
       FROM_HERE, base::Bind(&SavegameThread::InitializeOnIOThread,
                             base::Unretained(this)));
 }
@@ -48,7 +49,7 @@ SavegameThread::~SavegameThread() {
 
   if (thread_) {
     // Wait for all previously posted tasks to finish.
-    thread_->message_loop()->task_runner()->WaitForFence();
+    base::task_runner_util::WaitForFence(thread_->task_runner(), FROM_HERE);
     // This will trigger a call to WillDestroyCurrentMessageLoop in the thread
     // and wait for it to finish.
     thread_.reset();
@@ -75,7 +76,7 @@ void SavegameThread::Flush(std::unique_ptr<Savegame::ByteVector> raw_bytes_ptr,
     }
     return;
   }
-  thread_->message_loop()->task_runner()->PostTask(
+  thread_->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&SavegameThread::FlushOnIOThread, base::Unretained(this),
                  base::Passed(&raw_bytes_ptr), on_flush_complete));
@@ -83,8 +84,8 @@ void SavegameThread::Flush(std::unique_ptr<Savegame::ByteVector> raw_bytes_ptr,
 
 void SavegameThread::InitializeOnIOThread() {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
-  DCHECK(thread_->message_loop()->task_runner()->RunsTasksInCurrentSequence());
-  base::MessageLoopCurrent::Get()->AddDestructionObserver(this);
+  DCHECK(thread_->task_runner()->RunsTasksInCurrentSequence());
+  base::CurrentThread::Get()->AddDestructionObserver(this);
 
   // Create a savegame object on the storage I/O thread.
   savegame_ = options_.CreateSavegame();
@@ -108,7 +109,7 @@ void SavegameThread::FlushOnIOThread(
     std::unique_ptr<Savegame::ByteVector> raw_bytes_ptr,
     const base::Closure& on_flush_complete) {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
-  DCHECK(thread_->message_loop()->task_runner()->RunsTasksInCurrentSequence());
+  DCHECK(thread_->task_runner()->RunsTasksInCurrentSequence());
   if (raw_bytes_ptr->size() > 0) {
     bool ret = savegame_->Write(*raw_bytes_ptr);
     if (ret) {

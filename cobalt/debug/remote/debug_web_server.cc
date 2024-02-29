@@ -112,15 +112,15 @@ DebugWebServer::DebugWebServer(
   DETACH_FROM_THREAD(thread_checker_);
   const size_t stack_size = 0;
   http_server_thread_.StartWithOptions(
-      base::Thread::Options(base::MessageLoop::TYPE_IO, stack_size));
-  http_server_thread_.message_loop()->task_runner()->PostTask(
+      base::Thread::Options(base::MessagePumpType::IO, stack_size));
+  http_server_thread_.task_runner()->PostTask(
       FROM_HERE, base::Bind(&DebugWebServer::StartServer,
                             base::Unretained(this), port, listen_ip));
 }
 
 DebugWebServer::~DebugWebServer() {
   // Destroy the server on its own thread then stop the thread.
-  http_server_thread_.message_loop()->task_runner()->PostTask(
+  http_server_thread_.task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&DebugWebServer::StopServer, base::Unretained(this)));
   http_server_thread_.Stop();
@@ -267,8 +267,9 @@ void DebugWebServer::OnDebugClientEvent(const std::string& method,
 
   // Debugger events occur on the thread of the web module the debugger is
   // attached to, so we must post to the server thread here.
-  if (base::MessageLoop::current() != http_server_thread_.message_loop()) {
-    http_server_thread_.message_loop()->task_runner()->PostTask(
+  if (base::SequencedTaskRunner::GetCurrentDefault() !=
+      http_server_thread_.task_runner()) {
+    http_server_thread_.task_runner()->PostTask(
         FROM_HERE, base::Bind(&DebugWebServer::OnDebugClientEvent,
                               base::Unretained(this), method, json_params));
     return;
@@ -284,8 +285,9 @@ void DebugWebServer::OnDebugClientEvent(const std::string& method,
 void DebugWebServer::OnDebugClientDetach(const std::string& reason) {
   // Debugger events occur on the thread of the web module the debugger is
   // attached to, so we must post to the server thread here.
-  if (base::MessageLoop::current() != http_server_thread_.message_loop()) {
-    http_server_thread_.message_loop()->task_runner()->PostTask(
+  if (base::SequencedTaskRunner::GetCurrentDefault() !=
+      http_server_thread_.task_runner()) {
+    http_server_thread_.task_runner()->PostTask(
         FROM_HERE, base::Bind(&DebugWebServer::OnDebugClientDetach,
                               base::Unretained(this), reason));
     return;

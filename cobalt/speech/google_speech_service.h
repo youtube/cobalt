@@ -112,7 +112,7 @@ class GoogleSpeechService : public net::URLFetcherDelegate {
   // Use a task runner to deal with all wrappables.
   base::WeakPtrFactory<GoogleSpeechService> weak_ptr_factory_;
   base::WeakPtr<GoogleSpeechService> weak_this_;
-  scoped_refptr<base::SingleThreadTaskRunner> const wrappables_task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> const wrappables_task_runner_;
 };
 
 }  // namespace speech

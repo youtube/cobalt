@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_WEBDRIVER_UTIL_CALL_ON_MESSAGE_LOOP_H_
-#define COBALT_WEBDRIVER_UTIL_CALL_ON_MESSAGE_LOOP_H_
+#ifndef COBALT_WEBDRIVER_UTIL_CALL_ON_TASK_RUNNER_H_
+#define COBALT_WEBDRIVER_UTIL_CALL_ON_TASK_RUNNER_H_
 
 #include <memory>
 
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "base/message_loop/message_loop.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 
 namespace cobalt {
@@ -33,16 +33,16 @@ class CallOnMessageLoopHelper {
  public:
   typedef base::Callback<ReturnValue(void)> CallbackType;
   CallOnMessageLoopHelper(
-      const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+      const scoped_refptr<base::SequencedTaskRunner>& task_runner,
       const CallbackType& callback)
       : completed_event_(base::WaitableEvent::ResetPolicy::MANUAL,
                          base::WaitableEvent::InitialState::NOT_SIGNALED),
         success_(false) {
-    DCHECK_NE(base::ThreadTaskRunnerHandle::Get(), task_runner);
+    DCHECK_NE(base::SequencedTaskRunner::GetCurrentDefault(), task_runner);
     std::unique_ptr<DeletionSignaler> dt(
         new DeletionSignaler(&completed_event_));
     // Note that while base::MessageLoopProxy::PostTask returns false
-    // after the message loop has gone away, it still can return true
+    // after the task runner has gone away, it still can return true
     // even if tasks are posted during shutdown and will never be run,
     // so we ignore this return value.
     task_runner->PostTask(FROM_HERE, base::Bind(&CallOnMessageLoopHelper::Call,
@@ -51,7 +51,7 @@ class CallOnMessageLoopHelper {
   }
 
   // Waits for result, filling |out| with the return value if successful.
-  // Returns true on success or false if the message loop went away
+  // Returns true on success or false if the task runner went away
   // before the task was executed.
   bool WaitForResult(ReturnValue* out) {
     completed_event_.Wait();
@@ -71,7 +71,7 @@ class CallOnMessageLoopHelper {
   // DeletionSignaler signals an event when the destructor is called.
   // This allows us to use the base::Passed mechanism to signal our
   // completed_event_ both when Call() has been invoked and when
-  // the message loop has been deleted.
+  // the task runner has been deleted.
   class DeletionSignaler {
    public:
     base::WaitableEvent* to_signal_;
@@ -109,7 +109,7 @@ base::Optional<ReturnValue> RunWeak(const base::Callback<T*()>& get_weak,
 }
 }  // namespace internal
 
-// Call the base::Callback on the specified message loop and wait for it to
+// Call the base::Callback on the specified task runner and wait for it to
 // complete. Returns true if successful, or false if the underlying
 // PostTask failed. This can happen if a WebModule shuts down due to a page
 // navigation.
@@ -117,7 +117,7 @@ base::Optional<ReturnValue> RunWeak(const base::Callback<T*()>& get_weak,
 // On success, |out| is set to the result.
 template <class ReturnValue>
 bool TryCallOnMessageLoop(
-    const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+    const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     const base::Callback<ReturnValue(void)>& callback, ReturnValue* out) {
   internal::CallOnMessageLoopHelper<ReturnValue> call_helper(task_runner,
                                                              callback);
@@ -126,11 +126,11 @@ bool TryCallOnMessageLoop(
 
 // Tries to call |callback| on base::MessageLoop |task_runner|,
 // but returns a CommandResult of |window_disappeared_code| if the
-// message loop has shut down. This can happen if a WebModule shuts
+// task runner has shut down. This can happen if a WebModule shuts
 // down due to a page navigation.
 template <typename ReturnValue>
 util::CommandResult<ReturnValue> CallOnMessageLoop(
-    const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+    const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     const base::Callback<util::CommandResult<ReturnValue>(void)>& callback,
     protocol::Response::StatusCode window_disappeared_code) {
   util::CommandResult<ReturnValue> result;
@@ -144,7 +144,7 @@ util::CommandResult<ReturnValue> CallOnMessageLoop(
 }
 
 // Supports a common pattern in the various XXXDriver classes.
-// On the provided message loop, calls RunWeak which will run the callback |cb|
+// On the provided task runner, calls RunWeak which will run the callback |cb|
 // if |get_weak| returns a non-NULL pointer. RunWeak will return the result of
 // the callback, or base::nullopt if |get_weak| returned NULL and the callback
 // wasn't run.
@@ -153,7 +153,7 @@ util::CommandResult<ReturnValue> CallOnMessageLoop(
 // error.
 template <typename T, typename ReturnValue>
 util::CommandResult<ReturnValue> CallWeakOnMessageLoopAndReturnResult(
-    const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+    const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     const base::Callback<T*()>& get_weak,
     const base::Callback<ReturnValue(T*)>& cb,
     protocol::Response::StatusCode no_such_object_code) {
@@ -174,4 +174,4 @@ util::CommandResult<ReturnValue> CallWeakOnMessageLoopAndReturnResult(
 }  // namespace webdriver
 }  // namespace cobalt
 
-#endif  // COBALT_WEBDRIVER_UTIL_CALL_ON_MESSAGE_LOOP_H_
+#endif  // COBALT_WEBDRIVER_UTIL_CALL_ON_TASK_RUNNER_H_

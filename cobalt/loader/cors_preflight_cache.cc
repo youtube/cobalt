@@ -19,8 +19,8 @@
 #include <algorithm>
 #include <utility>
 
-#include "base/message_loop/message_loop.h"
 #include "base/strings/string_util.h"
+#include "base/task/sequenced_task_runner.h"
 
 namespace {
 bool MethodNameToRequestType(const std::string& method,

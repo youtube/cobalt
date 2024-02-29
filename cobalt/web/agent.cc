@@ -23,6 +23,7 @@
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/startup_timer.h"
+#include "cobalt/base/task_runner_util.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/script_loader_factory.h"
 #include "cobalt/script/environment_settings.h"
@@ -49,7 +50,7 @@ namespace cobalt {
 namespace web {
 // Private Web Context implementation. Each Agent owns a single instance of
 // this class, which performs all the actual work. All functions of this class
-// must be called on the message loop of the Agent thread, so they
+// must be called on the task runner of the Agent thread, so they
 // execute synchronously with respect to one another.
 namespace {
 
@@ -74,10 +75,10 @@ class Impl : public Context {
 
   // Context
   //
-  void set_message_loop(base::MessageLoop* message_loop) {
-    message_loop_ = message_loop;
+  void set_task_runner(base::SequencedTaskRunner* task_runner) {
+    task_runner_ = task_runner;
   }
-  base::MessageLoop* message_loop() const final { return message_loop_; }
+  base::SequencedTaskRunner* task_runner() const final { return task_runner_; }
   void ShutDownJavaScriptEngine() final;
   loader::FetcherFactory* fetcher_factory() const final {
     return fetcher_factory_.get();
@@ -183,8 +184,8 @@ class Impl : public Context {
   // thread that it is created in.
   THREAD_CHECKER(thread_checker_);
 
-  // The message loop for the web context.
-  base::MessageLoop* message_loop_ = nullptr;
+  // The task runner for the web context.
+  base::SequencedTaskRunner* task_runner_ = nullptr;
 
   // Name of the web instance.
   std::string name_;
@@ -302,8 +303,8 @@ Impl::Impl(const std::string& name, const Agent::Options& options)
   // Schedule the injected global attributes to be added later, to ensure they
   // are added after the global object is created.
   if (!options.injected_global_object_attributes.empty()) {
-    DCHECK(base::MessageLoop::current());
-    base::ThreadTaskRunnerHandle::Get()->PostTask(
+    DCHECK(base::SequencedTaskRunner::HasCurrentDefault());
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::Bind(&Impl::InjectGlobalObjectAttributes, base::Unretained(this),
                    options.injected_global_object_attributes));
@@ -540,7 +541,7 @@ void Agent::WillDestroyCurrentMessageLoop() { context_.reset(); }
 Agent::Agent(const std::string& name) : thread_(name) {}
 
 void Agent::Stop() {
-  DCHECK(message_loop());
+  DCHECK(task_runner());
   DCHECK(thread_.IsRunning());
 
   if (context() && context()->service_worker_context()) {
@@ -556,7 +557,7 @@ void Agent::Stop() {
   // Ensure that the destruction observer got added before stopping the thread.
   destruction_observer_added_.Wait();
   // Wait for all previously posted tasks to finish.
-  thread_.message_loop()->task_runner()->WaitForFence();
+  base::task_runner_util::WaitForFence(thread_.task_runner(), FROM_HERE);
   // Stop the thread. This will cause the destruction observer to be notified.
   thread_.Stop();
 }
@@ -574,7 +575,7 @@ void Agent::Run(const Options& options, InitializeCallback initialize_callback,
   // object on that thread.
   if (!thread_.StartWithOptions(base::Thread::Options(options.thread_priority)))
     return;
-  DCHECK(message_loop());
+  DCHECK(task_runner());
 
   // Registers service worker thread as a watchdog client.
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
@@ -589,72 +590,78 @@ void Agent::Run(const Options& options, InitializeCallback initialize_callback,
     watchdog->Register(watchdog_name_, watchdog_name_,
                        base::kApplicationStateStarted, kWatchdogTimeInterval,
                        kWatchdogTimeWait, watchdog::PING);
-    message_loop()->task_runner()->PostDelayedTask(
+    task_runner()->PostDelayedTask(
         FROM_HERE, base::Bind(&Agent::PingWatchdog, base::Unretained(this)),
         base::TimeDelta::FromMilliseconds(kWatchdogTimePing));
   }
 
-  message_loop()->task_runner()->PostTask(
-      FROM_HERE,
-      base::Bind(&Agent::InitializeTaskInThread, base::Unretained(this),
-                 options, initialize_callback));
+  task_runner()->PostTask(FROM_HERE, base::Bind(&Agent::InitializeTaskInThread,
+                                                base::Unretained(this), options,
+                                                initialize_callback));
 
   if (destruction_observer) {
-    message_loop()->task_runner()->PostTask(
-        FROM_HERE, base::Bind(&base::MessageLoop::AddDestructionObserver,
-                              base::Unretained(message_loop()),
-                              base::Unretained(destruction_observer)));
+    task_runner()->PostTask(
+        FROM_HERE, base::Bind(
+                       [](DestructionObserver* destruction_observer) {
+                         base::CurrentThread::Get()->AddDestructionObserver(
+                             destruction_observer);
+                       },
+                       base::Unretained(destruction_observer)));
   }
   // Register as a destruction observer to shut down the Web Agent once all
-  // pending tasks have been executed and the message loop is about to be
+  // pending tasks have been executed and the task runner is about to be
   // destroyed. This allows us to safely stop the thread, drain the task queue,
-  // then destroy the internal components before the message loop is reset.
+  // then destroy the internal components before the task runner is reset.
   // No posted tasks will be executed once the thread is stopped.
-  message_loop()->task_runner()->PostTask(
-      FROM_HERE,
-      base::Bind(&base::MessageLoop::AddDestructionObserver,
-                 base::Unretained(message_loop()), base::Unretained(this)));
+  task_runner()->PostTask(
+      FROM_HERE, base::Bind(
+                     [](DestructionObserver* destruction_observer) {
+                       base::CurrentThread::Get()->AddDestructionObserver(
+                           destruction_observer);
+                     },
+                     base::Unretained(this)));
 
   // This works almost like a PostBlockingTask, except that any blocking that
   // may be necessary happens when Stop() is called instead of right now.
-  message_loop()->task_runner()->PostTask(
+  task_runner()->PostTask(
       FROM_HERE, base::Bind(&SignalWaitableEvent,
                             base::Unretained(&destruction_observer_added_)));
 }
 
 void Agent::InitializeTaskInThread(const Options& options,
                                    InitializeCallback initialize_callback) {
-  DCHECK_EQ(base::MessageLoop::current(), message_loop());
+  DCHECK(task_runner()->RunsTasksInCurrentSequence());
   context_.reset(
-      CreateContext(thread_.thread_name(), options, thread_.message_loop()));
+      CreateContext(thread_.thread_name(), options, thread_.task_runner()));
   initialize_callback.Run(context_.get());
 }
 
 Context* Agent::CreateContext(const std::string& name, const Options& options,
-                              base::MessageLoop* message_loop) {
+                              base::SequencedTaskRunner* task_runner) {
   auto* context = new Impl(name, options);
-  context->set_message_loop(message_loop);
+  context->set_task_runner(task_runner);
   return context;
 }
 
 void Agent::WaitUntilDone() {
-  DCHECK(message_loop());
-  if (base::MessageLoop::current() != message_loop()) {
-    message_loop()->task_runner()->PostBlockingTask(
-        FROM_HERE, base::Bind(&Agent::WaitUntilDone, base::Unretained(this)));
+  DCHECK(task_runner());
+  if (!task_runner()->RunsTasksInCurrentSequence()) {
+    base::task_runner_util::PostBlockingTask(
+        task_runner(), FROM_HERE,
+        base::Bind(&Agent::WaitUntilDone, base::Unretained(this)));
     return;
   }
-  DCHECK_EQ(base::MessageLoop::current(), message_loop());
+  DCHECK(task_runner()->RunsTasksInCurrentSequence());
 }
 
 void Agent::RequestJavaScriptHeapStatistics(
     const JavaScriptHeapStatisticsCallback& callback) {
   TRACE_EVENT0("cobalt::web", "Agent::RequestJavaScriptHeapStatistics()");
-  DCHECK(message_loop());
-  if (base::MessageLoop::current() != message_loop()) {
-    message_loop()->task_runner()->PostTask(
-        FROM_HERE, base::Bind(&Agent::RequestJavaScriptHeapStatistics,
-                              base::Unretained(this), callback));
+  DCHECK(task_runner());
+  if (!task_runner()->RunsTasksInCurrentSequence()) {
+    task_runner()->PostTask(FROM_HERE,
+                            base::Bind(&Agent::RequestJavaScriptHeapStatistics,
+                                       base::Unretained(this), callback));
     return;
   }
   script::HeapStatistics heap_statistics =
@@ -664,14 +671,14 @@ void Agent::RequestJavaScriptHeapStatistics(
 
 // Ping watchdog every 5 second, otherwise a violation will be triggered.
 void Agent::PingWatchdog() {
-  DCHECK_EQ(base::MessageLoop::current(), message_loop());
+  DCHECK(task_runner()->RunsTasksInCurrentSequence());
 
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
   // If watchdog is already unregistered or shut down, stop ping watchdog.
   if (!watchdog_registered_ || !watchdog) return;
 
   watchdog->Ping(watchdog_name_);
-  message_loop()->task_runner()->PostDelayedTask(
+  task_runner()->PostDelayedTask(
       FROM_HERE, base::Bind(&Agent::PingWatchdog, base::Unretained(this)),
       base::TimeDelta::FromMilliseconds(kWatchdogTimePing));
 }

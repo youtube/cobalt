@@ -52,7 +52,7 @@ ServiceWorkerObject::~ServiceWorkerObject() {
 void ServiceWorkerObject::Abort() {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerObject::Abort()");
   if (web_agent_) {
-    DCHECK(message_loop());
+    DCHECK(task_runner());
     DCHECK(web_context_);
     std::unique_ptr<web::Agent> web_agent(std::move(web_agent_));
     DCHECK(web_agent);

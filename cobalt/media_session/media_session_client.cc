@@ -197,7 +197,7 @@ void MediaSessionClient::PostDelayedTaskForMaybeFreezeCallback() {
 void MediaSessionClient::UpdatePlatformPlaybackState(
     CobaltExtensionMediaSessionPlaybackState state) {
   DCHECK(media_session_->task_runner_);
-  if (!media_session_->task_runner_->BelongsToCurrentThread()) {
+  if (!media_session_->task_runner_->RunsTasksInCurrentSequence()) {
     media_session_->task_runner_->PostTask(
         FROM_HERE, base::Bind(&MediaSessionClient::UpdatePlatformPlaybackState,
                               AsWeakPtr(), state));
@@ -235,7 +235,7 @@ void MediaSessionClient::InvokeActionInternal(
          details->action == kCobaltExtensionMediaSessionActionSeekto);
 
   DCHECK(media_session_->task_runner_);
-  if (!media_session_->task_runner_->BelongsToCurrentThread()) {
+  if (!media_session_->task_runner_->RunsTasksInCurrentSequence()) {
     media_session_->task_runner_->PostTask(
         FROM_HERE, base::Bind(&MediaSessionClient::InvokeActionInternal,
                               AsWeakPtr(), base::Passed(&details)));

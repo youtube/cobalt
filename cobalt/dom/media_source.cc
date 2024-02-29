@@ -423,8 +423,8 @@ bool MediaSource::AttachToElement(HTMLMediaElement* media_element) {
     LOG(INFO) << "Algorithm offloading enabled.";
     offload_algorithm_runner_.reset(
         new OffloadAlgorithmRunner<SourceBufferAlgorithm>(
-            algorithm_process_thread_->message_loop()->task_runner(),
-            base::ThreadTaskRunnerHandle::Get()));
+            algorithm_process_thread_->task_runner(),
+            base::SequencedTaskRunner::GetCurrentDefault()));
   } else {
     LOG(INFO) << "Algorithm offloading disabled.";
   }

@@ -30,8 +30,8 @@ FetchEvent::FetchEvent(script::EnvironmentSettings* environment_settings,
                        const std::string& type,
                        const FetchEventInit& event_init_dict)
     : FetchEvent(environment_settings, base_token::Token(type), event_init_dict,
-                 base::ThreadTaskRunnerHandle::Get(), RespondWithCallback(),
-                 ReportLoadTimingInfo()) {}
+                 base::SequencedTaskRunner::GetCurrentDefault(),
+                 RespondWithCallback(), ReportLoadTimingInfo()) {}
 
 FetchEvent::FetchEvent(
     script::EnvironmentSettings* environment_settings, base_token::Token type,
@@ -92,7 +92,8 @@ base::Optional<v8::Local<v8::Promise>> FetchEvent::DoRespondWith(
           base::BindOnce(
               [](scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
                  RespondWithCallback respond_with_callback, std::string body,
-                 base::MessageLoop* loop, base::OnceClosure callback) {
+                 base::SequencedTaskRunner* task_runner,
+                 base::OnceClosure callback) {
                 callback_task_runner->PostTask(
                     FROM_HERE,
                     base::BindOnce(
@@ -103,10 +104,10 @@ base::Optional<v8::Local<v8::Promise>> FetchEvent::DoRespondWith(
                                   std::move(body)));
                         },
                         std::move(respond_with_callback), std::move(body)));
-                loop->task_runner()->PostTask(FROM_HERE, std::move(callback));
+                task_runner->PostTask(FROM_HERE, std::move(callback));
               },
               callback_task_runner_, std::move(respond_with_callback_),
-              std::move(body), base::MessageLoop::current(),
+              std::move(body), base::SequencedTaskRunner::GetCurrentDefault(),
               std::move(callback)));
   return respond_with_done_->value().promise();
 }

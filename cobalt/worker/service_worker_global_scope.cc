@@ -19,7 +19,6 @@
 
 #include "base/bind.h"
 #include "base/logging.h"
-#include "base/message_loop/message_loop.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/script/environment_settings.h"
@@ -166,8 +165,8 @@ scoped_refptr<ServiceWorker> ServiceWorkerGlobalScope::service_worker() const {
 
 script::HandlePromiseVoid ServiceWorkerGlobalScope::SkipWaiting() {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerGlobalScope::SkipWaiting()");
-  DCHECK_EQ(base::MessageLoop::current(),
-            environment_settings()->context()->message_loop());
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(),
+            environment_settings()->context()->task_runner());
   // Algorithm for skipWaiting():
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dom-serviceworkerglobalscope-skipwaiting
   // 1. Let promise be a new promise.
@@ -182,7 +181,7 @@ script::HandlePromiseVoid ServiceWorkerGlobalScope::SkipWaiting() {
   // 2. Run the following substeps in parallel:
   ServiceWorkerContext* worker_context =
       environment_settings()->context()->service_worker_context();
-  worker_context->message_loop()->task_runner()->PostTask(
+  worker_context->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(&ServiceWorkerContext::SkipWaitingSubSteps,
                      base::Unretained(worker_context),
@@ -207,9 +206,9 @@ void ServiceWorkerGlobalScope::StartFetch(
     std::move(fallback).Run();
     return;
   }
-  if (base::MessageLoop::current() !=
-      environment_settings()->context()->message_loop()) {
-    environment_settings()->context()->message_loop()->task_runner()->PostTask(
+  if (base::SequencedTaskRunner::GetCurrentDefault() !=
+      environment_settings()->context()->task_runner()) {
+    environment_settings()->context()->task_runner()->PostTask(
         FROM_HERE,
         base::BindOnce(&ServiceWorkerGlobalScope::StartFetch,
                        base::Unretained(this), url, main_resource,
@@ -228,7 +227,7 @@ void ServiceWorkerGlobalScope::StartFetch(
   if (registration && (main_resource || registration->stale())) {
     ServiceWorkerContext* worker_context =
         environment_settings()->context()->service_worker_context();
-    worker_context->message_loop()->task_runner()->PostTask(
+    worker_context->task_runner()->PostTask(
         FROM_HERE, base::BindOnce(&ServiceWorkerContext::SoftUpdate,
                                   base::Unretained(worker_context),
                                   base::Unretained(registration),

@@ -16,7 +16,6 @@
 
 #include <memory>
 
-#include "base/message_loop/message_loop.h"
 #include "base/run_loop.h"
 #include "cobalt/dom/testing/stub_environment_settings.h"
 #include "cobalt/script/testing/fake_script_value.h"
@@ -51,7 +50,6 @@ class EventQueueTest : public ::testing::Test {
         .RetiresOnSaturation();
   }
   testing::StubEnvironmentSettings environment_settings_;
-  base::MessageLoop message_loop_;
 };
 
 TEST_F(EventQueueTest, EventWithoutTargetTest) {

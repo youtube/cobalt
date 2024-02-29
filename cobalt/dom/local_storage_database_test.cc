@@ -19,7 +19,6 @@
 
 #include "base/bind.h"
 #include "base/files/file_path.h"
-#include "base/message_loop/message_loop.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
@@ -85,9 +84,7 @@ std::string GetSavePath() {
 
 class LocalStorageDatabaseTest : public ::testing::Test {
  protected:
-  LocalStorageDatabaseTest()
-      : message_loop_(base::MessageLoop::TYPE_DEFAULT),
-        origin_(GURL("https://www.example.com")) {
+  LocalStorageDatabaseTest() : origin_(GURL("https://www.example.com")) {
     storage::StorageManager::Options options;
     options.savegame_options.path_override = GetSavePath();
     options.savegame_options.delete_on_destruction = true;
@@ -102,7 +99,6 @@ class LocalStorageDatabaseTest : public ::testing::Test {
     storage_manager_.reset();
   }
 
-  base::MessageLoop message_loop_;
   loader::Origin origin_;
   std::unique_ptr<storage::StorageManager> storage_manager_;
   std::unique_ptr<LocalStorageDatabase> db_;

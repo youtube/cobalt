@@ -19,6 +19,7 @@
 
 #include "base/callback.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/current_thread.h"
 #include "base/threading/thread.h"
 #include "cobalt/storage/savegame.h"
 
@@ -27,7 +28,7 @@ namespace storage {
 
 // The SavegameThread wraps a Savegame object within its own thread in order to
 // enable asynchronous writes to the savegame object.
-class SavegameThread : public base::MessageLoop::DestructionObserver {
+class SavegameThread : public base::CurrentThread::DestructionObserver {
  public:
   explicit SavegameThread(const Savegame::Options& options);
   ~SavegameThread();
@@ -44,7 +45,7 @@ class SavegameThread : public base::MessageLoop::DestructionObserver {
              const base::Closure& on_flush_complete);
 
  private:
-  // From base::MessageLoop::DestructionObserver.
+  // From base::CurrentThread::DestructionObserver.
   void WillDestroyCurrentMessageLoop() override;
 
   // Run on the I/O thread to start loading the savegame.

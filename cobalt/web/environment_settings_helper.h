@@ -18,7 +18,7 @@
 #include "v8/include/v8.h"
 
 namespace base {
-class MessageLoop;
+class SequencedTaskRunner;
 }  // namespace base
 
 namespace cobalt {
@@ -42,7 +42,7 @@ script::Wrappable* get_global_wrappable(
     script::EnvironmentSettings* environment_settings);
 script::ScriptValueFactory* get_script_value_factory(
     script::EnvironmentSettings* environment_settings);
-base::MessageLoop* get_message_loop(
+base::SequencedTaskRunner* get_task_runner(
     script::EnvironmentSettings* environment_settings);
 
 }  // namespace web

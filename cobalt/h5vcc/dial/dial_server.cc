@@ -69,9 +69,9 @@ class DialServer::ServiceHandler : public cobalt::network::DialServiceHandler {
   // while we are deregistering our handler from the DialService.
   base::WeakPtr<DialServer> dial_server_;
   std::string service_name_;
-  // The message loop we should dispatch HandleRequest to. This is the
-  // message loop we were constructed on.
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  // The task runner we should dispatch HandleRequest to. This is the
+  // task runner we were constructed on.
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
 };
 
 DialServer::DialServer(script::EnvironmentSettings* settings,
@@ -164,7 +164,7 @@ DialServer::ServiceHandler::ServiceHandler(
     const base::WeakPtr<DialServer>& dial_server,
     const std::string& service_name)
     : dial_server_(dial_server), service_name_(service_name) {
-  task_runner_ = base::ThreadTaskRunnerHandle::Get();
+  task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
 }
 
 DialServer::ServiceHandler::~ServiceHandler() {}
@@ -174,7 +174,7 @@ void DialServer::ServiceHandler::HandleRequest(
     const CompletionCB& completion_cb) {
   // This gets called on the DialService/Network thread.
   // Post it to the WebModule thread.
-  DCHECK_NE(base::ThreadTaskRunnerHandle::Get(), task_runner_);
+  DCHECK_NE(base::SequencedTaskRunner::GetCurrentDefault(), task_runner_);
   task_runner_->PostTask(
       FROM_HERE, base::Bind(&ServiceHandler::OnHandleRequest, this, path,
                             request, completion_cb));
@@ -183,7 +183,7 @@ void DialServer::ServiceHandler::HandleRequest(
 void DialServer::ServiceHandler::OnHandleRequest(
     const std::string& path, const net::HttpServerRequestInfo& request,
     const CompletionCB& completion_cb) {
-  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), task_runner_);
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(), task_runner_);
   if (!dial_server_) {
     completion_cb.Run(std::unique_ptr<net::HttpServerResponseInfo>());
     return;

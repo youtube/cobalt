@@ -32,7 +32,7 @@ DebugDispatcher::DebugDispatcher(script::ScriptDebugger* script_debugger,
                                  DebugScriptRunner* script_runner)
     : script_debugger_(script_debugger),
       script_runner_(script_runner),
-      task_runner_(base::ThreadTaskRunnerHandle::Get()),
+      task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       is_paused_(false),
       // No manual reset, not initially signaled.
       command_added_while_paused_(

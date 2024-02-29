@@ -16,8 +16,9 @@
 
 #include <memory>
 
-#include "base/message_loop/message_loop.h"
 #include "base/run_loop.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/test/task_environment.h"
 #include "base/threading/simple_thread.h"
 #include "cobalt/renderer/backend/default_graphics_system.h"
 #include "cobalt/renderer/backend/graphics_context.h"
@@ -142,12 +143,12 @@ class ResourceProviderTest : public testing::Test {
   // ResourceProviderTest destructor does not need to run it.
   void SetWillRunRunLoopManually() { run_run_loop_manually_ = true; }
 
-  void Quit() {
-    message_loop_.task_runner()->PostTask(FROM_HERE, run_loop_.QuitClosure());
-  }
+  void Quit() { task_runner_->PostTask(FROM_HERE, run_loop_.QuitClosure()); }
 
  protected:
-  base::MessageLoop message_loop_;
+  base::test::SingleThreadTaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  base::SequencedTaskRunner* const task_runner_;
   base::RunLoop run_loop_;
   std::unique_ptr<rasterizer::Rasterizer> rasterizer_;
 
@@ -158,7 +159,7 @@ class ResourceProviderTest : public testing::Test {
 };
 
 ResourceProviderTest::ResourceProviderTest()
-    : message_loop_(base::MessageLoop::TYPE_DEFAULT),
+    : task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       run_run_loop_manually_(false) {
   // Create the rasterizer using the platform default RenderModule options.
   RendererModule::Options render_module_options;
@@ -168,7 +169,7 @@ ResourceProviderTest::ResourceProviderTest()
 
 ResourceProviderTest::~ResourceProviderTest() {
   if (!run_run_loop_manually_) {
-    message_loop_.task_runner()->PostTask(FROM_HERE, run_loop_.QuitClosure());
+    task_runner_->PostTask(FROM_HERE, run_loop_.QuitClosure());
     run_loop_.Run();
   }
 }
@@ -221,7 +222,7 @@ TEST_F(ResourceProviderTest, TexturesCanBeCreatedFromSecondaryThread) {
       base::Bind(&ResourceProviderTest::Quit, base::Unretained(this)));
   spawner_thread.Start();
 
-  // Run our message loop to process backend image creation/destruction
+  // Run our task runner to process backend image creation/destruction
   // requests.
   run_loop_.Run();
 
@@ -258,7 +259,7 @@ TEST_F(ResourceProviderTest, ManyTexturesCanBeCreatedAndDestroyedQuickly) {
       base::Bind(&ResourceProviderTest::Quit, base::Unretained(this)));
   spawner_thread.Start();
 
-  // Run our message loop to process backend image creation/destruction
+  // Run our task runner to process backend image creation/destruction
   // requests.
   run_loop_.Run();
 

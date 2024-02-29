@@ -19,9 +19,9 @@
 #include <string>
 #include <vector>
 
-#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/single_thread_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/script/array_buffer.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/global_environment.h"
@@ -75,8 +75,8 @@ class H5vccPlatformService : public script::Wrappable {
   script::GlobalEnvironment* environment_;
   const ExtPlatformServiceApi* platform_service_api_;
   const ReceiveCallbackReference receive_callback_;
-  // The main message loop.
-  scoped_refptr<base::SingleThreadTaskRunner> const main_message_loop_;
+  // The main task runner.
+  scoped_refptr<base::SequencedTaskRunner> const main_task_runner_;
 
   base::WeakPtrFactory<H5vccPlatformService> weak_ptr_factory_;
   // We construct a WeakPtr upon H5vccPlatformService's construction in order to

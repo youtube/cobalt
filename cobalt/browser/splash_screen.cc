@@ -19,6 +19,7 @@
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/cancelable_callback.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/time/time.h"
@@ -34,17 +35,19 @@ namespace {
 const int kSplashShutdownSeconds = 2;
 
 typedef base::Callback<void(base::TimeDelta)> Callback;
-void PostCallbackToMessageLoop(const Callback& callback,
-                               base::MessageLoop* message_loop,
-                               base::TimeDelta time) {
-  DCHECK(message_loop);
-  message_loop->task_runner()->PostTask(FROM_HERE, base::Bind(callback, time));
+void PostCallbackToTaskRunner(const Callback& callback,
+                              base::SequencedTaskRunner* task_runner,
+                              base::TimeDelta time) {
+  DCHECK(task_runner);
+  task_runner->PostTask(FROM_HERE, base::Bind(callback, time));
 }
 
 // TODO: consolidate definitions of BindToLoop / BindToCurrentLoop
 // from here and media in base.
-Callback BindToLoop(const Callback& callback, base::MessageLoop* message_loop) {
-  return base::Bind(&PostCallbackToMessageLoop, callback, message_loop);
+Callback BindToLoop(const Callback& callback,
+                    base::SequencedTaskRunner* task_runner) {
+  return base::Bind(&PostCallbackToTaskRunner, callback,
+                    base::Unretained(task_runner));
 }
 
 void OnError(const GURL& url, const std::string& error) { LOG(ERROR) << error; }
@@ -65,7 +68,7 @@ SplashScreen::SplashScreen(
         on_splash_screen_shutdown_complete,
     const base::Closure& maybe_freeze_callback)
     : render_tree_produced_callback_(render_tree_produced_callback),
-      self_message_loop_(base::MessageLoop::current()),
+      task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       on_splash_screen_shutdown_complete_(on_splash_screen_shutdown_complete),
       shutdown_signaled_(false) {
   WebModule::Options web_module_options;
@@ -92,7 +95,7 @@ SplashScreen::SplashScreen(
   }
 
   base::Callback<void(base::TimeDelta)> on_window_close(
-      BindToLoop(on_splash_screen_shutdown_complete, self_message_loop_));
+      BindToLoop(on_splash_screen_shutdown_complete, task_runner_));
 
   web_module_options.on_before_unload_fired_but_not_handled =
       base::Bind(on_window_close, base::TimeDelta());
@@ -120,7 +123,7 @@ SplashScreen::SplashScreen(
 }
 
 SplashScreen::~SplashScreen() {
-  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   // Destroy the web module first to prevent our callbacks from being called
   // (from another thread) while member objects are being destroyed.
   web_module_.reset();
@@ -129,12 +132,12 @@ SplashScreen::~SplashScreen() {
 }
 
 void SplashScreen::Shutdown() {
-  DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(web_module_);
   DCHECK(!ShutdownSignaled()) << "Shutdown() should be called at most once.";
 
   if (!on_splash_screen_shutdown_complete_.callback().is_null()) {
-    base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
         FROM_HERE,
         base::Bind(on_splash_screen_shutdown_complete_.callback(),
                    base::TimeDelta()),

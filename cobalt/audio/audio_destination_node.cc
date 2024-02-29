@@ -35,7 +35,7 @@ const uint32 kMaxChannelCount = 2;
 AudioDestinationNode::AudioDestinationNode(
     script::EnvironmentSettings* settings, AudioContext* context)
     : AudioNode(settings, context),
-      message_loop_(base::MessageLoop::current()),
+      task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       max_channel_count_(kMaxChannelCount) {
   AudioLock::AutoLock lock(audio_lock());
 
@@ -82,9 +82,9 @@ void AudioDestinationNode::FillAudioBus(bool all_consumed, AudioBus* audio_bus,
     SB_LOG(INFO) << "Schedule to destroy audio device " << audio_device_.get()
                  << '.';
     delete_audio_device_ = true;
-    message_loop_->task_runner()->PostTask(
-        FROM_HERE, base::Bind(&AudioDestinationNode::DestroyAudioDevice,
-                              base::Unretained(this)));
+    task_runner_->PostTask(FROM_HERE,
+                           base::Bind(&AudioDestinationNode::DestroyAudioDevice,
+                                      base::Unretained(this)));
   }
 }
 

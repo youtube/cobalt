@@ -29,7 +29,7 @@
 #include "cobalt/webdriver/keyboard.h"
 #include "cobalt/webdriver/screenshot.h"
 #include "cobalt/webdriver/search.h"
-#include "cobalt/webdriver/util/call_on_message_loop.h"
+#include "cobalt/webdriver/util/call_on_task_runner.h"
 
 namespace cobalt {
 namespace webdriver {
@@ -87,13 +87,13 @@ ElementDriver::ElementDriver(
     const base::WeakPtr<dom::Element>& element, ElementMapping* element_mapping,
     KeyboardEventInjector keyboard_event_injector,
     PointerEventInjector pointer_event_injector,
-    const scoped_refptr<base::SingleThreadTaskRunner>& message_loop)
+    const scoped_refptr<base::SequencedTaskRunner>& task_runner)
     : element_id_(element_id),
       element_(element),
       element_mapping_(element_mapping),
       keyboard_event_injector_(keyboard_event_injector),
       pointer_event_injector_(pointer_event_injector),
-      element_task_runner_(message_loop) {}
+      element_task_runner_(task_runner) {}
 
 util::CommandResult<std::string> ElementDriver::GetTagName() {
   return util::CallWeakOnMessageLoopAndReturnResult(
@@ -226,14 +226,16 @@ util::CommandResult<std::string> ElementDriver::RequestScreenshot(
 }
 
 dom::Element* ElementDriver::GetWeakElement() {
-  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), element_task_runner_);
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(),
+            element_task_runner_);
   return element_.get();
 }
 
 util::CommandResult<void> ElementDriver::SendKeysInternal(
     std::unique_ptr<Keyboard::KeyboardEventVector> events) {
   typedef util::CommandResult<void> CommandResult;
-  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), element_task_runner_);
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(),
+            element_task_runner_);
   if (!element_) {
     return CommandResult(protocol::Response::kStaleElementReference);
   }
@@ -258,7 +260,8 @@ util::CommandResult<void> ElementDriver::SendKeysInternal(
 util::CommandResult<void> ElementDriver::SendClickInternal(
     const protocol::Button& button) {
   typedef util::CommandResult<void> CommandResult;
-  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), element_task_runner_);
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(),
+            element_task_runner_);
   if (!element_) {
     return CommandResult(protocol::Response::kStaleElementReference);
   }
@@ -326,7 +329,8 @@ util::CommandResult<void> ElementDriver::SendClickInternal(
 util::CommandResult<std::string> ElementDriver::RequestScreenshotInternal(
     Screenshot::GetScreenshotFunction get_screenshot_function) {
   typedef util::CommandResult<std::string> CommandResult;
-  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), element_task_runner_);
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(),
+            element_task_runner_);
   if (!element_) {
     return CommandResult(protocol::Response::kStaleElementReference);
   }
@@ -338,7 +342,8 @@ util::CommandResult<std::string> ElementDriver::RequestScreenshotInternal(
 template <typename T>
 util::CommandResult<T> ElementDriver::FindElementsInternal(
     const protocol::SearchStrategy& strategy) {
-  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), element_task_runner_);
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(),
+            element_task_runner_);
   typedef util::CommandResult<T> CommandResult;
   if (!element_) {
     return CommandResult(protocol::Response::kStaleElementReference);
@@ -349,7 +354,8 @@ util::CommandResult<T> ElementDriver::FindElementsInternal(
 
 util::CommandResult<bool> ElementDriver::EqualsInternal(
     const ElementDriver* other_element_driver) {
-  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), element_task_runner_);
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(),
+            element_task_runner_);
   typedef util::CommandResult<bool> CommandResult;
   base::WeakPtr<dom::Element> other_element = other_element_driver->element_;
   if (!element_ || !other_element) {

@@ -19,10 +19,10 @@
 #include <string>
 
 #include "base/callback.h"
-#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/single_thread_task_runner.h"
 #include "base/synchronization/lock.h"
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/wrappable.h"
@@ -47,15 +47,15 @@ class DebuggerEventTarget : public script::Wrappable {
   typedef script::ScriptValue<DebuggerEventCallback> DebuggerEventCallbackArg;
 
   // Type for listener info.
-  // We store the message loop from which the listener was registered,
+  // We store the task runner from which the listener was registered,
   // so we can run the callback on the same loop.
   struct ListenerInfo {
     ListenerInfo(DebuggerEventTarget* const debugger_event_target,
                  const DebuggerEventCallbackArg& cb,
-                 const scoped_refptr<base::SingleThreadTaskRunner>& task_runner)
+                 const scoped_refptr<base::SequencedTaskRunner>& task_runner)
         : callback(debugger_event_target, cb), task_runner(task_runner) {}
     DebuggerEventCallbackArg::Reference callback;
-    scoped_refptr<base::SingleThreadTaskRunner> task_runner;
+    scoped_refptr<base::SequencedTaskRunner> task_runner;
   };
 
   DebuggerEventTarget();
@@ -72,7 +72,7 @@ class DebuggerEventTarget : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(DebuggerEventTarget);
 
  protected:
-  // Notifies a particular listener. Called on the same message loop the
+  // Notifies a particular listener. Called on the same task runner the
   // listener registered its callback from.
   void NotifyListener(const ListenerInfo* listener, const std::string& method,
                       const base::Optional<std::string>& json_params);

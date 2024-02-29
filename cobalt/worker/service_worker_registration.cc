@@ -17,7 +17,7 @@
 #include <utility>
 
 #include "base/logging.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/script/environment_settings.h"
@@ -56,7 +56,7 @@ script::HandlePromiseWrappable ServiceWorkerRegistration::Update() {
           promise));
   // Perform the rest of the steps in a task, because the promise has to be
   // returned before we can safely reject or resolve it.
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(&ServiceWorkerRegistration::UpdateTask,
                      base::Unretained(this), std::move(promise_reference)));
@@ -69,8 +69,8 @@ void ServiceWorkerRegistration::UpdateTask(
     std::unique_ptr<script::ValuePromiseWrappable::Reference>
         promise_reference) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerRegistration::UpdateTask()");
-  DCHECK_EQ(base::MessageLoop::current(),
-            environment_settings()->context()->message_loop());
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(),
+            environment_settings()->context()->task_runner());
   // Algorithm for update():
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#service-worker-registration-update
 
@@ -141,7 +141,7 @@ script::HandlePromiseBool ServiceWorkerRegistration::Unregister() {
 
   // Perform the rest of the steps in a task, so that unregister doesn't race
   // past any previously submitted update requests.
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(
           [](ServiceWorkerJobs* jobs, const url::Origin& storage_key,

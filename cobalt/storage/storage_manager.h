@@ -19,8 +19,9 @@
 #include <vector>
 
 #include "base/callback.h"
-#include "base/message_loop/message_loop.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/current_thread.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
 #include "base/timer/timer.h"
@@ -39,7 +40,7 @@ namespace storage {
 // or WithMemoryStore(). The callback to will run on the store thread.
 // Operations on MemoryStore will block the store thread until the savegame
 // is loaded.
-class StorageManager : public base::MessageLoop::DestructionObserver {
+class StorageManager : public base::CurrentThread::DestructionObserver {
  public:
   struct Options {
     Savegame::Options savegame_options;
@@ -76,7 +77,7 @@ class StorageManager : public base::MessageLoop::DestructionObserver {
   const Options& options() const { return options_; }
 
   void set_network_task_runner(
-      scoped_refptr<base::SingleThreadTaskRunner> network_task_runner) {
+      scoped_refptr<base::SequencedTaskRunner> network_task_runner) {
     DCHECK(network_task_runner);
     network_task_runner_ = network_task_runner;
   }
@@ -115,15 +116,15 @@ class StorageManager : public base::MessageLoop::DestructionObserver {
   void OnFlushIOCompletedCallback();
 
   // This function will not return until all queued I/O is completed.  Since
-  // it will require the store message loop to process, it must be called from
-  // outside the store message loop (such as from StorageManager's destructor).
+  // it will require the store task runner to process, it must be called from
+  // outside the store task runner (such as from StorageManager's destructor).
   void FinishIO();
 
   // This function will immediately the on change timers if they are running.
   void FireRunningOnChangeTimers();
 
   // Ensure that we destroy certain objects on the store thread.
-  // From base::MessageLoop::DestructionObserver.
+  // From base::CurrentThread::DestructionObserver.
   void WillDestroyCurrentMessageLoop() override;
 
   // Configuration options for the Storage Manager.
@@ -132,10 +133,10 @@ class StorageManager : public base::MessageLoop::DestructionObserver {
   // Storage manager runs on its own thread. This is where store
   // operations are done.
   std::unique_ptr<base::Thread> storage_thread_;
-  scoped_refptr<base::SingleThreadTaskRunner> storage_task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> storage_task_runner_;
 
   // Cookie operations must be posted to network thread.
-  scoped_refptr<base::SingleThreadTaskRunner> network_task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> network_task_runner_;
 
   std::unique_ptr<MemoryStore> memory_store_;
 
@@ -159,7 +160,7 @@ class StorageManager : public base::MessageLoop::DestructionObserver {
   // false until the store is fully configured.
   bool initialized_;
 
-  // True if a flush is currently being processed on the storage message loop.
+  // True if a flush is currently being processed on the storage task runner.
   // In this case, we should not issue more flushes, but instead set
   // |flush_requested_| to true to ensure that a new flush is submitted as
   // soon as we are done processing the current one.

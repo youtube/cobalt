@@ -24,6 +24,7 @@
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
@@ -534,8 +535,8 @@ class BrowserModule {
   // A copy of the BrowserModule Options passed into the constructor.
   Options options_;
 
-  // The browser module runs on this message loop.
-  base::MessageLoop* const self_message_loop_;
+  // The browser module runs with this task runner.
+  base::SequencedTaskRunner* const task_runner_;
 
   // Handler for system errors, which is owned by browser module.
   SystemPlatformErrorHandler system_platform_error_handler_;

@@ -42,7 +42,7 @@ LottiePlayer::LottiePlayer(Document* document)
     : HTMLElement(document, base_token::Token(kTagName)),
       autoplaying_(true),
       ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
-      callback_task_runner_(base::ThreadTaskRunnerHandle::Get()) {
+      callback_task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {
   SetAnimationEventCallbacks();
 }
 
@@ -278,7 +278,7 @@ void LottiePlayer::OnRemoveAttribute(const std::string& name) {
 }
 
 void LottiePlayer::UpdateAnimationData() {
-  DCHECK(base::MessageLoop::current());
+  DCHECK(base::SequencedTaskRunner::GetCurrentDefault());
   DCHECK(node_document());
   TRACE_EVENT0("cobalt::dom", "LottiePlayer::UpdateAnimationData()");
 
@@ -435,34 +435,34 @@ void LottiePlayer::ScheduleEvent(base_token::Token event_name) {
 void LottiePlayer::SetAnimationEventCallbacks() {
   DCHECK(callback_task_runner_);
   properties_.onplay_callback =
-      base::Bind(base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
+      base::Bind(base::IgnoreResult(&base::SequencedTaskRunner::PostTask),
                  callback_task_runner_, FROM_HERE,
                  base::Bind(&LottiePlayer::OnPlay, base::AsWeakPtr(this)));
   properties_.onpause_callback =
-      base::Bind(base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
+      base::Bind(base::IgnoreResult(&base::SequencedTaskRunner::PostTask),
                  callback_task_runner_, FROM_HERE,
                  base::Bind(&LottiePlayer::OnPause, base::AsWeakPtr(this)));
   properties_.onstop_callback =
-      base::Bind(base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
+      base::Bind(base::IgnoreResult(&base::SequencedTaskRunner::PostTask),
                  callback_task_runner_, FROM_HERE,
                  base::Bind(&LottiePlayer::OnStop, base::AsWeakPtr(this)));
   properties_.oncomplete_callback =
-      base::Bind(base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
+      base::Bind(base::IgnoreResult(&base::SequencedTaskRunner::PostTask),
                  callback_task_runner_, FROM_HERE,
                  base::Bind(&LottiePlayer::OnComplete, base::AsWeakPtr(this)));
   properties_.onloop_callback =
-      base::Bind(base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
+      base::Bind(base::IgnoreResult(&base::SequencedTaskRunner::PostTask),
                  callback_task_runner_, FROM_HERE,
                  base::Bind(&LottiePlayer::OnLoop, base::AsWeakPtr(this)));
   properties_.onenterframe_callback = base::Bind(
       &LottiePlayer::CallOnEnterFrame, callback_task_runner_,
       base::Bind(&LottiePlayer::OnEnterFrame, base::AsWeakPtr(this)));
   properties_.onfreeze_callback =
-      base::Bind(base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
+      base::Bind(base::IgnoreResult(&base::SequencedTaskRunner::PostTask),
                  callback_task_runner_, FROM_HERE,
                  base::Bind(&LottiePlayer::OnFreeze, base::AsWeakPtr(this)));
   properties_.onunfreeze_callback =
-      base::Bind(base::IgnoreResult(&base::SingleThreadTaskRunner::PostTask),
+      base::Bind(base::IgnoreResult(&base::SequencedTaskRunner::PostTask),
                  callback_task_runner_, FROM_HERE,
                  base::Bind(&LottiePlayer::OnUnfreeze, base::AsWeakPtr(this)));
 }
@@ -490,7 +490,7 @@ void LottiePlayer::OnEnterFrame(double frame, double seeker) {
 }
 
 void LottiePlayer::CallOnEnterFrame(
-    scoped_refptr<base::SingleThreadTaskRunner> callback_task_runner,
+    scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
     base::Callback<void(double, double)> enter_frame_callback, double frame,
     double seeker) {
   callback_task_runner->PostTask(

@@ -17,7 +17,7 @@ namespace updater {
 // process.
 void StartCrashReporter(const std::string& version);
 
-// Runs the crash reporter message loop within the current process. On return,
+// Runs the crash reporter task runner within the current process. On return,
 // the current process should exit.
 int CrashReporterMain();
 

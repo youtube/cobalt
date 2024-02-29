@@ -102,7 +102,7 @@ class DialHttpServerTest : public testing::Test {
   std::unique_ptr<HttpNetworkTransaction> client_;
   scoped_refptr<MockServiceHandler> handler_;
   std::unique_ptr<ResponseData> test_response_;
-  // The task environment mainly gives us an IO message loop that's needed for
+  // The task environment mainly gives us an IO task runner that's needed for
   // TCP connection.
   base::test::TaskEnvironment scoped_task_env_;
   HttpServerProperties* http_server_properties_;

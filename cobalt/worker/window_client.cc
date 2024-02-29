@@ -14,6 +14,7 @@
 
 #include "cobalt/worker/window_client.h"
 
+#include "cobalt/base/task_runner_util.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/visibility_state.h"
 #include "cobalt/dom/window.h"
@@ -51,13 +52,13 @@ dom::VisibilityState WindowClient::visibility_state() {
   DCHECK(event_target()->environment_settings());
   web::Context* context = event_target()->environment_settings()->context();
   DCHECK(context);
-  base::MessageLoop* message_loop = context->message_loop();
-  if (!message_loop) {
+  base::SequencedTaskRunner* task_runner = context->task_runner();
+  if (!task_runner) {
     return dom::kVisibilityStateHidden;
   }
 
   dom::VisibilityState visibility_state = dom::kVisibilityStateHidden;
-  if (message_loop->task_runner()->BelongsToCurrentThread()) {
+  if (task_runner->RunsTasksInCurrentSequence()) {
     DCHECK(context->GetWindowOrWorkerGlobalScope()->IsWindow());
     DCHECK(context->GetWindowOrWorkerGlobalScope()->AsWindow()->document());
     visibility_state = context->GetWindowOrWorkerGlobalScope()
@@ -65,8 +66,8 @@ dom::VisibilityState WindowClient::visibility_state() {
                            ->document()
                            ->visibility_state();
   } else {
-    message_loop->task_runner()->PostBlockingTask(
-        FROM_HERE,
+    base::task_runner_util::PostBlockingTask(
+        task_runner, FROM_HERE,
         base::Bind(
             [](web::Context* context, dom::VisibilityState* visibility_state) {
               DCHECK(context->GetWindowOrWorkerGlobalScope()->IsWindow());
@@ -89,13 +90,13 @@ bool WindowClient::focused() {
   DCHECK(event_target()->environment_settings());
   web::Context* context = event_target()->environment_settings()->context();
   DCHECK(context);
-  base::MessageLoop* message_loop = context->message_loop();
-  if (!message_loop) {
+  base::SequencedTaskRunner* task_runner = context->task_runner();
+  if (!task_runner) {
     return false;
   }
 
   bool focused = false;
-  if (message_loop->task_runner()->BelongsToCurrentThread()) {
+  if (task_runner->RunsTasksInCurrentSequence()) {
     DCHECK(context->GetWindowOrWorkerGlobalScope()->IsWindow());
     DCHECK(context->GetWindowOrWorkerGlobalScope()->AsWindow()->document());
     focused = context->GetWindowOrWorkerGlobalScope()
@@ -103,8 +104,8 @@ bool WindowClient::focused() {
                   ->document()
                   ->HasFocus();
   } else {
-    message_loop->task_runner()->PostBlockingTask(
-        FROM_HERE,
+    base::task_runner_util::PostBlockingTask(
+        task_runner, FROM_HERE,
         base::Bind(
             [](web::Context* context, bool* focused) {
               DCHECK(context->GetWindowOrWorkerGlobalScope()->IsWindow());

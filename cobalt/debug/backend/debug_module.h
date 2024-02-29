@@ -18,7 +18,7 @@
 #include <string>
 #include <utility>
 
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/base/debugger_hooks.h"
 #include "cobalt/debug/backend/cobalt_agent.h"
 #include "cobalt/debug/backend/css_agent.h"
@@ -51,20 +51,20 @@ namespace backend {
 // https://chromedevtools.github.io/devtools-protocol/1-3
 class DebugModule : public script::ScriptDebugger::Delegate {
  public:
-  // Construct the debug dispatcher on the current message loop.
+  // Construct the debug dispatcher on the current task runner.
   DebugModule(DebuggerHooksImpl* debugger_hooks,
               script::GlobalEnvironment* global_environment,
               RenderOverlay* render_overlay,
               render_tree::ResourceProvider* resource_provider,
               dom::Window* window, DebuggerState* debugger_state);
 
-  // Construct the debug dispatcher on the specified message loop.
+  // Construct the debug dispatcher on the specified task runner.
   DebugModule(DebuggerHooksImpl* debugger_hooks,
               script::GlobalEnvironment* global_environment,
               RenderOverlay* render_overlay,
               render_tree::ResourceProvider* resource_provider,
               dom::Window* window, DebuggerState* debugger_state,
-              base::MessageLoop* message_loop);
+              base::SequencedTaskRunner* task_runner);
 
   virtual ~DebugModule();
 
@@ -83,13 +83,13 @@ class DebugModule : public script::ScriptDebugger::Delegate {
   struct ConstructionData {
     ConstructionData(DebuggerHooksImpl* debugger_hooks,
                      script::GlobalEnvironment* global_environment,
-                     base::MessageLoop* message_loop,
+                     base::SequencedTaskRunner* task_runner,
                      RenderOverlay* render_overlay,
                      render_tree::ResourceProvider* resource_provider,
                      dom::Window* window, DebuggerState* debugger_state)
         : debugger_hooks(debugger_hooks),
           global_environment(global_environment),
-          message_loop(message_loop),
+          task_runner(task_runner),
           render_overlay(render_overlay),
           resource_provider(resource_provider),
           window(window),
@@ -97,14 +97,14 @@ class DebugModule : public script::ScriptDebugger::Delegate {
 
     DebuggerHooksImpl* debugger_hooks;
     script::GlobalEnvironment* global_environment;
-    base::MessageLoop* message_loop;
+    base::SequencedTaskRunner* task_runner;
     RenderOverlay* render_overlay;
     render_tree::ResourceProvider* resource_provider;
     dom::Window* window;
     DebuggerState* debugger_state;
   };
 
-  // Builds |debug_dispatcher_| on |message_loop_| by calling |BuildInternal|,
+  // Builds |debug_dispatcher_| on |task_runner| by calling |BuildInternal|,
   // posting the task and waiting for it if necessary.
   void Build(const ConstructionData& data);
 

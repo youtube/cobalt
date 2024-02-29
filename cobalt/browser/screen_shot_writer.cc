@@ -19,6 +19,7 @@
 
 #include "base/basictypes.h"
 #include "base/bind.h"
+#include "base/check.h"
 #include "base/files/file_util.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/loader/image/image_encoder.h"
@@ -96,8 +97,8 @@ void ScreenShotWriter::RunOnScreenshotThread(
     std::unique_ptr<uint8[]> image_data, const math::Size& image_dimensions) {
   DCHECK(image_data);
 
-  if (base::MessageLoop::current() != screenshot_thread_.message_loop()) {
-    screenshot_thread_.message_loop()->task_runner()->PostTask(
+  if (!screenshot_thread_.task_runner()->RunsTasksInCurrentSequence()) {
+    screenshot_thread_.task_runner()->PostTask(
         FROM_HERE, base::Bind(&ScreenShotWriter::RunOnScreenshotThread,
                               base::Unretained(this), callback,
                               base::Passed(&image_data), image_dimensions));
@@ -110,7 +111,7 @@ void ScreenShotWriter::RunOnScreenshotThread(
 void ScreenShotWriter::WriteEncodedImageToFile(
     const base::FilePath& output_path, const base::Closure& complete_callback,
     const scoped_refptr<loader::image::EncodedStaticImage>& image_data) {
-  DCHECK_EQ(base::MessageLoop::current(), screenshot_thread_.message_loop());
+  DCHECK(screenshot_thread_.task_runner()->RunsTasksInCurrentSequence());
 
   // Blocking write to output_path.
   if (!image_data) {

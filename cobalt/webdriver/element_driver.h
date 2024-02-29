@@ -21,7 +21,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/base/token.h"
 #include "cobalt/dom/element.h"
@@ -61,13 +61,12 @@ class ElementDriver {
                               scoped_refptr<dom::Element>)>
       PointerEventInjector;
 
-  ElementDriver(
-      const protocol::ElementId& element_id,
-      const base::WeakPtr<dom::Element>& element,
-      ElementMapping* element_mapping,
-      KeyboardEventInjector keyboard_event_injector,
-      PointerEventInjector pointer_event_injector,
-      const scoped_refptr<base::SingleThreadTaskRunner>& message_loop);
+  ElementDriver(const protocol::ElementId& element_id,
+                const base::WeakPtr<dom::Element>& element,
+                ElementMapping* element_mapping,
+                KeyboardEventInjector keyboard_event_injector,
+                PointerEventInjector pointer_event_injector,
+                const scoped_refptr<base::SequencedTaskRunner>& task_runner);
   const protocol::ElementId& element_id() { return element_id_; }
 
   util::CommandResult<std::string> GetTagName();
@@ -120,7 +119,7 @@ class ElementDriver {
   ElementMapping* element_mapping_;
   KeyboardEventInjector keyboard_event_injector_;
   PointerEventInjector pointer_event_injector_;
-  scoped_refptr<base::SingleThreadTaskRunner> element_task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> element_task_runner_;
 
   friend class WindowDriver;
 };

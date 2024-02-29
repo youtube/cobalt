@@ -138,9 +138,9 @@ DialServiceProxy::DialServiceProxy(
     const base::WeakPtr<DialService>& dial_service)
     : dial_service_(dial_service) {
   host_address_ = dial_service_->http_host_address();
-  // Remember the message loop we were constructed on. We'll post all our tasks
+  // Remember the task runner we were constructed on. We'll post all our tasks
   // there, to ensure thread safety when accessing dial_service_.
-  task_runner_ = base::ThreadTaskRunnerHandle::Get();
+  task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
 }
 
 DialServiceProxy::~DialServiceProxy() {}

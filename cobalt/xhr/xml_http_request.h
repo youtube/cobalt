@@ -22,8 +22,8 @@
 
 #include "base/gtest_prod_util.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop/message_loop_current.h"
 #include "base/optional.h"
+#include "base/task/current_thread.h"
 #include "base/timer/timer.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/loader/cors_preflight.h"
@@ -223,16 +223,15 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
 };
 
 
-class XMLHttpRequestImpl
-    : public base::SupportsWeakPtr<XMLHttpRequestImpl>,
-      public base::MessageLoopCurrent::DestructionObserver {
+class XMLHttpRequestImpl : public base::SupportsWeakPtr<XMLHttpRequestImpl>,
+                           public base::CurrentThread::DestructionObserver {
  public:
   explicit XMLHttpRequestImpl(XMLHttpRequest* xhr);
   XMLHttpRequestImpl(const XMLHttpRequestImpl&) = delete;
   XMLHttpRequestImpl& operator=(const XMLHttpRequestImpl&) = delete;
   virtual ~XMLHttpRequestImpl() {
-    if (!will_destroy_current_message_loop_.load()) {
-      base::MessageLoop::current()->RemoveDestructionObserver(this);
+    if (!will_destroy_current_task_runner_.load()) {
+      base::CurrentThread::Get()->RemoveDestructionObserver(this);
     }
   }
 
@@ -307,7 +306,7 @@ class XMLHttpRequestImpl
                                 int64 total);
   void OnRedirect(const net::HttpResponseHeaders& headers);
 
-  // base::MessageLoopCurrent::DestructionObserver
+  // base::CurrentThread::DestructionObserver
   void WillDestroyCurrentMessageLoop();
 
   // Called from bindings layer to tie objects' lifetimes to this XHR instance.
@@ -348,7 +347,7 @@ class XMLHttpRequestImpl
   bool upload_listener_;
   bool with_credentials_;
   XMLHttpRequest* xhr_;
-  starboard::atomic_bool will_destroy_current_message_loop_;
+  starboard::atomic_bool will_destroy_current_task_runner_;
 
   // A corspreflight instance for potentially sending preflight
   // request and performing cors check for all cross origin requests.
@@ -463,8 +462,8 @@ class DOMXMLHttpRequestImpl : public XMLHttpRequestImpl {
   DOMXMLHttpRequestImpl(const DOMXMLHttpRequestImpl&) = delete;
   DOMXMLHttpRequestImpl& operator=(const DOMXMLHttpRequestImpl&) = delete;
   ~DOMXMLHttpRequestImpl() override {
-    if (!will_destroy_current_message_loop_.load()) {
-      base::MessageLoop::current()->RemoveDestructionObserver(this);
+    if (!will_destroy_current_task_runner_.load()) {
+      base::CurrentThread::Get()->RemoveDestructionObserver(this);
     }
   }
 

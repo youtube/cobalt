@@ -79,9 +79,9 @@ NetFetcher::NetFetcher(const GURL& url, bool main_resource,
       origin_(origin),
       request_script_(options.resource_type ==
                       network::disk_cache::kUncompiledScript),
-      task_runner_(base::ThreadTaskRunnerHandle::Get()),
+      task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       skip_fetch_intercept_(options.skip_fetch_intercept),
-      will_destroy_current_message_loop_(false),
+      will_destroy_current_task_runner_(false),
       main_resource_(main_resource) {
   url_fetcher_ = net::URLFetcher::Create(url, options.request_method, this);
   if (!options.headers.IsEmpty()) {
@@ -121,13 +121,13 @@ NetFetcher::NetFetcher(const GURL& url, bool main_resource,
   // Delay the actual start until this function is complete. Otherwise we might
   // call handler's callbacks at an unexpected time- e.g. receiving OnError()
   // while a loader is still being constructed.
-  base::ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE,
-                                                start_callback_.callback());
-  base::MessageLoop::current()->AddDestructionObserver(this);
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, start_callback_.callback());
+  base::CurrentThread::Get()->AddDestructionObserver(this);
 }
 
 void NetFetcher::WillDestroyCurrentMessageLoop() {
-  will_destroy_current_message_loop_.store(true);
+  will_destroy_current_task_runner_.store(true);
 }
 
 void NetFetcher::Start() {
@@ -158,10 +158,10 @@ void NetFetcher::Start() {
 void NetFetcher::InterceptFallback() { url_fetcher_->Start(); }
 
 void NetFetcher::OnFetchIntercepted(std::unique_ptr<std::string> body) {
-  if (will_destroy_current_message_loop_.load()) {
+  if (will_destroy_current_task_runner_.load()) {
     return;
   }
-  if (task_runner_ != base::ThreadTaskRunnerHandle::Get()) {
+  if (task_runner_ != base::SequencedTaskRunner::GetCurrentDefault()) {
     task_runner_->PostTask(
         FROM_HERE, base::BindOnce(&NetFetcher::OnFetchIntercepted,
                                   base::Unretained(this), std::move(body)));
@@ -293,8 +293,8 @@ void NetFetcher::ReportLoadTimingInfo(const net::LoadTimingInfo& timing_info) {
 NetFetcher::~NetFetcher() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   start_callback_.Cancel();
-  if (!will_destroy_current_message_loop_.load()) {
-    base::MessageLoop::current()->RemoveDestructionObserver(this);
+  if (!will_destroy_current_task_runner_.load()) {
+    base::CurrentThread::Get()->RemoveDestructionObserver(this);
   }
 }
 

@@ -17,8 +17,9 @@
 #include <string>
 
 #include "base/bind.h"
-#include "base/message_loop/message_loop.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/current_thread.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/network/network_module.h"
@@ -52,7 +53,7 @@ ServiceWorkerRegistry::ServiceWorkerRegistry(
     web::UserAgentPlatformInfo* platform_info)
     : thread_("ServiceWorkerRegistry") {
   if (!thread_.Start()) return;
-  DCHECK(message_loop());
+  DCHECK(task_runner());
 
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
 
@@ -63,37 +64,40 @@ ServiceWorkerRegistry::ServiceWorkerRegistry(
                        worker::WorkerConsts::kServiceWorkerRegistryName,
                        base::kApplicationStateStarted, kWatchdogTimeInterval,
                        kWatchdogTimeWait, watchdog::PING);
-    message_loop()->task_runner()->PostDelayedTask(
+    task_runner()->PostDelayedTask(
         FROM_HERE,
         base::Bind(&ServiceWorkerRegistry::PingWatchdog,
                    base::Unretained(this)),
         base::TimeDelta::FromMilliseconds(kWatchdogTimePing));
   }
 
-  message_loop()->task_runner()->PostTask(
+  task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&ServiceWorkerRegistry::Initialize, base::Unretained(this),
                  web_settings, network_module, platform_info));
 
   // Register as a destruction observer to shut down the Web Agent once all
-  // pending tasks have been executed and the message loop is about to be
+  // pending tasks have been executed and the task runner is about to be
   // destroyed. This allows us to safely stop the thread, drain the task queue,
-  // then destroy the internal components before the message loop is reset.
+  // then destroy the internal components before the task runner is reset.
   // No posted tasks will be executed once the thread is stopped.
-  message_loop()->task_runner()->PostTask(
-      FROM_HERE,
-      base::Bind(&base::MessageLoop::AddDestructionObserver,
-                 base::Unretained(message_loop()), base::Unretained(this)));
+  task_runner()->PostTask(
+      FROM_HERE, base::Bind(
+                     [](DestructionObserver* destruction_observer) {
+                       base::CurrentThread::Get()->AddDestructionObserver(
+                           destruction_observer);
+                     },
+                     base::Unretained(this)));
 
   // This works almost like a PostBlockingTask, except that any blocking that
   // may be necessary happens when Stop() is called instead of right now.
-  message_loop()->task_runner()->PostTask(
+  task_runner()->PostTask(
       FROM_HERE, base::Bind(&SignalWaitableEvent,
                             base::Unretained(&destruction_observer_added_)));
 }
 
 ServiceWorkerRegistry::~ServiceWorkerRegistry() {
-  DCHECK(message_loop());
+  DCHECK(task_runner());
   DCHECK(thread_.IsRunning());
 
   // Unregisters service worker thread as a watchdog client.
@@ -106,21 +110,22 @@ ServiceWorkerRegistry::~ServiceWorkerRegistry() {
   // Ensure that the destruction observer got added before stopping the thread.
   // Stop the thread. This will cause the destruction observer to be notified.
   destruction_observer_added_.Wait();
-  DCHECK_NE(thread_.message_loop(), base::MessageLoop::current());
+  DCHECK_NE(thread_.task_runner(),
+            base::SequencedTaskRunner::GetCurrentDefault());
   thread_.Stop();
   DCHECK(!service_worker_context_);
 }
 
 // Ping watchdog every 5 second, otherwise a violation will be triggered.
 void ServiceWorkerRegistry::PingWatchdog() {
-  DCHECK_EQ(base::MessageLoop::current(), message_loop());
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(), task_runner());
 
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
   // If watchdog is already unregistered or shut down, stop ping watchdog.
   if (!watchdog_registered_ || !watchdog) return;
 
   watchdog->Ping(worker::WorkerConsts::kServiceWorkerRegistryName);
-  message_loop()->task_runner()->PostDelayedTask(
+  task_runner()->PostDelayedTask(
       FROM_HERE,
       base::Bind(&ServiceWorkerRegistry::PingWatchdog, base::Unretained(this)),
       base::TimeDelta::FromMilliseconds(kWatchdogTimePing));
@@ -147,9 +152,9 @@ void ServiceWorkerRegistry::Initialize(
     web::WebSettings* web_settings, network::NetworkModule* network_module,
     web::UserAgentPlatformInfo* platform_info) {
   TRACE_EVENT0("cobalt::browser", "ServiceWorkerRegistry::Initialize()");
-  DCHECK_EQ(base::MessageLoop::current(), message_loop());
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(), task_runner());
   service_worker_context_.reset(new worker::ServiceWorkerContext(
-      web_settings, network_module, platform_info, message_loop()));
+      web_settings, network_module, platform_info, task_runner()));
 }
 
 }  // namespace browser
