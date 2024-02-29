@@ -445,7 +445,6 @@ ExportedSymbols::ExportedSymbols() {
   // TODO: b/316603042 - Detect via NPLB and only add the wrapper if needed.
   map_["clock_gettime"] = reinterpret_cast<const void*>(&__wrap_clock_gettime);
   map_["gettimeofday"] = reinterpret_cast<const void*>(&__wrap_gettimeofday);
-  map_["time"] = reinterpret_cast<const void*>(&__wrap_time);
   map_["gmtime_r"] = reinterpret_cast<const void*>(&__wrap_gmtime_r);
   map_["mmap"] = reinterpret_cast<const void*>(&__wrap_mmap);
   map_["pthread_mutex_destroy"] =
@@ -458,6 +457,7 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__wrap_pthread_mutex_unlock);
   map_["pthread_mutex_trylock"] =
       reinterpret_cast<const void*>(&__wrap_pthread_mutex_trylock);
+  map_["time"] = reinterpret_cast<const void*>(&__wrap_time);
 
 #if defined(_MSC_VER)
   // MSVC provides a template with the same name.
