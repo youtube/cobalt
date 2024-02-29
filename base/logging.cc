@@ -33,7 +33,8 @@
 #include "base/debug/crash_logging.h"
 #endif  // !BUILDFLAG(IS_NACL)
 
-#if defined(LEAK_SANITIZER) && !BUILDFLAG(IS_NACL)
+#if (defined(LEAK_SANITIZER) && !BUILDFLAG(IS_NACL)) || \
+    (defined(STARBOARD) && defined(ADDRESS_SANITIZER))
 #include "base/debug/leak_annotations.h"
 #endif  // defined(LEAK_SANITIZER) && !BUILDFLAG(IS_NACL)
 
@@ -1397,7 +1398,8 @@ void ScopedVmoduleSwitches::InitWithSwitches(
   // Make sure we are only initialized once.
   CHECK(!scoped_vlog_info_);
   {
-#if defined(LEAK_SANITIZER) && !BUILDFLAG(IS_NACL)
+#if (defined(LEAK_SANITIZER) && !BUILDFLAG(IS_NACL)) || \
+    (defined(STARBOARD) && defined(ADDRESS_SANITIZER))
     // See comments on |g_vlog_info|.
     ScopedLeakSanitizerDisabler lsan_disabler;
 #endif  // defined(LEAK_SANITIZER)

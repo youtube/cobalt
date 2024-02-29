@@ -3283,7 +3283,7 @@ test("base_unittests") {
     "json/values_util_unittest.cc",
     "lazy_instance_unittest.cc",
 
-    # "logging_unittest.cc",
+    "logging_unittest.cc",
     "memory/aligned_memory_unittest.cc",
     "memory/discardable_memory_backing_field_trial_unittest.cc",
     "memory/discardable_shared_memory_unittest.cc",
