@@ -132,7 +132,10 @@ int open(const char* path, int oflag, ...) {
 int close(int fd) {
   FileOrSocket handle = handle_db_get(fd, true);
 
-  if (!handle.is_file) {
+  if (!handle.is_file && handle.socket == INVALID_SOCKET) {
+    // TODO: update errno with file operation error
+    return -1;
+  } else if (!handle.is_file) {
     return closesocket(handle.socket);
   }
 

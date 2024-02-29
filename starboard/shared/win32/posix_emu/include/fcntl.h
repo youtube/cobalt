@@ -24,8 +24,24 @@
 
 typedef int mode_t;
 
-static const mode_t S_IRUSR = (mode_t)_S_IREAD;
-static const mode_t S_IWUSR = (mode_t)_S_IWRITE;
+// For the POSIX modes that do not have a Windows equivalent, the modes
+// defined here use the POSIX values left shifted 16 bits.
+// Passing these into Windows file I/O functions has no effect.
+
+static const mode_t S_ISUID = 0x40000000;
+static const mode_t S_ISGID = 0x20000000;
+static const mode_t S_ISVTX = 0x10000000;
+static const mode_t S_IRWXU = 0x07000000;
+static const mode_t S_IRUSR = _S_IREAD;   // read by user
+static const mode_t S_IWUSR = _S_IWRITE;  // write by user
+static const mode_t S_IXUSR = 0x01000000;
+static const mode_t S_IRGRP = 0x00400000;
+static const mode_t S_IWGRP = 0x00200000;
+static const mode_t S_IXGRP = 0x00100000;
+static const mode_t S_IRWXO = 0x00070000;
+static const mode_t S_IROTH = 0x00040000;
+static const mode_t S_IWOTH = 0x00020000;
+static const mode_t S_IXOTH = 0x00010000;
 
 static const mode_t MS_MODE_MASK = 0x0000ffff;
 
