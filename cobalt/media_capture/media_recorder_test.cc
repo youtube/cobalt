@@ -16,6 +16,7 @@
 
 #include <memory>
 
+#include "cobalt/base/task_runner_util.h"
 #include "cobalt/dom/testing/stub_window.h"
 #include "cobalt/media_capture/media_recorder_options.h"
 #include "cobalt/media_stream/media_stream.h"
@@ -228,8 +229,8 @@ TEST_F(MediaRecorderTest, DifferentThreadForAudioSource) {
   // member functions with base::Unretained() or weak pointer.
   // Creates media_recorder_ref just to make it clear that no copy happened
   // during base::Bind().
-  t.message_loop()->task_runner()->PostBlockingTask(
-      FROM_HERE,
+  base::task_runner_util::PostBlockingTask(
+      t.task_runner(), FROM_HERE,
       base::Bind(&PushData, base::Unretained(media_recorder_.get())));
   t.Stop();
 

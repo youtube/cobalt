@@ -22,9 +22,9 @@
 #include "base/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/ptr_util.h"
-#include "base/message_loop/message_loop.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/string_util_starboard.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/tokens.h"
@@ -177,7 +177,7 @@ void MediaRecorder::OnEncodedDataAvailable(const uint8* data, size_t data_size,
                                            base::TimeTicks timecode) {
   auto data_to_send =
       base::WrapUnique(new std::vector<uint8>(data, data + data_size));
-  javascript_message_loop_->PostTask(
+  javascript_task_runner_->PostTask(
       FROM_HERE, base::Bind(&MediaRecorder::CalculateLastInSliceAndWriteData,
                             weak_this_, base::Passed(&data_to_send), timecode));
 }
@@ -233,7 +233,7 @@ MediaRecorder::MediaRecorder(
     : web::EventTarget(settings),
       settings_(settings),
       stream_(stream),
-      javascript_message_loop_(base::ThreadTaskRunnerHandle::Get()),
+      javascript_task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       weak_this_(weak_ptr_factory_.GetWeakPtr()) {
   DCHECK(settings);

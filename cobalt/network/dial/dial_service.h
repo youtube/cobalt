@@ -23,7 +23,7 @@
 #include "base/lazy_instance.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread.h"
 #include "cobalt/network/dial/dial_http_server.h"
 #include "cobalt/network/dial/dial_service_handler.h"
@@ -94,7 +94,7 @@ class NET_EXPORT DialServiceProxy
   std::string host_address_;
 
   // Message loop to call DialService methods on.
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
   DISALLOW_COPY_AND_ASSIGN(DialServiceProxy);
 };

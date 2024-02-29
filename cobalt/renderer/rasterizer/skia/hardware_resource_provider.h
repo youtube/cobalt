@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "base/task/sequenced_task_runner_helpers.h"
 #include "cobalt/math/size.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/resource_provider.h"
@@ -143,12 +144,12 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
   SbDecodeTargetGraphicsContextProvider
       decode_target_graphics_context_provider_;
 
-  // We keep a handle to the message loop that this resource provider was
-  // created on.  This message loop is used whenever we need to issue graphics
-  // commands, such as during the creation of an image.  If the message loop
+  // We keep a handle to the task runner that this resource provider was
+  // created on.  This task runner is used whenever we need to issue graphics
+  // commands, such as during the creation of an image.  If the task runner
   // is NULL, we will try to issue the graphics commands from the current
   // thread.
-  scoped_refptr<base::SingleThreadTaskRunner> rasterizer_task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> rasterizer_task_runner_;
 };
 
 }  // namespace skia

@@ -27,7 +27,7 @@ namespace h5vcc {
 H5vccAccountManagerInternal::H5vccAccountManagerInternal(
     script::EnvironmentSettings* environment_settings)
     : user_authorizer_(account::UserAuthorizer::Create()),
-      owning_message_loop_(base::MessageLoop::current()),
+      owning_task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       thread_("AccountManager"),
       environment_settings_(environment_settings) {
   thread_.Start();
@@ -69,19 +69,19 @@ void H5vccAccountManagerInternal::PostOperation(
       new AccessTokenCallbackHolder::Reference(global_wrappable, callback);
   pending_callbacks_.push_back(
       std::unique_ptr<AccessTokenCallbackReference>(token_callback));
-  thread_.message_loop()->task_runner()->PostTask(
+  thread_.task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&H5vccAccountManagerInternal::RequestOperationInternal,
                  user_authorizer_.get(), operation_type,
                  base::Bind(&H5vccAccountManagerInternal::PostResult,
-                            owning_message_loop_, base::AsWeakPtr(this),
+                            owning_task_runner_, base::AsWeakPtr(this),
                             token_callback)));
 }
 
 H5vccAccountManagerInternal::~H5vccAccountManagerInternal() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Give the UserAuthorizer a chance to abort any long running pending requests
-  // before the message loop gets shut down.
+  // before the task runner gets shut down.
   if (user_authorizer_) {
     user_authorizer_->Shutdown();
   }
@@ -146,14 +146,14 @@ void H5vccAccountManagerInternal::RequestOperationInternal(
 
 // static
 void H5vccAccountManagerInternal::PostResult(
-    base::MessageLoop* message_loop,
+    base::SequencedTaskRunner* task_runner,
     base::WeakPtr<H5vccAccountManagerInternal> h5vcc_account_manager,
     AccessTokenCallbackReference* token_callback, const std::string& token,
     uint64_t expiration_in_seconds) {
-  message_loop->task_runner()->PostTask(
-      FROM_HERE, base::Bind(&H5vccAccountManagerInternal::SendResult,
-                            h5vcc_account_manager, token_callback, token,
-                            expiration_in_seconds));
+  task_runner->PostTask(FROM_HERE,
+                        base::Bind(&H5vccAccountManagerInternal::SendResult,
+                                   h5vcc_account_manager, token_callback, token,
+                                   expiration_in_seconds));
 }
 
 void H5vccAccountManagerInternal::SendResult(

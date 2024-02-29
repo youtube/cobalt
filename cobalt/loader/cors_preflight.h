@@ -24,7 +24,7 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/loader/cors_preflight_cache.h"
 #include "cobalt/network/custom/url_fetcher.h"

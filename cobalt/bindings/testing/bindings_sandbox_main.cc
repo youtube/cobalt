@@ -35,7 +35,7 @@ void StartApplication(int argc, char** argv, const char* link,
 
   DCHECK(!g_javascript_runner);
   g_javascript_runner = new cobalt::script::StandaloneJavascriptRunner(
-      base::ThreadTaskRunnerHandle::Get(), javascript_engine_options,
+      base::SequencedTaskRunner::GetCurrentDefault(), javascript_engine_options,
       test_window);
   DCHECK(g_javascript_runner);
   g_javascript_runner->RunUntilDone(quit_closure);

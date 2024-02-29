@@ -20,7 +20,7 @@
 #include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 
 namespace cobalt {
@@ -167,13 +167,13 @@ void Loader::Start() {
         base::Bind(&Loader::set_load_timing_info, base::Unretained(this)));
   }
 
-  // Post the error callback on the current message loop in case the loader is
+  // Post the error callback on the current task runner in case the loader is
   // destroyed in the callback.
   if (!fetcher_) {
     fetcher_creator_error_closure_.Reset(
         base::Bind(base::Bind(&Loader::LoadComplete, base::Unretained(this)),
                    std::string("Fetcher was not created.")));
-    base::ThreadTaskRunnerHandle::Get()->PostTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, fetcher_creator_error_closure_.callback());
   }
 }

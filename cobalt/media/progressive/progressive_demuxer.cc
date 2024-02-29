@@ -21,9 +21,8 @@
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/functional/callback_helpers.h"
-#include "base/message_loop/message_loop.h"
 #include "base/strings/stringprintf.h"
-#include "base/threading/thread_task_runner_handle.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/media/base/data_source.h"
@@ -179,7 +178,7 @@ void ProgressiveDemuxerStream::FlushBuffers() {
 
 void ProgressiveDemuxerStream::Stop() {
   TRACE_EVENT0("media_stack", "ProgressiveDemuxerStream::Stop()");
-  DCHECK(demuxer_->MessageLoopBelongsToCurrentThread());
+  DCHECK(demuxer_->RunsTasksInCurrentSequence());
   base::AutoLock auto_lock(lock_);
   buffer_queue_.clear();
   total_buffer_size_ = 0;
@@ -199,9 +198,9 @@ void ProgressiveDemuxerStream::Stop() {
 // ProgressiveDemuxer
 //
 ProgressiveDemuxer::ProgressiveDemuxer(
-    const scoped_refptr<base::SingleThreadTaskRunner>& message_loop,
+    const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     DataSource* data_source, MediaLog* const media_log)
-    : message_loop_(message_loop),
+    : task_runner_(task_runner),
       host_(NULL),
       blocking_thread_("ProgDemuxerBlk"),
       data_source_(data_source),
@@ -210,7 +209,7 @@ ProgressiveDemuxer::ProgressiveDemuxer(
       flushing_(false),
       audio_reached_eos_(false),
       video_reached_eos_(false) {
-  DCHECK(message_loop_);
+  DCHECK(task_runner_);
   DCHECK(data_source_);
   DCHECK(media_log_);
   reader_ = new DataSourceReader();
@@ -226,7 +225,7 @@ ProgressiveDemuxer::~ProgressiveDemuxer() {
 void ProgressiveDemuxer::Initialize(DemuxerHost* host,
                                     PipelineStatusCallback status_cb) {
   TRACE_EVENT0("media_stack", "ProgressiveDemuxer::Initialize()");
-  DCHECK(MessageLoopBelongsToCurrentThread());
+  DCHECK(RunsTasksInCurrentSequence());
   DCHECK(reader_);
   DCHECK(!parser_);
 
@@ -252,7 +251,7 @@ void ProgressiveDemuxer::Initialize(DemuxerHost* host,
 }
 
 void ProgressiveDemuxer::ParseConfigBlocking(PipelineStatusCallback status_cb) {
-  DCHECK(blocking_thread_.task_runner()->BelongsToCurrentThread());
+  DCHECK(blocking_thread_.task_runner()->RunsTasksInCurrentSequence());
   DCHECK(!parser_);
 
   // construct stream parser with error callback
@@ -296,7 +295,7 @@ void ProgressiveDemuxer::ParseConfigBlocking(PipelineStatusCallback status_cb) {
 
 void ProgressiveDemuxer::ParseConfigDone(PipelineStatusCallback status_cb,
                                          PipelineStatus status) {
-  DCHECK(blocking_thread_.task_runner()->BelongsToCurrentThread());
+  DCHECK(blocking_thread_.task_runner()->RunsTasksInCurrentSequence());
 
   if (HasStopCalled()) {
     return;
@@ -315,7 +314,7 @@ void ProgressiveDemuxer::ParseConfigDone(PipelineStatusCallback status_cb,
 }
 
 void ProgressiveDemuxer::Request(DemuxerStream::Type type) {
-  if (!blocking_thread_.task_runner()->BelongsToCurrentThread()) {
+  if (!blocking_thread_.task_runner()->RunsTasksInCurrentSequence()) {
     blocking_thread_.task_runner()->PostTask(
         FROM_HERE,
         base::Bind(&ProgressiveDemuxer::Request, base::Unretained(this), type));
@@ -393,7 +392,7 @@ void ProgressiveDemuxer::AllocateBuffer() {
         total_buffer_count > progressive_buffer_count_cap) {
       // Retry after 100 milliseconds.
       const base::TimeDelta kDelay = base::TimeDelta::FromMilliseconds(100);
-      blocking_thread_.message_loop()->task_runner()->PostDelayedTask(
+      blocking_thread_.task_runner()->PostDelayedTask(
           FROM_HERE,
           base::Bind(&ProgressiveDemuxer::AllocateBuffer,
                      base::Unretained(this)),
@@ -410,7 +409,8 @@ void ProgressiveDemuxer::AllocateBuffer() {
 }
 
 void ProgressiveDemuxer::Download(scoped_refptr<DecoderBuffer> buffer) {
-  DCHECK(base::ThreadTaskRunnerHandle::Get()->BelongsToCurrentThread());
+  DCHECK(base::SequencedTaskRunner::GetCurrentDefault()
+             ->RunsTasksInCurrentSequence());
   // We need a requested_au_ or to have canceled this request and
   // are buffering to a new location for this to make sense
   DCHECK(requested_au_);
@@ -465,7 +465,7 @@ void ProgressiveDemuxer::Download(scoped_refptr<DecoderBuffer> buffer) {
   // Notify host of each disjoint range.
   host_->OnBufferedTimeRangesChanged(buffered);
 
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::Bind(&ProgressiveDemuxer::IssueNextRequest,
                             base::Unretained(this)));
 }
@@ -517,13 +517,13 @@ void ProgressiveDemuxer::IssueNextRequest() {
   // We cannot call Request() directly even if this function is also run on
   // |blocking_thread_| as otherwise it is possible that this function is
   // running in a tight loop and seek or stop request has no chance to kick in.
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::Bind(&ProgressiveDemuxer::Request, base::Unretained(this), type));
 }
 
 void ProgressiveDemuxer::Stop() {
-  DCHECK(MessageLoopBelongsToCurrentThread());
+  DCHECK(RunsTasksInCurrentSequence());
   // set our internal stop flag, to not treat read failures as
   // errors anymore but as a natural part of stopping
   {
@@ -541,7 +541,7 @@ bool ProgressiveDemuxer::HasStopCalled() {
 }
 
 void ProgressiveDemuxer::Seek(base::TimeDelta time, PipelineStatusCallback cb) {
-  blocking_thread_.message_loop()->task_runner()->PostTask(
+  blocking_thread_.task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(&ProgressiveDemuxer::SeekTask, base::Unretained(this),
                      time, ::media::BindToCurrentLoop(std::move(cb))));
@@ -591,10 +591,6 @@ const AudioDecoderConfig& ProgressiveDemuxer::AudioConfig() {
 
 const VideoDecoderConfig& ProgressiveDemuxer::VideoConfig() {
   return parser_->VideoConfig();
-}
-
-bool ProgressiveDemuxer::MessageLoopBelongsToCurrentThread() const {
-  return message_loop_->BelongsToCurrentThread();
 }
 
 }  // namespace media

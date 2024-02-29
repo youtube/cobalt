@@ -197,7 +197,7 @@ Window::Window(
   // Document load start is deferred from this constructor so that we can be
   // guaranteed that this Window object is fully constructed before document
   // loading begins.
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::Bind(&Window::StartDocumentLoad, base::Unretained(this),
                             fetcher_factory, settings->creation_url(),
                             dom_parser, load_complete_callback));

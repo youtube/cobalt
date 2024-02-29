@@ -20,9 +20,9 @@
 #include <string>
 
 #include "base/memory/scoped_refptr.h"
-#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value.h"
@@ -51,10 +51,10 @@ class ServiceWorkerContext {
   ServiceWorkerContext(web::WebSettings* web_settings,
                        network::NetworkModule* network_module,
                        web::UserAgentPlatformInfo* platform_info,
-                       base::MessageLoop* message_loop);
+                       base::SequencedTaskRunner* task_runner);
   ~ServiceWorkerContext();
 
-  base::MessageLoop* message_loop() { return message_loop_; }
+  base::SequencedTaskRunner* task_runner() { return task_runner_; }
 
   // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#start-register-algorithm
   void StartRegister(const base::Optional<GURL>& scope_url,
@@ -124,7 +124,7 @@ class ServiceWorkerContext {
   void RegisterWebContext(web::Context* context);
   void UnregisterWebContext(web::Context* context);
   bool IsWebContextRegistered(web::Context* context) {
-    DCHECK(base::MessageLoop::current() == message_loop());
+    DCHECK(task_runner()->RunsTasksInCurrentSequence());
     return web_context_registrations_.end() !=
            web_context_registrations_.find(context);
   }
@@ -206,7 +206,7 @@ class ServiceWorkerContext {
   bool WaitForAsynchronousExtensions(
       const scoped_refptr<ServiceWorkerRegistrationObject>& registration);
 
-  base::MessageLoop* message_loop_;
+  base::SequencedTaskRunner* task_runner_;
 
   std::unique_ptr<ServiceWorkerRegistrationMap> scope_to_registration_map_;
 

@@ -17,7 +17,7 @@
 
 #include <string>
 
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/network/dial/dial_service_handler.h"
 #include "net/server/http_server_request_info.h"
 #include "testing/gmock/include/gmock/gmock.h"

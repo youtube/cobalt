@@ -106,26 +106,26 @@ class EventTarget : public script::Wrappable,
   void DispatchEventNameAndRunCallback(
       base_token::Token event_name, const base::Closure& dispatched_callback);
 
-  // Posts a task on the current message loop to dispatch event by name. It
-  // does nothing if there is no current message loop.
+  // Posts a task on the current task runner to dispatch event by name. It
+  // does nothing if there is no current task runner.
   void PostToDispatchEventName(const base::Location& location,
                                base_token::Token event_name);
 
-  // Posts a task on the current message loop to dispatch event. It does nothing
-  // if there is no current message loop.
+  // Posts a task on the current task runner to dispatch event. It does nothing
+  // if there is no current task runner.
   void PostToDispatchEvent(const base::Location& location,
                            const scoped_refptr<Event>& event);
 
-  // Posts a task on the current message loop to dispatch event by name, and
+  // Posts a task on the current task runner to dispatch event by name, and
   // runs dispatched_callback after finish. It does nothing if there is no
-  // current message loop.
+  // current task runner.
   void PostToDispatchEventNameAndRunCallback(
       const base::Location& location, base_token::Token event_name,
       const base::Closure& dispatched_callback);
 
-  // Posts a task on the current message loop to dispatch event, and runs
+  // Posts a task on the current task runner to dispatch event, and runs
   // dispatched_callback after finish.  It does nothing if there is no current
-  // message loop.
+  // task runner.
   void PostToDispatchEventAndRunCallback(
       const base::Location& location, const scoped_refptr<Event>& event,
       const base::Closure& dispatched_callback);

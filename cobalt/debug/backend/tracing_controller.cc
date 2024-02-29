@@ -80,7 +80,7 @@ void TraceEventAgent::StopAgentTracing(
   //  will call OutputTraceData(), possibly multiple times.  We have to do this
   //  on a thread as there will be tasks posted to the current thread for data
   //  writing.
-  thread.message_loop()->task_runner()->PostTask(
+  thread.task_runner()->PostTask(
       FROM_HERE, base::BindRepeating(&base::trace_event::TraceLog::Flush,
                                      base::Unretained(trace_log),
                                      collect_data_callback, false));

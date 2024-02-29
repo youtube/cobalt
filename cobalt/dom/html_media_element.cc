@@ -26,8 +26,8 @@
 #include "base/guid.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
-#include "base/message_loop/message_loop.h"
 #include "base/strings/string_util.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/instance_counter.h"
@@ -911,7 +911,7 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
     request_mode_ = GetRequestMode(GetAttribute("crossOrigin"));
     DCHECK(node_document()->location());
     std::unique_ptr<DataSource> data_source(new media::URLFetcherDataSource(
-        base::ThreadTaskRunnerHandle::Get(), url, csp_callback,
+        base::SequencedTaskRunner::GetCurrentDefault(), url, csp_callback,
         html_element_context()->fetcher_factory()->network_module(),
         request_mode_, node_document()->location()->GetOriginAsObject()));
     player_->LoadProgressive(url, std::move(data_source));

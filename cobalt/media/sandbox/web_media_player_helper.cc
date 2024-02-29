@@ -90,9 +90,9 @@ WebMediaPlayerHelper::WebMediaPlayerHelper(
     player_->LoadProgressive(video_url, std::move(data_source));
   } else {
     std::unique_ptr<DataSource> data_source(new URLFetcherDataSource(
-        base::ThreadTaskRunnerHandle::Get(), video_url, csp::SecurityCallback(),
-        fetcher_factory->network_module(), loader::kNoCORSMode,
-        loader::Origin()));
+        base::SequencedTaskRunner::GetCurrentDefault(), video_url,
+        csp::SecurityCallback(), fetcher_factory->network_module(),
+        loader::kNoCORSMode, loader::Origin()));
     player_->LoadProgressive(video_url, std::move(data_source));
   }
 

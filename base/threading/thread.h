@@ -16,7 +16,6 @@
 #include "base/memory/raw_ptr_exclusion.h"
 #include "base/message_loop/message_pump_type.h"
 #include "base/message_loop/timer_slack.h"
-#include "base/message_loop/message_loop.h"
 #include "base/sequence_checker.h"
 #include "base/synchronization/atomic_flag.h"
 #include "base/synchronization/lock.h"
@@ -131,8 +130,6 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
 
   Thread(const Thread&) = delete;
   Thread& operator=(const Thread&) = delete;
-
-  MessageLoop* message_loop() const { return nullptr; }
 
   // Destroys the thread, stopping it if necessary.
   //

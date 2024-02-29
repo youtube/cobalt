@@ -31,8 +31,8 @@ class SuspendFuzzer {
  private:
   void DoStep();
 
-  // Suspending the application could possibly freeze our message loop or our
-  // web modules' message loops.  We thus create a separate thread to run the
+  // Suspending the application could possibly freeze our task runner or our
+  // web modules' task runners.  We thus create a separate thread to run the
   // suspend fuzzer on.
   base::Thread thread_;
 

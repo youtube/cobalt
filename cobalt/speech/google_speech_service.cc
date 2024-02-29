@@ -195,9 +195,8 @@ GoogleSpeechService::GoogleSpeechService(
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           weak_this_(weak_ptr_factory_.GetWeakPtr())),
-      wrappables_task_runner_(base::ThreadTaskRunnerHandle::Get()) {
-  thread_.StartWithOptions(
-      base::Thread::Options(base::MessageLoop::TYPE_IO, 0));
+      wrappables_task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {
+  thread_.StartWithOptions(base::Thread::Options(base::MessagePumpType::IO, 0));
 }
 
 GoogleSpeechService::~GoogleSpeechService() {
@@ -210,14 +209,14 @@ GoogleSpeechService::~GoogleSpeechService() {
 void GoogleSpeechService::Start(const SpeechRecognitionConfig& config,
                                 int sample_rate) {
   // Called by the speech recognition manager thread.
-  thread_.message_loop()->task_runner()->PostTask(
+  thread_.task_runner()->PostTask(
       FROM_HERE, base::Bind(&GoogleSpeechService::StartInternal,
                             base::Unretained(this), config, sample_rate));
 }
 
 void GoogleSpeechService::Stop() {
   // Called by the speech recognition manager thread.
-  thread_.message_loop()->task_runner()->PostTask(
+  thread_.task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&GoogleSpeechService::StopInternal, base::Unretained(this)));
 }
@@ -225,7 +224,7 @@ void GoogleSpeechService::Stop() {
 void GoogleSpeechService::RecognizeAudio(std::unique_ptr<AudioBus> audio_bus,
                                          bool is_last_chunk) {
   // Called by the speech recognition manager thread.
-  thread_.message_loop()->task_runner()->PostTask(
+  thread_.task_runner()->PostTask(
       FROM_HERE, base::Bind(&GoogleSpeechService::UploadAudioDataInternal,
                             base::Unretained(this), base::Passed(&audio_bus),
                             is_last_chunk));
@@ -237,7 +236,8 @@ void GoogleSpeechService::RecognizeAudio(std::unique_ptr<AudioBus> audio_bus,
 void GoogleSpeechService::OnURLFetchDownloadProgress(
     const net::URLFetcher* source, int64_t current, int64_t total,
     int64_t current_network_bytes) {
-  DCHECK_EQ(thread_.message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(thread_.task_runner(),
+            base::SequencedTaskRunner::GetCurrentDefault());
   std::string data;
   download_data_writer_->GetAndResetData(&data);
 
@@ -277,7 +277,8 @@ void GoogleSpeechService::OnURLFetchDownloadProgress(
 }
 
 void GoogleSpeechService::OnURLFetchComplete(const net::URLFetcher* source) {
-  DCHECK_EQ(thread_.message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(thread_.task_runner(),
+            base::SequencedTaskRunner::GetCurrentDefault());
   if (download_data_writer_->HasData()) {
     // Explicitly pass '-1' for all sizes, as it is not used by
     // OnURLFetchDownloadProgress();
@@ -300,7 +301,8 @@ base::Optional<std::string> GoogleSpeechService::GetSpeechAPIKey() {
 
 void GoogleSpeechService::StartInternal(const SpeechRecognitionConfig& config,
                                         int sample_rate) {
-  DCHECK_EQ(thread_.message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(thread_.task_runner(),
+            base::SequencedTaskRunner::GetCurrentDefault());
 
   if (started_) {
     // Recognizer is already started.
@@ -368,7 +370,8 @@ void GoogleSpeechService::StartInternal(const SpeechRecognitionConfig& config,
 }
 
 void GoogleSpeechService::StopInternal() {
-  DCHECK_EQ(thread_.message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(thread_.task_runner(),
+            base::SequencedTaskRunner::GetCurrentDefault());
 
   if (!started_) {
     // Recognizer is not started.
@@ -390,13 +393,14 @@ void GoogleSpeechService::StopInternal() {
 
 void GoogleSpeechService::ClearFinalResults() {
   // This method handles wrappables and should run on the MainWebModule thread.
-  DCHECK(wrappables_task_runner_->BelongsToCurrentThread());
+  DCHECK(wrappables_task_runner_->RunsTasksInCurrentSequence());
   final_results_.clear();
 }
 
 void GoogleSpeechService::UploadAudioDataInternal(
     std::unique_ptr<AudioBus> audio_bus, bool is_last_chunk) {
-  DCHECK_EQ(thread_.message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(thread_.task_runner(),
+            base::SequencedTaskRunner::GetCurrentDefault());
   DCHECK(audio_bus);
 
   std::string encoded_audio_data;
@@ -416,7 +420,7 @@ void GoogleSpeechService::UploadAudioDataInternal(
 void GoogleSpeechService::ProcessAndFireSuccessEvent(
     proto::SpeechRecognitionEvent event) {
   // This method handles wrappables and should run on the MainWebModule thread.
-  DCHECK(wrappables_task_runner_->BelongsToCurrentThread());
+  DCHECK(wrappables_task_runner_->RunsTasksInCurrentSequence());
 
   SpeechRecognitionResults new_results = ProcessProtoSuccessResults(event);
 

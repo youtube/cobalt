@@ -17,8 +17,8 @@
 #include <vector>
 
 #include "base/command_line.h"
-#include "base/message_loop/message_loop.h"
 #include "base/path_service.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/test/task_environment.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/cobalt_paths.h"
@@ -62,15 +62,15 @@ const char kOutputAllTestDetails[] = "output-all-test-details";
 namespace {
 
 void ScreenshotFunction(
-    scoped_refptr<base::SingleThreadTaskRunner> expected_message_loop,
+    scoped_refptr<base::SequencedTaskRunner> expected_task_runner,
     renderer::RenderTreePixelTester* pixel_tester,
     const scoped_refptr<render_tree::Node>& node,
     const base::Optional<math::Rect>& clip_rect,
     const dom::ScreenshotManager::OnUnencodedImageCallback& callback) {
-  if (expected_message_loop &&
-      !expected_message_loop->BelongsToCurrentThread()) {
-    expected_message_loop->PostTask(
-        FROM_HERE, base::Bind(&ScreenshotFunction, expected_message_loop,
+  if (expected_task_runner &&
+      !expected_task_runner->RunsTasksInCurrentSequence()) {
+    expected_task_runner->PostTask(
+        FROM_HERE, base::Bind(&ScreenshotFunction, expected_task_runner,
                               pixel_tester, node, clip_rect, callback));
     return;
   }
@@ -109,8 +109,8 @@ void RunTest(const TestInfo& test_info,
   // output.
   LOG(INFO) << "(" << test_info << ")" << std::endl;
 
-  // Setup a message loop for the current thread since we will be constructing
-  // a WebModule, which requires a message loop to exist for the current
+  // Setup a task runner for the current thread since we will be constructing
+  // a WebModule, which requires a task runner to exist for the current
   // thread.
   base::test::TaskEnvironment scoped_environment;
 
@@ -138,7 +138,8 @@ void RunTest(const TestInfo& test_info,
 
   browser::WebModule::LayoutResults layout_results = SnapshotURL(
       test_info.url, viewport_size, pixel_tester.GetResourceProvider(),
-      base::Bind(&ScreenshotFunction, base::ThreadTaskRunnerHandle::Get(),
+      base::Bind(&ScreenshotFunction,
+                 base::SequencedTaskRunner::GetCurrentDefault(),
                  base::Unretained(&pixel_tester)));
 
   scoped_refptr<render_tree::animations::AnimateNode> animate_node =

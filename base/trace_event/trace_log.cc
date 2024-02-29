@@ -1249,11 +1249,11 @@ void TraceLog::CheckIfBufferIsFullWhileLocked() {
 // Flush() works as the following:
 // 1. Flush() is called in thread A whose task runner is saved in
 //    flush_task_runner_;
-// 2. If thread_message_loops_ is not empty, thread A posts task to each message
+// 2. If thread.task_runners_ is not empty, thread A posts task to each message
 //    loop to flush the thread local buffers; otherwise finish the flush;
 // 3. FlushCurrentThread() deletes the thread local event buffer:
 //    - The last batch of events of the thread are flushed into the main buffer;
-//    - The message loop will be removed from thread_message_loops_;
+//    - The message loop will be removed from thread.task_runners_;
 //    If this is the last message loop, finish the flush;
 // 4. If any thread hasn't finish its flush in time, finish the flush.
 void TraceLog::Flush(const TraceLog::OutputCallback& cb,

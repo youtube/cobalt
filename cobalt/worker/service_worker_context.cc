@@ -19,10 +19,12 @@
 #include <vector>
 
 #include "base/bind.h"
-#include "base/message_loop/message_loop_current.h"
 #include "base/run_loop.h"
+#include "base/task/current_thread.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/base/task_runner_util.h"
 #include "cobalt/web/dom_exception.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/worker/extendable_event.h"
@@ -82,7 +84,7 @@ void ResolveGetClientPromise(
     // 3.2. Queue a task to resolve promise with clientObject, on promise’s
     //      relevant settings object's responsible event loop using the DOM
     //      manipulation task source, and abort these steps.
-    worker_context->message_loop()->task_runner()->PostTask(
+    worker_context->task_runner()->PostTask(
         FROM_HERE,
         base::BindOnce(
             [](std::unique_ptr<script::ValuePromiseWrappable::Reference>
@@ -108,7 +110,7 @@ void ResolveGetClientPromise(
   // functionality in the client context. It is included however to help future
   // implementation for fetching values for WindowClient properties, with
   // similar logic existing in ClientsMatchAllSubSteps.
-  client->message_loop()->task_runner()->PostTask(
+  client->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(
           [](web::Context* client, web::Context* worker_context,
@@ -136,7 +138,7 @@ void ResolveGetClientPromise(
             // 4.4.6. Queue a task to run the following steps on promise’s
             //        relevant settings object's responsible event loop using
             //        the DOM manipulation task source:
-            worker_context->message_loop()->task_runner()->PostTask(
+            worker_context->task_runner()->PostTask(
                 FROM_HERE,
                 base::BindOnce(
                     [](std::unique_ptr<script::ValuePromiseWrappable::Reference>
@@ -164,11 +166,12 @@ void ResolveGetClientPromise(
 
 ServiceWorkerContext::ServiceWorkerContext(
     web::WebSettings* web_settings, network::NetworkModule* network_module,
-    web::UserAgentPlatformInfo* platform_info, base::MessageLoop* message_loop)
-    : message_loop_(message_loop) {
-  DCHECK_EQ(message_loop_, base::MessageLoop::current());
+    web::UserAgentPlatformInfo* platform_info,
+    base::SequencedTaskRunner* task_runner)
+    : task_runner_(task_runner) {
+  DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
   jobs_ =
-      std::make_unique<ServiceWorkerJobs>(this, network_module, message_loop);
+      std::make_unique<ServiceWorkerJobs>(this, network_module, task_runner);
 
   ServiceWorkerPersistentSettings::Options options(web_settings, network_module,
                                                    platform_info, this);
@@ -177,7 +180,7 @@ ServiceWorkerContext::ServiceWorkerContext(
 }
 
 ServiceWorkerContext::~ServiceWorkerContext() {
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(task_runner(), base::SequencedTaskRunner::GetCurrentDefault());
   scope_to_registration_map_->HandleUserAgentShutdown(this);
   scope_to_registration_map_->AbortAllActive();
   scope_to_registration_map_.reset();
@@ -208,8 +211,9 @@ void ServiceWorkerContext::StartRegister(
   TRACE_EVENT2("cobalt::worker", "ServiceWorkerContext::StartRegister()",
                "scope", maybe_scope_url.value_or(GURL()).spec(), "script",
                script_url_with_fragment.spec());
-  DCHECK_NE(message_loop(), base::MessageLoop::current());
-  DCHECK_EQ(client->message_loop(), base::MessageLoop::current());
+  DCHECK_NE(task_runner(), base::SequencedTaskRunner::GetCurrentDefault());
+  DCHECK_EQ(client->task_runner(),
+            base::SequencedTaskRunner::GetCurrentDefault());
   // Algorithm for Start Register:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#start-register-algorithm
   // 1. If scriptURL is failure, reject promise with a TypeError and abort these
@@ -315,7 +319,7 @@ void ServiceWorkerContext::StartRegister(
 void ServiceWorkerContext::SoftUpdate(
     ServiceWorkerRegistrationObject* registration, bool force_bypass_cache) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerContext::SoftUpdate()");
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(task_runner(), base::SequencedTaskRunner::GetCurrentDefault());
   DCHECK(registration);
   // Algorithm for SoftUpdate:
   //    https://www.w3.org/TR/2022/CRD-service-workers-20220712/#soft-update
@@ -342,7 +346,7 @@ void ServiceWorkerContext::SoftUpdate(
   job->force_bypass_cache_flag = force_bypass_cache;
 
   // 6. Invoke Schedule Job with job.
-  message_loop()->task_runner()->PostTask(
+  task_runner()->PostTask(
       FROM_HERE, base::BindOnce(&ServiceWorkerJobs::ScheduleJob,
                                 base::Unretained(jobs_.get()), std::move(job)));
   DCHECK(!job.get());
@@ -351,8 +355,8 @@ void ServiceWorkerContext::SoftUpdate(
 void ServiceWorkerContext::EnsureServiceWorkerStarted(
     const url::Origin& storage_key, const GURL& client_url,
     base::WaitableEvent* done_event) {
-  if (message_loop() != base::MessageLoop::current()) {
-    message_loop()->task_runner()->PostTask(
+  if (!task_runner()->RunsTasksInCurrentSequence()) {
+    task_runner()->PostTask(
         FROM_HERE,
         base::BindOnce(&ServiceWorkerContext::EnsureServiceWorkerStarted,
                        base::Unretained(this), storage_key, client_url,
@@ -377,8 +381,8 @@ void ServiceWorkerContext::EnsureServiceWorkerStarted(
 }
 
 void ServiceWorkerContext::EraseRegistrationMap() {
-  if (message_loop() != base::MessageLoop::current()) {
-    message_loop()->task_runner()->PostTask(
+  if (!task_runner()->RunsTasksInCurrentSequence()) {
+    task_runner()->PostTask(
         FROM_HERE, base::BindOnce(&ServiceWorkerContext::EraseRegistrationMap,
                                   base::Unretained(this)));
     return;
@@ -390,7 +394,7 @@ std::string* ServiceWorkerContext::RunServiceWorker(ServiceWorkerObject* worker,
                                                     bool force_bypass_cache) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerContext::RunServiceWorker()");
 
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(task_runner(), base::SequencedTaskRunner::GetCurrentDefault());
   DCHECK(worker);
   // Algorithm for "Run Service Worker"
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#run-service-worker-algorithm
@@ -463,7 +467,7 @@ bool ServiceWorkerContext::IsAnyClientUsingRegistration(
 void ServiceWorkerContext::TryActivate(
     ServiceWorkerRegistrationObject* registration) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerContext::TryActivate()");
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(task_runner(), base::SequencedTaskRunner::GetCurrentDefault());
   // Algorithm for Try Activate:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#try-activate-algorithm
 
@@ -502,7 +506,7 @@ void ServiceWorkerContext::TryActivate(
 void ServiceWorkerContext::Activate(
     scoped_refptr<ServiceWorkerRegistrationObject> registration) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerContext::Activate()");
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(task_runner(), base::SequencedTaskRunner::GetCurrentDefault());
   // Algorithm for Activate:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#activation-algorithm
 
@@ -554,7 +558,7 @@ void ServiceWorkerContext::Activate(
     //      the service worker registration object that
     //      represents registration in readyPromise’s
     //      relevant settings object.
-    client->message_loop()->task_runner()->PostTask(
+    client->task_runner()->PostTask(
         FROM_HERE,
         base::BindOnce(&ServiceWorkerContainer::MaybeResolveReadyPromise,
                        base::Unretained(client->GetWindowOrWorkerGlobalScope()
@@ -606,40 +610,36 @@ void ServiceWorkerContext::Activate(
                     ->context());
       DCHECK(registration->done_event()->IsSignaled());
       registration->done_event()->Reset();
-      active_worker->web_agent()
-          ->context()
-          ->message_loop()
-          ->task_runner()
-          ->PostBlockingTask(
-              FROM_HERE,
-              base::Bind(
-                  [](ServiceWorkerObject* active_worker,
-                     base::WaitableEvent* done_event) {
-                    auto done_callback =
-                        base::BindOnce([](base::WaitableEvent* done_event,
-                                          bool) { done_event->Signal(); },
-                                       done_event);
-                    auto* settings = active_worker->web_agent()
-                                         ->context()
-                                         ->environment_settings();
-                    scoped_refptr<ExtendableEvent> event(
-                        new ExtendableEvent(settings, base::Tokens::activate(),
-                                            std::move(done_callback)));
-                    // 11.1.1.1. Let e be the result of creating an event with
-                    //           ExtendableEvent.
-                    // 11.1.1.2. Initialize e’s type attribute to activate.
-                    // 11.1.1.3. Dispatch e at activeWorker’s global object.
-                    active_worker->worker_global_scope()->DispatchEvent(event);
-                    // 11.1.1.4. WaitForAsynchronousExtensions: Wait, in
-                    //           parallel, until e is not active.
-                    if (!event->IsActive()) {
-                      // If the event handler doesn't use waitUntil(), it will
-                      // already no longer be active, and there will never be a
-                      // callback to signal the done event.
-                      done_event->Signal();
-                    }
-                  },
-                  base::Unretained(active_worker), registration->done_event()));
+      base::task_runner_util::PostBlockingTask(
+          active_worker->web_agent()->task_runner(), FROM_HERE,
+          base::Bind(
+              [](ServiceWorkerObject* active_worker,
+                 base::WaitableEvent* done_event) {
+                auto done_callback =
+                    base::BindOnce([](base::WaitableEvent* done_event,
+                                      bool) { done_event->Signal(); },
+                                   done_event);
+                auto* settings = active_worker->web_agent()
+                                     ->context()
+                                     ->environment_settings();
+                scoped_refptr<ExtendableEvent> event(
+                    new ExtendableEvent(settings, base::Tokens::activate(),
+                                        std::move(done_callback)));
+                // 11.1.1.1. Let e be the result of creating an event with
+                //           ExtendableEvent.
+                // 11.1.1.2. Initialize e’s type attribute to activate.
+                // 11.1.1.3. Dispatch e at activeWorker’s global object.
+                active_worker->worker_global_scope()->DispatchEvent(event);
+                // 11.1.1.4. WaitForAsynchronousExtensions: Wait, in
+                //           parallel, until e is not active.
+                if (!event->IsActive()) {
+                  // If the event handler doesn't use waitUntil(), it will
+                  // already no longer be active, and there will never be a
+                  // callback to signal the done event.
+                  done_event->Signal();
+                }
+              },
+              base::Unretained(active_worker), registration->done_event()));
       // 11.1.2. Wait for task to have executed or been discarded.
       // This waiting is done inside PostBlockingTask above.
       // 11.1.3. Wait for the step labeled WaitForAsynchronousExtensions to
@@ -677,7 +677,7 @@ void ServiceWorkerContext::NotifyControllerChange(web::Context* client) {
   // 2. If client is an environment settings object, queue a task to fire an
   //    event named controllerchange at the ServiceWorkerContainer object that
   //    client is associated with.
-  client->message_loop()->task_runner()->PostTask(
+  client->task_runner()->PostTask(
       FROM_HERE, base::Bind(
                      [](web::Context* client) {
                        client->GetWindowOrWorkerGlobalScope()
@@ -708,7 +708,7 @@ void ServiceWorkerContext::ClearRegistration(
   // Algorithm for Clear Registration:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#clear-registration-algorithm
   // 1. Run the following steps atomically.
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(task_runner(), base::SequencedTaskRunner::GetCurrentDefault());
 
   // 2. If registration’s installing worker is not null, then:
   ServiceWorkerObject* installing_worker = registration->installing_worker();
@@ -760,7 +760,7 @@ void ServiceWorkerContext::TryClearRegistration(
     ServiceWorkerRegistrationObject* registration) {
   TRACE_EVENT0("cobalt::worker",
                "ServiceWorkerContext::TryClearRegistration()");
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(task_runner(), base::SequencedTaskRunner::GetCurrentDefault());
   // Algorithm for Try Clear Registration:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#try-clear-registration-algorithm
 
@@ -798,7 +798,7 @@ void ServiceWorkerContext::UpdateRegistrationState(
   TRACE_EVENT2("cobalt::worker",
                "ServiceWorkerContext::UpdateRegistrationState()", "target",
                target, "source", source);
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(task_runner(), base::SequencedTaskRunner::GetCurrentDefault());
   DCHECK(registration);
   // Algorithm for Update Registration State:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#update-registration-state-algorithm
@@ -816,16 +816,16 @@ void ServiceWorkerContext::UpdateRegistrationState(
       // 2.2. For each registrationObject in registrationObjects:
       for (auto& context : web_context_registrations_) {
         // 2.2.1. Queue a task to...
-        context->message_loop()->task_runner()->PostBlockingTask(
-            FROM_HERE,
+        base::task_runner_util::PostBlockingTask(
+            context->task_runner(), FROM_HERE,
             base::Bind(
                 [](web::Context* context,
                    ServiceWorkerRegistrationObject* registration) {
                   // 2.2.1. ... set the installing attribute of
                   //        registrationObject to null if registration’s
-                  //        installing worker is null, or the result of getting
-                  //        the service worker object that represents
-                  //        registration’s installing worker in
+                  //        installing worker is null, or the result of
+                  //        getting the service worker object that
+                  //        represents registration’s installing worker in
                   //        registrationObject’s relevant settings object.
                   auto registration_object =
                       context->LookupServiceWorkerRegistration(registration);
@@ -846,16 +846,18 @@ void ServiceWorkerContext::UpdateRegistrationState(
       // 3.2. For each registrationObject in registrationObjects:
       for (auto& context : web_context_registrations_) {
         // 3.2.1. Queue a task to...
-        context->message_loop()->task_runner()->PostBlockingTask(
-            FROM_HERE,
+        base::task_runner_util::PostBlockingTask(
+            context->task_runner(), FROM_HERE,
             base::Bind(
                 [](web::Context* context,
                    ServiceWorkerRegistrationObject* registration) {
-                  // 3.2.1. ... set the waiting attribute of registrationObject
-                  //        to null if registration’s waiting worker is null, or
-                  //        the result of getting the service worker object that
-                  //        represents registration’s waiting worker in
-                  //        registrationObject’s relevant settings object.
+                  // 3.2.1. ... set the waiting attribute of
+                  // registrationObject
+                  //        to null if registration’s waiting worker is
+                  //        null, or the result of getting the service
+                  //        worker object that represents registration’s
+                  //        waiting worker in registrationObject’s relevant
+                  //        settings object.
                   auto registration_object =
                       context->LookupServiceWorkerRegistration(registration);
                   if (registration_object) {
@@ -874,16 +876,18 @@ void ServiceWorkerContext::UpdateRegistrationState(
       // 4.2. For each registrationObject in registrationObjects:
       for (auto& context : web_context_registrations_) {
         // 4.2.1. Queue a task to...
-        context->message_loop()->task_runner()->PostBlockingTask(
-            FROM_HERE,
+        base::task_runner_util::PostBlockingTask(
+            context->task_runner(), FROM_HERE,
             base::Bind(
                 [](web::Context* context,
                    ServiceWorkerRegistrationObject* registration) {
-                  // 4.2.1. ... set the active attribute of registrationObject
-                  //        to null if registration’s active worker is null, or
-                  //        the result of getting the service worker object that
-                  //        represents registration’s active worker in
-                  //        registrationObject’s relevant settings object.
+                  // 4.2.1. ... set the active attribute of
+                  // registrationObject
+                  //        to null if registration’s active worker is null,
+                  //        or the result of getting the service worker
+                  //        object that represents registration’s active
+                  //        worker in registrationObject’s relevant settings
+                  //        object.
                   auto registration_object =
                       context->LookupServiceWorkerRegistration(registration);
                   if (registration_object) {
@@ -904,7 +908,7 @@ void ServiceWorkerContext::UpdateWorkerState(
     scoped_refptr<ServiceWorkerObject> worker, ServiceWorkerState state) {
   TRACE_EVENT1("cobalt::worker", "ServiceWorkerContext::UpdateWorkerState()",
                "state", state);
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(task_runner(), base::SequencedTaskRunner::GetCurrentDefault());
   DCHECK(worker);
   if (!worker) {
     return;
@@ -924,31 +928,31 @@ void ServiceWorkerContext::UpdateWorkerState(
       // 4. ... queue a task on
       //    settingsObject's responsible event loop in the DOM manipulation task
       //    source to run the following steps:
-      context->message_loop()->task_runner()->PostBlockingTask(
-          FROM_HERE, base::Bind(
-                         [](web::Context* context, ServiceWorkerObject* worker,
-                            ServiceWorkerState state) {
-                           DCHECK_EQ(context->message_loop(),
-                                     base::MessageLoop::current());
-                           // 4.1. Let objectMap be settingsObject's service
-                           // worker object
-                           //      map.
-                           // 4.2. If objectMap[worker] does not exist, then
-                           // abort these
-                           //      steps.
-                           // 4.3. Let  workerObj be objectMap[worker].
-                           auto worker_obj =
-                               context->LookupServiceWorker(worker);
-                           if (worker_obj) {
-                             // 4.4. Set workerObj's state to state.
-                             worker_obj->set_state(state);
-                             // 4.5. Fire an event named statechange at
-                             // workerObj.
-                             worker_obj->DispatchEvent(
-                                 new web::Event(base::Tokens::statechange()));
-                           }
-                         },
-                         context, base::Unretained(worker.get()), state));
+      base::task_runner_util::PostBlockingTask(
+          context->task_runner(), FROM_HERE,
+          base::Bind(
+              [](web::Context* context, ServiceWorkerObject* worker,
+                 ServiceWorkerState state) {
+                DCHECK_EQ(context->task_runner(),
+                          base::SequencedTaskRunner::GetCurrentDefault());
+                // 4.1. Let objectMap be settingsObject's service
+                // worker object
+                //      map.
+                // 4.2. If objectMap[worker] does not exist, then
+                // abort these
+                //      steps.
+                // 4.3. Let  workerObj be objectMap[worker].
+                auto worker_obj = context->LookupServiceWorker(worker);
+                if (worker_obj) {
+                  // 4.4. Set workerObj's state to state.
+                  worker_obj->set_state(state);
+                  // 4.5. Fire an event named statechange at
+                  // workerObj.
+                  worker_obj->DispatchEvent(
+                      new web::Event(base::Tokens::statechange()));
+                }
+              },
+              context, base::Unretained(worker.get()), state));
     }
   }
 }
@@ -961,7 +965,7 @@ void ServiceWorkerContext::HandleServiceWorkerClientUnload(
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#on-client-unload-algorithm
   DCHECK(client);
   // 1. Run the following steps atomically.
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(task_runner(), base::SequencedTaskRunner::GetCurrentDefault());
 
   // 2. Let registration be the service worker registration used by client.
   // 3. If registration is null, abort these steps.
@@ -989,12 +993,12 @@ void ServiceWorkerContext::HandleServiceWorkerClientUnload(
 void ServiceWorkerContext::TerminateServiceWorker(ServiceWorkerObject* worker) {
   TRACE_EVENT0("cobalt::worker",
                "ServiceWorkerContext::TerminateServiceWorker()");
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(task_runner(), base::SequencedTaskRunner::GetCurrentDefault());
   // Algorithm for Terminate Service Worker:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#terminate-service-worker
   // 1. Run the following steps in parallel with serviceWorker’s main loop:
   // This runs in the ServiceWorkerRegistry thread.
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(task_runner(), base::SequencedTaskRunner::GetCurrentDefault());
 
   // 1.1. Let serviceWorkerGlobalScope be serviceWorker’s global object.
   WorkerGlobalScope* service_worker_global_scope =
@@ -1026,18 +1030,19 @@ void ServiceWorkerContext::TerminateServiceWorker(ServiceWorkerObject* worker) {
   // happens when a new service worker object is constructed at the same
   // memory address).
   for (auto& context : web_context_registrations_) {
-    context->message_loop()->task_runner()->PostBlockingTask(
-        FROM_HERE, base::Bind(
-                       [](web::Context* context, ServiceWorkerObject* worker) {
-                         auto worker_obj = context->LookupServiceWorker(worker);
-                         if (worker_obj) {
-                           worker_obj->set_state(kServiceWorkerStateRedundant);
-                           worker_obj->DispatchEvent(
-                               new web::Event(base::Tokens::statechange()));
-                         }
-                         context->RemoveServiceWorker(worker);
-                       },
-                       context, base::Unretained(worker)));
+    base::task_runner_util::PostBlockingTask(
+        context->task_runner(), FROM_HERE,
+        base::Bind(
+            [](web::Context* context, ServiceWorkerObject* worker) {
+              auto worker_obj = context->LookupServiceWorker(worker);
+              if (worker_obj) {
+                worker_obj->set_state(kServiceWorkerStateRedundant);
+                worker_obj->DispatchEvent(
+                    new web::Event(base::Tokens::statechange()));
+              }
+              context->RemoveServiceWorker(worker);
+            },
+            context, base::Unretained(worker)));
   }
 
   // 1.5. Abort the script currently running in serviceWorker.
@@ -1051,7 +1056,7 @@ void ServiceWorkerContext::TerminateServiceWorker(ServiceWorkerObject* worker) {
 
 void ServiceWorkerContext::MaybeResolveReadyPromiseSubSteps(
     web::Context* client) {
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(task_runner(), base::SequencedTaskRunner::GetCurrentDefault());
   // Algorithm for Sub steps of ServiceWorkerContainer.ready():
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#navigator-service-worker-ready
 
@@ -1077,7 +1082,7 @@ void ServiceWorkerContext::MaybeResolveReadyPromiseSubSteps(
   //         registration object that represents registration in
   //         readyPromise’s relevant settings object.
   if (registration && registration->active_worker()) {
-    client->message_loop()->task_runner()->PostTask(
+    client->task_runner()->PostTask(
         FROM_HERE,
         base::BindOnce(&ServiceWorkerContainer::MaybeResolveReadyPromise,
                        base::Unretained(client->GetWindowOrWorkerGlobalScope()
@@ -1095,7 +1100,7 @@ void ServiceWorkerContext::GetRegistrationSubSteps(
         promise_reference) {
   TRACE_EVENT0("cobalt::worker",
                "ServiceWorkerContext::GetRegistrationSubSteps()");
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(task_runner(), base::SequencedTaskRunner::GetCurrentDefault());
   // Algorithm for Sub steps of ServiceWorkerContainer.getRegistration():
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#navigator-service-worker-getRegistration
 
@@ -1109,7 +1114,7 @@ void ServiceWorkerContext::GetRegistrationSubSteps(
   // 8.3. Resolve promise with the result of getting the service worker
   //      registration object that represents registration in promise’s
   //      relevant settings object.
-  client->message_loop()->task_runner()->PostTask(
+  client->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(
           [](web::Context* client,
@@ -1128,11 +1133,11 @@ void ServiceWorkerContext::GetRegistrationsSubSteps(
     const url::Origin& storage_key, web::Context* client,
     std::unique_ptr<script::ValuePromiseSequenceWrappable::Reference>
         promise_reference) {
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(task_runner(), base::SequencedTaskRunner::GetCurrentDefault());
   std::vector<scoped_refptr<ServiceWorkerRegistrationObject>>
       registration_objects =
           scope_to_registration_map_->GetRegistrations(storage_key);
-  client->message_loop()->task_runner()->PostTask(
+  client->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(
           [](web::Context* client,
@@ -1159,7 +1164,7 @@ void ServiceWorkerContext::SkipWaitingSubSteps(
     web::Context* worker_context, ServiceWorkerObject* service_worker,
     std::unique_ptr<script::ValuePromiseVoid::Reference> promise_reference) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerContext::SkipWaitingSubSteps()");
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(task_runner(), base::SequencedTaskRunner::GetCurrentDefault());
   // Check if the client web context is still active. This may trigger if
   // skipWaiting() was called and service worker installation fails.
   if (!IsWebContextRegistered(worker_context)) {
@@ -1178,7 +1183,7 @@ void ServiceWorkerContext::SkipWaitingSubSteps(
   TryActivate(service_worker->containing_service_worker_registration());
 
   // 2.3. Resolve promise with undefined.
-  worker_context->message_loop()->task_runner()->PostTask(
+  worker_context->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(
           [](std::unique_ptr<script::ValuePromiseVoid::Reference> promise) {
@@ -1190,7 +1195,7 @@ void ServiceWorkerContext::SkipWaitingSubSteps(
 void ServiceWorkerContext::WaitUntilSubSteps(
     ServiceWorkerRegistrationObject* registration) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerContext::WaitUntilSubSteps()");
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(task_runner(), base::SequencedTaskRunner::GetCurrentDefault());
   // Sub steps for WaitUntil.
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#dom-extendableevent-waituntil
   // 5.2.2. If registration is unregistered, invoke Try Clear Registration
@@ -1211,7 +1216,7 @@ void ServiceWorkerContext::ClientsGetSubSteps(
     std::unique_ptr<script::ValuePromiseWrappable::Reference> promise_reference,
     const std::string& id) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerContext::ClientsGetSubSteps()");
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(task_runner(), base::SequencedTaskRunner::GetCurrentDefault());
   // Check if the client web context is still active. This may trigger if
   // Clients.get() was called and service worker installation fails.
   if (!IsWebContextRegistered(worker_context)) {
@@ -1246,7 +1251,7 @@ void ServiceWorkerContext::ClientsGetSubSteps(
     }
   }
   // 2.2. Resolve promise with undefined.
-  worker_context->message_loop()->task_runner()->PostTask(
+  worker_context->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(
           [](std::unique_ptr<script::ValuePromiseWrappable::Reference>
@@ -1266,7 +1271,7 @@ void ServiceWorkerContext::ClientsMatchAllSubSteps(
     bool include_uncontrolled, ClientType type) {
   TRACE_EVENT0("cobalt::worker",
                "ServiceWorkerContext::ClientsMatchAllSubSteps()");
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(task_runner(), base::SequencedTaskRunner::GetCurrentDefault());
   // Check if the worker web context is still active. This may trigger if
   // Clients.matchAll() was called and service worker installation fails.
   if (!IsWebContextRegistered(worker_context)) {
@@ -1350,45 +1355,95 @@ void ServiceWorkerContext::ClientsMatchAllSubSteps(
       // functionality. It is included however to help future implementation for
       // fetching values for WindowClient properties, with similar logic
       // existing in ResolveGetClientPromise.
-      browsing_context->message_loop()->task_runner()->PostBlockingTask(
-          FROM_HERE, base::Bind(
-                         [](WindowData* window_data) {
-                           // 2.5.1.6.1. If browsingContext has been discarded,
-                           //            then set isClientEnumerable to false
-                           //            and abort these steps.
-                           // 2.5.1.6.2. If client is a window client and
-                           //            client’s responsible document is not
-                           //            browsingContext’s active document, then
-                           //            set isClientEnumerable to false and
-                           //            abort these steps.
-                           // In Cobalt, the document of a window browsing
-                           // context doesn't change: When a new document is
-                           // created, a new browsing context is created with
-                           // it.
+      base::task_runner_util::PostBlockingTask(browsing_context->task_runner(),
+                                               FROM_HERE,
+                                               base::Bind(
+                                                   [](WindowData* window_data) {
+                                                     // 2.5.1.6.1. If
+                                                     // browsingContext has been
+                                                     // discarded,
+                                                     //            then set
+                                                     //            isClientEnumerable
+                                                     //            to false and
+                                                     //            abort these
+                                                     //            steps.
+                                                     // 2.5.1.6.2. If client is
+                                                     // a window client and
+                                                     //            client’s
+                                                     //            responsible
+                                                     //            document is
+                                                     //            not
+                                                     //            browsingContext’s
+                                                     //            active
+                                                     //            document,
+                                                     //            then set
+                                                     //            isClientEnumerable
+                                                     //            to false and
+                                                     //            abort these
+                                                     //            steps.
+                                                     // In Cobalt, the document
+                                                     // of a window browsing
+                                                     // context doesn't change:
+                                                     // When a new document is
+                                                     // created, a new browsing
+                                                     // context is created with
+                                                     // it.
 
-                           // 2.5.1.6.3. Set windowData["frameType"] to the
-                           //            result of running Get Frame Type with
-                           //            browsingContext.
-                           // Cobalt does not support nested or auxiliary
-                           // browsing contexts.
-                           // 2.5.1.6.4. Set windowData["visibilityState"] to
-                           //            browsingContext’s active document's
-                           //            visibilityState attribute value.
-                           // 2.5.1.6.5. Set windowData["focusState"] to the
-                           //            result of running the has focus steps
-                           //            with browsingContext’s active document
-                           //            as the argument.
+                                                     // 2.5.1.6.3. Set
+                                                     // windowData["frameType"]
+                                                     // to the
+                                                     //            result of
+                                                     //            running Get
+                                                     //            Frame Type
+                                                     //            with
+                                                     //            browsingContext.
+                                                     // Cobalt does not support
+                                                     // nested or auxiliary
+                                                     // browsing contexts.
+                                                     // 2.5.1.6.4. Set
+                                                     // windowData["visibilityState"]
+                                                     // to
+                                                     //            browsingContext’s
+                                                     //            active
+                                                     //            document's
+                                                     //            visibilityState
+                                                     //            attribute
+                                                     //            value.
+                                                     // 2.5.1.6.5. Set
+                                                     // windowData["focusState"]
+                                                     // to the
+                                                     //            result of
+                                                     //            running the
+                                                     //            has focus
+                                                     //            steps with
+                                                     //            browsingContext’s
+                                                     //            active
+                                                     //            document as
+                                                     //            the argument.
 
-                           // 2.5.1.6.6. If client is a window client, then set
-                           //            windowData["ancestorOriginsList"] to
-                           //            browsingContext’s active document's
-                           //            relevant global object's Location
-                           //            object’s ancestor origins list's
-                           //            associated list.
-                           // Cobalt does not implement
-                           // Location.ancestorOrigins.
-                         },
-                         &window_data));
+                                                     // 2.5.1.6.6. If client is
+                                                     // a window client, then
+                                                     // set
+                                                     //            windowData["ancestorOriginsList"]
+                                                     //            to
+                                                     //            browsingContext’s
+                                                     //            active
+                                                     //            document's
+                                                     //            relevant
+                                                     //            global
+                                                     //            object's
+                                                     //            Location
+                                                     //            object’s
+                                                     //            ancestor
+                                                     //            origins
+                                                     //            list's
+                                                     //            associated
+                                                     //            list.
+                                                     // Cobalt does not
+                                                     // implement
+                                                     // Location.ancestorOrigins.
+                                                   },
+                                                   &window_data));
 
       // 2.5.1.7. Wait for task to have executed.
       // The task above is posted as a blocking task.
@@ -1412,7 +1467,7 @@ void ServiceWorkerContext::ClientsMatchAllSubSteps(
   // 2.6. Queue a task to run the following steps on promise’s relevant
   // settings object's responsible event loop using the DOM manipulation
   // task source:
-  worker_context->message_loop()->task_runner()->PostTask(
+  worker_context->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(
           [](std::unique_ptr<script::ValuePromiseSequenceWrappable::Reference>
@@ -1479,7 +1534,7 @@ void ServiceWorkerContext::ClaimSubSteps(
     ServiceWorkerObject* associated_service_worker,
     std::unique_ptr<script::ValuePromiseVoid::Reference> promise_reference) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerContext::ClaimSubSteps()");
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(task_runner(), base::SequencedTaskRunner::GetCurrentDefault());
 
   // Check if the client web context is still active. This may trigger if
   // Clients.claim() was called and service worker installation fails.
@@ -1549,7 +1604,7 @@ void ServiceWorkerContext::ClaimSubSteps(
     }
   }
   // 3.2. Resolve promise with undefined.
-  worker_context->message_loop()->task_runner()->PostTask(
+  worker_context->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(
           [](std::unique_ptr<script::ValuePromiseVoid::Reference> promise) {
@@ -1573,7 +1628,7 @@ void ServiceWorkerContext::ServiceWorkerPostMessageSubSteps(
 
   // 6.2 Queue a task on the DOM manipulation task source to run the following
   //     steps:
-  incumbent_client->message_loop()->task_runner()->PostTask(
+  incumbent_client->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(
           [](ServiceWorkerObject* service_worker,
@@ -1593,12 +1648,12 @@ void ServiceWorkerContext::ServiceWorkerPostMessageSubSteps(
                     ? incumbent_global->AsServiceWorker()
                           ->service_worker_object()
                     : nullptr;
-            base::MessageLoop* message_loop =
-                event_target->environment_settings()->context()->message_loop();
-            if (!message_loop) {
+            base::SequencedTaskRunner* task_runner =
+                event_target->environment_settings()->context()->task_runner();
+            if (!task_runner) {
               return;
             }
-            message_loop->task_runner()->PostTask(
+            task_runner->PostTask(
                 FROM_HERE,
                 base::BindOnce(
                     [](const base::TypeId& incumbent_type,
@@ -1661,25 +1716,25 @@ void ServiceWorkerContext::ServiceWorkerPostMessageSubSteps(
 void ServiceWorkerContext::RegisterWebContext(web::Context* context) {
   DCHECK_NE(nullptr, context);
   web_context_registrations_cleared_.Reset();
-  if (base::MessageLoop::current() != message_loop()) {
-    DCHECK(message_loop());
-    message_loop()->task_runner()->PostTask(
+  if (base::SequencedTaskRunner::GetCurrentDefault() != task_runner()) {
+    DCHECK(task_runner());
+    task_runner()->PostTask(
         FROM_HERE, base::BindOnce(&ServiceWorkerContext::RegisterWebContext,
                                   base::Unretained(this), context));
     return;
   }
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(task_runner(), base::SequencedTaskRunner::GetCurrentDefault());
   DCHECK_EQ(0, web_context_registrations_.count(context));
   web_context_registrations_.insert(context);
 }
 
 void ServiceWorkerContext::SetActiveWorker(web::EnvironmentSettings* client) {
   if (!client) return;
-  if (base::MessageLoop::current() != message_loop()) {
-    DCHECK(message_loop());
-    message_loop()->task_runner()->PostTask(
-        FROM_HERE, base::Bind(&ServiceWorkerContext::SetActiveWorker,
-                              base::Unretained(this), client));
+  if (base::SequencedTaskRunner::GetCurrentDefault() != task_runner()) {
+    DCHECK(task_runner());
+    task_runner()->PostTask(FROM_HERE,
+                            base::Bind(&ServiceWorkerContext::SetActiveWorker,
+                                       base::Unretained(this), client));
     return;
   }
   DCHECK(scope_to_registration_map_);
@@ -1696,15 +1751,16 @@ void ServiceWorkerContext::SetActiveWorker(web::EnvironmentSettings* client) {
 
 void ServiceWorkerContext::UnregisterWebContext(web::Context* context) {
   DCHECK_NE(nullptr, context);
-  if (base::MessageLoop::current() != message_loop()) {
+  if (base::SequencedTaskRunner::GetCurrentDefault() != task_runner()) {
     // Block to ensure that the context is unregistered before it is destroyed.
-    DCHECK(message_loop());
-    message_loop()->task_runner()->PostBlockingTask(
-        FROM_HERE, base::Bind(&ServiceWorkerContext::UnregisterWebContext,
-                              base::Unretained(this), context));
+    DCHECK(task_runner());
+    base::task_runner_util::PostBlockingTask(
+        task_runner(), FROM_HERE,
+        base::Bind(&ServiceWorkerContext::UnregisterWebContext,
+                   base::Unretained(this), context));
     return;
   }
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(task_runner(), base::SequencedTaskRunner::GetCurrentDefault());
   DCHECK_EQ(1, web_context_registrations_.count(context));
   web_context_registrations_.erase(context);
   HandleServiceWorkerClientUnload(context);
@@ -1717,7 +1773,7 @@ void ServiceWorkerContext::UnregisterWebContext(web::Context* context) {
 void ServiceWorkerContext::PrepareForClientShutdown(web::Context* client) {
   DCHECK(client);
   if (!client) return;
-  DCHECK(base::MessageLoop::current() == message_loop());
+  DCHECK(base::SequencedTaskRunner::GetCurrentDefault() == task_runner());
   // Note: This could be rewritten to use the decomposition declaration
   // 'const auto& [scope, queue]' after switching to C++17.
   jobs_->PrepareForClientShutdown(client);

@@ -52,10 +52,10 @@ class StandaloneJavascriptRunner {
   // is encountered (CTRL-D).
   bool RunInteractive();
 
-  // Run interactively in a message loop
+  // Run interactively in a task runner
   void RunUntilDone(const base::Closure& quit_closure);
 
-  // Quit, when run in a message loop
+  // Quit, when run in a task runner
   void Quit(const base::Closure& quit_closure);
 
   // Read the file from disk and execute the script. Echos the result to stdout.

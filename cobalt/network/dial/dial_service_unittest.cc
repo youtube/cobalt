@@ -15,7 +15,7 @@
 #include "cobalt/network/dial/dial_service.h"
 
 #include "base/bind.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/test/task_environment.h"
 #include "cobalt/network/dial/dial_test_helpers.h"
 #include "net/server/http_server_request_info.h"

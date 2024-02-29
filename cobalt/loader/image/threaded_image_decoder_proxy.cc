@@ -18,7 +18,9 @@
 #include <string>
 
 #include "base/bind.h"
+#include "base/check.h"
 #include "base/threading/thread.h"
+#include "cobalt/base/task_runner_util.h"
 #include "cobalt/loader/image/image_decoder.h"
 
 namespace cobalt {
@@ -42,10 +44,11 @@ void MaybeRun(
 // checks whether the ThreadedImageDecoderProxy it came from is alive or not
 // before it runs.
 template <typename Callback, typename Arg>
-void PostToMessageLoopChecked(
+void PostToTaskRunnerChecked(
     base::WeakPtr<ThreadedImageDecoderProxy> threaded_image_decoder_proxy,
-    const Callback& callback, base::MessageLoop* message_loop, const Arg& arg) {
-  message_loop->task_runner()->PostTask(
+    const Callback& callback, base::SequencedTaskRunner* task_runner,
+    const Arg& arg) {
+  task_runner->PostTask(
       FROM_HERE, base::Bind(&MaybeRun<Callback, Arg>,
                             threaded_image_decoder_proxy, callback, arg));
 }
@@ -56,38 +59,38 @@ ThreadedImageDecoderProxy::ThreadedImageDecoderProxy(
     render_tree::ResourceProvider* resource_provider,
     const base::DebuggerHooks* debugger_hooks,
     const ImageAvailableCallback& image_available_callback,
-    base::MessageLoop* load_message_loop,
+    base::SequencedTaskRunner* load_task_runner,
     const loader::Decoder::OnCompleteFunction& load_complete_callback)
     : ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           weak_this_(weak_ptr_factory_.GetWeakPtr())),
-      load_message_loop_(load_message_loop),
-      result_message_loop_(base::MessageLoop::current()),
+      load_task_runner_(load_task_runner),
+      result_task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       image_decoder_(new ImageDecoder(
           resource_provider, *debugger_hooks,
-          base::Bind(&PostToMessageLoopChecked<ImageAvailableCallback,
-                                               scoped_refptr<Image>>,
+          base::Bind(&PostToTaskRunnerChecked<ImageAvailableCallback,
+                                              scoped_refptr<Image>>,
                      weak_this_, image_available_callback,
-                     result_message_loop_),
+                     base::Unretained(result_task_runner_)),
           base::Bind(
-              &PostToMessageLoopChecked<loader::Decoder::OnCompleteFunction,
-                                        base::Optional<std::string>>,
-              weak_this_, load_complete_callback, result_message_loop_))) {
-  DCHECK(load_message_loop_);
-  DCHECK(result_message_loop_);
+              &PostToTaskRunnerChecked<loader::Decoder::OnCompleteFunction,
+                                       base::Optional<std::string>>,
+              weak_this_, load_complete_callback,
+              base::Unretained(result_task_runner_)))) {
+  DCHECK(load_task_runner_);
+  DCHECK(result_task_runner_);
   DCHECK(image_decoder_);
 }
 
 // We're dying, but |image_decoder_| might still be doing work on the load
-// thread.  Because of this, we transfer ownership of it into the load message
-// loop, where it will be deleted after any pending tasks involving it are
+// thread.  Because of this, we transfer ownership of it into the load task
+// runner, where it will be deleted after any pending tasks involving it are
 // done.
 ThreadedImageDecoderProxy::~ThreadedImageDecoderProxy() {
   // Notify the ImageDecoder that there's a pending deletion to ensure that no
   // additional work is done decoding the image.
   image_decoder_->SetDeletionPending();
-  load_message_loop_->task_runner()->DeleteSoon(FROM_HERE,
-                                                image_decoder_.release());
+  load_task_runner_->DeleteSoon(FROM_HERE, image_decoder_.release());
 }
 
 LoadResponseType ThreadedImageDecoderProxy::OnResponseStarted(
@@ -97,28 +100,28 @@ LoadResponseType ThreadedImageDecoderProxy::OnResponseStarted(
 
 void ThreadedImageDecoderProxy::DecodeChunk(const char* data, size_t size) {
   std::unique_ptr<std::string> scoped_data(new std::string(data, size));
-  load_message_loop_->task_runner()->PostTask(
-      FROM_HERE, base::Bind(&Decoder::DecodeChunkPassed,
-                            base::Unretained(image_decoder_.get()),
-                            base::Passed(&scoped_data)));
+  load_task_runner_->PostTask(FROM_HERE,
+                              base::Bind(&Decoder::DecodeChunkPassed,
+                                         base::Unretained(image_decoder_.get()),
+                                         base::Passed(&scoped_data)));
 }
 
 void ThreadedImageDecoderProxy::DecodeChunkPassed(
     std::unique_ptr<std::string> data) {
-  load_message_loop_->task_runner()->PostTask(
+  load_task_runner_->PostTask(
       FROM_HERE,
       base::Bind(&Decoder::DecodeChunkPassed,
                  base::Unretained(image_decoder_.get()), base::Passed(&data)));
 }
 
 void ThreadedImageDecoderProxy::Finish() {
-  load_message_loop_->task_runner()->PostTask(
+  load_task_runner_->PostTask(
       FROM_HERE, base::Bind(&ImageDecoder::Finish,
                             base::Unretained(image_decoder_.get())));
 }
 
 bool ThreadedImageDecoderProxy::Suspend() {
-  load_message_loop_->task_runner()->PostTask(
+  load_task_runner_->PostTask(
       FROM_HERE, base::Bind(base::IgnoreResult(&ImageDecoder::Suspend),
                             base::Unretained(image_decoder_.get())));
   return true;
@@ -126,8 +129,8 @@ bool ThreadedImageDecoderProxy::Suspend() {
 
 void ThreadedImageDecoderProxy::Resume(
     render_tree::ResourceProvider* resource_provider) {
-  load_message_loop_->task_runner()->PostBlockingTask(
-      FROM_HERE,
+  base::task_runner_util::PostBlockingTask(
+      load_task_runner_, FROM_HERE,
       base::Bind(&ImageDecoder::Resume, base::Unretained(image_decoder_.get()),
                  resource_provider));
 }

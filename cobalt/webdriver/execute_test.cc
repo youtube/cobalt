@@ -145,10 +145,10 @@ TEST_F(ScriptExecutorTest, FLAKY_ExecuteAsync) {
   EXPECT_TRUE(
       script_executor_->Execute(gc_prevented_params.params, &result_handler));
 
-  // Let the message loop run for 200ms to allow enough time for the async
+  // Let the task runner run for 200ms to allow enough time for the async
   // script to fire the callback.
   base::RunLoop run_loop;
-  base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE, run_loop.QuitClosure(),
       base::TimeDelta::FromMilliseconds(200));
   run_loop.Run();
@@ -170,10 +170,10 @@ TEST_F(ScriptExecutorTest, AsyncTimeout) {
   EXPECT_TRUE(
       script_executor_->Execute(gc_prevented_params.params, &result_handler));
 
-  // Let the message loop run for 200ms to allow enough time for the async
+  // Let the task runner run for 200ms to allow enough time for the async
   // timeout to fire.
   base::RunLoop run_loop;
-  base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE, run_loop.QuitClosure(),
       base::TimeDelta::FromMilliseconds(200));
   run_loop.Run();

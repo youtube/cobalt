@@ -18,7 +18,6 @@
 #include <sstream>
 #include <string>
 
-#include "base/message_loop/message_loop.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/document_type.h"
 #include "cobalt/dom/element.h"
@@ -42,7 +41,6 @@ class SerializerTest : public ::testing::Test {
   scoped_refptr<Document> document_;
   scoped_refptr<Element> root_;
   base::SourceLocation source_location_;
-  base::MessageLoop message_loop_;
 };
 
 SerializerTest::SerializerTest()

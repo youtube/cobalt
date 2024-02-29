@@ -142,7 +142,7 @@ void DebugHub::TraceMembers(script::Tracer* tracer) {
 void DebugHub::OnCommandResponse(
     const scoped_refptr<ResponseCallbackInfo>& callback_info,
     const base::Optional<std::string>& response) const {
-  // Run the script callback on the message loop the command was sent from.
+  // Run the script callback on the task runner the command was sent from.
   callback_info->task_runner->PostTask(
       FROM_HERE, base::Bind(&DebugHub::RunResponseCallback, this, callback_info,
                             response));
@@ -151,7 +151,7 @@ void DebugHub::OnCommandResponse(
 void DebugHub::OnDebugClientEvent(const std::string& method,
                                   const std::string& params) {
   // Pass to the onEvent handler. The handler will notify the JavaScript
-  // listener on the message loop the listener was registered on.
+  // listener on the task runner the listener was registered on.
   on_event_->DispatchEvent(method, params);
 }
 
@@ -166,7 +166,8 @@ void DebugHub::OnDebugClientDetach(const std::string& reason) {
 void DebugHub::RunResponseCallback(
     const scoped_refptr<ResponseCallbackInfo>& callback_info,
     base::Optional<std::string> response) const {
-  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), callback_info->task_runner);
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(),
+            callback_info->task_runner);
   callback_info->callback.value().Run(std::move(response));
 }
 

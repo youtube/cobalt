@@ -39,28 +39,28 @@ namespace layout_tests {
 
 namespace {
 void Quit(base::RunLoop* run_loop) {
-  base::ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE,
-                                                run_loop->QuitClosure());
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop->QuitClosure());
 }
 
 // Called when layout completes and results have been produced.  We use this
-// signal to stop the WebModule's message loop since our work is done after a
+// signal to stop the WebModule's task runner since our work is done after a
 // layout has been performed.
 void WebModuleOnRenderTreeProducedCallback(
     base::Optional<browser::WebModule::LayoutResults>* out_results,
-    base::RunLoop* run_loop, base::MessageLoop* message_loop,
+    base::RunLoop* run_loop, base::SequencedTaskRunner* task_runner,
     const browser::WebModule::LayoutResults& results) {
   out_results->emplace(results.render_tree, results.layout_time);
-  message_loop->task_runner()->PostTask(FROM_HERE, base::Bind(Quit, run_loop));
+  task_runner->PostTask(FROM_HERE, base::Bind(Quit, run_loop));
 }
 
-// This callback, when called, quits a message loop, outputs the error message
+// This callback, when called, quits a task runner, outputs the error message
 // and sets the success flag to false.
 void WebModuleErrorCallback(base::RunLoop* run_loop,
-                            base::MessageLoop* message_loop, const GURL& url,
-                            const std::string& error) {
+                            base::SequencedTaskRunner* task_runner,
+                            const GURL& url, const std::string& error) {
   LOG(FATAL) << "Error loading document: " << error << ". URL: " << url;
-  message_loop->task_runner()->PostTask(FROM_HERE, base::Bind(Quit, run_loop));
+  task_runner->PostTask(FROM_HERE, base::Bind(Quit, run_loop));
 }
 }  // namespace
 
@@ -106,9 +106,9 @@ browser::WebModule::LayoutResults SnapshotURL(
   web_module.Run(
       url, base::kApplicationStateStarted, nullptr /* scroll_engine */,
       base::Bind(&WebModuleOnRenderTreeProducedCallback, &results, &run_loop,
-                 base::MessageLoop::current()),
+                 base::SequencedTaskRunner::GetCurrentDefault()),
       base::Bind(&WebModuleErrorCallback, &run_loop,
-                 base::MessageLoop::current()),
+                 base::SequencedTaskRunner::GetCurrentDefault()),
       browser::WebModule::CloseCallback() /* window_close_callback */,
       base::Closure() /* window_minimize_callback */,
       NULL /* can_play_type_handler */, NULL /* web_media_player_factory */,

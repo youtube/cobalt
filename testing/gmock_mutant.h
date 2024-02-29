@@ -26,7 +26,7 @@
 //   }
 //
 //   void QuitMessageLoop(int seconds) {
-//     base::MessageLoop* loop = base::MessageLoop::current();
+//     base::MessageLoop* loop = base::SequencedTaskRunner::GetCurrentDefault();
 //     loop->PostDelayedTask(FROM_HERE,
 //                           base::MessageLoop::QuitWhenIdleClosure(),
 //                           1000 * seconds);

@@ -22,7 +22,7 @@ namespace media_session {
 
 MediaSession::MediaSession()
     : playback_state_(kMediaSessionPlaybackStateNone),
-      task_runner_(base::ThreadTaskRunnerHandle::Get()),
+      task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       is_change_task_queued_(false),
       last_position_updated_time_(0) {}
 
@@ -41,7 +41,7 @@ MediaSession::~MediaSession() {
 MediaSession::MediaSession(MediaSessionClient* client)
     : media_session_client_(client),
       playback_state_(kMediaSessionPlaybackStateNone),
-      task_runner_(base::ThreadTaskRunnerHandle::Get()),
+      task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       is_change_task_queued_(false),
       last_position_updated_time_(0) {}
 
@@ -59,7 +59,7 @@ void MediaSession::set_playback_state(
 void MediaSession::SetActionHandler(
     MediaSessionAction action, const MediaSessionActionHandlerHolder& handler) {
   // See algorithm https://wicg.github.io/mediasession/#actions-model
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   ActionMap::iterator it = action_map_.find(action);
 
   if (it != action_map_.end()) {
@@ -84,7 +84,7 @@ void MediaSession::TraceMembers(script::Tracer* tracer) {
 }
 
 bool MediaSession::IsChangeTaskQueuedForTesting() const {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   return is_change_task_queued_;
 }
 
@@ -97,7 +97,7 @@ void MediaSession::EnsureMediaSessionClient() {
 }
 
 void MediaSession::MaybeQueueChangeTask(base::TimeDelta delay) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   if (is_change_task_queued_) {
     return;
   }

@@ -16,8 +16,10 @@
 #define COBALT_NETWORK_URL_REQUEST_CONTEXT_GETTER_H_
 
 #include "base/macros.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread.h"
 #include "net/url_request/url_request_context_getter.h"
+
 namespace cobalt {
 namespace network {
 

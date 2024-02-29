@@ -94,7 +94,7 @@ bool JSONFileOutputter::Output(base::trace_event::TraceLog* trace_log) {
   // will call OutputTraceData(), possibly multiple times.  We have to do this
   // on a thread as there will be task posted to the current thread for data
   // writing.
-  thread.message_loop()->task_runner()->PostTask(
+  thread.task_runner()->PostTask(
       FROM_HERE,
       base::BindRepeating(&base::trace_event::TraceLog::Flush,
                           base::Unretained(trace_log), output_callback, false));
