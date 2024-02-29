@@ -13,16 +13,3 @@
 // limitations under the License.
 
 #include <sys/stat.h>
-
-extern "C" {
-
-bool S_ISDIR(mode_t mode) {
-  return ((mode)&_S_IFMT) == (_S_IFDIR);
-}
-
-// Windows doesn't support symbolic links
-bool S_ISLNK(mode_t mode) {
-  return false;
-}
-
-}  // extern "C"

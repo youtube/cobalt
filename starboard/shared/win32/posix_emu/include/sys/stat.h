@@ -20,11 +20,8 @@
 extern "C" {
 #endif
 
-typedef unsigned int mode_t;
-
-bool S_ISDIR(mode_t mode);
-
-bool S_ISLNK(mode_t mode);
+#define S_ISLNK(mode) 0 //Windows doesn't support symbolic links
+#define S_ISDIR(mode) (((mode) & _S_IFMT) == (_S_IFDIR))
 
 #ifdef __cplusplus
 }
