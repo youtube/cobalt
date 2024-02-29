@@ -973,6 +973,8 @@ component("base") {
       "message_loop/message_pump_ui_starboard.cc",
       "message_loop/message_pump_ui_starboard.h",
       "process/launch_starboard.cc",
+      "process/launch.cc",
+      "process/launch.h",
       "process/memory_starboard.cc",
       "process/process_starboard.cc",
       "profiler/module_cache_starboard.cc",
@@ -1771,14 +1773,7 @@ component("base") {
       ]
     }
 
-    if (!use_blink && use_cobalt_customizations) {
-      sources += [
-        "process/launch.cc",
-        "process/launch.h",
-      ]
-    }
-
-    if (!use_cobalt_customizations && (is_linux || is_chromeos)) {
+    if (is_linux || is_chromeos) {
       sources += [
         "base_paths_posix.cc",
         "debug/elf_reader.cc",
@@ -3309,7 +3304,7 @@ test("base_unittests") {
     "metrics/crc32_unittest.cc",
     "metrics/field_trial_params_unittest.cc",
 
-    # "metrics/field_trial_unittest.cc",
+    "metrics/field_trial_unittest.cc",
     "metrics/histogram_base_unittest.cc",
     "metrics/histogram_delta_serialization_unittest.cc",
     "metrics/histogram_functions_unittest.cc",
