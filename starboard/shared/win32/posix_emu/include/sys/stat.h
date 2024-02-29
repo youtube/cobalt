@@ -14,6 +14,8 @@
 #ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_STAT_H_
 #define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_STAT_H_
 
+#include <../ucrt/sys/stat.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
