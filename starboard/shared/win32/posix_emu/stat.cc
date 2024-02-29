@@ -16,8 +16,6 @@
 
 extern "C" {
 
-typedef unsigned int mode_t;
-
 bool S_ISDIR(mode_t mode) {
   return ((mode)&_S_IFMT) == (_S_IFDIR);
 }
