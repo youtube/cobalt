@@ -30,7 +30,7 @@ int stat(const char *path, struct stat *file_info)
 
     file_info -> st_mode = (unsigned int) 0;
     if (out_info.is_directory){
-        file_info->st_mode = (unsigned int) 16877;
+        file_info->st_mode = (unsigned int) 16384;
     } else if (out_info.is_symbolic_link){
         file_info->st_mode = (unsigned int) 40960;
     }
