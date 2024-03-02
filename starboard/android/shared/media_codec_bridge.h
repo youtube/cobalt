@@ -147,7 +147,8 @@ class MediaCodecBridge {
   static scoped_ptr<MediaCodecBridge> CreateAudioMediaCodecBridge(
       const AudioStreamInfo& audio_stream_info,
       Handler* handler,
-      jobject j_media_crypto);
+      jobject j_media_crypto,
+      bool use_callback_thread);
 
   // `max_width` and `max_height` can be set to positive values to specify the
   // maximum resolutions the video can be adapted to.
@@ -174,6 +175,7 @@ class MediaCodecBridge {
       int tunnel_mode_audio_session_id,
       bool force_big_endian_hdr_metadata,
       int max_video_input_size,
+      bool use_callback_thread,
       std::string* error_message);
 
   ~MediaCodecBridge();
