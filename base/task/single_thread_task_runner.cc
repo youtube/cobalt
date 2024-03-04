@@ -20,12 +20,31 @@ namespace base {
 
 namespace {
 
+#if defined(STARBOARD)
+ABSL_CONST_INIT SbOnceControl s_once_flag = SB_ONCE_INITIALIZER;
+ABSL_CONST_INIT SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+
+void InitThreadLocalKey() {
+  s_thread_local_key = SbThreadCreateLocalKey(NULL);
+  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+}
+
+void EnsureThreadLocalKeyInited() {
+  SbOnce(&s_once_flag, InitThreadLocalKey);
+  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+}
+#else
 ABSL_CONST_INIT thread_local SingleThreadTaskRunner::CurrentDefaultHandle*
     current_default_handle = nullptr;
+#endif
 
 // This function can be removed, and the calls below replaced with direct
 // variable accesses, once the MSAN workaround is not necessary.
 SingleThreadTaskRunner::CurrentDefaultHandle* GetCurrentDefaultHandle() {
+#if defined(STARBOARD)
+  return static_cast<SingleThreadTaskRunner::CurrentDefaultHandle*>(
+      SbThreadGetLocalValue(s_thread_local_key));
+#else
   // Workaround false-positive MSAN use-of-uninitialized-value on
   // thread_local storage for loaded libraries:
   // https://github.com/google/sanitizers/issues/1265
@@ -33,6 +52,7 @@ SingleThreadTaskRunner::CurrentDefaultHandle* GetCurrentDefaultHandle() {
                 sizeof(SingleThreadTaskRunner::CurrentDefaultHandle*));
 
   return current_default_handle;
+#endif
 }
 
 }  // namespace
@@ -61,15 +81,26 @@ bool SingleThreadTaskRunner::HasCurrentDefault() {
 
 SingleThreadTaskRunner::CurrentDefaultHandle::CurrentDefaultHandle(
     scoped_refptr<SingleThreadTaskRunner> task_runner)
+#if defined(STARBOARD)
+    :
+#else
     : resetter_(&current_default_handle, this, nullptr),
+#endif
       task_runner_(std::move(task_runner)),
       sequenced_task_runner_current_default_(task_runner_) {
+#if defined(STARBOARD)
+  EnsureThreadLocalKeyInited();
+  SbThreadSetLocalValue(s_thread_local_key, this);
+#endif
   DCHECK(task_runner_->BelongsToCurrentThread());
 }
 
 SingleThreadTaskRunner::CurrentDefaultHandle::~CurrentDefaultHandle() {
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK_EQ(GetCurrentDefaultHandle(), this);
+#if defined(STARBOARD)
+  SbThreadSetLocalValue(s_thread_local_key, nullptr);
+#endif
 }
 
 SingleThreadTaskRunner::CurrentHandleOverride::CurrentHandleOverride(

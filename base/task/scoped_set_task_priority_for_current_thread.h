@@ -26,8 +26,10 @@ class BASE_EXPORT
 
   ~ScopedSetTaskPriorityForCurrentThread();
 
+#if !defined(STARBOARD)
  private:
   const AutoReset<TaskPriority> resetter_;
+#endif
 };
 
 // Returns the priority of the task running on the current thread,

@@ -15,13 +15,40 @@
 #include "base/trace_event/heap_profiler_allocation_context_tracker.h"  // no-presubmit-check
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
+#if defined(STARBOARD)
+#include "base/check_op.h"
+#include "starboard/once.h"
+#include "starboard/thread.h"
+#endif
+
 namespace base {
 namespace {
 
 static const char kDefaultName[] = "";
 static std::string* g_default_name;
 
+#if defined(STARBOARD)
+ABSL_CONST_INIT SbOnceControl s_once_flag = SB_ONCE_INITIALIZER;
+ABSL_CONST_INIT SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+
+void InitThreadLocalKey() {
+  s_thread_local_key = SbThreadCreateLocalKey(NULL);
+  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+}
+
+void EnsureThreadLocalKeyInited() {
+  SbOnce(&s_once_flag, InitThreadLocalKey);
+  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+}
+
+const char* GetThreadName() {
+  const char* thread_name = static_cast<const char*>(
+      SbThreadGetLocalValue(s_thread_local_key));
+  return !!thread_name ? thread_name : kDefaultName;
+}
+#else
 ABSL_CONST_INIT thread_local const char* thread_name = kDefaultName;
+#endif
 }
 
 ThreadIdNameManager::Observer::~Observer() = default;
@@ -80,7 +107,12 @@ void ThreadIdNameManager::SetName(const std::string& name) {
 
     auto id_to_handle_iter = thread_id_to_handle_.find(id);
 
+#if defined(STARBOARD)
+    EnsureThreadLocalKeyInited();
+    SbThreadSetLocalValue(s_thread_local_key, const_cast<char*>(leaked_str->c_str()));
+#else
     thread_name = leaked_str->c_str();
+#endif
     for (Observer* obs : observers_)
       obs->OnThreadNameChanged(leaked_str->c_str());
 
@@ -119,7 +151,11 @@ const char* ThreadIdNameManager::GetName(PlatformThreadId id) {
 }
 
 const char* ThreadIdNameManager::GetNameForCurrentThread() {
+#if defined(STARBOARD)
+  return GetThreadName();
+#else
   return thread_name;
+#endif
 }
 
 void ThreadIdNameManager::RemoveName(PlatformThreadHandle::Handle handle,

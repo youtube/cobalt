@@ -22,28 +22,69 @@
 #include "build/build_config.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
+#if defined(STARBOARD)
+#include "starboard/once.h"
+#include "starboard/thread.h"
+#endif
+
 namespace base {
 namespace internal {
 
 namespace {
 
+#if defined(STARBOARD)
+ABSL_CONST_INIT SbOnceControl s_once_observer_flag = SB_ONCE_INITIALIZER;
+ABSL_CONST_INIT SbThreadLocalKey s_thread_local_observer_key = kSbThreadLocalKeyInvalid;
+ABSL_CONST_INIT SbOnceControl s_once_call_flag = SB_ONCE_INITIALIZER;
+ABSL_CONST_INIT SbThreadLocalKey s_thread_local_call_key = kSbThreadLocalKeyInvalid;
+
+void InitThreadLocalObserverKey() {
+  s_thread_local_observer_key = SbThreadCreateLocalKey(NULL);
+  DCHECK(SbThreadIsValidLocalKey(s_thread_local_observer_key));
+}
+
+void InitThreadLocalCallKey() {
+  s_thread_local_call_key = SbThreadCreateLocalKey(NULL);
+  DCHECK(SbThreadIsValidLocalKey(s_thread_local_call_key));
+}
+
+void EnsureThreadLocalObserverKeyInited() {
+  SbOnce(&s_once_observer_flag, InitThreadLocalObserverKey);
+  DCHECK(SbThreadIsValidLocalKey(s_thread_local_observer_key));
+}
+
+void EnsureThreadLocalCallKeyInited() {
+  SbOnce(&s_once_call_flag, InitThreadLocalCallKey);
+  DCHECK(SbThreadIsValidLocalKey(s_thread_local_call_key));
+}
+#else
 ABSL_CONST_INIT thread_local BlockingObserver* blocking_observer = nullptr;
 
 // Last ScopedBlockingCall instantiated on this thread.
 ABSL_CONST_INIT thread_local UncheckedScopedBlockingCall*
     last_scoped_blocking_call = nullptr;
+#endif
 
 // These functions can be removed, and the calls below replaced with direct
 // variable accesses, once the MSAN workaround is not necessary.
 BlockingObserver* GetBlockingObserver() {
+#if defined(STARBOARD)
+  return static_cast<BlockingObserver*>(
+      SbThreadGetLocalValue(s_thread_local_observer_key));
+#else
   // Workaround false-positive MSAN use-of-uninitialized-value on
   // thread_local storage for loaded libraries:
   // https://github.com/google/sanitizers/issues/1265
   MSAN_UNPOISON(&blocking_observer, sizeof(BlockingObserver*));
 
   return blocking_observer;
+#endif
 }
 UncheckedScopedBlockingCall* GetLastScopedBlockingCall() {
+#if defined(STARBOARD)
+  return static_cast<UncheckedScopedBlockingCall*>(
+      SbThreadGetLocalValue(s_thread_local_call_key));
+#else
   // Workaround false-positive MSAN use-of-uninitialized-value on
   // thread_local storage for loaded libraries:
   // https://github.com/google/sanitizers/issues/1265
@@ -51,6 +92,7 @@ UncheckedScopedBlockingCall* GetLastScopedBlockingCall() {
                 sizeof(UncheckedScopedBlockingCall*));
 
   return last_scoped_blocking_call;
+#endif
 }
 
 // Set to true by scoped_blocking_call_unittest to ensure unrelated threads
@@ -67,11 +109,21 @@ bool IsBackgroundPriorityWorker() {
 void SetBlockingObserverForCurrentThread(
     BlockingObserver* new_blocking_observer) {
   DCHECK(!GetBlockingObserver());
+#if defined(STARBOARD)
+  EnsureThreadLocalObserverKeyInited();
+  SbThreadSetLocalValue(s_thread_local_observer_key, new_blocking_observer);
+#else
   blocking_observer = new_blocking_observer;
+#endif
 }
 
 void ClearBlockingObserverForCurrentThread() {
+#if defined(STARBOARD)
+  EnsureThreadLocalObserverKeyInited();
+  SbThreadSetLocalValue(s_thread_local_observer_key, nullptr);
+#else
   blocking_observer = nullptr;
+#endif
 }
 
 IOJankMonitoringWindow::ScopedMonitoredCall::ScopedMonitoredCall()
@@ -320,10 +372,17 @@ UncheckedScopedBlockingCall::UncheckedScopedBlockingCall(
     BlockingCallType blocking_call_type)
     : blocking_observer_(GetBlockingObserver()),
       previous_scoped_blocking_call_(GetLastScopedBlockingCall()),
+#if !defined(STARBOARD)
       resetter_(&last_scoped_blocking_call, this),
+#endif
       is_will_block_(blocking_type == BlockingType::WILL_BLOCK ||
                      (previous_scoped_blocking_call_ &&
                       previous_scoped_blocking_call_->is_will_block_)) {
+#if defined(STARBOARD)
+  EnsureThreadLocalCallKeyInited();
+  SbThreadSetLocalValue(s_thread_local_call_key, this);
+#endif
+
   // Only monitor non-nested ScopedBlockingCall(MAY_BLOCK) calls on foreground
   // threads. Cancels() any pending monitored call when a WILL_BLOCK or
   // ScopedBlockingCallWithBaseSyncPrimitives nests into a
@@ -357,6 +416,10 @@ UncheckedScopedBlockingCall::~UncheckedScopedBlockingCall() {
   DCHECK_EQ(this, GetLastScopedBlockingCall());
   if (blocking_observer_ && !previous_scoped_blocking_call_)
     blocking_observer_->BlockingEnded();
+
+#if defined(STARBOARD)
+  SbThreadSetLocalValue(s_thread_local_call_key, nullptr);
+#endif
 }
 
 }  // namespace internal

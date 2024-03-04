@@ -42,6 +42,10 @@ class BASE_EXPORT SequenceToken {
   // if any.
   static SequenceToken GetForCurrentThread();
 
+#if defined(STARBOARD)
+  int GetToken() const { return token_; }
+#endif
+
  private:
   explicit SequenceToken(int token) : token_(token) {}
 
@@ -78,6 +82,10 @@ class BASE_EXPORT TaskToken {
   // invalid TaskToken.
   static TaskToken GetForCurrentThread();
 
+#if defined(STARBOARD)
+  int GetToken() { return token_; }
+#endif
+
  private:
   friend class ScopedSetSequenceTokenForCurrentThread;
 
@@ -109,9 +117,11 @@ class BASE_EXPORT
       const ScopedSetSequenceTokenForCurrentThread&) = delete;
   ~ScopedSetSequenceTokenForCurrentThread();
 
+#if !defined(STARBOARD)
  private:
   const AutoReset<SequenceToken> sequence_token_resetter_;
   const AutoReset<TaskToken> task_token_resetter_;
+#endif
 };
 
 }  // namespace base

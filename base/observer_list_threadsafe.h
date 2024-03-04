@@ -25,6 +25,10 @@
 #include "build/build_config.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
+#if defined(STARBOARD)
+#include "starboard/thread.h"
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////
 //
 // OVERVIEW:
@@ -87,6 +91,11 @@ class BASE_EXPORT ObserverListThreadSafeBase
   };
 
   static const NotificationDataBase*& GetCurrentNotification();
+
+#if defined(STARBOARD)
+  static void EnsureThreadLocalKeyInited();
+  static const SbThreadLocalKey GetThreadLocalKey();
+#endif
 
   virtual ~ObserverListThreadSafeBase() = default;
 
@@ -255,11 +264,20 @@ class ObserverListThreadSafe : public internal::ObserverListThreadSafeBase {
     // Note: GetCurrentNotification() may not return null if this runs in a
     // nested loop started by a notification callback. In that case, it is
     // important to save the previous value to restore it later.
+#if defined(STARBOARD)
+    EnsureThreadLocalKeyInited();
+    SbThreadSetLocalValue(GetThreadLocalKey(), const_cast<NotificationData*>(&notification));
+#else
     const AutoReset<const NotificationDataBase*> resetter_(
         &GetCurrentNotification(), &notification);
+#endif
 
     // Invoke the callback.
     notification.method.Run(observer);
+
+#if defined(STARBOARD)
+    SbThreadSetLocalValue(GetThreadLocalKey(), nullptr);
+#endif
   }
 
   const ObserverListPolicy policy_ = ObserverListPolicy::ALL;
