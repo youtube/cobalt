@@ -28,11 +28,11 @@ int stat(const char *path, struct stat *file_info)
         return -1;
     }
 
-    file_info -> st_mode = (unsigned int) 0;
+    file_info -> st_mode = 0;
     if (out_info.is_directory){
-        file_info->st_mode = (unsigned int) 16384;
+        file_info->st_mode = S_IFDIR;
     } else if (out_info.is_symbolic_link){
-        file_info->st_mode = (unsigned int) 40960;
+        file_info->st_mode = S_IFLNK;
     }
 
     file_info->st_ctime = WindowsUsecToTimeT(out_info.creation_time);
