@@ -12,18 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/media/media_module.h"
+#if SB_API_VERSION >= 16
+
+// close is partially tested in posix_file_open_test.cc.
+
+#include <unistd.h>
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace cobalt {
-namespace media {
+namespace starboard {
+namespace nplb {
+namespace {
 
-TEST(MediaModuleTest, SetConfiguration) {
-  MediaModule mediaModule(nullptr, nullptr);
-
-  EXPECT_EQ(mediaModule.SetConfiguration("BackgroundPlaybackEnabled", 1), true);
-  EXPECT_EQ(mediaModule.SetConfiguration("BackgroundPlaybackEnabled", 0), true);
+TEST(PosixFileCloseTest, CloseInvalidFails) {
+  int fd = -1;
+  EXPECT_FALSE(close(fd) == 0);
 }
-}  // namespace media
-}  // namespace cobalt
+
+}  // namespace
+}  // namespace nplb
+}  // namespace starboard
+
+#endif  // SB_API_VERSION >= 16

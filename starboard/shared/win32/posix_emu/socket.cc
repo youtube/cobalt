@@ -13,6 +13,7 @@
 // limitations under the License.
 
 // We specifically do not include <sys/socket.h> since the define causes a loop
+
 #include <fcntl.h>
 #include <io.h>      // Needed for file-specific `_close`.
 #include <unistd.h>  // Our version that declares generic `close`.
@@ -31,18 +32,24 @@ static int gen_fd() {
   return fd;
 }
 
+struct FileOrSocket {
+  bool is_file;
+  int file;
+  SOCKET socket;
+};
+
 struct CriticalSection {
   CriticalSection() { InitializeCriticalSection(&critical_section_); }
   CRITICAL_SECTION critical_section_;
 };
 
-static std::map<int, SOCKET>* g_map_addr = nullptr;
+static std::map<int, FileOrSocket>* g_map_addr = nullptr;
 static CriticalSection g_critical_section;
 
-static int handle_db_put(SOCKET socket_handle) {
+int handle_db_put(FileOrSocket handle) {
   EnterCriticalSection(&g_critical_section.critical_section_);
   if (g_map_addr == nullptr) {
-    g_map_addr = new std::map<int, SOCKET>();
+    g_map_addr = new std::map<int, FileOrSocket>();
   }
 
   int fd = gen_fd();
@@ -51,33 +58,34 @@ static int handle_db_put(SOCKET socket_handle) {
   while (g_map_addr->find(fd) != g_map_addr->end()) {
     fd = gen_fd();
   }
+  g_map_addr->insert({fd, handle});
 
-  g_map_addr->insert({fd, socket_handle});
   LeaveCriticalSection(&g_critical_section.critical_section_);
   return fd;
 }
 
-static SOCKET handle_db_get(int fd, bool erase) {
+static FileOrSocket handle_db_get(int fd, bool erase) {
+  FileOrSocket invalid_handle = {/*is_file=*/false, -1, INVALID_SOCKET};
   if (fd < 0) {
-    return INVALID_SOCKET;
+    return invalid_handle;
   }
   EnterCriticalSection(&g_critical_section.critical_section_);
   if (g_map_addr == nullptr) {
-    g_map_addr = new std::map<int, SOCKET>();
-    return INVALID_SOCKET;
+    g_map_addr = new std::map<int, FileOrSocket>();
+    return invalid_handle;
   }
 
   auto itr = g_map_addr->find(fd);
   if (itr == g_map_addr->end()) {
-    return INVALID_SOCKET;
+    return invalid_handle;
   }
 
-  SOCKET socket_handle = itr->second;
+  FileOrSocket handle = itr->second;
   if (erase) {
     g_map_addr->erase(fd);
   }
   LeaveCriticalSection(&g_critical_section.critical_section_);
-  return socket_handle;
+  return handle;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -96,24 +104,48 @@ int sb_socket(int domain, int type, int protocol) {
     return -1;
   }
 
-  return handle_db_put(socket_handle);
+  FileOrSocket handle = {/*is_file=*/false, -1, socket_handle};
+
+  return handle_db_put(handle);
+}
+
+int open(const char* path, int oflag, ...) {
+  va_list args;
+  va_start(args, oflag);
+  int fd;
+  mode_t mode;
+  if (oflag & O_CREAT) {
+    mode = va_arg(args, mode_t);
+    fd = _open(path, oflag, mode & MS_MODE_MASK);
+  } else {
+    fd = _open(path, oflag);
+  }
+  va_end(args);
+
+  if (fd < 0) {
+    return fd;
+  }
+
+  FileOrSocket handle = {/*is_file=*/true, fd, INVALID_SOCKET};
+  return handle_db_put(handle);
 }
 
 int close(int fd) {
-  SOCKET socket_handle = handle_db_get(fd, true);
+  FileOrSocket handle = handle_db_get(fd, true);
 
-  if (socket_handle != INVALID_SOCKET) {
-    int result = closesocket(socket_handle);
-    errno = WSAGetLastError();
-    return result;
+  if (!handle.is_file && handle.socket == INVALID_SOCKET) {
+    // TODO: update errno with file operation error
+    return -1;
+  } else if (!handle.is_file) {
+    return closesocket(handle.socket);
   }
 
   // This is then a file handle, so use Windows `_close` API.
-  return _close(fd);
+  return _close(handle.file);
 }
 
 int sb_bind(int socket, const struct sockaddr* address, socklen_t address_len) {
-  SOCKET socket_handle = handle_db_get(socket, false);
+  SOCKET socket_handle = handle_db_get(socket, false).socket;
   if (socket_handle == INVALID_SOCKET) {
     // TODO: update errno with file operation error
     return -1;
@@ -125,7 +157,7 @@ int sb_bind(int socket, const struct sockaddr* address, socklen_t address_len) {
 }
 
 int sb_listen(int socket, int backlog) {
-  SOCKET socket_handle = handle_db_get(socket, false);
+  SOCKET socket_handle = handle_db_get(socket, false).socket;
   if (socket_handle == INVALID_SOCKET) {
     // TODO: update errno with file operation error
     return -1;
@@ -137,7 +169,7 @@ int sb_listen(int socket, int backlog) {
 }
 
 int sb_accept(int socket, sockaddr* addr, int* addrlen) {
-  SOCKET socket_handle = handle_db_get(socket, false);
+  SOCKET socket_handle = handle_db_get(socket, false).socket;
   if (socket_handle == INVALID_SOCKET) {
     // TODO: update errno with file operation error
     return -1;
@@ -148,13 +180,13 @@ int sb_accept(int socket, sockaddr* addr, int* addrlen) {
     // TODO: update errno with file operation error
     return -1;
   }
-  int result = handle_db_put(accept_handle);
-  errno = WSAGetLastError();
-  return result;
+
+  FileOrSocket handle = {/*is_file=*/false, -1, accept_handle};
+  return handle_db_put(handle);
 }
 
 int sb_connect(int socket, sockaddr* name, int namelen) {
-  SOCKET socket_handle = handle_db_get(socket, false);
+  SOCKET socket_handle = handle_db_get(socket, false).socket;
   if (socket_handle == INVALID_SOCKET) {
     // TODO: update errno with file operation error
     return -1;
@@ -193,14 +225,14 @@ int sb_setsockopt(int socket,
                   int option_name,
                   const void* option_value,
                   int option_len) {
-  SOCKET socket_handle = handle_db_get(socket, false);
+  FileOrSocket handle = handle_db_get(socket, false);
 
-  if (socket_handle == INVALID_SOCKET) {
+  if (handle.is_file || handle.socket == INVALID_SOCKET) {
     return -1;
   }
 
   int result =
-      setsockopt(socket_handle, level, option_name,
+      setsockopt(handle.socket, level, option_name,
                  reinterpret_cast<const char*>(option_value), option_len);
   // TODO(b/321999529): Windows returns SOCKET_ERROR on failure. The specific
   // error code can be retrieved by calling WSAGetLastError(), and Posix returns

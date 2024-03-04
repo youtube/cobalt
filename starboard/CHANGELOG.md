@@ -13,6 +13,10 @@ since the version previous to it.
 The standard API `send`, `recv`, can be used from <sys/socket.h> and
 `fcntl` can be used from <fcntl.h>, to set socket to non-blocking.
 
+### Added standard POSIX file open and close APIs.
+The standard API `open` can be used from `fcntl.h` and `close` can be used from
+<unistd.h>.
+
 ### Added standard POSIX socket bind/listen/connect/accept APIs.
 The standard API `bind`, `listen`, `connect`, `accept` can be used from
 <sys/socket.h> and `getifaddrs`, `freeifaddrs` can be used from <ifaddrs.h>.
