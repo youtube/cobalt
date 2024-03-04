@@ -9,6 +9,10 @@ since the version previous to it.
 
 ## Version 16
 
+### Added standard POSIX socket send/recv APIs.
+The standard API `send`, `recv`, can be used from <sys/socket.h> and
+`fcntl` can be used from <fcntl.h>, to set socket to non-blocking.
+
 ### Added standard POSIX file open and close APIs.
 The standard API `open` can be used from `fcntl.h` and `close` can be used from
 <unistd.h>.

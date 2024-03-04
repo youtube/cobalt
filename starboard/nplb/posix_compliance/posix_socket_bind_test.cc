@@ -27,21 +27,8 @@
 
 namespace starboard {
 namespace nplb {
-namespace {
 
 // Helper functions
-int PosixSocketSetReuseAddress(int socket_fd, bool reuse) {
-  // Set reuse address to true
-  const int on = reuse ? 1 : 0;
-  int return_value =
-      setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
-  if (return_value != 0) {
-    close(socket_fd);
-    return -1;
-  }
-  return 0;
-}
-
 int PosixGetLocalAddressiIPv4(sockaddr* address_ptr) {
   int result = -1;
   struct ifaddrs* ifaddr;
@@ -91,6 +78,8 @@ int PosixGetLocalAddressiIPv6(sockaddr_in6* address_ptr) {
   return result;
 }
 #endif
+
+namespace {
 
 TEST(PosixSocketBindTest, RainyDayNullSocket) {
   int port = GetPortNumberForTests();

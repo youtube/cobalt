@@ -230,6 +230,25 @@ const int kMaxConn = SOMAXCONN;
 const int kMaxConn = 128;
 #endif
 
+int PosixSocketCreateAndConnect(int server_domain,
+                                int client_domain,
+                                int port,
+                                int64_t timeout,
+                                int* listen_socket_fd,
+                                int* server_socket_fd,
+                                int* client_socket_fd);
+#include <netinet/in.h>
+int PosixGetLocalAddressiIPv4(sockaddr* address_ptr);
+#if SB_HAS(IPV6)
+int PosixGetLocalAddressiIPv6(sockaddr_in6* address_ptr);
+#endif  // SB_HAS(IPV6)
+
+#if defined(MSG_NOSIGNAL)
+const int kSendFlags = MSG_NOSIGNAL;
+#else
+const int kSendFlags = 0;
+#endif
+
 }  // namespace nplb
 }  // namespace starboard
 
