@@ -442,10 +442,10 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(socket);
   REGISTER_SYMBOL(snprintf);
   REGISTER_SYMBOL(sprintf);
+  REGISTER_SYMBOL(stat);
   REGISTER_SYMBOL(vfwprintf);
   REGISTER_SYMBOL(vsnprintf);
   REGISTER_SYMBOL(vsscanf);
-  REGISTER_SYMBOL(stat);
 
   // Custom mapped POSIX APIs to compatibility wrappers.
   // These will rely on Starboard-side implementations that properly translate

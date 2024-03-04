@@ -1,4 +1,4 @@
-// Copyright 2015 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -47,11 +47,6 @@ TEST(PosixDirectoryCanOpenTest, FailureMissingStaticContent) {
   stat(missing_dir.c_str(), &file_info);
   EXPECT_FALSE(S_ISDIR(file_info.st_mode));
 }
-
-// TEST(PosixDirectoryCanOpenTest, FailureNull) {
-//   struct stat file_info;
-//   EXPECT_FALSE(stat(NULL, &file_info) == 0);
-// }
 
 TEST(PosixDirectoryCanOpenTest, FailureEmpty) {
   struct stat file_info;

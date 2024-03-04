@@ -35,10 +35,10 @@ bool CheckBadFileExists(const char* installation_path, const char* app_key) {
       starboard::loader_app::GetBadAppKeyFilePath(installation_path, app_key);
   SB_DCHECK(!bad_app_key_file_path.empty());
   struct stat file_info;
-  bool fileexists = stat(bad_app_key_file_path.c_str(), &file_info) == 0;
+  bool file_exists = stat(bad_app_key_file_path.c_str(), &file_info) == 0;
   LOG(INFO) << "bad_app_key_file_path: " << bad_app_key_file_path;
-  LOG(INFO) << "bad_app_key_file_path FileExists: " << fileexists;
-  return !bad_app_key_file_path.empty() && fileexists;
+  LOG(INFO) << "bad_app_key_file_path FileExists: " << file_exists;
+  return !bad_app_key_file_path.empty() && file_exists;
 }
 
 uint64_t ComputeSlotSize(
