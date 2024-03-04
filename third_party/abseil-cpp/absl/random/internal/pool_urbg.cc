@@ -14,6 +14,10 @@
 
 #include "absl/random/internal/pool_urbg.h"
 
+#ifndef ABSL_HAVE_THREAD_LOCAL
+#include <pthread.h>
+#endif
+
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
