@@ -972,9 +972,9 @@ component("base") {
       "message_loop/message_pump_io_starboard.h",
       "message_loop/message_pump_ui_starboard.cc",
       "message_loop/message_pump_ui_starboard.h",
-      "process/launch_starboard.cc",
       "process/launch.cc",
       "process/launch.h",
+      "process/launch_starboard.cc",
       "process/memory_starboard.cc",
       "process/process_starboard.cc",
       "profiler/module_cache_starboard.cc",
@@ -1089,9 +1089,7 @@ component("base") {
   ]
 
   if (is_starboard) {
-    deps -= [
-      "//base/allocator/partition_allocator:raw_ptr",
-    ]
+    deps -= [ "//base/allocator/partition_allocator:raw_ptr" ]
   }
 
   if (is_starboard && current_toolchain != host_toolchain) {
@@ -1144,9 +1142,7 @@ component("base") {
   ]
 
   if (is_starboard) {
-    public_deps -= [
-      "//base/allocator/partition_allocator:buildflags",
-    ]
+    public_deps -= [ "//base/allocator/partition_allocator:buildflags" ]
   }
 
   if (build_rust_base_conversions) {
@@ -2365,9 +2361,9 @@ component("base") {
   }
 
   if (!is_starboard) {
-  if ((is_posix && !is_apple && !is_android) || is_fuchsia) {
-    sources += [ "profiler/stack_sampler_posix.cc" ]
-  }
+    if ((is_posix && !is_apple && !is_android) || is_fuchsia) {
+      sources += [ "profiler/stack_sampler_posix.cc" ]
+    }
   }
 
   if ((is_posix && !is_apple && !is_android && !is_chromeos) || is_fuchsia) {
@@ -3164,7 +3160,6 @@ test("base_unittests") {
     "allocator/dispatcher/testing/tools.h",
     "allocator/dispatcher/tls_unittest.cc",
     "allocator/partition_allocator/pointers/raw_ptr_test_support.h",
-
     "allocator/partition_allocator/pointers/raw_ptr_unittest.cc",
     "allocator/partition_allocator/pointers/raw_ref_unittest.cc",
     "at_exit_unittest.cc",
@@ -3215,17 +3210,13 @@ test("base_unittests") {
     "debug/crash_logging_unittest.cc",
     "debug/debugger_unittest.cc",
     "debug/dump_without_crashing_unittest.cc",
-
     "debug/stack_trace_unittest.cc",
     "debug/task_trace_unittest.cc",
     "environment_unittest.cc",
     "feature_list_unittest.cc",
-
     "files/file_enumerator_unittest.cc",
     "files/file_error_or_unittest.cc",
-
     "files/file_path_unittest.cc",
-
     "files/file_path_watcher_unittest.cc",
     "files/file_proxy_unittest.cc",
     "files/file_unittest.cc",
@@ -3234,8 +3225,7 @@ test("base_unittests") {
     "files/important_file_writer_unittest.cc",
     "files/memory_mapped_file_unittest.cc",
     "files/safe_base_name_unittest.cc",
-
-    # "files/scoped_temp_dir_unittest.cc",
+    "files/scoped_temp_dir_unittest.cc",
     "functional/bind_unittest.cc",
     "functional/callback_helpers_unittest.cc",
     "functional/callback_unittest.cc",
@@ -3254,11 +3244,9 @@ test("base_unittests") {
     "i18n/case_conversion_unittest.cc",
     "i18n/char_iterator_unittest.cc",
     "i18n/character_encoding_unittest.cc",
-
-    # "i18n/file_util_icu_unittest.cc",
+    "i18n/file_util_icu_unittest.cc",
     "i18n/icu_string_conversions_unittest.cc",
-
-    # "i18n/icu_util_unittest.cc",
+    "i18n/icu_util_unittest.cc",
     "i18n/message_formatter_unittest.cc",
     "i18n/number_formatting_unittest.cc",
     "i18n/rtl_unittest.cc",
@@ -3266,9 +3254,8 @@ test("base_unittests") {
     "i18n/string_search_unittest.cc",
     "i18n/time_formatting_unittest.cc",
     "i18n/timezone_unittest.cc",
-
-    # "i18n/transliterator_unittest.cc",
-    # "immediate_crash_unittest.cc",
+    "i18n/transliterator_unittest.cc",
+    "immediate_crash_unittest.cc",
     "json/json_parser_unittest.cc",
     "json/json_reader_unittest.cc",
     "json/json_value_converter_unittest.cc",
@@ -3277,7 +3264,6 @@ test("base_unittests") {
     "json/string_escape_unittest.cc",
     "json/values_util_unittest.cc",
     "lazy_instance_unittest.cc",
-
     "logging_unittest.cc",
     "memory/aligned_memory_unittest.cc",
     "memory/discardable_memory_backing_field_trial_unittest.cc",
@@ -3303,7 +3289,6 @@ test("base_unittests") {
     "metrics/bucket_ranges_unittest.cc",
     "metrics/crc32_unittest.cc",
     "metrics/field_trial_params_unittest.cc",
-
     "metrics/field_trial_unittest.cc",
     "metrics/histogram_base_unittest.cc",
     "metrics/histogram_delta_serialization_unittest.cc",
@@ -3311,9 +3296,8 @@ test("base_unittests") {
     "metrics/histogram_macros_unittest.cc",
     "metrics/histogram_samples_unittest.cc",
     "metrics/histogram_snapshot_manager_unittest.cc",
-
-    # "metrics/histogram_threadsafe_unittest.cc",
-    # "metrics/histogram_unittest.cc",
+    "metrics/histogram_threadsafe_unittest.cc",
+    "metrics/histogram_unittest.cc",
     "metrics/metrics_hashes_unittest.cc",
     "metrics/persistent_histogram_allocator_unittest.cc",
     "metrics/persistent_histogram_storage_unittest.cc",
@@ -3353,7 +3337,6 @@ test("base_unittests") {
     "profiler/stack_sampler_unittest.cc",
     "profiler/stack_sampling_profiler_unittest.cc",
     "rand_util_unittest.cc",
-
     "ranges/algorithm_unittest.cc",
     "ranges/functional_unittest.cc",
     "ranges/ranges_unittest.cc",
@@ -3448,7 +3431,6 @@ test("base_unittests") {
     "task/thread_pool/test_utils.h",
     "task/thread_pool/thread_group_impl_unittest.cc",
     "task/thread_pool/thread_group_unittest.cc",
-
     "task/thread_pool/thread_pool_impl_unittest.cc",
     "task/thread_pool/tracked_ref_unittest.cc",
     "task/thread_pool/worker_thread_set_unittest.cc",
@@ -3561,6 +3543,7 @@ test("base_unittests") {
       # TODO: b/327008491 - Not used by Cobalt, but should be tested to get
       # closer to Chrome.
       "feature_list_unittest.cc",
+      "immediate_crash_unittest.cc",
       "metrics/field_trial_params_unittest.cc",
       "native_library_unittest.cc",
       "test/launcher/test_launcher_unittest.cc",
