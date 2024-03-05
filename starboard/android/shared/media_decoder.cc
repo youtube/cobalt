@@ -160,6 +160,9 @@ MediaDecoder::~MediaDecoder() {
   }
 
   if (is_valid()) {
+    // Clear the native media codec bridge handle in java layer to prevent
+    // calling mediacodec callbacks with an invalid handle.
+    media_codec_bridge_->Stop();
     host_->OnFlushing();
     // After |decoder_thread_| is ended and before |media_codec_bridge_| is
     // flushed, OnMediaCodecOutputBufferAvailable() would still be called.

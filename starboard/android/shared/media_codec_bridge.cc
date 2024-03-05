@@ -454,6 +454,10 @@ jint MediaCodecBridge::Flush() {
                                                 "()I");
 }
 
+void MediaCodecBridge::Stop() {
+  JniEnvExt::Get()->CallVoidMethodOrAbort(j_media_codec_bridge_, "stop", "()V");
+}
+
 FrameSize MediaCodecBridge::GetOutputSize() {
   JniEnvExt* env = JniEnvExt::Get();
   env->CallVoidMethodOrAbort(
