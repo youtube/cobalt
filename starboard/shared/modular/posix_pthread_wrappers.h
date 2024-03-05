@@ -19,6 +19,7 @@
 
 #include "starboard/configuration.h"
 #include "starboard/export.h"
+#include "starboard/shared/modular/posix_time_wrappers.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -38,6 +39,18 @@ typedef union musl_pthread_mutexattr_t {
   void* ptr;
 } musl_pthread_mutexattr_t;
 
+#define MUSL_PTHREAD_COND_MAX_SIZE 80
+typedef union musl_pthread_cond_t {
+  uint8_t cond_buffer[MUSL_PTHREAD_COND_MAX_SIZE];
+  void* ptr;
+} musl_pthread_cond_t;
+
+#define MUSL_PTHREAD_COND_ATTR_MAX_SIZE 40
+typedef union musl_pthread_condattr_t {
+  uint8_t cond_attr_buffer[MUSL_PTHREAD_COND_MAX_SIZE];
+  void* ptr;
+} musl_pthread_condattr_t;
+
 SB_EXPORT int __wrap_pthread_mutex_destroy(musl_pthread_mutex_t* mutex);
 SB_EXPORT int __wrap_pthread_mutex_init(
     musl_pthread_mutex_t* mutex,
@@ -45,6 +58,24 @@ SB_EXPORT int __wrap_pthread_mutex_init(
 SB_EXPORT int __wrap_pthread_mutex_lock(musl_pthread_mutex_t* mutex);
 SB_EXPORT int __wrap_pthread_mutex_unlock(musl_pthread_mutex_t* mutex);
 SB_EXPORT int __wrap_pthread_mutex_trylock(musl_pthread_mutex_t* mutex);
+
+SB_EXPORT int __wrap_pthread_cond_broadcast(musl_pthread_cond_t* cond);
+SB_EXPORT int __wrap_pthread_cond_destroy(musl_pthread_cond_t* cond);
+SB_EXPORT int __wrap_pthread_cond_init(musl_pthread_cond_t* cond,
+                                       const musl_pthread_condattr_t* attr);
+SB_EXPORT int __wrap_pthread_cond_signal(musl_pthread_cond_t* cond);
+SB_EXPORT int __wrap_pthread_cond_timedwait(musl_pthread_cond_t* cond,
+                                            musl_pthread_mutex_t* mutex,
+                                            const struct musl_timespec* t);
+SB_EXPORT int __wrap_pthread_cond_wait(musl_pthread_cond_t* cond,
+                                       musl_pthread_mutex_t* mutex);
+SB_EXPORT int __wrap_pthread_condattr_destroy(musl_pthread_condattr_t* attr);
+SB_EXPORT int __wrap_pthread_condattr_getclock(
+    const musl_pthread_condattr_t* attr,
+    clockid_t* clock_id);
+SB_EXPORT int __wrap_pthread_condattr_init(musl_pthread_condattr_t* attr);
+SB_EXPORT int __wrap_pthread_condattr_setclock(musl_pthread_condattr_t* attr,
+                                               clockid_t clock_id);
 
 #ifdef __cplusplus
 }  // extern "C"

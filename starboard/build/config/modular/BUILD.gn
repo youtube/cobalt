@@ -190,6 +190,16 @@ config("modular") {
       "-Wl,--wrap=pthread_mutex_lock",
       "-Wl,--wrap=pthread_mutex_unlock",
       "-Wl,--wrap=pthread_mutex_trylock",
+      "-Wl,--wrap=pthread_cond_broadcast",
+      "-Wl,--wrap=pthread_cond_destroy",
+      "-Wl,--wrap=pthread_cond_init",
+      "-Wl,--wrap=pthread_cond_signal",
+      "-Wl,--wrap=pthread_cond_timedwait",
+      "-Wl,--wrap=pthread_cond_wait",
+      "-Wl,--wrap=pthread_condattr_destroy",
+      "-Wl,--wrap=pthread_condattr_getclock",
+      "-Wl,--wrap=pthread_condattr_init",
+      "-Wl,--wrap=pthread_condattr_setclock",
     ]
   }
 }
