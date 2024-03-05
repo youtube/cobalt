@@ -49,14 +49,15 @@ void DebuggerEventTarget::DispatchEvent(const std::string& method,
 void DebuggerEventTarget::AddListener(
     const DebuggerEventTarget::DebuggerEventCallbackArg& callback) {
   base::AutoLock auto_lock(lock_);
-  listeners_.insert(
-      new ListenerInfo(this, callback, base::ThreadTaskRunnerHandle::Get()));
+  listeners_.insert(new ListenerInfo(
+      this, callback, base::SequencedTaskRunner::GetCurrentDefault()));
 }
 
 void DebuggerEventTarget::NotifyListener(
     const DebuggerEventTarget::ListenerInfo* listener,
     const std::string& method, const base::Optional<std::string>& json_params) {
-  DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), listener->task_runner);
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(),
+            listener->task_runner);
   listener->callback.value().Run(method, json_params);
 }
 

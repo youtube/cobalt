@@ -140,7 +140,7 @@ among the required files for each `binary-variant` directory:
 
 The Starboard `Application` class is designed to do the following:
 
-*   Integrate a generic message loop function with a system message pump that
+*   Integrate a generic task runner function with a system message pump that
     can deliver either input or application lifecycle events like
     suspend/resume.
 *   Provide a place for graceful platform-specific initialization and teardown.

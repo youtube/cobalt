@@ -12,7 +12,7 @@ namespace cobalt {
 namespace media {
 
 WebMediaPlayerProxy::WebMediaPlayerProxy(
-    const scoped_refptr<base::SingleThreadTaskRunner>& render_loop,
+    const scoped_refptr<base::SequencedTaskRunner>& render_loop,
     WebMediaPlayerImpl* webmediaplayer)
     : render_loop_(render_loop), webmediaplayer_(webmediaplayer) {
   DCHECK(render_loop_);
@@ -22,13 +22,13 @@ WebMediaPlayerProxy::WebMediaPlayerProxy(
 WebMediaPlayerProxy::~WebMediaPlayerProxy() { Detach(); }
 
 void WebMediaPlayerProxy::Detach() {
-  DCHECK(render_loop_->BelongsToCurrentThread());
+  DCHECK(render_loop_->RunsTasksInCurrentSequence());
   webmediaplayer_ = NULL;
   data_source_.reset();
 }
 
 void WebMediaPlayerProxy::AbortDataSource() {
-  DCHECK(render_loop_->BelongsToCurrentThread());
+  DCHECK(render_loop_->RunsTasksInCurrentSequence());
   if (data_source_) data_source_->Abort();
 }
 

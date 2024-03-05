@@ -39,13 +39,13 @@ ScriptLoaderFactory::ScriptLoaderFactory(
       load_thread_("ResourceLoader"),
       is_suspended_(false) {
 #ifndef USE_HACKY_COBALT_CHANGES
-  base::Thread::Options options(base::MessageLoop::TYPE_DEFAULT,
+  base::Thread::Options options(base::MessagePumpType::DEFAULT,
                                 kLoadThreadStackSize);
   options.priority = loader_thread_priority;
   load_thread_.StartWithOptions(options);
 #else
   load_thread_.StartWithOptions(base::Thread::Options(
-      base::MessageLoop::TYPE_DEFAULT, kLoadThreadStackSize));
+      base::MessagePumpType::DEFAULT, kLoadThreadStackSize));
 #endif
 }
 

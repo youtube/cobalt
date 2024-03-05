@@ -25,9 +25,9 @@
 #include "base/containers/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop/message_loop.h"
 #include "base/stl_util.h"
 #include "base/synchronization/lock.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_checker.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/dom/keyboard_event.h"
@@ -48,7 +48,7 @@
 #include "cobalt/webdriver/protocol/size.h"
 #include "cobalt/webdriver/protocol/window_id.h"
 #include "cobalt/webdriver/script_executor.h"
-#include "cobalt/webdriver/util/call_on_message_loop.h"
+#include "cobalt/webdriver/util/call_on_task_runner.h"
 #include "cobalt/webdriver/util/command_result.h"
 
 namespace cobalt {
@@ -76,7 +76,7 @@ class WindowDriver : private ElementMapping {
                const GetGlobalEnvironmentFunction& get_global_environment,
                KeyboardEventInjector keyboard_event_injector,
                PointerEventInjector pointer_event_injector,
-               const scoped_refptr<base::SingleThreadTaskRunner>& task_runner);
+               const scoped_refptr<base::SequencedTaskRunner>& task_runner);
   ~WindowDriver();
   const protocol::WindowId& window_id() { return window_id_; }
   ElementDriver* GetElementDriver(const protocol::ElementId& element_id);
@@ -120,7 +120,8 @@ class WindowDriver : private ElementMapping {
       const protocol::ElementId& id) override;
 
   dom::Window* GetWeak() {
-    DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(), window_task_runner_);
+    DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(),
+              window_task_runner_);
     return window_.get();
   }
 
@@ -178,8 +179,8 @@ class WindowDriver : private ElementMapping {
   KeyboardEventInjector keyboard_event_injector_;
   PointerEventInjector pointer_event_injector_;
 
-  // Anything that interacts with the window must be run on this message loop.
-  scoped_refptr<base::SingleThreadTaskRunner> window_task_runner_;
+  // Anything that interacts with the window must be run on this task runner.
+  scoped_refptr<base::SequencedTaskRunner> window_task_runner_;
 
   // Weak handle to the dom::Window that must only be accessed from
   // |window_task_runner|

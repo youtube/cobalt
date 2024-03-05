@@ -20,7 +20,7 @@
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/memory/ptr_util.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -153,10 +153,10 @@ void EventTarget::PostToDispatchEvent(const base::Location& location,
 void EventTarget::PostToDispatchEventAndRunCallback(
     const base::Location& location, const scoped_refptr<Event>& event,
     const base::Closure& callback) {
-  if (!base::MessageLoop::current()) {
+  if (!base::SequencedTaskRunner::GetCurrentDefault()) {
     return;
   }
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       location,
       base::Bind(base::IgnoreResult(&EventTarget::DispatchEventAndRunCallback),
                  base::AsWeakPtr<EventTarget>(this), event, callback));
@@ -165,10 +165,10 @@ void EventTarget::PostToDispatchEventAndRunCallback(
 void EventTarget::PostToDispatchEventNameAndRunCallback(
     const base::Location& location, base_token::Token event_name,
     const base::Closure& callback) {
-  if (!base::MessageLoop::current()) {
+  if (!base::SequencedTaskRunner::GetCurrentDefault()) {
     return;
   }
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       location,
       base::Bind(
           base::IgnoreResult(&EventTarget::DispatchEventNameAndRunCallback),

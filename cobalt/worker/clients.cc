@@ -20,7 +20,7 @@
 
 #include "base/bind.h"
 #include "base/memory/ref_counted.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/task/task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
@@ -44,7 +44,8 @@ namespace {
 ServiceWorkerObject* GetAssociatedServiceWorker(
     web::EnvironmentSettings* settings) {
   // Ensure this runs in the right thread to dereferences the WeakPtr.
-  DCHECK_EQ(settings->context()->message_loop(), base::MessageLoop::current());
+  DCHECK_EQ(settings->context()->task_runner(),
+            base::SequencedTaskRunner::GetCurrentDefault());
   auto* global_scope = settings->context()->GetWindowOrWorkerGlobalScope();
   DCHECK(global_scope->IsServiceWorker());
 
@@ -58,7 +59,8 @@ Clients::Clients(script::EnvironmentSettings* settings)
 
 script::HandlePromiseWrappable Clients::Get(const std::string& id) {
   TRACE_EVENT0("cobalt::worker", "Clients::Get()");
-  DCHECK_EQ(base::MessageLoop::current(), settings_->context()->message_loop());
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(),
+            settings_->context()->task_runner());
   // Algorithm for get(id):
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#clients-get
   // 1. Let promise be a new promise.
@@ -75,7 +77,7 @@ script::HandlePromiseWrappable Clients::Get(const std::string& id) {
   ServiceWorkerContext* context =
       settings_->context()->service_worker_context();
   DCHECK(context);
-  context->message_loop()->task_runner()->PostTask(
+  context->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(&ServiceWorkerContext::ClientsGetSubSteps,
                      base::Unretained(context),
@@ -90,7 +92,8 @@ script::HandlePromiseWrappable Clients::Get(const std::string& id) {
 script::HandlePromiseSequenceWrappable Clients::MatchAll(
     const ClientQueryOptions& options) {
   TRACE_EVENT0("cobalt::worker", "Clients::MatchAll()");
-  DCHECK_EQ(base::MessageLoop::current(), settings_->context()->message_loop());
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(),
+            settings_->context()->task_runner());
   // Algorithm for matchAll():
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#clients-matchall
   // 1. Let promise be a new promise.
@@ -105,7 +108,7 @@ script::HandlePromiseSequenceWrappable Clients::MatchAll(
   ServiceWorkerContext* context =
       settings_->context()->service_worker_context();
   DCHECK(context);
-  context->message_loop()->task_runner()->PostTask(
+  context->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(&ServiceWorkerContext::ClientsMatchAllSubSteps,
                      base::Unretained(context),
@@ -119,7 +122,8 @@ script::HandlePromiseSequenceWrappable Clients::MatchAll(
 
 script::HandlePromiseVoid Clients::Claim() {
   TRACE_EVENT0("cobalt::worker", "Clients::Claim()");
-  DCHECK_EQ(base::MessageLoop::current(), settings_->context()->message_loop());
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(),
+            settings_->context()->task_runner());
   // Algorithm for claim():
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#clients-claim
   // 2. Let promise be a new promise.
@@ -142,7 +146,7 @@ script::HandlePromiseVoid Clients::Claim() {
            service_worker->state() != kServiceWorkerStateActivating);
     // Perform the rest of the steps in a task, because the promise has to be
     // returned before we can safely reject it.
-    base::ThreadTaskRunnerHandle::Get()->PostTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::BindOnce(
             [](std::unique_ptr<script::ValuePromiseVoid::Reference>
@@ -161,7 +165,7 @@ script::HandlePromiseVoid Clients::Claim() {
   ServiceWorkerContext* context =
       settings_->context()->service_worker_context();
   DCHECK(context);
-  context->message_loop()->task_runner()->PostTask(
+  context->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(&ServiceWorkerContext::ClaimSubSteps,
                      base::Unretained(context),

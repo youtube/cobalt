@@ -116,7 +116,7 @@ int SandboxMain(int argc, char** argv) {
 
   DecoderBufferAllocator decoder_buffer_allocator;
   ::media::MediaLog media_log;
-  base::MessageLoop message_loop;
+  base::MessageLoop task_runner;
   // A one-per-process task scheduler is needed for usage of APIs in
   // base/post_task.h which will be used by some net APIs like
   // URLRequestContext;

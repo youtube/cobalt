@@ -17,7 +17,7 @@
 #include <memory>
 
 #include "base/basictypes.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/cssom/css_computed_style_data.h"
 #include "cobalt/cssom/css_declared_style_data.h"

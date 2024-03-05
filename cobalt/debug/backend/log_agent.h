@@ -44,7 +44,6 @@ class LogAgent : public AgentBase {
                     size_t message_start, const std::string& str);
 
   // Sends a Log.entryAdded event to debug clients.
-  // Must be called on |message_loop_|.
   void OnLogMessageInternal(int severity, const char* file, int line,
                             size_t message_start, const std::string& str);
 

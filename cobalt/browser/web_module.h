@@ -21,8 +21,8 @@
 
 #include "base/callback.h"
 #include "base/containers/hash_tables.h"
-#include "base/message_loop/message_loop.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread.h"
 #include "cobalt/base/address_sanitizer.h"
 #include "cobalt/base/source_location.h"
@@ -87,7 +87,7 @@ namespace browser {
 // This necessarily implies that details contained within WebModule, such as the
 // DOM, are intentionally kept private, since these structures expect to be
 // accessed from only one thread.
-class WebModule : public base::MessageLoop::DestructionObserver,
+class WebModule : public base::CurrentThread::DestructionObserver,
                   public LifecycleObserver {
  public:
   struct Options {
@@ -398,7 +398,7 @@ class WebModule : public base::MessageLoop::DestructionObserver,
                                              int64_t timestamp);
   void SetDeepLinkTimestamp(int64_t timestamp);
 
-  // From base::MessageLoop::DestructionObserver.
+  // From base::CurrentThread::DestructionObserver.
   void WillDestroyCurrentMessageLoop() override;
 
   // Set document's load timing info's unload event start/end time.
@@ -485,10 +485,10 @@ class WebModule : public base::MessageLoop::DestructionObserver,
 
   void GetIsReadyToFreeze(volatile bool* is_ready_to_freeze);
 
-  // The message loop this object is running on.
-  base::MessageLoop* message_loop() const {
+  // The task runner this object is running on.
+  base::SequencedTaskRunner* task_runner() const {
     DCHECK(web_agent_);
-    return web_agent_ ? web_agent_->message_loop() : nullptr;
+    return web_agent_ ? web_agent_->task_runner() : nullptr;
   }
 
   // Private implementation object.

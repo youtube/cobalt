@@ -47,12 +47,12 @@ class DemuxerExtensionStream : public ::media::DemuxerStream {
   // Represents a video stream.
   explicit DemuxerExtensionStream(
       CobaltExtensionDemuxer* demuxer,
-      scoped_refptr<base::SequencedTaskRunner> message_loop,
+      scoped_refptr<base::SequencedTaskRunner> task_runner,
       CobaltExtensionDemuxerVideoDecoderConfig config);
   // Represents an audio stream.
   explicit DemuxerExtensionStream(
       CobaltExtensionDemuxer* demuxer,
-      scoped_refptr<base::SequencedTaskRunner> message_loop,
+      scoped_refptr<base::SequencedTaskRunner> task_runner,
       CobaltExtensionDemuxerAudioDecoderConfig config);
 
   // Disallow copy and assign.
@@ -103,7 +103,7 @@ class DemuxerExtensionStream : public ::media::DemuxerStream {
   BufferQueue buffer_queue_;
   ReadQueue read_queue_;
 
-  scoped_refptr<base::SequencedTaskRunner> message_loop_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
   size_t total_buffer_size_ = 0;
 };
@@ -149,12 +149,12 @@ class PositionalDataSource {
 class DemuxerExtensionWrapper : public ::media::Demuxer {
  public:
   // Constructs a new DemuxerExtensionWrapper, returning null on failure. If
-  // |data_source| or |message_loop| is null, or if a demuxer cannot be created,
+  // |data_source| or |task_runner| is null, or if a demuxer cannot be created,
   // this will return null. If |demuxer_api| is null, we will attempt to use the
   // corresponding Cobalt extension.
   static std::unique_ptr<DemuxerExtensionWrapper> Create(
       DataSource* data_source,
-      scoped_refptr<base::SequencedTaskRunner> message_loop,
+      scoped_refptr<base::SequencedTaskRunner> task_runner,
       const CobaltExtensionDemuxerApi* demuxer_api = nullptr);
 
   // Disallow copy and assign.
@@ -205,7 +205,7 @@ class DemuxerExtensionWrapper : public ::media::Demuxer {
       CobaltExtensionDemuxer* demuxer,
       std::unique_ptr<PositionalDataSource> data_source,
       std::unique_ptr<CobaltExtensionDemuxerDataSource> c_data_source,
-      scoped_refptr<base::SequencedTaskRunner> message_loop);
+      scoped_refptr<base::SequencedTaskRunner> task_runner);
 
   void OnInitializeDone(::media::PipelineStatusCallback status_cb,
                         CobaltExtensionDemuxerStatus status);
@@ -241,7 +241,7 @@ class DemuxerExtensionWrapper : public ::media::Demuxer {
   // Thread for blocking I/O operations.
   base::Thread blocking_thread_;
 
-  scoped_refptr<base::SequencedTaskRunner> message_loop_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
   SEQUENCE_CHECKER(sequence_checker_);
   base::WeakPtrFactory<DemuxerExtensionWrapper> weak_factory_{this};

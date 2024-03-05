@@ -86,7 +86,7 @@ const int kDialHttpServerPort = 0;  // Random Port.
 
 DialHttpServer::DialHttpServer(DialService* dial_service)
     : dial_service_(dial_service),
-      task_runner_(base::ThreadTaskRunnerHandle::Get()) {
+      task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {
   DCHECK(dial_service);
   DCHECK(task_runner_);
 
@@ -112,12 +112,12 @@ DialHttpServer::~DialHttpServer() {
 }
 
 void DialHttpServer::Stop() {
-  DCHECK_EQ(task_runner_, base::ThreadTaskRunnerHandle::Get());
+  DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
   http_server_.reset();
 }
 
 int DialHttpServer::GetLocalAddress(net::IPEndPoint* addr) {
-  DCHECK_EQ(task_runner_, base::ThreadTaskRunnerHandle::Get());
+  DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
   // We want to give second screen the IPv4 address, but we still need to
   // get http_server_'s address for its port number.
   int ret = http_server_->GetLocalAddress(addr);
@@ -151,7 +151,7 @@ int DialHttpServer::GetLocalAddress(net::IPEndPoint* addr) {
 void DialHttpServer::OnHttpRequest(int conn_id,
                                    const net::HttpServerRequestInfo& info) {
   TRACE_EVENT0("net::dial", "DialHttpServer::OnHttpRequest");
-  DCHECK_EQ(task_runner_, base::ThreadTaskRunnerHandle::Get());
+  DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
   if (info.method == "GET" &&
       base::EqualsCaseInsensitiveASCII(info.path, "/dd.xml")) {
     // If dd.xml request
@@ -195,7 +195,7 @@ void DialHttpServer::ConfigureApplicationUrl() {
 }
 
 void DialHttpServer::SendDeviceDescriptionManifest(int conn_id) {
-  DCHECK_EQ(task_runner_, base::ThreadTaskRunnerHandle::Get());
+  DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
   DialSystemConfig* system_config = DialSystemConfig::GetInstance();
 #if defined(COBALT_BUILD_TYPE_GOLD)
   const char* friendly_name = system_config->friendly_name();
@@ -224,7 +224,7 @@ void DialHttpServer::SendDeviceDescriptionManifest(int conn_id) {
 
 bool DialHttpServer::DispatchToHandler(int conn_id,
                                        const net::HttpServerRequestInfo& info) {
-  DCHECK_EQ(task_runner_, base::ThreadTaskRunnerHandle::Get());
+  DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
   // See if DialService has a handler for this request.
   TRACE_EVENT0("net::dial", __FUNCTION__);
   std::string handler_path;
@@ -242,14 +242,14 @@ bool DialHttpServer::DispatchToHandler(int conn_id,
 
 void DialHttpServer::OnReceivedResponse(
     int conn_id, std::unique_ptr<net::HttpServerResponseInfo> response) {
-  if (task_runner_ != base::ThreadTaskRunnerHandle::Get()) {
+  if (task_runner_ != base::SequencedTaskRunner::GetCurrentDefault()) {
     task_runner_->PostTask(FROM_HERE,
                            base::Bind(&DialHttpServer::OnReceivedResponse, this,
                                       conn_id, base::Passed(&response)));
     return;
   }
 
-  DCHECK_EQ(task_runner_, base::ThreadTaskRunnerHandle::Get());
+  DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
   TRACE_EVENT0("net::dial", __FUNCTION__);
   if (response) {
     http_server_->SendResponse(conn_id, *(response.get()),

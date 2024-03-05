@@ -22,11 +22,11 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/stl_util.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/debug/backend/debug_script_runner.h"
 #include "cobalt/debug/command.h"
@@ -59,7 +59,7 @@ namespace backend {
 //
 // Debugging commands are sent via the |SendCommand| method, which runs
 // a command asynchronously on the main WebModule thread, and returns its result
-// via a callback on the client's message loop. DebugDispatcher also sends
+// via a callback on the client's task runner. DebugDispatcher also sends
 // events separately from command results to the clients, but events are sent on
 // the main WebModule thread, and it is the responsibility of the recipient to
 // post it to its own thread to be processed as needed.
@@ -69,7 +69,7 @@ namespace backend {
 // domains will be provided by agent objects that register the domains they
 // implement with this object using the |AddDomain| and |RemoveDomain| methods.
 //
-// The DebugDispatcher must be created on the same message loop as the WebModule
+// The DebugDispatcher must be created on the same task runner as the WebModule
 // it attaches to, so that all debugging can be synchronized with the execution
 // of the WebModule.
 //
@@ -152,7 +152,7 @@ class DebugDispatcher {
 
   // Called to send a protocol command through this debug dispatcher. May be
   // called from any thread - the command will be run on the dispatcher's
-  // message loop, and the response will be sent to the callback and message
+  // task runner, and the response will be sent to the callback and message
   // loop held in the command object.
   void SendCommand(Command command);
 
@@ -177,7 +177,7 @@ class DebugDispatcher {
 
   // Dispatches a command received via |SendCommand| by looking up the method
   // name in the command registry and running the corresponding function.
-  // The response callback will be run on the message loop specified in the
+  // The response callback will be run on the task runner specified in the
   // info structure with the result as an argument.
   void DispatchCommand(Command command);
 
@@ -204,7 +204,7 @@ class DebugDispatcher {
 
   // Message loop of the web module this debug dispatcher is attached to, and
   // thread checker to check access.
-  base::SingleThreadTaskRunner* task_runner_;
+  base::SequencedTaskRunner* task_runner_;
   THREAD_CHECKER(thread_checker_);
 
   // Whether the debug target (WebModule) is currently paused.

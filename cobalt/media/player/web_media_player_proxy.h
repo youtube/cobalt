@@ -10,8 +10,8 @@
 
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
-#include "base/message_loop/message_loop.h"
 #include "base/single_thread_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/media/base/data_source.h"
 
 namespace cobalt {
@@ -25,7 +25,7 @@ class WebMediaPlayerProxy
     : public base::RefCountedThreadSafe<WebMediaPlayerProxy> {
  public:
   WebMediaPlayerProxy(
-      const scoped_refptr<base::SingleThreadTaskRunner>& render_loop,
+      const scoped_refptr<base::SequencedTaskRunner>& render_loop,
       WebMediaPlayerImpl* webmediaplayer);
   DataSource* data_source() { return data_source_.get(); }
   void set_data_source(std::unique_ptr<DataSource> data_source) {
@@ -39,8 +39,8 @@ class WebMediaPlayerProxy
   friend class base::RefCountedThreadSafe<WebMediaPlayerProxy>;
   virtual ~WebMediaPlayerProxy();
 
-  // The render message loop where the renderer lives.
-  scoped_refptr<base::SingleThreadTaskRunner> render_loop_;
+  // The render task runner where the renderer lives.
+  scoped_refptr<base::SequencedTaskRunner> render_loop_;
   WebMediaPlayerImpl* webmediaplayer_;
 
   std::unique_ptr<DataSource> data_source_;

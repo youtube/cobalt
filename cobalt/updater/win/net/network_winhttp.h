@@ -25,7 +25,7 @@
 #include "url/gurl.h"
 
 namespace base {
-class SingleThreadTaskRunner;
+class SequencedTaskRunner;
 }
 
 namespace updater {
@@ -105,7 +105,7 @@ class NetworkFetcherWinHTTP
   void WriteDataToFileComplete(bool is_eof);
 
   THREAD_CHECKER(thread_checker_);
-  scoped_refptr<base::SingleThreadTaskRunner> main_thread_task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> main_thread_task_runner_;
 
   const HINTERNET& session_handle_;  // Owned by NetworkFetcherWinHTTPFactory.
   scoped_hinternet connect_handle_;

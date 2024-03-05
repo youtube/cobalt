@@ -21,8 +21,8 @@
 
 #include "base/bind.h"
 #include "base/memory/ptr_util.h"
-#include "base/message_loop/message_loop.h"
 #include "base/run_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/loader/fetcher_test.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -62,7 +62,7 @@ bool TestResolver(const TestRegistry& registry, const GURL& url,
 }
 
 TEST(BlobFetcherTest, NonExistentBlobURL) {
-  base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
+  base::MessageLoop task_runner(base::MessagePumpType::DEFAULT);
   base::RunLoop run_loop;
 
   StrictMock<MockFetcherHandler> fetcher_handler_mock(&run_loop);
@@ -80,7 +80,7 @@ TEST(BlobFetcherTest, NonExistentBlobURL) {
 }
 
 TEST(BlobFetcherTest, EmptyBlob) {
-  base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
+  base::MessageLoop task_runner(base::MessagePumpType::DEFAULT);
   base::RunLoop run_loop;
   InSequence dummy;
 
@@ -104,7 +104,7 @@ TEST(BlobFetcherTest, EmptyBlob) {
 }
 
 TEST(BlobFetcherTest, ValidBlob) {
-  base::MessageLoop message_loop(base::MessageLoop::TYPE_DEFAULT);
+  base::MessageLoop task_runner(base::MessagePumpType::DEFAULT);
   base::RunLoop run_loop;
   InSequence dummy;
 

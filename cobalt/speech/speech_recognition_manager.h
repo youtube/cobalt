@@ -60,8 +60,7 @@ class SpeechRecognitionManager {
   // We construct a WeakPtr upon SpeechRecognitionManager's construction in
   // order to associate the WeakPtr with the constructing thread.
   base::WeakPtr<SpeechRecognitionManager> weak_this_;
-  scoped_refptr<base::SingleThreadTaskRunner> const
-      main_message_loop_task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> const main_task_runner_task_runner_;
 
   // Callback for sending dom events if available.
   EventCallback event_callback_;

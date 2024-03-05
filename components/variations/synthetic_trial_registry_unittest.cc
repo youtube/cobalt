@@ -6,9 +6,9 @@
 
 #include <string>
 
-#include "base/message_loop/message_loop.h"
 #include "base/metrics/field_trial.h"
 #include "base/strings/stringprintf.h"
+#include "base/task/sequenced_task_runner.h"
 #include "components/variations/active_field_trials.h"
 #include "components/variations/hashing.h"
 #include "components/variations/synthetic_trials_active_group_id_provider.h"

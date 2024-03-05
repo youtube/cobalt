@@ -18,7 +18,7 @@
 
 #include "base/bind.h"
 #include "base/logging.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/debug/debug_client.h"
 #include "cobalt/debug/json_object.h"
@@ -30,7 +30,7 @@ namespace debug {
 // method and params are defined here:
 // https://chromedevtools.github.io/devtools-protocol/1-3
 //
-// A reference is kept to the client's callback and the message loop from which
+// A reference is kept to the client's callback and the task runner from which
 // it was sent so the command handler can send back its response through this
 // class.
 class Command {
@@ -51,7 +51,7 @@ class Command {
         domain_(method_, 0, method_.find('.')),
         json_params_(json_params),
         callback_(response_callback),
-        task_runner_(base::ThreadTaskRunnerHandle::Get()),
+        task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
         response_sent_(false) {
     DCHECK(!method_.empty());
     DCHECK(!domain_.empty());
@@ -118,7 +118,7 @@ class Command {
   std::string domain_;
   std::string json_params_;
   DebugClient::ResponseCallback callback_;
-  base::SingleThreadTaskRunner* task_runner_;
+  base::SequencedTaskRunner* task_runner_;
   bool response_sent_;
 };
 

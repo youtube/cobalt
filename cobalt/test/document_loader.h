@@ -45,7 +45,7 @@ namespace test {
 // and interact with it on a single thread.
 // Loading a Document from a url involves a lot of boilerplate and a number of
 // dependencies. Furthermore, loading a document in Cobalt requires that there
-// be a message loop that is pumped until the document finishes loading.
+// be a task runner that is pumped until the document finishes loading.
 class DocumentLoader : public dom::DocumentObserver {
  public:
   DocumentLoader()
@@ -75,7 +75,7 @@ class DocumentLoader : public dom::DocumentObserver {
             base::kApplicationStateStarted,
             NULL /* synchronous_loader_interrupt */, NULL /* performance */) {}
   void Load(const GURL& url) {
-    // Load the document in a nested message loop.
+    // Load the document in a nested task runner.
     dom::Document::Options options(url);
     options.navigation_start_clock = new base::SystemMonotonicClock();
     options.viewport_size = cssom::ViewportSize(1920, 1080);
@@ -104,10 +104,10 @@ class DocumentLoader : public dom::DocumentObserver {
   void OnMutation() override {}
   void OnFocusChanged() override {}
 
-  // A nested message loop needs a non-nested message loop to exist.
-  base::MessageLoop message_loop_;
+  // A nested task runner needs a non-nested task runner to exist.
+  base::MessageLoop task_runner_;
 
-  // Nested message loop on which the document loading will occur.
+  // Nested task runner on which the document loading will occur.
   base::RunLoop nested_loop_;
 
   dom::testing::StubEnvironmentSettings environment_settings_;

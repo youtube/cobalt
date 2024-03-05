@@ -18,6 +18,7 @@
 
 #include "base/bind.h"
 #include "base/threading/platform_thread.h"
+#include "cobalt/base/task_runner_util.h"
 #include "cobalt/loader/image/threaded_image_decoder_proxy.h"
 
 namespace cobalt {
@@ -57,7 +58,7 @@ std::unique_ptr<Loader> LoaderFactory::CreateImageLoader(
       fetcher_creator,
       base::Bind(&image::ThreadedImageDecoderProxy::Create, resource_provider_,
                  &debugger_hooks_, image_available_callback,
-                 load_thread_.message_loop()),
+                 load_thread_.task_runner()),
       load_complete_callback,
       base::Bind(&LoaderFactory::OnLoaderDestroyed, base::Unretained(this)),
       is_suspended_));
@@ -191,7 +192,7 @@ void LoaderFactory::SuspendActiveLoaders() {
   }
 
   // Wait for all loader thread messages to be flushed before returning.
-  load_thread_.message_loop()->task_runner()->WaitForFence();
+  base::task_runner_util::WaitForFence(load_thread_.task_runner(), FROM_HERE);
 }
 
 void LoaderFactory::ResumeActiveLoaders(
@@ -204,7 +205,7 @@ void LoaderFactory::ResumeActiveLoaders(
   }
 
   // Wait for all loader thread messages to be flushed before returning.
-  load_thread_.message_loop()->task_runner()->WaitForFence();
+  base::task_runner_util::WaitForFence(load_thread_.task_runner(), FROM_HERE);
 }
 
 }  // namespace loader

@@ -43,7 +43,7 @@ const uint32 kInitialBufferCapacity = kBackwardBytes + kInitialForwardBytes;
 using base::CircularBufferShell;
 
 URLFetcherDataSource::URLFetcherDataSource(
-    const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+    const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     const GURL& url, const csp::SecurityCallback& security_callback,
     network::NetworkModule* network_module, loader::RequestMode request_mode,
     loader::Origin origin)
@@ -64,14 +64,14 @@ URLFetcherDataSource::URLFetcherDataSource(
       request_mode_(request_mode),
       document_origin_(origin),
       is_origin_safe_(false) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   DCHECK(task_runner_);
   DCHECK(network_module);
 }
 
 URLFetcherDataSource::~URLFetcherDataSource() {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (cancelable_create_fetcher_closure_) {
     cancelable_create_fetcher_closure_->Cancel();
@@ -127,7 +127,7 @@ bool URLFetcherDataSource::GetSize(int64* size_out) {
 
 void URLFetcherDataSource::SetDownloadingStatusCB(
     const DownloadingStatusCB& downloading_status_cb) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   DCHECK(!downloading_status_cb.is_null());
   DCHECK(downloading_status_cb_.is_null());
@@ -136,7 +136,7 @@ void URLFetcherDataSource::SetDownloadingStatusCB(
 
 void URLFetcherDataSource::OnURLFetchResponseStarted(
     const net::URLFetcher* source) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   base::AutoLock auto_lock(lock_);
 
@@ -213,7 +213,7 @@ void URLFetcherDataSource::OnURLFetchResponseStarted(
 void URLFetcherDataSource::OnURLFetchDownloadProgress(
     const net::URLFetcher* source, int64_t /*current*/, int64_t /*total*/,
     int64_t /*current_network_bytes*/) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   auto* download_data_writer =
       base::polymorphic_downcast<loader::URLFetcherStringWriter*>(
           source->GetResponseWriter());
@@ -289,7 +289,7 @@ void URLFetcherDataSource::OnURLFetchDownloadProgress(
 }
 
 void URLFetcherDataSource::OnURLFetchComplete(const net::URLFetcher* source) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   base::AutoLock auto_lock(lock_);
 
@@ -316,7 +316,7 @@ void URLFetcherDataSource::OnURLFetchComplete(const net::URLFetcher* source) {
 }
 
 void URLFetcherDataSource::CreateNewFetcher() {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   base::AutoLock auto_lock(lock_);
 
@@ -364,7 +364,7 @@ void URLFetcherDataSource::CreateNewFetcher() {
 }
 
 void URLFetcherDataSource::UpdateDownloadingStatus(bool is_downloading) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (is_downloading_ == is_downloading) {
     return;

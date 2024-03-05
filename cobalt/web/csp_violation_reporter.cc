@@ -115,18 +115,18 @@ CspViolationReporter::CspViolationReporter(
     web::WindowOrWorkerGlobalScope* global,
     const network_bridge::PostSender& post_sender)
     : post_sender_(post_sender),
-      message_loop_(base::MessageLoop::current()),
+      task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       global_(global) {}
 
 CspViolationReporter::~CspViolationReporter() {}
 
 // https://www.w3.org/TR/CSP3/#report-violation
 void CspViolationReporter::Report(const csp::ViolationInfo& violation_info) {
-  DCHECK(message_loop_);
-  if (!message_loop_->task_runner()->BelongsToCurrentThread()) {
-    message_loop_->task_runner()->PostTask(
-        FROM_HERE, base::Bind(&CspViolationReporter::Report,
-                              base::Unretained(this), violation_info));
+  DCHECK(task_runner_);
+  if (!task_runner_->RunsTasksInCurrentSequence()) {
+    task_runner_->PostTask(FROM_HERE,
+                           base::Bind(&CspViolationReporter::Report,
+                                      base::Unretained(this), violation_info));
     return;
   }
 

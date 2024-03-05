@@ -18,7 +18,7 @@
 #include <memory>
 #include <string>
 
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/dom/event_queue.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/loader/image/image_cache.h"
@@ -143,7 +143,7 @@ class LottiePlayer : public HTMLElement {
   void OnLoop();
   void OnEnterFrame(double frame, double seeker);
   static void CallOnEnterFrame(
-      scoped_refptr<base::SingleThreadTaskRunner> callback_task_runner,
+      scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
       base::Callback<void(double, double)> enter_frame_callback, double frame,
       double seeker);
   void OnFreeze();
@@ -162,7 +162,7 @@ class LottiePlayer : public HTMLElement {
   LottieAnimation::LottieProperties properties_;
 
   EventQueue event_queue_;
-  scoped_refptr<base::SingleThreadTaskRunner> callback_task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> callback_task_runner_;
 };
 
 }  // namespace dom

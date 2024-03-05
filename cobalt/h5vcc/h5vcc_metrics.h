@@ -88,7 +88,7 @@ class H5vccMetrics : public script::Wrappable {
 
   scoped_refptr<h5vcc::MetricEventHandlerWrapper> uploader_callback_;
 
-  scoped_refptr<base::SingleThreadTaskRunner> const task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> const task_runner_;
 
   persistent_storage::PersistentSettings* persistent_settings_;
 

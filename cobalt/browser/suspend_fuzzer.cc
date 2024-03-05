@@ -36,7 +36,7 @@ const base::TimeDelta kInterval = base::TimeDelta::FromSeconds(10);
 SuspendFuzzer::SuspendFuzzer()
     : thread_("suspend_fuzzer"), step_type_(kShouldRequestFreeze) {
   thread_.Start();
-  thread_.message_loop()->task_runner()->PostDelayedTask(
+  thread_.task_runner()->PostDelayedTask(
       FROM_HERE, base::Bind(&SuspendFuzzer::DoStep, base::Unretained(this)),
       kBeginTimeout);
 }
@@ -44,7 +44,8 @@ SuspendFuzzer::SuspendFuzzer()
 SuspendFuzzer::~SuspendFuzzer() { thread_.Stop(); }
 
 void SuspendFuzzer::DoStep() {
-  DCHECK(base::MessageLoop::current() == thread_.message_loop());
+  DCHECK(base::SequencedTaskRunner::GetCurrentDefault() ==
+         thread_.task_runner());
   if (step_type_ == kShouldRequestFreeze) {
     SB_DLOG(INFO) << "suspend_fuzzer: Requesting freeze.";
     SbSystemRequestFreeze();
@@ -57,7 +58,7 @@ void SuspendFuzzer::DoStep() {
     NOTREACHED();
   }
 
-  base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE, base::Bind(&SuspendFuzzer::DoStep, base::Unretained(this)),
       kInterval);
 }

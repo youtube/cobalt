@@ -15,10 +15,11 @@
 #include "cobalt/worker/service_worker_jobs.h"
 
 #include "base/bind.h"
-#include "base/message_loop/message_loop_current.h"
 #include "base/strings/stringprintf.h"
+#include "base/task/current_thread.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
+#include "cobalt/base/task_runner_util.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/worker/extendable_event.h"
@@ -90,10 +91,11 @@ bool PermitAnyNonRedirectedURL(const GURL&, bool did_redirect) {
 
 ServiceWorkerJobs::ServiceWorkerJobs(
     ServiceWorkerContext* service_worker_context,
-    network::NetworkModule* network_module, base::MessageLoop* message_loop)
+    network::NetworkModule* network_module,
+    base::SequencedTaskRunner* task_runner)
     : service_worker_context_(service_worker_context),
-      message_loop_(message_loop) {
-  DCHECK_EQ(message_loop_, base::MessageLoop::current());
+      task_runner_(task_runner) {
+  DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
   fetcher_factory_.reset(new loader::FetcherFactory(network_module));
 
   script_loader_factory_.reset(new loader::ScriptLoaderFactory(
@@ -141,14 +143,14 @@ void ServiceWorkerJobs::ScheduleJob(std::unique_ptr<Job> job) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::ScheduleJob()");
   DCHECK(job);
 
-  if (base::MessageLoop::current() != message_loop()) {
-    DCHECK(message_loop());
-    message_loop()->task_runner()->PostTask(
+  if (base::SequencedTaskRunner::GetCurrentDefault() != task_runner()) {
+    DCHECK(task_runner());
+    task_runner()->PostTask(
         FROM_HERE, base::BindOnce(&ServiceWorkerJobs::ScheduleJob,
                                   base::Unretained(this), std::move(job)));
     return;
   }
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK(task_runner()->RunsTasksInCurrentSequence());
   // Algorithm for Schedule Job:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#schedule-job
   // 1. Let jobQueue be null.
@@ -244,7 +246,7 @@ bool ServiceWorkerJobs::ReturnJobsAreEquivalent(Job* one, Job* two) {
 
 void ServiceWorkerJobs::RunJob(JobQueue* job_queue) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::RunJob()");
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK(task_runner()->RunsTasksInCurrentSequence());
   // Algorithm for Run Job:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#run-job-algorithm
 
@@ -255,14 +257,14 @@ void ServiceWorkerJobs::RunJob(JobQueue* job_queue) {
   }
 
   // 2. Queue a task to run these steps:
-  message_loop()->task_runner()->PostTask(
-      FROM_HERE, base::BindOnce(&ServiceWorkerJobs::RunJobTask,
-                                base::Unretained(this), job_queue));
+  task_runner()->PostTask(FROM_HERE,
+                          base::BindOnce(&ServiceWorkerJobs::RunJobTask,
+                                         base::Unretained(this), job_queue));
 }
 
 void ServiceWorkerJobs::RunJobTask(JobQueue* job_queue) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::RunJobTask()");
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK(task_runner()->RunsTasksInCurrentSequence());
   // Task for "Run Job" to run in the service worker thread.
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#run-job-algorithm
   DCHECK(job_queue);
@@ -296,7 +298,7 @@ void ServiceWorkerJobs::RunJobTask(JobQueue* job_queue) {
 
 void ServiceWorkerJobs::Register(Job* job) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::Register()");
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK(task_runner()->RunsTasksInCurrentSequence());
   DCHECK(job);
   // Algorithm for Register:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#register-algorithm
@@ -390,7 +392,7 @@ void ServiceWorkerJobs::Register(Job* job) {
 
 void ServiceWorkerJobs::Update(Job* job) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::Update()");
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK(task_runner()->RunsTasksInCurrentSequence());
   DCHECK(job);
   // Algorithm for Update:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#update-algorithm
@@ -576,7 +578,7 @@ void ServiceWorkerJobs::UpdateOnContentProduced(
   TRACE_EVENT0("cobalt::worker",
                "ServiceWorkerJobs::UpdateOnContentProduced()");
   DCHECK(content);
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK(task_runner()->RunsTasksInCurrentSequence());
   // Note: There seems to be missing handling of network errors here.
   //   8.17. Let url be request’s url.
   //   8.18. Set updatedResourceMap[url] to response.
@@ -631,7 +633,7 @@ void ServiceWorkerJobs::UpdateOnLoadingComplete(
     const base::Optional<std::string>& error) {
   TRACE_EVENT0("cobalt::worker",
                "ServiceWorkerJobs::UpdateOnLoadingComplete()");
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK(task_runner()->RunsTasksInCurrentSequence());
   bool check_promise = !state->job->no_promise_okay;
   if (state->job->no_promise_okay && !state->job->client &&
       service_worker_context_->web_context_registrations().size() > 0) {
@@ -745,7 +747,7 @@ void ServiceWorkerJobs::UpdateOnLoadingComplete(
 
   // Post a task for the remaining steps, to let tasks posted by
   // RunServiceWorker, such as for registering the web context, execute first.
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::Bind(&ServiceWorkerJobs::UpdateOnRunServiceWorker,
                             base::Unretained(this), std::move(state),
                             std::move(worker), run_result_is_success));
@@ -777,7 +779,7 @@ void ServiceWorkerJobs::Install(
     Job* job, const scoped_refptr<ServiceWorkerObject>& worker,
     const scoped_refptr<ServiceWorkerRegistrationObject>& registration) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::Install()");
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK(task_runner()->RunsTasksInCurrentSequence());
   // Algorithm for Install:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#installation-algorithm
 
@@ -817,8 +819,8 @@ void ServiceWorkerJobs::Install(
     if (context->environment_settings()->GetOrigin() == registration_origin) {
       // 9. ... queue a task on settingsObject’s responsible event loop in the
       //    DOM manipulation task source to run the following steps:
-      context->message_loop()->task_runner()->PostBlockingTask(
-          FROM_HERE,
+      base::task_runner_util::PostBlockingTask(
+          context->task_runner(), FROM_HERE,
           base::Bind(
               [](web::Context* context,
                  scoped_refptr<ServiceWorkerRegistrationObject> registration) {
@@ -835,7 +837,7 @@ void ServiceWorkerJobs::Install(
                 auto registration_object =
                     context->LookupServiceWorkerRegistration(registration);
                 if (registration_object) {
-                  context->message_loop()->task_runner()->PostTask(
+                  context->task_runner()->PostTask(
                       FROM_HERE,
                       base::BindOnce(
                           [](scoped_refptr<ServiceWorkerRegistration>
@@ -871,56 +873,50 @@ void ServiceWorkerJobs::Install(
       //         DOM manipulation task source to run the following steps:
       DCHECK(registration->done_event()->IsSignaled());
       registration->done_event()->Reset();
-      installing_worker->web_agent()
-          ->context()
-          ->message_loop()
-          ->task_runner()
-          ->PostBlockingTask(
-              FROM_HERE,
-              base::Bind(
-                  [](ServiceWorkerObject* installing_worker,
-                     base::WaitableEvent* done_event,
-                     std::shared_ptr<starboard::atomic_bool> install_failed) {
-                    // 11.3.1.1. Let e be the result of creating an event with
-                    //           ExtendableEvent.
-                    // 11.3.1.2. Initialize e’s type attribute to install.
-                    // 11.3.1.3. Dispatch e at installingWorker’s global object.
-                    // 11.3.1.4. WaitForAsynchronousExtensions: Run the
-                    //           following substeps in parallel:
-                    // 11.3.1.4.1. Wait until e is not active.
-                    // 11.3.1.4.2. If e’s timed out flag is set, set
-                    //             installFailed to true.
-                    // 11.3.1.4.3. Let p be the result of getting a promise to
-                    //             wait for all of e’s extend lifetime promises.
-                    // 11.3.1.4.4. Upon rejection of p, set installFailed to
-                    //             true.
-                    //         If task is discarded, set installFailed to true.
-                    auto done_callback = base::BindOnce(
-                        [](base::WaitableEvent* done_event,
-                           std::shared_ptr<starboard::atomic_bool>
-                               install_failed,
-                           bool was_rejected) {
-                          if (was_rejected) install_failed->store(true);
-                          done_event->Signal();
-                        },
-                        done_event, install_failed);
-                    auto* settings = installing_worker->web_agent()
-                                         ->context()
-                                         ->environment_settings();
-                    scoped_refptr<ExtendableEvent> event(
-                        new ExtendableEvent(settings, base::Tokens::install(),
-                                            std::move(done_callback)));
-                    installing_worker->worker_global_scope()->DispatchEvent(
-                        event);
-                    if (!event->IsActive()) {
-                      // If the event handler doesn't use waitUntil(), it will
-                      // already no longer be active, and there will never be a
-                      // callback to signal the done event.
+      base::task_runner_util::PostBlockingTask(
+          installing_worker->web_agent()->task_runner(), FROM_HERE,
+          base::Bind(
+              [](ServiceWorkerObject* installing_worker,
+                 base::WaitableEvent* done_event,
+                 std::shared_ptr<starboard::atomic_bool> install_failed) {
+                // 11.3.1.1. Let e be the result of creating an event with
+                //           ExtendableEvent.
+                // 11.3.1.2. Initialize e’s type attribute to install.
+                // 11.3.1.3. Dispatch e at installingWorker’s global object.
+                // 11.3.1.4. WaitForAsynchronousExtensions: Run the
+                //           following substeps in parallel:
+                // 11.3.1.4.1. Wait until e is not active.
+                // 11.3.1.4.2. If e’s timed out flag is set, set
+                //             installFailed to true.
+                // 11.3.1.4.3. Let p be the result of getting a promise to
+                //             wait for all of e’s extend lifetime promises.
+                // 11.3.1.4.4. Upon rejection of p, set installFailed to
+                //             true.
+                //         If task is discarded, set installFailed to true.
+                auto done_callback = base::BindOnce(
+                    [](base::WaitableEvent* done_event,
+                       std::shared_ptr<starboard::atomic_bool> install_failed,
+                       bool was_rejected) {
+                      if (was_rejected) install_failed->store(true);
                       done_event->Signal();
-                    }
-                  },
-                  base::Unretained(installing_worker),
-                  registration->done_event(), install_failed));
+                    },
+                    done_event, install_failed);
+                auto* settings = installing_worker->web_agent()
+                                     ->context()
+                                     ->environment_settings();
+                scoped_refptr<ExtendableEvent> event(
+                    new ExtendableEvent(settings, base::Tokens::install(),
+                                        std::move(done_callback)));
+                installing_worker->worker_global_scope()->DispatchEvent(event);
+                if (!event->IsActive()) {
+                  // If the event handler doesn't use waitUntil(), it will
+                  // already no longer be active, and there will never be a
+                  // callback to signal the done event.
+                  done_event->Signal();
+                }
+              },
+              base::Unretained(installing_worker), registration->done_event(),
+              install_failed));
       // 11.3.2. Wait for task to have executed or been discarded.
       // This waiting is done inside PostBlockingTask above.
       // 11.3.3. Wait for the step labeled WaitForAsynchronousExtensions to
@@ -999,7 +995,7 @@ void ServiceWorkerJobs::Install(
 
 void ServiceWorkerJobs::Unregister(Job* job) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::Unregister()");
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK(task_runner()->RunsTasksInCurrentSequence());
   // Algorithm for Unregister:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#unregister-algorithm
   // 1. If the origin of job’s scope url is not job’s client's origin, then:
@@ -1054,7 +1050,7 @@ void ServiceWorkerJobs::Unregister(Job* job) {
 void ServiceWorkerJobs::RejectJobPromise(Job* job,
                                          const PromiseErrorData& error_data) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::RejectJobPromise()");
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK(task_runner()->RunsTasksInCurrentSequence());
   // Algorithm for Reject Job Promise:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#reject-job-promise
   base::AutoLock lock(job->equivalent_jobs_promise_mutex);
@@ -1069,7 +1065,7 @@ void ServiceWorkerJobs::RejectJobPromise(Job* job,
   //      agent-defined message, in equivalentJob’s client's Realm.
   if (job->client && job->promise != nullptr) {
     DCHECK(service_worker_context_->IsWebContextRegistered(job->client));
-    job->client->message_loop()->task_runner()->PostTask(
+    job->client->task_runner()->PostTask(
         FROM_HERE, base::BindOnce(
                        [](std::unique_ptr<JobPromiseType> promise,
                           const PromiseErrorData& error_data) {
@@ -1092,7 +1088,7 @@ void ServiceWorkerJobs::ResolveJobPromise(
     Job* job, bool value,
     const scoped_refptr<ServiceWorkerRegistrationObject>& registration) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::ResolveJobPromise()");
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK(task_runner()->RunsTasksInCurrentSequence());
   DCHECK(job);
   // Algorithm for Resolve Job Promise:
   //   https://www.w3.org/TR/2022/CRD-service-workers-20220712/#resolve-job-promise-algorithm
@@ -1104,7 +1100,7 @@ void ServiceWorkerJobs::ResolveJobPromise(
   // the loop.
   if (job->client && job->promise != nullptr) {
     DCHECK(service_worker_context_->IsWebContextRegistered(job->client));
-    job->client->message_loop()->task_runner()->PostTask(
+    job->client->task_runner()->PostTask(
         FROM_HERE,
         base::BindOnce(
             [](JobType type, web::Context* client,
@@ -1151,7 +1147,7 @@ void ServiceWorkerJobs::ResolveJobPromise(
 // https://www.w3.org/TR/2022/CRD-service-workers-20220712/#finish-job-algorithm
 void ServiceWorkerJobs::FinishJob(Job* job) {
   TRACE_EVENT0("cobalt::worker", "ServiceWorkerJobs::FinishJob()");
-  DCHECK_EQ(message_loop(), base::MessageLoop::current());
+  DCHECK(task_runner()->RunsTasksInCurrentSequence());
   // 1. Let jobQueue be job’s containing job queue.
   JobQueue* job_queue = job->containing_job_queue;
 
@@ -1170,7 +1166,7 @@ void ServiceWorkerJobs::FinishJob(Job* job) {
 void ServiceWorkerJobs::PrepareForClientShutdown(web::Context* client) {
   DCHECK(client);
   if (!client) return;
-  DCHECK(base::MessageLoop::current() == message_loop());
+  DCHECK(base::SequencedTaskRunner::GetCurrentDefault() == task_runner());
   // Note: This could be rewritten to use the decomposition declaration
   // 'const auto& [scope, queue]' after switching to C++17.
   for (const auto& entry : job_queue_map_) {

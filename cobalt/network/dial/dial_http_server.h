@@ -36,7 +36,7 @@ class DialService;
 
 // This class is created and owned by DialService and is not meant to be
 // used externally.
-// All functions run on the DialService's message loop, except for
+// All functions run on the DialService's task runner, except for
 // the callback AsyncReceivedResponse() which is eventually called
 // by a DialServiceHandler.
 // It's refcounted threadsafe so we can safely bind it to the callback we pass
@@ -102,7 +102,7 @@ class NET_EXPORT DialHttpServer
 
   // Message Loop of the thread that created us. We make sure http server
   // is only called on the proper thread.
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
   DISALLOW_COPY_AND_ASSIGN(DialHttpServer);
 };

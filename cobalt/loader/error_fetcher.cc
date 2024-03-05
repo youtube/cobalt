@@ -15,7 +15,7 @@
 #include "cobalt/loader/error_fetcher.h"
 
 #include "base/bind.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 
 namespace cobalt {
@@ -25,7 +25,7 @@ ErrorFetcher::ErrorFetcher(Handler* handler, const std::string& error_message)
     : Fetcher(handler),
       error_message_(error_message),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)) {
-  base::ThreadTaskRunnerHandle::Get()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::Bind(&ErrorFetcher::Fetch, weak_ptr_factory_.GetWeakPtr()));
 }

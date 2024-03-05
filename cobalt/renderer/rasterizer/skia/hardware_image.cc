@@ -300,7 +300,7 @@ math::Size AdjustSizeForFormat(
 HardwareFrontendImage::HardwareFrontendImage(
     std::unique_ptr<HardwareImageData> image_data,
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
-    scoped_refptr<base::SingleThreadTaskRunner> rasterizer_task_runner)
+    scoped_refptr<base::SequencedTaskRunner> rasterizer_task_runner)
     : is_opaque_(image_data->GetDescriptor().alpha_format ==
                  render_tree::kAlphaFormatOpaque),
       alternate_rgba_format_(AlternateRgbaFormatFromImageDataDescriptor(
@@ -318,7 +318,7 @@ HardwareFrontendImage::HardwareFrontendImage(
     const scoped_refptr<backend::ConstRawTextureMemoryEGL>& raw_texture_memory,
     intptr_t offset, const render_tree::ImageDataDescriptor& descriptor,
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
-    scoped_refptr<base::SingleThreadTaskRunner> rasterizer_task_runner)
+    scoped_refptr<base::SequencedTaskRunner> rasterizer_task_runner)
     : is_opaque_(descriptor.alpha_format == render_tree::kAlphaFormatOpaque),
       alternate_rgba_format_(
           AlternateRgbaFormatFromImageDataDescriptor(descriptor)),
@@ -337,7 +337,7 @@ HardwareFrontendImage::HardwareFrontendImage(
     render_tree::AlphaFormat alpha_format,
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
     std::unique_ptr<math::RectF> content_region,
-    scoped_refptr<base::SingleThreadTaskRunner> rasterizer_task_runner,
+    scoped_refptr<base::SequencedTaskRunner> rasterizer_task_runner,
     base::Optional<AlternateRgbaFormat> alternate_rgba_format)
     : is_opaque_(alpha_format == render_tree::kAlphaFormatOpaque),
       content_region_(std::move(content_region)),
@@ -360,7 +360,7 @@ HardwareFrontendImage::HardwareFrontendImage(
     const scoped_refptr<render_tree::Node>& root,
     const SubmitOffscreenCallback& submit_offscreen_callback,
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
-    scoped_refptr<base::SingleThreadTaskRunner> rasterizer_task_runner)
+    scoped_refptr<base::SequencedTaskRunner> rasterizer_task_runner)
     : is_opaque_(false),
       size_(AdjustSizeForFormat(
           math::Size(static_cast<int>(root->GetBounds().right()),
@@ -382,7 +382,7 @@ HardwareFrontendImage::~HardwareFrontendImage() {
   // InitializeTask(). Make sure that task has finished before
   // destroying backend_image_.
   if (rasterizer_task_runner_) {
-    if (!rasterizer_task_runner_->BelongsToCurrentThread() ||
+    if (!rasterizer_task_runner_->RunsTasksInCurrentSequence() ||
         !backend_image_->TryDestroy()) {
       rasterizer_task_runner_->DeleteSoon(FROM_HERE, backend_image_.release());
     }
@@ -403,7 +403,7 @@ void HardwareFrontendImage::InitializeBackend() {
 
 const sk_sp<SkImage>& HardwareFrontendImage::GetImage() const {
   DCHECK(!rasterizer_task_runner_ ||
-         rasterizer_task_runner_->BelongsToCurrentThread());
+         rasterizer_task_runner_->RunsTasksInCurrentSequence());
   // Forward this call to the backend image.  This method must be called from
   // the rasterizer thread (e.g. during a render tree visitation).  The backend
   // image will check that this is being called from the correct thread.
@@ -412,13 +412,13 @@ const sk_sp<SkImage>& HardwareFrontendImage::GetImage() const {
 
 const backend::TextureEGL* HardwareFrontendImage::GetTextureEGL() const {
   DCHECK(!rasterizer_task_runner_ ||
-         rasterizer_task_runner_->BelongsToCurrentThread());
+         rasterizer_task_runner_->RunsTasksInCurrentSequence());
   return backend_image_->GetTextureEGL();
 }
 
 bool HardwareFrontendImage::CanRenderInSkia() const {
   DCHECK(!rasterizer_task_runner_ ||
-         rasterizer_task_runner_->BelongsToCurrentThread());
+         rasterizer_task_runner_->RunsTasksInCurrentSequence());
   // In some cases, especially when dealing with SbDecodeTargets, we may end
   // up with a GLES2 texture whose target is not GL_TEXTURE_2D, in which case
   // we cannot use our typical Skia flow to render it, and we delegate to
@@ -433,7 +433,7 @@ bool HardwareFrontendImage::CanRenderInSkia() const {
 
 bool HardwareFrontendImage::EnsureInitialized() {
   DCHECK(!rasterizer_task_runner_ ||
-         rasterizer_task_runner_->BelongsToCurrentThread());
+         rasterizer_task_runner_->RunsTasksInCurrentSequence());
   return backend_image_->EnsureInitialized();
 }
 
@@ -441,7 +441,7 @@ HardwareMultiPlaneImage::HardwareMultiPlaneImage(
     std::unique_ptr<HardwareRawImageMemory> raw_image_memory,
     const render_tree::MultiPlaneImageDataDescriptor& descriptor,
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
-    scoped_refptr<base::SingleThreadTaskRunner> rasterizer_task_runner)
+    scoped_refptr<base::SequencedTaskRunner> rasterizer_task_runner)
     : size_(descriptor.GetPlaneDescriptor(0).size),
       estimated_size_in_bytes_(raw_image_memory->GetSizeInBytes()),
       format_(descriptor.image_format()) {

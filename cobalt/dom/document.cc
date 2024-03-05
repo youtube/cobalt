@@ -21,8 +21,8 @@
 #include "base/bind_helpers.h"
 #include "base/callback.h"
 #include "base/compiler_specific.h"
-#include "base/message_loop/message_loop.h"
 #include "base/strings/string_util.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/token.h"
@@ -602,10 +602,10 @@ void Document::DecreaseLoadingCounterAndMaybeDispatchLoadEvent() {
   DCHECK_GT(loading_counter_, 0);
   loading_counter_--;
   if (loading_counter_ == 0 && should_dispatch_load_event_) {
-    DCHECK(base::MessageLoop::current());
+    DCHECK(base::SequencedTaskRunner::GetCurrentDefault());
     should_dispatch_load_event_ = false;
 
-    base::ThreadTaskRunnerHandle::Get()->PostTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::Bind(&Document::DispatchOnLoadEvent,
                               base::AsWeakPtr<Document>(this)));
 

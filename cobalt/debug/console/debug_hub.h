@@ -20,8 +20,8 @@
 
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
-#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/debug/console/console_command.h"
 #include "cobalt/debug/console/debug_console_mode.h"
@@ -58,16 +58,16 @@ class DebugHub : public script::Wrappable, public DebugClient::Delegate {
   typedef script::ScriptValue<ResponseCallback> ResponseCallbackArg;
 
   // Thread-safe ref-counted struct used to pass asynchronously executed
-  // response callbacks around. Stores the message loop the callback must be
+  // response callbacks around. Stores the task runner the callback must be
   // executed on as well as the callback itself.
   struct ResponseCallbackInfo
       : public base::RefCountedThreadSafe<ResponseCallbackInfo> {
     ResponseCallbackInfo(DebugHub* const debugger,
                          const ResponseCallbackArg& cb)
         : callback(debugger, cb),
-          task_runner(base::ThreadTaskRunnerHandle::Get()) {}
+          task_runner(base::SequencedTaskRunner::GetCurrentDefault()) {}
     ResponseCallbackArg::Reference callback;
-    scoped_refptr<base::SingleThreadTaskRunner> task_runner;
+    scoped_refptr<base::SequencedTaskRunner> task_runner;
     friend class base::RefCountedThreadSafe<ResponseCallbackInfo>;
   };
 
@@ -109,7 +109,7 @@ class DebugHub : public script::Wrappable, public DebugClient::Delegate {
 
  protected:
   // Called by the debug dispatcher with the response of a command on the
-  // message loop the command was sent from (the message loop of this object).
+  // task runner the command was sent from (the task runner of this object).
   // Passes the response to the JavaScript callback registered with the command.
   void OnCommandResponse(
       const scoped_refptr<ResponseCallbackInfo>& callback_info,
@@ -122,7 +122,7 @@ class DebugHub : public script::Wrappable, public DebugClient::Delegate {
 
  private:
   // Runs a script response callback with the specified response.
-  // Should be called from the same message loop as the script command that it
+  // Should be called from the same task runner as the script command that it
   // is a response for.
   void RunResponseCallback(
       const scoped_refptr<ResponseCallbackInfo>& callback_info,

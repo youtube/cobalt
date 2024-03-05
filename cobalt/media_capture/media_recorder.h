@@ -21,10 +21,10 @@
 
 #include "base/basictypes.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/single_thread_task_runner.h"
 #include "base/strings/string_piece.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
 #include "cobalt/media_capture/encoders/audio_encoder.h"
@@ -156,7 +156,7 @@ class MediaRecorder : public media_stream::MediaStreamAudioSink,
   web::BlobPropertyBag blob_options_;
   scoped_refptr<media_stream::MediaStream> stream_;
 
-  scoped_refptr<base::SingleThreadTaskRunner> javascript_message_loop_;
+  scoped_refptr<base::SequencedTaskRunner> javascript_task_runner_;
   base::TimeDelta timeslice_;
   // Only used to determine if |timeslice_| amount of time has
   // been passed since the slice was started.

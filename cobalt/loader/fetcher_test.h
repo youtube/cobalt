@@ -17,8 +17,8 @@
 
 #include <string>
 
-#include "base/message_loop/message_loop.h"
 #include "base/run_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/loader/fetcher.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -41,13 +41,13 @@ class FetcherHandlerForTest : public Fetcher::Handler {
   }
   void OnDone(Fetcher* fetcher) override {
     CheckFetcher(fetcher);
-    base::ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE,
-                                                  run_loop_->QuitClosure());
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, run_loop_->QuitClosure());
   }
   void OnError(Fetcher* fetcher, const std::string& error) override {
     CheckFetcher(fetcher);
-    base::ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE,
-                                                  run_loop_->QuitClosure());
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, run_loop_->QuitClosure());
   }
 
   const std::string& data() const { return data_; }

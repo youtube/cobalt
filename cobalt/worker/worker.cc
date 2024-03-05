@@ -19,7 +19,7 @@
 
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/task/task_runner.h"
 #include "base/threading/thread.h"
 #include "cobalt/browser/user_agent_platform_info.h"
@@ -203,7 +203,7 @@ void Worker::Obtain() {
 
 void Worker::SendErrorEventToOutside(const std::string& message) {
   LOG(WARNING) << "Worker loading failed : " << message;
-  options_.outside_context->message_loop()->task_runner()->PostTask(
+  options_.outside_context->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(
           [](base::WeakPtr<web::EventTarget> event_target,

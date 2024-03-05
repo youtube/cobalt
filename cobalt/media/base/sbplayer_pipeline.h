@@ -58,19 +58,20 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
                                       public SbPlayerBridge::Host {
  public:
   // Constructs a media pipeline that will execute on |task_runner|.
-  SbPlayerPipeline(
-      SbPlayerInterface* interface, PipelineWindow window,
-      const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
-      const GetDecodeTargetGraphicsContextProviderFunc&
-          get_decode_target_graphics_context_provider_func,
-      bool allow_resume_after_suspend, bool allow_batched_sample_write,
-      bool force_punch_out_by_default,
+  SbPlayerPipeline(SbPlayerInterface* interface, PipelineWindow window,
+                   const scoped_refptr<base::SequencedTaskRunner>& task_runner,
+                   const GetDecodeTargetGraphicsContextProviderFunc&
+                       get_decode_target_graphics_context_provider_func,
+                   bool allow_resume_after_suspend,
+                   bool allow_batched_sample_write,
+                   bool force_punch_out_by_default,
 #if SB_API_VERSION >= 15
-      TimeDelta audio_write_duration_local,
-      TimeDelta audio_write_duration_remote,
+                   TimeDelta audio_write_duration_local,
+                   TimeDelta audio_write_duration_remote,
 #endif  // SB_API_VERSION >= 15
-      MediaLog* media_log, MediaMetricsProvider* media_metrics_provider,
-      DecodeTargetProvider* decode_target_provider);
+                   MediaLog* media_log,
+                   MediaMetricsProvider* media_metrics_provider,
+                   DecodeTargetProvider* decode_target_provider);
   ~SbPlayerPipeline() override;
 
   void Suspend() override;
@@ -211,7 +212,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   SbPlayerInterface* sbplayer_interface_;
 
   // Message loop used to execute pipeline tasks.  It is thread-safe.
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
   // Whether we should save DecoderBuffers for resume after suspend.
   const bool allow_resume_after_suspend_;
@@ -244,12 +245,12 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   gfx::Size natural_size_;
 
   // Current volume level (from 0.0f to 1.0f).  This value is set immediately
-  // via SetVolume() and a task is dispatched on the message loop to notify the
+  // via SetVolume() and a task is dispatched on the task runner to notify the
   // filters.
   base::CVal<float> volume_;
 
   // Current playback rate (>= 0.0f).  This value is set immediately via
-  // SetPlaybackRate() and a task is dispatched on the message loop to notify
+  // SetPlaybackRate() and a task is dispatched on the task runner to notify
   // the filters.
   base::CVal<float> playback_rate_;
 

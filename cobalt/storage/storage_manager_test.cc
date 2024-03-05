@@ -23,6 +23,8 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/test/task_environment.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/storage/savegame_fake.h"
@@ -104,7 +106,8 @@ void FlushCallback(MemoryStore* memory_store) {
 
 class StorageManagerTest : public ::testing::Test {
  protected:
-  StorageManagerTest() : message_loop_(base::MessageLoop::TYPE_DEFAULT) {}
+  StorageManagerTest()
+      : task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {}
 
   ~StorageManagerTest() { storage_manager_.reset(NULL); }
 
@@ -129,7 +132,10 @@ class StorageManagerTest : public ::testing::Test {
     storage_manager_->FinishIO();
   }
 
-  base::MessageLoop message_loop_;
+  base::test::SingleThreadTaskEnvironment task_environment_{
+      base::test::SingleThreadTaskEnvironment::MainThreadType::IO,
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  base::SequencedTaskRunner* const task_runner_;
   std::unique_ptr<StorageManager> storage_manager_;
 };
 

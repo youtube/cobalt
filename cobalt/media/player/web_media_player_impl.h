@@ -55,7 +55,8 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/current_thread.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
@@ -84,7 +85,7 @@ namespace media {
 class WebMediaPlayerProxy;
 
 class WebMediaPlayerImpl : public WebMediaPlayer,
-                           public base::MessageLoop::DestructionObserver,
+                           public base::CurrentThread::DestructionObserver,
                            public base::SupportsWeakPtr<WebMediaPlayerImpl> {
  public:
   // Construct a WebMediaPlayerImpl with reference to the client, and media
@@ -254,7 +255,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   // Message loops for posting tasks between Chrome's main thread. Also used
   // for DCHECKs so methods calls won't execute in the wrong thread.
-  base::MessageLoop* main_loop_;
+  base::SequencedTaskRunner* task_runner_;
 
   scoped_refptr<Pipeline> pipeline_;
 

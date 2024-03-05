@@ -88,8 +88,7 @@ TRACE_EVENT_BENCHMARK4(FlowExample, "FlowInitiator",
   for (int i = 0; i < kRenderIterationCount; ++i) {
     usleep(2000);
     TRACE_EVENT0("SampleBenchmark", "FlowInitiator");
-    thread.message_loop()->task_runner()->PostTask(FROM_HERE,
-                                                   base::Bind(&HandleTask));
+    thread.task_runner()->PostTask(FROM_HERE, base::Bind(&HandleTask));
     usleep(5000);
   }
 }

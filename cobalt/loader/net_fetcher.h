@@ -21,7 +21,7 @@
 #include "base/cancelable_callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/loader/fetcher.h"
@@ -40,7 +40,7 @@ namespace loader {
 class NetFetcher : public Fetcher,
                    public net::URLFetcherDelegate,
                    public base::SupportsWeakPtr<NetFetcher>,
-                   public base::MessageLoopCurrent::DestructionObserver {
+                   public base::CurrentThread::DestructionObserver {
  public:
   struct Options {
    public:
@@ -69,7 +69,7 @@ class NetFetcher : public Fetcher,
                                   int64_t current_network_bytes) override;
   void ReportLoadTimingInfo(const net::LoadTimingInfo& timing_info) override;
 
-  // base::MessageLoopCurrent::DestructionObserver
+  // base::CurrentThread::DestructionObserver
   void WillDestroyCurrentMessageLoop() override;
 
   void OnFetchIntercepted(std::unique_ptr<std::string> body);
@@ -130,9 +130,9 @@ class NetFetcher : public Fetcher,
   // True when the requested resource type is script.
   bool request_script_;
 
-  scoped_refptr<base::SingleThreadTaskRunner> const task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> const task_runner_;
   bool skip_fetch_intercept_;
-  starboard::atomic_bool will_destroy_current_message_loop_;
+  starboard::atomic_bool will_destroy_current_task_runner_;
   bool main_resource_;
 
   DISALLOW_COPY_AND_ASSIGN(NetFetcher);
