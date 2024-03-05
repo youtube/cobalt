@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <sys/stat.h>
+
 #include <string>
 
 #include "starboard/file.h"

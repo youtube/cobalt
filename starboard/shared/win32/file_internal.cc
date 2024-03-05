@@ -15,6 +15,7 @@
 #include "starboard/shared/win32/file_internal.h"
 
 #include <sys/stat.h>
+
 #include <windows.h>
 
 #include "starboard/common/log.h"

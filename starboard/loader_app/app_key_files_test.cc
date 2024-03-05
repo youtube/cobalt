@@ -15,6 +15,7 @@
 #include "starboard/loader_app/app_key_files.h"
 
 #include <sys/stat.h>
+
 #include <string>
 #include <vector>
 

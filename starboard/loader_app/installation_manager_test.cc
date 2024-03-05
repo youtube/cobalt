@@ -15,6 +15,7 @@
 #include "starboard/loader_app/installation_manager.h"
 
 #include <sys/stat.h>
+
 #include <string>
 #include <vector>
 

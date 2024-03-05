@@ -15,6 +15,7 @@
 #include "starboard/loader_app/reset_evergreen_update.h"
 
 #include <sys/stat.h>
+
 #include <string>
 #include <vector>
 

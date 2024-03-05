@@ -14,6 +14,9 @@ int mkdir(const char *path, mode_t mode)
     return -1;
 }
 
+// Reverse implementation of TimeTToWindowsUsec and PosixTimeToWindowsTime for backwards compatibility
+// TimeTToWindowsUsec converts to microseconds (*1000000) and then calls PosixTimeToWindowsTime
+// PosixTimeToWindows time adds number of microseconds since Jan 1, 1601 (UTC) until Jan 1, 1970 (UTC)
 static SB_C_FORCE_INLINE time_t WindowsUsecToTimeT(int64_t time) {
     int64_t posix_time = time - 11644473600000000ULL;
     posix_time = posix_time / 1000000;

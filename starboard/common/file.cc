@@ -15,6 +15,7 @@
 #include "starboard/common/file.h"
 
 #include <sys/stat.h>
+
 #include <cstring>
 #include <string>
 #include <vector>

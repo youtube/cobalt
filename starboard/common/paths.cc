@@ -15,6 +15,7 @@
 #include "starboard/common/paths.h"
 
 #include <sys/stat.h>
+
 #include <string>
 #include <vector>
 #include "starboard/common/log.h"

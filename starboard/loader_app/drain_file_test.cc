@@ -15,6 +15,7 @@
 #include "starboard/loader_app/drain_file.h"
 
 #include <sys/stat.h>
+
 #include <string>
 #include <vector>
 

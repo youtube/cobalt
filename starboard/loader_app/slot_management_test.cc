@@ -15,6 +15,7 @@
 #include "starboard/loader_app/slot_management.h"
 
 #include <sys/stat.h>
+
 #include <string>
 #include <vector>
 
