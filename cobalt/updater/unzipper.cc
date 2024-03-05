@@ -8,6 +8,7 @@
 #include <utility>
 #include "base/callback.h"
 #include "base/files/file_path.h"
+#include "base/logging.h"
 #include "base/time/time.h"
 #include "starboard/common/time.h"
 #include "third_party/zlib/google/zip.h"

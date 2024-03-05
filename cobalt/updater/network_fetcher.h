@@ -26,7 +26,7 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/network/network_module.h"
 #include "components/update_client/network.h"
-#include "net/url_request/url_fetcher_delegate.h"
+#include "cobalt/network/custom/url_fetcher_delegate.h"
 
 namespace base {
 

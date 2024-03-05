@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "base/files/file_util.h"
+#include "base/logging.h"
 #include "base/values.h"
 #include "cobalt/updater/utils.h"
 #include "components/update_client/utils.h"

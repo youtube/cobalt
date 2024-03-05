@@ -12,6 +12,7 @@
 
 #include "base/functional/callback_forward.h"
 #include "base/memory/ref_counted.h"
+#include "base/values.h"
 #include "components/update_client/update_client.h"
 
 class GURL;
@@ -79,7 +80,7 @@ CrxInstaller::Result InstallFunctionWrapper(
     base::OnceCallback<bool()> callback);
 
 // Deserializes the CRX manifest. The top level must be a dictionary.
-std::unique_ptr<base::DictionaryValue> ReadManifest(
+base::Value::Dict ReadManifest(
     const base::FilePath& unpack_path);
 
 // Converts a custom, specific installer error (and optionally extended error)

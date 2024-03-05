@@ -84,11 +84,7 @@ bool GetProductDirectoryPath(base::FilePath* path) {
 
 base::Version ReadEvergreenVersion(base::FilePath installation_dir) {
   auto manifest = update_client::ReadManifest(installation_dir);
-  if (!manifest) {
-    return base::Version();
-  }
-
-  auto version = manifest->FindKey("version");
+  auto version = manifest.Find("version");
   if (version) {
     return base::Version(version->GetString());
   }
