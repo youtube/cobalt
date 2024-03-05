@@ -91,8 +91,8 @@ class ComponentPatcher : public base::RefCountedThreadSafe<ComponentPatcher> {
   scoped_refptr<CrxInstaller> installer_;
   scoped_refptr<Patcher> patcher_;
   Callback callback_;
-  std::unique_ptr<base::ListValue> commands_;
-  base::ListValue::const_iterator next_command_;
+  absl::optional<base::Value::List> commands_;
+  base::Value::List::const_iterator next_command_;
   scoped_refptr<DeltaUpdateOp> current_operation_;
 
   DISALLOW_COPY_AND_ASSIGN(ComponentPatcher);

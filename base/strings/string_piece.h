@@ -483,6 +483,17 @@ class GSL_POINTER BasicStringPiece {
     return find_last_not_of(BasicStringPiece(s), pos);
   }
 
+#ifdef USE_HACKY_COBALT_CHANGES
+// Remove once we're on C++20+
+  constexpr bool starts_with(BasicStringPiece v) const noexcept {
+    return rfind(v, 0) == 0;
+  }
+
+  constexpr bool ends_with(BasicStringPiece v) const noexcept {
+    return find(v) == size() - v.size();
+  }
+#endif
+
   static constexpr size_type npos = size_type(-1);
 
  protected:
