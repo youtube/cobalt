@@ -60,7 +60,7 @@ TEST(SbDirectoryCanOpenTest, FailureRegularFile) {
   EXPECT_TRUE(SbFileExists(file.filename().c_str()));
   EXPECT_FALSE(SbDirectoryCanOpen(file.filename().c_str()));
 }
-#endif  // SB_API_VERSION < 16
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+#endif  // SB_API_VERSION < 16
