@@ -15,6 +15,7 @@
 #include "components/update_client/cobalt_slot_management.h"
 
 #include <sys/stat.h>
+
 #include <algorithm>
 #include <vector>
 
