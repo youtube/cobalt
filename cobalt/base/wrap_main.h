@@ -68,68 +68,6 @@ void NoopStopFunction() {}
 
 #if defined(STARBOARD)
 #include "cobalt/base/wrap_main_starboard.h"
-#else
-
-namespace cobalt {
-namespace wrap_main {
-
-template <MainFunction main_function>
-int SimpleMain(int argc, char** argv) {
-  base::AtExitManager at_exit;
-  InitCobalt(argc, argv, NULL);
-  return main_function(argc, argv);
-}
-
-template <StartFunction start_function, StopFunction stop_function>
-int BaseMain(int argc, char** argv) {
-  base::AtExitManager at_exit;
-  InitCobalt(argc, argv, NULL);
-
-  base::MessageLoopForUI message_loop;
-  base::PlatformThread::SetName("Main");
-
-  DCHECK(!message_loop.is_running());
-  base::RunLoop run_loop;
-
-  start_function(argc, argv, NULL, run_loop.QuitClosure(),
-                 0 /*Invalid timestamp*/);
-  run_loop.Run();
-  stop_function();
-
-  return 0;
-}
-
-// Calls |main_function| at startup, creates an AtExitManager and calls
-// InitCobalt, and terminates once it is completed.
-#define COBALT_WRAP_SIMPLE_MAIN(main_function)                         \
-  int main(int argc, char** argv) {                                    \
-    return ::cobalt::wrap_main::SimpleMain<main_function>(argc, argv); \
-  }
-
-// Creates a base::MessageLoop and an AtExitManager, calls |start_function|, and
-// terminates once the base::MessageLoop terminates, calling |stop_function| on
-// the way out.
-#define COBALT_WRAP_BASE_MAIN(start_function, stop_function)                   \
-  int main(int argc, char** argv) {                                            \
-    return ::cobalt::wrap_main::BaseMain<start_function, stop_function>(argc,  \
-                                                                        argv); \
-  }
-
-// Like COBALT_WRAP_BASE_MAIN, but supports an event_function to forward
-// non-application events to.
-#define COBALT_WRAP_EVENT_MAIN(start_function, event_function, stop_function) \
-  COBALT_WRAP_BASE_MAIN(start_function, stop_function)
-
-// The generic main wrapper that initializes the main base::MessageLoop and
-// AtExitManager, supports a preload function, start function, event handler,
-// and stop function.
-#define COBALT_WRAP_MAIN(preload_function, start_function, event_function, \
-                         stop_function)                                    \
-  COBALT_WRAP_BASE_MAIN(start_function, stop_function)
-
-}  // namespace wrap_main
-}  // namespace cobalt
-
-#endif  // defined(STARBOARD)
+#endif
 
 #endif  // COBALT_BASE_WRAP_MAIN_H_
