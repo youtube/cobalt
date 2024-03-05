@@ -189,14 +189,14 @@ bool DoIDNHost(const char16_t* src, size_t src_len, CanonOutput* output) {
   }
 
   StackBufferW wide_output;
-  // if (!IDNToASCII(url_escaped_host.data(),
-  //                 url_escaped_host.length(),
-  //                 &wide_output)) {
-  //   // Some error, give up. This will write some reasonable looking
-  //   // representation of the string to the output.
-  //   AppendInvalidNarrowString(src, 0, src_len, output);
-  //   return false;
-  // }
+  if (!IDNToASCII(url_escaped_host.data(),
+                  url_escaped_host.length(),
+                  &wide_output)) {
+    // Some error, give up. This will write some reasonable looking
+    // representation of the string to the output.
+    AppendInvalidNarrowString(src, 0, src_len, output);
+    return false;
+  }
 
   // Now we check the ASCII output like a normal host. It will also handle
   // unescaping. Although we unescaped everything before this function call, if

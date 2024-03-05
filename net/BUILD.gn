@@ -217,6 +217,7 @@ component("net") {
     "base/network_handle.h",
     "base/network_interfaces.cc",
     "base/network_interfaces.h",
+    "base/network_interfaces_starboard.cc",
     "base/network_isolation_key.cc",
     "base/network_isolation_key.h",
     "base/parse_number.cc",
@@ -3302,15 +3303,17 @@ test("net_unittests") {
     ]
   }
 
+  if (use_cobalt_customizations) {
+    sources -= [
+      # NetworkInterfaces is stubbed out in Starboard.
+      "base/network_interfaces_unittest.cc",
+    ]
+  }
+
   if (use_hacky_cobalt_changes) {
     # TODO: b/327218234 - Reenable unittests with used functionality.
     # TODO: b/327008491 - Reenable unittests with unused functionality.
     sources -= [
-      "base/network_interfaces_unittest.cc",
-      "base/proxy_server_unittest.cc",
-      "base/proxy_string_util_unittest.cc",
-      "base/registry_controlled_domains/registry_controlled_domain_unittest.cc",
-      "base/scheme_host_port_matcher_rule_unittest.cc",
       "base/upload_file_element_reader_unittest.cc",
       "cert/cert_verify_proc_builtin_unittest.cc",
       "cert/cert_verify_proc_unittest.cc",

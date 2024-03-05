@@ -1,4 +1,4 @@
-// Copyright 2023 The Cobalt Authors. All Rights Reserved.
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,27 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "net/base/platform_mime_util.h"
-
 #include "net/base/network_interfaces.h"
 
 namespace net {
 
-bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
-    const base::FilePath::StringType& ext,
-    std::string* result) const {
+bool GetNetworkList(NetworkInterfaceList* networks, int policy) {
+  NOTIMPLEMENTED();
   return false;
 }
 
-bool PlatformMimeUtil::GetPlatformPreferredExtensionForMimeType(
-    const std::string& mime_type,
-    base::FilePath::StringType* ext) const {
-  return false;
+std::string GetWifiSSID() {
+  NOTIMPLEMENTED();
+  return std::string();
 }
 
-void PlatformMimeUtil::GetPlatformExtensionsForMimeType(
-    const std::string& mime_type,
-    std::unordered_set<base::FilePath::StringType>* extensions) const {
-}
-
-}
+}  // namespace net
