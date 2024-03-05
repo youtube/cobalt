@@ -56,12 +56,8 @@ class DrainFileTest : public ::testing::Test {
   const char* GetTempDir() const { return temp_dir_.data(); }
 
   bool FileExists(const char* path) {
-#if SB_API_VERSION < 16
-    return SbFileExists(path);
-#else
     struct stat info;
     return stat(path, &info) == 0;
-#endif
   }
 
  private:

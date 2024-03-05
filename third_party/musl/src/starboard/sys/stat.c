@@ -1,7 +1,8 @@
+#if SB_API_VERSION < 16
+
 #include <stdio.h>
 #include <sys/stat.h>
 
-#if SB_API_VERSION < 16
 #include <fcntl.h>
 #include <time.h>
 #include "starboard/directory.h"

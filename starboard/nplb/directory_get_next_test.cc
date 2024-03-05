@@ -32,12 +32,8 @@ namespace {
 typedef std::set<std::string> StringSet;
 
 bool FileExists(const char* path) {
-#if SB_API_VERSION < 16
-  return SbFileExists(path);
-#else
   struct stat info;
   return stat(path, &info) == 0;
-#endif
 }
 
 TEST(SbDirectoryGetNextTest, SunnyDay) {

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/file.h"
 
 #include <windows.h>
@@ -19,7 +21,6 @@
 #include "starboard/shared/win32/file_internal.h"
 #include "starboard/shared/win32/wchar_utils.h"
 
-#if SB_API_VERSION < 16
 bool SbFileExists(const char* path) {
   using starboard::shared::win32::CStringToWString;
   using starboard::shared::win32::IsValidHandle;

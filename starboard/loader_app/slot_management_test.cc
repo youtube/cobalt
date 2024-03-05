@@ -95,12 +95,8 @@ class SlotManagementTest : public testing::TestWithParam<bool> {
   }
 
   bool FileExists(const char* path) {
-#if SB_API_VERSION < 16
-    return SbFileExists(path);
-#else
     struct stat info;
     return stat(path, &info) == 0;
-#endif
   }
 
   void CreateBadFile(int index, const std::string& app_key) {

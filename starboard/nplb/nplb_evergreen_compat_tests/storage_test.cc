@@ -84,12 +84,8 @@ TEST_F(StorageTest, VerifyStorageDirectory) {
   }
 
   ASSERT_TRUE(SbFileDelete(file_path.data()));
-#if SB_API_VERSION < 16
-  ASSERT_FALSE(SbFileExists(file_path.data()));
-#else
   struct stat info;
   ASSERT_FALSE(stat(file_path.data(), &info) == 0);
-#endif  // SB_API_VERSION < 16
 }
 
 }  // namespace

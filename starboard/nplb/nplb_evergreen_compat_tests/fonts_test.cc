@@ -38,35 +38,24 @@ TEST(FontsTest, VerifySystemFontsDirectory) {
   std::vector<char> system_fonts_dir(kSbFileMaxPath);
   ASSERT_TRUE(SbSystemGetPath(kSbSystemPathFontDirectory,
                               system_fonts_dir.data(), kSbFileMaxPath));
-#if SB_API_VERSION < 16
-  ASSERT_TRUE(SbFileExists(system_fonts_dir.data()));
-#else
+
   struct stat info;
   ASSERT_TRUE(stat(system_fonts_dir.data(), &info) == 0);
-#endif  // SB_API_VERSION < 16
 }
 
 TEST(FontsTest, VerifySystemFontsConfigDirectory) {
   std::vector<char> system_fonts_conf_dir(kSbFileMaxPath);
   ASSERT_TRUE(SbSystemGetPath(kSbSystemPathFontConfigurationDirectory,
                               system_fonts_conf_dir.data(), kSbFileMaxPath));
-#if SB_API_VERSION < 16
-  ASSERT_TRUE(SbFileExists(system_fonts_conf_dir.data()));
-#else
   struct stat info;
   ASSERT_TRUE(stat(system_fonts_conf_dir.data(), &info) == 0);
-#endif  // SB_API_VERSION < 16
 
   std::string fonts_descriptor_file = system_fonts_conf_dir.data();
   fonts_descriptor_file += kSbFileSepString;
   fonts_descriptor_file += kFileName;
 
-#if SB_API_VERSION < 16
-  ASSERT_TRUE(SbFileExists(fonts_descriptor_file.c_str()));
-#else
   struct stat file_info;
   ASSERT_TRUE(stat(fonts_descriptor_file.c_str(), &file_info) == 0);
-#endif  // SB_API_VERSION < 16
 }
 
 }  // namespace
