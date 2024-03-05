@@ -34,7 +34,12 @@ std::string ProtocolSerializerJSON::Serialize(
   request_node.Set("prodversion", request.prodversion);
   request_node.Set("updaterversion", request.updaterversion);
   request_node.Set("@os", request.operating_system);
-  request_node.Set("arch", request.arch);
+#if defined(STARBOARD)
+  // Upstream sets the lang in app_nodes, but we want it in request_node until
+  // we fully update //components/update_client.
+  request_node.Set("lang", request.lang);
+#endif
+  request_node.Set("arch", request.lang);
   request_node.Set("nacl_arch", request.nacl_arch);
 #if BUILDFLAG(IS_WIN)
   if (request.is_wow64)
@@ -90,8 +95,10 @@ std::string ProtocolSerializerJSON::Serialize(
     app_node.Set("version", app.version);
     if (!app.brand_code.empty())
       app_node.Set("brand", app.brand_code);
+#if !defined(STARBOARD)
     if (!app.lang.empty())
       app_node.Set("lang", app.lang);
+#endif
     if (!app.install_source.empty())
       app_node.Set("installsource", app.install_source);
     if (!app.install_location.empty())
