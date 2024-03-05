@@ -92,6 +92,7 @@ _ALLOWED_SB16_POSIX_SYMBOLS = [
     'free',
     'gettimeofday',
     'gmtime_r',
+    'inet_ntop',
     'malloc',
     'posix_memalign',
     'realloc',
