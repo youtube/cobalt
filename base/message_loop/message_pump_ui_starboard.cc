@@ -74,15 +74,18 @@ void MessagePumpUIStarboard::Run(Delegate* delegate) {
   NOTREACHED();
 }
 
-void MessagePumpUIStarboard::Start(Delegate* delegate) {
-  run_loop_.reset(new base::RunLoop());
-  delegate_ = delegate;
+void MessagePumpUIStarboard::Attach(Delegate* delegate) {
+  // Since the Looper is controlled by the UI thread or JavaHandlerThread, we
+  // can't use Run() like we do on other platforms or we would prevent Java
+  // tasks from running. Instead we create and initialize a run loop here, then
+  // return control back to the Looper.
 
+  SetDelegate(delegate);
+  run_loop_ = std::make_unique<RunLoop>();
   // Since the RunLoop was just created above, BeforeRun should be guaranteed to
   // return true (it only returns false if the RunLoop has been Quit already).
-  // Note that Cobalt does not actually call RunLoop::Start() because
-  // Starboard manages its own pump.
-  run_loop_->BeforeRun();
+  if (!run_loop_->BeforeRun())
+    NOTREACHED();
 }
 
 void MessagePumpUIStarboard::Quit() {
@@ -195,6 +198,10 @@ bool MessagePumpUIStarboard::RunOne(TimeTicks* out_delayed_work_time) {
   // go to sleep. ScheduleWork or ScheduleDelayedWork will be called if new work
   // is scheduled.
   return delegate_->DoIdleWork();
+}
+
+MessagePump::Delegate* MessagePumpForUI::SetDelegate(Delegate* delegate) {
+  return std::exchange(delegate_, delegate);
 }
 
 }  // namespace base

@@ -19,8 +19,8 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop/message_loop.h"
 #include "base/single_thread_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/web/event.h"
 #include "cobalt/web/event_target.h"
 
@@ -54,7 +54,7 @@ class EventQueue : public base::SupportsWeakPtr<EventQueue>,
   void DispatchEvents();
 
   web::EventTarget* event_target_;
-  scoped_refptr<base::SingleThreadTaskRunner> message_loop_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
   Events events_;
   // Events that are currently being fired. We need this as local variable for
   // JavaScript tracing purpose.

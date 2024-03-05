@@ -366,18 +366,18 @@ XMLHttpRequestImpl::XMLHttpRequestImpl(XMLHttpRequest* xhr)
       upload_listener_(false),
       with_credentials_(false),
       xhr_(xhr),
-      will_destroy_current_message_loop_(false),
+      will_destroy_current_task_runner_(false),
       active_requests_count_(0),
       http_status_(0),
       redirect_times_(0),
       sent_(false),
       settings_(xhr->environment_settings()),
       stop_timeout_(false),
-      task_runner_(base::ThreadTaskRunnerHandle::Get()),
+      task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       timeout_ms_(0),
       upload_complete_(false) {
   DCHECK(environment_settings());
-  base::MessageLoop::current()->AddDestructionObserver(this);
+  base::CurrentThread::Get()->AddDestructionObserver(this);
 }
 
 void XMLHttpRequestImpl::Abort() {
@@ -537,10 +537,10 @@ void XMLHttpRequestImpl::Send(
 
 void XMLHttpRequestImpl::SendIntercepted(
     std::unique_ptr<std::string> response) {
-  if (will_destroy_current_message_loop_.load()) {
+  if (will_destroy_current_task_runner_.load()) {
     return;
   }
-  if (task_runner_ != base::ThreadTaskRunnerHandle::Get()) {
+  if (task_runner_ != base::SequencedTaskRunner::GetCurrentDefault()) {
     task_runner_->PostTask(FROM_HERE,
                            base::BindOnce(&XMLHttpRequestImpl::SendIntercepted,
                                           AsWeakPtr(), std::move(response)));
@@ -605,10 +605,10 @@ void XMLHttpRequestImpl::SendIntercepted(
 void XMLHttpRequestImpl::SendFallback(
     const base::Optional<XMLHttpRequest::RequestBodyType>& request_body,
     script::ExceptionState* exception_state) {
-  if (will_destroy_current_message_loop_.load()) {
+  if (will_destroy_current_task_runner_.load()) {
     return;
   }
-  if (task_runner_ != base::ThreadTaskRunnerHandle::Get()) {
+  if (task_runner_ != base::SequencedTaskRunner::GetCurrentDefault()) {
     task_runner_->PostTask(
         FROM_HERE,
         base::BindOnce(&XMLHttpRequestImpl::SendFallback,
@@ -1209,7 +1209,7 @@ void XMLHttpRequestImpl::OnRedirect(const net::HttpResponseHeaders& headers) {
 }
 
 void XMLHttpRequestImpl::WillDestroyCurrentMessageLoop() {
-  will_destroy_current_message_loop_.store(true);
+  will_destroy_current_task_runner_.store(true);
 }
 
 void XMLHttpRequestImpl::ReportLoadTimingInfo(
@@ -1528,7 +1528,7 @@ void XMLHttpRequestImpl::PrepareForNewRequest() {
 void XMLHttpRequestImpl::StartURLFetcher(
     const int64_t max_artificial_delay_usec, const int url_fetcher_generation) {
   if (max_artificial_delay_usec > 0) {
-    base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
         FROM_HERE,
         base::Bind(&XMLHttpRequestImpl::StartURLFetcher, base::Unretained(this),
                    0, url_fetcher_generation_),

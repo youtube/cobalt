@@ -19,7 +19,6 @@
 #include <string>
 #include <vector>
 
-#include "base/message_loop/message_loop.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread.h"
 #include "cobalt/base/event_dispatcher.h"
@@ -65,7 +64,7 @@ const char kQuicEnabledPersistentSettingsKey[] = "QUICEnabled";
 class NetworkSystem;
 // NetworkModule wraps various networking-related components such as
 // a URL request context. This is owned by BrowserModule.
-class NetworkModule : public base::MessageLoop::DestructionObserver {
+class NetworkModule : public base::CurrentThread::DestructionObserver {
  public:
   struct Options {
     Options()
@@ -135,7 +134,7 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
   void AddClientHintHeaders(net::URLFetcher& url_fetcher,
                             ClientHintHeadersCallType call_type) const;
 
-  // From base::MessageLoop::DestructionObserver.
+  // From base::CurrentThread::DestructionObserver.
   void WillDestroyCurrentMessageLoop() override;
 
   // Used to capture NetLog from Devtools

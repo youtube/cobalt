@@ -40,11 +40,7 @@ namespace base {
 class BASE_EXPORT MessagePumpUIStarboard : public MessagePump {
  public:
   MessagePumpUIStarboard();
-  virtual ~MessagePumpUIStarboard() {
-    // There is probability that MessagePump may send event to MessageLoop that
-    // was already destroyed. To avoid this delete all tasks in pump_
-    Quit();
-  }
+  virtual ~MessagePumpUIStarboard() { Quit(); }
 
   // Runs one iteration of the run loop, and reschedules another call, if
   // necessary.
@@ -55,8 +51,15 @@ class BASE_EXPORT MessagePumpUIStarboard : public MessagePump {
   virtual void Run(Delegate* delegate) override;
   virtual void Quit() override;
   virtual void ScheduleWork() override;
-  virtual void ScheduleDelayedWork(const Delegate::NextWorkInfo& next_work_info) override;
-  virtual void Start(Delegate* delegate);
+  virtual void ScheduleDelayedWork(
+      const Delegate::NextWorkInfo& next_work_info) override;
+
+  // Attaches |delegate| to this native MessagePump. |delegate| will from then
+  // on be invoked by the native loop to process application tasks.
+  virtual void Attach(Delegate* delegate);
+
+ protected:
+  Delegate* SetDelegate(Delegate* delegate);
 
  private:
   // Cancels all outstanding scheduled callback events, if any.

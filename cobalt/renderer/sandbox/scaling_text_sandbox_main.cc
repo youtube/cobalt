@@ -16,7 +16,7 @@
 
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
-#include "base/task/sequenced_task_runner.h"
+#include "base/task/single_thread_task_executor.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/math/size.h"
@@ -38,7 +38,7 @@ const int kViewportWidth = 1920;
 const int kViewportHeight = 1080;
 
 int SandboxMain(int argc, char** argv) {
-  base::MessageLoop task_runner(base::MessagePumpType::DEFAULT);
+  base::SingleThreadTaskExecutor task_executor(base::MessagePumpType::UI);
 
   cobalt::trace_event::ScopedTraceToFile trace_to_file(
       base::FilePath(FILE_PATH_LITERAL("scaling_text_sandbox_trace.json")));

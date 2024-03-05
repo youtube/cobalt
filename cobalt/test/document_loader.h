@@ -21,6 +21,8 @@
 #include "base/optional.h"
 #include "base/run_loop.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/test/task_environment.h"
 #include "base/threading/thread.h"
 #include "cobalt/base/clock.h"
 #include "cobalt/css_parser/parser.h"
@@ -49,7 +51,8 @@ namespace test {
 class DocumentLoader : public dom::DocumentObserver {
  public:
   DocumentLoader()
-      : fetcher_factory_(NULL /* network_module */),
+      : task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
+        fetcher_factory_(NULL /* network_module */),
         css_parser_(css_parser::Parser::Create()),
         dom_parser_(new dom_parser::Parser()),
         resource_provider_stub_(new render_tree::ResourceProviderStub()),
@@ -104,8 +107,10 @@ class DocumentLoader : public dom::DocumentObserver {
   void OnMutation() override {}
   void OnFocusChanged() override {}
 
-  // A nested task runner needs a non-nested task runner to exist.
-  base::MessageLoop task_runner_;
+  base::test::SingleThreadTaskEnvironment task_environment_{
+      base::test::SingleThreadTaskEnvironment::MainThreadType::IO,
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  base::SequencedTaskRunner* const task_runner_;
 
   // Nested task runner on which the document loading will occur.
   base::RunLoop nested_loop_;

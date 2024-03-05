@@ -21,8 +21,8 @@
 #include "base/callback.h"
 #include "base/files/file_path.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/message_loop/message_loop.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/javascript_engine.h"
@@ -39,7 +39,7 @@ class ServiceWorkerContext;
 }
 namespace web {
 
-class Agent : public base::MessageLoop::DestructionObserver {
+class Agent : public base::CurrentThread::DestructionObserver {
  public:
   struct Options {
     typedef base::Callback<scoped_refptr<script::Wrappable>(
@@ -86,8 +86,9 @@ class Agent : public base::MessageLoop::DestructionObserver {
            DestructionObserver* destruction_observer = nullptr);
   void Stop();
 
-  static Context* CreateContext(const std::string& name, const Options& options,
-                                base::MessageLoop* message_loop = nullptr);
+  static Context* CreateContext(
+      const std::string& name, const Options& options,
+      base::SequencedTaskRunner* task_runner = nullptr);
   static Context* CreateContext(const std::string& name) {
     return CreateContext(name, Options());
   }
@@ -97,8 +98,10 @@ class Agent : public base::MessageLoop::DestructionObserver {
     return context_.get();
   }
 
-  // The message loop this object is running on.
-  base::MessageLoop* message_loop() const { return thread_.message_loop(); }
+  // The task runner this object is running on.
+  base::SequencedTaskRunner* task_runner() const {
+    return thread_.task_runner();
+  }
 
   // Wait until all posted tasks have executed.
   void WaitUntilDone();
@@ -111,7 +114,7 @@ class Agent : public base::MessageLoop::DestructionObserver {
   void RequestJavaScriptHeapStatistics(
       const JavaScriptHeapStatisticsCallback& callback);
 
-  // From base::MessageLoop::DestructionObserver.
+  // From base::CurrentThread::DestructionObserver.
   void WillDestroyCurrentMessageLoop() override;
 
  private:
@@ -135,7 +138,7 @@ class Agent : public base::MessageLoop::DestructionObserver {
   std::unique_ptr<Context> context_;
 
   // This event is used to signal when the destruction observers have been
-  // added to the message loop. This is then used in Stop() to ensure that
+  // added to the task runner. This is then used in Stop() to ensure that
   // processing doesn't continue until the thread is cleanly shutdown.
   base::WaitableEvent destruction_observer_added_ = {
       base::WaitableEvent::ResetPolicy::MANUAL,

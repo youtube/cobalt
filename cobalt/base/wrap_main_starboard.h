@@ -18,8 +18,9 @@
 #include "base/at_exit.h"
 #include "base/bind.h"
 #include "base/logging.h"
-#include "base/message_loop/message_loop.h"
-#include "base/message_loop/message_pump_for_ui.h"
+#include "base/message_loop/message_pump_type.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/single_thread_task_executor.h"
 #include "cobalt/base/init_cobalt.h"
 #include "cobalt/base/wrap_main.h"
 #include "starboard/client_porting/wrap_main/wrap_main.h"
@@ -37,7 +38,7 @@ template <StartFunction preload_function, StartFunction start_function,
           EventFunction event_function, StopFunction stop_function>
 void BaseEventHandler(const SbEvent* event) {
   static base::AtExitManager* g_at_exit = NULL;
-  static base::MessageLoopForUI* g_loop = NULL;
+  static base::SingleThreadTaskExecutor* g_task_executor = NULL;
   static bool g_started = false;
   switch (event->type) {
     case kSbEventTypePreload: {
@@ -51,9 +52,9 @@ void BaseEventHandler(const SbEvent* event) {
 #endif
       InitCobalt(data->argument_count, data->argument_values, data->link);
 
-      DCHECK(!g_loop);
-      g_loop = new base::MessageLoopForUI();
-      g_loop->Start();
+      DCHECK(!g_task_executor);
+      g_task_executor =
+          new base::SingleThreadTaskExecutor(base::MessagePumpType::UI);
       preload_function(data->argument_count, data->argument_values, data->link,
                        base::Bind(&SbSystemRequestStop, 0), event->timestamp);
       g_started = true;
@@ -70,9 +71,9 @@ void BaseEventHandler(const SbEvent* event) {
 #endif
         InitCobalt(data->argument_count, data->argument_values, data->link);
 
-        DCHECK(!g_loop);
-        g_loop = new base::MessageLoopForUI();
-        g_loop->Start();
+        DCHECK(!g_task_executor);
+        g_task_executor =
+            new base::SingleThreadTaskExecutor(base::MessagePumpType::UI);
       }
       start_function(data->argument_count, data->argument_values, data->link,
                      base::Bind(&SbSystemRequestStop, 0), event->timestamp);
@@ -82,14 +83,13 @@ void BaseEventHandler(const SbEvent* event) {
     case kSbEventTypeStop: {
       DCHECK(g_started);
       DCHECK(g_at_exit);
-      DCHECK(g_loop);
+      DCHECK(g_task_executor);
 
       stop_function();
 
       // Force the loop to quit.
-      g_loop->Quit();
-      delete g_loop;
-      g_loop = NULL;
+      delete g_task_executor;
+      g_task_executor = NULL;
 
       // Run all at-exit tasks just before terminating.
       delete g_at_exit;

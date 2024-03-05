@@ -19,6 +19,7 @@
 
 #include "base/run_loop.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "cobalt/bindings/testing/script_object_owner.h"
 #include "cobalt/media_session/media_session_client.h"
@@ -107,7 +108,8 @@ MATCHER_P(SeekNoOffset, action, "") {
 }
 
 TEST(MediaSessionTest, MediaSessionTest) {
-  base::MessageLoop task_runner(base::MessagePumpType::DEFAULT);
+  base::test::SingleThreadTaskEnvironment task_environment{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 
   scoped_refptr<MockMediaSession> session = scoped_refptr<MockMediaSession>(
       new MockMediaSession(new MockMediaSessionClient(nullptr)));
@@ -126,7 +128,8 @@ TEST(MediaSessionTest, MediaSessionTest) {
 }
 
 TEST(MediaSessionTest, ActualPlaybackState) {
-  base::MessageLoop task_runner(base::MessagePumpType::DEFAULT);
+  base::test::SingleThreadTaskEnvironment task_environment{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 
   scoped_refptr<MockMediaSession> session = scoped_refptr<MockMediaSession>(
       new MockMediaSession(new MockMediaSessionClient(nullptr)));
@@ -190,7 +193,8 @@ TEST(MediaSessionTest, ActualPlaybackState) {
 }
 
 TEST(MediaSessionTest, NullActionClears) {
-  base::MessageLoop task_runner(base::MessagePumpType::DEFAULT);
+  base::test::SingleThreadTaskEnvironment task_environment{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 
   scoped_refptr<MockMediaSession> session = scoped_refptr<MockMediaSession>(
       new MockMediaSession(new MockMediaSessionClient(nullptr)));
@@ -236,7 +240,8 @@ TEST(MediaSessionTest, NullActionClears) {
 }
 
 TEST(MediaSessionTest, AvailableActions) {
-  base::MessageLoop task_runner(base::MessagePumpType::DEFAULT);
+  base::test::SingleThreadTaskEnvironment task_environment{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 
   MediaSessionState state;
 
@@ -343,7 +348,8 @@ TEST(MediaSessionTest, AvailableActions) {
 }
 
 TEST(MediaSessionTest, InvokeAction) {
-  base::MessageLoop task_runner(base::MessagePumpType::DEFAULT);
+  base::test::SingleThreadTaskEnvironment task_environment{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 
   scoped_refptr<MockMediaSession> session = scoped_refptr<MockMediaSession>(
       new MockMediaSession(new MockMediaSessionClient(nullptr)));
@@ -363,7 +369,8 @@ TEST(MediaSessionTest, InvokeAction) {
 }
 
 TEST(MediaSessionTest, SeekDetails) {
-  base::MessageLoop task_runner(base::MessagePumpType::DEFAULT);
+  base::test::SingleThreadTaskEnvironment task_environment{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 
   scoped_refptr<MockMediaSession> session = scoped_refptr<MockMediaSession>(
       new MockMediaSession(new MockMediaSessionClient(nullptr)));
@@ -412,7 +419,8 @@ TEST(MediaSessionTest, SeekDetails) {
 }
 
 TEST(MediaSessionTest, PositionState) {
-  base::MessageLoop task_runner(base::MessagePumpType::DEFAULT);
+  base::test::SingleThreadTaskEnvironment task_environment{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 
   scoped_refptr<MockMediaSession> session = scoped_refptr<MockMediaSession>(
       new MockMediaSession(new MockMediaSessionClient(nullptr)));
@@ -525,7 +533,8 @@ TEST(MediaSessionTest, PositionState) {
 }
 
 TEST(MediaSessionTest, Metadata) {
-  base::MessageLoop task_runner(base::MessagePumpType::DEFAULT);
+  base::test::SingleThreadTaskEnvironment task_environment{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 
   scoped_refptr<MockMediaSession> session = scoped_refptr<MockMediaSession>(
       new MockMediaSession(new MockMediaSessionClient(nullptr)));

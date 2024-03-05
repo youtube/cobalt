@@ -14,15 +14,15 @@
 #include "base/functional/callback_forward.h"
 #include "base/logging.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/run_loop.h"
 #include "base/stl_util.h"
 #include "base/sys_info.h"
 #include "base/task/post_task.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/task_runner.h"
 #include "base/task/task_scheduler/initialization_util.h"
 #include "base/task/task_scheduler/task_scheduler.h"
-#include "base/task/task_runner.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/time/time.h"
@@ -58,7 +58,7 @@ void TaskSchedulerStart() {
 
 void TaskSchedulerStop() { base::TaskScheduler::GetInstance()->Shutdown(); }
 
-std::unique_ptr<base::MessageLoopForUI> g_loop;
+std::unique_ptr<base::MessagePumpForUI> g_loop;
 std::unique_ptr<cobalt::network::NetworkModule> network_module;
 std::unique_ptr<base::AtExitManager> exit_manager;
 std::unique_ptr<cobalt::updater::UpdaterModule> updater_module;
@@ -75,7 +75,7 @@ int UpdaterMain(int argc, const char* const* argv) {
 
   TaskSchedulerStart();
 
-  g_loop.reset(new base::MessageLoopForUI());
+  g_loop.reset(new base::MessagePumpForUI());
   g_loop->Start();
 
   DCHECK(base::ThreadTaskRunnerHandle::IsSet());
