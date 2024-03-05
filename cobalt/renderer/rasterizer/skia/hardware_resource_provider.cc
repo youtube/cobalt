@@ -19,9 +19,11 @@
 
 #include "base/bind.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/base/task_runner_util.h"
 #include "cobalt/renderer/backend/egl/graphics_system.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "cobalt/renderer/egl_and_gles.h"
@@ -61,8 +63,8 @@ HardwareResourceProvider::HardwareResourceProvider(
       purge_skia_font_caches_on_destruction_(
           purge_skia_font_caches_on_destruction),
       max_texture_size_(gr_context->maxTextureSize()) {
-  if (base::MessageLoop::current()) {
-    rasterizer_task_runner_ = base::ThreadTaskRunnerHandle::Get();
+  if (base::SequencedTaskRunner::HasCurrentDefault()) {
+    rasterizer_task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
   }
 
   // Initialize the font manager now to ensure that it doesn't get initialized
@@ -92,8 +94,8 @@ void HardwareResourceProvider::Finish() {
   // Wait for any resource-related to complete (by waiting for all tasks to
   // complete).
   if (rasterizer_task_runner_ &&
-      !rasterizer_task_runner_->BelongsToCurrentThread()) {
-    rasterizer_task_runner_->WaitForFence();
+      !rasterizer_task_runner_->RunsTasksInCurrentSequence()) {
+    base::task_runner_util::WaitForFence(rasterizer_task_runner_, FROM_HERE);
   }
 }
 
@@ -358,7 +360,7 @@ void HardwareResourceProvider::GraphicsContextRunner(
           graphics_context_provider->gles_context_runner_context);
 
   if (provider->rasterizer_task_runner_ &&
-      !provider->rasterizer_task_runner_->BelongsToCurrentThread()) {
+      !provider->rasterizer_task_runner_->RunsTasksInCurrentSequence()) {
     // Post a task to the rasterizer thread to have it run the requested
     // function, and wait for it to complete before returning.
     base::WaitableEvent done_event(

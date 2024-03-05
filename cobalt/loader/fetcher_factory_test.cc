@@ -37,14 +37,14 @@ class StubFetcherHandler : public Fetcher::Handler {
   }
   void OnDone(Fetcher* fetcher) override {
     CheckSameFetcher(fetcher);
-    base::ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE,
-                                                  run_loop_->QuitClosure());
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, run_loop_->QuitClosure());
   }
   void OnError(Fetcher* fetcher, const std::string& error_message) override {
     CheckSameFetcher(fetcher);
     error_message_ = error_message;
-    base::ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE,
-                                                  run_loop_->QuitClosure());
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, run_loop_->QuitClosure());
   }
 
   Fetcher* fetcher() const { return fetcher_; }
@@ -72,10 +72,9 @@ class StubFetcherHandler : public Fetcher::Handler {
 
 class FetcherFactoryTest : public ::testing::Test {
  protected:
-  FetcherFactoryTest() : message_loop_(base::MessageLoop::TYPE_DEFAULT) {}
+  FetcherFactoryTest() {}
   ~FetcherFactoryTest() override {}
 
-  base::MessageLoop message_loop_;
   FetcherFactory fetcher_factory_;
   std::unique_ptr<Fetcher> fetcher_;
 };
@@ -124,7 +123,7 @@ TEST_F(FetcherFactoryTest, FileURLCannotConvertToFilePath) {
 
 TEST_F(FetcherFactoryTest, MultipleCreations) {
   // Having a RunLoop ensures that any callback created by
-  // FileFetcher will be able to run. We then quit the message loop in the
+  // FileFetcher will be able to run. We then quit the task runner in the
   // StubFetcherHandler when either OnDone() or OnError() has occurred.
   base::RunLoop run_loop;
   StubFetcherHandler stub_fetcher_handler(&run_loop);

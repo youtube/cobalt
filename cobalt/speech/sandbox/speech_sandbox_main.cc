@@ -48,7 +48,7 @@ void StartApplication(int argc, char** argv, const char* link,
       base::FilePath(FILE_PATH_LITERAL("speech_sandbox_trace.json")));
 
   if (timeout != 0) {
-    base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
         FROM_HERE, quit_closure, base::TimeDelta::FromSeconds(timeout));
   }
 }

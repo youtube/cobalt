@@ -232,7 +232,7 @@ void LayoutManager::Impl::OnLoad() {
     DirtyLayout();
 
     // Run the |DoLayoutAndProduceRenderTree| task after onload event finished.
-    base::ThreadTaskRunnerHandle::Get()->PostTask(
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::Bind(&LayoutManager::Impl::DoLayoutAndProduceRenderTree,
                    base::Unretained(this)));

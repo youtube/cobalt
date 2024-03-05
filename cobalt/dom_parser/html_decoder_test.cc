@@ -17,7 +17,6 @@
 #include <memory>
 
 #include "base/callback.h"
-#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/dom/attr.h"
@@ -67,7 +66,6 @@ class HTMLDecoderTest : public ::testing::Test {
   base::SourceLocation source_location_;
   MockLoadCompleteCallback mock_load_complete_callback_;
   std::unique_ptr<HTMLDecoder> html_decoder_;
-  base::MessageLoop message_loop_;
 };
 
 HTMLDecoderTest::HTMLDecoderTest()

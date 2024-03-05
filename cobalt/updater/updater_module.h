@@ -20,7 +20,7 @@
 #include <string>
 
 #include "base/memory/scoped_refptr.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/updater/configurator.h"

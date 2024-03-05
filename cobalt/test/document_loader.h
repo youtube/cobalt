@@ -21,6 +21,8 @@
 #include "base/optional.h"
 #include "base/run_loop.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/test/task_environment.h"
 #include "base/threading/thread.h"
 #include "cobalt/base/clock.h"
 #include "cobalt/css_parser/parser.h"
@@ -45,11 +47,12 @@ namespace test {
 // and interact with it on a single thread.
 // Loading a Document from a url involves a lot of boilerplate and a number of
 // dependencies. Furthermore, loading a document in Cobalt requires that there
-// be a message loop that is pumped until the document finishes loading.
+// be a task runner that is pumped until the document finishes loading.
 class DocumentLoader : public dom::DocumentObserver {
  public:
   DocumentLoader()
-      : fetcher_factory_(NULL /* network_module */),
+      : task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
+        fetcher_factory_(NULL /* network_module */),
         css_parser_(css_parser::Parser::Create()),
         dom_parser_(new dom_parser::Parser()),
         resource_provider_stub_(new render_tree::ResourceProviderStub()),
@@ -75,7 +78,7 @@ class DocumentLoader : public dom::DocumentObserver {
             base::kApplicationStateStarted,
             NULL /* synchronous_loader_interrupt */, NULL /* performance */) {}
   void Load(const GURL& url) {
-    // Load the document in a nested message loop.
+    // Load the document in a nested task runner.
     dom::Document::Options options(url);
     options.navigation_start_clock = new base::SystemMonotonicClock();
     options.viewport_size = cssom::ViewportSize(1920, 1080);
@@ -104,10 +107,12 @@ class DocumentLoader : public dom::DocumentObserver {
   void OnMutation() override {}
   void OnFocusChanged() override {}
 
-  // A nested message loop needs a non-nested message loop to exist.
-  base::MessageLoop message_loop_;
+  base::test::SingleThreadTaskEnvironment task_environment_{
+      base::test::SingleThreadTaskEnvironment::MainThreadType::IO,
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  base::SequencedTaskRunner* const task_runner_;
 
-  // Nested message loop on which the document loading will occur.
+  // Nested task runner on which the document loading will occur.
   base::RunLoop nested_loop_;
 
   dom::testing::StubEnvironmentSettings environment_settings_;

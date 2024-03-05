@@ -74,7 +74,7 @@ std::string HttpMethodToString(WebDriverServer::HttpMethod method) {
 class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
  public:
   ResponseHandlerImpl(net::HttpServer* server, int connection_id)
-      : task_runner_(base::ThreadTaskRunnerHandle::Get()),
+      : task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
         server_(server),
         connection_id_(connection_id) {}
 
@@ -172,7 +172,7 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
                     const std::string& content_type,
                     base::Optional<net::HttpServerResponseInfo> response_info =
                         base::Optional<net::HttpServerResponseInfo>()) {
-    if (base::ThreadTaskRunnerHandle::Get() == task_runner_) {
+    if (base::SequencedTaskRunner::GetCurrentDefault() == task_runner_) {
       SendToServer(server_, connection_id_, status, message, content_type,
                    response_info);
     } else {
@@ -183,7 +183,7 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
     }
   }
 
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
   net::HttpServer* server_;
   int connection_id_;
 };

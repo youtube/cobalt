@@ -153,15 +153,17 @@ void MemoryStore::Impl::GetAllCookies(
     // through CanonicalCookie::Create() and its sanitization because these
     // values are just serialized from a former instance of a CanonicalCookie
     // object that *was* created through CanonicalCookie::Create().
-    auto cookie = net::CanonicalCookie::CreateSanitizedCookie(
-        GURL(""), cookie_pair.second.name(), cookie_pair.second.value(),
+    auto cookie = net::CanonicalCookie::CreateUnsafeCookieForTesting(
+        cookie_pair.second.name(), cookie_pair.second.value(),
         cookie_pair.second.domain(), cookie_pair.second.path(),
         base::Time::FromInternalValue(cookie_pair.second.creation_time_us()),
         base::Time::FromInternalValue(cookie_pair.second.expiration_time_us()),
         base::Time::FromInternalValue(cookie_pair.second.last_access_time_us()),
+        base::Time::FromInternalValue(cookie_pair.second.creation_time_us()),
         cookie_pair.second.secure(), cookie_pair.second.http_only(),
         net::CookieSameSite::NO_RESTRICTION, net::COOKIE_PRIORITY_DEFAULT,
         false, absl::optional<net::CookiePartitionKey>());
+    DCHECK(cookie);
     cookies->push_back(std::move(cookie));
   }
 }

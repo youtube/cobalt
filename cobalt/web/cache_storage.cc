@@ -56,7 +56,7 @@ script::HandlePromiseWrappable CacheStorage::Open(
       get_script_value_factory(environment_settings)
           ->CreateInterfacePromise<scoped_refptr<Cache>>();
   auto* context = get_context(environment_settings);
-  context->message_loop()->task_runner()->PostTask(
+  context->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(&CacheStorage::PerformOpen, base::Unretained(this),
                      std::make_unique<script::ValuePromiseWrappable::Reference>(
@@ -75,7 +75,7 @@ script::HandlePromiseBool CacheStorage::Delete(
       std::make_unique<script::ValuePromiseBool::Reference>(global_wrappable,
                                                             promise);
   auto* context = get_context(environment_settings);
-  context->message_loop()->task_runner()->PostTask(
+  context->task_runner()->PostTask(
       FROM_HERE, base::BindOnce(
                      [](std::unique_ptr<script::ValuePromiseBool::Reference>
                             promise_reference) {

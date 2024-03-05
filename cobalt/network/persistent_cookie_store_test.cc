@@ -21,7 +21,6 @@
 #include "base/bind.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
-#include "base/message_loop/message_loop.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
@@ -108,7 +107,7 @@ std::string GetSavePath() {
 
 class PersistentCookieStoreTest : public ::testing::Test {
  protected:
-  PersistentCookieStoreTest() : message_loop_(base::MessageLoop::TYPE_DEFAULT) {
+  PersistentCookieStoreTest() {
     storage::StorageManager::Options options;
     options.savegame_options.path_override = GetSavePath();
     options.savegame_options.delete_on_destruction = true;
@@ -116,7 +115,7 @@ class PersistentCookieStoreTest : public ::testing::Test {
 
     storage_manager_.reset(new storage::StorageManager(options));
     cookie_store_ = new PersistentCookieStore(
-        storage_manager_.get(), base::ThreadTaskRunnerHandle::Get());
+        storage_manager_.get(), base::SequencedTaskRunner::GetCurrentDefault());
   }
 
   ~PersistentCookieStoreTest() {
@@ -124,7 +123,6 @@ class PersistentCookieStoreTest : public ::testing::Test {
     storage_manager_.reset(NULL);
   }
 
-  base::MessageLoop message_loop_;
   std::unique_ptr<storage::StorageManager> storage_manager_;
   scoped_refptr<PersistentCookieStore> cookie_store_;
 };

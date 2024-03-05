@@ -52,9 +52,9 @@
 
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/single_thread_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/timer/timer.h"
 #include "cobalt/base/token.h"
@@ -166,8 +166,8 @@ class SourceBuffer : public web::EventTarget {
     void TryToRunOnInitSegmentReceived(std::unique_ptr<MediaTracks> tracks);
 
    private:
-    scoped_refptr<base::SingleThreadTaskRunner> task_runner_ =
-        base::ThreadTaskRunnerHandle::Get();
+    scoped_refptr<base::SequencedTaskRunner> task_runner_ =
+        base::SequencedTaskRunner::GetCurrentDefault();
     // The access to |source_buffer_| always happens on |task_runner_|, and
     // needn't be explicitly synchronized by a mutex.
     SourceBuffer* source_buffer_;

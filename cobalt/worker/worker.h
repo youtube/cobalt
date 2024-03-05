@@ -22,8 +22,8 @@
 #include "base/bind.h"
 #include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/message_loop/message_loop_current.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/current_thread.h"
 #include "base/task/task_runner.h"
 #include "base/threading/thread.h"
 #include "cobalt/base/source_location.h"
@@ -53,7 +53,7 @@
 namespace cobalt {
 namespace worker {
 
-class Worker : public base::MessageLoop::DestructionObserver {
+class Worker : public base::CurrentThread::DestructionObserver {
  public:
   // Worker Options needed at thread run time.
   struct Options {
@@ -84,12 +84,12 @@ class Worker : public base::MessageLoop::DestructionObserver {
 
   // The task runner for this object.
   base::TaskRunner* task_runner() const {
-    return web_agent_ ? web_agent_->message_loop()->task_runner() : nullptr;
+    return web_agent_ ? web_agent_->task_runner() : nullptr;
   }
 
   void PostMessage(const script::ValueHandleHolder& message);
 
-  // From base::MessageLoop::DestructionObserver.
+  // From base::CurrentThread::DestructionObserver.
   void WillDestroyCurrentMessageLoop() override;
 
  private:

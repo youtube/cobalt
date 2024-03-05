@@ -90,9 +90,8 @@ const char kUiNavFocusDurationAttribute[] = "data-cobalt-ui-nav-focus-duration";
 // https://www.w3.org/TR/resource-timing-1/#dom-performanceresourcetiming-initiatortype
 const char* kPerformanceResourceTimingInitiatorType = "img";
 
-void UiNavCallbackHelper(
-    scoped_refptr<base::SingleThreadTaskRunner> task_runner,
-    base::Callback<void(int64_t)> callback) {
+void UiNavCallbackHelper(scoped_refptr<base::SequencedTaskRunner> task_runner,
+                         base::Callback<void(int64_t)> callback) {
   task_runner->PostTask(
       FROM_HERE, base::Bind(callback, starboard::CurrentMonotonicTime()));
 }
@@ -2260,13 +2259,16 @@ void HTMLElement::UpdateUiNavigation() {
     ui_nav_item_ = new ui_navigation::NavItem(
         *ui_nav_item_type,
         base::Bind(
-            &UiNavCallbackHelper, base::ThreadTaskRunnerHandle::Get(),
+            &UiNavCallbackHelper,
+            base::SequencedTaskRunner::GetCurrentDefault(),
             base::Bind(&HTMLElement::OnUiNavBlur, base::AsWeakPtr(this))),
         base::Bind(
-            &UiNavCallbackHelper, base::ThreadTaskRunnerHandle::Get(),
+            &UiNavCallbackHelper,
+            base::SequencedTaskRunner::GetCurrentDefault(),
             base::Bind(&HTMLElement::OnUiNavFocus, base::AsWeakPtr(this))),
         base::Bind(
-            &UiNavCallbackHelper, base::ThreadTaskRunnerHandle::Get(),
+            &UiNavCallbackHelper,
+            base::SequencedTaskRunner::GetCurrentDefault(),
             base::Bind(&HTMLElement::OnUiNavScroll, base::AsWeakPtr(this))));
     ui_nav_item_->SetDir(ui_nav_item_dir);
     if (ui_nav_focus_duration_) {

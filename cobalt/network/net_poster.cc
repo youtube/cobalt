@@ -34,7 +34,8 @@ NetPoster::~NetPoster() {}
 
 void NetPoster::Send(const GURL& url, const std::string& content_type,
                      const std::string& data) {
-  if (network_module_->task_runner() != base::ThreadTaskRunnerHandle::Get()) {
+  if (network_module_->task_runner() !=
+      base::SequencedTaskRunner::GetCurrentDefault()) {
     network_module_->task_runner()->PostTask(
         FROM_HERE, base::Bind(&NetPoster::Send, base::Unretained(this), url,
                               content_type, data));
@@ -72,7 +73,7 @@ void NetPoster::OnURLFetchComplete(const net::URLFetcher* source) {
   // Make sure the thread that created the fetcher is the same one that
   deletes
       // it. Otherwise we have unsafe access to the fetchers_ list.
-      DCHECK_EQ(base::ThreadTaskRunnerHandle::Get(),
+      DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(),
                 network_module_->task_runner());
   net::Error status = source->GetStatus();
   if (!status.is_success()) {

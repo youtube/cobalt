@@ -186,7 +186,7 @@ void SbPlayerBridge::CallbackHelper::ResetPlayer() {
 #if SB_HAS(PLAYER_WITH_URL)
 SbPlayerBridge::SbPlayerBridge(
     SbPlayerInterface* interface,
-    const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+    const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     const std::string& url, SbWindow window, Host* host,
     SbPlayerSetBoundsHelper* set_bounds_helper, bool allow_resume_after_suspend,
     SbPlayerOutputMode default_output_mode,
@@ -225,7 +225,7 @@ SbPlayerBridge::SbPlayerBridge(
 
 SbPlayerBridge::SbPlayerBridge(
     SbPlayerInterface* interface,
-    const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+    const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     const GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
     const AudioDecoderConfig& audio_config, const std::string& audio_mime_type,
@@ -288,7 +288,7 @@ SbPlayerBridge::SbPlayerBridge(
 }
 
 SbPlayerBridge::~SbPlayerBridge() {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   callback_helper_->ResetPlayer();
   set_bounds_helper_->SetPlayerBridge(NULL);
@@ -306,7 +306,7 @@ SbPlayerBridge::~SbPlayerBridge() {
 
 void SbPlayerBridge::UpdateAudioConfig(const AudioDecoderConfig& audio_config,
                                        const std::string& mime_type) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(audio_config.IsValidConfig());
 
   LOG(INFO) << "Updated AudioDecoderConfig -- "
@@ -321,7 +321,7 @@ void SbPlayerBridge::UpdateAudioConfig(const AudioDecoderConfig& audio_config,
 
 void SbPlayerBridge::UpdateVideoConfig(const VideoDecoderConfig& video_config,
                                        const std::string& mime_type) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(video_config.IsValidConfig());
 
   LOG(INFO) << "Updated VideoDecoderConfig -- "
@@ -346,7 +346,7 @@ void SbPlayerBridge::UpdateVideoConfig(const VideoDecoderConfig& video_config,
 void SbPlayerBridge::WriteBuffers(
     DemuxerStream::Type type,
     const std::vector<scoped_refptr<DecoderBuffer>>& buffers) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -387,7 +387,7 @@ void SbPlayerBridge::SetBounds(int z_index, const gfx::Rect& rect) {
 }
 
 void SbPlayerBridge::PrepareForSeek() {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   seek_pending_ = true;
 
@@ -400,7 +400,7 @@ void SbPlayerBridge::PrepareForSeek() {
 }
 
 void SbPlayerBridge::Seek(TimeDelta time) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   decoder_buffer_cache_.ClearAll();
   seek_pending_ = false;
@@ -428,7 +428,7 @@ void SbPlayerBridge::Seek(TimeDelta time) {
 }
 
 void SbPlayerBridge::SetVolume(float volume) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   volume_ = volume;
 
@@ -441,7 +441,7 @@ void SbPlayerBridge::SetVolume(float volume) {
 }
 
 void SbPlayerBridge::SetPlaybackRate(double playback_rate) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   playback_rate_ = playback_rate;
 
@@ -599,7 +599,7 @@ void SbPlayerBridge::SetDrmSystem(SbDrmSystem drm_system) {
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
 void SbPlayerBridge::Suspend() {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   // Check if the player is already suspended.
   if (state_ == kSuspended) {
@@ -630,7 +630,7 @@ void SbPlayerBridge::Suspend() {
 }
 
 void SbPlayerBridge::Resume(SbWindow window) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   window_ = window;
 
@@ -694,7 +694,7 @@ void SbPlayerBridge::EncryptedMediaInitDataEncounteredCB(
 
 void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
   TRACE_EVENT0("cobalt::media", "SbPlayerBridge::CreateUrlPlayer");
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   DCHECK(!on_encrypted_media_init_data_encountered_cb_.is_null());
   LOG(INFO) << "CreateUrlPlayer passed url " << url;
@@ -734,7 +734,7 @@ void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
 #endif  // SB_HAS(PLAYER_WITH_URL)
 void SbPlayerBridge::CreatePlayer() {
   TRACE_EVENT0("cobalt::media", "SbPlayerBridge::CreatePlayer");
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   bool is_visible = SbWindowIsValid(window_);
   bool has_audio = audio_stream_info_.codec != kSbMediaAudioCodecNone;
@@ -1039,7 +1039,7 @@ void SbPlayerBridge::UpdateBounds_Locked() {
 }
 
 void SbPlayerBridge::ClearDecoderBufferCache() {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (state_ != kResuming) {
     TimeDelta media_time;
@@ -1059,7 +1059,7 @@ void SbPlayerBridge::OnDecoderStatus(SbPlayer player, SbMediaType type,
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (player_ != player || ticket != ticket_) {
     return;
@@ -1104,7 +1104,7 @@ void SbPlayerBridge::OnPlayerStatus(SbPlayer player, SbPlayerState state,
                                     int ticket) {
   TRACE_EVENT1("cobalt::media", "SbPlayerBridge::OnPlayerStatus", "state",
                state);
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (player_ != player) {
     return;
@@ -1143,7 +1143,7 @@ void SbPlayerBridge::OnPlayerStatus(SbPlayer player, SbPlayerState state,
 
 void SbPlayerBridge::OnPlayerError(SbPlayer player, SbPlayerError error,
                                    const std::string& message) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (player_ != player) {
     return;
@@ -1155,7 +1155,7 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   DecodingBuffers::iterator iter = decoding_buffers_.find(sample_buffer);
   DCHECK(iter != decoding_buffers_.end());
@@ -1172,7 +1172,7 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
 
 bool SbPlayerBridge::TryToSetPlayerCreationErrorMessage(
     const std::string& message) {
-  DCHECK(task_runner_->BelongsToCurrentThread());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   if (is_creating_player_) {
     player_creation_error_message_ = message;
     return true;

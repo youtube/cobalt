@@ -20,10 +20,12 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/path_service.h"
+#include "base/threading/thread.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/address_sanitizer.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/base/task_runner_util.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/clear_rect_node.h"
 #include "cobalt/render_tree/composition_node.h"
@@ -75,11 +77,11 @@ const int64_t kWatchdogTimeInterval = 2000000;
 // violations.
 const int64_t kWatchdogTimeWait = 2000000;
 
-void DestructSubmissionOnMessageLoop(base::MessageLoop* message_loop,
-                                     std::unique_ptr<Submission> submission) {
-  TRACE_EVENT0("cobalt::renderer", "DestructSubmissionOnMessageLoop()");
-  if (base::MessageLoop::current() != message_loop) {
-    message_loop->task_runner()->DeleteSoon(FROM_HERE, submission.release());
+void DestructSubmissionOnTaskRunner(base::SequencedTaskRunner* task_runner,
+                                    std::unique_ptr<Submission> submission) {
+  TRACE_EVENT0("cobalt::renderer", __func__);
+  if (!task_runner->RunsTasksInCurrentSequence()) {
+    task_runner->DeleteSoon(FROM_HERE, submission.release());
   }
 }
 
@@ -198,7 +200,7 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
   rasterizer_thread_.StartWithOptions(
       base::Thread::Options(base::ThreadType::kMaxValue));
 
-  rasterizer_thread_.message_loop()->task_runner()->PostTask(
+  rasterizer_thread_.task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&Pipeline::InitializeRasterizerThread, base::Unretained(this),
                  create_rasterizer_function));
@@ -216,22 +218,22 @@ Pipeline::~Pipeline() {
   // thread as it clears itself out (e.g. it may ask the rasterizer thread to
   // delete textures).  We wait for this shutdown to complete before proceeding
   // to shutdown the rasterizer thread.
-  rasterizer_thread_.message_loop()->task_runner()->PostBlockingTask(
-      FROM_HERE,
+  base::task_runner_util::PostBlockingTask(
+      rasterizer_thread_.task_runner(), FROM_HERE,
       base::Bind(&Pipeline::ShutdownSubmissionQueue, base::Unretained(this)));
 
   // Submit a shutdown task to the rasterizer thread so that it can shutdown
   // anything that must be shutdown from that thread.
-  rasterizer_thread_.message_loop()->task_runner()->PostBlockingTask(
-      FROM_HERE,
+  base::task_runner_util::PostBlockingTask(
+      rasterizer_thread_.task_runner(), FROM_HERE,
       base::Bind(&Pipeline::ShutdownRasterizerThread, base::Unretained(this)));
 
   // Finally shutdown the rasterizer. Do this after ShutdownRasterizerThread()
   // has run, just in case it posted more tasks to the rasterizer thread. This
   // will free the rasterizer after the posted tasks have executed (unless they
   // were delayed tasks).
-  rasterizer_thread_.message_loop()->task_runner()->PostBlockingTask(
-      FROM_HERE,
+  base::task_runner_util::PostBlockingTask(
+      rasterizer_thread_.task_runner(), FROM_HERE,
       base::Bind(&Pipeline::ShutdownRasterizer, base::Unretained(this)));
 
   rasterizer_thread_.Stop();
@@ -252,15 +254,15 @@ void Pipeline::Submit(const Submission& render_tree_submission) {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::Submit()");
 
   // Execute the actual set of the new render tree on the rasterizer tree.
-  rasterizer_thread_.message_loop()->task_runner()->PostTask(
+  rasterizer_thread_.task_runner()->PostTask(
       FROM_HERE, base::Bind(&Pipeline::SetNewRenderTree, base::Unretained(this),
                             CollectAnimations(render_tree_submission)));
 }
 
 void Pipeline::Clear() {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::Clear()");
-  rasterizer_thread_.message_loop()->task_runner()->PostBlockingTask(
-      FROM_HERE,
+  base::task_runner_util::PostBlockingTask(
+      rasterizer_thread_.task_runner(), FROM_HERE,
       base::Bind(&Pipeline::ClearCurrentRenderTree, base::Unretained(this)));
 }
 
@@ -270,8 +272,8 @@ void Pipeline::RasterizeToRGBAPixels(
     const RasterizationCompleteCallback& complete) {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::RasterizeToRGBAPixels()");
 
-  if (base::MessageLoop::current() != rasterizer_thread_.message_loop()) {
-    rasterizer_thread_.message_loop()->task_runner()->PostTask(
+  if (!rasterizer_thread_.task_runner()->RunsTasksInCurrentSequence()) {
+    rasterizer_thread_.task_runner()->PostTask(
         FROM_HERE,
         base::Bind(&Pipeline::RasterizeToRGBAPixels, base::Unretained(this),
                    render_tree_root, clip_rect, complete));
@@ -308,8 +310,8 @@ void Pipeline::RasterizeToRGBAPixels(
 void Pipeline::TimeFence(base::TimeDelta time_fence) {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::TimeFence()");
 
-  if (base::MessageLoop::current() != rasterizer_thread_.message_loop()) {
-    rasterizer_thread_.message_loop()->task_runner()->PostTask(
+  if (!rasterizer_thread_.task_runner()->RunsTasksInCurrentSequence()) {
+    rasterizer_thread_.task_runner()->PostTask(
         FROM_HERE,
         base::Bind(&Pipeline::TimeFence, base::Unretained(this), time_fence));
     return;
@@ -645,8 +647,8 @@ void Pipeline::ShutdownSubmissionQueue() {
 
   // Shut down our submission disposer thread.  This needs to happen now to
   // ensure that any pending "dispose" messages are processed.  Each disposal
-  // may result in new messages being posted to this rasterizer thread's message
-  // loop, and so we want to make sure these are all queued up before
+  // may result in new messages being posted to this rasterizer thread's task
+  // runner, and so we want to make sure these are all queued up before
   // proceeding.
   submission_disposal_thread_.Stop();
 }
@@ -685,16 +687,15 @@ void Pipeline::ShutdownRasterizerThread() {
 #if defined(ENABLE_DEBUGGER)
 std::string Pipeline::OnDumpCurrentRenderTree(const std::string& message) {
   std::string response;
-  if (!rasterizer_thread_.message_loop()
-           ->task_runner()
-           ->BelongsToCurrentThread()) {
-    rasterizer_thread_.message_loop()->task_runner()->PostBlockingTask(
-        FROM_HERE, base::Bind(
-                       [](Pipeline* pipeline, const std::string& message,
-                          std::string* response) {
-                         *response = pipeline->OnDumpCurrentRenderTree(message);
-                       },
-                       base::Unretained(this), message, &response));
+  if (!rasterizer_thread_.task_runner()->RunsTasksInCurrentSequence()) {
+    base::task_runner_util::PostBlockingTask(
+        rasterizer_thread_.task_runner(), FROM_HERE,
+        base::Bind(
+            [](Pipeline* pipeline, const std::string& message,
+               std::string* response) {
+              *response = pipeline->OnDumpCurrentRenderTree(message);
+            },
+            base::Unretained(this), message, &response));
     return response;
   }
 
@@ -732,8 +733,8 @@ std::string Pipeline::OnDumpCurrentRenderTree(const std::string& message) {
 }
 
 void Pipeline::OnToggleFpsStdout(const std::string& message) {
-  if (base::MessageLoop::current() != rasterizer_thread_.message_loop()) {
-    rasterizer_thread_.message_loop()->task_runner()->PostTask(
+  if (!rasterizer_thread_.task_runner()->RunsTasksInCurrentSequence()) {
+    rasterizer_thread_.task_runner()->PostTask(
         FROM_HERE, base::Bind(&Pipeline::OnToggleFpsStdout,
                               base::Unretained(this), message));
     return;
@@ -743,8 +744,8 @@ void Pipeline::OnToggleFpsStdout(const std::string& message) {
 }
 
 void Pipeline::OnToggleFpsOverlay(const std::string& message) {
-  if (base::MessageLoop::current() != rasterizer_thread_.message_loop()) {
-    rasterizer_thread_.message_loop()->task_runner()->PostTask(
+  if (!rasterizer_thread_.task_runner()->RunsTasksInCurrentSequence()) {
+    rasterizer_thread_.task_runner()->PostTask(
         FROM_HERE, base::Bind(&Pipeline::OnToggleFpsOverlay,
                               base::Unretained(this), message));
     return;
@@ -809,8 +810,8 @@ void Pipeline::ResetSubmissionQueue() {
       current_timeline_info_.max_submission_queue_size,
       base::TimeDelta::FromMillisecondsD(kTimeToConvergeInMS),
       current_timeline_info_.allow_latency_reduction,
-      base::Bind(&DestructSubmissionOnMessageLoop,
-                 submission_disposal_thread_.message_loop()));
+      base::Bind(&DestructSubmissionOnTaskRunner,
+                 submission_disposal_thread_.task_runner()));
 }
 
 void Pipeline::QueueSubmission(const Submission& submission,

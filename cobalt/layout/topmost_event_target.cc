@@ -527,7 +527,7 @@ void TopmostEventTarget::CancelScrollsInParentNavItems(
     }
   }
 
-  scroll_engine_->thread()->message_loop()->task_runner()->PostTask(
+  scroll_engine_->thread()->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&ui_navigation::scroll_engine::ScrollEngine::
                      CancelActiveScrollsForNavItems,
@@ -612,7 +612,7 @@ void TopmostEventTarget::HandleScrollState(
       pointer_state->ClearPendingPointerCaptureTargetOverride(pointer_id);
 
       should_clear_pointer_state = true;
-      scroll_engine_->thread()->message_loop()->task_runner()->PostTask(
+      scroll_engine_->thread()->task_runner()->PostTask(
           FROM_HERE,
           base::Bind(
               &ui_navigation::scroll_engine::ScrollEngine::HandleScrollStart,

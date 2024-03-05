@@ -18,7 +18,6 @@
 
 #include "base/bind.h"
 #include "base/files/file_util.h"
-#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
@@ -47,8 +46,8 @@ class TextDecoderCallback {
 
   void OnDone(const Origin&, std::unique_ptr<std::string> text) {
     text_ = *text;
-    base::ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE,
-                                                  run_loop_->QuitClosure());
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, run_loop_->QuitClosure());
   }
 
   std::string text() { return text_; }
@@ -68,8 +67,8 @@ class LoaderCallback {
 
     DLOG(ERROR) << *text;
     if (run_loop_)
-      base::ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE,
-                                                    run_loop_->QuitClosure());
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+          FROM_HERE, run_loop_->QuitClosure());
   }
 
  private:
@@ -155,10 +154,9 @@ class LoaderTest : public ::testing::Test {
   ~LoaderTest() override {}
 
   base::FilePath data_dir_;
-  base::MessageLoop message_loop_;
 };
 
-LoaderTest::LoaderTest() : message_loop_(base::MessageLoop::TYPE_DEFAULT) {
+LoaderTest::LoaderTest() {
   data_dir_ = data_dir_.Append(FILE_PATH_LITERAL("cobalt"))
                   .Append(FILE_PATH_LITERAL("loader"))
                   .Append(FILE_PATH_LITERAL("testdata"));
@@ -259,7 +257,7 @@ TEST_F(LoaderTest, ValidFileEndToEndTest) {
                 base::Bind(&LoaderCallback::OnLoadComplete,
                            base::Unretained(&loader_callback)));
 
-  // When the message loop runs, the loader will start loading. It'll quit when
+  // When the task runner runs, the loader will start loading. It'll quit when
   // loading is finished.
   run_loop.Run();
 

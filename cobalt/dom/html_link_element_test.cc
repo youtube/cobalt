@@ -14,7 +14,6 @@
 
 #include "cobalt/dom/html_link_element.h"
 
-#include "base/message_loop/message_loop.h"
 #include "cobalt/cssom/testing/mock_css_parser.h"  // nogncheck
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_stat_tracker.h"
@@ -54,8 +53,7 @@ class HtmlLinkElementTest : public ::testing::Test {
                               NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                               NULL, NULL, NULL, NULL, dom_stat_tracker_.get(),
                               "", base::kApplicationStateStarted, NULL, NULL),
-        document_(new DocumentMock(&html_element_context_)),
-        message_loop_(base::MessageLoop::TYPE_DEFAULT) {}
+        document_(new DocumentMock(&html_element_context_)) {}
 
   scoped_refptr<DocumentMock> document() { return document_; }
   scoped_refptr<HTMLLinkElementMock> CreateDocumentWithLinkElement(
@@ -67,7 +65,6 @@ class HtmlLinkElementTest : public ::testing::Test {
   NiceMock<cssom::testing::MockCSSParser> css_parser_;
   HTMLElementContext html_element_context_;
   scoped_refptr<DocumentMock> document_;
-  base::MessageLoop message_loop_;
 };
 
 scoped_refptr<HTMLLinkElementMock>

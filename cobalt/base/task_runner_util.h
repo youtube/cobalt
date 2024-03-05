@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,24 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/loader/about_fetcher.h"
+#ifndef COBALT_BASE_TASK_RUNNER_UTIL_H_
+#define COBALT_BASE_TASK_RUNNER_UTIL_H_
 
-#include "base/bind.h"
+#include "base/functional/callback_forward.h"
+#include "base/location.h"
 #include "base/task/sequenced_task_runner.h"
-#include "base/threading/thread_task_runner_handle.h"
 
-namespace cobalt {
-namespace loader {
+namespace base {
+namespace task_runner_util {
 
-AboutFetcher::AboutFetcher(Handler* handler)
-    : Fetcher(handler),
-      ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)) {
-  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE,
-      base::Bind(&AboutFetcher::Fetch, weak_ptr_factory_.GetWeakPtr()));
-}
+void WaitForFence(base::SequencedTaskRunner *task_runner,
+                  const base::Location &from_here);
+void PostBlockingTask(base::SequencedTaskRunner *task_runner,
+                      const base::Location &from_here, base::OnceClosure task);
 
-void AboutFetcher::Fetch() { handler()->OnDone(this); }
+}  // namespace task_runner_util
+}  // namespace base
 
-}  // namespace loader
-}  // namespace cobalt
+#endif  // COBALT_BASE_TASK_RUNNER_UTIL_H_

@@ -331,8 +331,8 @@ void SequenceManagerImpl::BindToMessagePump(std::unique_ptr<MessagePump> pump) {
   }
 #endif
 
-  // On iOS attach to the native loop when there is one.
-#if BUILDFLAG(IS_IOS)
+  // On iOS and Starboard attach to the native loop when there is one.
+#if BUILDFLAG(IS_IOS) || defined(STARBOARD)
   if (settings_.message_loop_type == MessagePumpType::UI) {
     controller_->AttachToMessagePump();
   }
@@ -1118,7 +1118,7 @@ bool SequenceManagerImpl::IsTaskExecutionAllowed() const {
   return controller_->IsTaskExecutionAllowed();
 }
 
-#if BUILDFLAG(IS_IOS)
+#if BUILDFLAG(IS_IOS) || defined(STARBOARD)
 void SequenceManagerImpl::AttachToMessagePump() {
   return controller_->AttachToMessagePump();
 }

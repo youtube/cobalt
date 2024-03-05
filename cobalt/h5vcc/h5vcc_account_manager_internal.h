@@ -21,7 +21,7 @@
 #include <vector>
 
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/account/user_authorizer.h"
@@ -86,7 +86,7 @@ class H5vccAccountManagerInternal
   // the owning thread. Static because H5vccAccountManagerInternal may have been
   // destructed before this runs.
   static void PostResult(
-      base::MessageLoop* message_loop,
+      base::SequencedTaskRunner* task_runner,
       base::WeakPtr<H5vccAccountManagerInternal> h5vcc_account_manager,
       AccessTokenCallbackReference* token_callback, const std::string& token,
       uint64_t expiration_in_seconds);
@@ -104,16 +104,16 @@ class H5vccAccountManagerInternal
   // Thread checker for the thread that creates this instance.
   THREAD_CHECKER(thread_checker_);
 
-  // The message loop that the H5vccAccountManagerInternal was created on. The
-  // public interface must be called from this message loop, and callbacks will
+  // The task runner that the H5vccAccountManagerInternal was created on. The
+  // public interface must be called from this task runner, and callbacks will
   // be fired on this loop as well.
-  base::MessageLoop* owning_message_loop_;
+  base::SequencedTaskRunner* owning_task_runner_;
 
   // Each incoming request will have a corresponding task posted to this
-  // thread's message loop and will be handled in a FIFO manner.
+  // thread's task runner and will be handled in a FIFO manner.
   // This is last so that all the other fields are valid before the thread gets
   // constructed, and they remain valid until the thread gets destructed and its
-  // message loop gets flushed.
+  // task runner gets flushed.
   base::Thread thread_;
 
   script::EnvironmentSettings* environment_settings_;

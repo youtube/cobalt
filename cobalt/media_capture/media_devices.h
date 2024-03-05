@@ -21,7 +21,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/dom_settings.h"
@@ -91,7 +91,7 @@ class MediaDevices : public web::EventTarget {
   std::vector<std::unique_ptr<MediaStreamPromiseValue::Reference>>
       pending_microphone_promises_;
 
-  base::MessageLoop* javascript_message_loop_;
+  base::SequencedTaskRunner* task_runner_;
   THREAD_CHECKER(thread_checker_);
 
   base::WeakPtrFactory<MediaDevices> weak_ptr_factory_;

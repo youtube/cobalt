@@ -22,7 +22,7 @@
 
 #include "base/functional/callback_forward.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/sequence.h"
@@ -121,7 +121,7 @@ class MessagePort : public script::Wrappable,
                          : nullptr;
   }
   base::TaskRunner* target_task_runner() const {
-    return context() ? context()->message_loop()->task_runner() : nullptr;
+    return context() ? context()->task_runner() : nullptr;
   }
 
   bool enabled() { return enabled_; }

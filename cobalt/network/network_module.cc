@@ -14,6 +14,8 @@
 
 #include "cobalt/network/network_module.h"
 
+#include <utility>
+
 #include "base/bind.h"
 #include "base/command_line.h"
 #include "base/logging.h"
@@ -23,6 +25,7 @@
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "cobalt/base/cobalt_paths.h"
+#include "cobalt/base/task_runner_util.h"
 #include "cobalt/network/network_system.h"
 #include "cobalt/network/switches.h"
 #include "net/url_request/static_http_user_agent_settings.h"
@@ -74,7 +77,7 @@ NetworkModule::~NetworkModule() {
 
   if (thread_) {
     // Wait for all previously posted tasks to finish.
-    thread_->message_loop()->task_runner()->WaitForFence();
+    base::task_runner_util::WaitForFence(thread_->task_runner(), FROM_HERE);
     // This will trigger a call to WillDestroyCurrentMessageLoop in the thread
     // and wait for it to finish.
     thread_.reset();
@@ -174,19 +177,13 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
   // Launch the IO thread.
-#ifndef USE_HACKY_COBALT_CHANGES
   base::Thread::Options thread_options;
-  thread_options.message_loop_type = base::MessageLoop::TYPE_IO;
+  thread_options.message_pump_type = base::MessagePumpType::IO;
   // Without setting a stack size here, the system default will be used
   // which can be quite a bit larger (e.g. 4MB on Linux)
   // Setting it manually keeps it managed.
   thread_options.stack_size = kNetworkModuleStackSize;
-  thread_options.priority = base::ThreadPriority::NORMAL;
-  thread_->StartWithOptions(thread_options);
-#else
-  thread_->StartWithOptions(
-      base::Thread::Options(base::MessageLoop::TYPE_IO, 256 * 1024));
-#endif
+  thread_->StartWithOptions(std::move(thread_options));
 
   base::WaitableEvent creation_event(
       base::WaitableEvent::ResetPolicy::MANUAL,
@@ -209,7 +206,7 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
 
 void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
   DCHECK(task_runner()->RunsTasksInCurrentSequence());
-  base::MessageLoopCurrent::Get()->AddDestructionObserver(this);
+  base::CurrentThread::Get()->AddDestructionObserver(this);
 
   net::NetLog* net_log = NULL;
 #if defined(ENABLE_NETWORK_LOGGING)

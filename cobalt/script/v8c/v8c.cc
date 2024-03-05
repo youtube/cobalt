@@ -79,7 +79,7 @@ void StartApplication(int argc, char** argv, const char* /*link */,
                       const base::Closure& quit_closure, int64_t timestamp) {
   DCHECK(!g_javascript_runner);
   g_javascript_runner = new cobalt::script::StandaloneJavascriptRunner(
-      base::ThreadTaskRunnerHandle::Get());
+      base::SequencedTaskRunner::GetCurrentDefault());
   DCHECK(g_javascript_runner);
 
   GlobalEnvironment* global_environment =

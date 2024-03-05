@@ -37,8 +37,8 @@ namespace websocket {
 WebSocketImpl::WebSocketImpl(cobalt::network::NetworkModule *network_module,
                              WebSocket *delegate)
     : network_module_(network_module), delegate_(delegate) {
-  DCHECK(base::MessageLoop::current());
-  owner_task_runner_ = base::ThreadTaskRunnerHandle::Get();
+  DCHECK(base::SequencedTaskRunner::GetCurrentDefault());
+  owner_task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
 }
 
 void WebSocketImpl::ResetWebSocketEventDelegate() {

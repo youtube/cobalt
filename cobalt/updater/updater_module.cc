@@ -31,6 +31,7 @@
 #include "base/task/task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/version.h"
+#include "cobalt/base/task_runner_util.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/updater/crash_client.h"
 #include "cobalt/updater/crash_reporter.h"
@@ -139,23 +140,23 @@ UpdaterModule::UpdaterModule(network::NetworkModule* network_module,
   LOG(INFO) << "UpdaterModule::UpdaterModule";
   updater_thread_.reset(new base::Thread("Updater"));
   updater_thread_->StartWithOptions(
-      base::Thread::Options(base::MessageLoop::TYPE_IO, 0));
+      base::Thread::Options(base::MessagePumpType::IO, 0));
 
   DETACH_FROM_THREAD(thread_checker_);
   // Initialize the underlying update client.
   is_updater_running_ = true;
   updater_thread_->task_runner()->PostTask(
       FROM_HERE,
-      base::Bind(&UpdaterModule::Initialize, base::Unretained(this)));
+      base::BindOnce(&UpdaterModule::Initialize, base::Unretained(this)));
 }
 
 UpdaterModule::~UpdaterModule() {
   LOG(INFO) << "UpdaterModule::~UpdaterModule";
   if (is_updater_running_) {
     is_updater_running_ = false;
-    updater_thread_->task_runner()->PostBlockingTask(
-        FROM_HERE,
-        base::Bind(&UpdaterModule::Finalize, base::Unretained(this)));
+    base::task_runner_util::PostBlockingTask(
+        updater_thread_->task_runner(), FROM_HERE,
+        base::BindOnce(&UpdaterModule::Finalize, base::Unretained(this)));
   }
 
   // Upon destruction the thread will allow all queued tasks to complete before
@@ -168,9 +169,9 @@ UpdaterModule::~UpdaterModule() {
 void UpdaterModule::Suspend() {
   if (is_updater_running_) {
     is_updater_running_ = false;
-    updater_thread_->task_runner()->PostBlockingTask(
-        FROM_HERE,
-        base::Bind(&UpdaterModule::Finalize, base::Unretained(this)));
+    base::task_runner_util::PostBlockingTask(
+        updater_thread_->task_runner(), FROM_HERE,
+        base::BindOnce(&UpdaterModule::Finalize, base::Unretained(this)));
   }
 }
 
@@ -179,7 +180,7 @@ void UpdaterModule::Resume() {
     is_updater_running_ = true;
     updater_thread_->task_runner()->PostTask(
         FROM_HERE,
-        base::Bind(&UpdaterModule::Initialize, base::Unretained(this)));
+        base::BindOnce(&UpdaterModule::Initialize, base::Unretained(this)));
   }
 }
 
@@ -197,7 +198,7 @@ void UpdaterModule::Initialize() {
   LOG(INFO) << "Scheduling UpdateCheck with delay " << update_check_delay_sec_
             << " seconds";
   updater_thread_->task_runner()->PostDelayedTask(
-      FROM_HERE, base::Bind(&UpdaterModule::Update, base::Unretained(this)),
+      FROM_HERE, base::BindOnce(&UpdaterModule::Update, base::Unretained(this)),
       base::TimeDelta::FromSeconds(update_check_delay_sec_));
 }
 
@@ -234,8 +235,8 @@ void UpdaterModule::Finalize() {
 
 void UpdaterModule::MarkSuccessful() {
   updater_thread_->task_runner()->PostTask(
-      FROM_HERE,
-      base::Bind(&UpdaterModule::MarkSuccessfulImpl, base::Unretained(this)));
+      FROM_HERE, base::BindOnce(&UpdaterModule::MarkSuccessfulImpl,
+                                base::Unretained(this)));
 }
 
 void UpdaterModule::MarkSuccessfulImpl() {
@@ -295,7 +296,7 @@ void UpdaterModule::Update() {
       false,
       base::BindOnce(
           [](base::OnceClosure closure, update_client::Error error) {
-            base::ThreadTaskRunnerHandle::Get()->PostTask(
+            base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
                 FROM_HERE, base::BindOnce(&QuitLoop, std::move(closure)));
           },
           base::Bind(base::DoNothing::Repeatedly())));
@@ -312,8 +313,9 @@ void UpdaterModule::Update() {
     // hours.
     kNextUpdateCheckHours = 24;
   }
-  updater_thread_->task_runner()->PostDelayedTask(
-      FROM_HERE, base::Bind(&UpdaterModule::Update, base::Unretained(this)),
+  base::task_runner_util::PostDelayedTask(
+      updater_thread_->task_runner(), FROM_HERE,
+      base::BindOnce(&UpdaterModule::Update, base::Unretained(this)),
       base::TimeDelta::FromHours(kNextUpdateCheckHours));
 }
 
@@ -360,7 +362,8 @@ std::string UpdaterModule::GetUpdaterStatus() const {
 
 void UpdaterModule::RunUpdateCheck() {
   updater_thread_->task_runner()->PostTask(
-      FROM_HERE, base::Bind(&UpdaterModule::Update, base::Unretained(this)));
+      FROM_HERE,
+      base::BindOnce(&UpdaterModule::Update, base::Unretained(this)));
 }
 
 void UpdaterModule::ResetInstallations() {

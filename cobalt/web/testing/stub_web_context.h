@@ -18,7 +18,7 @@
 #include <memory>
 #include <string>
 
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/test/task_environment.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/network/network_module.h"
@@ -67,8 +67,8 @@ class StubWebContext final : public Context {
 
   // WebInstance
   //
-  base::MessageLoop* message_loop() const final {
-    return base::MessageLoop::current();
+  base::SequencedTaskRunner* task_runner() const final {
+    return base::SequencedTaskRunner::GetCurrentDefault();
   }
   void ShutDownJavaScriptEngine() final { NOTREACHED(); }
   loader::FetcherFactory* fetcher_factory() const final {

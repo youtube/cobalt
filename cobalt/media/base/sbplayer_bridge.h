@@ -21,9 +21,9 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "base/message_loop/message_loop.h"
 #include "base/single_thread_task_runner.h"
 #include "base/synchronization/lock.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "cobalt/media/base/cval_stats.h"
 #include "cobalt/media/base/decode_target_provider.h"
@@ -70,7 +70,7 @@ class SbPlayerBridge {
       OnEncryptedMediaInitDataEncounteredCB;
   // Create an SbPlayerBridge with url-based player.
   SbPlayerBridge(SbPlayerInterface* interface,
-                 const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+                 const scoped_refptr<base::SequencedTaskRunner>& task_runner,
                  const std::string& url, SbWindow window, Host* host,
                  SbPlayerSetBoundsHelper* set_bounds_helper,
                  bool allow_resume_after_suspend,
@@ -82,7 +82,7 @@ class SbPlayerBridge {
 #endif  // SB_HAS(PLAYER_WITH_URL)
   // Create a SbPlayerBridge with normal player
   SbPlayerBridge(SbPlayerInterface* interface,
-                 const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
+                 const scoped_refptr<base::SequencedTaskRunner>& task_runner,
                  const GetDecodeTargetGraphicsContextProviderFunc&
                      get_decode_target_graphics_context_provider_func,
                  const AudioDecoderConfig& audio_config,
@@ -251,7 +251,7 @@ class SbPlayerBridge {
   std::string url_;
 #endif  // SB_HAS(PLAYER_WITH_URL)
   SbPlayerInterface* sbplayer_interface_;
-  const scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  const scoped_refptr<base::SequencedTaskRunner> task_runner_;
   const GetDecodeTargetGraphicsContextProviderFunc
       get_decode_target_graphics_context_provider_func_;
   scoped_refptr<CallbackHelper> callback_helper_;

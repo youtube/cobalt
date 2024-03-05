@@ -75,8 +75,6 @@ class FontCacheTest : public ::testing::Test {
   cobalt::render_tree::ResourceProvider* mrp;
   std::unique_ptr<loader::font::RemoteTypefaceCache> rtc;
   std::unique_ptr<dom::FontCache> font_cache_;
-
-  base::MessageLoop message_loop_;
 };
 
 FontCacheTest::FontCacheTest()

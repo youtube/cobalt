@@ -22,8 +22,8 @@
 
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
-#include "base/message_loop/message_loop.h"
 #include "base/synchronization/lock.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/time/time.h"
 #include "v8/include/libplatform/libplatform.h"
@@ -45,10 +45,8 @@ class CobaltPlatform : public v8::Platform {
 
   // Because foreground tasks have to be run on the isolate's main thread,
   // each JavaScriptEngine needs to register its isolate in IsolateFellowship
-  // so that when v8 post tasks to an isolate, we know which thread to call
-  // Pumpbase::MessageLoop and run the posted task on.
-  void RegisterIsolateOnThread(v8::Isolate* isolate,
-                               base::MessageLoop* message_loop);
+  // so that when v8 post tasks to an isolate, we know which task runner to use.
+  void RegisterIsolateOnThread(v8::Isolate* isolate);
   void UnregisterIsolateOnThread(v8::Isolate* isolate);
 
   // v8::Platform APIs.
@@ -133,7 +131,7 @@ class CobaltPlatform : public v8::Platform {
     bool NonNestableDelayedTasksEnabled() const override { return true; }
 
     // custom helper methods
-    void SetTaskRunner(base::SingleThreadTaskRunner* task_runner);
+    void SetTaskRunner(base::SequencedTaskRunner* task_runner);
     void RunV8Task(std::unique_ptr<v8::Task> task);
 
    private:
@@ -141,7 +139,7 @@ class CobaltPlatform : public v8::Platform {
     // posted with refptr and keeping a reference to task_runner_ might create
     // reference cycle. Also this class should be guaranteed to live shorter
     // than the thread.
-    base::SingleThreadTaskRunner* task_runner_;
+    base::SequencedTaskRunner* task_runner_;
     base::WeakPtrFactory<CobaltV8TaskRunner> weak_ptr_factory_{this};
     // If tasks are posted before isolate is registered, we record their delay
     // and post them when isolate is registered to a thread.

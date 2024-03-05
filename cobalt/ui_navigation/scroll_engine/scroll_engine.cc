@@ -187,7 +187,8 @@ ScrollEngine::ScrollEngine() : active_transform_(math::Matrix3F::Identity()) {}
 ScrollEngine::~ScrollEngine() { free_scroll_timer_.Stop(); }
 
 void ScrollEngine::MaybeFreeScrollActiveNavItem() {
-  DCHECK(base::MessageLoop::current() == scroll_engine_.message_loop());
+  DCHECK(base::SequencedTaskRunner::GetCurrentDefault() ==
+         scroll_engine_.task_runner());
 
   DCHECK(previous_events_.size() == 2);
   if (previous_events_.size() != 2) {
@@ -226,7 +227,8 @@ void ScrollEngine::MaybeFreeScrollActiveNavItem() {
 
 void ScrollEngine::HandlePointerEventForActiveItem(
     scoped_refptr<dom::PointerEvent> pointer_event) {
-  DCHECK(base::MessageLoop::current() == scroll_engine_.message_loop());
+  DCHECK(base::SequencedTaskRunner::GetCurrentDefault() ==
+         scroll_engine_.task_runner());
 
   if (pointer_event->type() == base::Tokens::pointerup()) {
     MaybeFreeScrollActiveNavItem();
@@ -269,7 +271,8 @@ void ScrollEngine::HandlePointerEventForActiveItem(
 
 void ScrollEngine::HandlePointerEvent(base_token::Token type,
                                       const dom::PointerEventInit& event) {
-  DCHECK(base::MessageLoop::current() == scroll_engine_.message_loop());
+  DCHECK(base::SequencedTaskRunner::GetCurrentDefault() ==
+         scroll_engine_.task_runner());
 
   scoped_refptr<dom::PointerEvent> pointer_event(
       new dom::PointerEvent(type, nullptr, event));
@@ -312,7 +315,8 @@ void ScrollEngine::HandleScrollStart(
     math::Vector2dF initial_coordinates, uint64 initial_time_stamp,
     math::Vector2dF current_coordinates, uint64 current_time_stamp,
     const math::Matrix3F& initial_transform) {
-  DCHECK(base::MessageLoop::current() == scroll_engine_.message_loop());
+  DCHECK(base::SequencedTaskRunner::GetCurrentDefault() ==
+         scroll_engine_.task_runner());
   active_transform_ = CalculateActiveTransform(initial_transform);
   auto initial_point =
       active_transform_ *
@@ -358,7 +362,8 @@ void ScrollEngine::HandleScrollStart(
 
 void ScrollEngine::CancelActiveScrollsForNavItems(
     std::vector<scoped_refptr<ui_navigation::NavItem>> scrolls_to_cancel) {
-  DCHECK(base::MessageLoop::current() == scroll_engine_.message_loop());
+  DCHECK(base::SequencedTaskRunner::GetCurrentDefault() ==
+         scroll_engine_.task_runner());
 
   for (auto scroll_to_cancel : scrolls_to_cancel) {
     for (std::vector<FreeScrollingNavItem>::iterator it =
@@ -374,7 +379,8 @@ void ScrollEngine::CancelActiveScrollsForNavItems(
 }
 
 void ScrollEngine::ScrollNavItemsWithDecayingScroll() {
-  DCHECK(base::MessageLoop::current() == scroll_engine_.message_loop());
+  DCHECK(base::SequencedTaskRunner::GetCurrentDefault() ==
+         scroll_engine_.task_runner());
 
   if (nav_items_with_decaying_scroll_.size() == 0) {
     free_scroll_timer_.Stop();

@@ -31,7 +31,7 @@
 namespace base {
 
 class FilePath;
-class SingleThreadTaskRunner;
+class SequencedTaskRunner;
 
 }  // namespace base
 
@@ -127,7 +127,7 @@ class NetworkFetcher : public update_client::NetworkFetcher,
 
   static constexpr int kMaxRetriesOnNetworkChange = 3;
 
-  scoped_refptr<base::SingleThreadTaskRunner> main_thread_task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> main_thread_task_runner_;
 
   std::unique_ptr<net::URLFetcher> url_fetcher_;
 

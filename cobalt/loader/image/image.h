@@ -18,9 +18,9 @@
 #define COBALT_LOADER_IMAGE_IMAGE_H_
 
 #include "base/memory/ref_counted.h"
-#include "base/message_loop/message_loop.h"
 #include "base/single_thread_task_runner.h"
 #include "base/synchronization/lock.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/math/transform_2d.h"
@@ -123,10 +123,10 @@ class AnimatedImage : public Image {
 
   bool IsOpaque() const override { return false; }
 
-  // Start playing the animation, decoding on the given message loop.
+  // Start playing the animation, decoding on the given task runner.
   // Implementation should be thread safe.
   virtual void Play(
-      const scoped_refptr<base::SingleThreadTaskRunner>& message_loop) = 0;
+      const scoped_refptr<base::SequencedTaskRunner>& task_runner) = 0;
 
   // Stop playing the animation.
   virtual void Stop() = 0;

@@ -16,7 +16,6 @@
 
 #include <memory>
 
-#include "base/message_loop/message_loop.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_stat_tracker.h"
@@ -89,7 +88,6 @@ class HTMLElementFactoryTest : public ::testing::Test {
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;
   HTMLElementFactory html_element_factory_;
-  base::MessageLoop message_loop_;
 };
 
 TEST_F(HTMLElementFactoryTest, CreateHTMLElement) {

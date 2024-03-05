@@ -150,7 +150,7 @@ std::unique_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
     if (!file_thread_.IsRunning()) {
       file_thread_.Start();
     }
-    options.message_loop_proxy = file_thread_.task_runner();
+    options.task_runner_proxy = file_thread_.task_runner();
     options.extra_search_dir = extra_search_dir_;
     return std::unique_ptr<Fetcher>(
         new FileFetcher(file_path, handler, options));

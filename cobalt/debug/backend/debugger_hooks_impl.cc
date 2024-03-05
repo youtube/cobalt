@@ -39,7 +39,7 @@ static_assert(::logging::LOGGING_NUM_SEVERITIES ==
 }  // namespace
 
 DebuggerHooksImpl::DebuggerHooksImpl()
-    : message_loop_(base::MessageLoop::current()) {}
+    : task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {}
 
 void DebuggerHooksImpl::AttachDebugger(
     script::ScriptDebugger* script_debugger) {
@@ -55,8 +55,8 @@ void DebuggerHooksImpl::DetachDebugger() {
 
 void DebuggerHooksImpl::ConsoleLog(::logging::LogSeverity severity,
                                    std::string message) const {
-  if (base::MessageLoop::current() != message_loop_) {
-    message_loop_->task_runner()->PostTask(
+  if (!task_runner_->RunsTasksInCurrentSequence()) {
+    task_runner_->PostTask(
         FROM_HERE, base::Bind(&DebuggerHooksImpl::ConsoleLog,
                               base::Unretained(this), severity, message));
     return;

@@ -18,7 +18,7 @@
 #include <string>
 #include <utility>  // for std::move
 
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/document.h"
@@ -81,7 +81,7 @@ void HTMLImageElement::OnRemoveAttribute(const std::string& name) {
 // Algorithm for UpdateTheImageData:
 //   https://www.w3.org/TR/html50/embedded-content-0.html#update-the-image-data
 void HTMLImageElement::UpdateImageData() {
-  DCHECK(base::MessageLoop::current());
+  DCHECK(base::SequencedTaskRunner::GetCurrentDefault());
   DCHECK(node_document());
   TRACE_EVENT0("cobalt::dom", "HTMLImageElement::UpdateImageData()");
 

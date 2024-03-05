@@ -23,9 +23,9 @@
 #include "base/containers/hash_tables.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
-#include "base/message_loop/message_loop.h"
 #include "base/optional.h"
 #include "base/single_thread_task_runner.h"
+#include "base/task/sequenced_task_runner.h"
 #include "starboard/atomic.h"
 #include "starboard/drm.h"
 
@@ -232,7 +232,7 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
                                              const char* error_message);
 
   const SbDrmSystem wrapped_drm_system_;
-  scoped_refptr<base::SingleThreadTaskRunner> const message_loop_;
+  scoped_refptr<base::SequencedTaskRunner> const task_runner_;
 
   // Factory should only be used to create the initial weak pointer. All
   // subsequent weak pointers are created by copying the initial one. This is

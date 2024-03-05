@@ -16,8 +16,8 @@
 
 #include "base/basictypes.h"
 #include "base/bind.h"
-#include "base/message_loop/message_loop.h"
 #include "base/rand_util.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/keyboard_event.h"
@@ -105,7 +105,7 @@ InputDeviceManagerFuzzer::InputDeviceManagerFuzzer(
   // Schedule task to send the first key event.  Add an explicit delay to avoid
   // possible conflicts with debug console.
   thread_.Start();
-  thread_.message_loop()->task_runner()->PostDelayedTask(
+  thread_.task_runner()->PostDelayedTask(
       FROM_HERE,
       base::Bind(&InputDeviceManagerFuzzer::OnNextEvent,
                  base::Unretained(this)),
@@ -122,7 +122,7 @@ void InputDeviceManagerFuzzer::OnNextEvent() {
   keyboard_event_callback_.Run(base::Tokens::keydown(), event_init);
   keyboard_event_callback_.Run(base::Tokens::keyup(), event_init);
 
-  base::ThreadTaskRunnerHandle::Get()->PostDelayedTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE,
       base::Bind(&InputDeviceManagerFuzzer::OnNextEvent,
                  base::Unretained(this)),

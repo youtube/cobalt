@@ -17,7 +17,7 @@
 
 #include <memory>
 
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/script/callback_function.h"
@@ -55,7 +55,7 @@ class H5vccAccessibility : public script::Wrappable {
 
   void InternalOnApplicationEvent(base::TypeId type);
 
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
   base::EventCallback on_application_event_callback_;
   base::EventDispatcher* event_dispatcher_;

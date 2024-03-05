@@ -23,6 +23,7 @@
 #include "base/bind.h"
 #include "base/files/file_util.h"
 #include "base/path_service.h"
+#include "base/task/single_thread_task_executor.h"
 #include "base/task/task_scheduler/task_scheduler.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/media/decoder_buffer_allocator.h"
@@ -116,7 +117,8 @@ int SandboxMain(int argc, char** argv) {
 
   DecoderBufferAllocator decoder_buffer_allocator;
   ::media::MediaLog media_log;
-  base::MessageLoop message_loop;
+  base::SingleThreadTaskExecutor task_executor(base::MessagePumpType::UI);
+  base::RunLoop run_loop;
   // A one-per-process task scheduler is needed for usage of APIs in
   // base/post_task.h which will be used by some net APIs like
   // URLRequestContext;
@@ -194,7 +196,7 @@ int SandboxMain(int argc, char** argv) {
   ReadDemuxerStream(audio_stream);
   ReadDemuxerStream(video_stream);
 
-  base::RunLoop().RunUntilIdle();
+  run_loop.RunUntilIdle();
 
   demuxer->Stop();
 

@@ -78,7 +78,7 @@ class CobaltMetricsServicesManager
   // The task runner of the thread this class was constructed on. All logic
   // interacting with containing metrics classes must be invoked on this
   // task_runner thread.
-  scoped_refptr<base::SingleThreadTaskRunner> const task_runner_;
+  scoped_refptr<base::SequencedTaskRunner> const task_runner_;
 };
 
 }  // namespace metrics

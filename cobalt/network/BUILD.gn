@@ -151,6 +151,7 @@ if (enable_in_app_dial) {
     ]
     deps = [
       "//base:base",
+      "//cobalt/base:base",
       "//net",
       "//net/server:http_server",
       "//starboard/common",

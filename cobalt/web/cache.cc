@@ -102,7 +102,7 @@ void Cache::Fetcher::ReadResponse(net::URLRequest* request) {
 
   // Read completed synchronously. Call |OnReadCompleted()| asynchronously to
   // avoid blocking IO.
-  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&Cache::Fetcher::OnReadCompleted,
                                 base::Unretained(this), request, bytes_read));
 }
@@ -162,7 +162,7 @@ script::HandlePromiseAny Cache::Match(
   cache_utils::Trace(isolate, {resolver}, traced_globals, cleanup_traced);
   auto traced_resolver = traced_globals[0]->As<v8::Promise::Resolver>();
   auto context = get_context(environment_settings);
-  context->message_loop()->task_runner()->PostTask(
+  context->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(
           [](script::EnvironmentSettings* environment_settings, uint32_t key,
@@ -238,7 +238,7 @@ script::HandlePromiseVoid Cache::Add(
       std::make_unique<script::ValuePromiseVoid::Reference>(global_wrappable,
                                                             promise);
   auto context = get_context(environment_settings);
-  context->message_loop()->task_runner()->PostTask(
+  context->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(&Cache::PerformAdd, base::Unretained(this),
                      environment_settings, std::move(request_reference),
@@ -333,7 +333,7 @@ script::HandlePromiseBool Cache::Delete(
       std::make_unique<script::ValuePromiseBool::Reference>(global_wrappable,
                                                             promise);
   auto context = get_context(environment_settings);
-  context->message_loop()->task_runner()->PostTask(
+  context->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(
           [](script::EnvironmentSettings* environment_settings,
@@ -365,7 +365,7 @@ script::HandlePromiseAny Cache::Keys(
   auto promise_reference = std::make_unique<script::ValuePromiseAny::Reference>(
       global_wrappable, promise);
   auto context = get_context(environment_settings);
-  context->message_loop()->task_runner()->PostTask(
+  context->task_runner()->PostTask(
       FROM_HERE,
       base::BindOnce(
           [](script::EnvironmentSettings* environment_settings,
@@ -407,7 +407,7 @@ void Cache::OnFetchCompleted(uint32_t key, bool success) {
   base::AutoLock auto_lock(fetcher_lock_);
   auto* environment_settings = fetch_contexts_[key].second;
   auto* context = get_context(environment_settings);
-  context->message_loop()->task_runner()->PostTask(
+  context->task_runner()->PostTask(
       FROM_HERE, base::BindOnce(&Cache::OnFetchCompletedMainThread,
                                 base::Unretained(this), key, success));
 }

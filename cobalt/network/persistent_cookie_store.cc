@@ -19,7 +19,7 @@
 #include <vector>
 
 #include "base/bind.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "url/gurl.h"
 
@@ -109,7 +109,7 @@ PersistentCookieStore::~PersistentCookieStore() {}
 void PersistentCookieStore::Load(LoadedCallback loaded_callback,
                                  const net::NetLogWithSource& net_log) {
   net_log.BeginEvent(net::NetLogEventType::COOKIE_PERSISTENT_STORE_LOAD);
-  //  DCHECK_EQ(base::MessageLoop::current()->task_runner(),
+  //  DCHECK_EQbase::SequencedTaskRunner::GetCurrentDefault(),
   //            loaded_callback_task_runner_);
   storage_->WithReadOnlyMemoryStore(base::Bind(&CookieStorageInit,
                                                std::move(loaded_callback),
@@ -122,7 +122,7 @@ void PersistentCookieStore::LoadCookiesForKey(const std::string& key,
   // This is always called after Load(), so just post the callback to the
   // Storage thread to make sure it is run after Load() has finished. See
   // comments in net/cookie_monster.cc for more information.
-  DCHECK_EQ(base::MessageLoop::current()->task_runner(),
+  DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(),
             loaded_callback_task_runner_);
   storage_->WithReadOnlyMemoryStore(base::Bind(&SendEmptyCookieList,
                                                std::move(loaded_callback),

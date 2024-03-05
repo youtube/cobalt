@@ -19,7 +19,7 @@
 #include <vector>
 
 #include "base/containers/hash_tables.h"
-#include "base/message_loop/message_loop.h"
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/network_bridge/net_poster.h"
@@ -41,8 +41,8 @@ class CspViolationReporter {
   // Used as a callback from ContentSecurityPolicy to dispatch security
   // violation events on the Document or Global Object and send the reports.
   // Report() can be called from any thread and it will re-post itself
-  // to the message loop it was created on, which should be the Document's
-  // message loop.
+  // to the task runner it was created on, which should be the Document's
+  // task runner.
   virtual void Report(const csp::ViolationInfo& violation_info);
   const network_bridge::PostSender& post_sender() const { return post_sender_; }
 
@@ -56,9 +56,9 @@ class CspViolationReporter {
   base::hash_set<uint32> violation_reports_sent_;
   // Callback to send POST requests containing our JSON reports.
   network_bridge::PostSender post_sender_;
-  // Keep track of the message loop the object was created on.
-  // We must send violations on the document's message loop.
-  base::MessageLoop* message_loop_;
+  // Keep track of the task runner the object was created on.
+  // We must send violations on the document's task runner.
+  base::SequencedTaskRunner* task_runner_;
 
   WindowOrWorkerGlobalScope* global_;
 

@@ -17,17 +17,20 @@
 #include <algorithm>
 
 #include "base/callback.h"
+#include "base/check.h"
 #include "base/logging.h"
 #include "base/values.h"
+#include "net/log/file_net_log_observer.h"
+#include "net/log/net_log.h"
 
 namespace cobalt {
 namespace network {
 
 CobaltNetLog::CobaltNetLog(const base::FilePath& log_path,
                            net::NetLogCaptureMode capture_mode)
-    : net_log_logger_(net::FileNetLogObserver::CreateUnbounded(
+    : file_net_log_observer_(net::FileNetLogObserver::CreateUnbounded(
           log_path, capture_mode, nullptr)) {
-  net_log_logger_->StartObserving(net_log());
+  DCHECK(file_net_log_observer_);
 }
 
 CobaltNetLog::~CobaltNetLog() {
@@ -38,9 +41,7 @@ CobaltNetLog::~CobaltNetLog() {
 void CobaltNetLog::StartObserving() {
   if (!is_observing_) {
     is_observing_ = true;
-#ifndef USE_HACKY_COBALT_CHANGES
-    net_log_logger_->StartObserving(this, capture_mode_);
-#endif
+    file_net_log_observer_->StartObserving(net::NetLog::Get());
   } else {
     DLOG(WARNING) << "Already observing NetLog.";
   }
@@ -49,7 +50,7 @@ void CobaltNetLog::StartObserving() {
 void CobaltNetLog::StopObserving() {
   if (is_observing_) {
     is_observing_ = false;
-    net_log_logger_->StopObserving(nullptr, base::OnceClosure());
+    file_net_log_observer_->StopObserving(nullptr, base::OnceClosure());
   }
 }
 

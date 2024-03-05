@@ -15,7 +15,7 @@
 #ifndef NET_SOCKET_TCP_SOCKET_STARBOARD_H_
 #define NET_SOCKET_TCP_SOCKET_STARBOARD_H_
 
-// #include "base/message_loop/message_loop.h"
+// #include "base/task/sequenced_task_runner.h"
 #include "net/base/address_list.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/io_buffer.h"

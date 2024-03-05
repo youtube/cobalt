@@ -16,6 +16,7 @@
 
 #include <memory>
 
+#include "cobalt/base/task_runner_util.h"
 #include "cobalt/debug/backend/render_layer.h"
 
 namespace cobalt {
@@ -71,8 +72,9 @@ DebugModule::DebugModule(DebuggerHooksImpl* debugger_hooks,
                          render_tree::ResourceProvider* resource_provider,
                          dom::Window* window, DebuggerState* debugger_state) {
   ConstructionData data(debugger_hooks, global_environment,
-                        base::MessageLoop::current(), render_overlay,
-                        resource_provider, window, debugger_state);
+                        base::SequencedTaskRunner::GetCurrentDefault(),
+                        render_overlay, resource_provider, window,
+                        debugger_state);
   Build(data);
 }
 
@@ -81,8 +83,8 @@ DebugModule::DebugModule(DebuggerHooksImpl* debugger_hooks,
                          RenderOverlay* render_overlay,
                          render_tree::ResourceProvider* resource_provider,
                          dom::Window* window, DebuggerState* debugger_state,
-                         base::MessageLoop* message_loop) {
-  ConstructionData data(debugger_hooks, global_environment, message_loop,
+                         base::SequencedTaskRunner* task_runner) {
+  ConstructionData data(debugger_hooks, global_environment, task_runner,
                         render_overlay, resource_provider, window,
                         debugger_state);
   Build(data);
@@ -101,13 +103,13 @@ DebugModule::~DebugModule() {
 }
 
 void DebugModule::Build(const ConstructionData& data) {
-  DCHECK(data.message_loop);
+  DCHECK(data.task_runner);
 
-  if (base::MessageLoop::current() == data.message_loop) {
+  if (data.task_runner->RunsTasksInCurrentSequence()) {
     BuildInternal(data);
   } else {
-    data.message_loop->task_runner()->PostBlockingTask(
-        FROM_HERE,
+    base::task_runner_util::PostBlockingTask(
+        data.task_runner, FROM_HERE,
         base::Bind(&DebugModule::BuildInternal, base::Unretained(this), data));
   }
 
@@ -115,7 +117,7 @@ void DebugModule::Build(const ConstructionData& data) {
 }
 
 void DebugModule::BuildInternal(const ConstructionData& data) {
-  DCHECK(base::MessageLoop::current() == data.message_loop);
+  DCHECK(data.task_runner->RunsTasksInCurrentSequence());
   DCHECK(data.global_environment);
 
   // Create the backend objects supporting the debugger agents.
