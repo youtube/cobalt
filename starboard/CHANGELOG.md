@@ -10,7 +10,8 @@ since the version previous to it.
 ## Version 16
 
 ### Added standard POSIX file stat API and deprecated SbFileExists.
-The file API SbFileExists has been deprecated and the standard API `stat` can be used from `sys/stat.h` instead.
+The file API SbFileExists has been deprecated and the standard API `stat` can
+be used from `sys/stat.h` instead.
 
 ### Added standard POSIX socket send/recv APIs.
 The standard API `send`, `recv`, can be used from <sys/socket.h> and
