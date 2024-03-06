@@ -60,6 +60,8 @@ bool& ThreadIsLoggingStatus() {
   return thread_is_logging;
 #else
 #if defined(STARBOARD)
+  // TODO: b/328310825 - pthread_key_t doesn't have a constant initializer in
+  // Starboard.
   static pthread_key_t thread_is_logging_key;
 #else
   ABSL_CONST_INIT static pthread_key_t thread_is_logging_key;
