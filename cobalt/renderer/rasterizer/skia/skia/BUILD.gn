@@ -52,15 +52,12 @@ skia_common("skia_library_no_asan") {
       ]
     }
   }
+  deps = [ "//base" ]
 
   # TODO(b/207398024): If this is a target we need to build, then we'll
   # need to rework the configuration framework to be able to remove this
   # flag -fsanitize=address, as it's mostly added in the
   # platform_configuration config.
-  deps = [
-    "//base:debugging_buildflags",
-    "//base:logging_buildflags",
-  ]
 }
 
 # Skia's core code from the Skia repository.
