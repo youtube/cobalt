@@ -155,8 +155,15 @@ class ObserverListThreadSafe : public internal::ObserverListThreadSafeBase {
     // may not make it to |observer| depending on the outcome of the race to
     // |lock_|).
     if (policy_ == ObserverListPolicy::ALL) {
+#if defined(STARBOARD)
+      void* current_notification_void = SbThreadGetLocalValue(GetThreadLocalKey());
+      if (current_notification_void) {
+      if (const NotificationDataBase* const current_notification =
+              static_cast<NotificationDataBase*>(current_notification_void);
+#else
       if (const NotificationDataBase* const current_notification =
               GetCurrentNotification();
+#endif
           current_notification && current_notification->observer_list == this) {
         const NotificationData* notification_data =
             static_cast<const NotificationData*>(current_notification);
@@ -173,6 +180,9 @@ class ObserverListThreadSafe : public internal::ObserverListThreadSafeBase {
                                       current_notification->from_here,
                                       notification_data->method)));
       }
+#if defined(STARBOARD)
+      }
+#endif
     }
 
     return was_empty ? AddObserverResult::kBecameNonEmpty
@@ -266,6 +276,7 @@ class ObserverListThreadSafe : public internal::ObserverListThreadSafeBase {
     // important to save the previous value to restore it later.
 #if defined(STARBOARD)
     EnsureThreadLocalKeyInited();
+    void* scoped_reset_value = SbThreadGetLocalValue(GetThreadLocalKey());
     SbThreadSetLocalValue(GetThreadLocalKey(), const_cast<NotificationData*>(&notification));
 #else
     const AutoReset<const NotificationDataBase*> resetter_(
@@ -276,7 +287,7 @@ class ObserverListThreadSafe : public internal::ObserverListThreadSafeBase {
     notification.method.Run(observer);
 
 #if defined(STARBOARD)
-    SbThreadSetLocalValue(GetThreadLocalKey(), nullptr);
+    SbThreadSetLocalValue(GetThreadLocalKey(), scoped_reset_value);
 #endif
   }
 

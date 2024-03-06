@@ -45,9 +45,10 @@ ABSL_CONST_INIT thread_local const ObserverListThreadSafeBase::
 const ObserverListThreadSafeBase::NotificationDataBase*&
 ObserverListThreadSafeBase::GetCurrentNotification() {
 #if defined(STARBOARD)
-  auto& ptr = *static_cast<const ObserverListThreadSafeBase::NotificationDataBase**>(
-      SbThreadGetLocalValue(s_thread_local_key));
-  return ptr;
+  // We can't use a reference to a pointer in Starboard here.
+  NOTIMPLEMENTED();
+  static const ObserverListThreadSafeBase::NotificationDataBase* rv = nullptr;
+  return rv;
 #else
   // Workaround false-positive MSAN use-of-uninitialized-value on
   // thread_local storage for loaded libraries:

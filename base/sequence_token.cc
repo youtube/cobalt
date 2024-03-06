@@ -11,6 +11,7 @@
 #include "base/check_op.h"
 #include "starboard/once.h"
 #include "starboard/thread.h"
+#include "base/logging.h"
 #endif
 
 namespace base {
@@ -36,6 +37,26 @@ void EnsureThreadLocalSequenceKeyInited() {
   DCHECK(SbThreadIsValidLocalKey(s_thread_local_sequence_key));
 }
 
+ABSL_CONST_INIT SbOnceControl s_once_set_sequence_flag = SB_ONCE_INITIALIZER;
+ABSL_CONST_INIT SbThreadLocalKey s_thread_local_sequence_set_for_thread =
+    kSbThreadLocalKeyInvalid;
+void InitThreadLocalSequenceBoolKey() {
+  s_thread_local_sequence_set_for_thread = SbThreadCreateLocalKey(NULL);
+  DCHECK(SbThreadIsValidLocalKey(s_thread_local_sequence_set_for_thread));
+}
+
+void EnsureThreadLocalSequenceBoolKeyInited() {
+  SbOnce(&s_once_set_sequence_flag, InitThreadLocalSequenceBoolKey);
+  DCHECK(SbThreadIsValidLocalKey(s_thread_local_sequence_set_for_thread));
+}
+
+bool IsSequenceSetForThread() {
+  void* set_for_thread =
+      SbThreadGetLocalValue(s_thread_local_sequence_set_for_thread);
+  return !!set_for_thread ? reinterpret_cast<intptr_t>(set_for_thread) != 0
+                          : false;
+}
+
 ABSL_CONST_INIT SbOnceControl s_once_task_flag = SB_ONCE_INITIALIZER;
 ABSL_CONST_INIT SbThreadLocalKey s_thread_local_task_key =
     kSbThreadLocalKeyInvalid;
@@ -48,6 +69,26 @@ void InitThreadLocalTaskKey() {
 void EnsureThreadLocalTaskKeyInited() {
   SbOnce(&s_once_task_flag, InitThreadLocalTaskKey);
   DCHECK(SbThreadIsValidLocalKey(s_thread_local_task_key));
+}
+
+ABSL_CONST_INIT SbOnceControl s_once_set_task_flag = SB_ONCE_INITIALIZER;
+ABSL_CONST_INIT SbThreadLocalKey s_thread_local_task_set_for_thread =
+    kSbThreadLocalKeyInvalid;
+void InitThreadLocalTaskBoolKey() {
+  s_thread_local_task_set_for_thread = SbThreadCreateLocalKey(NULL);
+  DCHECK(SbThreadIsValidLocalKey(s_thread_local_task_set_for_thread));
+}
+
+void EnsureThreadLocalTaskBoolKeyInited() {
+  SbOnce(&s_once_set_task_flag, InitThreadLocalTaskBoolKey);
+  DCHECK(SbThreadIsValidLocalKey(s_thread_local_task_set_for_thread));
+}
+
+bool IsTaskSetForThread() {
+  void* set_for_thread =
+      SbThreadGetLocalValue(s_thread_local_task_set_for_thread);
+  return !!set_for_thread ? reinterpret_cast<intptr_t>(set_for_thread) != 0
+                          : false;
 }
 #else
 ABSL_CONST_INIT thread_local SequenceToken current_sequence_token;
@@ -78,9 +119,13 @@ SequenceToken SequenceToken::Create() {
 
 SequenceToken SequenceToken::GetForCurrentThread() {
 #if defined(STARBOARD)
-  int token = static_cast<int>(reinterpret_cast<intptr_t>(
-      SbThreadGetLocalValue(s_thread_local_sequence_key)));
-  return SequenceToken(token);
+  if (IsSequenceSetForThread()) {
+    int token = static_cast<int>(reinterpret_cast<intptr_t>(
+        SbThreadGetLocalValue(s_thread_local_sequence_key)));
+    return SequenceToken(token);
+  } else {
+    return SequenceToken();
+  }
 #else
   return current_sequence_token;
 #endif
@@ -104,9 +149,13 @@ TaskToken TaskToken::Create() {
 
 TaskToken TaskToken::GetForCurrentThread() {
 #if defined(STARBOARD)
-  int token = static_cast<int>(reinterpret_cast<intptr_t>(
-      SbThreadGetLocalValue(s_thread_local_task_key)));
-  return TaskToken(token);
+  if (IsTaskSetForThread()) {
+    int token = static_cast<int>(reinterpret_cast<intptr_t>(
+        SbThreadGetLocalValue(s_thread_local_task_key)));
+    return TaskToken(token);
+  } else {
+    return TaskToken();
+  }
 #else
   return current_task_token;
 #endif
@@ -117,13 +166,29 @@ ScopedSetSequenceTokenForCurrentThread::ScopedSetSequenceTokenForCurrentThread(
 #if defined(STARBOARD)
 {
   EnsureThreadLocalSequenceKeyInited();
+  auto sequence_reset_token = TaskToken::GetForCurrentThread();
+  DCHECK(!sequence_reset_token.IsValid());
+  scoped_sequence_reset_value_ = reinterpret_cast<void*>(
+                            static_cast<intptr_t>(sequence_reset_token.GetToken()));
   SbThreadSetLocalValue(s_thread_local_sequence_key,
                         reinterpret_cast<void*>(
                             static_cast<intptr_t>(sequence_token.GetToken())));
+
   EnsureThreadLocalTaskKeyInited();
+  auto task_reset_token = TaskToken::GetForCurrentThread();
+  DCHECK(!task_reset_token.IsValid());
+  scoped_task_reset_value_ = reinterpret_cast<void*>(
+                            static_cast<intptr_t>(task_reset_token.GetToken()));
   SbThreadSetLocalValue(s_thread_local_task_key,
                         reinterpret_cast<void*>(static_cast<intptr_t>(
                             TaskToken::Create().GetToken())));
+
+  EnsureThreadLocalSequenceBoolKeyInited();
+  SbThreadSetLocalValue(s_thread_local_sequence_set_for_thread,
+                        reinterpret_cast<void*>(static_cast<intptr_t>(true)));
+  EnsureThreadLocalTaskBoolKeyInited();
+  SbThreadSetLocalValue(s_thread_local_task_set_for_thread,
+                        reinterpret_cast<void*>(static_cast<intptr_t>(true)));
 }
 #else
     // The lambdas here exist because invalid tokens don't compare equal, so
@@ -137,18 +202,16 @@ ScopedSetSequenceTokenForCurrentThread::ScopedSetSequenceTokenForCurrentThread(
       task_token_resetter_(&current_task_token, [] {
         DCHECK(!current_task_token.IsValid());
         return TaskToken::Create();
-      }()) {}
+      }()) {
+}
 #endif
 
 #if defined(STARBOARD)
 ScopedSetSequenceTokenForCurrentThread::
     ~ScopedSetSequenceTokenForCurrentThread() {
   SbThreadSetLocalValue(s_thread_local_sequence_key,
-                        reinterpret_cast<void*>(
-                            static_cast<intptr_t>(SequenceToken().GetToken())));
-  SbThreadSetLocalValue(
-      s_thread_local_task_key,
-      reinterpret_cast<void*>(static_cast<intptr_t>(TaskToken().GetToken())));
+                        scoped_sequence_reset_value_);
+  SbThreadSetLocalValue(s_thread_local_task_key, scoped_task_reset_value_);
 }
 #else
 ScopedSetSequenceTokenForCurrentThread::

@@ -191,7 +191,9 @@ class BASE_EXPORT [[maybe_unused, nodiscard]] UncheckedScopedBlockingCall {
   // Previous ScopedBlockingCall instantiated on this thread.
   const raw_ptr<UncheckedScopedBlockingCall> previous_scoped_blocking_call_;
 
-#if !defined(STARBOARD)
+#if defined(STARBOARD)
+  void* reset_to_;
+#else
   const base::AutoReset<UncheckedScopedBlockingCall*> resetter_;
 #endif
 

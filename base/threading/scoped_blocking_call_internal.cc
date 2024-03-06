@@ -380,6 +380,7 @@ UncheckedScopedBlockingCall::UncheckedScopedBlockingCall(
                       previous_scoped_blocking_call_->is_will_block_)) {
 #if defined(STARBOARD)
   EnsureThreadLocalCallKeyInited();
+  reset_to_ = SbThreadGetLocalValue(s_thread_local_call_key);
   SbThreadSetLocalValue(s_thread_local_call_key, this);
 #endif
 
@@ -418,7 +419,7 @@ UncheckedScopedBlockingCall::~UncheckedScopedBlockingCall() {
     blocking_observer_->BlockingEnded();
 
 #if defined(STARBOARD)
-  SbThreadSetLocalValue(s_thread_local_call_key, nullptr);
+  SbThreadSetLocalValue(s_thread_local_call_key, reset_to_);
 #endif
 }
 

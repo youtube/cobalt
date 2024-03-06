@@ -117,8 +117,11 @@ class BASE_EXPORT
       const ScopedSetSequenceTokenForCurrentThread&) = delete;
   ~ScopedSetSequenceTokenForCurrentThread();
 
-#if !defined(STARBOARD)
  private:
+#if defined(STARBOARD)
+  void* scoped_sequence_reset_value_;
+  void* scoped_task_reset_value_;
+#else
   const AutoReset<SequenceToken> sequence_token_resetter_;
   const AutoReset<TaskToken> task_token_resetter_;
 #endif

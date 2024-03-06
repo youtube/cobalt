@@ -102,7 +102,7 @@ RunLoop::Delegate::~Delegate() {
 #if defined(STARBOARD)
     DCHECK_EQ(this, GetDelegate());
     EnsureThreadLocalDelegateKeyInited();
-    SbThreadSetLocalValue(s_thread_local_timeout_key, nullptr);
+    SbThreadSetLocalValue(s_thread_local_delegate_key, nullptr);
 #else
     DCHECK_EQ(this, delegate);
     delegate = nullptr;

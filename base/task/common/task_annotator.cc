@@ -26,6 +26,12 @@
 #include "third_party/perfetto/protos/perfetto/trace/track_event/chrome_mojo_event_info.pbzero.h"  // nogncheck
 #endif
 
+#if defined(STARBOARD)
+#include "base/check_op.h"
+#include "starboard/once.h"
+#include "starboard/thread.h"
+#endif
+
 namespace base {
 
 namespace {
@@ -239,6 +245,7 @@ void TaskAnnotator::RunTaskImpl(PendingTask& pending_task) {
   {
 #if defined(STARBOARD)
     EnsureThreadLocalTaskKeyInited();
+    void* reset_to = SbThreadGetLocalValue(s_thread_local_task_key);
     SbThreadSetLocalValue(s_thread_local_task_key, &pending_task);
 #else
     const AutoReset<PendingTask*> resetter(&current_pending_task,
@@ -271,7 +278,7 @@ void TaskAnnotator::RunTaskImpl(PendingTask& pending_task) {
 #endif
 
 #if defined(STARBOARD)
-    SbThreadSetLocalValue(s_thread_local_task_key, nullptr);
+    SbThreadSetLocalValue(s_thread_local_task_key, reset_to);
 #endif
   }
 
@@ -360,6 +367,7 @@ TaskAnnotator::ScopedSetIpcHash::ScopedSetIpcHash(
       ipc_interface_name_(ipc_interface_name) {
 #if defined(STARBOARD)
   EnsureThreadLocalHashKeyInited();
+  scoped_reset_value_ = SbThreadGetLocalValue(s_thread_local_hash_key);
   SbThreadSetLocalValue(s_thread_local_hash_key, this);
 #endif
 }
@@ -378,7 +386,7 @@ uint32_t TaskAnnotator::ScopedSetIpcHash::MD5HashMetricName(
 TaskAnnotator::ScopedSetIpcHash::~ScopedSetIpcHash() {
   DCHECK_EQ(this, GetCurrentScopedIpcHash());
 #if defined(STARBOARD)
-  SbThreadSetLocalValue(s_thread_local_hash_key, nullptr);
+  SbThreadSetLocalValue(s_thread_local_hash_key, scoped_reset_value_);
 #endif
 }
 
@@ -395,6 +403,7 @@ TaskAnnotator::LongTaskTracker::LongTaskTracker(const TickClock* tick_clock,
       task_annotator_(task_annotator) {
 #if defined(STARBOARD)
   EnsureThreadLocalTrackerKeyInited();
+  scoped_reset_value_ = SbThreadGetLocalValue(s_thread_local_tracker_key);
   SbThreadSetLocalValue(s_thread_local_tracker_key, this);
 #endif
 
@@ -406,6 +415,9 @@ TaskAnnotator::LongTaskTracker::LongTaskTracker(const TickClock* tick_clock,
 
 TaskAnnotator::LongTaskTracker::~LongTaskTracker() {
   DCHECK_EQ(this, GetCurrentLongTaskTracker());
+#if defined(STARBOARD)
+  SbThreadSetLocalValue(s_thread_local_tracker_key, scoped_reset_value_);
+#endif
 
   if (!is_tracing_)
     return;
@@ -424,10 +436,6 @@ TaskAnnotator::LongTaskTracker::~LongTaskTracker() {
                     perfetto::Track::ThreadScoped(task_annotator_),
                     task_end_time_);
   }
-
-#if defined(STARBOARD)
-  SbThreadSetLocalValue(s_thread_local_tracker_key, nullptr);
-#endif
 }
 
 void TaskAnnotator::LongTaskTracker::SetIpcDetails(const char* interface_name,
