@@ -38,7 +38,7 @@ class AppKeyFilesTest : public testing::Test {
     dir_ = temp_path.data();
     dir_ += kSbFileSepString;
     dir_ += kTestAppKeyDir;
-    SbDirectoryCreate(dir_.c_str());
+    mkdir(dir_.c_str(), 0700);
   }
 
   bool FileExists(const char* path) {

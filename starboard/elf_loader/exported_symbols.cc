@@ -142,7 +142,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbDecodeTargetRelease);
   REGISTER_SYMBOL(SbDirectoryCanOpen);
   REGISTER_SYMBOL(SbDirectoryClose);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbDirectoryCreate);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbDirectoryGetNext);
   REGISTER_SYMBOL(SbDirectoryOpen);
   REGISTER_SYMBOL(SbDrmCloseSession);
@@ -430,6 +432,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(getsockname);
   REGISTER_SYMBOL(listen);
   REGISTER_SYMBOL(malloc);
+  REGISTER_SYMBOL(mkdir);
   REGISTER_SYMBOL(mprotect);
   REGISTER_SYMBOL(msync);
   REGISTER_SYMBOL(munmap);

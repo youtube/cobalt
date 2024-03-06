@@ -139,7 +139,7 @@ bool CreateAndGetTempPath(char* out_path, int path_size) {
       path_size) {
     return false;
   }
-  SbDirectoryCreate(out_path);
+  mkdir(out_path, 0700);
 
   size_t length = strlen(out_path);
   if (length < 1 || length > path_size) {
