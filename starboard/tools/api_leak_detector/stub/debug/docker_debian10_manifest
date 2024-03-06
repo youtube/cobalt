@@ -53,6 +53,7 @@ __wcscoll_l
 __wcsftime_l
 __wcsxfrm_l
 __wctype_l
+__xstat
 _setjmp
 abort
 bind_textdomain_codeset

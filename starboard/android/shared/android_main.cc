@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <sys/stat.h>
+
 #include "game-activity/GameActivity.h"
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
@@ -165,7 +167,8 @@ std::string ExtractCertificatesToFileSystem() {
   apk_path.append(std::string(kSbFileSepString) + "app" + kSbFileSepString +
                   "cobalt" + kSbFileSepString + "content" + kSbFileSepString +
                   "ssl" + kSbFileSepString + "certs");
-  if (!SbFileExists(apk_path.c_str())) {
+  struct stat info;
+  if (stat(apk_path.c_str(), &info) != 0) {
     SB_LOG(WARNING) << "CA certificates directory not found in APK";
     return "";
   }
