@@ -30,24 +30,24 @@ jobs:
     with:
       platform: linux
       nightly: ${{ github.event.inputs.nightly }}
-  linux-clang-3-9:
-    uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
-    with:
-      platform: linux-clang-3-9
-      nightly: ${{ github.event.inputs.nightly }}
-      modular: true
-  linux-gcc-6-3:
-    uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
-    with:
-      platform: linux-gcc-6-3
-      nightly: ${{ github.event.inputs.nightly }}
-      modular: true
+  # linux-clang-3-9:
+  #   uses: ./.github/workflows/main.yaml
+  #   permissions:
+  #     packages: write
+  #     pull-requests: write
+  #   with:
+  #     platform: linux-clang-3-9
+  #     nightly: ${{ github.event.inputs.nightly }}
+  #     modular: true
+  # linux-gcc-6-3:
+  #   uses: ./.github/workflows/main.yaml
+  #   permissions:
+  #     packages: write
+  #     pull-requests: write
+  #   with:
+  #     platform: linux-gcc-6-3
+  #     nightly: ${{ github.event.inputs.nightly }}
+  #     modular: true
   # TODO(b/285632780): Enable blackbox tests for modular linux workflows.
   linux-modular:
     uses: ./.github/workflows/main.yaml
