@@ -24,13 +24,13 @@
 #include "src/gpu/effects/GrSkSLFP.h"
 #include "src/gpu/effects/GrTextureEffect.h"
 #include "src/gpu/text/GrAtlasManager.h"
-#include "src/gpu/text/GrTextBlobCache.h"
+#include "src/gpu/text/GrTextBlobRedrawCoordinator.h"
 #include "src/image/SkImage_Base.h"
 #include "src/image/SkImage_Gpu.h"
 
 #define ASSERT_OWNED_PROXY(P) \
     SkASSERT(!(P) || !((P)->peekTexture()) || (P)->peekTexture()->getContext() == this->context())
-#define ASSERT_SINGLE_OWNER GR_ASSERT_SINGLE_OWNER(this->context()->singleOwner())
+#define ASSERT_SINGLE_OWNER SKGPU_ASSERT_SINGLE_OWNER(this->context()->singleOwner())
 #define RETURN_VALUE_IF_ABANDONED(value) if (this->context()->abandoned()) { return (value); }
 
 GrSemaphoresSubmitted GrDirectContextPriv::flushSurfaces(

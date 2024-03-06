@@ -22,7 +22,6 @@
 #include "src/gpu/GrGpu.h"
 #include "src/gpu/GrResourceProvider.h"
 #include "src/gpu/GrSemaphore.h"
-#include "src/gpu/GrShaderUtils.h"
 #include "src/gpu/GrThreadSafePipelineBuilder.h"
 #include "src/gpu/SurfaceContext.h"
 #include "src/gpu/effects/GrSkSLFP.h"
@@ -30,6 +29,7 @@
 #include "src/gpu/text/GrAtlasManager.h"
 #include "src/gpu/text/GrStrikeCache.h"
 #include "src/image/SkImage_GpuBase.h"
+#include "src/utils/SkShaderUtils.h"
 #if SK_GPU_V1
 #include "src/gpu/ops/SmallPathAtlasMgr.h"
 #else
@@ -67,7 +67,7 @@ public:
 #   endif
 #endif
 
-#define ASSERT_SINGLE_OWNER GR_ASSERT_SINGLE_OWNER(this->singleOwner())
+#define ASSERT_SINGLE_OWNER SKGPU_ASSERT_SINGLE_OWNER(this->singleOwner())
 
 GrDirectContext::DirectContextID GrDirectContext::DirectContextID::Next() {
     static std::atomic<uint32_t> nextID{1};
@@ -223,7 +223,7 @@ bool GrDirectContext::init() {
         return false;
     }
 
-    SkASSERT(this->getTextBlobCache());
+    SkASSERT(this->getTextBlobRedrawCoordinator());
     SkASSERT(this->threadSafeCache());
 
     fStrikeCache = std::make_unique<GrStrikeCache>();
@@ -324,7 +324,7 @@ void GrDirectContext::purgeUnlockedResources(bool scratchResourcesOnly) {
 
     // The textBlob Cache doesn't actually hold any GPU resource but this is a convenient
     // place to purge stale blobs
-    this->getTextBlobCache()->purgeStaleBlobs();
+    this->getTextBlobRedrawCoordinator()->purgeStaleBlobs();
 
     fGpu->releaseUnlockedBackendObjects();
 }
@@ -348,7 +348,7 @@ void GrDirectContext::performDeferredCleanup(std::chrono::milliseconds msNotUsed
 
     // The textBlob Cache doesn't actually hold any GPU resource but this is a convenient
     // place to purge stale blobs
-    this->getTextBlobCache()->purgeStaleBlobs();
+    this->getTextBlobRedrawCoordinator()->purgeStaleBlobs();
 }
 
 void GrDirectContext::purgeUnlockedResources(size_t bytesToPurge, bool preferScratchResources) {
@@ -463,7 +463,7 @@ void GrDirectContext::dumpMemoryStatistics(SkTraceMemoryDump* traceMemoryDump) c
     ASSERT_SINGLE_OWNER
     fResourceCache->dumpMemoryStatistics(traceMemoryDump);
     traceMemoryDump->dumpNumericValue("skia/gr_text_blob_cache", "size", "bytes",
-                                      this->getTextBlobCache()->usedBytes());
+                                      this->getTextBlobRedrawCoordinator()->usedBytes());
 }
 
 GrBackendTexture GrDirectContext::createBackendTexture(int width, int height,
@@ -540,7 +540,7 @@ static bool update_texture_with_pixmaps(GrDirectContext* context,
         return false;
     }
 
-    GrSwizzle swizzle = context->priv().caps()->getReadSwizzle(format, ct);
+    skgpu::Swizzle swizzle = context->priv().caps()->getReadSwizzle(format, ct);
     GrSurfaceProxyView view(std::move(proxy), textureOrigin, swizzle);
     skgpu::SurfaceContext surfaceContext(context, std::move(view), src[0].info().colorInfo());
     SkAutoSTArray<15, GrCPixmap> tmpSrc(numLevels);
@@ -696,7 +696,7 @@ bool GrDirectContext::updateBackendTexture(const GrBackendTexture& backendTextur
         return false;
     }
 
-    GrSwizzle swizzle = this->caps()->getWriteSwizzle(format, grColorType);
+    skgpu::Swizzle swizzle = this->caps()->getWriteSwizzle(format, grColorType);
     SkColor4f swizzledColor = swizzle.applyTo(color);
 
     return fGpu->clearBackendTexture(backendTexture,

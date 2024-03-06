@@ -16,6 +16,8 @@
 
 #include "base/files/file_util.h"
 
+#include <sys/stat.h>
+
 #include <stack>
 #include <string>
 
@@ -258,7 +260,8 @@ FILE* OpenFile(const FilePath& filename, const char* mode) {
 
 bool PathExists(const FilePath &path) {
   internal::AssertBlockingAllowed();
-  return SbFileExists(path.value().c_str());
+  struct stat file_info;
+  return stat(path.value().c_str(), &file_info) == 0;
 }
 
 bool PathIsReadable(const FilePath &path) {

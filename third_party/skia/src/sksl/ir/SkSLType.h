@@ -8,13 +8,13 @@
 #ifndef SKSL_TYPE
 #define SKSL_TYPE
 
-#include "include/core/SkStringView.h"
 #include "include/private/SkSLModifiers.h"
 #include "include/private/SkSLSymbol.h"
 #include "src/sksl/SkSLUtil.h"
 #include "src/sksl/spirv.h"
 #include <algorithm>
 #include <climits>
+#include <string_view>
 #include <vector>
 #include <memory>
 
@@ -60,17 +60,17 @@ public:
     inline static constexpr int kMaxAbbrevLength = 3;
 
     struct Field {
-        Field(Modifiers modifiers, skstd::string_view name, const Type* type)
+        Field(Modifiers modifiers, std::string_view name, const Type* type)
         : fModifiers(modifiers)
         , fName(name)
         , fType(std::move(type)) {}
 
-        String description() const {
-            return fType->displayName() + " " + fName + ";";
+        std::string description() const {
+            return fType->displayName() + " " + std::string(fName) + ";";
         }
 
         Modifiers fModifiers;
-        skstd::string_view fName;
+        std::string_view fName;
         const Type* fType;
     };
 
@@ -105,11 +105,16 @@ public:
     Type(const Type& other) = delete;
 
     /** Creates an array type. */
-    static std::unique_ptr<Type> MakeArrayType(skstd::string_view name, const Type& componentType,
+    static std::unique_ptr<Type> MakeArrayType(std::string_view name, const Type& componentType,
                                                int columns);
 
     /** Converts a component type and a size (float, 10) into an array name ("float[10]"). */
-    String getArrayName(int arraySize) const;
+    std::string getArrayName(int arraySize) const;
+
+    /**
+     * Creates an alias which maps to another type.
+     */
+    static std::unique_ptr<Type> MakeAliasType(std::string_view name, const Type& targetType);
 
     /**
      * Create a generic type which maps to the listed types--e.g. $genType is a generic type which
@@ -122,7 +127,7 @@ public:
                                                  int8_t priority);
 
     /** Create a matrix type. */
-    static std::unique_ptr<Type> MakeMatrixType(skstd::string_view name, const char* abbrev,
+    static std::unique_ptr<Type> MakeMatrixType(std::string_view name, const char* abbrev,
                                                 const Type& componentType, int columns,
                                                 int8_t rows);
 
@@ -130,7 +135,7 @@ public:
     static std::unique_ptr<Type> MakeSamplerType(const char* name, const Type& textureType);
 
     /** Create a scalar type. */
-    static std::unique_ptr<Type> MakeScalarType(skstd::string_view name, const char* abbrev,
+    static std::unique_ptr<Type> MakeScalarType(std::string_view name, const char* abbrev,
                                                 Type::NumberKind numberKind, int8_t priority,
                                                 int8_t bitWidth);
 
@@ -141,8 +146,10 @@ public:
                                                  Type::TypeKind typeKind);
 
     /** Creates a struct type with the given fields. */
-    static std::unique_ptr<Type> MakeStructType(int line, skstd::string_view name,
-                                                std::vector<Field> fields);
+    static std::unique_ptr<Type> MakeStructType(int line,
+                                                std::string_view name,
+                                                std::vector<Field> fields,
+                                                bool interfaceBlock = false);
 
     /** Create a texture type. */
     static std::unique_ptr<Type> MakeTextureType(const char* name, SpvDim_ dimensions,
@@ -150,7 +157,7 @@ public:
                                                  bool isMultisampled, bool isSampled);
 
     /** Create a vector type. */
-    static std::unique_ptr<Type> MakeVectorType(skstd::string_view name, const char* abbrev,
+    static std::unique_ptr<Type> MakeVectorType(std::string_view name, const char* abbrev,
                                                 const Type& componentType, int columns);
 
     template <typename T>
@@ -183,11 +190,11 @@ public:
         return !(this->isArray() || this->isStruct());
     }
 
-    String displayName() const {
-        return String(this->scalarTypeForLiteral().name());
+    std::string displayName() const {
+        return std::string(this->scalarTypeForLiteral().name());
     }
 
-    String description() const override {
+    std::string description() const override {
         return this->displayName();
     }
 
@@ -200,16 +207,16 @@ public:
     }
 
     /** Returns true if this type is either private, or contains a private field (recursively). */
-    virtual bool isPrivate() const {
-        return this->name().starts_with("$");
+    virtual bool isPrivate() const;
+
+    /** If this is an alias, returns the underlying type, otherwise returns this. */
+    virtual const Type& resolve() const {
+        return *this;
     }
 
-    bool operator==(const Type& other) const {
-        return this->name() == other.name();
-    }
-
-    bool operator!=(const Type& other) const {
-        return this->name() != other.name();
+    /** Returns true if these types are equal after alias resolution. */
+    bool matches(const Type& other) const {
+        return this->resolve().name() == other.resolve().name();
     }
 
     /**
@@ -290,18 +297,16 @@ public:
 
     /**
      * Returns true if this is an "opaque type" (an external object which the shader references in
-     * some fashion), or void. https://www.khronos.org/opengl/wiki/Data_Type_(GLSL)#Opaque_types
+     * some fashion). https://www.khronos.org/opengl/wiki/Data_Type_(GLSL)#Opaque_types
      */
     bool isOpaque() const {
         switch (fTypeKind) {
             case TypeKind::kBlender:
             case TypeKind::kColorFilter:
-            case TypeKind::kOther:
             case TypeKind::kSampler:
             case TypeKind::kSeparateSampler:
             case TypeKind::kShader:
             case TypeKind::kTexture:
-            case TypeKind::kVoid:
                 return true;
             default:
                 return false;
@@ -449,6 +454,10 @@ public:
         return false;
     }
 
+    virtual bool isInterfaceBlock() const {
+        return false;
+    }
+
     // Is this type something that can be bound & sampled from an SkRuntimeEffect?
     // Includes types that represent stages of the Skia pipeline (colorFilter, shader, blender).
     bool isEffectChild() const {
@@ -522,7 +531,7 @@ public:
     SKSL_INT convertArraySize(const Context& context, std::unique_ptr<Expression> size) const;
 
 protected:
-    Type(skstd::string_view name, const char* abbrev, TypeKind kind, int line = -1)
+    Type(std::string_view name, const char* abbrev, TypeKind kind, int line = -1)
         : INHERITED(line, kSymbolKind, name)
         , fTypeKind(kind) {
         SkASSERT(strlen(abbrev) <= kMaxAbbrevLength);

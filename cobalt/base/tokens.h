@@ -117,6 +117,7 @@ namespace base {
     MacroOpWithNameOnly(resourcetimingbufferfull)                    \
     MacroOpWithNameOnly(result)                                      \
     MacroOpWithNameOnly(resume)                                      \
+    MacroOpWithNameOnly(samplebufferfull)                            \
     MacroOpWithNameOnly(scroll)                                      \
     MacroOpWithNameOnly(securitypolicyviolation)                     \
     MacroOpWithNameOnly(seeked)                                      \

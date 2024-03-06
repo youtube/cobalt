@@ -6,6 +6,7 @@
  */
 
 #include "include/core/SkColorSpace.h"
+#include "include/private/SkImageInfoPriv.h"
 #include "src/core/SkArenaAlloc.h"
 #include "src/core/SkColorSpacePriv.h"
 #include "src/core/SkColorSpaceXformSteps.h"
@@ -16,6 +17,7 @@
 #include "src/core/SkVMBlitter.h"
 
 extern bool gUseSkVMBlitter;
+extern bool gSkForceRasterPipelineBlitter;
 
 SkSpriteBlitter::SkSpriteBlitter(const SkPixmap& source)
     : fSource(source) {}
@@ -120,16 +122,16 @@ public:
         SkRasterPipeline p(fAlloc);
         p.append_load(fSource.colorType(), &fSrcPtr);
 
-        if (fSource.colorType() == kAlpha_8_SkColorType) {
+        if (SkColorTypeIsAlphaOnly(fSource.colorType())) {
             // The color for A8 images comes from the (sRGB) paint color.
             p.append_set_rgb(fAlloc, fPaintColor);
             p.append(SkRasterPipeline::premul);
         }
         if (auto dstCS = fDst.colorSpace()) {
             auto srcCS = fSource.colorSpace();
-            if (!srcCS || fSource.colorType() == kAlpha_8_SkColorType) {
+            if (!srcCS || SkColorTypeIsAlphaOnly(fSource.colorType())) {
                 // We treat untagged images as sRGB.
-                // A8 images get their r,g,b from the paint color, so they're also sRGB.
+                // Alpha-only images get their r,g,b from the paint color, so they're also sRGB.
                 srcCS = sk_srgb_singleton();
             }
             auto srcAT = fSource.isOpaque() ? kOpaque_SkAlphaType
@@ -198,7 +200,9 @@ SkBlitter* SkBlitter::ChooseSprite(const SkPixmap& dst, const SkPaint& paint,
 
     SkSpriteBlitter* blitter = nullptr;
 
-    if (0 == SkColorSpaceXformSteps(source,dst).flags.mask() && !clipShader) {
+    if (gSkForceRasterPipelineBlitter) {
+        // Do not use any of these optimized memory blitters
+    } else if (0 == SkColorSpaceXformSteps(source,dst).flags.mask() && !clipShader) {
         if (!blitter && SkSpriteBlitter_Memcpy::Supports(dst, source, paint)) {
             blitter = alloc->make<SkSpriteBlitter_Memcpy>(source);
         }

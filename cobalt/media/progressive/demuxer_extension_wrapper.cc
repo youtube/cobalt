@@ -740,15 +740,13 @@ void DemuxerExtensionWrapper::Request(DemuxerStream::Type type) {
     return;
   }
 
-  bool eos_status = decoder_buffer->end_of_stream();
-  if (type == DemuxerStream::AUDIO) {
-    audio_reached_eos_ = eos_status;
-    audio_stream_->EnqueueBuffer(std::move(decoder_buffer));
-  } else {
-    video_reached_eos_ = eos_status;
-    video_stream_->EnqueueBuffer(std::move(decoder_buffer));
-  }
+  auto& stream =
+      (type == DemuxerStream::AUDIO) ? *audio_stream_ : *video_stream_;
+  bool& eos_status =
+      (type == DemuxerStream::AUDIO) ? audio_reached_eos_ : video_reached_eos_;
 
+  eos_status = decoder_buffer->end_of_stream();
+  stream.EnqueueBuffer(std::move(decoder_buffer));
   if (!eos_status) {
     host_->OnBufferedTimeRangesChanged(GetBufferedRanges());
   }

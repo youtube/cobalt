@@ -38,6 +38,10 @@ public:
         fSurfaceDrawContext->discard();
     }
 
+    void resolveMSAA() override {
+        fSurfaceDrawContext->resolveMSAA();
+    }
+
     bool replaceBackingProxy(SkSurface::ContentChangeMode,
                              sk_sp<GrRenderTargetProxy>,
                              GrColorType,
@@ -112,10 +116,10 @@ public:
                  bool useCenter, const SkPaint& paint) override;
     void drawPath(const SkPath& path, const SkPaint& paint, bool pathIsMutable) override;
 
-    void onDrawGlyphRunList(const SkGlyphRunList& glyphRunList, const SkPaint& paint) override;
-    void drawVertices(const SkVertices*, SkBlendMode, const SkPaint&) override;
+    void drawVertices(const SkVertices*, sk_sp<SkBlender>, const SkPaint&) override;
+    void drawCustomMesh(SkCustomMesh, sk_sp<SkBlender>, const SkPaint&) override;
     void drawShadow(const SkPath&, const SkDrawShadowRec&) override;
-    void drawAtlas(const SkRSXform[], const SkRect[], const SkColor[], int count, SkBlendMode,
+    void drawAtlas(const SkRSXform[], const SkRect[], const SkColor[], int count, sk_sp<SkBlender>,
                    const SkPaint&) override;
 
     void drawImageRect(const SkImage*, const SkRect* src, const SkRect& dst,
@@ -124,7 +128,7 @@ public:
     void drawImageLattice(const SkImage*, const SkCanvas::Lattice&,
                           const SkRect& dst, SkFilterMode, const SkPaint&) override;
 
-    void drawDrawable(SkDrawable*, const SkMatrix*, SkCanvas* canvas) override;
+    void drawDrawable(SkCanvas*, SkDrawable*, const SkMatrix*) override;
 
     void drawDevice(SkBaseDevice*, const SkSamplingOptions&, const SkPaint&) override;
     void drawSpecial(SkSpecialImage*, const SkMatrix& localToDevice, const SkSamplingOptions&,
@@ -150,6 +154,14 @@ protected:
 
     void onSave() override { fClip.save(); }
     void onRestore() override { fClip.restore(); }
+
+    void onDrawGlyphRunList(SkCanvas*, const SkGlyphRunList&, const SkPaint&) override;
+
+    sk_sp<GrSlug> convertGlyphRunListToSlug(
+            const SkGlyphRunList& glyphRunList,
+            const SkPaint& paint) override;
+
+    void drawSlug(SkCanvas*, GrSlug* slug) override;
 
     void onClipRect(const SkRect& rect, SkClipOp op, bool aa) override {
         SkASSERT(op == SkClipOp::kIntersect || op == SkClipOp::kDifference);

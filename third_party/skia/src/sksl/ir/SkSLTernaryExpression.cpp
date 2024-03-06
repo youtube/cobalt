@@ -31,7 +31,7 @@ std::unique_ptr<Expression> TernaryExpression::Convert(const Context& context,
     Operator equalityOp(Token::Kind::TK_EQEQ);
     if (!equalityOp.determineBinaryType(context, ifTrue->type(), ifFalse->type(),
                                         &trueType, &falseType, &resultType) ||
-        (*trueType != *falseType)) {
+        !trueType->matches(*falseType)) {
         context.fErrors->error(line, "ternary operator result mismatch: '" +
                                      ifTrue->type().displayName() + "', '" +
                                      ifFalse->type().displayName() + "'");
@@ -62,17 +62,15 @@ std::unique_ptr<Expression> TernaryExpression::Make(const Context& context,
                                                     std::unique_ptr<Expression> test,
                                                     std::unique_ptr<Expression> ifTrue,
                                                     std::unique_ptr<Expression> ifFalse) {
-    SkASSERT(ifTrue->type() == ifFalse->type());
+    SkASSERT(ifTrue->type().matches(ifFalse->type()));
     SkASSERT(!ifTrue->type().componentType().isOpaque());
     SkASSERT(!context.fConfig->strictES2Mode() || !ifTrue->type().isOrContainsArray());
 
-    if (context.fConfig->fSettings.fOptimize) {
-        const Expression* testExpr = ConstantFolder::GetConstantValueForVariable(*test);
-        if (testExpr->isBoolLiteral()) {
-            // static boolean test, just return one of the branches
-            return testExpr->as<Literal>().boolValue() ? std::move(ifTrue)
-                                                       : std::move(ifFalse);
-        }
+    const Expression* testExpr = ConstantFolder::GetConstantValueForVariable(*test);
+    if (testExpr->isBoolLiteral()) {
+        // static boolean test, just return one of the branches
+        return testExpr->as<Literal>().boolValue() ? std::move(ifTrue)
+                                                   : std::move(ifFalse);
     }
 
     return std::make_unique<TernaryExpression>(test->fLine, std::move(test), std::move(ifTrue),

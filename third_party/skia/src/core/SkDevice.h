@@ -8,8 +8,10 @@
 #ifndef SkDevice_DEFINED
 #define SkDevice_DEFINED
 
+#include "include/core/SkBlender.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkColor.h"
+#include "include/core/SkCustomMesh.h"
 #include "include/core/SkRefCnt.h"
 #include "include/core/SkRegion.h"
 #include "include/core/SkShader.h"
@@ -27,7 +29,6 @@ class SkGlyphRunList;
 class SkImageFilter;
 class SkImageFilterCache;
 struct SkIRect;
-class SkMarkerStack;
 class SkRasterHandleAllocator;
 class SkSpecialImage;
 
@@ -140,13 +141,6 @@ public:
 
     virtual void* getRasterHandle() const { return nullptr; }
 
-    SkMarkerStack* markerStack() const { return fMarkerStack; }
-    void setMarkerStack(SkMarkerStack* ms) { fMarkerStack = ms; }
-
-    // SkMatrixProvider interface:
-    bool getLocalToMarker(uint32_t, SkM44* localToMarker) const override;
-    bool localToDeviceHitsPixelCenters() const override { return true; }
-
     const SkMatrixProvider& asMatrixProvider() const { return *this; }
 
     void save() { this->onSave(); }
@@ -197,7 +191,7 @@ public:
     virtual skgpu::BaseDevice* asGpuDevice() { return nullptr; }
 
     // Ensure that non-RSXForm runs are passed to onDrawGlyphRunList.
-    void drawGlyphRunList(const SkGlyphRunList& glyphRunList, const SkPaint& paint);
+    void drawGlyphRunList(SkCanvas*, const SkGlyphRunList& glyphRunList, const SkPaint& paint);
 
 protected:
     enum TileUsage {
@@ -270,16 +264,19 @@ protected:
     virtual void drawImageLattice(const SkImage*, const SkCanvas::Lattice&,
                                   const SkRect& dst, SkFilterMode, const SkPaint&);
 
-    virtual void drawVertices(const SkVertices*, SkBlendMode, const SkPaint&) = 0;
+    virtual void drawVertices(const SkVertices*, sk_sp<SkBlender>, const SkPaint&) = 0;
+#ifdef SK_ENABLE_SKSL
+    virtual void drawCustomMesh(SkCustomMesh cm, sk_sp<SkBlender>, const SkPaint&) = 0;
+#endif
     virtual void drawShadow(const SkPath&, const SkDrawShadowRec&);
 
     // default implementation calls drawVertices
     virtual void drawPatch(const SkPoint cubics[12], const SkColor colors[4],
-                           const SkPoint texCoords[4], SkBlendMode, const SkPaint& paint);
+                           const SkPoint texCoords[4], sk_sp<SkBlender>, const SkPaint& paint);
 
     // default implementation calls drawVertices
     virtual void drawAtlas(const SkRSXform[], const SkRect[], const SkColor[], int count,
-                           SkBlendMode, const SkPaint&);
+                           sk_sp<SkBlender>, const SkPaint&);
 
     virtual void drawAnnotation(const SkRect&, const char[], SkData*) {}
 
@@ -296,10 +293,18 @@ protected:
                                     const SkSamplingOptions&, const SkPaint&,
                                     SkCanvas::SrcRectConstraint);
 
-    virtual void drawDrawable(SkDrawable*, const SkMatrix*, SkCanvas*);
+    virtual void drawDrawable(SkCanvas*, SkDrawable*, const SkMatrix*);
 
     // Only called with glyphRunLists that do not contain RSXForm.
-    virtual void onDrawGlyphRunList(const SkGlyphRunList& glyphRunList, const SkPaint& paint) = 0;
+    virtual void onDrawGlyphRunList(SkCanvas*, const SkGlyphRunList&, const SkPaint&) = 0;
+
+    // GrSlug handling routines.
+#if SK_SUPPORT_GPU
+    virtual sk_sp<GrSlug> convertGlyphRunListToSlug(
+            const SkGlyphRunList& glyphRunList,
+            const SkPaint& paint);
+    virtual void drawSlug(SkCanvas*, GrSlug* slug);
+#endif
 
     /**
      * The SkDevice passed will be an SkDevice which was returned by a call to
@@ -370,19 +375,16 @@ protected:
         CreateInfo(const SkImageInfo& info,
                    SkPixelGeometry geo,
                    TileUsage tileUsage,
-                   bool trackCoverage,
                    SkRasterHandleAllocator* allocator)
             : fInfo(info)
             , fTileUsage(tileUsage)
             , fPixelGeometry(geo)
-            , fTrackCoverage(trackCoverage)
             , fAllocator(allocator)
         {}
 
         const SkImageInfo       fInfo;
         const TileUsage         fTileUsage;
         const SkPixelGeometry   fPixelGeometry;
-        const bool              fTrackCoverage = false;
         SkRasterHandleAllocator* fAllocator = nullptr;
     };
 
@@ -412,7 +414,7 @@ private:
     friend class SkSurface_Raster;
     friend class DeviceTestingAccess;
 
-    void simplifyGlyphRunRSXFormAndRedraw(const SkGlyphRunList& glyphRunList, const SkPaint& paint);
+    void simplifyGlyphRunRSXFormAndRedraw(SkCanvas*, const SkGlyphRunList&, const SkPaint&);
 
     // used to change the backend's pixels (and possibly config/rowbytes)
     // but cannot change the width/height, so there should be no change to
@@ -449,8 +451,6 @@ private:
     void privateResize(int w, int h) {
         *const_cast<SkImageInfo*>(&fInfo) = fInfo.makeWH(w, h);
     }
-
-    SkMarkerStack* fMarkerStack = nullptr;  // does not own this, set in setMarkerStack()
 
     const SkImageInfo    fInfo;
     const SkSurfaceProps fSurfaceProps;
@@ -519,12 +519,15 @@ protected:
     void drawRRect(const SkRRect&, const SkPaint&) override {}
     void drawPath(const SkPath&, const SkPaint&, bool) override {}
     void drawDevice(SkBaseDevice*, const SkSamplingOptions&, const SkPaint&) override {}
-    void drawVertices(const SkVertices*, SkBlendMode, const SkPaint&) override {}
+    void drawVertices(const SkVertices*, sk_sp<SkBlender>, const SkPaint&) override {}
+#ifdef SK_ENABLE_SKSL
+    void drawCustomMesh(SkCustomMesh, sk_sp<SkBlender>, const SkPaint&) override {}
+#endif
 
     void drawFilteredImage(const skif::Mapping&, SkSpecialImage* src, const SkImageFilter*,
                            const SkSamplingOptions&, const SkPaint&) override {}
 
-    void onDrawGlyphRunList(const SkGlyphRunList& glyphRunList, const SkPaint& paint) override {}
+    void onDrawGlyphRunList(SkCanvas*, const SkGlyphRunList&, const SkPaint&) override {}
 
 
     bool isNoPixelsDevice() const override { return true; }

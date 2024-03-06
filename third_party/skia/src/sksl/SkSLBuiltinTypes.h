@@ -82,6 +82,32 @@ public:
     const std::unique_ptr<Type> fHalf4x3;
     const std::unique_ptr<Type> fHalf4x4;
 
+    const std::unique_ptr<Type> fVec2;
+    const std::unique_ptr<Type> fVec3;
+    const std::unique_ptr<Type> fVec4;
+
+    const std::unique_ptr<Type> fIVec2;
+    const std::unique_ptr<Type> fIVec3;
+    const std::unique_ptr<Type> fIVec4;
+
+    const std::unique_ptr<Type> fBVec2;
+    const std::unique_ptr<Type> fBVec3;
+    const std::unique_ptr<Type> fBVec4;
+
+    const std::unique_ptr<Type> fMat2;
+    const std::unique_ptr<Type> fMat3;
+    const std::unique_ptr<Type> fMat4;
+
+    const std::unique_ptr<Type> fMat2x2;
+    const std::unique_ptr<Type> fMat2x3;
+    const std::unique_ptr<Type> fMat2x4;
+    const std::unique_ptr<Type> fMat3x2;
+    const std::unique_ptr<Type> fMat3x3;
+    const std::unique_ptr<Type> fMat3x4;
+    const std::unique_ptr<Type> fMat4x2;
+    const std::unique_ptr<Type> fMat4x3;
+    const std::unique_ptr<Type> fMat4x4;
+
     const std::unique_ptr<Type> fTexture1D;
     const std::unique_ptr<Type> fTexture2D;
     const std::unique_ptr<Type> fTexture3D;

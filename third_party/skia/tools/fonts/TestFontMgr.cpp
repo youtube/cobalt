@@ -18,11 +18,11 @@
 
 namespace {
 
-#include "test_font_monospace.inc"
-#include "test_font_sans_serif.inc"
-#include "test_font_serif.inc"
+#include "tools/fonts/test_font_monospace.inc"
+#include "tools/fonts/test_font_sans_serif.inc"
+#include "tools/fonts/test_font_serif.inc"
 
-#include "test_font_index.inc"
+#include "tools/fonts/test_font_index.inc"
 
 class FontStyleSet final : public SkFontStyleSet {
 public:
@@ -128,7 +128,7 @@ public:
             if (strstr(familyName, "erif")) {
                 return this->createStyleSet(2);
             }
-#ifdef SK_XML
+#if defined(SK_ENABLE_SVG)
             if (strstr(familyName, "oji")) {
                 return this->createStyleSet(6);
             }

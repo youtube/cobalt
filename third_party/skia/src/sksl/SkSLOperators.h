@@ -11,6 +11,8 @@
 #include "include/private/SkSLDefines.h"
 #include "src/sksl/SkSLLexer.h"
 
+#include <string_view>
+
 namespace SkSL {
 
 class Context;
@@ -48,9 +50,17 @@ public:
 
     Token::Kind kind() const { return fKind; }
 
+    bool isEquality() const {
+        return fKind == Token::Kind::TK_EQEQ || fKind == Token::Kind::TK_NEQ;
+    }
+
     Precedence getBinaryPrecedence() const;
 
+    // Returns the operator name surrounded by the expected whitespace for a tidy binary expression.
     const char* operatorName() const;
+
+    // Returns the operator name without any surrounding whitespace.
+    std::string_view tightOperatorName() const;
 
     // Returns true if op is '=' or any compound assignment operator ('+=', '-=', etc.)
     bool isAssignment() const;
@@ -97,11 +107,11 @@ public:
                              const Type& right,
                              const Type** outLeftType,
                              const Type** outRightType,
-                             const Type** outResultType);
+                             const Type** outResultType) const;
 
 private:
     bool isOperator() const;
-    bool isMatrixMultiply(const Type& left, const Type& right);
+    bool isMatrixMultiply(const Type& left, const Type& right) const;
 
     Kind fKind;
 };

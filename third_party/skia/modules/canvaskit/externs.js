@@ -58,6 +58,7 @@ var CanvasKit = {
   MakeWebGLCanvasSurface: function() {},
   Malloc: function() {},
   MallocGlyphIDs: function() {},
+  MakeLazyImageFromTextureSource: function() {},
   Free: function() {},
   computeTonalColors: function() {},
   deleteContext: function() {},
@@ -153,6 +154,7 @@ var CanvasKit = {
     addText: function() {},
     build: function() {},
     pop: function() {},
+    reset: function() {},
 
     prototype: {
       pushStyle: function() {},
@@ -204,8 +206,6 @@ var CanvasKit = {
     clipPath: function() {},
     getSaveCount: function() {},
     makeSurface: function() {},
-    markCTM: function() {},
-    findMarkedCTM: function() {},
     restore: function() {},
     restoreToCount: function() {},
     rotate: function() {},
@@ -250,7 +250,6 @@ var CanvasKit = {
       drawText: function() {},
       drawTextBlob: function() {},
       drawVertices: function() {},
-      findMarkedCTM: function() {},
       getLocalToDevice: function() {},
       getTotalMatrix: function() {},
       readPixels: function() {},
@@ -293,7 +292,6 @@ var CanvasKit = {
     _drawSimpleText: function() {},
     _drawTextBlob: function() {},
     _drawVertices: function() {},
-    _findMarkedCTM: function() {},
     _getLocalToDevice: function() {},
     _getTotalMatrix: function() {},
     _readPixels: function() {},
@@ -414,6 +412,7 @@ var CanvasKit = {
     // private API
     _makeShaderCubic: function() {},
     _makeShaderOptions: function() {},
+    _makeFromGenerator: function() {},
   },
 
   ImageFilter: {
@@ -503,9 +502,14 @@ var CanvasKit = {
     MakeCorner: function() {},
     MakeDash: function() {},
     MakeDiscrete: function() {},
+    MakePath1D: function() {},
+    MakeLine2D: function() {},
+    MakePath2D: function() {},
 
     // Private C++ API
     _MakeDash: function() {},
+    _MakeLine2D: function() {},
+    _MakePath2D: function() {},
   },
 
   ParticleEffect: {
@@ -629,6 +633,10 @@ var CanvasKit = {
 
   Picture: {
     serialize: function() {},
+    prototype: {
+      makeShader: function() {},
+    },
+    _makeShader: function() {},
   },
 
   PictureRecorder: {
@@ -676,6 +684,7 @@ var CanvasKit = {
       /** @return {CanvasKit.Image} */
       makeImageSnapshot: function() {},
       makeSurface: function() {},
+      updateTextureFromSource: function() {},
     },
 
     // private API
@@ -685,6 +694,7 @@ var CanvasKit = {
     _makeImageSnapshot: function() {},
     _makeSurface: function() {},
     _makeRasterDirect: function() {},
+    _resetContext: function() {},
     delete: function() {},
   },
 

@@ -20,19 +20,16 @@
 // DF sizes and thresholds for usage of the small and medium sizes. For example, above
 // kSmallDFFontLimit we will use the medium size. The large size is used up until the size at
 // which we switch over to drawing as paths as controlled by Control.
-static const int kSmallDFFontSize = 32;
 static const int kSmallDFFontLimit = 32;
-static const int kMediumDFFontSize = 72;
 static const int kMediumDFFontLimit = 72;
-static const int kLargeDFFontSize = 162;
-#ifdef SK_BUILD_FOR_MAC
 static const int kLargeDFFontLimit = 162;
-static const int kExtraLargeDFFontSize = 256;
+#ifdef SK_BUILD_FOR_MAC
+static const int kExtraLargeDFFontLimit = 256;
 #endif
 
 SkScalar GrSDFTControl::MinSDFTRange(bool useSDFTForSmallText, SkScalar min) {
     if (!useSDFTForSmallText) {
-        return kLargeDFFontSize;
+        return kLargeDFFontLimit;
     }
     return min;
 }
@@ -45,33 +42,17 @@ GrSDFTControl::GrSDFTControl(
     SkASSERT_RELEASE(0 < min && min <= max);
 }
 
-auto GrSDFTControl::drawingType(
-        const SkFont& font, const SkPaint& paint, const SkMatrix& viewMatrix) const -> DrawingType {
+bool GrSDFTControl::isDirect(SkScalar approximateDeviceTextSize, const SkPaint& paint) const {
+    return !isSDFT(approximateDeviceTextSize, paint) &&
+            approximateDeviceTextSize < SkStrikeCommon::kSkSideTooBigForAtlas;
+}
 
-    // Use paths as the first choice for hairlines and perspective.
-    if ((paint.getStyle() == SkPaint::kStroke_Style && paint.getStrokeWidth() == 0)
-            || viewMatrix.hasPerspective()) {
-        return kPath;
-    }
-
-    SkScalar maxScale = viewMatrix.getMaxScale();
-    SkScalar scaledTextSize = maxScale * font.getSize();
-
-    // If we can't use SDFT, then make a simple choice between direct or path.
-    if (!fAbleToUseSDFT || paint.getMaskFilter() || paint.getStyle() != SkPaint::kFill_Style) {
-        constexpr int kAboveIsPath = SkStrikeCommon::kSkSideTooBigForAtlas;
-        return scaledTextSize < kAboveIsPath ? kDirect : kPath;
-    }
-
-    // Hinted text looks far better at small resolutions
-    // Scaling up beyond 2x yields undesirable artifacts
-    if (scaledTextSize < fMinDistanceFieldFontSize) {
-        return kDirect;
-    } else if (fMaxDistanceFieldFontSize < scaledTextSize) {
-        return kPath;
-    }
-
-    return kSDFT;
+bool GrSDFTControl::isSDFT(SkScalar approximateDeviceTextSize, const SkPaint& paint) const {
+    return fAbleToUseSDFT &&
+           paint.getMaskFilter() == nullptr &&
+           paint.getStyle() == SkPaint::kFill_Style &&
+           fMinDistanceFieldFontSize <= approximateDeviceTextSize &&
+           approximateDeviceTextSize <= fMaxDistanceFieldFontSize;
 }
 
 SkScalar scaled_text_size(const SkScalar textSize, const SkMatrix& viewMatrix) {
@@ -94,51 +75,13 @@ SkScalar scaled_text_size(const SkScalar textSize, const SkMatrix& viewMatrix) {
     return scaledTextSize;
 }
 
-SkFont GrSDFTControl::getSDFFont(const SkFont& font,
-                                 const SkMatrix& viewMatrix,
-                                 SkScalar* textRatio) const {
+std::tuple<SkFont, SkScalar, GrSDFTMatrixRange>
+GrSDFTControl::getSDFFont(const SkFont& font, const SkMatrix& viewMatrix) const {
     SkScalar textSize = font.getSize();
     SkScalar scaledTextSize = scaled_text_size(textSize, viewMatrix);
 
     SkFont dfFont{font};
 
-    if (scaledTextSize <= kSmallDFFontLimit) {
-        *textRatio = textSize / kSmallDFFontSize;
-        dfFont.setSize(SkIntToScalar(kSmallDFFontSize));
-    } else if (scaledTextSize <= kMediumDFFontLimit) {
-        *textRatio = textSize / kMediumDFFontSize;
-        dfFont.setSize(SkIntToScalar(kMediumDFFontSize));
-#ifdef SK_BUILD_FOR_MAC
-    } else if (scaledTextSize <= kLargeDFFontLimit) {
-        *textRatio = textSize / kLargeDFFontSize;
-        dfFont.setSize(SkIntToScalar(kLargeDFFontSize));
-    } else {
-        *textRatio = textSize / kExtraLargeDFFontSize;
-        dfFont.setSize(SkIntToScalar(kExtraLargeDFFontSize));
-    }
-#else
-    } else {
-        *textRatio = textSize / kLargeDFFontSize;
-        dfFont.setSize(SkIntToScalar(kLargeDFFontSize));
-    }
-#endif
-
-    dfFont.setEdging(SkFont::Edging::kAntiAlias);
-    dfFont.setForceAutoHinting(false);
-    dfFont.setHinting(SkFontHinting::kNormal);
-
-    // The sub-pixel position will always happen when transforming to the screen.
-    dfFont.setSubpixel(false);
-    return dfFont;
-}
-
-std::pair<SkScalar, SkScalar> GrSDFTControl::computeSDFMinMaxScale(
-        SkScalar textSize, const SkMatrix& viewMatrix) const {
-
-    SkScalar scaledTextSize = scaled_text_size(textSize, viewMatrix);
-
-    // We have three sizes of distance field text, and within each size 'bucket' there is a floor
-    // and ceiling.  A scale outside of this range would require regenerating the distance fields
     SkScalar dfMaskScaleFloor;
     SkScalar dfMaskScaleCeil;
     if (scaledTextSize <= kSmallDFFontLimit) {
@@ -147,21 +90,35 @@ std::pair<SkScalar, SkScalar> GrSDFTControl::computeSDFMinMaxScale(
     } else if (scaledTextSize <= kMediumDFFontLimit) {
         dfMaskScaleFloor = kSmallDFFontLimit;
         dfMaskScaleCeil = kMediumDFFontLimit;
+#ifdef SK_BUILD_FOR_MAC
+    } else if (scaledTextSize <= kLargeDFFontLimit) {
+        dfMaskScaleFloor = kMediumDFFontLimit;
+        dfMaskScaleCeil = kLargeDFFontLimit;
+    } else {
+        dfMaskScaleFloor = kLargeDFFontLimit;
+        dfMaskScaleCeil = kExtraLargeDFFontLimit;
+    }
+#else
     } else {
         dfMaskScaleFloor = kMediumDFFontLimit;
-        dfMaskScaleCeil = fMaxDistanceFieldFontSize;
+        dfMaskScaleCeil = kLargeDFFontLimit;
     }
+#endif
 
-    // Because there can be multiple runs in the blob, we want the overall maxMinScale, and
-    // minMaxScale to make regeneration decisions.  Specifically, we want the maximum minimum scale
-    // we can tolerate before we'd drop to a lower mip size, and the minimum maximum scale we can
-    // tolerate before we'd have to move to a large mip size.  When we actually test these values
-    // we look at the delta in scale between the new viewmatrix and the old viewmatrix, and test
-    // against these values to decide if we can reuse or not(ie, will a given scale change our mip
-    // level)
-    SkASSERT(dfMaskScaleFloor <= scaledTextSize && scaledTextSize <= dfMaskScaleCeil);
+    dfFont.setSize(SkIntToScalar(dfMaskScaleCeil));
+    dfFont.setEdging(SkFont::Edging::kAntiAlias);
+    dfFont.setForceAutoHinting(false);
+    dfFont.setHinting(SkFontHinting::kNormal);
 
-    return std::make_pair(dfMaskScaleFloor / scaledTextSize, dfMaskScaleCeil / scaledTextSize);
+    // The sub-pixel position will always happen when transforming to the screen.
+    dfFont.setSubpixel(false);
+
+    SkScalar minMatrixScale = dfMaskScaleFloor / textSize,
+             maxMatrixScale = dfMaskScaleCeil  / textSize;
+    return {dfFont, textSize / dfMaskScaleCeil, {minMatrixScale, maxMatrixScale}};
 }
 
-
+bool GrSDFTMatrixRange::matrixInRange(const SkMatrix& matrix) const {
+    SkScalar maxScale = matrix.getMaxScale();
+    return fMatrixMin < maxScale && maxScale <= fMatrixMax;
+}

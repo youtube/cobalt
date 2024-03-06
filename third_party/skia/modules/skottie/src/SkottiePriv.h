@@ -76,7 +76,7 @@ public:
     };
     const FontInfo* findFont(const SkString& name) const;
 
-    void log(Logger::Level, const skjson::Value*, const char fmt[], ...) const;
+    void log(Logger::Level, const skjson::Value*, const char fmt[], ...) const SK_PRINTF_LIKE(4, 5);
 
     sk_sp<sksg::Transform> attachMatrix2D(const skjson::ObjectValue&, sk_sp<sksg::Transform>,
                                           bool auto_orient = false) const;
@@ -276,7 +276,7 @@ private:
             }
         }
 
-        operator bool() const { return !!fInfo; }
+        explicit operator bool() const { return !!fInfo; }
 
         const skjson::ObjectValue& operator*() const { return *fInfo->fAsset; }
 

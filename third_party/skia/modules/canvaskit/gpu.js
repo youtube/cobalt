@@ -55,7 +55,7 @@
       };
 
       CanvasKit._setTextureCleanup({
-        "deleteTexture": function(webglHandle, texHandle) {
+        'deleteTexture': function(webglHandle, texHandle) {
           var tex = GL.textures[texHandle];
           if (tex) {
             GL.getContext(webglHandle).GLctx.deleteTexture(tex);
@@ -79,6 +79,9 @@
       }
 
       CanvasKit.MakeOnScreenGLSurface = function(grCtx, w, h, colorspace) {
+        if (!this.setCurrentContext(grCtx._context)) {
+          return null;
+        }
         var surface = this._MakeOnScreenGLSurface(grCtx, w, h, colorspace);
         if (!surface) {
           return null;
@@ -87,18 +90,24 @@
         return surface;
       }
 
-      CanvasKit.MakeRenderTarget = function(grCtx, w, h) {
-        var surface = this._MakeRenderTargetWH(grCtx, w, h);
-        if (!surface) {
+      CanvasKit.MakeRenderTarget = function() {
+        var grCtx = arguments[0];
+        if (!this.setCurrentContext(grCtx._context)) {
           return null;
         }
-        surface._context = grCtx._context;
-        return surface;
-      }
-
-      CanvasKit.MakeRenderTarget = function(grCtx, imageInfo) {
-        var surface = this._MakeRenderTargetII(grCtx, imageInfo);
-        if (!surface) {
+        var surface;
+        if (arguments.length === 3) {
+          surface = this._MakeRenderTargetWH(grCtx, arguments[1], arguments[2]);
+          if (!surface) {
+            return null;
+          }
+        } else if (arguments.length === 2) {
+          surface = this._MakeRenderTargetII(grCtx, arguments[1]);
+          if (!surface) {
+            return null;
+          }
+        } else {
+          Debug('Expected 2 or 3 params');
           return null;
         }
         surface._context = grCtx._context;
@@ -154,49 +163,164 @@
       // Default to trying WebGL first.
       CanvasKit.MakeCanvasSurface = CanvasKit.MakeWebGLCanvasSurface;
 
+      function pushTexture(tex) {
+        // GL is an emscripten object that holds onto WebGL state. One item in that state is
+        // an array of textures, of which the index is the handle/id. We must call getNewId so
+        // the GL's tracking of textures is up to date and we do not accidentally use the same
+        // texture in two different places if Skia creates a texture. (e.g. skbug.com/12797)
+        var texHandle = GL.getNewId(GL.textures);
+        GL.textures[texHandle] = tex;
+        return texHandle
+      }
+
       CanvasKit.Surface.prototype.makeImageFromTexture = function(tex, info) {
+        CanvasKit.setCurrentContext(this._context);
+        var texHandle = pushTexture(tex);
+        var img = this._makeImageFromTexture(this._context, texHandle, info);
+        if (img) {
+          img._tex = texHandle;
+        }
+        return img;
+      };
+
+      // We try to find the natural media type (for <img> and <video>), display* for
+      // https://developer.mozilla.org/en-US/docs/Web/API/VideoFrame and then fall back to
+      // the height and width (to cover <canvas>, ImageBitmap or ImageData).
+      function getHeight(src) {
+        return src['naturalHeight'] || src['videoHeight'] || src['displayHeight'] || src['height'];
+      }
+
+      function getWidth(src) {
+        return src['naturalWidth'] || src['videoWidth'] || src['displayWidth'] || src['width'];
+      }
+
+      CanvasKit.Surface.prototype.makeImageFromTextureSource = function(src, info) {
+        if (!info) {
+          info = {
+            'height': getHeight(src),
+            'width': getWidth(src),
+            'colorType': CanvasKit.ColorType.RGBA_8888,
+            'alphaType': CanvasKit.AlphaType.Unpremul,
+          };
+        }
         if (!info['colorSpace']) {
           info['colorSpace'] = CanvasKit.ColorSpace.SRGB;
         }
-        // GL is an emscripten object that holds onto WebGL state. One item in that state is
-        // an array of textures, of which the index is the handle/id.
-        var texHandle = GL.textures.length;
-        if (!texHandle) {
-          // If our texture handle is 0, Skia interprets that as an invalid texture id.
-          // As a special case, we push a null texture there so the first texture has id 1.
-          GL.textures.push(null);
-          texHandle = 1;
+        if (info['colorType'] !== CanvasKit.ColorType.RGBA_8888) {
+          Debug('colorType currently has no impact on makeImageFromTextureSource');
         }
-        GL.textures.push(tex);
-        return this._makeImageFromTexture(GL.currentContext.handle, texHandle, info);
-      };
 
-      CanvasKit.Surface.prototype.makeImageFromTextureSource = function(src, w, h) {
-        // If the user specified a height or width in the image info, we use that. Otherwise,
-        // we try to find the natural media type (for <img> and <video>) and then fall back to
-        // the height and width (to cover <canvas>, ImageBitmap or ImageData).
-        var height = h || src.naturalHeight || src.videoHeight || src.height;
-        var width = w || src.naturalWidth || src.videoWidth || src.width;
         // We want to be pointing at the context associated with this surface.
         CanvasKit.setCurrentContext(this._context);
         var glCtx = GL.currentContext.GLctx;
         var newTex = glCtx.createTexture();
         glCtx.bindTexture(glCtx.TEXTURE_2D, newTex);
         if (GL.currentContext.version === 2) {
-          glCtx.texImage2D(glCtx.TEXTURE_2D, 0, glCtx.RGBA, width, height, 0, glCtx.RGBA, glCtx.UNSIGNED_BYTE, src);
+          glCtx.texImage2D(glCtx.TEXTURE_2D, 0, glCtx.RGBA, info['width'], info['height'], 0, glCtx.RGBA, glCtx.UNSIGNED_BYTE, src);
         } else {
           glCtx.texImage2D(glCtx.TEXTURE_2D, 0, glCtx.RGBA, glCtx.RGBA, glCtx.UNSIGNED_BYTE, src);
         }
         glCtx.bindTexture(glCtx.TEXTURE_2D, null);
-        var info = {
-          'height': height,
-          'width': width,
-          'colorType': CanvasKit.ColorType.RGBA_8888,
-          'alphaType': CanvasKit.AlphaType.Unpremul,
-          'colorSpace': CanvasKit.ColorSpace.SRGB,
-        };
         return this.makeImageFromTexture(newTex, info);
       };
+
+      CanvasKit.Surface.prototype.updateTextureFromSource = function(img, src) {
+        if (!img._tex) {
+          Debug('Image is not backed by a user-provided texture');
+          return;
+        }
+        CanvasKit.setCurrentContext(this._context);
+        var glCtx = GL.currentContext.GLctx;
+        // Copy the contents of src over the texture associated with this image.
+        var tex = GL.textures[img._tex];
+        glCtx.bindTexture(glCtx.TEXTURE_2D, tex);
+        if (GL.currentContext.version === 2) {
+          glCtx.texImage2D(glCtx.TEXTURE_2D, 0, glCtx.RGBA, getWidth(src), getHeight(src), 0, glCtx.RGBA, glCtx.UNSIGNED_BYTE, src);
+        } else {
+          glCtx.texImage2D(glCtx.TEXTURE_2D, 0, glCtx.RGBA, glCtx.RGBA, glCtx.UNSIGNED_BYTE, src);
+        }
+        glCtx.bindTexture(glCtx.TEXTURE_2D, null);
+        // Tell Skia we messed with the currently bound texture.
+        this._resetContext();
+        // Create a new texture entry and put null into the old slot. This keeps our texture alive,
+        // otherwise it will be deleted when we delete the old Image.
+        GL.textures[img._tex] = null;
+        img._tex = pushTexture(tex);
+        var ii = img.getImageInfo();
+        ii['colorSpace'] = img.getColorSpace();
+        // Skia may cache parts of the image, and some places assume images are immutable. In order
+        // to make things work, we create a new SkImage based on the same texture as the old image.
+        var newImg = this._makeImageFromTexture(this._context, img._tex, ii);
+        // To make things more ergonomic for the user, we change passed in img object to refer
+        // to the new image and clean up the old SkImage object. This has the effect of updating
+        // the Image (from the user's side of things), because they shouldn't be caring about what
+        // part of WASM memory we are pointing to.
+        // The $$ part is provided by emscripten's embind, so this could break if they change
+        // things on us.
+        // https://github.com/emscripten-core/emscripten/blob/a65d70c809f077542649c60097787e1c7460ced6/src/embind/embind.js
+        // They do not do anything special to keep closure from minifying things and neither do we.
+        var oldPtr = img.$$.ptr;
+        var oldSmartPtr = img.$$.smartPtr;
+        img.$$.ptr = newImg.$$.ptr;
+        img.$$.smartPtr = newImg.$$.smartPtr;
+        // We want to clean up the previous image, so we swap out the pointers and call delete on it
+        // which should have that effect.
+        newImg.$$.ptr = oldPtr;
+        newImg.$$.smartPtr = oldSmartPtr;
+        newImg.delete();
+        // Clean up the colorspace that we used.
+        ii['colorSpace'].delete();
+      }
+
+      CanvasKit.MakeLazyImageFromTextureSource = function(src, info) {
+        if (!info) {
+          info = {
+            'height': getHeight(src),
+            'width': getWidth(src),
+            'colorType': CanvasKit.ColorType.RGBA_8888,
+            'alphaType': CanvasKit.AlphaType.Unpremul,
+          };
+        }
+        if (!info['colorSpace']) {
+          info['colorSpace'] = CanvasKit.ColorSpace.SRGB;
+        }
+        if (info['colorType'] !== CanvasKit.ColorType.RGBA_8888) {
+          Debug('colorType currently has no impact on MakeLazyImageFromTextureSource');
+        }
+
+        var callbackObj = {
+          'makeTexture': function() {
+            // This callback function will make a texture on the current drawing surface (i.e.
+            // the current WebGL context). It assumes that Skia is just about to draw the texture
+            // to the desired surface, and thus the currentContext is the correct one.
+            // This is a lot easier than needing to pass the surface handle from the C++ side here.
+            var ctx = GL.currentContext;
+            var glCtx = ctx.GLctx;
+            var newTex = glCtx.createTexture();
+            glCtx.bindTexture(glCtx.TEXTURE_2D, newTex);
+            if (ctx.version === 2) {
+              glCtx.texImage2D(glCtx.TEXTURE_2D, 0, glCtx.RGBA, info['width'], info['height'], 0, glCtx.RGBA, glCtx.UNSIGNED_BYTE, src);
+            } else {
+              glCtx.texImage2D(glCtx.TEXTURE_2D, 0, glCtx.RGBA, glCtx.RGBA, glCtx.UNSIGNED_BYTE, src);
+            }
+            glCtx.bindTexture(glCtx.TEXTURE_2D, null);
+            return pushTexture(newTex);
+          },
+          'freeSrc': function() {
+            // This callback will be executed whenever the returned image is deleted. This gives
+            // us a chance to free up the src (which we now own). Generally, there's nothing
+            // we need to do (we can let JS garbage collection do its thing). The one exception
+            // is for https://developer.mozilla.org/en-US/docs/Web/API/VideoFrame, which we should
+            // close when we are done.
+          },
+        }
+        if (src.constructor.name === 'VideoFrame') {
+          callbackObj['freeSrc'] = function() {
+            src.close();
+          }
+        }
+        return CanvasKit.Image._makeFromGenerator(info, callbackObj);
+      }
 
       CanvasKit.setCurrentContext = function(ctx) {
         if (!ctx) {

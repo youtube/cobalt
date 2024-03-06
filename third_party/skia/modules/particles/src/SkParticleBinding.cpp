@@ -184,7 +184,7 @@ public:
               skvm::I32 mask) const override {
         skvm::Coord coord = {arguments[0], arguments[1]};
         skvm::F32 zero = builder->splat(0.0f);
-        SkSimpleMatrixProvider matrixProvider(SkMatrix::I());
+        SkOverrideDeviceMatrixProvider matrixProvider(SkMatrix::I());
         SkColorInfo colorInfo(kRGBA_8888_SkColorType, kPremul_SkAlphaType, /*cs=*/nullptr);
 
         skvm::Color result = as_SB(fShader)->program(
@@ -225,8 +225,10 @@ public:
     }
 
     void prepare(const skresources::ResourceProvider* resourceProvider) override {
+        SkASSERT(resourceProvider);
         if (auto asset = resourceProvider->loadImageAsset(fImagePath.c_str(), fImageName.c_str(),
                                                           nullptr)) {
+            SkASSERT(asset);
             if (auto image = asset->getFrame(0)) {
                 SkMatrix normalize = SkMatrix::Scale(1.0f / image->width(), 1.0f / image->height());
                 fShader = image->makeShader(SkSamplingOptions(SkFilterMode::kLinear), &normalize);

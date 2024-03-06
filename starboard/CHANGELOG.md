@@ -9,9 +9,25 @@ since the version previous to it.
 
 ## Version 16
 
-### Added standard POSIX socket/close APIs.
-The standard API socket can be used from <sys/socket.h> and
-close can be called to close the socket by including <unistd.h>.
+### Added standard POSIX file stat API and deprecated SbFileExists.
+The file API SbFileExists has been deprecated and the standard API `stat` can
+be used from `sys/stat.h` instead.
+
+### Added standard POSIX socket send/recv APIs.
+The standard API `send`, `recv`, can be used from <sys/socket.h> and
+`fcntl` can be used from <fcntl.h>, to set socket to non-blocking.
+
+### Added standard POSIX file open and close APIs.
+The standard API `open` can be used from `fcntl.h` and `close` can be used from
+<unistd.h>.
+
+### Added standard POSIX socket bind/listen/connect/accept APIs.
+The standard API `bind`, `listen`, `connect`, `accept` can be used from
+<sys/socket.h> and `getifaddrs`, `freeifaddrs` can be used from <ifaddrs.h>.
+
+### Added standard POSIX socket/close/setsockopt APIs.
+The standard API `socket`, `setsockopt` can be used from <sys/socket.h> and
+`close` can be called to close the socket by including <unistd.h>.
 
 ### Changed InstallCrashpadHandler API
 This API doesn't support the option to start the crashpad handler at the

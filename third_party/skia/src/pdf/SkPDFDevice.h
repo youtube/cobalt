@@ -84,8 +84,9 @@ public:
                        const SkSamplingOptions&,
                        const SkPaint&,
                        SkCanvas::SrcRectConstraint) override;
-    void onDrawGlyphRunList(const SkGlyphRunList& glyphRunList, const SkPaint& paint) override;
-    void drawVertices(const SkVertices*, SkBlendMode, const SkPaint&) override;
+    void onDrawGlyphRunList(SkCanvas*, const SkGlyphRunList&, const SkPaint&) override;
+    void drawVertices(const SkVertices*, sk_sp<SkBlender>, const SkPaint&) override;
+    void drawCustomMesh(SkCustomMesh, sk_sp<SkBlender>, const SkPaint&) override;
 
     // PDF specific methods.
     void drawSprite(const SkBitmap& bitmap, int x, int y,
@@ -100,8 +101,6 @@ public:
 
     SkISize size() const { return this->imageInfo().dimensions(); }
     SkIRect bounds() const { return this->imageInfo().bounds(); }
-
-    void DrawGlyphRunAsPath(SkPDFDevice* dev, const SkGlyphRun& glyphRun, SkPoint offset);
 
     const SkMatrix& initialTransform() const { return fInitialTransform; }
 

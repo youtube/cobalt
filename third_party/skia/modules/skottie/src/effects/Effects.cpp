@@ -34,6 +34,7 @@ EffectBuilder::EffectBuilderT EffectBuilder::findBuilder(const skjson::ObjectVal
         // alphabetized for binary search lookup
         { "ADBE Black&White"            , &EffectBuilder::attachBlackAndWhiteEffect      },
         { "ADBE Brightness & Contrast 2", &EffectBuilder::attachBrightnessContrastEffect },
+        { "ADBE Bulge"                  , &EffectBuilder::attachBulgeEffect              },
         { "ADBE Corner Pin"             , &EffectBuilder::attachCornerPinEffect          },
         { "ADBE Displacement Map"       , &EffectBuilder::attachDisplacementMapEffect    },
         { "ADBE Drop Shadow"            , &EffectBuilder::attachDropShadowEffect         },
@@ -49,6 +50,7 @@ EffectBuilder::EffectBuilderT EffectBuilder::findBuilder(const skjson::ObjectVal
         { "ADBE Pro Levels2"            , &EffectBuilder::attachProLevelsEffect          },
         { "ADBE Radial Wipe"            , &EffectBuilder::attachRadialWipeEffect         },
         { "ADBE Ramp"                   , &EffectBuilder::attachGradientEffect           },
+        { "ADBE Sharpen"                , &EffectBuilder::attachSharpenEffect            },
         { "ADBE Shift Channels"         , &EffectBuilder::attachShiftChannelsEffect      },
         { "ADBE Threshold2"             , &EffectBuilder::attachThresholdEffect          },
         { "ADBE Tile"                   , &EffectBuilder::attachMotionTileEffect         },
@@ -57,7 +59,8 @@ EffectBuilder::EffectBuilderT EffectBuilder::findBuilder(const skjson::ObjectVal
         { "ADBE Venetian Blinds"        , &EffectBuilder::attachVenetianBlindsEffect     },
         { "CC Sphere"                   , &EffectBuilder::attachSphereEffect             },
         { "CC Toner"                    , &EffectBuilder::attachCCTonerEffect            },
-        { "SkSL Shader"                 , &EffectBuilder::attachSkSLEffect               },
+        { "SkSL Color Filter"           , &EffectBuilder::attachSkSLColorFilter          },
+        { "SkSL Shader"                 , &EffectBuilder::attachSkSLShader               },
     };
 
     const skjson::StringValue* mn = jeffect["mn"];
@@ -69,7 +72,6 @@ EffectBuilder::EffectBuilderT EffectBuilder::findBuilder(const skjson::ObjectVal
                                              [](const BuilderInfo& a, const BuilderInfo& b) {
                                                  return strcmp(a.fName, b.fName) < 0;
                                              });
-
         if (binfo != std::end(gBuilderInfo) && !strcmp(binfo->fName, key.fName)) {
             return binfo->fBuilder;
         }

@@ -65,6 +65,7 @@ function animatedImageTests(CK: CanvasKit) {
     const r = img.getRepetitionCount(); // $ExpectType number
     const h = img.height(); // $ExpectType number
     const still = img.makeImageAtCurrentFrame(); // $ExpectType Image | null
+    const ms = img.currentFrameDuration(); // $ExpectType number
     img.reset();
     const w = img.width(); // $ExpectType number
 }
@@ -147,12 +148,10 @@ function canvasTests(CK: CanvasKit, canvas?: Canvas, paint?: Paint, path?: Path,
     canvas.drawText('foo', 1, 2, paint, font);
     canvas.drawTextBlob(textBlob, 10, 20, paint);
     canvas.drawVertices(verts, CK.BlendMode.DstOut, paint);
-    const matrOne = canvas.findMarkedCTM('thing'); // $ExpectType Float32Array | null
     const matrTwo = canvas.getLocalToDevice(); // $ExpectType Float32Array
     const sc = canvas.getSaveCount(); // $ExpectType number
     const matrThree = canvas.getTotalMatrix(); // $ExpectType number[]
     const surface = canvas.makeSurface(imageInfo); // $ExpectType Surface | null
-    canvas.markCTM('more ctm');
     const pixels = canvas.readPixels(85, 1000, {// $Uint8Array | Float32Array | null
         width: 79,
         height: 205,
@@ -260,6 +259,13 @@ function imageTests(CK: CanvasKit, imgElement?: HTMLImageElement) {
       colorType: CK.ColorType.RGBA_8888,
       colorSpace: CK.ColorSpace.SRGB
     }, Uint8Array.of(255, 0, 0, 250), 4);
+    const img4 = CK.MakeLazyImageFromTextureSource(imgElement); // $ExpectType Image
+    const img5 = CK.MakeLazyImageFromTextureSource(imgElement, {
+      width: 1,
+      height: 1,
+      alphaType: CK.AlphaType.Premul,
+      colorType: CK.ColorType.RGBA_8888,
+    });
     if (!img) return;
     const dOne = img.encodeToBytes(); // $ExpectType Uint8Array | null
     const dTwo = img.encodeToBytes(CK.ImageFormat.JPEG, 97);
@@ -564,6 +570,7 @@ function paragraphBuilderTests(CK: CanvasKit, fontMgr?: FontMgr, paint?: Paint) 
     builder2.pushPaintStyle(blueText, paint, paint);
     builder2.addPlaceholder();
     builder2.addPlaceholder(10, 20, CK.PlaceholderAlignment.Top, CK.TextBaseline.Ideographic, 3);
+    builder2.reset();
 }
 
 function particlesTests(CK: CanvasKit, canvas?: Canvas) {
@@ -588,11 +595,18 @@ function particlesTests(CK: CanvasKit, canvas?: Canvas) {
     });
 }
 
-function pathEffectTests(CK: CanvasKit) {
+function pathEffectTests(CK: CanvasKit, path?: Path) {
+    if (!path) {
+        return;
+    }
     const pe1 = CK.PathEffect.MakeCorner(2); // $ExpectType PathEffect | null
     const pe2 = CK.PathEffect.MakeDash([2, 4]); // $ExpectType PathEffect
     const pe3 = CK.PathEffect.MakeDash([2, 4, 6, 8], 10); // $ExpectType PathEffect
     const pe4 = CK.PathEffect.MakeDiscrete(10, 2, 0); // $ExpectType PathEffect
+    const pe5 = CK.PathEffect.MakePath1D(path, 3, 4, CK.Path1DEffect.Morph); // $ExpectType PathEffect | null
+    const matr = CK.Matrix.scaled(3, 2);
+    const pe6 = CK.PathEffect.MakePath2D(matr, path); // $ExpectType PathEffect | null
+    const pe7 = CK.PathEffect.MakeLine2D(3.2, matr); // $ExpectType PathEffect | null
 }
 
 function mallocTests(CK: CanvasKit) {
@@ -651,6 +665,11 @@ function pictureTests(CK: CanvasKit) {
     const pic = recorder.finishRecordingAsPicture(); // $ExpectType SkPicture
     const bytes = pic.serialize(); // $ExpectType Uint8Array | null
     const pic2 = CK.MakePicture(bytes!);
+    const shader1 = pic2!.makeShader(CK.TileMode.Clamp, CK.TileMode.Decal, CK.FilterMode.Nearest);
+    const shader2 = pic2!.makeShader(CK.TileMode.Clamp, CK.TileMode.Decal, CK.FilterMode.Nearest,
+        CK.Matrix.rotated(3));
+    const shader3 = pic2!.makeShader(CK.TileMode.Clamp, CK.TileMode.Decal, CK.FilterMode.Nearest,
+        CK.Matrix.skewed(2, 1), CK.LTRBRect(3, 4, 5, 6));
 }
 
 function rectangleTests(CK: CanvasKit) {
@@ -669,9 +688,9 @@ function runtimeEffectTests(CK: CanvasKit) {
     });
     const someMatr = CK.Matrix.translated(2, 60);
     const s1 = rt.makeShader([0, 1]); // $ExpectType Shader
-    const s2 = rt.makeShader([0, 1], true, someMatr); // $ExpectType Shader
-    const s3 = rt.makeShaderWithChildren([4, 5], true, [s1, s2]); // $ExpectType Shader
-    const s4 = rt.makeShaderWithChildren([4, 5], true, [s1, s2], someMatr); // $ExpectType Shader
+    const s2 = rt.makeShader([0, 1], someMatr); // $ExpectType Shader
+    const s3 = rt.makeShaderWithChildren([4, 5], [s1, s2]); // $ExpectType Shader
+    const s4 = rt.makeShaderWithChildren([4, 5], [s1, s2], someMatr); // $ExpectType Shader
     const a = rt.getUniform(1); // $ExpectType SkSLUniform
     const b = rt.getUniformCount(); // $ExpectType number
     const c = rt.getUniformFloatCount(); // $ExpectType number
@@ -859,7 +878,12 @@ function surfaceTests(CK: CanvasKit, gl?: WebGLRenderingContext) {
     });
     const img4 = surfaceFour.makeImageFromTextureSource(new Image()); // $ExpectType Image | null
     const videoEle = document.createElement('video');
-    const img5 = surfaceFour.makeImageFromTextureSource(videoEle, 30, 10); // $ExpectType Image | null
+    const img5 = surfaceFour.makeImageFromTextureSource(videoEle, {
+      height: 40,
+      width: 80,
+      colorType: CK.ColorType.RGBA_8888,
+      alphaType: CK.AlphaType.Unpremul,
+    });
     const img6 = surfaceFour.makeImageFromTextureSource(new ImageData(40, 80)); // $ExpectType Image | null
 
     surfaceSeven.delete();
@@ -884,6 +908,8 @@ function surfaceTests(CK: CanvasKit, gl?: WebGLRenderingContext) {
     };
     surfaceFour.requestAnimationFrame(drawFrame);
     surfaceFour.drawOnce(drawFrame);
+
+    surfaceFour.updateTextureFromSource(img5!, videoEle);
 }
 
 function textBlobTests(CK: CanvasKit, font?: Font, path?: Path) {

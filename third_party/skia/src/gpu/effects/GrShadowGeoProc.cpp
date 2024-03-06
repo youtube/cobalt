@@ -53,10 +53,10 @@ private:
 
 GrRRectShadowGeoProc::GrRRectShadowGeoProc(const GrSurfaceProxyView& lutView)
         : INHERITED(kGrRRectShadowGeoProc_ClassID) {
-    fInPosition = {"inPosition", kFloat2_GrVertexAttribType, kFloat2_GrSLType};
-    fInColor = {"inColor", kUByte4_norm_GrVertexAttribType, kHalf4_GrSLType};
-    fInShadowParams = {"inShadowParams", kFloat3_GrVertexAttribType, kHalf3_GrSLType};
-    this->setVertexAttributes(&fInPosition, 3);
+    fInPosition = {"inPosition", kFloat2_GrVertexAttribType, SkSLType::kFloat2};
+    fInColor = {"inColor", kUByte4_norm_GrVertexAttribType, SkSLType::kHalf4};
+    fInShadowParams = {"inShadowParams", kFloat3_GrVertexAttribType, SkSLType::kHalf3};
+    this->setVertexAttributesWithImplicitOffsets(&fInPosition, 3);
 
     SkASSERT(lutView.proxy());
     fLUTTextureSampler.reset(GrSamplerState::Filter::kLinear, lutView.proxy()->backendFormat(),

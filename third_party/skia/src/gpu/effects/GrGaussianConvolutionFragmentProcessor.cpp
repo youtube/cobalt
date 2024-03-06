@@ -10,6 +10,7 @@
 #include "src/core/SkGpuBlurUtils.h"
 #include "src/gpu/GrTexture.h"
 #include "src/gpu/GrTextureProxy.h"
+#include "src/gpu/KeyBuilder.h"
 #include "src/gpu/effects/GrTextureEffect.h"
 #include "src/gpu/glsl/GrGLSLFragmentShaderBuilder.h"
 #include "src/gpu/glsl/GrGLSLProgramDataManager.h"
@@ -41,7 +42,7 @@ enum class LoopType {
 
 static LoopType loop_type(const GrShaderCaps& caps) {
     // This checks that bitwise integer operations and array indexing by non-consts are allowed.
-    if (caps.generation() < k130_GrGLSLGeneration) {
+    if (caps.generation() < SkSL::GLSLGeneration::k130) {
         return LoopType::kUnrolled;
     }
     // If we're in reduced shader mode and we can have a loop then use a uniform to limit the
@@ -220,7 +221,7 @@ GrGaussianConvolutionFragmentProcessor::GrGaussianConvolutionFragmentProcessor(
 }
 
 void GrGaussianConvolutionFragmentProcessor::onAddToKey(const GrShaderCaps& shaderCaps,
-                                                        GrProcessorKeyBuilder* b) const {
+                                                        skgpu::KeyBuilder* b) const {
     if (loop_type(shaderCaps) != LoopType::kVariableLength) {
         b->add32(fRadius);
     }

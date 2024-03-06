@@ -681,13 +681,10 @@ void SbPlayerPipeline::SetDurationTask(TimeDelta duration) {
 }
 
 void SbPlayerPipeline::OnBufferedTimeRangesChanged(
-    const ::media::Ranges<base::TimeDelta>& ranges) {
-  {
-    base::AutoLock auto_lock(lock_);
-    did_loading_progress_ = true;
-    buffered_time_ranges_ = ranges;
-  }
-  buffering_state_cb_.Run(kBufferedRangeChanged);
+    const ::media::Ranges<TimeDelta>& ranges) {
+  base::AutoLock auto_lock(lock_);
+  did_loading_progress_ = true;
+  buffered_time_ranges_ = ranges;
 }
 
 void SbPlayerPipeline::SetDuration(TimeDelta duration) {

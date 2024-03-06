@@ -66,21 +66,21 @@ public:
 
     const char* name() const override { return "GrPipelineDynamicStateTest Processor"; }
 
-    void addToKey(const GrShaderCaps&, GrProcessorKeyBuilder*) const final {}
+    void addToKey(const GrShaderCaps&, skgpu::KeyBuilder*) const final {}
 
     std::unique_ptr<ProgramImpl> makeProgramImpl(const GrShaderCaps&) const final;
 
 private:
     PipelineDynamicStateTestProcessor() : INHERITED(kGrPipelineDynamicStateTestProcessor_ClassID) {
-        this->setVertexAttributes(kAttributes, SK_ARRAY_COUNT(kAttributes));
+        this->setVertexAttributesWithImplicitOffsets(kAttributes, SK_ARRAY_COUNT(kAttributes));
     }
 
     const Attribute& inVertex() const { return kAttributes[0]; }
     const Attribute& inColor() const { return kAttributes[1]; }
 
     inline static constexpr Attribute kAttributes[] = {
-            {"vertex", kFloat2_GrVertexAttribType, kHalf2_GrSLType},
-            {"color", kUByte4_norm_GrVertexAttribType, kHalf4_GrSLType},
+            {"vertex", kFloat2_GrVertexAttribType, SkSLType::kHalf2},
+            {"color", kUByte4_norm_GrVertexAttribType, SkSLType::kHalf4},
     };
 
     friend class GLSLPipelineDynamicStateTestProcessor;
@@ -108,7 +108,7 @@ PipelineDynamicStateTestProcessor::makeProgramImpl(const GrShaderCaps&) const {
             varyingHandler->addPassThroughAttribute(mp.inColor().asShaderVar(), args.fOutputColor);
 
             v->codeAppendf("float2 vertex = %s;", mp.inVertex().name());
-            gpArgs->fPositionVar.set(kFloat2_GrSLType, "vertex");
+            gpArgs->fPositionVar.set(SkSLType::kFloat2, "vertex");
             f->codeAppendf("const half4 %s = half4(1);", args.fOutputCoverage);
         }
     };

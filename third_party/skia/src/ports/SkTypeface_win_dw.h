@@ -90,6 +90,8 @@ private:
         if (fDWriteFontFace1 && fDWriteFontFace1->IsMonospacedFont()) {
             this->setIsFixedPitch(true);
         }
+
+        fIsColorFont = fFactory2 && fDWriteFontFace2 && fDWriteFontFace2->IsColorFont();
     }
 
 public:
@@ -101,6 +103,7 @@ public:
     SkTScopedComPtr<IDWriteFontFace1> fDWriteFontFace1;
     SkTScopedComPtr<IDWriteFontFace2> fDWriteFontFace2;
     SkTScopedComPtr<IDWriteFontFace4> fDWriteFontFace4;
+    bool fIsColorFont;
 
     static sk_sp<DWriteFontTypeface> Make(
         IDWriteFactory* factory,
@@ -136,7 +139,7 @@ protected:
     void onGetFamilyName(SkString* familyName) const override;
     bool onGetPostScriptName(SkString*) const override;
     SkTypeface::LocalizedStrings* onCreateFamilyNameIterator() const override;
-    bool onGlyphMaskNeedsCurrentColor() const override { return false; }
+    bool onGlyphMaskNeedsCurrentColor() const override;
     int onGetVariationDesignPosition(SkFontArguments::VariationPosition::Coordinate coordinates[],
                                      int coordinateCount) const override;
     int onGetVariationDesignParameters(SkFontParameters::Variation::Axis parameters[],

@@ -29,10 +29,16 @@ public:
 
     const Caps& mtlCaps() const { return static_cast<const Caps&>(*this->caps()); }
 
+    std::unique_ptr<skgpu::ResourceProvider> makeResourceProvider(
+            sk_sp<GlobalCache>, SingleOwner*) const override;
+
 private:
     Gpu(sk_cfp<id<MTLDevice>>, sk_cfp<id<MTLCommandQueue>>, sk_sp<const Caps>);
 
     bool onSubmit(sk_sp<skgpu::CommandBuffer>) override;
+
+    BackendTexture onCreateBackendTexture(SkISize dimensions, const skgpu::TextureInfo&) override;
+    void onDeleteBackendTexture(BackendTexture&) override;
 
 #if GRAPHITE_TEST_UTILS
     void testingOnly_startCapture() override;
