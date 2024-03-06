@@ -263,12 +263,12 @@
 #include <string.h>
 
 #ifndef _WIN32_WCE
-#include <sys/stat.h>
 #include <sys/types.h>
 #endif  // !_WIN32_WCE
 #else  // !defined(STARBOARD)
 
 #include <stdlib.h>
+#include <sys/stat.h>
 
 #include "starboard/common/log.h"
 #include "starboard/common/spin_lock.h"
@@ -2135,7 +2135,7 @@ inline void *MemSet(void *s, int c, size_t n) {
 inline void Assert(bool b) { SB_CHECK(b); }
 
 inline int MkDir(const char* path, int /*mode*/) {
-  return SbDirectoryCreate(path) ? 0 : -1;
+  return mkdir(path, 0700);
 }
 
 inline void VPrintF(const char* format, va_list args) {

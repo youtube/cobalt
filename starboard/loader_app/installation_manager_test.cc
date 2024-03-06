@@ -49,7 +49,7 @@ class InstallationManagerTest : public ::testing::TestWithParam<int> {
     }
     storage_path_ = buf.data();
     ASSERT_TRUE(!storage_path_.empty());
-    SbDirectoryCreate(storage_path_.c_str());
+    mkdir(storage_path_.c_str(), 0700);
 
     installation_store_path_ = storage_path_;
     installation_store_path_ += kSbFileSepString;
@@ -227,7 +227,7 @@ TEST_P(InstallationManagerTest, Reset) {
     std::string slot_path = buf.data();
     slot_path += kSbFileSepString;
     slot_path += "test_dir";
-    SbDirectoryCreate(slot_path.c_str());
+    mkdir(slot_path.c_str(), 0700);
     slot_path += kSbFileSepString;
     slot_path += "test_file";
     created_files.push_back(slot_path);

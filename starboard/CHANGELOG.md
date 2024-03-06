@@ -9,6 +9,10 @@ since the version previous to it.
 
 ## Version 16
 
+### Deprecated SbDirectory APIs and migrated to POSIX directory APIs
+The directory API `SbDirectoryCreate` is deprecated and the standard APIs
+`mkdir` from `<sys/stat.h>` should be used instead.
+
 ### Added standard POSIX file stat API and deprecated SbFileExists.
 The file API SbFileExists has been deprecated and the standard API `stat` can
 be used from `sys/stat.h` instead.
