@@ -66,9 +66,6 @@ void File::Close() {
   SCOPED_FILE_TRACE("Close");
   internal::AssertBlockingAllowed();
   file_.reset();
-  if (delete_on_close_) {
-    SbFileDelete(file_name_.c_str());
-  }
 }
 
 int64_t File::Seek(Whence whence, int64_t offset) {
@@ -375,7 +372,10 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
     }
   }
 
-  delete_on_close_ = (flags & FLAG_DELETE_ON_CLOSE) == FLAG_DELETE_ON_CLOSE;
+  if (flags & FLAG_DELETE_ON_CLOSE) {
+    NOTREACHED() << "Not supported on Starboard platforms right now.";
+  }
+
   async_ = ((flags & FLAG_ASYNC) == FLAG_ASYNC);
 }
 

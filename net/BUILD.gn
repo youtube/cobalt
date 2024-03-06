@@ -3314,7 +3314,6 @@ test("net_unittests") {
     # TODO: b/327218234 - Reenable unittests with used functionality.
     # TODO: b/327008491 - Reenable unittests with unused functionality.
     sources -= [
-      "base/upload_file_element_reader_unittest.cc",
       "cert/cert_verify_proc_builtin_unittest.cc",
       "cert/cert_verify_proc_unittest.cc",
       "cert/crl_set_unittest.cc",
@@ -3376,17 +3375,12 @@ test("net_unittests") {
       "quic/quic_network_transaction_unittest.cc",
       "quic/quic_proxy_client_socket_unittest.cc",
       "quic/quic_stream_factory_test.cc",
-      "socket/socks_client_socket_unittest.cc",
-      "socket/socks_connect_job_unittest.cc",
       "socket/ssl_client_socket_unittest.cc",
-      "socket/ssl_connect_job_unittest.cc",
       "socket/ssl_server_socket_unittest.cc",
       "socket/tcp_client_socket_unittest.cc",
       "socket/tcp_server_socket_unittest.cc",
       "socket/tcp_socket_unittest.cc",
-      "socket/transport_client_socket_pool_unittest.cc",
       "socket/transport_client_socket_unittest.cc",
-      "socket/transport_connect_job_unittest.cc",
       "socket/udp_socket_unittest.cc",
       "socket/websocket_transport_client_socket_pool_unittest.cc",
       "spdy/fuzzing/hpack_fuzz_util_test.cc",
