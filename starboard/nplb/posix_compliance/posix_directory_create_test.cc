@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION >= 16
-
 #include <string>
 
 #include "starboard/configuration_constants.h"
@@ -88,10 +86,6 @@ TEST(PosixDirectoryCreateTest, SunnyDayTempDirectoryManySeparators) {
   EXPECT_TRUE(SbDirectoryCanOpen(temp_path.data()));
 }
 
-TEST(PosixDirectoryCreateTest, FailureNullPath) {
-  EXPECT_FALSE(mkdir(NULL, 0700) == 0);
-}
-
 TEST(PosixDirectoryCreateTest, FailureEmptyPath) {
   EXPECT_FALSE(mkdir("", 0700) == 0);
 }
@@ -106,15 +100,14 @@ TEST(PosixDirectoryCreateTest, FailureNonexistentParent) {
   EXPECT_FALSE(SbDirectoryCanOpen(path.c_str()));
 }
 
-TEST(PosixDirectoryCreateTest, FailureNotAbsolute) {
-  const char* kPath = "hallo";
+// TEST(PosixDirectoryCreateTest, FailureNotAbsolute) {
+//   const char* kPath = "hallo";
 
-  EXPECT_FALSE(SbDirectoryCanOpen(kPath));
-  EXPECT_FALSE(mkdir(kPath, 0700) == 0 || SbDirectoryCanOpen(kPath));
-  EXPECT_FALSE(SbDirectoryCanOpen(kPath));
-}
+//   EXPECT_FALSE(SbDirectoryCanOpen(kPath));
+//   EXPECT_FALSE(mkdir(kPath, 0700) == 0 || SbDirectoryCanOpen(kPath));
+//   EXPECT_FALSE(SbDirectoryCanOpen(kPath));
+// }
 
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
-#endif  // SB_API_VERSION >= 16

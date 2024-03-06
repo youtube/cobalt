@@ -263,12 +263,12 @@
 #include <string.h>
 
 #ifndef _WIN32_WCE
-#include <sys/stat.h>
 #include <sys/types.h>
 #endif  // !_WIN32_WCE
 #else  // !defined(STARBOARD)
 
 #include <stdlib.h>
+#include <sys/stat.h>
 
 #include "starboard/common/log.h"
 #include "starboard/common/spin_lock.h"
