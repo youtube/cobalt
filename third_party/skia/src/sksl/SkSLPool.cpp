@@ -11,7 +11,6 @@
 
 #define VLOG(...) // printf(__VA_ARGS__)
 #ifdef STARBOARD
-#include "starboard/common/log.h"
 #include "starboard/once.h"
 #include "starboard/thread.h"
 #endif
@@ -35,13 +34,13 @@ SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
 
 void InitThreadLocalKey() {
     s_thread_local_key = SbThreadCreateLocalKey(nullptr);
-    SB_DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+    SkASSERT(SbThreadIsValidLocalKey(s_thread_local_key));
     SbThreadSetLocalValue(s_thread_local_key, nullptr);
 }
 
 void EnsureThreadLocalKeyInited() {
     SbOnce(&s_once_flag, InitThreadLocalKey);
-    SB_DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+    SkASSERT(SbThreadIsValidLocalKey(s_thread_local_key));
 }
 }  // namespace
 
