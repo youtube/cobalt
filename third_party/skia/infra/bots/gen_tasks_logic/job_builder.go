@@ -121,9 +121,6 @@ func (b *jobBuilder) genTasksForJob() {
 	if b.extraConfig("PushAppsFromSkiaDockerImage") {
 		b.createPushAppsFromSkiaDockerImage()
 		return
-	} else if b.extraConfig("PushAppsFromWASMDockerImage") {
-		b.createPushAppsFromWASMDockerImage()
-		return
 	} else if b.extraConfig("PushBazelAppsFromWASMDockerImage") {
 		b.createPushBazelAppsFromWASMDockerImage()
 		return
@@ -163,6 +160,11 @@ func (b *jobBuilder) genTasksForJob() {
 	// BuildStats bots. This computes things like binary size.
 	if b.role("BuildStats") {
 		b.buildstats()
+		return
+	}
+
+	if b.role("CodeSize") {
+		b.codesize()
 		return
 	}
 
@@ -226,7 +228,7 @@ func (b *jobBuilder) finish() {
 		b.trigger(specs.TRIGGER_NIGHTLY)
 	} else if b.frequency("Weekly") {
 		b.trigger(specs.TRIGGER_WEEKLY)
-	} else if b.extraConfig("Flutter", "CommandBuffer", "CreateDockerImage") {
+	} else if b.extraConfig("Flutter", "CommandBuffer", "CreateDockerImage", "PushAppsFromSkiaDockerImage", "PushBazelAppsFromWASMDockerImage") {
 		b.trigger(specs.TRIGGER_MAIN_ONLY)
 	} else if b.frequency("OnDemand") || b.role("Canary") {
 		b.trigger(specs.TRIGGER_ON_DEMAND)

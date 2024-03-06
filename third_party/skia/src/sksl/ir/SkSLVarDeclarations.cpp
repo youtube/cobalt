@@ -16,18 +16,40 @@
 
 namespace SkSL {
 
+
 std::unique_ptr<Statement> VarDeclaration::clone() const {
-    return std::make_unique<VarDeclaration>(&this->var(),
-                                            &this->baseType(),
-                                            fArraySize,
-                                            this->value() ? this->value()->clone() : nullptr);
+    // Cloning a VarDeclaration is inherently problematic, as we normally expect a one-to-one
+    // mapping between Variables and VarDeclarations and a straightforward clone would violate this
+    // assumption. We could of course theoretically clone the Variable as well, but that would
+    // require additional context and tracking, since for the whole process to work we would also
+    // have to fixup any subsequent VariableReference clones to point to the newly cloned Variables
+    // instead of the originals.
+    //
+    // Since the only reason we ever clone VarDeclarations is to support tests of clone() and we do
+    // not expect to ever need to do so otherwise, a full solution to this issue is unnecessary at
+    // the moment. We instead just keep track of whether a VarDeclaration is a clone so we can
+    // handle its cleanup properly. This allows clone() to work in the simple case that a
+    // VarDeclaration's clone does not outlive the original, which is adequate for testing. Since
+    // this leaves a sharp  edge in place - destroying the original could cause a use-after-free in
+    // some circumstances - we also disable cloning altogether unless the
+    // fAllowVarDeclarationCloneForTesting ProgramSetting is enabled.
+    if (ThreadContext::Settings().fAllowVarDeclarationCloneForTesting) {
+        return std::make_unique<VarDeclaration>(&this->var(),
+                                                &this->baseType(),
+                                                fArraySize,
+                                                this->value() ? this->value()->clone() : nullptr,
+                                                /*isClone=*/true);
+    } else {
+        SkDEBUGFAIL("VarDeclaration::clone() is unsupported");
+        return nullptr;
+    }
 }
 
-String VarDeclaration::description() const {
-    String result = this->var().modifiers().description() + this->baseType().description() + " " +
-                    this->var().name();
+std::string VarDeclaration::description() const {
+    std::string result = this->var().modifiers().description() + this->baseType().description() +
+                         " " + std::string(this->var().name());
     if (this->arraySize() > 0) {
-        result.appendf("[%d]", this->arraySize());
+        String::appendf(&result, "[%d]", this->arraySize());
     }
     if (this->value()) {
         result += " = " + this->value()->description();
@@ -41,7 +63,7 @@ void VarDeclaration::ErrorCheck(const Context& context,
                                 const Modifiers& modifiers,
                                 const Type* baseType,
                                 Variable::Storage storage) {
-    if (*baseType == *context.fTypes.fInvalid) {
+    if (baseType->matches(*context.fTypes.fInvalid)) {
         context.fErrors->error(line, "invalid type");
         return;
     }
@@ -71,6 +93,11 @@ void VarDeclaration::ErrorCheck(const Context& context,
     if (baseType->isEffectChild() && !(modifiers.fFlags & Modifiers::kUniform_Flag)) {
         context.fErrors->error(line,
                 "variables of type '" + baseType->displayName() + "' must be uniform");
+    }
+    if (modifiers.fFlags & SkSL::Modifiers::kUniform_Flag &&
+        (context.fConfig->fKind == ProgramKind::kCustomMeshVertex ||
+         context.fConfig->fKind == ProgramKind::kCustomMeshFragment)) {
+        context.fErrors->error(line, "uniforms are not permitted in custom mesh shaders");
     }
     if (modifiers.fLayout.fFlags & Layout::kColor_Flag) {
         if (!ProgramConfig::IsRuntimeEffect(context.fConfig->fKind)) {
@@ -124,23 +151,23 @@ bool VarDeclaration::ErrorCheckAndCoerce(const Context& context, const Variable&
     ErrorCheck(context, var.fLine, var.modifiers(), baseType, var.storage());
     if (value) {
         if (var.type().isOpaque()) {
-            context.fErrors->error(value->fLine,
-                    "opaque type '" + var.type().name() + "' cannot use initializer expressions");
+            context.fErrors->error(value->fLine, "opaque type '" + var.type().displayName() +
+                                                 "' cannot use initializer expressions");
             return false;
         }
         if (var.modifiers().fFlags & Modifiers::kIn_Flag) {
             context.fErrors->error(value->fLine,
-                    "'in' variables cannot use initializer expressions");
+                                   "'in' variables cannot use initializer expressions");
             return false;
         }
         if (var.modifiers().fFlags & Modifiers::kUniform_Flag) {
             context.fErrors->error(value->fLine,
-                    "'uniform' variables cannot use initializer expressions");
+                                   "'uniform' variables cannot use initializer expressions");
             return false;
         }
         if (var.storage() == Variable::Storage::kInterfaceBlock) {
             context.fErrors->error(value->fLine,
-                    "initializers are not permitted on interface block fields");
+                                   "initializers are not permitted on interface block fields");
             return false;
         }
         value = var.type().coerceExpression(std::move(value), context);
@@ -155,21 +182,21 @@ bool VarDeclaration::ErrorCheckAndCoerce(const Context& context, const Variable&
         }
         if (!Analysis::IsConstantExpression(*value)) {
             context.fErrors->error(value->fLine,
-                    "'const' variable initializer must be a constant expression");
+                                   "'const' variable initializer must be a constant expression");
             return false;
         }
     }
     if (var.storage() == Variable::Storage::kInterfaceBlock) {
         if (var.type().isOpaque()) {
-            context.fErrors->error(var.fLine, "opaque type '" + var.type().name() +
-                    "' is not permitted in an interface block");
+            context.fErrors->error(var.fLine, "opaque type '" + var.type().displayName() +
+                                              "' is not permitted in an interface block");
             return false;
         }
     }
     if (var.storage() == Variable::Storage::kGlobal) {
         if (value && !Analysis::IsConstantExpression(*value)) {
             context.fErrors->error(value->fLine,
-                    "global variable initializer must be a constant expression");
+                                   "global variable initializer must be a constant expression");
             return false;
         }
     }
@@ -208,7 +235,7 @@ std::unique_ptr<Statement> VarDeclaration::Convert(const Context& context,
             context.fErrors->error(var->fLine, "duplicate definition of 'sk_RTAdjust'");
             return nullptr;
         }
-        if (var->type() != *context.fTypes.fFloat4) {
+        if (!var->type().matches(*context.fTypes.fFloat4)) {
             context.fErrors->error(var->fLine, "sk_RTAdjust must have type 'float4'");
             return nullptr;
         }

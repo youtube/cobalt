@@ -379,7 +379,7 @@ void TestCase::run(const std::vector<int>& order,
         matchedElements += found ? 1 : 0;
     }
     REPORTER_ASSERT(reporter, matchedElements == fExpectedElements.size(),
-                    "%s, did not match all expected elements: expected %d but matched only %d",
+                    "%s, did not match all expected elements: expected %zu but matched only %zu",
                     name.c_str(), fExpectedElements.size(), matchedElements);
 
     // Validate restoration behavior
@@ -388,7 +388,8 @@ void TestCase::run(const std::vector<int>& order,
         cs.restore();
         REPORTER_ASSERT(reporter, cs.clipState() == oldState,
                         "%s, restoring an empty save record should not change clip state: "
-                        "expected %d but got %d", (int) oldState, (int) cs.clipState());
+                        "expected %d but got %d",
+                        name.c_str(), (int) oldState, (int) cs.clipState());
     } else if (policy != SavePolicy::kNever) {
         int restoreCount = policy == SavePolicy::kAtStart ? 1 : (int) order.size();
         for (int i = 0; i < restoreCount; ++i) {
@@ -397,7 +398,7 @@ void TestCase::run(const std::vector<int>& order,
         // Should be wide open if everything is restored to base state
         REPORTER_ASSERT(reporter, cs.clipState() == ClipStack::ClipState::kWideOpen,
                         "%s, restore should make stack become wide-open, not %d",
-                        (int) cs.clipState());
+                        name.c_str(), (int) cs.clipState());
     }
 }
 
@@ -2085,15 +2086,15 @@ DEF_GPUTEST_FOR_CONTEXTS(ClipStack_SWMask,
     };
 
     auto generateMask = [&](SkRect drawBounds) {
-        GrUniqueKey priorKey = cs->testingOnly_getLastSWMaskKey();
+        skgpu::UniqueKey priorKey = cs->testingOnly_getLastSWMaskKey();
         drawRect(drawBounds);
-        GrUniqueKey newKey = cs->testingOnly_getLastSWMaskKey();
+        skgpu::UniqueKey newKey = cs->testingOnly_getLastSWMaskKey();
         REPORTER_ASSERT(r, priorKey != newKey, "Did not generate a new SW mask key as expected");
         return newKey;
     };
 
-    auto verifyKeys = [&](const std::vector<GrUniqueKey>& expectedKeys,
-                          const std::vector<GrUniqueKey>& releasedKeys) {
+    auto verifyKeys = [&](const std::vector<skgpu::UniqueKey>& expectedKeys,
+                          const std::vector<skgpu::UniqueKey>& releasedKeys) {
         context->flush();
         GrProxyProvider* proxyProvider = context->priv().proxyProvider();
 
@@ -2122,20 +2123,20 @@ DEF_GPUTEST_FOR_CONTEXTS(ClipStack_SWMask,
     // Creates a mask for a complex clip
     cs->save();
     addMaskRequiringClip(5.f, 5.f, 20.f);
-    GrUniqueKey keyADepth1 = generateMask({0.f, 0.f, 20.f, 20.f});
-    GrUniqueKey keyBDepth1 = generateMask({10.f, 10.f, 30.f, 30.f});
+    skgpu::UniqueKey keyADepth1 = generateMask({0.f, 0.f, 20.f, 20.f});
+    skgpu::UniqueKey keyBDepth1 = generateMask({10.f, 10.f, 30.f, 30.f});
     verifyKeys({keyADepth1, keyBDepth1}, {});
 
     // Creates a new mask for a new save record, but doesn't delete the old records
     cs->save();
     addMaskRequiringClip(6.f, 6.f, 15.f);
-    GrUniqueKey keyADepth2 = generateMask({0.f, 0.f, 20.f, 20.f});
-    GrUniqueKey keyBDepth2 = generateMask({10.f, 10.f, 30.f, 30.f});
+    skgpu::UniqueKey keyADepth2 = generateMask({0.f, 0.f, 20.f, 20.f});
+    skgpu::UniqueKey keyBDepth2 = generateMask({10.f, 10.f, 30.f, 30.f});
     verifyKeys({keyADepth1, keyBDepth1, keyADepth2, keyBDepth2}, {});
 
     // Release after modifying the current record (even if we don't draw anything)
     addMaskRequiringClip(4.f, 4.f, 15.f);
-    GrUniqueKey keyCDepth2 = generateMask({4.f, 4.f, 16.f, 20.f});
+    skgpu::UniqueKey keyCDepth2 = generateMask({4.f, 4.f, 16.f, 20.f});
     verifyKeys({keyADepth1, keyBDepth1, keyCDepth2}, {keyADepth2, keyBDepth2});
 
     // Release after restoring an older record

@@ -9,13 +9,13 @@ description:
 third_party {
   identifier {
     type: "ChromiumVersion"
-    value: "98.0.4758.141"  # from https://chromereleases.googleblog.com/2022/03/extended-stable-channel-update-for_25.html
+    value: "100.0.4896.143"  # from https://chromereleases.googleblog.com/2022/04/extended-stable-channel-update-for.html
   }
   identifier {
     type: "Git"
     value: "https://chromium.googlesource.com/skia.git"
-    version: "615322e97b5d9cac54aae62a0f4f73475ce7bef6"
-    # from https://chromium.googlesource.com/chromium/src/+/98.0.4758.141/DEPS#242
+    version: "b524f580859d367e51591d8b5c16485d022844cb"
+    # from https://chromium.googlesource.com/chromium/src/+/100.0.4896.143/DEPS#256
   }
   last_upgrade_date {
     year: 2024

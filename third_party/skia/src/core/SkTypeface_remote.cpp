@@ -6,7 +6,7 @@
  */
 
 #include "include/core/SkPaint.h"
-#include "src/core/SkRemoteGlyphCache.h"
+#include "include/private/chromium/SkChromeRemoteGlyphCache.h"
 #include "src/core/SkScalerCache.h"
 #include "src/core/SkStrikeCache.h"
 #include "src/core/SkTraceEvent.h"
@@ -57,6 +57,17 @@ bool SkScalerContextProxy::generatePath(const SkGlyph& glyph, SkPath* path) {
     fDiscardableManager->notifyCacheMiss(
             SkStrikeClient::CacheMissType::kGlyphPath, fRec.fTextSize);
     return false;
+}
+
+sk_sp<SkDrawable> SkScalerContextProxy::generateDrawable(const SkGlyph&) {
+    TRACE_EVENT1("skia", "generateDrawable", "rec", TRACE_STR_COPY(this->getRec().dump().c_str()));
+    if (this->getProxyTypeface()->isLogging()) {
+        SkDebugf("GlyphCacheMiss generateDrawable: %s\n", this->getRec().dump().c_str());
+    }
+
+    fDiscardableManager->notifyCacheMiss(
+            SkStrikeClient::CacheMissType::kGlyphDrawable, fRec.fTextSize);
+    return nullptr;
 }
 
 void SkScalerContextProxy::generateFontMetrics(SkFontMetrics* metrics) {

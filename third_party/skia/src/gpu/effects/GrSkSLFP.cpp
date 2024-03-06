@@ -15,6 +15,7 @@
 #include "src/gpu/GrBaseContextPriv.h"
 #include "src/gpu/GrColorInfo.h"
 #include "src/gpu/GrTexture.h"
+#include "src/gpu/KeyBuilder.h"
 #include "src/gpu/glsl/GrGLSLFragmentShaderBuilder.h"
 #include "src/gpu/glsl/GrGLSLProgramBuilder.h"
 #include "src/sksl/SkSLUtil.h"
@@ -42,15 +43,13 @@ public:
                     , fUniformData(uniformData)
                     , fUniformFlags(uniformFlags) {}
 
-            using String = SkSL::String;
-
-            String declareUniform(const SkSL::VarDeclaration* decl) override {
+            std::string declareUniform(const SkSL::VarDeclaration* decl) override {
                 const SkSL::Variable& var = decl->var();
                 if (var.type().isOpaque()) {
                     // Nothing to do. The only opaque types we should see are children, and those
                     // are handled specially, above.
                     SkASSERT(var.type().isEffectChild());
-                    return String(var.name());
+                    return std::string(var.name());
                 }
 
                 const SkSL::Type* type = &var.type();
@@ -65,19 +64,19 @@ public:
                     isArray = true;
                 }
 
-                GrSLType gpuType;
-                SkAssertResult(SkSL::type_to_grsltype(fContext, *type, &gpuType));
+                SkSLType gpuType;
+                SkAssertResult(SkSL::type_to_sksltype(fContext, *type, &gpuType));
 
                 if (*fUniformFlags++ & GrSkSLFP::kSpecialize_Flag) {
                     SkASSERTF(!isArray, "specializing array uniforms is not allowed");
-                    String value = GrGLSLTypeString(gpuType);
+                    std::string value = GrGLSLTypeString(gpuType);
                     value.append("(");
 
-                    bool isFloat = GrSLTypeIsFloatType(gpuType);
+                    bool isFloat = SkSLTypeIsFloatType(gpuType);
                     size_t slots = type->slotCount();
                     for (size_t i = 0; i < slots; ++i) {
-                        value.append(isFloat ? SkSL::to_string(floatData[i])
-                                             : SkSL::to_string(intData[i]));
+                        value.append(isFloat ? skstd::to_string(floatData[i])
+                                             : std::to_string(intData[i]));
                         value.append(",");
                     }
                     value.back() = ')';
@@ -93,11 +92,11 @@ public:
                                                                isArray ? var.type().columns() : 0,
                                                                &uniformName);
                 fSelf->fUniformHandles.push_back(handle);
-                return String(uniformName);
+                return std::string(uniformName);
             }
 
-            String getMangledName(const char* name) override {
-                return String(fArgs.fFragBuilder->getMangledFunctionName(name).c_str());
+            std::string getMangledName(const char* name) override {
+                return std::string(fArgs.fFragBuilder->getMangledFunctionName(name).c_str());
             }
 
             void defineFunction(const char* decl, const char* body, bool isMain) override {
@@ -120,7 +119,7 @@ public:
                 fArgs.fFragBuilder->definitionAppend(declaration);
             }
 
-            String sampleShader(int index, String coords) override {
+            std::string sampleShader(int index, std::string coords) override {
                 // If the child was sampled using the coords passed to main (and they are never
                 // modified), then we will have marked the child as PassThrough. The code generator
                 // doesn't know that, and still supplies coords. Inside invokeChild, we assert that
@@ -137,21 +136,46 @@ public:
                 if (child && child->sampleUsage().isPassThrough()) {
                     coords.clear();
                 }
-                return String(fSelf->invokeChild(index, fInputColor, fArgs, coords).c_str());
+                return std::string(fSelf->invokeChild(index, fInputColor, fArgs, coords).c_str());
             }
 
-            String sampleColorFilter(int index, String color) override {
-                return String(fSelf->invokeChild(index,
+            std::string sampleColorFilter(int index, std::string color) override {
+                return std::string(fSelf->invokeChild(index,
                                                  color.empty() ? fInputColor : color.c_str(),
                                                  fArgs)
                                       .c_str());
             }
 
-            String sampleBlender(int index, String src, String dst) override {
+            std::string sampleBlender(int index, std::string src, std::string dst) override {
                 if (!fSelf->childProcessor(index)) {
-                    return String::printf("blend_src_over(%s, %s)", src.c_str(), dst.c_str());
+                    return SkSL::String::printf("blend_src_over(%s, %s)", src.c_str(), dst.c_str());
                 }
-                return String(fSelf->invokeChild(index, src.c_str(), dst.c_str(), fArgs).c_str());
+                return std::string(
+                        fSelf->invokeChild(index, src.c_str(), dst.c_str(), fArgs).c_str());
+            }
+
+            // These intrinsics take and return 3-component vectors, but child FPs operate on
+            // 4-component vectors. We use swizzles here to paper over the difference.
+            std::string toLinearSrgb(std::string color) override {
+                const GrSkSLFP& fp = fArgs.fFp.cast<GrSkSLFP>();
+                if (fp.fToLinearSrgbChildIndex < 0) {
+                    return color;
+                }
+                color = SkSL::String::printf("(%s).rgb1", color.c_str());
+                SkString xformedColor = fSelf->invokeChild(
+                        fp.fToLinearSrgbChildIndex, color.c_str(), fArgs);
+                return SkSL::String::printf("(%s).rgb", xformedColor.c_str());
+            }
+
+            std::string fromLinearSrgb(std::string color) override {
+                const GrSkSLFP& fp = fArgs.fFp.cast<GrSkSLFP>();
+                if (fp.fFromLinearSrgbChildIndex < 0) {
+                    return color;
+                }
+                color = SkSL::String::printf("(%s).rgb1", color.c_str());
+                SkString xformedColor = fSelf->invokeChild(
+                        fp.fFromLinearSrgbChildIndex, color.c_str(), fArgs);
+                return SkSL::String::printf("(%s).rgb", xformedColor.c_str());
             }
 
             Impl*                         fSelf;
@@ -192,7 +216,7 @@ public:
         SkString inputColorName;
         if (fp.fEffect->samplesOutsideMain()) {
             GrShaderVar inputColorCopy(args.fFragBuilder->getMangledFunctionName("inColor"),
-                                       kHalf4_GrSLType);
+                                       SkSLType::kHalf4);
             args.fFragBuilder->declareGlobal(inputColorCopy);
             inputColorName = inputColorCopy.getName();
             args.fFragBuilder->codeAppendf("%s = %s;\n", inputColorName.c_str(), args.fInputColor);
@@ -265,6 +289,7 @@ private:
 std::unique_ptr<GrSkSLFP> GrSkSLFP::MakeWithData(
         sk_sp<SkRuntimeEffect> effect,
         const char* name,
+        sk_sp<SkColorSpace> dstColorSpace,
         std::unique_ptr<GrFragmentProcessor> inputFP,
         std::unique_ptr<GrFragmentProcessor> destColorFP,
         sk_sp<SkData> uniforms,
@@ -285,6 +310,9 @@ std::unique_ptr<GrSkSLFP> GrSkSLFP::MakeWithData(
     }
     if (destColorFP) {
         fp->setDestColorFP(std::move(destColorFP));
+    }
+    if (fp->fEffect->usesColorTransform() && dstColorSpace) {
+        fp->addColorTransformChildren(std::move(dstColorSpace));
     }
     return fp;
 }
@@ -312,7 +340,10 @@ GrSkSLFP::GrSkSLFP(const GrSkSLFP& other)
         , fEffect(other.fEffect)
         , fName(other.fName)
         , fUniformSize(other.fUniformSize)
-        , fInputChildIndex(other.fInputChildIndex) {
+        , fInputChildIndex(other.fInputChildIndex)
+        , fDestColorChildIndex(other.fDestColorChildIndex)
+        , fToLinearSrgbChildIndex(other.fToLinearSrgbChildIndex)
+        , fFromLinearSrgbChildIndex(other.fFromLinearSrgbChildIndex) {
     sk_careful_memcpy(this->uniformFlags(),
                       other.uniformFlags(),
                       fEffect->uniforms().size() * sizeof(UniformFlags));
@@ -347,11 +378,38 @@ void GrSkSLFP::setDestColorFP(std::unique_ptr<GrFragmentProcessor> destColorFP) 
     this->registerChild(std::move(destColorFP), SkSL::SampleUsage::PassThrough());
 }
 
+void GrSkSLFP::addColorTransformChildren(sk_sp<SkColorSpace> dstColorSpace) {
+    SkASSERTF(fToLinearSrgbChildIndex == -1 && fFromLinearSrgbChildIndex == -1,
+              "addColorTransformChildren should not be called more than once");
+
+    // We use child FPs for the color transforms. They're really just code snippets that get
+    // invoked, but each one injects a collection of uniforms and helper functions. Doing it
+    // this way leverages per-FP name mangling to avoid conflicts.
+    auto workingToLinear = GrColorSpaceXformEffect::Make(nullptr,
+                                                         dstColorSpace.get(),
+                                                         kUnpremul_SkAlphaType,
+                                                         sk_srgb_linear_singleton(),
+                                                         kUnpremul_SkAlphaType);
+    auto linearToWorking = GrColorSpaceXformEffect::Make(nullptr,
+                                                         sk_srgb_linear_singleton(),
+                                                         kUnpremul_SkAlphaType,
+                                                         dstColorSpace.get(),
+                                                         kUnpremul_SkAlphaType);
+
+    fToLinearSrgbChildIndex = this->numChildProcessors();
+    SkASSERT((size_t)fToLinearSrgbChildIndex >= fEffect->fSampleUsages.size());
+    this->registerChild(std::move(workingToLinear), SkSL::SampleUsage::PassThrough());
+
+    fFromLinearSrgbChildIndex = this->numChildProcessors();
+    SkASSERT((size_t)fFromLinearSrgbChildIndex >= fEffect->fSampleUsages.size());
+    this->registerChild(std::move(linearToWorking), SkSL::SampleUsage::PassThrough());
+}
+
 std::unique_ptr<GrFragmentProcessor::ProgramImpl> GrSkSLFP::onMakeProgramImpl() const {
     return std::make_unique<Impl>();
 }
 
-void GrSkSLFP::onAddToKey(const GrShaderCaps& caps, GrProcessorKeyBuilder* b) const {
+void GrSkSLFP::onAddToKey(const GrShaderCaps& caps, skgpu::KeyBuilder* b) const {
     // In the unlikely event of a hash collision, we also include the uniform size in the key.
     // That ensures that we will (at worst) use the wrong program, but one that expects the same
     // amount of uniform data.

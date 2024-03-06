@@ -12,6 +12,7 @@
 #include "experimental/graphite/src/Caps.h"
 #include "experimental/graphite/src/CommandBuffer.h"
 #include "experimental/graphite/src/GpuWorkSubmission.h"
+#include "experimental/graphite/src/Log.h"
 #include "experimental/graphite/src/ResourceProvider.h"
 #include "src/sksl/SkSLCompiler.h"
 
@@ -36,7 +37,6 @@ Gpu::~Gpu() {
     // TODO: destroyResources instead?
     // TODO: how do we handle command buffers that haven't been submitted yet?
     this->checkForFinishedWork(SyncToCpu::kYes);
-    fResourceProvider.reset();
 }
 
 void Gpu::initCompiler() {
@@ -52,7 +52,11 @@ bool Gpu::submit(sk_sp<CommandBuffer> commandBuffer) {
         return false;
     }
 
-    SkDEBUGCODE(if (!commandBuffer->hasWork()) SkDebugf("Submitting empty command buffer!\n");)
+#ifdef SK_DEBUG
+    if (!commandBuffer->hasWork()) {
+        SKGPU_LOG_W("Submitting empty command buffer!");
+    }
+#endif
 
     return this->onSubmit(std::move(commandBuffer));
 }

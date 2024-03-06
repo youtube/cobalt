@@ -10,6 +10,7 @@
 
 #include "experimental/graphite/src/CommandBuffer.h"
 #include "experimental/graphite/src/GpuWorkSubmission.h"
+#include "experimental/graphite/src/Log.h"
 
 #include <memory>
 
@@ -40,8 +41,8 @@ public:
             [(*fCommandBuffer) waitUntilCompleted];
         }
         if (!this->isFinished()) {
-            SkDebugf("Unfinished command buffer status: %d\n",
-                     (int)(*fCommandBuffer).status);
+            SKGPU_LOG_E("Unfinished command buffer status: %d",
+                        (int)(*fCommandBuffer).status);
             SkASSERT(false);
         }
     }
@@ -50,7 +51,7 @@ public:
 private:
     CommandBuffer(sk_cfp<id<MTLCommandBuffer>> cmdBuffer, const Gpu* gpu);
 
-    void onBeginRenderPass(const RenderPassDesc&,
+    bool onBeginRenderPass(const RenderPassDesc&,
                            const skgpu::Texture* colorTexture,
                            const skgpu::Texture* resolveTexture,
                            const skgpu::Texture* depthStencilTexture) override;
@@ -61,6 +62,9 @@ private:
     void onBindVertexBuffers(const skgpu::Buffer* vertexBuffer, size_t vertexOffset,
                              const skgpu::Buffer* instanceBuffer, size_t instanceOffset) override;
     void onBindIndexBuffer(const skgpu::Buffer* indexBuffer, size_t offset) override;
+
+    void onBindTextures(const TextureBindEntry* entries, int count) override;
+    void onBindSamplers(const SamplerBindEntry* entries, int count) override;
 
     void onSetScissor(unsigned int left, unsigned int top,
                       unsigned int width, unsigned int height) override;
@@ -78,11 +82,15 @@ private:
                                 unsigned int indexCount, unsigned int baseVertex,
                                 unsigned int baseInstance, unsigned int instanceCount) override;
 
-    void onCopyTextureToBuffer(const skgpu::Texture*,
+    bool onCopyTextureToBuffer(const skgpu::Texture*,
                                SkIRect srcRect,
                                const skgpu::Buffer*,
                                size_t bufferOffset,
                                size_t bufferRowBytes) override;
+    bool onCopyBufferToTexture(const skgpu::Buffer*,
+                               const skgpu::Texture*,
+                               const BufferTextureCopyData* copyData,
+                               int count) override;
 
     BlitCommandEncoder* getBlitCommandEncoder();
     void endBlitCommandEncoder();

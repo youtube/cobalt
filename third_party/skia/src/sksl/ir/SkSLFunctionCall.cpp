@@ -97,18 +97,18 @@ static std::unique_ptr<Expression> coalesce_n_way_vector(const Expression* arg0,
     const Type& vecType =          arg0->type().isVector()  ? arg0->type() :
                           (arg1 && arg1->type().isVector()) ? arg1->type() :
                                                               arg0->type();
-    SkASSERT(         arg0->type().componentType() == vecType.componentType());
-    SkASSERT(!arg1 || arg1->type().componentType() == vecType.componentType());
+    SkASSERT(         arg0->type().componentType().matches(vecType.componentType()));
+    SkASSERT(!arg1 || arg1->type().componentType().matches(vecType.componentType()));
 
     double value = startingState;
     int arg0Index = 0;
     int arg1Index = 0;
     for (int index = 0; index < vecType.columns(); ++index) {
-        skstd::optional<double> arg0Value = arg0->getConstantValue(arg0Index);
+        std::optional<double> arg0Value = arg0->getConstantValue(arg0Index);
         arg0Index += arg0->type().isVector() ? 1 : 0;
         SkASSERT(arg0Value.has_value());
 
-        skstd::optional<double> arg1Value = 0.0;
+        std::optional<double> arg1Value = 0.0;
         if (arg1) {
             arg1Value = arg1->getConstantValue(arg1Index);
             arg1Index += arg1->type().isVector() ? 1 : 0;
@@ -174,13 +174,13 @@ static std::unique_ptr<Expression> optimize_comparison(const Context& context,
     const Type& type = left->type();
     SkASSERT(type.isVector());
     SkASSERT(type.componentType().isScalar());
-    SkASSERT(type == right->type());
+    SkASSERT(type.matches(right->type()));
 
     double array[4];
 
     for (int index = 0; index < type.columns(); ++index) {
-        skstd::optional<double> leftValue = left->getConstantValue(index);
-        skstd::optional<double> rightValue = right->getConstantValue(index);
+        std::optional<double> leftValue = left->getConstantValue(index);
+        std::optional<double> rightValue = right->getConstantValue(index);
         SkASSERT(leftValue.has_value());
         SkASSERT(rightValue.has_value());
         array[index] = compare(*leftValue, *rightValue) ? 1.0 : 0.0;
@@ -216,18 +216,18 @@ static std::unique_ptr<Expression> evaluate_n_way_intrinsic(const Context& conte
     int arg1Index = 0;
     int arg2Index = 0;
     for (int index = 0; index < slots; ++index) {
-        skstd::optional<double> arg0Value = arg0->getConstantValue(arg0Index);
+        std::optional<double> arg0Value = arg0->getConstantValue(arg0Index);
         arg0Index += arg0->type().isScalar() ? 0 : 1;
         SkASSERT(arg0Value.has_value());
 
-        skstd::optional<double> arg1Value = 0.0;
+        std::optional<double> arg1Value = 0.0;
         if (arg1) {
             arg1Value = arg1->getConstantValue(arg1Index);
             arg1Index += arg1->type().isScalar() ? 0 : 1;
             SkASSERT(arg1Value.has_value());
         }
 
-        skstd::optional<double> arg2Value = 0.0;
+        std::optional<double> arg2Value = 0.0;
         if (arg2) {
             arg2Value = arg2->getConstantValue(arg2Index);
             arg2Index += arg2->type().isScalar() ? 0 : 1;
@@ -786,18 +786,13 @@ bool FunctionCall::hasProperty(Property property) const {
 }
 
 std::unique_ptr<Expression> FunctionCall::clone() const {
-    ExpressionArray cloned;
-    cloned.reserve_back(this->arguments().size());
-    for (const std::unique_ptr<Expression>& arg : this->arguments()) {
-        cloned.push_back(arg->clone());
-    }
-    return std::make_unique<FunctionCall>(
-            fLine, &this->type(), &this->function(), std::move(cloned));
+    return std::make_unique<FunctionCall>(fLine, &this->type(), &this->function(),
+                                          this->arguments().clone());
 }
 
-String FunctionCall::description() const {
-    String result = String(this->function().name()) + "(";
-    String separator;
+std::string FunctionCall::description() const {
+    std::string result = std::string(this->function().name()) + "(";
+    std::string separator;
     for (const std::unique_ptr<Expression>& arg : this->arguments()) {
         result += separator;
         result += arg->description();
@@ -867,8 +862,8 @@ std::unique_ptr<Expression> FunctionCall::Convert(const Context& context,
             int count = f.callParameterCount();
             if (count != (int) arguments.size()) {
                 context.fErrors->error(line,
-                        "external function expected " + to_string(count) +
-                        " arguments, but found " + to_string((int)arguments.size()));
+                        "external function expected " + std::to_string(count) +
+                        " arguments, but found " + std::to_string(arguments.size()));
                 return nullptr;
             }
             static constexpr int PARAMETER_MAX = 16;
@@ -891,8 +886,8 @@ std::unique_ptr<Expression> FunctionCall::Convert(const Context& context,
             if (best) {
                 return FunctionCall::Convert(context, line, *best, std::move(arguments));
             }
-            String msg = "no match for " + functions[0]->name() + "(";
-            String separator;
+            std::string msg = "no match for " + std::string(functions[0]->name()) + "(";
+            std::string separator;
             for (size_t i = 0; i < arguments.size(); i++) {
                 msg += separator;
                 separator = ", ";
@@ -912,9 +907,9 @@ std::unique_ptr<Expression> FunctionCall::Convert(const Context& context,
             if (best) {
                 return FunctionCall::Convert(context, line, *best, std::move(arguments));
             }
-            String msg = "no match for " + arguments.back()->type().displayName() +
-                         "::" + functions[0]->name().substr(1) + "(";
-            String separator;
+            std::string msg = "no match for " + arguments.back()->type().displayName() +
+                              "::" + std::string(functions[0]->name().substr(1)) + "(";
+            std::string separator;
             for (size_t i = 0; i < arguments.size() - 1; i++) {
                 msg += separator;
                 separator = ", ";
@@ -944,12 +939,12 @@ std::unique_ptr<Expression> FunctionCall::Convert(const Context& context,
 
     // Reject function calls with the wrong number of arguments.
     if (function.parameters().size() != arguments.size()) {
-        String msg = "call to '" + function.name() + "' expected " +
-                     to_string((int)function.parameters().size()) + " argument";
+        std::string msg = "call to '" + std::string(function.name()) + "' expected " +
+                          std::to_string(function.parameters().size()) + " argument";
         if (function.parameters().size() != 1) {
             msg += "s";
         }
-        msg += ", but found " + to_string(arguments.count());
+        msg += ", but found " + std::to_string(arguments.count());
         context.fErrors->error(line, msg);
         return nullptr;
     }
@@ -958,8 +953,8 @@ std::unique_ptr<Expression> FunctionCall::Convert(const Context& context,
     FunctionDeclaration::ParamTypes types;
     const Type* returnType;
     if (!function.determineFinalTypes(arguments, &types, &returnType)) {
-        String msg = "no match for " + function.name() + "(";
-        String separator;
+        std::string msg = "no match for " + std::string(function.name()) + "(";
+        std::string separator ;
         for (const std::unique_ptr<Expression>& arg : arguments) {
             msg += separator;
             msg += arg->type().displayName();

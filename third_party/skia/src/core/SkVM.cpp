@@ -17,6 +17,7 @@
 #include "src/core/SkOpts.h"
 #include "src/core/SkStreamPriv.h"
 #include "src/core/SkVM.h"
+#include "src/utils/SkVMVisualizer.h"
 #include <algorithm>
 #include <atomic>
 #include <queue>
@@ -34,6 +35,10 @@
     #if __has_include(<llvm/IR/IntrinsicsX86.h>)
         #include <llvm/IR/IntrinsicsX86.h>
     #endif
+#endif
+
+#if !defined(SK_BUILD_FOR_WIN)
+#include <unistd.h>
 #endif
 
 // #define SKVM_LLVM_WAIT_FOR_COMPILATION
@@ -150,9 +155,10 @@ namespace skvm {
         return { fma, fp16 };
     }
 
-    Builder::Builder()                  : fFeatures(detect_features()) {}
-    Builder::Builder(Features features) : fFeatures(features         ) {}
-
+    Builder::Builder(bool createDuplicates)
+        : fFeatures(detect_features()), fCreateDuplicates(createDuplicates) {}
+    Builder::Builder(Features features, bool createDuplicates)
+        : fFeatures(features         ), fCreateDuplicates(createDuplicates) {}
 
     struct Program::Impl {
         std::vector<InterpreterInstruction> instructions;
@@ -160,6 +166,7 @@ namespace skvm {
         int loop = 0;
         std::vector<int> strides;
         std::vector<TraceHook*> traceHooks;
+        std::unique_ptr<viz::Visualizer> visualizer;
 
         std::atomic<void*> jit_entry{nullptr};   // TODO: minimal std::memory_orders
         size_t jit_size = 0;
@@ -270,6 +277,7 @@ namespace skvm {
                                                                   VarSlot{immB}, "=", V{z}); break;
             case Op::trace_enter: write(o, op, TraceHookID{immA}, V{x}, V{y}, FnIdx{immB}); break;
             case Op::trace_exit:  write(o, op, TraceHookID{immA}, V{x}, V{y}, FnIdx{immB}); break;
+            case Op::trace_scope: write(o, op, TraceHookID{immA}, V{x}, V{y}, Shift{immB}); break;
 
             case Op::store8:   write(o, op, Ptr{immA}, V{x}               ); break;
             case Op::store16:  write(o, op, Ptr{immA}, V{x}               ); break;
@@ -339,6 +347,8 @@ namespace skvm {
             case Op::from_fp16: write(o, V{id}, "=", op, V{x}); break;
             case Op::trunc:     write(o, V{id}, "=", op, V{x}); break;
             case Op::round:     write(o, V{id}, "=", op, V{x}); break;
+
+            case Op::duplicate: write(o, V{id}, "=", op, Hex{immA}); break;
         }
 
         write(o, "\n");
@@ -360,6 +370,13 @@ namespace skvm {
         }
     }
 
+    void Program::visualize(SkWStream* output, const char* code) const {
+        if (fImpl->visualizer) {
+            fImpl->visualizer->dump(output, code);
+        }
+    }
+
+    viz::Visualizer* Program::visualizer() { return fImpl->visualizer.get(); }
     void Program::dump(SkWStream* o) const {
         SkDebugfStream debug;
         if (!o) { o = &debug; }
@@ -394,6 +411,8 @@ namespace skvm {
                                                    R{x}, R{y}, FnIdx{immB}); break;
                 case Op::trace_exit:  write(o, op, TraceHookID{immA},
                                                    R{x}, R{y}, FnIdx{immB}); break;
+                case Op::trace_scope: write(o, op, TraceHookID{immA},
+                                                   R{x}, R{y}, Shift{immB}); break;
 
                 case Op::store8:   write(o, op, Ptr{immA}, R{x}                  ); break;
                 case Op::store16:  write(o, op, Ptr{immA}, R{x}                  ); break;
@@ -461,12 +480,14 @@ namespace skvm {
                 case Op::from_fp16: write(o, R{d}, "=", op, R{x}); break;
                 case Op::trunc:     write(o, R{d}, "=", op, R{x}); break;
                 case Op::round:     write(o, R{d}, "=", op, R{x}); break;
+
+                case Op::duplicate: write(o, R{d}, "=", op, Hex{immA}); break;
             }
             write(o, "\n");
         }
     }
-
-    std::vector<Instruction> eliminate_dead_code(std::vector<Instruction> program) {
+    std::vector<Instruction> eliminate_dead_code(std::vector<Instruction> program,
+                                                 viz::Visualizer* visualizer) {
         // Determine which Instructions are live by working back from side effects.
         std::vector<bool> live(program.size(), false);
         for (Val id = program.size(); id--;) {
@@ -496,6 +517,11 @@ namespace skvm {
             }
         }
 
+        if (visualizer) {
+            visualizer->addInstructions(program);
+            visualizer->markAsDeadCode(live, new_id);
+        }
+
         // Eliminate any non-live ops.
         auto it = std::remove_if(program.begin(), program.end(), [&](const Instruction& inst) {
             Val id = (Val)(&inst - program.data());
@@ -506,7 +532,8 @@ namespace skvm {
         return program;
     }
 
-    std::vector<OptimizedInstruction> finalize(const std::vector<Instruction> program) {
+    std::vector<OptimizedInstruction> finalize(const std::vector<Instruction> program,
+                                               viz::Visualizer* visualizer) {
         std::vector<OptimizedInstruction> optimized(program.size());
         for (Val id = 0; id < (Val)program.size(); id++) {
             Instruction inst = program[id];
@@ -550,23 +577,38 @@ namespace skvm {
             }
         }
 
+        if (visualizer) {
+            visualizer->finalize(program, optimized);
+        }
+
         return optimized;
     }
 
-    std::vector<OptimizedInstruction> Builder::optimize() const {
+    std::vector<OptimizedInstruction> Builder::optimize(viz::Visualizer* visualizer) const {
         std::vector<Instruction> program = this->program();
-        program = eliminate_dead_code(std::move(program));
-        return    finalize           (std::move(program));
+        program = eliminate_dead_code(std::move(program), visualizer);
+        return    finalize           (std::move(program), visualizer);
     }
 
-    Program Builder::done(const char* debug_name, bool allow_jit) const {
+    Program Builder::done(const char* debug_name,
+                          bool allow_jit) const {
+        return this->done(debug_name, allow_jit, /*visualizer=*/nullptr);
+    }
+
+    Program Builder::done(const char* debug_name,
+                          bool allow_jit,
+                          std::unique_ptr<viz::Visualizer> visualizer) const {
         char buf[64] = "skvm-jit-";
         if (!debug_name) {
             *SkStrAppendU32(buf+9, this->hash()) = '\0';
             debug_name = buf;
         }
 
-        return {this->optimize(), fStrides, fTraceHooks, debug_name, allow_jit};
+        auto optimized = this->optimize(visualizer ? visualizer.get() : nullptr);
+        return {optimized,
+                std::move(visualizer),
+                fStrides,
+                fTraceHooks, debug_name, allow_jit};
     }
 
     uint64_t Builder::hash() const {
@@ -604,9 +646,15 @@ namespace skvm {
         // and index is varying but doesn't touch memory, so it's fine to dedup too.
         if (!touches_varying_memory(inst.op) && !is_trace(inst.op)) {
             if (Val* id = fIndex.find(inst)) {
+                if (fCreateDuplicates) {
+                    inst.op = Op::duplicate;
+                    inst.immA = *id;
+                    fProgram.push_back(inst);
+                }
                 return *id;
             }
         }
+
         Val id = static_cast<Val>(fProgram.size());
         fProgram.push_back(inst);
         fIndex.set(inst, id);
@@ -633,41 +681,43 @@ namespace skvm {
         return traceHookID;
     }
 
+    bool Builder::mergeMasks(I32& mask, I32& traceMask) {
+        if (this->isImm(mask.id,      0)) { return false; }
+        if (this->isImm(traceMask.id, 0)) { return false; }
+        if (this->isImm(mask.id,     ~0)) { mask = traceMask; }
+        if (this->isImm(traceMask.id,~0)) { traceMask = mask; }
+        return true;
+    }
+
     void Builder::trace_line(int traceHookID, I32 mask, I32 traceMask, int line) {
         SkASSERT(traceHookID >= 0);
         SkASSERT(traceHookID < (int)fTraceHooks.size());
-        if (this->isImm(mask.id,      0)) { return; }
-        if (this->isImm(traceMask.id, 0)) { return; }
-        if (this->isImm(mask.id,     ~0)) { mask = traceMask; }
-        if (this->isImm(traceMask.id,~0)) { traceMask = mask; }
+        if (!this->mergeMasks(mask, traceMask)) { return; }
         (void)push(Op::trace_line, mask.id,traceMask.id,NA,NA, traceHookID, line);
     }
     void Builder::trace_var(int traceHookID, I32 mask, I32 traceMask, int slot, I32 val) {
         SkASSERT(traceHookID >= 0);
         SkASSERT(traceHookID < (int)fTraceHooks.size());
-        if (this->isImm(mask.id,      0)) { return; }
-        if (this->isImm(traceMask.id, 0)) { return; }
-        if (this->isImm(mask.id,     ~0)) { mask = traceMask; }
-        if (this->isImm(traceMask.id,~0)) { traceMask = mask; }
+        if (!this->mergeMasks(mask, traceMask)) { return; }
         (void)push(Op::trace_var, mask.id,traceMask.id,val.id,NA, traceHookID, slot);
     }
     void Builder::trace_enter(int traceHookID, I32 mask, I32 traceMask, int fnIdx) {
         SkASSERT(traceHookID >= 0);
         SkASSERT(traceHookID < (int)fTraceHooks.size());
-        if (this->isImm(mask.id,      0)) { return; }
-        if (this->isImm(traceMask.id, 0)) { return; }
-        if (this->isImm(mask.id,     ~0)) { mask = traceMask; }
-        if (this->isImm(traceMask.id,~0)) { traceMask = mask; }
+        if (!this->mergeMasks(mask, traceMask)) { return; }
         (void)push(Op::trace_enter, mask.id,traceMask.id,NA,NA, traceHookID, fnIdx);
     }
     void Builder::trace_exit(int traceHookID, I32 mask, I32 traceMask, int fnIdx) {
         SkASSERT(traceHookID >= 0);
         SkASSERT(traceHookID < (int)fTraceHooks.size());
-        if (this->isImm(mask.id,      0)) { return; }
-        if (this->isImm(traceMask.id, 0)) { return; }
-        if (this->isImm(mask.id,     ~0)) { mask = traceMask; }
-        if (this->isImm(traceMask.id,~0)) { traceMask = mask; }
+        if (!this->mergeMasks(mask, traceMask)) { return; }
         (void)push(Op::trace_exit, mask.id,traceMask.id,NA,NA, traceHookID, fnIdx);
+    }
+    void Builder::trace_scope(int traceHookID, I32 mask, I32 traceMask, int delta) {
+        SkASSERT(traceHookID >= 0);
+        SkASSERT(traceHookID < (int)fTraceHooks.size());
+        if (!this->mergeMasks(mask, traceMask)) { return; }
+        (void)push(Op::trace_scope, mask.id,traceMask.id,NA,NA, traceHookID, delta);
     }
 
     void Builder::store8 (Ptr ptr, I32 val) { (void)push(Op::store8 , val.id,NA,NA,NA, ptr.ix); }
@@ -797,17 +847,27 @@ namespace skvm {
     }
 
     F32 Builder::approx_pow2(F32 x) {
+        constexpr float kInfinityBits = 0x7f800000;
+
         F32 f = fract(x);
         F32 approx = add(x,         121.274057500f);
             approx = sub(approx, mul( 1.490129070f, f));
             approx = add(approx, div(27.728023300f, sub(4.84252568f, f)));
+            approx = mul(1.0f * (1<<23), approx);
+            approx = clamp(approx, 0, kInfinityBits);  // guard against underflow/overflow
 
-        return pun_to_F32(round(mul(1.0f * (1<<23), approx)));
+        return pun_to_F32(round(approx));
     }
 
     F32 Builder::approx_powf(F32 x, F32 y) {
         // TODO: assert this instead?  Sometimes x is very slightly negative.  See skia:10210.
         x = max(0.0f, x);
+
+        if (this->isImm(x.id, 1.0f)) { return x; }                    // 1^y is one
+        if (this->isImm(x.id, 2.0f)) { return this->approx_pow2(y); } // 2^y is pow2(y)
+        if (this->isImm(y.id, 0.5f)) { return this->sqrt(x); }        // x^0.5 is sqrt(x)
+        if (this->isImm(y.id, 1.0f)) { return x; }                    // x^1 is x
+        if (this->isImm(y.id, 2.0f)) { return x * x; }                // x^2 is x*x
 
         auto is_x = bit_or(eq(x, 0.0f),
                            eq(x, 1.0f));
@@ -1143,8 +1203,9 @@ namespace skvm {
             case kA16_float_SkColorType:    return {FLOAT,  0, 0,0,16, 0, 0,0,0};
             case kR16G16_float_SkColorType: return {FLOAT, 16,16,0, 0, 0,16,0,0};
 
-            case kAlpha_8_SkColorType: return {UNORM, 0,0,0,8, 0,0,0,0};
-            case kGray_8_SkColorType:  return {UNORM, 8,8,8,0, 0,0,0,0};  // Subtle.
+            case kAlpha_8_SkColorType:  return {UNORM, 0,0,0,8, 0,0,0,0};
+            case kGray_8_SkColorType:   return {UNORM, 8,8,8,0, 0,0,0,0};  // Subtle.
+            case kR8_unorm_SkColorType: return {UNORM, 8,0,0,0, 0,0,0,0};
 
             case kRGB_565_SkColorType:   return {UNORM, 5,6,5,0, 11,5,0,0};  // (BGR)
             case kARGB_4444_SkColorType: return {UNORM, 4,4,4,4, 12,8,4,0};  // (ABGR)
@@ -2657,6 +2718,7 @@ namespace skvm {
                 case Op::trace_var:
                 case Op::trace_enter:
                 case Op::trace_exit:
+                case Op::trace_scope:
                     /* Force this program to run in the interpreter. */
                     return false;
 
@@ -3058,9 +3120,11 @@ namespace skvm {
     }
 
     Program::Program(const std::vector<OptimizedInstruction>& instructions,
+                     std::unique_ptr<viz::Visualizer> visualizer,
                      const std::vector<int>& strides,
                      const std::vector<TraceHook*>& traceHooks,
                      const char* debug_name, bool allow_jit) : Program() {
+        fImpl->visualizer = std::move(visualizer);
         fImpl->strides = strides;
         fImpl->traceHooks = traceHooks;
         if (gSkVMAllowJIT && allow_jit) {
@@ -3595,6 +3659,7 @@ namespace skvm {
                 case Op::trace_var:
                 case Op::trace_enter:
                 case Op::trace_exit:
+                case Op::trace_scope:
                     /* Force this program to run in the interpreter. */
                     return false;
 
@@ -3952,6 +4017,8 @@ namespace skvm {
                     a->vcvtph2ps(dst(), dst());        // f16 xmm -> f32 ymm
                     break;
 
+                case Op::duplicate: break;
+
             #elif defined(__aarch64__)
                 case Op::assert_true: {
                     a->uminv4s(dst(), r(x));   // uminv acts like an all() across the vector.
@@ -3966,6 +4033,7 @@ namespace skvm {
                 case Op::trace_var:
                 case Op::trace_enter:
                 case Op::trace_exit:
+                case Op::trace_scope:
                     /* Force this program to run in the interpreter. */
                     return false;
 
@@ -4212,6 +4280,8 @@ namespace skvm {
                     a->xtns2h(dst(x), r(x));     // pack even 16-bit lanes into bottom four lanes
                     a->fcvtl (dst(), dst());     // 4x f16 -> 4x f32
                     break;
+
+                case Op::duplicate: break;
             #endif
             }
 
@@ -4244,8 +4314,16 @@ namespace skvm {
 
         enter();
         for (Val id = 0; id < (Val)instructions.size(); id++) {
+            if (fImpl->visualizer && is_trace(instructions[id].op)) {
+                // Make sure trace commands stay on JIT for visualizer
+                continue;
+            }
+            auto start = a->size();
             if (instructions[id].can_hoist && !emit(id, /*scalar=*/false)) {
                 return false;
+            }
+            if (fImpl->visualizer && instructions[id].can_hoist) {
+                fImpl->visualizer->addMachineCommands(id, start, a->size());
             }
         }
 
@@ -4272,8 +4350,16 @@ namespace skvm {
             a->cmp(N, K);
             jump_if_less(&tail);
             for (Val id = 0; id < (Val)instructions.size(); id++) {
+                if (fImpl->visualizer != nullptr && is_trace(instructions[id].op)) {
+                    // Make sure trace commands stay on JIT for visualizer
+                    continue;
+                }
+                auto start = a->size();
                 if (!instructions[id].can_hoist && !emit(id, /*scalar=*/false)) {
                     return false;
+                }
+                if (fImpl->visualizer && !instructions[id].can_hoist) {
+                    fImpl->visualizer->addMachineCommands(id, start, a->size());
                 }
             }
             restore_incoming_regs();
@@ -4291,6 +4377,10 @@ namespace skvm {
             a->cmp(N, 1);
             jump_if_less(&done);
             for (Val id = 0; id < (Val)instructions.size(); id++) {
+                if (fImpl->visualizer && is_trace(instructions[id].op)) {
+                    // Make sure trace commands stay on JIT for visualizer
+                    continue;
+                }
                 if (!instructions[id].can_hoist && !emit(id, /*scalar=*/true)) {
                     return false;
                 }

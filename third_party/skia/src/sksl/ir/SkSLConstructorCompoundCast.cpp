@@ -52,7 +52,7 @@ static std::unique_ptr<Expression> cast_constant_composite(const Context& contex
     ExpressionArray typecastArgs;
     typecastArgs.reserve_back(numSlots);
     for (size_t index = 0; index < numSlots; ++index) {
-        skstd::optional<double> slotVal = constCtor->getConstantValue(index);
+        std::optional<double> slotVal = constCtor->getConstantValue(index);
         if (scalarType.checkForOutOfRangeLiteral(context, *slotVal, constCtor->fLine)) {
             // We've reported an error because the literal is out of range for this type. Zero out
             // the value to avoid a cascade of errors.
@@ -78,7 +78,7 @@ std::unique_ptr<Expression> ConstructorCompoundCast::Make(const Context& context
     SkASSERT(type.rows() == arg->type().rows());
 
     // If this is a no-op cast, return the expression as-is.
-    if (type == arg->type()) {
+    if (type.matches(arg->type())) {
         return arg;
     }
     // Look up the value of constant variables. This allows constant-expressions like

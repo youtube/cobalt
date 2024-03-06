@@ -15,6 +15,7 @@
 #include "src/gpu/GrGeometryProcessor.h"
 #include "src/gpu/GrMemoryPool.h"
 #include "src/gpu/GrProgramInfo.h"
+#include "src/gpu/KeyBuilder.h"
 #include "src/gpu/SkGr.h"
 #include "src/gpu/glsl/GrGLSLColorSpaceXformHelper.h"
 #include "src/gpu/glsl/GrGLSLFragmentShaderBuilder.h"
@@ -65,7 +66,7 @@ public:
                 varyingHandler->emitAttributes(gp);
 
                 // Setup color
-                GrGLSLVarying varying(kHalf4_GrSLType);
+                GrGLSLVarying varying(SkSLType::kHalf4);
                 varyingHandler->addVarying("color", &varying);
                 vertBuilder->codeAppendf("half4 color = %s;", gp.fInColor.name());
 
@@ -94,7 +95,7 @@ public:
         return std::make_unique<Impl>();
     }
 
-    void addToKey(const GrShaderCaps&, GrProcessorKeyBuilder* b) const override {
+    void addToKey(const GrShaderCaps&, skgpu::KeyBuilder* b) const override {
         b->add32(fMode);
         b->add32(GrColorSpaceXform::XformKey(fColorSpaceXform.get()));
     }
@@ -104,20 +105,20 @@ private:
             : INHERITED(kVertexColorSpaceBenchGP_ClassID)
             , fMode(mode)
             , fColorSpaceXform(std::move(colorSpaceXform)) {
-        fInPosition = {"inPosition", kFloat2_GrVertexAttribType, kFloat2_GrSLType};
+        fInPosition = {"inPosition", kFloat2_GrVertexAttribType, SkSLType::kFloat2};
         switch (fMode) {
             case kBaseline_Mode:
             case kShader_Mode:
-                fInColor = {"inColor", kUByte4_norm_GrVertexAttribType, kHalf4_GrSLType};
+                fInColor = {"inColor", kUByte4_norm_GrVertexAttribType, SkSLType::kHalf4};
                 break;
             case kFloat_Mode:
-                fInColor = {"inColor", kFloat4_GrVertexAttribType, kHalf4_GrSLType};
+                fInColor = {"inColor", kFloat4_GrVertexAttribType, SkSLType::kHalf4};
                 break;
             case kHalf_Mode:
-                fInColor = {"inColor", kHalf4_GrVertexAttribType, kHalf4_GrSLType};
+                fInColor = {"inColor", kHalf4_GrVertexAttribType, SkSLType::kHalf4};
                 break;
         }
-        this->setVertexAttributes(&fInPosition, 2);
+        this->setVertexAttributesWithImplicitOffsets(&fInPosition, 2);
     }
 
     Mode fMode;

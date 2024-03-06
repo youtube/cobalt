@@ -24,7 +24,7 @@ class Gpu;
 
 class ResourceProvider final : public skgpu::ResourceProvider {
 public:
-    ResourceProvider(const skgpu::Gpu* gpu);
+    ResourceProvider(const skgpu::Gpu* gpu, sk_sp<GlobalCache>, SingleOwner*);
     ~ResourceProvider() override {}
 
     sk_sp<skgpu::Texture> createWrappedTexture(const BackendTexture&) override;
@@ -36,9 +36,14 @@ private:
     const Gpu* mtlGpu();
 
     sk_sp<skgpu::CommandBuffer> createCommandBuffer() override;
-    sk_sp<skgpu::GraphicsPipeline> onCreateGraphicsPipeline(const GraphicsPipelineDesc&) override;
+    sk_sp<skgpu::GraphicsPipeline> onCreateGraphicsPipeline(const GraphicsPipelineDesc&,
+                                                            const RenderPassDesc&) override;
     sk_sp<skgpu::Texture> createTexture(SkISize, const skgpu::TextureInfo&) override;
     sk_sp<skgpu::Buffer> createBuffer(size_t size, BufferType type, PrioritizeGpuReads) override;
+
+    sk_sp<skgpu::Sampler> createSampler(const SkSamplingOptions&,
+                                        SkTileMode xTileMode,
+                                        SkTileMode yTileMode) override;
 
     SkTHashMap<DepthStencilSettings, sk_cfp<id<MTLDepthStencilState>>> fDepthStencilStates;
 };

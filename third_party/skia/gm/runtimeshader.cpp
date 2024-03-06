@@ -17,6 +17,7 @@
 #include "include/effects/SkImageFilters.h"
 #include "include/effects/SkRuntimeEffect.h"
 #include "include/utils/SkRandom.h"
+#include "src/core/SkColorSpacePriv.h"
 #include "tools/Resources.h"
 
 enum RT_Flags {
@@ -77,7 +78,7 @@ public:
         builder.uniform("gColor") = SkColor4f{1, 0, 0, 1};
 
         SkPaint p;
-        p.setShader(builder.makeShader(&localM, true));
+        p.setShader(builder.makeShader(&localM));
         canvas->drawRect({0, 0, 256, 256}, p);
     }
 };
@@ -167,7 +168,7 @@ public:
         builder.child("threshold_map") = fThreshold;
 
         SkPaint paint;
-        paint.setShader(builder.makeShader(nullptr, true));
+        paint.setShader(builder.makeShader());
         canvas->drawRect({0, 0, 256, 256}, paint);
 
         auto draw = [&](SkScalar x, SkScalar y, sk_sp<SkShader> shader) {
@@ -213,7 +214,7 @@ public:
         builder.uniform("in_colors1") = SkColors::kGreen;
 
         SkPaint paint;
-        paint.setShader(builder.makeShader(nullptr, true));
+        paint.setShader(builder.makeShader());
         canvas->drawRect({0, 0, 512, 512}, paint);
     }
 };
@@ -254,7 +255,7 @@ public:
         builder.child("child") = fMandrill->makeShader(sampling);
 
         SkPaint paint;
-        paint.setShader(builder.makeShader(nullptr, true));
+        paint.setShader(builder.makeShader());
         canvas->translate(256, 0);
         canvas->drawRect({ 0, 0, 256, 256 }, paint);
     }
@@ -330,13 +331,13 @@ public:
 
         // Now draw the image with an identity color cube - it should look like the original
         builder.child("color_cube") = fIdentityCube->makeShader(sampling, normalize);
-        paint.setShader(builder.makeShader(nullptr, true));
+        paint.setShader(builder.makeShader());
         canvas->translate(256, 0);
         canvas->drawRect({ 0, 0, 256, 256 }, paint);
 
         // ... and with a sepia-tone color cube. This should match the sepia-toned image.
         builder.child("color_cube") = fSepiaCube->makeShader(sampling, normalize);
-        paint.setShader(builder.makeShader(nullptr, true));
+        paint.setShader(builder.makeShader());
         canvas->translate(0, 256);
         canvas->drawRect({ 0, 0, 256, 256 }, paint);
     }
@@ -446,13 +447,13 @@ public:
         // First, we leave the child as null, so sampling it returns the default (paint) color
         SkPaint paint;
         paint.setColor4f({ 0.25f, 0.75f, 0.75f, 1.0f });
-        paint.setShader(builder.makeShader(nullptr, false));
+        paint.setShader(builder.makeShader());
         canvas->drawRect({ 0, 0, 256, 256 }, paint);
 
         // Now we bind an image shader as the child. This (by convention) scales by the paint alpha
         builder.child("child") = fMandrill->makeShader(SkSamplingOptions());
         paint.setColor4f({ 1.0f, 1.0f, 1.0f, 0.5f });
-        paint.setShader(builder.makeShader(nullptr, false));
+        paint.setShader(builder.makeShader());
         canvas->translate(256, 0);
         canvas->drawRect({ 0, 0, 256, 256 }, paint);
 
@@ -542,7 +543,7 @@ public:
         SkMatrix cornerToLocal;
         cornerToLocal.setScaleTranslate(cornerWidth, cornerHeight, superRRect.centerX(),
                                         superRRect.centerY());
-        canvas->clipShader(builder.makeShader(&cornerToLocal, false));
+        canvas->clipShader(builder.makeShader(&cornerToLocal));
 
         // Bloat the outer edges of the rect we will draw so it contains all the antialiased pixels.
         // Bloat by a full pixel instead of half in case Skia is in a mode that draws this rect with
@@ -620,6 +621,60 @@ DEF_GM(return new ClipSuperRRect("clip_super_rrect_pow3.5", 3.5);)
 // DEF_GM(return new ClipSuperRRect("clip_super_rrect_pow4.5", 4.5);)
 // DEF_GM(return new ClipSuperRRect("clip_super_rrect_pow5", 5);)
 
+class LinearGradientRT : public RuntimeShaderGM {
+public:
+    LinearGradientRT() : RuntimeShaderGM("linear_gradient_rt", {256 + 10, 128 + 15}, R"(
+        layout(color) uniform vec4 in_colors0;
+        layout(color) uniform vec4 in_colors1;
+
+        vec4 main(vec2 p) {
+            float t = p.x / 256;
+            if (p.y < 32) {
+                return mix(in_colors0, in_colors1, t);
+            } else {
+                vec3 linColor0 = toLinearSrgb(in_colors0.rgb);
+                vec3 linColor1 = toLinearSrgb(in_colors1.rgb);
+                vec3 linColor = mix(linColor0, linColor1, t);
+                return fromLinearSrgb(linColor).rgb1;
+            }
+        }
+    )") {}
+
+    void onDraw(SkCanvas* canvas) override {
+        // Colors chosen to use values other than 0 and 1 - so that it's obvious if the conversion
+        // intrinsics are doing anything. (Most transfer functions map 0 -> 0 and 1 -> 1).
+        SkRuntimeShaderBuilder builder(fEffect);
+        builder.uniform("in_colors0") = SkColor4f{0.75f, 0.25f, 0.0f, 1.0f};
+        builder.uniform("in_colors1") = SkColor4f{0.0f, 0.75f, 0.25f, 1.0f};
+        SkPaint paint;
+        paint.setShader(builder.makeShader());
+
+        canvas->save();
+        canvas->clear(SK_ColorWHITE);
+        canvas->translate(5, 5);
+
+        // We draw everything twice. First to a surface with no color management, where the
+        // intrinsics should do nothing (eg, the top bar should look the same in the top and bottom
+        // halves). Then to an sRGB surface, where they should produce linearly interpolated
+        // gradients (the bottom half of the second bar should be brighter than the top half).
+        for (auto cs : {static_cast<SkColorSpace*>(nullptr), sk_srgb_singleton()}) {
+            SkImageInfo info = SkImageInfo::Make(
+                    256, 64, kN32_SkColorType, kPremul_SkAlphaType, sk_ref_sp(cs));
+            auto surface = canvas->makeSurface(info);
+            if (!surface) {
+                surface = SkSurface::MakeRaster(info);
+            }
+
+            surface->getCanvas()->drawRect({0, 0, 256, 64}, paint);
+            canvas->drawImage(surface->makeImageSnapshot(), 0, 0);
+            canvas->translate(0, 64 + 5);
+        }
+
+        canvas->restore();
+    }
+};
+DEF_GM(return new LinearGradientRT;)
+
 DEF_SIMPLE_GM(child_sampling_rt, canvas, 256,256) {
     static constexpr char scale[] =
         "uniform shader child;"
@@ -639,7 +694,7 @@ DEF_SIMPLE_GM(child_sampling_rt, canvas, 256,256) {
 
     SkRuntimeShaderBuilder builder(SkRuntimeEffect::MakeForShader(SkString(scale)).effect);
     builder.child("child") = shader;
-    p.setShader(builder.makeShader(nullptr, false));
+    p.setShader(builder.makeShader());
 
     canvas->drawPaint(p);
 }
@@ -655,7 +710,7 @@ static sk_sp<SkShader> normal_map_shader() {
         }
     )";
     auto effect = SkRuntimeEffect::MakeForShader(SkString(kSrc)).effect;
-    return effect->makeShader(nullptr, {}, nullptr, true);
+    return effect->makeShader(nullptr, {});
 }
 
 static sk_sp<SkImage> normal_map_image() {
@@ -700,7 +755,7 @@ static sk_sp<SkShader> normal_map_raw_unpremul_image_shader() {
 }
 
 static sk_sp<SkShader> lit_shader(sk_sp<SkShader> normals) {
-    // Simple N.L against a fixed, directional light:
+    // Simple N-dot-L against a fixed, directional light:
     static const char* kSrc = R"(
         uniform shader normals;
         half4 main(vec2 p) {
@@ -710,7 +765,21 @@ static sk_sp<SkShader> lit_shader(sk_sp<SkShader> normals) {
         }
     )";
     auto effect = SkRuntimeEffect::MakeForShader(SkString(kSrc)).effect;
-    return effect->makeShader(nullptr, &normals, 1, nullptr, true);
+    return effect->makeShader(nullptr, &normals, 1);
+}
+
+static sk_sp<SkShader> lit_shader_linear(sk_sp<SkShader> normals) {
+    // Simple N-dot-L against a fixed, directional light, done in linear space:
+    static const char* kSrc = R"(
+        uniform shader normals;
+        half4 main(vec2 p) {
+            vec3 n = normalize(normals.eval(p).xyz * 2 - 1);
+            vec3 l = normalize(vec3(1, -1, 1));
+            return fromLinearSrgb(saturate(dot(n, l)).xxx).xxx1;
+        }
+    )";
+    auto effect = SkRuntimeEffect::MakeForShader(SkString(kSrc)).effect;
+    return effect->makeShader(nullptr, &normals, 1);
 }
 
 DEF_SIMPLE_GM(paint_alpha_normals_rt, canvas, 512,512) {
@@ -788,4 +857,35 @@ DEF_SIMPLE_GM(raw_image_shader_normals_rt, canvas, 768, 512) {
     // encoded normals, even with zero alpha:
     draw_shader(512, 0, lit_shader(normal_map_unpremul_image_shader()), canvas);
     draw_shader(512, 256, lit_shader(normal_map_raw_unpremul_image_shader()), canvas);
+}
+
+DEF_SIMPLE_GM(lit_shader_linear_rt, canvas, 512, 256) {
+    // First, make an offscreen surface, so we can control the destination color space:
+    auto surfInfo = SkImageInfo::Make(512, 256,
+                                      kN32_SkColorType,
+                                      kPremul_SkAlphaType,
+                                      SkColorSpace::MakeSRGB());
+    auto surface = canvas->makeSurface(surfInfo);
+    if (!surface) {
+        surface = SkSurface::MakeRaster(surfInfo);
+    }
+
+    auto draw_shader = [](int x, int y, sk_sp<SkShader> shader, SkCanvas* canvas) {
+        SkPaint p;
+        p.setShader(shader);
+
+        canvas->save();
+        canvas->translate(x, y);
+        canvas->clipRect({0, 0, 256, 256});
+        canvas->drawPaint(p);
+        canvas->restore();
+    };
+
+    // We draw two lit spheres - one does math in the working space (so gamma-encoded). The second
+    // works in linear space, then converts to sRGB. This produces (more accurate) sharp falloff:
+    draw_shader(0, 0, lit_shader(normal_map_shader()), surface->getCanvas());
+    draw_shader(256, 0, lit_shader_linear(normal_map_shader()), surface->getCanvas());
+
+    // Now draw the offscreen surface back to our original canvas:
+    canvas->drawImage(surface->makeImageSnapshot(), 0, 0);
 }

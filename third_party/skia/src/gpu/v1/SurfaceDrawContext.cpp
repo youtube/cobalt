@@ -18,6 +18,7 @@
 #include "include/utils/SkShadowUtils.h"
 #include "src/core/SkAutoPixmapStorage.h"
 #include "src/core/SkConvertPixels.h"
+#include "src/core/SkCustomMeshPriv.h"
 #include "src/core/SkDrawProcs.h"
 #include "src/core/SkDrawShadowInfo.h"
 #include "src/core/SkGlyphRunPainter.h"
@@ -30,6 +31,7 @@
 #include "src/gpu/GrCaps.h"
 #include "src/gpu/GrClip.h"
 #include "src/gpu/GrColor.h"
+#include "src/gpu/GrColorSpaceXform.h"
 #include "src/gpu/GrDataUtils.h"
 #include "src/gpu/GrDirectContextPriv.h"
 #include "src/gpu/GrDrawingManager.h"
@@ -55,7 +57,7 @@
 #include "src/gpu/geometry/GrStyledShape.h"
 #include "src/gpu/ops/ClearOp.h"
 #include "src/gpu/ops/DrawAtlasOp.h"
-#include "src/gpu/ops/DrawVerticesOp.h"
+#include "src/gpu/ops/DrawCustomMeshOp.h"
 #include "src/gpu/ops/DrawableOp.h"
 #include "src/gpu/ops/FillRRectOp.h"
 #include "src/gpu/ops/FillRectOp.h"
@@ -68,11 +70,11 @@
 #include "src/gpu/ops/StrokeRectOp.h"
 #include "src/gpu/ops/TextureOp.h"
 #include "src/gpu/text/GrSDFTControl.h"
-#include "src/gpu/text/GrTextBlobCache.h"
+#include "src/gpu/text/GrTextBlobRedrawCoordinator.h"
 #include "src/gpu/v1/PathRenderer.h"
 
 #define ASSERT_OWNED_RESOURCE(R) SkASSERT(!(R) || (R)->getContext() == this->drawingManager()->getContext())
-#define ASSERT_SINGLE_OWNER        GR_ASSERT_SINGLE_OWNER(this->singleOwner())
+#define ASSERT_SINGLE_OWNER        SKGPU_ASSERT_SINGLE_OWNER(this->singleOwner())
 #define RETURN_IF_ABANDONED        if (fContext->abandoned()) { return; }
 #define RETURN_FALSE_IF_ABANDONED  if (fContext->abandoned()) { return false; }
 
@@ -135,8 +137,8 @@ std::unique_ptr<SurfaceDrawContext> SurfaceDrawContext::Make(GrRecordingContext*
     }
 
     const GrBackendFormat& format = proxy->backendFormat();
-    GrSwizzle readSwizzle = rContext->priv().caps()->getReadSwizzle(format, colorType);
-    GrSwizzle writeSwizzle = rContext->priv().caps()->getWriteSwizzle(format, colorType);
+    skgpu::Swizzle readSwizzle = rContext->priv().caps()->getReadSwizzle(format, colorType);
+    skgpu::Swizzle writeSwizzle = rContext->priv().caps()->getWriteSwizzle(format, colorType);
 
     GrSurfaceProxyView readView (          proxy,  origin, readSwizzle);
     GrSurfaceProxyView writeView(std::move(proxy), origin, writeSwizzle);
@@ -159,8 +161,8 @@ std::unique_ptr<SurfaceDrawContext> SurfaceDrawContext::Make(
         int sampleCnt,
         GrMipmapped mipMapped,
         GrProtected isProtected,
-        GrSwizzle readSwizzle,
-        GrSwizzle writeSwizzle,
+        skgpu::Swizzle readSwizzle,
+        skgpu::Swizzle writeSwizzle,
         GrSurfaceOrigin origin,
         SkBudgeted budgeted,
         const SkSurfaceProps& surfaceProps) {
@@ -324,7 +326,8 @@ void SurfaceDrawContext::willReplaceOpsTask(OpsTask* prevTask, OpsTask* nextTask
 #endif
 }
 
-void SurfaceDrawContext::drawGlyphRunListNoCache(const GrClip* clip,
+void SurfaceDrawContext::drawGlyphRunListNoCache(SkCanvas* canvas,
+                                                 const GrClip* clip,
                                                  const SkMatrixProvider& viewMatrix,
                                                  const SkGlyphRunList& glyphRunList,
                                                  const SkPaint& paint) {
@@ -335,67 +338,21 @@ void SurfaceDrawContext::drawGlyphRunListNoCache(const GrClip* clip,
     drawMatrix.preTranslate(drawOrigin.x(), drawOrigin.y());
     GrSubRunAllocator* const alloc = this->subRunAlloc();
 
-    GrSubRunNoCachePainter painter{this, alloc, clip, viewMatrix, glyphRunList, paint};
+    GrSubRunNoCachePainter painter{canvas, this, alloc, clip, viewMatrix, glyphRunList, paint};
     for (auto& glyphRun : glyphRunList) {
         // Make and add the text ops.
-        fGlyphPainter.processGlyphRun(glyphRun,
+        fGlyphPainter.processGlyphRun(&painter,
+                                      glyphRun,
                                       drawMatrix,
                                       paint,
-                                      control,
-                                      &painter);
-    }
-}
-
-void SurfaceDrawContext::drawGlyphRunListWithCache(const GrClip* clip,
-                                                   const SkMatrixProvider& viewMatrix,
-                                                   const SkGlyphRunList& glyphRunList,
-                                                   const SkPaint& paint) {
-    SkMatrix positionMatrix{viewMatrix.localToDevice()};
-    positionMatrix.preTranslate(glyphRunList.origin().x(), glyphRunList.origin().y());
-
-    GrSDFTControl control =
-            this->recordingContext()->priv().getSDFTControl(
-                    this->surfaceProps().isUseDeviceIndependentFonts());
-
-    auto [canCache, key] = GrTextBlob::Key::Make(glyphRunList,
-                                                 paint,
-                                                 fSurfaceProps,
-                                                 this->colorInfo(),
-                                                 positionMatrix,
-                                                 control);
-
-    sk_sp<GrTextBlob> blob;
-    GrTextBlobCache* textBlobCache = fContext->priv().getTextBlobCache();
-    if (canCache) {
-        blob = textBlobCache->find(key);
-    }
-
-    if (blob == nullptr || !blob->canReuse(paint, positionMatrix)) {
-        if (blob != nullptr) {
-            // We have to remake the blob because changes may invalidate our masks.
-            // TODO we could probably get away with reuse most of the time if the pointer is unique,
-            //      but we'd have to clear the SubRun information
-            textBlobCache->remove(blob.get());
-        }
-
-        blob = GrTextBlob::Make(glyphRunList, paint, positionMatrix, control, &fGlyphPainter);
-
-        if (canCache) {
-            blob->addKey(key);
-            // The blob may already have been created on a different thread. Use the first one
-            // that was there.
-            blob = textBlobCache->addOrReturnExisting(glyphRunList, blob);
-        }
-    }
-
-    for (const GrSubRun& subRun : blob->subRunList()) {
-        subRun.draw(clip, viewMatrix, glyphRunList.origin(), paint, this);
+                                      control);
     }
 }
 
 // choose to use the GrTextBlob cache or not.
 bool gGrDrawTextNoCache = false;
-void SurfaceDrawContext::drawGlyphRunList(const GrClip* clip,
+void SurfaceDrawContext::drawGlyphRunList(SkCanvas* canvas,
+                                          const GrClip* clip,
                                           const SkMatrixProvider& viewMatrix,
                                           const SkGlyphRunList& glyphRunList,
                                           const SkPaint& paint) {
@@ -415,9 +372,10 @@ void SurfaceDrawContext::drawGlyphRunList(const GrClip* clip,
         // If the glyphRunList does not have an associated text blob, then it was created by one of
         // the direct draw APIs (drawGlyphs, etc.). There is no need to create a GrTextBlob just
         // build the sub run directly and place it in the op.
-        this->drawGlyphRunListNoCache(clip, viewMatrix, glyphRunList, paint);
+        this->drawGlyphRunListNoCache(canvas, clip, viewMatrix, glyphRunList, paint);
     } else {
-        this->drawGlyphRunListWithCache(clip, viewMatrix, glyphRunList, paint);
+        GrTextBlobRedrawCoordinator* textBlobCache = fContext->priv().getTextBlobCache();
+        textBlobCache->drawGlyphRunList(canvas, clip, viewMatrix, glyphRunList, paint, this);
     }
 }
 
@@ -988,13 +946,40 @@ void SurfaceDrawContext::drawVertices(const GrClip* clip,
 
     SkASSERT(vertices);
     GrAAType aaType = fCanUseDynamicMSAA ? GrAAType::kMSAA : this->chooseAAType(GrAA::kNo);
-    GrOp::Owner op = DrawVerticesOp::Make(fContext,
-                                          std::move(paint),
-                                          std::move(vertices),
-                                          matrixProvider,
-                                          aaType,
-                                          this->colorInfo().refColorSpaceXformFromSRGB(),
-                                          overridePrimType);
+    GrOp::Owner op = DrawCustomMeshOp::Make(fContext,
+                                            std::move(paint),
+                                            std::move(vertices),
+                                            overridePrimType,
+                                            matrixProvider,
+                                            aaType,
+                                            this->colorInfo().refColorSpaceXformFromSRGB());
+    this->addDrawOp(clip, std::move(op));
+}
+
+void SurfaceDrawContext::drawCustomMesh(const GrClip* clip,
+                                        GrPaint&& paint,
+                                        const SkMatrixProvider& matrixProvider,
+                                        SkCustomMesh cm) {
+    ASSERT_SINGLE_OWNER
+    RETURN_IF_ABANDONED
+    SkDEBUGCODE(this->validate();)
+    GR_CREATE_TRACE_MARKER_CONTEXT("SurfaceDrawContext", "drawVertices", fContext);
+
+    AutoCheckFlush acf(this->drawingManager());
+
+    SkASSERT(SkValidateCustomMesh(cm));
+
+    auto xform = GrColorSpaceXform::Make(SkCustomMeshSpecificationPriv::ColorSpace(*cm.spec),
+                                         SkCustomMeshSpecificationPriv::AlphaType(*cm.spec),
+                                         this->colorInfo().colorSpace(),
+                                         this->colorInfo().alphaType());
+    GrAAType aaType = fCanUseDynamicMSAA ? GrAAType::kMSAA : this->chooseAAType(GrAA::kNo);
+    GrOp::Owner op = DrawCustomMeshOp::Make(fContext,
+                                            std::move(paint),
+                                            std::move(cm),
+                                            matrixProvider,
+                                            aaType,
+                                            std::move(xform));
     this->addDrawOp(clip, std::move(op));
 }
 
@@ -1702,17 +1687,41 @@ void SurfaceDrawContext::drawStrokedLine(const GrClip* clip,
     parallel *= halfWidth;
 
     SkVector ortho = { parallel.fY, -parallel.fX };
-    if (SkPaint::kButt_Cap == stroke.getCap()) {
-        // No extra extension for butt caps
-        parallel = {0.f, 0.f};
+    SkPoint p0 = points[0], p1 = points[1];
+    if (stroke.getCap() == SkPaint::kSquare_Cap) {
+        // Extra extension for square caps
+        p0 -= parallel;
+        p1 += parallel;
     }
+
+    // If we are using dmsaa or reduced shader mode then attempt to draw with FillRRectOp.
+    if (this->caps()->drawInstancedSupport() &&
+        (this->alwaysAntialias() ||
+         (fContext->priv().caps()->reducedShaderMode() && aa == GrAA::kYes))) {
+        SkMatrix localMatrix = SkMatrix::MakeAll(p1.fX - p0.fX, ortho.fX, p0.fX,
+                                                 p1.fY - p0.fY, ortho.fY, p0.fY,
+                                                 0, 0, 1);
+        if (auto op = FillRRectOp::Make(fContext,
+                                        this->arenaAlloc(),
+                                        std::move(paint),
+                                        SkMatrix::Concat(viewMatrix, localMatrix),
+                                        SkRRect::MakeRect({0,-1,1,1}),
+                                        localMatrix,
+                                        GrAA::kYes)) {
+            this->addDrawOp(clip, std::move(op));
+            return;
+        }
+    }
+
     // Order is TL, TR, BR, BL where arbitrarily "down" is p0 to p1 and "right" is positive
-    SkPoint corners[4] = { points[0] - ortho - parallel,
-                           points[0] + ortho - parallel,
-                           points[1] + ortho + parallel,
-                           points[1] - ortho + parallel };
+    SkPoint corners[4] = { p0 - ortho,
+                           p0 + ortho,
+                           p1 + ortho,
+                           p1 - ortho };
 
     GrQuadAAFlags edgeAA = (aa == GrAA::kYes) ? GrQuadAAFlags::kAll : GrQuadAAFlags::kNone;
+
+    assert_alive(paint);
     this->fillQuadWithEdgeAA(clip, std::move(paint), aa, edgeAA, viewMatrix, corners, nullptr);
 }
 

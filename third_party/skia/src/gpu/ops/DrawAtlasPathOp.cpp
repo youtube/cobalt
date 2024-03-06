@@ -13,6 +13,7 @@
 #include "src/gpu/GrOpsRenderPass.h"
 #include "src/gpu/GrProgramInfo.h"
 #include "src/gpu/GrResourceProvider.h"
+#include "src/gpu/KeyBuilder.h"
 #include "src/gpu/glsl/GrGLSLFragmentShaderBuilder.h"
 #include "src/gpu/glsl/GrGLSLVarying.h"
 #include "src/gpu/glsl/GrGLSLVertexGeoBuilder.h"
@@ -32,19 +33,19 @@ public:
                            fAtlasHelper->atlasSwizzle()) {
         if (!shaderCaps.vertexIDSupport()) {
             constexpr static Attribute kUnitCoordAttrib(
-                    "unitCoord", kFloat2_GrVertexAttribType, kFloat2_GrSLType);
-            this->setVertexAttributes(&kUnitCoordAttrib, 1);
+                    "unitCoord", kFloat2_GrVertexAttribType, SkSLType::kFloat2);
+            this->setVertexAttributesWithImplicitOffsets(&kUnitCoordAttrib, 1);
         }
-        fAttribs.emplace_back("fillBounds", kFloat4_GrVertexAttribType, kFloat4_GrSLType);
+        fAttribs.emplace_back("fillBounds", kFloat4_GrVertexAttribType, SkSLType::kFloat4);
         if (fUsesLocalCoords) {
-            fAttribs.emplace_back("affineMatrix", kFloat4_GrVertexAttribType, kFloat4_GrSLType);
-            fAttribs.emplace_back("translate", kFloat2_GrVertexAttribType, kFloat2_GrSLType);
+            fAttribs.emplace_back("affineMatrix", kFloat4_GrVertexAttribType, SkSLType::kFloat4);
+            fAttribs.emplace_back("translate", kFloat2_GrVertexAttribType, SkSLType::kFloat2);
         }
         SkASSERT(fAttribs.count() == this->colorAttribIdx());
-        fAttribs.emplace_back("color", kFloat4_GrVertexAttribType, kHalf4_GrSLType);
+        fAttribs.emplace_back("color", kFloat4_GrVertexAttribType, SkSLType::kHalf4);
         fAtlasHelper->appendInstanceAttribs(&fAttribs);
         SkASSERT(fAttribs.count() <= kMaxInstanceAttribs);
-        this->setInstanceAttributes(fAttribs.data(), fAttribs.count());
+        this->setInstanceAttributesWithImplicitOffsets(fAttribs.data(), fAttribs.count());
         this->setTextureSamplerCnt(1);
     }
 
@@ -53,7 +54,7 @@ private:
 
     int colorAttribIdx() const { return fUsesLocalCoords ? 3 : 1; }
     const char* name() const override { return "DrawAtlasPathShader"; }
-    void addToKey(const GrShaderCaps&, GrProcessorKeyBuilder* b) const override {
+    void addToKey(const GrShaderCaps&, skgpu::KeyBuilder* b) const override {
         b->addBits(1, fUsesLocalCoords, "localCoords");
         fAtlasHelper->getKeyBits(b);
     }
@@ -90,13 +91,13 @@ private:
 
         args.fVertBuilder->codeAppendf(R"(
         float2 devCoord = mix(fillBounds.xy, fillBounds.zw, unitCoord);)");
-        gpArgs->fPositionVar.set(kFloat2_GrSLType, "devCoord");
+        gpArgs->fPositionVar.set(SkSLType::kFloat2, "devCoord");
 
         if (shader.fUsesLocalCoords) {
             args.fVertBuilder->codeAppendf(R"(
             float2x2 M = float2x2(affineMatrix);
             float2 localCoord = inverse(M) * (devCoord - translate);)");
-            gpArgs->fLocalCoordVar.set(kFloat2_GrSLType, "localCoord");
+            gpArgs->fLocalCoordVar.set(SkSLType::kFloat2, "localCoord");
         }
 
         args.fFragBuilder->codeAppendf("half4 %s = half4(1);", args.fOutputCoverage);
@@ -180,7 +181,7 @@ void DrawAtlasPathOp::onPrePrepare(GrRecordingContext* rContext,
     rContext->priv().recordProgramInfo(fProgram);
 }
 
-GR_DECLARE_STATIC_UNIQUE_KEY(gUnitQuadBufferKey);
+SKGPU_DECLARE_STATIC_UNIQUE_KEY(gUnitQuadBufferKey);
 
 void DrawAtlasPathOp::onPrepare(GrOpFlushState* flushState) {
     if (!fProgram) {
@@ -191,7 +192,7 @@ void DrawAtlasPathOp::onPrepare(GrOpFlushState* flushState) {
         SkASSERT(fProgram);
     }
 
-    if (VertexWriter instanceWriter = flushState->makeVertexSpace(
+    if (VertexWriter instanceWriter = flushState->makeVertexWriter(
                 fProgram->geomProc().instanceStride(), fInstanceCount, &fInstanceBuffer,
                 &fBaseInstance)) {
         for (const Instance* i = fHeadInstance; i; i = i->fNext) {
@@ -206,7 +207,7 @@ void DrawAtlasPathOp::onPrepare(GrOpFlushState* flushState) {
     if (!flushState->caps().shaderCaps()->vertexIDSupport()) {
         constexpr static SkPoint kUnitQuad[4] = {{0,0}, {0,1}, {1,0}, {1,1}};
 
-        GR_DEFINE_STATIC_UNIQUE_KEY(gUnitQuadBufferKey);
+        SKGPU_DEFINE_STATIC_UNIQUE_KEY(gUnitQuadBufferKey);
 
         fVertexBufferIfNoIDSupport = flushState->resourceProvider()->findOrMakeStaticBuffer(
                 GrGpuBufferType::kVertex, sizeof(kUnitQuad), kUnitQuad, gUnitQuadBufferKey);

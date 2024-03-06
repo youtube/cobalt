@@ -11,27 +11,35 @@
 #include "include/core/SkFont.h"
 #include "include/core/SkScalar.h"
 
+#include <tuple>
+
 class SkMatrix;
 class SkSurfaceProps;
+
+// Two numbers fMatrixMin and fMatrixMax such that if viewMatrix.getMaxScale() is between them then
+// this SDFT size can be reused.
+class GrSDFTMatrixRange {
+public:
+    GrSDFTMatrixRange(SkScalar min, SkScalar max) : fMatrixMin{min}, fMatrixMax{max} {}
+    bool matrixInRange(const SkMatrix& matrix) const;
+
+private:
+    const SkScalar fMatrixMin,
+                   fMatrixMax;
+};
 
 class GrSDFTControl {
 public:
     GrSDFTControl(bool ableToUseSDFT, bool useSDFTForSmallText, SkScalar min, SkScalar max);
 
-    enum DrawingType : uint8_t {
-        kDirect = 1,
-        kSDFT = 2,
-        kPath = 4
-    };
+    // Produce a font, a scale factor from the nominal size to the source space size, and matrix
+    // range where this font can be reused.
+    std::tuple<SkFont, SkScalar, GrSDFTMatrixRange>
+    getSDFFont(const SkFont& font, const SkMatrix& viewMatrix) const;
 
-    DrawingType drawingType(
-            const SkFont& font, const SkPaint& paint, const SkMatrix& viewMatrix) const;
+    bool isDirect(SkScalar approximateDeviceTextSize, const SkPaint& paint) const;
+    bool isSDFT(SkScalar approximateDeviceTextSize, const SkPaint& paint) const;
 
-    SkFont getSDFFont(const SkFont& font,
-                      const SkMatrix& viewMatrix,
-                      SkScalar* textRatio) const;
-    std::pair<SkScalar, SkScalar> computeSDFMinMaxScale(
-            SkScalar textSize, const SkMatrix& viewMatrix) const;
 private:
     static SkScalar MinSDFTRange(bool useSDFTForSmallText, SkScalar min);
 

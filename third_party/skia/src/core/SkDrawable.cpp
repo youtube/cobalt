@@ -37,7 +37,7 @@ void SkDrawable::draw(SkCanvas* canvas, const SkMatrix* matrix) {
     }
     this->onDraw(canvas);
 
-    if (false) {
+    if ((false)) {
         draw_bbox(canvas, this->getBounds());
     }
 }
@@ -62,6 +62,13 @@ SkRect SkDrawable::getBounds() {
     return this->onGetBounds();
 }
 
+size_t SkDrawable::approximateBytesUsed() {
+    return this->onApproximateBytesUsed();
+}
+size_t SkDrawable::onApproximateBytesUsed() {
+    return 0;
+}
+
 void SkDrawable::notifyDrawingChanged() {
     fGenerationID = 0;
 }
@@ -76,7 +83,7 @@ SkPicture* SkDrawable::onNewPictureSnapshot() {
     const SkRect bounds = this->getBounds();
     SkCanvas* canvas = recorder.beginRecording(bounds);
     this->draw(canvas);
-    if (false) {
+    if ((false)) {
         draw_bbox(canvas, bounds);
     }
     return recorder.finishRecordingAsPicture().release();

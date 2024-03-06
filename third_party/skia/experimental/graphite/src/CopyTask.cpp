@@ -48,4 +48,3 @@ void CopyTextureToBufferTask::addCommands(ResourceProvider*, CommandBuffer* comm
 }
 
 } // namespace skgpu
-

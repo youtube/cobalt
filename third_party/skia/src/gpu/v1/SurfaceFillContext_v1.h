@@ -11,8 +11,8 @@
 #include "include/core/SkSize.h"
 #include "include/private/GrTypesPriv.h"
 #include "src/gpu/GrImageInfo.h"
-#include "src/gpu/GrSwizzle.h"
 #include "src/gpu/SurfaceFillContext.h"
+#include "src/gpu/Swizzle.h"
 #include "src/gpu/ops/OpsTask.h"
 
 #include <array>
@@ -37,6 +37,8 @@ public:
                        bool flushTimeOpsTask = false);
 
     void discard() override;
+
+    void resolveMSAA() override;
 
     void fillRectWithFP(const SkIRect& dstRect, std::unique_ptr<GrFragmentProcessor> fp) override;
 

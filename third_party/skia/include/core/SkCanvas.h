@@ -28,6 +28,7 @@
 #include "include/core/SkTypes.h"
 #include "include/private/SkDeque.h"
 #include "include/private/SkMacros.h"
+#include "include/private/SkTOptional.h"
 
 #include <cstring>
 #include <memory>
@@ -58,15 +59,12 @@ class SkPixmap;
 class SkRegion;
 class SkRRect;
 struct SkRSXform;
+struct SkCustomMesh;
 class SkSpecialImage;
 class SkSurface;
 class SkSurface_Base;
 class SkTextBlob;
 class SkVertices;
-
-namespace skstd {
-    template<typename T> class optional;
-}
 
 /** \class SkCanvas
     SkCanvas provides an interface for drawing, and how the drawing is clipped and transformed.
@@ -1957,6 +1955,29 @@ public:
     */
     void drawVertices(const sk_sp<SkVertices>& vertices, SkBlendMode mode, const SkPaint& paint);
 
+#if defined(SK_ENABLE_EXPERIMENTAL_CUSTOM_MESH) && defined(SK_ENABLE_SKSL)
+    /**
+        Experimental, under active development, and subject to change without notice.
+
+        Draws a mesh using a user-defined specification (see SkCustomMeshSpecification).
+
+        SkBlender is ignored if SkCustomMesh's specification does not output fragment shader color.
+        Otherwise, it combines
+            - the SkShader if SkPaint contains SkShader
+            - or the opaque SkPaint color if SkPaint does not contain SkShader
+        as the src of the blend and the mesh's fragment color as the dst.
+
+        SkMaskFilter, SkPathEffect, and antialiasing on SkPaint are ignored.
+
+        @param cm        the custom mesh vertices and compatible specification.
+        @param blender   combines vertices colors with SkShader if present or SkPaint opaque color
+                         if not. Ignored if the custom mesh does not output color. Defaults to
+                         SkBlendMode::kModulate if nullptr.
+        @param paint     specifies the SkShader, used as SkVertices texture, may be nullptr
+    */
+    void drawCustomMesh(SkCustomMesh cm, sk_sp<SkBlender> blender, const SkPaint& paint);
+#endif
+
     /** Draws a Coons patch: the interpolation of four cubics with shared corners,
         associating a color, and optionally a texture SkPoint, with each corner.
 
@@ -2176,6 +2197,11 @@ protected:
     virtual void didTranslate(SkScalar, SkScalar) {}
     virtual void didScale(SkScalar, SkScalar) {}
 
+#ifndef SK_ENABLE_EXPERIMENTAL_CUSTOM_MESH
+    // Define this in protected so we can still access internally for testing.
+    void drawCustomMesh(SkCustomMesh cm, sk_sp<SkBlender> blender, const SkPaint& paint);
+#endif
+
     // NOTE: If you are adding a new onDraw virtual to SkCanvas, PLEASE add an override to
     // SkCanvasVirtualEnforcer (in SkCanvasVirtualEnforcer.h). This ensures that subclasses using
     // that mechanism  will be required to implement the new function.
@@ -2216,7 +2242,9 @@ protected:
 
     virtual void onDrawVerticesObject(const SkVertices* vertices, SkBlendMode mode,
                                       const SkPaint& paint);
-
+#ifdef SK_ENABLE_SKSL
+    virtual void onDrawCustomMesh(SkCustomMesh, sk_sp<SkBlender>, const SkPaint&);
+#endif
     virtual void onDrawAnnotation(const SkRect& rect, const char key[], SkData* value);
     virtual void onDrawShadowRec(const SkPath&, const SkDrawShadowRec&);
 
@@ -2271,7 +2299,7 @@ private:
         kYes = true
     };
     // call the appropriate predrawNotify and create a layer if needed.
-    skstd::optional<AutoLayerForImageFilter> aboutToDraw(
+    std::optional<AutoLayerForImageFilter> aboutToDraw(
         SkCanvas* canvas,
         const SkPaint& paint,
         const SkRect* rawBounds = nullptr,

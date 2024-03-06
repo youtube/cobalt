@@ -521,9 +521,11 @@ void SkBitmapDevice::drawImageRect(const SkImage* image, const SkRect* src, cons
     this->drawRect(*dstPtr, paintWithShader);
 }
 
-void SkBitmapDevice::onDrawGlyphRunList(const SkGlyphRunList& glyphRunList, const SkPaint& paint) {
+void SkBitmapDevice::onDrawGlyphRunList(SkCanvas* canvas,
+                                        const SkGlyphRunList& glyphRunList,
+                                        const SkPaint& paint) {
     SkASSERT(!glyphRunList.hasRSXForm());
-    LOOP_TILER( drawGlyphRunList(glyphRunList, paint, &fGlyphPainter), nullptr )
+    LOOP_TILER( drawGlyphRunList(canvas, &fGlyphPainter, glyphRunList, paint), nullptr )
 }
 
 void SkBitmapDevice::drawVertices(const SkVertices* vertices,
@@ -537,6 +539,12 @@ void SkBitmapDevice::drawVertices(const SkVertices* vertices,
     BDDraw(this).drawVertices(vertices, std::move(blender), paint);
 }
 
+#ifdef SK_ENABLE_SKSL
+void SkBitmapDevice::drawCustomMesh(SkCustomMesh, sk_sp<SkBlender>, const SkPaint&) {
+    // TODO: Implement
+}
+#endif
+
 void SkBitmapDevice::drawAtlas(const SkRSXform xform[],
                                const SkRect tex[],
                                const SkColor colors[],
@@ -544,7 +552,7 @@ void SkBitmapDevice::drawAtlas(const SkRSXform xform[],
                                sk_sp<SkBlender> blender,
                                const SkPaint& paint) {
     // set this to true for performance comparisons with the old drawVertices way
-    if (false) {
+    if ((false)) {
         this->INHERITED::drawAtlas(xform, tex, colors, count, std::move(blender), paint);
         return;
     }
@@ -573,7 +581,9 @@ void SkBitmapDevice::drawSpecial(SkSpecialImage* src,
     if (src->getROPixels(&resultBM)) {
         SkDraw draw;
         SkMatrixProvider matrixProvider(localToDevice);
-        draw.fDst = fBitmap.pixmap();
+        if (!this->accessPixels(&draw.fDst)) {
+          return; // no pixels to draw to so skip it
+        }
         draw.fMatrixProvider = &matrixProvider;
         draw.fRC = &fRCStack.rc();
         draw.drawBitmap(resultBM, SkMatrix::I(), nullptr, sampling, paint);

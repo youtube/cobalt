@@ -14,56 +14,6 @@ namespace skgpu {
 
 class Buffer;
 
-/**
- * Types of shader-language-specific boxed variables we can create.
- */
-enum class SLType {
-    kVoid,
-    kBool,
-    kBool2,
-    kBool3,
-    kBool4,
-    kShort,
-    kShort2,
-    kShort3,
-    kShort4,
-    kUShort,
-    kUShort2,
-    kUShort3,
-    kUShort4,
-    kFloat,
-    kFloat2,
-    kFloat3,
-    kFloat4,
-    kFloat2x2,
-    kFloat3x3,
-    kFloat4x4,
-    kHalf,
-    kHalf2,
-    kHalf3,
-    kHalf4,
-    kHalf2x2,
-    kHalf3x3,
-    kHalf4x4,
-    kInt,
-    kInt2,
-    kInt3,
-    kInt4,
-    kUInt,
-    kUInt2,
-    kUInt3,
-    kUInt4,
-    kTexture2DSampler,
-    kTextureExternalSampler,
-    kTexture2DRectSampler,
-    kTexture2D,
-    kSampler,
-    kInput,
-
-    kLast = kInput
-};
-static const int kSLTypeCount = static_cast<int>(SLType::kLast) + 1;
-
 enum class CType : unsigned {
     // Any float/half, vector of floats/half, or matrices of floats/halfs are a tightly
     // packed array of floats. Similarly, any bool/shorts/ints are a tightly packed array
@@ -260,6 +210,20 @@ static constexpr int kStencilOpCount = 1 + (int)StencilOp::kDecClamp;
 struct DepthStencilSettings {
     // Per-face settings for stencil
     struct Face {
+        constexpr Face() = default;
+        constexpr Face(StencilOp stencilFail,
+                       StencilOp depthFail,
+                       StencilOp dsPass,
+                       CompareOp compare,
+                       uint32_t readMask,
+                       uint32_t writeMask)
+                : fStencilFailOp(stencilFail)
+                , fDepthFailOp(depthFail)
+                , fDepthStencilPassOp(dsPass)
+                , fCompareOp(compare)
+                , fReadMask(readMask)
+                , fWriteMask(writeMask) {}
+
         StencilOp fStencilFailOp = StencilOp::kKeep;
         StencilOp fDepthFailOp = StencilOp::kKeep;
         StencilOp fDepthStencilPassOp = StencilOp::kKeep;
@@ -267,7 +231,7 @@ struct DepthStencilSettings {
         uint32_t fReadMask = 0xffffffff;
         uint32_t fWriteMask = 0xffffffff;
 
-        bool operator==(const Face& that) const {
+        constexpr bool operator==(const Face& that) const {
             return this->fStencilFailOp == that.fStencilFailOp &&
                    this->fDepthFailOp == that.fDepthFailOp &&
                    this->fDepthStencilPassOp == that.fDepthStencilPassOp &&
@@ -277,7 +241,23 @@ struct DepthStencilSettings {
         }
     };
 
-    bool operator==(const DepthStencilSettings& that) const {
+    constexpr DepthStencilSettings() = default;
+    constexpr DepthStencilSettings(Face front,
+                                   Face back,
+                                   uint32_t stencilRef,
+                                   bool stencilTest,
+                                   CompareOp depthCompare,
+                                   bool depthTest,
+                                   bool depthWrite)
+            : fFrontStencil(front)
+            , fBackStencil(back)
+            , fStencilReferenceValue(stencilRef)
+            , fDepthCompareOp(depthCompare)
+            , fStencilTestEnabled(stencilTest)
+            , fDepthTestEnabled(depthTest)
+            , fDepthWriteEnabled(depthWrite) {}
+
+    constexpr bool operator==(const DepthStencilSettings& that) const {
         return this->fFrontStencil == that.fFrontStencil &&
                this->fBackStencil == that.fBackStencil &&
                this->fStencilReferenceValue == that.fStencilReferenceValue &&

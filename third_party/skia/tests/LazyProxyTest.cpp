@@ -143,7 +143,7 @@ public:
             static const GrSurfaceOrigin kOrigin = kBottomLeft_GrSurfaceOrigin;
             const GrBackendFormat format =
                 ctx->priv().caps()->getDefaultBackendFormat(kColorType, GrRenderable::kYes);
-            GrSwizzle readSwizzle = ctx->priv().caps()->getReadSwizzle(format, kColorType);
+            skgpu::Swizzle readSwizzle = ctx->priv().caps()->getReadSwizzle(format, kColorType);
             fLazyProxy = GrProxyProvider::MakeFullyLazyProxy(
                     [this](GrResourceProvider* rp, const GrSurfaceProxy::LazySurfaceDesc&)
                             -> GrSurfaceProxy::LazyCallbackResult {
@@ -167,7 +167,7 @@ public:
         std::unique_ptr<ProgramImpl> onMakeProgramImpl() const override {
             return nullptr;
         }
-        void onAddToKey(const GrShaderCaps&, GrProcessorKeyBuilder*) const override {}
+        void onAddToKey(const GrShaderCaps&, skgpu::KeyBuilder*) const override {}
         bool onIsEqual(const GrFragmentProcessor&) const override { return false; }
 
         GrRecordingContext* const fContext;

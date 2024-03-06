@@ -12,7 +12,6 @@
 #include "include/core/SkPoint.h"
 #include "include/core/SkSpan.h"
 #include "include/core/SkTypes.h"
-#include "src/core/SkGlyph.h"
 
 #include <memory>
 
@@ -34,13 +33,16 @@ public:
     virtual const SkDescriptor& getDescriptor() const = 0;
 
     virtual void prepareForMaskDrawing(
-            SkDrawableGlyphBuffer* drawables, SkSourceGlyphBuffer* rejects) = 0;
+            SkDrawableGlyphBuffer* accepted, SkSourceGlyphBuffer* rejected) = 0;
 
     virtual void prepareForSDFTDrawing(
-            SkDrawableGlyphBuffer* drawables, SkSourceGlyphBuffer* rejects) = 0;
+            SkDrawableGlyphBuffer* accepted, SkSourceGlyphBuffer* rejected) = 0;
 
     virtual void prepareForPathDrawing(
-            SkDrawableGlyphBuffer* drawables, SkSourceGlyphBuffer* rejects) = 0;
+            SkDrawableGlyphBuffer* accepted, SkSourceGlyphBuffer* rejected) = 0;
+
+    virtual void prepareForDrawableDrawing(
+            SkDrawableGlyphBuffer* accepted, SkSourceGlyphBuffer* rejected) = 0;
 
     virtual const SkGlyphPositionRoundingSpec& roundingSpec() const = 0;
 

@@ -58,8 +58,8 @@ std::unique_ptr<Statement> ForStatement::clone() const {
             SymbolTable::WrapIfBuiltin(this->symbols()));
 }
 
-String ForStatement::description() const {
-    String result("for (");
+std::string ForStatement::description() const {
+    std::string result("for (");
     if (this->initializer()) {
         result += this->initializer()->description();
     } else {
@@ -135,8 +135,8 @@ std::unique_ptr<Statement> ForStatement::Convert(const Context& context, int lin
         scope.push_back(std::move(initializer));
         scope.push_back(ForStatement::Make(context, line, /*initializer=*/nullptr,
                                            std::move(test), std::move(next), std::move(statement),
-                                           std::move(unrollInfo), std::move(symbolTable)));
-        return Block::Make(line, std::move(scope));
+                                           std::move(unrollInfo), /*symbolTable=*/nullptr));
+        return Block::Make(line, std::move(scope), std::move(symbolTable));
     }
 
     return ForStatement::Make(context, line, std::move(initializer), std::move(test),
@@ -165,7 +165,7 @@ std::unique_ptr<Statement> ForStatement::Make(const Context& context, int line,
                                               std::shared_ptr<SymbolTable> symbolTable) {
     SkASSERT(is_simple_initializer(initializer.get()) ||
              is_vardecl_block_initializer(initializer.get()));
-    SkASSERT(!test || test->type() == *context.fTypes.fBool);
+    SkASSERT(!test || test->type().matches(*context.fTypes.fBool));
     SkASSERT(!Analysis::DetectVarDeclarationWithoutScope(*statement));
     SkASSERT(unrollInfo || !context.fConfig->strictES2Mode());
 

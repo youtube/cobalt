@@ -566,8 +566,11 @@ std::unique_ptr<Statement> Inliner::inlineStatement(int line,
             cases.reserve_back(ss.cases().size());
             for (const std::unique_ptr<Statement>& switchCaseStmt : ss.cases()) {
                 const SwitchCase& sc = switchCaseStmt->as<SwitchCase>();
-                cases.push_back(std::make_unique<SwitchCase>(line, expr(sc.value()),
-                                                             stmt(sc.statement())));
+                if (sc.isDefault()) {
+                    cases.push_back(SwitchCase::MakeDefault(line, stmt(sc.statement())));
+                } else {
+                    cases.push_back(SwitchCase::Make(line, sc.value(), stmt(sc.statement())));
+                }
             }
             return SwitchStatement::Make(*fContext, line, ss.isStatic(), expr(ss.value()),
                                         std::move(cases), SymbolTable::WrapIfBuiltin(ss.symbols()));
@@ -580,7 +583,7 @@ std::unique_ptr<Statement> Inliner::inlineStatement(int line,
             // We assign unique names to inlined variables--scopes hide most of the problems in this
             // regard, but see `InlinerAvoidsVariableNameOverlap` for a counterexample where unique
             // names are important.
-            const String* name = symbolTableForStatement->takeOwnershipOfString(
+            const std::string* name = symbolTableForStatement->takeOwnershipOfString(
                     fContext->fMangler->uniqueName(variable.name(), symbolTableForStatement));
             auto clonedVar = std::make_unique<Variable>(
                                                      line,
@@ -709,7 +712,7 @@ Inliner::InlinedCall Inliner::inlineCall(FunctionCall* call,
         // Still, discard our output and generate an error.
         SkDEBUGFAIL("inliner found non-void function that fails to return a value on any path");
         fContext->fErrors->error(function.fLine, "inliner found non-void function '" +
-                                                 function.declaration().name() +
+                                                 std::string(function.declaration().name()) +
                                                  "' that fails to return a value on any path");
         inlinedCall = {};
     }

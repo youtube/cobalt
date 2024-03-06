@@ -33,7 +33,7 @@ static std::unique_ptr<Expression> convert_compound_constructor(const Context& c
     if (args.size() == 1) {
         std::unique_ptr<Expression>& argument = args.front();
         if (type.isVector() && argument->type().isVector() &&
-            argument->type().componentType() == type.componentType() &&
+            argument->type().componentType().matches(type.componentType()) &&
             argument->type().slotCount() > type.slotCount()) {
             // Casting a vector-type into a smaller matching vector-type is a slice in GLSL.
             // We don't allow those casts in SkSL; recommend a swizzle instead.
@@ -139,8 +139,8 @@ static std::unique_ptr<Expression> convert_compound_constructor(const Context& c
 
     if (actual != expected) {
         context.fErrors->error(line, "invalid arguments to '" + type.displayName() +
-                                     "' constructor (expected " + to_string(expected) +
-                                     " scalars, but found " + to_string(actual) + ")");
+                                     "' constructor (expected " + std::to_string(expected) +
+                                     " scalars, but found " + std::to_string(actual) + ")");
         return nullptr;
     }
 
@@ -151,7 +151,7 @@ std::unique_ptr<Expression> Constructor::Convert(const Context& context,
                                                  int line,
                                                  const Type& type,
                                                  ExpressionArray args) {
-    if (args.size() == 1 && args[0]->type() == type && !type.componentType().isOpaque()) {
+    if (args.size() == 1 && args[0]->type().matches(type) && !type.componentType().isOpaque()) {
         // Don't generate redundant casts; if the expression is already of the correct type, just
         // return it as-is.
         return std::move(args[0]);
@@ -173,7 +173,7 @@ std::unique_ptr<Expression> Constructor::Convert(const Context& context,
     return nullptr;
 }
 
-skstd::optional<double> AnyConstructor::getConstantValue(int n) const {
+std::optional<double> AnyConstructor::getConstantValue(int n) const {
     SkASSERT(n >= 0 && n < (int)this->type().slotCount());
     for (const std::unique_ptr<Expression>& arg : this->argumentSpan()) {
         int argSlots = arg->type().slotCount();
@@ -184,7 +184,7 @@ skstd::optional<double> AnyConstructor::getConstantValue(int n) const {
     }
 
     SkDEBUGFAIL("argument-list slot count doesn't match constructor-type slot count");
-    return skstd::nullopt;
+    return std::nullopt;
 }
 
 Expression::ComparisonResult AnyConstructor::compareConstant(const Expression& other) const {
@@ -197,11 +197,11 @@ Expression::ComparisonResult AnyConstructor::compareConstant(const Expression& o
     int exprs = this->type().slotCount();
     for (int n = 0; n < exprs; ++n) {
         // Get the n'th subexpression from each side. If either one is null, return "unknown."
-        skstd::optional<double> left = this->getConstantValue(n);
+        std::optional<double> left = this->getConstantValue(n);
         if (!left.has_value()) {
             return ComparisonResult::kUnknown;
         }
-        skstd::optional<double> right = other.getConstantValue(n);
+        std::optional<double> right = other.getConstantValue(n);
         if (!right.has_value()) {
             return ComparisonResult::kUnknown;
         }

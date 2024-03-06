@@ -39,7 +39,7 @@ public:
 
     FunctionDeclaration(int line,
                         const Modifiers* modifiers,
-                        skstd::string_view name,
+                        std::string_view name,
                         std::vector<const Variable*> parameters,
                         const Type* returnType,
                         bool builtin);
@@ -48,7 +48,7 @@ public:
                                               SymbolTable& symbols,
                                               int line,
                                               const Modifiers* modifiers,
-                                              skstd::string_view name,
+                                              std::string_view name,
                                               std::vector<std::unique_ptr<Variable>> parameters,
                                               const Type* returnType);
 
@@ -89,9 +89,9 @@ public:
         return this->intrinsicKind() != kNotIntrinsic;
     }
 
-    String mangledName() const;
+    std::string mangledName() const;
 
-    String description() const override;
+    std::string description() const override;
 
     bool matches(const FunctionDeclaration& f) const;
 

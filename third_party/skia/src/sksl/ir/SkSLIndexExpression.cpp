@@ -23,21 +23,21 @@ static bool index_out_of_range(const Context& context, SKSL_INT index, const Exp
         return false;
     }
 
-    context.fErrors->error(base.fLine, "index " + to_string(index) + " out of range for '" +
+    context.fErrors->error(base.fLine, "index " + std::to_string(index) + " out of range for '" +
                                        base.type().displayName() + "'");
     return true;
 }
 
 const Type& IndexExpression::IndexType(const Context& context, const Type& type) {
     if (type.isMatrix()) {
-        if (type.componentType() == *context.fTypes.fFloat) {
+        if (type.componentType().matches(*context.fTypes.fFloat)) {
             switch (type.rows()) {
                 case 2: return *context.fTypes.fFloat2;
                 case 3: return *context.fTypes.fFloat3;
                 case 4: return *context.fTypes.fFloat4;
                 default: SkASSERT(false);
             }
-        } else if (type.componentType() == *context.fTypes.fHalf) {
+        } else if (type.componentType().matches(*context.fTypes.fHalf)) {
             switch (type.rows()) {
                 case 2: return *context.fTypes.fHalf2;
                 case 3: return *context.fTypes.fHalf3;
@@ -132,7 +132,7 @@ std::unique_ptr<Expression> IndexExpression::Make(const Context& context,
                 ExpressionArray ctorArgs;
                 ctorArgs.reserve_back(vecWidth);
                 for (int slot = 0; slot < vecWidth; ++slot) {
-                    skstd::optional<double> slotVal = baseExpr->getConstantValue(indexValue + slot);
+                    std::optional<double> slotVal = baseExpr->getConstantValue(indexValue + slot);
                     if (slotVal.has_value()) {
                         ctorArgs.push_back(Literal::Make(baseExpr->fLine, *slotVal, &scalarType));
                     } else {

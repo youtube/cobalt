@@ -139,30 +139,30 @@ public:
      */
     std::unique_ptr<Program> convertProgram(
             ProgramKind kind,
-            String text,
+            std::string text,
             Program::Settings settings);
 
-    std::unique_ptr<Expression> convertIdentifier(int line, skstd::string_view name);
+    std::unique_ptr<Expression> convertIdentifier(int line, std::string_view name);
 
     bool toSPIRV(Program& program, OutputStream& out);
 
-    bool toSPIRV(Program& program, String* out);
+    bool toSPIRV(Program& program, std::string* out);
 
     bool toGLSL(Program& program, OutputStream& out);
 
-    bool toGLSL(Program& program, String* out);
+    bool toGLSL(Program& program, std::string* out);
 
     bool toHLSL(Program& program, OutputStream& out);
 
-    bool toHLSL(Program& program, String* out);
+    bool toHLSL(Program& program, std::string* out);
 
     bool toMetal(Program& program, OutputStream& out);
 
-    bool toMetal(Program& program, String* out);
+    bool toMetal(Program& program, std::string* out);
 
-    void handleError(skstd::string_view msg, PositionInfo pos);
+    void handleError(std::string_view msg, PositionInfo pos);
 
-    String errorText(bool showCount = true);
+    std::string errorText(bool showCount = true);
 
     ErrorReporter& errorReporter() { return *fContext->fErrors; }
 
@@ -175,8 +175,12 @@ public:
         this->errorReporter().resetErrorCount();
     }
 
-    Context& context() {
+    Context& context() const {
         return *fContext;
+    }
+
+    std::shared_ptr<SymbolTable> symbolTable() const {
+        return fSymbolTable;
     }
 
     // When  SKSL_STANDALONE, fPath is used. (fData, fSize) will be (nullptr, 0)
@@ -207,7 +211,7 @@ private:
         CompilerErrorReporter(Compiler* compiler)
             : fCompiler(*compiler) {}
 
-        void handleError(skstd::string_view msg, PositionInfo pos) override {
+        void handleError(std::string_view msg, PositionInfo pos) override {
             fCompiler.handleError(msg, pos);
         }
 
@@ -221,7 +225,8 @@ private:
     const ParsedModule& loadPublicModule();
     const ParsedModule& loadRuntimeShaderModule();
 
-    std::shared_ptr<SymbolTable> makeRootSymbolTable();
+    std::shared_ptr<SymbolTable> makeRootSymbolTable() const;
+    std::shared_ptr<SymbolTable> makeGLSLRootSymbolTable() const;
     std::shared_ptr<SymbolTable> makePrivateSymbolTable(std::shared_ptr<SymbolTable> parent);
 
     /** Optimize every function in the program. */
@@ -260,7 +265,7 @@ private:
     // compilation
     std::shared_ptr<SymbolTable> fSymbolTable;
 
-    String fErrorText;
+    std::string fErrorText;
 
     static OverrideFlag sOptimizer;
     static OverrideFlag sInliner;
@@ -268,6 +273,7 @@ private:
     friend class AutoSource;
     friend class ::SkSLCompileBench;
     friend class DSLParser;
+    friend class Rehydrator;
     friend class ThreadContext;
     friend class dsl::DSLCore;
 };

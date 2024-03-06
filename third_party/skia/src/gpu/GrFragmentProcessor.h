@@ -20,10 +20,13 @@ class GrGLSLFPFragmentBuilder;
 class GrGLSLProgramDataManager;
 class GrPaint;
 class GrPipeline;
-class GrProcessorKeyBuilder;
 struct GrShaderCaps;
-class GrSwizzle;
 class GrTextureEffect;
+
+namespace skgpu {
+class KeyBuilder;
+class Swizzle;
+}
 
 /**
  * Some fragment-processor creation methods have preconditions that might not be satisfied by the
@@ -103,7 +106,7 @@ public:
      *  the output.
      */
     static std::unique_ptr<GrFragmentProcessor> SwizzleOutput(std::unique_ptr<GrFragmentProcessor>,
-                                                              const GrSwizzle&);
+                                                              const skgpu::Swizzle&);
 
     /**
      *  Returns a fragment processor that calls the passed in fragment processor, and then clamps
@@ -179,7 +182,7 @@ public:
 
     std::unique_ptr<ProgramImpl> makeProgramImpl() const;
 
-    void addToKey(const GrShaderCaps& caps, GrProcessorKeyBuilder* b) const {
+    void addToKey(const GrShaderCaps& caps, skgpu::KeyBuilder* b) const {
         this->onAddToKey(caps, b);
         for (const auto& child : fChildProcessors) {
             if (child) {
@@ -426,7 +429,7 @@ private:
      */
     virtual std::unique_ptr<ProgramImpl> onMakeProgramImpl() const = 0;
 
-    virtual void onAddToKey(const GrShaderCaps&, GrProcessorKeyBuilder*) const = 0;
+    virtual void onAddToKey(const GrShaderCaps&, skgpu::KeyBuilder*) const = 0;
 
     /**
      * Subclass implements this to support isEqual(). It will only be called if it is known that
@@ -539,7 +542,7 @@ public:
     // Invoke the child with the default input and destination colors (solid white)
     inline SkString invokeChild(int childIndex,
                                 EmitArgs& parentArgs,
-                                SkSL::String skslCoords = "") {
+                                std::string_view skslCoords = {}) {
         return this->invokeChild(childIndex,
                                  /*inputColor=*/nullptr,
                                  /*destColor=*/nullptr,
@@ -558,7 +561,7 @@ public:
     inline SkString invokeChild(int childIndex,
                                 const char* inputColor,
                                 EmitArgs& parentArgs,
-                                SkSL::String skslCoords = "") {
+                                std::string_view skslCoords = {}) {
         return this->invokeChild(childIndex,
                                  inputColor,
                                  /*destColor=*/nullptr,
@@ -590,7 +593,7 @@ public:
                          const char* inputColor,
                          const char* destColor,
                          EmitArgs& parentArgs,
-                         SkSL::String skslCoords = "");
+                         std::string_view skslCoords = {});
 
     /**
      * As invokeChild, but transforms the coordinates according to the matrix expression attached
@@ -616,7 +619,7 @@ public:
         ProgramImpl& operator*() const;
         ProgramImpl* operator->() const;
         Iter& operator++();
-        operator bool() const { return !fFPStack.empty(); }
+        explicit operator bool() const { return !fFPStack.empty(); }
 
         // Because each iterator carries a stack we want to avoid copies.
         Iter(const Iter&) = delete;

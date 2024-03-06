@@ -13,9 +13,10 @@
 #include <unordered_map>
 #include <vector>
 
+class SkUniformBlock;
+
 namespace skgpu {
 
-class UniformData;
 
 class UniformCache {
 public:
@@ -44,29 +45,29 @@ public:
 
     // Add the block of uniform data to the cache and return a unique ID that corresponds to its
     // contents. If an identical block of data is already in the cache, that unique ID is returned.
-    uint32_t insert(sk_sp<UniformData>);
+    uint32_t insert(std::unique_ptr<SkUniformBlock>);
 
-    sk_sp<UniformData> lookup(uint32_t uniqueID);
+    SkUniformBlock* lookup(uint32_t uniqueID);
 
-    // The number of unique uniformdata objects in the cache
+    // The number of unique UniformBlock objects in the cache
     size_t count() const {
-        SkASSERT(fUniformData.size() == fUniformDataIDs.size() && fUniformData.size() > 0);
-        return fUniformData.size() - 1;
+        SkASSERT(fUniformBlock.size() == fUniformBlockIDs.size() && fUniformBlock.size() > 0);
+        return fUniformBlock.size() - 1;
     }
 
 private:
     struct Hash {
         // This hash operator de-references and hashes the data contents
-        size_t operator()(UniformData*) const;
+        size_t operator()(SkUniformBlock*) const;
     };
     struct Eq {
         // This equality operator de-references and compares the actual data contents
-        bool operator()(UniformData*, UniformData*) const;
+        bool operator()(SkUniformBlock*, SkUniformBlock*) const;
     };
 
-    // The UniformData's unique ID is only unique w/in a Recorder _not_ globally
-    std::unordered_map<UniformData*, uint32_t, Hash, Eq> fUniformDataIDs;
-    std::vector<sk_sp<UniformData>> fUniformData;
+    // The UniformBlock's unique ID is only unique w/in a Recorder _not_ globally
+    std::unordered_map<SkUniformBlock*, uint32_t, Hash, Eq> fUniformBlockIDs;
+    std::vector<std::unique_ptr<SkUniformBlock>> fUniformBlock;
 
 #ifdef SK_DEBUG
     void validate() const;

@@ -11,6 +11,7 @@
 #include "src/gpu/GrProgramInfo.h"
 #include "src/gpu/GrRenderTarget.h"
 #include "src/gpu/GrStencilSettings.h"
+#include "src/gpu/KeyBuilder.h"
 
 GrDawnCaps::GrDawnCaps(const GrContextOptions& contextOptions) : INHERITED(contextOptions) {
     fMipmapSupport = true;
@@ -44,30 +45,30 @@ bool GrDawnCaps::isFormatTexturable(const GrBackendFormat& format, GrTextureType
     return format.asDawnFormat(&dawnFormat);
 }
 
-static GrSwizzle get_swizzle(const GrBackendFormat& format, GrColorType colorType,
-                             bool forOutput) {
+static skgpu::Swizzle get_swizzle(const GrBackendFormat& format, GrColorType colorType,
+                                  bool forOutput) {
     switch (colorType) {
         case GrColorType::kAlpha_8: // fall through
         case GrColorType::kAlpha_F16:
             if (forOutput) {
-                return GrSwizzle("a000");
+                return skgpu::Swizzle("a000");
             } else {
-                return GrSwizzle("000r");
+                return skgpu::Swizzle("000r");
             }
         case GrColorType::kGray_8:
             if (!forOutput) {
-                return GrSwizzle::RRRA();
+                return skgpu::Swizzle::RRRA();
             }
             break;
         case GrColorType::kRGB_888x:
             if (!forOutput) {
-                return GrSwizzle::RGB1();
+                return skgpu::Swizzle::RGB1();
             }
             break;
         default:
-            return GrSwizzle::RGBA();
+            return skgpu::Swizzle::RGBA();
     }
-    return GrSwizzle::RGBA();
+    return skgpu::Swizzle::RGBA();
 }
 
 bool GrDawnCaps::isFormatRenderable(const GrBackendFormat& format,
@@ -123,12 +124,13 @@ GrBackendFormat GrDawnCaps::getBackendFormatFromCompressionType(SkImage::Compres
     return GrBackendFormat();
 }
 
-GrSwizzle GrDawnCaps::onGetReadSwizzle(const GrBackendFormat& format, GrColorType colorType) const
-{
+skgpu::Swizzle GrDawnCaps::onGetReadSwizzle(const GrBackendFormat& format,
+                                            GrColorType colorType) const {
     return get_swizzle(format, colorType, false);
 }
 
-GrSwizzle GrDawnCaps::getWriteSwizzle(const GrBackendFormat& format, GrColorType colorType) const {
+skgpu::Swizzle GrDawnCaps::getWriteSwizzle(const GrBackendFormat& format,
+                                           GrColorType colorType) const {
     return get_swizzle(format, colorType, true);
 }
 
@@ -179,7 +181,7 @@ GrProgramDesc GrDawnCaps::makeDesc(GrRenderTarget* rt,
         return desc;
     }
 
-    GrProcessorKeyBuilder b(desc.key());
+    skgpu::KeyBuilder b(desc.key());
     GrStencilSettings stencil = programInfo.nonGLStencilSettings();
     stencil.genKey(&b, true);
 

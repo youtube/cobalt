@@ -6,16 +6,16 @@
  */
 
 #include "src/core/SkDescriptor.h"
-#include "src/core/SkRemoteGlyphCache.h"
+#include "src/core/SkReadBuffer.h"
 
 void FuzzSkDescriptorDeserialize(sk_sp<SkData> bytes) {
-    SkAutoDescriptor aDesc;
-    bool ok = SkFuzzDeserializeSkDescriptor(bytes, &aDesc);
-    if (!ok) {
-         return;
+    SkReadBuffer buffer{bytes->data(), bytes->size()};
+    auto sut = SkAutoDescriptor::MakeFromBuffer(buffer);
+    if (!sut.has_value()) {
+        return;
     }
 
-    auto desc = aDesc.getDesc();
+    auto desc = sut->getDesc();
 
     desc->computeChecksum();
     desc->isValid();

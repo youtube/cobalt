@@ -56,6 +56,24 @@ enum class Ownership {
     kWrapped,
 };
 
+/** Uniquely identifies the type of resource that is cached with a GraphiteResourceKey. */
+using ResourceType = uint32_t;
+
+/**
+ * Can the resource be held by multiple users at the same time?
+ * For example, stencil buffers, pipelines, etc.
+ */
+enum class Shareable : bool {
+    kNo = false,
+    kYes = true,
+};
+
+/** This enum is used to notify the ResourceCache which type of ref just dropped to zero. */
+enum class LastRemovedRef {
+    kUsageRef,
+    kCommandBufferRef,
+};
+
 };  // namespace skgpu
 
 #endif // skgpu_ResourceTypes_DEFINED

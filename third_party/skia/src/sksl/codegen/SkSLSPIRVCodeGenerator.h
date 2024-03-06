@@ -9,7 +9,6 @@
 #define SKSL_SPIRVCODEGENERATOR
 
 #include <stack>
-#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -231,8 +230,8 @@ private:
 
     SpvId writeIntrinsicCall(const FunctionCall& c, OutputStream& out);
 
-    SpvId writeFunctionCallArgument(const Expression& arg,
-                                    const Modifiers& paramModifiers,
+    SpvId writeFunctionCallArgument(const FunctionCall& call,
+                                    int argIndex,
                                     std::vector<TempVar>* tempVars,
                                     OutputStream& out);
 
@@ -410,20 +409,20 @@ private:
 
     void writeWord(int32_t word, OutputStream& out);
 
-    void writeString(skstd::string_view s, OutputStream& out);
+    void writeString(std::string_view s, OutputStream& out);
 
     void writeLabel(SpvId id, OutputStream& out);
 
     void writeInstruction(SpvOp_ opCode, OutputStream& out);
 
-    void writeInstruction(SpvOp_ opCode, skstd::string_view string, OutputStream& out);
+    void writeInstruction(SpvOp_ opCode, std::string_view string, OutputStream& out);
 
     void writeInstruction(SpvOp_ opCode, int32_t word1, OutputStream& out);
 
-    void writeInstruction(SpvOp_ opCode, int32_t word1, skstd::string_view string,
+    void writeInstruction(SpvOp_ opCode, int32_t word1, std::string_view string,
                           OutputStream& out);
 
-    void writeInstruction(SpvOp_ opCode, int32_t word1, int32_t word2, skstd::string_view string,
+    void writeInstruction(SpvOp_ opCode, int32_t word1, int32_t word2, std::string_view string,
                           OutputStream& out);
 
     void writeInstruction(SpvOp_ opCode, int32_t word1, int32_t word2, OutputStream& out);
@@ -475,13 +474,19 @@ private:
     uint64_t fCapabilities;
     SpvId fIdCount;
     SpvId fGLSLExtendedInstructions;
-    typedef std::tuple<IntrinsicOpcodeKind, int32_t, int32_t, int32_t, int32_t> Intrinsic;
+    struct Intrinsic {
+        IntrinsicOpcodeKind opKind;
+        int32_t floatOp;
+        int32_t signedOp;
+        int32_t unsignedOp;
+        int32_t boolOp;
+    };
     std::unordered_map<IntrinsicKind, Intrinsic> fIntrinsicMap;
     std::unordered_map<const FunctionDeclaration*, SpvId> fFunctionMap;
     std::unordered_map<const Variable*, SpvId> fVariableMap;
     std::unordered_map<const Variable*, int32_t> fInterfaceBlockMap;
-    std::unordered_map<String, SpvId> fImageTypeMap;
-    std::unordered_map<String, SpvId> fTypeMap;
+    std::unordered_map<std::string, SpvId> fImageTypeMap;
+    std::unordered_map<std::string, SpvId> fTypeMap;
     StringStream fCapabilitiesBuffer;
     StringStream fGlobalInitializersBuffer;
     StringStream fConstantBuffer;

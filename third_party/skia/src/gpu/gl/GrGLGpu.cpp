@@ -32,6 +32,8 @@
 #include "src/gpu/GrShaderCaps.h"
 #include "src/gpu/GrSurfaceProxyPriv.h"
 #include "src/gpu/GrTexture.h"
+#include "src/gpu/GrUtil.h"
+#include "src/gpu/SkRenderEngineAbortf.h"
 #include "src/gpu/gl/GrGLAttachment.h"
 #include "src/gpu/gl/GrGLBuffer.h"
 #include "src/gpu/gl/GrGLOpsRenderPass.h"
@@ -1221,6 +1223,7 @@ bool GrGLGpu::createRenderTargetObjects(const GrGLTexture::Desc& desc,
 
     GL_CALL(GenFramebuffers(1, &rtIDs->fSingleSampleFBOID));
     if (!rtIDs->fSingleSampleFBOID) {
+        RENDERENGINE_ABORTF("%s failed to GenFramebuffers!", __func__);
         return false;
     }
 
@@ -2544,7 +2547,7 @@ void GrGLGpu::flushWireframeState(bool enabled) {
 }
 
 void GrGLGpu::flushBlendAndColorWrite(
-        const GrXferProcessor::BlendInfo& blendInfo, const GrSwizzle& swizzle) {
+        const GrXferProcessor::BlendInfo& blendInfo, const skgpu::Swizzle& swizzle) {
     if (this->glCaps().neverDisableColorWrites() && !blendInfo.fWriteColor) {
         // We need to work around a driver bug by using a blend state that preserves the dst color,
         // rather than disabling color writes.
@@ -2634,7 +2637,7 @@ void GrGLGpu::flushBlendAndColorWrite(
     this->flushColorWrite(blendInfo.fWriteColor);
 }
 
-void GrGLGpu::bindTexture(int unitIdx, GrSamplerState samplerState, const GrSwizzle& swizzle,
+void GrGLGpu::bindTexture(int unitIdx, GrSamplerState samplerState, const skgpu::Swizzle& swizzle,
                           GrGLTexture* texture) {
     SkASSERT(texture);
 
@@ -3069,7 +3072,7 @@ bool GrGLGpu::createCopyProgram(GrTexture* srcTex) {
 
     int progIdx = TextureToCopyProgramIdx(srcTex);
     const GrShaderCaps* shaderCaps = this->caps()->shaderCaps();
-    GrSLType samplerType = GrSLCombinedSamplerTypeForTextureType(srcTex->textureType());
+    SkSLType samplerType = SkSLCombinedSamplerTypeForTextureType(srcTex->textureType());
 
     if (!fCopyProgramArrayBuffer) {
         static const GrGLfloat vdata[] = {
@@ -3091,13 +3094,13 @@ bool GrGLGpu::createCopyProgram(GrTexture* srcTex) {
         return false;
     }
 
-    GrShaderVar aVertex("a_vertex", kHalf2_GrSLType, GrShaderVar::TypeModifier::In);
-    GrShaderVar uTexCoordXform("u_texCoordXform", kHalf4_GrSLType,
+    GrShaderVar aVertex("a_vertex", SkSLType::kHalf2, GrShaderVar::TypeModifier::In);
+    GrShaderVar uTexCoordXform("u_texCoordXform", SkSLType::kHalf4,
                                GrShaderVar::TypeModifier::Uniform);
-    GrShaderVar uPosXform("u_posXform", kHalf4_GrSLType, GrShaderVar::TypeModifier::Uniform);
+    GrShaderVar uPosXform("u_posXform", SkSLType::kHalf4, GrShaderVar::TypeModifier::Uniform);
     GrShaderVar uTexture("u_texture", samplerType, GrShaderVar::TypeModifier::Uniform);
-    GrShaderVar vTexCoord("v_texCoord", kHalf2_GrSLType, GrShaderVar::TypeModifier::Out);
-    GrShaderVar oFragColor("o_FragColor", kHalf4_GrSLType, GrShaderVar::TypeModifier::Out);
+    GrShaderVar vTexCoord("v_texCoord", SkSLType::kHalf2, GrShaderVar::TypeModifier::Out);
+    GrShaderVar oFragColor("o_FragColor", SkSLType::kHalf4, GrShaderVar::TypeModifier::Out);
 
     SkString vshaderTxt;
     if (shaderCaps->noperspectiveInterpolationSupport()) {
@@ -3144,9 +3147,9 @@ bool GrGLGpu::createCopyProgram(GrTexture* srcTex) {
     );
 
     auto errorHandler = this->getContext()->priv().getShaderErrorHandler();
-    SkSL::String sksl(vshaderTxt.c_str(), vshaderTxt.size());
+    std::string sksl(vshaderTxt.c_str(), vshaderTxt.size());
     SkSL::Program::Settings settings;
-    SkSL::String glsl;
+    std::string glsl;
     std::unique_ptr<SkSL::Program> program = GrSkSLtoGLSL(this, SkSL::ProgramKind::kVertex,
                                                           sksl, settings, &glsl, errorHandler);
     GrGLuint vshader = GrGLCompileAndAttachShader(*fGLContext, fCopyPrograms[progIdx].fProgram,
@@ -3192,19 +3195,19 @@ bool GrGLGpu::createMipmapProgram(int progIdx) {
         return false;
     }
 
-    GrShaderVar aVertex("a_vertex", kHalf2_GrSLType, GrShaderVar::TypeModifier::In);
-    GrShaderVar uTexCoordXform("u_texCoordXform", kHalf4_GrSLType,
+    GrShaderVar aVertex("a_vertex", SkSLType::kHalf2, GrShaderVar::TypeModifier::In);
+    GrShaderVar uTexCoordXform("u_texCoordXform", SkSLType::kHalf4,
                                GrShaderVar::TypeModifier::Uniform);
-    GrShaderVar uTexture("u_texture", kTexture2DSampler_GrSLType,
+    GrShaderVar uTexture("u_texture", SkSLType::kTexture2DSampler,
                          GrShaderVar::TypeModifier::Uniform);
     // We need 1, 2, or 4 texture coordinates (depending on parity of each dimension):
     GrShaderVar vTexCoords[] = {
-        GrShaderVar("v_texCoord0", kHalf2_GrSLType, GrShaderVar::TypeModifier::Out),
-        GrShaderVar("v_texCoord1", kHalf2_GrSLType, GrShaderVar::TypeModifier::Out),
-        GrShaderVar("v_texCoord2", kHalf2_GrSLType, GrShaderVar::TypeModifier::Out),
-        GrShaderVar("v_texCoord3", kHalf2_GrSLType, GrShaderVar::TypeModifier::Out),
+        GrShaderVar("v_texCoord0", SkSLType::kHalf2, GrShaderVar::TypeModifier::Out),
+        GrShaderVar("v_texCoord1", SkSLType::kHalf2, GrShaderVar::TypeModifier::Out),
+        GrShaderVar("v_texCoord2", SkSLType::kHalf2, GrShaderVar::TypeModifier::Out),
+        GrShaderVar("v_texCoord3", SkSLType::kHalf2, GrShaderVar::TypeModifier::Out),
     };
-    GrShaderVar oFragColor("o_FragColor", kHalf4_GrSLType,GrShaderVar::TypeModifier::Out);
+    GrShaderVar oFragColor("o_FragColor", SkSLType::kHalf4,GrShaderVar::TypeModifier::Out);
 
     SkString vshaderTxt;
     if (shaderCaps->noperspectiveInterpolationSupport()) {
@@ -3298,9 +3301,9 @@ bool GrGLGpu::createMipmapProgram(int progIdx) {
     fshaderTxt.append("}");
 
     auto errorHandler = this->getContext()->priv().getShaderErrorHandler();
-    SkSL::String sksl(vshaderTxt.c_str(), vshaderTxt.size());
+    std::string sksl(vshaderTxt.c_str(), vshaderTxt.size());
     SkSL::Program::Settings settings;
-    SkSL::String glsl;
+    std::string glsl;
     std::unique_ptr<SkSL::Program> program = GrSkSLtoGLSL(this, SkSL::ProgramKind::kVertex,
                                                           sksl, settings, &glsl, errorHandler);
     GrGLuint vshader = GrGLCompileAndAttachShader(*fGLContext, fMipmapPrograms[progIdx].fProgram,
@@ -3338,7 +3341,7 @@ bool GrGLGpu::copySurfaceAsDraw(GrSurface* dst, bool drawToMultisampleFBO, GrSur
         return false;
     }
     // We don't swizzle at all in our copies.
-    this->bindTexture(0, GrSamplerState::Filter::kNearest, GrSwizzle::RGBA(), srcTex);
+    this->bindTexture(0, GrSamplerState::Filter::kNearest, skgpu::Swizzle::RGBA(), srcTex);
     if (auto* dstRT = static_cast<GrGLRenderTarget*>(dst->asRenderTarget())) {
         this->flushRenderTargetNoColorWrites(dstRT, drawToMultisampleFBO);
     } else {
@@ -3369,7 +3372,7 @@ bool GrGLGpu::copySurfaceAsDraw(GrSurface* dst, bool drawToMultisampleFBO, GrSur
     GrGLAttribArrayState* attribs = fHWVertexArrayState.bindInternalVertexArray(this);
     attribs->enableVertexArrays(this, 1);
     attribs->set(this, 0, fCopyProgramArrayBuffer.get(), kFloat2_GrVertexAttribType,
-                 kFloat2_GrSLType, 2 * sizeof(GrGLfloat), 0);
+                 SkSLType::kFloat2, 2 * sizeof(GrGLfloat), 0);
     // dst rect edges in NDC (-1 to 1)
     int dw = dst->width();
     int dh = dst->height();
@@ -3394,7 +3397,7 @@ bool GrGLGpu::copySurfaceAsDraw(GrSurface* dst, bool drawToMultisampleFBO, GrSur
     GL_CALL(Uniform4f(fCopyPrograms[progIdx].fTexCoordXformUniform,
                       sx1 - sx0, sy1 - sy0, sx0, sy0));
     GL_CALL(Uniform1i(fCopyPrograms[progIdx].fTextureUniform, 0));
-    this->flushBlendAndColorWrite(GrXferProcessor::BlendInfo(), GrSwizzle::RGBA());
+    this->flushBlendAndColorWrite(GrXferProcessor::BlendInfo(), skgpu::Swizzle::RGBA());
     this->flushConservativeRasterState(false);
     this->flushWireframeState(false);
     this->flushScissorTest(GrScissorTest::kDisabled);
@@ -3503,7 +3506,7 @@ bool GrGLGpu::onRegenerateMipMapLevels(GrTexture* texture) {
     // We'll be changing our base level further below:
     this->setTextureUnit(0);
     // The mipmap program does not do any swizzling.
-    this->bindTexture(0, GrSamplerState::Filter::kLinear, GrSwizzle::RGBA(), glTex);
+    this->bindTexture(0, GrSamplerState::Filter::kLinear, skgpu::Swizzle::RGBA(), glTex);
 
     // Vertex data:
     if (!fMipmapProgramArrayBuffer) {
@@ -3525,10 +3528,10 @@ bool GrGLGpu::onRegenerateMipMapLevels(GrTexture* texture) {
     GrGLAttribArrayState* attribs = fHWVertexArrayState.bindInternalVertexArray(this);
     attribs->enableVertexArrays(this, 1);
     attribs->set(this, 0, fMipmapProgramArrayBuffer.get(), kFloat2_GrVertexAttribType,
-                 kFloat2_GrSLType, 2 * sizeof(GrGLfloat), 0);
+                 SkSLType::kFloat2, 2 * sizeof(GrGLfloat), 0);
 
     // Set "simple" state once:
-    this->flushBlendAndColorWrite(GrXferProcessor::BlendInfo(), GrSwizzle::RGBA());
+    this->flushBlendAndColorWrite(GrXferProcessor::BlendInfo(), skgpu::Swizzle::RGBA());
     this->flushScissorTest(GrScissorTest::kDisabled);
     this->disableWindowRectangles();
     this->disableStencil();
@@ -4121,12 +4124,12 @@ std::unique_ptr<GrSemaphore> GrGLGpu::prepareTextureForCrossContextUsage(GrTextu
 }
 
 int GrGLGpu::TextureToCopyProgramIdx(GrTexture* texture) {
-    switch (GrSLCombinedSamplerTypeForTextureType(texture->textureType())) {
-        case kTexture2DSampler_GrSLType:
+    switch (SkSLCombinedSamplerTypeForTextureType(texture->textureType())) {
+        case SkSLType::kTexture2DSampler:
             return 0;
-        case kTexture2DRectSampler_GrSLType:
+        case SkSLType::kTexture2DRectSampler:
             return 1;
-        case kTextureExternalSampler_GrSLType:
+        case SkSLType::kTextureExternalSampler:
             return 2;
         default:
             SK_ABORT("Unexpected samper type");

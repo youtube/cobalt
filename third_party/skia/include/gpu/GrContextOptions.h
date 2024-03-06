@@ -13,6 +13,7 @@
 #include "include/core/SkTypes.h"
 #include "include/gpu/GrDriverBugWorkarounds.h"
 #include "include/gpu/GrTypes.h"
+#include "include/gpu/ShaderErrorHandler.h"
 #include "include/private/GrTypesPriv.h"
 
 #include <vector>
@@ -70,22 +71,7 @@ struct SK_API GrContextOptions {
         PersistentCache& operator=(const PersistentCache&) = delete;
     };
 
-    /**
-     * Abstract class to report errors when compiling shaders. If fShaderErrorHandler is present,
-     * it will be called to report any compilation failures. Otherwise, failures will be reported
-     * via SkDebugf and asserts.
-     */
-    class SK_API ShaderErrorHandler {
-    public:
-        virtual ~ShaderErrorHandler() = default;
-
-        virtual void compileError(const char* shader, const char* errors) = 0;
-
-    protected:
-        ShaderErrorHandler() = default;
-        ShaderErrorHandler(const ShaderErrorHandler&) = delete;
-        ShaderErrorHandler& operator=(const ShaderErrorHandler&) = delete;
-    };
+    using ShaderErrorHandler = skgpu::ShaderErrorHandler;
 
     GrContextOptions() {}
 
@@ -271,10 +257,25 @@ struct SK_API GrContextOptions {
     bool fEnableExperimentalHardwareTessellation = false;
 
     /**
+     * If true, then add 1 pixel padding to all glyph masks in the atlas to support bi-lerp
+     * rendering of all glyphs. This must be set to true to use GrSlug.
+     */
+    #if defined(SK_EXPERIMENTAL_SIMULATE_DRAWGLYPHRUNLIST_WITH_SLUG)
+    bool fSupportBilerpFromGlyphAtlas = true;
+    #else
+    bool fSupportBilerpFromGlyphAtlas = false;
+    #endif
+
+    /**
      * Uses a reduced variety of shaders. May perform less optimally in steady state but can reduce
      * jank due to shader compilations.
      */
     bool fReducedShaderVariations = false;
+
+    /**
+     * If true, then allow to enable MSAA on new Intel GPUs.
+     */
+    bool fAllowMSAAOnNewIntel = false;
 
 #if GR_TEST_UTILS
     /**

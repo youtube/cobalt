@@ -68,13 +68,13 @@ public:
         }
     }
 
-    const CapsLookupMethod* lookup(skstd::string_view name) const {
+    const CapsLookupMethod* lookup(std::string_view name) const {
         auto iter = fMap.find(name);
         return (iter != fMap.end()) ? iter->second.get() : nullptr;
     }
 
 private:
-    std::unordered_map<skstd::string_view, std::unique_ptr<CapsLookupMethod>> fMap;
+    std::unordered_map<std::string_view, std::unique_ptr<CapsLookupMethod>> fMap;
 };
 
 static const CapsLookupTable& caps_lookup_table() {
@@ -104,27 +104,27 @@ static const CapsLookupTable& caps_lookup_table() {
 
 }  // namespace
 
-static const Type* get_type(const Context& context, int line, skstd::string_view name) {
+static const Type* get_type(const Context& context, int line, std::string_view name) {
     if (const CapsLookupMethod* caps = caps_lookup_table().lookup(name)) {
         return caps->type(context);
     }
 
-    context.fErrors->error(line, "unknown capability flag '" + name + "'");
+    context.fErrors->error(line, "unknown capability flag '" + std::string(name) + "'");
     return nullptr;
 }
 
 static std::unique_ptr<Expression> get_value(const Context& context, int line,
-                                             const skstd::string_view& name) {
+                                             const std::string_view& name) {
     if (const CapsLookupMethod* caps = caps_lookup_table().lookup(name)) {
         return caps->value(context);
     }
 
-    context.fErrors->error(line, "unknown capability flag '" + name + "'");
+    context.fErrors->error(line, "unknown capability flag '" + std::string(name) + "'");
     return nullptr;
 }
 
 std::unique_ptr<Expression> Setting::Convert(const Context& context, int line,
-                                             const skstd::string_view& name) {
+                                             const std::string_view& name) {
     SkASSERT(context.fConfig);
 
     if (context.fConfig->fSettings.fReplaceSettings) {

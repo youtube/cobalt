@@ -133,34 +133,13 @@ generated_cc_atom(
 )
 
 generated_cc_atom(
-    name = "GrTextBlobCache_hdr",
-    hdrs = ["GrTextBlobCache.h"],
-    visibility = ["//:__subpackages__"],
-    deps = [
-        ":GrTextBlob_hdr",
-        "//include/core:SkRefCnt_hdr",
-        "//include/private:SkSpinlock_hdr",
-        "//include/private:SkTArray_hdr",
-        "//include/private:SkTHash_hdr",
-        "//src/core:SkMessageBus_hdr",
-        "//src/core:SkTextBlobPriv_hdr",
-    ],
-)
-
-generated_cc_atom(
-    name = "GrTextBlobCache_src",
-    srcs = ["GrTextBlobCache.cpp"],
-    visibility = ["//:__subpackages__"],
-    deps = [":GrTextBlobCache_hdr"],
-)
-
-generated_cc_atom(
     name = "GrTextBlob_hdr",
     hdrs = ["GrTextBlob.h"],
     visibility = ["//:__subpackages__"],
     deps = [
         "//include/core:SkPoint3_hdr",
         "//include/core:SkRefCnt_hdr",
+        "//include/private/chromium:GrSlug_hdr",
         "//src/core:SkGlyphRunPainter_hdr",
         "//src/core:SkIPoint16_hdr",
         "//src/core:SkMaskFilterBase_hdr",
@@ -181,12 +160,14 @@ generated_cc_atom(
     visibility = ["//:__subpackages__"],
     deps = [
         ":GrAtlasManager_hdr",
+        ":GrGlyphVector_hdr",
         ":GrStrikeCache_hdr",
         ":GrTextBlob_hdr",
         "//include/core:SkColorFilter_hdr",
         "//include/gpu:GrRecordingContext_hdr",
         "//include/private:SkTemplates_hdr",
         "//include/private/chromium:GrSlug_hdr",
+        "//src/core:SkFontPriv_hdr",
         "//src/core:SkMaskFilterBase_hdr",
         "//src/core:SkMatrixProvider_hdr",
         "//src/core:SkPaintPriv_hdr",
@@ -204,5 +185,59 @@ generated_cc_atom(
         "//src/gpu/ops:AtlasTextOp_hdr",
         "//src/gpu/v1:Device_v1_hdr",
         "//src/gpu/v1:SurfaceDrawContext_v1_hdr",
+    ],
+)
+
+generated_cc_atom(
+    name = "GrTextBlobRedrawCoordinator_hdr",
+    hdrs = ["GrTextBlobRedrawCoordinator.h"],
+    visibility = ["//:__subpackages__"],
+    deps = [
+        ":GrTextBlob_hdr",
+        "//include/core:SkRefCnt_hdr",
+        "//include/private:SkSpinlock_hdr",
+        "//include/private:SkTArray_hdr",
+        "//include/private:SkTHash_hdr",
+        "//src/core:SkMessageBus_hdr",
+        "//src/core:SkTextBlobPriv_hdr",
+    ],
+)
+
+generated_cc_atom(
+    name = "GrTextBlobRedrawCoordinator_src",
+    srcs = ["GrTextBlobRedrawCoordinator.cpp"],
+    visibility = ["//:__subpackages__"],
+    deps = [
+        ":GrTextBlobRedrawCoordinator_hdr",
+        "//src/gpu/v1:SurfaceDrawContext_v1_hdr",
+    ],
+)
+
+generated_cc_atom(
+    name = "GrGlyphVector_hdr",
+    hdrs = ["GrGlyphVector.h"],
+    visibility = ["//:__subpackages__"],
+    deps = [
+        ":GrStrikeCache_hdr",
+        "//include/core:SkSpan_hdr",
+        "//src/core:SkGlyphBuffer_hdr",
+        "//src/core:SkGlyph_hdr",
+        "//src/gpu:GrGlyph_hdr",
+        "//src/gpu:GrMeshDrawTarget_hdr",
+        "//src/gpu:GrSubRunAllocator_hdr",
+    ],
+)
+
+generated_cc_atom(
+    name = "GrGlyphVector_src",
+    srcs = ["GrGlyphVector.cpp"],
+    visibility = ["//:__subpackages__"],
+    deps = [
+        ":GrAtlasManager_hdr",
+        ":GrGlyphVector_hdr",
+        "//src/core:SkReadBuffer_hdr",
+        "//src/core:SkStrikeCache_hdr",
+        "//src/core:SkStrikeSpec_hdr",
+        "//src/core:SkWriteBuffer_hdr",
     ],
 )

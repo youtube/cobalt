@@ -16,8 +16,10 @@
 #include "experimental/graphite/src/DrawContext.h"
 #include "experimental/graphite/src/DrawList.h"
 #include "experimental/graphite/src/DrawWriter.h"
+#include "experimental/graphite/src/GlobalCache.h"
 #include "experimental/graphite/src/GraphicsPipeline.h"
 #include "experimental/graphite/src/GraphicsPipelineDesc.h"
+#include "experimental/graphite/src/RecorderPriv.h"
 #include "experimental/graphite/src/Renderer.h"
 #include "experimental/graphite/src/ResourceProvider.h"
 #include "experimental/graphite/src/TextureProxy.h"
@@ -27,13 +29,24 @@
 
 #include "src/core/SkMathPriv.h"
 #include "src/core/SkTBlockList.h"
-#include "src/core/SkUtils.h"
+#include "src/core/SkUniformData.h"
 #include "src/gpu/BufferWriter.h"
 
 #include <algorithm>
 #include <unordered_map>
 
 namespace skgpu {
+
+// Helper to manage packed fields within a uint64_t
+template <uint64_t Bits, uint64_t Offset>
+struct Bitfield {
+    static constexpr uint64_t kMask = ((uint64_t) 1 << Bits) - 1;
+    static constexpr uint64_t kOffset = Offset;
+    static constexpr uint64_t kBits = Bits;
+
+    static uint32_t get(uint64_t v) { return static_cast<uint32_t>((v >> kOffset) & kMask); }
+    static uint64_t set(uint32_t v) { return (v & kMask) << kOffset; }
+};
 
 /**
  * Each Draw in a DrawList might be processed by multiple RenderSteps (determined by the Draw's
@@ -65,55 +78,55 @@ public:
             uint32_t pipelineIndex,
             uint32_t geomUniformIndex,
             uint32_t shadingUniformIndex)
-        : fPipelineKey{draw->fOrder.paintOrder().bits(),
-                       draw->fOrder.stencilIndex().bits(),
-                       static_cast<uint32_t>(renderStep),
-                       pipelineIndex}
-        , fUniformKey{geomUniformIndex, shadingUniformIndex}
+        : fPipelineKey(ColorDepthOrderField::set(draw->fOrder.paintOrder().bits()) |
+                       StencilIndexField::set(draw->fOrder.stencilIndex().bits())  |
+                       RenderStepField::set(static_cast<uint32_t>(renderStep))     |
+                       PipelineField::set(pipelineIndex))
+        , fUniformKey(GeometryUniformField::set(geomUniformIndex) |
+                      ShadingUniformField::set(shadingUniformIndex))
         , fDraw(draw) {
         SkASSERT(renderStep <= draw->fRenderer.numRenderSteps());
     }
 
     bool operator<(const SortKey& k) const {
-        uint64_t k1 = this->pipelineKey();
-        uint64_t k2 = k.pipelineKey();
-        return k1 < k2 || (k1 == k2 && this->uniformKey() < k.uniformKey());
+        return fPipelineKey < k.fPipelineKey ||
+               (fPipelineKey == k.fPipelineKey && fUniformKey < k.fUniformKey);
+    }
+
+    const RenderStep& renderStep() const {
+        return *fDraw->fRenderer.steps()[RenderStepField::get(fPipelineKey)];
     }
 
     const DrawList::Draw* draw() const { return fDraw; }
-    uint32_t pipeline() const { return fPipelineKey.fPipeline; }
-    const RenderStep& renderStep() const {
-        return *fDraw->fRenderer.steps()[fPipelineKey.fRenderStep];
-    }
 
-    uint32_t geometryUniforms() const { return fUniformKey.fGeometryIndex; }
-    uint32_t shadingUniforms() const { return fUniformKey.fShadingIndex; }
+    uint32_t pipeline()          const { return PipelineField::get(fPipelineKey);       }
+    uint32_t geometryUniforms()  const { return GeometryUniformField::get(fUniformKey); }
+    uint32_t shadingUniforms()   const { return ShadingUniformField::get(fUniformKey);  }
 
 private:
-    // Fields are ordered from most-significant to lowest when sorting by 128-bit value.
-    struct {
-        uint32_t fColorDepthOrder : 16; // sizeof(CompressedPaintersOrder)
-        uint32_t fStencilOrder    : 16; // sizeof(DisjointStencilIndex)
-        uint32_t fRenderStep      : 2;  // bits >= log2(Renderer::kMaxRenderSteps)
-        uint32_t fPipeline        : 30; // bits >= log2(max steps * DrawList::kMaxDraws)
-    } fPipelineKey; // NOTE: named for bit-punning, can't take address of a bit-field
+    // Fields are ordered from most-significant to least when sorting by 128-bit value.
+    // NOTE: We don't use bit fields because field ordering is implementation defined and we need
+    // to sort consistently.
+    using ColorDepthOrderField = Bitfield<16, 48>; // sizeof(CompressedPaintersOrder)
+    using StencilIndexField    = Bitfield<16, 32>; // sizeof(DisjointStencilIndex)
+    using RenderStepField      = Bitfield<2,  30>; // bits >= log2(Renderer::kMaxRenderSteps)
+    using PipelineField        = Bitfield<30, 0>;  // bits >= log2(max steps*DrawList::kMaxDraws)
+    uint64_t fPipelineKey;
 
-    uint64_t pipelineKey() const { return sk_bit_cast<uint64_t>(fPipelineKey); }
-
-    struct {
-        uint32_t fGeometryIndex; // bits >= log2(max steps * max draw count)
-        uint32_t fShadingIndex;  //  ""
-    } fUniformKey;
-
-    uint64_t uniformKey() const { return sk_bit_cast<uint64_t>(fUniformKey); }
+    using GeometryUniformField = Bitfield<32, 32>; // bits >= log2(max steps * max draw count)
+    using ShadingUniformField  = Bitfield<32, 0>;  //  ""
+    uint64_t fUniformKey;
 
     // Backpointer to the draw that produced the sort key
     const DrawList::Draw* fDraw;
 
-    static_assert(16 >= sizeof(CompressedPaintersOrder));
-    static_assert(16 >= sizeof(DisjointStencilIndex));
-    static_assert(2  >= SkNextLog2_portable(Renderer::kMaxRenderSteps));
-    static_assert(30 >= SkNextLog2_portable(Renderer::kMaxRenderSteps * DrawList::kMaxDraws));
+    static_assert(ColorDepthOrderField::kBits >= sizeof(CompressedPaintersOrder));
+    static_assert(StencilIndexField::kBits    >= sizeof(DisjointStencilIndex));
+    static_assert(RenderStepField::kBits      >= SkNextLog2_portable(Renderer::kMaxRenderSteps));
+    static_assert(PipelineField::kBits        >=
+                        SkNextLog2_portable(Renderer::kMaxRenderSteps * DrawList::kMaxDraws));
+    static_assert(GeometryUniformField::kBits >= PipelineField::kBits);
+    static_assert(ShadingUniformField::kBits  >= PipelineField::kBits);
 };
 
 class DrawPass::Drawer final : public DrawDispatcher {
@@ -164,16 +177,21 @@ public:
     UniformBindingCache(DrawBufferManager* bufferMgr, UniformCache* cache)
             : fBufferMgr(bufferMgr), fCache(cache) {}
 
-    uint32_t addUniforms(sk_sp<UniformData> data) {
-        if (!data) {
+    uint32_t addUniforms(std::unique_ptr<SkUniformBlock> uniformBlock) {
+        if (!uniformBlock || uniformBlock->empty()) {
             return UniformCache::kInvalidUniformID;
         }
 
-        uint32_t index = fCache->insert(data);
+        uint32_t index = fCache->insert(std::move(uniformBlock));
         if (fBindings.find(index) == fBindings.end()) {
+            SkUniformBlock* tmp = fCache->lookup(index);
             // First time encountering this data, so upload to the GPU
-            auto [writer, bufferInfo] = fBufferMgr->getUniformWriter(data->dataSize());
-            writer.write(data->data(), data->dataSize());
+            size_t totalDataSize = tmp->totalSize();
+            auto [writer, bufferInfo] = fBufferMgr->getUniformWriter(totalDataSize);
+            for (auto& u : *tmp) {
+                writer.write(u->data(), u->dataSize());
+            }
+
             fBindings.insert({index, bufferInfo});
         }
 
@@ -255,10 +273,10 @@ std::unique_ptr<DrawPass> DrawPass::Make(Recorder* recorder,
 
     Rect passBounds = Rect::InfiniteInverted();
 
-    DrawBufferManager* bufferMgr = recorder->drawBufferManager();
+    DrawBufferManager* bufferMgr = recorder->priv().drawBufferManager();
     UniformCache geometryUniforms;
     UniformBindingCache geometryUniformBindings(bufferMgr, &geometryUniforms);
-    UniformBindingCache shadingUniformBindings(bufferMgr, recorder->uniformCache());
+    UniformBindingCache shadingUniformBindings(bufferMgr, recorder->priv().uniformCache());
 
     std::unordered_map<const GraphicsPipelineDesc*, uint32_t, Hash, Eq> pipelineDescToIndex;
 
@@ -274,34 +292,41 @@ std::unique_ptr<DrawPass> DrawPass::Make(Recorder* recorder,
         // If we have two different descriptors, such that the uniforms from the PaintParams can be
         // bound independently of those used by the rest of the RenderStep, then we can upload now
         // and remember the location for re-use on any RenderStep that does shading.
-        Combination shader;
-        sk_sp<UniformData> shadingUniforms = nullptr;
+        SkUniquePaintParamsID shaderID;
+        std::unique_ptr<SkUniformBlock> shadingUniforms;
         uint32_t shadingIndex = UniformCache::kInvalidUniformID;
         if (draw.fPaintParams.has_value()) {
-            std::tie(shader, shadingUniforms) = ExtractCombo(draw.fPaintParams.value());
-            shadingIndex = shadingUniformBindings.addUniforms(shadingUniforms);
+            SkShaderCodeDictionary* dict =
+                    recorder->priv().resourceProvider()->shaderCodeDictionary();
+            std::tie(shaderID, shadingUniforms) = ExtractPaintData(dict, draw.fPaintParams.value());
+            shadingIndex = shadingUniformBindings.addUniforms(std::move(shadingUniforms));
         } // else depth-only
 
         for (int stepIndex = 0; stepIndex < draw.fRenderer.numRenderSteps(); ++stepIndex) {
             const RenderStep* const step = draw.fRenderer.steps()[stepIndex];
             const bool performsShading = draw.fPaintParams.has_value() && step->performsShading();
 
-            Combination stepShader;
+            SkUniquePaintParamsID stepShaderID;
             uint32_t stepShadingIndex = UniformCache::kInvalidUniformID;
             if (performsShading) {
-                stepShader = shader;
+                stepShaderID = shaderID;
                 stepShadingIndex = shadingIndex;
             } // else depth-only draw or stencil-only step of renderer so no shading is needed
 
             uint32_t geometryIndex = UniformCache::kInvalidUniformID;
             if (step->numUniforms() > 0) {
                 // TODO: Get layout from the GPU
+                auto uniforms = step->writeUniforms(Layout::kMetal,
+                                                    draw.fClip.scissor(),
+                                                    draw.fTransform,
+                                                    draw.fShape);
+
                 geometryIndex = geometryUniformBindings.addUniforms(
-                        step->writeUniforms(Layout::kMetal, draw.fTransform, draw.fShape));
+                        std::make_unique<SkUniformBlock>(std::move(uniforms)));
             }
 
             GraphicsPipelineDesc desc;
-            desc.setProgram(step, stepShader);
+            desc.setProgram(step, stepShaderID);
             uint32_t pipelineIndex = 0;
             auto pipelineLookup = pipelineDescToIndex.find(&desc);
             if (pipelineLookup == pipelineDescToIndex.end()) {
@@ -391,7 +416,7 @@ std::unique_ptr<DrawPass> DrawPass::Make(Recorder* recorder,
             }
         }
 
-        renderStep.writeVertices(&drawWriter, draw.fTransform, draw.fShape);
+        renderStep.writeVertices(&drawWriter, draw.fClip.scissor(), draw.fTransform, draw.fShape);
     }
     // Finish recording draw calls for any collected data at the end of the loop
     drawWriter.flush();
@@ -402,7 +427,9 @@ std::unique_ptr<DrawPass> DrawPass::Make(Recorder* recorder,
     return drawPass;
 }
 
-void DrawPass::addCommands(CommandBuffer* buffer, ResourceProvider* resourceProvider) const {
+void DrawPass::addCommands(ResourceProvider* resourceProvider,
+                           CommandBuffer* buffer,
+                           const RenderPassDesc& renderPassDesc) const {
     // TODO: Validate RenderPass state against DrawPass's target and requirements?
     // Generate actual GraphicsPipeline objects combining the target-level properties and each of
     // the GraphicsPipelineDesc's referenced in this DrawPass.
@@ -410,8 +437,9 @@ void DrawPass::addCommands(CommandBuffer* buffer, ResourceProvider* resourceProv
     // Use a vector instead of SkTBlockList for the full pipelines so that random access is fast.
     std::vector<sk_sp<GraphicsPipeline>> fullPipelines;
     fullPipelines.reserve(fPipelineDescs.count());
-    for (const GraphicsPipelineDesc& desc : fPipelineDescs.items()) {
-        fullPipelines.push_back(resourceProvider->findOrCreateGraphicsPipeline(desc));
+    for (const GraphicsPipelineDesc& pipelineDesc : fPipelineDescs.items()) {
+        fullPipelines.push_back(resourceProvider->findOrCreateGraphicsPipeline(pipelineDesc,
+                                                                               renderPassDesc));
     }
 
     // Set viewport to the entire texture for now (eventually, we may have logically smaller bounds

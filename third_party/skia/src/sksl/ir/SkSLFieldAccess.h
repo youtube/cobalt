@@ -40,7 +40,7 @@ public:
     static std::unique_ptr<Expression> Convert(const Context& context,
                                                SymbolTable& symbolTable,
                                                std::unique_ptr<Expression> base,
-                                               skstd::string_view field);
+                                               std::string_view field);
 
     // Returns a field-access expression; reports errors via ASSERT.
     static std::unique_ptr<Expression> Make(const Context& context,
@@ -74,9 +74,9 @@ public:
                                                            this->ownerKind()));
     }
 
-    String description() const override {
+    std::string description() const override {
         return this->base()->description() + "." +
-               this->base()->type().fields()[this->fieldIndex()].fName;
+               std::string(this->base()->type().fields()[this->fieldIndex()].fName);
     }
 
 private:

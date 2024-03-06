@@ -21,6 +21,7 @@ class Block;
 class ConstructorDiagonalMatrix;
 class ConstructorScalarCast;
 class DoStatement;
+class ExpressionStatement;
 class Extension;
 class FieldAccess;
 class ForStatement;
@@ -57,9 +58,9 @@ public:
 protected:
     using Precedence = Operator::Precedence;
 
-    void write(skstd::string_view s);
+    void write(std::string_view s);
 
-    void writeLine(skstd::string_view s = skstd::string_view());
+    void writeLine(std::string_view s = std::string_view());
 
     void finishLine();
 
@@ -67,13 +68,13 @@ protected:
 
     virtual bool usesPrecisionModifiers() const;
 
-    virtual String getTypeName(const Type& type);
+    virtual std::string getTypeName(const Type& type);
 
     void writeStructDefinition(const StructDefinition& s);
 
     void writeType(const Type& type);
 
-    void writeExtension(skstd::string_view name, bool require = true);
+    void writeExtension(std::string_view name, bool require = true);
 
     void writeInterfaceBlock(const InterfaceBlock& intf);
 
@@ -159,6 +160,8 @@ protected:
 
     void writeDoStatement(const DoStatement& d);
 
+    void writeExpressionStatement(const ExpressionStatement& s);
+
     virtual void writeSwitchStatement(const SwitchStatement& s);
 
     virtual void writeReturnStatement(const ReturnStatement& r);
@@ -171,11 +174,11 @@ protected:
     StringStream fExtensions;
     StringStream fGlobals;
     StringStream fExtraFunctions;
-    String fFunctionHeader;
+    std::string fFunctionHeader;
     int fVarCount = 0;
     int fIndentation = 0;
     bool fAtLineStart = false;
-    std::set<String> fWrittenIntrinsics;
+    std::set<std::string> fWrittenIntrinsics;
     // true if we have run into usages of dFdx / dFdy
     bool fFoundDerivatives = false;
     bool fFoundExternalSamplerDecl = false;
@@ -184,7 +187,7 @@ protected:
     bool fSetupFragPosition = false;
     bool fSetupFragCoordWorkaround = false;
     // if non-empty, replace all texture / texture2D / textureProj / etc. calls with this name
-    String fTextureFunctionOverride;
+    std::string fTextureFunctionOverride;
 
     // We map function names to function class so we can quickly deal with function calls that need
     // extra processing
@@ -205,7 +208,7 @@ protected:
         kTexture,
         kTranspose
     };
-    static std::unordered_map<skstd::string_view, FunctionClass>* fFunctionClasses;
+    static std::unordered_map<std::string_view, FunctionClass>* fFunctionClasses;
 
     using INHERITED = CodeGenerator;
 };

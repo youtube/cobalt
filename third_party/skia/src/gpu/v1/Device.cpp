@@ -21,6 +21,7 @@
 #include "include/private/chromium/GrSlug.h"
 #include "src/core/SkCanvasPriv.h"
 #include "src/core/SkClipStack.h"
+#include "src/core/SkCustomMeshPriv.h"
 #include "src/core/SkDraw.h"
 #include "src/core/SkImageFilterCache.h"
 #include "src/core/SkImageFilter_Base.h"
@@ -48,10 +49,7 @@
 #include "src/image/SkSurface_Gpu.h"
 #include "src/utils/SkUTF.h"
 
-// Define this for testing text blob draw using a slug.
-// #define SK_EXPERIMENTAL_SIMULATE_DRAWGLYPHRUNLIST_WITH_SLUG
-
-#define ASSERT_SINGLE_OWNER GR_ASSERT_SINGLE_OWNER(fContext->priv().singleOwner())
+#define ASSERT_SINGLE_OWNER SKGPU_ASSERT_SINGLE_OWNER(fContext->priv().singleOwner())
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -346,20 +344,47 @@ void Device::drawPoints(SkCanvas::PointMode mode,
 
     GrAA aa = fSurfaceDrawContext->chooseAA(paint);
 
-    if (paint.getPathEffect() && 2 == count && SkCanvas::kLines_PointMode == mode) {
-        GrStyle style(paint, SkPaint::kStroke_Style);
-        GrPaint grPaint;
-        if (!SkPaintToGrPaint(this->recordingContext(), fSurfaceDrawContext->colorInfo(), paint,
-                              this->asMatrixProvider(), &grPaint)) {
+    if (count == 2 && mode == SkCanvas::kLines_PointMode) {
+        if (paint.getPathEffect()) {
+            // Probably a dashed line. Draw as a path.
+            GrPaint grPaint;
+            if (SkPaintToGrPaint(this->recordingContext(),
+                                  fSurfaceDrawContext->colorInfo(),
+                                  paint,
+                                  this->asMatrixProvider(),
+                                  &grPaint)) {
+                SkPath path;
+                path.setIsVolatile(true);
+                path.moveTo(pts[0]);
+                path.lineTo(pts[1]);
+                fSurfaceDrawContext->drawPath(this->clip(),
+                                              std::move(grPaint),
+                                              aa,
+                                              this->localToDevice(),
+                                              path,
+                                              GrStyle(paint, SkPaint::kStroke_Style));
+            }
             return;
         }
-        SkPath path;
-        path.setIsVolatile(true);
-        path.moveTo(pts[0]);
-        path.lineTo(pts[1]);
-        fSurfaceDrawContext->drawPath(this->clip(), std::move(grPaint), aa, this->localToDevice(),
-                                      path, style);
-        return;
+        if (!paint.getMaskFilter() &&
+            paint.getStrokeWidth() > 0 &&  // drawStrokedLine doesn't support hairlines.
+            paint.getStrokeCap() != SkPaint::kRound_Cap) { // drawStrokedLine doesn't do round caps.
+            // Simple stroked line. Bypass path rendering.
+            GrPaint grPaint;
+            if (SkPaintToGrPaint(this->recordingContext(),
+                                 fSurfaceDrawContext->colorInfo(),
+                                 paint,
+                                 this->asMatrixProvider(),
+                                 &grPaint)) {
+                fSurfaceDrawContext->drawStrokedLine(this->clip(),
+                                                     std::move(grPaint),
+                                                     aa,
+                                                     this->localToDevice(),
+                                                     pts,
+                                                     SkStrokeRec(paint, SkPaint::kStroke_Style));
+            }
+            return;
+        }
     }
 
     SkScalar scales[2];
@@ -788,7 +813,7 @@ void Device::drawViewLattice(GrSurfaceProxyView view,
     if (info.isAlphaOnly()) {
         // If we were doing this with an FP graph we'd use a kDstIn blend between the texture and
         // the paint color.
-        view.concatSwizzle(GrSwizzle("aaaa"));
+        view.concatSwizzle(skgpu::Swizzle("aaaa"));
     }
     auto csxf = GrColorSpaceXform::Make(info, fSurfaceDrawContext->colorInfo());
 
@@ -847,6 +872,29 @@ void Device::drawVertices(const SkVertices* vertices,
                                       nullptr);
 }
 
+void Device::drawCustomMesh(SkCustomMesh customMesh,
+                            sk_sp<SkBlender> blender,
+                            const SkPaint& paint) {
+    ASSERT_SINGLE_OWNER
+    GR_CREATE_TRACE_MARKER_CONTEXT("skgpu::v1::Device", "drawCustomMesh", fContext.get());
+    SkASSERT(customMesh.vb);
+
+    GrPaint grPaint;
+    if (!init_vertices_paint(fContext.get(),
+                             fSurfaceDrawContext->colorInfo(),
+                             paint,
+                             this->asMatrixProvider(),
+                             std::move(blender),
+                             SkCustomMeshSpecificationPriv::HasColors(*customMesh.spec),
+                             &grPaint)) {
+        return;
+    }
+    fSurfaceDrawContext->drawCustomMesh(this->clip(),
+                                        std::move(grPaint),
+                                        this->asMatrixProvider(),
+                                        std::move(customMesh));
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 void Device::drawShadow(const SkPath& path, const SkDrawShadowRec& rec) {
@@ -899,7 +947,9 @@ void Device::drawAtlas(const SkRSXform xform[],
 
 ///////////////////////////////////////////////////////////////////////////////
 
-void Device::onDrawGlyphRunList(const SkGlyphRunList& glyphRunList, const SkPaint& paint) {
+void Device::onDrawGlyphRunList(SkCanvas* canvas,
+                                const SkGlyphRunList& glyphRunList,
+                                const SkPaint& paint) {
     ASSERT_SINGLE_OWNER
     GR_CREATE_TRACE_MARKER_CONTEXT("skgpu::v1::Device", "drawGlyphRunList", fContext.get());
     SkASSERT(!glyphRunList.hasRSXForm());
@@ -913,12 +963,12 @@ void Device::onDrawGlyphRunList(const SkGlyphRunList& glyphRunList, const SkPain
     #endif
 
     fSurfaceDrawContext->drawGlyphRunList(
-        this->clip(), this->asMatrixProvider(), glyphRunList, paint);
+        canvas, this->clip(), this->asMatrixProvider(), glyphRunList, paint);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 
-void Device::drawDrawable(SkDrawable* drawable, const SkMatrix* matrix, SkCanvas* canvas) {
+void Device::drawDrawable(SkCanvas* canvas, SkDrawable* drawable, const SkMatrix* matrix) {
     ASSERT_SINGLE_OWNER
 
     GrBackendApi api = this->recordingContext()->backend();
@@ -934,7 +984,7 @@ void Device::drawDrawable(SkDrawable* drawable, const SkMatrix* matrix, SkCanvas
             return;
         }
     }
-    this->INHERITED::drawDrawable(drawable, matrix, canvas);
+    this->INHERITED::drawDrawable(canvas, drawable, matrix);
 }
 
 
@@ -1038,7 +1088,8 @@ SkBaseDevice* Device::onCreateDevice(const CreateInfo& cinfo, const SkPaint*) {
             fContext.get(), SkColorTypeToGrColorType(cinfo.fInfo.colorType()),
             fSurfaceDrawContext->colorInfo().refColorSpace(), fit, cinfo.fInfo.dimensions(), props,
             fSurfaceDrawContext->numSamples(), GrMipmapped::kNo,
-            fSurfaceDrawContext->asSurfaceProxy()->isProtected(), kBottomLeft_GrSurfaceOrigin,
+            fSurfaceDrawContext->asSurfaceProxy()->isProtected(),
+            fSurfaceDrawContext->origin(),
             SkBudgeted::kYes);
     if (!sdc) {
         return nullptr;

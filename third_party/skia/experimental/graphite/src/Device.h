@@ -24,17 +24,34 @@ class Context;
 class DrawContext;
 class Recorder;
 class Shape;
+class TextureProxy;
 class Transform;
 
 class Device final : public SkBaseDevice  {
 public:
     ~Device() override;
 
-    static sk_sp<Device> Make(sk_sp<Recorder>, const SkImageInfo&);
+    static sk_sp<Device> Make(Recorder*, const SkImageInfo&);
+    static sk_sp<Device> Make(Recorder*,
+                              sk_sp<TextureProxy>,
+                              sk_sp<SkColorSpace>,
+                              SkColorType,
+                              SkAlphaType);
 
-    sk_sp<Recorder> refRecorder() { return fRecorder; }
+    Recorder* recorder() { return fRecorder; }
+    // This call is triggered from the Recorder on its registered Devices. It is typically called
+    // when the Recorder is abandoned or deleted.
+    void abandonRecorder();
 
-protected:
+    // Ensures clip elements are drawn that will clip previous draw calls, snaps all pending work
+    // from the DrawContext as a RenderPassTask and records it in the Device's recorder.
+    void flushPendingWorkToRecorder();
+
+    bool readPixels(Context*, Recorder*, const SkPixmap& dst, int x, int y);
+
+private:
+    class IntersectionTreeSet;
+
     // Clipping
     void onSave() override {}
     void onRestore() override {}
@@ -76,7 +93,7 @@ protected:
     void onClipRegion(const SkRegion& deviceRgn, SkClipOp) override {}
     void onReplaceClip(const SkIRect& rect) override {}
 
-    bool onWritePixels(const SkPixmap&, int x, int y) override { return false; }
+    bool onWritePixels(const SkPixmap&, int x, int y) override;
 
     // TODO: This will likely be implemented with the same primitive building block that drawRect
     // and drawRRect will rely on.
@@ -99,10 +116,11 @@ protected:
     void drawAtlas(const SkRSXform[], const SkRect[], const SkColor[], int count, sk_sp<SkBlender>,
                    const SkPaint&) override {}
 
-    void drawDrawable(SkDrawable*, const SkMatrix*, SkCanvas*) override {}
+    void drawDrawable(SkCanvas*, SkDrawable*, const SkMatrix*) override {}
     void drawVertices(const SkVertices*, sk_sp<SkBlender>, const SkPaint&) override {}
+    void drawCustomMesh(SkCustomMesh, sk_sp<SkBlender>, const SkPaint&) override {}
     void drawShadow(const SkPath&, const SkDrawShadowRec&) override {}
-    void onDrawGlyphRunList(const SkGlyphRunList& glyphRunList, const SkPaint& paint) override {}
+    void onDrawGlyphRunList(SkCanvas*, const SkGlyphRunList&, const SkPaint&) override {}
 
     void drawDevice(SkBaseDevice*, const SkSamplingOptions&, const SkPaint&) override {}
     void drawSpecial(SkSpecialImage*, const SkMatrix& localToDevice,
@@ -112,7 +130,6 @@ protected:
     sk_sp<SkSpecialImage> makeSpecial(const SkImage*) override;
     sk_sp<SkSpecialImage> snapSpecial(const SkIRect& subset, bool forceCopy = false) override;
 
-private:
     // DrawFlags alters the effects used by drawShape.
     enum class DrawFlags : unsigned {
         kNone             = 0b00,
@@ -129,7 +146,7 @@ private:
     };
     SKGPU_DECL_MASK_OPS_FRIENDS(DrawFlags);
 
-    Device(sk_sp<Recorder>, sk_sp<DrawContext>);
+    Device(Recorder*, sk_sp<DrawContext>);
 
     // Handles applying path effects, mask filters, stroke-and-fill styles, and hairlines.
     // Ignores geometric style on the paint in favor of explicitly provided SkStrokeRec and flags.
@@ -150,25 +167,19 @@ private:
     std::pair<Clip, CompressedPaintersOrder>
     applyClipToDraw(const Transform&, const Shape&, const SkStrokeRec&, PaintersDepth z);
 
-    // Ensures clip elements are drawn that will clip previous draw calls, snaps all pending work
-    // from the DrawContext as a RenderPassTask and records it in the Device's recorder.
-    void flushPendingWorkToRecorder();
-
     bool needsFlushBeforeDraw(int numNewDraws) const;
 
-    sk_sp<Recorder> fRecorder;
+    Recorder* fRecorder;
     sk_sp<DrawContext> fDC;
 
     // Tracks accumulated intersections for ordering dependent use of the color and depth attachment
     // (i.e. depth-based clipping, and transparent blending)
     std::unique_ptr<BoundsManager> fColorDepthBoundsManager;
+    // Tracks disjoint stencil indices for all recordered draws
+    std::unique_ptr<IntersectionTreeSet> fDisjointStencilSet;
 
     // The max depth value sent to the DrawContext, incremented so each draw has a unique value.
     PaintersDepth fCurrentDepth;
-    // TODO: Temporary way to assign stencil IDs for draws, but since each draw gets its own
-    // value, it prevents the ability for draw steps to be re-arranged into blocks of stencil then
-    // covers. However, it does ensure stenciling is correct until we wire up the intersection tree
-    DisjointStencilIndex fMaxStencilIndex;
 
     bool fDrawsOverlap;
 };

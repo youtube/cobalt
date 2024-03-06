@@ -39,12 +39,12 @@ public:
 
     virtual TextStyle peekStyle() = 0;
 
-    // Adds text to the builder. Forms the proper runs to use the upper-most style
-    // on the style_stack
+    // Adds UTF16-encoded text to the builder. Forms the proper runs to use the upper-most style
+    // on the style_stack.
     virtual void addText(const std::u16string& text) = 0;
 
-    // Adds text to the builder, using the top-most style on on the style_stack.
-    virtual void addText(const char* text) = 0; // Don't use this one - going away soon
+    // Adds UTF8-encoded text to the builder, using the top-most style on the style_stack.
+    virtual void addText(const char* text) = 0;
     virtual void addText(const char* text, size_t len) = 0;
 
     // Pushes the information required to leave an open space, where Flutter may
@@ -57,6 +57,9 @@ public:
     // Constructs a SkParagraph object that can be used to layout and paint the text to a SkCanvas.
     virtual std::unique_ptr<Paragraph> Build() = 0;
 
+    // Resets this builder to its initial state, discarding any text, styles, placeholders that have
+    // been added, but keeping the initial ParagraphStyle.
+    virtual void Reset() = 0;
 
     // Just until we fix all the google3 code
     static std::unique_ptr<ParagraphBuilder> make(const ParagraphStyle& style,

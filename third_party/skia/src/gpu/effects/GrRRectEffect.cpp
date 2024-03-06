@@ -11,6 +11,7 @@
 #include "src/core/SkTLazy.h"
 #include "src/gpu/GrFragmentProcessor.h"
 #include "src/gpu/GrShaderCaps.h"
+#include "src/gpu/KeyBuilder.h"
 #include "src/gpu/effects/GrConvexPolyEffect.h"
 #include "src/gpu/effects/GrOvalEffect.h"
 #include "src/gpu/glsl/GrGLSLFragmentShaderBuilder.h"
@@ -62,7 +63,7 @@ private:
 
     std::unique_ptr<ProgramImpl> onMakeProgramImpl() const override;
 
-    void onAddToKey(const GrShaderCaps&, GrProcessorKeyBuilder*) const override;
+    void onAddToKey(const GrShaderCaps&, skgpu::KeyBuilder*) const override;
 
     bool onIsEqual(const GrFragmentProcessor& other) const override;
 
@@ -161,11 +162,11 @@ void CircularRRectEffect::Impl::emitCode(EmitArgs& args) {
     // edges correspond to components x, y, z, and w, respectively. When a side of the rrect has
     // only rectangular corners, that side's value corresponds to the rect edge's value outset by
     // half a pixel.
-    fInnerRectUniform = uniformHandler->addUniform(&crre, kFragment_GrShaderFlag, kFloat4_GrSLType,
+    fInnerRectUniform = uniformHandler->addUniform(&crre, kFragment_GrShaderFlag, SkSLType::kFloat4,
                                                    "innerRect", &rectName);
     // x is (r + .5) and y is 1/(r + .5)
     fRadiusPlusHalfUniform = uniformHandler->addUniform(&crre, kFragment_GrShaderFlag,
-                                                        kHalf2_GrSLType, "radiusPlusHalf",
+                                                        SkSLType::kHalf2, "radiusPlusHalf",
                                                         &radiusPlusHalfName);
 
     // If we're on a device where float != fp32 then the length calculation could overflow.
@@ -371,7 +372,7 @@ void CircularRRectEffect::Impl::onSetData(const GrGLSLProgramDataManager& pdman,
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void CircularRRectEffect::onAddToKey(const GrShaderCaps& caps, GrProcessorKeyBuilder* b) const {
+void CircularRRectEffect::onAddToKey(const GrShaderCaps& caps, skgpu::KeyBuilder* b) const {
     static_assert(kGrClipEdgeTypeCnt <= 8);
     b->add32((fCircularCornerFlags << 3) | static_cast<int>(fEdgeType));
 }
@@ -401,7 +402,7 @@ private:
 
     std::unique_ptr<ProgramImpl> onMakeProgramImpl() const override;
 
-    void onAddToKey(const GrShaderCaps&, GrProcessorKeyBuilder*) const override;
+    void onAddToKey(const GrShaderCaps&, skgpu::KeyBuilder*) const override;
 
     bool onIsEqual(const GrFragmentProcessor& other) const override;
 
@@ -512,7 +513,7 @@ void EllipticalRRectEffect::Impl::emitCode(EmitArgs& args) {
     GrGLSLUniformHandler* uniformHandler = args.fUniformHandler;
     const char *rectName;
     // The inner rect is the rrect bounds inset by the x/y radii
-    fInnerRectUniform = uniformHandler->addUniform(&erre, kFragment_GrShaderFlag, kFloat4_GrSLType,
+    fInnerRectUniform = uniformHandler->addUniform(&erre, kFragment_GrShaderFlag, SkSLType::kFloat4,
                                                    "innerRect", &rectName);
 
     GrGLSLFPFragmentBuilder* fragBuilder = args.fFragBuilder;
@@ -536,7 +537,7 @@ void EllipticalRRectEffect::Impl::emitCode(EmitArgs& args) {
     // radii uniform values are already in this normalized space.
     const char* scaleName = nullptr;
     if (!args.fShaderCaps->floatIs32Bits()) {
-        fScaleUniform = uniformHandler->addUniform(&erre, kFragment_GrShaderFlag, kHalf2_GrSLType,
+        fScaleUniform = uniformHandler->addUniform(&erre, kFragment_GrShaderFlag, SkSLType::kHalf2,
                                                    "scale", &scaleName);
     }
 
@@ -546,7 +547,7 @@ void EllipticalRRectEffect::Impl::emitCode(EmitArgs& args) {
             const char *invRadiiXYSqdName;
             fInvRadiiSqdUniform = uniformHandler->addUniform(&erre,
                                                              kFragment_GrShaderFlag,
-                                                             kFloat2_GrSLType,
+                                                             SkSLType::kFloat2,
                                                              "invRadiiXY",
                                                              &invRadiiXYSqdName);
             fragBuilder->codeAppend("float2 dxy = max(max(dxy0, dxy1), 0.0);");
@@ -561,7 +562,7 @@ void EllipticalRRectEffect::Impl::emitCode(EmitArgs& args) {
             const char *invRadiiLTRBSqdName;
             fInvRadiiSqdUniform = uniformHandler->addUniform(&erre,
                                                              kFragment_GrShaderFlag,
-                                                             kFloat4_GrSLType,
+                                                             SkSLType::kFloat4,
                                                              "invRadiiLTRB",
                                                              &invRadiiLTRBSqdName);
             if (scaleName) {
@@ -663,7 +664,7 @@ void EllipticalRRectEffect::Impl::onSetData(const GrGLSLProgramDataManager& pdma
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void EllipticalRRectEffect::onAddToKey(const GrShaderCaps& caps, GrProcessorKeyBuilder* b) const {
+void EllipticalRRectEffect::onAddToKey(const GrShaderCaps& caps, skgpu::KeyBuilder* b) const {
     static_assert((int)GrClipEdgeType::kLast < (1 << 3));
     b->add32(fRRect.getType() | static_cast<int>(fEdgeType) << 3);
 }
