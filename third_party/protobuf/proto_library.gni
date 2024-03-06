@@ -235,18 +235,6 @@ template("proto_library") {
     outputs = get_path_info(protogens, "abspath")
     args = protos
 
-    if (is_starboard) {
-      # TODO(b/207292694): Build protoc from source.
-      if (is_mac) {
-        protoc_path = "//tools/protoc_mac"
-      } else {
-        protoc_path = "//tools/protoc"
-      }
-      args += [
-        "--protoc",
-        rebase_path(protoc_path, root_build_dir) + host_executable_suffix,
-      ]
-    } else {
     protoc_label = "//third_party/protobuf:protoc($host_toolchain)"
     protoc_path = get_label_info(protoc_label, "root_out_dir") + "/protoc" +
                   host_executable_suffix
@@ -256,10 +244,6 @@ template("proto_library") {
       # may be different from |root_out_dir| of protoc built on host toolchain.
       "--protoc",
       "./" + rebase_path(protoc_path, root_build_dir),
-      ]
-    }
-
-    args += [
       "--proto-in-dir",
       rebase_path(proto_in_dir, root_build_dir),
     ]
@@ -311,10 +295,6 @@ template("proto_library") {
       }
     }
 
-    if (is_starboard) {
-      inputs = []
-      deps = []
-    } else {
     # System protoc is not used so it's necessary to build a chromium one.
     inputs = [
       protoc_path,
@@ -322,7 +302,6 @@ template("proto_library") {
     deps = [
       protoc_label,
     ]
-    }
 
     if (generate_with_plugin) {
       inputs += [ plugin_path ]
@@ -371,10 +350,6 @@ template("proto_library") {
                            ])
 
     sources = get_target_outputs(":$action_name")
-
-    if (generate_python) {
-      sources -= [ get_path_info("$py_out_dir/${proto_path}_pb2.py", "abspath") ]
-    }
 
     if (defined(invoker.extra_configs)) {
       configs += invoker.extra_configs
