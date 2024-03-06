@@ -142,6 +142,7 @@ target(gtest_target_type, "nplb") {
     "posix_compliance/posix_condition_variable_wait_test.cc",
     "posix_compliance/posix_condition_variable_wait_timed_test.cc",
     "posix_compliance/posix_directory_can_open_test.cc",
+    "posix_compliance/posix_directory_create_test.cc",
     "posix_compliance/posix_file_close_test.cc",
     "posix_compliance/posix_file_get_path_info_test.cc",
     "posix_compliance/posix_file_open_test.cc",
