@@ -31,6 +31,19 @@ _FILTERED_TESTS = {
         'SbPlayerWriteSampleTests*',
         'SbUndefinedBehaviorTest.CallThisPointerIsNullRainyDay',
         'SbSystemGetPropertyTest.FLAKY_ReturnsRequired',
+<<<<<<< HEAD
+=======
+        # Failure tracked by b/287666606.
+        'VerticalVideoTests/VerticalVideoTest.WriteSamples*',
+
+        # Enable once verified on the platform.
+        'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
+
+        # TODO: b/327686141 - Passes locally but fails on github
+        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDayDestination/type_ipv6',
+        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceForDestination/type_ipv6',
+        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceNotLoopback/type_ipv6',
+>>>>>>> 5ead7d1d4e7 (Disable locally passing test on raspi related to ipv6 sockets (#2550))
     ],
     'player_filter_tests': [
         # The implementations for the raspberry pi (0 and 2) are incomplete
