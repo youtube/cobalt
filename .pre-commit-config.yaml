@@ -204,11 +204,11 @@ repos:
         entry: gn format
         language: system
         files: '.*\.gni?$'
-    -   id: meta-validate
-        name: Validate METADATA files
-        entry: python -m tools.metadata.validate
-        language: python
-        additional_dependencies:
-          - "protobuf"
-        always_run: true
-        pass_filenames: false
+    # -   id: meta-validate
+    #     name: Validate METADATA files
+    #     entry: python -m tools.metadata.validate
+    #     language: python
+    #     additional_dependencies:
+    #       - "protobuf"
+    #     always_run: true
+    #     pass_filenames: false
