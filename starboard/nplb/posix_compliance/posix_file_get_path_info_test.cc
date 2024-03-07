@@ -102,7 +102,7 @@ TEST(PosixFileGetPathInfoTest, WorksOnADirectory) {
   }
 }
 
-TEST(SbFileGetPathInfoTest, WorksOnStaticContentFiles) {
+TEST(PosixFileGetPathInfoTest, WorksOnStaticContentFiles) {
   for (auto filename : GetFileTestsFilePaths()) {
     SbFileInfo info = {0};
     bool result = SbFileGetPathInfo(filename.c_str(), &info);
@@ -113,7 +113,7 @@ TEST(SbFileGetPathInfoTest, WorksOnStaticContentFiles) {
   }
 }
 
-TEST(SbFileGetPathInfoTest, WorksOnStaticContentDirectories) {
+TEST(PosixFileGetPathInfoTest, WorksOnStaticContentDirectories) {
   for (auto path : GetFileTestsDirectoryPaths()) {
     SbFileInfo info = {0};
     bool result = SbFileGetPathInfo(path.data(), &info);
