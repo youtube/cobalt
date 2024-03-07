@@ -41,8 +41,8 @@ int Transfer(int receive_socket_fd,
 
   while (receive_total < size) {
     if (send_total < size) {
-      int bytes_sent = send(send_socket_fd, send_data + send_total,
-                            size - send_total, kSendFlags);
+      int bytes_sent = sendto(send_socket_fd, send_data + send_total,
+                              size - send_total, kSendFlags, NULL, 0);
       if (bytes_sent < 0) {
         if (errno != EINPROGRESS) {
           return -1;
@@ -53,8 +53,8 @@ int Transfer(int receive_socket_fd,
       send_total += bytes_sent;
     }
 
-    int bytes_received = recv(receive_socket_fd, out_data + receive_total,
-                              size - receive_total, 0);
+    int bytes_received = recvfrom(receive_socket_fd, out_data + receive_total,
+                                  size - receive_total, 0, NULL, 0);
 
     if (bytes_received < 0) {
       if (errno != EINPROGRESS) {
@@ -71,7 +71,7 @@ int Transfer(int receive_socket_fd,
 
 namespace {
 
-TEST(PosixSocketReceiveTest, SunnyDay) {
+TEST(PosixSocketRecvfromTest, SunnyDay) {
   const int kBufSize = 256 * 1024;
   const int kSockBufSize = kBufSize / 8;
   int listen_socket_fd = -1, client_socket_fd = -1, server_socket_fd = -1;
