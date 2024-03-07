@@ -457,14 +457,11 @@ bool SetCloseOnExec(int fd) {
 
 bool PathExists(const FilePath& path) {
   ScopedBlockingCall scoped_blocking_call(BlockingType::MAY_BLOCK);
-  LOG(INFO) << "Android path (file_util_posix)";
 #if defined(OS_ANDROID)
   if (path.IsContentUri()) {
-    LOG(INFO) << "Android Path is Content URI";
     return ContentUriExists(path);
   }
 #endif
-  LOG(INFO) << "Android Path is not content URI";
   return access(path.value().c_str(), F_OK) == 0;
 }
 
