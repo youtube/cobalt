@@ -10,7 +10,6 @@
 #if V8_TARGET_ARCH_ARM64
 
 #include "src/base/platform/platform.h"
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/arm64/decoder-arm64-inl.h"
 #include "src/codegen/arm64/utils-arm64.h"
 #include "src/diagnostics/arm64/disasm-arm64.h"
@@ -21,7 +20,7 @@ namespace internal {
 
 DisassemblingDecoder::DisassemblingDecoder() {
   buffer_size_ = 256;
-  buffer_ = reinterpret_cast<char*>(base::Malloc(buffer_size_));
+  buffer_ = reinterpret_cast<char*>(malloc(buffer_size_));
   buffer_pos_ = 0;
   own_buffer_ = true;
 }
@@ -35,7 +34,7 @@ DisassemblingDecoder::DisassemblingDecoder(char* text_buffer, int buffer_size) {
 
 DisassemblingDecoder::~DisassemblingDecoder() {
   if (own_buffer_) {
-    base::Free(buffer_);
+    free(buffer_);
   }
 }
 

@@ -52,7 +52,6 @@
 #include <openssl/base.h>
 
 #include <openssl/aes.h>
-#include <openssl/cpu.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -63,27 +62,6 @@
 extern "C" {
 #endif
 
-
-static inline uint32_t GETU32(const void *in) {
-  uint32_t v;
-  OPENSSL_memcpy(&v, in, sizeof(v));
-  return CRYPTO_bswap4(v);
-}
-
-static inline void PUTU32(void *out, uint32_t v) {
-  v = CRYPTO_bswap4(v);
-  OPENSSL_memcpy(out, &v, sizeof(v));
-}
-
-static inline size_t load_word_le(const void *in) {
-  size_t v;
-  OPENSSL_memcpy(&v, in, sizeof(v));
-  return v;
-}
-
-static inline void store_word_le(void *out, size_t v) {
-  OPENSSL_memcpy(out, &v, sizeof(v));
-}
 
 // block128_f is the type of an AES block cipher implementation.
 //
@@ -171,7 +149,7 @@ typedef struct {
     uint64_t u[2];
     uint32_t d[4];
     uint8_t c[16];
-    size_t t[16 / sizeof(size_t)];
+    crypto_word_t t[16 / sizeof(crypto_word_t)];
   } Yi, EKi, EK0, len, Xi;
 
   // Note that the order of |Xi| and |gcm_key| is fixed by the MOVBE-based,
@@ -274,10 +252,6 @@ void gcm_init_clmul(u128 Htable[16], const uint64_t Xi[2]);
 void gcm_gmult_clmul(uint64_t Xi[2], const u128 Htable[16]);
 void gcm_ghash_clmul(uint64_t Xi[2], const u128 Htable[16], const uint8_t *inp,
                      size_t len);
-
-OPENSSL_INLINE char gcm_ssse3_capable(void) {
-  return (OPENSSL_ia32cap_get()[1] & (1 << (41 - 32))) != 0;
-}
 
 // |gcm_gmult_ssse3| and |gcm_ghash_ssse3| require |Htable| to be
 // 16-byte-aligned, but |gcm_init_ssse3| does not.

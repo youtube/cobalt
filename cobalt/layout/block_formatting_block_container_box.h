@@ -85,9 +85,9 @@ class BlockLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
 
  protected:
   // From |Box|.
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
   void DumpClassName(std::ostream* stream) const override;
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 };
 
 // Non-replaced inline-block elements generate block container boxes that
@@ -129,10 +129,10 @@ class InlineLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
 
  protected:
   // From |Box|.
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
   void DumpClassName(std::ostream* stream) const override;
   void DumpProperties(std::ostream* stream) const override;
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
  private:
   // From |Box|.

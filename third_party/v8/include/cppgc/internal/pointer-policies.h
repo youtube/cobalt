@@ -141,7 +141,7 @@ struct SentinelPointer {
 
 }  // namespace internal
 
-constexpr internal::SentinelPointer kSentinelPointer{};
+constexpr internal::SentinelPointer kSentinelPointer;
 
 }  // namespace cppgc
 

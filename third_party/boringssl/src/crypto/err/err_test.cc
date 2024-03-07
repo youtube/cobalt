@@ -75,6 +75,17 @@ TEST(ErrTest, PutError) {
   EXPECT_EQ(1, ERR_GET_LIB(packed_error));
   EXPECT_EQ(2, ERR_GET_REASON(packed_error));
   EXPECT_STREQ("testing", data);
+
+  ERR_put_error(1, 0 /* unused */, 2, "test", 4);
+  ERR_set_error_data(const_cast<char *>("testing"), ERR_FLAG_STRING);
+  packed_error = ERR_get_error_line_data(&file, &line, &data, &flags);
+  EXPECT_STREQ("testing", data);
+
+  ERR_put_error(1, 0 /* unused */, 2, "test", 4);
+  bssl::UniquePtr<char> str(OPENSSL_strdup("testing"));
+  ERR_set_error_data(str.release(), ERR_FLAG_STRING | ERR_FLAG_MALLOCED);
+  packed_error = ERR_get_error_line_data(&file, &line, &data, &flags);
+  EXPECT_STREQ("testing", data);
 }
 
 TEST(ErrTest, ClearError) {
@@ -282,4 +293,14 @@ TEST(ErrTest, String) {
 
   // A buffer length of zero should not touch the buffer.
   ERR_error_string_n(err, nullptr, 0);
+}
+
+// Error-printing functions should return something with unknown errors.
+TEST(ErrTest, UnknownError) {
+  uint32_t err = ERR_PACK(0xff, 0xfff);
+  EXPECT_TRUE(ERR_lib_error_string(err));
+  EXPECT_TRUE(ERR_reason_error_string(err));
+  char buf[128];
+  ERR_error_string_n(err, buf, sizeof(buf));
+  EXPECT_NE(0u, strlen(buf));
 }

@@ -5,7 +5,6 @@
 #include "src/regexp/experimental/experimental-bytecode.h"
 
 #include <iomanip>
-#include <cctype>
 
 namespace v8 {
 namespace internal {

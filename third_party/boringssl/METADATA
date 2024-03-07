@@ -1,7 +1,15 @@
 third_party {
-  url {
-    type: GIT
-    value: "https://chromium.googlesource.com/chromium/src"
+  identifier {
+    type: "ChromiumVersion"
+    value: "108.0.5359.243"  # from https://chromereleases.googleblog.com/2023/09/long-term-support-channel-update-for_18.html
   }
-  version: "87.0.4280.142"
+  identifier {
+    type: "Git"
+    value: "https://chromium.googlesource.com/chromium/src.git"
+    version: "60f10bcddac0f909b6ba2ddbaf2b49ca9c5ba714"
+  }
+  identifier {
+    type: "UpstreamSubdir"
+    value: "third_party/boringssl"
+  }
 }

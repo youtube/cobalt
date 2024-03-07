@@ -103,19 +103,12 @@
 #endif  // V8_OS_WIN64
 
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-#include "src/base/platform/wrappers.h"
 #include "src/heap/conservative-stack-visitor.h"
 #endif
 
-#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
-#define CONST const
-#else
-#define CONST
-#endif
-
-extern "C" CONST uint8_t* v8_Default_embedded_blob_code_;
+extern "C" const uint8_t* v8_Default_embedded_blob_code_;
 extern "C" uint32_t v8_Default_embedded_blob_code_size_;
-extern "C" CONST uint8_t* v8_Default_embedded_blob_data_;
+extern "C" const uint8_t* v8_Default_embedded_blob_data_;
 extern "C" uint32_t v8_Default_embedded_blob_data_size_;
 
 namespace v8 {
@@ -133,13 +126,13 @@ namespace internal {
 #define TRACE_ISOLATE(tag)
 #endif
 
-CONST uint8_t* DefaultEmbeddedBlobCode() {
+const uint8_t* DefaultEmbeddedBlobCode() {
   return v8_Default_embedded_blob_code_;
 }
 uint32_t DefaultEmbeddedBlobCodeSize() {
   return v8_Default_embedded_blob_code_size_;
 }
-CONST uint8_t* DefaultEmbeddedBlobData() {
+const uint8_t* DefaultEmbeddedBlobData() {
   return v8_Default_embedded_blob_data_;
 }
 uint32_t DefaultEmbeddedBlobDataSize() {
@@ -175,13 +168,9 @@ namespace {
 // variables before accessing them. Different threads may race, but this is fine
 // since they all attempt to set the same values of the blob pointer and size.
 
-#if defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
-// This is why we need the CONST workaround in this file: atomic can't be used
-// with const on some compiler.
-#endif
-std::atomic<CONST uint8_t*> current_embedded_blob_code_(nullptr);
+std::atomic<const uint8_t*> current_embedded_blob_code_(nullptr);
 std::atomic<uint32_t> current_embedded_blob_code_size_(0);
-std::atomic<CONST uint8_t*> current_embedded_blob_data_(nullptr);
+std::atomic<const uint8_t*> current_embedded_blob_data_(nullptr);
 std::atomic<uint32_t> current_embedded_blob_data_size_(0);
 
 // The various workflows around embedded snapshots are fairly complex. We need
@@ -214,25 +203,25 @@ std::atomic<uint32_t> current_embedded_blob_data_size_(0);
 // - current_embedded_blob_refs_
 base::LazyMutex current_embedded_blob_refcount_mutex_ = LAZY_MUTEX_INITIALIZER;
 
-CONST uint8_t* sticky_embedded_blob_code_ = nullptr;
+const uint8_t* sticky_embedded_blob_code_ = nullptr;
 uint32_t sticky_embedded_blob_code_size_ = 0;
-CONST uint8_t* sticky_embedded_blob_data_ = nullptr;
+const uint8_t* sticky_embedded_blob_data_ = nullptr;
 uint32_t sticky_embedded_blob_data_size_ = 0;
 
 bool enable_embedded_blob_refcounting_ = true;
 int current_embedded_blob_refs_ = 0;
 
-CONST uint8_t* StickyEmbeddedBlobCode() { return sticky_embedded_blob_code_; }
+const uint8_t* StickyEmbeddedBlobCode() { return sticky_embedded_blob_code_; }
 uint32_t StickyEmbeddedBlobCodeSize() {
   return sticky_embedded_blob_code_size_;
 }
-CONST uint8_t* StickyEmbeddedBlobData() { return sticky_embedded_blob_data_; }
+const uint8_t* StickyEmbeddedBlobData() { return sticky_embedded_blob_data_; }
 uint32_t StickyEmbeddedBlobDataSize() {
   return sticky_embedded_blob_data_size_;
 }
 
-void SetStickyEmbeddedBlob(CONST uint8_t* code, uint32_t code_size,
-                           CONST uint8_t* data, uint32_t data_size) {
+void SetStickyEmbeddedBlob(const uint8_t* code, uint32_t code_size,
+                           const uint8_t* data, uint32_t data_size) {
   sticky_embedded_blob_code_ = code;
   sticky_embedded_blob_code_size_ = code_size;
   sticky_embedded_blob_data_ = data;
@@ -287,8 +276,8 @@ bool Isolate::CurrentEmbeddedBlobIsBinaryEmbedded() {
   return code == DefaultEmbeddedBlobCode();
 }
 
-void Isolate::SetEmbeddedBlob(CONST uint8_t* code, uint32_t code_size,
-                              CONST uint8_t* data, uint32_t data_size) {
+void Isolate::SetEmbeddedBlob(const uint8_t* code, uint32_t code_size,
+                              const uint8_t* data, uint32_t data_size) {
   CHECK_NOT_NULL(code);
   CHECK_NOT_NULL(data);
 
@@ -1642,7 +1631,6 @@ Object Isolate::ThrowInternal(Object raw_exception, MessageLocation* location) {
     raw_exception.Print();
     PrintF("Stack Trace:\n");
     PrintStack(stdout);
-
     PrintF("=========================================================\n");
   }
 
@@ -3339,9 +3327,9 @@ bool IsolateIsCompatibleWithEmbeddedBlob(Isolate* isolate) {
 }  // namespace
 
 void Isolate::InitializeDefaultEmbeddedBlob() {
-  CONST uint8_t* code = DefaultEmbeddedBlobCode();
+  const uint8_t* code = DefaultEmbeddedBlobCode();
   uint32_t code_size = DefaultEmbeddedBlobCodeSize();
-  CONST uint8_t* data = DefaultEmbeddedBlobData();
+  const uint8_t* data = DefaultEmbeddedBlobData();
   uint32_t data_size = DefaultEmbeddedBlobDataSize();
 
 #ifdef V8_MULTI_SNAPSHOTS
@@ -3395,14 +3383,9 @@ void Isolate::CreateAndSetEmbeddedBlob() {
                                                       &data, &data_size);
 
     CHECK_EQ(0, current_embedded_blob_refs_);
-#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
     const uint8_t* const_code = const_cast<const uint8_t*>(code);
     const uint8_t* const_data = const_cast<const uint8_t*>(data);
     SetEmbeddedBlob(const_code, code_size, const_data, data_size);
-#else
-    SetEmbeddedBlob(code, code_size, data, data_size);
-#endif
-
     current_embedded_blob_refs_++;
 
     SetStickyEmbeddedBlob(code, code_size, data, data_size);

@@ -64,9 +64,24 @@
       "GetStringi",
     ]
   },
+  {
+    "GL":    [{"min_version": [4, 2], "ext": "<core>"}],
+    "GLES":  [{"min_version": [3, 1], "ext": "<core>"}],
+    "WebGL": null,
+
+    "functions": [
+      "MemoryBarrier",
+    ],
+    // TODO: Remove 'optional' once Chrome sets this function in the interface.
+    "optional": [
+      "MemoryBarrier",
+    ]
+  },
 
   {
-    "GL":    [{"ext": "<core>"}],
+    "GL":    [{"min_version": [3, 0], "ext": "<core>"},
+              {/*    else if      */  "ext": "GL_ARB_vertex_array_object"},
+              {/*    else if      */  "ext": "GL_APPLE_vertex_array_object"}],
     "GLES":  [{"min_version": [3, 0], "ext": "<core>"},
               {/*    else if      */  "ext": "GL_OES_vertex_array_object"}],
     "WebGL": [{"min_version": [2, 0], "ext": "<core>"},
@@ -77,6 +92,18 @@
     // creates an alias called genVertexArray which papers over this difference.
     "functions": [
       "BindVertexArray", "DeleteVertexArrays", "GenVertexArrays",
+    ],
+  },
+
+  {
+    "GL":    [{"min_version": [4, 0], "ext": "<core>"},
+              {/*    else if      */  "ext": "GL_ARB_tessellation_shader"}],
+    "GLES":  [{"min_version": [3, 2], "ext": "<core>"},
+              {/*    else if      */  "ext": "GL_OES_tessellation_shader"}],
+    "WebGL": null,
+
+    "functions": [
+      "PatchParameteri",
     ],
   },
 
@@ -132,13 +159,27 @@
               {/*    else if      */  "ext": "GL_ARB_draw_instanced"},
               {/*    else if      */  "ext": "GL_EXT_draw_instanced"}],
     "GLES":  [{"min_version": [3, 0], "ext": "<core>"},
-              {/*    else if      */  "ext": "GL_EXT_draw_instanced"}],
+              {/*    else if      */  "ext": "GL_EXT_draw_instanced"},
+              {/*    else if      */  "ext": "GL_ANGLE_instanced_arrays"}],
     "WebGL": [{"min_version": [2, 0], "ext": "<core>"}],
 
     "functions": [
       "DrawArraysInstanced", "DrawElementsInstanced",
     ]
   },
+
+  {
+    "GL":    [{"min_version": [4, 2], "ext": "<core>"},
+              {/*    else if      */  "ext": "GL_ARB_base_instance"}],
+    "GLES":  [{"ext": "GL_EXT_base_instance"},
+              {/*    else if      */  "ext": "GL_ANGLE_base_vertex_base_instance"}],
+    "WebGL": [{"ext": "GL_WEBGL_draw_instanced_base_vertex_base_instance"}],
+
+    "functions": [
+      "DrawArraysInstancedBaseInstance", "DrawElementsInstancedBaseVertexBaseInstance"
+    ]
+  },
+
   { // ES 3.0 has glDrawBuffers but not glDrawBuffer
     "GL":    [{"ext": "<core>"}],
     "GLES":  [{"min_version": [3, 0], "ext": "<core>"}],
@@ -157,6 +198,16 @@
 
     "functions": [
       "DrawArraysIndirect", "DrawElementsIndirect",
+    ]
+  },
+
+  {
+    "GL":    null,
+    "GLES":  [{"ext": "GL_ANGLE_base_vertex_base_instance"}],
+    "WebGL": [{"ext": "GL_WEBGL_multi_draw_instanced_base_vertex_base_instance"}],
+
+    "functions": [
+      "MultiDrawArraysInstancedBaseInstance", "MultiDrawElementsInstancedBaseVertexBaseInstance",
     ]
   },
 
@@ -271,6 +322,11 @@
 
     "functions": [
       "StartTiling", "EndTiling",
+    ],
+    // https://github.com/flutter/flutter/issues/47164
+    // https://github.com/flutter/flutter/issues/47804
+    "optional": [
+      "StartTiling", "EndTiling",
     ]
   },
 
@@ -278,7 +334,8 @@
     "GL":    [{"min_version": [3, 2], "ext": "<core>"},
               {/*    else if      */  "ext": "GL_ARB_instanced_arrays"}],
     "GLES":  [{"min_version": [3, 0], "ext": "<core>"},
-              {/*    else if      */  "ext": "GL_EXT_instanced_arrays"}],
+              {/*    else if      */  "ext": "GL_EXT_instanced_arrays"},
+              {/*    else if      */  "ext": "GL_ANGLE_instanced_arrays"}],
     "WebGL": [{"min_version": [2, 0], "ext": "<core>"}],
 
     "functions": [
@@ -316,6 +373,7 @@
               {/*    else if      */  "ext": "GL_ARB_framebuffer_object"},
               {/*    else if      */  "ext": "GL_EXT_framebuffer_blit"}],
     "GLES":  [{"min_version": [3, 0], "ext": "<core>"},
+              {/*    else if      */  "ext": "GL_NV_framebuffer_blit"},
               {/*    else if      */  "ext": "GL_CHROMIUM_framebuffer_multisample"},
               {/*    else if      */  "ext": "GL_ANGLE_framebuffer_blit"}],
     "WebGL": [{"min_version": [2, 0], "ext": "<core>"}],
@@ -452,63 +510,6 @@
     ],
   },
 
-  {
-    "GL":    [{"min_version": [4, 3], "ext": "<core>"},
-              {/*    else if      */  "ext": "GL_ARB_program_interface_query"}],
-    "GLES":  [{"min_version": [3, 1], "ext": "<core>"}],
-    "WebGL": null,
-
-    "functions": [
-      "GetProgramResourceLocation",
-    ],
-  },
-
-  {  // It appears that the GL_NV_path_rendering sometimes provides these
-     // functions under the "EXT" extension instead of "NV".
-    "GL":    [{"ext": "GL_NV_path_rendering", "suffix": "EXT"}],
-
-    "GLES":  [{"ext": "GL_CHROMIUM_path_rendering"},
-              {"ext": "GL_NV_path_rendering", "suffix": "EXT"}],
-    "WebGL": null,
-
-    "functions": [
-      "MatrixLoadIdentity", "MatrixLoadf"
-    ],
-  },
-  {
-    "GL":    [{"ext": "GL_NV_path_rendering"}],
-    "GLES":  [{"ext": "GL_CHROMIUM_path_rendering"},
-              {"ext": "GL_NV_path_rendering"}],
-    "WebGL": null,
-
-    "functions": [
-      "CoverFillPath", "CoverFillPathInstanced", "CoverStrokePath",
-      "CoverStrokePathInstanced", "DeletePaths", "GenPaths",
-      "IsPath", "PathCommands", "PathParameterf", "PathParameteri",
-      "PathStencilFunc", "ProgramPathFragmentInputGen", "StencilFillPath",
-      "StencilFillPathInstanced", "StencilStrokePath", "StencilStrokePathInstanced",
-      "StencilThenCoverFillPath", "StencilThenCoverFillPathInstanced",
-      "StencilThenCoverStrokePath", "StencilThenCoverStrokePathInstanced",
-    ],
-    // List of functions that Skia uses, but which have been added since the initial release
-    // of NV_path_rendering driver. We do not want to fail interface validation due to
-    // missing features, we will just not use the extension.
-    // If one updates this list, then update GrGLCaps::hasPathRenderingSupport too.
-    "optional": [
-      "ProgramPathFragmentInputGen", "StencilThenCoverFillPath",
-      "StencilThenCoverFillPathInstanced", "StencilThenCoverStrokePath",
-      "StencilThenCoverStrokePathInstanced",
-    ],
-  },
-  {
-    "GL":    null,
-    "GLES":  [{"ext": "GL_CHROMIUM_path_rendering"}],
-    "WebGL": null,
-
-    "functions": [
-      "BindFragmentInputLocation",
-    ],
-  },
   {
     "GL":    [{"ext": "GL_NV_framebuffer_mixed_samples"}],
     "GLES":  [{"ext": "GL_CHROMIUM_framebuffer_mixed_samples"},
@@ -689,4 +690,13 @@
     ],
   },
 
+  {
+    "GL":    [{"ext": "GL_NV_fence"}],
+    "GLES":  [{"ext": "GL_NV_fence"}],
+    "WebGL": null,
+
+    "functions": [
+      "DeleteFences", "FinishFence", "GenFences", "SetFence", "TestFence",
+    ],
+  }
 ]

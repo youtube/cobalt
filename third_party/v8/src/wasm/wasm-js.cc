@@ -2552,8 +2552,7 @@ static Handle<Object> WasmValueToObject(Isolate* isolate,
             "failed to allocate backing store");
       }
 
-      memcpy(buffer->allocation_base(), s128.bytes(),
-                   buffer->byte_length());
+      memcpy(buffer->allocation_base(), s128.bytes(), buffer->byte_length());
       return isolate->factory()->NewJSTypedArray(kExternalUint8Array, buffer, 0,
                                                  buffer->byte_length());
     }

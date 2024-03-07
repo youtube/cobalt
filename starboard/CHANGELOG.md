@@ -9,6 +9,27 @@ since the version previous to it.
 
 ## Version 16
 
+### Added standard POSIX socket send/recv APIs.
+The standard API `send`, `recv`, can be used from <sys/socket.h> and
+`fcntl` can be used from <fcntl.h>, to set socket to non-blocking.
+
+### Added standard POSIX file open and close APIs.
+The standard API `open` can be used from `fcntl.h` and `close` can be used from
+<unistd.h>.
+
+### Added standard POSIX socket bind/listen/connect/accept APIs.
+The standard API `bind`, `listen`, `connect`, `accept` can be used from
+<sys/socket.h> and `getifaddrs`, `freeifaddrs` can be used from <ifaddrs.h>.
+
+### Added standard POSIX socket/close/setsockopt APIs.
+The standard API `socket`, `setsockopt` can be used from <sys/socket.h> and
+`close` can be called to close the socket by including <unistd.h>.
+
+### Changed InstallCrashpadHandler API
+This API doesn't support the option to start the crashpad handler at the
+same time as the app launches anymore. Instead, the crashpad handler is
+started when a crash happens. See details in starboard/doc/crash_handlers.md.
+
 ### Convert SbUiNavGetInterface Starboard API into an extension
 The `SbUiNavGetInterface` API is deprecated and replaced with a Starboard
 extension named `SbUiNavInterface`.
@@ -56,10 +77,6 @@ deprecated.
 ### Removed SbImageDecode and SbImageIsDecodeSupported
 The APIs defined in `starboard/image.h` are no longer used and have been
 deprecated.
-
-### Add a new enum `kIamfConfigObus` to `SbPlayerSampleSideDataType` in `starboard/player.h`
-This value allows IAMF samples to be written to Starboard along with IAMF
-Config OBUs as side data.
 
 ### Deprecated SbStringScan and SbStringScanF
 The APIs defined in `starboard/string.h` are deprecated and the standard API `vsscanf` and `sscanf` are used instead.

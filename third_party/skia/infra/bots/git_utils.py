@@ -5,6 +5,7 @@
 
 """This module contains functions for using git."""
 
+import os
 import re
 import shutil
 import subprocess
@@ -20,9 +21,10 @@ class GitLocalConfig(object):
     self._previous_values = {}
 
   def __enter__(self):
-    for k, v in self._config_dict.iteritems():
+    for k, v in self._config_dict.items():
       try:
-        prev = subprocess.check_output(['git', 'config', '--local', k]).rstrip()
+        prev = subprocess.check_output([
+            'git', 'config', '--local', k]).decode('utf-8').rstrip()
         if prev:
           self._previous_values[k] = prev
       except subprocess.CalledProcessError:
@@ -43,7 +45,7 @@ class GitBranch(object):
   """Class to manage git branches.
 
   This class allows one to create a new branch in a repository to make changes,
-  then it commits the changes, switches to master branch, and deletes the
+  then it commits the changes, switches to main branch, and deletes the
   created temporary branch upon exit.
   """
   def __init__(self, branch_name, commit_msg, upload=True, commit_queue=False,
@@ -58,11 +60,12 @@ class GitBranch(object):
 
   def __enter__(self):
     subprocess.check_call(['git', 'reset', '--hard', 'HEAD'])
-    subprocess.check_call(['git', 'checkout', 'master'])
-    if self._branch_name in subprocess.check_output(['git', 'branch']).split():
+    subprocess.check_call(['git', 'checkout', 'main'])
+    if self._branch_name in subprocess.check_output([
+        'git', 'branch']).decode('utf-8').split():
       subprocess.check_call(['git', 'branch', '-D', self._branch_name])
     subprocess.check_call(['git', 'checkout', '-b', self._branch_name,
-                           '-t', 'origin/master'])
+                           '-t', 'origin/main'])
     return self
 
   def commit_and_upload(self, use_commit_queue=False):
@@ -80,7 +83,8 @@ class GitBranch(object):
     if self._cc_list:
       upload_cmd.extend(['--cc=%s' % ','.join(self._cc_list)])
     subprocess.check_call(upload_cmd)
-    output = subprocess.check_output(['git', 'cl', 'issue']).rstrip()
+    output = subprocess.check_output([
+        'git', 'cl', 'issue']).decode('utf-8').rstrip()
     return re.match('^Issue number: (?P<issue>\d+) \((?P<issue_url>.+)\)$',
                     output).group('issue_url')
 
@@ -91,7 +95,7 @@ class GitBranch(object):
         if exc_type is None:
           self.commit_and_upload(use_commit_queue=self._commit_queue)
       finally:
-        subprocess.check_call(['git', 'checkout', 'master'])
+        subprocess.check_call(['git', 'checkout', 'main'])
         if self._delete_when_finished:
           subprocess.check_call(['git', 'branch', '-D', self._branch_name])
 
@@ -122,8 +126,13 @@ class NewGitCheckout(utils.tmp_dir):
           new copy is updated from there.
     """
     super(NewGitCheckout, self).__init__()
+    self._checkout_root = ''
     self._repository = repository
     self._local = local
+
+  @property
+  def name(self):
+    return self._checkout_root
 
   @property
   def root(self):
@@ -139,11 +148,16 @@ class NewGitCheckout(utils.tmp_dir):
     remote = self._repository
     if self._local:
       remote = self._local
-    subprocess.check_output(args=['git', 'clone', remote, self.root])
+    subprocess.check_call(['git', 'clone', remote])
+    repo_name = remote.split('/')[-1]
+    if repo_name.endswith('.git'):
+      repo_name = repo_name[:-len('.git')]
+    self._checkout_root = os.path.join(os.getcwd(), repo_name)
+    os.chdir(repo_name)
     if self._local:
       subprocess.check_call([
           'git', 'remote', 'set-url', 'origin', self._repository])
       subprocess.check_call(['git', 'remote', 'update'])
-      subprocess.check_call(['git', 'checkout', 'master'])
-      subprocess.check_call(['git', 'reset', '--hard', 'origin/master'])
+      subprocess.check_call(['git', 'checkout', 'main'])
+      subprocess.check_call(['git', 'reset', '--hard', 'origin/main'])
     return self

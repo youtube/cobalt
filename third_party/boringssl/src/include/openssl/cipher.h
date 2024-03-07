@@ -106,7 +106,10 @@ OPENSSL_EXPORT const EVP_CIPHER *EVP_rc2_cbc(void);
 const EVP_CIPHER *EVP_rc2_40_cbc(void);
 
 // EVP_get_cipherbynid returns the cipher corresponding to the given NID, or
-// NULL if no such cipher is known.
+// NULL if no such cipher is known. Note using this function links almost every
+// cipher implemented by BoringSSL into the binary, whether the caller uses them
+// or not. Size-conscious callers, such as client software, should not use this
+// function.
 OPENSSL_EXPORT const EVP_CIPHER *EVP_get_cipherbynid(int nid);
 
 
@@ -171,6 +174,11 @@ OPENSSL_EXPORT int EVP_DecryptInit_ex(EVP_CIPHER_CTX *ctx,
 // of output bytes may be up to |in_len| plus the block length minus one and
 // |out| must have sufficient space. The number of bytes actually output is
 // written to |*out_len|. It returns one on success and zero otherwise.
+//
+// If |ctx| is an AEAD cipher, e.g. |EVP_aes_128_gcm|, and |out| is NULL, this
+// function instead adds |in_len| bytes from |in| to the AAD and sets |*out_len|
+// to |in_len|. The AAD must be fully specified in this way before this function
+// is used to encrypt plaintext.
 OPENSSL_EXPORT int EVP_EncryptUpdate(EVP_CIPHER_CTX *ctx, uint8_t *out,
                                      int *out_len, const uint8_t *in,
                                      int in_len);
@@ -188,6 +196,11 @@ OPENSSL_EXPORT int EVP_EncryptFinal_ex(EVP_CIPHER_CTX *ctx, uint8_t *out,
 // output bytes may be up to |in_len| plus the block length minus one and |out|
 // must have sufficient space. The number of bytes actually output is written
 // to |*out_len|. It returns one on success and zero otherwise.
+//
+// If |ctx| is an AEAD cipher, e.g. |EVP_aes_128_gcm|, and |out| is NULL, this
+// function instead adds |in_len| bytes from |in| to the AAD and sets |*out_len|
+// to |in_len|. The AAD must be fully specified in this way before this function
+// is used to decrypt ciphertext.
 OPENSSL_EXPORT int EVP_DecryptUpdate(EVP_CIPHER_CTX *ctx, uint8_t *out,
                                      int *out_len, const uint8_t *in,
                                      int in_len);
@@ -198,19 +211,21 @@ OPENSSL_EXPORT int EVP_DecryptUpdate(EVP_CIPHER_CTX *ctx, uint8_t *out,
 //
 // WARNING: it is unsafe to call this function with unauthenticated
 // ciphertext if padding is enabled.
-OPENSSL_EXPORT int EVP_DecryptFinal_ex(EVP_CIPHER_CTX *ctx, unsigned char *out,
+OPENSSL_EXPORT int EVP_DecryptFinal_ex(EVP_CIPHER_CTX *ctx, uint8_t *out,
                                        int *out_len);
 
-// EVP_Cipher performs a one-shot encryption/decryption operation. No partial
-// blocks are maintained between calls. However, any internal cipher state is
-// still updated. For CBC-mode ciphers, the IV is updated to the final
-// ciphertext block. For stream ciphers, the stream is advanced past the bytes
-// used. It returns one on success and zero otherwise, unless |EVP_CIPHER_flags|
-// has |EVP_CIPH_FLAG_CUSTOM_CIPHER| set. Then it returns the number of bytes
-// written or -1 on error.
+// EVP_Cipher performs a one-shot encryption/decryption operation for non-AEAD
+// ciphers. No partial blocks are maintained between calls. However, any
+// internal cipher state is still updated. For CBC-mode ciphers, the IV is
+// updated to the final ciphertext block. For stream ciphers, the stream is
+// advanced past the bytes used. It returns one on success and zero otherwise.
 //
-// WARNING: this differs from the usual return value convention when using
-// |EVP_CIPH_FLAG_CUSTOM_CIPHER|.
+// WARNING: This function behaves completely differently on AEAD ciphers, such
+// as |EVP_aes_128_gcm|. Rather than being a one-shot operation, it behaves like
+// |EVP_CipherUpdate| or |EVP_CipherFinal_ex|, depending on whether |in| is
+// NULL. It also instead returns the number of bytes written or -1 on error.
+// This behavior is deprecated. Use |EVP_CipherUpdate| or |EVP_CipherFinal_ex|
+// instead.
 //
 // TODO(davidben): The normal ciphers currently never fail, even if, e.g.,
 // |in_len| is not a multiple of the block size for CBC-mode decryption. The
@@ -405,11 +420,26 @@ OPENSSL_EXPORT int EVP_DecryptInit(EVP_CIPHER_CTX *ctx,
                                    const EVP_CIPHER *cipher, const uint8_t *key,
                                    const uint8_t *iv);
 
+// EVP_CipherFinal calls |EVP_CipherFinal_ex|.
+OPENSSL_EXPORT int EVP_CipherFinal(EVP_CIPHER_CTX *ctx, uint8_t *out,
+                                   int *out_len);
+
+// EVP_EncryptFinal calls |EVP_EncryptFinal_ex|.
+OPENSSL_EXPORT int EVP_EncryptFinal(EVP_CIPHER_CTX *ctx, uint8_t *out,
+                                    int *out_len);
+
+// EVP_DecryptFinal calls |EVP_DecryptFinal_ex|.
+OPENSSL_EXPORT int EVP_DecryptFinal(EVP_CIPHER_CTX *ctx, uint8_t *out,
+                                    int *out_len);
+
 // EVP_add_cipher_alias does nothing and returns one.
 OPENSSL_EXPORT int EVP_add_cipher_alias(const char *a, const char *b);
 
 // EVP_get_cipherbyname returns an |EVP_CIPHER| given a human readable name in
-// |name|, or NULL if the name is unknown.
+// |name|, or NULL if the name is unknown. Note using this function links almost
+// every cipher implemented by BoringSSL into the binary, not just the ones the
+// caller requests. Size-conscious callers, such as client software, should not
+// use this function.
 OPENSSL_EXPORT const EVP_CIPHER *EVP_get_cipherbyname(const char *name);
 
 // These AEADs are deprecated AES-GCM implementations that set
@@ -431,8 +461,23 @@ OPENSSL_EXPORT const EVP_CIPHER *EVP_des_ede3_ecb(void);
 // EVP_aes_128_cfb128 is only available in decrepit.
 OPENSSL_EXPORT const EVP_CIPHER *EVP_aes_128_cfb128(void);
 
+// EVP_aes_128_cfb is an alias for |EVP_aes_128_cfb128| and is only available in
+// decrepit.
+OPENSSL_EXPORT const EVP_CIPHER *EVP_aes_128_cfb(void);
+
+// EVP_aes_192_cfb128 is only available in decrepit.
+OPENSSL_EXPORT const EVP_CIPHER *EVP_aes_192_cfb128(void);
+
+// EVP_aes_192_cfb is an alias for |EVP_aes_192_cfb128| and is only available in
+// decrepit.
+OPENSSL_EXPORT const EVP_CIPHER *EVP_aes_192_cfb(void);
+
 // EVP_aes_256_cfb128 is only available in decrepit.
 OPENSSL_EXPORT const EVP_CIPHER *EVP_aes_256_cfb128(void);
+
+// EVP_aes_256_cfb is an alias for |EVP_aes_256_cfb128| and is only available in
+// decrepit.
+OPENSSL_EXPORT const EVP_CIPHER *EVP_aes_256_cfb(void);
 
 // EVP_bf_ecb is Blowfish in ECB mode and is only available in decrepit.
 OPENSSL_EXPORT const EVP_CIPHER *EVP_bf_ecb(void);
@@ -541,56 +586,16 @@ struct evp_cipher_ctx_st {
   // final_used is non-zero if the |final| buffer contains plaintext.
   int final_used;
 
-  // block_mask contains |cipher->block_size| minus one. (The block size
-  // assumed to be a power of two.)
-  int block_mask;
-
   uint8_t final[EVP_MAX_BLOCK_LENGTH];  // possible final block
+
+  // Has this structure been rendered unusable by a failure.
+  int poisoned;
 } /* EVP_CIPHER_CTX */;
 
 typedef struct evp_cipher_info_st {
   const EVP_CIPHER *cipher;
   unsigned char iv[EVP_MAX_IV_LENGTH];
 } EVP_CIPHER_INFO;
-
-struct evp_cipher_st {
-  // type contains a NID identifing the cipher. (e.g. NID_aes_128_gcm.)
-  int nid;
-
-  // block_size contains the block size, in bytes, of the cipher, or 1 for a
-  // stream cipher.
-  unsigned block_size;
-
-  // key_len contains the key size, in bytes, for the cipher. If the cipher
-  // takes a variable key size then this contains the default size.
-  unsigned key_len;
-
-  // iv_len contains the IV size, in bytes, or zero if inapplicable.
-  unsigned iv_len;
-
-  // ctx_size contains the size, in bytes, of the per-key context for this
-  // cipher.
-  unsigned ctx_size;
-
-  // flags contains the OR of a number of flags. See |EVP_CIPH_*|.
-  uint32_t flags;
-
-  // app_data is a pointer to opaque, user data.
-  void *app_data;
-
-  int (*init)(EVP_CIPHER_CTX *ctx, const uint8_t *key, const uint8_t *iv,
-              int enc);
-
-  int (*cipher)(EVP_CIPHER_CTX *ctx, uint8_t *out, const uint8_t *in,
-                size_t inl);
-
-  // cleanup, if non-NULL, releases memory associated with the context. It is
-  // called if |EVP_CTRL_INIT| succeeds. Note that |init| may not have been
-  // called at this point.
-  void (*cleanup)(EVP_CIPHER_CTX *);
-
-  int (*ctrl)(EVP_CIPHER_CTX *, int type, int arg, void *ptr);
-};
 
 
 #if defined(__cplusplus)

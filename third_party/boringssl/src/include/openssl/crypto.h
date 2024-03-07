@@ -55,13 +55,15 @@ OPENSSL_EXPORT int CRYPTO_is_confidential_build(void);
 // in which case it returns zero.
 OPENSSL_EXPORT int CRYPTO_has_asm(void);
 
-// FIPS_mode returns zero unless BoringSSL is built with BORINGSSL_FIPS, in
-// which case it returns one.
-OPENSSL_EXPORT int FIPS_mode(void);
-
 // BORINGSSL_self_test triggers the FIPS KAT-based self tests. It returns one on
 // success and zero on error.
 OPENSSL_EXPORT int BORINGSSL_self_test(void);
+
+// BORINGSSL_integrity_test triggers the module's integrity test where the code
+// and data of the module is matched against a hash injected at build time. It
+// returns one on success or zero if there's a mismatch. This function only
+// exists if the module was built in FIPS mode without ASAN.
+OPENSSL_EXPORT int BORINGSSL_integrity_test(void);
 
 // CRYPTO_pre_sandbox_init initializes the crypto library, pre-acquiring some
 // unusual resources to aid running in sandboxed environments. It is safe to
@@ -70,6 +72,41 @@ OPENSSL_EXPORT int BORINGSSL_self_test(void);
 // For more details on using BoringSSL in a sandboxed environment, see
 // SANDBOXING.md in the source tree.
 OPENSSL_EXPORT void CRYPTO_pre_sandbox_init(void);
+
+#if defined(OPENSSL_ARM) && defined(OPENSSL_LINUX) && \
+    !defined(OPENSSL_STATIC_ARMCAP)
+// CRYPTO_has_broken_NEON returns one if the current CPU is known to have a
+// broken NEON unit. See https://crbug.com/341598.
+OPENSSL_EXPORT int CRYPTO_has_broken_NEON(void);
+
+// CRYPTO_needs_hwcap2_workaround returns one if the ARMv8 AArch32 AT_HWCAP2
+// workaround was needed. See https://crbug.com/boringssl/46.
+OPENSSL_EXPORT int CRYPTO_needs_hwcap2_workaround(void);
+#endif  // OPENSSL_ARM && OPENSSL_LINUX && !OPENSSL_STATIC_ARMCAP
+
+
+// FIPS monitoring
+
+// FIPS_mode returns zero unless BoringSSL is built with BORINGSSL_FIPS, in
+// which case it returns one.
+OPENSSL_EXPORT int FIPS_mode(void);
+
+// fips_counter_t denotes specific APIs/algorithms. A counter is maintained for
+// each in FIPS mode so that tests can be written to assert that the expected,
+// FIPS functions are being called by a certain peice of code.
+enum fips_counter_t {
+  fips_counter_evp_aes_128_gcm = 0,
+  fips_counter_evp_aes_256_gcm = 1,
+  fips_counter_evp_aes_128_ctr = 2,
+  fips_counter_evp_aes_256_ctr = 3,
+
+  fips_counter_max = 3,
+};
+
+// FIPS_read_counter returns a counter of the number of times the specific
+// function denoted by |counter| has been used. This always returns zero unless
+// BoringSSL was built with BORINGSSL_FIPS_COUNTERS defined.
+OPENSSL_EXPORT size_t FIPS_read_counter(enum fips_counter_t counter);
 
 
 // Deprecated functions.
@@ -140,6 +177,21 @@ OPENSSL_EXPORT void OPENSSL_cleanup(void);
 // FIPS_mode_set returns one if |on| matches whether BoringSSL was built with
 // |BORINGSSL_FIPS| and zero otherwise.
 OPENSSL_EXPORT int FIPS_mode_set(int on);
+
+// FIPS_module_name returns the name of the FIPS module.
+OPENSSL_EXPORT const char *FIPS_module_name(void);
+
+// FIPS_version returns the version of the FIPS module, or zero if the build
+// isn't exactly at a verified version. The version, expressed in base 10, will
+// be a date in the form yyyymmddXX where XX is often "00", but can be
+// incremented if multiple versions are defined on a single day.
+//
+// (This format exceeds a |uint32_t| in the year 4294.)
+OPENSSL_EXPORT uint32_t FIPS_version(void);
+
+// FIPS_query_algorithm_status returns one if |algorithm| is FIPS validated in
+// the current BoringSSL and zero otherwise.
+OPENSSL_EXPORT int FIPS_query_algorithm_status(const char *algorithm);
 
 
 #if defined(__cplusplus)

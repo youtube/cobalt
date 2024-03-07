@@ -131,7 +131,6 @@
 #include "include/v8-wasm-trap-handler-win.h"
 #include "src/trap-handler/handler-inside-win.h"
 #if defined(V8_OS_WIN64)
-#include "src/base/platform/wrappers.h"
 #include "src/diagnostics/unwinding-info-win64.h"
 #endif  // V8_OS_WIN64
 #endif  // V8_OS_WIN
@@ -550,7 +549,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
     // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
     void* data = __linux_calloc(length, 1);
 #else
-    void* data = base::Calloc(length, 1);
+    void* data = calloc(length, 1);
 #endif
     return data;
   }
@@ -561,12 +560,12 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
     // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
     void* data = __linux_malloc(length);
 #else
-    void* data = base::Malloc(length);
+    void* data = malloc(length);
 #endif
     return data;
   }
 
-  void Free(void* data, size_t) override { base::Free(data); }
+  void Free(void* data, size_t) override { free(data); }
 
   void* Reallocate(void* data, size_t old_length, size_t new_length) override {
 #if V8_OS_AIX && _LINUX_SOURCE_COMPAT
@@ -574,7 +573,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
     // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
     void* new_data = __linux_realloc(data, new_length);
 #else
-    void* new_data = base::Realloc(data, new_length);
+    void* new_data = realloc(data, new_length);
 #endif
     if (new_length > old_length) {
       memset(reinterpret_cast<uint8_t*>(new_data) + old_length, 0,
@@ -3167,11 +3166,11 @@ void* ValueSerializer::Delegate::ReallocateBufferMemory(void* old_buffer,
                                                         size_t size,
                                                         size_t* actual_size) {
   *actual_size = size;
-  return base::Realloc(old_buffer, size);
+  return realloc(old_buffer, size);
 }
 
 void ValueSerializer::Delegate::FreeBufferMemory(void* buffer) {
-  return base::Free(buffer);
+  return free(buffer);
 }
 
 struct ValueSerializer::PrivateData {
@@ -9336,23 +9335,23 @@ String::Value::Value(v8::Isolate* isolate, v8::Local<v8::Value> obj)
 
 String::Value::~Value() { i::DeleteArray(str_); }
 
-#define DEFINE_ERROR(NAME, name)                                          \
+#define DEFINE_ERROR(NAME, name)                                         \
   Local<Value> Exception::NAME(v8::Local<v8::String> raw_message,         \
                                Isolate* v8_isolate) {                     \
     i::Isolate* isolate = v8_isolate                                      \
                               ? reinterpret_cast<i::Isolate*>(v8_isolate) \
                               : i::Isolate::Current();                    \
-    LOG_API(isolate, NAME, New);                                          \
-    ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);                             \
-    i::Object error;                                                      \
-    {                                                                     \
-      i::HandleScope scope(isolate);                                      \
-      i::Handle<i::String> message = Utils::OpenHandle(*raw_message);     \
-      i::Handle<i::JSFunction> constructor = isolate->name##_function();  \
-      error = *isolate->factory()->NewError(constructor, message);        \
-    }                                                                     \
-    i::Handle<i::Object> result(error, isolate);                          \
-    return Utils::ToLocal(result);                                        \
+    LOG_API(isolate, NAME, New);                                         \
+    ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);                            \
+    i::Object error;                                                     \
+    {                                                                    \
+      i::HandleScope scope(isolate);                                     \
+      i::Handle<i::String> message = Utils::OpenHandle(*raw_message);    \
+      i::Handle<i::JSFunction> constructor = isolate->name##_function(); \
+      error = *isolate->factory()->NewError(constructor, message);       \
+    }                                                                    \
+    i::Handle<i::Object> result(error, isolate);                         \
+    return Utils::ToLocal(result);                                       \
   }
 
 DEFINE_ERROR(RangeError, range_error)

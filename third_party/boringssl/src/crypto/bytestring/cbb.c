@@ -404,6 +404,15 @@ int CBB_add_bytes(CBB *cbb, const uint8_t *data, size_t len) {
   return 1;
 }
 
+int CBB_add_zeros(CBB *cbb, size_t len) {
+  uint8_t *out;
+  if (!CBB_add_space(cbb, &out, len)) {
+    return 0;
+  }
+  OPENSSL_memset(out, 0, len);
+  return 1;
+}
+
 int CBB_add_space(CBB *cbb, uint8_t **out_data, size_t len) {
   if (!CBB_flush(cbb) ||
       !cbb_buffer_add(cbb->base, out_data, len)) {
@@ -494,13 +503,16 @@ void CBB_discard_child(CBB *cbb) {
 }
 
 int CBB_add_asn1_uint64(CBB *cbb, uint64_t value) {
-  CBB child;
-  int started = 0;
+  return CBB_add_asn1_uint64_with_tag(cbb, value, CBS_ASN1_INTEGER);
+}
 
-  if (!CBB_add_asn1(cbb, &child, CBS_ASN1_INTEGER)) {
+int CBB_add_asn1_uint64_with_tag(CBB *cbb, uint64_t value, unsigned tag) {
+  CBB child;
+  if (!CBB_add_asn1(cbb, &child, tag)) {
     return 0;
   }
 
+  int started = 0;
   for (size_t i = 0; i < 8; i++) {
     uint8_t byte = (value >> 8*(7-i)) & 0xff;
     if (!started) {
@@ -529,27 +541,28 @@ int CBB_add_asn1_uint64(CBB *cbb, uint64_t value) {
 }
 
 int CBB_add_asn1_int64(CBB *cbb, int64_t value) {
+  return CBB_add_asn1_int64_with_tag(cbb, value, CBS_ASN1_INTEGER);
+}
+
+int CBB_add_asn1_int64_with_tag(CBB *cbb, int64_t value, unsigned tag) {
   if (value >= 0) {
-    return CBB_add_asn1_uint64(cbb, value);
+    return CBB_add_asn1_uint64_with_tag(cbb, (uint64_t)value, tag);
   }
 
-  union {
-    int64_t i;
-    uint8_t bytes[sizeof(int64_t)];
-  } u;
-  u.i = value;
+  uint8_t bytes[sizeof(int64_t)];
+  memcpy(bytes, &value, sizeof(value));
   int start = 7;
   // Skip leading sign-extension bytes unless they are necessary.
-  while (start > 0 && (u.bytes[start] == 0xff && (u.bytes[start - 1] & 0x80))) {
+  while (start > 0 && (bytes[start] == 0xff && (bytes[start - 1] & 0x80))) {
     start--;
   }
 
   CBB child;
-  if (!CBB_add_asn1(cbb, &child, CBS_ASN1_INTEGER)) {
+  if (!CBB_add_asn1(cbb, &child, tag)) {
     return 0;
   }
   for (int i = start; i >= 0; i--) {
-    if (!CBB_add_u8(&child, u.bytes[i])) {
+    if (!CBB_add_u8(&child, bytes[i])) {
       return 0;
     }
   }

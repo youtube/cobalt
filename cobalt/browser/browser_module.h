@@ -243,6 +243,10 @@ class BrowserModule {
   // Pass the deeplink timestamp from Starboard.
   void SetDeepLinkTimestamp(int64_t timestamp);
 
+#if defined(ENABLE_DEBUGGER)
+  std::string OnBoxDumpMessage(const std::string& message);
+#endif  // ENABLE_DEBUGGER
+
  private:
   // Called when the WebModule's Window.onload event is fired.
   void OnLoad();
@@ -646,6 +650,11 @@ class BrowserModule {
   // Command handler object for toggling the input fuzzer on/off.
   debug::console::ConsoleCommandManager::CommandHandler
       fuzzer_toggle_command_handler_;
+#if defined(ENABLE_DEBUGGER)
+  // Command handler object for boxdump command from the debug console.
+  debug::console::ConsoleCommandManager::CommandHandler
+      boxdump_command_handler_;
+#endif
 
   // Command handler object for screenshot command from the debug console.
   debug::console::ConsoleCommandManager::CommandHandler

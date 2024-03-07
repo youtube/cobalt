@@ -94,7 +94,7 @@ class SbPlayerBridge {
                  SbPlayerOutputMode default_output_mode,
                  DecodeTargetProvider* const decode_target_provider,
                  const std::string& max_video_capabilities,
-                 std::string pipeline_identifier);
+                 int max_video_input_size, std::string pipeline_identifier);
 
   ~SbPlayerBridge();
 
@@ -147,7 +147,7 @@ class SbPlayerBridge {
   SbDecodeTarget GetCurrentSbDecodeTarget();
   SbPlayerOutputMode GetSbPlayerOutputMode();
 
-  void RecordSetDrmSystemReadyTime(int64_t timestamp) {
+  void RecordSetDrmSystemReadyTime(base::Time timestamp) {
     set_drm_system_ready_cb_time_ = timestamp;
   }
 
@@ -301,18 +301,21 @@ class SbPlayerBridge {
   // A string of video maximum capabilities.
   std::string max_video_capabilities_;
 
+  // Set the maximum size in bytes of an input buffer for video.
+  int max_video_input_size_;
+
   // Keep track of errors during player creation.
   bool is_creating_player_ = false;
   std::string player_creation_error_message_;
 
   // Variables related to tracking player startup latencies.
-  int64_t set_drm_system_ready_cb_time_ = -1;
-  int64_t player_creation_time_ = 0;
-  int64_t sb_player_state_initialized_time_ = 0;
-  int64_t sb_player_state_prerolling_time_ = 0;
-  int64_t first_audio_sample_time_ = 0;
-  int64_t first_video_sample_time_ = 0;
-  int64_t sb_player_state_presenting_time_ = 0;
+  base::Time set_drm_system_ready_cb_time_{};
+  base::Time player_creation_time_{};
+  base::Time sb_player_state_initialized_time_{};
+  base::Time sb_player_state_prerolling_time_{};
+  base::Time first_audio_sample_time_{};
+  base::Time first_video_sample_time_{};
+  base::Time sb_player_state_presenting_time_{};
 
 #if SB_HAS(PLAYER_WITH_URL)
   const bool is_url_based_;

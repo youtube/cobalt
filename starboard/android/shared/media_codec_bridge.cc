@@ -227,6 +227,7 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     bool require_software_codec,
     int tunnel_mode_audio_session_id,
     bool force_big_endian_hdr_metadata,
+    int max_video_input_size,
     std::string* error_message) {
   SB_DCHECK(error_message);
   SB_DCHECK(max_width.has_engaged() == max_height.has_engaged());
@@ -316,14 +317,14 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
       "(JLjava/lang/String;Ljava/lang/String;IIIIILandroid/view/Surface;"
       "Landroid/media/MediaCrypto;"
       "Ldev/cobalt/media/MediaCodecBridge$ColorInfo;"
-      "I"
+      "II"
       "Ldev/cobalt/media/MediaCodecBridge$CreateMediaCodecBridgeResult;)"
       "V",
       reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime.Get(),
       j_decoder_name.Get(), width_hint, height_hint, fps,
       max_width.value_or(-1), max_height.value_or(-1), j_surface,
       j_media_crypto, j_color_info.Get(), tunnel_mode_audio_session_id,
-      j_create_media_codec_bridge_result.Get());
+      max_video_input_size, j_create_media_codec_bridge_result.Get());
 
   jobject j_media_codec_bridge = env->CallObjectMethodOrAbort(
       j_create_media_codec_bridge_result.Get(), "mediaCodecBridge",

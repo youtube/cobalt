@@ -1,0 +1,19 @@
+{
+  "docker_service": "build-xb1",
+  "__comment" : "TODO: Deploy a runner and change this",
+  "docker_runner_service": "runner-xb1",
+  "runner_tag": "xb1",
+  "platforms": [
+    "xb1"
+  ],
+  "includes": [
+    {
+      "name":"xb1",
+      "platform":"xb1",
+      "target_platform":"xb1",
+      "extra_gn_arguments": "is_clang=false",
+      "target_cpu": "target_cpu=\\\"x64\\\"",
+      "target_os": "target_os=\\\"winuwp\\\""
+    }
+  ]
+}

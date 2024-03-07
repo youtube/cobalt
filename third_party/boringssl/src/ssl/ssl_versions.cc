@@ -260,8 +260,8 @@ uint16_t ssl_protocol_version(const SSL *ssl) {
   return version;
 }
 
-bool ssl_supports_version(SSL_HANDSHAKE *hs, uint16_t version) {
-  SSL *const ssl = hs->ssl;
+bool ssl_supports_version(const SSL_HANDSHAKE *hs, uint16_t version) {
+  const SSL *const ssl = hs->ssl;
   uint16_t protocol_version;
   if (!ssl_method_supports_version(ssl->method, version) ||
       !ssl_protocol_version_from_wire(&protocol_version, version) ||
@@ -273,9 +273,13 @@ bool ssl_supports_version(SSL_HANDSHAKE *hs, uint16_t version) {
   return true;
 }
 
-bool ssl_add_supported_versions(SSL_HANDSHAKE *hs, CBB *cbb) {
+bool ssl_add_supported_versions(const SSL_HANDSHAKE *hs, CBB *cbb,
+                                uint16_t extra_min_version) {
   for (uint16_t version : get_method_versions(hs->ssl->method)) {
+    uint16_t protocol_version;
     if (ssl_supports_version(hs, version) &&
+        ssl_protocol_version_from_wire(&protocol_version, version) &&
+        protocol_version >= extra_min_version &&  //
         !CBB_add_u16(cbb, version)) {
       return false;
     }
@@ -391,4 +395,8 @@ int SSL_SESSION_set_protocol_version(SSL_SESSION *session, uint16_t version) {
   // This picks a representative TLS 1.3 version, but this API should only be
   // used on unit test sessions anyway.
   return api_version_to_wire(&session->ssl_version, version);
+}
+
+int SSL_CTX_set_record_protocol_version(SSL_CTX *ctx, int version) {
+  return version == 0;
 }

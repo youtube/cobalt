@@ -7,6 +7,7 @@
 
 #include "src/shaders/gradients/SkLinearGradient.h"
 
+#include "src/core/SkKeyHelpers.h"
 #include "src/core/SkReadBuffer.h"
 #include "src/core/SkWriteBuffer.h"
 #include "src/shaders/gradients/Sk4fLinearGradient.h"
@@ -75,6 +76,12 @@ void SkLinearGradient::appendGradientStages(SkArenaAlloc*, SkRasterPipeline*,
     // No extra stage needed for linear gradients.
 }
 
+skvm::F32 SkLinearGradient::transformT(skvm::Builder* p, skvm::Uniforms*,
+                                       skvm::Coord coord, skvm::I32* mask) const {
+    // We've baked getting t in x into the matrix, so this is pretty trivial.
+    return coord.x;
+}
+
 SkShader::GradientType SkLinearGradient::asAGradient(GradientInfo* info) const {
     if (info) {
         commonAsAGradient(info);
@@ -96,3 +103,18 @@ std::unique_ptr<GrFragmentProcessor> SkLinearGradient::asFragmentProcessor(
 }
 
 #endif
+
+void SkLinearGradient::addToKey(SkShaderCodeDictionary* dict,
+                                SkBackend backend,
+                                SkPaintParamsKeyBuilder* builder,
+                                SkUniformBlock* uniformBlock) const {
+    GradientShaderBlocks::GradientData data(kLinear_GradientType,
+                                            fStart, fEnd,
+                                            0.0f, 0.0f,
+                                            fTileMode,
+                                            fColorCount,
+                                            fOrigColors4f,
+                                            fOrigPos);
+
+    GradientShaderBlocks::AddToKey(dict, backend, builder, uniformBlock, data);
+}

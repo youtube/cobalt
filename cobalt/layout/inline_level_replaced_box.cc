@@ -78,13 +78,13 @@ void InlineLevelReplacedBox::UpdateHorizontalMargins(
   set_margin_right(maybe_margin_right.value_or(LayoutUnit()));
 }
 
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
 
 void InlineLevelReplacedBox::DumpClassName(std::ostream* stream) const {
   *stream << "InlineLevelReplacedBox ";
 }
 
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
 void InlineLevelReplacedBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
     BaseDirection base_direction, LayoutUnit desired_offset,

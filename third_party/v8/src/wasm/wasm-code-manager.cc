@@ -178,14 +178,14 @@ std::unique_ptr<const byte[]> WasmCode::ConcatenateBytes(
   size_t total_size = 0;
   for (auto& vec : vectors) total_size += vec.size();
   // Use default-initialization (== no initialization).
-  byte* result = new byte[total_size];
-  byte* ptr = result;
+  std::unique_ptr<byte[]> result{new byte[total_size]};
+  byte* ptr = result.get();
   for (auto& vec : vectors) {
     if (vec.empty()) continue;  // Avoid nullptr in {memcpy}.
     memcpy(ptr, vec.begin(), vec.size());
     ptr += vec.size();
   }
-  return std::unique_ptr<const byte[]>(result);
+  return result;
 }
 
 void WasmCode::RegisterTrapHandlerData() {
@@ -837,7 +837,7 @@ void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
   auto new_table = std::make_unique<WasmCode*[]>(max_functions);
   if (module_->num_declared_functions > 0) {
     memcpy(new_table.get(), code_table_.get(),
-                 module_->num_declared_functions * sizeof(WasmCode*));
+           module_->num_declared_functions * sizeof(WasmCode*));
   }
   code_table_ = std::move(new_table);
 
@@ -914,8 +914,7 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
 
   Vector<uint8_t> dst_code_bytes =
       code_allocator_.AllocateForCode(this, instructions.size());
-  memcpy(dst_code_bytes.begin(), instructions.begin(),
-               instructions.size());
+  memcpy(dst_code_bytes.begin(), instructions.begin(), instructions.size());
 
   // Apply the relocation delta by iterating over the RelocInfo.
   intptr_t delta = reinterpret_cast<Address>(dst_code_bytes.begin()) -
@@ -1041,7 +1040,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
 
   CODE_SPACE_WRITE_SCOPE
   memcpy(dst_code_bytes.begin(), desc.buffer,
-               static_cast<size_t>(desc.instr_size));
+         static_cast<size_t>(desc.instr_size));
 
   // Apply the relocation delta by iterating over the RelocInfo.
   intptr_t delta = dst_code_bytes.begin() - desc.buffer;
@@ -1195,8 +1194,7 @@ WasmCode* NativeModule::AddDeserializedCode(
   Vector<uint8_t> dst_code_bytes =
       code_allocator_.AllocateForCode(this, instructions.size());
   UpdateCodeSize(dst_code_bytes.size(), tier, kNoDebugging);
-  memcpy(dst_code_bytes.begin(), instructions.begin(),
-               instructions.size());
+  memcpy(dst_code_bytes.begin(), instructions.begin(), instructions.size());
 
   std::unique_ptr<WasmCode> code{new WasmCode{
       this, index, dst_code_bytes, stack_slots, tagged_parameter_slots,

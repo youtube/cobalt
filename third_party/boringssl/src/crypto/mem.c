@@ -72,8 +72,7 @@ OPENSSL_MSVC_PRAGMA(warning(pop))
 
 
 #define OPENSSL_MALLOC_PREFIX 8
-OPENSSL_STATIC_ASSERT(OPENSSL_MALLOC_PREFIX >= sizeof(size_t),
-                      "size_t too large");
+static_assert(OPENSSL_MALLOC_PREFIX >= sizeof(size_t), "size_t too large");
 
 #if defined(OPENSSL_ASAN)
 void __asan_poison_memory_region(const volatile void *addr, size_t size);
@@ -107,9 +106,33 @@ WEAK_SYMBOL_FUNC(void, sdallocx, (void *ptr, size_t size, int flags));
 // allocation and freeing. If defined, it is the responsibility of
 // |OPENSSL_memory_free| to zero out the memory before returning it to the
 // system. |OPENSSL_memory_free| will not be passed NULL pointers.
+//
+// WARNING: These functions are called on every allocation and free in
+// BoringSSL across the entire process. They may be called by any code in the
+// process which calls BoringSSL, including in process initializers and thread
+// destructors. When called, BoringSSL may hold pthreads locks. Any other code
+// in the process which, directly or indirectly, calls BoringSSL may be on the
+// call stack and may itself be using arbitrary synchronization primitives.
+//
+// As a result, these functions may not have the usual programming environment
+// available to most C or C++ code. In particular, they may not call into
+// BoringSSL, or any library which depends on BoringSSL. Any synchronization
+// primitives used must tolerate every other synchronization primitive linked
+// into the process, including pthreads locks. Failing to meet these constraints
+// may result in deadlocks, crashes, or memory corruption.
 WEAK_SYMBOL_FUNC(void*, OPENSSL_memory_alloc, (size_t size));
 WEAK_SYMBOL_FUNC(void, OPENSSL_memory_free, (void *ptr));
 WEAK_SYMBOL_FUNC(size_t, OPENSSL_memory_get_size, (void *ptr));
+
+// kBoringSSLBinaryTag is a distinctive byte sequence to identify binaries that
+// are linking in BoringSSL and, roughly, what version they are using.
+static const uint8_t kBoringSSLBinaryTag[18] = {
+    // 16 bytes of magic tag.
+    0x8c, 0x62, 0x20, 0x0b, 0xd2, 0xa0, 0x72, 0x58,
+    0x44, 0xa8, 0x96, 0x69, 0xad, 0x55, 0x7e, 0xec,
+    // Current source iteration. Incremented ~monthly.
+    3, 0,
+};
 
 void *OPENSSL_malloc(size_t size) {
   if (OPENSSL_memory_alloc != NULL) {
@@ -119,6 +142,14 @@ void *OPENSSL_malloc(size_t size) {
   }
 
   if (size + OPENSSL_MALLOC_PREFIX < size) {
+    // |OPENSSL_malloc| is a central function in BoringSSL thus a reference to
+    // |kBoringSSLBinaryTag| is created here so that the tag isn't discarded by
+    // the linker. The following is sufficient to stop GCC, Clang, and MSVC
+    // optimising away the reference at the time of writing. Since this
+    // probably results in an actual memory reference, it is put in this very
+    // rare code path.
+    uint8_t unused = *(volatile uint8_t *)kBoringSSLBinaryTag;
+    (void) unused;
     return NULL;
   }
 
@@ -148,11 +179,18 @@ void OPENSSL_free(void *orig_ptr) {
 
   size_t size = *(size_t *)ptr;
   OPENSSL_cleanse(ptr, size + OPENSSL_MALLOC_PREFIX);
+
+// ASan knows to intercept malloc and free, but not sdallocx.
+#if defined(OPENSSL_ASAN)
+  (void)sdallocx;
+  free(ptr);
+#else
   if (sdallocx) {
     sdallocx(ptr, size + OPENSSL_MALLOC_PREFIX, 0 /* flags */);
   } else {
     free(ptr);
   }
+#endif
 }
 
 void *OPENSSL_realloc(void *orig_ptr, size_t new_size) {
@@ -205,6 +243,18 @@ void OPENSSL_clear_free(void *ptr, size_t unused) {
   OPENSSL_free(ptr);
 }
 
+int CRYPTO_secure_malloc_init(size_t size, size_t min_size) { return 0; }
+
+int CRYPTO_secure_malloc_initialized(void) { return 0; }
+
+size_t CRYPTO_secure_used(void) { return 0; }
+
+void *OPENSSL_secure_malloc(size_t size) { return OPENSSL_malloc(size); }
+
+void OPENSSL_secure_clear_free(void *ptr, size_t len) {
+  OPENSSL_clear_free(ptr, len);
+}
+
 int CRYPTO_memcmp(const void *in_a, const void *in_b, size_t len) {
   const uint8_t *a = in_a;
   const uint8_t *b = in_b;
@@ -232,6 +282,8 @@ uint32_t OPENSSL_hash32(const void *ptr, size_t len) {
 
   return h;
 }
+
+uint32_t OPENSSL_strhash(const char *s) { return OPENSSL_hash32(s, strlen(s)); }
 
 size_t OPENSSL_strnlen(const char *s, size_t len) {
   for (size_t i = 0; i < len; i++) {
@@ -308,22 +360,15 @@ int BIO_vsnprintf(char *buf, size_t n, const char *format, va_list args) {
 }
 
 char *OPENSSL_strndup(const char *str, size_t size) {
-  char *ret;
-  size_t alloc_size;
-
-  if (str == NULL) {
-    return NULL;
-  }
-
   size = OPENSSL_strnlen(str, size);
 
-  alloc_size = size + 1;
+  size_t alloc_size = size + 1;
   if (alloc_size < size) {
     // overflow
     OPENSSL_PUT_ERROR(CRYPTO, ERR_R_MALLOC_FAILURE);
     return NULL;
   }
-  ret = OPENSSL_malloc(alloc_size);
+  char *ret = OPENSSL_malloc(alloc_size);
   if (ret == NULL) {
     OPENSSL_PUT_ERROR(CRYPTO, ERR_R_MALLOC_FAILURE);
     return NULL;
@@ -371,3 +416,13 @@ void *OPENSSL_memdup(const void *data, size_t size) {
   OPENSSL_memcpy(ret, data, size);
   return ret;
 }
+
+void *CRYPTO_malloc(size_t size, const char *file, int line) {
+  return OPENSSL_malloc(size);
+}
+
+void *CRYPTO_realloc(void *ptr, size_t new_size, const char *file, int line) {
+  return OPENSSL_realloc(ptr, new_size);
+}
+
+void CRYPTO_free(void *ptr, const char *file, int line) { OPENSSL_free(ptr); }

@@ -1,4 +1,4 @@
-// Copyright 2015 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,6 @@
 
 // Here we are not trying to do anything fancy, just to really sanity check that
 // this is hooked up to something.
-#if SB_API_VERSION >= 16
 
 #include "starboard/common/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -49,5 +48,3 @@ TEST(PosixFormatWideTest, SunnyDay) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
-
-#endif  // SB_API_VERSION >= 16

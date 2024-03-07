@@ -1,0 +1,5 @@
+int namespace;
+
+/*%%*
+'namespace' is a reserved word
+*%%*/

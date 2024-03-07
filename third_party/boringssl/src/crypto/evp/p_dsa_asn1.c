@@ -252,6 +252,8 @@ const EVP_PKEY_ASN1_METHOD dsa_asn1_meth = {
   // 1.2.840.10040.4.1
   {0x2a, 0x86, 0x48, 0xce, 0x38, 0x04, 0x01}, 7,
 
+  NULL /* pkey_method */,
+
   dsa_pub_decode,
   dsa_pub_encode,
   dsa_pub_cmp,
@@ -275,3 +277,15 @@ const EVP_PKEY_ASN1_METHOD dsa_asn1_meth = {
 
   int_dsa_free,
 };
+
+int EVP_PKEY_CTX_set_dsa_paramgen_bits(EVP_PKEY_CTX *ctx, int nbits) {
+  // BoringSSL does not support DSA in |EVP_PKEY_CTX|.
+  OPENSSL_PUT_ERROR(EVP, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+  return 0;
+}
+
+int EVP_PKEY_CTX_set_dsa_paramgen_q_bits(EVP_PKEY_CTX *ctx, int qbits) {
+  // BoringSSL does not support DSA in |EVP_PKEY_CTX|.
+  OPENSSL_PUT_ERROR(EVP, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+  return 0;
+}

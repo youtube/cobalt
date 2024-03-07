@@ -10,7 +10,7 @@ Unless otherwise noted, build tools must at most five years old, matching
 [Abseil guidelines](https://abseil.io/about/compatibility). If in doubt, use the
 most recent stable version of each tool.
 
-  * [CMake](https://cmake.org/download/) 3.0 or later is required.
+  * [CMake](https://cmake.org/download/) 3.8 or later is required.
 
   * A recent version of Perl is required. On Windows,
     [Active State Perl](http://www.activestate.com/activeperl/) has been
@@ -30,10 +30,11 @@ most recent stable version of each tool.
     by CMake, it may be configured explicitly by setting
     `CMAKE_ASM_NASM_COMPILER`.
 
-  * C and C++ compilers with C++11 support are required. On Windows, MSVC 14
-    (Visual Studio 2015) or later with Platform SDK 8.1 or later are supported.
-    Recent versions of GCC (4.8+) and Clang should work on non-Windows
-    platforms, and maybe on Windows too.
+  * C and C++ compilers with C++14 support are required. If using a C compiler
+    other than MSVC, C11 support is also requried. On Windows, MSVC from
+    Visual Studio 2017 or later with Platform SDK 8.1 or later are supported,
+    but newer versions are recommended. Recent versions of GCC (6.1+) and Clang
+    should work on non-Windows platforms, and maybe on Windows too.
 
   * The most recent stable version of [Go](https://golang.org/dl/) is required.
     Note Go is exempt from the five year support window. If not found by CMake,
@@ -157,34 +158,23 @@ BoringSSL maintainers if making use of it.
 
 ## Known Limitations on Windows
 
-  * Versions of CMake since 3.0.2 have a bug in its Ninja generator that causes
-    yasm to output warnings
-
-        yasm: warning: can open only one input file, only the last file will be processed
-
-    These warnings can be safely ignored. The cmake bug is
-    http://www.cmake.org/Bug/view.php?id=15253.
-
   * CMake can generate Visual Studio projects, but the generated project files
     don't have steps for assembling the assembly language source files, so they
     currently cannot be used to build BoringSSL.
 
-## Embedded ARM
+## ARM CPU Capabilities
 
-ARM, unlike Intel, does not have an instruction that allows applications to
-discover the capabilities of the processor. Instead, the capability information
-has to be provided by the operating system somehow.
+ARM, unlike Intel, does not have a userspace instruction that allows
+applications to discover the capabilities of the processor. Instead, the
+capability information has to be provided by a combination of compile-time
+information and the operating system.
 
-By default, on Linux-based systems, BoringSSL will try to use `getauxval` and
-`/proc` to discover the capabilities. But some environments don't support that
-sort of thing and, for them, it's possible to configure the CPU capabilities at
-compile time.
-
-On iOS or builds which define `OPENSSL_STATIC_ARMCAP`, features will be
-determined based on the `__ARM_NEON__` and `__ARM_FEATURE_CRYPTO` preprocessor
-symbols reported by the compiler. These values are usually controlled by the
-`-march` flag. You can also define any of the following to enable the
-corresponding ARM feature.
+BoringSSL determines capabilities at compile-time based on `__ARM_NEON`,
+`__ARM_FEATURE_AES`, and other preprocessor symbols defined in
+[Arm C Language Extensions (ACLE)](https://developer.arm.com/architectures/system-architectures/software-standards/acle).
+These values are usually controlled by the `-march` flag. You can also define
+any of the following to enable the corresponding ARM feature, but using the ACLE
+symbols via `-march` is recommended.
 
   * `OPENSSL_STATIC_ARMCAP_NEON`
   * `OPENSSL_STATIC_ARMCAP_AES`
@@ -192,8 +182,16 @@ corresponding ARM feature.
   * `OPENSSL_STATIC_ARMCAP_SHA256`
   * `OPENSSL_STATIC_ARMCAP_PMULL`
 
-Note that if a feature is enabled in this way, but not actually supported at
-run-time, BoringSSL will likely crash.
+The resulting binary will assume all such features are always present. This can
+reduce code size, by allowing the compiler to omit fallbacks. However, if the
+feature is not actually supported at runtime, BoringSSL will likely crash.
+
+BoringSSL will additionally query the operating system at runtime for additional
+features, e.g. with `getauxval` on Linux. This allows a single binary to use
+newer instructions when present, but still function on CPUs without them. But
+some environments don't support runtime queries. If building for those, define
+`OPENSSL_STATIC_ARMCAP` to limit BoringSSL to compile-time capabilities. If not
+defined, the target operating system must be known to BoringSSL.
 
 ## Binary Size
 

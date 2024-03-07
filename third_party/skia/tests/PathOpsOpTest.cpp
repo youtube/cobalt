@@ -9103,9 +9103,9 @@ path2.close();
     testPathOp(reporter, path, path2, kIntersect_SkPathOp, filename);
 }
 
-static void (*skipTest)(skiatest::Reporter* , const char* filename) = 0;
-static void (*firstTest)(skiatest::Reporter* , const char* filename) = 0;
-static void (*stopTest)(skiatest::Reporter* , const char* filename) = 0;
+static void (*skipTest)(skiatest::Reporter* , const char* filename) = nullptr;
+static void (*firstTest)(skiatest::Reporter* , const char* filename) = nullptr;
+static void (*stopTest)(skiatest::Reporter* , const char* filename) = nullptr;
 
 #define TEST(name) { name, #name }
 
@@ -9492,9 +9492,6 @@ static bool runSubTestsFirst = true;
 static bool runReverse = false;
 
 DEF_TEST(PathOpsOp, reporter) {
-#if DEBUG_SHOW_TEST_NAME
-    strncpy(DEBUG_FILENAME_STRING, "", DEBUG_FILENAME_STRING_LENGTH);
-#endif
     if (runSubTests && runSubTestsFirst) {
         RunTestSet(reporter, subTests, subTestCount, firstSubTest, nullptr, stopTest, runReverse);
     }
@@ -9618,7 +9615,6 @@ static void fuzz535151(skiatest::Reporter* reporter, const char* filename) {
     two.moveTo(0, 0);
     two.lineTo(0, 50);
     two.lineTo(4.29497e+09f, 50);
-    SkPath dummy;
     testPathOpFuzz(reporter, one, two, kIntersect_SkPathOp, filename);
 }
 
@@ -10084,7 +10080,6 @@ static void fuzz763_1c(skiatest::Reporter* reporter, const char* filename) {
     path.cubicTo(SkBits2Float(0x4a4a4a4a), SkBits2Float(0x4a4a4a4a), SkBits2Float(0x2ba1a14a), SkBits2Float(0x4e4a08ff), SkBits2Float(0x4a4a4a4a), SkBits2Float(0xa1a181ff));  // 3.31432e+06f, 3.31432e+06f, 1.14845e-12f, 8.47397e+08f, 3.31432e+06f, -1.09442e-18f
 
     SkPath path2(path);
-    SkPath dummy;
     testPathOpFuzz(reporter, path1, path2, (SkPathOp)4, filename);
 }
 
@@ -12531,9 +12526,6 @@ static struct TestDesc failTests[] = {
 static const size_t failTestCount = SK_ARRAY_COUNT(failTests);
 
 DEF_TEST(PathOpsFailOp, reporter) {
-#if DEBUG_SHOW_TEST_NAME
-    strncpy(DEBUG_FILENAME_STRING, "", DEBUG_FILENAME_STRING_LENGTH);
-#endif
     RunTestSet(reporter, failTests, failTestCount, nullptr, nullptr, nullptr, false);
 }
 

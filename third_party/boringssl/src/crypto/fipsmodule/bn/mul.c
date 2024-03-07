@@ -62,7 +62,6 @@
 
 #include <openssl/err.h>
 #include <openssl/mem.h>
-#include <openssl/type_check.h>
 
 #include "internal.h"
 #include "../../internal.h"
@@ -281,8 +280,8 @@ static void bn_mul_recursive(BN_ULONG *r, const BN_ULONG *a, const BN_ULONG *b,
   BN_ULONG c_neg = c - bn_sub_words(&t[n2 * 2], t, &t[n2], n2);
   BN_ULONG c_pos = c + bn_add_words(&t[n2], t, &t[n2], n2);
   bn_select_words(&t[n2], neg, &t[n2 * 2], &t[n2], n2);
-  OPENSSL_STATIC_ASSERT(sizeof(BN_ULONG) <= sizeof(crypto_word_t),
-                        "crypto_word_t is too small");
+  static_assert(sizeof(BN_ULONG) <= sizeof(crypto_word_t),
+                "crypto_word_t is too small");
   c = constant_time_select_w(neg, c_neg, c_pos);
 
   // We now have our three components. Add them together.
@@ -395,8 +394,8 @@ static void bn_mul_part_recursive(BN_ULONG *r, const BN_ULONG *a,
   BN_ULONG c_neg = c - bn_sub_words(&t[n2 * 2], t, &t[n2], n2);
   BN_ULONG c_pos = c + bn_add_words(&t[n2], t, &t[n2], n2);
   bn_select_words(&t[n2], neg, &t[n2 * 2], &t[n2], n2);
-  OPENSSL_STATIC_ASSERT(sizeof(BN_ULONG) <= sizeof(crypto_word_t),
-                        "crypto_word_t is too small");
+  static_assert(sizeof(BN_ULONG) <= sizeof(crypto_word_t),
+                "crypto_word_t is too small");
   c = constant_time_select_w(neg, c_neg, c_pos);
 
   // We now have our three components. Add them together.
@@ -536,7 +535,7 @@ int bn_mul_consttime(BIGNUM *r, const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx) {
 void bn_mul_small(BN_ULONG *r, size_t num_r, const BN_ULONG *a, size_t num_a,
                   const BN_ULONG *b, size_t num_b) {
   if (num_r != num_a + num_b) {
-    OPENSSL_port_abort();
+    abort();
   }
   // TODO(davidben): Should this call |bn_mul_comba4| too? |BN_mul| does not
   // hit that code.
@@ -735,7 +734,7 @@ int BN_sqr(BIGNUM *r, const BIGNUM *a, BN_CTX *ctx) {
 
 void bn_sqr_small(BN_ULONG *r, size_t num_r, const BN_ULONG *a, size_t num_a) {
   if (num_r != 2 * num_a || num_a > BN_SMALL_MAX_WORDS) {
-    OPENSSL_port_abort();
+    abort();
   }
   if (num_a == 4) {
     bn_sqr_comba4(r, a);

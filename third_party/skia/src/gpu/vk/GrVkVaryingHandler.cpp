@@ -7,70 +7,67 @@
 
 #include "src/gpu/vk/GrVkVaryingHandler.h"
 
-/** Returns the number of locations take up by a given GrSLType. We assume that all
+/** Returns the number of locations take up by a given SkSLType. We assume that all
     scalar values are 32 bits. */
-static inline int grsltype_to_location_size(GrSLType type) {
+static inline int sksltype_to_location_size(SkSLType type) {
     switch(type) {
-        case kVoid_GrSLType:
+        case SkSLType::kVoid:
             return 0;
-        case kFloat_GrSLType: // fall through
-        case kHalf_GrSLType:
+        case SkSLType::kFloat: // fall through
+        case SkSLType::kHalf:
             return 1;
-        case kFloat2_GrSLType: // fall through
-        case kHalf2_GrSLType:
+        case SkSLType::kFloat2: // fall through
+        case SkSLType::kHalf2:
             return 1;
-        case kFloat3_GrSLType:
-        case kHalf3_GrSLType:
+        case SkSLType::kFloat3:
+        case SkSLType::kHalf3:
             return 1;
-        case kFloat4_GrSLType:
-        case kHalf4_GrSLType:
+        case SkSLType::kFloat4:
+        case SkSLType::kHalf4:
             return 1;
-        case kUint2_GrSLType:
+        case SkSLType::kInt2:
+        case SkSLType::kUInt2:
+        case SkSLType::kShort2:
+        case SkSLType::kUShort2:
             return 1;
-        case kInt2_GrSLType:
-        case kShort2_GrSLType:
-        case kUShort2_GrSLType:
-        case kByte2_GrSLType:
-        case kUByte2_GrSLType:
+        case SkSLType::kInt3:
+        case SkSLType::kUInt3:
+        case SkSLType::kShort3:
+        case SkSLType::kUShort3:
             return 1;
-        case kInt3_GrSLType:
-        case kShort3_GrSLType:
-        case kUShort3_GrSLType:
-        case kByte3_GrSLType:
-        case kUByte3_GrSLType:
+        case SkSLType::kInt4:
+        case SkSLType::kUInt4:
+        case SkSLType::kShort4:
+        case SkSLType::kUShort4:
             return 1;
-        case kInt4_GrSLType:
-        case kShort4_GrSLType:
-        case kUShort4_GrSLType:
-        case kByte4_GrSLType:
-        case kUByte4_GrSLType:
-            return 1;
-        case kFloat2x2_GrSLType:
-        case kHalf2x2_GrSLType:
+        case SkSLType::kFloat2x2:
+        case SkSLType::kHalf2x2:
             return 2;
-        case kFloat3x3_GrSLType:
-        case kHalf3x3_GrSLType:
+        case SkSLType::kFloat3x3:
+        case SkSLType::kHalf3x3:
             return 3;
-        case kFloat4x4_GrSLType:
-        case kHalf4x4_GrSLType:
+        case SkSLType::kFloat4x4:
+        case SkSLType::kHalf4x4:
             return 4;
-        case kTexture2DSampler_GrSLType:
-        case kSampler_GrSLType:
-        case kTexture2D_GrSLType:
+        case SkSLType::kTexture2DSampler:
+        case SkSLType::kSampler:
+        case SkSLType::kTexture2D:
+        case SkSLType::kInput:
             return 0;
-        case kTextureExternalSampler_GrSLType:
+        case SkSLType::kTextureExternalSampler:
              return 0;
-        case kTexture2DRectSampler_GrSLType:
+        case SkSLType::kTexture2DRectSampler:
              return 0;
-        case kBool_GrSLType:
+        case SkSLType::kBool:
+        case SkSLType::kBool2:
+        case SkSLType::kBool3:
+        case SkSLType::kBool4:
              return 1;
-        case kInt_GrSLType: // fall through
-        case kShort_GrSLType:
-        case kByte_GrSLType:
+        case SkSLType::kInt: // fall through
+        case SkSLType::kShort:
              return 1;
-        case kUint_GrSLType: // fall through
-        case kUShort_GrSLType:
-        case kUByte_GrSLType:
+        case SkSLType::kUInt: // fall through
+        case SkSLType::kUShort:
              return 1;
     }
     SK_ABORT("Unexpected type");
@@ -78,18 +75,14 @@ static inline int grsltype_to_location_size(GrSLType type) {
 
 static void finalize_helper(GrVkVaryingHandler::VarArray& vars) {
     int locationIndex = 0;
-    for (int i = 0; i < vars.count(); ++i) {
-        GrShaderVar& var = vars[i];
+    for (GrShaderVar& var : vars.items()) {
         SkString location;
         location.appendf("location = %d", locationIndex);
         var.addLayoutQualifier(location.c_str());
 
-        int elementSize = grsltype_to_location_size(var.getType());
+        int elementSize = sksltype_to_location_size(var.getType());
         SkASSERT(elementSize > 0);
-        int numElements = 1;
-        if (var.isArray() && !var.isUnsizedArray()) {
-            numElements = var.getArrayCount();
-        }
+        int numElements = var.isArray() ? var.getArrayCount() : 1;
         SkASSERT(numElements > 0);
         locationIndex += elementSize * numElements;
     }
@@ -102,8 +95,6 @@ static void finalize_helper(GrVkVaryingHandler::VarArray& vars) {
 void GrVkVaryingHandler::onFinalize() {
     finalize_helper(fVertexInputs);
     finalize_helper(fVertexOutputs);
-    finalize_helper(fGeomInputs);
-    finalize_helper(fGeomOutputs);
     finalize_helper(fFragInputs);
     finalize_helper(fFragOutputs);
 }

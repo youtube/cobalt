@@ -11,6 +11,12 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+// Use a full file path or one relative to base::DIR_TEST_DATA
+// Example usage:
+// out/linux-x64x11_devel/media_sandbox
+// `pwd`/cobalt/demos/content/media-element-demo/public/assets/dash-audio.mp4
+// `pwd`/cobalt/demos/content/media-element-demo/public/assets/dash-video-240p.mp4
 
 #include <memory>
 
@@ -44,6 +50,8 @@ class DemuxerHostStub : public ::media::DemuxerHost {
 };
 
 void OnDemuxerOpen() {}
+
+void OnProgress() {}
 
 void OnEncryptedMediaInitData(::media::EmeInitDataType type,
                               const std::vector<uint8_t>& init_data) {}
@@ -114,21 +122,21 @@ int SandboxMain(int argc, char** argv) {
   // URLRequestContext;
   base::TaskScheduler::CreateAndStartWithDefaultParams("Cobalt TaskScheduler");
   DemuxerHostStub demuxer_host;
-  std::unique_ptr<ChunkDemuxer> demuxer(
-      new ChunkDemuxer(base::BindOnce(OnDemuxerOpen), base::Closure(),
-                       base::Bind(OnEncryptedMediaInitData), &media_log));
+  std::unique_ptr<ChunkDemuxer> demuxer(new ChunkDemuxer(
+      base::BindOnce(OnDemuxerOpen), base::BindRepeating(OnProgress),
+      base::Bind(OnEncryptedMediaInitData), &media_log));
   demuxer->Initialize(&demuxer_host, base::Bind(OnDemuxerStatus));
 
   ChunkDemuxer::Status status =
-      demuxer->AddId("audio", "audio/mp4", "mp4a.40.2");
+      demuxer->AddId("audio", "audio/mp4; codecs=\"mp4a.40.2\"");
   DCHECK_EQ(status, ChunkDemuxer::kOk);
 
   int video_url_length = strlen(argv[2]);
   if (video_url_length > 5 &&
       strncmp(argv[2] + video_url_length - 5, ".webm", 5) == 0) {
-    status = demuxer->AddId("video", "video/webm", "vp9");
+    status = demuxer->AddId("video", "video/webm; codecs=\"vp9\"");
   } else {
-    status = demuxer->AddId("video", "video/mp4", "avc1.640028");
+    status = demuxer->AddId("video", "video/mp4; codecs=\"avc1.640028\"");
   }
   DCHECK_EQ(status, ChunkDemuxer::kOk);
 
@@ -136,8 +144,13 @@ int SandboxMain(int argc, char** argv) {
 
   std::string audio_content = LoadFile(argv[1]);
   std::string video_content = LoadFile(argv[2]);
-  DCHECK(!audio_content.empty());
-  DCHECK(!video_content.empty());
+  if (audio_content.empty() || video_content.empty()) {
+    base::FilePath content_path;
+    base::PathService::Get(base::DIR_TEST_DATA, &content_path);
+    LOG(ERROR) << "Ensure you use a full path or one relative to "
+               << content_path.value();
+    return (1);
+  }
 
   demuxer->SetTracksWatcher("audio", base::Bind(OnInitSegmentReceived));
   demuxer->SetParseWarningCallback(

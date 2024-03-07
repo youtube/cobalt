@@ -144,12 +144,6 @@ typedef enum SbPlayerSampleSideDataType {
   // The first 8 bytes of the data contains the value of BlockAddID in big
   // endian format, followed by the content of BlockAdditional.
   kMatroskaBlockAdditional,
-#if SB_API_VERSION >= 16
-  // The config OBUs located in the IASampleEntry Box in the MP4 container, as
-  // specified in
-  // https://aomediacodec.github.io/iamf/#standalone-descriptor-obus.
-  kIamfConfigObus,
-#endif  // SB_API_VERSION >= 16
 } SbPlayerSampleSideDataType;
 
 // Side data accompanied with |SbPlayerSampleInfo|, it can be arbitrary binary
@@ -291,7 +285,7 @@ typedef void (*SbPlayerErrorFunc)(SbPlayer player,
 
 // Callback to free the given sample buffer data.  When more than one buffer
 // are sent in SbPlayerWriteSample(), the implementation only has to call this
-// callback with |sample_buffer| points to the the first buffer.
+// callback with |sample_buffer| points to the first buffer.
 typedef void (*SbPlayerDeallocateSampleFunc)(SbPlayer player,
                                              void* context,
                                              const void* sample_buffer);
@@ -527,7 +521,7 @@ SB_EXPORT void SbPlayerSeek2(SbPlayer player,
 //   SbPlayerWriteSamples(), so it must be copied if its content will be used
 //   after SbPlayerWriteSamples() returns.
 // |number_of_sample_infos|: Specify the number of samples contained inside
-//   |sample_infos|.  It has to be at least one, and less than the return value
+//   |sample_infos|.  It has to be at least one, and at most the return value
 //   of SbPlayerGetMaximumNumberOfSamplesPerWrite().
 #if SB_API_VERSION >= 15
 SB_EXPORT void SbPlayerWriteSamples(SbPlayer player,
@@ -538,13 +532,13 @@ SB_EXPORT void SbPlayerWriteSample2(SbPlayer player,
                                     const SbPlayerSampleInfo* sample_infos,
                                     int number_of_sample_infos);
 
-// Writes a single sample of the given media type to |player|'s input stream.
-// Its data may be passed in via more than one buffers.  The lifetime of
-// |sample_buffers|, |sample_buffer_sizes|, |video_sample_info|, and
-// |sample_drm_info| (as well as member |subsample_mapping| contained inside it)
-// are not guaranteed past the call to SbPlayerWriteSample. That means that
-// before returning, the implementation must synchronously copy any information
-// it wants to retain from those structures.
+// Returns the maximum number of samples that can be written in a single call
+// to SbPlayerWriteSamples(). Returning a value greater than one can improve
+// performance by allowing SbPlayerWriteSamples() to write multiple samples in
+// one call.
+//
+// Note that this feature is currently disabled in Cobalt where
+// SbPlayerWriteSamples() will always be called with one sample.
 //
 // |player|: The player for which the number is retrieved.
 // |sample_type|: The type of sample for which the number is retrieved. See the

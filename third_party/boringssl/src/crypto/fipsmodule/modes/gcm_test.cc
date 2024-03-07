@@ -54,8 +54,8 @@
 #include <gtest/gtest.h>
 
 #include <openssl/aes.h>
-#include <openssl/cpu.h>
 
+#include "../../internal.h"
 #include "../../test/abi_test.h"
 #include "../../test/file_test.h"
 #include "../../test/test_util.h"
@@ -125,7 +125,7 @@ TEST(GCMTest, ABI) {
       UINT64_C(0x66e94bd4ef8a2c3b),
       UINT64_C(0x884cfa59ca342b2e),
   };
-  static const size_t kBlockCounts[] = {1, 2, 3, 4, 7, 8, 15, 16, 31, 32};
+  static const size_t kBlockCounts[] = {1, 2, 3, 4, 5, 6, 7, 8, 15, 16, 31, 32};
   uint8_t buf[16 * 32];
   OPENSSL_memset(buf, 42, sizeof(buf));
 
@@ -136,7 +136,7 @@ TEST(GCMTest, ABI) {
 
   alignas(16) u128 Htable[16];
 #if defined(GHASH_ASM_X86) || defined(GHASH_ASM_X86_64)
-  if (gcm_ssse3_capable()) {
+  if (CRYPTO_is_SSSE3_capable()) {
     CHECK_ABI_SEH(gcm_init_ssse3, Htable, kH);
     CHECK_ABI_SEH(gcm_gmult_ssse3, X, Htable);
     for (size_t blocks : kBlockCounts) {
@@ -152,7 +152,7 @@ TEST(GCMTest, ABI) {
     }
 
 #if defined(GHASH_ASM_X86_64)
-    if (((OPENSSL_ia32cap_get()[1] >> 22) & 0x41) == 0x41) {  // AVX+MOVBE
+    if (CRYPTO_is_AVX_capable() && CRYPTO_is_MOVBE_capable()) {
       CHECK_ABI_SEH(gcm_init_avx, Htable, kH);
       CHECK_ABI_SEH(gcm_gmult_avx, X, Htable);
       for (size_t blocks : kBlockCounts) {

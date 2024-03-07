@@ -15,8 +15,6 @@
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/property-cell.h"
-#include "src/objects/torque-defined-classes.h"
-#include "src/objects/torque-defined-classes-inl.h"
 
 namespace v8 {
 namespace internal {

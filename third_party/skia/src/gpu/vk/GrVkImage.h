@@ -10,37 +10,57 @@
 
 #include "include/core/SkTypes.h"
 #include "include/gpu/GrBackendSurface.h"
-#include "include/gpu/GrTexture.h"
 #include "include/gpu/vk/GrVkTypes.h"
 #include "include/private/GrTypesPriv.h"
-#include "src/gpu/vk/GrVkImageLayout.h"
-#include "src/gpu/vk/GrVkResource.h"
+#include "include/private/GrVkTypesPriv.h"
+#include "src/gpu/GrAttachment.h"
+#include "src/gpu/GrBackendSurfaceMutableStateImpl.h"
+#include "src/gpu/GrManagedResource.h"
+#include "src/gpu/GrRefCnt.h"
+#include "src/gpu/GrTexture.h"
+#include "src/gpu/vk/GrVkDescriptorSet.h"
+
+#include <cinttypes>
 
 class GrVkGpu;
-class GrVkTexture;
+class GrVkImageView;
 
-class GrVkImage : SkNoncopyable {
+class GrVkImage : public GrAttachment {
 private:
     class Resource;
 
 public:
-    GrVkImage(const GrVkImageInfo& info, sk_sp<GrVkImageLayout> layout,
-              GrBackendObjectOwnership ownership, bool forSecondaryCB = false)
-            : fInfo(info)
-            , fInitialQueueFamily(info.fCurrentQueueFamily)
-            , fLayout(std::move(layout))
-            , fIsBorrowed(GrBackendObjectOwnership::kBorrowed == ownership) {
-        SkASSERT(fLayout->getImageLayout() == fInfo.fImageLayout);
-        if (forSecondaryCB) {
-            fResource = nullptr;
-        } else if (fIsBorrowed) {
-            fResource = new BorrowedResource(info.fImage, info.fAlloc, info.fImageTiling);
-        } else {
-            SkASSERT(VK_NULL_HANDLE != info.fAlloc.fMemory);
-            fResource = new Resource(info.fImage, info.fAlloc, info.fImageTiling);
-        }
-    }
-    virtual ~GrVkImage();
+    static sk_sp<GrVkImage> MakeStencil(GrVkGpu* gpu,
+                                        SkISize dimensions,
+                                        int sampleCnt,
+                                        VkFormat format);
+
+    static sk_sp<GrVkImage> MakeMSAA(GrVkGpu* gpu,
+                                     SkISize dimensions,
+                                     int numSamples,
+                                     VkFormat format,
+                                     GrProtected isProtected,
+                                     GrMemoryless memoryless);
+
+    static sk_sp<GrVkImage> MakeTexture(GrVkGpu* gpu,
+                                        SkISize dimensions,
+                                        VkFormat format,
+                                        uint32_t mipLevels,
+                                        GrRenderable renderable,
+                                        int numSamples,
+                                        SkBudgeted budgeted,
+                                        GrProtected isProtected);
+
+    static sk_sp<GrVkImage> MakeWrapped(GrVkGpu* gpu,
+                                        SkISize dimensions,
+                                        const GrVkImageInfo&,
+                                        sk_sp<GrBackendSurfaceMutableStateImpl>,
+                                        UsageFlags attachmentUsages,
+                                        GrWrapOwnership,
+                                        GrWrapCacheable,
+                                        bool forSecondaryCB = false);
+
+    ~GrVkImage() override;
 
     VkImage image() const {
         // Should only be called when we have a real fResource object, i.e. never when being used as
@@ -54,14 +74,17 @@ public:
         SkASSERT(fResource);
         return fInfo.fAlloc;
     }
+    const GrVkImageInfo& vkImageInfo() const { return fInfo; }
     VkFormat imageFormat() const { return fInfo.fFormat; }
-    GrBackendFormat getBackendFormat() const {
+    GrBackendFormat backendFormat() const override {
+        bool usesDRMModifier =
+                this->vkImageInfo().fImageTiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT;
         if (fResource && this->ycbcrConversionInfo().isValid()) {
             SkASSERT(this->imageFormat() == this->ycbcrConversionInfo().fFormat);
-            return GrBackendFormat::MakeVk(this->ycbcrConversionInfo());
+            return GrBackendFormat::MakeVk(this->ycbcrConversionInfo(), usesDRMModifier);
         }
         SkASSERT(this->imageFormat() != VK_FORMAT_UNDEFINED);
-        return GrBackendFormat::MakeVk(this->imageFormat());
+        return GrBackendFormat::MakeVk(this->imageFormat(), usesDRMModifier);
     }
     uint32_t mipLevels() const { return fInfo.fLevelCount; }
     const GrVkYcbcrConversionInfo& ycbcrConversionInfo() const {
@@ -70,6 +93,24 @@ public:
         SkASSERT(fResource);
         return fInfo.fYcbcrConversionInfo;
     }
+    VkImageUsageFlags vkUsageFlags() { return fInfo.fImageUsageFlags; }
+    bool supportsInputAttachmentUsage() const {
+        return fInfo.fImageUsageFlags & VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+    }
+
+    const GrVkImageView* framebufferView() const { return fFramebufferView.get(); }
+    const GrVkImageView* textureView() const { return fTextureView.get(); }
+
+    // So that we don't need to rewrite descriptor sets each time, we keep cached input descriptor
+    // sets on the attachment and simply reuse those descriptor sets for this attachment only. These
+    // calls will fail if the attachment does not support being used as an input attachment. These
+    // calls do not ref the GrVkDescriptorSet so they called will need to manually ref them if they
+    // need to be kept alive.
+    gr_rp<const GrVkDescriptorSet> inputDescSetForBlending(GrVkGpu* gpu);
+    // Input descripotr set used when needing to read a resolve attachment to load data into a
+    // discardable msaa attachment.
+    gr_rp<const GrVkDescriptorSet> inputDescSetForMSAALoad(GrVkGpu* gpu);
+
     const Resource* resource() const {
         SkASSERT(fResource);
         return fResource;
@@ -82,18 +123,31 @@ public:
     }
     bool isBorrowed() const { return fIsBorrowed; }
 
-    sk_sp<GrVkImageLayout> grVkImageLayout() const { return fLayout; }
+    sk_sp<GrBackendSurfaceMutableStateImpl> getMutableState() const { return fMutableState; }
 
-    VkImageLayout currentLayout() const {
-        return fLayout->getImageLayout();
-    }
+    VkImageLayout currentLayout() const { return fMutableState->getImageLayout(); }
+
+    void setImageLayoutAndQueueIndex(const GrVkGpu* gpu,
+                                     VkImageLayout newLayout,
+                                     VkAccessFlags dstAccessMask,
+                                     VkPipelineStageFlags dstStageMask,
+                                     bool byRegion,
+                                     uint32_t newQueueFamilyIndex);
 
     void setImageLayout(const GrVkGpu* gpu,
                         VkImageLayout newLayout,
                         VkAccessFlags dstAccessMask,
                         VkPipelineStageFlags dstStageMask,
-                        bool byRegion,
-                        bool releaseFamilyQueue = false);
+                        bool byRegion) {
+        this->setImageLayoutAndQueueIndex(gpu, newLayout, dstAccessMask, dstStageMask, byRegion,
+                                          VK_QUEUE_FAMILY_IGNORED);
+    }
+
+    uint32_t currentQueueFamilyIndex() const { return fMutableState->getQueueFamilyIndex(); }
+
+    void setQueueFamilyIndex(uint32_t queueFamilyIndex) {
+        fMutableState->setQueueFamilyIndex(queueFamilyIndex);
+    }
 
     // Returns the image to its original queue family and changes the layout to present if the queue
     // family is not external or foreign.
@@ -109,7 +163,7 @@ public:
         // Should only be called when we have a real fResource object, i.e. never when being used as
         // a RT in an external secondary command buffer.
         SkASSERT(fResource);
-        fLayout->setImageLayout(newLayout);
+        fMutableState->setImageLayout(newLayout);
     }
 
     struct ImageDesc {
@@ -155,100 +209,107 @@ public:
     void setCurrentQueueFamilyToGraphicsQueue(GrVkGpu* gpu);
 #endif
 
-protected:
-    void releaseImage(GrVkGpu* gpu);
-    void abandonImage();
+private:
+    static sk_sp<GrVkImage> Make(GrVkGpu* gpu,
+                                 SkISize dimensions,
+                                 UsageFlags attachmentUsages,
+                                 int sampleCnt,
+                                 VkFormat format,
+                                 uint32_t mipLevels,
+                                 VkImageUsageFlags vkUsageFlags,
+                                 GrProtected isProtected,
+                                 GrMemoryless,
+                                 SkBudgeted);
+
+    GrVkImage(GrVkGpu* gpu,
+              SkISize dimensions,
+              UsageFlags supportedUsages,
+              const GrVkImageInfo&,
+              sk_sp<GrBackendSurfaceMutableStateImpl> mutableState,
+              sk_sp<const GrVkImageView> framebufferView,
+              sk_sp<const GrVkImageView> textureView,
+              SkBudgeted);
+
+    GrVkImage(GrVkGpu* gpu,
+              SkISize dimensions,
+              UsageFlags supportedUsages,
+              const GrVkImageInfo&,
+              sk_sp<GrBackendSurfaceMutableStateImpl> mutableState,
+              sk_sp<const GrVkImageView> framebufferView,
+              sk_sp<const GrVkImageView> textureView,
+              GrBackendObjectOwnership,
+              GrWrapCacheable,
+              bool forSecondaryCB);
+
+    void init(GrVkGpu*, bool forSecondaryCB);
+
+    void onRelease() override;
+    void onAbandon() override;
+
+    void releaseImage();
     bool hasResource() const { return fResource; }
 
-    GrVkImageInfo          fInfo;
-    uint32_t               fInitialQueueFamily;
-    sk_sp<GrVkImageLayout> fLayout;
-    bool                   fIsBorrowed;
+    GrVkGpu* getVkGpu() const;
 
-private:
-    class Resource : public GrVkResource {
+    GrVkImageInfo                           fInfo;
+    uint32_t                                fInitialQueueFamily;
+    sk_sp<GrBackendSurfaceMutableStateImpl> fMutableState;
+
+    sk_sp<const GrVkImageView>              fFramebufferView;
+    sk_sp<const GrVkImageView>              fTextureView;
+
+    bool fIsBorrowed;
+
+    // Descriptor set used when this is used as an input attachment for reading the dst in blending.
+    gr_rp<const GrVkDescriptorSet> fCachedBlendingInputDescSet;
+    // Descriptor set used when this is used as an input attachment for loading an msaa attachment.
+    gr_rp<const GrVkDescriptorSet> fCachedMSAALoadInputDescSet;
+
+    class Resource : public GrTextureResource {
     public:
-        Resource()
-                : fImage(VK_NULL_HANDLE) {
+        explicit Resource(const GrVkGpu* gpu)
+                : fGpu(gpu)
+                , fImage(VK_NULL_HANDLE) {
             fAlloc.fMemory = VK_NULL_HANDLE;
             fAlloc.fOffset = 0;
         }
 
-        Resource(VkImage image, const GrVkAlloc& alloc, VkImageTiling tiling)
-            : fImage(image)
-            , fAlloc(alloc)
-            , fImageTiling(tiling) {}
+        Resource(const GrVkGpu* gpu, VkImage image, const GrVkAlloc& alloc, VkImageTiling tiling)
+            : fGpu(gpu)
+            , fImage(image)
+            , fAlloc(alloc) {}
 
-        ~Resource() override {
-            SkASSERT(!fReleaseHelper);
-        }
+        ~Resource() override {}
 
-#ifdef SK_TRACE_VK_RESOURCES
+#ifdef SK_TRACE_MANAGED_RESOURCES
         void dumpInfo() const override {
-            SkDebugf("GrVkImage: %d (%d refs)\n", fImage, this->getRefCnt());
+            SkDebugf("GrVkImage: %" PRIdPTR " (%d refs)\n", (intptr_t)fImage, this->getRefCnt());
         }
 #endif
-        void setRelease(sk_sp<GrRefCntedCallback> releaseHelper) {
-            fReleaseHelper = std::move(releaseHelper);
-        }
 
-        /**
-         * These are used to coordinate calling the "finished" idle procs between the GrVkTexture
-         * and the Resource. If the GrVkTexture becomes purgeable and if there are no command
-         * buffers referring to the Resource then it calls the procs. Otherwise, the Resource calls
-         * them when the last command buffer reference goes away and the GrVkTexture is purgeable.
-         */
-        void addIdleProc(GrVkTexture*, sk_sp<GrRefCntedCallback>) const;
-        int idleProcCnt() const;
-        sk_sp<GrRefCntedCallback> idleProc(int) const;
-        void resetIdleProcs() const;
-        void removeOwningTexture() const;
-
-        /**
-         * We track how many outstanding references this Resource has in command buffers and
-         * when the count reaches zero we call the idle proc.
-         */
-        void notifyAddedToCommandBuffer() const override;
-        void notifyRemovedFromCommandBuffer() const override;
-        bool isOwnedByCommandBuffer() const { return fNumCommandBufferOwners > 0; }
-
-    protected:
-        mutable sk_sp<GrRefCntedCallback> fReleaseHelper;
-
-        void invokeReleaseProc() const {
-            if (fReleaseHelper) {
-                // Depending on the ref count of fReleaseHelper this may or may not actually trigger
-                // the ReleaseProc to be called.
-                fReleaseHelper.reset();
-            }
-        }
+#ifdef SK_DEBUG
+        const GrManagedResource* asVkImageResource() const override { return this; }
+#endif
 
     private:
-        void freeGPUData(GrVkGpu* gpu) const override;
-        void abandonGPUData() const override {
-            this->invokeReleaseProc();
-            SkASSERT(!fReleaseHelper);
-        }
+        void freeGPUData() const override;
 
+        const GrVkGpu* fGpu;
         VkImage        fImage;
         GrVkAlloc      fAlloc;
-        VkImageTiling  fImageTiling;
-        mutable int fNumCommandBufferOwners = 0;
-        mutable SkTArray<sk_sp<GrRefCntedCallback>> fIdleProcs;
-        mutable GrVkTexture* fOwningTexture = nullptr;
 
-        typedef GrVkResource INHERITED;
+        using INHERITED = GrTextureResource;
     };
 
     // for wrapped textures
     class BorrowedResource : public Resource {
     public:
-        BorrowedResource(VkImage image, const GrVkAlloc& alloc, VkImageTiling tiling)
-            : Resource(image, alloc, tiling) {
+        BorrowedResource(const GrVkGpu* gpu, VkImage image, const GrVkAlloc& alloc,
+                         VkImageTiling tiling)
+            : Resource(gpu, image, alloc, tiling) {
         }
     private:
-        void freeGPUData(GrVkGpu* gpu) const override;
-        void abandonGPUData() const override;
+        void freeGPUData() const override;
     };
 
     Resource* fResource;

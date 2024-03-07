@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # Copyright (c) 2013 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -9,8 +10,6 @@ See http://dev.chromium.org/developers/how-tos/depottools/presubmit-scripts
 for more details about the presubmit API built into gcl.
 """
 
-import collections
-import csv
 import fnmatch
 import os
 import re
@@ -19,25 +18,8 @@ import sys
 import traceback
 
 
-REVERT_CL_SUBJECT_PREFIX = 'Revert '
-
-# Please add the complete email address here (and not just 'xyz@' or 'xyz').
-PUBLIC_API_OWNERS = (
-    'mtklein@google.com',
-    'reed@chromium.org',
-    'reed@google.com',
-    'bsalomon@chromium.org',
-    'bsalomon@google.com',
-    'djsollen@chromium.org',
-    'djsollen@google.com',
-    'hcm@chromium.org',
-    'hcm@google.com',
-)
-
-AUTHORS_FILE_NAME = 'AUTHORS'
 RELEASE_NOTES_FILE_NAME = 'RELEASE_NOTES.txt'
 
-DOCS_PREVIEW_URL = 'https://skia.org/?cl={issue}'
 GOLD_TRYBOT_URL = 'https://gold.skia.org/search?issue='
 
 SERVICE_ACCOUNT_SUFFIX = [
@@ -135,7 +117,8 @@ def _CopyrightChecks(input_api, output_api, source_file_filter=None):
       r'Copyright (\([cC]\) )?%s \w+' % years_pattern)
 
   for affected_file in input_api.AffectedSourceFiles(source_file_filter):
-    if 'third_party' in affected_file.LocalPath():
+    if ('third_party/' in affected_file.LocalPath() or
+        'tests/sksl/' in affected_file.LocalPath()):
       continue
     contents = input_api.ReadFile(affected_file, 'rb')
     if not re.search(copyright_pattern, contents):
@@ -163,7 +146,7 @@ def _InfraTests(input_api, output_api):
 def _CheckGNFormatted(input_api, output_api):
   """Make sure any .gn files we're changing have been formatted."""
   files = []
-  for f in input_api.AffectedFiles():
+  for f in input_api.AffectedFiles(include_deletes=False):
     if (f.LocalPath().endswith('.gn') or
         f.LocalPath().endswith('.gni')):
       files.append(f)
@@ -190,39 +173,33 @@ def _CheckGNFormatted(input_api, output_api):
           '`%s` failed, try\n\t%s' % (' '.join(cmd), fix)))
   return results
 
+
+def _CheckGitConflictMarkers(input_api, output_api):
+  pattern = input_api.re.compile('^(?:<<<<<<<|>>>>>>>) |^=======$')
+  results = []
+  for f in input_api.AffectedFiles():
+    for line_num, line in f.ChangedContents():
+      if f.LocalPath().endswith('.md'):
+        # First-level headers in markdown look a lot like version control
+        # conflict markers. http://daringfireball.net/projects/markdown/basics
+        continue
+      if pattern.match(line):
+        results.append(
+            output_api.PresubmitError(
+                'Git conflict markers found in %s:%d %s' % (
+                    f.LocalPath(), line_num, line)))
+  return results
+
+
 def _CheckIncludesFormatted(input_api, output_api):
   """Make sure #includes in files we're changing have been formatted."""
-  # NOTE: os.getcwd() != input_api.change.RepositoryRoot(), so the file path
-  #       of AffectedFiles() needs to be converted.
-  files = [os.path.relpath(f.AbsoluteLocalPath())
-           for f in input_api.AffectedFiles() if f.Action() != 'D']
+  files = [str(f) for f in input_api.AffectedFiles() if f.Action() != 'D']
   cmd = ['python',
          'tools/rewrite_includes.py',
          '--dry-run'] + files
   if 0 != subprocess.call(cmd):
     return [output_api.PresubmitError('`%s` failed' % ' '.join(cmd))]
   return []
-
-def _CheckCompileIsolate(input_api, output_api):
-  """Ensure that gen_compile_isolate.py does not change compile.isolate."""
-  # Only run the check if files were added or removed.
-  results = []
-  script = os.path.join('infra', 'bots', 'gen_compile_isolate.py')
-  isolate = os.path.join('infra', 'bots', 'compile.isolated')
-  for f in input_api.AffectedFiles():
-    if f.Action() in ('A', 'D', 'R'):
-      break
-    if f.LocalPath() in (script, isolate):
-      break
-  else:
-    return results
-
-  cmd = ['python', script, 'test']
-  try:
-    subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-  except subprocess.CalledProcessError as e:
-    results.append(output_api.PresubmitError(e.output))
-  return results
 
 
 class _WarningsAsErrors():
@@ -255,6 +232,29 @@ def _CheckDEPSValid(input_api, output_api):
   return results
 
 
+def _RegenerateAllExamplesCPP(input_api, output_api):
+  """Regenerates all_examples.cpp if an example was added or deleted."""
+  if not any(f.LocalPath().startswith('docs/examples/')
+             for f in input_api.AffectedFiles()):
+    return []
+  command_str = 'tools/fiddle/make_all_examples_cpp.py'
+  cmd = ['python', command_str]
+  if 0 != subprocess.call(cmd):
+    return [output_api.PresubmitError('`%s` failed' % ' '.join(cmd))]
+
+  results = []
+  git_diff_output = input_api.subprocess.check_output(
+      ['git', 'diff', '--no-ext-diff'])
+  if git_diff_output:
+    results += [output_api.PresubmitError(
+        'Diffs found after running "%s":\n\n%s\n'
+        'Please commit or discard the above changes.' % (
+            command_str,
+            git_diff_output,
+        )
+    )]
+  return results
+
 def _CommonChecks(input_api, output_api):
   """Presubmit checks common to upload and commit."""
   results = []
@@ -278,9 +278,11 @@ def _CommonChecks(input_api, output_api):
   results.extend(_IfDefChecks(input_api, output_api))
   results.extend(_CopyrightChecks(input_api, output_api,
                                   source_file_filter=sources))
-  results.extend(_CheckCompileIsolate(input_api, output_api))
   results.extend(_CheckDEPSValid(input_api, output_api))
   results.extend(_CheckIncludesFormatted(input_api, output_api))
+  results.extend(_CheckGNFormatted(input_api, output_api))
+  results.extend(_CheckGitConflictMarkers(input_api, output_api))
+  results.extend(_RegenerateAllExamplesCPP(input_api, output_api))
   return results
 
 
@@ -291,8 +293,6 @@ def CheckChangeOnUpload(input_api, output_api):
   # Run on upload, not commit, since the presubmit bot apparently doesn't have
   # coverage or Go installed.
   results.extend(_InfraTests(input_api, output_api))
-
-  results.extend(_CheckGNFormatted(input_api, output_api))
   results.extend(_CheckReleaseNotesForPublicAPI(input_api, output_api))
   return results
 
@@ -328,43 +328,6 @@ class CodeReview(object):
     return approvers
 
 
-def _CheckOwnerIsInAuthorsFile(input_api, output_api):
-  results = []
-  if input_api.change.issue:
-    cr = CodeReview(input_api)
-
-    owner_email = cr.GetOwnerEmail()
-
-    # Service accounts don't need to be in AUTHORS.
-    for suffix in SERVICE_ACCOUNT_SUFFIX:
-      if owner_email.endswith(suffix):
-        return results
-
-    try:
-      authors_content = ''
-      for line in open(AUTHORS_FILE_NAME):
-        if not line.startswith('#'):
-          authors_content += line
-      email_fnmatches = re.findall('<(.*)>', authors_content)
-      for email_fnmatch in email_fnmatches:
-        if fnmatch.fnmatch(owner_email, email_fnmatch):
-          # Found a match, the user is in the AUTHORS file break out of the loop
-          break
-      else:
-        results.append(
-          output_api.PresubmitError(
-            'The email %s is not in Skia\'s AUTHORS file.\n'
-            'Issue owner, this CL must include an addition to the Skia AUTHORS '
-            'file.'
-            % owner_email))
-    except IOError:
-      # Do not fail if authors file cannot be found.
-      traceback.print_exc()
-      input_api.logging.error('AUTHORS file not found!')
-
-  return results
-
-
 def _CheckReleaseNotesForPublicAPI(input_api, output_api):
   """Checks to see if release notes file is updated with public API changes."""
   results = []
@@ -386,75 +349,6 @@ def _CheckReleaseNotesForPublicAPI(input_api, output_api):
     results.append(output_api.PresubmitPromptWarning(
         'If this change affects a client API, please add a summary line '
         'to the %s file.' % RELEASE_NOTES_FILE_NAME))
-  return results
-
-
-
-def _CheckLGTMsForPublicAPI(input_api, output_api):
-  """Check LGTMs for public API changes.
-
-  For public API files make sure there is an LGTM from the list of owners in
-  PUBLIC_API_OWNERS.
-  """
-  results = []
-  requires_owner_check = False
-  for affected_file in input_api.AffectedFiles():
-    affected_file_path = affected_file.LocalPath()
-    file_path, file_ext = os.path.splitext(affected_file_path)
-    # We only care about files that end in .h and are under the top-level
-    # include dir, but not include/private.
-    if (file_ext == '.h' and
-        'include' == file_path.split(os.path.sep)[0] and
-        'private' not in file_path):
-      requires_owner_check = True
-
-  if not requires_owner_check:
-    return results
-
-  lgtm_from_owner = False
-  if input_api.change.issue:
-    cr = CodeReview(input_api)
-
-    if re.match(REVERT_CL_SUBJECT_PREFIX, cr.GetSubject(), re.I):
-      # It is a revert CL, ignore the public api owners check.
-      return results
-
-    if input_api.gerrit:
-      for reviewer in cr.GetReviewers():
-        if reviewer in PUBLIC_API_OWNERS:
-          # If an owner is specified as an reviewer in Gerrit then ignore the
-          # public api owners check.
-          return results
-    else:
-      match = re.search(r'^TBR=(.*)$', cr.GetDescription(), re.M)
-      if match:
-        tbr_section = match.group(1).strip().split(' ')[0]
-        tbr_entries = tbr_section.split(',')
-        for owner in PUBLIC_API_OWNERS:
-          if owner in tbr_entries or owner.split('@')[0] in tbr_entries:
-            # If an owner is specified in the TBR= line then ignore the public
-            # api owners check.
-            return results
-
-    if cr.GetOwnerEmail() in PUBLIC_API_OWNERS:
-      # An owner created the CL that is an automatic LGTM.
-      lgtm_from_owner = True
-
-    for approver in cr.GetApprovers():
-      if approver in PUBLIC_API_OWNERS:
-        # Found an lgtm in a message from an owner.
-        lgtm_from_owner = True
-        break
-
-  if not lgtm_from_owner:
-    results.append(
-        output_api.PresubmitError(
-            "If this CL adds to or changes Skia's public API, you need an LGTM "
-            "from any of %s.  If this CL only removes from or doesn't change "
-            "Skia's public API, please add a short note to the CL saying so. "
-            "Add one of the owners as a reviewer to your CL as well as to the "
-            "TBR= line.  If you don't know if this CL affects Skia's public "
-            "API, treat it like it does." % str(PUBLIC_API_OWNERS)))
   return results
 
 
@@ -501,19 +395,6 @@ def PostUploadHook(gerrit, change, output_api):
             'This change has only doc changes. Automatically added '
             '\'No-Try: true\' to the CL\'s description'))
 
-  # If there is at least one docs change then add preview link in the CL's
-  # description if it does not already exist there.
-  docs_preview_link = DOCS_PREVIEW_URL.format(issue=change.issue)
-  if (at_least_one_docs_change
-      and docs_preview_link not in footers.get('Docs-Preview', [])):
-    # Automatically add a link to where the docs can be previewed.
-    description_changed = True
-    change.AddDescriptionFooter('Docs-Preview', docs_preview_link)
-    results.append(
-        output_api.PresubmitNotifyResult(
-            'Automatically added a link to preview the docs changes to the '
-            'CL\'s description'))
-
   # If the description has changed update it.
   if description_changed:
     gerrit.UpdateDescription(
@@ -526,8 +407,6 @@ def CheckChangeOnCommit(input_api, output_api):
   """Presubmit checks for the change on commit."""
   results = []
   results.extend(_CommonChecks(input_api, output_api))
-  results.extend(_CheckLGTMsForPublicAPI(input_api, output_api))
-  results.extend(_CheckOwnerIsInAuthorsFile(input_api, output_api))
   # Checks for the presence of 'DO NOT''SUBMIT' in CL description and in
   # content of files.
   results.extend(

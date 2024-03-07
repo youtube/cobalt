@@ -30,6 +30,9 @@ bool SbSocketSetTcpWindowScaling(SbSocket socket, bool enable_window_scaling) {
   // later, receive window auto-tuning is enabled and the TCP window scale
   // factor is reduced to 2 from the default value of 8."
 
+  if (socket == kSbSocketInvalid)
+    return false;
+
   const ULONG target_os_version =
       enable_window_scaling ? NTDDI_VISTA : NTDDI_WS03;
   WSA_COMPATIBILITY_MODE compatibility_mode = {WsaBehaviorAutoTuning,

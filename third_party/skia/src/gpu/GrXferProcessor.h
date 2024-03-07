@@ -14,10 +14,11 @@
 #include "src/gpu/GrProcessor.h"
 #include "src/gpu/GrProcessorAnalysis.h"
 #include "src/gpu/GrSurfaceProxyView.h"
+#include "src/gpu/glsl/GrGLSLUniformHandler.h"
 
-class GrGLSLXferProcessor;
-class GrProcessorSet;
-class GrShaderCaps;
+class GrGLSLXPFragmentBuilder;
+class GrGLSLProgramDataManager;
+struct GrShaderCaps;
 
 /**
  * Barriers for blending. When a shader reads the dst directly, an Xfer barrier is sometimes
@@ -29,7 +30,16 @@ enum GrXferBarrierType {
     kBlend_GrXferBarrierType,    //<! Required by certain blend extensions.
 };
 /** Should be able to treat kNone as false in boolean expressions */
-GR_STATIC_ASSERT(SkToBool(kNone_GrXferBarrierType) == false);
+static_assert(SkToBool(kNone_GrXferBarrierType) == false);
+
+// Flag version of the above enum.
+enum class GrXferBarrierFlags {
+    kNone    = 0,
+    kTexture = 1 << 0,
+    kBlend   = 1 << 1,
+};
+
+GR_MAKE_BITFIELD_CLASS_OPS(GrXferBarrierFlags)
 
 /**
  * GrXferProcessor is responsible for implementing the xfer mode that blends the src color and dst
@@ -50,70 +60,25 @@ GR_STATIC_ASSERT(SkToBool(kNone_GrXferBarrierType) == false);
 class GrXferProcessor : public GrProcessor, public GrNonAtomicRef<GrXferProcessor> {
 public:
     /**
-     * A texture that contains the dst pixel values and an integer coord offset from device space
-     * to the space of the texture. Depending on GPU capabilities a DstTexture may be used by a
-     * GrXferProcessor for blending in the fragment shader.
+     * Every GrXferProcessor must be capable of creating a subclass of ProgramImpl. The ProgramImpl
+     * emits the shader code combines determines the fragment shader output(s) from the color and
+     * coverage FP outputs, is attached to the generated backend API pipeline/program, and used to
+     * extract uniform data from GrXferProcessor instances.
      */
-    class DstProxyView {
-    public:
-        DstProxyView() { fOffset.set(0, 0); }
-
-        DstProxyView(const DstProxyView& other) {
-            *this = other;
-        }
-
-        DstProxyView(GrSurfaceProxyView view, const SkIPoint& offset)
-            : fProxyView(std::move(view)) {
-            if (fProxyView.proxy()) {
-                fOffset = offset;
-            } else {
-                fOffset.set(0, 0);
-            }
-        }
-
-        DstProxyView& operator=(const DstProxyView& other) {
-            fProxyView = other.fProxyView;
-            fOffset = other.fOffset;
-            return *this;
-        }
-
-        bool operator==(const DstProxyView& that) const {
-            return fProxyView == that.fProxyView && fOffset == that.fOffset;
-        }
-        bool operator!=(const DstProxyView& that) const { return !(*this == that); }
-
-        const SkIPoint& offset() const { return fOffset; }
-
-        void setOffset(const SkIPoint& offset) { fOffset = offset; }
-        void setOffset(int ox, int oy) { fOffset.set(ox, oy); }
-
-        GrTextureProxy* proxy() const { return fProxyView.asTextureProxy(); }
-        const GrSurfaceProxyView& proxyView() const { return fProxyView; }
-
-        void setProxyView(GrSurfaceProxyView view) {
-            fProxyView = std::move(view);
-            if (!fProxyView.proxy()) {
-                fOffset = {0, 0};
-            }
-        }
-
-    private:
-        GrSurfaceProxyView fProxyView;
-        SkIPoint           fOffset;
-    };
+    class ProgramImpl;
 
     /**
-     * Sets a unique key on the GrProcessorKeyBuilder calls onGetGLSLProcessorKey(...) to get the
-     * specific subclass's key.
+     * Adds a key on the skgpu::KeyBuilder calls onAddToKey(...) to get the specific subclass's key.
      */
-    void getGLSLProcessorKey(const GrShaderCaps&,
-                             GrProcessorKeyBuilder*,
-                             const GrSurfaceOrigin* originIfDstTexture) const;
+    void addToKey(const GrShaderCaps&,
+                  skgpu::KeyBuilder*,
+                  const GrSurfaceOrigin* originIfDstTexture,
+                  bool usesInputAttachmentForDstRead) const;
 
     /** Returns a new instance of the appropriate *GL* implementation class
         for the given GrXferProcessor; caller is responsible for deleting
         the object. */
-    virtual GrGLSLXferProcessor* createGLSLInstance() const = 0;
+    virtual std::unique_ptr<ProgramImpl> makeProgramImpl() const = 0;
 
     /**
      * Returns the barrier type, if any, that this XP will require. Note that the possibility
@@ -138,20 +103,11 @@ public:
         BlendInfo blendInfo;
         if (!this->willReadDstColor()) {
             this->onGetBlendInfo(&blendInfo);
-        } else if (this->dstReadUsesMixedSamples()) {
-            blendInfo.fDstBlend = kIS2A_GrBlendCoeff;
         }
         return blendInfo;
     }
 
     bool willReadDstColor() const { return fWillReadDstColor; }
-
-    /**
-     * If we are performing a dst read, returns whether the base class will use mixed samples to
-     * antialias the shader's final output. If not doing a dst read, the subclass is responsible
-     * for antialiasing and this returns false.
-     */
-    bool dstReadUsesMixedSamples() const { return fDstReadUsesMixedSamples; }
 
     /**
      * Returns whether or not this xferProcossor will set a secondary output to be used with dual
@@ -166,7 +122,7 @@ public:
         from getFactory()).
 
         A return value of true from isEqual() should not be used to test whether the processor would
-        generate the same shader code. To test for identical code generation use getGLSLProcessorKey
+        generate the same shader code. To test for identical code generation use addToKey.
       */
 
     bool isEqual(const GrXferProcessor& that) const {
@@ -174,9 +130,6 @@ public:
             return false;
         }
         if (this->fWillReadDstColor != that.fWillReadDstColor) {
-            return false;
-        }
-        if (this->fDstReadUsesMixedSamples != that.fDstReadUsesMixedSamples) {
             return false;
         }
         if (fIsLCD != that.fIsLCD) {
@@ -187,15 +140,14 @@ public:
 
 protected:
     GrXferProcessor(ClassID classID);
-    GrXferProcessor(ClassID classID, bool willReadDstColor, bool hasMixedSamples,
-                    GrProcessorAnalysisCoverage);
+    GrXferProcessor(ClassID classID, bool willReadDstColor, GrProcessorAnalysisCoverage);
 
 private:
     /**
-     * Sets a unique key on the GrProcessorKeyBuilder that is directly associated with this xfer
-     * processor's GL backend implementation.
+     * Adds a key on the skgpu::KeyBuilder that reflects any variety in the code that may be emitted
+     * by the xfer processor subclass.
      */
-    virtual void onGetGLSLProcessorKey(const GrShaderCaps&, GrProcessorKeyBuilder*) const = 0;
+    virtual void onAddToKey(const GrShaderCaps&, skgpu::KeyBuilder*) const = 0;
 
     /**
      * If we are not performing a dst read, returns whether the subclass will set a secondary
@@ -214,10 +166,9 @@ private:
     virtual bool onIsEqual(const GrXferProcessor&) const = 0;
 
     bool fWillReadDstColor;
-    bool fDstReadUsesMixedSamples;
     bool fIsLCD;
 
-    typedef GrProcessor INHERITED;
+    using INHERITED = GrProcessor;
 };
 
 /**
@@ -251,8 +202,6 @@ private:
 #endif
 class GrXPFactory {
 public:
-    typedef GrXferProcessor::DstProxyView DstProxyView;
-
     enum class AnalysisProperties : unsigned {
         kNone = 0x0,
         /**
@@ -277,13 +226,20 @@ public:
          * texture or because we need an xfer barrier).
          */
         kRequiresNonOverlappingDraws = 0x20,
+        /**
+         * If set the draw will use fixed function non coherent advanced blends.
+         */
+        kUsesNonCoherentHWBlending = 0x40,
+        /**
+         * If set, the existing dst value has no effect on the final output.
+         */
+        kUnaffectedByDstValue = 0x80,
     };
     GR_DECL_BITFIELD_CLASS_OPS_FRIENDS(AnalysisProperties);
 
     static sk_sp<const GrXferProcessor> MakeXferProcessor(const GrXPFactory*,
                                                           const GrProcessorAnalysisColor&,
                                                           GrProcessorAnalysisCoverage,
-                                                          bool hasMixedSamples,
                                                           const GrCaps& caps,
                                                           GrClampType);
 
@@ -299,7 +255,6 @@ protected:
 private:
     virtual sk_sp<const GrXferProcessor> makeXferProcessor(const GrProcessorAnalysisColor&,
                                                            GrProcessorAnalysisCoverage,
-                                                           bool hasMixedSamples,
                                                            const GrCaps&,
                                                            GrClampType) const = 0;
 
@@ -320,5 +275,107 @@ private:
 #endif
 
 GR_MAKE_BITFIELD_CLASS_OPS(GrXPFactory::AnalysisProperties)
+
+//////////////////////////////////////////////////////////////////////////////
+
+class GrXferProcessor::ProgramImpl {
+public:
+    virtual ~ProgramImpl() = default;
+
+    using SamplerHandle = GrGLSLUniformHandler::SamplerHandle;
+
+    struct EmitArgs {
+        EmitArgs(GrGLSLXPFragmentBuilder* fragBuilder,
+                 GrGLSLUniformHandler* uniformHandler,
+                 const GrShaderCaps* caps,
+                 const GrXferProcessor& xp,
+                 const char* inputColor,
+                 const char* inputCoverage,
+                 const char* outputPrimary,
+                 const char* outputSecondary,
+                 const SamplerHandle dstTextureSamplerHandle,
+                 GrSurfaceOrigin dstTextureOrigin,
+                 const skgpu::Swizzle& writeSwizzle)
+                : fXPFragBuilder(fragBuilder)
+                , fUniformHandler(uniformHandler)
+                , fShaderCaps(caps)
+                , fXP(xp)
+                , fInputColor(inputColor ? inputColor : "half4(1.0)")
+                , fInputCoverage(inputCoverage)
+                , fOutputPrimary(outputPrimary)
+                , fOutputSecondary(outputSecondary)
+                , fDstTextureSamplerHandle(dstTextureSamplerHandle)
+                , fDstTextureOrigin(dstTextureOrigin)
+                , fWriteSwizzle(writeSwizzle) {}
+        GrGLSLXPFragmentBuilder* fXPFragBuilder;
+        GrGLSLUniformHandler* fUniformHandler;
+        const GrShaderCaps* fShaderCaps;
+        const GrXferProcessor& fXP;
+        const char* fInputColor;
+        const char* fInputCoverage;
+        const char* fOutputPrimary;
+        const char* fOutputSecondary;
+        const SamplerHandle fDstTextureSamplerHandle;
+        GrSurfaceOrigin fDstTextureOrigin;
+        skgpu::Swizzle fWriteSwizzle;
+    };
+    /**
+     * This is similar to emitCode() in the base class, except it takes a full shader builder.
+     * This allows the effect subclass to emit vertex code.
+     */
+    void emitCode(const EmitArgs&);
+
+    /** A ProgramImpl instance can be reused with any GrXferProcessor that produces the same key.
+        This function reads data from a GrXferProcessor and uploads any uniform variables required
+        by the shaders created in emitCode(). The GrXferProcessor parameter is guaranteed to be of
+        the same type that created this ProgramImpl and to have an identical processor key as the
+        one that created this ProgramImpl. This function calls onSetData on the subclass of
+        ProgramImpl.
+     */
+    void setData(const GrGLSLProgramDataManager& pdm, const GrXferProcessor& xp);
+
+protected:
+    ProgramImpl() = default;
+
+    static void DefaultCoverageModulation(GrGLSLXPFragmentBuilder* fragBuilder,
+                                          const char* srcCoverage,
+                                          const char* dstColor,
+                                          const char* outColor,
+                                          const char* outColorSecondary,
+                                          const GrXferProcessor& proc);
+
+private:
+    /**
+     * Called by emitCode() when the XP will not be performing a dst read. This method is
+     * responsible for both blending and coverage. A subclass only needs to implement this method if
+     * it can construct a GrXferProcessor that will not read the dst color.
+     */
+    virtual void emitOutputsForBlendState(const EmitArgs&) {
+        SK_ABORT("emitOutputsForBlendState not implemented.");
+    }
+
+    /**
+     * Called by emitCode() when the XP will perform a dst read. This method only needs to supply
+     * the blending logic. The base class applies coverage. A subclass only needs to implement this
+     * method if it can construct a GrXferProcessor that reads the dst color.
+     */
+    virtual void emitBlendCodeForDstRead(GrGLSLXPFragmentBuilder*,
+                                         GrGLSLUniformHandler*,
+                                         const char* srcColor,
+                                         const char* srcCoverage,
+                                         const char* dstColor,
+                                         const char* outColor,
+                                         const char* outColorSecondary,
+                                         const GrXferProcessor&) {
+        SK_ABORT("emitBlendCodeForDstRead not implemented.");
+    }
+
+    virtual void emitWriteSwizzle(GrGLSLXPFragmentBuilder*,
+                                  const skgpu::Swizzle&,
+                                  const char* outColor,
+                                  const char* outColorSecondary) const;
+
+    virtual void onSetData(const GrGLSLProgramDataManager&, const GrXferProcessor&) {}
+};
 
 #endif

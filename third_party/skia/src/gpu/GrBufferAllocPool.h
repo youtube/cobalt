@@ -14,6 +14,7 @@
 #include "include/private/SkTArray.h"
 #include "include/private/SkTDArray.h"
 #include "src/gpu/GrCpuBuffer.h"
+#include "src/gpu/GrDrawIndirectCommand.h"
 #include "src/gpu/GrNonAtomicRef.h"
 
 class GrGpu;
@@ -32,7 +33,7 @@ class GrGpu;
  */
 class GrBufferAllocPool : SkNoncopyable {
 public:
-    static constexpr size_t kDefaultBufferSize = 1 << 15;
+    inline static constexpr size_t kDefaultBufferSize = 1 << 15;
 
     /**
      * A cache object that can be shared by multiple GrBufferAllocPool instances. It caches
@@ -241,7 +242,7 @@ public:
                            int* actualVertexCount);
 
 private:
-    typedef GrBufferAllocPool INHERITED;
+    using INHERITED = GrBufferAllocPool;
 };
 
 /**
@@ -311,7 +312,35 @@ public:
                            int* actualIndexCount);
 
 private:
-    typedef GrBufferAllocPool INHERITED;
+    using INHERITED = GrBufferAllocPool;
+};
+
+class GrDrawIndirectBufferAllocPool : private GrBufferAllocPool {
+public:
+    GrDrawIndirectBufferAllocPool(GrGpu* gpu, sk_sp<CpuBufferCache> cpuBufferCache)
+            : GrBufferAllocPool(gpu, GrGpuBufferType::kDrawIndirect, std::move(cpuBufferCache)) {}
+
+    GrDrawIndirectWriter makeSpace(int drawCount, sk_sp<const GrBuffer>* buffer, size_t* offset) {
+        return this->GrBufferAllocPool::makeSpace(drawCount * sizeof(GrDrawIndirectCommand), 4,
+                                                  buffer, offset);
+    }
+
+    void putBack(int drawCount) {
+        this->GrBufferAllocPool::putBack(drawCount * sizeof(GrDrawIndirectCommand));
+    }
+
+    GrDrawIndexedIndirectWriter makeIndexedSpace(int drawCount, sk_sp<const GrBuffer>* buffer,
+                                                 size_t* offset) {
+        return this->GrBufferAllocPool::makeSpace(
+                drawCount * sizeof(GrDrawIndexedIndirectCommand), 4, buffer, offset);
+    }
+
+    void putBackIndexed(int drawCount) {
+        this->GrBufferAllocPool::putBack(drawCount * sizeof(GrDrawIndexedIndirectCommand));
+    }
+
+    using GrBufferAllocPool::unmap;
+    using GrBufferAllocPool::reset;
 };
 
 #endif

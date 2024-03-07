@@ -124,7 +124,9 @@ void TraceV8Agent::StartAgentTracing(const TraceConfig& trace_config,
   trace_buffer_.SetOutputCallback(json_output_.GetCallback());
   trace_buffer_.Start();
 
-  script_debugger_->StartTracing(std::vector<std::string>(), this);
+  std::vector<std::string> categories = {"v8", "v8.wasm", "v8.compile",
+                                         "v8.stack_trace"};
+  script_debugger_->StartTracing(categories, this);
   std::move(callback).Run(agent_name_, true);
 }
 
@@ -148,7 +150,7 @@ TracingController::TracingController(DebugDispatcher* dispatcher,
       base::Bind(&TracingController::Start, base::Unretained(this));
 
   agents_.push_back(std::make_unique<TraceEventAgent>());
-  // agents_.push_back(std::make_unique<TraceV8Agent>(script_debugger));
+  agents_.push_back(std::make_unique<TraceV8Agent>(script_debugger));
 }
 
 void TracingController::Thaw(JSONObject agent_state) {
@@ -252,29 +254,8 @@ void TracingController::OnStopTracing(
     const scoped_refptr<base::RefCountedString>& events_str_ptr) {
   LOG(INFO) << "Tracing Agent:" << agent_name << " Stop tracing.";
 
-  std::unique_ptr<base::Value> root =
-      base::JSONReader::Read(events_str_ptr->data(), base::JSON_PARSE_RFC);
-
-  if (!root.get()) {
-    LOG(ERROR) << "Couldn't parse the events string.";
-  }
-
-  base::ListValue* root_list = nullptr;
-  root->GetAsList(&root_list);
-
-  // Move items into our aggregate collection
-  while (root_list->GetSize()) {
-    if (!collected_events_) {
-      collected_events_.reset(new base::ListValue());
-    }
-    std::unique_ptr<base::Value> item;
-    root_list->Remove(0, &item);
-    collected_events_->Append(std::move(item));
-
-    if (collected_events_->GetSize() >= 100) {
-      SendDataCollectedEvent();
-    }
-  }
+  collected_events_ = base::ListValue::From(
+      base::JSONReader::Read(events_str_ptr->data(), base::JSON_PARSE_RFC));
   FlushTraceEvents();
 }
 

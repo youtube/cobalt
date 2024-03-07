@@ -3,12 +3,16 @@ description:
   "libvpx is a WebM VP8/VP9 codec SDK."
 
 third_party {
-  url {
-    type: GIT
-    value: "https://chromium.googlesource.com/webm/libvpx"
+  identifier {
+    type: "ChromiumVersion"
+    value: "96.0.4664.219"  # from https://chromereleases.googleblog.com/2022/08/long-term-support-channel-update-for_31.html
   }
-  version: "7aabd6968278130da885f6c35ee12b19a1e7be72"
-  # from https://chromium.googlesource.com/chromium/src/+/96.0.4664.219/DEPS#1305
+  identifier {
+    type: "Git"
+    value: "https://chromium.googlesource.com/webm/libvpx.git"
+    version: "7aabd6968278130da885f6c35ee12b19a1e7be72"
+    # from https://chromium.googlesource.com/chromium/src/+/96.0.4664.219/DEPS#1305
+  }
   last_upgrade_date {
     year: 2020
     month: 7

@@ -10,7 +10,6 @@
 #include <cinttypes>
 #include <cstdio>
 
-#include "src/base/platform/wrappers.h"
 #include "src/utils/utils.h"
 #include "src/zone/type-stats.h"
 
@@ -27,7 +26,7 @@ class Demangler {
  public:
   Demangler() = default;
   ~Demangler() {
-    if (buffer_) base::Free(buffer_);
+    if (buffer_) free(buffer_);
     USE(buffer_len_);  // In case demangling is not supported.
   }
 

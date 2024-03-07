@@ -2,7 +2,6 @@
 /* WARNING: Edited heavily by hand, based on lbshell config. Meant for all
  * starboard platforms. */
 
-#include "starboard/client_porting/eztime/eztime.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/file.h"
@@ -222,33 +221,7 @@
 #ifndef OPENSSL_OPENSSL_CONFIG_STARBOARD_OPENSSL_OPENSSLCONF_H
 #define OPENSSL_OPENSSL_CONFIG_STARBOARD_OPENSSL_OPENSSLCONF_H
 
-// Types that need to be ported.
-
-// Use EzTime simulated POSIX types.
-#define OPENSSL_port_tm EzTimeExploded
-#define OPENSSL_port_time_t EzTimeT
-#define OPENSSL_port_timeval EzTimeValue
-
-// Definitions for system calls that may need to be overridden.
-#define OPENSSL_port_free free
-#define OPENSSL_port_malloc malloc
-#define OPENSSL_port_realloc realloc
-#define OPENSSL_port_sscanf sscanf
-#define OPENSSL_port_strdup strdup
-
-#define OPENSSL_port_abort SbSystemBreakIntoDebugger
-#define OPENSSL_port_assert(x) SB_DCHECK(x)
 #define OPENSSL_port_getenv(x) NULL
-#define OPENSSL_port_gettimeofday EzTimeValueGetNow
-#define OPENSSL_port_gmtime_r EzTimeTExplodeUTC
-#define OPENSSL_port_printf SbLogFormatF
-#define OPENSSL_port_printferr SbLogFormatF
-#define OPENSSL_port_strcasecmp SbStringCompareNoCase
 #define OPENSSL_port_strerror(x) ""
-#define OPENSSL_port_strncasecmp SbStringCompareNoCaseN
-#define OPENSSL_port_time EzTimeTGetNow
-
-// Variables that need to be ported.
-#define OPENSSL_port_errno SbSystemGetLastError()
 
 #endif  // OPENSSL_OPENSSL_CONFIG_STARBOARD_OPENSSL_OPENSSLCONF_H

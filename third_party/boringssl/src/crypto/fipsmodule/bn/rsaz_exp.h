@@ -16,9 +16,9 @@
 #define OPENSSL_HEADER_BN_RSAZ_EXP_H
 
 #include <openssl/bn.h>
-#include <openssl/cpu.h>
 
 #include "internal.h"
+#include "../../internal.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -41,18 +41,17 @@ void RSAZ_1024_mod_exp_avx2(BN_ULONG result[16], const BN_ULONG base_norm[16],
                             BN_ULONG storage_words[MOD_EXP_CTIME_STORAGE_LEN]);
 
 OPENSSL_INLINE int rsaz_avx2_capable(void) {
-  const uint32_t *cap = OPENSSL_ia32cap_get();
-  return (cap[2] & (1 << 5)) != 0;  // AVX2
+  return CRYPTO_is_AVX2_capable();
 }
 
 OPENSSL_INLINE int rsaz_avx2_preferred(void) {
-  const uint32_t *cap = OPENSSL_ia32cap_get();
-  static const uint32_t kBMI2AndADX = (1 << 8) | (1 << 19);
-  if ((cap[2] & kBMI2AndADX) == kBMI2AndADX) {
-    // If BMI2 and ADX are available, x86_64-mont5.pl is faster.
+  if (CRYPTO_is_BMI1_capable() && CRYPTO_is_BMI2_capable() &&
+      CRYPTO_is_ADX_capable()) {
+    // If BMI1, BMI2, and ADX are available, x86_64-mont5.pl is faster. See the
+    // .Lmulx4x_enter and .Lpowerx5_enter branches.
     return 0;
   }
-  return (cap[2] & (1 << 5)) != 0;  // AVX2
+  return CRYPTO_is_AVX2_capable();
 }
 
 
@@ -91,7 +90,11 @@ void rsaz_1024_gather5_avx2(BN_ULONG val[40], const BN_ULONG tbl[32 * 18],
                             int i);
 
 // rsaz_1024_red2norm_avx2 converts |red| from RSAZ to |BIGNUM| representation
-// and writes the result to |norm|.
+// and writes the result to |norm|. The result will be <= the modulus.
+//
+// WARNING: The result of this operation may not be fully reduced. |norm| may be
+// the modulus instead of zero. This function should be followed by a call to
+// |bn_reduce_once|.
 void rsaz_1024_red2norm_avx2(BN_ULONG norm[16], const BN_ULONG red[40]);
 
 

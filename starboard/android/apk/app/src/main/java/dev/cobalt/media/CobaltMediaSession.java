@@ -31,7 +31,6 @@ import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import android.view.WindowManager;
 import androidx.annotation.RequiresApi;
-import dev.cobalt.coat.StarboardBridge;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
 
@@ -130,10 +129,6 @@ public class CobaltMediaSession
   }
 
   public boolean isActive() {
-    if (!StarboardBridge.enableBackgroundPlayback) {
-      return false;
-    }
-
     if (this.mediaSession == null) {
       return false;
     } else {
@@ -259,9 +254,7 @@ public class CobaltMediaSession
       Log.i(TAG, "MediaSession already released");
       return;
     }
-    if (StarboardBridge.enableBackgroundPlayback) {
-      mediaSession.setActive(playbackState != PLAYBACK_STATE_NONE);
-    }
+    mediaSession.setActive(playbackState != PLAYBACK_STATE_NONE);
     if (lifecycleCallback != null) {
       lifecycleCallback.onMediaSessionLifecycle(
           this.mediaSession.isActive(), this.mediaSession.getSessionToken());

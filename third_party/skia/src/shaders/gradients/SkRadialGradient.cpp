@@ -5,10 +5,12 @@
  * found in the LICENSE file.
  */
 
+#include "src/shaders/gradients/SkRadialGradient.h"
+
+#include "src/core/SkKeyHelpers.h"
 #include "src/core/SkRasterPipeline.h"
 #include "src/core/SkReadBuffer.h"
 #include "src/core/SkWriteBuffer.h"
-#include "src/shaders/gradients/SkRadialGradient.h"
 
 namespace {
 
@@ -63,6 +65,11 @@ void SkRadialGradient::appendGradientStages(SkArenaAlloc*, SkRasterPipeline* p,
     p->append(SkRasterPipeline::xy_to_radius);
 }
 
+skvm::F32 SkRadialGradient::transformT(skvm::Builder* p, skvm::Uniforms*,
+                                       skvm::Coord coord, skvm::I32* mask) const {
+    return sqrt(coord.x*coord.x + coord.y*coord.y);
+}
+
 /////////////////////////////////////////////////////////////////////
 
 #if SK_SUPPORT_GPU
@@ -75,3 +82,18 @@ std::unique_ptr<GrFragmentProcessor> SkRadialGradient::asFragmentProcessor(
 }
 
 #endif
+
+void SkRadialGradient::addToKey(SkShaderCodeDictionary* dict,
+                                SkBackend backend,
+                                SkPaintParamsKeyBuilder* builder,
+                                SkUniformBlock* uniformBlock) const {
+    GradientShaderBlocks::GradientData data(kRadial_GradientType,
+                                            fCenter, { 0.0f, 0.0f },
+                                            fRadius, 0.0f,
+                                            fTileMode,
+                                            fColorCount,
+                                            fOrigColors4f,
+                                            fOrigPos);
+
+    GradientShaderBlocks::AddToKey(dict, backend, builder, uniformBlock, data);
+}

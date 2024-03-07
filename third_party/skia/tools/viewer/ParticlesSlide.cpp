@@ -7,27 +7,53 @@
 
 #include "tools/viewer/ParticlesSlide.h"
 
+#include "include/core/SkCanvas.h"
+#include "include/private/SkStringView.h"
 #include "modules/particles/include/SkParticleEffect.h"
 #include "modules/particles/include/SkParticleSerialization.h"
 #include "modules/particles/include/SkReflected.h"
 #include "modules/skresources/include/SkResources.h"
 #include "src/core/SkOSFile.h"
-#include "src/sksl/SkSLByteCode.h"
+#include "src/sksl/codegen/SkSLVMCodeGenerator.h"
 #include "src/utils/SkOSPath.h"
 #include "tools/Resources.h"
+#include "tools/ToolUtils.h"
 #include "tools/viewer/ImGuiLayer.h"
 
 #include "imgui.h"
 
+#include <string>
+#include <unordered_map>
+
 using namespace sk_app;
 
-namespace {
+class TestingResourceProvider : public skresources::ResourceProvider {
+public:
+    TestingResourceProvider() {}
 
-static SkScalar kDragSize = 8.0f;
-static SkTArray<SkPoint*> gDragPoints;
-int gDragIndex = -1;
+    sk_sp<SkData> load(const char resource_path[], const char resource_name[]) const override {
+        auto it = fResources.find(resource_name);
+        if (it != fResources.end()) {
+            return it->second;
+        } else {
+            return GetResourceAsData(SkOSPath::Join(resource_path, resource_name).c_str());
+        }
+    }
 
-}
+    sk_sp<skresources::ImageAsset> loadImageAsset(const char resource_path[],
+                                                  const char resource_name[],
+                                                  const char /*resource_id*/[]) const override {
+        auto data = this->load(resource_path, resource_name);
+        return skresources::MultiFrameImageAsset::Make(data);
+    }
+
+    void addPath(const char resource_name[], const SkPath& path) {
+        fResources[resource_name] = path.serialize();
+    }
+
+private:
+    std::unordered_map<std::string, sk_sp<SkData>> fResources;
+};
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -178,8 +204,11 @@ ParticlesSlide::ParticlesSlide() {
     // Register types for serialization
     SkParticleEffect::RegisterParticleTypes();
     fName = "Particles";
-    fPlayPosition.set(200.0f, 200.0f);
-    fResourceProvider = skresources::FileResourceProvider::Make(GetResourcePath());
+    auto provider = sk_make_sp<TestingResourceProvider>();
+    SkPath star = ToolUtils::make_star({ 0, 0, 100, 100 }, 5);
+    star.close();
+    provider->addPath("star", star);
+    fResourceProvider = provider;
 }
 
 void ParticlesSlide::loadEffects(const char* dirname) {
@@ -198,6 +227,9 @@ void ParticlesSlide::loadEffects(const char* dirname) {
             fLoaded.push_back(effect);
         }
     }
+    std::sort(fLoaded.begin(), fLoaded.end(), [](const LoadedEffect& a, const LoadedEffect& b) {
+        return strcmp(a.fName.c_str(), b.fName.c_str()) < 0;
+    });
 }
 
 void ParticlesSlide::load(SkScalar winWidth, SkScalar winHeight) {
@@ -206,9 +238,6 @@ void ParticlesSlide::load(SkScalar winWidth, SkScalar winHeight) {
 
 void ParticlesSlide::draw(SkCanvas* canvas) {
     canvas->clear(SK_ColorGRAY);
-
-    gDragPoints.reset();
-    gDragPoints.push_back(&fPlayPosition);
 
     // Window to show all loaded effects, and allow playing them
     if (ImGui::Begin("Library", nullptr, ImGuiWindowFlags_AlwaysVerticalScrollbar)) {
@@ -254,11 +283,10 @@ void ParticlesSlide::draw(SkCanvas* canvas) {
         for (int i = 0; i < fLoaded.count(); ++i) {
             ImGui::PushID(i);
             if (fAnimated && ImGui::Button("Play")) {
-                sk_sp<SkParticleEffect> effect(new SkParticleEffect(fLoaded[i].fParams,
-                                                                    fRandom));
-                effect->start(fAnimationTime, looped);
-                fRunning.push_back({ fPlayPosition, fLoaded[i].fName, effect, false });
-                fRandom.nextU();
+                sk_sp<SkParticleEffect> effect(new SkParticleEffect(fLoaded[i].fParams));
+                effect->start(fAnimationTime, looped, { 0, 0 }, { 0, -1 }, 1, { 0, 0 }, 0,
+                              { 1, 1, 1, 1 }, 0, fRandom.nextF());
+                fRunning.push_back({ fLoaded[i].fName, effect, false });
             }
             ImGui::SameLine();
 
@@ -278,6 +306,10 @@ void ParticlesSlide::draw(SkCanvas* canvas) {
     }
     ImGui::End();
 
+    // Most effects are centered around the origin, so we shift the canvas...
+    constexpr SkVector kTranslation = { 250.0f, 250.0f };
+    const SkPoint mousePos = fMousePos - kTranslation;
+
     // Another window to show all the running effects
     if (ImGui::Begin("Running")) {
         for (int i = 0; i < fRunning.count(); ++i) {
@@ -288,37 +320,34 @@ void ParticlesSlide::draw(SkCanvas* canvas) {
             ImGui::SameLine();
             bool remove = ImGui::Button("X") || !effect->isAlive();
             ImGui::SameLine();
-            ImGui::Text("%4g, %4g %5d %s", fRunning[i].fPosition.fX, fRunning[i].fPosition.fY,
-                        effect->getCount(), fRunning[i].fName.c_str());
+            ImGui::Text("%5d %s", effect->getCount(), fRunning[i].fName.c_str());
             if (fRunning[i].fTrackMouse) {
-                effect->setPosition({ ImGui::GetMousePos().x, ImGui::GetMousePos().y });
-                fRunning[i].fPosition.set(0, 0);
+                effect->setPosition(mousePos);
             }
 
-            auto uniformsGui = [](const SkSL::ByteCode* code, float* data, SkPoint spawnPos) {
-                if (!code || !data) {
+            auto uniformsGui = [mousePos](const SkSL::UniformInfo* info, float* data) {
+                if (!info || !data) {
                     return;
                 }
-                for (int i = 0; i < code->getUniformCount(); ++i) {
-                    const auto& uni = code->getUniform(i);
+                for (size_t i = 0; i < info->fUniforms.size(); ++i) {
+                    const auto& uni = info->fUniforms[i];
                     float* vals = data + uni.fSlot;
 
                     // Skip over builtin uniforms, to reduce clutter
-                    if (uni.fName == "dt" || uni.fName.startsWith("effect.")) {
+                    if (uni.fName == "dt" || skstd::starts_with(uni.fName, "effect.")) {
                         continue;
                     }
 
                     // Special case for 'uniform float2 mouse_pos' - an example of likely app logic
                     if (uni.fName == "mouse_pos" &&
-                        uni.fType == SkSL::TypeCategory::kFloat &&
+                        uni.fKind == SkSL::Type::NumberKind::kFloat &&
                         uni.fRows == 2 && uni.fColumns == 1) {
-                        ImVec2 mousePos = ImGui::GetMousePos();
-                        vals[0] = mousePos.x - spawnPos.fX;
-                        vals[1] = mousePos.y - spawnPos.fY;
+                        vals[0] = mousePos.fX;
+                        vals[1] = mousePos.fY;
                         continue;
                     }
 
-                    if (uni.fType == SkSL::TypeCategory::kBool) {
+                    if (uni.fKind == SkSL::Type::NumberKind::kBoolean) {
                         for (int c = 0; c < uni.fColumns; ++c, vals += uni.fRows) {
                             for (int r = 0; r < uni.fRows; ++r, ++vals) {
                                 ImGui::PushID(c*uni.fRows + r);
@@ -335,11 +364,12 @@ void ParticlesSlide::draw(SkCanvas* canvas) {
                     }
 
                     ImGuiDataType dataType = ImGuiDataType_COUNT;
-                    switch (uni.fType) {
-                        case SkSL::TypeCategory::kSigned:   dataType = ImGuiDataType_S32;   break;
-                        case SkSL::TypeCategory::kUnsigned: dataType = ImGuiDataType_U32;   break;
-                        case SkSL::TypeCategory::kFloat:    dataType = ImGuiDataType_Float; break;
-                        default:                                                            break;
+                    using NumberKind = SkSL::Type::NumberKind;
+                    switch (uni.fKind) {
+                        case NumberKind::kSigned:   dataType = ImGuiDataType_S32;   break;
+                        case NumberKind::kUnsigned: dataType = ImGuiDataType_U32;   break;
+                        case NumberKind::kFloat:    dataType = ImGuiDataType_Float; break;
+                        default:                                                    break;
                     }
                     SkASSERT(dataType != ImGuiDataType_COUNT);
                     for (int c = 0; c < uni.fColumns; ++c, vals += uni.fRows) {
@@ -349,8 +379,7 @@ void ParticlesSlide::draw(SkCanvas* canvas) {
                     }
                 }
             };
-            uniformsGui(effect->effectCode(), effect->effectUniforms(), fRunning[i].fPosition);
-            uniformsGui(effect->particleCode(), effect->particleUniforms(), fRunning[i].fPosition);
+            uniformsGui(effect->uniformInfo(), effect->uniformData());
             if (remove) {
                 fRunning.removeShuffle(i);
             }
@@ -359,26 +388,12 @@ void ParticlesSlide::draw(SkCanvas* canvas) {
     }
     ImGui::End();
 
-    SkPaint dragPaint;
-    dragPaint.setColor(SK_ColorLTGRAY);
-    dragPaint.setAntiAlias(true);
-    SkPaint dragHighlight;
-    dragHighlight.setStyle(SkPaint::kStroke_Style);
-    dragHighlight.setColor(SK_ColorGREEN);
-    dragHighlight.setStrokeWidth(2);
-    dragHighlight.setAntiAlias(true);
-    for (int i = 0; i < gDragPoints.count(); ++i) {
-        canvas->drawCircle(*gDragPoints[i], kDragSize, dragPaint);
-        if (gDragIndex == i) {
-            canvas->drawCircle(*gDragPoints[i], kDragSize, dragHighlight);
-        }
-    }
+    canvas->save();
+    canvas->translate(kTranslation.fX, kTranslation.fY);
     for (const auto& effect : fRunning) {
-        canvas->save();
-        canvas->translate(effect.fPosition.fX, effect.fPosition.fY);
         effect.fEffect->draw(canvas);
-        canvas->restore();
     }
+    canvas->restore();
 }
 
 bool ParticlesSlide::animate(double nanos) {
@@ -391,27 +406,6 @@ bool ParticlesSlide::animate(double nanos) {
 }
 
 bool ParticlesSlide::onMouse(SkScalar x, SkScalar y, skui::InputState state, skui::ModifierKey modifiers) {
-    if (gDragIndex == -1) {
-        if (state == skui::InputState::kDown) {
-            float bestDistance = kDragSize;
-            SkPoint mousePt = { x, y };
-            for (int i = 0; i < gDragPoints.count(); ++i) {
-                float distance = SkPoint::Distance(*gDragPoints[i], mousePt);
-                if (distance < bestDistance) {
-                    gDragIndex = i;
-                    bestDistance = distance;
-                }
-            }
-            return gDragIndex != -1;
-        }
-    } else {
-        // Currently dragging
-        SkASSERT(gDragIndex < gDragPoints.count());
-        gDragPoints[gDragIndex]->set(x, y);
-        if (state == skui::InputState::kUp) {
-            gDragIndex = -1;
-        }
-        return true;
-    }
+    fMousePos.set(x, y);
     return false;
 }

@@ -1,4 +1,4 @@
-﻿// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,6 @@
 #include "src/base/logging.h"
 #include "src/base/page-allocator.h"
 #include "src/base/platform/platform.h"
-#include "src/base/platform/wrappers.h"
 #include "src/flags/flags.h"
 #include "src/init/v8.h"
 #include "src/sanitizer/lsan-page-allocator.h"
@@ -94,7 +93,7 @@ void* Malloced::operator new(size_t size) {
   return result;
 }
 
-void Malloced::operator delete(void* p) { base::Free(p); }
+void Malloced::operator delete(void* p) { free(p); }
 
 char* StrDup(const char* str) {
   size_t length = strlen(str);
@@ -116,7 +115,7 @@ char* StrNDup(const char* str, size_t n) {
 void* AllocWithRetry(size_t size) {
   void* result = nullptr;
   for (int i = 0; i < kAllocationTries; ++i) {
-    result = base::Malloc(size);
+    result = malloc(size);
     if (result != nullptr) break;
     if (!OnCriticalMemoryPressure(size)) break;
   }
@@ -143,9 +142,9 @@ void AlignedFree(void* ptr) {
   _aligned_free(ptr);
 #elif V8_LIBC_BIONIC
   // Using free is not correct in general, but for V8_LIBC_BIONIC it is.
-  base::Free(ptr);
+  free(ptr);
 #else
-  base::Free(ptr);
+  free(ptr);
 #endif
 }
 

@@ -35,9 +35,7 @@ static void test_huge_stroke(SkCanvas* canvas) {
     paint.setStrokeJoin(SkPaint::kRound_Join);
     paint.setStyle(SkPaint::kStroke_Style);
 
-    SkMatrix matrix;
-    matrix.setRectToRect(srcR, dstR, SkMatrix::kCenter_ScaleToFit);
-    canvas->concat(matrix);
+    canvas->concat(SkMatrix::RectToRect(srcR, dstR, SkMatrix::kCenter_ScaleToFit));
 
     canvas->drawPath(path, paint);
 }
@@ -140,7 +138,8 @@ protected:
     }
 
     void onDrawContent(SkCanvas* canvas) override {
-        test_huge_stroke(canvas); return;
+        test_huge_stroke(canvas);
+#if 0
         canvas->translate(SkIntToScalar(10), SkIntToScalar(10));
 
         SkPaint paint;
@@ -198,10 +197,11 @@ protected:
         canvas->translate(0, fPath.getBounds().height() * 5 / 4);
         fPath.setFillType(SkPathFillType::kEvenOdd);
         drawSet(canvas, &paint);
+#endif
     }
 
 private:
-    typedef Sample INHERITED;
+    using INHERITED = Sample;
 };
 
 //////////////////////////////////////////////////////////////////////////////

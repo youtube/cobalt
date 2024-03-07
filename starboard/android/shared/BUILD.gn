@@ -319,8 +319,6 @@ static_library("starboard_platform") {
     "get_home_directory.cc",
     "graphics.cc",
     "graphics.h",
-    "h5vcc_config.cc",
-    "h5vcc_config.h",
     "input_events_generator.cc",
     "input_events_generator.h",
     "jni_env_ext.cc",
@@ -363,6 +361,8 @@ static_library("starboard_platform") {
     "player_destroy.cc",
     "player_get_preferred_output_mode.cc",
     "player_set_bounds.cc",
+    "player_set_max_video_input_size.cc",
+    "player_set_max_video_input_size.h",
     "player_set_playback_rate.cc",
     "sanitizer_options.cc",
     "socket_get_interface_address.cc",
@@ -392,6 +392,8 @@ static_library("starboard_platform") {
     "video_decoder.h",
     "video_frame_tracker.cc",
     "video_frame_tracker.h",
+    "video_max_video_input_size.cc",
+    "video_max_video_input_size.h",
     "video_render_algorithm.cc",
     "video_render_algorithm.h",
     "video_window.cc",
@@ -450,8 +452,6 @@ static_library("starboard_platform") {
     sources += [
       "//starboard/shared/starboard/crash_handler.cc",
       "//starboard/shared/starboard/crash_handler.h",
-      "//starboard/shared/starboard/starboard_switches.cc",
-      "//starboard/shared/starboard/starboard_switches.h",
     ]
 
     public_deps += [

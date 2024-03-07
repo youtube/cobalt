@@ -36,7 +36,7 @@ private:
     XWindow      fWindow;
     VkSurfaceKHR fVkSurface = nullptr;
 
-    typedef DawnWindowContext INHERITED;
+    using INHERITED = DawnWindowContext;
 };
 
 DawnVulkanWindowContext_xlib::DawnVulkanWindowContext_xlib(const XlibWindowInfo& winInfo,
@@ -58,12 +58,12 @@ DawnSwapChainImplementation DawnVulkanWindowContext_xlib::createSwapChainImpleme
 }
 
 wgpu::Device DawnVulkanWindowContext_xlib::onInitializeContext() {
-    wgpu::Device device = this->createDevice(dawn_native::BackendType::Vulkan);
+    wgpu::Device device = this->createDevice(wgpu::BackendType::Vulkan);
     if (!device) {
         return nullptr;
     }
 
-    void *vkLib = DynamicLoadLibrary("libvulkan.so.1");
+    void *vkLib = SkLoadDynamicLibrary("libvulkan.so.1");
     if (!vkLib) {
         return nullptr;
     }
@@ -72,7 +72,7 @@ wgpu::Device DawnVulkanWindowContext_xlib::onInitializeContext() {
         return nullptr;
     }
     auto createXcbSurfaceKHR =
-        reinterpret_cast<PFN_vkCreateXcbSurfaceKHR>(GetProcedureAddress(vkLib,
+        reinterpret_cast<PFN_vkCreateXcbSurfaceKHR>(SkGetProcedureAddress(vkLib,
                                                                         "vkCreateXcbSurfaceKHR"));
     if (!createXcbSurfaceKHR) {
         printf("couldn't get extensions :(\n");

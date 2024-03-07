@@ -21,10 +21,10 @@ static SkRRect path_contains_rrect(skiatest::Reporter* reporter, const SkPath& p
     // Test that rotations/mirrors of the rrect path are still rrect paths and the returned
     // parameters for the transformed paths are correct.
     static const SkMatrix kMatrices[] = {
-        SkMatrix::MakeScale(1, 1),
-        SkMatrix::MakeScale(-1, 1),
-        SkMatrix::MakeScale(1, -1),
-        SkMatrix::MakeScale(-1, -1),
+        SkMatrix::Scale( 1,  1),
+        SkMatrix::Scale(-1,  1),
+        SkMatrix::Scale( 1, -1),
+        SkMatrix::Scale(-1, -1),
     };
     for (auto& m : kMatrices) {
         SkPath xformed;
@@ -63,7 +63,7 @@ static void path_contains_rrect_check(skiatest::Reporter* reporter, const SkRRec
                                       SkPathDirection dir, unsigned start) {
     SkRRect out = inner_path_contains_rrect(reporter, in, dir, start);
     if (in != out) {
-        SkDebugf("");
+        SkDebugf("%s", "");
     }
     REPORTER_ASSERT(reporter, in == out);
 }
@@ -72,7 +72,7 @@ static void path_contains_rrect_nocheck(skiatest::Reporter* reporter, const SkRR
                                         SkPathDirection dir, unsigned start) {
     SkRRect out = inner_path_contains_rrect(reporter, in, dir, start);
     if (in == out) {
-        SkDebugf("");
+        SkDebugf("%s", "");
     }
 }
 
@@ -100,18 +100,14 @@ static void force_path_contains_rrect(skiatest::Reporter* reporter, SkPath& path
 }
 
 static void test_undetected_paths(skiatest::Reporter* reporter) {
-    // We use a dummy path to get the exact conic weight used by SkPath for a circular arc. This
+    // We first get the exact conic weight used by SkPath for a circular arc. This
     // allows our local, hand-crafted, artisanal round rect paths below to exactly match the
     // factory made corporate paths produced by SkPath.
-    SkPath dummyPath;
-    dummyPath.addCircle(0, 0, 10);
-    SkPath::RawIter iter(dummyPath);
-    SkPoint dummyPts[4];
-    SkPath::Verb v = iter.next(dummyPts);
-    REPORTER_ASSERT(reporter, SkPath::kMove_Verb == v);
-    v = iter.next(dummyPts);
-    REPORTER_ASSERT(reporter, SkPath::kConic_Verb == v);
-    const SkScalar weight = iter.conicWeight();
+    SkPath exactPath;
+    exactPath.addCircle(0, 0, 10);
+    REPORTER_ASSERT(reporter, SkPath::kMove_Verb == SkPathPriv::VerbData(exactPath)[0]);
+    REPORTER_ASSERT(reporter, SkPath::kConic_Verb == SkPathPriv::VerbData(exactPath)[1]);
+    const SkScalar weight = SkPathPriv::ConicWeightData(exactPath)[0];
 
     SkPath path;
     path.moveTo(0, 62.5f);
@@ -488,7 +484,7 @@ DEF_TEST(RRect_fragile, reporter) {
 
     SkRRect rr;
     // please don't assert
-    if (false) {    // disable until we fix this
+    if ((false)) {    // disable until we fix this
         SkDebugf("%g 0x%08X\n", rect.fLeft, SkFloat2Bits(rect.fLeft));
         rr.setRectRadii(rect, radii);
     }

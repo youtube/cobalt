@@ -1,7 +1,13 @@
-cmake_minimum_required(VERSION 3.3)
+cmake_minimum_required(VERSION 3.8)
 
 # Defer enabling C and CXX languages.
 project(BoringSSL NONE)
+
+# Don't install BoringSSL to system directories by default; it has no stable
+# ABI. Instead, default to an "install" directory under the source.
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+  set(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCE_DIR}/install CACHE PATH "" FORCE)
+endif()
 
 if(WIN32)
   # On Windows, prefer cl over gcc if both are available. By default most of
@@ -13,6 +19,8 @@ include(sources.cmake)
 
 enable_language(C)
 enable_language(CXX)
+
+include(GNUInstallDirs)
 
 # This is a dummy target which all other targets depend on (manually - see other
 # CMakeLists.txt files). This gives us a hook to add any targets which need to
@@ -114,10 +122,17 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
   set(EMSCRIPTEN 1)
 endif()
 
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+if(MSVC AND NOT CLANG)
+  set(CMAKE_C_STANDARD 11)
+  set(CMAKE_C_STANDARD_REQUIRED ON)
+endif()
+
 if(CMAKE_COMPILER_IS_GNUCXX OR CLANG)
   # Note clang-cl is odd and sets both CLANG and MSVC. We base our configuration
   # primarily on our normal Clang one.
-  set(C_CXX_FLAGS "-Werror -Wformat=2 -Wsign-compare -Wmissing-field-initializers -Wwrite-strings -Wvla")
+  set(C_CXX_FLAGS "-Werror -Wformat=2 -Wsign-compare -Wmissing-field-initializers -Wwrite-strings -Wvla -Wshadow")
   if(MSVC)
     # clang-cl sets different default warnings than clang. It also treats -Wall
     # as -Weverything, to match MSVC. Instead -W3 is the alias for -Wall.
@@ -145,21 +160,19 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CLANG)
     set(C_CXX_FLAGS "${C_CXX_FLAGS} -Wno-free-nonheap-object")
   endif()
 
-  if(CLANG OR NOT "7.0.0" VERSION_GREATER CMAKE_C_COMPILER_VERSION)
+  if(CLANG OR CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "7.0.0")
     set(C_CXX_FLAGS "${C_CXX_FLAGS} -Wimplicit-fallthrough")
+  endif()
+
+  if(CMAKE_COMPILER_IS_GNUCXX)
+    set(C_CXX_FLAGS "${C_CXX_FLAGS} -Wformat-signedness")
   endif()
 
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${C_CXX_FLAGS} -Wmissing-prototypes -Wold-style-definition -Wstrict-prototypes")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${C_CXX_FLAGS} -Wmissing-declarations")
 
-  if(NOT MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-    if(APPLE)
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
-    endif()
-    if(NOT BORINGSSL_ALLOW_CXX_RUNTIME)
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
-    endif()
+  if(NOT MSVC AND NOT BORINGSSL_ALLOW_CXX_RUNTIME)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
   endif()
 
   # In GCC, -Wmissing-declarations is the C++ spelling of -Wmissing-prototypes
@@ -172,11 +185,6 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CLANG)
   if(CLANG)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wmissing-prototypes")
   endif()
-
-  if(CMAKE_COMPILER_IS_GNUCXX AND "4.8" VERSION_GREATER CMAKE_C_COMPILER_VERSION)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-array-bounds")
-  endif()
-
 elseif(MSVC)
   set(MSVC_DISABLED_WARNINGS_LIST
       "C4061" # enumerator 'identifier' in switch of enum 'enumeration' is not
@@ -254,22 +262,11 @@ if(WIN32)
   add_definitions("-D_STL_EXTRA_DISABLED_WARNINGS=4774 4987")
 endif()
 
-if((CMAKE_COMPILER_IS_GNUCXX AND CMAKE_C_COMPILER_VERSION VERSION_GREATER "4.7.99") OR
-   CLANG)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wshadow")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wshadow")
-endif()
-
-if(CMAKE_COMPILER_IS_GNUCXX)
-  if((CMAKE_C_COMPILER_VERSION VERSION_GREATER "4.8.99") OR CLANG)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11")
-  else()
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99")
-  endif()
-endif()
-
-# pthread_rwlock_t requires a feature flag.
-if(NOT WIN32)
+# pthread_rwlock_t on Linux requires a feature flag. We limit this to Linux
+# because, on Apple platforms, it instead disables APIs we use. See compat(5)
+# and sys/cdefs.h. Reportedly, FreeBSD also breaks when this is set. See
+# https://crbug.com/boringssl/471.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_XOPEN_SOURCE=700")
 endif()
 
@@ -409,11 +406,13 @@ endif()
 
 function(go_executable dest package)
   set(godeps "${CMAKE_SOURCE_DIR}/util/godeps.go")
-  if(${CMAKE_VERSION} VERSION_LESS "3.7" OR
-     NOT ${CMAKE_GENERATOR} STREQUAL "Ninja")
-    # The DEPFILE parameter to add_custom_command is new as of CMake 3.7 and
-    # only works with Ninja. Query the sources at configure time. Additionally,
-    # everything depends on go.mod. That affects what external packages to use.
+  if(NOT CMAKE_GENERATOR STREQUAL "Ninja")
+    # The DEPFILE parameter to add_custom_command only works with Ninja. Query
+    # the sources at configure time. Additionally, everything depends on go.mod.
+    # That affects what external packages to use.
+    #
+    # TODO(davidben): Starting CMake 3.20, it also works with Make. Starting
+    # 3.21, it works with Visual Studio and Xcode too.
     execute_process(COMMAND ${GO_EXECUTABLE} run ${godeps} -format cmake
                             -pkg ${package}
                     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
@@ -452,7 +451,7 @@ endfunction()
 # builds.
 if(NOT OPENSSL_NO_ASM AND CMAKE_OSX_ARCHITECTURES)
   list(LENGTH CMAKE_OSX_ARCHITECTURES NUM_ARCHES)
-  if(NOT ${NUM_ARCHES} EQUAL 1)
+  if(NOT NUM_ARCHES EQUAL 1)
     message(FATAL_ERROR "Universal binaries not supported.")
   endif()
   list(GET CMAKE_OSX_ARCHITECTURES 0 CMAKE_SYSTEM_PROCESSOR)
@@ -465,42 +464,46 @@ endif()
 if(OPENSSL_NO_ASM)
   add_definitions(-DOPENSSL_NO_ASM)
   set(ARCH "generic")
-elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
   set(ARCH "x86_64")
-elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "amd64")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "amd64")
   set(ARCH "x86_64")
-elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "AMD64")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
   # cmake reports AMD64 on Windows, but we might be building for 32-bit.
   if(CMAKE_SIZEOF_VOID_P EQUAL 8)
     set(ARCH "x86_64")
   else()
     set(ARCH "x86")
   endif()
-elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86")
   set(ARCH "x86")
-elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "i386")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "i386")
   set(ARCH "x86")
-elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "i686")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "i686")
   set(ARCH "x86")
-elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
   set(ARCH "aarch64")
-elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "arm64")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
+  set(ARCH "aarch64")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
   set(ARCH "aarch64")
 # Apple A12 Bionic chipset which is added in iPhone XS/XS Max/XR uses arm64e architecture.
-elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "arm64e")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64e")
   set(ARCH "aarch64")
-elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^arm*")
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^arm*")
   set(ARCH "arm")
-elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "mips")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "mips")
   # Just to avoid the “unknown processor” error.
   set(ARCH "generic")
-elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "ppc64le")
+elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "ppc64le")
   set(ARCH "ppc64le")
+elseif (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "riscv64")
+  set(ARCH "riscv64")
 else()
   message(FATAL_ERROR "Unknown processor:" ${CMAKE_SYSTEM_PROCESSOR})
 endif()
 
-if(ANDROID AND NOT ANDROID_NDK_REVISION AND ${ARCH} STREQUAL "arm")
+if(ANDROID AND NOT ANDROID_NDK_REVISION AND ARCH STREQUAL "arm")
   # The third-party Android-NDK CMake files somehow fail to set the -march flag
   # for assembly files. Without this flag, the compiler believes that it's
   # building for ARMv5.
@@ -519,6 +522,7 @@ if(USE_CUSTOM_LIBCXX)
   set(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -nostdlib++")
   include_directories(
     SYSTEM
+    util/bot/libcxx-config
     util/bot/libcxx/include
     util/bot/libcxxabi/include
   )
@@ -545,6 +549,9 @@ if(USE_CUSTOM_LIBCXX)
     -D_LIBCPP_ENABLE_CXX17_REMOVED_UNEXPECTED_FUNCTIONS
   )
   set_target_properties(libcxxabi PROPERTIES COMPILE_FLAGS "-Wno-missing-prototypes -Wno-implicit-fallthrough")
+  # libc++abi depends on libc++ internal headers.
+  set_property(TARGET libcxxabi APPEND PROPERTY INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/util/bot/libcxx/src")
+  install(TARGETS libcxxabi EXPORT OpenSSLTargets)
 
   add_library(libcxx ${LIBCXX_SOURCES})
   if(ASAN OR MSAN OR TSAN)
@@ -560,6 +567,7 @@ if(USE_CUSTOM_LIBCXX)
     -DLIBCXX_BUILDING_LIBCXXABI
   )
   target_link_libraries(libcxx libcxxabi)
+  install(TARGETS libcxx EXPORT OpenSSLTargets DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 
 # Add minimal googletest targets. The provided one has many side-effects, and
@@ -597,7 +605,7 @@ add_subdirectory(crypto)
 add_subdirectory(ssl)
 add_subdirectory(ssl/test)
 add_subdirectory(tool)
-add_subdirectory(util/fipstools/cavp)
+add_subdirectory(util/fipstools)
 add_subdirectory(util/fipstools/acvp/modulewrapper)
 add_subdirectory(decrepit)
 
@@ -613,8 +621,41 @@ if(FUZZ)
   add_subdirectory(fuzz)
 endif()
 
-if(UNIX AND NOT APPLE AND NOT ANDROID)
+if(RUST_BINDINGS)
+  find_program(BINDGEN_EXECUTABLE bindgen)
+  if(NOT BINDGEN_EXECUTABLE)
+    message(FATAL_ERROR "Could not find bindgen but was asked to generate Rust bindings.")
+  else()
+    add_subdirectory(rust)
+  endif()
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   set(HANDSHAKER_ARGS "-handshaker-path" $<TARGET_FILE:handshaker>)
+endif()
+
+if(FIPS)
+  add_custom_target(
+    acvp_tests
+    COMMAND ${GO_EXECUTABLE} build -o ${CMAKE_BINARY_DIR}/acvptool
+            boringssl.googlesource.com/boringssl/util/fipstools/acvp/acvptool
+    COMMAND ${GO_EXECUTABLE} build -o ${CMAKE_BINARY_DIR}/testmodulewrapper
+            boringssl.googlesource.com/boringssl/util/fipstools/acvp/acvptool/testmodulewrapper
+    COMMAND cd util/fipstools/acvp/acvptool/test &&
+            ${GO_EXECUTABLE} run check_expected.go
+            -tool ${CMAKE_BINARY_DIR}/acvptool
+            -module-wrappers modulewrapper:$<TARGET_FILE:modulewrapper>,testmodulewrapper:${CMAKE_BINARY_DIR}/testmodulewrapper
+            -tests tests.json
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    DEPENDS modulewrapper
+    USES_TERMINAL)
+
+  add_custom_target(
+    fips_specific_tests_if_any
+    DEPENDS acvp_tests
+  )
+else()
+  add_custom_target(fips_specific_tests_if_any)
 endif()
 
 add_custom_target(
@@ -625,5 +666,14 @@ add_custom_target(
             ${GO_EXECUTABLE} test -shim-path $<TARGET_FILE:bssl_shim>
               ${HANDSHAKER_ARGS} ${RUNNER_ARGS}
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    DEPENDS all_tests bssl_shim handshaker
+    DEPENDS all_tests bssl_shim handshaker fips_specific_tests_if_any
     USES_TERMINAL)
+
+install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+install(EXPORT OpenSSLTargets
+  FILE OpenSSLTargets.cmake
+  NAMESPACE OpenSSL::
+  DESTINATION lib/cmake/OpenSSL
+)
+install(FILES OpenSSLConfig.cmake DESTINATION lib/cmake/OpenSSL)

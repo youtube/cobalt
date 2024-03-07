@@ -360,7 +360,7 @@ private:
     }
 
 private:
-    typedef GradientsGM INHERITED;
+    using INHERITED = GradientsGM;
 };
 DEF_GM( return new GradientsViewPerspectiveGM(true); )
 DEF_GM( return new GradientsViewPerspectiveGM(false); )
@@ -579,7 +579,7 @@ private:
 private:
     bool fDither;
 
-    typedef GM INHERITED;
+    using INHERITED = GM;
 };
 DEF_GM( return new RadialGradient2GM(true); )
 DEF_GM( return new RadialGradient2GM(false); )
@@ -601,8 +601,8 @@ private:
     void onOnceBeforeDraw() override {
         const SkPoint center = { 0, 0 };
         const SkScalar kRadius = 3000;
-        const SkColor gColors[] = { 0xFFFFFFFF, 0xFF000000 };
-        fShader = SkGradientShader::MakeRadial(center, kRadius, gColors, nullptr, 2,
+        const SkColor kColors[] = { 0xFFFFFFFF, 0xFF000000 };
+        fShader = SkGradientShader::MakeRadial(center, kRadius, kColors, nullptr, 2,
                                                SkTileMode::kClamp);
     }
 
@@ -617,7 +617,7 @@ private:
     sk_sp<SkShader> fShader;
     bool fDither;
 
-    typedef GM INHERITED;
+    using INHERITED = GM;
 };
 DEF_GM( return new RadialGradient3GM(true); )
 DEF_GM( return new RadialGradient3GM(false); )
@@ -655,7 +655,7 @@ private:
     sk_sp<SkShader> fShader;
     bool fDither;
 
-    typedef GM INHERITED;
+    using INHERITED = GM;
 };
 DEF_GM( return new RadialGradient4GM(true); )
 DEF_GM( return new RadialGradient4GM(false); )
@@ -707,13 +707,13 @@ private:
     sk_sp<SkShader> fShader[100];
     bool fDither;
 
-    typedef GM INHERITED;
+    using INHERITED = GM;
 };
 DEF_GM( return new LinearGradientGM(true); )
 DEF_GM( return new LinearGradientGM(false); )
 
 class LinearGradientTinyGM : public skiagm::GM {
-    static constexpr uint32_t kFlags = 0;
+    inline static constexpr uint32_t kFlags = 0;
 
     SkString onShortName() override { return SkString("linear_gradient_tiny"); }
 
@@ -922,8 +922,8 @@ DEF_SIMPLE_GM(fancy_gradients, canvas, 800, 300) {
         SkMatrix m = SkMatrix::I();
         m.preRotate(45);
         return recorder.finishRecordingAsPicture()->makeShader(
-                                           SkTileMode::kRepeat,
-                                           SkTileMode::kRepeat, &m, nullptr);
+                                           SkTileMode::kRepeat, SkTileMode::kRepeat,
+                                           SkFilterMode::kNearest, &m, nullptr);
     });
 
     draw_circle_shader(canvas, 400, 150, 100, []() -> sk_sp<SkShader> {
@@ -944,7 +944,7 @@ DEF_SIMPLE_GM(fancy_gradients, canvas, 800, 300) {
 
         return recorder.finishRecordingAsPicture()->makeShader(
                                            SkTileMode::kRepeat,
-                                           SkTileMode::kRepeat);
+                                           SkTileMode::kRepeat, SkFilterMode::kNearest);
     });
 
     draw_circle_shader(canvas, 650, 150, 100, []() -> sk_sp<SkShader> {

@@ -18,6 +18,7 @@
 .text
 
 
+.hidden	OPENSSL_armcap_P
 .globl	sha1_block_data_order
 .hidden	sha1_block_data_order
 .type	sha1_block_data_order,%function
@@ -51,7 +52,7 @@ sha1_block_data_order:
 	movz	w28,#0x7999
 	sub	x2,x2,#1
 	movk	w28,#0x5a82,lsl#16
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	ror	x3,x3,#32
 #else
 	rev32	x3,x3
@@ -69,7 +70,7 @@ sha1_block_data_order:
 	ror	w21,w21,#2
 	add	w23,w23,w4	// future e+=X[i]
 	add	w24,w24,w25		// e+=F(b,c,d)
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	ror	x5,x5,#32
 #else
 	rev32	x5,x5
@@ -94,7 +95,7 @@ sha1_block_data_order:
 	ror	w24,w24,#2
 	add	w21,w21,w6	// future e+=X[i]
 	add	w22,w22,w25		// e+=F(b,c,d)
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	ror	x7,x7,#32
 #else
 	rev32	x7,x7
@@ -119,7 +120,7 @@ sha1_block_data_order:
 	ror	w22,w22,#2
 	add	w24,w24,w8	// future e+=X[i]
 	add	w20,w20,w25		// e+=F(b,c,d)
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	ror	x9,x9,#32
 #else
 	rev32	x9,x9
@@ -144,7 +145,7 @@ sha1_block_data_order:
 	ror	w20,w20,#2
 	add	w22,w22,w10	// future e+=X[i]
 	add	w23,w23,w25		// e+=F(b,c,d)
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	ror	x11,x11,#32
 #else
 	rev32	x11,x11
@@ -169,7 +170,7 @@ sha1_block_data_order:
 	ror	w23,w23,#2
 	add	w20,w20,w12	// future e+=X[i]
 	add	w21,w21,w25		// e+=F(b,c,d)
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	ror	x13,x13,#32
 #else
 	rev32	x13,x13
@@ -194,7 +195,7 @@ sha1_block_data_order:
 	ror	w21,w21,#2
 	add	w23,w23,w14	// future e+=X[i]
 	add	w24,w24,w25		// e+=F(b,c,d)
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	ror	x15,x15,#32
 #else
 	rev32	x15,x15
@@ -219,7 +220,7 @@ sha1_block_data_order:
 	ror	w24,w24,#2
 	add	w21,w21,w16	// future e+=X[i]
 	add	w22,w22,w25		// e+=F(b,c,d)
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	ror	x17,x17,#32
 #else
 	rev32	x17,x17
@@ -1232,8 +1233,6 @@ sha1_block_armv8:
 .byte	83,72,65,49,32,98,108,111,99,107,32,116,114,97,110,115,102,111,114,109,32,102,111,114,32,65,82,77,118,56,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	2
 .align	2
-.comm	OPENSSL_armcap_P,4,4
-.hidden	OPENSSL_armcap_P
 #endif
 #endif  // !OPENSSL_NO_ASM
 .section	.note.GNU-stack,"",%progbits

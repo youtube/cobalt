@@ -42,7 +42,7 @@ std::unique_ptr<v8::Platform> NewDefaultPlatform(
   auto platform = std::make_unique<DefaultPlatform>(
       thread_pool_size, idle_task_support, std::move(tracing_controller));
   platform->EnsureBackgroundTaskRunnerInitialized();
-  return std::unique_ptr<v8::Platform>(platform.release());
+  return platform;
 }
 
 V8_PLATFORM_EXPORT std::unique_ptr<JobHandle> NewDefaultJobHandle(

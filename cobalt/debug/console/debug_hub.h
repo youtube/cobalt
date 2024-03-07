@@ -101,8 +101,8 @@ class DebugHub : public script::Wrappable, public DebugClient::Delegate {
   // Sends a console command to be handled in the context of the debug WebModule
   // by a registered handler. This lets the JavaScript debug console trigger
   // actions in the app.
-  void SendConsoleCommand(const std::string& command,
-                          const std::string& message);
+  std::string SendConsoleCommand(const std::string& command,
+                                 const std::string& message);
 
   DEFINE_WRAPPABLE_TYPE(DebugHub);
   void TraceMembers(script::Tracer* tracer) override;

@@ -46,13 +46,13 @@ private:
     HWND              fHWND;
     HGLRC             fHGLRC;
 
-    typedef GLWindowContext INHERITED;
+    using INHERITED = GLWindowContext;
 };
 
 GLWindowContext_win::GLWindowContext_win(HWND wnd, const DisplayParams& params)
     : INHERITED(params)
     , fHWND(wnd)
-    , fHGLRC(NULL) {
+    , fHGLRC(nullptr) {
 
     // any config code here (particularly for msaa)?
 
@@ -68,7 +68,7 @@ sk_sp<const GrGLInterface> GLWindowContext_win::onInitializeContext() {
 
     fHGLRC = SkCreateWGLContext(dc, fDisplayParams.fMSAASampleCount, false /* deepColor */,
                                 kGLPreferCompatibilityProfile_SkWGLContextRequest);
-    if (NULL == fHGLRC) {
+    if (nullptr == fHGLRC) {
         return nullptr;
     }
 
@@ -86,7 +86,7 @@ sk_sp<const GrGLInterface> GLWindowContext_win::onInitializeContext() {
             wglDeleteContext(fHGLRC);
             fHGLRC = SkCreateWGLContext(dc, fDisplayParams.fMSAASampleCount, false /* deepColor */,
                                         kGLPreferCoreProfile_SkWGLContextRequest);
-            if (NULL == fHGLRC) {
+            if (nullptr == fHGLRC) {
                 return nullptr;
             }
         }
@@ -113,7 +113,7 @@ sk_sp<const GrGLInterface> GLWindowContext_win::onInitializeContext() {
                                               1,
                                               &kSampleCountAttr,
                                               &fSampleCount);
-            fSampleCount = SkTMax(fSampleCount, 1);
+            fSampleCount = std::max(fSampleCount, 1);
         } else {
             fSampleCount = 1;
         }

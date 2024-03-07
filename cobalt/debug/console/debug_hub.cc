@@ -127,12 +127,12 @@ const script::Sequence<ConsoleCommand> DebugHub::console_commands() const {
   return result;
 }
 
-void DebugHub::SendConsoleCommand(const std::string& command,
-                                  const std::string& message) {
+std::string DebugHub::SendConsoleCommand(const std::string& command,
+                                         const std::string& message) {
   ConsoleCommandManager* console_command_manager =
       ConsoleCommandManager::GetInstance();
   DCHECK(console_command_manager);
-  console_command_manager->HandleCommand(command, message);
+  return console_command_manager->HandleCommand(command, message);
 }
 
 void DebugHub::TraceMembers(script::Tracer* tracer) {

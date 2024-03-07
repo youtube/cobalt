@@ -10,13 +10,16 @@
 
 #include "include/core/SkColor.h"
 #include "include/core/SkImageInfo.h"
+#include "include/core/SkMatrix.h"
+#include "include/core/SkRefCnt.h"
 #include "include/core/SkTileMode.h"
 #include "include/core/SkTypes.h"
-#include "include/private/SkNx.h"
 #include "include/private/SkTArray.h"
 #include "src/core/SkArenaAlloc.h"
 #include <functional>
 #include <vector>  // TODO: unused
+
+class SkData;
 
 /**
  * SkRasterPipeline provides a cheap way to chain together a pixel processing pipeline.
@@ -34,13 +37,12 @@
  */
 
 #define SK_RASTER_PIPELINE_STAGES(M)                               \
-    M(callback) M(interpreter)                                     \
-    M(move_src_dst) M(move_dst_src)                                \
+    M(callback)                                                    \
+    M(move_src_dst) M(move_dst_src) M(swap_src_dst)                \
     M(clamp_0) M(clamp_1) M(clamp_a) M(clamp_gamut)                \
     M(unpremul) M(premul) M(premul_dst)                            \
     M(force_opaque) M(force_opaque_dst)                            \
     M(set_rgb) M(unbounded_set_rgb) M(swap_rb) M(swap_rb_dst)      \
-    M(from_srgb) M(to_srgb)                                        \
     M(black_color) M(white_color)                                  \
     M(uniform_color) M(unbounded_uniform_color) M(uniform_color_dst) \
     M(seed_shader) M(dither)                                       \
@@ -55,14 +57,17 @@
     M(load_8888)   M(load_8888_dst) M(store_8888)  M(gather_8888)  \
     M(load_rg88)   M(load_rg88_dst) M(store_rg88)  M(gather_rg88)  \
     M(load_a16)    M(load_a16_dst)  M(store_a16)   M(gather_a16)   \
+    M(store_r8) \
     M(load_rg1616) M(load_rg1616_dst) M(store_rg1616) M(gather_rg1616) \
     M(load_16161616) M(load_16161616_dst) M(store_16161616) M(gather_16161616) \
     M(load_1010102) M(load_1010102_dst) M(store_1010102) M(gather_1010102) \
-    M(alpha_to_gray) M(alpha_to_gray_dst) M(bt709_luminance_or_luma_to_alpha)         \
+    M(alpha_to_gray) M(alpha_to_gray_dst)                          \
+    M(alpha_to_red) M(alpha_to_red_dst)                            \
+    M(bt709_luminance_or_luma_to_alpha) M(bt709_luminance_or_luma_to_rgb) \
     M(bilerp_clamp_8888) M(bicubic_clamp_8888)                     \
     M(store_u16_be)                                                \
-    M(load_src) M(store_src) M(load_dst) M(store_dst)              \
-    M(scale_u8) M(scale_565) M(scale_1_float)                      \
+    M(load_src) M(store_src) M(store_src_a) M(load_dst) M(store_dst) \
+    M(scale_u8) M(scale_565) M(scale_1_float) M(scale_native)      \
     M( lerp_u8) M( lerp_565) M( lerp_1_float) M(lerp_native)       \
     M(dstatop) M(dstin) M(dstout) M(dstover)                       \
     M(srcatop) M(srcin) M(srcout) M(srcover)                       \
@@ -157,21 +162,6 @@ struct SkRasterPipeline_CallbackCtx {
     // When fn() returns, the pipeline will read back those active pixels from read_from.
     float rgba[4*SkRasterPipeline_kMaxStride];
     float* read_from = rgba;
-};
-
-namespace SkSL {
-class ByteCode;
-class ByteCodeFunction;
-}
-
-struct SkRasterPipeline_InterpreterCtx {
-    const SkSL::ByteCode*         byteCode;
-    const SkSL::ByteCodeFunction* fn;
-
-    SkColor4f   paintColor;
-    const void* inputs;
-    int         ninputs;
-    bool        shaderConvention;  // if false, we're a colorfilter
 };
 
 struct SkRasterPipeline_GradientCtx {

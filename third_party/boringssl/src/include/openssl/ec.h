@@ -221,6 +221,13 @@ OPENSSL_EXPORT int EC_POINT_get_affine_coordinates_GFp(const EC_GROUP *group,
                                                        BIGNUM *x, BIGNUM *y,
                                                        BN_CTX *ctx);
 
+// EC_POINT_get_affine_coordinates is an alias of
+// |EC_POINT_get_affine_coordinates_GFp|.
+OPENSSL_EXPORT int EC_POINT_get_affine_coordinates(const EC_GROUP *group,
+                                                   const EC_POINT *point,
+                                                   BIGNUM *x, BIGNUM *y,
+                                                   BN_CTX *ctx);
+
 // EC_POINT_set_affine_coordinates_GFp sets the value of |point| to be
 // (|x|, |y|). The |ctx| argument may be used if not NULL. It returns one
 // on success or zero on error. It's considered an error if the point is not on
@@ -236,6 +243,14 @@ OPENSSL_EXPORT int EC_POINT_set_affine_coordinates_GFp(const EC_GROUP *group,
                                                        const BIGNUM *x,
                                                        const BIGNUM *y,
                                                        BN_CTX *ctx);
+
+// EC_POINT_set_affine_coordinates is an alias of
+// |EC_POINT_set_affine_coordinates_GFp|.
+OPENSSL_EXPORT int EC_POINT_set_affine_coordinates(const EC_GROUP *group,
+                                                   EC_POINT *point,
+                                                   const BIGNUM *x,
+                                                   const BIGNUM *y,
+                                                   BN_CTX *ctx);
 
 // EC_POINT_point2oct serialises |point| into the X9.62 form given by |form|
 // into, at most, |len| bytes at |buf|. It returns the number of bytes written
@@ -308,7 +323,15 @@ OPENSSL_EXPORT int EC_POINT_mul(const EC_GROUP *group, EC_POINT *r,
 // |EC_GROUP_cmp| (even to themselves). |EC_GROUP_get_curve_name| will always
 // return |NID_undef|.
 //
-// Avoid using arbitrary curves and use |EC_GROUP_new_by_curve_name| instead.
+// This function is provided for compatibility with some legacy applications
+// only. Avoid using arbitrary curves and use |EC_GROUP_new_by_curve_name|
+// instead. This ensures the result meets preconditions necessary for
+// elliptic curve algorithms to function correctly and securely.
+//
+// Given invalid parameters, this function may fail or it may return an
+// |EC_GROUP| which breaks these preconditions. Subsequent operations may then
+// return arbitrary, incorrect values. Callers should not pass
+// attacker-controlled values to this function.
 OPENSSL_EXPORT EC_GROUP *EC_GROUP_new_curve_GFp(const BIGNUM *p,
                                                 const BIGNUM *a,
                                                 const BIGNUM *b, BN_CTX *ctx);
@@ -328,11 +351,14 @@ OPENSSL_EXPORT int EC_GROUP_set_generator(EC_GROUP *group,
 OPENSSL_EXPORT int EC_GROUP_get_order(const EC_GROUP *group, BIGNUM *order,
                                       BN_CTX *ctx);
 
+#define OPENSSL_EC_EXPLICIT_CURVE 0
+#define OPENSSL_EC_NAMED_CURVE 1
+
 // EC_GROUP_set_asn1_flag does nothing.
 OPENSSL_EXPORT void EC_GROUP_set_asn1_flag(EC_GROUP *group, int flag);
 
-#define OPENSSL_EC_NAMED_CURVE 0
-#define OPENSSL_EC_EXPLICIT_CURVE 1
+// EC_GROUP_get_asn1_flag returns |OPENSSL_EC_NAMED_CURVE|.
+OPENSSL_EXPORT int EC_GROUP_get_asn1_flag(const EC_GROUP *group);
 
 typedef struct ec_method_st EC_METHOD;
 

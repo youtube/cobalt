@@ -47,7 +47,7 @@
 #define SK_ACQUIRE_SHARED(...) \
   SK_THREAD_ANNOTATION_ATTRIBUTE(acquire_shared_capability(__VA_ARGS__))
 
-// Would be SK_RELEASE, but that is already in use by SkPostConfig.
+// Would be SK_RELEASE, but that is already in use as SK_DEBUG vs. SK_RELEASE.
 #define SK_RELEASE_CAPABILITY(...) \
   SK_THREAD_ANNOTATION_ATTRIBUTE(release_capability(__VA_ARGS__))
 
@@ -76,13 +76,13 @@
 #define SK_NO_THREAD_SAFETY_ANALYSIS \
   SK_THREAD_ANNOTATION_ATTRIBUTE(no_thread_safety_analysis)
 
-#if defined(SK_BUILD_FOR_GOOGLE3)
+#if defined(SK_BUILD_FOR_GOOGLE3) && !defined(SK_BUILD_FOR_WASM_IN_GOOGLE3)
     extern "C" {
-        void __google_potentially_blocking_region_begin(void);
-        void __google_potentially_blocking_region_end  (void);
+        void __google_cxa_guard_acquire_begin(void);
+        void __google_cxa_guard_acquire_end  (void);
     }
-    #define SK_POTENTIALLY_BLOCKING_REGION_BEGIN __google_potentially_blocking_region_begin()
-    #define SK_POTENTIALLY_BLOCKING_REGION_END   __google_potentially_blocking_region_end()
+    #define SK_POTENTIALLY_BLOCKING_REGION_BEGIN __google_cxa_guard_acquire_begin()
+    #define SK_POTENTIALLY_BLOCKING_REGION_END   __google_cxa_guard_acquire_end()
 #else
     #define SK_POTENTIALLY_BLOCKING_REGION_BEGIN
     #define SK_POTENTIALLY_BLOCKING_REGION_END

@@ -5,10 +5,11 @@
  * found in the LICENSE file.
  */
 
-#include "src/sksl/SkSLString.h"
-
+#include "include/private/SkSLString.h"
 #include "src/sksl/SkSLUtil.h"
 #include <algorithm>
+#include <cinttypes>
+#include <cmath>
 #include <errno.h>
 #include <limits.h>
 #include <locale>
@@ -18,215 +19,11 @@
 
 #include "base/strings/string_number_conversions.h"
 
-namespace SkSL {
-
-String String::printf(const char* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    String result;
-    result.vappendf(fmt, args);
-    va_end(args);
-    return result;
+std::string skstd::to_string(float value) {
+    return skstd::to_string((double)value);
 }
 
-void String::appendf(const char* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    this->vappendf(fmt, args);
-    va_end(args);
-}
-
-void String::reset() {
-    this->clear();
-}
-
-int String::findLastOf(const char c) const {
-    // Rely on find_last_of and remap the output
-    size_t index = this->find_last_of(c);
-    return (index == std::string::npos ? -1 : index);
-}
-
-void String::vappendf(const char* fmt, va_list args) {
-#ifdef SKSL_BUILD_FOR_WIN
-    #define VSNPRINTF    _vsnprintf
-#else
-    #define VSNPRINTF    vsnprintf
-#endif
-    #define BUFFER_SIZE 256
-    char buffer[BUFFER_SIZE];
-    va_list reuse;
-    va_copy(reuse, args);
-    size_t size = VSNPRINTF(buffer, BUFFER_SIZE, fmt, args);
-    if (BUFFER_SIZE >= size) {
-        this->append(buffer, size);
-    } else {
-        auto newBuffer = std::unique_ptr<char[]>(new char[size + 1]);
-        VSNPRINTF(newBuffer.get(), size + 1, fmt, reuse);
-        this->append(newBuffer.get(), size);
-    }
-    va_end(reuse);
-}
-
-
-bool String::startsWith(const char* s) const {
-    return !strncmp(c_str(), s, strlen(s));
-}
-
-bool String::endsWith(const char* s) const {
-    size_t len = strlen(s);
-    if (size() < len) {
-        return false;
-    }
-    return !strncmp(c_str() + size() - len, s, len);
-}
-
-int String::find(const String& substring, int fromPos) const {
-    return find(substring.c_str(), fromPos);
-}
-
-int String::find(const char* substring, int fromPos) const {
-    SkASSERT(fromPos >= 0);
-    size_t found = INHERITED::find(substring, (size_t) fromPos);
-    return found == std::string::npos ? -1 : found;
-}
-
-String String::operator+(const char* s) const {
-    String result(*this);
-    result.append(s);
-    return result;
-}
-
-String String::operator+(const String& s) const {
-    String result(*this);
-    result.append(s);
-    return result;
-}
-
-String String::operator+(StringFragment s) const {
-    String result(*this);
-    result.append(s.fChars, s.fLength);
-    return result;
-}
-
-String& String::operator+=(char c) {
-    INHERITED::operator+=(c);
-    return *this;
-}
-
-String& String::operator+=(const char* s) {
-    INHERITED::operator+=(s);
-    return *this;
-}
-
-String& String::operator+=(const String& s) {
-    INHERITED::operator+=(s);
-    return *this;
-}
-
-String& String::operator+=(StringFragment s) {
-    this->append(s.fChars, s.fLength);
-    return *this;
-}
-
-bool String::operator==(const String& s) const {
-    return this->size() == s.size() && !memcmp(c_str(), s.c_str(), this->size());
-}
-
-bool String::operator!=(const String& s) const {
-    return !(*this == s);
-}
-
-bool String::operator==(const char* s) const {
-    return this->size() == strlen(s) && !memcmp(c_str(), s, this->size());
-}
-
-bool String::operator!=(const char* s) const {
-    return !(*this == s);
-}
-
-String operator+(const char* s1, const String& s2) {
-    String result(s1);
-    result.append(s2);
-    return result;
-}
-
-bool operator==(const char* s1, const String& s2) {
-    return s2 == s1;
-}
-
-bool operator!=(const char* s1, const String& s2) {
-    return s2 != s1;
-}
-
-bool StringFragment::operator==(StringFragment s) const {
-    if (fLength != s.fLength) {
-        return false;
-    }
-    return !memcmp(fChars, s.fChars, fLength);
-}
-
-bool StringFragment::operator!=(StringFragment s) const {
-    if (fLength != s.fLength) {
-        return true;
-    }
-    return memcmp(fChars, s.fChars, fLength);
-}
-
-bool StringFragment::operator==(const char* s) const {
-    for (size_t i = 0; i < fLength; ++i) {
-        if (fChars[i] != s[i]) {
-            return false;
-        }
-    }
-    return 0 == s[fLength];
-}
-
-bool StringFragment::operator!=(const char* s) const {
-    for (size_t i = 0; i < fLength; ++i) {
-        if (fChars[i] != s[i]) {
-            return true;
-        }
-    }
-    return 0 != s[fLength];
-}
-
-bool StringFragment::operator<(StringFragment other) const {
-    int comparison = strncmp(fChars, other.fChars, std::min(fLength, other.fLength));
-    if (comparison) {
-        return comparison < 0;
-    }
-    return fLength < other.fLength;
-}
-
-bool operator==(const char* s1, StringFragment s2) {
-    return s2 == s1;
-}
-
-bool operator!=(const char* s1, StringFragment s2) {
-    return s2 != s1;
-}
-
-String to_string(int32_t value) {
-    return SkSL::String::printf("%d", value);
-}
-
-String to_string(uint32_t value) {
-    return SkSL::String::printf("%u", value);
-}
-
-String to_string(int64_t value) {
-    std::stringstream buffer;
-    buffer << value;
-    return String(buffer.str().c_str());
-}
-
-String to_string(uint64_t value) {
-    std::stringstream buffer;
-    buffer << value;
-    return String(buffer.str().c_str());
-}
-
-String to_string(double value) {
+std::string skstd::to_string(double value) {
 #if defined(STARBOARD)
     std::string s = base::NumberToString(value);
     bool needsDotZero = true;
@@ -243,7 +40,7 @@ String to_string(double value) {
     if (s.size() > 0 && s[0] == '.') {
       s = "0" + s;
     }
-    return String(s.c_str());
+    return std::string(s.c_str());
 #else
     std::stringstream buffer;
     buffer.imbue(std::locale::classic());
@@ -261,43 +58,63 @@ String to_string(double value) {
     if (needsDotZero) {
         buffer << ".0";
     }
-    return String(buffer.str().c_str());
+    return buffer.str();
 #endif
 }
 
-SKSL_INT stoi(const String& s) {
-    char* p;
-    SkDEBUGCODE(errno = 0;)
-    long result = strtoul(s.c_str(), &p, 0);
-    SkASSERT(*p == 0);
-    SkASSERT(!errno);
-    return result;
-}
-
-SKSL_FLOAT stod(const String& s) {
-#if defined(STARBOARD)
-    double d;
-    bool res= base::StringToDouble(s.c_str(), &d);
-    SkASSERT(res);
-    return d;
-#else
-    double result;
-    std::string str(s.c_str(), s.size());
+bool SkSL::stod(std::string_view s, SKSL_FLOAT* value) {
+    std::string str(s.data(), s.size());
     std::stringstream buffer(str);
     buffer.imbue(std::locale::classic());
-    buffer >> result;
-    SkASSERT(!buffer.fail());
-    return result;
-#endif
+    buffer >> *value;
+    return !buffer.fail() && std::isfinite(*value);
 }
 
-long stol(const String& s) {
+bool SkSL::stoi(std::string_view s, SKSL_INT* value) {
+    if (s.empty()) {
+        return false;
+    }
+    char suffix = s.back();
+    if (suffix == 'u' || suffix == 'U') {
+        s.remove_suffix(1);
+    }
+    std::string str(s);  // s is not null-terminated
+    const char* strEnd = str.data() + str.length();
     char* p;
-    SkDEBUGCODE(errno = 0;)
-    long result = strtoul(s.c_str(), &p, 0);
-    SkASSERT(*p == 0);
-    SkASSERT(!errno);
+    errno = 0;
+    unsigned long long result = strtoull(str.data(), &p, /*base=*/0);
+    *value = static_cast<SKSL_INT>(result);
+    return p == strEnd && errno == 0 && result <= 0xFFFFFFFF;
+}
+
+std::string SkSL::String::printf(const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    std::string result;
+    vappendf(&result, fmt, args);
+    va_end(args);
     return result;
 }
 
-} // namespace
+void SkSL::String::appendf(std::string *str, const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    vappendf(str, fmt, args);
+    va_end(args);
+}
+
+void SkSL::String::vappendf(std::string *str, const char* fmt, va_list args) {
+    #define BUFFER_SIZE 256
+    char buffer[BUFFER_SIZE];
+    va_list reuse;
+    va_copy(reuse, args);
+    size_t size = vsnprintf(buffer, BUFFER_SIZE, fmt, args);
+    if (BUFFER_SIZE >= size + 1) {
+        str->append(buffer, size);
+    } else {
+        auto newBuffer = std::unique_ptr<char[]>(new char[size + 1]);
+        vsnprintf(newBuffer.get(), size + 1, fmt, reuse);
+        str->append(newBuffer.get(), size);
+    }
+    va_end(reuse);
+}

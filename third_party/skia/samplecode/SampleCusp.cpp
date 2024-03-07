@@ -144,12 +144,14 @@ protected:
         bool split;
         path = cusp(pts, pp, split, 8000, .125);
         auto debugOutCubic = [](const SkPoint* pts) {
-            return false; // comment out to capture stream of cusp'd cubics in stdout
-            SkDebugf("{{");
-            for (int i = 0; i < 4; ++i) {
-                SkDebugf("{0x%08x,0x%08x},", SkFloat2Bits(pts[i].fX), SkFloat2Bits(pts[i].fY));
+            if ((false)) { // enable to capture stream of cusp'd cubics in stdout
+                SkDebugf("{{");
+                for (int i = 0; i < 4; ++i) {
+                    SkDebugf("{0x%08x,0x%08x},", SkFloat2Bits(pts[i].fX), SkFloat2Bits(pts[i].fY));
+                }
+                SkDebugf("}},\n");
             }
-            SkDebugf("}},\n");
+            return false;
         };
         if (split) {
             debugOutCubic(&pp[0]);
@@ -162,7 +164,6 @@ protected:
         // draw time to make it easier to guess when the bad cubic was drawn
         std::string timeStr = std::to_string((float) (curTime - start) / 1000.f);
         canvas->drawSimpleText(timeStr.c_str(), timeStr.size(), SkTextEncoding::kUTF8, 20, 20, SkFont(), SkPaint());
-        SkDebugf("");
     }
 
     bool onAnimate(double nanos) override {
@@ -175,7 +176,7 @@ protected:
 
 private:
 
-    typedef Sample INHERITED;
+    using INHERITED = Sample;
 };
 
 DEF_SAMPLE( return new CuspView(); )

@@ -156,7 +156,12 @@ bool Connect(int *out_sock, const std::string &hostname_and_port) {
 
   int ret = getaddrinfo(hostname.c_str(), port.c_str(), &hint, &result);
   if (ret != 0) {
-    fprintf(stderr, "getaddrinfo returned: %s\n", gai_strerror(ret));
+#if defined(OPENSSL_WINDOWS)
+    const char *error = gai_strerrorA(ret);
+#else
+    const char *error = gai_strerror(ret);
+#endif
+    fprintf(stderr, "getaddrinfo returned: %s\n", error);
     return false;
   }
 
@@ -301,13 +306,13 @@ void PrintConnectionInfo(BIO *bio, const SSL *ssl) {
   const uint8_t *next_proto;
   unsigned next_proto_len;
   SSL_get0_next_proto_negotiated(ssl, &next_proto, &next_proto_len);
-  BIO_printf(bio, "  Next protocol negotiated: %.*s\n", next_proto_len,
-             next_proto);
+  BIO_printf(bio, "  Next protocol negotiated: %.*s\n",
+             static_cast<int>(next_proto_len), next_proto);
 
   const uint8_t *alpn;
   unsigned alpn_len;
   SSL_get0_alpn_selected(ssl, &alpn, &alpn_len);
-  BIO_printf(bio, "  ALPN protocol: %.*s\n", alpn_len, alpn);
+  BIO_printf(bio, "  ALPN protocol: %.*s\n", static_cast<int>(alpn_len), alpn);
 
   const char *host_name = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
   if (host_name != nullptr && SSL_is_server(ssl)) {
@@ -329,6 +334,9 @@ void PrintConnectionInfo(BIO *bio, const SSL *ssl) {
   BIO_printf(
       bio, "  Early data: %s\n",
       (SSL_early_data_accepted(ssl) || SSL_in_early_data(ssl)) ? "yes" : "no");
+
+  BIO_printf(bio, "  Encrypted ClientHello: %s\n",
+             SSL_ech_accepted(ssl) ? "yes" : "no");
 
   // Print the server cert subject and issuer names.
   bssl::UniquePtr<X509> peer(SSL_get_peer_certificate(ssl));

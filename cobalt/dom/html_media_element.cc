@@ -130,6 +130,7 @@ bool OriginIsSafe(loader::RequestMode request_mode, const GURL& resource_url,
 
 HTMLMediaElement::HTMLMediaElement(Document* document, base::Token tag_name)
     : HTMLElement(document, tag_name),
+      max_video_input_size_(0),
       load_state_(kWaitingForSource),
       ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
       playback_rate_(1.f),
@@ -982,11 +983,6 @@ void HTMLMediaElement::MediaLoadingFailed(WebMediaPlayer::NetworkState error,
     MediaEngineError(new MediaError(
         MediaError::kMediaErrDecode,
         message.empty() ? "Media loading failed with decode error." : message));
-  } else if (error == WebMediaPlayer::kNetworkStateCapabilityChangedError) {
-    MediaEngineError(new MediaError(
-        MediaError::kMediaErrCapabilityChanged,
-        message.empty() ? "Media loading failed with capability changed error."
-                        : message));
   } else if ((error == WebMediaPlayer::kNetworkStateFormatError ||
               error == WebMediaPlayer::kNetworkStateNetworkError) &&
              load_state_ == kLoadingFromSrcAttr) {
@@ -1230,7 +1226,6 @@ void HTMLMediaElement::SetNetworkState(WebMediaPlayer::NetworkState state) {
     case WebMediaPlayer::kNetworkStateFormatError:
     case WebMediaPlayer::kNetworkStateNetworkError:
     case WebMediaPlayer::kNetworkStateDecodeError:
-    case WebMediaPlayer::kNetworkStateCapabilityChangedError:
       NOTREACHED() << "Passed SetNetworkState an error state";
       break;
   }
@@ -1244,7 +1239,6 @@ void HTMLMediaElement::SetNetworkError(WebMediaPlayer::NetworkState state,
     case WebMediaPlayer::kNetworkStateFormatError:
     case WebMediaPlayer::kNetworkStateNetworkError:
     case WebMediaPlayer::kNetworkStateDecodeError:
-    case WebMediaPlayer::kNetworkStateCapabilityChangedError:
       MediaLoadingFailed(state, message);
       break;
     case WebMediaPlayer::kNetworkStateEmpty:
@@ -1665,6 +1659,10 @@ std::string HTMLMediaElement::MaxVideoCapabilities() const {
   return max_video_capabilities_;
 }
 
+int HTMLMediaElement::MaxVideoInputSize() const {
+  return max_video_input_size_;
+}
+
 bool HTMLMediaElement::PreferDecodeToTexture() {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::PreferDecodeToTexture()");
 
@@ -1758,6 +1756,21 @@ void HTMLMediaElement::SetMaxVideoCapabilities(
             << max_video_capabilities_ << "\" to \"" << max_video_capabilities
             << "\"";
   max_video_capabilities_ = max_video_capabilities;
+}
+
+void HTMLMediaElement::SetMaxVideoInputSize(
+    unsigned int max_video_input_size,
+    script::ExceptionState* exception_state) {
+  if (GetAttribute("src").value_or("").length() > 0) {
+    LOG(WARNING) << "Cannot set max_video_input_size after src is defined.";
+    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                             exception_state);
+    return;
+  }
+
+  LOG(INFO) << "max_video_input_size is changed from " << max_video_input_size_
+            << " to " << max_video_input_size;
+  max_video_input_size_ = static_cast<int>(max_video_input_size);
 }
 
 }  // namespace dom

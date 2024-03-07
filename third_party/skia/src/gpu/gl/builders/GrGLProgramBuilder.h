@@ -21,7 +21,7 @@ class GrFragmentProcessor;
 class GrGLContextInfo;
 class GrProgramDesc;
 class GrGLSLShaderBuilder;
-class GrShaderCaps;
+struct GrShaderCaps;
 
 struct GrGLPrecompiledProgram {
     GrGLPrecompiledProgram(GrGLuint programID = 0,
@@ -40,48 +40,47 @@ public:
      * The program implements what is specified in the stages given as input.
      * After successful generation, the builder result objects are available
      * to be used.
-     * This function may modify the GrProgramDesc by setting the surface origin
-     * key to 0 (unspecified) if it turns out the program does not care about
-     * the surface origin.
      * If a GL program has already been created, the program ID and inputs can
      * be supplied to skip the shader compilation.
-     * @return true if generation was successful.
+     * @return the created program if generation was successful.
      */
-    static GrGLProgram* CreateProgram(GrRenderTarget*,
-                                      const GrProgramInfo&,
-                                      GrProgramDesc*,
-                                      GrGLGpu*,
-                                      const GrGLPrecompiledProgram* = nullptr);
+    static sk_sp<GrGLProgram> CreateProgram(GrDirectContext*,
+                                            const GrProgramDesc&,
+                                            const GrProgramInfo&,
+                                            const GrGLPrecompiledProgram* = nullptr);
 
-    static bool PrecompileProgram(GrGLPrecompiledProgram*, GrGLGpu*, const SkData&);
+    static bool PrecompileProgram(GrDirectContext*, GrGLPrecompiledProgram*, const SkData&);
 
     const GrCaps* caps() const override;
 
     GrGLGpu* gpu() const { return fGpu; }
 
+    SkSL::Compiler* shaderCompiler() const override;
+
 private:
-    GrGLProgramBuilder(GrGLGpu*, GrRenderTarget*, const GrProgramInfo&, GrProgramDesc*);
+    GrGLProgramBuilder(GrGLGpu*, const GrProgramDesc&, const GrProgramInfo&);
 
     void addInputVars(const SkSL::Program::Inputs& inputs);
-    bool compileAndAttachShaders(const SkSL::String& glsl,
+    bool compileAndAttachShaders(const std::string& glsl,
                                  GrGLuint programId,
                                  GrGLenum type,
                                  SkTDArray<GrGLuint>* shaderIds,
                                  GrContextOptions::ShaderErrorHandler* errorHandler);
 
-    void computeCountsAndStrides(GrGLuint programID, const GrPrimitiveProcessor& primProc,
+    void computeCountsAndStrides(GrGLuint programID,
+                                 const GrGeometryProcessor&,
                                  bool bindAttribLocations);
     void storeShaderInCache(const SkSL::Program::Inputs& inputs, GrGLuint programID,
-                            const SkSL::String shaders[], bool isSkSL,
+                            const std::string shaders[], bool isSkSL,
                             SkSL::Program::Settings* settings);
-    GrGLProgram* finalize(const GrGLPrecompiledProgram*);
+    sk_sp<GrGLProgram> finalize(const GrGLPrecompiledProgram*);
     void bindProgramResourceLocations(GrGLuint programID);
     bool checkLinkStatus(GrGLuint programID, GrContextOptions::ShaderErrorHandler* errorHandler,
-                         SkSL::String* sksl[], const SkSL::String glsl[]);
+                         std::string* sksl[], const std::string glsl[]);
     void resolveProgramResourceLocations(GrGLuint programID, bool force);
 
     // Subclasses create different programs
-    GrGLProgram* createProgram(GrGLuint programID);
+    sk_sp<GrGLProgram> createProgram(GrGLuint programID);
 
     GrGLSLUniformHandler* uniformHandler() override { return &fUniformHandler; }
     const GrGLSLUniformHandler* uniformHandler() const override { return &fUniformHandler; }
@@ -103,6 +102,6 @@ private:
     // (all remaining bytes) char[] binary
     sk_sp<SkData> fCached;
 
-    typedef GrGLSLProgramBuilder INHERITED;
+    using INHERITED = GrGLSLProgramBuilder;
 };
 #endif

@@ -25,8 +25,19 @@ extern "C" {
 // Random number generation.
 
 
-// RAND_bytes writes |len| bytes of random data to |buf| and returns one.
+// RAND_bytes writes |len| bytes of random data to |buf| and returns one. In the
+// event that sufficient random data can not be obtained, |abort| is called.
 OPENSSL_EXPORT int RAND_bytes(uint8_t *buf, size_t len);
+
+// RAND_get_system_entropy_for_custom_prng writes |len| bytes of random data
+// from a system entropy source to |buf|. The maximum length of entropy which
+// may be requested is 256 bytes. If more than 256 bytes of data is requested,
+// or if sufficient random data can not be obtained, |abort| is called.
+// |RAND_bytes| should normally be used instead of this function. This function
+// should only be used for seed values or where |malloc| should not be called
+// from BoringSSL. This function is not FIPS compliant.
+OPENSSL_EXPORT void RAND_get_system_entropy_for_custom_prng(uint8_t *buf,
+                                                            size_t len);
 
 // RAND_cleanup frees any resources used by the RNG. This is not safe if other
 // threads might still be calling |RAND_bytes|.
@@ -97,11 +108,14 @@ struct rand_meth_st {
 // RAND_SSLeay returns a pointer to a dummy |RAND_METHOD|.
 OPENSSL_EXPORT RAND_METHOD *RAND_SSLeay(void);
 
+// RAND_OpenSSL returns a pointer to a dummy |RAND_METHOD|.
+OPENSSL_EXPORT RAND_METHOD *RAND_OpenSSL(void);
+
 // RAND_get_rand_method returns |RAND_SSLeay()|.
 OPENSSL_EXPORT const RAND_METHOD *RAND_get_rand_method(void);
 
-// RAND_set_rand_method does nothing.
-OPENSSL_EXPORT void RAND_set_rand_method(const RAND_METHOD *);
+// RAND_set_rand_method returns one.
+OPENSSL_EXPORT int RAND_set_rand_method(const RAND_METHOD *);
 
 
 #if defined(__cplusplus)

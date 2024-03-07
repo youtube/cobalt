@@ -10,6 +10,8 @@ add_library(
   d1_srtp.cc
   dtls_method.cc
   dtls_record.cc
+  encrypted_client_hello.cc
+  extensions.cc
   handoff.cc
   handshake.cc
   handshake_client.cc
@@ -32,7 +34,6 @@ add_library(
   ssl_versions.cc
   ssl_x509.cc
   t1_enc.cc
-  t1_lib.cc
   tls_method.cc
   tls_record.cc
   tls13_both.cc
@@ -40,6 +41,16 @@ add_library(
   tls13_enc.cc
   tls13_server.cc
 )
+target_include_directories(ssl INTERFACE
+  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+install(TARGETS ssl EXPORT OpenSSLTargets
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+set_property(TARGET ssl PROPERTY EXPORT_NAME SSL)
 
 add_dependencies(ssl global_target)
 

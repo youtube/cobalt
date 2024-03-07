@@ -11,24 +11,26 @@
 #include "fuzz/Fuzz.h"
 
 bool FuzzSKSL2Metal(sk_sp<SkData> bytes) {
-    SkSL::Compiler compiler;
-    SkSL::String output;
+    std::unique_ptr<SkSL::ShaderCaps> caps = SkSL::ShaderCapsFactory::Default();
+    SkSL::Compiler compiler(caps.get());
     SkSL::Program::Settings settings;
-    sk_sp<GrShaderCaps> caps = SkSL::ShaderCapsFactory::Default();
-    settings.fCaps = caps.get();
     std::unique_ptr<SkSL::Program> program = compiler.convertProgram(
-                                                    SkSL::Program::kFragment_Kind,
-                                                    SkSL::String((const char*) bytes->data(),
-                                                                 bytes->size()),
+                                                    SkSL::ProgramKind::kFragment,
+                                                    std::string((const char*) bytes->data(),
+                                                                bytes->size()),
                                                     settings);
+    std::string output;
     if (!program || !compiler.toMetal(*program, &output)) {
         return false;
     }
     return true;
 }
 
-#if defined(IS_FUZZING_WITH_LIBFUZZER)
+#if defined(SK_BUILD_FOR_LIBFUZZER)
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
+    if (size > 3000) {
+        return 0;
+    }
     auto bytes = SkData::MakeWithoutCopy(data, size);
     FuzzSKSL2Metal(bytes);
     return 0;

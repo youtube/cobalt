@@ -7,15 +7,12 @@
 #if defined(USE_SIMULATOR)
 
 #include <stdlib.h>
-
 #include <cmath>
 #include <cstdarg>
 #include <type_traits>
 
 #include "src/base/lazy-instance.h"
 #include "src/base/overflowing-math.h"
-#include "src/base/platform/platform.h"
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/arm64/decoder-arm64-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
@@ -286,7 +283,7 @@ uintptr_t Simulator::PopAddress() {
 uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
   // The simulator uses a separate JS stack. If we have exhausted the C stack,
   // we also drop down the JS limit to reflect the exhaustion on the JS stack.
-  if (base::Stack::GetCurrentStackPosition() < c_limit) {
+  if (GetCurrentStackPosition() < c_limit) {
     return get_sp();
   }
 
@@ -3594,10 +3591,9 @@ void Simulator::VisitException(Instruction* instr) {
         uint32_t code;
         uint32_t parameters;
 
-        memcpy(&code, pc_->InstructionAtOffset(kDebugCodeOffset),
-                     sizeof(code));
+        memcpy(&code, pc_->InstructionAtOffset(kDebugCodeOffset), sizeof(code));
         memcpy(&parameters, pc_->InstructionAtOffset(kDebugParamsOffset),
-                     sizeof(parameters));
+               sizeof(parameters));
         char const* message = reinterpret_cast<char const*>(
             pc_->InstructionAtOffset(kDebugMessageOffset));
 
@@ -5818,7 +5814,7 @@ void Simulator::DoPrintf(Instruction* instr) {
   STATIC_ASSERT(sizeof(*instr) == 1);
   memcpy(&arg_count, instr + kPrintfArgCountOffset, sizeof(arg_count));
   memcpy(&arg_pattern_list, instr + kPrintfArgPatternListOffset,
-               sizeof(arg_pattern_list));
+         sizeof(arg_pattern_list));
 
   DCHECK_LE(arg_count, kPrintfMaxArgCount);
   DCHECK_EQ(arg_pattern_list >> (kPrintfArgPatternBits * arg_count), 0);

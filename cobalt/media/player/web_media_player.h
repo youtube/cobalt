@@ -51,7 +51,6 @@ class WebMediaPlayer {
     kNetworkStateFormatError,
     kNetworkStateNetworkError,
     kNetworkStateDecodeError,
-    kNetworkStateCapabilityChangedError,
   };
 
   enum ReadyState {
@@ -217,6 +216,7 @@ class WebMediaPlayerClient {
   virtual void SourceOpened(::media::ChunkDemuxer* chunk_demuxer) = 0;
   virtual std::string SourceURL() const = 0;
   virtual std::string MaxVideoCapabilities() const = 0;
+  virtual int MaxVideoInputSize() const = 0;
 
   // Clients should implement this in order to indicate a preference for whether
   // a video should be decoded to a texture or through a punch out system.  If
