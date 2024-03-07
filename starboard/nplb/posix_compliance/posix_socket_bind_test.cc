@@ -14,7 +14,6 @@
 
 // Here we are not trying to do anything fancy, just to really sanity check that
 // this is hooked up to something.
-#if SB_API_VERSION >= 16
 
 #include <ifaddrs.h>
 #include <netinet/in.h>
@@ -175,4 +174,3 @@ TEST(PosixSocketBindTest, SunnyDayLocalInterface) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
-#endif  // SB_API_VERSION >= 16

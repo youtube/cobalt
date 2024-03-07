@@ -414,32 +414,33 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbWindowShowOnScreenKeyboard);
   REGISTER_SYMBOL(SbWindowUpdateOnScreenKeyboardSuggestions);
 
-#if SB_API_VERSION >= 16
-  // POSIX APIs
   REGISTER_SYMBOL(accept);
   REGISTER_SYMBOL(bind);
-  REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(close);
   REGISTER_SYMBOL(connect);
   REGISTER_SYMBOL(fcntl);
-  REGISTER_SYMBOL(free);
   REGISTER_SYMBOL(freeaddrinfo);
   REGISTER_SYMBOL(freeifaddrs);
   REGISTER_SYMBOL(getaddrinfo);
   REGISTER_SYMBOL(getifaddrs);
   REGISTER_SYMBOL(getsockname);
   REGISTER_SYMBOL(listen);
-  REGISTER_SYMBOL(malloc);
-  REGISTER_SYMBOL(mprotect);
-  REGISTER_SYMBOL(msync);
-  REGISTER_SYMBOL(munmap);
   REGISTER_SYMBOL(open);
-  REGISTER_SYMBOL(posix_memalign);
-  REGISTER_SYMBOL(realloc);
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(send);
   REGISTER_SYMBOL(setsockopt);
   REGISTER_SYMBOL(socket);
+
+#if SB_API_VERSION >= 16
+  // POSIX APIs
+  REGISTER_SYMBOL(calloc);
+  REGISTER_SYMBOL(free);
+  REGISTER_SYMBOL(malloc);
+  REGISTER_SYMBOL(mprotect);
+  REGISTER_SYMBOL(msync);
+  REGISTER_SYMBOL(munmap);
+  REGISTER_SYMBOL(posix_memalign);
+  REGISTER_SYMBOL(realloc);
   REGISTER_SYMBOL(snprintf);
   REGISTER_SYMBOL(sprintf);
   REGISTER_SYMBOL(vfwprintf);
