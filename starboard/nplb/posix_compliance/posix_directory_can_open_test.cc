@@ -36,9 +36,8 @@ TEST(PosixDirectoryCanOpenTest, SunnyDay) {
 
 TEST(PosixDirectoryCanOpenTest, SunnyDayStaticContent) {
   for (auto dir_path : GetFileTestsDirectoryPaths()) {
-    struct stat file_info;
-    stat(dir_path.c_str(), &file_info);
-    EXPECT_TRUE(S_ISDIR(file_info.st_mode)) << "Can't open: " << dir_path;
+    EXPECT_TRUE(SbDirectoryCanOpen(dir_path.c_str()))
+        << "Can't open: " << dir_path;
   }
 }
 

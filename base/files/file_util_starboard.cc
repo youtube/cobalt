@@ -233,6 +233,7 @@ bool CopyFile(const FilePath &from_path, const FilePath &to_path) {
 
 bool PathExists(const FilePath &path) {
   AssertBlockingAllowed();
+  LOG(INFO) << "Android file path (file_util_starboard)";
   struct stat file_info;
   return stat(path.value().c_str(), &file_info) == 0;
 }
