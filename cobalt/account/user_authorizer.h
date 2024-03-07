@@ -18,6 +18,7 @@
 #include <memory>
 #include <string>
 
+#include "base/macros.h"
 #include "base/optional.h"
 #include "base/time/time.h"
 
