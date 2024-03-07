@@ -316,7 +316,7 @@ component("partition_alloc") {
   ]
   deps = []
   public_configs = []
-  if (is_android) {
+  if (is_android && !use_cobalt_customizations) {
     # tagging.cc requires __arm_mte_set_* functions.
     deps += [ "//third_party/android_ndk:cpu_features" ]
   }

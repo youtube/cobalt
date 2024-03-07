@@ -1239,7 +1239,7 @@ component("base") {
   }
 
   # Android.
-  if (is_android) {
+  if (is_android && !use_cobalt_customizations) {
     sources += [
       "android/android_hardware_buffer_compat.cc",
       "android/android_hardware_buffer_compat.h",
@@ -1402,7 +1402,7 @@ component("base") {
     # Make jni.h available.
     configs += [ "//third_party/jdk" ]
   }
-  if (is_android || is_robolectric) {
+  if ((is_android || is_robolectric) && !use_cobalt_customizations) {
     sources += [
       "android/base_jni_onload.cc",
       "android/base_jni_onload.h",
@@ -1689,7 +1689,7 @@ component("base") {
       ]
     }
 
-    if (is_android) {
+    if (is_android && !is_starboard) {
       sources += [
         "base_paths_android.cc",
         "base_paths_android.h",
@@ -2190,7 +2190,7 @@ component("base") {
       ]
     }
   } else {
-    if (!is_android) {
+    if (!is_android || is_starboard) {
       sources -= [
         "linux_util.cc",
         "linux_util.h",
@@ -2374,7 +2374,7 @@ component("base") {
 
   # On ARC++-enabled ChromeOS system, we need TimeTicks::FromUptimeMillis to
   # interpret time values sent from Android container.
-  if (is_android || is_chromeos_ash) {
+  if ((is_android || is_chromeos_ash) && !is_starboard) {
     sources += [ "time/time_android.cc" ]
   }
 
@@ -2947,7 +2947,7 @@ if ((is_win && (current_cpu == "x64" || current_cpu == "arm64")) || is_mac ||
   }
 }
 
-if (is_android && (current_cpu == "arm" || current_cpu == "arm64")) {
+if (is_android && (current_cpu == "arm" || current_cpu == "arm64") && !use_cobalt_customizations) {
   # Use separate library for
   # |LibunwindstackUnwinderAndroidTest.ReparsesMapsOnNewDynamicLibraryLoad|
   # testcase. We can't use the existing `base_profiler_test_support_library`
@@ -2961,7 +2961,7 @@ if (is_android && (current_cpu == "arm" || current_cpu == "arm64")) {
   }
 }
 
-if (is_android) {
+if (is_android && !use_cobalt_customizations) {
   source_set("native_unwinder_android") {
     # This target is intended to be used only within the stack_unwinder dynamic
     # feature module, to avoid binary size increase in Chrome due to the
@@ -2996,7 +2996,7 @@ source_set("base_stack_sampling_profiler_test_util") {
     "//base/test:test_support",
     "//testing/gtest",
   ]
-  if (is_android) {
+  if (is_android && !use_cobalt_customizations) {
     sources += [
       "profiler/stack_sampling_profiler_java_test_util.cc",
       "profiler/stack_sampling_profiler_java_test_util.h",
@@ -3783,7 +3783,7 @@ test("base_unittests") {
     defines += [ "SYSTEM_NATIVE_UTF8" ]
   }
 
-  if (is_android) {
+  if (is_android && !use_cobalt_customizations) {
     # Add unwind tables in base_unittests_apk test apk. The unwind tables are
     # generated from debug info in the binary. Removing "default_symbols" and
     # adding symbols config removes the "strip_debug" config that strips the
@@ -4101,7 +4101,7 @@ test("base_unittests") {
     sources -= [ "files/file_path_watcher_unittest.cc" ]
   }
 
-  if (is_android) {
+  if (is_android && !use_cobalt_customizations) {
     deps += [ "//testing/android/native_test:native_test_native_code" ]
     sources += [
       "debug/elf_reader_unittest.cc",
@@ -4255,7 +4255,7 @@ if (enable_nocompile_tests) {
   }
 }
 
-if (is_android || is_robolectric) {
+if ((is_android || is_robolectric) && !use_cobalt_customizations) {
   generate_jni("base_jni_headers") {
     sources = [
       "android/java/src/org/chromium/base/ApkAssets.java",
@@ -4317,7 +4317,7 @@ if (is_android || is_robolectric) {
   }
 }  # is_android || is_robolectric
 
-if (is_android) {
+if (is_android && !use_cobalt_customizations) {
   java_library("jni_java") {
     supports_android = true
     sources = [

@@ -1076,7 +1076,7 @@ component("net") {
     sources += [
       "base/file_stream_context_starboard.cc",
     ]
-    if (sb_is_modular) {
+    if (sb_is_modular || is_android) {
       # TODO: Either always build or don't build with this.
       sources -= [ "disk_cache/disk_cache.cc" ]
     }
@@ -1177,7 +1177,7 @@ component("net") {
     deps += [ "//starboard:starboard_group" ]
   }
 
-  if (is_android) {
+  if (is_android && !is_starboard) {
     sources += [
       "android/android_http_util.cc",
       "android/cert_verify_result_android.cc",
@@ -1735,7 +1735,7 @@ source_set("net_deps") {
     public_configs += [ "//build/linux:gio_config" ]
   }
 
-  if (is_android) {
+  if (is_android && !use_cobalt_customizations) {
     public_deps += [ ":net_jni_headers" ]
   }
 
@@ -1748,7 +1748,7 @@ source_set("net_deps") {
   }
 
   if (use_platform_icu_alternatives) {
-    if (is_android) {
+    if (is_android && !use_cobalt_customizations) {
       public_deps += [ ":net_jni_headers" ]
     }
   } else {
@@ -1795,7 +1795,7 @@ source_set("net_public_deps") {
   ]
 }
 
-if (is_android) {
+if (is_android && !use_cobalt_customizations) {
   java_cpp_enum("effective_connection_type_java") {
     sources = [ "//net/nqe/effective_connection_type.h" ]
   }
@@ -2371,7 +2371,7 @@ if ((is_linux || is_chromeos || is_mac) && !use_cobalt_customizations) {
   }
 }
 
-if (is_android) {
+if (is_android && !use_cobalt_customizations) {
   generate_jni("net_jni_headers") {
     sources = [
       "android/java/src/org/chromium/net/AndroidCertVerifyResult.java",
@@ -2899,7 +2899,7 @@ test("net_unittests") {
     ]
   }
 
-  if (is_android) {
+  if (is_android && !use_cobalt_customizations) {
     sources += [
       "android/dummy_spnego_authenticator.cc",
       "android/dummy_spnego_authenticator.h",
