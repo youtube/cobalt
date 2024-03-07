@@ -79,6 +79,7 @@ static_library("shaders") {
 
   deps = [
     ":create_shader_classes",
+    "//base",
     "//starboard:starboard_headers_only",
   ]
 }
