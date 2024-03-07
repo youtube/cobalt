@@ -21,7 +21,7 @@
 #include "src/sksl/ir/SkSLPostfixExpression.h"
 #include "src/sksl/ir/SkSLPrefixExpression.h"
 
-#include "math.h"
+#include <math.h>
 
 #if !defined(SKSL_STANDALONE) && SK_SUPPORT_GPU
 #include "src/gpu/glsl/GrGLSLFragmentShaderBuilder.h"
@@ -164,7 +164,7 @@ DSLExpression DSLExpression::a(PositionInfo pos) {
     return Swizzle(std::move(*this), A, pos);
 }
 
-DSLExpression DSLExpression::field(skstd::string_view name, PositionInfo pos) {
+DSLExpression DSLExpression::field(std::string_view name, PositionInfo pos) {
     return DSLExpression(FieldAccess::Convert(ThreadContext::Context(),
             *ThreadContext::SymbolTable(), this->release(), name), pos);
 }
@@ -332,7 +332,7 @@ DSLExpression DSLPossibleExpression::a(PositionInfo pos) {
     return DSLExpression(this->release()).a(pos);
 }
 
-DSLExpression DSLPossibleExpression::field(skstd::string_view name, PositionInfo pos) {
+DSLExpression DSLPossibleExpression::field(std::string_view name, PositionInfo pos) {
     return DSLExpression(this->release()).field(name, pos);
 }
 

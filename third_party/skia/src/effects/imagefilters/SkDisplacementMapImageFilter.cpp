@@ -22,6 +22,7 @@
 #include "src/gpu/GrRecordingContextPriv.h"
 #include "src/gpu/GrTexture.h"
 #include "src/gpu/GrTextureProxy.h"
+#include "src/gpu/KeyBuilder.h"
 #include "src/gpu/SkGr.h"
 #include "src/gpu/SurfaceFillContext.h"
 #include "src/gpu/effects/GrTextureEffect.h"
@@ -175,7 +176,7 @@ private:
 
     std::unique_ptr<ProgramImpl> onMakeProgramImpl() const override;
 
-    void onAddToKey(const GrShaderCaps&, GrProcessorKeyBuilder*) const override;
+    void onAddToKey(const GrShaderCaps&, skgpu::KeyBuilder*) const override;
 
     bool onIsEqual(const GrFragmentProcessor&) const override;
 
@@ -449,7 +450,7 @@ GrDisplacementMapEffect::onMakeProgramImpl() const {
     return std::make_unique<Impl>();
 }
 
-void GrDisplacementMapEffect::onAddToKey(const GrShaderCaps& caps, GrProcessorKeyBuilder* b) const {
+void GrDisplacementMapEffect::onAddToKey(const GrShaderCaps& caps, skgpu::KeyBuilder* b) const {
     static constexpr int kChannelSelectorKeyBits = 2;  // Max value is 3, so 2 bits are required
 
     uint32_t xKey = static_cast<uint32_t>(fXChannelSelector);
@@ -531,7 +532,7 @@ void GrDisplacementMapEffect::Impl::emitCode(EmitArgs& args) {
     const GrDisplacementMapEffect& displacementMap = args.fFp.cast<GrDisplacementMapEffect>();
 
     fScaleUni = args.fUniformHandler->addUniform(&displacementMap, kFragment_GrShaderFlag,
-                                                 kHalf2_GrSLType, "Scale");
+                                                 SkSLType::kHalf2, "Scale");
     const char* scaleUni = args.fUniformHandler->getUniformCStr(fScaleUni);
 
     GrGLSLFPFragmentBuilder* fragBuilder = args.fFragBuilder;

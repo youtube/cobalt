@@ -157,7 +157,6 @@ source_idl_files = [
   "//cobalt/h5vcc/dial/dial_server.idl",
   "//cobalt/h5vcc/h5vcc.idl",
   "//cobalt/h5vcc/h5vcc_accessibility.idl",
-  "//cobalt/h5vcc/h5vcc_account_manager_internal.idl",
   "//cobalt/h5vcc/h5vcc_audio_config.idl",
   "//cobalt/h5vcc/h5vcc_audio_config_array.idl",
   "//cobalt/h5vcc/h5vcc_crash_log.idl",

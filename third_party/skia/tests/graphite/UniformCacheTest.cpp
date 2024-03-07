@@ -8,27 +8,28 @@
 #include "tests/Test.h"
 
 #include "experimental/graphite/include/Context.h"
-#include "experimental/graphite/include/private/GraphiteTypesPriv.h"
-#include "experimental/graphite/src/ContextUtils.h"
-#include "experimental/graphite/src/Recorder.h"
-#include "experimental/graphite/src/Uniform.h"
+#include "experimental/graphite/include/Recorder.h"
+#include "experimental/graphite/src/RecorderPriv.h"
 #include "experimental/graphite/src/UniformCache.h"
+#include "src/core/SkUniform.h"
+#include "src/core/SkUniformData.h"
 
 using namespace skgpu;
 
 namespace {
 
-sk_sp<UniformData> make_ud(int numUniforms, int dataSize) {
+std::unique_ptr<SkUniformBlock> make_ub(int numUniforms, int dataSize) {
     static constexpr int kMaxUniforms = 3;
-    static constexpr Uniform kUniforms[kMaxUniforms] {
-        {"point0",   SLType::kFloat2 },
-        {"point1",   SLType::kFloat2 },
-        {"point2",   SLType::kFloat2 },
+    static constexpr SkUniform kUniforms[kMaxUniforms] {
+        {"point0",   SkSLType::kFloat2 },
+        {"point1",   SkSLType::kFloat2 },
+        {"point2",   SkSLType::kFloat2 },
     };
 
     SkASSERT(numUniforms <= kMaxUniforms);
 
-    sk_sp<UniformData> ud = UniformData::Make(numUniforms, kUniforms, dataSize);
+    sk_sp<SkUniformData> ud = SkUniformData::Make(SkSpan<const SkUniform>(kUniforms, numUniforms),
+                                                  dataSize);
     for (int i = 0; i < numUniforms; ++i) {
         ud->offsets()[i] = i;
     }
@@ -36,53 +37,63 @@ sk_sp<UniformData> make_ud(int numUniforms, int dataSize) {
         ud->data()[i] = i % 255;
     }
 
-    return ud;
+    return std::make_unique<SkUniformBlock>(std::move(ud));
 }
 
 } // anonymous namespace
 
 DEF_GRAPHITE_TEST_FOR_CONTEXTS(UniformCacheTest, reporter, context) {
-    Recorder recorder(sk_ref_sp(context));
+    std::unique_ptr<Recorder> recorder = context->makeRecorder();
 
-    auto cache = recorder.uniformCache();
+    auto cache = recorder->priv().uniformCache();
 
     REPORTER_ASSERT(reporter, cache->count() == 0);
 
-    // Add a new unique UD
-    sk_sp<UniformData> result1;
+    // Nullptr should already be in the cache and return kInvalidUniformID
     {
-        sk_sp<UniformData> ud1 = make_ud(2, 16);
-        result1 = cache->findOrCreate(ud1);
-        REPORTER_ASSERT(reporter, result1->id() != UniformData::kInvalidUniformID);
-        REPORTER_ASSERT(reporter, ud1->id() == result1->id());
-        sk_sp<UniformData> lookup = cache->lookup(result1->id());
-        REPORTER_ASSERT(reporter, lookup->id() == result1->id());
+        uint32_t result0 = cache->insert(nullptr);
+        REPORTER_ASSERT(reporter, result0 == UniformCache::kInvalidUniformID);
+        REPORTER_ASSERT(reporter, cache->count() == 0);
+    }
+
+    // Add a new unique UB
+    SkUniformBlock* danglingUB1 = nullptr;
+    uint32_t result1;
+    {
+        std::unique_ptr<SkUniformBlock> ub1 = make_ub(2, 16);
+        danglingUB1 = ub1.get();
+        result1 = cache->insert(std::move(ub1));
+        REPORTER_ASSERT(reporter, result1 != UniformCache::kInvalidUniformID);
+        SkUniformBlock* lookup = cache->lookup(result1);
+        REPORTER_ASSERT(reporter, lookup == danglingUB1);
 
         REPORTER_ASSERT(reporter, cache->count() == 1);
     }
 
-    // Try to add a duplicate UD
+    // Try to add a duplicate UB
     {
-        sk_sp<UniformData> ud2 = make_ud(2, 16);
-        sk_sp<UniformData> result2 = cache->findOrCreate(ud2);
-        REPORTER_ASSERT(reporter, result2->id() != UniformData::kInvalidUniformID);
-        REPORTER_ASSERT(reporter, ud2->id() == UniformData::kInvalidUniformID);
-        REPORTER_ASSERT(reporter, result2->id() == result1->id());
-        sk_sp<UniformData> lookup = cache->lookup(result2->id());
-        REPORTER_ASSERT(reporter, lookup->id() == result2->id());
+        std::unique_ptr<SkUniformBlock> ub2 = make_ub(2, 16);
+        SkUniformBlock* danglingUB2 = ub2.get();
+        uint32_t result2 = cache->insert(std::move(ub2));
+        REPORTER_ASSERT(reporter, result2 != UniformCache::kInvalidUniformID);
+        REPORTER_ASSERT(reporter, result2 == result1);
+        SkUniformBlock* lookup = cache->lookup(result2);
+        REPORTER_ASSERT(reporter, lookup != danglingUB2);
+        REPORTER_ASSERT(reporter, lookup == danglingUB1);
 
         REPORTER_ASSERT(reporter, cache->count() == 1);
     }
 
-    // Add a second new unique UD
+    // Add a second new unique UB
     {
-        sk_sp<UniformData> ud3 = make_ud(3, 16);
-        sk_sp<UniformData> result3 = cache->findOrCreate(ud3);
-        REPORTER_ASSERT(reporter, result3->id() != UniformData::kInvalidUniformID);
-        REPORTER_ASSERT(reporter, ud3->id() == result3->id());
-        REPORTER_ASSERT(reporter, result3->id() != result1->id());
-        sk_sp<UniformData> lookup = cache->lookup(result3->id());
-        REPORTER_ASSERT(reporter, lookup->id() == result3->id());
+        std::unique_ptr<SkUniformBlock> ub3 = make_ub(3, 16);
+        SkUniformBlock* danglingUB3 = ub3.get();
+        uint32_t result3 = cache->insert(std::move(ub3));
+        REPORTER_ASSERT(reporter, result3 != UniformCache::kInvalidUniformID);
+        REPORTER_ASSERT(reporter, result3 != result1);
+        SkUniformBlock* lookup = cache->lookup(result3);
+        REPORTER_ASSERT(reporter, lookup == danglingUB3);
+        REPORTER_ASSERT(reporter, lookup != danglingUB1);
 
         REPORTER_ASSERT(reporter, cache->count() == 2);
     }

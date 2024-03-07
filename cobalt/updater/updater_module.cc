@@ -313,9 +313,8 @@ void UpdaterModule::Update() {
     // hours.
     kNextUpdateCheckHours = 24;
   }
-  base::task_runner_util::PostDelayedTask(
-      updater_thread_->task_runner(), FROM_HERE,
-      base::BindOnce(&UpdaterModule::Update, base::Unretained(this)),
+  updater_thread_->task_runner()->PostDelayedTask(
+      FROM_HERE, base::BindOnce(&UpdaterModule::Update, base::Unretained(this)),
       base::TimeDelta::FromHours(kNextUpdateCheckHours));
 }
 

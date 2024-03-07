@@ -33,7 +33,7 @@ std::unique_ptr<GrFragmentProcessor::ProgramImpl> GrMatrixEffect::onMakeProgramI
         void emitCode(EmitArgs& args) override {
             fMatrixVar = args.fUniformHandler->addUniform(&args.fFp,
                                                           kFragment_GrShaderFlag,
-                                                          kFloat3x3_GrSLType,
+                                                          SkSLType::kFloat3x3,
                                                           SkSL::SampleUsage::MatrixUniformName());
             args.fFragBuilder->codeAppendf("return %s;\n",
                                            this->invokeChildWithMatrix(0, args).c_str());
@@ -58,7 +58,7 @@ std::unique_ptr<GrFragmentProcessor::ProgramImpl> GrMatrixEffect::onMakeProgramI
     return std::make_unique<Impl>();
 }
 
-void GrMatrixEffect::onAddToKey(const GrShaderCaps& caps, GrProcessorKeyBuilder* b) const {}
+void GrMatrixEffect::onAddToKey(const GrShaderCaps& caps, skgpu::KeyBuilder* b) const {}
 
 bool GrMatrixEffect::onIsEqual(const GrFragmentProcessor& other) const {
     const GrMatrixEffect& that = other.cast<GrMatrixEffect>();

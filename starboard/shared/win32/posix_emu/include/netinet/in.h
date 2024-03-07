@@ -16,5 +16,6 @@
 #define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_NETINET_IN_H_
 
 #include <arpa/inet.h>
+#include <ws2tcpip.h>
 
 #endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_NETINET_IN_H_

@@ -43,7 +43,7 @@ def git_executable():
       A string suitable for passing to subprocess functions, or None.
   """
   envgit = os.environ.get('GIT_EXECUTABLE')
-  searchlist = ['git']
+  searchlist = ['git', 'git.bat']
   if envgit:
     searchlist.insert(0, envgit)
   with open(os.devnull, 'w') as devnull:
@@ -100,11 +100,14 @@ def is_git_toplevel(git, directory):
 
 
 def status(directory, commithash, change):
-  def truncate(s, length):
+  def truncate_beginning(s, length):
+    return s if len(s) <= length else '...' + s[-(length-3):]
+  def truncate_end(s, length):
     return s if len(s) <= length else s[:(length - 3)] + '...'
+
   dlen = 36
-  directory = truncate(directory, dlen)
-  commithash = truncate(commithash, 40)
+  directory = truncate_beginning(directory, dlen)
+  commithash = truncate_end(commithash, 40)
   symbol = '>' if change else '@'
   sys.stdout.write('%-*s %s %s\n' % (dlen, directory, symbol, commithash))
 
@@ -138,7 +141,7 @@ def git_checkout_to_directory(git, repo, commithash, directory, verbose):
 
   if not is_git_toplevel(git, directory):
     # if the directory exists, but isn't a git repo, you will modify
-    # the parent repostory, which isn't what you want.
+    # the parent repository, which isn't what you want.
     sys.stdout.write('%s\n  IS NOT TOP-LEVEL GIT DIRECTORY.\n' % directory)
     return
 
@@ -259,6 +262,9 @@ def main(argv):
   subprocess.check_call(
       [sys.executable,
        os.path.join(os.path.dirname(deps_file_path), 'bin', 'fetch-gn')])
+  subprocess.check_call(
+      [sys.executable,
+       os.path.join(os.path.dirname(deps_file_path), 'bin', 'activate-emsdk')])
   return 0
 
 

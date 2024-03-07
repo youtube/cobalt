@@ -72,6 +72,8 @@ public:
 
         if (this->bind(abuilder, jmask["f"], fFeather)) {
             fMaskFilter = sksg::BlurImageFilter::Make();
+            // Mask feathers don't repeat edge pixels.
+            fMaskFilter->setTileMode(SkTileMode::kDecal);
         }
     }
 
@@ -448,12 +450,11 @@ sk_sp<sksg::RenderNode> LayerBuilder::buildRenderTree(const AnimationBuilder& ab
         { nullptr                              ,                 0 },  // 'ty': 14 -> light
     };
 
-    const auto type = SkToSizeT(fType);
-    if (type >= SK_ARRAY_COUNT(gLayerBuildInfo)) {
+    if (fType < 0 || static_cast<size_t>(fType) >= SK_ARRAY_COUNT(gLayerBuildInfo)) {
         return nullptr;
     }
 
-    const auto& build_info = gLayerBuildInfo[type];
+    const auto& build_info = gLayerBuildInfo[fType];
 
     // Switch to the layer animator scope (which at this point holds transform-only animators).
     AnimationBuilder::AutoScope ascope(&abuilder, std::move(fLayerScope));

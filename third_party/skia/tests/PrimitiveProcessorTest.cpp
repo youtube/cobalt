@@ -21,6 +21,7 @@
 #include "src/gpu/GrMemoryPool.h"
 #include "src/gpu/GrOpFlushState.h"
 #include "src/gpu/GrProgramInfo.h"
+#include "src/gpu/KeyBuilder.h"
 #include "src/gpu/glsl/GrGLSLFragmentShaderBuilder.h"
 #include "src/gpu/glsl/GrGLSLVarying.h"
 #include "src/gpu/ops/GrMeshDrawOp.h"
@@ -94,7 +95,7 @@ private:
 
                 return std::make_unique<Impl>();
             }
-            void addToKey(const GrShaderCaps&, GrProcessorKeyBuilder* builder) const override {
+            void addToKey(const GrShaderCaps&, skgpu::KeyBuilder* builder) const override {
                 builder->add32(fNumAttribs);
             }
 
@@ -109,13 +110,13 @@ private:
                     // component count to fit within the limits for iOS Metal.
                     if (i & 0x1) {
                         fAttributes[i] = {fAttribNames[i].c_str(), kFloat_GrVertexAttribType,
-                                                                   kFloat_GrSLType};
+                                                                   SkSLType::kFloat};
                     } else {
                         fAttributes[i] = {fAttribNames[i].c_str(), kFloat2_GrVertexAttribType,
-                                                                   kFloat2_GrSLType};
+                                                                   SkSLType::kFloat2};
                     }
                 }
-                this->setVertexAttributes(fAttributes.get(), numAttribs);
+                this->setVertexAttributesWithImplicitOffsets(fAttributes.get(), numAttribs);
             }
 
             int fNumAttribs;

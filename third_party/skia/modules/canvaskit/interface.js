@@ -769,17 +769,6 @@ CanvasKit.onRuntimeInitialized = function() {
     return copy4x4MatrixFromWasm(_scratch4x4MatrixPtr);
   };
 
-  // findMarkedCTM returns a 4x4 matrix, or null if a matrix was not found at
-  // the provided marker.
-  CanvasKit.Canvas.prototype.findMarkedCTM = function(marker) {
-    // _getLocalToDevice will copy the values into the pointer.
-    var found = this._findMarkedCTM(marker, _scratch4x4MatrixPtr);
-    if (!found) {
-      return null;
-    }
-    return copy4x4MatrixFromWasm(_scratch4x4MatrixPtr);
-  };
-
   // getTotalMatrix returns the current matrix as a 3x3 matrix.
   CanvasKit.Canvas.prototype.getTotalMatrix = function() {
     // _getTotalMatrix will copy the values into the pointer.
@@ -922,6 +911,12 @@ CanvasKit.onRuntimeInitialized = function() {
     return ta.slice(0, 2);
   };
 
+  CanvasKit.Picture.prototype.makeShader = function(tmx, tmy, mode, matr, rect) {
+    var mPtr = copy3x3MatrixToWasm(matr);
+    var rPtr = copyRectToWasm(rect);
+    return this._makeShader(tmx, tmy, mode, mPtr, rPtr);
+  };
+
   CanvasKit.PictureRecorder.prototype.beginRecording = function(bounds) {
     var bPtr = copyRectToWasm(bounds);
     return this._beginRecording(bPtr);
@@ -934,11 +929,13 @@ CanvasKit.onRuntimeInitialized = function() {
   };
 
   CanvasKit.Surface.prototype.makeImageSnapshot = function(optionalBoundsRect) {
+    CanvasKit.setCurrentContext(this._context);
     var bPtr = copyIRectToWasm(optionalBoundsRect);
     return this._makeImageSnapshot(bPtr);
   };
 
   CanvasKit.Surface.prototype.makeSurface = function(imageInfo) {
+    CanvasKit.setCurrentContext(this._context);
     var s = this._makeSurface(imageInfo);
     s._context = this._context;
     return s;
@@ -986,6 +983,16 @@ CanvasKit.onRuntimeInitialized = function() {
     var dpe = CanvasKit.PathEffect._MakeDash(ptr, intervals.length, phase);
     freeArraysThatAreNotMallocedByUsers(ptr, intervals);
     return dpe;
+  };
+
+  CanvasKit.PathEffect.MakeLine2D = function(width, matrix) {
+    var matrixPtr = copy3x3MatrixToWasm(matrix);
+    return CanvasKit.PathEffect._MakeLine2D(width, matrixPtr);
+  };
+
+  CanvasKit.PathEffect.MakePath2D = function(matrix, path) {
+    var matrixPtr = copy3x3MatrixToWasm(matrix);
+    return CanvasKit.PathEffect._MakePath2D(matrixPtr, path);
   };
 
   CanvasKit.Shader.MakeColor = function(color4f, colorSpace) {
@@ -1194,7 +1201,7 @@ CanvasKit.MakeImageFromCanvasImageSource = function(canvasImageSource) {
   memoizedCanvas2dElement.width = width;
   memoizedCanvas2dElement.height = height;
 
-  var ctx2d = memoizedCanvas2dElement.getContext('2d');
+  var ctx2d = memoizedCanvas2dElement.getContext('2d', {willReadFrequently: true});
   ctx2d.drawImage(canvasImageSource, 0, 0);
 
   var imageData = ctx2d.getImageData(0, 0, width, height);

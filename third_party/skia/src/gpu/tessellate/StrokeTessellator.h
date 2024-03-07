@@ -8,19 +8,25 @@
 #ifndef tessellate_StrokeTessellator_DEFINED
 #define tessellate_StrokeTessellator_DEFINED
 
+#include "include/core/SkPath.h"
+#include "include/core/SkStrokeRec.h"
+#include "include/private/SkColorData.h"
 #include "src/gpu/tessellate/Tessellation.h"
-#include "src/gpu/tessellate/shaders/GrStrokeTessellationShader.h"
+
+#if SK_GPU_V1
+#include "src/gpu/GrVertexChunkArray.h"
 
 class GrMeshDrawTarget;
 class GrOpFlushState;
+#endif
 
 namespace skgpu {
+
+class PatchWriter;
 
 // Prepares GPU data for, and then draws a stroke's tessellated geometry.
 class StrokeTessellator {
 public:
-    using ShaderFlags = GrStrokeTessellationShader::ShaderFlags;
-
     struct PathStrokeList {
         PathStrokeList(const SkPath& path, const SkStrokeRec& stroke, const SkPMColor4f& color)
                 : fPath(path), fStroke(stroke), fColor(color) {}
@@ -30,25 +36,33 @@ public:
         PathStrokeList* fNext = nullptr;
     };
 
-    StrokeTessellator(const GrShaderCaps& shaderCaps,
-                      GrStrokeTessellationShader::Mode shaderMode,
-                      ShaderFlags shaderFlags,
-                      int8_t maxParametricSegments_log2,
-                      const SkMatrix& viewMatrix,
-                      PathStrokeList* pathStrokeList,
-                      std::array<float, 2> matrixMinMaxScales)
-            : fShader(shaderCaps, shaderMode, shaderFlags, viewMatrix, pathStrokeList->fStroke,
-                      pathStrokeList->fColor, maxParametricSegments_log2)
-            , fPathStrokeList(pathStrokeList)
-            , fMatrixMinMaxScales(matrixMinMaxScales) {
-    }
+    StrokeTessellator(PatchAttribs attribs) : fAttribs(attribs | PatchAttribs::kJoinControlPoint) {}
 
-    const GrTessellationShader* shader() const { return &fShader; }
+    // Gives an approximate initial buffer size for this class to write patches into. Ideally the
+    // whole stroke will fit into this initial buffer, but if it requires a lot of chopping, the
+    // PatchWriter will allocate more buffer(s).
+    virtual int patchPreallocCount(int totalCombinedStrokeVerbCnt) const = 0;
 
-    // Called before draw(). Prepares GPU buffers containing the geometry to tessellate.
-    virtual void prepare(GrMeshDrawTarget*, int totalCombinedVerbCnt) = 0;
+    // Writes out patches to the given PatchWriter, chopping as necessary.
+    //
+    // Returns the fixed number of edges the tessellator will draw per patch, if using fixed-count
+    // rendering, otherwise 0.
+    virtual int writePatches(PatchWriter&,
+                             const SkMatrix& shaderMatrix,
+                             std::array<float,2> matrixMinMaxScales,
+                             PathStrokeList*) = 0;
 
 #if SK_GPU_V1
+    // Called before draw(). Prepares GPU buffers containing the geometry to tessellate.
+    //
+    // Returns the fixed number of edges the tessellator will draw per patch, if using fixed-count
+    // rendering, otherwise 0.
+    virtual int prepare(GrMeshDrawTarget*,
+                        const SkMatrix& shaderMatrix,
+                        std::array<float,2> matrixMinMaxScales,
+                        PathStrokeList*,
+                        int totalCombinedStrokeVerbCnt) = 0;
+
     // Issues draw calls for the tessellated stroke. The caller is responsible for creating and
     // binding a pipeline that uses this class's shader() before calling draw().
     virtual void draw(GrOpFlushState*) const = 0;
@@ -57,9 +71,13 @@ public:
     virtual ~StrokeTessellator() {}
 
 protected:
-    GrStrokeTessellationShader fShader;
-    PathStrokeList* fPathStrokeList;
-    const std::array<float,2> fMatrixMinMaxScales;
+    const PatchAttribs fAttribs;
+
+#if SK_GPU_V1
+    GrVertexChunkArray fVertexChunkArray;
+
+    friend class PatchWriter;  // To access fVertexChunkArray.
+#endif
 };
 
 // These tolerances decide the number of parametric and radial segments the tessellator will

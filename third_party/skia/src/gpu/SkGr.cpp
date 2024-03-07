@@ -48,12 +48,12 @@
 #include "src/image/SkImage_Base.h"
 #include "src/shaders/SkShaderBase.h"
 
-void GrMakeKeyFromImageID(GrUniqueKey* key, uint32_t imageID, const SkIRect& imageBounds) {
+void GrMakeKeyFromImageID(skgpu::UniqueKey* key, uint32_t imageID, const SkIRect& imageBounds) {
     SkASSERT(key);
     SkASSERT(imageID);
     SkASSERT(!imageBounds.isEmpty());
-    static const GrUniqueKey::Domain kImageIDDomain = GrUniqueKey::GenerateDomain();
-    GrUniqueKey::Builder builder(key, kImageIDDomain, 5, "Image");
+    static const skgpu::UniqueKey::Domain kImageIDDomain = skgpu::UniqueKey::GenerateDomain();
+    skgpu::UniqueKey::Builder builder(key, kImageIDDomain, 5, "Image");
     builder[0] = imageID;
     builder[1] = imageBounds.fLeft;
     builder[2] = imageBounds.fTop;
@@ -63,18 +63,19 @@ void GrMakeKeyFromImageID(GrUniqueKey* key, uint32_t imageID, const SkIRect& ima
 
 ////////////////////////////////////////////////////////////////////////////////
 
-sk_sp<SkIDChangeListener> GrMakeUniqueKeyInvalidationListener(GrUniqueKey* key,
+sk_sp<SkIDChangeListener> GrMakeUniqueKeyInvalidationListener(skgpu::UniqueKey* key,
                                                               uint32_t contextID) {
     class Listener : public SkIDChangeListener {
     public:
-        Listener(const GrUniqueKey& key, uint32_t contextUniqueID) : fMsg(key, contextUniqueID) {}
+        Listener(const skgpu::UniqueKey& key, uint32_t contextUniqueID)
+                : fMsg(key, contextUniqueID) {}
 
         void changed() override {
-            SkMessageBus<GrUniqueKeyInvalidatedMessage, uint32_t>::Post(fMsg);
+            SkMessageBus<skgpu::UniqueKeyInvalidatedMessage, uint32_t>::Post(fMsg);
         }
 
     private:
-        GrUniqueKeyInvalidatedMessage fMsg;
+        skgpu::UniqueKeyInvalidatedMessage fMsg;
     };
 
     auto listener = sk_make_sp<Listener>(*key, contextID);
@@ -176,7 +177,7 @@ GrMakeCachedBitmapProxyView(GrRecordingContext* rContext,
     GrProxyProvider* proxyProvider = rContext->priv().proxyProvider();
     const GrCaps* caps = rContext->priv().caps();
 
-    GrUniqueKey key;
+    skgpu::UniqueKey key;
     SkIPoint origin = bitmap.pixelRefOrigin();
     SkIRect subset = SkIRect::MakePtSize(origin, bitmap.dimensions());
     GrMakeKeyFromImageID(&key, bitmap.pixelRef()->getGenerationID(), subset);
@@ -205,7 +206,7 @@ GrMakeCachedBitmapProxyView(GrRecordingContext* rContext,
         installKey(proxy.get());
     }
 
-    GrSwizzle swizzle = caps->getReadSwizzle(proxy->backendFormat(), ct);
+    skgpu::Swizzle swizzle = caps->getReadSwizzle(proxy->backendFormat(), ct);
     if (mipmapped == GrMipmapped::kNo || proxy->mipmapped() == GrMipmapped::kYes) {
         return {{std::move(proxy), kTopLeft_GrSurfaceOrigin, swizzle}, ct};
     }
@@ -244,7 +245,7 @@ GrMakeUncachedBitmapProxyView(GrRecordingContext* rContext,
     GrColorType ct = choose_bmp_texture_colortype(caps, bitmap);
 
     if (auto proxy = make_bmp_proxy(proxyProvider, bitmap, ct, mipmapped, fit, budgeted)) {
-        GrSwizzle swizzle = caps->getReadSwizzle(proxy->backendFormat(), ct);
+        skgpu::Swizzle swizzle = caps->getReadSwizzle(proxy->backendFormat(), ct);
         SkASSERT(mipmapped == GrMipmapped::kNo || proxy->mipmapped() == GrMipmapped::kYes);
         return {{std::move(proxy), kTopLeft_GrSurfaceOrigin, swizzle}, ct};
     }
@@ -269,8 +270,10 @@ SkColor4f SkColor4fPrepForDst(SkColor4f color, const GrColorInfo& colorInfo) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-static inline bool blend_requires_shader(const SkBlendMode mode) {
-    return SkBlendMode::kDst != mode;
+static inline bool blender_requires_shader(const SkBlender* blender) {
+    SkASSERT(blender);
+    std::optional<SkBlendMode> mode = as_BB(blender)->asBlendMode();
+    return !mode.has_value() || *mode != SkBlendMode::kDst;
 }
 
 #ifndef SK_IGNORE_GPU_DITHER
@@ -293,6 +296,7 @@ static inline float dither_range_for_config(GrColorType dstColorType) {
         case GrColorType::kGrayAlpha_88:
         case GrColorType::kGray_8xxx:
         case GrColorType::kR_8:
+        case GrColorType::kR_8xxx:
         case GrColorType::kRG_88:
         case GrColorType::kRGB_888:
         case GrColorType::kRGB_888x:
@@ -411,13 +415,14 @@ static std::unique_ptr<GrFragmentProcessor> make_dither_effect(
 }
 #endif
 
-static inline bool skpaint_to_grpaint_impl(GrRecordingContext* context,
-                                           const GrColorInfo& dstColorInfo,
-                                           const SkPaint& skPaint,
-                                           const SkMatrixProvider& matrixProvider,
-                                           std::unique_ptr<GrFragmentProcessor>* shaderProcessor,
-                                           SkBlendMode* primColorMode,
-                                           GrPaint* grPaint) {
+static inline bool skpaint_to_grpaint_impl(
+        GrRecordingContext* context,
+        const GrColorInfo& dstColorInfo,
+        const SkPaint& skPaint,
+        const SkMatrixProvider& matrixProvider,
+        std::optional<std::unique_ptr<GrFragmentProcessor>> shaderFP,
+        SkBlender* primColorBlender,
+        GrPaint* grPaint) {
     // Convert SkPaint color to 4f format in the destination color space
     SkColor4f origColor = SkColor4fPrepForDst(skPaint.getColor4f(), dstColorInfo);
 
@@ -426,10 +431,10 @@ static inline bool skpaint_to_grpaint_impl(GrRecordingContext* context,
     // Setup the initial color considering the shader, the SkPaint color, and the presence or not
     // of per-vertex colors.
     std::unique_ptr<GrFragmentProcessor> paintFP;
-    if (!primColorMode || blend_requires_shader(*primColorMode)) {
-        fpArgs.fInputColorIsOpaque = origColor.isOpaque();
-        if (shaderProcessor) {
-            paintFP = std::move(*shaderProcessor);
+    const bool gpProvidesShader = shaderFP.has_value() && !*shaderFP;
+    if (!primColorBlender || blender_requires_shader(primColorBlender)) {
+        if (shaderFP.has_value()) {
+            paintFP = std::move(*shaderFP);
         } else {
             if (const SkShaderBase* shader = as_SB(skPaint.getShader())) {
                 paintFP = shader->asFragmentProcessor(fpArgs);
@@ -445,7 +450,7 @@ static inline bool skpaint_to_grpaint_impl(GrRecordingContext* context,
     // conversion without converting the color filter to a GrFragmentProcessor.
     bool applyColorFilterToPaintColor = false;
     if (paintFP) {
-        if (primColorMode) {
+        if (primColorBlender) {
             // There is a blend between the primitive color and the shader color. The shader sees
             // the opaque paint color. The shader's output is blended using the provided mode by
             // the primitive color. The blended color is then modulated by the paint's alpha.
@@ -455,9 +460,9 @@ static inline bool skpaint_to_grpaint_impl(GrRecordingContext* context,
 
             SkPMColor4f shaderInput = origColor.makeOpaque().premul();
             paintFP = GrFragmentProcessor::OverrideInput(std::move(paintFP), shaderInput);
-            paintFP = GrBlendFragmentProcessor::Make(std::move(paintFP),
-                                                     /*dst=*/nullptr,
-                                                     *primColorMode);
+            paintFP = as_BB(primColorBlender)->asFragmentProcessor(std::move(paintFP),
+                                                                   /*dstFP=*/nullptr,
+                                                                   fpArgs);
 
             // We can ignore origColor here - alpha is unchanged by gamma
             float paintAlpha = skPaint.getColor4f().fA;
@@ -468,9 +473,6 @@ static inline bool skpaint_to_grpaint_impl(GrRecordingContext* context,
                         std::move(paintFP), {paintAlpha, paintAlpha, paintAlpha, paintAlpha});
             }
         } else {
-#if defined(SK_SUPPORT_LEGACY_PAINT_ALPHA_MODULATION)
-            grPaint->setColor4f(origColor.premul());
-#else
             float paintAlpha = skPaint.getColor4f().fA;
             if (paintAlpha != 1.0f) {
                 // This invokes the shader's FP tree with an opaque version of the paint color,
@@ -483,30 +485,32 @@ static inline bool skpaint_to_grpaint_impl(GrRecordingContext* context,
                 paintFP = GrFragmentProcessor::ApplyPaintAlpha(std::move(paintFP));
                 grPaint->setColor4f({origColor.fR, origColor.fG, origColor.fB, origColor.fA});
             } else {
+                // paintFP will ignore its input color, so we must disable coverage-as-alpha.
+                // TODO(skbug:11942): The alternative would be to always use ApplyPaintAlpha, but
+                // we'd need to measure the cost of that shader math against the CAA benefit.
+                paintFP = GrFragmentProcessor::DisableCoverageAsAlpha(std::move(paintFP));
                 grPaint->setColor4f(origColor.premul());
             }
-#endif
         }
     } else {
-        if (primColorMode) {
-            // Examining all of the SkPaintToGrPaintFoo methods and their uses, it turns out that
-            // we can only encounter this code path when we're *just* using the primitive color.
-            // Literally no code path cares about blending the primitive color with the paint
-            // color. This makes sense, if you think about the SkCanvas draw calls that use
-            // primitive color - none of them are specified to do anything with paint color.
-            SkASSERT(*primColorMode == SkBlendMode::kDst);
+        if (primColorBlender) {
+            // The primitive itself has color (e.g. interpolated vertex color) and this is what
+            // the GP will output. Thus, we must get the paint color in separately below as a color
+            // FP. This could be made more efficient if the relevant GPs used GrPaint color and
+            // took the SkBlender to apply with primitive color. As it stands changing the SkPaint
+            // color will break batches.
+            grPaint->setColor4f(SK_PMColor4fWHITE);  // won't be used.
+            if (blender_requires_shader(primColorBlender)) {
+                paintFP = GrFragmentProcessor::MakeColor(origColor.makeOpaque().premul());
+                paintFP = as_BB(primColorBlender)->asFragmentProcessor(std::move(paintFP),
+                                                                       /*dstFP=*/nullptr,
+                                                                       fpArgs);
+            }
 
-            // There is no "blend" - the output of that blend is just the primitive color.
-            // We still put the opaque paint color on the GrPaint.
-            // TODO: Is this even necessary? It seems entirely superfluous. Any op that uses this
-            // code path should be ignoring the paint color, right?
-            grPaint->setColor4f(origColor.makeOpaque().premul());
-
-            // The paint's *alpha* is applied to the primitive color:
-
+            // The paint's *alpha* is applied after the paint/primitive color blend:
             // We can ignore origColor here - alpha is unchanged by gamma
             float paintAlpha = skPaint.getColor4f().fA;
-            if (1.0f != paintAlpha) {
+            if (paintAlpha != 1.0f) {
                 // No gamut conversion - paintAlpha is a (linear) alpha value, splatted to all
                 // color channels. It's value should be treated as the same in ANY color space.
                 paintFP = GrFragmentProcessor::ModulateRGBA(
@@ -515,7 +519,8 @@ static inline bool skpaint_to_grpaint_impl(GrRecordingContext* context,
         } else {
             // No shader, no primitive color.
             grPaint->setColor4f(origColor.premul());
-            applyColorFilterToPaintColor = true;
+            // We can do this if there isn't a GP that is acting as the shader.
+            applyColorFilterToPaintColor = !gpProvidesShader;
         }
     }
 
@@ -536,8 +541,6 @@ static inline bool skpaint_to_grpaint_impl(GrRecordingContext* context,
 
     SkMaskFilterBase* maskFilter = as_MFB(skPaint.getMaskFilter());
     if (maskFilter) {
-        // We may have set this before passing to the SkShader.
-        fpArgs.fInputColorIsOpaque = false;
         if (auto mfFP = maskFilter->asFragmentProcessor(fpArgs)) {
             grPaint->setCoverageFragmentProcessor(std::move(mfFP));
         }
@@ -545,13 +548,19 @@ static inline bool skpaint_to_grpaint_impl(GrRecordingContext* context,
 
 #ifndef SK_IGNORE_GPU_DITHER
     GrColorType ct = dstColorInfo.colorType();
-    if (SkPaintPriv::ShouldDither(skPaint, GrColorTypeToSkColorType(ct)) && paintFP != nullptr) {
+    // Checking shaderFP.has_value() detects the SkPaintToGrPaintReplaceShader scenario even if the
+    // parameter was initialized with a nullptr (signaling a GP varying color).
+    const bool shaderOverride = SkToBool(paintFP) && (shaderFP.has_value() || primColorBlender);
+    if (SkPaintPriv::ShouldDither(skPaint, GrColorTypeToSkColorType(ct), shaderOverride)) {
         float ditherRange = dither_range_for_config(ct);
         paintFP = make_dither_effect(
                 context, std::move(paintFP), ditherRange, context->priv().caps());
     }
 #endif
 
+    // Note that for the final blend onto the canvas, we should prefer to use the GrXferProcessor
+    // instead of a SkBlendModeBlender to perform the blend. The Xfer processor is able to perform
+    // coefficient-based blends directly, without readback. This will be much more efficient.
     if (auto bm = skPaint.asBlendMode()) {
         // When the xfermode is null on the SkPaint (meaning kSrcOver) we need the XPFactory field
         // on the GrPaint to also be null (also kSrcOver).
@@ -593,8 +602,13 @@ bool SkPaintToGrPaint(GrRecordingContext* context,
                       const SkPaint& skPaint,
                       const SkMatrixProvider& matrixProvider,
                       GrPaint* grPaint) {
-    return skpaint_to_grpaint_impl(context, dstColorInfo, skPaint, matrixProvider,
-                                   /*shaderProcessor=*/nullptr, /*primColorMode=*/nullptr, grPaint);
+    return skpaint_to_grpaint_impl(context,
+                                   dstColorInfo,
+                                   skPaint,
+                                   matrixProvider,
+                                   /*shaderFP=*/std::nullopt,
+                                   /*primColorBlender=*/nullptr,
+                                   grPaint);
 }
 
 /** Replaces the SkShader (if any) on skPaint with the passed in GrFragmentProcessor. */
@@ -604,21 +618,28 @@ bool SkPaintToGrPaintReplaceShader(GrRecordingContext* context,
                                    const SkMatrixProvider& matrixProvider,
                                    std::unique_ptr<GrFragmentProcessor> shaderFP,
                                    GrPaint* grPaint) {
-    if (!shaderFP) {
-        return false;
-    }
-    return skpaint_to_grpaint_impl(context, dstColorInfo, skPaint, matrixProvider, &shaderFP,
-                                   /*primColorMode=*/nullptr, grPaint);
+    return skpaint_to_grpaint_impl(context,
+                                   dstColorInfo,
+                                   skPaint,
+                                   matrixProvider,
+                                   std::move(shaderFP),
+                                   /*primColorBlender=*/nullptr,
+                                   grPaint);
 }
 
 /** Blends the SkPaint's shader (or color if no shader) with a per-primitive color which must
-    be setup as a vertex attribute using the specified SkBlendMode. */
+    be setup as a vertex attribute using the specified SkBlender. */
 bool SkPaintToGrPaintWithBlend(GrRecordingContext* context,
                                const GrColorInfo& dstColorInfo,
                                const SkPaint& skPaint,
                                const SkMatrixProvider& matrixProvider,
-                               SkBlendMode primColorMode,
+                               SkBlender* primColorBlender,
                                GrPaint* grPaint) {
-    return skpaint_to_grpaint_impl(context, dstColorInfo, skPaint, matrixProvider,
-                                   /*shaderProcessor=*/nullptr, &primColorMode, grPaint);
+    return skpaint_to_grpaint_impl(context,
+                                   dstColorInfo,
+                                   skPaint,
+                                   matrixProvider,
+                                   /*shaderFP=*/std::nullopt,
+                                   primColorBlender,
+                                   grPaint);
 }

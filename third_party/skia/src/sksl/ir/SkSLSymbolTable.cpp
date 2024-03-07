@@ -8,7 +8,6 @@
 #include "src/sksl/ir/SkSLSymbolTable.h"
 
 #include "src/sksl/SkSLContext.h"
-#include "src/sksl/ir/SkSLSymbolAlias.h"
 #include "src/sksl/ir/SkSLType.h"
 #include "src/sksl/ir/SkSLUnresolvedFunction.h"
 
@@ -25,7 +24,7 @@ std::vector<const FunctionDeclaration*> SymbolTable::GetFunctions(const Symbol& 
     }
 }
 
-const Symbol* SymbolTable::operator[](skstd::string_view name) {
+const Symbol* SymbolTable::operator[](std::string_view name) {
     return this->lookup(fBuiltin ? nullptr : this, MakeSymbolKey(name));
 }
 
@@ -76,24 +75,17 @@ const Symbol* SymbolTable::lookup(SymbolTable* writableSymbolTable, const Symbol
             }
         }
     }
-    while (symbol && symbol->is<SymbolAlias>()) {
-        symbol = symbol->as<SymbolAlias>().origSymbol();
-    }
     return symbol;
 }
 
-const String* SymbolTable::takeOwnershipOfString(String str) {
+const std::string* SymbolTable::takeOwnershipOfString(std::string str) {
     fOwnedStrings.push_front(std::move(str));
     // Because fOwnedStrings is a linked list, pointers to elements are stable.
     return &fOwnedStrings.front();
 }
 
-void SymbolTable::addAlias(skstd::string_view name, const Symbol* symbol) {
-    this->add(std::make_unique<SymbolAlias>(symbol->fLine, name, symbol));
-}
-
 void SymbolTable::addWithoutOwnership(const Symbol* symbol) {
-    const skstd::string_view& name = symbol->name();
+    const std::string_view& name = symbol->name();
 
     const Symbol*& refInSymbolTable = fSymbols[MakeSymbolKey(name)];
     if (refInSymbolTable == nullptr) {
@@ -102,7 +94,8 @@ void SymbolTable::addWithoutOwnership(const Symbol* symbol) {
     }
 
     if (!symbol->is<FunctionDeclaration>()) {
-        fContext.fErrors->error(symbol->fLine, "symbol '" + name + "' was already defined");
+        fContext.fErrors->error(symbol->fLine, "symbol '" + std::string(name) +
+                                               "' was already defined");
         return;
     }
 
@@ -124,7 +117,7 @@ void SymbolTable::addWithoutOwnership(const Symbol* symbol) {
 
 const Type* SymbolTable::addArrayDimension(const Type* type, int arraySize) {
     if (arraySize != 0) {
-        const String* arrayName = this->takeOwnershipOfString(type->getArrayName(arraySize));
+        const std::string* arrayName = this->takeOwnershipOfString(type->getArrayName(arraySize));
         type = this->takeOwnershipOfSymbol(Type::MakeArrayType(*arrayName, *type, arraySize));
     }
     return type;

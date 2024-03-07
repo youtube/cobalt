@@ -16,6 +16,7 @@
 #include "src/gpu/GrMemoryPool.h"
 #include "src/gpu/GrProxyProvider.h"
 #include "src/gpu/GrResourceProvider.h"
+#include "src/gpu/KeyBuilder.h"
 #include "src/gpu/SkGr.h"
 #include "src/gpu/effects/GrTextureEffect.h"
 #include "src/gpu/glsl/GrGLSLFragmentShaderBuilder.h"
@@ -98,7 +99,7 @@ public:
 
     const char* name() const override { return "test"; }
 
-    void onAddToKey(const GrShaderCaps&, GrProcessorKeyBuilder* b) const override {
+    void onAddToKey(const GrShaderCaps&, skgpu::KeyBuilder* b) const override {
         static std::atomic<int32_t> nextKey{0};
         b->add32(nextKey++);
     }
@@ -149,7 +150,8 @@ DEF_GPUTEST_FOR_ALL_CONTEXTS(ProcessorRefTest, reporter, ctxInfo) {
     const GrBackendFormat format =
         dContext->priv().caps()->getDefaultBackendFormat(GrColorType::kRGBA_8888,
                                                          GrRenderable::kNo);
-    GrSwizzle swizzle = dContext->priv().caps()->getReadSwizzle(format, GrColorType::kRGBA_8888);
+    skgpu::Swizzle swizzle = dContext->priv().caps()->getReadSwizzle(format,
+                                                                     GrColorType::kRGBA_8888);
 
     for (bool makeClone : {false, true}) {
         for (int parentCnt = 0; parentCnt < 2; parentCnt++) {
@@ -477,36 +479,38 @@ static bool legal_modulation(const GrColor inGr[3], const GrColor outGr[3]) {
                                   fuzzy_color_equals(outf[2], expectedForAlphaModulation[2]);
 
     // This can be enabled to print the values that caused this check to fail.
-    if (0 && !isLegalColorModulation && !isLegalAlphaModulation) {
-        SkDebugf("Color modulation test\n\timplied mod color: (%.03f, %.03f, %.03f, %.03f)\n",
-                 fpPreColorModulation[0],
-                 fpPreColorModulation[1],
-                 fpPreColorModulation[2],
-                 fpPreColorModulation[3]);
-        for (int i = 0; i < 3; ++i) {
-            SkDebugf("\t(%.03f, %.03f, %.03f, %.03f) -> "
-                     "(%.03f, %.03f, %.03f, %.03f) | "
-                     "(%.03f, %.03f, %.03f, %.03f), ok: %d\n",
-                     inf[i].fR, inf[i].fG, inf[i].fB, inf[i].fA,
-                     outf[i].fR, outf[i].fG, outf[i].fB, outf[i].fA,
-                     expectedForColorModulation[i].fR, expectedForColorModulation[i].fG,
-                     expectedForColorModulation[i].fB, expectedForColorModulation[i].fA,
-                     fuzzy_color_equals(outf[i], expectedForColorModulation[i]));
-        }
-        SkDebugf("Alpha modulation test\n\timplied mod color: (%.03f, %.03f, %.03f, %.03f)\n",
-                 fpPreAlphaModulation[0],
-                 fpPreAlphaModulation[1],
-                 fpPreAlphaModulation[2],
-                 fpPreAlphaModulation[3]);
-        for (int i = 0; i < 3; ++i) {
-            SkDebugf("\t(%.03f, %.03f, %.03f, %.03f) -> "
-                     "(%.03f, %.03f, %.03f, %.03f) | "
-                     "(%.03f, %.03f, %.03f, %.03f), ok: %d\n",
-                     inf[i].fR, inf[i].fG, inf[i].fB, inf[i].fA,
-                     outf[i].fR, outf[i].fG, outf[i].fB, outf[i].fA,
-                     expectedForAlphaModulation[i].fR, expectedForAlphaModulation[i].fG,
-                     expectedForAlphaModulation[i].fB, expectedForAlphaModulation[i].fA,
-                     fuzzy_color_equals(outf[i], expectedForAlphaModulation[i]));
+    if ((false)) {
+        if (!isLegalColorModulation && !isLegalAlphaModulation) {
+            SkDebugf("Color modulation test\n\timplied mod color: (%.03f, %.03f, %.03f, %.03f)\n",
+                     fpPreColorModulation[0],
+                     fpPreColorModulation[1],
+                     fpPreColorModulation[2],
+                     fpPreColorModulation[3]);
+            for (int i = 0; i < 3; ++i) {
+                SkDebugf("\t(%.03f, %.03f, %.03f, %.03f) -> "
+                         "(%.03f, %.03f, %.03f, %.03f) | "
+                         "(%.03f, %.03f, %.03f, %.03f), ok: %d\n",
+                         inf[i].fR, inf[i].fG, inf[i].fB, inf[i].fA,
+                         outf[i].fR, outf[i].fG, outf[i].fB, outf[i].fA,
+                         expectedForColorModulation[i].fR, expectedForColorModulation[i].fG,
+                         expectedForColorModulation[i].fB, expectedForColorModulation[i].fA,
+                         fuzzy_color_equals(outf[i], expectedForColorModulation[i]));
+            }
+            SkDebugf("Alpha modulation test\n\timplied mod color: (%.03f, %.03f, %.03f, %.03f)\n",
+                     fpPreAlphaModulation[0],
+                     fpPreAlphaModulation[1],
+                     fpPreAlphaModulation[2],
+                     fpPreAlphaModulation[3]);
+            for (int i = 0; i < 3; ++i) {
+                SkDebugf("\t(%.03f, %.03f, %.03f, %.03f) -> "
+                         "(%.03f, %.03f, %.03f, %.03f) | "
+                         "(%.03f, %.03f, %.03f, %.03f), ok: %d\n",
+                         inf[i].fR, inf[i].fG, inf[i].fB, inf[i].fA,
+                         outf[i].fR, outf[i].fG, outf[i].fB, outf[i].fA,
+                         expectedForAlphaModulation[i].fR, expectedForAlphaModulation[i].fG,
+                         expectedForAlphaModulation[i].fB, expectedForAlphaModulation[i].fA,
+                         fuzzy_color_equals(outf[i], expectedForAlphaModulation[i]));
+            }
         }
     }
     return isLegalColorModulation || isLegalAlphaModulation;
@@ -737,13 +741,13 @@ DEF_GPUTEST_FOR_GL_RENDERING_CONTEXTS(ProcessorOptimizationValidationTest, repor
 
                 // Print first failing pixel's details.
                 if (!coverageMessage.isEmpty()) {
-                    ERRORF(reporter, coverageMessage.c_str());
+                    ERRORF(reporter, "%s", coverageMessage.c_str());
                 }
                 if (!constMessage.isEmpty()) {
-                    ERRORF(reporter, constMessage.c_str());
+                    ERRORF(reporter, "%s", constMessage.c_str());
                 }
                 if (!opaqueMessage.isEmpty()) {
-                    ERRORF(reporter, opaqueMessage.c_str());
+                    ERRORF(reporter, "%s", opaqueMessage.c_str());
                 }
 
                 if (!loggedFirstFailure) {

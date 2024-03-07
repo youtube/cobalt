@@ -21,39 +21,11 @@
 
 class SkScalerContext;
 
-// The value stored in fDigestForPackedGlyphID.
-// index() is the index into fGlyphForIndex.
-class SkGlyphDigest {
-public:
-    // Default ctor is only needed for the hash table.
-    SkGlyphDigest() = default;
-    SkGlyphDigest(size_t i, const SkGlyph& glyph)
-        : fIndex{SkTo<uint32_t>(i)}
-        , fIsEmpty(glyph.isEmpty())
-        , fIsColor(glyph.isColor())
-        , fCanDrawAsMask{SkStrikeForGPU::CanDrawAsMask(glyph)}
-        , fCanDrawAsSDFT{SkStrikeForGPU::CanDrawAsSDFT(glyph)} {}
-    int index()          const {return fIndex;        }
-    bool isEmpty()       const {return fIsEmpty;      }
-    bool isColor()       const {return fIsColor;      }
-    bool canDrawAsMask() const {return fCanDrawAsMask;}
-    bool canDrawAsSDFT() const {return fCanDrawAsSDFT;}
-
-private:
-    static_assert(SkPackedGlyphID::kEndData == 20);
-    uint32_t fIndex : SkPackedGlyphID::kEndData;
-    uint32_t fIsEmpty       : 1;
-    uint32_t fIsColor       : 1;
-    uint32_t fCanDrawAsMask : 1;
-    uint32_t fCanDrawAsSDFT : 1;
-};
-
 // This class represents a strike: a specific combination of typeface, size, matrix, etc., and
 // holds the glyphs for that strike.
 class SkScalerCache {
 public:
-    SkScalerCache(const SkDescriptor& desc,
-                  std::unique_ptr<SkScalerContext> scaler,
+    SkScalerCache(std::unique_ptr<SkScalerContext> scaler,
                   const SkFontMetrics* metrics = nullptr);
 
     // Lookup (or create if needed) the toGlyph using toID. If that glyph is not initialized with
@@ -66,6 +38,10 @@ public:
     // If the path has never been set, then add a path to glyph.
     std::tuple<const SkPath*, size_t> mergePath(
             SkGlyph* glyph, const SkPath* path, bool hairline) SK_EXCLUDES(fMu);
+
+    // If the drawable has never been set, then add a drawble to glyph.
+    std::tuple<SkDrawable*, size_t> mergeDrawable(
+            SkGlyph* glyph, sk_sp<SkDrawable> drawable) SK_EXCLUDES(fMu);
 
     /** Return the number of glyphs currently cached. */
     int countCachedGlyphs() const SK_EXCLUDES(fMu);
@@ -89,23 +65,24 @@ public:
     std::tuple<SkSpan<const SkGlyph*>, size_t> prepareImages(
             SkSpan<const SkPackedGlyphID> glyphIDs, const SkGlyph* results[]) SK_EXCLUDES(fMu);
 
-    size_t prepareForDrawingMasksCPU(SkDrawableGlyphBuffer* drawables) SK_EXCLUDES(fMu);
+    size_t prepareForDrawingMasksCPU(SkDrawableGlyphBuffer* accepted) SK_EXCLUDES(fMu);
 
     // SkStrikeForGPU APIs
     const SkGlyphPositionRoundingSpec& roundingSpec() const {
         return fRoundingSpec;
     }
 
-    const SkDescriptor& getDescriptor() const;
-
     size_t prepareForMaskDrawing(
-            SkDrawableGlyphBuffer* drawables, SkSourceGlyphBuffer* rejects) SK_EXCLUDES(fMu);
+            SkDrawableGlyphBuffer* accepted, SkSourceGlyphBuffer* rejected) SK_EXCLUDES(fMu);
 
     size_t prepareForSDFTDrawing(
-            SkDrawableGlyphBuffer* drawables, SkSourceGlyphBuffer* rejects) SK_EXCLUDES(fMu);
+            SkDrawableGlyphBuffer* accepted, SkSourceGlyphBuffer* rejected) SK_EXCLUDES(fMu);
 
     size_t prepareForPathDrawing(
-            SkDrawableGlyphBuffer* drawables, SkSourceGlyphBuffer* rejects) SK_EXCLUDES(fMu);
+            SkDrawableGlyphBuffer* accepted, SkSourceGlyphBuffer* rejected) SK_EXCLUDES(fMu);
+
+    size_t prepareForDrawableDrawing(
+            SkDrawableGlyphBuffer* accepted, SkSourceGlyphBuffer* rejected) SK_EXCLUDES(fMu);
 
     void dump() const SK_EXCLUDES(fMu);
 
@@ -113,7 +90,7 @@ public:
 
 private:
     template <typename Fn>
-    size_t commonFilterLoop(SkDrawableGlyphBuffer* drawables, Fn&& fn) SK_REQUIRES(fMu);
+    size_t commonFilterLoop(SkDrawableGlyphBuffer* accepted, Fn&& fn) SK_REQUIRES(fMu);
 
     // Return a glyph. Create it if it doesn't exist, and initialize the glyph with metrics and
     // advances using a scaler.
@@ -129,6 +106,9 @@ private:
     // If the path has never been set, then use the scaler context to add the glyph.
     std::tuple<const SkPath*, size_t> preparePath(SkGlyph*) SK_REQUIRES(fMu);
 
+    // If the drawable has never been set, then use the scaler context to add the glyph.
+    std::tuple<SkDrawable*, size_t> prepareDrawable(SkGlyph*) SK_REQUIRES(fMu);
+
     enum PathDetail {
         kMetricsOnly,
         kMetricsAndPath
@@ -140,7 +120,6 @@ private:
             PathDetail pathDetail,
             const SkGlyph** results) SK_REQUIRES(fMu);
 
-    const SkAutoDescriptor                 fDesc;
     const std::unique_ptr<SkScalerContext> fScalerContext;
     const SkFontMetrics                    fFontMetrics;
     const SkGlyphPositionRoundingSpec      fRoundingSpec;
@@ -152,7 +131,7 @@ private:
     // SkGlyphDigest's fIndex field stores the index. This pointer provides an unchanging
     // reference to the SkGlyph as long as the strike is alive, and fGlyphForIndex
     // provides a dense index for glyphs.
-    SkTHashMap<SkPackedGlyphID, SkGlyphDigest> fDigestForPackedGlyphID SK_GUARDED_BY(fMu);
+    SkTHashTable<SkGlyphDigest, uint32_t, SkGlyphDigest> fDigestForPackedGlyphID SK_GUARDED_BY(fMu);
     std::vector<SkGlyph*> fGlyphForIndex SK_GUARDED_BY(fMu);
 
     // so we don't grow our arrays a lot

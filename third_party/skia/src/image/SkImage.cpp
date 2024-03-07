@@ -148,6 +148,13 @@ sk_sp<SkShader> SkImage::makeShader(SkTileMode tmx, SkTileMode tmy,
                                sampling, localMatrix);
 }
 
+sk_sp<SkShader> SkImage::makeRawShader(SkTileMode tmx, SkTileMode tmy,
+                                       const SkSamplingOptions& sampling,
+                                       const SkMatrix* localMatrix) const {
+    return SkImageShader::MakeRaw(sk_ref_sp(const_cast<SkImage*>(this)), tmx, tmy,
+                                  sampling, localMatrix);
+}
+
 sk_sp<SkData> SkImage::encodeToData(SkEncodedImageFormat type, int quality) const {
     // Context TODO: Elevate GrDirectContext requirement to public API.
     auto dContext = as_IB(this)->directContext();
@@ -170,11 +177,13 @@ sk_sp<SkData> SkImage::refEncodedData() const {
     return sk_sp<SkData>(as_IB(this)->onRefEncoded());
 }
 
-sk_sp<SkImage> SkImage::MakeFromEncoded(sk_sp<SkData> encoded) {
+sk_sp<SkImage> SkImage::MakeFromEncoded(sk_sp<SkData> encoded,
+                                        std::optional<SkAlphaType> alphaType) {
     if (nullptr == encoded || 0 == encoded->size()) {
         return nullptr;
     }
-    return SkImage::MakeFromGenerator(SkImageGenerator::MakeFromEncoded(std::move(encoded)));
+    return SkImage::MakeFromGenerator(
+            SkImageGenerator::MakeFromEncoded(std::move(encoded), alphaType));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -413,14 +422,14 @@ GrSurfaceProxyView SkImage_Base::FindOrMakeCachedMipmappedView(GrRecordingContex
     }
     GrProxyProvider* proxyProvider = rContext->priv().proxyProvider();
 
-    GrUniqueKey baseKey;
+    skgpu::UniqueKey baseKey;
     GrMakeKeyFromImageID(&baseKey, imageUniqueID, SkIRect::MakeSize(view.dimensions()));
     SkASSERT(baseKey.isValid());
-    GrUniqueKey mipmappedKey;
-    static const GrUniqueKey::Domain kMipmappedDomain = GrUniqueKey::GenerateDomain();
+    skgpu::UniqueKey mipmappedKey;
+    static const skgpu::UniqueKey::Domain kMipmappedDomain = skgpu::UniqueKey::GenerateDomain();
     {  // No extra values beyond the domain are required. Must name the var to please
        // clang-tidy.
-        GrUniqueKey::Builder b(&mipmappedKey, baseKey, kMipmappedDomain, 0);
+        skgpu::UniqueKey::Builder b(&mipmappedKey, baseKey, kMipmappedDomain, 0);
     }
     SkASSERT(mipmappedKey.isValid());
     if (sk_sp<GrTextureProxy> cachedMippedView =

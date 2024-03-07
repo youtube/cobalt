@@ -157,6 +157,24 @@ absl_source_set("base") {
     "internal/unscaledcycleclock.h",
   ]
 
+  # Remove files that leak OS or library function calls.
+  if (is_starboard) {
+    sources += [
+      "internal/sysinfo_starboard.cc",
+    ]
+    deps = [ "//starboard:starboard_headers_only" ]
+    sources -= [
+      # Sysinfo leaks posix file stream calls.
+      "internal/sysinfo.cc",
+      # ThreadIdentity leaks pthread calls.
+      "internal/thread_identity.cc",
+    ]
+    public -= [
+      "internal/sysinfo.h",
+      "internal/thread_identity.h",
+    ]
+  }
+
   # TODO(mbonadei): The bazel file has:
   #   "-DEFAULTLIB:advapi32.lib"
   # understand if this is needed here as well.

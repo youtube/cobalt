@@ -108,4 +108,7 @@ interface H5vccCrashLog {
   // Sets a persistent Watchdog setting that determines whether or not a
   // Watchdog violation will trigger a crash.
   void setPersistentSettingWatchdogCrash(boolean can_trigger_crash);
+
+  // Forces JavaScript Garbage Collection to execute immediately.
+  [CallWith=EnvironmentSettings] void forceGarbageCollection();
 };

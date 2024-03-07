@@ -14,45 +14,27 @@
 
 #include "cobalt/js_profiler/profiler.h"
 
-#include <iostream>
 #include <limits>
 #include <memory>
 #include <string>
 #include <utility>
 
-#include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/js_profiler/profiler_trace_builder.h"
+#include "base/logging.h"
 #include "cobalt/js_profiler/profiler_trace_wrapper.h"
 #include "cobalt/web/cache_utils.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/dom_exception.h"
-#include "cobalt/web/environment_settings.h"
 #include "cobalt/web/environment_settings_helper.h"
-
-namespace {
-v8::Local<v8::String> toV8String(v8::Isolate* isolate,
-                                 const std::string& string) {
-  if (string.empty()) return v8::String::Empty(isolate);
-  return v8::String::NewFromUtf8(isolate, string.c_str(),
-                                 v8::NewStringType::kNormal, string.length())
-      .ToLocalChecked();
-}
-}  // namespace
 
 namespace cobalt {
 namespace js_profiler {
 
-volatile uint32_t s_lastProfileId = 0;
-
-static constexpr int kBaseSampleIntervalMs = 10;
-
 Profiler::Profiler(script::EnvironmentSettings* settings,
                    ProfilerInitOptions options,
                    script::ExceptionState* exception_state)
-    : cobalt::web::EventTarget(settings),
-      stopped_(false),
-      time_origin_{base::TimeTicks::Now()} {
-  profiler_id_ = nextProfileId();
+    : stopped_(false), time_origin_{base::TimeTicks::Now()} {
+  profiler_group_ = ProfilerGroup::From(settings);
+  profiler_id_ = profiler_group_->NextProfilerId();
 
   const base::TimeDelta sample_interval =
       base::Milliseconds(options.sample_interval());
@@ -66,21 +48,19 @@ Profiler::Profiler(script::EnvironmentSettings* settings,
 
   int effective_sample_interval_ms =
       static_cast<int>(sample_interval.InMilliseconds());
-  if (effective_sample_interval_ms % kBaseSampleIntervalMs != 0 ||
+  if (effective_sample_interval_ms % Profiler::kBaseSampleIntervalMs != 0 ||
       effective_sample_interval_ms == 0) {
     effective_sample_interval_ms +=
-        (kBaseSampleIntervalMs -
-         effective_sample_interval_ms % kBaseSampleIntervalMs);
+        (Profiler::kBaseSampleIntervalMs -
+         effective_sample_interval_ms % Profiler::kBaseSampleIntervalMs);
   }
   sample_interval_ = effective_sample_interval_ms;
 
-  auto isolate = web::get_isolate(settings);
-
-  auto status = ImplProfilingStart(
-      profiler_id_,
+  SB_LOG(INFO) << "[PROFILER] START " + profiler_id_;
+  auto status = profiler_group_->ProfilerStart(
+      this, settings,
       v8::CpuProfilingOptions(v8::kLeafNodeLineNumbers,
-                              options.max_buffer_size(), sample_interval_us),
-      settings);
+                              options.max_buffer_size(), sample_interval_us));
 
   if (status == v8::CpuProfilingStatus::kAlreadyStarted) {
     web::DOMException::Raise(web::DOMException::kInvalidStateErr,
@@ -91,46 +71,31 @@ Profiler::Profiler(script::EnvironmentSettings* settings,
   }
 }
 
-Profiler::~Profiler() {
-  if (cpu_profiler_) {
-    cpu_profiler_->Dispose();
-    cpu_profiler_ = nullptr;
+void Profiler::AddEventListener(
+    script::EnvironmentSettings* environment_settings, const std::string& name,
+    const Profiler::SampleBufferFullCallbackHolder& holder) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (name != base::Tokens::samplebufferfull()) {
+    return;
   }
+  auto* global_wrappable = web::get_global_wrappable(environment_settings);
+  SampleBufferFullCallbackReference* token_callback =
+      new SampleBufferFullCallbackReference(global_wrappable, holder);
+  listeners_.push_back(
+      std::unique_ptr<SampleBufferFullCallbackReference>(token_callback));
 }
 
-v8::CpuProfilingStatus Profiler::ImplProfilingStart(
-    std::string profiler_id, v8::CpuProfilingOptions options,
-    script::EnvironmentSettings* settings) {
-  auto isolate = web::get_isolate(settings);
-  cpu_profiler_ = v8::CpuProfiler::New(isolate);
-  cpu_profiler_->SetSamplingInterval(kBaseSampleIntervalMs *
-                                     base::Time::kMicrosecondsPerMillisecond);
-  return cpu_profiler_->StartProfiling(
-      toV8String(isolate, profiler_id), options,
-      std::make_unique<ProfilerMaxSamplesDelegate>(this));
-}
-
-std::string Profiler::nextProfileId() {
-  s_lastProfileId++;
-  return "cobalt::profiler[" + std::to_string(s_lastProfileId) + "]";
-}
-
-void Profiler::PerformStop(
-    script::EnvironmentSettings* environment_settings,
-    std::unique_ptr<script::ValuePromiseWrappable::Reference> promise_reference,
-    base::TimeTicks time_origin, std::string profiler_id) {
-  auto isolate = web::get_isolate(environment_settings);
-  auto profile =
-      cpu_profiler_->StopProfiling(toV8String(isolate, profiler_id_));
-  auto trace = ProfilerTraceBuilder::FromProfile(profile, time_origin_);
-  scoped_refptr<ProfilerTraceWrapper> result(new ProfilerTraceWrapper(trace));
-  cpu_profiler_->Dispose();
-  cpu_profiler_ = nullptr;
-  promise_reference->value().Resolve(result);
+void Profiler::DispatchSampleBufferFullEvent() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  for (auto it = listeners_.begin(); it != listeners_.end(); ++it) {
+    (*it)->value().Run();
+  }
+  listeners_.clear();
 }
 
 Profiler::ProfilerTracePromise Profiler::Stop(
     script::EnvironmentSettings* environment_settings) {
+  SB_LOG(INFO) << "[PROFILER] STOPPING " + profiler_id_;
   script::HandlePromiseWrappable promise =
       web::get_script_value_factory(environment_settings)
           ->CreateInterfacePromise<scoped_refptr<ProfilerTraceWrapper>>();
@@ -145,13 +110,31 @@ Profiler::ProfilerTracePromise Profiler::Stop(
     context->task_runner()->PostTask(
         FROM_HERE,
         base::BindOnce(&Profiler::PerformStop, base::Unretained(this),
-                       environment_settings, std::move(promise_reference),
+                       profiler_group_, std::move(promise_reference),
                        std::move(time_origin_), std::move(profiler_id_)));
   } else {
     promise->Reject(new web::DOMException(web::DOMException::kInvalidStateErr,
                                           "Profiler already stopped."));
   }
   return promise;
+}
+
+void Profiler::PerformStop(
+    ProfilerGroup* profiler_group,
+    std::unique_ptr<script::ValuePromiseWrappable::Reference> promise_reference,
+    base::TimeTicks time_origin, std::string profiler_id) {
+  SB_LOG(INFO) << "[PROFILER] STOPPED " + profiler_id_;
+  auto trace = profiler_group->ProfilerStop(this);
+  scoped_refptr<ProfilerTraceWrapper> result(new ProfilerTraceWrapper(trace));
+  promise_reference->value().Resolve(result);
+}
+
+void Profiler::Cancel() {
+  if (!stopped_) {
+    stopped_ = true;
+    profiler_group_->ProfilerStop(this);
+  }
+  profiler_group_ = nullptr;
 }
 
 }  // namespace js_profiler

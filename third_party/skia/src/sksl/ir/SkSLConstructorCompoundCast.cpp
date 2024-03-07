@@ -52,9 +52,13 @@ static std::unique_ptr<Expression> cast_constant_composite(const Context& contex
     ExpressionArray typecastArgs;
     typecastArgs.reserve_back(numSlots);
     for (size_t index = 0; index < numSlots; ++index) {
-        const Expression* arg = constCtor->getConstantSubexpression(index);
-        typecastArgs.push_back(ConstructorScalarCast::Make(context, constCtor->fLine, scalarType,
-                                                           arg->clone()));
+        std::optional<double> slotVal = constCtor->getConstantValue(index);
+        if (scalarType.checkForOutOfRangeLiteral(context, *slotVal, constCtor->fLine)) {
+            // We've reported an error because the literal is out of range for this type. Zero out
+            // the value to avoid a cascade of errors.
+            *slotVal = 0.0;
+        }
+        typecastArgs.push_back(Literal::Make(constCtor->fLine, *slotVal, &scalarType));
     }
 
     return ConstructorCompound::Make(context, constCtor->fLine, destType,
@@ -74,15 +78,13 @@ std::unique_ptr<Expression> ConstructorCompoundCast::Make(const Context& context
     SkASSERT(type.rows() == arg->type().rows());
 
     // If this is a no-op cast, return the expression as-is.
-    if (type == arg->type()) {
+    if (type.matches(arg->type())) {
         return arg;
     }
-    // When optimization is on, look up the value of constant variables. This allows expressions
-    // like `int4(colorGreen)` to be replaced with the compile-time constant `int4(0, 1, 0, 1)`,
-    // which is eligible for constant folding.
-    if (context.fConfig->fSettings.fOptimize) {
-        arg = ConstantFolder::MakeConstantValueForVariable(std::move(arg));
-    }
+    // Look up the value of constant variables. This allows constant-expressions like
+    // `int4(colorGreen)` to be replaced with the compile-time constant `int4(0, 1, 0, 1)`.
+    arg = ConstantFolder::MakeConstantValueForVariable(std::move(arg));
+
     // We can cast a vector of compile-time constants at compile-time.
     if (arg->isCompileTimeConstant()) {
         return cast_constant_composite(context, type, std::move(arg));

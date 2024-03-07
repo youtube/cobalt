@@ -29,7 +29,12 @@ struct SkAdvancedTypefaceMetrics;
 struct SkScalerContextEffects;
 struct SkScalerContextRec;
 
-typedef uint32_t SkFontID;
+using SkTypefaceID = uint32_t;
+
+// SkFontID is deprecated, please use SkTypefaceID.
+using SkFontID = SkTypefaceID;
+
+
 /** Machine endian. */
 typedef uint32_t SkFontTableTag;
 
@@ -91,13 +96,13 @@ public:
     /** Return a 32bit value for this typeface, unique for the underlying font
         data. Will never return 0.
      */
-    SkFontID uniqueID() const { return fUniqueID; }
+    SkTypefaceID uniqueID() const { return fUniqueID; }
 
     /** Return the uniqueID for the specified typeface. If the face is null,
         resolve it to the default font and return its uniqueID. Will never
         return 0.
     */
-    static SkFontID UniqueID(const SkTypeface* face);
+    static SkTypefaceID UniqueID(const SkTypeface* face);
 
     /** Returns true if the two typefaces reference the same underlying font,
         handling either being null (treating null as the default font)
@@ -320,6 +325,15 @@ public:
     std::unique_ptr<SkStreamAsset> openStream(int* ttcIndex) const;
 
     /**
+     * Return a stream for the contents of the font data.
+     * Returns nullptr on failure or if the font data isn't already available in stream form.
+     * Use when the stream can be used opportunistically but the calling code would prefer
+     * to fall back to table access if creating the stream would be expensive.
+     * Otherwise acts the same as openStream.
+     */
+    std::unique_ptr<SkStreamAsset> openExistingStream(int* ttcIndex) const;
+
+    /**
      *  Return a scalercontext for the given descriptor. It may return a
      *  stub scalercontext that will not crash, but will draw nothing.
      */
@@ -376,6 +390,8 @@ protected:
     virtual void getGlyphToUnicodeMap(SkUnichar* dstArray) const = 0;
 
     virtual std::unique_ptr<SkStreamAsset> onOpenStream(int* ttcIndex) const = 0;
+
+    virtual std::unique_ptr<SkStreamAsset> onOpenExistingStream(int* ttcIndex) const;
 
     virtual bool onGlyphMaskNeedsCurrentColor() const = 0;
 
@@ -443,7 +459,7 @@ private:
     friend class SkFont;             // getGlyphToUnicodeMap
 
 private:
-    SkFontID            fUniqueID;
+    SkTypefaceID        fUniqueID;
     SkFontStyle         fStyle;
     mutable SkRect      fBounds;
     mutable SkOnce      fBoundsOnce;

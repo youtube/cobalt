@@ -16,8 +16,8 @@
 
 namespace SkSL {
 
+class BuiltinMap;
 class ErrorReporter;
-class IntrinsicMap;
 class Mangler;
 class ModifiersPool;
 struct ProgramConfig;
@@ -27,14 +27,14 @@ struct ProgramConfig;
  */
 class Context {
 public:
-    Context(ErrorReporter& errors, const ShaderCapsClass& caps, Mangler& mangler);
+    Context(ErrorReporter& errors, const ShaderCaps& caps, Mangler& mangler);
     ~Context();
 
     // The Context holds all of the built-in types.
     BuiltinTypes fTypes;
 
     // The Context holds a reference to our shader caps bits.
-    const ShaderCapsClass& fCaps;
+    const ShaderCaps& fCaps;
 
     // The Context holds a pointer to our pool of modifiers.
     ModifiersPool* fModifiersPool = nullptr;
@@ -49,7 +49,7 @@ public:
     Mangler* fMangler = nullptr;
 
     // Symbols which have definitions in the include files.
-    IntrinsicMap* fIntrinsics = nullptr;
+    BuiltinMap* fBuiltins = nullptr;
 };
 
 }  // namespace SkSL

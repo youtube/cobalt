@@ -51,7 +51,8 @@ def validate_content(textproto_content,
     log.warning('"url" field is deprecated, please use "identifier" instead')
 
   git_id = next((id for id in third_party.identifier if id.type == 'Git'), None)
-  if git_id:
+  is_internal = os.path.exists('internal')
+  if git_id and not is_internal:  # Copybara doesn't preserve squash commits
     subtree_dir = os.path.dirname(metadata_file_path).replace(os.sep, '/')
     pattern = f'^git-subtree-dir: {subtree_dir}/*$'
     log_format = '%(trailers:key=git-subtree-split,valueonly)'

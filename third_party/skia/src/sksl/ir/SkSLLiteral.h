@@ -96,12 +96,12 @@ public:
         return fValue;
     }
 
-    String description() const override {
+    std::string description() const override {
         if (this->type().isFloat()) {
-            return to_string(this->floatValue());
+            return skstd::to_string(this->floatValue());
         }
         if (this->type().isInteger()) {
-            return to_string(this->intValue());
+            return std::to_string(this->intValue());
         }
         SkASSERT(this->type().isBoolean());
         return fValue ? "true" : "false";
@@ -128,13 +128,13 @@ public:
         return std::make_unique<Literal>(fLine, this->value(), &this->type());
     }
 
-    bool allowsConstantSubexpressions() const override {
+    bool supportsConstantValues() const override {
         return true;
     }
 
-    const Expression* getConstantSubexpression(int n) const override {
+    std::optional<double> getConstantValue(int n) const override {
         SkASSERT(n == 0);
-        return this;
+        return fValue;
     }
 
 private:

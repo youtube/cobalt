@@ -66,7 +66,7 @@ ParagraphImpl::ParagraphImpl(const SkString& text,
                              SkTArray<Block, true> blocks,
                              SkTArray<Placeholder, true> placeholders,
                              sk_sp<FontCollection> fonts,
-                             std::unique_ptr<SkUnicode> unicode)
+                             std::shared_ptr<SkUnicode> unicode)
         : Paragraph(std::move(style), std::move(fonts))
         , fTextStyles(std::move(blocks))
         , fPlaceholders(std::move(placeholders))
@@ -87,7 +87,7 @@ ParagraphImpl::ParagraphImpl(const std::u16string& utf16text,
                              SkTArray<Block, true> blocks,
                              SkTArray<Placeholder, true> placeholders,
                              sk_sp<FontCollection> fonts,
-                             std::unique_ptr<SkUnicode> unicode)
+                             std::shared_ptr<SkUnicode> unicode)
         : ParagraphImpl(SkString(),
                         std::move(style),
                         std::move(blocks),
@@ -601,13 +601,13 @@ void ParagraphImpl::resolveStrut() {
         fStrutMetrics = InternalLineMetrics(
             (metrics.fAscent / strutHeight) * strutMultiplier,
             (metrics.fDescent / strutHeight) * strutMultiplier,
-                strutStyle.getLeading() < 0 ? 0 : strutStyle.getLeading() * strutStyle.getFontSize());
+                strutStyle.getLeading() < 0 ? 0 : strutStyle.getLeading() * strutStyle.getFontSize(),
+            metrics.fAscent, metrics.fDescent, metrics.fLeading);
     } else {
         fStrutMetrics = InternalLineMetrics(
                 metrics.fAscent,
                 metrics.fDescent,
-                strutStyle.getLeading() < 0 ? 0
-                                            : strutStyle.getLeading() * strutStyle.getFontSize());
+                strutStyle.getLeading() < 0 ? 0 : strutStyle.getLeading() * strutStyle.getFontSize());
     }
     fStrutMetrics.setForceStrut(this->paragraphStyle().getStrutStyle().getForceStrutHeight());
 }

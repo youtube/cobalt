@@ -9,6 +9,7 @@
 
 #include "src/core/SkMatrixPriv.h"
 #include "src/gpu/GrPipeline.h"
+#include "src/gpu/KeyBuilder.h"
 #include "src/gpu/glsl/GrGLSLFragmentShaderBuilder.h"
 #include "src/gpu/glsl/GrGLSLProgramBuilder.h"
 #include "src/gpu/glsl/GrGLSLUniformHandler.h"
@@ -33,6 +34,13 @@ uint32_t GrGeometryProcessor::ComputeCoordTransformsKey(const GrFragmentProcesso
     return key;
 }
 
+void GrGeometryProcessor::getAttributeKey(skgpu::KeyBuilder* b) const {
+    b->appendComment("vertex attributes");
+    fVertexAttributes.addToKey(b);
+    b->appendComment("instance attributes");
+    fInstanceAttributes.addToKey(b);
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 static inline GrSamplerState::Filter clamp_filter(GrTextureType type,
@@ -45,13 +53,13 @@ static inline GrSamplerState::Filter clamp_filter(GrTextureType type,
 
 GrGeometryProcessor::TextureSampler::TextureSampler(GrSamplerState samplerState,
                                                     const GrBackendFormat& backendFormat,
-                                                    const GrSwizzle& swizzle) {
+                                                    const skgpu::Swizzle& swizzle) {
     this->reset(samplerState, backendFormat, swizzle);
 }
 
 void GrGeometryProcessor::TextureSampler::reset(GrSamplerState samplerState,
                                                 const GrBackendFormat& backendFormat,
-                                                const GrSwizzle& swizzle) {
+                                                const skgpu::Swizzle& swizzle) {
     fSamplerState = samplerState;
     fSamplerState.setFilterMode(clamp_filter(backendFormat.textureType(), samplerState.filter()));
     fBackendFormat = backendFormat;
@@ -63,7 +71,8 @@ void GrGeometryProcessor::TextureSampler::reset(GrSamplerState samplerState,
 
 using ProgramImpl = GrGeometryProcessor::ProgramImpl;
 
-ProgramImpl::FPCoordsMap ProgramImpl::emitCode(EmitArgs& args, const GrPipeline& pipeline) {
+std::tuple<ProgramImpl::FPCoordsMap, GrShaderVar>
+ProgramImpl::emitCode(EmitArgs& args, const GrPipeline& pipeline) {
     GrGPArgs gpArgs;
     this->onEmitCode(args, &gpArgs);
 
@@ -75,55 +84,61 @@ ProgramImpl::FPCoordsMap ProgramImpl::emitCode(EmitArgs& args, const GrPipeline&
     FPCoordsMap transformMap = this->collectTransforms(args.fVertBuilder,
                                                        args.fVaryingHandler,
                                                        args.fUniformHandler,
+                                                       gpArgs.fLocalCoordShader,
                                                        gpArgs.fLocalCoordVar,
                                                        positionVar,
                                                        pipeline);
 
-    if (args.fGeomProc.willUseTessellationShaders()) {
-        // Tessellation shaders are temporarily responsible for integrating their own code strings
-        // while we work out full support.
-        return transformMap;
+    // Tessellation shaders are temporarily responsible for integrating their own code strings
+    // while we work out full support.
+    if (!args.fGeomProc.willUseTessellationShaders()) {
+        GrGLSLVertexBuilder* vBuilder = args.fVertBuilder;
+        // Emit the vertex position to the hardware in the normalized window coordinates it expects.
+        SkASSERT(SkSLType::kFloat2 == gpArgs.fPositionVar.getType() ||
+                 SkSLType::kFloat3 == gpArgs.fPositionVar.getType());
+        vBuilder->emitNormalizedSkPosition(gpArgs.fPositionVar.c_str(),
+                                           gpArgs.fPositionVar.getType());
+        if (SkSLType::kFloat2 == gpArgs.fPositionVar.getType()) {
+            args.fVaryingHandler->setNoPerspective();
+        }
     }
-
-    GrGLSLVertexBuilder* vBuilder = args.fVertBuilder;
-    // Emit the vertex position to the hardware in the normalized window coordinates it expects.
-    SkASSERT(kFloat2_GrSLType == gpArgs.fPositionVar.getType() ||
-                kFloat3_GrSLType == gpArgs.fPositionVar.getType());
-    vBuilder->emitNormalizedSkPosition(gpArgs.fPositionVar.c_str(),
-                                        gpArgs.fPositionVar.getType());
-    if (kFloat2_GrSLType == gpArgs.fPositionVar.getType()) {
-        args.fVaryingHandler->setNoPerspective();
-    }
-    return transformMap;
+    return {transformMap, gpArgs.fLocalCoordVar};
 }
 
 ProgramImpl::FPCoordsMap ProgramImpl::collectTransforms(GrGLSLVertexBuilder* vb,
                                                         GrGLSLVaryingHandler* varyingHandler,
                                                         GrGLSLUniformHandler* uniformHandler,
+                                                        GrShaderType localCoordsShader,
                                                         const GrShaderVar& localCoordsVar,
                                                         const GrShaderVar& positionVar,
                                                         const GrPipeline& pipeline) {
-    SkASSERT(localCoordsVar.getType() == kFloat2_GrSLType ||
-             localCoordsVar.getType() == kFloat3_GrSLType ||
-             localCoordsVar.getType() == kVoid_GrSLType);
-    SkASSERT(positionVar.getType() == kFloat2_GrSLType ||
-             positionVar.getType() == kFloat3_GrSLType ||
-             positionVar.getType() == kVoid_GrSLType);
+    SkASSERT(localCoordsVar.getType() == SkSLType::kFloat2 ||
+             localCoordsVar.getType() == SkSLType::kFloat3 ||
+             localCoordsVar.getType() == SkSLType::kVoid);
+    SkASSERT(positionVar.getType() == SkSLType::kFloat2 ||
+             positionVar.getType() == SkSLType::kFloat3 ||
+             positionVar.getType() == SkSLType::kVoid);
 
     enum class BaseCoord { kNone, kLocal, kPosition };
 
-    auto baseLocalCoordFSVar = [&, baseLocalCoord = GrGLSLVarying()]() mutable {
-        SkASSERT(GrSLTypeIsFloatType(localCoordsVar.getType()));
-        if (baseLocalCoord.type() == kVoid_GrSLType) {
-            // Initialize to the GP provided coordinate
-            baseLocalCoord = GrGLSLVarying(localCoordsVar.getType());
-            varyingHandler->addVarying("LocalCoord", &baseLocalCoord);
-            vb->codeAppendf("%s = %s;\n", baseLocalCoord.vsOut(), localCoordsVar.getName().c_str());
+    auto baseLocalCoordFSVar = [&, baseLocalCoordVarying = GrGLSLVarying()]() mutable {
+        if (localCoordsShader == kFragment_GrShaderType) {
+            return localCoordsVar;
         }
-        return baseLocalCoord.fsInVar();
+        SkASSERT(localCoordsShader == kVertex_GrShaderType);
+        SkASSERT(SkSLTypeIsFloatType(localCoordsVar.getType()));
+        if (baseLocalCoordVarying.type() == SkSLType::kVoid) {
+            // Initialize to the GP provided coordinate
+            baseLocalCoordVarying = GrGLSLVarying(localCoordsVar.getType());
+            varyingHandler->addVarying("LocalCoord", &baseLocalCoordVarying);
+            vb->codeAppendf("%s = %s;\n",
+                            baseLocalCoordVarying.vsOut(),
+                            localCoordsVar.getName().c_str());
+        }
+        return baseLocalCoordVarying.fsInVar();
     };
 
-    bool canUsePosition = positionVar.getType() != kVoid_GrSLType;
+    bool canUsePosition = positionVar.getType() != SkSLType::kVoid;
 
     FPCoordsMap result;
     // Performs a pre-order traversal of FP hierarchy rooted at fp and identifies FPs that are
@@ -137,28 +152,34 @@ ProgramImpl::FPCoordsMap ProgramImpl::collectTransforms(GrGLSLVertexBuilder* vb,
                                   int lastMatrixTraversalIndex = -1,
                                   BaseCoord baseCoord = BaseCoord::kLocal) mutable -> void {
         ++traversalIndex;
-        switch (fp.sampleUsage().kind()) {
-            case SkSL::SampleUsage::Kind::kNone:
-                // This should only happen at the root. Otherwise how did this FP get added?
-                SkASSERT(!fp.parent());
-                break;
-            case SkSL::SampleUsage::Kind::kPassThrough:
-                break;
-            case SkSL::SampleUsage::Kind::kUniformMatrix:
-                // Update tracking of last matrix and matrix props.
-                hasPerspective |= fp.sampleUsage().hasPerspective();
-                lastMatrixFP = &fp;
-                lastMatrixTraversalIndex = traversalIndex;
-                break;
-            case SkSL::SampleUsage::Kind::kFragCoord:
-                hasPerspective = positionVar.getType() == kFloat3_GrSLType;
-                lastMatrixFP = nullptr;
-                lastMatrixTraversalIndex = -1;
-                baseCoord = BaseCoord::kPosition;
-                break;
-            case SkSL::SampleUsage::Kind::kExplicit:
-                baseCoord = BaseCoord::kNone;
-                break;
+        if (localCoordsShader == kVertex_GrShaderType) {
+            switch (fp.sampleUsage().kind()) {
+                case SkSL::SampleUsage::Kind::kNone:
+                    // This should only happen at the root. Otherwise how did this FP get added?
+                    SkASSERT(!fp.parent());
+                    break;
+                case SkSL::SampleUsage::Kind::kPassThrough:
+                    break;
+                case SkSL::SampleUsage::Kind::kUniformMatrix:
+                    // Update tracking of last matrix and matrix props.
+                    hasPerspective |= fp.sampleUsage().hasPerspective();
+                    lastMatrixFP = &fp;
+                    lastMatrixTraversalIndex = traversalIndex;
+                    break;
+                case SkSL::SampleUsage::Kind::kFragCoord:
+                    hasPerspective = positionVar.getType() == SkSLType::kFloat3;
+                    lastMatrixFP = nullptr;
+                    lastMatrixTraversalIndex = -1;
+                    baseCoord = BaseCoord::kPosition;
+                    break;
+                case SkSL::SampleUsage::Kind::kExplicit:
+                    baseCoord = BaseCoord::kNone;
+                    break;
+            }
+        } else {
+            // If the GP doesn't provide an interpolatable local coord then there is no hope to
+            // lift.
+            baseCoord = BaseCoord::kNone;
         }
 
         auto& [varyingFSVar, hasCoordsParam] = result[&fp];
@@ -180,8 +201,8 @@ ProgramImpl::FPCoordsMap ProgramImpl::collectTransforms(GrGLSLVertexBuilder* vb,
                 // If there is an already a varying that incorporates all matrices from the root to
                 // lastMatrixFP just use it. Otherwise, we add it.
                 auto& [varying, inputCoords, varyingIdx] = fTransformVaryingsMap[lastMatrixFP];
-                if (varying.type() == kVoid_GrSLType) {
-                    varying = GrGLSLVarying(hasPerspective ? kFloat3_GrSLType : kFloat2_GrSLType);
+                if (varying.type() == SkSLType::kVoid) {
+                    varying = GrGLSLVarying(hasPerspective ? SkSLType::kFloat3 : SkSLType::kFloat2);
                     SkString strVaryingName = SkStringPrintf("TransformedCoords_%d",
                                                              lastMatrixTraversalIndex);
                     varyingHandler->addVarying(strVaryingName.c_str(), &varying);
@@ -205,15 +226,15 @@ ProgramImpl::FPCoordsMap ProgramImpl::collectTransforms(GrGLSLVertexBuilder* vb,
                      baseCoord);
                 // If we have a varying then we never need a param. Otherwise, if one of our
                 // children takes a non-explicit coord then we'll need our coord.
-                hasCoordsParam |= varyingFSVar.getType() == kVoid_GrSLType &&
-                                  !child->sampleUsage().isExplicit()       &&
-                                  !child->sampleUsage().isFragCoord()      &&
+                hasCoordsParam |= varyingFSVar.getType() == SkSLType::kVoid &&
+                                  !child->sampleUsage().isExplicit()        &&
+                                  !child->sampleUsage().isFragCoord()       &&
                                   result[child].hasCoordsParam;
             }
         }
     };
 
-    bool hasPerspective = GrSLTypeVecLength(localCoordsVar.getType()) == 3;
+    bool hasPerspective = SkSLTypeVecLength(localCoordsVar.getType()) == 3;
     for (int i = 0; i < pipeline.numFragmentProcessors(); ++i) {
         liftTransforms(liftTransforms, pipeline.getFragmentProcessor(i), hasPerspective);
     }
@@ -272,15 +293,15 @@ void ProgramImpl::emitTransformCode(GrGLSLVertexBuilder* vb, GrGLSLUniformHandle
         }
 
         SkString inputStr;
-        if (inputCoords.getType() == kFloat2_GrSLType) {
+        if (inputCoords.getType() == SkSLType::kFloat2) {
             inputStr = SkStringPrintf("%s.xy1", inputCoords.getName().c_str());
         } else {
-            SkASSERT(inputCoords.getType() == kFloat3_GrSLType);
+            SkASSERT(inputCoords.getType() == SkSLType::kFloat3);
             inputStr = inputCoords.getName();
         }
 
         vb->codeAppend("{\n");
-        if (info.varying.type() == kFloat2_GrSLType) {
+        if (info.varying.type() == SkSLType::kFloat2) {
             if (vb->getProgramBuilder()->shaderCaps()->nonsquareMatrixSupport()) {
                 vb->codeAppendf("%s = float3x2(%s) * %s",
                                 info.varying.vsOut(),
@@ -293,7 +314,7 @@ void ProgramImpl::emitTransformCode(GrGLSLVertexBuilder* vb, GrGLSLUniformHandle
                                 inputStr.c_str());
             }
         } else {
-            SkASSERT(info.varying.type() == kFloat3_GrSLType);
+            SkASSERT(info.varying.type() == SkSLType::kFloat3);
             vb->codeAppendf("%s = %s * %s",
                             info.varying.vsOut(),
                             transformExpression.c_str(),
@@ -314,7 +335,7 @@ void ProgramImpl::setupUniformColor(GrGLSLFPFragmentBuilder* fragBuilder,
     const char* stagedLocalVarName;
     *colorUniform = uniformHandler->addUniform(nullptr,
                                                kFragment_GrShaderFlag,
-                                               kHalf4_GrSLType,
+                                               SkSLType::kHalf4,
                                                "Color",
                                                &stagedLocalVarName);
     fragBuilder->codeAppendf("%s = %s;", outputName, stagedLocalVarName);
@@ -349,11 +370,11 @@ void ProgramImpl::SetTransform(const GrGLSLProgramDataManager& pdman,
 static void write_passthrough_vertex_position(GrGLSLVertexBuilder* vertBuilder,
                                               const GrShaderVar& inPos,
                                               GrShaderVar* outPos) {
-    SkASSERT(inPos.getType() == kFloat3_GrSLType || inPos.getType() == kFloat2_GrSLType);
+    SkASSERT(inPos.getType() == SkSLType::kFloat3 || inPos.getType() == SkSLType::kFloat2);
     SkString outName = vertBuilder->newTmpVarName(inPos.getName().c_str());
     outPos->set(inPos.getType(), outName.c_str());
     vertBuilder->codeAppendf("float%d %s = %s;",
-                             GrSLTypeVecLength(inPos.getType()),
+                             SkSLTypeVecLength(inPos.getType()),
                              outName.c_str(),
                              inPos.getName().c_str());
 }
@@ -366,7 +387,7 @@ static void write_vertex_position(GrGLSLVertexBuilder* vertBuilder,
                                   const char* matrixName,
                                   GrShaderVar* outPos,
                                   ProgramImpl::UniformHandle* matrixUniform) {
-    SkASSERT(inPos.getType() == kFloat3_GrSLType || inPos.getType() == kFloat2_GrSLType);
+    SkASSERT(inPos.getType() == SkSLType::kFloat3 || inPos.getType() == SkSLType::kFloat2);
     SkString outName = vertBuilder->newTmpVarName(inPos.getName().c_str());
 
     if (matrix.isIdentity() && !shaderCaps.reducedShaderMode()) {
@@ -379,12 +400,12 @@ static void write_vertex_position(GrGLSLVertexBuilder* vertBuilder,
     const char* mangledMatrixName;
     *matrixUniform = uniformHandler->addUniform(nullptr,
                                                 kVertex_GrShaderFlag,
-                                                useCompactTransform ? kFloat4_GrSLType
-                                                                    : kFloat3x3_GrSLType,
+                                                useCompactTransform ? SkSLType::kFloat4
+                                                                    : SkSLType::kFloat3x3,
                                                 matrixName,
                                                 &mangledMatrixName);
 
-    if (inPos.getType() == kFloat3_GrSLType) {
+    if (inPos.getType() == SkSLType::kFloat3) {
         // A float3 stays a float3 whether or not the matrix adds perspective
         if (useCompactTransform) {
             vertBuilder->codeAppendf("float3 %s = %s.xz1 * %s + %s.yw0;\n",
@@ -398,7 +419,7 @@ static void write_vertex_position(GrGLSLVertexBuilder* vertBuilder,
                                      mangledMatrixName,
                                      inPos.getName().c_str());
         }
-        outPos->set(kFloat3_GrSLType, outName.c_str());
+        outPos->set(SkSLType::kFloat3, outName.c_str());
         return;
     }
     if (matrix.hasPerspective()) {
@@ -408,7 +429,7 @@ static void write_vertex_position(GrGLSLVertexBuilder* vertBuilder,
                                  outName.c_str(),
                                  mangledMatrixName,
                                  inPos.getName().c_str());
-        outPos->set(kFloat3_GrSLType, outName.c_str());
+        outPos->set(SkSLType::kFloat3, outName.c_str());
         return;
     }
     if (useCompactTransform) {
@@ -428,14 +449,14 @@ static void write_vertex_position(GrGLSLVertexBuilder* vertBuilder,
                                  mangledMatrixName,
                                  inPos.getName().c_str());
     }
-    outPos->set(kFloat2_GrSLType, outName.c_str());
+    outPos->set(SkSLType::kFloat2, outName.c_str());
 }
 
 void ProgramImpl::WriteOutputPosition(GrGLSLVertexBuilder* vertBuilder,
                                       GrGPArgs* gpArgs,
                                       const char* posName) {
     // writeOutputPosition assumes the incoming pos name points to a float2 variable
-    GrShaderVar inPos(posName, kFloat2_GrSLType);
+    GrShaderVar inPos(posName, SkSLType::kFloat2);
     write_passthrough_vertex_position(vertBuilder, inPos, &gpArgs->fPositionVar);
 }
 
@@ -446,7 +467,7 @@ void ProgramImpl::WriteOutputPosition(GrGLSLVertexBuilder* vertBuilder,
                                       const char* posName,
                                       const SkMatrix& mat,
                                       UniformHandle* viewMatrixUniform) {
-    GrShaderVar inPos(posName, kFloat2_GrSLType);
+    GrShaderVar inPos(posName, SkSLType::kFloat2);
     write_vertex_position(vertBuilder,
                           uniformHandler,
                           shaderCaps,
@@ -473,3 +494,90 @@ void ProgramImpl::WriteLocalCoord(GrGLSLVertexBuilder* vertBuilder,
                           &gpArgs->fLocalCoordVar,
                           localMatrixUniform);
 }
+
+//////////////////////////////////////////////////////////////////////////////
+
+using Attribute    = GrGeometryProcessor::Attribute;
+using AttributeSet = GrGeometryProcessor::AttributeSet;
+
+GrGeometryProcessor::Attribute AttributeSet::Iter::operator*() const {
+    if (fCurr->offset().has_value()) {
+        return *fCurr;
+    }
+    return Attribute(fCurr->name(), fCurr->cpuType(), fCurr->gpuType(), fImplicitOffset);
+}
+
+void AttributeSet::Iter::operator++() {
+    if (fRemaining) {
+        fRemaining--;
+        fImplicitOffset += Attribute::AlignOffset(fCurr->size());
+        fCurr++;
+        this->skipUninitialized();
+    }
+}
+
+void AttributeSet::Iter::skipUninitialized() {
+    if (!fRemaining) {
+        fCurr = nullptr;
+    } else {
+        while (!fCurr->isInitialized()) {
+            ++fCurr;
+        }
+    }
+}
+
+void AttributeSet::initImplicit(const Attribute* attrs, int count) {
+    fAttributes = attrs;
+    fRawCount   = count;
+    fCount      = 0;
+    fStride     = 0;
+    for (int i = 0; i < count; ++i) {
+        if (attrs[i].isInitialized()) {
+            fCount++;
+            fStride += Attribute::AlignOffset(attrs[i].size());
+        }
+    }
+}
+
+void AttributeSet::initExplicit(const Attribute* attrs, int count, size_t stride) {
+    fAttributes = attrs;
+    fRawCount   = count;
+    fCount      = count;
+    fStride     = stride;
+    SkASSERT(Attribute::AlignOffset(fStride) == fStride);
+    for (int i = 0; i < count; ++i) {
+        SkASSERT(attrs[i].isInitialized());
+        SkASSERT(attrs[i].offset().has_value());
+        SkASSERT(Attribute::AlignOffset(*attrs[i].offset()) == *attrs[i].offset());
+        SkASSERT(*attrs[i].offset() + attrs[i].size() <= fStride);
+    }
+}
+
+void AttributeSet::addToKey(skgpu::KeyBuilder* b) const {
+    int rawCount = SkAbs32(fRawCount);
+    b->addBits(16, SkToU16(this->stride()), "stride");
+    b->addBits(16, rawCount, "attribute count");
+    size_t implicitOffset = 0;
+    for (int i = 0; i < rawCount; ++i) {
+        const Attribute& attr = fAttributes[i];
+        b->appendComment(attr.isInitialized() ? attr.name() : "unusedAttr");
+        static_assert(kGrVertexAttribTypeCount < (1 << 8), "");
+        static_assert(kSkSLTypeCount           < (1 << 8), "");
+        b->addBits(8,  attr.isInitialized() ? attr.cpuType() : 0xff, "attrType");
+        b->addBits(8 , attr.isInitialized() ? static_cast<int>(attr.gpuType()) : 0xff,
+                   "attrGpuType");
+        int16_t offset = -1;
+        if (attr.isInitialized()) {
+            if (attr.offset().has_value()) {
+                offset = *attr.offset();
+            } else {
+                offset = implicitOffset;
+                implicitOffset += Attribute::AlignOffset(attr.size());
+            }
+        }
+        b->addBits(16, static_cast<uint16_t>(offset), "attrOffset");
+    }
+}
+
+AttributeSet::Iter AttributeSet::begin() const { return Iter(fAttributes, fCount); }
+AttributeSet::Iter AttributeSet::end() const { return Iter(); }

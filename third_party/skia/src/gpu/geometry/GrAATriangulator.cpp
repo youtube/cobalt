@@ -7,6 +7,7 @@
 
 #include "src/gpu/geometry/GrAATriangulator.h"
 
+#include "src/gpu/BufferWriter.h"
 #include "src/gpu/GrEagerVertexAllocator.h"
 #include <queue>
 #include <vector>
@@ -106,7 +107,7 @@ void GrAATriangulator::makeEvent(SSEdge* edge, Vertex* v, SSEdge* other, Vertex*
     }
 }
 
-void GrAATriangulator::connectPartners(VertexList* mesh, const Comparator& c) const {
+void GrAATriangulator::connectPartners(VertexList* mesh, const Comparator& c) {
     for (Vertex* outer = mesh->fHead; outer; outer = outer->fNext) {
         if (Vertex* inner = outer->fPartner) {
             if ((inner->fPrev || inner->fNext) && (outer->fPrev || outer->fNext)) {
@@ -181,7 +182,7 @@ static void get_edge_normal(const Edge* e, SkVector* normal) {
 // and whose adjacent vertices are less than a quarter pixel from an edge. These are guaranteed to
 // invert on stroking.
 
-void GrAATriangulator::simplifyBoundary(EdgeList* boundary, const Comparator& c) const {
+void GrAATriangulator::simplifyBoundary(EdgeList* boundary, const Comparator& c) {
     Edge* prevEdge = boundary->fTail;
     SkVector prevNormal;
     get_edge_normal(prevEdge, &prevNormal);
@@ -227,7 +228,7 @@ void GrAATriangulator::simplifyBoundary(EdgeList* boundary, const Comparator& c)
     }
 }
 
-void GrAATriangulator::connectSSEdge(Vertex* v, Vertex* dest, const Comparator& c) const {
+void GrAATriangulator::connectSSEdge(Vertex* v, Vertex* dest, const Comparator& c) {
     if (v == dest) {
         return;
     }
@@ -243,7 +244,7 @@ void GrAATriangulator::connectSSEdge(Vertex* v, Vertex* dest, const Comparator& 
 }
 
 void GrAATriangulator::Event::apply(VertexList* mesh, const Comparator& c, EventList* events,
-                                    const GrAATriangulator* triangulator) {
+                                    GrAATriangulator* triangulator) {
     if (!fEdge) {
         return;
     }
@@ -306,7 +307,7 @@ static bool is_overlap_edge(Edge* e) {
 // This is a stripped-down version of tessellate() which computes edges which
 // join two filled regions, which represent overlap regions, and collapses them.
 bool GrAATriangulator::collapseOverlapRegions(VertexList* mesh, const Comparator& c,
-                                              EventComparator comp) const {
+                                              EventComparator comp) {
     TESS_LOG("\nfinding overlap regions\n");
     EdgeList activeEdges;
     EventList events(comp);
@@ -408,7 +409,7 @@ static bool inversion(Vertex* prev, Vertex* next, Edge* origEdge, const Comparat
 // new antialiased mesh from those vertices.
 
 void GrAATriangulator::strokeBoundary(EdgeList* boundary, VertexList* innerMesh,
-                                      const Comparator& c) const {
+                                      const Comparator& c) {
     TESS_LOG("\nstroking boundary\n");
     // A boundary with fewer than 3 edges is degenerate.
     if (!boundary->fHead || !boundary->fHead->fRight || !boundary->fHead->fRight->fRight) {
@@ -604,7 +605,7 @@ void GrAATriangulator::extractBoundary(EdgeList* boundary, Edge* e) const {
 // Stage 5b: Extract boundaries from mesh, simplify and stroke them into a new mesh.
 
 void GrAATriangulator::extractBoundaries(const VertexList& inMesh, VertexList* innerVertices,
-                                         const Comparator& c) const {
+                                         const Comparator& c) {
     this->removeNonBoundaryEdges(inMesh);
     for (Vertex* v = inMesh.fHead; v; v = v->fNext) {
         while (v->fFirstEdgeBelow) {
@@ -616,7 +617,7 @@ void GrAATriangulator::extractBoundaries(const VertexList& inMesh, VertexList* i
     }
 }
 
-Poly* GrAATriangulator::tessellate(const VertexList& mesh, const Comparator& c) const {
+std::tuple<Poly*, bool> GrAATriangulator::tessellate(const VertexList& mesh, const Comparator& c) {
     VertexList innerMesh;
     this->extractBoundaries(mesh, &innerMesh, c);
     SortMesh(&innerMesh, c);
@@ -624,8 +625,14 @@ Poly* GrAATriangulator::tessellate(const VertexList& mesh, const Comparator& c) 
     this->mergeCoincidentVertices(&innerMesh, c);
     bool was_complex = this->mergeCoincidentVertices(&fOuterMesh, c);
     auto result = this->simplify(&innerMesh, c);
+    if (result == SimplifyResult::kFailed) {
+        return { nullptr, false };
+    }
     was_complex = (SimplifyResult::kFoundSelfIntersection == result) || was_complex;
     result = this->simplify(&fOuterMesh, c);
+    if (result == SimplifyResult::kFailed) {
+        return { nullptr, false };
+    }
     was_complex = (SimplifyResult::kFoundSelfIntersection == result) || was_complex;
     TESS_LOG("\ninner mesh before:\n");
     DUMP_MESH(innerMesh);
@@ -649,6 +656,9 @@ Poly* GrAATriangulator::tessellate(const VertexList& mesh, const Comparator& c) 
         DUMP_MESH(aaMesh);
         this->mergeCoincidentVertices(&aaMesh, c);
         result = this->simplify(&aaMesh, c);
+        if (result == SimplifyResult::kFailed) {
+            return { nullptr, false };
+        }
         TESS_LOG("combined and simplified mesh:\n");
         DUMP_MESH(aaMesh);
         fOuterMesh.fHead = fOuterMesh.fTail = nullptr;
@@ -674,14 +684,15 @@ int GrAATriangulator::polysToAATriangles(Poly* polys,
     int count = count64;
 
     size_t vertexStride = sizeof(SkPoint) + sizeof(float);
-    void* verts = vertexAllocator->lock(vertexStride, count);
+    skgpu::VertexWriter verts = vertexAllocator->lockWriter(vertexStride, count);
     if (!verts) {
         SkDebugf("Could not allocate vertices\n");
         return 0;
     }
 
     TESS_LOG("emitting %d verts\n", count);
-    void* end = this->polysToTriangles(polys, verts, SkPathFillType::kWinding);
+    skgpu::BufferWriter::Mark start = verts.mark();
+    verts = this->polysToTriangles(polys, SkPathFillType::kWinding, std::move(verts));
     // Emit the triangles from the outer mesh.
     for (Vertex* v = fOuterMesh.fHead; v; v = v->fNext) {
         for (Edge* e = v->fFirstEdgeBelow; e; e = e->fNextEdgeBelow) {
@@ -689,13 +700,12 @@ int GrAATriangulator::polysToAATriangles(Poly* polys,
             Vertex* v1 = e->fBottom;
             Vertex* v2 = e->fBottom->fPartner;
             Vertex* v3 = e->fTop->fPartner;
-            end = this->emitTriangle(v0, v1, v2, 0/*winding*/, end);
-            end = this->emitTriangle(v0, v2, v3, 0/*winding*/, end);
+            verts = this->emitTriangle(v0, v1, v2, 0/*winding*/, std::move(verts));
+            verts = this->emitTriangle(v0, v2, v3, 0/*winding*/, std::move(verts));
         }
     }
 
-    int actualCount = static_cast<int>((static_cast<uint8_t*>(end) - static_cast<uint8_t*>(verts))
-                                       / vertexStride);
+    int actualCount = static_cast<int>((verts.mark() - start) / vertexStride);
     SkASSERT(actualCount <= count);
     vertexAllocator->unlock(actualCount);
     return actualCount;

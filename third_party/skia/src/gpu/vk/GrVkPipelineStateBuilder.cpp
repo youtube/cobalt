@@ -14,13 +14,13 @@
 #include "src/gpu/GrDirectContextPriv.h"
 #include "src/gpu/GrPersistentCacheUtils.h"
 #include "src/gpu/GrShaderCaps.h"
-#include "src/gpu/GrShaderUtils.h"
 #include "src/gpu/GrStencilSettings.h"
 #include "src/gpu/vk/GrVkDescriptorSetManager.h"
 #include "src/gpu/vk/GrVkGpu.h"
 #include "src/gpu/vk/GrVkPipeline.h"
 #include "src/gpu/vk/GrVkRenderPass.h"
 #include "src/gpu/vk/GrVkRenderTarget.h"
+#include "src/utils/SkShaderUtils.h"
 
 GrVkPipelineState* GrVkPipelineStateBuilder::CreatePipelineState(
         GrVkGpu* gpu,
@@ -72,11 +72,11 @@ void GrVkPipelineStateBuilder::finalizeFragmentSecondaryColor(GrShaderVar& outpu
 }
 
 bool GrVkPipelineStateBuilder::createVkShaderModule(VkShaderStageFlagBits stage,
-                                                    const SkSL::String& sksl,
+                                                    const std::string& sksl,
                                                     VkShaderModule* shaderModule,
                                                     VkPipelineShaderStageCreateInfo* stageInfo,
                                                     const SkSL::Program::Settings& settings,
-                                                    SkSL::String* outSPIRV,
+                                                    std::string* outSPIRV,
                                                     SkSL::Program::Inputs* outInputs) {
     if (!GrCompileVkShaderModule(fGpu, sksl, stage, shaderModule,
                                  stageInfo, settings, outSPIRV, outInputs)) {
@@ -92,7 +92,7 @@ bool GrVkPipelineStateBuilder::installVkShaderModule(VkShaderStageFlagBits stage
                                                      const GrGLSLShaderBuilder& builder,
                                                      VkShaderModule* shaderModule,
                                                      VkPipelineShaderStageCreateInfo* stageInfo,
-                                                     SkSL::String spirv,
+                                                     std::string spirv,
                                                      SkSL::Program::Inputs inputs) {
     if (!GrInstallVkShaderModule(fGpu, spirv, stage, shaderModule, stageInfo)) {
         return false;
@@ -109,7 +109,7 @@ static constexpr SkFourByteTag kSKSL_Tag = SkSetFourByteTag('S', 'K', 'S', 'L');
 int GrVkPipelineStateBuilder::loadShadersFromCache(SkReadBuffer* cached,
                                                    VkShaderModule outShaderModules[],
                                                    VkPipelineShaderStageCreateInfo* outStageInfo) {
-    SkSL::String shaders[kGrShaderTypeCount];
+    std::string shaders[kGrShaderTypeCount];
     SkSL::Program::Inputs inputs[kGrShaderTypeCount];
 
     if (!GrPersistentCacheUtils::UnpackCachedShaders(cached, shaders, inputs, kGrShaderTypeCount)) {
@@ -142,7 +142,7 @@ int GrVkPipelineStateBuilder::loadShadersFromCache(SkReadBuffer* cached,
     return 2;
 }
 
-void GrVkPipelineStateBuilder::storeShadersInCache(const SkSL::String shaders[],
+void GrVkPipelineStateBuilder::storeShadersInCache(const std::string shaders[],
                                                    const SkSL::Program::Inputs inputs[],
                                                    bool isSkSL) {
     // Here we shear off the Vk-specific portion of the Desc in order to create the
@@ -224,14 +224,14 @@ GrVkPipelineState* GrVkPipelineStateBuilder::finalize(const GrProgramDesc& desc,
     // Proceed from sources if we didn't get a SPIRV cache (or the cache was invalid)
     if (!numShaderStages) {
         numShaderStages = 2; // We always have at least vertex and fragment stages.
-        SkSL::String shaders[kGrShaderTypeCount];
+        std::string shaders[kGrShaderTypeCount];
         SkSL::Program::Inputs inputs[kGrShaderTypeCount];
 
-        SkSL::String* sksl[kGrShaderTypeCount] = {
+        std::string* sksl[kGrShaderTypeCount] = {
             &fVS.fCompilerString,
             &fFS.fCompilerString,
         };
-        SkSL::String cached_sksl[kGrShaderTypeCount];
+        std::string cached_sksl[kGrShaderTypeCount];
         if (kSKSL_Tag == shaderType) {
             if (GrPersistentCacheUtils::UnpackCachedShaders(&reader, cached_sksl, inputs,
                                                             kGrShaderTypeCount)) {
@@ -272,7 +272,7 @@ GrVkPipelineState* GrVkPipelineStateBuilder::finalize(const GrProgramDesc& desc,
             if (fGpu->getContext()->priv().options().fShaderCacheStrategy ==
                     GrContextOptions::ShaderCacheStrategy::kSkSL) {
                 for (int i = 0; i < kGrShaderTypeCount; ++i) {
-                    shaders[i] = GrShaderUtils::PrettyPrint(*sksl[i]);
+                    shaders[i] = SkShaderUtils::PrettyPrint(*sksl[i]);
                 }
                 isSkSL = true;
             }

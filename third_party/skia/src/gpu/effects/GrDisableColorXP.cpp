@@ -25,7 +25,7 @@ public:
 private:
     const char* name() const override { return "Disable Color"; }
     bool onIsEqual(const GrXferProcessor& xpBase) const override { return true; }
-    void onAddToKey(const GrShaderCaps&, GrProcessorKeyBuilder*) const override {}
+    void onAddToKey(const GrShaderCaps&, skgpu::KeyBuilder*) const override {}
     void onGetBlendInfo(GrXferProcessor::BlendInfo* blendInfo) const override {
         blendInfo->fWriteColor = false;
     }
@@ -49,7 +49,7 @@ std::unique_ptr<GrXferProcessor::ProgramImpl> DisableColorXP::makeProgramImpl() 
         }
 
         void emitWriteSwizzle(GrGLSLXPFragmentBuilder*,
-                              const GrSwizzle&,
+                              const skgpu::Swizzle&,
                               const char*,
                               const char*) const override {
             // Don't write any swizzling. This makes sure the final shader does not output a color.

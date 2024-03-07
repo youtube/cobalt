@@ -18,8 +18,8 @@
 #include "base/run_loop.h"
 #include "base/stl_util.h"
 #include "base/system/sys_info.h"
-#include "base/task/post_task.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/task/single_thread_task_executor.h"
 #include "base/task/task_runner.h"
 #include "base/task/task_scheduler/task_scheduler.h"
 #include "base/task/thread_pool/initialization_util.h"
@@ -49,7 +49,7 @@ void TaskSchedulerStart() {
 
 void TaskSchedulerStop() { base::ThreadPoolInstance::Get()->Shutdown(); }
 
-std::unique_ptr<base::MessagePumpForUI> g_loop;
+std::unique_ptr<base::SingleThreadTaskExecutor> g_loop;
 std::unique_ptr<cobalt::network::NetworkModule> network_module;
 std::unique_ptr<base::AtExitManager> exit_manager;
 std::unique_ptr<cobalt::updater::UpdaterModule> updater_module;
@@ -66,8 +66,7 @@ int UpdaterMain(int argc, const char* const* argv) {
 
   TaskSchedulerStart();
 
-  g_loop.reset(new base::MessagePumpForUI());
-  g_loop->Start();
+  g_loop.reset(new base::SingleThreadTaskExecutor(base::MessagePumpType::UI));
 
 #ifndef USE_HACKY_COBALT_CHANGES
   DCHECK(base::ThreadTaskRunnerHandle::IsSet());

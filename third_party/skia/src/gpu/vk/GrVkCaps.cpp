@@ -20,6 +20,7 @@
 #include "src/gpu/GrShaderCaps.h"
 #include "src/gpu/GrStencilSettings.h"
 #include "src/gpu/GrUtil.h"
+#include "src/gpu/KeyBuilder.h"
 #include "src/gpu/SkGr.h"
 #include "src/gpu/vk/GrVkGpu.h"
 #include "src/gpu/vk/GrVkImage.h"
@@ -609,7 +610,8 @@ void GrVkCaps::initGrCaps(const GrVkInterface* vkInterface,
     // attribs timeout looping over that many. For now, we'll cap this at 64 max and can raise it if
     // we ever find that need.
     static const uint32_t kMaxVertexAttributes = 64;
-    fMaxVertexAttributes = std::min(properties.limits.maxVertexInputAttributes, kMaxVertexAttributes);
+    fMaxVertexAttributes = std::min(properties.limits.maxVertexInputAttributes,
+                                    kMaxVertexAttributes);
 
     // GrCaps::fSampleLocationsSupport refers to the ability to *query* the sample locations (not
     // program them). For now we just set this to true if the device uses standard locations, and
@@ -864,7 +866,7 @@ void GrVkCaps::initFormatTable(const GrVkInterface* interface, VkPhysicalDevice 
                 ctInfo.fColorType = ct;
                 ctInfo.fTransferColorType = ct;
                 ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag;
-                ctInfo.fReadSwizzle = GrSwizzle::RGB1();
+                ctInfo.fReadSwizzle = skgpu::Swizzle::RGB1();
             }
         }
     }
@@ -875,9 +877,17 @@ void GrVkCaps::initFormatTable(const GrVkInterface* interface, VkPhysicalDevice 
         auto& info = this->getFormatInfo(format);
         info.init(interface, physDev, properties, format);
         if (SkToBool(info.fOptimalFlags & FormatInfo::kTexturable_Flag)) {
-            info.fColorTypeInfoCount = 2;
+            info.fColorTypeInfoCount = 3;
             info.fColorTypeInfos = std::make_unique<ColorTypeInfo[]>(info.fColorTypeInfoCount);
             int ctIdx = 0;
+            // Format: VK_FORMAT_R8_UNORM, Surface: kR_8
+            {
+                constexpr GrColorType ct = GrColorType::kR_8;
+                auto& ctInfo = info.fColorTypeInfos[ctIdx++];
+                ctInfo.fColorType = ct;
+                ctInfo.fTransferColorType = ct;
+                ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
+            }
             // Format: VK_FORMAT_R8_UNORM, Surface: kAlpha_8
             {
                 constexpr GrColorType ct = GrColorType::kAlpha_8;
@@ -885,8 +895,8 @@ void GrVkCaps::initFormatTable(const GrVkInterface* interface, VkPhysicalDevice 
                 ctInfo.fColorType = ct;
                 ctInfo.fTransferColorType = ct;
                 ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-                ctInfo.fReadSwizzle = GrSwizzle("000r");
-                ctInfo.fWriteSwizzle = GrSwizzle("a000");
+                ctInfo.fReadSwizzle = skgpu::Swizzle("000r");
+                ctInfo.fWriteSwizzle = skgpu::Swizzle("a000");
             }
             // Format: VK_FORMAT_R8_UNORM, Surface: kGray_8
             {
@@ -895,7 +905,7 @@ void GrVkCaps::initFormatTable(const GrVkInterface* interface, VkPhysicalDevice 
                 ctInfo.fColorType = ct;
                 ctInfo.fTransferColorType = ct;
                 ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag;
-                ctInfo.fReadSwizzle = GrSwizzle("rrr1");
+                ctInfo.fReadSwizzle = skgpu::Swizzle("rrr1");
             }
         }
     }
@@ -980,8 +990,8 @@ void GrVkCaps::initFormatTable(const GrVkInterface* interface, VkPhysicalDevice 
                 ctInfo.fColorType = ct;
                 ctInfo.fTransferColorType = ct;
                 ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-                ctInfo.fReadSwizzle = GrSwizzle("000r");
-                ctInfo.fWriteSwizzle = GrSwizzle("a000");
+                ctInfo.fReadSwizzle = skgpu::Swizzle("000r");
+                ctInfo.fWriteSwizzle = skgpu::Swizzle("a000");
             }
         }
     }
@@ -1078,8 +1088,8 @@ void GrVkCaps::initFormatTable(const GrVkInterface* interface, VkPhysicalDevice 
                 ctInfo.fColorType = ct;
                 ctInfo.fTransferColorType = ct;
                 ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-                ctInfo.fReadSwizzle = GrSwizzle::BGRA();
-                ctInfo.fWriteSwizzle = GrSwizzle::BGRA();
+                ctInfo.fReadSwizzle = skgpu::Swizzle::BGRA();
+                ctInfo.fWriteSwizzle = skgpu::Swizzle::BGRA();
             }
         }
     }
@@ -1138,8 +1148,8 @@ void GrVkCaps::initFormatTable(const GrVkInterface* interface, VkPhysicalDevice 
                 ctInfo.fColorType = ct;
                 ctInfo.fTransferColorType = ct;
                 ctInfo.fFlags = ColorTypeInfo::kUploadData_Flag | ColorTypeInfo::kRenderable_Flag;
-                ctInfo.fReadSwizzle = GrSwizzle("000r");
-                ctInfo.fWriteSwizzle = GrSwizzle("a000");
+                ctInfo.fReadSwizzle = skgpu::Swizzle("000r");
+                ctInfo.fWriteSwizzle = skgpu::Swizzle("a000");
             }
         }
     }
@@ -1682,7 +1692,8 @@ GrBackendFormat GrVkCaps::getBackendFormatFromCompressionType(
     SkUNREACHABLE;
 }
 
-GrSwizzle GrVkCaps::onGetReadSwizzle(const GrBackendFormat& format, GrColorType colorType) const {
+skgpu::Swizzle GrVkCaps::onGetReadSwizzle(const GrBackendFormat& format,
+                                          GrColorType colorType) const {
     VkFormat vkFormat;
     SkAssertResult(format.asVkFormat(&vkFormat));
     const auto* ycbcrInfo = format.getVkYcbcrConversionInfo();
@@ -1690,7 +1701,7 @@ GrSwizzle GrVkCaps::onGetReadSwizzle(const GrBackendFormat& format, GrColorType 
     if (ycbcrInfo->isValid() && ycbcrInfo->fExternalFormat != 0) {
         // We allow these to work with any color type and never swizzle. See
         // onAreColorTypeAndFormatCompatible.
-        return GrSwizzle{"rgba"};
+        return skgpu::Swizzle{"rgba"};
     }
 
     const auto& info = this->getFormatInfo(vkFormat);
@@ -1705,7 +1716,8 @@ GrSwizzle GrVkCaps::onGetReadSwizzle(const GrBackendFormat& format, GrColorType 
     return {};
 }
 
-GrSwizzle GrVkCaps::getWriteSwizzle(const GrBackendFormat& format, GrColorType colorType) const {
+skgpu::Swizzle GrVkCaps::getWriteSwizzle(const GrBackendFormat& format,
+                                         GrColorType colorType) const {
     VkFormat vkFormat;
     SkAssertResult(format.asVkFormat(&vkFormat));
     const auto& info = this->getFormatInfo(vkFormat);
@@ -1785,7 +1797,7 @@ int GrVkCaps::getFragmentUniformSet() const {
     return GrVkUniformHandler::kUniformBufferDescSet;
 }
 
-void GrVkCaps::addExtraSamplerKey(GrProcessorKeyBuilder* b,
+void GrVkCaps::addExtraSamplerKey(skgpu::KeyBuilder* b,
                                   GrSamplerState samplerState,
                                   const GrBackendFormat& format) const {
     const GrVkYcbcrConversionInfo* ycbcrInfo = format.getVkYcbcrConversionInfo();
@@ -1823,7 +1835,7 @@ GrProgramDesc GrVkCaps::makeDesc(GrRenderTarget* rt,
     GrProgramDesc desc;
     GrProgramDesc::Build(&desc, programInfo, *this);
 
-    GrProcessorKeyBuilder b(desc.key());
+    skgpu::KeyBuilder b(desc.key());
 
     // This will become part of the sheared off key used to persistently cache
     // the SPIRV code. It needs to be added right after the base key so that,

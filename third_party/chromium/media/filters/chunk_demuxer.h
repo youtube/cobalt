@@ -391,7 +391,6 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
 
 #if defined(STARBOARD)
   base::TimeDelta GetWriteHead(const std::string& id) const;
-  bool GetIsEndOfStreamReceived() const override;
 
   void SetSourceBufferStreamMemoryLimit(const std::string& guid, size_t limit);
   size_t GetSourceBufferStreamMemoryLimit(const std::string& guid);

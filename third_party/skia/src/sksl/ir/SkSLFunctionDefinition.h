@@ -14,8 +14,6 @@
 
 namespace SkSL {
 
-struct ASTNode;
-
 /**
  * A function definition (a declaration plus an associated block of code).
  */
@@ -23,16 +21,15 @@ class FunctionDefinition final : public ProgramElement {
 public:
     inline static constexpr Kind kProgramElementKind = Kind::kFunction;
 
-    using IntrinsicSet = std::unordered_set<const FunctionDeclaration*>;
+    using FunctionSet = std::unordered_set<const FunctionDeclaration*>;
 
     FunctionDefinition(int line, const FunctionDeclaration* declaration, bool builtin,
-                       std::unique_ptr<Statement> body, IntrinsicSet referencedIntrinsics)
+                       std::unique_ptr<Statement> body, FunctionSet referencedBuiltinFunctions)
         : INHERITED(line, kProgramElementKind)
         , fDeclaration(declaration)
         , fBuiltin(builtin)
         , fBody(std::move(body))
-        , fReferencedIntrinsics(std::move(referencedIntrinsics))
-        , fSource(nullptr) {}
+        , fReferencedBuiltinFunctions(std::move(referencedBuiltinFunctions)) {}
 
     /**
      * Coerces `return` statements to the return type of the function, and reports errors in the
@@ -67,25 +64,17 @@ public:
         return fBody;
     }
 
-    const std::unordered_set<const FunctionDeclaration*>& referencedIntrinsics() const {
-        return fReferencedIntrinsics;
-    }
-
-    const ASTNode* source() const {
-        return fSource;
-    }
-
-    void setSource(const ASTNode* source) {
-        fSource = source;
+    const FunctionSet& referencedBuiltinFunctions() const {
+        return fReferencedBuiltinFunctions;
     }
 
     std::unique_ptr<ProgramElement> clone() const override {
         return std::make_unique<FunctionDefinition>(fLine, &this->declaration(),
                                                     /*builtin=*/false, this->body()->clone(),
-                                                    this->referencedIntrinsics());
+                                                    this->referencedBuiltinFunctions());
     }
 
-    String description() const override {
+    std::string description() const override {
         return this->declaration().description() + " " + this->body()->description();
     }
 
@@ -93,14 +82,9 @@ private:
     const FunctionDeclaration* fDeclaration;
     bool fBuiltin;
     std::unique_ptr<Statement> fBody;
-    // We track intrinsic functions we reference so that we can ensure that all of them end up
+    // We track the builtin functions we reference so that we can ensure that all of them end up
     // copied into the final output.
-    IntrinsicSet fReferencedIntrinsics;
-    // This pointer may be null, and even when non-null is not guaranteed to remain valid for
-    // the entire lifespan of this object. The parse tree's lifespan is normally controlled by
-    // IRGenerator, so the IRGenerator being destroyed or being used to compile another file
-    // will invalidate this pointer.
-    const ASTNode* fSource;
+    FunctionSet fReferencedBuiltinFunctions;
 
     using INHERITED = ProgramElement;
 };

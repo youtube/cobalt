@@ -8,6 +8,7 @@
 #include "include/core/SkPaint.h"
 #include "src/core/SkScalerContext.h"
 
+#include "include/core/SkDrawable.h"
 #include "include/core/SkFontMetrics.h"
 #include "include/core/SkMaskFilter.h"
 #include "include/core/SkPathEffect.h"
@@ -181,8 +182,7 @@ SkGlyph SkScalerContext::makeGlyph(SkPackedGlyphID packedID, SkArenaAlloc* alloc
     return internalMakeGlyph(packedID, fRec.fMaskFormat, alloc);
 }
 
-SkGlyph SkScalerContext::internalMakeGlyph(SkPackedGlyphID packedID, SkMask::Format format,
-                                           SkArenaAlloc* alloc) {
+SkGlyph SkScalerContext::internalMakeGlyph(SkPackedGlyphID packedID, SkMask::Format format, SkArenaAlloc* alloc) {
     SkGlyph glyph{packedID};
     glyph.fMaskFormat = format;
     // Must call to allow the subclass to determine the glyph representation to use.
@@ -524,7 +524,7 @@ static void generateMask(const SkMask& mask, const SkPath& path,
     sk_bzero(dst.writable_addr(), dst.computeByteSize());
 
     SkDraw  draw;
-    SkSimpleMatrixProvider matrixProvider(matrix);
+    SkMatrixProvider matrixProvider(matrix);
     draw.fDst            = dst;
     draw.fRC             = &clip;
     draw.fMatrixProvider = &matrixProvider;
@@ -694,6 +694,14 @@ void SkScalerContext::getImage(const SkGlyph& origGlyph) {
 
 void SkScalerContext::getPath(SkGlyph& glyph, SkArenaAlloc* alloc) {
     this->internalGetPath(glyph, alloc);
+}
+
+sk_sp<SkDrawable> SkScalerContext::getDrawable(SkGlyph& glyph) {
+    return this->generateDrawable(glyph);
+}
+//TODO: make pure virtual
+sk_sp<SkDrawable> SkScalerContext::generateDrawable(const SkGlyph&) {
+    return nullptr;
 }
 
 void SkScalerContext::getFontMetrics(SkFontMetrics* fm) {
@@ -1005,7 +1013,7 @@ void SkScalerContext::MakeRecAndEffects(const SkFont& font, const SkPaint& paint
 
     SkTypeface* typeface = font.getTypefaceOrDefault();
 
-    rec->fFontID = typeface->uniqueID();
+    rec->fTypefaceID = typeface->uniqueID();
     rec->fTextSize = font.getSize();
     rec->fPreScaleX = font.getScaleX();
     rec->fPreSkewX  = font.getSkewX();
