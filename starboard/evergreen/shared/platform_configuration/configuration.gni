@@ -20,9 +20,6 @@ cobalt_font_package = "empty"
 
 nasm_exists = true
 
-# Evergreen relies on the underlying platform for the player.
-sb_filter_based_player = false
-
 # Override that omits the "data" subdirectory.
 # TODO: Remove when omitted for all platforms in base_configuration.gni.
 sb_static_contents_output_data_dir = "$root_out_dir/content"
