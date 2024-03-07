@@ -26,8 +26,8 @@ bool SbFileDelete(const char* path) {
   if ((path == nullptr) || *path == '\0') {
     return false;
   }
-
-  if (!SbFileExists(path)) {
+  struct stat info;
+  if (stat(path, &info) != 0) {
     return true;
   }
 
