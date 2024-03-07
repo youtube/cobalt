@@ -508,8 +508,10 @@ BASE_EXPORT bool TouchFile(const FilePath& path,
 // configured to not be propagated to child processes.
 BASE_EXPORT FILE* OpenFile(const FilePath& filename, const char* mode);
 
+#if !defined(USE_HACKY_COBALT_CHANGES)
 // Closes file opened by OpenFile. Returns true on success.
 BASE_EXPORT bool CloseFile(FILE* file);
+#endif
 
 // Associates a standard FILE stream with an existing File. Note that this
 // functions take ownership of the existing File.

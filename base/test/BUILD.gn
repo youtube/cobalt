@@ -185,6 +185,20 @@ static_library("test_support") {
       "metrics/histogram_enum_reader.cc",
       "metrics/histogram_enum_reader.h",
     ]
+
+    # These rely on FILE/fopen/fclose.
+    sources -= [
+      "gtest_links.cc",
+      "gtest_links.h",
+      "gtest_tags.cc",
+      "gtest_tags.h",
+      "gtest_xml_unittest_result_printer.cc",
+      "gtest_xml_unittest_result_printer.h",
+      "gtest_xml_util.cc",
+      "gtest_xml_util.h",
+      "perf_log.cc",
+      "perf_log.h",
+    ]
   }
 
   if (enable_base_tracing) {
