@@ -81,10 +81,6 @@ class BASE_EXPORT MessagePumpUIStarboard : public MessagePump {
   // iteration or not. Places the delay, if any, in |out_delayed_work_time|.
   bool RunOne(base::TimeTicks* out_delayed_work_time);
 
-  // The top-level RunLoop for the MessageLoopForUI. A MessageLoop needs a
-  // top-level RunLoop to be considered "running."
-  std::unique_ptr<base::RunLoop> run_loop_;
-
   // The MessagePump::Delegate configured in Start().
   Delegate* delegate_;
 

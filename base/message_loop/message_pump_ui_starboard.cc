@@ -81,20 +81,11 @@ void MessagePumpUIStarboard::Attach(Delegate* delegate) {
   // return control back to the Looper.
 
   SetDelegate(delegate);
-  run_loop_ = std::make_unique<RunLoop>();
-  // Since the RunLoop was just created above, BeforeRun should be guaranteed to
-  // return true (it only returns false if the RunLoop has been Quit already).
-  if (!run_loop_->BeforeRun())
-    NOTREACHED();
 }
 
 void MessagePumpUIStarboard::Quit() {
   delegate_ = NULL;
   CancelAll();
-  if (run_loop_) {
-    run_loop_->AfterRun();
-    run_loop_.reset();
-  }
 }
 
 void MessagePumpUIStarboard::ScheduleWork() {
