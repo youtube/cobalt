@@ -38,6 +38,12 @@
 #include <sys/prctl.h>
 #endif
 
+#if defined(STARBOARD)
+#include "base/check_op.h"
+#include "starboard/once.h"
+#include "starboard/thread.h"
+#endif
+
 namespace base {
 
 constexpr uint32_t kMaxStackEntries = 256;
@@ -89,12 +95,32 @@ const char* GetAndLeakThreadName() {
 }
 
 const char* UpdateAndGetThreadName(const char* name) {
+#if defined(STARBOARD)
+  static SbOnceControl s_once_flag = SB_ONCE_INITIALIZER;
+  static SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+  
+  auto InitThreadLocalKey = [](){
+    s_thread_local_key = SbThreadCreateLocalKey(NULL);
+    DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+  };
+
+  SbOnce(&s_once_flag, InitThreadLocalKey);
+  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+
+  const char* thread_name = static_cast<const char*>(SbThreadGetLocalValue(s_thread_local_key));
+  if (name)
+    SbThreadSetLocalValue(s_thread_local_key, const_cast<char*>(name));
+  else if (!thread_name)
+    SbThreadSetLocalValue(s_thread_local_key, const_cast<char*>(GetAndLeakThreadName()));
+  return static_cast<const char*>(SbThreadGetLocalValue(s_thread_local_key));
+#else
   static thread_local const char* thread_name;
   if (name)
     thread_name = name;
   if (!thread_name)
     thread_name = GetAndLeakThreadName();
   return thread_name;
+#endif
 }
 
 // Checks whether unwinding from this function works.

@@ -38,12 +38,38 @@
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
+#if defined(STARBOARD)
+#include "base/check_op.h"
+#include "starboard/once.h"
+#include "starboard/thread.h"
+#endif
+
 namespace base {
 namespace sequence_manager {
 namespace {
 
+#if defined(STARBOARD)
+ABSL_CONST_INIT SbOnceControl s_once_flag = SB_ONCE_INITIALIZER;
+ABSL_CONST_INIT SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+
+void InitThreadLocalKey() {
+  s_thread_local_key = SbThreadCreateLocalKey(NULL);
+  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+}
+
+void EnsureThreadLocalKeyInited() {
+  SbOnce(&s_once_flag, InitThreadLocalKey);
+  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+}
+
+internal::SequenceManagerImpl* GetThreadLocalSequenceManager() {
+  return static_cast<internal::SequenceManagerImpl*>(
+      SbThreadGetLocalValue(s_thread_local_key));
+}
+#else
 ABSL_CONST_INIT thread_local internal::SequenceManagerImpl*
     thread_local_sequence_manager = nullptr;
+#endif
 
 class TracedBaseValue : public trace_event::ConvertableToTraceFormat {
  public:
@@ -159,12 +185,16 @@ bool g_explicit_high_resolution_timer_win = false;
 
 // static
 SequenceManagerImpl* SequenceManagerImpl::GetCurrent() {
+#if defined(STARBOARD)
+  return GetThreadLocalSequenceManager();
+#else
   // Workaround false-positive MSAN use-of-uninitialized-value on
   // thread_local storage for loaded libraries:
   // https://github.com/google/sanitizers/issues/1265
   MSAN_UNPOISON(&thread_local_sequence_manager, sizeof(SequenceManagerImpl*));
 
   return thread_local_sequence_manager;
+#endif
 }
 
 SequenceManagerImpl::SequenceManagerImpl(
@@ -235,7 +265,12 @@ SequenceManagerImpl::~SequenceManagerImpl() {
   // OK, now make it so that no one can find us.
   if (GetMessagePump()) {
     DCHECK_EQ(this, GetCurrent());
+#if defined(STARBOARD)
+    EnsureThreadLocalKeyInited();
+    SbThreadSetLocalValue(s_thread_local_key, nullptr);
+#else
     thread_local_sequence_manager = nullptr;
+#endif
   }
 }
 
@@ -360,7 +395,12 @@ void SequenceManagerImpl::CompleteInitializationOnBoundThread() {
   if (GetMessagePump()) {
     DCHECK(!GetCurrent())
         << "Can't register a second SequenceManagerImpl on the same thread.";
+#if defined(STARBOARD)
+    EnsureThreadLocalKeyInited();
+    SbThreadSetLocalValue(s_thread_local_key, this);
+#else
     thread_local_sequence_manager = this;
+#endif
   }
 }
 

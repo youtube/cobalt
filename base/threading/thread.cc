@@ -29,7 +29,11 @@
 #include "build/build_config.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
-#if !defined(STARBOARD)
+#if defined(STARBOARD)
+#include "base/check_op.h"
+#include "starboard/once.h"
+#include "starboard/thread.h"
+#else
 #if (BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_NACL)) || BUILDFLAG(IS_FUCHSIA)
 #include "base/files/file_descriptor_watcher_posix.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -45,11 +49,31 @@ namespace base {
 #if DCHECK_IS_ON()
 namespace {
 
+#if defined(STARBOARD)
+ABSL_CONST_INIT SbOnceControl s_once_flag = SB_ONCE_INITIALIZER;
+ABSL_CONST_INIT SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+
+void InitThreadLocalKey() {
+  s_thread_local_key = SbThreadCreateLocalKey(NULL);
+  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+}
+
+void EnsureThreadLocalKeyInited() {
+  SbOnce(&s_once_flag, InitThreadLocalKey);
+  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+}
+
+bool GetWasQuitProperly() {
+  void* was_quit_properly = SbThreadGetLocalValue(s_thread_local_key);
+  return !!was_quit_properly ? reinterpret_cast<intptr_t>(was_quit_properly) != 0 : false;
+}
+#else
 // We use this thread-local variable to record whether or not a thread exited
 // because its Stop method was called.  This allows us to catch cases where
 // MessageLoop::QuitWhenIdle() is called directly, which is unexpected when
 // using a Thread to setup and run a MessageLoop.
 ABSL_CONST_INIT thread_local bool was_quit_properly = false;
+#endif
 
 }  // namespace
 #endif
@@ -347,14 +371,23 @@ void Thread::Run(RunLoop* run_loop) {
 // static
 void Thread::SetThreadWasQuitProperly(bool flag) {
 #if DCHECK_IS_ON()
+#if defined(STARBOARD)
+  EnsureThreadLocalKeyInited();
+  SbThreadSetLocalValue(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(flag)));
+#else
   was_quit_properly = flag;
+#endif
 #endif
 }
 
 // static
 bool Thread::GetThreadWasQuitProperly() {
 #if DCHECK_IS_ON()
+#if defined(STARBOARD)
+  return GetWasQuitProperly();
+#else
   return was_quit_properly;
+#endif
 #else
   return true;
 #endif

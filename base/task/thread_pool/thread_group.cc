@@ -19,13 +19,39 @@
 #include "base/win/scoped_winrt_initializer.h"
 #endif
 
+#if defined(STARBOARD)
+#include "base/check_op.h"
+#include "starboard/once.h"
+#include "starboard/thread.h"
+#endif
+
 namespace base {
 namespace internal {
 
 namespace {
 
+#if defined(STARBOARD)
+ABSL_CONST_INIT SbOnceControl s_once_flag = SB_ONCE_INITIALIZER;
+ABSL_CONST_INIT SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+
+void InitThreadLocalKey() {
+  s_thread_local_key = SbThreadCreateLocalKey(NULL);
+  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+}
+
+void EnsureThreadLocalKeyInited() {
+  SbOnce(&s_once_flag, InitThreadLocalKey);
+  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+}
+
+const ThreadGroup* GetCurrentThreadGroup() {
+  return static_cast<const ThreadGroup*>(
+      SbThreadGetLocalValue(s_thread_local_key));
+}
+#else
 // ThreadGroup that owns the current thread, if any.
 ABSL_CONST_INIT thread_local const ThreadGroup* current_thread_group = nullptr;
+#endif
 
 }  // namespace
 
@@ -77,16 +103,30 @@ ThreadGroup::~ThreadGroup() = default;
 
 void ThreadGroup::BindToCurrentThread() {
   DCHECK(!CurrentThreadHasGroup());
+#if defined(STARBOARD)
+  EnsureThreadLocalKeyInited();
+  SbThreadSetLocalValue(s_thread_local_key, this);
+#else
   current_thread_group = this;
+#endif
 }
 
 void ThreadGroup::UnbindFromCurrentThread() {
   DCHECK(IsBoundToCurrentThread());
+#if defined(STARBOARD)
+  EnsureThreadLocalKeyInited();
+  SbThreadSetLocalValue(s_thread_local_key, nullptr);
+#else
   current_thread_group = nullptr;
+#endif
 }
 
 bool ThreadGroup::IsBoundToCurrentThread() const {
+#if defined(STARBOARD)
+  return GetCurrentThreadGroup() == this;
+#else
   return current_thread_group == this;
+#endif
 }
 
 void ThreadGroup::Start() {
@@ -340,7 +380,11 @@ ThreadGroup::GetScopedWindowsThreadEnvironment(WorkerEnvironment environment) {
 
 // static
 bool ThreadGroup::CurrentThreadHasGroup() {
+#if defined(STARBOARD)
+  return GetCurrentThreadGroup() != nullptr;
+#else
   return current_thread_group != nullptr;
+#endif
 }
 
 }  // namespace internal

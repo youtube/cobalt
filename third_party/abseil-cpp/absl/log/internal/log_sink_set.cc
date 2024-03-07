@@ -59,7 +59,13 @@ bool& ThreadIsLoggingStatus() {
   ABSL_CONST_INIT thread_local bool thread_is_logging = false;
   return thread_is_logging;
 #else
+#if defined(STARBOARD)
+  // TODO: b/328310825 - pthread_key_t doesn't have a constant initializer in
+  // Starboard.
+  static pthread_key_t thread_is_logging_key;
+#else
   ABSL_CONST_INIT static pthread_key_t thread_is_logging_key;
+#endif
   static const bool unused = [] {
     if (pthread_key_create(&thread_is_logging_key, [](void* data) {
           delete reinterpret_cast<bool*>(data);

@@ -11,12 +11,38 @@
 #include "base/time/time.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
+#if defined(STARBOARD)
+#include "base/check_op.h"
+#include "starboard/once.h"
+#include "starboard/thread.h"
+#endif
+
 namespace base {
 
 namespace {
 
+#if defined(STARBOARD)
+ABSL_CONST_INIT SbOnceControl s_once_flag = SB_ONCE_INITIALIZER;
+ABSL_CONST_INIT SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+
+void InitThreadLocalKey() {
+  s_thread_local_key = SbThreadCreateLocalKey(NULL);
+  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+}
+
+void EnsureThreadLocalKeyInited() {
+  SbOnce(&s_once_flag, InitThreadLocalKey);
+  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+}
+
+SequencedTaskRunner::CurrentDefaultHandle* GetCurrentDefaultHandle() {
+  return static_cast<SequencedTaskRunner::CurrentDefaultHandle*>(
+      SbThreadGetLocalValue(s_thread_local_key));
+}
+#else
 ABSL_CONST_INIT thread_local SequencedTaskRunner::CurrentDefaultHandle*
     current_default_handle = nullptr;
+#endif
 
 }  // namespace
 
@@ -80,6 +106,9 @@ bool SequencedTaskRunner::PostDelayedTaskAt(
 // static
 const scoped_refptr<SequencedTaskRunner>&
 SequencedTaskRunner::GetCurrentDefault() {
+#if defined(STARBOARD)
+  auto current_default_handle = GetCurrentDefaultHandle();
+#endif
   CHECK(current_default_handle)
       << "Error: This caller requires a sequenced context (i.e. the current "
          "task needs to run from a SequencedTaskRunner). If you're in a test "
@@ -89,18 +118,33 @@ SequencedTaskRunner::GetCurrentDefault() {
 
 // static
 bool SequencedTaskRunner::HasCurrentDefault() {
+#if defined(STARBOARD)
+  auto current_default_handle = GetCurrentDefaultHandle();
+#endif
   return !!current_default_handle;
 }
 
 SequencedTaskRunner::CurrentDefaultHandle::CurrentDefaultHandle(
     scoped_refptr<SequencedTaskRunner> task_runner)
+#if defined(STARBOARD)
+    :
+#else
     : resetter_(&current_default_handle, this, nullptr),
+#endif
       task_runner_(std::move(task_runner)) {
+#if defined(STARBOARD)
+  EnsureThreadLocalKeyInited();
+  SbThreadSetLocalValue(s_thread_local_key, this);
+#endif
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 }
 
 SequencedTaskRunner::CurrentDefaultHandle::~CurrentDefaultHandle() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+#if defined(STARBOARD)
+  auto current_default_handle = GetCurrentDefaultHandle();
+  SbThreadSetLocalValue(s_thread_local_key, nullptr);
+#endif
   DCHECK_EQ(current_default_handle, this);
 }
 

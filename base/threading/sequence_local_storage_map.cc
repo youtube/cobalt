@@ -10,13 +10,39 @@
 #include "base/check_op.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
+#if defined(STARBOARD)
+#include "base/check_op.h"
+#include "starboard/once.h"
+#include "starboard/thread.h"
+#endif
+
 namespace base {
 namespace internal {
 
 namespace {
 
+#if defined(STARBOARD)
+ABSL_CONST_INIT SbOnceControl s_once_flag = SB_ONCE_INITIALIZER;
+ABSL_CONST_INIT SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+
+void InitThreadLocalKey() {
+  s_thread_local_key = SbThreadCreateLocalKey(NULL);
+  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+}
+
+void EnsureThreadLocalKeyInited() {
+  SbOnce(&s_once_flag, InitThreadLocalKey);
+  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+}
+
+SequenceLocalStorageMap* GetCurrentSequenceLocalStorage() {
+  return static_cast<SequenceLocalStorageMap*>(
+      SbThreadGetLocalValue(s_thread_local_key));
+}
+#else
 ABSL_CONST_INIT thread_local SequenceLocalStorageMap*
     current_sequence_local_storage = nullptr;
+#endif
 
 }  // namespace
 
@@ -32,12 +58,20 @@ SequenceLocalStorageMap& SequenceLocalStorageMap::GetForCurrentThread() {
          "ScopedSetSequenceLocalStorageMapForCurrentThread to store a "
          "SequenceLocalStorageMap object in TLS.";
 
+#if defined(STARBOARD)
+  return *GetCurrentSequenceLocalStorage();
+#else
   return *current_sequence_local_storage;
+#endif
 }
 
 // static
 bool SequenceLocalStorageMap::IsSetForCurrentThread() {
+#if defined(STARBOARD)
+  return GetCurrentSequenceLocalStorage() != nullptr;
+#else
   return current_sequence_local_storage != nullptr;
+#endif
 }
 
 void* SequenceLocalStorageMap::Get(int slot_id) {
@@ -97,12 +131,26 @@ SequenceLocalStorageMap::ValueDestructorPair::operator=(
 ScopedSetSequenceLocalStorageMapForCurrentThread::
     ScopedSetSequenceLocalStorageMapForCurrentThread(
         SequenceLocalStorageMap* sequence_local_storage)
+#if defined(STARBOARD)
+{
+  EnsureThreadLocalKeyInited();
+  SbThreadSetLocalValue(s_thread_local_key, sequence_local_storage);
+}
+#else
     : resetter_(&current_sequence_local_storage,
                 sequence_local_storage,
                 nullptr) {}
+#endif
 
+#if defined(STARBOARD)
+ScopedSetSequenceLocalStorageMapForCurrentThread::
+    ~ScopedSetSequenceLocalStorageMapForCurrentThread() {
+  SbThreadSetLocalValue(s_thread_local_key, nullptr);
+}
+#else
 ScopedSetSequenceLocalStorageMapForCurrentThread::
     ~ScopedSetSequenceLocalStorageMapForCurrentThread() = default;
+#endif
 
 }  // namespace internal
 }  // namespace base

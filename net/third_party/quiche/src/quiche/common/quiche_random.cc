@@ -5,6 +5,13 @@
 
 #include "openssl/rand.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+
+#if defined(STARBOARD)
+#include "base/check_op.h"
+#include "starboard/once.h"
+#include "starboard/thread.h"
+#endif
+
 namespace quiche {
 
 namespace {
@@ -23,6 +30,46 @@ inline uint64_t Xoshiro256PlusPlusRotLeft(uint64_t x, int k) {
   return (x << k) | (x >> (64 - k));
 }
 
+#if defined(STARBOARD)
+
+uint64_t Xoshiro256PlusPlus() {
+  static SbOnceControl s_once_flag = SB_ONCE_INITIALIZER;
+  static SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+  
+  auto InitThreadLocalKey = [](){
+    s_thread_local_key = SbThreadCreateLocalKey(NULL);
+    DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+  };
+  
+  SbOnce(&s_once_flag, InitThreadLocalKey);
+  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+
+  uint64_t* rng_state = static_cast<uint64_t*>(SbThreadGetLocalValue(s_thread_local_key));
+  if (!rng_state) {
+    rng_state = new uint64_t[4]{
+      Xoshiro256InitializeRngStateMember(),
+      Xoshiro256InitializeRngStateMember(),
+      Xoshiro256InitializeRngStateMember(),
+      Xoshiro256InitializeRngStateMember()
+    };
+  }
+
+  const uint64_t result = 
+      Xoshiro256PlusPlusRotLeft(rng_state[0] + rng_state[3], 23) + rng_state[0];
+  const uint64_t t = rng_state[1] << 17;
+  rng_state[2] ^= rng_state[0];
+  rng_state[3] ^= rng_state[1];
+  rng_state[1] ^= rng_state[2];
+  rng_state[0] ^= rng_state[3];
+  rng_state[2] ^= t;
+  rng_state[3] = Xoshiro256PlusPlusRotLeft(rng_state[3], 45);
+  SbThreadSetLocalValue(s_thread_local_key, rng_state);
+  
+  return result;
+}
+
+#else  // defined(STARBOARD)
+
 uint64_t Xoshiro256PlusPlus() {
   static thread_local uint64_t rng_state[4] = {
       Xoshiro256InitializeRngStateMember(),
@@ -40,6 +87,8 @@ uint64_t Xoshiro256PlusPlus() {
   rng_state[3] = Xoshiro256PlusPlusRotLeft(rng_state[3], 45);
   return result;
 }
+
+#endif  // defined(STARBOARD)
 
 class DefaultQuicheRandom : public QuicheRandom {
  public:

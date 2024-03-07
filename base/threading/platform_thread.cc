@@ -11,12 +11,38 @@
 #include "base/fuchsia/scheduler.h"
 #endif
 
+#if defined(STARBOARD)
+#include "base/check_op.h"
+#include "starboard/once.h"
+#include "starboard/thread.h"
+#endif
+
 namespace base {
 
 namespace {
 
+#if defined(STARBOARD)
+ABSL_CONST_INIT SbOnceControl s_once_flag = SB_ONCE_INITIALIZER;
+ABSL_CONST_INIT SbThreadLocalKey s_thread_local_key = kSbThreadLocalKeyInvalid;
+
+void InitThreadLocalKey() {
+  s_thread_local_key = SbThreadCreateLocalKey(NULL);
+  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+}
+
+void EnsureThreadLocalKeyInited() {
+  SbOnce(&s_once_flag, InitThreadLocalKey);
+  DCHECK(SbThreadIsValidLocalKey(s_thread_local_key));
+}
+
+ThreadType* GetThreadType() {
+  return static_cast<ThreadType*>(
+      SbThreadGetLocalValue(s_thread_local_key));
+}
+#else
 ABSL_CONST_INIT thread_local ThreadType current_thread_type =
     ThreadType::kDefault;
+#endif
 
 }  // namespace
 
@@ -36,7 +62,12 @@ void PlatformThread::SetCurrentThreadType(ThreadType thread_type) {
 
 // static
 ThreadType PlatformThread::GetCurrentThreadType() {
+#if defined(STARBOARD)
+  ThreadType* rv = GetThreadType();
+  return !!rv ? *rv : ThreadType::kDefault;
+#else
   return current_thread_type;
+#endif
 }
 
 // static
@@ -58,7 +89,12 @@ void SetCurrentThreadType(ThreadType thread_type,
                           MessagePumpType pump_type_hint) {
   CHECK_LE(thread_type, ThreadType::kMaxValue);
   SetCurrentThreadTypeImpl(thread_type, pump_type_hint);
+#if defined(STARBOARD)
+  EnsureThreadLocalKeyInited();
+  SbThreadSetLocalValue(s_thread_local_key, &thread_type);
+#else
   current_thread_type = thread_type;
+#endif
 }
 
 }  // namespace internal
