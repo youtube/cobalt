@@ -104,22 +104,22 @@ TEST(PosixFileGetPathInfoTest, WorksOnADirectory) {
 
 TEST(PosixFileGetPathInfoTest, WorksOnStaticContentFiles) {
   for (auto filename : GetFileTestsFilePaths()) {
-    SbFileInfo info = {0};
-    bool result = SbFileGetPathInfo(filename.c_str(), &info);
+    struct stat info;
+    EXPECT_TRUE(stat(filename.c_str(), &info) == 0);
     size_t content_length = GetTestFileExpectedContent(filename).length();
-    EXPECT_EQ(content_length, info.size);
-    EXPECT_FALSE(info.is_directory);
-    EXPECT_FALSE(info.is_symbolic_link);
+    EXPECT_EQ(content_length, info.st_size);
+    EXPECT_FALSE(S_ISDIR(info.st_mode));
+    EXPECT_FALSE(S_ISLNK(info.st_mode));
   }
 }
 
 TEST(PosixFileGetPathInfoTest, WorksOnStaticContentDirectories) {
   for (auto path : GetFileTestsDirectoryPaths()) {
-    SbFileInfo info = {0};
-    bool result = SbFileGetPathInfo(path.data(), &info);
-    EXPECT_LE(0, info.size);
-    EXPECT_TRUE(info.is_directory);
-    EXPECT_FALSE(info.is_symbolic_link);
+    struct stat info;
+    EXPECT_TRUE(stat(path.data(), &info) == 0);
+    EXPECT_LE(0, info.st_size);
+    EXPECT_TRUE(S_ISDIR(info.st_mode));
+    EXPECT_FALSE(S_ISLNK(info.st_mode));
   }
 }
 
