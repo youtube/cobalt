@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <sys/stat.h>
-
 #include <string>
 #include <vector>
 
@@ -38,24 +36,18 @@ TEST(FontsTest, VerifySystemFontsDirectory) {
   std::vector<char> system_fonts_dir(kSbFileMaxPath);
   ASSERT_TRUE(SbSystemGetPath(kSbSystemPathFontDirectory,
                               system_fonts_dir.data(), kSbFileMaxPath));
-
-  struct stat info;
-  ASSERT_TRUE(stat(system_fonts_dir.data(), &info) == 0);
+  ASSERT_TRUE(SbFileExists(system_fonts_dir.data()));
 }
 
 TEST(FontsTest, VerifySystemFontsConfigDirectory) {
   std::vector<char> system_fonts_conf_dir(kSbFileMaxPath);
   ASSERT_TRUE(SbSystemGetPath(kSbSystemPathFontConfigurationDirectory,
                               system_fonts_conf_dir.data(), kSbFileMaxPath));
-  struct stat info;
-  ASSERT_TRUE(stat(system_fonts_conf_dir.data(), &info) == 0);
-
+  ASSERT_TRUE(SbFileExists(system_fonts_conf_dir.data()));
   std::string fonts_descriptor_file = system_fonts_conf_dir.data();
   fonts_descriptor_file += kSbFileSepString;
   fonts_descriptor_file += kFileName;
-
-  struct stat file_info;
-  ASSERT_TRUE(stat(fonts_descriptor_file.c_str(), &file_info) == 0);
+  ASSERT_TRUE(SbFileExists(fonts_descriptor_file.c_str()));
 }
 
 }  // namespace

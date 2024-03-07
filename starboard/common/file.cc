@@ -14,8 +14,6 @@
 
 #include "starboard/common/file.h"
 
-#include <sys/stat.h>
-
 #include <cstring>
 #include <string>
 #include <vector>
@@ -51,8 +49,7 @@ void RecordFileWriteStat(int write_file_result) {
 }
 
 bool SbFileDeleteRecursive(const char* path, bool preserve_root) {
-  struct stat file_info;
-  if (stat(path, &file_info) != 0) {
+  if (!SbFileExists(path)) {
     SB_LOG(ERROR) << "Path does not exist: '" << path << "'";
     return false;
   }

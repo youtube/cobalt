@@ -14,8 +14,6 @@
 
 #include "starboard/shared/win32/file_internal.h"
 
-#include <sys/stat.h>
-
 #include <windows.h>
 
 #include "starboard/common/log.h"
@@ -162,14 +160,13 @@ HANDLE OpenFileOrDirectory(const char* path,
   create_ex_params.dwSecurityQosFlags = SECURITY_ANONYMOUS;
   create_ex_params.dwSize = sizeof(CREATEFILE2_EXTENDED_PARAMETERS);
 
-  struct stat info;
-  const bool file_exists_prior_to_open = stat(path, &info) == 0;
+  const bool file_exists_prior_to_open = SbFileExists(path);
 
   HANDLE file_handle =
       CreateFile2(path_wstring.c_str(), desired_access, share_mode,
                   creation_disposition, &create_ex_params);
 
-  const bool file_exists_after_open = stat(path, &info) == 0;
+  const bool file_exists_after_open = SbFileExists(path);
 
   if (out_created && starboard::shared::win32::IsValidHandle(file_handle)) {
     if (flags & kSbFileCreateAlways) {

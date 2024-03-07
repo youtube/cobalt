@@ -14,8 +14,6 @@
 
 #include "starboard/loader_app/reset_evergreen_update.h"
 
-#include <sys/stat.h>
-
 #include <string>
 #include <vector>
 
@@ -28,11 +26,6 @@
 namespace starboard {
 namespace loader_app {
 namespace {
-
-bool FileExists(const char* path) {
-  struct stat info;
-  return stat(path, &info) == 0;
-}
 
 TEST(ResetEvergreenUpdateTest, TestSunnyDayFile) {
   std::vector<char> storage_path(kSbFileMaxPath);
@@ -53,12 +46,12 @@ TEST(ResetEvergreenUpdateTest, TestSunnyDayFile) {
     int bytes_written = file.WriteAll(data.c_str(), data.size());
   }
 
-  ASSERT_TRUE(FileExists(file_path.data()));
+  ASSERT_TRUE(SbFileExists(file_path.data()));
 
   ASSERT_TRUE(ResetEvergreenUpdate());
 
-  ASSERT_FALSE(FileExists(file_path.data()));
-  ASSERT_TRUE(FileExists(storage_path.data()));
+  ASSERT_FALSE(SbFileExists(file_path.data()));
+  ASSERT_TRUE(SbFileExists(storage_path.data()));
 }
 
 TEST(ResetEvergreenUpdateTest, TestSunnyDaySubdir) {
@@ -85,12 +78,12 @@ TEST(ResetEvergreenUpdateTest, TestSunnyDaySubdir) {
     int bytes_written = file.WriteAll(data.c_str(), data.size());
   }
 
-  ASSERT_TRUE(FileExists(file_path.data()));
+  ASSERT_TRUE(SbFileExists(file_path.data()));
 
   ASSERT_TRUE(ResetEvergreenUpdate());
 
-  ASSERT_FALSE(FileExists(file_path.data()));
-  ASSERT_TRUE(FileExists(storage_path.data()));
+  ASSERT_FALSE(SbFileExists(file_path.data()));
+  ASSERT_TRUE(SbFileExists(storage_path.data()));
 }
 }  // namespace
 }  // namespace loader_app

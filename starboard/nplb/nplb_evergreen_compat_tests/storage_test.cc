@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <sys/stat.h>
-
 #include <string>
 #include <vector>
 
@@ -84,8 +82,7 @@ TEST_F(StorageTest, VerifyStorageDirectory) {
   }
 
   ASSERT_TRUE(SbFileDelete(file_path.data()));
-  struct stat info;
-  ASSERT_FALSE(stat(file_path.data(), &info) == 0);
+  ASSERT_FALSE(SbFileExists(file_path.data()));
 }
 
 }  // namespace
