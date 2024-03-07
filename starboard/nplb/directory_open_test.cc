@@ -25,7 +25,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_API_VERSION < 16
 #define EXPECT_FILE_EXISTS(path) \
   EXPECT_TRUE(SbFileExists(path.c_str())) << "Filename is " << path.c_str()
 
@@ -40,7 +39,6 @@ TEST(SbDirectoryOpenTest, SunnyDay) {
   EXPECT_EQ(kSbFileOk, error);
   EXPECT_TRUE(SbDirectoryClose(directory));
 }
-#endif
 
 TEST(SbDirectoryOpenTest, SunnyDayStaticContent) {
   for (auto dir_path : GetFileTestsDirectoryPaths()) {
@@ -52,7 +50,6 @@ TEST(SbDirectoryOpenTest, SunnyDayStaticContent) {
   }
 }
 
-#if SB_API_VERSION < 16
 TEST(SbDirectoryOpenTest, SunnyDayWithNullError) {
   std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());
@@ -106,7 +103,6 @@ TEST(SbDirectoryOpenTest, FailsInvalidPath) {
     SbDirectoryClose(directory);
   }
 }
-#endif
 
 TEST(SbDirectoryOpenTest, FailsNullPath) {
   SbFileError error = kSbFileErrorMax;

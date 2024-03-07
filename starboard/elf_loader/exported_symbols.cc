@@ -19,7 +19,6 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
-#include <sys/stat.h>
 #include <unistd.h>
 
 #include "starboard/accessibility.h"
@@ -159,9 +158,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbFileCanOpen);
   REGISTER_SYMBOL(SbFileClose);
   REGISTER_SYMBOL(SbFileDelete);
-#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbFileExists);
-#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbFileFlush);
   REGISTER_SYMBOL(SbFileGetInfo);
   REGISTER_SYMBOL(SbFileGetPathInfo);
@@ -442,7 +439,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(socket);
   REGISTER_SYMBOL(snprintf);
   REGISTER_SYMBOL(sprintf);
-  REGISTER_SYMBOL(stat);
   REGISTER_SYMBOL(vfwprintf);
   REGISTER_SYMBOL(vsnprintf);
   REGISTER_SYMBOL(vsscanf);

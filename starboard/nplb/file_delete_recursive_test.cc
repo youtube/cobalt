@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <sys/stat.h>
-
 #include <string>
 
 #include "starboard/common/file.h"
@@ -45,11 +43,6 @@ const char* kFiles[kFileCount] = {
     "test2/file3",
 };
 
-bool FileExists(const char* path) {
-  struct stat info;
-  return stat(path, &info) == 0;
-}
-
 TEST(SbFileDeleteRecursiveTest, SunnyDayDeleteExistingPath) {
   std::string path;
   const std::string& tmp = GetTempDir();
@@ -58,7 +51,7 @@ TEST(SbFileDeleteRecursiveTest, SunnyDayDeleteExistingPath) {
   for (size_t i = 0; i < kDirectoryCount; ++i) {
     path = tmp + kSbFileSepString + kRoot + kSbFileSepString + kDirectories[i];
 
-    EXPECT_FALSE(FileExists(path.c_str()));
+    EXPECT_FALSE(SbFileExists(path.c_str()));
     EXPECT_TRUE(SbDirectoryCreate(path.c_str()));
     EXPECT_TRUE(SbDirectoryCanOpen(path.c_str()));
   }
@@ -70,39 +63,39 @@ TEST(SbFileDeleteRecursiveTest, SunnyDayDeleteExistingPath) {
   for (size_t i = 0; i < kFileCount; ++i) {
     path = tmp + kSbFileSepString + kRoot + kSbFileSepString + kFiles[i];
 
-    EXPECT_FALSE(FileExists(path.c_str()));
+    EXPECT_FALSE(SbFileExists(path.c_str()));
 
     file = SbFileOpen(path.c_str(), kSbFileCreateAlways | kSbFileWrite, NULL,
                       &err);
 
     EXPECT_EQ(kSbFileOk, err);
     EXPECT_TRUE(SbFileClose(file));
-    EXPECT_TRUE(FileExists(path.c_str()));
+    EXPECT_TRUE(SbFileExists(path.c_str()));
   }
 
   path = tmp + kSbFileSepString + kRoot;
 
   EXPECT_TRUE(SbFileDeleteRecursive(path.c_str(), false));
-  EXPECT_FALSE(FileExists(path.c_str()));
+  EXPECT_FALSE(SbFileExists(path.c_str()));
 }
 
 TEST(SbFileDeleteRecursiveTest, SunnyDayDeletePreserveRoot) {
   const std::string root = GetTempDir() + kSbFileSepString + kRoot;
 
-  EXPECT_FALSE(FileExists(root.c_str()));
+  EXPECT_FALSE(SbFileExists(root.c_str()));
   EXPECT_TRUE(SbDirectoryCreate(root.c_str()));
   EXPECT_TRUE(SbDirectoryCanOpen(root.c_str()));
 
   EXPECT_TRUE(SbFileDeleteRecursive(root.c_str(), true));
-  EXPECT_TRUE(FileExists(root.c_str()));
+  EXPECT_TRUE(SbFileExists(root.c_str()));
   EXPECT_TRUE(SbFileDeleteRecursive(root.c_str(), false));
-  EXPECT_FALSE(FileExists(root.c_str()));
+  EXPECT_FALSE(SbFileExists(root.c_str()));
 }
 
 TEST(SbFileDeleteRecursiveTest, RainyDayDeleteFileIgnoresPreserveRoot) {
   const std::string& path = GetTempDir() + kSbFileSepString + "file1";
 
-  EXPECT_FALSE(FileExists(path.c_str()));
+  EXPECT_FALSE(SbFileExists(path.c_str()));
 
   SbFileError err = kSbFileOk;
   SbFile file = kSbFileInvalid;
@@ -112,15 +105,15 @@ TEST(SbFileDeleteRecursiveTest, RainyDayDeleteFileIgnoresPreserveRoot) {
 
   EXPECT_EQ(kSbFileOk, err);
   EXPECT_TRUE(SbFileClose(file));
-  EXPECT_TRUE(FileExists(path.c_str()));
+  EXPECT_TRUE(SbFileExists(path.c_str()));
   EXPECT_TRUE(SbFileDeleteRecursive(path.c_str(), true));
-  EXPECT_FALSE(FileExists(path.c_str()));
+  EXPECT_FALSE(SbFileExists(path.c_str()));
 }
 
 TEST(SbFileDeleteRecursiveTest, RainyDayNonExistentPathErrors) {
   ScopedRandomFile file(ScopedRandomFile::kDontCreate);
 
-  EXPECT_FALSE(FileExists(file.filename().c_str()));
+  EXPECT_FALSE(SbFileExists(file.filename().c_str()));
   EXPECT_FALSE(SbFileDeleteRecursive(file.filename().c_str(), false));
 }
 
