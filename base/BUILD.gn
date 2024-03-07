@@ -992,6 +992,8 @@ component("base") {
       "time/time_now_starboard.cc",
       "time/time_starboard.cc",
     ]
+    # Needed for at least //url/gurl.cc until enable_base_tracing = true.
+    sources += [ "trace_event/memory_usage_estimator.cc" ]
   }
 
   # Various files that are unused in the Chromium build, but presumably here to

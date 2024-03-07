@@ -164,7 +164,9 @@ class NetworkModule : public base::CurrentThread::DestructionObserver {
   std::unique_ptr<network_bridge::NetPoster> net_poster_;
 
   base::FilePath net_log_path_;
+#if defined(ENABLE_NETWORK_LOGGING)
   std::unique_ptr<CobaltNetLog> net_log_{nullptr};
+#endif
   Options options_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkModule);
