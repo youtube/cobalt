@@ -184,7 +184,7 @@ config("no_pedantic_warnings") {
 config("platform_configuration") {
   if (current_toolchain == default_toolchain &&
       build_with_separate_cobalt_toolchain) {
-    configs = [ "//starboard/evergreen/x64/platform_configuration" ]
+    configs = [ "//starboard/build/config/modular/x64" ]
   } else {
     configs = [
       "//starboard/linux/shared/platform_configuration",

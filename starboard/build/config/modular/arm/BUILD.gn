@@ -1,4 +1,4 @@
-# Copyright 2022 The Cobalt Authors. All Rights Reserved.
+# Copyright 2024 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,9 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-config("platform_configuration") {
+config("sabi_flags") {
+  cflags = [ "-march=armv7a" ]
+}
+
+config("arm") {
   configs = [
-    "//starboard/build/config/modular/arm",
-    "//starboard/evergreen/shared/platform_configuration",
+    ":sabi_flags",
+    "//starboard/build/config/modular",
+  ]
+
+  cflags = [
+    "-isystem" + rebase_path("//third_party/musl/arch/arm", root_build_dir),
+
+    # Force char to be signed.
+    "-fsigned-char",
   ]
 }
