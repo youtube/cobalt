@@ -56,6 +56,10 @@ _FILTERED_TESTS = {
         'SbDirectoryGetNextTest.SunnyDayStaticContent',
         'SbDirectoryOpenTest.SunnyDayStaticContent',
         'SbFileGetPathInfoTest.WorksOnStaticContentDirectories',
+        'PosixDirectoryCanOpenTest.SunnyDayStaticContent',
+        'PosixDirectoryGetNextTest.SunnyDayStaticContent',
+        'PosixDirectoryOpenTest.SunnyDayStaticContent',
+        'PosixFileGetPathInfoTest.WorksOnStaticContentDirectories',
 
         # These tests are disabled due to not receiving the kEndOfStream
         # player state update within the specified timeout.
