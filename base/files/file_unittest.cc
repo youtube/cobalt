@@ -107,6 +107,7 @@ TEST(FileTest, Create) {
     EXPECT_EQ(base::File::FILE_OK, file.error_details());
   }
 
+#if !defined(STARBOARD)
   {
     // Create a delete-on-close file.
     file_path = temp_dir.GetPath().AppendASCII("create_file_2");
@@ -119,8 +120,10 @@ TEST(FileTest, Create) {
   }
 
   EXPECT_FALSE(base::PathExists(file_path));
+#endif  // !defined(STARBOARD)
 }
 
+#if !defined(STARBOARD)
 TEST(FileTest, SelfSwap) {
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
@@ -130,6 +133,7 @@ TEST(FileTest, SelfSwap) {
   std::swap(file, file);
   EXPECT_TRUE(file.IsValid());
 }
+#endif  // !defined(STARBOARD)
 
 TEST(FileTest, Async) {
   base::ScopedTempDir temp_dir;
@@ -149,6 +153,7 @@ TEST(FileTest, Async) {
   }
 }
 
+#if !defined(STARBOARD)
 TEST(FileTest, DeleteOpenFile) {
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
@@ -174,6 +179,7 @@ TEST(FileTest, DeleteOpenFile) {
   same_file.Close();
   EXPECT_FALSE(base::PathExists(file_path));
 }
+#endif  // !defined(STARBOARD)
 
 TEST(FileTest, ReadWrite) {
   base::ScopedTempDir temp_dir;
@@ -613,14 +619,28 @@ TEST(FileTest, MAYBE_WriteDataToLargeOffset) {
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
   FilePath file_path = temp_dir.GetPath().AppendASCII("file");
+#if defined(STARBOARD)
+  File file(file_path, (base::File::FLAG_CREATE | base::File::FLAG_READ |
+                        base::File::FLAG_WRITE));
+#else
   File file(file_path,
             (base::File::FLAG_CREATE | base::File::FLAG_READ |
              base::File::FLAG_WRITE | base::File::FLAG_DELETE_ON_CLOSE));
+#endif
   ASSERT_TRUE(file.IsValid());
 
   const char kData[] = "this file is sparse.";
   const int kDataLen = sizeof(kData) - 1;
+#if defined(STARBOARD)
+#if SB_IS(32_BIT)
+  // Maximum off_t for lseek() on 32-bit builds is just below 2^31.
+  const int64_t kLargeFileOffset = (1LL << 31) - 2;
+#else  // SB_IS(32_BIT)
   const int64_t kLargeFileOffset = (1LL << 31);
+#endif  // SB_IS(32_BIT)
+#else  // defined(STARBOARD)
+  const int64_t kLargeFileOffset = (1LL << 31);
+#endif  // defined(STARBOARD)
 
   // If the file fails to write, it is probably we are running out of disk space
   // and the file system doesn't support sparse file.
