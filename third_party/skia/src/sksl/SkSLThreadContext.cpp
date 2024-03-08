@@ -15,6 +15,12 @@
 #include "src/sksl/SkSLCompiler.h"
 #include "src/sksl/ir/SkSLExternalFunction.h"
 
+#if defined(STARBOARD)
+#include "starboard/common/log.h"
+#include "starboard/once.h"
+#include "starboard/thread.h"
+#endif
+
 namespace SkSL {
 
 ThreadContext::ThreadContext(SkSL::Compiler* compiler, SkSL::ProgramKind kind,
@@ -203,9 +209,6 @@ void ThreadContext::SetInstance(std::unique_ptr<ThreadContext> newInstance) {
     instance = newInstance.release();
 }
 #else
-#include "starboard/common/log.h"
-#include "starboard/once.h"
-#include "starboard/thread.h"
 namespace {
 ThreadContext* instance = nullptr;
 

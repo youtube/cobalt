@@ -28,6 +28,7 @@
 
 namespace starboard {
 namespace nplb {
+namespace {
 
 // Transfers data between the two connected local sockets, spinning until |size|
 // has been transferred, or an error occurs.
@@ -68,8 +69,6 @@ int Transfer(int receive_socket_fd,
 
   return size;
 }
-
-namespace {
 
 TEST(PosixSocketReceiveTest, SunnyDay) {
   const int kBufSize = 256 * 1024;

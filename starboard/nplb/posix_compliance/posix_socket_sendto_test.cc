@@ -23,6 +23,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/nplb/socket_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -90,9 +91,10 @@ TEST(PosixSocketSendtoTest, RainyDayUnconnectedSocket) {
 
 TEST(PosixSocketSendtoTest, RainyDaySendToClosedSocket) {
   int listen_socket_fd = -1, client_socket_fd = -1, server_socket_fd = -1;
-  PosixSocketCreateAndConnect(AF_INET, AF_INET, GetPortNumberForTests(),
-                              kSocketTimeout, &listen_socket_fd,
-                              &client_socket_fd, &server_socket_fd);
+  int result = PosixSocketCreateAndConnect(
+      AF_INET, AF_INET, GetPortNumberForTests(), kSocketTimeout,
+      &listen_socket_fd, &client_socket_fd, &server_socket_fd);
+  ASSERT_TRUE(result == 0);
 
   // We don't need the listen socket, so close it.
   EXPECT_TRUE(close(listen_socket_fd) == 0);
@@ -185,7 +187,7 @@ TEST(PosixSocketSendtoTest, RainyDaySendToSocketConnectionReset) {
 
   // Kills the server, the client socket will have it's connection reset during
   // one of the subsequent writes.
-  close(server_socket_fd);
+  EXPECT_TRUE(close(server_socket_fd) == 0);
   server_socket_fd = -1;
 
   // Expect that after some retries the client socket will return that the
@@ -194,20 +196,24 @@ TEST(PosixSocketSendtoTest, RainyDaySendToSocketConnectionReset) {
   for (int i = 0; i < kNumRetries; ++i) {
     char buff[kChunkSize] = {};
     SbThreadSleep(1000);
-    int result =
-        sendto(client_socket_fd, buff, sizeof(buff), kSendFlags, NULL, 0);
+    result = sendto(client_socket_fd, buff, sizeof(buff), kSendFlags, NULL, 0);
 
     if (result < 0) {
       // TODO: errno:
       // EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET || errno ==
       // EPIPE);
-      return;
+      SB_DLOG(INFO) << "Failed to send, errno = " << errno;
+      break;
     }
 
     if (result == 0) {
-      return;  // Other way in which the connection was reset.
+      SB_DLOG(INFO) << "Other way in which the connection was reset.";
+      break;
     }
   }
+
+  EXPECT_TRUE(close(client_socket_fd) == 0);
+  EXPECT_TRUE(close(listen_socket_fd) == 0);
 }
 
 }  // namespace
