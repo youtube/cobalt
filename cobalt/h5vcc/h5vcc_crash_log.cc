@@ -22,8 +22,6 @@
 #include "base/atomicops.h"
 #include "base/memory/singleton.h"
 #include "base/synchronization/lock.h"
-#include "cobalt/web/context.h"
-#include "cobalt/web/environment_settings_helper.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/system.h"
 
@@ -174,11 +172,6 @@ bool H5vccCrashLog::GetPersistentSettingWatchdogCrash() {
 void H5vccCrashLog::SetPersistentSettingWatchdogCrash(bool can_trigger_crash) {
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
   if (watchdog) watchdog->SetPersistentSettingWatchdogCrash(can_trigger_crash);
-}
-
-void H5vccCrashLog::ForceGarbageCollection(
-    script::EnvironmentSettings* environment_settings) {
-  web::get_context(environment_settings)->javascript_engine()->CollectGarbage();
 }
 
 }  // namespace h5vcc
