@@ -239,7 +239,7 @@ static_library("test_support") {
     ]
   }
 
-  if (is_android) {
+  if (is_android && !use_cobalt_customizations) {
     sources += [
       "android/java_handler_thread_helpers.cc",
       "android/java_handler_thread_helpers.h",
@@ -413,7 +413,7 @@ if (is_fuchsia || is_linux || is_chromeos) {
 }
 }
 
-if (is_android) {
+if (is_android && !use_cobalt_customizations) {
   generate_jni("base_unittests_jni_headers") {
     testonly = true
     sources = [

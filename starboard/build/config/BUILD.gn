@@ -34,7 +34,9 @@ if (use_hacky_cobalt_changes) {
   config("hacky_wnos") {
     if (is_clang) {
       cflags = [
+        "-Wno-unknown-warning-option",
         "-Wno-array-parameter",
+        "-Wno-unknown-attributes",
         "-Wno-bitwise-instead-of-logical",
         "-Wno-c++20-extensions",
         "-Wno-c++98-compat-extra-semi",
