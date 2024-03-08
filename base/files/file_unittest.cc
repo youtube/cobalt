@@ -258,7 +258,9 @@ TEST(FileTest, ReadWrite) {
 }
 
 TEST(FileTest, GetLastFileError) {
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+  SetLastFileError(File::Error::FILE_ERROR_ACCESS_DENIED);
+#elif BUILDFLAG(IS_WIN)
   ::SetLastError(ERROR_ACCESS_DENIED);
 #else
   errno = EACCES;
