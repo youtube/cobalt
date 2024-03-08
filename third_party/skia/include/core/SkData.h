@@ -11,7 +11,6 @@
 #include <stdio.h>
 
 #include "include/core/SkRefCnt.h"
-#include "src/core/SkOSFile.h"  // Included for SkFile.
 
 class SkStream;
 
@@ -134,7 +133,7 @@ public:
      *  The FILE must be open for reading only.
      *  Returns NULL on failure.
      */
-    static sk_sp<SkData> MakeFromFILE(SkFile* f);
+    static sk_sp<SkData> MakeFromFILE(FILE* f);
 
     /**
      *  Create a new dataref from a file descriptor.

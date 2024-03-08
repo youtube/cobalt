@@ -18,8 +18,8 @@
 #include "third_party/skia/src/core/SkOSFile.h"
 
 // Read |byteCount| bytes from current file cursor position.
-size_t sk_fread(void* buffer, size_t byteCount, SkFile* file);
+size_t sk_fread(void* buffer, size_t byteCount, FILE* file);
 // Seek to |offset| bytes within the file.
-bool sk_fseek(SkFile* file, size_t offset);
+bool sk_fseek(FILE* file, size_t offset);
 
 #endif  // COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKOSFILE_COBALT_H_
