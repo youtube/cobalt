@@ -125,7 +125,7 @@ if (use_arm_neon_optimizations) {
         } else {
           assert(false, "CPU detection requires the Android NDK")
         }
-      } else if (!is_win && !is_clang) {
+      } else if (!is_win && !is_clang && current_toolchain != starboard_toolchain) {
         assert(!use_thin_lto,
                "ThinLTO fails mixing different module-level targets")
         cflags_c = [ "-march=armv8-a+crc" ]
