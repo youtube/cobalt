@@ -70,6 +70,7 @@ _TESTS_NO_SIGNAL = [
     'disable_eval_with_csp',
     'h5vcc_storage_write_verify_test',
     'http_cache',
+    'javascript_profiler',
     'persistent_cookie',
     'pointer_event_on_fixed_element_test',
     'pointer_event_on_cropped_element_test',
