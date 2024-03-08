@@ -15,7 +15,9 @@
 #ifndef NET_SOCKET_TCP_SOCKET_STARBOARD_H_
 #define NET_SOCKET_TCP_SOCKET_STARBOARD_H_
 
-// #include "base/task/sequenced_task_runner.h"
+#include "base/bind.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/message_loop/message_pump_io_starboard.h"
 #include "net/base/address_list.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/io_buffer.h"
@@ -25,12 +27,13 @@
 #include "net/socket/socket_performance_watcher.h"
 #include "net/socket/socket_tag.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "net/base/network_handle.h"
 
-#include "starboard/common/socket.h"
+#include "starboard/socket.h"
 
 namespace net {
 
-class NET_EXPORT TCPSocketStarboard {
+class NET_EXPORT TCPSocketStarboard : public base::MessagePumpIOStarboard::Watcher {
  public:
   TCPSocketStarboard(
       std::unique_ptr<SocketPerformanceWatcher> socket_performance_watcher,
@@ -81,6 +84,7 @@ class NET_EXPORT TCPSocketStarboard {
   bool SetSendBufferSize(int32_t size);
   bool SetKeepAlive(bool enable, int delay);
   bool SetNoDelay(bool no_delay);
+  int SetIPv6Only(bool ipv6_only);
 
   // Gets the estimated RTT. Returns false if the RTT is
   // unavailable. May also return false when estimated RTT is 0.
@@ -131,7 +135,9 @@ class NET_EXPORT TCPSocketStarboard {
     return socket_performance_watcher_.get();
   }
 
-  // MessageLoopCurrentForIO::Watcher implementation.
+  int BindToNetwork(handles::NetworkHandle network);
+
+  // MessagePumpIOStarboard::Watcher implementation.
   void OnSocketReadyToRead(SbSocket socket) override;
   void OnSocketReadyToWrite(SbSocket socket) override;
 
@@ -165,7 +171,7 @@ class NET_EXPORT TCPSocketStarboard {
 
   SbSocket socket_;
 
-  // base::MessageLoopCurrentForIO::SocketWatcher socket_watcher_;
+  base::MessagePumpIOStarboard::SocketWatcher socket_watcher_;
 
   std::unique_ptr<TCPSocketStarboard>* accept_socket_;
   IPEndPoint* accept_address_;
