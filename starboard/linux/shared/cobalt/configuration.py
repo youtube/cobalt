@@ -60,6 +60,16 @@ _FILTERED_TESTS = {
         'HistogramTesterTest.TestGetAllSamples_NoSamples',
         'HistogramTesterTest.TestGetTotalCountsForPrefix',
         'HistogramTesterTest.TestGetAllChangedHistograms',
+
+        # b/316404107
+        # These have flaky ASAN heap-use-after-free during metrics collection.
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_DifferentQueue/WithMessagePump',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_DifferentQueue/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_DifferentQueue/WithMockTaskRunner',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMessagePump',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMockTaskRunner',  # pylint: disable=line-too-long
+        'TaskEnvironmentTest.MultiThreadedMockTimeAndThreadPoolQueuedMode'
     ],
 }
 
