@@ -40,7 +40,8 @@ TaskAnnotator::ObserverForTesting* g_task_annotator_observer = nullptr;
 
 #if defined(STARBOARD)
 ABSL_CONST_INIT SbOnceControl s_once_task_flag = SB_ONCE_INITIALIZER;
-ABSL_CONST_INIT SbThreadLocalKey s_thread_local_task_key = kSbThreadLocalKeyInvalid;
+ABSL_CONST_INIT SbThreadLocalKey s_thread_local_task_key =
+    kSbThreadLocalKeyInvalid;
 
 void InitThreadLocalTaskKey() {
   s_thread_local_task_key = SbThreadCreateLocalKey(NULL);
@@ -58,7 +59,8 @@ PendingTask* GetCurrentPendingTask() {
 }
 
 ABSL_CONST_INIT SbOnceControl s_once_hash_flag = SB_ONCE_INITIALIZER;
-ABSL_CONST_INIT SbThreadLocalKey s_thread_local_hash_key = kSbThreadLocalKeyInvalid;
+ABSL_CONST_INIT SbThreadLocalKey s_thread_local_hash_key =
+    kSbThreadLocalKeyInvalid;
 
 void InitThreadLocalHashKey() {
   s_thread_local_hash_key = SbThreadCreateLocalKey(NULL);
@@ -71,7 +73,8 @@ void EnsureThreadLocalHashKeyInited() {
 }
 
 ABSL_CONST_INIT SbOnceControl s_once_tracker_flag = SB_ONCE_INITIALIZER;
-ABSL_CONST_INIT SbThreadLocalKey s_thread_local_tracker_key = kSbThreadLocalKeyInvalid;
+ABSL_CONST_INIT SbThreadLocalKey s_thread_local_tracker_key =
+    kSbThreadLocalKeyInvalid;
 
 void InitThreadLocalTrackerKey() {
   s_thread_local_tracker_key = SbThreadCreateLocalKey(NULL);
