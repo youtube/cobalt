@@ -16,7 +16,6 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-import time
 
 from cobalt.black_box_tests import black_box_tests
 from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer
@@ -25,10 +24,16 @@ from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer
 class JavaScriptProfilerTest(black_box_tests.BlackBoxTestCase):
   """Ensure that the client can declare a `window.Profiler` object."""
 
-  def test_javascript_profiler(self):
+  def test_javascript_profiler_prime_profiler(self):
     with ThreadedWebServer(binding_address=self.GetBindingAddress()) as server:
-      url = server.GetURL(file_name='testdata/javascript_profiler.html')
-      with self.CreateCobaltRunner(url=url) as runner:
-        runner.WaitForJSTestsSetup()
-        time.sleep(30)
-        self.assertTrue(runner.JSTestsSucceeded())
+      modes = [
+          'testPrimeProfiler',
+          'testSampleBufferFullProfiler',
+          'testAbruptGarbageCollection',
+      ]
+      for mode in modes:
+        url = server.GetURL(
+            file_name=f'testdata/javascript_profiler.html?mode={mode}')
+        with self.CreateCobaltRunner(url=url) as runner:
+          runner.WaitForJSTestsSetup()
+          self.assertTrue(runner.JSTestsSucceeded())
