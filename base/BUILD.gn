@@ -90,7 +90,7 @@ assert(!is_nacl || is_nacl_saigo,
 
 # This is here instead of in //build because //build is DEPS'd in by a few
 # subprojects that still support MSVC.
-assert(!is_win || is_clang,
+assert(!is_win || is_clang || use_cobalt_customizations,
        "only clang-cl is supported on Windows, see https://crbug.com/988071")
 
 if (is_apple) {
@@ -980,6 +980,7 @@ component("base") {
       "profiler/module_cache_starboard.cc",
       "profiler/stack_sampler_starboard.cc",
       "rand_util_starboard.cc",
+      "strings/string_util_starboard.cc",
       "strings/string_util_starboard.h",
       "strings/sys_string_conversions_starboard.cc",
       "synchronization/condition_variable_starboard.cc",
@@ -1675,7 +1676,7 @@ component("base") {
       ]
     }
 
-    if (is_win) {
+    if (is_win && !is_starboard) {
       sources += [
         "base_paths_win.cc",
         "base_paths_win.h",
@@ -1802,7 +1803,7 @@ component("base") {
   }
 
   # Windows.
-  if (is_win) {
+  if (is_win && !is_starboard) {
     sources += [
       "debug/debugger_win.cc",
       "debug/gdi_debug_util_win.cc",
@@ -2368,7 +2369,7 @@ component("base") {
     }
   }
 
-  if ((is_posix && !is_apple && !is_android && !is_chromeos) || is_fuchsia) {
+  if ((is_posix && !is_apple && !is_android && !is_chromeos) || is_fuchsia || is_starboard) {
     sources += [ "power_monitor/power_monitor_device_source_stub.cc" ]
   }
 
@@ -2936,7 +2937,7 @@ if (is_win) {
   }
 }
 
-if ((is_win && (current_cpu == "x64" || current_cpu == "arm64")) || is_mac ||
+if ((is_win && (current_cpu == "x64" || current_cpu == "arm64") && !is_starboard) || is_mac ||
     (is_android && (current_cpu == "arm" || current_cpu == "arm64")) ||
     (is_chromeos && current_cpu == "x64")) {
   # Must be a loadable module so that it can be loaded/unloaded at runtime
@@ -3573,6 +3574,24 @@ test("base_unittests") {
       "files/memory_mapped_file_unittest.cc",
     ]
 
+    if (is_win && use_hacky_cobalt_changes) {
+      sources -= [
+        "power_monitor/battery_state_sampler_unittest.cc",
+        "profiler/stack_sampling_profiler_unittest.cc",
+        "ranges/algorithm_unittest.cc",
+        "safe_numerics_unittest.cc",
+        "strings/string_util_unittest.cc",
+        "task/sequence_manager/atomic_flag_set_unittest.cc",
+        "test/test_future_unittest.cc",
+        "tools_sanity_unittest.cc",
+        "types/expected_unittest.cc",
+
+        # NiceMock needs to be fixed
+        "threading/scoped_blocking_call_unittest.cc",
+      ]
+      cflags = [ "/wd4172" ]
+    }
+
     if (is_clang) {
       cflags_cc = [ "-Wno-trigraphs" ]
     }
@@ -3651,7 +3670,7 @@ test("base_unittests") {
     "//tools/metrics/histograms/enums.xml",
   ]
 
-  if (is_win) {
+  if (is_win && !is_starboard) {
     deps += [ "//base/win:base_win_buildflags" ]
 
     sources += [
@@ -4114,7 +4133,7 @@ test("base_unittests") {
     ]
   }
 
-  if (is_win) {
+  if (is_win && !is_starboard) {
     deps += [ "//base:scoped_handle_test_dll" ]
     if (current_cpu == "x64" || current_cpu == "arm64") {
       sources += [ "profiler/win32_stack_frame_unwinder_unittest.cc" ]

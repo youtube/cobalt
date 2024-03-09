@@ -24,7 +24,7 @@ struct DoNothingCallbackTag {
   struct WithBoundArguments {
     std::tuple<BoundArgs...> bound_args;
 
-    constexpr explicit WithBoundArguments(BoundArgs... args)
+    constexpr explicit WithBoundArguments(BoundArgs&&... args)
         : bound_args(std::forward<BoundArgs>(args)...) {}
   };
 };

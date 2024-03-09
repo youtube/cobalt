@@ -47,13 +47,15 @@ inline int c16SbMemoryCompare(const char16* s1, const char16* s2, size_t n) {
   return 0;
 }
 
-inline int strncmp16(const char16* s1, const char16* s2, size_t count) {
-#if defined(WCHAR_T_IS_UTF16)
-  return wcsncmp(s1, s2, count);
-#elif defined(WCHAR_T_IS_UTF32)
-  return c16SbMemoryCompare(s1, s2, count);
-#endif
+inline const char16_t* as_u16cstr(const wchar_t* str) {
+  return reinterpret_cast<const char16_t*>(str);
 }
+
+inline const char16_t* as_u16cstr(WStringPiece str) {
+  return reinterpret_cast<const char16_t*>(str.data());
+}
+
+BASE_EXPORT bool IsStringASCII(WStringPiece str);
 
 }  // namespace base
 

@@ -30,7 +30,7 @@
 #include <windows.h>
 // Must be after <windows.h>
 #include <winbase.h>
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
 #include <sys/mman.h>
 #if BUILDFLAG(IS_ANDROID)
 #include <sys/prctl.h>
@@ -1176,12 +1176,14 @@ void FilePersistentMemoryAllocator::FlushPartial(size_t length, bool sync) {
   int result =
       ::msync(const_cast<void*>(data()), length, sync ? MS_SYNC : MS_ASYNC);
   DCHECK_NE(EINVAL, result);
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   // On POSIX, "invalidate" forces _other_ processes to recognize what has
   // been written to disk and so is applicable to "flush".
   int result = ::msync(const_cast<void*>(data()), length,
                        MS_INVALIDATE | (sync ? MS_SYNC : MS_ASYNC));
   DCHECK_NE(EINVAL, result);
+#elif defined(STARBOARD)
+  msync(const_cast<void*>(data()), length, 0);
 #else
 #error Unsupported OS.
 #endif
