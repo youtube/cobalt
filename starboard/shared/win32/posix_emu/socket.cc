@@ -220,6 +220,40 @@ int sb_recv(int sockfd, void* buf, size_t len, int flags) {
   return result;
 }
 
+int sb_sendto(int sockfd,
+              const void* buf,
+              size_t len,
+              int flags,
+              const struct sockaddr* dest_addr,
+              socklen_t dest_len) {
+  SOCKET socket_handle = handle_db_get(sockfd, false).socket;
+  if (socket_handle == INVALID_SOCKET) {
+    // TODO: update errno with file operation error
+    return -1;
+  }
+  int result = sendto(socket_handle, reinterpret_cast<const char*>(buf), len,
+                      flags, dest_addr, dest_len);
+  errno = WSAGetLastError();
+  return result;
+}
+
+int sb_recvfrom(int sockfd,
+                void* buf,
+                size_t len,
+                int flags,
+                struct sockaddr* address,
+                socklen_t* address_len) {
+  SOCKET socket_handle = handle_db_get(sockfd, false).socket;
+  if (socket_handle == INVALID_SOCKET) {
+    // TODO: update errno with file operation error
+    return -1;
+  }
+  int result = recvfrom(socket_handle, reinterpret_cast<char*>(buf), len, flags,
+                        address, address_len);
+  errno = WSAGetLastError();
+  return result;
+}
+
 int sb_setsockopt(int socket,
                   int level,
                   int option_name,
