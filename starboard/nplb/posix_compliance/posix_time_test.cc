@@ -92,7 +92,7 @@ TEST(PosixTimeTest, MonotonicIsMonotonic) {
   }
 }
 
-TEST(PosixTimeTest, GmtimeR) {
+TEST(PosixTimeTest, GmtimeRAndTimegm) {
   time_t timer = 1722468779;  // Wed 2024-07-31 23:32:59 UTC.
   struct tm result;
   memset(&result, 0, sizeof(result));
@@ -109,6 +109,35 @@ TEST(PosixTimeTest, GmtimeR) {
   EXPECT_EQ(result.tm_wday, 3);    // Wednesday, 0==Sunday.
   EXPECT_EQ(result.tm_yday, 212);  // Zero-indexed; 2024 is a leap year.
   EXPECT_LE(result.tm_isdst, 0);   // <=0; GMT/UTC never has DST (even in July).
+
+  // Now pass it back the other direction and ensure the value is correct.
+  result.tm_isdst = -1;  // The value of isdst shouldn't matter for UTC
+  time_t undo = timegm(&result);
+  EXPECT_EQ(undo, timer);
+}
+
+TEST(PosixTimeTest, LocaltimeRAndMktime) {
+  time_t timer = 1722468779;  // Wed 2024-07-31 23:32:59 UTC.
+  struct tm result;
+  memset(&result, 0, sizeof(result));
+
+  struct tm* retval = NULL;
+  retval = localtime_r(&timer, &result);
+  EXPECT_EQ(retval, &result);
+  EXPECT_EQ(result.tm_year, 2024 - 1900);  // Year since 1900.
+  // EXPECT_EQ(result.tm_mon, 7 - 1);         // Zero-indexed.
+  // EXPECT_EQ(result.tm_mday, 31);
+  // EXPECT_EQ(result.tm_hour, 23);
+  // EXPECT_EQ(result.tm_min, 32);
+  EXPECT_EQ(result.tm_sec, 59);
+  // EXPECT_EQ(result.tm_wday, 3);    // Wednesday, 0==Sunday.
+  // EXPECT_EQ(result.tm_yday, 212);  // Zero-indexed; 2024 is a leap year.
+  // EXPECT_LE(result.tm_isdst, 0);   // <=0; GMT/UTC never has DST (even in
+  // July).
+
+  // Now pass it back the other direction and ensure the value is correct.
+  time_t undo = mktime(&result);
+  EXPECT_EQ(undo, timer);
 }
 
 }  // namespace

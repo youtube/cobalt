@@ -69,6 +69,42 @@ int64_t __wrap_time(int64_t* /* time_t* */ musl_tloc) {
   return retval;
 }
 
+int64_t __wrap_timegm(struct musl_tm* musl_timeptr) {
+  if (!musl_timeptr) {
+    return -1;
+  }
+  struct tm tm;  // The type from platform toolchain.
+  tm.tm_sec = musl_timeptr->tm_sec;
+  tm.tm_min = musl_timeptr->tm_min;
+  tm.tm_hour = musl_timeptr->tm_hour;
+  tm.tm_mday = musl_timeptr->tm_mday;
+  tm.tm_mon = musl_timeptr->tm_mon;
+  tm.tm_year = musl_timeptr->tm_year;
+  tm.tm_wday = musl_timeptr->tm_wday;
+  tm.tm_yday = musl_timeptr->tm_yday;
+  tm.tm_isdst = musl_timeptr->tm_isdst;
+  time_t t = timegm(&tm);
+  return static_cast<int64_t>(t);  // Platform type may be 32-bits.
+}
+
+int64_t __wrap_mktime(struct musl_tm* musl_timeptr) {
+  if (!musl_timeptr) {
+    return -1;
+  }
+  struct tm tm;  // The type from platform toolchain.
+  tm.tm_sec = musl_timeptr->tm_sec;
+  tm.tm_min = musl_timeptr->tm_min;
+  tm.tm_hour = musl_timeptr->tm_hour;
+  tm.tm_mday = musl_timeptr->tm_mday;
+  tm.tm_mon = musl_timeptr->tm_mon;
+  tm.tm_year = musl_timeptr->tm_year;
+  tm.tm_wday = musl_timeptr->tm_wday;
+  tm.tm_yday = musl_timeptr->tm_yday;
+  tm.tm_isdst = musl_timeptr->tm_isdst;
+  time_t t = mktime(&tm);
+  return static_cast<int64_t>(t);  // Platform type may be 32-bits.
+}
+
 struct musl_tm* __wrap_gmtime_r(const int64_t* /* time_t* */ musl_timer,
                                 struct musl_tm* musl_result) {
   if (!musl_timer || !musl_result) {
@@ -77,6 +113,28 @@ struct musl_tm* __wrap_gmtime_r(const int64_t* /* time_t* */ musl_timer,
   time_t t = static_cast<time_t>(*musl_timer);  // Platform type may be 32-bits.
   struct tm tm;  // The type from platform toolchain.
   if (!gmtime_r(&t, &tm)) {
+    return NULL;
+  }
+  musl_result->tm_sec = tm.tm_sec;
+  musl_result->tm_min = tm.tm_min;
+  musl_result->tm_hour = tm.tm_hour;
+  musl_result->tm_mday = tm.tm_mday;
+  musl_result->tm_mon = tm.tm_mon;
+  musl_result->tm_year = tm.tm_year;
+  musl_result->tm_wday = tm.tm_wday;
+  musl_result->tm_yday = tm.tm_yday;
+  musl_result->tm_isdst = tm.tm_isdst;
+  return musl_result;
+}
+
+struct musl_tm* __wrap_localtime_r(const int64_t* /* time_t* */ musl_timer,
+                                   struct musl_tm* musl_result) {
+  if (!musl_timer || !musl_result) {
+    return NULL;
+  }
+  time_t t = static_cast<time_t>(*musl_timer);  // Platform type may be 32-bits.
+  struct tm tm;  // The type from platform toolchain.
+  if (!localtime_r(&t, &tm)) {
     return NULL;
   }
   musl_result->tm_sec = tm.tm_sec;

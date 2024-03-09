@@ -7,6 +7,7 @@
 // apps in the livingroom.
 
 #include <stdio.h>
+#include <time.h>
 
 #include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
@@ -14,7 +15,6 @@
 #include "src/base/platform/time.h"
 #include "src/base/timezone-cache.h"
 #include "src/base/utils/random-number-generator.h"
-#include "starboard/client_porting/eztime/eztime.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -452,15 +452,11 @@ class StarboardDefaultTimezoneCache : public StarboardTimezoneCache {
     return SbTimeZoneGetCurrent() * 60.0 * msPerSecond * (-1);
   }
   double DaylightSavingsOffset(double time_ms) override {
-    int64_t posix_microseconds = starboard::CurrentPosixTime();
-    EzTimeValue value = {
-        posix_microseconds / 1'000'000,
-        (int32_t)(posix_microseconds % 1'000'000)
-    };
-    EzTimeExploded ez_exploded;
-    bool result = EzTimeValueExplode(&value, kEzTimeZoneLocal, &ez_exploded,
-                                     NULL);
-    return ez_exploded.tm_isdst > 0 ? 3600 * msPerSecond : 0;
+    time_t now = time(NULL);
+    struct tm exploded;
+    struct tm* result = localtime_r(&now, &exploded);
+    bool isdst = result && result->tm_isdst > 0;
+    return isdst ? 3600 * msPerSecond : 0;
   }
 
   ~StarboardDefaultTimezoneCache() override {}

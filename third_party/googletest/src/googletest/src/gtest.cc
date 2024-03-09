@@ -33,7 +33,6 @@
 #include "gtest/gtest.h"
 
 #if GTEST_OS_STARBOARD
-#include "starboard/client_porting/eztime/eztime.h"
 #include "starboard/common/file.h"
 #include "starboard/system.h"
 #endif
@@ -4331,7 +4330,6 @@ std::string FormatTimeInMillisAsSeconds(TimeInMillis ms) {
   return ss.str();
 }
 
-#if !GTEST_OS_STARBOARD
 static bool PortableLocaltime(time_t seconds, struct tm* out) {
 #if defined(_MSC_VER)
   return localtime_s(out, &seconds) == 0;
@@ -4350,19 +4348,12 @@ static bool PortableLocaltime(time_t seconds, struct tm* out) {
   return localtime_r(&seconds, out) != nullptr;
 #endif
 }
-#endif // !GTEST_OS_STARBOARD
 
 // Converts the given epoch time in milliseconds to a date string in the ISO
 // 8601 format, without the timezone information.
 std::string FormatEpochTimeInMillisAsIso8601(TimeInMillis ms) {
-#if GTEST_OS_STARBOARD
-  EzTimeExploded time_struct;
-  const EzTimeT seconds = static_cast<EzTimeT>(ms / 1000);
-  if (EzTimeTExplodeLocal(&seconds, &time_struct) == NULL) {
-#else
   struct tm time_struct;
   if (!PortableLocaltime(static_cast<time_t>(ms / 1000), &time_struct)) {
-#endif
     return "";
   }
   // YYYY-MM-DDThh:mm:ss.sss
@@ -4811,14 +4802,8 @@ static std::string FormatTimeInMillisAsDuration(TimeInMillis ms) {
 // Converts the given epoch time in milliseconds to a date string in the
 // RFC3339 format, without the timezone information.
 static std::string FormatEpochTimeInMillisAsRFC3339(TimeInMillis ms) {
-#if GTEST_OS_STARBOARD
-  EzTimeExploded time_struct;
-  const EzTimeT seconds = static_cast<EzTimeT>(ms / 1000);
-  if (EzTimeTExplodeLocal(&seconds, &time_struct) == NULL) {
-#else
   struct tm time_struct;
   if (!PortableLocaltime(static_cast<time_t>(ms / 1000), &time_struct)) {
-#endif
     return "";
   }
   // YYYY-MM-DDThh:mm:ss
