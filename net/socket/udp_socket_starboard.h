@@ -18,7 +18,7 @@
 #define NET_SOCKET_UDP_SOCKET_STARBOARD_H_
 
 #include "base/memory/ref_counted.h"
-// #include "base/task/sequenced_task_runner.h"
+#include "base/message_loop/message_pump_io_starboard.h"
 #include "base/message_loop/message_pump_for_io.h"
 #include "base/timer/timer.h"
 #include "net/base/completion_once_callback.h"
@@ -101,7 +101,7 @@ class NET_EXPORT UDPSocketStarboardSender
 };
 
 class NET_EXPORT UDPSocketStarboard
-    : public base::MessagePumpForIO::Watcher {
+    : public base::MessagePumpIOStarboard::Watcher {
  public:
   UDPSocketStarboard(DatagramSocket::BindType bind_type,
                      net::NetLog* net_log,
@@ -327,12 +327,12 @@ class NET_EXPORT UDPSocketStarboard
 
  protected:
   // Watcher for WriteAsync paths.
-  class WriteAsyncWatcher : public base::MessagePumpForIO::Watcher {
+  class WriteAsyncWatcher : public base::MessagePumpIOStarboard::Watcher {
    public:
     explicit WriteAsyncWatcher(UDPSocketStarboard* socket)
         : socket_(socket), watching_(false) {}
 
-    // MessageLoopCurrentForIO::Watcher methods
+    // MessagePumpIOStarboard::Watcher methods
 
     void OnSocketReadyToRead(SbSocket socket){};
     void OnSocketReadyToWrite(SbSocket socket);
@@ -370,7 +370,7 @@ class NET_EXPORT UDPSocketStarboard
   DatagramBuffers pending_writes_;
 
  private:
-  // MessageLoopCurrentForIO::Watcher implementation.
+  // MessagePumpIOStarboard::Watcher implementation.
   void OnSocketReadyToRead(SbSocket socket) override;
   void OnSocketReadyToWrite(SbSocket socket) override;
 
@@ -437,7 +437,7 @@ class NET_EXPORT UDPSocketStarboard
   mutable std::unique_ptr<IPEndPoint> remote_address_;
 
   // The socket's SbSocketWaiter wrappers
-  base::MessagePumpForIO::SocketWatcher socket_watcher_;
+  base::MessagePumpIOStarboard::SocketWatcher socket_watcher_;
 
   // Various bits to support |WriteAsync()|.
   bool write_async_enabled_ = false;
@@ -451,8 +451,6 @@ class NET_EXPORT UDPSocketStarboard
   bool write_async_timer_running_;
   // Total writes in flight, including those |PostTask*|'d.
   int write_async_outstanding_;
-
-  scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
   // The buffer used by InternalRead() to retry Read requests
   IOBuffer* read_buf_;
@@ -477,6 +475,10 @@ class NET_EXPORT UDPSocketStarboard
   // client of the socket has to opt-in by calling the
   // enable_experimental_recv_optimization() method.
   bool experimental_recv_optimization_enabled_ = false;
+
+  // Manages decrementing the global open UDP socket counter when this
+  // UDPSocket is destroyed.
+  OwnedUDPSocketCount owned_socket_count_;
 
   THREAD_CHECKER(thread_checker_);
 

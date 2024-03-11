@@ -1171,8 +1171,8 @@ component("net") {
       "cert/test_root_certs_builtin.cc",
       "socket/tcp_socket_starboard.cc",
       "socket/tcp_socket_starboard.h",
-      "socket/udp_socket_starboard_tmp.cc",
-      "socket/udp_socket_starboard_tmp.h",
+      "socket/udp_socket_starboard.cc",
+      "socket/udp_socket_starboard.h",
     ]
     deps += [ "//starboard:starboard_group" ]
   }
@@ -3377,7 +3377,6 @@ test("net_unittests") {
       "quic/quic_stream_factory_test.cc",
       "socket/ssl_client_socket_unittest.cc",
       "socket/ssl_server_socket_unittest.cc",
-      "socket/udp_socket_unittest.cc",
       "socket/websocket_transport_client_socket_pool_unittest.cc",
       "spdy/fuzzing/hpack_fuzz_util_test.cc",
       "spdy/spdy_session_pool_unittest.cc",
