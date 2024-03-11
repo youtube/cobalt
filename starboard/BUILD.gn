@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/contrib/cast/cast.gni")
+
 group("gn_all") {
   testonly = true
 
@@ -40,6 +42,12 @@ group("gn_all") {
     deps += [ ":starboard_platform_tests" ]
   } else {
     deps += [ platform_tests_path ]
+  }
+
+  if (use_contrib_cast) {
+    deps += [
+      "//starboard/contrib/cast/cast_starboard_api/samples:cast",
+    ]
   }
 
   if (sb_filter_based_player) {
