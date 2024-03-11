@@ -597,11 +597,14 @@ bool TCPSocketStarboard::SetSendBufferSize(int32_t size) {
 }
 
 bool TCPSocketStarboard::SetKeepAlive(bool enable, int delay) {
-  return SbSocketSetTcpKeepAlive(socket_, enable, delay);
+  int delay_second = delay * base::Time::kMicrosecondsPerSecond;
+  return SbSocketSetTcpKeepAlive(socket_, enable, delay_second);
 }
 
 bool TCPSocketStarboard::SetNoDelay(bool no_delay) {
-  return SetTCPNoDelay(socket_, no_delay);
+  if (!socket_)
+    return false;
+  return SetTCPNoDelay(socket_, no_delay) == OK;
 }
 
 bool TCPSocketStarboard::GetEstimatedRoundTripTime(

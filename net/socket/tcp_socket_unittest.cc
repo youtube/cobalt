@@ -42,12 +42,14 @@
 #include "net/base/network_change_notifier.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if !defined(STARBOARD)
 // For getsockopt() call.
 #if BUILDFLAG(IS_WIN)
 #include <winsock2.h>
 #else  // !BUILDFLAG(IS_WIN)
 #include <sys/socket.h>
 #endif  //  !BUILDFLAG(IS_WIN)
+#endif  // !defined(STARBOARD)
 
 using net::test::IsError;
 using net::test::IsOk;
@@ -306,6 +308,7 @@ TEST_F(TCPSocketTest, AdoptConnectedSocket) {
   EXPECT_THAT(connect_callback.GetResult(connect_result), IsOk());
 }
 
+#if !defined(STARBOARD)
 // Test Accept() for AdoptUnconnectedSocket.
 TEST_F(TCPSocketTest, AcceptForAdoptedUnconnectedSocket) {
   SocketDescriptor existing_socket =
@@ -322,6 +325,7 @@ TEST_F(TCPSocketTest, AcceptForAdoptedUnconnectedSocket) {
 
   TestAcceptAsync();
 }
+#endif
 
 // Accept two connections simultaneously.
 TEST_F(TCPSocketTest, Accept2Connections) {
@@ -367,6 +371,7 @@ TEST_F(TCPSocketTest, Accept2Connections) {
   EXPECT_EQ(accepted_address2.address(), local_address_.address());
 }
 
+#if !defined(STARBOARD) || SB_HAS(IPV6)
 // Test listening and accepting with a socket bound to an IPv6 address.
 TEST_F(TCPSocketTest, AcceptIPv6) {
   bool initialized = false;
@@ -393,6 +398,7 @@ TEST_F(TCPSocketTest, AcceptIPv6) {
 
   EXPECT_THAT(connect_callback.GetResult(connect_result), IsOk());
 }
+#endif
 
 TEST_F(TCPSocketTest, ReadWrite) {
   ASSERT_NO_FATAL_FAILURE(SetUpListenIPv4());
@@ -646,6 +652,8 @@ TEST_F(TCPSocketTest, IsConnected) {
               1);
   accepted_socket.reset();
 
+// Starboard can not convert SocketDescriptor to int.
+#if !defined(STARBOARD)
   // Wait until |connecting_socket| is signalled as having data to read.
   fd_set read_fds;
   FD_ZERO(&read_fds);
@@ -654,6 +662,7 @@ TEST_F(TCPSocketTest, IsConnected) {
   FD_SET(connecting_fd, &read_fds);
   ASSERT_EQ(select(FD_SETSIZE, &read_fds, nullptr, nullptr, nullptr), 1);
   ASSERT_TRUE(FD_ISSET(connecting_fd, &read_fds));
+#endif
 
   // It should now be reported as connected, but not as idle.
   EXPECT_TRUE(connecting_socket.IsConnected());
@@ -678,6 +687,8 @@ TEST_F(TCPSocketTest, IsConnected) {
   EXPECT_FALSE(connecting_socket.IsConnectedAndIdle());
 }
 
+// Starboard does not provide any equivalent of getsockopt.
+#if !defined(STARBOARD)
 // Tests that setting a socket option in the BeforeConnectCallback works. With
 // real sockets, socket options often have to be set before the connect() call,
 // and the BeforeConnectCallback is the only way to do that, with a
@@ -727,6 +738,7 @@ TEST_F(TCPSocketTest, BeforeConnectCallback) {
   EXPECT_EQ(kReceiveBufferSize, actual_size);
 #endif
 }
+#endif
 
 TEST_F(TCPSocketTest, BeforeConnectCallbackFails) {
   // Setting up a server isn't strictly necessary, but it does allow checking
