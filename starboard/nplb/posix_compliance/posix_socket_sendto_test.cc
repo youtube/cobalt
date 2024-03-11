@@ -14,6 +14,7 @@
 
 // Here we are not trying to do anything fancy, just to really sanity check that
 // this is hooked up to something.
+#if SB_API_VERSION >= 16
 
 #include <fcntl.h>
 #include <ifaddrs.h>
@@ -55,8 +56,8 @@ void* PosixSocketSendToServerSocketEntryPoint(void* trio_as_void_ptr) {
   int64_t kTimeout = 1'000'000;  // 1 second
   int result = 0;
   while (result >= 0 && (now - start < kTimeout)) {
-    result =
-        send(*(trio_ptr->server_socket_fd_ptr), send_buf, kBufSize, kSendFlags);
+    result = sendto(*(trio_ptr->server_socket_fd_ptr), send_buf, kBufSize,
+                    kSendFlags, NULL, 0);
     now = CurrentMonotonicTime();
   }
 
@@ -64,20 +65,22 @@ void* PosixSocketSendToServerSocketEntryPoint(void* trio_as_void_ptr) {
   return NULL;
 }
 
-TEST(PosixSocketSendTest, RainyDayInvalidSocket) {
+TEST(PosixSocketSendtoTest, RainyDayInvalidSocket) {
   char buf[16];
   int invalid_socket_fd = -1;
 
-  ssize_t bytes_written = send(invalid_socket_fd, buf, sizeof(buf), kSendFlags);
+  ssize_t bytes_written =
+      sendto(invalid_socket_fd, buf, sizeof(buf), kSendFlags, NULL, 0);
   EXPECT_FALSE(bytes_written >= 0);
 }
 
-TEST(PosixSocketSendTest, RainyDayUnconnectedSocket) {
+TEST(PosixSocketSendtoTest, RainyDayUnconnectedSocket) {
   int socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   ASSERT_TRUE(socket_fd >= 0);
 
   char buf[16];
-  ssize_t bytes_written = send(socket_fd, buf, sizeof(buf), kSendFlags);
+  ssize_t bytes_written =
+      sendto(socket_fd, buf, sizeof(buf), kSendFlags, NULL, 0);
   EXPECT_FALSE(bytes_written >= 0);
 
   // TODO: check errno: EXPECT_TRUE(errno == ECONNRESET || errno == ENETRESET ||
@@ -86,12 +89,12 @@ TEST(PosixSocketSendTest, RainyDayUnconnectedSocket) {
   EXPECT_TRUE(close(socket_fd) == 0);
 }
 
-TEST(PosixSocketSendTest, RainyDaySendToClosedSocket) {
+TEST(PosixSocketSendtoTest, RainyDaySendToClosedSocket) {
   int listen_socket_fd = -1, client_socket_fd = -1, server_socket_fd = -1;
   int result = PosixSocketCreateAndConnect(
       AF_INET, AF_INET, GetPortNumberForTests(), kSocketTimeout,
       &listen_socket_fd, &client_socket_fd, &server_socket_fd);
-  EXPECT_TRUE(result == 0);
+  ASSERT_TRUE(result == 0);
 
   // We don't need the listen socket, so close it.
   EXPECT_TRUE(close(listen_socket_fd) == 0);
@@ -124,7 +127,7 @@ TEST(PosixSocketSendTest, RainyDaySendToClosedSocket) {
 // Tests the expectation that writing to a socket that is never drained
 // will result in that socket becoming full and thus will return a
 // kSbSocketPending status, which indicates that it is blocked.
-TEST(PosixSocketSendTest, RainyDaySendToSocketUntilBlocking) {
+TEST(PosixSocketSendtoTest, RainyDaySendToSocketUntilBlocking) {
   static const int kChunkSize = 1024;
   // 1GB limit for sending data.
   static const uint64_t kMaxTransferLimit = 1024 * 1024 * 1024;
@@ -144,7 +147,7 @@ TEST(PosixSocketSendTest, RainyDaySendToSocketUntilBlocking) {
   result = 0;
   while (num_bytes < kMaxTransferLimit) {
     char buff[kChunkSize] = {};
-    result = send(client_socket_fd, buff, sizeof(buff), kSendFlags);
+    result = sendto(client_socket_fd, buff, sizeof(buff), kSendFlags, NULL, 0);
 
     if (result < 0) {
       // If we didn't get a socket, it should be pending.
@@ -172,9 +175,9 @@ TEST(PosixSocketSendTest, RainyDaySendToSocketUntilBlocking) {
 // connected socket to fail to write. For sockets without socket connection
 // support this will show up as a generic error. Otherwise this will show
 // up as a connection reset error.
-TEST(PosixSocketSendTest, RainyDaySendToSocketConnectionReset) {
+TEST(PosixSocketSendtoTest, RainyDaySendToSocketConnectionReset) {
   static const int kChunkSize = 1024;
-  int result = 0;
+  int result = -1;
 
   // create listen socket, bind and listen on <port>
   int listen_socket_fd = -1, client_socket_fd = -1, server_socket_fd = -1;
@@ -193,7 +196,7 @@ TEST(PosixSocketSendTest, RainyDaySendToSocketConnectionReset) {
   for (int i = 0; i < kNumRetries; ++i) {
     char buff[kChunkSize] = {};
     SbThreadSleep(1000);
-    result = send(client_socket_fd, buff, sizeof(buff), kSendFlags);
+    result = sendto(client_socket_fd, buff, sizeof(buff), kSendFlags, NULL, 0);
 
     if (result < 0) {
       // TODO: errno:
@@ -216,3 +219,4 @@ TEST(PosixSocketSendTest, RainyDaySendToSocketConnectionReset) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+#endif  // SB_API_VERSION >= 16

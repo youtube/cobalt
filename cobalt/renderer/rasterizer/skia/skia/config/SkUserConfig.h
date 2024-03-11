@@ -18,7 +18,6 @@
 #define SkUserConfig_DEFINED  // NOLINT
 
 #if defined(STARBOARD)
-#include "base/logging.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/types.h"
