@@ -161,23 +161,41 @@ void AudioDecoderImpl<FFMPEG>::Decode(const InputBuffers& input_buffers,
   ffmpeg_->avcodec_get_frame_defaults(av_frame_);
 #endif  // LIBAVUTIL_VERSION_INT < LIBAVUTIL_VERSION_52_8
   int frame_decoded = 0;
-  int result = ffmpeg_->avcodec_decode_audio4(codec_context_, av_frame_,
-                                              &frame_decoded, &packet);
+
+  int result = 0;
+  if (ffmpeg_->avcodec_version() < kAVCodecHasUniformDecodeAPI) {
+    result = ffmpeg_->avcodec_decode_audio4(codec_context_, av_frame_,
+                                            &frame_decoded, &packet);
+  } else {
+    result = ffmpeg_->avcodec_receive_frame(codec_context_, av_frame_);
+  }
+
   if (result != input_buffer->size()) {
-    // TODO: Consider fill it with silence.
-    SB_DLOG(WARNING) << "avcodec_decode_audio4() failed with result: " << result
-                     << " with input buffer size: " << input_buffer->size()
-                     << " and frame decoded: " << frame_decoded;
-    error_cb_(
-        kSbPlayerErrorDecode,
-        FormatString("avcodec_decode_audio4() failed with result %d.", result));
+    if (ffmpeg_->avcodec_version() < kAVCodecHasUniformDecodeAPI) {
+      // TODO: Consider fill it with silence.
+      SB_DLOG(WARNING) << "avcodec_decode_audio4() failed with result: "
+                       << result
+                       << " with input buffer size: " << input_buffer->size()
+                       << " and frame decoded: " << frame_decoded;
+      error_cb_(kSbPlayerErrorDecode,
+                FormatString("avcodec_decode_audio4() failed with result %d.",
+                             result));
+    } else {
+      SB_DLOG(WARNING) << "avcodec_receive_frame() failed with result: "
+                       << result
+                       << " with input buffer size: " << input_buffer->size();
+      error_cb_(kSbPlayerErrorDecode,
+                FormatString("avcodec_receive_frame() failed with result %d.",
+                             result));
+    }
     return;
   }
 
   if (frame_decoded != 1) {
     // TODO: Adjust timestamp accordingly when decoding result is shifted.
     SB_DCHECK(frame_decoded == 0);
-    SB_DLOG(WARNING) << "avcodec_decode_audio4() returns with 0 frames decoded";
+    SB_DLOG(WARNING) << "avcodec_decode_audio4()/avcodec_receive_frame() "
+                        "returns with 0 frames decoded";
     return;
   }
 
