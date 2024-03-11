@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION >= 16
+
 // close is partially tested in posix_file_open_test.cc.
 
 #include <unistd.h>
@@ -30,3 +32,5 @@ TEST(PosixFileCloseTest, CloseInvalidFails) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+
+#endif  // SB_API_VERSION >= 16

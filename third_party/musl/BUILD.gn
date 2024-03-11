@@ -386,6 +386,7 @@ static_library("c_internal") {
     "src/starboard/malloc/malloc.c",
     "src/starboard/malloc/posix_memalign.c",
     "src/starboard/mman/mman.c",
+    "src/starboard/network/socket.c",
     "src/starboard/pthread/pthread.c",
     "src/starboard/stdio/fflush.c",
     "src/starboard/stdio/fputc.c",
