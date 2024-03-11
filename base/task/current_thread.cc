@@ -212,6 +212,14 @@ MessagePumpForIO* CurrentIOThread::GetMessagePumpForIO() const {
 #if !BUILDFLAG(IS_NACL)
 
 #if defined(STARBOARD)
+bool CurrentIOThread::Watch(SbSocket socket,
+                            bool persistent,
+                            int mode,
+                            SocketWatcher* controller,
+                            Watcher* delegate) {
+  return static_cast<MessagePumpIOStarboard*>(GetMessagePumpForIO())
+      ->Watch(socket, persistent, mode, controller, delegate);
+}
 #elif BUILDFLAG(IS_WIN)
 HRESULT CurrentIOThread::RegisterIOHandler(
     HANDLE file,

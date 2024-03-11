@@ -1169,8 +1169,8 @@ component("net") {
   if (is_starboard && is_starboardized_toolchain) {
     sources += [
       "cert/test_root_certs_builtin.cc",
-      "socket/tcp_socket_starboard_tmp.cc",
-      "socket/tcp_socket_starboard_tmp.h",
+      "socket/tcp_socket_starboard.cc",
+      "socket/tcp_socket_starboard.h",
       "socket/udp_socket_starboard_tmp.cc",
       "socket/udp_socket_starboard_tmp.h",
     ]
@@ -3377,7 +3377,6 @@ test("net_unittests") {
       "quic/quic_stream_factory_test.cc",
       "socket/ssl_client_socket_unittest.cc",
       "socket/ssl_server_socket_unittest.cc",
-      "socket/tcp_client_socket_unittest.cc",
       "socket/tcp_server_socket_unittest.cc",
       "socket/tcp_socket_unittest.cc",
       "socket/transport_client_socket_unittest.cc",

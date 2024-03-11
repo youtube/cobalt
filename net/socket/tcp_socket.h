@@ -10,7 +10,7 @@
 #include "net/socket/socket_descriptor.h"
 
 #if defined(STARBOARD)
-#include "net/socket/tcp_socket_starboard_tmp.h"
+#include "net/socket/tcp_socket_starboard.h"
 #elif BUILDFLAG(IS_WIN)
 #include "net/socket/tcp_socket_win.h"
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
