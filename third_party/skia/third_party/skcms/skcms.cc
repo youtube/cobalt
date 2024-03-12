@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if !defined(SKCMS_PORTABLE)
 #if defined(__ARM_NEON)
     #include <arm_neon.h>
 #elif defined(__SSE__)
@@ -30,6 +31,7 @@
         #include <avx512fintrin.h>
         #include <avx512dqintrin.h>
     #endif
+#endif
 #endif
 
 static bool runtime_cpu_detection = true;

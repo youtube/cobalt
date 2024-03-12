@@ -73,6 +73,7 @@ static inline U8CPU SkUnitScalarClampToByte(SkScalar x) {
 
 // Deduce which SK_PMCOLOR_IS_ to define from the _SHIFT defines
 
+#if !defined(STARBOARD)
 #if (SK_A32_SHIFT == SK_RGBA_A32_SHIFT && \
      SK_R32_SHIFT == SK_RGBA_R32_SHIFT && \
      SK_G32_SHIFT == SK_RGBA_G32_SHIFT && \
@@ -86,6 +87,7 @@ static inline U8CPU SkUnitScalarClampToByte(SkScalar x) {
 #else
     #error "need 32bit packing to be either RGBA or BGRA"
 #endif
+#endif  // !defined(STARBOARD)
 
 #define SkGetPackedA32(packed)      ((uint32_t)((packed) << (24 - SK_A32_SHIFT)) >> 24)
 #define SkGetPackedR32(packed)      ((uint32_t)((packed) << (24 - SK_R32_SHIFT)) >> 24)

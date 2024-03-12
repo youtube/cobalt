@@ -21,6 +21,10 @@
 #include <cstddef>
 #include <utility>
 
+#if defined(COBALT)
+#include "starboard/common/log.h"
+#endif
+
 void SkMatrix::doNormalizePerspective() {
     // If the bottom row of the matrix is [0, 0, not_one], we will treat the matrix as if it
     // is in perspective, even though it stills behaves like its affine. If we divide everything
@@ -1516,6 +1520,23 @@ template <MinMaxOrBoth MIN_MAX_OR_BOTH> bool get_scale_factor(SkMatrix::TypeMask
             results[0] = apluscdiv2 - x;
             results[1] = apluscdiv2 + x;
         }
+
+#if defined(COBALT)
+        // If |x| and |apluscdiv2| are very large floating point numbers
+        // that are close to each other, there might be floating point
+        // inaccuracies in calculating the eigenvalues.
+        const SkScalar kLargeNumber = 1E12;
+        if ((SkScalarAbs(x) > kLargeNumber) &&
+            (SkScalarAbs(apluscdiv2) > kLargeNumber) &&
+            SkScalarNearlyZero(x/apluscdiv2 - 1)) {
+          results[0] = 0;
+          if (kBoth_MinMaxOrBoth == MIN_MAX_OR_BOTH)  {
+            results[1] = 0;
+          }
+          SB_DLOG(WARNING) << "Unable to calculate scale factor of a matrix.";
+          return false;
+        }
+#endif
     }
     if (!SkScalarIsFinite(results[0])) {
         return false;

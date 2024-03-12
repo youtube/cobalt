@@ -337,6 +337,15 @@ public:
         uint32_t fPlotAlreadyUpdated[kMaxMultitexturePages]; // TODO: increase this to uint64_t
                                                              //       to allow more plots per page
 
+#if defined(COBALT)
+        // The non-Cobalt code also depends on this value, but it assumes
+        // that it is 32.
+        //
+        // |GrAtlasGlyphCache| needs to know the maximum number of plots,
+        // |kMaxPlots|, that can be used in a texture.
+        friend class GrAtlasGlyphCache;
+#endif
+
         friend class GrDrawOpAtlas;
     };
 

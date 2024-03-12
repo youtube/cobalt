@@ -57,6 +57,10 @@
 #include "spirv-tools/libspirv.hpp"
 #endif
 
+#if defined(STARBOARD)
+#include "starboard/common/log.h"
+#endif
+
 #ifdef SKSL_STANDALONE
 #define REHYDRATE 0
 #else
@@ -408,7 +412,11 @@ ParsedModule Compiler::parseModule(ProgramKind kind, ModuleData data, const Pars
                 break;
             }
             default:
+#if defined(STARBOARD)
+                SbLogRaw("unsupported include file element\n");
+#else
                 printf("Unsupported element: %s\n", element->description().c_str());
+#endif  // defined(STARBOARD)            
                 SkASSERT(false);
                 break;
         }
@@ -720,20 +728,30 @@ bool Compiler::toHLSL(Program& program, std::string* out) {
 }
 
 bool Compiler::toMetal(Program& program, OutputStream& out) {
+#if defined(STARBOARD)
+    SB_NOTREACHED();
+    return false;
+#else
     TRACE_EVENT0("skia.shaders", "SkSL::Compiler::toMetal");
     AutoSource as(this, program.fSource->c_str());
     MetalCodeGenerator cg(fContext.get(), &program, &out);
     bool result = cg.generateCode();
     return result;
+#endif
 }
 
 bool Compiler::toMetal(Program& program, std::string* out) {
+#if defined(STARBOARD)
+    SB_NOTREACHED();
+    return false;
+#else
     StringStream buffer;
     bool result = this->toMetal(program, buffer);
     if (result) {
         *out = buffer.str();
     }
     return result;
+#endif
 }
 
 #endif // defined(SKSL_STANDALONE) || SK_SUPPORT_GPU

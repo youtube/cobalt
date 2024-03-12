@@ -273,9 +273,17 @@
 #  ifdef SK_BUILD_FOR_WIN
      // This style lets Visual Studio follow errors back to the source file.
 #    define SK_DUMP_LINE_FORMAT "%s(%d)"
+#define SK_ABORT(...)                                           \
+        do {                                                        \
+            SkDebugf(SK_DUMP_LINE_FORMAT ": fatal error: \"%s\"\n", \
+                     __FILE__,                                      \
+                     __LINE__,                                      \
+                     __VA_ARGS__);                                  \
+            SK_DUMP_GOOGLE3_STACK();                                \
+            sk_abort_no_print();                                    \
+        } while (false)
 #  else
 #    define SK_DUMP_LINE_FORMAT "%s:%d"
-#  endif
 #  define SK_ABORT(message, ...) \
     do { \
         SkDebugf(SK_DUMP_LINE_FORMAT ": fatal error: \"" message "\"\n", \
@@ -284,11 +292,14 @@
         sk_abort_no_print(); \
     } while (false)
 #endif
+#endif
 
 // If SK_R32_SHIFT is set, we'll use that to choose RGBA or BGRA.
 // If not, we'll default to RGBA everywhere except BGRA on Windows.
 #if defined(SK_R32_SHIFT)
+#if !defined(STARBOARD)
     static_assert(SK_R32_SHIFT == 0 || SK_R32_SHIFT == 16, "");
+#endif
 #elif defined(SK_BUILD_FOR_WIN)
     #define SK_R32_SHIFT 16
 #else
@@ -296,7 +307,9 @@
 #endif
 
 #if defined(SK_B32_SHIFT)
+#if !defined(STARBOARD)
     static_assert(SK_B32_SHIFT == (16-SK_R32_SHIFT), "");
+#endif
 #else
     #define SK_B32_SHIFT (16-SK_R32_SHIFT)
 #endif
@@ -322,7 +335,7 @@
          SK_ ## C3 ## 32_SHIFT == 24)
 #endif
 
-#if defined SK_DEBUG && defined SK_BUILD_FOR_WIN
+#if defined SK_DEBUG && defined SK_BUILD_FOR_WIN && !defined(STARBOARD)
     #ifdef free
         #undef free
     #endif
@@ -463,10 +476,17 @@
 
 #ifdef SK_DEBUG
     #define SkASSERT(cond) SkASSERT_RELEASE(cond)
+#ifdef SK_BUILD_FOR_WIN
+    #define SkASSERTF(cond, ...) static_cast<void>( (cond) ? (void)0 : [&]{      \
+                                          SkDebugf("%s\n", ##__VA_ARGS__);       \
+                                          SK_ABORT("assert(%s)", #cond);         \
+                                      }() )
+#else
     #define SkASSERTF(cond, fmt, ...) static_cast<void>( (cond) ? (void)0 : [&]{ \
                                           SkDebugf(fmt"\n", ##__VA_ARGS__);      \
                                           SK_ABORT("assert(%s)", #cond);         \
                                       }() )
+#endif // SK_BUILD_FOR_WIN
     #define SkDEBUGFAIL(message)        SK_ABORT("%s", message)
     #define SkDEBUGFAILF(fmt, ...)      SK_ABORT(fmt, ##__VA_ARGS__)
     #define SkDEBUGCODE(...)            __VA_ARGS__
@@ -617,5 +637,20 @@ enum class SkBackingFit {
     kApprox,
     kExact
 };
+
+#if defined(STARBOARD)
+typedef enum SkPmcolor { SkPmcolorIsRgba, SkPmcolorIsBgra } SkPmColor;
+
+inline SkPmcolor GetSkPmcolor() {
+    if (SK_PMCOLOR_BYTE_ORDER(R,G,B,A)) {
+        return SkPmcolorIsRgba;
+    } else if (SK_PMCOLOR_BYTE_ORDER(B,G,R,A)) {
+        return SkPmcolorIsBgra;
+    } else {
+        SkASSERTF(false,"SK shift values do not correspond to a supported byte order.");
+        return (SkPmcolor)NULL;
+    }
+}
+#endif
 
 #endif
