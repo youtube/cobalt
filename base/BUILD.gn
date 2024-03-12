@@ -3553,6 +3553,9 @@ test("base_unittests") {
       "test/metrics/histogram_enum_reader_unittest.cc",
       "test/scoped_feature_list_unittest.cc",
       "threading/hang_watcher_unittest.cc",
+      "test/gtest_links_unittest.cc",
+      "test/gtest_tags_unittest.cc",
+      "test/gtest_xml_unittest_result_printer_unittest.cc",
 
       # SyncSocket is not implemented in Starboard.
       "sync_socket_unittest.cc",

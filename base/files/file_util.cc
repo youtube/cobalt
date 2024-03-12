@@ -487,13 +487,13 @@ bool TouchFile(const FilePath& path,
   return file.SetTimes(last_accessed, last_modified);
 }
 
+#if !defined(USE_HACKY_COBALT_CHANGES)
 bool CloseFile(FILE* file) {
   if (file == nullptr)
     return true;
   return fclose(file) == 0;
 }
 
-#if !defined(USE_HACKY_COBALT_CHANGES)
 bool TruncateFile(FILE* file) {
   if (file == nullptr)
     return false;
