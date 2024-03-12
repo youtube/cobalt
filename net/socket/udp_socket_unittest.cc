@@ -456,6 +456,7 @@ TEST_F(UDPSocketTest, ConnectFail) {
   EXPECT_FALSE(socket.is_connected());
 }
 
+#if !defined(STARBOARD)
 // Similar to ConnectFail but UDPSocket adopts an opened socket instead of
 // opening one directly.
 TEST_F(UDPSocketTest, AdoptedSocket) {
@@ -561,6 +562,7 @@ TEST_F(UDPSocketTest, VerifyConnectBindsAddr) {
   str = ReadSocket(&client);
   EXPECT_EQ(simple_message, str);
 }
+#endif
 
 TEST_F(UDPSocketTest, ClientGetLocalPeerAddresses) {
   struct TestData {
@@ -631,6 +633,7 @@ TEST_F(UDPSocketTest, ServerGetLocalAddress) {
   EXPECT_EQ(local_address.address(), bind_address.address());
 }
 
+#if !defined(STARBOARD)
 TEST_F(UDPSocketTest, ServerGetPeerAddress) {
   IPEndPoint bind_address(IPAddress::IPv4Localhost(), 0);
   UDPServerSocket server(nullptr, NetLogSource());
@@ -698,6 +701,7 @@ TEST_F(UDPSocketTest, ServerSetDoNotFragment) {
 #endif
   }
 }
+#endif
 
 // Close the socket while read is pending.
 TEST_F(UDPSocketTest, CloseWithPendingRead) {
@@ -716,6 +720,7 @@ TEST_F(UDPSocketTest, CloseWithPendingRead) {
   EXPECT_FALSE(callback.have_result());
 }
 
+#if !defined(STARBOARD)
 // Some Android devices do not support multicast.
 // The ones supporting multicast need WifiManager.MulitcastLock to enable it.
 // http://goo.gl/jjAk9
@@ -839,6 +844,7 @@ TEST_F(UDPSocketTest, MulticastOptions) {
 
   socket.Close();
 }
+#endif
 
 // Checking that DSCP bits are set correctly is difficult,
 // but let's check that the code doesn't crash at least.
@@ -1376,6 +1382,7 @@ TEST_F(UDPSocketTest, ReadWithSocketOptimization) {
   client.Close();
 }
 
+#if !defined(STARBOARD)
 // Tests that read from a socket correctly returns
 // |ERR_MSG_TOO_BIG| when the buffer is too small and
 // returns the actual message when it fits the buffer.
@@ -1453,6 +1460,7 @@ TEST_F(UDPSocketTest, ReadWithSocketOptimizationTruncation) {
   server.Close();
   client.Close();
 }
+#endif
 
 // On Android, where socket tagging is supported, verify that UDPSocket::Tag
 // works as expected.

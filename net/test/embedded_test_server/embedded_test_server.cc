@@ -845,7 +845,13 @@ void EmbeddedTestServer::AddDefaultHandlers() {
 base::FilePath EmbeddedTestServer::GetFullPathFromSourceDirectory(
     const base::FilePath& relative) {
   base::FilePath test_data_dir;
+#if defined(STARBOARD)
+  CHECK(base::PathService::Get(base::DIR_TEST_DATA, &test_data_dir));
+  test_data_dir = test_data_dir.Append(FILE_PATH_LITERAL("net"));
+  test_data_dir = test_data_dir.Append(FILE_PATH_LITERAL("data"));
+#else
   CHECK(base::PathService::Get(base::DIR_SOURCE_ROOT, &test_data_dir));
+#endif
   return test_data_dir.Append(relative);
 }
 

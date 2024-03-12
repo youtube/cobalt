@@ -504,9 +504,9 @@ int TCPSocketStarboard::DoRead(IOBuffer* buf, int buf_len) {
     // If |bytes_read| < 0, some kind of error occurred.
     SbSocketError starboard_error = SbSocketGetLastError(socket_);
     int rv = MapSocketError(starboard_error);
-    NetLogSocketError(net_log_, NetLogEventType::SOCKET_READ_ERROR, rv,
-                      starboard_error);
     if (rv != ERR_IO_PENDING) {
+      NetLogSocketError(net_log_, NetLogEventType::SOCKET_READ_ERROR, rv,
+                        starboard_error);
       DLOG(ERROR) << __FUNCTION__ << "[" << this << "]: Error: " << rv;
     }
     return rv;
@@ -597,11 +597,14 @@ bool TCPSocketStarboard::SetSendBufferSize(int32_t size) {
 }
 
 bool TCPSocketStarboard::SetKeepAlive(bool enable, int delay) {
-  return SbSocketSetTcpKeepAlive(socket_, enable, delay);
+  int delay_second = delay * base::Time::kMicrosecondsPerSecond;
+  return SbSocketSetTcpKeepAlive(socket_, enable, delay_second);
 }
 
 bool TCPSocketStarboard::SetNoDelay(bool no_delay) {
-  return SetTCPNoDelay(socket_, no_delay);
+  if (!socket_)
+    return false;
+  return SetTCPNoDelay(socket_, no_delay) == OK;
 }
 
 bool TCPSocketStarboard::GetEstimatedRoundTripTime(

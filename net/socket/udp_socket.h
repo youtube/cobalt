@@ -8,7 +8,7 @@
 #include "build/build_config.h"
 
 #if defined(STARBOARD)
-#include "net/socket/udp_socket_starboard_tmp.h"
+#include "net/socket/udp_socket_starboard.h"
 #elif BUILDFLAG(IS_WIN)
 #include "net/socket/udp_socket_win.h"
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
