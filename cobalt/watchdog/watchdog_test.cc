@@ -636,5 +636,23 @@ TEST_F(WatchdogTest, EvictOldWatchdogViolations) {
   ASSERT_EQ(watchdog_->GetWatchdogViolations({}, false), "");
 }
 
+TEST_F(WatchdogTest, CanGetLogTrace) {
+  watchdog_->LogEvent("1");
+  watchdog_->LogEvent("2");
+
+  std::vector<std::string> expected = {"1", "2"};
+  ASSERT_EQ(watchdog_->GetLogTrace(), expected);
+}
+
+TEST_F(WatchdogTest, CanClearLog) {
+  watchdog_->LogEvent("1");
+  watchdog_->LogEvent("2");
+
+  watchdog_->ClearLog();
+
+  ASSERT_EQ(watchdog_->GetLogTrace().size(), 0);
+}
+
+
 }  // namespace watchdog
 }  // namespace cobalt

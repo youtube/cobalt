@@ -108,4 +108,19 @@ interface H5vccCrashLog {
   // Sets a persistent Watchdog setting that determines whether or not a
   // Watchdog violation will trigger a crash.
   void setPersistentSettingWatchdogCrash(boolean can_trigger_crash);
+
+  // Appends a string event to a ring buffer. These log events can be appended
+  // from JS code. When watchdog violation is created, a snapshot of
+  // that buffer is attached to a violation. Identical sequential events
+  // are de-duplicated.
+  // Max event length is 256. Ring buffer size is 128.
+  boolean logEvent(DOMString event);
+
+  // Returns a snapshot(a "logTrace") of ring buffer of log events.
+  // This can be used to read a logTrace at arbitrary moment,
+  // without any violation.
+  sequence<DOMString> getLogTrace();
+
+  // Clears the ring buffer of log events.
+  void clearLog();
 };

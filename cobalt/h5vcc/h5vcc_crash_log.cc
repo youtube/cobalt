@@ -174,5 +174,33 @@ void H5vccCrashLog::SetPersistentSettingWatchdogCrash(bool can_trigger_crash) {
   if (watchdog) watchdog->SetPersistentSettingWatchdogCrash(can_trigger_crash);
 }
 
+bool H5vccCrashLog::LogEvent(const std::string& event) {
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+  if (!watchdog) {
+    return false;
+  }
+
+  return watchdog->LogEvent(event);
+}
+
+script::Sequence<std::string> H5vccCrashLog::GetLogTrace() {
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+
+  script::Sequence<std::string> sequence;
+  if (watchdog) {
+    std::vector<std::string> logTrace = watchdog->GetLogTrace();
+    for (std::size_t i = 0; i < logTrace.size(); ++i) {
+      sequence.push_back(logTrace[i]);
+    }
+  }
+
+  return sequence;
+}
+
+void H5vccCrashLog::ClearLog() {
+  watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
+  if (watchdog) watchdog->ClearLog();
+}
+
 }  // namespace h5vcc
 }  // namespace cobalt
