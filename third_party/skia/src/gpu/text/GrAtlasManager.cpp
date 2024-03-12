@@ -13,6 +13,10 @@
 #include "src/gpu/GrImageInfo.h"
 #include "src/gpu/text/GrStrikeCache.h"
 
+#if defined(STARBOARD)
+#include "starboard/file.h"
+#endif
+
 GrAtlasManager::GrAtlasManager(GrProxyProvider* proxyProvider,
                                size_t maxTextureBytes,
                                GrDrawOpAtlas::AllowMultitexturing allowMultitexturing)
@@ -246,19 +250,31 @@ static bool save_pixels(GrDirectContext* dContext, GrSurfaceProxyView view, GrCo
         return false;
     }
 
+#if !defined(STARBOARD)
     // remove any previous version of this file
     remove(filename);
+#else
+    SbFileDelete(filename);
+#endif
 
     SkFILEWStream file(filename);
     if (!file.isValid()) {
         SkDebugf("------ failed to create file: %s\n", filename);
+#if !defined(STARBOARD)
         remove(filename);   // remove any partial file
+#else
+        SbFileDelete(filename);
+#endif
         return false;
     }
 
     if (!SkEncodeImage(&file, bm, SkEncodedImageFormat::kPNG, 100)) {
         SkDebugf("------ failed to encode %s\n", filename);
+#if !defined(STARBOARD)
         remove(filename);   // remove any partial file
+#else
+        SbFileDelete(filename);
+#endif
         return false;
     }
 

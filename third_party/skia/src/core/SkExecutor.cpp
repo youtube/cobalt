@@ -38,6 +38,13 @@ typedef std::thread SkThread;
 #endif
 
 }  // namespace
+
+#if defined(STARBOARD)
+#include "starboard/system.h"
+static int num_cores() {
+  return SbSystemGetNumberOfProcessors();
+}
+#else  // defined(STARBOARD)
 #if defined(SK_BUILD_FOR_WIN)
     #include "src/core/SkLeanWindows.h"
     static int num_cores() {
@@ -51,6 +58,7 @@ typedef std::thread SkThread;
         return (int)sysconf(_SC_NPROCESSORS_ONLN);
     }
 #endif
+#endif  // defined(STARBOARD)
 
 SkExecutor::~SkExecutor() {}
 
