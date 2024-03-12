@@ -51,13 +51,7 @@ GrGLCaps::GrGLCaps(const GrContextOptions& contextOptions,
     fDoManualMipmapping = false;
     fClearToBoundaryValuesIsBroken = false;
     fClearTextureSupport = false;
-#if defined(COBALT)
-    // On some GL implementations, this feature might not be implemented.
-    // In the interest of greater compatibility, this feature is disabled.
-    fDrawArraysBaseVertexIsBroken = true;
-#else
     fDrawArraysBaseVertexIsBroken = false;
-#endif
     fDisallowTexSubImageForUnormConfigTexturesEverBoundToFBO = false;
     fUseDrawInsteadOfAllRenderTargetWrites = false;
     fRequiresCullFaceEnableDisableWhenDrawingLinesAfterNonLines = false;
@@ -172,34 +166,6 @@ void GrGLCaps::init(const GrContextOptions& contextOptions,
         fSampleLocationsSupport = version >= GR_GL_VER(3,1);
     } else if (GR_IS_GR_WEBGL(standard)) {
         fSampleLocationsSupport = false;
-    }
-
-    bool textureRedSupport = false;
-    if (kGL_GrGLStandard == standard) {
-        textureRedSupport = version >= GR_GL_VER(3, 0) || ctxInfo.hasExtension("GL_ARB_texture_rg");
-    } else {
-        textureRedSupport = version >= GR_GL_VER(3, 0) || ctxInfo.hasExtension("GL_EXT_texture_rg");
-    }
-
-    if (textureRedSupport) {
-        // Some devices claim to support GL_RED, but actually do not, so we
-        // verify support by actually attempting to create a GL_RED texture.
-        // As an example, one device was found to claim GLES 3.0 support, but
-        // could not create GL_RED textures.
-        GrGLenum error;
-        GrGLuint texture_id;
-        GR_GL_CALL(gli, GenTextures(1, &texture_id));
-        GR_GL_CALL(gli, BindTexture(GR_GL_TEXTURE_2D, texture_id));
-        GR_GL_CALL_NOERRCHECK(gli, TexImage2D(GR_GL_TEXTURE_2D, 0, GR_GL_RED, 64, 64, 0, GR_GL_RED,
-                                              GR_GL_UNSIGNED_BYTE, 0));
-        GR_GL_CALL_RET(gli, error, GetError());
-        if (error != GR_GL_NO_ERROR) {
-            // There was an error creating the texture, do not advertise GL_RED
-            // support.
-            textureRedSupport = false;
-        }
-        GR_GL_CALL(gli, BindTexture(GR_GL_TEXTURE_2D, 0));
-        GR_GL_CALL(gli, DeleteTextures(1, &texture_id));
     }
 
     fImagingSupport = GR_IS_GR_GL(standard) &&
@@ -1466,19 +1432,10 @@ void GrGLCaps::initFormatTable(const GrGLContextInfo& ctxInfo, const GrGLInterfa
         if (GR_IS_GR_GL(standard)) {
             info.fFlags |= msaaRenderFlags;
         } else if (GR_IS_GR_GL_ES(standard)) {
-#if defined(STARBOARD)
-            // Starboard code in GrGLUtil.cpp may override the driver version
-            // from GLES 3.0 to 2.0 if the config specifies that only GLES 2.0
-            // features should be used. This will confuse the regular
-            // capabilities check. Since all Starboard GLES platforms must
-            // support rendering to RGBA8 buffers, no check is needed here.
-            info.fFlags |= msaaRenderFlags;
-#else
             if (version >= GR_GL_VER(3,0) || ctxInfo.hasExtension("GL_OES_rgb8_rgba8") ||
                 ctxInfo.hasExtension("GL_ARM_rgba8")) {
                 info.fFlags |= msaaRenderFlags;
             }
-#endif
         } else if (GR_IS_GR_WEBGL(standard)) {
             info.fFlags |= msaaRenderFlags;
         }
@@ -1602,11 +1559,6 @@ void GrGLCaps::initFormatTable(const GrGLContextInfo& ctxInfo, const GrGLInterfa
         } else if (GR_IS_GR_WEBGL(standard)) {
             r8Support = ctxInfo.version() >= GR_GL_VER(2, 0);
         }
-// TODO: Disable R8 texture support to force similar rendering paths.
-// R8 support currently breaks text rendering.
-#if defined(COBALT)
-        r8Support = false;
-#endif
         if (formatWorkarounds.fDisallowR8ForPowerVRSGX54x) {
             r8Support = false;
         }

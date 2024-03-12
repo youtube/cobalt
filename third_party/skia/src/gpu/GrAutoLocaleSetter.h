@@ -8,16 +8,6 @@
 #ifndef GrAutoLocaleSetter_DEFINED
 #define GrAutoLocaleSetter_DEFINED
 
-#if defined(STARBOARD)
-
-class GrAutoLocaleSetter : public SkNoncopyable {
-public:
-    // Starboard does not support setting locales.
-    GrAutoLocaleSetter(const char*) {}
-};
-
-#else  // defined(STARBOARD)
-
 #include "include/gpu/GrTypes.h"
 #include "include/private/SkNoncopyable.h"
 
@@ -104,7 +94,5 @@ private:
 
 #undef HAVE_LOCALE_T
 #undef HAVE_XLOCALE
-
-#endif  // defined(STARBOARD)
 
 #endif

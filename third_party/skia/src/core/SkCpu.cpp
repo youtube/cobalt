@@ -10,14 +10,6 @@
 #include "include/private/SkOnce.h"
 #include "src/core/SkCpu.h"
 
-#if defined(STARBOARD)
-#include "starboard/cpu_features.h"
-#endif
-
-#if !defined(__has_include)
-    #define __has_include(x) 0
-#endif
-
 #if defined(SK_CPU_X86)
     #if defined(_MSC_VER)
         #include <intrin.h>
@@ -89,15 +81,7 @@
                        kHWCAP_ASIMDHP = (1<<10);
 
         uint32_t features = 0;
-#if defined(STARBOARD)
-        uint32_t hwcaps = 0;
-        SbCPUFeatures cpu_features;
-        if (SbCPUFeaturesGet(&cpu_features)) {
-            hwcaps = cpu_features.hwcap;
-        }
-#else
         uint32_t hwcaps = getauxval(AT_HWCAP);
-#endif  // defined(STARBOARD)
         if (hwcaps & kHWCAP_CRC32  ) { features |= SkCpu::CRC32; }
         if (hwcaps & kHWCAP_ASIMDHP) { features |= SkCpu::ASIMDHP; }
 
@@ -142,15 +126,7 @@
         const uint32_t kHWCAP_VFPv4 = (1<<16);
 
         uint32_t features = 0;
-#if defined(STARBOARD)
-        uint32_t hwcaps = 0;
-        SbCPUFeatures cpu_features;
-        if (SbCPUFeaturesGet(&cpu_features)) {
-            hwcaps = cpu_features.hwcap;
-        }
-#else
         uint32_t hwcaps = getauxval(AT_HWCAP);
-#endif  // defined(STARBOARD)
         if (hwcaps & kHWCAP_NEON ) {
             features |= SkCpu::NEON;
             if (hwcaps & kHWCAP_VFPv4) { features |= SkCpu::NEON_FMA|SkCpu::VFP_FP16; }

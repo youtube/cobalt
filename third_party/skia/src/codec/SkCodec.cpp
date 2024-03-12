@@ -694,15 +694,10 @@ bool sk_select_xform_format(SkColorType colorType, bool forColorTable,
             break;
         case kRGB_565_SkColorType:
             if (forColorTable) {
-#if defined(STARBOARD)
-                *outFormat = (GetSkPmcolor() == SkPmcolorIsRgba) ? skcms_PixelFormat_RGBA_8888
-                                                                 : skcms_PixelFormat_RGBA_8888;
-#else
 #ifdef SK_PMCOLOR_IS_RGBA
                 *outFormat = skcms_PixelFormat_RGBA_8888;
 #else
                 *outFormat = skcms_PixelFormat_BGRA_8888;
-#endif
 #endif
                 break;
             }

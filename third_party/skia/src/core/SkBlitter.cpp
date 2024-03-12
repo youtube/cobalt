@@ -776,7 +776,8 @@ SkBlitter* SkBlitter::Choose(const SkPixmap& device,
         }
     }
 
-    if (device.colorType() == kN32_SkColorType) {
+    switch (device.colorType()) {
+        case kN32_SkColorType:
             if (shaderContext) {
                 return alloc->make<SkARGB32_Shader_Blitter>(device, *paint, shaderContext);
             } else if (paint->getColor() == SK_ColorBLACK) {
@@ -787,14 +788,14 @@ SkBlitter* SkBlitter::Choose(const SkPixmap& device,
                 return alloc->make<SkARGB32_Blitter>(device, *paint);
             }
 
-    } else if (device.colorType() == kRGB_565_SkColorType) {
+        case kRGB_565_SkColorType:
             if (shaderContext && SkRGB565_Shader_Blitter::Supports(device, *paint)) {
                 return alloc->make<SkRGB565_Shader_Blitter>(device, *paint, shaderContext);
             } else {
                 return create_SkRP_or_SkVMBlitter();
             }
 
-    } else {
+        default:
             SkASSERT(false);
             return alloc->make<SkNullBlitter>();
     }
