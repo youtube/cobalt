@@ -13,6 +13,31 @@
 #include <deque>
 #include <thread>
 
+#if defined(STARBOARD)
+#include "starboard/thread.h"
+#endif
+
+namespace {
+
+#if defined(STARBOARD)
+// Starboardize std::thread as thread creation is undefined for stub builds.
+class SkThread {
+public:
+    SkThread(SbThreadEntryPoint entry_point, void* context) {
+        SbThreadCreate(0,                    // default stack_size.
+                       kSbThreadNoPriority,  // default priority.
+                       kSbThreadNoAffinity,  // default affinity.
+                       true,                 // joinable.
+                       "SkThread", entry_point, this);
+    }
+
+    bool join() { return SbThreadJoin((SbThread)this, NULL); }
+};
+#else
+typedef std::thread SkThread;
+#endif
+
+}  // namespace
 #if defined(SK_BUILD_FOR_WIN)
     #include "src/core/SkLeanWindows.h"
     static int num_cores() {
@@ -122,17 +147,18 @@ private:
         return true;
     }
 
-    static void Loop(void* ctx) {
+    static void* Loop(void* ctx) {
         auto pool = (SkThreadPool*)ctx;
         do {
             pool->fWorkAvailable.wait();
         } while (pool->do_work());
+        return NULL;
     }
 
     // Both SkMutex and SkSpinlock can work here.
     using Lock = SkMutex;
 
-    SkTArray<std::thread> fThreads;
+    SkTArray<SkThread>    fThreads;
     WorkList              fWork;
     Lock                  fWorkLock;
     SkSemaphore           fWorkAvailable;
