@@ -20,6 +20,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/message_loop/message_pump_io_starboard.h"
 #include "base/message_loop/message_pump_for_io.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/timer/timer.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/datagram_buffer.h"
@@ -451,6 +452,8 @@ class NET_EXPORT UDPSocketStarboard
   bool write_async_timer_running_;
   // Total writes in flight, including those |PostTask*|'d.
   int write_async_outstanding_;
+
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
   // The buffer used by InternalRead() to retry Read requests
   IOBuffer* read_buf_;

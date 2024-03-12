@@ -2187,10 +2187,6 @@ static_library("test_support") {
   }
 
   if (use_cobalt_customizations) {
-    sources -= [
-      "http/transport_security_state_test_util.cc",
-      "http/transport_security_state_test_util.h",
-    ]
     deps -= [ "//net/http:transport_security_state_unittest_data_default" ]
   }
 }
@@ -3375,8 +3371,6 @@ test("net_unittests") {
       "quic/quic_network_transaction_unittest.cc",
       "quic/quic_proxy_client_socket_unittest.cc",
       "quic/quic_stream_factory_test.cc",
-      "socket/ssl_client_socket_unittest.cc",
-      "socket/ssl_server_socket_unittest.cc",
       "socket/websocket_transport_client_socket_pool_unittest.cc",
       "spdy/fuzzing/hpack_fuzz_util_test.cc",
       "spdy/spdy_session_pool_unittest.cc",

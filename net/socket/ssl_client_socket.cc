@@ -19,7 +19,7 @@ SSLClientSocket::SSLClientSocket() = default;
 
 // static
 void SSLClientSocket::SetSSLKeyLogger(std::unique_ptr<SSLKeyLogger> logger) {
-  // SSLClientSocketImpl::SetSSLKeyLogger(std::move(logger));
+  SSLClientSocketImpl::SetSSLKeyLogger(std::move(logger));
 }
 
 // static
@@ -82,9 +82,8 @@ std::unique_ptr<SSLClientSocket> SSLClientContext::CreateSSLClientSocket(
     std::unique_ptr<StreamSocket> stream_socket,
     const HostPortPair& host_and_port,
     const SSLConfig& ssl_config) {
-  return nullptr;
-  // return std::make_unique<SSLClientSocketImpl>(this, std::move(stream_socket),
-  //                                              host_and_port, ssl_config);
+  return std::make_unique<SSLClientSocketImpl>(this, std::move(stream_socket),
+                                               host_and_port, ssl_config);
 }
 
 bool SSLClientContext::GetClientCertificate(

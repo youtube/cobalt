@@ -715,6 +715,20 @@ void UDPSocketStarboard::FlushPending() {
   }
 }
 
+// TODO(ckrasic) Sad face.  Do this lazily because many tests exploded
+// otherwise.  |threading_and_tasks.md| advises to instantiate a
+// |base::test::ScopedTaskEnvironment| in the test, implementing that
+// for all tests that might exercise QUIC is too daunting.  Also, in
+// some tests it seemed like following the advice just broke in other
+// ways.
+base::SequencedTaskRunner* UDPSocketStarboard::GetTaskRunner() {
+  if (task_runner_ == nullptr) {
+    task_runner_ =
+        base::ThreadPool::CreateSequencedTaskRunner(base::TaskTraits());
+  }
+  return task_runner_.get();
+}
+
 void UDPSocketStarboard::OnWriteAsyncTimerFired() {
   DVLOG(2) << __func__ << " pending writes " << pending_writes_.size();
   if (pending_writes_.empty()) {
@@ -744,7 +758,7 @@ void UDPSocketStarboard::PostSendBuffers() {
            << write_async_outstanding_ << " total";
   SbSocketAddress sb_address;
   DCHECK(remote_address_.get()->ToSbSocketAddress(&sb_address));
-  base::ThreadPool::PostTaskAndReplyWithResult(
+  task_runner_->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(&UDPSocketStarboardSender::SendBuffers, sender_, socket_,
                      std::move(pending_writes_), sb_address),

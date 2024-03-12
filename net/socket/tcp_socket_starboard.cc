@@ -504,9 +504,9 @@ int TCPSocketStarboard::DoRead(IOBuffer* buf, int buf_len) {
     // If |bytes_read| < 0, some kind of error occurred.
     SbSocketError starboard_error = SbSocketGetLastError(socket_);
     int rv = MapSocketError(starboard_error);
-    NetLogSocketError(net_log_, NetLogEventType::SOCKET_READ_ERROR, rv,
-                      starboard_error);
     if (rv != ERR_IO_PENDING) {
+      NetLogSocketError(net_log_, NetLogEventType::SOCKET_READ_ERROR, rv,
+                        starboard_error);
       DLOG(ERROR) << __FUNCTION__ << "[" << this << "]: Error: " << rv;
     }
     return rv;

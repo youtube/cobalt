@@ -745,9 +745,9 @@ TEST_F(UDPSocketTest, JoinMulticastGroup) {
   EXPECT_THAT(socket.JoinGroup(group_ip), IsOk());
   // Joining group multiple times.
   EXPECT_NE(OK, socket.JoinGroup(group_ip));
-  // EXPECT_THAT(socket.LeaveGroup(group_ip), IsOk());
-  // // Leaving group multiple times.
-  // EXPECT_NE(OK, socket.LeaveGroup(group_ip));
+  EXPECT_THAT(socket.LeaveGroup(group_ip), IsOk());
+  // Leaving group multiple times.
+  EXPECT_NE(OK, socket.LeaveGroup(group_ip));
 
   socket.Close();
 }
