@@ -20,6 +20,7 @@
 
 #include "base/memory/singleton.h"
 #include "cobalt/h5vcc/h5vcc_crash_type.h"
+#include "cobalt/h5vcc/h5vcc_instrumentation_log.h"
 #include "cobalt/h5vcc/watchdog_replace.h"
 #include "cobalt/h5vcc/watchdog_state.h"
 #include "cobalt/script/wrappable.h"
@@ -90,6 +91,10 @@ class H5vccCrashLog : public script::Wrappable {
   bool GetPersistentSettingWatchdogCrash();
 
   void SetPersistentSettingWatchdogCrash(bool can_trigger_crash);
+
+  void LogEvent(std::string event);
+
+  script::Sequence<std::string> GetLogTrace();
 
   DEFINE_WRAPPABLE_TYPE(H5vccCrashLog);
 

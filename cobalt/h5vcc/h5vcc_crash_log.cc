@@ -22,6 +22,8 @@
 #include "base/atomicops.h"
 #include "base/memory/singleton.h"
 #include "base/synchronization/lock.h"
+#include "cobalt/base/circular_buffer_shell.h"
+#include "cobalt/h5vcc/h5vcc_instrumentation_log.h"
 #include "starboard/extension/crash_handler.h"
 
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
@@ -29,6 +31,8 @@
 #endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
 
 #include "starboard/system.h"
+
+using base::CircularBufferShell;
 
 namespace cobalt {
 namespace h5vcc {
@@ -224,6 +228,14 @@ bool H5vccCrashLog::GetPersistentSettingWatchdogCrash() {
 void H5vccCrashLog::SetPersistentSettingWatchdogCrash(bool can_trigger_crash) {
   watchdog::Watchdog* watchdog = watchdog::Watchdog::GetInstance();
   if (watchdog) watchdog->SetPersistentSettingWatchdogCrash(can_trigger_crash);
+}
+
+void H5vccCrashLog::LogEvent(std::string event) {
+  InstrumentationLog::LogEvent(event);
+}
+
+script::Sequence<std::string> H5vccCrashLog::GetLogTrace() {
+  return InstrumentationLog::GetLogTrace();
 }
 
 }  // namespace h5vcc
