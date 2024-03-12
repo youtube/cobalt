@@ -296,6 +296,16 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
     bool is_media_source;
   } state_;
 
+  friend class WebMediaPlayerImplTest;
+  FRIEND_TEST(WebMediaPlayerImplTest, LoadMediaSource);
+  FRIEND_TEST(WebMediaPlayerImplTest, LoadProgressive);
+  FRIEND_TEST(WebMediaPlayerImplTest, PlayPause);
+  FRIEND_TEST(WebMediaPlayerImplTest, Seek);
+  FRIEND_TEST(WebMediaPlayerImplTest, SetRate);
+  FRIEND_TEST(WebMediaPlayerImplTest, SetVolume);
+  FRIEND_TEST(WebMediaPlayerImplTest, GetNaturalHeightAndWidth);
+  FRIEND_TEST(WebMediaPlayerImplTest, SetDRMSystemAndCheckCB);
+
   WebMediaPlayerClient* const client_;
   WebMediaPlayerDelegate* const delegate_;
   const bool allow_resume_after_suspend_;

@@ -174,6 +174,7 @@ SbPlayerPipeline::SbPlayerPipeline(
             << ", the duration during preroll is "
             << audio_write_duration_for_preroll_;
 #endif  // SB_API_VERSION < 15
+  LOG(INFO) << "YO THOR! PIPELINE CTOR!";
 }
 
 SbPlayerPipeline::~SbPlayerPipeline() { DCHECK(!player_bridge_); }
@@ -231,6 +232,7 @@ void SbPlayerPipeline::Start(Demuxer* demuxer,
                              const std::string& max_video_capabilities,
                              const int max_video_input_size) {
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::Start");
+  LOG(INFO) << "YO THOR! PIPELINE START!";
 
   DCHECK(!ended_cb.is_null());
   DCHECK(!error_cb.is_null());
@@ -624,6 +626,8 @@ void SbPlayerPipeline::SetPreferredOutputModeToDecodeToTexture() {
 
 void SbPlayerPipeline::StartTask(StartTaskParameters parameters) {
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::StartTask");
+
+  LOG(INFO) << "YO THOR - START TASK";
 
   DCHECK(task_runner_->BelongsToCurrentThread());
 

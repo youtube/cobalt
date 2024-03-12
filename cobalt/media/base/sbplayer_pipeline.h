@@ -124,6 +124,9 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void SetPreferredOutputModeToDecodeToTexture() override;
 
  private:
+  friend class SbPlayerPipelineTest;
+  FRIEND_TEST(SbPlayerPipelineTest, PipelineStart);
+
   // Used to post parameters to SbPlayerPipeline::StartTask() as the number of
   // parameters exceed what base::Bind() can support.
   struct StartTaskParameters {
@@ -367,6 +370,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // understood as a capability changed error. Do not change this message.
   static inline constexpr const char* kSbPlayerCapabilityChangedErrorMessage =
       "MEDIA_ERR_CAPABILITY_CHANGED";
+
+  FRIEND_TEST(SbPlayerPipelineTest, SetDrmSystem);
 
   DISALLOW_COPY_AND_ASSIGN(SbPlayerPipeline);
 };

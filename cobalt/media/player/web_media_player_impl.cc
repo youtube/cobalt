@@ -282,6 +282,7 @@ void WebMediaPlayerImpl::LoadProgressive(
 
   data_source->SetDownloadingStatusCB(
       base::Bind(&WebMediaPlayerImpl::OnDownloadingStatusChanged, AsWeakPtr()));
+
   proxy_->set_data_source(std::move(data_source));
 
   is_local_source_ = !url.SchemeIs("http") && !url.SchemeIs("https");
@@ -311,6 +312,7 @@ void WebMediaPlayerImpl::CancelLoad() {
 
 void WebMediaPlayerImpl::Play() {
   TRACE_EVENT0("cobalt::media", "WebMediaPlayerImpl::Play");
+
 
   DCHECK_EQ(main_loop_, base::MessageLoop::current());
 
