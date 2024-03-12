@@ -291,7 +291,7 @@ type JobInfo struct {
 	// The name of the job.
 	Name string `json:"name"`
 
-	// The optinal CQ config of this job. If the CQ config is missing then the
+	// The optional CQ config of this job. If the CQ config is missing then the
 	// job will not be added to the CQ of this branch.
 	CQConfig *specs.CommitQueueJobConfig `json:"cq_config,omitempty"`
 }
@@ -650,6 +650,9 @@ func (b *taskBuilder) linuxGceDimensions(machineType string) {
 	)
 }
 
+// codesizeTaskNameRegexp captures the "CodeSize-<binary name>-" prefix of a CodeSize task name.
+var codesizeTaskNameRegexp = regexp.MustCompile("^CodeSize-[a-zA-Z0-9_]+-")
+
 // deriveCompileTaskName returns the name of a compile task based on the given
 // job name.
 func (b *jobBuilder) deriveCompileTaskName() string {
@@ -664,7 +667,7 @@ func (b *jobBuilder) deriveCompileTaskName() string {
 				"NoGPUThreads", "ProcDump", "DDL1", "DDL3", "OOPRDDL", "T8888",
 				"DDLTotal", "DDLRecord", "9x9", "BonusConfigs", "SkottieTracing", "SkottieWASM",
 				"GpuTess", "DMSAAStats", "Mskp", "Docker", "PDF", "SkVM", "Puppeteer",
-				"SkottieFrames", "RenderSKP", "CanvasPerf", "AllPathsVolatile", "WebGL2"}
+				"SkottieFrames", "RenderSKP", "CanvasPerf", "AllPathsVolatile", "WebGL2", "i5"}
 			keep := make([]string, 0, len(ec))
 			for _, part := range ec {
 				if !In(part, ignore) {
@@ -721,8 +724,10 @@ func (b *jobBuilder) deriveCompileTaskName() string {
 			log.Fatal(err)
 		}
 		return name
-	} else if b.parts["role"] == "BuildStats" {
+	} else if b.role("BuildStats") {
 		return strings.Replace(b.Name, "BuildStats", "Build", 1)
+	} else if b.role("CodeSize") {
+		return codesizeTaskNameRegexp.ReplaceAllString(b.Name, "Build-")
 	} else {
 		return b.Name
 	}
@@ -752,14 +757,16 @@ func (b *taskBuilder) defaultSwarmDimensions() {
 			"Debian9":    DEFAULT_OS_LINUX_GCE, // Runs in Deb9 Docker.
 			"Debian10":   DEFAULT_OS_LINUX_GCE,
 			"Mac":        DEFAULT_OS_MAC,
+			"Mac10.12":   "Mac-10.12",
 			"Mac10.13":   "Mac-10.13.6",
-			"Mac10.14":   "Mac-10.14.3",
+			"Mac10.14":   "Mac-10.14",
 			"Mac10.15.1": "Mac-10.15.1",
 			"Mac10.15.7": "Mac-10.15.7", // Same as 'Mac', but explicit.
 			"Mac11":      "Mac-11.4",
+			"Mac12":      "Mac-12",
 			"Ubuntu18":   "Ubuntu-18.04",
 			"Win":        DEFAULT_OS_WIN,
-			"Win10":      "Windows-10-19041",
+			"Win10":      "Windows-10-19044",
 			"Win2019":    DEFAULT_OS_WIN,
 			"Win7":       "Windows-7-SP1",
 			"Win8":       "Windows-8.1-SP0",
@@ -771,18 +778,6 @@ func (b *taskBuilder) defaultSwarmDimensions() {
 		if os == "Win10" && b.parts["model"] == "Golo" {
 			// ChOps-owned machines have Windows 10 21h1.
 			d["os"] = "Windows-10-19043"
-		}
-		if os == "Mac10.14" && b.parts["model"] == "VMware7.1" {
-			// ChOps VMs are at a newer version of MacOS.
-			d["os"] = "Mac-10.14.6"
-		}
-		if os == "Mac10.15" && b.parts["model"] == "VMware7.1" {
-			// ChOps VMs are at a newer version of MacOS.
-			d["os"] = "Mac-10.15.7"
-		}
-		if b.parts["model"] == "iPhone6" {
-			// This is the latest iOS that supports iPhone6.
-			d["os"] = "iOS-12.4.5"
 		}
 		if b.parts["model"] == "iPhone11" {
 			d["os"] = "iOS-13.6"
@@ -802,6 +797,7 @@ func (b *taskBuilder) defaultSwarmDimensions() {
 				"GalaxyS7_G930FD": {"herolte", "R16NW_G930FXXS2ERH6"}, // This is Oreo.
 				"GalaxyS9":        {"starlte", "QP1A.190711.020"},     // This is Android10.
 				"GalaxyS20":       {"exynos990", "QP1A.190711.020"},
+				"JioNext":         {"msm8937", "RKQ1.210602.002"},
 				"Nexus5":          {"hammerhead", "M4B30Z_3437181"},
 				"Nexus7":          {"grouper", "LMY47V_1836172"}, // 2012 Nexus 7
 				"P30":             {"HWELE", "HUAWEIELE-L29"},
@@ -812,6 +808,7 @@ func (b *taskBuilder) defaultSwarmDimensions() {
 				"Pixel4a":         {"sunfish", "AOSP.MASTER_7819821"}, // Pixel4a flashed with an Android HWASan build.
 				"Pixel4XL":        {"coral", "QD1A.190821.011.C4"},
 				"Pixel5":          {"redfin", "RD1A.200810.022.A4"},
+				"Pixel6":          {"oriole", "SD1A.210817.037"},
 				"TecnoSpark3Pro":  {"TECNO-KB8", "PPR1.180610.011"},
 				"Wembley":         {"wembley", "SP2A.211004.001"},
 			}[b.parts["model"]]
@@ -829,7 +826,6 @@ func (b *taskBuilder) defaultSwarmDimensions() {
 		} else if b.os("iOS") {
 			device, ok := map[string]string{
 				"iPadMini4": "iPad5,1",
-				"iPhone6":   "iPhone7,2",
 				"iPhone7":   "iPhone9,1",
 				"iPhone8":   "iPhone10,1",
 				"iPhone11":  "iPhone12,1",
@@ -845,12 +841,13 @@ func (b *taskBuilder) defaultSwarmDimensions() {
 					"MacMini9.1": "arm64-64-Apple_M1",
 				},
 				"AVX": {
-					"VMware7.1": "x86-64-E5-2697_v2",
+					"VMware7.1": "x86-64",
 				},
 				"AVX2": {
 					"GCE":            "x86-64-Haswell_GCE",
 					"MacBookAir7.2":  "x86-64-i5-5350U",
 					"MacBookPro11.5": "x86-64-i7-4870HQ",
+					"MacMini7.1":     "x86-64-i5-4278U",
 					"NUC5i7RYH":      "x86-64-i7-5557U",
 				},
 				"AVX512": {
@@ -879,6 +876,7 @@ func (b *taskBuilder) defaultSwarmDimensions() {
 				d["machine_type"] = MACHINE_TYPE_MEDIUM
 			}
 		} else {
+			// It's a GPU job.
 			if b.matchOs("Win") {
 				gpu, ok := map[string]string{
 					// At some point this might use the device ID, but for now it's like Chromebooks.
@@ -892,7 +890,7 @@ func (b *taskBuilder) defaultSwarmDimensions() {
 					"IntelIris655":  "8086:3ea5-26.20.100.7463",
 					"RadeonHD7770":  "1002:683d-26.20.13031.18002",
 					"RadeonR9M470X": "1002:6646-26.20.13031.18002",
-					"QuadroP400":    "10de:1cb3-30.0.14.7168",
+					"QuadroP400":    "10de:1cb3-30.0.15.1179",
 				}[b.parts["cpu_or_gpu_value"]]
 				if !ok {
 					log.Fatalf("Entry %q not found in Win GPU mapping.", b.parts["cpu_or_gpu_value"])
@@ -905,7 +903,7 @@ func (b *taskBuilder) defaultSwarmDimensions() {
 					"IntelHD2000":   "8086:0102",
 					"IntelHD405":    "8086:22b1",
 					"IntelIris640":  "8086:5926",
-					"QuadroP400":    "10de:1cb3-430.14",
+					"QuadroP400":    "10de:1cb3-510.60.02",
 				}[b.parts["cpu_or_gpu_value"]]
 				if !ok {
 					log.Fatalf("Entry %q not found in Ubuntu GPU mapping.", b.parts["cpu_or_gpu_value"])
@@ -923,6 +921,7 @@ func (b *taskBuilder) defaultSwarmDimensions() {
 					"IntelHD6000":   "8086:1626",
 					"IntelHD615":    "8086:591e",
 					"IntelIris5100": "8086:0a2e",
+					"IntelIrisPlus": "8086:8a53",
 					"RadeonHD8870M": "1002:6821-4.0.20-3.2.8",
 				}[b.parts["cpu_or_gpu_value"]]
 				if !ok {
@@ -934,10 +933,17 @@ func (b *taskBuilder) defaultSwarmDimensions() {
 				} else {
 					d["gpu"] = gpu
 				}
-				// Yuck. We have two different types of MacMini7,1 with the same GPU but different CPUs.
+				// We have two different types of MacMini7,1 with the same GPU but different CPUs.
 				if b.gpu("IntelIris5100") {
-					// Run all tasks on Golo machines for now.
-					d["cpu"] = "x86-64-i7-4578U"
+					if b.extraConfig("i5") {
+						// If we say "i5", run on our MacMini7,1s in the Skolo:
+						d["cpu"] = "x86-64-i5-4278U"
+					} else {
+						// Otherwise, run on Golo machines, just because that's
+						// where those jobs have always run. Plus, some of them
+						// are Perf jobs, which we want to keep consistent.
+						d["cpu"] = "x86-64-i7-4578U"
+					}
 				}
 			} else if b.os("ChromeOS") {
 				version, ok := map[string]string{
@@ -958,7 +964,7 @@ func (b *taskBuilder) defaultSwarmDimensions() {
 	} else {
 		d["gpu"] = "none"
 		if d["os"] == DEFAULT_OS_LINUX_GCE {
-			if b.extraConfig("CanvasKit", "CMake", "Docker", "PathKit") || b.role("BuildStats") {
+			if b.extraConfig("CanvasKit", "CMake", "Docker", "PathKit") || b.role("BuildStats", "CodeSize") {
 				b.linuxGceDimensions(MACHINE_TYPE_MEDIUM)
 				return
 			}
@@ -1081,8 +1087,7 @@ func (b *jobBuilder) createDockerImage(wasm bool) string {
 			"--swarm_out_dir", specs.PLACEHOLDER_ISOLATED_OUTDIR,
 		)
 		b.dep(b.buildTaskDrivers("linux", "amd64"))
-		// TODO(borenet): Does this task need go/go/bin in PATH?
-		b.addToPATH("cipd_bin_packages", "cipd_bin_packages/bin", "go/go/bin")
+		b.addToPATH("cipd_bin_packages", "cipd_bin_packages/bin")
 		b.cas(CAS_EMPTY)
 		b.serviceAccount(b.cfg.ServiceAccountCompile)
 		b.linuxGceDimensions(MACHINE_TYPE_MEDIUM)
@@ -1093,7 +1098,7 @@ func (b *jobBuilder) createDockerImage(wasm bool) string {
 }
 
 // createPushAppsFromSkiaDockerImage creates and pushes docker images of some apps
-// (eg: fiddler, debugger, api) using the skia-release docker image.
+// (eg: fiddler, api) using the skia-release docker image.
 func (b *jobBuilder) createPushAppsFromSkiaDockerImage() {
 	b.addTask(b.Name, func(b *taskBuilder) {
 		// TODO(borenet): Make this task not use Git.
@@ -1104,8 +1109,6 @@ func (b *jobBuilder) createPushAppsFromSkiaDockerImage() {
 			"--task_id", specs.PLACEHOLDER_TASK_ID,
 			"--task_name", b.Name,
 			"--workdir", ".",
-			"--gerrit_project", "buildbot",
-			"--gerrit_url", "https://skia-review.googlesource.com",
 			"--repo", specs.PLACEHOLDER_REPO,
 			"--revision", specs.PLACEHOLDER_REVISION,
 			"--patch_issue", specs.PLACEHOLDER_ISSUE,
@@ -1114,41 +1117,37 @@ func (b *jobBuilder) createPushAppsFromSkiaDockerImage() {
 		)
 		b.dep(b.buildTaskDrivers("linux", "amd64"))
 		b.dep(b.createDockerImage(false))
-		// TODO(borenet): Does this task need go/go/bin in PATH?
-		b.addToPATH("cipd_bin_packages", "cipd_bin_packages/bin", "go/go/bin")
+		b.addToPATH("cipd_bin_packages", "cipd_bin_packages/bin", "bazelisk")
 		b.cas(CAS_EMPTY)
+		b.cipd(b.MustGetCipdPackageFromAsset("bazelisk"))
 		b.serviceAccount(b.cfg.ServiceAccountCompile)
 		b.linuxGceDimensions(MACHINE_TYPE_MEDIUM)
 		b.usesDocker()
 		b.cache(CACHES_DOCKER...)
+		b.timeout(2 * time.Hour)
 	})
 }
 
-// createPushAppsFromWASMDockerImage creates and pushes docker images of some apps
-// (eg: jsfiddle, skottie, particles) using the skia-wasm-release docker image.
-func (b *jobBuilder) createPushAppsFromWASMDockerImage() {
+// createPushBazelAppsFromWASMDockerImage pushes those infra apps that have been ported to Bazel
+// and require assets built in the WASM docker image.
+// TODO(kjlubick) The inputs to this job should not be the docker build, but a Bazel build.
+func (b *jobBuilder) createPushBazelAppsFromWASMDockerImage() {
 	b.addTask(b.Name, func(b *taskBuilder) {
 		// TODO(borenet): Make this task not use Git.
 		b.usesGit()
 		b.cmd(
-			"./push_apps_from_wasm_image",
+			"./push_bazel_apps_from_wasm_image",
 			"--project_id", "skia-swarming-bots",
 			"--task_id", specs.PLACEHOLDER_TASK_ID,
 			"--task_name", b.Name,
 			"--workdir", ".",
-			"--gerrit_project", "buildbot",
-			"--gerrit_url", "https://skia-review.googlesource.com",
-			"--repo", specs.PLACEHOLDER_REPO,
-			"--revision", specs.PLACEHOLDER_REVISION,
-			"--patch_issue", specs.PLACEHOLDER_ISSUE,
-			"--patch_set", specs.PLACEHOLDER_PATCHSET,
-			"--patch_server", specs.PLACEHOLDER_CODEREVIEW_SERVER,
+			"--skia_revision", specs.PLACEHOLDER_REVISION,
 		)
 		b.dep(b.buildTaskDrivers("linux", "amd64"))
 		b.dep(b.createDockerImage(true))
-		// TODO(borenet): Does this task need go/go/bin in PATH?
-		b.addToPATH("cipd_bin_packages", "cipd_bin_packages/bin", "go/go/bin")
+		b.addToPATH("cipd_bin_packages", "cipd_bin_packages/bin", "bazelisk")
 		b.cas(CAS_EMPTY)
+		b.cipd(b.MustGetCipdPackageFromAsset("bazelisk"))
 		b.serviceAccount(b.cfg.ServiceAccountCompile)
 		b.linuxGceDimensions(MACHINE_TYPE_MEDIUM)
 		b.usesDocker()
@@ -1166,8 +1165,6 @@ func (b *taskBuilder) maybeAddIosDevImage() {
 			// Other patch versions can be added to the same case.
 			case "11.4.1":
 				asset = "ios-dev-image-11.4"
-			case "12.4.5":
-				asset = "ios-dev-image-12.4"
 			case "13.3.1":
 				asset = "ios-dev-image-13.3"
 			case "13.4.1":
@@ -1288,6 +1285,7 @@ func (b *jobBuilder) recreateSKPs() {
 		"--patch_ref", specs.PLACEHOLDER_PATCH_REF,
 		"--git_cache", "cache/git",
 		"--checkout_root", "cache/work",
+		"--dm_path", "build/dm",
 	}
 	if b.matchExtraConfig("DryRun") {
 		cmd = append(cmd, "--dry_run")
@@ -1295,6 +1293,7 @@ func (b *jobBuilder) recreateSKPs() {
 	b.addTask(b.Name, func(b *taskBuilder) {
 		b.cas(CAS_RECREATE_SKPS)
 		b.dep(b.buildTaskDrivers("linux", "amd64"))
+		b.dep("Build-Debian10-Clang-x86_64-Release") // To get DM.
 		b.cmd(cmd...)
 		b.cipd(CIPD_PKG_LUCI_AUTH)
 		b.serviceAccount(b.cfg.ServiceAccountRecreateSKPs)
@@ -1441,6 +1440,48 @@ func (b *jobBuilder) buildstats() {
 			b.dep(depName)
 		})
 	}
+}
+
+// codesize generates a codesize task, which takes binary produced by a
+// compile task, runs Bloaty against it, and uploads the resulting code size
+// statistics to the GCS bucket belonging to the codesize.skia.org service.
+func (b *jobBuilder) codesize() {
+	compileTaskName := b.compile()
+	bloatyCipdPkg := b.MustGetCipdPackageFromAsset("bloaty")
+
+	b.addTask(b.Name, func(b *taskBuilder) {
+		b.cas(CAS_EMPTY)
+		b.dep(b.buildTaskDrivers("linux", "amd64"), compileTaskName)
+		b.cmd("./codesize",
+			"--local=false",
+			"--project_id", "skia-swarming-bots",
+			"--task_id", specs.PLACEHOLDER_TASK_ID,
+			"--task_name", b.Name,
+			"--compile_task_name", compileTaskName,
+			// Note: the binary name cannot contain dashes, otherwise the naming
+			// schema logic will partition it into multiple parts.
+			//
+			// If we ever need to define a CodeSize-* task for a binary with
+			// dashes in its name (e.g. "my-binary"), a potential workaround is to
+			// create a mapping from a new, non-dashed binary name (e.g. "my_binary")
+			// to the actual binary name with dashes. This mapping can be hardcoded
+			// in this function; no changes to the task driver would be necessary.
+			"--binary_name", b.parts["binary_name"],
+			"--bloaty_cipd_version", bloatyCipdPkg.Version,
+			"--repo", specs.PLACEHOLDER_REPO,
+			"--revision", specs.PLACEHOLDER_REVISION,
+			"--patch_issue", specs.PLACEHOLDER_ISSUE,
+			"--patch_set", specs.PLACEHOLDER_PATCHSET,
+			"--patch_server", specs.PLACEHOLDER_CODEREVIEW_SERVER,
+		)
+		b.linuxGceDimensions(MACHINE_TYPE_SMALL)
+		b.cache(CACHES_WORKDIR...)
+		b.cipd(CIPD_PKG_LUCI_AUTH)
+		b.asset("bloaty")
+		b.serviceAccount("skia-external-codesize@skia-swarming-bots.iam.gserviceaccount.com")
+		b.timeout(20 * time.Minute)
+		b.attempts(1)
+	})
 }
 
 // doUpload indicates whether the given Job should upload its results.
@@ -1658,7 +1699,7 @@ func (b *jobBuilder) fm() {
 
 // canary generates a task that uses TaskDrivers to trigger canary manual rolls on autorollers.
 // Canary-G3 does not use this path because it is very different from other autorollers.
-func (b *jobBuilder) canary(rollerName string) {
+func (b *jobBuilder) canary(rollerName, canaryCQKeyword, targetProjectBaseURL string) {
 	b.addTask(b.Name, func(b *taskBuilder) {
 		b.cas(CAS_EMPTY)
 		b.dep(b.buildTaskDrivers("linux", "amd64"))
@@ -1668,6 +1709,8 @@ func (b *jobBuilder) canary(rollerName string) {
 			"--task_id", specs.PLACEHOLDER_TASK_ID,
 			"--task_name", b.Name,
 			"--roller_name", rollerName,
+			"--cq_keyword", canaryCQKeyword,
+			"--target_project_base_url", targetProjectBaseURL,
 			"--repo", specs.PLACEHOLDER_REPO,
 			"--revision", specs.PLACEHOLDER_REVISION,
 			"--patch_issue", specs.PLACEHOLDER_ISSUE,

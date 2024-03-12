@@ -9,13 +9,17 @@
 
 #include "experimental/graphite/include/TextureInfo.h"
 #include "experimental/graphite/include/mtl/MtlTypes.h"
+#include "experimental/graphite/src/CommandBuffer.h"
+#include "experimental/graphite/src/GraphicsPipelineDesc.h"
+#include "experimental/graphite/src/GraphiteResourceKey.h"
 #include "experimental/graphite/src/mtl/MtlUtils.h"
+#include "src/sksl/SkSLUtil.h"
 
 namespace skgpu::mtl {
 
 Caps::Caps(const id<MTLDevice> device)
         : skgpu::Caps() {
-    // TODO: allocate shadercaps
+    fShaderCaps = std::make_unique<SkSL::ShaderCaps>();
 
     this->initGPUFamily(device);
     this->initCaps(device);
@@ -211,11 +215,55 @@ void Caps::initGPUFamily(id<MTLDevice> device) {
 }
 
 void Caps::initCaps(const id<MTLDevice> device) {
-    // TODO
+    if (this->isMac() || fFamilyGroup >= 3) {
+        fMaxTextureSize = 16384;
+    } else {
+        fMaxTextureSize = 8192;
+    }
+
+    // We use constant address space for our uniform buffers which has various alignment
+    // requirements for the offset when binding the buffer. On MacOS the offset must align to 256.
+    // On iOS we must align to the max of the data type consumed by the vertex function or 4 bytes.
+    // We can ignore the data type and just always use 16 bytes on iOS.
+    if (this->isMac()) {
+        fRequiredUniformBufferAlignment = 256;
+    } else {
+        fRequiredUniformBufferAlignment = 16;
+    }
+
+    if (@available(macOS 10.12, ios 14.0, *)) {
+        fClampToBorderSupport = (this->isMac() || fFamilyGroup >= 7);
+    } else {
+        fClampToBorderSupport = false;
+    }
 }
 
 void Caps::initShaderCaps() {
-    // TODO
+    SkSL::ShaderCaps* shaderCaps = fShaderCaps.get();
+
+    // Setting this true with the assumption that this cap will eventually mean we support varying
+    // precisions and not just via modifiers.
+    shaderCaps->fUsesPrecisionModifiers = true;
+    shaderCaps->fFlatInterpolationSupport = true;
+
+    shaderCaps->fShaderDerivativeSupport = true;
+
+    // TODO(skia:8270): Re-enable this once bug 8270 is fixed
+#if 0
+    if (this->isApple()) {
+        shaderCaps->fFBFetchSupport = true;
+        shaderCaps->fFBFetchNeedsCustomOutput = true; // ??
+        shaderCaps->fFBFetchColorName = ""; // Somehow add [[color(0)]] to arguments to frag shader
+    }
+#endif
+
+    shaderCaps->fIntegerSupport = true;
+    shaderCaps->fNonsquareMatrixSupport = true;
+    shaderCaps->fInverseHyperbolicSupport = true;
+
+    // Metal uses IEEE floats so assuming those values here.
+    // TODO: add fHalfIs32Bits?
+    shaderCaps->fFloatIs32Bits = true;
 }
 
 void Caps::initFormatTable() {
@@ -237,6 +285,7 @@ skgpu::TextureInfo Caps::getDefaultSampledTextureInfo(SkColorType colorType,
     info.fFormat = SkColorTypeToFormat(colorType);
     info.fUsage = usage;
     info.fStorageMode = MTLStorageModePrivate;
+    info.fFramebufferOnly = false;
 
     return info;
 }
@@ -252,24 +301,162 @@ skgpu::TextureInfo Caps::getDefaultMSAATextureInfo(SkColorType colorType,
     info.fFormat = SkColorTypeToFormat(colorType);
     info.fUsage = usage;
     info.fStorageMode = MTLStorageModePrivate;
+    info.fFramebufferOnly = false;
 
     return info;
 }
 
-skgpu::TextureInfo Caps::getDefaultDepthStencilTextureInfo(DepthStencilType depthStencilType,
+skgpu::TextureInfo Caps::getDefaultDepthStencilTextureInfo(Mask<DepthStencilFlags> depthStencilType,
                                                            uint32_t sampleCount,
                                                            Protected) const {
     TextureInfo info;
     info.fSampleCount = sampleCount;
     info.fLevelCount = 1;
-    info.fFormat = DepthStencilTypeToFormat(depthStencilType);
+    info.fFormat = DepthStencilFlagsToFormat(depthStencilType);
     info.fUsage = MTLTextureUsageRenderTarget;
     info.fStorageMode = MTLStorageModePrivate;
+    info.fFramebufferOnly = false;
 
     return info;
 }
 
+UniqueKey Caps::makeGraphicsPipelineKey(const GraphicsPipelineDesc& pipelineDesc,
+                                        const RenderPassDesc& renderPassDesc) const {
+    UniqueKey pipelineKey;
+    {
+        static const skgpu::UniqueKey::Domain kGraphicsPipelineDomain = UniqueKey::GenerateDomain();
+        SkSpan<const uint32_t> pipelineDescKey = pipelineDesc.asKey();
+        UniqueKey::Builder builder(&pipelineKey, kGraphicsPipelineDomain,
+                                   pipelineDescKey.size() + 1, "GraphicsPipeline");
+        // add graphicspipelinedesc key
+        for (unsigned int i = 0; i < pipelineDescKey.size(); ++i) {
+            builder[i] = pipelineDescKey[i];
+        }
+        // add renderpassdesc key
+        mtl::TextureInfo colorInfo, depthStencilInfo;
+        renderPassDesc.fColorAttachment.fTextureInfo.getMtlTextureInfo(&colorInfo);
+        renderPassDesc.fDepthStencilAttachment.fTextureInfo.getMtlTextureInfo(&depthStencilInfo);
+        SkASSERT(colorInfo.fFormat < 65535 && depthStencilInfo.fFormat < 65535);
+        uint32_t renderPassKey = colorInfo.fFormat << 16 | depthStencilInfo.fFormat;
+        builder[pipelineDescKey.size()] = renderPassKey;
+        builder.finish();
+    }
 
+    return pipelineKey;
+}
 
+bool Caps::onIsTexturable(const skgpu::TextureInfo& info) const {
+    if (!(info.mtlTextureSpec().fUsage & MTLTextureUsageShaderRead)) {
+        return false;
+    }
+    if (info.mtlTextureSpec().fFramebufferOnly) {
+        return false;
+    }
+    return this->isTexturable((MTLPixelFormat)info.mtlTextureSpec().fFormat);
+}
+
+bool Caps::isTexturable(MTLPixelFormat format) const {
+    // TODO: Fill out format table so that we can query all formats. For now we only support RGBA8
+    // and BGRA8 which is supported everywhere.
+    return format == MTLPixelFormatRGBA8Unorm || format == MTLPixelFormatBGRA8Unorm;
+}
+
+bool Caps::isRenderable(const skgpu::TextureInfo& info) const {
+    return info.mtlTextureSpec().fUsage & MTLTextureUsageRenderTarget &&
+    this->isRenderable((MTLPixelFormat)info.mtlTextureSpec().fFormat, info.numSamples());
+}
+
+bool Caps::isRenderable(MTLPixelFormat format, uint32_t numSamples) const {
+    // TODO: Fill out format table so that we can query all formats. For now we only support RGBA8
+    // and BGRA8 with a sampleCount of 1 which is supported everywhere.
+    if ((format != MTLPixelFormatRGBA8Unorm && format != MTLPixelFormatBGRA8Unorm) ||
+        numSamples != 1) {
+        return false;
+    }
+    return true;
+}
+
+bool Caps::onAreColorTypeAndTextureInfoCompatible(SkColorType type,
+                                                  const skgpu::TextureInfo& info) const {
+    // TODO: Fill out format table so that we can query all formats. For now we only support RGBA8
+    // or BGRA8 for both the color type and format.
+    return (type == kRGBA_8888_SkColorType &&
+            info.mtlTextureSpec().fFormat == MTLPixelFormatRGBA8Unorm) ||
+           (type == kBGRA_8888_SkColorType &&
+            info.mtlTextureSpec().fFormat == MTLPixelFormatBGRA8Unorm);
+}
+
+size_t Caps::getTransferBufferAlignment(size_t bytesPerPixel) const {
+    return std::max(bytesPerPixel, getMinBufferAlignment());
+}
+
+// There are only a few possible valid sample counts (1, 2, 4, 8, 16). So we can key on those 5
+// options instead of the actual sample value.
+uint32_t samples_to_key(uint32_t numSamples) {
+    switch (numSamples) {
+        case 1:
+            return 0;
+        case 2:
+            return 1;
+        case 4:
+            return 2;
+        case 8:
+            return 3;
+        case 16:
+            return 4;
+        default:
+            SkUNREACHABLE;
+    }
+}
+
+void Caps::buildKeyForTexture(SkISize dimensions,
+                              const skgpu::TextureInfo& info,
+                              ResourceType type,
+                              Shareable shareable,
+                              GraphiteResourceKey* key) const {
+    const TextureSpec& mtlSpec = info.mtlTextureSpec();
+
+    SkASSERT(!dimensions.isEmpty());
+
+    // A MTLPixelFormat is an NSUInteger type which is documented to be 32 bits in 32 bit
+    // applications and 64 bits in 64 bit applications. So it should fit in an uint64_t, but adding
+    // the assert heere to make sure.
+    static_assert(sizeof(MTLPixelFormat) <= sizeof(uint64_t));
+    SkASSERT(mtlSpec.fFormat != MTLPixelFormatInvalid);
+    uint64_t formatKey = static_cast<uint64_t>(mtlSpec.fFormat);
+
+    uint32_t samplesKey = samples_to_key(info.numSamples());
+    // We don't have to key the number of mip levels because it is inherit in the combination of
+    // isMipped and dimensions.
+    bool isMipped = info.numMipLevels() > 1;
+    Protected isProtected = info.isProtected();
+    bool isFBOnly = mtlSpec.fFramebufferOnly;
+
+    // Confirm all the below parts of the key can fit in a single uint32_t. The sum of the shift
+    // amounts in the asserts must be less than or equal to 32.
+    SkASSERT(samplesKey                         < (1u << 3));
+    SkASSERT(static_cast<uint32_t>(isMipped)    < (1u << 1));
+    SkASSERT(static_cast<uint32_t>(isProtected) < (1u << 1));
+    SkASSERT(mtlSpec.fUsage                     < (1u << 5));
+    SkASSERT(mtlSpec.fStorageMode               < (1u << 2));
+    SkASSERT(static_cast<uint32_t>(isFBOnly)    < (1u << 1));
+
+    // We need two uint32_ts for dimensions, 2 for format, and 1 for the rest of the key;
+    static int kNum32DataCnt = 2 + 2 + 1;
+
+    GraphiteResourceKey::Builder builder(key, type, kNum32DataCnt, shareable);
+
+    builder[0] = dimensions.width();
+    builder[1] = dimensions.height();
+    builder[2] = formatKey & 0xFFFFFFFF;
+    builder[3] = (formatKey >> 32) & 0xFFFFFFFF;
+    builder[4] = (samplesKey                                  << 0) |
+                 (static_cast<uint32_t>(isMipped)             << 3) |
+                 (static_cast<uint32_t>(isProtected)          << 4) |
+                 (static_cast<uint32_t>(mtlSpec.fUsage)       << 5) |
+                 (static_cast<uint32_t>(mtlSpec.fStorageMode) << 10)|
+                 (static_cast<uint32_t>(isFBOnly)             << 12);
+
+}
 
 } // namespace skgpu::mtl

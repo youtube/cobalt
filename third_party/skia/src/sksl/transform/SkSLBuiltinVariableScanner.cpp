@@ -8,9 +8,9 @@
 #include "src/sksl/transform/SkSLTransform.h"
 
 #include "include/private/SkSLProgramKind.h"
+#include "src/sksl/SkSLBuiltinMap.h"
 #include "src/sksl/SkSLCompiler.h"
 #include "src/sksl/SkSLContext.h"
-#include "src/sksl/SkSLIntrinsicMap.h"
 #include "src/sksl/SkSLThreadContext.h"
 #include "src/sksl/analysis/SkSLProgramVisitor.h"
 #include "src/sksl/ir/SkSLFunctionDefinition.h"
@@ -28,11 +28,11 @@ void FindAndDeclareBuiltinVariables(const Context& context,
         BuiltinVariableScanner(const Context& context)
             : fContext(context) {}
 
-        void addDeclaringElement(const String& name) {
+        void addDeclaringElement(const std::string& name) {
             // If this is the *first* time we've seen this builtin, findAndInclude will return
             // the corresponding ProgramElement.
-            IntrinsicMap& intrinsics = *fContext.fIntrinsics;
-            if (const ProgramElement* decl = intrinsics.findAndInclude(name)) {
+            BuiltinMap& builtins = *fContext.fBuiltins;
+            if (const ProgramElement* decl = builtins.findAndInclude(name)) {
                 SkASSERT(decl->is<GlobalVarDeclaration>() || decl->is<InterfaceBlock>());
                 fNewElements.push_back(decl);
             }
@@ -44,7 +44,7 @@ void FindAndDeclareBuiltinVariables(const Context& context,
                 // We synthesize writes to sk_FragColor if main() returns a color, even if it's
                 // otherwise unreferenced. Check main's return type to see if it's half4.
                 if (funcDef.declaration().isMain() &&
-                    funcDef.declaration().returnType() == *fContext.fTypes.fHalf4) {
+                    funcDef.declaration().returnType().matches(*fContext.fTypes.fHalf4)) {
                     fPreserveFragColor = true;
                 }
             }
@@ -53,7 +53,8 @@ void FindAndDeclareBuiltinVariables(const Context& context,
 
         bool visitExpression(const Expression& e) override {
             if (e.is<VariableReference>() && e.as<VariableReference>().variable()->isBuiltin()) {
-                this->addDeclaringElement(String(e.as<VariableReference>().variable()->name()));
+                this->addDeclaringElement(
+                        std::string(e.as<VariableReference>().variable()->name()));
             }
             return INHERITED::visitExpression(e);
         }

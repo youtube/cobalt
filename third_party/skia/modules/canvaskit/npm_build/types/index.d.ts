@@ -268,6 +268,18 @@ export interface CanvasKit {
     MakeRenderTarget(ctx: GrDirectContext, info: ImageInfo): Surface | null;
 
     /**
+     * Returns a texture-backed image based on the content in src. It assumes the image is
+     * RGBA_8888, unpremul and SRGB. This image can be re-used across multiple surfaces.
+     *
+     * Not available for software-backed surfaces.
+     * @param src - CanvasKit will take ownership of the TextureSource and clean it up when
+     *              the image is destroyed.
+     * @param info - If provided, will be used to determine the width/height/format of the
+     *               source image. If not, sensible defaults will be used.
+     */
+    MakeLazyImageFromTextureSource(src: TextureSource, info?: ImageInfo | PartialImageInfo): Image;
+
+    /**
      * Deletes the associated WebGLContext. Function not available on the CPU version.
      * @param ctx
      */
@@ -291,6 +303,9 @@ export interface CanvasKit {
     /**
      * Decodes the given bytes into an animated image. Returns null if the bytes were invalid.
      * The passed in bytes will be copied into the WASM heap, so the caller can dispose of them.
+     *
+     * The returned AnimatedImage will be "pointing to" the first frame, i.e. currentFrameDuration
+     * and makeImageAtCurrentFrame will be referring to the first frame.
      * @param bytes
      */
     MakeAnimatedImageFromEncoded(bytes: Uint8Array | ArrayBuffer): AnimatedImage | null;
@@ -392,7 +407,7 @@ export interface CanvasKit {
     readonly PictureRecorder: DefaultConstructor<PictureRecorder>;
     readonly TextStyle: TextStyleConstructor;
 
-    // Factories, i.e. things made with CanvasKit.Foo.MakeTurboEncapsulator()
+    // Factories, i.e. things made with CanvasKit.Foo.MakeTurboEncabulator()
     readonly ParagraphBuilder: ParagraphBuilderFactory;
     readonly ColorFilter: ColorFilterFactory;
     readonly FontMgr: FontMgrFactory;
@@ -425,6 +440,7 @@ export interface CanvasKit {
     readonly ImageFormat: ImageFormatEnumValues;
     readonly MipmapMode: MipmapModeEnumValues;
     readonly PaintStyle: PaintStyleEnumValues;
+    readonly Path1DEffect: Path1DEffectStyleEnumValues;
     readonly PathOp: PathOpEnumValues;
     readonly PointMode: PointModeEnumValues;
     readonly ColorSpace: ColorSpaceEnumValues;
@@ -906,6 +922,12 @@ export interface ParagraphBuilder extends EmbindObject<ParagraphBuilder> {
      * @param bg
      */
     pushPaintStyle(textStyle: TextStyle, fg: Paint, bg: Paint): void;
+
+    /**
+     * Resets this builder to its initial state, discarding any text, styles, placeholders that have
+     * been added, but keeping the initial ParagraphStyle.
+     */
+    reset(): void;
 }
 
 export interface ParagraphStyle {
@@ -1003,7 +1025,12 @@ export interface SkSLUniform {
  */
 export interface AnimatedImage extends EmbindObject<AnimatedImage> {
     /**
-     * Decodes the next frame. Returns -1 when the animation is on the last frame.
+     * Returns the length of the current frame in ms.
+     */
+    currentFrameDuration(): number;
+    /**
+     * Decodes the next frame. Returns the length of that new frame in ms.
+     * Returns -1 when the animation is on the last frame.
      */
     decodeNextFrame(): number;
 
@@ -1404,13 +1431,6 @@ export interface Canvas extends EmbindObject<Canvas> {
     drawVertices(verts: Vertices, mode: BlendMode, paint: Paint): void;
 
     /**
-     * Returns the 4x4 matrix matching the given marker or null if there was none.
-     * See also markCTM.
-     * @param marker
-     */
-    findMarkedCTM(marker: string): Matrix4x4 | null;
-
-    /**
      * Returns the current transform from local coordinates to the 'device', which for most
      * purposes means pixels.
      */
@@ -1435,15 +1455,6 @@ export interface Canvas extends EmbindObject<Canvas> {
      * @param info
      */
     makeSurface(info: ImageInfo): Surface | null;
-
-    /**
-     * Record a marker (provided by caller) for the current CTM. This does not change anything
-     * about the ctm or clip, but does "name" this matrix value, so it can be referenced by
-     * custom effects (who access it by specifying the same name).
-     * See also findMarkedCTM.
-     * @param marker
-     */
-    markCTM(marker: string): void;
 
     /**
      * Returns a TypedArray containing the pixels reading starting at (srcX, srcY) and does not
@@ -2496,6 +2507,22 @@ export type PathEffect = EmbindObject<PathEffect>;
  */
 export interface SkPicture extends EmbindObject<SkPicture> {
     /**
+     *  Returns a new shader that will draw with this picture.
+     *
+     *  @param tmx  The tiling mode to use when sampling in the x-direction.
+     *  @param tmy  The tiling mode to use when sampling in the y-direction.
+     *  @param mode How to filter the tiles
+     *  @param localMatrix Optional matrix used when sampling
+     *  @param tileRect The tile rectangle in picture coordinates: this represents the subset
+     *              (or superset) of the picture used when building a tile. It is not
+     *              affected by localMatrix and does not imply scaling (only translation
+     *              and cropping). If null, the tile rect is considered equal to the picture
+     *              bounds.
+     */
+    makeShader(tmx: TileMode, tmy: TileMode, mode: FilterMode,
+               localMatrix?: InputMatrix, tileRect?: InputRect): Shader;
+
+    /**
      * Returns the serialized format of this SkPicture. The format may change at anytime and
      * no promises are made for backwards or forward compatibility.
      */
@@ -2523,20 +2550,18 @@ export interface RuntimeEffect extends EmbindObject<RuntimeEffect> {
     /**
      * Returns a shader executed using the given uniform data.
      * @param uniforms
-     * @param isOpaque
      * @param localMatrix
      */
-    makeShader(uniforms: Float32Array | number[], isOpaque?: boolean,
+    makeShader(uniforms: Float32Array | number[],
                localMatrix?: InputMatrix): Shader;
 
     /**
      * Returns a shader executed using the given uniform data and the children as inputs.
      * @param uniforms
-     * @param isOpaque
      * @param children
      * @param localMatrix
      */
-    makeShaderWithChildren(uniforms: Float32Array | number[], isOpaque?: boolean,
+    makeShaderWithChildren(uniforms: Float32Array | number[],
                            children?: Shader[], localMatrix?: InputMatrix): Shader;
 
     /**
@@ -2620,14 +2645,18 @@ export interface Surface extends EmbindObject<Surface> {
      * Returns a texture-backed image based on the content in src. It uses RGBA_8888, unpremul
      * and SRGB - for more control, use makeImageFromTexture.
      *
+     * The underlying texture for this image will be created immediately from src, so
+     * it can be disposed of after this call. This image will *only* be usable for this
+     * surface (because WebGL textures are not transferable to other WebGL contexts).
+     * For an image that can be used across multiple surfaces, at the cost of being lazily
+     * loaded, see MakeLazyImageFromTextureSource.
+     *
      * Not available for software-backed surfaces.
      * @param src
-     * @param width - If provided, will be used as the width of src. Otherwise, the natural
-     *                width of src (if available) will be used.
-     * @param height - If provided, will be used as the height of src. Otherwise, the natural
-     *                height of src (if available) will be used.
+     * @param info - If provided, will be used to determine the width/height/format of the
+     *               source image. If not, sensible defaults will be used.
      */
-    makeImageFromTextureSource(src: TextureSource, width?: number, height?: number): Image | null;
+    makeImageFromTextureSource(src: TextureSource, info?: ImageInfo | PartialImageInfo): Image | null;
 
     /**
      * Returns current contents of the surface as an Image. This image will be optimized to be
@@ -2665,6 +2694,19 @@ export interface Surface extends EmbindObject<Surface> {
      * If this surface is GPU-backed, return the sample count of the surface.
      */
     sampleCnt(): number;
+
+    /**
+     * Updates the underlying GPU texture of the image to be the contents of the provided
+     * TextureSource. Has no effect on CPU backend or if img was not created with either
+     * makeImageFromTextureSource or makeImageFromTexture.
+     * If the provided TextureSource is of different dimensions than the Image, the contents
+     * will be deformed (e.g. squished). The ColorType, AlphaType, and ColorSpace of src should
+     * match the original settings used to create the Image or it may draw strange.
+     *
+     * @param img - A texture-backed Image.
+     * @param src - A valid texture source of any dimensions.
+     */
+    updateTextureFromSource(img: Image, src: TextureSource): void;
 
     /**
      * Returns the width of this surface in pixels.
@@ -3319,11 +3361,50 @@ export interface PathEffectFactory {
      * @param seedAssist - modifies the randomness. See SkDiscretePathEffect.h for more.
      */
     MakeDiscrete(segLength: number, dev: number, seedAssist: number): PathEffect;
+
+    /**
+     * Returns a PathEffect that will fill the drawing path with a pattern made by applying
+     * the given matrix to a repeating set of infinitely long lines of the given width.
+     * For example, the scale of the provided matrix will determine how far apart the lines
+     * should be drawn its rotation affects the lines' orientation.
+     * @param width - must be >= 0
+     * @param matrix
+     */
+    MakeLine2D(width: number, matrix: InputMatrix): PathEffect | null;
+
+    /**
+     * Returns a PathEffect which implements dashing by replicating the specified path.
+     *   @param path The path to replicate (dash)
+     *   @param advance The space between instances of path
+     *   @param phase distance (mod advance) along path for its initial position
+     *   @param style how to transform path at each point (based on the current
+     *                position and tangent)
+     */
+    MakePath1D(path: Path, advance: number, phase: number, style: Path1DEffectStyle):
+        PathEffect | null;
+
+    /**
+     * Returns a PathEffect that will fill the drawing path with a pattern by repeating the
+     * given path according to the provided matrix. For example, the scale of the matrix
+     * determines how far apart the path instances should be drawn.
+     * @param matrix
+     * @param path
+     */
+    MakePath2D(matrix: InputMatrix, path: Path): PathEffect | null;
 }
 
 /**
  * See RuntimeEffect.h for more details.
  */
+export interface DebugTrace extends EmbindObject<DebugTrace> {
+    writeTrace(): string;
+}
+
+export interface TracedShader {
+    shader: Shader;
+    debugTrace: DebugTrace;
+}
+
 export interface RuntimeEffectFactory {
     /**
      * Compiles a RuntimeEffect from the given shader code.
@@ -3332,6 +3413,14 @@ export interface RuntimeEffectFactory {
      *                   be printed to console.log().
      */
     Make(sksl: string, callback?: (err: string) => void): RuntimeEffect | null;
+
+    /**
+     * Adds debug tracing to an existing RuntimeEffect.
+     * @param shader - An already-assembled shader, created with RuntimeEffect.makeShader.
+     * @param traceCoordX - the X coordinate of the device-space pixel to trace
+     * @param traceCoordY - the Y coordinate of the device-space pixel to trace
+     */
+    MakeTraced(shader: Shader, traceCoordX: number, traceCoordY: number): TracedShader;
 }
 
 /**
@@ -3775,6 +3864,7 @@ export type InputFlattenedRSXFormArray = MallocObj | Float32Array | number[];
 export type InputVector3 = MallocObj | Vector3 | Float32Array;
 /**
  * These are the types that webGL's texImage2D supports as a way to get data from as a texture.
+ * Not listed, but also supported are https://developer.mozilla.org/en-US/docs/Web/API/VideoFrame
  */
 export type TextureSource = TypedArray | HTMLImageElement | HTMLVideoElement | ImageData | ImageBitmap;
 
@@ -3791,6 +3881,7 @@ export type FontEdging = EmbindEnumEntity;
 export type FontHinting = EmbindEnumEntity;
 export type MipmapMode = EmbindEnumEntity;
 export type PaintStyle = EmbindEnumEntity;
+export type Path1DEffectStyle = EmbindEnumEntity;
 export type PathOp = EmbindEnumEntity;
 export type PointMode = EmbindEnumEntity;
 export type StrokeCap = EmbindEnumEntity;
@@ -3982,6 +4073,15 @@ export interface MipmapModeEnumValues extends EmbindEnum {
 export interface PaintStyleEnumValues extends EmbindEnum {
     Fill: PaintStyle;
     Stroke: PaintStyle;
+}
+
+export interface Path1DEffectStyleEnumValues extends EmbindEnum {
+    // Translate the shape to each position
+    Translate: Path1DEffectStyle;
+    // Rotate the shape about its center
+    Rotate: Path1DEffectStyle;
+    // Transform each point and turn lines into curves
+    Morph: Path1DEffectStyle;
 }
 
 export interface PathOpEnumValues extends EmbindEnum {

@@ -94,10 +94,16 @@ void GrVkOpsRenderPass::setAttachmentLayouts(LoadFromResolve loadFromResolve) {
         GrVkImage* resolveAttachment = fFramebuffer->resolveAttachment();
         SkASSERT(resolveAttachment);
         if (loadFromResolve == LoadFromResolve::kLoad) {
+            // We need input access to do the shader read and color read access to do the attachment
+            // load.
+            VkAccessFlags dstAccess =
+                    VK_ACCESS_INPUT_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
+            VkPipelineStageFlags dstStages = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+                                             VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
             resolveAttachment->setImageLayout(fGpu,
                                               VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                              VK_ACCESS_INPUT_ATTACHMENT_READ_BIT,
-                                              VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                              dstAccess,
+                                              dstStages,
                                               false);
         } else {
             resolveAttachment->setImageLayout(
@@ -860,9 +866,8 @@ void GrVkOpsRenderPass::onExecuteDrawable(std::unique_ptr<SkDrawable::GpuDrawHan
     vkInfo.fFormat = fFramebuffer->colorAttachment()->imageFormat();
     vkInfo.fDrawBounds = &bounds;
 #ifdef SK_BUILD_FOR_ANDROID_FRAMEWORK
-    vkInfo.fImage = fFramebuffer->colorAttachment()->image();
-#else
-    vkInfo.fImage = VK_NULL_HANDLE;
+    vkInfo.fFromSwapchainOrAndroidWindow =
+            fFramebuffer->colorAttachment()->vkImageInfo().fPartOfSwapchainOrAndroidWindow;
 #endif //SK_BUILD_FOR_ANDROID_FRAMEWORK
 
     GrBackendDrawableInfo info(vkInfo);

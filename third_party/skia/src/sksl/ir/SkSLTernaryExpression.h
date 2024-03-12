@@ -25,7 +25,7 @@ public:
         , fTest(std::move(test))
         , fIfTrue(std::move(ifTrue))
         , fIfFalse(std::move(ifFalse)) {
-        SkASSERT(this->ifTrue()->type() == this->ifFalse()->type());
+        SkASSERT(this->ifTrue()->type().matches(this->ifFalse()->type()));
     }
 
     // Creates a potentially-simplified form of the ternary. Typechecks and coerces input
@@ -81,7 +81,7 @@ public:
                                                    this->ifFalse()->clone());
     }
 
-    String description() const override {
+    std::string description() const override {
         return "(" + this->test()->description() + " ? " + this->ifTrue()->description() + " : " +
                this->ifFalse()->description() + ")";
     }

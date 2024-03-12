@@ -7,50 +7,63 @@
 
 #include "experimental/graphite/src/UniformCache.h"
 
-#include "experimental/graphite/include/private/GraphiteTypesPriv.h"
-#include "experimental/graphite/src/ContextUtils.h"
 #include "src/core/SkOpts.h"
+#include "src/core/SkUniformData.h"
 
 namespace skgpu {
 
-size_t UniformCache::Hash::operator()(sk_sp<UniformData> ud) const {
-    return SkOpts::hash_fn(ud->data(), ud->dataSize(), 0);
-}
-
-bool UniformCache::Eq::operator()(sk_sp<UniformData> a, sk_sp<UniformData> b) const {
-    if (a->count() != b->count() ||
-        a->uniforms() != b->uniforms() ||
-        a->dataSize() != b->dataSize()) {
-        return false;
+size_t UniformCache::Hash::operator()(SkUniformBlock* ub) const {
+    if (!ub) {
+        return 0;
     }
 
-    return !memcmp(a->data(), b->data(), a->dataSize()) &&
-           !memcmp(a->offsets(), b->offsets(), a->count()*sizeof(uint32_t));
+    return ub->hash();
+}
+
+bool UniformCache::Eq::operator()(SkUniformBlock* a, SkUniformBlock* b) const {
+    if (!a || !b) {
+        return !a && !b;
+    }
+
+    return *a == *b;
 };
 
 UniformCache::UniformCache() {
-    // kInvalidUniformID (aka 0) is reserved
-    fUniformDataVector.push_back(nullptr);
+    // kInvalidUniformID is reserved
+    static_assert(kInvalidUniformID == 0);
+    fUniformBlock.push_back(nullptr);
+    fUniformBlockIDs.insert({nullptr, 0});
 }
 
-sk_sp<UniformData> UniformCache::findOrCreate(sk_sp<UniformData> ud) {
+#ifdef SK_DEBUG
+void UniformCache::validate() const {
+    for (size_t i = 0; i < fUniformBlock.size(); ++i) {
+        auto kv = fUniformBlockIDs.find(fUniformBlock[i].get());
+        SkASSERT(kv != fUniformBlockIDs.end());
+        SkASSERT(kv->first == fUniformBlock[i].get());
+        SkASSERT(SkTo<uint32_t>(i) == kv->second);
+    }
+}
+#endif
 
-    auto iter = fUniformDataHash.find(ud);
-    if (iter != fUniformDataHash.end()) {
-        SkASSERT((*iter)->id() != UniformData::kInvalidUniformID);
-        return *iter;
+uint32_t UniformCache::insert(std::unique_ptr<SkUniformBlock> block) {
+    auto kv = fUniformBlockIDs.find(block.get());
+    if (kv != fUniformBlockIDs.end()) {
+        return kv->second;
     }
 
-    ud->setID(fNextUniqueID++);
-    fUniformDataHash.insert(ud);
-    fUniformDataVector.push_back(ud);
-    SkASSERT(fUniformDataVector[ud->id()] == ud);
-    return ud;
+    uint32_t id = SkTo<uint32_t>(fUniformBlock.size());
+    SkASSERT(block && id != kInvalidUniformID);
+
+    fUniformBlockIDs.insert({block.get(), id});
+    fUniformBlock.push_back(std::move(block));
+    this->validate();
+    return id;
 }
 
-sk_sp<UniformData> UniformCache::lookup(uint32_t uniqueID) {
-    SkASSERT(uniqueID < fUniformDataVector.size());
-    return fUniformDataVector[uniqueID];
+SkUniformBlock* UniformCache::lookup(uint32_t uniqueID) {
+    SkASSERT(uniqueID < fUniformBlock.size());
+    return fUniformBlock[uniqueID].get();
 }
 
 } // namespace skgpu

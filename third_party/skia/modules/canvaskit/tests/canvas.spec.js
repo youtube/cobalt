@@ -698,7 +698,7 @@ describe('Canvas Behavior', () => {
         const bounds = vertices.bounds();
         expect(bounds).toEqual(CanvasKit.LTRBRect(0, 0, 250, 250));
 
-        canvas.drawVertices(vertices, CanvasKit.BlendMode.Src, paint);
+        canvas.drawVertices(vertices, CanvasKit.BlendMode.Dst, paint);
         vertices.delete();
         paint.delete();
     });
@@ -717,7 +717,7 @@ describe('Canvas Behavior', () => {
         const bounds = vertices.bounds();
         expect(bounds).toEqual(CanvasKit.LTRBRect(0, 0, 250, 250));
 
-        canvas.drawVertices(vertices, CanvasKit.BlendMode.Src, paint);
+        canvas.drawVertices(vertices, CanvasKit.BlendMode.Dst, paint);
         vertices.delete();
         paint.delete();
     });
@@ -815,26 +815,6 @@ describe('Canvas Behavior', () => {
             0.2,  1.4, 0, 24,
             0  ,  0  , 0,  0,
             0  ,  0  , 0,  1], matr);
-    });
-
-    it('can mark a CTM and retrieve it', () => {
-        const canvas = new CanvasKit.Canvas();
-
-        canvas.concat(CanvasKit.M44.rotated([0, 1, 0], Math.PI/4));
-        canvas.concat(CanvasKit.M44.rotated([1, 0, 1], Math.PI/8));
-        canvas.markCTM('krispykreme');
-
-        const expected = CanvasKit.M44.multiply(
-          CanvasKit.M44.rotated([0, 1, 0], Math.PI/4),
-          CanvasKit.M44.rotated([1, 0, 1], Math.PI/8),
-        );
-
-        expect4x4MatricesToMatch(expected, canvas.findMarkedCTM('krispykreme'));
-    });
-
-    it('returns null for an invalid CTM marker', () => {
-        const canvas = new CanvasKit.Canvas();
-        expect(canvas.findMarkedCTM('dunkindonuts')).toBeNull();
     });
 
     it('can change the 4x4 matrix on the canvas and read it back', () => {

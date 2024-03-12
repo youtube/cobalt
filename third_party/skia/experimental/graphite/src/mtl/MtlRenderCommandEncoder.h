@@ -8,6 +8,7 @@
 #ifndef skgpu_MtlRenderCommandEncoder_DEFINED
 #define skgpu_MtlRenderCommandEncoder_DEFINED
 
+#include "experimental/graphite/src/Resource.h"
 #include "include/core/SkRefCnt.h"
 #include "include/ports/SkCFObject.h"
 
@@ -18,14 +19,15 @@ namespace skgpu::mtl {
 /**
  * Wraps a MTLRenderCommandEncoder object and associated tracked state
  */
-class RenderCommandEncoder : public SkRefCnt {
+class RenderCommandEncoder : public Resource {
 public:
-    static sk_sp<RenderCommandEncoder> Make(id<MTLCommandBuffer> commandBuffer,
+    static sk_sp<RenderCommandEncoder> Make(const Gpu* gpu,
+                                            id<MTLCommandBuffer> commandBuffer,
                                             MTLRenderPassDescriptor* descriptor) {
         // Adding a retain here to keep our own ref separate from the autorelease pool
         sk_cfp<id<MTLRenderCommandEncoder>> encoder =
                  sk_ret_cfp([commandBuffer renderCommandEncoderWithDescriptor:descriptor]);
-        return sk_sp<RenderCommandEncoder>(new RenderCommandEncoder(std::move(encoder)));
+        return sk_sp<RenderCommandEncoder>(new RenderCommandEncoder(gpu, std::move(encoder)));
     }
 
     void setLabel(NSString* label) {
@@ -153,15 +155,11 @@ public:
                                        alpha: blendConst[3]];
     }
 
-    void setStencilFrontBackReferenceValues(uint32_t frontReferenceValue,
-                                            uint32_t backReferenceValue)
-            SK_API_AVAILABLE(macos(10.11), ios(9.0)) {
-        [(*fCommandEncoder)
-                setStencilFrontReferenceValue:frontReferenceValue
-                           backReferenceValue:backReferenceValue];
-    }
     void setStencilReferenceValue(uint32_t referenceValue) {
-        [(*fCommandEncoder) setStencilReferenceValue:referenceValue];
+        if (referenceValue != fCurrentStencilReferenceValue) {
+            [(*fCommandEncoder) setStencilReferenceValue:referenceValue];
+            fCurrentStencilReferenceValue = referenceValue;
+        }
     }
     void setDepthStencilState(id<MTLDepthStencilState> depthStencilState) {
         if (depthStencilState != fCurrentDepthStencilState) {
@@ -244,15 +242,20 @@ public:
     }
 
 private:
-    RenderCommandEncoder(sk_cfp<id<MTLRenderCommandEncoder>> encoder)
-        : fCommandEncoder(std::move(encoder)) {}
+    RenderCommandEncoder(const Gpu* gpu, sk_cfp<id<MTLRenderCommandEncoder>> encoder)
+        : Resource(gpu), fCommandEncoder(std::move(encoder)) {}
+
+    void onFreeGpuData() override {
+        fCommandEncoder.reset();
+    }
 
     sk_cfp<id<MTLRenderCommandEncoder>> fCommandEncoder;
 
     id<MTLRenderPipelineState> fCurrentRenderPipelineState = nil;
     id<MTLDepthStencilState> fCurrentDepthStencilState = nil;
+    uint32_t fCurrentStencilReferenceValue = 0; // Metal default value
 
-    inline static constexpr int kMaxExpectedBuffers = 4;
+    inline static constexpr int kMaxExpectedBuffers = 5;
     id<MTLBuffer> fCurrentVertexBuffer[kMaxExpectedBuffers];
     NSUInteger fCurrentVertexOffset[kMaxExpectedBuffers];
     id<MTLBuffer> fCurrentFragmentBuffer[kMaxExpectedBuffers];

@@ -5,8 +5,10 @@
  * found in the LICENSE file.
  */
 
-#include "src/gpu/GrShaderCaps.h"
 #include "src/gpu/effects/GrBezierEffect.h"
+
+#include "src/gpu/GrShaderCaps.h"
+#include "src/gpu/KeyBuilder.h"
 #include "src/gpu/glsl/GrGLSLFragmentShaderBuilder.h"
 #include "src/gpu/glsl/GrGLSLProgramDataManager.h"
 #include "src/gpu/glsl/GrGLSLUniformHandler.h"
@@ -57,7 +59,7 @@ void GrConicEffect::Impl::onEmitCode(EmitArgs& args, GrGPArgs* gpArgs) {
     // emit attributes
     varyingHandler->emitAttributes(gp);
 
-    GrGLSLVarying v(kFloat4_GrSLType);
+    GrGLSLVarying v(SkSLType::kFloat4);
     varyingHandler->addVarying("ConicCoeffs", &v);
     vertBuilder->codeAppendf("%s = %s;", v.vsOut(), gp.inConicCoeffs().name());
 
@@ -88,14 +90,14 @@ void GrConicEffect::Impl::onEmitCode(EmitArgs& args, GrGPArgs* gpArgs) {
     // that suffices. Additionally we should assert that the upstream code only lets us get here if
     // either float or half provides the required number of bits.
 
-    GrShaderVar edgeAlpha("edgeAlpha", kHalf_GrSLType, 0);
-    GrShaderVar dklmdx("dklmdx", kFloat3_GrSLType, 0);
-    GrShaderVar dklmdy("dklmdy", kFloat3_GrSLType, 0);
-    GrShaderVar dfdx("dfdx", kFloat_GrSLType, 0);
-    GrShaderVar dfdy("dfdy", kFloat_GrSLType, 0);
-    GrShaderVar gF("gF", kFloat2_GrSLType, 0);
-    GrShaderVar gFM("gFM", kFloat_GrSLType, 0);
-    GrShaderVar func("func", kFloat_GrSLType, 0);
+    GrShaderVar edgeAlpha("edgeAlpha", SkSLType::kHalf, 0);
+    GrShaderVar dklmdx("dklmdx", SkSLType::kFloat3, 0);
+    GrShaderVar dklmdy("dklmdy", SkSLType::kFloat3, 0);
+    GrShaderVar dfdx("dfdx", SkSLType::kFloat, 0);
+    GrShaderVar dfdy("dfdy", SkSLType::kFloat, 0);
+    GrShaderVar gF("gF", SkSLType::kFloat2, 0);
+    GrShaderVar gFM("gFM", SkSLType::kFloat, 0);
+    GrShaderVar func("func", SkSLType::kFloat, 0);
 
     fragBuilder->declAppend(edgeAlpha);
     fragBuilder->declAppend(dklmdx);
@@ -137,7 +139,7 @@ void GrConicEffect::Impl::onEmitCode(EmitArgs& args, GrGPArgs* gpArgs) {
         const char* coverageScale;
         fCoverageScaleUniform = uniformHandler->addUniform(nullptr,
                                                            kFragment_GrShaderFlag,
-                                                           kFloat_GrSLType,
+                                                           SkSLType::kFloat,
                                                            "Coverage",
                                                            &coverageScale);
         fragBuilder->codeAppendf("half4 %s = half4(half(%s) * %s);",
@@ -151,7 +153,7 @@ void GrConicEffect::Impl::onEmitCode(EmitArgs& args, GrGPArgs* gpArgs) {
 
 GrConicEffect::~GrConicEffect() = default;
 
-void GrConicEffect::addToKey(const GrShaderCaps& caps, GrProcessorKeyBuilder* b) const {
+void GrConicEffect::addToKey(const GrShaderCaps& caps, skgpu::KeyBuilder* b) const {
     uint32_t key = 0;
     key |= fCoverageScale == 0xff ? 0x8  : 0x0;
     key |= fUsesLocalCoords       ? 0x10 : 0x0;
@@ -175,7 +177,7 @@ GrConicEffect::GrConicEffect(const SkPMColor4f& color, const SkMatrix& viewMatri
         , fLocalMatrix(viewMatrix)
         , fUsesLocalCoords(usesLocalCoords)
         , fCoverageScale(coverage) {
-    this->setVertexAttributes(kAttributes, SK_ARRAY_COUNT(kAttributes));
+    this->setVertexAttributesWithImplicitOffsets(kAttributes, SK_ARRAY_COUNT(kAttributes));
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -245,7 +247,7 @@ void GrQuadEffect::Impl::onEmitCode(EmitArgs& args, GrGPArgs* gpArgs) {
     // emit attributes
     varyingHandler->emitAttributes(gp);
 
-    GrGLSLVarying v(kHalf4_GrSLType);
+    GrGLSLVarying v(SkSLType::kHalf4);
     varyingHandler->addVarying("HairQuadEdge", &v);
     vertBuilder->codeAppendf("%s = %s;", v.vsOut(), gp.inHairQuadEdge().name());
 
@@ -290,7 +292,7 @@ void GrQuadEffect::Impl::onEmitCode(EmitArgs& args, GrGPArgs* gpArgs) {
         const char* coverageScale;
         fCoverageScaleUniform = uniformHandler->addUniform(nullptr,
                                                            kFragment_GrShaderFlag,
-                                                           kHalf_GrSLType,
+                                                           SkSLType::kHalf,
                                                            "Coverage",
                                                            &coverageScale);
         fragBuilder->codeAppendf("half4 %s = half4(%s * edgeAlpha);", args.fOutputCoverage,
@@ -304,7 +306,7 @@ void GrQuadEffect::Impl::onEmitCode(EmitArgs& args, GrGPArgs* gpArgs) {
 
 GrQuadEffect::~GrQuadEffect() = default;
 
-void GrQuadEffect::addToKey(const GrShaderCaps& caps, GrProcessorKeyBuilder* b) const {
+void GrQuadEffect::addToKey(const GrShaderCaps& caps, skgpu::KeyBuilder* b) const {
     uint32_t key = 0;
     key |= fCoverageScale != 0xff ? 0x8  : 0x0;
     key |= fUsesLocalCoords       ? 0x10 : 0x0;
@@ -328,7 +330,7 @@ GrQuadEffect::GrQuadEffect(const SkPMColor4f& color, const SkMatrix& viewMatrix,
     , fLocalMatrix(localMatrix)
     , fUsesLocalCoords(usesLocalCoords)
     , fCoverageScale(coverage) {
-    this->setVertexAttributes(kAttributes, SK_ARRAY_COUNT(kAttributes));
+    this->setVertexAttributesWithImplicitOffsets(kAttributes, SK_ARRAY_COUNT(kAttributes));
 }
 
 //////////////////////////////////////////////////////////////////////////////

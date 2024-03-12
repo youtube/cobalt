@@ -28,11 +28,15 @@
 class GrRecordingContext;
 class SkFilterColorProgram;
 class SkImage;
+class SkRuntimeImageFilter;
 
 namespace SkSL {
+class DebugTrace;
+class ErrorReporter;
 class FunctionDefinition;
 struct Program;
 enum class ProgramKind : int8_t;
+struct ProgramSettings;
 }  // namespace SkSL
 
 namespace skvm {
@@ -64,8 +68,13 @@ public:
         };
 
         enum Flags {
-            kArray_Flag         = 0x1,
-            kSRGBUnpremul_Flag  = 0x2,
+            // Uniform is an declared as an array. 'count' contains array length.
+            kArray_Flag = 0x1,
+
+            // Uniform is declared with layout(color). Colors should be supplied as unpremultiplied,
+            // extended-range (unclamped) sRGB (ie SkColor4f). The uniform will be automatically
+            // transformed to unpremultiplied extended-range working-space colors.
+            kColor_Flag = 0x2,
         };
 
         SkString  name;
@@ -75,6 +84,7 @@ public:
         uint32_t  flags;
 
         bool isArray() const { return SkToBool(this->flags & kArray_Flag); }
+        bool isColor() const { return SkToBool(this->flags & kColor_Flag); }
         size_t sizeInBytes() const;
     };
 
@@ -159,6 +169,9 @@ public:
 
     static Result MakeForShader(std::unique_ptr<SkSL::Program> program, const Options&);
     static Result MakeForShader(std::unique_ptr<SkSL::Program> program);
+    static sk_sp<SkRuntimeEffect> MakeForShader(std::unique_ptr<SkSL::Program> program,
+                                                const Options&, SkSL::ErrorReporter* errors);
+
 
     static Result MakeForBlender(std::unique_ptr<SkSL::Program> program, const Options&);
     static Result MakeForBlender(std::unique_ptr<SkSL::Program> program);
@@ -171,7 +184,7 @@ public:
         ChildPtr(sk_sp<SkColorFilter> cf) : fChild(std::move(cf)) {}
         ChildPtr(sk_sp<SkBlender> b) : fChild(std::move(b)) {}
 
-        skstd::optional<ChildType> type() const;
+        std::optional<ChildType> type() const;
 
         SkShader* shader() const;
         SkColorFilter* colorFilter() const;
@@ -185,12 +198,10 @@ public:
     sk_sp<SkShader> makeShader(sk_sp<SkData> uniforms,
                                sk_sp<SkShader> children[],
                                size_t childCount,
-                               const SkMatrix* localMatrix,
-                               bool isOpaque) const;
+                               const SkMatrix* localMatrix = nullptr) const;
     sk_sp<SkShader> makeShader(sk_sp<SkData> uniforms,
                                SkSpan<ChildPtr> children,
-                               const SkMatrix* localMatrix,
-                               bool isOpaque) const;
+                               const SkMatrix* localMatrix = nullptr) const;
 
     sk_sp<SkImage> makeImage(GrRecordingContext*,
                              sk_sp<SkData> uniforms,
@@ -208,29 +219,33 @@ public:
 
     sk_sp<SkBlender> makeBlender(sk_sp<SkData> uniforms, SkSpan<ChildPtr> children = {}) const;
 
-    const std::string& source() const;
+    /**
+     * Creates a new Runtime Effect patterned after an already-existing one. The new shader behaves
+     * like the original, but also creates a debug trace of its execution at the requested
+     * coordinate. After painting with this shader, the associated DebugTrace object will contain a
+     * shader execution trace. Call `writeTrace` on the debug trace object to generate a full trace
+     * suitable for a debugger, or call `dump` to emit a human-readable trace.
+     *
+     * Debug traces are only supported on a raster (non-GPU) canvas.
 
-    template <typename T>
-    class ConstIterable {
-    public:
-        ConstIterable(const std::vector<T>& vec) : fVec(vec) {}
-
-        using const_iterator = typename std::vector<T>::const_iterator;
-
-        const_iterator begin() const { return fVec.begin(); }
-        const_iterator end() const { return fVec.end(); }
-        size_t count() const { return fVec.size(); }
-
-    private:
-        const std::vector<T>& fVec;
+     * Debug traces are currently only supported on shaders. Color filter and blender tracing is a
+     * work-in-progress.
+     */
+    struct TracedShader {
+        sk_sp<SkShader> shader;
+        sk_sp<SkSL::DebugTrace> debugTrace;
     };
+    static TracedShader MakeTraced(sk_sp<SkShader> shader, const SkIPoint& traceCoord);
+
+    // Returns the SkSL source of the runtime effect shader.
+    const std::string& source() const;
 
     // Combined size of all 'uniform' variables. When calling makeColorFilter or makeShader,
     // provide an SkData of this size, containing values for all of those variables.
     size_t uniformSize() const;
 
-    ConstIterable<Uniform> uniforms() const { return ConstIterable<Uniform>(fUniforms); }
-    ConstIterable<Child> children() const { return ConstIterable<Child>(fChildren); }
+    SkSpan<const Uniform> uniforms() const { return SkMakeSpan(fUniforms); }
+    SkSpan<const Child> children() const { return SkMakeSpan(fChildren); }
 
     // Returns pointer to the named uniform variable's description, or nullptr if not found
     const Uniform* findUniform(const char* name) const;
@@ -243,11 +258,13 @@ public:
 
 private:
     enum Flags {
-        kUsesSampleCoords_Flag   = 0x1,
-        kAllowColorFilter_Flag   = 0x2,
-        kAllowShader_Flag        = 0x4,
-        kAllowBlender_Flag       = 0x8,
+        kUsesSampleCoords_Flag   = 0x01,
+        kAllowColorFilter_Flag   = 0x02,
+        kAllowShader_Flag        = 0x04,
+        kAllowBlender_Flag       = 0x08,
         kSamplesOutsideMain_Flag = 0x10,
+        kUsesColorTransform_Flag = 0x20,
+        kAlwaysOpaque_Flag       = 0x40,
     };
 
     SkRuntimeEffect(std::unique_ptr<SkSL::Program> baseProgram,
@@ -258,22 +275,33 @@ private:
                     std::vector<SkSL::SampleUsage>&& sampleUsages,
                     uint32_t flags);
 
+    sk_sp<SkRuntimeEffect> makeUnoptimizedClone();
+
     static Result MakeFromSource(SkString sksl, const Options& options, SkSL::ProgramKind kind);
 
     static Result MakeFromDSL(std::unique_ptr<SkSL::Program> program,
                               const Options& options,
                               SkSL::ProgramKind kind);
 
+    static sk_sp<SkRuntimeEffect> MakeFromDSL(std::unique_ptr<SkSL::Program> program,
+                                              const Options& options,
+                                              SkSL::ProgramKind kind,
+                                              SkSL::ErrorReporter* errors);
+
     static Result MakeInternal(std::unique_ptr<SkSL::Program> program,
                                const Options& options,
                                SkSL::ProgramKind kind);
 
+    static SkSL::ProgramSettings MakeSettings(const Options& options, bool optimize);
+
     uint32_t hash() const { return fHash; }
-    bool usesSampleCoords()   const { return (fFlags & kUsesSampleCoords_Flag); }
-    bool allowShader()        const { return (fFlags & kAllowShader_Flag);      }
-    bool allowColorFilter()   const { return (fFlags & kAllowColorFilter_Flag); }
-    bool allowBlender()       const { return (fFlags & kAllowBlender_Flag);     }
+    bool usesSampleCoords()   const { return (fFlags & kUsesSampleCoords_Flag);   }
+    bool allowShader()        const { return (fFlags & kAllowShader_Flag);        }
+    bool allowColorFilter()   const { return (fFlags & kAllowColorFilter_Flag);   }
+    bool allowBlender()       const { return (fFlags & kAllowBlender_Flag);       }
     bool samplesOutsideMain() const { return (fFlags & kSamplesOutsideMain_Flag); }
+    bool usesColorTransform() const { return (fFlags & kUsesColorTransform_Flag); }
+    bool alwaysOpaque()       const { return (fFlags & kAlwaysOpaque_Flag);       }
 
     const SkFilterColorProgram* getFilterColorProgram();
 
@@ -395,8 +423,12 @@ protected:
     SkRuntimeEffectBuilder() = delete;
     explicit SkRuntimeEffectBuilder(sk_sp<SkRuntimeEffect> effect)
             : fEffect(std::move(effect))
-            , fUniforms(SkData::MakeUninitialized(fEffect->uniformSize()))
-            , fChildren(fEffect->children().count()) {}
+            , fUniforms(SkData::MakeZeroInitialized(fEffect->uniformSize()))
+            , fChildren(fEffect->children().size()) {}
+    explicit SkRuntimeEffectBuilder(sk_sp<SkRuntimeEffect> effect, sk_sp<SkData> uniforms)
+            : fEffect(std::move(effect))
+            , fUniforms(std::move(uniforms))
+            , fChildren(fEffect->children().size()) {}
 
     SkRuntimeEffectBuilder(SkRuntimeEffectBuilder&&) = default;
     SkRuntimeEffectBuilder(const SkRuntimeEffectBuilder&) = default;
@@ -449,7 +481,7 @@ public:
     SkRuntimeShaderBuilder(const SkRuntimeShaderBuilder&) = default;
     ~SkRuntimeShaderBuilder();
 
-    sk_sp<SkShader> makeShader(const SkMatrix* localMatrix, bool isOpaque);
+    sk_sp<SkShader> makeShader(const SkMatrix* localMatrix = nullptr);
     sk_sp<SkImage> makeImage(GrRecordingContext*,
                              const SkMatrix* localMatrix,
                              SkImageInfo resultInfo,
@@ -457,6 +489,11 @@ public:
 
 private:
     using INHERITED = SkRuntimeEffectBuilder;
+
+    explicit SkRuntimeShaderBuilder(sk_sp<SkRuntimeEffect> effect, sk_sp<SkData> uniforms)
+            : INHERITED(std::move(effect), std::move(uniforms)) {}
+
+    friend class SkRuntimeImageFilter;
 };
 
 /**

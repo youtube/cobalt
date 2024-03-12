@@ -10,7 +10,12 @@
 
 #include "include/core/SkPaint.h"
 
+#include <vector>
+
+enum class SkBackend : uint8_t;
+class SkPaintParamsKey;
 class SkReadBuffer;
+class SkShaderCodeDictionary;
 class SkWriteBuffer;
 
 class SkPaintPriv {
@@ -29,7 +34,7 @@ public:
      */
     static bool Overwrites(const SkPaint* paint, ShaderOverrideOpacity);
 
-    static bool ShouldDither(const SkPaint&, SkColorType);
+    static bool ShouldDither(const SkPaint&, SkColorType, bool shaderOverride=false);
 
     /*
      * The luminance color is used to determine which Gamma Canonical color to map to.  This is
@@ -58,6 +63,18 @@ public:
     static void RemoveColorFilter(SkPaint*, SkColorSpace* dstCS);
 
     static SkScalar ComputeResScaleForStroking(const SkMatrix&);
+
+    /**
+        Return the SkPaintParamsKeys that would be needed to draw the provided paint.
+
+        @param paint      the paint to be decomposed
+        @param dictionary dictionary of code fragments available to be used in the SkPaintParamKeys
+        @param backend    the backend that would be carrying out the drawing
+        @return           the SkPaintParamsKeys that would be needed to draw this paint
+    */
+    static std::vector<std::unique_ptr<SkPaintParamsKey>> ToKeys(const SkPaint& paint,
+                                                                 SkShaderCodeDictionary* dictionary,
+                                                                 SkBackend backend);
 };
 
 #endif

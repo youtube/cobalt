@@ -24,12 +24,16 @@
 
 class GrFragmentProcessor;
 class SkArenaAlloc;
+enum class SkBackend : uint8_t;
 class SkColorSpace;
 class SkImage;
 struct SkImageInfo;
 class SkPaint;
+class SkPaintParamsKeyBuilder;
 class SkRasterPipeline;
 class SkRuntimeEffect;
+class SkShaderCodeDictionary;
+class SkUniformBlock;
 class SkStageUpdater;
 
 class SkUpdatableShader;
@@ -208,6 +212,21 @@ public:
     skvm::Color program(skvm::Builder*, skvm::Coord device, skvm::Coord local, skvm::Color paint,
                         const SkMatrixProvider&, const SkMatrix* localM, const SkColorInfo& dst,
                         skvm::Uniforms* uniforms, SkArenaAlloc* alloc) const;
+
+
+    /**
+        Add implementation details, for the specified backend, of this SkShader to the
+        provided key.
+
+        @param dictionary   dictionary of code fragments available to be used in the key
+        @param backend      the backend that would be carrying out the drawing
+        @param builder      builder for creating the key for this SkShader
+        @param uniformBlock if non-null, storage for this shader's uniform data
+    */
+    virtual void addToKey(SkShaderCodeDictionary* dictionary,
+                          SkBackend backend,
+                          SkPaintParamsKeyBuilder* builder,
+                          SkUniformBlock* uniformBlock) const;
 
 protected:
     SkShaderBase(const SkMatrix* localMatrix = nullptr);

@@ -9,6 +9,7 @@
 
 #include "src/core/SkMatrixPriv.h"
 #include "src/gpu/GrTexture.h"
+#include "src/gpu/KeyBuilder.h"
 #include "src/gpu/effects/GrMatrixEffect.h"
 #include "src/gpu/effects/GrTextureEffect.h"
 #include "src/gpu/glsl/GrGLSLFragmentShaderBuilder.h"
@@ -34,7 +35,7 @@ void GrBicubicEffect::Impl::emitCode(EmitArgs& args) {
 
     const char* coeffs;
     fCoefficientUni = args.fUniformHandler->addUniform(&args.fFp, kFragment_GrShaderFlag,
-                                                       kHalf4x4_GrSLType, "coefficients", &coeffs);
+                                                       SkSLType::kHalf4x4, "coefficients", &coeffs);
     // We determine our fractional offset (f) within the texel. We then snap coord to a texel
     // center. The snap prevents cases where the starting coords are near a texel boundary and
     // offsets with imperfect precision would cause us to skip/double hit a texel.
@@ -51,10 +52,8 @@ void GrBicubicEffect::Impl::emitCode(EmitArgs& args) {
         fragBuilder->codeAppend("half4 rowColors[4];");
         for (int y = 0; y < 4; ++y) {
             for (int x = 0; x < 4; ++x) {
-                SkString coord;
-                coord.printf("coord + float2(%d, %d)", x - 1, y - 1);
-                auto childStr =
-                        this->invokeChild(0, args, SkSL::String(coord.c_str(), coord.size()));
+                auto coord = SkSL::String::printf("coord + float2(%d, %d)", x - 1, y - 1);
+                auto childStr = this->invokeChild(0, args, coord);
                 fragBuilder->codeAppendf("rowColors[%d] = %s;", x, childStr.c_str());
             }
             fragBuilder->codeAppendf(
@@ -73,13 +72,13 @@ void GrBicubicEffect::Impl::emitCode(EmitArgs& args) {
         fragBuilder->codeAppendf("half4 w = %s * half4(1.0, f, f2, f2 * f);", coeffs);
         fragBuilder->codeAppend("half4 c[4];");
         for (int i = 0; i < 4; ++i) {
-            SkString coord;
+            std::string coord;
             if (bicubicEffect.fDirection == Direction::kX) {
-                coord.printf("float2(coord + %d, %s.y)", i - 1, args.fSampleCoord);
+                coord = SkSL::String::printf("float2(coord + %d, %s.y)", i - 1, args.fSampleCoord);
             } else {
-                coord.printf("float2(%s.x, coord + %d)", args.fSampleCoord, i - 1);
+                coord = SkSL::String::printf("float2(%s.x, coord + %d)", args.fSampleCoord, i - 1);
             }
-            auto childStr = this->invokeChild(0, args, SkSL::String(coord.c_str(), coord.size()));
+            auto childStr = this->invokeChild(0, args, coord);
             fragBuilder->codeAppendf("c[%d] = %s;", i, childStr.c_str());
         }
         fragBuilder->codeAppend(
@@ -213,7 +212,7 @@ GrBicubicEffect::GrBicubicEffect(const GrBicubicEffect& that)
         , fDirection(that.fDirection)
         , fClamp(that.fClamp) {}
 
-void GrBicubicEffect::onAddToKey(const GrShaderCaps& caps, GrProcessorKeyBuilder* b) const {
+void GrBicubicEffect::onAddToKey(const GrShaderCaps& caps, skgpu::KeyBuilder* b) const {
     uint32_t key = (static_cast<uint32_t>(fDirection) << 0) | (static_cast<uint32_t>(fClamp) << 2);
     b->add32(key);
 }

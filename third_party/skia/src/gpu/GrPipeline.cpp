@@ -10,6 +10,7 @@
 #include "src/gpu/GrAppliedClip.h"
 #include "src/gpu/GrCaps.h"
 #include "src/gpu/GrXferProcessor.h"
+#include "src/gpu/KeyBuilder.h"
 #include "src/gpu/glsl/GrGLSLProgramDataManager.h"
 #include "src/gpu/glsl/GrGLSLUniformHandler.h"
 
@@ -63,7 +64,7 @@ GrXferBarrierType GrPipeline::xferBarrierType(const GrCaps& caps) const {
 
 GrPipeline::GrPipeline(GrScissorTest scissorTest,
                        sk_sp<const GrXferProcessor> xp,
-                       const GrSwizzle& writeSwizzle,
+                       const skgpu::Swizzle& writeSwizzle,
                        InputFlags inputFlags)
         : fWindowRectsState()
         , fFlags((Flags)inputFlags)
@@ -74,7 +75,7 @@ GrPipeline::GrPipeline(GrScissorTest scissorTest,
     }
 }
 
-void GrPipeline::genKey(GrProcessorKeyBuilder* b, const GrCaps& caps) const {
+void GrPipeline::genKey(skgpu::KeyBuilder* b, const GrCaps& caps) const {
     // kSnapVerticesToPixelCenters is implemented in a shader.
     InputFlags ignoredFlags = InputFlags::kSnapVerticesToPixelCenters;
     b->add32((uint32_t)fFlags & ~(uint32_t)ignoredFlags, "flags");

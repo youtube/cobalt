@@ -21,6 +21,7 @@
 #include "src/gpu/GrProgramInfo.h"
 #include "src/gpu/GrRecordingContextPriv.h"
 #include "src/gpu/GrStyle.h"
+#include "src/gpu/KeyBuilder.h"
 #include "src/gpu/SkGr.h"
 #include "src/gpu/geometry/GrQuad.h"
 #include "src/gpu/glsl/GrGLSLFragmentShaderBuilder.h"
@@ -718,7 +719,7 @@ public:
 
     const char* name() const override { return "DashingCircleEffect"; }
 
-    void addToKey(const GrShaderCaps&, GrProcessorKeyBuilder*) const override;
+    void addToKey(const GrShaderCaps&, KeyBuilder*) const override;
 
     std::unique_ptr<ProgramImpl> makeProgramImpl(const GrShaderCaps&) const override;
 
@@ -774,12 +775,12 @@ void DashingCircleEffect::Impl::onEmitCode(EmitArgs& args, GrGPArgs* gpArgs) {
     varyingHandler->emitAttributes(dce);
 
     // XY are dashPos, Z is dashInterval
-    GrGLSLVarying dashParams(kHalf3_GrSLType);
+    GrGLSLVarying dashParams(SkSLType::kHalf3);
     varyingHandler->addVarying("DashParam", &dashParams);
     vertBuilder->codeAppendf("%s = %s;", dashParams.vsOut(), dce.fInDashParams.name());
 
     // x refers to circle radius - 0.5, y refers to cicle's center x coord
-    GrGLSLVarying circleParams(kHalf2_GrSLType);
+    GrGLSLVarying circleParams(SkSLType::kHalf2);
     varyingHandler->addVarying("CircleParams", &circleParams);
     vertBuilder->codeAppendf("%s = %s;", circleParams.vsOut(), dce.fInCircleParams.name());
 
@@ -842,7 +843,7 @@ GrGeometryProcessor* DashingCircleEffect::Make(SkArenaAlloc* arena,
     });
 }
 
-void DashingCircleEffect::addToKey(const GrShaderCaps& caps, GrProcessorKeyBuilder* b) const {
+void DashingCircleEffect::addToKey(const GrShaderCaps& caps, KeyBuilder* b) const {
     uint32_t key = 0;
     key |= fUsesLocalCoords ? 0x1 : 0x0;
     key |= static_cast<uint32_t>(fAAMode) << 1;
@@ -864,10 +865,10 @@ DashingCircleEffect::DashingCircleEffect(const SkPMColor4f& color,
         , fLocalMatrix(localMatrix)
         , fUsesLocalCoords(usesLocalCoords)
         , fAAMode(aaMode) {
-    fInPosition = {"inPosition", kFloat2_GrVertexAttribType, kFloat2_GrSLType};
-    fInDashParams = {"inDashParams", kFloat3_GrVertexAttribType, kHalf3_GrSLType};
-    fInCircleParams = {"inCircleParams", kFloat2_GrVertexAttribType, kHalf2_GrSLType};
-    this->setVertexAttributes(&fInPosition, 3);
+    fInPosition = {"inPosition", kFloat2_GrVertexAttribType, SkSLType::kFloat2};
+    fInDashParams = {"inDashParams", kFloat3_GrVertexAttribType, SkSLType::kHalf3};
+    fInCircleParams = {"inCircleParams", kFloat2_GrVertexAttribType, SkSLType::kHalf2};
+    this->setVertexAttributesWithImplicitOffsets(&fInPosition, 3);
 }
 
 GR_DEFINE_GEOMETRY_PROCESSOR_TEST(DashingCircleEffect);
@@ -910,7 +911,7 @@ public:
 
     bool usesLocalCoords() const { return fUsesLocalCoords; }
 
-    void addToKey(const GrShaderCaps&, GrProcessorKeyBuilder*) const override;
+    void addToKey(const GrShaderCaps&, KeyBuilder*) const override;
 
     std::unique_ptr<ProgramImpl> makeProgramImpl(const GrShaderCaps&) const override;
 
@@ -963,13 +964,13 @@ void DashingLineEffect::Impl::onEmitCode(EmitArgs& args, GrGPArgs* gpArgs) {
     varyingHandler->emitAttributes(de);
 
     // XY refers to dashPos, Z is the dash interval length
-    GrGLSLVarying inDashParams(kFloat3_GrSLType);
+    GrGLSLVarying inDashParams(SkSLType::kFloat3);
     varyingHandler->addVarying("DashParams", &inDashParams);
     vertBuilder->codeAppendf("%s = %s;", inDashParams.vsOut(), de.fInDashParams.name());
 
     // The rect uniform's xyzw refer to (left + 0.5, top + 0.5, right - 0.5, bottom - 0.5),
     // respectively.
-    GrGLSLVarying inRectParams(kFloat4_GrSLType);
+    GrGLSLVarying inRectParams(SkSLType::kFloat4);
     varyingHandler->addVarying("RectParams", &inRectParams);
     vertBuilder->codeAppendf("%s = %s;", inRectParams.vsOut(), de.fInRect.name());
 
@@ -1056,7 +1057,7 @@ GrGeometryProcessor* DashingLineEffect::Make(SkArenaAlloc* arena,
     });
 }
 
-void DashingLineEffect::addToKey(const GrShaderCaps& caps, GrProcessorKeyBuilder* b) const {
+void DashingLineEffect::addToKey(const GrShaderCaps& caps, KeyBuilder* b) const {
     uint32_t key = 0;
     key |= fUsesLocalCoords ? 0x1 : 0x0;
     key |= static_cast<int>(fAAMode) << 1;
@@ -1078,10 +1079,10 @@ DashingLineEffect::DashingLineEffect(const SkPMColor4f& color,
         , fLocalMatrix(localMatrix)
         , fUsesLocalCoords(usesLocalCoords)
         , fAAMode(aaMode) {
-    fInPosition = {"inPosition", kFloat2_GrVertexAttribType, kFloat2_GrSLType};
-    fInDashParams = {"inDashParams", kFloat3_GrVertexAttribType, kHalf3_GrSLType};
-    fInRect = {"inRect", kFloat4_GrVertexAttribType, kHalf4_GrSLType};
-    this->setVertexAttributes(&fInPosition, 3);
+    fInPosition = {"inPosition", kFloat2_GrVertexAttribType, SkSLType::kFloat2};
+    fInDashParams = {"inDashParams", kFloat3_GrVertexAttribType, SkSLType::kHalf3};
+    fInRect = {"inRect", kFloat4_GrVertexAttribType, SkSLType::kHalf4};
+    this->setVertexAttributesWithImplicitOffsets(&fInPosition, 3);
 }
 
 GR_DEFINE_GEOMETRY_PROCESSOR_TEST(DashingLineEffect);

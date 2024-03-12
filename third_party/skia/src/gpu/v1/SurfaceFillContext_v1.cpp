@@ -11,13 +11,14 @@
 #include "src/gpu/GrDstProxyView.h"
 #include "src/gpu/GrImageContextPriv.h"
 #include "src/gpu/GrProxyProvider.h"
+#include "src/gpu/GrTextureResolveRenderTask.h"
 #include "src/gpu/effects/GrTextureEffect.h"
 #include "src/gpu/geometry/GrRect.h"
 #include "src/gpu/ops/ClearOp.h"
 #include "src/gpu/ops/FillRectOp.h"
 #include "src/gpu/v1/SurfaceDrawContext_v1.h"
 
-#define ASSERT_SINGLE_OWNER        GR_ASSERT_SINGLE_OWNER(this->singleOwner())
+#define ASSERT_SINGLE_OWNER        SKGPU_ASSERT_SINGLE_OWNER(this->singleOwner())
 #define RETURN_IF_ABANDONED        if (fContext->abandoned()) { return; }
 
 class AutoCheckFlush {
@@ -158,6 +159,19 @@ void SurfaceFillContext::discard() {
     AutoCheckFlush acf(this->drawingManager());
 
     this->getOpsTask()->discard();
+}
+
+void SurfaceFillContext::resolveMSAA() {
+    ASSERT_SINGLE_OWNER
+    RETURN_IF_ABANDONED
+    SkDEBUGCODE(this->validate();)
+    GR_CREATE_TRACE_MARKER_CONTEXT("v1::SurfaceFillContext", "resolveMSAA", fContext);
+
+    AutoCheckFlush acf(this->drawingManager());
+
+    this->drawingManager()->newTextureResolveRenderTask(this->asSurfaceProxyRef(),
+                                                        GrSurfaceProxy::ResolveFlags::kMSAA,
+                                                        *this->caps());
 }
 
 void SurfaceFillContext::internalClear(const SkIRect* scissor,

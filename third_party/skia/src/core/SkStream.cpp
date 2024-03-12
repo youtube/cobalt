@@ -152,7 +152,7 @@ bool SkWStream::writeStream(SkStream* stream, size_t length) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-SkFILEStream::SkFILEStream(std::shared_ptr<SkFile> file, size_t end, size_t start, size_t current)
+SkFILEStream::SkFILEStream(std::shared_ptr<FILE> file, size_t end, size_t start, size_t current)
     : fFILE(std::move(file))
     , fEnd(end)
     , fStart(std::min(start, fEnd))
@@ -162,20 +162,20 @@ SkFILEStream::SkFILEStream(std::shared_ptr<SkFile> file, size_t end, size_t star
     SkASSERT(fCurrent == current);
 }
 
-SkFILEStream::SkFILEStream(std::shared_ptr<SkFile> file, size_t end, size_t start)
+SkFILEStream::SkFILEStream(std::shared_ptr<FILE> file, size_t end, size_t start)
     : SkFILEStream(std::move(file), end, start, start)
 { }
 
-SkFILEStream::SkFILEStream(SkFile* file, size_t size, size_t start)
-    : SkFILEStream(std::shared_ptr<SkFile>(file, sk_fclose), SkSafeMath::Add(start, size), start)
+SkFILEStream::SkFILEStream(FILE* file, size_t size, size_t start)
+    : SkFILEStream(std::shared_ptr<FILE>(file, sk_fclose), SkSafeMath::Add(start, size), start)
 { }
 
-SkFILEStream::SkFILEStream(SkFile* file, size_t size)
+SkFILEStream::SkFILEStream(FILE* file, size_t size)
     : SkFILEStream(file, size, file ? sk_ftell(file) : 0)
 { }
 
-SkFILEStream::SkFILEStream(SkFile* file)
-    : SkFILEStream(std::shared_ptr<SkFile>(file, sk_fclose),
+SkFILEStream::SkFILEStream(FILE* file)
+    : SkFILEStream(std::shared_ptr<FILE>(file, sk_fclose),
                    file ? sk_fgetsize(file) : 0,
                    file ? sk_ftell(file) : 0)
 { }
@@ -891,10 +891,22 @@ std::unique_ptr<SkStreamAsset> SkDynamicMemoryWStream::detachAsStream() {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+
+bool SkDebugfStream::write(const void* buffer, size_t size) {
+    SkDebugf("%.*s", (int)size, (const char*)buffer);
+    fBytesWritten += size;
+    return true;
+}
+
+size_t SkDebugfStream::bytesWritten() const {
+    return fBytesWritten;
+}
+
+///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 
 static sk_sp<SkData> mmap_filename(const char path[]) {
-    SkFile* file = sk_fopen(path, kRead_SkFILE_Flag);
+    FILE* file = sk_fopen(path, kRead_SkFILE_Flag);
     if (nullptr == file) {
         return nullptr;
     }

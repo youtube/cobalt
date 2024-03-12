@@ -289,56 +289,6 @@ static inline GrQuadAAFlags SkToGrQuadAAFlags(unsigned flags) {
 }
 
 /**
- * Types of shader-language-specific boxed variables we can create.
- */
-enum GrSLType {
-    kVoid_GrSLType,
-    kBool_GrSLType,
-    kBool2_GrSLType,
-    kBool3_GrSLType,
-    kBool4_GrSLType,
-    kShort_GrSLType,
-    kShort2_GrSLType,
-    kShort3_GrSLType,
-    kShort4_GrSLType,
-    kUShort_GrSLType,
-    kUShort2_GrSLType,
-    kUShort3_GrSLType,
-    kUShort4_GrSLType,
-    kFloat_GrSLType,
-    kFloat2_GrSLType,
-    kFloat3_GrSLType,
-    kFloat4_GrSLType,
-    kFloat2x2_GrSLType,
-    kFloat3x3_GrSLType,
-    kFloat4x4_GrSLType,
-    kHalf_GrSLType,
-    kHalf2_GrSLType,
-    kHalf3_GrSLType,
-    kHalf4_GrSLType,
-    kHalf2x2_GrSLType,
-    kHalf3x3_GrSLType,
-    kHalf4x4_GrSLType,
-    kInt_GrSLType,
-    kInt2_GrSLType,
-    kInt3_GrSLType,
-    kInt4_GrSLType,
-    kUInt_GrSLType,
-    kUInt2_GrSLType,
-    kUInt3_GrSLType,
-    kUInt4_GrSLType,
-    kTexture2DSampler_GrSLType,
-    kTextureExternalSampler_GrSLType,
-    kTexture2DRectSampler_GrSLType,
-    kTexture2D_GrSLType,
-    kSampler_GrSLType,
-    kInput_GrSLType,
-
-    kLast_GrSLType = kInput_GrSLType
-};
-static const int kGrSLTypeCount = kLast_GrSLType + 1;
-
-/**
  * The type of texture. Backends other than GL currently only use the 2D value but the type must
  * still be known at the API-neutral layer as it used to determine whether MIP maps, renderability,
  * and sampling parameters are legal for proxies that will be instantiated with wrapped textures.
@@ -368,186 +318,6 @@ enum GrShaderFlags {
 };
 SK_MAKE_BITFIELD_OPS(GrShaderFlags)
 
-/** Is the shading language type float (including vectors/matrices)? */
-static constexpr bool GrSLTypeIsFloatType(GrSLType type) {
-    switch (type) {
-        case kFloat_GrSLType:
-        case kFloat2_GrSLType:
-        case kFloat3_GrSLType:
-        case kFloat4_GrSLType:
-        case kFloat2x2_GrSLType:
-        case kFloat3x3_GrSLType:
-        case kFloat4x4_GrSLType:
-        case kHalf_GrSLType:
-        case kHalf2_GrSLType:
-        case kHalf3_GrSLType:
-        case kHalf4_GrSLType:
-        case kHalf2x2_GrSLType:
-        case kHalf3x3_GrSLType:
-        case kHalf4x4_GrSLType:
-            return true;
-
-        case kVoid_GrSLType:
-        case kTexture2DSampler_GrSLType:
-        case kTextureExternalSampler_GrSLType:
-        case kTexture2DRectSampler_GrSLType:
-        case kBool_GrSLType:
-        case kBool2_GrSLType:
-        case kBool3_GrSLType:
-        case kBool4_GrSLType:
-        case kShort_GrSLType:
-        case kShort2_GrSLType:
-        case kShort3_GrSLType:
-        case kShort4_GrSLType:
-        case kUShort_GrSLType:
-        case kUShort2_GrSLType:
-        case kUShort3_GrSLType:
-        case kUShort4_GrSLType:
-        case kInt_GrSLType:
-        case kInt2_GrSLType:
-        case kInt3_GrSLType:
-        case kInt4_GrSLType:
-        case kUInt_GrSLType:
-        case kUInt2_GrSLType:
-        case kUInt3_GrSLType:
-        case kUInt4_GrSLType:
-        case kTexture2D_GrSLType:
-        case kSampler_GrSLType:
-        case kInput_GrSLType:
-            return false;
-    }
-    SkUNREACHABLE;
-}
-
-/** Is the shading language type integral (including vectors)? */
-static constexpr bool GrSLTypeIsIntegralType(GrSLType type) {
-    switch (type) {
-        case kShort_GrSLType:
-        case kShort2_GrSLType:
-        case kShort3_GrSLType:
-        case kShort4_GrSLType:
-        case kUShort_GrSLType:
-        case kUShort2_GrSLType:
-        case kUShort3_GrSLType:
-        case kUShort4_GrSLType:
-        case kInt_GrSLType:
-        case kInt2_GrSLType:
-        case kInt3_GrSLType:
-        case kInt4_GrSLType:
-        case kUInt_GrSLType:
-        case kUInt2_GrSLType:
-        case kUInt3_GrSLType:
-        case kUInt4_GrSLType:
-            return true;
-
-        case kFloat_GrSLType:
-        case kFloat2_GrSLType:
-        case kFloat3_GrSLType:
-        case kFloat4_GrSLType:
-        case kFloat2x2_GrSLType:
-        case kFloat3x3_GrSLType:
-        case kFloat4x4_GrSLType:
-        case kHalf_GrSLType:
-        case kHalf2_GrSLType:
-        case kHalf3_GrSLType:
-        case kHalf4_GrSLType:
-        case kHalf2x2_GrSLType:
-        case kHalf3x3_GrSLType:
-        case kHalf4x4_GrSLType:
-        case kVoid_GrSLType:
-        case kTexture2DSampler_GrSLType:
-        case kTextureExternalSampler_GrSLType:
-        case kTexture2DRectSampler_GrSLType:
-        case kBool_GrSLType:
-        case kBool2_GrSLType:
-        case kBool3_GrSLType:
-        case kBool4_GrSLType:
-        case kTexture2D_GrSLType:
-        case kSampler_GrSLType:
-        case kInput_GrSLType:
-            return false;
-    }
-    SkUNREACHABLE;
-}
-
-/**
- * Is the shading language type supported as a uniform (ie, does it have a corresponding set
- * function on GrGLSLProgramDataManager)?
- */
-static constexpr bool GrSLTypeCanBeUniformValue(GrSLType type) {
-    return GrSLTypeIsFloatType(type) || GrSLTypeIsIntegralType(type);
-}
-
-/** If the type represents a single value or vector return the vector length, else -1. */
-static constexpr int GrSLTypeVecLength(GrSLType type) {
-    switch (type) {
-        case kFloat_GrSLType:
-        case kHalf_GrSLType:
-        case kBool_GrSLType:
-        case kShort_GrSLType:
-        case kUShort_GrSLType:
-        case kInt_GrSLType:
-        case kUInt_GrSLType:
-            return 1;
-
-        case kFloat2_GrSLType:
-        case kHalf2_GrSLType:
-        case kBool2_GrSLType:
-        case kShort2_GrSLType:
-        case kUShort2_GrSLType:
-        case kInt2_GrSLType:
-        case kUInt2_GrSLType:
-            return 2;
-
-        case kFloat3_GrSLType:
-        case kHalf3_GrSLType:
-        case kBool3_GrSLType:
-        case kShort3_GrSLType:
-        case kUShort3_GrSLType:
-        case kInt3_GrSLType:
-        case kUInt3_GrSLType:
-            return 3;
-
-        case kFloat4_GrSLType:
-        case kHalf4_GrSLType:
-        case kBool4_GrSLType:
-        case kShort4_GrSLType:
-        case kUShort4_GrSLType:
-        case kInt4_GrSLType:
-        case kUInt4_GrSLType:
-            return 4;
-
-        case kFloat2x2_GrSLType:
-        case kFloat3x3_GrSLType:
-        case kFloat4x4_GrSLType:
-        case kHalf2x2_GrSLType:
-        case kHalf3x3_GrSLType:
-        case kHalf4x4_GrSLType:
-        case kVoid_GrSLType:
-        case kTexture2DSampler_GrSLType:
-        case kTextureExternalSampler_GrSLType:
-        case kTexture2DRectSampler_GrSLType:
-        case kTexture2D_GrSLType:
-        case kSampler_GrSLType:
-        case kInput_GrSLType:
-            return -1;
-    }
-    SkUNREACHABLE;
-}
-
-static inline GrSLType GrSLCombinedSamplerTypeForTextureType(GrTextureType type) {
-    switch (type) {
-        case GrTextureType::k2D:
-            return kTexture2DSampler_GrSLType;
-        case GrTextureType::kRectangle:
-            return kTexture2DRectSampler_GrSLType;
-        case GrTextureType::kExternal:
-            return kTextureExternalSampler_GrSLType;
-        default:
-            SK_ABORT("Unexpected texture type");
-    }
-}
-
 /** Rectangle and external textures only support the clamp wrap mode and do not support
  *  MIP maps.
  */
@@ -562,56 +332,6 @@ static inline bool GrTextureTypeHasRestrictedSampling(GrTextureType type) {
         default:
             SK_ABORT("Unexpected texture type");
     }
-}
-
-static constexpr bool GrSLTypeIsCombinedSamplerType(GrSLType type) {
-    switch (type) {
-        case kTexture2DSampler_GrSLType:
-        case kTextureExternalSampler_GrSLType:
-        case kTexture2DRectSampler_GrSLType:
-            return true;
-
-        case kVoid_GrSLType:
-        case kFloat_GrSLType:
-        case kFloat2_GrSLType:
-        case kFloat3_GrSLType:
-        case kFloat4_GrSLType:
-        case kFloat2x2_GrSLType:
-        case kFloat3x3_GrSLType:
-        case kFloat4x4_GrSLType:
-        case kHalf_GrSLType:
-        case kHalf2_GrSLType:
-        case kHalf3_GrSLType:
-        case kHalf4_GrSLType:
-        case kHalf2x2_GrSLType:
-        case kHalf3x3_GrSLType:
-        case kHalf4x4_GrSLType:
-        case kInt_GrSLType:
-        case kInt2_GrSLType:
-        case kInt3_GrSLType:
-        case kInt4_GrSLType:
-        case kUInt_GrSLType:
-        case kUInt2_GrSLType:
-        case kUInt3_GrSLType:
-        case kUInt4_GrSLType:
-        case kBool_GrSLType:
-        case kBool2_GrSLType:
-        case kBool3_GrSLType:
-        case kBool4_GrSLType:
-        case kShort_GrSLType:
-        case kShort2_GrSLType:
-        case kShort3_GrSLType:
-        case kShort4_GrSLType:
-        case kUShort_GrSLType:
-        case kUShort2_GrSLType:
-        case kUShort3_GrSLType:
-        case kUShort4_GrSLType:
-        case kTexture2D_GrSLType:
-        case kSampler_GrSLType:
-        case kInput_GrSLType:
-            return false;
-    }
-    SkUNREACHABLE;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -883,6 +603,7 @@ enum class GrColorType {
     kAlpha_8xxx,
     kAlpha_F32xxx,
     kGray_8xxx,
+    kR_8xxx,
 
     // Types used to initialize backend textures.
     kRGB_888,
@@ -920,12 +641,13 @@ static constexpr SkColorType GrColorTypeToSkColorType(GrColorType ct) {
         case GrColorType::kAlpha_8xxx:       return kUnknown_SkColorType;
         case GrColorType::kAlpha_F32xxx:     return kUnknown_SkColorType;
         case GrColorType::kGray_8xxx:        return kUnknown_SkColorType;
+        case GrColorType::kR_8xxx:           return kUnknown_SkColorType;
         case GrColorType::kAlpha_16:         return kA16_unorm_SkColorType;
         case GrColorType::kRG_1616:          return kR16G16_unorm_SkColorType;
         case GrColorType::kRGBA_16161616:    return kR16G16B16A16_unorm_SkColorType;
         case GrColorType::kRG_F16:           return kR16G16_float_SkColorType;
         case GrColorType::kRGB_888:          return kUnknown_SkColorType;
-        case GrColorType::kR_8:              return kUnknown_SkColorType;
+        case GrColorType::kR_8:              return kR8_unorm_SkColorType;
         case GrColorType::kR_16:             return kUnknown_SkColorType;
         case GrColorType::kR_F16:            return kUnknown_SkColorType;
         case GrColorType::kGray_F16:         return kUnknown_SkColorType;
@@ -959,6 +681,7 @@ static constexpr GrColorType SkColorTypeToGrColorType(SkColorType ct) {
         case kA16_float_SkColorType:          return GrColorType::kAlpha_F16;
         case kR16G16_float_SkColorType:       return GrColorType::kRG_F16;
         case kR16G16B16A16_unorm_SkColorType: return GrColorType::kRGBA_16161616;
+        case kR8_unorm_SkColorType:           return GrColorType::kR_8;
     }
     SkUNREACHABLE;
 }
@@ -985,6 +708,7 @@ static constexpr uint32_t GrColorTypeChannelFlags(GrColorType ct) {
         case GrColorType::kAlpha_8xxx:       return kAlpha_SkColorChannelFlag;
         case GrColorType::kAlpha_F32xxx:     return kAlpha_SkColorChannelFlag;
         case GrColorType::kGray_8xxx:        return kGray_SkColorChannelFlag;
+        case GrColorType::kR_8xxx:           return kRed_SkColorChannelFlag;
         case GrColorType::kAlpha_16:         return kAlpha_SkColorChannelFlag;
         case GrColorType::kRG_1616:          return kRG_SkColorChannelFlags;
         case GrColorType::kRGBA_16161616:    return kRGBA_SkColorChannelFlags;
@@ -1135,6 +859,8 @@ static constexpr GrColorFormatDesc GrGetColorTypeDesc(GrColorType ct) {
             return GrColorFormatDesc::MakeAlpha(32, GrColorTypeEncoding::kFloat);
         case GrColorType::kGray_8xxx:
             return GrColorFormatDesc::MakeGray(8, GrColorTypeEncoding::kUnorm);
+        case GrColorType::kR_8xxx:
+            return GrColorFormatDesc::MakeR(8, GrColorTypeEncoding::kUnorm);
         case GrColorType::kAlpha_16:
             return GrColorFormatDesc::MakeAlpha(16, GrColorTypeEncoding::kUnorm);
         case GrColorType::kRG_1616:
@@ -1211,6 +937,7 @@ static constexpr size_t GrColorTypeBytesPerPixel(GrColorType ct) {
         case GrColorType::kAlpha_8xxx:       return 4;
         case GrColorType::kAlpha_F32xxx:     return 16;
         case GrColorType::kGray_8xxx:        return 4;
+        case GrColorType::kR_8xxx:           return 4;
         case GrColorType::kAlpha_16:         return 2;
         case GrColorType::kRG_1616:          return 4;
         case GrColorType::kRGBA_16161616:    return 8;
@@ -1325,6 +1052,7 @@ static constexpr const char* GrColorTypeToStr(GrColorType ct) {
         case GrColorType::kAlpha_8xxx:       return "kAlpha_8xxx";
         case GrColorType::kAlpha_F32xxx:     return "kAlpha_F32xxx";
         case GrColorType::kGray_8xxx:        return "kGray_8xxx";
+        case GrColorType::kR_8xxx:           return "kR_8xxx";
         case GrColorType::kAlpha_16:         return "kAlpha_16";
         case GrColorType::kRG_1616:          return "kRG_1616";
         case GrColorType::kRGBA_16161616:    return "kRGBA_16161616";
@@ -1346,6 +1074,14 @@ static constexpr const char* GrCompressionTypeToStr(SkImage::CompressionType com
         case SkImage::CompressionType::kETC2_RGB8_UNORM: return "kETC2_RGB8_UNORM";
         case SkImage::CompressionType::kBC1_RGB8_UNORM:  return "kBC1_RGB8_UNORM";
         case SkImage::CompressionType::kBC1_RGBA8_UNORM: return "kBC1_RGBA8_UNORM";
+    }
+    SkUNREACHABLE;
+}
+
+static constexpr const char* GrSurfaceOriginToStr(GrSurfaceOrigin origin) {
+    switch (origin) {
+        case kTopLeft_GrSurfaceOrigin:    return "kTopLeft";
+        case kBottomLeft_GrSurfaceOrigin: return "kBottomLeft";
     }
     SkUNREACHABLE;
 }

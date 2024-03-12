@@ -15,7 +15,6 @@
 #include "include/core/SkRect.h"
 #include "include/core/SkScalar.h"
 #include "include/core/SkSize.h"
-#include "include/core/SkSurfaceProps.h"
 #include "src/core/SkDevice.h"
 #include "src/core/SkGlyphRunPainter.h"
 #include "src/core/SkRasterClip.h"
@@ -29,7 +28,9 @@ class SkPixmap;
 class SkRasterHandleAllocator;
 class SkRRect;
 class SkSurface;
+class SkSurfaceProps;
 struct SkPoint;
+struct SkCustomMesh;
 
 ///////////////////////////////////////////////////////////////////////////////
 class SkBitmapDevice : public SkBaseDevice {
@@ -54,19 +55,10 @@ public:
      *  any drawing to this device will have no effect.
      */
     SkBitmapDevice(const SkBitmap& bitmap, const SkSurfaceProps& surfaceProps,
-                   void* externalHandle, const SkBitmap* coverage);
+                   void* externalHandle = nullptr);
 
     static SkBitmapDevice* Create(const SkImageInfo&, const SkSurfaceProps&,
-                                  bool trackCoverage,
-                                  SkRasterHandleAllocator*);
-
-    static SkBitmapDevice* Create(const SkImageInfo& info, const SkSurfaceProps& props) {
-        return Create(info, props, false, nullptr);
-    }
-
-    const SkPixmap* accessCoverage() const {
-        return fCoverage ? &fCoverage->pixmap() : nullptr;
-    }
+                                  SkRasterHandleAllocator* = nullptr);
 
 protected:
     void* getRasterHandle() const override { return fRasterHandle; }
@@ -94,8 +86,12 @@ protected:
                        const SkSamplingOptions&, const SkPaint&,
                        SkCanvas::SrcRectConstraint) override;
 
-    void drawVertices(const SkVertices*, SkBlendMode, const SkPaint&) override;
-    void drawAtlas(const SkRSXform[], const SkRect[], const SkColor[], int count, SkBlendMode,
+    void drawVertices(const SkVertices*, sk_sp<SkBlender>, const SkPaint&) override;
+#ifdef SK_ENABLE_SKSL
+    void drawCustomMesh(SkCustomMesh, sk_sp<SkBlender>, const SkPaint&) override;
+#endif
+
+    void drawAtlas(const SkRSXform[], const SkRect[], const SkColor[], int count, sk_sp<SkBlender>,
                    const SkPaint&) override;
 
     ///////////////////////////////////////////////////////////////////////////
@@ -111,7 +107,7 @@ protected:
 
     ///////////////////////////////////////////////////////////////////////////
 
-    void onDrawGlyphRunList(const SkGlyphRunList& glyphRunList, const SkPaint& paint) override;
+    void onDrawGlyphRunList(SkCanvas*, const SkGlyphRunList&, const SkPaint&) override;
     bool onReadPixels(const SkPixmap&, int x, int y) override;
     bool onWritePixels(const SkPixmap&, int, int) override;
     bool onPeekPixels(SkPixmap*) override;
@@ -157,32 +153,10 @@ private:
     SkBitmap    fBitmap;
     void*       fRasterHandle = nullptr;
     SkRasterClipStack  fRCStack;
-    std::unique_ptr<SkBitmap> fCoverage;    // if non-null, will have the same dimensions as fBitmap
     SkGlyphRunListPainter fGlyphPainter;
 
 
     using INHERITED = SkBaseDevice;
-};
-
-class SkBitmapDeviceFilteredSurfaceProps {
-public:
-    SkBitmapDeviceFilteredSurfaceProps(const SkBitmap& bitmap, const SkPaint& paint,
-                                       const SkSurfaceProps& surfaceProps)
-        : fSurfaceProps((kN32_SkColorType != bitmap.colorType() || !paint.isSrcOver())
-                        ? fLazy.init(surfaceProps.flags(), kUnknown_SkPixelGeometry)
-                        : &surfaceProps)
-    { }
-
-    SkBitmapDeviceFilteredSurfaceProps(const SkBitmapDeviceFilteredSurfaceProps&) = delete;
-    SkBitmapDeviceFilteredSurfaceProps& operator=(const SkBitmapDeviceFilteredSurfaceProps&) = delete;
-    SkBitmapDeviceFilteredSurfaceProps(SkBitmapDeviceFilteredSurfaceProps&&) = delete;
-    SkBitmapDeviceFilteredSurfaceProps& operator=(SkBitmapDeviceFilteredSurfaceProps&&) = delete;
-
-    const SkSurfaceProps& operator()() const { return *fSurfaceProps; }
-
-private:
-    SkTLazy<SkSurfaceProps> fLazy;
-    SkSurfaceProps const * const fSurfaceProps;
 };
 
 #endif // SkBitmapDevice_DEFINED

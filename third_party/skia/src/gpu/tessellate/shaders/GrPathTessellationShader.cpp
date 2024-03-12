@@ -12,6 +12,8 @@
 #include "src/gpu/glsl/GrGLSLVarying.h"
 #include "src/gpu/glsl/GrGLSLVertexGeoBuilder.h"
 
+using skgpu::PatchAttribs;
+
 namespace {
 
 // Draws a simple array of triangles.
@@ -19,34 +21,61 @@ class SimpleTriangleShader : public GrPathTessellationShader {
 public:
     SimpleTriangleShader(const SkMatrix& viewMatrix, SkPMColor4f color)
             : GrPathTessellationShader(kTessellate_SimpleTriangleShader_ClassID,
-                                       GrPrimitiveType::kTriangles, 0, viewMatrix, color) {
+                                       GrPrimitiveType::kTriangles, 0, viewMatrix, color,
+                                       PatchAttribs::kNone) {
         constexpr static Attribute kInputPointAttrib{"inputPoint", kFloat2_GrVertexAttribType,
-                                                     kFloat2_GrSLType};
-        this->setVertexAttributes(&kInputPointAttrib, 1);
+                                                     SkSLType::kFloat2};
+        this->setVertexAttributesWithImplicitOffsets(&kInputPointAttrib, 1);
     }
+
+    int maxTessellationSegments(const GrShaderCaps&) const override { SkUNREACHABLE; }
 
 private:
     const char* name() const final { return "tessellate_SimpleTriangleShader"; }
-    void addToKey(const GrShaderCaps&, GrProcessorKeyBuilder*) const final {}
+    void addToKey(const GrShaderCaps&, skgpu::KeyBuilder*) const final {}
     std::unique_ptr<ProgramImpl> makeProgramImpl(const GrShaderCaps&) const final;
 };
 
 std::unique_ptr<GrGeometryProcessor::ProgramImpl> SimpleTriangleShader::makeProgramImpl(
         const GrShaderCaps&) const {
     class Impl : public GrPathTessellationShader::Impl {
-        void emitVertexCode(const GrShaderCaps&, const GrPathTessellationShader&,
-                            GrGLSLVertexBuilder* v, GrGPArgs* gpArgs) override {
+        void emitVertexCode(const GrShaderCaps&,
+                            const GrPathTessellationShader&,
+                            GrGLSLVertexBuilder* v,
+                            GrGLSLVaryingHandler*,
+                            GrGPArgs* gpArgs) override {
             v->codeAppend(R"(
             float2 localcoord = inputPoint;
             float2 vertexpos = AFFINE_MATRIX * localcoord + TRANSLATE;)");
-            gpArgs->fLocalCoordVar.set(kFloat2_GrSLType, "localcoord");
-            gpArgs->fPositionVar.set(kFloat2_GrSLType, "vertexpos");
+            gpArgs->fLocalCoordVar.set(SkSLType::kFloat2, "localcoord");
+            gpArgs->fPositionVar.set(SkSLType::kFloat2, "vertexpos");
         }
     };
     return std::make_unique<Impl>();
 }
 
 }  // namespace
+
+GrPathTessellationShader* GrPathTessellationShader::Make(SkArenaAlloc* arena,
+                                                         const SkMatrix& viewMatrix,
+                                                         const SkPMColor4f& color,
+                                                         int totalCombinedPathVerbCnt,
+                                                         const GrPipeline& pipeline,
+                                                         skgpu::PatchAttribs attribs,
+                                                         const GrCaps& caps) {
+    if (caps.shaderCaps()->tessellationSupport() &&
+        totalCombinedPathVerbCnt >= caps.minPathVerbsForHwTessellation() &&
+        !pipeline.usesLocalCoords() &&  // Our tessellation back door doesn't handle varyings.
+        // Input color and explicit curve type workarounds aren't implemented yet for tessellation.
+        !(attribs & (PatchAttribs::kColor | PatchAttribs::kExplicitCurveType))) {
+        return GrPathTessellationShader::MakeHardwareTessellationShader(arena, viewMatrix, color,
+                                                                        attribs);
+    } else {
+        return GrPathTessellationShader::MakeMiddleOutFixedCountShader(*caps.shaderCaps(), arena,
+                                                                       viewMatrix, color,
+                                                                       attribs);
+    }
+}
 
 GrPathTessellationShader* GrPathTessellationShader::MakeSimpleTriangleShader(
         SkArenaAlloc* arena, const SkMatrix& viewMatrix, const SkPMColor4f& color) {
@@ -91,29 +120,40 @@ void GrPathTessellationShader::Impl::onEmitCode(EmitArgs& args, GrGPArgs* gpArgs
     // Vertex shader.
     const char* affineMatrix, *translate;
     fAffineMatrixUniform = args.fUniformHandler->addUniform(nullptr, kVertex_GrShaderFlag,
-                                                            kFloat4_GrSLType, "affineMatrix",
+                                                            SkSLType::kFloat4, "affineMatrix",
                                                             &affineMatrix);
     fTranslateUniform = args.fUniformHandler->addUniform(nullptr, kVertex_GrShaderFlag,
-                                                         kFloat2_GrSLType, "translate", &translate);
+                                                         SkSLType::kFloat2, "translate", &translate);
     args.fVertBuilder->codeAppendf("float2x2 AFFINE_MATRIX = float2x2(%s);", affineMatrix);
     args.fVertBuilder->codeAppendf("float2 TRANSLATE = %s;", translate);
-    this->emitVertexCode(*args.fShaderCaps, shader, args.fVertBuilder, gpArgs);
+    this->emitVertexCode(*args.fShaderCaps,
+                         shader,
+                         args.fVertBuilder,
+                         args.fVaryingHandler,
+                         gpArgs);
 
     // Fragment shader.
-    const char* color;
-    fColorUniform = args.fUniformHandler->addUniform(nullptr, kFragment_GrShaderFlag,
-                                                     kHalf4_GrSLType, "color", &color);
-    args.fFragBuilder->codeAppendf("half4 %s = %s;", args.fOutputColor, color);
+    if (!(shader.fAttribs & PatchAttribs::kColor)) {
+        const char* color;
+        fColorUniform = args.fUniformHandler->addUniform(nullptr, kFragment_GrShaderFlag,
+                                                         SkSLType::kHalf4, "color", &color);
+        args.fFragBuilder->codeAppendf("half4 %s = %s;", args.fOutputColor, color);
+    } else {
+        args.fFragBuilder->codeAppendf("half4 %s = %s;",
+                                       args.fOutputColor, fVaryingColorName.c_str());
+    }
     args.fFragBuilder->codeAppendf("const half4 %s = half4(1);", args.fOutputCoverage);
 }
 
 void GrPathTessellationShader::Impl::setData(const GrGLSLProgramDataManager& pdman, const
                                              GrShaderCaps&, const GrGeometryProcessor& geomProc) {
-    const auto& shader = geomProc.cast<GrTessellationShader>();
+    const auto& shader = geomProc.cast<GrPathTessellationShader>();
     const SkMatrix& m = shader.viewMatrix();
     pdman.set4f(fAffineMatrixUniform, m.getScaleX(), m.getSkewY(), m.getSkewX(), m.getScaleY());
     pdman.set2f(fTranslateUniform, m.getTranslateX(), m.getTranslateY());
 
-    const SkPMColor4f& color = shader.color();
-    pdman.set4f(fColorUniform, color.fR, color.fG, color.fB, color.fA);
+    if (!(shader.fAttribs & PatchAttribs::kColor)) {
+        const SkPMColor4f& color = shader.color();
+        pdman.set4f(fColorUniform, color.fR, color.fG, color.fB, color.fA);
+    }
 }

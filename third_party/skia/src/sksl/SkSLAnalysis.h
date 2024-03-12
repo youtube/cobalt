@@ -56,6 +56,14 @@ bool ReferencesFragCoords(const Program& program);
 
 bool CallsSampleOutsideMain(const Program& program);
 
+bool CallsColorTransformIntrinsics(const Program& program);
+
+/**
+ * Determines if `function` always returns an opaque color (a vec4 where the last component is known
+ * to be 1). This is conservative, and based on constant expression analysis.
+ */
+bool ReturnsOpaqueColor(const FunctionDefinition& function);
+
 /**
  * Computes the size of the program in a completely flattened state--loops fully unrolled,
  * function calls inlined--and rejects programs that exceed an arbitrary upper bound. This is
@@ -170,10 +178,12 @@ void ValidateIndexingForES2(const ProgramElement& pe, ErrorReporter& errors);
 bool CanExitWithoutReturningValue(const FunctionDeclaration& funcDecl, const Statement& body);
 
 /**
- * Searches for @if/@switch statements that didn't optimize away, or dangling
- * FunctionReference or TypeReference expressions, and reports them as errors.
+ * Runs at finalization time to perform any last-minute correctness checks:
+ * - Reports @if/@switch statements that didn't optimize away
+ * - Reports dangling FunctionReference or TypeReference expressions
+ * - Reports function `out` params which are never written to (structs are currently exempt)
  */
-void VerifyStaticTestsAndExpressions(const Program& program);
+void DoFinalizationChecks(const Program& program);
 
 }  // namespace Analysis
 }  // namespace SkSL

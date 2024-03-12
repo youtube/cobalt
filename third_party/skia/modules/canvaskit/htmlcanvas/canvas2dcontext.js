@@ -572,6 +572,9 @@ function CanvasRenderingContext2D(skcanvas) {
     // - image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight
     // use the fillPaint, which has the globalAlpha in it
     // which drawImageRect will use.
+    if (img instanceof HTMLImage) {
+      img = img.getSkImage();
+    }
     var iPaint = this._fillPaint();
     if (arguments.length === 3 || arguments.length === 5) {
       var destRect = CanvasKit.XYWHRect(arguments[1], arguments[2],
@@ -778,7 +781,15 @@ function CanvasRenderingContext2D(skcanvas) {
   };
 
   this.measureText = function(text) {
-    throw new Error('Clients wishing to properly measure text should use the Paragraph API');
+    const ids = this._font.getGlyphIDs(text);
+    const widths = this._font.getGlyphWidths(ids);
+    let totalWidth = 0;
+    for (const w of widths) {
+      totalWidth += w;
+    }
+    return {
+      "width": totalWidth,
+    };
   };
 
   this.moveTo = function(x, y) {

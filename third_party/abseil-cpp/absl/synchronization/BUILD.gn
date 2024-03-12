@@ -44,7 +44,19 @@ absl_test("kernel_timeout_internal_test") {
 absl_source_set("synchronization") {
   # Synchronization is not Starboardized since at this time it's banned for use
   # in Chromium code.
-  if (!use_cobalt_customizations) {
+  if (use_cobalt_customizations) {
+    # Minimal support for absl::Mutex needed for logging and Cord.
+    sources = [ "mutex_starboard.cc" ]
+    public = [ "mutex.h" ]
+    deps = [
+      ":kernel_timeout_internal",
+      "//starboard:starboard_headers_only",
+      "//third_party/abseil-cpp/absl/base",
+      "//third_party/abseil-cpp/absl/base:core_headers",
+      "//third_party/abseil-cpp/absl/base:malloc_internal",
+      "//third_party/abseil-cpp/absl/time",
+    ]
+  } else {
   sources = [
     "barrier.cc",
     "blocking_counter.cc",

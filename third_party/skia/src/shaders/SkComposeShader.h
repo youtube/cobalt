@@ -22,16 +22,16 @@ public:
         , fMode(mode)
     {}
 
-    SkShader_Blend(sk_sp<SkBlender> blender, sk_sp<SkShader> dst, sk_sp<SkShader> src)
-        : fDst(std::move(dst))
-        , fSrc(std::move(src))
-        , fBlender(std::move(blender))
-        , fMode((SkBlendMode)kCustom_SkBlendMode)
-    {}
+    SkShader_Blend(sk_sp<SkBlender> blender, sk_sp<SkShader> dst, sk_sp<SkShader> src);
 
 #if SK_SUPPORT_GPU
     std::unique_ptr<GrFragmentProcessor> asFragmentProcessor(const GrFPArgs&) const override;
 #endif
+
+    void addToKey(SkShaderCodeDictionary*,
+                  SkBackend,
+                  SkPaintParamsKeyBuilder*,
+                  SkUniformBlock*) const override;
 
 protected:
     SkShader_Blend(SkReadBuffer&);
@@ -47,7 +47,7 @@ private:
     sk_sp<SkShader>     fDst;
     sk_sp<SkShader>     fSrc;
     sk_sp<SkBlender>    fBlender;   // if null, use fMode
-    const SkBlendMode   fMode;      // only use if fBlender is null
+    SkBlendMode         fMode;      // only use if fBlender is null
 
     using INHERITED = SkShaderBase;
 };

@@ -2,6 +2,76 @@ Skia Graphics Release Notes
 
 This file includes a list of high level updates for each milestone release.
 
+Milestone 100
+-------------
+  * Skia now requires C++17 and the corresponding standard library (or newer).
+  * Skia on iOS now requires iOS 11 to build; earlier versions of iOS do not support C++17.
+  * The skstd::string_view and skstd::optional Skia classes have been replaced with the C++17 native
+    std::string_view and std::optional.
+  * Added SkSurface::resolveMSAA api to force Skia to resolve MSAA draws. Useful for when
+    Skia wraps a client's texture as the resolve target.
+  * All of the `makeShader` functions associated with `SkRuntimeEffect` no longer take an
+    `isOpaque` parameter. These functions will now make a best effort to determine if your
+    shader always produces opaque output, and optimize accordingly. If you definitely want your
+    shader to produce opaque output, do so in the shader's SkSL code. This can be done by adjusting
+    any `return` statement in your shader with a swizzle: `return color.rgb1;`.
+    https://review.skia.org/506462
+
+* * *
+
+Milestone 99
+------------
+  * Added two new intrinsic functions to SkSL for use in runtime effects:
+      vec3 toLinearSrgb(vec3 color)
+      vec3 fromLinearSrgb(vec3 color)
+    These convert RGB color values between the working color space (the color space of the
+    destination surface) and a known, fixed color space. `toLinearSrgb` converts a color to the
+    sRGB color gamut, with a linear transfer function. `fromLinearSrgb` converts a color from that
+    same color space. These are helpful for effects that need to work in a specific color space, or
+    want to apply effects (like lighting) that work best in a linear color space.
+    Note that if the destination surface has no color space (color space is `nullptr`), these
+    intrinsics will do no conversion, and return the input color unchanged.
+    https://review.skia.org/481416
+  * Added a new variant of SkImageFilters::RuntimeShader that supports multiple child nodes.
+    https://review.skia.org/489536
+  * Add the ability to specifiy palette overrides in SkFontArguments. Implemented
+    for the FreeType-backed SkFontMgrs.
+
+* * *
+
+Milestone 98
+------------
+  * The following functions and methods are not defined in SkSurface when SK_SUPPORT_GPU is 0:
+    MakeFromBackendTexture, MakeFromBackendRenderTarget, MakeRenderTarget,
+    getBackendTexture, getBackendRenderTarget, replaceBackendTexture. flush() with parameters
+    was removed as well. These were all no-ops anyway when just the CPU backend was compiled in
+    (noting that flush() and flushAndSubmit() are still no-ops on the CPU backend).
+  * GrBackendSemaphore only includes methods that match the GPU backend that Skia was compiled for.
+    For example, initVulkan and vkSemaphore are not defined unless the Vulkan backend is compiled
+    into Skia.
+  * Surfaces and images are now limited to just under 2GB of total size. Previously, larger images
+    could be created, but the CPU backend would fail to index them correctly.
+  * SkCanvas::drawVertices and SkCanvas::drawPatch variants that did not take SkBlendMode are
+    removed.
+  * SkImageFilters::RuntimeShader is a new public API that enables adding RuntimeShaderEffects into
+    image filter graph.
+  * SkImage::makeRawShader is a new public API that creates "raw" image shaders. makeRawShader
+    functions like SkImage::makeShader, but for images that contain non-color data. This includes
+    images encoding things like normals, material properties (eg roughness), heightmaps, or any
+    other purely mathematical data that happens to be stored in an image. These types of images are
+    useful with some programmable shaders (ie SkRuntimeEffect).
+    Raw image shaders work like regular image shaders (including filtering and tiling), with a few
+    major differences:
+      - No color space transformation is ever applied (the color space of the image is ignored).
+      - Images with an alpha type of kUnpremul are not automatically premultiplied.
+      - Bicubic filtering is not supported. If SkSamplingOptions::useCubic is true, these factories
+        will return nullptr.
+  * Removed SkCanvas::markCTM and SkCanvas::findMarkedCTM. These were created to be used with other
+    features that have since been deleted, so they served no purpose.
+  * Added limited JPEGXL support.
+
+* * *
+
 Milestone 97
 ------------
   * Added basic support for vulkan DRM modifiers. All of these are treated as read only textures

@@ -9,7 +9,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,12 +18,22 @@ import (
 	"go.skia.org/infra/go/gerrit"
 	"go.skia.org/infra/go/git/git_common"
 	"go.skia.org/infra/go/sklog"
+	"go.skia.org/infra/promk/go/pushgateway"
 	"go.skia.org/infra/task_driver/go/lib/auth_steps"
 	"go.skia.org/infra/task_driver/go/lib/checkout"
 	"go.skia.org/infra/task_driver/go/lib/gerrit_steps"
 	"go.skia.org/infra/task_driver/go/lib/os_steps"
 	"go.skia.org/infra/task_driver/go/td"
 	"go.skia.org/infra/task_scheduler/go/types"
+)
+
+const (
+	// Metric constants for pushgateway.
+	jobName                       = "recreate-skps"
+	buildFailureMetricName        = "recreate_skps_build_failure"
+	creatingSKPsFailureMetricName = "recreate_skps_creation_failure"
+	metricValue_NoFailure         = "0"
+	metricValue_Failure           = "1"
 )
 
 func botUpdate(ctx context.Context, checkoutRoot, gitCacheDir, skiaRev, patchRef, depotToolsDir string, local bool) error {
@@ -134,19 +143,18 @@ func main() {
 		skipBuild        = flag.Bool("skip-build", false, "skip build. Helpful for running locally.")
 		gitCacheDirFlag  = flag.String("git_cache", "", "Git cache directory.")
 		checkoutRootFlag = flag.String("checkout_root", "", "Directory to use for checkouts.")
+		dmPathFlag       = flag.String("dm_path", "", "Path to the DM binary.")
 	)
 	ctx := td.StartRun(projectId, taskId, taskName, output, local)
 	defer td.EndRun(ctx)
 
 	// Setup.
-	var client *http.Client
+	client, err := auth_steps.InitHttpClient(ctx, *local, gerrit.AuthScope)
+	if err != nil {
+		td.Fatal(ctx, err)
+	}
 	var g gerrit.GerritInterface
 	if !*dryRun {
-		var err error
-		client, err = auth_steps.InitHttpClient(ctx, *local, gerrit.AuthScope)
-		if err != nil {
-			td.Fatal(ctx, err)
-		}
 		g, err = gerrit.NewGerrit("https://skia-review.googlesource.com", client)
 		if err != nil {
 			td.Fatal(ctx, err)
@@ -165,6 +173,10 @@ func main() {
 	if *checkoutRootFlag != "" {
 		checkoutRoot = filepath.Join(cwd, *checkoutRootFlag)
 	}
+	if *dmPathFlag == "" {
+		td.Fatal(ctx, fmt.Errorf("Must specify --dm_path"))
+	}
+	dmPath := filepath.Join(cwd, *dmPathFlag)
 
 	// Fetch `sk`
 	if _, err := exec.RunCwd(ctx, skiaDir, "python3", filepath.Join("bin", "fetch-sk")); err != nil {
@@ -200,6 +212,9 @@ func main() {
 		}
 	}
 
+	// For updating metrics.
+	pg := pushgateway.New(client, jobName, pushgateway.DefaultPushgatewayURL)
+
 	chromiumDir := filepath.Join(checkoutRoot, "src")
 	outDir := filepath.Join(chromiumDir, "out", "Release")
 
@@ -229,8 +244,12 @@ func main() {
 			}
 			return nil
 		}); err != nil {
+			// Report that the build failed.
+			pg.Push(ctx, buildFailureMetricName, metricValue_Failure)
 			td.Fatal(ctx, err)
 		}
+		// Report that the build was successful.
+		pg.Push(ctx, buildFailureMetricName, metricValue_NoFailure)
 	}
 
 	// Capture and upload the SKPs.
@@ -239,6 +258,7 @@ func main() {
 		"vpython3", "-u", script,
 		"--chrome_src_path", chromiumDir,
 		"--browser_executable", filepath.Join(outDir, "chrome"),
+		"--dm_path", dmPath,
 	}
 	if *dryRun {
 		cmd = append(cmd, "--dry_run")
@@ -256,8 +276,12 @@ func main() {
 	}
 	sklog.Infof("Running command: %s %s", command.Name, strings.Join(command.Args, " "))
 	if err := exec.Run(ctx, command); err != nil {
+		// Creating SKP asset in RecreateSKPs failed.
+		pg.Push(ctx, creatingSKPsFailureMetricName, metricValue_Failure)
 		td.Fatal(ctx, err)
 	}
+	// Report that the asset creation was successful.
+	pg.Push(ctx, creatingSKPsFailureMetricName, metricValue_NoFailure)
 	if *dryRun {
 		return
 	}

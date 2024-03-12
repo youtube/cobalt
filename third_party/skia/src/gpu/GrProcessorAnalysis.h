@@ -10,8 +10,6 @@
 
 #include "include/private/SkColorData.h"
 
-#include <memory>
-
 class GrDrawOp;
 class GrFragmentProcessor;
 

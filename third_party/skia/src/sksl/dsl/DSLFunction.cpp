@@ -21,7 +21,7 @@ namespace SkSL {
 
 namespace dsl {
 
-void DSLFunction::init(DSLModifiers modifiers, const DSLType& returnType, skstd::string_view name,
+void DSLFunction::init(DSLModifiers modifiers, const DSLType& returnType, std::string_view name,
                        SkTArray<DSLParameter*> params, PositionInfo pos) {
     fPosition = pos;
     // Conservatively assume all user-defined functions have side effects.
@@ -91,7 +91,7 @@ void DSLFunction::define(DSLBlock block, PositionInfo pos) {
         }
     }
     if (fDecl->definition()) {
-        ThreadContext::ReportError(String::printf("function '%s' was already defined",
+        ThreadContext::ReportError(SkSL::String::printf("function '%s' was already defined",
                 fDecl->description().c_str()), pos);
         block.release();
         return;

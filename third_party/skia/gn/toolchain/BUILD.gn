@@ -1,3 +1,6 @@
+if (is_wasm) {
+  import("wasm.gni")
+}
 if (is_fuchsia) {
   import("//build/fuchsia/sdk.gni")
 }
@@ -61,7 +64,7 @@ if (host_os == "win") {
   stamp = "touch"
 }
 
-if (is_starboardized_toolchain) {
+if (current_toolchain == default_toolchain) {
   pool("dsymutil_pool") {
     depth = dlsymutil_pool_depth
   }
@@ -418,4 +421,16 @@ gcc_like_toolchain("gcc_like_host") {
   cc = host_cc
   cxx = host_cxx
   link = host_link
+}
+
+# Only define this toolchain if actually building for wasm.
+if (is_wasm) {
+  gcc_like_toolchain("wasm") {
+    cpu = "wasm"
+    os = "wasm"
+    ar = "$skia_emsdk_dir/upstream/emscripten/emar"
+    cc = "$skia_emsdk_dir/upstream/emscripten/emcc"
+    cxx = "$skia_emsdk_dir/upstream/emscripten/em++"
+    link = cxx
+  }
 }

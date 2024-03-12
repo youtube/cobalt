@@ -10,84 +10,21 @@
 
 #include "experimental/graphite/include/Context.h"
 #include "include/core/SkBlendMode.h"
-#include "include/core/SkRefCnt.h"
+#include "include/core/SkSpan.h"
 #include "include/core/SkTileMode.h"
 
-class SkPaint;
+enum class CodeSnippetID : uint8_t;
+class SkShaderCodeDictionary;
+class SkUniform;
+class SkUniformBlock;
+class SkUniquePaintParamsID;
 
 namespace skgpu {
 
-class Uniform;
-class UniformCache;
+class PaintParams;
 
-// A single, fully specified combination resulting from a PaintCombo (i.e., it corresponds to a
-// specific SkPaint)
-struct Combination {
-    bool operator==(const Combination& other) const {
-        return fShaderType == other.fShaderType &&
-               fTileMode == other.fTileMode &&
-               fBlendMode == other.fBlendMode;
-    }
-
-    ShaderCombo::ShaderType fShaderType = ShaderCombo::ShaderType::kNone;
-    SkTileMode fTileMode = SkTileMode::kRepeat;
-    SkBlendMode fBlendMode = SkBlendMode::kSrc;
-};
-
-class UniformData : public SkRefCnt {
-public:
-    static constexpr uint32_t kInvalidUniformID = 0;
-
-    // TODO: should we require a name (e.g., "gradient_uniforms") for each uniform block so
-    // we can better name the Metal FS uniform struct?
-    static sk_sp<UniformData> Make(int count,
-                                   const Uniform* uniforms,
-                                   size_t dataSize);
-
-    ~UniformData() override {
-        // TODO: fOffsets and fData should just be allocated right after UniformData in an arena
-        delete [] fOffsets;
-        delete [] fData;
-    }
-
-    void setID(uint32_t id) {   // TODO: maybe make privileged for only UniformCache
-        SkASSERT(fID == kInvalidUniformID);
-        fID = id;
-    }
-    uint32_t id() const { return fID; }
-    int count() const { return fCount; }
-    const Uniform* uniforms() const { return fUniforms; }
-    uint32_t* offsets() { return fOffsets; }
-    uint32_t offset(int index) {
-        SkASSERT(index >= 0 && index < fCount);
-        return fOffsets[index];
-    }
-    char* data() { return fData; }
-    size_t dataSize() const { return fDataSize; }
-
-private:
-    UniformData(int count,
-                const Uniform* uniforms,
-                uint32_t* offsets,
-                char* data,
-                size_t dataSize)
-            : fCount(count)
-            , fUniforms(uniforms)
-            , fOffsets(offsets)
-            , fData(data)
-            , fDataSize(dataSize) {
-    }
-
-    uint32_t fID = kInvalidUniformID;
-    const int fCount;
-    const Uniform* fUniforms;
-    uint32_t* fOffsets; // offset of each uniform in 'fData'
-    char* fData;
-    const size_t fDataSize;
-};
-
-std::tuple<Combination, sk_sp<UniformData>> ExtractCombo(UniformCache*, const SkPaint&);
-std::string GetMSLUniformStruct(ShaderCombo::ShaderType);
+std::tuple<SkUniquePaintParamsID, std::unique_ptr<SkUniformBlock>> ExtractPaintData(
+        SkShaderCodeDictionary*, const PaintParams&);
 
 } // namespace skgpu
 

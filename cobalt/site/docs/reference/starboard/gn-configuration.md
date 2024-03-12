@@ -11,7 +11,6 @@ Book: /youtube/cobalt/_book.yaml
 | **`cobalt_platform_dependencies`**<br><br> List of platform-specific targets that get compiled into cobalt.<br><br>The default value is `[]`. |
 | **`cobalt_v8_emit_builtins_as_inline_asm`**<br><br> Some compiler can not compile with raw assembly(.S files) and v8 converts asm to inline assembly for these platforms.<br><br>The default value is `false`. |
 | **`default_renderer_options_dependency`**<br><br> Override this value to adjust the default rasterizer setting for your platform.<br><br>The default value is `"//cobalt/renderer:default_options"`. |
-| **`enable_account_manager`**<br><br> Set to true to enable H5vccAccountManager.<br><br>The default value is `false`. |
 | **`enable_in_app_dial`**<br><br> Enables or disables the DIAL server that runs inside Cobalt. Note: Only enable if there's no system-wide DIAL support.<br><br>The default value is `false`. |
 | **`executable_configs`**<br><br> Target-specific configurations for executable targets.<br><br>The default value is `[]`. |
 | **`final_executable_type`**<br><br> The target type for executable targets. Allows changing the target type on platforms where the native code may require an additional packaging step (ex. Android).<br><br>The default value is `"executable"`. |

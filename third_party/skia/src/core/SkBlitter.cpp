@@ -273,20 +273,6 @@ void SkBlitter::blitMask(const SkMask& mask, const SkIRect& clip) {
 
 /////////////////////// these are not virtual, just helpers
 
-void SkBlitter::blitMaskRegion(const SkMask& mask, const SkRegion& clip) {
-    if (clip.quickReject(mask.fBounds)) {
-        return;
-    }
-
-    SkRegion::Cliperator clipper(clip, mask.fBounds);
-
-    while (!clipper.done()) {
-        const SkIRect& cr = clipper.rect();
-        this->blitMask(mask, cr);
-        clipper.next();
-    }
-}
-
 void SkBlitter::blitRectRegion(const SkIRect& rect, const SkRegion& clip) {
     SkRegion::Cliperator clipper(clip, rect);
 
@@ -646,7 +632,7 @@ SkBlitter* SkBlitterClipper::apply(SkBlitter* blitter, const SkRegion* clip,
 bool SkBlitter::UseLegacyBlitter(const SkPixmap& device,
                                  const SkPaint& paint,
                                  const SkMatrix& matrix) {
-    if (gSkForceRasterPipelineBlitter) {
+    if (gSkForceRasterPipelineBlitter || gUseSkVMBlitter) {
         return false;
     }
 #if defined(SK_FORCE_RASTER_PIPELINE_BLITTER)
@@ -748,19 +734,14 @@ SkBlitter* SkBlitter::Choose(const SkPixmap& device,
         paint.writable()->setDither(false);
     }
 
-    if (gUseSkVMBlitter) {
-        if (auto blitter = SkVMBlitter::Make(device, *paint, matrixProvider,
-                                             alloc, clipShader)) {
-            return blitter;
-        }
-    }
-
     // Same basic idea used a few times: try SkRP, then try SkVM, then give up with a null-blitter.
     // (Setting gUseSkVMBlitter is the only way we prefer SkVM over SkRP at the moment.)
     auto create_SkRP_or_SkVMBlitter = [&]() -> SkBlitter* {
-        if (auto blitter = SkCreateRasterPipelineBlitter(device, *paint, matrixProvider,
-                                                         alloc, clipShader)) {
-            return blitter;
+        if (!gUseSkVMBlitter) {
+            if (auto blitter = SkCreateRasterPipelineBlitter(
+                        device, *paint, matrixProvider, alloc, clipShader)) {
+                return blitter;
+            }
         }
         if (auto blitter = SkVMBlitter::Make(device, *paint, matrixProvider,
                                              alloc, clipShader)) {
@@ -795,26 +776,27 @@ SkBlitter* SkBlitter::Choose(const SkPixmap& device,
         }
     }
 
-
     if (device.colorType() == kN32_SkColorType) {
-        if (shaderContext) {
-            return alloc->make<SkARGB32_Shader_Blitter>(device, *paint, shaderContext);
-        } else if (paint->getColor() == SK_ColorBLACK) {
-            return alloc->make<SkARGB32_Black_Blitter>(device, *paint);
-        } else if (paint->getAlpha() == 0xFF) {
-            return alloc->make<SkARGB32_Opaque_Blitter>(device, *paint);
-        } else {
-            return alloc->make<SkARGB32_Blitter>(device, *paint);
-        }
+            if (shaderContext) {
+                return alloc->make<SkARGB32_Shader_Blitter>(device, *paint, shaderContext);
+            } else if (paint->getColor() == SK_ColorBLACK) {
+                return alloc->make<SkARGB32_Black_Blitter>(device, *paint);
+            } else if (paint->getAlpha() == 0xFF) {
+                return alloc->make<SkARGB32_Opaque_Blitter>(device, *paint);
+            } else {
+                return alloc->make<SkARGB32_Blitter>(device, *paint);
+            }
+
     } else if (device.colorType() == kRGB_565_SkColorType) {
-        if (shaderContext && SkRGB565_Shader_Blitter::Supports(device, *paint)) {
-            return alloc->make<SkRGB565_Shader_Blitter>(device, *paint, shaderContext);
-        } else {
-            return create_SkRP_or_SkVMBlitter();
-        }
+            if (shaderContext && SkRGB565_Shader_Blitter::Supports(device, *paint)) {
+                return alloc->make<SkRGB565_Shader_Blitter>(device, *paint, shaderContext);
+            } else {
+                return create_SkRP_or_SkVMBlitter();
+            }
+
     } else {
-        SkASSERT(false);
-        return alloc->make<SkNullBlitter>();
+            SkASSERT(false);
+            return alloc->make<SkNullBlitter>();
     }
 }
 

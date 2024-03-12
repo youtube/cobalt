@@ -19,9 +19,6 @@ config("h5vcc_internal_config") {
 
 config("h5vcc_external_config") {
   defines = []
-  if (enable_account_manager) {
-    defines += [ "COBALT_ENABLE_ACCOUNT_MANAGER" ]
-  }
 }
 
 static_library("h5vcc") {
@@ -100,13 +97,6 @@ static_library("h5vcc") {
     deps += [
       "//cobalt/network:cobalt_dial_server",
       "//net:http_server",
-    ]
-  }
-
-  if (enable_account_manager) {
-    sources += [
-      "h5vcc_account_manager_internal.cc",
-      "h5vcc_account_manager_internal.h",
     ]
   }
 

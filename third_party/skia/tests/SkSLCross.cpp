@@ -51,7 +51,7 @@ public:
     }
 
 private:
-    void onAddToKey(const GrShaderCaps&, GrProcessorKeyBuilder*) const override {}
+    void onAddToKey(const GrShaderCaps&, skgpu::KeyBuilder*) const override {}
     bool onIsEqual(const GrFragmentProcessor&) const override { return true; }
 
     std::unique_ptr<ProgramImpl> onMakeProgramImpl() const override {
@@ -61,11 +61,11 @@ private:
                 auto& fp = args.fFp.cast<VisualizeCrossProductSignFP>();
                 const char *a, *b;
                 fAUniform = args.fUniformHandler->addUniform(&fp, kFragment_GrShaderFlag,
-                                                             GrSLType::kFloat2_GrSLType, "a", &a);
+                                                             SkSLType::kFloat2, "a", &a);
                 fBUniform = args.fUniformHandler->addUniform(&fp, kFragment_GrShaderFlag,
-                                                             GrSLType::kFloat2_GrSLType, "b", &b);
+                                                             SkSLType::kFloat2, "b", &b);
                 args.fFragBuilder->codeAppendf(R"(
-                    float crossProduct = cross(%s, %s);
+                    float crossProduct = cross_length_2d(%s, %s);
                     float2 visualization = clamp(float2(-sign(crossProduct), sign(crossProduct)),
                                                  float2(0), float2(1));
                 return half2(visualization).xy01;)", a, b);

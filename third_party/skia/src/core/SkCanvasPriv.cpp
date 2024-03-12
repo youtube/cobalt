@@ -101,22 +101,14 @@ void SkCanvasPriv::GetDstClipAndMatrixCounts(const SkCanvas::ImageSetEntry set[]
     *totalMatrixCount = maxMatrixIndex + 1;
 }
 
-bool SkCanvasPriv::ValidateMarker(const char* name) {
-    if (!name) {
-        return false;
-    }
-
-    std::locale loc(std::locale::classic());
-    if (!std::isalpha(*name, loc)) {
-        return false;
-    }
-    while (*(++name)) {
-        if (!std::isalnum(*name, loc) && *name != '_') {
-            return false;
-        }
-    }
-    return true;
+#ifdef SK_ENABLE_SKSL
+void SkCanvasPriv::DrawCustomMesh(SkCanvas* canvas,
+                                  SkCustomMesh cm,
+                                  sk_sp<SkBlender> blender,
+                                  const SkPaint& paint) {
+    canvas->drawCustomMesh(cm, std::move(blender), paint);
 }
+#endif
 
 #if GR_TEST_UTILS
 

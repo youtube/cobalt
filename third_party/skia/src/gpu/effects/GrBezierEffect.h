@@ -79,7 +79,7 @@ public:
 
     const char* name() const override { return "Conic"; }
 
-    void addToKey(const GrShaderCaps& caps, GrProcessorKeyBuilder* b) const override;
+    void addToKey(const GrShaderCaps& caps, skgpu::KeyBuilder* b) const override;
 
     std::unique_ptr<ProgramImpl> makeProgramImpl(const GrShaderCaps&) const override;
 
@@ -98,8 +98,8 @@ private:
     bool                fUsesLocalCoords;
     uint8_t             fCoverageScale;
     inline static constexpr Attribute kAttributes[] = {
-        {"inPosition", kFloat2_GrVertexAttribType, kFloat2_GrSLType},
-        {"inConicCoeffs", kFloat4_GrVertexAttribType, kHalf4_GrSLType}
+        {"inPosition", kFloat2_GrVertexAttribType, SkSLType::kFloat2},
+        {"inConicCoeffs", kFloat4_GrVertexAttribType, SkSLType::kHalf4}
     };
 
     GR_DECLARE_GEOMETRY_PROCESSOR_TEST
@@ -141,7 +141,7 @@ public:
 
     const char* name() const override { return "Quad"; }
 
-    void addToKey(const GrShaderCaps& caps, GrProcessorKeyBuilder* b) const override;
+    void addToKey(const GrShaderCaps& caps, skgpu::KeyBuilder* b) const override;
 
     std::unique_ptr<ProgramImpl> makeProgramImpl(const GrShaderCaps&) const override;
 
@@ -161,8 +161,8 @@ private:
     uint8_t fCoverageScale;
 
     inline static constexpr Attribute kAttributes[] = {
-        {"inPosition", kFloat2_GrVertexAttribType, kFloat2_GrSLType},
-        {"inHairQuadEdge", kFloat4_GrVertexAttribType, kHalf4_GrSLType}
+        {"inPosition", kFloat2_GrVertexAttribType, SkSLType::kFloat2},
+        {"inHairQuadEdge", kFloat4_GrVertexAttribType, SkSLType::kHalf4}
     };
 
     GR_DECLARE_GEOMETRY_PROCESSOR_TEST

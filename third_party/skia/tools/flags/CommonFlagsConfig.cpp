@@ -8,13 +8,13 @@
 #include "tools/flags/CommonFlagsConfig.h"
 
 #include "include/core/SkImageInfo.h"
-#include "include/core/SkStringView.h"
 #include "include/core/SkSurfaceProps.h"
 #include "include/private/SkTHash.h"
 #include "src/core/SkColorSpacePriv.h"
 #include "src/core/SkSurfacePriv.h"
 
 #include <stdlib.h>
+#include <string_view>
 #include <unordered_map>
 
 using sk_gpu_test::GrContextFactory;
@@ -62,6 +62,7 @@ static const struct {
     { "glf16",                 "gpu", "api=gl,color=f16" },
     { "glf16norm",             "gpu", "api=gl,color=f16norm" },
     { "glsrgba",               "gpu", "api=gl,color=srgba" },
+    { "glr8",                  "gpu", "api=gl,color=r8" },
     { "glesf16",               "gpu", "api=gles,color=f16" },
     { "glessrgba",             "gpu", "api=gles,color=srgba" },
     { "glnostencils",          "gpu", "api=gl,stencils=false" },
@@ -233,7 +234,7 @@ SkCommandLineConfig::SkCommandLineConfig(const SkString& tag,
                                          const SkTArray<SkString>& viaParts)
         : fTag(tag), fBackend(backend) {
 
-    static std::unordered_map<skstd::string_view, sk_sp<SkColorSpace>> kColorSpaces = {
+    static std::unordered_map<std::string_view, sk_sp<SkColorSpace>> kColorSpaces = {
         // 'narrow' has a gamut narrower than sRGB, and different transfer function.
         { "narrow",  SkColorSpace::MakeRGB(SkNamedTransferFn::k2Dot2, gNarrow_toXYZD50) },
         { "srgb",    SkColorSpace::MakeSRGB() },
@@ -380,6 +381,9 @@ static bool parse_option_gpu_color(const SkString& value,
         *outColorType  = kRGBA_F16Norm_SkColorType;
     } else if (value.equals("srgba")) {
         *outColorType = kSRGBA_8888_SkColorType;
+    } else if (value.equals("r8")) {
+        *outColorType = kR8_unorm_SkColorType;
+        *alphaType = kOpaque_SkAlphaType;
     } else {
         return false;
     }

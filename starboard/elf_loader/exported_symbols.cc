@@ -14,6 +14,9 @@
 
 #include "starboard/elf_loader/exported_symbols.h"
 
+#include <fcntl.h>
+#include <ifaddrs.h>
+#include <netdb.h>
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
@@ -413,15 +416,31 @@ ExportedSymbols::ExportedSymbols() {
 
 #if SB_API_VERSION >= 16
   // POSIX APIs
+  REGISTER_SYMBOL(accept);
+  REGISTER_SYMBOL(bind);
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(close);
+  REGISTER_SYMBOL(connect);
+  REGISTER_SYMBOL(fcntl);
   REGISTER_SYMBOL(free);
+  REGISTER_SYMBOL(freeaddrinfo);
+  REGISTER_SYMBOL(freeifaddrs);
+  REGISTER_SYMBOL(getaddrinfo);
+  REGISTER_SYMBOL(getifaddrs);
+  REGISTER_SYMBOL(getsockname);
+  REGISTER_SYMBOL(listen);
   REGISTER_SYMBOL(malloc);
   REGISTER_SYMBOL(mprotect);
   REGISTER_SYMBOL(msync);
   REGISTER_SYMBOL(munmap);
+  REGISTER_SYMBOL(open);
   REGISTER_SYMBOL(posix_memalign);
   REGISTER_SYMBOL(realloc);
+  REGISTER_SYMBOL(recv);
+  REGISTER_SYMBOL(send);
+  REGISTER_SYMBOL(recvfrom);
+  REGISTER_SYMBOL(sendto);
+  REGISTER_SYMBOL(setsockopt);
   REGISTER_SYMBOL(socket);
   REGISTER_SYMBOL(snprintf);
   REGISTER_SYMBOL(sprintf);
@@ -436,7 +455,6 @@ ExportedSymbols::ExportedSymbols() {
   // TODO: b/316603042 - Detect via NPLB and only add the wrapper if needed.
   map_["clock_gettime"] = reinterpret_cast<const void*>(&__wrap_clock_gettime);
   map_["gettimeofday"] = reinterpret_cast<const void*>(&__wrap_gettimeofday);
-  map_["time"] = reinterpret_cast<const void*>(&__wrap_time);
   map_["gmtime_r"] = reinterpret_cast<const void*>(&__wrap_gmtime_r);
   map_["mmap"] = reinterpret_cast<const void*>(&__wrap_mmap);
   map_["pthread_mutex_destroy"] =
@@ -449,6 +467,7 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__wrap_pthread_mutex_unlock);
   map_["pthread_mutex_trylock"] =
       reinterpret_cast<const void*>(&__wrap_pthread_mutex_trylock);
+  map_["time"] = reinterpret_cast<const void*>(&__wrap_time);
 
 #if defined(_MSC_VER)
   // MSVC provides a template with the same name.

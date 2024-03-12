@@ -26,6 +26,7 @@
 #include "src/core/SkSpecialSurface.h"
 #include "src/gpu/GrCaps.h"
 #include "src/gpu/GrRecordingContextPriv.h"
+#include "src/image/SkImage_Base.h"
 #include "tests/Test.h"
 #include "tools/Resources.h"
 #include "tools/ToolUtils.h"
@@ -33,6 +34,8 @@
 static const int kBitmapSize = 4;
 
 namespace {
+
+static constexpr GrSurfaceOrigin kTestSurfaceOrigin = kTopLeft_GrSurfaceOrigin;
 
 class MatrixTestImageFilter : public SkImageFilter_Base {
 public:
@@ -337,7 +340,8 @@ static sk_sp<SkSpecialSurface> create_empty_special_surface(GrRecordingContext* 
                                              kPremul_SkAlphaType);
 
     if (rContext) {
-        return SkSpecialSurface::MakeRenderTarget(rContext, ii, SkSurfaceProps());
+        return SkSpecialSurface::MakeRenderTarget(rContext, ii, SkSurfaceProps(),
+                                                  kTestSurfaceOrigin);
     } else {
         return SkSpecialSurface::MakeRaster(ii, SkSurfaceProps());
     }
@@ -346,7 +350,8 @@ static sk_sp<SkSpecialSurface> create_empty_special_surface(GrRecordingContext* 
 static sk_sp<SkSurface> create_surface(GrRecordingContext* rContext, int width, int height) {
     const SkImageInfo info = SkImageInfo::MakeN32(width, height, kOpaque_SkAlphaType);
     if (rContext) {
-        return SkSurface::MakeRenderTarget(rContext, SkBudgeted::kNo, info);
+        return SkSurface::MakeRenderTarget(rContext, SkBudgeted::kNo, info,
+                                           0, kTestSurfaceOrigin, nullptr);
     } else {
         return SkSurface::MakeRaster(info);
     }
@@ -490,8 +495,8 @@ static void test_cropRects(skiatest::Reporter* reporter, GrRecordingContext* rCo
         SkImageFilter_Base::Context ctx(SkMatrix::I(), SkIRect::MakeWH(100, 100), nullptr,
                                         kN32_SkColorType, nullptr, srcImg.get());
         sk_sp<SkSpecialImage> resultImg(as_IFB(filter)->filterImage(ctx).imageAndOffset(&offset));
-        REPORTER_ASSERT(reporter, resultImg, filters.getName(i));
-        REPORTER_ASSERT(reporter, offset.fX == 20 && offset.fY == 30, filters.getName(i));
+        REPORTER_ASSERT(reporter, resultImg, "%s", filters.getName(i));
+        REPORTER_ASSERT(reporter, offset.fX == 20 && offset.fY == 30, "%s", filters.getName(i));
     }
 }
 
@@ -809,7 +814,7 @@ DEF_TEST(ImageFilterDrawTiled, reporter) {
             }
 
             if (!ToolUtils::equal_pixels(untiledResult, tiledResult)) {
-                REPORTER_ASSERT(reporter, false, filters.getName(i));
+                ERRORF(reporter, "%s", filters.getName(i));
                 break;
             }
         }
@@ -1738,6 +1743,13 @@ static void test_make_with_filter(skiatest::Reporter* reporter, GrRecordingConte
         result = sourceImage->makeWithFilter(rContext, filter.get(), subset, clipBounds,
                                              &outSubset, &offset);
         REPORTER_ASSERT(reporter, result);
+
+        // In GPU-mode, we want the result image (and all intermediate steps) to have used the same
+        // origin as the original surface.
+        if (rContext) {
+            auto [proxyView, _] = as_IB(result)->asView(rContext, GrMipmapped::kNo);
+            REPORTER_ASSERT(reporter, proxyView && proxyView.origin() == kTestSurfaceOrigin);
+        }
     }
 }
 

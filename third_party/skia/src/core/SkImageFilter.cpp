@@ -60,7 +60,7 @@ SkIRect SkImageFilter::filterBounds(const SkIRect& src, const SkMatrix& ctm,
     // The old filterBounds() function uses SkIRects that are defined in layer space so, while
     // we still are supporting it, bypass SkIF_B's new public filter bounds functions and go right
     // to the internal layer-space calculations.
-    skif::Mapping mapping(SkMatrix::I(), ctm);
+    skif::Mapping mapping{ctm};
     if (kReverse_MapDirection == direction) {
         skif::LayerSpace<SkIRect> targetOutput(src);
         if (as_IFB(this)->cropRectIsSet()) {
@@ -589,6 +589,7 @@ sk_sp<SkSpecialImage> SkImageFilter_Base::DrawWithFP(GrRecordingContext* rContex
                                                      SkColorType colorType,
                                                      const SkColorSpace* colorSpace,
                                                      const SkSurfaceProps& surfaceProps,
+                                                     GrSurfaceOrigin surfaceOrigin,
                                                      GrProtected isProtected) {
     GrImageInfo info(SkColorTypeToGrColorType(colorType),
                      kPremul_SkAlphaType,
@@ -600,7 +601,7 @@ sk_sp<SkSpecialImage> SkImageFilter_Base::DrawWithFP(GrRecordingContext* rContex
                                         1,
                                         GrMipmapped::kNo,
                                         isProtected,
-                                        kBottomLeft_GrSurfaceOrigin);
+                                        surfaceOrigin);
     if (!sfc) {
         return nullptr;
     }

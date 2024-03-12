@@ -218,6 +218,40 @@ std::string GetSbSocketAddressTypeProtocolPairName(
         info);
 #endif  // #if !defined(COBALT_BUILD_TYPE_GOLD)
 
+#if defined(SOMAXCONN)
+const int kMaxConn = SOMAXCONN;
+#else
+// Some posix platforms such as FreeBSD do not define SOMAXCONN.
+// In this case, set the value to an arbitrary number large enough to
+// satisfy most use-cases and tests, empirically we have found that 128
+// is sufficient.  All implementations of listen() specify that a backlog
+// parameter larger than the system max will be silently truncated to the
+// system's max.
+const int kMaxConn = 128;
+#endif
+
+int PosixSocketCreateAndConnect(int server_domain,
+                                int client_domain,
+                                int port,
+                                int64_t timeout,
+                                int* listen_socket_fd,
+                                int* server_socket_fd,
+                                int* client_socket_fd);
+#include <netinet/in.h>
+int PosixGetLocalAddressiIPv4(sockaddr* address_ptr);
+#if SB_HAS(IPV6)
+int PosixGetLocalAddressiIPv6(sockaddr_in6* address_ptr);
+#endif  // SB_HAS(IPV6)
+
+int PosixSocketSetReceiveBufferSize(int socket_fd, int32_t size);
+int PosixSocketSetSendBufferSize(int socket_fd, int32_t size);
+
+#if defined(MSG_NOSIGNAL)
+const int kSendFlags = MSG_NOSIGNAL;
+#else
+const int kSendFlags = 0;
+#endif
+
 }  // namespace nplb
 }  // namespace starboard
 

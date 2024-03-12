@@ -21,6 +21,7 @@
 #include "src/core/SkZip.h"
 
 class SkBaseDevice;
+class SkCanvas;
 class SkGlyph;
 class SkTextBlob;
 class SkTextBlobRunIterator;
@@ -73,8 +74,6 @@ public:
             SkSpan<const SkGlyphRun> glyphRunList);
 
     SkGlyphRunList(const SkGlyphRun& glyphRun, const SkRect& bounds, SkPoint origin);
-
-
 
     uint64_t uniqueID() const;
     bool anyRunsLCD() const;
