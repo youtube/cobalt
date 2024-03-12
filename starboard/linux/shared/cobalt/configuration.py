@@ -61,8 +61,7 @@ _FILTERED_TESTS = {
         'HistogramTesterTest.TestGetTotalCountsForPrefix',
         'HistogramTesterTest.TestGetAllChangedHistograms',
 
-        # b/316404107
-        # These have flaky ASAN heap-use-after-free during metrics collection.
+        # TODO(b/316404107): These have flaky ASAN heap-use-after-free during metrics collection.
         'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_DifferentQueue/WithMessagePump',  # pylint: disable=line-too-long
         'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_DifferentQueue/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
         'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_DifferentQueue/WithMockTaskRunner',  # pylint: disable=line-too-long
