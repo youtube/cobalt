@@ -36,4 +36,5 @@ class JavaScriptProfilerTest(black_box_tests.BlackBoxTestCase):
             file_name=f'testdata/javascript_profiler.html?mode={mode}')
         with self.CreateCobaltRunner(url=url) as runner:
           runner.WaitForJSTestsSetup()
-          self.assertTrue(runner.JSTestsSucceeded())
+          self.assertTrue(runner.JSTestsSucceeded(),
+                          f'JavaScript profiler failed at case mode="{mode}".')
