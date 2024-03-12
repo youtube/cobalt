@@ -181,6 +181,27 @@ void MessagePumpIOStarboard::Run(Delegate* delegate) {
     if (has_more_immediate_work)
       continue;
 
+    // NOTE: We need to have a wake-up pending any time there is work queued,
+    // and the MessageLoop only wakes up the pump when the work queue goes from
+    // 0 tasks to 1 task. If any work is scheduled on this MessageLoop (from
+    // another thread) anywhere in between the call to DoWork() above and the
+    // call to SbSocketWaiterWaitTimed() below, SbSocketWaiterWaitTimed() will
+    // consume a wake-up, but leave the work queued. This will cause the
+    // blocking wait further below to hang forever, no matter how many more
+    // items are added to the queue. To resolve this, if this wait consumes a
+    // wake-up, we set did_work to true so we will jump back to the top of the
+    // loop and call delegate->DoWork() before we decide to block.
+    SbSocketWaiterResult result = SbSocketWaiterWaitTimed(waiter_, 0);
+    DCHECK_NE(kSbSocketWaiterResultInvalid, result);
+    has_more_immediate_work |=
+        (result == kSbSocketWaiterResultWokenUp) || processed_io_events_;
+    processed_io_events_ = false;
+    if (!keep_running_)
+      break;
+
+    if (has_more_immediate_work)
+      continue;
+
     has_more_immediate_work = delegate->DoIdleWork();
     if (!keep_running_)
       break;
@@ -188,6 +209,9 @@ void MessagePumpIOStarboard::Run(Delegate* delegate) {
     if (has_more_immediate_work)
       continue;
 
+    if (!next_work_info.delayed_run_time.is_null()) {
+      delayed_work_time_ = next_work_info.delayed_run_time;
+    }
     if (delayed_work_time_.is_null()) {
       SbSocketWaiterWait(waiter_);
     } else {

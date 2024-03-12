@@ -3371,7 +3371,6 @@ test("net_unittests") {
       "quic/quic_network_transaction_unittest.cc",
       "quic/quic_proxy_client_socket_unittest.cc",
       "quic/quic_stream_factory_test.cc",
-      "socket/websocket_transport_client_socket_pool_unittest.cc",
       "spdy/fuzzing/hpack_fuzz_util_test.cc",
       "spdy/spdy_session_pool_unittest.cc",
       "spdy/spdy_session_unittest.cc",
