@@ -354,7 +354,7 @@ class BASE_EXPORT File {
 #endif
 
 #if defined(STARBOARD)
-  static Error OSErrorToFileError(SbSystemError sb_error);
+  static Error OSErrorToFileError(SbSystemError sb_system_error);
 #elif BUILDFLAG(IS_WIN)
   static Error OSErrorToFileError(DWORD last_error);
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
@@ -425,6 +425,10 @@ class BASE_EXPORT File {
   bool append_ = false;
 #endif
 };
+
+#if defined(STARBOARD)
+void SetLastFileError(File::Error error);
+#endif
 
 }  // namespace base
 

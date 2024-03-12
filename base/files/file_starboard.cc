@@ -20,18 +20,26 @@
 
 #include "base/files/file.h"
 #include "base/files/file_path.h"
-#include "base/logging.h"
+#include "base/notreached.h"
 #include "base/strings/stringprintf.h"
 #include "base/threading/thread_restrictions.h"
-#include "starboard/common/metrics/stats_tracker.h"
 #include "starboard/common/log.h"
+#include "starboard/common/metrics/stats_tracker.h"
 #include "starboard/file.h"
-#include "base/notreached.h"
 
 namespace base {
 
+namespace {
+SbFileError g_sb_file_error = kSbFileOk;
+}  // namespace
+
+void SetLastFileError(File::Error error) {
+  g_sb_file_error = static_cast<SbFileError>(error);
+}
+
 void RecordFileWriteStat(int write_file_result) {
-  auto& stats_tracker = starboard::StatsTrackerContainer::GetInstance()->stats_tracker();
+  auto& stats_tracker =
+      starboard::StatsTrackerContainer::GetInstance()->stats_tracker();
   if (write_file_result <= 0) {
     stats_tracker.FileWriteFail();
   } else {
@@ -41,11 +49,10 @@ void RecordFileWriteStat(int write_file_result) {
 }
 
 // Make sure our Whence mappings match the system headers.
-static_assert(
-    File::FROM_BEGIN == static_cast<int>(kSbFileFromBegin) &&
-    File::FROM_CURRENT == static_cast<int>(kSbFileFromCurrent) &&
-    File::FROM_END == static_cast<int>(kSbFileFromEnd),
-    "Whence enums from base must match those of Starboard.");
+static_assert(File::FROM_BEGIN == static_cast<int>(kSbFileFromBegin) &&
+                  File::FROM_CURRENT == static_cast<int>(kSbFileFromCurrent) &&
+                  File::FROM_END == static_cast<int>(kSbFileFromEnd),
+              "Whence enums from base must match those of Starboard.");
 
 bool File::IsValid() const {
   return file_.is_valid();
@@ -270,44 +277,48 @@ bool File::GetInfo(Info* info) {
 }
 
 File::Error File::GetLastFileError() {
-  int err = errno;
-  switch (err) {
-    case ENOENT:
-      return static_cast<File::Error>(kSbFileErrorNotFound);
-    case EACCES:
-      return static_cast<File::Error>(kSbFileErrorAccessDenied);
-    case EEXIST:
-      return static_cast<File::Error>(kSbFileErrorExists);
-    default:
-      NOTREACHED() << base::StringPrintf("Unhandled errno: %d", err);
-  }
-  return FILE_ERROR_FAILED;
+  return base::File::OSErrorToFileError(g_sb_file_error);
 }
 
 // Static.
-File::Error File::OSErrorToFileError(SbSystemError sb_error) {
-  switch (sb_error) {
+File::Error File::OSErrorToFileError(SbSystemError sb_system_error) {
+  switch (static_cast<SbFileError>(sb_system_error)) {
+    case kSbFileOk:
+      return FILE_OK;
     case kSbFileErrorFailed:
+      return FILE_ERROR_FAILED;
     case kSbFileErrorInUse:
+      return FILE_ERROR_IN_USE;
     case kSbFileErrorExists:
+      return FILE_ERROR_EXISTS;
     case kSbFileErrorNotFound:
+      return FILE_ERROR_NOT_FOUND;
     case kSbFileErrorAccessDenied:
+      return FILE_ERROR_ACCESS_DENIED;
     case kSbFileErrorTooManyOpened:
+      return FILE_ERROR_TOO_MANY_OPENED;
     case kSbFileErrorNoMemory:
+      return FILE_ERROR_NO_MEMORY;
     case kSbFileErrorNoSpace:
+      return FILE_ERROR_NO_SPACE;
     case kSbFileErrorNotADirectory:
+      return FILE_ERROR_NOT_A_DIRECTORY;
     case kSbFileErrorInvalidOperation:
+      return FILE_ERROR_INVALID_OPERATION;
     case kSbFileErrorSecurity:
+      return FILE_ERROR_SECURITY;
     case kSbFileErrorAbort:
+      return FILE_ERROR_ABORT;
     case kSbFileErrorNotAFile:
+      return FILE_ERROR_NOT_A_FILE;
     case kSbFileErrorNotEmpty:
+      return FILE_ERROR_NOT_EMPTY;
     case kSbFileErrorInvalidUrl:
+      return FILE_ERROR_INVALID_URL;
     case kSbFileErrorIO:
-      // Starboard error codes are designed to match Chromium's exactly.
-      return static_cast<File::Error>(sb_error);
-      break;
+      return FILE_ERROR_IO;
     default:
-      NOTREACHED() << "Unrecognized SbFileError: " << sb_error;
+      NOTREACHED() << "Unrecognized SbSystemError: " << sb_system_error;
       break;
   }
   return FILE_ERROR_FAILED;
@@ -322,9 +333,8 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
   file_name_ = path.AsUTF8Unsafe();
 
   int open_flags = 0;
-  switch (flags & (FLAG_OPEN | FLAG_CREATE |
-                   FLAG_OPEN_ALWAYS | FLAG_CREATE_ALWAYS |
-                   FLAG_OPEN_TRUNCATED)) {
+  switch (flags & (FLAG_OPEN | FLAG_CREATE | FLAG_OPEN_ALWAYS |
+                   FLAG_CREATE_ALWAYS | FLAG_OPEN_TRUNCATED)) {
     case FLAG_OPEN:
       open_flags = kSbFileOpenOnly;
       break;
@@ -359,12 +369,11 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
     open_flags |= kSbFileWrite;
   }
 
-  SbFileError sb_error;
-  file_.reset(
-      SbFileOpen(path.value().c_str(), open_flags, &created_, &sb_error));
+  file_.reset(SbFileOpen(path.value().c_str(), open_flags, &created_,
+                         &g_sb_file_error));
 
   if (!file_.is_valid()) {
-    error_details_ = OSErrorToFileError(sb_error);
+    error_details_ = OSErrorToFileError(g_sb_file_error);
   } else {
     error_details_ = FILE_OK;
     if (append_) {
