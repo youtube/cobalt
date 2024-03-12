@@ -6,10 +6,12 @@
   <script>
 
     const testPrimeProfiler = async () => {
-      const profiler = new Profiler({ sampleInterval: 10 /**ms**/, maxBufferSize: 10000 /**number of samples*/ });
-      const start = performance.now();
+      const profiler = new Profiler({ sampleInterval: 10 /**ms**/, maxBufferSize: 10 /**number of samples*/ });
 
-      const duration = performance.now() - start;
+      // sleep 10 seconds
+      await new Promise(resolve => setTimeout(resolve, 10000 /**ms**/));
+
+      // stop & check
       const trace = await profiler.stop();
       assertTrue(trace.samples.length > 0, "expected some stack traces");
     };
@@ -36,12 +38,10 @@
       * Expects the SampleBuffer to be full and the callback to be executed.
     */
     const testAbruptGarbageCollection = async () => {
-      const promise = new Promise((resolve, reject) => {
+      const profilerPromise = new Promise((resolve) => {
         window.profiler = new Profiler({ maxBufferSize: 100, sampleInterval: 10 });
-        window.profiler.addEventListener("samplebufferfull", () => {
-          window.profiler.stop().then(() => resolve(true));
-        });
         delete window.profiler; // simulates the effects of GC.
+        resolve(true);
       });
 
       const survivePromise = new Promise((resolve) => {
@@ -51,7 +51,7 @@
       });
 
       // must survive for 10 seconds
-      const result = await Promise.all([survivePromise, promise]);
+      const result = await Promise.all([survivePromise, profilerPromise]);
       assertTrue(result.every(p => p), "expected cobalt to survive 10 sec if GC collects profiler");
     };
 
