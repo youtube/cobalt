@@ -37,24 +37,22 @@
     */
     const testAbruptGarbageCollection = async () => {
       const promise = new Promise((resolve, reject) => {
-        const profiler = new Profiler({ maxBufferSize: 100, sampleInterval: 10 });
-        profiler.addEventListener("samplebufferfull", () => {
-          profiler.stop().then(() => resolve(true));
+        window.profiler = new Profiler({ maxBufferSize: 100, sampleInterval: 10 });
+        window.profiler.addEventListener("samplebufferfull", () => {
+          window.profiler.stop().then(() => resolve(true));
         });
+        delete window.profiler; // simulates the effects of GC.
       });
 
-      // force GC. Profiler callback should still be executed even though it
-      // is out of JS scope.
-      h5vcc.crashLog.forceGarbageCollection();
-
-      const timeoutPromise = new Promise((resolve) => {
+      const survivePromise = new Promise((resolve) => {
         setTimeout(() => {
           resolve(true);
         }, 10000);
       });
 
-      const result = await Promise.race([timeoutPromise, promise]);
-      assertTrue(result, "expected cobalt to not segfault if GC activates");
+      // must survive for 10 seconds
+      const result = await Promise.all([survivePromise, promise]);
+      assertTrue(result.every(p => p), "expected cobalt to survive 10 sec if GC collects profiler");
     };
 
     window.addEventListener("load", async () => {
