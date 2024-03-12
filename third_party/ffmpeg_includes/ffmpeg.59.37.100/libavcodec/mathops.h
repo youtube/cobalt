@@ -1,6 +1,7 @@
 /*
- * Simple math operations
- * Copyright (c) 2009 Mans Rullgard <mans@mansr.com>
+ * simple math operations
+ * Copyright (c) 2001, 2002 Fabrice Bellard
+ * Copyright (c) 2006 Michael Niedermayer <michaelni@gmx.at> et al
  *
  * This file is part of FFmpeg.
  *
@@ -18,84 +19,227 @@
  * License along with FFmpeg; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
-
-#ifndef AVCODEC_AVR32_MATHOPS_H
-#define AVCODEC_AVR32_MATHOPS_H
+#ifndef AVCODEC_MATHOPS_H
+#define AVCODEC_MATHOPS_H
 
 #include <stdint.h>
-#include "config.h"
+
 #include "libavutil/common.h"
+#include "config.h"
 
-#if HAVE_INLINE_ASM
+#define MAX_NEG_CROP 1024
 
-#define MULL MULL
-static inline av_const int MULL(int a, int b, unsigned shift)
-{
-    union { int64_t x; int hl[2]; } x;
-    __asm__ ("muls.d %0, %1, %2       \n\t"
-             "lsr    %0, %3           \n\t"
-             "or     %0, %0, %m0<<%4  \n\t"
-             : "=r"(x) : "r"(b), "r"(a), "i"(shift), "i"(32-shift));
-    return x.hl[1];
+extern const uint32_t ff_inverse[257];
+extern const uint8_t ff_log2_run[41];
+extern const uint8_t ff_sqrt_tab[256];
+extern const uint8_t ff_crop_tab[256 + 2 * MAX_NEG_CROP];
+extern const uint8_t ff_zigzag_direct[64];
+extern const uint8_t ff_zigzag_scan[16+1];
+
+#if   ARCH_ARM
+#   include "arm/mathops.h"
+#elif ARCH_AVR32
+#   include "avr32/mathops.h"
+#elif ARCH_MIPS
+#   include "mips/mathops.h"
+#elif ARCH_PPC
+#   include "ppc/mathops.h"
+#elif ARCH_X86
+#   include "x86/mathops.h"
+#endif
+
+/* generic implementation */
+
+#ifndef MUL64
+#   define MUL64(a,b) ((int64_t)(a) * (int64_t)(b))
+#endif
+
+#ifndef MULL
+#   define MULL(a,b,s) (MUL64(a, b) >> (s))
+#endif
+
+#ifndef MULH
+static av_always_inline int MULH(int a, int b){
+    return MUL64(a, b) >> 32;
 }
+#endif
 
-#define MULH MULH
-static inline av_const int MULH(int a, int b)
-{
-    union { int64_t x; int hl[2]; } x;
-    __asm__ ("muls.d %0, %1, %2" : "=r"(x.x) : "r"(a), "r"(b));
-    return x.hl[0];
+#ifndef UMULH
+static av_always_inline unsigned UMULH(unsigned a, unsigned b){
+    return ((uint64_t)(a) * (uint64_t)(b))>>32;
 }
+#endif
 
-#define MUL64 MUL64
-static inline av_const int64_t MUL64(int a, int b)
-{
-    int64_t x;
-    __asm__ ("muls.d %0, %1, %2" : "=r"(x) : "r"(a), "r"(b));
-    return x;
-}
+#ifndef MAC64
+#   define MAC64(d, a, b) ((d) += MUL64(a, b))
+#endif
 
-static inline av_const int64_t MAC64(int64_t d, int a, int b)
-{
-    __asm__ ("macs.d %0, %1, %2" : "+r"(d) : "r"(a), "r"(b));
-    return d;
-}
-#define MAC64(d, a, b) ((d) = MAC64(d, a, b))
-#define MLS64(d, a, b) MAC64(d, -(a), b)
+#ifndef MLS64
+#   define MLS64(d, a, b) ((d) -= MUL64(a, b))
+#endif
 
-static inline av_const int MAC16(int d, int a, int b)
-{
-    __asm__ ("machh.w %0, %1:b, %2:b" : "+r"(d) : "r"(a), "r"(b));
-    return d;
-}
-#define MAC16(d, a, b) ((d) = MAC16(d, a, b))
-#define MLS16(d, a, b) MAC16(d, -(a), b)
+/* signed 16x16 -> 32 multiply add accumulate */
+#ifndef MAC16
+#   define MAC16(rt, ra, rb) rt += (ra) * (rb)
+#endif
 
-#define MUL16 MUL16
-static inline av_const int MUL16(int a, int b)
-{
-    int d;
-    __asm__ ("mulhh.w %0, %1:b, %2:b" : "=r"(d) : "r"(a), "r"(b));
-    return d;
-}
+/* signed 16x16 -> 32 multiply */
+#ifndef MUL16
+#   define MUL16(ra, rb) ((ra) * (rb))
+#endif
 
+#ifndef MLS16
+#   define MLS16(rt, ra, rb) ((rt) -= (ra) * (rb))
+#endif
+
+/* median of 3 */
+#ifndef mid_pred
 #define mid_pred mid_pred
 static inline av_const int mid_pred(int a, int b, int c)
 {
-    int m;
-    __asm__ ("mov   %0, %2  \n\t"
-             "cp.w  %1, %2  \n\t"
-             "movgt %0, %1  \n\t"
-             "movgt %1, %2  \n\t"
-             "cp.w  %1, %3  \n\t"
-             "movle %1, %3  \n\t"
-             "cp.w  %0, %1  \n\t"
-             "movgt %0, %1  \n\t"
-             : "=&r"(m), "+r"(a)
-             : "r"(b), "r"(c));
-    return m;
+    if(a>b){
+        if(c>b){
+            if(c>a) b=a;
+            else    b=c;
+        }
+    }else{
+        if(b>c){
+            if(c>a) b=c;
+            else    b=a;
+        }
+    }
+    return b;
+}
+#endif
+
+#ifndef median4
+#define median4 median4
+static inline av_const int median4(int a, int b, int c, int d)
+{
+    if (a < b) {
+        if (c < d) return (FFMIN(b, d) + FFMAX(a, c)) / 2;
+        else       return (FFMIN(b, c) + FFMAX(a, d)) / 2;
+    } else {
+        if (c < d) return (FFMIN(a, d) + FFMAX(b, c)) / 2;
+        else       return (FFMIN(a, c) + FFMAX(b, d)) / 2;
+    }
+}
+#endif
+
+#define FF_SIGNBIT(x) ((x) >> CHAR_BIT * sizeof(x) - 1)
+
+#ifndef sign_extend
+static inline av_const int sign_extend(int val, unsigned bits)
+{
+    unsigned shift = 8 * sizeof(int) - bits;
+    union { unsigned u; int s; } v = { (unsigned) val << shift };
+    return v.s >> shift;
+}
+#endif
+
+#ifndef zero_extend
+static inline av_const unsigned zero_extend(unsigned val, unsigned bits)
+{
+    return (val << ((8 * sizeof(int)) - bits)) >> ((8 * sizeof(int)) - bits);
+}
+#endif
+
+#ifndef COPY3_IF_LT
+#define COPY3_IF_LT(x, y, a, b, c, d)\
+if ((y) < (x)) {\
+    (x) = (y);\
+    (a) = (b);\
+    (c) = (d);\
+}
+#endif
+
+#ifndef MASK_ABS
+#define MASK_ABS(mask, level) do {              \
+        mask  = level >> 31;                    \
+        level = (level ^ mask) - mask;          \
+    } while (0)
+#endif
+
+#ifndef NEG_SSR32
+#   define NEG_SSR32(a,s) ((( int32_t)(a))>>(32-(s)))
+#endif
+
+#ifndef NEG_USR32
+#   define NEG_USR32(a,s) (((uint32_t)(a))>>(32-(s)))
+#endif
+
+#if HAVE_BIGENDIAN
+# ifndef PACK_2U8
+#   define PACK_2U8(a,b)     (((a) <<  8) | (b))
+# endif
+# ifndef PACK_4U8
+#   define PACK_4U8(a,b,c,d) (((a) << 24) | ((b) << 16) | ((c) << 8) | (d))
+# endif
+# ifndef PACK_2U16
+#   define PACK_2U16(a,b)    (((a) << 16) | (b))
+# endif
+#else
+# ifndef PACK_2U8
+#   define PACK_2U8(a,b)     (((b) <<  8) | (a))
+# endif
+# ifndef PACK_4U2
+#   define PACK_4U8(a,b,c,d) (((d) << 24) | ((c) << 16) | ((b) << 8) | (a))
+# endif
+# ifndef PACK_2U16
+#   define PACK_2U16(a,b)    (((b) << 16) | (a))
+# endif
+#endif
+
+#ifndef PACK_2S8
+#   define PACK_2S8(a,b)     PACK_2U8((a)&255, (b)&255)
+#endif
+#ifndef PACK_4S8
+#   define PACK_4S8(a,b,c,d) PACK_4U8((a)&255, (b)&255, (c)&255, (d)&255)
+#endif
+#ifndef PACK_2S16
+#   define PACK_2S16(a,b)    PACK_2U16((a)&0xffff, (b)&0xffff)
+#endif
+
+#ifndef FASTDIV
+#   define FASTDIV(a,b) ((uint32_t)((((uint64_t)a) * ff_inverse[b]) >> 32))
+#endif /* FASTDIV */
+
+#ifndef ff_sqrt
+#define ff_sqrt ff_sqrt
+static inline av_const unsigned int ff_sqrt(unsigned int a)
+{
+    unsigned int b;
+
+    if (a < 255) return (ff_sqrt_tab[a + 1] - 1) >> 4;
+    else if (a < (1 << 12)) b = ff_sqrt_tab[a >> 4] >> 2;
+#if !CONFIG_SMALL
+    else if (a < (1 << 14)) b = ff_sqrt_tab[a >> 6] >> 1;
+    else if (a < (1 << 16)) b = ff_sqrt_tab[a >> 8]   ;
+#endif
+    else {
+        int s = av_log2_16bit(a >> 16) >> 1;
+        unsigned int c = a >> (s + 2);
+        b = ff_sqrt_tab[c >> (s + 8)];
+        b = FASTDIV(c,b) + (b << s);
+    }
+
+    return b - (a < b * b);
+}
+#endif
+
+static inline av_const float ff_sqrf(float a)
+{
+    return a*a;
 }
 
-#endif /* HAVE_INLINE_ASM */
+static inline int8_t ff_u8_to_s8(uint8_t a)
+{
+    union {
+        uint8_t u8;
+        int8_t  s8;
+    } b;
+    b.u8 = a;
+    return b.s8;
+}
 
-#endif /* AVCODEC_AVR32_MATHOPS_H */
+#endif /* AVCODEC_MATHOPS_H */

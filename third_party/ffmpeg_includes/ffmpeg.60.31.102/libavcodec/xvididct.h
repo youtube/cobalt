@@ -1,6 +1,4 @@
 /*
- * XVID MPEG-4 VIDEO CODEC
- *
  * This file is part of FFmpeg.
  *
  * FFmpeg is free software; you can redistribute it and/or
@@ -18,19 +16,21 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-/**
- * @file
- * header for Xvid IDCT functions
- */
+#ifndef AVCODEC_XVIDIDCT_H
+#define AVCODEC_XVIDIDCT_H
 
-#ifndef AVCODEC_X86_XVIDIDCT_H
-#define AVCODEC_X86_XVIDIDCT_H
-
-#include <stddef.h>
 #include <stdint.h>
 
-void ff_xvid_idct_sse2(short *block);
-void ff_xvid_idct_put_sse2(uint8_t *dest, ptrdiff_t line_size, short *block);
-void ff_xvid_idct_add_sse2(uint8_t *dest, ptrdiff_t line_size, short *block);
+#include "avcodec.h"
+#include "idctdsp.h"
 
-#endif /* AVCODEC_X86_XVIDIDCT_H */
+void ff_xvid_idct(int16_t *const in);
+
+void ff_xvid_idct_init(IDCTDSPContext *c, AVCodecContext *avctx);
+
+void ff_xvid_idct_init_x86(IDCTDSPContext *c, AVCodecContext *avctx,
+                           unsigned high_bit_depth);
+void ff_xvid_idct_init_mips(IDCTDSPContext *c, AVCodecContext *avctx,
+                            unsigned high_bit_depth);
+
+#endif /* AVCODEC_XVIDIDCT_H */

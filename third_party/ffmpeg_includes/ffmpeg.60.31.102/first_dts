@@ -1,2 +1,0 @@
-libavcodec/vulkan_decode.h:120: * NOTE: if avctx->internal->hwaccel_priv_data exists, will partially initialize
-libavcodec/dxva2_internal.h:97:#define DXVA_SHARED_CONTEXT(avctx) ((FFDXVASharedContext *)((avctx)->internal->hwaccel_priv_data))
