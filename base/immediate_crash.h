@@ -46,6 +46,8 @@
 
 #if defined(STARBOARD)
 #define IMMEDIATE_CRASH() SB_CHECK(false)
+#define TRAP_SEQUENCE1_() SB_CHECK(false)
+#define TRAP_SEQUENCE2_()
 #elif defined(COMPILER_GCC)
 
 #if BUILDFLAG(IS_NACL)
@@ -127,7 +129,6 @@
 
 #endif  // COMPILER_GCC
 
-#if !defined(STARBOARD)
 #define TRAP_SEQUENCE_() \
   do {                   \
     TRAP_SEQUENCE1_();   \
@@ -156,14 +157,5 @@ namespace base {
 }
 
 }  // namespace base
-
-#else
-
-namespace base {
-  [[noreturn]] inline void ImmediateCrash() {
-    SB_CHECK(false);
-  }
-}
-#endif
 
 #endif  // BASE_IMMEDIATE_CRASH_H_

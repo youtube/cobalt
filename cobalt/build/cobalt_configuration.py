@@ -118,6 +118,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'cssom_test',
         'css_parser_test',
         'cwrappers_test',
+        'dom_parser_test',
         'graphics_system_test',
         'layout_test',
         'math_test',
@@ -137,7 +138,6 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
     # return [
     #     'audio_test',
     #     'components_metrics_tests',
-    #     'dom_parser_test',
     #     'dom_test',
     #     'extension_test',
     #     # TODO(b/292127297): This target is not built for all platforms.

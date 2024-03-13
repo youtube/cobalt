@@ -88,7 +88,8 @@ void StartElement(void* context, const xmlChar* name,
 
     for (size_t i = 0; i < num_attributes; ++i, attribute_pairs += 2) {
       attributes.push_back(LibxmlParserWrapper::ParserAttribute(
-          ToCString(attribute_pairs[0]), ToCString(attribute_pairs[1])));
+          ToCString(attribute_pairs[0]),
+          (attribute_pairs[1] ? ToCString(attribute_pairs[1]) : "")));
     }
   }
 

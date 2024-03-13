@@ -149,21 +149,7 @@ class BASE_EXPORT NotReachedNoreturnError : public CheckError {
 #error "Debug builds are not expected to be optimized as official builds."
 #endif  // defined(OFFICIAL_BUILD) && !defined(NDEBUG)
 
-#if defined(STARBOARD)
-// Chromium default CHECKs can not crash Cobalt.
-#define CHECK(condition)                                                  \
-  UNLIKELY(!(condition))                                            \
-      ? ::logging::CheckError::Check(__FILE__, __LINE__, #condition).stream() && \
-            IMMEDIATE_CRASH()                                             \
-      : EAT_CHECK_STREAM_PARAMS()
-
-#define CHECK_WILL_STREAM() true
-
-#define PCHECK(condition)                                           \
-  CHECK_FUNCTION_IMPL(                                               \
-      ::logging::CheckError::PCheck(__FILE__, __LINE__, #condition), \
-      condition)
-#elif defined(OFFICIAL_BUILD) && !DCHECK_IS_ON()
+#if defined(OFFICIAL_BUILD) && !DCHECK_IS_ON()
 // Note that this uses IMMEDIATE_CRASH_ALWAYS_INLINE to force-inline in debug
 // mode as well. See LoggingTest.CheckCausesDistinctBreakpoints.
 [[noreturn]] IMMEDIATE_CRASH_ALWAYS_INLINE void CheckFailure() {
