@@ -21,8 +21,8 @@ class NET_EXPORT URLFetcherDelegate {
  public:
 #if defined(STARBOARD)
   // This will be called when the response code and headers have been received.
-  virtual void OnURLFetchResponseStarted(const URLFetcher* source) {}
-#endif  // defined(COBALT)
+  virtual void OnURLFetchResponseStarted(const URLFetcher* source);
+#endif  // defined(STARBOARD)
 
   // This will be called when the URL has been fetched, successfully or not.
   // Use accessor methods on |source| to get the results.
@@ -35,19 +35,19 @@ class NET_EXPORT URLFetcherDelegate {
   // up to the call, excluding redirect bodies, SSL and proxy handshakes.
   virtual void OnURLFetchDownloadProgress(const URLFetcher* source,
                                           int64_t current, int64_t total,
-                                          int64_t current_network_bytes) {}
+                                          int64_t current_network_bytes);
 
   // This will be called when uploading of POST or PUT requests proceeded.
   // |current| denotes the number of bytes sent so far, and |total| is the
   // total size of uploading data (or -1 if chunked upload is enabled).
   virtual void OnURLFetchUploadProgress(const URLFetcher* source,
-                                        int64_t current, int64_t total) {}
+                                        int64_t current, int64_t total);
 #if defined(STARBOARD)
   virtual void ReportLoadTimingInfo(const net::LoadTimingInfo& timing_info) {}
 #endif  // defined(STARBOARD)
 
  protected:
-  virtual ~URLFetcherDelegate() = default;
+  virtual ~URLFetcherDelegate();
 };
 
 }  // namespace net

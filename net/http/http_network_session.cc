@@ -149,6 +149,7 @@ HttpNetworkSession::HttpNetworkSession(const HttpNetworkSessionParams& params,
                           context.ct_policy_enforcer,
                           &ssl_client_session_cache_,
                           context.sct_auditing_delegate),
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
       quic_stream_factory_(context.net_log,
                            context.host_resolver,
                            context.ssl_config_service,
@@ -161,6 +162,7 @@ HttpNetworkSession::HttpNetworkSession(const HttpNetworkSessionParams& params,
                            context.socket_performance_watcher_factory,
                            context.quic_crypto_client_stream_factory,
                            context.quic_context),
+#endif
       spdy_session_pool_(context.host_resolver,
                          &ssl_client_context_,
                          context.http_server_properties,
@@ -268,6 +270,7 @@ std::unique_ptr<base::Value> HttpNetworkSession::SpdySessionPoolInfoToValue()
 
 base::Value HttpNetworkSession::QuicInfoToValue() const {
   base::Value::Dict dict;
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
   dict.Set("sessions", quic_stream_factory_.QuicStreamFactoryInfoToValue());
   dict.Set("quic_enabled", IsQuicEnabled());
 
@@ -331,7 +334,7 @@ base::Value HttpNetworkSession::QuicInfoToValue() const {
   dict.Set("initial_rtt_for_handshake_milliseconds",
            static_cast<int>(
                quic_params->initial_rtt_for_handshake.InMilliseconds()));
-
+#endif
   return base::Value(std::move(dict));
 }
 
@@ -342,7 +345,9 @@ void HttpNetworkSession::CloseAllConnections(int net_error,
   websocket_socket_pool_manager_->FlushSocketPoolsWithError(
       net_error, net_log_reason_utf8);
   spdy_session_pool_.CloseCurrentSessions(static_cast<net::Error>(net_error));
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
   quic_stream_factory_.CloseAllSessions(net_error, quic::QUIC_PEER_GOING_AWAY);
+#endif
 }
 
 void HttpNetworkSession::CloseIdleConnections(const char* net_log_reason_utf8) {
@@ -359,16 +364,28 @@ void HttpNetworkSession::SetServerPushDelegate(
 
   push_delegate_ = std::move(push_delegate);
   spdy_session_pool_.set_server_push_delegate(push_delegate_.get());
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
   quic_stream_factory_.set_server_push_delegate(push_delegate_.get());
+#endif
 }
 
 bool HttpNetworkSession::IsQuicEnabled() const {
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
   return params_.enable_quic;
+#else
+  return false;
+#endif
 }
 
 void HttpNetworkSession::DisableQuic() {
   params_.enable_quic = false;
 }
+
+#if defined(STARBOARD)
+void HttpNetworkSession::SetEnableQuic(bool enable_quic) {
+  params_.enable_quic = enable_quic;
+}
+#endif  // defined(STARBOARD)
 
 void HttpNetworkSession::ClearSSLSessionCache() {
   ssl_client_session_cache_.Flush();
@@ -382,7 +399,12 @@ CommonConnectJobParams HttpNetworkSession::CreateCommonConnectJobParams(
       context_.client_socket_factory, context_.host_resolver, &http_auth_cache_,
       context_.http_auth_handler_factory, &spdy_session_pool_,
       &context_.quic_context->params()->supported_versions,
-      &quic_stream_factory_, context_.proxy_delegate,
+#if !defined(QUIC_DISABLED_FOR_STARBOARD)
+      &quic_stream_factory_,
+#else
+      nullptr,
+#endif
+      context_.proxy_delegate,
       context_.http_user_agent_settings, &ssl_client_context_,
       context_.socket_performance_watcher_factory,
       context_.network_quality_estimator, context_.net_log,

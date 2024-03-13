@@ -198,6 +198,10 @@ struct NET_EXPORT LoadTimingInfo {
   // is not closed by the server.
   base::TimeTicks push_start;
   base::TimeTicks push_end;
+
+#if defined(STARBOARD)
+  uint64_t encoded_body_size;
+#endif  // defined(STARBOARD)
 };
 
 }  // namespace net

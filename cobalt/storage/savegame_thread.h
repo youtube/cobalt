@@ -42,7 +42,7 @@ class SavegameThread : public base::CurrentThread::DestructionObserver {
   // asynchronously on SavegameThread's I/O thread, so this method will return
   // immediately.
   void Flush(std::unique_ptr<Savegame::ByteVector> raw_bytes_ptr,
-             const base::Closure& on_flush_complete);
+             base::OnceClosure on_flush_complete);
 
  private:
   // From base::CurrentThread::DestructionObserver.
@@ -54,7 +54,7 @@ class SavegameThread : public base::CurrentThread::DestructionObserver {
   // Runs on the I/O thread to write the database to the savegame's persistent
   // storage.
   void FlushOnIOThread(std::unique_ptr<Savegame::ByteVector> raw_bytes_ptr,
-                       const base::Closure& on_flush_complete);
+                       base::OnceClosure on_flush_complete);
 
   // Savegame options passed in to SavegameThread's constructor.
   Savegame::Options options_;

@@ -38,8 +38,7 @@ class CacheCreator {
  public:
   CacheCreator(const base::FilePath& path, int64_t max_bytes,
                net::NetLog* net_log,
-               std::unique_ptr<::disk_cache::Backend>* backend,
-               net::CompletionOnceCallback callback,
+               ::disk_cache::BackendResultCallback callback,
                cobalt::network::URLRequestContext* url_request_context);
 
   net::Error TryCreateCleanupTrackerAndRun();
@@ -58,8 +57,7 @@ class CacheCreator {
   const base::FilePath path_;
   bool retry_;
   int64_t max_bytes_;
-  std::unique_ptr<::disk_cache::Backend>* backend_;
-  net::CompletionOnceCallback callback_;
+  ::disk_cache::BackendResultCallback callback_;
   std::unique_ptr<::disk_cache::Backend> created_cache_;
   net::NetLog* net_log_;
   scoped_refptr<::disk_cache::BackendCleanupTracker> cleanup_tracker_;
@@ -70,12 +68,10 @@ class CacheCreator {
 
 CacheCreator::CacheCreator(
     const base::FilePath& path, int64_t max_bytes, net::NetLog* net_log,
-    std::unique_ptr<::disk_cache::Backend>* backend,
-    net::CompletionOnceCallback callback,
+    ::disk_cache::BackendResultCallback callback,
     cobalt::network::URLRequestContext* url_request_context)
     : path_(path),
       max_bytes_(max_bytes),
-      backend_(backend),
       callback_(std::move(callback)),
       net_log_(net_log),
       url_request_context_(url_request_context) {}
@@ -94,12 +90,13 @@ net::Error CacheCreator::Run() {
 void CacheCreator::DoCallback(int result) {
   DCHECK_NE(net::ERR_IO_PENDING, result);
   if (result == net::OK) {
-    *backend_ = std::move(created_cache_);
+    std::move(callback_).Run(
+        ::disk_cache::BackendResult::Make(std::move(created_cache_)));
   } else {
     LOG(ERROR) << "Unable to create cache";
-    created_cache_.reset();
+    std::move(callback_).Run(::disk_cache::BackendResult::MakeError(
+        static_cast<net::Error>(result)));
   }
-  std::move(callback_).Run(result);
   delete this;
 }
 
@@ -121,13 +118,11 @@ namespace disk_cache {
 
 net::Error CreateCobaltCacheBackend(
     const base::FilePath& path, int64_t max_bytes, net::NetLog* net_log,
-    std::unique_ptr<::disk_cache::Backend>* backend,
-    net::CompletionOnceCallback callback,
+    ::disk_cache::BackendResultCallback callback,
     cobalt::network::URLRequestContext* url_request_context) {
   DCHECK(!callback.is_null());
-  CacheCreator* creator =
-      new CacheCreator(path, max_bytes, net_log, backend, std::move(callback),
-                       url_request_context);
+  CacheCreator* creator = new CacheCreator(
+      path, max_bytes, net_log, std::move(callback), url_request_context);
   return creator->Run();
 }
 
