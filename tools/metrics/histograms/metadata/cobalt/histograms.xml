@@ -31,6 +31,13 @@ Always run the pretty print utility on this file after editing:
 
 <histograms>
 
+<variants name="SourceBufferMetricsAction">
+  <variant name="PrepareAppend"/>
+  <variant name="AppendBuffer"/>
+
+  <variant name="Other" summary="Default value for unspecified actions."/>
+</variants>
+
 <histogram name="Cobalt.DOM.CSS.Link.ParseTimeMicrosPerKB" units="microseconds"
     expires_after="never">
 <!-- expires-never: Needed for long-term tracking of CSS parse performance. -->
@@ -149,6 +156,18 @@ Always run the pretty print utility on this file after editing:
     Status of the media pipeline at the end of its lifecycle for video only
     streams.
   </summary>
+</histogram>
+
+<histogram name="Cobalt.Media.SourceBuffer.{SourceBufferMetricsAction}.Timing"
+    units="ms" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of SourceBuffer latency. -->
+
+  <owner>async@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Timing data for specific parts of the `SourceBuffer.appendBuffer` codepath.
+  </summary>
+  <token key="SourceBufferMetricsAction" variants="SourceBufferMetricsAction"/>
 </histogram>
 
 <histogram name="Cobalt.MediaDevices.MicCreationSucceeded" enum="Boolean"

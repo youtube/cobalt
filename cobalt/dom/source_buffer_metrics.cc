@@ -17,6 +17,7 @@
 #include <algorithm>
 
 #include "base/logging.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/time/time.h"
 #include "cobalt/base/statistics.h"
 #include "starboard/common/string.h"
@@ -26,10 +27,9 @@
 
 namespace cobalt {
 namespace dom {
+namespace {
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
-
-namespace {
 
 int GetBandwidth(std::size_t size, int64_t duration_us) {
   return duration_us == 0
@@ -63,6 +63,8 @@ double GetWallToThreadTimeRatio(int64_t wall_time, int64_t thread_time) {
 }  // namespace
 SB_ONCE_INITIALIZE_FUNCTION(StatisticsWrapper, StatisticsWrapper::GetInstance);
 
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+
 void SourceBufferMetrics::StartTracking() {
   if (!is_primary_video_) {
     return;
@@ -70,11 +72,12 @@ void SourceBufferMetrics::StartTracking() {
 
   DCHECK(!is_tracking_);
   is_tracking_ = true;
-  wall_start_time_ = starboard::CurrentMonotonicTime();
+  wall_start_time_ = clock_->NowTicks();
   thread_start_time_ = starboard::CurrentMonotonicThreadTime();
 }
 
-void SourceBufferMetrics::EndTracking(std::size_t size_appended) {
+void SourceBufferMetrics::EndTracking(SourceBufferMetricsAction action,
+                                      std::size_t size_appended) {
   if (!is_primary_video_) {
     return;
   }
@@ -82,16 +85,21 @@ void SourceBufferMetrics::EndTracking(std::size_t size_appended) {
   DCHECK(is_tracking_);
   is_tracking_ = false;
 
-  int64_t wall_duration = starboard::CurrentMonotonicTime() - wall_start_time_;
+  base::TimeDelta wall_duration = clock_->NowTicks() - wall_start_time_;
   int64_t thread_duration =
       starboard::CurrentMonotonicThreadTime() - thread_start_time_;
-  total_wall_time_ += wall_duration;
+
+  RecordTelemetry(action, wall_duration);
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  total_wall_time_ += wall_duration.InMicroseconds();
   total_thread_time_ += thread_duration;
 
   total_size_ += size_appended;
 
   if (size_appended > 0) {
-    int wall_bandwidth = GetBandwidth(size_appended, wall_duration);
+    int wall_bandwidth =
+        GetBandwidth(size_appended, wall_duration.InMicroseconds());
     int thread_bandwidth = GetBandwidth(size_appended, thread_duration);
 
     max_wall_bandwidth_ = std::max(max_wall_bandwidth_, wall_bandwidth);
@@ -99,7 +107,44 @@ void SourceBufferMetrics::EndTracking(std::size_t size_appended) {
     max_thread_bandwidth_ = std::max(max_thread_bandwidth_, thread_bandwidth);
     min_thread_bandwidth_ = std::min(min_thread_bandwidth_, thread_bandwidth);
   }
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 }
+
+void SourceBufferMetrics::RecordTelemetry(
+    SourceBufferMetricsAction action, const base::TimeDelta& action_duration) {
+  switch (action) {
+    case SourceBufferMetricsAction::PREPARE_APPEND:
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.SourceBuffer.PrepareAppend.Timing", action_duration,
+          base::TimeDelta::FromMicroseconds(1), base::TimeDelta::FromSeconds(1),
+          50);
+      break;
+    case SourceBufferMetricsAction::APPEND_BUFFER:
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.SourceBuffer.AppendBuffer.Timing", action_duration,
+          base::TimeDelta::FromMicroseconds(1), base::TimeDelta::FromSeconds(1),
+          50);
+      break;
+    default:
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.SourceBuffer.Other.Timing", action_duration,
+          base::TimeDelta::FromMicroseconds(1), base::TimeDelta::FromSeconds(1),
+          50);
+      break;
+  }
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  // clang-format off
+  LOG(INFO) << starboard::FormatString(
+    "AppendBuffer telemetry recorded:\n"
+    "    SourceBufferMetricsAction: %d\n"
+    "    Latency recorded: %" PRId64 " ms\n",
+    static_cast<uint8_t>(action), action_duration.InMilliseconds());
+  // clang-format on
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+}
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
 
 void SourceBufferMetrics::PrintCurrentMetricsAndUpdateAccumulatedMetrics() {
   if (!is_primary_video_) {

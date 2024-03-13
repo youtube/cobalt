@@ -20,6 +20,7 @@
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/dom/media_source.h"
+#include "cobalt/dom/source_buffer_metrics.h"
 
 namespace cobalt {
 namespace dom {
@@ -72,7 +73,8 @@ void SourceBufferAppendAlgorithm::Process(bool* finished) {
       id_, buffer_, append_size, append_window_start_, append_window_end_,
       &timestamp_offset_);
   update_timestamp_offset_cb_.Run(timestamp_offset_);
-  metrics_->EndTracking(succeeded_ ? append_size : 0);
+  metrics_->EndTracking(SourceBufferMetricsAction::APPEND_BUFFER,
+                        succeeded_ ? append_size : 0);
 
   if (succeeded_) {
     buffer_ += append_size;
