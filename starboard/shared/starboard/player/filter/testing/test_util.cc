@@ -299,13 +299,10 @@ scoped_refptr<InputBuffer> GetAudioInputBuffer(
     int64_t discarded_duration_from_front,
     int64_t discarded_duration_from_back) {
   SB_DCHECK(dmp_reader);
-  auto player_sample_info =
-      dmp_reader->GetPlayerSampleInfo(kSbMediaTypeAudio, index);
+  auto player_sample_info = dmp_reader->GetPlayerSampleInfo(
+      kSbMediaTypeAudio, index, discarded_duration_from_front,
+      discarded_duration_from_back);
 #if SB_API_VERSION >= 15
-  player_sample_info.audio_sample_info.discarded_duration_from_front =
-      discarded_duration_from_front;
-  player_sample_info.audio_sample_info.discarded_duration_from_back =
-      discarded_duration_from_back;
   auto input_buffer = new InputBuffer(StubDeallocateSampleFunc, nullptr,
                                       nullptr, player_sample_info);
 #else   // SB_API_VERSION >= 15

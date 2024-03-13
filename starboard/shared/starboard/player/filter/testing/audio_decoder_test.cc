@@ -55,6 +55,7 @@ namespace {
 using ::testing::Bool;
 using ::testing::Combine;
 using ::testing::ValuesIn;
+using video_dmp::SequentialVideoDmpReader;
 using video_dmp::VideoDmpReader;
 
 const int64_t kWaitForNextEventTimeOut = 5'000'000;  // 5 seconds
@@ -430,7 +431,7 @@ class AudioDecoderTest
   bool using_stub_decoder_;
 
   JobQueue job_queue_;
-  VideoDmpReader dmp_reader_;
+  SequentialVideoDmpReader dmp_reader_;
   scoped_ptr<AudioDecoder> audio_decoder_;
   scoped_ptr<AudioRendererSink> audio_renderer_sink_;
 
@@ -726,6 +727,7 @@ TEST_P(AudioDecoderTest, PartialAudio) {
     SB_LOG(INFO) << "Testing " << number_of_input_to_write
                  << " access units for partial audio.";
     ResetDecoder();
+    dmp_reader_.Reset();
 
     // Decode InputBuffers without partial audio and use the output as reference
     for (int i = 0; i < number_of_input_to_write; ++i) {
