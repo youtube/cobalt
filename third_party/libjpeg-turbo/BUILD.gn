@@ -307,7 +307,7 @@ static_library("libjpeg") {
   }
 
   if (is_clang_16) {
-    cflags_c += [
+    cflags_c = [
           # jerror.c a function definition without a prototype
           "-Wno-deprecated-non-prototype",
         ]
