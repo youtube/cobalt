@@ -110,8 +110,7 @@ VideoDmpReader::VideoDmpReader(
     ReadOnDemandOptions read_on_demand_options /*= kDisableReadOnDemand*/)
     : file_reader_(filename, 1024 * 1024),
       read_cb_(std::bind(&FileCacheReader::Read, &file_reader_, _1, _2)),
-      allow_read_on_demand_(read_on_demand_options == kEnableReadOnDemand),
-      total_discarded_duration_(0) {
+      allow_read_on_demand_(read_on_demand_options == kEnableReadOnDemand) {
   bool already_cached =
       GetRegistry()->GetDmpInfo(file_reader_.GetAbsolutePathName(), &dmp_info_);
 
@@ -207,31 +206,6 @@ SbPlayerSampleInfo VideoDmpReader::GetPlayerSampleInfo(SbMediaType type,
   SB_NOTREACHED() << "Unhandled SbMediaType";
   return SbPlayerSampleInfo();
 }
-
-// SbPlayerSampleInfo VideoDmpReader::GetPlayerSampleInfo(
-//     SbMediaType type,
-//     size_t index,
-//     int64_t discarded_duration_from_front,
-//     int64_t discarded_duration_from_back) {
-//   SB_DCHECK(type == kSbMediaTypeAudio);
-
-//   SbPlayerSampleInfo sample_info = GetPlayerSampleInfo(type, index);
-//   SB_LOG(INFO) << "index: " << index << ", timestamp: " <<
-//   sample_info.timestamp;
-// #if SB_API_VERSION >= 15
-//   sample_info.audio_sample_info.discarded_duration_from_front =
-//       discarded_duration_from_front;
-//   sample_info.audio_sample_info.discarded_duration_from_back =
-//       discarded_duration_from_back;
-// #endif  // SB_API_VERSION >= 15
-//   SB_DCHECK(sample_info.timestamp >= total_discarded_duration_) <<
-//   "timestamp: " << sample_info.timestamp << ", total: " <<
-//   total_discarded_duration_; sample_info.timestamp -=
-//   total_discarded_duration_; total_discarded_duration_ +=
-//         discarded_duration_from_front + discarded_duration_from_back;
-
-//   return sample_info;
-// }
 
 const media::AudioSampleInfo& VideoDmpReader::GetAudioSampleInfo(size_t index) {
   EnsureSampleLoaded(kSbMediaTypeAudio, index);
@@ -437,6 +411,22 @@ SequentialVideoDmpReader::SequentialVideoDmpReader(
     ReadOnDemandOptions read_on_demand_options)
     : VideoDmpReader(filename, read_on_demand_options),
       audio_sample_duration_(audio_duration() / number_of_audio_buffers()) {}
+
+SbPlayerSampleInfo SequentialVideoDmpReader::GetPlayerSampleInfo(
+    SbMediaType type,
+    size_t index) {
+  SbPlayerSampleInfo sample_info =
+      VideoDmpReader::GetPlayerSampleInfo(type, index);
+
+  if (type == kSbMediaTypeAudio) {
+    SB_DCHECK(index >= last_received_index_);
+    SB_DCHECK(sample_info.timestamp >= total_discarded_duration_);
+    sample_info.timestamp -= total_discarded_duration_;
+    last_received_index_ = index;
+  }
+
+  return sample_info;
+}
 
 SbPlayerSampleInfo SequentialVideoDmpReader::GetPlayerSampleInfo(
     SbMediaType type,
