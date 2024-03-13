@@ -58,8 +58,8 @@ void StorageManager::EnsureStarted() {
 
     DCHECK(storage_task_runner_);
     storage_task_runner_->PostTask(
-        FROM_HERE, base::Bind(&StorageManager::InitializeTaskInThread,
-                              base::Unretained(this)));
+        FROM_HERE, base::BindOnce(&StorageManager::InitializeTaskInThread,
+                                  base::Unretained(this)));
   }
 }
 
@@ -94,30 +94,30 @@ StorageManager::~StorageManager() {
 }
 
 void StorageManager::WithReadOnlyMemoryStore(
-    const ReadOnlyMemoryStoreCallback& callback) {
+    ReadOnlyMemoryStoreCallback callback) {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
   EnsureStarted();
   if (!storage_task_runner_->RunsTasksInCurrentSequence()) {
     storage_task_runner_->PostTask(
-        FROM_HERE, base::Bind(&StorageManager::WithReadOnlyMemoryStore,
-                              base::Unretained(this), callback));
+        FROM_HERE, base::BindOnce(&StorageManager::WithReadOnlyMemoryStore,
+                                  base::Unretained(this), std::move(callback)));
     return;
   }
   FinishInit();
-  callback.Run(*memory_store_.get());
+  std::move(callback).Run(*memory_store_.get());
 }
 
-void StorageManager::WithMemoryStore(const MemoryStoreCallback& callback) {
+void StorageManager::WithMemoryStore(MemoryStoreCallback callback) {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
   EnsureStarted();
   if (!storage_task_runner_->RunsTasksInCurrentSequence()) {
     storage_task_runner_->PostTask(
-        FROM_HERE, base::Bind(&StorageManager::WithMemoryStore,
-                              base::Unretained(this), callback));
+        FROM_HERE, base::BindOnce(&StorageManager::WithMemoryStore,
+                                  base::Unretained(this), std::move(callback)));
     return;
   }
   FinishInit();
-  callback.Run(memory_store_.get());
+  std::move(callback).Run(memory_store_.get());
   FlushOnChange();
 }
 
@@ -128,7 +128,7 @@ void StorageManager::FlushOnChange() {
   if (!storage_task_runner_->RunsTasksInCurrentSequence()) {
     storage_task_runner_->PostTask(
         FROM_HERE,
-        base::Bind(&StorageManager::FlushOnChange, base::Unretained(this)));
+        base::BindOnce(&StorageManager::FlushOnChange, base::Unretained(this)));
     return;
   }
 
@@ -155,8 +155,8 @@ void StorageManager::FlushNow(base::OnceClosure callback) {
   EnsureStarted();
   if (!storage_task_runner_->RunsTasksInCurrentSequence()) {
     storage_task_runner_->PostTask(
-        FROM_HERE, base::Bind(&StorageManager::FlushNow, base::Unretained(this),
-                              base::Passed(&callback)));
+        FROM_HERE, base::BindOnce(&StorageManager::FlushNow,
+                                  base::Unretained(this), std::move(callback)));
     return;
   }
 
@@ -170,7 +170,7 @@ void StorageManager::FlushSynchronous() {
   base::WaitableEvent flush_finished = {
       base::WaitableEvent::ResetPolicy::MANUAL,
       base::WaitableEvent::InitialState::NOT_SIGNALED};
-  FlushNow(base::Bind(
+  FlushNow(base::BindOnce(
       [](base::WaitableEvent* flush_finished) { flush_finished->Signal(); },
       base::Unretained(&flush_finished)));
   flush_finished.Wait();
@@ -225,8 +225,8 @@ void StorageManager::OnFlushIOCompletedCallback() {
   EnsureStarted();
   if (!storage_task_runner_->RunsTasksInCurrentSequence()) {
     storage_task_runner_->PostTask(
-        FROM_HERE, base::Bind(&StorageManager::OnFlushIOCompletedCallback,
-                              base::Unretained(this)));
+        FROM_HERE, base::BindOnce(&StorageManager::OnFlushIOCompletedCallback,
+                                  base::Unretained(this)));
     return;
   }
 
@@ -292,8 +292,8 @@ void StorageManager::FlushInternal() {
   // asynchronously written to the savegame file.
   savegame_thread_->Flush(
       std::move(raw_bytes_ptr),
-      base::Bind(&StorageManager::OnFlushIOCompletedCallback,
-                 base::Unretained(this)));
+      base::BindOnce(&StorageManager::OnFlushIOCompletedCallback,
+                     base::Unretained(this)));
 }
 
 void StorageManager::FinishIO() {
@@ -304,8 +304,8 @@ void StorageManager::FinishIO() {
 
   // Make sure that the on change timers fire if they're running.
   storage_task_runner_->PostTask(
-      FROM_HERE, base::Bind(&StorageManager::FireRunningOnChangeTimers,
-                            base::Unretained(this)));
+      FROM_HERE, base::BindOnce(&StorageManager::FireRunningOnChangeTimers,
+                                base::Unretained(this)));
 
   // The SQL thread may be communicating with the savegame I/O thread still,
   // flushing all pending updates.  This process can require back and forth

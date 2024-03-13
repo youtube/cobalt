@@ -38,7 +38,7 @@ class CobaltBackendFactory : public net::HttpCache::BackendFactory {
   // BackendFactory implementation.
   ::disk_cache::BackendResult CreateBackend(
       net::NetLog* net_log,
-      base::OnceCallback<void(::disk_cache::BackendResult)> callback) override;
+      ::disk_cache::BackendResultCallback callback) override;
 
  private:
   const base::FilePath path_;

@@ -1,14 +1,27 @@
+// Copyright (c) 2013 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
 #ifndef COBALT_NETWORK_CUSTOM_URL_FETCHER_RESPONSE_WRITER_H_
 #define COBALT_NETWORK_CUSTOM_URL_FETCHER_RESPONSE_WRITER_H_
 
+#include <memory>
+#include <string>
+
 #include "base/files/file_path.h"
 #include "base/macros.h"
+#include "base/memory/ref_counted.h"
+#include "base/memory/weak_ptr.h"
 #include "net/base/completion_once_callback.h"
-#include "net/base/file_stream.h"
-#include "net/base/io_buffer.h"
+#include "net/base/net_export.h"
+
+namespace base {
+class TaskRunner;
+}  // namespace base
 
 namespace net {
 
+class FileStream;
 class IOBuffer;
 class URLFetcherFileWriter;
 class URLFetcherStringWriter;
@@ -16,7 +29,9 @@ class URLFetcherStringWriter;
 class URLFetcherLargeStringWriter;
 #endif
 
-class URLFetcherResponseWriter {
+// This class encapsulates all state involved in writing URLFetcher response
+// bytes to the destination.
+class NET_EXPORT URLFetcherResponseWriter {
  public:
   virtual ~URLFetcherResponseWriter() {}
 
@@ -48,19 +63,20 @@ class URLFetcherResponseWriter {
   virtual int Finish(int net_error, CompletionOnceCallback callback) = 0;
 
   // Returns this instance's pointer as URLFetcherStringWriter when possible.
-  virtual URLFetcherStringWriter* AsStringWriter() { return NULL; }
+  virtual URLFetcherStringWriter* AsStringWriter();
 
 #if defined(STARBOARD)
   // Returns this instance's pointer as URLFetcherLargeStringWriter when
   // possible.
-  virtual URLFetcherLargeStringWriter* AsLargeStringWriter() { return NULL; }
+  virtual URLFetcherLargeStringWriter* AsLargeStringWriter();
 #endif
 
   // Returns this instance's pointer as URLFetcherFileWriter when possible.
-  virtual URLFetcherFileWriter* AsFileWriter() { return NULL; }
+  virtual URLFetcherFileWriter* AsFileWriter();
 };
 
-class URLFetcherStringWriter : public URLFetcherResponseWriter {
+// URLFetcherResponseWriter implementation for std::string.
+class NET_EXPORT URLFetcherStringWriter : public URLFetcherResponseWriter {
  public:
   URLFetcherStringWriter();
   ~URLFetcherStringWriter() override;
@@ -111,13 +127,13 @@ class NET_EXPORT URLFetcherLargeStringWriter : public URLFetcherResponseWriter {
 };
 #endif
 
+// URLFetcherResponseWriter implementation for files.
 class NET_EXPORT URLFetcherFileWriter : public URLFetcherResponseWriter {
  public:
   // |file_path| is used as the destination path. If |file_path| is empty,
   // Initialize() will create a temporary file.
-  URLFetcherFileWriter(
-      scoped_refptr<base::SequencedTaskRunner> file_task_runner,
-      const base::FilePath& file_path);
+  URLFetcherFileWriter(scoped_refptr<base::TaskRunner> file_task_runner,
+                       const base::FilePath& file_path);
   ~URLFetcherFileWriter() override;
 
   const base::FilePath& file_path() const { return file_path_; }
@@ -151,7 +167,7 @@ class NET_EXPORT URLFetcherFileWriter : public URLFetcherResponseWriter {
   void CloseComplete(int result);
 
   // Task runner on which file operations should happen.
-  scoped_refptr<base::SequencedTaskRunner> file_task_runner_;
+  scoped_refptr<base::TaskRunner> file_task_runner_;
 
   // Destination file path.
   // Initialize() creates a temporary file if this variable is empty.
@@ -171,5 +187,4 @@ class NET_EXPORT URLFetcherFileWriter : public URLFetcherResponseWriter {
 
 }  // namespace net
 
-
-#endif
+#endif  // COBALT_NETWORK_CUSTOM_URL_FETCHER_RESPONSE_WRITER_H_

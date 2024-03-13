@@ -160,7 +160,7 @@ void URLFetcherFake::Start() {
   }
 }
 
-const net::Error& URLFetcherFake::GetStatus() const { return fake_status_; }
+net::Error URLFetcherFake::GetStatus() const { return fake_status_; }
 
 int URLFetcherFake::GetResponseCode() const { return 200; }
 

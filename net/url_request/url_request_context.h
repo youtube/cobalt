@@ -134,6 +134,10 @@ class NET_EXPORT URLRequestContext final {
   ProxyResolutionService* proxy_resolution_service() const {
     return proxy_resolution_service_.get();
   }
+#if defined(STARBOARD)
+  void set_proxy_resolution_service(
+      std::unique_ptr<ProxyResolutionService> proxy_resolution_service);
+#endif
 
   ProxyDelegate* proxy_delegate() const { return proxy_delegate_.get(); }
 
@@ -239,18 +243,28 @@ class NET_EXPORT URLRequestContext final {
     job_factory_ = job_factory;
   }
 
- private:
-  friend class URLRequestContextBuilder;
-
+#if defined(STARBOARD)
   HttpNetworkSession* http_network_session() const {
     return http_network_session_.get();
   }
+#endif
+
+ private:
+  friend class URLRequestContextBuilder;
+
+#if !defined(STARBOARD)
+  HttpNetworkSession* http_network_session() const {
+    return http_network_session_.get();
+  }
+#endif
 
   void set_net_log(NetLog* net_log);
   void set_host_resolver(std::unique_ptr<HostResolver> host_resolver);
   void set_cert_verifier(std::unique_ptr<CertVerifier> cert_verifier);
+#if !defined(STARBOARD)
   void set_proxy_resolution_service(
       std::unique_ptr<ProxyResolutionService> proxy_resolution_service);
+#endif
   void set_proxy_delegate(std::unique_ptr<ProxyDelegate> proxy_delegate);
   void set_ssl_config_service(std::unique_ptr<SSLConfigService> service);
   void set_http_auth_handler_factory(

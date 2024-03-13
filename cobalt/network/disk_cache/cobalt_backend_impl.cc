@@ -126,13 +126,11 @@ int32_t CobaltBackendImpl::GetEntryCount() const {
   return count;
 }
 
-#ifdef USE_HACKY_COBALT_CHANGES
 CobaltBackendImpl::EntryResult CobaltBackendImpl::OpenOrCreateEntry(
     const std::string& key, net::RequestPriority request_priority,
     EntryResultCallback callback) {
   return EntryResult::MakeError(net::Error::ERR_BLOCKED_BY_CLIENT);
 }
-#endif
 
 CobaltBackendImpl::EntryResult CobaltBackendImpl::OpenEntry(
     const std::string& key, net::RequestPriority request_priority,

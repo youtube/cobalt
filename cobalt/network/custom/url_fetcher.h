@@ -1,27 +1,89 @@
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
 #ifndef COBALT_NETWORK_CUSTOM_URL_FETCHER_H_
 #define COBALT_NETWORK_CUSTOM_URL_FETCHER_H_
 
-#include "base/callback.h"
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "base/bind.h"
+#include "base/memory/ref_counted.h"
 #include "base/supports_user_data.h"
-#include "cobalt/network/custom/url_fetcher_delegate.h"
-#include "cobalt/network/custom/url_fetcher_response_writer.h"
-#include "net/base/host_port_pair.h"
-#include "net/base/proxy_server.h"
-#include "net/base/upload_data_stream.h"
-#include "net/cookies/cookie_store.h"
-#include "net/http/http_request_headers.h"
-#include "net/http/http_response_headers.h"
-#include "net/http/http_transaction_factory.h"
+#include "net/base/net_export.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
-#include "net/url_request/referrer_policy.h"
 #include "net/url_request/url_request.h"
-#include "net/url_request/url_request_context_getter.h"
-#include "url/origin.h"
+#include "starboard/types.h"
+
+class GURL;
+
+namespace base {
+class FilePath;
+class SequencedTaskRunner;
+class TaskRunner;
+class TimeDelta;
+}  // namespace base
+
+namespace url {
+class Origin;
+}
 
 namespace net {
+class HostPortPair;
+class HttpResponseHeaders;
+class URLFetcherDelegate;
+class URLFetcherResponseWriter;
+class URLRequestContextGetter;
+class URLRequestStatus;
 
-class URLFetcher {
+// NOTE:  This class should not be used by content embedders, as it requires an
+// in-process network stack. Content embedders should use
+// network::SimpleURLLoader instead, which works with both in-process and
+// out-of-process network stacks.
+//
+// To use this class, create an instance with the desired URL and a pointer to
+// the object to be notified when the URL has been loaded:
+//   std::unique_ptr<URLFetcher> fetcher =
+//       URLFetcher::Create(GURL("http://www.google.com"),
+//                          URLFetcher::GET,
+//                          this);
+//
+// You must also set a request context getter:
+//
+//   fetcher->SetRequestContext(&my_request_context_getter);
+//
+// Then, optionally set properties on this object, like the request context or
+// extra headers:
+//   fetcher->AddExtraRequestHeader("X-Foo: bar");
+//
+// Finally, start the request:
+//   fetcher->Start();
+//
+// You may cancel the request by destroying the URLFetcher:
+//   fetcher.reset();
+//
+// The object you supply as a delegate must inherit from URLFetcherDelegate.
+// When the fetch is completed, OnURLFetchComplete() will be called with a
+// pointer to the URLFetcher. From that point until the original URLFetcher
+// instance is destroyed, you may use accessor methods to see the result of the
+// fetch. You should copy these objects if you need them to live longer than
+// the URLFetcher instance. If the URLFetcher instance is destroyed before the
+// callback happens, the fetch will be canceled and no callback will occur.
+//
+// You may create the URLFetcher instance on any sequence; OnURLFetchComplete()
+// will be called back on the same sequence you use to create the instance.
+//
+//
+// NOTE: By default URLFetcher requests are NOT intercepted, except when
+// interception is explicitly enabled in tests.
+class NET_EXPORT URLFetcher {
  public:
+  // Impossible http response code. Used to signal that no http response code
+  // was received.
+  enum ResponseCode { RESPONSE_CODE_INVALID = -1 };
+
   enum RequestType {
     GET,
     POST,
@@ -39,15 +101,16 @@ class URLFetcher {
 
   // Used by SetURLRequestUserData.  The callback should make a fresh
   // base::SupportsUserData::Data object every time it's called.
-  typedef base::Callback<std::unique_ptr<base::SupportsUserData::Data>()>
+  typedef base::RepeatingCallback<
+      std::unique_ptr<base::SupportsUserData::Data>()>
       CreateDataCallback;
 
   // Used by SetUploadStreamFactory. The callback should assign a fresh upload
   // data stream every time it's called.
-  typedef base::Callback<std::unique_ptr<UploadDataStream>()>
+  typedef base::RepeatingCallback<std::unique_ptr<UploadDataStream>()>
       CreateUploadStreamCallback;
 
-  virtual ~URLFetcher() {}
+  virtual ~URLFetcher();
 
   // |url| is the URL to send the request to. It must be valid.
   // |request_type| is the type of request to make.
@@ -56,9 +119,7 @@ class URLFetcher {
   // NetworkTrafficAnnotationTag below instead.
   static std::unique_ptr<URLFetcher> Create(
       const GURL& url, URLFetcher::RequestType request_type,
-      URLFetcherDelegate* d) {
-    return nullptr;
-  }
+      URLFetcherDelegate* d);
 
   // Like above, but if there's a URLFetcherFactory registered with the
   // implementation it will be used. |id| may be used during testing to identify
@@ -67,9 +128,7 @@ class URLFetcher {
   // NetworkTrafficAnnotationTag below instead.
   static std::unique_ptr<URLFetcher> Create(
       int id, const GURL& url, URLFetcher::RequestType request_type,
-      URLFetcherDelegate* d) {
-    return nullptr;
-  }
+      URLFetcherDelegate* d);
 
   // |url| is the URL to send the request to. It must be valid.
   // |request_type| is the type of request to make.
@@ -84,18 +143,14 @@ class URLFetcher {
   // tools will be added for verification following crbug.com/690323.
   static std::unique_ptr<URLFetcher> Create(
       const GURL& url, URLFetcher::RequestType request_type,
-      URLFetcherDelegate* d, NetworkTrafficAnnotationTag traffic_annotation) {
-    return nullptr;
-  }
+      URLFetcherDelegate* d, NetworkTrafficAnnotationTag traffic_annotation);
 
   // Like above, but if there's a URLFetcherFactory registered with the
   // implementation it will be used. |id| may be used during testing to identify
   // who is creating the URLFetcher.
   static std::unique_ptr<URLFetcher> Create(
       int id, const GURL& url, URLFetcher::RequestType request_type,
-      URLFetcherDelegate* d, NetworkTrafficAnnotationTag traffic_annotation) {
-    return nullptr;
-  }
+      URLFetcherDelegate* d, NetworkTrafficAnnotationTag traffic_annotation);
 
   // Cancels all existing URLFetchers.  Will notify the URLFetcherDelegates.
   // Note that any new URLFetchers created while this is running will not be
@@ -310,8 +365,7 @@ class URLFetcher {
   virtual const GURL& GetURL() const = 0;
 
   // The status of the URL fetch.
-  using URLRequestStatus = Error;
-  virtual const URLRequestStatus& GetStatus() const = 0;
+  virtual Error GetStatus() const = 0;
 
   // The http response code received. Will return RESPONSE_CODE_INVALID
   // if an error prevented any response from being received.
@@ -342,18 +396,6 @@ class URLFetcher {
       bool take_ownership, base::FilePath* out_response_path) const = 0;
 };
 
-class CobaltURLRequestContext {
- public:
-  HttpTransactionFactory* http_transaction_factory() const { return nullptr; }
-  CookieStore* cookie_store() const { return nullptr; }
-
-  std::unique_ptr<URLRequest> CreateRequest(
-      const GURL& url, RequestPriority priority,
-      URLRequest::Delegate* delegate) const {
-    return nullptr;
-  }
-};
-
 }  // namespace net
 
-#endif
+#endif  // COBALT_NETWORK_CUSTOM_URL_FETCHER_H_

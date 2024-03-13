@@ -30,7 +30,7 @@ namespace {
 const base::TimeDelta kMaxCookieLifetime = base::TimeDelta::FromDays(365 * 2);
 
 void CookieStorageInit(
-    const PersistentCookieStore::LoadedCallback& loaded_callback,
+    PersistentCookieStore::LoadedCallback loaded_callback,
     scoped_refptr<base::SequencedTaskRunner> loaded_callback_task_runner,
     const storage::MemoryStore& memory_store) {
   TRACE_EVENT0("cobalt::network", "PersistentCookieStore::CookieStorageInit()");
@@ -39,18 +39,16 @@ void CookieStorageInit(
   memory_store.GetAllCookies(&actual_cookies);
 
   DCHECK(loaded_callback_task_runner);
-#ifndef USE_HACKY_COBALT_CHANGES
   if (!loaded_callback.is_null()) {
     loaded_callback_task_runner->PostTask(
         FROM_HERE,
-        base::Bind(
-            [](const PersistentCookieStore::LoadedCallback& loaded_callback,
+        base::BindOnce(
+            [](PersistentCookieStore::LoadedCallback loaded_callback,
                std::vector<std::unique_ptr<net::CanonicalCookie>> cookies) {
-              loaded_callback.Run(std::move(cookies));
+              std::move(loaded_callback).Run(std::move(cookies));
             },
-            loaded_callback, base::Passed(&actual_cookies)));
+            std::move(loaded_callback), std::move(actual_cookies)));
   }
-#endif
 }
 
 void CookieStorageAddCookie(const net::CanonicalCookie& cc,
@@ -81,20 +79,18 @@ void CookieStorageDeleteCookie(const net::CanonicalCookie& cc,
 }
 
 void SendEmptyCookieList(
-    const PersistentCookieStore::LoadedCallback& loaded_callback,
+    PersistentCookieStore::LoadedCallback loaded_callback,
     scoped_refptr<base::SequencedTaskRunner> loaded_callback_task_runner,
     const storage::MemoryStore& memory_store) {
-#ifndef USE_HACKY_COBALT_CHANGES
   loaded_callback_task_runner->PostTask(
       FROM_HERE,
-      base::Bind(
-          [](const PersistentCookieStore::LoadedCallback& loaded_callback) {
+      base::BindOnce(
+          [](PersistentCookieStore::LoadedCallback loaded_callback) {
             std::vector<std::unique_ptr<net::CanonicalCookie>>
                 empty_cookie_list;
-            loaded_callback.Run(std::move(empty_cookie_list));
+            std::move(loaded_callback).Run(std::move(empty_cookie_list));
           },
-          loaded_callback));
-#endif
+          std::move(loaded_callback)));
 }
 
 }  // namespace
@@ -111,9 +107,9 @@ void PersistentCookieStore::Load(LoadedCallback loaded_callback,
   net_log.BeginEvent(net::NetLogEventType::COOKIE_PERSISTENT_STORE_LOAD);
   //  DCHECK_EQbase::SequencedTaskRunner::GetCurrentDefault(),
   //            loaded_callback_task_runner_);
-  storage_->WithReadOnlyMemoryStore(base::Bind(&CookieStorageInit,
-                                               std::move(loaded_callback),
-                                               loaded_callback_task_runner_));
+  storage_->WithReadOnlyMemoryStore(
+      base::BindOnce(&CookieStorageInit, std::move(loaded_callback),
+                     loaded_callback_task_runner_));
 }
 
 void PersistentCookieStore::LoadCookiesForKey(const std::string& key,
@@ -124,24 +120,24 @@ void PersistentCookieStore::LoadCookiesForKey(const std::string& key,
   // comments in net/cookie_monster.cc for more information.
   DCHECK_EQ(base::SequencedTaskRunner::GetCurrentDefault(),
             loaded_callback_task_runner_);
-  storage_->WithReadOnlyMemoryStore(base::Bind(&SendEmptyCookieList,
-                                               std::move(loaded_callback),
-                                               loaded_callback_task_runner_));
+  storage_->WithReadOnlyMemoryStore(
+      base::BindOnce(&SendEmptyCookieList, std::move(loaded_callback),
+                     loaded_callback_task_runner_));
 }
 
 void PersistentCookieStore::AddCookie(const net::CanonicalCookie& cc) {
   // We expect that all cookies we are fed are meant to persist.
   DCHECK(cc.IsPersistent());
-  storage_->WithMemoryStore(base::Bind(&CookieStorageAddCookie, cc));
+  storage_->WithMemoryStore(base::BindOnce(&CookieStorageAddCookie, cc));
 }
 
 void PersistentCookieStore::UpdateCookieAccessTime(
     const net::CanonicalCookie& cc) {
-  storage_->WithMemoryStore(base::Bind(&CookieStorageCookieAccessTime, cc));
+  storage_->WithMemoryStore(base::BindOnce(&CookieStorageCookieAccessTime, cc));
 }
 
 void PersistentCookieStore::DeleteCookie(const net::CanonicalCookie& cc) {
-  storage_->WithMemoryStore(base::Bind(&CookieStorageDeleteCookie, cc));
+  storage_->WithMemoryStore(base::BindOnce(&CookieStorageDeleteCookie, cc));
 }
 
 void PersistentCookieStore::SetForceKeepSessionState() {
