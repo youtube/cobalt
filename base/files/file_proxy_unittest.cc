@@ -174,10 +174,8 @@ TEST_F(FileProxyTest, Close) {
   EXPECT_EQ(File::FILE_OK, error_);
   EXPECT_FALSE(proxy.IsValid());
 
-#if !defined(STARBOARD)
   // Now it should pass on all platforms.
   EXPECT_TRUE(base::Move(TestPath(), TestDirPath().AppendASCII("new")));
-#endif
 }
 
 TEST_F(FileProxyTest, CreateTemporary) {

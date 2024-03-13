@@ -199,6 +199,7 @@ static_library("starboard_platform") {
     "//starboard/shared/win32/file_internal.h",
     "//starboard/shared/win32/file_open.cc",
     "//starboard/shared/win32/file_read.cc",
+    "//starboard/shared/win32/file_rename.cc",
     "//starboard/shared/win32/file_seek.cc",
     "//starboard/shared/win32/file_truncate.cc",
     "//starboard/shared/win32/file_write.cc",

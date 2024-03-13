@@ -132,6 +132,7 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/posix/file_get_path_info.cc",
     "//starboard/shared/posix/file_open.cc",
     "//starboard/shared/posix/file_read.cc",
+    "//starboard/shared/posix/file_rename.cc",
     "//starboard/shared/posix/file_seek.cc",
     "//starboard/shared/posix/file_truncate.cc",
     "//starboard/shared/posix/file_write.cc",

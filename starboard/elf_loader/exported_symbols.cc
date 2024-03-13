@@ -166,6 +166,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbFileModeStringToFlags);
   REGISTER_SYMBOL(SbFileOpen);
   REGISTER_SYMBOL(SbFileRead);
+  REGISTER_SYMBOL(SbFileRename);
   REGISTER_SYMBOL(SbFileSeek);
   REGISTER_SYMBOL(SbFileTruncate);
   REGISTER_SYMBOL(SbFileWrite);

@@ -1521,7 +1521,6 @@ TEST_F(FileUtilTest, DeleteDirRecursiveWithOpenFile) {
 #endif
 }
 
-#if !defined(STARBOARD)
 TEST_F(FileUtilTest, MoveFileNew) {
   // Create a file
   FilePath file_name_from =
@@ -1577,7 +1576,6 @@ TEST_F(FileUtilTest, MoveFileDirExists) {
 
   EXPECT_FALSE(Move(file_name_from, dir_name_to));
 }
-
 
 TEST_F(FileUtilTest, MoveNew) {
   // Create a directory
@@ -2184,7 +2182,6 @@ TEST_F(FileUtilTest, CopyDirectoryExclFileOverFifo) {
   EXPECT_FALSE(CopyDirectoryExcl(dir_name_from, dir_name_to, false));
 }
 #endif  // defined(OS_POSIX)
-#endif  // !defined(STARBOARD)
 
 TEST_F(FileUtilTest, CopyFile) {
   // Create a directory
