@@ -14,7 +14,7 @@
 
 config("compiler_rt_config") {
   cflags_cc = [
-    "-std=c++17",
+    "-std=c++20",
     "-nostdinc++",
     "-fvisibility-inlines-hidden",
     "-fms-compatibility-version=19.00",
@@ -92,4 +92,5 @@ static_library("compiler_rt") {
   }
 
   configs += [ ":compiler_rt_config" ]
+  configs -= [ "//starboard/build/config/modular:default_cpp_standard" ]
 }

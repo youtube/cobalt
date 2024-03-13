@@ -16,7 +16,7 @@ config("cxx_config") {
   cflags = [ "-nostdinc" ]
 
   cflags_cc = [
-    "-std=c++17",
+    "-std=c++20",
     "-nostdinc++",
     "-fvisibility-inlines-hidden",
     "-fms-compatibility-version=19.00",
@@ -57,6 +57,7 @@ config("cxx_config") {
 }
 
 static_library("cxx") {
+
   sources = [
     "src/algorithm.cpp",
     "src/any.cpp",
@@ -111,7 +112,7 @@ static_library("cxx") {
   ]
 
   configs += [ ":cxx_config" ]
-
+  configs -= ["//starboard/build/config/modular:default_cpp_standard"]
   deps = [
     "//starboard:starboard_headers_only",
     "//starboard/common",

@@ -23,6 +23,8 @@ config("protobuf_config") {
         "-Wno-enum-compare",
         # Older version of clang don't have -Wno-enum-compare-switch
         "-Wno-unknown-warning-option",
+
+        "-Wno-deprecated-declarations",
       ]
     }
   }

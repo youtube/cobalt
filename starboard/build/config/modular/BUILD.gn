@@ -12,6 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+config("default_cpp_standard") {
+  if (sb_is_modular && current_toolchain == cobalt_toolchain) {
+    cflags_cc = [ "-std=c++17" ]
+  }
+}
+
 config("modular") {
   ldflags = []
   cflags = [
@@ -33,10 +39,7 @@ config("modular") {
     cflags += [ "-fPIC" ]
   }
 
-  cflags_cc = [
-    "-nostdinc++",
-    "-std=c++17",
-  ]
+  cflags_cc = [ "-nostdinc++" ]
 
   defines = [
     # Ensure that the Starboardized __external_threading file is included.

@@ -160,6 +160,7 @@ default_compiler_configs = [
   "//starboard/build/config:target",
   "//starboard/build/config:warnings_as_errors",
   "//starboard/build/config:default_compiler_flags",
+  "//starboard/build/config/modular:default_cpp_standard",
 ]
 
 if (use_thin_archive) {
@@ -216,6 +217,14 @@ template("target_with_platform_configs") {
       configs += [ "//starboard/build/config:pedantic_warnings" ]
     }
     configs += [ toolchain_config_path ]
+
+    # if (sb_is_modular && current_toolchain == cobalt_toolchain) {
+    #   if (defined(invoker.build_with_cpp_20)) {
+    #       print("target defined BUILD_WITH_CPP20", target_name)
+    #     }
+    #   } else {
+    #     configs += [ "//starboard/build/config/modular:default_cpp_standard" ]
+    #   }
     if (!has_pedantic_warnings) {
       configs += [ "//starboard/build/config:no_pedantic_warnings" ]
     }

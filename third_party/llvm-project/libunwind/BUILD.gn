@@ -68,7 +68,7 @@ if (sb_is_evergreen || (sb_is_modular && is_host_win)) {
     ]
 
     cflags_cc = [
-      "-std=c++17",
+      "-std=c++20",
       "-nostdinc++",
       "-fPIC",
       "-Werror=return-type",
@@ -103,6 +103,7 @@ if (sb_is_evergreen || (sb_is_modular && is_host_win)) {
       "//starboard/common",
       "//third_party/musl:c",
     ]
+    configs -= ["//starboard/build/config/modular:default_cpp_standard"]
   }
 }
 
@@ -129,7 +130,7 @@ config("unwind_starboard_config") {
     # Build libunwind with concurrency built upon Starboard mutexes and
     # condition variables.
     "_LIBUNWIND_HAS_STARBOARD_THREADS",
-    "NDEBUG"
+    "NDEBUG",
   ]
 }
 
