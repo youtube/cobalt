@@ -8,7 +8,7 @@ import("//net/features.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//third_party/protobuf/proto_library.gni")
 
-enable_built_in_dns = use_blink
+enable_built_in_dns = use_blink || use_cobalt_customizations
 
 source_set("dns") {
   # Due to circular dependencies, should only be depended on through //net.
@@ -460,17 +460,6 @@ source_set("tests") {
       "mdns_cache_unittest.cc",
       "mdns_client_unittest.cc",
     ]
-  }
-
-  if (use_hacky_cobalt_changes) {
-    # TODO: b/327218234 - Reenable unittests with used functionality.
-    # TODO: b/327008491 - Reenable unittests with unused functionality.
-    sources -= [
-      "host_resolver_manager_unittest.cc",
-    ]
-    if (enable_mdns) {
-      sources -= [ "mdns_client_unittest.cc" ]
-    }
   }
 
   deps = [
