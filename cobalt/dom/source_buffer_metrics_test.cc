@@ -27,35 +27,37 @@ namespace dom {
 namespace {
 constexpr char kUmaPrefix[] = "Cobalt.Media.SourceBuffer.";
 
-TEST(SourceBufferMetricsTest, RecordsPrepareAppendTelemetry) {
-  base::HistogramTester histogram_tester;
-  base::SimpleTestTickClock clock;
-  clock.SetNowTicks(base::TimeTicks());
+class SourceBufferMetricsTest : public ::testing::Test {
+ protected:
+  SourceBufferMetricsTest()
+      : metrics_(std::make_unique<SourceBufferMetrics>(
+            /*is_primary_video=*/true, &clock_)) {}
 
-  auto metrics =
-      std::make_unique<SourceBufferMetrics>(/*is_primary_video=*/true, &clock);
-  metrics->StartTracking();
+  void SetUp() override { clock_.SetNowTicks(base::TimeTicks()); }
 
-  clock.Advance(base::TimeDelta::FromMicroseconds(100));
-  metrics->EndTracking(SourceBufferMetricsAction::PREPARE_APPEND, 1234);
+  base::HistogramTester histogram_tester_;
+  base::SimpleTestTickClock clock_;
 
-  histogram_tester.ExpectUniqueSample(
+  std::unique_ptr<SourceBufferMetrics> metrics_;
+};
+
+TEST_F(SourceBufferMetricsTest, RecordsPrepareAppendTelemetry) {
+  metrics_->StartTracking(SourceBufferMetricsAction::PREPARE_APPEND);
+
+  clock_.Advance(base::TimeDelta::FromMicroseconds(100));
+  metrics_->EndTracking(SourceBufferMetricsAction::PREPARE_APPEND, 1234);
+
+  histogram_tester_.ExpectUniqueSample(
       std::string(kUmaPrefix) + "PrepareAppend.Timing", 100, 1);
 }
 
-TEST(SourceBufferMetricsTest, RecordsAppendBufferTelemetry) {
-  base::HistogramTester histogram_tester;
-  base::SimpleTestTickClock clock;
-  clock.SetNowTicks(base::TimeTicks());
+TEST_F(SourceBufferMetricsTest, RecordsAppendBufferTelemetry) {
+  metrics_->StartTracking(SourceBufferMetricsAction::APPEND_BUFFER);
 
-  auto metrics =
-      std::make_unique<SourceBufferMetrics>(/*is_primary_video=*/true, &clock);
-  metrics->StartTracking();
+  clock_.Advance(base::TimeDelta::FromMicroseconds(100));
+  metrics_->EndTracking(SourceBufferMetricsAction::APPEND_BUFFER, 1234);
 
-  clock.Advance(base::TimeDelta::FromMicroseconds(100));
-  metrics->EndTracking(SourceBufferMetricsAction::APPEND_BUFFER, 1234);
-
-  histogram_tester.ExpectUniqueSample(
+  histogram_tester_.ExpectUniqueSample(
       std::string(kUmaPrefix) + "AppendBuffer.Timing", 100, 1);
 }
 

@@ -592,7 +592,7 @@ bool SourceBuffer::PrepareAppend(size_t new_data_size,
     return false;
   }
 
-  metrics_.StartTracking();
+  metrics_.StartTracking(SourceBufferMetricsAction::PREPARE_APPEND);
   media_source_->OpenIfInEndedState();
 
   double current_time = media_source_->GetMediaElement()->current_time(NULL);

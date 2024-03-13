@@ -24,6 +24,7 @@ namespace cobalt {
 namespace dom {
 
 enum class SourceBufferMetricsAction : uint8_t {
+  NO_ACTION,
   PREPARE_APPEND,
   APPEND_BUFFER,
 };
@@ -36,7 +37,7 @@ class SourceBufferMetrics {
       : is_primary_video_(is_primary_video), clock_(clock) {}
   ~SourceBufferMetrics() = default;
 
-  void StartTracking();
+  void StartTracking(SourceBufferMetricsAction action);
   void EndTracking(SourceBufferMetricsAction action, size_t size_appended);
 
 #if defined(COBALT_BUILD_TYPE_GOLD)
@@ -55,13 +56,15 @@ class SourceBufferMetrics {
                        const base::TimeDelta& action_duration);
 
   base::TimeTicks wall_start_time_;
-  int64_t thread_start_time_;
 
   const bool is_primary_video_;
   bool is_tracking_ = false;
+  SourceBufferMetricsAction current_action_ =
+      SourceBufferMetricsAction::NO_ACTION;
   const base::TickClock* clock_;
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
+  int64_t thread_start_time_ = 0;
   size_t total_size_ = 0;
   int64_t total_thread_time_ = 0;
   int64_t total_wall_time_ = 0;

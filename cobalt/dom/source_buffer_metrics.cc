@@ -65,15 +65,22 @@ SB_ONCE_INITIALIZE_FUNCTION(StatisticsWrapper, StatisticsWrapper::GetInstance);
 
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
-void SourceBufferMetrics::StartTracking() {
+void SourceBufferMetrics::StartTracking(SourceBufferMetricsAction action) {
   if (!is_primary_video_) {
     return;
   }
 
   DCHECK(!is_tracking_);
+  DCHECK(current_action_ == SourceBufferMetricsAction::NO_ACTION);
+  DCHECK(action != SourceBufferMetricsAction::NO_ACTION);
+
   is_tracking_ = true;
+  current_action_ = action;
   wall_start_time_ = clock_->NowTicks();
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
   thread_start_time_ = starboard::CurrentMonotonicThreadTime();
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 }
 
 void SourceBufferMetrics::EndTracking(SourceBufferMetricsAction action,
@@ -84,6 +91,9 @@ void SourceBufferMetrics::EndTracking(SourceBufferMetricsAction action,
 
   DCHECK(is_tracking_);
   is_tracking_ = false;
+
+  DCHECK(action == current_action_);
+  current_action_ = SourceBufferMetricsAction::NO_ACTION;
 
   base::TimeDelta wall_duration = clock_->NowTicks() - wall_start_time_;
 
@@ -133,16 +143,6 @@ void SourceBufferMetrics::RecordTelemetry(
           50);
       break;
   }
-
-#if !defined(COBALT_BUILD_TYPE_GOLD)
-  // clang-format off
-  LOG(INFO) << starboard::FormatString(
-    "AppendBuffer telemetry recorded:\n"
-    "    SourceBufferMetricsAction: %d\n"
-    "    Latency recorded: %" PRId64 " ms\n",
-    static_cast<uint8_t>(action), action_duration.InMilliseconds());
-  // clang-format on
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 }
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
