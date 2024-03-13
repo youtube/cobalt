@@ -549,6 +549,7 @@ TEST_P(AudioDecoderTest, InvalidConfig) {
     ASSERT_NO_FATAL_FAILURE(DrainOutputs(&error_occurred));
 
     ResetDecoder();
+    dmp_reader_.Reset();
   }
 
   for (size_t i = 0;
@@ -568,6 +569,7 @@ TEST_P(AudioDecoderTest, InvalidConfig) {
     ASSERT_NO_FATAL_FAILURE(DrainOutputs(&error_occurred));
 
     ResetDecoder();
+    dmp_reader_.Reset();
   }
 }
 
@@ -770,6 +772,7 @@ TEST_P(AudioDecoderTest, PartialAudio) {
         4;
 
     ResetDecoder();
+    dmp_reader_.Reset();
 
     for (int i = 0; i < number_of_input_to_write; ++i) {
       int64_t duration_to_discard_from_front = i == 0 ? duration_to_discard : 0;

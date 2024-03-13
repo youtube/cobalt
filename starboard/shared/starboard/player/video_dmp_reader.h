@@ -139,6 +139,10 @@ class VideoDmpReader {
       size_t index,
       int64_t discarded_duration_from_front,
       int64_t discarded_duration_from_back) {
+    SB_LOG(INFO) << "Called GetPlayerSampleInfo with discard durations on base "
+                 << "VideoDmpReader. Partial audio is only supported with "
+                 << "SequentialVideoDmpReader. Discard durations will be "
+                 << "ignored.";
     return GetPlayerSampleInfo(type, index);
   }
   const media::AudioSampleInfo& GetAudioSampleInfo(size_t index);
