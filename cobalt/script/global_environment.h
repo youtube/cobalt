@@ -15,6 +15,8 @@
 #ifndef COBALT_SCRIPT_GLOBAL_ENVIRONMENT_H_
 #define COBALT_SCRIPT_GLOBAL_ENVIRONMENT_H_
 
+#include <sys/time.h>
+
 #include <string>
 #include <vector>
 
