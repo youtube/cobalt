@@ -306,6 +306,13 @@ static_library("libjpeg") {
     defines -= [ "NO_PUTENV" ]
   }
 
+  if (is_clang_16) {
+    cflags_c += [
+          # jerror.c a function definition without a prototype
+          "-Wno-deprecated-non-prototype",
+        ]
+  }
+
   configs += [ ":libjpeg_config" ]
 
   public_configs = [ ":libjpeg_config" ]
