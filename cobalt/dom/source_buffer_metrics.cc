@@ -27,9 +27,9 @@
 
 namespace cobalt {
 namespace dom {
-namespace {
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
+namespace {
 
 int GetBandwidth(std::size_t size, int64_t duration_us) {
   return duration_us == 0
