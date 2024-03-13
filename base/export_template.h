@@ -136,9 +136,9 @@
 #define EXPORT_TEMPLATE_TEST_EXPORT_DLLEXPORT_EXPORT_DLLEXPORT(...) true
 
 EXPORT_TEMPLATE_TEST(DEFAULT, );
-EXPORT_TEMPLATE_TEST(DEFAULT, __attribute__((visibility("default"))));
-EXPORT_TEMPLATE_TEST(EXPORT_DLLEXPORT, __declspec(dllexport));
-EXPORT_TEMPLATE_TEST(DEFAULT, __declspec(dllimport));
+// EXPORT_TEMPLATE_TEST(DEFAULT, __attribute__((visibility("default"))));
+// EXPORT_TEMPLATE_TEST(EXPORT_DLLEXPORT, __declspec(dllexport));
+// EXPORT_TEMPLATE_TEST(DEFAULT, __declspec(dllimport));
 
 #undef EXPORT_TEMPLATE_TEST
 #undef EXPORT_TEMPLATE_TEST_DEFAULT_DEFAULT

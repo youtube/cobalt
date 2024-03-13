@@ -50,7 +50,7 @@ source_set("public") {
     ]
   }
 
-  if (is_win) {
+  if (is_win && !is_starboard) {
     sources += [
       "win_dns_system_settings.cc",
       "win_dns_system_settings.h",
@@ -80,7 +80,7 @@ source_set("tests") {
     sources += [ "resolv_reader_unittest.cc" ]
   }
 
-  if (is_win) {
+  if (is_win && !is_starboard) {
     sources += [ "win_dns_system_settings_unittest.cc" ]
   }
 

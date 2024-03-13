@@ -97,7 +97,7 @@ source_set("dns") {
     "test_dns_config_service.h",
   ]
 
-  if (is_win) {
+  if (is_win && !is_starboard) {
     sources += [
       "address_sorter_win.cc",
       "dns_config_service_win.cc",
@@ -431,7 +431,7 @@ source_set("tests") {
     "system_dns_config_change_notifier_unittest.cc",
   ]
 
-  if (is_win) {
+  if (is_win && !is_starboard) {
     sources += [ "dns_config_service_win_unittest.cc" ]
   }
 

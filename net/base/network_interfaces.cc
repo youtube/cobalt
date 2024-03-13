@@ -46,6 +46,10 @@ NetworkInterface::~NetworkInterface() = default;
 ScopedWifiOptions::~ScopedWifiOptions() = default;
 
 std::string GetHostName() {
+#if defined(STARBOARD)
+  NOTIMPLEMENTED();
+  return "";
+#else
 #if BUILDFLAG(IS_WIN)
   EnsureWinsockInit();
 #endif
@@ -58,6 +62,7 @@ std::string GetHostName() {
     buffer[0] = '\0';
   }
   return std::string(buffer);
+#endif
 }
 
 }  // namespace net

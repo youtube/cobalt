@@ -2912,7 +2912,7 @@ if (!is_ios && !use_cobalt_customizations) {
   }
 }
 
-if (is_win) {
+if (is_win && !is_starboard) {
   # Target to manually rebuild pe_image_test.dll which is checked into
   # base/test/data/pe_image.
   shared_library("pe_image_test") {
