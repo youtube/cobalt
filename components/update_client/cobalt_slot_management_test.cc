@@ -14,8 +14,6 @@
 
 #include "components/update_client/cobalt_slot_management.h"
 
-#include <sys/stat.h>
-
 #include <algorithm>
 #include <vector>
 
@@ -240,10 +238,9 @@ TEST_F(CobaltSlotManagementTest, CobaltFinishInstallation) {
   ASSERT_EQ(IM_SUCCESS, ImRollForwardIfNeeded());
 
   ASSERT_EQ(2, ImGetCurrentInstallationIndex());
-  struct stat file_info;
-  ASSERT_FALSE(stat(good_file_path.c_str(), &file_info) == 0);
+  ASSERT_FALSE(SbFileExists(good_file_path.c_str()));
   ASSERT_TRUE(CobaltFinishInstallation(api_, 1, slot_path, kTestAppKey1));
-  ASSERT_TRUE(stat(good_file_path.c_str(), &file_info) == 0);
+  ASSERT_TRUE(SbFileExists(good_file_path.c_str()));
   ASSERT_EQ(IM_SUCCESS, ImRollForwardIfNeeded());
   ASSERT_EQ(1, ImGetCurrentInstallationIndex());
 }

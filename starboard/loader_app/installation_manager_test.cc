@@ -14,8 +14,6 @@
 
 #include "starboard/loader_app/installation_manager.h"
 
-#include <sys/stat.h>
-
 #include <string>
 #include <vector>
 
@@ -167,11 +165,6 @@ class InstallationManagerTest : public ::testing::TestWithParam<int> {
     }
   }
 
-  bool FileExists(const char* path) {
-    struct stat info;
-    return stat(path, &info) == 0;
-  }
-
   virtual void TearDown() {
     if (!storage_path_implemented_) {
       return;
@@ -240,13 +233,13 @@ TEST_P(InstallationManagerTest, Reset) {
   ASSERT_EQ(IM_SUCCESS, ImReset());
   ASSERT_EQ(0, ImGetCurrentInstallationIndex());
   for (auto& f : created_files) {
-    ASSERT_TRUE(!FileExists(f.c_str()));
+    ASSERT_TRUE(!SbFileExists(f.c_str()));
   }
   for (int i = 1; i < max_num_installations - 1; i++) {
     std::vector<char> buf(kSbFileMaxPath);
     ASSERT_EQ(IM_INSTALLATION_STATUS_NOT_SUCCESS, ImGetInstallationStatus(i));
     ASSERT_EQ(IM_SUCCESS, ImGetInstallationPath(i, buf.data(), kSbFileMaxPath));
-    ASSERT_TRUE(FileExists(buf.data()));
+    ASSERT_TRUE(SbFileExists(buf.data()));
   }
 }
 
@@ -332,7 +325,7 @@ TEST_P(InstallationManagerTest, GetInstallationPath) {
   ASSERT_EQ(IM_SUCCESS, ImGetInstallationPath(0, buf0.data(), kSbFileMaxPath));
   std::vector<char> buf1(kSbFileMaxPath);
   ASSERT_EQ(IM_SUCCESS, ImGetInstallationPath(1, buf1.data(), kSbFileMaxPath));
-  ASSERT_TRUE(FileExists(buf1.data()));
+  ASSERT_TRUE(SbFileExists(buf1.data()));
 }
 
 TEST_P(InstallationManagerTest, RollForwardIfNeeded) {

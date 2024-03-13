@@ -14,8 +14,6 @@
 
 #include "starboard/file.h"
 
-#include <sys/stat.h>
-
 #include <cstdio>
 #include <vector>
 
@@ -37,8 +35,7 @@ bool SbFileAtomicReplace(const char* path,
     return false;
   }
 
-  struct stat file_info;
-  const bool file_exists = stat(path, &file_info) == 0;
+  const bool file_exists = SbFileExists(path);
   std::vector<char> temp_path(kSbFileMaxPath + 1, 0);
 
   starboard::strlcpy(temp_path.data(), path, kSbFileMaxPath);

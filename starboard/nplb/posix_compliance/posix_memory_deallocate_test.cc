@@ -11,20 +11,27 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_STAT_H_
-#define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_STAT_H_
 
-#include <../ucrt/sys/stat.h>
+#include <stdlib.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "testing/gtest/include/gtest/gtest.h"
 
-#define S_ISLNK(mode) 0  // Windows doesn't support symbolic links
-#define S_ISDIR(mode) (((mode) & _S_IFMT) == (_S_IFDIR))
+namespace starboard {
+namespace nplb {
+namespace {
 
-#ifdef __cplusplus
+const size_t kSize = 1024 * 128;
+
+TEST(PosixMemoryDeallocateTest, FreesNormally) {
+  void* memory = malloc(kSize);
+  EXPECT_NE(static_cast<void*>(NULL), memory);
+  free(memory);
 }
-#endif  // __cplusplus
 
-#endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_STAT_H_
+TEST(PosixMemoryDeallocateTest, FreesNull) {
+  free(NULL);
+}
+
+}  // namespace
+}  // namespace nplb
+}  // namespace starboard

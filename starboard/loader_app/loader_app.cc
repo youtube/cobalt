@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <sys/stat.h>
-
 #include <vector>
 
 #include "cobalt/version.h"
@@ -113,11 +111,10 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
   uncompressed_library_path += kSystemImageLibraryPath;
 
   bool use_compression;
-  struct stat info;
-  if (stat(compressed_library_path.c_str(), &info) == 0) {
+  if (SbFileExists(compressed_library_path.c_str())) {
     library_path = compressed_library_path;
     use_compression = true;
-  } else if (stat(uncompressed_library_path.c_str(), &info) == 0) {
+  } else if (SbFileExists(uncompressed_library_path.c_str())) {
     library_path = uncompressed_library_path;
     use_compression = false;
   } else {

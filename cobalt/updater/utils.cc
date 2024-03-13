@@ -4,8 +4,6 @@
 
 #include "cobalt/updater/utils.h"
 
-#include <sys/stat.h>
-
 #include <memory>
 #include <vector>
 
@@ -102,10 +100,10 @@ const std::string GetEvergreenFileType(const std::string& installation_path) {
       {installation_path, kSbFileSepString, kCompressedLibraryPath});
   std::string uncompressed_library_path = base::StrCat(
       {installation_path, kSbFileSepString, kUncompressedLibraryPath});
-  struct stat file_info;
-  if (stat(compressed_library_path.c_str(), &file_info) == 0) {
+
+  if (SbFileExists(compressed_library_path.c_str())) {
     return "Compressed";
-  } else if (stat(uncompressed_library_path.c_str(), &file_info) == 0) {
+  } else if (SbFileExists(uncompressed_library_path.c_str())) {
     return "Uncompressed";
   } else {
     LOG(ERROR) << "Failed to get Evergreen file type. Defaulting to "

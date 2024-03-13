@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <sys/stat.h>
-
 #include <string>
 
 #include "starboard/file.h"
@@ -24,15 +22,10 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-bool FileExists(const char* path) {
-  struct stat info;
-  return stat(path, &info) == 0;
-}
-
 TEST(SbFileDeleteTest, SunnyDayDeleteExistingFile) {
   ScopedRandomFile file;
 
-  EXPECT_TRUE(FileExists(file.filename().c_str()));
+  EXPECT_TRUE(SbFileExists(file.filename().c_str()));
   EXPECT_TRUE(SbFileDelete(file.filename().c_str()));
 }
 
@@ -41,7 +34,7 @@ TEST(SbFileDeleteTest, SunnyDayDeleteExistingDirectory) {
 
   const std::string& path = file.filename();
 
-  EXPECT_FALSE(FileExists(path.c_str()));
+  EXPECT_FALSE(SbFileExists(path.c_str()));
   EXPECT_TRUE(SbDirectoryCreate(path.c_str()));
   EXPECT_TRUE(SbDirectoryCanOpen(path.c_str()));
   EXPECT_TRUE(SbFileDelete(path.c_str()));
@@ -50,7 +43,7 @@ TEST(SbFileDeleteTest, SunnyDayDeleteExistingDirectory) {
 TEST(SbFileDeleteTest, RainyDayNonExistentFileErrors) {
   ScopedRandomFile file(ScopedRandomFile::kDontCreate);
 
-  EXPECT_FALSE(FileExists(file.filename().c_str()));
+  EXPECT_FALSE(SbFileExists(file.filename().c_str()));
   EXPECT_TRUE(SbFileDelete(file.filename().c_str()));
 }
 

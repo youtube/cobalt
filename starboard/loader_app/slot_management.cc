@@ -14,8 +14,6 @@
 
 #include "starboard/loader_app/slot_management.h"
 
-#include <sys/stat.h>
-
 #include <vector>
 
 #include "starboard/common/log.h"
@@ -90,11 +88,11 @@ bool CheckBadFileExists(const char* installation_path, const char* app_key) {
   std::string bad_app_key_file_path =
       starboard::loader_app::GetBadAppKeyFilePath(installation_path, app_key);
   SB_DCHECK(!bad_app_key_file_path.empty());
-  struct stat info;
-  bool file_exists = stat(bad_app_key_file_path.c_str(), &info) == 0;
   SB_LOG(INFO) << "bad_app_key_file_path: " << bad_app_key_file_path;
-  SB_LOG(INFO) << "bad_app_key_file_path FileExists: " << file_exists;
-  return !bad_app_key_file_path.empty() && file_exists;
+  SB_LOG(INFO) << "bad_app_key_file_path SbFileExists: "
+               << SbFileExists(bad_app_key_file_path.c_str());
+  return !bad_app_key_file_path.empty() &&
+         SbFileExists(bad_app_key_file_path.c_str());
 }
 
 bool AdoptInstallation(int current_installation,
@@ -116,8 +114,8 @@ bool AdoptInstallation(int current_installation,
                     << app_key;
     return false;
   }
-  struct stat info;
-  if (stat(good_app_key_file_path.c_str(), &info) != 0) {
+
+  if (!SbFileExists(good_app_key_file_path.c_str())) {
     if (!starboard::loader_app::CreateAppKeyFile(good_app_key_file_path)) {
       SB_LOG(WARNING) << "Failed to create good app key file";
       return false;
@@ -235,11 +233,10 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
 
     std::string lib_path;
     bool use_compression;
-    struct stat info;
-    if (stat(compressed_lib_path.data(), &info) == 0) {
+    if (SbFileExists(compressed_lib_path.data())) {
       lib_path = compressed_lib_path.data();
       use_compression = true;
-    } else if (stat(uncompressed_lib_path.data(), &info) == 0) {
+    } else if (SbFileExists(uncompressed_lib_path.data())) {
       lib_path = uncompressed_lib_path.data();
       use_compression = false;
     } else {

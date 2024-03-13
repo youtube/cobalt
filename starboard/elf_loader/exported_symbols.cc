@@ -16,10 +16,10 @@
 
 #include <fcntl.h>
 #include <ifaddrs.h>
+#include <netdb.h>
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
-#include <sys/stat.h>
 #include <unistd.h>
 
 #include "starboard/accessibility.h"
@@ -159,9 +159,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbFileCanOpen);
   REGISTER_SYMBOL(SbFileClose);
   REGISTER_SYMBOL(SbFileDelete);
-#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbFileExists);
-#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbFileFlush);
   REGISTER_SYMBOL(SbFileGetInfo);
   REGISTER_SYMBOL(SbFileGetPathInfo);
@@ -425,7 +423,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(connect);
   REGISTER_SYMBOL(fcntl);
   REGISTER_SYMBOL(free);
+  REGISTER_SYMBOL(freeaddrinfo);
   REGISTER_SYMBOL(freeifaddrs);
+  REGISTER_SYMBOL(getaddrinfo);
   REGISTER_SYMBOL(getifaddrs);
   REGISTER_SYMBOL(getsockname);
   REGISTER_SYMBOL(listen);
@@ -438,11 +438,12 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(realloc);
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(send);
+  REGISTER_SYMBOL(recvfrom);
+  REGISTER_SYMBOL(sendto);
   REGISTER_SYMBOL(setsockopt);
   REGISTER_SYMBOL(socket);
   REGISTER_SYMBOL(snprintf);
   REGISTER_SYMBOL(sprintf);
-  REGISTER_SYMBOL(stat);
   REGISTER_SYMBOL(vfwprintf);
   REGISTER_SYMBOL(vsnprintf);
   REGISTER_SYMBOL(vsscanf);

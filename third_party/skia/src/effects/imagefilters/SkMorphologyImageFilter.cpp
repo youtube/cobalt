@@ -33,6 +33,8 @@
 
 #if SK_CPU_SSE_LEVEL >= SK_CPU_SSE_LEVEL_SSE2
     #include <immintrin.h>
+#elif defined(SK_ARM_HAS_NEON)
+    #include <arm_neon.h>
 #endif
 
 namespace {
