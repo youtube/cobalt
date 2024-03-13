@@ -86,12 +86,13 @@ void SourceBufferMetrics::EndTracking(SourceBufferMetricsAction action,
   is_tracking_ = false;
 
   base::TimeDelta wall_duration = clock_->NowTicks() - wall_start_time_;
-  int64_t thread_duration =
-      starboard::CurrentMonotonicThreadTime() - thread_start_time_;
 
   RecordTelemetry(action, wall_duration);
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
+  int64_t thread_duration =
+      starboard::CurrentMonotonicThreadTime() - thread_start_time_;
+
   total_wall_time_ += wall_duration.InMicroseconds();
   total_thread_time_ += thread_duration;
 
