@@ -1,4 +1,4 @@
-// Copyright 2018 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,14 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKOSFILE_COBALT_H_
-#define COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKOSFILE_COBALT_H_
+#include <stdlib.h>
 
-#include "third_party/skia/src/core/SkOSFile.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
-// Read |byteCount| bytes from current file cursor position.
-size_t sk_fread(void* buffer, size_t byteCount, FILE* file);
-// Seek to |offset| bytes within the file.
-bool sk_fseek(FILE* file, size_t offset);
+namespace starboard {
+namespace nplb {
+namespace {
 
-#endif  // COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKOSFILE_COBALT_H_
+const size_t kSize = 1024 * 128;
+
+TEST(PosixMemoryDeallocateTest, FreesNormally) {
+  void* memory = malloc(kSize);
+  EXPECT_NE(static_cast<void*>(NULL), memory);
+  free(memory);
+}
+
+TEST(PosixMemoryDeallocateTest, FreesNull) {
+  free(NULL);
+}
+
+}  // namespace
+}  // namespace nplb
+}  // namespace starboard
