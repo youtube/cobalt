@@ -103,7 +103,7 @@ if (sb_is_evergreen || (sb_is_modular && is_host_win)) {
       "//starboard/common",
       "//third_party/musl:c",
     ]
-    configs -= ["//starboard/build/config/modular:default_cpp_standard"]
+    configs -= [ "//starboard/build/config:default_cpp_standard" ]
   }
 }
 

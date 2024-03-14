@@ -112,7 +112,7 @@ static_library("cxx") {
   ]
 
   configs += [ ":cxx_config" ]
-  configs -= ["//starboard/build/config/modular:default_cpp_standard"]
+  configs -= ["//starboard/build/config:default_cpp_standard"]
   deps = [
     "//starboard:starboard_headers_only",
     "//starboard/common",

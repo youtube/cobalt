@@ -238,3 +238,10 @@ config("default_compiler_flags") {
     asmflags = cflags
   }
 }
+
+# TODO: b/329683364 - Add non third party cpp standard flags.
+config("default_cpp_standard") {
+  if (sb_is_modular && current_toolchain == cobalt_toolchain) {
+    cflags_cc = [ "-std=c++17" ]
+  }
+}

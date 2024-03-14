@@ -90,7 +90,7 @@ static_library("cxxabi") {
   ]
 
   configs += [ ":cxxabi_config" ]
-  configs -= [ "//starboard/build/config/modular:default_cpp_standard" ]
+  configs -= [ "//starboard/build/config:default_cpp_standard" ]
 
   all_dependent_configs = [ ":cxxabi_dependents_config" ]
 
