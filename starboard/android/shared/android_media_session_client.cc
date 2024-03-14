@@ -172,11 +172,6 @@ void OnMediaSessionStateChanged(
   jint playback_state = CobaltExtensionPlaybackStateToPlaybackState(
       session_state.actual_playback_state);
 
-  SbOnce(&once_flag, OnceInit);
-  SbMutexAcquire(&mutex);
-
-  SbMutexRelease(&mutex);
-
   jlong playback_state_actions = MediaSessionActionsToPlaybackStateActions(
       session_state.available_actions);
 
@@ -186,7 +181,7 @@ void OnMediaSessionStateChanged(
   ScopedLocalJavaRef<jobjectArray> j_artwork;
 
   if (session_state.metadata != NULL) {
-    CobaltExtensionMediaMetadata* media_metadata(session_state.metadata);
+    const CobaltExtensionMediaMetadata* media_metadata = session_state.metadata;
 
     j_title.Reset(env->NewStringStandardUTFOrAbort(media_metadata->title));
     j_artist.Reset(env->NewStringStandardUTFOrAbort(media_metadata->artist));
@@ -194,7 +189,7 @@ void OnMediaSessionStateChanged(
 
     size_t artwork_count = media_metadata->artwork_count;
     if (artwork_count > 0) {
-      CobaltExtensionMediaImage* artwork(media_metadata->artwork);
+      const CobaltExtensionMediaImage* artwork = media_metadata->artwork;
       ScopedLocalJavaRef<jclass> media_image_class(
           env->FindClassExtOrAbort("dev/cobalt/media/MediaImage"));
       jmethodID media_image_constructor = env->GetMethodID(
@@ -210,7 +205,7 @@ void OnMediaSessionStateChanged(
       ScopedLocalJavaRef<jstring> j_sizes;
       ScopedLocalJavaRef<jstring> j_type;
       for (size_t i = 0; i < artwork_count; i++) {
-        const CobaltExtensionMediaImage& media_image(artwork[i]);
+        const CobaltExtensionMediaImage& media_image = artwork[i];
         j_src.Reset(env->NewStringStandardUTFOrAbort(media_image.src));
         j_sizes.Reset(env->NewStringStandardUTFOrAbort(media_image.size));
         j_type.Reset(env->NewStringStandardUTFOrAbort(media_image.type));
