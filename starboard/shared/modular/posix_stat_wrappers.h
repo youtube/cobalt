@@ -26,32 +26,32 @@
 
 #include <sys/stat.h>  // This should be the headers from the platform toolchain
 
-#include "starboard/shared/modular/posix_time_wrappers.h"
 #include "starboard/configuration.h"
 #include "starboard/export.h"
+#include "starboard/shared/modular/posix_time_wrappers.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 struct musl_stat {
-	unsigned /*dev_t*/ st_dev;
-	unsigned /*ino_t*/ st_ino;
-	unsigned /*nlink_t*/ st_nlink;
+  unsigned /*dev_t*/ st_dev;
+  unsigned /*ino_t*/ st_ino;
+  unsigned /*nlink_t*/ st_nlink;
 
-	unsigned /*mode_t*/ st_mode;
-	unsigned /*uid_t*/ st_uid;
-	unsigned /*gid_t*/ st_gid;
-	unsigned /*unsigned int*/    __pad0;
-	unsigned /*dev_t*/ st_rdev;
-	int64_t/*off_t*/ st_size;
-	int64_t /*blksize_t*/ st_blksize;
-	int64_t /*blkcnt_t*/ st_blocks;
+  unsigned /*mode_t*/ st_mode;
+  unsigned /*uid_t*/ st_uid;
+  unsigned /*gid_t*/ st_gid;
+  unsigned /*unsigned int*/ __pad0;
+  unsigned /*dev_t*/ st_rdev;
+  int64_t /*off_t*/ st_size;
+  __MUSL_LONG_TYPE /*blksize_t*/ st_blksize;
+  int64_t /*blkcnt_t*/ st_blocks;
 
-	musl_timespec /*struct timespec*/ st_atim;
-	musl_timespec /*struct timespec*/ st_mtim;
-	musl_timespec /*struct timespec*/ st_ctim;
-	int64_t __unused[3];
+  musl_timespec /*struct timespec*/ st_atim;
+  musl_timespec /*struct timespec*/ st_mtim;
+  musl_timespec /*struct timespec*/ st_ctim;
+  __MUSL_LONG_TYPE __unused[3];
 };
 
 SB_EXPORT int __wrap_stat(const char* path, struct musl_stat* info);

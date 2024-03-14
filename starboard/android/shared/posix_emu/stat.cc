@@ -12,19 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <android/asset_manager.h>
 #include <sys/stat.h>
-
-#include "starboard/directory.h"
-
-#include "starboard/android/shared/file_internal.h"
-
-using starboard::android::shared::IsAndroidAssetPath;
-using starboard::android::shared::OpenAndroidAsset;
-
 // Undef alias to `stat` and pull in the system-level header so we can use it
 #undef stat
 #include <../../usr/include/sys/stat.h>
+
+#include <android/asset_manager.h>
+
+#include "starboard/android/shared/directory_internal.h"
+#include "starboard/android/shared/file_internal.h"
+#include "starboard/directory.h"
+
+using starboard::android::shared::IsAndroidAssetPath;
+using starboard::android::shared::OpenAndroidAsset;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Implementations below exposed externally in pure C for emulation.
@@ -60,7 +60,7 @@ static void MapSbFileInfoToStat(SbFileInfo* file_info, struct stat* stat_info) {
 int sb_stat(const char* path, struct stat* info) {
   // SbFileExists(path) implementation for Android
   if (!IsAndroidAssetPath(path)) {
-    return stat(path, info); // Using system level stat call
+    return stat(path, info);  // Using system level stat call
   }
 
   SbFile file = SbFileOpen(path, kSbFileRead | kSbFileOpenOnly, NULL, NULL);
