@@ -3367,7 +3367,6 @@ test("net_unittests") {
       "spdy/spdy_session_unittest.cc",
       "test/embedded_test_server/embedded_test_server_unittest.cc",
       "third_party/nist-pkits/pkits_testcases-inl.h",
-      "url_request/url_request_context_builder_unittest.cc",
     ]
     deps -= [
       "//net/http:transport_security_state_unittest_data",
