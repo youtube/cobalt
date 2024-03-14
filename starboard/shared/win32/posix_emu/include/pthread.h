@@ -17,6 +17,8 @@
 
 #include <windows.h>
 
+#include "starboard/shared/win32/posix_emu/include/remove_problematic_windows_macros.h"
+
 #define PTHREAD_MUTEX_INITIALIZER SRWLOCK_INIT
 
 #ifdef __cplusplus
