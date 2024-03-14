@@ -20,12 +20,12 @@ int __wrap_stat(const char* path, struct musl_stat* musl_info) {
 
   musl_info->st_mode = stat_info.st_mode;
   musl_info->st_size = stat_info.st_size;
-  musl_info->st_atim.tv_sec = stat_info.st_atimespec.tv_sec;
-  musl_info->st_atim.tv_nsec = stat_info.st_atimespec.tv_nsec;
-  musl_info->st_mtim.tv_sec = stat_info.st_mtimespec.tv_sec;
-  musl_info->st_mtim.tv_nsec = stat_info.st_mtimespec.tv_nsec;
-  musl_info->st_ctim.tv_sec = stat_info.st_ctimespec.tv_sec;
-  musl_info->st_ctim.tv_nsec = stat_info.st_ctimespec.tv_nsec;
+  musl_info->st_atim.tv_sec = stat_info.st_atim.tv_sec;
+  musl_info->st_atim.tv_nsec = stat_info.st_atim.tv_nsec;
+  musl_info->st_mtim.tv_sec = stat_info.st_mtim.tv_sec;
+  musl_info->st_mtim.tv_nsec = stat_info.st_mtim.tv_nsec;
+  musl_info->st_ctim.tv_sec = stat_info.st_ctim.tv_sec;
+  musl_info->st_ctim.tv_nsec = stat_info.st_ctim.tv_nsec;
 
   return retval;
 }
