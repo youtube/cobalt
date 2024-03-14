@@ -29,4 +29,3 @@ int __wrap_stat(const char* path, struct musl_stat* musl_info) {
 
   return retval;
 }
-
