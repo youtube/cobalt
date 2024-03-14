@@ -32,7 +32,7 @@
 #include "base/strings/string_util.h"
 #include "base/task/current_thread.h"
 #include "base/task/single_thread_task_runner.h"
-#include "base/task/task_scheduler/task_scheduler.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
@@ -677,7 +677,8 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   // A one-per-process task scheduler is needed for usage of APIs in
   // base/post_task.h which will be used by some net APIs like
   // URLRequestContext;
-  base::TaskScheduler::CreateAndStartWithDefaultParams("Cobalt TaskScheduler");
+  base::ThreadPoolInstance::CreateAndStartWithDefaultParams(
+      "Cobalt TaskScheduler");
 
   starboard::StatsTrackerContainer::GetInstance()->set_stats_tracker(
       std::make_unique<StarboardStatsTracker>());

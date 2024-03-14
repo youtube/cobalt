@@ -19,7 +19,7 @@
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/synchronization/lock.h"
-#include "base/task/task_scheduler/task_scheduler.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/math/rect.h"
 #include "cobalt/math/size.h"
@@ -81,7 +81,8 @@ MediaSandbox::Impl::Impl(int argc, char** argv,
   // A one-per-process task scheduler is needed for usage of APIs in
   // base/post_task.h which will be used by some net APIs like
   // URLRequestContext;
-  base::TaskScheduler::CreateAndStartWithDefaultParams("Cobalt TaskScheduler");
+  base::ThreadPoolInstance::CreateAndStartWithDefaultParams(
+      "Cobalt TaskScheduler");
   network::NetworkModule::Options network_options;
   network_options.https_requirement = network::kHTTPSOptional;
 
