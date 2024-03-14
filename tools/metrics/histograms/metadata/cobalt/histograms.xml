@@ -152,7 +152,7 @@ Always run the pretty print utility on this file after editing:
 </histogram>
 
 <histogram name="Cobalt.Media.SourceBuffer.AppendBuffer.Timing"
-    units="ms" expires_after="never">
+    units="microseconds" expires_after="never">
 <!-- expires-never: Needed for long-term tracking of SourceBuffer latency. -->
 
   <owner>async@google.com</owner>
@@ -163,7 +163,7 @@ Always run the pretty print utility on this file after editing:
 </histogram>
 
 <histogram name="Cobalt.Media.SourceBuffer.PrepareAppend.Timing"
-    units="ms" expires_after="never">
+    units="microseconds" expires_after="never">
 <!-- expires-never: Needed for long-term tracking of SourceBuffer latency. -->
 
   <owner>async@google.com</owner>
@@ -174,7 +174,7 @@ Always run the pretty print utility on this file after editing:
 </histogram>
 
 <histogram name="Cobalt.Media.SourceBuffer.Other.Timing"
-    units="ms" expires_after="never">
+    units="microseconds" expires_after="never">
 <!-- expires-never: Needed for long-term tracking of SourceBuffer latency. -->
 
   <owner>async@google.com</owner>
