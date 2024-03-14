@@ -16,6 +16,7 @@
 
 #include <fcntl.h>
 #include <ifaddrs.h>
+#include <netdb.h>
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
@@ -425,7 +426,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(connect);
   REGISTER_SYMBOL(fcntl);
   REGISTER_SYMBOL(free);
+  REGISTER_SYMBOL(freeaddrinfo);
   REGISTER_SYMBOL(freeifaddrs);
+  REGISTER_SYMBOL(getaddrinfo);
   REGISTER_SYMBOL(getifaddrs);
   REGISTER_SYMBOL(getsockname);
   REGISTER_SYMBOL(listen);
@@ -438,6 +441,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(realloc);
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(send);
+  REGISTER_SYMBOL(recvfrom);
+  REGISTER_SYMBOL(sendto);
   REGISTER_SYMBOL(setsockopt);
   REGISTER_SYMBOL(socket);
   REGISTER_SYMBOL(snprintf);

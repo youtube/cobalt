@@ -144,6 +144,9 @@ const Platform::String ^ kGenericPnpMonitorAqs = ref new Platform::String(
     L"True");
 
 const uint32_t kYuv420BitsPerPixelForHdr10Mode = 24;
+const uint32_t kHdr4kRefreshRateMaximum = 60;
+const uint32_t k4kResolutionWidth = 3840;
+const uint32_t k4kResolutionHeight = 2160;
 
 // Per Microsoft, HdcpProtection::On means HDCP 1.x required.
 const HdcpProtection kHDCPProtectionMode = HdcpProtection::On;
@@ -983,17 +986,32 @@ void ApplicationUwp::UpdateDisplayPreferredMode() {
 
   preferred_display_mode_hdmi_ = hdmi_display_info->GetCurrentDisplayMode();
   for (auto mode : hdmi_display_info->GetSupportedDisplayModes()) {
-    if (mode->ResolutionWidthInRawPixels ==
-            preferred_display_mode_hdmi_->ResolutionWidthInRawPixels &&
-        mode->ResolutionHeightInRawPixels ==
-            preferred_display_mode_hdmi_->ResolutionHeightInRawPixels &&
-        mode->Is2086MetadataSupported && mode->IsSmpte2084Supported &&
-        mode->BitsPerPixel >= kYuv420BitsPerPixelForHdr10Mode &&
-        mode->ColorSpace == HdmiDisplayColorSpace::BT2020) {
-      if (!preferred_display_mode_hdr_ ||
-          preferred_display_mode_hdr_->RefreshRate < mode->RefreshRate) {
-        preferred_display_mode_hdr_ = mode;
-      }
+    // Check that resolution matches the preferred display mode.
+    if (mode->ResolutionWidthInRawPixels !=
+            preferred_display_mode_hdmi_->ResolutionWidthInRawPixels ||
+        mode->ResolutionHeightInRawPixels !=
+            preferred_display_mode_hdmi_->ResolutionHeightInRawPixels) {
+      continue;
+    }
+    // Verify HDR metadata and transfer function are supported.
+    if (!mode->Is2086MetadataSupported || !mode->IsSmpte2084Supported) {
+      continue;
+    }
+    // Verify we have enough bits per pixel and the correct color space for HDR.
+    if (mode->BitsPerPixel < kYuv420BitsPerPixelForHdr10Mode ||
+        mode->ColorSpace != HdmiDisplayColorSpace::BT2020) {
+      continue;
+    }
+    // We don't serve 4k HDR videos over 60fps, skipping display modes that will
+    // consume more power than needed.
+    if (mode->ResolutionWidthInRawPixels >= k4kResolutionWidth &&
+        mode->ResolutionHeightInRawPixels >= k4kResolutionHeight &&
+        mode->RefreshRate > kHdr4kRefreshRateMaximum) {
+      continue;
+    }
+    if (!preferred_display_mode_hdr_ ||
+        preferred_display_mode_hdr_->RefreshRate < mode->RefreshRate) {
+      preferred_display_mode_hdr_ = mode;
     }
   }
 }

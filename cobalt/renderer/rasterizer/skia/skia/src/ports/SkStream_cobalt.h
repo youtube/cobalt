@@ -199,7 +199,7 @@ class SkFileMemoryChunkStream : public SkStreamAsset {
 
   SkFileMemoryChunkStreamProvider* const stream_provider_;
 
-  SkFile* const file_;
+  FILE* const file_;
   size_t file_length_;
   size_t file_position_;
 

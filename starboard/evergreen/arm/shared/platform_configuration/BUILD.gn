@@ -12,20 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-config("sabi_flags") {
-  cflags = [ "-march=armv7a" ]
-}
-
 config("platform_configuration") {
   configs = [
-    ":sabi_flags",
+    "//starboard/build/config/modular/arm",
     "//starboard/evergreen/shared/platform_configuration",
-  ]
-
-  cflags = [
-    "-isystem" + rebase_path("//third_party/musl/arch/arm", root_build_dir),
-
-    # Force char to be signed.
-    "-fsigned-char",
   ]
 }

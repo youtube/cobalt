@@ -38,12 +38,14 @@
     #define SKVX_USE_SIMD 0
 #endif
 
-#if defined(__SSE__) || defined(__AVX__) || defined(__AVX2__)
-    #include <immintrin.h>
-#elif defined(__ARM_NEON)
-    #include <arm_neon.h>
-#elif defined(__wasm_simd128__)
-    #include <wasm_simd128.h>
+#if SKVX_USE_SIMD
+    #if defined(__SSE__) || defined(__AVX__) || defined(__AVX2__)
+        #include <immintrin.h>
+    #elif defined(__ARM_NEON)
+        #include <arm_neon.h>
+    #elif defined(__wasm_simd128__)
+        #include <wasm_simd128.h>
+    #endif
 #endif
 
 // To avoid ODR violations, all methods must be force-inlined...

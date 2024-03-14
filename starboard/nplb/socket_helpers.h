@@ -243,6 +243,9 @@ int PosixGetLocalAddressiIPv4(sockaddr* address_ptr);
 int PosixGetLocalAddressiIPv6(sockaddr_in6* address_ptr);
 #endif  // SB_HAS(IPV6)
 
+int PosixSocketSetReceiveBufferSize(int socket_fd, int32_t size);
+int PosixSocketSetSendBufferSize(int socket_fd, int32_t size);
+
 #if defined(MSG_NOSIGNAL)
 const int kSendFlags = MSG_NOSIGNAL;
 #else

@@ -1,4 +1,4 @@
-# Copyright 2022 The Cobalt Authors. All Rights Reserved.
+# Copyright 2024 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,20 +14,16 @@
 
 config("sabi_flags") {
   cflags = [
-    "-mfloat-abi=softfp",
+    "-mfloat-abi=hard",
     "-target",
-    "armv7a-none-eabi",
+    "armv7a-none-eabihf",
   ]
 }
 
-config("platform_configuration") {
+config("hardfp") {
   configs = [
-    "//starboard/build/config/sabi",
     ":sabi_flags",
-    "//starboard/evergreen/arm/shared/platform_configuration",
-  ]
-  ldflags = [
-    "-Wl,-m",
-    "-Wl,armelf",
+    "//starboard/build/config/sabi",
+    "//starboard/build/config/modular/arm",
   ]
 }

@@ -10,6 +10,7 @@
 
 #include <array>
 #include <unordered_map>
+#include <string>
 #include <vector>
 #include "include/core/SkSpan.h"
 #include "include/private/SkSpinlock.h"

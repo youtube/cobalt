@@ -80,7 +80,7 @@ template("skia_common") {
 
       # Use scalar portable implementations instead of Clang/GCC vector extensions
       # in SkVx.h, as this causes an internal compiler error for raspi-2.
-      "SKNX_NO_SIMD",
+      # "SKNX_NO_SIMD",
     ]
 
     configs += [ ":skia_common_config_$target_name" ]

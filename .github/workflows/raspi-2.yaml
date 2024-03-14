@@ -12,7 +12,7 @@ on:
       - feature/*
   schedule:
     # GMT timezone.
-    - cron: '0 4 * * *'
+    - cron: '0 9 * * *'
   workflow_dispatch:
     inputs:
       nightly:
