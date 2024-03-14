@@ -20,6 +20,8 @@ source_set("starboard_layer_posix_abi_wrappers") {
     "starboard_layer_posix_mmap_abi_wrappers.h",
     "starboard_layer_posix_pthread_abi_wrappers.cc",
     "starboard_layer_posix_pthread_abi_wrappers.h",
+    "posix_stat_wrappers.cc",
+    "posix_stat_wrappers.h",
     "starboard_layer_posix_time_abi_wrappers.cc",
     "starboard_layer_posix_time_abi_wrappers.h",
   ]

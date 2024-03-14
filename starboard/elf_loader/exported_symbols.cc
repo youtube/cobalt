@@ -20,7 +20,6 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
-#include <sys/stat.h>
 #include <unistd.h>
 
 #include "starboard/accessibility.h"
@@ -52,6 +51,7 @@
 #if SB_API_VERSION >= 16
 #include "starboard/shared/modular/starboard_layer_posix_mmap_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"
+#include "starboard/shared/modular/posix_stat_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
 #endif  // SB_API_VERSION >= 16
 #include "starboard/socket.h"
