@@ -142,6 +142,9 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
   void StartNetLog();
   base::FilePath StopNetLog();
 
+#if defined(DIAL_SERVER)
+  void RestartDialService();
+#endif
 
  private:
   void Initialize(const std::string& user_agent_string,
@@ -159,8 +162,14 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
   std::unique_ptr<net::HttpUserAgentSettings> http_user_agent_settings_;
   std::unique_ptr<network_bridge::CookieJar> cookie_jar_;
 #if defined(DIAL_SERVER)
+<<<<<<< HEAD
   std::unique_ptr<net::DialService> dial_service_;
   scoped_refptr<net::DialServiceProxy> dial_service_proxy_;
+=======
+  void OnRestartDialService(base::WaitableEvent* creation_event);
+  std::unique_ptr<network::DialService> dial_service_;
+  scoped_refptr<network::DialServiceProxy> dial_service_proxy_;
+>>>>>>> 05df3b550d1 (DIAL Service restarting (#2594))
 #endif
   std::unique_ptr<network_bridge::NetPoster> net_poster_;
 
