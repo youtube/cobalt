@@ -14,8 +14,6 @@
 
 #if SB_API_VERSION >= 16
 
-// close is partially tested in posix_file_open_test.cc.
-
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -24,10 +22,6 @@
 
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-#ifndef O_BINARY
-#define O_BINARY 0
-#endif
 
 namespace starboard {
 namespace nplb {
@@ -75,7 +69,7 @@ TYPED_TEST(PosixFileReadTest, BasicReading) {
   ScopedRandomFile random_file(kFileSize);
   const std::string& filename = random_file.filename();
 
-  int file = open(filename.c_str(), O_RDONLY | O_BINARY);
+  int file = open(filename.c_str(), O_RDONLY);
   ASSERT_TRUE(file >= 0);
 
   // Create a bigger buffer than necessary, so we can test the memory around
@@ -139,7 +133,7 @@ TYPED_TEST(PosixFileReadTest, ReadZeroBytes) {
   const std::string& filename = random_file.filename();
 
   int file = open(filename.c_str(), O_RDONLY);
-  // ASSERT_TRUE(SbFileIsValid(file));
+  ASSERT_TRUE(file >= 0);
 
   // Create a bigger buffer than necessary, so we can test the memory around
   // the portion given to SbFileRead.
@@ -172,8 +166,8 @@ TYPED_TEST(PosixFileReadTest, ReadFromMiddle) {
   ScopedRandomFile random_file(kFileSize);
   const std::string& filename = random_file.filename();
 
-  int file = open(filename.c_str(), O_RDONLY | O_BINARY);
-  // ASSERT_TRUE(SbFileIsValid(file));
+  int file = open(filename.c_str(), O_RDONLY);
+  ASSERT_TRUE(file >= 0);
 
   // Create a bigger buffer than necessary, so we can test the memory around
   // the portion given to SbFileRead.
@@ -215,7 +209,7 @@ TYPED_TEST(PosixFileReadTest, ReadFromMiddle) {
 TYPED_TEST(PosixFileReadTest, ReadStaticContent) {
   for (auto filename : GetFileTestsFilePaths()) {
     int file = open(filename.c_str(), O_RDONLY);
-    // ASSERT_TRUE(SbFileIsValid(file)) << "Can't open: " << filename;
+    ASSERT_TRUE(file >= 0) << "Can't open: " << filename;
 
     // Create a bigger buffer than necessary, so we can test the memory around
     // the portion given to SbFileRead.

@@ -50,7 +50,7 @@ TEST(PosixFileSeekTest, FromEndWorks) {
   starboard::nplb::ScopedRandomFile random_file;
   const std::string& filename = random_file.filename();
   int file = open(filename.c_str(), O_RDONLY);
-  // ASSERT_TRUE(fcntl(fd, F_GETFD) != -1 || errno != EBADF);
+  ASSERT_TRUE(file >= 0);
 
   struct stat info;
   int result = fstat(file, &info);
@@ -74,7 +74,7 @@ TEST(PosixFileSeekTest, FromCurrentWorks) {
   starboard::nplb::ScopedRandomFile random_file;
   const std::string& filename = random_file.filename();
   int file = open(filename.c_str(), O_RDONLY);
-  // ASSERT_TRUE(SbFileIsValid(file));
+  ASSERT_TRUE(file >= 0);
 
   struct stat info;
   int result = fstat(file, &info);
@@ -107,7 +107,7 @@ TEST(PosixFileSeekTest, FromBeginWorks) {
   starboard::nplb::ScopedRandomFile random_file;
   const std::string& filename = random_file.filename();
   int file = open(filename.c_str(), O_RDONLY);
-  // ASSERT_TRUE(SbFileIsValid(file));
+  ASSERT_TRUE(file >= 0);
 
   struct stat info;
   int result = fstat(file, &info);
@@ -145,7 +145,7 @@ std::string GetTestStaticContentFile() {
 TEST(PosixFileSeekTest, FromEndInStaticContentWorks) {
   std::string filename = GetTestStaticContentFile();
   int file = open(filename.c_str(), O_RDONLY);
-  // ASSERT_TRUE(SbFileIsValid(file));
+  ASSERT_TRUE(file >= 0);
 
   int content_length = GetTestFileExpectedContent(filename).length();
 
