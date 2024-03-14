@@ -12,6 +12,7 @@ since the version previous to it.
 ### Added standard POSIX file stat API and deprecated SbFileExists.
 The file API SbFileExists has been deprecated and the standard API `stat` can
 be used from `sys/stat.h` instead.
+
 ### Added standard POSIX socket getaddrinfo/freeaddrinfo APIs.
 The standard API `getaddrinfo` and `freeaddrinfo`, can be used from
 <netdb.h>.
