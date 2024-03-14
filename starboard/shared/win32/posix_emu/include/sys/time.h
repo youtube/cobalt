@@ -15,8 +15,10 @@
 #ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_TIME_H_
 #define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_TIME_H_
 
+// clang-format off
 #include <winsock2.h>  // For struct timeval
-#undef NO_ERROR        // http://b/302733082#comment15
+#include <_remove_problematic_windows_macros.h>
+// clang-format on
 
 #ifdef __cplusplus
 extern "C" {

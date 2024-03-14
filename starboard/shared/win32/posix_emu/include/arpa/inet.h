@@ -17,12 +17,10 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+// clang-format off
 #include <winsock2.h>
 #include <ws2tcpip.h>
-
-#undef NO_ERROR  // http://b/302733082#comment15
-//  TODO: b/324981660 undefine the caller of this GetCurrentTime in
-//  <winsock2.h>
-#undef GetCurrentTime
+#include <_remove_problematic_windows_macros.h>
+// clang-format on
 
 #endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_ARPA_INET_H_

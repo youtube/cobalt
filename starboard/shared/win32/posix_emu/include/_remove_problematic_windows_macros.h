@@ -1,3 +1,4 @@
+// NOLINT(build/header_guard)
 // Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,13 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_NETINET_IN_H_
-#define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_NETINET_IN_H_
-
-#include <arpa/inet.h>
-// clang-format off
-#include <ws2tcpip.h>
-#include <_remove_problematic_windows_macros.h>
-// clang-format on
-
-#endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_NETINET_IN_H_
+// This file should be included in other include files within posix_emu, after
+// including MSVC headers that may define macros that collide with Cobalt code.
+// When undefining a macro here, provide a comment of which specific Windows
+// header file defined it for future reference.
+#undef NO_ERROR        // winerror.h; b/302733082#comment15
+#undef PostMessage     // winuser.h
+#undef GetCurrentTime  // winbase.h; b/324981660
