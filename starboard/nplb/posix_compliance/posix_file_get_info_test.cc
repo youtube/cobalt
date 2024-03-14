@@ -16,6 +16,7 @@
 
 #include <fcntl.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include <iostream>

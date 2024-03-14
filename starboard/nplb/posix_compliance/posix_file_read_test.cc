@@ -18,10 +18,16 @@
 
 #include <fcntl.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
 
 namespace starboard {
 namespace nplb {
