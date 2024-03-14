@@ -183,10 +183,13 @@ VideoDecoder::VideoDecoder(
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
     SbDrmSystem drm_system,
+    const VideoStreamInfo& video_stream_info,
     bool is_hdr_supported)
     : video_codec_(video_codec),
       graphics_context_provider_(graphics_context_provider),
       drm_system_(drm_system),
+      is_hlg_(video_stream_info.color_metadata.transfer ==
+              kSbMediaTransferIdAribStdB67),
       is_hdr_supported_(is_hdr_supported) {
   SB_DCHECK(output_mode == kSbPlayerOutputModeDecodeToTexture);
 
@@ -416,6 +419,9 @@ SbDecodeTarget VideoDecoder::CreateDecodeTarget() {
 
     // Release the video_sample before releasing the reset lock.
     video_sample.Reset();
+  }
+  if (decode_target != kSbDecodeTargetInvalid) {
+    decode_target->info.is_hlg = is_hlg_;
   }
   return decode_target;
 }

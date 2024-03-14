@@ -86,7 +86,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       scoped_ptr<VideoDecoderImpl> video_decoder_impl(new VideoDecoderImpl(
           creation_parameters.video_codec(), creation_parameters.output_mode(),
           creation_parameters.decode_target_graphics_context_provider(),
-          creation_parameters.drm_system()));
+          creation_parameters.drm_system(),
+          creation_parameters.video_stream_info()));
       *video_renderer_sink = NULL;
       video_decoder->reset(video_decoder_impl.release());
       video_render_algorithm->reset(new VideoRenderAlgorithmImpl);

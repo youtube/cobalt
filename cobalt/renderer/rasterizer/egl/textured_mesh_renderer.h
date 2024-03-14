@@ -95,6 +95,7 @@ class TexturedMeshRenderer {
     }
 
     Type type;
+    bool is_hlg;
     Texture textures[3];
   };
 
@@ -145,7 +146,8 @@ class TexturedMeshRenderer {
 
   static uint32 CreateFragmentShader(uint32 texture_target,
                                      const std::vector<TextureInfo>& textures,
-                                     const float* color_matrix);
+                                     const float* color_matrix,
+                                     bool hlg = false);
   static uint32 CreateVertexShader(const std::vector<TextureInfo>& textures);
 
   // UYVY textures need a special fragment shader to handle the unique aspect
@@ -154,7 +156,8 @@ class TexturedMeshRenderer {
                                          int32 texture_wrap_s);
   // YUV compacted textures need a special fragment shader to handle compacted
   // pixels. Compacted textures support YUV420 only.
-  static uint32 CreateYUVCompactedTexturesFragmentShader(uint32 texture_target);
+  static uint32 CreateYUVCompactedTexturesFragmentShader(uint32 texture_target,
+                                                         bool hlg = false);
 
   backend::GraphicsContextEGL* graphics_context_;
 

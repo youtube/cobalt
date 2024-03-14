@@ -40,10 +40,14 @@ namespace win32 {
 class VideoDecoder
     : public ::starboard::shared::starboard::player::filter::VideoDecoder {
  public:
+  typedef ::starboard::shared::starboard::media::VideoStreamInfo
+      VideoStreamInfo;
+
   VideoDecoder(SbMediaVideoCodec video_codec,
                SbPlayerOutputMode output_mode,
                SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
                SbDrmSystem drm_system,
+               const VideoStreamInfo& video_stream_info,
                bool is_hdr_supported = false);
   ~VideoDecoder() override;
 
@@ -67,9 +71,6 @@ class VideoDecoder
   SbDecodeTarget GetCurrentDecodeTarget() override;
 
  private:
-  typedef ::starboard::shared::starboard::media::VideoStreamInfo
-      VideoStreamInfo;
-
   template <typename T>
   using ComPtr = Microsoft::WRL::ComPtr<T>;
 
@@ -160,6 +161,7 @@ class VideoDecoder
   std::list<SbDecodeTarget> prev_decode_targets_;
 
   bool is_hdr_supported_;
+  bool is_hlg_;
   std::atomic_bool error_occured_ = {false};
 };
 

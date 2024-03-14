@@ -33,12 +33,14 @@ class VideoDecoderUwp : public ::starboard::shared::win32::VideoDecoder {
       SbMediaVideoCodec video_codec,
       SbPlayerOutputMode output_mode,
       SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
-      SbDrmSystem drm_system)
+      SbDrmSystem drm_system,
+      const VideoStreamInfo& video_stream_info)
       : VideoDecoder(
             video_codec,
             output_mode,
             graphics_context_provider,
             drm_system,
+            video_stream_info,
             ::starboard::shared::uwp::ApplicationUwp::Get()->IsHdrSupported()) {
   }
 

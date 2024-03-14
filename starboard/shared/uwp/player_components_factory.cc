@@ -211,7 +211,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       video_decoder->reset(new MftVideoDecoder(
           video_codec, output_mode,
           creation_parameters.decode_target_graphics_context_provider(),
-          creation_parameters.drm_system()));
+          creation_parameters.drm_system(),
+          creation_parameters.video_stream_info()));
       return true;
     }
 
