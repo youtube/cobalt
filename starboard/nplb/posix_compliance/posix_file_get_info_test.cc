@@ -68,7 +68,7 @@ TEST(PosixFileGetInfoTest, WorksOnARegularFile) {
     const std::string& filename = random_file.filename();
 
     int file = open(filename.c_str(), O_RDONLY);
-    // ASSERT_TRUE(SbFileIsValid(file));
+    ASSERT_TRUE(file >= 0);
 
     {
       struct stat info;

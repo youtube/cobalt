@@ -23,7 +23,6 @@
 #undef NO_ERROR  // http://b/302733082#comment15
 #include <ws2tcpip.h>
 
-#include <iostream>
 #include <map>
 
 #include "starboard/common/log.h"
@@ -256,6 +255,8 @@ int open(const char* path, int oflag, ...) {
   va_start(args, oflag);
   int fd;
   mode_t mode;
+  // Open in binary mode because read() stops at the first 0x1A value.
+  oflag |= O_BINARY;
   if (oflag & O_CREAT) {
     mode = va_arg(args, mode_t);
     fd = _open(path, oflag, mode & MS_MODE_MASK);
@@ -290,24 +291,18 @@ int close(int fd) {
 }
 
 int sb_lseek(int fd, off_t offset, int origin) {
-  std::cout << "INTERNAL FD IS: " << fd << std::endl;
   FileOrSocket handle = handle_db_get(fd, false);
-  std::cout << "HANDLE HAS VALUE OF " << handle.file << std::endl;
   if (!handle.is_file) {
     return -1;
   }
-  std::cout << "LSEEK ON EXTERNAL FD:" << handle.file << std::endl;
   return lseek(handle.file, offset, origin);
 }
 
 SSIZE_T sb_read(int fd, void* buf, size_t nbyte) {
-  std::cout << "INTERNAL FD IS: " << fd << std::endl;
   FileOrSocket handle = handle_db_get(fd, false);
-  std::cout << "HANDLE HAS VALUE OF " << handle.file << std::endl;
   if (!handle.is_file) {
     return -1;
   }
-  std::cout << "READ ON EXTERNAL FD:" << handle.file << std::endl;
   return read(handle.file, buf, nbyte);
 }
 
@@ -473,13 +468,10 @@ int sb_fcntl(int fd, int cmd, ... /*arg*/) {
 }
 
 int sb_fstat(int fd, struct stat* buffer) {
-  std::cout << "INTERNAL FD IS: " << fd << std::endl;
   FileOrSocket handle = handle_db_get(fd, false);
-  std::cout << "HANDLE HAS VALUE OF " << handle.file << std::endl;
   if (!handle.is_file) {
     return -1;
   }
-  std::cout << "FSTAT ON EXTERNAL FD:" << handle.file << std::endl;
   return fstat(handle.file, buffer);
 }
 

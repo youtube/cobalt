@@ -464,6 +464,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(free);
   REGISTER_SYMBOL(freeaddrinfo);
   REGISTER_SYMBOL(freeifaddrs);
+  REGISTER_SYMBOL(fstat);
   REGISTER_SYMBOL(getaddrinfo);
   REGISTER_SYMBOL(getifaddrs);
   REGISTER_SYMBOL(getsockname);
