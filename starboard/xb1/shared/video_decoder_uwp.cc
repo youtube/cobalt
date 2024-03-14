@@ -18,6 +18,7 @@
 
 #include "starboard/shared/uwp/async_utils.h"
 #include "starboard/shared/uwp/decoder_utils.h"
+#include "starboard/shared/uwp/xb1_get_type.h"
 #include "third_party/angle/include/angle_hdr.h"
 
 using ::starboard::shared::uwp::ApplicationUwp;
@@ -52,7 +53,13 @@ bool VideoDecoderUwp::IsHardwareAv1DecoderSupported() {
   // So to avoid using av1 mft in these devices we test if
   // the current XBOX has vp9 hw decoder. If it doesn't it means
   // that there is XboxOneS/Base and we don't use mft av1 decoder.
-  return VideoDecoderUwp::IsHardwareVp9DecoderSupported() &&
+  // Additionally as experiment we exclude SeriesS & SeriesX from
+  // available hw decoders list because new sw decoder is more faster
+  // than the mft decoder.
+  const auto xb_type = starboard::shared::uwp::GetXboxType();
+  const bool exclude_hw_av1 = xb_type == starboard::shared::uwp::kXboxSeriesS ||
+                              xb_type == starboard::shared::uwp::kXboxSeriesX;
+  return !exclude_hw_av1 && VideoDecoderUwp::IsHardwareVp9DecoderSupported() &&
          ::starboard::shared::win32::IsHardwareAv1DecoderSupported();
 }
 
