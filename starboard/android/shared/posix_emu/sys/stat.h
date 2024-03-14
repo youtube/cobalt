@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_ANDROID_POSIX_EMU_INCLUDE_SYS_STAT_H_
-#define STARBOARD_SHARED_ANDROID_POSIX_EMU_INCLUDE_SYS_STAT_H_
+#ifndef STARBOARD_ANDROID_SHARED_POSIX_EMU_SYS_STAT_H_
+#define STARBOARD_ANDROID_SHARED_POSIX_EMU_SYS_STAT_H_
 
 #include <../../usr/include/sys/stat.h>  // The Android version of this same file
 
@@ -30,4 +30,4 @@ int sb_stat(const char* path, struct stat* info);
 }
 #endif  // __cplusplus
 
-#endif  // STARBOARD_SHARED_ANDROID_POSIX_EMU_INCLUDE_SYS_STAT_H_
+#endif  // STARBOARD_ANDROID_SHARED_POSIX_EMU_SYS_STAT_H_
