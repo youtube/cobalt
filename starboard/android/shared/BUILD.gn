@@ -154,6 +154,7 @@ static_library("starboard_platform") {
     "//starboard/shared/posix/time_get_now.cc",
     "//starboard/shared/posix/time_is_time_thread_now_supported.cc",
     "//starboard/shared/posix/time_zone_get_current.cc",
+    "//starboard/shared/posix_emu/stat.cc",
     "//starboard/shared/pthread/condition_variable_broadcast.cc",
     "//starboard/shared/pthread/condition_variable_create.cc",
     "//starboard/shared/pthread/condition_variable_destroy.cc",
