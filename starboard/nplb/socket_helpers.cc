@@ -21,6 +21,7 @@
 
 #include "starboard/nplb/socket_helpers.h"
 
+#include "starboard/common/log.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/common/socket.h"
 #include "starboard/common/string.h"
@@ -570,6 +571,9 @@ int PosixSocketCreateAndConnect(int server_domain,
   // create listen socket, bind and listen on <port>
   *listen_socket_fd = socket(server_domain, SOCK_STREAM, IPPROTO_TCP);
   if (*listen_socket_fd < 0) {
+    SB_DLOG(INFO) << "Failed to create listen socket in "
+                     "PosixSocketCreateAndConnect, errno = "
+                  << errno;
     return -1;
   }
   // set socket reuseable
@@ -577,6 +581,9 @@ int PosixSocketCreateAndConnect(int server_domain,
   result =
       setsockopt(*listen_socket_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
   if (result != 0) {
+    SB_DLOG(INFO) << "Failed to set opt on listen socket in "
+                     "PosixSocketCreateAndConnect, errno = "
+                  << errno;
     close(*listen_socket_fd);
     return -1;
   }
@@ -587,17 +594,25 @@ int PosixSocketCreateAndConnect(int server_domain,
   address.sin_port = port;
   address.sin_family = AF_INET;
   if (result != 0) {
+    SB_DLOG(INFO)
+        << "Failed to get local address in PosixSocketCreateAndConnect";
     close(*listen_socket_fd);
     return -1;
   }
   result = bind(*listen_socket_fd, reinterpret_cast<struct sockaddr*>(&address),
                 sizeof(struct sockaddr_in));
   if (result != 0) {
+    SB_DLOG(INFO) << "Failed to bind listen socket in "
+                     "PosixSocketCreateAndConnect, errno = "
+                  << errno;
     close(*listen_socket_fd);
     return -1;
   }
   result = listen(*listen_socket_fd, kMaxConn);
   if (result != 0) {
+    SB_DLOG(INFO) << "Failed to listen listen socket in "
+                     "PosixSocketCreateAndConnect, errno = "
+                  << errno;
     close(*listen_socket_fd);
     return -1;
   }
@@ -605,12 +620,18 @@ int PosixSocketCreateAndConnect(int server_domain,
   // create client socket and connect to localhost:<port>
   *client_socket_fd = socket(client_domain, SOCK_STREAM, IPPROTO_TCP);
   if (*client_socket_fd < 0) {
+    SB_DLOG(INFO) << "Failed to create client socket in "
+                     "PosixSocketCreateAndConnect, errno = "
+                  << errno;
     close(*listen_socket_fd);
     return -1;
   }
   result =
       setsockopt(*client_socket_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
   if (result != 0) {
+    SB_DLOG(INFO) << "Failed to set opt on client socket in "
+                     "PosixSocketCreateAndConnect, errno = "
+                  << errno;
     close(*listen_socket_fd);
     close(*client_socket_fd);
     return -1;
@@ -619,6 +640,9 @@ int PosixSocketCreateAndConnect(int server_domain,
       connect(*client_socket_fd, reinterpret_cast<struct sockaddr*>(&address),
               sizeof(struct sockaddr_in));
   if (result != 0) {
+    SB_DLOG(INFO) << "Failed to connect client socket in "
+                     "PosixSocketCreateAndConnect, errno = "
+                  << errno;
     close(*listen_socket_fd);
     close(*client_socket_fd);
     return -1;
