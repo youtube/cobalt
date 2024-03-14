@@ -3327,8 +3327,6 @@ test("net_unittests") {
       "cookies/cookie_inclusion_status_unittest.cc",
       "cookies/cookie_monster_unittest.cc",
       "cookies/cookie_util_unittest.cc",
-      "der/encode_values_unittest.cc",
-      "der/parse_values_unittest.cc",
       "disk_cache/backend_unittest.cc",
       "disk_cache/blockfile/block_files_unittest.cc",
       "disk_cache/blockfile/mapped_file_unittest.cc",
