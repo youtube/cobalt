@@ -17,11 +17,15 @@
 #include <fcntl.h>
 #include <io.h>  // Needed for file-specific `_close`.
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>  // Our version that declares generic `close`.
 #include <winsock2.h>
 #undef NO_ERROR  // http://b/302733082#comment15
 #include <ws2tcpip.h>
+
+#include <iostream>
 #include <map>
+
 #include "starboard/common/log.h"
 #include "starboard/types.h"
 
@@ -285,6 +289,28 @@ int close(int fd) {
   return _close(handle.file);
 }
 
+int sb_lseek(int fd, off_t offset, int origin) {
+  std::cout << "INTERNAL FD IS: " << fd << std::endl;
+  FileOrSocket handle = handle_db_get(fd, false);
+  std::cout << "HANDLE HAS VALUE OF " << handle.file << std::endl;
+  if (!handle.is_file) {
+    return -1;
+  }
+  std::cout << "LSEEK ON EXTERNAL FD:" << handle.file << std::endl;
+  return lseek(handle.file, offset, origin);
+}
+
+SSIZE_T sb_read(int fd, void* buf, size_t nbyte) {
+  std::cout << "INTERNAL FD IS: " << fd << std::endl;
+  FileOrSocket handle = handle_db_get(fd, false);
+  std::cout << "HANDLE HAS VALUE OF " << handle.file << std::endl;
+  if (!handle.is_file) {
+    return -1;
+  }
+  std::cout << "READ ON EXTERNAL FD:" << handle.file << std::endl;
+  return read(handle.file, buf, nbyte);
+}
+
 int sb_bind(int socket, const struct sockaddr* address, socklen_t address_len) {
   SOCKET socket_handle = handle_db_get(socket, false).socket;
   if (socket_handle == INVALID_SOCKET) {
@@ -441,7 +467,20 @@ int sb_fcntl(int fd, int cmd, ... /*arg*/) {
       int opt = 1;
       ioctlsocket(socket_handle, FIONBIO, reinterpret_cast<u_long*>(&opt));
     }
+  } else if (cmd == F_GETFL) {
   }
   return 0;
 }
+
+int sb_fstat(int fd, struct stat* buffer) {
+  std::cout << "INTERNAL FD IS: " << fd << std::endl;
+  FileOrSocket handle = handle_db_get(fd, false);
+  std::cout << "HANDLE HAS VALUE OF " << handle.file << std::endl;
+  if (!handle.is_file) {
+    return -1;
+  }
+  std::cout << "FSTAT ON EXTERNAL FD:" << handle.file << std::endl;
+  return fstat(handle.file, buffer);
+}
+
 }  // extern "C"
