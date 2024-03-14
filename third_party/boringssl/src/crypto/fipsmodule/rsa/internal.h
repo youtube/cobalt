@@ -83,6 +83,7 @@ int rsa_default_private_transform(RSA *rsa, uint8_t *out, const uint8_t *in,
 
 BN_BLINDING *BN_BLINDING_new(void);
 void BN_BLINDING_free(BN_BLINDING *b);
+void BN_BLINDING_invalidate(BN_BLINDING *b);
 int BN_BLINDING_convert(BIGNUM *n, BN_BLINDING *b, const BIGNUM *e,
                         const BN_MONT_CTX *mont_ctx, BN_CTX *ctx);
 int BN_BLINDING_invert(BIGNUM *n, const BN_BLINDING *b, BN_MONT_CTX *mont_ctx,
@@ -107,6 +108,10 @@ int RSA_padding_check_PKCS1_OAEP_mgf1(uint8_t *out, size_t *out_len,
 int RSA_padding_add_none(uint8_t *to, size_t to_len, const uint8_t *from,
                          size_t from_len);
 
+// rsa_check_public_key checks that |rsa|'s public modulus and exponent are
+// within DoS bounds.
+int rsa_check_public_key(const RSA *rsa);
+
 // RSA_private_transform calls either the method-specific |private_transform|
 // function (if given) or the generic one. See the comment for
 // |private_transform| in |rsa_meth_st|.
@@ -117,6 +122,28 @@ int RSA_private_transform(RSA *rsa, uint8_t *out, const uint8_t *in,
 // This constant is exported for test purposes.
 extern const BN_ULONG kBoringSSLRSASqrtTwo[];
 extern const size_t kBoringSSLRSASqrtTwoLen;
+
+
+// Functions that avoid self-tests.
+//
+// Self-tests need to call functions that don't try and ensure that the
+// self-tests have passed. These functions, in turn, need to limit themselves
+// to such functions too.
+//
+// These functions are the same as their public versions, but skip the self-test
+// check.
+
+int rsa_verify_no_self_test(int hash_nid, const uint8_t *digest,
+                            size_t digest_len, const uint8_t *sig,
+                            size_t sig_len, RSA *rsa);
+
+int rsa_verify_raw_no_self_test(RSA *rsa, size_t *out_len, uint8_t *out,
+                                size_t max_out, const uint8_t *in,
+                                size_t in_len, int padding);
+
+int rsa_sign_no_self_test(int hash_nid, const uint8_t *digest,
+                          unsigned digest_len, uint8_t *out, unsigned *out_len,
+                          RSA *rsa);
 
 
 #if defined(__cplusplus)

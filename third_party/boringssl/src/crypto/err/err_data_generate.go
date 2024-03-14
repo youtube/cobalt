@@ -63,6 +63,7 @@ var libraryNames = []string{
 	"DIGEST",
 	"CIPHER",
 	"HKDF",
+	"TRUST_TOKEN",
 	"USER",
 }
 
@@ -269,15 +270,15 @@ func main() {
 
 #include <openssl/base.h>
 #include <openssl/err.h>
-#include <openssl/type_check.h>
 
+#include <assert.h>
 
 `)
 
 	for i, name := range libraryNames {
-		fmt.Fprintf(out, "OPENSSL_COMPILE_ASSERT(ERR_LIB_%s == %d, library_values_changed_%d);\n", name, i+1, i+1)
+		fmt.Fprintf(out, "static_assert(ERR_LIB_%s == %d, \"library value changed\");\n", name, i+1)
 	}
-	fmt.Fprintf(out, "OPENSSL_COMPILE_ASSERT(ERR_NUM_LIBS == %d, library_values_changed_num);\n", len(libraryNames)+1)
+	fmt.Fprintf(out, "static_assert(ERR_NUM_LIBS == %d, \"number of libraries changed\");\n", len(libraryNames)+1)
 	out.WriteString("\n")
 
 	e.reasons.WriteTo(out, "Reason")

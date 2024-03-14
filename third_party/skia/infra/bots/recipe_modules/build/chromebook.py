@@ -3,22 +3,38 @@
 # found in the LICENSE file.
 
 from . import util
+import os
 
 def compile_fn(api, checkout_root, out_dir):
   skia_dir      = checkout_root.join('skia')
   configuration = api.vars.builder_cfg.get('configuration')
   target_arch   = api.vars.builder_cfg.get('target_arch')
 
-  clang_linux = api.vars.slave_dir.join('clang_linux')
+  top_level = str(api.vars.workdir)
+
+  clang_linux = os.path.join(top_level, 'clang_linux')
   # This is a pretty typical arm-linux-gnueabihf sysroot
-  sysroot_dir = api.vars.slave_dir.join('armhf_sysroot')
+  sysroot_dir = os.path.join(top_level, 'armhf_sysroot')
+
+  args = {
+    'cc': "%s" % os.path.join(clang_linux, 'bin','clang'),
+    'cxx': "%s" % os.path.join(clang_linux, 'bin','clang++'),
+    'extra_cflags' : [],
+    'extra_ldflags' : [],
+    'extra_asmflags' : [],
+    'target_cpu': target_arch,
+    'skia_use_fontconfig': False,
+    'skia_use_system_freetype2': False,
+    'skia_use_egl': True,
+    'werror': True,
+  }
 
   if 'arm' == target_arch:
     # This is the extra things needed to link against for the chromebook.
     #  For example, the Mali GL drivers.
-    gl_dir = api.vars.slave_dir.join('chromebook_arm_gles')
-    env = {'LD_LIBRARY_PATH': sysroot_dir.join('lib')}
-    extra_asmflags = [
+    gl_dir = os.path.join(top_level, 'chromebook_arm_gles')
+    env = {'LD_LIBRARY_PATH': os.path.join(sysroot_dir, 'lib')}
+    args['extra_asmflags'] = [
       '--target=armv7a-linux-gnueabihf',
       '--sysroot=%s' % sysroot_dir,
       '-march=armv7-a',
@@ -26,73 +42,58 @@ def compile_fn(api, checkout_root, out_dir):
       '-mthumb',
     ]
 
-    extra_cflags = [
+    args['extra_cflags'] = [
       '--target=armv7a-linux-gnueabihf',
       '--sysroot=%s' % sysroot_dir,
-      '-I%s' % gl_dir.join('include'),
-      '-I%s' % sysroot_dir.join('include'),
-      '-I%s' % sysroot_dir.join('include', 'c++', '4.8.4'),
-      '-I%s' % sysroot_dir.join('include', 'c++', '4.8.4',
-                                'arm-linux-gnueabihf'),
+      '-I%s' % os.path.join(gl_dir, 'include'),
+      '-I%s' % os.path.join(sysroot_dir, 'include'),
+      '-I%s' % os.path.join(sysroot_dir, 'include', 'c++', '10'),
+      '-I%s' % os.path.join(sysroot_dir, 'include', 'c++', '10', 'arm-linux-gnueabihf'),
       '-DMESA_EGL_NO_X11_HEADERS',
       '-U_GLIBCXX_DEBUG',
     ]
 
-    extra_ldflags = [
+    args['extra_ldflags'] = [
       '--target=armv7a-linux-gnueabihf',
       '--sysroot=%s' % sysroot_dir,
+      '-static-libstdc++', '-static-libgcc',
       # use sysroot's ld which can properly link things.
-      '-B%s' % sysroot_dir.join('bin'),
+      '-B%s' % os.path.join(sysroot_dir, 'bin'),
       # helps locate crt*.o
-      '-B%s' % sysroot_dir.join('gcc-cross'),
+      '-B%s' % os.path.join(sysroot_dir, 'gcc-cross'),
       # helps locate libgcc*.so
-      '-L%s' % sysroot_dir.join('gcc-cross'),
-      '-L%s' % sysroot_dir.join('lib'),
-      '-L%s' % gl_dir.join('lib'),
-      # Explicitly do not use lld for cross compiling like this - I observed
-      # failures like "Unrecognized reloc 41" and couldn't find out why.
+      '-L%s' % os.path.join(sysroot_dir, 'gcc-cross'),
+      '-L%s' % os.path.join(sysroot_dir, 'lib'),
+      '-L%s' % os.path.join(gl_dir, 'lib'),
     ]
   else:
-    gl_dir = api.vars.slave_dir.join('chromebook_x86_64_gles')
+    gl_dir = os.path.join(top_level,'chromebook_x86_64_gles')
     env = {}
-    extra_asmflags = []
-    extra_cflags = [
+    args['extra_asmflags'] = []
+    args['extra_cflags'] = [
       '-DMESA_EGL_NO_X11_HEADERS',
-      '-I%s' % gl_dir.join('include'),
+      '-I%s' % os.path.join(gl_dir, 'include'),
     ]
-    extra_ldflags = [
-      '-L%s' % gl_dir.join('lib'),
+    args['extra_ldflags'] = [
+      '-L%s' % os.path.join(gl_dir, 'lib'),
       '-static-libstdc++', '-static-libgcc',
       '-fuse-ld=lld',
     ]
 
-  quote = lambda x: '"%s"' % x
-  args = {
-    'cc': quote(clang_linux.join('bin','clang')),
-    'cxx': quote(clang_linux.join('bin','clang++')),
-    'target_cpu': quote(target_arch),
-    'skia_use_fontconfig': 'false',
-    'skia_use_system_freetype2': 'false',
-    'skia_use_egl': 'true',
-    'werror': 'true',
-  }
-  extra_cflags.append('-DDUMMY_clang_linux_version=%s' %
+  args['extra_cflags'].append('-DREBUILD_IF_CHANGED_clang_linux_version=%s' %
                       api.run.asset_version('clang_linux', skia_dir))
 
   if configuration != 'Debug':
-    args['is_debug'] = 'false'
-  args['extra_asmflags'] = repr(extra_asmflags).replace("'", '"')
-  args['extra_cflags'] = repr(extra_cflags).replace("'", '"')
-  args['extra_ldflags'] = repr(extra_ldflags).replace("'", '"')
+    args['is_debug'] = False
 
-  gn_args = ' '.join('%s=%s' % (k,v) for (k,v) in sorted(args.iteritems()))
   gn = skia_dir.join('bin', 'gn')
 
   with api.context(cwd=skia_dir, env=env):
     api.run(api.python, 'fetch-gn',
             script=skia_dir.join('bin', 'fetch-gn'),
             infra_step=True)
-    api.run(api.step, 'gn gen', cmd=[gn, 'gen', out_dir, '--args=' + gn_args])
+    api.run(api.step, 'gn gen',
+            cmd=[gn, 'gen', out_dir, '--args=' + util.py_to_gn(args)])
     api.run(api.step, 'ninja',
             cmd=['ninja', '-C', out_dir, 'nanobench', 'dm'])
 

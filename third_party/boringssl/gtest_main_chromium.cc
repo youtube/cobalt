@@ -1,4 +1,4 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -26,5 +26,5 @@ int main(int argc, char** argv) {
   BoringSSLTestSuite test_suite(argc, argv);
   return base::LaunchUnitTests(
       argc, argv,
-      base::Bind(&BoringSSLTestSuite::Run, base::Unretained(&test_suite)));
+      base::BindOnce(&BoringSSLTestSuite::Run, base::Unretained(&test_suite)));
 }

@@ -83,12 +83,6 @@ const int kSSLClientSocketNoPendingResult = 1;
 // Default size of the internal BoringSSL buffers.
 const int kDefaultOpenSSLBufferSize = 17 * 1024;
 
-// This feature disables the TLS 1.3 downgrade protection that may be triggered
-// by buggy TLS-terminating proxies. It will be removed once TLS 1.3 is
-// successfully deployed without needing to disable this feature.
-const base::Feature kIgnoreTLS13Downgrade{"IgnoreTLS13Downgrade",
-                                          base::FEATURE_DISABLED_BY_DEFAULT};
-
 std::unique_ptr<base::Value> NetLogPrivateKeyOperationCallback(
     uint16_t algorithm,
     NetLogCaptureMode mode) {
@@ -351,10 +345,6 @@ class SSLClientSocketImpl::SSLContext {
     SSL_CTX_set_timeout(ssl_ctx_.get(), 1 * 60 * 60 /* one hour */);
 
     SSL_CTX_set_grease_enabled(ssl_ctx_.get(), 1);
-
-    if (base::FeatureList::IsEnabled(kIgnoreTLS13Downgrade)) {
-      SSL_CTX_set_ignore_tls13_downgrade(ssl_ctx_.get(), 1);
-    }
 
     // Deduplicate all certificates minted from the SSL_CTX in memory.
     SSL_CTX_set0_buffer_pool(ssl_ctx_.get(), x509_util::GetBufferPool());
@@ -1087,15 +1077,6 @@ int SSLClientSocketImpl::DoHandshakeComplete(int result) {
   uint16_t signature_algorithm = SSL_get_peer_signature_algorithm(ssl_.get());
   if (signature_algorithm != 0) {
     base::UmaHistogramSparse("Net.SSLSignatureAlgorithm", signature_algorithm);
-  }
-
-  if (base::FeatureList::IsEnabled(kIgnoreTLS13Downgrade) &&
-      IsTLS13ExperimentHost(host_and_port_.host())) {
-    // Record whether the TLS 1.3 anti-downgrade mechanism has fired. This is
-    // only recorded when enforcement is disabled. See
-    // https://crbug.com/boringssl/226.
-    UMA_HISTOGRAM_BOOLEAN("Net.SSLTLS13DowngradeTLS13Experiment",
-                          !!SSL_is_tls13_downgrade(ssl_.get()));
   }
 
   // Verify the certificate.

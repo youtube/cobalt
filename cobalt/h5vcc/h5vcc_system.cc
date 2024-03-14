@@ -65,7 +65,7 @@ std::string H5vccSystem::advertising_id() const {
 #if SB_API_VERSION >= 14
   if (!SbSystemGetProperty(kSbSystemPropertyAdvertisingId, property,
                            SB_ARRAY_SIZE_INT(property))) {
-    DLOG(FATAL) << "Failed to get kSbSystemPropertyAdvertisingId.";
+    DLOG(INFO) << "Failed to get kSbSystemPropertyAdvertisingId.";
   } else {
     result = property;
   }
@@ -92,7 +92,7 @@ bool H5vccSystem::limit_ad_tracking() const {
 #if SB_API_VERSION >= 14
   if (!SbSystemGetProperty(kSbSystemPropertyLimitAdTracking, property,
                            SB_ARRAY_SIZE_INT(property))) {
-    DLOG(FATAL) << "Failed to get kSbSystemPropertyAdvertisingId.";
+    DLOG(INFO) << "Failed to get kSbSystemPropertyAdvertisingId.";
   } else {
     result = std::atoi(property);
   }

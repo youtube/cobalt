@@ -4,13 +4,12 @@ CanvasKit.MakeCanvas = function(width, height) {
     return new HTMLCanvas(surf);
   }
   return null;
-}
+};
 
 function HTMLCanvas(skSurface) {
   this._surface = skSurface;
   this._context = new CanvasRenderingContext2D(skSurface.getCanvas());
   this._toCleanup = [];
-  this._fontmgr = CanvasKit.SkFontMgr.RefDefault();
 
   // Data is either an ArrayBuffer, a TypedArray, or a Node Buffer
   this.decodeImage = function(data) {
@@ -19,24 +18,24 @@ function HTMLCanvas(skSurface) {
       throw 'Invalid input';
     }
     this._toCleanup.push(img);
-    return img;
-  }
+    return new HTMLImage(img);
+  };
 
   this.loadFont = function(buffer, descriptors) {
-    var newFont = this._fontmgr.MakeTypefaceFromData(buffer);
+    var newFont = CanvasKit.Typeface.MakeFreeTypeFaceFromData(buffer);
     if (!newFont) {
-      SkDebug('font could not be processed', descriptors);
+      Debug('font could not be processed', descriptors);
       return null;
     }
     this._toCleanup.push(newFont);
     addToFontCache(newFont, descriptors);
-  }
+  };
 
   this.makePath2D = function(path) {
     var p2d = new Path2D(path);
     this._toCleanup.push(p2d._getPath());
     return p2d;
-  }
+  };
 
   // A normal <canvas> requires that clients call getContext
   this.getContext = function(type) {
@@ -44,7 +43,7 @@ function HTMLCanvas(skSurface) {
       return this._context;
     }
     return null;
-  }
+  };
 
   this.toDataURL = function(codec, quality) {
     // TODO(kjlubick): maybe support other codecs (webp?)
@@ -53,23 +52,23 @@ function HTMLCanvas(skSurface) {
 
     var img = this._surface.makeImageSnapshot();
     if (!img) {
-      SkDebug('no snapshot');
+      Debug('no snapshot');
       return;
     }
-    var codec = codec || 'image/png';
+    codec = codec || 'image/png';
     var format = CanvasKit.ImageFormat.PNG;
     if (codec === 'image/jpeg') {
       format = CanvasKit.ImageFormat.JPEG;
     }
-    var quality = quality || 0.92;
-    var skimg = img.encodeToData(format, quality);
-    if (!skimg) {
-      SkDebug('encoding failure');
+    quality = quality || 0.92;
+    var imgBytes = img.encodeToBytes(format, quality);
+    if (!imgBytes) {
+      Debug('encoding failure');
       return
     }
-    var imgBytes = CanvasKit.getSkDataBytes(skimg);
+    img.delete();
     return 'data:' + codec + ';base64,' + toBase64String(imgBytes);
-  }
+  };
 
   this.dispose = function() {
     this._context._dispose();

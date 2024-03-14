@@ -48,7 +48,7 @@ public:
     using CanPresentFn = sk_gpu_test::CanPresentFn;
 
     VulkanWindowContext(const DisplayParams&, CreateVkSurfaceFn, CanPresentFn,
-                        PFN_vkGetInstanceProcAddr, PFN_vkGetDeviceProcAddr);
+                        PFN_vkGetInstanceProcAddr);
 
 private:
     void initializeContext();
@@ -61,7 +61,7 @@ private:
 
     BackbufferInfo* getAvailableBackbuffer();
     bool createSwapchain(int width, int height, const DisplayParams& params);
-    void createBuffers(VkFormat format, SkColorType colorType);
+    bool createBuffers(VkFormat format, VkImageUsageFlags, SkColorType colorType, VkSharingMode);
     void destroyBuffers();
 
     VkInstance fInstance = VK_NULL_HANDLE;
@@ -73,9 +73,7 @@ private:
     CreateVkSurfaceFn fCreateVkSurfaceFn;
     CanPresentFn      fCanPresentFn;
 
-    // Vulkan GetProcAddr functions
     PFN_vkGetInstanceProcAddr fGetInstanceProcAddr = nullptr;
-    PFN_vkGetDeviceProcAddr fGetDeviceProcAddr = nullptr;
 
     // WSI interface functions
     PFN_vkDestroySurfaceKHR fDestroySurfaceKHR = nullptr;

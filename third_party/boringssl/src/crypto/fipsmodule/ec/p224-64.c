@@ -52,11 +52,6 @@ typedef uint128_t p224_widelimb;
 typedef p224_limb p224_felem[4];
 typedef p224_widelimb p224_widefelem[7];
 
-// Field element represented as a byte arrary. 28*8 = 224 bits is also the
-// group order size for the elliptic curve, and we also use this type for
-// scalars for point multiplication.
-typedef uint8_t p224_felem_bytearray[28];
-
 // Precomputed multiples of the standard generator
 // Points are given in coordinates (X, Y, Z) where Z normally is 1
 // (0 for the point at infinity).
@@ -180,44 +175,73 @@ static const p224_felem g_p224_pre_comp[2][16][3] = {
       {0x32477c61b6e8c6, 0xb46a97570f018b, 0x91176d0a7e95d1, 0x3df90fbc4c7d0e},
       {1, 0, 0, 0}}}};
 
-static uint64_t p224_load_u64(const uint8_t in[8]) {
-  uint64_t ret;
-  OPENSSL_memcpy(&ret, in, sizeof(ret));
-  return ret;
-}
 
 // Helper functions to convert field elements to/from internal representation
-static void p224_bin28_to_felem(p224_felem out, const uint8_t in[28]) {
-  out[0] = p224_load_u64(in) & 0x00ffffffffffffff;
-  out[1] = p224_load_u64(in + 7) & 0x00ffffffffffffff;
-  out[2] = p224_load_u64(in + 14) & 0x00ffffffffffffff;
-  out[3] = p224_load_u64(in + 20) >> 8;
-}
-
-static void p224_felem_to_bin28(uint8_t out[28], const p224_felem in) {
-  for (size_t i = 0; i < 7; ++i) {
-    out[i] = in[0] >> (8 * i);
-    out[i + 7] = in[1] >> (8 * i);
-    out[i + 14] = in[2] >> (8 * i);
-    out[i + 21] = in[3] >> (8 * i);
-  }
-}
-
-// From internal representation to OpenSSL BIGNUM
-static BIGNUM *p224_felem_to_BN(BIGNUM *out, const p224_felem in) {
-  p224_felem_bytearray b_out;
-  p224_felem_to_bin28(b_out, in);
-  return BN_le2bn(b_out, sizeof(b_out), out);
-}
 
 static void p224_generic_to_felem(p224_felem out, const EC_FELEM *in) {
-  p224_bin28_to_felem(out, in->bytes);
+  // |p224_felem|'s minimal representation uses four 56-bit words. |EC_FELEM|
+  // uses four 64-bit words. (The top-most word only has 32 bits.)
+  out[0] = in->words[0] & 0x00ffffffffffffff;
+  out[1] = ((in->words[0] >> 56) | (in->words[1] << 8)) & 0x00ffffffffffffff;
+  out[2] = ((in->words[1] >> 48) | (in->words[2] << 16)) & 0x00ffffffffffffff;
+  out[3] = ((in->words[2] >> 40) | (in->words[3] << 24)) & 0x00ffffffffffffff;
 }
 
+// Requires 0 <= in < 2*p (always call p224_felem_reduce first)
 static void p224_felem_to_generic(EC_FELEM *out, const p224_felem in) {
-  p224_felem_to_bin28(out->bytes, in);
-  // 224 is not a multiple of 64, so zero the remaining bytes.
-  OPENSSL_memset(out->bytes + 28, 0, 32 - 28);
+  // Reduce to unique minimal representation.
+  static const int64_t two56 = ((p224_limb)1) << 56;
+  // 0 <= in < 2*p, p = 2^224 - 2^96 + 1
+  // if in > p , reduce in = in - 2^224 + 2^96 - 1
+  int64_t tmp[4], a;
+  tmp[0] = in[0];
+  tmp[1] = in[1];
+  tmp[2] = in[2];
+  tmp[3] = in[3];
+  // Case 1: a = 1 iff in >= 2^224
+  a = (in[3] >> 56);
+  tmp[0] -= a;
+  tmp[1] += a << 40;
+  tmp[3] &= 0x00ffffffffffffff;
+  // Case 2: a = 0 iff p <= in < 2^224, i.e., the high 128 bits are all 1 and
+  // the lower part is non-zero
+  a = ((in[3] & in[2] & (in[1] | 0x000000ffffffffff)) + 1) |
+      (((int64_t)(in[0] + (in[1] & 0x000000ffffffffff)) - 1) >> 63);
+  a &= 0x00ffffffffffffff;
+  // turn a into an all-one mask (if a = 0) or an all-zero mask
+  a = (a - 1) >> 63;
+  // subtract 2^224 - 2^96 + 1 if a is all-one
+  tmp[3] &= a ^ 0xffffffffffffffff;
+  tmp[2] &= a ^ 0xffffffffffffffff;
+  tmp[1] &= (a ^ 0xffffffffffffffff) | 0x000000ffffffffff;
+  tmp[0] -= 1 & a;
+
+  // eliminate negative coefficients: if tmp[0] is negative, tmp[1] must
+  // be non-zero, so we only need one step
+  a = tmp[0] >> 63;
+  tmp[0] += two56 & a;
+  tmp[1] -= 1 & a;
+
+  // carry 1 -> 2 -> 3
+  tmp[2] += tmp[1] >> 56;
+  tmp[1] &= 0x00ffffffffffffff;
+
+  tmp[3] += tmp[2] >> 56;
+  tmp[2] &= 0x00ffffffffffffff;
+
+  // Now 0 <= tmp < p
+  p224_felem tmp2;
+  tmp2[0] = tmp[0];
+  tmp2[1] = tmp[1];
+  tmp2[2] = tmp[2];
+  tmp2[3] = tmp[3];
+
+  // |p224_felem|'s minimal representation uses four 56-bit words. |EC_FELEM|
+  // uses four 64-bit words. (The top-most word only has 32 bits.)
+  out->words[0] = tmp2[0] | (tmp2[1] << 56);
+  out->words[1] = (tmp2[1] >> 8) | (tmp2[2] << 48);
+  out->words[2] = (tmp2[2] >> 16) | (tmp2[3] << 40);
+  out->words[3] = tmp2[3] >> 24;
 }
 
 
@@ -429,55 +453,6 @@ static void p224_felem_reduce(p224_felem out, const p224_widefelem in) {
   // out[3] <= 2^56 + 2^16 (due to final carry),
   // so out < 2*p
   out[3] = output[3];
-}
-
-// Reduce to unique minimal representation.
-// Requires 0 <= in < 2*p (always call p224_felem_reduce first)
-static void p224_felem_contract(p224_felem out, const p224_felem in) {
-  static const int64_t two56 = ((p224_limb)1) << 56;
-  // 0 <= in < 2*p, p = 2^224 - 2^96 + 1
-  // if in > p , reduce in = in - 2^224 + 2^96 - 1
-  int64_t tmp[4], a;
-  tmp[0] = in[0];
-  tmp[1] = in[1];
-  tmp[2] = in[2];
-  tmp[3] = in[3];
-  // Case 1: a = 1 iff in >= 2^224
-  a = (in[3] >> 56);
-  tmp[0] -= a;
-  tmp[1] += a << 40;
-  tmp[3] &= 0x00ffffffffffffff;
-  // Case 2: a = 0 iff p <= in < 2^224, i.e., the high 128 bits are all 1 and
-  // the lower part is non-zero
-  a = ((in[3] & in[2] & (in[1] | 0x000000ffffffffff)) + 1) |
-      (((int64_t)(in[0] + (in[1] & 0x000000ffffffffff)) - 1) >> 63);
-  a &= 0x00ffffffffffffff;
-  // turn a into an all-one mask (if a = 0) or an all-zero mask
-  a = (a - 1) >> 63;
-  // subtract 2^224 - 2^96 + 1 if a is all-one
-  tmp[3] &= a ^ 0xffffffffffffffff;
-  tmp[2] &= a ^ 0xffffffffffffffff;
-  tmp[1] &= (a ^ 0xffffffffffffffff) | 0x000000ffffffffff;
-  tmp[0] -= 1 & a;
-
-  // eliminate negative coefficients: if tmp[0] is negative, tmp[1] must
-  // be non-zero, so we only need one step
-  a = tmp[0] >> 63;
-  tmp[0] += two56 & a;
-  tmp[1] -= 1 & a;
-
-  // carry 1 -> 2 -> 3
-  tmp[2] += tmp[1] >> 56;
-  tmp[1] &= 0x00ffffffffffffff;
-
-  tmp[3] += tmp[2] >> 56;
-  tmp[2] &= 0x00ffffffffffffff;
-
-  // Now 0 <= out < p
-  out[0] = tmp[0];
-  out[1] = tmp[1];
-  out[2] = tmp[2];
-  out[3] = tmp[3];
 }
 
 // Get negative value: out = -in
@@ -766,7 +741,9 @@ static void p224_point_add(p224_felem x3, p224_felem y3, p224_felem z3,
   z1_is_zero = p224_felem_is_zero(z1);
   z2_is_zero = p224_felem_is_zero(z2);
   // In affine coordinates, (X_1, Y_1) == (X_2, Y_2)
-  if (x_equal && y_equal && !z1_is_zero && !z2_is_zero) {
+  p224_limb is_nontrivial_double =
+      x_equal & y_equal & (1 - z1_is_zero) & (1 - z2_is_zero);
+  if (is_nontrivial_double) {
     p224_point_double(x3, y3, z3, x1, y1, z1);
     return;
   }
@@ -871,107 +848,20 @@ static void p224_select_point(const uint64_t idx, size_t size,
   }
 }
 
-// p224_get_bit returns the |i|th bit in |in|
-static char p224_get_bit(const p224_felem_bytearray in, size_t i) {
+// p224_get_bit returns the |i|th bit in |in|.
+static crypto_word_t p224_get_bit(const EC_SCALAR *in, size_t i) {
   if (i >= 224) {
     return 0;
   }
-  return (in[i >> 3] >> (i & 7)) & 1;
-}
-
-// Interleaved point multiplication using precomputed point multiples:
-// The small point multiples 0*P, 1*P, ..., 16*P are in p_pre_comp, the scalars
-// in p_scalar, if non-NULL. If g_scalar is non-NULL, we also add this multiple
-// of the generator, using certain (large) precomputed multiples in
-// g_p224_pre_comp. Output point (X, Y, Z) is stored in x_out, y_out, z_out
-static void p224_batch_mul(p224_felem x_out, p224_felem y_out, p224_felem z_out,
-                           const uint8_t *p_scalar, const uint8_t *g_scalar,
-                           const p224_felem p_pre_comp[17][3]) {
-  p224_felem nq[3], tmp[4];
-  uint64_t bits;
-  uint8_t sign, digit;
-
-  // set nq to the point at infinity
-  OPENSSL_memset(nq, 0, 3 * sizeof(p224_felem));
-
-  // Loop over both scalars msb-to-lsb, interleaving additions of multiples of
-  // the generator (two in each of the last 28 rounds) and additions of p (every
-  // 5th round).
-  int skip = 1;  // save two point operations in the first round
-  size_t i = p_scalar != NULL ? 220 : 27;
-  for (;;) {
-    // double
-    if (!skip) {
-      p224_point_double(nq[0], nq[1], nq[2], nq[0], nq[1], nq[2]);
-    }
-
-    // add multiples of the generator
-    if (g_scalar != NULL && i <= 27) {
-      // first, look 28 bits upwards
-      bits = p224_get_bit(g_scalar, i + 196) << 3;
-      bits |= p224_get_bit(g_scalar, i + 140) << 2;
-      bits |= p224_get_bit(g_scalar, i + 84) << 1;
-      bits |= p224_get_bit(g_scalar, i + 28);
-      // select the point to add, in constant time
-      p224_select_point(bits, 16, g_p224_pre_comp[1], tmp);
-
-      if (!skip) {
-        p224_point_add(nq[0], nq[1], nq[2], nq[0], nq[1], nq[2], 1 /* mixed */,
-                  tmp[0], tmp[1], tmp[2]);
-      } else {
-        OPENSSL_memcpy(nq, tmp, 3 * sizeof(p224_felem));
-        skip = 0;
-      }
-
-      // second, look at the current position
-      bits = p224_get_bit(g_scalar, i + 168) << 3;
-      bits |= p224_get_bit(g_scalar, i + 112) << 2;
-      bits |= p224_get_bit(g_scalar, i + 56) << 1;
-      bits |= p224_get_bit(g_scalar, i);
-      // select the point to add, in constant time
-      p224_select_point(bits, 16, g_p224_pre_comp[0], tmp);
-      p224_point_add(nq[0], nq[1], nq[2], nq[0], nq[1], nq[2], 1 /* mixed */,
-                     tmp[0], tmp[1], tmp[2]);
-    }
-
-    // do other additions every 5 doublings
-    if (p_scalar != NULL && i % 5 == 0) {
-      bits = p224_get_bit(p_scalar, i + 4) << 5;
-      bits |= p224_get_bit(p_scalar, i + 3) << 4;
-      bits |= p224_get_bit(p_scalar, i + 2) << 3;
-      bits |= p224_get_bit(p_scalar, i + 1) << 2;
-      bits |= p224_get_bit(p_scalar, i) << 1;
-      bits |= p224_get_bit(p_scalar, i - 1);
-      ec_GFp_nistp_recode_scalar_bits(&sign, &digit, bits);
-
-      // select the point to add or subtract
-      p224_select_point(digit, 17, p_pre_comp, tmp);
-      p224_felem_neg(tmp[3], tmp[1]);  // (X, -Y, Z) is the negative point
-      p224_copy_conditional(tmp[1], tmp[3], sign);
-
-      if (!skip) {
-        p224_point_add(nq[0], nq[1], nq[2], nq[0], nq[1], nq[2], 0 /* mixed */,
-                  tmp[0], tmp[1], tmp[2]);
-      } else {
-        OPENSSL_memcpy(nq, tmp, 3 * sizeof(p224_felem));
-        skip = 0;
-      }
-    }
-
-    if (i == 0) {
-      break;
-    }
-    --i;
-  }
-  p224_felem_assign(x_out, nq[0]);
-  p224_felem_assign(y_out, nq[1]);
-  p224_felem_assign(z_out, nq[2]);
+  static_assert(sizeof(in->words[0]) == 8, "BN_ULONG is not 64-bit");
+  return (in->words[i >> 6] >> (i & 63)) & 1;
 }
 
 // Takes the Jacobian coordinates (X, Y, Z) of a point and returns
 // (X', Y') = (X/Z^2, Y/Z^3)
 static int ec_GFp_nistp224_point_get_affine_coordinates(
-    const EC_GROUP *group, const EC_RAW_POINT *point, BIGNUM *x, BIGNUM *y) {
+    const EC_GROUP *group, const EC_RAW_POINT *point, EC_FELEM *x,
+    EC_FELEM *y) {
   if (ec_GFp_simple_is_at_infinity(group, point)) {
     OPENSSL_PUT_ERROR(EC, EC_R_POINT_AT_INFINITY);
     return 0;
@@ -988,12 +878,8 @@ static int ec_GFp_nistp224_point_get_affine_coordinates(
     p224_felem x_in, x_out;
     p224_generic_to_felem(x_in, &point->X);
     p224_felem_mul(tmp, x_in, z1);
-    p224_felem_reduce(x_in, tmp);
-    p224_felem_contract(x_out, x_in);
-    if (!p224_felem_to_BN(x, x_out)) {
-      OPENSSL_PUT_ERROR(EC, ERR_R_BN_LIB);
-      return 0;
-    }
+    p224_felem_reduce(x_out, tmp);
+    p224_felem_to_generic(x, x_out);
   }
 
   if (y != NULL) {
@@ -1002,63 +888,235 @@ static int ec_GFp_nistp224_point_get_affine_coordinates(
     p224_felem_mul(tmp, z1, z2);
     p224_felem_reduce(z1, tmp);
     p224_felem_mul(tmp, y_in, z1);
-    p224_felem_reduce(y_in, tmp);
-    p224_felem_contract(y_out, y_in);
-    if (!p224_felem_to_BN(y, y_out)) {
-      OPENSSL_PUT_ERROR(EC, ERR_R_BN_LIB);
-      return 0;
-    }
+    p224_felem_reduce(y_out, tmp);
+    p224_felem_to_generic(y, y_out);
   }
 
   return 1;
 }
 
-static void ec_GFp_nistp224_points_mul(const EC_GROUP *group, EC_RAW_POINT *r,
-                                       const EC_SCALAR *g_scalar,
-                                       const EC_RAW_POINT *p,
-                                       const EC_SCALAR *p_scalar) {
+static void ec_GFp_nistp224_add(const EC_GROUP *group, EC_RAW_POINT *r,
+                                const EC_RAW_POINT *a, const EC_RAW_POINT *b) {
+  p224_felem x1, y1, z1, x2, y2, z2;
+  p224_generic_to_felem(x1, &a->X);
+  p224_generic_to_felem(y1, &a->Y);
+  p224_generic_to_felem(z1, &a->Z);
+  p224_generic_to_felem(x2, &b->X);
+  p224_generic_to_felem(y2, &b->Y);
+  p224_generic_to_felem(z2, &b->Z);
+  p224_point_add(x1, y1, z1, x1, y1, z1, 0 /* both Jacobian */, x2, y2, z2);
+  // The outputs are already reduced, but still need to be contracted.
+  p224_felem_to_generic(&r->X, x1);
+  p224_felem_to_generic(&r->Y, y1);
+  p224_felem_to_generic(&r->Z, z1);
+}
+
+static void ec_GFp_nistp224_dbl(const EC_GROUP *group, EC_RAW_POINT *r,
+                                const EC_RAW_POINT *a) {
+  p224_felem x, y, z;
+  p224_generic_to_felem(x, &a->X);
+  p224_generic_to_felem(y, &a->Y);
+  p224_generic_to_felem(z, &a->Z);
+  p224_point_double(x, y, z, x, y, z);
+  // The outputs are already reduced, but still need to be contracted.
+  p224_felem_to_generic(&r->X, x);
+  p224_felem_to_generic(&r->Y, y);
+  p224_felem_to_generic(&r->Z, z);
+}
+
+static void ec_GFp_nistp224_make_precomp(p224_felem out[17][3],
+                                         const EC_RAW_POINT *p) {
+  OPENSSL_memset(out[0], 0, sizeof(p224_felem) * 3);
+
+  p224_generic_to_felem(out[1][0], &p->X);
+  p224_generic_to_felem(out[1][1], &p->Y);
+  p224_generic_to_felem(out[1][2], &p->Z);
+
+  for (size_t j = 2; j <= 16; ++j) {
+    if (j & 1) {
+      p224_point_add(out[j][0], out[j][1], out[j][2], out[1][0], out[1][1],
+                     out[1][2], 0, out[j - 1][0], out[j - 1][1], out[j - 1][2]);
+    } else {
+      p224_point_double(out[j][0], out[j][1], out[j][2], out[j / 2][0],
+                        out[j / 2][1], out[j / 2][2]);
+    }
+  }
+}
+
+static void ec_GFp_nistp224_point_mul(const EC_GROUP *group, EC_RAW_POINT *r,
+                                      const EC_RAW_POINT *p,
+                                      const EC_SCALAR *scalar) {
   p224_felem p_pre_comp[17][3];
-  p224_felem x_in, y_in, z_in, x_out, y_out, z_out;
+  ec_GFp_nistp224_make_precomp(p_pre_comp, p);
 
-  if (p != NULL && p_scalar != NULL) {
-    // We treat NULL scalars as 0, and NULL points as points at infinity, i.e.,
-    // they contribute nothing to the linear combination.
-    OPENSSL_memset(&p_pre_comp, 0, sizeof(p_pre_comp));
-    // precompute multiples
-    p224_generic_to_felem(x_out, &p->X);
-    p224_generic_to_felem(y_out, &p->Y);
-    p224_generic_to_felem(z_out, &p->Z);
+  // Set nq to the point at infinity.
+  p224_felem nq[3], tmp[4];
+  OPENSSL_memset(nq, 0, 3 * sizeof(p224_felem));
 
-    p224_felem_assign(p_pre_comp[1][0], x_out);
-    p224_felem_assign(p_pre_comp[1][1], y_out);
-    p224_felem_assign(p_pre_comp[1][2], z_out);
+  int skip = 1;  // Save two point operations in the first round.
+  for (size_t i = 220; i < 221; i--) {
+    if (!skip) {
+      p224_point_double(nq[0], nq[1], nq[2], nq[0], nq[1], nq[2]);
+    }
 
-    for (size_t j = 2; j <= 16; ++j) {
-      if (j & 1) {
-        p224_point_add(p_pre_comp[j][0], p_pre_comp[j][1], p_pre_comp[j][2],
-                  p_pre_comp[1][0], p_pre_comp[1][1], p_pre_comp[1][2],
-                  0, p_pre_comp[j - 1][0], p_pre_comp[j - 1][1],
-                  p_pre_comp[j - 1][2]);
+    // Add every 5 doublings.
+    if (i % 5 == 0) {
+      crypto_word_t bits = p224_get_bit(scalar, i + 4) << 5;
+      bits |= p224_get_bit(scalar, i + 3) << 4;
+      bits |= p224_get_bit(scalar, i + 2) << 3;
+      bits |= p224_get_bit(scalar, i + 1) << 2;
+      bits |= p224_get_bit(scalar, i) << 1;
+      bits |= p224_get_bit(scalar, i - 1);
+      crypto_word_t sign, digit;
+      ec_GFp_nistp_recode_scalar_bits(&sign, &digit, bits);
+
+      // Select the point to add or subtract.
+      p224_select_point(digit, 17, (const p224_felem(*)[3])p_pre_comp, tmp);
+      p224_felem_neg(tmp[3], tmp[1]);  // (X, -Y, Z) is the negative point
+      p224_copy_conditional(tmp[1], tmp[3], sign);
+
+      if (!skip) {
+        p224_point_add(nq[0], nq[1], nq[2], nq[0], nq[1], nq[2], 0 /* mixed */,
+                       tmp[0], tmp[1], tmp[2]);
       } else {
-        p224_point_double(p_pre_comp[j][0], p_pre_comp[j][1],
-                     p_pre_comp[j][2], p_pre_comp[j / 2][0],
-                     p_pre_comp[j / 2][1], p_pre_comp[j / 2][2]);
+        OPENSSL_memcpy(nq, tmp, 3 * sizeof(p224_felem));
+        skip = 0;
       }
     }
   }
 
-  p224_batch_mul(x_out, y_out, z_out,
-                 (p != NULL && p_scalar != NULL) ? p_scalar->bytes : NULL,
-                 g_scalar != NULL ? g_scalar->bytes : NULL,
-                 (const p224_felem(*)[3])p_pre_comp);
+  // Reduce the output to its unique minimal representation.
+  p224_felem_to_generic(&r->X, nq[0]);
+  p224_felem_to_generic(&r->Y, nq[1]);
+  p224_felem_to_generic(&r->Z, nq[2]);
+}
 
-  // reduce the output to its unique minimal representation
-  p224_felem_contract(x_in, x_out);
-  p224_felem_to_generic(&r->X, x_in);
-  p224_felem_contract(y_in, y_out);
-  p224_felem_to_generic(&r->Y, y_in);
-  p224_felem_contract(z_in, z_out);
-  p224_felem_to_generic(&r->Z, z_in);
+static void ec_GFp_nistp224_point_mul_base(const EC_GROUP *group,
+                                           EC_RAW_POINT *r,
+                                           const EC_SCALAR *scalar) {
+  // Set nq to the point at infinity.
+  p224_felem nq[3], tmp[3];
+  OPENSSL_memset(nq, 0, 3 * sizeof(p224_felem));
+
+  int skip = 1;  // Save two point operations in the first round.
+  for (size_t i = 27; i < 28; i--) {
+    // double
+    if (!skip) {
+      p224_point_double(nq[0], nq[1], nq[2], nq[0], nq[1], nq[2]);
+    }
+
+    // First, look 28 bits upwards.
+    crypto_word_t bits = p224_get_bit(scalar, i + 196) << 3;
+    bits |= p224_get_bit(scalar, i + 140) << 2;
+    bits |= p224_get_bit(scalar, i + 84) << 1;
+    bits |= p224_get_bit(scalar, i + 28);
+    // Select the point to add, in constant time.
+    p224_select_point(bits, 16, g_p224_pre_comp[1], tmp);
+
+    if (!skip) {
+      p224_point_add(nq[0], nq[1], nq[2], nq[0], nq[1], nq[2], 1 /* mixed */,
+                     tmp[0], tmp[1], tmp[2]);
+    } else {
+      OPENSSL_memcpy(nq, tmp, 3 * sizeof(p224_felem));
+      skip = 0;
+    }
+
+    // Second, look at the current position/
+    bits = p224_get_bit(scalar, i + 168) << 3;
+    bits |= p224_get_bit(scalar, i + 112) << 2;
+    bits |= p224_get_bit(scalar, i + 56) << 1;
+    bits |= p224_get_bit(scalar, i);
+    // Select the point to add, in constant time.
+    p224_select_point(bits, 16, g_p224_pre_comp[0], tmp);
+    p224_point_add(nq[0], nq[1], nq[2], nq[0], nq[1], nq[2], 1 /* mixed */,
+                   tmp[0], tmp[1], tmp[2]);
+  }
+
+  // Reduce the output to its unique minimal representation.
+  p224_felem_to_generic(&r->X, nq[0]);
+  p224_felem_to_generic(&r->Y, nq[1]);
+  p224_felem_to_generic(&r->Z, nq[2]);
+}
+
+static void ec_GFp_nistp224_point_mul_public(const EC_GROUP *group,
+                                             EC_RAW_POINT *r,
+                                             const EC_SCALAR *g_scalar,
+                                             const EC_RAW_POINT *p,
+                                             const EC_SCALAR *p_scalar) {
+  // TODO(davidben): If P-224 ECDSA verify performance ever matters, using
+  // |ec_compute_wNAF| for |p_scalar| would likely be an easy improvement.
+  p224_felem p_pre_comp[17][3];
+  ec_GFp_nistp224_make_precomp(p_pre_comp, p);
+
+  // Set nq to the point at infinity.
+  p224_felem nq[3], tmp[3];
+  OPENSSL_memset(nq, 0, 3 * sizeof(p224_felem));
+
+  // Loop over both scalars msb-to-lsb, interleaving additions of multiples of
+  // the generator (two in each of the last 28 rounds) and additions of p (every
+  // 5th round).
+  int skip = 1;  // Save two point operations in the first round.
+  for (size_t i = 220; i < 221; i--) {
+    if (!skip) {
+      p224_point_double(nq[0], nq[1], nq[2], nq[0], nq[1], nq[2]);
+    }
+
+    // Add multiples of the generator.
+    if (i <= 27) {
+      // First, look 28 bits upwards.
+      crypto_word_t bits = p224_get_bit(g_scalar, i + 196) << 3;
+      bits |= p224_get_bit(g_scalar, i + 140) << 2;
+      bits |= p224_get_bit(g_scalar, i + 84) << 1;
+      bits |= p224_get_bit(g_scalar, i + 28);
+
+      size_t index = (size_t)bits;
+      p224_point_add(nq[0], nq[1], nq[2], nq[0], nq[1], nq[2], 1 /* mixed */,
+                     g_p224_pre_comp[1][index][0], g_p224_pre_comp[1][index][1],
+                     g_p224_pre_comp[1][index][2]);
+      assert(!skip);
+
+      // Second, look at the current position.
+      bits = p224_get_bit(g_scalar, i + 168) << 3;
+      bits |= p224_get_bit(g_scalar, i + 112) << 2;
+      bits |= p224_get_bit(g_scalar, i + 56) << 1;
+      bits |= p224_get_bit(g_scalar, i);
+      index = (size_t)bits;
+      p224_point_add(nq[0], nq[1], nq[2], nq[0], nq[1], nq[2], 1 /* mixed */,
+                     g_p224_pre_comp[0][index][0], g_p224_pre_comp[0][index][1],
+                     g_p224_pre_comp[0][index][2]);
+    }
+
+    // Incorporate |p_scalar| every 5 doublings.
+    if (i % 5 == 0) {
+      crypto_word_t bits = p224_get_bit(p_scalar, i + 4) << 5;
+      bits |= p224_get_bit(p_scalar, i + 3) << 4;
+      bits |= p224_get_bit(p_scalar, i + 2) << 3;
+      bits |= p224_get_bit(p_scalar, i + 1) << 2;
+      bits |= p224_get_bit(p_scalar, i) << 1;
+      bits |= p224_get_bit(p_scalar, i - 1);
+      crypto_word_t sign, digit;
+      ec_GFp_nistp_recode_scalar_bits(&sign, &digit, bits);
+
+      // Select the point to add or subtract.
+      OPENSSL_memcpy(tmp, p_pre_comp[digit], 3 * sizeof(p224_felem));
+      if (sign) {
+        p224_felem_neg(tmp[1], tmp[1]);  // (X, -Y, Z) is the negative point
+      }
+
+      if (!skip) {
+        p224_point_add(nq[0], nq[1], nq[2], nq[0], nq[1], nq[2], 0 /* mixed */,
+                       tmp[0], tmp[1], tmp[2]);
+      } else {
+        OPENSSL_memcpy(nq, tmp, 3 * sizeof(p224_felem));
+        skip = 0;
+      }
+    }
+  }
+
+  // Reduce the output to its unique minimal representation.
+  p224_felem_to_generic(&r->X, nq[0]);
+  p224_felem_to_generic(&r->Y, nq[1]);
+  p224_felem_to_generic(&r->Z, nq[2]);
 }
 
 static void ec_GFp_nistp224_felem_mul(const EC_GROUP *group, EC_FELEM *r,
@@ -1069,7 +1127,6 @@ static void ec_GFp_nistp224_felem_mul(const EC_GROUP *group, EC_FELEM *r,
   p224_generic_to_felem(felem2, b);
   p224_felem_mul(wide, felem1, felem2);
   p224_felem_reduce(felem1, wide);
-  p224_felem_contract(felem1, felem1);
   p224_felem_to_generic(r, felem1);
 }
 
@@ -1080,18 +1137,7 @@ static void ec_GFp_nistp224_felem_sqr(const EC_GROUP *group, EC_FELEM *r,
   p224_widefelem wide;
   p224_felem_square(wide, felem);
   p224_felem_reduce(felem, wide);
-  p224_felem_contract(felem, felem);
   p224_felem_to_generic(r, felem);
-}
-
-static int ec_GFp_nistp224_bignum_to_felem(const EC_GROUP *group, EC_FELEM *out,
-                                           const BIGNUM *in) {
-  return bn_copy_words(out->words, group->field.width, in);
-}
-
-static int ec_GFp_nistp224_felem_to_bignum(const EC_GROUP *group, BIGNUM *out,
-                                           const EC_FELEM *in) {
-  return bn_set_words(out, in->words, group->field.width);
 }
 
 DEFINE_METHOD_FUNCTION(EC_METHOD, EC_GFp_nistp224_method) {
@@ -1100,13 +1146,19 @@ DEFINE_METHOD_FUNCTION(EC_METHOD, EC_GFp_nistp224_method) {
   out->group_set_curve = ec_GFp_simple_group_set_curve;
   out->point_get_affine_coordinates =
       ec_GFp_nistp224_point_get_affine_coordinates;
-  out->mul = ec_GFp_nistp224_points_mul;
-  out->mul_public = ec_GFp_nistp224_points_mul;
+  out->add = ec_GFp_nistp224_add;
+  out->dbl = ec_GFp_nistp224_dbl;
+  out->mul = ec_GFp_nistp224_point_mul;
+  out->mul_base = ec_GFp_nistp224_point_mul_base;
+  out->mul_public = ec_GFp_nistp224_point_mul_public;
   out->felem_mul = ec_GFp_nistp224_felem_mul;
   out->felem_sqr = ec_GFp_nistp224_felem_sqr;
-  out->bignum_to_felem = ec_GFp_nistp224_bignum_to_felem;
-  out->felem_to_bignum = ec_GFp_nistp224_felem_to_bignum;
-  out->scalar_inv_montgomery = ec_simple_scalar_inv_montgomery;
-};
+  out->felem_to_bytes = ec_GFp_simple_felem_to_bytes;
+  out->felem_from_bytes = ec_GFp_simple_felem_from_bytes;
+  out->scalar_inv0_montgomery = ec_simple_scalar_inv0_montgomery;
+  out->scalar_to_montgomery_inv_vartime =
+      ec_simple_scalar_to_montgomery_inv_vartime;
+  out->cmp_x_coordinate = ec_GFp_simple_cmp_x_coordinate;
+}
 
 #endif  // BORINGSSL_HAS_UINT128 && !SMALL

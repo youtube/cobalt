@@ -14,8 +14,13 @@
 
 #include "starboard/elf_loader/exported_symbols.h"
 
+#include <fcntl.h>
+#include <ifaddrs.h>
+#include <netdb.h>
 #include <stdlib.h>
-#include <time.h>
+#include <sys/mman.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 #include "starboard/accessibility.h"
 #include "starboard/audio_sink.h"
@@ -44,6 +49,8 @@
 #include "starboard/once.h"
 #include "starboard/player.h"
 #if SB_API_VERSION >= 16
+#include "starboard/shared/modular/posix_mmap_wrappers.h"
+#include "starboard/shared/modular/posix_pthread_wrappers.h"
 #include "starboard/shared/modular/posix_time_wrappers.h"
 #endif  // SB_API_VERSION >= 16
 #include "starboard/socket.h"
@@ -204,12 +211,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMemoryDeallocate);
   REGISTER_SYMBOL(SbMemoryDeallocateAligned);
   REGISTER_SYMBOL(SbMemoryDeallocateNoReport);
-#endif  // SB_API_VERSION < 16
 #if SB_CAN(MAP_EXECUTABLE_MEMORY)
   REGISTER_SYMBOL(SbMemoryFlush);
 #endif  // SB_CAN(MAP_EXECUTABLE_MEMORY)
-
-#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbMemoryFree);
   REGISTER_SYMBOL(SbMemoryFreeAligned);
 #endif  // SB_API_VERSION < 16
@@ -217,10 +221,10 @@ ExportedSymbols::ExportedSymbols() {
 #if SB_API_VERSION < 15
   REGISTER_SYMBOL(SbMemoryGetStackBounds);
 #endif
-  REGISTER_SYMBOL(SbMemoryMap);
-  REGISTER_SYMBOL(SbMemoryProtect);
 
 #if SB_API_VERSION < 16
+  REGISTER_SYMBOL(SbMemoryMap);
+  REGISTER_SYMBOL(SbMemoryProtect);
   REGISTER_SYMBOL(SbMemoryReallocate);
   REGISTER_SYMBOL(SbMemoryReallocateUnchecked);
 #endif  // SB_API_VERSION < 16
@@ -228,7 +232,11 @@ ExportedSymbols::ExportedSymbols() {
 #if SB_API_VERSION < 15
   REGISTER_SYMBOL(SbMemorySetReporter);
 #endif
+
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbMemoryUnmap);
+#endif  // SB_API_VERSION < 16
+
   REGISTER_SYMBOL(SbMicrophoneClose);
   REGISTER_SYMBOL(SbMicrophoneCreate);
   REGISTER_SYMBOL(SbMicrophoneDestroy);
@@ -408,13 +416,37 @@ ExportedSymbols::ExportedSymbols() {
 
 #if SB_API_VERSION >= 16
   // POSIX APIs
-  REGISTER_SYMBOL(malloc);
-  REGISTER_SYMBOL(realloc);
+  REGISTER_SYMBOL(accept);
+  REGISTER_SYMBOL(bind);
   REGISTER_SYMBOL(calloc);
-  REGISTER_SYMBOL(posix_memalign);
+  REGISTER_SYMBOL(close);
+  REGISTER_SYMBOL(connect);
+  REGISTER_SYMBOL(fcntl);
   REGISTER_SYMBOL(free);
+  REGISTER_SYMBOL(freeaddrinfo);
+  REGISTER_SYMBOL(freeifaddrs);
+  REGISTER_SYMBOL(getaddrinfo);
+  REGISTER_SYMBOL(getifaddrs);
+  REGISTER_SYMBOL(getsockname);
+  REGISTER_SYMBOL(listen);
+  REGISTER_SYMBOL(malloc);
+  REGISTER_SYMBOL(mprotect);
+  REGISTER_SYMBOL(msync);
+  REGISTER_SYMBOL(munmap);
+  REGISTER_SYMBOL(open);
+  REGISTER_SYMBOL(posix_memalign);
+  REGISTER_SYMBOL(realloc);
+  REGISTER_SYMBOL(recv);
+  REGISTER_SYMBOL(send);
+  REGISTER_SYMBOL(recvfrom);
+  REGISTER_SYMBOL(sendto);
+  REGISTER_SYMBOL(setsockopt);
+  REGISTER_SYMBOL(socket);
+  REGISTER_SYMBOL(snprintf);
+  REGISTER_SYMBOL(sprintf);
+  REGISTER_SYMBOL(vfwprintf);
+  REGISTER_SYMBOL(vsnprintf);
   REGISTER_SYMBOL(vsscanf);
-  REGISTER_SYMBOL(time);
 
   // Custom mapped POSIX APIs to compatibility wrappers.
   // These will rely on Starboard-side implementations that properly translate
@@ -423,11 +455,20 @@ ExportedSymbols::ExportedSymbols() {
   // TODO: b/316603042 - Detect via NPLB and only add the wrapper if needed.
   map_["clock_gettime"] = reinterpret_cast<const void*>(&__wrap_clock_gettime);
   map_["gettimeofday"] = reinterpret_cast<const void*>(&__wrap_gettimeofday);
+  map_["gmtime_r"] = reinterpret_cast<const void*>(&__wrap_gmtime_r);
+  map_["mmap"] = reinterpret_cast<const void*>(&__wrap_mmap);
+  map_["pthread_mutex_destroy"] =
+      reinterpret_cast<const void*>(&__wrap_pthread_mutex_destroy);
+  map_["pthread_mutex_init"] =
+      reinterpret_cast<const void*>(&__wrap_pthread_mutex_init);
+  map_["pthread_mutex_lock"] =
+      reinterpret_cast<const void*>(&__wrap_pthread_mutex_lock);
+  map_["pthread_mutex_unlock"] =
+      reinterpret_cast<const void*>(&__wrap_pthread_mutex_unlock);
+  map_["pthread_mutex_trylock"] =
+      reinterpret_cast<const void*>(&__wrap_pthread_mutex_trylock);
+  map_["time"] = reinterpret_cast<const void*>(&__wrap_time);
 
-  REGISTER_SYMBOL(sprintf);
-  REGISTER_SYMBOL(snprintf);
-  REGISTER_SYMBOL(vfwprintf);
-  REGISTER_SYMBOL(vsnprintf);
 #if defined(_MSC_VER)
   // MSVC provides a template with the same name.
   // The cast helps the compiler to pick the correct C function pointer to be

@@ -42,7 +42,6 @@ SSLAEADContext::SSLAEADContext(uint16_t version_arg, bool is_dtls_arg,
       random_variable_nonce_(false),
       xor_fixed_nonce_(false),
       omit_length_in_ad_(false),
-      omit_ad_(false),
       ad_is_header_(false) {
   OPENSSL_memset(fixed_nonce_, 0, sizeof(fixed_nonce_));
 }
@@ -134,11 +133,7 @@ UniquePtr<SSLAEADContext> SSLAEADContext::Create(
       aead_ctx->xor_fixed_nonce_ = true;
       aead_ctx->variable_nonce_len_ = 8;
       aead_ctx->variable_nonce_included_in_record_ = false;
-      if (ssl_is_draft28(version)) {
-        aead_ctx->ad_is_header_ = true;
-      } else {
-        aead_ctx->omit_ad_ = true;
-      }
+      aead_ctx->ad_is_header_ = true;
       assert(fixed_iv.size() >= aead_ctx->variable_nonce_len_);
     }
   } else {
@@ -149,6 +144,11 @@ UniquePtr<SSLAEADContext> SSLAEADContext::Create(
   }
 
   return aead_ctx;
+}
+
+UniquePtr<SSLAEADContext> SSLAEADContext::CreatePlaceholderForQUIC(
+    uint16_t version, const SSL_CIPHER *cipher) {
+  return MakeUnique<SSLAEADContext>(version, false, cipher);
 }
 
 void SSLAEADContext::SetVersionIfNullCipher(uint16_t version) {
@@ -220,17 +220,13 @@ size_t SSLAEADContext::MaxOverhead() const {
 }
 
 Span<const uint8_t> SSLAEADContext::GetAdditionalData(
-    uint8_t storage[13], uint8_t type, uint16_t record_version,
-    const uint8_t seqnum[8], size_t plaintext_len, Span<const uint8_t> header) {
+    uint8_t storage[13], uint8_t type, uint16_t record_version, uint64_t seqnum,
+    size_t plaintext_len, Span<const uint8_t> header) {
   if (ad_is_header_) {
     return header;
   }
 
-  if (omit_ad_) {
-    return {};
-  }
-
-  OPENSSL_memcpy(storage, seqnum, 8);
+  CRYPTO_store_u64_be(storage, seqnum);
   size_t len = 8;
   storage[len++] = type;
   storage[len++] = static_cast<uint8_t>((record_version >> 8));
@@ -243,7 +239,7 @@ Span<const uint8_t> SSLAEADContext::GetAdditionalData(
 }
 
 bool SSLAEADContext::Open(Span<uint8_t> *out, uint8_t type,
-                          uint16_t record_version, const uint8_t seqnum[8],
+                          uint16_t record_version, uint64_t seqnum,
                           Span<const uint8_t> header, Span<uint8_t> in) {
   if (is_null_cipher() || FUZZER_MODE) {
     // Handle the initial NULL cipher.
@@ -292,7 +288,7 @@ bool SSLAEADContext::Open(Span<uint8_t> *out, uint8_t type,
     in = in.subspan(variable_nonce_len_);
   } else {
     assert(variable_nonce_len_ == 8);
-    OPENSSL_memcpy(nonce + nonce_len, seqnum, variable_nonce_len_);
+    CRYPTO_store_u64_be(nonce + nonce_len, seqnum);
   }
   nonce_len += variable_nonce_len_;
 
@@ -317,8 +313,7 @@ bool SSLAEADContext::Open(Span<uint8_t> *out, uint8_t type,
 
 bool SSLAEADContext::SealScatter(uint8_t *out_prefix, uint8_t *out,
                                  uint8_t *out_suffix, uint8_t type,
-                                 uint16_t record_version,
-                                 const uint8_t seqnum[8],
+                                 uint16_t record_version, uint64_t seqnum,
                                  Span<const uint8_t> header, const uint8_t *in,
                                  size_t in_len, const uint8_t *extra_in,
                                  size_t extra_in_len) {
@@ -369,7 +364,7 @@ bool SSLAEADContext::SealScatter(uint8_t *out_prefix, uint8_t *out,
     // When sending we use the sequence number as the variable part of the
     // nonce.
     assert(variable_nonce_len_ == 8);
-    OPENSSL_memcpy(nonce + nonce_len, seqnum, variable_nonce_len_);
+    CRYPTO_store_u64_be(nonce + nonce_len, seqnum);
   }
   nonce_len += variable_nonce_len_;
 
@@ -402,7 +397,7 @@ bool SSLAEADContext::SealScatter(uint8_t *out_prefix, uint8_t *out,
 
 bool SSLAEADContext::Seal(uint8_t *out, size_t *out_len, size_t max_out_len,
                           uint8_t type, uint16_t record_version,
-                          const uint8_t seqnum[8], Span<const uint8_t> header,
+                          uint64_t seqnum, Span<const uint8_t> header,
                           const uint8_t *in, size_t in_len) {
   const size_t prefix_len = ExplicitNonceLen();
   size_t suffix_len;

@@ -1,7 +1,11 @@
-#if defined(__has_feature)
+// This file is generated from a similarly-named Perl script in the BoringSSL
+// source tree. Do not edit by hand.
+
+#if !defined(__has_feature)
+#define __has_feature(x) 0
+#endif
 #if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
 #define OPENSSL_NO_ASM
-#endif
 #endif
 
 #if !defined(OPENSSL_NO_ASM)
@@ -11,6 +15,7 @@
 #endif
 #include <openssl/arm_arch.h>
 
+#if __ARM_MAX_ARCH__>=7
 .text
 .fpu	neon
 .code	32
@@ -20,6 +25,7 @@
 .type	gcm_init_v8,%function
 .align	4
 gcm_init_v8:
+	AARCH64_VALID_CALL_TARGET
 	vld1.64	{q9},[r1]		@ load input H
 	vmov.i8	q11,#0xe1
 	vshl.i64	q11,q11,#57		@ 0xc2.0
@@ -62,8 +68,7 @@ gcm_init_v8:
 	vext.8	q9,q14,q14,#8		@ Karatsuba pre-processing
 	veor	q9,q9,q14
 	vext.8	q13,q8,q9,#8		@ pack Karatsuba pre-processed
-	vst1.64	{q13,q14},[r0]		@ store Htable[1..2]
-
+	vst1.64	{q13,q14},[r0]!	@ store Htable[1..2]
 	bx	lr
 .size	gcm_init_v8,.-gcm_init_v8
 .globl	gcm_gmult_v8
@@ -71,6 +76,7 @@ gcm_init_v8:
 .type	gcm_gmult_v8,%function
 .align	4
 gcm_gmult_v8:
+	AARCH64_VALID_CALL_TARGET
 	vld1.64	{q9},[r0]		@ load Xi
 	vmov.i8	q11,#0xe1
 	vld1.64	{q12,q13},[r1]	@ load twisted H, ...
@@ -113,6 +119,7 @@ gcm_gmult_v8:
 .type	gcm_ghash_v8,%function
 .align	4
 gcm_ghash_v8:
+	AARCH64_VALID_CALL_TARGET
 	vstmdb	sp!,{d8,d9,d10,d11,d12,d13,d14,d15}		@ 32-bit ABI says so
 	vld1.64	{q0},[r0]		@ load [rotated] Xi
 						@ "[rotated]" means that
@@ -245,4 +252,6 @@ gcm_ghash_v8:
 .align	2
 .align	2
 #endif
+#endif
 #endif  // !OPENSSL_NO_ASM
+.section	.note.GNU-stack,"",%progbits

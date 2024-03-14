@@ -10,6 +10,7 @@
 
 #include "include/core/SkBlendMode.h"
 #include "include/gpu/GrTypes.h"
+#include "include/private/SkMacros.h"
 #include "src/gpu/GrXferProcessor.h"
 
 // See the comment above GrXPFactory's definition about this warning suppression.
@@ -29,7 +30,6 @@ public:
         null then the SimpleSrcOverXP() below should be used. */
     static sk_sp<const GrXferProcessor> MakeSrcOverXferProcessor(const GrProcessorAnalysisColor&,
                                                                  GrProcessorAnalysisCoverage,
-                                                                 bool hasMixedSamples,
                                                                  const GrCaps&);
 
     /** Returns a simple non-LCD porter duff blend XP with no optimizations or coverage. */
@@ -49,7 +49,6 @@ private:
 
     sk_sp<const GrXferProcessor> makeXferProcessor(const GrProcessorAnalysisColor&,
                                                    GrProcessorAnalysisCoverage,
-                                                   bool hasMixedSamples,
                                                    const GrCaps&,
                                                    GrClampType) const override;
 
@@ -64,7 +63,7 @@ private:
     SkBlendMode fBlendMode;
 
     friend class GrPorterDuffTest; // for TestGetXPOutputTypes()
-    typedef GrXPFactory INHERITED;
+    using INHERITED = GrXPFactory;
 };
 #if defined(__GNUC__)
 #pragma GCC diagnostic pop

@@ -24,7 +24,6 @@
 #include "starboard/common/paths.h"
 #include "starboard/elf_loader/elf_loader_constants.h"
 #include "starboard/shared/starboard/command_line.h"
-#include "starboard/shared/starboard/starboard_switches.h"
 #endif
 #include "starboard/shared/starboard/link_receiver.h"
 #include "starboard/shared/x11/application_x11.h"
@@ -53,13 +52,7 @@ extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
   }
 
 #if !SB_IS(MODULAR)
-  bool start_handler_at_crash =
-      command_line.HasSwitch(
-          starboard::shared::starboard::kStartHandlerAtCrash) ||
-      !command_line.HasSwitch(
-          starboard::shared::starboard::kStartHandlerAtLaunch);
-  third_party::crashpad::wrapper::InstallCrashpadHandler(start_handler_at_crash,
-                                                         ca_certificates_path);
+  third_party::crashpad::wrapper::InstallCrashpadHandler(ca_certificates_path);
 #endif  // !SB_IS(MODULAR)
 #endif
 

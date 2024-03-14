@@ -22,6 +22,7 @@ config("sabi_flags") {
 
 config("x64") {
   configs = [
+    "//starboard/build/config/modular",
     "//starboard/build/config/sabi",
     ":sabi_flags",
   ]

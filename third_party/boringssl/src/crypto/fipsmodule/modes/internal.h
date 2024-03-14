@@ -50,8 +50,10 @@
 #define OPENSSL_HEADER_MODES_INTERNAL_H
 
 #include <openssl/base.h>
+
 #include <openssl/aes.h>
 
+#include <stdlib.h>
 #include <string.h>
 
 #include "../../internal.h"
@@ -60,33 +62,6 @@
 extern "C" {
 #endif
 
-
-#define STRICT_ALIGNMENT 1
-#if defined(OPENSSL_X86_64) || defined(OPENSSL_X86) || defined(OPENSSL_AARCH64)
-#undef STRICT_ALIGNMENT
-#define STRICT_ALIGNMENT 0
-#endif
-
-static inline uint32_t GETU32(const void *in) {
-  uint32_t v;
-  OPENSSL_memcpy(&v, in, sizeof(v));
-  return CRYPTO_bswap4(v);
-}
-
-static inline void PUTU32(void *out, uint32_t v) {
-  v = CRYPTO_bswap4(v);
-  OPENSSL_memcpy(out, &v, sizeof(v));
-}
-
-static inline size_t load_word_le(const void *in) {
-  size_t v;
-  OPENSSL_memcpy(&v, in, sizeof(v));
-  return v;
-}
-
-static inline void store_word_le(void *out, size_t v) {
-  OPENSSL_memcpy(out, &v, sizeof(v));
-}
 
 // block128_f is the type of an AES block cipher implementation.
 //
@@ -127,12 +102,6 @@ void CRYPTO_ctr128_encrypt_ctr32(const uint8_t *in, uint8_t *out, size_t len,
                                  uint8_t ecount_buf[16], unsigned *num,
                                  ctr128_f ctr);
 
-#if !defined(OPENSSL_NO_ASM) && \
-    (defined(OPENSSL_X86) || defined(OPENSSL_X86_64))
-void aesni_ctr32_encrypt_blocks(const uint8_t *in, uint8_t *out, size_t blocks,
-                                const AES_KEY *key, const uint8_t *ivec);
-#endif
-
 
 // GCM.
 //
@@ -156,7 +125,10 @@ typedef void (*ghash_func)(uint64_t Xi[2], const u128 Htable[16],
 
 typedef struct gcm128_key_st {
   // Note the MOVBE-based, x86-64, GHASH assembly requires |H| and |Htable| to
-  // be the first two elements of this struct.
+  // be the first two elements of this struct. Additionally, some assembly
+  // routines require a 16-byte-aligned |Htable| when hashing data, but not
+  // initialization. |GCM128_KEY| is not itself aligned to simplify embedding in
+  // |EVP_AEAD_CTX|, but |Htable|'s offset must be a multiple of 16.
   u128 H;
   u128 Htable[16];
   gmult_func gmult;
@@ -177,12 +149,14 @@ typedef struct {
     uint64_t u[2];
     uint32_t d[4];
     uint8_t c[16];
-    size_t t[16 / sizeof(size_t)];
+    crypto_word_t t[16 / sizeof(crypto_word_t)];
   } Yi, EKi, EK0, len, Xi;
 
   // Note that the order of |Xi| and |gcm_key| is fixed by the MOVBE-based,
-  // x86-64, GHASH assembly.
-  GCM128_KEY gcm_key;
+  // x86-64, GHASH assembly. Additionally, some assembly routines require
+  // |gcm_key| to be 16-byte aligned. |GCM128_KEY| is not itself aligned to
+  // simplify embedding in |EVP_AEAD_CTX|.
+  alignas(16) GCM128_KEY gcm_key;
 
   unsigned mres, ares;
 } GCM128_CONTEXT;
@@ -199,7 +173,7 @@ int crypto_gcm_clmul_enabled(void);
 // AVX implementation was used |*out_is_avx| will be true.
 void CRYPTO_ghash_init(gmult_func *out_mult, ghash_func *out_hash,
                        u128 *out_key, u128 out_table[16], int *out_is_avx,
-                       const uint8_t *gcm_key);
+                       const uint8_t gcm_key[16]);
 
 // CRYPTO_gcm128_init_key initialises |gcm_key| to use |block| (typically AES)
 // with the given key. |block_is_hwaes| is one if |block| is |aes_hw_encrypt|.
@@ -263,40 +237,76 @@ OPENSSL_EXPORT void CRYPTO_gcm128_tag(GCM128_CONTEXT *ctx, uint8_t *tag,
                                       size_t len);
 
 
-// CCM.
+// GCM assembly.
 
-typedef struct ccm128_context {
-  block128_f block;
-  ctr128_f ctr;
-  unsigned M, L;
-} CCM128_CONTEXT;
+void gcm_init_nohw(u128 Htable[16], const uint64_t H[2]);
+void gcm_gmult_nohw(uint64_t Xi[2], const u128 Htable[16]);
+void gcm_ghash_nohw(uint64_t Xi[2], const u128 Htable[16], const uint8_t *inp,
+                    size_t len);
 
-// CRYPTO_ccm128_init initialises |ctx| to use |block| (typically AES) with the
-// specified |M| and |L| parameters. It returns one on success and zero if |M|
-// or |L| is invalid.
-int CRYPTO_ccm128_init(CCM128_CONTEXT *ctx, const AES_KEY *key,
-                       block128_f block, ctr128_f ctr, unsigned M, unsigned L);
+#if !defined(OPENSSL_NO_ASM)
 
-// CRYPTO_ccm128_max_input returns the maximum input length accepted by |ctx|.
-size_t CRYPTO_ccm128_max_input(const CCM128_CONTEXT *ctx);
+#if defined(OPENSSL_X86) || defined(OPENSSL_X86_64)
+#define GCM_FUNCREF
+void gcm_init_clmul(u128 Htable[16], const uint64_t Xi[2]);
+void gcm_gmult_clmul(uint64_t Xi[2], const u128 Htable[16]);
+void gcm_ghash_clmul(uint64_t Xi[2], const u128 Htable[16], const uint8_t *inp,
+                     size_t len);
 
-// CRYPTO_ccm128_encrypt encrypts |len| bytes from |in| to |out| writing the tag
-// to |out_tag|. |key| must be the same key that was passed to
-// |CRYPTO_ccm128_init|. It returns one on success and zero otherwise.
-int CRYPTO_ccm128_encrypt(const CCM128_CONTEXT *ctx, const AES_KEY *key,
-                          uint8_t *out, uint8_t *out_tag, size_t tag_len,
-                          const uint8_t *nonce, size_t nonce_len,
-                          const uint8_t *in, size_t len, const uint8_t *aad,
-                          size_t aad_len);
+// |gcm_gmult_ssse3| and |gcm_ghash_ssse3| require |Htable| to be
+// 16-byte-aligned, but |gcm_init_ssse3| does not.
+void gcm_init_ssse3(u128 Htable[16], const uint64_t Xi[2]);
+void gcm_gmult_ssse3(uint64_t Xi[2], const u128 Htable[16]);
+void gcm_ghash_ssse3(uint64_t Xi[2], const u128 Htable[16], const uint8_t *in,
+                     size_t len);
 
-// CRYPTO_ccm128_decrypt decrypts |len| bytes from |in| to |out|, writing the
-// expected tag to |out_tag|. |key| must be the same key that was passed to
-// |CRYPTO_ccm128_init|. It returns one on success and zero otherwise.
-int CRYPTO_ccm128_decrypt(const CCM128_CONTEXT *ctx, const AES_KEY *key,
-                          uint8_t *out, uint8_t *out_tag, size_t tag_len,
-                          const uint8_t *nonce, size_t nonce_len,
-                          const uint8_t *in, size_t len, const uint8_t *aad,
-                          size_t aad_len);
+#if defined(OPENSSL_X86_64)
+#define GHASH_ASM_X86_64
+void gcm_init_avx(u128 Htable[16], const uint64_t Xi[2]);
+void gcm_gmult_avx(uint64_t Xi[2], const u128 Htable[16]);
+void gcm_ghash_avx(uint64_t Xi[2], const u128 Htable[16], const uint8_t *in,
+                   size_t len);
+
+#define AESNI_GCM
+size_t aesni_gcm_encrypt(const uint8_t *in, uint8_t *out, size_t len,
+                         const AES_KEY *key, uint8_t ivec[16], uint64_t *Xi);
+size_t aesni_gcm_decrypt(const uint8_t *in, uint8_t *out, size_t len,
+                         const AES_KEY *key, uint8_t ivec[16], uint64_t *Xi);
+#endif  // OPENSSL_X86_64
+
+#if defined(OPENSSL_X86)
+#define GHASH_ASM_X86
+#endif  // OPENSSL_X86
+
+#elif defined(OPENSSL_ARM) || defined(OPENSSL_AARCH64)
+#define GHASH_ASM_ARM
+#define GCM_FUNCREF
+
+OPENSSL_INLINE int gcm_pmull_capable(void) {
+  return CRYPTO_is_ARMv8_PMULL_capable();
+}
+
+void gcm_init_v8(u128 Htable[16], const uint64_t Xi[2]);
+void gcm_gmult_v8(uint64_t Xi[2], const u128 Htable[16]);
+void gcm_ghash_v8(uint64_t Xi[2], const u128 Htable[16], const uint8_t *inp,
+                  size_t len);
+
+OPENSSL_INLINE int gcm_neon_capable(void) { return CRYPTO_is_NEON_capable(); }
+
+void gcm_init_neon(u128 Htable[16], const uint64_t Xi[2]);
+void gcm_gmult_neon(uint64_t Xi[2], const u128 Htable[16]);
+void gcm_ghash_neon(uint64_t Xi[2], const u128 Htable[16], const uint8_t *inp,
+                    size_t len);
+
+#elif defined(OPENSSL_PPC64LE)
+#define GHASH_ASM_PPC64LE
+#define GCM_FUNCREF
+void gcm_init_p8(u128 Htable[16], const uint64_t Xi[2]);
+void gcm_gmult_p8(uint64_t Xi[2], const u128 Htable[16]);
+void gcm_ghash_p8(uint64_t Xi[2], const u128 Htable[16], const uint8_t *inp,
+                  size_t len);
+#endif
+#endif  // OPENSSL_NO_ASM
 
 
 // CBC.
@@ -376,10 +386,11 @@ typedef union {
 
 struct polyval_ctx {
   // Note that the order of |S|, |H| and |Htable| is fixed by the MOVBE-based,
-  // x86-64, GHASH assembly.
+  // x86-64, GHASH assembly. Additionally, some assembly routines require
+  // |Htable| to be 16-byte aligned.
   polyval_block S;
   u128 H;
-  u128 Htable[16];
+  alignas(16) u128 Htable[16];
   gmult_func gmult;
   ghash_func ghash;
 };

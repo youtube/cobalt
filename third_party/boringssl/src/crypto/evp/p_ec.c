@@ -58,7 +58,6 @@
 #include <string.h>
 
 #include <openssl/bn.h>
-#include <openssl/buf.h>
 #include <openssl/digest.h>
 #include <openssl/ec.h>
 #include <openssl/ec_key.h>
@@ -76,6 +75,7 @@
 typedef struct {
   // message digest
   const EVP_MD *md;
+  EC_GROUP *gen_group;
 } EC_PKEY_CTX;
 
 
@@ -111,6 +111,7 @@ static void pkey_ec_cleanup(EVP_PKEY_CTX *ctx) {
     return;
   }
 
+  EC_GROUP_free(dctx->gen_group);
   OPENSSL_free(dctx);
 }
 
@@ -178,18 +179,18 @@ static int pkey_ec_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2) {
   EC_PKEY_CTX *dctx = ctx->data;
 
   switch (type) {
-    case EVP_PKEY_CTRL_MD:
-      if (EVP_MD_type((const EVP_MD *)p2) != NID_sha1 &&
-          EVP_MD_type((const EVP_MD *)p2) != NID_ecdsa_with_SHA1 &&
-          EVP_MD_type((const EVP_MD *)p2) != NID_sha224 &&
-          EVP_MD_type((const EVP_MD *)p2) != NID_sha256 &&
-          EVP_MD_type((const EVP_MD *)p2) != NID_sha384 &&
-          EVP_MD_type((const EVP_MD *)p2) != NID_sha512) {
+    case EVP_PKEY_CTRL_MD: {
+      const EVP_MD *md = p2;
+      int md_type = EVP_MD_type(md);
+      if (md_type != NID_sha1 && md_type != NID_sha224 &&
+          md_type != NID_sha256 && md_type != NID_sha384 &&
+          md_type != NID_sha512) {
         OPENSSL_PUT_ERROR(EVP, EVP_R_INVALID_DIGEST_TYPE);
         return 0;
       }
-      dctx->md = p2;
+      dctx->md = md;
       return 1;
+    }
 
     case EVP_PKEY_CTRL_GET_MD:
       *(const EVP_MD **)p2 = dctx->md;
@@ -199,6 +200,16 @@ static int pkey_ec_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2) {
       // Default behaviour is OK
       return 1;
 
+    case EVP_PKEY_CTRL_EC_PARAMGEN_CURVE_NID: {
+      EC_GROUP *group = EC_GROUP_new_by_curve_name(p1);
+      if (group == NULL) {
+        return 0;
+      }
+      EC_GROUP_free(dctx->gen_group);
+      dctx->gen_group = group;
+      return 1;
+    }
+
     default:
       OPENSSL_PUT_ERROR(EVP, EVP_R_COMMAND_NOT_SUPPORTED);
       return 0;
@@ -206,14 +217,35 @@ static int pkey_ec_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2) {
 }
 
 static int pkey_ec_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey) {
-  if (ctx->pkey == NULL) {
+  EC_PKEY_CTX *dctx = ctx->data;
+  const EC_GROUP *group = dctx->gen_group;
+  if (group == NULL) {
+    if (ctx->pkey == NULL) {
+      OPENSSL_PUT_ERROR(EVP, EVP_R_NO_PARAMETERS_SET);
+      return 0;
+    }
+    group = EC_KEY_get0_group(ctx->pkey->pkey.ec);
+  }
+  EC_KEY *ec = EC_KEY_new();
+  if (ec == NULL ||
+      !EC_KEY_set_group(ec, group) ||
+      !EC_KEY_generate_key(ec)) {
+    EC_KEY_free(ec);
+    return 0;
+  }
+  EVP_PKEY_assign_EC_KEY(pkey, ec);
+  return 1;
+}
+
+static int pkey_ec_paramgen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey) {
+  EC_PKEY_CTX *dctx = ctx->data;
+  if (dctx->gen_group == NULL) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_NO_PARAMETERS_SET);
     return 0;
   }
   EC_KEY *ec = EC_KEY_new();
   if (ec == NULL ||
-      !EC_KEY_set_group(ec, EC_KEY_get0_group(ctx->pkey->pkey.ec)) ||
-      !EC_KEY_generate_key(ec)) {
+      !EC_KEY_set_group(ec, dctx->gen_group)) {
     EC_KEY_free(ec);
     return 0;
   }
@@ -235,5 +267,20 @@ const EVP_PKEY_METHOD ec_pkey_meth = {
     NULL /* encrypt */,
     NULL /* decrypt */,
     pkey_ec_derive,
+    pkey_ec_paramgen,
     pkey_ec_ctrl,
 };
+
+int EVP_PKEY_CTX_set_ec_paramgen_curve_nid(EVP_PKEY_CTX *ctx, int nid) {
+  return EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, EVP_PKEY_OP_TYPE_GEN,
+                           EVP_PKEY_CTRL_EC_PARAMGEN_CURVE_NID, nid, NULL);
+}
+
+int EVP_PKEY_CTX_set_ec_param_enc(EVP_PKEY_CTX *ctx, int encoding) {
+  // BoringSSL only supports named curve syntax.
+  if (encoding != OPENSSL_EC_NAMED_CURVE) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_INVALID_PARAMETERS);
+    return 0;
+  }
+  return 1;
+}

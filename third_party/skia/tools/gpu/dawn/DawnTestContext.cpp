@@ -6,7 +6,6 @@
  */
 
 #include "dawn/webgpu_cpp.h"
-#include "dawn_native/DawnNative.h"
 #include "tools/gpu/dawn/DawnTestContext.h"
 
 #ifdef SK_BUILD_FOR_UNIX
@@ -22,7 +21,7 @@
 #ifdef SK_DAWN
 #include "dawn/webgpu.h"
 #include "dawn/dawn_proc.h"
-#include "include/gpu/GrContext.h"
+#include "include/gpu/GrDirectContext.h"
 #include "tools/AutoreleasePool.h"
 #if USE_OPENGL_BACKEND
 #include "dawn_native/OpenGLBackend.h"
@@ -78,92 +77,23 @@ private:
 ProcGetter* ProcGetter::fInstance;
 #endif
 
-class DawnFence {
-public:
-    DawnFence(const wgpu::Device& device, const wgpu::Buffer& buffer)
-      : fDevice(device), fBuffer(buffer), fCalled(false) {
-        fBuffer.MapReadAsync(callback, this);
-    }
-
-    bool wait() {
-        while (!fCalled) {
-            fDevice.Tick();
-        }
-        return true;
-    }
-
-    ~DawnFence() {
-    }
-
-    static void callback(WGPUBufferMapAsyncStatus status, const void* data, uint64_t dataLength,
-                         void* userData) {
-        DawnFence* fence = static_cast<DawnFence*>(userData);
-        fence->fCalled = true;
-    }
-    wgpu::Buffer buffer() { return fBuffer; }
-
-private:
-    wgpu::Device                   fDevice;
-    wgpu::Buffer                   fBuffer;
-    bool                           fCalled;
-};
-
-/**
- * Implements sk_gpu_test::FenceSync for Dawn.
- */
-class DawnFenceSync : public sk_gpu_test::FenceSync {
-public:
-    DawnFenceSync(wgpu::Device device) : fDevice(device) {
-    }
-
-    ~DawnFenceSync() override {
-    }
-
-    sk_gpu_test::PlatformFence SK_WARN_UNUSED_RESULT insertFence() const override {
-        wgpu::Buffer buffer;
-        if (fBuffers.empty()) {
-            wgpu::BufferDescriptor desc;
-            desc.usage = wgpu::BufferUsage::MapRead | wgpu::BufferUsage::CopyDst;
-            desc.size = 1;
-            buffer = fDevice.CreateBuffer(&desc);
-        } else {
-            buffer = fBuffers.back();
-            fBuffers.pop_back();
-        }
-        DawnFence* fence = new DawnFence(fDevice, buffer);
-        return reinterpret_cast<sk_gpu_test::PlatformFence>(fence);
-    }
-
-    bool waitFence(sk_gpu_test::PlatformFence opaqueFence) const override {
-        fAutoreleasePool.drain();
-        DawnFence* fence = reinterpret_cast<DawnFence*>(opaqueFence);
-        return fence->wait();
-    }
-
-    void deleteFence(sk_gpu_test::PlatformFence opaqueFence) const override {
-        DawnFence* fence = reinterpret_cast<DawnFence*>(opaqueFence);
-        fBuffers.push_back(fence->buffer());
-        delete fence;
-    }
-
-private:
-    wgpu::Device                      fDevice;
-    mutable std::vector<wgpu::Buffer> fBuffers;
-    mutable AutoreleasePool           fAutoreleasePool;
-    typedef sk_gpu_test::FenceSync INHERITED;
-};
+static void PrintDeviceError(WGPUErrorType, const char* message, void*) {
+    SkDebugf("Device error: %s\n", message);
+}
 
 class DawnTestContextImpl : public sk_gpu_test::DawnTestContext {
 public:
     static wgpu::Device createDevice(const dawn_native::Instance& instance,
-                                     dawn_native::BackendType type) {
+                                     wgpu::BackendType type) {
         DawnProcTable backendProcs = dawn_native::GetProcs();
         dawnProcSetProcs(&backendProcs);
 
         std::vector<dawn_native::Adapter> adapters = instance.GetAdapters();
         for (dawn_native::Adapter adapter : adapters) {
-            if (adapter.GetBackendType() == type) {
-                return adapter.CreateDevice();
+            wgpu::AdapterProperties properties;
+            adapter.GetProperties(&properties);
+            if (properties.backendType == type) {
+                return wgpu::Device::Acquire(adapter.CreateDevice());
             }
         }
         return nullptr;
@@ -175,7 +105,7 @@ public:
         if (sharedContext) {
             device = sharedContext->getDevice();
         } else {
-            dawn_native::BackendType type;
+            wgpu::BackendType type;
 #if USE_OPENGL_BACKEND
             dawn_native::opengl::AdapterDiscoveryOptions adapterOptions;
             adapterOptions.getProc = reinterpret_cast<void*(*)(const char*)>(
@@ -188,18 +118,19 @@ public:
 #endif
             );
             instance->DiscoverAdapters(&adapterOptions);
-            type = dawn_native::BackendType::OpenGL;
+            type = wgpu::BackendType::OpenGL;
 #else
             instance->DiscoverDefaultAdapters();
 #if defined(SK_BUILD_FOR_MAC)
-            type = dawn_native::BackendType::Metal;
+            type = wgpu::BackendType::Metal;
 #elif defined(SK_BUILD_FOR_WIN)
-            type = dawn_native::BackendType::D3D12;
+            type = wgpu::BackendType::D3D12;
 #elif defined(SK_BUILD_FOR_UNIX)
-            type = dawn_native::BackendType::Vulkan;
+            type = wgpu::BackendType::Vulkan;
 #endif
 #endif
             device = createDevice(*instance, type);
+            device.SetUncapturedErrorCallback(PrintDeviceError, 0);
         }
         if (!device) {
             return nullptr;
@@ -211,13 +142,10 @@ public:
 
     void testAbandon() override {}
 
-    // There is really nothing to here since we don't own any unqueued command buffers here.
-    void submit() override {}
-
     void finish() override {}
 
-    sk_sp<GrContext> makeGrContext(const GrContextOptions& options) override {
-        return GrContext::MakeDawn(fDevice, options);
+    sk_sp<GrDirectContext> makeContext(const GrContextOptions& options) override {
+        return GrDirectContext::MakeDawn(fDevice, options);
     }
 
 protected:
@@ -228,17 +156,15 @@ protected:
 private:
     DawnTestContextImpl(std::unique_ptr<dawn_native::Instance> instance,
                         const wgpu::Device& device)
-            : DawnTestContext(device)
-            , fInstance(std::move(instance)) {
-        fFenceSync.reset(new DawnFenceSync(fDevice));
+            : DawnTestContext(std::move(instance), device) {
+        fFenceSupport = true;
     }
 
+    void onPlatformMakeNotCurrent() const override {}
     void onPlatformMakeCurrent() const override {}
     std::function<void()> onPlatformGetAutoContextRestore() const override  { return nullptr; }
-    void onPlatformSwapBuffers() const override {}
-    std::unique_ptr<dawn_native::Instance> fInstance;
 
-    typedef sk_gpu_test::DawnTestContext INHERITED;
+    using INHERITED = sk_gpu_test::DawnTestContext;
 };
 }  // anonymous namespace
 

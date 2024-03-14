@@ -15,9 +15,6 @@
 
 #if !UCONFIG_NO_COLLATION
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif  // defined(STARBOARD)
 #include "unicode/coll.h"
 #include "unicode/udata.h"
 #include "collation.h"

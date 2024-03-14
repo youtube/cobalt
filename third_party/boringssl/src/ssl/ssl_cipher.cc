@@ -143,7 +143,6 @@
 #include <assert.h>
 #include <string.h>
 
-#include <openssl/buf.h>
 #include <openssl/err.h>
 #include <openssl/md5.h>
 #include <openssl/mem.h>
@@ -156,7 +155,6 @@
 
 BSSL_NAMESPACE_BEGIN
 
-// kCiphers is an array of all supported ciphers, sorted by id.
 static constexpr SSL_CIPHER kCiphers[] = {
     // The RSA ciphers
     // Cipher 02
@@ -236,7 +234,7 @@ static constexpr SSL_CIPHER kCiphers[] = {
      SSL_HANDSHAKE_MAC_DEFAULT,
     },
 
-    // GCM ciphersuites from RFC5288
+    // GCM ciphersuites from RFC 5288
 
     // Cipher 9C
     {
@@ -266,9 +264,9 @@ static constexpr SSL_CIPHER kCiphers[] = {
 
     // Cipher 1301
     {
-      TLS1_TXT_AES_128_GCM_SHA256,
+      TLS1_3_RFC_AES_128_GCM_SHA256,
       "TLS_AES_128_GCM_SHA256",
-      TLS1_CK_AES_128_GCM_SHA256,
+      TLS1_3_CK_AES_128_GCM_SHA256,
       SSL_kGENERIC,
       SSL_aGENERIC,
       SSL_AES128GCM,
@@ -278,9 +276,9 @@ static constexpr SSL_CIPHER kCiphers[] = {
 
     // Cipher 1302
     {
-      TLS1_TXT_AES_256_GCM_SHA384,
+      TLS1_3_RFC_AES_256_GCM_SHA384,
       "TLS_AES_256_GCM_SHA384",
-      TLS1_CK_AES_256_GCM_SHA384,
+      TLS1_3_CK_AES_256_GCM_SHA384,
       SSL_kGENERIC,
       SSL_aGENERIC,
       SSL_AES256GCM,
@@ -290,9 +288,9 @@ static constexpr SSL_CIPHER kCiphers[] = {
 
     // Cipher 1303
     {
-      TLS1_TXT_CHACHA20_POLY1305_SHA256,
+      TLS1_3_RFC_CHACHA20_POLY1305_SHA256,
       "TLS_CHACHA20_POLY1305_SHA256",
-      TLS1_CK_CHACHA20_POLY1305_SHA256,
+      TLS1_3_CK_CHACHA20_POLY1305_SHA256,
       SSL_kGENERIC,
       SSL_aGENERIC,
       SSL_CHACHA20POLY1305,
@@ -348,7 +346,7 @@ static constexpr SSL_CIPHER kCiphers[] = {
      SSL_HANDSHAKE_MAC_DEFAULT,
     },
 
-    // GCM based TLS v1.2 ciphersuites from RFC5289
+    // GCM based TLS v1.2 ciphersuites from RFC 5289
 
     // Cipher C02B
     {
@@ -464,7 +462,9 @@ static constexpr SSL_CIPHER kCiphers[] = {
 
 };
 
-static const size_t kCiphersLen = OPENSSL_ARRAY_SIZE(kCiphers);
+Span<const SSL_CIPHER> AllCiphers() {
+  return MakeConstSpan(kCiphers, OPENSSL_ARRAY_SIZE(kCiphers));
+}
 
 #define CIPHER_ADD 1
 #define CIPHER_KILL 2
@@ -707,7 +707,7 @@ static bool ssl_cipher_collect_ciphers(Array<CIPHER_ORDER> *out_co_list,
                                        CIPHER_ORDER **out_head,
                                        CIPHER_ORDER **out_tail) {
   Array<CIPHER_ORDER> co_list;
-  if (!co_list.Init(kCiphersLen)) {
+  if (!co_list.Init(OPENSSL_ARRAY_SIZE(kCiphers))) {
     return false;
   }
 
@@ -770,6 +770,31 @@ bool SSLCipherPreferenceList::Init(UniquePtr<STACK_OF(SSL_CIPHER)> ciphers_arg,
   size_t unused_len;
   copy.Release(&in_group_flags, &unused_len);
   return true;
+}
+
+bool SSLCipherPreferenceList::Init(const SSLCipherPreferenceList& other) {
+  size_t size = sk_SSL_CIPHER_num(other.ciphers.get());
+  Span<const bool> other_flags(other.in_group_flags, size);
+  UniquePtr<STACK_OF(SSL_CIPHER)> other_ciphers(sk_SSL_CIPHER_dup(
+      other.ciphers.get()));
+  if (!other_ciphers) {
+    return false;
+  }
+  return Init(std::move(other_ciphers), other_flags);
+}
+
+void SSLCipherPreferenceList::Remove(const SSL_CIPHER *cipher) {
+  size_t index;
+  if (!sk_SSL_CIPHER_find(ciphers.get(), &index, cipher)) {
+    return;
+  }
+  if (!in_group_flags[index] /* last element of group */ && index > 0) {
+    in_group_flags[index-1] = false;
+  }
+  for (size_t i = index; i < sk_SSL_CIPHER_num(ciphers.get()) - 1; ++i) {
+    in_group_flags[i] = in_group_flags[i+1];
+  }
+  sk_SSL_CIPHER_delete(ciphers.get(), index);
 }
 
 // ssl_cipher_apply_rule applies the rule type |rule| to ciphers matching its
@@ -1051,7 +1076,7 @@ static bool ssl_cipher_process_rulestr(const char *rule_str,
       // Look for a matching exact cipher. These aren't allowed in multipart
       // rules.
       if (!multi && ch != '+') {
-        for (j = 0; j < kCiphersLen; j++) {
+        for (j = 0; j < OPENSSL_ARRAY_SIZE(kCiphers); j++) {
           const SSL_CIPHER *cipher = &kCiphers[j];
           if (rule_equals(cipher->name, buf, buf_len) ||
               rule_equals(cipher->standard_name, buf, buf_len)) {
@@ -1217,7 +1242,7 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
   UniquePtr<STACK_OF(SSL_CIPHER)> cipherstack(sk_SSL_CIPHER_new_null());
   Array<bool> in_group_flags;
   if (cipherstack == nullptr ||
-      !in_group_flags.Init(kCiphersLen)) {
+      !in_group_flags.Init(OPENSSL_ARRAY_SIZE(kCiphers))) {
     return false;
   }
 
@@ -1252,14 +1277,6 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
   }
 
   return true;
-}
-
-uint16_t ssl_cipher_get_value(const SSL_CIPHER *cipher) {
-  uint32_t id = cipher->id;
-  // All OpenSSL cipher IDs are prefaced with 0x03. Historically this referred
-  // to SSLv2 vs SSLv3.
-  assert((id & 0xff000000) == 0x03000000);
-  return id & 0xffff;
 }
 
 uint32_t ssl_cipher_auth_mask_for_key(const EVP_PKEY *key) {
@@ -1310,34 +1327,33 @@ BSSL_NAMESPACE_END
 
 using namespace bssl;
 
-static constexpr int ssl_cipher_id_cmp_inner(const SSL_CIPHER *a,
-                                             const SSL_CIPHER *b) {
-  // C++11's constexpr functions must have a body consisting of just a
-  // return-statement.
-  return (a->id > b->id) ? 1 : ((a->id < b->id) ? -1 : 0);
+static constexpr int ssl_cipher_id_cmp(const SSL_CIPHER *a,
+                                       const SSL_CIPHER *b) {
+  if (a->id > b->id) {
+    return 1;
+  }
+  if (a->id < b->id) {
+    return -1;
+  }
+  return 0;
 }
 
-static int ssl_cipher_id_cmp(const void *in_a, const void *in_b) {
-  return ssl_cipher_id_cmp_inner(reinterpret_cast<const SSL_CIPHER *>(in_a),
-                                 reinterpret_cast<const SSL_CIPHER *>(in_b));
+static int ssl_cipher_id_cmp_void(const void *in_a, const void *in_b) {
+  return ssl_cipher_id_cmp(reinterpret_cast<const SSL_CIPHER *>(in_a),
+                           reinterpret_cast<const SSL_CIPHER *>(in_b));
 }
 
-template <typename T, size_t N>
-static constexpr size_t countof(T const (&)[N]) {
-  return N;
+template <size_t N>
+static constexpr bool ssl_ciphers_sorted(const SSL_CIPHER (&ciphers)[N]) {
+  for (size_t i = 1; i < N; i++) {
+    if (ssl_cipher_id_cmp(&ciphers[i - 1], &ciphers[i]) >= 0) {
+      return false;
+    }
+  }
+  return true;
 }
 
-template <typename T, size_t I>
-static constexpr int check_order(const T (&arr)[I], size_t N) {
-  // C++11's constexpr functions must have a body consisting of just a
-  // return-statement.
-  return N > 1 ? ((ssl_cipher_id_cmp_inner(&arr[N - 2], &arr[N - 1]) < 0)
-                      ? check_order(arr, N - 1)
-                      : 0)
-               : 1;
-}
-
-static_assert(check_order(kCiphers, countof(kCiphers)) == 1,
+static_assert(ssl_ciphers_sorted(kCiphers),
               "Ciphers are not sorted, bsearch won't work");
 
 const SSL_CIPHER *SSL_get_cipher_by_value(uint16_t value) {
@@ -1345,10 +1361,22 @@ const SSL_CIPHER *SSL_get_cipher_by_value(uint16_t value) {
 
   c.id = 0x03000000L | value;
   return reinterpret_cast<const SSL_CIPHER *>(bsearch(
-      &c, kCiphers, kCiphersLen, sizeof(SSL_CIPHER), ssl_cipher_id_cmp));
+      &c, kCiphers, OPENSSL_ARRAY_SIZE(kCiphers), sizeof(SSL_CIPHER),
+      ssl_cipher_id_cmp_void));
 }
 
 uint32_t SSL_CIPHER_get_id(const SSL_CIPHER *cipher) { return cipher->id; }
+
+uint16_t SSL_CIPHER_get_protocol_id(const SSL_CIPHER *cipher) {
+  // All OpenSSL cipher IDs are prefaced with 0x03. Historically this referred
+  // to SSLv2 vs SSLv3.
+  assert((cipher->id & 0xff000000) == 0x03000000);
+  return static_cast<uint16_t>(cipher->id);
+}
+
+uint16_t SSL_CIPHER_get_value(const SSL_CIPHER *cipher) {
+  return SSL_CIPHER_get_protocol_id(cipher);
+}
 
 int SSL_CIPHER_is_aead(const SSL_CIPHER *cipher) {
   return (cipher->algorithm_mac & SSL_AEAD) != 0;

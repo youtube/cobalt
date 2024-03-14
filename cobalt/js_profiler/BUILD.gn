@@ -16,6 +16,8 @@ static_library("js_profiler") {
   sources = [
     "profiler.cc",
     "profiler.h",
+    "profiler_group.cc",
+    "profiler_group.h",
     "profiler_trace_builder.cc",
     "profiler_trace_builder.h",
     "profiler_trace_wrapper.h",
@@ -29,6 +31,7 @@ static_library("js_profiler") {
     "//cobalt/script",
     "//cobalt/script/v8c:engine",
     "//cobalt/web",
+    "//third_party/abseil-cpp/absl/types:optional",
     "//third_party/chromium/media:media",
     "//third_party/v8:cppgc",
   ]

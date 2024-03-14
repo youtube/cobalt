@@ -56,6 +56,7 @@
 
 #include <openssl/bn.h>
 
+#include <assert.h>
 #include <limits.h>
 #include <string.h>
 
@@ -65,6 +66,11 @@
 #include "internal.h"
 #include "../delocate.h"
 
+
+// BN_MAX_WORDS is the maximum number of words allowed in a |BIGNUM|. It is
+// sized so byte and bit counts of a |BIGNUM| always fit in |int|, with room to
+// spare.
+#define BN_MAX_WORDS (INT_MAX / (4 * BN_BITS2))
 
 BIGNUM *BN_new(void) {
   BIGNUM *bn = OPENSSL_malloc(sizeof(BIGNUM));
@@ -79,6 +85,8 @@ BIGNUM *BN_new(void) {
 
   return bn;
 }
+
+BIGNUM *BN_secure_new(void) { return BN_new(); }
 
 void BN_init(BIGNUM *bn) {
   OPENSSL_memset(bn, 0, sizeof(BIGNUM));
@@ -101,26 +109,7 @@ void BN_free(BIGNUM *bn) {
 }
 
 void BN_clear_free(BIGNUM *bn) {
-  char should_free;
-
-  if (bn == NULL) {
-    return;
-  }
-
-  if (bn->d != NULL) {
-    if ((bn->flags & BN_FLG_STATIC_DATA) == 0) {
-      OPENSSL_free(bn->d);
-    } else {
-      OPENSSL_cleanse(bn->d, bn->dmax * sizeof(bn->d[0]));
-    }
-  }
-
-  should_free = (bn->flags & BN_FLG_MALLOCED) != 0;
-  if (should_free) {
-    OPENSSL_free(bn);
-  } else {
-    OPENSSL_cleanse(bn, sizeof(BIGNUM));
-  }
+  BN_free(bn);
 }
 
 BIGNUM *BN_dup(const BIGNUM *src) {
@@ -302,6 +291,19 @@ int bn_set_words(BIGNUM *bn, const BN_ULONG *words, size_t num) {
   return 1;
 }
 
+void bn_set_static_words(BIGNUM *bn, const BN_ULONG *words, size_t num) {
+  if ((bn->flags & BN_FLG_STATIC_DATA) == 0) {
+    OPENSSL_free(bn->d);
+  }
+  bn->d = (BN_ULONG *)words;
+
+  assert(num <= BN_MAX_WORDS);
+  bn->width = (int)num;
+  bn->dmax = (int)num;
+  bn->neg = 0;
+  bn->flags |= BN_FLG_STATIC_DATA;
+}
+
 int bn_fits_in_words(const BIGNUM *bn, size_t num) {
   // All words beyond |num| must be zero.
   BN_ULONG mask = 0;
@@ -350,7 +352,7 @@ int bn_wexpand(BIGNUM *bn, size_t words) {
     return 1;
   }
 
-  if (words > (INT_MAX / (4 * BN_BITS2))) {
+  if (words > BN_MAX_WORDS) {
     OPENSSL_PUT_ERROR(BN, BN_R_BIGNUM_TOO_LONG);
     return 0;
   }
@@ -384,13 +386,30 @@ int bn_expand(BIGNUM *bn, size_t bits) {
 }
 
 int bn_resize_words(BIGNUM *bn, size_t words) {
+#if defined(OPENSSL_PPC64LE)
+  // This is a workaround for a miscompilation bug in Clang 7.0.1 on POWER.
+  // The unittests catch the miscompilation, if it occurs, and it manifests
+  // as a crash in |bn_fits_in_words|.
+  //
+  // The bug only triggers if building in FIPS mode and with -O3. Clang 8.0.1
+  // has the same bug but this workaround is not effective there---I've not
+  // been able to find a workaround for 8.0.1.
+  //
+  // At the time of writing (2019-08-08), Clang git does *not* have this bug
+  // and does not need this workaroud. The current git version should go on to
+  // be Clang 10 thus, once we can depend on that, this can be removed.
+  if (value_barrier_w((size_t)bn->width == words)) {
+    return 1;
+  }
+#endif
+
   if ((size_t)bn->width <= words) {
     if (!bn_wexpand(bn, words)) {
       return 0;
     }
     OPENSSL_memset(bn->d + bn->width, 0,
                    (words - bn->width) * sizeof(BN_ULONG));
-    bn->width = words;
+    bn->width = (int)words;
     return 1;
   }
 
@@ -399,15 +418,15 @@ int bn_resize_words(BIGNUM *bn, size_t words) {
     OPENSSL_PUT_ERROR(BN, BN_R_BIGNUM_TOO_LONG);
     return 0;
   }
-  bn->width = words;
+  bn->width = (int)words;
   return 1;
 }
 
 void bn_select_words(BN_ULONG *r, BN_ULONG mask, const BN_ULONG *a,
                      const BN_ULONG *b, size_t num) {
   for (size_t i = 0; i < num; i++) {
-    OPENSSL_COMPILE_ASSERT(sizeof(BN_ULONG) <= sizeof(crypto_word_t),
-                           crypto_word_t_too_small);
+    static_assert(sizeof(BN_ULONG) <= sizeof(crypto_word_t),
+                  "crypto_word_t is too small");
     r[i] = constant_time_select_w(mask, a[i], b[i]);
   }
 }

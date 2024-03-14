@@ -28,7 +28,7 @@ public:
         Sk4u splat(c);
 
         Sk4px v;
-        memcpy(&v, &splat, 16);
+        memcpy((void*)&v, &splat, 16);
         return v;
     }
 
@@ -38,17 +38,17 @@ public:
     // When loading or storing fewer than 4 SkPMColors, we use the low lanes.
     static Sk4px Load4(const SkPMColor px[4]) {
         Sk4px v;
-        memcpy(&v, px, 16);
+        memcpy((void*)&v, px, 16);
         return v;
     }
     static Sk4px Load2(const SkPMColor px[2]) {
         Sk4px v;
-        memcpy(&v, px, 8);
+        memcpy((void*)&v, px, 8);
         return v;
     }
     static Sk4px Load1(const SkPMColor px[1]) {
         Sk4px v;
-        memcpy(&v, px, 4);
+        memcpy((void*)&v, px, 4);
         return v;
     }
 
@@ -80,7 +80,7 @@ public:
         Wide operator << (int bits) const { return INHERITED::operator<<(bits); }
 
     private:
-        typedef Sk16h INHERITED;
+        using INHERITED = Sk16h;
     };
 
     Wide widen() const;               // Widen 8-bit values to low 8-bits of 16-bit lanes.
@@ -106,7 +106,7 @@ public:
     // A generic driver that maps fn over a src array into a dst array.
     // fn should take an Sk4px (4 src pixels) and return an Sk4px (4 dst pixels).
     template <typename Fn>
-    static void MapSrc(int n, SkPMColor* dst, const SkPMColor* src, const Fn& fn) {
+    [[maybe_unused]] static void MapSrc(int n, SkPMColor* dst, const SkPMColor* src, const Fn& fn) {
         SkASSERT(dst);
         SkASSERT(src);
         // This looks a bit odd, but it helps loop-invariant hoisting across different calls to fn.
@@ -138,7 +138,8 @@ public:
 
     // As above, but with dst4' = fn(dst4, src4).
     template <typename Fn>
-    static void MapDstSrc(int n, SkPMColor* dst, const SkPMColor* src, const Fn& fn) {
+    [[maybe_unused]] static void MapDstSrc(int n, SkPMColor* dst, const SkPMColor* src,
+                                           const Fn& fn) {
         SkASSERT(dst);
         SkASSERT(src);
         while (n > 0) {
@@ -168,7 +169,8 @@ public:
 
     // As above, but with dst4' = fn(dst4, alpha4).
     template <typename Fn>
-    static void MapDstAlpha(int n, SkPMColor* dst, const SkAlpha* a, const Fn& fn) {
+    [[maybe_unused]] static void MapDstAlpha(int n, SkPMColor* dst, const SkAlpha* a,
+                                             const Fn& fn) {
         SkASSERT(dst);
         SkASSERT(a);
         while (n > 0) {
@@ -198,8 +200,8 @@ public:
 
     // As above, but with dst4' = fn(dst4, src4, alpha4).
     template <typename Fn>
-    static void MapDstSrcAlpha(int n, SkPMColor* dst, const SkPMColor* src, const SkAlpha* a,
-                               const Fn& fn) {
+    [[maybe_unused]] static void MapDstSrcAlpha(int n, SkPMColor* dst, const SkPMColor* src,
+                                                const SkAlpha* a, const Fn& fn) {
         SkASSERT(dst);
         SkASSERT(src);
         SkASSERT(a);
@@ -231,8 +233,11 @@ public:
 private:
     Sk4px() = default;
 
-    typedef Sk16b INHERITED;
+    using INHERITED = Sk16b;
 };
+
+static_assert(sizeof(Sk4px) == sizeof(Sk16b));
+static_assert(sizeof(Sk4px) == 16);
 
 }  // namespace
 

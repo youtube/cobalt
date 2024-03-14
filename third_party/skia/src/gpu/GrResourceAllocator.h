@@ -8,15 +8,16 @@
 #ifndef GrResourceAllocator_DEFINED
 #define GrResourceAllocator_DEFINED
 
-#include "include/gpu/GrSurface.h"
-#include "src/gpu/GrGpuResourcePriv.h"
+#include "include/private/SkTHash.h"
+
+#include "src/gpu/GrHashMapWithCache.h"
+#include "src/gpu/GrSurface.h"
 #include "src/gpu/GrSurfaceProxy.h"
 
 #include "src/core/SkArenaAlloc.h"
-#include "src/core/SkTDynamicHash.h"
 #include "src/core/SkTMultiMap.h"
 
-class GrResourceProvider;
+class GrDirectContext;
 
 // Print out explicit allocation information
 #define GR_ALLOCATION_SPEW 0
@@ -28,47 +29,56 @@ class GrResourceProvider;
  * The ResourceAllocator explicitly distributes GPU resources at flush time. It operates by
  * being given the usage intervals of the various proxies. It keeps these intervals in a singly
  * linked list sorted by increasing start index. (It also maintains a hash table from proxyID
- * to interval to find proxy reuse). When it comes time to allocate the resources it
- * traverses the sorted list and:
- *     removes intervals from the active list that have completed (returning their GrSurfaces
- *     to the free pool)
-
- *     allocates a new resource (preferably from the free pool) for the new interval
- *     adds the new interval to the active list (that is sorted by increasing end index)
+ * to interval to find proxy reuse). The ResourceAllocator uses Registers (in the sense of register
+ * allocation) to represent a future surface that will be used for each proxy during
+ * `planAssignment`, and then assigns actual surfaces during `assign`.
  *
  * Note: the op indices (used in the usage intervals) come from the order of the ops in
  * their opsTasks after the opsTask DAG has been linearized.
+ *
+ * The planAssignment method traverses the sorted list and:
+ *     moves intervals from the active list that have completed (returning their registers
+ *     to the free pool) into the finished list (sorted by increasing start)
+ *
+ *     allocates a new register (preferably from the free pool) for the new interval
+ *     adds the new interval to the active list (that is sorted by increasing end index)
+ *
+ * After assignment planning, the user can choose to call `makeBudgetHeadroom` which:
+ *     computes how much VRAM would be needed for new resources for all extant Registers
+ *
+ *     asks the resource cache to purge enough resources to get that much free space
+ *
+ *     if it's not possible, do nothing and return false. The user may opt to reset
+ *     the allocator and start over with a different DAG.
+ *
+ * If the user wants to commit to the current assignment plan, they call `assign` which:
+ *     instantiates lazy proxies
+ *
+ *     instantantiates new surfaces for all registers that need them
+ *
+ *     assigns the surface for each register to all the proxies that will use it
  *
  *************************************************************************************************
  * How does instantiation failure handling work when explicitly allocating?
  *
  * In the gather usage intervals pass all the GrSurfaceProxies used in the flush should be
- * gathered (i.e., in GrOpsTask::gatherProxyIntervals).
+ * gathered (i.e., in OpsTask::gatherProxyIntervals).
  *
- * The allocator will churn through this list but could fail anywhere.
+ * During addInterval, read-only lazy proxies are instantiated. If that fails, the resource
+ * allocator will note the failure and ignore pretty much anything else until `reset`.
  *
- * Allocation failure handling occurs at two levels:
+ * During planAssignment, fully-lazy proxies are instantiated so that we can know their size for
+ * budgeting purposes. If this fails, return false.
  *
- * 1) If the GrSurface backing an opsTask fails to allocate then the entire opsTask is dropped.
+ * During assign, partially-lazy proxies are instantiated and new surfaces are created for all other
+ * proxies. If any of these fails, return false.
  *
- * 2) If an individual GrSurfaceProxy fails to allocate then any ops that use it are dropped
- * (via GrOpsTask::purgeOpsWithUninstantiatedProxies)
- *
- * The pass to determine which ops to drop is a bit laborious so we only check the opsTasks and
- * individual ops when something goes wrong in allocation (i.e., when the return code from
- * GrResourceAllocator::assign is bad)
- *
- * All together this means we should never attempt to draw an op which is missing some
- * required GrSurface.
- *
- * One wrinkle in this plan is that promise images are fulfilled during the gather interval pass.
- * If any of the promise images fail at this stage then the allocator is set into an error
- * state and all allocations are then scanned for failures during the main allocation pass.
+ * The drawing manager will drop the flush if any proxies fail to instantiate.
  */
 class GrResourceAllocator {
 public:
-    GrResourceAllocator(GrResourceProvider* resourceProvider SkDEBUGCODE(, int numOpsTasks))
-            : fResourceProvider(resourceProvider) SkDEBUGCODE(, fNumOpsTasks(numOpsTasks)) {}
+    GrResourceAllocator(GrDirectContext* dContext)
+            : fDContext(dContext) {}
 
     ~GrResourceAllocator();
 
@@ -76,7 +86,7 @@ public:
     void incOps() { fNumOps++; }
 
     /** Indicates whether a given call to addInterval represents an actual usage of the
-     *  provided proxy. This is mainly here to accomodate deferred proxies attached to opsTasks.
+     *  provided proxy. This is mainly here to accommodate deferred proxies attached to opsTasks.
      *  In that case we need to create an extra long interval for them (due to the upload) but
      *  don't want to count that usage/reference towards the proxy's recyclability.
      */
@@ -90,21 +100,23 @@ public:
     void addInterval(GrSurfaceProxy*, unsigned int start, unsigned int end, ActualUse actualUse
                      SkDEBUGCODE(, bool isDirectDstRead = false));
 
-    enum class AssignError {
-        kNoError,
-        kFailedProxyInstantiation
-    };
+    bool failedInstantiation() const { return fFailedInstantiation; }
 
-    // Returns true when the opsTasks from 'startIndex' to 'stopIndex' should be executed;
-    // false when nothing remains to be executed.
-    // If any proxy fails to instantiate, the AssignError will be set to kFailedProxyInstantiation.
-    // If this happens, the caller should remove all ops which reference an uninstantiated proxy.
-    // This is used to execute a portion of the queued opsTasks in order to reduce the total
-    // amount of GPU resources required.
-    bool assign(int* startIndex, int* stopIndex, AssignError* outError);
+    // Generate an internal plan for resource allocation. After this you can optionally call
+    // `makeBudgetHeadroom` to check whether that plan would go over our memory budget.
+    // Fully-lazy proxies are also instantiated at this point so that their size can
+    // be known accurately. Returns false if any lazy proxy failed to instantiate, true otherwise.
+    bool planAssignment();
 
-    void determineRecyclability();
-    void markEndOfOpsTask(int opsTaskIndex);
+    // Figure out how much VRAM headroom this plan requires. If there's enough purgeable resources,
+    // purge them and return true. Otherwise return false.
+    bool makeBudgetHeadroom();
+
+    // Clear all internal state in preparation for a new set of intervals.
+    void reset();
+
+    // Instantiate and assign resources to all proxies.
+    bool assign();
 
 #if GR_ALLOCATION_SPEW
     void dumpIntervals();
@@ -112,65 +124,84 @@ public:
 
 private:
     class Interval;
+    class Register;
 
     // Remove dead intervals from the active list
     void expire(unsigned int curIndex);
 
-    bool onOpsTaskBoundary() const;
-    void forceIntermediateFlush(int* stopIndex);
-
     // These two methods wrap the interactions with the free pool
-    void recycleSurface(sk_sp<GrSurface> surface);
-    sk_sp<GrSurface> findSurfaceFor(const GrSurfaceProxy* proxy);
+    void recycleRegister(Register* r);
+    Register* findOrCreateRegisterFor(GrSurfaceProxy* proxy);
 
     struct FreePoolTraits {
-        static const GrScratchKey& GetKey(const GrSurface& s) {
-            return s.resourcePriv().getScratchKey();
+        static const skgpu::ScratchKey& GetKey(const Register& r) {
+            return r.scratchKey();
         }
 
-        static uint32_t Hash(const GrScratchKey& key) { return key.hash(); }
-        static void OnFree(GrSurface* s) { s->unref(); }
+        static uint32_t Hash(const skgpu::ScratchKey& key) { return key.hash(); }
+        static void OnFree(Register* r) { }
     };
-    typedef SkTMultiMap<GrSurface, GrScratchKey, FreePoolTraits> FreePoolMultiMap;
+    typedef SkTMultiMap<Register, skgpu::ScratchKey, FreePoolTraits> FreePoolMultiMap;
 
-    typedef SkTDynamicHash<Interval, unsigned int> IntvlHash;
+    typedef SkTHashMap<uint32_t, Interval*, GrCheapHash>        IntvlHash;
+
+    struct UniqueKeyHash {
+        uint32_t operator()(const skgpu::UniqueKey& key) const { return key.hash(); }
+    };
+    typedef SkTHashMap<skgpu::UniqueKey, Register*, UniqueKeyHash> UniqueKeyRegisterHash;
+
+    // Each proxy – with some exceptions – is assigned a register. After all assignments are made,
+    // another pass is performed to instantiate and assign actual surfaces to the proxies. Right
+    // now these are performed in one call, but in the future they will be separable and the user
+    // will be able to query re: memory cost before committing to surface creation.
+    class Register {
+    public:
+        // It's OK to pass an invalid scratch key iff the proxy has a unique key.
+        Register(GrSurfaceProxy* originatingProxy, skgpu::ScratchKey, GrResourceProvider*);
+
+        const skgpu::ScratchKey& scratchKey() const { return fScratchKey; }
+        const skgpu::UniqueKey& uniqueKey() const { return fOriginatingProxy->getUniqueKey(); }
+
+        bool accountedForInBudget() const { return fAccountedForInBudget; }
+        void setAccountedForInBudget() { fAccountedForInBudget = true; }
+
+        GrSurface* existingSurface() const { return fExistingSurface.get(); }
+
+        // Can this register be used by other proxies after this one?
+        bool isRecyclable(const GrCaps&, GrSurfaceProxy* proxy, int knownUseCount) const;
+
+        // Resolve the register allocation to an actual GrSurface. 'fOriginatingProxy'
+        // is used to cache the allocation when a given register is used by multiple
+        // proxies.
+        bool instantiateSurface(GrSurfaceProxy*, GrResourceProvider*);
+
+        SkDEBUGCODE(uint32_t uniqueID() const { return fUniqueID; })
+
+    private:
+        GrSurfaceProxy*   fOriginatingProxy;
+        skgpu::ScratchKey fScratchKey; // free pool wants a reference to this.
+        sk_sp<GrSurface>  fExistingSurface; // queried from resource cache. may be null.
+        bool              fAccountedForInBudget = false;
+
+#ifdef SK_DEBUG
+        uint32_t         fUniqueID;
+
+        static uint32_t  CreateUniqueID();
+#endif
+    };
 
     class Interval {
     public:
         Interval(GrSurfaceProxy* proxy, unsigned int start, unsigned int end)
-            : fProxy(proxy)
-            , fProxyID(proxy->uniqueID().asUInt())
-            , fStart(start)
-            , fEnd(end)
-            , fNext(nullptr) {
+                : fProxy(proxy)
+                , fStart(start)
+                , fEnd(end) {
             SkASSERT(proxy);
+            SkDEBUGCODE(fUniqueID = CreateUniqueID());
 #if GR_TRACK_INTERVAL_CREATION
-            fUniqueID = CreateUniqueID();
-            SkDebugf("New intvl %d: proxyID: %d [ %d, %d ]\n",
-                     fUniqueID, proxy->uniqueID().asUInt(), start, end);
+            SkString proxyStr = proxy->dump();
+            SkDebugf("New intvl %d: %s [%d, %d]\n", fUniqueID, proxyStr.c_str(), start, end);
 #endif
-        }
-
-        // Used when recycling an interval
-        void resetTo(GrSurfaceProxy* proxy, unsigned int start, unsigned int end) {
-            SkASSERT(proxy);
-            SkASSERT(!fProxy && !fNext);
-
-            fUses = 0;
-            fProxy = proxy;
-            fProxyID = proxy->uniqueID().asUInt();
-            fStart = start;
-            fEnd = end;
-            fNext = nullptr;
-#if GR_TRACK_INTERVAL_CREATION
-            fUniqueID = CreateUniqueID();
-            SkDebugf("New intvl %d: proxyID: %d [ %d, %d ]\n",
-                     fUniqueID, proxy->uniqueID().asUInt(), start, end);
-#endif
-        }
-
-        ~Interval() {
-            SkASSERT(!fAssignedSurface);
         }
 
         const GrSurfaceProxy* proxy() const { return fProxy; }
@@ -183,11 +214,11 @@ private:
         const Interval* next() const { return fNext; }
         Interval* next() { return fNext; }
 
-        void markAsRecyclable() { fIsRecyclable = true;}
-        bool isRecyclable() const { return fIsRecyclable; }
+        Register* getRegister() const { return fRegister; }
+        void setRegister(Register* r) { fRegister = r; }
 
         void addUse() { fUses++; }
-        int uses() { return fUses; }
+        int uses() const { return fUses; }
 
         void extendEnd(unsigned int newEnd) {
             if (newEnd > fEnd) {
@@ -198,40 +229,27 @@ private:
             }
         }
 
-        void assign(sk_sp<GrSurface>);
-        bool wasAssignedSurface() const { return fAssignedSurface != nullptr; }
-        sk_sp<GrSurface> detachSurface() { return std::move(fAssignedSurface); }
-
-        // for SkTDynamicHash
-        static const uint32_t& GetKey(const Interval& intvl) {
-            return intvl.fProxyID;
-        }
-        static uint32_t Hash(const uint32_t& key) { return key; }
+        SkDEBUGCODE(uint32_t uniqueID() const { return fUniqueID; })
 
     private:
-        sk_sp<GrSurface> fAssignedSurface;
         GrSurfaceProxy*  fProxy;
-        uint32_t         fProxyID; // This is here b.c. DynamicHash requires a ref to the key
         unsigned int     fStart;
         unsigned int     fEnd;
-        Interval*        fNext;
+        Interval*        fNext = nullptr;
         unsigned int     fUses = 0;
-        bool             fIsRecyclable = false;
+        Register*        fRegister = nullptr;
 
-#if GR_TRACK_INTERVAL_CREATION
+#ifdef SK_DEBUG
         uint32_t        fUniqueID;
 
-        uint32_t CreateUniqueID();
+        static uint32_t CreateUniqueID();
 #endif
     };
 
     class IntervalList {
     public:
         IntervalList() = default;
-        ~IntervalList() {
-            // The only time we delete an IntervalList is in the GrResourceAllocator dtor.
-            // Since the arena allocator will clean up for us we don't bother here.
-        }
+        // N.B. No need for a destructor – the arena allocator will clean up for us.
 
         bool empty() const {
             SkASSERT(SkToBool(fHead) == SkToBool(fTail));
@@ -242,7 +260,6 @@ private:
         Interval* popHead();
         void insertByIncreasingStart(Interval*);
         void insertByIncreasingEnd(Interval*);
-        Interval* detachAll();
 
     private:
         SkDEBUGCODE(void validate() const;)
@@ -254,24 +271,23 @@ private:
     // Compositing use cases can create > 80 intervals.
     static const int kInitialArenaSize = 128 * sizeof(Interval);
 
-    GrResourceProvider*          fResourceProvider;
+    GrDirectContext*             fDContext;
     FreePoolMultiMap             fFreePool;          // Recently created/used GrSurfaces
     IntvlHash                    fIntvlHash;         // All the intervals, hashed by proxyID
 
     IntervalList                 fIntvlList;         // All the intervals sorted by increasing start
     IntervalList                 fActiveIntvls;      // List of live intervals during assignment
                                                      // (sorted by increasing end)
+    IntervalList                 fFinishedIntvls;    // All the completed intervals
+                                                     // (sorted by increasing start)
+    UniqueKeyRegisterHash        fUniqueKeyRegisters;
     unsigned int                 fNumOps = 0;
-    SkTArray<unsigned int>       fEndOfOpsTaskOpIndices;
-    int                          fCurOpsTaskIndex = 0;
-    SkDEBUGCODE(const int        fNumOpsTasks = -1;)
 
+    SkDEBUGCODE(bool             fPlanned = false;)
     SkDEBUGCODE(bool             fAssigned = false;)
 
-    char                         fStorage[kInitialArenaSize];
-    SkArenaAlloc                 fIntervalAllocator{fStorage, kInitialArenaSize, kInitialArenaSize};
-    Interval*                    fFreeIntervalList = nullptr;
-    bool                         fLazyInstantiationError = false;
+    SkSTArenaAllocWithReset<kInitialArenaSize>   fInternalAllocator; // intervals & registers
+    bool                                         fFailedInstantiation = false;
 };
 
 #endif // GrResourceAllocator_DEFINED

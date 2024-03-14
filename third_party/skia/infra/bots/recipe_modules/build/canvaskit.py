@@ -2,11 +2,12 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-DOCKER_IMAGE = 'gcr.io/skia-public/canvaskit-emsdk:1.38.47_v1'
+DOCKER_IMAGE = 'gcr.io/skia-public/canvaskit-emsdk:3.1.3_v1'
 INNER_BUILD_SCRIPT = '/SRC/skia/infra/canvaskit/build_canvaskit.sh'
 
 
 def compile_fn(api, checkout_root, _ignore):
+  skia_dir = checkout_root.join('skia')
   out_dir = api.vars.cache_dir.join('docker', 'canvaskit')
   configuration = api.vars.builder_cfg.get('configuration', '')
   extra = api.vars.builder_cfg.get('extra_config', '')
@@ -16,9 +17,16 @@ def compile_fn(api, checkout_root, _ignore):
   # owned by root, which causes mysterious failures. To mitigate this risk
   # further, we don't use the same out_dir as everyone else (thus the _ignore)
   # param. Instead, we use a "canvaskit" subdirectory in the "docker" named_cache.
-  api.file.ensure_directory('mkdirs out_dir', out_dir, mode=0777)
+  api.file.ensure_directory('mkdirs out_dir', out_dir, mode=0o777)
 
-  # This uses the emscriptem sdk docker image and says "run the
+  # Download the emsdk binaries (we won't actually use the ones on the Docker
+  # image anymore, now that we have proper GN support)
+  with api.context(cwd=skia_dir):
+    api.run(api.python, 'activate-emsdk',
+            script=skia_dir.join('bin', 'activate-emsdk'),
+            infra_step=True)
+
+  # This uses the emscripten sdk docker image and says "run the
   # build_canvaskit.sh helper script in there". Additionally, it binds two
   # folders: the Skia checkout to /SRC and the output directory to /OUT
   # The called helper script will make the compile happen and put the
@@ -83,7 +91,7 @@ for pattern in build_products:
     dst_path = os.path.join(dst, os.path.relpath(f, src))
     if not os.path.isdir(os.path.dirname(dst_path)):
       os.makedirs(os.path.dirname(dst_path))
-    print 'Copying build product %%s to %%s' %% (f, dst_path)
+    print('Copying build product %%s to %%s' %% (f, dst_path))
     # Because Docker usually has some strange permissions (like root
     # ownership), we'd rather not keep those around. copyfile doesn't
     # keep the metadata around, so that helps us.

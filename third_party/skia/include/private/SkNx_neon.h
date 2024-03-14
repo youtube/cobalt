@@ -72,12 +72,6 @@ public:
         vst4_f32((float*) dst, abcd);
     }
 
-    AI SkNx invert() const {
-        float32x2_t est0 = vrecpe_f32(fVec),
-                    est1 = vmul_f32(vrecps_f32(est0, fVec), est0);
-        return est1;
-    }
-
     AI SkNx operator - () const { return vneg_f32(fVec); }
 
     AI SkNx operator + (const SkNx& o) const { return vadd_f32(fVec, o.fVec); }
@@ -113,11 +107,6 @@ public:
     #else
         return emulate_vrndm_f32(fVec);
     #endif
-    }
-
-    AI SkNx rsqrt() const {
-        float32x2_t est0 = vrsqrte_f32(fVec);
-        return vmul_f32(vrsqrts_f32(fVec, vmul_f32(est0, est0)), est0);
     }
 
     AI SkNx sqrt() const {
@@ -196,12 +185,6 @@ public:
         vst4q_f32((float*) dst, rgba);
     }
 
-    AI SkNx invert() const {
-        float32x4_t est0 = vrecpeq_f32(fVec),
-                    est1 = vmulq_f32(vrecpsq_f32(est0, fVec), est0);
-        return est1;
-    }
-
     AI SkNx operator - () const { return vnegq_f32(fVec); }
 
     AI SkNx operator + (const SkNx& o) const { return vaddq_f32(fVec, o.fVec); }
@@ -240,11 +223,6 @@ public:
     }
 
 
-    AI SkNx rsqrt() const {
-        float32x4_t est0 = vrsqrteq_f32(fVec);
-        return vmulq_f32(vrsqrtsq_f32(fVec, vmulq_f32(est0, est0)), est0);
-    }
-
     AI SkNx sqrt() const {
     #if defined(SK_CPU_ARM64)
         return vsqrtq_f32(fVec);
@@ -267,7 +245,7 @@ public:
         return vminvq_f32(fVec);
     #else
         SkNx min = Min(*this, vrev64q_f32(fVec));
-        return SkTMin(min[0], min[2]);
+        return std::min(min[0], min[2]);
     #endif
     }
 
@@ -276,7 +254,7 @@ public:
         return vmaxvq_f32(fVec);
     #else
         SkNx max = Max(*this, vrev64q_f32(fVec));
-        return SkTMax(max[0], max[2]);
+        return std::max(max[0], max[2]);
     #endif
     }
 

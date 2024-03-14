@@ -3,16 +3,16 @@ description:
   "Subtree at third_party/ots."
 
 third_party {
-  url {
-    type: LOCAL_SOURCE
-    value: "/third_party/ots_mirror"
+  identifier {
+    type: "ChromiumVersion"
+    value: "90.0.4430.218"  # from https://chromereleases.googleblog.com/2021/05/stable-channel-update-for-chrome-os_18.html
   }
-  url {
-    type: GIT
-    value: "https://github.com/khaledhosny/ots.git"
+  identifier {
+    type: "Git"
+    value: "https://chromium.googlesource.com/external/github.com/khaledhosny/ots.git"
+    version: "ee537ac096667eed6559124164c3e8482646fd77"
+    # from https://chromium.googlesource.com/chromium/src/+/90.0.4430.218/DEPS#275
   }
-  version: "ee537ac096667eed6559124164c3e8482646fd77"
-  # from https://chromium.googlesource.com/chromium/src/+/90.0.4430.218/DEPS#275
   last_upgrade_date {
     year: 2018
     month: 2

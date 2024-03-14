@@ -23,17 +23,16 @@
 #include "include/core/SkSurfaceProps.h"
 #include "include/core/SkTextBlob.h"
 #include "include/core/SkTypeface.h"
-#include "include/gpu/GrContext.h"
+#include "include/gpu/GrDirectContext.h"
+#include "include/gpu/GrRecordingContext.h"
 #include "tools/ToolUtils.h"
 #include "tools/fonts/RandomScalerContext.h"
 
 #include <string.h>
 #include <utility>
 
-class GrRenderTargetContext;
-
 namespace skiagm {
-class TextBlobRandomFont : public GpuGM {
+class TextBlobRandomFont : public GM {
 public:
     // This gm tests that textblobs can be translated and scaled with a font that returns random
     // but deterministic masks
@@ -106,8 +105,14 @@ protected:
         return SkISize::Make(kWidth, kHeight);
     }
 
-    DrawResult onDraw(GrContext* context, GrRenderTargetContext*, SkCanvas* canvas,
-                      SkString* errorMsg) override {
+    DrawResult onDraw(SkCanvas* canvas, SkString* errorMsg) override {
+        if (!canvas->recordingContext()) {
+            *errorMsg = "Active context required to create SkSurface";
+            return DrawResult::kSkip;
+        }
+
+        auto dContext = GrAsDirectContext(canvas->recordingContext());
+
         // This GM exists to test a specific feature of the GPU backend.
         // This GM uses ToolUtils::makeSurface which doesn't work well with vias.
         // This GM uses SkRandomTypeface which doesn't work well with serialization.
@@ -144,11 +149,13 @@ protected:
         // Rotate in the surface canvas, not the final canvas, to avoid aliasing
         surfaceCanvas->rotate(-0.05f);
         surfaceCanvas->drawTextBlob(fBlob, 10, yOffset, paint);
-        surface->draw(canvas, 0, 0, nullptr);
+        surface->draw(canvas, 0, 0);
         yOffset += stride;
 
-        // free gpu resources and verify
-        context->freeGpuResources();
+        if (dContext) {
+            // free gpu resources and verify
+            dContext->freeGpuResources();
+        }
 
         canvas->rotate(-0.05f);
         canvas->drawTextBlob(fBlob, 10, yOffset, paint);
@@ -159,13 +166,13 @@ protected:
 private:
     sk_sp<SkTextBlob> fBlob;
 
-    static constexpr int kWidth = 2000;
-    static constexpr int kHeight = 1600;
+    inline static constexpr int kWidth = 2000;
+    inline static constexpr int kHeight = 1600;
 
-    typedef GM INHERITED;
+    using INHERITED = GM;
 };
 
 //////////////////////////////////////////////////////////////////////////////
 
 DEF_GM(return new TextBlobRandomFont;)
-}
+}  // namespace skiagm

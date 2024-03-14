@@ -6,7 +6,6 @@
 #define V8_WASM_WASM_MODULE_BUILDER_H_
 
 #include "src/base/memory.h"
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/signature.h"
 #include "src/utils/vector.h"
 #include "src/wasm/leb-helper.h"

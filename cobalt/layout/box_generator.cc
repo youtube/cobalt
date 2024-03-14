@@ -318,9 +318,9 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
     return;
   }
 
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
   replaced_box->SetGeneratingNode(video_element);
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
   replaced_box->SetUiNavItem(video_element->GetUiNavItem());
   boxes_.push_back(replaced_box);
@@ -359,9 +359,9 @@ void BoxGenerator::VisitBrElement(dom::HTMLBRElement* br_element) {
   // the line breaking and bidirectional algorithms.
   (*paragraph_)->AppendCodePoint(Paragraph::kLineFeedCodePoint);
 
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
   br_text_box->SetGeneratingNode(br_element);
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
   br_text_box->SetUiNavItem(br_element->GetUiNavItem());
   boxes_.push_back(br_text_box);
@@ -403,9 +403,9 @@ void BoxGenerator::VisitLottiePlayer(dom::LottiePlayer* lottie_player) {
     return;
   }
 
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
   replaced_box->SetGeneratingNode(lottie_player);
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
   replaced_box->SetUiNavItem(lottie_player->GetUiNavItem());
   boxes_.push_back(replaced_box);
@@ -861,9 +861,9 @@ void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
     return;
   }
 
-#ifdef COBALT_BOX_DUMP_ENABLED
+#ifdef ENABLE_DEBUGGER
   container_box_before_split->SetGeneratingNode(html_element);
-#endif  // COBALT_BOX_DUMP_ENABLED
+#endif  // ENABLE_DEBUGGER
 
   container_box_before_split->SetUiNavItem(html_element->GetUiNavItem());
   boxes_.push_back(container_box_before_split);

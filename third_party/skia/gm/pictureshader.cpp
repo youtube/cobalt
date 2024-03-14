@@ -20,6 +20,7 @@
 #include "include/core/SkShader.h"
 #include "include/core/SkSize.h"
 #include "include/core/SkString.h"
+#include "include/core/SkTextBlob.h"
 #include "include/core/SkTileMode.h"
 #include "include/core/SkTypes.h"
 #include "tools/ToolUtils.h"
@@ -35,16 +36,19 @@ static struct {
 
 class PictureShaderGM : public skiagm::GM {
 public:
-    PictureShaderGM(SkScalar tileSize, SkScalar sceneSize, bool useLocalMatrixWrapper = false)
+    PictureShaderGM(SkScalar tileSize, SkScalar sceneSize, bool useLocalMatrixWrapper = false,
+                    float alpha = 1)
         : fTileSize(tileSize)
         , fSceneSize(sceneSize)
-        , fUseLocalMatrixWrapper(useLocalMatrixWrapper) {}
+        , fAlpha(alpha)
+        , fUseLocalMatrixWrapper(useLocalMatrixWrapper)
+    {}
 
  protected:
     void onOnceBeforeDraw() override {
        // Build the picture.
         SkPictureRecorder recorder;
-        SkCanvas* pictureCanvas = recorder.beginRecording(fTileSize, fTileSize, nullptr, 0);
+        SkCanvas* pictureCanvas = recorder.beginRecording(fTileSize, fTileSize);
         this->drawTile(pictureCanvas);
         fPicture = recorder.finishRecordingAsPicture();
 
@@ -57,7 +61,9 @@ public:
 
 
     SkString onShortName() override {
-        return SkStringPrintf("pictureshader%s", fUseLocalMatrixWrapper ? "_localwrapper" : "");
+        return SkStringPrintf("pictureshader%s%s",
+                              fUseLocalMatrixWrapper ? "_localwrapper" : "",
+                              fAlpha < 1 ? "_alpha" : "");
     }
 
     SkISize onISize() override {
@@ -161,8 +167,11 @@ private:
         canvas->drawRect(SkRect::MakeWH(fSceneSize, fSceneSize), paint);
         canvas->drawRect(SkRect::MakeXYWH(fSceneSize * 1.1f, 0, fSceneSize, fSceneSize), paint);
 
+        paint.setAlphaf(fAlpha);
+
         auto pictureShader = fPicture->makeShader(kTileConfigs[tileMode].tmx,
                                                   kTileConfigs[tileMode].tmy,
+                                                  SkFilterMode::kNearest,
                                                   fUseLocalMatrixWrapper ? nullptr : &localMatrix,
                                                   nullptr);
         paint.setShader(fUseLocalMatrixWrapper
@@ -172,11 +181,10 @@ private:
 
         canvas->translate(fSceneSize * 1.1f, 0);
 
-        auto bitmapShader = fBitmap.makeShader(
-                                                       kTileConfigs[tileMode].tmx,
-                                                       kTileConfigs[tileMode].tmy,
-                                                       fUseLocalMatrixWrapper
-                                                           ? nullptr : &localMatrix);
+        auto bitmapShader = fBitmap.makeShader(kTileConfigs[tileMode].tmx,
+                                               kTileConfigs[tileMode].tmy,
+                                               SkSamplingOptions(),
+                                               fUseLocalMatrixWrapper ? nullptr : &localMatrix);
         paint.setShader(fUseLocalMatrixWrapper
                             ? bitmapShader->makeWithLocalMatrix(localMatrix)
                             : bitmapShader);
@@ -185,18 +193,20 @@ private:
         canvas->restore();
     }
 
+    const SkScalar   fTileSize;
+    const SkScalar   fSceneSize;
+    const float      fAlpha;
+    const bool       fUseLocalMatrixWrapper;
+
     sk_sp<SkPicture> fPicture;
-    SkBitmap fBitmap;
+    SkBitmap         fBitmap;
 
-    SkScalar    fTileSize;
-    SkScalar    fSceneSize;
-    bool        fUseLocalMatrixWrapper;
-
-    typedef GM INHERITED;
+    using INHERITED = GM;
 };
 
 DEF_GM(return new PictureShaderGM(50, 100);)
 DEF_GM(return new PictureShaderGM(50, 100, true);)
+DEF_GM(return new PictureShaderGM(50, 100, false, 0.25f);)
 
 DEF_SIMPLE_GM(tiled_picture_shader, canvas, 400, 400) {
     // https://code.google.com/p/skia/issues/detail?id=3398
@@ -223,6 +233,78 @@ DEF_SIMPLE_GM(tiled_picture_shader, canvas, 400, 400) {
     p.setColor(0xFFB6B6B6);  // gray
     canvas->drawPaint(p);
 
-    p.setShader(picture->makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat));
+    p.setShader(picture->makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat,
+                                    SkFilterMode::kNearest));
     canvas->drawPaint(p);
+}
+
+DEF_SIMPLE_GM(pictureshader_persp, canvas, 215, 110) {
+    enum class DrawStrategy {
+        kDirect,
+        kPictureShader,
+    };
+
+    auto drawPicture = [](SkCanvas* canvas, sk_sp<SkPicture> picture, DrawStrategy strategy) {
+        // Only want local upper 50x50 of 'picture' before we apply decal (or clip)
+        SkRect bounds = {0.f, 0.f, 50.f, 50.f};
+        switch(strategy) {
+            case DrawStrategy::kDirect: {
+                canvas->clipRect(bounds, true);
+                canvas->drawPicture(picture);
+                break; }
+            case DrawStrategy::kPictureShader: {
+                SkPaint paint;
+                paint.setShader(picture->makeShader(SkTileMode::kDecal, SkTileMode::kDecal,
+                                                    SkFilterMode::kLinear, nullptr, &bounds));
+                canvas->drawRect({0.f, 0.f, 50.f, 50.f}, paint);
+                break; }
+        }
+    };
+
+    auto picture = []() {
+        sk_sp<SkTypeface> typeface = SkTypeface::MakeDefault();
+        if (!typeface) {
+            typeface = SkTypeface::MakeFromName("monospace", SkFontStyle());
+        }
+        SkFont font;
+        font.setTypeface(typeface);
+        font.setHinting(SkFontHinting::kNormal);
+        font.setSize(8.f);
+
+        SkPaint paint;
+        paint.setColor(SK_ColorGREEN);
+        SkPictureRecorder recorder;
+        SkCanvas* record_canvas = recorder.beginRecording({0, 0, 100, 100});
+        record_canvas->drawTextBlob(SkTextBlob::MakeFromString("Hamburgefons", font),
+                                    0, 16.f, paint);
+        return recorder.finishRecordingAsPicture();
+    }();
+
+    SkM44 m;
+    m.preScale(2.f, 2.f);
+    SkM44 persp = SkM44::Perspective(0.01f, 10.f, SK_ScalarPI / 3.f);
+    persp.preTranslate(0.f, 5.f, -0.1f);
+    persp.preConcat(SkM44::Rotate({0.f, 1.f, 0.f}, 0.008f));
+    m.postConcat(persp);
+
+    canvas->clear(SK_ColorBLACK);
+    canvas->translate(5.f, 5.f);
+    for (auto strategy : { DrawStrategy::kDirect,
+                           DrawStrategy::kPictureShader }) {
+        canvas->save();
+
+        SkPaint outline;
+        outline.setColor(SK_ColorWHITE);
+        outline.setStyle(SkPaint::kStroke_Style);
+        outline.setStrokeWidth(1.f);
+        canvas->drawRect({-1, -1, 101, 101}, outline);
+
+        canvas->clipRect({0, 0, 100, 100});
+        canvas->concat(m);
+
+        drawPicture(canvas, picture, strategy);
+        canvas->restore();
+
+        canvas->translate(105.f, 0.f);
+    }
 }

@@ -64,20 +64,12 @@ extern "C" {
 #endif
 
 
-// This header file contains some common macros for enforcing type checking.
-// Several, common OpenSSL structures (i.e. stack and lhash) operate on void
-// pointers, but we wish to have type checking when they are used with a
-// specific type.
-
 // CHECKED_CAST casts |p| from type |from| to type |to|.
+//
+// TODO(davidben): Although this macro is not public API and is unused in
+// BoringSSL, wpa_supplicant uses it to define its own stacks. Remove this once
+// wpa_supplicant has been fixed.
 #define CHECKED_CAST(to, from, p) ((to) (1 ? (p) : (from)0))
-
-#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
-#define OPENSSL_COMPILE_ASSERT(cond, msg) _Static_assert(cond, #msg)
-#else
-#define OPENSSL_COMPILE_ASSERT(cond, msg) \
-  typedef char OPENSSL_COMPILE_ASSERT_##msg[((cond) ? 1 : -1)] OPENSSL_UNUSED
-#endif
 
 
 #if defined(__cplusplus)

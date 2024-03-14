@@ -45,8 +45,6 @@ platform_tests_path = "//starboard/android/shared:starboard_platform_tests"
 
 cobalt_licenses_platform = "android"
 
-enable_account_manager = true
-
 cobalt_platform_dependencies =
     [ "//starboard/android/shared/cobalt:cobalt_platform" ]
 

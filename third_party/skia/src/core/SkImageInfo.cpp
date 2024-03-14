@@ -21,6 +21,8 @@ int SkColorTypeBytesPerPixel(SkColorType ct) {
         case kRGB_888x_SkColorType:           return 4;
         case kRGBA_1010102_SkColorType:       return 4;
         case kRGB_101010x_SkColorType:        return 4;
+        case kBGRA_1010102_SkColorType:       return 4;
+        case kBGR_101010x_SkColorType:        return 4;
         case kGray_8_SkColorType:             return 1;
         case kRGBA_F16Norm_SkColorType:       return 8;
         case kRGBA_F16_SkColorType:           return 8;
@@ -31,12 +33,14 @@ int SkColorTypeBytesPerPixel(SkColorType ct) {
         case kA16_float_SkColorType:          return 2;
         case kR16G16_float_SkColorType:       return 4;
         case kR16G16B16A16_unorm_SkColorType: return 8;
+        case kSRGBA_8888_SkColorType:         return 4;
+        case kR8_unorm_SkColorType:           return 1;
     }
     SkUNREACHABLE;
 }
 
 bool SkColorTypeIsAlwaysOpaque(SkColorType ct) {
-    return !(kAlpha_SkColorTypeComponentFlag & SkColorTypeComponentFlags(ct));
+    return !(SkColorTypeChannelFlags(ct) & kAlpha_SkColorChannelFlag);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -60,7 +64,12 @@ size_t SkImageInfo::computeByteSize(size_t rowBytes) const {
     SkSafeMath safe;
     size_t bytes = safe.add(safe.mul(safe.addInt(this->height(), -1), rowBytes),
                             safe.mul(this->width(), this->bytesPerPixel()));
-    return safe.ok() ? bytes : SIZE_MAX;
+
+    // The CPU backend implements some memory operations on images using instructions that take a
+    // signed 32-bit offset from the base. If we ever make an image larger than that, overflow can
+    // cause us to read/write memory that starts 2GB *before* the buffer. (crbug.com/1264705)
+    constexpr size_t kMaxSigned32BitSize = SK_MaxS32;
+    return (safe.ok() && (bytes <= kMaxSigned32BitSize)) ? bytes : SIZE_MAX;
 }
 
 SkImageInfo SkImageInfo::MakeS32(int width, int height, SkAlphaType at) {
@@ -88,11 +97,13 @@ bool SkColorTypeValidateAlphaType(SkColorType colorType, SkAlphaType alphaType,
             if (kUnpremul_SkAlphaType == alphaType) {
                 alphaType = kPremul_SkAlphaType;
             }
-            // fall-through
+            [[fallthrough]];
         case kARGB_4444_SkColorType:
         case kRGBA_8888_SkColorType:
+        case kSRGBA_8888_SkColorType:
         case kBGRA_8888_SkColorType:
         case kRGBA_1010102_SkColorType:
+        case kBGRA_1010102_SkColorType:
         case kRGBA_F16Norm_SkColorType:
         case kRGBA_F16_SkColorType:
         case kRGBA_F32_SkColorType:
@@ -108,10 +119,10 @@ bool SkColorTypeValidateAlphaType(SkColorType colorType, SkAlphaType alphaType,
         case kRGB_565_SkColorType:
         case kRGB_888x_SkColorType:
         case kRGB_101010x_SkColorType:
+        case kBGR_101010x_SkColorType:
+        case kR8_unorm_SkColorType:
             alphaType = kOpaque_SkAlphaType;
             break;
-        default:
-            return false;
     }
     if (canonical) {
         *canonical = alphaType;

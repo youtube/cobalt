@@ -7,16 +7,20 @@ description:
   "easier to update the Skia porting layer again in the future."
 
 third_party {
-  url {
-    type: GIT
-    value: "https://chromium.googlesource.com/skia"
+  identifier {
+    type: "ChromiumVersion"
+    value: "100.0.4896.143"  # from https://chromereleases.googleblog.com/2022/04/extended-stable-channel-update-for.html
   }
-  version: "a91f9f612e5eeb93cf40a3c0ce7d7c6ddf838feb"
-  # from https://chromium.googlesource.com/chromium/src/+/80.0.3987.162/DEPS#176
+  identifier {
+    type: "Git"
+    value: "https://chromium.googlesource.com/skia.git"
+    version: "b524f580859d367e51591d8b5c16485d022844cb"
+    # from https://chromium.googlesource.com/chromium/src/+/100.0.4896.143/DEPS#256
+  }
   last_upgrade_date {
-    year: 2019
-    month: 10
-    day: 28
+    year: 2024
+    month: 2
+    day: 12
   }
   license_type: NOTICE
 }

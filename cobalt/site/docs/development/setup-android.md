@@ -10,12 +10,15 @@ device. The package being built here is referred to as CoAT (Cobalt on Android T
 
 <aside class="note">
 <b>Note:</b> Before proceeding further, refer to the documentation for
-<a href="setup-linux.html">"Set up your environment - Linux"</a>. Complete the
+<a href="setup-linux.md">"Set up your environment - Linux"</a>. Complete the
 sections <b>Set up your workstation</b> and <b>Set up developer tools</b>, then
 return and complete the following steps.
 </aside>
 
 1.  Download and install [Android Studio](https://developer.android.com/studio/).
+
+1.  Install [JDK 17](https://www.oracle.com/java/technologies/javase/jdk17-archive-downloads.html)
+    and make sure it's before any other JDK on your PATH.
 
 1.  To enable parallel gradle builds, add the following to your `~/.bashrc`:
 

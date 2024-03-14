@@ -5,20 +5,21 @@
  * found in the LICENSE file
  */
 
+#include "src/core/SkSpecialSurface.h"
+
+#include <memory>
+
 #include "include/core/SkCanvas.h"
 #include "src/core/SkSpecialImage.h"
-#include "src/core/SkSpecialSurface.h"
 #include "src/core/SkSurfacePriv.h"
 
  ///////////////////////////////////////////////////////////////////////////////
 class SkSpecialSurface_Base : public SkSpecialSurface {
 public:
-    SkSpecialSurface_Base(const SkIRect& subset, const SkSurfaceProps* props)
+    SkSpecialSurface_Base(const SkIRect& subset, const SkSurfaceProps& props)
         : INHERITED(subset, props)
         , fCanvas(nullptr) {
     }
-
-    virtual ~SkSpecialSurface_Base() { }
 
     // reset is called after an SkSpecialImage has been snapped
     void reset() { fCanvas.reset(); }
@@ -32,7 +33,7 @@ protected:
     std::unique_ptr<SkCanvas> fCanvas;   // initialized by derived classes in ctors
 
 private:
-    typedef SkSpecialSurface INHERITED;
+    using INHERITED = SkSpecialSurface;
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -41,8 +42,8 @@ static SkSpecialSurface_Base* as_SB(SkSpecialSurface* surface) {
 }
 
 SkSpecialSurface::SkSpecialSurface(const SkIRect& subset,
-                                   const SkSurfaceProps* props)
-    : fProps(SkSurfacePropsCopyOrDefault(props).flags(), kUnknown_SkPixelGeometry)
+                                   const SkSurfaceProps& props)
+    : fProps(props.flags(), kUnknown_SkPixelGeometry)
     , fSubset(subset) {
     SkASSERT(fSubset.width() > 0);
     SkASSERT(fSubset.height() > 0);
@@ -66,13 +67,13 @@ public:
     SkSpecialSurface_Raster(const SkImageInfo& info,
                             sk_sp<SkPixelRef> pr,
                             const SkIRect& subset,
-                            const SkSurfaceProps* props)
+                            const SkSurfaceProps& props)
         : INHERITED(subset, props) {
         SkASSERT(info.width() == pr->width() && info.height() == pr->height());
         fBitmap.setInfo(info, info.minRowBytes());
         fBitmap.setPixelRef(std::move(pr), 0, 0);
 
-        fCanvas.reset(new SkCanvas(fBitmap, this->props()));
+        fCanvas = std::make_unique<SkCanvas>(fBitmap, this->props());
         fCanvas->clipRect(SkRect::Make(subset));
 #ifdef SK_IS_BOT
         fCanvas->clear(SK_ColorRED);  // catch any imageFilter sloppiness
@@ -82,17 +83,17 @@ public:
     ~SkSpecialSurface_Raster() override { }
 
     sk_sp<SkSpecialImage> onMakeImageSnapshot() override {
-        return SkSpecialImage::MakeFromRaster(this->subset(), fBitmap, &this->props());
+        return SkSpecialImage::MakeFromRaster(this->subset(), fBitmap, this->props());
     }
 
 private:
     SkBitmap fBitmap;
 
-    typedef SkSpecialSurface_Base INHERITED;
+    using INHERITED = SkSpecialSurface_Base;
 };
 
 sk_sp<SkSpecialSurface> SkSpecialSurface::MakeFromBitmap(const SkIRect& subset, SkBitmap& bm,
-                                                         const SkSurfaceProps* props) {
+                                                         const SkSurfaceProps& props) {
     if (subset.isEmpty() || !SkSurfaceValidateRasterInfo(bm.info(), bm.rowBytes())) {
         return nullptr;
     }
@@ -100,7 +101,7 @@ sk_sp<SkSpecialSurface> SkSpecialSurface::MakeFromBitmap(const SkIRect& subset, 
 }
 
 sk_sp<SkSpecialSurface> SkSpecialSurface::MakeRaster(const SkImageInfo& info,
-                                                     const SkSurfaceProps* props) {
+                                                     const SkSurfaceProps& props) {
     if (!SkSurfaceValidateRasterInfo(info)) {
         return nullptr;
     }
@@ -117,26 +118,16 @@ sk_sp<SkSpecialSurface> SkSpecialSurface::MakeRaster(const SkImageInfo& info,
 
 #if SK_SUPPORT_GPU
 ///////////////////////////////////////////////////////////////////////////////
-#include "include/private/GrRecordingContext.h"
-#include "src/core/SkMakeUnique.h"
+#include "include/gpu/GrRecordingContext.h"
 #include "src/gpu/GrRecordingContextPriv.h"
-#include "src/gpu/SkGpuDevice.h"
 
 class SkSpecialSurface_Gpu : public SkSpecialSurface_Base {
 public:
-    SkSpecialSurface_Gpu(GrRecordingContext* context,
-                         std::unique_ptr<GrRenderTargetContext> renderTargetContext,
-                         int width, int height, const SkIRect& subset)
-            : INHERITED(subset, &renderTargetContext->surfaceProps())
-            , fProxy(renderTargetContext->asTextureProxyRef()) {
-        // CONTEXT TODO: remove this use of 'backdoor' to create an SkGpuDevice
-        auto device = SkGpuDevice::Make(context->priv().backdoor(), std::move(renderTargetContext),
-                                        SkGpuDevice::kUninit_InitContents);
-        if (!device) {
-            return;
-        }
+    SkSpecialSurface_Gpu(sk_sp<skgpu::BaseDevice> device, SkIRect subset)
+            : INHERITED(subset, device->surfaceProps())
+            , fReadView(device->readSurfaceView()) {
 
-        fCanvas.reset(new SkCanvas(std::move(device)));
+        fCanvas = std::make_unique<SkCanvas>(std::move(device));
         fCanvas->clipRect(SkRect::Make(subset));
 #ifdef SK_IS_BOT
         fCanvas->clear(SK_ColorRED);  // catch any imageFilter sloppiness
@@ -144,43 +135,45 @@ public:
     }
 
     sk_sp<SkSpecialImage> onMakeImageSnapshot() override {
-        if (!fProxy) {
+        if (!fReadView.asTextureProxy()) {
             return nullptr;
         }
         GrColorType ct = SkColorTypeToGrColorType(fCanvas->imageInfo().colorType());
 
-        return SkSpecialImage::MakeDeferredFromGpu(fCanvas->getGrContext(),
+        // Note: SkSpecialImages can only be snapShotted once, so this call is destructive and we
+        // move fReadMove.
+        return SkSpecialImage::MakeDeferredFromGpu(fCanvas->recordingContext(),
                                                    this->subset(),
                                                    kNeedNewImageUniqueID_SpecialImage,
-                                                   std::move(fProxy), ct,
+                                                   std::move(fReadView), ct,
                                                    fCanvas->imageInfo().refColorSpace(),
-                                                   &this->props());
+                                                   this->props());
     }
 
 private:
-    sk_sp<GrTextureProxy> fProxy;
-    typedef SkSpecialSurface_Base INHERITED;
+    GrSurfaceProxyView fReadView;
+    using INHERITED = SkSpecialSurface_Base;
 };
 
-sk_sp<SkSpecialSurface> SkSpecialSurface::MakeRenderTarget(GrRecordingContext* context,
-                                                           int width, int height,
-                                                           GrColorType colorType,
-                                                           sk_sp<SkColorSpace> colorSpace,
-                                                           const SkSurfaceProps* props) {
-    if (!context) {
-        return nullptr;
-    }
-    auto renderTargetContext = context->priv().makeDeferredRenderTargetContext(
-            SkBackingFit::kApprox, width, height, colorType, std::move(colorSpace), 1,
-            GrMipMapped::kNo, kBottomLeft_GrSurfaceOrigin, props);
-    if (!renderTargetContext) {
+sk_sp<SkSpecialSurface> SkSpecialSurface::MakeRenderTarget(GrRecordingContext* rContext,
+                                                           const SkImageInfo& ii,
+                                                           const SkSurfaceProps& props,
+                                                           GrSurfaceOrigin surfaceOrigin) {
+    if (!rContext) {
         return nullptr;
     }
 
-    const SkIRect subset = SkIRect::MakeWH(width, height);
+    auto device = rContext->priv().createDevice(SkBudgeted::kYes, ii, SkBackingFit::kApprox, 1,
+                                                GrMipmapped::kNo, GrProtected::kNo,
+                                                surfaceOrigin, props,
+                                                skgpu::BaseDevice::InitContents::kUninit);
+    if (!device) {
+        return nullptr;
+    }
 
-    return sk_make_sp<SkSpecialSurface_Gpu>(context, std::move(renderTargetContext),
-                                            width, height, subset);
+    const SkIRect subset = SkIRect::MakeSize(ii.dimensions());
+
+    return sk_make_sp<SkSpecialSurface_Gpu>(std::move(device), subset);
 }
 
 #endif

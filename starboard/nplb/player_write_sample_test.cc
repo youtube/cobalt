@@ -230,7 +230,7 @@ TEST_P(SbPlayerWriteSampleTest, PartialAudio) {
                 << ".";
 }
 
-TEST_P(SbPlayerWriteSampleTest, PartialAudioDiscardAll) {
+TEST_P(SbPlayerWriteSampleTest, DiscardAllAudio) {
   if (!IsPartialAudioSupported()) {
     // TODO: Use GTEST_SKIP when we have a newer version of gtest.
     SB_LOG(INFO)

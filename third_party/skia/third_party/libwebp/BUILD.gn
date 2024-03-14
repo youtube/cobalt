@@ -4,7 +4,7 @@
 # found in the LICENSE file.
 
 declare_args() {
-  skia_use_system_libwebp = is_official_build
+  skia_use_system_libwebp = is_official_build && !is_wasm
 }
 
 import("../third_party.gni")
@@ -33,12 +33,13 @@ if (skia_use_system_libwebp) {
       "../externals/libwebp/src",
       "../externals/libwebp",
     ]
-    configs += [ ":libwebp_defines" ]
+    configs = [ ":libwebp_defines" ]
     sources = [
       "../externals/libwebp/src/dsp/alpha_processing_sse41.c",
       "../externals/libwebp/src/dsp/dec_sse41.c",
       "../externals/libwebp/src/dsp/enc_sse41.c",
       "../externals/libwebp/src/dsp/lossless_enc_sse41.c",
+      "../externals/libwebp/src/dsp/lossless_sse41.c",
       "../externals/libwebp/src/dsp/upsampling_sse41.c",
       "../externals/libwebp/src/dsp/yuv_sse41.c",
     ]
@@ -54,14 +55,12 @@ if (skia_use_system_libwebp) {
       "../externals/libwebp",
     ]
 
-    deps = [
-      ":libwebp_sse41",
-    ]
+    deps = [ ":libwebp_sse41" ]
     if (is_android) {
       deps += [ "//third_party/cpu-features" ]
     }
 
-    configs += [ ":libwebp_defines" ]
+    configs = [ ":libwebp_defines" ]
     sources = [
       "../externals/libwebp/src/dec/alpha_dec.c",
       "../externals/libwebp/src/dec/buffer_dec.c",

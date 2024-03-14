@@ -9,24 +9,25 @@
 
 #include "include/core/SkRefCnt.h"
 #include "include/core/SkSurfaceProps.h"
-#include "include/gpu/GrContext.h"
 #include "include/gpu/GrTypes.h"
 #include "tools/sk_app/DisplayParams.h"
 
+class GrDirectContext;
 class SkSurface;
-class GrRenderTarget;
+#ifdef SK_GRAPHITE_ENABLED
+namespace skgpu {
+class Context;
+class Recorder;
+}
+#endif
 
 namespace sk_app {
 
 class WindowContext {
 public:
-    WindowContext(const DisplayParams& params)
-            : fContext(nullptr)
-            , fDisplayParams(params)
-            , fSampleCount(1)
-            , fStencilBits(0) {}
+    WindowContext(const DisplayParams&);
 
-    virtual ~WindowContext() {}
+    virtual ~WindowContext();
 
     virtual sk_sp<SkSurface> getBackbufferSurface() = 0;
 
@@ -36,20 +37,31 @@ public:
 
     virtual void resize(int w, int h) = 0;
 
+    virtual void activate(bool isActive) {}
+
     const DisplayParams& getDisplayParams() { return fDisplayParams; }
     virtual void setDisplayParams(const DisplayParams& params) = 0;
 
-    GrContext* getGrContext() const { return fContext.get(); }
+    GrDirectContext* directContext() const { return fContext.get(); }
+#ifdef SK_GRAPHITE_ENABLED
+    skgpu::Context* graphiteContext() const { return fGraphiteContext.get(); }
+    skgpu::Recorder* graphiteRecorder() const { return fGraphiteRecorder.get(); }
+#endif
 
     int width() const { return fWidth; }
     int height() const { return fHeight; }
+    SkISize dimensions() const { return {fWidth, fHeight}; }
     int sampleCount() const { return fSampleCount; }
     int stencilBits() const { return fStencilBits; }
 
 protected:
     virtual bool isGpuContext() { return true;  }
 
-    sk_sp<GrContext>        fContext;
+    sk_sp<GrDirectContext> fContext;
+#if SK_GRAPHITE_ENABLED
+    std::unique_ptr<skgpu::Context> fGraphiteContext;
+    std::unique_ptr<skgpu::Recorder> fGraphiteRecorder;
+#endif
 
     int               fWidth;
     int               fHeight;
@@ -58,8 +70,8 @@ protected:
     // parameters obtained from the native window
     // Note that the platform .cpp file is responsible for
     // initializing fSampleCount and fStencilBits!
-    int               fSampleCount;
-    int               fStencilBits;
+    int               fSampleCount = 1;
+    int               fStencilBits = 0;
 };
 
 }   // namespace sk_app

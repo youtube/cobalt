@@ -256,6 +256,9 @@ my $darn = sub {
 };
 
 print <<___;
+// This file is generated from a similarly-named Perl script in the BoringSSL
+// source tree. Do not edit by hand.
+
 #if defined(__has_feature)
 #if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
 #define OPENSSL_NO_ASM
@@ -308,4 +311,7 @@ while($line=<>) {
 
 print "#endif  // !OPENSSL_NO_ASM && __powerpc64__\n";
 
-close STDOUT;
+# See https://www.airs.com/blog/archives/518.
+print ".section\t.note.GNU-stack,\"\",\@progbits\n" if ($flavour =~ /linux/);
+
+close STDOUT or die "error closing STDOUT: $!";

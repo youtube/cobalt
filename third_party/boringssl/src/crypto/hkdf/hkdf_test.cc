@@ -14,11 +14,15 @@
 
 #include <openssl/digest.h>
 #include <openssl/err.h>
+#include <openssl/evp.h>
 #include <openssl/hkdf.h>
+#include <openssl/kdf.h>
 
 #include <gtest/gtest.h>
 
+#include "../test/file_test.h"
 #include "../test/test_util.h"
+#include "../test/wycheproof_util.h"
 
 
 struct HKDFTestVector {
@@ -264,5 +268,151 @@ TEST(HKDFTest, TestVectors) {
                      test->ikm_len, test->salt, test->salt_len, test->info,
                      test->info_len));
     EXPECT_EQ(Bytes(test->out, test->out_len), Bytes(buf, test->out_len));
+
+    // Repeat the test with the OpenSSL compatibility |EVP_PKEY_derive| API.
+    bssl::UniquePtr<EVP_PKEY_CTX> ctx(
+        EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr));
+    ASSERT_TRUE(ctx);
+    ASSERT_TRUE(EVP_PKEY_derive_init(ctx.get()));
+    ASSERT_TRUE(
+        EVP_PKEY_CTX_hkdf_mode(ctx.get(), EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY));
+    ASSERT_TRUE(EVP_PKEY_CTX_set_hkdf_md(ctx.get(), test->md_func()));
+    ASSERT_TRUE(
+        EVP_PKEY_CTX_set1_hkdf_key(ctx.get(), test->ikm, test->ikm_len));
+    ASSERT_TRUE(
+        EVP_PKEY_CTX_set1_hkdf_salt(ctx.get(), test->salt, test->salt_len));
+    for (bool copy_ctx : {false, true}) {
+      SCOPED_TRACE(copy_ctx);
+      bssl::UniquePtr<EVP_PKEY_CTX> copy;
+      EVP_PKEY_CTX *use_ctx = ctx.get();
+      if (copy_ctx) {
+        copy.reset(EVP_PKEY_CTX_dup(ctx.get()));
+        ASSERT_TRUE(copy);
+        use_ctx = copy.get();
+      }
+
+      // A null output should report the length.
+      prk_len = 0;
+      ASSERT_TRUE(EVP_PKEY_derive(use_ctx, nullptr, &prk_len));
+      EXPECT_EQ(prk_len, test->prk_len);
+
+      // Too small of a buffer should cleanly fail.
+      prk_len = test->prk_len - 1;
+      EXPECT_FALSE(EVP_PKEY_derive(use_ctx, prk, &prk_len));
+      ERR_clear_error();
+
+      // Test the correct buffer size.
+      OPENSSL_memset(prk, 0, sizeof(prk));
+      prk_len = test->prk_len;
+      ASSERT_TRUE(EVP_PKEY_derive(use_ctx, prk, &prk_len));
+      EXPECT_EQ(Bytes(test->prk, test->prk_len), Bytes(prk, prk_len));
+
+      // Test a larger buffer than necessary.
+      OPENSSL_memset(prk, 0, sizeof(prk));
+      prk_len = test->prk_len + 1;
+      ASSERT_TRUE(EVP_PKEY_derive(use_ctx, prk, &prk_len));
+      EXPECT_EQ(Bytes(test->prk, test->prk_len), Bytes(prk, prk_len));
+    }
+
+    ctx.reset(EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr));
+    ASSERT_TRUE(ctx);
+    ASSERT_TRUE(EVP_PKEY_derive_init(ctx.get()));
+    ASSERT_TRUE(
+        EVP_PKEY_CTX_hkdf_mode(ctx.get(), EVP_PKEY_HKDEF_MODE_EXPAND_ONLY));
+    ASSERT_TRUE(EVP_PKEY_CTX_set_hkdf_md(ctx.get(), test->md_func()));
+    ASSERT_TRUE(
+        EVP_PKEY_CTX_set1_hkdf_key(ctx.get(), test->prk, test->prk_len));
+    // |info| can be passed in multiple parts.
+    size_t half = test->info_len / 2;
+    ASSERT_TRUE(EVP_PKEY_CTX_add1_hkdf_info(ctx.get(), test->info, half));
+    ASSERT_TRUE(EVP_PKEY_CTX_add1_hkdf_info(ctx.get(), test->info + half,
+                                            test->info_len - half));
+    for (bool copy_ctx : {false, true}) {
+      SCOPED_TRACE(copy_ctx);
+      bssl::UniquePtr<EVP_PKEY_CTX> copy;
+      EVP_PKEY_CTX *use_ctx = ctx.get();
+      if (copy_ctx) {
+        copy.reset(EVP_PKEY_CTX_dup(ctx.get()));
+        ASSERT_TRUE(copy);
+        use_ctx = copy.get();
+      }
+      OPENSSL_memset(buf, 0, sizeof(buf));
+      size_t len = test->out_len;
+      ASSERT_TRUE(EVP_PKEY_derive(use_ctx, buf, &len));
+      EXPECT_EQ(Bytes(test->out, test->out_len), Bytes(buf, len));
+    }
+
+    ctx.reset(EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr));
+    ASSERT_TRUE(ctx);
+    ASSERT_TRUE(EVP_PKEY_derive_init(ctx.get()));
+    ASSERT_TRUE(EVP_PKEY_CTX_hkdf_mode(ctx.get(),
+                                       EVP_PKEY_HKDEF_MODE_EXTRACT_AND_EXPAND));
+    ASSERT_TRUE(EVP_PKEY_CTX_set_hkdf_md(ctx.get(), test->md_func()));
+    ASSERT_TRUE(
+        EVP_PKEY_CTX_set1_hkdf_key(ctx.get(), test->ikm, test->ikm_len));
+    ASSERT_TRUE(
+        EVP_PKEY_CTX_set1_hkdf_salt(ctx.get(), test->salt, test->salt_len));
+    // |info| can be passed in multiple parts.
+    ASSERT_TRUE(EVP_PKEY_CTX_add1_hkdf_info(ctx.get(), test->info, half));
+    ASSERT_TRUE(EVP_PKEY_CTX_add1_hkdf_info(ctx.get(), test->info + half,
+                                            test->info_len - half));
+    for (bool copy_ctx : {false, true}) {
+      SCOPED_TRACE(copy_ctx);
+      bssl::UniquePtr<EVP_PKEY_CTX> copy;
+      EVP_PKEY_CTX *use_ctx = ctx.get();
+      if (copy_ctx) {
+        copy.reset(EVP_PKEY_CTX_dup(ctx.get()));
+        ASSERT_TRUE(copy);
+        use_ctx = copy.get();
+      }
+      OPENSSL_memset(buf, 0, sizeof(buf));
+      size_t len = test->out_len;
+      ASSERT_TRUE(EVP_PKEY_derive(use_ctx, buf, &len));
+      EXPECT_EQ(Bytes(test->out, test->out_len), Bytes(buf, len));
+    }
   }
+}
+
+static void RunWycheproofTest(const char *path, const EVP_MD *md) {
+  SCOPED_TRACE(path);
+  FileTestGTest(path, [&](FileTest *t) {
+    t->IgnoreInstruction("keySize");
+    std::vector<uint8_t> ikm, info, okm, salt;
+    ASSERT_TRUE(t->GetBytes(&ikm, "ikm"));
+    ASSERT_TRUE(t->GetBytes(&info, "info"));
+    ASSERT_TRUE(t->GetBytes(&okm, "okm"));
+    ASSERT_TRUE(t->GetBytes(&salt, "salt"));
+    WycheproofResult result;
+    ASSERT_TRUE(GetWycheproofResult(t, &result));
+    std::string size_str;
+    ASSERT_TRUE(t->GetAttribute(&size_str, "size"));
+
+    std::vector<uint8_t> out(atoi(size_str.c_str()));
+    bool ret = HKDF(out.data(), out.size(), md, ikm.data(), ikm.size(),
+                    salt.data(), salt.size(), info.data(), info.size());
+    EXPECT_EQ(result.IsValid(), ret);
+    if (result.IsValid()) {
+      EXPECT_EQ(Bytes(okm), Bytes(out));
+    }
+  });
+}
+
+TEST(HKDFTest, WycheproofSHA1) {
+  RunWycheproofTest("third_party/wycheproof_testvectors/hkdf_sha1_test.txt",
+                    EVP_sha1());
+}
+
+TEST(HKDFTest, WycheproofSHA256) {
+  RunWycheproofTest("third_party/wycheproof_testvectors/hkdf_sha256_test.txt",
+                    EVP_sha256());
+}
+
+TEST(HKDFTest, WycheproofSHA384) {
+  RunWycheproofTest("third_party/wycheproof_testvectors/hkdf_sha384_test.txt",
+                    EVP_sha384());
+}
+
+TEST(HKDFTest, WycheproofSHA512) {
+  RunWycheproofTest("third_party/wycheproof_testvectors/hkdf_sha512_test.txt",
+                    EVP_sha512());
 }

@@ -39,10 +39,6 @@
 // Use libevent's local compatibility  versions of these.
 #include "third_party/libevent/compat/sys/queue.h"
 
-// Include Starboard poems after all system headers.
-#include "starboard/client_porting/poem/stdio_poem.h"
-#include "starboard/client_porting/poem/string_poem.h"
-
 #include "starboard/system.h"
 #define LibErr SbSystemGetLastError()
 #else  // STARBOARD
@@ -57,17 +53,18 @@
 #include <sys/queue.h>
 #include <sys/epoll.h>
 #include <signal.h>
+#endif  // STARBOARD
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#ifndef STARBOARD
 #include <errno.h>
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
 #define LibErr errno
 #endif  // STARBOARD
-
 #include "event.h"
 #include "event-internal.h"
 #ifndef STARBOARD

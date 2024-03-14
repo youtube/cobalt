@@ -10,7 +10,6 @@
 #include "include/v8.h"
 #include "src/api/api-inl.h"
 #include "src/base/logging.h"
-#include "src/base/platform/wrappers.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
@@ -247,7 +246,7 @@ ValueSerializer::~ValueSerializer() {
     if (delegate_) {
       delegate_->FreeBufferMemory(buffer_);
     } else {
-      base::Free(buffer_);
+      free(buffer_);
     }
   }
 }
@@ -354,7 +353,7 @@ Maybe<bool> ValueSerializer::ExpandBuffer(size_t required_capacity) {
     new_buffer = delegate_->ReallocateBufferMemory(buffer_, requested_capacity,
                                                    &provided_capacity);
   } else {
-    new_buffer = base::Realloc(buffer_, requested_capacity);
+    new_buffer = realloc(buffer_, requested_capacity);
     provided_capacity = requested_capacity;
   }
   if (new_buffer) {

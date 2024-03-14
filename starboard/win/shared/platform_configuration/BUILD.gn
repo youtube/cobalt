@@ -41,11 +41,9 @@ config("platform_configuration") {
     "_CRT_STDIO_ISO_WIDE_SPECIFIERS",
   ]
 
-  cflags = [
-    # Add POSIX emulation headers (note: sys/time.h cannot be force included)
-    "/FI ../../starboard/shared/win32/posix_emu/include/stdlib.h",
-    "/FI ../../starboard/shared/win32/posix_emu/include/time.h",
-    "/I../../starboard/shared/win32/posix_emu/include",
+  include_dirs = [
+    # POSIX emulation headers - these need to come *before* system include_dirs.
+    "//starboard/shared/win32/posix_emu/include",
   ]
 
   ldflags = [

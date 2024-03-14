@@ -18,6 +18,10 @@ public:
 #if SK_SUPPORT_GPU
     std::unique_ptr<GrFragmentProcessor> asFragmentProcessor(const GrFPArgs&) const override;
 #endif
+    void addToKey(SkShaderCodeDictionary*,
+                  SkBackend,
+                  SkPaintParamsKeyBuilder*,
+                  SkUniformBlock*) const override;
 
 protected:
     SkRadialGradient(SkReadBuffer& buffer);
@@ -26,6 +30,9 @@ protected:
     void appendGradientStages(SkArenaAlloc* alloc, SkRasterPipeline* tPipeline,
                               SkRasterPipeline* postPipeline) const override;
 
+    skvm::F32 transformT(skvm::Builder*, skvm::Uniforms*,
+                         skvm::Coord coord, skvm::I32* mask) const final;
+
 private:
     SK_FLATTENABLE_HOOKS(SkRadialGradient)
 
@@ -33,7 +40,7 @@ private:
     const SkScalar fRadius;
 
     friend class SkGradientShader;
-    typedef SkGradientShaderBase INHERITED;
+    using INHERITED = SkGradientShaderBase;
 };
 
 #endif

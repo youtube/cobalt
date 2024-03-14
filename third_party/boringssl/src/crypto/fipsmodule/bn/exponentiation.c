@@ -112,30 +112,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <openssl/cpu.h>
 #include <openssl/err.h>
 #include <openssl/mem.h>
 
 #include "internal.h"
-
-
-#if !defined(OPENSSL_NO_ASM) && defined(OPENSSL_X86_64)
-#define OPENSSL_BN_ASM_MONT5
-#define RSAZ_ENABLED
-
 #include "rsaz_exp.h"
 
-void bn_mul_mont_gather5(BN_ULONG *rp, const BN_ULONG *ap, const void *table,
-                         const BN_ULONG *np, const BN_ULONG *n0, int num,
-                         int power);
-void bn_scatter5(const BN_ULONG *inp, size_t num, void *table, size_t power);
-void bn_gather5(BN_ULONG *out, size_t num, void *table, size_t power);
-void bn_power5(BN_ULONG *rp, const BN_ULONG *ap, const void *table,
-               const BN_ULONG *np, const BN_ULONG *n0, int num, int power);
-int bn_from_montgomery(BN_ULONG *rp, const BN_ULONG *ap,
-                       const BN_ULONG *not_used, const BN_ULONG *np,
-                       const BN_ULONG *n0, int num);
-#endif
 
 int BN_exp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx) {
   int i, bits, ret = 0;
@@ -631,10 +613,9 @@ int BN_mod_exp_mont(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
   BN_MONT_CTX *new_mont = NULL;
 
   BN_CTX_start(ctx);
-  BIGNUM *d = BN_CTX_get(ctx);
   BIGNUM *r = BN_CTX_get(ctx);
   val[0] = BN_CTX_get(ctx);
-  if (!d || !r || !val[0]) {
+  if (r == NULL || val[0] == NULL) {
     goto err;
   }
 
@@ -656,7 +637,9 @@ int BN_mod_exp_mont(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
     goto err;
   }
   if (window > 1) {
-    if (!BN_mod_mul_montgomery(d, val[0], val[0], mont, ctx)) {
+    BIGNUM *d = BN_CTX_get(ctx);
+    if (d == NULL ||
+        !BN_mod_mul_montgomery(d, val[0], val[0], mont, ctx)) {
       goto err;
     }
     for (int i = 1; i < 1 << (window - 1); i++) {
@@ -739,7 +722,7 @@ void bn_mod_exp_mont_small(BN_ULONG *r, const BN_ULONG *a, size_t num,
                            const BN_ULONG *p, size_t num_p,
                            const BN_MONT_CTX *mont) {
   if (num != (size_t)mont->N.width || num > BN_SMALL_MAX_WORDS) {
-    OPENSSL_port_abort();
+    abort();
   }
   assert(BN_is_odd(&mont->N));
 
@@ -748,7 +731,7 @@ void bn_mod_exp_mont_small(BN_ULONG *r, const BN_ULONG *a, size_t num,
     num_p--;
   }
   if (num_p == 0) {
-    bn_from_montgomery_small(r, mont->RR.d, num, mont);
+    bn_from_montgomery_small(r, num, mont->RR.d, num, mont);
     return;
   }
   unsigned bits = BN_num_bits_word(p[num_p - 1]) + (num_p - 1) * BN_BITS2;
@@ -825,10 +808,10 @@ void bn_mod_exp_mont_small(BN_ULONG *r, const BN_ULONG *a, size_t num,
   OPENSSL_cleanse(val, sizeof(val));
 }
 
-void bn_mod_inverse_prime_mont_small(BN_ULONG *r, const BN_ULONG *a, size_t num,
-                                     const BN_MONT_CTX *mont) {
+void bn_mod_inverse0_prime_mont_small(BN_ULONG *r, const BN_ULONG *a,
+                                      size_t num, const BN_MONT_CTX *mont) {
   if (num != (size_t)mont->N.width || num > BN_SMALL_MAX_WORDS) {
-    OPENSSL_port_abort();
+    abort();
   }
 
   // Per Fermat's Little Theorem, a^-1 = a^(p-2) (mod p) for p prime.
@@ -849,69 +832,25 @@ void bn_mod_inverse_prime_mont_small(BN_ULONG *r, const BN_ULONG *a, size_t num,
   bn_mod_exp_mont_small(r, a, num, p_minus_two, num, mont);
 }
 
-
-// |BN_mod_exp_mont_consttime| stores the precomputed powers in a specific
-// layout so that accessing any of these table values shows the same access
-// pattern as far as cache lines are concerned. The following functions are
-// used to transfer a BIGNUM from/to that table.
-
-static void copy_to_prebuf(const BIGNUM *b, int top, unsigned char *buf,
-                           int idx, int window) {
-  int i, j;
-  const int width = 1 << window;
-  BN_ULONG *table = (BN_ULONG *) buf;
-
-  if (top > b->width) {
-    top = b->width;  // this works because 'buf' is explicitly zeroed
-  }
-
-  for (i = 0, j = idx; i < top; i++, j += width)  {
-    table[j] = b->d[i];
-  }
+static void copy_to_prebuf(const BIGNUM *b, int top, BN_ULONG *table, int idx,
+                           int window) {
+  int ret = bn_copy_words(table + idx * top, top, b);
+  assert(ret);  // |b| is guaranteed to fit.
+  (void)ret;
 }
 
-static int copy_from_prebuf(BIGNUM *b, int top, unsigned char *buf, int idx,
+static int copy_from_prebuf(BIGNUM *b, int top, const BN_ULONG *table, int idx,
                             int window) {
-  int i, j;
-  const int width = 1 << window;
-  volatile BN_ULONG *table = (volatile BN_ULONG *)buf;
-
   if (!bn_wexpand(b, top)) {
     return 0;
   }
 
-  if (window <= 3) {
-    for (i = 0; i < top; i++, table += width) {
-      BN_ULONG acc = 0;
-
-      for (j = 0; j < width; j++) {
-        acc |= table[j] & ((BN_ULONG)0 - (constant_time_eq_int(j, idx) & 1));
-      }
-
-      b->d[i] = acc;
-    }
-  } else {
-    int xstride = 1 << (window - 2);
-    BN_ULONG y0, y1, y2, y3;
-
-    i = idx >> (window - 2);  // equivalent of idx / xstride
-    idx &= xstride - 1;       // equivalent of idx % xstride
-
-    y0 = (BN_ULONG)0 - (constant_time_eq_int(i, 0) & 1);
-    y1 = (BN_ULONG)0 - (constant_time_eq_int(i, 1) & 1);
-    y2 = (BN_ULONG)0 - (constant_time_eq_int(i, 2) & 1);
-    y3 = (BN_ULONG)0 - (constant_time_eq_int(i, 3) & 1);
-
-    for (i = 0; i < top; i++, table += width) {
-      BN_ULONG acc = 0;
-
-      for (j = 0; j < xstride; j++) {
-        acc |= ((table[j + 0 * xstride] & y0) | (table[j + 1 * xstride] & y1) |
-                (table[j + 2 * xstride] & y2) | (table[j + 3 * xstride] & y3)) &
-               ((BN_ULONG)0 - (constant_time_eq_int(j, idx) & 1));
-      }
-
-      b->d[i] = acc;
+  OPENSSL_memset(b->d, 0, sizeof(BN_ULONG) * top);
+  const int width = 1 << window;
+  for (int i = 0; i < width; i++, table += top) {
+    BN_ULONG mask = constant_time_eq_int(i, idx);
+    for (int j = 0; j < top; j++) {
+      b->d[j] |= table[j] & mask;
     }
   }
 
@@ -954,9 +893,8 @@ static int copy_from_prebuf(BIGNUM *b, int top, unsigned char *buf, int idx,
    (MOD_EXP_CTIME_MIN_CACHE_LINE_WIDTH - \
     (((size_t)(x_)) & (MOD_EXP_CTIME_MIN_CACHE_LINE_MASK))))
 
-// This variant of BN_mod_exp_mont() uses fixed windows and the special
-// precomputation memory layout to limit data-dependency to a minimum
-// to protect secret exponents (cf. the hyper-threading timing attacks
+// This variant of |BN_mod_exp_mont| uses fixed windows and fixed memory access
+// patterns to protect secret exponents (cf. the hyper-threading timing attacks
 // pointed out by Colin Percival,
 // http://www.daemonology.net/hyperthreading-considered-harmful/)
 int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
@@ -968,7 +906,7 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
   int numPowers;
   unsigned char *powerbufFree = NULL;
   int powerbufLen = 0;
-  unsigned char *powerbuf = NULL;
+  BN_ULONG *powerbuf = NULL;
   BIGNUM tmp, am;
 
   if (!BN_is_odd(m)) {
@@ -1018,12 +956,12 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
   alignas(MOD_EXP_CTIME_MIN_CACHE_LINE_WIDTH) BN_ULONG
     storage[MOD_EXP_CTIME_STORAGE_LEN];
 #endif
-#ifdef RSAZ_ENABLED
-  // If the size of the operands allow it, perform the optimized
-  // RSAZ exponentiation. For further information see
-  // crypto/bn/rsaz_exp.c and accompanying assembly modules.
-  if ((16 == a->width) && (16 == p->width) && (BN_num_bits(m) == 1024) &&
-      rsaz_avx2_eligible()) {
+#if defined(RSAZ_ENABLED)
+  // If the size of the operands allow it, perform the optimized RSAZ
+  // exponentiation. For further information see crypto/fipsmodule/bn/rsaz_exp.c
+  // and accompanying assembly modules.
+  if (a->width == 16 && p->width == 16 && BN_num_bits(m) == 1024 &&
+      rsaz_avx2_preferred()) {
     if (!bn_wexpand(rr, 16)) {
       goto err;
     }
@@ -1041,13 +979,13 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
 #if defined(OPENSSL_BN_ASM_MONT5)
   if (window >= 5) {
     window = 5;  // ~5% improvement for RSA2048 sign, and even for RSA4096
-    // reserve space for mont->N.d[] copy
+    // Reserve space for the |mont->N| copy.
     powerbufLen += top * sizeof(mont->N.d[0]);
   }
 #endif
 
   // Allocate a buffer large enough to hold all of the pre-computed
-  // powers of am, am itself and tmp.
+  // powers of |am|, |am| itself, and |tmp|.
   numPowers = 1 << window;
   powerbufLen +=
       sizeof(m->d[0]) *
@@ -1055,7 +993,7 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
 
 #if defined(OPENSSL_BN_ASM_MONT5)
   if ((size_t)powerbufLen <= sizeof(storage)) {
-    powerbuf = (unsigned char *)storage;
+    powerbuf = storage;
   }
   // |storage| is more than large enough to handle 1024-bit inputs.
   assert(powerbuf != NULL || top * BN_BITS2 > 1024);
@@ -1066,82 +1004,77 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
     if (powerbufFree == NULL) {
       goto err;
     }
-    powerbuf = MOD_EXP_CTIME_ALIGN(powerbufFree);
+    powerbuf = (BN_ULONG *)MOD_EXP_CTIME_ALIGN(powerbufFree);
   }
   OPENSSL_memset(powerbuf, 0, powerbufLen);
 
-  // lay down tmp and am right after powers table
-  tmp.d = (BN_ULONG *)(powerbuf + sizeof(m->d[0]) * top * numPowers);
+  // Place |tmp| and |am| right after powers table.
+  tmp.d = powerbuf + top * numPowers;
   am.d = tmp.d + top;
   tmp.width = am.width = 0;
   tmp.dmax = am.dmax = top;
   tmp.neg = am.neg = 0;
   tmp.flags = am.flags = BN_FLG_STATIC_DATA;
 
-  if (!bn_one_to_montgomery(&tmp, mont, ctx)) {
+  if (!bn_one_to_montgomery(&tmp, mont, ctx) ||
+      !bn_resize_words(&tmp, top)) {
     goto err;
   }
 
-  // prepare a^1 in Montgomery domain
+  // Prepare a^1 in the Montgomery domain.
   assert(!a->neg);
   assert(BN_ucmp(a, m) < 0);
-  if (!BN_to_montgomery(&am, a, mont, ctx)) {
+  if (!BN_to_montgomery(&am, a, mont, ctx) ||
+      !bn_resize_words(&am, top)) {
     goto err;
   }
 
 #if defined(OPENSSL_BN_ASM_MONT5)
-  // This optimization uses ideas from http://eprint.iacr.org/2011/239,
-  // specifically optimization of cache-timing attack countermeasures
-  // and pre-computation optimization.
-
-  // Dedicated window==4 case improves 512-bit RSA sign by ~15%, but as
-  // 512-bit RSA is hardly relevant, we omit it to spare size...
+  // This optimization uses ideas from https://eprint.iacr.org/2011/239,
+  // specifically optimization of cache-timing attack countermeasures,
+  // pre-computation optimization, and Almost Montgomery Multiplication.
+  //
+  // The paper discusses a 4-bit window to optimize 512-bit modular
+  // exponentiation, used in RSA-1024 with CRT, but RSA-1024 is no longer
+  // important.
+  //
+  // |bn_mul_mont_gather5| and |bn_power5| implement the "almost" reduction
+  // variant, so the values here may not be fully reduced. They are bounded by R
+  // (i.e. they fit in |top| words), not |m|. Additionally, we pass these
+  // "almost" reduced inputs into |bn_mul_mont|, which implements the normal
+  // reduction variant. Given those inputs, |bn_mul_mont| may not give reduced
+  // output, but it will still produce "almost" reduced output.
+  //
+  // TODO(davidben): Using "almost" reduction complicates analysis of this code,
+  // and its interaction with other parts of the project. Determine whether this
+  // is actually necessary for performance.
   if (window == 5 && top > 1) {
-    const BN_ULONG *n0 = mont->n0;
-    BN_ULONG *np;
-
-    // BN_to_montgomery can contaminate words above .top
-    // [in BN_DEBUG[_DEBUG] build]...
-    for (i = am.width; i < top; i++) {
-      am.d[i] = 0;
-    }
-    for (i = tmp.width; i < top; i++) {
-      tmp.d[i] = 0;
-    }
-
-    // copy mont->N.d[] to improve cache locality
-    for (np = am.d + top, i = 0; i < top; i++) {
+    // Copy |mont->N| to improve cache locality.
+    BN_ULONG *np = am.d + top;
+    for (i = 0; i < top; i++) {
       np[i] = mont->N.d[i];
     }
 
+    // Fill |powerbuf| with the first 32 powers of |am|.
+    const BN_ULONG *n0 = mont->n0;
     bn_scatter5(tmp.d, top, powerbuf, 0);
     bn_scatter5(am.d, am.width, powerbuf, 1);
     bn_mul_mont(tmp.d, am.d, am.d, np, n0, top);
     bn_scatter5(tmp.d, top, powerbuf, 2);
 
-    // same as above, but uses squaring for 1/2 of operations
+    // Square to compute powers of two.
     for (i = 4; i < 32; i *= 2) {
       bn_mul_mont(tmp.d, tmp.d, tmp.d, np, n0, top);
       bn_scatter5(tmp.d, top, powerbuf, i);
     }
-    for (i = 3; i < 8; i += 2) {
-      int j;
+    // Compute odd powers |i| based on |i - 1|, then all powers |i * 2^j|.
+    for (i = 3; i < 32; i += 2) {
       bn_mul_mont_gather5(tmp.d, am.d, powerbuf, np, n0, top, i - 1);
       bn_scatter5(tmp.d, top, powerbuf, i);
-      for (j = 2 * i; j < 32; j *= 2) {
+      for (int j = 2 * i; j < 32; j *= 2) {
         bn_mul_mont(tmp.d, tmp.d, tmp.d, np, n0, top);
         bn_scatter5(tmp.d, top, powerbuf, j);
       }
-    }
-    for (; i < 16; i += 2) {
-      bn_mul_mont_gather5(tmp.d, am.d, powerbuf, np, n0, top, i - 1);
-      bn_scatter5(tmp.d, top, powerbuf, i);
-      bn_mul_mont(tmp.d, tmp.d, tmp.d, np, n0, top);
-      bn_scatter5(tmp.d, top, powerbuf, 2 * i);
-    }
-    for (; i < 32; i += 2) {
-      bn_mul_mont_gather5(tmp.d, am.d, powerbuf, np, n0, top, i - 1);
-      bn_scatter5(tmp.d, top, powerbuf, i);
     }
 
     bits--;
@@ -1199,15 +1132,15 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
         bn_power5(tmp.d, tmp.d, powerbuf, np, n0, top, val);
       }
     }
-
-    ret = bn_from_montgomery(tmp.d, tmp.d, NULL, np, n0, top);
-    tmp.width = top;
-    if (ret) {
-      if (!BN_copy(rr, &tmp)) {
-        ret = 0;
-      }
-      goto err;  // non-zero ret means it's not error
-    }
+    // The result is now in |tmp| in Montgomery form, but it may not be fully
+    // reduced. This is within bounds for |BN_from_montgomery| (tmp < R <= m*R)
+    // so it will, when converting from Montgomery form, produce a fully reduced
+    // result.
+    //
+    // This differs from Figure 2 of the paper, which uses AMM(h, 1) to convert
+    // from Montgomery form with unreduced output, followed by an extra
+    // reduction step. In the paper's terminology, we replace steps 9 and 10
+    // with MM(h, 1).
   } else
 #endif
   {
@@ -1268,7 +1201,11 @@ int BN_mod_exp_mont_consttime(BIGNUM *rr, const BIGNUM *a, const BIGNUM *p,
     }
   }
 
-  // Convert the final result from montgomery to standard format
+  // Convert the final result from Montgomery to standard format. If we used the
+  // |OPENSSL_BN_ASM_MONT5| codepath, |tmp| may not be fully reduced. It is only
+  // bounded by R rather than |m|. However, that is still within bounds for
+  // |BN_from_montgomery|, which implements full Montgomery reduction, not
+  // "almost" Montgomery reduction.
   if (!BN_from_montgomery(rr, &tmp, mont, ctx)) {
     goto err;
   }

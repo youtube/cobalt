@@ -14,7 +14,7 @@ static int32_t next_generation_id() {
 
     int32_t id;
     do {
-        id = nextID++;
+        id = nextID.fetch_add(1, std::memory_order_relaxed);
     } while (id == 0);
     return id;
 }
@@ -37,13 +37,13 @@ void SkDrawable::draw(SkCanvas* canvas, const SkMatrix* matrix) {
     }
     this->onDraw(canvas);
 
-    if (false) {
+    if ((false)) {
         draw_bbox(canvas, this->getBounds());
     }
 }
 
 void SkDrawable::draw(SkCanvas* canvas, SkScalar x, SkScalar y) {
-    SkMatrix matrix = SkMatrix::MakeTrans(x, y);
+    SkMatrix matrix = SkMatrix::Translate(x, y);
     this->draw(canvas, &matrix);
 }
 
@@ -62,6 +62,13 @@ SkRect SkDrawable::getBounds() {
     return this->onGetBounds();
 }
 
+size_t SkDrawable::approximateBytesUsed() {
+    return this->onApproximateBytesUsed();
+}
+size_t SkDrawable::onApproximateBytesUsed() {
+    return 0;
+}
+
 void SkDrawable::notifyDrawingChanged() {
     fGenerationID = 0;
 }
@@ -74,9 +81,9 @@ SkPicture* SkDrawable::onNewPictureSnapshot() {
     SkPictureRecorder recorder;
 
     const SkRect bounds = this->getBounds();
-    SkCanvas* canvas = recorder.beginRecording(bounds, nullptr, 0);
+    SkCanvas* canvas = recorder.beginRecording(bounds);
     this->draw(canvas);
-    if (false) {
+    if ((false)) {
         draw_bbox(canvas, bounds);
     }
     return recorder.finishRecordingAsPicture().release();

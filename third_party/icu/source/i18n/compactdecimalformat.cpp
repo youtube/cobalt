@@ -9,9 +9,6 @@
 // Helpful in toString methods and elsewhere.
 #define UNISTR_FROM_STRING_EXPLICIT
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/string_poem.h"
-#endif  // defined(STARBOARD)
 #include "unicode/compactdecimalformat.h"
 #include "number_mapper.h"
 #include "number_decimfmtprops.h"

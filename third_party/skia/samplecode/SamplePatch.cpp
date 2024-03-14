@@ -34,7 +34,7 @@ static sk_sp<SkShader> make_shader0(SkIPoint* size) {
     SkBitmap bm;
     decode_file(GetResourceAsData("images/dog.jpg"), &bm);
     *size = SkIPoint{bm.width(), bm.height()};
-    return bm.makeShader();
+    return bm.makeShader(SkSamplingOptions(SkFilterMode::kLinear));
 }
 
 static sk_sp<SkShader> make_shader1(const SkIPoint& size) {
@@ -241,7 +241,6 @@ struct PatchView : public Sample {
 
         SkPaint paint;
         paint.setDither(true);
-        paint.setFilterQuality(kLow_SkFilterQuality);
 
         canvas->translate(DX, DY);
 
@@ -314,7 +313,7 @@ struct PatchView : public Sample {
     }
 
 private:
-    typedef Sample INHERITED;
+    using INHERITED = Sample;
 };
 }  // namespace
 DEF_SAMPLE( return new PatchView(); )
@@ -345,8 +344,7 @@ static sk_sp<SkVertices> make_verts(const SkPath& path, SkScalar width) {
 
     int vertCount = pts.count();
     int indexCount = 0; // no texture
-    unsigned flags = SkVertices::kHasColors_BuilderFlag |
-                     SkVertices::kIsNonVolatile_BuilderFlag;
+    unsigned flags = SkVertices::kHasColors_BuilderFlag;
     SkVertices::Builder builder(SkVertices::kTriangleStrip_VertexMode,
                                 vertCount, indexCount, flags);
     memcpy(builder.positions(), pts.begin(), vertCount * sizeof(SkPoint));
@@ -416,7 +414,7 @@ protected:
     }
 
 private:
-    typedef Sample INHERITED;
+    using INHERITED = Sample;
 };
 }  // namespace
 DEF_SAMPLE( return new PseudoInkView(); )
@@ -503,7 +501,7 @@ protected:
     }
 
 private:
-    typedef Sample INHERITED;
+    using INHERITED = Sample;
 };
 }  // namespace
 DEF_SAMPLE( return new ManyStrokesView(); )

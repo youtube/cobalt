@@ -1,8 +1,10 @@
 // Copyright 2019 Google LLC.
 #include "modules/skparagraph/include/TypefaceFontProvider.h"
 #include <algorithm>
+#include "include/core/SkFontMgr.h"
 #include "include/core/SkString.h"
 #include "include/core/SkTypeface.h"
+#include "src/core/SkFontDescriptor.h"
 
 namespace skia {
 namespace textlayout {
@@ -17,7 +19,7 @@ void TypefaceFontProvider::onGetFamilyName(int index, SkString* familyName) cons
 SkFontStyleSet* TypefaceFontProvider::onMatchFamily(const char familyName[]) const {
     auto found = fRegisteredFamilies.find(SkString(familyName));
     if (found) {
-      return (*found).get();
+      return SkRef((*found).get());
     }
     return nullptr;
 }
@@ -74,7 +76,9 @@ SkTypeface* TypefaceFontStyleSet::matchStyle(const SkFontStyle& pattern) {
 }
 
 void TypefaceFontStyleSet::appendTypeface(sk_sp<SkTypeface> typeface) {
-    fStyles.emplace_back(std::move(typeface));
+    if (typeface.get() != nullptr) {
+        fStyles.emplace_back(std::move(typeface));
+    }
 }
 
 }  // namespace textlayout

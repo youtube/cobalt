@@ -8,10 +8,13 @@
 #ifndef GrAuditTrail_DEFINED
 #define GrAuditTrail_DEFINED
 
+#include "include/gpu/GrTypes.h"
+
+#if SK_GPU_V1
+
 #include "include/core/SkRect.h"
 #include "include/core/SkString.h"
 #include "include/gpu/GrConfig.h"
-#include "include/gpu/GrGpuResource.h"
 #include "include/private/SkTArray.h"
 #include "include/private/SkTHash.h"
 #include "src/gpu/GrRenderTargetProxy.h"
@@ -30,9 +33,7 @@ class SkJSONWriter;
  */
 class GrAuditTrail {
 public:
-    GrAuditTrail()
-    : fClientID(kGrAuditTrailInvalidID)
-    , fEnabled(false) {}
+    GrAuditTrail() : fClientID(kGrAuditTrailInvalidID), fEnabled(false) {}
 
     class AutoEnable {
     public:
@@ -169,13 +170,20 @@ private:
 #define GR_AUDIT_TRAIL_AUTO_FRAME(audit_trail, framename) \
     GR_AUDIT_TRAIL_INVOKE_GUARD((audit_trail), pushFrame, framename)
 
-#define GR_AUDIT_TRAIL_RESET(audit_trail) \
-    //GR_AUDIT_TRAIL_INVOKE_GUARD(audit_trail, fullReset);
-
 #define GR_AUDIT_TRAIL_ADD_OP(audit_trail, op, proxy_id) \
     GR_AUDIT_TRAIL_INVOKE_GUARD(audit_trail, addOp, op, proxy_id)
 
 #define GR_AUDIT_TRAIL_OPS_RESULT_COMBINED(audit_trail, combineWith, op) \
     GR_AUDIT_TRAIL_INVOKE_GUARD(audit_trail, opsCombined, combineWith, op)
 
-#endif
+#else // SK_GPU_V1
+
+class GrAuditTrail {
+};
+
+#define GR_AUDIT_TRAIL_AUTO_FRAME(audit_trail, framename)
+#define GR_AUDIT_TRAIL_ADD_OP(audit_trail, op, proxy_id)
+#define GR_AUDIT_TRAIL_OPS_RESULT_COMBINED(audit_trail, combineWith, op)
+
+#endif // SK_GPU_V1
+#endif // GrAuditTrail_DEFINED

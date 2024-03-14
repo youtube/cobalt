@@ -243,16 +243,11 @@ class BrowserModule {
   // Pass the deeplink timestamp from Starboard.
   void SetDeepLinkTimestamp(int64_t timestamp);
 
- private:
-#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-  static void CoreDumpHandler(void* browser_module_as_void);
-  int on_error_triggered_count_;
-#if defined(COBALT_CHECK_RENDER_TIMEOUT)
-  int recovery_mechanism_triggered_count_;
-  int timeout_response_trigger_count_;
-#endif  // defined(COBALT_CHECK_RENDER_TIMEOUT)
-#endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
+#if defined(ENABLE_DEBUGGER)
+  std::string OnBoxDumpMessage(const std::string& message);
+#endif  // ENABLE_DEBUGGER
 
+ private:
   // Called when the WebModule's Window.onload event is fired.
   void OnLoad();
 
@@ -655,6 +650,11 @@ class BrowserModule {
   // Command handler object for toggling the input fuzzer on/off.
   debug::console::ConsoleCommandManager::CommandHandler
       fuzzer_toggle_command_handler_;
+#if defined(ENABLE_DEBUGGER)
+  // Command handler object for boxdump command from the debug console.
+  debug::console::ConsoleCommandManager::CommandHandler
+      boxdump_command_handler_;
+#endif
 
   // Command handler object for screenshot command from the debug console.
   debug::console::ConsoleCommandManager::CommandHandler

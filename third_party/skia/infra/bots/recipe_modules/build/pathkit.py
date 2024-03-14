@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-DOCKER_IMAGE = 'gcr.io/skia-public/emsdk-base:1.38.47_v1'
+DOCKER_IMAGE = 'gcr.io/skia-public/emsdk-base:3.1.3_v1'
 INNER_BUILD_SCRIPT = '/SRC/skia/infra/pathkit/build_pathkit.sh'
 
 def compile_fn(api, checkout_root, _ignore):
@@ -15,7 +15,7 @@ def compile_fn(api, checkout_root, _ignore):
   # owned by root, which causes mysterious failures. To mitigate this risk
   # further, we don't use the same out_dir as everyone else (thus the _ignore)
   # param. Instead, we use a "pathkit" subdirectory in the "docker" named_cache.
-  api.file.ensure_directory('mkdirs out_dir', out_dir, mode=0777)
+  api.file.ensure_directory('mkdirs out_dir', out_dir, mode=0o777)
 
   # This uses the emscriptem sdk docker image and says "run the
   # build_pathkit.sh helper script in there". Additionally, it binds two
@@ -81,7 +81,7 @@ for pattern in build_products:
     dst_path = os.path.join(dst, os.path.relpath(f, src))
     if not os.path.isdir(os.path.dirname(dst_path)):
       os.makedirs(os.path.dirname(dst_path))
-    print 'Copying build product %%s to %%s' %% (f, dst_path)
+    print('Copying build product %%s to %%s' %% (f, dst_path))
     # Because Docker usually has some strange permissions (like root
     # ownership), we'd rather not keep those around. copyfile doesn't
     # keep the metadata around, so that helps us.

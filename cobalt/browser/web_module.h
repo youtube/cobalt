@@ -404,6 +404,10 @@ class WebModule : public base::MessageLoop::DestructionObserver,
   void SetUnloadEventTimingInfo(base::TimeTicks start_time,
                                 base::TimeTicks end_time);
 
+#if defined(ENABLE_DEBUGGER)
+  std::string OnBoxDumpMessage(const std::string& message);
+#endif  // ENABLE_DEBUGGER
+
  private:
   // Data required to construct a WebModule, initialized in the constructor and
   // passed to |InitializeTaskInThread|.

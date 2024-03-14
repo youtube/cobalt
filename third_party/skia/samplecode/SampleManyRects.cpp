@@ -38,7 +38,7 @@ protected:
 
             canvas->translate(SkIntToScalar(x), SkIntToScalar(y));
             // Uncomment to test rotated rect draw combining.
-            if (false) {
+            if ((false)) {
                 SkMatrix rotate;
                 rotate.setRotate(fRandom.nextUScalar1() * 360,
                                  SkIntToScalar(x) + SkScalarHalf(rect.fRight),
@@ -59,7 +59,7 @@ protected:
 
 private:
     SkRandom fRandom;
-    typedef Sample INHERITED;
+    using INHERITED = Sample;
 };
 
 //////////////////////////////////////////////////////////////////////////////

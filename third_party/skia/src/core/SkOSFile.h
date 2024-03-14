@@ -11,39 +11,33 @@
 #ifndef SkOSFile_DEFINED
 #define SkOSFile_DEFINED
 
-#if defined(STARBOARD)
-#include "starboard/file.h"
-#define SkFile SbFilePrivate
-#else
 #include <stdio.h>
-#define SkFile FILE
-#endif
 
 #include "include/core/SkString.h"
+#include "include/private/SkTemplates.h"
 
 enum SkFILE_Flags {
-    kRead_SkFILE_Flag    = 0x01,
-    kWrite_SkFILE_Flag   = 0x02,
-    kAppend_SkFILE_Flag  = 0x04
+    kRead_SkFILE_Flag   = 0x01,
+    kWrite_SkFILE_Flag  = 0x02
 };
 
-SkFile* sk_fopen(const char path[], SkFILE_Flags);
-void    sk_fclose(SkFile*);
+FILE* sk_fopen(const char path[], SkFILE_Flags);
+void    sk_fclose(FILE*);
 
-size_t  sk_fgetsize(SkFile*);
+size_t  sk_fgetsize(FILE*);
 
-size_t  sk_fwrite(const void* buffer, size_t byteCount, SkFile*);
+size_t  sk_fwrite(const void* buffer, size_t byteCount, FILE*);
 
-void    sk_fflush(SkFile*);
-void    sk_fsync(SkFile*);
+void    sk_fflush(FILE*);
+void    sk_fsync(FILE*);
 
-size_t  sk_ftell(SkFile*);
+size_t  sk_ftell(FILE*);
 
 /** Maps a file into memory. Returns the address and length on success, NULL otherwise.
  *  The mapping is read only.
  *  When finished with the mapping, free the returned pointer with sk_fmunmap.
  */
-void*   sk_fmmap(SkFile* f, size_t* length);
+void*   sk_fmmap(FILE* f, size_t* length);
 
 /** Maps a file descriptor into memory. Returns the address and length on success, NULL otherwise.
  *  The mapping is read only.
@@ -57,12 +51,12 @@ void*   sk_fdmmap(int fd, size_t* length);
 void    sk_fmunmap(const void* addr, size_t length);
 
 /** Returns true if the two point at the exact same filesystem object. */
-bool    sk_fidentical(SkFile* a, SkFile* b);
+bool    sk_fidentical(FILE* a, FILE* b);
 
 /** Returns the underlying file descriptor for the given file.
  *  The return value will be < 0 on failure.
  */
-int     sk_fileno(SkFile* f);
+int     sk_fileno(FILE* f);
 
 /** Returns true if something (file, directory, ???) exists at this path,
  *  and has the specified access flags.
@@ -74,7 +68,7 @@ bool    sk_isdir(const char *path);
 
 // Like pread, but may affect the file position marker.
 // Returns the number of bytes read or SIZE_MAX if failed.
-size_t sk_qread(SkFile*, void* buffer, size_t count, size_t offset);
+size_t sk_qread(FILE*, void* buffer, size_t count, size_t offset);
 
 
 // Create a new directory at this path; returns true if successful.
@@ -86,20 +80,21 @@ class SkOSFile {
 public:
     class Iter {
     public:
-        Iter();
-        Iter(const char path[], const char suffix[] = nullptr);
-        ~Iter();
+        // SPI for module use.
+        SK_SPI Iter();
+        SK_SPI Iter(const char path[], const char suffix[] = nullptr);
+        SK_SPI ~Iter();
 
-        void reset(const char path[], const char suffix[] = nullptr);
+        SK_SPI void reset(const char path[], const char suffix[] = nullptr);
         /** If getDir is true, only returns directories.
             Results are undefined if true and false calls are
             interleaved on a single iterator.
         */
-        bool next(SkString* name, bool getDir = false);
+        SK_SPI bool next(SkString* name, bool getDir = false);
 
         static const size_t kStorageSize = 40;
     private:
-        SkAlignedSStorage<kStorageSize> fSelf;
+        alignas(void*) alignas(double) char fSelf[kStorageSize];
     };
 };
 

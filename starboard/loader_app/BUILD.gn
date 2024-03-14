@@ -197,16 +197,28 @@ static_library("drain_file") {
   deps = [ "//starboard/common" ]
 }
 
+static_library("drain_file_helper") {
+  testonly = true
+  sources = [
+    "drain_file_helper.cc",
+    "drain_file_helper.h",
+  ]
+  deps = [
+    ":drain_file",
+    "//starboard/common",
+    "//testing/gtest",
+  ]
+}
+
 target(gtest_target_type, "drain_file_test") {
   testonly = true
   sources = [
     "//starboard/common/test_main.cc",
-    "drain_file_helper.cc",
-    "drain_file_helper.h",
     "drain_file_test.cc",
   ]
   deps = [
     ":drain_file",
+    ":drain_file_helper",
     "//testing/gmock",
     "//testing/gtest",
   ]

@@ -270,34 +270,6 @@ class JsonResultsTest(unittest.TestCase):
     self.assertIn('SKIP', results_dict['num_failures_by_type'])
     self.assertEqual(1, results_dict['num_failures_by_type']['SKIP'])
 
-  def testGenerateJsonTestResultFormatDict_skippedResult(self):
-    result = base_test_result.BaseTestResult('test.package.TestName',
-                                             base_test_result.ResultType.SKIP)
-
-    all_results = base_test_result.TestRunResults()
-    all_results.AddResult(result)
-
-    results_dict = json_results.GenerateJsonTestResultFormatDict([all_results],
-                                                                 False)
-    self.assertEquals(1, len(results_dict['tests']))
-    self.assertEquals(1, len(results_dict['tests']['test']))
-    self.assertEquals(1, len(results_dict['tests']['test']['package']))
-    self.assertEquals(
-        'PASS',
-        results_dict['tests']['test']['package']['TestName']['expected'])
-    self.assertEquals(
-        'FAIL', results_dict['tests']['test']['package']['TestName']['actual'])
-    self.assertEquals(
-        True,
-        results_dict['tests']['test']['package']['TestName']['is_unexpected'])
-
-    self.assertTrue('FAIL' not in results_dict['num_failures_by_type']
-                    or results_dict['num_failures_by_type']['FAIL'] == 0)
-    self.assertTrue('PASS' not in results_dict['num_failures_by_type']
-                    or results_dict['num_failures_by_type']['PASS'] == 0)
-    self.assertIn('SKIP', results_dict['num_failures_by_type'])
-    self.assertEquals(1, results_dict['num_failures_by_type']['SKIP'])
-
   def testGenerateJsonTestResultFormatDict_failedResultWithRetry(self):
     result_1 = base_test_result.BaseTestResult('test.package.TestName',
                                                base_test_result.ResultType.FAIL)

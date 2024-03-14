@@ -78,10 +78,10 @@ void EnsureInitialized(struct CRYPTO_STATIC_MUTEX* lock) {
 
 void CRYPTO_MUTEX_init(CRYPTO_MUTEX* lock) {
   if (!SbMutexCreate(&lock->mutex)) {
-    OPENSSL_port_abort();
+    SbSystemBreakIntoDebugger();
   }
   if (!SbConditionVariableCreate(&lock->condition, &lock->mutex)) {
-    OPENSSL_port_abort();
+    SbSystemBreakIntoDebugger();
   }
   lock->readers = 0;
   lock->writing = false;
@@ -90,74 +90,74 @@ void CRYPTO_MUTEX_init(CRYPTO_MUTEX* lock) {
 // https://en.wikipedia.org/wiki/Readers%E2%80%93writer_lock
 void CRYPTO_MUTEX_lock_read(CRYPTO_MUTEX* lock) {
   if (SbMutexAcquire(&lock->mutex) != kSbMutexAcquired) {
-    OPENSSL_port_abort();
+    SbSystemBreakIntoDebugger();
   }
   while (lock->writing) {
     if (SbConditionVariableWait(&lock->condition, &lock->mutex) ==
         kSbConditionVariableFailed) {
-      OPENSSL_port_abort();
+      SbSystemBreakIntoDebugger();
     }
   }
   ++(lock->readers);
   if (!SbMutexRelease(&lock->mutex)) {
-    OPENSSL_port_abort();
+    SbSystemBreakIntoDebugger();
   }
 }
 
 // https://en.wikipedia.org/wiki/Readers%E2%80%93writer_lock
 void CRYPTO_MUTEX_lock_write(CRYPTO_MUTEX* lock) {
   if (SbMutexAcquire(&lock->mutex) != kSbMutexAcquired) {
-    OPENSSL_port_abort();
+    SbSystemBreakIntoDebugger();
   }
   while (lock->writing) {
     if (SbConditionVariableWait(&lock->condition, &lock->mutex) ==
         kSbConditionVariableFailed) {
-      OPENSSL_port_abort();
+      SbSystemBreakIntoDebugger();
     }
   }
   lock->writing = true;
   while (lock->readers > 0) {
     if (SbConditionVariableWait(&lock->condition, &lock->mutex) ==
         kSbConditionVariableFailed) {
-      OPENSSL_port_abort();
+      SbSystemBreakIntoDebugger();
     }
   }
   if (!SbMutexRelease(&lock->mutex)) {
-    OPENSSL_port_abort();
+    SbSystemBreakIntoDebugger();
   }
 }
 
 // https://en.wikipedia.org/wiki/Readers%E2%80%93writer_lock
 void CRYPTO_MUTEX_unlock_read(CRYPTO_MUTEX* lock) {
   if (SbMutexAcquire(&lock->mutex) != kSbMutexAcquired) {
-    OPENSSL_port_abort();
+    SbSystemBreakIntoDebugger();
   }
   if (--(lock->readers) == 0) {
     SbConditionVariableBroadcast(&lock->condition);
   }
   if (!SbMutexRelease(&lock->mutex)) {
-    OPENSSL_port_abort();
+    SbSystemBreakIntoDebugger();
   }
 }
 
 // https://en.wikipedia.org/wiki/Readers%E2%80%93writer_lock
 void CRYPTO_MUTEX_unlock_write(CRYPTO_MUTEX* lock) {
   if (SbMutexAcquire(&lock->mutex) != kSbMutexAcquired) {
-    OPENSSL_port_abort();
+    SbSystemBreakIntoDebugger();
   }
   lock->writing = false;
   SbConditionVariableBroadcast(&lock->condition);
   if (!SbMutexRelease(&lock->mutex)) {
-    OPENSSL_port_abort();
+    SbSystemBreakIntoDebugger();
   }
 }
 
 void CRYPTO_MUTEX_cleanup(CRYPTO_MUTEX* lock) {
   if (!SbConditionVariableDestroy(&lock->condition)) {
-    OPENSSL_port_abort();
+    SbSystemBreakIntoDebugger();
   }
   if (!SbMutexDestroy(&lock->mutex)) {
-    OPENSSL_port_abort();
+    SbSystemBreakIntoDebugger();
   }
 }
 

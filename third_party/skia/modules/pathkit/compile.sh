@@ -10,6 +10,9 @@ BASE_DIR=`cd $(dirname ${BASH_SOURCE[0]}) && pwd`
 HTML_SHELL=$BASE_DIR/shell.html
 BUILD_DIR=${BUILD_DIR:="out/pathkit"}
 mkdir -p $BUILD_DIR
+# sometimes the .a files keep old symbols around - cleaning them out makes sure
+# we get a fresh build.
+rm -f $BUILD_DIR/*.a
 
 # This expects the environment variable EMSDK to be set
 if [[ ! -d $EMSDK ]]; then
@@ -46,7 +49,7 @@ fi
 # Use -O0 for larger builds (but generally quicker)
 # Use -Oz for (much slower, but smaller/faster) production builds
 export EMCC_CLOSURE_ARGS="--externs $BASE_DIR/externs.js "
-RELEASE_CONF="-Oz --closure 1 -s EVAL_CTORS=1 --llvm-lto 3 -s ELIMINATE_DUPLICATE_FUNCTIONS=1 -DSK_RELEASE"
+RELEASE_CONF="-Oz --closure 1 -DSK_RELEASE"
 # It is very important for the -DSK_RELEASE/-DSK_DEBUG to match on the libskia.a, otherwise
 # things like SKDEBUGCODE are sometimes compiled in and sometimes not, which can cause headaches
 # like sizeof() mismatching between .cpp files and .h files.
@@ -56,24 +59,20 @@ if [[ $@ == *test* ]]; then
   RELEASE_CONF="-O2 --profiling -DPATHKIT_TESTING -DSK_RELEASE"
 elif [[ $@ == *debug* ]]; then
   echo "Building a Debug build"
-  # -g4 creates source maps that can apparently let you see the C++ code
-  # in the browser's debugger.
   EXTRA_CFLAGS="\"-DSK_DEBUG\""
-  RELEASE_CONF="-O0 --js-opts 0 -s SAFE_HEAP=1 -s ASSERTIONS=1 -g4 -DPATHKIT_TESTING -DSK_DEBUG"
+  RELEASE_CONF="-O0 --js-opts 0 -sSAFE_HEAP=1 -sASSERTIONS=1 -g3 -DPATHKIT_TESTING -DSK_DEBUG"
 fi
 
-WASM_CONF="-s WASM=1"
+WASM_CONF="-sWASM=1"
 if [[ $@ == *asm.js* ]]; then
   echo "Building with asm.js instead of WASM"
-  WASM_CONF="-s WASM=0 -s ALLOW_MEMORY_GROWTH=1"
+  WASM_CONF="-sWASM=0 -sALLOW_MEMORY_GROWTH=1"
 fi
 
 OUTPUT="-o $BUILD_DIR/pathkit.js"
 
 source $EMSDK/emsdk_env.sh
-EMCC=`which emcc`
 EMCXX=`which em++`
-
 
 # Turn off exiting while we check for ninja (which may not be on PATH)
 set +e
@@ -89,9 +88,9 @@ echo "Compiling bitcode"
 
 ./bin/fetch-gn
 ./bin/gn gen ${BUILD_DIR} \
-  --args="cc=\"${EMCC}\" \
-  cxx=\"${EMCXX}\" \
-  extra_cflags=[\"-DSK_DISABLE_READBUFFER=1\",\"-s\", \"WARN_UNALIGNED=1\",
+  --args="skia_emsdk_dir=\"${EMSDK}\" \
+  extra_cflags=[
+    \"-sMAIN_MODULE=1\",
     ${EXTRA_CFLAGS}
   ] \
   is_debug=false \
@@ -104,30 +103,25 @@ ${NINJA} -C ${BUILD_DIR} libpathkit.a
 
 echo "Generating WASM"
 
-${EMCXX} $RELEASE_CONF -std=c++14 \
+${EMCXX} $RELEASE_CONF -std=c++17 \
 -I. \
--Ithird_party/skcms \
--std=c++14 \
 --bind \
+--no-entry \
 --pre-js $BASE_DIR/helper.js \
 --pre-js $BASE_DIR/chaining.js \
---post-js $BASE_DIR/ready.js \
--DSK_DISABLE_READBUFFER=1 \
 -fno-rtti -fno-exceptions -DEMSCRIPTEN_HAS_UNBOUND_TYPE_NAMES=0 \
 $WASM_CONF \
--s ERROR_ON_UNDEFINED_SYMBOLS=1 \
--s EXPORT_NAME="PathKitInit" \
--s MODULARIZE=1 \
--s NO_EXIT_RUNTIME=1 \
--s NO_FILESYSTEM=1 \
--s STRICT=1 \
--s WARN_UNALIGNED=1 \
+-sERROR_ON_UNDEFINED_SYMBOLS=1 \
+-sEXPORT_NAME="PathKitInit" \
+-sMODULARIZE=1 \
+-sNO_EXIT_RUNTIME=1 \
+-sNO_FILESYSTEM=1 \
+-sDYNAMIC_EXECUTION=0 \
+-sINITIAL_MEMORY=32MB \
+-sALLOW_MEMORY_GROWTH=1 \
+-sSTRICT=1 \
 $OUTPUT \
 $BASE_DIR/pathkit_wasm_bindings.cpp \
 ${BUILD_DIR}/libpathkit.a
 
-if [[ $@ == *serve* ]]; then
-  pushd $BUILD_DIR
-  python serve.py
-fi
 

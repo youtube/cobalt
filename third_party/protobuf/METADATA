@@ -5,11 +5,19 @@ description:
   "required for Widevine, which is required for EME implementation in Cobalt."
 
 third_party {
-  url {
-    type: GIT
-    value: "https://chromium.googlesource.com/chromium/src"
+  identifier {
+    type: "ChromiumVersion"
+    value: "58.0.3029.140"  # from https://chromereleases.googleblog.com/2017/05/stable-channel-update-for-chrome-os_18.html
   }
-  version: "58.0.3029.140"
+  identifier {
+    type: "Git"
+    value: "https://chromium.googlesource.com/chromium/src.git"
+    version: "236f2f507f07b8d203231be06d10b2ebddc5e520"
+  }
+  identifier {
+    type: "UpstreamSubdir"
+    value: "third_party/protobuf"
+  }
   last_upgrade_date {
     year: 2016
     month: 5

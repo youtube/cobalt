@@ -9,7 +9,6 @@
 #include "include/core/SkBitmap.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkColor.h"
-#include "include/core/SkFilterQuality.h"
 #include "include/core/SkMatrix.h"
 #include "include/core/SkPaint.h"
 #include "include/core/SkScalar.h"
@@ -108,25 +107,24 @@ protected:
 
         SkMatrix m;
         if (fDoRotate) {
-//            m.setRotate(SkIntToScalar(30), 0, 0);
             m.setSkew(SK_Scalar1, 0, 0, 0);
-//            m.postScale(2*SK_Scalar1/3, 2*SK_Scalar1/3);
         } else {
             SkScalar scale = 11*SK_Scalar1/12;
             m.setScale(scale, scale);
         }
-        paint.setShader(getBitmap().makeShader(fMode, fMode, &m));
-        paint.setFilterQuality(fDoFilter ? kLow_SkFilterQuality : kNone_SkFilterQuality);
+        paint.setShader(getBitmap().makeShader(
+                                           fMode, fMode,
+                                           SkSamplingOptions(fDoFilter ? SkFilterMode::kLinear
+                                                                       : SkFilterMode::kNearest),
+                                           m));
 
-        canvas->translate(SkIntToScalar(50), SkIntToScalar(50));
+        canvas->translate(50, 50);
 
-//        SkRect r = SkRect::MakeXYWH(-50, -50, 32, 16);
-//        canvas->drawRect(r, paint); return;
         canvas->drawPaint(paint);
     }
 
 private:
-    typedef GM INHERITED;
+    using INHERITED = GM;
 };
 
 ///////////////////////////////////////////////////////////////////////////////

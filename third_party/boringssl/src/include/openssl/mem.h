@@ -101,6 +101,9 @@ OPENSSL_EXPORT int CRYPTO_memcmp(const void *a, const void *b, size_t len);
 // OPENSSL_hash32 implements the 32 bit, FNV-1a hash.
 OPENSSL_EXPORT uint32_t OPENSSL_hash32(const void *ptr, size_t len);
 
+// OPENSSL_strhash calls |OPENSSL_hash32| on the NUL-terminated string |s|.
+OPENSSL_EXPORT uint32_t OPENSSL_strhash(const char *s);
+
 // OPENSSL_strdup has the same behaviour as strdup(3).
 OPENSSL_EXPORT char *OPENSSL_strdup(const char *s);
 
@@ -126,15 +129,55 @@ OPENSSL_EXPORT int BIO_snprintf(char *buf, size_t n, const char *format, ...)
 
 // BIO_vsnprintf has the same behavior as vsnprintf(3).
 OPENSSL_EXPORT int BIO_vsnprintf(char *buf, size_t n, const char *format,
-                                 va_list args)
-    OPENSSL_PRINTF_FORMAT_FUNC(3, 0);
+                                 va_list args) OPENSSL_PRINTF_FORMAT_FUNC(3, 0);
+
+// OPENSSL_strndup returns an allocated, duplicate of |str|, which is, at most,
+// |size| bytes. The result is always NUL terminated.
+OPENSSL_EXPORT char *OPENSSL_strndup(const char *str, size_t size);
+
+// OPENSSL_memdup returns an allocated, duplicate of |size| bytes from |data| or
+// NULL on allocation failure.
+OPENSSL_EXPORT void *OPENSSL_memdup(const void *data, size_t size);
+
+// OPENSSL_strlcpy acts like strlcpy(3).
+OPENSSL_EXPORT size_t OPENSSL_strlcpy(char *dst, const char *src,
+                                      size_t dst_size);
+
+// OPENSSL_strlcat acts like strlcat(3).
+OPENSSL_EXPORT size_t OPENSSL_strlcat(char *dst, const char *src,
+                                      size_t dst_size);
 
 
 // Deprecated functions.
 
-#define CRYPTO_malloc OPENSSL_malloc
-#define CRYPTO_realloc OPENSSL_realloc
-#define CRYPTO_free OPENSSL_free
+// CRYPTO_malloc calls |OPENSSL_malloc|. |file| and |line| are ignored.
+OPENSSL_EXPORT void *CRYPTO_malloc(size_t size, const char *file, int line);
+
+// CRYPTO_realloc calls |OPENSSL_realloc|. |file| and |line| are ignored.
+OPENSSL_EXPORT void *CRYPTO_realloc(void *ptr, size_t new_size,
+                                    const char *file, int line);
+
+// CRYPTO_free calls |OPENSSL_free|. |file| and |line| are ignored.
+OPENSSL_EXPORT void CRYPTO_free(void *ptr, const char *file, int line);
+
+// OPENSSL_clear_free calls |OPENSSL_free|. BoringSSL automatically clears all
+// allocations on free, but we define |OPENSSL_clear_free| for compatibility.
+OPENSSL_EXPORT void OPENSSL_clear_free(void *ptr, size_t len);
+
+// CRYPTO_secure_malloc_init returns zero.
+OPENSSL_EXPORT int CRYPTO_secure_malloc_init(size_t size, size_t min_size);
+
+// CRYPTO_secure_malloc_initialized returns zero.
+OPENSSL_EXPORT int CRYPTO_secure_malloc_initialized(void);
+
+// CRYPTO_secure_used returns zero.
+OPENSSL_EXPORT size_t CRYPTO_secure_used(void);
+
+// OPENSSL_secure_malloc calls |OPENSSL_malloc|.
+OPENSSL_EXPORT void *OPENSSL_secure_malloc(size_t size);
+
+// OPENSSL_secure_clear_free calls |OPENSSL_clear_free|.
+OPENSSL_EXPORT void OPENSSL_secure_clear_free(void *ptr, size_t len);
 
 
 #if defined(__cplusplus)

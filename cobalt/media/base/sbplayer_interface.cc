@@ -59,12 +59,13 @@ void DefaultSbPlayerInterface::Destroy(SbPlayer player) {
   SbPlayerDestroy(player);
 }
 
-void DefaultSbPlayerInterface::Seek(SbPlayer player, int64_t seek_to_timestamp,
+void DefaultSbPlayerInterface::Seek(SbPlayer player,
+                                    base::TimeDelta seek_to_timestamp,
                                     int ticket) {
 #if SB_API_VERSION >= 15
-  SbPlayerSeek(player, seek_to_timestamp, ticket);
+  SbPlayerSeek(player, seek_to_timestamp.InMicroseconds(), ticket);
 #else   // SB_API_VERSION >= 15
-  SbPlayerSeek2(player, seek_to_timestamp, ticket);
+  SbPlayerSeek2(player, seek_to_timestamp.InMicroseconds(), ticket);
 #endif  // SB_API_VERSION >= 15
 }
 

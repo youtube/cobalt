@@ -5,44 +5,50 @@
  * found in the LICENSE file.
  */
 
+#include "src/gpu/GrCaps.h"
+#include "src/gpu/GrFragmentProcessor.h"
 #include "src/gpu/GrGeometryProcessor.h"
 #include "src/gpu/GrProcessorAnalysis.h"
-#include "src/gpu/ops/GrDrawOp.h"
 
 GrColorFragmentProcessorAnalysis::GrColorFragmentProcessorAnalysis(
         const GrProcessorAnalysisColor& input,
-        const std::unique_ptr<const GrFragmentProcessor>* processors,
-        int cnt) {
+        std::unique_ptr<GrFragmentProcessor> const fps[],
+        int count) {
     fCompatibleWithCoverageAsAlpha = true;
     fIsOpaque = input.isOpaque();
     fUsesLocalCoords = false;
+    fWillReadDstColor = false;
     fProcessorsToEliminate = 0;
-    fKnowOutputColor = input.isConstant(&fLastKnownOutputColor);
-    for (int i = 0; i < cnt; ++i) {
-        if (fUsesLocalCoords && !fKnowOutputColor && !fCompatibleWithCoverageAsAlpha &&
-            !fIsOpaque) {
-            break;
-        }
-        const GrFragmentProcessor* fp = processors[i].get();
-        if (fKnowOutputColor &&
-            fp->hasConstantOutputForConstantInput(fLastKnownOutputColor, &fLastKnownOutputColor)) {
+    fOutputColorKnown = input.isConstant(&fLastKnownOutputColor);
+    for (int i = 0; i < count; ++i) {
+        const GrFragmentProcessor* fp = fps[i].get();
+        if (fOutputColorKnown && fp->hasConstantOutputForConstantInput(fLastKnownOutputColor,
+                                                                       &fLastKnownOutputColor)) {
             ++fProcessorsToEliminate;
             fIsOpaque = fLastKnownOutputColor.isOpaque();
-            // We reset these since the caller is expected to not use the earlier fragment
-            // processors.
+            // We reset these flags since the earlier fragment processors are being eliminated.
             fCompatibleWithCoverageAsAlpha = true;
             fUsesLocalCoords = false;
-        } else {
-            fKnowOutputColor = false;
-            if (fIsOpaque && !fp->preservesOpaqueInput()) {
-                fIsOpaque = false;
-            }
-            if (fCompatibleWithCoverageAsAlpha && !fp->compatibleWithCoverageAsAlpha()) {
-                fCompatibleWithCoverageAsAlpha = false;
-            }
-            if (fp->usesLocalCoords()) {
-                fUsesLocalCoords = true;
-            }
+            fWillReadDstColor = false;
+            continue;
+        }
+
+        fOutputColorKnown = false;
+        if (fIsOpaque && !fp->preservesOpaqueInput()) {
+            fIsOpaque = false;
+        }
+        if (fCompatibleWithCoverageAsAlpha && !fp->compatibleWithCoverageAsAlpha()) {
+            fCompatibleWithCoverageAsAlpha = false;
+        }
+        if (fp->usesSampleCoords()) {
+            fUsesLocalCoords = true;
+        }
+        if (fp->willReadDstColor()) {
+            fWillReadDstColor = true;
         }
     }
+}
+
+bool GrColorFragmentProcessorAnalysis::requiresDstTexture(const GrCaps& caps) const {
+    return this->willReadDstColor() && !caps.shaderCaps()->dstReadInShaderSupport();
 }

@@ -9,9 +9,6 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 
-#include "starboard/client_porting/poem/string_poem.h"
-#include "starboard/memory.h"
-
 namespace net {
 
 ChunkedUploadDataStream::Writer::~Writer() = default;

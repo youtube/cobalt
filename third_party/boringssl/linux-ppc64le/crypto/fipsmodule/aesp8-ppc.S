@@ -1,3 +1,6 @@
+// This file is generated from a similarly-named Perl script in the BoringSSL
+// source tree. Do not edit by hand.
+
 #if defined(__has_feature)
 #if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
 #define OPENSSL_NO_ASM
@@ -1775,7 +1778,7 @@ _aesp8_ctr32_encrypt8x:
 	.long	0x7E082799
 	.long	0x7E3A2799
 	addi	4,4,0x30
-	b	.Lcbc_dec8x_done
+	b	.Lctr32_enc8x_done
 
 .align	5
 .Lctr32_enc8x_two:
@@ -1787,7 +1790,7 @@ _aesp8_ctr32_encrypt8x:
 	.long	0x7DE02799
 	.long	0x7E082799
 	addi	4,4,0x20
-	b	.Lcbc_dec8x_done
+	b	.Lctr32_enc8x_done
 
 .align	5
 .Lctr32_enc8x_one:
@@ -3664,3 +3667,4 @@ _aesp8_xts_dec5x:
 .long	0
 .byte	0,12,0x14,0,0,0,0,0
 #endif  // !OPENSSL_NO_ASM && __powerpc64__
+.section	.note.GNU-stack,"",@progbits

@@ -200,14 +200,14 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
     return true;
 #if SB_API_VERSION >= 15
   } else if (name == "AudioWriteDurationLocal" && value > 0) {
-    audio_write_duration_local_ = value;
+    audio_write_duration_local_ = base::TimeDelta::FromMicroseconds(value);
     LOG(INFO) << "Set AudioWriteDurationLocal to "
-              << audio_write_duration_local_;
+              << audio_write_duration_local_.InMicroseconds();
     return true;
   } else if (name == "AudioWriteDurationRemote" && value > 0) {
-    audio_write_duration_remote_ = value;
+    audio_write_duration_remote_ = base::TimeDelta::FromMicroseconds(value);
     LOG(INFO) << "Set AudioWriteDurationRemote to "
-              << audio_write_duration_remote_;
+              << audio_write_duration_remote_.InMicroseconds();
     return true;
 #endif  // SB_API_VERSION >= 15
   }

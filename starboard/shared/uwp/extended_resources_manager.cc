@@ -68,8 +68,10 @@ const int64_t kReleaseTimeoutUsec = 1'000'000;
 //
 // To make playback more smooth it is better to increase the output queue size
 // up to 30-50 frames, but it should not exceed memory budgetd.
-// So, the value of 440 Mb looks as compromise.
-const uint64_t kFrameBuffersPoolMemorySize = 440 * 1024 * 1024;
+// Compromise value was found out experimentally.
+// 400 Mb leaves enough memory for stable working of the rest system.
+// Just in case to be more sure we reduce this value down to 380 Mb.
+const uint64_t kFrameBuffersPoolMemorySize = 380 * 1024 * 1024;
 
 bool IsExtendedResourceModeRequired() {
   if (!::starboard::xb1::shared::CanAcquire()) {

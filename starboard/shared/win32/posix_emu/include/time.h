@@ -1,4 +1,4 @@
-// Copyright 2023 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,13 +15,8 @@
 #ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_TIME_H_
 #define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_TIME_H_
 
-#if defined(STARBOARD)
-
-#include <time.h>  // For struct timespec
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+// struct timespec is defined in the system time.h
+#include <../ucrt/time.h>  // The Visual Studio version of this same file
 
 // https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/time.h.html
 typedef int clockid_t;
@@ -30,13 +25,18 @@ typedef int clockid_t;
 #define CLOCK_PROCESS_CPUTIME_ID 2
 #define CLOCK_THREAD_CPUTIME_ID 3
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // https://pubs.opengroup.org/onlinepubs/9699919799/functions/clock_gettime.html
 int clock_gettime(clockid_t clock_id, struct timespec* tp);
+
+// https://pubs.opengroup.org/onlinepubs/000095399/functions/gmtime_r.html
+struct tm* gmtime_r(const time_t* timer, struct tm* result);
 
 #ifdef __cplusplus
 }
 #endif  // __cplusplus
-
-#endif  // defined(STARBOARD)
 
 #endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_TIME_H_

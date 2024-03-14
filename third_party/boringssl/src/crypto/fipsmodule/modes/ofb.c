@@ -46,20 +46,19 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  * ==================================================================== */
 
-#include <openssl/type_check.h>
-
 #include <assert.h>
 #include <string.h>
 
 #include "internal.h"
 
 
-OPENSSL_COMPILE_ASSERT((16 % sizeof(size_t)) == 0, bad_size_t_size_ofb);
+static_assert(16 % sizeof(size_t) == 0, "block cannot be divided into size_t");
 
 void CRYPTO_ofb128_encrypt(const uint8_t *in, uint8_t *out, size_t len,
                            const AES_KEY *key, uint8_t ivec[16], unsigned *num,
                            block128_f block) {
-  assert(in && out && key && ivec && num);
+  assert(key != NULL && ivec != NULL && num != NULL);
+  assert(len == 0 || (in != NULL && out != NULL));
 
   unsigned n = *num;
 

@@ -1,3 +1,6 @@
+; This file is generated from a similarly-named Perl script in the BoringSSL
+; source tree. Do not edit by hand.
+
 default	rel
 %define XMMWORD
 %define YMMWORD
@@ -598,6 +601,10 @@ $L$SEH_begin_aesni_gcm_encrypt:
 
 
 
+%ifdef BORINGSSL_DISPATCH_TEST
+EXTERN	BORINGSSL_function_hit
+	mov	BYTE[((BORINGSSL_function_hit+2))],1
+%endif
 	xor	r10,r10
 
 

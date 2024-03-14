@@ -39,7 +39,7 @@ int CRYPTO_refcount_dec_and_test_zero(CRYPTO_refcount_t *count) {
 
   for (;;) {
     if (expected == 0) {
-      OPENSSL_port_abort();
+      SbSystemBreakIntoDebugger();
     } else if (expected == CRYPTO_REFCOUNT_MAX) {
       return 0;
     } else {

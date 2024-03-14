@@ -230,12 +230,19 @@ const EVP_PKEY_ASN1_METHOD ec_asn1_meth = {
   // 1.2.840.10045.2.1
   {0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01}, 7,
 
+  &ec_pkey_meth,
+
   eckey_pub_decode,
   eckey_pub_encode,
   eckey_pub_cmp,
 
   eckey_priv_decode,
   eckey_priv_encode,
+
+  NULL /* set_priv_raw */,
+  NULL /* set_pub_raw */,
+  NULL /* get_priv_raw */,
+  NULL /* get_pub_raw */,
 
   eckey_opaque,
 

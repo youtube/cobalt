@@ -117,7 +117,6 @@
 #include <limits.h>
 #include <string.h>
 
-#include <openssl/buf.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/mem.h>
@@ -405,7 +404,7 @@ ssl_open_record_t dtls1_open_handshake(SSL *ssl, size_t *out_consumed,
   return ssl_open_record_success;
 }
 
-bool dtls1_get_message(SSL *ssl, SSLMessage *out) {
+bool dtls1_get_message(const SSL *ssl, SSLMessage *out) {
   if (!dtls1_is_current_message_complete(ssl)) {
     return false;
   }
@@ -438,10 +437,6 @@ void dtls1_next_message(SSL *ssl) {
 }
 
 bool dtls_has_unprocessed_handshake_data(const SSL *ssl) {
-  if (ssl->d1->has_change_cipher_spec) {
-    return true;
-  }
-
   size_t current = ssl->d1->handshake_read_seq % SSL_MAX_HANDSHAKE_FLIGHT;
   for (size_t i = 0; i < SSL_MAX_HANDSHAKE_FLIGHT; i++) {
     // Skip the current message.
@@ -492,10 +487,7 @@ ssl_open_record_t dtls1_open_change_cipher_spec(SSL *ssl, size_t *out_consumed,
 
 // Sending handshake messages.
 
-void DTLS_OUTGOING_MESSAGE::Clear() {
-  OPENSSL_free(data);
-  data = nullptr;
-}
+void DTLS_OUTGOING_MESSAGE::Clear() { data.Reset(); }
 
 void dtls_clear_outgoing_messages(SSL *ssl) {
   for (size_t i = 0; i < ssl->d1->outgoing_messages_len; i++) {
@@ -508,7 +500,7 @@ void dtls_clear_outgoing_messages(SSL *ssl) {
   ssl->d1->flight_has_reply = false;
 }
 
-bool dtls1_init_message(SSL *ssl, CBB *cbb, CBB *body, uint8_t type) {
+bool dtls1_init_message(const SSL *ssl, CBB *cbb, CBB *body, uint8_t type) {
   // Pick a modest size hint to save most of the |realloc| calls.
   if (!CBB_init(cbb, 64) ||
       !CBB_add_u8(cbb, type) ||
@@ -522,7 +514,7 @@ bool dtls1_init_message(SSL *ssl, CBB *cbb, CBB *body, uint8_t type) {
   return true;
 }
 
-bool dtls1_finish_message(SSL *ssl, CBB *cbb, Array<uint8_t> *out_msg) {
+bool dtls1_finish_message(const SSL *ssl, CBB *cbb, Array<uint8_t> *out_msg) {
   if (!CBBFinishArray(cbb, out_msg) ||
       out_msg->size() < DTLS1_HM_HEADER_LENGTH) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
@@ -583,9 +575,7 @@ static bool add_outgoing(SSL *ssl, bool is_ccs, Array<uint8_t> data) {
 
   DTLS_OUTGOING_MESSAGE *msg =
       &ssl->d1->outgoing_messages[ssl->d1->outgoing_messages_len];
-  size_t len;
-  data.Release(&msg->data, &len);
-  msg->len = len;
+  msg->data = std::move(data);
   msg->epoch = ssl->d1->w_epoch;
   msg->is_ccs = is_ccs;
 
@@ -670,7 +660,7 @@ static enum seal_result_t seal_next_message(SSL *ssl, uint8_t *out,
   // DTLS messages are serialized as a single fragment in |msg|.
   CBS cbs, body;
   struct hm_header_st hdr;
-  CBS_init(&cbs, msg->data, msg->len);
+  CBS_init(&cbs, msg->data.data(), msg->data.size());
   if (!dtls1_parse_fragment(&cbs, &hdr, &body) ||
       hdr.frag_off != 0 ||
       hdr.frag_len != CBS_len(&body) ||
@@ -776,13 +766,16 @@ static int send_flight(SSL *ssl) {
     return -1;
   }
 
+  if (ssl->wbio == nullptr) {
+    OPENSSL_PUT_ERROR(SSL, SSL_R_BIO_NOT_SET);
+    return -1;
+  }
+
   dtls1_update_mtu(ssl);
 
-  int ret = -1;
-  uint8_t *packet = (uint8_t *)OPENSSL_malloc(ssl->d1->mtu);
-  if (packet == NULL) {
-    OPENSSL_PUT_ERROR(SSL, ERR_R_MALLOC_FAILURE);
-    goto err;
+  Array<uint8_t> packet;
+  if (!packet.Init(ssl->d1->mtu)) {
+    return -1;
   }
 
   while (ssl->d1->outgoing_written < ssl->d1->outgoing_messages_len) {
@@ -790,31 +783,26 @@ static int send_flight(SSL *ssl) {
     uint32_t old_offset = ssl->d1->outgoing_offset;
 
     size_t packet_len;
-    if (!seal_next_packet(ssl, packet, &packet_len, ssl->d1->mtu)) {
-      goto err;
+    if (!seal_next_packet(ssl, packet.data(), &packet_len, packet.size())) {
+      return -1;
     }
 
-    int bio_ret = BIO_write(ssl->wbio.get(), packet, packet_len);
+    int bio_ret = BIO_write(ssl->wbio.get(), packet.data(), packet_len);
     if (bio_ret <= 0) {
       // Retry this packet the next time around.
       ssl->d1->outgoing_written = old_written;
       ssl->d1->outgoing_offset = old_offset;
-      ssl->s3->rwstate = SSL_WRITING;
-      ret = bio_ret;
-      goto err;
+      ssl->s3->rwstate = SSL_ERROR_WANT_WRITE;
+      return bio_ret;
     }
   }
 
   if (BIO_flush(ssl->wbio.get()) <= 0) {
-    ssl->s3->rwstate = SSL_WRITING;
-    goto err;
+    ssl->s3->rwstate = SSL_ERROR_WANT_WRITE;
+    return -1;
   }
 
-  ret = 1;
-
-err:
-  OPENSSL_free(packet);
-  return ret;
+  return 1;
 }
 
 int dtls1_flush_flight(SSL *ssl) {

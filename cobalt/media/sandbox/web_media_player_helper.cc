@@ -54,6 +54,7 @@ class WebMediaPlayerHelper::WebMediaPlayerClientStub
   }
   std::string SourceURL() const override { return ""; }
   std::string MaxVideoCapabilities() const override { return std::string(); };
+  int MaxVideoInputSize() const override { return 0; };
 
   void EncryptedMediaInitDataEncountered(const char*, const unsigned char*,
                                          unsigned) override {}

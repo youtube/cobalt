@@ -141,7 +141,6 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'overlay_info_test',
         'persistent_settings_test',
         'png_utils_test',
-        'poem_unittests',
         'js_profiler_test',
         'renderer_test',
         'render_tree_test',

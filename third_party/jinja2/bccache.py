@@ -1,59 +1,37 @@
 # -*- coding: utf-8 -*-
+"""The optional bytecode cache system. This is useful if you have very
+complex template situations and the compilation of all those templates
+slows down your application too much.
+
+Situations where this is useful are often forking web applications that
+are initialized on the first request.
 """
-    jinja2.bccache
-    ~~~~~~~~~~~~~~
-
-    This module implements the bytecode cache system Jinja is optionally
-    using.  This is useful if you have very complex template situations and
-    the compiliation of all those templates slow down your application too
-    much.
-
-    Situations where this is useful are often forking web applications that
-    are initialized on the first request.
-
-    :copyright: (c) 2010 by the Jinja Team.
-    :license: BSD.
-"""
-from os import path, listdir, pardir, sep
-import sys
-import marshal
-import tempfile
+import errno
 import fnmatch
+import os
+import stat
+import sys
+import tempfile
 from hashlib import sha1
-from jinja2.utils import open_if_exists
-from jinja2._compat import BytesIO, pickle, PY2, text_type
+from os import listdir
+from os import path
 
-_REPOSITORY_ROOT = path.abspath(
-    path.join(path.dirname(__file__), pardir, pardir))
+from ._compat import BytesIO
+from ._compat import marshal_dump
+from ._compat import marshal_load
+from ._compat import pickle
+from ._compat import text_type
+from .utils import open_if_exists
 
-# marshal works better on 3.x, one hack less required
-if not PY2:
-    marshal_dump = marshal.dump
-    marshal_load = marshal.load
-else:
-
-    def marshal_dump(code, f):
-        if isinstance(f, file):
-            marshal.dump(code, f)
-        else:
-            f.write(marshal.dumps(code))
-
-    def marshal_load(f):
-        if isinstance(f, file):
-            return marshal.load(f)
-        return marshal.loads(f.read())
-
-
-bc_version = 2
-
-# magic version used to only change with new jinja versions.  With 2.6
-# we change this to also take Python version changes into account.  The
-# reason for this is that Python tends to segfault if fed earlier bytecode
-# versions because someone thought it would be a good idea to reuse opcodes
-# or make Python incompatible with earlier versions.
-bc_magic = 'j2'.encode('ascii') + \
-    pickle.dumps(bc_version, 2) + \
-    pickle.dumps((sys.version_info[0] << 24) | sys.version_info[1])
+bc_version = 4
+# Magic bytes to identify Jinja bytecode cache files. Contains the
+# Python major and minor version to avoid loading incompatible bytecode
+# if a project upgrades its Python version.
+bc_magic = (
+    b"j2"
+    + pickle.dumps(bc_version, 2)
+    + pickle.dumps((sys.version_info[0] << 24) | sys.version_info[1], 2)
+)
 
 
 class Bucket(object):
@@ -87,12 +65,17 @@ class Bucket(object):
         if self.checksum != checksum:
             self.reset()
             return
-        self.code = marshal_load(f)
+        # if marshal_load fails then we need to reload
+        try:
+            self.code = marshal_load(f)
+        except (EOFError, ValueError, TypeError):
+            self.reset()
+            return
 
     def write_bytecode(self, f):
         """Dump the bytecode into the file or file like object passed."""
         if self.code is None:
-            raise TypeError('can\'t write empty bucket')
+            raise TypeError("can't write empty bucket")
         f.write(bc_magic)
         pickle.dump(self.checksum, f, 2)
         marshal_dump(self.code, f)
@@ -134,7 +117,7 @@ class BytecodeCache(object):
                     bucket.write_bytecode(f)
 
     A more advanced version of a filesystem based bytecode cache is part of
-    Jinja2.
+    Jinja.
     """
 
     def load_bytecode(self, bucket):
@@ -152,36 +135,30 @@ class BytecodeCache(object):
         raise NotImplementedError()
 
     def clear(self):
-        """Clears the cache.  This method is not used by Jinja2 but should be
+        """Clears the cache.  This method is not used by Jinja but should be
         implemented to allow applications to clear the bytecode cache used
         by a particular environment.
         """
 
     def get_cache_key(self, name, filename=None):
         """Returns the unique hash key for this template name."""
-        hash = sha1(name.encode('utf-8'))
+        hash = sha1(name.encode("utf-8"))
         if filename is not None:
-            filename = '|' + filename
+            filename = "|" + filename
             if isinstance(filename, text_type):
-                filename = filename.encode('utf-8')
+                filename = filename.encode("utf-8")
             hash.update(filename)
         return hash.hexdigest()
 
     def get_source_checksum(self, source):
         """Returns a checksum for the source."""
-        return sha1(source.encode('utf-8')).hexdigest()
+        return sha1(source.encode("utf-8")).hexdigest()
 
     def get_bucket(self, environment, name, filename, source):
         """Return a cache bucket for the given template.  All arguments are
         mandatory but filename may be `None`.
         """
-        # TODO(b/263289873): To get correct GN outputs the file list of cached
-        # templates should be printed to a depfile.
-        # Use the path to the template relative to the project root to get a
-        # consistent hash. To have hashes consistent across platforms we have to
-        # replace the path separator.
-        rel_path = path.relpath(filename, _REPOSITORY_ROOT)
-        key = self.get_cache_key(name, rel_path.replace(sep, '/'))
+        key = self.get_cache_key(name, filename)
         checksum = self.get_source_checksum(source)
         bucket = Bucket(environment, key, checksum)
         self.load_bytecode(bucket)
@@ -197,7 +174,9 @@ class FileSystemBytecodeCache(BytecodeCache):
     two arguments: The directory where the cache items are stored and a
     pattern string that is used to build the filename.
 
-    If no directory is specified the system temporary items folder is used.
+    If no directory is specified a default cache directory is selected.  On
+    Windows the user's temp directory is used, on UNIX systems a directory
+    is created for the user in the system temp directory.
 
     The pattern can be used to have multiple separate caches operate on the
     same directory.  The default pattern is ``'__jinja2_%s.cache'``.  ``%s``
@@ -208,17 +187,64 @@ class FileSystemBytecodeCache(BytecodeCache):
     This bytecode cache supports clearing of the cache using the clear method.
     """
 
-    def __init__(self, directory=None, pattern='__jinja2_%s.cache'):
+    def __init__(self, directory=None, pattern="__jinja2_%s.cache"):
         if directory is None:
-            directory = tempfile.gettempdir()
+            directory = self._get_default_cache_dir()
         self.directory = directory
         self.pattern = pattern
+
+    def _get_default_cache_dir(self):
+        def _unsafe_dir():
+            raise RuntimeError(
+                "Cannot determine safe temp directory.  You "
+                "need to explicitly provide one."
+            )
+
+        tmpdir = tempfile.gettempdir()
+
+        # On windows the temporary directory is used specific unless
+        # explicitly forced otherwise.  We can just use that.
+        if os.name == "nt":
+            return tmpdir
+        if not hasattr(os, "getuid"):
+            _unsafe_dir()
+
+        dirname = "_jinja2-cache-%d" % os.getuid()
+        actual_dir = os.path.join(tmpdir, dirname)
+
+        try:
+            os.mkdir(actual_dir, stat.S_IRWXU)
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise
+        try:
+            os.chmod(actual_dir, stat.S_IRWXU)
+            actual_dir_stat = os.lstat(actual_dir)
+            if (
+                actual_dir_stat.st_uid != os.getuid()
+                or not stat.S_ISDIR(actual_dir_stat.st_mode)
+                or stat.S_IMODE(actual_dir_stat.st_mode) != stat.S_IRWXU
+            ):
+                _unsafe_dir()
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise
+
+        actual_dir_stat = os.lstat(actual_dir)
+        if (
+            actual_dir_stat.st_uid != os.getuid()
+            or not stat.S_ISDIR(actual_dir_stat.st_mode)
+            or stat.S_IMODE(actual_dir_stat.st_mode) != stat.S_IRWXU
+        ):
+            _unsafe_dir()
+
+        return actual_dir
 
     def _get_cache_filename(self, bucket):
         return path.join(self.directory, self.pattern % bucket.key)
 
     def load_bytecode(self, bucket):
-        f = open_if_exists(self._get_cache_filename(bucket), 'rb')
+        f = open_if_exists(self._get_cache_filename(bucket), "rb")
         if f is not None:
             try:
                 bucket.load_bytecode(f)
@@ -226,7 +252,7 @@ class FileSystemBytecodeCache(BytecodeCache):
                 f.close()
 
     def dump_bytecode(self, bucket):
-        f = open(self._get_cache_filename(bucket), 'wb')
+        f = open(self._get_cache_filename(bucket), "wb")
         try:
             bucket.write_bytecode(f)
         finally:
@@ -237,7 +263,8 @@ class FileSystemBytecodeCache(BytecodeCache):
         # write access on the file system and the function does not exist
         # normally.
         from os import remove
-        files = fnmatch.filter(listdir(self.directory), self.pattern % '*')
+
+        files = fnmatch.filter(listdir(self.directory), self.pattern % "*")
         for filename in files:
             try:
                 remove(path.join(self.directory, filename))
@@ -253,9 +280,8 @@ class MemcachedBytecodeCache(BytecodeCache):
 
     Libraries compatible with this class:
 
-    -   `werkzeug <http://werkzeug.pocoo.org/>`_.contrib.cache
-    -   `python-memcached <http://www.tummy.com/Community/software/python-memcached/>`_
-    -   `cmemcache <http://gijsbert.org/cmemcache/>`_
+    -   `cachelib <https://github.com/pallets/cachelib>`_
+    -   `python-memcached <https://pypi.org/project/python-memcached/>`_
 
     (Unfortunately the django cache interface is not compatible because it
     does not support storing binary data, only unicode.  You can however pass
@@ -291,8 +317,13 @@ class MemcachedBytecodeCache(BytecodeCache):
        `ignore_memcache_errors` parameter.
     """
 
-    def __init__(self, client, prefix='jinja2/bytecode/', timeout=None,
-                 ignore_memcache_errors=True):
+    def __init__(
+        self,
+        client,
+        prefix="jinja2/bytecode/",
+        timeout=None,
+        ignore_memcache_errors=True,
+    ):
         self.client = client
         self.prefix = prefix
         self.timeout = timeout

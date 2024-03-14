@@ -16,10 +16,10 @@ class CommandBufferGLTestContext : public GLTestContext {
 public:
     ~CommandBufferGLTestContext() override;
 
-    static CommandBufferGLTestContext *Create(GLTestContext* shareContext) {
+    static CommandBufferGLTestContext *Create(int version, GLTestContext* shareContext) {
         CommandBufferGLTestContext* cbShareContext =
                 reinterpret_cast<CommandBufferGLTestContext*>(shareContext);
-        CommandBufferGLTestContext *ctx = new CommandBufferGLTestContext(cbShareContext);
+        CommandBufferGLTestContext *ctx = new CommandBufferGLTestContext(version, cbShareContext);
         if (!ctx->isValid()) {
             delete ctx;
             return nullptr;
@@ -36,15 +36,14 @@ public:
     int getSampleCount();
 
 private:
-    CommandBufferGLTestContext(CommandBufferGLTestContext* shareContext);
+    CommandBufferGLTestContext(int version, CommandBufferGLTestContext* shareContext);
 
     void destroyGLContext();
 
+    void onPlatformMakeNotCurrent() const override;
     void onPlatformMakeCurrent() const override;
 
     std::function<void()> onPlatformGetAutoContextRestore() const override;
-
-    void onPlatformSwapBuffers() const override;
 
     GrGLFuncPtr onPlatformGetProcAddress(const char *name) const override;
 

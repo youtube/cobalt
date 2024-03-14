@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "base/time/time.h"
 #include "starboard/media.h"
 
 namespace cobalt {
@@ -51,13 +52,13 @@ class FormatSupportQueryMetrics {
   static constexpr int kMaxCachedQueryDurations = 150;
   static constexpr int kMaxQueryDescriptionLength = 350;
 
-  static int64_t cached_query_durations_[kMaxCachedQueryDurations];
+  static base::TimeDelta cached_query_durations_[kMaxCachedQueryDurations];
   static char max_query_description_[kMaxQueryDescriptionLength];
-  static int64_t max_query_duration_;
-  static int64_t total_query_duration_;
+  static base::TimeDelta max_query_duration_;
+  static base::TimeDelta total_query_duration_;
   static int total_num_queries_;
 
-  int64_t start_time_ = 0;
+  base::Time start_time_{};
 };
 
 #endif  // defined(COBALT_BUILD_TYPE_GOLD)

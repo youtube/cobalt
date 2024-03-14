@@ -18,7 +18,7 @@
 
 #include "include/core/SkGraphics.h"
 #include "include/core/SkSurface.h"
-#include "src/core/SkRemoteGlyphCache.h"
+#include "include/private/chromium/SkChromeRemoteGlyphCache.h"
 #include "src/core/SkScalerContext.h"
 
 static std::string gSkpName;
@@ -36,6 +36,8 @@ public:
         return handleId > lastPurgedHandleId;
     }
     void purgeAll() { lastPurgedHandleId = nextHandleId; }
+
+    bool isHandleDeleted(SkDiscardableHandleId id) override { return false; }
 
 private:
     SkDiscardableHandleId nextHandleId = 0u;
@@ -61,6 +63,8 @@ public:
     ~ClientDiscardableManager() override = default;
 
     bool deleteHandle(SkDiscardableHandleId) override { return allowPurging; }
+
+    void notifyCacheMiss(SkStrikeClient::CacheMissType type, int fontSize) override { }
 
 private:
     bool allowPurging = false;
@@ -135,10 +139,10 @@ private:
 static bool push_font_data(const SkPicture& pic, SkStrikeServer* strikeServer,
                            sk_sp<SkColorSpace> colorSpace, int writeFd) {
     const SkIRect bounds = pic.cullRect().round();
-    const SkSurfaceProps props(SkSurfaceProps::kLegacyFontHost_InitType);
-    SkTextBlobCacheDiffCanvas filter(bounds.width(), bounds.height(), props,
-                                     strikeServer, std::move(colorSpace), true);
-    pic.playback(&filter);
+    const SkSurfaceProps props(0, kRGB_H_SkPixelGeometry);
+    std::unique_ptr<SkCanvas> filter = strikeServer->makeAnalysisCanvas(
+            bounds.width(), bounds.height(), props, std::move(colorSpace), true);
+    pic.playback(filter.get());
 
     std::vector<uint8_t> fontData;
     strikeServer->writeStrikeData(&fontData);
@@ -258,7 +262,7 @@ static int renderer(
                 return 0;
             }
             if (gPurgeFontCaches) discardableManager.purgeAll();
-            push_font_data(*pic.get(), &server, colorSpace, writeFd);
+            push_font_data(*pic, &server, colorSpace, writeFd);
         }
     } else {
         stream = skpData;
@@ -324,4 +328,3 @@ int main(int argc, char** argv) {
 
     return 0;
 }
-

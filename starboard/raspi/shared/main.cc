@@ -25,7 +25,6 @@
 #include "starboard/common/paths.h"
 #include "starboard/elf_loader/elf_loader_constants.h"
 #include "starboard/shared/starboard/command_line.h"
-#include "starboard/shared/starboard/starboard_switches.h"
 #endif
 
 #include "third_party/crashpad/wrapper/wrapper.h"
@@ -51,13 +50,7 @@ int main(int argc, char** argv) {
     SB_LOG(ERROR) << "Failed to get CA certificates path";
   }
 
-  bool start_handler_at_crash =
-      command_line.HasSwitch(
-          starboard::shared::starboard::kStartHandlerAtCrash) ||
-      !command_line.HasSwitch(
-          starboard::shared::starboard::kStartHandlerAtLaunch);
-  third_party::crashpad::wrapper::InstallCrashpadHandler(start_handler_at_crash,
-                                                         ca_certificates_path);
+  third_party::crashpad::wrapper::InstallCrashpadHandler(ca_certificates_path);
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
 
 #if SB_API_VERSION >= 15

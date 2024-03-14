@@ -53,16 +53,16 @@ if (current_cpu == "arm" || v8_current_cpu == "arm") {
     arm_float_abi = sabi_variables.floating_point_abi
     arm_fpu = sabi_variables.floating_point_fpu
   } else {
-    if (current_os == "android" || target_os == "android") {
-      arm_float_abi = "softfp"
-    } else {
-      declare_args() {
-        # The ARM floating point mode. This is either the string "hard", "soft",
-        # or "softfp". An empty string means to use the default one for the
-        # arm_version.
-        arm_float_abi = ""
-      }
+  if (current_os == "android" || target_os == "android") {
+    arm_float_abi = "softfp"
+  } else {
+    declare_args() {
+      # The ARM floating point mode. This is either the string "hard", "soft",
+      # or "softfp". An empty string means to use the default one for the
+      # arm_version.
+      arm_float_abi = ""
     }
+  }
   }
   assert(arm_float_abi == "" || arm_float_abi == "hard" ||
          arm_float_abi == "soft" || arm_float_abi == "softfp")
