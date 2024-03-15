@@ -1966,6 +1966,11 @@ void BrowserModule::UnfreezeInternal(int64_t timestamp) {
 
   FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
                     Unfreeze(GetResourceProvider(), timestamp));
+#if defined(DIAL_SERVER)
+  if (network_module_) {
+    network_module_->RestartDialService();
+  }
+#endif
 }
 
 void BrowserModule::OnMaybeFreeze() {

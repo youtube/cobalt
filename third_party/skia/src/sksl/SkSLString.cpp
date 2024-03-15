@@ -14,34 +14,13 @@
 #include <limits.h>
 #include <locale>
 #include <sstream>
-#include <stdlib.h>
 #include <string>
-
-#include "base/strings/string_number_conversions.h"
 
 std::string skstd::to_string(float value) {
     return skstd::to_string((double)value);
 }
 
 std::string skstd::to_string(double value) {
-#if defined(STARBOARD)
-    std::string s = base::NumberToString(value);
-    bool needsDotZero = true;
-    for (int i = s.size() - 1; i >= 0; --i) {
-        char c = s[i];
-        if (c == '.' || c == 'e') {
-            needsDotZero = false;
-            break;
-        }
-    }
-    if (needsDotZero) {
-        s += ".0";
-    }
-    if (s.size() > 0 && s[0] == '.') {
-      s = "0" + s;
-    }
-    return std::string(s.c_str());
-#else
     std::stringstream buffer;
     buffer.imbue(std::locale::classic());
     buffer.precision(17);
@@ -59,7 +38,6 @@ std::string skstd::to_string(double value) {
         buffer << ".0";
     }
     return buffer.str();
-#endif
 }
 
 bool SkSL::stod(std::string_view s, SKSL_FLOAT* value) {

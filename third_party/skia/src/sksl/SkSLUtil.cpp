@@ -13,11 +13,6 @@
 
 #include "src/gpu/GrShaderCaps.h"
 
-#if defined(STARBOARD)
-#include "starboard/system.h"
-#define exit(status) SbSystemBreakIntoDebugger()
-#endif
-
 #ifndef __STDC_FORMAT_MACROS
 #define __STDC_FORMAT_MACROS
 #endif

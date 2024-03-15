@@ -145,7 +145,7 @@ config("compiler_flags") {
 config("platform_configuration") {
   configs = [ ":common_flags" ]
   if (current_toolchain == default_toolchain && sb_is_modular) {
-    configs += [ "//starboard/evergreen/arm/hardfp/platform_configuration" ]
+    configs += [ "//starboard/build/config/modular/arm/hardfp" ]
   } else {
     configs +=
         [ "//starboard/raspi/shared/platform_configuration:compiler_flags" ]

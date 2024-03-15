@@ -96,11 +96,16 @@ base::FilePath GetDatabasePath() {
   return base::FilePath(crashpad_directory_path.c_str());
 }
 
-void InitializeCrashpadDatabase(const base::FilePath database_directory_path) {
+bool InitializeCrashpadDatabase(const base::FilePath database_directory_path) {
   std::unique_ptr<::crashpad::CrashReportDatabase> database =
       ::crashpad::CrashReportDatabase::Initialize(database_directory_path);
+  if (!database) {
+    return false;
+  }
+
   ::crashpad::Settings* settings = database->GetSettings();
   settings->SetUploadsEnabled(true);
+  return true;
 }
 
 std::string GetProductName() {
@@ -190,10 +195,9 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
   ::crashpad::CrashpadClient* client = GetCrashpadClient();
 
   const base::FilePath handler_path = GetPathToCrashpadHandlerBinary();
-  struct stat file_info;
-  if (stat(handler_path.value().c_str(), &file_info) != 0) {
-    LOG(WARNING) << "crashpad_handler not at expected location of "
-                 << handler_path.value();
+  if (!SbFileExists(handler_path.value().c_str())) {
+    LOG(ERROR) << "crashpad_handler not at expected location of "
+               << handler_path.value();
     return;
   }
 
@@ -209,7 +213,17 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
   const std::map<std::string, std::string> platform_info = GetPlatformInfo();
   default_annotations.insert(platform_info.begin(), platform_info.end());
 
-  InitializeCrashpadDatabase(database_directory_path);
+  if (!InitializeCrashpadDatabase(database_directory_path)) {
+    LOG(ERROR) << "Failed to initialize Crashpad database";
+
+    // As we investigate b/329458881 we may find that it's safe to continue with
+    // installation of the Crashpad handler here with the hope that the handler,
+    // when it runs, doesn't experience the same failure when initializing the
+    // Crashpad database. For now it seems safer to just give up on crash
+    // reporting for this particular Cobalt session.
+    return;
+  }
+
   client->SetUnhandledSignals({});
 
   client->StartHandlerAtCrash(handler_path,
