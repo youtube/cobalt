@@ -24,7 +24,7 @@
 #include "base/files/file_util.h"
 #include "base/path_service.h"
 #include "base/task/single_thread_task_executor.h"
-#include "base/task/task_scheduler/task_scheduler.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/media/decoder_buffer_allocator.h"
 #include "starboard/common/string.h"
@@ -122,7 +122,8 @@ int SandboxMain(int argc, char** argv) {
   // A one-per-process task scheduler is needed for usage of APIs in
   // base/post_task.h which will be used by some net APIs like
   // URLRequestContext;
-  base::TaskScheduler::CreateAndStartWithDefaultParams("Cobalt TaskScheduler");
+  base::ThreadPoolInstance::CreateAndStartWithDefaultParams(
+      "Cobalt TaskScheduler");
   DemuxerHostStub demuxer_host;
   std::unique_ptr<ChunkDemuxer> demuxer(new ChunkDemuxer(
       base::BindOnce(OnDemuxerOpen), base::BindRepeating(OnProgress),

@@ -20,7 +20,7 @@
 #include "base/bind.h"
 #include "base/files/file_path.h"
 #include "base/metrics/field_trial.h"
-#include "base/task/task_scheduler/task_scheduler.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
 #include "cobalt/network/disk_cache/cobalt_backend_impl.h"
 #include "net/base/cache_type.h"
 #include "net/base/net_errors.h"
