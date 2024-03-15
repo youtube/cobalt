@@ -3310,18 +3310,6 @@ test("net_unittests") {
     # TODO: b/327218234 - Reenable unittests with used functionality.
     # TODO: b/327008491 - Reenable unittests with unused functionality.
     sources -= [
-      "cert/cert_verify_proc_builtin_unittest.cc",
-      "cert/cert_verify_proc_unittest.cc",
-      "cert/crl_set_unittest.cc",
-      "cert/ct_log_response_parser_unittest.cc",
-      "cert/internal/crl_unittest.cc",
-      "cert/internal/revocation_checker_unittest.cc",
-      "cert/pki/nist_pkits_unittest.cc",
-      "cert/pki/nist_pkits_unittest.h",
-      "cert/pki/path_builder_pkits_unittest.cc",
-      "cert/pki/revocation_util_unittest.cc",
-      "cert/pki/verify_certificate_chain_pkits_unittest.cc",
-      "cert/test_root_certs_unittest.cc",
       "cookies/canonical_cookie_unittest.cc",
       "cookies/cookie_inclusion_status_unittest.cc",
       "cookies/cookie_monster_unittest.cc",
