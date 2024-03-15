@@ -157,10 +157,18 @@ void DialServiceProxy::Deregister(
       FROM_HERE, base::Bind(&DialServiceProxy::OnDeregister, this, handler));
 }
 
+void DialServiceProxy::ReplaceDialService(
+    const base::WeakPtr<DialService>& service) {
+  task_runner_->PostTask(
+      FROM_HERE,
+      base::Bind(&DialServiceProxy::OnReplaceDialService, this, service));
+}
+
 void DialServiceProxy::OnRegister(
     const scoped_refptr<DialServiceHandler>& handler) {
   if (dial_service_) {
     dial_service_->Register(handler);
+    handlers_.push_back(handler);
   }
 }
 
@@ -168,6 +176,17 @@ void DialServiceProxy::OnDeregister(
     const scoped_refptr<DialServiceHandler>& handler) {
   if (dial_service_) {
     dial_service_->Deregister(handler);
+    handlers_.remove(handler);
+  }
+}
+
+void DialServiceProxy::OnReplaceDialService(
+    const base::WeakPtr<DialService>& service) {
+  dial_service_ = service;
+  if (dial_service_) {
+    for (auto handler : handlers_) {
+      dial_service_->Register(handler);
+    }
   }
 }
 

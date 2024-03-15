@@ -144,6 +144,9 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
   void StartNetLog();
   base::FilePath StopNetLog();
 
+#if defined(DIAL_SERVER)
+  void RestartDialService();
+#endif
 
  private:
   void Initialize(const std::string& user_agent_string,
@@ -161,6 +164,7 @@ class NetworkModule : public base::MessageLoop::DestructionObserver {
   std::unique_ptr<net::HttpUserAgentSettings> http_user_agent_settings_;
   std::unique_ptr<network_bridge::CookieJar> cookie_jar_;
 #if defined(DIAL_SERVER)
+  void OnRestartDialService(base::WaitableEvent* creation_event);
   std::unique_ptr<network::DialService> dial_service_;
   scoped_refptr<network::DialServiceProxy> dial_service_proxy_;
 #endif

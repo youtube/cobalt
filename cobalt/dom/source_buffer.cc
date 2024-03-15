@@ -58,6 +58,7 @@
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/media_settings.h"
 #include "cobalt/dom/media_source.h"
+#include "cobalt/dom/source_buffer_metrics.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/dom_exception.h"
 #include "cobalt/web/web_settings.h"
@@ -591,7 +592,7 @@ bool SourceBuffer::PrepareAppend(size_t new_data_size,
     return false;
   }
 
-  metrics_.StartTracking();
+  metrics_.StartTracking(SourceBufferMetricsAction::PREPARE_APPEND);
   media_source_->OpenIfInEndedState();
 
   double current_time = media_source_->GetMediaElement()->current_time(NULL);
@@ -600,11 +601,11 @@ bool SourceBuffer::PrepareAppend(size_t new_data_size,
           new_data_size + evict_extra_in_bytes_)) {
     web::DOMException::Raise(web::DOMException::kQuotaExceededErr,
                              exception_state);
-    metrics_.EndTracking(0);
+    metrics_.EndTracking(SourceBufferMetricsAction::PREPARE_APPEND, 0);
     return false;
   }
 
-  metrics_.EndTracking(0);
+  metrics_.EndTracking(SourceBufferMetricsAction::PREPARE_APPEND, 0);
   return true;
 }
 
