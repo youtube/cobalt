@@ -51,7 +51,7 @@ struct musl_stat {
   musl_timespec /*struct timespec*/ st_atim;
   musl_timespec /*struct timespec*/ st_mtim;
   musl_timespec /*struct timespec*/ st_ctim;
-  __MUSL_LONG_TYPE __unused[3];
+  int64_t __unused[3];
 };
 
 SB_EXPORT int __wrap_stat(const char* path, struct musl_stat* info);
