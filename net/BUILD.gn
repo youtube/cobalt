@@ -3322,7 +3322,6 @@ test("net_unittests") {
       "cert/pki/revocation_util_unittest.cc",
       "cert/pki/verify_certificate_chain_pkits_unittest.cc",
       "cert/test_root_certs_unittest.cc",
-      "cert_net/cert_net_fetcher_url_request_unittest.cc",
       "cookies/canonical_cookie_unittest.cc",
       "cookies/cookie_inclusion_status_unittest.cc",
       "cookies/cookie_monster_unittest.cc",
@@ -3345,10 +3344,6 @@ test("net_unittests") {
       "http/transport_security_state_unittest.cc",
       "log/file_net_log_observer_unittest.cc",
       "log/net_log_util_unittest.cc",
-      "nqe/network_qualities_prefs_manager_unittest.cc",
-      "nqe/network_quality_estimator_unittest.cc",
-      "nqe/network_quality_estimator_util_unittest.cc",
-      "nqe/throughput_analyzer_unittest.cc",
       "proxy_resolution/pac_file_decider_unittest.cc",
       "proxy_resolution/pac_file_fetcher_impl_unittest.cc",
       "quic/bidirectional_stream_quic_impl_unittest.cc",
@@ -3363,7 +3358,6 @@ test("net_unittests") {
       "spdy/fuzzing/hpack_fuzz_util_test.cc",
       "spdy/spdy_session_pool_unittest.cc",
       "spdy/spdy_session_unittest.cc",
-      "test/embedded_test_server/embedded_test_server_unittest.cc",
     ]
     deps -= [
       "//net/http:transport_security_state_unittest_data",
