@@ -146,6 +146,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'text_encoding_test',
         'watchdog_test',
         'web_animations_test',
+        'webdriver_test',
         'web_test',
         'websocket_test',
         'worker_test',
@@ -157,7 +158,6 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
     #     'network_test',
     #     'net_unittests',
     #     'persistent_settings_test',
-    #     'webdriver_test',
     # ]
 
   def GetTestBlackBoxTargets(self):
