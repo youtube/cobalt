@@ -72,6 +72,7 @@ config("platform_configuration") {
     "/wd4146",
     "/wd4324",
     "/wd4245",
+    "/wd4700",
   ]
 
   defines = [

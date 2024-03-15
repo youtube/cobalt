@@ -29,8 +29,8 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
-#if !defined(STARBOARD)
-// #include <netdb.h>
+#if !defined(COMPILER_MSVC)
+#include <netdb.h>
 #endif
 #include <netinet/in.h>
 #include <sys/socket.h>
