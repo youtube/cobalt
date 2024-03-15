@@ -21,7 +21,7 @@ target(gtest_target_type, "extension_test") {
     "extension_test.cc",
   ]
   deps = [
-    # "//cobalt/base",
+    "//cobalt/base",
     "//cobalt/test:run_all_unittests",
     "//starboard:starboard_group",
     "//testing/gmock",
