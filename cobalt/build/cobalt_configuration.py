@@ -120,9 +120,14 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'css_parser_test',
         'cwrappers_test',
         'dom_parser_test',
+        # TODO(b/292127297): This target is not built for all platforms.
+        # 'ffmpeg_demuxer_test',
         'graphics_system_test',
+        'js_profiler_test',
         'layout_test',
         'math_test',
+        'media_capture_test',
+        'media_session_test',
         'media_stream_test',
         'media_test',
         'memory_store_test',
@@ -136,28 +141,23 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'text_encoding_test',
         'watchdog_test',
         'web_animations_test',
+        'web_test',
+        'websocket_test',
+        'xhr_test',
         'zip_unittests',
     ]
     # return [
     #     'audio_test',
     #     'dom_test',
     #     'extension_test',
-    #     # TODO(b/292127297): This target is not built for all platforms.
-    #     # 'ffmpeg_demuxer_test',
     #     'layout_tests',
     #     'loader_test',
-    #     'media_capture_test',
-    #     'media_session_test',
     #     'network_test',
     #     'net_unittests',
     #     'persistent_settings_test',
-    #     'js_profiler_test',
     #     'renderer_test',
     #     'webdriver_test',
-    #     'websocket_test',
-    #     'web_test',
     #     'worker_test',
-    #     'xhr_test',
     # ]
 
   def GetTestBlackBoxTargets(self):

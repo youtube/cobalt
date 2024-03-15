@@ -24,6 +24,7 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
+#include "base/test/task_environment.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/time/time.h"
 #include "cobalt/base/cobalt_paths.h"
@@ -125,6 +126,9 @@ class PersistentCookieStoreTest : public ::testing::Test {
 
   std::unique_ptr<storage::StorageManager> storage_manager_;
   scoped_refptr<PersistentCookieStore> cookie_store_;
+  base::test::SingleThreadTaskEnvironment task_environment_{
+      base::test::SingleThreadTaskEnvironment::MainThreadType::IO,
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 };
 }  // namespace
 
