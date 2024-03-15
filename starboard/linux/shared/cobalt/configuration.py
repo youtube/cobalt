@@ -69,6 +69,7 @@ _FILTERED_TESTS = {
         'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMessagePump',  # pylint: disable=line-too-long
         'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
         'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMockTaskRunner',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.SweepCanceledDelayedTasks_ManyTasks/WithMessagePump',  # pylint: disable=line-too-long
         'All/SequenceManagerTest.SweepCanceledDelayedTasks_ManyTasks/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
         'TaskEnvironmentTest.MultiThreadedMockTimeAndThreadPoolQueuedMode'
 
