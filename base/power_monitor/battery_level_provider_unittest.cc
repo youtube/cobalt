@@ -75,10 +75,16 @@ TEST(BatteryLevelProviderTest, MultipleBatteriesWithExternalPower) {
 #if defined(STARBOARD)
       {BatteryDetails({false,
                        42,
+                       100})
+       BatteryDetails({true,
+                       10,
                        100})});
 #else
       {BatteryDetails({.is_external_power_connected = false,
                        .current_capacity = 42,
+                       .full_charged_capacity = 100}),
+       BatteryDetails({.is_external_power_connected = true,
+                       .current_capacity = 10,
                        .full_charged_capacity = 100})});
 #endif
   EXPECT_EQ(2, state.battery_count);
