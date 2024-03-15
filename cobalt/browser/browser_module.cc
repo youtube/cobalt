@@ -474,10 +474,10 @@ BrowserModule::~BrowserModule() {
   switch (application_state_) {
     case base::kApplicationStateStarted:
       Blur(0);
-      [[clang::fallthrough]];
+      FALLTHROUGH;
     case base::kApplicationStateBlurred:
       Conceal(0);
-      [[clang::fallthrough]];
+      FALLTHROUGH;
     case base::kApplicationStateConcealed:
       Freeze(0);
       break;

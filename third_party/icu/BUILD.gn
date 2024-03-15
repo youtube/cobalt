@@ -80,10 +80,12 @@ config("icu_config") {
     defines += [ "ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_STATIC" ]
   }
 
+  if (!is_starboard) {
   if (is_win) {
     defines += [ "UCHAR_TYPE=wchar_t" ]
   } else {
-    # defines += [ "UCHAR_TYPE=uint16_t" ]
+    defines += [ "UCHAR_TYPE=uint16_t" ]
+  }
   }
 
   if (is_starboard && is_win) {

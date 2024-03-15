@@ -53,7 +53,7 @@ TEST_P(SecureHashTest, TestUpdateSHA256) {
       break;
   }
 
-  uint8_t output3[hash_length_];
+  uint8_t* output3 = new uint8_t[hash_length_];
 
   std::unique_ptr<crypto::SecureHash> ctx(
       crypto::SecureHash::Create(algorithm_));
@@ -63,6 +63,8 @@ TEST_P(SecureHashTest, TestUpdateSHA256) {
   ctx->Finish(output3, sizeof(output3));
   for (size_t i = 0; i < hash_length_; i++)
     EXPECT_EQ(expected_hash_of_input_3[i], static_cast<int>(output3[i]));
+  
+  delete[] output3;
 }
 
 TEST_P(SecureHashTest, TestClone) {
@@ -101,9 +103,9 @@ TEST_P(SecureHashTest, TestClone) {
       break;
   }
 
-  uint8_t output1[hash_length_];
-  uint8_t output2[hash_length_];
-  uint8_t output3[hash_length_];
+  uint8_t* output1 = new uint8_t[hash_length_];
+  uint8_t* output2 = new uint8_t[hash_length_];
+  uint8_t* output3 = new uint8_t[hash_length_];
 
   std::unique_ptr<crypto::SecureHash> ctx1(
       crypto::SecureHash::Create(algorithm_));
@@ -128,6 +130,10 @@ TEST_P(SecureHashTest, TestClone) {
   // Finish() ctx3, which should produce the hash of input1.
   ctx3->Finish(&output3, sizeof(output3));
   EXPECT_EQ(0, memcmp(output3, expected_hash_of_input_1.data(), hash_length_));
+
+  delete[] output1;
+  delete[] output2;
+  delete[] output3;
 }
 
 TEST_P(SecureHashTest, TestLength) {
@@ -140,8 +146,8 @@ TEST_P(SecureHashTest, Equality) {
   std::string input1(10001, 'a');  // 'a' repeated 10001 times
   std::string input2(10001, 'd');  // 'd' repeated 10001 times
 
-  uint8_t output1[hash_length_];
-  uint8_t output2[hash_length_];
+  uint8_t* output1 = new uint8_t[hash_length_];
+  uint8_t* output2 = new uint8_t[hash_length_];
 
   // Call Update() twice on input1 and input2.
   std::unique_ptr<crypto::SecureHash> ctx1(
@@ -159,6 +165,9 @@ TEST_P(SecureHashTest, Equality) {
 
   // The hash should be the same.
   EXPECT_EQ(0, memcmp(output1, output2, hash_length_));
+
+  delete[] output1;
+  delete[] output2;
 }
 
 INSTANTIATE_TEST_SUITE_P(
