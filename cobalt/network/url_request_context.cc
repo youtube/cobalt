@@ -247,8 +247,6 @@ URLRequestContext::URLRequestContext(
   // TODO: Determine if this is needed.
   url_request_context_builder->SetProtocolHandler(
       url::kDataScheme, std::make_unique<net::DataProtocolHandler>());
-#else
-  (void)job_factory;
 #endif
 
   url_request_context_ = url_request_context_builder->Build();

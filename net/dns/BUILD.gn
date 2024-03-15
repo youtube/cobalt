@@ -143,7 +143,7 @@ source_set("dns") {
   if (enable_built_in_dns) {
     sources += [ "dns_client.cc" ]
 
-    if (is_posix || is_fuchsia) {
+    if (is_posix || is_fuchsia || is_starboard) {
       sources += [
         "address_sorter_posix.cc",
         "address_sorter_posix.h",

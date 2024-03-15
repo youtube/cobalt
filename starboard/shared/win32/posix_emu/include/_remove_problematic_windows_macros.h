@@ -20,3 +20,5 @@
 #undef NO_ERROR        // winerror.h; b/302733082#comment15
 #undef PostMessage     // winuser.h
 #undef GetCurrentTime  // winbase.h; b/324981660
+#undef CreateDirectory
+#undef DeleteFile
