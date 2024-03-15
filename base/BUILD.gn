@@ -192,6 +192,14 @@ if (enable_pkeys && is_debug) {
   }
 }
 
+if (is_starboard) {
+  config("starboard_config") {
+    if (!is_gold) {
+      defines = [ "ENABLE_TEST_DATA" ]
+    }
+  }
+}
+
 buildflag_header("ios_cronet_buildflags") {
   header = "ios_cronet_buildflags.h"
   header_dir = "base/message_loop"
@@ -1092,6 +1100,7 @@ component("base") {
 
   if (is_starboard) {
     deps -= [ "//base/allocator/partition_allocator:raw_ptr" ]
+    all_dependent_configs += [ ":starboard_config" ]
   }
 
   if (is_starboard && current_toolchain != host_toolchain) {
@@ -1102,10 +1111,6 @@ component("base") {
   # Its gateway to being a component is through `//base`, so we have
   # to provide the appropriate `#define` here.
   defines += [ "IS_RAW_PTR_IMPL" ]
-
-  if (!is_gold) {
-    defines += [ "ENABLE_TEST_DATA" ]
-  }
 
   if (is_apple) {
     deps += [ "//base/time/buildflags:buildflags" ]

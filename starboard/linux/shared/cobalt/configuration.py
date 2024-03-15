@@ -73,15 +73,6 @@ _FILTERED_TESTS = {
         'All/SequenceManagerTest.SweepCanceledDelayedTasks_ManyTasks/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
         'TaskEnvironmentTest.MultiThreadedMockTimeAndThreadPoolQueuedMode'
     ],
-    'loader_test': [
-        # TODO: b/329898292 These test are disabled because they fail.
-        'FileFetcherTest.EmptyFile',
-        'FileFetcherTest.ValidFile',
-        'FileFetcherTest.ReadWithOffset',
-        'FileFetcherTest.ReadWithOffsetAndSize',
-        'LoaderTest.ValidFileEndToEndTest',
-
-    ],
     'renderer_test': [
         # TODO: b/329899074 These test are disabled because they fail.
         'PixelTest.SimpleTextIn20PtFont',
