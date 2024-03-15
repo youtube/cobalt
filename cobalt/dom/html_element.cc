@@ -15,6 +15,7 @@
 #include "cobalt/dom/html_element.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <map>
 #include <memory>
 #include <utility>
@@ -235,7 +236,6 @@ int32 HTMLElement::tab_index() const {
   if (tabindex_) {
     return *tabindex_;
   }
-  LOG(WARNING) << "Element's tabindex is not valid.";
   // The default value is 0 for focusable elements.
   // https://html.spec.whatwg.org/multipage/interaction.html#attr-tabindex
   return 0;
@@ -1556,9 +1556,9 @@ void HTMLElement::SetDir(const std::string& value) {
 }
 
 void HTMLElement::SetTabIndex(const std::string& value) {
-  std::string::size_type idx;
-  int32 tabindex = std::stoi(value, &idx);
-  if (value.length() == idx) {
+  char* endptr = nullptr;
+  int32 tabindex = strtol(value.c_str(), &endptr, 10);
+  if (!value.empty() && (endptr != value.c_str())) {
     tabindex_ = tabindex;
   } else {
     tabindex_ = base::nullopt;
