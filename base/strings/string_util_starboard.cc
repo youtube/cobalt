@@ -18,8 +18,10 @@
 
 namespace base {
 
+#if !defined(WCHAR_T_IS_UTF32)
 bool IsStringASCII(WStringPiece str) {
   return internal::DoIsStringASCII(str.data(), str.length());
 }
+#endif
 
 }  // namespace base

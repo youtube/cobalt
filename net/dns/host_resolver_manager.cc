@@ -125,7 +125,7 @@
 #endif
 
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
-#if !defined(STARBOARD)
+#if defined(USE_HACKY_COBALT_CHANGES) && !defined(COMPILER_MSVC)
 #include <net/if.h>
 #endif
 #include "net/base/sys_addrinfo.h"
