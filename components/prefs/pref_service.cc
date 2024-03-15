@@ -497,8 +497,7 @@ void PrefService::SetFilePath(const std::string& path,
 }
 
 void PrefService::SetInt64(const std::string& path, int64_t value) {
-  SetUserPrefValue(path,
-                   base::Value(base::Value(static_cast<int>(value))));
+  SetUserPrefValue(path, base::Int64ToValue(value));
 }
 
 int64_t PrefService::GetInt64(const std::string& path) const {

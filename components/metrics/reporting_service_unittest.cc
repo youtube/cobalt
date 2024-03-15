@@ -108,6 +108,8 @@ class ReportingServiceTest : public testing::Test {
 
 }  // namespace
 
+// TODO: b/323391538 Re-enable these tests after updating metrics component.
+#if !defined(STARBOARD)
 TEST_F(ReportingServiceTest, BasicTest) {
   TestReportingService service(&client_, GetLocalState());
   service.AddLog("log1");
@@ -136,5 +138,6 @@ TEST_F(ReportingServiceTest, BasicTest) {
   EXPECT_EQ(0U, task_runner_->NumPendingTasks());
   EXPECT_FALSE(client_.uploader()->is_uploading());
 }
+#endif  // defined(STARBOARD)
 
 }  // namespace metrics

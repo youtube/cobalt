@@ -112,6 +112,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'base_test',
         'bindings_test',
         'browser_test',
+        'components_metrics_tests',
         'crypto_impl_test',
         'crypto_unittests',
         'csp_test',
@@ -125,6 +126,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'media_stream_test',
         'media_test',
         'memory_store_test',
+        'metrics_test',
         'overlay_info_test',
         'png_utils_test',
         'render_tree_test',
@@ -138,7 +140,6 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
     ]
     # return [
     #     'audio_test',
-    #     'components_metrics_tests',
     #     'dom_test',
     #     'extension_test',
     #     # TODO(b/292127297): This target is not built for all platforms.
@@ -147,7 +148,6 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
     #     'loader_test',
     #     'media_capture_test',
     #     'media_session_test',
-    #     'metrics_test',
     #     'network_test',
     #     'net_unittests',
     #     'persistent_settings_test',
