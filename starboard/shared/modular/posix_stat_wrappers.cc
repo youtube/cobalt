@@ -18,14 +18,21 @@ int __wrap_stat(const char* path, struct musl_stat* musl_info) {
   struct stat stat_info;  // The type from platform toolchain.
   int retval = stat(path, &stat_info);
 
-  musl_info->st_mode = stat_info.st_mode;
-  musl_info->st_size = stat_info.st_size;
+#if defined(_MSC_VER)
+  musl_info->st_atim.tv_sec = stat_info.st_atime;
+  musl_info->st_atim.tv_nsec = 0;
+  musl_info->st_mtim.tv_sec = stat_info.st_mtime;
+  musl_info->st_mtim.tv_nsec = 0;
+  musl_info->st_ctim.tv_sec = stat_info.st_ctime;
+  musl_info->st_ctim.tv_nsec = 0;
+#else
   musl_info->st_atim.tv_sec = stat_info.st_atim.tv_sec;
   musl_info->st_atim.tv_nsec = stat_info.st_atim.tv_nsec;
   musl_info->st_mtim.tv_sec = stat_info.st_mtim.tv_sec;
   musl_info->st_mtim.tv_nsec = stat_info.st_mtim.tv_nsec;
   musl_info->st_ctim.tv_sec = stat_info.st_ctim.tv_sec;
   musl_info->st_ctim.tv_nsec = stat_info.st_ctim.tv_nsec;
+#endif
 
   return retval;
 }

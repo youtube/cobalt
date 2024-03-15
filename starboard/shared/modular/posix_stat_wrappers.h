@@ -35,15 +35,15 @@ extern "C" {
 #endif
 
 struct musl_stat {
-  unsigned /*dev_t*/ st_dev;
-  unsigned /*ino_t*/ st_ino;
-  unsigned /*nlink_t*/ st_nlink;
+  int64_t /*dev_t*/ st_dev;
+  int64_t /*ino_t*/ st_ino;
+  __MUSL_LONG_TYPE /*nlink_t*/ st_nlink;
 
   unsigned /*mode_t*/ st_mode;
   unsigned /*uid_t*/ st_uid;
   unsigned /*gid_t*/ st_gid;
   unsigned /*unsigned int*/ __pad0;
-  unsigned /*dev_t*/ st_rdev;
+  int64_t /*dev_t*/ st_rdev;
   int64_t /*off_t*/ st_size;
   __MUSL_LONG_TYPE /*blksize_t*/ st_blksize;
   int64_t /*blkcnt_t*/ st_blocks;
@@ -51,7 +51,7 @@ struct musl_stat {
   musl_timespec /*struct timespec*/ st_atim;
   musl_timespec /*struct timespec*/ st_mtim;
   musl_timespec /*struct timespec*/ st_ctim;
-  int64_t __unused[3];
+  __MUSL_LONG_TYPE __unused[3];
 };
 
 SB_EXPORT int __wrap_stat(const char* path, struct musl_stat* info);
