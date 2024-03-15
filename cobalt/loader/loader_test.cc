@@ -21,6 +21,7 @@
 #include "base/optional.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
+#include "base/test/task_environment.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/loader/file_fetcher.h"
 #include "cobalt/loader/text_decoder.h"
@@ -154,6 +155,8 @@ class LoaderTest : public ::testing::Test {
   ~LoaderTest() override {}
 
   base::FilePath data_dir_;
+  base::test::SingleThreadTaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::DEFAULT};
 };
 
 LoaderTest::LoaderTest() {

@@ -127,6 +127,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'graphics_system_test',
         'js_profiler_test',
         'layout_test',
+        'loader_test',
         'math_test',
         'media_capture_test',
         'media_session_test',
@@ -152,7 +153,6 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
     # return [
     #     'audio_test',
     #     'layout_tests',
-    #     'loader_test',
     #     'network_test',
     #     'net_unittests',
     #     'persistent_settings_test',
