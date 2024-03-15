@@ -108,6 +108,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
   # TODO(b/292007482): Replace static list with gn query.
   def GetTestTargets(self):
     return [
+        'audio_test',
         'base_unittests',
         'base_test',
         'bindings_test',
@@ -152,7 +153,6 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'zip_unittests',
     ]
     # return [
-    #     'audio_test',
     #     'layout_tests',
     #     'network_test',
     #     'net_unittests',
