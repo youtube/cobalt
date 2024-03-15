@@ -138,6 +138,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'overlay_info_test',
         'png_utils_test',
         'render_tree_test',
+        'renderer_test',
         'scroll_engine_tests',
         'speech_test',
         'storage_test',
@@ -156,7 +157,6 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
     #     'network_test',
     #     'net_unittests',
     #     'persistent_settings_test',
-    #     'renderer_test',
     #     'webdriver_test',
     # ]
 

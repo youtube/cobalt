@@ -72,7 +72,6 @@ _FILTERED_TESTS = {
         'All/SequenceManagerTest.SweepCanceledDelayedTasks_ManyTasks/WithMessagePump',  # pylint: disable=line-too-long
         'All/SequenceManagerTest.SweepCanceledDelayedTasks_ManyTasks/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
         'TaskEnvironmentTest.MultiThreadedMockTimeAndThreadPoolQueuedMode'
-
     ],
     'loader_test': [
         # TODO: b/329898292 These test are disabled because they fail.
@@ -81,6 +80,54 @@ _FILTERED_TESTS = {
         'FileFetcherTest.ReadWithOffset',
         'FileFetcherTest.ReadWithOffsetAndSize',
         'LoaderTest.ValidFileEndToEndTest',
+
+    ],
+    'renderer_test': [
+        # TODO: b/329899074 These test are disabled because they fail.
+        'PixelTest.SimpleTextIn20PtFont',
+        'PixelTest.SimpleTextIn40PtFont',
+        'PixelTest.SimpleTextIn80PtFont',
+        'PixelTest.SimpleTextIn500PtFont',
+        'PixelTest.RedTextIn500PtFont',
+        'PixelTest.TooManyGlyphs',
+        'PixelTest.ShearedText',
+        'PixelTest.SimpleText40PtFontWithCharacterLowerThanBaseline',
+        'PixelTest.SimpleTextInEthiopic',
+        'PixelTest.SimpleTextInEthiopicBold',
+        'PixelTest.SimpleTextInRed40PtFont',
+        'PixelTest.SimpleTextInRed40PtChineseFont',
+        'PixelTest.RotatedTextInScaledRoundedCorners',
+        'PixelTest.RedTextOnBlueIn40PtFont',
+        'PixelTest.WhiteTextOnBlackIn40PtFont',
+        'PixelTest.TransparentBlackTextOnRedIn40PtFont',
+        'PixelTest.ViewportFilterOnTextNodeTest',
+        'PixelTest.ViewportFilterWithTransformOnTextNodeTest',
+        'PixelTest.ViewportFilterAndOpacityFilterOnTextNodeTest',
+        'PixelTest.ScalingUpAnOpacityFilterTextDoesNotPixellate',
+        'PixelTest.TextNodesScaleDownSmoothly',
+        'PixelTest.DropShadowText',
+        'PixelTest.DropShadowBlurred0Point1PxText',
+        'PixelTest.DropShadowBlurred1PxText',
+        'PixelTest.DropShadowBlurred2PxText',
+        'PixelTest.DropShadowBlurred3PxText',
+        'PixelTest.DropShadowBlurred4PxText',
+        'PixelTest.DropShadowBlurred5PxText',
+        'PixelTest.DropShadowBlurred6PxText',
+        'PixelTest.DropShadowBlurred8PxText',
+        'PixelTest.DropShadowBlurred20PxText',
+        'PixelTest.ColoredDropShadowText',
+        'PixelTest.ColoredDropShadowBlurredText',
+        'PixelTest.MultipleColoredDropShadowText',
+        'PixelTest.MultipleColoredDropShadowBlurredText',
+        'PixelTest.FilterBlurred0Point1PxText',
+        'PixelTest.FilterBlurred1PxText',
+        'PixelTest.FilterBlurred2PxText',
+        'PixelTest.FilterBlurred3PxText',
+        'PixelTest.FilterBlurred4PxText',
+        'PixelTest.FilterBlurred5PxText',
+        'PixelTest.FilterBlurred6PxText',
+        'PixelTest.FilterBlurred8PxText',
+        'PixelTest.FilterBlurred20PxText',
     ],
 }
 
