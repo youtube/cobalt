@@ -489,6 +489,8 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_unlock);
   map_["pthread_mutex_trylock"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_trylock);
+  map_["pthread_once"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_once);
   map_["time"] = reinterpret_cast<const void*>(&__abi_wrap_time);
 
 #if defined(_MSC_VER)
