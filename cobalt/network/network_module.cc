@@ -223,8 +223,8 @@ void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
   cookie_jar_.reset(new CookieJarImpl(url_request_context_->cookie_store(),
                                       task_runner().get()));
 #if defined(DIAL_SERVER)
-  dial_service_.reset(new net::DialService());
-  dial_service_proxy_ = new net::DialServiceProxy(dial_service_->AsWeakPtr());
+  dial_service_.reset(new DialService());
+  dial_service_proxy_ = new DialServiceProxy(dial_service_->AsWeakPtr());
 #endif
 
   net_poster_.reset(new NetPoster(this));

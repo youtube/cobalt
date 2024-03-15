@@ -1,8 +1,18 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
-#include "net/dial/dial_http_server.h"
+#include "cobalt/network/dial/dial_http_server.h"
 
 #include <memory>
 #include <vector>
@@ -10,19 +20,20 @@
 #include "base/bind.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
-#include "base/trace_event/trace_event.h"
 #include "base/threading/thread_task_runner_handle.h"
+#include "base/trace_event/trace_event.h"
+#include "cobalt/network/dial/dial_service.h"
+#include "cobalt/network/dial/dial_service_handler.h"
+#include "cobalt/network/dial/dial_system_config.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
-#include "net/dial/dial_service.h"
-#include "net/dial/dial_service_handler.h"
-#include "net/dial/dial_system_config.h"
 #include "net/server/http_connection.h"
 #include "net/server/http_server_request_info.h"
 #include "net/socket/stream_socket.h"
 #include "net/socket/tcp_server_socket.h"
 
-namespace net {
+namespace cobalt {
+namespace network {
 
 namespace {
 const char* kXmlMimeType = "text/xml; charset=\"utf-8\"";
@@ -89,8 +100,8 @@ DialHttpServer::DialHttpServer(DialService* dial_service)
         ip_addr.value().address().ToString(), ip_addr.value().port(),
         1 /*backlog*/);
   }
-  http_server_.reset(
-      new HttpServer(std::unique_ptr<ServerSocket>(server_socket), this));
+  http_server_.reset(new net::HttpServer(
+      std::unique_ptr<net::ServerSocket>(server_socket), this));
   ConfigureApplicationUrl();
 }
 
@@ -105,14 +116,14 @@ void DialHttpServer::Stop() {
   http_server_.reset();
 }
 
-int DialHttpServer::GetLocalAddress(IPEndPoint* addr) {
+int DialHttpServer::GetLocalAddress(net::IPEndPoint* addr) {
   DCHECK_EQ(task_runner_, base::ThreadTaskRunnerHandle::Get());
   // We want to give second screen the IPv4 address, but we still need to
   // get http_server_'s address for its port number.
   int ret = http_server_->GetLocalAddress(addr);
 
   if (ret != 0) {
-    return ERR_FAILED;
+    return net::ERR_FAILED;
   }
 
   SbSocketAddress local_ip = {0};
@@ -124,21 +135,21 @@ int DialHttpServer::GetLocalAddress(IPEndPoint* addr) {
   // DIAL only works with IPv4.
   destination.type = kSbSocketAddressTypeIpv4;
   if (!SbSocketGetInterfaceAddress(&destination, &local_ip, NULL)) {
-    return ERR_FAILED;
+    return net::ERR_FAILED;
   }
   local_ip.port = addr->port();
   LOG_ONCE(INFO) << "In-App DIAL Address http://" << addr->address().ToString()
-               << ":" << addr->port();
+                 << ":" << addr->port();
 
   if (addr->FromSbSocketAddress(&local_ip)) {
-    return OK;
+    return net::OK;
   }
 
-  return ERR_FAILED;
+  return net::ERR_FAILED;
 }
 
 void DialHttpServer::OnHttpRequest(int conn_id,
-                                   const HttpServerRequestInfo& info) {
+                                   const net::HttpServerRequestInfo& info) {
   TRACE_EVENT0("net::dial", "DialHttpServer::OnHttpRequest");
   DCHECK_EQ(task_runner_, base::ThreadTaskRunnerHandle::Get());
   if (info.method == "GET" &&
@@ -155,7 +166,7 @@ void DialHttpServer::OnHttpRequest(int conn_id,
                              "Location: %s\r\n"
                              "Content-Length: 0\r\n"
                              "\r\n",
-                             HTTP_FOUND, "Found",
+                             net::HTTP_FOUND, "Found",
                              (application_url() + "YouTube").c_str()),
           kNetworkTrafficAnnotation);
 
@@ -172,8 +183,8 @@ void DialHttpServer::OnHttpRequest(int conn_id,
 void DialHttpServer::OnClose(int conn_id) {}
 
 void DialHttpServer::ConfigureApplicationUrl() {
-  IPEndPoint end_point;
-  if (OK != GetLocalAddress(&end_point)) {
+  net::IPEndPoint end_point;
+  if (net::OK != GetLocalAddress(&end_point)) {
     LOG(ERROR) << "Could not get the local URL!";
     return;
   }
@@ -192,8 +203,8 @@ void DialHttpServer::SendDeviceDescriptionManifest(int conn_id) {
   // For non-Gold builds, append the IP to the friendly name
   // to help differentiate the devices.
   std::string friendly_name_str = system_config->friendly_name();
-  IPEndPoint end_point;
-  if (OK == GetLocalAddress(&end_point)) {
+  net::IPEndPoint end_point;
+  if (net::OK == GetLocalAddress(&end_point)) {
     friendly_name_str += " ";
     friendly_name_str += end_point.ToStringWithoutPort();
   }
@@ -204,7 +215,7 @@ void DialHttpServer::SendDeviceDescriptionManifest(int conn_id) {
       kDdXmlFormat, friendly_name, system_config->manufacturer_name(),
       system_config->model_name(), system_config->model_uuid());
 
-  HttpServerResponseInfo response_info(HTTP_OK);
+  net::HttpServerResponseInfo response_info(net::HTTP_OK);
   response_info.SetBody(response_body, kXmlMimeType);
   response_info.AddHeader("Application-URL", application_url().c_str());
 
@@ -212,7 +223,7 @@ void DialHttpServer::SendDeviceDescriptionManifest(int conn_id) {
 }
 
 bool DialHttpServer::DispatchToHandler(int conn_id,
-                                       const HttpServerRequestInfo& info) {
+                                       const net::HttpServerRequestInfo& info) {
   DCHECK_EQ(task_runner_, base::ThreadTaskRunnerHandle::Get());
   // See if DialService has a handler for this request.
   TRACE_EVENT0("net::dial", __FUNCTION__);
@@ -230,8 +241,7 @@ bool DialHttpServer::DispatchToHandler(int conn_id,
 }
 
 void DialHttpServer::OnReceivedResponse(
-    int conn_id,
-    std::unique_ptr<HttpServerResponseInfo> response) {
+    int conn_id, std::unique_ptr<net::HttpServerResponseInfo> response) {
   if (task_runner_ != base::ThreadTaskRunnerHandle::Get()) {
     task_runner_->PostTask(FROM_HERE,
                            base::Bind(&DialHttpServer::OnReceivedResponse, this,
@@ -249,4 +259,5 @@ void DialHttpServer::OnReceivedResponse(
   }
 }
 
-}  // namespace net
+}  // namespace network
+}  // namespace cobalt

@@ -1,30 +1,40 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
-#include "dial_service.h"
+#include "cobalt/network/dial/dial_service.h"
 
 #include "base/bind.h"
 #include "base/message_loop/message_loop.h"
 #include "base/test/scoped_task_environment.h"
-#include "net/dial/dial_test_helpers.h"
+#include "cobalt/network/dial/dial_test_helpers.h"
 #include "net/server/http_server_request_info.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::Return;
 
-namespace net {
+namespace cobalt {
+namespace network {
 
 class DialServiceTest : public testing::Test {
  protected:
   base::test::ScopedTaskEnvironment scoped_task_env_;
   std::unique_ptr<DialService> service_;
 
-  virtual void TearDown() override { service_.reset(); }
+  void TearDown() override { service_.reset(); }
 
   void GetHandlerTest(
-      const std::string& path,
-      const std::string& expected_path,
+      const std::string& path, const std::string& expected_path,
       const scoped_refptr<DialServiceHandler>& expected_handler) {
     std::string ret_path;
     scoped_refptr<DialServiceHandler> ret_handler =
@@ -74,4 +84,5 @@ TEST_F(DialServiceTest, ReleasedHandler) {
   service_->Terminate();
 }
 
-}  // namespace net
+}  // namespace network
+}  // namespace cobalt

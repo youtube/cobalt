@@ -1,20 +1,18 @@
-/*
- * Copyright 2012 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
-#include "net/dial/dial_service.h"
+#include "cobalt/network/dial/dial_service.h"
 
 #include "base/bind.h"
 #include "base/strings/string_piece.h"
@@ -25,7 +23,8 @@
 #include "net/server/http_server_request_info.h"
 #include "net/url_request/url_request.h"
 
-namespace net {
+namespace cobalt {
+namespace network {
 
 namespace {
 const char* kUdpServerAgent = "Cobalt/2.0 UPnP/1.1";
@@ -37,7 +36,7 @@ DialService::DialService() {
       new DialUdpServer(http_server_->location_url(), kUdpServerAgent));
 
   // Compute HTTP local address and cache it.
-  IPEndPoint addr;
+  net::IPEndPoint addr;
   if (http_server_->GetLocalAddress(&addr) == net::OK) {
     http_host_address_ = addr.ToString();
   } else {
@@ -90,8 +89,7 @@ void DialService::Deregister(const scoped_refptr<DialServiceHandler>& handler) {
 }
 
 scoped_refptr<DialServiceHandler> DialService::GetHandler(
-    const std::string& request_path,
-    std::string* handler_path) {
+    const std::string& request_path, std::string* handler_path) {
   // This function should only be called by DialHttpServer, to find a handler
   // to respond to an incoming request.
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -192,4 +190,5 @@ void DialServiceProxy::OnReplaceDialService(
   }
 }
 
-}  // namespace net
+}  // namespace network
+}  // namespace cobalt
