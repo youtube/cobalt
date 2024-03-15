@@ -25,9 +25,10 @@
 #include "cobalt/network/custom/url_fetcher.h"
 #include "cobalt/network/disk_cache/resource_type.h"
 #include "cobalt/persistent_storage/persistent_settings.h"
+#include "net/base/http_user_agent_settings.h"
 #include "net/cookies/cookie_monster.h"
-#include "net/log/net_log.h"
 #include "net/url_request/url_request_context.h"
+#include "net/url_request/url_request_context_builder.h"
 #include "net/url_request/url_request_context_getter.h"
 
 #if defined(ENABLE_DEBUGGER)
@@ -41,20 +42,26 @@ class StorageManager;
 
 namespace network {
 
-class URLRequestContext : public net::CobaltURLRequestContext {
+class URLRequestContext {
  public:
   URLRequestContext(
       storage::StorageManager* storage_manager, const std::string& custom_proxy,
-      net::NetLog* net_log, bool ignore_certificate_errors,
+      bool ignore_certificate_errors,
       scoped_refptr<base::SequencedTaskRunner> network_task_runner,
-      persistent_storage::PersistentSettings* persistent_settings);
+      persistent_storage::PersistentSettings* persistent_settings,
+      std::unique_ptr<net::HttpUserAgentSettings> http_user_agent_settings,
+      std::unique_ptr<net::NetworkDelegate> network_delegate);
   ~URLRequestContext();
+
+  std::unique_ptr<net::URLRequest> CreateRequest(
+      const GURL& url, net::RequestPriority priority,
+      net::URLRequest::Delegate* delegate);
 
   void SetProxy(const std::string& custom_proxy_rules);
 
   void SetEnableQuic(bool enable_quic);
 
-  bool using_http_cache() { return false; }
+  bool using_http_cache();
 
   void UpdateCacheSizeSetting(disk_cache::ResourceType type, uint32_t bytes);
   void ValidateCachePersistentSettings();
@@ -62,6 +69,18 @@ class URLRequestContext : public net::CobaltURLRequestContext {
   void AssociateKeyWithResourceType(const std::string& key,
                                     disk_cache::ResourceType resource_type);
   disk_cache::ResourceType GetType(const std::string& key);
+
+  net::CookieStore* cookie_store() {
+    return url_request_context_->cookie_store();
+  }
+
+  net::HttpTransactionFactory* http_transaction_factory() const {
+    return url_request_context_->http_transaction_factory();
+  }
+
+  net::URLRequestContext* url_request_context() {
+    return url_request_context_.get();
+  }
 
  private:
   SEQUENCE_CHECKER(sequence_checker_);
@@ -80,11 +99,10 @@ class URLRequestContext : public net::CobaltURLRequestContext {
 #endif  // defined(ENABLE_DEBUGGER)
 
   // Persistent settings module for Cobalt disk cache quotas
-#ifndef USE_HACKY_COBALT_CHANGES
   std::unique_ptr<cobalt::persistent_storage::PersistentSettings>
       cache_persistent_settings_;
-#endif
   std::map<uint32_t, disk_cache::ResourceType> url_resource_type_map_;
+  std::unique_ptr<net::URLRequestContext> url_request_context_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestContext);
 };

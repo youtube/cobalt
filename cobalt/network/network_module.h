@@ -87,7 +87,8 @@ class NetworkModule : public base::CurrentThread::DestructionObserver {
   };
 
   // Simple constructor intended to be used only by tests.
-  explicit NetworkModule(const Options& options = Options());
+  NetworkModule() : NetworkModule(Options()) {}
+  explicit NetworkModule(const Options& options);
 
   // Constructor for production use.
   NetworkModule(const std::string& user_agent_string,
@@ -102,7 +103,7 @@ class NetworkModule : public base::CurrentThread::DestructionObserver {
   URLRequestContext* url_request_context() const {
     return url_request_context_.get();
   }
-  NetworkDelegate* network_delegate() const { return network_delegate_.get(); }
+  NetworkDelegate* network_delegate() const { return network_delegate_; }
   std::string GetUserAgent() const;
   const std::string& preferred_language() const {
     return options_.preferred_language;
@@ -145,7 +146,8 @@ class NetworkModule : public base::CurrentThread::DestructionObserver {
  private:
   void Initialize(const std::string& user_agent_string,
                   base::EventDispatcher* event_dispatcher);
-  void OnCreate(base::WaitableEvent* creation_event);
+  void OnCreate(base::WaitableEvent* creation_event,
+                net::HttpUserAgentSettings* http_user_agent_settings);
   std::unique_ptr<network_bridge::NetPoster> CreateNetPoster();
 
   std::vector<std::string> client_hint_headers_;
@@ -153,7 +155,7 @@ class NetworkModule : public base::CurrentThread::DestructionObserver {
   std::unique_ptr<base::Thread> thread_;
   std::unique_ptr<URLRequestContext> url_request_context_;
   scoped_refptr<URLRequestContextGetter> url_request_context_getter_;
-  std::unique_ptr<NetworkDelegate> network_delegate_;
+  NetworkDelegate* network_delegate_;
   std::unique_ptr<NetworkSystem> network_system_;
   std::unique_ptr<net::HttpUserAgentSettings> http_user_agent_settings_;
   std::unique_ptr<network_bridge::CookieJar> cookie_jar_;

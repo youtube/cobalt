@@ -93,16 +93,6 @@ int NetworkDelegate::OnBeforeStartTransaction(
   return net::OK;
 }
 
-#ifndef USE_HACKY_COBALT_CHANGES
-void NetworkDelegate::OnBeforeSendHeaders(
-    net::URLRequest* request, const net::ProxyInfo& proxy_info,
-    const net::ProxyRetryInfoMap& proxy_retry_info,
-    net::HttpRequestHeaders* headers) {}
-
-void NetworkDelegate::OnStartTransaction(
-    net::URLRequest* request, const net::HttpRequestHeaders& headers) {}
-#endif
-
 int NetworkDelegate::OnHeadersReceived(
     net::URLRequest* request, net::CompletionOnceCallback callback,
     const net::HttpResponseHeaders* original_response_headers,
@@ -118,14 +108,6 @@ void NetworkDelegate::OnBeforeRedirect(net::URLRequest* request,
 void NetworkDelegate::OnResponseStarted(net::URLRequest* request,
                                         int net_error) {}
 
-#ifndef USE_HACKY_COBALT_CHANGES
-void NetworkDelegate::OnNetworkBytesReceived(net::URLRequest* request,
-                                             int64_t bytes_received) {}
-
-void NetworkDelegate::OnNetworkBytesSent(net::URLRequest* request,
-                                         int64_t bytes_sent) {}
-#endif
-
 void NetworkDelegate::OnCompleted(net::URLRequest* request, bool started,
                                   int net_error) {}
 
@@ -134,24 +116,6 @@ void NetworkDelegate::OnURLRequestDestroyed(net::URLRequest* request) {}
 void NetworkDelegate::OnPACScriptError(int line_number,
                                        const std::u16string& error) {}
 
-#ifndef USE_HACKY_COBALT_CHANGES
-net::NetworkDelegate::AuthRequiredResponse NetworkDelegate::OnAuthRequired(
-    net::URLRequest* request, const net::AuthChallengeInfo& auth_info,
-    AuthCallback callback, net::AuthCredentials* credentials) {
-  return AUTH_REQUIRED_RESPONSE_NO_ACTION;
-}
-
-bool NetworkDelegate::OnCanGetCookies(const net::URLRequest& request,
-                                      const net::CookieList& cookie_list,
-                                      bool allowed_from_caller) {
-  if (!allowed_from_caller) {
-    return false;
-  }
-  net::StaticCookiePolicy policy(ComputeCookiePolicy());
-  int rv = policy.CanAccessCookies(request.url(), request.site_for_cookies());
-  return rv == net::OK;
-}
-#endif
 
 bool NetworkDelegate::OnCanSetCookie(const net::URLRequest& request,
                                      const net::CanonicalCookie& cookie,
@@ -160,23 +124,6 @@ bool NetworkDelegate::OnCanSetCookie(const net::URLRequest& request,
   int rv = policy.CanAccessCookies(request.url(), request.site_for_cookies());
   return rv == net::OK;
 }
-
-#ifndef USE_HACKY_COBALT_CHANGES
-bool NetworkDelegate::OnCanAccessFile(
-    const net::URLRequest& request, const base::FilePath& original_path,
-    const base::FilePath& absolute_path) const {
-  return true;
-}
-
-bool NetworkDelegate::OnCanEnablePrivacyMode(
-    const GURL& url, const GURL& site_for_cookies) const {
-  return false;
-}
-
-bool NetworkDelegate::OnAreExperimentalCookieFeaturesEnabled() const {
-  return false;
-}
-#endif
 
 bool NetworkDelegate::OnCancelURLRequestWithPolicyViolatingReferrerHeader(
     const net::URLRequest& request, const GURL& target_url,

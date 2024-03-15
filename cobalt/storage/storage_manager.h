@@ -46,8 +46,9 @@ class StorageManager : public base::CurrentThread::DestructionObserver {
     Savegame::Options savegame_options;
   };
 
-  typedef base::Callback<void(const MemoryStore&)> ReadOnlyMemoryStoreCallback;
-  typedef base::Callback<void(MemoryStore*)> MemoryStoreCallback;
+  typedef base::OnceCallback<void(const MemoryStore&)>
+      ReadOnlyMemoryStoreCallback;
+  typedef base::OnceCallback<void(MemoryStore*)> MemoryStoreCallback;
 
   explicit StorageManager(const Options& options);
   virtual ~StorageManager();
@@ -55,8 +56,8 @@ class StorageManager : public base::CurrentThread::DestructionObserver {
   // Ensures the StorageManager thread is started.
   void EnsureStarted();
 
-  void WithReadOnlyMemoryStore(const ReadOnlyMemoryStoreCallback& callback);
-  void WithMemoryStore(const MemoryStoreCallback& callback);
+  void WithReadOnlyMemoryStore(ReadOnlyMemoryStoreCallback callback);
+  void WithMemoryStore(MemoryStoreCallback callback);
 
   // Schedule a write of our memory store to disk to happen at some point in the
   // future after a change occurs. Multiple calls to Flush() do not necessarily

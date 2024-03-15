@@ -29,7 +29,7 @@ URLRequestContextGetter::URLRequestContextGetter(
 URLRequestContextGetter::~URLRequestContextGetter() {}
 
 net::URLRequestContext* URLRequestContextGetter::GetURLRequestContext() {
-  return nullptr;
+  return url_request_context_->url_request_context();
 }
 
 scoped_refptr<base::SingleThreadTaskRunner>

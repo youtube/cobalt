@@ -30,15 +30,14 @@ class CookiesGetter {
                 base::TaskRunner* network_task_runner)
       : event_(base::WaitableEvent::ResetPolicy::MANUAL,
                base::WaitableEvent::InitialState::NOT_SIGNALED) {
-#ifndef USE_HACKY_COBALT_CHANGES
     network_task_runner->PostTask(
         FROM_HERE,
         base::BindOnce(
             &::net::CookieStore::GetCookieListWithOptionsAsync,
             base::Unretained(cookie_store), origin, net::CookieOptions(),
-            base::Passed(base::BindOnce(&CookiesGetter::CompletionCallback,
-                                        base::Unretained(this)))));
-#endif
+            net::CookiePartitionKeyCollection::ContainsAll(),
+            std::move(base::BindOnce(&CookiesGetter::CompletionCallback,
+                                     base::Unretained(this)))));
   }
 
   net::CookieList WaitForCookies() {
@@ -47,9 +46,10 @@ class CookiesGetter {
   }
 
  private:
-  void CompletionCallback(const net::CookieList& cookies) {
-    cookies_ = cookies;
-    for (auto i : cookies_) {
+  void CompletionCallback(const net::CookieAccessResultList& included_cookies,
+                          const net::CookieAccessResultList& excluded_list) {
+    for (const auto& cookie : included_cookies) {
+      cookies_.push_back(cookie.cookie);
     }
     event_.Signal();
   }
@@ -74,13 +74,16 @@ net::CookieList CookieJarImpl::GetCookies(const GURL& origin) {
 
 void CookieJarImpl::SetCookie(const GURL& origin,
                               const std::string& cookie_line) {
-#ifndef USE_HACKY_COBALT_CHANGES
+  auto cookie = net::CanonicalCookie::Create(
+      origin, cookie_line,
+      /*creation_time=*/base::Time::Now(), /*server_time=*/absl::nullopt,
+      /*cookie_partition_key=*/absl::nullopt);
   network_task_runner_->PostTask(
-      FROM_HERE,
-      base::Bind(&net::CookieStore::SetCookieWithOptionsAsync,
-                 base::Unretained(cookie_store_), origin, cookie_line,
-                 net::CookieOptions(), base::Callback<void(bool)>()));
-#endif
+      FROM_HERE, base::BindOnce(&net::CookieStore::SetCanonicalCookieAsync,
+                                base::Unretained(cookie_store_),
+                                std::move(cookie), origin, net::CookieOptions(),
+                                net::CookieStore::SetCookiesCallback(),
+                                /*cookie_access_result=*/absl::nullopt));
 }
 
 }  // namespace network

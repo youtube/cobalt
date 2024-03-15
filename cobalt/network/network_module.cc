@@ -64,7 +64,6 @@ void NetworkModule::WillDestroyCurrentMessageLoop() {
   cookie_jar_.reset();
   net_poster_.reset();
   url_request_context_.reset();
-  network_delegate_.reset();
 }
 
 NetworkModule::~NetworkModule() {
@@ -132,8 +131,9 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
   object_watch_multiplexer_.reset(new base::ObjectWatchMultiplexer());
 #endif
   network_system_ = NetworkSystem::Create(event_dispatcher);
-  http_user_agent_settings_.reset(new net::StaticHttpUserAgentSettings(
-      options_.preferred_language, user_agent_string));
+  auto http_user_agent_settings =
+      std::make_unique<net::StaticHttpUserAgentSettings>(
+          options_.preferred_language, user_agent_string);
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
@@ -141,7 +141,7 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
   if (command_line->HasSwitch(switches::kUserAgent)) {
     std::string custom_user_agent =
         command_line->GetSwitchValueASCII(switches::kUserAgent);
-    http_user_agent_settings_.reset(new net::StaticHttpUserAgentSettings(
+    http_user_agent_settings.reset(new net::StaticHttpUserAgentSettings(
         options_.preferred_language, custom_user_agent));
   }
 
@@ -192,8 +192,9 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
   // so the network delegate and URL request context are
   // constructed on that thread.
   task_runner()->PostTask(
-      FROM_HERE, base::Bind(&NetworkModule::OnCreate, base::Unretained(this),
-                            &creation_event));
+      FROM_HERE,
+      base::Bind(&NetworkModule::OnCreate, base::Unretained(this),
+                 &creation_event, http_user_agent_settings.release()));
   // Wait for OnCreate() to run, so we can be sure our members
   // have been constructed.
   creation_event.Wait();
@@ -204,28 +205,21 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
   SetEnableQuicFromPersistentSettings();
 }
 
-void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
+void NetworkModule::OnCreate(
+    base::WaitableEvent* creation_event,
+    net::HttpUserAgentSettings* http_user_agent_settings) {
   DCHECK(task_runner()->RunsTasksInCurrentSequence());
   base::CurrentThread::Get()->AddDestructionObserver(this);
 
-  net::NetLog* net_log = NULL;
-#if defined(ENABLE_NETWORK_LOGGING)
-#ifndef USE_HACKY_COBALT_CHANGES
-  net_log = net_log_.get();
-#endif
-#endif
-  url_request_context_.reset(
-      new URLRequestContext(storage_manager_.get(), options_.custom_proxy,
-                            net_log, options_.ignore_certificate_errors,
-                            task_runner(), options_.persistent_settings));
-#ifndef USE_HACKY_COBALT_CHANGES
-  network_delegate_.reset(new NetworkDelegate(options_.cookie_policy,
-                                              options_.https_requirement,
-                                              options_.cors_policy));
-  url_request_context_->set_http_user_agent_settings(
-      http_user_agent_settings_.get());
-  url_request_context_->set_network_delegate(network_delegate_.get());
-#endif
+  auto network_delegate = std::make_unique<NetworkDelegate>(
+      options_.cookie_policy, options_.https_requirement, options_.cors_policy);
+  network_delegate_ = network_delegate.get();
+  url_request_context_.reset(new URLRequestContext(
+      storage_manager_.get(), options_.custom_proxy,
+      options_.ignore_certificate_errors, task_runner(),
+      options_.persistent_settings,
+      std::unique_ptr<net::HttpUserAgentSettings>(http_user_agent_settings),
+      std::move(network_delegate)));
   cookie_jar_.reset(new CookieJarImpl(url_request_context_->cookie_store(),
                                       task_runner().get()));
 #if defined(DIAL_SERVER)
