@@ -89,6 +89,7 @@ static_library("cxx") {
     "src/valarray.cpp",
     "src/variant.cpp",
     "src/vector.cpp",
+    "src/verbose_abort.cpp",
 
     # src/atomic.cpp is omitted because this file breaks the build.
 
@@ -108,7 +109,7 @@ static_library("cxx") {
     # "constinit" with "_LIBCPP_CONSTINIT".
 
     # src/barrier.cpp, src/debug.cpp, src/legacy_pointer_safety.cpp, and
-    # src/verbose_abort.cpp are unneeded.
+    #  are unneeded.
   ]
 
   configs += [ ":cxx_config" ]
