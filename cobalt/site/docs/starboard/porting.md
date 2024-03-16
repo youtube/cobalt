@@ -26,8 +26,9 @@ $ git clone https://cobalt.googlesource.com/cobalt
 ```
 
 If you prefer, you can instead complete the instructions for
-[setting up a Cobalt development environment on Linux](../development/setup-linux.md).
-Checking out the Cobalt source code is one step in that process.
+[setting up a Cobalt development environment on Linux](
+/cobalt/development/setup-linux.html). Checking out the Cobalt source
+code is one step in that process.
 
 ## Porting steps
 
