@@ -75,7 +75,7 @@ TEST(BatteryLevelProviderTest, MultipleBatteriesWithExternalPower) {
 #if defined(STARBOARD)
       {BatteryDetails({false,
                        42,
-                       100})
+                       100}),
        BatteryDetails({true,
                        10,
                        100})});
