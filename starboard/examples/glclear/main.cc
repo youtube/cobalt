@@ -17,6 +17,7 @@
 #include <iomanip>
 
 #include "starboard/common/log.h"
+#include "starboard/common/stats.h"
 #include "starboard/event.h"
 #include "starboard/input.h"
 #include "starboard/memory.h"
