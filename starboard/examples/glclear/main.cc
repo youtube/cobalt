@@ -18,6 +18,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/stats.h"
+#include "starboard/common/time.h"
 #include "starboard/event.h"
 #include "starboard/input.h"
 #include "starboard/memory.h"
@@ -85,6 +86,11 @@ class Application {
   // The current frame we are rendering, initialized to 0 and incremented after
   // each frame.
   int frame_;
+  int frame_last_;
+  int64_t time_last_;
+  int64_t time_start_;
+  int64_t time_last_print_;
+  starboard::Stats<int64_t, 2048> frame_times_;
 
   // The SbWindow within which we will perform our rendering.
   SbWindow window_;
@@ -98,7 +104,9 @@ class Application {
 };
 
 Application::Application() {
-  frame_ = 0;
+  frame_ = frame_last_ = 0;
+  time_last_ = time_start_ = time_last_print_ =
+      starboard::CurrentMonotonicTime();
 
   SbWindowOptions options;
   SbWindowSetDefaultOptions(&options);
@@ -225,6 +233,19 @@ void Application::RenderScene() {
   // Schedule another frame render ASAP.
   SbEventSchedule(&Application::RenderSceneEventCallback, this, 0);
   ++frame_;
+  auto now = starboard::CurrentMonotonicTime();
+  auto interval = now - time_last_;
+  frame_times_.addSample(interval);
+  time_last_ = now;
+  auto elapsed_since_last_print = now - time_last_print_;
+  if (elapsed_since_last_print > 1000 * 1000) {
+    SB_LOG(INFO) << "Frames:" << frame_ << " median:" << frame_times_.median()
+                 << " mean:" << frame_times_.mean()
+                 << " min:" << frame_times_.min()
+                 << " max:" << frame_times_.max()
+                 << " stdDev:" << frame_times_.stdDev();
+    time_last_print_ = now;
+  }
 }
 
 Application* s_application = NULL;
