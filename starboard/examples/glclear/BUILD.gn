@@ -16,3 +16,18 @@ target(final_executable_type, "starboard_glclear_example") {
   sources = [ "main.cc" ]
   deps = [ "//starboard:starboard_group" ]
 }
+
+target(gtest_target_type, "glclear_test") {
+  testonly = true
+
+  sources = [
+    "//starboard/common/test_main.cc",
+    "glclear_test.cc",
+  ]
+
+  deps = [
+    "//starboard:starboard_group",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}
