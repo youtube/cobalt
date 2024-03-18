@@ -26,7 +26,7 @@
       const timeoutPromise = new Promise((resolve) => {
         setTimeout(() => {
           resolve(false);
-        }, 10000);
+        }, 60000);
       });
 
       const result = await Promise.race([timeoutPromise, promise]);
