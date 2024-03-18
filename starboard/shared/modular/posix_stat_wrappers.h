@@ -51,6 +51,9 @@ struct musl_stat {
   struct musl_timespec /*struct timespec*/ st_atim;
   struct musl_timespec /*struct timespec*/ st_mtim;
   struct musl_timespec /*struct timespec*/ st_ctim;
+#if (!defined(OS_ANDROID))
+  __MUSL_LONG_TYPE unnamed[3];
+#endif
 };
 
 SB_EXPORT int __wrap_stat(const char* path, struct musl_stat* info);
