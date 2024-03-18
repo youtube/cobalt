@@ -14,7 +14,7 @@
 
 import("//cobalt/network/certs.gni")
 
-config("network_all_dependent_config") {
+config("network_public_config") {
   # Enable network logging on all but gold builds.
   if (!is_gold) {
     defines = [ "ENABLE_NETWORK_LOGGING" ]
@@ -109,7 +109,7 @@ static_library("network") {
   if (!sb_is_modular) {
     deps += cobalt_platform_dependencies
   }
-  all_dependent_configs = [ ":network_all_dependent_config" ]
+  public_configs = [ ":network_public_config" ]
 }
 
 copy("copy_ssl_certificates") {
