@@ -1,0 +1,7 @@
+include_rules = [
+  "+ash/constants/ash_features.h",
+  "+chromeos/dbus",
+  "+components/device_event_log",
+  "+mojo/public/cpp",
+  "+third_party/libyuv",
+]
