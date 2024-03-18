@@ -356,7 +356,6 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
                            bool force_secure_pipeline_under_tunnel_mode,
                            bool force_reset_surface_under_tunnel_mode,
                            bool force_big_endian_hdr_metadata,
-                           bool force_improved_support_check,
                            int max_video_input_size,
                            std::string* error_message)
     : video_codec_(video_stream_info.codec),
@@ -375,7 +374,6 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
       surface_condition_variable_(surface_destroy_mutex_),
       require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
-      force_improved_support_check_(force_improved_support_check),
       number_of_preroll_frames_(kInitialPrerollFrameCount) {
   SB_DCHECK(error_message);
 
@@ -719,7 +717,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
       std::bind(&VideoDecoder::OnFrameRendered, this, _1),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
-      force_improved_support_check_, max_video_input_size_, error_message));
+      max_video_input_size_, error_message));
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
       media_decoder_->Initialize(

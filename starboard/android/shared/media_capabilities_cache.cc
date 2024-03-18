@@ -373,22 +373,18 @@ bool VideoCodecCapability::IsBitrateSupported(int bitrate) const {
   return supported_bitrates_.Contains(bitrate);
 }
 
-bool VideoCodecCapability::AreResolutionAndRateSupported(
-    bool force_improved_support_check,
-    int frame_width,
-    int frame_height,
-    int fps) {
-  if (force_improved_support_check) {
-    if (frame_width != 0 && frame_height != 0 && fps != 0) {
-      return JniEnvExt::Get()->CallBooleanMethodOrAbort(
-                 j_video_capabilities_, "areSizeAndRateSupported", "(IID)Z",
-                 frame_width, frame_height,
-                 static_cast<jdouble>(fps)) == JNI_TRUE;
-    } else if (frame_width != 0 && frame_height != 0) {
-      return JniEnvExt::Get()->CallBooleanMethodOrAbort(
-                 j_video_capabilities_, "isSizeSupported", "(II)Z", frame_width,
-                 frame_height) == JNI_TRUE;
-    }
+bool VideoCodecCapability::AreResolutionAndRateSupported(int frame_width,
+                                                         int frame_height,
+                                                         int fps) {
+  if (frame_width != 0 && frame_height != 0 && fps != 0) {
+    return JniEnvExt::Get()->CallBooleanMethodOrAbort(
+               j_video_capabilities_, "areSizeAndRateSupported", "(IID)Z",
+               frame_width, frame_height,
+               static_cast<jdouble>(fps)) == JNI_TRUE;
+  } else if (frame_width != 0 && frame_height != 0) {
+    return JniEnvExt::Get()->CallBooleanMethodOrAbort(
+               j_video_capabilities_, "isSizeSupported", "(II)Z", frame_width,
+               frame_height) == JNI_TRUE;
   }
   if (frame_width != 0 && !supported_widths_.Contains(frame_width)) {
     return false;
@@ -476,19 +472,16 @@ bool MediaCapabilitiesCache::HasAudioDecoderFor(const std::string& mime_type,
   return !FindAudioDecoder(mime_type, bitrate).empty();
 }
 
-bool MediaCapabilitiesCache::HasVideoDecoderFor(
-    const std::string& mime_type,
-    bool must_support_secure,
-    bool must_support_hdr,
-    bool must_support_tunnel_mode,
-    bool force_improved_support_check,
-    int frame_width,
-    int frame_height,
-    int bitrate,
-    int fps) {
+bool MediaCapabilitiesCache::HasVideoDecoderFor(const std::string& mime_type,
+                                                bool must_support_secure,
+                                                bool must_support_hdr,
+                                                bool must_support_tunnel_mode,
+                                                int frame_width,
+                                                int frame_height,
+                                                int bitrate,
+                                                int fps) {
   return !FindVideoDecoder(mime_type, must_support_secure, must_support_hdr,
-                           false, must_support_tunnel_mode,
-                           force_improved_support_check, frame_width,
+                           false, must_support_tunnel_mode, frame_width,
                            frame_height, bitrate, fps)
               .empty();
 }
@@ -527,7 +520,6 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
     bool must_support_hdr,
     bool require_software_codec,
     bool must_support_tunnel_mode,
-    bool force_improved_support_check,
     int frame_width,
     int frame_height,
     int bitrate,
@@ -538,11 +530,10 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
         env->NewStringStandardUTFOrAbort(mime_type.c_str()));
     jobject j_decoder_name = env->CallStaticObjectMethodOrAbort(
         "dev/cobalt/media/MediaCodecUtil", "findVideoDecoder",
-        "(Ljava/lang/String;ZZZZZIIIII)Ljava/lang/String;", j_mime.Get(),
+        "(Ljava/lang/String;ZZZZIIIII)Ljava/lang/String;", j_mime.Get(),
         must_support_secure, must_support_hdr,
-        false, /* mustSupportSoftwareCodec */
-        must_support_tunnel_mode, force_improved_support_check,
-        -1, /* decoderCacheTtlMs */
+        false,                        /* mustSupportSoftwareCodec */
+        must_support_tunnel_mode, -1, /* decoderCacheTtlMs */
         frame_width, frame_height, bitrate, fps);
     return env->GetStringStandardUTFOrAbort(
         static_cast<jstring>(j_decoder_name));
@@ -579,12 +570,9 @@ std::string MediaCapabilitiesCache::FindVideoDecoder(
       continue;
     }
 
-    bool enable_improved_support_check =
-        force_improved_support_check ||
-        (frame_width > 3840 || frame_height > 2160);
     // Reject if resolution or frame rate is not supported.
-    if (!video_capability->AreResolutionAndRateSupported(
-            enable_improved_support_check, frame_width, frame_height, fps)) {
+    if (!video_capability->AreResolutionAndRateSupported(frame_width,
+                                                         frame_height, fps)) {
       continue;
     }
 
