@@ -1100,7 +1100,7 @@ component("net") {
   ]
 
   if (use_cobalt_customizations) {
-    deps -= [ "//net/data/ssl/chrome_root_store:gen_root_store_inc" ] 
+    deps -= [ "//net/data/ssl/chrome_root_store:gen_root_store_inc" ]
   }
 
   public_deps = [
@@ -1366,9 +1366,7 @@ component("net") {
   ]
 
   if (is_starboard) {
-    sources -= [
-      "base/file_stream_context_posix.cc",
-    ]
+    sources -= [ "base/file_stream_context_posix.cc" ]
   }
 
   if (false) {
@@ -1724,9 +1722,7 @@ source_set("net_deps") {
   ]
 
   if (is_starboard) {
-    public_deps += [
-      "//starboard/common",
-    ]
+    public_deps += [ "//starboard/common" ]
   }
 
   public_configs = net_configs
@@ -3307,6 +3303,21 @@ test("net_unittests") {
       # TODO: b/327218234 - Reenable unittests with used functionality.
       "log/file_net_log_observer_unittest.cc"
     ]
+    if (enable_reporting) {
+      sources -= [
+        # Cobalt probably don't need these.
+        "extras/sqlite/sqlite_persistent_reporting_and_nel_store_unittest.cc",
+      ]
+    }
+    if (!disable_file_support) {
+      sources -= [
+        # Cobalt icu does not support LocaleAwareCompareFilenames yet.
+        "base/directory_lister_unittest.cc",
+
+        # Cobalt handles File Job itself.
+        "test/url_request/url_request_test_job_backed_by_file_unittest.cc",
+      ]
+    }
   }
 
   if (use_hacky_cobalt_changes) {
@@ -3326,26 +3337,17 @@ test("net_unittests") {
       "disk_cache/simple/simple_file_tracker_unittest.cc",
       "disk_cache/simple/simple_index_file_unittest.cc",
       "disk_cache/simple/simple_version_upgrade_unittest.cc",
-      "proxy_resolution/pac_file_decider_unittest.cc",
       "proxy_resolution/pac_file_fetcher_impl_unittest.cc",
-      "quic/bidirectional_stream_quic_impl_unittest.cc",
-      "quic/crypto/proof_verifier_chromium_test.cc",
-      "quic/dedicated_web_transport_http3_client_test.cc",
-      "quic/quic_chromium_client_session_test.cc",
-      "quic/quic_end_to_end_unittest.cc",
-      "quic/quic_http_stream_test.cc",
-      "quic/quic_network_transaction_unittest.cc",
-      "quic/quic_proxy_client_socket_unittest.cc",
-      "quic/quic_stream_factory_test.cc",
 
       # Re-enable once we're on c++20
       "base/backoff_entry_serializer_unittest.cc",
+      "quic/quic_stream_factory_test.cc",
     ]
     deps -= [
-      "//net/http:transport_security_state_unittest_data",
-      "//net/http:transport_security_state_unittest_data_default",
       ":extras",
       "//components/sqlite_proto",
+      "//net/http:transport_security_state_unittest_data",
+      "//net/http:transport_security_state_unittest_data_default",
       "//sql",
     ]
     data -= [ "data/trial_comparison_cert_verifier_unittest/" ]
@@ -3353,30 +3355,10 @@ test("net_unittests") {
       "third_party/nist-pkits/",
       "//testing/buildbot/filters:net_unittests_filters",
     ]
-    if (enable_reporting) {
-      sources -= [
-        "reporting/reporting_delivery_agent_unittest.cc",
-        "reporting/reporting_garbage_collector_unittest.cc",
-        "reporting/reporting_uploader_unittest.cc",
-        "extras/sqlite/sqlite_persistent_reporting_and_nel_store_unittest.cc",
-      ]
-    }
     if (use_external_gssapi) {
       data_deps -= [
         ":test_badgssapi",
         ":test_gssapi",
-      ]
-    }
-    if (enable_websockets) {
-      sources -= [
-        "websockets/websocket_channel_test.cc",
-        "websockets/websocket_stream_test.cc",
-      ]
-    }
-    if (!disable_file_support) {
-      sources -= [
-        "base/directory_lister_unittest.cc",
-        "test/url_request/url_request_test_job_backed_by_file_unittest.cc",
       ]
     }
     if (is_win) {
