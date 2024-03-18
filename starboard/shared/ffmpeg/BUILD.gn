@@ -34,6 +34,8 @@ static_library("ffmpeg_dynamic_load") {
   public_deps = [
     ":ffmpeg.57.107.100",
     ":ffmpeg.58.35.100",
+    ":ffmpeg.59.37.100",
+    ":ffmpeg.60.31.102",
     ":ffmpeg_dispatch_sources",
     ":libav.54.35.1",
     ":libav.56.1.0",
@@ -83,6 +85,10 @@ versioned_ffmpeg_library("libav.56.1.0") {
 versioned_ffmpeg_library("ffmpeg.57.107.100") {
 }
 versioned_ffmpeg_library("ffmpeg.58.35.100") {
+}
+versioned_ffmpeg_library("ffmpeg.60.31.102") {
+}
+versioned_ffmpeg_library("ffmpeg.59.37.100") {
 }
 
 static_library("ffmpeg_dispatch_sources") {

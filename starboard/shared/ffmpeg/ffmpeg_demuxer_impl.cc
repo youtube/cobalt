@@ -388,6 +388,9 @@ int64_t ExtractStartTime(AVStream* stream) {
   const int32_t codec_id = stream->codec->codec_id;
 #endif  // LIBAVFORMAT_VERSION_INT >= LIBAVFORMAT_VERSION_57_83
 
+// first_dts was removed from public API and moved into private struct
+// https://github.com/FFmpeg/FFmpeg/commit/591b88e6787c4e678237f02a50421d101abd25c2
+#if LIBAVFORMAT_VERSION_MAJOR < 59
   if (stream->first_dts != kNoFFmpegTimestamp
 #if FFMPEG >= 560
       && codec_id != AV_CODEC_ID_HEVC
@@ -397,6 +400,7 @@ int64_t ExtractStartTime(AVStream* stream) {
         ConvertFromTimeBaseToMicros(stream->time_base, stream->first_dts);
     start_time = std::min(first_pts, start_time);
   }
+#endif  // LIBAVFORMAT_VERSION_MAJOR < 60
 
   return start_time;
 }

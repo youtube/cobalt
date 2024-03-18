@@ -17,6 +17,7 @@
 
 #include "starboard/shared/ffmpeg/ffmpeg_video_decoder.h"
 
+#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/player.h"
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
@@ -54,6 +55,14 @@ VideoDecoder* VideoDecoder::Create(
       break;
     case 581:
       video_decoder = VideoDecoderImpl<581>::Create(
+          video_codec, output_mode, decode_target_graphics_context_provider);
+      break;
+    case 591:
+      video_decoder = VideoDecoderImpl<591>::Create(
+          video_codec, output_mode, decode_target_graphics_context_provider);
+      break;
+    case 601:
+      video_decoder = VideoDecoderImpl<601>::Create(
           video_codec, output_mode, decode_target_graphics_context_provider);
       break;
     default:

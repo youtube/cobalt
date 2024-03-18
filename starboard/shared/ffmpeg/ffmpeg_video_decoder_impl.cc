@@ -271,13 +271,22 @@ bool VideoDecoderImpl<FFMPEG>::DecodePacket(AVPacket* packet) {
     ffmpeg_->avcodec_get_frame_defaults(av_frame_);
   }
   int frame_decoded = 0;
-  int decode_result = ffmpeg_->avcodec_decode_video2(codec_context_, av_frame_,
-                                                     &frame_decoded, packet);
+  int decode_result = 0;
+
+  if (ffmpeg_->avcodec_version() < kAVCodecHasUniformDecodeAPI) {
+    decode_result = ffmpeg_->avcodec_decode_video2(codec_context_, av_frame_,
+                                                   &frame_decoded, packet);
+  } else {
+    decode_result = ffmpeg_->avcodec_receive_frame(codec_context_, av_frame_);
+  }
+
   if (decode_result < 0) {
-    SB_DLOG(ERROR) << "avcodec_decode_video2() failed with result "
-                   << decode_result;
+    SB_DLOG(ERROR)
+        << "avcodec_decode_video2()/avcodec_receive_frame() failed with result "
+        << decode_result;
     error_cb_(kSbPlayerErrorDecode,
-              FormatString("avcodec_decode_video2() failed with result %d.",
+              FormatString("avcodec_decode_video2()/avcodec_receive_frame() "
+                           "failed with result %d.",
                            decode_result));
     error_occurred_ = true;
     return false;
