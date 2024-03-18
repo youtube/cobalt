@@ -48,10 +48,9 @@ struct musl_stat {
   __MUSL_LONG_TYPE /*blksize_t*/ st_blksize;
   int64_t /*blkcnt_t*/ st_blocks;
 
-  musl_timespec /*struct timespec*/ st_atim;
-  musl_timespec /*struct timespec*/ st_mtim;
-  musl_timespec /*struct timespec*/ st_ctim;
-  __MUSL_LONG_TYPE __unused[3];
+  struct musl_timespec /*struct timespec*/ st_atim;
+  struct musl_timespec /*struct timespec*/ st_mtim;
+  struct musl_timespec /*struct timespec*/ st_ctim;
 };
 
 SB_EXPORT int __wrap_stat(const char* path, struct musl_stat* info);
