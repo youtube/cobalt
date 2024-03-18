@@ -319,8 +319,6 @@ static_library("starboard_platform") {
     "get_home_directory.cc",
     "graphics.cc",
     "graphics.h",
-    "h5vcc_config.cc",
-    "h5vcc_config.h",
     "input_events_generator.cc",
     "input_events_generator.h",
     "jni_env_ext.cc",
