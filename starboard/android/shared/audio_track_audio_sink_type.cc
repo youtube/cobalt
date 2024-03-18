@@ -117,7 +117,6 @@ AudioTrackAudioSink::AudioTrackAudioSink(
     SbAudioSinkPrivate::ErrorFunc error_func,
     SbTime start_time,
     int tunnel_mode_audio_session_id,
-    bool enable_pcm_content_type_movie,
     bool is_web_audio,
     void* context)
     : type_(type),
@@ -141,7 +140,6 @@ AudioTrackAudioSink::AudioTrackAudioSink(
               channels,
               sampling_frequency_hz,
               preferred_buffer_size_in_bytes,
-              enable_pcm_content_type_movie,
               tunnel_mode_audio_session_id,
               is_web_audio) {
   SB_DCHECK(update_source_status_func_);
@@ -461,13 +459,10 @@ SbAudioSink AudioTrackAudioSinkType::Create(
   // Disable tunnel mode.
   const int kTunnelModeAudioSessionId = -1;
   const bool kIsWebAudio = true;
-  // Disable AudioAttributes::CONTENT_TYPE_MOVIE for WebAudio.
-  const bool kEnablePcmContentTypeMovie = false;
   return Create(channels, sampling_frequency_hz, audio_sample_type,
                 audio_frame_storage_type, frame_buffers, frames_per_channel,
                 update_source_status_func, consume_frames_func, error_func,
-                kStartTime, kTunnelModeAudioSessionId,
-                kEnablePcmContentTypeMovie, kIsWebAudio, context);
+                kStartTime, kTunnelModeAudioSessionId, kIsWebAudio, context);
 }
 
 SbAudioSink AudioTrackAudioSinkType::Create(
@@ -482,7 +477,6 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     SbAudioSinkPrivate::ErrorFunc error_func,
     SbTime start_media_time,
     int tunnel_mode_audio_session_id,
-    bool enable_pcm_content_type_movie,
     bool is_web_audio,
     void* context) {
   int min_required_frames = SbAudioSinkGetMinBufferSizeInFrames(
@@ -494,8 +488,7 @@ SbAudioSink AudioTrackAudioSinkType::Create(
       this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
       frames_per_channel, preferred_buffer_size_in_bytes,
       update_source_status_func, consume_frames_func, error_func,
-      start_media_time, tunnel_mode_audio_session_id,
-      enable_pcm_content_type_movie, is_web_audio, context);
+      start_media_time, tunnel_mode_audio_session_id, is_web_audio, context);
   if (!audio_sink->IsAudioTrackValid()) {
     SB_DLOG(ERROR)
         << "AudioTrackAudioSinkType::Create failed to create audio track";

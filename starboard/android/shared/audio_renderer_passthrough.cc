@@ -399,8 +399,7 @@ void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
       optional<SbMediaAudioSampleType>(),  // Not required in passthrough mode
       audio_stream_info_.number_of_channels,
       audio_stream_info_.samples_per_second, kPreferredBufferSizeInBytes,
-      false /* enable_pcm_content_type_movie */, kTunnelModeAudioSessionId,
-      false /* is_web_audio */));
+      kTunnelModeAudioSessionId, false /* is_web_audio */));
 
   if (!audio_track_bridge->is_valid()) {
     error_cb_(kSbPlayerErrorDecode, "Error creating AudioTrackBridge");

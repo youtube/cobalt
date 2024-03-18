@@ -52,13 +52,6 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
     }
     enable_audio_passthrough =
         mime_type->GetParamBoolValue("audiopassthrough", true);
-
-    // Allows for disabling the CONTENT_TYPE_MOVIE AudioAttribute for
-    // non-tunneled playbacks with PCM audio. Enabled by default.
-    // (https://developer.android.com/reference/android/media/AudioAttributes#CONTENT_TYPE_MOVIE)
-    if (!mime_type->ValidateBoolParameter("enablepcmcontenttypemovie")) {
-      return false;
-    }
   }
 
   // Android uses a libopus based opus decoder for clear content, or a platform
