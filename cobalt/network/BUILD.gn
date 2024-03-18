@@ -14,6 +14,7 @@
 
 import("//cobalt/network/certs.gni")
 
+# TODO: b/330221826 Change to |public_configs| with matching dependencies.
 config("network_all_dependent_config") {
   # Enable network logging on all but gold builds.
   if (!is_gold) {
@@ -109,6 +110,7 @@ static_library("network") {
   if (!sb_is_modular) {
     deps += cobalt_platform_dependencies
   }
+  # TODO: b/330221826 Change to |public_configs| with matching dependencies.
   all_dependent_configs = [ ":network_all_dependent_config" ]
 }
 

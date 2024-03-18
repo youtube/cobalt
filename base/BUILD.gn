@@ -1100,6 +1100,7 @@ component("base") {
 
   if (is_starboard) {
     deps -= [ "//base/allocator/partition_allocator:raw_ptr" ]
+    # TODO: b/330221826 Change to |public_configs| with matching dependencies.
     all_dependent_configs += [ ":starboard_config" ]
   }
 
