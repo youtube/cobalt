@@ -458,8 +458,6 @@ SbAudioSink AudioTrackAudioSinkType::Create(
   const SbTime kStartTime = 0;
   // Disable tunnel mode.
   const int kTunnelModeAudioSessionId = -1;
-  // Disable AudioDeviceCallback for WebAudio.
-  const bool kEnableAudioDeviceCallback = false;
   const bool kIsWebAudio = true;
   return Create(channels, sampling_frequency_hz, audio_sample_type,
                 audio_frame_storage_type, frame_buffers, frames_per_channel,

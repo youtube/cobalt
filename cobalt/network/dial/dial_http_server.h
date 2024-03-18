@@ -1,25 +1,37 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
-#ifndef NET_DIAL_DIAL_HTTP_SERVER_H
-#define NET_DIAL_DIAL_HTTP_SERVER_H
+#ifndef COBALT_NETWORK_DIAL_DIAL_HTTP_SERVER_H_
+#define COBALT_NETWORK_DIAL_DIAL_HTTP_SERVER_H_
 
+#include <memory>
 #include <string>
 
 #include "base/callback_forward.h"
 #include "base/memory/ref_counted.h"
 #include "base/single_thread_task_runner.h"
-#include "net/dial/dial_service_handler.h"
+#include "cobalt/network/dial/dial_service_handler.h"
+#include "net/base/ip_endpoint.h"
 #include "net/http/http_status_code.h"
 #include "net/server/http_server.h"
+#include "net/server/http_server_request_info.h"
 #include "net/server/http_server_response_info.h"
 
-namespace net {
+namespace cobalt {
+namespace network {
 
 class DialService;
-class HttpResponseInfo;
-class IPEndPoint;
 
 // This class is created and owned by DialService and is not meant to be
 // used externally.
@@ -29,26 +41,26 @@ class IPEndPoint;
 // It's refcounted threadsafe so we can safely bind it to the callback we pass
 // to DialServiceHandler::handleRequest().
 class NET_EXPORT DialHttpServer
-    : public HttpServer::Delegate,
+    : public net::HttpServer::Delegate,
       public base::RefCountedThreadSafe<DialHttpServer> {
  public:
   explicit DialHttpServer(DialService* dial_service);
   void Stop();
 
   // HttpServer::Delegate implementation
-  virtual void OnConnect(int /*conn_id*/) override{};
-  virtual void OnHttpRequest(int conn_id,
-                             const HttpServerRequestInfo& info) override;
+  void OnConnect(int /*conn_id*/) override{};
+  void OnHttpRequest(int conn_id,
+                     const net::HttpServerRequestInfo& info) override;
 
-  virtual void OnClose(int conn_id) override;
+  void OnClose(int conn_id) override;
 
   // Unused HttpServer::Delegate
-  virtual void OnWebSocketRequest(
-      int /*connection_id*/,
-      const HttpServerRequestInfo& /*info*/) override {}
+  void OnWebSocketRequest(int /*connection_id*/,
+                          const net::HttpServerRequestInfo& /*info*/) override {
+  }
 
-  virtual void OnWebSocketMessage(int /*connection_id*/,
-                                  const std::string& /*data*/) override {}
+  void OnWebSocketMessage(int /*connection_id*/,
+                          const std::string& /*data*/) override {}
 
   // Return the formatted application URL
   std::string application_url() const { return server_url_ + "apps/"; }
@@ -58,7 +70,7 @@ class NET_EXPORT DialHttpServer
 
   // Somewhat similar to HttpServer::GetLocalAddress, but figures out the
   // network IP address and uses that. The port remains the same.
-  int GetLocalAddress(IPEndPoint* addr);
+  int GetLocalAddress(net::IPEndPoint* addr);
 
  private:
   friend class base::RefCountedThreadSafe<DialHttpServer>;
@@ -72,17 +84,17 @@ class NET_EXPORT DialHttpServer
   // Query DIAL service for a handler for the given request.
   // Return false if no handler found, true if handleRequest() was issued
   // to the handler.
-  bool DispatchToHandler(int conn_id, const HttpServerRequestInfo& info);
+  bool DispatchToHandler(int conn_id, const net::HttpServerRequestInfo& info);
 
   // Callback from WebKit thread when the HTTP task is complete.
   // Post the response info to DIAL service thread.
-  void AsyncReceivedResponse(int conn_id,
-                             std::unique_ptr<HttpServerResponseInfo> response);
+  void AsyncReceivedResponse(
+      int conn_id, std::unique_ptr<net::HttpServerResponseInfo> response);
   // Handles DIAL response.
-  void OnReceivedResponse(int conn_id,
-                          std::unique_ptr<HttpServerResponseInfo> response);
+  void OnReceivedResponse(
+      int conn_id, std::unique_ptr<net::HttpServerResponseInfo> response);
 
-  std::unique_ptr<HttpServer> http_server_;
+  std::unique_ptr<net::HttpServer> http_server_;
   std::string server_url_;
   // DialService owns this object.
   DialService* dial_service_;
@@ -94,6 +106,7 @@ class NET_EXPORT DialHttpServer
   DISALLOW_COPY_AND_ASSIGN(DialHttpServer);
 };
 
-}  // namespace net
+}  // namespace network
+}  // namespace cobalt
 
-#endif  // NET_DIAL_DIAL_HTTP_SERVER_H
+#endif  // COBALT_NETWORK_DIAL_DIAL_HTTP_SERVER_H_

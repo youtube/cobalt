@@ -1,29 +1,42 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "cobalt/network/dial/dial_http_server.h"
 
 #include <utility>
-
-#include "dial_http_server.h"
-#include "dial_service_handler.h"
+#include <vector>
 
 #include "base/strings/string_split.h"
 #include "base/test/scoped_task_environment.h"
+#include "cobalt/network/dial/dial_service.h"
+#include "cobalt/network/dial/dial_service_handler.h"
+#include "cobalt/network/dial/dial_test_helpers.h"
 #include "net/base/io_buffer.h"
+#include "net/base/ip_endpoint.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "net/cert/cert_verifier.h"
 #include "net/cert/ct_policy_enforcer.h"
 #include "net/cert/multi_log_ct_verifier.h"
-#include "net/dial/dial_service.h"
-#include "net/dial/dial_test_helpers.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_network_transaction.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
+#include "net/http/http_server_properties.h"
 #include "net/http/http_server_properties_impl.h"
 #include "net/http/transport_security_state.h"
 #include "net/proxy_resolution/proxy_resolution_service.h"
@@ -33,8 +46,33 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace net {
+namespace cobalt {
+namespace network {
 
+using ::cobalt::network::DialService;
+using ::net::CertVerifier;
+using ::net::CTPolicyEnforcer;
+using ::net::ERR_IO_PENDING;
+using ::net::HostResolver;
+using ::net::HTTP_FOUND;
+using ::net::HTTP_NOT_FOUND;
+using ::net::HTTP_OK;
+using ::net::HttpNetworkSession;
+using ::net::HttpNetworkTransaction;
+using ::net::HttpRequestInfo;
+using ::net::HttpResponseInfo;
+using ::net::HttpServerProperties;
+using ::net::HttpServerResponseInfo;
+using ::net::IPEndPoint;
+using ::net::MockHostResolver;
+using ::net::MultiLogCTVerifier;
+using ::net::MutableNetworkTrafficAnnotationTag;
+using ::net::NetLogWithSource;
+using ::net::OK;
+using ::net::ProxyResolutionService;
+using ::net::SSLConfigService;
+using ::net::TestCompletionCallback;
+using ::net::TransportSecurityState;
 using ::testing::_;
 using ::testing::DoAll;
 using ::testing::Eq;
@@ -92,31 +130,31 @@ class DialHttpServerTest : public testing::Test {
     context.proxy_resolution_service = proxy_resolution_service_ =
         ProxyResolutionService::CreateDirect().release();
     context.http_server_properties = http_server_properties_ =
-        new HttpServerPropertiesImpl();
+        new net::HttpServerPropertiesImpl();
     context.ssl_config_service = ssl_config_service_ =
-        new SSLConfigServiceDefaults();
+        new net::SSLConfigServiceDefaults();
     context.transport_security_state = transport_security_state_ =
         new TransportSecurityState();
     context.cert_transparency_verifier = cert_transparency_verifier_ =
         new MultiLogCTVerifier();
     context.ct_policy_enforcer = ct_policy_enforcer_ =
-        new DefaultCTPolicyEnforcer();
+        new net::DefaultCTPolicyEnforcer();
     context.host_resolver = host_resolver_ = new MockHostResolver();
     context.cert_verifier = cert_verifier_ =
-        CertVerifier::CreateDefault().release();
+        net::CertVerifier::CreateDefault().release();
     session_.reset(new HttpNetworkSession(params, context));
     client_.reset(new HttpNetworkTransaction(net::RequestPriority::MEDIUM,
                                              session_.get()));
   }
 
-  virtual void SetUp() override {
+  void SetUp() override {
     dial_service_.reset(new DialService());
     dial_service_->Register(handler_);
     EXPECT_EQ(OK, dial_service_->http_server()->GetLocalAddress(&addr_));
     InitHttpClientLibrary();
   }
 
-  virtual void TearDown() override {
+  void TearDown() override {
     dial_service_->Deregister(handler_);
     dial_service_.reset(NULL);
 
@@ -152,14 +190,14 @@ class DialHttpServerTest : public testing::Test {
     HttpRequestInfo req;
     req.url = GURL("http://" + addr_.ToString() + path);
     req.method = method;
-    req.load_flags = LOAD_BYPASS_PROXY | LOAD_DISABLE_CACHE;
+    req.load_flags = net::LOAD_BYPASS_PROXY | net::LOAD_DISABLE_CACHE;
     req.traffic_annotation =
         MutableNetworkTrafficAnnotationTag(kNetworkTrafficAnnotation);
     return req;
   }
 
   void Capture(const std::string& path,
-               const HttpServerRequestInfo& request,
+               const net::HttpServerRequestInfo& request,
                const DialServiceHandler::CompletionCB& on_completion) {
     if (!test_response_->succeeded_) {
       on_completion.Run(std::unique_ptr<HttpServerResponseInfo>());
@@ -193,11 +231,12 @@ class DialHttpServerTest : public testing::Test {
 
     ASSERT_NE(0, content_length);  // if failed, no point continuing.
 
-    scoped_refptr<IOBuffer> buffer(
-        new IOBuffer(static_cast<size_t>(content_length)));
+    scoped_refptr<net::IOBuffer> buffer(
+        new net::IOBuffer(static_cast<size_t>(content_length)));
     TestCompletionCallback callback;
-    int rv = client_->Read(buffer, content_length, callback.callback());
-    if (rv == net::ERR_IO_PENDING) {
+    int rv = client_->Read(buffer, static_cast<int>(content_length),
+                           callback.callback());
+    if (rv == ERR_IO_PENDING) {
       rv = callback.WaitForResult();
     }
 
@@ -226,11 +265,12 @@ TEST_F(DialHttpServerTest, SendManifest) {
   int64 content_length = resp->headers->GetContentLength();
   ASSERT_NE(0, content_length);  // if failed, no point continuing.
 
-  scoped_refptr<IOBuffer> buffer(
-      new IOBuffer(static_cast<size_t>(content_length)));
+  scoped_refptr<net::IOBuffer> buffer(
+      new net::IOBuffer(static_cast<size_t>(content_length)));
   TestCompletionCallback callback;
-  int rv = client_->Read(buffer, content_length, callback.callback());
-  if (rv == net::ERR_IO_PENDING) {
+  int rv = client_->Read(buffer, static_cast<int>(content_length),
+                         callback.callback());
+  if (rv == ERR_IO_PENDING) {
     rv = callback.WaitForResult();
   }
   EXPECT_EQ(content_length, rv);
@@ -266,7 +306,7 @@ TEST_F(DialHttpServerTest, AllOtherRequests) {
       {"POST", "/apps/YouTube", HTTP_NOT_FOUND},
   };
 
-  for (int i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
+  for (int i = 0; i < static_cast<int>(ARRAYSIZE_UNSAFE(tests)); ++i) {
     HttpRequestInfo req = CreateRequest(tests[i].method, tests[i].path);
     const HttpResponseInfo* resp = GetResponse(req);
     ASSERT_TRUE(resp != NULL);
@@ -282,7 +322,7 @@ TEST_F(DialHttpServerTest, CallbackNormalTest) {
   test_response_->mime_type_ = "text/plain; charset=\"utf-8\"";
   test_response_->response_code_ = HTTP_OK;
   test_response_->headers_.push_back(
-      std::make_pair<std::string, std::string>("X-Test-Header", "Baz"));
+      std::pair<std::string, std::string>("X-Test-Header", "Baz"));
 
   const HttpRequestInfo& req = CreateRequest("GET", "/apps/Foo/bar");
   EXPECT_CALL(*handler_, HandleRequest(Eq("/bar"), _, _))
@@ -334,4 +374,5 @@ TEST_F(DialHttpServerTest, GetLocalAddress) {
   EXPECT_STRNE("127.0.0.1", addr_.ToStringWithoutPort().c_str());
 }
 
-}  // namespace net
+}  // namespace network
+}  // namespace cobalt
