@@ -45,12 +45,6 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
     if (!mime_type->is_valid()) {
       return false;
     }
-    // Allows for disabling the use of the AudioDeviceCallback API to detect
-    // when audio peripherals are connected. Enabled by default.
-    // (https://developer.android.com/reference/android/media/AudioDeviceCallback)
-    if (!mime_type->ValidateBoolParameter("enableaudiodevicecallback")) {
-      return false;
-    }
 
     // Enables audio passthrough if the codec supports it.
     if (!mime_type->ValidateBoolParameter("audiopassthrough")) {

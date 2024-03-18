@@ -39,7 +39,6 @@ AudioTrackBridge::AudioTrackBridge(SbMediaAudioCodingType coding_type,
                                    int channels,
                                    int sampling_frequency_hz,
                                    int preferred_buffer_size_in_bytes,
-                                   bool enable_audio_device_callback,
                                    bool enable_pcm_content_type_movie,
                                    int tunnel_mode_audio_session_id,
                                    bool is_web_audio) {
@@ -65,11 +64,10 @@ AudioTrackBridge::AudioTrackBridge(SbMediaAudioCodingType coding_type,
           "getAudioOutputManager", "()Ldev/cobalt/media/AudioOutputManager;"));
   jobject j_audio_track_bridge = env->CallObjectMethodOrAbort(
       j_audio_output_manager.Get(), "createAudioTrackBridge",
-      "(IIIIZZIZ)Ldev/cobalt/media/AudioTrackBridge;",
+      "(IIIIZIZ)Ldev/cobalt/media/AudioTrackBridge;",
       GetAudioFormatSampleType(coding_type, sample_type), sampling_frequency_hz,
-      channels, preferred_buffer_size_in_bytes, enable_audio_device_callback,
-      enable_pcm_content_type_movie, tunnel_mode_audio_session_id,
-      is_web_audio);
+      channels, preferred_buffer_size_in_bytes, enable_pcm_content_type_movie,
+      tunnel_mode_audio_session_id, is_web_audio);
   if (!j_audio_track_bridge) {
     // One of the cases that this may hit is when output happened to be switched
     // to a device that doesn't support tunnel mode.
