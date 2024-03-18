@@ -3303,6 +3303,9 @@ test("net_unittests") {
     sources -= [
       # NetworkInterfaces is stubbed out in Starboard.
       "base/network_interfaces_unittest.cc",
+
+      # TODO: b/327218234 - Reenable unittests with used functionality.
+      "log/file_net_log_observer_unittest.cc"
     ]
   }
 
@@ -3323,8 +3326,6 @@ test("net_unittests") {
       "disk_cache/simple/simple_file_tracker_unittest.cc",
       "disk_cache/simple/simple_index_file_unittest.cc",
       "disk_cache/simple/simple_version_upgrade_unittest.cc",
-      "log/file_net_log_observer_unittest.cc",
-      "log/net_log_util_unittest.cc",
       "proxy_resolution/pac_file_decider_unittest.cc",
       "proxy_resolution/pac_file_fetcher_impl_unittest.cc",
       "quic/bidirectional_stream_quic_impl_unittest.cc",
