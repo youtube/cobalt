@@ -22,6 +22,7 @@ exclude: |
             crypto|
             extensions/buildflags|
             glimp/include|
+            media|
             net|
             internal/kokoro/third-party|
             internal/starboard/shared/playstation/glimp/shaders|
