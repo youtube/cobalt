@@ -273,10 +273,13 @@ void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
   SB_DCHECK(error_cb);
   decoder_status_cb_ = decoder_status_cb;
   error_cb_ = error_cb;
+  SB_LOG(INFO) << "Video Codec is " << video_codec_;
   if (video_device_) {
+    SB_LOG(INFO) << "Video device is valid. Begin to initialize codec";
     InitializeCodec();
   }
   if (!decoder_) {
+    SB_LOG(INFO) << "Decoder is invalid, reporting error";
     error_cb_(kSbPlayerErrorDecode, "Cannot initialize codec.");
   }
 }
@@ -433,6 +436,7 @@ void VideoDecoder::InitializeCodec() {
       priming_output_count_ = 0;
       if (!media_transform) {
         SB_LOG(WARNING) << "H264 hardware decoder creation failed.";
+        SB_NOTREACHED();
         return;
       }
       break;
@@ -446,6 +450,7 @@ void VideoDecoder::InitializeCodec() {
       }
       if (!media_transform) {
         SB_LOG(WARNING) << "VP9 hardware decoder creation failed.";
+        SB_NOTREACHED();
         return;
       }
       break;
@@ -457,6 +462,7 @@ void VideoDecoder::InitializeCodec() {
       priming_output_count_ = 0;
       if (!media_transform) {
         SB_LOG(WARNING) << "AV1 hardware decoder creation failed.";
+        SB_NOTREACHED();
         return;
       }
       break;
@@ -465,6 +471,7 @@ void VideoDecoder::InitializeCodec() {
       SB_NOTREACHED();
     }
   }
+  SB_LOG(INFO) << "Successfully created media transform";
 
   decoder_.reset(
       new DecryptingDecoder("video", media_transform.Pass(), drm_system_));
