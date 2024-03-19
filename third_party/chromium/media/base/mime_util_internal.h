@@ -52,7 +52,8 @@ class MEDIA_EXPORT MimeUtil {
     DOLBY_VISION,
     AV1,
     MPEG_H_AUDIO,
-    LAST_CODEC = MPEG_H_AUDIO
+    IAMF,
+    LAST_CODEC = IAMF
   };
 
   // Platform configuration structure.  Controls which codecs are supported at
