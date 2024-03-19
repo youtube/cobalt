@@ -191,5 +191,43 @@ TEST(StatsTest, HistogramBinsMultipleBins) {
   ASSERT_EQ(stats.histogramBins(4), expectedHistogram);
 }
 
+TEST(StatsTest, HistogramBinsThreeArgsEmpty) {
+  Stats<int, 5> stats;
+  std::vector<std::tuple<int, int, size_t>> expectedHistogram;
+  ASSERT_EQ(stats.histogramBins(5, 1, 5), expectedHistogram);
+}
+
+TEST(StatsTest, HistogramBinsThreeArgsZeroBins) {
+  Stats<int, 5> stats;
+  stats.addSample(1);
+  stats.addSample(2);
+  stats.addSample(3);
+  std::vector<std::tuple<int, int, size_t>> expectedHistogram;
+  ASSERT_EQ(stats.histogramBins(0, 1, 3), expectedHistogram);
+}
+
+TEST(StatsTest, HistogramBinsThreeArgsOneBin) {
+  Stats<int, 5> stats;
+  stats.addSample(1);
+  stats.addSample(2);
+  stats.addSample(3);
+  std::vector<std::tuple<int, int, size_t>> expectedHistogram = {
+      std::make_tuple(1, 3, 3)};
+  ASSERT_EQ(stats.histogramBins(1, 1, 3), expectedHistogram);
+}
+
+TEST(StatsTest, HistogramBinsThreeArgsMultipleBins) {
+  Stats<int, 5> stats;
+  stats.addSample(1);
+  stats.addSample(2);
+  stats.addSample(3);
+  stats.addSample(4);
+  stats.addSample(5);
+  std::vector<std::tuple<int, int, size_t>> expectedHistogram = {
+      std::make_tuple(1, 2, 1), std::make_tuple(2, 3, 1),
+      std::make_tuple(3, 4, 1), std::make_tuple(4, 5, 2)};
+  ASSERT_EQ(stats.histogramBins(4, 1, 5), expectedHistogram);
+}
+
 }  // namespace
 }  // namespace starboard

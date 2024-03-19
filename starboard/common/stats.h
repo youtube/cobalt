@@ -88,13 +88,27 @@ class Stats {
   // and count of a bin
   std::vector<std::tuple<T, T, size_t>> histogramBins(
       size_t numberOfBins) const {
+    return histogramBins(numberOfBins, min(), max());
+  }
+
+  // Returns a vector of tuples, each containing the lower bound, upper bound,
+  // and count of a bin
+  std::vector<std::tuple<T, T, size_t>> histogramBins(size_t numberOfBins,
+                                                      T minValue,
+                                                      T maxValue) const {
+    return createHistogram(numberOfBins, minValue, maxValue);
+  }
+
+ private:
+  // Common method used to generate histogram bins
+  std::vector<std::tuple<T, T, size_t>> createHistogram(size_t numberOfBins,
+                                                        T minValue,
+                                                        T maxValue) const {
     std::vector<std::tuple<T, T, size_t>> histogram;
-    if (size() == 0 || numberOfBins == 0) {
+    if (size() == 0 || numberOfBins == 0 || minValue == maxValue) {
       return histogram;
     }
 
-    T minValue = min();
-    T maxValue = max();
     T range = maxValue - minValue;
     T binWidth = range / numberOfBins;
 
@@ -103,19 +117,23 @@ class Stats {
       histogram.emplace_back(minValue + i * binWidth,
                              minValue + (i + 1) * binWidth, 0);
     }
-    std::get<1>(histogram.back()) = maxValue;  // clear rounding errors
+    std::get<1>(histogram.back()) =
+        maxValue;  // Adjust the last bin to include maxValue
 
     // Count samples in each bin
     for (auto it = samples.begin(); it != end(); ++it) {
-      size_t binIndex = std::min(
-          numberOfBins - 1, static_cast<size_t>((*it - minValue) / binWidth));
-      std::get<2>(histogram[binIndex])++;
+      if (*it >= minValue &&
+          *it <= maxValue) {  // Include samples within specified range
+        size_t binIndex =
+            std::min(numberOfBins - 1,
+                     static_cast<size_t>(((*it - minValue) / binWidth)));
+        std::get<2>(histogram[binIndex])++;
+      }
     }
 
     return histogram;
   }
 
- private:
   template <typename InputIt, typename TAcc, typename BinaryOperation>
   TAcc accumulate(InputIt first,
                   InputIt last,
