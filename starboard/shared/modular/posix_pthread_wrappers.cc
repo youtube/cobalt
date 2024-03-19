@@ -33,6 +33,15 @@ typedef struct PosixMutexAttrPrivate {
   pthread_mutexattr_t mutex_attr;
 } PosixMutexAttrPrivate;
 
+typedef struct PosixCondPrivate {
+  InitializedState initialized_state;
+  pthread_cond_t cond;
+} PosixCondPrivate;
+
+typedef struct PosixCondAttrPrivate {
+  pthread_condattr_t cond_attr;
+} PosixCondAttrPrivate;
+
 #define INTERNAL_MUTEX(mutex_var) \
   reinterpret_cast<PosixMutexPrivate*>((mutex_var)->mutex_buffer)
 #define PTHREAD_INTERNAL_MUTEX(mutex_var) \
@@ -40,6 +49,18 @@ typedef struct PosixMutexAttrPrivate {
 #define PTHREAD_INTERNAL_MUTEX_ATTR(mutex_var)                                \
   &(reinterpret_cast<const PosixMutexAttrPrivate*>((mutex_var)->mutex_buffer) \
         ->mutex_attr)
+#define INTERNAL_CONDITION(condition_var) \
+  reinterpret_cast<PosixCondPrivate*>((condition_var)->cond_buffer)
+#define PTHREAD_INTERNAL_CONDITION(condition_var) \
+  &(reinterpret_cast<PosixCondPrivate*>((condition_var)->cond_buffer)->cond)
+#define CONST_PTHREAD_INTERNAL_CONDITION_ATTR(condition_attr) \
+  &(reinterpret_cast<const PosixCondAttrPrivate*>(            \
+        (condition_attr)->cond_attr_buffer)                   \
+        ->cond_attr)
+#define PTHREAD_INTERNAL_CONDITION_ATTR(condition_attr) \
+  &(reinterpret_cast<PosixCondAttrPrivate*>(            \
+        (condition_attr)->cond_attr_buffer)             \
+        ->cond_attr)
 
 int __wrap_pthread_mutex_destroy(musl_pthread_mutex_t* mutex) {
   if (!mutex) {
@@ -106,4 +127,148 @@ int __wrap_pthread_mutex_trylock(musl_pthread_mutex_t* mutex) {
   }
 
   return pthread_mutex_trylock(PTHREAD_INTERNAL_MUTEX(mutex));
+}
+
+int __wrap_pthread_cond_broadcast(musl_pthread_cond_t* cond) {
+  if (!cond) {
+    return EINVAL;
+  }
+  if (!EnsureInitialized(&(INTERNAL_CONDITION(cond)->initialized_state))) {
+    if (pthread_cond_init(PTHREAD_INTERNAL_CONDITION(cond), NULL) != 0) {
+      return EINVAL;
+    }
+
+    SetInitialized(&(INTERNAL_CONDITION(cond)->initialized_state));
+  }
+
+  return pthread_cond_broadcast(PTHREAD_INTERNAL_CONDITION(cond));
+}
+
+int __wrap_pthread_cond_destroy(musl_pthread_cond_t* cond) {
+  if (!cond) {
+    return EINVAL;
+  }
+  if (!IsInitialized(&(INTERNAL_CONDITION(cond)->initialized_state))) {
+    // If the condition variable is not initialized yet, then there is nothing
+    // to destroy so vacuously return true.
+    return 0;
+  }
+
+  return pthread_cond_destroy(PTHREAD_INTERNAL_CONDITION(cond));
+}
+
+int __wrap_pthread_cond_init(musl_pthread_cond_t* cond,
+                             const musl_pthread_condattr_t* attr) {
+  if (!cond) {
+    return EINVAL;
+  }
+  SetInitialized(&(INTERNAL_CONDITION(cond)->initialized_state));
+
+  if (attr) {
+    return pthread_cond_init(PTHREAD_INTERNAL_CONDITION(cond),
+                             CONST_PTHREAD_INTERNAL_CONDITION_ATTR(attr));
+  } else {
+    return pthread_cond_init(PTHREAD_INTERNAL_CONDITION(cond), NULL);
+  }
+}
+
+int __wrap_pthread_cond_signal(musl_pthread_cond_t* cond) {
+  if (!cond) {
+    return EINVAL;
+  }
+
+  if (!EnsureInitialized(&(INTERNAL_CONDITION(cond)->initialized_state))) {
+    if (pthread_cond_init(PTHREAD_INTERNAL_CONDITION(cond), NULL) != 0) {
+      return EINVAL;
+    }
+
+    SetInitialized(&(INTERNAL_CONDITION(cond)->initialized_state));
+  }
+
+  return pthread_cond_signal(PTHREAD_INTERNAL_CONDITION(cond));
+}
+
+int __wrap_pthread_cond_timedwait(musl_pthread_cond_t* cond,
+                                  musl_pthread_mutex_t* mutex,
+                                  const struct musl_timespec* t) {
+  if (!cond || !mutex || !t) {
+    return EINVAL;
+  }
+
+  if (!EnsureInitialized(&(INTERNAL_CONDITION(cond)->initialized_state))) {
+    if (pthread_cond_init(PTHREAD_INTERNAL_CONDITION(cond), NULL) != 0) {
+      return EINVAL;
+    }
+
+    SetInitialized(&(INTERNAL_CONDITION(cond)->initialized_state));
+  }
+
+  struct timespec ts;  // The type from platform toolchain.
+  ts.tv_sec = t->tv_sec;
+  ts.tv_nsec = t->tv_nsec;
+
+  int ret = pthread_cond_timedwait(PTHREAD_INTERNAL_CONDITION(cond),
+                                   PTHREAD_INTERNAL_MUTEX(mutex), &ts);
+  return ret;
+}
+
+int __wrap_pthread_cond_wait(musl_pthread_cond_t* cond,
+                             musl_pthread_mutex_t* mutex) {
+  if (!cond || !mutex) {
+    return EINVAL;
+  }
+
+  if (!EnsureInitialized(&(INTERNAL_CONDITION(cond)->initialized_state))) {
+    if (pthread_cond_init(PTHREAD_INTERNAL_CONDITION(cond), NULL) != 0) {
+      return EINVAL;
+    }
+
+    SetInitialized(&(INTERNAL_CONDITION(cond)->initialized_state));
+  }
+
+  return pthread_cond_wait(PTHREAD_INTERNAL_CONDITION(cond),
+                           PTHREAD_INTERNAL_MUTEX(mutex));
+}
+
+int __wrap_pthread_condattr_destroy(musl_pthread_condattr_t* attr) {
+  if (!attr) {
+    return EINVAL;
+  }
+  return pthread_condattr_destroy(PTHREAD_INTERNAL_CONDITION_ATTR(attr));
+}
+
+int __wrap_pthread_condattr_getclock(const musl_pthread_condattr_t* attr,
+                                     clockid_t* clock_id) {
+  if (!attr) {
+    return EINVAL;
+  }
+
+#if !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
+  return pthread_condattr_getclock(CONST_PTHREAD_INTERNAL_CONDITION_ATTR(attr),
+                                   clock_id);
+#else
+  SB_DCHECK(false) << "pthread_condattr_getclock unsupported";
+  return EINVAL;
+#endif
+}
+
+int __wrap_pthread_condattr_init(musl_pthread_condattr_t* attr) {
+  if (!attr) {
+    return EINVAL;
+  }
+  return pthread_condattr_init(PTHREAD_INTERNAL_CONDITION_ATTR(attr));
+}
+
+int __wrap_pthread_condattr_setclock(musl_pthread_condattr_t* attr,
+                                     clockid_t clock_id) {
+  if (!attr) {
+    return EINVAL;
+  }
+#if !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
+  return pthread_condattr_setclock(PTHREAD_INTERNAL_CONDITION_ATTR(attr),
+                                   clock_id);
+#else
+  SB_DCHECK(false) << "pthread_condattr_setclock unsupported";
+  return EINVAL;
+#endif
 }
