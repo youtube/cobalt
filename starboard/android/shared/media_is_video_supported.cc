@@ -51,7 +51,6 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
   // can play decode-to-texture video just as well as normal video.
 
   bool must_support_tunnel_mode = false;
-  int decoder_cache_ttl_ms = -1;
   if (mime_type) {
     if (!mime_type->is_valid()) {
       return false;
@@ -77,9 +76,6 @@ bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
             "allowed|disallowed|preferred|unpreferred|required")) {
       return false;
     }
-
-    decoder_cache_ttl_ms =
-        mime_type->GetParamIntValue("decoder_cache_ttl_ms", -1);
 
     // Disable MediaCapabilitiesCache if "disablecache" option presented.
     if (!mime_type->ValidateBoolParameter("disablecache")) {
