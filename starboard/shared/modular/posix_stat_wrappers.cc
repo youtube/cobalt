@@ -18,6 +18,8 @@ int __wrap_stat(const char* path, struct musl_stat* musl_info) {
   struct stat stat_info;  // The type from platform toolchain.
   int retval = stat(path, &stat_info);
 
+  musl_info->st_size = stat_info.st_size;
+  musl_info->st_mode = stat_info.st_mode;
 #if defined(_MSC_VER)
   musl_info->st_atim.tv_sec = stat_info.st_atime;
   musl_info->st_atim.tv_nsec = 0;
