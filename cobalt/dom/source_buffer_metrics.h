@@ -15,14 +15,10 @@
 #ifndef COBALT_DOM_SOURCE_BUFFER_METRICS_H_
 #define COBALT_DOM_SOURCE_BUFFER_METRICS_H_
 
-<<<<<<< HEAD
-#include "starboard/time.h"
-=======
 #include "base/time/default_tick_clock.h"
 #include "base/time/tick_clock.h"
 #include "base/time/time.h"
-#include "starboard/types.h"
->>>>>>> 0279b59dc75 (Add telemetry for `SourceBuffer.appendBuffer` (#2586))
+#include "starboard/time.h"
 
 namespace cobalt {
 namespace dom {
@@ -56,15 +52,10 @@ class SourceBufferMetrics {
   SourceBufferMetrics(const SourceBufferMetrics&) = delete;
   SourceBufferMetrics& operator=(const SourceBufferMetrics&) = delete;
 
-<<<<<<< HEAD
-  SbTimeMonotonic wall_start_time_ = 0;
-  SbTimeMonotonic thread_start_time_ = 0;
-=======
   void RecordTelemetry(SourceBufferMetricsAction action,
                        const base::TimeDelta& action_duration);
 
   base::TimeTicks wall_start_time_;
->>>>>>> 0279b59dc75 (Add telemetry for `SourceBuffer.appendBuffer` (#2586))
 
   const bool is_primary_video_;
   bool is_tracking_ = false;
@@ -73,7 +64,7 @@ class SourceBufferMetrics {
   const base::TickClock* clock_;
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
-  int64_t thread_start_time_ = 0;
+  SbTimeMonotonic thread_start_time_ = 0;
   size_t total_size_ = 0;
   SbTime total_thread_time_ = 0;
   SbTime total_wall_time_ = 0;

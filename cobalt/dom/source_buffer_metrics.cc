@@ -17,11 +17,8 @@
 #include <algorithm>
 
 #include "base/logging.h"
-<<<<<<< HEAD
-=======
 #include "base/metrics/histogram_macros.h"
 #include "base/time/time.h"
->>>>>>> 0279b59dc75 (Add telemetry for `SourceBuffer.appendBuffer` (#2586))
 #include "cobalt/base/statistics.h"
 #include "starboard/common/string.h"
 #include "starboard/once.h"
@@ -75,18 +72,13 @@ void SourceBufferMetrics::StartTracking(SourceBufferMetricsAction action) {
   DCHECK(action != SourceBufferMetricsAction::NO_ACTION);
 
   is_tracking_ = true;
-<<<<<<< HEAD
-  wall_start_time_ = SbTimeGetMonotonicNow();
-  thread_start_time_ =
-      SbTimeIsTimeThreadNowSupported() ? SbTimeGetMonotonicThreadNow() : -1;
-=======
   current_action_ = action;
   wall_start_time_ = clock_->NowTicks();
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
-  thread_start_time_ = starboard::CurrentMonotonicThreadTime();
+  thread_start_time_ =
+      SbTimeIsTimeThreadNowSupported() ? SbTimeGetMonotonicThreadNow() : -1;
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
->>>>>>> 0279b59dc75 (Add telemetry for `SourceBuffer.appendBuffer` (#2586))
 }
 
 void SourceBufferMetrics::EndTracking(SourceBufferMetricsAction action,
@@ -98,14 +90,6 @@ void SourceBufferMetrics::EndTracking(SourceBufferMetricsAction action,
   DCHECK(is_tracking_);
   is_tracking_ = false;
 
-<<<<<<< HEAD
-  SbTimeMonotonic wall_duration = SbTimeGetMonotonicNow() - wall_start_time_;
-  SbTimeMonotonic thread_duration =
-      SbTimeIsTimeThreadNowSupported()
-          ? SbTimeGetMonotonicThreadNow() - thread_start_time_
-          : 0;
-  total_wall_time_ += wall_duration;
-=======
   DCHECK(action == current_action_);
   current_action_ = SourceBufferMetricsAction::NO_ACTION;
 
@@ -114,26 +98,22 @@ void SourceBufferMetrics::EndTracking(SourceBufferMetricsAction action,
   RecordTelemetry(action, wall_duration);
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
-  int64_t thread_duration =
-      starboard::CurrentMonotonicThreadTime() - thread_start_time_;
+  SbTimeMonotonic thread_duration =
+      SbTimeIsTimeThreadNowSupported()
+          ? SbTimeGetMonotonicThreadNow() - thread_start_time_
+          : 0;
 
   total_wall_time_ += wall_duration.InMicroseconds();
->>>>>>> 0279b59dc75 (Add telemetry for `SourceBuffer.appendBuffer` (#2586))
   total_thread_time_ += thread_duration;
 
   total_size_ += size_appended;
 
   if (size_appended > 0) {
-<<<<<<< HEAD
-    int wall_bandwidth = GetBandwidth(size_appended, wall_duration);
+    int wall_bandwidth =
+        GetBandwidth(size_appended, wall_duration.InMicroseconds());
     int thread_bandwidth = SbTimeIsTimeThreadNowSupported()
                                ? GetBandwidth(size_appended, thread_duration)
                                : 0;
-=======
-    int wall_bandwidth =
-        GetBandwidth(size_appended, wall_duration.InMicroseconds());
-    int thread_bandwidth = GetBandwidth(size_appended, thread_duration);
->>>>>>> 0279b59dc75 (Add telemetry for `SourceBuffer.appendBuffer` (#2586))
 
     max_wall_bandwidth_ = std::max(max_wall_bandwidth_, wall_bandwidth);
     min_wall_bandwidth_ = std::min(min_wall_bandwidth_, wall_bandwidth);
