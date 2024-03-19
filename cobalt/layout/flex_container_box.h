@@ -131,6 +131,8 @@ class FlexContainerBox : public BlockContainerBox {
   AnonymousBlockBox* GetLastChildAsAnonymousBlockBox();
   AnonymousBlockBox* GetOrAddAnonymousBlockBox();
 
+  void PushBackBloxBoxAndChild(const scoped_refptr<Box>& child_box);
+
   DISALLOW_COPY_AND_ASSIGN(FlexContainerBox);
 };
 
