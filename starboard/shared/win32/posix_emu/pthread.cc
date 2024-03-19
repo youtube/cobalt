@@ -14,6 +14,10 @@
 
 #include <errno.h>
 #include <pthread.h>
+#include <cstdint>
+
+#include "starboard/common/log.h"
+#include "starboard/common/time.h"
 
 extern "C" {
 
@@ -52,6 +56,88 @@ int pthread_mutex_trylock(pthread_mutex_t* mutex) {
   }
   bool result = TryAcquireSRWLockExclusive(mutex);
   return result ? 0 : EBUSY;
+}
+
+int pthread_cond_broadcast(pthread_cond_t* cond) {
+  if (!cond) {
+    return -1;
+  }
+  WakeAllConditionVariable(cond);
+  return 0;
+}
+
+int pthread_cond_destroy(pthread_cond_t* cond) {
+  return 0;
+}
+
+int pthread_cond_init(pthread_cond_t* cond, const pthread_condattr_t* attr) {
+  if (!cond) {
+    return -1;
+  }
+  InitializeConditionVariable(cond);
+  return 0;
+}
+
+int pthread_cond_signal(pthread_cond_t* cond) {
+  if (!cond) {
+    return -1;
+  }
+  WakeConditionVariable(cond);
+  return -0;
+}
+
+int pthread_cond_timedwait(pthread_cond_t* cond,
+                           pthread_mutex_t* mutex,
+                           const struct timespec* t) {
+  if (!cond || !mutex) {
+    return -1;
+  }
+
+  int64_t now_ms = starboard::CurrentMonotonicTime() / 1000;
+  int64_t timeout_duration_ms = t->tv_sec * 1000 + t->tv_nsec / 1000000;
+  timeout_duration_ms -= now_ms;
+  bool result = SleepConditionVariableSRW(cond, mutex, timeout_duration_ms, 0);
+
+  if (result) {
+    return 0;
+  }
+
+  if (GetLastError() == ERROR_TIMEOUT) {
+    return ETIMEDOUT;
+  }
+  return -1;
+}
+
+int pthread_cond_wait(pthread_cond_t* cond, pthread_mutex_t* mutex) {
+  if (!cond || !mutex) {
+    return -1;
+  }
+
+  if (SleepConditionVariableSRW(cond, mutex, INFINITE, 0)) {
+    return 0;
+  }
+  return -1;
+}
+
+int pthread_condattr_destroy(pthread_condattr_t* attr) {
+  SB_DCHECK(false) << "pthread_condattr_destroy not supported on win32";
+  return -1;
+}
+
+int pthread_condattr_getclock(const pthread_condattr_t* attr,
+                              clockid_t* clock_id) {
+  SB_DCHECK(false) << "pthread_condattr_getclock not supported on win32";
+  return -1;
+}
+
+int pthread_condattr_init(pthread_condattr_t* attr) {
+  SB_DCHECK(false) << "pthread_condattr_init not supported on win32";
+  return -1;
+}
+
+int pthread_condattr_setclock(pthread_condattr_t* attr, clockid_t clock_id) {
+  SB_DCHECK(false) << "pthread_condattr_setclock not supported on win32";
+  return -1;
 }
 
 }  // extern "C"

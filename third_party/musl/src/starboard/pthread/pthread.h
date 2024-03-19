@@ -16,6 +16,7 @@
 #define THIRD_PARTY_MUSL_SRC_STARBOARD_PTHREAD_H_
 
 #include <stdint.h>
+#include <time.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,7 +34,7 @@ extern "C" {
 #define MUSL_PTHREAD_MUTEX_MAX_SIZE 80
 
 // An opaque handle to a native mutex type with reserved memory
-// bufferaligned at void  pointer type.
+// buffer aligned at void  pointer type.
 typedef union pthread_mutex_t {
   // Reserved memory in which the implementation should map its
   // native mutex type.
@@ -48,7 +49,7 @@ typedef union pthread_mutex_t {
 #define MUSL_PTHREAD_MUTEX_ATTR_MAX_SIZE 40
 
 // An opaque handle to a native mutex attribute type with reserved memory
-// bufferaligned at void  pointer type.
+// buffer aligned at void  pointer type.
 typedef union pthread_mutexattr_t {
   // Reserved memory in which the implementation should map its
   // native mutex attribute type.
@@ -63,7 +64,7 @@ typedef union pthread_mutexattr_t {
 #define MUSL_PTHREAD_KEY_MAX_SIZE 40
 
 // An opaque handle to a native key type with reserved memory
-// bufferaligned at void  pointer type.
+// buffer aligned at void  pointer type.
 typedef union pthread_key_t {
   // Reserved memory in which the implementation should map its
   // native key type.
@@ -72,6 +73,45 @@ typedef union pthread_key_t {
   // Guarantees alignment of the type to a void pointer.
   void* ptr;
 } pthread_key_t;
+
+
+#ifdef __cplusplus
+#define PTHREAD_COND_INITIALIZER \
+  {}
+#else
+#define PTHREAD_COND_INITIALIZER \
+  { 0 }
+#endif
+
+// Max size of the native conditional variable type.
+#define MUSL_PTHREAD_COND_MAX_SIZE 80
+
+// An opaque handle to a native conditional type with reserved memory
+// buffer aligned at void  pointer type.
+typedef union pthread_cond_t {
+  // Reserved memory in which the implementation should map its
+  // native conditional type.
+  uint8_t cond_buffer[MUSL_PTHREAD_COND_MAX_SIZE];
+
+  // Guarantees alignment of the type to a void pointer.
+  void* ptr;
+} pthread_cond_t;
+
+// Max size of the native conditional attribute type.
+#define MUSL_PTHREAD_COND_ATTR_MAX_SIZE 40
+
+// An opaque handle to a native conditional attribute type with reserved memory
+// buffer aligned at void  pointer type.
+typedef union pthread_condattr_t {
+  // Reserved memory in which the implementation should map its
+  // native conditional attribute type.
+  uint8_t cond_buffer[MUSL_PTHREAD_COND_MAX_SIZE];
+
+  // Guarantees alignment of the type to a void pointer.
+  void* ptr;
+} pthread_condattr_t;
+
+typedef int clockid_t;
 
 int pthread_mutex_destroy(pthread_mutex_t* mutex);
 int pthread_mutex_init(pthread_mutex_t* mutex, const pthread_mutexattr_t* mutex_attr);
@@ -83,6 +123,19 @@ int pthread_key_create(pthread_key_t* key, void (*)(void* dtor));
 int pthread_key_delete(pthread_key_t key);
 void *pthread_getspecific(pthread_key_t key);
 int pthread_setspecific(pthread_key_t key, const void* value);
+
+int  pthread_cond_broadcast(pthread_cond_t * cond);
+int  pthread_cond_destroy(pthread_cond_t * cond);
+int  pthread_cond_init(pthread_cond_t* cond, const pthread_condattr_t* attr);
+int  pthread_cond_signal(pthread_cond_t* cond);
+int  pthread_cond_timedwait(pthread_cond_t* cond, pthread_mutex_t* mutex, const struct timespec* t);
+int  pthread_cond_wait(pthread_cond_t* cond, pthread_mutex_t* mutex);
+
+int pthread_condattr_destroy(pthread_condattr_t* attr);
+int pthread_condattr_getclock(const pthread_condattr_t* attr, clockid_t* clock_id);
+int pthread_condattr_init(pthread_condattr_t* attr);
+int pthread_condattr_setclock(pthread_condattr_t *attr, clockid_t clock_id);
+
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -16,9 +16,8 @@
 #define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_NETINET_IN_H_
 
 #include <arpa/inet.h>
-// clang-format off
 #include <ws2tcpip.h>
-#include <_remove_problematic_windows_macros.h>
-// clang-format on
+
+#include "starboard/shared/win32/posix_emu/include/remove_problematic_windows_macros.h"
 
 #endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_NETINET_IN_H_

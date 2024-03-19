@@ -15,10 +15,9 @@
 #ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_TIME_H_
 #define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_TIME_H_
 
-// clang-format off
 #include <winsock2.h>  // For struct timeval
-#include <_remove_problematic_windows_macros.h>
-// clang-format on
+
+#include "starboard/shared/win32/posix_emu/include/remove_problematic_windows_macros.h"
 
 #ifdef __cplusplus
 extern "C" {

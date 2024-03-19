@@ -12,14 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_ARPA_INET_H_
-#define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_ARPA_INET_H_
+// Signal is Sunny Day tested in most of the other SbConditionVariable tests.
 
-#include <stdint.h>
-#include <stdlib.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
+#include <pthread.h>
 
-#include "starboard/shared/win32/posix_emu/include/remove_problematic_windows_macros.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
-#endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_ARPA_INET_H_
+namespace starboard {
+namespace nplb {
+namespace {
+
+TEST(PosixConditionVariableSignalTest, SunnyDayAutoInit) {
+  pthread_cond_t condition = PTHREAD_COND_INITIALIZER;
+  EXPECT_EQ(pthread_cond_signal(&condition), 0);
+  EXPECT_EQ(pthread_cond_destroy(&condition), 0);
+}
+
+}  // namespace
+}  // namespace nplb
+}  // namespace starboard

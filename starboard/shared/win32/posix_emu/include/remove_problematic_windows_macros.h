@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_ARPA_INET_H_
-#define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_ARPA_INET_H_
+// NOLINT(build/header_guard)
 
-#include <stdint.h>
-#include <stdlib.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-
-#include "starboard/shared/win32/posix_emu/include/remove_problematic_windows_macros.h"
-
-#endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_ARPA_INET_H_
+// This file should only be included in other include files within posix_emu,
+// after including any MSVC headers that may define macros that collide with
+// Cobalt code. When undefining a macro here, provide a comment of which
+// specific Windows header file defined it for future reference.
+#undef NO_ERROR         // winerror.h; b/302733082#comment15
+#undef CreateDirectory  // fileapi.h
+#undef DeleteFile       // fileapi.h
+#undef GetCurrentTime   // winbase.h; b/324981660
+#undef PostMessage      // winuser.h
