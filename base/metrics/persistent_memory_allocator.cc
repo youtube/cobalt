@@ -1176,13 +1176,13 @@ void FilePersistentMemoryAllocator::FlushPartial(size_t length, bool sync) {
   int result =
       ::msync(const_cast<void*>(data()), length, sync ? MS_SYNC : MS_ASYNC);
   DCHECK_NE(EINVAL, result);
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD) && !defined(COMPILER_MSVC)
   // On POSIX, "invalidate" forces _other_ processes to recognize what has
   // been written to disk and so is applicable to "flush".
   int result = ::msync(const_cast<void*>(data()), length,
                        MS_INVALIDATE | (sync ? MS_SYNC : MS_ASYNC));
   DCHECK_NE(EINVAL, result);
-#elif defined(STARBOARD)
+#elif defined(STARBOARD) && defined(COMPILER_MSVC)
   msync(const_cast<void*>(data()), length, 0);
 #else
 #error Unsupported OS.

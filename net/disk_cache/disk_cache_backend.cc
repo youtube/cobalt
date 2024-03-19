@@ -62,6 +62,8 @@ class UnboundTrivialFileOperations
 
 }
 
+// Many functions below are copied from their implementation in
+// //net/disk_cache/disk_cache.cc as we compile this file in place of that one.
 BackendResult::BackendResult() = default;
 BackendResult::~BackendResult() = default;
 BackendResult::BackendResult(BackendResult&&) = default;

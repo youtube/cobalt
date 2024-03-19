@@ -123,19 +123,6 @@ base::Value::Dict NetLogPathBuilderResult(
   return dict;
 }
 
-#if defined(STARBOARD)
-RevocationPolicy DefaultRevocationPolicy() {
-  RevocationPolicy policy;
-  policy.check_revocation = true;
-  policy.networking_allowed = false;
-  policy.crl_allowed = true;
-  policy.allow_missing_info = false;
-  policy.allow_unable_to_check = false;
-  policy.enforce_baseline_requirements = true;
-  return policy;
-}
-#endif
-
 RevocationPolicy NoRevocationChecking() {
   RevocationPolicy policy;
   policy.check_revocation = false;
@@ -350,11 +337,7 @@ class PathBuilderDelegateImpl : public SimplePathBuilderDelegate {
     // by the load flag and the chain uses a non-public root.
     if ((flags_ & CertVerifyProc::VERIFY_REV_CHECKING_REQUIRED_LOCAL_ANCHORS) &&
         !certs.empty() && !trust_store_->IsKnownRoot(certs.back().get())) {
-#if defined(STARBOARD)
-      RevocationPolicy policy = DefaultRevocationPolicy();
-#else
       RevocationPolicy policy;
-#endif
       policy.check_revocation = true;
       policy.networking_allowed = true;
       policy.crl_allowed = true;
@@ -368,11 +351,7 @@ class PathBuilderDelegateImpl : public SimplePathBuilderDelegate {
     if (flags_ & CertVerifyProc::VERIFY_REV_CHECKING_ENABLED) {
       const bool is_known_root =
           !certs.empty() && trust_store_->IsKnownRoot(certs.back().get());
-#if defined(STARBOARD)
-      RevocationPolicy policy = DefaultRevocationPolicy();
-#else
       RevocationPolicy policy;
-#endif
       policy.check_revocation = true;
       policy.networking_allowed = true;
       // Publicly trusted certs are required to have OCSP by the Baseline

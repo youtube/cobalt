@@ -94,6 +94,15 @@ struct NET_EXPORT_PRIVATE RevocationPolicy {
 };
 #else
 struct NET_EXPORT_PRIVATE RevocationPolicy {
+  RevocationPolicy() {
+    check_revocation = true;
+    networking_allowed = false;
+    crl_allowed = true;
+    allow_missing_info = false;
+    allow_unable_to_check = false;
+    enforce_baseline_requirements = true;
+  }
+
   // If |check_revocation| is true, then revocation checking is mandatory. This
   // means that every certificate in the chain (excluding trust anchors) must
   // have valid (unexpired) revocation information proving it to be unrevoked.

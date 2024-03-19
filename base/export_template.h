@@ -85,8 +85,9 @@
 //     EXPORT_TEMPLATE_STYLE_MATCH_DECLSPEC_dllimport
 //     DEFAULT
 #define EXPORT_TEMPLATE_STYLE(foo_export) EXPORT_TEMPLATE_STYLE_2(foo_export)
+#define CR_EXPAND_ARG(arg) arg
 #define EXPORT_TEMPLATE_STYLE_2(foo_export) \
-  EXPORT_TEMPLATE_STYLE_MATCH_foj3FJo5StF0OvIzl7oMxA##foo_export
+  CR_EXPAND_ARG(EXPORT_TEMPLATE_STYLE_MATCH_foj3FJo5StF0OvIzl7oMxA##foo_export)
 
 // Internal helper macros for EXPORT_TEMPLATE_STYLE.
 //
@@ -136,9 +137,9 @@
 #define EXPORT_TEMPLATE_TEST_EXPORT_DLLEXPORT_EXPORT_DLLEXPORT(...) true
 
 EXPORT_TEMPLATE_TEST(DEFAULT, );
-// EXPORT_TEMPLATE_TEST(DEFAULT, __attribute__((visibility("default"))));
-// EXPORT_TEMPLATE_TEST(EXPORT_DLLEXPORT, __declspec(dllexport));
-// EXPORT_TEMPLATE_TEST(DEFAULT, __declspec(dllimport));
+EXPORT_TEMPLATE_TEST(DEFAULT, __attribute__((visibility("default"))));
+EXPORT_TEMPLATE_TEST(EXPORT_DLLEXPORT, __declspec(dllexport));
+EXPORT_TEMPLATE_TEST(DEFAULT, __declspec(dllimport));
 
 #undef EXPORT_TEMPLATE_TEST
 #undef EXPORT_TEMPLATE_TEST_DEFAULT_DEFAULT

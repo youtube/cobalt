@@ -1302,11 +1302,10 @@ ScopedLoggingSettings::~ScopedLoggingSettings() {
   // Re-initialize logging via the normal path. This will clean up old file
   // name and handle state, including re-initializing the VLOG internal state.
 #if defined(STARBOARD)
-  auto result = InitLogging({
+  CHECK(InitLogging({
     logging_destination_,
     log_file_name_ ? log_file_name_->data() : nullptr,
-  });
-  CHECK(result) << "~ScopedLoggingSettings() failed to restore settings.";
+  })) << "~ScopedLoggingSettings() failed to restore settings.";
 #else
   CHECK(InitLogging({
     .logging_dest = logging_destination_,
