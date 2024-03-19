@@ -55,7 +55,6 @@ namespace {
 using ::testing::Bool;
 using ::testing::Combine;
 using ::testing::ValuesIn;
-using video_dmp::SequentialVideoDmpReader;
 using video_dmp::VideoDmpReader;
 
 const int64_t kWaitForNextEventTimeOut = 5'000'000;  // 5 seconds
@@ -431,7 +430,7 @@ class AudioDecoderTest
   bool using_stub_decoder_;
 
   JobQueue job_queue_;
-  SequentialVideoDmpReader dmp_reader_;
+  VideoDmpReader dmp_reader_;
   scoped_ptr<AudioDecoder> audio_decoder_;
   scoped_ptr<AudioRendererSink> audio_renderer_sink_;
 
@@ -549,7 +548,6 @@ TEST_P(AudioDecoderTest, InvalidConfig) {
     ASSERT_NO_FATAL_FAILURE(DrainOutputs(&error_occurred));
 
     ResetDecoder();
-    dmp_reader_.Reset();
   }
 
   for (size_t i = 0;
@@ -569,7 +567,6 @@ TEST_P(AudioDecoderTest, InvalidConfig) {
     ASSERT_NO_FATAL_FAILURE(DrainOutputs(&error_occurred));
 
     ResetDecoder();
-    dmp_reader_.Reset();
   }
 }
 
@@ -729,7 +726,6 @@ TEST_P(AudioDecoderTest, PartialAudio) {
     SB_LOG(INFO) << "Testing " << number_of_input_to_write
                  << " access units for partial audio.";
     ResetDecoder();
-    dmp_reader_.Reset();
 
     // Decode InputBuffers without partial audio and use the output as reference
     for (int i = 0; i < number_of_input_to_write; ++i) {
@@ -772,7 +768,6 @@ TEST_P(AudioDecoderTest, PartialAudio) {
         4;
 
     ResetDecoder();
-    dmp_reader_.Reset();
 
     for (int i = 0; i < number_of_input_to_write; ++i) {
       int64_t duration_to_discard_from_front = i == 0 ? duration_to_discard : 0;
