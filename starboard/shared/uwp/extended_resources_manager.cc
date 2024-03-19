@@ -21,6 +21,7 @@
 #include "starboard/common/string.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/media/mime_supportability_cache.h"
+#include "starboard/shared/uwp/xb1_get_type.h"
 #include "starboard/shared/win32/video_decoder.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
@@ -77,10 +78,9 @@ bool IsExtendedResourceModeRequired() {
   if (!::starboard::xb1::shared::CanAcquire()) {
     return false;
   }
-  bool is_erm_required =
-      !shared::win32::VideoDecoder::IsHardwareVp9DecoderSupported();
-  SB_LOG(INFO) << "Extended resources mode"
-               << (is_erm_required ? " is required." : " isn't required.");
+  // erm is required for all xbox types except kXboxOneX;
+  bool is_erm_required = ::starboard::shared::uwp::GetXboxType() !=
+                         ::starboard::shared::uwp::kXboxOneX;
   return is_erm_required;
 }
 

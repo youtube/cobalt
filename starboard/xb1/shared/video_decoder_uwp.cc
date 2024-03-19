@@ -15,9 +15,11 @@
 #include "starboard/xb1/shared/video_decoder_uwp.h"
 
 #include <windows.h>
+#include <set>
 
 #include "starboard/shared/uwp/async_utils.h"
 #include "starboard/shared/uwp/decoder_utils.h"
+#include "starboard/shared/uwp/xb1_get_type.h"
 #include "third_party/angle/include/angle_hdr.h"
 
 using ::starboard::shared::uwp::ApplicationUwp;
@@ -30,6 +32,13 @@ namespace xb1 {
 namespace shared {
 
 const int kXboxeOneXMaxOutputSamples = 5;
+
+// Set of devices that shouldn't use hardware AV1 decoding.
+// TODO (b/259431190): Series devices had performance issues with hardware AV1
+// decoders during our initial rollout. Disable hardware AV1 decoding in favor
+// of the software decoder to test if performance improves.
+const std::set<starboard::shared::uwp::XboxType> hw_av1_disabled_devices = {
+    starboard::shared::uwp::kXboxSeriesS, starboard::shared::uwp::kXboxSeriesX};
 
 VideoDecoderUwp::~VideoDecoderUwp() {
   if (IsHdrSupported() && IsHdrAngleModeEnabled()) {
@@ -52,7 +61,9 @@ bool VideoDecoderUwp::IsHardwareAv1DecoderSupported() {
   // So to avoid using av1 mft in these devices we test if
   // the current XBOX has vp9 hw decoder. If it doesn't it means
   // that there is XboxOneS/Base and we don't use mft av1 decoder.
-  return VideoDecoderUwp::IsHardwareVp9DecoderSupported() &&
+  return hw_av1_disabled_devices.find(starboard::shared::uwp::GetXboxType()) ==
+             hw_av1_disabled_devices.end() &&
+         VideoDecoderUwp::IsHardwareVp9DecoderSupported() &&
          ::starboard::shared::win32::IsHardwareAv1DecoderSupported();
 }
 

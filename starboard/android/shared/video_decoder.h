@@ -70,7 +70,6 @@ class VideoDecoder
                bool force_secure_pipeline_under_tunnel_mode,
                bool force_reset_surface_under_tunnel_mode,
                bool force_big_endian_hdr_metadata,
-               bool force_improved_support_check,
                int max_input_size,
                std::string* error_message);
   ~VideoDecoder() override;
@@ -143,10 +142,6 @@ class VideoDecoder
   // Google's software decoders can work concurrently. So, we use HW decoder for
   // the main player and SW decoder for sub players.
   const bool require_software_codec_;
-
-  // Forces the use of specific Android APIs (isSizeSupported() and
-  // areSizeAndRateSupported()) to determine format support.
-  const bool force_improved_support_check_;
 
   // Force endianness of HDR Metadata.
   const bool force_big_endian_hdr_metadata_;

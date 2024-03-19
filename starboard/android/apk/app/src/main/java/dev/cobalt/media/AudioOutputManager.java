@@ -60,7 +60,6 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
       int sampleRate,
       int channelCount,
       int preferredBufferSizeInBytes,
-      boolean enablePcmContentTypeMovie,
       int tunnelModeAudioSessionId,
       boolean isWebAudio) {
     AudioTrackBridge audioTrackBridge =
@@ -69,7 +68,6 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
             sampleRate,
             channelCount,
             preferredBufferSizeInBytes,
-            enablePcmContentTypeMovie,
             tunnelModeAudioSessionId,
             isWebAudio);
     if (!audioTrackBridge.isAudioTrackValid()) {
