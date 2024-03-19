@@ -1704,23 +1704,11 @@ source_set("quiche_tests") {
     # TODO: b/327218234 - Reenable unittests with used functionality.
     # TODO: b/327008491 - Reenable unittests with unused functionality.
     sources -= [
-      "src/quiche/common/platform/api/quiche_hostname_utils_test.cc",
-      "src/quiche/oblivious_http/buffers/oblivious_http_integration_test.cc",
-      "src/quiche/oblivious_http/buffers/oblivious_http_request_test.cc",
-      "src/quiche/oblivious_http/buffers/oblivious_http_response_test.cc",
-      "src/quiche/oblivious_http/oblivious_http_client_test.cc",
-      "src/quiche/oblivious_http/oblivious_http_gateway_test.cc",
       "src/quiche/quic/core/congestion_control/bbr2_simulator_test.cc",
       "src/quiche/quic/core/congestion_control/bbr_sender_test.cc",
       "src/quiche/quic/core/congestion_control/send_algorithm_test.cc",
-      "src/quiche/quic/core/crypto/certificate_util_test.cc",
       "src/quiche/quic/core/crypto/quic_client_session_cache_test.cc",
-      "src/quiche/quic/core/http/spdy_server_push_utils_test.cc",
-      "src/quiche/quic/core/quic_buffered_packet_store_test.cc",
-      "src/quiche/quic/core/quic_dispatcher_test.cc",
-      "src/quiche/quic/core/quic_error_codes_test.cc",
       "src/quiche/quic/core/quic_trace_visitor_test.cc",
-      "src/quiche/quic/core/tls_chlo_extractor_test.cc",
       "src/quiche/quic/core/tls_client_handshaker_test.cc",
       "src/quiche/quic/test_tools/simulator/quic_endpoint_test.cc",
 
