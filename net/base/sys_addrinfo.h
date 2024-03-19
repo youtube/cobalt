@@ -28,8 +28,10 @@
 #if BUILDFLAG(IS_WIN)
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(USE_HACKY_COBALT_CHANGES)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#if defined(USE_HACKY_COBALT_CHANGES) && !defined(COMPILER_MSVC)
 #include <netdb.h>
+#endif
 #include <netinet/in.h>
 #include <sys/socket.h>
 #endif

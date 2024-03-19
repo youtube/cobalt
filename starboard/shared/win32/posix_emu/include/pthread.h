@@ -15,7 +15,10 @@
 #ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_PTHREAD_H_
 #define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_PTHREAD_H_
 
+// clang-format off
 #include <windows.h>
+#include <_remove_problematic_windows_macros.h>
+// clang-format on
 
 #define PTHREAD_MUTEX_INITIALIZER SRWLOCK_INIT
 

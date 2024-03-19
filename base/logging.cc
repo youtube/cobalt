@@ -1301,6 +1301,12 @@ ScopedLoggingSettings::ScopedLoggingSettings()
 ScopedLoggingSettings::~ScopedLoggingSettings() {
   // Re-initialize logging via the normal path. This will clean up old file
   // name and handle state, including re-initializing the VLOG internal state.
+#if defined(STARBOARD)
+  CHECK(InitLogging({
+    logging_destination_,
+    log_file_name_ ? log_file_name_->data() : nullptr,
+  })) << "~ScopedLoggingSettings() failed to restore settings.";
+#else
   CHECK(InitLogging({
     .logging_dest = logging_destination_,
     .log_file_path = log_file_name_ ? log_file_name_->data() : nullptr,
@@ -1308,6 +1314,7 @@ ScopedLoggingSettings::~ScopedLoggingSettings() {
     .log_format = log_format_
 #endif
   })) << "~ScopedLoggingSettings() failed to restore settings.";
+#endif
 
   // Restore plain data settings.
   SetMinLogLevel(min_log_level_);

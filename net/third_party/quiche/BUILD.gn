@@ -1723,6 +1723,13 @@ source_set("quiche_tests") {
       "src/quiche/quic/core/tls_chlo_extractor_test.cc",
       "src/quiche/quic/core/tls_client_handshaker_test.cc",
       "src/quiche/quic/test_tools/simulator/quic_endpoint_test.cc",
+
+      # Re-enable once we use c++20.
+      "src/quiche/common/capsule_test.cc",
+      "src/quiche/http2/adapter/oghttp2_adapter_test.cc",
+      "src/quiche/http2/adapter/oghttp2_session_test.cc",
+      "src/quiche/quic/core/quic_connection_test.cc",
+      "src/quiche/spdy/core/spdy_framer_test.cc",
     ]
   }
 }

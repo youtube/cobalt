@@ -1076,7 +1076,7 @@ component("net") {
     sources += [
       "base/file_stream_context_starboard.cc",
     ]
-    if (sb_is_modular || is_android) {
+    if (sb_is_modular || is_android || is_win) {
       # TODO: Either always build or don't build with this.
       sources -= [ "disk_cache/disk_cache.cc" ]
     }
@@ -1300,7 +1300,7 @@ component("net") {
     ]
   }
 
-  if (is_win) {
+  if (is_win && !is_starboard) {
     sources += [
       "base/file_stream_context_win.cc",
       "base/net_errors_win.cc",
@@ -1412,7 +1412,7 @@ component("net") {
     ]
   }
 
-  if (!is_win) {
+  if (!is_win || is_starboard) {
     sources += [
       "http/http_auth_handler_ntlm_portable.cc",
       "http/http_auth_ntlm_mechanism.cc",
@@ -2942,7 +2942,7 @@ test("net_unittests") {
     sources += [ "cert/x509_util_apple_unittest.cc" ]
   }
 
-  if (is_win) {
+  if (is_win && !is_starboard) {
     sources += [
       "base/network_change_notifier_win_unittest.cc",
       "base/network_interfaces_win_unittest.cc",
@@ -3336,6 +3336,9 @@ test("net_unittests") {
       "quic/quic_network_transaction_unittest.cc",
       "quic/quic_proxy_client_socket_unittest.cc",
       "quic/quic_stream_factory_test.cc",
+
+      # Re-enable once we're on c++20
+      "base/backoff_entry_serializer_unittest.cc",
     ]
     deps -= [
       "//net/http:transport_security_state_unittest_data",
@@ -3372,8 +3375,11 @@ test("net_unittests") {
     if (!disable_file_support) {
       sources -= [
         "base/directory_lister_unittest.cc",
-      "test/url_request/url_request_test_job_backed_by_file_unittest.cc",
+        "test/url_request/url_request_test_job_backed_by_file_unittest.cc",
       ]
+    }
+    if (is_win) {
+      cflags = [ "/wd4455" ]
     }
   }
 }

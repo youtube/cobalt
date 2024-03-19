@@ -46,8 +46,9 @@ class ConsoleMessage {
 #define CLOG_IS_ON false
 #endif
 
-#define CLOG_STREAM(severity, debugger_hooks) \
-  ::base::ConsoleMessage(::logging::LOG_##severity, (debugger_hooks)).stream()
+#define CLOG_STREAM(severity, debugger_hooks)                             \
+  ::base::ConsoleMessage(::logging::LOGGING_##severity, (debugger_hooks)) \
+      .stream()
 #define CLOG(severity, debugger_hooks) \
   LAZY_STREAM(CLOG_STREAM(severity, debugger_hooks), CLOG_IS_ON)
 #define CLOG_IF(severity, debugger_hooks, condition) \

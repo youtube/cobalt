@@ -37,6 +37,10 @@
 #include "absl/random/internal/seed_material.h"
 #include "absl/random/seed_gen_exception.h"
 
+#if defined(STARBOARD)
+#include "starboard/common/log.h"
+#endif
+
 using absl::base_internal::SpinLock;
 using absl::base_internal::SpinLockHolder;
 
@@ -164,6 +168,7 @@ size_t GetPoolID() {
   }
   return my_pool_id;
 #else
+#if !defined(STARBOARD)
   static pthread_key_t tid_key = [] {
     pthread_key_t tmp_key;
     int err = pthread_key_create(&tmp_key, nullptr);
@@ -186,6 +191,10 @@ size_t GetPoolID() {
     }
   }
   return my_pool_id - 1;
+#else
+  SB_NOTIMPLEMENTED();
+  return 0;
+#endif
 #endif
 }
 

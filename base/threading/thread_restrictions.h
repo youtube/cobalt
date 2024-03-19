@@ -967,7 +967,11 @@ INLINE_OR_NOT_TAIL_CALLED void AssertSingletonAllowed()
 INLINE_OR_NOT_TAIL_CALLED void DisallowSingleton() EMPTY_BODY_IF_DCHECK_IS_OFF;
 
 #if defined(STARBOARD)
+#if DCHECK_IS_ON()
 INLINE_OR_NOT_TAIL_CALLED bool GetSingletonAllowed() EMPTY_BODY_IF_DCHECK_IS_OFF;
+#else
+INLINE_OR_NOT_TAIL_CALLED bool GetSingletonAllowed() { return true; }
+#endif
 #endif
 
 // Disallows singletons within its scope.

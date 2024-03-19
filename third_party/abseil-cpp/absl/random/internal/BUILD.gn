@@ -69,6 +69,10 @@ absl_source_set("pool_urbg") {
     "//third_party/abseil-cpp/absl/types:span",
   ]
   visibility = ["//third_party/abseil-cpp/absl/random/*"]
+
+  if (is_starboard) {
+    deps += [ "//starboard/common:common_headers_only" ]
+  }
 }
 
 absl_source_set("explicit_seed_seq") {

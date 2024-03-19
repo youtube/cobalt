@@ -36,6 +36,10 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_export.h"
 
+#if defined(COMPILER_MSVC) && defined(USE_HACKY_COBALT_CHANGES)
+#define QUIC_FRAME_DEBUG 0
+#endif
+
 #ifndef QUIC_FRAME_DEBUG
 #if !defined(NDEBUG) || defined(ADDRESS_SANITIZER)
 #define QUIC_FRAME_DEBUG 1

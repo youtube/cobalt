@@ -6,8 +6,9 @@
 #define QUICHE_COMMON_QUICHE_IP_ADDRESS_H_
 
 #include <cstdint>
-#if defined(_WIN32)
+#if defined(_WIN32) && defined(USE_HACKY_COBALT_CHANGES)
 #include <winsock2.h>
+#include <_remove_problematic_windows_macros.h>
 #include <ws2tcpip.h>
 #else
 #include <arpa/inet.h>

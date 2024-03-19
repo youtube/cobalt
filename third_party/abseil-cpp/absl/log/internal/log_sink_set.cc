@@ -46,6 +46,10 @@
 #include "absl/synchronization/mutex.h"
 #include "absl/types/span.h"
 
+#if defined(STARBOARD)
+#include "starboard/common/log.h"
+#endif
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace log_internal {
@@ -66,6 +70,7 @@ bool& ThreadIsLoggingStatus() {
 #else
   ABSL_CONST_INIT static pthread_key_t thread_is_logging_key;
 #endif
+#if !defined(STARBOARD)
   static const bool unused = [] {
     if (pthread_key_create(&thread_is_logging_key, [](void* data) {
           delete reinterpret_cast<bool*>(data);
@@ -87,6 +92,11 @@ bool& ThreadIsLoggingStatus() {
     }
   }
   return *thread_is_logging_ptr;
+#else
+  SB_NOTIMPLEMENTED();
+  static bool f = false;
+  return f;
+#endif
 #endif
 }
 

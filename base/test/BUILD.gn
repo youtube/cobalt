@@ -216,7 +216,7 @@ static_library("test_support") {
     }
   }
 
-  if (is_win) {
+  if (is_win && !is_starboard) {
     sources += [
       "async_results_test_values_win.h",
       "fake_iasync_operation_win.h",

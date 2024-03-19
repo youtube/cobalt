@@ -260,8 +260,8 @@ FILE* OpenFile(const FilePath& filename, const char* mode) {
 
 bool PathExists(const FilePath &path) {
   internal::AssertBlockingAllowed();
-  struct stat file_info;
-  return stat(path.value().c_str(), &file_info) == 0;
+  struct ::stat file_info;
+  return ::stat(path.value().c_str(), &file_info) == 0;
 }
 
 bool PathIsReadable(const FilePath &path) {
