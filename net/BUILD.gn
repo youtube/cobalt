@@ -3337,7 +3337,6 @@ test("net_unittests") {
       "disk_cache/simple/simple_file_tracker_unittest.cc",
       "disk_cache/simple/simple_index_file_unittest.cc",
       "disk_cache/simple/simple_version_upgrade_unittest.cc",
-      "proxy_resolution/pac_file_fetcher_impl_unittest.cc",
 
       # Re-enable once we're on c++20
       "base/backoff_entry_serializer_unittest.cc",
