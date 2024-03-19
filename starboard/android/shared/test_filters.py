@@ -39,8 +39,12 @@ _FILTERED_TESTS = {
         # the following tests depend upon.
         'VideoDecoderTests/VideoDecoderTest.ThreeMoreDecoders/*',
 
-        # TODO(b/323250981): Flaky tests on Android
-        'PlayerComponentsTests/PlayerComponentsTest.*',
+        # The video pipeline will hang if it doesn't receive any input.
+        'PlayerComponentsTests/PlayerComponentsTest.EOSWithoutInput/*',
+
+        # The e/eac3 audio time reporting during pause will be revisitied.
+        'PlayerComponentsTests/PlayerComponentsTest.Pause/*ac3*',
+        'PlayerComponentsTests/PlayerComponentsTest.Pause/*ec3*',
     ],
     'nplb': [
         # Enable multiplayer tests once it's supported.

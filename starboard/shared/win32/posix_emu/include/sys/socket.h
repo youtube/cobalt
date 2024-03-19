@@ -47,6 +47,22 @@ int sb_send(int sockfd, const void* buf, size_t len, int flags);
 int sb_recv(int sockfd, void* buf, size_t len, int flags);
 #define recv sb_recv
 
+int sb_sendto(int sockfd,
+              const void* buf,
+              size_t len,
+              int flags,
+              const struct sockaddr* dest_addr,
+              socklen_t dest_len);
+#define sendto sb_sendto
+
+int sb_recvfrom(int sockfd,
+                void* buf,
+                size_t len,
+                int flags,
+                struct sockaddr* address,
+                socklen_t* address_len);
+#define recvfrom sb_recvfrom
+
 int sb_setsockopt(int socket,
                   int level,
                   int option_name,

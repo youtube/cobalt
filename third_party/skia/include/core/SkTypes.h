@@ -335,21 +335,6 @@
          SK_ ## C3 ## 32_SHIFT == 24)
 #endif
 
-#if defined(STARBOARD)
-typedef enum SkPmcolor { SkPmcolorIsRgba, SkPmcolorIsBgra } SkPmColor;
-
-inline SkPmcolor GetSkPmcolor() {
-    if (SK_PMCOLOR_BYTE_ORDER(R,G,B,A)) {
-        return SkPmcolorIsRgba;
-    } else if (SK_PMCOLOR_BYTE_ORDER(B,G,R,A)) {
-        return SkPmcolorIsBgra;
-    } else {
-        DCHECK(false) << "SK shift values do not correspond to a supported byte order.";
-        return (SkPmcolor)NULL;
-    }
-}
-#endif
-
 #if defined SK_DEBUG && defined SK_BUILD_FOR_WIN && !defined(STARBOARD)
     #ifdef free
         #undef free
@@ -652,5 +637,20 @@ enum class SkBackingFit {
     kApprox,
     kExact
 };
+
+#if defined(STARBOARD)
+typedef enum SkPmcolor { SkPmcolorIsRgba, SkPmcolorIsBgra } SkPmColor;
+
+inline SkPmcolor GetSkPmcolor() {
+    if (SK_PMCOLOR_BYTE_ORDER(R,G,B,A)) {
+        return SkPmcolorIsRgba;
+    } else if (SK_PMCOLOR_BYTE_ORDER(B,G,R,A)) {
+        return SkPmcolorIsBgra;
+    } else {
+        SkASSERTF(false,"SK shift values do not correspond to a supported byte order.");
+        return (SkPmcolor)NULL;
+    }
+}
+#endif
 
 #endif

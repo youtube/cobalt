@@ -12,36 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/build/config/base_configuration.gni")
+import("//starboard/build/config/modular/configuration.gni")
 
-sb_is_evergreen = !build_with_separate_cobalt_toolchain
-
-cobalt_font_package = "empty"
-
-nasm_exists = true
+size_config_path = "//starboard/evergreen/shared/platform_configuration:size"
+cobalt_licenses_platform = "evergreen"
 
 # Evergreen relies on the underlying platform for the player.
 sb_filter_based_player = false
-
-# Override that omits the "data" subdirectory.
-# TODO: Remove when omitted for all platforms in base_configuration.gni.
-sb_static_contents_output_data_dir = "$root_out_dir/content"
-
-final_executable_type = "shared_library"
-gtest_target_type = "shared_library"
-starboard_level_final_executable_type = "shared_library"
-starboard_level_gtest_target_type = "shared_library"
-
-speed_config_path = "//starboard/build/config/modular:speed"
-size_config_path = "//starboard/evergreen/shared/platform_configuration:size"
-
-pedantic_warnings_config_path =
-    "//starboard/build/config/modular:pedantic_warnings"
-no_pedantic_warnings_config_path =
-    "//starboard/build/config/modular:no_pedantic_warnings"
-
-cobalt_licenses_platform = "evergreen"
-
-install_target_path = "//starboard/build/install/install_target.gni"
-
-is_clang_16 = true

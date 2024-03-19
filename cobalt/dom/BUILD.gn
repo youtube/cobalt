@@ -404,6 +404,7 @@ target(gtest_target_type, "dom_test") {
     "rule_matching_test.cc",
     "screen_test.cc",
     "serializer_test.cc",
+    "source_buffer_metrics_test.cc",
     "storage_area_test.cc",
     "text_test.cc",
     "time_ranges_test.cc",
