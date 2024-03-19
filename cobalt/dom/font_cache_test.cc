@@ -18,6 +18,7 @@
 
 #include "base/bind.h"
 #include "base/memory/ref_counted.h"
+#include "base/test/task_environment.h"
 #include "cobalt/csp/content_security_policy.h"
 #include "cobalt/dom/font_face.h"
 #include "cobalt/dom/global_stats.h"
@@ -75,6 +76,8 @@ class FontCacheTest : public ::testing::Test {
   cobalt::render_tree::ResourceProvider* mrp;
   std::unique_ptr<loader::font::RemoteTypefaceCache> rtc;
   std::unique_ptr<dom::FontCache> font_cache_;
+  base::test::SingleThreadTaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 };
 
 FontCacheTest::FontCacheTest()

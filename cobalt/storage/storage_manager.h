@@ -25,6 +25,7 @@
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
 #include "base/timer/timer.h"
+#include "cobalt/storage/savegame.h"
 #include "cobalt/storage/savegame_thread.h"
 #include "cobalt/storage/store/memory_store.h"
 

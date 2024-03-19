@@ -18,6 +18,7 @@
 #include <sstream>
 #include <string>
 
+#include "base/test/task_environment.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/document_type.h"
 #include "cobalt/dom/element.h"
@@ -110,6 +111,8 @@ TEST_F(SerializerTest, Comment) {
 }
 
 TEST_F(SerializerTest, Document) {
+  base::test::SingleThreadTaskEnvironment task_environment{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   const std::string input = "<html><body><div></div></body></html>";
   document_ = dom_parser_->ParseDocument(input, &html_element_context_,
                                          source_location_);

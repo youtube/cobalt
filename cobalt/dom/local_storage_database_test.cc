@@ -22,6 +22,7 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
+#include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/storage/savegame_fake.h"
@@ -102,6 +103,8 @@ class LocalStorageDatabaseTest : public ::testing::Test {
   loader::Origin origin_;
   std::unique_ptr<storage::StorageManager> storage_manager_;
   std::unique_ptr<LocalStorageDatabase> db_;
+  base::test::SingleThreadTaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 };
 }  // namespace
 

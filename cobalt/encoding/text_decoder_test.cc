@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/task/sequenced_task_runner.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/dom/testing/stub_window.h"
 #include "cobalt/script/array_buffer_view.h"
