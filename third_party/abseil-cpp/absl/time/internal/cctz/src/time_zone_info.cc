@@ -785,15 +785,15 @@ std::unique_ptr<ZoneInfoSource> FuchsiaZoneInfoSource::Open(
     if (fp == nullptr) continue;
 
     std::string version;
-    if (!prefix.empty()) {
-      // Fuchsia builds place the version in "<prefix>revision.txt".
-      std::ifstream version_stream(prefix + "revision.txt");
-      if (version_stream.is_open()) {
-        // revision.txt should contain no newlines, but to be
-        // defensive we read just the first line.
-        std::getline(version_stream, version);
-      }
-    }
+    // if (!prefix.empty()) {
+    //   // Fuchsia builds place the version in "<prefix>revision.txt".
+    //   std::ifstream version_stream(prefix + "revision.txt");
+    //   if (version_stream.is_open()) {
+    //     // revision.txt should contain no newlines, but to be
+    //     // defensive we read just the first line.
+    //     std::getline(version_stream, version);
+    //   }
+    // }
 
     return std::unique_ptr<ZoneInfoSource>(
         new FuchsiaZoneInfoSource(std::move(fp), std::move(version)));
