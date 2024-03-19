@@ -103,27 +103,27 @@ bool ReadStreamToSpanWithMaxSize(
   span<uint8_t> bytes_span = resize_span(chunk_size);
   DCHECK_EQ(bytes_span.size(), chunk_size);
 
-  while ((bytes_read_this_pass = fread(bytes_span.data() + bytes_read_so_far, 1,
-                                       chunk_size, stream)) > 0) {
-    if ((max_size - bytes_read_so_far) < bytes_read_this_pass) {
-      // Read more than max_size bytes, bail out.
-      bytes_read_so_far = max_size;
-      read_status = false;
-      break;
-    }
-    // In case EOF was not reached, iterate again but revert to the default
-    // chunk size.
-    if (bytes_read_so_far == 0)
-      chunk_size = kDefaultChunkSize;
+  // while ((bytes_read_this_pass = fread(bytes_span.data() + bytes_read_so_far, 1,
+  //                                      chunk_size, stream)) > 0) {
+  //   if ((max_size - bytes_read_so_far) < bytes_read_this_pass) {
+  //     // Read more than max_size bytes, bail out.
+  //     bytes_read_so_far = max_size;
+  //     read_status = false;
+  //     break;
+  //   }
+  //   // In case EOF was not reached, iterate again but revert to the default
+  //   // chunk size.
+  //   if (bytes_read_so_far == 0)
+  //     chunk_size = kDefaultChunkSize;
 
-    bytes_read_so_far += bytes_read_this_pass;
-    // Last fread syscall (after EOF) can be avoided via feof, which is just a
-    // flag check.
-    if (feof(stream))
-      break;
-    bytes_span = resize_span(bytes_read_so_far + chunk_size);
-    DCHECK_EQ(bytes_span.size(), bytes_read_so_far + chunk_size);
-  }
+  //   bytes_read_so_far += bytes_read_this_pass;
+  //   // Last fread syscall (after EOF) can be avoided via feof, which is just a
+  //   // flag check.
+  //   if (feof(stream))
+  //     break;
+  //   bytes_span = resize_span(bytes_read_so_far + chunk_size);
+  //   DCHECK_EQ(bytes_span.size(), bytes_read_so_far + chunk_size);
+  // }
   read_status = read_status && !ferror(stream);
 
   // Trim the container down to the number of bytes that were actually read.
