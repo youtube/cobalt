@@ -17,6 +17,8 @@
 #include <algorithm>
 
 #include "base/logging.h"
+#include "base/metrics/histogram_macros.h"
+#include "base/time/time.h"
 #include "cobalt/base/statistics.h"
 #include "starboard/common/string.h"
 #include "starboard/once.h"
@@ -26,7 +28,6 @@ namespace cobalt {
 namespace dom {
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
-
 namespace {
 
 int GetBandwidth(std::size_t size, SbTimeMonotonic duration) {
@@ -59,19 +60,29 @@ double GetWallToThreadTimeRatio(int64_t wall_time, int64_t thread_time) {
 }  // namespace
 SB_ONCE_INITIALIZE_FUNCTION(StatisticsWrapper, StatisticsWrapper::GetInstance);
 
-void SourceBufferMetrics::StartTracking() {
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+
+void SourceBufferMetrics::StartTracking(SourceBufferMetricsAction action) {
   if (!is_primary_video_) {
     return;
   }
 
   DCHECK(!is_tracking_);
+  DCHECK(current_action_ == SourceBufferMetricsAction::NO_ACTION);
+  DCHECK(action != SourceBufferMetricsAction::NO_ACTION);
+
   is_tracking_ = true;
-  wall_start_time_ = SbTimeGetMonotonicNow();
+  current_action_ = action;
+  wall_start_time_ = clock_->NowTicks();
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
   thread_start_time_ =
       SbTimeIsTimeThreadNowSupported() ? SbTimeGetMonotonicThreadNow() : -1;
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 }
 
-void SourceBufferMetrics::EndTracking(std::size_t size_appended) {
+void SourceBufferMetrics::EndTracking(SourceBufferMetricsAction action,
+                                      std::size_t size_appended) {
   if (!is_primary_video_) {
     return;
   }
@@ -79,18 +90,27 @@ void SourceBufferMetrics::EndTracking(std::size_t size_appended) {
   DCHECK(is_tracking_);
   is_tracking_ = false;
 
-  SbTimeMonotonic wall_duration = SbTimeGetMonotonicNow() - wall_start_time_;
+  DCHECK(action == current_action_);
+  current_action_ = SourceBufferMetricsAction::NO_ACTION;
+
+  base::TimeDelta wall_duration = clock_->NowTicks() - wall_start_time_;
+
+  RecordTelemetry(action, wall_duration);
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
   SbTimeMonotonic thread_duration =
       SbTimeIsTimeThreadNowSupported()
           ? SbTimeGetMonotonicThreadNow() - thread_start_time_
           : 0;
-  total_wall_time_ += wall_duration;
+
+  total_wall_time_ += wall_duration.InMicroseconds();
   total_thread_time_ += thread_duration;
 
   total_size_ += size_appended;
 
   if (size_appended > 0) {
-    int wall_bandwidth = GetBandwidth(size_appended, wall_duration);
+    int wall_bandwidth =
+        GetBandwidth(size_appended, wall_duration.InMicroseconds());
     int thread_bandwidth = SbTimeIsTimeThreadNowSupported()
                                ? GetBandwidth(size_appended, thread_duration)
                                : 0;
@@ -100,7 +120,34 @@ void SourceBufferMetrics::EndTracking(std::size_t size_appended) {
     max_thread_bandwidth_ = std::max(max_thread_bandwidth_, thread_bandwidth);
     min_thread_bandwidth_ = std::min(min_thread_bandwidth_, thread_bandwidth);
   }
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 }
+
+void SourceBufferMetrics::RecordTelemetry(
+    SourceBufferMetricsAction action, const base::TimeDelta& action_duration) {
+  switch (action) {
+    case SourceBufferMetricsAction::PREPARE_APPEND:
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.SourceBuffer.PrepareAppend.Timing", action_duration,
+          base::TimeDelta::FromMicroseconds(1),
+          base::TimeDelta::FromMilliseconds(25), 50);
+      break;
+    case SourceBufferMetricsAction::APPEND_BUFFER:
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.SourceBuffer.AppendBuffer.Timing", action_duration,
+          base::TimeDelta::FromMicroseconds(1),
+          base::TimeDelta::FromMilliseconds(25), 50);
+      break;
+    default:
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.SourceBuffer.Other.Timing", action_duration,
+          base::TimeDelta::FromMicroseconds(1),
+          base::TimeDelta::FromMilliseconds(25), 50);
+      break;
+  }
+}
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
 
 void SourceBufferMetrics::PrintCurrentMetricsAndUpdateAccumulatedMetrics() {
   if (!is_primary_video_) {

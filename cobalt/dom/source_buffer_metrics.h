@@ -15,47 +15,56 @@
 #ifndef COBALT_DOM_SOURCE_BUFFER_METRICS_H_
 #define COBALT_DOM_SOURCE_BUFFER_METRICS_H_
 
+#include "base/time/default_tick_clock.h"
+#include "base/time/tick_clock.h"
+#include "base/time/time.h"
 #include "starboard/time.h"
 
 namespace cobalt {
 namespace dom {
 
-#if defined(COBALT_BUILD_TYPE_GOLD)
-
-class SourceBufferMetrics {
- public:
-  explicit SourceBufferMetrics(bool is_primary_video) {}
-  ~SourceBufferMetrics() = default;
-
-  void StartTracking() {}
-  void EndTracking(size_t size_appended) {}
-  void PrintCurrentMetricsAndUpdateAccumulatedMetrics() {}
-  void PrintAccumulatedMetrics() {}
+enum class SourceBufferMetricsAction : uint8_t {
+  NO_ACTION,
+  PREPARE_APPEND,
+  APPEND_BUFFER,
 };
 
-#else  // defined(COBALT_BUILD_TYPE_GOLD)
-
 class SourceBufferMetrics {
  public:
-  explicit SourceBufferMetrics(bool is_primary_video)
-      : is_primary_video_(is_primary_video) {}
+  SourceBufferMetrics(
+      bool is_primary_video,
+      const base::TickClock* clock = base::DefaultTickClock::GetInstance())
+      : is_primary_video_(is_primary_video), clock_(clock) {}
   ~SourceBufferMetrics() = default;
 
-  void StartTracking();
-  void EndTracking(size_t size_appended);
+  void StartTracking(SourceBufferMetricsAction action);
+  void EndTracking(SourceBufferMetricsAction action, size_t size_appended);
+
+#if defined(COBALT_BUILD_TYPE_GOLD)
+  void PrintCurrentMetricsAndUpdateAccumulatedMetrics() {}
+  void PrintAccumulatedMetrics() {}
+#else   // defined(COBALT_BUILD_TYPE_GOLD)
   void PrintCurrentMetricsAndUpdateAccumulatedMetrics();
   void PrintAccumulatedMetrics();
+#endif  // defined(COBALT_BUILD_TYPE_GOLD)
 
  private:
   SourceBufferMetrics(const SourceBufferMetrics&) = delete;
   SourceBufferMetrics& operator=(const SourceBufferMetrics&) = delete;
 
-  SbTimeMonotonic wall_start_time_ = 0;
-  SbTimeMonotonic thread_start_time_ = 0;
+  void RecordTelemetry(SourceBufferMetricsAction action,
+                       const base::TimeDelta& action_duration);
+
+  base::TimeTicks wall_start_time_;
 
   const bool is_primary_video_;
   bool is_tracking_ = false;
+  SourceBufferMetricsAction current_action_ =
+      SourceBufferMetricsAction::NO_ACTION;
+  const base::TickClock* clock_;
 
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  SbTimeMonotonic thread_start_time_ = 0;
   size_t total_size_ = 0;
   SbTime total_thread_time_ = 0;
   SbTime total_wall_time_ = 0;
@@ -63,9 +72,8 @@ class SourceBufferMetrics {
   int min_thread_bandwidth_ = INT_MAX;
   int max_wall_bandwidth_ = 0;
   int min_wall_bandwidth_ = INT_MAX;
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 };
-
-#endif  // defined(COBALT_BUILD_TYPE_GOLD)
 
 }  // namespace dom
 }  // namespace cobalt
