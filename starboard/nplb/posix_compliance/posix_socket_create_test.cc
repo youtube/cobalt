@@ -18,8 +18,6 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
-
-#include "starboard/nplb/socket_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {

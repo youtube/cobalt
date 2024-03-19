@@ -55,7 +55,6 @@ bcmp
 bind_textdomain_codeset
 bindtextdomain
 btowc
-close
 dgettext
 exit
 fclose
