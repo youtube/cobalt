@@ -3336,7 +3336,6 @@ test("net_unittests") {
 
       # Re-enable once we're on c++20
       "base/backoff_entry_serializer_unittest.cc",
-      "quic/quic_stream_factory_test.cc",
     ]
     deps -= [
       ":extras",

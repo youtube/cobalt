@@ -203,7 +203,11 @@ class HttpServerTest : public TestWithTaskEnvironment,
 
   void OnHttpRequest(int connection_id,
                      const HttpServerRequestInfo& info) override {
+  #if defined(STARBOARD)
+    received_requests_.AddValue({info, connection_id});
+  #else
     received_requests_.AddValue({.info = info, .connection_id = connection_id});
+  #endif
   }
 
   void OnWebSocketRequest(int connection_id,
