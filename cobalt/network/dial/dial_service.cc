@@ -102,14 +102,15 @@ scoped_refptr<DialServiceHandler> DialService::GetHandler(
 
   // remove '/apps/'
   const base::StringPiece kUrlPrefix("/apps/");
-  if (!path.rfind(kUrlPrefix, 0)) {
+  if (path.rfind(kUrlPrefix, 0) == std::string::npos) {
     return nullptr;
   }
   path = path.substr(kUrlPrefix.size());
 
   // find the next '/', and extract the portion in between.
   size_t pos = path.find_first_of('/');
-  std::string service_path = std::string(path.substr(0, pos));
+  std::string service_path =
+      std::string(pos == std::string::npos ? path : path.substr(0, pos));
 
   // sanity check further, then extract the data.
   DCHECK_EQ(std::string::npos, service_path.find('/'));
@@ -120,7 +121,7 @@ scoped_refptr<DialServiceHandler> DialService::GetHandler(
   DCHECK(it->second);
 
   // for the remaining portion, extract it out as the handler path.
-  *handler_path = std::string(path.substr(pos));
+  *handler_path = std::string(pos == std::string::npos ? "" : path.substr(pos));
 
   // If the |handler_path| is empty, that means the request is "/apps/Foo", the
   // semantic equivalent of "/apps/Foo/". If we keep the |handler_path| empty,
