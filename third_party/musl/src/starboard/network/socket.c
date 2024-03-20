@@ -224,9 +224,32 @@ int open(const char* path, int oflag, ...) {
 
   // TODO: b/302715109 map posix flags to SB file flags
   int open_flags = 0;
-  // O_APPEND, O_ASYNC, O_CLOEXEC, O_CREAT, O_DIRECT, O_DIRECTORY, O_DSYNC
-  // O_EXCL, O_LARGEFILE, O_NOATIME, O_NOCTTY, O_NOFOLLOW,
-  // O_NONBLOCK or O_NDELAY, O_PATH, O_SYNC, O_TMPFILE, O_TRUNC
+
+  if (oflag & O_CREAT && oflag & O_EXCL) {
+    open_flags = kSbFileCreateOnly;
+  } else if (oflag & O_CREAT && oflag & O_TRUNC) {
+    open_flags = kSbFileCreateAlways;
+  } else if (oflag & O_CREAT) {
+    open_flags = kSbFileOpenAlways;
+  } else if (oflag & O_TRUNC) {
+    open_flags = kSbFileOpenTruncated;
+  }
+
+  // All the combinations of creation flags supported by SbFileOpen is in the
+  // above. If oflag contains anything other than the access mode flags, it
+  // would not be supported by SbFileOpen.
+  if (!open_flags && oflag ^ O_RDONLY && oflag ^ O_WRONLY && oflag ^ O_RDWR) {
+    out_error = kSbFileErrorFailed;
+    SB_NOTREACHED();
+  } else if (oflag & O_RDONLY) {
+    open_flags = kSbFileOpenOnly;
+  }
+
+  if (oflag & O_RDWR) {
+    open_flags |= kSbFileRead | kSbFileWrite;
+  } else if (oflag & O_WRONLY || open_flags & kSbFileOpenTruncated) {
+    open_flags |= kSbFileWrite;
+  }
 
   value->file = SbFileOpen(path, open_flags, &out_created, &out_error);
   if (!SbFileIsValid(value->file)){
