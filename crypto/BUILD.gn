@@ -69,7 +69,7 @@ component("crypto") {
     "//third_party/boringssl",
   ]
 
-  if (is_apple) {
+  if (is_apple && !is_starboard) {
     sources += [
       "apple_keychain.h",
 

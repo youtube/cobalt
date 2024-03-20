@@ -38,6 +38,7 @@ if (use_hacky_cobalt_changes) {
   config("hacky_wnos") {
     if (is_clang) {
       cflags = [
+        "-Wno-shorten-64-to-32",
         "-Wno-unknown-warning-option",
         "-Wno-array-parameter",
         "-Wno-unknown-attributes",

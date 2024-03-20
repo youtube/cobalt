@@ -1262,7 +1262,7 @@ component("net") {
     deps += [ "//third_party/xdg_shared_mime_info" ]
   }
 
-  if (is_mac) {
+  if (is_mac && !is_starboard) {
     sources += [
       "base/network_notification_thread_mac.cc",
       "base/network_notification_thread_mac.h",
@@ -1283,7 +1283,7 @@ component("net") {
     ]
   }
 
-  if (is_apple) {
+  if (is_apple && !is_starboard) {
     sources += [
       "base/mac/url_conversions.h",
       "base/mac/url_conversions.mm",
@@ -2926,7 +2926,7 @@ test("net_unittests") {
     ]
   }
 
-  if (is_mac) {
+  if (is_mac && !is_starboard) {
     sources += [
       "cert/internal/trust_store_mac_unittest.cc",
       "ssl/client_cert_store_mac_unittest.cc",
@@ -2934,7 +2934,7 @@ test("net_unittests") {
     ]
   }
 
-  if (is_apple) {
+  if (is_apple && !is_starboard) {
     sources += [ "cert/x509_util_apple_unittest.cc" ]
   }
 
@@ -3072,7 +3072,7 @@ test("net_unittests") {
     sources += [ "tools/quic/quic_simple_server_test.cc" ]
   }
 
-  if (is_apple) {
+  if (is_apple && !is_starboard) {
     sources += [ "base/mac/url_conversions_unittest.mm" ]
   }
 
@@ -3203,7 +3203,7 @@ test("net_unittests") {
   }
 
   # Use getifaddrs() on POSIX platforms, except Linux.
-  if (is_posix && !is_linux && !is_chromeos) {
+  if (is_posix && !is_linux && !is_chromeos && !is_starboard) {
     sources += [ "base/network_interfaces_getifaddrs_unittest.cc" ]
   }
 

@@ -1689,7 +1689,7 @@ component("base") {
       ]
     }
 
-    if (is_mac) {
+    if (is_mac && !is_starboard) {
       sources += [
         "base_paths_mac.h",
         "base_paths_mac.mm",
@@ -2038,7 +2038,7 @@ component("base") {
   }
 
   # Desktop Mac.
-  if (is_mac) {
+  if (is_mac && !is_starboard) {
     sources += [
       "allocator/partition_allocator/shim/allocator_interception_mac.h",
       "allocator/partition_allocator/shim/allocator_interception_mac.mm",
@@ -2124,7 +2124,7 @@ component("base") {
   }
 
   # Mac or iOS.
-  if (is_apple) {
+  if (is_apple && !is_starboard) {
     sources += [
       "file_version_info_mac.h",
       "file_version_info_mac.mm",
@@ -2206,7 +2206,7 @@ component("base") {
   }
 
   # iOS
-  if (is_ios) {
+  if (is_ios && !is_starboard) {
     sources += [
       "base_paths_mac.h",
       "base_paths_mac.mm",
@@ -3053,7 +3053,7 @@ copy("base_unittests_bundle_data") {
   }
 }
 
-if (is_apple) {
+if (is_apple && !is_starboard) {
   source_set("base_unittests_arc") {
     testonly = true
     sources = [
@@ -3661,7 +3661,7 @@ test("base_unittests") {
     deps += [ "//build/rust:cxx_cppdeps" ]
   }
 
-  if (is_apple) {
+  if (is_apple && !is_starboard) {
     deps += [ ":base_unittests_arc" ]
   }
 
@@ -3757,7 +3757,7 @@ test("base_unittests") {
     }
   }
 
-  if (is_mac) {
+  if (is_mac && !is_starboard) {
     sources += [
       "allocator/partition_allocator/shim/allocator_interception_mac_unittest.mm",
       "allocator/partition_allocator/shim/malloc_zone_functions_mac_unittest.cc",
@@ -3781,7 +3781,7 @@ test("base_unittests") {
     ]
   }
 
-  if (is_apple && enable_mach_absolute_time_ticks) {
+  if (is_apple && enable_mach_absolute_time_ticks && !is_starboard) {
     sources += [ "time/time_mac_unittest.mm" ]
   }
 
@@ -3895,7 +3895,7 @@ test("base_unittests") {
     sources += [ "debug/allocation_trace_unittest.cc" ]
   }
 
-  if (is_ios) {
+  if (is_ios && !is_starboard) {
     sources += [
       "ios/device_util_unittest.mm",
       "ios/scoped_critical_action_unittest.mm",
@@ -4019,7 +4019,7 @@ test("base_unittests") {
     deps += [ ":partition_alloc_test_support" ]
   }
 
-  if (is_mac) {
+  if (is_mac && !is_starboard) {
     sources += [ "message_loop/message_pump_kqueue_unittest.cc" ]
     frameworks = [
       "CoreFoundation.framework",
@@ -4151,7 +4151,7 @@ test("base_unittests") {
       deps += [ ":rust_cfg_win_test" ]
     }
   }
-  if (is_apple) {
+  if (is_apple && !is_starboard) {
     sources += [ "profiler/frame_pointer_unwinder_unittest.cc" ]
   }
   if (is_chromeos && current_cpu == "x64") {
@@ -4968,7 +4968,7 @@ fuzzer_test("base_json_string_escape_fuzzer") {
   deps = [ "//base" ]
 }
 
-if (is_mac) {
+if (is_mac && !is_starboard) {
   protoc_convert("base_mach_port_rendezvous_convert_corpus") {
     sources = [
       "test/data/mach_port_rendezvous_fuzz/dead_name.textproto",
