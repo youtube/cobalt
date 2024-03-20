@@ -222,7 +222,6 @@ int open(const char* path, int oflag, ...) {
   memset(value, 0, sizeof(struct FileOrSocket));
   value->is_file = true;
 
-  // TODO: b/302715109 map posix flags to SB file flags
   int open_flags = 0;
 
   if (oflag & O_CREAT && oflag & O_EXCL) {
@@ -240,7 +239,7 @@ int open(const char* path, int oflag, ...) {
   // would not be supported by SbFileOpen.
   if (!open_flags && oflag ^ O_RDONLY && oflag ^ O_WRONLY && oflag ^ O_RDWR) {
     out_error = kSbFileErrorFailed;
-    SB_NOTREACHED();
+    return -1;
   } else if (oflag & O_RDONLY) {
     open_flags = kSbFileOpenOnly;
   }
