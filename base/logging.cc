@@ -984,7 +984,10 @@ LogMessage::~LogMessage() {
     //   free_something();
     // }
 #if defined(STARBOARD)
-    SbLog(LogLevelToStarboardLogPriority(severity_), str_newline.c_str());
+    if ((g_logging_destination & LOG_TO_SYSTEM_DEBUG_LOG) == 0) {
+      // Don't SbLog here if already done for system debug log.
+      SbLog(LogLevelToStarboardLogPriority(severity_), str_newline.c_str());
+    }
 #else
     WriteToFd(STDERR_FILENO, str_newline.data(), str_newline.size());
 #endif
@@ -1092,7 +1095,13 @@ void LogMessage::Init(const char* file, int line) {
     if (g_log_process_id)
       stream_ << base::GetUniqueIdForProcess() << ':';
     if (g_log_thread_id)
+#if defined(STARBOARD)
+      // Logging the thread name is added for Starboard logs.
+      stream_ << base::PlatformThread::GetName() << '/'
+              << base::PlatformThread::CurrentId() << ":";
+#else
       stream_ << base::PlatformThread::CurrentId() << ':';
+#endif
     if (g_log_timestamp) {
 #if defined(STARBOARD)
     EzTimeValue time_value;
