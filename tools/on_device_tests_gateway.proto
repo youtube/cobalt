@@ -29,10 +29,7 @@ service on_device_tests_gateway {
 
 // Working directory and command line arguments to be passed to the gateway.
 message OnDeviceTestsCommand {
-  enum Config {
-    devel = 0;
-  }
-
+  // Next ID: 23
   string workdir = 1;
   string token = 2;
   string test_type = 3;
@@ -52,10 +49,14 @@ message OnDeviceTestsCommand {
   string unittest_shard_index = 17;
   string test_attempts = 18;
   string retry_level = 19;
+  string start_timeout = 20;
+  string test_timeout = 21;
+  string builder_url = 22;
 }
 
 // Working directory and command line arguments to be passed to the gateway.
 message OnDeviceTestsWatchCommand {
+  // Next ID: 6
   string workdir = 1;
   string token = 2;
   string session_id = 3;
@@ -65,5 +66,6 @@ message OnDeviceTestsWatchCommand {
 
 // Response from the on-device tests.
 message OnDeviceTestsResponse {
+  // Next ID: 2
   string response = 1;
 }
