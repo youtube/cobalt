@@ -244,7 +244,7 @@ static_library("test_support") {
     public_deps += [ "//third_party/test_fonts/fontconfig:test_support" ]
   }
 
-  if (is_mac) {
+  if (is_mac && !is_starboard) {
     frameworks = [ "AppKit.framework" ]
     sources += [
       "mock_chrome_application_mac.h",
@@ -410,6 +410,7 @@ shared_library("immediate_crash_test_helper") {
 
 # This shared library is dynamically loaded by NativeLibrary unittests.
 shared_library("test_shared_library") {
+  install_target = false
   build_loader = false
   testonly = true
   sources = [ "test_shared_library.cc" ]

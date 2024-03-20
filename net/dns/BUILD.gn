@@ -105,7 +105,7 @@ source_set("dns") {
     ]
   }
 
-  if (is_mac) {
+  if (is_mac && !is_starboard) {
     sources += [
       "dns_config_watcher_mac.cc",
       "dns_config_watcher_mac.h",
