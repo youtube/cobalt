@@ -42,6 +42,12 @@ group("gn_all") {
     deps += [ platform_tests_path ]
   }
 
+  if (sb_enable_cast_api) {
+    deps += [
+      "//starboard/cast/cast_starboard_api/samples:cast_starboard_api",
+    ]
+  }
+
   if (sb_filter_based_player) {
     deps += [
       "//starboard/shared/starboard/player/filter/testing:player_filter_tests",
