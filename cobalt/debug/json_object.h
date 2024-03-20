@@ -29,7 +29,7 @@ typedef std::unique_ptr<base::Value::Dict> JSONObject;
 
 typedef std::unique_ptr<base::Value::List> JSONList;
 
-JSONObject JSONParse(const std::string& json, int* parse_error);
+JSONObject JSONParse(const std::string& json, std::string* parse_error);
 
 JSONObject JSONParse(const std::string& json);
 

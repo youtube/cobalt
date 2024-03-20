@@ -13,7 +13,7 @@ namespace media {
 const int kADTSFrequencyTable[] = {96000, 88200, 64000, 48000, 44100,
                                    32000, 24000, 22050, 16000, 12000,
                                    11025, 8000,  7350};
-const size_t kADTSFreqwuencyTableSize = std::size(kADTSFrequencyTable);
+const size_t kADTSFrequencyTableSize = std::size(kADTSFrequencyTable);
 
 // The following conversion table is extracted from ISO 14496 Part 3 -
 // Table 1.17 - Channel Configuration.

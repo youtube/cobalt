@@ -21,7 +21,7 @@
 namespace cobalt {
 namespace debug {
 
-JSONObject JSONParse(const std::string& json, int* parse_error) {
+JSONObject JSONParse(const std::string& json, std::string* parse_error) {
   base::JSONReader::Result result =
       base::JSONReader::ReadAndReturnValueWithError(json);
   if (result.has_value()) {
@@ -29,9 +29,7 @@ JSONObject JSONParse(const std::string& json, int* parse_error) {
     return JSONObject(std::make_unique<base::Value::Dict>(
         std::move(result.value().GetDict())));
   } else if (parse_error) {
-#ifdef USE_HACKY_COBALT_CHANGES
-    *parse_error = 0;
-#endif
+    *parse_error = result.error().message;
   }
   // Scoped pointer may be NULL - caller must check.
   return JSONObject(nullptr);
