@@ -3310,10 +3310,6 @@ test("net_unittests") {
     # TODO: b/327218234 - Reenable unittests with used functionality.
     # TODO: b/327008491 - Reenable unittests with unused functionality.
     sources -= [
-      "cookies/canonical_cookie_unittest.cc",
-      "cookies/cookie_inclusion_status_unittest.cc",
-      "cookies/cookie_monster_unittest.cc",
-      "cookies/cookie_util_unittest.cc",
       "disk_cache/backend_unittest.cc",
       "disk_cache/blockfile/block_files_unittest.cc",
       "disk_cache/blockfile/mapped_file_unittest.cc",
